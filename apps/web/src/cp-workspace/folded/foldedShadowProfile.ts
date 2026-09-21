@@ -3,53 +3,40 @@
  * renderer that draws one.
  *
  * The kernel says *what* casts onto *what* (`layer_shadow` paint: a receiving
- * region and its occluders' outline, each segment with the height of its
- * ledge in sheets); this says what that looks like: the contact shadow a
- * step of paper casts on the paper beside it under diffuse light.
+ * region and its occluders' outline); this says what that looks like. The
+ * shadow is a band of half-width {@link SHADOW_BAND_HALF_WIDTH_RATIO} `· width`
+ * along the outline, blurred by a Gaussian of {@link SHADOW_BLUR_SIGMA_RATIO}
+ * `· width`. It is stated that way, rather than as a curve, because it is
+ * something an SVG can draw literally — a round-capped stroke under
+ * `feGaussianBlur` — while the canvas evaluates the same curve analytically
+ * from the distance to the outline: a box convolved with a Gaussian is a pair
+ * of error functions. Along a straight edge the two agree exactly; at a corner
+ * a 2D blur is marginally lighter on a convex one and darker on a concave one
+ * than the distance field is.
  *
- * For a long straight ledge of height `h` under a uniform sky, the fraction
- * of the light a point on the lower sheet loses at distance `d` from the
- * contact line is
+ * `strength` on the paint is the darkness *at* the casting edge, so the curve
+ * is normalised to 1 there; the SVG stroke gets the matching opacity from
+ * {@link shadowSvgStroke}.
  *
- *     f(d) = (1 / 2π) ∫ cos²φ / (cos²φ + (d/h)²) dφ,   φ over a half turn
- *
- * — one half at the contact, about half of that by `d ≈ 0.55 h`, and a
- * `h² / 4d²` tail. Dark, narrow and sharp-edged, and as wide as the ledge is
- * tall: the thin dark line at the foot of every layer in a photograph. That
- * curve is drawn here as the sum of three Gaussian-blurred bands
- * ({@link SHADOW_BANDS}, fitted to within a few percent out to `2 h`),
- * because a blurred band is something both renderers can produce exactly: the
- * canvas evaluates it analytically from the distance to the outline (a box
- * convolved with a Gaussian is a pair of error functions), and the SVG export
- * strokes, dilates and blurs the outline literally. Along a straight edge the
- * two agree; at a corner the 2D blur is marginally lighter on a convex one
- * and darker on a concave one than the distance field is.
- *
- * Two departures from the physics, both deliberate. Real kami is a tenth of a
- * millimetre a sheet, which on a hand-sized model makes a one-sheet shadow
- * invisible; the kernel's sheet thickness is a few times that
- * (`SHADOW_SHEET_THICKNESS`). And a ledge whose core would be thinner than a
- * pixel or two is widened to that and lightened by the same factor
- * ({@link shadowLedgeBoost}), so a flap edge draws as a crisp faint line at
- * any zoom instead of flickering in and out between pixel centres.
+ * The paint's `width` is the reach of a ledge one sheet tall. A taller ledge —
+ * the side of a stack, `step` sheets above the paper it casts on — reaches
+ * further ({@link shadowStepReach}) and reads a little darker
+ * ({@link shadowStepStrength}); that is what makes a flap edge and the edge of
+ * an eight-layer stack look different, which is most of the depth cue a real
+ * model gives. Both scalings live here and in {@link SHADOW_PROFILE_GLSL} so
+ * the canvas and the export agree.
  */
 
+/** Half-width of the unblurred band, as a fraction of the shadow's reach. */
+export const SHADOW_BAND_HALF_WIDTH_RATIO = 0.4;
+/** Standard deviation of the blur, as a fraction of the shadow's reach. */
+export const SHADOW_BLUR_SIGMA_RATIO = 0.3;
 /**
- * The blurred bands whose weighted sum is the occlusion curve, in units of the
- * ledge height: each band's half-width, blur σ and weight. Weights are scaled
- * so the sum is 1 at the contact line.
+ * Distance, as a fraction of the reach, beyond which the shadow is treated as
+ * zero. The curve there is under 0.3% of the edge darkness, so a subface that
+ * keeps no outline edge within this margin draws no shadow at all.
  */
-export const SHADOW_BANDS: readonly { halfWidth: number; sigma: number; weight: number }[] = [
-  { halfWidth: 0.2, sigma: 0.15, weight: 0.3428 },
-  { halfWidth: 0.6, sigma: 0.4, weight: 0.5134 },
-  { halfWidth: 1.5, sigma: 1.2, weight: 0.3486 },
-];
-
-/**
- * Distance, in ledge heights, beyond which the shadow is treated as zero. The
- * widest band's edge plus three sigma: under 0.3% of the contact darkness.
- */
-export const SHADOW_REACH_RATIO = 5;
+export const SHADOW_REACH_RATIO = 1.25;
 /**
  * The most casting edges one shadow polygon is shaded against — the fragment
  * shader's loop bound. Subfaces are small next to a shadow's reach, so a
@@ -57,19 +44,32 @@ export const SHADOW_REACH_RATIO = 5;
  */
 export const MAX_SHADOW_EDGES = 24;
 /**
- * Ledges taller than this cast like this one. Stacks of twenty sheets happen
- * at the centre of a complex model; past a dozen the shadow would reach a
- * tenth of the way across the paper and bury the detail it sits beside.
+ * Ledge heights above this cast like this one. A real stack's shadow does
+ * keep widening with height, but past a handful of sheets the paper's own
+ * bulk, not the shadow, is what reads as thick — and a shadow reaching a
+ * tenth of the way across the model swallows the detail it sits on.
  */
-export const SHADOW_STEP_CAP = 12;
+export const SHADOW_STEP_CAP = 4;
+/** Exponent of the reach's growth with ledge height; 1 would be physical. */
+export const SHADOW_STEP_REACH_POWER = 0.5;
+/** Extra darkness per sheet of ledge height beyond the first. */
+export const SHADOW_STEP_STRENGTH_GAIN = 0.05;
+
 /**
- * The narrowest the innermost band's half-width is allowed to draw, in
- * pixels. Below it the ledge is widened to this and lightened by the same
- * factor, which keeps the shadow's total darkness while making it resolvable.
+ * How many times a one-sheet ledge's reach a ledge `step` sheets tall casts.
+ *
+ * Sub-linear on purpose: the physical contact shadow of a step grows about
+ * linearly with its height, but stacks of eight and twelve sheets are ordinary
+ * in a folded model and a linear reach on those buries everything nearby.
  */
-export const SHADOW_MIN_CORE_PX = 1.5;
-/** The most a ledge is widened for the pixel floor; past this it is faint anyway. */
-export const SHADOW_MAX_BOOST = 8;
+export function shadowStepReach(step: number): number {
+  return Math.min(Math.max(step, 1), SHADOW_STEP_CAP) ** SHADOW_STEP_REACH_POWER;
+}
+
+/** How many times the paint's edge darkness a ledge `step` sheets tall reads. */
+export function shadowStepStrength(step: number): number {
+  return 1 + SHADOW_STEP_STRENGTH_GAIN * (Math.min(Math.max(step, 1), SHADOW_STEP_CAP) - 1);
+}
 
 /**
  * Error function, Abramowitz & Stegun 7.1.26 — |error| ≤ 1.5e-7, which is
@@ -85,122 +85,66 @@ export function erf(x: number): number {
   return sign * (1 - poly * Math.exp(-ax * ax));
 }
 
-/** A band of `halfWidth` blurred by `sigma`, sampled at `distance` from its centre line. */
-export function blurredBand(distance: number, halfWidth: number, sigma: number): number {
-  const spread = sigma * Math.SQRT2;
-  return 0.5 * (erf((halfWidth - distance) / spread) + erf((halfWidth + distance) / spread));
-}
-
-/** What the weighted bands sum to at the contact line, before normalisation. */
-const CONTACT_SUM = SHADOW_BANDS.reduce(
-  (sum, band) => sum + band.weight * blurredBand(0, band.halfWidth, band.sigma),
-  0
-);
-
-/** The ledge height, in whatever units `sheetThickness` is in, of a ledge `step` sheets tall. */
-export function shadowLedgeHeight(step: number, sheetThickness: number): number {
-  return sheetThickness * Math.min(Math.max(step, 1), SHADOW_STEP_CAP);
-}
-
-/**
- * How much to widen a ledge of `heightPx` pixels so its innermost band is at
- * least {@link SHADOW_MIN_CORE_PX} wide; the shadow is lightened by the same
- * factor. 1 for any ledge already wide enough.
- */
-export function shadowLedgeBoost(heightPx: number): number {
-  if (!(heightPx > 0)) return SHADOW_MAX_BOOST;
-  return Math.min(
-    SHADOW_MAX_BOOST,
-    Math.max(1, SHADOW_MIN_CORE_PX / (SHADOW_BANDS[0].halfWidth * heightPx))
-  );
+/** The blurred band's value at `distance` before normalisation; 1 deep inside it. */
+function blurredBand(distance: number, width: number): number {
+  const half = SHADOW_BAND_HALF_WIDTH_RATIO * width;
+  const spread = SHADOW_BLUR_SIGMA_RATIO * width * Math.SQRT2;
+  return 0.5 * (erf((half - distance) / spread) + erf((half + distance) / spread));
 }
 
 /**
  * Darkness at `distance` from the nearest casting edge as a fraction of the
- * darkness at the contact line, for a ledge `height` tall (same units).
+ * darkness at the edge, for a shadow that reaches `width`.
  */
-export function shadowProfile(distance: number, height: number): number {
-  if (!(height > 0)) return 0;
-  const d = Math.abs(distance);
-  let sum = 0;
-  for (const band of SHADOW_BANDS) {
-    sum += band.weight * blurredBand(d, band.halfWidth * height, band.sigma * height);
-  }
-  return sum / CONTACT_SUM;
+export function shadowProfile(distance: number, width: number): number {
+  if (!(width > 0)) return 0;
+  return blurredBand(Math.abs(distance), width) / blurredBand(0, width);
 }
 
-/** A number as a GLSL float literal: `1` must read `1.0`. */
-const glslFloat = (value: number) => {
-  const text = String(value);
-  return text.includes('.') || text.includes('e') ? text : `${text}.0`;
-};
-
 /**
- * The same curve and rules, for the fragment shader. Declares `erf`,
- * `shadowBand`, `shadowProfile(float distance, float height)`,
- * `shadowLedgeHeight(float ledge, float sheetThickness)` and
- * `shadowLedgeBoost(float heightPx)`.
+ * The same curve and scalings, for the fragment shader. Declares `erf`,
+ * `shadowProfile(float distance, float width)`, `shadowStepReach(float step)`
+ * and `shadowStepStrength(float step)`.
  */
 export const SHADOW_PROFILE_GLSL = `
+float shadowStepReach(float ledge) {
+  return pow(clamp(ledge, 1.0, ${SHADOW_STEP_CAP}.0), ${SHADOW_STEP_REACH_POWER});
+}
+float shadowStepStrength(float ledge) {
+  return 1.0 + ${SHADOW_STEP_STRENGTH_GAIN} * (clamp(ledge, 1.0, ${SHADOW_STEP_CAP}.0) - 1.0);
+}
 float erf(float x) {
   float ax = abs(x);
   float t = 1.0 / (1.0 + 0.3275911 * ax);
   float poly = ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t;
   return sign(x) * (1.0 - poly * exp(-ax * ax));
 }
-float shadowBand(float distance, float halfWidth, float sigma) {
-  float spread = sigma * 1.4142135623730951;
+float blurredBand(float distance, float width) {
+  // Not 'half': that is a reserved word in GLSL ES 1.00.
+  float halfWidth = ${SHADOW_BAND_HALF_WIDTH_RATIO} * width;
+  float spread = ${SHADOW_BLUR_SIGMA_RATIO} * width * 1.4142135623730951;
   return 0.5 * (erf((halfWidth - distance) / spread) + erf((halfWidth + distance) / spread));
 }
-float shadowProfile(float distance, float height) {
-  float d = abs(distance);
-  return (${SHADOW_BANDS.map(
-    (band) =>
-      `${glslFloat(band.weight)} * shadowBand(d, ${glslFloat(band.halfWidth)} * height, ${glslFloat(band.sigma)} * height)`
-  ).join(' + ')}) * ${glslFloat(1 / CONTACT_SUM)};
-}
-float shadowLedgeHeight(float ledge, float sheetThickness) {
-  return sheetThickness * clamp(ledge, 1.0, ${glslFloat(SHADOW_STEP_CAP)});
-}
-float shadowLedgeBoost(float heightPx) {
-  if (heightPx <= 0.0) return ${glslFloat(SHADOW_MAX_BOOST)};
-  return clamp(${glslFloat(SHADOW_MIN_CORE_PX)} / (${glslFloat(SHADOW_BANDS[0].halfWidth)} * heightPx), 1.0, ${glslFloat(SHADOW_MAX_BOOST)});
+float shadowProfile(float distance, float width) {
+  return blurredBand(abs(distance), width) / blurredBand(0.0, width);
 }
 `;
 
-/** One band of the SVG construction — see {@link shadowSvgBands}. */
-export interface ShadowSvgBand {
-  /** How far to dilate the source stroke to reach this band's half-width; 0 for the innermost. */
-  dilateRadius: number;
-  /** The Gaussian blur's standard deviation. */
-  stdDeviation: number;
-  /** This band's share of the sum, already normalised to a contact value of 1. */
-  weight: number;
-}
-
 /**
- * How to draw the shadow of a ledge `height` tall in SVG: stroke the casting
- * outline `strokeWidth` wide with round caps and joins, then in a filter take
- * that stroke's alpha, dilate and blur it once per band, sum the bands with
- * the given weights (`feComposite operator="arithmetic"`) and fill the result
- * black at `opacity`. Units are whatever `height` is in, which is also taken
- * as pixels for the widening floor — the export raster is drawn at page
- * units, so they are the same.
+ * How to draw the shadow of a `layer_shadow` paint in SVG: stroke the casting
+ * outline this wide and this opaque, with round caps and joins, under a
+ * Gaussian blur of `stdDeviation`. Units are whatever `width` is in.
  */
-export function shadowSvgBands(
-  height: number,
+export function shadowSvgStroke(
+  width: number,
   strength: number
-): { strokeWidth: number; opacity: number; bands: ShadowSvgBand[] } {
-  const boost = shadowLedgeBoost(height);
-  const h = height * boost;
-  const core = SHADOW_BANDS[0];
+): { strokeWidth: number; stdDeviation: number; opacity: number } {
   return {
-    strokeWidth: 2 * core.halfWidth * h,
-    opacity: Math.min(1, strength / boost),
-    bands: SHADOW_BANDS.map((band) => ({
-      dilateRadius: (band.halfWidth - core.halfWidth) * h,
-      stdDeviation: band.sigma * h,
-      weight: band.weight / CONTACT_SUM,
-    })),
+    strokeWidth: 2 * SHADOW_BAND_HALF_WIDTH_RATIO * width,
+    stdDeviation: SHADOW_BLUR_SIGMA_RATIO * width,
+    // The blurred stroke is `blurredBand` before normalisation, so it reaches
+    // the paint's darkness at the edge only when scaled by the same factor the
+    // curve is.
+    opacity: Math.min(1, strength / blurredBand(0, width)),
   };
 }

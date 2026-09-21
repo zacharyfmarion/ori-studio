@@ -522,23 +522,22 @@ pub enum FoldedFigureRenderPaint {
     Other {
         class_name: String,
     },
-    /// The contact shadow over the paper this primitive covers, cast by the
-    /// layers nearer the viewer. The renderer evaluates it from the distance
-    /// to each `occluder_edges` segment and that segment's ledge height, so
-    /// it stays inside the primitive's geometry and reads as one continuous
-    /// shadow however many lines the casting edge is split into. See
-    /// [`ShadowRegion`].
+    /// A soft shadow over the paper this primitive covers, cast by the layers
+    /// nearer the viewer. The renderer evaluates it as a function of the
+    /// distance to the nearest `occluder_edges` segment, so it stays inside the
+    /// primitive's geometry and reads as one continuous band however many
+    /// lines the casting edge is split into. See [`ShadowRegion`].
     ///
     /// **Ori Studio native.** Oriedita fills one gradient rectangle per
     /// subface-graph line instead (`FoldedFigure_Worker_Drawer`); that shape
     /// spills off narrow receivers, ends square at every corner and compounds
     /// where two rectangles overlap, so it was replaced rather than ported.
     LayerShadow {
-        /// Thickness of one sheet of paper, in the primitive's coordinate
-        /// units. A ledge `step` sheets tall is that many times this high, and
-        /// its shadow is as wide as it is tall.
-        sheet_thickness: f64,
-        /// Darkness at the contact line, as a fraction of black.
+        /// How far the shadow of a one-sheet ledge reaches from its edge, in
+        /// the primitive's coordinate units; a taller ledge reaches further
+        /// (`FoldedFigureRenderEdge::step`).
+        width: f64,
+        /// Darkness at the casting edge, as a fraction of black.
         strength: f64,
         /// Outline segments of every casting layer.
         occluder_edges: Vec<FoldedFigureRenderEdge>,
@@ -4040,15 +4039,12 @@ fn push_paper_render_pass_primitives(
     push_custom_constraint_primitives(custom_constraints, pass, render_state, primitives);
 }
 
-/// Thickness of one sheet of paper, in object units. Real kami is about a
-/// tenth of a millimetre, which on a 400-unit square standing for a
-/// hand-sized sheet would be a quarter of a unit and invisible; this is a few
-/// times that, so a single flap's edge still reads.
-const SHADOW_SHEET_THICKNESS: f64 = 1.0;
-/// How dark the shadow is at the contact line, as a fraction of black. A
-/// wall under an unbroken sky takes half the light; paper and a room reflect
-/// some of it back.
-const SHADOW_STRENGTH: f64 = 0.35;
+/// How far a layer's shadow reaches across the paper beneath it, in object
+/// units (Oriedita's `10.0`).
+const SHADOW_OFFSET: f64 = 10.0;
+/// How dark the shadow is where it meets the casting edge (Oriedita's
+/// `new Color(0, 0, 0, 50)`), as a fraction of black.
+const SHADOW_STRENGTH: f64 = 50.0 / 255.0;
 
 /// The paper one visible face covers in a pass, and the layers that cast onto
 /// it.
@@ -4241,7 +4237,7 @@ fn push_paper_shadow_primitives(
             kind: FoldedFigureRenderPrimitiveKind::FillPath,
             style: FoldedFigureRenderStyle {
                 paint: FoldedFigureRenderPaint::LayerShadow {
-                    sheet_thickness: SHADOW_SHEET_THICKNESS * pass.camera.object_scale(),
+                    width: SHADOW_OFFSET * pass.camera.object_scale(),
                     strength: SHADOW_STRENGTH,
                     occluder_edges,
                 },

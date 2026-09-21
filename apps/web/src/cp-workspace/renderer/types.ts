@@ -228,7 +228,7 @@ export interface ShadowGeometry {
   depth: Float32Array;
   /** Per vertex, the run of `edges` to shade against: [start, count] * count. */
   edgeRange: Float32Array;
-  /** Per vertex, one sheet's thickness (user units) and contact darkness: [sheet, strength] * count. */
+  /** Per vertex, the shadow's reach (user units) and edge darkness: [width, strength] * count. */
   falloff: Float32Array;
   /** Casting outline segments in user coords: [x0, y0, x1, y1] * edgeCount. */
   edges: Float32Array;

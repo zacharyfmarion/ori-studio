@@ -57,17 +57,16 @@ are unchanged:
   both sides of a line, related through the hierarchy, mirrored for the rear
   pass — and replaces the drawing: `push_paper_shadow_primitives` emits one
   `LayerShadow` paint per receiving face, covering that face's subfaces and
-  carrying the outline of every face that casts onto it, each segment with
-  how many sheets tall its ledge is — the layers in the casting cell beyond
-  those across the line. The renderers draw the contact shadow such a ledge
-  casts under diffuse light: the wall-occlusion curve, as wide as the ledge is
-  tall (`apps/web/src/cp-workspace/folded/foldedShadowProfile.ts`), with a
-  sheet thickness a few times real kami so a single flap's edge still shows.
-  Nothing of upstream's look survives here — its constant band width and
-  gradient are what this replaces. There is no parity surface for this pass:
-  the render oracle diffs the paper passes with shadows off, and
-  `parse_oriedita_render_primitives` still reads upstream's gradient paints so
-  the oracle's own output stays parseable.
+  carrying the outline of every face that casts onto it, and the renderers
+  shade it by the distance to the nearest outline segment
+  (`apps/web/src/cp-workspace/folded/foldedShadowProfile.ts`). Each outline
+  segment also carries how many sheets tall its ledge is — the layers in the
+  casting cell beyond those across the line — and a taller ledge casts further
+  and a little darker, which upstream's constant band cannot express. The base
+  reach (`10`) and edge darkness (`50/255`) are upstream's constants. There is
+  no parity surface for this pass: the render oracle diffs the paper passes
+  with shadows off, and `parse_oriedita_render_primitives` still reads
+  upstream's gradient paints so the oracle's own output stays parseable.
 
 - **Kernel-side snapping states its candidates.** `SnapCandidates` (grid state
   plus a vertices flag) is threaded into
