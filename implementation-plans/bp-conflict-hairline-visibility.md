@@ -101,4 +101,4 @@ flaps (task chip filed).
 - [x] Validation: `cargo test -p oristudio-bp`, `cargo clippy`, `cargo fmt`,
       `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`; wasm
       rebuilt and the fixture checked in the browser at fit zoom and zoomed in.
-- [ ] Draft PR against `main`.
+- [x] Draft PR against `main` — #403.
