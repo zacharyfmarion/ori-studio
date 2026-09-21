@@ -240,6 +240,15 @@ Taken in the design discussion on 2026-09-21.
   mono-dashed" switch becomes a quick way to write the mountain and valley
   pens. On screen a pen is drawn at `width × 4/3` CSS px, non-scaling with
   zoom, as every surface draws today.
+- **D12. The paper style's inks reach References through the workspace root,
+  not `:root`.** The four `--fold-*` tokens are global: the CP editor's own
+  line colours map to them (`cpLineColor.ts`), and those are Oriedita parity
+  that follow the theme. So the style re-sets the same token names on the
+  References workspace element (`.references-workspace`) only; the Edit canvas
+  keeps the theme values. Inside References that also restyles the document's
+  creases in the big view, which is the consistent reading of "a step renders
+  in the paper style". `useReferencesDiagramScene` reads its colours from an
+  element inside the workspace rather than `document.documentElement`.
 - **D11. Hidden lines are removed, not unified.** The simulator setting, its
   checkbox, context-menu item, shortcut, palette field and canvas-2D branch
   all go (F10). The style has no hidden-line pens; the Origami House preset's
@@ -633,30 +642,95 @@ overridden.
 - [ ] `resolvePaperStyle` (pt → device px) + `SurfaceStylePolicy`;
       `RenderSettings` gains the aux/hidden pens, erode, light direction;
       `shading.ts` shared by GLSL / SVG / canvas-2D.
-- [ ] `settingsStore.paperStyle` + storage key + migration from
+- [x] `settingsStore.paperStyle` + storage key + migration from
       `simulator-settings`; simulator settings lose their style keys.
-- [ ] Simulator reads `display`; inline windows read their effective style
+      Deviations from §5: `savePaperPreset(name, slot = 'display')` takes the
+      slot as a second argument, since the Paper tab saves the slot it is
+      showing; `resetSimulatorStyle` is gone (the pane's reset applies the
+      `ori-default` preset to display); `simulatorPalette.resolveRenderSettings`
+      takes the `PaperStyle` as a third argument and `SimulatorViewport` takes
+      it as a `paperStyle` prop — the Simulate panel passes the display style,
+      an inline window its effective style (`useObjectPaperStyle`).
+- [x] Simulator reads `display`; inline windows read their effective style
       (behaviour-preserving; the colour / mono / mono-dashed switch writes the
-      M/V pens).
-- [ ] 3D window adapter reads the resolver; default light direction shared
+      M/V pens). The View Controls "Weight" row is now "Fold line weight (pt)",
+      the M/V pen width over 0.4–4.5 pt (`SIMULATOR_FOLD_WEIGHT_RANGE`); the
+      inline window's sheet shows the `inline-simulation` policy's fields with
+      effective values and a per-row reset while pinned. Deviation from §5: the
+      sheet offers the fold pens' width, not the edge pen's, because
+      `resolvePaperStyle` draws the simulator's one crease width from the
+      mountain pen where the fold pens apply, so an edge-width row there would
+      be inert. `canvas2dFrame` shades through `shadeFor` / `shadeColor` from
+      `RenderSettings.lightDir` (no lift toward white) and casts no drop
+      shadow; `PAPER_LIGHT_DIRECTION` is gone.
+- [x] 3D window adapter reads the resolver; default light direction shared
       with the simulator; perspective camera with the frame radius scaled by
       the silhouette factor (F11); re-pin `folded3dWindow.test.ts` framing
       and the projector-parity cameras (or retire them in Phase 3).
-- [ ] Remove the canvas-2D drop shadow and `display_shadows` from the 3D
-      figure's appearance options (D7).
-- [ ] `PaperStyleOverrides` + `effectivePaperStyle`; `appearance` on folded
-      figures and inline simulations; `.osf` schema 9 with validators,
-      migration and round-trip tests.
-- [ ] Properties panel: applicable-field rows per `SurfaceStylePolicy` with
+      `folded3dWindowRenderSettings` takes the figure's effective `PaperStyle`
+      (`useObjectPaperStyle`) through `PAPER_STYLE_POLICIES['folded-3d']`;
+      the window's own `1.5 × dpr` crease width is gone (the edge pen's 0.9 pt
+      is the figure's 1.2 CSS px) and the below-reference shrink stays the
+      viewport's `creaseWidthReferenceEdge`. Deviation from the wording of
+      F11: the persisted `frameRadius` stays the bounding-sphere radius — a
+      rehydrate checks a refold against it to 1e-9 (`sameFolded3dFrame`), so
+      the stored number cannot change meaning — and the *frame* derived from
+      it grows by the factor (`folded3dFrameHalfSide`, a leaf module, in the
+      figure's box and the window's fill zoom). The parity harness still
+      projects orthographically (it compares the draw passes' layer choice,
+      which is projection-independent) and cancels the factor in its own
+      camera; its pins are unchanged. The projector's own lighting stays
+      on-axis until it retires in Phase 3, so a 3D figure's export is shaded
+      differently from its window until then.
+- [x] Remove the canvas-2D drop shadow and `display_shadows` from the 3D
+      figure's appearance options (D7). The canvas-2D shadow is gone
+      (`canvas2dFrame.test.ts` pins it); `shadow` is `not-applicable` on a 3D
+      figure (`foldedAppearanceSupport`), so neither the Style menu nor the
+      sheet offers it there, and the light switch takes its slot.
+- [x] `PaperStyleOverrides` + `effectivePaperStyle`; `appearance` on folded
+      figures and inline simulations; `.osf` stays at schema 8 (§4) with
+      validators, migration and round-trip tests. Deviation from §5: the
+      store actions (`setOristudioCpFoldedFigureAppearance`,
+      `setOristudioCpInlineSimulationAppearance`) are raw document edits with
+      no history push, like placement and window edits; the one-entry-per-edit
+      verbs are `setFoldedFigureAppearance` / `setInlineSimulationAppearance`
+      in `cp-workspace/paper/objectPaperStyle.ts`, which run the layer's
+      bracket, so a colour drag can keep the bracketed protocol without a
+      per-tick entry. Refinement of "Migration on read": the writer always
+      emits `appearance` (empty when nothing is pinned) and the reader
+      migrates from the model colours only when the key is *absent* —
+      otherwise a following figure whose mirrored colours are non-default
+      would come back pinned after one save.
+- [x] Properties panel: applicable-field rows per `SurfaceStylePolicy` with
       effective values and per-row reset, on the flat figure, 3D figure and
-      inline simulation sheets; folded Style menu rows write overrides.
-- [ ] Flat figure: the store mirrors effective colours/shadow into the kernel
-      model for following figures; `foldedStrokeWidthPx` from the edge pen.
+      inline simulation sheets; folded Style menu rows write overrides. The
+      folded sheets' colour rows and the 3D light toggle pin the figure's
+      `appearance` (`setFoldedFigureAppearances`, one entry; continuous drags
+      through the pane's bracket), and the Style menu's colour rows do the
+      same under their menu gesture (`FoldedFigureActionDeps.setAppearance`);
+      `paper style overridden` fires once per field per adjustment.
+- [x] Flat figure: the store mirrors effective colours into the kernel model
+      for following figures; `foldedStrokeWidthPx` from the edge pen.
+      `store/workspaceStore/foldedFigurePaperMirror.ts` subscribes to both
+      stores and writes `front_color` / `back_color` / `line_color` through
+      `updateOristudioCpFoldedFigureModel(id, patch, { mirror: true })` — a
+      write that selects nothing and dirties nothing — via the kernel write
+      queue, for both flat and 3D figures with a handle. `display_shadows` is
+      **not** mirrored: it is the flat figure's own model option, not a style
+      field (D7). A seeded fold (Oriedita metadata, duplicate) stamps
+      `legacyPaperStyleOverrides` / the source's pins so the mirror keeps its
+      colours. Width: `cpFoldedToScene` no longer emits the kernel's Java2D
+      width as `widthMul` (it is 1 for every stroke) and multiplies each
+      figure's effective edge pen width in pt in; the canvas passes
+      `foldedStrokeWidthPx = ptToDevicePx(1, dpr)`, device px per pt, so a
+      folded edge is its pen at every zoom. References keeps passing its
+      crease pen with multipliers of 1.
 - [ ] References: `--fold-*` and `diagramColors.ts` derived from the resolved
       style; arrow pen bound.
 - [ ] Presets: built-ins, import/export, Settings ▸ Paper tab; simulator View
       Controls + inline Properties + folded Style menu bound.
-- [ ] Analytics events; i18n extract.
+- [ ] Analytics events; i18n extract. (The three events are declared in
+      `analytics/events.ts` and `docs/analytics.md`; nothing fires them yet.)
 
 ### Phase 2 — `PaperScene` + painter; simulator export moves
 
