@@ -628,7 +628,7 @@ a.context-menu__item {
 
 /* Up while a colour row's picker is open: the press that closes the picker
    lands here and goes no further. Below the menu, so its rows stay usable, and
-   above everything else — see ContextMenuColorItem. */
+   above everything else — see contextMenuPicker.tsx. */
 .context-menu__picker-shield {
   position: fixed;
   inset: 0;

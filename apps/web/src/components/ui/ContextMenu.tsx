@@ -2,6 +2,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { ContextMenuColorItem } from './ContextMenuColorItem';
+import { MenuPickerProvider, hoverFocusProps, useMenuPicker } from './contextMenuPicker';
 import type { ContextMenuItem } from './contextMenuTypes';
 
 /** Whether a row draws something in the leading column: an icon, or a check. */
@@ -27,12 +28,14 @@ function drawsLeadingSlot(item: ContextMenuItem): boolean {
  * `key` is supplied by the caller: only separators lack a stable id, so they
  * fall back to their index. `reserveLeading` says whether a row with nothing to
  * draw in the leading column keeps the column anyway — see
- * {@link renderContextMenuItems}.
+ * {@link ContextMenuItems}. `hover` is what every row does about focus on
+ * hover, decided once per list — see {@link hoverFocusProps}.
  */
 function renderItem(
   item: ContextMenuItem,
   index: number,
-  reserveLeading: boolean
+  reserveLeading: boolean,
+  hover: ReturnType<typeof hoverFocusProps>
 ): React.ReactNode {
   switch (item.kind) {
     case 'separator':
@@ -46,6 +49,7 @@ function renderItem(
             className="context-menu__item"
             disabled={item.disabled}
             title={item.hint}
+            {...hover}
           >
             {(item.icon != null || reserveLeading) && (
               <span className="context-menu__icon">{item.icon}</span>
@@ -57,7 +61,7 @@ function renderItem(
           </DropdownMenu.SubTrigger>
           <DropdownMenu.Portal>
             <DropdownMenu.SubContent className="context-menu" sideOffset={2} collisionPadding={8}>
-              {renderContextMenuItems(item.items)}
+              <ContextMenuRows items={item.items} />
             </DropdownMenu.SubContent>
           </DropdownMenu.Portal>
         </DropdownMenu.Sub>
@@ -72,6 +76,7 @@ function renderItem(
           key={item.id}
           className="context-menu__item"
           disabled={item.disabled}
+          {...hover}
           onSelect={(event) => {
             if (item.keepOpen) event.preventDefault();
             item.onSelect();
@@ -89,6 +94,7 @@ function renderItem(
           checked={item.checked}
           disabled={item.disabled}
           title={item.hint}
+          {...hover}
           onSelect={(event) => {
             if (item.keepOpen) event.preventDefault();
             item.onToggle();
@@ -111,6 +117,7 @@ function renderItem(
           // receives hover — which is what makes this reachable on exactly the
           // rows that most need it.
           title={item.hint}
+          {...hover}
           onSelect={item.onSelect}
         >
           {(item.icon != null || reserveLeading) && (
@@ -126,20 +133,34 @@ function renderItem(
 }
 
 /**
- * Render a list of entries into whatever `DropdownMenu.Content` they sit in.
- *
- * Exported so a toolbar dropdown can show the same rows a context menu does,
- * from the same descriptors — a colour row or a check row written once, not
- * once per surface.
+ * One list's rows.
  *
  * Labels line up in one column per list: a row with no icon still reserves the
  * leading slot when any sibling draws in it, so a glyph-less "Side" sits under
  * "Render as" rather than flush left of it. A list where nothing draws there
  * keeps its labels at the edge, as every menu without icons always has.
  */
-export function renderContextMenuItems(items: ContextMenuItem[]): React.ReactNode {
+function ContextMenuRows({ items }: { items: ContextMenuItem[] }) {
   const reserveLeading = items.some(drawsLeadingSlot);
-  return items.map((item, index) => renderItem(item, index, reserveLeading));
+  const hover = hoverFocusProps(useMenuPicker());
+  return items.map((item, index) => renderItem(item, index, reserveLeading, hover));
+}
+
+/**
+ * A list of entries, rendered into whatever `DropdownMenu.Content` they sit in.
+ *
+ * Exported so a toolbar dropdown can show the same rows a context menu does,
+ * from the same descriptors — a colour row or a check row written once, not
+ * once per surface. Every submenu below shares this menu's picker state, so a
+ * colour row's open picker holds the whole tree still — see
+ * {@link MenuPickerProvider}.
+ */
+export function ContextMenuItems({ items }: { items: ContextMenuItem[] }) {
+  return (
+    <MenuPickerProvider>
+      <ContextMenuRows items={items} />
+    </MenuPickerProvider>
+  );
 }
 
 interface ContextMenuProps {
@@ -217,7 +238,7 @@ export function ContextMenu({
           loop
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          {renderContextMenuItems(items)}
+          <ContextMenuItems items={items} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
