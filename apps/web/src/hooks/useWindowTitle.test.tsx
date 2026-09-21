@@ -11,6 +11,7 @@ import {
 } from '../store/workspaceStore/designTabs';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { EDIT_PATH, WELCOME_PATH } from '../routing/paths';
+import { CONTENT_PAGES } from '../site/sitePages';
 
 /**
  * The window title names the **open file**, falling back to the **project** —
@@ -174,6 +175,14 @@ describe('useWindowTitle', () => {
     // fetching that URL directly ends up on.
     mountWith({ workspaceTitle: 'Crane', dirty: false, ...singleTreemakerDesignTab() }, '/welcome/');
     expect(window.document.title).toBe(SITE_TITLE);
+  });
+
+  it('titles a content page by its own title, in the form the deploy serves it', () => {
+    // `/download/` is what Pages answers with, and react-router reports it verbatim.
+    // The registry answers which pages exist, so this hook needs no list of its own.
+    const [page] = CONTENT_PAGES;
+    mountWith({ workspaceTitle: 'Crane', dirty: true, ...singleTreemakerDesignTab() }, page.path);
+    expect(window.document.title).toBe(page.title);
   });
 
   it('takes the document title back on the way into a workspace', () => {

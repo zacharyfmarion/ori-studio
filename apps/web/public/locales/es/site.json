@@ -1,0 +1,38 @@
+{
+  "download": {
+    "builds": {
+      "allReleases": "Todas las versiones, con sus notas, en GitHub",
+      "lead": "Un archivo por plataforma y arquitectura, publicado en GitHub Releases.",
+      "title": "Todas las compilaciones"
+    },
+    "eyebrow": "Aplicación de escritorio",
+    "latest": "Última versión: {{version}}",
+    "lead": "Ori Studio funciona en tu navegador sin instalar nada. La aplicación de escritorio es el mismo espacio de trabajo, empaquetado para macOS, Windows y Linux, con menús y diálogos de archivo nativos, proyectos que se abren directamente desde el Finder o el Explorador y actualizaciones que se instalan solas.",
+    "openInBrowser": "O ábrelo en tu navegador",
+    "title": "Descargar Ori Studio",
+    "which": {
+      "linuxBody": "El .deb se instala en Debian, Ubuntu y sus derivadas. El AppImage funciona en cualquier parte sin instalación: dale permisos de ejecución y lánzalo.",
+      "linuxTerm": "Linux",
+      "macBody": "Apple Silicon para cualquier Mac con chip de la serie M; Intel para los anteriores. El botón de descarga elige Apple Silicon por defecto, porque un navegador no puede distinguirlos.",
+      "macTerm": "macOS",
+      "title": "¿Qué compilación elegir?",
+      "windowsBody": "Un solo instalador, para Windows de 64 bits.",
+      "windowsTerm": "Windows"
+    }
+  },
+  "footer": {
+    "communityLabel": "Comunidad",
+    "discord": "Discord",
+    "github": "GitHub",
+    "note": "{{name}} es libre y de código abierto.",
+    "releases": "Versiones"
+  },
+  "header": {
+    "openApp": "Abrir la aplicación"
+  },
+  "nav": {
+    "download": "Descargar",
+    "home": "Inicio",
+    "label": "Sitio"
+  }
+}

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { WelcomeLanding } from '../components/landing/WelcomeLanding';
+import { SiteFooter } from '../site/SiteFooter';
 import { SITE_TITLE } from './siteMeta';
 
 /**
@@ -37,12 +38,17 @@ const visuallyHidden: CSSProperties = {
  * leaves a crawler to guess what the page is about. It is hidden because the app's own
  * heading structure takes over the moment React mounts, and a heading that exists for two
  * hundred milliseconds should not push the layout around while it is there.
+ *
+ * The footer is here for the same reason it is in `WelcomeRoute`: it is where the landing
+ * links to the other pages of the site, and a crawler that reads bytes has to find them
+ * from this copy exactly as one that renders finds them from the live one.
  */
 export function StaticLanding() {
   return (
     <>
       <h1 style={visuallyHidden}>{SITE_TITLE}</h1>
       <WelcomeLanding />
+      <SiteFooter />
     </>
   );
 }

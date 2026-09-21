@@ -1,0 +1,38 @@
+{
+  "download": {
+    "builds": {
+      "allReleases": "リリースノート付きのすべてのリリース（GitHub）",
+      "lead": "プラットフォームとアーキテクチャごとに 1 ファイルずつ、GitHub Releases で公開しています。",
+      "title": "すべてのビルド"
+    },
+    "eyebrow": "デスクトップアプリ",
+    "latest": "最新リリース: {{version}}",
+    "lead": "Ori Studio は何もインストールせずにブラウザで動作します。デスクトップアプリは同じワークスペースを macOS、Windows、Linux 向けにパッケージしたもので、ネイティブのメニューとファイルダイアログ、Finder や Explorer から直接開けるプロジェクト、自動でインストールされる更新が加わります。",
+    "openInBrowser": "またはブラウザで開く",
+    "title": "Ori Studio をダウンロード",
+    "which": {
+      "linuxBody": ".deb は Debian や Ubuntu とその派生ディストリビューションにインストールできます。AppImage はインストール不要でどこでも動きます。実行権限を付けて起動してください。",
+      "linuxTerm": "Linux",
+      "macBody": "M シリーズチップ搭載の Mac は Apple Silicon、それ以前の Mac は Intel を選んでください。ブラウザには両者を区別できないため、ダウンロードボタンは既定で Apple Silicon を選びます。",
+      "macTerm": "macOS",
+      "title": "どのビルドを選ぶか",
+      "windowsBody": "64 ビット Windows 向けのインストーラーが 1 つです。",
+      "windowsTerm": "Windows"
+    }
+  },
+  "footer": {
+    "communityLabel": "コミュニティ",
+    "discord": "Discord",
+    "github": "GitHub",
+    "note": "{{name}} は自由でオープンソースのソフトウェアです。",
+    "releases": "リリース"
+  },
+  "header": {
+    "openApp": "アプリを開く"
+  },
+  "nav": {
+    "download": "ダウンロード",
+    "home": "ホーム",
+    "label": "サイト"
+  }
+}

@@ -93,7 +93,21 @@ export type DesktopDownloadBuild =
  * `toolbar` came from somebody already using the app, and one from `landing`
  * from somebody deciding whether to.
  */
-export type DesktopDownloadSurface = 'start-screen' | 'landing' | 'toolbar' | 'about';
+export type DesktopDownloadSurface =
+  | 'start-screen'
+  | 'landing'
+  | 'toolbar'
+  | 'about'
+  | 'download-page';
+
+/**
+ * A page of the site — the landing's siblings, not the app's workspaces.
+ *
+ * The landing itself reports as `landing viewed`, which predates these pages and carries
+ * a `surface` this one does not need; it is not folded in here so its history stays
+ * comparable. Kept in step with `SitePageId` by the `viewed` hook's parameter type.
+ */
+export type SitePageViewedId = 'download';
 
 /**
  * A feature slide in one of the landing carousels.
@@ -721,6 +735,13 @@ export const ANALYTICS_EVENTS = {
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
   landingViewed: 'landing viewed',
+  /**
+   * A content page of the site was opened — `/download/` and its siblings.
+   *
+   * The pages exist to be found from a search result, and this is the only way to tell
+   * whether they are: a page nobody arrives at is a page not worth translating further.
+   */
+  sitePageViewed: 'site page viewed',
   landingSectionViewed: 'landing section viewed',
   landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',

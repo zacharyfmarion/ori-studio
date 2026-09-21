@@ -1,9 +1,11 @@
 import { createInstance } from 'i18next';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
-import { landingJsonLdScript } from './jsonLd';
+import { StaticRouter } from 'react-router-dom';
+import { SITE_PAGE_CONTENT } from '../site/sitePageContent';
+import { LANDING_PAGE, SITE_PAGES, type SitePage } from '../site/sitePages';
+import { buildPageHtml, outputFilesForPage } from './prerenderHtml';
 import { SEO_CONTENT_ID } from './siteMeta';
-import { StaticLanding } from './StaticLanding';
 
 /**
  * An i18next instance with **no resources at all**.
@@ -33,14 +35,49 @@ function createPrerenderI18n() {
   return instance;
 }
 
-/** The landing page as static HTML, with no React runtime attached to it. */
-export function renderLandingMarkup(): string {
+/**
+ * A site page as static HTML, with no React runtime attached to it.
+ *
+ * Inside a `StaticRouter` at the page's own path, because the nav is made of `Link`s and
+ * marks the current page — the same markup the live route renders, which is the point.
+ */
+export function renderPageMarkup(page: SitePage): string {
   const i18n = createPrerenderI18n();
+  const Content = SITE_PAGE_CONTENT[page.id];
   return renderToStaticMarkup(
     <I18nextProvider i18n={i18n}>
-      <StaticLanding />
+      <StaticRouter location={page.path}>
+        <Content />
+      </StaticRouter>
     </I18nextProvider>
   );
 }
 
-export { landingJsonLdScript, SEO_CONTENT_ID };
+/** The landing alone — what the smoke tests and the older call sites ask for. */
+export function renderLandingMarkup(): string {
+  return renderPageMarkup(LANDING_PAGE);
+}
+
+/** One finished file for the build script to write. */
+export interface PrerenderedFile {
+  /** `dist`-relative path. */
+  file: string;
+  html: string;
+  page: SitePage;
+}
+
+/**
+ * Every file the prerender writes, from the built `index.html`.
+ *
+ * The whole site in one call, so the script that writes files has nothing to decide: which
+ * pages exist, what each one's head says, where each one lands — all of it is answered
+ * here from the registry, and all of it is testable without a Vite server.
+ */
+export function prerenderSite(template: string): PrerenderedFile[] {
+  return SITE_PAGES.flatMap((page) => {
+    const html = buildPageHtml(template, page, renderPageMarkup(page));
+    return outputFilesForPage(page).map((file) => ({ file, html, page }));
+  });
+}
+
+export { SEO_CONTENT_ID };
