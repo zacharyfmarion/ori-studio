@@ -827,6 +827,49 @@ as-shown), saved as `<workspace> step N.svg|png` through the file service;
 pose is not exported (the step at rest is the diagram); recorded as a later
 option.
 
+### 11. Phase 7 contracts
+
+What the projector still does, and what replaces it:
+
+| Use | Today | Phase 7 |
+| --- | --- | --- |
+| SVG/PNG export | already the scene (Phase 3) | — |
+| The `.osf` picture and the fallback canvas | `renderSnapshot`, an Oriedita primitive stream from `projectFolded3dModel` | a stored **`PaperScene`** |
+| Re-projection on a colour/orbit change for an unwindowed figure | `folded3dReproject.reproject3dFigureAt` | the same shape, producing a scene |
+| `FoldedFigureCamera`, `DEFAULT_FOLDED_3D_CAMERA`, `folded3dCoplanarEpsilon` | exported from the projector file | moved to `folded3dCamera.ts` (types and constants only) |
+
+**Stored picture.** `OristudioCpFoldedFigureEntry.renderSnapshot` keeps its
+meaning for the **flat** figure (the kernel's own stream, unchanged). A 3D
+figure stores `scene: PaperScene | null` instead, written by
+`folded3dPaperScene` at the same moments the projector ran (fold, refold,
+another solution, a style or colour change, the once-per-gesture commit of a
+turn). `.osf`: `viewState.foldedFigures[i].scene`, validated field by field
+in `nativeProjectFile.ts` beside the existing snapshot validator; a file
+written before this carries `renderSnapshot` on a 3D figure and is read as
+before — the fallback canvas can draw either, and the next write replaces it
+with a scene. `NATIVE_PROJECT_SCHEMA_VERSION` stays 8 (additive, D1's rule);
+`minimumReaderSchemaVersion` untouched. An older build opening a new file
+sees a 3D figure with no `renderSnapshot` and shows it as not-yet-rehydrated,
+which is the same state it shows for a figure it cannot draw — acceptable,
+and stated in the release notes.
+
+**Fallback canvas.** `cpFoldedToScene` gains a branch that turns a stored
+`PaperScene` into the GPU's fills and strokes directly (faces → fills in the
+scene's own colours through the effective style, lines → strokes in their
+pens), replacing the primitive-stream path for 3D figures. The flat figure's
+primitive path stays.
+
+**Deletions.** `foldedFigure3dProjection.ts` and its tests
+(`foldedFigure3dProjection.test.ts`, `folded3dProjectorParity.test.ts`,
+`projectorIsExportOnly.test.tsx`) go once nothing imports them; the parity
+gate that remains is `folded3dSceneSkinParity.test.ts` (scene vs the window's
+draw passes), which is the invariant the projector harness was standing in
+for. `folded3dModelReader.ts`'s "lifted verbatim from the projector" note
+becomes the statement that it is now the only reader.
+`folded-figure-viewport.md` §5 gets a closing paragraph: R7 holds by
+construction, one figure one drawing, and the measurement that once argued
+against the mesh route no longer applies (F9).
+
 ## Affected Areas
 
 - `apps/web/src/lib/paper/` (new): style, scene, painter, presets, tests.
