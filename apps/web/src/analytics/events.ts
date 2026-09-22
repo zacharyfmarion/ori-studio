@@ -1011,9 +1011,27 @@ export type UpdateFailureStage = 'check' | 'download' | 'install';
  * against the public key compiled into the app, which is either a corrupted
  * object or an attack, and — if it is a key mismatch — it is fleet-wide.
  * `stale_manifest` means the endpoint offered a version below one already seen.
+ *
+ * The transport reasons are named by the shell, which is the only place the
+ * cause of a failed request can be read: the updater plugin reports every one
+ * of them as the same "error sending request" string, which is how half the
+ * Windows fleet spent a month filed under `unknown`. `dns`, `connect`, `tls`,
+ * `proxy` and `timeout` are the causes it could name; `network` is a transport
+ * failure it could not. `http_status`, `parse` and `no_platform_entry` are the
+ * manifest's fault, and therefore fleet-wide; `unsupported` is this build's.
+ * Mirrors `UpdateCheckErrorKind` in `platform/updateService.ts` plus the two
+ * reasons only the frontend can raise.
  */
 export type UpdateFailureReason =
   | 'network'
+  | 'dns'
+  | 'connect'
+  | 'tls'
+  | 'proxy'
+  | 'timeout'
+  | 'http_status'
+  | 'parse'
+  | 'no_platform_entry'
   | 'signature'
   | 'stale_manifest'
   | 'unsupported'
