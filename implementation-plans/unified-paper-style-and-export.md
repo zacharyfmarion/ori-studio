@@ -562,6 +562,73 @@ read and write `display` (colour/mono/mono-dashed through the switch above).
 Properties sheets show the policy's fields with a per-row `reset` while
 overridden.
 
+### 6. Phase 2 contracts
+
+**Scene types live in the simulator package** (`packages/origami-simulator/src/paperScene.ts`),
+because the producers for the simulator and the 3D figure run in the worker
+and the package cannot import `apps/web`; `lib/paper` re-exports the types and
+holds the painter. Scene coordinates are **CSS px at the camera the surface
+showed** — what every producer already has — and the painter is the one place
+they become pt (`0.75 pt/px`, scaled further only by a sheet-size option).
+
+```ts
+type ScenePoint = [number, number];
+type PaperLineRole = 'edge' | 'mountain' | 'valley' | 'aux';
+interface PaperFaceItem { kind: 'face'; face: number; side: 'front' | 'back'; rings: ScenePoint[][]; shade: number /* 1 = unlit */; hidden: boolean }
+interface PaperLineItem { kind: 'line'; role: PaperLineRole; a: ScenePoint; b: ScenePoint; onBoundary: [boolean, boolean]; face?: number; hidden: boolean }
+type PaperItem = PaperFaceItem | PaperLineItem;   // arrows and symbols join in Phase 6
+interface PaperScene { bounds: { minX; minY; maxX; maxY }; sheet: number /* unfolded sheet extent, scene px */; items: PaperItem[] /* draw order, back to front */ }
+```
+
+`meshToPaperScene(positions, topology, camera, options): PaperScene` is the
+BSP half of today's `renderMeshToSvg` — `projectVertices`, `buildBsp`,
+`traverseBsp`, `findVisiblePieces` (marking `hidden`, never dropping), the
+consecutive coplanar merge with `outlineOf` extended to multi-loop rings —
+with options `{ perspective; markHidden; lighting; lightDir; faceGroups?: Uint32Array /* source face per triangle */; sides?: Uint8Array /* 0 front, 1 back, per triangle; winding when absent */; order?: Float32Array /* coplanar order per triangle */; sheet: number /* unfolded extent, world units */ }`.
+Face shade is `shadeFor(normal, lightDir)` or 1. Edge codes: `prepare.ts`
+tags a source `F` edge as **aux** (code 3) and a triangulation diagonal as
+**facet** (code 4, never drawn); `U`/`C`/`J` stay border. A line's
+`onBoundary` flags are true at an endpoint that lies on the sheet boundary or
+on a fold edge of the face it is drawn on (the BSP knows the face; the
+producer computes it from the topology).
+
+**Painter** `lib/paper/paperSvg.ts`:
+`paperSceneToSvg(scene, style: PaperStyle, page: PaperPage): { svg: string; widthPt: number; heightPt: number }`
+writes `<svg width="{w}pt" height="{h}pt" viewBox="0 0 w h">` with user
+units = pt. `PaperPage = { sheet: 'as-shown' | { mm: number }; paddingMm: number; background: Hex | null; keepHiddenFaces: boolean }`
+(`lib/paper/paperPage.ts`, `DEFAULT_PAPER_PAGE = { sheet: 'as-shown', paddingMm: 5, background: null, keepHiddenFaces: true }`,
+normaliser). Faces fill `shadeColor(paper.front|back, shade)` with the seam
+hairline in their own fill (`SEAM_STROKE_WIDTH_PT = 0.4`), multi-ring faces as
+one `<path>` with `fill-rule="evenodd"`, hidden faces dropped only when
+`keepHiddenFaces` is false. Lines take their role's pen: `stroke`,
+`stroke-width` in pt, `stroke-dasharray` = multiples × width with
+`stroke-dashoffset` chosen so the pattern is symmetric about the segment's
+midpoint, `stroke-linecap` from the cap; aux lines only when
+`auxCreases.visible`. Erode pulls each `onBoundary` endpoint toward the
+segment midpoint by `erode × sheet` (scene px, then scaled), and drops a
+segment that would invert. `lib/paper/paperPng.ts`:
+`paperSvgToPng(result, dpi): Promise<Uint8Array>` rasterises at
+`pt / 72 × dpi` px through the existing `svgToPng`; default 192 dpi (the PNG
+stays 2× the CSS page).
+
+**Export page settings** (`settingsStore.paperExport: PaperPage & { pngDpi: number }`,
+persisted under `STORAGE_KEYS.paperExport = 'paper-export'`): edited in a
+new "Export page" section of Settings ▸ Paper and mirrored by the simulator
+View Controls' Export group (background, keep hidden faces, sheet size).
+`SimulatorSettings.exportBackground` retires: `'white'` seeds `#ffffff`,
+anything else `null`.
+
+**Simulator path.** The main thread resolves the *export* style —
+`effectivePaperStyle(paperStyle.export ?? paperStyle.display, object?.appearance)`
+— and hands it, the page and the last camera to the worker:
+`exportSvg({ token; camera; devicePixelRatio; style: PaperStyle; page: PaperPage })`
+returns the painter's result. `saveSimulatorView` writes the SVG verbatim or
+the PNG at `paperExport.pngDpi`. `renderMeshToSvg` and `SvgRenderResult` are
+deleted once nothing calls them; the package's `svgRenderer.test.ts` is
+re-pinned onto `meshToPaperScene` and the web's painter tests. Analytics:
+`paper exported { surface: 'simulator' | 'inline-simulation' | …, format: 'svg' | 'png', hidden_faces: 'kept' | 'dropped' }`
+fired from the export hook; `file exported` keeps firing from the file service.
+
 ## Affected Areas
 
 - `apps/web/src/lib/paper/` (new): style, scene, painter, presets, tests.
