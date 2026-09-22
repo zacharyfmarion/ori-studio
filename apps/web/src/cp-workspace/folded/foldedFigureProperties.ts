@@ -35,6 +35,7 @@ import { foldedColorLabel, foldedStateLabel } from './foldedFigureControlOptions
 import { foldedFigureSubtitle } from './foldedFigureNotice';
 import { foldedFigureModel } from './foldedFigureState';
 import type { PaperStyleOverrideEdit } from '../paper/objectPaperStyle';
+import { auxAndErodeFields, edgeInkEdits, foldPenFields } from '../paper/paperStyleFields';
 
 export interface FoldedFigurePropertyDeps {
   t: TFunction;
@@ -132,6 +133,10 @@ export function buildFoldedFigureProperties(
 
   const { style, overrides, held } = deps;
   const policy = PAPER_STYLE_POLICIES[spatial ? 'folded-3d' : 'folded-flat'];
+  /** A style row's support: only readiness gates it, as for every appearance row. */
+  const styleSupport = ready
+    ? { support: 'supported' as const }
+    : { support: 'unsupported' as const, reason: notReady };
   const changeStyle = t('panels:cpProperties.paperStyle.changeAction', 'Change paper style');
   const pinned = (field: PaperStyleField) => overrides?.[field] !== undefined;
   const resetOf = (field: PaperStyleField) =>
@@ -204,10 +209,13 @@ export function buildFoldedFigureProperties(
       deps.writeOverride('paper.back', hex)
     ),
     // A pen is pinned whole, so the line colour copies the effective edge pen
-    // and changes its colour; its reset clears the whole pen.
-    styleColor('lineColor', 'line_color', 'edges', style.edges.color, (hex) =>
-      deps.writeOverride('edges', { ...style.edges, color: hex })
-    ),
+    // and changes its colour, and under a mono style the fold pens a 3D figure
+    // draws follow it (`edgeInkEdits`); its reset clears the whole pen.
+    styleColor('lineColor', 'line_color', 'edges', style.edges.color, (hex) => {
+      for (const pin of edgeInkEdits(style, hex, policyApplies(policy, 'mountainFolds'))) {
+        deps.writeOverride(pin.field, pin.value);
+      }
+    }),
     ...(foldedAppearanceVisible(figure, 'shadow')
       ? [
           {
@@ -222,6 +230,12 @@ export function buildFoldedFigureProperties(
           } satisfies PropertyField,
         ]
       : []),
+    // A 3D figure draws its folds as the simulator does — M/V pens by fold
+    // sign — so it offers the simulator's controls for them (Phase 5); the
+    // flat figure has no visible M/V and its policy leaves them out (D6).
+    ...(policyApplies(policy, 'mountainFolds')
+      ? foldPenFields({ ...deps, support: styleSupport })
+      : []),
     ...(policyApplies(policy, 'light')
       ? [
           {
@@ -230,9 +244,7 @@ export function buildFoldedFigureProperties(
             label: t('panels:simulatorViewControls.lighting', 'Lighting'),
             // A style field rather than a model option, so the oracle has no
             // say; only readiness gates it, as for every appearance row.
-            ...(ready
-              ? { support: 'supported' as const }
-              : { support: 'unsupported' as const, reason: notReady }),
+            ...styleSupport,
             undoLabel: changeStyle,
             protocol: 'discrete',
             value: style.light.enabled,
@@ -242,6 +254,10 @@ export function buildFoldedFigureProperties(
           } satisfies PropertyField,
         ]
       : []),
+    // Every surface's policy applies these since Phase 5; the flat figure's
+    // aux creases are the document's own carried through the fold, the 3D
+    // figure's its 0° folds.
+    ...auxAndErodeFields({ ...deps, support: styleSupport }),
   ];
 
   const sections: PropertySection[] = [

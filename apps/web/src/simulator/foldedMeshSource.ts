@@ -43,6 +43,8 @@ export interface Folded3dMeshPayload {
   /** Camera fit — the mesh is already centroid-relative, so this is the origin. */
   center: [number, number, number];
   radius: number;
+  /** The unfolded sheet's extent in the mesh's units; see `Folded3dMesh.sheet`. */
+  sheet: number;
   /**
    * The two visible surfaces of each plane, and the ranges that draw them — see
    * `Folded3dSkin`. An opaque figure draws one per plane, chosen by `up · eye`.
@@ -97,12 +99,16 @@ export class FoldedMeshSource {
       });
       core.createTexture('u_lastPosition', { width: dim, height: dim, data: null });
       core.createTexture('u_lastVelocity', { width: dim, height: dim, data: null });
-      const mesh = new MeshRenderer(core, {
-        faceIndices: new Uint32Array(payload.faceIndices),
-        edgeIndices: new Uint32Array(payload.edgeIndices),
-        edgeAssignments: new Uint8Array(payload.edgeAssignments),
-        textureDim: dim,
-      });
+      const mesh = new MeshRenderer(
+        core,
+        {
+          faceIndices: new Uint32Array(payload.faceIndices),
+          edgeIndices: new Uint32Array(payload.edgeIndices),
+          edgeAssignments: new Uint8Array(payload.edgeAssignments),
+          textureDim: dim,
+        },
+        { sheet: payload.sheet }
+      );
       return new FoldedMeshSource(
         core,
         mesh,

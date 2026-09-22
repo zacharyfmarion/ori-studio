@@ -82,9 +82,16 @@ describe('diagramInModel', () => {
     expect(arcEndPoint(out)[1]).toBeCloseTo(25, 6);
   });
 
-  it('measures the sheet in model units and knows where its middle is', () => {
+  it('measures the sheet in model units and knows where its middle is and which way it lies', () => {
+    // Re-pinned for Phase 5's erode: the sheet carries the frame's axes, so a
+    // turned paper's edge is found where it is and not on an upright box.
     const model = diagramInModel(diagram, FLIPPED);
-    expect(model.sheet).toEqual({ width: 100, height: 100, centre: [50, 50] });
+    expect(model.sheet).toEqual({
+      width: 100,
+      height: 100,
+      centre: [50, 50],
+      axes: { x: [1, 0], y: [0, -1] },
+    });
     const tall = diagramInModel({ ...diagram, sheet: { width: 0.5, height: 1 } }, FLIPPED);
     expect(tall.sheet.width).toBe(50);
     expect(tall.sheet.height).toBe(100);

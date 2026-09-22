@@ -15,6 +15,7 @@ import {
   createOverlayProjector,
   dashRulerAlong,
   dashZeroOf,
+  erodeCreaseOnSheet,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
   arcSamplePoints,
@@ -490,5 +491,81 @@ describe('the dash ruler on a line that is only nearly axis-aligned', () => {
     // Without a zero the ruler is the origin's, as before.
     expect(dashRulerAlong(0.552, 0.979, 0.537, 0.963).phase).not.toBeCloseTo(0, 3);
     expect(dashZeroOf([])).toBeUndefined();
+  });
+});
+
+describe('erodeCreaseOnSheet', () => {
+  // D8, on a step's sheet: an end on the paper's edge retreats by the share of
+  // the longer side, an end inside stays, a crease the pull would invert is
+  // dropped. Sheet units, before projection.
+  it('pulls an end on the edge in and leaves one inside alone', () => {
+    expect(erodeCreaseOnSheet([0, 0.5], [1, 0.5], UNIT, 0.1)).toEqual([
+      [0.1, 0.5],
+      [0.9, 0.5],
+    ]);
+    expect(erodeCreaseOnSheet([0, 0.5], [0.6, 0.5], UNIT, 0.1)).toEqual([
+      [0.1, 0.5],
+      [0.6, 0.5],
+    ]);
+    expect(erodeCreaseOnSheet([0.2, 0.2], [0.7, 0.7], UNIT, 0.1)).toEqual([
+      [0.2, 0.2],
+      [0.7, 0.7],
+    ]);
+  });
+
+  it('measures the share against the longer side, and finds the edge round the centre', () => {
+    // A 2 × 1 sheet: 0.1 of it is 0.2.
+    const wide = { width: 2, height: 1 };
+    expect(erodeCreaseOnSheet([0, 0.5], [2, 0.5], wide, 0.1)).toEqual([
+      [0.2, 0.5],
+      [1.8, 0.5],
+    ]);
+    // On the canvas the paper sits where the document put it.
+    const placed = { width: 2, height: 1, centre: [10, 10] as const };
+    expect(erodeCreaseOnSheet([9, 10], [11, 10], placed, 0.1)).toEqual([
+      [9.2, 10],
+      [10.8, 10],
+    ]);
+    // A point on the edge's line but off the paper is not on its edge.
+    expect(erodeCreaseOnSheet([-1, 0.5], [0.5, 0.5], UNIT, 0.1)).toEqual([
+      [-1, 0.5],
+      [0.5, 0.5],
+    ]);
+  });
+
+  it('finds the edge of a turned sheet along its own axes', () => {
+    // A square of side 2 turned 45° about (10, 10): its corners are 2/√2 out
+    // along the diagonals, and its edges run along (1, 1)/√2 and (−1, 1)/√2.
+    // A book fold from one edge's middle to the opposite one runs along the
+    // y axis of the space from (10, 9) to (10, 11) — strictly inside the
+    // upright 2 × 2 box, and on the paper's edge at both ends.
+    const r = Math.SQRT1_2;
+    const turned = {
+      width: 2,
+      height: 2,
+      centre: [10, 10] as const,
+      axes: { x: [r, r] as const, y: [-r, r] as const },
+    };
+    const fold = erodeCreaseOnSheet([10, 10 - 2 * r], [10, 10 + 2 * r], turned, 0.1)!;
+    expect(fold[0].map((v) => Number(v.toFixed(6)))).toEqual([10, Number((10 - 2 * r + 0.2).toFixed(6))]);
+    expect(fold[1].map((v) => Number(v.toFixed(6)))).toEqual([10, Number((10 + 2 * r - 0.2).toFixed(6))]);
+    // An end on the upright box's edge is inside the turned paper and stays.
+    expect(erodeCreaseOnSheet([11, 10], [10, 10], turned, 0.1)).toEqual([
+      [11, 10],
+      [10, 10],
+    ]);
+    // A corner is on the edge; the middle is not.
+    expect(erodeCreaseOnSheet([10 + 2 * r, 10], [10, 10], turned, 0.1)!.map((p) => p.map((v) => Number(v.toFixed(6))))).toEqual([
+      [Number((10 + 2 * r - 0.2).toFixed(6)), 10],
+      [10, 10],
+    ]);
+  });
+
+  it('drops a crease the pull would invert, and is the identity at zero', () => {
+    expect(erodeCreaseOnSheet([0, 0.5], [1, 0.5], UNIT, 0.5)).toBeNull();
+    expect(erodeCreaseOnSheet([0, 0.5], [1, 0.5], UNIT, 0)).toEqual([
+      [0, 0.5],
+      [1, 0.5],
+    ]);
   });
 });

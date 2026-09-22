@@ -665,11 +665,16 @@ pub struct FoldedPaperScene {
     /// The subfaces the drawer paints, in its order (`subface_graph.faces`,
     /// minus the ones it skips: no faces under it, or fewer than three points).
     pub subfaces: Vec<FoldedPaperSubface>,
-    /// Always empty today. The fold takes only folding-colour creases
-    /// (`LineColor::is_folding_line`, Oriedita's `getForSelectFolding`), so
-    /// the folded wireframe never carries a `Cyan3` line, and there is nothing
-    /// here to fold them through. Kept in the shape so a later accessor that
-    /// folds the document's aux lines face by face has a slot to land in.
+    /// The document's auxiliary (`Cyan3`) lines carried through the fold,
+    /// split at face boundaries. The fold itself takes only folding-colour
+    /// creases (`LineColor::is_folding_line`, Oriedita's
+    /// `getForSelectFolding`), so the wireframe never carries one; they come
+    /// from the crease pattern the figure was folded from, clipped to each
+    /// face in the unfolded sheet and placed by that face's own fold — the
+    /// reflection chain that places the face's vertices — then through the
+    /// pass's camera like every other coordinate here. A piece that runs
+    /// along a crease or a paper edge is not interior to any face and is not
+    /// emitted; nor is one shorter than the engine's point tolerance.
     pub aux_lines: Vec<FoldedPaperAuxLine>,
 }
 
@@ -699,9 +704,10 @@ pub enum FoldedPaperEdgeKind {
     Border,
     /// A ±180° crease (`Red1` / `Blue2`).
     Fold,
-    /// A 0° line (`Cyan3` and the other auxiliary colours). Never produced
-    /// today — see [`FoldedPaperScene::aux_lines`] — but a face split by one
-    /// would report it here rather than as a fold.
+    /// A 0° line (`Cyan3` and the other auxiliary colours). The fold takes
+    /// only folding-colour creases, so an outline never carries one today —
+    /// the document's aux lines travel as [`FoldedPaperScene::aux_lines`] —
+    /// but a face split by one would report it here rather than as a fold.
     Flat,
 }
 
@@ -720,7 +726,7 @@ pub struct FoldedPaperSubface {
 pub struct FoldedPaperAuxLine {
     pub from: Point,
     pub to: Point,
-    /// The kernel face the piece lies on.
+    /// The kernel face the piece lies on — the one whose fold placed it.
     pub face: usize,
 }
 
@@ -2792,6 +2798,9 @@ fn paper_hierarchy_table(
 /// The paper scene of a session's fold — see [`FoldedPaperScene`]. Reuses the
 /// session's solved ordering exactly as [`folded_figure_render_snapshot_from_session`]
 /// does, so the scene and the snapshot describe one and the same stacking.
+/// `aux_lines` is the crease pattern the fold was taken from, or any slice
+/// of it: only its `Cyan3` lines are folded, into
+/// [`FoldedPaperScene::aux_lines`].
 ///
 /// `Ok(None)` when the session holds no solved ordering. The render path
 /// searches one from the segments in that case, but only for a `Paper5`
@@ -2803,6 +2812,7 @@ fn paper_hierarchy_table(
 pub fn folded_figure_paper_scene_from_session(
     session: &FoldingEstimateSession,
     inputs: &FoldedRenderInputs,
+    aux_lines: &[LineSegment],
     model: &FoldedFigureModel,
 ) -> Result<Option<FoldedPaperScene>, FoldingEstimateError> {
     let Some(overlap) = session
@@ -2813,14 +2823,22 @@ pub fn folded_figure_paper_scene_from_session(
     else {
         return Ok(None);
     };
-    paper_scene_impl(inputs, HierarchySource::Solved(&overlap.hierarchy), model)
+    paper_scene_impl(
+        inputs,
+        HierarchySource::Solved(&overlap.hierarchy),
+        aux_lines,
+        model,
+    )
 }
 
 /// [`FoldedPaperScene`] straight from segments, searching the ordering — the
 /// same path [`folded_figure_render_snapshot_from_segments`] takes, for tests
 /// that want the scene and the `Paper5` snapshot of one fold side by side.
+/// `segments` are folded as given; `aux_lines` is the slice whose `Cyan3`
+/// lines ride through the fold, as for the session entry point.
 pub fn folded_figure_paper_scene_from_segments(
     segments: &[LineSegment],
+    aux_lines: &[LineSegment],
     starting_face_id: i32,
     model: &FoldedFigureModel,
 ) -> Result<Option<FoldedPaperScene>, FoldingEstimateError> {
@@ -2833,6 +2851,7 @@ pub fn folded_figure_paper_scene_from_segments(
             segments,
             starting_face_id,
         },
+        aux_lines,
         model,
     )
 }
@@ -2844,6 +2863,7 @@ pub fn folded_figure_paper_scene_from_segments(
 fn paper_scene_impl(
     inputs: &FoldedRenderInputs,
     hierarchy: HierarchySource<'_>,
+    aux_lines: &[LineSegment],
     model: &FoldedFigureModel,
 ) -> Result<Option<FoldedPaperScene>, FoldingEstimateError> {
     let graph = &inputs.graph;
@@ -2871,7 +2891,7 @@ fn paper_scene_impl(
         sheet: paper_scene_sheet_extent(&graph.points, model),
         faces: paper_scene_faces(folded, pass),
         subfaces: paper_scene_subfaces(subface_graph, subfaces, &hierarchy, pass),
-        aux_lines: Vec::new(),
+        aux_lines: paper_scene_aux_lines(graph, folded, aux_lines, pass),
     }))
 }
 
@@ -2960,6 +2980,101 @@ fn paper_face_front_up(face: usize, folded: &FoldedWireframe, flipped: bool) -> 
     } else {
         position % 2 == 1
     }
+}
+
+/// The `Cyan3` lines of `aux_lines` folded face by face — see
+/// [`FoldedPaperScene::aux_lines`]. Each line is clipped to every face of
+/// the unfolded sheet ([`Polygon::clip_segment`]), and each piece is placed
+/// by [`FoldGraph::fold_point`] for that face: the reflections the fold walk
+/// recorded for it, which is the map that carried the face's own vertices,
+/// so a piece lands inside its face's folded outline by construction.
+fn paper_scene_aux_lines(
+    graph: &FoldGraph,
+    folded: &FoldedWireframe,
+    aux_lines: &[LineSegment],
+    pass: OrieditaPaperRenderPass,
+) -> Vec<FoldedPaperAuxLine> {
+    let mut lines = aux_lines
+        .iter()
+        .filter(|line| line.color == LineColor::Cyan3)
+        .peekable();
+    if lines.peek().is_none() {
+        return Vec::new();
+    }
+    let positions = wireframe_face_positions(folded);
+    // Every face's sheet polygon and its bounds, once: a line is tested
+    // against a face's edges only when their boxes meet.
+    let faces = graph
+        .faces
+        .iter()
+        .map(|face| {
+            let polygon = Polygon::new(
+                face.iter()
+                    .filter_map(|index| graph.points.get(*index).copied())
+                    .collect(),
+            );
+            let bounds = polygon_bounds(&polygon);
+            (polygon, bounds)
+        })
+        .collect::<Vec<_>>();
+
+    let mut out = Vec::new();
+    for line in lines {
+        let line_bounds = segment_bounds(line);
+        for (face, (polygon, bounds)) in faces.iter().enumerate() {
+            if !bounds_meet(*bounds, line_bounds) {
+                continue;
+            }
+            for piece in polygon.clip_segment(line) {
+                let place = |point: Point| {
+                    pass.camera
+                        .object_to_tv(graph.fold_point(point, face, &positions))
+                };
+                out.push(FoldedPaperAuxLine {
+                    from: place(piece.a),
+                    to: place(piece.b),
+                    face,
+                });
+            }
+        }
+    }
+    out
+}
+
+/// The walk the wireframe recorded, in the form [`FoldGraph`] folds by.
+fn wireframe_face_positions(folded: &FoldedWireframe) -> FacePositions {
+    FacePositions {
+        starting_face: folded.starting_face,
+        face_position: folded.face_positions.clone(),
+        next_face: folded.next_faces.clone(),
+        associated_line: folded.associated_lines.clone(),
+    }
+}
+
+/// `(min, max)` of a polygon's vertices, widened by the point tolerance so a
+/// segment touching the outline is never skipped.
+fn polygon_bounds(polygon: &Polygon) -> (Point, Point) {
+    let mut min = Point::new(f64::INFINITY, f64::INFINITY);
+    let mut max = Point::new(f64::NEG_INFINITY, f64::NEG_INFINITY);
+    for point in &polygon.vertices {
+        min = Point::new(min.x.min(point.x), min.y.min(point.y));
+        max = Point::new(max.x.max(point.x), max.y.max(point.y));
+    }
+    (
+        Point::new(min.x - Epsilon::POINT, min.y - Epsilon::POINT),
+        Point::new(max.x + Epsilon::POINT, max.y + Epsilon::POINT),
+    )
+}
+
+fn segment_bounds(segment: &LineSegment) -> (Point, Point) {
+    (
+        Point::new(segment.a.x.min(segment.b.x), segment.a.y.min(segment.b.y)),
+        Point::new(segment.a.x.max(segment.b.x), segment.a.y.max(segment.b.y)),
+    )
+}
+
+fn bounds_meet(a: (Point, Point), b: (Point, Point)) -> bool {
+    a.0.x <= b.1.x && b.0.x <= a.1.x && a.0.y <= b.1.y && b.0.y <= a.1.y
 }
 
 fn paper_scene_subfaces(
@@ -4766,16 +4881,8 @@ fn equivalence_condition_candidates_from_parts(
 ) -> Result<EquivalenceConditionSet, InitialHierarchyError> {
     let hierarchy = InitialHierarchy {
         faces_total: graph.faces.len(),
-        relations: initial_hierarchy_from_graph(
-            graph,
-            &FacePositions {
-                starting_face: folded.starting_face,
-                face_position: folded.face_positions.clone(),
-                next_face: folded.next_faces.clone(),
-                associated_line: folded.associated_lines.clone(),
-            },
-        )?
-        .relations,
+        relations: initial_hierarchy_from_graph(graph, &wireframe_face_positions(folded))?
+            .relations,
     };
     let folded_segments = folded_wireframe_segments(folded);
     let face_polygons = folded_face_polygons(folded);
@@ -5539,7 +5646,7 @@ mod paper_scene_tests {
                     state,
                     ..FoldedFigureModel::default()
                 };
-                let scene = folded_figure_paper_scene_from_segments(&segments, 1, &model)
+                let scene = folded_figure_paper_scene_from_segments(&segments, &[], 1, &model)
                     .expect("scene")
                     .expect("drawn");
                 let flipped = state == FoldedFigureState::Back1;
@@ -5586,15 +5693,94 @@ mod paper_scene_tests {
         }
     }
 
+    /// The aux line is symmetric about the diagonal fold, so its two pieces —
+    /// one per triangle — fold onto each other: the reflected piece is the
+    /// unreflected one read backwards.
+    #[test]
+    fn aux_lines_are_split_at_the_fold_and_carried_by_their_face() {
+        let segments = square_with_diagonal();
+        let aux =
+            LineSegment::with_color(Point::new(0.3, 0.1), Point::new(0.1, 0.3), LineColor::Cyan3);
+        let scene = folded_figure_paper_scene_from_segments(
+            &segments,
+            &[aux],
+            1,
+            &FoldedFigureModel::default(),
+        )
+        .expect("scene")
+        .expect("drawn");
+
+        assert_eq!(scene.aux_lines.len(), 2, "one piece per triangle");
+        let [first, second] = [&scene.aux_lines[0], &scene.aux_lines[1]];
+        assert_ne!(first.face, second.face);
+        let close = |a: Point, b: Point| a.distance(b) < 1e-6;
+        assert!(
+            close(first.from, second.to) && close(first.to, second.from),
+            "the reflected piece lands on the other one: {first:?} vs {second:?}"
+        );
+        for piece in &scene.aux_lines {
+            let outline = Polygon::new(scene.faces[piece.face].outline.clone());
+            assert_eq!(
+                outline.inside(Point::mid(piece.from, piece.to)),
+                PolygonIntersection::Inside,
+                "{piece:?} runs inside its face"
+            );
+            assert!(
+                piece.from.distance(piece.to) > Epsilon::POINT,
+                "a piece is never shorter than the point tolerance"
+            );
+        }
+    }
+
+    #[test]
+    fn aux_lines_off_the_sheet_or_of_another_colour_are_not_folded() {
+        let segments = square_with_diagonal();
+        let scene = folded_figure_paper_scene_from_segments(
+            &segments,
+            &[
+                LineSegment::with_color(
+                    Point::new(2.0, 0.1),
+                    Point::new(2.0, 0.9),
+                    LineColor::Cyan3,
+                ),
+                LineSegment::with_color(
+                    Point::new(0.3, 0.1),
+                    Point::new(0.1, 0.3),
+                    LineColor::Orange4,
+                ),
+                LineSegment::with_color(
+                    Point::new(0.2, 0.1),
+                    Point::new(0.8, 0.1),
+                    LineColor::Cyan3,
+                ),
+            ],
+            1,
+            &FoldedFigureModel::default(),
+        )
+        .expect("scene")
+        .expect("drawn");
+        assert_eq!(
+            scene.aux_lines.len(),
+            1,
+            "only the aux line on the sheet, in one face, is kept: {:?}",
+            scene.aux_lines
+        );
+    }
+
     #[test]
     fn the_rear_pass_reads_each_stack_bottom_up() {
         let segments = kabuto_segments();
-        let front =
-            folded_figure_paper_scene_from_segments(&segments, 1, &FoldedFigureModel::default())
-                .expect("scene")
-                .expect("drawn");
+        let front = folded_figure_paper_scene_from_segments(
+            &segments,
+            &[],
+            1,
+            &FoldedFigureModel::default(),
+        )
+        .expect("scene")
+        .expect("drawn");
         let back = folded_figure_paper_scene_from_segments(
             &segments,
+            &[],
             1,
             &FoldedFigureModel {
                 state: FoldedFigureState::Back1,

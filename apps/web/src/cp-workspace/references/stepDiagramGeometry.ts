@@ -8,6 +8,7 @@
  * two.
  */
 
+import { erodeSegment } from '../../lib/paper/paperSvg';
 import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_INK_PER_SHEET,
@@ -25,6 +26,13 @@ export interface DiagramSheet {
    * and its size says nothing about its position.
    */
   centre?: readonly [number, number];
+  /**
+   * The paper's own axes in the same space, as unit vectors — which way its
+   * width and height run. Absent, they are the space's own, true of the unit
+   * frame a card draws in; on the canvas the paper may be turned, and its
+   * edge is then found along these.
+   */
+  axes?: { readonly x: readonly [number, number]; readonly y: readonly [number, number] };
 }
 
 export interface SvgPoint {
@@ -58,8 +66,9 @@ export interface DiagramProjector {
   ink: number;
   /**
    * Each line style's weight, dash and cap, in ink. The card draws with the
-   * table as it stands; over the canvas the arrow is the paper style's own pen
-   * (`canvasDiagramPens`).
+   * table, its existing creases in the paper style's aux pen at the card's
+   * scale (`cardDiagramPens`); over the canvas the arrow and the existing
+   * creases are the style's own pens (`canvasDiagramPens`).
    */
   pens: DiagramPens;
   /**
@@ -154,7 +163,8 @@ export const DIAGRAM_CARD_DASH_SCALE = 0.5;
 export function createDiagramProjector(
   sheet: DiagramSheet,
   size = 100,
-  mirrored = false
+  mirrored = false,
+  pens: DiagramPens = DIAGRAM_LINE_INK
 ): DiagramProjector {
   const longer = Math.max(sheet.width, sheet.height, Number.EPSILON);
   const pad = size * DIAGRAM_PADDING;
@@ -169,13 +179,63 @@ export function createDiagramProjector(
   project.ex = { x: mirrored ? -scale : scale, y: 0 };
   project.ey = { x: 0, y: -scale };
   project.ink = longer * scale * DIAGRAM_INK_PER_SHEET;
-  project.pens = DIAGRAM_LINE_INK;
+  project.pens = pens;
   project.dashScale = DIAGRAM_CARD_DASH_SCALE;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;
   project.mirrored = mirrors(project.ex, project.ey);
   return project;
 }
+
+/** A sheet-unit point, as the primitives carry them. */
+export type SheetPoint = readonly [number, number];
+
+/**
+ * Erode (D8) for an existing crease on a step's sheet: an end on the sheet's
+ * boundary is pulled toward the crease's middle by `erode` × the sheet's
+ * longer side, an end inside stays, and a crease the pull would invert is
+ * dropped (null). In sheet units, before projection, so the card and the
+ * canvas erode the same crease by the same share of the paper — the rule the
+ * painter applies to every other surface (`erodeSegment`).
+ *
+ * The sheet is the rectangle round `sheet.centre` (or its own middle) along
+ * `sheet.axes` (or the space's own), which is the paper a step's creases lie
+ * on; the boundary is read with a tolerance of a millionth of the sheet,
+ * since a crease to the edge is placed there by construction and not by
+ * rounding.
+ */
+export function erodeCreaseOnSheet(
+  from: SheetPoint,
+  to: SheetPoint,
+  sheet: DiagramSheet,
+  erode: number
+): [SheetPoint, SheetPoint] | null {
+  const longer = Math.max(sheet.width, sheet.height);
+  if (!(erode > 0) || !(longer > 0)) return [from, to];
+  const [cx, cy] = sheet.centre ?? [sheet.width / 2, sheet.height / 2];
+  const { x: xAxis, y: yAxis } = sheet.axes ?? UNIT_AXES;
+  const epsilon = longer * 1e-6;
+  const onBoundary = ([x, y]: SheetPoint): boolean => {
+    // The point in the paper's own frame: along its width and its height.
+    const u = (x - cx) * xAxis[0] + (y - cy) * xAxis[1];
+    const v = (x - cx) * yAxis[0] + (y - cy) * yAxis[1];
+    const du = Math.abs(Math.abs(u) - sheet.width / 2);
+    const dv = Math.abs(Math.abs(v) - sheet.height / 2);
+    const withinU = Math.abs(u) <= sheet.width / 2 + epsilon;
+    const withinV = Math.abs(v) <= sheet.height / 2 + epsilon;
+    return (du <= epsilon && withinV) || (dv <= epsilon && withinU);
+  };
+  const eroded = erodeSegment(
+    [from[0], from[1]],
+    [to[0], to[1]],
+    [onBoundary(from), onBoundary(to)],
+    erode * longer
+  );
+  return eroded && [eroded[0], eroded[1]];
+}
+
+/** The space's own axes: a sheet that is not turned. */
+const UNIT_AXES = { x: [1, 0], y: [0, 1] } as const;
 
 export interface DiagramArc {
   center: readonly [number, number];

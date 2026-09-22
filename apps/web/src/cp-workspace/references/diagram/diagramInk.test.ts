@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PAPER_STYLE } from '../../../lib/paper/paperStyle';
 import {
   DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_DASH_SLOTS,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
@@ -9,7 +11,11 @@ import {
   DIAGRAM_TURN_OVER_INK,
   canvasDiagramInk,
   canvasDiagramPens,
+  cardDiagramPens,
+  diagramDashPatterns,
+  diagramDashSlot,
   labelWidth,
+  penInk,
 } from './diagramInk';
 
 /**
@@ -111,5 +117,59 @@ describe('the diagram’s pen', () => {
     expect(labelWidth('W', 10)).toBeGreaterThan(labelWidth('I', 10) * 3);
     // An unknown glyph is taken at the widest common width, not at zero.
     expect(labelWidth('α', 10)).toBeCloseTo(7.5, 6);
+  });
+});
+
+describe('the existing crease as the paper style’s aux pen', () => {
+  const dashed = { width: 0.45, color: '#9aa4ad', dash: [4, 2] as number[], cap: 'round' as const };
+
+  // A pen's dash is stated in multiples of its width, so at any weight in ink
+  // the runs are that many of it; the cap is the pen's.
+  it('turns a pen into ink at a given weight', () => {
+    expect(penInk(dashed, 2)).toEqual({ width: 2, dash: [8, 4], cap: 'round' });
+    expect(penInk(DEFAULT_PAPER_STYLE.auxCreases.pen, 0.5)).toEqual({ width: 0.5, cap: 'butt' });
+  });
+
+  // The card's pen is a share of the paper, so the style reaches it as a
+  // ratio: the aux pen against the edge pen, on the table's edge weight. At
+  // the defaults that is 0.5/0.9 of 1.2 — near the 0.75 the table drew.
+  it('draws the card’s crease at the aux pen’s ratio to the edge pen', () => {
+    const pens = cardDiagramPens(DEFAULT_PAPER_STYLE);
+    expect(pens.crease.width).toBeCloseTo((1.2 * 0.5) / 0.9, 9);
+    expect(pens.crease.cap).toBe('butt');
+    expect(pens.crease.dash).toBeUndefined();
+    const restyled = cardDiagramPens({
+      auxCreases: { pen: dashed },
+      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9 },
+    });
+    expect(restyled.crease.width).toBeCloseTo(0.6, 9);
+    expect(restyled.crease.dash!.map((run) => run / restyled.crease.width)).toEqual([4, 2]);
+    expect(restyled.crease.cap).toBe('round');
+    // Nothing else moves.
+    const { crease: _crease, ...rest } = restyled;
+    const { crease: _table, ...table } = DIAGRAM_LINE_INK;
+    expect(rest).toEqual(table);
+  });
+
+  // Over the canvas one ink is a fixed number of CSS pixels, so the crease's
+  // weight in ink is whatever puts its stroke at the pen — like the arrow.
+  it('draws the canvas’s crease at the aux pen in CSS px', () => {
+    const pens = canvasDiagramPens(1, 1.4, { pen: dashed, css: 0.6 });
+    expect(pens.crease.width * canvasDiagramInk(1)).toBeCloseTo(0.6, 9);
+    expect(pens.crease.dash!.map((run) => run / pens.crease.width)).toEqual([4, 2]);
+    expect(pens.crease.cap).toBe('round');
+    expect(canvasDiagramPens(1, 1.4).crease).toEqual(DIAGRAM_LINE_INK.crease);
+  });
+
+  // The fourth dash slot is the crease's, filled from the pens in hand: solid
+  // for the table, the aux pen's runs when the style dashes it.
+  it('gives the crease the fourth slot and its pen’s runs', () => {
+    expect(DIAGRAM_DASH_SLOTS).toEqual(['valley', 'mountain', 'dotted', 'crease']);
+    expect(diagramDashSlot('crease')).toBe(4);
+    expect(diagramDashPatterns(2)[3]).toEqual([]);
+    const pens = canvasDiagramPens(1, 1.4, { pen: dashed, css: 0.6 });
+    const width = pens.crease.width * 2;
+    expect(diagramDashPatterns(2, pens)[3]!.map((run) => run / width)).toEqual([4, 2]);
+    expect(diagramDashPatterns(2, pens).slice(0, 3)).toEqual(diagramDashPatterns(2).slice(0, 3));
   });
 });

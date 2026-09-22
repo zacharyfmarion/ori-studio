@@ -1,4 +1,4 @@
-import type { FoldAssignment } from '@treemaker/origami-simulator';
+import { edgeBoundaryFlags, type FoldAssignment } from '@treemaker/origami-simulator';
 import {
   EDGE_ASSIGNMENT_CODES,
   type SimulatorModelInfo,
@@ -18,7 +18,16 @@ export interface SimulatorRenderModel {
   indices: Uint32Array;
   edgesVertices: [number, number][];
   edgesAssignment: FoldAssignment[];
+  /** One `EDGE_CODE` per edge; see `SimulatorModelInfo.edgeCodes`. */
+  edgeCodes: Uint8Array;
+  /**
+   * Which ends of each edge retreat under erode — `edgeBoundaryFlags`, the
+   * rule the GPU pass and the vector scene read. Per topology, so once here.
+   */
+  edgeBoundary: Uint8Array;
   facesEdges: number[][];
+  /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
+  sheet: number;
 }
 
 /**
@@ -32,6 +41,7 @@ export interface SimulatorRenderModel {
 export function inflateRenderModel(info: SimulatorModelInfo): SimulatorRenderModel {
   const edgePairs = new Int32Array(info.edgesVertices);
   const assignmentCodes = new Uint8Array(info.edgesAssignment);
+  const edgeCodes = new Uint8Array(info.edgeCodes);
   const faceEdgeTriples = new Int32Array(info.facesEdges);
 
   const edgesVertices: [number, number][] = [];
@@ -58,6 +68,12 @@ export function inflateRenderModel(info: SimulatorModelInfo): SimulatorRenderMod
     indices: new Uint32Array(info.indices),
     edgesVertices,
     edgesAssignment,
+    edgeCodes,
+    edgeBoundary: edgeBoundaryFlags(
+      { edgeIndices: edgePairs, edgeAssignments: edgeCodes },
+      info.vertexCount
+    ),
     facesEdges,
+    sheet: info.sheet,
   };
 }

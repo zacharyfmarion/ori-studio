@@ -8,6 +8,7 @@ import {
   arcPathData,
   arrowheadPoints,
   arrowheadSize,
+  erodeCreaseOnSheet,
   foldAndUnfoldFromArc,
   foldArrowLanding,
   foldArrowTrim,
@@ -89,7 +90,23 @@ export interface DiagramRenderContext {
   marks: readonly SvgPoint[];
   /** Where each letter goes, by its primitive's index in the list drawn. */
   labels: ReadonlyMap<number, LabelPlacement>;
+  /** The paper the primitives were measured against; where erode finds its edge. */
+  sheet: DiagramSheet;
+  /**
+   * What the paper style says about the existing creases (`crease` ink):
+   * whether they are drawn, and how far one is pulled back from the sheet's
+   * edge as a fraction of the sheet (D8).
+   */
+  creases: DiagramCreaseOptions;
 }
+
+export interface DiagramCreaseOptions {
+  visible: boolean;
+  erode: number;
+}
+
+/** Drawn, at the edge: the diagrams before there was a style. */
+export const DEFAULT_DIAGRAM_CREASES: DiagramCreaseOptions = { visible: true, erode: 0 };
 
 /**
  * The context for drawing `primitives` through `project`. The list handed in
@@ -101,12 +118,15 @@ export function createDiagramRenderContext(
   primitives: readonly StepDiagramPrimitive[],
   sheet: DiagramSheet,
   project: DiagramProjector,
-  layout: LabelLayoutOptions = {}
+  layout: LabelLayoutOptions = {},
+  creases: DiagramCreaseOptions = DEFAULT_DIAGRAM_CREASES
 ): DiagramRenderContext {
   return {
     project,
     marks: diagramMarks(primitives, project),
     labels: placeLabels(primitives, sheet, project, layout),
+    sheet,
+    creases,
   };
 }
 
@@ -140,8 +160,19 @@ export function diagramPrimitiveShape(
       );
     }
     case 'line': {
-      const from = project(primitive.from);
-      const to = project(primitive.to);
+      // An existing crease is the style's to show or hide, and to pull back
+      // from the paper's edge; every other line is the step's own.
+      let ends: [readonly [number, number], readonly [number, number]] | null = [
+        primitive.from,
+        primitive.to,
+      ];
+      if (primitive.style === 'crease') {
+        if (!context.creases.visible) return null;
+        ends = erodeCreaseOnSheet(primitive.from, primitive.to, context.sheet, context.creases.erode);
+        if (!ends) return null;
+      }
+      const from = project(ends[0]);
+      const to = project(ends[1]);
       // Positive. `stroke-dashoffset` is "start this far *into* the
       // pattern", which is exactly what the phase says — how much of the
       // line has already gone by. Negating it lands at `period - phase`

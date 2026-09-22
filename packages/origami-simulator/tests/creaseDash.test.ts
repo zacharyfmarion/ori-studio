@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_DASH_RUNS, dashPhasePx, packCreaseDash } from '../src/webgl/meshRenderer.js';
+import { DASH_KINDS, MAX_DASH_RUNS, dashPhasePx, packCreaseDash } from '../src/webgl/meshRenderer.js';
 
 /**
  * The edge shader's dash logic, as far as it can be checked without WebGL2. What
@@ -13,20 +13,33 @@ describe('packing crease dashes for the edge shader', () => {
       mountain: [10, 3, 3, 3],
       valley: [8, 8],
     });
-    // 0=B, 1=M, 2=V.
-    expect([...counts]).toEqual([0, 4, 2]);
+    // 0=B, 1=M, 2=V, 3=aux.
+    expect([...counts]).toEqual([0, 4, 2, 0]);
     expect([...runs.subarray(MAX_DASH_RUNS, MAX_DASH_RUNS + 4)]).toEqual([10, 3, 3, 3]);
     expect([...runs.subarray(MAX_DASH_RUNS * 2, MAX_DASH_RUNS * 2 + 2)]).toEqual([8, 8]);
   });
 
   it('reports zero runs for solid, which the shader reads as "no dash"', () => {
-    expect([...packCreaseDash(undefined).counts]).toEqual([0, 0, 0]);
+    expect([...packCreaseDash(undefined).counts]).toEqual([0, 0, 0, 0]);
     expect([...packCreaseDash({ border: null, mountain: null, valley: null }).counts]).toEqual([
-      0, 0, 0,
+      0, 0, 0, 0,
     ]);
     expect([...packCreaseDash({ border: null, mountain: [], valley: null }).counts]).toEqual([
-      0, 0, 0,
+      0, 0, 0, 0,
     ]);
+  });
+
+  it('packs the aux pen as the fourth kind, at the aux code', () => {
+    // Phase 5: the auxiliary creases draw in their own pen, dash included, and
+    // the shader indexes its pattern by the same code it indexes its colour.
+    const { runs, counts } = packCreaseDash({
+      border: null,
+      mountain: null,
+      valley: null,
+      aux: [1, 2],
+    });
+    expect([...counts]).toEqual([0, 0, 0, 2]);
+    expect([...runs.subarray(MAX_DASH_RUNS * 3, MAX_DASH_RUNS * 3 + 2)]).toEqual([1, 2]);
   });
 
   it('doubles an odd-length pattern, keeping "even run is ink" true', () => {
@@ -51,8 +64,10 @@ describe('packing crease dashes for the edge shader', () => {
     expect(runs[MAX_DASH_RUNS + 1]).toBe(0);
   });
 
-  it('leaves the array sized for exactly three kinds', () => {
-    expect(packCreaseDash(undefined).runs).toHaveLength(3 * MAX_DASH_RUNS);
+  it('leaves the array sized for exactly the drawn kinds', () => {
+    // Re-pinned from three: the aux pen joined the edge pass in Phase 5.
+    expect(DASH_KINDS).toBe(4);
+    expect(packCreaseDash(undefined).runs).toHaveLength(DASH_KINDS * MAX_DASH_RUNS);
   });
 });
 

@@ -384,6 +384,8 @@
         "butt": "Plano",
         "round": "Redondo"
       },
+      "erode": "Retraer",
+      "erodeHint": "Acorta cada pliegue desde el borde de su cara, como porcentaje del papel.",
       "exportFollowsDisplay": "La exportación usa el estilo de pantalla",
       "exportFollowsDisplayHint": "Desactivado, el estilo de exportación empieza como una copia del estilo de pantalla y se edita por separado.",
       "exportPage": {

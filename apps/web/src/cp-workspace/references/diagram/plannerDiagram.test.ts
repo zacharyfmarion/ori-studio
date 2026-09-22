@@ -2027,6 +2027,18 @@ describe('a grid step', () => {
     // the paper's size from the model's origin.
     expect(finished.sheet.centre?.map(round)).toEqual(image([0.5, 0.5]).map(round));
     expect(finished.sheet.width).toBeCloseTo(400, 6);
+    // And which way the paper lies there, for erode to find its edge: the
+    // images of the unit square's x and y, as unit vectors.
+    const axis = (from: [number, number], to: [number, number]) => {
+      const [ax, ay] = image(from);
+      const [bx, by] = image(to);
+      const length = Math.hypot(bx - ax, by - ay);
+      return [(bx - ax) / length, (by - ay) / length].map(round);
+    };
+    expect(finished.sheet.axes?.x.map(round)).toEqual(axis([0, 0], [1, 0]));
+    expect(finished.sheet.axes?.y.map(round)).toEqual(axis([0, 0], [0, 1]));
+    // The card's own sheet is upright and says nothing about axes.
+    expect(plannerFinishedDiagram(sequence, unit).sheet.axes).toBeUndefined();
   });
 });
 

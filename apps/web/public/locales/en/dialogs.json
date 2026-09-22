@@ -376,6 +376,8 @@
         "butt": "Flat",
         "round": "Round"
       },
+      "erode": "Erode",
+      "erodeHint": "Pull each crease back from the edge of its face, as a percentage of the sheet.",
       "exportFollowsDisplay": "Export uses display style",
       "exportFollowsDisplayHint": "Off, the export style starts as a copy of the display style and is edited on its own.",
       "exportPage": {

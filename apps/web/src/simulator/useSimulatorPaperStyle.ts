@@ -14,11 +14,25 @@ import {
   type PaperStyleOverrides,
   type PaperStyleValue,
 } from '../lib/paper/paperStyle';
-import { PAPER_STYLE_POLICIES } from '../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../store/settingsStore';
 
 /** The pens the simulator's rows edit the colour of. */
 export type SimulatorPenField = 'mountainFolds' | 'valleyFolds' | 'edges';
+
+/**
+ * The fields the Simulate pane's Paper and Creases rows edit, and so the ones
+ * its reset touches. The simulator policy applies more — the aux pen, its
+ * toggle and erode joined it in Phase 5 — but those rows are Settings ▸
+ * Paper's; a reset here leaves them where the user put them.
+ */
+export const SIMULATOR_PANE_FIELDS: readonly PaperStyleField[] = [
+  'paper.front',
+  'paper.back',
+  'edges',
+  'mountainFolds',
+  'valleyFolds',
+  'light',
+];
 
 /**
  * The fold pens' width as the simulator's slider offers it, in pt. The slider
@@ -49,7 +63,7 @@ export interface SimulatorPaperStyleBinding {
    */
   endAdjustment: () => void;
   /**
-   * The rows this binding offers — the simulator policy's fields — back to
+   * The rows this binding offers — {@link SIMULATOR_PANE_FIELDS} — back to
    * the Ori default, as one store update. The rest of the display style —
    * the aux and arrow pens, erode — is Settings ▸ Paper's and stays where the
    * user put it; see {@link resetRowValue} for the two rows that edit one
@@ -155,7 +169,7 @@ export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
         // Only the rows that differ are counted and written, and all of them
         // in one update: a reset is one edit, not one per row.
         let fields: PaperStyleOverrides | undefined;
-        for (const field of PAPER_STYLE_POLICIES.simulator.applies) {
+        for (const field of SIMULATOR_PANE_FIELDS) {
           const value = resetRowValue(style, field);
           if (paperStyleValueEquals(getPaperStyleField(style, field), value)) continue;
           changed(field);

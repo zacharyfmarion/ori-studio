@@ -60,7 +60,7 @@ export function prepareFoldModel(
   const edgesFacet = fold.edges_vertices.map(([a, b]) => facetKeys.has(edgeKey(a, b)));
 
   return {
-    fold: { ...fold, faces_edges: facesEdges, edges_faces: edgesFaces },
+    fold: { ...fold, faces_edges: facesEdges, edges_faces: edgesFaces, [EDGES_FACET_KEY]: edgesFacet },
     vertexCount,
     edgeCount: fold.edges_vertices.length,
     faceCount: fold.faces_vertices.length,
@@ -101,8 +101,40 @@ function validateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics): vo
 }
 
 /**
+ * Per-edge extension key the prepared document carries its facet flags under,
+ * so a document that has been through `prepareFoldModel` once can go through
+ * it again without its diagonals turning into auxiliary creases.
+ *
+ * The app's simulation path does exactly that — triangulate, re-orient the
+ * faces, prepare again with `triangulate: false` — and the second pass has no
+ * triangulation of its own to remember, so without this every diagonal of the
+ * first pass came back as a drawable `F` edge. A namespaced `:edges_` key is
+ * what the app's per-edge array helpers remap on an edge-list rebuild, which
+ * is why the flags ride on the document rather than beside it.
+ */
+export const EDGES_FACET_KEY = 'oristudio:edges_facet';
+
+/**
+ * The facet flags a document arrived with, keyed by vertex pair. Read before
+ * anything renumbers, and matched by pair afterwards, so an edge that survives
+ * the canonicalisation keeps its flag and one that does not simply has none —
+ * erring toward drawing a line rather than hiding one.
+ */
+function inheritedFacetKeys(fold: FoldDocument): Set<number> {
+  const flags = fold[EDGES_FACET_KEY];
+  const keys = new Set<number>();
+  if (!Array.isArray(flags) || flags.length !== fold.edges_vertices.length) return keys;
+  fold.edges_vertices.forEach(([a, b], index) => {
+    if (flags[index] === true) keys.add(edgeKey(a, b));
+  });
+  return keys;
+}
+
+/**
  * The normalised, triangulated document, and the vertex-pair keys of the edges
- * triangulation invented — see {@link PreparedOrigamiModel.edgesFacet}.
+ * triangulation invented — see {@link PreparedOrigamiModel.edgesFacet}. A
+ * document prepared before carries its earlier diagonals under
+ * {@link EDGES_FACET_KEY}, and those count too.
  */
 function normalizeFold(
   source: FoldDocument,
@@ -110,6 +142,7 @@ function normalizeFold(
   diagnostics: SimulatorDiagnostics
 ): { fold: FoldDocument; facetKeys: Set<number> } {
   const fold = cloneFold(source);
+  const facetKeys = inheritedFacetKeys(fold);
   fold.vertices_coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
   fold.edges_assignment = fold.edges_vertices.map((_, index) =>
     normalizeAssignment(fold.edges_assignment?.[index])
@@ -128,8 +161,9 @@ function normalizeFold(
   // faces exist; ours arrive with the document, so here is the closest point.
   removeRedundantVertices(fold, REDUNDANT_VERTEX_EPSILON, diagnostics);
 
-  const facetKeys =
-    (options.triangulate ?? true) ? triangulateFold(fold, diagnostics) : new Set<number>();
+  if (options.triangulate ?? true) {
+    for (const key of triangulateFold(fold, diagnostics)) facetKeys.add(key);
+  }
 
   return { fold, facetKeys };
 }

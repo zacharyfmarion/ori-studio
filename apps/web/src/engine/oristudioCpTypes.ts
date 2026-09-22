@@ -511,9 +511,10 @@ export interface OristudioCpFoldedPaperScene {
   /** The subfaces the drawer paints, in its order. */
   subfaces: OristudioCpFoldedPaperSubface[];
   /**
-   * Always empty today: no aux (`Cyan3`) line reaches the fold, so the
-   * kernel has no folded position for one. The slot is here for the accessor
-   * that folds them face by face (Phase 5).
+   * The document's aux (`Cyan3`) lines carried through the fold: each clipped
+   * to the faces it crosses and placed by its face's own reflections, so a
+   * piece lies inside its face's folded outline. In the same coordinates as
+   * the faces.
    */
   aux_lines: OristudioCpFoldedPaperAuxLine[];
 }

@@ -368,6 +368,8 @@
         "butt": "平ら",
         "round": "丸"
       },
+      "erode": "エロード",
+      "erodeHint": "各折り線を面の縁から用紙の割合 (%) だけ内側に引き戻します。",
       "exportFollowsDisplay": "書き出しに表示スタイルを使う",
       "exportFollowsDisplayHint": "オフにすると、書き出しスタイルは表示スタイルのコピーから始まり、独立して編集できます。",
       "exportPage": {

@@ -253,7 +253,11 @@
       "title": "Fenêtre de simulation"
     },
     "paperStyle": {
+      "auxColor": "Couleur des plis",
+      "auxVisible": "Plis existants",
+      "auxWidth": "Épaisseur des plis (pt)",
       "changeAction": "Changer le style de papier",
+      "erode": "Retrait (% du papier)",
       "resetAction": "Réinitialiser le style de papier"
     },
     "region": {

@@ -77,7 +77,7 @@ const ORIGAMI_HOUSE_STYLE: PaperStyle = {
   edges: { ...ORIGAMI_HOUSE_PEN, width: 0.5 },
   mountainFolds: { ...ORIGAMI_HOUSE_PEN, dash: [8, 2, 1, 2] },
   valleyFolds: { ...ORIGAMI_HOUSE_PEN, dash: [4, 2] },
-  auxCreases: { visible: false, pen: { ...ORIGAMI_HOUSE_PEN, width: 0.25 } },
+  auxCreases: { visible: true, pen: { ...ORIGAMI_HOUSE_PEN, width: 0.25 } },
   arrows: { ...ORIGAMI_HOUSE_PEN, cap: 'round' },
   light: UNLIT,
 };

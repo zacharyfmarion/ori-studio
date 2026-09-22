@@ -223,6 +223,103 @@ describe('draw order as depth', () => {
   });
 });
 
+describe('a flat figure’s aux creases', () => {
+  // The overlay hands the adapter pieces in the snapshot's coordinates and the
+  // pen; the adapter maps and places them as it does the snapshot's own
+  // primitives and strokes them at its own depth: over the fills, under the
+  // edges the drawer painted after them.
+  const fillThenStroke = (): OristudioCpFoldedRenderPrimitive[] => [
+    {
+      sequence: 0,
+      kind: 'fill_polygon',
+      style: { paint: solid(255, 0, 0, 255), stroke: { kind: 'none' }, antialias: 'default' },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      },
+    },
+    {
+      sequence: 1,
+      kind: 'stroke_polygon',
+      style: {
+        paint: solid(0, 0, 0, 255),
+        stroke: { kind: 'basic', width: 1, end_cap: 0, line_join: 0, miter_limit: 4 },
+        antialias: 'default',
+      },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 10 },
+        ],
+      },
+    },
+  ];
+  const aux = {
+    segments: [{ a: { x: 2, y: 3 }, b: { x: 8, y: 3 } }],
+    color: [0.2, 0.4, 0.6, 1] as [number, number, number, number],
+    widthMul: 0.5,
+  };
+
+  it('appends the pieces as strokes in the aux colour and width', () => {
+    const geo = cpFoldedToScene([figure(fillThenStroke())], undefined, () => 0.9, () => aux);
+    // The snapshot's one edge, then the aux piece.
+    expect(geo.strokes.count).toBe(2);
+    const [red, green, blue, alpha] = Array.from(geo.strokes.color.slice(4));
+    expect(red).toBeCloseTo(0.2);
+    expect(green).toBeCloseTo(0.4);
+    expect(blue).toBeCloseTo(0.6);
+    expect(alpha).toBe(1);
+    expect(geo.strokes.widthMul[1]).toBeCloseTo(0.5);
+    expect(geo.strokes.widthMul[0]).toBeCloseTo(0.9);
+    // Mapped through the same paper affine as the primitives.
+    const a = cpModelToSvg({ x: 2, y: 3 });
+    const b = cpModelToSvg({ x: 8, y: 3 });
+    expect(geo.strokes.a[2]).toBeCloseTo(a.x);
+    expect(geo.strokes.a[3]).toBeCloseTo(a.y);
+    expect(geo.strokes.b[2]).toBeCloseTo(b.x);
+    expect(geo.strokes.b[3]).toBeCloseTo(b.y);
+  });
+
+  it('draws them over the fills and under the strokes that followed', () => {
+    const geo = cpFoldedToScene([figure(fillThenStroke())], undefined, undefined, () => aux);
+    const fill = geo.fills.depth![0]!;
+    const edge = geo.strokes.depth![0]!;
+    const crease = geo.strokes.depth![1]!;
+    expect(crease).toBeGreaterThan(fill);
+    expect(crease).toBeLessThan(edge);
+  });
+
+  it('draws nothing extra when the reader answers null or no pieces', () => {
+    const none = cpFoldedToScene([figure(fillThenStroke())], undefined, undefined, () => null);
+    expect(none.strokes.count).toBe(1);
+    const empty = cpFoldedToScene([figure(fillThenStroke())], undefined, undefined, () => ({
+      ...aux,
+      segments: [],
+    }));
+    expect(empty.strokes.count).toBe(1);
+  });
+
+  it('fades with the figure and follows its placement', () => {
+    const placement = { offset: { x: 40, y: 7 }, scale: 3, rotation: 1.2 };
+    const geo = cpFoldedToScene(
+      [figure(fillThenStroke(), placement)],
+      () => 0.5,
+      undefined,
+      () => aux
+    );
+    expect(geo.strokes.color[7]).toBeCloseTo(0.5);
+    const local = foldedFigureLocalGeometry(figure(fillThenStroke()).renderSnapshot!);
+    const placed = applyFoldedPlacementToPoint(cpModelToSvg({ x: 2, y: 3 }), placement, local.center);
+    expect(geo.strokes.a[2]).toBeCloseTo(placed.x);
+    expect(geo.strokes.a[3]).toBeCloseTo(placed.y);
+  });
+});
+
 describe('folded figure placement', () => {
   /** The centre of the rendered geometry, which placement pivots on. */
   const drawnCenter = (entry: OristudioCpFoldedFigureEntry) => {

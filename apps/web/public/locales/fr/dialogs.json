@@ -384,6 +384,8 @@
         "butt": "Plat",
         "round": "Arrondi"
       },
+      "erode": "Retrait",
+      "erodeHint": "Raccourcit chaque pli depuis le bord de sa face, en pourcentage du papier.",
       "exportFollowsDisplay": "L'exportation utilise le style d'affichage",
       "exportFollowsDisplayHint": "Désactivé, le style d'exportation démarre comme une copie du style d'affichage et se modifie séparément.",
       "exportPage": {

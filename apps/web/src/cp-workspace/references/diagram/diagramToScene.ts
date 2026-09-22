@@ -17,7 +17,14 @@ import type {
   DiagramLineStyleName,
   StepDiagramPrimitive,
 } from '../referenceFinderDiagramToPrimitives';
-import { DIAGRAM_LINE_INK, diagramDashPatterns, diagramDashSlot } from './diagramInk';
+import { erodeCreaseOnSheet, type DiagramSheet, type SheetPoint } from '../stepDiagramGeometry';
+import { DEFAULT_DIAGRAM_CREASES, type DiagramCreaseOptions } from './DiagramPrimitives';
+import {
+  DIAGRAM_LINE_INK,
+  diagramDashPatterns,
+  diagramDashSlot,
+  type DiagramPens,
+} from './diagramInk';
 
 export interface DiagramScene {
   /** The straight lines, ready for the preview channel. */
@@ -29,6 +36,17 @@ export interface DiagramScene {
 /** One colour per line style, resolved from the theme by the caller. */
 export type DiagramInkColors = Record<DiagramLineStyleName, Rgba>;
 
+export interface DiagramSceneOptions {
+  /** The pens; the table unless the paper style has re-penned a role. */
+  pens?: DiagramPens;
+  /** The paper the primitives were measured against, for erode's edge. */
+  sheet?: DiagramSheet;
+  /** Whether existing creases are drawn, and how far they stop short of the edge. */
+  creases?: DiagramCreaseOptions;
+}
+
+type DiagramLine = Extract<StepDiagramPrimitive, { kind: 'line' }>;
+
 /**
  * Split a step's primitives, and pack the lines for upload.
  *
@@ -36,27 +54,44 @@ export type DiagramInkColors = Record<DiagramLineStyleName, Rgba>;
  * the live camera, or a ten-times zoom arrives with a ten-times nib. It scales
  * the dash runs, which the program wants in screen pixels, and it is the base
  * width each style's own multiplier rides on.
+ *
+ * An existing crease (`crease` ink) is the paper style's: left out when the
+ * style hides them, and pulled back from the sheet's edge by its erode — the
+ * same rule the card applies (`erodeCreaseOnSheet`), so the two pictures of
+ * a step agree.
  */
 export function diagramToScene(
   primitives: readonly StepDiagramPrimitive[],
   colors: DiagramInkColors,
-  inkCss: number
+  inkCss: number,
+  options: DiagramSceneOptions = {}
 ): DiagramScene {
+  const pens = options.pens ?? DIAGRAM_LINE_INK;
+  const creases = options.creases ?? DEFAULT_DIAGRAM_CREASES;
   const symbols: StepDiagramPrimitive[] = [];
-  const lines: Extract<StepDiagramPrimitive, { kind: 'line' }>[] = [];
+  const lines: DiagramLine[] = [];
   for (const primitive of primitives) {
-    if (primitive.kind === 'line') lines.push(primitive);
+    if (primitive.kind === 'line') {
+      if (primitive.style !== 'crease') lines.push(primitive);
+      else if (creases.visible) {
+        const ends = options.sheet
+          ? erodeCreaseOnSheet(primitive.from, primitive.to, options.sheet, creases.erode)
+          : ([primitive.from, primitive.to] as [SheetPoint, SheetPoint]);
+        if (ends) lines.push({ ...primitive, from: ends[0], to: ends[1] });
+      }
+    }
     // The canvas has the document's own border creases under everything, so a
     // sheet rectangle over them would be a second paper.
     else if (primitive.kind !== 'sheet') symbols.push(primitive);
   }
-  return { strokes: pack(lines, colors, inkCss), symbols };
+  return { strokes: pack(lines, colors, inkCss, pens), symbols };
 }
 
 function pack(
-  lines: readonly Extract<StepDiagramPrimitive, { kind: 'line' }>[],
+  lines: readonly DiagramLine[],
   colors: DiagramInkColors,
-  inkCss: number
+  inkCss: number,
+  pens: DiagramPens
 ): StrokeGeometry | null {
   if (lines.length === 0) return null;
   const count = lines.length;
@@ -67,7 +102,7 @@ function pack(
   const dashSlot = new Float32Array(count);
   const dashPhase = new Float32Array(count);
   lines.forEach((line, i) => {
-    const pen = DIAGRAM_LINE_INK[line.style];
+    const pen = pens[line.style];
     a[i * 2] = line.from[0];
     a[i * 2 + 1] = line.from[1];
     b[i * 2] = line.to[0];
@@ -90,7 +125,7 @@ function pack(
     color,
     widthMul,
     count,
-    dashPatterns: diagramDashPatterns(inkCss),
+    dashPatterns: diagramDashPatterns(inkCss, pens),
     dashSlot,
     dashPhase,
   };

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { RenderSettings } from '@treemaker/origami-simulator';
+import { EDGE_BOUNDARY_A, EDGE_CODE, type RenderSettings } from '@treemaker/origami-simulator';
 import { drawFrame, EMPTY_HIGHLIGHTS, invalidateSimulatorSurface } from './canvas2dFrame';
 import type { SimulatorRenderModel } from './renderModel';
 import type { SimulatorPaint } from './simulatorPalette';
@@ -73,8 +73,46 @@ const MODEL: SimulatorRenderModel = {
     [2, 0],
   ],
   edgesAssignment: ['B', 'B', 'B'],
+  edgeCodes: new Uint8Array([EDGE_CODE.border, EDGE_CODE.border, EDGE_CODE.border]),
+  edgeBoundary: new Uint8Array([0, 0, 0]),
   facesEdges: [[0, 1, 2]],
+  sheet: 2,
 };
+
+/**
+ * The same triangle split down the middle by a vertex (3) on its base: two
+ * faces, a mountain from the base to the apex, an aux crease alongside it and
+ * the base's two halves. The mountain and the aux line both start on the
+ * border, so their base ends retreat under erode.
+ */
+const SPLIT_MODEL: SimulatorRenderModel = {
+  vertexCount: 4,
+  faceCount: 2,
+  indices: new Uint32Array([0, 3, 2, 3, 1, 2]),
+  edgesVertices: [
+    [0, 3],
+    [3, 1],
+    [1, 2],
+    [2, 0],
+    [3, 2],
+  ],
+  edgesAssignment: ['B', 'B', 'B', 'B', 'F'],
+  edgeCodes: new Uint8Array([
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.aux,
+  ]),
+  edgeBoundary: new Uint8Array([0, 0, 0, 0, EDGE_BOUNDARY_A]),
+  facesEdges: [
+    [0, 4, 3],
+    [1, 2, 4],
+  ],
+  sheet: 2,
+};
+// The split sheet's positions: vertex 3 at the middle of the base.
+const SPLIT_SHEET = frameOf([-1, 0, -1, 1, 0, -1, -1, 0, 1, 0, 0, -1]);
 
 function frameOf(positions: number[]): SimulatorFrameView {
   return {
@@ -186,5 +224,102 @@ describe('drawFrame', () => {
     drawFrame(canvas, MODEL, FACING_SHEET, VIEW, paintWith({ lighting: true }), EMPTY_HIGHLIGHTS);
     expect(recorded.shadowBlurs).toEqual([]);
     expect(recorded.ctx.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawFrame edges', () => {
+  /** Every stroked segment as `[x1, y1, x2, y2]`, from the recorder's path calls. */
+  function strokes(): [number, number, number, number][] {
+    const moves = (recorded.ctx.moveTo as unknown as { mock: { calls: number[][] } }).mock.calls;
+    const lines = (recorded.ctx.lineTo as unknown as { mock: { calls: number[][] } }).mock.calls;
+    return moves.map((move, i) => [move[0]!, move[1]!, lines[i]![0]!, lines[i]![1]!]);
+  }
+  /** The stroke colours in the order they were set. */
+  function strokeStyles(): string[] {
+    return (recorded.ctx.stroke as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(
+      () => ''
+    );
+  }
+  const auxColor: [number, number, number] = [0, 1, 0];
+
+  it('leaves the aux crease out by default and draws it in the aux pen when shown', () => {
+    // A wireframe frame: faces off, so every edge goes through `drawAllEdges`.
+    drawFrame(
+      canvas,
+      SPLIT_MODEL,
+      SPLIT_SHEET,
+      VIEW,
+      paintWith({ showFaces: false, showEdges: true, auxColor }),
+      EMPTY_HIGHLIGHTS
+    );
+    expect(strokes()).toHaveLength(4);
+
+    recorded = recordingContext(720, 720);
+    vi.spyOn(canvas, 'getContext').mockImplementation(
+      () => recorded.ctx as unknown as ReturnType<HTMLCanvasElement['getContext']>
+    );
+    const styles: unknown[] = [];
+    Object.defineProperty(recorded.ctx, 'strokeStyle', {
+      set: (value: unknown) => styles.push(value),
+      get: () => styles[styles.length - 1],
+    });
+    drawFrame(
+      canvas,
+      SPLIT_MODEL,
+      SPLIT_SHEET,
+      VIEW,
+      paintWith({ showFaces: false, showEdges: true, showAux: true, auxColor }),
+      EMPTY_HIGHLIGHTS
+    );
+    expect(strokes()).toHaveLength(5);
+    expect(styles[4]).toBe('rgb(0 255 0)');
+    expect(strokeStyles()).toHaveLength(5);
+  });
+
+  it('erodes a flagged end by the style’s fraction of the sheet at the frame’s scale', () => {
+    // The aux crease runs from the base's midpoint (on the border, flagged) to
+    // the apex (a corner, unflagged in this fixture). At erode 0.1 of a sheet
+    // of 2 world units it retreats 0.2 world units along its length, which the
+    // frame's scale turns into device px; the apex end stays put.
+    const draw = (erode: number) => {
+      recorded = recordingContext(720, 720);
+      vi.spyOn(canvas, 'getContext').mockImplementation(
+        () => recorded.ctx as unknown as ReturnType<HTMLCanvasElement['getContext']>
+      );
+      drawFrame(
+        canvas,
+        SPLIT_MODEL,
+        SPLIT_SHEET,
+        VIEW,
+        paintWith({ showFaces: false, showEdges: true, showAux: true, auxColor, erode }),
+        EMPTY_HIGHLIGHTS
+      );
+      return strokes()[4]!;
+    };
+    const whole = draw(0);
+    const eroded = draw(0.1);
+    // The crease is √5 world units long; its drawn length says what a unit is.
+    const drawnLength = Math.hypot(whole[2] - whole[0], whole[3] - whole[1]);
+    const pxPerUnit = drawnLength / Math.hypot(1, 2);
+    const ux = (whole[2] - whole[0]) / drawnLength;
+    const uy = (whole[3] - whole[1]) / drawnLength;
+    expect(eroded[0]).toBeCloseTo(whole[0] + ux * 0.2 * pxPerUnit, 6);
+    expect(eroded[1]).toBeCloseTo(whole[1] + uy * 0.2 * pxPerUnit, 6);
+    expect(eroded[2]).toBeCloseTo(whole[2], 9);
+    expect(eroded[3]).toBeCloseTo(whole[3], 9);
+  });
+
+  it('drops a crease the erosion would invert', () => {
+    drawFrame(
+      canvas,
+      SPLIT_MODEL,
+      SPLIT_SHEET,
+      VIEW,
+      paintWith({ showFaces: false, showEdges: true, showAux: true, auxColor, erode: 0.6 }),
+      EMPTY_HIGHLIGHTS
+    );
+    // The aux line is √5 ≈ 2.24 units long and the pull is 1.2, past its
+    // midpoint; the four borders never erode.
+    expect(strokes()).toHaveLength(4);
   });
 });

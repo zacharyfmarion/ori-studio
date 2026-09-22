@@ -140,19 +140,88 @@ describe('resolvePaperStyle', () => {
     expect(distance(settings.lightDir, legacyLight())).toBeLessThan(1e-6);
   });
 
-  it('draws a folded figure’s creases with the edge pen', () => {
+  it('draws the flat figure’s creases with the edge pen', () => {
+    // Re-pinned: this held for the 3D figure too until Phase 5 gave its policy
+    // the fold pens; the flat figure has no visible M/V (D6) and keeps it.
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
       edges: { width: 1.5, color: '#336699', dash: null, cap: 'butt' },
       mountainFolds: { width: 0.3, color: '#ff0000', dash: [4, 2], cap: 'butt' },
     };
-    for (const surface of ['folded-3d', 'folded-flat'] as const) {
+    const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES['folded-flat'], OPTIONS);
+    expect(settings.creaseWidthPx).toBeCloseTo(2, 12);
+    expect(settings.mountainColor).toEqual(hexToUnitRgb('#336699'));
+    expect(settings.valleyColor).toEqual(hexToUnitRgb('#336699'));
+    expect(settings.creaseDash).toBeUndefined();
+  });
+
+  it('draws the 3D figure’s folds with the M/V pens at the fold line weight, as the simulator does', () => {
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { width: 1.5, color: '#336699', dash: null, cap: 'butt' },
+      mountainFolds: { width: 0.3, color: '#ff0000', dash: [4, 2], cap: 'butt' },
+    };
+    const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES['folded-3d'], OPTIONS);
+    expect(settings.creaseWidthPx).toBeCloseTo(0.5, 12);
+    expect(settings.mountainColor).toEqual(hexToUnitRgb('#ff0000'));
+    expect(settings.valleyColor).toEqual(hexToUnitRgb(DEFAULT_PAPER_STYLE.valleyFolds.color));
+    expect(settings.borderColor).toEqual(hexToUnitRgb('#336699'));
+    expect(settings.creaseDash?.mountain).toEqual([4, 2].map((run) => expect.closeTo(run * 0.4, 9)));
+  });
+
+  it('resolves the aux pen at its own width and dash, shown only when the style shows it', () => {
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      auxCreases: {
+        visible: true,
+        pen: { width: 0.375, color: '#00ff00', dash: [1, 2], cap: 'butt' },
+      },
+      erode: 0.02,
+    };
+    for (const surface of ['simulator', 'folded-3d', 'folded-flat', 'references'] as const) {
       const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES[surface], OPTIONS);
-      expect(settings.creaseWidthPx).toBeCloseTo(2, 12);
-      expect(settings.mountainColor).toEqual(hexToUnitRgb('#336699'));
-      expect(settings.valleyColor).toEqual(hexToUnitRgb('#336699'));
-      expect(settings.creaseDash).toBeUndefined();
+      expect(settings.showAux, surface).toBe(true);
+      expect(settings.auxColor, surface).toEqual([0, 1, 0]);
+      expect(settings.auxWidthPx, surface).toBeCloseTo(0.5, 12);
+      expect(settings.creaseDash?.aux, surface).toEqual([0.5, 1].map((run) => expect.closeTo(run, 9)));
+      expect(settings.erode, surface).toBe(0.02);
     }
+    const hidden = resolvePaperStyle(
+      { ...style, auxCreases: { ...style.auxCreases, visible: false } },
+      PAPER_STYLE_POLICIES.simulator,
+      OPTIONS
+    );
+    expect(hidden.showAux).toBe(false);
+    // The pen is still resolved, so a toggle is a uniform rather than a rebuild.
+    expect(hidden.auxColor).toEqual([0, 1, 0]);
+  });
+
+  it('floors the aux pen with the same hairline floor as the folds', () => {
+    const hairline: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      auxCreases: {
+        visible: true,
+        pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, width: 0.1 },
+      },
+    };
+    expect(
+      resolvePaperStyle(hairline, PAPER_STYLE_POLICIES.simulator, OPTIONS).auxWidthPx
+    ).toBe(0.5);
+  });
+
+  it('crosses erode as a fraction of the sheet, not as pixels', () => {
+    // The renderers scale it per frame (`erodePx`): the camera's scale lives
+    // in the worker and moves with every zoom, so a device-px figure resolved
+    // here would be right for one zoom only.
+    const settings = resolvePaperStyle(
+      { ...DEFAULT_PAPER_STYLE, erode: 0.05 },
+      PAPER_STYLE_POLICIES.simulator,
+      { ...OPTIONS, dpr: 2 }
+    );
+    expect(settings.erode).toBe(0.05);
+    expect(
+      resolvePaperStyle(DEFAULT_PAPER_STYLE, PAPER_STYLE_POLICIES.simulator, OPTIONS).erode
+    ).toBe(0);
   });
 
   it('honours a switched-off light on a lit surface', () => {
@@ -210,7 +279,7 @@ describe('applyPaperStylePolicy', () => {
     expect(seen.erode).toBe(0.05);
   });
 
-  it('lists the Phase 1 fields per surface', () => {
+  it('lists the fields per surface', () => {
     expect(PAPER_STYLE_POLICIES.references.applies).not.toContain('light');
     // D13: References fills its sheet with the style's paper, both faces.
     expect(PAPER_STYLE_POLICIES.references.applies).toContain('paper.front');
@@ -222,6 +291,20 @@ describe('applyPaperStylePolicy', () => {
       expect(PAPER_STYLE_POLICIES[surface].surface).toBe(surface);
     }
     expect(PAPER_STYLE_POLICIES['folded-flat'].applies).not.toContain('light');
+  });
+
+  it('applies the aux pen, its toggle and erode on every surface since Phase 5', () => {
+    for (const policy of Object.values(PAPER_STYLE_POLICIES)) {
+      for (const field of ['auxCreases.visible', 'auxCreases.pen', 'erode'] as const) {
+        expect(policy.applies, `${policy.surface} ${field}`).toContain(field);
+      }
+    }
+    // The 3D figure draws its folds as the simulator does; the flat figure
+    // has no visible M/V (D6).
+    expect(PAPER_STYLE_POLICIES['folded-3d'].applies).toContain('mountainFolds');
+    expect(PAPER_STYLE_POLICIES['folded-3d'].applies).toContain('valleyFolds');
+    expect(PAPER_STYLE_POLICIES['folded-flat'].applies).not.toContain('mountainFolds');
+    expect(PAPER_STYLE_POLICIES['folded-flat'].applies).not.toContain('valleyFolds');
   });
 });
 
@@ -245,11 +328,29 @@ describe('surfacePaperStyle', () => {
     ).toBeCloseTo(seen.edges.width * (4 / 3), 6);
   });
 
-  it('gives a folded figure the edge pen for every crease', () => {
-    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES['folded-3d']);
+  it('gives the flat figure the edge pen for every crease', () => {
+    // Re-pinned from "a folded figure": the 3D figure's policy applies the
+    // fold pens since Phase 5, so it takes the simulator's one-width rule.
+    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES['folded-flat']);
     expect(seen.mountainFolds).toEqual(style.edges);
     expect(seen.valleyFolds).toEqual(style.edges);
     expect(seen.edges).toEqual(style.edges);
+  });
+
+  it('draws the 3D figure’s pens at the fold line weight, as the simulator’s', () => {
+    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES['folded-3d']);
+    expect(seen).toEqual(surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator));
+    expect(seen.edges).toEqual({ ...style.edges, width: 3 });
+  });
+
+  it('leaves the aux pen at its own width', () => {
+    const auxed: PaperStyle = {
+      ...style,
+      auxCreases: { visible: true, pen: { ...style.auxCreases.pen, width: 0.25 } },
+    };
+    for (const policy of Object.values(PAPER_STYLE_POLICIES)) {
+      expect(surfacePaperStyle(auxed, policy).auxCreases.pen.width, policy.surface).toBe(0.25);
+    }
   });
 });
 

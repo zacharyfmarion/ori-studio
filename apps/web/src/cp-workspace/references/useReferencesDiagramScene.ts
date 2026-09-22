@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { diagramInkColors } from './diagram/diagramColors';
 import { diagramToScene, type DiagramScene } from './diagram/diagramToScene';
-import { canvasDiagramInk } from './diagram/diagramInk';
+import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
 import { seenFromTheBack } from './diagram/diagramModel';
 import type { ReferencesPaperStyle } from './usePaperStyleTokens';
 
@@ -32,9 +32,9 @@ export function useReferencesDiagramScene(
   diagram: StepDiagramModel | null,
   lineWidth: number,
   mirrored: boolean,
-  paper: Pick<ReferencesPaperStyle, 'root' | 'tokens'>
+  paper: Pick<ReferencesPaperStyle, 'root' | 'tokens' | 'arrowWidth' | 'inks'>
 ): ReferencesDiagramScene {
-  const { root, tokens } = paper;
+  const { root, tokens, arrowWidth, inks } = paper;
   return useMemo(() => {
     if (!diagram) return EMPTY;
     // A mountain seen from the front is a valley seen from the back.
@@ -46,10 +46,17 @@ export function useReferencesDiagramScene(
     // are one drawing. It scales the dash runs, which the stroke program reads
     // in screen pixels — and it deliberately excludes the zoom-dependent boost
     // the creases carry, or every zoom frame would have to re-upload them.
+    // The existing creases in the style's aux pen, shown or not and pulled
+    // back from the sheet's edge as it says.
     const scene = diagramToScene(
       primitives,
       diagramInkColors(element, tokens),
-      canvasDiagramInk(lineWidth)
+      canvasDiagramInk(lineWidth),
+      {
+        pens: canvasDiagramPens(lineWidth, arrowWidth, inks.aux),
+        sheet: diagram.sheet,
+        creases: { visible: inks.auxVisible, erode: inks.erode },
+      }
     );
     return {
       strokes: scene.strokes,
@@ -57,5 +64,5 @@ export function useReferencesDiagramScene(
     };
     // `tokens` is a fresh object on a theme change too, which is what makes the
     // theme's own tokens (read off the DOM) a dependency.
-  }, [diagram, lineWidth, mirrored, root, tokens]);
+  }, [diagram, lineWidth, mirrored, root, tokens, arrowWidth, inks]);
 }

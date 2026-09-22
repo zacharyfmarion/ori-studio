@@ -26,6 +26,7 @@ import {
 } from '../canvasObjects/placeBesideCp';
 import type { FillGeometry, FoldedGeometry, Rgba } from '../renderer/types';
 import { folded3dFrameHalfSide } from '../folded/folded3dFrame';
+import type { FoldedFlatAuxSegment } from '../folded/foldedFlatAux';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
 const CURVE_STEPS = 12;
@@ -273,7 +274,7 @@ class FoldedBuilder {
   }
 
   /** Freeze into the cacheable local form, measuring the bbox over every vertex. */
-  buildLocal(): FoldedFigureLocalGeometry {
+  buildLocal(auxDepth: number): FoldedFigureLocalGeometry {
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -299,6 +300,7 @@ class FoldedBuilder {
       strokeWidthMul: new Float32Array(this.strokeWidthMul),
       fillDepth: new Float32Array(this.fillDepth),
       strokeDepth: new Float32Array(this.strokeDepth),
+      auxDepth,
       bounds,
       center: bounds
         ? { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
@@ -333,10 +335,29 @@ export interface FoldedFigureLocalGeometry {
    */
   fillDepth: Float32Array;
   strokeDepth: Float32Array;
+  /**
+   * Where the figure's aux creases go in that order: just above its last fill
+   * and below whatever the drawer painted next, so a crease lies on its face
+   * and the face's own edges are drawn over its ends.
+   */
+  auxDepth: number;
   /** Bounding box of every emitted vertex, local user coords. Null when empty. */
   bounds: Aabb | null;
   /** Centre of {@link bounds} — the pivot placement scales and rotates about. */
   center: Point;
+}
+
+/** A figure's aux creases as the folded channel strokes them. */
+export interface FoldedFigureAuxStrokes {
+  /** The pieces, in the render snapshot's coordinates (`foldedFlatAuxSegments`). */
+  segments: readonly FoldedFlatAuxSegment[];
+  /** The aux pen's colour, 0..1 channels. */
+  color: Rgba;
+  /**
+   * The aux pen's width as a multiplier over the frame's `foldedStrokeWidthPx`
+   * — device px per pt — so it is the pen's width in pt.
+   */
+  widthMul: number;
 }
 
 /**
@@ -370,6 +391,7 @@ export function foldedFigureLocalGeometry(
     (l, r) => l.sequence - r.sequence
   );
 
+  let lastFill = -1;
   for (const [index, primitive] of primitives.entries()) {
     // The whole point of the depth attribute: the primitives are already in
     // painter order here, and the canvas is about to lose that by batching every
@@ -382,6 +404,7 @@ export function foldedFigureLocalGeometry(
     const paint = primitive.style.paint;
     if (!paintDraws(paint)) continue;
     const isFill = primitive.kind.startsWith('fill_');
+    if (isFill) lastFill = index;
     const width = isFill ? 0 : KERNEL_STROKE_WIDTH_MUL;
 
     for (const local of geometrySubpaths(primitive.geometry)) {
@@ -395,7 +418,8 @@ export function foldedFigureLocalGeometry(
     }
   }
 
-  const local = builder.buildLocal();
+  // Half a step past the last fill: between it and the next primitive.
+  const local = builder.buildLocal((lastFill + 1.5) / (primitives.length + 1));
   localGeometryCache.set(snapshot, local);
   return local;
 }
@@ -513,7 +537,15 @@ export function cpFoldedToScene(
    * like the opacity, so a figure pinning its own pen does not invalidate the
    * cached local geometry.
    */
-  figureStrokeWidth?: (figure: OristudioCpFoldedFigureEntry) => number
+  figureStrokeWidth?: (figure: OristudioCpFoldedFigureEntry) => number,
+  /**
+   * Per-figure aux creases to draw over its fills, or null for none — the
+   * flat figure's overlay (`useFoldedFlatAux`). The pieces are in the render
+   * snapshot's coordinates and go through the same map and placement as the
+   * snapshot's own primitives; they are stroked in their own colour and width,
+   * at the figure's opacity, at {@link FoldedFigureLocalGeometry.auxDepth}.
+   */
+  figureAux?: (figure: OristudioCpFoldedFigureEntry) => FoldedFigureAuxStrokes | null
 ): FoldedGeometry {
   const fillPos: number[] = [];
   const fillColor: number[] = [];
@@ -570,6 +602,22 @@ export function cpFoldedToScene(
     }
     for (let i = 0; i < local.strokeDepth.length; i++) {
       strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
+    }
+
+    const aux = figureAux?.(figure);
+    if (!aux || aux.segments.length === 0) continue;
+    const [r, g, bl, alpha] = aux.color;
+    const auxDepth = bandBase + local.auxDepth * bandSpan;
+    for (const segment of aux.segments) {
+      // The snapshot's coordinates to local user space, as the primitives went,
+      // then the placement — one affine for both ends.
+      const pa = cpModelToSvg(segment.a);
+      const pb = cpModelToSvg(segment.b);
+      strokeA.push(a * pa.x - b * pa.y + tx, b * pa.x + a * pa.y + ty);
+      strokeB.push(a * pb.x - b * pb.y + tx, b * pb.x + a * pb.y + ty);
+      strokeColor.push(r, g, bl, alpha * opacity);
+      strokeWidthMul.push(aux.widthMul);
+      strokeDepth.push(auxDepth);
     }
   }
 

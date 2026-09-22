@@ -1,4 +1,4 @@
-export { prepareFoldModel } from './prepare.js';
+export { prepareFoldModel, EDGES_FACET_KEY } from './prepare.js';
 export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';
@@ -17,12 +17,15 @@ export {
   MeshRenderer,
   meshTopologyFor,
   DEFAULT_CREASE_DEPTH_BIAS,
+  DASH_KINDS,
   MAX_DASH_RUNS,
   packCreaseDash,
   creaseFrameScale,
+  erodePx,
   rasterCreaseInk,
   type CreaseDash,
   type MeshDrawOptions,
+  type MeshRendererOptions,
   type MeshTopology,
   type RenderSettings,
 } from './webgl/meshRenderer.js';
@@ -41,12 +44,21 @@ export {
   type PaperItem,
   type PaperLineItem,
   type PaperLineRole,
+  type PaperLineWhole,
   type PaperScene,
   type PaperSide,
   type SceneBounds,
   type ScenePoint,
 } from './paperScene.js';
 export { EDGE_CODE, type EdgeCode } from './edgeCodes.js';
+export {
+  EDGE_BOUNDARY_A,
+  EDGE_BOUNDARY_B,
+  edgeBoundaryFlags,
+  endpointOnBoundary,
+  outlineVertexCounts,
+  type EdgeBoundaryTopology,
+} from './edgeBoundary.js';
 export {
   SHADE_AMBIENT,
   SHADE_DIFFUSE,
@@ -74,6 +86,7 @@ export {
   cameraUniforms,
   centroid,
   boundingRadius,
+  sheetExtent,
   fitExtent,
   projectVertices,
   projectViewPoint,

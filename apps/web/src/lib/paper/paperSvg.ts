@@ -240,7 +240,7 @@ function lineElement(
 ): string | null {
   const pen = penForRole(style, line.role);
   if (!pen) return null;
-  const eroded = erodeSegment(line.a, line.b, line.onBoundary, erodePx);
+  const eroded = erodeLine(line, erodePx);
   if (!eroded) return null;
   const from = place(eroded[0]);
   const to = place(eroded[1]);
@@ -286,6 +286,47 @@ export function centredDashOffset(runsPt: readonly number[], lengthPt: number): 
   const first = runsPt[0] ?? 0;
   const offset = (first / 2 - lengthPt / 2) % period;
   return offset < 0 ? offset + period : offset;
+}
+
+/**
+ * A line's ink under erode: the segment to draw, or null for none.
+ *
+ * A whole crease erodes as {@link erodeSegment} says. A piece the tree cut
+ * from a longer crease (`line.whole`) is the span of that crease between its
+ * cuts, and the crease is what retreats — as the edge shader and the canvas-2D
+ * fallback measure it, on the whole edge — so the piece is what is left of
+ * its span once the crease's flagged ends have pulled in: a piece cut 10 px
+ * from a flagged end with an 8 px erode keeps its last 2 px rather than
+ * collapsing on its own length, and a piece that does not own that end still
+ * gives up what the pull takes. Nothing when the crease collapses or the span
+ * lies wholly in a pulled-off end.
+ */
+export function erodeLine(
+  line: Pick<PaperLineItem, 'a' | 'b' | 'onBoundary' | 'whole'>,
+  erodePx: number
+): [ScenePoint, ScenePoint] | null {
+  const whole = line.whole;
+  if (!whole || !(erodePx > 0)) return erodeSegment(line.a, line.b, line.onBoundary, erodePx);
+  const eroded = erodeSegment(whole.a, whole.b, whole.onBoundary, erodePx);
+  if (!eroded) return null;
+  const dx = whole.b[0] - whole.a[0];
+  const dy = whole.b[1] - whole.a[1];
+  const span = dx * dx + dy * dy;
+  if (!(span > 0)) return null;
+  const along = (point: ScenePoint) =>
+    ((point[0] - whole.a[0]) * dx + (point[1] - whole.a[1]) * dy) / span;
+  const low = along(eroded[0]);
+  const high = along(eroded[1]);
+  // An end inside what is left keeps its own coordinates; one past a pulled
+  // end lands exactly on it.
+  const clamp = (point: ScenePoint): ScenePoint => {
+    const t = along(point);
+    return t < low ? eroded[0] : t > high ? eroded[1] : point;
+  };
+  const from = clamp(line.a);
+  const to = clamp(line.b);
+  if (from[0] === to[0] && from[1] === to[1]) return null;
+  return [from, to];
 }
 
 /**

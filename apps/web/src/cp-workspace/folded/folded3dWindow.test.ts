@@ -248,33 +248,65 @@ describe('drawing a figure in its effective paper style', () => {
     expect(xray.faceAlpha).toBeLessThan(1);
   });
 
-  it('inks every crease kind with the edge pen: the folded-3d policy has no fold pens', () => {
-    // Reproduces the figure's single-ink linework exactly. The mesh does carry
-    // mountain/valley codes, so telling them apart is a policy change away.
+  it('inks the folds with the M/V pens and the borders with the edge pen, as the simulator does', () => {
+    // Re-pinned: every crease kind took the edge pen while the folded-3d
+    // policy had no fold pens; Phase 5 gave it them, so a 3D figure draws
+    // its creases as the simulator draws a fold.
     const settings = folded3dWindowRenderSettings({
       style: STYLE,
       displayStyle: 'Paper5',
       devicePixelRatio: 1,
     });
-    const grey = [0.4, 0.4, 0.4];
-    expect(settings.mountainColor).toEqual(grey);
-    expect(settings.valleyColor).toEqual(grey);
-    expect(settings.borderColor).toEqual(grey);
+    expect(settings.mountainColor).toEqual([1, 0, 0]);
+    expect(settings.valleyColor).toEqual([0, 0, 1]);
+    expect(settings.borderColor).toEqual([0.4, 0.4, 0.4]);
   });
 
-  it('draws the edge pen at its pt width in device pixels, and nothing bespoke', () => {
-    // Phase 1 replaces the window's own `1.5 × dpr` with the pen: 0.9 pt is the
-    // folded figure's 1.2 CSS px, times the device ratio. The below-reference
-    // shrink is the viewport's (`creaseWidthReferenceEdge`), not this module's.
+  it('draws every fold line at the mountain pen’s pt width in device pixels, and nothing bespoke', () => {
+    // Phase 1 replaced the window's own `1.5 × dpr` with a pen; Phase 5's
+    // policy makes that pen the mountain pen's width, the simulator's fold
+    // line weight, under the resolver's one-width rule (re-pinned from the
+    // edge pen's own 0.9 pt). The below-reference shrink is the viewport's
+    // (`creaseWidthReferenceEdge`), not this module's.
     for (const dpr of [1, 2]) {
       const settings = folded3dWindowRenderSettings({
-        style: { ...STYLE, edges: { ...STYLE.edges, width: 0.9 } },
+        style: {
+          ...STYLE,
+          edges: { ...STYLE.edges, width: 0.9 },
+          mountainFolds: { ...STYLE.mountainFolds, width: 1.2 },
+        },
         displayStyle: 'Paper5',
         devicePixelRatio: dpr,
       });
-      expect(settings.creaseWidthPx).toBeCloseTo(ptToDevicePx(0.9, dpr), 12);
+      expect(settings.creaseWidthPx).toBeCloseTo(ptToDevicePx(1.2, dpr), 12);
       expect(settings.creaseWidthReferenceEdge).toBeUndefined();
     }
+  });
+
+  it('carries the aux pen, its toggle and erode to the window', () => {
+    // A 0° fold is an aux crease now (`folded3dEdgeAssignment`); the window
+    // draws it in this pen when the effective style shows aux creases, and
+    // erodes by the style's fraction of the mesh's sheet per frame.
+    const settings = folded3dWindowRenderSettings({
+      style: {
+        ...STYLE,
+        auxCreases: { visible: true, pen: { width: 0.75, color: '#00ff00', dash: null, cap: 'butt' } },
+        erode: 0.03,
+      },
+      displayStyle: 'Paper5',
+      devicePixelRatio: 2,
+    });
+    expect(settings.showAux).toBe(true);
+    expect(settings.auxColor).toEqual([0, 1, 0]);
+    expect(settings.auxWidthPx).toBeCloseTo(ptToDevicePx(0.75, 2), 12);
+    expect(settings.erode).toBe(0.03);
+    expect(
+      folded3dWindowRenderSettings({
+        style: { ...STYLE, auxCreases: { ...STYLE.auxCreases, visible: false } },
+        displayStyle: 'Paper5',
+        devicePixelRatio: 1,
+      }).showAux
+    ).toBe(false);
   });
 
   it('is lit from the style’s light, the same one the simulator uses', () => {

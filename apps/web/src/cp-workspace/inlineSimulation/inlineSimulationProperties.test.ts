@@ -68,6 +68,10 @@ describe('buildInlineSimulationProperties', () => {
       'valleyColor',
       'foldLineWeight',
       'lighting',
+      'auxVisible',
+      'auxColor',
+      'auxWidth',
+      'erode',
     ]);
     // Preferences record nothing; pins are document edits.
     for (const f of sheet.sections[0]!.fields) expect(f.undoLabel).toBeUndefined();
@@ -75,7 +79,9 @@ describe('buildInlineSimulationProperties', () => {
   });
 
   it('covers exactly the inline-simulation policy’s fields', () => {
-    // What the sheet can pin and what the renderer honours are one list.
+    // What the sheet can pin and what the renderer honours are one list. It
+    // was briefly a subset while Phase 5's aux and erode fields had no rows;
+    // re-pinned to the whole policy now that they do.
     const written = new Set<string>();
     const d = {
       ...deps(),
@@ -90,8 +96,41 @@ describe('buildInlineSimulationProperties', () => {
       else if (f.kind === 'slider') f.update(1);
       else if (f.kind === 'toggle') f.commit(false);
       else if (f.kind === 'select') f.commit('mono');
+      else if (f.kind === 'number') f.commit(1);
     }
     expect([...written].sort()).toEqual([...PAPER_STYLE_POLICIES['inline-simulation'].applies].sort());
+  });
+
+  it('pins the aux pen whole and states erode as a share of the sheet', () => {
+    const d = deps();
+    const sheet = buildInlineSimulationProperties(TARGET, d);
+    const width = field(sheet, 'auxWidth');
+    if (width.kind !== 'number') throw new Error('number');
+    expect(width.value).toBe(DEFAULT_PAPER_STYLE.auxCreases.pen.width);
+    width.commit(1.5);
+    expect(d.commitOverrides).toHaveBeenLastCalledWith([
+      { field: 'auxCreases.pen', value: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, width: 1.5 } },
+    ]);
+    const erode = field(sheet, 'erode');
+    if (erode.kind !== 'number') throw new Error('number');
+    expect(erode).toMatchObject({ value: 0, min: 0, max: 25, suffix: '%' });
+    erode.commit(2.5);
+    expect(d.commitOverrides).toHaveBeenLastCalledWith([{ field: 'erode', value: 0.025 }]);
+    const visible = field(sheet, 'auxVisible');
+    if (visible.kind !== 'toggle') throw new Error('toggle');
+    expect(visible.value).toBe(true);
+    visible.commit(false);
+    expect(d.commitOverrides).toHaveBeenLastCalledWith([{ field: 'auxCreases.visible', value: false }]);
+    // Pinned rows reset their own field; the colour and width share the pen.
+    const pinned = buildInlineSimulationProperties(
+      TARGET,
+      deps({ 'auxCreases.pen': DEFAULT_PAPER_STYLE.auxCreases.pen, erode: 0.1 })
+    );
+    expect(field(pinned, 'auxColor').reset).toBeDefined();
+    expect(field(pinned, 'auxWidth').reset).toBeDefined();
+    expect(field(pinned, 'erode').reset).toBeDefined();
+    expect(field(pinned, 'auxVisible').reset).toBeUndefined();
+    expect(field(sheet, 'erode').reset).toBeUndefined();
   });
 
   it('writes the app-wide setting on a discrete commit', () => {

@@ -75,10 +75,26 @@ are unchanged:
   `every_subface_stack_starts_with_the_face_the_drawer_paints` (in-crate) and
   `paper_scene_subfaces_are_the_drawers_fills_with_their_visible_face_on_top`
   (`tests/folding.rs`) hold each subface's top face and polygon to the drawer's
-  on both sides of the figure; the render oracle is untouched. `aux_lines` is
-  empty by construction: the fold takes only folding-colour creases
-  (`LineColor::is_folding_line`, Oriedita's `getForSelectFolding`), so no
-  `Cyan3` line has a folded position to report. The session accessor declines
+  on both sides of the figure; the render oracle is untouched. `aux_lines`
+  carries the document's `Cyan3` lines through the fold, which Oriedita never
+  does: the fold takes only folding-colour creases
+  (`LineColor::is_folding_line`, Oriedita's `getForSelectFolding`), so the
+  wireframe has no folded position for one. `CpSession` captures the
+  document's `Cyan3` lines with the fold (`FlatFoldedFigure::aux_segments`,
+  the whole document's whatever the selection, since a selection names
+  foldable creases and the clip below keeps only what lies on a folded face),
+  and `paper_scene_aux_lines` clips each to every face of the unfolded sheet
+  (`Polygon::clip_segment`, Ori Studio native: split at every proper edge
+  crossing, keep a piece whose midpoint is `Inside`, so a run along a crease
+  or a paper edge and any piece under `Epsilon::POINT` are dropped) and places
+  each piece by `FoldGraph::fold_point` — the reflection chain
+  `fold_movement` walks for the face's own vertices, exact for a rigid flat
+  fold — then through the pass's camera. `FoldGraph::folded_points` and its
+  averaging are unchanged; `fold_movement` now delegates to `fold_point`.
+  `aux_lines_are_split_at_the_fold_and_carried_by_their_face` (in-crate) and
+  `paper_scene_aux_lines_lie_inside_their_faces_one_piece_per_face_crossed`
+  (`tests/folding.rs`, every paper-scene fixture) hold each piece inside its
+  face's folded outline with one piece per face the line crosses. The session accessor declines
   where the drawer would have searched: it answers `None` unless the session
   holds a solved ordering (`FoldOutcome::Solved`), whatever the display style.
   A fold the kernel rewound to `Transparent3` — no solutions, or a

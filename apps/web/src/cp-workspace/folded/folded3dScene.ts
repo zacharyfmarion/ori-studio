@@ -45,8 +45,9 @@
  * so a second statement of the side here could only disagree. Shade is the
  * simulator's `shadeFor` under the figure's effective light through the
  * `folded-3d` policy — the same light the window's `RenderSettings` carry. The
- * sheet is `model.span`, the longer side of the unfolded bounding box in the
- * kernel's units, which the mesh positions are in.
+ * sheet is the mesh's (`model.span`, the longer side of the unfolded bounding
+ * box in the kernel's units, which the mesh positions are in), the same number
+ * the window's edge pass erodes by.
  */
 
 import {
@@ -121,7 +122,7 @@ export function folded3dPaperScene(
     creases: plan.strokes,
   });
   return meshToPaperScene(mesh.positions, geometry.topology, camera, {
-    sheet: model.span,
+    sheet: mesh.sheet,
     perspective: true,
     markHidden: options.markHidden,
     lighting: style.light.enabled,

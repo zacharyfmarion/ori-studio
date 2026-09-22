@@ -1,9 +1,10 @@
 import { useMemo, useState, type CSSProperties } from 'react';
-import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
+import { PT_TO_CSS_PX, type PaperStyle, type Pen } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
 import { referencesCreaseAlpha, referencesDimAlpha } from '../../themes/referencesInk';
+import { cardDiagramPens, type DiagramPens } from './diagram/diagramInk';
 
 /**
  * The paper style's paper and inks, as the custom properties the References
@@ -40,6 +41,27 @@ export const REFERENCES_PAPER_TOKENS = [
 export type ReferencesPaperToken = (typeof REFERENCES_PAPER_TOKENS)[number];
 export type ReferencesPaperTokens = Readonly<Record<ReferencesPaperToken, string>>;
 
+/**
+ * What the style says about a step's existing creases, beyond their colour:
+ * the aux pen they are drawn with, whether they are drawn at all, and how far
+ * a crease is pulled back from the sheet's edge (D8) — for the big view's
+ * lines (`useReferencesDiagramScene`) and the layer over it.
+ */
+export interface ReferencesPaperInks {
+  /** The aux pen through the References policy, and its width in CSS px. */
+  aux: { pen: Pen; css: number };
+  /** Whether existing creases are drawn. */
+  auxVisible: boolean;
+  /** Erode, as a fraction of the sheet. */
+  erode: number;
+}
+
+/** The same, for a card: the pens at the card's scale, and the crease switches. */
+export interface ReferencesCardInks {
+  pens: DiagramPens;
+  creases: { visible: boolean; erode: number };
+}
+
 export interface ReferencesPaperStyle {
   /** The tokens, as the workspace root's inline style. */
   style: CSSProperties;
@@ -52,6 +74,8 @@ export interface ReferencesPaperStyle {
   tokens: ReferencesPaperTokens;
   /** The style's arrow pen, in CSS px, for the diagram drawn over the canvas. */
   arrowWidth: number;
+  /** The existing creases' pen and switches, for the diagram drawn over the canvas. */
+  inks: ReferencesPaperInks;
   /**
    * Changes when any colour the workspace reads off the DOM changes — the
    * theme's or the style's — so an effect that resolved colours re-reads them.
@@ -83,6 +107,36 @@ export function referencesPaperTokens(style: PaperStyle): ReferencesPaperTokens 
   };
 }
 
+/** The existing creases' pen and switches for `style`, through the References policy. */
+export function referencesPaperInks(style: PaperStyle): ReferencesPaperInks {
+  const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
+  return {
+    aux: { pen: seen.auxCreases.pen, css: seen.auxCreases.pen.width * PT_TO_CSS_PX },
+    auxVisible: seen.auxCreases.visible,
+    erode: seen.erode,
+  };
+}
+
+/** A card's pens and crease switches for `style`, through the References policy. */
+export function referencesCardInks(style: PaperStyle): ReferencesCardInks {
+  const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
+  return {
+    pens: cardDiagramPens(seen),
+    creases: { visible: seen.auxCreases.visible, erode: seen.erode },
+  };
+}
+
+/**
+ * {@link referencesCardInks} for the display style, live. A card reads it
+ * itself rather than being handed it: the strip mounts one per step and the
+ * style reaches all of them through the store, as the colours reach them
+ * through the workspace root's tokens.
+ */
+export function useReferencesCardInks(): ReferencesCardInks {
+  const display = useSettingsStore((state) => state.paperStyle.display);
+  return useMemo(() => referencesCardInks(display), [display]);
+}
+
 /** React's `CSSProperties` has no slot for custom properties; the cast is named once. */
 function cssVars(vars: ReferencesPaperTokens): CSSProperties {
   return vars as CSSProperties;
@@ -111,6 +165,7 @@ export function usePaperStyleTokens(): ReferencesPaperStyle & {
       setRoot,
       tokens,
       arrowWidth: display.arrows.width * PT_TO_CSS_PX,
+      inks: referencesPaperInks(display),
       inkKey: [theme.name, ...REFERENCES_PAPER_TOKENS.map((token) => tokens[token])].join('|'),
     };
   }, [display, theme, root]);

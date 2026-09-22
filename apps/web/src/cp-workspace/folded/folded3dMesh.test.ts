@@ -25,6 +25,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   cameraUniforms,
+  edgeBoundaryFlags,
   projectVertices,
   toViewSpace,
   type CameraUniforms,
@@ -678,9 +679,10 @@ describe('folded3dMesh', () => {
       // negative degrees is a mountain.
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, -180)).toBe(1);
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, 90)).toBe(2);
-      // A zero-angle crease becomes a border, not a facet: code 3 is skipped by
-      // `buildEdgeQuads`, and the CPU projector draws that edge today.
-      expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, 0)).toBe(0);
+      // Re-pinned: a zero-angle crease is an auxiliary crease (code 3), which
+      // the edge pass draws in the aux pen since Phase 5. It was a border
+      // while `buildEdgeQuads` skipped code 3.
+      expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, 0)).toBe(3);
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_BORDER, 0)).toBe(0);
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_UNKNOWN, -45)).toBe(0);
     });
@@ -697,9 +699,11 @@ describe('folded3dMesh', () => {
       for (let nth = 0; nth < sources.length; nth += 1) {
         const edge = sources[nth]!;
         const code = mesh.topology.edgeAssignments[creases[nth]!]!;
-        // Never 3: that is the one code `buildEdgeQuads` skips, and every edge
-        // the payload carries is drawn today.
-        expect(code).toBeLessThanOrEqual(2);
+        // Never 4: the facet code is the one `buildEdgeQuads` skips, and every
+        // edge the payload carries is a line someone drew. (No fixture has a
+        // 0° crease, so 3 never appears here either; `folded3dEdgeAssignment`
+        // pins it above.)
+        expect(code).toBeLessThanOrEqual(3);
         // And it is the code of the model edge this crease was drawn from, not
         // of whatever happened to sit at the same array position.
         const kind = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 3] ?? 0;
@@ -773,6 +777,32 @@ describe('folded3dMesh', () => {
         expect(conditional).toBeGreaterThan(0);
         expect(buried).toBeGreaterThan(0);
       }
+    });
+
+    it.each(NAMES)('%s erodes the same crease ends on screen as the export does', (name) => {
+      // The window's edge pass reads `edgeBoundaryFlags` over the whole
+      // buffer, where a crease appears in every run that inks it — a skin, a
+      // hinge group, the translucent run — on the same two vertices; the
+      // export reads it from the translucent and undetermined runs, once. The
+      // rule counts each crease once whatever the buffer lists, or a crease's
+      // own copies would pass for other creases meeting its ends and the
+      // window would retreat an end the export leaves whole — a straight fold
+      // running across an arrangement cut, on four fixtures of the six.
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      const start = mesh.translucent.edgeStart;
+      const end = mesh.undetermined.edgeStart + mesh.undetermined.edgeCount;
+      const window = edgeBoundaryFlags(mesh.topology);
+      const once = edgeBoundaryFlags({
+        edgeIndices: mesh.topology.edgeIndices.subarray(start * 2, end * 2),
+        edgeAssignments: mesh.topology.edgeAssignments.subarray(start, end),
+      });
+      let flagged = 0;
+      for (let crease = start; crease < end; crease += 1) {
+        expect(window[crease], `${name} crease ${crease}`).toBe(once[crease - start]);
+        if (window[crease]) flagged += 1;
+      }
+      expect(flagged).toBeGreaterThan(0);
     });
 
     it.each(NAMES)('%s places a crease on its fold line, at its layer', (name) => {

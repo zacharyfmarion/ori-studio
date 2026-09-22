@@ -107,6 +107,7 @@ import {
 } from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
+import { useFoldedFlatAux } from './folded/useFoldedFlatAux';
 import { useObjectEdgePenWidth } from './paper/objectPaperStyle';
 import { ptToDevicePx } from '../lib/paper/paperStyle';
 import type { CpContextMenuRequest } from './contextMenuTarget';
@@ -1596,14 +1597,18 @@ export function CreasePatternWebglCanvas({
   // A figure's edges draw in its effective edge pen: the render call below
   // supplies device px per pt, and this supplies each figure's pt.
   const foldedPenWidth = useObjectEdgePenWidth();
+  // A flat figure's aux creases, in its aux pen, over its fills — fetched from
+  // the kernel while the figure's style shows them.
+  const foldedAux = useFoldedFlatAux(sceneFoldedFigures);
   const foldedGeometry = useMemo(
     () =>
       cpFoldedToScene(
         drawnFoldedFigures,
         (figure) => (staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1),
-        foldedPenWidth
+        foldedPenWidth,
+        foldedAux
       ),
-    [drawnFoldedFigures, staleFoldedFigureIds, foldedPenWidth]
+    [drawnFoldedFigures, staleFoldedFigureIds, foldedPenWidth, foldedAux]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global

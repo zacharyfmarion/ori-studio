@@ -248,7 +248,11 @@
       "title": "Simulationsfenster"
     },
     "paperStyle": {
+      "auxColor": "Faltenfarbe",
+      "auxVisible": "Vorhandene Falten",
+      "auxWidth": "Faltenbreite (pt)",
       "changeAction": "Papierstil ändern",
+      "erode": "Einrücken (% des Papiers)",
       "resetAction": "Papierstil zurücksetzen"
     },
     "region": {

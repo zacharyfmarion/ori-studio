@@ -13,6 +13,7 @@ export type {
   PaperItem,
   PaperLineItem,
   PaperLineRole,
+  PaperLineWhole,
   PaperScene,
   PaperSide,
   SceneBounds,

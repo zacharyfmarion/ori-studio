@@ -1,4 +1,8 @@
 import {
+  EDGE_BOUNDARY_A,
+  EDGE_BOUNDARY_B,
+  EDGE_CODE,
+  erodePx,
   fitExtent,
   shadeColor,
   shadeFor,
@@ -9,6 +13,7 @@ import type {
   FoldDocument as SimulatorFoldDocument,
   Vec3Like,
 } from "@treemaker/origami-simulator";
+import { erodeSegment } from "../lib/paper/paperSvg";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
@@ -173,6 +178,9 @@ export function drawFrame(
     x: width / 2 + point.x * scale,
     y: height / 2 - point.y * scale,
   });
+  // The erode distance in this frame's pixels — the same sum the GPU pass
+  // makes per draw, from the same sheet extent.
+  palette.erodePx = erodePx(render, model.sheet, { scale });
 
   const triangles = triangleOrder(model.indices, projected);
   const xray = render.faceAlpha < 1;
@@ -366,6 +374,12 @@ interface SimulatorPalette {
   creaseWidthPx: number;
   /** Dash runs by crease kind, or null for solid. Same values the shader gets. */
   dash: CreaseDash | undefined;
+  /** The auxiliary crease pen, drawn only when {@link showAux}. */
+  aux: string;
+  auxWidthPx: number;
+  showAux: boolean;
+  /** How far a flagged crease end retreats, in device px; 0 draws to the ends. */
+  erodePx: number;
 }
 
 /**
@@ -394,7 +408,64 @@ function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
     lightDir: render.lightDir,
     creaseWidthPx: render.creaseWidthPx,
     dash: render.creaseDash,
+    aux: renderColorToCss(render.auxColor ?? render.borderColor),
+    auxWidthPx: render.auxWidthPx ?? render.creaseWidthPx,
+    showAux: render.showAux ?? false,
+    // Set per frame, once the camera's scale is known.
+    erodePx: 0,
   };
+}
+
+/**
+ * The pen an edge draws with at `widthScale` of its declared width, or null
+ * for an edge this pass leaves out: a facet edge, which nothing drew, and an
+ * auxiliary crease the style hides. As the GPU edge pass reads the codes.
+ */
+function edgeInk(
+  code: number,
+  assignment: string | undefined,
+  palette: SimulatorPalette,
+  widthScale: number,
+): { color: string; width: number; dash: readonly number[] | null } | null {
+  if (code === EDGE_CODE.facet) return null;
+  if (code === EDGE_CODE.aux) {
+    if (!palette.showAux) return null;
+    return {
+      color: palette.aux,
+      width: Math.max(0.5, palette.auxWidthPx * widthScale),
+      dash: palette.dash?.aux ?? null,
+    };
+  }
+  return {
+    color: edgeColor(assignment, palette),
+    width: Math.max(0.5, palette.creaseWidthPx * widthScale),
+    dash: edgeDash(assignment, palette),
+  };
+}
+
+/**
+ * Erode (D8) as the painter and the GPU pass apply it: the flagged ends of an
+ * edge retreat by the frame's erode distance, in device px, or the edge is
+ * dropped when the pull would reach its midpoint. Applied to the whole edge
+ * before it is cut into visible pieces — a cut end is nobody's boundary.
+ */
+function erodeEdge(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  flags: number,
+  distance: number,
+): [{ x: number; y: number }, { x: number; y: number }] | null {
+  const eroded = erodeSegment(
+    [a.x, a.y],
+    [b.x, b.y],
+    [(flags & EDGE_BOUNDARY_A) !== 0, (flags & EDGE_BOUNDARY_B) !== 0],
+    distance,
+  );
+  if (!eroded) return null;
+  return [
+    { x: eroded[0][0], y: eroded[0][1] },
+    { x: eroded[1][0], y: eroded[1][1] },
+  ];
 }
 
 function triangleOrder(
@@ -648,7 +719,6 @@ function drawTriangleEdges(
     [triangle.vertices[2], triangle.vertices[0]],
   ];
   ctx.setLineDash([]);
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx * 0.85);
   pairs.forEach(([from, to], side) => {
     drawEdgeSegment(
       ctx,
@@ -662,6 +732,7 @@ function drawTriangleEdges(
       palette,
       highlights,
       dpr,
+      0.85,
     );
   });
 }
@@ -680,8 +751,7 @@ function drawAllEdges(
   ctx.setLineDash([]);
   // Thinner than the visible-edge pass over faces, which keeps a wireframe of
   // every layer from reading as one solid mass. `drawEdgeSegment` applies each
-  // crease kind's own dash pattern per edge.
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx * 0.7);
+  // crease kind's own pen and dash pattern per edge.
   model.edgesVertices.forEach((edge, index) => {
     drawEdgeSegment(
       ctx,
@@ -695,6 +765,7 @@ function drawAllEdges(
       palette,
       highlights,
       dpr,
+      0.7,
     );
   });
   ctx.setLineDash([]);
@@ -712,7 +783,6 @@ function drawVisibleEdges(
   depthSurface: DepthSurface,
 ): void {
   ctx.setLineDash([]);
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx);
   model.edgesVertices.forEach((edge, index) => {
     drawVisibleEdgeSegment(
       ctx,
@@ -743,19 +813,27 @@ function drawEdgeSegment(
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
   dpr: number,
+  widthScale: number,
 ): void {
-  const a = map(projected[from] ?? { x: 0, y: 0, depth: 0 });
-  const b = map(projected[to] ?? { x: 0, y: 0, depth: 0 });
   const assignment = model.edgesAssignment[edgeIndex];
+  const ink = edgeInk(model.edgeCodes[edgeIndex] ?? EDGE_CODE.border, assignment, palette, widthScale);
+  if (!ink) return;
+  const ends = erodeEdge(
+    map(projected[from] ?? { x: 0, y: 0, depth: 0 }),
+    map(projected[to] ?? { x: 0, y: 0, depth: 0 }),
+    model.edgeBoundary[edgeIndex] ?? 0,
+    palette.erodePx,
+  );
+  if (!ends) return;
+  const [a, b] = ends;
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
-  if (!highlighted) applyEdgeDash(ctx, assignment, palette);
+  ctx.lineWidth = ink.width;
+  if (!highlighted) applyEdgeDash(ctx, ink.dash);
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x, b.y);
-  ctx.strokeStyle = highlighted
-    ? palette.highlight
-    : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted ? palette.highlight : ink.color;
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
   ctx.stroke();
@@ -777,21 +855,38 @@ function drawVisibleEdgeSegment(
   dpr: number,
   depthSurface: DepthSurface,
 ): void {
+  const assignment = model.edgesAssignment[edgeIndex];
+  const ink = edgeInk(model.edgeCodes[edgeIndex] ?? EDGE_CODE.border, assignment, palette, 1);
+  if (!ink) return;
   const fromProjected = projected[from] ?? { x: 0, y: 0, depth: 0 };
   const toProjected = projected[to] ?? { x: 0, y: 0, depth: 0 };
-  const a = map(fromProjected);
-  const b = map(toProjected);
-  const assignment = model.edgesAssignment[edgeIndex];
+  // The whole edge retreats first; the pieces are then cut from what is left,
+  // so a cut end never erodes and the erosion is the painter's.
+  const ends = erodeEdge(
+    map(fromProjected),
+    map(toProjected),
+    model.edgeBoundary[edgeIndex] ?? 0,
+    palette.erodePx,
+  );
+  if (!ends) return;
+  const [a, b] = ends;
+  const fullA = map(fromProjected);
+  const fullB = map(toProjected);
+  const fullLength = Math.hypot(fullB.x - fullA.x, fullB.y - fullA.y);
+  // Where each eroded end sits along the uneroded edge, for its depth.
+  const along = (point: { x: number; y: number }) =>
+    fullLength > 0 ? Math.hypot(point.x - fullA.x, point.y - fullA.y) / fullLength : 0;
+  const depthA = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(a);
+  const depthB = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(b);
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
-  if (!highlighted) applyEdgeDash(ctx, assignment, palette);
+  ctx.lineWidth = ink.width;
+  if (!highlighted) applyEdgeDash(ctx, ink.dash);
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
   let segmentStart: { x: number; y: number } | null = null;
   let previousVisible: { x: number; y: number } | null = null;
 
-  ctx.strokeStyle = highlighted
-    ? palette.highlight
-    : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted ? palette.highlight : ink.color;
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
 
@@ -808,8 +903,7 @@ function drawVisibleEdgeSegment(
     const point = {
       x: a.x + (b.x - a.x) * t,
       y: a.y + (b.y - a.y) * t,
-      depth:
-        fromProjected.depth + (toProjected.depth - fromProjected.depth) * t,
+      depth: depthA + (depthB - depthA) * t,
     };
     if (edgePointIsVisible(point, depthSurface)) {
       segmentStart ??= point;
@@ -847,21 +941,26 @@ function findEdge(edges: [number, number][], from: number, to: number): number {
   );
 }
 
+/** The crease kind's dash pattern, or null for solid. */
+function edgeDash(
+  assignment: string | undefined,
+  palette: SimulatorPalette,
+): readonly number[] | null {
+  const dash = palette.dash;
+  if (!dash) return null;
+  return assignment === "M" ? dash.mountain : assignment === "V" ? dash.valley : dash.border;
+}
+
 /**
- * Apply the crease kind's dash pattern.
+ * Apply an edge's dash pattern.
  *
  * A highlighted crease stays solid: the sequence highlight is a different
  * signal, and dashing it would make it read as a hidden line instead.
  */
 function applyEdgeDash(
   ctx: CanvasRenderingContext2D,
-  assignment: string | undefined,
-  palette: SimulatorPalette,
+  pattern: readonly number[] | null,
 ): void {
-  const dash = palette.dash;
-  if (!dash) return;
-  const pattern =
-    assignment === "M" ? dash.mountain : assignment === "V" ? dash.valley : dash.border;
   ctx.setLineDash(pattern ? [...pattern] : []);
 }
 
@@ -876,7 +975,8 @@ function edgeColor(
 }
 
 function edgeAlpha(assignment: string | undefined, alpha: number): number {
-  if (assignment === "F") return alpha * 0.55;
+  // An auxiliary crease used to be dimmed here; it draws in its own pen now,
+  // at the pass's alpha, as the GPU pass draws it.
   if (!assignment) return alpha * 0.32;
   return alpha;
 }

@@ -13,6 +13,7 @@ import { PAPER_STYLE_POLICIES } from '../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../store/settingsStore';
 import {
   SIMULATOR_FOLD_WEIGHT_RANGE,
+  SIMULATOR_PANE_FIELDS,
   useSimulatorPaperStyle,
   type SimulatorPaperStyleBinding,
 } from './useSimulatorPaperStyle';
@@ -144,7 +145,14 @@ describe('useSimulatorPaperStyle', () => {
     expect(display().arrows).toEqual(arrows);
   });
 
-  it('resets exactly the fields the simulator policy applies', () => {
+  it('resets exactly the fields the pane offers', () => {
+    // Re-pinned from "the fields the simulator policy applies": the policy
+    // took the aux pen, its toggle and erode in Phase 5, and those rows are
+    // Settings ▸ Paper's, not the pane's.
+    expect(PAPER_STYLE_POLICIES.simulator.applies).toEqual(
+      expect.arrayContaining([...SIMULATOR_PANE_FIELDS])
+    );
+    expect(SIMULATOR_PANE_FIELDS).not.toContain('erode');
     // A value off the default in every field, so each row's reset is visible.
     const style = useSettingsStore.getState().paperStyle.display;
     act(() => {
@@ -167,7 +175,7 @@ describe('useSimulatorPaperStyle', () => {
     });
     tracked.length = 0;
     act(() => current().reset());
-    const applies = PAPER_STYLE_POLICIES.simulator.applies;
+    const applies = SIMULATOR_PANE_FIELDS;
     expect(tracked.map((entry) => entry.properties?.field)).toEqual(applies);
     for (const field of PAPER_STYLE_FIELDS) {
       const value = getPaperStyleField(display(), field);

@@ -368,6 +368,8 @@
         "butt": "평평",
         "round": "둥글게"
       },
+      "erode": "들여쓰기",
+      "erodeHint": "각 접힘선을 면의 가장자리에서 종이 크기의 백분율만큼 안쪽으로 줄입니다.",
       "exportFollowsDisplay": "내보내기에 표시 스타일 사용",
       "exportFollowsDisplayHint": "끄면 내보내기 스타일이 표시 스타일의 사본으로 시작되어 따로 편집됩니다.",
       "exportPage": {

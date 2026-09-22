@@ -368,6 +368,8 @@
         "butt": "平头",
         "round": "圆头"
       },
+      "erode": "内缩",
+      "erodeHint": "将每条折痕从其所在面的边缘向内收缩，按纸张的百分比计。",
       "exportFollowsDisplay": "导出使用显示样式",
       "exportFollowsDisplayHint": "关闭后，导出样式以显示样式的副本开始，并单独编辑。",
       "exportPage": {

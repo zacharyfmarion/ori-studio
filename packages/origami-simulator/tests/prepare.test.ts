@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  EDGES_FACET_KEY,
   EDGE_CODE,
   OrigamiModel,
   ReferenceSolver,
@@ -213,6 +214,47 @@ describe('prepareFoldModel', () => {
     expect(topology.edgeAssignments[8]).toBe(EDGE_CODE.facet);
     // Borders are still borders.
     expect(topology.edgeAssignments[0]).toBe(EDGE_CODE.border);
+  });
+
+  it('keeps its diagonals as facets through a second preparation', () => {
+    // The app's simulation path prepares once to triangulate, re-orients the
+    // faces, and prepares the result again without triangulating. The second
+    // pass invents nothing, so the flags have to ride on the document: without
+    // them every diagonal of the first pass came back as an aux crease and drew.
+    const once = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [2, 1],
+        [1, 1],
+        [0, 1],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 5],
+        [5, 0],
+        [1, 4],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'F'],
+      edges_foldAngle: [null, null, null, null, null, null, 0],
+      faces_vertices: [
+        [0, 1, 4, 5],
+        [1, 2, 3, 4],
+      ],
+    });
+    expect(once.fold[EDGES_FACET_KEY]).toEqual(once.edgesFacet);
+    const twice = prepareFoldModel(once.fold, { triangulate: false });
+    expect(twice.edgesFacet).toEqual(once.edgesFacet);
+    const topology = meshTopologyFor(twice);
+    expect(Array.from(topology.edgeAssignments).filter((code) => code === EDGE_CODE.aux)).toHaveLength(1);
+    expect(Array.from(topology.edgeAssignments).filter((code) => code === EDGE_CODE.facet)).toHaveLength(2);
+    // A document that never carried the key is prepared as before.
+    const { [EDGES_FACET_KEY]: _dropped, ...bare } = once.fold;
+    expect(prepareFoldModel(bare, { triangulate: false }).edgesFacet.every((flag) => !flag)).toBe(true);
   });
 
   it('keeps the facet marks aligned when the degenerate pass renumbers edges', () => {

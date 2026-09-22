@@ -8,6 +8,7 @@ import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/Dia
 import { seenFromTheBack } from './diagram/diagramModel';
 import type { Rect } from './diagram/labelLayout';
 import { createDiagramProjector } from './stepDiagramGeometry';
+import { useReferencesCardInks } from './usePaperStyleTokens';
 
 /**
  * The corners of a card that its own chrome covers, as shares of the viewBox
@@ -122,9 +123,12 @@ export function StepDiagram({
       return null;
     }
   }, [diagram, primitives]);
+  // The existing creases are the paper style's: their pen, whether they show,
+  // and how far they stop short of the paper's edge.
+  const { pens, creases } = useReferencesCardInks();
   const project = useMemo(
-    () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size, mirrored),
-    [model, size, mirrored]
+    () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size, mirrored, pens),
+    [model, size, mirrored, pens]
   );
   // The list drawn is the list the context is built from: the letters in it
   // are keyed by position.
@@ -139,12 +143,18 @@ export function StepDiagram({
   const context = useMemo(
     () =>
       model && drawn
-        ? createDiagramRenderContext(drawn, model.sheet, project, {
-            bounds: { x: 0, y: 0, width: size, height: size },
-            reserved: cardChromeRects(size, { number, badge }),
-          })
+        ? createDiagramRenderContext(
+            drawn,
+            model.sheet,
+            project,
+            {
+              bounds: { x: 0, y: 0, width: size, height: size },
+              reserved: cardChromeRects(size, { number, badge }),
+            },
+            creases
+          )
         : null,
-    [model, drawn, project, size, number, badge]
+    [model, drawn, project, size, number, badge, creases]
   );
 
   if (!model || !drawn || !context) {

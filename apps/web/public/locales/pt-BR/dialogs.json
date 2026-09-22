@@ -384,6 +384,8 @@
         "butt": "Reto",
         "round": "Arredondado"
       },
+      "erode": "Recuo",
+      "erodeHint": "Encurta cada vinco a partir da borda de sua face, como porcentagem do papel.",
       "exportFollowsDisplay": "A exportação usa o estilo de exibição",
       "exportFollowsDisplayHint": "Desligado, o estilo de exportação começa como uma cópia do estilo de exibição e é editado separadamente.",
       "exportPage": {

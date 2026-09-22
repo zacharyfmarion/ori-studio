@@ -376,6 +376,8 @@
         "butt": "Flach",
         "round": "Rund"
       },
+      "erode": "Einrücken",
+      "erodeHint": "Zieht jede Falte vom Rand ihrer Fläche zurück, als Prozentsatz des Papiers.",
       "exportFollowsDisplay": "Export verwendet den Anzeigestil",
       "exportFollowsDisplayHint": "Ausgeschaltet beginnt der Exportstil als Kopie des Anzeigestils und wird eigenständig bearbeitet.",
       "exportPage": {

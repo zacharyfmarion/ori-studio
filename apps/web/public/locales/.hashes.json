@@ -3150,7 +3150,13 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6303,7 +6309,13 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9458,7 +9470,13 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12554,7 +12572,13 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15650,7 +15674,13 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18803,7 +18833,13 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21956,7 +21992,13 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25052,6 +25094,12 @@
     "dialogs:settings.paper.exportPage.sheetMmHint": "ca0c24329066",
     "dialogs:settings.paper.exportPage.title": "296df4c8510c",
     "dialogs:settings.paper.exportPage.transparent": "0fcc9d09de99",
-    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335"
+    "dialogs:settings.paper.exportPage.transparentHint": "1d50fb3b7335",
+    "panels:cpProperties.paperStyle.auxColor": "0f8b1d31e41c",
+    "panels:cpProperties.paperStyle.auxVisible": "6551d21ff2ff",
+    "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
+    "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
+    "dialogs:settings.paper.erode": "daef5274cb31",
+    "dialogs:settings.paper.erodeHint": "866097a80915"
   }
 }

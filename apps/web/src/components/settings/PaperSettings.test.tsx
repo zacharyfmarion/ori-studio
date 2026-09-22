@@ -105,12 +105,14 @@ describe('PaperSettings', () => {
     expect(input('Mountain folds dash').value).toBe('');
     expect(input('Azimuth').value).toBe('322.1935');
     expect(input('Elevation').value).toBe('42.8092');
+    // Erode, as a percentage of the sheet.
+    expect(input('Erode').value).toBe('0');
     // The aux toggle and both light switches are Radix switches named by their row.
     const switches = styleSwitches(rendered);
     expect(switches).toHaveLength(3);
     expect(switches.map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
-      'false',
+      'true',
       'true',
     ]);
   });
@@ -154,6 +156,14 @@ describe('PaperSettings', () => {
       'valleyFolds',
       'valleyFolds',
     ]);
+  });
+
+  it('edits erode as a percentage of the sheet', () => {
+    render();
+    typeInto(input('Erode'), '2.5');
+    blur(input('Erode'));
+    expect(display().erode).toBe(0.025);
+    expect(tracked.map((entry) => entry.properties?.field)).toEqual(['erode']);
   });
 
   it('disables the export editors while export uses the display style', () => {

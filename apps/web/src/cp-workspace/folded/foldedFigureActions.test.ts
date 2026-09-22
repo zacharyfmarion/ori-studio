@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
-import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { DEFAULT_PAPER_STYLE, applyCreaseStyle } from '../../lib/paper/paperStyle';
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureStatus,
@@ -503,13 +503,15 @@ describe('foldedFigureStyleGroup', () => {
 
   function shadow(figure: OristudioCpFoldedFigureEntry, deps: FoldedFigureActionDeps) {
     const found = foldedFigureStyleGroup(figure, deps).items.find(
-      (item): item is FoldedFigureToggleOption => item.kind === 'toggle'
+      (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'shadow'
     );
     if (!found) throw new Error('no shadow toggle');
     return found;
   }
 
-  it('lays out render style, side, the three colours and shadow, in that order', () => {
+  it('lays out render style, side, the three colours, shadow and existing creases, in that order', () => {
+    // Re-pinned for Phase 5: the existing-crease toggle is the last row on
+    // every kind, after the flat figure's shadow or the 3D figure's light.
     const group = foldedFigureStyleGroup(flat(), makeDeps());
     expect(group).toMatchObject({ kind: 'group', id: 'style', icon: 'style', disabled: false });
     expect(group.items.map((item) => `${item.kind}:${item.id}`)).toEqual([
@@ -521,6 +523,8 @@ describe('foldedFigureStyleGroup', () => {
       'color:line-color',
       'separator:before-shadow',
       'toggle:shadow',
+      'separator:before-aux',
+      'toggle:aux',
     ]);
   });
 
@@ -592,6 +596,39 @@ describe('foldedFigureStyleGroup', () => {
     );
   });
 
+  it('carries a new line ink onto a 3D figure’s fold pens under a mono style, in one gesture', () => {
+    // The 3D figure draws M/V in the fold pens (Phase 5): under mono they are
+    // the line ink and follow it, each pin joining the row's run. The flat
+    // figure has no fold pens to carry it onto (D6).
+    const mono = applyCreaseStyle(DEFAULT_PAPER_STYLE, 'mono');
+    const deps = makeDeps({ paperStyle: () => mono });
+    const figure = spatial();
+    colors(figure, deps)[2]?.set('#333333');
+    const gesture = { scope: 'folded-color:folded-1:line_color', label: 'Change folded model color' };
+    expect(deps.setAppearance).toHaveBeenCalledTimes(3);
+    expect(deps.setAppearance).toHaveBeenNthCalledWith(
+      1,
+      figure,
+      { field: 'edges', value: { ...mono.edges, color: '#333333' } },
+      gesture
+    );
+    expect(deps.setAppearance).toHaveBeenNthCalledWith(
+      2,
+      figure,
+      { field: 'mountainFolds', value: { ...mono.mountainFolds, color: '#333333' } },
+      gesture
+    );
+    expect(deps.setAppearance).toHaveBeenNthCalledWith(
+      3,
+      figure,
+      { field: 'valleyFolds', value: { ...mono.valleyFolds, color: '#333333' } },
+      gesture
+    );
+    const flatDeps = makeDeps({ paperStyle: () => mono });
+    colors(flat(), flatDeps)[2]?.set('#333333');
+    expect(flatDeps.setAppearance).toHaveBeenCalledTimes(1);
+  });
+
   it('reads the colours from the effective style, whichever kind of figure', () => {
     const style = { ...DEFAULT_PAPER_STYLE, paper: { front: '#010203', back: '#e9e9e9' } };
     const rows = colors(spatial(), makeDeps({ paperStyle: () => style }));
@@ -626,6 +663,8 @@ describe('foldedFigureStyleGroup', () => {
       'color:line-color',
       'separator:before-light',
       'toggle:light',
+      'separator:before-aux',
+      'toggle:aux',
     ]);
     const light = items.find(
       (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'light'
@@ -637,6 +676,23 @@ describe('foldedFigureStyleGroup', () => {
       value: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
     });
     expect(deps.updateModel).not.toHaveBeenCalled();
+  });
+
+  it('offers the existing-crease toggle on both kinds, as a pin', () => {
+    // Every surface's policy applies `auxCreases.visible` since Phase 5. The
+    // pen and erode are numbers and belong to the Properties sheet.
+    for (const figure of [flat(), spatial()]) {
+      const deps = makeDeps();
+      const aux = foldedFigureStyleGroup(figure, deps).items.find(
+        (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'aux'
+      );
+      expect(aux).toMatchObject({ label: 'Existing creases', checked: true, disabled: false });
+      aux?.toggle();
+      expect(deps.setAppearance).toHaveBeenCalledWith(figure, {
+        field: 'auxCreases.visible',
+        value: false,
+      });
+    }
   });
 
   it('disables the whole group, and every row in it, until the figure is ready', () => {

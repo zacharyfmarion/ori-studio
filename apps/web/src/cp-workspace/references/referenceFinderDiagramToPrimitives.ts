@@ -14,7 +14,7 @@
  */
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
-import type { DiagramArc } from './stepDiagramGeometry';
+import type { DiagramArc, DiagramSheet } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
   | 'crease'
@@ -87,8 +87,8 @@ export type StepDiagramPrimitive =
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 
 export interface StepDiagramModel {
-  /** The paper's size, and — off the unit frame — where its middle is. */
-  sheet: { width: number; height: number; centre?: readonly [number, number] };
+  /** The paper's size, and — off the unit frame — where its middle is and which way it lies. */
+  sheet: DiagramSheet;
   /** In drawing order, the sheet first. */
   primitives: StepDiagramPrimitive[];
 }

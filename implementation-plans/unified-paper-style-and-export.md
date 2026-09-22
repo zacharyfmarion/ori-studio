@@ -1304,12 +1304,167 @@ scene; the producers now carry the roles and flags on every surface.
 
 ### Phase 5 — Aux creases and erode on every surface
 
-- [ ] Flat figure display: aux overlay from the accessor on the folded channel.
-- [ ] 3D mesh aux code drawn when `auxCreases.visible` (effective, per
-      object); simulator GPU aux pass.
-- [ ] Erode in the painter and in the GPU edge builders (`onBoundary` flags
-      from each producer); paper-relative distance.
-- [ ] References: existing creases honour aux pen and erode.
+- [x] Kernel: `FoldedPaperScene.aux_lines` populated. `CpSession` captures
+      the document's `Cyan3` lines with each flat fold
+      (`FlatFoldedFigure::aux_segments`); `paper_scene_aux_lines` clips each
+      to every face of the unfolded sheet (`Polygon::clip_segment`) and places
+      each piece by `FoldGraph::fold_point`, the face's own reflection chain,
+      through the pass's camera; `face` set, runs along a crease and pieces
+      under `Epsilon::POINT` dropped. Both entry points take the aux slice
+      (`folded_figure_paper_scene_from_segments(segments, aux_lines, …)`).
+      Tests: in-crate `aux_lines_are_split_at_the_fold_and_carried_by_their_face`,
+      `tests/folding.rs` `paper_scene_aux_lines_lie_inside_their_faces_one_piece_per_face_crossed`
+      (every fixture, both sides: inside the face's folded outline, crossings + 1
+      pieces) and `session_paper_scene_folds_the_documents_aux_lines`.
+- [x] Flat figure display: aux overlay from the accessor on the folded channel.
+      `cpFoldedToScene` takes a per-figure reader (`FoldedFigureAuxStrokes`:
+      pieces in the snapshot's coordinates, the aux pen's colour, its width in
+      pt as the multiplier over the frame's device px per pt) and strokes the
+      pieces through the same paper affine and placement as the snapshot's own
+      primitives, at a depth just above the figure's last fill and below the
+      edges the drawer painted after it (`FoldedFigureLocalGeometry.auxDepth`).
+      The scene lives in `folded/foldedFlatScenes.ts`, keyed by handle and
+      released with it (`foldedFigureHandles.ts`), remembering the kernel
+      snapshot it was fetched for so a refold, another solution, a side flip or
+      a rehydrate is a new scene and a selection marker or display style is not.
+      **Deviation from §9:** the fetch is driven by the canvas's
+      `useFoldedFlatAux(figures)` rather than placed beside each of the store's
+      fold completions. Whether a figure wants its scene is a function of the
+      display style and its own pins, which the nine completion sites do not
+      read, and the toggle turning on later — on a figure or app-wide — needs
+      a fetch none of them would see; one hook that asks "does this figure
+      want a scene it does not have" against the snapshot's identity covers
+      every case in one place. `folded/foldedFlatAux.ts` cuts the pieces: erode
+      first (an end on the face outline, by the shared `auxLineOnBoundary` /
+      `erodeSegment`, by erode × `kernel.sheet`), then **clipped to the
+      subfaces whose stack has the line's face on top** — the drawer's stream
+      has no buried layer to cover a buried piece, so "covered by the layers
+      above in painter order" is not available on the canvas and the pieces
+      under other layers are left out instead; the picture is the export's.
+      That clip is the `Paper5` picture's only: under `Transparent3` and
+      `Wire2` the drawer shows every layer, so every eroded piece is drawn
+      whole (`foldedFlatAuxCoverage`, read off the figure's display style in
+      `useFoldedFlatAux`) — a buried face's creases show with the face.
+      Not drawn: the aux pen's dash and cap (the folded channel has neither,
+      for any pen). Tests: `foldedFlatAux.test.ts`, `foldedFlatScenes.test.ts`,
+      `useFoldedFlatAux.test.tsx`, and `cpFoldedToScene.test.ts` ("a flat
+      figure's aux creases").
+- [x] 3D mesh aux code drawn when `auxCreases.visible` (effective, per
+      object); simulator GPU aux pass. `folded3dEdgeAssignment` maps a 0°
+      crease to `EDGE_CODE.aux`; `buildEdgeQuads` builds a ribbon for codes
+      0..3 (facets still skipped) and the vertex shader clips an aux ribbon
+      behind the far plane unless `u_showAux`, so the toggle is a uniform, not
+      a buffer rebuild. `RenderSettings` gains `auxColor`, `auxWidthPx`,
+      `showAux` and `creaseDash.aux` (`DASH_KINDS` = 4, `packCreaseDash`
+      packs four); the aux pen keeps its own width through `rasterCreaseInk`.
+      The canvas-2D fallback reads the same codes (`SimulatorModelInfo.edgeCodes`,
+      from `meshTopologyFor`) and draws code 3 in the aux pen or leaves it
+      out; it no longer draws facet diagonals (nothing else ever did) and no
+      longer dims an `F` edge. Policy: `auxCreases.visible`, `auxCreases.pen`
+      and `erode` apply on every surface; `mountainFolds` / `valleyFolds` on
+      `folded-3d`, so the 3D window inks M/V pens at the fold line weight
+      under `surfacePaperStyle`'s one-width rule, as the simulator does.
+- [x] Erode in the painter and in the GPU edge builders (`onBoundary` flags
+      from each producer); paper-relative distance. The rule lives once in
+      `packages/origami-simulator/src/edgeBoundary.ts` (`edgeBoundaryFlags`:
+      two bits per edge); the scene producer, `buildEdgeQuads` (a per-vertex
+      `a_shrink` attribute) and the canvas-2D render model
+      (`SimulatorRenderModel.edgeBoundary`) all read it. The shader pulls a
+      flagged end toward the other by the erode distance, collapses the ribbon
+      where the pull would pass the midpoint (the painter drops it), and
+      centres the dash on the eroded segment, as the painter does.
+      Two agreements found in review: `outlineVertexCounts` counts an edge
+      once however many times a buffer lists it — the 3D figure's buffer
+      carries a crease in every run that inks it (skin, hinge group,
+      translucent) on the same vertices, and a crease's own copies were
+      passing for other creases meeting its ends, so the window retreated
+      ends the export (which reads one copy) left whole
+      (`folded3dMesh.test.ts` "erodes the same crease ends on screen as the
+      export does", every fixture); and a piece the tree cut from a crease
+      carries the whole crease (`PaperLineItem.whole`: its ends and flags), so
+      the painter erodes the crease and clips the piece to what is left
+      (`erodeLine`), as the shader and canvas-2D measure on the whole edge —
+      a piece cut near a flagged end keeps its stub rather than collapsing on
+      its own length.
+      **Deviation from §9 / the item contract:** `RenderSettings` carries
+      `erode` as the style's own unit — a fraction of the sheet — rather than
+      `erodePx`, and the resolver takes no `sheetPx` option. The camera's
+      scale lives in the worker (`fitTo` → `cameraUniforms`) and moves with
+      every zoom, while render settings are resolved on a style or theme
+      change only, so a device-px figure resolved on the main thread would be
+      right for exactly one zoom, and for the simulator could not be computed
+      there at all (the fitted radius is worker state). Instead each renderer
+      holds the sheet's world extent (`MeshRendererOptions.sheet`, from
+      `sheetExtent(originalPositions)` in the solver and `Folded3dMesh.sheet`
+      = `model.span` for the 3D window; `SimulatorRenderModel.sheet` for
+      canvas-2D) and computes `erodePx(settings, sheet, camera)` =
+      `erode × sheet × camera.scale` per draw — exactly the painter's
+      `erode × scene.sheet`, since the scene's sheet is that same product.
+      The item also asked for a headless-Chromium link check of the shader;
+      the package has one in `bench/gpuParity.bench.ts` (its render check),
+      which was run and passes; `tests/edgeShader.test.ts` pins the GLSL
+      source's agreements with the JS (array sizes, attributes, aux clip,
+      eroded dash phase) where a link would not catch them.
+- [x] Properties sheets and Settings ▸ Paper rows for the fields Phase 5
+      added to the policies. `cp-workspace/paper/paperStyleFields.ts` writes
+      the rows once — `auxAndErodeFields` (toggle, aux colour, aux width in pt,
+      erode as a percentage of the sheet, each with reset while pinned) and
+      `foldPenFields` (the simulator's crease style, mountain, valley and fold
+      line weight, moved out of the inline sheet) — and the folded-figure and
+      inline-simulation catalogs compose them by their policy, so both sheets
+      pin exactly their policy's `applies` again (the tests are re-pinned back
+      from the subset). The 3D figure gains the fold-pen rows its policy took
+      in this phase. The folded Style menu offers the existing-crease toggle
+      on both kinds (the pen and erode are numbers a menu has no row for).
+      Settings ▸ Paper gains the erode row (percent of the sheet). Six new
+      strings, translated in the eight locales. Not done: the Simulate pane's
+      View Controls (`SIMULATOR_PANE_FIELDS`) still has no aux or erode rows.
+      The 3D figure's Line row and the Style menu's line colour write the
+      inline sheet's edge-ink pins (`edgeInkEdits`, hoisted into
+      `paperStyleFields.ts`): the edge pen whole, and under a mono style the
+      fold pens with it, so the Style select does not fall to Custom on a
+      recolour; the flat figure's policy has no fold pens and pins the edge
+      pen alone. **A visible change on existing files:** a 3D figure whose
+      legacy `line_color` was recoloured maps to an `edges` pin (D1, unchanged)
+      and now draws its M/V creases in the app style's fold pens with only
+      its borders in the pinned ink, where before this phase every crease
+      took the pinned ink. Pinning the fold pens for legacy 3D figures alone
+      would be a per-kind migration D1 does not define, so it is left as the
+      D1 mapping says.
+- [x] References: existing creases honour aux pen and erode. `diagramInk.ts`:
+      `penInk` (a pen at a weight in ink), `cardDiagramPens(style)` (the
+      crease at the aux pen's ratio to the edge pen over the table's edge
+      weight, so the card stays sheet-relative), `canvasDiagramPens(…, aux)`
+      (the crease at the aux pen in CSS px, as the arrow); the fourth dash
+      slot is the crease's, filled from the pens in hand. `erodeCreaseOnSheet`
+      in `stepDiagramGeometry.ts` (sheet units, the sheet's rectangle round its
+      centre, the shared `erodeSegment`) is applied by the card's
+      `diagramPrimitiveShape` and the big view's `diagramToScene`, which also
+      leave `crease` lines out when the toggle is off. The card reads the
+      display style itself (`useReferencesCardInks`); the big view's inks
+      travel on `ReferencesPaperStyle.inks`. **Deviation:** no CSS
+      custom-property set for the card — the card's crease pen is geometry
+      (a width, dash runs and a cap in ink), and `diagramInk.ts`'s own rule
+      keeps geometry in TypeScript where the drawing's size is known; the
+      store reaches every card the way the tokens reach them through the
+      root. Note the default `auxCreases.visible: false` now hides a step's
+      existing creases on References until the toggle is on. The big view's
+      sheet is the frame's image, which may be turned: `DiagramSheet.axes`
+      carries the frame's unit axes (`diagramInModel` from the precrease
+      frame, `sheetOf` from `modelFrame`'s mapped bottom and left edges), and
+      `erodeCreaseOnSheet` reads the boundary in the paper's own frame, so a
+      rotated CP erodes on its real edge and the card and the canvas agree.
+      Tests: `diagramInk.test.ts`, `stepDiagramGeometry.test.ts`
+      (`erodeCreaseOnSheet`, a turned sheet), `diagramToScene.test.ts`,
+      `StepDiagram.test.tsx` ("the existing creases on a card"),
+      `usePaperStyleTokens.test.tsx`.
+- [x] Facet flags survive a second preparation: `prepareFoldModel` writes
+      `oristudio:edges_facet` on the document it returns and reads it back,
+      so the app's triangulate → re-orient → prepare-again simulation path no
+      longer turns every diagonal into a drawable aux crease (found in the
+      browser once aux creases were drawn).
+- [x] `DEFAULT_PAPER_STYLE.auxCreases.visible` is `true` (diagrams draw the
+      creases already made; the Oriedita preset keeps `false`).
 
 ### Phase 6 — Precrease step export
 

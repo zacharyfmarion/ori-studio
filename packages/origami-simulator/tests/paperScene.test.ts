@@ -776,6 +776,31 @@ describe('which endpoints lie on a boundary', () => {
     const second = pieces.find((line) => same(line.b, end))!;
     expect(first.onBoundary).toEqual([true, false]);
     expect(second.onBoundary).toEqual([false, true]);
+    // Each piece carries the crease it was cut from, with the crease's own
+    // flags, for the painter to erode the crease rather than the piece; the
+    // two meet at the cut, on the crease's straight screen segment.
+    for (const piece of [first, second]) {
+      expect(piece.whole?.onBoundary).toEqual([true, true]);
+      expect(same(piece.whole!.a, start)).toBe(true);
+      expect(same(piece.whole!.b, end)).toBe(true);
+    }
+    expect(same(first.b, second.a)).toBe(true);
+    const along = (p: readonly [number, number]) =>
+      ((p[0] - start[0]) * (end[0] - start[0]) + (p[1] - start[1]) * (end[1] - start[1])) /
+      ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2);
+    const across = (p: readonly [number, number]) =>
+      Math.abs(
+        (p[0] - start[0]) * (end[1] - start[1]) - (p[1] - start[1]) * (end[0] - start[0])
+      ) / Math.hypot(end[0] - start[0], end[1] - start[1]);
+    expect(along(first.b)).toBeGreaterThan(0);
+    expect(along(first.b)).toBeLessThan(1);
+    expect(across(first.b)).toBeLessThan(1e-6);
+    // A whole crease says nothing more than its own ends do.
+    const borders = lines(meshToPaperScene(crossing, mesh, camera, { sheet: 2 })).filter(
+      (line) => line.role === 'edge'
+    );
+    expect(borders.length).toBeGreaterThan(0);
+    for (const border of borders) expect(border.whole).toBeUndefined();
   });
 
   it('knows a crease’s own ends under layers, at a camera the rounding does not favour', () => {

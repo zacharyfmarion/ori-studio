@@ -592,11 +592,31 @@ describe('what the scene says about each item', () => {
     );
   });
 
-  it('names each crease by its fold: mountain, valley, and edge for a border or a 0° fold', () => {
-    // A 0° crease is 'edge' until Phase 5 gives the mesh an aux code.
+  it('names each crease by its fold: mountain, valley, and edge for a border', () => {
     const model = fixture('box_90');
     const roles = new Set(lines(sceneOf(model, meshOf(model), DEFAULT_FOLDED_3D_CAMERA)).map((line) => line.role));
     expect(roles).toEqual(new Set(['edge', 'mountain', 'valley']));
+  });
+
+  it('names a 0° fold aux, which the painter inks in the aux pen or leaves out', () => {
+    // Re-pinned: a 0° crease was 'edge' until Phase 5 gave the mesh the aux
+    // code. No fixture carries one, so the hinge's single fold is relabelled:
+    // the label is all `folded3dEdgeAssignment` reads, the geometry stays.
+    const model = fixture('hinge_90');
+    const flat: OristudioCpFolded3dRenderModel = {
+      ...model,
+      edge_fold_degrees: model.edge_fold_degrees.map(() => 0),
+    };
+    const mesh = meshOf(flat);
+    const roles = lines(sceneOf(flat, mesh, DEFAULT_FOLDED_3D_CAMERA)).map((line) => line.role);
+    expect(roles).toContain('aux');
+    expect(roles).not.toContain('mountain');
+    expect(roles).not.toContain('valley');
+    // And the aux line is the fold, still marked on the boundary at both
+    // corners, so erode retreats it as it would the fold.
+    for (const line of lines(sceneOf(flat, mesh, DEFAULT_FOLDED_3D_CAMERA))) {
+      if (line.role === 'aux') expect(line.onBoundary).toEqual([true, true]);
+    }
   });
 
   it('shades faces by the figure’s light through the folded-3d policy, and not when the light is off', () => {

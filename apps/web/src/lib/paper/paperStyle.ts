@@ -113,8 +113,11 @@ export const DEFAULT_PAPER_STYLE: PaperStyle = {
   edges: { width: 0.9, color: ORIEDITA_LINE_COLOR, dash: null, cap: 'butt' },
   mountainFolds: { width: 0.825, color: DEFAULT_MOUNTAIN_COLOR, dash: null, cap: 'butt' },
   valleyFolds: { width: 0.825, color: DEFAULT_VALLEY_COLOR, dash: null, cap: 'butt' },
+  // Shown by default: a diagram draws the creases already made, and a folded
+  // figure's construction lines are what the pen is for. Oriedita's preset
+  // turns them off, as its own folded figure never draws them.
   auxCreases: {
-    visible: false,
+    visible: true,
     pen: { width: 0.5, color: '#9aa4ad', dash: null, cap: 'butt' },
   },
   arrows: { width: 1.05, color: '#000000', dash: null, cap: 'round' },

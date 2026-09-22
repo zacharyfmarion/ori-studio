@@ -24,6 +24,7 @@ import {
   meshToPaperScene,
   prepareFoldModel,
   setGlContextAttributeOverrides,
+  sheetExtent,
   type CameraUniforms,
   type GlContextAttributeOverrides,
   type FoldDocument,
@@ -125,8 +126,17 @@ export interface SimulatorModelInfo {
   edgesVertices: ArrayBuffer;
   /** One {@link EDGE_ASSIGNMENT_CODES} index per edge. */
   edgesAssignment: ArrayBuffer;
+  /**
+   * One `EDGE_CODE` per edge — the render topology's codes, which tell a
+   * source `F` crease (aux) from a triangulation diagonal (facet) where the
+   * FOLD letter cannot. What the canvas-2D fallback draws aux creases and the
+   * erode from, as the GPU edge pass does.
+   */
+  edgeCodes: ArrayBuffer;
   /** 3 edge indices per (triangulated) face; -1 where an edge was not found. */
   facesEdges: ArrayBuffer;
+  /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
+  sheet: number;
   diagnostics: SimulatorDiagnostics;
   /** Which solver actually got selected, for the UI's backend indicator. */
   backend: SimulatorBackendId;
@@ -1096,6 +1106,8 @@ const api = {
       edgesAssignment[index] = code < 0 ? EDGE_ASSIGNMENT_CODES.indexOf('U') : code;
     });
 
+    const edgeCodes = meshTopologyFor(prepared).edgeAssignments;
+
     const facesEdges = new Int32Array(prepared.faceCount * 3);
     facesEdges.fill(-1);
     prepared.facesEdges.forEach((face, faceIndex) => {
@@ -1113,7 +1125,9 @@ const api = {
         indices: indices.buffer as ArrayBuffer,
         edgesVertices: edgesVertices.buffer as ArrayBuffer,
         edgesAssignment: edgesAssignment.buffer as ArrayBuffer,
+        edgeCodes: edgeCodes.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
+        sheet: sheetExtent(model.originalPositions),
         diagnostics: backend.readDiagnostics(),
         backend: backendId,
         token: sessionToken,
@@ -1122,6 +1136,7 @@ const api = {
         indices.buffer as ArrayBuffer,
         edgesVertices.buffer as ArrayBuffer,
         edgesAssignment.buffer as ArrayBuffer,
+        edgeCodes.buffer as ArrayBuffer,
         facesEdges.buffer as ArrayBuffer,
       ]
     );
@@ -1893,27 +1908,11 @@ function fitTo(positions: Float32Array, state: SessionView): void {
 export type SimulatorWorkerApi = typeof api;
 
 /**
- * The unfolded sheet's extent in the model's world units: its longest axis
- * span, which for a square sheet is the sheet's edge. The unit the style's
- * erode is a fraction of, so the scene carries it at the camera's scale.
+ * Re-exported for the tests that pinned them here. `sheetExtent` lives in the
+ * simulator package now, beside the renderer that erodes by it; the pen width
+ * with the painter.
  */
-export function sheetExtent(originalPositions: Float32Array): number {
-  let extent = 0;
-  for (let axis = 0; axis < 3; axis += 1) {
-    let min = Infinity;
-    let max = -Infinity;
-    for (let index = axis; index < originalPositions.length; index += 3) {
-      const value = originalPositions[index]!;
-      if (!Number.isFinite(value)) continue;
-      min = Math.min(min, value);
-      max = Math.max(max, value);
-    }
-    if (max > min) extent = Math.max(extent, max - min);
-  }
-  return extent;
-}
-
-/** Re-exported for the tests that pinned it here; it lives with the painter now. */
+export { sheetExtent };
 export { widestPenCssPx } from '../lib/paper/paperSvg';
 
 /**

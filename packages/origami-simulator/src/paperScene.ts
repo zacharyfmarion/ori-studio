@@ -22,6 +22,7 @@ import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
 import { coplanarRuns, outlineOf, sourceFaceGroups, type RunPiece } from './coplanarRuns.js';
 import { shadeFor, type Vec3Like } from './shading.js';
 import { EDGE_CODE } from './edgeCodes.js';
+import { EDGE_BOUNDARY_A, EDGE_BOUNDARY_B, edgeBoundaryFlags } from './edgeBoundary.js';
 import {
   CREASE_DEPTH_BIAS_NDC,
   collectCreases,
@@ -66,12 +67,31 @@ export interface PaperLineItem {
   /**
    * Whether each endpoint should retreat under the style's erode: it lies on
    * the sheet boundary, or on a fold edge of the layer the line is drawn on.
-   * See `boundaryVertices` for the rule.
+   * See `edgeBoundaryFlags` for the rule, which the GPU and canvas-2D edge
+   * passes read from the same module.
    */
   onBoundary: [boolean, boolean];
+  /**
+   * The crease this line is a piece of, when the tree cut it: the whole
+   * crease's ends in scene px and which of them retreat. Erode is measured on
+   * the crease, as the edge shader and the canvas-2D fallback measure it —
+   * the crease retreats, and the piece is what is left of it between the cuts
+   * — so a piece cut near a flagged end keeps the stub past the pull where its
+   * own length would have collapsed it, and a piece that does not own that end
+   * still gives up what the pull takes. Absent when the line is the whole
+   * crease, whose `a`, `b` and `onBoundary` then say it all.
+   */
+  whole?: PaperLineWhole;
   /** The face the line is drawn on, when one is known. */
   face?: number;
   hidden: boolean;
+}
+
+/** A cut line's whole crease: see {@link PaperLineItem.whole}. */
+export interface PaperLineWhole {
+  a: ScenePoint;
+  b: ScenePoint;
+  onBoundary: [boolean, boolean];
 }
 
 export type PaperItem = PaperFaceItem | PaperLineItem;
@@ -230,7 +250,7 @@ export function meshToPaperScene(
   const attributes = triangleAttributes(triangles, topology, projected, options);
   const byEdge = trianglesByEdge(triangles);
   const faceOfLine = lineFaces(creases, triangles, attributes, byEdge);
-  const boundary = boundaryVertices(topology, projected.count);
+  const boundary = edgeBoundaryFlags(topology, projected.count);
 
   const items: BspItem[] = [];
   if (options.showFaces !== false) {
@@ -391,7 +411,16 @@ export function meshToPaperScene(
     }
     const crease = creases[item.ref]!;
     out.push(
-      lineItem(crease, screen, item.points, vertexAt, boundary, faceOfLine[item.ref], isHidden)
+      lineItem(
+        crease,
+        screen,
+        item.points,
+        vertexAt,
+        toScreen,
+        boundary,
+        faceOfLine[item.ref],
+        isHidden
+      )
     );
   });
 
@@ -607,32 +636,6 @@ function vertexKey(from: number, to: number): string {
   return from < to ? `${from}_${to}` : `${to}_${from}`;
 }
 
-/**
- * Per vertex, how many border or fold edges meet there.
- *
- * The erode rule reads off this: a crease's endpoint retreats when it lies on
- * the outline of the layer the crease is drawn on, and that outline is made of
- * the sheet's border and of the folds where the paper turns. Auxiliary creases
- * and facet edges are interior to a layer and do not count. So an endpoint is
- * on the boundary when *another* border or fold edge meets it there: a crease
- * ending at the paper's edge, or at a vertex where other creases meet, retreats;
- * an auxiliary line ending in the middle of a face does not.
- *
- * A paper edge is the outline itself and never retreats, so its own endpoints
- * report false whatever meets them — see {@link lineItem}.
- */
-function boundaryVertices(topology: SvgMeshTopology, vertexCount: number): Uint16Array {
-  const counts = new Uint16Array(vertexCount);
-  for (let edge = 0; edge < topology.edgeAssignments.length; edge += 1) {
-    if (topology.edgeAssignments[edge]! > EDGE_CODE.valley) continue;
-    const from = topology.edgeIndices[edge * 2]!;
-    const to = topology.edgeIndices[edge * 2 + 1]!;
-    if (from < vertexCount) counts[from] += 1;
-    if (to < vertexCount) counts[to] += 1;
-  }
-  return counts;
-}
-
 function faceItem(
   attributes: TriangleAttributes,
   rings: ScenePoint[][],
@@ -653,7 +656,8 @@ function lineItem(
   screen: readonly ScenePoint[],
   cut: readonly Vec3[],
   vertexAt: (vertex: number) => Vec3,
-  boundary: Uint16Array,
+  toScreen: (point: Vec3) => ScenePoint,
+  boundary: Uint8Array,
   face: number | undefined,
   hidden: boolean
 ): PaperLineItem {
@@ -671,17 +675,28 @@ function lineItem(
     const at = vertexAt(vertex);
     return point[0] === at[0] && point[1] === at[1] && point[2] === at[2];
   };
-  const onBoundary = (vertex: number) =>
-    role !== 'edge' && (boundary[vertex] ?? 0) - (crease.assignment <= EDGE_CODE.valley ? 1 : 0) > 0;
+  const flags = boundary[crease.edge] ?? 0;
+  const onBoundary: [boolean, boolean] = [
+    (flags & EDGE_BOUNDARY_A) !== 0,
+    (flags & EDGE_BOUNDARY_B) !== 0,
+  ];
+  const ownsA = own(0, crease.from);
+  const ownsB = own(1, crease.to);
+  // A cut piece carries the crease it was cut from, for the painter to erode
+  // the crease rather than the piece. Both ends project onto the straight
+  // screen segment the piece lies on — a central projection keeps a line
+  // straight — so the piece is a span of it.
+  const whole: PaperLineWhole | undefined =
+    ownsA && ownsB
+      ? undefined
+      : { a: toScreen(vertexAt(crease.from)), b: toScreen(vertexAt(crease.to)), onBoundary };
   return {
     kind: 'line',
     role,
     a: screen[0]!,
     b: screen[1]!,
-    onBoundary: [
-      own(0, crease.from) && onBoundary(crease.from),
-      own(1, crease.to) && onBoundary(crease.to),
-    ],
+    onBoundary: [ownsA && onBoundary[0], ownsB && onBoundary[1]],
+    ...(whole ? { whole } : {}),
     ...(face === undefined ? {} : { face }),
     hidden,
   };

@@ -139,7 +139,8 @@ describe('normalizePaperStyle', () => {
     const style = normalizePaperStyle({
       auxCreases: { visible: 'no', pen: RED_PEN },
     });
-    expect(style.auxCreases.visible).toBe(false);
+    // A non-boolean falls back to the default, which shows aux creases.
+    expect(style.auxCreases.visible).toBe(true);
     expect(style.auxCreases.pen).toEqual(RED_PEN);
   });
 });

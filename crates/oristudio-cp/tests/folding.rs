@@ -19,7 +19,10 @@ use oristudio_cp::folding::{
     possible_overlap_search_for_subfaces_with_swap, prepare_subface_segments, prioritize_subfaces,
     two_colored_folding_estimate_from_segments, two_colored_subface_segments_from_segments,
 };
-use oristudio_cp::geometry::{LineColor, LineSegment, Point, RgbColor};
+use oristudio_cp::geometry::{
+    Epsilon, Intersection, LineColor, LineSegment, Point, Polygon, PolygonIntersection, RgbColor,
+    determine_line_segment_intersection,
+};
 use oristudio_cp::io::{cp, ori};
 
 #[test]
@@ -1777,7 +1780,7 @@ fn paper_scene_and_snapshot(
         state,
         ..FoldedFigureModel::default()
     };
-    let scene = folded_figure_paper_scene_from_segments(segments, 1, &model)
+    let scene = folded_figure_paper_scene_from_segments(segments, &[], 1, &model)
         .expect("paper scene")
         .expect("something to draw");
     let snapshot = folded_figure_render_snapshot_from_segments(
@@ -1934,6 +1937,146 @@ fn paper_scene_back_side_is_mirrored_through_the_rear_camera() {
     assert_eq!(front.sheet, back.sheet, "the sheet is the same paper");
 }
 
+/// An auxiliary line laid across each fixture's sheet, clear of every vertex,
+/// and the number of creases it crosses in the flat sheet.
+fn aux_line_across(segments: &[LineSegment]) -> (LineSegment, usize) {
+    let (mut min, mut max) = (
+        Point::new(f64::INFINITY, f64::INFINITY),
+        Point::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+    );
+    for segment in segments {
+        for point in [segment.a, segment.b] {
+            min = Point::new(min.x.min(point.x), min.y.min(point.y));
+            max = Point::new(max.x.max(point.x), max.y.max(point.y));
+        }
+    }
+    let (w, h) = (max.x - min.x, max.y - min.y);
+    let aux = LineSegment::with_color(
+        Point::new(min.x + 0.113 * w, min.y + 0.071 * h),
+        Point::new(max.x - 0.087 * w, max.y - 0.137 * h),
+        LineColor::Cyan3,
+    );
+    let crossings = segments
+        .iter()
+        .filter(|segment| {
+            determine_line_segment_intersection(&aux, segment) == Intersection::Intersects1
+        })
+        .count();
+    (aux, crossings)
+}
+
+/// Phase 5's contract for the flat figure: the document's aux lines ride
+/// through the fold face by face. Each piece lies inside its face's folded
+/// outline on both sides of the figure, and a line that crosses `n` creases
+/// on the sheet arrives as `n + 1` pieces — one per face it visits.
+#[test]
+fn paper_scene_aux_lines_lie_inside_their_faces_one_piece_per_face_crossed() {
+    for (name, segments) in paper_scene_fixtures() {
+        let (aux, crossings) = aux_line_across(&segments);
+        for state in [FoldedFigureState::Front0, FoldedFigureState::Back1] {
+            let model = FoldedFigureModel {
+                state,
+                ..FoldedFigureModel::default()
+            };
+            let scene = folded_figure_paper_scene_from_segments(
+                &segments,
+                std::slice::from_ref(&aux),
+                1,
+                &model,
+            )
+            .expect("paper scene")
+            .expect("something to draw");
+            assert_eq!(
+                scene.aux_lines.len(),
+                crossings + 1,
+                "{name} {state:?}: pieces for a line crossing {crossings} creases"
+            );
+            let mut faces_visited = scene
+                .aux_lines
+                .iter()
+                .map(|piece| piece.face)
+                .collect::<Vec<_>>();
+            faces_visited.sort_unstable();
+            faces_visited.dedup();
+            assert_eq!(
+                faces_visited.len(),
+                scene.aux_lines.len(),
+                "{name} {state:?}: a face carries one piece of a line through it"
+            );
+            for piece in &scene.aux_lines {
+                let face = scene
+                    .faces
+                    .get(piece.face)
+                    .unwrap_or_else(|| panic!("{name} {state:?}: {piece:?} names no face"));
+                let outline = Polygon::new(face.outline.clone());
+                assert!(
+                    piece.from.distance(piece.to) > Epsilon::POINT,
+                    "{name} {state:?}: {piece:?} is shorter than the point tolerance"
+                );
+                assert_eq!(
+                    outline.inside(Point::mid(piece.from, piece.to)),
+                    PolygonIntersection::Inside,
+                    "{name} {state:?}: {piece:?} does not run inside its face"
+                );
+                for end in [piece.from, piece.to] {
+                    assert_ne!(
+                        outline.inside(end),
+                        PolygonIntersection::Outside,
+                        "{name} {state:?}: {piece:?} ends outside its face"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// The session folds only the document's foldable creases, and its scene
+/// still carries the document's aux lines — the ones the document held when
+/// the figure was folded, whatever the selection named.
+#[test]
+fn session_paper_scene_folds_the_documents_aux_lines() {
+    let mut segments = square_with_diagonal();
+    let aux = LineSegment::with_color(Point::new(0.3, 0.1), Point::new(0.1, 0.3), LineColor::Cyan3);
+    segments.push(aux.clone());
+    let mut session = oristudio_cp::session::CpSession::default();
+    let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+        crease_pattern: oristudio_cp::CreasePatternModel {
+            line_segments: segments.clone(),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    // Every id, aux line included: the selection filter keeps the creases.
+    let ids: Vec<usize> = (1..=segments.len()).collect();
+    let folded = session
+        .folded_figure_fold_selected(
+            handle,
+            &ids,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("the square folds");
+    let scene = session
+        .folded_figure_paper_scene(folded.handle)
+        .expect("session scene")
+        .expect("drawn");
+    assert_eq!(scene.faces.len(), 2, "the aux line did not split a face");
+    assert_eq!(scene.aux_lines.len(), 2, "one piece per triangle");
+    assert_eq!(
+        scene,
+        folded_figure_paper_scene_from_segments(
+            &segments[..5],
+            &[aux],
+            1,
+            &FoldedFigureModel::default()
+        )
+        .expect("segments scene")
+        .expect("drawn"),
+        "the session's aux lines are the document's"
+    );
+}
+
 /// The session accessor answers from the fold's cached inputs and solved
 /// ordering — the same thing the from-segments path searches — and follows
 /// the model the figure holds now, like the render snapshot does.
@@ -1964,7 +2107,7 @@ fn session_paper_scene_matches_the_segments_path_and_follows_the_model() {
         .expect("session scene")
         .expect("drawn");
     let fresh =
-        folded_figure_paper_scene_from_segments(&segments, 1, &FoldedFigureModel::default())
+        folded_figure_paper_scene_from_segments(&segments, &[], 1, &FoldedFigureModel::default())
             .expect("segments scene")
             .expect("drawn");
     assert_eq!(front, fresh, "cached inputs changed the scene");
@@ -1989,7 +2132,7 @@ fn session_paper_scene_matches_the_segments_path_and_follows_the_model() {
     );
     assert_eq!(
         back,
-        folded_figure_paper_scene_from_segments(&segments, 1, &back_model)
+        folded_figure_paper_scene_from_segments(&segments, &[], 1, &back_model)
             .expect("segments scene")
             .expect("drawn")
     );

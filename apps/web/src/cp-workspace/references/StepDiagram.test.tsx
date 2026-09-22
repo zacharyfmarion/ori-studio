@@ -1,5 +1,9 @@
+import { act, type ReactElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_PAPER_STYLE, type PaperStyleOverrides } from '../../lib/paper/paperStyle';
+import { useSettingsStore } from '../../store/settingsStore';
 import { cardChromeRects, StepDiagram } from './StepDiagram';
 import {
   DIAGRAM_LABEL_INK,
@@ -15,7 +19,7 @@ function elements(markup: string, tag: string): Record<string, string>[] {
   return [...markup.matchAll(new RegExp(`<${tag}[^>]*>(?:([^<]*)</${tag}>)?`, 'g'))].map(
     (match) => ({
       ...Object.fromEntries(
-        [...match[0].matchAll(/([a-zA-Z-]+)="([^"]*)"/g)].map((attr) => [attr[1], attr[2]])
+        [...match[0].matchAll(/([a-zA-Z0-9-]+)="([^"]*)"/g)].map((attr) => [attr[1], attr[2]])
       ),
       text: match[1] ?? '',
     })
@@ -465,5 +469,88 @@ describe('a fold arrow on a card', () => {
     const end = outgoingEnd(model);
     const landing = project(onLine);
     expect(Math.hypot(end.x - landing.x, end.y - landing.y)).toBeLessThan(1e-3);
+  });
+});
+
+describe('the existing creases on a card', () => {
+  // The `crease` ink is the paper style's aux pen (Phase 5): its width as a
+  // ratio to the edge pen at the card's scale, its dash and cap; the style's
+  // toggle hides them and its erode pulls them back from the paper's edge.
+  // Every other line is the step's own and untouched.
+  //
+  // Rendered on the client, not to static markup: a card reads the style off
+  // the settings store, and a server render reads a store's *initial* state.
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const renderCard = (element: ReactElement): string => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    act(() => root.render(element));
+    const markup = container.innerHTML;
+    act(() => root.unmount());
+    return markup;
+  };
+  const creased = (): StepDiagramModel => ({
+    sheet: { width: 1, height: 1 },
+    primitives: [
+      { kind: 'sheet', width: 1, height: 1 },
+      // Edge to edge: both ends on the boundary.
+      { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'crease' },
+      // A valley, for contrast.
+      { kind: 'line', from: [0, 0], to: [1, 1], style: 'valley' },
+    ],
+  });
+  const lines = (markup: string) => elements(markup, 'line');
+  const crease = (markup: string) => lines(markup).find((line) => line.class?.includes('crease'));
+  const setDisplay = (fields: PaperStyleOverrides) =>
+    useSettingsStore.getState().setPaperStyleFields('display', fields);
+
+  beforeEach(() => {
+    setDisplay({
+      'auxCreases.visible': true,
+      'auxCreases.pen': DEFAULT_PAPER_STYLE.auxCreases.pen,
+      edges: DEFAULT_PAPER_STYLE.edges,
+      erode: 0,
+    });
+  });
+
+  it('draws them at the aux pen: width as a ratio to the edge pen, dash in multiples, cap', () => {
+    setDisplay({
+      'auxCreases.pen': { width: 0.45, color: '#9aa4ad', dash: [4, 2], cap: 'round' },
+      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9 },
+    });
+    const markup = renderCard(<StepDiagram primitives={creased()} size={100} />);
+    const line = crease(markup)!;
+    const project = createDiagramProjector({ width: 1, height: 1 }, 100);
+    // Half the edge pen, so half the table's edge weight.
+    const width = DIAGRAM_LINE_INK.edge.width * 0.5 * project.ink;
+    expect(Number(line['stroke-width'])).toBeCloseTo(width, 6);
+    expect(line['stroke-linecap']).toBe('round');
+    // Dash runs are multiples of the width, at the card's dash scale.
+    const runs = line['stroke-dasharray']!.split(' ').map(Number);
+    expect(runs[0]! / width).toBeCloseTo(4 * project.dashScale, 6);
+    expect(runs[1]! / width).toBeCloseTo(2 * project.dashScale, 6);
+    // The valley is the table's.
+    const valley = lines(markup).find((l) => l.class?.includes('valley'))!;
+    expect(Number(valley['stroke-width'])).toBeCloseTo(DIAGRAM_LINE_INK.valley.width * project.ink, 6);
+  });
+
+  it('is left out when the style hides existing creases, and nothing else is', () => {
+    setDisplay({ 'auxCreases.visible': false });
+    const markup = renderCard(<StepDiagram primitives={creased()} size={100} />);
+    expect(crease(markup)).toBeUndefined();
+    expect(lines(markup)).toHaveLength(1);
+  });
+
+  it('stops short of the paper’s edge by erode, and the valley does not', () => {
+    setDisplay({ erode: 0.1 });
+    const markup = renderCard(<StepDiagram primitives={creased()} size={100} />);
+    const project = createDiagramProjector({ width: 1, height: 1 }, 100);
+    const line = crease(markup)!;
+    const left = project([0.1, 0.5]);
+    const right = project([0.9, 0.5]);
+    expect(Number(line.x1)).toBeCloseTo(left.x, 6);
+    expect(Number(line.x2)).toBeCloseTo(right.x, 6);
+    const valley = lines(markup).find((l) => l.class?.includes('valley'))!;
+    expect(Number(valley.x1)).toBeCloseTo(project([0, 0]).x, 6);
   });
 });

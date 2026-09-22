@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
-import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { DEFAULT_PAPER_STYLE, applyCreaseStyle } from '../../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import type { PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
 import { FIGURE } from '../canvasObjects/canvasObjectKinds.fixtures';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
@@ -110,11 +111,40 @@ describe('buildFoldedFigureProperties', () => {
       'backColor',
       'lineColor',
       'shadows',
+      'auxVisible',
+      'auxColor',
+      'auxWidth',
+      'erode',
       'scale',
       'rotation',
     ]);
     for (const f of sheet.sections.flatMap((s) => s.fields)) {
       expect(f.support, f.id).toBe('supported');
+    }
+  });
+
+  it('pins every style field its surface policy applies, on both kinds', () => {
+    // The Properties sheet shows exactly the policy's `applies` (§5 of the
+    // paper style plan): what the user can pin and what the renderer honours
+    // are one list. The kernel model's colours reach it through the same pins.
+    for (const [figure, surface] of [
+      [FLAT, 'folded-flat'],
+      [SPATIAL, 'folded-3d'],
+    ] as const) {
+      const written = new Set<string>();
+      const d = deps({
+        writeOverride: vi.fn((f: string) => written.add(f)),
+        commitOverrides: vi.fn((edits: readonly { field: string }[]) =>
+          edits.forEach((edit) => written.add(edit.field))
+        ),
+      });
+      for (const f of sheetFor(figure, d).sections.flatMap((s) => s.fields)) {
+        if (f.undoLabel !== 'Change paper style') continue;
+        if (f.kind === 'color') f.update('#123456');
+        else if (f.kind === 'toggle') f.commit(false);
+        else if (f.kind === 'number') f.commit(1);
+      }
+      expect([...written].sort(), surface).toEqual([...PAPER_STYLE_POLICIES[surface].applies].sort());
     }
   });
 
@@ -133,6 +163,12 @@ describe('buildFoldedFigureProperties', () => {
     // figure has the paper style's light instead, as its policy applies it.
     expect(visibleIds(sheet)).not.toContain('shadows');
     expect(visibleIds(sheet)).toContain('lighting');
+    // And the fold pens, which its policy applies since Phase 5 and the flat
+    // figure's does not (D6): the simulator's four controls.
+    for (const id of ['creaseStyle', 'mountainColor', 'valleyColor', 'foldLineWeight']) {
+      expect(visibleIds(sheet)).toContain(id);
+      expect(visibleIds(sheetFor(FLAT))).not.toContain(id);
+    }
     expect(field(sheet, 'lighting')).toMatchObject({ support: 'supported', value: true });
     expect(field(sheet, 'frontColor').support).toBe('supported');
     expect(visibleIds(sheetFor(FLAT))).not.toContain('lighting');
@@ -224,6 +260,38 @@ describe('buildFoldedFigureProperties', () => {
       width: 2,
       color: '#000000',
     });
+  });
+
+  it('carries a new line ink onto a 3D figure’s fold pens under a mono style, and not a flat one’s', () => {
+    // The 3D figure draws M/V in the fold pens (Phase 5), so under mono they
+    // are the line ink and follow it — as the inline sheet's edge row does —
+    // rather than staying on the old ink as custom. The flat figure's policy
+    // has no fold pens (D6): its line colour pins the edge pen alone.
+    const mono = applyCreaseStyle(DEFAULT_PAPER_STYLE, 'mono-dashed');
+    const d = deps({ style: mono });
+    const line = field(sheetFor(SPATIAL, d), 'lineColor');
+    if (line.kind !== 'color') throw new Error('color');
+    line.update('#333333');
+    expect(d.writeOverride).toHaveBeenCalledWith('edges', { ...mono.edges, color: '#333333' });
+    expect(d.writeOverride).toHaveBeenCalledWith('mountainFolds', {
+      ...mono.mountainFolds,
+      color: '#333333',
+    });
+    expect(d.writeOverride).toHaveBeenCalledWith('valleyFolds', {
+      ...mono.valleyFolds,
+      color: '#333333',
+    });
+    const flat = deps({ style: mono });
+    const flatLine = field(sheetFor(FLAT, flat), 'lineColor');
+    if (flatLine.kind !== 'color') throw new Error('color');
+    flatLine.update('#333333');
+    expect(flat.writeOverride).toHaveBeenCalledTimes(1);
+    // Under colour the fold pens are their own.
+    const color = deps();
+    const colorLine = field(sheetFor(SPATIAL, color), 'lineColor');
+    if (colorLine.kind !== 'color') throw new Error('color');
+    colorLine.update('#333333');
+    expect(color.writeOverride).toHaveBeenCalledTimes(1);
   });
 
   it('offers reset only while the row is pinned, and a reset clears the pin as one entry', () => {

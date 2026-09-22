@@ -1,19 +1,16 @@
 import type { TFunction } from 'i18next';
-import { simulatorColorModeLabel, simulatorCreaseStyleLabel } from '../../i18n/enumLabels';
-import {
-  applyCreaseStyle,
-  creaseStyleOf,
-  PAPER_CREASE_STYLES,
-  type PaperStyle,
-  type PaperStyleField,
-  type PaperStyleOverrides,
-  type PaperStyleValue,
+import { simulatorColorModeLabel } from '../../i18n/enumLabels';
+import type {
+  PaperStyle,
+  PaperStyleField,
+  PaperStyleOverrides,
+  PaperStyleValue,
 } from '../../lib/paper/paperStyle';
 import type { ColorField, PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
 import type { SimulatorColorMode, SimulatorSettings } from '../../lib/simulatorSettings';
-import { SIMULATOR_FOLD_WEIGHT_RANGE } from '../../simulator/useSimulatorPaperStyle';
 import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
 import type { PaperStyleOverrideEdit } from '../paper/objectPaperStyle';
+import { auxAndErodeFields, edgeInkEdits, foldPenFields } from '../paper/paperStyleFields';
 
 export interface InlineSimulationPropertyDeps {
   t: TFunction;
@@ -37,9 +34,6 @@ export interface InlineSimulationPropertyDeps {
 
 const COLOR_MODES: readonly SimulatorColorMode[] = ['paper', 'strain'];
 
-/** The pens the sheet offers a colour for. */
-type PenField = 'edges' | 'mountainFolds' | 'valleyFolds';
-
 /**
  * The properties an inline simulation window shows: the simulator's shared
  * render settings, then the paper style as this window draws it — the
@@ -61,14 +55,9 @@ export function buildInlineSimulationProperties(
   const { t, settings, setSetting, style, overrides, held } = deps;
   const changeLabel = t('panels:cpProperties.paperStyle.changeAction', 'Change paper style');
   const pinned = (field: PaperStyleField) => overrides?.[field] !== undefined;
-  const resetOf = (...fields: PaperStyleField[]) =>
-    fields.some(pinned)
-      ? {
-          reset: () =>
-            deps.commitOverrides(
-              fields.map((field) => ({ field, value: undefined }) as PaperStyleOverrideEdit)
-            ),
-        }
+  const resetOf = (field: PaperStyleField) =>
+    pinned(field)
+      ? { reset: () => deps.commitOverrides([{ field, value: undefined } as PaperStyleOverrideEdit]) }
       : {};
   const paperColor = (side: 'paper.front' | 'paper.back', id: string, label: string): ColorField => ({
     id,
@@ -84,85 +73,30 @@ export function buildInlineSimulationProperties(
     held,
     ...resetOf(side),
   });
-  // A pen is pinned whole, so a colour pick copies the effective pen and
-  // changes its colour; a reset clears the whole pen. Under a mono style the
-  // fold pens *are* the edge ink, so a new edge colour re-applies the mode and
-  // pins them with it, rather than leaving them on the old ink as custom.
-  const penColor = (pen: PenField, id: string, label: string): ColorField => ({
-    id,
+  // The edge pen is pinned whole, and under a mono style the fold pens follow
+  // it (`edgeInkEdits`); a reset clears the whole pen.
+  const edgeColor: ColorField = {
+    id: 'edgeColor',
     kind: 'color',
-    label,
+    label: t('panels:simulatorViewControls.borderEdge', 'Edge'),
     support: 'supported',
     undoLabel: changeLabel,
     protocol: 'continuous',
-    value: style[pen].color,
-    begin: () => deps.begin(id),
+    value: style.edges.color,
+    begin: () => deps.begin('edgeColor'),
     update: (value) => {
-      deps.writeOverride(pen, { ...style[pen], color: value });
-      const mode = pen === 'edges' ? creaseStyleOf(style) : 'custom';
-      if (mode !== 'mono' && mode !== 'mono-dashed') return;
-      const written = applyCreaseStyle({ ...style, edges: { ...style.edges, color: value } }, mode);
-      deps.writeOverride('mountainFolds', written.mountainFolds);
-      deps.writeOverride('valleyFolds', written.valleyFolds);
+      for (const pin of edgeInkEdits(style, value, true)) deps.writeOverride(pin.field, pin.value);
     },
     end: () => deps.end(changeLabel),
     held,
-    ...resetOf(pen),
-  });
-  const creaseStyle = creaseStyleOf(style);
+    ...resetOf('edges'),
+  };
 
   const paperFields: PropertyField[] = [
     paperColor('paper.front', 'frontColor', t('panels:simulatorViewControls.paperFront', 'Front')),
     paperColor('paper.back', 'backColor', t('panels:simulatorViewControls.paperBack', 'Back')),
-    penColor('edges', 'edgeColor', t('panels:simulatorViewControls.borderEdge', 'Edge')),
-    {
-      id: 'creaseStyle',
-      kind: 'select',
-      label: t('panels:simulatorViewControls.creaseStyle', 'Style'),
-      support: 'supported',
-      undoLabel: changeLabel,
-      options: PAPER_CREASE_STYLES.map((mode) => ({
-        id: mode,
-        label: simulatorCreaseStyleLabel(t, mode),
-      })),
-      placeholder: t('panels:simulatorViewControls.creaseStyleCustom', 'Custom'),
-      protocol: 'discrete',
-      // Pens edited past the three modes select nothing rather than lying.
-      value: creaseStyle === 'custom' ? null : creaseStyle,
-      commit: (next) => {
-        if (next === null) return;
-        const written = applyCreaseStyle(style, next as (typeof PAPER_CREASE_STYLES)[number]);
-        deps.commitOverrides([
-          { field: 'mountainFolds', value: written.mountainFolds },
-          { field: 'valleyFolds', value: written.valleyFolds },
-        ]);
-      },
-      ...resetOf('mountainFolds', 'valleyFolds'),
-    },
-    penColor('mountainFolds', 'mountainColor', t('panels:simulatorViewControls.mountain', 'Mountain')),
-    penColor('valleyFolds', 'valleyColor', t('panels:simulatorViewControls.valley', 'Valley')),
-    {
-      id: 'foldLineWeight',
-      kind: 'slider',
-      label: t('panels:simulatorViewControls.foldLineWeight', 'Fold line weight (pt)'),
-      support: 'supported',
-      undoLabel: changeLabel,
-      min: SIMULATOR_FOLD_WEIGHT_RANGE.min,
-      max: SIMULATOR_FOLD_WEIGHT_RANGE.max,
-      step: SIMULATOR_FOLD_WEIGHT_RANGE.step,
-      protocol: 'continuous',
-      // The simulator draws every crease at the fold pens' width; see
-      // `useSimulatorPaperStyle.setCreaseWeight`.
-      value: style.mountainFolds.width,
-      begin: () => deps.begin('foldLineWeight'),
-      update: (width) => {
-        deps.writeOverride('mountainFolds', { ...style.mountainFolds, width });
-        deps.writeOverride('valleyFolds', { ...style.valleyFolds, width });
-      },
-      end: () => deps.end(changeLabel),
-      held,
-      ...resetOf('mountainFolds', 'valleyFolds'),
-    },
+    edgeColor,
+    ...foldPenFields(deps),
     {
       id: 'lighting',
       kind: 'toggle',
@@ -175,6 +109,9 @@ export function buildInlineSimulationProperties(
         deps.commitOverrides([{ field: 'light', value: { ...style.light, enabled } }]),
       ...resetOf('light'),
     },
+    // The window's aux creases are the source's `F` edges; erode pulls every
+    // crease back from the edge of its face.
+    ...auxAndErodeFields(deps),
   ];
 
   return {

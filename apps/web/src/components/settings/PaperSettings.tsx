@@ -11,6 +11,7 @@ import { formatDashText, parseDashText } from '../../lib/paper/paperDashText';
 import { PAPER_PADDING_MM_RANGE, PAPER_SHEET_MM_RANGE } from '../../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../../lib/paper/paperPng';
 import {
+  ERODE_RANGE,
   getPaperStyleField,
   PEN_WIDTH_RANGE,
   type PaperStyleField,
@@ -34,9 +35,12 @@ import { usePaperSettings, type PaperPresetRow, type PaperSettingsDeps } from '.
  * point it becomes its own copy. Presets are whole styles: the built-ins, and
  * the user's own as `.json` files they can pass around. Below them, every
  * field of the slot: the two paper colours, one row per pen, the aux-crease
- * toggle and the light. Last, the page every export is painted onto, which is
+ * toggle, erode and the light. Last, the page every export is painted onto, which is
  * not a style: the same picture goes out on any page.
  */
+/** Erode is stated as a percentage of the sheet; the style keeps a fraction. */
+const ERODE_PERCENT = 100;
+
 export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
   const { t } = useTranslation();
   const paper = usePaperSettings(deps);
@@ -119,6 +123,27 @@ export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
           disabled={!editable}
           onChange={(visible) => paper.setField('auxCreases.visible', visible)}
         />
+        <FieldRow
+          label={t('dialogs:settings.paper.erode', 'Erode')}
+          description={t(
+            'dialogs:settings.paper.erodeHint',
+            'Pull each crease back from the edge of its face, as a percentage of the sheet.'
+          )}
+        >
+          {(id, label) => (
+            <NumberField
+              id={id}
+              label={label}
+              value={style.erode * ERODE_PERCENT}
+              min={ERODE_RANGE.min * ERODE_PERCENT}
+              max={ERODE_RANGE.max * ERODE_PERCENT}
+              step={ERODE_RANGE.step * ERODE_PERCENT}
+              suffix="%"
+              disabled={!editable}
+              onCommit={(percent) => paper.setField('erode', percent / ERODE_PERCENT)}
+            />
+          )}
+        </FieldRow>
       </section>
 
       <section className="settings-section">

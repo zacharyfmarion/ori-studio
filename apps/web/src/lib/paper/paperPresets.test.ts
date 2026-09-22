@@ -42,7 +42,7 @@ describe('built-in presets', () => {
       cap: 'butt',
     });
     expect(style.valleyFolds).toEqual({ width: 0.75, color: '#231f20', dash: [4, 2], cap: 'butt' });
-    expect(style.auxCreases.pen.width).toBe(0.25);
+    expect(style.auxCreases).toMatchObject({ visible: true, pen: { width: 0.25 } });
     expect(style.arrows.width).toBe(0.75);
     expect(style.light.enabled).toBe(false);
   });
@@ -58,7 +58,8 @@ describe('built-in presets', () => {
     expect(style.paper).toEqual(DEFAULT_PAPER_STYLE.paper);
     expect(style.mountainFolds.color).toBe('#ff0000');
     expect(style.valleyFolds.color).toBe('#0000ff');
-    expect(style.auxCreases.pen.color).toBe('#00ffff');
+    // Oriedita's own folded figure never draws aux creases, so its preset hides them.
+    expect(style.auxCreases).toMatchObject({ visible: false, pen: { color: '#00ffff' } });
     expect(style.light.enabled).toBe(false);
   });
 });

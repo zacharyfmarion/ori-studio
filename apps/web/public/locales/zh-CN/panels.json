@@ -243,7 +243,11 @@
       "title": "模拟窗口"
     },
     "paperStyle": {
+      "auxColor": "折痕颜色",
+      "auxVisible": "已有折痕",
+      "auxWidth": "折痕宽度 (pt)",
       "changeAction": "更改纸张样式",
+      "erode": "内缩 (纸张的 %)",
       "resetAction": "重置纸张样式"
     },
     "region": {

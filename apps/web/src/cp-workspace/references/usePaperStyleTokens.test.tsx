@@ -7,9 +7,11 @@ import { useThemeStore } from '../../store/themeStore';
 import { applyTheme, DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../../themes';
 import { referencesCreaseAlpha, referencesDimAlpha } from '../../themes/referencesInk';
 import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
+import { DIAGRAM_LINE_INK } from './diagram/diagramInk';
 import { useReferencesDiagramScene } from './useReferencesDiagramScene';
 import {
   REFERENCES_PAPER_TOKENS,
+  referencesCardInks,
   referencesPaperTokens,
   usePaperStyleTokens,
   type ReferencesPaperStyle,
@@ -199,6 +201,33 @@ describe('usePaperStyleTokens', () => {
     expect(restyled).not.toBe(before);
     act(() => useThemeStore.getState().setTheme(DEFAULT_LIGHT_THEME));
     expect(latest?.inkKey).not.toBe(restyled);
+  });
+
+  it('carries the existing creases’ pen and switches through the References policy', () => {
+    // Phase 5: the aux pen in CSS px, the toggle and erode, for the big view's
+    // lines; a card derives the same from the display style itself.
+    expect(latest?.inks).toEqual({
+      aux: {
+        pen: DEFAULT_PAPER_STYLE.auxCreases.pen,
+        css: DEFAULT_PAPER_STYLE.auxCreases.pen.width * PT_TO_CSS_PX,
+      },
+      auxVisible: true,
+      erode: 0,
+    });
+    act(() =>
+      useSettingsStore.getState().setPaperStyleFields('display', {
+        'auxCreases.visible': false,
+        erode: 0.05,
+      })
+    );
+    expect(latest?.inks).toMatchObject({ auxVisible: false, erode: 0.05 });
+    const card = referencesCardInks(useSettingsStore.getState().paperStyle.display);
+    expect(card.creases).toEqual({ visible: false, erode: 0.05 });
+    expect(card.pens.crease.width).toBeCloseTo(
+      (DIAGRAM_LINE_INK.edge.width * DEFAULT_PAPER_STYLE.auxCreases.pen.width) /
+        DEFAULT_PAPER_STYLE.edges.width,
+      9
+    );
   });
 
   it('is what the document’s creases resolve to on a canvas inside the workspace', () => {

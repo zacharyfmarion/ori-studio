@@ -77,7 +77,7 @@
  */
 
 import earcut from 'earcut';
-import { textureSizeFor, type MeshTopology, type Vec3 } from '@treemaker/origami-simulator';
+import { EDGE_CODE, textureSizeFor, type MeshTopology, type Vec3 } from '@treemaker/origami-simulator';
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
@@ -279,6 +279,12 @@ export interface Folded3dMesh {
    * now that nothing perturbs the geometry.
    */
   radius: number;
+  /**
+   * The unfolded sheet's extent in the mesh's units — the kernel's `span`, the
+   * longer side of the unfolded bounding box. What the style's erode is a
+   * fraction of, for the window's edge pass and the vector scene alike.
+   */
+  sheet: number;
   /** Deepest `cell_stack` in this model. Reported, not used for placement. */
   maxStackDepth: number;
   slots: Folded3dMeshSlots;
@@ -363,16 +369,17 @@ export function toSimBasis(p: Vec3): Vec3 {
  * The sign convention is the kernel's own, not one invented here: its FOLD
  * exporter reads a negative fold angle as Mountain, matching the FOLD spec.
  *
- * A zero-degree crease maps to 0 (border) rather than to the exporter's Flat,
- * because code 3 is *skipped* by `buildEdgeQuads` while the CPU projector draws
- * those edges today — mapping them to F would silently delete linework. Nothing
- * here ever emits 3.
+ * A zero-degree crease is the exporter's Flat — an auxiliary crease lying in
+ * its face, {@link EDGE_CODE.aux} — which the edge pass draws in the aux pen
+ * when the style shows aux creases and leaves out otherwise, as the simulator
+ * treats a source `F` edge. It used to map to 0 (border) while the edge pass
+ * skipped code 3, so as not to delete linework the CPU projector drew.
  */
 export function folded3dEdgeAssignment(kind: number, foldDegrees: number): number {
-  if (kind !== FOLDED_3D_EDGE_CREASE) return 0;
-  if (foldDegrees < 0) return 1;
-  if (foldDegrees > 0) return 2;
-  return 0;
+  if (kind !== FOLDED_3D_EDGE_CREASE) return EDGE_CODE.border;
+  if (foldDegrees < 0) return EDGE_CODE.mountain;
+  if (foldDegrees > 0) return EDGE_CODE.valley;
+  return EDGE_CODE.aux;
 }
 
 /** Signed area of a triangle in a plane's `(u, v)`, doubled. */
@@ -768,6 +775,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
       },
       center: [0, 0, 0],
       radius,
+      sheet: model.span,
       maxStackDepth,
       slots: {
         count: slotCell.length,

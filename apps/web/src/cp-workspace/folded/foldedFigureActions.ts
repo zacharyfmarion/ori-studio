@@ -5,7 +5,7 @@ import type {
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
 import { FOLDED_FIGURE_SIDES } from '../../lib/foldedFigureSides';
-import type { PaperStyle, PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
+import type { Hex, PaperStyle, PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, policyApplies } from '../../lib/paper/paperStyleResolve';
 import type { FoldedFigureExportFormat } from './foldedFigureExport';
 import { flipFoldedState, foldedFigureCycling, foldedFigureModel } from './foldedFigureState';
@@ -18,6 +18,7 @@ import {
   type FoldedColorKey,
 } from './foldedFigureControlOptions';
 import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
+import { edgeInkEdits } from '../paper/paperStyleFields';
 
 /**
  * The verbs a folded figure offers, in the order both surfaces present them.
@@ -134,7 +135,7 @@ export interface FoldedFigureColorOption {
 /** An on/off setting, rendered as a check row that leaves the menu open. */
 export interface FoldedFigureToggleOption {
   kind: 'toggle';
-  id: 'shadow' | 'light';
+  id: 'shadow' | 'light' | 'aux';
   label: string;
   checked: boolean;
   disabled: boolean;
@@ -358,21 +359,24 @@ function foldedColorOptionId(key: FoldedColorKey): FoldedFigureColorOption['id']
 }
 
 /**
- * The paper-style pin each colour row edits. The front and back are the
- * paper's two sides; the line colour is the edge pen's, pinned whole.
+ * The paper-style pins each colour row edits. The front and back are the
+ * paper's two sides; the line colour is the edge pen's, pinned whole, and
+ * under a mono style the fold pens a 3D figure draws follow it
+ * (`edgeInkEdits`).
  */
-function foldedColorEdit(
+function foldedColorEdits(
   key: FoldedColorKey,
   style: PaperStyle,
-  hex: string
-): FoldedAppearanceEdit {
+  hex: Hex,
+  foldPens: boolean
+): FoldedAppearanceEdit[] {
   switch (key) {
     case 'front_color':
-      return { field: 'paper.front', value: hex };
+      return [{ field: 'paper.front', value: hex }];
     case 'back_color':
-      return { field: 'paper.back', value: hex };
+      return [{ field: 'paper.back', value: hex }];
     case 'line_color':
-      return { field: 'edges', value: { ...style.edges, color: hex } };
+      return edgeInkEdits(style, hex, foldPens);
   }
 }
 
@@ -389,12 +393,15 @@ function foldedColorValue(key: FoldedColorKey, style: PaperStyle): string {
 
 /**
  * The figure's Style group: render style, side, the three colours, then the
- * flat figure's shadow or the 3D figure's light.
+ * flat figure's shadow or the 3D figure's light, and the existing-crease
+ * toggle.
  *
  * The colours are the figure's effective paper style and a change pins that
  * field on the figure; the shadow is the flat figure's own Oriedita model
- * field, and the light is the style's, offered where the surface's policy
- * applies it (`PAPER_STYLE_POLICIES`).
+ * field, and the light and the existing-crease toggle are the style's,
+ * offered where the surface's policy applies them (`PAPER_STYLE_POLICIES`).
+ * The aux pen and erode are numbers a menu has no row for; the Properties
+ * sheet has them.
  *
  * Gated in two layers. The whole group waits on `ready`, like every other
  * kernel-backed verb; the model rows additionally ask `foldedAppearanceEnabled`
@@ -473,11 +480,12 @@ export function foldedFigureStyleGroup(
           label: foldedColorLabel(t, field.key),
           value: foldedColorValue(field.key, style),
           disabled: !modelReady,
-          set: (hex) =>
-            deps.setAppearance(figure, foldedColorEdit(field.key, style, hex), {
-              scope,
-              label: colorLabel,
-            }),
+          set: (hex) => {
+            const foldPens = policyApplies(policy, 'mountainFolds');
+            for (const edit of foldedColorEdits(field.key, style, hex, foldPens)) {
+              deps.setAppearance(figure, edit, { scope, label: colorLabel });
+            }
+          },
           commit: () => deps.endModelGesture(scope),
         };
       }),
@@ -508,6 +516,23 @@ export function foldedFigureStyleGroup(
                 deps.setAppearance(figure, {
                   field: 'light',
                   value: { ...style.light, enabled: !style.light.enabled },
+                }),
+            } as const,
+          ]
+        : []),
+      ...(policyApplies(policy, 'auxCreases.visible')
+        ? [
+            { kind: 'separator', id: 'before-aux' } as const,
+            {
+              kind: 'toggle',
+              id: 'aux',
+              label: t('panels:cpProperties.paperStyle.auxVisible', 'Existing creases'),
+              checked: style.auxCreases.visible,
+              disabled: !modelReady,
+              toggle: () =>
+                deps.setAppearance(figure, {
+                  field: 'auxCreases.visible',
+                  value: !style.auxCreases.visible,
                 }),
             } as const,
           ]

@@ -41,6 +41,7 @@
 
 import type { PaperScene } from '@treemaker/origami-simulator';
 import type {
+  OristudioCpFoldedPaperAuxLine,
   OristudioCpFoldedPaperEdgeKind,
   OristudioCpFoldedPaperFace,
   OristudioCpFoldedPaperFaceEdge,
@@ -90,11 +91,7 @@ export function foldedFlatPaperScene(
     kernel,
     options,
     top: topFaces(kernel.subfaces),
-    // Tolerance for "this polygon edge lies on that outline edge", in the
-    // kernel's units. The kernel planarises with Oriedita's `UNKNOWN_001`,
-    // 1e-4 of a 400-unit sheet; this is forty times that and far below any
-    // drawn geometry.
-    epsilon: Math.max(kernel.sheet, 1) * 1e-5,
+    epsilon: foldedSceneEpsilon(kernel),
   };
   const items: PaperItem[] = [];
   for (const component of order) {
@@ -106,6 +103,28 @@ export function foldedFlatPaperScene(
     sheet: kernel.sheet * options.scale,
     items,
   };
+}
+
+/**
+ * Tolerance for "this point lies on that outline edge", in the kernel's units.
+ * The kernel planarises with Oriedita's `UNKNOWN_001`, 1e-4 of a 400-unit
+ * sheet; this is forty times that and far below any drawn geometry.
+ */
+export function foldedSceneEpsilon(kernel: Pick<OristudioCpFoldedPaperScene, 'sheet'>): number {
+  return Math.max(kernel.sheet, 1) * 1e-5;
+}
+
+/**
+ * Which ends of a folded aux line lie on its face's outline — the ends erode
+ * retreats (D8). The canvas overlay and the export read the same answer.
+ */
+export function auxLineOnBoundary(
+  kernel: Pick<OristudioCpFoldedPaperScene, 'faces'>,
+  aux: OristudioCpFoldedPaperAuxLine,
+  epsilon: number
+): [boolean, boolean] {
+  const outline = kernel.faces[aux.face]?.outline ?? [];
+  return [onOutline(outline, aux.from, epsilon), onOutline(outline, aux.to, epsilon)];
 }
 
 /* --------------------------------------------------------------------------
@@ -336,7 +355,6 @@ function emitAuxLines(
   hidden: boolean
 ): void {
   const { kernel, options } = context;
-  const outline = kernel.faces[face]!.outline;
   for (const aux of kernel.aux_lines) {
     if (aux.face !== face) continue;
     items.push({
@@ -344,10 +362,7 @@ function emitAuxLines(
       role: 'aux',
       a: options.toScenePx(aux.from),
       b: options.toScenePx(aux.to),
-      onBoundary: [
-        onOutline(outline, aux.from, context.epsilon),
-        onOutline(outline, aux.to, context.epsilon),
-      ],
+      onBoundary: auxLineOnBoundary(kernel, aux, context.epsilon),
       face,
       hidden,
     });

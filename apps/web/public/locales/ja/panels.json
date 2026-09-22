@@ -243,7 +243,11 @@
       "title": "シミュレーションウィンドウ"
     },
     "paperStyle": {
+      "auxColor": "折り線の色",
+      "auxVisible": "既存の折り線",
+      "auxWidth": "折り線の幅 (pt)",
       "changeAction": "用紙スタイルを変更",
+      "erode": "エロード (用紙の %)",
       "resetAction": "用紙スタイルをリセット"
     },
     "region": {

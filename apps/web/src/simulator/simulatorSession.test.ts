@@ -534,7 +534,7 @@ describe('exporting the current view as SVG', () => {
     session.dispose();
   }, 30_000);
 
-  it('applies the simulator’s policy: a light the style has, an erode it does not yet', async () => {
+  it('applies the simulator’s policy: the light, and erode since Phase 5', async () => {
     const session = createSimulatorSession();
     const info = session.load(miura(6, 6), {});
     session.setFoldPercent(50);
@@ -550,12 +550,18 @@ describe('exporting the current view as SVG', () => {
     )!.svg;
     expect(lit).not.toBe(unlit);
 
-    // Erode joins the simulator in a later phase; until then the export draws
-    // what the screen draws, whatever the style says.
+    // Re-pinned: the export used to ignore erode while the screen could not
+    // draw it. The policy applies it now and the painter retreats every fold
+    // end the scene flags, so at a fifth of the sheet most folds go entirely
+    // and the rest get shorter; no line grows and the paper is untouched.
     const eroded = session.exportSvg(
       exportOptions({ token: info.token, style: { ...EXPORT_STYLE, erode: 0.2 } })
     )!.svg;
-    expect(eroded).toBe(unlit);
+    expect(eroded).not.toBe(unlit);
+    const lineCount = (svg: string) => svg.split('<line ').length - 1;
+    const polygonCount = (svg: string) => svg.split('<polygon ').length - 1;
+    expect(lineCount(eroded)).toBeLessThan(lineCount(unlit));
+    expect(polygonCount(eroded)).toBe(polygonCount(unlit));
     session.dispose();
   }, 30_000);
 
@@ -805,6 +811,7 @@ describe('folded-figure meshes', () => {
     edgeAssignments: new Uint8Array([1]).buffer,
     center: [0, 0, 0] as [number, number, number],
     radius: 1,
+    sheet: 1,
     skins: [],
     translucent: { faceIndexStart: 0, faceIndexCount: 3, edgeStart: 0, edgeCount: 1 },
     undetermined: { faceIndexStart: 3, faceIndexCount: 0, edgeStart: 1, edgeCount: 0 },

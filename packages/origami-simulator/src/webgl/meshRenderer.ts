@@ -15,6 +15,7 @@ import type { CameraUniforms, Mat3 } from './camera.js';
 import type { FoldAssignment } from '../types.js';
 import { SHADE_GLSL } from '../shading.js';
 import { EDGE_CODE } from '../edgeCodes.js';
+import { edgeBoundaryFlags } from '../edgeBoundary.js';
 
 export interface MeshTopology {
   /** Triangle vertex indices, 3 per face. */
@@ -24,7 +25,8 @@ export interface MeshTopology {
   /**
    * Per-edge fold assignment as an {@link EDGE_CODE}: 0=B(order), 1=M, 2=V,
    * 3=aux (a source `F` edge), 4=facet (a triangulation diagonal). Drives crease
-   * colour so mountains and valleys read distinctly; the edge pass draws 0..2.
+   * colour so mountains and valleys read distinctly; the edge pass draws 0..2
+   * always and 3 when {@link RenderSettings.showAux} asks for it.
    */
   edgeAssignments: Uint8Array;
   /** Square texture edge length the solver packs vertices into. */
@@ -40,10 +42,15 @@ export interface CreaseDash {
   border: readonly number[] | null;
   mountain: readonly number[] | null;
   valley: readonly number[] | null;
+  /** The auxiliary crease pen's pattern; absent or null is solid. */
+  aux?: readonly number[] | null;
 }
 
 /** Longest pattern the edge shader can hold, which bounds its uniform array. */
 export const MAX_DASH_RUNS = 6;
+
+/** Crease kinds the edge shader dashes, indexed by code: border, mountain, valley, aux. */
+export const DASH_KINDS = 4;
 
 /**
  * Where an edge of `lengthPx` starts in a packed dash pattern so the pattern is
@@ -74,10 +81,15 @@ export function packCreaseDash(dash: CreaseDash | undefined): {
   runs: Float32Array;
   counts: Int32Array;
 } {
-  const runs = new Float32Array(3 * MAX_DASH_RUNS);
-  const counts = new Int32Array(3);
-  // Index order is the assignment code: 0=B, 1=M, 2=V.
-  const kinds = [dash?.border ?? null, dash?.mountain ?? null, dash?.valley ?? null];
+  const runs = new Float32Array(DASH_KINDS * MAX_DASH_RUNS);
+  const counts = new Int32Array(DASH_KINDS);
+  // Index order is the assignment code: 0=B, 1=M, 2=V, 3=aux.
+  const kinds = [
+    dash?.border ?? null,
+    dash?.mountain ?? null,
+    dash?.valley ?? null,
+    dash?.aux ?? null,
+  ];
   kinds.forEach((pattern, kind) => {
     if (!pattern || pattern.length === 0) return;
     // An odd-length pattern repeats inverted, as CSS and canvas both define it,
@@ -100,6 +112,26 @@ export interface RenderSettings {
   mountainColor: [number, number, number];
   valleyColor: [number, number, number];
   borderColor: [number, number, number];
+  /**
+   * The auxiliary crease pen: a source `F` edge, {@link EDGE_CODE.aux}. Drawn
+   * only when {@link showAux}; the colour defaults to {@link borderColor} and
+   * the width to {@link creaseWidthPx}. Its dash is `creaseDash.aux`.
+   */
+  auxColor?: [number, number, number];
+  /** Auxiliary crease width in device pixels; see {@link creaseWidthPx}. */
+  auxWidthPx?: number;
+  /** Draw the auxiliary creases. Off by default: they clutter a fold. */
+  showAux?: boolean;
+  /**
+   * Erode (D8): how far a crease retreats from the outline of the layer it is
+   * drawn on, as a fraction of the unfolded sheet's extent. 0, the default,
+   * draws every crease to its ends. Which ends retreat is `edgeBoundaryFlags`,
+   * the rule the vector painter's `onBoundary` reads; the distance is the
+   * painter's `erode × sheet` at the frame's camera, so the renderer has to
+   * know the sheet's extent ({@link MeshRendererOptions.sheet}) and converts
+   * per frame — a device-px figure would go stale on the first zoom.
+   */
+  erode?: number;
   lightDir: [number, number, number];
   background: [number, number, number];
   /**
@@ -333,66 +365,83 @@ export function meshTopologyFor(
   };
 }
 
-// Interleaved edge-vertex layout: [this, a, b, side, assignment].
-const EDGE_STRIDE = 5;
+// Interleaved edge-vertex layout: [this, a, b, side, assignment, shrink].
+export const EDGE_STRIDE = 6;
 const EDGE_ATTRS: ReadonlyArray<readonly [string, number]> = [
   ['a_this', 0],
   ['a_a', 1],
   ['a_b', 2],
   ['a_side', 3],
   ['a_assignment', 4],
+  ['a_shrink', 5],
 ];
 
 /** Ribbon vertices per drawn crease: two triangles. */
-const EDGE_QUAD_VERTICES = 6;
+export const EDGE_QUAD_VERTICES = 6;
 
 /**
- * Expand each drawn crease into a 2-triangle screen-space ribbon. Only border,
- * mountain and valley edges are drawn (codes 0/1/2); auxiliary creases and the
- * facet edges from triangulation are skipped. Returns the interleaved vertex
- * buffer, and where each *source* edge's ribbon starts in it.
+ * Expand each drawn crease into a 2-triangle screen-space ribbon. Border,
+ * mountain, valley and auxiliary edges are drawn (codes 0..3 — the shader
+ * clips the auxiliary ribbons away unless `showAux`); the facet edges from
+ * triangulation are skipped. Returns the interleaved vertex buffer, and where
+ * each *source* edge's ribbon starts in it.
  *
  * The second half is what lets {@link MeshDrawOptions.edgeRange} be expressed in
  * the caller's own edge numbering: skipped edges make the mapping from an edge
  * index to a vertex offset non-linear, and a caller that assumed `6 · index`
  * would draw the wrong creases on any model with a facet edge in it. `start` is
  * `edgeCount + 1` long, so edges `[i, j)` own vertices `[start[i], start[j])`.
+ *
+ * Each vertex carries its edge's erode flags (`edgeBoundaryFlags`, the bits
+ * `EDGE_BOUNDARY_A` / `EDGE_BOUNDARY_B`) as `shrink`, so the vertex shader
+ * knows which end of the ribbon retreats. Exported for the tests; the renderer
+ * is its only caller.
  */
-function buildEdgeQuads(topology: MeshTopology): {
+export function buildEdgeQuads(topology: MeshTopology): {
   interleaved: Float32Array;
   vertexStart: Uint32Array;
 } {
   const edgeCount = topology.edgeAssignments.length;
   let drawn = 0;
   for (let e = 0; e < edgeCount; e += 1) {
-    if (topology.edgeAssignments[e]! <= EDGE_CODE.valley) drawn += 1;
+    if (topology.edgeAssignments[e]! <= EDGE_CODE.aux) drawn += 1;
   }
+  const shrink = edgeBoundaryFlags(topology);
 
   const out = new Float32Array(drawn * EDGE_QUAD_VERTICES * EDGE_STRIDE);
   const vertexStart = new Uint32Array(edgeCount + 1);
   let v = 0;
-  const emit = (thisIndex: number, a: number, b: number, side: number, assignment: number) => {
+  const emit = (
+    thisIndex: number,
+    a: number,
+    b: number,
+    side: number,
+    assignment: number,
+    flags: number
+  ) => {
     out[v] = thisIndex;
     out[v + 1] = a;
     out[v + 2] = b;
     out[v + 3] = side;
     out[v + 4] = assignment;
+    out[v + 5] = flags;
     v += EDGE_STRIDE;
   };
 
   for (let e = 0; e < edgeCount; e += 1) {
     vertexStart[e] = v / EDGE_STRIDE;
     const assignment = topology.edgeAssignments[e]!;
-    if (assignment > EDGE_CODE.valley) continue;
+    if (assignment > EDGE_CODE.aux) continue;
     const a = topology.edgeIndices[e * 2]!;
     const b = topology.edgeIndices[e * 2 + 1]!;
+    const flags = shrink[e]!;
     // Two triangles: (Aleft, Aright, Bleft) and (Aright, Bright, Bleft).
-    emit(a, a, b, 1, assignment);
-    emit(a, a, b, -1, assignment);
-    emit(b, a, b, 1, assignment);
-    emit(a, a, b, -1, assignment);
-    emit(b, a, b, -1, assignment);
-    emit(b, a, b, 1, assignment);
+    emit(a, a, b, 1, assignment, flags);
+    emit(a, a, b, -1, assignment, flags);
+    emit(b, a, b, 1, assignment, flags);
+    emit(a, a, b, -1, assignment, flags);
+    emit(b, a, b, -1, assignment, flags);
+    emit(b, a, b, 1, assignment, flags);
   }
   vertexStart[edgeCount] = v / EDGE_STRIDE;
   return { interleaved: out, vertexStart };
@@ -506,24 +555,32 @@ void main(){
 // Creases are drawn as screen-space quads, not GL LINES: native line width is
 // clamped to 1px on Metal/ANGLE, which makes creases nearly invisible on a busy
 // model. Each edge becomes a camera-facing ribbon of constant pixel width. The
-// vertex shader projects both endpoints, takes the screen-space perpendicular,
-// and offsets this vertex by +/- half the width.
-const EDGE_VERT = `#version 300 es
+// vertex shader projects both endpoints, erodes the flagged ends, takes the
+// screen-space perpendicular, and offsets this vertex by +/- half the width.
+//
+// Exported for the test that checks the GLSL says what the JS expects — the
+// uniform array sizes, the aux clip and the erode — since no WebGL2 exists in
+// Node to link it; the browser parity bench links it for real.
+export const EDGE_VERT = `#version 300 es
 precision highp float;
 in float a_this;       // node index to place this vertex at
 in float a_a;          // edge endpoint A (for direction)
 in float a_b;          // edge endpoint B
 in float a_side;       // +1 / -1 across the ribbon
 in float a_assignment; // crease type
+in float a_shrink;     // erode flags: bit 1 = end A retreats, bit 2 = end B
 uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
 uniform int u_textureDim;
 ${VIEW_GLSL}
 uniform float u_halfWidthPx;
+uniform float u_auxHalfWidthPx;
+uniform float u_showAux;
+uniform float u_erodePx;
 uniform float u_depthBias;
 // The same dash uniforms the fragment stage reads; see EDGE_FRAG.
-uniform float u_dashRuns[18];
-uniform int u_dashCount[3];
+uniform float u_dashRuns[${DASH_KINDS * MAX_DASH_RUNS}];
+uniform int u_dashCount[${DASH_KINDS}];
 flat out int v_assignment;
 // Distance into the dash pattern in pixels, for dashing. Exact across a
 // straight two-triangle ribbon, so the fragment stage can measure the run it
@@ -536,9 +593,9 @@ out float v_alongPx;
 float dashPhase(int kind, float len){
   int count = u_dashCount[kind];
   if (count <= 0) return 0.0;
-  int base = kind * 6;
+  int base = kind * ${MAX_DASH_RUNS};
   float total = 0.0;
-  for (int i = 0; i < 6; i++){
+  for (int i = 0; i < ${MAX_DASH_RUNS}; i++){
     if (i >= count) break;
     total += u_dashRuns[base + i];
   }
@@ -563,59 +620,98 @@ float projectDepth(int index){
 
 void main(){
   v_assignment = int(a_assignment + 0.5);
-  vec2 ndcThis = projectNdc(int(a_this + 0.5));
-  vec2 ndcA = projectNdc(int(a_a + 0.5));
-  vec2 ndcB = projectNdc(int(a_b + 0.5));
-  // Perpendicular in pixel space so the ribbon has constant on-screen width
-  // regardless of aspect ratio.
-  vec2 dirPx = (ndcB - ndcA) * u_viewport * 0.5;
+  // An auxiliary crease the style hides: put every vertex of its ribbon behind
+  // the far plane, so the triangle is clipped before it costs a fragment.
+  if (v_assignment == ${EDGE_CODE.aux} && u_showAux < 0.5){
+    gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+    v_alongPx = 0.0;
+    return;
+  }
+  int indexA = int(a_a + 0.5);
+  int indexB = int(a_b + 0.5);
+  bool atA = int(a_this + 0.5) == indexA;
+  // Pixel space, so the ribbon has constant on-screen width regardless of
+  // aspect ratio, and so the erode is measured as the painter measures it.
+  vec2 halfViewport = u_viewport * 0.5;
+  vec2 pxA = projectNdc(indexA) * halfViewport;
+  vec2 pxB = projectNdc(indexB) * halfViewport;
+  vec2 dirPx = pxB - pxA;
   float len = length(dirPx);
+  // Erode (D8), as the vector painter's erodeSegment: a flagged end is pulled
+  // toward the other by the erode distance, an unflagged end stays, and a pull
+  // that would reach the midpoint collapses the crease — both ends meet there,
+  // the ribbon has no area and nothing is drawn — where the painter drops it.
+  int shrink = int(a_shrink + 0.5);
+  bool shrinkA = (shrink & 1) != 0;
+  bool shrinkB = (shrink & 2) != 0;
+  float tA = 0.0;
+  float tB = 1.0;
+  if (u_erodePx > 0.0 && (shrinkA || shrinkB) && len > 0.0){
+    if (u_erodePx >= len * 0.5){
+      tA = 0.5;
+      tB = 0.5;
+    } else {
+      float t = u_erodePx / len;
+      if (shrinkA) tA = t;
+      if (shrinkB) tB = 1.0 - t;
+    }
+  }
+  float t = atA ? tA : tB;
+  vec2 pxThis = mix(pxA, pxB, t);
+  // The eroded segment is what the dash is centred on, as the painter centres
+  // its stroke-dashoffset on the segment it draws.
+  float erodedLen = len * (tB - tA);
   // This vertex sits at one end or the other, so the distance along the edge is
   // 0 or the whole length; the rasterizer interpolates between them. The phase
   // is the same at both ends, so the interpolation stays exact.
-  float phase = dashPhase(v_assignment, len);
-  v_alongPx = (int(a_this + 0.5) == int(a_a + 0.5) ? 0.0 : len) + phase;
+  float phase = dashPhase(v_assignment, erodedLen);
+  v_alongPx = (atA ? 0.0 : erodedLen) + phase;
   vec2 perpPx = len > 0.0001 ? vec2(-dirPx.y, dirPx.x) / len : vec2(0.0);
-  vec2 offsetNdc = (perpPx * u_halfWidthPx * a_side) / (u_viewport * 0.5);
+  float halfWidthPx = v_assignment == ${EDGE_CODE.aux} ? u_auxHalfWidthPx : u_halfWidthPx;
+  vec2 offsetPx = perpPx * halfWidthPx * a_side;
   // Bias toward the viewer so a crease sits on top of the face it lies on —
   // and, where the model has coplanar layers, on top of *that* face and nothing
-  // behind it. See RenderSettings.creaseDepthBias.
-  float depth = projectDepth(int(a_this + 0.5)) - u_depthBias;
-  gl_Position = vec4(ndcThis + offsetNdc, depth, 1.0);
+  // behind it. See RenderSettings.creaseDepthBias. An eroded end takes the
+  // depth of the point it moved to, interpolated as the rasterizer would.
+  float depth = mix(projectDepth(indexA), projectDepth(indexB), t) - u_depthBias;
+  gl_Position = vec4((pxThis + offsetPx) / halfViewport, depth, 1.0);
 }`;
 
-const EDGE_FRAG = `#version 300 es
+export const EDGE_FRAG = `#version 300 es
 precision highp float;
 // The dash uniforms are declared in both stages, and a uniform shared across
 // stages must agree in precision; ints default to highp in a vertex shader.
 precision highp int;
 flat in int v_assignment;
 in float v_alongPx;
-// Codes match EDGE_ASSIGNMENT_CODES: 0=B, 1=M, 2=V.
+// Codes match EDGE_CODE: 0=B, 1=M, 2=V, 3=aux.
 uniform vec3 u_mountainColor;
 uniform vec3 u_valleyColor;
 uniform vec3 u_borderColor;
+uniform vec3 u_auxColor;
 uniform float u_alpha;
-// Dash runs for the three drawn kinds, packed [B..., M..., V...] with MAX runs
-// each, and how many of those runs each kind actually uses (0 = solid).
-uniform float u_dashRuns[18];
-uniform int u_dashCount[3];
+uniform float u_auxAlpha;
+// Dash runs for the four drawn kinds, packed [B..., M..., V..., aux...] with
+// MAX runs each, and how many of those runs each kind actually uses (0 =
+// solid).
+uniform float u_dashRuns[${DASH_KINDS * MAX_DASH_RUNS}];
+uniform int u_dashCount[${DASH_KINDS}];
 out vec4 fragColor;
 
 /** True where the dash pattern is "on" at this distance along the edge. */
 bool dashOn(int kind, float alongPx){
   int count = u_dashCount[kind];
   if (count <= 0) return true;
-  int base = kind * 6;
+  int base = kind * ${MAX_DASH_RUNS};
   float total = 0.0;
-  for (int i = 0; i < 6; i++){
+  for (int i = 0; i < ${MAX_DASH_RUNS}; i++){
     if (i >= count) break;
     total += u_dashRuns[base + i];
   }
   if (total <= 0.0) return true;
   float pos = mod(alongPx, total);
   float acc = 0.0;
-  for (int i = 0; i < 6; i++){
+  for (int i = 0; i < ${MAX_DASH_RUNS}; i++){
     if (i >= count) break;
     acc += u_dashRuns[base + i];
     // Even runs are ink, odd runs are gaps, matching setLineDash and
@@ -627,12 +723,14 @@ bool dashOn(int kind, float alongPx){
 
 void main(){
   vec3 color = u_borderColor;
+  float alpha = u_alpha;
   if (v_assignment == 1) color = u_mountainColor;
   else if (v_assignment == 2) color = u_valleyColor;
+  else if (v_assignment == ${EDGE_CODE.aux}) { color = u_auxColor; alpha = u_auxAlpha; }
   // Discarding rather than blending to the background: a gap has to show the
   // face behind the crease, and it must not write depth either.
   if (!dashOn(v_assignment, v_alongPx)) discard;
-  fragColor = vec4(color, u_alpha);
+  fragColor = vec4(color, alpha);
 }`;
 
 /**
@@ -677,10 +775,35 @@ export interface MeshDrawOptions {
   edgeRange?: { start: number; count: number };
 }
 
+/**
+ * How far a flagged crease end retreats in this frame, in the camera's pixels:
+ * the style's fraction of the sheet, times the sheet's extent at the camera's
+ * scale — the vector painter's `erode × scene.sheet`, where the scene's sheet
+ * is the world extent at that same scale.
+ */
+export function erodePx(
+  settings: Pick<RenderSettings, 'erode'>,
+  sheet: number,
+  camera: Pick<CameraUniforms, 'scale'>
+): number {
+  const erode = settings.erode ?? 0;
+  if (!(erode > 0) || !(sheet > 0) || !(camera.scale > 0)) return 0;
+  return erode * sheet * camera.scale;
+}
+
 /** Clamp a face-index count or offset into `[0, limit]`. */
 function clampRange(value: number, limit: number): number {
   if (!Number.isFinite(value) || value <= 0) return 0;
   return Math.min(Math.floor(value), Math.max(0, limit));
+}
+
+export interface MeshRendererOptions {
+  /**
+   * The unfolded sheet's extent in the mesh's world units (`sheetExtent`), the
+   * unit {@link RenderSettings.erode} is a fraction of. Absent or 0, erode
+   * draws nothing — a renderer that does not know its sheet cannot erode.
+   */
+  sheet?: number;
 }
 
 export class MeshRenderer {
@@ -696,16 +819,20 @@ export class MeshRenderer {
   /** Ribbon vertex offset per source edge — see {@link buildEdgeQuads}. */
   private readonly edgeVertexStart: Uint32Array;
   private readonly textureDim: number;
+  /** See {@link MeshRendererOptions.sheet}. */
+  private readonly sheet: number;
   private readonly faceUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   private readonly edgeUniforms: Map<string, WebGLUniformLocation | null> = new Map();
 
   constructor(
     private readonly core: GlCore,
-    topology: MeshTopology
+    topology: MeshTopology,
+    options: MeshRendererOptions = {}
   ) {
     const gl = core.gl;
     this.gl = gl;
     this.textureDim = topology.textureDim;
+    this.sheet = Math.max(0, options.sheet ?? 0);
     this.faceCount = topology.faceIndices.length;
 
     this.faceProgram = compile(gl, FACE_VERT, FACE_FRAG);
@@ -719,9 +846,10 @@ export class MeshRenderer {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.faceElements);
 
     // Edge pass: each drawn crease becomes a 2-triangle screen-space ribbon (6
-    // vertices), interleaved as [this, a, b, side, assignment]. Auxiliary
-    // creases (3) and facet edges (the triangulation diagonals, 4) are skipped
-    // -- they are not fold lines and only clutter the view.
+    // vertices), interleaved as [this, a, b, side, assignment, shrink]. Facet
+    // edges (the triangulation diagonals, 4) are skipped — they are not lines
+    // anyone drew; auxiliary creases (3) are built and clipped away by the
+    // shader unless the settings show them.
     const { interleaved, vertexStart } = buildEdgeQuads(topology);
     this.edgeVertexCount = interleaved.length / EDGE_STRIDE;
     this.edgeVertexStart = vertexStart;
@@ -838,7 +966,14 @@ export class MeshRenderer {
       // at the same on-screen weight, then by the frame if these settings ask
       // for it. camera.width is device px.
       const ink = rasterCreaseInk(settings, camera.width, camera.height);
-      if (ink.alpha < 1) {
+      const showAux = settings.showAux ?? false;
+      // The aux pen at its own width, through the same floor and frame shrink.
+      const auxInk = rasterCreaseInk(
+        { ...settings, creaseWidthPx: settings.auxWidthPx ?? settings.creaseWidthPx },
+        camera.width,
+        camera.height
+      );
+      if (ink.alpha < 1 || (showAux && auxInk.alpha < 1)) {
         gl.enable(gl.BLEND);
         // Colour blends against what is behind, but coverage must not: scaling
         // the frame's own alpha by a faded crease's would punch a hole through
@@ -857,8 +992,26 @@ export class MeshRenderer {
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
       this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
+      this.setVec3(
+        this.edgeProgram,
+        this.edgeUniforms,
+        'u_auxColor',
+        settings.auxColor ?? settings.borderColor
+      );
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', ink.widthPx * 0.5);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_auxHalfWidthPx', auxInk.widthPx * 0.5);
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', ink.alpha);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_auxAlpha', auxInk.alpha);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_showAux', showAux ? 1 : 0);
+      // The painter's `erode × sheet` in this frame's pixels: the sheet at the
+      // camera's scale, which is why it is computed here rather than resolved
+      // into the settings once.
+      this.setFloat(
+        this.edgeProgram,
+        this.edgeUniforms,
+        'u_erodePx',
+        erodePx(settings, this.sheet, camera)
+      );
       this.setFloat(
         this.edgeProgram,
         this.edgeUniforms,

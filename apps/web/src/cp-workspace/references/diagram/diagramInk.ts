@@ -24,6 +24,7 @@
  * `diagramInk.test.ts`, which pins every value against the stylesheet it came
  * from.
  */
+import type { Pen } from '../../../lib/paper/paperStyle';
 import type { DiagramLineStyleName } from '../referenceFinderDiagramToPrimitives';
 
 /** One ink, as a share of the sheet's longer side. */
@@ -128,19 +129,65 @@ export function canvasDiagramInk(lineWidth: number): number {
 }
 
 /**
- * The pens the diagram over the crease pattern is drawn with: the table, with
- * the arrow drawn by the paper style's own arrow pen.
- *
- * `arrowCss` is that pen in CSS pixels. Over the canvas one ink is a fixed
- * number of CSS pixels ({@link canvasDiagramInk}), so the arrow's weight in ink
- * is whatever puts its stroke at exactly the pen. The card keeps the table as
- * it is: there the arrow is a share of the paper like every other mark, and a
- * pen in points has no meaning on a thumbnail.
+ * A paper-style pen as a diagram stroke of `width` ink: its dash, stated in
+ * multiples of its width, becomes runs of that many ink; its cap is its own.
  */
-export function canvasDiagramPens(lineWidth: number, arrowCss: number): DiagramPens {
+export function penInk(pen: Pen, width: number): DiagramStrokeInk {
+  return {
+    width,
+    ...(pen.dash ? { dash: pen.dash.map((multiple) => multiple * width) } : {}),
+    cap: pen.cap,
+  };
+}
+
+/** The paper style's pens a diagram draws with: the aux pen for an existing crease. */
+export interface DiagramPaperPens {
+  /** Existing creases (`crease` ink) draw in this pen; the edge pen is what its width is measured against. */
+  auxCreases: { pen: Pen };
+  edges: Pen;
+}
+
+/**
+ * The card's pens for a paper style: the table, with an existing crease drawn
+ * by the style's aux pen.
+ *
+ * A card is a printed figure whose pen is a share of the paper, and a pen in
+ * points has no meaning on a thumbnail — so what is taken from the style is
+ * the *ratio*: the aux pen's width against the edge pen's, applied to the
+ * table's edge weight. At the defaults (0.5 pt against 0.9 pt) that is 0.667
+ * ink, near the 0.75 the table drew; a style that draws existing creases at
+ * the edge's weight draws them at the card's edge weight too. The dash and
+ * cap are the pen's.
+ */
+export function cardDiagramPens(style: DiagramPaperPens): DiagramPens {
+  const ratio = style.auxCreases.pen.width / Math.max(style.edges.width, Number.EPSILON);
   return {
     ...DIAGRAM_LINE_INK,
-    arrow: { ...DIAGRAM_LINE_INK.arrow, width: arrowCss / canvasDiagramInk(lineWidth) },
+    crease: penInk(style.auxCreases.pen, DIAGRAM_LINE_INK.edge.width * ratio),
+  };
+}
+
+/**
+ * The pens the diagram over the crease pattern is drawn with: the table, with
+ * the arrow drawn by the paper style's own arrow pen and an existing crease by
+ * its aux pen.
+ *
+ * `arrowCss` and `auxCss` are those pens in CSS pixels. Over the canvas one
+ * ink is a fixed number of CSS pixels ({@link canvasDiagramInk}), so a pen's
+ * weight in ink is whatever puts its stroke at exactly the pen. Without an aux
+ * pen the crease keeps the table's weight (the reference diagrams drawn
+ * before there was a style).
+ */
+export function canvasDiagramPens(
+  lineWidth: number,
+  arrowCss: number,
+  aux?: { pen: Pen; css: number }
+): DiagramPens {
+  const ink = canvasDiagramInk(lineWidth);
+  return {
+    ...DIAGRAM_LINE_INK,
+    arrow: { ...DIAGRAM_LINE_INK.arrow, width: arrowCss / ink },
+    ...(aux ? { crease: penInk(aux.pen, aux.css / ink) } : {}),
   };
 }
 
@@ -194,21 +241,23 @@ export function labelWidth(text: string, size: number): number {
 /**
  * The dash slots a diagram uses, and the patterns that fill them.
  *
- * Three of the four the stroke program offers. The crease pattern's own table
- * (`lib/oristudioCpLineStyle`) spends all four on Oriedita's shape-coded style,
+ * All four the stroke program offers. The crease pattern's own table
+ * (`lib/oristudioCpLineStyle`) spends them on Oriedita's shape-coded style,
  * and this surface replaces it rather than sharing it: the References workspace
  * is a diagram, and a diagram says mountain and valley with a *pattern* — the
  * one thing that still reads when the paper is turned over and the colours
- * change meaning.
+ * change meaning. The fourth is the existing crease's, which is solid in the
+ * table and takes the aux pen's dash when the style has one.
  *
  * Runs are in CSS pixels, which is what the program wants, so the pen decides
- * them. Every pattern here is at most two on/off pairs, inside the three the
- * shader walks.
+ * them. Every table pattern is at most two on/off pairs, inside the three the
+ * shader walks; a pen's runs past those are dropped by the program.
  */
 export const DIAGRAM_DASH_SLOTS: readonly DiagramLineStyleName[] = [
   'valley',
   'mountain',
   'dotted',
+  'crease',
 ];
 
 /** The slot a style takes; 0 is solid. */
@@ -216,9 +265,7 @@ export function diagramDashSlot(style: DiagramLineStyleName): number {
   return DIAGRAM_DASH_SLOTS.indexOf(style) + 1;
 }
 
-/** The slot table, with every run scaled by the pen. */
-export function diagramDashPatterns(inkCss: number): number[][] {
-  return DIAGRAM_DASH_SLOTS.map((style) =>
-    (DIAGRAM_LINE_INK[style].dash ?? []).map((run) => run * inkCss)
-  );
+/** The slot table for `pens`, with every run scaled by the pen. */
+export function diagramDashPatterns(inkCss: number, pens: DiagramPens = DIAGRAM_LINE_INK): number[][] {
+  return DIAGRAM_DASH_SLOTS.map((style) => (pens[style].dash ?? []).map((run) => run * inkCss));
 }

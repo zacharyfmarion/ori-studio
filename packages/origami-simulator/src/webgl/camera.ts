@@ -384,3 +384,25 @@ export function boundingRadius(positions: Float32Array, center: [number, number,
   }
   return Math.max(1e-3, radius);
 }
+
+/**
+ * The unfolded sheet's extent in the positions' world units: its longest axis
+ * span, which for a square sheet is the sheet's edge. The unit the style's
+ * erode is a fraction of — the scene carries it at the camera's scale, and the
+ * GPU and canvas-2D edge passes multiply it by their own scale per frame.
+ */
+export function sheetExtent(originalPositions: Float32Array): number {
+  let extent = 0;
+  for (let axis = 0; axis < 3; axis += 1) {
+    let min = Infinity;
+    let max = -Infinity;
+    for (let index = axis; index < originalPositions.length; index += 3) {
+      const value = originalPositions[index]!;
+      if (!Number.isFinite(value)) continue;
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+    if (max > min) extent = Math.max(extent, max - min);
+  }
+  return extent;
+}

@@ -70,7 +70,8 @@ describe('foldedFigureMenuItems', () => {
     return found;
   }
 
-  it('nests the Style group as one submenu: two picks, three colours, one switch', () => {
+  it('nests the Style group as one submenu: two picks, three colours, two switches', () => {
+    // Re-pinned for Phase 5: the existing-crease switch follows the shadow.
     const items = styleMenu(foldedFigureMenuItems(makeFigure(), makeDeps())).items;
     expect(items.map((item) => (item.kind === 'separator' ? '—' : `${item.kind}:${item.id}`))).toEqual([
       'submenu:display-style',
@@ -81,6 +82,8 @@ describe('foldedFigureMenuItems', () => {
       'color:line-color',
       '—',
       'checkbox:shadow',
+      '—',
+      'checkbox:aux',
     ]);
   });
 

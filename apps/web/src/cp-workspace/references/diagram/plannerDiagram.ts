@@ -1394,12 +1394,19 @@ export function plannerTurnOverDiagram(
 }
 
 /**
- * The sheet a picture is of: its size, and where its middle is in the space
- * the primitives are drawn in — which on the canvas is wherever the document
- * put the paper, not half its size from the origin.
+ * The sheet a picture is of: its size, where its middle is in the space the
+ * primitives are drawn in — which on the canvas is wherever the document put
+ * the paper, not half its size from the origin — and which way it is turned
+ * there, for erode to find its edge.
  */
 function sheetOf(sheet: { width: number; height: number }, frame: DiagramFrame): DiagramSheet {
-  return { width: sheet.width, height: sheet.height, centre: [frame.centre.x, frame.centre.y] };
+  const { axes } = frame;
+  return {
+    width: sheet.width,
+    height: sheet.height,
+    centre: [frame.centre.x, frame.centre.y],
+    ...(axes ? { axes: { x: [axes.x.x, axes.x.y], y: [axes.y.x, axes.y.y] } } : {}),
+  };
 }
 
 /**

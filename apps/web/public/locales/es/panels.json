@@ -253,7 +253,11 @@
       "title": "Ventana de simulación"
     },
     "paperStyle": {
+      "auxColor": "Color del pliegue",
+      "auxVisible": "Pliegues existentes",
+      "auxWidth": "Grosor del pliegue (pt)",
       "changeAction": "Cambiar estilo de papel",
+      "erode": "Retraer (% del papel)",
       "resetAction": "Restablecer estilo de papel"
     },
     "region": {

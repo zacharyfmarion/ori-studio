@@ -1,6 +1,7 @@
 import { shadeColor } from '@treemaker/origami-simulator';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from './paperPage';
+import type { PaperLineWhole } from './paperScene';
 import {
   FIXTURE_SHEET_PX,
   SQUARE,
@@ -16,6 +17,7 @@ import {
   PT_PER_MM,
   SEAM_STROKE_WIDTH_PT,
   centredDashOffset,
+  erodeLine,
   erodeSegment,
   pageMarginPt,
   pagePtPerPx,
@@ -250,7 +252,11 @@ describe('lines', () => {
 
   it('draws aux creases only when the style shows them', () => {
     const scene = sceneOf([face([SQUARE]), line('aux', [0, 30], [100, 30], { face: 0 })]);
-    expect(lines(paint(scene).svg)).toHaveLength(0);
+    const hidden: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+    };
+    expect(lines(paint(scene, hidden).svg)).toHaveLength(0);
     const shown: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
       auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: true },
@@ -358,6 +364,65 @@ describe('erode', () => {
     expect(lines(paint(oneEnd, style).svg)).toHaveLength(0);
     expect(erodeSegment([0, 0], [10, 0], [true, true], 5)).toBeNull();
     expect(erodeSegment([0, 0], [11, 0], [true, true], 5)).not.toBeNull();
+  });
+
+  it('erodes a cut piece on its whole crease, as the edge shader and the canvas do', () => {
+    // A 40 px crease flagged at both ends, cut 10 px from its start by another
+    // face's plane. On its own length the first piece (10 px, 8 px pull) would
+    // collapse; on the crease it keeps the 2 px past the pull, as the shader's
+    // ribbon does. The second piece does not own the far end but still gives
+    // it up. `erodePx` is the 8 px here.
+    const whole: PaperLineWhole = { a: [0, 0], b: [40, 0], onBoundary: [true, true] };
+    const first = line('mountain', [0, 0], [10, 0], { onBoundary: [true, false], whole });
+    const second = line('mountain', [10, 0], [40, 0], { onBoundary: [false, true], whole });
+    expect(erodeLine(first, 8)).toEqual([
+      [8, 0],
+      [10, 0],
+    ]);
+    expect(erodeLine(second, 8)).toEqual([
+      [10, 0],
+      [32, 0],
+    ]);
+    // A cut inside the pulled-off end: the first piece goes, and the second
+    // loses the rest of the pull though it owns neither end of the crease.
+    const inside = line('mountain', [0, 0], [5, 0], { onBoundary: [true, false], whole });
+    const rest = line('mountain', [5, 0], [40, 0], { onBoundary: [false, true], whole });
+    expect(erodeLine(inside, 8)).toBeNull();
+    expect(erodeLine(rest, 8)).toEqual([
+      [8, 0],
+      [32, 0],
+    ]);
+    // A piece whose crease collapses goes with it.
+    expect(erodeLine(first, 20)).toBeNull();
+    // Reversed pieces keep their direction.
+    const backwards = line('mountain', [40, 0], [10, 0], { onBoundary: [true, false], whole });
+    expect(erodeLine(backwards, 8)).toEqual([
+      [32, 0],
+      [10, 0],
+    ]);
+    // And at zero, or with no crease to measure on, the piece is its own.
+    expect(erodeLine(first, 0)).toEqual([
+      [0, 0],
+      [10, 0],
+    ]);
+    expect(erodeLine(line('mountain', [0, 0], [10, 0], { onBoundary: [true, false] }), 8)).toBeNull();
+  });
+
+  it('draws a cut piece by its crease’s erosion on the page', () => {
+    const whole: PaperLineWhole = { a: [0, 50], b: [80, 50], onBoundary: [true, false] };
+    const scene = sceneOf([
+      face([SQUARE]),
+      line('mountain', [0, 50], [10, 50], { onBoundary: [true, false], whole, face: 0 }),
+      line('mountain', [10, 50], [80, 50], { onBoundary: [false, false], whole, face: 0 }),
+    ]);
+    // The pull is 5 px on the fixture sheet: on its own 10 px the first piece
+    // would collapse exactly; on the crease it keeps 5 px past the pull.
+    expect(distancePx).toBe(5);
+    const [stub, rest] = lines(paint(scene, style).svg);
+    expect(Number(stub!.x1)).toBeCloseTo(distancePx * PT_PER_CSS_PX + ROOM, 2);
+    expect(Number(stub!.x2)).toBeCloseTo(10 * PT_PER_CSS_PX + ROOM, 2);
+    expect(Number(rest!.x1)).toBeCloseTo(10 * PT_PER_CSS_PX + ROOM, 2);
+    expect(Number(rest!.x2)).toBeCloseTo(80 * PT_PER_CSS_PX + ROOM, 2);
   });
 
   it('does nothing at zero, and never touches an edge line', () => {

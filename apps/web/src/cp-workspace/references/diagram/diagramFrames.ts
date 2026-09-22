@@ -66,6 +66,13 @@ export interface DiagramFrame {
    */
   centre: Point;
   /**
+   * Which way the paper's width and height run, as unit vectors, when the
+   * frame may have turned it — the canvas, where the paper sits at whatever
+   * angle the document gave it. Absent for the unit square, whose axes are
+   * the space's own.
+   */
+  axes?: { x: Point; y: Point };
+  /**
    * The paper's outline, or null when the surface draws its own.
    *
    * The card draws the sheet; the canvas already has the document's border
@@ -267,6 +274,13 @@ export function modelFrame(sequence: PrecreaseSequence, model: ReferencesPlanMod
     width: lengthOf(bottom) || sequence.sheet.width,
     height: lengthOf(left) || sequence.sheet.height,
   };
+  // The paper's axes are its mapped bottom and left edges, which the unit
+  // frame lays along +x and +y.
+  const unitAlong = (e: { a: Point; b: Point } | undefined, fallback: Point): Point => {
+    const length = lengthOf(e);
+    return e && length > 0 ? { x: (e.b.x - e.a.x) / length, y: (e.b.y - e.a.y) / length } : fallback;
+  };
+  const axes = { x: unitAlong(bottom, { x: 1, y: 0 }), y: unitAlong(left, { x: 0, y: 1 }) };
   const recoverAlongChord = (
     step: PrecreaseStep,
     spans: readonly PrecreasePlanSegment[]
@@ -290,6 +304,7 @@ export function modelFrame(sequence: PrecreaseSequence, model: ReferencesPlanMod
   return {
     sheet,
     centre,
+    axes,
     // The canvas draws the paper from the document's own border creases.
     outline: null,
     chord: (step) => {

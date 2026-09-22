@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { MeshRenderer, type MeshTopology, type RenderSettings } from '../src/webgl/meshRenderer.js';
+import {
+  EDGE_QUAD_VERTICES,
+  EDGE_STRIDE,
+  MeshRenderer,
+  buildEdgeQuads,
+  erodePx,
+  type MeshTopology,
+  type RenderSettings,
+} from '../src/webgl/meshRenderer.js';
 import type { GlCore } from '../src/webgl/glCore.js';
 import { viewRotation, type CameraUniforms } from '../src/webgl/camera.js';
+import { EDGE_CODE } from '../src/edgeCodes.js';
+import { EDGE_BOUNDARY_A, EDGE_BOUNDARY_B } from '../src/edgeBoundary.js';
 
 // WebGL2 does not exist in Node, so this covers the *command stream* the renderer
 // issues rather than the pixels it produces: which clears happen, and which slice
@@ -21,6 +31,10 @@ interface Recorder {
   clears: number[];
   clearColors: [number, number, number, number][];
   draws: DrawCall[];
+  /** Every `drawArrays` — the edge pass — as `[first, count]`. */
+  arrayDraws: [number, number][];
+  /** The last scalar uploaded to each named uniform, across both programs. */
+  floats: Map<string, number>;
   /**
    * The scissor rect in force at each `clear`, or null if the test was
    * disabled. The clear has to be bounded to the viewport — see the render
@@ -35,6 +49,8 @@ function recorder(): Recorder {
   const clears: number[] = [];
   const clearColors: [number, number, number, number][] = [];
   const draws: DrawCall[] = [];
+  const arrayDraws: [number, number][] = [];
+  const floats = new Map<string, number>();
   const clearScissors: ([number, number, number, number] | null)[] = [];
   let scissorEnabled = false;
   let scissorBox: [number, number, number, number] | null = null;
@@ -110,9 +126,13 @@ function recorder(): Recorder {
     useProgram: () => {},
     activeTexture: () => {},
     bindTexture: () => {},
-    getUniformLocation: object,
+    // A location that remembers its name, so a scalar upload can be read back
+    // by the uniform it went to.
+    getUniformLocation: (_program: unknown, name: string) => ({ name }),
     uniform1i: () => {},
-    uniform1f: () => {},
+    uniform1f: (location: { name: string } | null, value: number) => {
+      if (location) floats.set(location.name, value);
+    },
     uniform2f: () => {},
     uniform3f: () => {},
     uniform1fv: () => {},
@@ -120,7 +140,7 @@ function recorder(): Recorder {
     uniformMatrix3fv: () => {},
     drawElements: (_mode: number, count: number, _type: number, offset: number) =>
       draws.push({ count, offset }),
-    drawArrays: () => {},
+    drawArrays: (_mode: number, first: number, count: number) => arrayDraws.push([first, count]),
   } as unknown as WebGL2RenderingContext;
 
   const core = {
@@ -128,7 +148,7 @@ function recorder(): Recorder {
     getTexture: () => ({}) as WebGLTexture,
   } as unknown as GlCore;
 
-  return { gl, core, clears, clearColors, draws, clearScissors };
+  return { gl, core, clears, clearColors, draws, arrayDraws, floats, clearScissors };
 }
 
 /** Six triangles, so a sub-range can be asked for and be wrong if ignored. */
@@ -270,5 +290,133 @@ describe('composing a frame from several MeshRenderer draws', () => {
       faceRange: { start: 18, count: 0 },
     });
     expect(draws).toEqual([]);
+  });
+});
+
+/**
+ * A square fanned from its centre (vertex 4): four border edges, one mountain
+ * spoke, one aux spoke ending mid-layer at the centre, and one facet spoke.
+ */
+function fanTopology(): MeshTopology {
+  return {
+    faceIndices: new Uint32Array([0, 1, 4, 1, 2, 4, 2, 3, 4, 3, 0, 4]),
+    edgeIndices: new Uint32Array([0, 1, 1, 2, 2, 3, 3, 0, 0, 4, 1, 4, 2, 4]),
+    edgeAssignments: new Uint8Array([
+      EDGE_CODE.border,
+      EDGE_CODE.border,
+      EDGE_CODE.border,
+      EDGE_CODE.border,
+      EDGE_CODE.mountain,
+      EDGE_CODE.aux,
+      EDGE_CODE.facet,
+    ]),
+    textureDim: 4,
+  };
+}
+
+/** The `shrink` attribute of every ribbon vertex of edge `edge`. */
+function shrinkOf(quads: ReturnType<typeof buildEdgeQuads>, edge: number): number[] {
+  const out: number[] = [];
+  for (let v = quads.vertexStart[edge]!; v < quads.vertexStart[edge + 1]!; v += 1) {
+    out.push(quads.interleaved[v * EDGE_STRIDE + 5]!);
+  }
+  return out;
+}
+
+describe('building the edge ribbons', () => {
+  it('builds a ribbon for every border, fold and aux edge, and none for a facet', () => {
+    // Phase 5: the aux crease gets its ribbon at build time and the shader
+    // clips it away unless the settings show it, so the vertex offsets are
+    // fixed per topology whatever the style says.
+    const quads = buildEdgeQuads(fanTopology());
+    expect(quads.interleaved.length / EDGE_STRIDE).toBe(6 * EDGE_QUAD_VERTICES);
+    // The facet edge owns no vertices: its start equals the end of the buffer.
+    expect(quads.vertexStart[6]).toBe(quads.vertexStart[7]);
+    expect(quads.vertexStart[6]).toBe(6 * EDGE_QUAD_VERTICES);
+    // And the aux edge's ribbon carries its code.
+    const auxFirst = quads.vertexStart[5]! * EDGE_STRIDE;
+    expect(quads.interleaved[auxFirst + 4]).toBe(EDGE_CODE.aux);
+  });
+
+  it('carries each edge’s erode flags on every vertex of its ribbon', () => {
+    const quads = buildEdgeQuads(fanTopology());
+    // The border edges never retreat.
+    for (let edge = 0; edge < 4; edge += 1) expect(shrinkOf(quads, edge)).toEqual([0, 0, 0, 0, 0, 0]);
+    // The mountain spoke: on the border at the corner, alone at the centre.
+    expect(shrinkOf(quads, 4)).toEqual(Array(6).fill(EDGE_BOUNDARY_A));
+    // The aux spoke: on the border at the corner, and at the centre it meets
+    // the mountain, which is where its layer ends.
+    expect(shrinkOf(quads, 5)).toEqual(Array(6).fill(EDGE_BOUNDARY_A | EDGE_BOUNDARY_B));
+  });
+});
+
+describe('drawing the aux pass and the erode', () => {
+  it('draws the aux ribbons in every edge pass; the shader clips them when hidden', () => {
+    // Whether aux creases show is a uniform, not a buffer rebuild: the same
+    // vertex run is drawn either way.
+    const shown = recorder();
+    new MeshRenderer(shown.core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, showAux: true },
+      null
+    );
+    const hidden = recorder();
+    new MeshRenderer(hidden.core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true },
+      null
+    );
+    expect(shown.arrayDraws).toEqual([[0, 6 * EDGE_QUAD_VERTICES]]);
+    expect(hidden.arrayDraws).toEqual(shown.arrayDraws);
+    expect(shown.floats.get('u_showAux')).toBe(1);
+    expect(hidden.floats.get('u_showAux')).toBe(0);
+  });
+
+  it('draws the aux pen at its own width, through the raster floor', () => {
+    const { core, floats } = recorder();
+    new MeshRenderer(core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, showAux: true, creaseWidthPx: 3, auxWidthPx: 2 },
+      null
+    );
+    expect(floats.get('u_halfWidthPx')).toBe(1.5);
+    expect(floats.get('u_auxHalfWidthPx')).toBe(1);
+    expect(floats.get('u_alpha')).toBe(1);
+    expect(floats.get('u_auxAlpha')).toBe(1);
+  });
+
+  it('takes the aux width from the crease width when none is given', () => {
+    const { core, floats } = recorder();
+    new MeshRenderer(core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, creaseWidthPx: 3 },
+      null
+    );
+    expect(floats.get('u_auxHalfWidthPx')).toBe(1.5);
+  });
+
+  it('erodes by the style’s fraction of the sheet at the camera’s scale', () => {
+    // The painter erodes by `erode × scene.sheet`, and the scene's sheet is the
+    // world extent times the camera's scale; the frame does the same sum per
+    // draw, so a zoom moves the erosion with the paper.
+    const { core, floats } = recorder();
+    const renderer = new MeshRenderer(core, fanTopology(), { sheet: 400 });
+    renderer.render({ ...CAMERA, scale: 0.5 }, { ...SETTINGS, showEdges: true, erode: 0.01 }, null);
+    expect(floats.get('u_erodePx')).toBeCloseTo(2, 12);
+    renderer.render({ ...CAMERA, scale: 2 }, { ...SETTINGS, showEdges: true, erode: 0.01 }, null);
+    expect(floats.get('u_erodePx')).toBeCloseTo(8, 12);
+  });
+
+  it('erodes nothing without a sheet, without an erode, or by default', () => {
+    expect(erodePx({ erode: 0.01 }, 0, { scale: 2 })).toBe(0);
+    expect(erodePx({ erode: 0 }, 400, { scale: 2 })).toBe(0);
+    expect(erodePx({}, 400, { scale: 2 })).toBe(0);
+    const { core, floats } = recorder();
+    new MeshRenderer(core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, erode: 0.01 },
+      null
+    );
+    expect(floats.get('u_erodePx')).toBe(0);
   });
 });

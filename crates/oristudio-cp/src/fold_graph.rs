@@ -879,7 +879,16 @@ impl FoldGraph {
         face: usize,
         positions: &FacePositions,
     ) -> Point {
-        let mut p = self.points[point];
+        self.fold_point(self.points[point], face, positions)
+    }
+
+    /// Where `face` carries any point of it — the same reflection chain
+    /// [`Self::fold_movement`] walks for a vertex, from the face back to the
+    /// starting face across each crease the walk folded it over. A rigid
+    /// flat fold moves a face as one piece, so this places an interior point
+    /// (an auxiliary line's endpoint, say) exactly where the face's own
+    /// vertices land.
+    pub(crate) fn fold_point(&self, mut p: Point, face: usize, positions: &FacePositions) -> Point {
         let mut destination_face = face;
         while destination_face != positions.starting_face {
             let Some(line_index) = positions.associated_line[destination_face] else {
