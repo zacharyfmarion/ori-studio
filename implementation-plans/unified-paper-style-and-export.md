@@ -737,6 +737,60 @@ with the dialog's side/front/back settings applied as overrides of the
 export style. The share modal's card uses the same. Old snapshot-based
 `foldedFigureSvgBody` stays for the handle-less fallback until Phase 7.
 
+### 9. Phase 5 contracts
+
+**What an aux crease is, per surface.** Simulator and inline windows: a
+source `F` edge (code 3 since Phase 2). 3D figure: a fold whose angle is 0°
+(`folded3dEdgeAssignment` maps it to code 3 now that the GPU draws code 3;
+its comment about deleting linework retires with the pass). Flat figure: the
+CP's aux (Cyan3) lines carried through the fold — new kernel work, additive:
+`FoldedPaperScene.aux_lines` is populated by clipping each Cyan3 segment
+against the fold's face polygons in CP space and mapping each piece by its
+face's fold (the same reflections that place the face's own points), split
+at face boundaries, with `face` set; a Rust test folds a fixture that
+carries aux lines and asserts every piece lies inside its face's folded
+outline. References: the step diagram's existing creases (`crease` ink).
+
+**Policy.** `auxCreases.visible`, `auxCreases.pen` and `erode` join every
+surface's `applies`; `mountainFolds` / `valleyFolds` join `folded-3d` (a 3D
+figure draws its creases as the simulator does: M/V pens by fold sign, the
+edge pen for borders, the aux pen for 0°); `folded-flat` stays edge + aux
+(D6). The Properties sheets and Settings ▸ Paper show the fields the policy
+applies, as in Phase 1.
+
+**GPU and canvas-2D.** `RenderSettings` gains `auxColor`, `auxWidthPx`,
+`auxDash`, `showAux` and `erodePx` (device px along the surface — the
+resolver computes `erode × sheet` from a new `sheetPx` option, the sheet's
+extent in device px at the current camera, which each surface already knows
+for its frame). The edge pass draws code 3 in the aux ink when `showAux`;
+codes ≥ 4 stay skipped. Erode: `edgeBoundaryFlags(topology)` in the package
+computes, per edge endpoint, the producer's rule (another border/fold edge
+meets that vertex) once per topology; `buildEdgeQuads` carries a per-vertex
+shrink flag and the vertex shader pulls a flagged end toward the other end
+by `min(erodePx, len/2 − ε)` along the screen-space edge, so the erosion is
+the painter's to the pixel. The canvas-2D fallback applies the same shrink
+per visible piece. Both use the shared `shading.ts`-style module for the
+rule (`packages/origami-simulator/src/edgeBoundary.ts`), and the producer
+imports it instead of its own copy.
+
+**Flat figure display.** When a figure's effective `auxCreases.visible` is
+true, the store fetches `folded_figure_paper_scene(handle)` after a fold /
+refold / rehydrate (runtime map keyed by handle, like the 3D render models,
+never persisted) and `cpFoldedToScene` appends the `aux_lines` as strokes in
+the aux pen (pt → device px, the figure's `foldedStrokeWidthPx` base ×
+multiplier) on the folded channel, right after that figure's fills; erode
+shrinks an endpoint that lies on its face's outline by `erode × sheet` in
+model units. Hidden pieces are covered by the layers above them in painter
+order, as in the export.
+
+**References.** The `crease` ink (existing creases) takes the aux pen
+(colour, width, dash, cap) on the card and the big view, and erode retreats
+an endpoint on the sheet boundary; the aux toggle hides them. The
+`--references-crease-alpha` dim stays.
+
+**Export.** Nothing new: the painter already draws aux and erodes from the
+scene; the producers now carry the roles and flags on every surface.
+
 ## Affected Areas
 
 - `apps/web/src/lib/paper/` (new): style, scene, painter, presets, tests.
