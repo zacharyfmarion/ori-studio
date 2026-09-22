@@ -791,6 +791,40 @@ an endpoint on the sheet boundary; the aux toggle hides them. The
 **Export.** Nothing new: the painter already draws aux and erodes from the
 scene; the producers now carry the roles and flags on every surface.
 
+### 10. Phase 6 contracts
+
+**Scene addition.** `PaperItem` gains
+`{ kind: 'markup'; svg: string; hidden: false }` — element markup in scene px,
+drawn after every face and line of the item order (the painter wraps it in a
+`<g>` scaled from scene px to the page). It exists so the step diagram's
+symbols — fold arrows, turn-over glyph, regions, points, labels — are drawn
+by the one implementation that draws them on screen (`diagramPrimitiveShape`
+in `diagram/DiagramPrimitives.tsx`, through `renderToStaticMarkup`) rather
+than a second copy in the painter; their colours and the arrow pen's width
+are inlined as attributes from the style (no CSS classes in a file).
+
+**Producer** `cp-workspace/references/diagramToPaperScene.ts`:
+`diagramToPaperScene(model: StepDiagramModel, options: { style; mirrored; project: (p) => ScenePoint; sheetPx })`
+— the sheet → one `face` (`side` = `back` when mirrored, `shade` 1); lines by
+their `DiagramLineStyleName`: `valley` / `mountain` (and the pinch variants)
+→ `mountain` / `valley` role, `edge` → `edge`, `crease` / `dotted` /
+`unfolded` → `aux` with `onBoundary` true at an endpoint on the sheet
+boundary (the same rule `erodeCreaseOnSheet` uses); arcs that carry a fold
+style are flattened to line runs (the painter has no arc); everything else
+(`fold-arrow`, `turn-over`, `region`, `point`, `label`, `highlight` lines) →
+one `markup` item. `sheet` = the sheet's extent in scene px.
+
+**Verbs.** `references.exportStepSvg` / `references.exportStepPng` in
+`referencesActions.ts` (toolbar overflow + context menu), enabled when a
+step or candidate diagram is shown; the export paints the current diagram
+(Sequence: the current step; Find: the shown candidate) with
+`exportPaperStyle(paperStyle)` through the `references` policy and
+`settingsStore.paperExport`, at the big view's on-screen sheet size (D3,
+as-shown), saved as `<workspace> step N.svg|png` through the file service;
+`paper exported { surface: 'references', … }`. The fold animation's mid-fold
+pose is not exported (the step at rest is the diagram); recorded as a later
+option.
+
 ## Affected Areas
 
 - `apps/web/src/lib/paper/` (new): style, scene, painter, presets, tests.
