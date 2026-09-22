@@ -673,6 +673,68 @@ window's draw-pass skins (`folded3dDrawPasses`) — the same mesh, so this is
 the invariant that replaces the projector-vs-window comparison once the
 projector retires. The existing harness stays until Phase 7.
 
+### 8. Phase 4 contracts
+
+**Kernel accessor** (additive, beside the untouched drawer in
+`crates/oristudio-cp/src/folding.rs`; `CpSession::folded_figure_paper_scene(handle)`
+in `session.rs`; wasm export `folded_figure_paper_scene(handle)`; TS mirror in
+`engine/oristudioCpTypes.ts` + runtime glue). Coordinates are the **render
+snapshot's** coordinates — the same `OrieditaRenderCamera` transform for the
+model's current `state` (scale, rotation, mirror, `fix_to_flat_bounds`
+offset), so the scene overlays the picture the canvas draws today and the
+parity test is a direct comparison.
+
+```rust
+pub struct FoldedPaperScene {
+  pub schema_version: u32,                       // 1
+  pub flipped: bool,                             // the pass is Back1
+  pub sheet: f64,                                // unfolded paper extent, same units
+  pub faces: Vec<FoldedPaperFace>,               // kernel face index order
+  pub subfaces: Vec<FoldedPaperSubface>,         // the drawer's subface_graph.faces order
+  pub aux_lines: Vec<FoldedPaperAuxLine>,
+}
+pub struct FoldedPaperFace { pub outline: Vec<Point>, pub front_up: bool /* as seen for this state */, pub edges: Vec<FoldedPaperFaceEdge> }
+pub struct FoldedPaperFaceEdge { pub from: Point, pub to: Point, pub kind: FoldedPaperEdgeKind /* Border | Fold (±180°) | Flat (0°) */ }
+pub struct FoldedPaperSubface { pub polygon: Vec<Point>, pub faces_top_to_bottom: Vec<usize> /* subface_top_stack for this state: index 0 is the face the drawer paints */ }
+pub struct FoldedPaperAuxLine { pub from: Point, pub to: Point, pub face: usize /* split at face boundaries */ }
+```
+
+Rust test: for every fixture the drawer renders, `faces_top_to_bottom[0]`
+of each subface equals `visible_subface_face(...)` and the subface polygon
+equals the drawer's `fill_path` ring — the assurance that the scene shows the
+faces the oracle-checked drawer shows. `PORTING.md`: the accessor is additive
+and reads the same `HierarchyTable`; the drawer and its byte-for-byte oracle
+are unchanged.
+
+**Web producer** `cp-workspace/folded/foldedFlatScene.ts`:
+`foldedFlatPaperScene(kernel: OristudioCpFoldedPaperScene, options: { style; markHidden; toScenePx: (p) => ScenePoint; scale }): PaperScene`.
+Build the face DAG from every subface stack (`face[i]` over `face[i+1]`);
+topological order gives whole faces (one item per face, its outline as the
+ring); faces in a non-trivial strongly-connected component are split into
+their subface polygons, each placed by its position in that subface's stack;
+emit back to front, each face followed by its lines: outline edges with role
+`edge` for Border and Fold, `aux` for Flat; `aux_lines` as `aux` with
+`onBoundary` true at an endpoint on the face's outline; `side` = `front_up`;
+`shade` 1 (D7); `hidden` = a face that is on top of no subface (and its
+lines). `sheet` = `kernel.sheet × scale`. Tests: acyclic → one polygon per
+face, hidden layers present; a woven fixture → only the cycle's faces split;
+visible face per subface equals the kernel's `[0]` after painting order
+(rasterise the scene in a test the way the 3D parity gate does).
+
+**Wiring.** `exportOristudioCpFoldedFigure` for a flat figure with a live
+handle: `folded_figure_paper_scene(handle)` → producer → painter with the
+export style and page at the figure's on-screen size (placement scale × the
+overlay affine, as the 3D path reads it); PNG at `pngDpi`;
+`paper exported { surface: 'folded-flat' }`. Handle-less figures keep the
+`renderSnapshot` path (Phase 7). The CP export dialog's "Include folded
+figure": `foldSegmentForExport` also returns the scene for its ephemeral
+handle; `buildCreaseExportArtwork` composes `paperSceneSvgBody(scene, style, project)`
+(a new body-only painter entry that takes the page's projection and writes
+elements without the `<svg>` wrapper) in place of `foldedFigureSvgBody`,
+with the dialog's side/front/back settings applied as overrides of the
+export style. The share modal's card uses the same. Old snapshot-based
+`foldedFigureSvgBody` stays for the handle-less fallback until Phase 7.
+
 ## Affected Areas
 
 - `apps/web/src/lib/paper/` (new): style, scene, painter, presets, tests.
