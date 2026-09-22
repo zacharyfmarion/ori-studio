@@ -222,10 +222,15 @@ Chinese reader arriving at `/` from a community link still sees Chinese. The
 crawlers all send English, so `/` renders English for them, and `hreflang` is
 what sends a Chinese *searcher* to `/zh-CN/` instead.
 
-**The route locale is an override, not a preference.** While on a `/zh-CN/*`
-route the UI is zh-CN whatever the stored preference says; leaving to `/edit`
-restores the preference. Visiting a Chinese page must not silently pin Chinese
-for an English-system reader who followed a link out of curiosity.
+**The route locale is an override, not a preference — but the switch is a
+choice.** While on a `/zh-CN/*` route the UI is zh-CN whatever the stored
+preference says; leaving to `/edit` restores the preference. Visiting a Chinese
+page must not silently pin Chinese for an English-system reader who followed a
+link out of curiosity. Picking 日本語 from the footer's language switch is a
+different act — the same one as picking it in Settings — and it pins the
+preference before navigating, so a reader who chose the language and then opens
+the app gets the app in that language. Arriving is not choosing; the two signals
+get the two behaviours every site with a switcher gives them.
 
 **Titles and descriptions become `t()` calls** — the constants in the registry
 were an explicit "revisit alongside `hreflang`", and this is that. Literal keys
@@ -287,7 +292,8 @@ unprefixed `/edit`. The sitemap lists every locale's URL.
       canonical-to-self, `og:locale`, the full `hreflang` set with `x-default`;
       sitemap lists every locale — 18 files today
 - [x] Footer language switch, every locale by native name, with `hreflang` and
-      `lang` on each anchor; nav and masthead links locale-aware
+      `lang` on each anchor; choosing one pins the preference (arriving by URL
+      does not — both tested); nav and masthead links locale-aware
 - [x] Tests, one per failure, run over every locale (109 in the prerender suite
       alone): `/<locale>/download/` carries that locale's words and none of the
       English copy, the right `lang` (mutation-checked: 16 fail without it), a

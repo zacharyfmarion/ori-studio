@@ -2,7 +2,9 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SUPPORTED_LOCALES } from '../i18n/locales';
+import { LOCALE_STORAGE_KEY, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
+import { useLocaleStore } from '../store/localeStore';
+import { preloadLocale } from '../test/preloadLocale';
 import { SiteFooter } from './SiteFooter';
 import { CONTENT_PAGES, pagePath, SITE_PAGES } from './sitePages';
 
@@ -31,6 +33,8 @@ afterEach(() => {
   root = null;
   container = null;
   vi.unstubAllGlobals();
+  act(() => useLocaleStore.setState({ preference: SYSTEM_LOCALE }));
+  localStorage.clear();
 });
 
 describe('SiteFooter', () => {
@@ -84,6 +88,26 @@ describe('SiteFooter', () => {
     );
     expect(rendered.querySelector('.site-nav a[href="/zh-CN/"]')).not.toBeNull();
     expect(rendered.querySelector('.site-nav a[href="/zh-CN/download/"][aria-current="page"]')).not.toBeNull();
+  });
+
+  /**
+   * Arriving at `/ja/` is not a choice; picking 日本語 from a language menu is. The
+   * first shows Japanese while you are there and forgets it when you open the app; the
+   * second is the same act as choosing it in Settings, and persists the same way — so
+   * "Open the app" from a page you chose the language of opens the app in that language.
+   */
+  it('pins the language when one is chosen from the switch, like Settings does', () => {
+    preloadLocale('ja');
+    localStorage.clear();
+    act(() => useLocaleStore.setState({ preference: SYSTEM_LOCALE }));
+    const rendered = render('/');
+    expect(useLocaleStore.getState().preference).toBe(SYSTEM_LOCALE);
+
+    const japanese = rendered.querySelector<HTMLAnchorElement>('.site-languages a[hreflang="ja"]');
+    act(() => japanese?.click());
+
+    expect(useLocaleStore.getState().preference).toBe('ja');
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('ja');
   });
 
   it('renders nothing inside the desktop app, where the pages it links to do not exist', () => {

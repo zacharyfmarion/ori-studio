@@ -14,6 +14,10 @@ import { useLocaleStore } from '../store/localeStore';
  * preference is left alone, and the language it resolves to comes back the moment the
  * route unmounts — which includes "Open the app", since the app routes take no prefix.
  *
+ * Arriving is not choosing. The footer's language switch *is* a choice, and it writes the
+ * preference itself before navigating here (see `LanguageSwitch`), so for a reader who
+ * picked the language the restore on unmount is a no-op: the preference already says it.
+ *
  * `localeStore` listens for the change and keeps `<html lang>` and its `locale` field in
  * step, as it does for any language change; only `preference` stays as it was.
  */
