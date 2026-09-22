@@ -34,7 +34,11 @@ import {
   ORISTUDIO_CP_MAX_POINT_SIZE,
 } from '../lib/creasePatternViewport';
 import type { FoldDocument } from '../engine/types';
-import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedPaperScene,
+  OristudioCpFoldedRenderSnapshot,
+} from '../engine/oristudioCpTypes';
+import { useCreaseExportPaper } from '../hooks/useCreaseExportPaper';
 import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../lib/foldedFigureSides';
 import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
@@ -121,6 +125,8 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const { t } = useTranslation();
   const [options, setOptions] = useState<CreaseExportOptions>(dialog.initialOptions);
   const [foldedFigure, setFoldedFigure] = useState<OristudioCpFoldedRenderSnapshot | null>(null);
+  const [foldedScene, setFoldedScene] = useState<OristudioCpFoldedPaperScene | null>(null);
+  const paper = useCreaseExportPaper();
   const [folding, setFolding] = useState(false);
   const [foldError, setFoldError] = useState<string | null>(null);
   const [discoveredCases, setDiscoveredCases] = useState(1);
@@ -184,6 +190,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   useEffect(() => {
     if (!includeFoldedFigure || !canFold || !foldSegment) {
       setFoldedFigure(null);
+      setFoldedScene(null);
       setFolding(false);
       return undefined;
     }
@@ -192,6 +199,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
     const cached = foldCache.current.get(key);
     if (cached) {
       setFoldedFigure(cached.snapshot);
+      setFoldedScene(cached.scene);
       setDiscoveredCases(cached.discoveredCases);
       setFoldedTransform(cached.transform);
       setFoldError(null);
@@ -206,6 +214,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
         foldCache.current.set(key, result);
         if (cancelled) return;
         setFoldedFigure(result.snapshot);
+        setFoldedScene(result.scene);
         setDiscoveredCases(result.discoveredCases);
         setFoldedTransform(result.transform);
       })
@@ -214,6 +223,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
         // The preview is the contract: rather than export something the preview
         // never showed, drop the figure and say why.
         setFoldedFigure(null);
+        setFoldedScene(null);
         setFoldError(error instanceof Error ? error.message : String(error));
         setOptions((current) => ({ ...current, includeFoldedFigure: false }));
       })
@@ -260,8 +270,15 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
           showGrid,
           theme,
           includeFoldedFigure,
+          foldedFigure: foldedSettings,
         },
-        { foldedFigure, foldedFigureTransform: foldedTransform, grid: dialog.grid }
+        {
+          foldedFigure,
+          foldedFigureScene: foldedScene,
+          paper,
+          foldedFigureTransform: foldedTransform,
+          grid: dialog.grid,
+        }
       ),
     [
       dialog.fold,
@@ -277,7 +294,10 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       showGrid,
       theme,
       includeFoldedFigure,
+      foldedSettings,
       foldedFigure,
+      foldedScene,
+      paper,
       foldedTransform,
     ]
   );
@@ -328,6 +348,8 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
               options,
               content: {
                 foldedFigure,
+                foldedFigureScene: foldedScene,
+                paper,
                 foldedFigureTransform: foldedTransform,
                 grid: dialog.grid,
               },

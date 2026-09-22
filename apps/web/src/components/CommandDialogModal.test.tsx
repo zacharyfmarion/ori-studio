@@ -12,7 +12,11 @@ import { CREASE_EXPORT_PALETTES, DEFAULT_CREASE_EXPORT_OPTIONS } from '../lib/cr
 import type { CreaseExportDialogResult } from '../store/commandDialogStore';
 import { segmentFoldDocument } from '../lib/creasePatternSegmentation';
 import type { FoldDocument } from '../engine/types';
-import type { OristudioCpFoldedRenderSnapshot } from '../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedPaperScene,
+  OristudioCpFoldedRenderSnapshot,
+} from '../engine/oristudioCpTypes';
+import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
 import { IDENTITY_CP_MODEL_TO_FOLD } from '../lib/creaseExportFold';
 import { CommandDialogModal } from './CommandDialogModal';
 
@@ -76,6 +80,33 @@ function twoPatternExportFold(): FoldDocument {
       [4, 5, 6],
       [4, 6, 7],
     ],
+  };
+}
+
+/** The kernel's paper scene of the same figure: one face, the sheet as it is. */
+function foldedScene(): OristudioCpFoldedPaperScene {
+  const outline = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+  ];
+  return {
+    schema_version: 1,
+    flipped: false,
+    sheet: 1,
+    faces: [
+      {
+        outline,
+        front_up: true,
+        edges: outline.map((from, index) => ({
+          from,
+          to: outline[(index + 1) % outline.length]!,
+          kind: 'border' as const,
+        })),
+      },
+    ],
+    subfaces: [{ polygon: outline, faces_top_to_bottom: [0] }],
+    aux_lines: [],
   };
 }
 
@@ -258,13 +289,22 @@ describe('CommandDialogModal', () => {
       await result;
     });
 
+    // Re-pinned when the folded figure moved onto the shared painter: the
+    // content now carries the scene slot and the paper it is painted with,
+    // whether or not a figure was folded.
     await expect(result).resolves.toEqual({
       options: {
         ...DEFAULT_CREASE_EXPORT_OPTIONS,
         includeUnassigned: false,
         showBackgroundColor: false,
       },
-      content: { foldedFigure: null, grid: null },
+      content: {
+        foldedFigure: null,
+        foldedFigureScene: null,
+        paper: { style: DEFAULT_PAPER_STYLE, keepHiddenFaces: true },
+        foldedFigureTransform: undefined,
+        grid: null,
+      },
     });
   });
 
@@ -379,6 +419,7 @@ describe('CommandDialogModal', () => {
     const segments = segmentFoldDocument(fold);
     const foldSegment = vi.fn(async () => ({
       snapshot: foldedSnapshot(),
+      scene: foldedScene(),
       discoveredCases: 1,
       transform: IDENTITY_CP_MODEL_TO_FOLD,
     }));
@@ -411,10 +452,14 @@ describe('CommandDialogModal', () => {
     });
 
     expect(foldSegment).toHaveBeenCalledTimes(1);
+    // The scene the export paints, and the style and page it paints it with,
+    // travel with the snapshot: the file is what the preview showed.
     await expect(result).resolves.toMatchObject({
       options: { includeFoldedFigure: true },
       content: {
         foldedFigure: { primitives: expect.any(Array) },
+        foldedFigureScene: { faces: expect.any(Array) },
+        paper: { style: DEFAULT_PAPER_STYLE, keepHiddenFaces: true },
         foldedFigureTransform: IDENTITY_CP_MODEL_TO_FOLD,
       },
     });
@@ -426,6 +471,7 @@ describe('CommandDialogModal', () => {
     const segments = segmentFoldDocument(fold);
     const foldSegment = vi.fn(async () => ({
       snapshot: foldedSnapshot(),
+      scene: null,
       discoveredCases: 1,
       transform: IDENTITY_CP_MODEL_TO_FOLD,
     }));

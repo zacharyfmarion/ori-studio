@@ -1,11 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CreaseExportFoldedFigureSettings } from '../../lib/creaseExport';
 import type { CpModelToFoldTransform, CreaseExportFoldResult } from '../../lib/creaseExportFold';
-import type { OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
+import type {
+  OristudioCpFoldedPaperScene,
+  OristudioCpFoldedRenderSnapshot,
+} from '../../engine/oristudioCpTypes';
 
 export interface FoldedFigurePreview {
   /** The folded snapshot to draw, or null when folding is off, pending, or failed. */
   figure: OristudioCpFoldedRenderSnapshot | null;
+  /**
+   * The same fold as the kernel's paper scene, which the card paints through
+   * the shared painter; null with `figure`, or when the kernel had no paper
+   * picture for the fold and the snapshot is what there is to draw.
+   */
+  scene: OristudioCpFoldedPaperScene | null;
   /** Places the figure's kernel coordinates in the document's fold space. */
   transform: CpModelToFoldTransform | undefined;
   /** Layer-ordering solutions the kernel found, for a "case N of M" readout. */
@@ -50,6 +59,7 @@ export function useFoldedFigurePreview({
   onError,
 }: FoldedFigurePreviewOptions): FoldedFigurePreview {
   const [figure, setFigure] = useState<OristudioCpFoldedRenderSnapshot | null>(null);
+  const [scene, setScene] = useState<OristudioCpFoldedPaperScene | null>(null);
   const [transform, setTransform] = useState<CpModelToFoldTransform | undefined>(undefined);
   const [discoveredCases, setDiscoveredCases] = useState(1);
   const [folding, setFolding] = useState(false);
@@ -66,6 +76,7 @@ export function useFoldedFigurePreview({
   useEffect(() => {
     if (!enabled || !fold) {
       setFigure(null);
+      setScene(null);
       setFolding(false);
       return undefined;
     }
@@ -74,6 +85,7 @@ export function useFoldedFigurePreview({
     const cached = cache.current.get(key);
     if (cached) {
       setFigure(cached.snapshot);
+      setScene(cached.scene);
       setDiscoveredCases(cached.discoveredCases);
       setTransform(cached.transform);
       setError(null);
@@ -89,6 +101,7 @@ export function useFoldedFigurePreview({
         cache.current.set(key, result);
         if (cancelled) return;
         setFigure(result.snapshot);
+        setScene(result.scene);
         setDiscoveredCases(result.discoveredCases);
         setTransform(result.transform);
       })
@@ -98,6 +111,7 @@ export function useFoldedFigurePreview({
         // showed, drop the figure and say why.
         const message = failure instanceof Error ? failure.message : String(failure);
         setFigure(null);
+        setScene(null);
         setError(message);
         onErrorRef.current?.(message);
       })
@@ -112,6 +126,7 @@ export function useFoldedFigurePreview({
 
   return {
     figure,
+    scene,
     transform,
     discoveredCases,
     folding,

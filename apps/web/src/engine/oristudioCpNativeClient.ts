@@ -21,6 +21,7 @@ import type {
   OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
   OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
@@ -331,6 +332,9 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
         displayStyle: displayStyle ?? null,
         options: options ?? null,
       });
+    },
+    async foldedFigurePaperScene(handle: number): Promise<OristudioCpFoldedPaperScene | null> {
+      return call('cp_folded_figure_paper_scene', { handle });
     },
     async setFoldedFigureModel(
       handle: number,

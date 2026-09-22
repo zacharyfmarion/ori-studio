@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type {
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
 import type { FoldDocument } from '../engine/types';
@@ -102,6 +103,33 @@ function snapshot(): OristudioCpFoldedRenderSnapshot {
   };
 }
 
+/** The kernel's paper scene for the same fold: one face, the sheet as it is. */
+function paperScene(): OristudioCpFoldedPaperScene {
+  const outline = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 1, y: 1 },
+  ];
+  return {
+    schema_version: 1,
+    flipped: false,
+    sheet: 1,
+    faces: [
+      {
+        outline,
+        front_up: true,
+        edges: outline.map((from, index) => ({
+          from,
+          to: outline[(index + 1) % outline.length]!,
+          kind: 'border' as const,
+        })),
+      },
+    ],
+    subfaces: [{ polygon: outline, faces_top_to_bottom: [0] }],
+    aux_lines: [],
+  };
+}
+
 function runtime(overrides: Partial<CreaseExportFoldRuntime> = {}): CreaseExportFoldRuntime {
   return {
     fold: vi.fn(async () => ({ handle: 7, discoveredCases: 1, displayStyle: 'Paper5' as const })),
@@ -111,6 +139,7 @@ function runtime(overrides: Partial<CreaseExportFoldRuntime> = {}): CreaseExport
       displayStyle: 'Transparent3' as const,
     })),
     renderSnapshot: vi.fn(async () => snapshot()),
+    paperScene: vi.fn(async () => paperScene()),
     free: vi.fn(async () => {}),
     ...overrides,
   };
@@ -191,10 +220,33 @@ describe('foldSegmentForExport', () => {
 
     await expect(foldSegmentForExport(api, document(), segments[1]!)).resolves.toMatchObject({
       snapshot: { primitives: expect.any(Array) },
+      scene: { faces: expect.any(Array), subfaces: expect.any(Array) },
       discoveredCases: 1,
     });
 
     expect(api.fold).toHaveBeenCalledWith(1, 'Order5', undefined, [6, 7, 8, 9, 10]);
+    expect(api.paperScene).toHaveBeenCalledWith(7);
+    expect(api.free).toHaveBeenCalledWith(7);
+  });
+
+  it('carries a null scene when the kernel has no paper picture for the fold', async () => {
+    const api = runtime({ paperScene: vi.fn(async () => null) });
+
+    await expect(foldSegmentForExport(api, document(), null)).resolves.toMatchObject({
+      snapshot: { primitives: expect.any(Array) },
+      scene: null,
+    });
+    expect(api.free).toHaveBeenCalledWith(7);
+  });
+
+  it('frees the handle when reading the scene fails', async () => {
+    const api = runtime({
+      paperScene: vi.fn(async () => {
+        throw new Error('no such handle');
+      }),
+    });
+
+    await expect(foldSegmentForExport(api, document(), null)).rejects.toThrow('no such handle');
     expect(api.free).toHaveBeenCalledWith(7);
   });
 
@@ -240,6 +292,27 @@ describe('foldSegmentForExport', () => {
     await foldSegmentForExport(api, document(), null);
 
     expect(api.renderSnapshot).toHaveBeenCalledWith(7, 'Transparent3');
+  });
+
+  it('reads no scene for a fold that did not reach Paper5', async () => {
+    // `Transparent3` after an `Order5` request is the kernel's own downgrade:
+    // no layer ordering, or a contradiction. The scene is the `Paper5`
+    // picture, so asking for it would at best repeat the failed search and at
+    // worst re-raise the contradiction the fold concluded gracefully with.
+    const api = runtime({
+      fold: vi.fn(async () => ({
+        handle: 7,
+        discoveredCases: 1,
+        displayStyle: 'Transparent3' as const,
+      })),
+    });
+
+    await expect(foldSegmentForExport(api, document(), null)).resolves.toMatchObject({
+      snapshot: { primitives: expect.any(Array) },
+      scene: null,
+    });
+    expect(api.paperScene).not.toHaveBeenCalled();
+    expect(api.free).toHaveBeenCalledWith(7);
   });
 
   it('refuses to fold a pattern with no foldable creases', async () => {

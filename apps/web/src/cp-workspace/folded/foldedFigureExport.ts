@@ -17,21 +17,24 @@ import type { Point } from '../../lib/geometry';
  * standalone image has no canvas; the crease-pattern export draws its folded
  * figure from the snapshot alone for the same reason.
  *
- * # A 3D figure with a live kernel does not export from here
+ * # A figure with a live kernel does not export from here
  *
- * It exports its window's scene through the shared painter instead
- * (`folded3dFigureExport.ts`), so the file is the picture the window shows
- * rather than the projector's second drawing of it. What *does* come through
- * here is a 3D figure reopened from a file and not yet rehydrated: it has no
- * render model to build a scene from, so its stored `renderSnapshot` — the
- * projector's picture, the same one the canvas and the CP export dialog draw
- * for it (R7) — is serialized as it always was, until the projector retires and
- * the scene is what gets stored (Phase 7 of
- * `implementation-plans/unified-paper-style-and-export.md`).
+ * It exports its scene through the shared painter instead — the window's
+ * scene for a 3D figure (`folded3dFigureExport.ts`), the kernel's paper scene
+ * for a flat one (`foldedFlatFigureExport.ts`) — so the file is the picture
+ * the canvas shows, on the export style and page, with every layer in it.
+ * What *does* come through here is a figure reopened from a file and not yet
+ * rehydrated: it has no render model or handle to build a scene from, so its
+ * stored `renderSnapshot` — the same picture the canvas and the CP export
+ * dialog draw for it (R7) — is serialized as it always was, until the scene is
+ * what gets stored (Phase 7 of
+ * `implementation-plans/unified-paper-style-and-export.md`). So does a flat
+ * figure in a display style the paper scene has no form for (`Wire2`,
+ * `None0`, the development views).
  *
- * That stored picture is fitted to the figure's frame at any zoom, and keeps
- * the **red annotation** on cells whose order the solver could not decide,
- * which the window has no third colour for.
+ * A 3D figure's stored picture is fitted to the figure's frame at any zoom,
+ * and keeps the **red annotation** on cells whose order the solver could not
+ * decide, which the window has no third colour for.
  */
 
 /** Formats a folded figure can be exported to: it is geometry, so images only. */

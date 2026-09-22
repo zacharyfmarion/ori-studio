@@ -60,6 +60,7 @@ import {
   DESIGN_TAB_COUNT_BUCKETS,
   track,
   type DesignTabSource,
+  type PaperExportSurface,
 } from '../../../analytics';
 import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
@@ -81,9 +82,14 @@ import {
   type FoldedFigureExportFormat,
 } from '../../../cp-workspace/folded/foldedFigureExport';
 import { folded3dFigureExportPage } from '../../../cp-workspace/folded/folded3dFigureExport';
+import {
+  foldedFlatFigureExportPage,
+  foldedFlatFigureExportsScene,
+} from '../../../cp-workspace/folded/foldedFlatFigureExport';
 import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
 import { overlayCssPerModel } from '../../../cp-workspace/annotations/annotationTransform';
 import { paperSvgToPng } from '../../../lib/paper/paperPng';
+import type { PaperSvgResult } from '../../../lib/paper/paperSvg';
 import { paperPageOf } from '../../../lib/paperExportSettings';
 import { exportPaperStyle } from '../../../lib/paperStyleSettings';
 import { useSettingsStore } from '../../settingsStore';
@@ -221,6 +227,7 @@ import {
   foldOristudioCpDocument,
   foldOristudioCpFigureToCase,
   freeOristudioCpFoldedFigure,
+  getOristudioCpFoldedFigurePaperScene,
   getOristudioCpFoldedFigureRenderSnapshot,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
@@ -605,6 +612,7 @@ async function foldExportSegment(
             display_mark: false,
             selected: false,
           }),
+        paperScene: (handle) => getOristudioCpFoldedFigurePaperScene(handle),
         free: (handle) => freeOristudioCpFoldedFigure(handle),
       },
       documentState.document,
@@ -3135,49 +3143,57 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         );
         const name = figure ? `${get().workspaceTitle} ${figure.title}` : '';
 
-        // A 3D figure with a live kernel exports its window's scene through
-        // the shared painter, on the export style and page every paper surface
-        // shares. Read at the moment of export, as the simulator's hook reads
+        // A figure with a live kernel exports its scene through the shared
+        // painter, on the export style and page every paper surface shares:
+        // the window's scene for a 3D figure, the kernel's paper scene for a
+        // flat one. Read at the moment of export, as the simulator's hook reads
         // them. A figure this answers null for — reopened from a file and not
-        // yet rehydrated, so there is no render model — keeps the snapshot path
-        // below (R7; the projector retires in Phase 7).
+        // yet rehydrated, so there is no render model or handle — keeps the
+        // snapshot path below (R7; the projector retires in Phase 7).
+        const { paperStyle, paperExport } = useSettingsStore.getState();
+        const page = paperPageOf(paperExport);
+        const paint = (figure: OristudioCpFoldedFigureEntry) => ({
+          style: exportPaperStyle(paperStyle, figure.appearance),
+          page,
+          cssPerUserUnit: foldedFigureCssPerUserUnit(),
+        });
+        let painted: { surface: PaperExportSurface; result: PaperSvgResult } | null = null;
         if (figure?.folded3d) {
-          const { paperStyle, paperExport } = useSettingsStore.getState();
-          const page = paperPageOf(paperExport);
-          const painted = folded3dFigureExportPage(figure, {
-            style: exportPaperStyle(paperStyle, figure.appearance),
-            page,
-            cssPerUserUnit: foldedFigureCssPerUserUnit(),
+          const result = folded3dFigureExportPage(figure, paint(figure));
+          painted = result && { surface: 'folded-3d', result };
+        } else if (figure && foldedFlatFigureExportsScene(figure)) {
+          const kernel = await getOristudioCpFoldedFigurePaperScene(figure.handle);
+          const result = kernel && foldedFlatFigureExportPage(figure, kernel, paint(figure));
+          painted = result && { surface: 'folded-flat', result };
+        }
+        if (painted) {
+          const saved =
+            format === 'svg'
+              ? await fileService.saveTextFile({
+                  title: 'Export Folded Figure SVG',
+                  contents: painted.result.svg,
+                  suggestedName: defaultFilename(name, 'svg'),
+                  path: null,
+                  extensions: ['svg'],
+                })
+              : await fileService.saveBinaryFile({
+                  title: 'Export Folded Figure PNG',
+                  bytes: await paperSvgToPng(painted.result, paperExport.pngDpi),
+                  suggestedName: defaultFilename(name, 'png'),
+                  path: null,
+                  extensions: ['png'],
+                  mimeType: 'image/png',
+                });
+          if (!saved) return false;
+          // Hand-placed: the file service's `file exported` sees a format and
+          // nothing of which surface drew it or on what page.
+          track('paper exported', {
+            surface: painted.surface,
+            format,
+            hidden_faces: page.keepHiddenFaces ? 'kept' : 'dropped',
           });
-          if (painted) {
-            const result =
-              format === 'svg'
-                ? await fileService.saveTextFile({
-                    title: 'Export Folded Figure SVG',
-                    contents: painted.svg,
-                    suggestedName: defaultFilename(name, 'svg'),
-                    path: null,
-                    extensions: ['svg'],
-                  })
-                : await fileService.saveBinaryFile({
-                    title: 'Export Folded Figure PNG',
-                    bytes: await paperSvgToPng(painted, paperExport.pngDpi),
-                    suggestedName: defaultFilename(name, 'png'),
-                    path: null,
-                    extensions: ['png'],
-                    mimeType: 'image/png',
-                  });
-            if (!result) return false;
-            // Hand-placed: the file service's `file exported` sees a format and
-            // nothing of which surface drew it or on what page.
-            track('paper exported', {
-              surface: 'folded-3d',
-              format,
-              hidden_faces: page.keepHiddenFaces ? 'kept' : 'dropped',
-            });
-            set({ projectMessage: `Exported ${result.name}` });
-            return true;
-          }
+          set({ projectMessage: `Exported ${saved.name}` });
+          return true;
         }
 
         // Serialized straight from the snapshot the canvas is drawing, so the

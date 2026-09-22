@@ -20,6 +20,7 @@ import {
   pageMarginPt,
   pagePtPerPx,
   paperFaceFill,
+  paperSceneSvgBody,
   paperSceneToSvg,
   widestPenPt,
 } from './paperSvg';
@@ -370,5 +371,50 @@ describe('erode', () => {
     expect(crease).toMatchObject(span);
     const [erodedEdge] = lines(paint(scene, style).svg);
     expect(erodedEdge).toMatchObject(span);
+  });
+});
+
+describe('paperSceneSvgBody', () => {
+  /** A page in px at twice the scene, shifted right: the crease-pattern export's shape. */
+  const project = ([x, y]: [number, number]): [number, number] => [x * 2 + 300, y * 2];
+  const body = (scene = sheetWithCrease(), style = DEFAULT_PAPER_STYLE, keepHiddenFaces = true) =>
+    paperSceneSvgBody(scene, style, { project, unitsPerPt: 4 / 3, keepHiddenFaces });
+
+  it('writes the elements alone, at the caller’s projection, with no wrapper', () => {
+    const svg = body();
+    expect(svg).not.toContain('<svg');
+    expect(svg).not.toContain('<g');
+    expect(svg).not.toContain('<rect');
+    const [sheet] = polygons(svg);
+    expect(sheet!.points.split(' ')[0]).toBe('300.00,0.00');
+    expect(sheet!.points.split(' ')[2]).toBe('500.00,200.00');
+    const [crease] = lines(svg);
+    expect(crease).toMatchObject({ x1: '300.00', y1: '100.00', x2: '500.00', y2: '100.00' });
+  });
+
+  it('draws each pen and the seam at the page’s units per pt, dashes included', () => {
+    const style = withPen('mountainFolds', { width: 0.75, dash: [8, 2, 1, 2] });
+    const svg = body(sheetWithCrease(), style);
+    expect(polygons(svg)[0]!['stroke-width']).toBe(((SEAM_STROKE_WIDTH_PT * 4) / 3).toFixed(2));
+    const [crease] = lines(svg);
+    expect(crease!['stroke-width']).toBe('1.00');
+    expect(crease!['stroke-dasharray']).toBe('8.00 2.00 1.00 2.00');
+    // The page painter is the same elements at one unit per pt.
+    const page = paperSceneToSvg(sheetWithCrease(), style, TIGHT).svg;
+    expect(lines(page)[0]!['stroke-width']).toBe('0.75');
+  });
+
+  it('erodes in scene px before the projection, and keeps or drops hidden pieces as asked', () => {
+    const style: PaperStyle = { ...DEFAULT_PAPER_STYLE, erode: 0.05 };
+    const scene = sceneOf([
+      face([SQUARE], { hidden: true }),
+      face([SQUARE]),
+      line('mountain', [0, 50], [100, 50], { onBoundary: [true, true], face: 0 }),
+    ]);
+    const [crease] = lines(body(scene, style));
+    // 5 scene px in, then doubled and shifted by the projection.
+    expect(crease).toMatchObject({ x1: '310.00', x2: '490.00' });
+    expect(polygons(body(scene, style))).toHaveLength(2);
+    expect(polygons(body(scene, style, false))).toHaveLength(1);
   });
 });

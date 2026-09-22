@@ -446,6 +446,18 @@ const USER_UNITS_PER_MODEL_UNIT: number =
   cpModelToSvg({ x: 1, y: 0 }).x - cpModelToSvg({ x: 0, y: 0 }).x;
 
 /**
+ * User units per kernel model unit of a placed figure: the paper affine's fixed
+ * scale times the placement's. A flat figure's picture is this many user units
+ * per unit of its render snapshot before the camera, so its export reads it to
+ * make the page the figure's on-screen size.
+ */
+export function foldedFigureUserPerModelUnit(
+  figure: Pick<OristudioCpFoldedFigureEntry, 'placement'>
+): number {
+  return USER_UNITS_PER_MODEL_UNIT * figure.placement.scale;
+}
+
+/**
  * The affine a placement applies to local user coordinates:
  * `p ↦ c0 + offset + R(rotation) · scale · (p − c0)`, with `c0` the pivot from
  * {@link foldedFigurePivot}. Returned in the flat form the per-vertex loops want.

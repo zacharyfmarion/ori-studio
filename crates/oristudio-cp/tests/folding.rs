@@ -3,13 +3,14 @@ use oristudio_cp::folding::{
     AdditionalEstimationError, ChainPermutationGenerator, DisplayStyle, EstimationOrder,
     EstimationStep, FoldContradiction, FoldOutcome, FoldSetupError, FoldedFigureModel,
     FoldedFigureRenderAntialias, FoldedFigureRenderGeometry, FoldedFigureRenderOptions,
-    FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderStroke,
-    FoldedFigureState, FoldedShadowGeometry, FoldingEstimateError, FoldingEstimateSession,
-    HierarchyRelation, InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch,
-    SubFaceSwapper, WorkerOverlapEnumerator, WorkerOverlapSearchError,
-    additional_estimation_from_segments, configure_subfaces_from_segments,
-    duplicate_estimation_order_for_display, equivalence_condition_candidates_from_segments,
-    estimate_wireframe_from_segments, fold_another, folded_figure_render_snapshot_from_segments,
+    FoldedFigureRenderPaint, FoldedFigureRenderPrimitiveKind, FoldedFigureRenderSnapshot,
+    FoldedFigureRenderStroke, FoldedFigureState, FoldedPaperEdgeKind, FoldedPaperScene,
+    FoldedShadowGeometry, FoldingEstimateError, FoldingEstimateSession, HierarchyRelation,
+    InitialHierarchy, RenderPathCommand, RgbaColor, SubFacePermutationSearch, SubFaceSwapper,
+    WorkerOverlapEnumerator, WorkerOverlapSearchError, additional_estimation_from_segments,
+    configure_subfaces_from_segments, duplicate_estimation_order_for_display,
+    equivalence_condition_candidates_from_segments, estimate_wireframe_from_segments, fold_another,
+    folded_figure_paper_scene_from_segments, folded_figure_render_snapshot_from_segments,
     folded_figure_snapshot_from_segments, folding_estimate_case_filename,
     folding_estimate_from_segments, folding_estimate_save_batch, folding_estimate_to_case,
     initial_hierarchy_from_segments, overlap_search_from_segments,
@@ -1751,4 +1752,292 @@ fn session_renders_from_cached_inputs_identically_to_the_segments_path() {
             "{style:?}: cached inputs changed the picture"
         );
     }
+}
+
+// --- paper scene ------------------------------------------------------------
+
+/// The fixtures the render tests draw, plus the small ones above: a
+/// single-crease square, a two-layer strip, the sample with several
+/// solutions, and the kabuto's many-layer stack. (`quartered_square` is a
+/// layer-order contradiction, not a figure, so it has no `Paper5` picture.)
+fn paper_scene_fixtures() -> Vec<(&'static str, Vec<LineSegment>)> {
+    vec![
+        ("square_with_diagonal", square_with_diagonal()),
+        ("two_square_strip", two_square_strip()),
+        ("solution_sample", solution_sample_segments()),
+        ("kabuto", kabuto_segments()),
+    ]
+}
+
+fn paper_scene_and_snapshot(
+    segments: &[LineSegment],
+    state: FoldedFigureState,
+) -> (FoldedPaperScene, FoldedFigureRenderSnapshot) {
+    let model = FoldedFigureModel {
+        state,
+        ..FoldedFigureModel::default()
+    };
+    let scene = folded_figure_paper_scene_from_segments(segments, 1, &model)
+        .expect("paper scene")
+        .expect("something to draw");
+    let snapshot = folded_figure_render_snapshot_from_segments(
+        segments,
+        1,
+        DisplayStyle::Paper5,
+        model,
+        FoldedFigureRenderOptions::default(),
+    )
+    .expect("paper render")
+    .expect("paper primitives");
+    (scene, snapshot)
+}
+
+/// The drawer's subface fills in stream order: the ring each traces and the
+/// colour it is painted, which is the front or back colour of the face the
+/// drawer chose as visible there.
+fn paper_fills(snapshot: &FoldedFigureRenderSnapshot) -> Vec<(Vec<Point>, RgbaColor)> {
+    snapshot
+        .primitives
+        .iter()
+        .filter(|primitive| primitive.kind == FoldedFigureRenderPrimitiveKind::FillPath)
+        .filter_map(|primitive| {
+            let FoldedFigureRenderPaint::Color { color } = primitive.style.paint else {
+                return None;
+            };
+            let FoldedFigureRenderGeometry::Path { commands } = &primitive.geometry else {
+                return None;
+            };
+            let ring = commands
+                .iter()
+                .filter_map(|command| match command {
+                    RenderPathCommand::MoveTo { point } | RenderPathCommand::LineTo { point } => {
+                        Some(*point)
+                    }
+                    _ => None,
+                })
+                .collect();
+            Some((ring, color))
+        })
+        .collect()
+}
+
+/// D6's assurance: the scene shows the faces the oracle-checked drawer shows.
+/// Every subface polygon is the ring of the drawer's `fill_path` for it, in
+/// the drawer's order, and the top of its stack is the face whose side the
+/// drawer painted — on both sides of the figure.
+#[test]
+fn paper_scene_subfaces_are_the_drawers_fills_with_their_visible_face_on_top() {
+    for (name, segments) in paper_scene_fixtures() {
+        for state in [FoldedFigureState::Front0, FoldedFigureState::Back1] {
+            let (scene, snapshot) = paper_scene_and_snapshot(&segments, state);
+            let fills = paper_fills(&snapshot);
+            assert!(
+                !fills.is_empty(),
+                "{name} {state:?}: the drawer paints nothing"
+            );
+            assert_eq!(
+                scene.subfaces.len(),
+                fills.len(),
+                "{name} {state:?}: one scene subface per drawer fill"
+            );
+            for (index, (subface, (ring, color))) in scene.subfaces.iter().zip(&fills).enumerate() {
+                assert_eq!(
+                    subface.polygon, *ring,
+                    "{name} {state:?}: subface {index} is not the drawer's ring"
+                );
+                let top = subface.faces_top_to_bottom[0];
+                let face = &scene.faces[top];
+                let painted = if face.front_up {
+                    RgbaColor::from_rgb(FoldedFigureModel::default().front_color)
+                } else {
+                    RgbaColor::from_rgb(FoldedFigureModel::default().back_color)
+                };
+                assert_eq!(
+                    *color, painted,
+                    "{name} {state:?}: subface {index} painted a side its top face {top} does not show"
+                );
+            }
+        }
+    }
+}
+
+/// A face's outline is its folded ring, and each outline edge carries the
+/// crease it came from: paper edges are borders, mountains and valleys are
+/// folds. Nothing flat ever appears, because no 0° line reaches the fold.
+#[test]
+fn paper_scene_faces_carry_their_folded_outline_and_edge_roles() {
+    for (name, segments) in paper_scene_fixtures() {
+        let (scene, _) = paper_scene_and_snapshot(&segments, FoldedFigureState::Front0);
+        let wireframe = estimate_wireframe_from_segments(&segments, 1)
+            .expect("wireframe")
+            .expect("faces");
+        assert_eq!(
+            scene.faces.len(),
+            wireframe.faces.len(),
+            "{name}: one scene face per kernel face"
+        );
+
+        let mut folds = 0;
+        let mut borders = 0;
+        for (index, (face, ring)) in scene.faces.iter().zip(&wireframe.faces).enumerate() {
+            assert_eq!(
+                face.outline.len(),
+                ring.len(),
+                "{name}: face {index} outline"
+            );
+            assert_eq!(face.edges.len(), ring.len(), "{name}: face {index} edges");
+            assert!(
+                face.outline.len() >= 3,
+                "{name}: face {index} is not a polygon"
+            );
+            for (edge_index, edge) in face.edges.iter().enumerate() {
+                let next = (edge_index + 1) % face.outline.len();
+                assert_eq!(edge.from, face.outline[edge_index]);
+                assert_eq!(edge.to, face.outline[next]);
+                match edge.kind {
+                    FoldedPaperEdgeKind::Border => borders += 1,
+                    FoldedPaperEdgeKind::Fold => folds += 1,
+                    FoldedPaperEdgeKind::Flat => {
+                        panic!("{name}: face {index} edge {edge_index} reports a flat crease")
+                    }
+                }
+            }
+        }
+        assert!(folds > 0, "{name}: a folded figure has fold edges");
+        assert!(borders > 0, "{name}: a sheet has a border");
+        assert!(
+            scene.aux_lines.is_empty(),
+            "{name}: no aux line reaches the fold"
+        );
+        assert!(scene.sheet > 0.0, "{name}: the sheet has an extent");
+    }
+}
+
+/// The scene's coordinates are the render snapshot's for the model's state:
+/// the rear pass mirrors and moves the figure, and the scene follows the same
+/// camera, so a subface ring matches the drawer's on the back exactly as on
+/// the front (the test above), and differs from the front's.
+#[test]
+fn paper_scene_back_side_is_mirrored_through_the_rear_camera() {
+    let segments = kabuto_segments();
+    let (front, _) = paper_scene_and_snapshot(&segments, FoldedFigureState::Front0);
+    let (back, _) = paper_scene_and_snapshot(&segments, FoldedFigureState::Back1);
+    assert!(front.subfaces.len() == back.subfaces.len());
+    assert!(
+        front
+            .subfaces
+            .iter()
+            .zip(&back.subfaces)
+            .any(|(a, b)| a.polygon != b.polygon),
+        "the rear pass moves the figure"
+    );
+    assert_eq!(front.sheet, back.sheet, "the sheet is the same paper");
+}
+
+/// The session accessor answers from the fold's cached inputs and solved
+/// ordering — the same thing the from-segments path searches — and follows
+/// the model the figure holds now, like the render snapshot does.
+#[test]
+fn session_paper_scene_matches_the_segments_path_and_follows_the_model() {
+    let segments = kabuto_segments();
+    let mut session = oristudio_cp::session::CpSession::default();
+    let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+        crease_pattern: oristudio_cp::CreasePatternModel {
+            line_segments: segments.clone(),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let ids: Vec<usize> = (1..=segments.len()).collect();
+    let folded = session
+        .folded_figure_fold_selected(
+            handle,
+            &ids,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("kabuto folds");
+
+    let front = session
+        .folded_figure_paper_scene(folded.handle)
+        .expect("session scene")
+        .expect("drawn");
+    let fresh =
+        folded_figure_paper_scene_from_segments(&segments, 1, &FoldedFigureModel::default())
+            .expect("segments scene")
+            .expect("drawn");
+    assert_eq!(front, fresh, "cached inputs changed the scene");
+
+    let back_model = FoldedFigureModel {
+        state: FoldedFigureState::Back1,
+        scale: 2.0,
+        ..FoldedFigureModel::default()
+    };
+    session
+        .folded_figure_set_model(folded.handle, back_model.clone())
+        .expect("set model");
+    let back = session
+        .folded_figure_paper_scene(folded.handle)
+        .expect("session scene")
+        .expect("drawn");
+    assert!(back.flipped, "the scene follows the model's side");
+    assert_eq!(
+        back.sheet,
+        front.sheet * 2.0,
+        "the sheet follows the model's scale"
+    );
+    assert_eq!(
+        back,
+        folded_figure_paper_scene_from_segments(&segments, 1, &back_model)
+            .expect("segments scene")
+            .expect("drawn")
+    );
+}
+
+/// A fold whose layers cannot be ordered has no `Paper5` picture, and the
+/// session says so without searching again. The render snapshot still draws
+/// the transparent development the fold rewound to, so a caller that asks for
+/// both gets a figure and no scene — never a re-raised contradiction, and
+/// never a second run of a search the fold already exhausted.
+#[test]
+fn session_paper_scene_declines_a_fold_with_no_layer_ordering() {
+    let doc = ori::import_ori_json(include_str!(
+        "../../../tests/fixtures/oriedita/failing_global_flat_fold.ori"
+    ))
+    .expect("import ori fixture");
+    let segments = doc.crease_pattern.line_segments;
+    let mut session = oristudio_cp::session::CpSession::default();
+    let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+        crease_pattern: oristudio_cp::CreasePatternModel {
+            line_segments: segments.clone(),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let ids: Vec<usize> = (1..=segments.len()).collect();
+    let folded = session
+        .folded_figure_fold_selected(
+            handle,
+            &ids,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("the fold concludes gracefully");
+    assert_eq!(folded.snapshot.outcome, FoldOutcome::Contradiction);
+    assert_eq!(folded.snapshot.display_style, DisplayStyle::Transparent3);
+
+    let drawn = session
+        .folded_figure_render_snapshot(folded.handle, None, FoldedFigureRenderOptions::default())
+        .expect("render snapshot")
+        .expect("the transparent development draws");
+    assert!(!drawn.primitives.is_empty());
+    assert_eq!(
+        session
+            .folded_figure_paper_scene(folded.handle)
+            .expect("no error for a state the drawer renders"),
+        None,
+        "a fold with no ordering has no paper scene"
+    );
 }

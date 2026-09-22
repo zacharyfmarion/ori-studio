@@ -24,6 +24,7 @@ import {
 import { cpFoldAngleDisplayLabel } from '../../i18n/enumLabels';
 import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
+import { useCreaseExportPaper } from '../../hooks/useCreaseExportPaper';
 import { readRememberedAuthor } from './cpShareService';
 import { Button } from '../../components/ui/Button';
 import { ColorField } from '../../components/ui/ColorField';
@@ -158,6 +159,7 @@ export function ShareLinkModal() {
     cacheKeyPrefix: String(draft?.segmentId ?? ''),
     onError: () => setShowFolded(false),
   });
+  const paper = useCreaseExportPaper();
 
   // The card is composed from the same primitives the export dialog previews with, so
   // what is published is what was shown.
@@ -182,6 +184,8 @@ export function ShareLinkModal() {
       },
       {
         foldedFigure: folded.figure,
+        foldedFigureScene: folded.scene,
+        paper,
         foldedFigureTransform: folded.transform,
         grid: draft.grid,
       }
@@ -194,8 +198,10 @@ export function ShareLinkModal() {
     showGrid,
     showFolded,
     folded.figure,
+    folded.scene,
     folded.transform,
     foldedSettings,
+    paper,
   ]);
 
   // Exactly what the Worker will write into the OpenGraph tags — same helpers, so the

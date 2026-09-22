@@ -17,6 +17,7 @@ import type {
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
@@ -778,6 +779,18 @@ export async function getOristudioCpFoldedFigureRenderSnapshot(
 ): Promise<OristudioCpFoldedRenderSnapshot | null> {
   const api = await getOristudioCpClient();
   return api.foldedFigureRenderSnapshot(foldedFigureHandle, displayStyle, options);
+}
+
+/**
+ * The flat figure's paper scene for its current model — the export painter's
+ * input (`folded_figure_paper_scene`). `null` when the fold has nothing to
+ * draw, like the render snapshot.
+ */
+export async function getOristudioCpFoldedFigurePaperScene(
+  foldedFigureHandle: number
+): Promise<OristudioCpFoldedPaperScene | null> {
+  const api = await getOristudioCpClient();
+  return api.foldedFigurePaperScene(foldedFigureHandle);
 }
 
 export async function setOristudioCpFoldedFigureModel(

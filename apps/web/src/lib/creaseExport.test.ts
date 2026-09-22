@@ -4,21 +4,26 @@ import type { FoldDocument } from '../engine/types';
 import { segmentFoldDocument } from './creasePatternSegmentation';
 import type {
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
 import {
   buildCreaseExportArtwork,
+  composeCreaseExportSvg,
   creaseExportGridSource,
+  creaseExportPaperStyle,
   foldProjector,
   serializeCreasePatternSvg,
   layoutCreaseExport,
   wrapExportText,
   CREASE_EXPORT_PALETTES,
+  DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
   DEFAULT_CREASE_EXPORT_OPTIONS,
   type CreaseExportCaption,
   type CreaseExportGridSource,
   type CreaseExportOptions,
 } from './creaseExport';
+import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from './paper/paperStyle';
 import {
   cpLineStyleDashPatterns,
   ORIEDITA_DASH_ONE_DOT,
@@ -1128,6 +1133,40 @@ describe('folded figure placement', () => {
     };
   }
 
+  /**
+   * The same figure as the kernel's paper scene: the 1 × 4 sheet folded in
+   * half across its width, so face 0 (the top half, turned over) lies on face
+   * 1 and both fill the same 1 × 2 rectangle. Face 1 is buried.
+   */
+  function tallScene(): OristudioCpFoldedPaperScene {
+    const rectangle = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 2 },
+      { x: 0, y: 2 },
+    ];
+    const edges = (kinds: Array<'border' | 'fold'>) =>
+      rectangle.map((from, index) => ({
+        from,
+        to: rectangle[(index + 1) % 4]!,
+        kind: kinds[index]!,
+      }));
+    return {
+      schema_version: 1,
+      flipped: false,
+      sheet: 4,
+      faces: [
+        { outline: rectangle, front_up: false, edges: edges(['border', 'border', 'fold', 'border']) },
+        { outline: rectangle, front_up: true, edges: edges(['border', 'border', 'fold', 'border']) },
+      ],
+      subfaces: [{ polygon: rectangle, faces_top_to_bottom: [0, 1] }],
+      aux_lines: [],
+    };
+  }
+
+  const polygonFills = (svg: string) =>
+    [...svg.matchAll(/<polygon [^>]*fill="(#[0-9a-f]{6})"/g)].map((match) => match[1]);
+
   it('fits the figure between the top and bottom of the drawn pattern', () => {
     const fold = twoPatternFold();
     const segments = segmentFoldDocument(fold);
@@ -1149,6 +1188,118 @@ describe('folded figure placement', () => {
     // Its aspect ratio survives the fit: four times as tall as it is wide.
     const drawnHeight = layout.folded!.height - artwork.inset.top;
     expect(artwork.foldedBox!.width).toBeCloseTo(drawnHeight / 4, 6);
+  });
+
+  it('paints the kernel’s scene in place of the snapshot when the fold has one', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const options: CreaseExportOptions = {
+      ...DEFAULT_CREASE_EXPORT_OPTIONS,
+      includeFoldedFigure: true,
+      foldedFigure: {
+        ...DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
+        frontColor: '#123456',
+        backColor: '#654321',
+      },
+    };
+    const style = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 1.5, color: '#0000ff' },
+    };
+    const artwork = buildCreaseExportArtwork(fold, segments, options, {
+      foldedFigure: tallFigure(),
+      foldedFigureScene: tallScene(),
+      paper: { style, keepHiddenFaces: true },
+    });
+
+    // Every layer, back to front — the buried face 1 (front up) under face 0
+    // (turned over) — in the dialog's colours over the export style, not the
+    // snapshot's single white fill.
+    expect(polygonFills(artwork.folded!)).toEqual(['#123456', '#654321']);
+    expect(artwork.folded).not.toContain('#ffffff');
+    // The edge pen in the page's px: 1.5 pt at 4/3 CSS px per pt, at the
+    // export's scale over the on-screen view.
+    const [, width] = /stroke="#0000ff" stroke-width="([\d.]+)"/.exec(artwork.folded!)!;
+    expect(Number(width)).toBeCloseTo(1.5 * PT_TO_CSS_PX * (1024 / 720), 2);
+    // Fitted like the snapshot: the box ends where the pattern's drawing does,
+    // and the 1 × 2 figure keeps its aspect.
+    const layout = layoutCreaseExport(
+      { title: '', subtitle: '', description: '' },
+      artwork.palette,
+      artwork.foldedBox,
+      artwork.inset
+    );
+    expect(layout.folded!.height).toBe(layout.cp.height - artwork.inset.bottom);
+    expect(artwork.foldedBox!.width).toBeCloseTo((layout.folded!.height - artwork.inset.top) / 2, 6);
+    // Composed with round joins, as the painter's own page is.
+    const { svg } = composeCreaseExportSvg(artwork, { title: '', subtitle: '', description: '' });
+    expect(svg).toMatch(/<g transform="translate\([\d.]+, [\d.]+\)" stroke-linejoin="round">/);
+  });
+
+  it('drops the buried layer when the paper says so', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const artwork = buildCreaseExportArtwork(
+      fold,
+      segments,
+      { ...DEFAULT_CREASE_EXPORT_OPTIONS, includeFoldedFigure: true },
+      {
+        foldedFigure: tallFigure(),
+        foldedFigureScene: tallScene(),
+        paper: { style: DEFAULT_PAPER_STYLE, keepHiddenFaces: false },
+      }
+    );
+
+    expect(polygonFills(artwork.folded!)).toEqual([DEFAULT_PAPER_STYLE.paper.back]);
+  });
+
+  it('keeps the snapshot path for a fold with no scene, and when the figure is left out', () => {
+    const fold = twoPatternFold();
+    const segments = segmentFoldDocument(fold);
+    const withoutScene = buildCreaseExportArtwork(
+      fold,
+      segments,
+      { ...DEFAULT_CREASE_EXPORT_OPTIONS, includeFoldedFigure: true },
+      { foldedFigure: tallFigure(), foldedFigureScene: null }
+    );
+    expect(polygonFills(withoutScene.folded!)).toEqual(['#ffffff']);
+
+    const excluded = buildCreaseExportArtwork(
+      fold,
+      segments,
+      { ...DEFAULT_CREASE_EXPORT_OPTIONS, includeFoldedFigure: false },
+      { foldedFigure: tallFigure(), foldedFigureScene: tallScene() }
+    );
+    expect(excluded.folded).toBeNull();
+    expect(excluded.foldedBox).toBeNull();
+  });
+});
+
+describe('creaseExportPaperStyle', () => {
+  it('pins the dialog’s colours over the export style’s paper, through the flat policy', () => {
+    const style = creaseExportPaperStyle(
+      {
+        ...DEFAULT_PAPER_STYLE,
+        paper: { front: '#101010', back: '#202020' },
+        edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#0000ff' },
+        mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#ff0000' },
+        light: { ...DEFAULT_PAPER_STYLE.light, enabled: true },
+      },
+      { frontColor: '#ABCDEF', backColor: '#fedcba' }
+    );
+    expect(style.paper).toEqual({ front: '#abcdef', back: '#fedcba' });
+    expect(style.edges.color).toBe('#0000ff');
+    // The flat figure draws every crease with the edge pen and no light.
+    expect(style.mountainFolds).toEqual(style.edges);
+    expect(style.light.enabled).toBe(DEFAULT_PAPER_STYLE.light.enabled);
+  });
+
+  it('leaves the style’s own paper for a colour it cannot take', () => {
+    const style = creaseExportPaperStyle(
+      { ...DEFAULT_PAPER_STYLE, paper: { front: '#101010', back: '#202020' } },
+      { frontColor: 'red', backColor: '' }
+    );
+    expect(style.paper).toEqual({ front: '#101010', back: '#202020' });
   });
 });
 

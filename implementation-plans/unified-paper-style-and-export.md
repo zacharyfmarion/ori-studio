@@ -707,7 +707,9 @@ and reads the same `HierarchyTable`; the drawer and its byte-for-byte oracle
 are unchanged.
 
 **Web producer** `cp-workspace/folded/foldedFlatScene.ts`:
-`foldedFlatPaperScene(kernel: OristudioCpFoldedPaperScene, options: { style; markHidden; toScenePx: (p) => ScenePoint; scale }): PaperScene`.
+`foldedFlatPaperScene(kernel: OristudioCpFoldedPaperScene, options: { markHidden; toScenePx: (p) => ScenePoint; scale }): PaperScene`
+(no `style`: the flat producer is unlit and marks hidden by the stacks, so
+nothing in it reads a pen or a colour — the painter does).
 Build the face DAG from every subface stack (`face[i]` over `face[i+1]`);
 topological order gives whole faces (one item per face, its outline as the
 ring); faces in a non-trivial strongly-connected component are split into
@@ -1175,13 +1177,76 @@ export style. The share modal's card uses the same. Old snapshot-based
 
 ### Phase 4 — Flat figure: kernel accessor and whole-face export
 
-- [ ] `folded_figure_paper_scene` in `folding.rs` (additive) + `session.rs`
-      + wasm export + TS types; Rust test: accessor top face per subface ==
-      drawer's `visible_subface_face`.
-- [ ] Web: face DAG from stacks, topological order, SCC split; scene with
-      whole faces, per-edge roles, hidden layers.
-- [ ] Rebuild `build:oristudio-cp-wasm`; flat export through the painter.
-- [ ] `PORTING.md` note.
+- [x] `folded_figure_paper_scene` in `folding.rs` (additive) + `session.rs`
+      + wasm export + native command + TS types + runtime getter; Rust tests:
+      accessor top face per subface == drawer's `visible_subface_face`, and
+      subface polygon == the drawer's `fill_path` ring, front and back.
+      `aux_lines` is empty by construction — the fold takes only
+      folding-colour creases, so the wireframe never carries a `Cyan3` line;
+      Phase 5's overlay needs an accessor that folds the document's aux lines
+      face by face. `Flat` never occurs on an outline for the same reason.
+- [x] Web: face DAG from stacks, topological order, SCC split; scene with
+      whole faces, per-edge roles, hidden layers (`foldedFlatScene.ts`). A
+      split face's outline goes with the pieces it bounds, so a line the
+      cycle buries is drawn under the piece that buries it; the tests fold
+      the solution sample and the kabuto through the wasm kernel in Node and
+      hand-build the weave.
+- [x] Rebuild `build:oristudio-cp-wasm`; flat export through the painter.
+      Standalone: `exportOristudioCpFoldedFigure` for a flat figure with a
+      live handle reads `folded_figure_paper_scene(handle)` and paints
+      `foldedFlatPaperScene` through `paperSceneToSvg` / `paperSvgToPng`
+      (`cp-workspace/folded/foldedFlatFigureExport.ts`) on
+      `exportPaperStyle(paperStyle, figure.appearance)` through the
+      `folded-flat` policy and `settingsStore.paperExport`;
+      `paper exported { surface: 'folded-flat' }` fires on a save. The CP
+      export dialog and the share card: `foldSegmentForExport` also returns
+      the accessor's scene for its ephemeral handle (`CreaseExportFoldResult.scene`,
+      null when the kernel has no paper picture), `buildCreaseExportArtwork`
+      composes `paperSceneSvgBody` — a new body-only painter entry in
+      `lib/paper/paperSvg.ts` taking the caller's projection and the page's
+      units per pt — in place of `foldedFigureSvgBody` whenever the content
+      carries a scene, with the dialog's front/back colours pinned over the
+      export style's paper (`creaseExportPaperStyle`; the side is the kernel
+      state the fold was made with) and the export page's "Keep hidden faces".
+      Both dialogs read the style and the option through
+      `hooks/useCreaseExportPaper.ts`. Deviations from §8, with reasons:
+      - The page is the figure's on-screen *size* only — kernel units through
+        the paper affine, the placement's scale and the canvas's CSS px per
+        user unit (`foldedFlatFigureScenePxPerUnit`) — not its placement
+        offset or rotation. A standalone image has no canvas to be placed on,
+        which is the rule the snapshot export and the 3D path already follow.
+      - The scene path is the `Paper5` picture only. `Wire2`, `None0` and the
+        development styles keep the stored `renderSnapshot` path, as the
+        paper scene has no form for a wireframe or nothing; so does a fold
+        with no layer ordering — `Transparent3` is where the kernel parks a
+        search with no solutions or a contradiction (`FoldOutcome`), and its
+        stored development, red faces and all, is the picture. The session
+        accessor answers `None` for such a fold instead of searching again
+        (`folded_figure_paper_scene_from_session` gates on a solved overlap;
+        the render path searches only for a `Paper5` request), the standalone
+        export gates on `snapshot.outcome === 'Solved'`, and the CP export
+        dialog's `foldSegmentForExport` reads the scene only when the fold
+        reached `Paper5`. A *solved* figure the user views as `Transparent3`
+        does take the scene path, and exports as opaque paper with every
+        layer kept, as the 3D figure's X-ray view does.
+      - The scene is read by the store (the runtime call is asynchronous) and
+        the module is the pure half, so its test folds the solution sample
+        through the wasm kernel in Node and paints that.
+      - `foldedFigureSvgBody` stays for the handle-less fallback and for a
+        fold the kernel answers no scene for (Phase 7).
+      - Re-pinned: `CommandDialogModal.test.tsx`'s resolved content now
+        carries `foldedFigureScene` and `paper`; the `creaseExportFold` runtime
+        fakes gained `paperScene`.
+      Tests: `store/workspaceStore/exportFoldedFigureFlat.test.ts`,
+      `cp-workspace/folded/foldedFlatFigureExport.test.ts`,
+      `lib/paper/paperSvg.test.ts` (body entry), `lib/creaseExport.test.ts`
+      (scene in place of the snapshot, hidden layers, the fallback, the
+      pinned style), `lib/creaseExportFold.test.ts`;
+      `session_paper_scene_declines_a_fold_with_no_layer_ordering` in
+      `crates/oristudio-cp/tests/folding.rs`. The Oriedita render oracle was
+      not run locally for this phase; CI's `native-oracle` job covers the
+      `paper_hierarchy_table` extraction.
+- [x] `PORTING.md` note.
 
 ### Phase 5 — Aux creases and erode on every surface
 

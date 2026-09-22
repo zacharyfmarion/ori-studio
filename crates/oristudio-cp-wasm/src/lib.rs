@@ -340,6 +340,16 @@ pub fn folded_figure_render_snapshot(
     to_js_value(&snapshot)
 }
 
+/// The flat figure as faces, subface stacks and edge roles, in the render
+/// snapshot's coordinates — the export painter's input. `null` when the fold
+/// has nothing to draw as paper: no faces, or no solved layer ordering (a
+/// fold with no solutions or a contradiction), whatever its display style.
+#[wasm_bindgen]
+pub fn folded_figure_paper_scene(handle: u32) -> Result<JsValue, JsValue> {
+    let scene = with_session(|session| session.folded_figure_paper_scene(handle))?;
+    to_js_value(&scene)
+}
+
 #[wasm_bindgen]
 pub fn folded_figure_set_model(handle: u32, model: JsValue) -> Result<JsValue, JsValue> {
     let model = folded_figure_model_from_js(model)?;

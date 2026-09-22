@@ -327,6 +327,7 @@ pub fn run() {
             cp_engine::cp_folded_figure_fold_selected,
             cp_engine::cp_folded_figure_snapshot,
             cp_engine::cp_folded_figure_render_snapshot,
+            cp_engine::cp_folded_figure_paper_scene,
             cp_engine::cp_folded_figure_set_model,
             cp_engine::cp_folded_figure_duplicate,
             cp_engine::cp_folded_figure_fold_another,

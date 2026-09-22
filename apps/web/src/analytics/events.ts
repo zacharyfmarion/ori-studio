@@ -250,10 +250,9 @@ export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-f
 
 /**
  * The surfaces that export a paper picture through the shared painter. The
- * flat folded figure and the References steps join as their exports move onto
- * it.
+ * References steps join as their export moves onto it.
  */
-export type PaperExportSurface = 'simulator' | 'inline-simulation' | 'folded-3d';
+export type PaperExportSurface = 'simulator' | 'inline-simulation' | 'folded-3d' | 'folded-flat';
 
 /** A paper export's image format — the file's kind only, never its name. */
 export type PaperExportFormat = 'svg' | 'png';

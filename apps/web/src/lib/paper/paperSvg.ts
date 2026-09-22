@@ -105,7 +105,6 @@ export function paperSceneToSvg(
     (x - bounds.minX) * ptPerPx + marginPt,
     (y - bounds.minY) * ptPerPx + marginPt,
   ];
-  const erodePx = style.erode * scene.sheet;
 
   const elements: string[] = [];
   if (page.background !== null) {
@@ -114,14 +113,13 @@ export function paperSceneToSvg(
         `fill="${page.background}"/>`
     );
   }
-  for (const item of scene.items) {
-    if (item.hidden && !page.keepHiddenFaces) continue;
-    const element =
-      item.kind === 'face'
-        ? faceElement(item, style, place)
-        : lineElement(item, style, erodePx, place);
-    if (element) elements.push(element);
-  }
+  elements.push(
+    ...sceneElements(scene, style, {
+      project: place,
+      unitsPerPt: 1,
+      keepHiddenFaces: page.keepHiddenFaces,
+    })
+  );
 
   const svg = [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -136,6 +134,54 @@ export function paperSceneToSvg(
     '</svg>',
   ].join('\n');
   return { svg, widthPt, heightPt };
+}
+
+export interface PaperSvgBodyOptions {
+  /** A scene point to the page's user units. */
+  project: (point: ScenePoint) => ScenePoint;
+  /**
+   * Page user units per pt. A pen is stated in pt, and a page whose unit is not
+   * the pt — the crease-pattern export's px box — draws it at that many units,
+   * dashes with it. `1` is a page in pt, which is the painter's own.
+   */
+  unitsPerPt: number;
+  keepHiddenFaces: boolean;
+}
+
+/**
+ * The elements of a scene alone, with no `<svg>` wrapper, for a page another
+ * writer owns: the crease-pattern export composes its folded figure beside the
+ * sheet and places it by its own layout. The same pens, seam and erode rules
+ * as {@link paperSceneToSvg}, at the caller's projection; the caller wraps the
+ * result in whatever group it places the picture with, and gives that group
+ * round joins as the page does, or the seam hairline can spike at a corner.
+ */
+export function paperSceneSvgBody(
+  scene: PaperScene,
+  style: PaperStyle,
+  options: PaperSvgBodyOptions
+): string {
+  return sceneElements(scene, style, options).join('\n');
+}
+
+function sceneElements(
+  scene: PaperScene,
+  style: PaperStyle,
+  { project, unitsPerPt, keepHiddenFaces }: PaperSvgBodyOptions
+): string[] {
+  // Erode is a fraction of the sheet in the scene's own px, before any
+  // projection, so a page scale does not change it.
+  const erodePx = style.erode * scene.sheet;
+  const elements: string[] = [];
+  for (const item of scene.items) {
+    if (item.hidden && !keepHiddenFaces) continue;
+    const element =
+      item.kind === 'face'
+        ? faceElement(item, style, project, unitsPerPt)
+        : lineElement(item, style, erodePx, project, unitsPerPt);
+    if (element) elements.push(element);
+  }
+  return elements;
 }
 
 /** The colour a face is filled with: its side's paper, under its shade. */
@@ -165,12 +211,14 @@ export function penForRole(style: PaperStyle, role: PaperLineRole): Pen | null {
 function faceElement(
   face: PaperFaceItem,
   style: PaperStyle,
-  place: (point: ScenePoint) => ScenePoint
+  place: (point: ScenePoint) => ScenePoint,
+  unitsPerPt: number
 ): string | null {
   const rings = face.rings.filter((ring) => ring.length >= 3);
   if (rings.length === 0) return null;
   const fill = paperFaceFill(style, face.side, face.shade);
-  const ink = `fill="${fill}" stroke="${fill}" stroke-width="${num(SEAM_STROKE_WIDTH_PT)}"`;
+  const seam = num(SEAM_STROKE_WIDTH_PT * unitsPerPt);
+  const ink = `fill="${fill}" stroke="${fill}" stroke-width="${seam}"`;
   if (rings.length === 1) {
     const points = rings[0]!.map((point) => pointText(place(point))).join(' ');
     return `  <polygon points="${points}" ${ink}/>`;
@@ -187,7 +235,8 @@ function lineElement(
   line: PaperLineItem,
   style: PaperStyle,
   erodePx: number,
-  place: (point: ScenePoint) => ScenePoint
+  place: (point: ScenePoint) => ScenePoint,
+  unitsPerPt: number
 ): string | null {
   const pen = penForRole(style, line.role);
   if (!pen) return null;
@@ -197,7 +246,7 @@ function lineElement(
   const to = place(eroded[1]);
   const length = Math.hypot(to[0] - from[0], to[1] - from[1]);
   if (!(length > 0)) return null;
-  const dash = pen.dash ? penDashPt(pen) : null;
+  const dash = penDashPt(pen)?.map((run) => run * unitsPerPt) ?? null;
   const dashAttr = dash
     ? ` stroke-dasharray="${dash.map(num).join(' ')}" ` +
       `stroke-dashoffset="${num(centredDashOffset(dash, length))}"`
@@ -205,7 +254,8 @@ function lineElement(
   return (
     `  <line x1="${num(from[0])}" y1="${num(from[1])}" ` +
     `x2="${num(to[0])}" y2="${num(to[1])}" ` +
-    `stroke="${pen.color}" stroke-width="${num(pen.width)}" stroke-linecap="${pen.cap}"${dashAttr}/>`
+    `stroke="${pen.color}" stroke-width="${num(pen.width * unitsPerPt)}" ` +
+    `stroke-linecap="${pen.cap}"${dashAttr}/>`
   );
 }
 

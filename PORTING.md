@@ -59,6 +59,34 @@ are unchanged:
   what `folded_figure_paper_render_snapshot_from_segments` renders, so the
   render oracle in `crates/oristudio-cp/tests/oriedita_render_oracle.rs` remains
   a byte-for-byte gate.
+- **A read-only paper scene beside the drawer.** `folded_figure_paper_scene`
+  (`FoldedPaperScene` in `folding.rs`, `CpSession::folded_figure_paper_scene`,
+  wasm and native commands of the same name) answers what the `Paper5` drawer
+  never emits: every subface's full face stack, every face's folded outline
+  with the crease each edge came from, and the sheet's extent — so an export
+  can draw whole faces and keep buried layers (D4/D6 in
+  `implementation-plans/unified-paper-style-and-export.md`). It is additive:
+  it reads the same `FoldedRenderInputs` and the same `HierarchyTable` through
+  the same `OrieditaRenderCamera` for the model's state, calls the drawer's own
+  `subface_top_stack` / `visible_subface_face` parity, and changes nothing in
+  `push_paper_render_pass_primitives` or anything under it. The one shared
+  edit is `paper_hierarchy_table`, a mechanical extraction of the ordering
+  lookup `render_snapshot_impl` already did, with the same control flow.
+  `every_subface_stack_starts_with_the_face_the_drawer_paints` (in-crate) and
+  `paper_scene_subfaces_are_the_drawers_fills_with_their_visible_face_on_top`
+  (`tests/folding.rs`) hold each subface's top face and polygon to the drawer's
+  on both sides of the figure; the render oracle is untouched. `aux_lines` is
+  empty by construction: the fold takes only folding-colour creases
+  (`LineColor::is_folding_line`, Oriedita's `getForSelectFolding`), so no
+  `Cyan3` line has a folded position to report. The session accessor declines
+  where the drawer would have searched: it answers `None` unless the session
+  holds a solved ordering (`FoldOutcome::Solved`), whatever the display style.
+  A fold the kernel rewound to `Transparent3` — no solutions, or a
+  contradiction concluded the way Oriedita concludes it — has no `Paper5`
+  picture, and repeating its search on read would re-run exhausted work or
+  re-raise the contradiction for a figure the snapshot draws fine
+  (`session_paper_scene_declines_a_fold_with_no_layer_ordering`). Only the
+  from-segments path, which has no session to ask, still searches.
 
 - **Kernel-side snapping states its candidates.** `SnapCandidates` (grid state
   plus a vertices flag) is threaded into

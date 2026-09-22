@@ -21,6 +21,7 @@ import init, {
   folded_figure_fold_selected,
   folded_figure_fold_another,
   folded_figure_fold_to_case,
+  folded_figure_paper_scene,
   folded_figure_render_snapshot,
   folded_figure_set_model,
   folded_figure_snapshot,
@@ -56,6 +57,7 @@ import type {
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
@@ -273,6 +275,9 @@ const api = {
           options ?? null
         ) as OristudioCpFoldedRenderSnapshot | null
     );
+  },
+  async foldedFigurePaperScene(handle: number): Promise<OristudioCpFoldedPaperScene | null> {
+    return call(() => folded_figure_paper_scene(handle) as OristudioCpFoldedPaperScene | null);
   },
   async setFoldedFigureModel(
     handle: number,

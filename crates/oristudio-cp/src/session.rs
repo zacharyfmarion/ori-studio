@@ -18,8 +18,9 @@ use crate::fold_graph::FoldGraphError;
 use crate::folding::{
     AdditionalEstimationError, DisplayStyle, EstimationOrder, EstimationStep, FoldSetupError,
     FoldedFigureModel, FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
-    FoldedRenderInputs, FoldingEstimateError, FoldingEstimateSession, InitialHierarchyError,
-    WorkerOverlapSearchError, fold_another, folded_figure_render_snapshot_from_session,
+    FoldedPaperScene, FoldedRenderInputs, FoldingEstimateError, FoldingEstimateSession,
+    InitialHierarchyError, WorkerOverlapSearchError, fold_another,
+    folded_figure_paper_scene_from_session, folded_figure_render_snapshot_from_session,
     folded_figure_snapshot_with_inputs, folding_estimate_to_case,
 };
 use crate::folding3d::model::Folded3dRenderModel;
@@ -74,6 +75,7 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "folded_figure_fold_selected",
     "folded_figure_snapshot",
     "folded_figure_render_snapshot",
+    "folded_figure_paper_scene",
     "folded_figure_set_model",
     "folded_figure_duplicate",
     "folded_figure_fold_another",
@@ -1011,6 +1013,30 @@ impl CpSession {
             display_style,
             folded.model.clone(),
             options,
+        )?)
+    }
+
+    /// The figure's [`FoldedPaperScene`] for its current model: the same
+    /// inputs and ordering `folded_figure_render_snapshot` draws `Paper5`
+    /// from, so the two agree face for face. `None` when the fold traced no
+    /// faces, has no subfaces, or has no solved layer ordering — the cases in
+    /// which the `Paper5` drawer would emit nothing — whatever the figure's
+    /// display style. Unlike the render snapshot, which draws `Wire2` and
+    /// `Transparent3` without an ordering and searches one for a `Paper5`
+    /// request, this never searches: a fold that concluded with no solutions
+    /// or a contradiction answers `None` at once.
+    pub fn folded_figure_paper_scene(
+        &self,
+        handle: u32,
+    ) -> Result<Option<FoldedPaperScene>, EngineError> {
+        let folded = self.flat(handle)?;
+        let Some(inputs) = folded.render_inputs.as_ref() else {
+            return Ok(None);
+        };
+        Ok(folded_figure_paper_scene_from_session(
+            &folded.session,
+            inputs,
+            &folded.model,
         )?)
     }
 

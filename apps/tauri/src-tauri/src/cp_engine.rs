@@ -20,7 +20,7 @@ use oristudio_cp::CreasePatternDocument;
 use oristudio_cp::cancel::{CancelHandle, CancelSource, RunId};
 use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
-    FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
+    FoldedFigureRenderSnapshot, FoldedFigureSnapshot, FoldedPaperScene,
 };
 use oristudio_cp::geometry::LineSegment;
 use oristudio_cp::geometry_transport::CompactGeometry;
@@ -506,6 +506,17 @@ pub async fn cp_folded_figure_render_snapshot(
 }
 
 #[tauri::command]
+pub async fn cp_folded_figure_paper_scene(
+    handle: u32,
+    state: State<'_, CpEngine>,
+) -> Result<Option<FoldedPaperScene>, EngineError> {
+    run(state, move |session| {
+        session.folded_figure_paper_scene(handle)
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn cp_folded_figure_set_model(
     handle: u32,
     model: FoldedFigureModel,
@@ -648,6 +659,7 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_folded_figure_fold_selected",
     "cp_folded_figure_snapshot",
     "cp_folded_figure_render_snapshot",
+    "cp_folded_figure_paper_scene",
     "cp_folded_figure_set_model",
     "cp_folded_figure_duplicate",
     "cp_folded_figure_fold_another",

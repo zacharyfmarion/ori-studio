@@ -20,10 +20,21 @@ import {
 import { foldAngleInk } from '../cp-workspace/foldAngle/foldAngleRamp';
 import { parseCssColor } from '../cp-workspace/renderer/cssColor';
 import type { Rgba } from '../cp-workspace/renderer/types';
+import { foldedFlatPaperScene } from '../cp-workspace/folded/foldedFlatScene';
+import {
+  DEFAULT_PAPER_STYLE,
+  effectivePaperStyle,
+  parseHex,
+  PT_TO_CSS_PX,
+  type PaperStyle,
+} from './paper/paperStyle';
+import { PAPER_STYLE_POLICIES, surfacePaperStyle } from './paper/paperStyleResolve';
+import { paperSceneSvgBody } from './paper/paperSvg';
 import { degreesToFoldMagnitude } from './foldAngle';
 import { rgbColorToHex } from './rgbColor';
 import type {
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpGridMetadata,
 } from '../engine/oristudioCpTypes';
@@ -830,6 +841,20 @@ export interface CreaseExportArtwork {
 export interface CreaseExportContent {
   foldedFigure: OristudioCpFoldedRenderSnapshot | null;
   /**
+   * The same fold as the kernel's paper scene. When present it is what the
+   * export draws for the figure, through the shared painter with every layer
+   * in it (`paper` says how); absent or null, `foldedFigure` is serialized as
+   * the drawer's stream, which is what a fold the kernel has no paper picture
+   * for still has.
+   */
+  foldedFigureScene?: OristudioCpFoldedPaperScene | null;
+  /**
+   * How the scene is painted: the app's export style, with the dialog's paper
+   * colours laid over it, and whether the buried layers stay. Defaults to the
+   * built-in style with every layer kept.
+   */
+  paper?: CreaseExportPaperOptions;
+  /**
    * Places the figure's kernel coordinates in this fold's space. Usually the
    * identity; see {@link CpModelToFoldTransform}.
    */
@@ -853,6 +878,38 @@ export interface CreaseExportContent {
 export interface CreaseExportGridSource {
   metadata: OristudioCpGridMetadata;
   transform: CpModelToFoldTransform;
+}
+
+/** How a folded figure's paper scene is painted on the crease-pattern page. */
+export interface CreaseExportPaperOptions {
+  /** The app's export style (`exportPaperStyle`); the dialog's colours go over it. */
+  style: PaperStyle;
+  /** The export page's "Keep hidden faces" (D4): every layer, or the visible ones. */
+  keepHiddenFaces: boolean;
+}
+
+export const DEFAULT_CREASE_EXPORT_PAPER: CreaseExportPaperOptions = {
+  style: DEFAULT_PAPER_STYLE,
+  keepHiddenFaces: true,
+};
+
+/**
+ * The style a crease-pattern export paints its folded figure with: the export
+ * style with the dialog's front and back colours pinned over its paper — the
+ * side is already the kernel's state, which is what the fold was made with —
+ * through the flat figure's policy, so every crease takes the edge pen as the
+ * canvas draws it. A colour the dialog holds in a form the style cannot take
+ * leaves the style's own in place.
+ */
+export function creaseExportPaperStyle(
+  style: PaperStyle,
+  settings: Pick<CreaseExportFoldedFigureSettings, 'frontColor' | 'backColor'>
+): PaperStyle {
+  const pinned = effectivePaperStyle(style, {
+    'paper.front': parseHex(settings.frontColor),
+    'paper.back': parseHex(settings.backColor),
+  });
+  return surfacePaperStyle(pinned, PAPER_STYLE_POLICIES['folded-flat']);
 }
 
 export const EMPTY_CREASE_EXPORT_CONTENT: CreaseExportContent = { foldedFigure: null };
@@ -1136,21 +1193,59 @@ export function buildCreaseExportArtwork(
   let folded: string | null = null;
   let foldedBox: CreaseExportFoldedBox | null = null;
   const foldedSnapshot = options.includeFoldedFigure ? content.foldedFigure : null;
+  const foldedScene = options.includeFoldedFigure ? (content.foldedFigureScene ?? null) : null;
   const foldedTransform = content.foldedFigureTransform ?? IDENTITY_CP_MODEL_TO_FOLD;
   // The figure comes back in kernel coordinates, which are not always the
   // fold's own — an imported fold is rescaled to the unit square.
   const projectFoldedPoint = (point: { x: number; y: number }) =>
     projectPoint(applyCpModelToFold(point, foldedTransform));
-  if (foldedSnapshot) {
+  // Fit the figure's height to the drawn crease pattern's, so the two line up
+  // top and bottom. The kernel's folded coordinates carry a display scale of
+  // their own (an imported figure can come back twice the size of the paper it
+  // was folded from), which is not a size worth reproducing.
+  const fitFolded = (bounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  }): { fit: number; box: CreaseExportFoldedBox } => {
+    const height = bounds.maxY - bounds.minY;
+    const fit = height > 0 ? contentHeight / height : 1;
+    return {
+      fit,
+      box: { width: (bounds.maxX - bounds.minX) * fit, height: contentTop + contentHeight },
+    };
+  };
+  if (foldedScene) {
+    // The kernel's paper scene through the shared painter: whole faces in
+    // painter's order with every layer present, at the pens the export style
+    // states — the same picture the figure exports on its own, on this page.
+    const paper = content.paper ?? DEFAULT_CREASE_EXPORT_PAPER;
+    const scene = foldedFlatPaperScene(foldedScene, {
+      markHidden: !paper.keepHiddenFaces,
+      toScenePx: (point) => {
+        const projected = projectFoldedPoint(point);
+        return [projected.x, projected.y];
+      },
+      scale: scale * foldedTransform.scale,
+    });
+    if (scene.items.length > 0) {
+      const { bounds } = scene;
+      const { fit, box } = fitFolded(bounds);
+      foldedBox = box;
+      folded = paperSceneSvgBody(scene, creaseExportPaperStyle(paper.style, options.foldedFigure), {
+        project: ([x, y]) => [(x - bounds.minX) * fit, (y - bounds.minY) * fit + contentTop],
+        // A pen is stated in pt and drawn on screen at 4/3 CSS px per pt; the
+        // page is the screen at `VIEW_SCALE`, as the creases beside it are.
+        unitsPerPt: PT_TO_CSS_PX * VIEW_SCALE,
+        keepHiddenFaces: paper.keepHiddenFaces,
+      });
+    }
+  } else if (foldedSnapshot) {
     const bounds = projectedFoldedFigureBounds(foldedSnapshot, projectFoldedPoint);
     if (bounds) {
-      // Fit the figure's height to the drawn crease pattern's, so the two line
-      // up top and bottom. The kernel's folded coordinates carry a display
-      // scale of their own (an imported figure can come back twice the size of
-      // the paper it was folded from), which is not a size worth reproducing.
-      const height = bounds.maxY - bounds.minY;
-      const fit = height > 0 ? contentHeight / height : 1;
-      foldedBox = { width: (bounds.maxX - bounds.minX) * fit, height: contentTop + contentHeight };
+      const { fit, box } = fitFolded(bounds);
+      foldedBox = box;
       folded = foldedFigureSvgBody(foldedSnapshot, {
         project: (point) => {
           const projected = projectFoldedPoint(point);
@@ -1192,9 +1287,11 @@ export function composeCreaseExportSvg(
     layout.cp.x === 0 && layout.cp.y === 0
       ? artwork.cp
       : `  <g transform="translate(${layout.cp.x.toFixed(2)}, ${layout.cp.y.toFixed(2)})">\n${artwork.cp}\n  </g>`;
+  // Round joins, as the painter's page gives its elements: the seam hairline on
+  // a face cannot spike at a sliver's corner.
   const placedFolded =
     artwork.folded && layout.folded
-      ? `  <g transform="translate(${layout.folded.x.toFixed(2)}, ${layout.folded.y.toFixed(2)})">\n${artwork.folded}\n  </g>`
+      ? `  <g transform="translate(${layout.folded.x.toFixed(2)}, ${layout.folded.y.toFixed(2)})" stroke-linejoin="round">\n${artwork.folded}\n  </g>`
       : '';
 
   const svg = [

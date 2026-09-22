@@ -491,6 +491,64 @@ export interface OristudioCpFoldedRenderSnapshot {
 }
 
 /**
+ * The flat folded figure as geometry with roles — `folded_figure_paper_scene`
+ * (kernel `FoldedPaperScene`). Built beside the oracle-checked `Paper5`
+ * drawer from the same inputs, ordering and render camera, so every
+ * coordinate is one the render snapshot carries for the figure's current
+ * `state`: the scene overlays the picture the canvas draws. Index 0 of every
+ * subface's stack is the face the drawer paints there; the layers under it
+ * are what a whole-face export gets to keep (D4, D6 in
+ * `implementation-plans/unified-paper-style-and-export.md`).
+ */
+export interface OristudioCpFoldedPaperScene {
+  schema_version: number;
+  /** The rear pass (`Back1`): mirrored, stacks read bottom-up. */
+  flipped: boolean;
+  /** The unfolded paper's longest extent, in the scene's units (model scale applied). */
+  sheet: number;
+  /** Kernel face index order. */
+  faces: OristudioCpFoldedPaperFace[];
+  /** The subfaces the drawer paints, in its order. */
+  subfaces: OristudioCpFoldedPaperSubface[];
+  /**
+   * Always empty today: no aux (`Cyan3`) line reaches the fold, so the
+   * kernel has no folded position for one. The slot is here for the accessor
+   * that folds them face by face (Phase 5).
+   */
+  aux_lines: OristudioCpFoldedPaperAuxLine[];
+}
+
+export interface OristudioCpFoldedPaperFace {
+  outline: Point[];
+  /** The face shows its front side in this pass. */
+  front_up: boolean;
+  /** One per consecutive outline pair, the last closing to the first. */
+  edges: OristudioCpFoldedPaperFaceEdge[];
+}
+
+export interface OristudioCpFoldedPaperFaceEdge {
+  from: Point;
+  to: Point;
+  kind: OristudioCpFoldedPaperEdgeKind;
+}
+
+/** A paper edge, a ±180° crease, or a 0° line (never produced today). */
+export type OristudioCpFoldedPaperEdgeKind = 'border' | 'fold' | 'flat';
+
+export interface OristudioCpFoldedPaperSubface {
+  /** The planar overlap region — the ring the drawer's `fill_path` traces. */
+  polygon: Point[];
+  /** Faces stacked on this region as seen; `[0]` is the face the drawer paints. */
+  faces_top_to_bottom: number[];
+}
+
+export interface OristudioCpFoldedPaperAuxLine {
+  from: Point;
+  to: Point;
+  face: number;
+}
+
+/**
  * The two faces the layer-ordering estimate could not consistently stack
  * (Oriedita's `errorPos`). Both are 0-based indices into the folded
  * `wireframe.faces` list — index directly, no offset. Present only when the
