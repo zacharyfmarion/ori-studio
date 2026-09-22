@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { TFunction } from 'i18next';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
@@ -221,6 +222,63 @@ describe('native project file', () => {
       title: 'Tree design',
       payload: { kind: 'treemaker', format: 'tmd5', text: 'tm text' },
     });
+  });
+
+  /**
+   * The fallbacks here are on the *write* side: they name a workspace, a design
+   * or a crease pattern whose in-memory title is blank, and that name is written
+   * into the file. So it is the saving user's language that belongs there, and
+   * the store threads its translator through; a pure caller gets the English.
+   */
+  it('names a blank title in the language of the translator it is given', () => {
+    const inJapanese = ((key: string) =>
+      ({
+        'common:documentName.untitled': '無題',
+        'common:documentName.untitledDesign': '無題のデザイン',
+        'common:documentName.untitledCp': '無題の CP',
+      })[key] ?? key) as unknown as TFunction;
+
+    const english = createNativeTreeProjectFile({
+      title: '   ',
+      filename: 'tree.osf',
+      path: null,
+      tmd5Text: 'tm text',
+      appVersion: '0.5.0',
+      now,
+    });
+    expect(english.workspace.title).toBe('Untitled');
+    expect(activeNativeDesign(english)?.title).toBe('Untitled Design');
+
+    const japanese = createNativeTreeProjectFile(
+      { title: '   ', filename: 'tree.osf', path: null, tmd5Text: 'tm text', appVersion: '0.5.0', now },
+      inJapanese
+    );
+    expect(japanese.workspace.title).toBe('無題');
+    expect(activeNativeDesign(japanese)?.title).toBe('無題のデザイン');
+
+    const cp = createNativeCreasePatternProjectFile(
+      {
+        title: '   ',
+        filename: 'square.cp',
+        path: null,
+        document: { ...cpDocument(), title: '' },
+        source: null,
+        foldProjection: null,
+        sourceFold: null,
+        foldArtifacts: null,
+        creaseColorMode: 'mvf',
+        selection: emptyOristudioCpSelection(),
+        viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+        foldedFigures: [],
+        activeFoldedFigureId: null,
+        lineage: importedCpLineage(),
+        appVersion: '0.5.0',
+        now,
+      },
+      inJapanese
+    );
+    expect(cp.workspace.title).toBe('無題の CP');
+    expect(cp.workspace.creasePattern?.title).toBe('無題の CP');
   });
 
   it('drops crease-pattern geometry whose coordinates were written as null', () => {

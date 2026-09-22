@@ -3,13 +3,9 @@ import { isPhoneLayout } from '../platform/phoneLayout';
 import type { TFunction } from 'i18next';
 import { DESIGN_KINDS, designKindRegistry } from '../designKinds/registry';
 import type { DesignKindDescriptor } from '../designKinds/types';
+import { identityTranslate } from '../i18n/identityTranslate';
 import type { AppStatus, Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
-
-// Fallback translator returning the inline English default — used when a caller reads
-// capabilities imperatively or in tests without a live i18n instance.
-const identityTranslate = ((_key: string, defaultValue?: string) =>
-  defaultValue ?? _key) as unknown as TFunction;
 
 export type WorkspaceCapabilityId =
   | 'file.new'

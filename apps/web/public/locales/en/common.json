@@ -259,6 +259,16 @@
     "reset": "Reset to default",
     "resetNamed": "Reset {{label}} to default"
   },
+  "documentName": {
+    "creasePatternOf": "{{title}} CP",
+    "generatedCp": "Generated CP",
+    "generatedCreasePattern": "Generated crease pattern",
+    "untitled": "Untitled",
+    "untitledBp": "Untitled BP",
+    "untitledCp": "Untitled CP",
+    "untitledCreasePattern": "Untitled crease pattern",
+    "untitledDesign": "Untitled Design"
+  },
   "download": {
     "allReleases": "All downloads on GitHub",
     "build": {

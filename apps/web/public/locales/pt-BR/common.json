@@ -259,6 +259,16 @@
     "reset": "Redefinir",
     "resetNamed": "Redefinir {{label}}"
   },
+  "documentName": {
+    "creasePatternOf": "CP de {{title}}",
+    "generatedCp": "CP gerado",
+    "generatedCreasePattern": "Padrão de vincos gerado",
+    "untitled": "Sem título",
+    "untitledBp": "BP sem título",
+    "untitledCp": "CP sem título",
+    "untitledCreasePattern": "Padrão de vincos sem título",
+    "untitledDesign": "Design sem título"
+  },
   "download": {
     "allReleases": "Todos os downloads no GitHub",
     "build": {

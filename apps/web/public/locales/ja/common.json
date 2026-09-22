@@ -259,6 +259,16 @@
     "reset": "既定に戻す",
     "resetNamed": "{{label}} を既定に戻す"
   },
+  "documentName": {
+    "creasePatternOf": "{{title}} の CP",
+    "generatedCp": "生成された CP",
+    "generatedCreasePattern": "生成された展開図",
+    "untitled": "無題",
+    "untitledBp": "無題の BP",
+    "untitledCp": "無題の CP",
+    "untitledCreasePattern": "無題の展開図",
+    "untitledDesign": "無題のデザイン"
+  },
   "download": {
     "allReleases": "GitHub のすべてのダウンロード",
     "build": {

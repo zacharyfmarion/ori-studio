@@ -169,9 +169,10 @@ import {
   type FileService,
   type SaveFileResult,
 } from '../../../platform/fileService';
-import { exportFilename as defaultFilename } from '../../../platform/exportFilename';
+import { exportFilename } from '../../../platform/exportFilename';
 import { getRuntimeSurface, isApplePlatform } from '../../../platform/runtime';
 import i18n from '../../../i18n';
+import { untitledCpTitle, untitledTitle } from '../../../i18n/documentNames';
 import { requestConfirmation, requestCreasePatternExportOptions } from '../../commandDialogStore';
 import {
   blockingExportLoss,
@@ -510,7 +511,12 @@ function annotateLargeSourceError(
 }
 
 function basenameWithoutProjectExtension(filename: string): string {
-  return filename.replace(/\.(osf|tmd5?|tmd4|cp|fold|ori|orh)$/i, '') || 'Untitled';
+  return filename.replace(/\.(osf|tmd5?|tmd4|cp|fold|ori|orh)$/i, '') || untitledTitle(i18n.t);
+}
+
+/** `exportFilename` with a blank title named in the app's language. */
+function defaultFilename(title: string, extension: string): string {
+  return exportFilename(title, extension, i18n.t);
 }
 
 function isOrieditaOriFilename(filename: string): boolean {
@@ -859,7 +865,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (source.replacesProject !== false) set(discardAllDesigns());
     const api = await getEngine();
     const snapshot = await loadTreeFromText(api, text);
-    const filename = source.filename ?? defaultNativeFilename('Untitled');
+    const filename = source.filename ?? defaultNativeFilename(untitledTitle(i18n.t));
     const title = source.title ?? basenameWithoutProjectExtension(filename);
     const editCanvasState = source.preserveEditCanvas
       ? pickFoldArtifactResourceState(get())
@@ -935,11 +941,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const foldProjection = await exportOristudioCpDocumentAsFold();
         const projectionTitle =
           oristudioCpDocument.summary.title || basenameWithoutProjectExtension(filename);
-        const projected = parseImportedCreasePattern(foldProjection, {
-          format: 'fold',
-          filename: defaultFilename(projectionTitle, 'fold'),
-          path: null,
-        });
+        const projected = parseImportedCreasePattern(
+          foldProjection,
+          {
+            format: 'fold',
+            filename: defaultFilename(projectionTitle, 'fold'),
+            path: null,
+          },
+          i18n.t
+        );
         parsed = {
           ...projected,
           project: {
@@ -957,11 +967,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         throw error;
       }
     } else {
-      parsed = parseImportedCreasePattern(text, {
-        format,
-        filename,
-        path,
-      });
+      parsed = parseImportedCreasePattern(
+        text,
+        {
+          format,
+          filename,
+          path,
+        },
+        i18n.t
+      );
       try {
         oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
           format,
@@ -1238,11 +1252,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (!fold) throw new Error('Native crease-pattern project does not contain a FOLD projection');
 
     // Parse straight from the live FOLD object — no stringify + re-parse round-trip.
-    const parsed = parseImportedCreasePatternFromFold(fold, {
-      format: 'fold',
-      filename: `${nativeDocument.title || source.filename}.fold`,
-      path: null,
-    });
+    const parsed = parseImportedCreasePatternFromFold(
+      fold,
+      {
+        format: 'fold',
+        filename: `${nativeDocument.title || source.filename}.fold`,
+        path: null,
+      },
+      i18n.t
+    );
     // Simulation faces are inferred in JS (no flat-folding), so multi-pattern
     // documents work.
     const result = parsed;
@@ -1575,7 +1593,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         creasePattern: creasePatternCompanion,
         extensions: get().nativeProjectExtensions,
         appVersion: APP_VERSION,
-      })
+      }, i18n.t)
     );
     const target = nativeSaveTarget();
     const result = await fileService.saveTextFile({
@@ -1856,7 +1874,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     if (!input) return null;
     const contents = serializeNativeProjectFile(
-      createNativeCreasePatternProjectFile(input)
+      createNativeCreasePatternProjectFile(input, i18n.t)
     );
     const target = nativeSaveTarget();
     const result = await fileService.saveTextFile({
@@ -1992,7 +2010,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // bare `/design` only showed the chooser because the route overwrote the
     // claim on arrival.)
     ...initialDesignTabs(),
-    workspaceTitle: 'Untitled',
+    // Resolved at store creation, which is before any catalog can have loaded,
+    // so this reads as English in every language — and is never what a user
+    // sees for long: every path into a workspace (`createNewProject`,
+    // `createNewCreasePattern`, an open, a shared link) names the project
+    // again once the app's language is known.
+    workspaceTitle: untitledTitle(i18n.t),
     historyBusy: false,
     oristudioCpHistoryBusy: false,
     oristudioBpHistoryBusy: false,
@@ -2013,7 +2036,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     oristudioCpDocumentExtensions: {},
     projectLoadId: 0,
     currentFilePath: null,
-    currentFileName: defaultNativeFilename('Untitled'),
+    currentFileName: defaultNativeFilename(untitledTitle(i18n.t)),
     projectMessage: null,
     savedNotice: null,
     oristudioCpShareDraft: null,
@@ -2111,14 +2134,15 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               oristudioCpCamera: null,
               ...emptyFoldArtifactResourceState(),
             };
+        const title = untitledTitle(i18n.t);
         set({
           // Installing a tree replaces the tab's arm outright, so any box-pleat
           // document it held is gone by construction.
-          ...projectStateFromSnapshot(get(), snapshot, 'Untitled'),
-          workspaceTitle: 'Untitled',
+          ...projectStateFromSnapshot(get(), snapshot, title),
+          workspaceTitle: title,
           nativeProjectExtensions: {},
           projectLoadId: get().projectLoadId + 1,
-          currentFileName: defaultNativeFilename('Untitled'),
+          currentFileName: defaultNativeFilename(title),
           currentFilePath: null,
           projectMessage: null,
           dirty: false,
@@ -2187,12 +2211,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           // projectLoadId bump, fold-artifact invalidation, …) — the same bundle
           // the Edit self-provision uses.
           ...freshEditableCpState(documentState, get()),
-          workspaceTitle: documentState.summary.title ?? 'Untitled CP',
+          workspaceTitle: documentState.summary.title ?? untitledCpTitle(i18n.t),
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
           ...discardAllDesigns(),
           importedCreasePattern: null,
-          currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
+          currentFileName: defaultNativeFilename(
+            documentState.summary.title ?? untitledCpTitle(i18n.t)
+          ),
           currentFilePath: null,
           projectMessage: null,
           nativeProjectExtensions: {},

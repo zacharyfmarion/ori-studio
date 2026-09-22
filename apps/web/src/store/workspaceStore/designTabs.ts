@@ -1,4 +1,6 @@
 import type { DesignKindId } from '../../designKinds';
+import i18n from '../../i18n';
+import { untitledDesignTitle } from '../../i18n/documentNames';
 import {
   EMPTY_BOX_PLEAT_DESIGN,
   EMPTY_EXPLORI_DESIGN,
@@ -78,7 +80,15 @@ interface DesignTabIdentity {
  */
 export type DesignTab = DesignTabIdentity & DesignTabContent;
 
-export const DEFAULT_DESIGN_TITLE = 'Untitled Design';
+/**
+ * The title a new design tab gets, in the app's language at the moment it is
+ * made — a function, not a constant, because the store's initial state runs at
+ * module load, before any catalog has arrived, and a constant would freeze the
+ * English there for the whole session.
+ */
+export function defaultDesignTitle(): string {
+  return untitledDesignTitle(i18n.t);
+}
 
 /**
  * Session-monotonic counter behind {@link nextDesignTabId}.
@@ -109,11 +119,13 @@ export function resetDesignTabIds(): void {
  * A title that does not collide with the tabs already open.
  *
  * The first tab is plain `Untitled Design`; only a duplicate takes a suffix, so a
- * lone tab never carries a pointless `1`.
+ * lone tab never carries a pointless `1`. The base is resolved per call, so the
+ * collision check runs against the same string this session's tabs were named
+ * with; a tab named before a language switch keeps its title, as any name does.
  */
 export function uniqueDesignTitle(
   existing: readonly DesignTab[],
-  base: string = DEFAULT_DESIGN_TITLE
+  base: string = defaultDesignTitle()
 ): string {
   const taken = new Set(existing.map((tab) => tab.title));
   if (!taken.has(base)) return base;

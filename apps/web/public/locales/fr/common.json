@@ -259,6 +259,16 @@
     "reset": "Réinitialiser",
     "resetNamed": "Réinitialiser {{label}}"
   },
+  "documentName": {
+    "creasePatternOf": "CP de {{title}}",
+    "generatedCp": "CP généré",
+    "generatedCreasePattern": "Patron de pliage généré",
+    "untitled": "Sans titre",
+    "untitledBp": "BP sans titre",
+    "untitledCp": "CP sans titre",
+    "untitledCreasePattern": "Patron de pliage sans titre",
+    "untitledDesign": "Conception sans titre"
+  },
   "download": {
     "allReleases": "Tous les téléchargements sur GitHub",
     "build": {

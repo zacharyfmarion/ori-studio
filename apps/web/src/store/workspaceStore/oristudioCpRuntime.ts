@@ -28,6 +28,9 @@ import {
   decodeCpGeometryToSnapshot,
   type CpGeometryTransport,
 } from '../../engine/oristudioCpGeometry';
+import i18n from '../../i18n';
+import { whenCatalogReady } from '../../i18n/catalogReady';
+import { untitledCpTitle, untitledTitle } from '../../i18n/documentNames';
 import type { ImportedCreasePatternFormat } from '../../lib/creasePatternImport';
 import { orieditaDocumentTitle } from '../../lib/orieditaDocumentTitle';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
@@ -153,18 +156,33 @@ export async function loadOristudioCpDocumentFromText(
   }
 }
 
+/**
+ * The title defaults in the app's language, which is what names the tab on a
+ * cold `/edit` and on File › New Crease Pattern. On a cold start the catalog
+ * and the wasm worker are both in flight, so the two are awaited together and
+ * the name is read once both are in — read any earlier, it would race the
+ * catalog to its English fallback and write that into the document (measured:
+ * in dev the worker wins). A caller that named the document waits for nothing
+ * but the worker.
+ *
+ * The filename is the source ref of a document that came from no file —
+ * internal bookkeeping, never shown — so it stays a fixed ASCII name.
+ */
 export async function createBlankOristudioCpDocument(
-  title = 'Untitled CP',
+  title?: string,
   filename = 'Untitled.cp'
 ): Promise<OristudioCpDocumentState> {
-  const api = await getOristudioCpClient();
+  const [api] = await Promise.all([
+    getOristudioCpClient(),
+    title === undefined ? whenCatalogReady() : undefined,
+  ]);
   const source = {
     format: 'cp' as const,
     filename,
     path: null,
   };
   const nextHandle = await api.loadDocument({
-    ...createStarterOristudioCpDocument(title),
+    ...createStarterOristudioCpDocument(title ?? untitledCpTitle(i18n.t)),
   });
 
   documentLoadSerial += 1;
@@ -1058,7 +1076,7 @@ async function buildDocumentState(
 }
 
 function titleFromFilename(filename: string): string {
-  return filename.replace(/\.(cp|fold|ori|orh|osf)$/i, '') || 'Untitled';
+  return filename.replace(/\.(cp|fold|ori|orh|osf)$/i, '') || untitledTitle(i18n.t);
 }
 
 export type { OristudioCpDocumentSnapshot, OristudioCpDocumentSummary };

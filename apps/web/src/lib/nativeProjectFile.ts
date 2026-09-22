@@ -1,5 +1,8 @@
+import type { TFunction } from 'i18next';
 import { designKindRegistry } from '../designKinds';
 import type { Mat3 } from '@treemaker/origami-simulator';
+import { untitledCpTitle, untitledDesignTitle, untitledTitle } from '../i18n/documentNames';
+import { identityTranslate } from '../i18n/identityTranslate';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import {
   CREASE_PATTERN_DOCUMENT_ID,
@@ -505,12 +508,13 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
  * strand every project a user has.
  */
 export function createNativeProjectFile(
-  input: NativeProjectDocumentsInput
+  input: NativeProjectDocumentsInput,
+  t: TFunction = identityTranslate
 ): NativeProjectFileV8 {
   const actor = actorFromInput(input);
   const designs: NativeDesignDocumentV8[] = input.designs.map((design) => ({
     id: design.id,
-    title: design.title.trim() || 'Untitled Design',
+    title: design.title.trim() || untitledDesignTitle(t),
     payload: { kind: design.kind, text: design.text, format: design.format },
     viewState: design.viewState ?? {},
     extensions: design.extensions ?? {},
@@ -525,7 +529,8 @@ export function createNativeProjectFile(
           appVersion: input.appVersion,
           now: input.now,
         },
-        CREASE_PATTERN_DOCUMENT_ID
+        CREASE_PATTERN_DOCUMENT_ID,
+        t
       )
     : null;
 
@@ -540,7 +545,7 @@ export function createNativeProjectFile(
     modifiedBy: actor,
     workspace: {
       id: 'workspace',
-      title: input.workspaceTitle.trim() || 'Untitled',
+      title: input.workspaceTitle.trim() || untitledTitle(t),
       activeDocumentId: input.activeDesignId ?? designs[0]?.id ?? CREASE_PATTERN_DOCUMENT_ID,
       designs,
       creasePattern,
@@ -554,7 +559,10 @@ export function createNativeProjectFile(
   };
 }
 
-export function createNativeTreeProjectFile(input: NativeTreeProjectInput): NativeProjectFileV8 {
+export function createNativeTreeProjectFile(
+  input: NativeTreeProjectInput,
+  t: TFunction = identityTranslate
+): NativeProjectFileV8 {
   return createNativeProjectFile({
     workspaceTitle: input.title,
     filename: input.filename,
@@ -571,11 +579,12 @@ export function createNativeTreeProjectFile(input: NativeTreeProjectInput): Nati
     creasePattern: input.creasePatternCompanion ?? null,
     appVersion: input.appVersion,
     now: input.now,
-  });
+  }, t);
 }
 
 export function createNativeBoxPleatProjectFile(
-  input: NativeBoxPleatProjectInput
+  input: NativeBoxPleatProjectInput,
+  t: TFunction = identityTranslate
 ): NativeProjectFileV8 {
   return createNativeProjectFile({
     workspaceTitle: input.title,
@@ -596,14 +605,15 @@ export function createNativeBoxPleatProjectFile(
     creasePattern: input.creasePatternCompanion ?? null,
     appVersion: input.appVersion,
     now: input.now,
-  });
+  }, t);
 }
 
 export function createNativeCreasePatternProjectFile(
-  input: NativeCreasePatternProjectInput
+  input: NativeCreasePatternProjectInput,
+  t: TFunction = identityTranslate
 ): NativeProjectFileV1 {
   const actor = actorFromInput(input);
-  const title = input.title.trim() || input.document.title || 'Untitled CP';
+  const title = input.title.trim() || input.document.title || untitledCpTitle(t);
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
@@ -621,7 +631,7 @@ export function createNativeCreasePatternProjectFile(
       // of a kind this build cannot read are a different matter — they are not
       // "no designs", they are designs it must not touch — so they ride through.
       designs: [],
-      creasePattern: createNativeCreasePatternDocument(input, CREASE_PATTERN_DOCUMENT_ID),
+      creasePattern: createNativeCreasePatternDocument(input, CREASE_PATTERN_DOCUMENT_ID, t),
       unknownDesigns: input.unknownDesigns ?? [],
       viewState: {},
     },
@@ -640,9 +650,10 @@ export function createNativeCreasePatternProjectFile(
 
 function createNativeCreasePatternDocument(
   input: NativeCreasePatternProjectInput,
-  id: string
+  id: string,
+  t: TFunction
 ): NativeCreasePatternDocumentV1 {
-  const title = input.title.trim() || input.document.title || 'Untitled CP';
+  const title = input.title.trim() || input.document.title || untitledCpTitle(t);
   return {
     id,
     kind: 'crease-pattern',

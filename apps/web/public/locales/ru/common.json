@@ -259,6 +259,16 @@
     "reset": "Сбросить",
     "resetNamed": "Сбросить {{label}}"
   },
+  "documentName": {
+    "creasePatternOf": "CP «{{title}}»",
+    "generatedCp": "Сгенерированный CP",
+    "generatedCreasePattern": "Сгенерированная схема складок",
+    "untitled": "Без названия",
+    "untitledBp": "BP без названия",
+    "untitledCp": "CP без названия",
+    "untitledCreasePattern": "Схема складок без названия",
+    "untitledDesign": "Дизайн без названия"
+  },
   "download": {
     "allReleases": "Все загрузки на GitHub",
     "build": {

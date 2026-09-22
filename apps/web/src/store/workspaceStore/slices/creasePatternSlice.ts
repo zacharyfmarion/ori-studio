@@ -76,6 +76,7 @@ import {
   placeFoldedFigureBesideCp,
 } from '../../../cp-workspace/adapters/cpFoldedToScene';
 import i18n from '../../../i18n';
+import { creasePatternOfTitle, generatedCpTitle } from '../../../i18n/documentNames';
 import {
   requestChoice,
   requestConfirmation,
@@ -1534,7 +1535,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         const editableDocument = await loadOristudioCpDocumentFromText(foldJson, {
           format: 'fold',
           filename: `${project.title || 'generated-crease-pattern'}.fold`,
-          title: `${project.title || 'Generated'} CP`,
+          title: project.title
+            ? creasePatternOfTitle(i18n.t, project.title)
+            : generatedCpTitle(i18n.t),
         });
         set({
           ...patchTreemakerDesign(get(), { project }, designId),

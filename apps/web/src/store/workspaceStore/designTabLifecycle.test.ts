@@ -24,7 +24,7 @@ vi.mock('../../engines/designHandles', () => ({
 
 const { useWorkspaceStore } = await import('../workspaceStore');
 const handles = await import('../../engines/designHandles');
-const { DEFAULT_DESIGN_TITLE, resetDesignTabIds, selectDesignMethod } = await import('./designTabs');
+const { defaultDesignTitle, resetDesignTabIds, selectDesignMethod } = await import('./designTabs');
 const { createTreemakerDesignState } = await import('./designContent');
 
 const tabs = () => useWorkspaceStore.getState().designTabs;
@@ -55,9 +55,9 @@ describe('addDesignTab', () => {
     useWorkspaceStore.getState().addDesignTab();
 
     expect(titles()).toEqual([
-      DEFAULT_DESIGN_TITLE,
-      `${DEFAULT_DESIGN_TITLE} 2`,
-      `${DEFAULT_DESIGN_TITLE} 3`,
+      defaultDesignTitle(),
+      `${defaultDesignTitle()} 2`,
+      `${defaultDesignTitle()} 3`,
     ]);
   });
 });
@@ -163,7 +163,7 @@ describe('renameDesignTab', () => {
 
   it('refuses a blank name rather than leaving an unlabelled tab', () => {
     useWorkspaceStore.getState().renameDesignTab(activeId(), '   ');
-    expect(titles()).toEqual([DEFAULT_DESIGN_TITLE]);
+    expect(titles()).toEqual([defaultDesignTitle()]);
   });
 });
 

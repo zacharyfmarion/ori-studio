@@ -259,6 +259,16 @@
     "reset": "Zurücksetzen",
     "resetNamed": "{{label}} zurücksetzen"
   },
+  "documentName": {
+    "creasePatternOf": "{{title}} CP",
+    "generatedCp": "Generiertes CP",
+    "generatedCreasePattern": "Generiertes Faltmuster",
+    "untitled": "Unbenannt",
+    "untitledBp": "Unbenanntes BP",
+    "untitledCp": "Unbenanntes CP",
+    "untitledCreasePattern": "Unbenanntes Faltmuster",
+    "untitledDesign": "Unbenanntes Design"
+  },
   "download": {
     "allReleases": "Alle Downloads auf GitHub",
     "build": {

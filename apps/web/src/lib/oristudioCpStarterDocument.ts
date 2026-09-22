@@ -3,6 +3,8 @@ import type {
   OristudioCpGridMetadata,
   OristudioCpLineSegment,
 } from '../engine/oristudioCpTypes';
+import { untitledCpTitle } from '../i18n/documentNames';
+import { identityTranslate } from '../i18n/identityTranslate';
 import { ORIEDITA_PAPER_MAX, ORIEDITA_PAPER_MIN } from './creasePatternViewport';
 
 const STARTER_BORDER_COLOR = 'Black0';
@@ -24,8 +26,14 @@ export const STARTER_ORISTUDIO_CP_GRID: OristudioCpGridMetadata = {
   draw_diagonal_gridlines: false,
 };
 
+/**
+ * The document `/edit` and File › New Crease Pattern open on.
+ *
+ * The runtime names it in the app's language; the default here is the English
+ * the tests and any other pure caller expect.
+ */
 export function createStarterOristudioCpDocument(
-  title = 'Untitled CP'
+  title: string = untitledCpTitle(identityTranslate)
 ): OristudioCpDocumentSnapshot {
   return {
     title,

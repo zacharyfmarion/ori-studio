@@ -1,5 +1,8 @@
+import type { TFunction } from 'i18next';
 import type { Point } from './geometry';
 import type { ConditionKind } from '../engine/types';
+import { untitledTitle } from '../i18n/documentNames';
+import { identityTranslate } from '../i18n/identityTranslate';
 
 export type Selection =
   | { kind: 'tree' }
@@ -102,9 +105,13 @@ export interface TreeProject {
   conditions: TreeCondition[];
 }
 
-export function createEmptyProject(): TreeProject {
+/**
+ * A tree with nothing in it. `t` names it in the app's language; the frozen
+ * `EMPTY_PROJECT` and the tests take the English default.
+ */
+export function createEmptyProject(t: TFunction = identityTranslate): TreeProject {
   return {
-    title: 'Untitled',
+    title: untitledTitle(t),
     paper: { width: 1, height: 1, symLoc: { x: 0.5, y: 0.5 }, symAngle: 90 },
     scale: 0.1,
     hasSymmetry: false,

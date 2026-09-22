@@ -259,6 +259,16 @@
     "reset": "重置为默认",
     "resetNamed": "将 {{label}} 重置为默认"
   },
+  "documentName": {
+    "creasePatternOf": "{{title}} 的 CP",
+    "generatedCp": "生成的 CP",
+    "generatedCreasePattern": "生成的折痕图",
+    "untitled": "未命名",
+    "untitledBp": "未命名 BP",
+    "untitledCp": "未命名 CP",
+    "untitledCreasePattern": "未命名折痕图",
+    "untitledDesign": "未命名设计"
+  },
   "download": {
     "allReleases": "GitHub 上的所有下载",
     "build": {

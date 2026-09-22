@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { TFunction } from 'i18next';
 import { SITE_NAME, SITE_TITLE } from '../seo/siteMeta';
 import { formatWindowTitle } from './windowTitle';
 
@@ -43,6 +44,16 @@ describe('window title formatting', () => {
    * `Untitled.osf` from `defaultNativeFilename` — so a name-based check would
    * title the window after a file that does not exist.
    */
+  it('names a blank project Untitled in the language of the translator it is given', () => {
+    expect(formatWindowTitle({ projectTitle: '   ', dirty: false, surface: 'web' })).toBe(
+      'Untitled - Ori Studio'
+    );
+    const inJapanese = ((_key: string) => '無題') as unknown as TFunction;
+    expect(
+      formatWindowTitle({ projectTitle: '   ', dirty: true, surface: 'web', t: inJapanese })
+    ).toBe('*無題 - Ori Studio');
+  });
+
   it('ignores a synthesized filename when nothing has been written to disk', () => {
     expect(
       formatWindowTitle({

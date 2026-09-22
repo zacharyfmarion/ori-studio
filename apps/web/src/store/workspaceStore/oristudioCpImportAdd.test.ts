@@ -20,6 +20,7 @@ import type {
   OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import { createStarterOristudioCpDocument } from '../../lib/oristudioCpStarterDocument';
+import { preloadLocale } from '../../test/preloadLocale';
 
 const documents = new Map<number, OristudioCpDocumentSnapshot>();
 let nextHandle = 1;
@@ -179,6 +180,9 @@ const UNASSIGNED_DIAGONAL_TEXT = JSON.stringify({
 });
 
 beforeEach(async () => {
+  // A blank document waits (bounded) for the language's catalog before naming
+  // itself; jsdom never delivers one, so seed it rather than pay the bound.
+  preloadLocale();
   await releaseOristudioCpDocument();
   documents.clear();
   nextHandle = 1;

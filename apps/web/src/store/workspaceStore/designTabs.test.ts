@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_DESIGN_TITLE, clearActiveDesignContent, markActiveTabBoxPleat, activeDesignTab, createDesignTab, designMethodOf, initialDesignTabs, nextDesignTabId, resetDesignTabIds, selectDesignMethod, singleDesignTab, type DesignTab, uniqueDesignTitle, withActiveTab } from './designTabs';
+import i18n from '../../i18n';
+import { preloadLocale } from '../../test/preloadLocale';
+import { defaultDesignTitle, clearActiveDesignContent, markActiveTabBoxPleat, activeDesignTab, createDesignTab, designMethodOf, initialDesignTabs, nextDesignTabId, resetDesignTabIds, selectDesignMethod, singleDesignTab, type DesignTab, uniqueDesignTitle, withActiveTab } from './designTabs';
 
 beforeEach(() => {
   resetDesignTabIds();
@@ -26,19 +28,45 @@ describe('ids', () => {
 
 describe('titles', () => {
   it('leave a lone tab without a pointless suffix', () => {
-    expect(uniqueDesignTitle([])).toBe(DEFAULT_DESIGN_TITLE);
+    expect(uniqueDesignTitle([])).toBe(defaultDesignTitle());
   });
 
   it('suffix only on collision, starting at 2', () => {
-    const one = [tab('a', null, DEFAULT_DESIGN_TITLE)];
-    expect(uniqueDesignTitle(one)).toBe(`${DEFAULT_DESIGN_TITLE} 2`);
+    const one = [tab('a', null, defaultDesignTitle())];
+    expect(uniqueDesignTitle(one)).toBe(`${defaultDesignTitle()} 2`);
 
-    const two = [...one, tab('b', null, `${DEFAULT_DESIGN_TITLE} 2`)];
-    expect(uniqueDesignTitle(two)).toBe(`${DEFAULT_DESIGN_TITLE} 3`);
+    const two = [...one, tab('b', null, `${defaultDesignTitle()} 2`)];
+    expect(uniqueDesignTitle(two)).toBe(`${defaultDesignTitle()} 3`);
   });
 
   it('respects an explicit base name', () => {
     expect(uniqueDesignTitle([tab('a', null, 'Crane')], 'Crane')).toBe('Crane 2');
+  });
+
+  /**
+   * The default is read at each call rather than frozen at module load, so a
+   * tab made after the catalog arrives is named in the app's language, and the
+   * collision check is against that same string.
+   */
+  it('names a new tab in the app’s language and suffixes a duplicate of it', async () => {
+    preloadLocale('ja');
+    i18n.addResourceBundle(
+      'ja',
+      'common',
+      { documentName: { untitledDesign: '無題のデザイン' } },
+      true,
+      true
+    );
+    await i18n.changeLanguage('ja');
+    try {
+      expect(defaultDesignTitle()).toBe('無題のデザイン');
+      expect(uniqueDesignTitle([])).toBe('無題のデザイン');
+      expect(uniqueDesignTitle([tab('a', null, '無題のデザイン')])).toBe('無題のデザイン 2');
+      // A tab named before the switch keeps its name and does not collide.
+      expect(uniqueDesignTitle([tab('a', null, 'Untitled Design')])).toBe('無題のデザイン');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });
 
@@ -48,7 +76,7 @@ describe('createDesignTab', () => {
     expect(created).toEqual({
       id: 'design-1',
       kind: null,
-      title: DEFAULT_DESIGN_TITLE,
+      title: defaultDesignTitle(),
       paneLayout: null,
       pendingHydration: false,
     });

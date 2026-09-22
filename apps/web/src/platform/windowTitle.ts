@@ -1,3 +1,6 @@
+import type { TFunction } from 'i18next';
+import { untitledTitle } from '../i18n/documentNames';
+import { identityTranslate } from '../i18n/identityTranslate';
 import { SITE_NAME } from '../seo/siteMeta';
 import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
@@ -35,6 +38,11 @@ export interface WindowTitleInput {
    */
   pageTitle?: string;
   surface?: RuntimeSurface;
+  /**
+   * Names a project whose title is blank. The hook threads its live `t` so the
+   * fallback reads "Untitled" in the app's language; a pure caller may omit it.
+   */
+  t?: TFunction;
 }
 
 export function formatWindowTitle({
@@ -44,6 +52,7 @@ export function formatWindowTitle({
   filePath = null,
   pageTitle,
   surface = getRuntimeSurface(),
+  t = identityTranslate,
 }: WindowTitleInput): string {
   // Two different answers on purpose, because the string lands in two different
   // places. In a browser it is the tab *and* the search result, so it is the
@@ -52,7 +61,7 @@ export function formatWindowTitle({
   if (pageTitle) return surface === 'desktop' ? SITE_NAME : pageTitle;
 
   const fromFile = filePath ? (fileName?.trim() ?? '') : '';
-  const title = fromFile || projectTitle.trim() || 'Untitled';
+  const title = fromFile || projectTitle.trim() || untitledTitle(t);
   const dirtyMark = dirty ? '*' : '';
   return `${dirtyMark}${title} - ${SITE_NAME}`;
 }

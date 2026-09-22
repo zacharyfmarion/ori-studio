@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { applyWindowTitle, formatWindowTitle } from '../platform/windowTitle';
 import { sitePageForPath } from '../site/sitePages';
@@ -34,8 +35,12 @@ import { useWorkspaceStore } from '../store/workspaceStore';
  * site as — see the `pageTitle` note in `formatWindowTitle`. The registry answers
  * which pages those are, so a page added there is titled correctly without this
  * hook hearing about it.
+ *
+ * `t` goes in so a project with a blank title is called "Untitled" in the app's
+ * language, and `t` is a dependency so a language switch retitles the window.
  */
 export function useWindowTitle() {
+  const { t } = useTranslation();
   const { pathname } = useLocation();
   const workspaceTitle = useWorkspaceStore((state) => state.workspaceTitle);
   const dirty = useWorkspaceStore((state) => state.dirty);
@@ -45,7 +50,7 @@ export function useWindowTitle() {
 
   useEffect(() => {
     void applyWindowTitle(
-      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath, pageTitle })
+      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath, pageTitle, t })
     );
-  }, [dirty, fileName, filePath, pageTitle, workspaceTitle]);
+  }, [dirty, fileName, filePath, pageTitle, t, workspaceTitle]);
 }

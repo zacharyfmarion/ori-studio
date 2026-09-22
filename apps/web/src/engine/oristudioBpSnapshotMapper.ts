@@ -36,6 +36,9 @@ import type {
   OristudioBpWasmTreeData,
   OristudioBpWasmTreeNode,
 } from './oristudioBpTypes';
+import type { TFunction } from 'i18next';
+import { untitledBpTitle } from '../i18n/documentNames';
+import { identityTranslate } from '../i18n/identityTranslate';
 import { bpFlapLabel } from '../lib/bpFlapLabel';
 
 const MAX_TREE_HEIGHT = 11_586;
@@ -61,6 +64,8 @@ export interface OristudioBpStateFromRawInput {
   source: OristudioBpSourceRef;
   activeSurface?: OristudioBpDocumentState['activeSurface'];
   dirty?: boolean;
+  /** Names a project whose file carries no title; the runtime passes the app's. */
+  t?: TFunction;
 }
 
 export function oristudioBpProjectStateFromRaw(
@@ -79,7 +84,8 @@ export function oristudioBpProjectStateFromRaw(
       input.treeData ?? null,
       input.layoutSnapshot ?? null,
       input.packingValidation ?? null,
-      input.layoutError ?? null
+      input.layoutError ?? null,
+      input.t ?? identityTranslate
     ),
     history: historySummary(input.project),
     optimizer: defaultOptimizerState(),
@@ -94,7 +100,8 @@ export function oristudioBpProjectSnapshotFromRaw(
   treeData: OristudioBpWasmTreeData | null = null,
   layoutSnapshot: OristudioBpWasmLayoutSnapshot | null = null,
   packingValidation: OristudioBpWasmPackingValidation | null = null,
-  layoutError: string | null = null
+  layoutError: string | null = null,
+  t: TFunction = identityTranslate
 ): OristudioBpProjectSnapshot {
   const tree = treeView(
     project.design.tree.sheet,
@@ -105,7 +112,7 @@ export function oristudioBpProjectSnapshotFromRaw(
   );
   const packing = packingView(project, tree, layoutSnapshot, packingValidation);
   return {
-    summary: projectSummary(project, packing, wasmSummary),
+    summary: projectSummary(project, packing, wasmSummary, t),
     tree,
     packing,
     diagnostics: projectDiagnostics(
@@ -127,11 +134,12 @@ export function oristudioBpProjectSnapshotFromRaw(
 function projectSummary(
   project: OristudioBpRawProject,
   packing: OristudioBpPackingView,
-  wasmSummary: OristudioBpWasmProjectSummary | null
+  wasmSummary: OristudioBpWasmProjectSummary | null,
+  t: TFunction
 ): OristudioBpProjectSummary {
   const degrees = vertexDegrees(project.design.tree.edges);
   return {
-    title: project.design.title || wasmSummary?.title || 'Untitled BP',
+    title: project.design.title || wasmSummary?.title || untitledBpTitle(t),
     description: project.design.description ?? null,
     upstreamVersion: project.version || wasmSummary?.version || null,
     treeVertices: wasmSummary?.tree_nodes ?? project.design.tree.nodes.length,

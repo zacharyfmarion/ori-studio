@@ -259,6 +259,16 @@
     "reset": "기본값으로 재설정",
     "resetNamed": "{{label}}을(를) 기본값으로 재설정"
   },
+  "documentName": {
+    "creasePatternOf": "{{title}} CP",
+    "generatedCp": "생성된 CP",
+    "generatedCreasePattern": "생성된 전개도",
+    "untitled": "제목 없음",
+    "untitledBp": "제목 없는 BP",
+    "untitledCp": "제목 없는 CP",
+    "untitledCreasePattern": "제목 없는 전개도",
+    "untitledDesign": "제목 없는 디자인"
+  },
   "download": {
     "allReleases": "GitHub의 모든 다운로드",
     "build": {

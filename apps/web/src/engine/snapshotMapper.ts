@@ -1,4 +1,7 @@
+import type { TFunction } from 'i18next';
 import type { TreeSnapshot } from './types';
+import { generatedCreasePatternTitle, untitledTitle } from '../i18n/documentNames';
+import { identityTranslate } from '../i18n/identityTranslate';
 import type { CreaseLine, FacetShape, TreeProject } from '../lib/sampleProject';
 
 function isTreeOwner(owner: unknown): boolean {
@@ -57,10 +60,15 @@ function isDesignVisiblePath(path: TreeSnapshot['paths'][number]): boolean {
   );
 }
 
-export function projectFromSnapshot(snapshot: TreeSnapshot, titleOverride?: string): TreeProject {
+export function projectFromSnapshot(
+  snapshot: TreeSnapshot,
+  titleOverride?: string,
+  t: TFunction = identityTranslate
+): TreeProject {
   const vertexLocs = new Map(snapshot.vertices.map((vertex) => [vertex.id, vertex.loc]));
   const title =
-    titleOverride ?? (snapshot.summary.creases > 0 ? 'Generated crease pattern' : 'Untitled');
+    titleOverride ??
+    (snapshot.summary.creases > 0 ? generatedCreasePatternTitle(t) : untitledTitle(t));
 
   return {
     title,

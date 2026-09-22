@@ -10,8 +10,10 @@ import {
   singleTreemakerDesignTab,
 } from '../store/workspaceStore/designTabs';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import i18n from '../i18n';
 import { EDIT_PATH, WELCOME_PATH } from '../routing/paths';
 import { CONTENT_PAGES } from '../site/sitePages';
+import { preloadLocale } from '../test/preloadLocale';
 
 /**
  * The window title names the **open file**, falling back to the **project** —
@@ -118,6 +120,24 @@ describe('useWindowTitle', () => {
   it('falls back to Untitled only when the project genuinely has no name', () => {
     mountWith({ workspaceTitle: '  ', dirty: false, ...singleTreemakerDesignTab() });
     expect(window.document.title).toBe('Untitled - Ori Studio');
+  });
+
+  it('falls back to Untitled in the app’s language', async () => {
+    // The catalogs never load under jsdom (no network), so the test supplies the
+    // one key and switches language the way the Settings picker does.
+    preloadLocale('ja');
+    i18n.addResourceBundle('ja', 'common', { documentName: { untitled: '無題' } }, true, true);
+    await act(async () => {
+      await i18n.changeLanguage('ja');
+    });
+    try {
+      mountWith({ workspaceTitle: '  ', dirty: false, ...singleTreemakerDesignTab() });
+      expect(window.document.title).toBe('無題 - Ori Studio');
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
   });
 
   it('names the window after the open file, not the project inside it', () => {

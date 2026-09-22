@@ -259,6 +259,16 @@
     "reset": "Restablecer",
     "resetNamed": "Restablecer {{label}}"
   },
+  "documentName": {
+    "creasePatternOf": "CP de {{title}}",
+    "generatedCp": "CP generado",
+    "generatedCreasePattern": "Patrón de pliegues generado",
+    "untitled": "Sin título",
+    "untitledBp": "BP sin título",
+    "untitledCp": "CP sin título",
+    "untitledCreasePattern": "Patrón de pliegues sin título",
+    "untitledDesign": "Diseño sin título"
+  },
   "download": {
     "allReleases": "Todas las descargas en GitHub",
     "build": {

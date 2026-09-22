@@ -17,7 +17,7 @@ vi.mock('../../engines/designHandles', () => ({
 }));
 
 const { useWorkspaceStore } = await import('../../store/workspaceStore');
-const { DEFAULT_DESIGN_TITLE, resetDesignTabIds } = await import(
+const { defaultDesignTitle, resetDesignTabIds } = await import(
   '../../store/workspaceStore/designTabs'
 );
 const { TooltipProvider } = await import('../ui/Tooltip');
@@ -238,7 +238,7 @@ describe('inline rename', () => {
     type(input, 'Crane');
     key(input, 'Escape');
 
-    expect(store().designTabs[0].title).toBe(DEFAULT_DESIGN_TITLE);
+    expect(store().designTabs[0].title).toBe(defaultDesignTitle());
   });
 
   it('commits once when Enter is followed by the blur it causes', () => {

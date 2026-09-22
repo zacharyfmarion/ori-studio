@@ -1,4 +1,5 @@
 import type { OptimizationReport } from '../../engine/types';
+import i18n from '../../i18n';
 import { createEmptyProject } from '../../lib/sampleProject';
 import type { Selection, ToolMode, TreeProject } from '../../lib/sampleProject';
 import type { SymmetryAuthoringPair } from '../../lib/symmetryAuthoring';
@@ -97,7 +98,7 @@ export function createTreemakerDesignState(
   overrides: Partial<TreemakerDesignState> = {}
 ): TreemakerDesignState {
   return {
-    project: createEmptyProject(),
+    project: createEmptyProject(i18n.t),
     selection: { kind: 'tree' },
     toolMode: 'select',
     symmetryAuthoringPairs: [],

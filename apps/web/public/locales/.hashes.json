@@ -3102,7 +3102,15 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6207,7 +6215,15 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9314,7 +9330,15 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12362,7 +12386,15 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15410,7 +15442,15 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18515,7 +18555,15 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21620,7 +21668,15 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24668,6 +24724,14 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "common:documentName.creasePatternOf": "4599a2357e8d",
+    "common:documentName.generatedCp": "35fb71886e96",
+    "common:documentName.generatedCreasePattern": "4ed98acccc17",
+    "common:documentName.untitled": "f59ab8d1331b",
+    "common:documentName.untitledBp": "2f2e14466743",
+    "common:documentName.untitledCp": "3dd3b34b7fbe",
+    "common:documentName.untitledCreasePattern": "ee9196092780",
+    "common:documentName.untitledDesign": "267734aad124"
   }
 }

@@ -1,10 +1,16 @@
 import {
   activeDesignTab,
+  defaultDesignTitle,
   selectDesignMethod,
   selectOristudioBpDocument,
   selectProject,
 } from './designTabs';
 import { registerActiveDesignSource } from './activeDesignSource';
+import i18n from '../../i18n';
+import { untitledTitle } from '../../i18n/documentNames';
+import { DEFAULT_NAMESPACE } from '../../i18n/locales';
+import { NATIVE_PROJECT_EXTENSION } from '../../lib/nativeProjectFile';
+import { exportFilename } from '../../platform/exportFilename';
 import { registerActivePanelSink, registerDesignPaneLayoutReset } from '../layoutStore';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
@@ -98,6 +104,53 @@ useWorkspaceStore.subscribe((state) => {
     selectProject(state).edges.length > 0;
   if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
 });
+
+// Name the placeholders again once the language is known.
+//
+// The initial state is built at module load, before any catalog could have
+// arrived, so its placeholder names — the workspace title, the synthesized
+// filename, the chooser tab's title — are English whatever language the app is
+// about to run in. The moment to name them in it is when the language's
+// `common` catalog lands in the store (`added`), and again on every switch in
+// Settings (`languageChanged`, which also covers a switch onto a catalog that
+// is already here). `added` rather than `languageChanged` alone for the cold
+// path, and on purpose: a cold `/edit` names its blank crease pattern as soon
+// as that same catalog lands and establishes the project a worker round-trip
+// later, whereas `languageChanged` waits for every namespace — so the
+// workspace placeholder must be renamed at the earlier event, or the flag would
+// already be set and the window title would stay English.
+//
+// Only a name still carrying the placeholder is touched, so a project that has
+// been established keeps its title (an opened file really can be called
+// "Untitled"), and a tab someone renamed keeps its name the way any document
+// keeps a name the user gave it. A chooser tab is renamed whether or not a
+// project exists: it has chosen nothing, so its default is nobody's.
+let placeholderTitle = useWorkspaceStore.getState().workspaceTitle;
+let placeholderTabTitle = defaultDesignTitle();
+i18n.on('languageChanged', reseedPlaceholderNames);
+i18n.store.on('added', (lng: string, ns: string) => {
+  if (lng === i18n.language && ns === DEFAULT_NAMESPACE) reseedPlaceholderNames();
+});
+function reseedPlaceholderNames() {
+  const state = useWorkspaceStore.getState();
+  const title = untitledTitle(i18n.t);
+  const tabTitle = defaultDesignTitle();
+  const patch: Partial<WorkspaceState> = {};
+  if (!state.projectEstablished && state.workspaceTitle === placeholderTitle) {
+    patch.workspaceTitle = title;
+    patch.currentFileName = exportFilename(title, NATIVE_PROJECT_EXTENSION, i18n.t);
+  }
+  const wearsPlaceholder = (tab: WorkspaceState['designTabs'][number]) =>
+    tab.kind === null && !tab.pendingHydration && tab.title === placeholderTabTitle;
+  if (state.designTabs.some(wearsPlaceholder)) {
+    patch.designTabs = state.designTabs.map((tab) =>
+      wearsPlaceholder(tab) ? { ...tab, title: tabTitle } : tab
+    );
+  }
+  if (Object.keys(patch).length > 0) useWorkspaceStore.setState(patch);
+  placeholderTitle = title;
+  placeholderTabTitle = tabTitle;
+}
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const debugWindow = window as Window & {

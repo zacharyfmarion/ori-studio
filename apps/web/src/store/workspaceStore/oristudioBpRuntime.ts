@@ -10,6 +10,7 @@ import {
   oristudioBpProjectStateFromRaw,
   type OristudioBpStateFromRawInput,
 } from '../../engine/oristudioBpSnapshotMapper';
+import i18n from '../../i18n';
 import type { OptimizerSymmetryPayload } from '../../lib/bpOptimizerSymmetry';
 import type {
   OristudioBpDocumentState,
@@ -823,6 +824,7 @@ async function buildProjectState(
     layoutSnapshot: layout.snapshot,
     layoutError: layout.error,
     packingValidation,
+    t: i18n.t,
   });
 }
 
@@ -863,6 +865,7 @@ async function buildOpenedProjectState(
     packingValidation: await api.packingValidation(opened.handle).catch(() => null),
     source,
     ...options,
+    t: i18n.t,
   });
 }
 

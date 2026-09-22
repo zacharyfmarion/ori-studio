@@ -1,5 +1,8 @@
 import { prepareFoldModel, type FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
+import type { TFunction } from 'i18next';
 import type { FoldAssignment, FoldArtifacts, FoldDocument } from '../engine/types';
+import { untitledCreasePatternTitle } from '../i18n/documentNames';
+import { identityTranslate } from '../i18n/identityTranslate';
 import { remapEdgeExtensionArrays } from './foldEdgeArrays';
 import type { CreaseLine, FacetShape, TreeProject } from './sampleProject';
 
@@ -105,9 +108,15 @@ export function importedCreasePatternFormat(filename: string): ImportedCreasePat
   return 'fold';
 }
 
+/**
+ * `t` names a pattern whose file has no title and no filename stem to borrow —
+ * in the app's language when the store passes its translator, in English for a
+ * pure caller.
+ */
 export function parseImportedCreasePattern(
   text: string,
-  source: ImportedCreasePatternSource
+  source: ImportedCreasePatternSource,
+  t: TFunction = identityTranslate
 ): ImportedCreasePatternResult {
   if (source.format === 'ori' || source.format === 'orh') {
     throw new Error('Oriedita native files must be imported through the native Oriedita runtime');
@@ -115,8 +124,8 @@ export function parseImportedCreasePattern(
   const diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] };
   const parsed =
     source.format === 'cp'
-      ? parseCpText(text, source.filename, diagnostics)
-      : parseFoldText(text, source.filename, diagnostics);
+      ? parseCpText(text, source.filename, diagnostics, t)
+      : parseFoldText(text, source.filename, diagnostics, t);
   return buildImportedCreasePatternResult(parsed, source, diagnostics);
 }
 
@@ -125,10 +134,11 @@ export function parseImportedCreasePattern(
 // but without the stringify + re-parse of a potentially very large projection.
 export function parseImportedCreasePatternFromFold(
   fold: unknown,
-  source: ImportedCreasePatternSource
+  source: ImportedCreasePatternSource,
+  t: TFunction = identityTranslate
 ): ImportedCreasePatternResult {
   const diagnostics: ImportedCreasePatternDiagnostics = { warnings: [], errors: [] };
-  const parsed = parseFoldValue(fold, source.filename, diagnostics);
+  const parsed = parseFoldValue(fold, source.filename, diagnostics, t);
   return buildImportedCreasePatternResult(parsed, source, diagnostics);
 }
 
@@ -246,7 +256,8 @@ export function segmentationFoldArtifactsFromFold(
 function parseCpText(
   text: string,
   filename: string,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
+  t: TFunction
 ): {
   title: string;
   selectedFrame: null;
@@ -282,13 +293,14 @@ function parseCpText(
     throw new Error('CP file did not contain any valid crease segments');
   }
 
+  const title = basenameWithoutExtension(filename, t);
   return {
-    title: basenameWithoutExtension(filename),
+    title,
     selectedFrame: null,
     foldFrames: [],
     foldedFormFrames: [],
     sourceFold: null,
-    fold: foldFromSegments(segments, basenameWithoutExtension(filename)),
+    fold: foldFromSegments(segments, title),
   };
 }
 
@@ -304,7 +316,8 @@ interface ParsedFoldSource {
 function parseFoldText(
   text: string,
   filename: string,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
+  t: TFunction
 ): ParsedFoldSource {
   let parsed: unknown;
   try {
@@ -314,7 +327,7 @@ function parseFoldText(
       cause: error,
     });
   }
-  return parseFoldValue(parsed, filename, diagnostics);
+  return parseFoldValue(parsed, filename, diagnostics, t);
 }
 
 // Same as parseFoldText but for an already-parsed FOLD object. The native `.osf`
@@ -324,7 +337,8 @@ function parseFoldText(
 function parseFoldValue(
   parsed: unknown,
   filename: string,
-  diagnostics: ImportedCreasePatternDiagnostics
+  diagnostics: ImportedCreasePatternDiagnostics,
+  t: TFunction
 ): ParsedFoldSource {
   if (!isRecord(parsed)) throw new Error('FOLD file must contain a JSON object');
 
@@ -336,7 +350,7 @@ function parseFoldValue(
     stringField(chosen.frame.frame_title) ??
     stringField(parsed.file_title) ??
     stringField(chosen.frame.file_title) ??
-    basenameWithoutExtension(filename);
+    basenameWithoutExtension(filename, t);
 
   const fold = normalizeFoldObject(chosen.frame, title, diagnostics);
   return {
@@ -1123,8 +1137,8 @@ function coordToPoint(coord: number[]): RawPoint {
   return { x: coord[0] ?? 0, y: coord.length === 2 ? (coord[1] ?? 0) : (coord[2] ?? coord[1] ?? 0) };
 }
 
-function basenameWithoutExtension(filename: string): string {
-  return filename.replace(/\.[^.]+$/u, '') || 'Untitled crease pattern';
+function basenameWithoutExtension(filename: string, t: TFunction): string {
+  return filename.replace(/\.[^.]+$/u, '') || untitledCreasePatternTitle(t);
 }
 
 function interpolate(segment: NormalizedSegment, t: number): RawPoint {
