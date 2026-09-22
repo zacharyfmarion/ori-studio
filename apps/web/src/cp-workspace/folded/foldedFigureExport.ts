@@ -26,15 +26,17 @@ import type { Point } from '../../lib/geometry';
  * What *does* come through here is a figure reopened from a file and not yet
  * rehydrated: it has no render model or handle to build a scene from, so its
  * stored `renderSnapshot` — the same picture the canvas and the CP export
- * dialog draw for it (R7) — is serialized as it always was, until the scene is
- * what gets stored (Phase 7 of
- * `implementation-plans/unified-paper-style-and-export.md`). So does a flat
+ * dialog draw for it (R7) — is serialized as it always was. So does a flat
  * figure in a display style the paper scene has no form for (`Wire2`,
  * `None0`, the development views).
  *
- * A 3D figure's stored picture is fitted to the figure's frame at any zoom,
- * and keeps the **red annotation** on cells whose order the solver could not
- * decide, which the window has no third colour for.
+ * A **3D** figure reaches here only from a file written before its stored
+ * picture became a `PaperScene` (Phase 7 of
+ * `implementation-plans/unified-paper-style-and-export.md`): a figure with a
+ * scene and no handle re-paints that scene through the painter instead. Such a
+ * snapshot is fitted to the figure's frame at any zoom, and keeps the **red
+ * annotation** on cells whose order the solver could not decide, which nothing
+ * draws any more.
  */
 
 /** Formats a folded figure can be exported to: it is geometry, so images only. */

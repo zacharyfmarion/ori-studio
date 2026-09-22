@@ -57,6 +57,22 @@ export function useObjectPaperStyle(entry: PaperObject): PaperStyle {
 }
 
 /**
+ * Each object's effective style, live on the display style.
+ *
+ * A function of the entry rather than a value, so the crease-pattern canvas can
+ * hand it to `cpFoldedToScene` for every figure it draws: a 3D figure's stored
+ * scene carries geometry and roles and no ink, and this is where the ink comes
+ * from. Stable while the display style is, so the geometry memo behind it is.
+ */
+export function useObjectPaperStyleOf(): (entry: PaperObject) => PaperStyle {
+  const display = useSettingsStore((state) => state.paperStyle.display);
+  return useCallback(
+    (entry: PaperObject) => effectivePaperStyle(display, entry.appearance),
+    [display]
+  );
+}
+
+/**
  * Each object's effective edge pen width in pt, live on the display style.
  *
  * The crease-pattern canvas draws every folded figure's strokes through one

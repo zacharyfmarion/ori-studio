@@ -5,7 +5,7 @@ import type {
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import type { FoldedFigureCamera } from './foldedFigure3dProjection';
+import type { FoldedFigureCamera } from './folded3dCamera';
 import { foldedFigureGesture } from './foldedFigureGesture';
 
 /**

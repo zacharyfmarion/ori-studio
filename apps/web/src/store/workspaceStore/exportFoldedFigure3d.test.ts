@@ -27,9 +27,9 @@ const { DEFAULT_PAPER_STYLE } = await import('../../lib/paper/paperStyle');
 const { DEFAULT_PAPER_EXPORT_SETTINGS } = await import('../../lib/paperExportSettings');
 const { resetFolded3dRenderModels, setFolded3dRenderModel } =
   await import('../../cp-workspace/folded/folded3dRenderModels');
-const { DEFAULT_FOLDED_3D_CAMERA, folded3dFrameRadius, projectFolded3dModel } =
-  await import('../../cp-workspace/folded/foldedFigure3dProjection');
-const { folded3dPaperStyle } = await import('../../cp-workspace/folded/folded3dStyle');
+const { DEFAULT_FOLDED_3D_CAMERA, folded3dFrameRadius } =
+  await import('../../cp-workspace/folded/folded3dCamera');
+const { folded3dFigureScene } = await import('../../cp-workspace/folded/folded3dStoredScene');
 const { resetFoldedModelWriteQueueForTests } =
   await import('../../cp-workspace/folded/foldedModelWriteQueue');
 const { IDENTITY_FOLDED_PLACEMENT } = await import('../../engine/oristudioCpTypes');
@@ -70,15 +70,12 @@ const TOLERANCES = {
   overlap_area_relative: 1e-9,
 };
 
-/** A 3D figure as the fold leaves it: the projector's picture stored, the frame recorded. */
+/** A 3D figure as the fold leaves it: the window's scene stored, the frame recorded. */
 function spatial(overrides: Partial<Entry> = {}): Entry {
-  const renderSnapshot = projectFolded3dModel(RENDER_MODEL, {
-    camera: DEFAULT_FOLDED_3D_CAMERA,
-    displayStyle: 'Paper5',
-    style: folded3dPaperStyle(MODEL),
-    tolerances: TOLERANCES,
-  }).snapshot;
-  return {
+  const folded3d = { model: MODEL, diagnostics: { tolerances: TOLERANCES } } as unknown as NonNullable<
+    Entry['folded3d']
+  >;
+  const base = {
     id: 'spatial-1',
     title: 'Folded model 1',
     handle: HANDLE,
@@ -88,14 +85,19 @@ function spatial(overrides: Partial<Entry> = {}): Entry {
     displayStyle: 'Paper5',
     status: 'ready',
     snapshot: null,
-    folded3d: { model: MODEL, diagnostics: { tolerances: TOLERANCES } } as unknown as NonNullable<
-      Entry['folded3d']
-    >,
-    renderSnapshot,
+    folded3d,
+    renderSnapshot: null,
     placement: IDENTITY_FOLDED_PLACEMENT,
     camera: DEFAULT_FOLDED_3D_CAMERA,
     frameRadius: folded3dFrameRadius(RENDER_MODEL),
     error: null,
+  } as Entry;
+  return {
+    ...base,
+    scene: folded3dFigureScene(base, RENDER_MODEL, {
+      style: DEFAULT_PAPER_STYLE,
+      space: 'document',
+    }),
     ...overrides,
   };
 }
@@ -177,7 +179,7 @@ describe('exporting a 3D folded figure with a live kernel', () => {
     expect(files.saveTextFile).toHaveBeenCalledTimes(1);
     const { contents, suggestedName } = files.saveTextFile.mock.calls[0]![0];
     expect(suggestedName).toMatch(/^Crane.*\.svg$/);
-    // The painter's page, in points, not the projector's 1024 px document.
+    // The painter's page, in points, not the stored snapshot's 1024 px document.
     expect(contents).toMatch(/<svg[^>]* width="[\d.]+pt"/);
     expect(contents).not.toContain('aria-label="Folded figure"');
     expect(contents).toContain('fill="#123456"');
@@ -273,10 +275,72 @@ describe('exporting a 3D folded figure with a live kernel', () => {
 });
 
 describe('exporting a 3D folded figure without a kernel', () => {
-  it('serializes the stored picture, as the canvas draws it, and fires no paper event', async () => {
-    // Reopened from a file: no handle, so no render model — the projector's
-    // stored snapshot is the picture (R7, until Phase 7).
+  it('re-paints the stored scene on the export page', async () => {
+    // Reopened from a file: no handle, so no render model and no fresh scene.
+    // The picture the canvas is drawing is the stored one (R7), and it goes
+    // through the same painter at the export style — only the framing is the
+    // picture's, since there is no live mesh to re-frame it from. So this is
+    // a painted export and says so.
     useWorkspaceStore.setState({ oristudioCpFoldedFigures: [spatial({ handle: null })] });
+    const files = fileServiceMock();
+
+    const done = await useWorkspaceStore
+      .getState()
+      .exportOristudioCpFoldedFigure('svg', 'spatial-1', files);
+
+    expect(done).toBe(true);
+    const { contents } = files.saveTextFile.mock.calls[0]![0];
+    expect(contents).toMatch(/width="[\d.]+pt"/);
+    expect(contents).not.toContain('aria-label="Folded figure"');
+    expect(paperExported()).toEqual([{ surface: 'folded-3d', format: 'svg', hidden_faces: 'kept' }]);
+  });
+
+  it('paints the stored picture at the size the live path would have given it', async () => {
+    // The stored scene is in the figure's local user space, and the page keeps
+    // its pens at their pt widths whatever the artwork's scale — so painting it
+    // where it lies is not a smaller sheet, it is a different drawing: the
+    // creases come out heavier relative to the paper than on screen. The same
+    // figure must export the same page whether or not it has been rehydrated.
+    const files = fileServiceMock();
+    const artworkWidthPt = async (): Promise<number> => {
+      await useWorkspaceStore.getState().exportOristudioCpFoldedFigure('svg', 'spatial-1', files);
+      const svg = files.saveTextFile.mock.calls.at(-1)![0].contents as string;
+      const [, widthPt] = /width="([\d.]+)pt"/.exec(svg)!;
+      const page = paperPageOf(useSettingsStore.getState().paperExport);
+      return Number(widthPt) - 2 * pageMarginPt(DEFAULT_PAPER_STYLE, page);
+    };
+
+    const placement = { ...IDENTITY_FOLDED_PLACEMENT, scale: 2 };
+    cpOverlayViewStore.set({ model: UNIT_VIEW, user: { origin: [0, 0], ex: [3, 0], ey: [0, 3] } });
+    useWorkspaceStore.setState({ oristudioCpFoldedFigures: [spatial({ placement })] });
+    const live = await artworkWidthPt();
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [spatial({ placement, handle: null })],
+    });
+    const stored = await artworkWidthPt();
+
+    expect(live).toBeGreaterThan(0);
+    // Six user units of box per user unit of model, at three CSS px each.
+    expect(stored / live).toBeCloseTo(1, 3);
+  });
+
+  it('takes the same path when the handle has no render model behind it', async () => {
+    resetFolded3dRenderModels();
+    const files = fileServiceMock();
+
+    await useWorkspaceStore.getState().exportOristudioCpFoldedFigure('svg', 'spatial-1', files);
+
+    expect(files.saveTextFile.mock.calls[0]![0].contents).toMatch(/width="[\d.]+pt"/);
+    expect(paperExported()).toEqual([{ surface: 'folded-3d', format: 'svg', hidden_faces: 'kept' }]);
+  });
+
+  it('serializes a snapshot from an older file, which carries no scene', async () => {
+    // Written before a 3D figure stored a scene: the entry has the primitive
+    // stream and nothing else, and the snapshot exporter draws it as it
+    // always did. The file keeps loading; the next write replaces it.
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [spatial({ handle: null, scene: null, renderSnapshot: LEGACY_SNAPSHOT })],
+    });
     const files = fileServiceMock();
 
     const done = await useWorkspaceStore
@@ -290,19 +354,9 @@ describe('exporting a 3D folded figure without a kernel', () => {
     expect(paperExported()).toEqual([]);
   });
 
-  it('takes the same path when the handle has no render model behind it', async () => {
-    resetFolded3dRenderModels();
-    const files = fileServiceMock();
-
-    await useWorkspaceStore.getState().exportOristudioCpFoldedFigure('svg', 'spatial-1', files);
-
-    expect(files.saveTextFile.mock.calls[0]![0].contents).toContain('aria-label="Folded figure"');
-    expect(paperExported()).toEqual([]);
-  });
-
   it('refuses a figure with no picture at all', async () => {
     useWorkspaceStore.setState({
-      oristudioCpFoldedFigures: [spatial({ handle: null, renderSnapshot: null })],
+      oristudioCpFoldedFigures: [spatial({ handle: null, scene: null, renderSnapshot: null })],
     });
     const files = fileServiceMock();
 
@@ -315,3 +369,30 @@ describe('exporting a 3D folded figure without a kernel', () => {
     expect(useWorkspaceStore.getState().error?.code).toBe('invalid_operation');
   });
 });
+
+/** A 3D figure's picture as a pre-Phase-7 file stored it: one filled square. */
+const LEGACY_SNAPSHOT = {
+  schema_version: 1,
+  fixture: null,
+  pass: null,
+  primitives: [
+    {
+      sequence: 0,
+      kind: 'fill_polygon',
+      style: {
+        paint: { kind: 'color', color: { red: 255, green: 255, blue: 50, alpha: 255 } },
+        stroke: { kind: 'none' },
+        antialias: 'default',
+      },
+      geometry: {
+        kind: 'polygon',
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
+        ],
+      },
+    },
+  ],
+} as unknown as NonNullable<Entry['renderSnapshot']>;

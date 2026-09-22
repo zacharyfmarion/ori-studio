@@ -3149,7 +3149,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         // flat one. Read at the moment of export, as the simulator's hook reads
         // them. A figure this answers null for — reopened from a file and not
         // yet rehydrated, so there is no render model or handle — keeps the
-        // snapshot path below (R7; the projector retires in Phase 7).
+        // snapshot path below (R7). For a 3D figure that is a file written
+        // before its stored picture became a scene; a stored scene re-paints
+        // through the painter instead.
         const { paperStyle, paperExport } = useSettingsStore.getState();
         const page = paperPageOf(paperExport);
         const paint = (figure: OristudioCpFoldedFigureEntry) => ({

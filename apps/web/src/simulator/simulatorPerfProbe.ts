@@ -52,8 +52,9 @@ const counters = {
   /** Dispatch → worker tick → reply, which separates a slow tick from a rare one. */
   tickRoundTrip: emptyCounter(),
   /**
-   * `reproject3dFigureAt` — the CPU projection an *unwindowed* folded figure
-   * rebuilds per pointermove (earcut over every cell ring, plus a BSP build).
+   * `reproject3dSceneAt` — the picture an *unwindowed* folded figure rebuilds
+   * per pointermove (a mesh through the simulator's BSP, hidden-piece pass and
+   * merge).
    *
    * On the main thread, and on no worker counter at all, so a figure turning
    * slowly for this reason looks identical in the readout to one that is not
@@ -247,7 +248,7 @@ export function recordOrbitMove(): void {
 }
 
 /**
- * One `reproject3dFigureAt`, in milliseconds. Feeds both the shared counter (for
+ * One `reproject3dSceneAt`, in milliseconds. Feeds both the shared counter (for
  * the per-second line, when some runtime is mounted to poll it) and the gesture.
  */
 export function recordOrbitReproject(durationMs: number): void {

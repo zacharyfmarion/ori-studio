@@ -667,9 +667,10 @@ export function buildFoldedFigureActions(
         id: 'export',
         label: t('panels:foldedFigureActions.export', 'Export…'),
         icon: 'export',
-        // Exported from the render snapshot, so anything on screen can be saved
-        // — including a figure whose creases have since moved.
-        disabled: figure.renderSnapshot === null,
+        // Exported from the figure's own picture — a 3D figure's scene, a flat
+        // figure's render snapshot — so anything on screen can be saved,
+        // including a figure whose creases have since moved.
+        disabled: figure.renderSnapshot === null && (figure.scene ?? null) === null,
         // One-shot actions, not a mode: no current format to check.
         exclusive: false,
         options: FOLDED_FIGURE_EXPORT_FORMATS.map((value) => ({

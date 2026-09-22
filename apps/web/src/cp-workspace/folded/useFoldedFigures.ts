@@ -31,7 +31,7 @@ import {
   DEFAULT_FOLDED_3D_CAMERA,
   foldedFigureOtherSideCamera,
   type FoldedFigureCamera,
-} from './foldedFigure3dProjection';
+} from './folded3dCamera';
 import {
   advanceFoldedFigureOrbit,
   beginFoldedFigureOrbit,
@@ -43,7 +43,7 @@ import {
   getFolded3dOrbit,
   publishFolded3dOrbit,
 } from './folded3dRuntime';
-import { reproject3dFigureAt } from './folded3dReproject';
+import { reproject3dSceneAt } from './folded3dReproject';
 import {
   beginOrbitGesture,
   endOrbitGesture,
@@ -503,23 +503,23 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         // record it, so stop here rather than move the figure un-undoably.
         if (!session.token) return;
       }
-      // A windowed figure is drawn by its mesh at the camera alone, so the CPU
-      // projection would be built and then thrown away — `earcut` over every cell
-      // ring plus a BSP build, per pointer move, for a picture nobody draws.
+      // A windowed figure is drawn by its mesh at the camera alone, so the
+      // scene would be built and then thrown away — a BSP build and a
+      // hidden-piece pass, per pointer move, for a picture nobody draws.
       //
-      // Otherwise projected here rather than in a render pass, because React's
+      // Otherwise built here rather than in a render pass, because React's
       // commit is the wrong place for that work. Null when the figure has no
       // render model (reopened from a file), which the side table carries through
       // as "keep the picture you have".
-      let snapshot = null;
+      let scene = null;
       if (!session.windowed) {
         // Timed: this is the whole cost of turning an unwindowed figure, it runs
         // on this thread once per pointermove, and no worker counter can see it.
         const started = performance.now();
-        snapshot = reproject3dFigureAt(figure, figure.displayStyle, next);
+        scene = reproject3dSceneAt(figure, figure.displayStyle, next);
         recordOrbitReproject(performance.now() - started);
       }
-      publishFolded3dOrbit(session.id, { camera: next, snapshot });
+      publishFolded3dOrbit(session.id, { camera: next, scene });
     },
     [figureById]
   );
@@ -679,9 +679,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         timer: window.setTimeout(() => commitZoomRef.current(), FOLDED_3D_ZOOM_SETTLE_MS),
         token,
       };
-      // No snapshot: only a windowed figure can be zoomed, and a window draws
+      // No scene: only a windowed figure can be zoomed, and a window draws
       // from the camera alone.
-      publishFolded3dOrbit(id, { camera: { ...before, zoom }, snapshot: null });
+      publishFolded3dOrbit(id, { camera: { ...before, zoom }, scene: null });
     },
     [figureById, oristudioCpFocusedFoldedFigureId]
   );

@@ -40,13 +40,13 @@ import {
 } from './folded3dMesh';
 import { FOLDED_3D_SILHOUETTE_FACTOR } from './folded3dFrame';
 import { UNDETERMINED_FACE_ALPHA, folded3dStylePlan } from './folded3dStyle';
-import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
+import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 
 /**
  * Whether this figure can be drawn as a live window right now.
  *
  * Four conditions, each of which sends the figure back to exactly the path it is
- * on today — its stored `renderSnapshot`, drawn in the crease-pattern scene:
+ * on today — its stored `PaperScene`, drawn in the crease-pattern scene:
  *
  * - **It is a 3D figure.** The flat figure does not change, in any respect.
  * - **The GPU path is available.** Without WebGL2 there is nothing to draw a

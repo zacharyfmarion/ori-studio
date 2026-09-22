@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
+import type { PaperScene } from '@treemaker/origami-simulator';
 import { DEFAULT_PAPER_STYLE, applyCreaseStyle } from '../../lib/paper/paperStyle';
 import type {
   OristudioCpFoldedFigureEntry,
@@ -48,6 +49,13 @@ function makeFigure(
     ...overrides,
   } as unknown as OristudioCpFoldedFigureEntry;
 }
+
+/** A 3D figure's picture. Only its presence is read here. */
+const SCENE: PaperScene = {
+  bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+  sheet: 1,
+  items: [],
+};
 
 const IDENTITY_ORIENT = [1, 0, 0, 0, 1, 0, 0, 0, 1] as const;
 
@@ -300,12 +308,20 @@ describe('buildFoldedFigureActions', () => {
       expect(exportAs).toHaveBeenNthCalledWith(2, figure, 'png');
     });
 
-    // Exported from the render snapshot, so a figure whose creases have since
-    // moved can still be saved — but one that has never drawn cannot.
-    it('is disabled only when the figure has no render snapshot', () => {
+    // Exported from the figure's own picture, so a figure whose creases have
+    // since moved can still be saved — but one that has never drawn cannot.
+    // Either picture counts: a 3D figure keeps a scene and no snapshot.
+    it('is disabled only when the figure has neither picture', () => {
       const deps = makeDeps({ exportAs: vi.fn() });
       expect(choice(makeFigure({ status: 'stale' }), deps, 'export').disabled).toBe(false);
       expect(choice(makeFigure({ renderSnapshot: null }), deps, 'export').disabled).toBe(true);
+      expect(
+        choice(
+          makeFigure({ renderSnapshot: null, scene: SCENE }),
+          deps,
+          'export'
+        ).disabled
+      ).toBe(false);
     });
   });
 

@@ -1,8 +1,8 @@
 /**
  * The GPU mesh, against real kernel payloads.
  *
- * Every fixture is the kernel's own `Folded3dRenderModel` — the same six the CPU
- * projector is tested against, and nothing here is hand-written.
+ * Every fixture is the kernel's own `Folded3dRenderModel` — the same six the
+ * scene is tested against, and nothing here is hand-written.
  *
  * # Asserting the picture without a canvas
  *
@@ -44,11 +44,8 @@ import {
   antipodalCamera,
   folded3dEyeDirection,
   folded3dFrameRadius,
-  projectFolded3dModel,
   type FoldedFigureCamera,
-} from './foldedFigure3dProjection';
-import { foldedFigureExportDocument } from './foldedFigureExport';
-import type { Folded3dPaperStyle } from './folded3dStyle';
+} from './folded3dCamera';
 import {
   buildFolded3dInk,
   cellRing,
@@ -66,7 +63,6 @@ import {
   FOLDED_3D_EDGE_CREASE,
   FOLDED_3D_EDGE_UNKNOWN,
   FOLDED_3D_FACE_ATTR_STRIDE,
-  type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
 } from '../../engine/oristudioCpTypes';
 
@@ -84,26 +80,6 @@ const NAMES = [
 function fixture(name: string): OristudioCpFolded3dRenderModel {
   return JSON.parse(readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8'));
 }
-
-/** The kernel's shipped `Fold3dTolerances::DEFAULT`. */
-const TOLERANCES: OristudioCpFold3dTolerances = {
-  angle_radians: 1e-7,
-  distance_relative: 1e-6,
-  flat_snap_degrees: 1e-6,
-  overlap_area_relative: 1e-9,
-};
-
-const STYLE: Folded3dPaperStyle = {
-  front: [1, 1, 0.2],
-  back: [1, 1, 1],
-  line: [0, 0, 0],
-  faceAlpha: 1,
-  transparentAlpha: 16 / 255,
-  lineWidth: 1.200000048,
-  antiAlias: true,
-  lighting: true,
-  lightDir: [0, 0, 1],
-};
 
 /**
  * Cameras every orientation-sensitive assertion is repeated at.
@@ -288,21 +264,6 @@ function uniformsFor(mesh: Folded3dMesh, camera: FoldedFigureCamera): CameraUnif
 
 
 /**
- * Which end of a cell's plane faces the eye — the projector's own rule, asked
- * independently. `cell_stack` is top-first with respect to `up`, so `stack[0]` is
- * the near layer exactly while this is true.
- */
-function upTowardEye(
-  model: OristudioCpFolded3dRenderModel,
-  plane: number,
-  camera: FoldedFigureCamera
-): number {
-  const { up } = planeFrame(model, plane);
-  const eye = folded3dEyeDirection(camera);
-  return up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2];
-}
-
-/**
  * The screen winding `gl_FrontFacing` decides on, mirrored from `projectedMesh.ts`:
  * the signed area in pixel space, negated because pixel y points down while NDC
  * y points up. Front-facing — and so `u_frontColor` — when this is positive.
@@ -322,7 +283,7 @@ function screenWinding(
   );
 }
 
-/** Kernel world direction into view space — the projector's `directionToView`. */
+/** Kernel world direction into view space, through the mesh's own basis. */
 function viewNormalOf(
   model: OristudioCpFolded3dRenderModel,
   face: number,
@@ -510,46 +471,17 @@ describe('folded3dMesh', () => {
         }
       }
     });
-
-    it.each(NAMES)('%s shows the same layer the CPU projector draws', (name) => {
-      const model = fixture(name);
-      // The window and the export must not disagree about which sheet of paper
-      // you are looking at. The projector picks the last of `cellFarToNear`; the
-      // mesh picks the end of `cell_stack` its selected skin holds.
-      for (const [label, camera] of CAMERAS) {
-        const eye = folded3dEyeDirection(camera);
-        const projection = projectFolded3dModel(model, {
-          camera,
-          displayStyle: 'Paper5',
-          style: STYLE,
-          tolerances: TOLERANCES,
-        });
-        const drawnByProjector = new Map<number, number>();
-        projection.snapshot.primitives.forEach((primitive, index) => {
-          if (primitive.kind !== 'fill_path') return;
-          drawnByProjector.set(projection.cells[index]!, projection.faces[index]!);
-        });
-        for (const [cell, face] of drawnByProjector) {
-          const plane = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0;
-          const up = planeFrame(model, plane).up;
-          const towardEye = up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2] >= 0;
-          const stack = cellStack(model, cell);
-          const mine = towardEye ? stack[0]! : stack[stack.length - 1]!;
-          expect(mine, `${name} @ ${label}, cell ${cell}`).toBe(face);
-        }
-      }
-    });
   });
 
   describe('winding', () => {
     /**
      * The one fact that is easy to invert. The mesh renderer's view transform has
      * determinant −1, so a triangle whose right-hand normal points toward the eye
-     * is drawn *back*-facing — while the CPU projector calls exactly that face
-     * front. Get the sign backwards and the figure is a clean picture of the
-     * wrong side of the paper.
+     * is drawn *back*-facing — while the paper's own front normal calls exactly
+     * that face front. Get the sign backwards and the figure is a clean picture
+     * of the wrong side of the paper.
      */
-    it.each(NAMES)('%s colours every triangle the side the projector does', (name) => {
+    it.each(NAMES)('%s colours every triangle the side the paper’s normal does', (name) => {
       const model = fixture(name);
       const mesh = meshOf(model);
       let checked = 0;
@@ -562,7 +494,7 @@ describe('folded3dMesh', () => {
         for (let slot = 0; slot < mesh.slots.count; slot += 1) {
           const face = mesh.slots.face[slot]!;
           const normal = viewNormalOf(model, face, uniforms);
-          const projectorSaysFront = normal[2] >= 0;
+          const paperSaysFront = normal[2] >= 0;
           for (let i = mesh.slots.indexStart[slot]!; i < mesh.slots.indexStart[slot + 1]!; i += 3) {
             opportunities += 1;
             const winding = screenWinding(
@@ -578,7 +510,7 @@ describe('folded3dMesh', () => {
               continue;
             }
             expect(winding >= 0, `${name} @ ${label}, slot ${slot}, face ${face}`).toBe(
-              projectorSaysFront
+              paperSaysFront
             );
             checked += 1;
           }
@@ -875,86 +807,3 @@ describe('folded3dMesh', () => {
     });
   });
 });
-
-/**
- * R7 — the file a user exports and the window they are looking at draw the same
- * figure.
- *
- * The two are made by different machinery on purpose. The window's picture comes
- * from this mesh through a **depth buffer**, which is why the layers are pushed
- * apart by an epsilon. The file's comes from `foldedFigure3dProjection.ts`
- * through a BSP with the kernel's exact `cell_stack` fed in, which is what a
- * vector drawing needs and what an `.osf`, a crease-pattern export and a figure
- * with no GPU all read. Both are derived from one render model, and R7 is that
- * they drift.
- *
- * The statement below is the export end of the one already made above against
- * the raw projection: this runs the projector at the settings the store actually
- * writes onto a figure — culled and merged, which is a different code path — and
- * carries it all the way through the serializer, so a layer lost to hidden-piece
- * culling, to a coplanar merge, or to the SVG writer is caught here rather than
- * by somebody opening a file.
- */
-describe('the exported drawing and the mesh agree', () => {
-  it.each(NAMES)('%s exports the layer its window shows', (name) => {
-    const model = fixture(name);
-    // The mesh is built to prove it can be — the comparison below is against the
-    // rule its skins encode, which is `cell_stack` read from the eye's end.
-    meshOf(model);
-    let compared = 0;
-
-    for (const [label, camera] of CAMERAS) {
-      // No `cullHidden` and no `mergeCoplanar`: the defaults, which is what
-      // `project3dRenderSnapshot` passes and therefore what every exported
-      // figure is drawn with.
-      const projection = projectFolded3dModel(model, {
-        camera,
-        displayStyle: 'Paper5',
-        style: STYLE,
-        tolerances: TOLERANCES,
-      });
-      const page = foldedFigureExportDocument(projection.snapshot);
-      expect(page, `${name} @ ${label}`).not.toBeNull();
-      // Nothing is lost between the projection and the file. The stacking order
-      // travels *inside* the primitive stream — the serializer has no depth test
-      // and no sort — so one dropped primitive is one wrong face on top.
-      expect(page!.svg.split('<path').length - 1).toBe(projection.snapshot.primitives.length);
-
-      const filledByCell = new Map<number, Set<number>>();
-      projection.snapshot.primitives.forEach((primitive, index) => {
-        if (!primitive.kind.startsWith('fill_')) return;
-        const cell = projection.cells[index]!;
-        const face = projection.faces[index]!;
-        // `-1` is a crease or a cell annotation, which draws no layer.
-        if (cell < 0 || face < 0) return;
-        const set = filledByCell.get(cell) ?? new Set<number>();
-        set.add(face);
-        filledByCell.set(cell, set);
-      });
-
-      for (const [cell, faces] of filledByCell) {
-        // A cell the tree cut into pieces at two depths has no single answer to
-        // compare against; the raw-projection test above covers those.
-        if (faces.size !== 1) continue;
-        const plane = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0;
-        if (Math.abs(upTowardEye(model, plane, camera)) < EDGE_ON) continue;
-        // The window's answer is the end of `cell_stack` its selected skin
-        // holds — no depth comparison, because there is nothing coplanar left to
-        // compare. The export's is the last of `cellFarToNear`. They are the
-        // same rule reached from two directions, which is the point.
-        expect([...faces], `${name} @ ${label}, cell ${cell}`).toEqual([
-          cellFarToNear(model, cell, camera).at(-1),
-        ]);
-        compared += 1;
-      }
-    }
-    expect(compared).toBeGreaterThan(0);
-  });
-});
-
-
-
-
-
-
-

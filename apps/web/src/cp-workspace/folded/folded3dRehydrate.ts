@@ -1,9 +1,9 @@
 /**
  * Which reopened 3D figures can be made live again, and in what order.
  *
- * A reopened figure is not blank: it draws its stored `renderSnapshot`, which is
+ * A reopened figure is not blank: it draws its stored `PaperScene`, which is
  * a correct picture of the fold. What it has lost is the *render model* — the
- * packed geometry every re-projection needs — because that is deliberately not
+ * packed geometry every rebuild needs — because that is deliberately not
  * persisted (~235 KB of arrays into a pretty-printing `.osf` writer). So the job
  * is not "load something", it is **make an existing picture live**, and the bar
  * is therefore higher than for a load: whatever comes back has to be the picture

@@ -102,8 +102,8 @@ export function foldedAppearanceSupport(
     case 'backColor':
     case 'lineColor':
     case 'displayStyle':
-      // The projector reads all of these — colours through
-      // `folded3dPaperStyle`, display style as its style plan.
+      // All four reach the picture: the colours through the figure's
+      // effective `PaperStyle`, the display style as its style plan.
       return 'supported';
     case 'side':
       // `model.state` seeds the camera a fresh 3D fold opens at and is read

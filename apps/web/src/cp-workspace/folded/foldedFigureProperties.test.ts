@@ -5,7 +5,7 @@ import { DEFAULT_PAPER_STYLE, applyCreaseStyle } from '../../lib/paper/paperStyl
 import { PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import type { PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
 import { FIGURE } from '../canvasObjects/canvasObjectKinds.fixtures';
-import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
+import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 import { buildFoldedFigureProperties, type FoldedFigurePropertyDeps } from './foldedFigureProperties';
 
 // Identity `t`, with the one interpolation the subtitle uses.

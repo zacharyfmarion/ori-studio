@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
+import type { PaperScene } from '@treemaker/origami-simulator';
 import {
   clearAllFolded3dOrbits,
   clearFolded3dOrbit,
@@ -13,9 +13,9 @@ import {
 
 const CAMERA = { yaw: 0.25, pitch: 0.5, zoom: 1 };
 
-/** Stands in for a projection: only its identity is read here. */
-function snapshot(): OristudioCpFoldedRenderSnapshot {
-  return { primitives: [] } as unknown as OristudioCpFoldedRenderSnapshot;
+/** Stands in for a picture: only its identity is read here. */
+function scene(): PaperScene {
+  return { bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 }, sheet: 1, items: [] };
 }
 
 afterEach(() => {
@@ -24,23 +24,23 @@ afterEach(() => {
 
 describe('folded3dRuntime', () => {
   it('holds a figure’s live camera and hands it back', () => {
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: null });
-    expect(getFolded3dOrbit('a')).toEqual({ camera: CAMERA, snapshot: null });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: null });
+    expect(getFolded3dOrbit('a')).toEqual({ camera: CAMERA, scene: null });
     expect(getFolded3dOrbit('b')).toBeNull();
     expect(folded3dOrbitCount()).toBe(1);
   });
 
   it('replaces the scene frames on every picture, so useSyncExternalStore can read them', () => {
-    // The snapshot has to change identity exactly when the contents do, and be
+    // The frame map has to change identity exactly when the contents do, and be
     // stable in between — a mutated Map would make React either miss the frame
     // or re-render forever.
     const empty = folded3dSceneOrbitFrames();
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: snapshot() });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: scene() });
     const first = folded3dSceneOrbitFrames();
     expect(first).not.toBe(empty);
     expect(folded3dSceneOrbitFrames()).toBe(first);
 
-    publishFolded3dOrbit('a', { camera: { ...CAMERA, yaw: 0.3 }, snapshot: snapshot() });
+    publishFolded3dOrbit('a', { camera: { ...CAMERA, yaw: 0.3 }, scene: scene() });
     expect(folded3dSceneOrbitFrames()).not.toBe(first);
   });
 
@@ -50,15 +50,15 @@ describe('folded3dRuntime', () => {
     // of them — its `useSyncExternalStore` bails out only if this object keeps
     // its identity.
     const empty = folded3dSceneOrbitFrames();
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: null });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: null });
     expect(folded3dSceneOrbitFrames()).toBe(empty);
-    publishFolded3dOrbit('a', { camera: { ...CAMERA, yaw: 0.9 }, snapshot: null });
+    publishFolded3dOrbit('a', { camera: { ...CAMERA, yaw: 0.9 }, scene: null });
     expect(folded3dSceneOrbitFrames()).toBe(empty);
     clearFolded3dOrbit('a');
     expect(folded3dSceneOrbitFrames()).toBe(empty);
 
     // Non-vacuous: the same publishes *with* a picture do move it.
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: snapshot() });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: scene() });
     expect(folded3dSceneOrbitFrames()).not.toBe(empty);
   });
 
@@ -68,7 +68,7 @@ describe('folded3dRuntime', () => {
     const unsubscribe = subscribeFolded3dOrbitCamera('a', mine);
     const unsubscribeTheirs = subscribeFolded3dOrbitCamera('b', theirs);
 
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: null });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: null });
     expect(mine).toHaveBeenCalledTimes(1);
     expect(mine).toHaveBeenCalledWith(CAMERA);
     expect(theirs).not.toHaveBeenCalled();
@@ -80,7 +80,7 @@ describe('folded3dRuntime', () => {
     expect(mine).toHaveBeenCalledTimes(1);
 
     unsubscribe();
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: null });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: null });
     expect(mine).toHaveBeenCalledTimes(1);
     unsubscribeTheirs();
   });
@@ -89,7 +89,7 @@ describe('folded3dRuntime', () => {
     const listener = vi.fn();
     const unsubscribe = subscribeFolded3dOrbit(listener);
 
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: null });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: null });
     expect(listener).toHaveBeenCalledTimes(1);
 
     // A press that never turned anything releases without ever publishing. It
@@ -107,13 +107,13 @@ describe('folded3dRuntime', () => {
     expect(listener).toHaveBeenCalledTimes(2);
 
     unsubscribe();
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: null });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: null });
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it('drops everything on a document replace', () => {
-    publishFolded3dOrbit('a', { camera: CAMERA, snapshot: null });
-    publishFolded3dOrbit('b', { camera: CAMERA, snapshot: null });
+    publishFolded3dOrbit('a', { camera: CAMERA, scene: null });
+    publishFolded3dOrbit('b', { camera: CAMERA, scene: null });
     clearAllFolded3dOrbits();
     expect(folded3dOrbitCount()).toBe(0);
     expect(getFolded3dOrbit('a')).toBeNull();

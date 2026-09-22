@@ -64,7 +64,7 @@ import {
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
-import { foldedFigureOtherSideCamera } from '../../cp-workspace/folded/foldedFigure3dProjection';
+import { foldedFigureOtherSideCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
@@ -1152,12 +1152,12 @@ function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
 }
 
 /**
- * The smallest render model the projector can draw: one triangular face, one
- * plane, one cell whose stack is that face, no edges.
+ * The smallest render model that draws: one triangular face, one plane, one
+ * cell whose stack is that face, no edges.
  *
- * Real enough to project — the store calls `projectFolded3dModel` for real, with
- * no mock in between, so a route that reached it would produce a genuinely empty
- * picture if this were fabricated badly.
+ * Real enough to build a picture from — the store runs the scene producer for
+ * real, with no mock in between, so a route that reached it would produce a
+ * genuinely empty picture if this were fabricated badly.
  */
 function folded3dRenderModelFixture(): OristudioCpFolded3dRenderModel {
   const triangle = [0, 0, 0, 100, 0, 0, 0, 100, 0];
@@ -3214,9 +3214,11 @@ describe('workspace store slices', () => {
       expect(figure?.folded3d).not.toBeNull();
       expect(figure?.snapshot).toBeNull();
       expect(figure?.status).toBe('ready');
-      // Projected here, not fetched from the kernel: the 3D door has no render
-      // command, and asking the flat one is a kind mismatch.
-      expect(figure?.renderSnapshot?.primitives.length).toBeGreaterThan(0);
+      // Built here, not fetched from the kernel: the 3D door has no render
+      // command, and asking the flat one is a kind mismatch. A scene, not a
+      // render snapshot — that field is the flat figure's now.
+      expect(figure?.scene?.items.length).toBeGreaterThan(0);
+      expect(figure?.renderSnapshot).toBeNull();
       expect(figure?.camera).toBeTruthy();
     });
 
@@ -3684,7 +3686,7 @@ describe('workspace store slices', () => {
       // A 3D figure's picture is made in the frontend, so nothing is asked of
       // the kernel — the flat command would reject a spatial handle anyway.
       expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).not.toHaveBeenCalled();
-      expect(turned?.renderSnapshot).not.toEqual(figure.renderSnapshot);
+      expect(turned?.scene).not.toEqual(figure.scene);
       expect(turned?.status).toBe('ready');
     });
 
@@ -8830,8 +8832,8 @@ describe('changing a 3D folded model appearance', () => {
    * The folded-model menu was greyed out on a 3D figure. `editModel` was false
    * because the write path did not exist: a flat figure's model lives in the
    * kernel, a 3D one's on `folded3d`, and only the first had a setter. The
-   * projector is a pure function of (render model, model, camera), so the 3D
-   * write is a re-projection rather than a round trip.
+   * picture is a pure function of (render model, model, camera), so the 3D
+   * write rebuilds it locally rather than making a round trip.
    */
   async function seedSpatialFigure() {
     resetStores(seedSnapshot());
@@ -8869,11 +8871,16 @@ describe('changing a 3D folded model appearance', () => {
     expect(after.snapshot).toBeNull();
   });
 
-  it('carries a colour pin into the 3D model and re-projects, so it reaches what is drawn', async () => {
+  it('carries a colour pin into the 3D model, and leaves the picture alone', async () => {
     // The paper-style mirror (D6): the figure's `appearance` is the source and
     // the model's colour follows it, through the same write a colour pick makes.
+    //
+    // The *picture* does not follow it, and that is the point of a scene: it
+    // carries geometry and roles and no ink, so the canvas and the painter
+    // re-ink the one that is already there rather than a new one being built
+    // for every drag of a colour picker.
     const figure = await seedSpatialFigure();
-    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.renderSnapshot;
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.scene;
     expect(
       useWorkspaceStore
         .getState()
@@ -8882,7 +8889,7 @@ describe('changing a 3D folded model appearance', () => {
     await flushMicrotasks();
     const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
     expect(after.folded3d?.model.front_color).toEqual({ red: 10, green: 20, blue: 30 });
-    expect(after.renderSnapshot).not.toEqual(before);
+    expect(after.scene).toBe(before);
     expect(after.snapshot).toBeNull();
   });
 

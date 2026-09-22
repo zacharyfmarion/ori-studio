@@ -1,19 +1,9 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type {
-  OristudioCpFolded3dRenderModel,
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
 } from '../../engine/oristudioCpTypes';
 import { foldedFigureExportDocument, serializeFoldedFigureSvg } from './foldedFigureExport';
-import {
-  DEFAULT_FOLDED_3D_CAMERA,
-  projectFolded3dModel,
-} from './foldedFigure3dProjection';
-
-const FOLDED_FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 
 const solid = (r: number, g: number, b: number, a: number) =>
   ({ kind: 'color', color: { red: r, green: g, blue: b, alpha: a } }) as const;
@@ -126,65 +116,58 @@ describe('foldedFigureExportDocument', () => {
 });
 
 /**
- * A 3D figure exports with **no code change** — the exporter serializes
- * `renderSnapshot.primitives` and never asks the kernel anything, and a 3D
- * figure's snapshot is the projector's output in the same primitive vocabulary.
+ * The path a figure reopened from an older file still takes.
  *
- * That is a claim about the boundary between the projector and the exporter, so
- * it is tested across it: a real kernel render model, through the real
- * projector, into the real exporter. Asserting it on a hand-built snapshot would
- * only pin that the exporter draws fills, which the tests above already do.
+ * A live figure exports its scene through the shared painter — the window's
+ * for a 3D figure, the kernel's paper scene for a flat one — but a figure with
+ * no handle has only the `renderSnapshot` its file carries, and that is
+ * serialized here exactly as it always was. So what is worth pinning is the
+ * one property the serializer adds nothing to: it draws **every** primitive,
+ * in the order the stream states, because the stacking order travels inside
+ * the stream and the exporter has no depth test and no sort of its own. An
+ * exporter that dropped or reordered primitives would produce a plausible
+ * picture with the wrong faces on top.
  */
-describe('exporting a 3D folded figure', () => {
-  const model: OristudioCpFolded3dRenderModel = JSON.parse(
-    readFileSync(join(FOLDED_FIXTURES, 'box_90.rendermodel.json'), 'utf8')
-  );
-
-  const projected = projectFolded3dModel(model, {
-    camera: DEFAULT_FOLDED_3D_CAMERA,
-    displayStyle: 'Paper5',
-    style: {
-      front: [1, 1, 0.2],
-      back: [1, 1, 1],
-      line: [0, 0, 0],
-      faceAlpha: 1,
-  transparentAlpha: 16 / 255,
-      lineWidth: 1.200000048,
-      antiAlias: true,
-      lighting: true,
-      lightDir: [0, 0, 1],
-    },
-    tolerances: {
-      angle_radians: 1e-7,
-      distance_relative: 1e-6,
-      flat_snap_degrees: 1e-6,
-      overlap_area_relative: 1e-9,
-    },
-  }).snapshot;
+describe('exporting a figure from its stored snapshot', () => {
+  /** Two overlapping fills and the crease between them: paper, then ink. */
+  const stored = snapshot([
+    square(10, 0),
+    { ...square(6, 2), style: { ...square().style, paint: solid(0, 0, 255, 255) } },
+    {
+      sequence: 0,
+      kind: 'stroke_segment',
+      style: {
+        paint: solid(0, 0, 0, 255),
+        stroke: { kind: 'basic', width: 1.2, end_cap: 0, line_join: 0, miter_limit: 10 },
+        antialias: 'default',
+      },
+      geometry: { kind: 'segment', from: { x: 2, y: 2 }, to: { x: 8, y: 8 } },
+    } as unknown as OristudioCpFoldedRenderPrimitive,
+  ]);
 
   it('produces a page with the figure in it', () => {
-    const page = foldedFigureExportDocument(projected);
+    const page = foldedFigureExportDocument(stored);
     expect(page).not.toBeNull();
     expect(page!.width).toBeGreaterThan(0);
     expect(page!.height).toBeGreaterThan(0);
     // Not merely non-null: the paper and its creases both reached the page.
-    expect(page!.svg).toContain('<path');
-    expect(page!.svg).toContain('stroke=');
+    expect(page!.svg).toContain('<polygon');
+    expect(page!.svg).toContain('<line');
   });
 
-  it('is the same serialization path a flat figure takes', () => {
-    const svg = serializeFoldedFigureSvg(projected) ?? '';
+  it('emits a standalone document, the same serialization a flat figure takes', () => {
+    const svg = serializeFoldedFigureSvg(stored) ?? '';
     expect(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(svg.trimEnd().endsWith('</svg>')).toBe(true);
   });
 
-  it('draws every primitive the projector emitted, in order', () => {
-    // The stacking order travels *inside* the primitive stream — the exporter
-    // has no depth test and no sort of its own — so an exporter that dropped or
-    // reordered primitives would produce a plausible picture with the wrong
-    // faces on top.
-    const svg = serializeFoldedFigureSvg(projected) ?? '';
-    const drawn = svg.split('<path').length - 1;
-    expect(drawn).toBe(projected.primitives.length);
+  it('draws every primitive the stream carries, in order', () => {
+    const svg = serializeFoldedFigureSvg(stored) ?? '';
+    // One drawn element per primitive; the page's own background `<rect>` is
+    // the only other shape in the file.
+    const drawn = svg.match(/<(?:path|polygon|line|ellipse)\b/g) ?? [];
+    expect(drawn.length).toBe(stored.primitives.length);
+    // Order, not just count: the blue fill is painted over the red one.
+    expect(svg.indexOf('#0000ff')).toBeGreaterThan(svg.indexOf('#ff0000'));
   });
 });

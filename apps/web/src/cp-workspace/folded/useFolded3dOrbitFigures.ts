@@ -19,7 +19,7 @@ import { folded3dSceneOrbitFrames, subscribeFolded3dOrbit } from './folded3dRunt
  * some other figure.
  *
  * Reads the **picture-carrying** frames, not all of them. A figure drawn as a
- * window publishes a camera and no snapshot, and its mesh takes that camera
+ * window publishes a camera and no scene, and its mesh takes that camera
  * directly; handing it here as well would re-render this surface on every move
  * of a turn to deliver a picture it does not draw. See `folded3dRuntime.ts`.
  */
@@ -36,9 +36,9 @@ export function useFolded3dOrbitFigures(
     let turned = false;
     const next = figures.map((figure) => {
       const frame = frames.get(figure.id);
-      if (!frame?.snapshot) return figure;
+      if (!frame?.scene) return figure;
       turned = true;
-      return { ...figure, camera: frame.camera, renderSnapshot: frame.snapshot };
+      return { ...figure, camera: frame.camera, scene: frame.scene };
     });
     return turned ? next : figures;
   }, [figures, frames]);

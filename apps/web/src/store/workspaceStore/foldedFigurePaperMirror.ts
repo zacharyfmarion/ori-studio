@@ -1,4 +1,5 @@
 import type { StoreApi } from 'zustand';
+import { folded3dStoredSceneStyleKey } from '../../cp-workspace/folded/folded3dReproject';
 import {
   queueFoldedModelWrite,
 } from '../../cp-workspace/folded/foldedModelWriteQueue';
@@ -19,7 +20,7 @@ import type { WorkspaceState } from './types';
  * figure's own `appearance` pins on top. The kernel model's `front_color`,
  * `back_color` and `line_color` are a *derived mirror* of those three values
  * (D6 in `implementation-plans/unified-paper-style-and-export.md`), kept
- * because the flat figure's oracle-checked drawer, the 3D projector, the
+ * because the flat figure's oracle-checked drawer, the 3D window, the
  * `.ori` round-trip and the `.osf` picture all read the model — so nothing
  * downstream has to know what a style is, and the model never has to be
  * inspected to know what is pinned.
@@ -36,6 +37,11 @@ import type { WorkspaceState } from './types';
  * skipped: there is no kernel to write and its stored picture is kept as
  * saved. Rehydration hands it a handle, which changes the list, which runs
  * the mirror.
+ *
+ * One thing here is not a colour: a 3D figure's stored picture *bakes* the
+ * light (`folded3dSceneStyleKey`), so a light change is a rebuild rather than a
+ * mirror write, and this module is where the app's display style is watched —
+ * see the settings subscription below.
  */
 
 /** The model fields the mirror owns, and the style field each shows. */
@@ -127,7 +133,20 @@ export function installFoldedFigurePaperMirror(store: StoreApi<WorkspaceState>):
     }
   };
   const unsubscribeSettings = useSettingsStore.subscribe((state, previous) => {
-    if (state.paperStyle.display !== previous.paperStyle.display) run();
+    if (state.paperStyle.display === previous.paperStyle.display) return;
+    // The colours are a model field and reach a figure through the mirror. The
+    // light is not: a 3D figure's picture bakes it into every face's shade, so
+    // moving the light has to rebuild the picture or the canvas and the `.osf`
+    // keep the shading the figure was last built at while its window follows
+    // the light immediately. Guarded on the fields the scene actually bakes, so
+    // a colour change stays what §11 says it is — a re-ink, never a rebuild.
+    if (
+      folded3dStoredSceneStyleKey(state.paperStyle.display) !==
+      folded3dStoredSceneStyleKey(previous.paperStyle.display)
+    ) {
+      store.getState().refreshOristudioCpFolded3dScenes();
+    }
+    run();
   });
   // A mirror write that lands changes the list too, and finds nothing left
   // to write: the fixed point is the model agreeing with the style.

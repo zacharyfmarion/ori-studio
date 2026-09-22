@@ -842,8 +842,35 @@ What the projector still does, and what replaces it:
 meaning for the **flat** figure (the kernel's own stream, unchanged). A 3D
 figure stores `scene: PaperScene | null` instead, written by
 `folded3dPaperScene` at the same moments the projector ran (fold, refold,
-another solution, a style or colour change, the once-per-gesture commit of a
-turn). `.osf`: `viewState.foldedFigures[i].scene`, validated field by field
+another solution, a style change, the once-per-gesture commit of a turn).
+
+*Not* on a colour change, which is the one moment that drops out: the model's
+colours are a derived mirror of the effective style (D6) and a scene carries
+geometry and roles and no ink, so nothing a colour edit touches can move a
+vertex. The canvas and the painter re-ink the scene that is already there.
+
+A scene carries no *colour*; it does bake the **light**, as each face's
+`shade`, and the widest pen, which is the ink allowance the hidden test
+measures with. There is no normal left to re-light a stored scene from, so
+those reach a figure through a rebuild and nothing else: `folded3dSceneStyleKey`
+is the list, `setOristudioCpFoldedFigureAppearance` rebuilds on a figure's own
+pin, and `refreshOristudioCpFolded3dScenes` — driven from the paper mirror's
+settings subscription, the one place the app's display style is watched —
+rebuilds every 3D figure when the app's changes. Derived state, so neither
+selects nor dirties, and a figure with no kernel keeps the picture it was
+saved with. Without this the window followed the light and the canvas and the
+`.osf` kept the shading of the last rebuild.
+
+Coordinates: a stored scene is in the figure's **local user space** — the
+space `placement` transforms, which is where a flat figure's `renderSnapshot`
+lands after `cpModelToSvg` — and not the CSS px of the camera a page scene
+uses. It is built at the frame's side in user units *before* the placement and
+shifted so the model centroid sits on the placement's pivot. It has to be: the
+canvas scales the stored picture by `placement.scale` on every frame, so a
+picture built at the placed size would draw at the square of the figure's
+scale the moment it was turned. `folded3dStoredScene.ts` is the one producer,
+and its `space` option is `'document'` for the store and the canvas or CSS px
+per user unit for the export. `.osf`: `viewState.foldedFigures[i].scene`, validated field by field
 in `nativeProjectFile.ts` beside the existing snapshot validator; a file
 written before this carries `renderSnapshot` on a 3D figure and is read as
 before — the fallback canvas can draw either, and the next write replaces it
@@ -858,6 +885,24 @@ and stated in the release notes.
 scene's own colours through the effective style, lines → strokes in their
 pens), replacing the primitive-stream path for 3D figures. The flat figure's
 primitive path stays.
+
+Buried pieces are dropped — a deep figure's hidden layers are thousands of
+triangles per frame of a pan — *except* under `Transparent3`, where the display
+style's `faceAlpha` goes into the fill and the hidden test is exactly what must
+not be applied. The window draws X-ray translucent, so the canvas has to, or a
+figure would change appearance the moment it lost its window; and X-ray is the
+one style under which two solutions of a figure look different
+(`foldedFigureCapabilities`), which is what "Show another solution" is for. The
+*export* is unchanged: a painted page is opaque paper with every layer kept,
+which is the reading above — a translucent style has no scene form.
+
+A figure with **no kernel** paints its stored scene on the export page, and the
+stored scene is in local user units while a page scene is in CSS px. It is
+carried into that space first (`folded3dStoredSceneInCssPx`, the factor being
+`placement.scale × cssPerUserUnit`): the page keeps its pens at their pt widths
+whatever the artwork's scale, so painting the document scene where it lies is
+not a smaller sheet but a heavier crease, and the same figure would export two
+drawings depending only on whether it had been rehydrated.
 
 **Deletions.** `foldedFigure3dProjection.ts` and its tests
 (`foldedFigure3dProjection.test.ts`, `folded3dProjectorParity.test.ts`,
@@ -1614,10 +1659,55 @@ against the mesh route no longer applies (F9).
 
 ### Phase 7 — Retire the projector
 
-- [ ] `.osf` picture stored as a scene; fallback canvas draws a scene;
-      migration for stored projector snapshots.
-- [ ] Delete `foldedFigure3dProjection.ts` and its tests; update
+- [x] `.osf` picture stored as a scene; fallback canvas draws a scene;
+      migration for stored projector snapshots. (Additive, D1: a file carrying
+      `renderSnapshot` on a 3D figure still loads and draws, so the schema
+      version does not move. `scene` is optional on the entry, like every other
+      3D-only sibling field.)
+- [x] Delete `foldedFigure3dProjection.ts` and its tests; update
       `folded-figure-viewport.md` §5 (R7 now holds by construction).
+      `cp-workspace/folded/folded3dCamera.ts` takes the camera vocabulary the
+      rest of the tree imported from the projector — §11 named
+      `FoldedFigureCamera`, `DEFAULT_FOLDED_3D_CAMERA` and
+      `folded3dCoplanarEpsilon`; `defaultFolded3dCamera`, `antipodalCamera`,
+      `foldedFigureOtherSideCamera`, `folded3dFrameRadius` and
+      `folded3dEyeDirection` had importers too and went with them, since each
+      is about where the eye is rather than about a drawing.
+      `folded3dReproject.ts` kept its shape and its name (item A had already
+      moved it onto the scene).
+
+      Tests. `foldedFigure3dProjection.test.ts` and
+      `folded3dProjectorParity.test.ts` are deleted; `projectorIsExportOnly.test.tsx`
+      is **renamed** `sceneIsExportOnly.test.tsx` — item A had already moved it
+      onto the scene, so the rate statement it makes is unchanged. The camera
+      invariants it held (the default camera pure in payload and side, "other
+      side" an involution, the coplanarity tolerance a distance not an angle)
+      move to a new `folded3dCamera.test.ts`, which also pins the frame radius
+      as the model's bounding sphere. Two of the harness's assertions had no
+      home, so they were written rather than dropped: the wiring test — that
+      the scene hands the tree the *kernel's* epsilon, which no fixture's
+      geometry would notice — is now in `folded3dScene.test.ts` over a partial
+      mock of `meshToPaperScene`; and the serializer's "every primitive, in
+      order" is re-pinned in `foldedFigureExport.test.ts` on a hand-built
+      stored snapshot, which is the only kind of 3D picture that still reaches
+      that path. Two mesh-vs-projector comparisons in `folded3dMesh.test.ts`
+      are deleted (the layer a cell shows, and the R7 export end); both are
+      the same claim `folded3dSceneSkinParity.test.ts` and
+      `folded3dScene.test.ts` make from one mesh, which is stronger.
+      `BSP_ITEM_BUDGET`'s two guard tests go with the budget.
+
+      Deviations. (a) `exportFoldedFigure3d.test.ts`'s handle-less figure now
+      carries a stored *scene*, so it re-paints through the painter and fires
+      `paper exported` — it used to fall through to the snapshot serializer
+      and fire nothing; a separate case covers a pre-Phase-7 file, which still
+      does. (b) `folded3dStyle.ts` lost `Folded3dPaperStyle`,
+      `folded3dPaperStyle()` and `StylePlan.annotateUndetermined`, which had no
+      reader left once the projector went; the module is now the display-style
+      plan and the two alphas. (c) `crates/oristudio-cp/examples/fold3d_render_model.rs`'s
+      header named the projector as the consumer of its fixtures and was
+      re-pointed; the fixtures themselves are unchanged and all seven are still
+      read (`minimal_repro`, which the `--out` set does not produce, is now
+      listed in their README with that provenance).
 
 ### Validation per phase
 

@@ -1,12 +1,11 @@
 /**
  * The 3D figure's scene, against the kernel payloads the window is tested on.
  *
- * Every fixture is the kernel's own `Folded3dRenderModel` (see
- * `foldedFigure3dProjection.test.ts` for how they are regenerated). The scene
- * is compared with the window rather than with the projector: the window and
- * the scene are built from *one* mesh, so what this pins is that the scene
+ * Every fixture is the kernel's own `Folded3dRenderModel` (`__fixtures__/README.md`
+ * says how they are regenerated). The scene is compared with the **window**:
+ * the two are built from *one* mesh, so what this pins is that the scene
  * producer's ordering reproduces the draw passes' picture — the invariant that
- * outlives the projector (§7 of `implementation-plans/unified-paper-style-and-export.md`).
+ * outlived the CPU projector (§7 of `implementation-plans/unified-paper-style-and-export.md`).
  *
  * The comparison rasterises both without a canvas, as the parity harness does:
  * the window's draw passes with a depth buffer interpolated across the screen
@@ -16,7 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   cameraUniforms,
   projectVertices,
@@ -28,6 +27,27 @@ import {
   type PaperLineItem,
   type PaperScene,
 } from '@treemaker/origami-simulator';
+
+/**
+ * The options the producer is handed, recorded at the module boundary.
+ *
+ * `coplanarEps` is the one option with no visible effect on these fixtures —
+ * every plane in them is far enough from every other that `bsp.ts`'s own 1e-7
+ * reclassifies nothing — so without this the exact regression the kernel's
+ * tolerance exists to prevent would ship green.
+ */
+const producer = vi.hoisted(() => ({ options: [] as { layers?: { coplanarEps: number } }[] }));
+vi.mock('@treemaker/origami-simulator', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@treemaker/origami-simulator')>();
+  return {
+    ...actual,
+    meshToPaperScene: (...args: Parameters<typeof actual.meshToPaperScene>) => {
+      producer.options.push(args[3] ?? {});
+      return actual.meshToPaperScene(...args);
+    },
+  };
+});
+
 import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
@@ -53,12 +73,11 @@ import { FOLDED_3D_CREASE_DEPTH_BIAS, folded3dFrameFillZoom } from './folded3dWi
 import {
   DEFAULT_FOLDED_3D_CAMERA,
   antipodalCamera,
+  folded3dCoplanarEpsilon,
   folded3dEyeDirection,
   folded3dFrameRadius,
-  projectFolded3dModel,
   type FoldedFigureCamera,
-} from './foldedFigure3dProjection';
-import type { Folded3dPaperStyle } from './folded3dStyle';
+} from './folded3dCamera';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 
@@ -126,7 +145,7 @@ function cellAttr(model: OristudioCpFolded3dRenderModel, cell: number, field: nu
 
 /**
  * A cell's faces far-to-near at this camera, stated from the payload and the
- * eye alone (the projector's tests say the same thing the same way): the last
+ * eye alone, from the payload's own facts rather than from the mesh: the last
  * entry is the layer an opaque render shows.
  */
 function cellFarToNear(
@@ -145,7 +164,7 @@ function cellFarToNear(
   return towardEye ? [...stack].reverse() : [...stack];
 }
 
-/** The faces some cell shows at this camera — the projector's choice per cell. */
+/** The faces some cell shows at this camera — one layer per cell, the near one. */
 function nearFaces(model: OristudioCpFolded3dRenderModel, camera: FoldedFigureCamera): Set<number> {
   const near = new Set<number>();
   for (let cell = 0; cell < model.cell_count; cell += 1) {
@@ -498,7 +517,7 @@ describe('the scene the 3D figure exports', () => {
   });
 
   /**
-   * The gate that replaces the projector-vs-window comparison: one mesh, two
+   * The gate the projector-vs-window comparison was retired in favour of: one mesh, two
    * orderings, one picture. Paper agrees exactly. Ink: the scene never lacks
    * a line the window draws, and the lines it draws that the window does not
    * are the window's known loss — a concave crease seen obliquely from inside
@@ -562,9 +581,9 @@ describe('the scene the 3D figure exports', () => {
 });
 
 describe('what the scene says about each item', () => {
-  it.each(NAMES)('%s shows the paper side the projector does — the GPU’s winding', (name) => {
+  it.each(NAMES)('%s shows the paper side the GPU’s winding does', (name) => {
     // The mesh is wound so the GPU paints the kernel's front where the kernel
-    // says front (`folded3dMesh.ts`, and its test against the projector); the
+    // says front (`folded3dMesh.ts`, and its winding test); the
     // scene reads the same winding. Pinned against the payload's own facts —
     // `facing × up` against the eye — rather than against the winding, so a
     // second statement of the side could not agree by construction.
@@ -592,6 +611,25 @@ describe('what the scene says about each item', () => {
       model.span * uniforms.scale,
       9
     );
+  });
+
+  it('hands the kernel’s coplanarity tolerance to the tree rather than letting it default', () => {
+    // The wiring, not just the value: the tree's own 1e-7 would keep every
+    // assertion in this file green, because these fixtures' planes are far
+    // enough apart that nothing reclassifies.
+    const model = fixture('box_90');
+    const mesh = meshOf(model);
+    producer.options.length = 0;
+    sceneOf(model, mesh, DEFAULT_FOLDED_3D_CAMERA);
+    expect(producer.options.at(-1)?.layers).toEqual({
+      coplanarEps: folded3dCoplanarEpsilon(model, TOLERANCES),
+    });
+
+    const loose = { ...TOLERANCES, distance_relative: 1e-4 };
+    sceneOf(model, mesh, DEFAULT_FOLDED_3D_CAMERA, { tolerances: loose });
+    expect(producer.options.at(-1)?.layers).toEqual({
+      coplanarEps: folded3dCoplanarEpsilon(model, loose),
+    });
   });
 
   it('names each crease by its fold: mountain, valley, and edge for a border', () => {
@@ -793,18 +831,13 @@ describe('the export camera', () => {
     // The frame is the model's silhouette, in the units the figure's
     // primitives are in — so the export at zoom 1 is the figure's on-screen size.
     expect(box.width).toBeGreaterThan(2 * folded3dFrameHalfSide(folded3dFrameRadius(model)) * 0.99);
-    expect(folded3dFigureBoxCssPx({ ...entry, frameRadius: null, renderSnapshot: null })).toBeNull();
+    expect(folded3dFigureBoxCssPx({ ...entry, frameRadius: null, scene: null })).toBeNull();
   });
 });
 
 /** A 3D figure entry with the frame the window draws inside — what the export reads. */
 function framedEntry(model: OristudioCpFolded3dRenderModel): OristudioCpFoldedFigureEntry {
-  const snapshot = projectFolded3dModel(model, {
-    camera: DEFAULT_FOLDED_3D_CAMERA,
-    displayStyle: 'Paper5',
-    style: PROJECTOR_STYLE,
-    tolerances: TOLERANCES,
-  }).snapshot;
+  const mesh = meshOf(model);
   return {
     id: 'f',
     title: 'f',
@@ -816,24 +849,13 @@ function framedEntry(model: OristudioCpFolded3dRenderModel): OristudioCpFoldedFi
     status: 'ready',
     snapshot: null,
     folded3d: {},
-    renderSnapshot: snapshot,
+    renderSnapshot: null,
+    scene: sceneOf(model, mesh, DEFAULT_FOLDED_3D_CAMERA),
     placement: IDENTITY_FOLDED_PLACEMENT,
     error: null,
     frameRadius: folded3dFrameRadius(model),
   } as unknown as OristudioCpFoldedFigureEntry;
 }
-
-const PROJECTOR_STYLE: Folded3dPaperStyle = {
-  front: [1, 1, 0.2],
-  back: [1, 1, 1],
-  line: [0, 0, 0],
-  faceAlpha: 1,
-  transparentAlpha: 16 / 255,
-  lineWidth: 1.200000048,
-  antiAlias: true,
-  lighting: true,
-  lightDir: [0, 0, 1],
-};
 
 /** The paper's front normal of a face, in view space: `facing × up`, through the mesh basis. */
 function frontTowardEye(

@@ -1,14 +1,13 @@
 /**
- * The invariant that outlives the projector (§7 of
+ * The invariant that outlived the projector (§7 of
  * `implementation-plans/unified-paper-style-and-export.md`): at every camera
  * the parity harness sweeps, the `(face, side)` the export's scene shows are
  * exactly the skins the window's draw passes show.
  *
- * `folded3dProjectorParity.test.ts` compares the window with the projector by
- * pixel, and is left as it is until Phase 7. This test compares the window
- * with the scene *by set*, on the same fixtures over the same sweep, from the
- * one mesh both are built from — which is what makes it a statement about
- * ordering rather than about rasterisers:
+ * The projector's own harness compared the window with it by pixel, and went
+ * with it. This test compares the window with the scene *by set*, on the same
+ * fixtures over the same sweep, from the one mesh both are built from — which
+ * is what makes it a statement about ordering rather than about rasterisers:
  *
  * - **Forward.** Every `(face, side)` the scene leaves unhidden is a skin
  *   `folded3dDrawPasses` submits at that camera. The window submits one layer
@@ -47,7 +46,7 @@ import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import { folded3dMesh, type Folded3dMesh } from './folded3dMesh';
 import { folded3dPaperScene, folded3dSceneCamera } from './folded3dScene';
 import { FOLDED_3D_CREASE_DEPTH_BIAS } from './folded3dWindow';
-import type { FoldedFigureCamera } from './foldedFigure3dProjection';
+import type { FoldedFigureCamera } from './folded3dCamera';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 

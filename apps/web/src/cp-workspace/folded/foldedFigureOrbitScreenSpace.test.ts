@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { advanceFoldedFigureOrbit, beginFoldedFigureOrbit } from './foldedFigureOrbitGesture';
-import { DEFAULT_FOLDED_3D_CAMERA } from './foldedFigure3dProjection';
+import { DEFAULT_FOLDED_3D_CAMERA } from './folded3dCamera';
 import { unprojectDevicePoint, userCameraToView, type UserCamera } from '../renderer/camera';
 
 /**

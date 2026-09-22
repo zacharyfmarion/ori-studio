@@ -112,6 +112,7 @@ import { useCpFavoriteToolbarGroup } from '../../cp-workspace/toolCatalog/useCpF
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useCpCanvasContextMenu } from '../../cp-workspace/contextMenu/useCpCanvasContextMenu';
 // Registers `__foldedStaleDebug()` in dev builds; no-op in production.
+import { foldedFigureDraws } from '../../cp-workspace/folded/foldedFigureCapabilities';
 import '../../cp-workspace/folded/foldedFigureStalenessDebug';
 // Registers `__inlineSimStaleDebug()` in dev builds; no-op in production.
 import '../../cp-workspace/inlineSimulation/inlineSimulationStalenessDebug';
@@ -3444,7 +3445,7 @@ export function CreasePatternPanel() {
 
 
 function isRenderableGeneratedFoldedFigure(figure: OristudioCpFoldedFigureEntry): boolean {
-  return Boolean(figure.renderSnapshot?.primitives.length || figure.snapshot?.wireframe);
+  return foldedFigureDraws(figure) || Boolean(figure.snapshot?.wireframe);
 }
 
 function isRenderableFoldedFormFrame(frame: FoldDocument): boolean {

@@ -3,9 +3,9 @@
  * mesh, through the simulator's scene producer, at the camera the window shows.
  *
  * What the export used to draw was a second builder of the same geometry — the
- * CPU projector — with its own cull, merge and camera, and the 3 + 22 pinned
- * camera disagreements in `folded3dProjectorParity.test.ts` are what two
- * builders cost. This module builds nothing: it hands `meshToPaperScene` the
+ * CPU projector — with its own cull, merge and camera; the 3 + 22 camera
+ * disagreements its parity harness pinned are what two builders cost, and the
+ * harness retired with it (§11). This module builds nothing: it hands `meshToPaperScene` the
  * buffers `FoldedMeshSource` uploads, plus the three facts the tree cannot
  * recover from them — which kernel face each triangle draws, where each layer
  * sits in its cell's stack at this camera, and which creases the window would
@@ -64,7 +64,6 @@ import {
   type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
   type OristudioCpFoldedFigureDisplayStyle,
-  type OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import {
@@ -73,12 +72,12 @@ import {
   surfacePaperStyle,
 } from '../../lib/paper/paperStyleResolve';
 import { widestPenCssPx } from '../../lib/paper/paperSvg';
-import { foldedFigureBox } from '../adapters/cpFoldedToScene';
+import { foldedFigureBox, type FoldedFigureDrawing } from '../adapters/cpFoldedToScene';
 import { toSimBasis, type Folded3dMesh } from './folded3dMesh';
 import { planeFrame } from './folded3dModelReader';
 import { folded3dStylePlan } from './folded3dStyle';
 import { folded3dFrameFillZoom, folded3dWindowView } from './folded3dWindow';
-import { folded3dCoplanarEpsilon, type FoldedFigureCamera } from './foldedFigure3dProjection';
+import { folded3dCoplanarEpsilon, type FoldedFigureCamera } from './folded3dCamera';
 
 export interface Folded3dPaperSceneOptions {
   /**
@@ -133,12 +132,28 @@ export function folded3dPaperScene(
     lineWidth: widestPenCssPx(style),
     // The kernel's own bar, in the world units the tree cuts in under
     // `layers`: four thousand times the tree's default, and what keeps a plane
-    // the kernel joined from being split by float rounding — the projector's
-    // reasoning, unchanged.
+    // the kernel joined from being split by float rounding.
     layers: { coplanarEps: folded3dCoplanarEpsilon(model, options.tolerances) },
     showFaces: plan.fills,
     showEdges: plan.strokes,
   });
+}
+
+/**
+ * Everything about a style this bakes into the picture, as one string.
+ *
+ * The complement of `cpFoldedToScene`'s `sceneInkKey`, and between them they
+ * partition a style: what is here needs the scene *rebuilt* when it changes,
+ * and what is there re-inks the scene already stored. The light is baked —
+ * every face carries a `shade` and there is no normal left to re-light it from
+ * — and so is the widest pen, which is the ink allowance the hidden test
+ * measures a covered piece with. Colour is in neither, which is the carve-out
+ * §11 states: nothing a colour edit touches can move a vertex.
+ */
+export function folded3dSceneStyleKey(effective: PaperStyle): string {
+  const style = surfacePaperStyle(effective, PAPER_STYLE_POLICIES['folded-3d']);
+  const { enabled, azimuth, elevation } = style.light;
+  return `${enabled}|${azimuth}|${elevation}|${widestPenCssPx(style)}`;
 }
 
 /**
@@ -177,7 +192,7 @@ export function folded3dSceneCamera(
  * when the figure has none.
  */
 export function folded3dFigureBoxCssPx(
-  figure: OristudioCpFoldedFigureEntry,
+  figure: FoldedFigureDrawing,
   cssPerUserUnit = 1
 ): number | null {
   const box = foldedFigureBox(figure);

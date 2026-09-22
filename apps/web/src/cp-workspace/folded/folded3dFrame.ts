@@ -2,7 +2,7 @@
  * The frame a 3D folded figure draws inside, from its stored `frameRadius`.
  *
  * A leaf on purpose: the scene adapter sizes the figure's box from it and the
- * window sizes its camera from it, and the adapter sits under the projector
+ * window sizes its camera from it, and the adapter sits under the picture
  * that the window imports, so the number has to live where neither does.
  */
 

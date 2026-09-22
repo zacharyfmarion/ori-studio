@@ -18,7 +18,7 @@ import {
 } from '../paper/objectPaperStyle';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { getFolded3dOrbit, subscribeFolded3dOrbit } from './folded3dRuntime';
-import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
+import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 import { foldedFigureGesture } from './foldedFigureGesture';
 import { buildFoldedFigureProperties, type FoldedFigurePropertyDeps } from './foldedFigureProperties';
 import { isFoldedFigureStale } from './foldedFigureStaleness';

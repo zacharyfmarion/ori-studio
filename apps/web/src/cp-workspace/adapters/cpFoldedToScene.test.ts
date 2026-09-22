@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import type {
+  PaperFaceItem,
+  PaperItem,
+  PaperLineItem,
+  PaperScene,
+} from '@treemaker/origami-simulator';
+import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import {
   applyFoldedPlacementToPoint,
   cpContradictionFaceFills,
@@ -8,8 +15,10 @@ import {
   foldedFigureBox,
   foldedFigureLocalGeometry,
   foldedFigureUserBounds,
+  foldedSceneLocalGeometry,
 } from './cpFoldedToScene';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
+import { TRANSPARENT_FACE_ALPHA } from '../folded/folded3dStyle';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type {
   FoldedFigurePlacement,
@@ -148,7 +157,7 @@ const strokeTriangle = (placement: FoldedFigurePlacement = IDENTITY_FOLDED_PLACE
 
 describe('draw order as depth', () => {
   // The canvas batches every folded fill into one draw and every folded stroke
-  // into another, which throws away the painter order the projector computed —
+  // into another, which throws away the painter order the picture computed —
   // so a crease behind a face drew over it. The depth attribute is that order
   // made numeric, and these are the properties the depth test relies on.
   const twoPrimitives = (): OristudioCpFoldedRenderPrimitive[] => [
@@ -1049,5 +1058,205 @@ describe('gradient paint', () => {
     // Colours round-trip through a Float32Array, so compare with tolerance.
     expect(alphas.size).toBe(1);
     expect([...alphas][0]).toBeCloseTo(128 / 255, 6);
+  });
+});
+
+/**
+ * A 3D figure's stored picture, drawn by the same channel as a flat figure's
+ * kernel stream.
+ *
+ * The scene is already in the figure's local user space (`folded3dStoredScene`
+ * puts it there), so nothing here maps coordinates — what is under test is the
+ * ink: a face's fill is its side's paper under its shade, a line's stroke is
+ * its role's pen, and both come from the very functions the SVG painter uses.
+ */
+describe('a stored PaperScene', () => {
+  const FRONT_TRIANGLE: PaperFaceItem = {
+    kind: 'face',
+    face: 0,
+    side: 'front',
+    rings: [
+      [
+        [0, 0],
+        [10, 0],
+        [10, 10],
+      ],
+    ],
+    shade: 1,
+    hidden: false,
+  };
+
+  const MOUNTAIN: PaperLineItem = {
+    kind: 'line',
+    role: 'mountain',
+    a: [0, 0],
+    b: [10, 10],
+    onBoundary: [false, false],
+    hidden: false,
+  };
+
+  function scene(items: PaperItem[], sheet = 100): PaperScene {
+    return { bounds: { minX: 0, minY: 0, maxX: 10, maxY: 10 }, sheet, items };
+  }
+
+  function sceneFigure(items: PaperItem[], sheet = 100): OristudioCpFoldedFigureEntry {
+    return { ...figure([]), renderSnapshot: null, scene: scene(items, sheet) };
+  }
+
+  const style = (overrides: Partial<PaperStyle> = {}): PaperStyle => ({
+    ...DEFAULT_PAPER_STYLE,
+    ...overrides,
+  });
+
+  it('draws, where a figure with neither picture draws nothing', () => {
+    const drawn = cpFoldedToScene([sceneFigure([FRONT_TRIANGLE, MOUNTAIN])], undefined, undefined, undefined, () => style());
+    expect(drawn.fills.count).toBe(3);
+    expect(drawn.strokes.count).toBe(1);
+
+    const blank = cpFoldedToScene([{ ...figure([]), renderSnapshot: null }]);
+    expect(blank.fills.count).toBe(0);
+    expect(blank.strokes.count).toBe(0);
+  });
+
+  it('fills each face with its own side’s paper, and strokes each line with its role’s pen', () => {
+    const back: PaperFaceItem = { ...FRONT_TRIANGLE, face: 1, side: 'back' };
+    const custom = style({
+      paper: { front: '#ff0000', back: '#0000ff' },
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#00ff00', width: 3 },
+    });
+    const drawn = cpFoldedToScene(
+      [sceneFigure([FRONT_TRIANGLE, back, MOUNTAIN])],
+      undefined,
+      // Ignored for a scene: its lines already carry their role's pen in pt.
+      () => 9,
+      undefined,
+      () => custom
+    );
+    const fill = (vertex: number) => [...drawn.fills.color.slice(vertex * 4, vertex * 4 + 3)];
+    expect(fill(0)).toEqual([1, 0, 0]);
+    expect(fill(3)).toEqual([0, 0, 1]);
+    expect([...drawn.strokes.color.slice(0, 3)]).toEqual([0, 1, 0]);
+    expect(drawn.strokes.widthMul[0]).toBe(3);
+  });
+
+  it('shades a face rather than painting its side flat', () => {
+    const lit: PaperFaceItem = { ...FRONT_TRIANGLE, shade: 0.5 };
+    const drawn = cpFoldedToScene([sceneFigure([lit])], undefined, undefined, undefined, () =>
+      style({ paper: { front: '#ffffff', back: '#000000' } })
+    );
+    expect(drawn.fills.color[0]).toBeLessThan(1);
+    expect(drawn.fills.color[0]).toBeGreaterThan(0);
+  });
+
+  it('leaves out what nothing shows, and what the style has no pen for', () => {
+    const buried: PaperFaceItem = { ...FRONT_TRIANGLE, face: 4, hidden: true };
+    const aux: PaperLineItem = { ...MOUNTAIN, role: 'aux' };
+    const hiddenLine: PaperLineItem = { ...MOUNTAIN, hidden: true };
+    const items = [FRONT_TRIANGLE, buried, aux, hiddenLine, MOUNTAIN];
+    const drawn = cpFoldedToScene([sceneFigure(items)], undefined, undefined, undefined, () =>
+      style()
+    );
+    // One visible face; the two visible lines, aux included — the style shows
+    // aux creases by default.
+    expect(drawn.fills.count).toBe(3);
+    expect(drawn.strokes.count).toBe(2);
+
+    const noAux = cpFoldedToScene([sceneFigure(items)], undefined, undefined, undefined, () =>
+      style({ auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false } })
+    );
+    expect(noAux.strokes.count).toBe(1);
+  });
+
+  it('keeps every layer, translucent, under X-ray', () => {
+    // The scene marks buried pieces and the canvas drops them — except under a
+    // style the eye sees through, which is the one style that makes two
+    // solutions of a figure look different (`foldedFigureCapabilities`). The
+    // window draws it translucent, so an unwindowed figure has to as well.
+    const buried: PaperFaceItem = { ...FRONT_TRIANGLE, face: 4, hidden: true };
+    const hiddenLine: PaperLineItem = { ...MOUNTAIN, hidden: true };
+    const items = [FRONT_TRIANGLE, buried, MOUNTAIN, hiddenLine];
+    const drawn = (displayStyle: OristudioCpFoldedFigureEntry['displayStyle']) =>
+      cpFoldedToScene(
+        [{ ...sceneFigure(items), displayStyle }],
+        undefined,
+        undefined,
+        undefined,
+        () => style()
+      );
+
+    const opaque = drawn('Paper5');
+    expect(opaque.fills.count).toBe(3);
+    expect(opaque.fills.color[3]).toBe(1);
+    expect(opaque.strokes.count).toBe(1);
+
+    const xray = drawn('Transparent3');
+    expect(xray.fills.count).toBe(6);
+    expect(xray.fills.color[3]).toBeCloseTo(TRANSPARENT_FACE_ALPHA, 6);
+    expect(xray.strokes.count).toBe(2);
+  });
+
+  it('cuts a face’s holes out of it', () => {
+    const withHole: PaperFaceItem = {
+      ...FRONT_TRIANGLE,
+      rings: [
+        [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+          [0, 10],
+        ],
+        [
+          [2, 2],
+          [8, 2],
+          [8, 8],
+          [2, 8],
+        ],
+      ],
+    };
+    const solidSquare: PaperFaceItem = { ...withHole, rings: [withHole.rings[0]!] };
+    const holed = cpFoldedToScene([sceneFigure([withHole])], undefined, undefined, undefined, () =>
+      style()
+    );
+    const whole = cpFoldedToScene([sceneFigure([solidSquare])], undefined, undefined, undefined, () =>
+      style()
+    );
+    // A ring of holes is more triangles and less area, never one quad.
+    expect(holed.fills.count).toBeGreaterThan(whole.fills.count);
+  });
+
+  it('erodes a line back from the boundary, as the painter does', () => {
+    const onBoundary: PaperLineItem = { ...MOUNTAIN, onBoundary: [true, true] };
+    const eroded = cpFoldedToScene(
+      [sceneFigure([onBoundary], 100)],
+      undefined,
+      undefined,
+      undefined,
+      () => style({ erode: 0.02 })
+    );
+    expect(eroded.strokes.count).toBe(1);
+    expect(eroded.strokes.a[0]).toBeGreaterThan(0);
+    expect(eroded.strokes.b[0]).toBeLessThan(10);
+  });
+
+  it('boxes and pivots a framed figure on its frame, not on the picture inside it', () => {
+    // The same answer as a snapshot-backed figure's: the frame is a window onto
+    // the model and does not move as the model turns inside it.
+    const framed = { ...sceneFigure([FRONT_TRIANGLE]), frameRadius: 5 };
+    const turned = {
+      ...framed,
+      scene: scene([{ ...FRONT_TRIANGLE, rings: [[[-3, -3], [40, 1], [2, 40]]] }]),
+    };
+    expect(foldedFigureBox(framed)).toEqual(foldedFigureBox(turned));
+    expect(foldedFigureBox(framed)?.center).toEqual(cpModelToSvg({ x: 0, y: 0 }));
+  });
+
+  it('re-inks without re-triangulating, and re-triangulates when the ink moves a vertex', () => {
+    const entry = sceneFigure([MOUNTAIN], 100);
+    const red = style({ edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#ff0000' } });
+    const first = foldedSceneLocalGeometry(entry.scene!, style());
+    expect(foldedSceneLocalGeometry(entry.scene!, style())).toBe(first);
+    // A fresh style object of equal value is the common case — the effective
+    // style is a merge, so identity would miss on every frame.
+    expect(foldedSceneLocalGeometry(entry.scene!, red)).not.toBe(first);
   });
 });

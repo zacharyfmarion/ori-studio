@@ -3,19 +3,17 @@
  * else.
  *
  * The payload is struct-of-arrays (see {@link OristudioCpFolded3dRenderModel}),
- * so every consumer needs the same handful of index calculations. There are two
- * consumers now — the CPU projector, which is becoming the export path, and the
- * GPU mesh builder, which is becoming the live one — and the numbers they read
- * must be *the same numbers*, not the same formula written twice.
+ * so every consumer needs the same handful of index calculations. This is the
+ * only reader: the mesh builder, the camera module and the scene producer all
+ * come through here, so the numbers they work from are *the same numbers* and
+ * not the same formula written three times. It was written to be shared
+ * between the GPU mesh and the CPU projector beside it; the projector has gone
+ * (D5) and the reason has not.
  *
- * {@link modelRadius} is the sharp case. It is what
- * `folded3dFrameRadius` sizes a figure's frame from and what the mesh scales its
- * layer displacement by, so a second copy that drifted by a hair would put the
- * model fractionally outside the window it is drawn in, at a size nobody could
- * explain from either file alone.
- *
- * Bodies here are lifted verbatim out of `foldedFigure3dProjection.ts`; the
- * projector's golden tests are the gate on that.
+ * {@link modelRadius} is the sharp case. It is what `folded3dFrameRadius` sizes
+ * a figure's frame from and what the mesh scales its geometry by, so a second
+ * copy that drifted by a hair would put the model fractionally outside the
+ * window it is drawn in, at a size nobody could explain from either file alone.
  */
 
 import type { Vec3 } from '@treemaker/origami-simulator';

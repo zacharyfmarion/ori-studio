@@ -43,7 +43,7 @@ import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
-import type { FoldedFigureCamera } from '../../cp-workspace/folded/foldedFigure3dProjection';
+import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -1070,6 +1070,17 @@ export interface CreasePatternSliceActions {
     field: F,
     value: PaperStyleValue<F> | undefined
   ) => boolean;
+  /**
+   * Rebuild every 3D figure's stored picture at the style it now follows.
+   *
+   * For the fields the picture *bakes* — the light, which every face carries as
+   * a `shade`, and the widest pen, which the hidden test measures with — where
+   * re-inking the scene that is there cannot show the change
+   * (`folded3dSceneStyleKey`). Derived state and not a user edit, like the
+   * colour mirror it is installed beside: it selects nothing, dirties nothing,
+   * and a figure with no kernel to rebuild from keeps the picture it has.
+   */
+  refreshOristudioCpFolded3dScenes: () => void;
   /**
    * Open an inline simulation of the region these creases enclose, falling back
    * to the Simulate panel when they are not one whole region.

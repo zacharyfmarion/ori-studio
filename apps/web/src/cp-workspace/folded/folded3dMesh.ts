@@ -11,7 +11,8 @@
  *
  * A folded model's layers are **exactly coplanar**. A depth buffer cannot order
  * them — same z, so they z-fight — which is why ORIPA keeps an overlap matrix
- * and why the CPU projector beside this file resolves order with a BSP.
+ * and why the vector path beside this file (`folded3dScene.ts`, through the
+ * simulator's BSP) resolves order with a tree instead.
  *
  * The obvious escape is to displace each layer by a hair and let the z-buffer
  * reproduce an order we already know. That was tried and it does not work, for a
@@ -25,8 +26,7 @@
  * scheme collapses anyway, because the displacement projects to no depth
  * separation at all.
  *
- * So the order is used the way the projector uses it: to decide **what to
- * draw**, not to nudge where. A plane's visible surface is the top face of each
+ * So the order is used to decide **what to draw**, not to nudge where. A plane's visible surface is the top face of each
  * of its cells; the opposite side's is the bottom face of each. Those two
  * {@link Folded3dSkin}s are built once, and the eye picks one per plane. Inside
  * a skin there is one face per cell and cells are area-disjoint, so nothing
@@ -55,19 +55,19 @@
  * bounds is the one you can see.
  *
  * Which ring segments are a layer's paper edges, rather than arrangement cuts it
- * runs across, is `buildFolded3dInk` in `folded3dModelReader.ts` — shared with
- * the CPU projector, because the window and the export disagreeing about which
- * creases exist is the failure this whole change is repairing.
+ * runs across, is `buildFolded3dInk` in `folded3dModelReader.ts` — the one
+ * reader, because the window and the export disagreeing about which creases
+ * exist is the failure this whole change is repairing.
  *
  * # Winding, which is easy to invert and was not guessed
  *
  * `MeshRenderer`'s view transform has determinant **−1** (yaw about Y, then a
  * y/z swap — `camera.ts`'s `toViewSpace`), so `sign(screen winding) =
  * −sign(n · eyeDir)`: a triangle whose right-hand normal points *toward* the eye
- * is drawn with `u_backColor`. The CPU projector calls that same face
- * **front** (`viewNormal[2] >= 0 ? style.front : style.back`). So to make the
- * GPU agree with the flat/3D figure the user already has, every triangle is
- * wound CCW about **`−paperFrontNormal`**.
+ * is drawn with `u_backColor`. The paper's own front normal calls that same face
+ * **front** (`viewNormal[2] >= 0`). So to make the GPU agree with the flat/3D
+ * figure the user already has, every triangle is wound CCW about
+ * **`−paperFrontNormal`**.
  *
  * An inline simulation of the same FOLD agrees: it cancels the same reflection
  * with its 2D lift `[x, y] → [x, 0, −y]` (`normalizePoint` in
@@ -102,8 +102,8 @@ import {
  * A memory bound, not a texture one: `textureSizeFor(1_048_576)` is 1024, well
  * inside any `MAX_TEXTURE_SIZE`, while dim 4096 would make the position array
  * alone 268 MB. 1M vertices is roughly 50× the largest admitted corpus model, so
- * this is expected never to fire — the same shape of guard, and the same
- * justification, as the projector's `BSP_ITEM_BUDGET`.
+ * this is expected never to fire: it degrades a model nobody can draw into a
+ * refusal rather than a hung tab.
  */
 export const FOLDED_3D_MESH_VERTEX_BUDGET = 1_048_576;
 
@@ -113,8 +113,8 @@ const MIN_TRIANGLE_AREA_RELATIVE = 1e-12;
 /**
  * The doubled-area floor a triangle of a model of this `radius` must clear, in
  * the units {@link signedArea2} reports: a plane's own `(u, v)`, which is
- * orthonormal, so model length². Shared with the projector's `buildItems` so
- * the exported drawing and the mesh drop the same earcut dust.
+ * orthonormal, so model length². The mesh is the only builder now, so this is
+ * the one floor the exported drawing and the window both drop dust at.
  */
 export function folded3dMinTriangleArea2(radius: number): number {
   return MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
@@ -341,8 +341,8 @@ export interface Folded3dMesh {
  *
  * A result rather than a throw, for the same reason a 3D fold refusal is: a
  * figure that cannot be meshed must still draw, and the caller already has the
- * path for that — the stored `renderSnapshot`, which is what a figure that has
- * not been rehydrated shows anyway.
+ * path for that — the stored `PaperScene`, which is what a figure that has not
+ * been rehydrated shows anyway.
  */
 export type Folded3dMeshResult =
   | { kind: 'mesh'; mesh: Folded3dMesh }
@@ -350,14 +350,14 @@ export type Folded3dMeshResult =
 
 /**
  * Kernel world axes to the renderer's, so the mesh shader's hard-coded
- * yaw-about-Y means what the projector's `yaw` means: the paper's normal becomes
- * the renderer's vertical.
+ * yaw-about-Y means what a {@link FoldedFigureCamera}'s `yaw` means: the
+ * paper's normal becomes the renderer's vertical.
  *
  * `(x, z, −y)` and not `(x, z, y)` — the second is a *reflection*, which draws a
  * mirrored figure with front and back swapped and looks entirely plausible. This
- * one is a proper rotation, so it leaves every winding alone. Identical to the
- * projector's `toSimBasis`, deliberately: the two paths must place the same
- * model at the same camera in the same place.
+ * one is a proper rotation, so it leaves every winding alone. `folded3dCamera`'s
+ * `folded3dEyeDirection` carries an eye back through the same map, which is what
+ * keeps "which side of this plane is the viewer on" one answer.
  */
 export function toSimBasis(p: Vec3): Vec3 {
   return [p[0], p[2], -p[1]];
@@ -373,7 +373,7 @@ export function toSimBasis(p: Vec3): Vec3 {
  * its face, {@link EDGE_CODE.aux} — which the edge pass draws in the aux pen
  * when the style shows aux creases and leaves out otherwise, as the simulator
  * treats a source `F` edge. It used to map to 0 (border) while the edge pass
- * skipped code 3, so as not to delete linework the CPU projector drew.
+ * skipped code 3, which drew every aux crease as a paper edge.
  */
 export function folded3dEdgeAssignment(kind: number, foldDegrees: number): number {
   if (kind !== FOLDED_3D_EDGE_CREASE) return EDGE_CODE.border;

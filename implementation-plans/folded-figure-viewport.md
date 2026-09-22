@@ -287,6 +287,26 @@ picture goes out of date, and a figure that stopped refreshing it would export
 the view before last. The statement worth pinning is the one about *rate*, and
 it is asserted in both directions.
 
+**Superseded, 2026-09 — the projector is gone and R7 now holds by
+construction.** The measurement above argued against the mesh route on polygon
+count, and that argument no longer applies: what the simulator's scene producer
+grew since (F9 in `unified-paper-style-and-export.md`) is a `layers` mode that
+takes the kernel's order as `BspItem.order` and merges a plane's coplanar
+pieces under the kernel's own tolerance, so it draws the fixtures at the
+projector's counts from the buffers the window already uploads. The whole of
+that argument was about a *second* builder, and there is no longer one: the
+window's mesh goes through `folded3dScene.ts` to a `PaperScene`, and the
+canvas, the `.osf`, the standalone export and the crease-pattern export all
+ink that one picture. One figure, one drawing — so "the file and the window
+agree" is not a property to be tested for any more, only the ordering is
+(`folded3dSceneSkinParity.test.ts`). The rate statement survives, under
+`sceneIsExportOnly.test.tsx`: building the picture is still a BSP, a
+hidden-piece pass and a merge, and it still must not happen per pointermove.
+Two details change with the builder: shading is now the style's light rather
+than on-axis, and the red annotation on an unordered cell is gone with the
+projector that drew it — only a figure from a file written before this still
+carries one, inside its stored snapshot.
+
 ### 6. Rehydrating a reopened figure
 
 A reopened 3D figure is not blank — it draws its stored `renderSnapshot`, a

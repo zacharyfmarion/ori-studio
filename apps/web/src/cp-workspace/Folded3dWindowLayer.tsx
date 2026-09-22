@@ -205,8 +205,7 @@ function Folded3dWindow({
 
   // The figure's effective paper style: the app's display style with the
   // figure's own pins on top. The kernel model's colours are a mirror of the
-  // same values, kept for the projector and the file; the window reads the
-  // source.
+  // same values, kept for `.ori` round-trips; the window reads the source.
   const paperStyle = useObjectPaperStyle(figure);
   const renderSettings = useMemo(
     () =>

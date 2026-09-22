@@ -14,8 +14,8 @@
  * its session, and a figure that comes back through undo still has both.
  *
  * The consequence a caller has to respect: a figure reopened from a file has
- * `handle: null` and therefore **no render model**. It draws — the stored
- * `renderSnapshot` is the picture — but it cannot be re-projected. That is the
+ * `handle: null` and therefore **no render model**. It draws — its stored
+ * `PaperScene` is the picture — but it cannot be rebuilt. That is the
  * same shape as "draws but cannot cycle", and it is a predicate to gate the
  * colour, style and camera controls on rather than a call that quietly does
  * nothing. {@link folded3dRenderModel} returning `undefined` is that predicate.

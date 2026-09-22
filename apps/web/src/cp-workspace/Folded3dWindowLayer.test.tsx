@@ -17,8 +17,8 @@ import { overlayModelToCss } from './annotations/annotationTransform';
 import { foldedFigureBox } from './adapters/cpFoldedToScene';
 import type { CpOverlayView } from './CreasePatternWebglCanvas';
 import { Folded3dWindowLayer } from './Folded3dWindowLayer';
-import { defaultFolded3dCamera, folded3dFrameRadius } from './folded/foldedFigure3dProjection';
-import { project3dRenderSnapshot } from './folded/folded3dReproject';
+import { defaultFolded3dCamera, folded3dFrameRadius } from './folded/folded3dCamera';
+import { project3dScene } from './folded/folded3dReproject';
 import { resetFolded3dRenderModels, setFolded3dRenderModel } from './folded/folded3dRenderModels';
 import { clearAllFolded3dOrbits, publishFolded3dOrbit } from './folded/folded3dRuntime';
 
@@ -104,7 +104,8 @@ function figure(): OristudioCpFoldedFigureEntry {
     status: 'ready',
     snapshot: null,
     folded3d: FOLDED_3D,
-    renderSnapshot: project3dRenderSnapshot(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
+    renderSnapshot: null,
+    scene: project3dScene(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
     camera: CAMERA,
     frameRadius: folded3dFrameRadius(RENDER_MODEL),
     placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
@@ -297,7 +298,7 @@ describe('turning a folded figure', () => {
     act(() => {
       publishFolded3dOrbit('folded-1', {
         camera: { yaw: 1.25, pitch: -0.5, zoom: 1 },
-        snapshot: null,
+        scene: null,
       });
     });
 
@@ -317,7 +318,7 @@ describe('turning a folded figure', () => {
     act(() => {
       publishFolded3dOrbit('folded-1', {
         camera: { yaw: 2.5, pitch: 0.25, zoom: 1 },
-        snapshot: null,
+        scene: null,
       });
     });
 
@@ -353,7 +354,7 @@ describe('turning a folded figure', () => {
     act(() => {
       publishFolded3dOrbit('folded-2', {
         camera: { yaw: 0.75, pitch: 0.1, zoom: 1 },
-        snapshot: null,
+        scene: null,
       });
     });
 
@@ -394,7 +395,7 @@ describe('turning a folded figure', () => {
         for (let step = 1; step <= 20; step += 1) {
           publishFolded3dOrbit('folded-1', {
             camera: { yaw: step * 0.02, pitch: -0.4, zoom: 1 },
-            snapshot: null,
+            scene: null,
           });
         }
       });

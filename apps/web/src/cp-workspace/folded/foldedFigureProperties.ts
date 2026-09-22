@@ -23,7 +23,7 @@ import type {
 import { clampSimulatorZoom, SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../../lib/simulatorOrbit';
 import { degreesToRadians, radiansToDegrees, wrapDegrees } from '../../lib/angleUnits';
 import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
-import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
+import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 import { foldedDisplayStyleChoiceLabel, isFoldedFigureReady } from './foldedFigureActions';
 import {
   foldedAppearanceSupport,
@@ -68,7 +68,7 @@ export interface FoldedFigurePropertyDeps {
 
 /**
  * The properties of a folded figure: appearance (what the kernel or the
- * projector draws), camera (a 3D figure's eye), placement (where it sits on
+ * canvas draws), camera (a 3D figure's eye), placement (where it sits on
  * the paper). The title is the figure's own and the subtitle its stale / case
  * note — context, not a field.
  *

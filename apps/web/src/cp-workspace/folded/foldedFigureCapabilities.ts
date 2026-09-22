@@ -30,6 +30,23 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 
+/**
+ * Whether a figure has a picture at all — a 3D figure's stored
+ * {@link PaperScene} or a flat one's kernel `renderSnapshot`.
+ *
+ * One predicate, because the two pictures are alternatives rather than a
+ * fallback chain: a 3D figure folded since scenes existed has no
+ * `renderSnapshot`, so every "does this draw" test that read only that field
+ * would answer no for every current figure.
+ */
+export function foldedFigureDraws(
+  figure: Pick<OristudioCpFoldedFigureEntry, 'renderSnapshot' | 'scene'>
+): boolean {
+  const scene = figure.scene;
+  if (scene) return scene.items.length > 0;
+  return Boolean(figure.renderSnapshot?.primitives.length);
+}
+
 /** Whether this entry is the 3D kind. The one witness the UI branches on. */
 export function isFolded3dFigure(
   figure: Pick<OristudioCpFoldedFigureEntry, 'folded3d'> | null | undefined
@@ -69,15 +86,19 @@ export interface FoldedFigureCapabilities {
  * `Transparent3` was withheld from a 3D figure on the grounds that the kernel's
  * transparent development needs the whole-document *flat* arrangement
  * (`needs_subfaces`). True of the flat path and irrelevant here: a 3D figure's
- * picture is never asked of the kernel — `project3dRenderSnapshot` makes it in
- * TypeScript, where `Transparent3` means every cell translucent.
+ * picture is never asked of the kernel — the frontend makes it from the render
+ * model, where `Transparent3` means every cell translucent.
  *
  * Withholding it also cost the one thing that makes solution cycling visible.
- * Measured on `penguin_freeform` (8 solutions): the eight `renderSnapshot`s hash
+ * Measured on `penguin_freeform` (8 solutions): the eight pictures hash
  * identically under `Paper5` **and** under `Wire2`, because swapping two buried
  * layers of a stack changes nothing an opaque render shows, and only under
  * `Transparent3` do distinct pictures appear. So the figure that made "Another
  * solution" look like a dead button was the style list, not the enumerator.
+ * Which is why every surface that draws a 3D figure honours the alpha: the
+ * window through `folded3dWindowRenderSettings`, the canvas through
+ * `foldedFigurePicture`. The export does not — a painted page is opaque paper
+ * with every layer kept (§11).
  */
 export const FOLDED_FIGURE_STYLE_CHOICES: readonly OristudioCpFoldedFigureDisplayStyle[] = [
   'Paper5',

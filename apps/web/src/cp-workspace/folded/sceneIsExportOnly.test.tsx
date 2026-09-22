@@ -11,33 +11,32 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
-import { defaultFolded3dCamera, folded3dFrameRadius } from './foldedFigure3dProjection';
-import { project3dRenderSnapshot, reproject3dFigureAt } from './folded3dReproject';
+import { defaultFolded3dCamera, folded3dFrameRadius } from './folded3dCamera';
+import { project3dScene, reproject3dSceneAt } from './folded3dReproject';
 import { setFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
 import { clearAllFolded3dOrbits, getFolded3dOrbit } from './folded3dRuntime';
 import { useFoldedFigures } from './useFoldedFigures';
 
 /**
- * R6: the CPU projector has left the live path.
+ * R6: building a figure's picture has left the live path.
  *
- * `foldedFigure3dProjection.ts` is not deleted and is not meant to be — it is the
- * one thing that can turn a render model into a **vector** drawing with the
- * kernel's exact layer order, which is what an `.osf`, a crease-pattern export
- * and a standalone SVG all need, and what a figure falls back to when there is no
- * GPU. What it stopped being is a *per-frame* path.
+ * A 3D figure's picture is a `PaperScene` — the window's own mesh through the
+ * simulator's BSP, which is what an `.osf`, a crease-pattern export and a
+ * standalone SVG all read, and what the crease-pattern canvas draws for a
+ * figure that cannot be windowed. Building one is not free: a BSP build, a
+ * hidden-piece pass and a merge.
  *
- * So the statement worth pinning is not "nothing calls it" — the store calls it,
- * deliberately, whenever the exportable picture goes out of date. It is that the
+ * So the statement worth pinning is not "nothing builds one" — the store does,
+ * deliberately, whenever the stored picture goes out of date. It is that the
  * three paths that run at pointer rate never do:
  *
  * - every pointermove of a turn,
  * - every notch of a zoom, and the settle behind it,
  * - every drawn frame, which is the mesh and a uniform.
  *
- * The risk this guards is drift between two renderers of one figure kind: a
- * projection built sixty times a second and thrown away is invisible until it is
- * slow, and a projection quietly *not* rebuilt when it should be is invisible
- * until someone exports.
+ * The risk this guards runs both ways: a picture built sixty times a second and
+ * thrown away is invisible until it is slow, and a picture quietly *not* rebuilt
+ * when it should be is invisible until someone exports.
  *
  * WebGL is reported as available because none of this is true of a figure that
  * cannot be windowed — jsdom has no `Worker`, so the probe fails closed and without this every
@@ -49,21 +48,20 @@ vi.mock('../../simulator/workerGpuSupport', async (importOriginal) => ({
   useWorkerGpuSupport: () => true,
 }));
 
-const projector = vi.hoisted(() => ({ calls: 0 }));
+const builder = vi.hoisted(() => ({ calls: 0 }));
 
 /**
- * Counted at the module boundary rather than at `reproject3dFigureAt`, because
- * the cost R6 is about is the projection itself — `earcut` over every cell ring,
- * a BSP build, a software rasteriser — and a caller that reached it by some other
- * route would still pay it.
+ * Counted at the module boundary rather than at `reproject3dSceneAt`, because
+ * the cost R6 is about is the picture itself — a BSP build, a hidden-piece pass,
+ * a merge — and a caller that reached it by some other route would still pay it.
  */
-vi.mock('./foldedFigure3dProjection', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./foldedFigure3dProjection')>();
+vi.mock('./folded3dScene', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./folded3dScene')>();
   return {
     ...actual,
-    projectFolded3dModel: (...args: Parameters<typeof actual.projectFolded3dModel>) => {
-      projector.calls += 1;
-      return actual.projectFolded3dModel(...args);
+    folded3dPaperScene: (...args: Parameters<typeof actual.folded3dPaperScene>) => {
+      builder.calls += 1;
+      return actual.folded3dPaperScene(...args);
     },
   };
 });
@@ -118,7 +116,8 @@ function figure(): OristudioCpFoldedFigureEntry {
     status: 'ready',
     snapshot: null,
     folded3d: FOLDED_3D,
-    renderSnapshot: project3dRenderSnapshot(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
+    renderSnapshot: null,
+    scene: project3dScene(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
     placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
     camera: CAMERA,
     frameRadius: folded3dFrameRadius(RENDER_MODEL),
@@ -142,9 +141,9 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  // Building the fixture above projects once, which is the export picture a
-  // reopened figure would have been saved with. The count starts here.
-  projector.calls = 0;
+  // Building the fixture above builds one picture, which is what a reopened
+  // figure would have been saved with. The count starts here.
+  builder.calls = 0;
 });
 
 afterEach(() => {
@@ -189,8 +188,8 @@ function storedFigure(): OristudioCpFoldedFigureEntry {
   return entry;
 }
 
-describe('a windowed 3D figure never projects at pointer rate', () => {
-  it('turns through twenty moves without one projection', () => {
+describe('a windowed 3D figure never rebuilds its picture at pointer rate', () => {
+  it('turns through twenty moves without building one', () => {
     const api = latest(mountFolded());
 
     act(() => {
@@ -203,10 +202,10 @@ describe('a windowed 3D figure never projects at pointer rate', () => {
     // The figure really did turn — otherwise this passes for a drag that moved
     // nothing, which is the way a test like this goes quietly wrong.
     expect(getFolded3dOrbit(FIGURE_ID)?.camera.yaw).not.toBe(CAMERA.yaw);
-    expect(projector.calls).toBe(0);
+    expect(builder.calls).toBe(0);
   });
 
-  it('zooms through a burst, and its settle, without one projection', () => {
+  it('zooms through a burst, and its settle, without building one', () => {
     const api = latest(mountFolded());
 
     act(() => {
@@ -220,16 +219,16 @@ describe('a windowed 3D figure never projects at pointer rate', () => {
 
     // The settle writes the store, so this is not "nothing happened": the zoom
     // is on the entry and the picture it was already drawing is kept, because a
-    // projection is fitted to the figure's frame at any zoom.
+    // scene is fitted to the figure's frame at any zoom.
     expect(storedFigure().camera?.zoom).toBeGreaterThan(CAMERA.zoom);
-    expect(projector.calls).toBe(0);
+    expect(builder.calls).toBe(0);
   });
 });
 
 describe('the exportable picture is still rebuilt, once, when it goes stale', () => {
-  it('projects exactly once for a whole turn, on release', () => {
+  it('builds exactly once for a whole turn, on release', () => {
     const api = latest(mountFolded());
-    const before = storedFigure().renderSnapshot;
+    const before = storedFigure().scene;
 
     act(() => {
       api.orbit.begin({ x: 0, y: 0 });
@@ -241,20 +240,18 @@ describe('the exportable picture is still rebuilt, once, when it goes stale', ()
 
     act(() => api.orbit.commit());
 
-    expect(projector.calls).toBe(1);
+    expect(builder.calls).toBe(1);
     // And it is the picture of where the drag ended, not of where it started —
     // this is what an `.osf`, a crease-pattern export and a standalone SVG all
     // read, and a figure that stopped refreshing it would export the old view.
-    const after = storedFigure().renderSnapshot;
+    const after = storedFigure().scene;
     expect(after).not.toBe(before);
-    expect(after).toEqual(
-      reproject3dFigureAt(storedFigure(), 'Paper5', live?.camera ?? CAMERA)
-    );
+    expect(after).toEqual(reproject3dSceneAt(storedFigure(), 'Paper5', live?.camera ?? CAMERA));
   });
 });
 
-describe('a figure that cannot be windowed keeps the projector on the live path', () => {
-  it('projects every move, which is what the window is being spared', () => {
+describe('a figure that cannot be windowed keeps the builder on the live path', () => {
+  it('builds every move, which is what the window is being spared', () => {
     // No frame, so `canWindowFolded3dFigure` refuses it and the crease-pattern
     // scene draws it: the picture *is* the live path, and it has to be rebuilt
     // per move. This is the control — without it the assertions above would hold
@@ -262,7 +259,7 @@ describe('a figure that cannot be windowed keeps the projector on the live path'
     useWorkspaceStore.setState({
       oristudioCpFoldedFigures: [{ ...figure(), frameRadius: null }],
     });
-    projector.calls = 0;
+    builder.calls = 0;
     const api = latest(mountFolded());
 
     act(() => {
@@ -272,7 +269,7 @@ describe('a figure that cannot be windowed keeps the projector on the live path'
       }
     });
 
-    expect(projector.calls).toBe(5);
-    expect(getFolded3dOrbit(FIGURE_ID)?.snapshot).not.toBeNull();
+    expect(builder.calls).toBe(5);
+    expect(getFolded3dOrbit(FIGURE_ID)?.scene).not.toBeNull();
   });
 });

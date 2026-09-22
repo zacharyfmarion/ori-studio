@@ -1,3 +1,4 @@
+import type { PaperScene } from '@treemaker/origami-simulator';
 import type { Point } from '../lib/geometry';
 import type { PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { CpGeometryTransport } from './oristudioCpGeometry';
@@ -1081,6 +1082,24 @@ export interface OristudioCpFoldedFigureEntry {
    */
   folded3d?: OristudioCpFolded3dSnapshot | null;
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
+  /**
+   * A **3D** figure's stored picture: the scene its window shows, built by
+   * `folded3dPaperScene` at the figure's own camera and frame, in the figure's
+   * *local user space* — the coordinates {@link placement} transforms, the
+   * same ones a flat figure's `renderSnapshot` reaches after `cpModelToSvg`.
+   * See `cp-workspace/folded/folded3dStoredScene.ts`.
+   *
+   * It replaces `renderSnapshot` for a 3D figure (which keeps its meaning for
+   * the flat one, the kernel's own stream): a scene carries geometry and roles
+   * and no pens, so the canvas, the export and a file all paint it with
+   * whatever style the figure is following, rather than re-deriving a picture
+   * whose ink was baked when it was made.
+   *
+   * Optional, like every other 3D-only sibling here: absent means the same as
+   * null, and a figure written by a build before this — or a flat figure, which
+   * never has one — simply has none and draws its `renderSnapshot`.
+   */
+  scene?: PaperScene | null;
   /** Display placement on the canvas. See {@link FoldedFigurePlacement}. */
   placement: FoldedFigurePlacement;
   /**
@@ -1090,13 +1109,13 @@ export interface OristudioCpFoldedFigureEntry {
    *
    * A sibling of {@link placement} rather than part of it: placement moves the
    * finished picture around the canvas and costs nothing, while changing this
-   * re-projects the figure from its render model — which a reopened `.osf`
-   * does not have. It is persisted anyway, because it says which view the stored
-   * picture was taken at.
+   * rebuilds the figure's picture from its render model — which a reopened
+   * `.osf` does not have. It is persisted anyway, because it says which view
+   * the stored picture was taken at.
    *
-   * The type lives in `cp-workspace/folded/foldedFigure3dProjection.ts`, which
-   * owns its meaning; it is restated structurally here so this module keeps no
-   * dependency on the projector.
+   * The type lives in `cp-workspace/folded/folded3dCamera.ts`, which owns its
+   * meaning; it is restated structurally here so this module keeps no
+   * dependency on the CP workspace.
    */
   camera?: {
     yaw: number;
@@ -1108,7 +1127,7 @@ export interface OristudioCpFoldedFigureEntry {
      * Optional because every figure written before the verb existed has none,
      * and "absent" means identity rather than an error. Spelled out as nine
      * slots rather than `number[]` for the same reason the rest of this record
-     * is restated here: it has to stay assignable to the projector's `Mat3`
+     * is restated here: it has to stay assignable to the simulator's `Mat3`
      * without importing it, and a bare array is not.
      */
     orient?: readonly [
@@ -1130,10 +1149,10 @@ export interface OristudioCpFoldedFigureEntry {
    *
    * Stored rather than derived because the render model it comes from is
    * deliberately not persisted, and because deriving the frame from the current
-   * projection is the bug it exists to fix: those bounds change with every
-   * orbit, so the figure's chrome resized and shifted as you turned it. Null on
-   * every flat figure, and on a 3D one written before frames existed — both fall
-   * back to the projected bounds, which is the old behaviour.
+   * picture is the bug it exists to fix: those bounds change with every orbit,
+   * so the figure's chrome resized and shifted as you turned it. Null on every
+   * flat figure, and on a 3D one written before frames existed — both fall back
+   * to the picture's own bounds, which is the old behaviour.
    */
   frameRadius?: number | null;
   /**
