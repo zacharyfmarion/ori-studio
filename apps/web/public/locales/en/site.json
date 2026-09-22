@@ -7,6 +7,7 @@
     },
     "description": "Get the Ori Studio desktop app for macOS, Windows and Linux — the same free, open-source origami workspace as the browser version, with native menus, file dialogs and updates. Or open it in your browser with nothing to install.",
     "eyebrow": "Desktop app",
+    "gettingStartedLink": "Installed? Here is where to begin",
     "latest": "Latest release: {{version}}",
     "lead": "Ori Studio runs in your browser with nothing to install. The desktop app is the same workspace, packaged for macOS, Windows and Linux — with native menus and file dialogs, projects that open straight from Finder or Explorer, and updates that install themselves.",
     "openInBrowser": "Or open it in your browser",
@@ -22,6 +23,58 @@
       "windowsTerm": "Windows"
     }
   },
+  "faq": {
+    "description": "Answers to the questions people ask about Ori Studio: whether it is free, what files it opens and exports, where your work is saved, whether it works offline and on a phone, what it collects, and how it relates to Oriedita, TreeMaker and Box Pleating Studio.",
+    "eyebrow": "FAQ",
+    "files": {
+      "export": "It exports .cp, .fold, .ori, .orh, .tmd4, .tmd5 and .bps, and renders a pattern to SVG or PNG. A format that has no room for something — the reference photos, the notes — simply leaves it out.",
+      "open": "It opens Ori Studio projects (.osf) and imports .cp, .fold, .ori and .orh crease patterns, TreeMaker files (.tmd, .tmd4, .tmd5) and Box Pleating Studio files (.bps).",
+      "q": "What files can I open and export?"
+    },
+    "free": {
+      "a": "Yes. It is free to use and open source under the GPL, with no account and no paid tier. The source is on GitHub. Anything you design with it is yours — the licence covers the software, not what you make.",
+      "q": "Is Ori Studio free?"
+    },
+    "help": {
+      "a": "Bugs go on GitHub, where the source lives. Questions are welcome on the Discord, where releases are announced too.",
+      "discord": "Join the Discord",
+      "issues": "Report a bug on GitHub",
+      "q": "Where do I ask a question or report a bug?"
+    },
+    "install": {
+      "a": "No. It runs in your browser. If you would rather have it as an application of its own, there is a desktop app for macOS, Windows and Linux — the same workspace with native menus, file dialogs and automatic updates.",
+      "link": "Download the desktop app",
+      "q": "Do I need to install anything?"
+    },
+    "lead": "What Ori Studio is, what it opens, where your work goes, and what it does and does not collect.",
+    "mobile": {
+      "a": "Yes — every workspace opens on a phone, and you can add it to your home screen. Drawing a crease pattern is still more comfortable on a laptop.",
+      "q": "Does it work on a phone or a tablet?"
+    },
+    "offline": {
+      "a": "After the first load, yes. The app keeps a copy of itself in the browser and starts without a connection; your files are on your computer either way. The ExplOri search and the desktop app’s update check are the parts that need the network.",
+      "q": "Does it work offline?"
+    },
+    "oriedita": {
+      "a": "The crease-pattern editor is a port of Oriedita — the same tools and checks, the same .ori files, running in a browser. Ori Studio adds a design workspace, a simulator, and references on the canvas around it, and it is a separate project.",
+      "link": "What carries over from Oriedita",
+      "q": "Is this Oriedita?"
+    },
+    "pageTitle": "Ori Studio FAQ — files, saving, offline, privacy",
+    "ports": {
+      "a": "The Design workspace’s circle packing is a port of Robert J. Lang’s TreeMaker 5.0.1, and its box pleating is a port of Mu-Tsun Tsai’s Box Pleating Studio. Both are checked against the originals, and both read and write the originals’ files, so a design can move between the programs.",
+      "q": "How does it relate to TreeMaker and Box Pleating Studio?"
+    },
+    "privacy": {
+      "a": "Anonymous usage counts and crash reports, so we can tell which tools get used and what breaks — never your files, your patterns, their geometry or your images. You can switch it off under Settings › Privacy, and the app works exactly the same either way.",
+      "q": "What does it collect?"
+    },
+    "saving": {
+      "a": "On your computer, as an .osf file, and nowhere else — there is no server holding your patterns. In Chrome and Edge, Save writes back into the file you opened; in other browsers each Save downloads a fresh copy. The desktop app uses the ordinary file dialogs.",
+      "q": "Where is my work saved?"
+    },
+    "title": "Frequently asked questions"
+  },
   "footer": {
     "communityLabel": "Community",
     "discord": "Discord",
@@ -29,6 +82,45 @@
     "languageLabel": "Language",
     "note": "{{name}} is free and open source.",
     "releases": "Releases"
+  },
+  "gettingStarted": {
+    "anywhere": {
+      "body": "Every workspace opens on a phone or a tablet, though a laptop is more comfortable for drawing. After the first load the app keeps a copy of itself, so it starts without a connection. If you would rather have it as an application of its own, there is a desktop build for macOS, Windows and Linux.",
+      "title": "Anywhere, and offline"
+    },
+    "description": "The shortest path from opening Ori Studio to a crease pattern you can fold: the three ways in, the Edit, Design and Simulate workspaces, which files it opens and exports, how saving works, and the keyboard.",
+    "download": "Or install the desktop app",
+    "eyebrow": "Guide",
+    "faqLink": "More questions are answered in the FAQ",
+    "keyboard": {
+      "layout": "The editor is built to be driven from the keyboard. Line types sit on the home row — A, S, D and F — and every tool has a shortcut you can change under Settings › Shortcuts.",
+      "oriedita": "Coming from Oriedita? You can import the shortcuts you are used to from its settings file, so your hands work on day one.",
+      "orieditaLink": "How to bring your Oriedita keyboard",
+      "title": "The keyboard"
+    },
+    "lead": "Ori Studio runs in your browser, with no account and nothing to install. This is the shortest path from opening it to a crease pattern you can fold.",
+    "openApp": "Open Ori Studio",
+    "pageTitle": "Getting started with Ori Studio",
+    "saving": {
+      "browser": "In the browser, Chrome and Edge write Save back into the file you opened; other browsers download a fresh copy each time. The desktop app uses the ordinary file dialogs.",
+      "export": "To hand a pattern to another program, export it as .cp, .fold, .ori or .orh, or as an SVG or PNG. Anything those formats have no room for — the photos, the notes — is left out cleanly rather than corrupting the file.",
+      "project": "An Ori Studio project is an .osf file. It holds everything: the crease pattern, the reference images and notes beside it, and every design tab. Nothing is stored on a server — the file is on your computer.",
+      "title": "Saving your work"
+    },
+    "title": "Getting started",
+    "ways": {
+      "createCp": "A blank, editable crease pattern with the drawing tools ready. For when you know the pattern and want to draw it.",
+      "createDesign": "For when you know the subject but not yet the pattern. Sketch its structure as a tree and let circle packing find a base, or lay flaps out on a box-pleating grid; either way the crease pattern is built for you.",
+      "lead": "The start screen offers three actions. Which one you want depends on whether you already know the crease pattern.",
+      "openFile": "An Ori Studio project (.osf), or a file from another tool — .cp, .fold, .ori, .orh, .bps, or a TreeMaker .tmd. Dropping a file anywhere on the page does the same.",
+      "title": "Three ways in"
+    },
+    "workspaces": {
+      "design": "Where a model is packed before it is drawn: box pleating on a grid, circle packing from a tree, or a search of ExplOri’s archive of 22.5° patterns. Several designs stay open in tabs, and each one can send its crease pattern to Edit.",
+      "edit": "The crease-pattern editor, a port of Oriedita. Draw with construction and transform tools snapped to the grid and to angles, see foldability problems the moment you make them, and keep reference photos, notes and a folded preview on the same canvas.",
+      "simulate": "Folds the pattern into a 3D model you can turn and inspect, using a port of Origami Simulator. A simulation also opens in a window beside the pattern you are drawing, so checking an idea costs a glance.",
+      "title": "The three workspaces"
+    }
   },
   "header": {
     "openApp": "Open the app"
@@ -39,7 +131,47 @@
   },
   "nav": {
     "download": "Download",
+    "faq": "FAQ",
+    "gettingStarted": "Getting started",
     "home": "Home",
-    "label": "Site"
+    "label": "Site",
+    "oriedita": "Oriedita"
+  },
+  "oriedita": {
+    "about": {
+      "body": "Oriedita is a free crease-pattern editor developed by its community, itself a fork of Orihime. Ori Studio’s editor is a Rust and WebAssembly port of it, kept compatible with its files and checked against it for parity. Ori Studio is a separate project and is not affiliated with Oriedita.",
+      "link": "Oriedita’s website",
+      "title": "About Oriedita"
+    },
+    "carries": {
+      "checks": "The foldability checks: Kawasaki and Maekawa where the paper folds flat, and for creases that do not, a check in three dimensions of whether each vertex closes.",
+      "files": "The files. Open any .ori or .orh, and export back to either — a pattern can move between the two programs in both directions.",
+      "keyboard": "Your keyboard, if you want it: Oriedita’s shortcuts can be imported from its own settings file.",
+      "title": "What carries over",
+      "tools": "The editor. Drawing, construction and transform tools are ports of Oriedita’s, checked against the original for the same results."
+    },
+    "description": "Ori Studio’s crease-pattern editor is a port of Oriedita that runs in your browser: the same tools and foldability checks, .ori and .orh files in both directions, and your Oriedita keyboard shortcuts imported from an .oriconfig file.",
+    "different": {
+      "browser": "It runs in the browser. Open a tab and draw; the desktop app is the same editor with native menus and file dialogs.",
+      "design": "A Design workspace alongside the editor: box pleating on a grid and circle packing from a tree, each building a crease pattern you can send straight to Edit.",
+      "missing": "A few Oriedita actions have no counterpart yet — background images, folded-figure sizing, panel switching among them. The shortcut import names each one it skips.",
+      "references": "Reference photos and notes live on the canvas beside the pattern, saved with the project — and dropped cleanly when you export to .ori, which has no room for them.",
+      "simulate": "A fold simulator opens in a window next to the pattern, so checking whether an idea folds does not mean a round trip through another program.",
+      "title": "What is different"
+    },
+    "download": "Get the desktop app",
+    "eyebrow": "Compatibility",
+    "keyboard": {
+      "choice": "The dialog offers two options. “Match Oriedita’s keyboard” applies Oriedita’s layout plus whatever you customized; “Only my customizations” applies just the hotkeys you changed and keeps Ori Studio’s layout for everything else. Oriedita’s export records only the keys you edited, so if you never changed anything the second option has nothing to apply.",
+      "lead": "Ori Studio’s default layout deliberately differs — the line types sit on the home row, A, S, D and F, where Oriedita uses M, V and L. If your hands know Oriedita, two steps make them work here on day one.",
+      "skipped": "The preview lists every shortcut it will not import and why: a key left blank in Oriedita, an action with no counterpart here, or a key another shortcut already answers. Only hotkeys come across — colours, line widths and grid settings stay as they are.",
+      "step1": "In Oriedita, open Preferences and click Export. Save the .oriconfig file anywhere.",
+      "step2": "In Ori Studio, open Settings › Shortcuts, click “Import from Oriedita…”, and pick that file. Nothing changes until you have reviewed what the import would do and confirmed it.",
+      "title": "Bring your keyboard"
+    },
+    "lead": "Ori Studio’s crease-pattern editor is a port of Oriedita: its drawing tools, its foldability checks and its file formats, running in a browser tab with nothing to install — or as a desktop app.",
+    "openEditor": "Open the editor",
+    "pageTitle": "Oriedita in your browser — Ori Studio",
+    "title": "Oriedita, in your browser"
   }
 }

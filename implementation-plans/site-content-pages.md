@@ -327,23 +327,47 @@ where to be is a product decision. Downloads come from github.com, which is
 slow and unreliable from China; the release assets could be mirrored to the
 Cloudflare R2 bucket the CP-detect models already publish to.
 
-### Phase 3 — The remaining three English pages, each with its Chinese twin
+### Phase 3 — The remaining three pages, in every locale
 
-One PR each, so translation lands with its page. `/download` went first in
-Phase 1 not because it matters most but because it is the shortest — a handful
-of links and platform notes — which makes it the cheapest page to prove the
-plumbing on before the prose-heavy ones commit eight locales' worth of text to
-that plumbing. From Phase 2 on, a page ships in English and zh-CN together.
+`/download` went first in Phase 1 not because it matters most but because it is
+the shortest — a handful of links and platform notes — which made it the
+cheapest page to prove the plumbing on. With the plumbing proven and the locale
+machinery from Phase 2 in place, the three prose pages shipped together, each in
+all nine locales, as one PR (2026-09-22).
 
-- [ ] `/oriedita` — "Oriedita in your browser". Folds in
-      `docs/coming-from-oriedita.md`, which is already written
-- [ ] `/getting-started` — the longest page here; write it after the pattern is
-      settled by the two above
-- [ ] `/faq` — from questions actually asked in Discord and issues, not invented
+- [x] `/oriedita/` — "Oriedita, in your browser". `docs/coming-from-oriedita.md`
+      condensed into the keyboard section, its caveats kept; says what carried
+      over and what did not, and that the projects are separate. Links to
+      Oriedita's site
+- [x] `/getting-started/` — the three start actions named with the start
+      screen's own `t()` strings (`dialogs:startScreen.*`, `common:workspaceRail.*`),
+      so the guide and the interface cannot disagree in any language; the three
+      workspaces; saving on each surface as `fileService` does it; the keyboard;
+      offline and mobile
+- [x] `/faq/` — ten questions, each an `<h2>` in the searcher's own words. Every
+      answer is checkable against the code: formats from the landing's ring and
+      the importers, saving from `fileService`, offline from the service worker,
+      privacy from `docs/analytics.md`, licence from `LICENSING.md`. **Not** from a
+      Discord transcript — it was not readable from here, and the issue tracker
+      held six issues, all bugs — so this is the set a product like this
+      predictably raises, to be revised once Search Console and the Discord say
+      which questions people actually bring
+- [x] All three in the nine locales at once: 88 keys × 8, written for each
+      language's reader with the app's own UI labels quoted from its catalogs
+      (設定 › ショートカット, 设置 › 快捷键 …), stamped, `i18n:check` green
+- [x] Nav order is the order Zach named: Getting started, Download, Oriedita, FAQ
+- [x] The pages link each other in their bodies (guide → Oriedita and download,
+      Oriedita → download, FAQ → both, download → guide), pinned by a test —
+      which caught the download page linking nowhere but the footer
+- [x] `DownloadPage` on the shared `SiteArticleHead` / `SiteSection` pieces, so
+      four pages cannot drift into four heading sizes
 
 ### Phase 4 — Measure
 
-- [ ] `seo-smoke.mjs` covers every page after deploy
+- [x] `seo-smoke.mjs` covers every page after deploy — derived from the deployed
+      `sitemap.xml` rather than a list kept in step: every URL it names must serve
+      `#seo-content`, a canonical to itself, and the `lang` its path implies, which
+      the SPA fallback fails on all three. 27 checks against production today
 - [ ] Submit the new sitemap in Search Console and Bing Webmaster Tools *(needs Zach)*
 - [ ] Record which pages get indexed, and whether sitelinks appear *(needs Zach)*
 - [ ] PostHog: referrers and search engines for country = CN, before and after —

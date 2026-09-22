@@ -24,6 +24,10 @@ describe('SITE_PAGES', () => {
     expect(LANDING_PAGE.path).toBe('/');
   });
 
+  it('lists the four content pages, in nav order', () => {
+    expect(CONTENT_PAGES.map((page) => page.id)).toEqual(['getting-started', 'download', 'oriedita', 'faq']);
+  });
+
   it('gives every page a distinct path', () => {
     const paths = SITE_PAGES.map((page) => page.path);
     expect(new Set(paths).size).toBe(paths.length);
@@ -63,7 +67,7 @@ describe('pagePath', () => {
   it('leaves English unprefixed and prefixes every other locale', () => {
     expect(pagePath(LANDING_PAGE)).toBe('/');
     expect(pagePath(LANDING_PAGE, 'zh-CN')).toBe('/zh-CN/');
-    const [download] = CONTENT_PAGES;
+    const download = CONTENT_PAGES.find((page) => page.id === 'download')!;
     expect(pagePath(download)).toBe('/download/');
     expect(pagePath(download, 'zh-CN')).toBe('/zh-CN/download/');
     expect(pagePath(download, 'pt-BR')).toBe('/pt-BR/download/');

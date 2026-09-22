@@ -289,9 +289,33 @@
   letter-spacing: -0.01em;
 }
 
+.site-inline-link {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-primary);
+  text-underline-offset: 0.2em;
+}
+
+.site-inline-link:hover {
+  color: var(--accent-primary);
+}
+
+/* A question reads as a question: a touch smaller than a section heading, tighter above. */
+.site-faq {
+  margin-top: clamp(24px, 4vw, 36px);
+}
+
+.site-faq__question {
+  font-size: 1.1rem;
+}
+
 .site-list {
-  margin: 0;
+  margin: 0 0 var(--space-4);
   padding-left: 1.2em;
+}
+
+.site-section > :last-child {
+  margin-bottom: 0;
 }
 
 .site-list li + li {

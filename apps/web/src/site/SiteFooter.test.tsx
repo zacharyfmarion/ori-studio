@@ -67,7 +67,7 @@ describe('SiteFooter', () => {
   it('offers this page in every language, by its own name, as real links', () => {
     // How a crawler learns `/zh-CN/download/` exists: a `<select>` is a control it cannot
     // operate; an anchor is a link it follows.
-    const [download] = CONTENT_PAGES;
+    const download = CONTENT_PAGES.find((page) => page.id === 'download')!;
     const rendered = render(download.path);
     const links = Array.from(rendered.querySelectorAll<HTMLAnchorElement>('.site-languages a'));
     expect(links).toHaveLength(SUPPORTED_LOCALES.length);
@@ -81,7 +81,7 @@ describe('SiteFooter', () => {
   });
 
   it('marks the language it is in, and links the nav within it', () => {
-    const [download] = CONTENT_PAGES;
+    const download = CONTENT_PAGES.find((page) => page.id === 'download')!;
     const rendered = render(pagePath(download, 'zh-CN'));
     expect(rendered.querySelector('.site-languages a[aria-current="true"]')?.getAttribute('hreflang')).toBe(
       'zh-CN'
