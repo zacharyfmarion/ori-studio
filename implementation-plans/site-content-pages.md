@@ -327,23 +327,91 @@ where to be is a product decision. Downloads come from github.com, which is
 slow and unreliable from China; the release assets could be mirrored to the
 Cloudflare R2 bucket the CP-detect models already publish to.
 
-### Phase 3 — The remaining three English pages, each with its Chinese twin
+### Phase 3 — The remaining three pages, in every locale
 
-One PR each, so translation lands with its page. `/download` went first in
-Phase 1 not because it matters most but because it is the shortest — a handful
-of links and platform notes — which makes it the cheapest page to prove the
-plumbing on before the prose-heavy ones commit eight locales' worth of text to
-that plumbing. From Phase 2 on, a page ships in English and zh-CN together.
+`/download` went first in Phase 1 not because it matters most but because it is
+the shortest — a handful of links and platform notes — which made it the
+cheapest page to prove the plumbing on. With the plumbing proven and the locale
+machinery from Phase 2 in place, the three prose pages shipped together, each in
+all nine locales, as one PR (2026-09-22).
 
-- [ ] `/oriedita` — "Oriedita in your browser". Folds in
-      `docs/coming-from-oriedita.md`, which is already written
-- [ ] `/getting-started` — the longest page here; write it after the pattern is
-      settled by the two above
-- [ ] `/faq` — from questions actually asked in Discord and issues, not invented
+- [x] `/oriedita/` — "Oriedita, in your browser". `docs/coming-from-oriedita.md`
+      condensed into the keyboard section, its caveats kept; says what carried
+      over and what did not, and that the projects are separate. Links to
+      Oriedita's site
+- [ ] ~~`/getting-started/`~~ — **written, then removed before merge**
+      (2026-09-22). It was a single page trying to be a manual; Zach wants
+      something more approachable and a real set of documentation pages instead,
+      which is its own piece of work rather than a section of this one. The page
+      component and its 30-odd keys are gone; the registry, the routes and the
+      prerender need nothing back when docs arrive — a page is an entry in
+      `SITE_PAGES` plus a component
+- [x] `/faq/` — ten questions, each an `<h2>` in the searcher's own words. Every
+      answer is checkable against the code: formats from the landing's ring and
+      the importers, saving from `fileService`, offline from the service worker,
+      privacy from `docs/analytics.md`, licence from `LICENSING.md`. **Not** from a
+      Discord transcript — it was not readable from here, and the issue tracker
+      held six issues, all bugs — so this is the set a product like this
+      predictably raises, to be revised once Search Console and the Discord say
+      which questions people actually bring
+- [x] All three in the nine locales at once: 88 keys × 8, written for each
+      language's reader with the app's own UI labels quoted from its catalogs
+      (設定 › ショートカット, 设置 › 快捷键 …), stamped, `i18n:check` green
+- [x] Nav order: Download, Oriedita, FAQ
+- [x] The pages link each other in their bodies (download → Oriedita,
+      Oriedita → download, FAQ → both), pinned by a test — which caught the
+      download page linking nowhere but the footer
+- [x] `DownloadPage` on the shared `SiteArticleHead` / `SiteSection` pieces, so
+      four pages cannot drift into four heading sizes
+
+### Phase 3a — What review found (2026-09-22)
+
+**Text on the site pages selected but would not copy.** Not a CSS or selection
+problem — `user-select` is `auto` the whole way up and a drag selects fine. The
+app registers `edit.copy` as a global chord (`shortcuts.ts`), and
+`isShortcutEditingTarget` exempts only inputs and contenteditable, so a `<p>` is
+not an editing target: the capture-phase listener claimed ⌘C and
+`preventDefault`ed it, and the browser's own copy never ran. Measured as
+`defaultPrevented: true` with no `copy` event firing at all.
+
+Every other chord was swallowed on those pages too — there is no workspace
+mounted for any of them to act on. So the fix is a third "who owns this
+keystroke" predicate beside the two that exist: the *reader* owns them on a site
+page. `AppKeyboardActions.isReadingSitePage`, asked of the router rather than of
+focus, so it cannot be wrong about where focus happens to be.
+
+- [x] `handleAppKeyDown` stands down on a site page; wired in `App.tsx` from
+      `currentPath()` + `sitePageForPath`
+- [x] Tests: ⌘C is not claimed on a site page and Escape is not either; both are
+      still claimed in a workspace
+- [x] A note that follows a block gets its gap from a sibling rule
+      (`.site-definitions + .site-note`) rather than a modifier class, which
+      `.site-section > p` out-specified
+- [x] Bare "pattern" → "crease pattern" in the site and landing copy. Scoped
+      there deliberately: the ask was about these pages, and the app's own
+      catalogs are a separate decision (Box Pleating Studio's "pattern" means a
+      stretch gadget, so a blind sweep would be wrong there anyway)
+- [x] **Back after the language switch landed on a twin.** Picking a language is
+      not visiting a page — it re-renders the one you are on — but the switch
+      pushed a history entry for it. Back then returned to the unprefixed URL,
+      which is language-negotiated, so with the preference just pinned it
+      rendered in the chosen language and looked identical to the page being
+      left: Back appeared to do nothing. The switch replaces its entry now.
+      Reported 2026-09-22; pinned by a test that drives a real router backwards
+      (mutation-checked: without `replace` it lands on the twin).
+
+      The other half of that report is **not** a bug and is staying: an
+      unprefixed site page renders in the reader's language. That is what makes
+      `/` show Chinese to a reader arriving from a community link, which is the
+      audience the whole locale phase exists for — `/` is the `x-default` URL and
+      ours matches when it can, rather than forcing English.
 
 ### Phase 4 — Measure
 
-- [ ] `seo-smoke.mjs` covers every page after deploy
+- [x] `seo-smoke.mjs` covers every page after deploy — derived from the deployed
+      `sitemap.xml` rather than a list kept in step: every URL it names must serve
+      `#seo-content`, a canonical to itself, and the `lang` its path implies, which
+      the SPA fallback fails on all three. 27 checks against production today
 - [ ] Submit the new sitemap in Search Console and Bing Webmaster Tools *(needs Zach)*
 - [ ] Record which pages get indexed, and whether sitelinks appear *(needs Zach)*
 - [ ] PostHog: referrers and search engines for country = CN, before and after —

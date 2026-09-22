@@ -182,7 +182,7 @@ describe('useWindowTitle', () => {
   it('titles a content page by its own title, in the form the deploy serves it', () => {
     // `/download/` is what Pages answers with, and react-router reports it verbatim.
     // The registry answers which pages exist, so this hook needs no list of its own.
-    const [page] = CONTENT_PAGES;
+    const page = CONTENT_PAGES.find((candidate) => candidate.id === 'download')!;
     mountWith({ workspaceTitle: 'Crane', dirty: true, ...singleTreemakerDesignTab() }, page.path);
     expect(window.document.title).toBe('Download Ori Studio for macOS, Windows and Linux');
   });
@@ -190,7 +190,7 @@ describe('useWindowTitle', () => {
   it('titles a localized page in its language — the string the prerender wrote there', async () => {
     // The catalogs never load under jsdom (no network), so the test supplies the one key
     // and switches language the way `useRouteLocale` does on `/zh-CN/…`.
-    const [page] = CONTENT_PAGES;
+    const page = CONTENT_PAGES.find((candidate) => candidate.id === 'download')!;
     preloadLocale('zh-CN');
     i18n.addResourceBundle('zh-CN', 'site', { download: { pageTitle: '下载 Ori Studio' } }, true, true);
     await act(async () => {

@@ -110,6 +110,43 @@ describe('content page prerender', () => {
 });
 
 /**
+ * What each page is *for*, pinned by the words that make it that page. The generic
+ * checks above prove every page is well-formed; these prove the download page still
+ * lists builds, the Oriedita page still explains the import, the FAQ still asks
+ * questions, and the guide still names the start screen's actions with the start
+ * screen's own strings.
+ */
+describe('each content page says what it is for', () => {
+  const page = (id: string) => CONTENT_PAGES.find((candidate) => candidate.id === id)!;
+
+  it('the Oriedita page explains the shortcut import and links to Oriedita', () => {
+    const markup = renderPageMarkup(page('oriedita'));
+    expect(markup).toContain('Settings › Shortcuts');
+    expect(markup).toContain('href="https://oriedita.github.io/"');
+    // A crawler-visible claim about the relationship, in so many words.
+    expect(markup).toContain('not affiliated with Oriedita');
+  });
+
+  it('the FAQ is a list of questions, each an h2, each a real question', () => {
+    const markup = renderPageMarkup(page('faq'));
+    const questions = markup.match(/<h2[^>]*class="[^"]*site-faq__question[^"]*"[^>]*>([^<]*)<\/h2>/g) ?? [];
+    expect(questions.length).toBeGreaterThanOrEqual(8);
+    for (const question of questions) expect(question).toMatch(/\?<\/h2>$/);
+  });
+
+  it('every content page links to at least one other content page', () => {
+    // The pages form a small graph — guide → Oriedita → download, FAQ → both — and a page
+    // linked only from the footer is a page a crawler weights as a footer link.
+    for (const current of CONTENT_PAGES) {
+      const markup = renderPageMarkup(current);
+      const body = markup.slice(0, markup.indexOf('<footer'));
+      const others = CONTENT_PAGES.filter((other) => other !== current);
+      expect(others.some((other) => body.includes(`href="${other.path}"`)), current.id).toBe(true);
+    }
+  });
+});
+
+/**
  * The whole assembly, against a stand-in for the built `index.html`.
  *
  * A template rather than the real `dist/index.html`, which CI never builds — but with the

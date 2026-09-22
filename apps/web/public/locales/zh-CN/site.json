@@ -10,6 +10,7 @@
     "latest": "最新版本：{{version}}",
     "lead": "Ori Studio 在浏览器中运行，无需安装。桌面应用是同一个工作区，打包为 macOS、Windows 和 Linux 版本——带有原生菜单和文件对话框，项目可直接从 Finder 或资源管理器打开，更新也会自行安装。",
     "openInBrowser": "或者在浏览器中打开",
+    "orieditaLink": "从 Oriedita 过来？从这里开始",
     "pageTitle": "下载 Ori Studio（macOS、Windows、Linux）",
     "title": "下载 Ori Studio",
     "which": {
@@ -21,6 +22,58 @@
       "windowsBody": "一个安装程序，适用于 64 位 Windows。",
       "windowsTerm": "Windows"
     }
+  },
+  "faq": {
+    "description": "关于 Ori Studio 的常见问题解答：是否免费、能打开和导出哪些文件、工作保存在哪里、能否离线和在手机上使用、收集哪些数据，以及它与 Oriedita、TreeMaker 和 Box Pleating Studio 的关系。",
+    "eyebrow": "常见问题",
+    "files": {
+      "export": "它能导出 .cp、.fold、.ori、.orh、.tmd4、.tmd5 和 .bps，并把折痕图渲染为 SVG 或 PNG。某种格式容纳不下的内容——参考照片、笔记——会被直接略去。",
+      "open": "它能打开 Ori Studio 项目 (.osf)，并导入 .cp、.fold、.ori 和 .orh 折痕图、TreeMaker 文件 (.tmd、.tmd4、.tmd5) 以及 Box Pleating Studio 文件 (.bps)。",
+      "q": "能打开和导出哪些文件？"
+    },
+    "free": {
+      "a": "免费。它可以免费使用，并以 GPL 协议开源，没有账号，也没有付费版本。源代码在 GitHub 上。你用它设计的一切都属于你——许可证约束的是软件，而不是你的作品。",
+      "q": "Ori Studio 免费吗？"
+    },
+    "help": {
+      "a": "报告问题或提出功能需求，最合适的地方是 Ori Studio 的 Discord。",
+      "discord": "加入 Discord",
+      "issues": "在 GitHub 上报告问题",
+      "q": "在哪里提问或报告问题？"
+    },
+    "install": {
+      "a": "不需要。它在浏览器中运行。如果你更想把它当作独立应用来用，有 macOS、Windows 和 Linux 的桌面应用——同一个工作区，配上原生菜单、文件对话框和自动更新。",
+      "link": "下载桌面应用",
+      "q": "需要安装什么吗？"
+    },
+    "lead": "Ori Studio 是什么、能打开什么、你的工作去了哪里，以及它收集什么、不收集什么。",
+    "mobile": {
+      "a": "能——每个工作区都能在手机上打开，还可以添加到主屏幕。不过绘制折痕图在笔记本电脑上仍然更舒服。",
+      "q": "手机或平板上能用吗？"
+    },
+    "offline": {
+      "a": "首次加载之后可以。应用会在浏览器里保留一份自己的副本，没有网络也能启动；无论如何，你的文件都在你的电脑上。需要联网的是 ExplOri 搜索和桌面应用的更新检查。",
+      "q": "离线能用吗？"
+    },
+    "oriedita": {
+      "a": "折痕图编辑器是 Oriedita 的移植——同样的工具和检查、同样的 .ori 文件，在浏览器中运行。Ori Studio 在它周围加上了设计工作区、模拟器和画布上的参考资料，并且是一个独立项目。",
+      "link": "从 Oriedita 保留了什么",
+      "q": "这就是 Oriedita 吗？"
+    },
+    "pageTitle": "Ori Studio 常见问题 — 文件、保存、离线、隐私",
+    "ports": {
+      "a": "设计工作区的圆形排布移植自 Robert J. Lang 的 TreeMaker 5.0.1，箱形褶皱移植自 Mu-Tsun Tsai 的 Box Pleating Studio。两者都与原版对照过，也都能读写原版的文件，所以设计可以在这些程序之间流转。",
+      "q": "它与 TreeMaker 和 Box Pleating Studio 是什么关系？"
+    },
+    "privacy": {
+      "a": "匿名的使用计数和崩溃报告，用来了解哪些工具被使用、哪里出了问题——绝不会收集你的文件、你的折痕图、它们的几何数据或你的图片。你可以在设置 › 隐私中关闭它，关闭后应用的运行完全一样。",
+      "q": "它会收集什么？"
+    },
+    "saving": {
+      "a": "保存在你的电脑上，是一个 .osf 文件，别无他处——没有任何服务器保管你的折痕图。在 Chrome 和 Edge 中，“保存”会直接写回你打开的文件；在其他浏览器中，每次保存都会下载一份新副本。桌面应用使用普通的文件对话框。",
+      "q": "我的工作保存在哪里？"
+    },
+    "title": "常见问题"
   },
   "footer": {
     "communityLabel": "社区",
@@ -39,7 +92,42 @@
   },
   "nav": {
     "download": "下载",
+    "faq": "常见问题",
     "home": "首页",
-    "label": "站点"
+    "label": "站点",
+    "oriedita": "Oriedita"
+  },
+  "oriedita": {
+    "about": {
+      "body": "Oriedita 是一款由社区开发的免费折痕图编辑器，本身是 Orihime 的分支。Ori Studio 的编辑器是它的 Rust 和 WebAssembly 移植，保持文件兼容，并与原版对照以确保一致。Ori Studio 是一个独立项目，与 Oriedita 没有隶属关系。",
+      "link": "Oriedita 的网站",
+      "title": "关于 Oriedita"
+    },
+    "carries": {
+      "checks": "折叠检查。川崎定理、前川定理和 big-little-big 都以相同方式检查。有几处命名差异——在 Ori Studio 中我们用“可折叠性”这一说法，而不是 CAMV。",
+      "files": "文件。可以打开任何 .ori 或 .orh，也能导出回这两种格式——折痕图可以在两个程序之间双向流转。",
+      "keyboard": "如果你愿意，还有你的键盘：Oriedita 的快捷键可以导入到 Ori Studio。",
+      "title": "保留了什么",
+      "tools": "编辑器。绘图、作图和变换工具都移植自 Oriedita，行为几乎完全一致。为了减少界面杂乱，我们做了一些小改动，例如把“延长线段”工具的多个变体合并成了一个工具。"
+    },
+    "description": "Ori Studio 的折痕图编辑器是 Oriedita 的移植，在浏览器中运行：同样的工具和折叠检查，双向支持 .ori 和 .orh 文件，还能从 .oriconfig 文件导入你的 Oriedita 键盘快捷键。",
+    "different": {
+      "browser": "它可以在浏览器中运行。Ori Studio 基于现代 Web 技术构建，完全可以在一个标签页里运行。如果你更喜欢，也可以在所有平台上下载原生应用。",
+      "design": "更多工作区。除了编辑工作区，Ori Studio 还提供多个处理折痕图的工作区——设计、模拟和参考。它们都基于社区打造的优秀开源工具。把它们汇集到一处，就能彼此配合，而不必来回切换。",
+      "references": "3D 支持。得益于 Brandon Wong（Instagram：@theplantpsychologist）的帮助，Ori Studio 原生支持非平折的折痕，也就是说，对于无法平折的折痕图，你既能创作，也能计算它折叠后的形态。",
+      "simulate": "你可以选中一张折痕图并就地模拟，快速查看它会如何折叠。",
+      "title": "有什么不同"
+    },
+    "download": "获取桌面应用",
+    "eyebrow": "兼容性",
+    "keyboard": {
+      "import": "你也可以导入自己保存的 Oriedita 快捷键：在 Oriedita 的首选项中导出，再到 Ori Studio 的设置 › 快捷键中导入。",
+      "lead": "Ori Studio 的默认布局是刻意不同的——线型放在主键区的 A、S、D 和 F 上，而 Oriedita 用的是 M、V 和 L。如果你的手已经习惯了 Oriedita，可以在设置 › 快捷键中切换为 Oriedita 的默认布局。",
+      "title": "把你的键盘带过来"
+    },
+    "lead": "Ori Studio 的折痕图编辑器是 Oriedita 的移植，所以上手应该很快。它支持打开和导出 .ori 格式，我们也承诺在可能的范围内保持互操作性。",
+    "openEditor": "打开编辑器",
+    "pageTitle": "浏览器里的 Oriedita — Ori Studio",
+    "title": "从 Oriedita 过来"
   }
 }

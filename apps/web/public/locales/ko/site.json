@@ -10,6 +10,7 @@
     "latest": "최신 릴리스: {{version}}",
     "lead": "Ori Studio는 아무것도 설치하지 않고 브라우저에서 실행됩니다. 데스크톱 앱은 같은 작업 공간을 macOS, Windows, Linux용으로 패키징한 것으로, 네이티브 메뉴와 파일 대화 상자, Finder나 탐색기에서 바로 열리는 프로젝트, 스스로 설치되는 업데이트가 더해집니다.",
     "openInBrowser": "또는 브라우저에서 열기",
+    "orieditaLink": "Oriedita에서 오셨나요? 여기서 시작하세요",
     "pageTitle": "Ori Studio 다운로드 (macOS, Windows, Linux)",
     "title": "Ori Studio 다운로드",
     "which": {
@@ -21,6 +22,58 @@
       "windowsBody": "64비트 Windows용 설치 프로그램 하나입니다.",
       "windowsTerm": "Windows"
     }
+  },
+  "faq": {
+    "description": "Ori Studio에 대해 자주 묻는 질문의 답: 무료인지, 어떤 파일을 열고 내보내는지, 작업이 어디에 저장되는지, 오프라인과 휴대폰에서 되는지, 무엇을 수집하는지, 그리고 Oriedita·TreeMaker·Box Pleating Studio와의 관계.",
+    "eyebrow": "자주 묻는 질문",
+    "files": {
+      "export": ".cp, .fold, .ori, .orh, .tmd4, .tmd5, .bps로 내보내고, 전개도를 SVG나 PNG로 렌더링합니다. 어떤 형식에 담을 자리가 없는 것 — 참고 사진, 메모 — 은 그냥 빠집니다.",
+      "open": "Ori Studio 프로젝트(.osf)를 열고, .cp·.fold·.ori·.orh 전개도, TreeMaker 파일(.tmd, .tmd4, .tmd5), Box Pleating Studio 파일(.bps)을 가져옵니다.",
+      "q": "어떤 파일을 열고 내보낼 수 있나요?"
+    },
+    "free": {
+      "a": "네. GPL 아래 무료이자 오픈소스이며, 계정도 유료 요금제도 없습니다. 소스는 GitHub에 있습니다. 이것으로 설계한 것은 모두 여러분의 것입니다 — 라이선스는 소프트웨어에 적용되지, 여러분이 만든 것에는 적용되지 않습니다.",
+      "q": "Ori Studio는 무료인가요?"
+    },
+    "help": {
+      "a": "문제를 알리거나 기능을 요청하기에 가장 좋은 곳은 Ori Studio Discord입니다.",
+      "discord": "Discord 참여하기",
+      "issues": "GitHub에 버그 신고",
+      "q": "질문이나 버그 신고는 어디서 하나요?"
+    },
+    "install": {
+      "a": "없습니다. 브라우저에서 실행됩니다. 독립된 앱으로 쓰고 싶다면 macOS, Windows, Linux용 데스크톱 앱이 있습니다 — 같은 작업 공간에 네이티브 메뉴, 파일 대화 상자, 자동 업데이트가 더해집니다.",
+      "link": "데스크톱 앱 다운로드",
+      "q": "설치해야 하는 것이 있나요?"
+    },
+    "lead": "Ori Studio가 무엇인지, 무엇을 열 수 있는지, 작업은 어디로 가는지, 무엇을 수집하고 무엇을 수집하지 않는지.",
+    "mobile": {
+      "a": "네 — 모든 작업 공간이 휴대폰에서 열리고, 홈 화면에 추가할 수도 있습니다. 그래도 전개도를 그리기에는 노트북이 더 편합니다.",
+      "q": "휴대폰이나 태블릿에서도 되나요?"
+    },
+    "offline": {
+      "a": "처음 불러온 뒤에는 됩니다. 앱이 브라우저에 자기 사본을 보관해 연결 없이도 시작되며, 파일은 어차피 내 컴퓨터에 있습니다. 네트워크가 필요한 부분은 ExplOri 검색과 데스크톱 앱의 업데이트 확인입니다.",
+      "q": "오프라인에서도 되나요?"
+    },
+    "oriedita": {
+      "a": "전개도 편집기는 Oriedita 이식입니다 — 같은 도구와 검사, 같은 .ori 파일이 브라우저에서 실행됩니다. Ori Studio는 그 주위에 디자인 작업 공간, 시뮬레이터, 캔버스 위의 참고 자료를 더한 것이며, 별개의 프로젝트입니다.",
+      "link": "Oriedita에서 이어받은 것",
+      "q": "이게 Oriedita인가요?"
+    },
+    "pageTitle": "Ori Studio 자주 묻는 질문 — 파일, 저장, 오프라인, 개인정보",
+    "ports": {
+      "a": "디자인 작업 공간의 원 배치는 Robert J. Lang의 TreeMaker 5.0.1을, 박스 플리팅은 Mu-Tsun Tsai의 Box Pleating Studio를 이식한 것입니다. 둘 다 원본과 대조했고 원본의 파일을 읽고 쓰므로, 설계가 프로그램 사이를 오갈 수 있습니다.",
+      "q": "TreeMaker, Box Pleating Studio와는 어떤 관계인가요?"
+    },
+    "privacy": {
+      "a": "익명 사용 횟수와 충돌 보고서입니다. 어떤 도구가 쓰이고 무엇이 고장 나는지 알기 위한 것이며, 여러분의 파일, 전개도, 그 기하 정보, 이미지는 절대 수집하지 않습니다. 설정 › 개인정보 보호에서 끌 수 있고, 어느 쪽이든 앱은 똑같이 동작합니다.",
+      "q": "무엇을 수집하나요?"
+    },
+    "saving": {
+      "a": "내 컴퓨터에 .osf 파일로 저장되며, 다른 곳에는 없습니다 — 전개도를 보관하는 서버는 없습니다. Chrome과 Edge에서는 저장이 열었던 파일에 바로 덮어쓰고, 다른 브라우저에서는 저장할 때마다 새 사본을 다운로드합니다. 데스크톱 앱은 일반적인 파일 대화 상자를 사용합니다.",
+      "q": "내 작업은 어디에 저장되나요?"
+    },
+    "title": "자주 묻는 질문"
   },
   "footer": {
     "communityLabel": "커뮤니티",
@@ -39,7 +92,42 @@
   },
   "nav": {
     "download": "다운로드",
+    "faq": "자주 묻는 질문",
     "home": "홈",
-    "label": "사이트"
+    "label": "사이트",
+    "oriedita": "Oriedita"
+  },
+  "oriedita": {
+    "about": {
+      "body": "Oriedita는 커뮤니티가 개발하는 무료 전개도 편집기이며, 그 자체는 Orihime의 포크입니다. Ori Studio의 편집기는 이를 Rust와 WebAssembly로 이식한 것으로, 파일 호환성을 유지하고 같은 결과가 나오는지 대조합니다. Ori Studio는 별개의 프로젝트이며 Oriedita와 제휴 관계가 없습니다.",
+      "link": "Oriedita 웹사이트",
+      "title": "Oriedita 소개"
+    },
+    "carries": {
+      "checks": "접힘 검사. 가와사키, 마에카와, big-little-big 모두 같은 방식으로 검사합니다. 이름이 다른 부분이 몇 가지 있는데, Ori Studio에서는 CAMV 대신 접힘 가능성이라는 용어를 씁니다.",
+      "files": "파일. 어떤 .ori나 .orh든 열고, 둘 중 어느 쪽으로도 다시 내보낼 수 있습니다 — 전개도는 두 프로그램 사이를 양방향으로 오갑니다.",
+      "keyboard": "원한다면 키보드도. Oriedita의 단축키를 Ori Studio로 가져올 수 있습니다.",
+      "title": "이어받은 것",
+      "tools": "편집기. 그리기·작도·변형 도구는 Oriedita의 것을 이식했고 거의 똑같이 동작합니다. 복잡함을 줄이기 위한 작은 변경이 몇 가지 있습니다. 예를 들어 선 연장 도구의 여러 변형은 하나의 도구로 합쳤습니다."
+    },
+    "description": "Ori Studio의 전개도 편집기는 브라우저에서 실행되는 Oriedita 이식입니다. 같은 도구와 접힘 검사, 양방향으로 지원되는 .ori와 .orh 파일, 그리고 .oriconfig 파일에서 가져오는 Oriedita 키보드 단축키.",
+    "different": {
+      "browser": "브라우저에서 실행할 수 있습니다. Ori Studio는 최신 웹 기술을 바탕으로 만들어져 탭 안에서 온전히 동작합니다. 원한다면 모든 플랫폼에서 네이티브 앱으로 내려받을 수도 있습니다.",
+      "design": "작업 공간이 더 있습니다. 편집 작업 공간 외에도 Ori Studio에는 전개도를 다루는 작업 공간이 여럿 있습니다 — 디자인, 시뮬레이션, 레퍼런스. 모두 커뮤니티가 만든 훌륭한 오픈소스 도구에 기반합니다. 한곳에 모아 두면 맥락을 바꾸지 않고도 서로 어울려 작동합니다.",
+      "references": "3D 지원. Brandon Wong(인스타그램 @theplantpsychologist)의 도움으로, Ori Studio는 평평하지 않은 접선을 기본으로 지원합니다. 평평하게 접히지 않는 전개도도 만들 수 있고, 접힌 형태를 계산할 수도 있습니다.",
+      "simulate": "전개도를 선택해 그 자리에서 시뮬레이션하면 어떻게 접힐지 빠르게 확인할 수 있습니다.",
+      "title": "다른 점"
+    },
+    "download": "데스크톱 앱 받기",
+    "eyebrow": "호환성",
+    "keyboard": {
+      "import": "Oriedita에 저장해 둔 단축키를 가져올 수도 있습니다. Oriedita의 환경설정에서 내보낸 뒤, Ori Studio의 설정 › 단축키에서 가져오세요.",
+      "lead": "Ori Studio의 기본 배열은 의도적으로 다릅니다. 선 종류는 홈 행의 A, S, D, F에 있고, Oriedita는 M, V, L을 씁니다. 손이 Oriedita에 익숙하다면 설정 › 단축키에서 Oriedita 기본값으로 바꿀 수 있습니다.",
+      "title": "키보드 가져오기"
+    },
+    "lead": "Ori Studio의 전개도 편집기는 Oriedita 이식이라 바로 익숙하게 느껴질 것입니다. .ori 형식을 열고 내보낼 수 있으며, 가능한 범위에서 상호 운용성을 유지하겠습니다.",
+    "openEditor": "편집기 열기",
+    "pageTitle": "브라우저에서 쓰는 Oriedita — Ori Studio",
+    "title": "Oriedita에서 넘어오기"
   }
 }

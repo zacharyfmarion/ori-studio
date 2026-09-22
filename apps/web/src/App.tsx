@@ -27,10 +27,11 @@ import { UpdateCard } from './components/UpdateCard';
 import { createOpenedPathFileService } from './platform/fileService';
 import { getRuntimeSurface } from './platform/runtime';
 import { confirmDiscardUnsavedWork, hasUnsavedWork } from './lib/unsavedWork';
-import { navigateTo } from './routing/appRouter';
+import { currentPath, navigateTo } from './routing/appRouter';
 import { currentWorkspacePath } from './routing/landing';
 import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
 import { useWelcomeDiscardGuard } from './routing/useWelcomeDiscardGuard';
+import { sitePageForPath } from './site/sitePages';
 import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
@@ -130,6 +131,12 @@ export default function App() {
   useEffect(() => {
     return installAppKeyboardListener(
       {
+        // The reader owns the keyboard on a site page; nothing is mounted for a
+        // shortcut to act on there. Asked of the router, not of focus.
+        isReadingSitePage: () => {
+          const path = currentPath();
+          return path !== null && sitePageForPath(path) !== null;
+        },
         getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
         getSelection: () => selectSelection(useWorkspaceStore.getState()),
         handleMenuAction,

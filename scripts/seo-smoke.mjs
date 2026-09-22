@@ -170,14 +170,54 @@ async function check({ name, path, rejectHtml, contentType, contains = [], absen
   return null;
 }
 
+/**
+ * One check per URL the deployed sitemap lists, derived rather than written.
+ *
+ * The named checks above pin a handful of pages to specific words. This is the guard for
+ * every page — the registry grows in the app, the sitemap is generated from it, and any
+ * page it lists has to be its own file on this host. Three things prove that, and the SPA
+ * fallback fails all three: the crawler copy is present, the canonical names *this* URL
+ * (the fallback's says the homepage), and `lang` matches the locale in the path (the
+ * fallback's says English). Nine locales × every page, today 18, tomorrow whatever the
+ * registry says — with no list to keep in step here.
+ */
+async function sitemapChecks() {
+  const response = await fetch(`${base}/sitemap.xml`, { redirect: 'follow' });
+  const xml = await response.text();
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, loc]) => loc);
+  if (locs.length === 0) return [];
+  return locs.map((loc) => {
+    const url = new URL(loc);
+    const [, first = ''] = url.pathname.split('/');
+    const lang = /^[a-z]{2}(-[A-Z]{2})?$/.test(first) ? first : 'en';
+    return {
+      name: `${url.pathname} is its own page, in ${lang}`,
+      path: url.pathname,
+      contains: [
+        'id="seo-content"',
+        `<html lang="${lang}">`,
+        `<link rel="canonical" href="https://oristudio.dev${url.pathname}" />`,
+      ],
+      absent: url.pathname === '/' ? [] : ['<link rel="canonical" href="https://oristudio.dev/" />'],
+    };
+  });
+}
+
 async function main() {
   const deadline = Date.now() + DEADLINE_MS;
   let failures = [];
+  let checks = CHECKS;
 
   // A freshly-created per-deployment host can take a moment to serve consistently. A real
   // failure fails identically on every attempt, so retrying costs only the wait.
   for (;;) {
-    failures = (await Promise.all(CHECKS.map(check))).filter(Boolean);
+    const fromSitemap = await sitemapChecks().catch(() => []);
+    checks = [...CHECKS, ...fromSitemap];
+    if (fromSitemap.length === 0) {
+      failures = ['sitemap.xml lists no URLs, so no page could be checked against it'];
+    } else {
+      failures = (await Promise.all(checks.map(check))).filter(Boolean);
+    }
     if (failures.length === 0 || Date.now() >= deadline) break;
     await sleep(RETRY_DELAY_MS);
   }
@@ -185,7 +225,7 @@ async function main() {
   for (const failure of failures) console.error(`  ✗ ${failure}`);
   if (failures.length === 0) {
     console.log(
-      `seo-smoke: ${CHECKS.length} checks passed against ${base} (${preview ? 'preview' : 'production'})`
+      `seo-smoke: ${checks.length} checks passed against ${base} (${preview ? 'preview' : 'production'})`
     );
   }
   process.exit(failures.length === 0 ? 0 : 1);

@@ -6,8 +6,13 @@ import { RELEASES_URL } from '../../constants/release';
 import { useDesktopDownloads } from '../../platform/useDesktopDownloads';
 import { EDIT_PATH } from '../../routing/paths';
 import { ExternalLink } from '../ExternalLink';
+import { SiteArticleHead, SiteSection } from '../SiteArticle';
 import { SiteLayout } from '../SiteLayout';
+import { CONTENT_PAGES, pagePath } from '../sitePages';
+import { useSitePage } from '../useSitePage';
 import { DesktopBuildList } from './DesktopBuildList';
+
+const ORIEDITA = CONTENT_PAGES.find((page) => page.id === 'oriedita');
 
 /**
  * `/download/` — the desktop app, and every build of it.
@@ -26,19 +31,19 @@ import { DesktopBuildList } from './DesktopBuildList';
 export function DownloadPage() {
   const { t } = useTranslation();
   const { version } = useDesktopDownloads();
+  const { locale } = useSitePage();
 
   return (
     <SiteLayout>
       <article className="site-article">
-        <header className="site-article__head">
-          <span className="site-eyebrow">{t('site:download.eyebrow', 'Desktop app')}</span>
-          <h1 className="site-title">{t('site:download.title', 'Download Ori Studio')}</h1>
-          <p className="site-lead">
-            {t(
-              'site:download.lead',
-              'Ori Studio runs in your browser with nothing to install. The desktop app is the same workspace, packaged for macOS, Windows and Linux — with native menus and file dialogs, projects that open straight from Finder or Explorer, and updates that install themselves.'
-            )}
-          </p>
+        <SiteArticleHead
+          eyebrow={t('site:download.eyebrow', 'Desktop app')}
+          title={t('site:download.title', 'Download Ori Studio')}
+          lead={t(
+            'site:download.lead',
+            'Ori Studio runs in your browser with nothing to install. The desktop app is the same workspace, packaged for macOS, Windows and Linux — with native menus and file dialogs, projects that open straight from Finder or Explorer, and updates that install themselves.'
+          )}
+        >
           <div className="site-actions">
             <DesktopDownloadButton surface="download-page" />
             <Link className={buttonClassName({ variant: 'secondary', size: 'lg' })} to={EDIT_PATH}>
@@ -50,12 +55,9 @@ export function DownloadPage() {
               {t('site:download.latest', 'Latest release: {{version}}', { version })}
             </p>
           )}
-        </header>
+        </SiteArticleHead>
 
-        <section className="site-section site-section--wide" aria-labelledby="download-builds-title">
-          <h2 className="site-heading" id="download-builds-title">
-            {t('site:download.builds.title', 'Every build')}
-          </h2>
+        <SiteSection id="download-builds" title={t('site:download.builds.title', 'Every build')} wide>
           <p>
             {t(
               'site:download.builds.lead',
@@ -68,12 +70,9 @@ export function DownloadPage() {
               {t('site:download.builds.allReleases', 'All releases, with their notes, on GitHub')}
             </ExternalLink>
           </p>
-        </section>
+        </SiteSection>
 
-        <section className="site-section" aria-labelledby="download-which-title">
-          <h2 className="site-heading" id="download-which-title">
-            {t('site:download.which.title', 'Which build?')}
-          </h2>
+        <SiteSection id="download-which" title={t('site:download.which.title', 'Which build?')}>
           <dl className="site-definitions">
             <dt>{t('site:download.which.macTerm', 'macOS')}</dt>
             <dd>
@@ -94,7 +93,14 @@ export function DownloadPage() {
               )}
             </dd>
           </dl>
-        </section>
+          {ORIEDITA && (
+            <p className="site-note">
+              <Link className="site-inline-link" to={pagePath(ORIEDITA, locale)}>
+                {t('site:download.orieditaLink', 'Coming from Oriedita? Start here')}
+              </Link>
+            </p>
+          )}
+        </SiteSection>
       </article>
     </SiteLayout>
   );

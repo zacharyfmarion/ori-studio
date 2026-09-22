@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react';
 import { StaticLanding } from '../seo/StaticLanding';
 import { DownloadPage } from './pages/DownloadPage';
+import { FaqPage } from './pages/FaqPage';
+import { OrieditaPage } from './pages/OrieditaPage';
 import type { SitePageId } from './sitePages';
 
 /**
@@ -19,4 +21,6 @@ import type { SitePageId } from './sitePages';
 export const SITE_PAGE_CONTENT: Record<SitePageId, ComponentType> = {
   landing: StaticLanding,
   download: DownloadPage,
+  oriedita: OrieditaPage,
+  faq: FaqPage,
 };

@@ -10,6 +10,7 @@
     "latest": "Aktuelle Version: {{version}}",
     "lead": "Ori Studio läuft im Browser, ohne dass Sie etwas installieren müssen. Die Desktop-App ist derselbe Arbeitsbereich, verpackt für macOS, Windows und Linux — mit nativen Menüs und Dateidialogen, Projekten, die sich direkt aus dem Finder oder Explorer öffnen, und Updates, die sich selbst installieren.",
     "openInBrowser": "Oder im Browser öffnen",
+    "orieditaLink": "Sie kommen von Oriedita? Hier entlang",
     "pageTitle": "Ori Studio für macOS, Windows und Linux herunterladen",
     "title": "Ori Studio herunterladen",
     "which": {
@@ -21,6 +22,58 @@
       "windowsBody": "Ein Installer, für 64-Bit-Windows.",
       "windowsTerm": "Windows"
     }
+  },
+  "faq": {
+    "description": "Antworten auf die Fragen, die zu Ori Studio gestellt werden: ob es kostenlos ist, welche Dateien es öffnet und exportiert, wo Ihre Arbeit gespeichert wird, ob es offline und auf dem Telefon funktioniert, was es erfasst und wie es sich zu Oriedita, TreeMaker und Box Pleating Studio verhält.",
+    "eyebrow": "FAQ",
+    "files": {
+      "export": "Es exportiert .cp, .fold, .ori, .orh, .tmd4, .tmd5 und .bps und rendert ein Faltmuster als SVG oder PNG. Ein Format, das für etwas keinen Platz hat — die Referenzfotos, die Notizen — lässt es einfach weg.",
+      "open": "Es öffnet Ori-Studio-Projekte (.osf) und importiert .cp-, .fold-, .ori- und .orh-Faltmuster, TreeMaker-Dateien (.tmd, .tmd4, .tmd5) und Box-Pleating-Studio-Dateien (.bps).",
+      "q": "Welche Dateien kann ich öffnen und exportieren?"
+    },
+    "free": {
+      "a": "Ja. Es ist kostenlos und quelloffen unter der GPL, ohne Konto und ohne Bezahlstufe. Der Quellcode liegt auf GitHub. Alles, was Sie damit entwerfen, gehört Ihnen — die Lizenz betrifft die Software, nicht Ihre Werke.",
+      "q": "Ist Ori Studio kostenlos?"
+    },
+    "help": {
+      "a": "Der beste Ort für Fehlermeldungen und Feature-Wünsche ist der Ori-Studio-Discord.",
+      "discord": "Discord beitreten",
+      "issues": "Fehler auf GitHub melden",
+      "q": "Wo stelle ich eine Frage oder melde einen Fehler?"
+    },
+    "install": {
+      "a": "Nein. Es läuft im Browser. Wenn Sie es lieber als eigenständige Anwendung möchten, gibt es eine Desktop-App für macOS, Windows und Linux — derselbe Arbeitsbereich mit nativen Menüs, Dateidialogen und automatischen Updates.",
+      "link": "Desktop-App herunterladen",
+      "q": "Muss ich etwas installieren?"
+    },
+    "lead": "Was Ori Studio ist, was es öffnet, wohin Ihre Arbeit geht und was es erfasst und was nicht.",
+    "mobile": {
+      "a": "Ja — jeder Arbeitsbereich öffnet sich auf dem Telefon, und Sie können es zum Startbildschirm hinzufügen. Ein Faltmuster zu zeichnen ist auf einem Laptop dennoch bequemer.",
+      "q": "Funktioniert es auf dem Telefon oder Tablet?"
+    },
+    "offline": {
+      "a": "Nach dem ersten Laden ja. Die App behält eine Kopie von sich selbst im Browser und startet ohne Verbindung; Ihre Dateien liegen ohnehin auf Ihrem Rechner. Netz brauchen nur die ExplOri-Suche und die Update-Prüfung der Desktop-App.",
+      "q": "Funktioniert es offline?"
+    },
+    "oriedita": {
+      "a": "Der Faltmuster-Editor ist eine Portierung von Oriedita — dieselben Werkzeuge und Prüfungen, dieselben .ori-Dateien, im Browser. Ori Studio ergänzt ihn um einen Design-Arbeitsbereich, einen Simulator und Referenzen auf der Leinwand und ist ein eigenständiges Projekt.",
+      "link": "Was von Oriedita übernommen wurde",
+      "q": "Ist das Oriedita?"
+    },
+    "pageTitle": "Ori Studio FAQ — Dateien, Speichern, offline, Datenschutz",
+    "ports": {
+      "a": "Die Kreispackung im Design-Arbeitsbereich ist eine Portierung von Robert J. Langs TreeMaker 5.0.1, das Box Pleating eine Portierung von Mu-Tsun Tsais Box Pleating Studio. Beide sind gegen die Originale geprüft und lesen und schreiben deren Dateien, sodass ein Entwurf zwischen den Programmen wandern kann.",
+      "q": "Wie verhält es sich zu TreeMaker und Box Pleating Studio?"
+    },
+    "privacy": {
+      "a": "Anonyme Nutzungszählungen und Absturzberichte, damit wir sehen, welche Werkzeuge genutzt werden und was kaputtgeht — nie Ihre Dateien, Ihre Faltmuster, deren Geometrie oder Ihre Bilder. Sie können es unter Einstellungen › Datenschutz abschalten, und die App funktioniert in beiden Fällen genau gleich.",
+      "q": "Was erfasst es?"
+    },
+    "saving": {
+      "a": "Auf Ihrem Rechner, als .osf-Datei, und nirgendwo sonst — kein Server verwahrt Ihre Faltmuster. In Chrome und Edge schreibt Speichern direkt in die geöffnete Datei zurück; in anderen Browsern lädt jedes Speichern eine neue Kopie herunter. Die Desktop-App verwendet die gewohnten Dateidialoge.",
+      "q": "Wo wird meine Arbeit gespeichert?"
+    },
+    "title": "Häufig gestellte Fragen"
   },
   "footer": {
     "communityLabel": "Community",
@@ -39,7 +92,42 @@
   },
   "nav": {
     "download": "Download",
+    "faq": "FAQ",
     "home": "Startseite",
-    "label": "Website"
+    "label": "Website",
+    "oriedita": "Oriedita"
+  },
+  "oriedita": {
+    "about": {
+      "body": "Oriedita ist ein kostenloser Faltmuster-Editor, der von seiner Community entwickelt wird, selbst ein Fork von Orihime. Der Editor von Ori Studio ist eine Portierung davon in Rust und WebAssembly, kompatibel mit seinen Dateien und gegen ihn auf gleiche Ergebnisse geprüft. Ori Studio ist ein eigenständiges Projekt und nicht mit Oriedita verbunden.",
+      "link": "Website von Oriedita",
+      "title": "Über Oriedita"
+    },
+    "carries": {
+      "checks": "Die Faltbarkeitsprüfungen: Kawasaki, Maekawa und Big-Little-Big werden auf dieselbe Weise geprüft. Ein paar Benennungen unterscheiden sich — in Ori Studio heißt es Faltbarkeit statt CAMV.",
+      "files": "Die Dateien. Öffnen Sie jede .ori oder .orh und exportieren Sie in beide zurück — ein Faltmuster kann in beide Richtungen zwischen den beiden Programmen wandern.",
+      "keyboard": "Ihre Tastatur, wenn Sie möchten: Orieditas Tastenkürzel lassen sich in Ori Studio importieren.",
+      "title": "Was übernommen wurde",
+      "tools": "Der Editor. Zeichen-, Konstruktions- und Transformationswerkzeuge sind Portierungen derer von Oriedita und verhalten sich nahezu identisch. Einige kleine Änderungen gibt es, um Überladung zu vermeiden — etwa sind die Varianten des Werkzeugs „Linie verlängern“ zu einem Werkzeug zusammengefasst."
+    },
+    "description": "Der Faltmuster-Editor von Ori Studio ist eine Portierung von Oriedita, die im Browser läuft: dieselben Werkzeuge und Faltbarkeitsprüfungen, .ori- und .orh-Dateien in beide Richtungen und Ihre Oriedita-Tastenkürzel, importiert aus einer .oriconfig-Datei.",
+    "different": {
+      "browser": "Es läuft im Browser. Ori Studio ist auf moderner Web-Technik gebaut und läuft vollständig in einem Tab. Wenn Sie möchten, können Sie es auf allen Plattformen auch als native App herunterladen.",
+      "design": "Weitere Arbeitsbereiche: Neben dem Editor bietet Ori Studio mehrere Arbeitsbereiche, die mit Faltmustern arbeiten — Design, Simulieren und Referenzen. Alle beruhen auf großartigen quelloffenen Werkzeugen aus der Community. Sie an einem Ort zu vereinen, lässt sie zusammenarbeiten, ohne den Kontext zu wechseln.",
+      "references": "3D-Unterstützung. Dank der Mitwirkung von Brandon Wong (@theplantpsychologist auf Instagram) beherrscht Ori Studio nicht-flache Falten nativ: Sie können Faltmuster, die sich nicht flach falten lassen, sowohl erstellen als auch ihre gefaltete Form berechnen.",
+      "simulate": "Sie können ein Faltmuster auswählen und direkt simulieren, um schnell zu sehen, wie es sich faltet.",
+      "title": "Was anders ist"
+    },
+    "download": "Desktop-App holen",
+    "eyebrow": "Kompatibilität",
+    "keyboard": {
+      "import": "Sie können auch Ihre in Oriedita gespeicherten Tastenkürzel übernehmen: dort in den Einstellungen exportieren und in Ori Studio unter Einstellungen › Tastenkürzel importieren.",
+      "lead": "Die Standardbelegung von Ori Studio ist bewusst anders — die Linientypen liegen auf der Grundreihe, A, S, D und F, wo Oriedita M, V und L verwendet. Wenn Ihre Hände Oriedita kennen, können Sie unter Einstellungen › Tastenkürzel auf Orieditas Standardbelegung umstellen.",
+      "title": "Bringen Sie Ihre Tastatur mit"
+    },
+    "lead": "Der Faltmuster-Editor von Ori Studio ist eine Portierung von Oriedita und sollte sich daher sofort vertraut anfühlen. Er öffnet und exportiert das .ori-Format, und wir halten die Interoperabilität aufrecht, wo immer es geht.",
+    "openEditor": "Editor öffnen",
+    "pageTitle": "Oriedita im Browser — Ori Studio",
+    "title": "Sie kommen von Oriedita"
   }
 }

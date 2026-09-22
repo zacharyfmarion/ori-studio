@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
+import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LOCALE_STORAGE_KEY, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import { useLocaleStore } from '../store/localeStore';
@@ -37,6 +37,44 @@ afterEach(() => {
   localStorage.clear();
 });
 
+/**
+ * Picking a language re-renders the page you are on; it is not a page you visited.
+ *
+ * Pushed, Back returns to the unprefixed URL — which is language-negotiated, so with the
+ * preference now pinned it renders in the language just chosen, looks identical to the
+ * page being left, and Back appears to do nothing. Reported 2026-09-22. A real router
+ * here rather than `MemoryRouter`, because the whole assertion is what one step back
+ * lands on.
+ */
+describe('the language switch and history', () => {
+  it('replaces its entry, so Back returns to the page before, not to a twin', async () => {
+    const download = CONTENT_PAGES.find((page) => page.id === 'download')!;
+    const router = createMemoryRouter(
+      [
+        { path: '/', element: <div>landing</div> },
+        { path: 'download/', element: <SiteFooter /> },
+        { path: 'es/download/', element: <SiteFooter /> },
+      ],
+      { initialEntries: ['/', download.path], initialIndex: 1 }
+    );
+    container = document.createElement('div');
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<RouterProvider router={router} />));
+
+    const spanish = container.querySelector<HTMLAnchorElement>('.site-languages a[hreflang="es"]');
+    await act(async () => spanish?.click());
+    expect(router.state.location.pathname).toBe(pagePath(download, 'es'));
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+
+    expect(router.state.location.pathname).toBe('/');
+    router.dispose();
+  });
+});
+
 describe('SiteFooter', () => {
   it('links every page of the site, which is how a crawler on the landing finds them', () => {
     const rendered = render();
@@ -67,7 +105,7 @@ describe('SiteFooter', () => {
   it('offers this page in every language, by its own name, as real links', () => {
     // How a crawler learns `/zh-CN/download/` exists: a `<select>` is a control it cannot
     // operate; an anchor is a link it follows.
-    const [download] = CONTENT_PAGES;
+    const download = CONTENT_PAGES.find((page) => page.id === 'download')!;
     const rendered = render(download.path);
     const links = Array.from(rendered.querySelectorAll<HTMLAnchorElement>('.site-languages a'));
     expect(links).toHaveLength(SUPPORTED_LOCALES.length);
@@ -81,7 +119,7 @@ describe('SiteFooter', () => {
   });
 
   it('marks the language it is in, and links the nav within it', () => {
-    const [download] = CONTENT_PAGES;
+    const download = CONTENT_PAGES.find((page) => page.id === 'download')!;
     const rendered = render(pagePath(download, 'zh-CN'));
     expect(rendered.querySelector('.site-languages a[aria-current="true"]')?.getAttribute('hreflang')).toBe(
       'zh-CN'

@@ -126,7 +126,7 @@ export function WelcomeLanding() {
             {
               id: 'edit-share',
               figure: 'edit-share',
-              title: t('landing:edit.share.title', 'Share a pattern with a link'),
+              title: t('landing:edit.share.title', 'Share a crease pattern with a link'),
               body: t(
                 'landing:edit.share.body',
                 'Send someone a crease pattern as a URL. They open it in their browser with nothing to install.'
@@ -204,7 +204,7 @@ export function WelcomeLanding() {
         tone="raised"
         layout="split-reverse"
         eyebrow={t('landing:simulate.eyebrow', 'Simulate')}
-        title={t('landing:simulate.title', 'Fold it without leaving the pattern')}
+        title={t('landing:simulate.title', 'Fold it without leaving the crease pattern')}
         lead={t(
           'landing:simulate.lead',
           'Open a simulation in a window right next to the crease pattern you are drawing, so checking an idea costs a glance instead of a round trip through another program. A full Simulate workspace is there when you want the model on its own.'

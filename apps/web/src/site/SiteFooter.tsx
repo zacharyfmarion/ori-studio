@@ -75,6 +75,13 @@ export function SiteFooter() {
  * browser happens to be set to. So the click writes the preference before the navigation
  * lands; the route then overrides to the same language, and leaving restores the
  * preference — which is now the one they chose.
+ *
+ * **`replace`, not push.** Picking a language is not visiting a page; it is re-rendering
+ * the one you are on. Pushed, Back returns to the unprefixed URL — which is
+ * language-negotiated, so with the preference now pinned it renders in the language just
+ * chosen and looks identical to the page being left. Back appears to do nothing. Replacing
+ * keeps the history honest: one entry per page the reader actually moved to, so Back goes
+ * where they came from.
  */
 function LanguageSwitch() {
   const { t } = useTranslation();
@@ -89,6 +96,7 @@ function LanguageSwitch() {
             <Link
               className="site-nav__link"
               to={pagePath(current.page, locale.code)}
+              replace
               hrefLang={locale.code}
               lang={locale.code}
               aria-current={locale.code === current.locale ? 'true' : undefined}

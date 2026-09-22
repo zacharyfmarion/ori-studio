@@ -506,3 +506,41 @@ describe('the defaults source reaches a real keypress', () => {
     expect(pressM(undefined)).toEqual(['cp.action.symmetric-draw']);
   });
 });
+
+/**
+ * The reader owns the keyboard on a site page.
+ *
+ * `edit.copy` is a registered chord and a paragraph is not an editing target, so the
+ * runtime claimed ⌘C on `/faq/` and `preventDefault`ed it — text selected but would not
+ * copy, because the browser's own copy never ran (measured 2026-09-22: no `copy` event
+ * fired at all). Every other chord was swallowed there too, with no workspace mounted to
+ * act on any of them.
+ */
+describe('on a site page', () => {
+  const copyChord = () =>
+    new KeyboardEvent('keydown', { key: 'c', metaKey: true, cancelable: true });
+
+  it('claims nothing, so the browser’s own copy runs', () => {
+    const actions = { ...createActions(selectEverything(createSampleProject())), isReadingSitePage: () => true };
+    const event = copyChord();
+
+    expect(handleAppKeyDown(event, actions)).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('does not even take Escape, which has no selection to clear there', () => {
+    const actions = { ...createActions(selectEverything(createSampleProject())), isReadingSitePage: () => true };
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+    expect(handleAppKeyDown(event, actions)).toBe(false);
+    expect(actions.selectNone).not.toHaveBeenCalled();
+  });
+
+  it('still claims Escape in a workspace, which is the case it exists for', () => {
+    const actions = { ...createActions(selectEverything(createSampleProject())), isReadingSitePage: () => false };
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+
+    expect(handleAppKeyDown(event, actions)).toBe(true);
+    expect(actions.selectNone).toHaveBeenCalledOnce();
+  });
+});

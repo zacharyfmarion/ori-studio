@@ -10,6 +10,7 @@
     "latest": "Última versión: {{version}}",
     "lead": "Ori Studio funciona en tu navegador sin instalar nada. La aplicación de escritorio es el mismo espacio de trabajo, empaquetado para macOS, Windows y Linux, con menús y diálogos de archivo nativos, proyectos que se abren directamente desde el Finder o el Explorador y actualizaciones que se instalan solas.",
     "openInBrowser": "O ábrelo en tu navegador",
+    "orieditaLink": "¿Vienes de Oriedita? Empieza aquí",
     "pageTitle": "Descargar Ori Studio para macOS, Windows y Linux",
     "title": "Descargar Ori Studio",
     "which": {
@@ -21,6 +22,58 @@
       "windowsBody": "Un solo instalador, para Windows de 64 bits.",
       "windowsTerm": "Windows"
     }
+  },
+  "faq": {
+    "description": "Respuestas a las preguntas que la gente hace sobre Ori Studio: si es gratis, qué archivos abre y exporta, dónde se guarda tu trabajo, si funciona sin conexión y en un teléfono, qué recopila y cómo se relaciona con Oriedita, TreeMaker y Box Pleating Studio.",
+    "eyebrow": "Preguntas frecuentes",
+    "files": {
+      "export": "Exporta .cp, .fold, .ori, .orh, .tmd4, .tmd5 y .bps, y renderiza un patrón de pliegues a SVG o PNG. Un formato que no tiene sitio para algo —las fotos de referencia, las notas— simplemente lo omite.",
+      "open": "Abre proyectos de Ori Studio (.osf) e importa patrones de pliegues .cp, .fold, .ori y .orh, archivos de TreeMaker (.tmd, .tmd4, .tmd5) y archivos de Box Pleating Studio (.bps).",
+      "q": "¿Qué archivos puedo abrir y exportar?"
+    },
+    "free": {
+      "a": "Sí. Es gratuito y de código abierto bajo la GPL, sin cuenta y sin versión de pago. El código está en GitHub. Todo lo que diseñes con él es tuyo: la licencia cubre el software, no lo que tú creas.",
+      "q": "¿Ori Studio es gratis?"
+    },
+    "help": {
+      "a": "El mejor sitio para informar de problemas o pedir funciones es el Discord de Ori Studio.",
+      "discord": "Únete al Discord",
+      "issues": "Informar de un error en GitHub",
+      "q": "¿Dónde hago una pregunta o informo de un error?"
+    },
+    "install": {
+      "a": "No. Funciona en tu navegador. Si prefieres tenerlo como aplicación propia, hay una aplicación de escritorio para macOS, Windows y Linux: el mismo espacio de trabajo con menús nativos, diálogos de archivo y actualizaciones automáticas.",
+      "link": "Descargar la aplicación de escritorio",
+      "q": "¿Necesito instalar algo?"
+    },
+    "lead": "Qué es Ori Studio, qué abre, adónde va tu trabajo y qué recopila y qué no.",
+    "mobile": {
+      "a": "Sí: todos los espacios de trabajo se abren en un teléfono, y puedes añadirlo a la pantalla de inicio. Dibujar un patrón de pliegues sigue siendo más cómodo en un portátil.",
+      "q": "¿Funciona en un teléfono o una tableta?"
+    },
+    "offline": {
+      "a": "Tras la primera carga, sí. La aplicación conserva una copia de sí misma en el navegador y arranca sin conexión; tus archivos están en tu ordenador en cualquier caso. Las partes que necesitan red son la búsqueda en ExplOri y la comprobación de actualizaciones de la aplicación de escritorio.",
+      "q": "¿Funciona sin conexión?"
+    },
+    "oriedita": {
+      "a": "El editor de patrones de pliegues es una adaptación de Oriedita: las mismas herramientas y comprobaciones, los mismos archivos .ori, funcionando en un navegador. Ori Studio añade a su alrededor un espacio de trabajo de diseño, un simulador y referencias en el lienzo, y es un proyecto independiente.",
+      "link": "Qué se conserva de Oriedita",
+      "q": "¿Esto es Oriedita?"
+    },
+    "pageTitle": "Preguntas frecuentes de Ori Studio — archivos y privacidad",
+    "ports": {
+      "a": "El empaquetado de círculos del espacio de trabajo de Diseño es una adaptación de TreeMaker 5.0.1, de Robert J. Lang, y su plegado en caja es una adaptación de Box Pleating Studio, de Mu-Tsun Tsai. Ambos están contrastados con los originales y leen y escriben sus archivos, así que un diseño puede moverse entre los programas.",
+      "q": "¿Qué relación tiene con TreeMaker y Box Pleating Studio?"
+    },
+    "privacy": {
+      "a": "Recuentos de uso anónimos e informes de fallos, para saber qué herramientas se usan y qué se rompe; nunca tus archivos, tus patrones de pliegues, su geometría ni tus imágenes. Puedes desactivarlo en Configuración › Privacidad, y la aplicación funciona exactamente igual en ambos casos.",
+      "q": "¿Qué datos recopila?"
+    },
+    "saving": {
+      "a": "En tu ordenador, como un archivo .osf, y en ningún otro sitio: no hay ningún servidor que guarde tus patrones de pliegues. En Chrome y Edge, Guardar escribe directamente en el archivo que abriste; en otros navegadores cada Guardar descarga una copia nueva. La aplicación de escritorio usa los diálogos de archivo habituales.",
+      "q": "¿Dónde se guarda mi trabajo?"
+    },
+    "title": "Preguntas frecuentes"
   },
   "footer": {
     "communityLabel": "Comunidad",
@@ -39,7 +92,42 @@
   },
   "nav": {
     "download": "Descargar",
+    "faq": "Preguntas frecuentes",
     "home": "Inicio",
-    "label": "Sitio"
+    "label": "Sitio",
+    "oriedita": "Oriedita"
+  },
+  "oriedita": {
+    "about": {
+      "body": "Oriedita es un editor de patrones de pliegues gratuito desarrollado por su comunidad, y a su vez una bifurcación de Orihime. El editor de Ori Studio es una adaptación suya en Rust y WebAssembly, compatible con sus archivos y contrastada con él para dar los mismos resultados. Ori Studio es un proyecto independiente y no está afiliado a Oriedita.",
+      "link": "Sitio web de Oriedita",
+      "title": "Acerca de Oriedita"
+    },
+    "carries": {
+      "checks": "Las comprobaciones de plegabilidad: Kawasaki, Maekawa y big-little-big se comprueban igual. Hay un par de diferencias de nombre: en Ori Studio usamos el término plegabilidad en lugar de CAMV.",
+      "files": "Los archivos. Abre cualquier .ori u .orh y exporta de vuelta a cualquiera de los dos: un patrón de pliegues puede moverse entre los dos programas en ambas direcciones.",
+      "keyboard": "Tu teclado, si lo quieres: los atajos de Oriedita se pueden importar a Ori Studio.",
+      "title": "Qué se conserva",
+      "tools": "El editor. Las herramientas de dibujo, construcción y transformación son adaptaciones de las de Oriedita y se comportan de forma casi idéntica. Hay algunos cambios pequeños hechos para reducir la saturación, como unificar en una sola herramienta las variantes de Extender línea."
+    },
+    "description": "El editor de patrones de pliegues de Ori Studio es una adaptación de Oriedita que funciona en tu navegador: las mismas herramientas y comprobaciones de plegabilidad, archivos .ori y .orh en ambas direcciones, y tus atajos de teclado de Oriedita importados desde un archivo .oriconfig.",
+    "different": {
+      "browser": "Puede funcionar en el navegador. Ori Studio está construido sobre herramientas web modernas y funciona entero en una pestaña. Si lo prefieres, también puedes descargarlo como aplicación nativa en cualquier plataforma.",
+      "design": "Más espacios de trabajo: además del de edición, Ori Studio ofrece varios espacios que trabajan sobre patrones de pliegues: diseño, simulación y referencias. Todos se basan en magníficas herramientas de código abierto creadas por la comunidad. Reunirlas en un mismo sitio permite que funcionen juntas sin cambiar de contexto.",
+      "references": "Compatibilidad 3D. Gracias al apoyo de Brandon Wong (@theplantpsychologist en Instagram), Ori Studio admite de forma nativa los pliegues no planos, así que puedes crear patrones de pliegues que no son plegables en plano y calcular su forma doblada.",
+      "simulate": "Puedes seleccionar un patrón de pliegues y simularlo ahí mismo para comprobar rápidamente cómo se doblará.",
+      "title": "Qué es distinto"
+    },
+    "download": "Descargar la aplicación de escritorio",
+    "eyebrow": "Compatibilidad",
+    "keyboard": {
+      "import": "También puedes importar los atajos de teclado que guardaste en Oriedita: expórtalos desde Preferencias e impórtalos en Ori Studio desde Configuración › Atajos.",
+      "lead": "La distribución predeterminada de Ori Studio es distinta a propósito: los tipos de línea están en la fila central, A, S, D y F, donde Oriedita usa M, V y L. Si tus manos conocen Oriedita, puedes cambiar a la distribución de Oriedita en Configuración › Atajos.",
+      "title": "Trae tu teclado"
+    },
+    "lead": "El editor de patrones de pliegues de Ori Studio es una adaptación de Oriedita, así que debería resultarte familiar desde el principio. Abre y exporta el formato .ori, y mantener la interoperabilidad siempre que sea posible es un compromiso.",
+    "openEditor": "Abrir el editor",
+    "pageTitle": "Oriedita en tu navegador — Ori Studio",
+    "title": "Vienes de Oriedita"
   }
 }

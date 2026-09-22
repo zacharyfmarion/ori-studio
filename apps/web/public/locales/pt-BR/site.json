@@ -10,6 +10,7 @@
     "latest": "Versão mais recente: {{version}}",
     "lead": "O Ori Studio funciona no seu navegador sem instalar nada. O aplicativo para desktop é o mesmo espaço de trabalho, empacotado para macOS, Windows e Linux — com menus e diálogos de arquivo nativos, projetos que abrem direto do Finder ou do Explorador de Arquivos e atualizações que se instalam sozinhas.",
     "openInBrowser": "Ou abra no seu navegador",
+    "orieditaLink": "Vem do Oriedita? Comece por aqui",
     "pageTitle": "Baixar o Ori Studio para macOS, Windows e Linux",
     "title": "Baixar o Ori Studio",
     "which": {
@@ -21,6 +22,58 @@
       "windowsBody": "Um único instalador, para Windows de 64 bits.",
       "windowsTerm": "Windows"
     }
+  },
+  "faq": {
+    "description": "Respostas às perguntas que as pessoas fazem sobre o Ori Studio: se é gratuito, quais arquivos abre e exporta, onde seu trabalho fica salvo, se funciona off-line e no celular, o que coleta e como se relaciona com Oriedita, TreeMaker e Box Pleating Studio.",
+    "eyebrow": "Perguntas frequentes",
+    "files": {
+      "export": "Ele exporta .cp, .fold, .ori, .orh, .tmd4, .tmd5 e .bps, e renderiza um padrão de vincos em SVG ou PNG. Um formato que não tem espaço para algo — as fotos de referência, as notas — simplesmente deixa isso de fora.",
+      "open": "Ele abre projetos do Ori Studio (.osf) e importa padrões de vinco .cp, .fold, .ori e .orh, arquivos do TreeMaker (.tmd, .tmd4, .tmd5) e arquivos do Box Pleating Studio (.bps).",
+      "q": "Quais arquivos posso abrir e exportar?"
+    },
+    "free": {
+      "a": "Sim. É gratuito e de código aberto sob a GPL, sem conta e sem plano pago. O código está no GitHub. Tudo o que você projeta com ele é seu — a licença cobre o software, não o que você cria.",
+      "q": "O Ori Studio é gratuito?"
+    },
+    "help": {
+      "a": "O melhor lugar para relatar problemas ou pedir recursos é o Discord do Ori Studio.",
+      "discord": "Entrar no Discord",
+      "issues": "Reportar um bug no GitHub",
+      "q": "Onde faço uma pergunta ou reporto um bug?"
+    },
+    "install": {
+      "a": "Não. Ele roda no seu navegador. Se preferir tê-lo como um aplicativo próprio, há um aplicativo para desktop no macOS, Windows e Linux — o mesmo espaço de trabalho com menus nativos, diálogos de arquivo e atualizações automáticas.",
+      "link": "Baixar o aplicativo para desktop",
+      "q": "Preciso instalar alguma coisa?"
+    },
+    "lead": "O que é o Ori Studio, o que ele abre, para onde vai seu trabalho e o que ele coleta e não coleta.",
+    "mobile": {
+      "a": "Sim — todos os espaços de trabalho abrem no celular, e você pode adicioná-lo à tela inicial. Desenhar um padrão de vincos ainda é mais confortável em um notebook.",
+      "q": "Funciona em celular ou tablet?"
+    },
+    "offline": {
+      "a": "Depois do primeiro carregamento, sim. O aplicativo guarda uma cópia de si mesmo no navegador e inicia sem conexão; seus arquivos estão no seu computador de qualquer forma. As partes que precisam de rede são a busca no ExplOri e a verificação de atualizações do aplicativo para desktop.",
+      "q": "Funciona off-line?"
+    },
+    "oriedita": {
+      "a": "O editor de padrões de vinco é um port do Oriedita — as mesmas ferramentas e verificações, os mesmos arquivos .ori, rodando em um navegador. O Ori Studio acrescenta ao redor dele um espaço de trabalho de design, um simulador e referências na tela, e é um projeto separado.",
+      "link": "O que foi mantido do Oriedita",
+      "q": "Isto é o Oriedita?"
+    },
+    "pageTitle": "Perguntas frequentes do Ori Studio — arquivos e privacidade",
+    "ports": {
+      "a": "O empacotamento de círculos do espaço de trabalho de Design é um port do TreeMaker 5.0.1, de Robert J. Lang, e o box pleating é um port do Box Pleating Studio, de Mu-Tsun Tsai. Os dois são conferidos contra os originais e leem e gravam os arquivos deles, então um projeto pode transitar entre os programas.",
+      "q": "Qual a relação com o TreeMaker e o Box Pleating Studio?"
+    },
+    "privacy": {
+      "a": "Contagens de uso anônimas e relatórios de falhas, para sabermos quais ferramentas são usadas e o que quebra — nunca seus arquivos, seus padrões de vincos, a geometria deles ou suas imagens. Você pode desligar isso em Configurações › Privacidade, e o aplicativo funciona exatamente igual de qualquer forma.",
+      "q": "O que ele coleta?"
+    },
+    "saving": {
+      "a": "No seu computador, como um arquivo .osf, e em nenhum outro lugar — não há servidor guardando seus padrões de vincos. No Chrome e no Edge, Salvar grava direto no arquivo que você abriu; nos outros navegadores, cada Salvar baixa uma cópia nova. O aplicativo para desktop usa os diálogos de arquivo comuns.",
+      "q": "Onde meu trabalho é salvo?"
+    },
+    "title": "Perguntas frequentes"
   },
   "footer": {
     "communityLabel": "Comunidade",
@@ -39,7 +92,42 @@
   },
   "nav": {
     "download": "Baixar",
+    "faq": "Perguntas frequentes",
     "home": "Início",
-    "label": "Site"
+    "label": "Site",
+    "oriedita": "Oriedita"
+  },
+  "oriedita": {
+    "about": {
+      "body": "O Oriedita é um editor de padrões de vinco gratuito desenvolvido por sua comunidade, ele próprio um fork do Orihime. O editor do Ori Studio é um port dele em Rust e WebAssembly, compatível com seus arquivos e conferido contra ele para dar os mesmos resultados. O Ori Studio é um projeto separado e não tem vínculo com o Oriedita.",
+      "link": "Site do Oriedita",
+      "title": "Sobre o Oriedita"
+    },
+    "carries": {
+      "checks": "As verificações de dobrabilidade: Kawasaki, Maekawa e big-little-big são verificados do mesmo jeito. Há algumas diferenças de nome — no Ori Studio usamos o termo dobrabilidade em vez de CAMV.",
+      "files": "Os arquivos. Abra qualquer .ori ou .orh e exporte de volta para qualquer um dos dois — um padrão de vincos pode ir e voltar entre os dois programas.",
+      "keyboard": "Seu teclado, se quiser: os atalhos do Oriedita podem ser importados para o Ori Studio.",
+      "title": "O que foi mantido",
+      "tools": "O editor. As ferramentas de desenho, construção e transformação são ports das do Oriedita e se comportam de maneira quase idêntica. Há algumas pequenas mudanças feitas para reduzir a poluição visual, como as variantes da ferramenta Estender linha reunidas em uma só."
+    },
+    "description": "O editor de padrões de vinco do Ori Studio é um port do Oriedita que funciona no seu navegador: as mesmas ferramentas e verificações de dobrabilidade, arquivos .ori e .orh nas duas direções, e seus atalhos de teclado do Oriedita importados de um arquivo .oriconfig.",
+    "different": {
+      "browser": "Ele pode rodar no navegador. O Ori Studio foi construído sobre tecnologias web modernas e roda inteiro em uma aba. Se preferir, também dá para baixá-lo como aplicativo nativo em todas as plataformas.",
+      "design": "Mais espaços de trabalho: além do de edição, o Ori Studio oferece vários espaços que atuam sobre padrões de vincos — design, simulação e referências. Todos são baseados em ótimas ferramentas de código aberto feitas pela comunidade. Reuni-las em um só lugar permite que trabalhem juntas sem troca de contexto.",
+      "references": "Suporte a 3D. Graças ao apoio de Brandon Wong (@theplantpsychologist no Instagram), o Ori Studio tem suporte nativo a vincos não planos: você pode criar padrões de vincos que não dobram planos e também calcular a forma dobrada deles.",
+      "simulate": "Você pode selecionar um padrão de vincos e simulá-lo ali mesmo para conferir rapidamente como ele vai dobrar.",
+      "title": "O que é diferente"
+    },
+    "download": "Baixar o aplicativo para desktop",
+    "eyebrow": "Compatibilidade",
+    "keyboard": {
+      "import": "Você também pode importar os atalhos de teclado que salvou no Oriedita: exporte-os nas Preferências e importe-os no Ori Studio em Configurações › Atalhos.",
+      "lead": "O layout padrão do Ori Studio é diferente de propósito — os tipos de linha ficam na fileira do meio, A, S, D e F, onde o Oriedita usa M, V e L. Se suas mãos conhecem o Oriedita, você pode mudar para os padrões do Oriedita em Configurações › Atalhos.",
+      "title": "Traga seu teclado"
+    },
+    "lead": "O editor de padrões de vinco do Ori Studio é um port do Oriedita, então deve parecer familiar logo de cara. Ele abre e exporta o formato .ori, e temos o compromisso de manter a interoperabilidade sempre que possível.",
+    "openEditor": "Abrir o editor",
+    "pageTitle": "Oriedita no seu navegador — Ori Studio",
+    "title": "Vindo do Oriedita"
   }
 }

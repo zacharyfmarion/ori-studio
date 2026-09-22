@@ -29,6 +29,10 @@ export function sitePageLabel(t: TFunction, id: SitePageId): string {
       return t('site:nav.home', 'Home');
     case 'download':
       return t('site:nav.download', 'Download');
+    case 'oriedita':
+      return t('site:nav.oriedita', 'Oriedita');
+    case 'faq':
+      return t('site:nav.faq', 'FAQ');
   }
 }
 
@@ -46,6 +50,10 @@ export function sitePageTitle(t: TFunction, id: SitePageId): string {
       return t('site:landing.title', 'Ori Studio — Origami Design Workspace');
     case 'download':
       return t('site:download.pageTitle', 'Download Ori Studio for macOS, Windows and Linux');
+    case 'oriedita':
+      return t('site:oriedita.pageTitle', 'Oriedita in your browser — Ori Studio');
+    case 'faq':
+      return t('site:faq.pageTitle', 'Ori Studio FAQ — files, saving, offline, privacy');
   }
 }
 
@@ -61,6 +69,16 @@ export function sitePageDescription(t: TFunction, id: SitePageId): string {
       return t(
         'site:download.description',
         'Get the Ori Studio desktop app for macOS, Windows and Linux — the same free, open-source origami workspace as the browser version, with native menus, file dialogs and updates. Or open it in your browser with nothing to install.'
+      );
+    case 'oriedita':
+      return t(
+        'site:oriedita.description',
+        'Ori Studio’s crease-pattern editor is a port of Oriedita that runs in your browser: the same tools and foldability checks, .ori and .orh files in both directions, and your Oriedita keyboard shortcuts imported from an .oriconfig file.'
+      );
+    case 'faq':
+      return t(
+        'site:faq.description',
+        'Answers to the questions people ask about Ori Studio: whether it is free, what files it opens and exports, where your work is saved, whether it works offline and on a phone, what it collects, and how it relates to Oriedita, TreeMaker and Box Pleating Studio.'
       );
   }
 }
