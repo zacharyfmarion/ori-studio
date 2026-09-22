@@ -387,9 +387,24 @@ focus, so it cannot be wrong about where focus happens to be.
 - [x] A note that follows a block gets its gap from a sibling rule
       (`.site-definitions + .site-note`) rather than a modifier class, which
       `.site-section > p` out-specified
-- [x] Bare "pattern" → "crease pattern" in the site and landing copy. The app's
-      own catalogs have ~70 more; swept separately, because Box Pleating
-      Studio's "pattern" means a stretch gadget and must not be rewritten
+- [x] Bare "pattern" → "crease pattern" in the site and landing copy. Scoped
+      there deliberately: the ask was about these pages, and the app's own
+      catalogs are a separate decision (Box Pleating Studio's "pattern" means a
+      stretch gadget, so a blind sweep would be wrong there anyway)
+- [x] **Back after the language switch landed on a twin.** Picking a language is
+      not visiting a page — it re-renders the one you are on — but the switch
+      pushed a history entry for it. Back then returned to the unprefixed URL,
+      which is language-negotiated, so with the preference just pinned it
+      rendered in the chosen language and looked identical to the page being
+      left: Back appeared to do nothing. The switch replaces its entry now.
+      Reported 2026-09-22; pinned by a test that drives a real router backwards
+      (mutation-checked: without `replace` it lands on the twin).
+
+      The other half of that report is **not** a bug and is staying: an
+      unprefixed site page renders in the reader's language. That is what makes
+      `/` show Chinese to a reader arriving from a community link, which is the
+      audience the whole locale phase exists for — `/` is the `x-default` URL and
+      ours matches when it can, rather than forcing English.
 
 ### Phase 4 — Measure
 
