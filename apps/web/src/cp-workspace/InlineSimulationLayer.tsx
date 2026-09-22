@@ -540,7 +540,10 @@ function InlineSimulationWindow({
    * Registered while mounted rather than only while focused: an unfocused window
    * keeps its model loaded, so its view is still exportable.
    */
-  const exportView = useSimulatorViewExport(runtime.exportSvg);
+  const exportView = useSimulatorViewExport(runtime.exportSvg, {
+    surface: 'inline-simulation',
+    overrides: simulation.appearance,
+  });
   useEffect(
     () => registerInlineSimulationExporter(simulation.id, exportView),
     [exportView, simulation.id]

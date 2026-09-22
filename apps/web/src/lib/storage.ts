@@ -45,6 +45,13 @@ export const STORAGE_KEYS = {
    * held the colours before there was a style; see `lib/paperStyleSettings.ts`.
    */
   paperStyle: 'paper-style',
+  /**
+   * The page every paper export is painted onto — sheet size, margin,
+   * background, whether buried faces are kept — and the PNG density. Absent
+   * on first read, when its background is seeded from the simulator settings'
+   * retired `exportBackground`; see `lib/paperExportSettings.ts`.
+   */
+  paperExport: 'paper-export',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
   /** Whether product analytics is enabled (opt-out preference; default true). */

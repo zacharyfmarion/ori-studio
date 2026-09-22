@@ -60,8 +60,8 @@ const TEXT_FONT_SIZE = 12;
  * SVG renderers antialias adjacent polygon edges independently, so every subface
  * boundary shows as a crack where the two coverages do not sum to one. Stroking
  * the fill in its own colour closes the crack without changing the colour. The
- * same rule, and the same width, as the simulator's `SEAM_STROKE_WIDTH`
- * (`packages/origami-simulator/src/svgRenderer.ts`). Skipped for a translucent
+ * same rule as the paper painter's `SEAM_STROKE_WIDTH_PT`
+ * (`lib/paper/paperSvg.ts`). Skipped for a translucent
  * colour, where the doubled stroke would darken every shared edge, and for a
  * gradient, which has no single colour to stroke in.
  */

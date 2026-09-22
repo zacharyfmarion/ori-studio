@@ -2,6 +2,8 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldDocument, RenderSettings } from '@treemaker/origami-simulator';
+import { DEFAULT_PAPER_PAGE, type PaperPage } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
 import type { SimulatorBackendId, SimulatorFramePayload } from './simulatorSession';
 
 /**
@@ -98,6 +100,8 @@ const client = {
   exportSvg: vi.fn(
     async (_options: {
       token?: number;
+      style: PaperStyle;
+      page: PaperPage;
       camera?: { view: { yaw: number; pitch: number; zoom: number }; width: number; height: number };
       settings?: RenderSettings;
     }): Promise<null> => null
@@ -704,6 +708,9 @@ describe('a replacement session opens on the view in use', () => {
 describe('the canvas-2D path exports what it shows', () => {
   let live: ReturnType<typeof useSimulatorRuntime> | null = null;
 
+  /** What the export hook hands over; the runtime only carries it. */
+  const EXPORT = { style: DEFAULT_PAPER_STYLE, page: DEFAULT_PAPER_PAGE };
+
   const SETTINGS: RenderSettings = {
     frontColor: [1, 1, 0.2],
     backColor: [0.95, 0.94, 0.9],
@@ -758,13 +765,16 @@ describe('the canvas-2D path exports what it shows', () => {
     expect(client.setRenderSettings).not.toHaveBeenCalled();
 
     await act(async () => {
-      await live?.exportSvg();
+      await live?.exportSvg(EXPORT);
     });
     expect(client.exportSvg).toHaveBeenCalledTimes(1);
     expect(client.exportSvg.mock.calls[0]?.[0]).toMatchObject({
       token: 1,
       camera: { view: { yaw: 0.7, pitch: -0.2, zoom: 1.5 }, width: 300, height: 200 },
       settings: SETTINGS,
+      // The style and page go through as handed: the runtime resolves neither.
+      style: EXPORT.style,
+      page: EXPORT.page,
     });
   });
 
@@ -775,7 +785,7 @@ describe('the canvas-2D path exports what it shows', () => {
     await act(async () => {
       live?.setCamera({ yaw: 0.1, pitch: 0, zoom: 1 }, 300, 200);
       live?.setCamera({ yaw: 0.9, pitch: 0, zoom: 1 }, 300, 200);
-      await live?.exportSvg();
+      await live?.exportSvg(EXPORT);
     });
     expect(client.exportSvg.mock.calls[0]?.[0]).toMatchObject({
       camera: { view: { yaw: 0.9, pitch: 0, zoom: 1 } },
@@ -787,7 +797,7 @@ describe('the canvas-2D path exports what it shows', () => {
     await settleLoads();
 
     await act(async () => {
-      await live?.exportSvg();
+      await live?.exportSvg(EXPORT);
     });
     // The worker's own view stands: an `undefined` here is "no opinion", not a
     // reset to defaults.

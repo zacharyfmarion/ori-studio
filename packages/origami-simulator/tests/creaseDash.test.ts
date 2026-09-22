@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_DASH_RUNS, packCreaseDash } from '../src/webgl/meshRenderer.js';
+import { MAX_DASH_RUNS, dashPhasePx, packCreaseDash } from '../src/webgl/meshRenderer.js';
 
 /**
  * The edge shader's dash logic, as far as it can be checked without WebGL2. What
@@ -53,5 +53,37 @@ describe('packing crease dashes for the edge shader', () => {
 
   it('leaves the array sized for exactly three kinds', () => {
     expect(packCreaseDash(undefined).runs).toHaveLength(3 * MAX_DASH_RUNS);
+  });
+});
+
+describe('centring a dash pattern on an edge', () => {
+  it('puts the middle of the first ink run at the edge’s midpoint', () => {
+    // Oriedita's mountain dash on a 100 px crease: the pattern is 19 px long,
+    // so the run starting at the phase reaches the midpoint (50) at 5 px into
+    // the first (10 px) run: (50 + phase) mod 19 = 5.
+    const phase = dashPhasePx([10, 3, 3, 3], 100);
+    expect((50 + phase) % 19).toBeCloseTo(5, 9);
+    // Solid, or an empty pattern, has nothing to centre.
+    expect(dashPhasePx(null, 100)).toBe(0);
+    expect(dashPhasePx([], 100)).toBe(0);
+  });
+
+  it('is symmetric: both ends of the edge see the same run, mirrored', () => {
+    const pattern = [8, 4];
+    for (const length of [7, 20, 33.5, 100]) {
+      const phase = dashPhasePx(pattern, length);
+      const at = (s: number) => (s + phase) % 12;
+      // The pattern position at distance s from A mirrors the one at s from B
+      // about the centre of the first ink run (4).
+      for (const s of [0, 1, 2.5, length / 3]) {
+        const fromA = at(s);
+        const fromB = at(length - s);
+        expect((fromA + fromB) % 12).toBeCloseTo(8 % 12, 9);
+      }
+    }
+  });
+
+  it('doubles an odd pattern as the packer does, so the period agrees', () => {
+    expect(dashPhasePx([5, 2, 1], 40)).toBeCloseTo((2.5 - 20 + 16 * 2) % 16, 9);
   });
 });

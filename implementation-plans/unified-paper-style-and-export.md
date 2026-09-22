@@ -863,14 +863,84 @@ fired from the export hook; `file exported` keeps firing from the file service.
 
 ### Phase 2 — `PaperScene` + painter; simulator export moves
 
-- [ ] `lib/paper/paperScene.ts`, `paperSvg.ts`, `paperPng.ts`; painter tests
+- [x] `lib/paper/paperScene.ts`, `paperSvg.ts`, `paperPng.ts`; painter tests
       (pens, dash centring, pt page, sheet size, erode, seam, multi-loop,
-      buried faces kept/dropped).
-- [ ] `meshToPaperScene` split out of `renderMeshToSvg` with the additive
-      options; `prepare.ts` aux tag; aux edge pass in the GPU renderer.
-- [ ] Simulator `exportSvg` → scene → painter; `keepHiddenFaces` export
-      option in the simulator export menu; page per D3.
-- [ ] Inline windows on the same path.
+      buried faces kept/dropped). `paperPage.ts` holds `PaperPage`; `svgToPng`
+      moved to `lib/svgToPng.ts` (re-exported from `creaseExport`) so the
+      painter carries no CP-workspace imports.
+- [x] `meshToPaperScene` split out of `renderMeshToSvg` with the additive
+      options (`packages/origami-simulator/src/paperScene.ts`); `prepare.ts`
+      tags a source `F` edge aux and a triangulation diagonal facet
+      (`edgeCodes.ts`). Deviations from §6, with reasons:
+      - Option arrays are typed `ArrayLike<number>`, so a kernel can hand over
+        a plain array or a typed one; `lineWidth` (the tree's ink allowance
+        and the hidden test's stroke), `showFaces` and `showEdges` (framing)
+        are options §6 did not list.
+      - `sourceFaceGroups` joins triangles across facet edges only, never
+        across an aux crease, so the crease keeps an edge to lie on.
+      - A merged face is emitted where the run's *last* piece stood, so a
+        buried piece of the same face still precedes what covered it; a run
+        is cut where a buried piece of another face, or a buried line, sits
+        between two of its pieces and overlaps what the run has gathered, so
+        no piece moves past something it could hide (the keep-hidden-faces
+        contract: deleting a cover reveals what the tree put beneath).
+      - `onBoundary` reads a vertex's count of border and fold edges: an
+        endpoint retreats when another such edge meets it there; a cut end
+        never does, and a paper edge never retreats.
+- [ ] Aux edge pass in the GPU renderer — with Phase 5's "simulator GPU aux
+      pass", which is the same item.
+- [x] Simulator `exportSvg` → scene → painter; `keepHiddenFaces` export
+      option in the simulator export menu; page per D3. Export page settings
+      (`settingsStore.paperExport`, `lib/paperExportSettings.ts`, seeded from
+      the retired `exportBackground`) edited in Settings ▸ Paper's "Export
+      page" section and the Simulate pane's Export group through one hook
+      (`hooks/usePaperExportPage.ts`); `paper exported` fired from
+      `useSimulatorViewExport`; `renderMeshToSvg` / `SvgRenderResult` /
+      `svgRenderer.ts` deleted, its tests re-pinned onto `meshToPaperScene`
+      (`paperScene.test.ts`, `bsp.test.ts`) and the painter (`paperSvg.test.ts`).
+      Deviations from §6, with reasons:
+      - The worker's `exportSvg` keeps the optional `camera` / `settings` it
+        took before, beside the required `style` and `page`: on the canvas-2D
+        path the worker was never sent a view, and `showFaces` / `showEdges`
+        are framing, not style. Only those two reach the page from `settings`.
+      - The worker applies the simulator policy (`applyPaperStylePolicy`) to
+        the style it is handed before painting, so `erode` and the aux pen —
+        not yet drawn on screen — cannot reach the export before Phase 5.
+      - `sheet` is the longest axis of `OrigamiModel.originalPositions`, the
+        normalised solver space the camera fits to, rather than
+        `prepared.originalPositions`, which is the document scale.
+      - An empty scene (faces and lines both off, or no model) answers `null`,
+        as before, rather than a margin-only page — it is what the export hook
+        reads as "nothing to export yet".
+      - Strain colouring and x-ray translucency have no scene form (§6's own
+        note on the serializer); an export in those modes is the opaque paper
+        two-tone. The tests that pinned them went with the serializer.
+      - An inline window's frame-shrunk creases (`creaseWidthReferenceEdge`)
+        are not reproduced: the painter writes pens in pt (D3, D10), so a small
+        window exports at the style's widths.
+      - The export paints with `surfacePaperStyle` (beside `resolvePaperStyle`),
+        the style as the screen draws it: `RenderSettings` has one crease
+        width and the GPU and canvas-2D renderers draw border, mountain and
+        valley at it, so the edge and valley pens take the mountain pen's
+        width (the "Fold line weight") on the simulator surfaces, and a
+        folded figure's fold pens are its edge pen. The painter's "lines take
+        their role's pen" holds; the pen it is handed is the surface's. An
+        edge-width row on a simulator surface stays inert, on screen and in
+        the file alike (D10 per-role widths would lift both together).
+      - The page margin is `max(paddingMm, half the widest pen)` — the crop is
+        the geometry's extent and a pen is centred on it, so a zero margin
+        would clip the outer half of every outline. Invisible at the 5 mm
+        default; re-pinned from the serializer's "leaves room for the crease
+        stroke" test.
+      - The GPU edge shader centres each dash pattern on its edge (a per-edge
+        phase from the ribbon length, `dashPhasePx`), the painter's
+        `stroke-dashoffset` rule, so a dashed fold looks the same at both ends
+        on screen and in the file. The canvas-2D fallback draws a visible
+        edge as pieces and restarts the pattern at each, so it does not
+        centre.
+- [x] Inline windows on the same path: `useSimulatorViewExport` takes the
+      surface and the window's `appearance`, resolves
+      `effectivePaperStyle(export ?? display, appearance)` on the main thread.
 
 ### Phase 3 — 3D figure export through the shared path
 

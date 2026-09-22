@@ -248,6 +248,18 @@ export type PaperPresetName =
 /** The surfaces a document object can pin a paper-style field on. */
 export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
 
+/**
+ * The surfaces that export a paper picture through the shared painter. The
+ * folded figures and References steps join as their exports move onto it.
+ */
+export type PaperExportSurface = 'simulator' | 'inline-simulation';
+
+/** A paper export's image format — the file's kind only, never its name. */
+export type PaperExportFormat = 'svg' | 'png';
+
+/** Whether an export kept the faces no pixel of the page shows (D4 in the plan). */
+export type PaperExportHiddenFaces = 'kept' | 'dropped';
+
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
@@ -735,6 +747,14 @@ export const ANALYTICS_EVENTS = {
    * happens at all.
    */
   paperStyleOverridden: 'paper style overridden',
+  /**
+   * A paper surface's view went out through the shared painter as an SVG or
+   * PNG. `surface` says which, `format` which file, `hidden_faces` whether the
+   * buried faces were kept — the default, and the setting D4 exists for. The
+   * file service's `file exported` fires too; this one carries what that
+   * chokepoint cannot see.
+   */
+  paperExported: 'paper exported',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —

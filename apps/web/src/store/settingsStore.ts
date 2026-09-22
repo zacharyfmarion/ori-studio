@@ -33,6 +33,12 @@ import {
   type PaperStyleValue,
 } from '../lib/paper/paperStyle';
 import {
+  normalizePaperExportSettings,
+  paperExportFromSimulatorSettings,
+  type PaperExportField,
+  type PaperExportSettings,
+} from '../lib/paperExportSettings';
+import {
   normalizePaperStyleSettings,
   paperStyleFromSimulatorSettings,
   persistedPaperStyleSettings,
@@ -63,6 +69,7 @@ const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
 const CP_SNAP_RADIUS_KEY = storageKey(STORAGE_KEYS.cpSnapRadius);
 const REFERENCES_AUTO_PLAY_FOLDS_KEY = storageKey(STORAGE_KEYS.referencesAutoPlayFolds);
 const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
+const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -119,6 +126,23 @@ function readPaperStyleSettings(): PaperStyleSettings {
     display: paperStyleFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null)),
   };
   if (!paperStyleEquals(seeded.display, DEFAULT_PAPER_STYLE)) persistPaperStyle(seeded);
+  return seeded;
+}
+
+/**
+ * The persisted export page, or — on the one read where there is none — a
+ * page seeded from the simulator settings' retired `exportBackground`.
+ *
+ * Written at once when the seed differs from the defaults, for the same reason
+ * the style's seed is: the simulator slice rewrites its own key without the
+ * retired field on its next edit, so the source does not survive to a second
+ * read. A seed that is the defaults is not written.
+ */
+function readPaperExportSettings(): PaperExportSettings {
+  const stored = readJson<unknown>(PAPER_EXPORT_KEY, null);
+  if (stored !== null) return normalizePaperExportSettings(stored);
+  const seeded = paperExportFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null));
+  if (seeded.background !== null) writeJson(PAPER_EXPORT_KEY, seeded);
   return seeded;
 }
 
@@ -196,6 +220,11 @@ interface SettingsState {
    * not here. See `implementation-plans/unified-paper-style-and-export.md`.
    */
   paperStyle: PaperStyleSettings;
+  /**
+   * The page every paper export is painted onto, and the PNG density. Export
+   * options rather than style: the same picture goes out on any page.
+   */
+  paperExport: PaperExportSettings;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -237,6 +266,7 @@ interface SettingsState {
    * The parse result comes back so the caller can put words to a refusal.
    */
   importPaperPreset: (json: string) => PaperPresetParseResult;
+  setPaperExportField: <F extends PaperExportField>(field: F, value: PaperExportSettings[F]) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -254,6 +284,7 @@ export const useSettingsStore = create<SettingsState>()(
       cpSnapRadius: readCpSnapRadius(),
       referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, true),
       paperStyle: readPaperStyleSettings(),
+      paperExport: readPaperExportSettings(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -374,6 +405,13 @@ export const useSettingsStore = create<SettingsState>()(
           set({ paperStyle: next });
         }
         return result;
+      },
+      setPaperExportField: (field, value) => {
+        // Through the normaliser, so a density typed past the range or a sheet
+        // size below the minimum is held to it before it is stored.
+        const next = normalizePaperExportSettings({ ...get().paperExport, [field]: value });
+        writeJson(PAPER_EXPORT_KEY, next);
+        set({ paperExport: next });
       },
     }),
     { name: 'SettingsStore' }

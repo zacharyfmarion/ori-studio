@@ -52,12 +52,14 @@ describe('simulatorSettings', () => {
 
   it('drops a setting that has since been retired', () => {
     // `showHiddenLines` was persisted for months before it went (only the
-    // canvas-2D fallback ever read it), and the style keys moved to the paper
+    // canvas-2D fallback ever read it), the style keys moved to the paper
     // style (`settingsStore.paperStyle`), which seeds itself from them on its
-    // first read. Old JSON still carries them all; none may come back as a
-    // stray key on the live settings.
+    // first read, and `exportBackground` moved to the export page
+    // (`settingsStore.paperExport`) the same way. Old JSON still carries them
+    // all; none may come back as a stray key on the live settings.
     const restored = normalizeSimulatorSettings({
       showHiddenLines: true,
+      exportBackground: 'white',
       showEdges: false,
       paperFront: '#ff8800',
       paperBack: null,
@@ -72,11 +74,9 @@ describe('simulatorSettings', () => {
     expect(restored).toEqual({ ...DEFAULT_SIMULATOR_SETTINGS, showEdges: false });
   });
 
-  it('validates the export background and clamps a numeric setting', () => {
-    expect(normalizeSimulatorSettings({ exportBackground: 'chartreuse' }).exportBackground).toBe(
-      DEFAULT_SIMULATOR_SETTINGS.exportBackground
-    );
-    expect(normalizeSimulatorSettings({ exportBackground: 'white' }).exportBackground).toBe('white');
+  // Re-pinned: the export-background half went with the setting, which the
+  // export page (`paperExportSettings`) now validates.
+  it('clamps a numeric setting', () => {
     expect(normalizeSimulatorSettings({ strainClip: 999 }).strainClip).toBe(
       SIMULATOR_SETTING_RANGES.strainClip.max
     );

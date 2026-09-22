@@ -259,7 +259,7 @@ export interface Folded3dMesh {
    *
    * Tight rather than the texture's RGBA layout because this exact array is what
    * `projectVertices` takes (the shader's maintained CPU mirror, and so what the
-   * tests below check against) and what `renderMeshToSvg` takes (the vector
+   * tests below check against) and what `meshToPaperScene` takes (the vector
    * export path). {@link packFolded3dPositionTexture} produces the texture form
    * from it.
    *

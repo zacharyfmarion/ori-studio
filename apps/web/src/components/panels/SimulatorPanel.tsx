@@ -224,7 +224,7 @@ export function SimulatorPanel() {
     setMaterial: pushMaterial,
   } = runtime;
 
-  const exportView = useSimulatorViewExport(runtime.exportSvg);
+  const exportView = useSimulatorViewExport(runtime.exportSvg, { surface: "simulator" });
 
   // Apply material/stability edits to the live solver. The load effect ignores
   // solverOptions on purpose -- reloading the model would throw away the current

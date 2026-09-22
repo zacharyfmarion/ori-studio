@@ -7,7 +7,9 @@ import {
   CP_MIN_SNAP_RADIUS,
 } from '../lib/cpSnapRadiusSetting';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
+import { PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
+import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
 import { STORAGE_KEYS, storageKey } from '../lib/storage';
 import { useSettingsStore } from './settingsStore';
 import type { WorkspaceState } from './workspaceStore/types';
@@ -404,5 +406,53 @@ describe('paperStyle', () => {
     expect((await freshSettingsStore()).getState().paperStyle.presets).toEqual([
       { version: 1, name: 'Theirs', style: { ...DEFAULT_PAPER_STYLE, erode: 0.2 } },
     ]);
+  });
+});
+
+describe('paperExport', () => {
+  const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
+  const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
+
+  it('starts from the default page and writes nothing until the user edits', async () => {
+    const { paperExport } = (await freshSettingsStore()).getState();
+    expect(paperExport).toEqual(DEFAULT_PAPER_EXPORT_SETTINGS);
+    expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
+  });
+
+  it('seeds a white page from the simulator settings’ retired export background, once', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
+    expect((await freshSettingsStore()).getState().paperExport.background).toBe('#ffffff');
+    // Written at once: the simulator slice drops the retired key on its next
+    // edit, so the seed would otherwise be lost to the second read.
+    expect(JSON.parse(localStorage.getItem(PAPER_EXPORT_KEY) ?? 'null')?.background).toBe(
+      '#ffffff'
+    );
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ showViewCube: false }));
+    expect((await freshSettingsStore()).getState().paperExport.background).toBe('#ffffff');
+  });
+
+  it('reads a transparent or theme export background as a transparent page, and writes nothing', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'theme' }));
+    expect((await freshSettingsStore()).getState().paperExport.background).toBeNull();
+    expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
+  });
+
+  it('prefers a persisted page over the simulator settings beside it', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
+    localStorage.setItem(PAPER_EXPORT_KEY, JSON.stringify({ background: null, pngDpi: 300 }));
+    const { paperExport } = (await freshSettingsStore()).getState();
+    expect(paperExport.background).toBeNull();
+    expect(paperExport.pngDpi).toBe(300);
+  });
+
+  it('writes a field, held to its range, and reads it back on the next start', async () => {
+    useSettingsStore.getState().setPaperExportField('keepHiddenFaces', false);
+    useSettingsStore.getState().setPaperExportField('sheet', { mm: 5 });
+    useSettingsStore.getState().setPaperExportField('pngDpi', 300);
+    const { paperExport } = useSettingsStore.getState();
+    expect(paperExport.keepHiddenFaces).toBe(false);
+    expect(paperExport.sheet).toEqual({ mm: PAPER_SHEET_MM_RANGE.min });
+    expect(paperExport.pngDpi).toBe(300);
+    expect((await freshSettingsStore()).getState().paperExport).toEqual(paperExport);
   });
 });

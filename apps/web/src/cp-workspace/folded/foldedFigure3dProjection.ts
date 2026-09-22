@@ -27,7 +27,7 @@
  * either.
  *
  * The mesh is deliberately **not** used for the vector path, though the
- * simulator's own `renderMeshToSvg` would take it unchanged. It draws the same
+ * simulator's own `meshToPaperScene` would take it unchanged. It draws the same
  * fixtures with up to 1.7× the polygons, because the epsilon that separates the
  * layers for a depth buffer also stops `coplanarRuns` merging them — and it
  * would re-derive the layer order from geometry we perturbed on purpose, when
@@ -525,7 +525,7 @@ function clampUnit(value: number): number {
 }
 
 /**
- * The face shader's flat lighting, reproduced from `svgRenderer.ts`: the
+ * The face shader's flat lighting, as `paperScene.ts` reproduces it: the
  * geometric normal in view space, oriented toward the viewer, against the light.
  *
  * Per plane rather than per triangle, because every face of a plane shares one
@@ -1055,9 +1055,11 @@ function merge(drafts: readonly Draft[]): Draft[] {
   let cursor = 0;
   for (const [start, end] of runs) {
     for (; cursor < start; cursor += 1) out.push(drafts[cursor]!);
-    const outline = outlineOf(pieces.slice(start, end).map((piece) => piece.points));
-    if (outline) {
-      out.push({ ...drafts[start]!, ring: outline.map(([x, y]) => ({ x, y })) });
+    const rings = outlineOf(pieces.slice(start, end).map((piece) => piece.points));
+    // A draft holds one ring, so a run with a hole stays as its pieces here;
+    // the scene path (`meshToPaperScene`) is where holes become one face.
+    if (rings?.length === 1) {
+      out.push({ ...drafts[start]!, ring: rings[0]!.map(([x, y]) => ({ x, y })) });
     } else {
       for (let i = start; i < end; i += 1) out.push(drafts[i]!);
     }

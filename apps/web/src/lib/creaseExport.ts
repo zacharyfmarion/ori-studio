@@ -5,6 +5,7 @@ import {
   type CpSegment,
 } from './creasePatternSegmentation';
 import { escapeXml } from './xmlEscape';
+import { svgToPng } from './svgToPng';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from './foldedFigureSvg';
 import {
   applyCpModelToFold,
@@ -1214,40 +1215,12 @@ export function composeCreaseExportSvg(
 }
 
 /**
- * Rasterize a standalone SVG document through an offscreen canvas. Shared with
- * the folded-figure export, which composes a different page from the same
- * primitives.
+ * Rasterize a standalone SVG document through an offscreen canvas. Lives in
+ * `lib/svgToPng` so the paper painter can reach it without this module's
+ * CP-workspace dependencies; re-exported here for the callers that always
+ * found it beside the crease-pattern page.
  */
-export async function svgToPng(svg: string, width: number, height: number): Promise<Uint8Array> {
-  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  try {
-    const image = new Image();
-    image.decoding = 'async';
-    const loaded = new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () => reject(new Error('Failed to render export SVG'));
-    });
-    image.src = url;
-    await loaded;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(width));
-    canvas.height = Math.max(1, Math.round(height));
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas rendering is unavailable');
-    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const pngBlob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((result) => {
-        if (result) resolve(result);
-        else reject(new Error('Failed to encode export PNG'));
-      }, 'image/png');
-    });
-    return new Uint8Array(await pngBlob.arrayBuffer());
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
+export { svgToPng };
 
 export function renderCreasePatternPng(
   fold: FoldDocument,

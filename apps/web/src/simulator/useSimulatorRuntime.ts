@@ -7,7 +7,6 @@ import type {
   RenderSettings,
   SimulatorDiagnostics,
   SimulatorOptions,
-  SvgRenderResult,
 } from '@treemaker/origami-simulator';
 import {
   releaseSimulatorClient,
@@ -23,7 +22,9 @@ import {
 } from './simulatorPerfProbe';
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
-import type { SimulatorExportBackground } from '../lib/simulatorSettings';
+import type { PaperPage } from '../lib/paper/paperPage';
+import type { PaperStyle } from '../lib/paper/paperStyle';
+import type { PaperSvgResult } from '../lib/paper/paperSvg';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -44,6 +45,12 @@ interface SimulatorCameraRequest {
   view: OrbitView;
   width: number;
   height: number;
+}
+
+/** What an export needs beyond the view: the style to paint with and the page to paint onto. */
+export interface SimulatorExportRequest {
+  style: PaperStyle;
+  page: PaperPage;
 }
 
 export interface SimulatorFrameView {
@@ -169,7 +176,7 @@ export interface SimulatorRuntime {
   /** Push render settings to the worker (GPU mode); remembered in CPU mode. */
   setRenderSettings: (settings: RenderSettings) => void;
   /**
-   * The current view as a standalone SVG document, or null when there is nothing
+   * The current view as a standalone SVG page, or null when there is nothing
    * to draw or this runtime holds no model.
    *
    * The worker builds it: that is where the complete render state lives, so this
@@ -178,9 +185,10 @@ export interface SimulatorRuntime {
    * every other call here. The camera and settings last handed to `setCamera`
    * and `setRenderSettings` travel with the request, which is what makes the
    * file the view on screen on the canvas-2D path, where the worker was never
-   * sent them.
+   * sent them. The style and page come from the caller, which is where the
+   * app's export settings and the object's overrides are known.
    */
-  exportSvg: (background?: SimulatorExportBackground) => Promise<SvgRenderResult | null>;
+  exportSvg: (request: SimulatorExportRequest) => Promise<PaperSvgResult | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -708,7 +716,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       .catch(() => undefined);
   }, []);
 
-  const exportSvg = useCallback(async (background?: SimulatorExportBackground) => {
+  const exportSvg = useCallback(async ({ style, page }: SimulatorExportRequest) => {
     const client = clientRef.current;
     if (!client || tokenRef.current === undefined) return null;
     // The worker holds the frame in device pixels; the ratio the viewport sized
@@ -721,7 +729,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // opening camera rather than what is on screen.
     return client.exportSvg({
       token: tokenRef.current,
-      background,
+      style,
+      page,
       devicePixelRatio: simulatorDevicePixelRatio(),
       camera: lastCameraRef.current ?? undefined,
       settings: lastRenderSettingsRef.current ?? undefined,

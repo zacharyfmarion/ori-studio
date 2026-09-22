@@ -1,10 +1,14 @@
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { RotateCcw } from 'lucide-react';
+import {
+  DEFAULT_PAPER_BACKGROUND,
+  sheetMmOf,
+  usePaperExportPage,
+} from '../../hooks/usePaperExportPage';
+import { PAPER_SHEET_MM_RANGE } from '../../lib/paper/paperPage';
 import { PAPER_CREASE_STYLES } from '../../lib/paper/paperStyle';
 import {
   SIMULATOR_SETTING_RANGES,
-  type SimulatorExportBackground,
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
@@ -17,19 +21,7 @@ import {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
-import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
-
-// Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
-function exportBackgroundLabel(value: SimulatorExportBackground, t: TFunction): string {
-  switch (value) {
-    case 'transparent':
-      return t('panels:simulatorViewControls.backgroundTransparent', 'Transparent');
-    case 'white':
-      return t('panels:simulatorViewControls.backgroundWhite', 'White');
-    case 'theme':
-      return t('panels:simulatorViewControls.backgroundTheme', 'Match theme');
-  }
-}
+import { ColorRow, NumberRow, SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 
 /**
  * Options pane for the Simulate workspace, mirroring the Edit workspace's view
@@ -45,6 +37,10 @@ export function SimulatorViewControlsPanel() {
   // How the paper is drawn is the app-wide paper style, not a simulator
   // setting; these rows are its simulator-facing subset.
   const paper = useSimulatorPaperStyle();
+  // The page an export is painted onto is app-wide too (Settings ▸ Paper's
+  // "Export page" section edits the same one); these rows are its simulator-
+  // facing subset.
+  const exportPage = usePaperExportPage();
   // A mono style paints every crease in the edge ink, so the per-kind swatches
   // stop doing anything; showing them live would promise an effect they no
   // longer have. Custom pens are the user's own and stay editable.
@@ -198,18 +194,59 @@ export function SimulatorViewControlsPanel() {
           collapsible
           description={t(
             'panels:simulatorViewControls.exportHint',
-            'Page background of an exported image.'
+            'The page an exported image is drawn on.'
           )}
         >
           <SelectRow
             label={t('panels:simulatorViewControls.background', 'Background')}
-            value={settings.exportBackground}
-            options={(['transparent', 'white', 'theme'] as const).map((value) => ({
-              id: value,
-              label: exportBackgroundLabel(value, t),
-            }))}
-            onChange={(value) => setSetting('exportBackground', value as SimulatorExportBackground)}
+            value={exportPage.page.background === null ? 'transparent' : 'color'}
+            options={[
+              {
+                id: 'transparent',
+                label: t('panels:simulatorViewControls.backgroundTransparent', 'Transparent'),
+              },
+              { id: 'color', label: t('panels:simulatorViewControls.backgroundColor', 'Color') },
+            ]}
+            onChange={(value) =>
+              exportPage.setBackground(value === 'color' ? DEFAULT_PAPER_BACKGROUND : null)
+            }
           />
+          {exportPage.page.background !== null && (
+            <ColorRow
+              label={t('panels:simulatorViewControls.backgroundColor', 'Color')}
+              value={exportPage.page.background}
+              onChange={exportPage.setBackground}
+            />
+          )}
+          <ToggleRow
+            label={t('panels:simulatorViewControls.keepHiddenFaces', 'Keep hidden faces')}
+            help={t(
+              'panels:simulatorViewControls.keepHiddenFacesHint',
+              'Faces nothing shows stay in the file, under what covers them.'
+            )}
+            checked={exportPage.page.keepHiddenFaces}
+            onChange={exportPage.setKeepHiddenFaces}
+          />
+          <SelectRow
+            label={t('panels:simulatorViewControls.sheetSize', 'Sheet size')}
+            value={exportPage.page.sheet === 'as-shown' ? 'as-shown' : 'mm'}
+            options={[
+              { id: 'as-shown', label: t('panels:simulatorViewControls.sheetAsShown', 'As shown') },
+              { id: 'mm', label: t('panels:simulatorViewControls.sheetMm', 'Millimetres') },
+            ]}
+            onChange={(value) => exportPage.setSheetAsShown(value === 'as-shown')}
+          />
+          {exportPage.page.sheet !== 'as-shown' && (
+            <NumberRow
+              label={t('panels:simulatorViewControls.sheetMmValue', 'Sheet (mm)')}
+              value={sheetMmOf(exportPage.page.sheet)}
+              min={PAPER_SHEET_MM_RANGE.min}
+              max={PAPER_SHEET_MM_RANGE.max}
+              step={PAPER_SHEET_MM_RANGE.step}
+              suffix="mm"
+              onCommit={exportPage.setSheetMm}
+            />
+          )}
         </CollapsibleSection>
 
         <CollapsibleSection

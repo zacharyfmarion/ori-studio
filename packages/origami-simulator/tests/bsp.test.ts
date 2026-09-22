@@ -1,23 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { renderMeshToSvg } from '../src/svgRenderer.js';
 import { buildBsp, traverseBsp, type BspItem, type Vec3 } from '../src/bsp.js';
+import {
+  meshToPaperScene,
+  type MeshToPaperSceneOptions,
+  type PaperFaceItem,
+  type PaperLineItem,
+} from '../src/paperScene.js';
 import { cameraUniforms } from '../src/webgl/camera.js';
-import type { RenderSettings } from '../src/webgl/meshRenderer.js';
-
-const SETTINGS: RenderSettings = {
-  frontColor: [1, 0, 0],
-  backColor: [0, 0, 1],
-  mountainColor: [1, 1, 0],
-  valleyColor: [0, 1, 1],
-  borderColor: [1, 0, 1],
-  lightDir: [0, 0, 1],
-  background: [0, 0, 0],
-  showFaces: true,
-  showEdges: false,
-  lighting: false,
-  creaseWidthPx: 2,
-  faceAlpha: 1,
-};
 
 /**
  * Two triangles that pass through each other: one in the plane z = 0, one in the
@@ -32,22 +21,30 @@ const CROSSING = new Float32Array([
 
 const CAMERA = cameraUniforms({ yaw: 0.6, pitch: -0.5, zoom: 1 }, [0, 0, 0], 1.5, 400, 400);
 
-function render(positions: Float32Array, faceIndices: Uint32Array) {
-  return renderMeshToSvg(
+/**
+ * Re-pinned from the SVG serializer these tests were written against onto the
+ * scene producer that replaced it: the tree is the same, and a face item is
+ * what a polygon was. Every piece is kept and none merged, so the count is the
+ * tree's own.
+ */
+const UNCUT: Partial<MeshToPaperSceneOptions> = { showEdges: false, markHidden: false };
+
+function faces(positions: Float32Array, faceIndices: Uint32Array): PaperFaceItem[] {
+  const scene = meshToPaperScene(
     positions,
     { faceIndices, edgeIndices: new Uint32Array(), edgeAssignments: new Uint8Array() },
     CAMERA,
-    SETTINGS,
-    { background: false }
+    { sheet: 2, ...UNCUT }
   );
+  return scene.items.filter((item): item is PaperFaceItem => item.kind === 'face');
 }
 
 describe('ordering interpenetrating geometry', () => {
   it('cuts the mesh rather than trying to sort it', () => {
-    const page = render(CROSSING, new Uint32Array([0, 1, 2, 3, 4, 5]))!;
-    const polygons = page.svg.match(/<polygon/gu) ?? [];
-    // Two input triangles; a correct result needs more pieces than that.
-    expect(polygons.length).toBeGreaterThan(2);
+    // Two input triangles; a correct result needs more pieces than that. The
+    // pieces of one triangle are never adjacent in the order (the point of
+    // cutting), so none of them merge back into it.
+    expect(faces(CROSSING, new Uint32Array([0, 1, 2, 3, 4, 5])).length).toBeGreaterThan(2);
   });
 
   it('interleaves the two triangles, which no sort of whole triangles can do', () => {
@@ -81,19 +78,18 @@ describe('ordering interpenetrating geometry', () => {
   it('keeps a piece drawn with its parent’s appearance', () => {
     // A cut piece is coplanar with its parent, so it shows the same side of the
     // paper; recomputing from a sliver would be both wasteful and less stable.
-    const page = render(CROSSING, new Uint32Array([0, 1, 2, 3, 4, 5]))!;
-    const fills = new Set(page.svg.match(/fill="#[0-9a-f]{6}"/gu) ?? []);
-    // Two source triangles, so at most two paper colours regardless of the
-    // number of pieces.
-    expect(fills.size).toBeLessThanOrEqual(2);
+    const pieces = faces(CROSSING, new Uint32Array([0, 1, 2, 3, 4, 5]));
+    const looks = new Set(pieces.map((piece) => `${piece.face}:${piece.side}:${piece.shade}`));
+    // Two source triangles, so at most two looks regardless of the number of
+    // pieces.
+    expect(looks.size).toBeLessThanOrEqual(2);
   });
 
   it('leaves non-overlapping geometry uncut', () => {
     // The tree must not split for its own sake: two separated triangles need no
     // cutting, and growth is the whole cost of this approach.
     const apart = new Float32Array([-1, -1, 0, -0.6, -1, 0, -0.8, 1, 0, 0.6, -1, 0, 1, -1, 0, 0.8, 1, 0]);
-    const page = render(apart, new Uint32Array([0, 1, 2, 3, 4, 5]))!;
-    expect((page.svg.match(/<polygon/gu) ?? []).length).toBe(2);
+    expect(faces(apart, new Uint32Array([0, 1, 2, 3, 4, 5]))).toHaveLength(2);
   });
 
   it('keeps a split crease straight', () => {
@@ -110,7 +106,7 @@ describe('ordering interpenetrating geometry', () => {
       // A crease that lies in neither, so whichever plane is chosen cuts it.
       -1, 0.2, -1, 1, 0.2, 1,
     ]);
-    const page = renderMeshToSvg(
+    const scene = meshToPaperScene(
       positions,
       {
         faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
@@ -118,15 +114,14 @@ describe('ordering interpenetrating geometry', () => {
         edgeAssignments: new Uint8Array([1]),
       },
       CAMERA,
-      { ...SETTINGS, showEdges: true, creaseWidthPx: 1 }
-    )!;
+      { sheet: 2, markHidden: false, lineWidth: 1 }
+    );
 
-    const lines = [...page.svg.matchAll(/<line x1="([-\d.]+)" y1="([-\d.]+)" x2="([-\d.]+)" y2="([-\d.]+)"/gu)]
-      .map((m) => [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])] as const);
+    const lines = scene.items.filter((item): item is PaperLineItem => item.kind === 'line');
     expect(lines.length).toBeGreaterThan(1); // the crease really was cut
 
     // Every piece must lie on the line through the two extreme endpoints.
-    const points = lines.flatMap(([x1, y1, x2, y2]) => [[x1, y1], [x2, y2]] as [number, number][]);
+    const points = lines.flatMap((line) => [line.a, line.b]);
     let a = points[0]!;
     let b = points[0]!;
     for (const q of points) {

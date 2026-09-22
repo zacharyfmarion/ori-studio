@@ -310,6 +310,36 @@ describe('collapsible sections', () => {
     expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
   });
 
+  it('binds the Export group to the app-wide export page', () => {
+    // The same page Settings ▸ Paper's "Export page" section edits: one store
+    // field, two places to reach it.
+    const rendered = render();
+    toggle(rendered, 'Export');
+    const keep = () => rendered.querySelector<HTMLButtonElement>('[aria-label="Keep hidden faces"]');
+    expect(keep()?.getAttribute('aria-checked')).toBe('true');
+    act(() => keep()?.click());
+    expect(useSettingsStore.getState().paperExport.keepHiddenFaces).toBe(false);
+
+    // A transparent page shows no swatch; a coloured one does, and the swatch
+    // writes the page's background. The sheet size field appears the same way.
+    expect(rendered.querySelector('input[aria-label="Color"]')).toBeNull();
+    expect(rendered.querySelector('[aria-label="Sheet (mm)"]')).toBeNull();
+    act(() => {
+      useSettingsStore.getState().setPaperExportField('background', '#ffffff');
+      useSettingsStore.getState().setPaperExportField('sheet', { mm: 210 });
+    });
+    const swatch = rendered.querySelector<HTMLInputElement>('input[aria-label="Color"]');
+    expect(swatch?.value).toBe('#ffffff');
+    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Sheet (mm)"]')?.value).toBe('210');
+    act(() => {
+      if (!swatch) throw new Error('no background swatch');
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(swatch, '#123456');
+      swatch.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(useSettingsStore.getState().paperExport.background).toBe('#123456');
+  });
+
   it('labels each swatch to its own input', () => {
     const rendered = render();
     toggle(rendered, 'Paper');

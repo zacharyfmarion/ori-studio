@@ -11,7 +11,7 @@
  * is a total order on view depth, and `projectVertices` is the maintained CPU
  * mirror of the very vertex shader that computes it (`camera.ts` says so, and
  * the SVG exporter already depends on it being exact). `gl_FrontFacing`'s answer
- * is the sign of the screen-space winding, which `svgRenderer.ts` mirrors as
+ * is the sign of the screen-space winding, which `projectedMesh.ts` mirrors as
  * `winding = −screenArea` for the same reason.
  *
  * So both questions this module has to get right — which layer of a stack shows,
@@ -271,7 +271,7 @@ function upTowardEye(
 }
 
 /**
- * The screen winding `gl_FrontFacing` decides on, mirrored from `svgRenderer.ts`:
+ * The screen winding `gl_FrontFacing` decides on, mirrored from `projectedMesh.ts`:
  * the signed area in pixel space, negated because pixel y points down while NDC
  * y points up. Front-facing — and so `u_frontColor` — when this is positive.
  */

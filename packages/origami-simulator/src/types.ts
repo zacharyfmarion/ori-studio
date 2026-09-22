@@ -47,6 +47,14 @@ export interface PreparedOrigamiModel {
   indices: Uint32Array;
   edgesVertices: [number, number][];
   edgesAssignment: FoldAssignment[];
+  /**
+   * Per edge, whether it is a triangulation diagonal — an `F` edge
+   * `prepareFoldModel` invented so the solver has triangles — rather than an
+   * edge of the source document. A source `F` edge is an auxiliary crease and
+   * may be drawn; a diagonal never is. `edgesAssignment` alone cannot tell them
+   * apart, which is why this rides beside it.
+   */
+  edgesFacet: boolean[];
   edgesFoldAngle: Array<number | null>;
   facesVertices: number[][];
   facesEdges: number[][];

@@ -23,7 +23,7 @@ import type { Point } from '../../lib/geometry';
  * render state, with the raster derived from it rather than made a second way.
  * A 3D figure's `renderSnapshot` *is* that drawing — `foldedFigure3dProjection`
  * builds it through the simulator's BSP and hidden-piece passes and reproduces
- * `svgRenderer.ts`'s lighting, so the file carries the shading the window shows
+ * the simulator's lighting (`shading.ts`), so the file carries the shading the window shows
  * — and the store keeps it current, refreshing it once at the end of a turn and
  * whenever the style or colours change.
  *

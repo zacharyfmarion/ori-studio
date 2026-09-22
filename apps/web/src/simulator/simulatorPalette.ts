@@ -6,11 +6,14 @@ import type { SimulatorSettings } from '../lib/simulatorSettings';
 /**
  * The one place the simulator's frame is decided.
  *
- * There used to be two resolvers of a simulator palette — one for the GPU and
- * SVG renderers, one for the canvas-2D renderer — and they disagreed, which
- * was not a dormant fallback: a fold profile forces the canvas-2D path even on
- * a machine with WebGL2. `RenderSettings` is the struct all three renderers
- * consume, so it is the contract, and it is built in one place.
+ * There used to be two resolvers of a simulator palette — one for the GPU
+ * renderer, one for the canvas-2D renderer — and they disagreed, which was not
+ * a dormant fallback: a fold profile forces the canvas-2D path even on a
+ * machine with WebGL2. `RenderSettings` is the struct both on-screen renderers
+ * consume, so it is the contract, and it is built in one place. The vector
+ * export does not read it: the worker builds a scene (`meshToPaperScene`) and
+ * paints it from the `PaperStyle` and `PaperPage` it is handed
+ * (`paperSceneToSvg`), taking only `showFaces` / `showEdges` from here.
  *
  * That place is now `resolvePaperStyle` (`lib/paper/paperStyleResolve.ts`),
  * which turns the app-wide {@link PaperStyle} into device px once for every
@@ -44,9 +47,8 @@ const FALLBACK = {
  * Colours only the canvas-2D renderer draws with, so they are not on
  * `RenderSettings`.
  *
- * The GPU and SVG renderers have no sequence highlights and no facet ink; giving
- * them fields they ignore would make the contract lie about what a renderer
- * honours.
+ * The GPU renderer has no sequence highlights and no facet ink; giving it
+ * fields it ignores would make the contract lie about what a renderer honours.
  */
 export interface SimulatorChrome {
   /** Sequence-step emphasis. */
@@ -138,9 +140,10 @@ export function resolveRenderSettings(
  * theme change.
  *
  * The viewport builds one of these and uses it twice: `render` is what goes to
- * the worker (and so to the GPU renderer and the SVG exporter), and the whole
- * bundle is what the canvas-2D renderer draws from. That is what makes "the
- * export matches the screen" true by construction rather than by care.
+ * the worker (and so to the GPU renderer), and the whole bundle is what the
+ * canvas-2D renderer draws from. The vector export takes its look from the
+ * same `PaperStyle` these settings were resolved from, through
+ * `surfacePaperStyle`, which is what keeps the file's pens the screen's.
  */
 export interface SimulatorPaint {
   render: RenderSettings;

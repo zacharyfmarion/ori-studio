@@ -61,6 +61,13 @@ const presetRow = (key: string) =>
   container?.querySelector(`[data-testid="settings-paper-preset-${key}"]`) as HTMLElement;
 const display = () => useSettingsStore.getState().paperStyle.display;
 const exported = () => useSettingsStore.getState().paperStyle.export;
+const exportPage = () => useSettingsStore.getState().paperExport;
+
+/** The style's switches: the export-page section below has three of its own. */
+const styleSwitches = (within: ParentNode) =>
+  Array.from(within.querySelectorAll('[role="switch"]')).filter(
+    (element) => !element.closest('[data-testid="settings-paper-export"]')
+  );
 
 beforeEach(() => {
   tracked.length = 0;
@@ -99,7 +106,7 @@ describe('PaperSettings', () => {
     expect(input('Azimuth').value).toBe('322.1935');
     expect(input('Elevation').value).toBe('42.8092');
     // The aux toggle and both light switches are Radix switches named by their row.
-    const switches = Array.from(rendered.querySelectorAll('[role="switch"]'));
+    const switches = styleSwitches(rendered);
     expect(switches).toHaveLength(3);
     expect(switches.map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
@@ -159,11 +166,11 @@ describe('PaperSettings', () => {
     expect(input('Edges width').disabled).toBe(true);
     expect(input('Azimuth').disabled).toBe(true);
     // The aux and light switches too; the follows switch itself stays live.
-    expect(
-      Array.from(rendered.querySelectorAll('[role="switch"]')).map((element) =>
-        element.hasAttribute('disabled')
-      )
-    ).toEqual([false, true, true]);
+    expect(styleSwitches(rendered).map((element) => element.hasAttribute('disabled'))).toEqual([
+      false,
+      true,
+      true,
+    ]);
     expect((findButton('Apply', presetRow('builtin:oriedita')) as HTMLButtonElement).disabled).toBe(
       true
     );
@@ -182,6 +189,40 @@ describe('PaperSettings', () => {
     expect(tracked).toEqual([
       { event: 'paperStyleChanged', properties: { slot: 'export', field: 'paper.front' } },
     ]);
+  });
+
+  it('edits the export page: background, hidden faces, sheet size, margin and density', () => {
+    const rendered = render();
+    const section = rendered.querySelector('[data-testid="settings-paper-export"]')!;
+    const switches = () => Array.from(section.querySelectorAll<HTMLButtonElement>('[role="switch"]'));
+    // Transparent, keep hidden faces, sheet as shown: all on by default, and
+    // neither the background swatch nor the sheet size field shows.
+    expect(switches().map((element) => element.getAttribute('aria-checked'))).toEqual([
+      'true',
+      'true',
+      'true',
+    ]);
+    expect(section.querySelector('input[type="color"]')).toBeNull();
+    expect(section.querySelector('input[aria-label="Sheet size"]')).toBeNull();
+
+    act(() => switches()[0]!.click());
+    expect(exportPage().background).toBe('#ffffff');
+    expect(input('Background').value).toBe('#ffffff');
+    act(() => switches()[1]!.click());
+    expect(exportPage().keepHiddenFaces).toBe(false);
+    act(() => switches()[2]!.click());
+    expect(exportPage().sheet).toEqual({ mm: 150 });
+    typeInto(input('Sheet size'), '210');
+    blur(input('Sheet size'));
+    expect(exportPage().sheet).toEqual({ mm: 210 });
+    typeInto(input('Margin'), '2');
+    blur(input('Margin'));
+    expect(exportPage().paddingMm).toBe(2);
+    typeInto(input('PNG density'), '300');
+    blur(input('PNG density'));
+    expect(exportPage().pngDpi).toBe(300);
+    // Export page edits are not style edits, and count as none.
+    expect(tracked).toEqual([]);
   });
 
   it('saves the current style under a typed name and can delete it', () => {

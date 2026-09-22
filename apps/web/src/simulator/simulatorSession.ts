@@ -1,6 +1,9 @@
 import { transfer } from 'comlink';
+import type { PaperPage } from '../lib/paper/paperPage';
+import { PT_TO_CSS_PX, type PaperStyle } from '../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES, lightVector, surfacePaperStyle } from '../lib/paper/paperStyleResolve';
+import { paperSceneToSvg, widestPenPt, type PaperSvgResult } from '../lib/paper/paperSvg';
 import { PreparedModelCache } from '../lib/preparedModelCache';
-import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_FOLDED_MESHES } from './simulatorLimits';
 import {
   FOLDED_3D_REQUIRED_DEPTH_BITS,
@@ -18,8 +21,8 @@ import {
   boundingRadius,
   glContextAttributeOverrides,
   meshTopologyFor,
+  meshToPaperScene,
   prepareFoldModel,
-  renderMeshToSvg,
   setGlContextAttributeOverrides,
   type CameraUniforms,
   type GlContextAttributeOverrides,
@@ -31,7 +34,6 @@ import {
   type SimulatorDiagnostics,
   type SimulatorOptions,
   type SolverBackend,
-  type SvgRenderResult,
 } from '@treemaker/origami-simulator';
 
 // The simulator's solver, off the main thread.
@@ -249,6 +251,37 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
   creaseWidthPx: 3,
   faceAlpha: 1,
 };
+
+export interface SimulatorExportSvgOptions {
+  token?: SimulatorSessionToken;
+  /**
+   * The style to paint with — the app's export style with the object's
+   * overrides applied, resolved on the main thread where the settings live.
+   */
+  style: PaperStyle;
+  /** The page to paint onto; see `lib/paper/paperPage.ts`. */
+  page: PaperPage;
+  /**
+   * Device pixels per CSS pixel of the frame being exported. The view is held
+   * in device pixels — the drawing buffer's size — and the scene is measured in
+   * CSS pixels, so the same frame exports at the same size from every display.
+   * Defaults to 1, which reads the buffer as CSS pixels.
+   */
+  devicePixelRatio?: number;
+  /**
+   * The view to export, when the caller knows it better than this session
+   * does. Applied as {@link SimulatorWorkerApi.setCamera} and
+   * {@link SimulatorWorkerApi.setRenderSettings} would be, minus the redraw.
+   * The canvas-2D path never sends either — the main thread draws, so a message
+   * per orbit frame would buy nothing — and without them the file was the
+   * defaults at the opening camera. On the GPU path they are what was already
+   * pushed, or a camera still queued behind an in-flight one, and either way
+   * the newest. Of the settings only `showFaces` / `showEdges` reach the page:
+   * the look comes from `style`.
+   */
+  camera?: SimulatorCamera;
+  settings?: RenderSettings;
+}
 
 /**
  * Identifies one loaded model, handed back by `load` and quoted by every later
@@ -1199,50 +1232,22 @@ const api = {
   },
 
   /**
-   * The current view as a standalone SVG document, or null when there is
-   * nothing to draw.
+   * The current view as a standalone SVG page, or null when there is nothing
+   * to draw.
    *
    * Here rather than on the main thread because this is where the complete
    * render state already lives: positions in the solver, the camera and
-   * appearance on {@link SessionView}. It is the vector sibling of
-   * {@link renderGpu} — same positions, same topology, same camera, same
-   * settings — which is what makes the file the view the user is looking at
-   * rather than a second interpretation of it.
+   * framing on {@link SessionView}. It is the vector sibling of
+   * {@link renderGpu} — same positions, same topology, same camera — which is
+   * what makes the file the view the user is looking at rather than a second
+   * interpretation of it. The picture is built as a scene (`meshToPaperScene`)
+   * and painted with the style the caller resolved, so the simulator exports
+   * through the same painter as every other paper surface.
    *
    * Distinct from {@link exportGeometry}, which serves STL/OBJ and wants raw
    * geometry with no camera at all.
    */
-  exportSvg(
-    options: {
-      token?: SimulatorSessionToken;
-      /**
-       * Page background. Defaults to transparent, which is not what is on
-       * screen: the panel's backdrop is the app's canvas colour, and a file
-       * carrying that would arrive in a document with the app's dark chrome
-       * baked in. Transparent composites into anything.
-       */
-      background?: SimulatorExportBackground;
-      /**
-       * Device pixels per CSS pixel of the frame being exported. The view is
-       * held in device pixels — the drawing buffer's size, the crease width the
-       * palette scaled up to match — and the page is written in CSS pixels, so
-       * the same frame exports at the same size from every display. Defaults to
-       * 1, which is a page in device pixels.
-       */
-      devicePixelRatio?: number;
-      /**
-       * The view to export, when the caller knows it better than this session
-       * does. Applied as {@link setCamera} and {@link setRenderSettings} would
-       * be, minus the redraw. The canvas-2D path never sends either — the main
-       * thread draws, so a message per orbit frame would buy nothing — and
-       * without them the file was the defaults at the opening camera. On the
-       * GPU path they are what was already pushed, or a camera still queued
-       * behind an in-flight one, and either way the newest.
-       */
-      camera?: SimulatorCamera;
-      settings?: RenderSettings;
-    } = {}
-  ): SvgRenderResult | null {
+  exportSvg(options: SimulatorExportSvgOptions): PaperSvgResult | null {
     const active = sessionFor(options.token);
     if (!active) return null;
     if (options.camera) {
@@ -1258,12 +1263,9 @@ const api = {
     // had reason to, so fit here from the same positions being exported.
     if (!active.view.fitted) fitTo(positions, active.view);
 
-    let strain: Float32Array | null = null;
-    if (active.view.settings.colorMode === 'strain') {
-      strain = new Float32Array(prepared.vertexCount);
-      active.backend.readStrain(strain);
-    }
-
+    // The camera in CSS px: the view is held in device pixels — the drawing
+    // buffer's size — and the scene is measured in CSS px, so the same frame
+    // exports at the same size from every display.
     const dpr = Math.max(1, options.devicePixelRatio ?? 1);
     const camera = cameraUniforms(
       active.view.view,
@@ -1272,21 +1274,27 @@ const api = {
       active.view.width / dpr,
       active.view.height / dpr
     );
-    const mode = options.background ?? 'transparent';
-    const settings: RenderSettings =
-      mode === 'white'
-        ? { ...cssPixelInk(active.view.settings, dpr), background: [1, 1, 1], backgroundAlpha: 1 }
-        : { ...cssPixelInk(active.view.settings, dpr), backgroundAlpha: 1 };
-
-    // The page size comes back with the document because a rasterizer needs it,
-    // and re-deriving it from a string we just produced would be worse.
-    return renderMeshToSvg(positions, meshTopologyFor(prepared), camera, settings, {
+    // As the simulator draws the style: the fields its policy applies, the
+    // rest at their defaults, and every pen at the fold pens' width, which is
+    // the one width the screen draws at. The inline-simulation policy applies
+    // the same fields, so one policy serves both surfaces here.
+    const style = surfacePaperStyle(options.style, PAPER_STYLE_POLICIES.simulator);
+    const scene = meshToPaperScene(positions, meshTopologyFor(prepared), camera, {
+      sheet: sheetExtent(active.model.originalPositions),
       // The canvas-2D fallback is orthographic, so a machine drawing through it
       // must export the way its own screen looks.
       perspective: Boolean(active.gpuRender),
-      strain,
-      background: mode !== 'transparent',
+      // A page that keeps buried faces has no use for the hidden test, which
+      // is the expensive half of building the scene.
+      markHidden: !options.page.keepHiddenFaces,
+      lighting: style.light.enabled,
+      lightDir: lightVector(style.light.azimuth, style.light.elevation),
+      lineWidth: widestPenCssPx(style),
+      showFaces: active.view.settings.showFaces,
+      showEdges: active.view.settings.showEdges,
     });
+    if (scene.items.length === 0) return null;
+    return paperSceneToSvg(scene, style, options.page);
   },
 
   diagnostics(): SimulatorDiagnostics {
@@ -1885,30 +1893,32 @@ function fitTo(positions: Float32Array, state: SessionView): void {
 export type SimulatorWorkerApi = typeof api;
 
 /**
- * Render settings with every device-pixel length divided down to CSS pixels,
- * for a page written in CSS pixels. The crease width, the frame edge it is
- * calibrated for and the dash runs measured along it all scale together, so the
- * ink keeps its proportion to the frame — an inline window's frame-shrink
- * factor (`creaseFrameScale`) reads edge over reference and sees the same
- * ratio it did on screen.
+ * The unfolded sheet's extent in the model's world units: its longest axis
+ * span, which for a square sheet is the sheet's edge. The unit the style's
+ * erode is a fraction of, so the scene carries it at the camera's scale.
  */
-export function cssPixelInk(settings: RenderSettings, devicePixelRatio: number): RenderSettings {
-  if (devicePixelRatio === 1) return settings;
-  const runs = (pattern: readonly number[] | null) =>
-    pattern ? pattern.map((run) => run / devicePixelRatio) : null;
-  return {
-    ...settings,
-    creaseWidthPx: settings.creaseWidthPx / devicePixelRatio,
-    creaseWidthReferenceEdge:
-      settings.creaseWidthReferenceEdge === undefined
-        ? undefined
-        : settings.creaseWidthReferenceEdge / devicePixelRatio,
-    creaseDash: settings.creaseDash && {
-      border: runs(settings.creaseDash.border),
-      mountain: runs(settings.creaseDash.mountain),
-      valley: runs(settings.creaseDash.valley),
-    },
-  };
+export function sheetExtent(originalPositions: Float32Array): number {
+  let extent = 0;
+  for (let axis = 0; axis < 3; axis += 1) {
+    let min = Infinity;
+    let max = -Infinity;
+    for (let index = axis; index < originalPositions.length; index += 3) {
+      const value = originalPositions[index]!;
+      if (!Number.isFinite(value)) continue;
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+    if (max > min) extent = Math.max(extent, max - min);
+  }
+  return extent;
+}
+
+/**
+ * The widest pen the painter will draw, in CSS px: the scene's ink allowance
+ * for the tree and the stroke its hidden test measures a line by.
+ */
+export function widestPenCssPx(style: PaperStyle): number {
+  return widestPenPt(style) * PT_TO_CSS_PX;
 }
 
 /**

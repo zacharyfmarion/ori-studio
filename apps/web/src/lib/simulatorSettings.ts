@@ -15,7 +15,10 @@ import type { SimulatorOptions } from '@treemaker/origami-simulator';
  * style keys this held before it existed (`paperFront`, `paperBack`,
  * `mountainColor`, `valleyColor`, `borderColor`, `creaseWidth`, `creaseStyle`,
  * `lighting`) seed that style on its first read and are dropped from old JSON
- * by {@link normalizeSimulatorSettings} like any other retired key.
+ * by {@link normalizeSimulatorSettings} like any other retired key. The page
+ * an export is painted onto is likewise the app-wide export page
+ * (`settingsStore.paperExport`); its `exportBackground` seeded that page's
+ * background and is retired the same way.
  */
 
 export type SimulatorRenderMode = 'paper' | 'xray';
@@ -26,17 +29,6 @@ export type SimulatorRenderMode = 'paper' | 'xray';
  * foldable.
  */
 export type SimulatorColorMode = 'paper' | 'strain';
-
-/**
- * Page background of an exported view.
- *
- * Not part of the on-screen render: the panel's backdrop is the app's canvas
- * colour and has to stay that way, but a file dropped into a document should not
- * carry the app's dark chrome with it. `transparent` composites into anything,
- * which is why it is the default; the crease export flow reached the same
- * conclusion from the other direction and defaults to light.
- */
-export type SimulatorExportBackground = 'transparent' | 'white' | 'theme';
 
 export interface SimulatorSettings {
   renderMode: SimulatorRenderMode;
@@ -51,7 +43,6 @@ export interface SimulatorSettings {
    * too small for it and keep their cameras elsewhere.
    */
   showViewCube: boolean;
-  exportBackground: SimulatorExportBackground;
   /** Resistance to stretching along an edge. The stiffest element, so it sets the timestep. */
   axialStiffness: number;
   /** Resistance to folding a mountain/valley crease away from its target angle. */
@@ -89,7 +80,6 @@ export const DEFAULT_SIMULATOR_SETTINGS: SimulatorSettings = {
   showFaces: true,
   showEdges: true,
   showViewCube: true,
-  exportBackground: 'transparent',
   axialStiffness: 20,
   creaseStiffness: 0.7,
   panelStiffness: 0.7,
@@ -162,12 +152,6 @@ export function normalizeSimulatorSettings(source: unknown): SimulatorSettings {
     }
     if (key === 'colorMode') {
       if (value === 'paper' || value === 'strain') next.colorMode = value;
-      continue;
-    }
-    if (key === 'exportBackground') {
-      if (value === 'transparent' || value === 'white' || value === 'theme') {
-        next.exportBackground = value;
-      }
       continue;
     }
     if (typeof value === 'boolean') next[key] = value;

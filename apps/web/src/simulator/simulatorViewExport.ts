@@ -1,5 +1,5 @@
-import type { SvgRenderResult } from '@treemaker/origami-simulator';
-import { svgToPng } from '../lib/creaseExport';
+import { paperSvgToPng } from '../lib/paper/paperPng';
+import type { PaperSvgResult } from '../lib/paper/paperSvg';
 import { getFileService, type FileService } from '../platform/fileService';
 import { exportFilename } from '../platform/exportFilename';
 
@@ -7,26 +7,20 @@ import { exportFilename } from '../platform/exportFilename';
  * Saving the simulator's current view to a file.
  *
  * The view itself is produced in the worker — see `simulatorSession.exportSvg`,
- * which is where the complete render state already lives. Nothing here knows
- * about geometry, cameras or palettes; it takes a rendered page and puts it on
- * disk, which is why it is a plain module rather than a hook and can be tested
- * without a browser.
+ * which is where the complete render state already lives — and painted onto a
+ * page in points by the shared painter. Nothing here knows about geometry,
+ * cameras or styles; it takes a painted page and puts it on disk, which is why
+ * it is a plain module rather than a hook and can be tested without a browser.
  */
 
 /** A view is an image, so these are the only two formats that make sense. */
 export type SimulatorViewExportFormat = 'svg' | 'png';
 
-/**
- * PNG oversampling. The SVG page is the frame in CSS pixels, whatever display it
- * was drawn on, and a diagram dropped into a document is usually looked at
- * larger than the panel it came from, so rasterizing at 1:1 gives a soft image
- * at exactly the moment somebody wanted the detail.
- */
-const PNG_SCALE = 2;
-
 export interface SaveSimulatorViewOptions {
-  page: SvgRenderResult;
+  page: PaperSvgResult;
   format: SimulatorViewExportFormat;
+  /** The density a PNG rasterises at; the page is in points, so this alone sets its pixel size. */
+  pngDpi?: number;
   /** Base name, before sanitising and before the extension. */
   name: string;
   fileService?: FileService;
@@ -36,6 +30,7 @@ export interface SaveSimulatorViewOptions {
 export async function saveSimulatorView({
   page,
   format,
+  pngDpi,
   name,
   fileService = getFileService(),
 }: SaveSimulatorViewOptions): Promise<string | null> {
@@ -50,7 +45,7 @@ export async function saveSimulatorView({
     return result?.name ?? null;
   }
 
-  const bytes = await svgToPng(page.svg, page.width * PNG_SCALE, page.height * PNG_SCALE);
+  const bytes = await paperSvgToPng(page, pngDpi);
   const result = await fileService.saveBinaryFile({
     title: 'Export View PNG',
     bytes,

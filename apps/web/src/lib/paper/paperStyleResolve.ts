@@ -1,7 +1,8 @@
 /**
- * From a {@link PaperStyle} to the `RenderSettings` the simulator's GPU, SVG
- * and canvas-2D renderers draw from — the one place a pt becomes a device px
- * and a pen's dash becomes device-px runs.
+ * From a {@link PaperStyle} to the `RenderSettings` the simulator's GPU and
+ * canvas-2D renderers draw from — the one place a pt becomes a device px and a
+ * pen's dash becomes device-px runs. The vector painter reads the style itself,
+ * as {@link surfacePaperStyle} shapes it for the surface.
  *
  * Every surface reads the style through a {@link SurfaceStylePolicy}: the table
  * of which fields apply to it and which are forced. The flat folded figure is
@@ -95,6 +96,28 @@ export function applyPaperStylePolicy(style: PaperStyle, policy: SurfaceStylePol
   return effectivePaperStyle(seen, policy.forced);
 }
 
+/**
+ * The style as a surface's renderers draw it, which is what its export must
+ * paint with. The policy applied, and then one width for every line:
+ * `RenderSettings` carries a single crease width, and the GPU and canvas-2D
+ * renderers draw border, mountain and valley ribbons at it. Where the policy
+ * applies the fold pens that width is the mountain pen's — the simulator's
+ * "Fold line weight" — and the edge and valley pens take it here; where it does
+ * not, the folded figures draw every crease with the edge pen, so the fold pens
+ * *are* the edge pen. A painter handed this style writes the widths the screen
+ * showed rather than the ones the style states.
+ */
+export function surfacePaperStyle(style: PaperStyle, policy: SurfaceStylePolicy): PaperStyle {
+  const seen = applyPaperStylePolicy(style, policy);
+  const edges = seen.edges;
+  if (!policyApplies(policy, 'mountainFolds')) {
+    return { ...seen, mountainFolds: edges, valleyFolds: edges };
+  }
+  const width = seen.mountainFolds.width;
+  const valley = policyApplies(policy, 'valleyFolds') ? seen.valleyFolds : edges;
+  return { ...seen, edges: { ...edges, width }, valleyFolds: { ...valley, width } };
+}
+
 export type Vec3 = [number, number, number];
 
 const DEGREES = Math.PI / 180;
@@ -160,11 +183,10 @@ export interface ResolvePaperStyleOptions {
 /**
  * Build the render settings a surface draws from.
  *
- * `RenderSettings` carries one crease width, so the mountain pen's width is
- * the one that goes there where the policy applies fold pens, and the edge
+ * The pens are the surface's ({@link surfacePaperStyle}): one width for every
+ * line, the mountain pen's where the policy applies fold pens and the edge
  * pen's where it does not (the folded figures, whose creases are all drawn in
- * the line colour). A surface whose policy leaves out the fold pens draws them
- * with the edge pen; one whose policy leaves out `light` draws unlit. The
+ * the line colour). A surface whose policy leaves out `light` draws unlit. The
  * light direction is data from the style either way, so a lit surface and an
  * unlit one agree on where the light would be.
  */
@@ -173,12 +195,9 @@ export function resolvePaperStyle(
   policy: SurfaceStylePolicy,
   options: ResolvePaperStyleOptions
 ): RenderSettings {
-  const seen = applyPaperStylePolicy(style, policy);
+  const seen = surfacePaperStyle(style, policy);
   const { dpr } = options;
-  const edges = seen.edges;
-  const foldPens = policyApplies(policy, 'mountainFolds');
-  const mountain = foldPens ? seen.mountainFolds : edges;
-  const valley = policyApplies(policy, 'valleyFolds') ? seen.valleyFolds : edges;
+  const { edges, mountainFolds: mountain, valleyFolds: valley } = seen;
   const dash: CreaseDash = {
     border: penDashDevicePx(edges, dpr),
     mountain: penDashDevicePx(mountain, dpr),
@@ -198,8 +217,9 @@ export function resolvePaperStyle(
     showFaces: options.showFaces ?? true,
     showEdges: options.showEdges ?? true,
     lighting: policyApplies(policy, 'light') && seen.light.enabled,
-    // The floor keeps a hairline pen from vanishing on a standard display.
-    creaseWidthPx: Math.max(0.5, ptToDevicePx(foldPens ? mountain.width : edges.width, dpr)),
+    // Every pen is at one width here; the floor keeps a hairline pen from
+    // vanishing on a standard display.
+    creaseWidthPx: Math.max(0.5, ptToDevicePx(edges.width, dpr)),
     creaseWidthReferenceEdge: options.creaseWidthReferenceEdge,
     creaseWidthShrinkExponent: options.creaseWidthShrinkExponent,
     faceAlpha: options.faceAlpha,

@@ -1,8 +1,15 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Upload } from 'lucide-react';
+import {
+  DEFAULT_PAPER_BACKGROUND,
+  sheetMmOf,
+  usePaperExportPage,
+} from '../../hooks/usePaperExportPage';
 import { paperPenLabel, paperPresetLabel, penCapLabel } from '../../i18n/enumLabels';
 import { formatDashText, parseDashText } from '../../lib/paper/paperDashText';
+import { PAPER_PADDING_MM_RANGE, PAPER_SHEET_MM_RANGE } from '../../lib/paper/paperPage';
+import { PAPER_PNG_DPI_RANGE } from '../../lib/paper/paperPng';
 import {
   getPaperStyleField,
   PEN_WIDTH_RANGE,
@@ -27,7 +34,8 @@ import { usePaperSettings, type PaperPresetRow, type PaperSettingsDeps } from '.
  * point it becomes its own copy. Presets are whole styles: the built-ins, and
  * the user's own as `.json` files they can pass around. Below them, every
  * field of the slot: the two paper colours, one row per pen, the aux-crease
- * toggle and the light.
+ * toggle and the light. Last, the page every export is painted onto, which is
+ * not a style: the same picture goes out on any page.
  */
 export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
   const { t } = useTranslation();
@@ -152,7 +160,119 @@ export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
           )}
         </FieldRow>
       </section>
+
+      <ExportPageSection />
     </div>
+  );
+}
+
+/**
+ * The export page: what is behind the artwork, whether buried faces are kept,
+ * how big the sheet is and how dense a PNG is. The Simulate pane's Export group
+ * binds the first three of these to the same store.
+ */
+function ExportPageSection() {
+  const { t } = useTranslation();
+  const exportPage = usePaperExportPage();
+  const { page } = exportPage;
+  return (
+    <section className="settings-section" data-testid="settings-paper-export">
+      <h3 className="settings-section__title">
+        {t('dialogs:settings.paper.exportPage.title', 'Export page')}
+      </h3>
+      <SettingsToggleRow
+        label={t('dialogs:settings.paper.exportPage.transparent', 'Transparent background')}
+        description={t(
+          'dialogs:settings.paper.exportPage.transparentHint',
+          'Off, the page is filled with a color behind the paper.'
+        )}
+        checked={page.background === null}
+        onChange={(transparent) =>
+          exportPage.setBackground(transparent ? null : DEFAULT_PAPER_BACKGROUND)
+        }
+      />
+      {page.background !== null && (
+        <div className="settings-paper-swatches">
+          <ColorField
+            layout="inline"
+            label={t('dialogs:settings.paper.exportPage.background', 'Background')}
+            value={page.background}
+            onChange={exportPage.setBackground}
+          />
+        </div>
+      )}
+      <SettingsToggleRow
+        label={t('dialogs:settings.paper.exportPage.keepHiddenFaces', 'Keep hidden faces')}
+        description={t(
+          'dialogs:settings.paper.exportPage.keepHiddenFacesHint',
+          'Faces nothing shows stay in the file under what covers them, so deleting a face in a drawing editor reveals the one beneath.'
+        )}
+        checked={page.keepHiddenFaces}
+        onChange={exportPage.setKeepHiddenFaces}
+      />
+      <SettingsToggleRow
+        label={t('dialogs:settings.paper.exportPage.sheetAsShown', 'Sheet size as shown')}
+        description={t(
+          'dialogs:settings.paper.exportPage.sheetAsShownHint',
+          'The paper is the size it is on screen. Off, the unfolded sheet spans a size in mm; the pens keep their widths.'
+        )}
+        checked={page.sheet === 'as-shown'}
+        onChange={exportPage.setSheetAsShown}
+      />
+      {page.sheet !== 'as-shown' && (
+        <FieldRow
+          label={t('dialogs:settings.paper.exportPage.sheetMm', 'Sheet size')}
+          description={t('dialogs:settings.paper.exportPage.sheetMmHint', 'The unfolded sheet, edge to edge.')}
+        >
+          {(id, label) => (
+            <NumberField
+              id={id}
+              label={label}
+              value={sheetMmOf(page.sheet)}
+              min={PAPER_SHEET_MM_RANGE.min}
+              max={PAPER_SHEET_MM_RANGE.max}
+              step={PAPER_SHEET_MM_RANGE.step}
+              suffix="mm"
+              onCommit={exportPage.setSheetMm}
+            />
+          )}
+        </FieldRow>
+      )}
+      <FieldRow
+        label={t('dialogs:settings.paper.exportPage.padding', 'Margin')}
+        description={t('dialogs:settings.paper.exportPage.paddingHint', 'Around the artwork, on every side.')}
+      >
+        {(id, label) => (
+          <NumberField
+            id={id}
+            label={label}
+            value={page.paddingMm}
+            min={PAPER_PADDING_MM_RANGE.min}
+            max={PAPER_PADDING_MM_RANGE.max}
+            step={PAPER_PADDING_MM_RANGE.step}
+            suffix="mm"
+            onCommit={exportPage.setPaddingMm}
+          />
+        )}
+      </FieldRow>
+      <FieldRow
+        label={t('dialogs:settings.paper.exportPage.pngDpi', 'PNG density')}
+        description={t('dialogs:settings.paper.exportPage.pngDpiHint', 'Dots per inch of the page; 96 is the screen.')}
+      >
+        {(id, label) => (
+          <NumberField
+            id={id}
+            label={label}
+            value={page.pngDpi}
+            min={PAPER_PNG_DPI_RANGE.min}
+            max={PAPER_PNG_DPI_RANGE.max}
+            step={PAPER_PNG_DPI_RANGE.step}
+            suffix="dpi"
+            onCommit={exportPage.setPngDpi}
+          />
+        )}
+      </FieldRow>
+    </section>
   );
 }
 

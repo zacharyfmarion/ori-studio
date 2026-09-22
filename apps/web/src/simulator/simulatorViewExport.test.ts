@@ -7,13 +7,13 @@ import { saveSimulatorView } from './simulatorViewExport';
 const { svgToPng } = vi.hoisted(() => ({
   svgToPng: vi.fn(async (_svg: string, _width: number, _height: number) => new Uint8Array(3)),
 }));
-vi.mock('../lib/creaseExport', () => ({ svgToPng }));
+vi.mock('../lib/svgToPng', () => ({ svgToPng }));
 
-/** A page the worker would hand back: the frame in CSS pixels. */
+/** A page the worker would hand back: painted in points. */
 const page = {
-  svg: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"></svg>',
-  width: 640,
-  height: 480,
+  svg: '<svg xmlns="http://www.w3.org/2000/svg" width="480pt" height="360pt"></svg>',
+  widthPt: 480,
+  heightPt: 360,
 };
 
 function fileService() {
@@ -42,18 +42,25 @@ describe('saveSimulatorView', () => {
     expect(svgToPng).not.toHaveBeenCalled();
   });
 
-  it('rasterizes the PNG at twice the page, which is twice the CSS-pixel frame', async () => {
-    // The page is the frame in CSS pixels on every display, so the PNG is the
-    // same size from a Retina screen as from a standard one — 2x the page, not
-    // 2x the drawing buffer, which on a Retina display would have made it 4x.
+  // Re-pinned: the PNG used to be twice the CSS-pixel page; the page is in
+  // points now, so the pixel size follows from the density alone.
+  it('rasterizes the PNG at the density asked for, from the page in points', async () => {
     const { service, saveBinaryFile } = fileService();
     await expect(
-      saveSimulatorView({ page, format: 'png', name: 'crane', fileService: service })
+      saveSimulatorView({ page, format: 'png', pngDpi: 300, name: 'crane', fileService: service })
     ).resolves.toBe('view.png');
-    expect(svgToPng).toHaveBeenCalledWith(page.svg, 1280, 960);
+    // 480 pt is 6⅔ in, 360 pt is 5 in.
+    expect(svgToPng).toHaveBeenCalledWith(page.svg, 2000, 1500);
     expect(saveBinaryFile).toHaveBeenCalledWith(
       expect.objectContaining({ suggestedName: 'crane.png', mimeType: 'image/png' })
     );
+  });
+
+  it('rasterizes at the painter’s default density when none is given', async () => {
+    const { service } = fileService();
+    await saveSimulatorView({ page, format: 'png', name: 'crane', fileService: service });
+    // 192 dpi: twice the CSS page, which is 96 dpi.
+    expect(svgToPng).toHaveBeenCalledWith(page.svg, 1280, 960);
   });
 
   it('answers null when the save dialog is dismissed', async () => {

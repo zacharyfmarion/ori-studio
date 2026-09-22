@@ -33,11 +33,20 @@ export {
   type BuildBspOptions,
   type Vec3,
 } from './bsp.js';
+export { type SvgMeshTopology } from './projectedMesh.js';
 export {
-  renderMeshToSvg,
-  type RenderMeshToSvgOptions,
-  type SvgRenderResult,
-} from './svgRenderer.js';
+  meshToPaperScene,
+  type MeshToPaperSceneOptions,
+  type PaperFaceItem,
+  type PaperItem,
+  type PaperLineItem,
+  type PaperLineRole,
+  type PaperScene,
+  type PaperSide,
+  type SceneBounds,
+  type ScenePoint,
+} from './paperScene.js';
+export { EDGE_CODE, type EdgeCode } from './edgeCodes.js';
 export {
   SHADE_AMBIENT,
   SHADE_DIFFUSE,

@@ -14,6 +14,7 @@ import type { GlCore } from './glCore.js';
 import type { CameraUniforms, Mat3 } from './camera.js';
 import type { FoldAssignment } from '../types.js';
 import { SHADE_GLSL } from '../shading.js';
+import { EDGE_CODE } from '../edgeCodes.js';
 
 export interface MeshTopology {
   /** Triangle vertex indices, 3 per face. */
@@ -21,9 +22,9 @@ export interface MeshTopology {
   /** Edge vertex indices, 2 per edge. */
   edgeIndices: Uint32Array;
   /**
-   * Per-edge fold assignment as a code: 0=B(order), 1=M, 2=V, 3=F(acet),
-   * matching EDGE_ASSIGNMENT_CODES. Drives crease colour so mountains and
-   * valleys read distinctly.
+   * Per-edge fold assignment as an {@link EDGE_CODE}: 0=B(order), 1=M, 2=V,
+   * 3=aux (a source `F` edge), 4=facet (a triangulation diagonal). Drives crease
+   * colour so mountains and valleys read distinctly; the edge pass draws 0..2.
    */
   edgeAssignments: Uint8Array;
   /** Square texture edge length the solver packs vertices into. */
@@ -43,6 +44,22 @@ export interface CreaseDash {
 
 /** Longest pattern the edge shader can hold, which bounds its uniform array. */
 export const MAX_DASH_RUNS = 6;
+
+/**
+ * Where an edge of `lengthPx` starts in a packed dash pattern so the pattern is
+ * centred on it — the middle of the first ink run at the edge's midpoint — as
+ * the edge vertex shader's `dashPhase` computes it. The vector painter centres
+ * its `stroke-dashoffset` by the same rule, which is what makes a dashed fold
+ * look the same at both ends on screen and in the file.
+ */
+export function dashPhasePx(pattern: readonly number[] | null, lengthPx: number): number {
+  if (!pattern || pattern.length === 0) return 0;
+  const runs = pattern.length % 2 === 0 ? pattern : [...pattern, ...pattern];
+  const total = runs.slice(0, MAX_DASH_RUNS).reduce((sum, run) => sum + Math.max(0, run), 0);
+  if (!(total > 0)) return 0;
+  const phase = (Math.max(0, runs[0] ?? 0) / 2 - lengthPx / 2) % total;
+  return phase < 0 ? phase + total : phase;
+}
 
 /**
  * Pack dash patterns into the edge shader's flat uniform arrays, ordered by
@@ -206,8 +223,10 @@ const DEFAULT_CREASE_SHRINK_EXPONENT = 1;
  * Keyed on the frame's short edge because that is what the model is fitted to
  * (see `fitExtent` in camera.ts), so the crease and the paper it lies on shrink
  * together.
- * Shared with the SVG renderer, which is what keeps an exported view the view
- * that was on screen.
+ *
+ * An on-screen shrink only, for the GPU and canvas-2D renderers. The vector
+ * export writes its pens in pt as the style states them, so a frame-shrunk
+ * inline window exports at the style's full widths.
  */
 export function creaseFrameScale(
   settings: RenderSettings,
@@ -255,18 +274,20 @@ export function rasterCreaseInk(
 /**
  * Fold assignment to the code {@link MeshTopology.edgeAssignments} carries.
  *
- * Anything that is not a border, mountain or valley collapses to 0: the edge
- * pass draws codes 0..2 and skips the rest, and an unassigned edge reads as a
- * paper boundary rather than as a crease it is not.
+ * Anything that is not a border, mountain, valley or flat collapses to 0: the
+ * edge pass draws codes 0..2 and skips the rest, and an unassigned edge reads
+ * as a paper boundary rather than as a crease it is not. `F` is the source
+ * document's auxiliary crease; a diagonal `prepareFoldModel` invented is `F`
+ * too, and {@link meshTopologyFor} tells them apart by `edgesFacet`.
  */
 const ASSIGNMENT_CODE: Record<FoldAssignment, number> = {
-  B: 0,
-  M: 1,
-  V: 2,
-  F: 3,
-  U: 0,
-  C: 0,
-  J: 0,
+  B: EDGE_CODE.border,
+  M: EDGE_CODE.mountain,
+  V: EDGE_CODE.valley,
+  F: EDGE_CODE.aux,
+  U: EDGE_CODE.border,
+  C: EDGE_CODE.border,
+  J: EDGE_CODE.border,
 };
 
 /**
@@ -281,6 +302,12 @@ export function meshTopologyFor(
     indices: Uint32Array;
     edgesVertices: ReadonlyArray<readonly [number, number]>;
     edgesAssignment: ReadonlyArray<FoldAssignment>;
+    /**
+     * Which edges triangulation invented. Absent, every `F` edge is taken as a
+     * source crease — right for a model prepared without triangulation, and for
+     * a hand-built one that has no diagonals.
+     */
+    edgesFacet?: ReadonlyArray<boolean>;
   },
   /**
    * The solver's texture edge, which only the GL path reads — it is how the
@@ -294,7 +321,9 @@ export function meshTopologyFor(
   prepared.edgesVertices.forEach((edge, index) => {
     edgeIndices[index * 2] = edge[0];
     edgeIndices[index * 2 + 1] = edge[1];
-    edgeAssignments[index] = ASSIGNMENT_CODE[prepared.edgesAssignment[index] ?? 'U'] ?? 0;
+    edgeAssignments[index] = prepared.edgesFacet?.[index]
+      ? EDGE_CODE.facet
+      : (ASSIGNMENT_CODE[prepared.edgesAssignment[index] ?? 'U'] ?? EDGE_CODE.border);
   });
   return {
     faceIndices: prepared.indices.slice(),
@@ -319,9 +348,9 @@ const EDGE_QUAD_VERTICES = 6;
 
 /**
  * Expand each drawn crease into a 2-triangle screen-space ribbon. Only border,
- * mountain and valley edges are drawn (codes 0/1/2); facet edges from
- * triangulation and unassigned edges are skipped. Returns the interleaved
- * vertex buffer, and where each *source* edge's ribbon starts in it.
+ * mountain and valley edges are drawn (codes 0/1/2); auxiliary creases and the
+ * facet edges from triangulation are skipped. Returns the interleaved vertex
+ * buffer, and where each *source* edge's ribbon starts in it.
  *
  * The second half is what lets {@link MeshDrawOptions.edgeRange} be expressed in
  * the caller's own edge numbering: skipped edges make the mapping from an edge
@@ -336,7 +365,7 @@ function buildEdgeQuads(topology: MeshTopology): {
   const edgeCount = topology.edgeAssignments.length;
   let drawn = 0;
   for (let e = 0; e < edgeCount; e += 1) {
-    if (topology.edgeAssignments[e]! <= 2) drawn += 1;
+    if (topology.edgeAssignments[e]! <= EDGE_CODE.valley) drawn += 1;
   }
 
   const out = new Float32Array(drawn * EDGE_QUAD_VERTICES * EDGE_STRIDE);
@@ -354,7 +383,7 @@ function buildEdgeQuads(topology: MeshTopology): {
   for (let e = 0; e < edgeCount; e += 1) {
     vertexStart[e] = v / EDGE_STRIDE;
     const assignment = topology.edgeAssignments[e]!;
-    if (assignment > 2) continue;
+    if (assignment > EDGE_CODE.valley) continue;
     const a = topology.edgeIndices[e * 2]!;
     const b = topology.edgeIndices[e * 2 + 1]!;
     // Two triangles: (Aleft, Aright, Bleft) and (Aright, Bright, Bleft).
@@ -492,10 +521,30 @@ uniform int u_textureDim;
 ${VIEW_GLSL}
 uniform float u_halfWidthPx;
 uniform float u_depthBias;
+// The same dash uniforms the fragment stage reads; see EDGE_FRAG.
+uniform float u_dashRuns[18];
+uniform int u_dashCount[3];
 flat out int v_assignment;
-// Distance along the edge in pixels, for dashing. Exact across a straight
-// two-triangle ribbon, so the fragment stage can measure the run it is in.
+// Distance into the dash pattern in pixels, for dashing. Exact across a
+// straight two-triangle ribbon, so the fragment stage can measure the run it
+// is in.
 out float v_alongPx;
+
+// The pattern's starting position that centres it on an edge of this length,
+// so both ends of a fold line look the same — the vector painter's
+// stroke-dashoffset (dashPhasePx), and the same rule on screen as in the file.
+float dashPhase(int kind, float len){
+  int count = u_dashCount[kind];
+  if (count <= 0) return 0.0;
+  int base = kind * 6;
+  float total = 0.0;
+  for (int i = 0; i < 6; i++){
+    if (i >= count) break;
+    total += u_dashRuns[base + i];
+  }
+  if (total <= 0.0) return 0.0;
+  return mod(u_dashRuns[base] * 0.5 - len * 0.5, total);
+}
 
 vec3 fetchPosition(int index){
   ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
@@ -522,8 +571,10 @@ void main(){
   vec2 dirPx = (ndcB - ndcA) * u_viewport * 0.5;
   float len = length(dirPx);
   // This vertex sits at one end or the other, so the distance along the edge is
-  // 0 or the whole length; the rasterizer interpolates between them.
-  v_alongPx = int(a_this + 0.5) == int(a_a + 0.5) ? 0.0 : len;
+  // 0 or the whole length; the rasterizer interpolates between them. The phase
+  // is the same at both ends, so the interpolation stays exact.
+  float phase = dashPhase(v_assignment, len);
+  v_alongPx = (int(a_this + 0.5) == int(a_a + 0.5) ? 0.0 : len) + phase;
   vec2 perpPx = len > 0.0001 ? vec2(-dirPx.y, dirPx.x) / len : vec2(0.0);
   vec2 offsetNdc = (perpPx * u_halfWidthPx * a_side) / (u_viewport * 0.5);
   // Bias toward the viewer so a crease sits on top of the face it lies on —
@@ -535,6 +586,9 @@ void main(){
 
 const EDGE_FRAG = `#version 300 es
 precision highp float;
+// The dash uniforms are declared in both stages, and a uniform shared across
+// stages must agree in precision; ints default to highp in a vertex shader.
+precision highp int;
 flat in int v_assignment;
 in float v_alongPx;
 // Codes match EDGE_ASSIGNMENT_CODES: 0=B, 1=M, 2=V.
@@ -617,7 +671,7 @@ export interface MeshDrawOptions {
    * them, not at all.
    *
    * Expressed in the caller's edge numbering rather than in ribbon vertices,
-   * because facet and unassigned edges are skipped by `buildEdgeQuads` and the
+   * because auxiliary and facet edges are skipped by `buildEdgeQuads` and the
    * mapping is therefore not `6 · index`.
    */
   edgeRange?: { start: number; count: number };
@@ -665,9 +719,9 @@ export class MeshRenderer {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.faceElements);
 
     // Edge pass: each drawn crease becomes a 2-triangle screen-space ribbon (6
-    // vertices), interleaved as [this, a, b, side, assignment]. Facet edges (the
-    // triangulation diagonals, assignment 3) are skipped -- they are not fold
-    // lines and only clutter the view; so are unassigned/other (>2).
+    // vertices), interleaved as [this, a, b, side, assignment]. Auxiliary
+    // creases (3) and facet edges (the triangulation diagonals, 4) are skipped
+    // -- they are not fold lines and only clutter the view.
     const { interleaved, vertexStart } = buildEdgeQuads(topology);
     this.edgeVertexCount = interleaved.length / EDGE_STRIDE;
     this.edgeVertexStart = vertexStart;

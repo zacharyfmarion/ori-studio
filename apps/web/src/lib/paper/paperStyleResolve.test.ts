@@ -15,6 +15,7 @@ import {
   lightVector,
   penDashDevicePx,
   resolvePaperStyle,
+  surfacePaperStyle,
   type ResolvePaperStyleOptions,
   type Vec3,
 } from './paperStyleResolve';
@@ -124,7 +125,10 @@ describe('resolvePaperStyle', () => {
       edges: { width: 0.75, color: '#000000', dash: [1, 2], cap: 'round' },
     };
     const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, OPTIONS);
-    expect(settings.creaseDash!.border).toEqual([1, 2]);
+    // Re-pinned: the runs are multiples of the width the edge is drawn at,
+    // which on the simulator is the fold line weight, not the edge pen's own.
+    const drawnWidth = DEFAULT_PAPER_STYLE.mountainFolds.width * (4 / 3);
+    expect(settings.creaseDash!.border).toEqual([1, 2].map((run) => expect.closeTo(run * drawnWidth, 9)));
     expect(penDashDevicePx(style.edges, 2)).toEqual([2, 4]);
   });
 
@@ -218,6 +222,34 @@ describe('applyPaperStylePolicy', () => {
       expect(PAPER_STYLE_POLICIES[surface].surface).toBe(surface);
     }
     expect(PAPER_STYLE_POLICIES['folded-flat'].applies).not.toContain('light');
+  });
+});
+
+describe('surfacePaperStyle', () => {
+  const style: PaperStyle = {
+    ...DEFAULT_PAPER_STYLE,
+    edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9, dash: [4, 2] },
+    mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 3 },
+    valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, width: 0.5 },
+  };
+
+  it('draws every simulator pen at the fold line weight, keeping each pen’s ink and dash', () => {
+    // The screen has one crease width, the mountain pen's; the edge and
+    // valley pens take it so an export writes the widths the screen showed.
+    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
+    expect(seen.edges).toEqual({ ...style.edges, width: 3 });
+    expect(seen.mountainFolds).toEqual(style.mountainFolds);
+    expect(seen.valleyFolds).toEqual({ ...style.valleyFolds, width: 3 });
+    expect(
+      resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, OPTIONS).creaseWidthPx
+    ).toBeCloseTo(seen.edges.width * (4 / 3), 6);
+  });
+
+  it('gives a folded figure the edge pen for every crease', () => {
+    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES['folded-3d']);
+    expect(seen.mountainFolds).toEqual(style.edges);
+    expect(seen.valleyFolds).toEqual(style.edges);
+    expect(seen.edges).toEqual(style.edges);
   });
 });
 
