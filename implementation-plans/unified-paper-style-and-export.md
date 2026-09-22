@@ -249,6 +249,13 @@ Taken in the design discussion on 2026-09-21.
   creases in the big view, which is the consistent reading of "a step renders
   in the paper style". `useReferencesDiagramScene` reads its colours from an
   element inside the workspace rather than `document.documentElement`.
+- **D13. References draws on the style's paper.** The step sheet (card and
+  big view, and the flap during a fold) is filled with `paper.front`, or
+  `paper.back` when the view is mirrored, not the theme ground — otherwise a
+  black edge pen is invisible on a dark theme, and a step would not render
+  "the same" as the simulator beside it. The `references` policy therefore
+  applies `paper.front` and `paper.back`; the workspace ground stays the
+  theme's.
 - **D11. Hidden lines are removed, not unified.** The simulator setting, its
   checkbox, context-menu item, shortcut, palette field and canvas-2D branch
   all go (F10). The style has no hidden-line pens; the Origami House preset's
@@ -489,7 +496,7 @@ for `PaperSurface = 'simulator' | 'inline-simulation' | 'folded-3d' |
 'folded-flat' | 'references'`. Phase 1 values: simulator and inline-simulation
 apply paper, edges, mountainFolds, valleyFolds, light; folded-3d applies
 paper, edges, light; folded-flat applies paper, edges; references applies
-edges, mountainFolds, valleyFolds, auxCreases.pen, arrows. `auxCreases.*`
+paper, edges, mountainFolds, valleyFolds, auxCreases.pen, arrows (D13). `auxCreases.*`
 and `erode` join every surface in Phase 5, `arrows` stays References-only.
 The Properties panel shows exactly `applies`.
 
@@ -725,12 +732,47 @@ overridden.
       `foldedStrokeWidthPx = ptToDevicePx(1, dpr)`, device px per pt, so a
       folded edge is its pen at every zoom. References keeps passing its
       crease pen with multipliers of 1.
-- [ ] References: `--fold-*` and `diagramColors.ts` derived from the resolved
-      style; arrow pen bound.
-- [ ] Presets: built-ins, import/export, Settings ▸ Paper tab; simulator View
+- [x] References: `--fold-*` and `diagramColors.ts` derived from the resolved
+      style; arrow pen bound. `cp-workspace/references/usePaperStyleTokens.ts`
+      re-sets `--fold-mountain/valley/border/unassigned` and
+      `--references-dim-alpha` (derived as `applyTheme` does, from the style's
+      M/V inks over the theme's ground) as inline custom properties on
+      `.references-workspace` only — `:root` keeps the theme's, so the Edit
+      canvas is untouched (D12; a test pins it). The cards, the DOM symbol
+      layer and the document's creases in the big view follow by inheritance;
+      `useReferencesDiagramScene` reads the theme's tokens off the workspace
+      root and takes the style's as values (`diagramInkColors(element, set)`),
+      because the render that changes them runs before the DOM carries them.
+      The arrow pen's width reaches the big view's symbol layer as
+      `canvasDiagramPens(lineWidth, arrowCss)` on the overlay projector
+      (`DiagramProjector.pens`); the card's table is untouched. Not bound: the
+      arrow pen's *colour* — the arrow ink is still `--fold-border` in both
+      the stylesheet and `diagramColors.ts` — and the crease alpha
+      (`--references-crease-alpha`), which stays the theme's derivation from
+      the fixed grey rather than the style's aux ink.
+- [x] Presets: built-ins, import/export, Settings ▸ Paper tab; simulator View
       Controls + inline Properties + folded Style menu bound.
-- [ ] Analytics events; i18n extract. (The three events are declared in
-      `analytics/events.ts` and `docs/analytics.md`; nothing fires them yet.)
+      `components/settings/PaperSettings.tsx` over `usePaperSettings.ts`: the
+      Display / Export slot switch with the "Export uses display style"
+      toggle (while on, the Export slot shows display's values with every
+      editor and Apply disabled — turning it off is the one way to detach);
+      the preset list, built-ins first (labelled by id through
+      `paperPresetLabel`), with Apply, Export (a `.json` per row, built-ins
+      too), Delete on the user's own; "Save current as…" and "Import…" under
+      the list; then the slot's fields — two paper swatches, one line per pen
+      (swatch, width in pt, dash as space- or comma-separated multiples
+      through `lib/paper/paperDashText.ts`, cap), the aux toggle, light on/off
+      and azimuth / elevation. Deviations from §5: "Save current as…" opens a
+      name field in place rather than a command dialog, because the Settings
+      modal takes Escape on `window` ahead of any dialog opened from inside
+      it; Import both adds the file's preset and applies it to the slot, so
+      the `paper preset applied` it fires is true.
+- [x] Analytics events; i18n extract. Settings ▸ Paper fires `paper style
+      changed` once per field per adjustment (the Simulate pane's counting)
+      and `paper preset applied` on Apply and Import; the object sheets fire
+      `paper style overridden`. English catalogs extracted; the eight
+      target locales carry the new keys untranslated until the phase's
+      translation pass.
 
 ### Phase 2 — `PaperScene` + painter; simulator export moves
 
