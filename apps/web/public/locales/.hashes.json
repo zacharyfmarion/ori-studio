@@ -3102,7 +3102,12 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6207,7 +6212,12 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9314,7 +9324,12 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12362,7 +12377,12 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15410,7 +15430,12 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18515,7 +18540,12 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21620,7 +21650,12 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24668,6 +24703,11 @@
     "tools:viewport.rotateCw": "e67a3a48e74c",
     "tools:viewport.rotation": "a291dceb8de5",
     "tools:viewport.zoomIn": "5a982cf9dc11",
-    "tools:viewport.zoomOut": "24649ee0c7a9"
+    "tools:viewport.zoomOut": "24649ee0c7a9",
+    "site:download.description": "c7325379a0c7",
+    "site:download.pageTitle": "8b42987ad679",
+    "site:footer.languageLabel": "a4fe65264ef7",
+    "site:landing.description": "4ef57d7da726",
+    "site:landing.title": "4af8ab2a2e8d"
   }
 }

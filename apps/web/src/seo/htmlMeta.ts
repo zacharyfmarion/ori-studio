@@ -124,3 +124,43 @@ export function setLinkHref(html: string, rel: string, href: string): string {
 export function stripJsonLd(html: string): string {
   return html.replace(/[ \t]*<script type="application\/ld\+json">[\s\S]*?<\/script>\n?/g, '');
 }
+
+/**
+ * Set the `lang` attribute on `<html>`.
+ *
+ * The template hardcodes `lang="en"`, and a localized page that keeps it tells every
+ * crawler — Baidu in particular, which reads this and the words and nothing else — that a
+ * page of Chinese is English. A document with no `<html>` tag is returned unchanged.
+ */
+export function setHtmlLang(html: string, lang: string): string {
+  const escaped = escapeHtmlAttribute(lang);
+  return html.replace(/<html\b([^>]*)>/i, (tag, attrs: string) => {
+    if (/\blang\s*=/i.test(attrs)) {
+      return `<html${attrs.replace(/\blang\s*=\s*(["'])[^"']*\1/i, `lang="${escaped}"`)}>`;
+    }
+    return `<html lang="${escaped}"${attrs}>`;
+  });
+}
+
+/**
+ * Replace the `hreflang` alternates with `links`, one `<link rel="alternate">` per entry.
+ *
+ * Replace, not append: the template carries none, but the prerender can run over its own
+ * output, and a second set would make two claims about the same language. Every localized
+ * copy of a page names every other copy and itself — that is the shape Google and Bing
+ * require for the set to count; Baidu ignores it and reads `lang` instead.
+ */
+export function setAlternateLinks(
+  html: string,
+  links: ReadonlyArray<{ hreflang: string; href: string }>
+): string {
+  const stripped = html.replace(/[ \t]*<link rel="alternate" hreflang="[^"]*" href="[^"]*" \/>\n?/g, '');
+  if (links.length === 0 || !stripped.includes('</head>')) return stripped;
+  const tags = links
+    .map(
+      ({ hreflang, href }) =>
+        `  <link rel="alternate" hreflang="${escapeHtmlAttribute(hreflang)}" href="${escapeHtmlAttribute(href)}" />`
+    )
+    .join('\n');
+  return stripped.replace('</head>', verbatim(`${tags}\n  </head>`));
+}

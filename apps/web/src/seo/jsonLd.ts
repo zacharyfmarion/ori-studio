@@ -1,5 +1,5 @@
 import { DISCORD_URL, REPOSITORY_URL } from '../constants/release';
-import { LANDING_PAGE, type SitePage } from '../site/sitePages';
+import { LANDING_PAGE, pagePath, type SitePage } from '../site/sitePages';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_OG_IMAGE, SITE_ORIGIN, siteUrl } from './siteMeta';
 
 /**
@@ -96,29 +96,45 @@ export function landingJsonLdScript(): string {
   return escapeForScriptTag(JSON.stringify(landingJsonLd()));
 }
 
+/** What a page says about itself, in the locale it is being described in. */
+export interface PageJsonLdMeta {
+  title: string;
+  description: string;
+}
+
 /**
- * Structured data for a content page: a `WebPage` that belongs to the site.
+ * Structured data for a content page: a `WebPage` that belongs to the site, in its language.
  *
  * Not the landing's graph. `WebSite` is homepage-only by definition and `SoftwareApplication`
  * describes the app rather than the page; a download page carrying both would be claiming
  * to be the site from a URL that is not the site. `isPartOf` points at the `WebSite` node
  * by id, which is how a crawler learns this page and the homepage are one property
- * without the page restating the homepage's data.
+ * without the page restating the homepage's data. `inLanguage` says which of the nine
+ * copies this is.
  */
-export function pageJsonLd(page: SitePage): Record<string, unknown> {
+export function pageJsonLd(page: SitePage, locale: string, meta: PageJsonLdMeta): Record<string, unknown> {
+  const url = siteUrl(pagePath(page, locale));
   return {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
-    '@id': `${siteUrl(page.path)}#webpage`,
-    name: page.title,
-    description: page.description,
-    url: siteUrl(page.path),
+    '@id': `${url}#webpage`,
+    name: meta.title,
+    description: meta.description,
+    url,
+    inLanguage: locale,
     isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
   };
 }
 
-/** The `ld+json` body for any site page: the graph for the landing, a `WebPage` otherwise. */
-export function sitePageJsonLdScript(page: SitePage): string {
-  const data = page.id === LANDING_PAGE.id ? landingJsonLd() : pageJsonLd(page);
+/**
+ * The `ld+json` body for any site page in any locale.
+ *
+ * The site graph on every landing, not only the English one: `/zh-CN/` *is* the homepage
+ * for a Chinese reader, and the entity it describes — the site, the app — is the same
+ * entity, which is what the shared `@id`s say. A content page gets a `WebPage` in its
+ * language.
+ */
+export function sitePageJsonLdScript(page: SitePage, locale: string, meta: PageJsonLdMeta): string {
+  const data = page.id === LANDING_PAGE.id ? landingJsonLd() : pageJsonLd(page, locale, meta);
   return escapeForScriptTag(JSON.stringify(data));
 }

@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import { WelcomeLanding } from '../components/landing/WelcomeLanding';
 import { SiteFooter } from '../site/SiteFooter';
-import { SITE_TITLE } from './siteMeta';
+import { sitePageTitle } from '../site/sitePageLabels';
 
 /**
  * The standard accessible-hiding pattern, inline rather than as a global class.
@@ -44,9 +45,10 @@ const visuallyHidden: CSSProperties = {
  * from this copy exactly as one that renders finds them from the live one.
  */
 export function StaticLanding() {
+  const { t } = useTranslation();
   return (
     <>
-      <h1 style={visuallyHidden}>{SITE_TITLE}</h1>
+      <h1 style={visuallyHidden}>{sitePageTitle(t, 'landing')}</h1>
       <WelcomeLanding />
       <SiteFooter />
     </>

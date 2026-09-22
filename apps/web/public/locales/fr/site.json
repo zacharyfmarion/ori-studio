@@ -5,10 +5,12 @@
       "lead": "Un fichier par plateforme et architecture, publié sur GitHub Releases.",
       "title": "Toutes les versions"
     },
+    "description": "Téléchargez l’application de bureau Ori Studio pour macOS, Windows et Linux : le même espace de travail libre et open source pour l’origami que la version navigateur, avec des menus natifs, des boîtes de dialogue de fichiers et des mises à jour. Ou ouvrez-le dans votre navigateur, sans rien installer.",
     "eyebrow": "Application de bureau",
     "latest": "Dernière version : {{version}}",
     "lead": "Ori Studio fonctionne dans votre navigateur, sans rien installer. L’application de bureau est le même espace de travail, empaqueté pour macOS, Windows et Linux — avec des menus et des boîtes de dialogue natifs, des projets qui s’ouvrent directement depuis le Finder ou l’Explorateur, et des mises à jour qui s’installent toutes seules.",
     "openInBrowser": "Ou ouvrez-le dans votre navigateur",
+    "pageTitle": "Télécharger Ori Studio pour macOS, Windows et Linux",
     "title": "Télécharger Ori Studio",
     "which": {
       "linuxBody": "Le .deb s’installe sur Debian, Ubuntu et leurs dérivées. L’AppImage fonctionne partout sans installation : rendez-le exécutable et lancez-le.",
@@ -24,11 +26,16 @@
     "communityLabel": "Communauté",
     "discord": "Discord",
     "github": "GitHub",
+    "languageLabel": "Langue",
     "note": "{{name}} est libre et open source.",
     "releases": "Versions"
   },
   "header": {
     "openApp": "Ouvrir l’application"
+  },
+  "landing": {
+    "description": "Ori Studio est un espace de travail libre et open source pour la conception d’origami : dessinez et modifiez des patrons de pliage, concevez à partir d’un arbre ou d’une grille de plissé carré, puis pliez le résultat dans le simulateur. Dans votre navigateur, ou en application de bureau pour macOS, Windows et Linux.",
+    "title": "Ori Studio — Espace de travail pour la conception d’origami"
   },
   "nav": {
     "download": "Télécharger",

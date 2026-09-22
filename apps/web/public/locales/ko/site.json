@@ -5,10 +5,12 @@
       "lead": "플랫폼과 아키텍처마다 파일 하나씩, GitHub Releases에 게시됩니다.",
       "title": "모든 빌드"
     },
+    "description": "macOS, Windows, Linux용 Ori Studio 데스크톱 앱 — 브라우저 버전과 같은 자유·오픈소스 종이접기 설계 작업 공간에 네이티브 메뉴, 파일 대화 상자, 자동 업데이트가 더해집니다. 설치 없이 브라우저에서 바로 열 수도 있습니다.",
     "eyebrow": "데스크톱 앱",
     "latest": "최신 릴리스: {{version}}",
     "lead": "Ori Studio는 아무것도 설치하지 않고 브라우저에서 실행됩니다. 데스크톱 앱은 같은 작업 공간을 macOS, Windows, Linux용으로 패키징한 것으로, 네이티브 메뉴와 파일 대화 상자, Finder나 탐색기에서 바로 열리는 프로젝트, 스스로 설치되는 업데이트가 더해집니다.",
     "openInBrowser": "또는 브라우저에서 열기",
+    "pageTitle": "Ori Studio 다운로드 (macOS, Windows, Linux)",
     "title": "Ori Studio 다운로드",
     "which": {
       "linuxBody": ".deb는 Debian, Ubuntu 및 그 파생 배포판에 설치됩니다. AppImage는 설치 없이 어디서나 실행됩니다. 실행 권한을 준 뒤 실행하세요.",
@@ -24,11 +26,16 @@
     "communityLabel": "커뮤니티",
     "discord": "Discord",
     "github": "GitHub",
+    "languageLabel": "언어",
     "note": "{{name}}는 자유·오픈소스 소프트웨어입니다.",
     "releases": "릴리스"
   },
   "header": {
     "openApp": "앱 열기"
+  },
+  "landing": {
+    "description": "Ori Studio는 자유·오픈소스 종이접기 설계 작업 공간입니다. 전개도를 그리고 편집하고, 트리 구조나 박스 플리팅 격자에서 설계하고, 시뮬레이터에서 접어 확인하세요. 브라우저에서 바로 실행되며 macOS, Windows, Linux용 데스크톱 앱도 있습니다.",
+    "title": "Ori Studio — 종이접기 설계 작업 공간"
   },
   "nav": {
     "download": "다운로드",

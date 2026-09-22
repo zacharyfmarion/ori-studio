@@ -1,7 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { storageKey, STORAGE_KEYS } from '../lib/storage';
 import { PHONE_MEDIA_QUERY } from '../platform/mobileSurface';
-import { CONTENT_PAGES } from '../site/sitePages';
+import { CONTENT_PAGES, pagePath, SITE_LOCALES, SITE_PAGES } from '../site/sitePages';
 import { createAppRouter, startupHomePath } from './appRouter';
 
 const WELCOME_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
@@ -125,6 +125,18 @@ describe('the site pages', () => {
   it('still bounces a path that is not a page', async () => {
     await expect(resolve('/download-old/')).resolves.toBe('/welcome');
   });
+
+  it.each(SITE_LOCALES)('resolves every page under /%s/ to itself', async (locale) => {
+    for (const page of SITE_PAGES) {
+      const path = pagePath(page, locale);
+      await expect(resolve(path), path).resolves.toBe(path);
+    }
+  });
+
+  it('bounces an unknown locale, and a workspace under a locale', async () => {
+    await expect(resolve('/xx/download/')).resolves.toBe('/welcome');
+    await expect(resolve('/zh-CN/edit')).resolves.toBe('/welcome');
+  });
 });
 
 /**
@@ -142,6 +154,8 @@ describe('the site pages on desktop', () => {
           await desktopRouter.navigate(page.path);
           expect(desktopRouter.state.location.pathname).toBe('/welcome');
         }
+        await desktopRouter.navigate('/zh-CN/');
+        expect(desktopRouter.state.location.pathname).toBe('/welcome');
       } finally {
         desktopRouter.dispose();
       }

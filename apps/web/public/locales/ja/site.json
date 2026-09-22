@@ -5,10 +5,12 @@
       "lead": "プラットフォームとアーキテクチャごとに 1 ファイルずつ、GitHub Releases で公開しています。",
       "title": "すべてのビルド"
     },
+    "description": "macOS・Windows・Linux 向けの Ori Studio デスクトップアプリ。ブラウザ版と同じ無料・オープンソースの折り紙設計ワークスペースに、ネイティブのメニューとファイルダイアログ、自動更新が加わります。インストールせずにブラウザで開くこともできます。",
     "eyebrow": "デスクトップアプリ",
     "latest": "最新リリース: {{version}}",
     "lead": "Ori Studio は何もインストールせずにブラウザで動作します。デスクトップアプリは同じワークスペースを macOS、Windows、Linux 向けにパッケージしたもので、ネイティブのメニューとファイルダイアログ、Finder や Explorer から直接開けるプロジェクト、自動でインストールされる更新が加わります。",
     "openInBrowser": "またはブラウザで開く",
+    "pageTitle": "Ori Studio をダウンロード（macOS・Windows・Linux）",
     "title": "Ori Studio をダウンロード",
     "which": {
       "linuxBody": ".deb は Debian や Ubuntu とその派生ディストリビューションにインストールできます。AppImage はインストール不要でどこでも動きます。実行権限を付けて起動してください。",
@@ -24,11 +26,16 @@
     "communityLabel": "コミュニティ",
     "discord": "Discord",
     "github": "GitHub",
+    "languageLabel": "言語",
     "note": "{{name}} は自由でオープンソースのソフトウェアです。",
     "releases": "リリース"
   },
   "header": {
     "openApp": "アプリを開く"
+  },
+  "landing": {
+    "description": "Ori Studio は無料でオープンソースの折り紙設計ワークスペースです。展開図を描いて編集し、ツリー構造やボックスプリーツのグリッドから設計し、シミュレーターで折って確かめられます。ブラウザでそのまま動き、macOS・Windows・Linux 向けのデスクトップアプリもあります。",
+    "title": "Ori Studio — 折り紙設計ワークスペース"
   },
   "nav": {
     "download": "ダウンロード",

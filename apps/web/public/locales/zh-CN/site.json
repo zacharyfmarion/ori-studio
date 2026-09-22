@@ -5,10 +5,12 @@
       "lead": "每个平台和架构各一个文件，发布在 GitHub Releases 上。",
       "title": "所有构建"
     },
+    "description": "获取 macOS、Windows 和 Linux 版的 Ori Studio 桌面应用——与浏览器版相同的免费开源折纸设计工作区，并带有原生菜单、文件对话框和自动更新。也可以直接在浏览器中打开，无需安装。",
     "eyebrow": "桌面应用",
     "latest": "最新版本：{{version}}",
     "lead": "Ori Studio 在浏览器中运行，无需安装。桌面应用是同一个工作区，打包为 macOS、Windows 和 Linux 版本——带有原生菜单和文件对话框，项目可直接从 Finder 或资源管理器打开，更新也会自行安装。",
     "openInBrowser": "或者在浏览器中打开",
+    "pageTitle": "下载 Ori Studio（macOS、Windows、Linux）",
     "title": "下载 Ori Studio",
     "which": {
       "linuxBody": ".deb 可安装在 Debian、Ubuntu 及其衍生发行版上。AppImage 无需安装即可在任何发行版上运行：赋予可执行权限后直接启动。",
@@ -24,11 +26,16 @@
     "communityLabel": "社区",
     "discord": "Discord",
     "github": "GitHub",
+    "languageLabel": "语言",
     "note": "{{name}} 是自由开源软件。",
     "releases": "版本发布"
   },
   "header": {
     "openApp": "打开应用"
+  },
+  "landing": {
+    "description": "Ori Studio 是一款免费、开源的折纸设计工作区：绘制和编辑折痕图（CP），从树状结构或箱形褶皱网格开始设计，并在模拟器中折叠验证。可直接在浏览器中运行，也提供 macOS、Windows 和 Linux 桌面应用。",
+    "title": "Ori Studio — 折纸设计工作区"
   },
   "nav": {
     "download": "下载",

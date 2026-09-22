@@ -2,21 +2,24 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LOCALE_STORAGE_KEY, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
+import { useLocaleStore } from '../store/localeStore';
+import { preloadLocale } from '../test/preloadLocale';
 import { SiteFooter } from './SiteFooter';
-import { SITE_PAGES } from './sitePages';
+import { CONTENT_PAGES, pagePath, SITE_PAGES } from './sitePages';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-function render(): HTMLDivElement {
+function render(path = '/'): HTMLDivElement {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
   act(() => {
     root?.render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={[path]}>
         <SiteFooter />
       </MemoryRouter>
     );
@@ -30,6 +33,8 @@ afterEach(() => {
   root = null;
   container = null;
   vi.unstubAllGlobals();
+  act(() => useLocaleStore.setState({ preference: SYSTEM_LOCALE }));
+  localStorage.clear();
 });
 
 describe('SiteFooter', () => {
@@ -57,6 +62,52 @@ describe('SiteFooter', () => {
   it('marks the page it is on', () => {
     const rendered = render();
     expect(rendered.querySelector('a[aria-current="page"]')?.getAttribute('href')).toBe('/');
+  });
+
+  it('offers this page in every language, by its own name, as real links', () => {
+    // How a crawler learns `/zh-CN/download/` exists: a `<select>` is a control it cannot
+    // operate; an anchor is a link it follows.
+    const [download] = CONTENT_PAGES;
+    const rendered = render(download.path);
+    const links = Array.from(rendered.querySelectorAll<HTMLAnchorElement>('.site-languages a'));
+    expect(links).toHaveLength(SUPPORTED_LOCALES.length);
+    for (const locale of SUPPORTED_LOCALES) {
+      const link = links.find((a) => a.getAttribute('hreflang') === locale.code);
+      expect(link, locale.code).toBeDefined();
+      expect(link?.getAttribute('href')).toBe(pagePath(download, locale.code));
+      expect(link?.textContent).toBe(locale.nativeName);
+      expect(link?.getAttribute('lang')).toBe(locale.code);
+    }
+  });
+
+  it('marks the language it is in, and links the nav within it', () => {
+    const [download] = CONTENT_PAGES;
+    const rendered = render(pagePath(download, 'zh-CN'));
+    expect(rendered.querySelector('.site-languages a[aria-current="true"]')?.getAttribute('hreflang')).toBe(
+      'zh-CN'
+    );
+    expect(rendered.querySelector('.site-nav a[href="/zh-CN/"]')).not.toBeNull();
+    expect(rendered.querySelector('.site-nav a[href="/zh-CN/download/"][aria-current="page"]')).not.toBeNull();
+  });
+
+  /**
+   * Arriving at `/ja/` is not a choice; picking 日本語 from a language menu is. The
+   * first shows Japanese while you are there and forgets it when you open the app; the
+   * second is the same act as choosing it in Settings, and persists the same way — so
+   * "Open the app" from a page you chose the language of opens the app in that language.
+   */
+  it('pins the language when one is chosen from the switch, like Settings does', () => {
+    preloadLocale('ja');
+    localStorage.clear();
+    act(() => useLocaleStore.setState({ preference: SYSTEM_LOCALE }));
+    const rendered = render('/');
+    expect(useLocaleStore.getState().preference).toBe(SYSTEM_LOCALE);
+
+    const japanese = rendered.querySelector<HTMLAnchorElement>('.site-languages a[hreflang="ja"]');
+    act(() => japanese?.click());
+
+    expect(useLocaleStore.getState().preference).toBe('ja');
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('ja');
   });
 
   it('renders nothing inside the desktop app, where the pages it links to do not exist', () => {
