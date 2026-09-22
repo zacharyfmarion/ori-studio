@@ -19,7 +19,7 @@ import type {
   ScenePoint,
 } from './paperScene';
 import { hexToUnitRgb } from './paperStyleResolve';
-import type { Hex, PaperStyle, Pen } from './paperStyle';
+import { PT_TO_CSS_PX, type Hex, type PaperStyle, type Pen } from './paperStyle';
 
 /** Points per CSS px: the 'as-shown' page is the screen at 96 px per inch. */
 export const PT_PER_CSS_PX = 0.75;
@@ -63,6 +63,14 @@ export function widestPenPt(style: PaperStyle): number {
     if (pen) widest = Math.max(widest, pen.width);
   }
   return widest;
+}
+
+/**
+ * The widest pen the painter will draw, in CSS px: a scene producer's ink
+ * allowance for the tree and the stroke its hidden test measures a line by.
+ */
+export function widestPenCssPx(style: PaperStyle): number {
+  return widestPenPt(style) * PT_TO_CSS_PX;
 }
 
 /**

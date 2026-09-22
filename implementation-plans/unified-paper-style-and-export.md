@@ -930,7 +930,12 @@ projector retires. The existing harness stays until Phase 7.
         contract: deleting a cover reveals what the tree put beneath).
       - `onBoundary` reads a vertex's count of border and fold edges: an
         endpoint retreats when another such edge meets it there; a cut end
-        never does, and a paper edge never retreats.
+        never does, and a paper edge never retreats. Whether an end is the
+        crease's own vertex is decided in the space the tree cut in, not on
+        the page: under `layers` a vertex's page position (its float32 view
+        position projected) and `projected.screen` (the float64 projection
+        rounded) differ in their last bits at any real camera, and a page
+        comparison reported every 3D-figure crease as `[false, false]`.
 - [ ] Aux edge pass in the GPU renderer — with Phase 5's "simulator GPU aux
       pass", which is the same item.
 - [x] Simulator `exportSvg` → scene → painter; `keepHiddenFaces` export
@@ -988,11 +993,123 @@ projector retires. The existing harness stays until Phase 7.
 
 ### Phase 3 — 3D figure export through the shared path
 
-- [ ] `FoldedMeshSource` → `meshToPaperScene` with side, kernel order on
+- [x] `FoldedMeshSource` → `meshToPaperScene` with side, kernel order on
       `BspItem.order` and `folded3dDrawPasses` ranges (F9); creases unbiased.
-- [ ] Tier A merge by `(plane, face)` within a node; parity harness green at
-      the pinned cameras or re-pinned with a reason.
-- [ ] Standalone export and "Include folded figure" read the scene.
+      Landed as `cp-workspace/folded/folded3dScene.ts` (`folded3dPaperScene`,
+      `folded3dSceneCamera`, `folded3dFigureBoxCssPx`) over the mesh's
+      translucent + undetermined runs, with `folded3dScene.test.ts` as the
+      §7 parity gate: paper agrees with the draw passes pixel-for-pixel at
+      32 cameras on every fixture, and the scene never lacks ink the window
+      draws. Deviations from §6 / §7, with reasons:
+      - **`meshToPaperScene` cuts in view space under a new `layers` option**
+        (`{ coplanarEps }`; also `edgeOrder` per crease, and
+        `BuildBspOptions.orderBeforeKind`). §6's screen-space tree is the
+        GPU's depth arithmetic, but the perspective is a central projection
+        and it bends a *plane*: two triangles of one kernel plane are not
+        coplanar in screen space at a tilt, so a plane's stack could not be
+        one node and most of a tilted figure's creases came out under their
+        own faces (measured on the fixtures before the change). In view space
+        the kernel's planes are planes, `coplanarEps` is the kernel's own
+        distance (`folded3dCoplanarEpsilon`, the projector's number), the
+        eye is a real point at `camDist`, and a cut point projects onto the
+        straight screen segment (to 1e-14 px; the header's "bends" note was
+        about a different warp). The simulator's path is untouched.
+      - Under `layers` a coplanar node sorts by `order` before kind, so a
+        buried layer's creases draw over that layer and under the next and
+        come out `hidden`; a layer's creases are ordered past every face of
+        the layer, so paper still precedes ink within it. Orders are bands
+        per rank (0 = the layer the skin shows), faces by kernel face id
+        within a band so a face's cells sit adjacent for the merge; the
+        kernel's `draw_rank` is not carried — cells of one plane are
+        area-disjoint, and the containment defect it tie-breaks is one the
+        window's single-skin pass cannot order either.
+      - A crease on the line where two planes meet is coplanar with both and
+        the tree files it under whichever it reaches first; under `layers` a
+        crease is moved to follow the piece of its own triangle (by vertex
+        identity, then the piece holding both endpoints) when the tree drew
+        that piece after it, which is the GPU's "each plane's creases after
+        its paper". Without it half of every hinge was painted over. The
+        pass indexes face pieces by triangle once and is linear in the
+        pieces; scanning forward per crease was quadratic and took seconds
+        on a deep figure where the tree takes milliseconds.
+      - `sides` is not passed: the mesh's winding *is* the GPU's side, and
+        the scene reads it through the same projection; the test pins it to
+        the payload's `facing × up` against the eye instead.
+      - Hinge admission is applied per crease from a new
+        `Folded3dMesh.hinges` table (partner plane and required side, `0` for
+        a hinge buried on both sides), the window's `hingeGroups` rule
+        restated per crease so the translucent run can carry it. It applies
+        to buried layers too: the covering layer inks the same segment only
+        as a hinge of its own under the same condition, so an unadmitted
+        bend would show its outer half past the paper. Cost: uncovering a
+        buried layer in an editor reveals it without those bends.
+      - Options carry `tolerances` (the figure's `folded3d.diagnostics.tolerances`,
+        which the coplanar distance needs) and `displayStyle` (Wire2 draws
+        the skins' creases only; None0 nothing; Transparent3 exports as
+        opaque paper, every layer kept — a translucent style has no scene
+        form).
+      - The camera is exactly the window layer's: `folded3dWindowView` (zoom
+        clamped), zoom × `folded3dFrameFillZoom(side, side)`, the mesh's
+        centre and radius, the box side in CSS px — not §7's
+        `radius × silhouette factor`, which describes the same fit less
+        precisely. The box comes from `foldedFigureBox` (the frame) times the
+        crease-pattern camera's CSS px per user unit, read by the caller.
+      - What the parity gate pins as the window's loss rather than the
+        scene's: a concave crease seen obliquely from inside a fold (the far
+        corner of `box_90`, a spike's base) — the paper beside the line is
+        nearer than the line and the GPU's 1e-5 NDC bias cannot carry the
+        ribbon over it, while the painter's order keeps the line at full
+        width. Bounded per fixture in the test.
+      - Found and fixed on the way: `hiddenPieces.polygonSpans` computed a
+        shared edge's crossing from whichever endpoint the piece walked
+        first, so two pieces sharing an edge in opposite directions could
+        leave a crack of samples along it (a square's diagonal exactly on the
+        sample grid, which a figure seen face-on produces) and a buried piece
+        showed through. Crossings are now computed from the lower endpoint.
+      - 0° creases stay role `edge` until Phase 5 (the mesh emits no aux code).
+- [x] Tier A merge by `(plane, face)` within a node; parity harness green at
+      the pinned cameras or re-pinned with a reason. The merge is in place
+      through the band ordering above. `folded3dProjectorParity.test.ts` is
+      untouched and still green: it compares the window with the *projector*,
+      which this phase does not change, so its 3 + 22 pinned disagreements
+      stand until Phase 7 retires it. The §7 parity gate that replaces it is
+      `folded3dSceneSkinParity.test.ts`: on the harness's five fixtures over
+      its 8 × 13 sweep, the `(face, side)` set the scene leaves unhidden is
+      exactly the set of skins `folded3dDrawPasses` shows — forward against
+      the skins the passes submit, reverse against a depth-buffer rasterisation
+      of the passes (a submitted skin can still be behind a nearer plane, or
+      under its own creases when seen nearly edge-on, which is the window's
+      ink and not its paper).
+- [x] Standalone export reads the scene ("Include folded figure" is the flat
+      re-fold; Phase 4).
+      Standalone: `exportOristudioCpFoldedFigure` for a figure with `folded3d`
+      and a live render model paints `folded3dPaperScene` through
+      `paperSceneToSvg` / `paperSvgToPng` (`cp-workspace/folded/folded3dFigureExport.ts`),
+      on `exportPaperStyle(paperStyle, figure.appearance)` (a new helper in
+      `lib/paperStyleSettings.ts`, which `useSimulatorViewExport` now shares)
+      and `settingsStore.paperExport`; `paper exported { surface: 'folded-3d' }`
+      fires on a save. Deviations from §7, with reasons:
+      - The painter is handed the style through the `folded-3d` policy, as
+        the simulator hands its own policy's view to the painter: the window
+        draws every crease with the edge pen, so the file does too; the
+        mountain/valley pens would otherwise dash creases the window draws
+        solid. The scene producer applies the same policy for its light and
+        pen width, and the policy is idempotent.
+      - The on-screen box is read from `cpOverlayViewStore` (`user` affine,
+        `overlayCssPerModel`), not `cpCameraRegistry`: the registry publishes
+        camera *verbs* and has no zoom reader, while the overlay store is the
+        live camera affine every folded-figure overlay already projects
+        through. No canvas mounted → 1 CSS px per user unit, the box at zoom 1.
+      - A figure the scene path answers null for — no handle (reopened, not
+        yet rehydrated), a handle whose render model was released, a model
+        past the mesh's vertex budget, or a `None0` figure — keeps the stored
+        `renderSnapshot` path in `foldedFigureExport.ts` (R7, until Phase 7),
+        which fires only the file service's `file exported`.
+      - "Include folded figure" in the CP export dialog is the flat re-fold
+        (§7), so it is untouched here and moves in Phase 4.
+      Tests: `store/workspaceStore/exportFoldedFigure3d.test.ts` (style and
+      page reach the painter, the figure's pins, PNG at `pngDpi`, the
+      handle-less fallback, the event).
 
 ### Phase 4 — Flat figure: kernel accessor and whole-face export
 

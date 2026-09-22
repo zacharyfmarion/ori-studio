@@ -124,6 +124,18 @@ export function screenPoints(
 }
 
 /**
+ * View-space `x, y, depth` — the space the BSP cuts in under
+ * `MeshToPaperSceneOptions.layers`, where the mesh's planes are planes.
+ */
+export function viewPoints(projected: ProjectedVertices, indices: readonly number[]): Vec3[] {
+  return indices.map((v) => [
+    projected.view[v * 3]!,
+    projected.view[v * 3 + 1]!,
+    projected.view[v * 3 + 2]!,
+  ]);
+}
+
+/**
  * The triangle's geometric normal in view space, unnormalised — what the face
  * shader's flat lighting reads, oriented by `shadeFor` toward the viewer.
  */

@@ -206,6 +206,37 @@ function everyCrease(mesh: Folded3dMesh): number[] {
   return out;
 }
 
+/** The slot whose ring vertices a crease of the translucent run joins. */
+function slotOfCrease(mesh: Folded3dMesh, crease: number): number {
+  const vertex = mesh.topology.edgeIndices[crease * 2]!;
+  for (let slot = 0; slot < mesh.slots.count; slot += 1) {
+    if (vertex >= mesh.slots.vertexStart[slot]! && vertex < mesh.slots.vertexStart[slot + 1]!) {
+      return slot;
+    }
+  }
+  throw new Error(`crease ${crease} belongs to no slot`);
+}
+
+/** The ring segment a crease of a slot was inked from: the one whose edge is `edge`. */
+function segmentOfCrease(
+  model: OristudioCpFolded3dRenderModel,
+  mesh: Folded3dMesh,
+  slot: number,
+  crease: number,
+  edge: number,
+  ink: ReturnType<typeof buildFolded3dInk>
+): number {
+  const cell = mesh.slots.cell[slot]!;
+  const depth = mesh.slots.depth[slot]!;
+  const segments = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0;
+  const first = mesh.slots.vertexStart[slot]!;
+  const a = mesh.topology.edgeIndices[crease * 2]! - first;
+  for (let segment = 0; segment < segments; segment += 1) {
+    if (segment === a && ink.edgeAt(cell, depth, segment) === edge) return segment;
+  }
+  throw new Error(`crease ${crease} matches no segment of slot ${slot}`);
+}
+
 /** A world point in the mesh's own space: simulator basis, centroid-relative. */
 function simBasisRelative(
   model: OristudioCpFolded3dRenderModel,
@@ -682,6 +713,66 @@ describe('folded3dMesh', () => {
       expect(mountains + valleys).toBeGreaterThan(0);
       // And no model edge silently vanished: each is drawn by at least one slot.
       expect(new Set(sources).size).toBe(model.edge_count);
+    });
+
+    it.each(NAMES)('%s states each hinge’s condition per crease, as its skins group them', (name) => {
+      // The skins carry a hinge's condition as a group; the translucent run,
+      // which the vector export reads every layer from, carries the same
+      // creases with no groups at all. The per-crease table has to say the
+      // same thing in both places, or the export admits a bend the window
+      // hides.
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      const { partnerPlane, requiredSide } = mesh.hinges;
+      expect(partnerPlane.length).toBe(mesh.topology.edgeAssignments.length);
+      expect(requiredSide.length).toBe(mesh.topology.edgeAssignments.length);
+      for (let crease = 0; crease < mesh.fallbackEdgeCount; crease += 1) {
+        expect(partnerPlane[crease]).toBe(-1);
+      }
+      for (const skin of mesh.skins) {
+        for (let crease = skin.edgeStart; crease < skin.edgeStart + skin.edgeCount; crease += 1) {
+          expect(partnerPlane[crease], `${name} skin ${skin.plane}/${skin.side}`).toBe(-1);
+        }
+        for (const group of skin.hingeGroups) {
+          for (let crease = group.edgeStart; crease < group.edgeStart + group.edgeCount; crease += 1) {
+            expect(partnerPlane[crease]).toBe(group.partnerPlane);
+            expect(requiredSide[crease]).toBe(group.requiredSide);
+          }
+        }
+      }
+      // In the translucent run every kind appears, keyed the same way: the
+      // buried-both-sides hinges the skins leave out entirely are the ones
+      // with a partner and no side that admits them.
+      const ink = buildFolded3dInk(model);
+      let buried = 0;
+      let conditional = 0;
+      const start = mesh.translucent.edgeStart;
+      const end = mesh.undetermined.edgeStart + mesh.undetermined.edgeCount;
+      const sources = creaseSources(model, mesh);
+      const creases = everyCrease(mesh);
+      for (let nth = 0; nth < creases.length; nth += 1) {
+        const crease = creases[nth]!;
+        if (crease < start || crease >= end) continue;
+        const slot = slotOfCrease(mesh, crease);
+        const cell = mesh.slots.cell[slot]!;
+        const segment = segmentOfCrease(model, mesh, slot, crease, sources[nth]!, ink);
+        const hinge = ink.hingeAt(cell, mesh.slots.depth[slot]!, segment);
+        if (!hinge || (hinge.exposedOnPlus && hinge.exposedOnMinus)) {
+          expect(partnerPlane[crease]).toBe(-1);
+        } else if (hinge.exposedOnPlus || hinge.exposedOnMinus) {
+          conditional += 1;
+          expect(partnerPlane[crease]).toBe(hinge.partnerPlane);
+          expect(requiredSide[crease]).toBe(hinge.exposedOnPlus ? 1 : -1);
+        } else {
+          buried += 1;
+          expect(partnerPlane[crease]).toBe(hinge.partnerPlane);
+          expect(requiredSide[crease]).toBe(0);
+        }
+      }
+      if (name === 'spikes_small') {
+        expect(conditional).toBeGreaterThan(0);
+        expect(buried).toBeGreaterThan(0);
+      }
     });
 
     it.each(NAMES)('%s places a crease on its fold line, at its layer', (name) => {

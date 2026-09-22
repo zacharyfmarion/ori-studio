@@ -439,8 +439,11 @@ export interface ProjectSliceActions {
   /** Record a share payload for the Edit surface to open. Set by `/s` only. */
   setPendingSharedCp: (pending: PendingSharedCp) => void;
   /**
-   * Save one folded figure as a standalone image, serialized from the snapshot
-   * already on screen rather than re-folded. See `lib/foldedFigureExport.ts`.
+   * Save one folded figure as a standalone image. A 3D figure with a live
+   * kernel paints its window's scene through the shared painter on the export
+   * style and page (`cp-workspace/folded/folded3dFigureExport.ts`); any other
+   * figure is serialized from the snapshot already on screen rather than
+   * re-folded (`cp-workspace/folded/foldedFigureExport.ts`).
    */
   exportOristudioCpFoldedFigure: (
     format: FoldedFigureExportFormat,

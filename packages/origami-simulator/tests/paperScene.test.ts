@@ -513,6 +513,160 @@ describe('coplanar order from the caller', () => {
   });
 });
 
+describe('coplanar layers from the caller', () => {
+  /**
+   * A two-layer stack in one plane — the same square twice, distinct vertices
+   * — each layer with a mountain crease across its middle. The 3D folded
+   * figure's shape: layers exactly coplanar, ordered by the kernel, every one
+   * of them kept for the painter.
+   */
+  const STACK = new Float32Array([
+    -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1,
+    -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1,
+  ]);
+  const STACK_TOPOLOGY: SvgMeshTopology = {
+    faceIndices: new Uint32Array([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]),
+    edgeIndices: new Uint32Array([0, 2, 4, 6]),
+    edgeAssignments: new Uint8Array([EDGE_CODE.mountain, EDGE_CODE.mountain]),
+  };
+  const GROUPS = new Uint32Array([7, 7, 9, 9]);
+  /** Layer 9 on top: its faces at 2, its crease past them at 3; layer 7 at 0 and 1. */
+  const ORDER = { order: new Float32Array([0, 0, 2, 2]), edgeOrder: new Float32Array([1, 3]) };
+
+  const layered = (options: Partial<MeshToPaperSceneOptions> = {}) =>
+    scene(
+      { faceGroups: GROUPS, layers: { coplanarEps: 1e-6 }, ...ORDER, ...options },
+      STACK,
+      STACK_TOPOLOGY,
+      OVERHEAD
+    );
+
+  /** `face N` or `line`, with `*` on the items nothing shows. */
+  const summary = (result: PaperScene): string[] =>
+    result.items.map(
+      (item) => `${item.kind === 'face' ? `face ${item.face}` : 'line'}${item.hidden ? '*' : ''}`
+    );
+
+  it('draws each layer’s crease over that layer and under the next', () => {
+    // Without `layers` the crease is nudged off the plane and every face of the
+    // stack precedes every crease; with it the order interleaves, so the
+    // buried layer's crease is covered by the layer above it. The buried layer
+    // stays in its two triangles: only what shows is put back together.
+    expect(summary(layered())).toEqual(['face 7*', 'face 7*', 'line*', 'face 9', 'line']);
+  });
+
+  it('is the simulator’s rule without it: faces first, creases nudged toward the eye', () => {
+    const plain = scene({ faceGroups: GROUPS, ...ORDER }, STACK, STACK_TOPOLOGY, OVERHEAD);
+    // Both creases sit in front of the stack, at one place; the top layer's
+    // is drawn second and covers the other exactly.
+    expect(summary(plain)).toEqual(['face 7*', 'face 7*', 'face 9', 'line*', 'line']);
+  });
+
+  it('keeps a crease in its plane’s node whatever the ink allowance', () => {
+    // `lineWidth` is the hidden test's stroke only under `layers`; the tree
+    // gets no ink allowance, so a wide pen cannot lift a crease off its layer.
+    expect(summary(layered({ lineWidth: 40 }))).toEqual([
+      'face 7*',
+      'face 7*',
+      'line*',
+      'face 9',
+      'line',
+    ]);
+  });
+
+  it('keeps a tilted plane one node under perspective, by cutting in view space', () => {
+    // Seen at a tilt, the perspective warp bends a plane in screen space: the
+    // two triangles of one layer are no longer coplanar there, so a screen-
+    // space tree splits the stack into nodes the layer order cannot reach
+    // across, and the buried crease surfaces. In view space the plane is a
+    // plane and the picture is the overhead one.
+    const tilted = scene(
+      { faceGroups: GROUPS, layers: { coplanarEps: 1e-6 }, ...ORDER },
+      STACK,
+      STACK_TOPOLOGY,
+      cameraUniforms({ yaw: 0.6, pitch: -1.1, zoom: 1 }, [0, 0, 0], 2, 400, 300)
+    );
+    expect(summary(tilted)).toEqual(['face 7*', 'face 7*', 'line*', 'face 9', 'line']);
+  });
+
+  it('joins a plane the kernel joined, past the tree’s own epsilon', () => {
+    // The top layer a hair off the first, and on the far side of it — float
+    // rounding after the kernel placed it — is still one plane at the caller's
+    // tolerance, so the kernel's order holds and the buried crease keeps its
+    // place under the top layer.
+    const jittered = Float32Array.from(STACK);
+    for (let vertex = 4; vertex < 8; vertex += 1) jittered[vertex * 3 + 1] = -1e-5;
+    const joined = scene(
+      { faceGroups: GROUPS, layers: { coplanarEps: 1e-3 }, ...ORDER },
+      jittered,
+      STACK_TOPOLOGY,
+      OVERHEAD
+    );
+    expect(summary(joined)).toEqual(['face 7*', 'face 7*', 'line*', 'face 9', 'line']);
+    // At the tree's own epsilon the jitter is a second plane behind the
+    // first, and the geometry rather than the caller's order decides.
+    const split = scene(
+      { faceGroups: GROUPS, layers: { coplanarEps: 1e-9 }, ...ORDER },
+      jittered,
+      STACK_TOPOLOGY,
+      OVERHEAD
+    );
+    expect(summary(split)).toEqual(['face 9*', 'face 9*', 'line*', 'face 7', 'line']);
+  });
+});
+
+describe('a crease on the line where two planes meet', () => {
+  /**
+   * A hinge: two triangles at 90° sharing an edge along x, each with its own
+   * copy of the fold as a mountain crease on its own vertices — the 3D folded
+   * figure's shape, where every layer inks its own ring. The crease is
+   * coplanar with both planes, so the tree files both copies under one node.
+   */
+  const HINGE = new Float32Array([
+    // face 0, flat in y = 0, extending to -z
+    -1, 0, 0, 1, 0, 0, 0, 0, -1,
+    // face 1, upright in z = 0, extending to +y
+    -1, 0, 0, 1, 0, 0, 0, 1, 0,
+  ]);
+  const HINGE_TOPOLOGY: SvgMeshTopology = {
+    faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+    edgeIndices: new Uint32Array([0, 1, 3, 4]),
+    edgeAssignments: new Uint8Array([EDGE_CODE.mountain, EDGE_CODE.mountain]),
+  };
+  const GROUPS = new Uint32Array([0, 1]);
+
+  it.each([
+    ['above and in front', { yaw: 0.3, pitch: -1, zoom: 1 }],
+    ['below and behind', { yaw: 2.9, pitch: 1.2, zoom: 1 }],
+    ['from the side', { yaw: 1.4, pitch: -0.3, zoom: 1 }],
+  ])('follows its own face under layers, seen from %s', (_label, view) => {
+    const camera = cameraUniforms(view, [0, 0, 0], 2, 400, 300);
+    const result = scene(
+      {
+        faceGroups: GROUPS,
+        layers: { coplanarEps: 1e-6 },
+        order: new Float32Array([0, 0]),
+        edgeOrder: new Float32Array([1, 1]),
+      },
+      HINGE,
+      HINGE_TOPOLOGY,
+      camera
+    );
+    // Each copy of the fold is drawn after its own face, whichever plane's
+    // node the tree filed it under, so neither face's edge paints over the
+    // other's crease: the nearer plane's copy draws over both faces at full
+    // width, as the GPU draws it.
+    for (const face of [0, 1]) {
+      const own = result.items.findIndex((item) => item.kind === 'face' && item.face === face);
+      const crease = result.items.findIndex((item) => item.kind === 'line' && item.face === face);
+      expect(own, `face ${face}`).toBeGreaterThanOrEqual(0);
+      expect(crease, `crease of face ${face}`).toBeGreaterThan(own);
+    }
+    // And the last thing drawn is a copy of the fold, over everything.
+    expect(result.items.at(-1)!.kind).toBe('line');
+  });
+});
+
 describe('which endpoints lie on a boundary', () => {
   /**
    * A flat square fanned from its centre (vertex 5), with a vertex (4) on the
@@ -622,5 +776,64 @@ describe('which endpoints lie on a boundary', () => {
     const second = pieces.find((line) => same(line.b, end))!;
     expect(first.onBoundary).toEqual([true, false]);
     expect(second.onBoundary).toEqual([false, true]);
+  });
+
+  it('knows a crease’s own ends under layers, at a camera the rounding does not favour', () => {
+    // Under `layers` the tree cuts in view space and a piece's page position
+    // is its float32 view position projected, which is not `projected.screen`
+    // — the float64 projection rounded to float32 — in the last bits. At the
+    // overhead camera every coordinate is exact and the two agree; at a real
+    // orbit they never do, so ownership must be decided in the cut space.
+    const camera = cameraUniforms(
+      { yaw: 0.37, pitch: 0.61, zoom: 1.3 },
+      [0.1, 0.2, 0.05],
+      2,
+      400,
+      300
+    );
+    const layered = scene(
+      { layers: { coplanarEps: 1e-6 } },
+      FAN,
+      fan({ toCorner1: EDGE_CODE.valley, toCorner2: EDGE_CODE.mountain, toCorner0: EDGE_CODE.aux }),
+      camera
+    );
+    const flags = lines(layered)
+      .filter((line) => line.role !== 'edge')
+      .map((line) => line.onBoundary);
+    // Two aux spokes and the two folds, every end at a corner or at the centre
+    // where the folds meet.
+    expect(flags).toEqual([
+      [true, true],
+      [true, true],
+      [true, true],
+      [true, true],
+    ]);
+  });
+
+  it('is false at the end a cut left behind under layers too', () => {
+    // The crossing pair again, with the vertical triangle doubled into a
+    // two-layer plane and put first, so its plane is the splitter: under
+    // `layers` a crease stays whole in its own plane's node, and is only ever
+    // cut by another plane chosen before it.
+    const crossing = new Float32Array([
+      -1, -1, 0, 1, -1, 0, 0, 1, 0,
+      0, -1, -1, 0, -1, 1, 0, 1, 0,
+      0, -1, -1, 0, -1, 1, 0, 1, 0,
+    ]);
+    const mesh: SvgMeshTopology = {
+      faceIndices: new Uint32Array([3, 4, 5, 6, 7, 8, 0, 1, 2]),
+      edgeIndices: new Uint32Array([0, 1, 1, 2, 2, 0]),
+      edgeAssignments: new Uint8Array([EDGE_CODE.mountain, EDGE_CODE.border, EDGE_CODE.border]),
+    };
+    const camera = cameraUniforms({ yaw: 0.6, pitch: -0.5, zoom: 1 }, [0, 0, 0], 1.5, 400, 400);
+    const pieces = lines(
+      meshToPaperScene(crossing, mesh, camera, { sheet: 2, layers: { coplanarEps: 1e-6 } })
+    ).filter((line) => line.role === 'mountain');
+    expect(pieces).toHaveLength(2);
+    const flags = pieces.map((line) => line.onBoundary).sort();
+    expect(flags).toEqual([
+      [false, true],
+      [true, false],
+    ]);
   });
 });

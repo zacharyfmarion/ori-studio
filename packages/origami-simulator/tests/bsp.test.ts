@@ -239,6 +239,24 @@ describe('ordering interpenetrating geometry', () => {
       ];
       expect(traverseBsp(buildBsp(items), [0, 0, 10]).map((i) => i.kind)).toEqual([0, 1]);
     });
+
+    it('puts order before kind when the caller’s order names layers', () => {
+      // Two coplanar layers, each with its own crease. Kind-first draws both
+      // faces and then both creases, so the buried layer's crease lands over the
+      // layer that covers it; order-first interleaves them, and within one layer
+      // the caller keeps faces first by giving the crease the higher order.
+      const items: BspItem[] = [
+        { kind: 1, ref: 10, order: 3, points: [[-1, 0, 0], [1, 0, 0]] },
+        { kind: 0, ref: 1, order: 2, points: [[-1, -1, 0], [1, -1, 0], [0, 1, 0]] },
+        { kind: 1, ref: 20, order: 1, points: [[-1, 0, 0], [1, 0, 0]] },
+        { kind: 0, ref: 0, order: 0, points: [[-1, -1, 0], [1, -1, 0], [0, 1, 0]] },
+      ];
+      const eye: Vec3 = [0, 0, 10];
+      expect(traverseBsp(buildBsp(items), eye).map((i) => i.ref)).toEqual([0, 1, 20, 10]);
+      expect(
+        traverseBsp(buildBsp(items, { orderBeforeKind: true }), eye).map((i) => i.ref)
+      ).toEqual([0, 20, 1, 10]);
+    });
   });
 
   describe('a caller-supplied coplanarity tolerance', () => {

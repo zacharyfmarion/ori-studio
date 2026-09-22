@@ -34,6 +34,30 @@ describe('finding the pieces nothing shows', () => {
     expect(visible).toEqual([true, true]);
   });
 
+  it('finds the same crossing on an edge two pieces walk in opposite directions', () => {
+    // A square's two triangles, the second wound the other way, over a copy
+    // of the square beneath them — with the diagonal passing exactly through
+    // the sample centres, which a 3D folded figure seen face-on produces.
+    // Rounding the shared crossing differently for the two directions left a
+    // crack of samples along the diagonal that neither triangle claimed, and
+    // the buried square showed through it. Coordinates from that fixture.
+    const a: [number, number] = [25.34459821882939, 66.89639881255293];
+    const b: [number, number] = [191.55180059372353, 233.10360118744705];
+    const c: [number, number] = [25.34459821882939, 233.10360118744705];
+    const d: [number, number] = [191.55180059372353, 66.89639881255293];
+    const page = {
+      minX: 24.14459821882939,
+      minY: 65.69639881255293,
+      width: 168.60720237489414,
+      height: 168.60720237489411,
+    };
+    const buried: DrawnPiece = { points: [a, b, c], strokeWidth: 0 };
+    const lower: DrawnPiece = { points: [a, c, b], strokeWidth: 0 };
+    const upper: DrawnPiece = { points: [a, b, d], strokeWidth: 0 };
+    expect(findVisiblePieces([buried, lower, upper], page)).toEqual([false, true, true]);
+    expect(findVisiblePieces([buried, upper, lower], page)).toEqual([false, true, true]);
+  });
+
   it('drops a crease buried under a face', () => {
     const crease: DrawnPiece = { points: [[20, 30], [40, 30]], strokeWidth: 2 };
     expect(findVisiblePieces([crease, square(10, 10, 40)], PAGE)).toEqual([false, true]);

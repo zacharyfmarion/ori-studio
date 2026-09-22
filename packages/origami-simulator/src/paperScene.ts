@@ -11,7 +11,12 @@
 //
 // Scene coordinates are the CSS pixels of the camera the surface showed, which
 // every producer already has. The painter is the one place they become points.
-import { projectVertices, type CameraUniforms, type ProjectedVertices } from './webgl/camera.js';
+import {
+  projectVertices,
+  projectViewPoint,
+  type CameraUniforms,
+  type ProjectedVertices,
+} from './webgl/camera.js';
 import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
 import { coplanarRuns, outlineOf, sourceFaceGroups, type RunPiece } from './coplanarRuns.js';
@@ -24,6 +29,7 @@ import {
   pointBounds,
   screenPoints,
   viewNormal,
+  viewPoints,
   type Crease,
   type SvgMeshTopology,
   type Triangle,
@@ -122,12 +128,43 @@ export interface MeshToPaperSceneOptions {
    */
   order?: ArrayLike<number>;
   /**
+   * The same, per edge of `edgeIndices`: where a crease sits among the
+   * coplanar faces it is drawn with. Absent, every crease is order 0. Only
+   * read with {@link layers}, where a crease shares its plane's node with the
+   * faces; otherwise a crease is nudged off its plane and never coplanar.
+   */
+  edgeOrder?: ArrayLike<number>;
+  /**
    * The widest line the painter will draw, in scene px. It is the tree's ink
    * allowance — a crease closer to a plane than its own ink is not cut by it —
    * and the stroke the hidden test measures a line by. Defaults to the default
    * edge pen, 0.9 pt at 4/3 px per pt.
    */
   lineWidth?: number;
+  /**
+   * Treat the mesh's coplanar faces as ordered layers.
+   *
+   * For a producer whose kernel has already decided which faces share a plane,
+   * to its own tolerance, and ordered them there — the 3D folded figure, whose
+   * layers are exactly coplanar and every one of which is kept for the
+   * painter. The tree's job is then only to order plane against plane, and
+   * four things change from the simulator's rule:
+   *
+   * - the tree is cut in **view** space rather than screen space, so the
+   *   kernel's planes are planes there (see the note on `meshToPaperScene`);
+   * - a crease is left exactly in its plane rather than nudged toward the eye
+   *   by the edge shader's bias, and the tree is given no ink allowance for
+   *   it, so it lands in its plane's coplanar node with the faces;
+   * - a coplanar node is sorted by {@link order} / {@link edgeOrder} before
+   *   kind (`BuildBspOptions.orderBeforeKind`), so a buried layer's creases
+   *   are drawn over that layer and under the one that covers it;
+   * - `coplanarEps` is the kernel's coplanarity distance, in the world units
+   *   the positions are in, rather than the tree's own machine-precision
+   *   default, so float rounding cannot split a plane the kernel joined.
+   *
+   * {@link lineWidth} still measures the hidden test's stroke.
+   */
+  layers?: { coplanarEps: number };
   /** Leave faces out of the scene entirely. On by default. */
   showFaces?: boolean;
   /** Leave lines out of the scene entirely. On by default. */
@@ -148,6 +185,20 @@ const DEFAULT_LINE_WIDTH = 1.2;
  * visibly at every cut. And this space is exactly what the GPU depth-tests in:
  * `gl_Position.w` stays 1, so the rasterizer interpolates depth linearly across
  * *screen* coordinates, which makes every triangle planar here by construction.
+ *
+ * Except under {@link MeshToPaperSceneOptions.layers}, which cuts in view
+ * space. The warp is a central projection from the eye at `camDist`, and that
+ * bends a *plane*: two triangles of one kernel plane are coplanar in view
+ * space and not in this one, by a few percent of the model's radius at a
+ * tilt, so a plane's stack of layers cannot be one coplanar node here and its
+ * creases fall under their own faces. Measured on the folded fixtures, most
+ * of a tilted figure's creases did. In view space the kernel's planes are
+ * planes, the eye is a real point and the traversal is perspective-exact; the
+ * cut points project onto the straight screen segment because the projection
+ * is central (a cut point stays on its line to 1e-14 px). What that gives up
+ * is the GPU's screen-linear depth — a second-order difference where two
+ * planes nearly touch, which the window resolves by draw order rather than by
+ * depth anyway.
  */
 export function meshToPaperScene(
   positions: Float32Array,
@@ -157,7 +208,18 @@ export function meshToPaperScene(
 ): PaperScene {
   const sheet = options.sheet * camera.scale;
   const lineWidth = Math.max(0, options.lineWidth ?? DEFAULT_LINE_WIDTH);
-  const projected = projectVertices(positions, camera, { perspective: options.perspective ?? true });
+  const layers = options.layers;
+  const perspective = options.perspective ?? true;
+  const projected = projectVertices(positions, camera, { perspective });
+  // Where the tree cuts: see the note above. Under `layers` a crease has no
+  // nudge — it belongs to a layer of the plane it lies in, and its order there
+  // says which.
+  const cutPoints = (indices: readonly number[], crease: boolean): Vec3[] =>
+    layers
+      ? viewPoints(projected, indices)
+      : screenPoints(projected, indices, crease ? CREASE_DEPTH_BIAS_NDC * camera.depthRange : 0);
+  const toScreen = (point: Vec3): ScenePoint =>
+    layers ? projectViewPoint(point, camera, perspective) : [point[0], point[1]];
   // Collected even when faces are not drawn: they are what tells a line which
   // face it is drawn on.
   const triangles = collectFaces(topology, projected);
@@ -166,7 +228,8 @@ export function meshToPaperScene(
       ? []
       : collectCreases(topology, projected, (code) => code <= EDGE_CODE.aux);
   const attributes = triangleAttributes(triangles, topology, projected, options);
-  const faceOfLine = lineFaces(creases, triangles, attributes);
+  const byEdge = trianglesByEdge(triangles);
+  const faceOfLine = lineFaces(creases, triangles, attributes, byEdge);
   const boundary = boundaryVertices(topology, projected.count);
 
   const items: BspItem[] = [];
@@ -176,7 +239,7 @@ export function meshToPaperScene(
         kind: 0,
         ref: index,
         order: options.order?.[triangle.source],
-        points: screenPoints(projected, [triangle.a, triangle.b, triangle.c]),
+        points: cutPoints([triangle.a, triangle.b, triangle.c], false),
       });
     });
   }
@@ -191,17 +254,39 @@ export function meshToPaperScene(
     items.push({
       kind: 1,
       ref: index,
-      points: screenPoints(projected, [crease.from, crease.to], CREASE_DEPTH_BIAS_NDC * camera.depthRange),
+      order: layers ? options.edgeOrder?.[crease.edge] : undefined,
+      points: cutPoints([crease.from, crease.to], true),
     });
   });
-  // Depth is a plain comparison in this space, so the view is orthographic and
-  // the eye sits infinitely far along +depth (nearer = larger depth). A line's
-  // ink is measured in page units here, which is what lets the tree leave it
-  // whole against a plane it only grazes — see `BuildBspOptions.edgeInk`.
-  const eye: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
-  const pieces = traverseBsp(buildBsp(items, { edgeInk: lineWidth / 2, eye }), eye).map(
-    (item) => ({ item, screen: item.points.map(([x, y]): ScenePoint => [x, y]) })
-  );
+  // In screen space depth is a plain comparison, so the view is orthographic
+  // and the eye sits infinitely far along +depth (nearer = larger depth); a
+  // line's ink is measured in page units there, which is what lets the tree
+  // leave it whole against a plane it only grazes — see
+  // `BuildBspOptions.edgeInk`. In view space the eye is where the shader puts
+  // it, at `camDist` along +depth, or as far as the orthographic fallback's.
+  const eye: Vec3 = [0, 0, layers && perspective ? camera.camDist : Number.MAX_SAFE_INTEGER];
+  const tree = layers
+    ? buildBsp(items, { edgeInk: 0, eye, coplanarEps: layers.coplanarEps, orderBeforeKind: true })
+    : buildBsp(items, { edgeInk: lineWidth / 2, eye });
+  const traversed = traverseBsp(tree, eye);
+  const pieces = (
+    layers
+      ? creasesAfterOwnFace(
+          traversed,
+          {
+            faceOf: (piece) => attributes[piece.ref]!.face,
+            ownersOf: (crease) => {
+              const { from, to } = creases[crease.ref]!;
+              return byEdge.get(vertexKey(from, to)) ?? [];
+            },
+          },
+          layers.coplanarEps
+        )
+      : traversed
+  ).map((item) => ({ item, screen: item.points.map(toScreen) }));
+  // A vertex where the tree cut — what an uncut end of a crease piece still
+  // carries verbatim, whichever space the cut was made in.
+  const vertexAt = (vertex: number): Vec3 => cutPoints([vertex], true)[0]!;
   const bounds = pointBounds(pieces.map((piece) => piece.screen));
   if (!bounds) return { bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 }, sheet, items: [] };
 
@@ -305,10 +390,100 @@ export function meshToPaperScene(
       return;
     }
     const crease = creases[item.ref]!;
-    out.push(lineItem(crease, item, screen, projected, boundary, faceOfLine[item.ref], isHidden));
+    out.push(
+      lineItem(crease, screen, item.points, vertexAt, boundary, faceOfLine[item.ref], isHidden)
+    );
   });
 
   return { bounds, sheet, items: out };
+}
+
+/**
+ * Each crease moved to follow the piece of its own triangle, where the tree
+ * drew that piece after it. Everything else keeps its order.
+ *
+ * A crease on the line where two planes meet is coplanar with both, and the
+ * tree files it under whichever plane's node it reaches first. Filed under the
+ * neighbour's, it is drawn before its own face, whose antialiased edge then
+ * covers half its ink — the thin-line fault the GPU avoids by drawing each
+ * plane's creases after that plane's paper. Its own triangle is the one that
+ * shares its two vertices — by index, not position: a buried layer's crease
+ * sits at the same coordinates as the layer over it, and must not follow that
+ * one — and the piece of it the crease lies on is the piece that still holds
+ * both endpoints, since a cut leaves the same crossing on the face's edge as
+ * on the crease. The crease goes after that piece's run of its face, so a
+ * face's pieces stay consecutive for the merge, and lands over nothing the
+ * piece itself is not over — the piece being nearer than everything the tree
+ * drew between.
+ */
+function creasesAfterOwnFace(
+  pieces: readonly BspItem[],
+  mesh: {
+    /** The source face of a face piece. */
+    faceOf: (piece: BspItem) => number;
+    /** The triangles (face `ref`s) that share both vertices of a crease piece. */
+    ownersOf: (crease: BspItem) => readonly number[];
+  },
+  eps: number
+): BspItem[] {
+  const near = (a: Vec3, b: Vec3): boolean =>
+    Math.abs(a[0] - b[0]) <= eps && Math.abs(a[1] - b[1]) <= eps && Math.abs(a[2] - b[2]) <= eps;
+  const holds = (piece: BspItem, point: Vec3): boolean =>
+    piece.points.some((vertex) => near(vertex, point));
+  // Indexed once rather than scanned per crease: a crease the tree already
+  // drew after its own face has no piece to find, and scanning to the end for
+  // every such crease made this pass quadratic in the pieces — seconds on a
+  // deep figure, where the tree itself takes milliseconds.
+  /** Where each triangle's pieces stand, in draw order. */
+  const piecesOf = new Map<number, number[]>();
+  /** Per face piece, the last index of the run of its face's pieces it belongs to. */
+  const runEnd = new Int32Array(pieces.length);
+  pieces.forEach((piece, index) => {
+    if (piece.kind !== 0) return;
+    const list = piecesOf.get(piece.ref);
+    if (list) list.push(index);
+    else piecesOf.set(piece.ref, [index]);
+  });
+  for (let index = pieces.length - 1; index >= 0; index -= 1) {
+    const piece = pieces[index]!;
+    if (piece.kind !== 0) continue;
+    const next = pieces[index + 1];
+    const continues = next && next.kind === 0 && mesh.faceOf(next) === mesh.faceOf(piece);
+    runEnd[index] = continues ? runEnd[index + 1]! : index;
+  }
+  /** Index of the piece each moved crease follows. */
+  const after = new Map<number, number>();
+  pieces.forEach((piece, index) => {
+    if (piece.kind !== 1) return;
+    const [a, b] = piece.points;
+    if (!a || !b) return;
+    let first: number | undefined;
+    for (const ref of mesh.ownersOf(piece)) {
+      for (const j of piecesOf.get(ref) ?? []) {
+        if (j <= index || (first !== undefined && j >= first)) continue;
+        const candidate = pieces[j]!;
+        if (!holds(candidate, a) || !holds(candidate, b)) continue;
+        first = j;
+        break;
+      }
+    }
+    if (first !== undefined) after.set(index, runEnd[first]!);
+  });
+  if (after.size === 0) return pieces.slice();
+
+  const moved = new Map<number, BspItem[]>();
+  for (const [crease, target] of after) {
+    const list = moved.get(target) ?? [];
+    list.push(pieces[crease]!);
+    moved.set(target, list);
+  }
+  const out: BspItem[] = [];
+  pieces.forEach((piece, index) => {
+    if (!after.has(index)) out.push(piece);
+    const following = moved.get(index);
+    if (following) out.push(...following);
+  });
+  return out;
 }
 
 /**
@@ -388,6 +563,24 @@ function triangleAttributes(
   }));
 }
 
+/** The triangles on each edge, keyed by the edge's vertex pair. */
+function trianglesByEdge(triangles: readonly Triangle[]): Map<string, number[]> {
+  const byEdge = new Map<string, number[]>();
+  triangles.forEach((triangle, index) => {
+    for (const [from, to] of [
+      [triangle.a, triangle.b],
+      [triangle.b, triangle.c],
+      [triangle.c, triangle.a],
+    ] as const) {
+      const key = vertexKey(from, to);
+      const list = byEdge.get(key);
+      if (list) list.push(index);
+      else byEdge.set(key, [index]);
+    }
+  });
+  return byEdge;
+}
+
 /**
  * The face each crease is drawn on: of the triangles that share its edge, the
  * one nearer the eye — the face whose edge the line is painted over, since
@@ -397,24 +590,17 @@ function triangleAttributes(
 function lineFaces(
   creases: readonly Crease[],
   triangles: readonly Triangle[],
-  attributes: readonly TriangleAttributes[]
+  attributes: readonly TriangleAttributes[],
+  byEdge: ReadonlyMap<string, readonly number[]>
 ): Array<number | undefined> {
-  const nearest = new Map<string, { depth: number; face: number }>();
-  triangles.forEach((triangle, index) => {
-    const face = attributes[index]!.face;
-    for (const [from, to] of [
-      [triangle.a, triangle.b],
-      [triangle.b, triangle.c],
-      [triangle.c, triangle.a],
-    ] as const) {
-      const key = vertexKey(from, to);
-      const current = nearest.get(key);
-      if (!current || triangle.depth > current.depth) {
-        nearest.set(key, { depth: triangle.depth, face });
-      }
+  return creases.map((crease) => {
+    let nearest: { depth: number; face: number } | undefined;
+    for (const index of byEdge.get(vertexKey(crease.from, crease.to)) ?? []) {
+      const depth = triangles[index]!.depth;
+      if (!nearest || depth > nearest.depth) nearest = { depth, face: attributes[index]!.face };
     }
+    return nearest?.face;
   });
-  return creases.map((crease) => nearest.get(vertexKey(crease.from, crease.to))?.face);
 }
 
 function vertexKey(from: number, to: number): string {
@@ -464,9 +650,9 @@ function faceItem(
 
 function lineItem(
   crease: Crease,
-  piece: BspItem,
   screen: readonly ScenePoint[],
-  projected: ProjectedVertices,
+  cut: readonly Vec3[],
+  vertexAt: (vertex: number) => Vec3,
   boundary: Uint16Array,
   face: number | undefined,
   hidden: boolean
@@ -474,10 +660,16 @@ function lineItem(
   const role = roleOf(crease.assignment);
   // A cut leaves a piece ending mid-crease; that end is nobody's boundary, or
   // erode would open a gap where the two pieces meet. An end is the crease's
-  // own only when it still carries the vertex's projected position.
+  // own only when it still carries the vertex's position in the space the tree
+  // cut in, which the tree keeps verbatim for an uncut end. Not on the page:
+  // under `layers` a vertex's page position is its float32 view position
+  // projected, while `projected.screen` holds the projection of the float64
+  // view rounded to float32, and the two differ in their last bits at any
+  // real camera.
   const own = (end: 0 | 1, vertex: number) => {
-    const point = piece.points[end]!;
-    return point[0] === projected.screen[vertex * 2] && point[1] === projected.screen[vertex * 2 + 1];
+    const point = cut[end]!;
+    const at = vertexAt(vertex);
+    return point[0] === at[0] && point[1] === at[1] && point[2] === at[2];
   };
   const onBoundary = (vertex: number) =>
     role !== 'edge' && (boundary[vertex] ?? 0) - (crease.assignment <= EDGE_CODE.valley ? 1 : 0) > 0;

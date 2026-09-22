@@ -2,10 +2,12 @@ import {
   applyCreaseStyle,
   cssPxToPt,
   DEFAULT_PAPER_STYLE,
+  effectivePaperStyle,
   normalizePaperStyle,
   parseHex,
   PEN_WIDTH_RANGE,
   type PaperStyle,
+  type PaperStyleOverrides,
 } from './paper/paperStyle';
 import { normalizePaperStylePreset, type PaperStylePreset } from './paper/paperPresets';
 
@@ -36,6 +38,19 @@ export const DEFAULT_PAPER_STYLE_SETTINGS: PaperStyleSettings = {
   export: null,
   presets: [],
 };
+
+/**
+ * The style an export paints with: the export slot while the user has set one
+ * apart, the display style otherwise, with an object's own pins on top. Every
+ * surface that exports through the shared painter resolves its style here, so
+ * the export slot cannot be honoured on one surface and missed on another.
+ */
+export function exportPaperStyle(
+  settings: Pick<PaperStyleSettings, 'display' | 'export'>,
+  overrides?: PaperStyleOverrides
+): PaperStyle {
+  return effectivePaperStyle(settings.export ?? settings.display, overrides);
+}
 
 /** The persisted form. `version` is written so a later shape can be told apart. */
 export interface PersistedPaperStyleSettings extends PaperStyleSettings {

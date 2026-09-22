@@ -314,6 +314,20 @@ export interface Folded3dMesh {
    * looking at.
    */
   fallbackEdgeCount: number;
+  /**
+   * Per crease of `topology.edgeIndices`, the condition a hinge is drawn
+   * under: `partnerPlane` is the plane on the far side of the bend, or `-1`
+   * for a crease drawn whenever its layer is, and `requiredSide` the side of
+   * that plane that must be facing the eye — `0` for a hinge buried on both
+   * of its partner's sides, which no camera admits.
+   *
+   * What `folded3dDrawPasses` decides per skin from {@link Folded3dSkin.hingeGroups},
+   * stated per crease: the translucent run carries every layer's creases
+   * unconditioned, and a consumer drawing a buried layer from it (the vector
+   * export, which keeps buried paper) has to apply the same rule to that
+   * layer's hinges or draw a bend the window hides.
+   */
+  hinges: { partnerPlane: Int32Array; requiredSide: Int8Array };
 }
 
 /**
@@ -339,7 +353,7 @@ export type Folded3dMeshResult =
  * projector's `toSimBasis`, deliberately: the two paths must place the same
  * model at the same camera in the same place.
  */
-function toSimBasis(p: Vec3): Vec3 {
+export function toSimBasis(p: Vec3): Vec3 {
   return [p[0], p[2], -p[1]];
 }
 
@@ -425,6 +439,13 @@ interface SlotCrease {
    * stack, and skipped by every skin.
    */
   buried: boolean;
+  /**
+   * The plane on the far side of the bend for any hinge, buried or not, or
+   * `-1` for a crease that is not one — what {@link Folded3dMesh.hinges}
+   * reports. `partnerPlane` above is `-1` for a hinge exposed on both sides,
+   * which the skins draw unconditionally.
+   */
+  hingePlane: number;
 }
 
 export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
@@ -556,13 +577,15 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         // A hinge exposed on both of its partner's sides is unconditional — the
         // partner cell has one layer, so nothing over there can bury the bend.
         const conditional = hinge != null && hinge.exposedOnPlus !== hinge.exposedOnMinus;
+        const buried = hinge != null && !hinge.exposedOnPlus && !hinge.exposedOnMinus;
         creases.push({
           a: first + segment,
           b: first + ((segment + 1) % ring.length),
           assignment: assignmentOf[edge] ?? 0,
           partnerPlane: conditional ? hinge.partnerPlane : -1,
           requiredSide: conditional ? (hinge.exposedOnPlus ? 1 : -1) : 0,
-          buried: hinge != null && !hinge.exposedOnPlus && !hinge.exposedOnMinus,
+          buried,
+          hingePlane: conditional || buried ? hinge.partnerPlane : -1,
         });
       }
 
@@ -581,7 +604,16 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const faceIndices: number[] = [];
   const edgeIndices: number[] = [];
   const edgeAssignments: number[] = [];
+  const hingePartner: number[] = [];
+  const hingeSide: number[] = [];
   const slotIndexStart: number[] = new Array<number>(slotCell.length).fill(0);
+
+  const appendCrease = (crease: SlotCrease): void => {
+    edgeIndices.push(crease.a, crease.b);
+    edgeAssignments.push(crease.assignment);
+    hingePartner.push(crease.hingePlane);
+    hingeSide.push(crease.buried ? 0 : crease.requiredSide);
+  };
 
   /**
    * Everything of a slot, in one run — the translucent and undetermined paths,
@@ -590,10 +622,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const appendSlot = (slot: number, record = false): void => {
     if (record) slotIndexStart[slot] = faceIndices.length;
     for (const index of slotTriangles[slot]!) faceIndices.push(index);
-    for (const crease of slotCreases[slot]!) {
-      edgeIndices.push(crease.a, crease.b);
-      edgeAssignments.push(crease.assignment);
-    }
+    for (const crease of slotCreases[slot]!) appendCrease(crease);
   };
 
   const appendSlotFaces = (slot: number): void => {
@@ -605,9 +634,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     accept: (crease: SlotCrease) => boolean
   ): void => {
     for (const crease of slotCreases[slot]!) {
-      if (!accept(crease)) continue;
-      edgeIndices.push(crease.a, crease.b);
-      edgeAssignments.push(crease.assignment);
+      if (accept(crease)) appendCrease(crease);
     }
   };
 
@@ -625,6 +652,8 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     }
     edgeIndices.push(vertex - 2, vertex - 1);
     edgeAssignments.push(assignmentOf[edge] ?? 0);
+    hingePartner.push(-1);
+    hingeSide.push(0);
   }
   const fallbackEdgeCount = edgeAssignments.length;
 
@@ -762,6 +791,10 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         edgeCount: edgeAssignments.length - undeterminedEdgeStart,
       },
       fallbackEdgeCount,
+      hinges: {
+        partnerPlane: Int32Array.from(hingePartner),
+        requiredSide: Int8Array.from(hingeSide),
+      },
     },
   };
 }

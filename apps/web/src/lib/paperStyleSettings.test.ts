@@ -3,10 +3,29 @@ import { builtInPaperPreset } from './paper/paperPresets';
 import { DEFAULT_PAPER_STYLE, creaseStyleOf } from './paper/paperStyle';
 import {
   DEFAULT_PAPER_STYLE_SETTINGS,
+  exportPaperStyle,
   normalizePaperStyleSettings,
   paperStyleFromSimulatorSettings,
   persistedPaperStyleSettings,
 } from './paperStyleSettings';
+
+describe('exportPaperStyle', () => {
+  const display = { ...DEFAULT_PAPER_STYLE, paper: { front: '#ff0000', back: '#e9e9e9' } };
+  const exported = { ...DEFAULT_PAPER_STYLE, paper: { front: '#00ff00', back: '#e9e9e9' } };
+
+  it('is the display style while no export style is set apart', () => {
+    expect(exportPaperStyle({ display, export: null })).toBe(display);
+  });
+
+  it('is the export style once one is set', () => {
+    expect(exportPaperStyle({ display, export: exported })).toBe(exported);
+  });
+
+  it('lays an object’s pins over whichever slot it took', () => {
+    const style = exportPaperStyle({ display, export: exported }, { 'paper.front': '#0000ff' });
+    expect(style.paper).toEqual({ front: '#0000ff', back: '#e9e9e9' });
+  });
+});
 
 describe('normalizePaperStyleSettings', () => {
   it('reads nothing as the defaults', () => {

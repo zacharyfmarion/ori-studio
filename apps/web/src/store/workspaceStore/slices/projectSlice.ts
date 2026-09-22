@@ -80,6 +80,13 @@ import {
   serializeFoldedFigureSvg,
   type FoldedFigureExportFormat,
 } from '../../../cp-workspace/folded/foldedFigureExport';
+import { folded3dFigureExportPage } from '../../../cp-workspace/folded/folded3dFigureExport';
+import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
+import { overlayCssPerModel } from '../../../cp-workspace/annotations/annotationTransform';
+import { paperSvgToPng } from '../../../lib/paper/paperPng';
+import { paperPageOf } from '../../../lib/paperExportSettings';
+import { exportPaperStyle } from '../../../lib/paperStyleSettings';
+import { useSettingsStore } from '../../settingsStore';
 import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
 import {
   importedCreasePatternFormat,
@@ -247,6 +254,16 @@ import type {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+/**
+ * CSS px per crease-pattern user unit at the mounted canvas — what a folded
+ * figure's on-screen box is measured in, so its export page is its on-screen
+ * size (D3). 1 when no canvas is mounted, which is the box at zoom 1.
+ */
+function foldedFigureCssPerUserUnit(): number {
+  const user = cpOverlayViewStore.get()?.user;
+  return user ? overlayCssPerModel(user) : 1;
 }
 
 
@@ -3116,6 +3133,53 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const figure = get().oristudioCpFoldedFigures.find(
           (candidate) => candidate.id === figureId
         );
+        const name = figure ? `${get().workspaceTitle} ${figure.title}` : '';
+
+        // A 3D figure with a live kernel exports its window's scene through
+        // the shared painter, on the export style and page every paper surface
+        // shares. Read at the moment of export, as the simulator's hook reads
+        // them. A figure this answers null for — reopened from a file and not
+        // yet rehydrated, so there is no render model — keeps the snapshot path
+        // below (R7; the projector retires in Phase 7).
+        if (figure?.folded3d) {
+          const { paperStyle, paperExport } = useSettingsStore.getState();
+          const page = paperPageOf(paperExport);
+          const painted = folded3dFigureExportPage(figure, {
+            style: exportPaperStyle(paperStyle, figure.appearance),
+            page,
+            cssPerUserUnit: foldedFigureCssPerUserUnit(),
+          });
+          if (painted) {
+            const result =
+              format === 'svg'
+                ? await fileService.saveTextFile({
+                    title: 'Export Folded Figure SVG',
+                    contents: painted.svg,
+                    suggestedName: defaultFilename(name, 'svg'),
+                    path: null,
+                    extensions: ['svg'],
+                  })
+                : await fileService.saveBinaryFile({
+                    title: 'Export Folded Figure PNG',
+                    bytes: await paperSvgToPng(painted, paperExport.pngDpi),
+                    suggestedName: defaultFilename(name, 'png'),
+                    path: null,
+                    extensions: ['png'],
+                    mimeType: 'image/png',
+                  });
+            if (!result) return false;
+            // Hand-placed: the file service's `file exported` sees a format and
+            // nothing of which surface drew it or on what page.
+            track('paper exported', {
+              surface: 'folded-3d',
+              format,
+              hidden_faces: page.keepHiddenFaces ? 'kept' : 'dropped',
+            });
+            set({ projectMessage: `Exported ${result.name}` });
+            return true;
+          }
+        }
+
         // Serialized straight from the snapshot the canvas is drawing, so the
         // file is the figure the user is looking at — no second fold.
         const snapshot = figure?.renderSnapshot;
@@ -3127,7 +3191,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           });
           return false;
         }
-        const name = `${get().workspaceTitle} ${figure.title}`;
 
         if (format === 'svg') {
           const contents = serializeFoldedFigureSvg(snapshot);

@@ -125,6 +125,21 @@ export interface BuildBspOptions {
    * patch.
    */
   coplanarEps?: number;
+  /**
+   * Sort a coplanar list by {@link BspItem.order} before kind, so a lower
+   * order's edges precede a higher order's faces. Off, the default, kind comes
+   * first: every face in the list precedes every edge, whatever their orders,
+   * and `order` only breaks ties within a kind.
+   *
+   * For a caller whose `order` names the stacked layers of one plane — the 3D
+   * folded figure keeps every layer of a cell, all exactly coplanar, for a
+   * painter that lets buried paper be uncovered — this is what draws a buried
+   * layer's creases over that layer and under the one that covers it, rather
+   * than over the whole stack. Such a caller gives a layer's creases an order
+   * past every face of the same layer, so within a layer faces still come
+   * first.
+   */
+  orderBeforeKind?: boolean;
 }
 
 const DEFAULT_EYE: Vec3 = [0, 0, Number.MAX_SAFE_INTEGER];
@@ -306,24 +321,35 @@ function chooseSplitter(
 }
 
 export function buildBsp(items: BspItem[], options: BuildBspOptions = {}): BspNode | null {
-  const edgeInk = options.edgeInk ?? 0;
-  const eye = options.eye ?? DEFAULT_EYE;
-  const coplanarEps = options.coplanarEps ?? EPS;
-  return subdivide(items, edgeInk, eye, coplanarEps, 0);
+  const settings: Settings = {
+    edgeInk: options.edgeInk ?? 0,
+    eye: options.eye ?? DEFAULT_EYE,
+    coplanarEps: options.coplanarEps ?? EPS,
+    orderBeforeKind: options.orderBeforeKind ?? false,
+  };
+  return subdivide(items, settings, 0);
 }
 
-function subdivide(
-  items: BspItem[],
-  edgeInk: number,
-  eye: Vec3,
-  coplanarEps: number,
-  depth: number
-): BspNode | null {
+/** {@link BuildBspOptions} with every default applied. */
+interface Settings {
+  edgeInk: number;
+  eye: Vec3;
+  coplanarEps: number;
+  orderBeforeKind: boolean;
+}
+
+function subdivide(items: BspItem[], settings: Settings, depth: number): BspNode | null {
   if (items.length === 0) return null;
+  const { edgeInk, eye, coplanarEps } = settings;
   const splitter = depth < MAX_DEPTH ? chooseSplitter(items, edgeInk, coplanarEps) : null;
   if (!splitter) {
     // No usable plane (all edges, all degenerate, or the depth guard tripped).
-    return { plane: null, coplanar: sortCoplanar(items), front: null, back: null };
+    return {
+      plane: null,
+      coplanar: sortCoplanar(items, settings.orderBeforeKind),
+      front: null,
+      back: null,
+    };
   }
 
   const nearIsFront = distance(splitter.plane, eye) >= 0;
@@ -348,9 +374,9 @@ function subdivide(
 
   return {
     plane: splitter.plane,
-    coplanar: sortCoplanar(coplanar),
-    front: subdivide(front, edgeInk, eye, coplanarEps, depth + 1),
-    back: subdivide(back, edgeInk, eye, coplanarEps, depth + 1),
+    coplanar: sortCoplanar(coplanar, settings.orderBeforeKind),
+    front: subdivide(front, settings, depth + 1),
+    back: subdivide(back, settings, depth + 1),
   };
 }
 
@@ -358,10 +384,19 @@ function subdivide(
  * Faces before edges, so a crease lying in a face's plane is drawn over it —
  * the vector counterpart of the depth bias the edge shader applies — and then by
  * the caller's own {@link BspItem.order}, which the splitter promotion above
- * would otherwise destroy.
+ * would otherwise destroy. Or the other way about, when the caller's order
+ * names layers — see {@link BuildBspOptions.orderBeforeKind}.
  */
-function sortCoplanar(items: BspItem[]): BspItem[] {
-  return items.slice().sort((l, r) => l.kind - r.kind || (l.order ?? 0) - (r.order ?? 0));
+function sortCoplanar(items: BspItem[], orderBeforeKind: boolean): BspItem[] {
+  const byKind = (l: BspItem, r: BspItem): number => l.kind - r.kind;
+  const byOrder = (l: BspItem, r: BspItem): number => (l.order ?? 0) - (r.order ?? 0);
+  return items
+    .slice()
+    .sort(
+      orderBeforeKind
+        ? (l, r) => byOrder(l, r) || byKind(l, r)
+        : (l, r) => byKind(l, r) || byOrder(l, r)
+    );
 }
 
 /**

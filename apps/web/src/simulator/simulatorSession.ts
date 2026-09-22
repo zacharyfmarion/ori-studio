@@ -1,8 +1,8 @@
 import { transfer } from 'comlink';
 import type { PaperPage } from '../lib/paper/paperPage';
-import { PT_TO_CSS_PX, type PaperStyle } from '../lib/paper/paperStyle';
+import type { PaperStyle } from '../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, lightVector, surfacePaperStyle } from '../lib/paper/paperStyleResolve';
-import { paperSceneToSvg, widestPenPt, type PaperSvgResult } from '../lib/paper/paperSvg';
+import { paperSceneToSvg, widestPenCssPx, type PaperSvgResult } from '../lib/paper/paperSvg';
 import { PreparedModelCache } from '../lib/preparedModelCache';
 import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_FOLDED_MESHES } from './simulatorLimits';
 import {
@@ -1913,13 +1913,8 @@ export function sheetExtent(originalPositions: Float32Array): number {
   return extent;
 }
 
-/**
- * The widest pen the painter will draw, in CSS px: the scene's ink allowance
- * for the tree and the stroke its hidden test measures a line by.
- */
-export function widestPenCssPx(style: PaperStyle): number {
-  return widestPenPt(style) * PT_TO_CSS_PX;
-}
+/** Re-exported for the tests that pinned it here; it lives with the painter now. */
+export { widestPenCssPx } from '../lib/paper/paperSvg';
 
 /**
  * The worker API as a plain object, usable without a Worker.

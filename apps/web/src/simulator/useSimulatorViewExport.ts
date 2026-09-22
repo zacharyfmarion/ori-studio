@@ -2,9 +2,10 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ANALYTICS_EVENTS, track, type PaperExportSurface } from '../analytics';
-import { effectivePaperStyle, type PaperStyleOverrides } from '../lib/paper/paperStyle';
+import type { PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { PaperSvgResult } from '../lib/paper/paperSvg';
 import { paperPageOf } from '../lib/paperExportSettings';
+import { exportPaperStyle } from '../lib/paperStyleSettings';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { saveSimulatorView, type SimulatorViewExportFormat } from './simulatorViewExport';
@@ -43,7 +44,7 @@ export function useSimulatorViewExport(
       // the moment of export, and a subscription here would re-render a surface
       // that repaints per solver frame.
       const { paperStyle, paperExport } = useSettingsStore.getState();
-      const style = effectivePaperStyle(paperStyle.export ?? paperStyle.display, overrides);
+      const style = exportPaperStyle(paperStyle, overrides);
       const page = paperPageOf(paperExport);
       // A worker round-trip can reject (a lost GL context, a session released
       // mid-click), and that is the same outcome for the user as an empty view.

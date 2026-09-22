@@ -17,22 +17,21 @@ import type { Point } from '../../lib/geometry';
  * standalone image has no canvas; the crease-pattern export draws its folded
  * figure from the snapshot alone for the same reason.
  *
- * # A 3D figure exports the view it is showing, and needs nothing here
+ * # A 3D figure with a live kernel does not export from here
  *
- * The same story the simulator's own view export has: one drawing, made from the
- * render state, with the raster derived from it rather than made a second way.
- * A 3D figure's `renderSnapshot` *is* that drawing — `foldedFigure3dProjection`
- * builds it through the simulator's BSP and hidden-piece passes and reproduces
- * the simulator's lighting (`shading.ts`), so the file carries the shading the window shows
- * — and the store keeps it current, refreshing it once at the end of a turn and
- * whenever the style or colours change.
+ * It exports its window's scene through the shared painter instead
+ * (`folded3dFigureExport.ts`), so the file is the picture the window shows
+ * rather than the projector's second drawing of it. What *does* come through
+ * here is a 3D figure reopened from a file and not yet rehydrated: it has no
+ * render model to build a scene from, so its stored `renderSnapshot` — the
+ * projector's picture, the same one the canvas and the CP export dialog draw
+ * for it (R7) — is serialized as it always was, until the projector retires and
+ * the scene is what gets stored (Phase 7 of
+ * `implementation-plans/unified-paper-style-and-export.md`).
  *
- * Two things it deliberately does not follow the window on. **Zoom**, because a
- * window crops with `overflow` and a page does not: a zoomed-in model would spill
- * past the artwork instead of being cut off by a border, so the projection stays
- * fitted to the figure's frame at any zoom. And the **red annotation** on cells
- * whose order the solver could not decide, which the file keeps and the window
- * has no third colour for.
+ * That stored picture is fitted to the figure's frame at any zoom, and keeps
+ * the **red annotation** on cells whose order the solver could not decide,
+ * which the window has no third colour for.
  */
 
 /** Formats a folded figure can be exported to: it is geometry, so images only. */
