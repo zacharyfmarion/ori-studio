@@ -629,6 +629,50 @@ re-pinned onto `meshToPaperScene` and the web's painter tests. Analytics:
 `paper exported { surface: 'simulator' | 'inline-simulation' | …, format: 'svg' | 'png', hidden_faces: 'kept' | 'dropped' }`
 fired from the export hook; `file exported` keeps firing from the file service.
 
+### 7. Phase 3 contracts
+
+**Producer** `cp-workspace/folded/folded3dScene.ts`:
+`folded3dPaperScene(mesh: Folded3dMesh, model: OristudioCpFolded3dRenderModel, camera: CameraUniforms, options: { style: PaperStyle; markHidden: boolean }): PaperScene`
+feeds the window's own mesh (`folded3dMesh(model)`, the same buffers
+`FoldedMeshSource` uploads) to `meshToPaperScene`: the **translucent range**
+(every layer, so buried faces exist to keep), `faceGroups` = the slot's kernel
+face per triangle, `sides` = the side the window would paint that triangle
+(derive it from the winding convention `folded3dMesh.ts` documents, so the
+scene's front/back equals the GPU's), `order` = the slot's stack depth (the
+kernel's `cell_stack`, which is what `BspItem.order` sorts a coplanar node
+by), `lighting`/`lightDir` from the figure's effective style through the
+`folded-3d` policy, `perspective: true` (D7), `sheet` = the unfolded paper's
+extent in the render model's units, and creases **unbiased** — `lineWidth`
+0 for the tree's ink allowance so a plane's creases stay inside its coplanar
+node (F5, the projector's `edgeInk 0`); the painter draws them at the pen's
+width regardless. Edge roles from the mesh's assignment codes (0 border →
+`edge`, 1/2 → mountain/valley, 0° creases → aux via code 3 when
+`folded3dEdgeAssignment` learns it; until Phase 5 they stay `edge`).
+
+**Camera.** The figure's stored orbit (`figure.camera`) at the frame the
+window shows: `cameraUniforms(view, mesh.center, mesh.radius × silhouette factor, w, h)`
+with `w = h =` the figure's on-screen box in CSS px, read through the CP
+camera registry (`renderer/cpCameraRegistry.ts`) at export time; when no
+canvas is mounted, the box at zoom 1. Zoom-independent by construction: the
+page is the artwork crop at that orientation (D3).
+
+**Wiring.** `exportOristudioCpFoldedFigure(format, id)` for a figure with
+`folded3d` and a live handle builds the scene from `folded3dRenderModel(handle)`
+and paints it with `effectivePaperStyle(paperStyle.export ?? display, figure.appearance)`
+and `settingsStore.paperExport` (`keepHiddenFaces` → `markHidden`); PNG at
+`pngDpi`. A reopened figure without a handle keeps exporting its stored
+`renderSnapshot` through `foldedFigureSvgBody` until rehydration (R7,
+Phase 7). The flat figure is untouched (Phase 4). `paper exported { surface: 'folded-3d', … }`.
+The CP export dialog's "Include folded figure" is the flat re-fold and is
+not a 3D path; it moves in Phase 4.
+
+**Parity.** A new test renders the six projector fixtures through
+`folded3dPaperScene` at the parity harness's cameras and asserts, per
+camera, that the set of visible `(face, side)` in the scene equals the
+window's draw-pass skins (`folded3dDrawPasses`) — the same mesh, so this is
+the invariant that replaces the projector-vs-window comparison once the
+projector retires. The existing harness stays until Phase 7.
+
 ## Affected Areas
 
 - `apps/web/src/lib/paper/` (new): style, scene, painter, presets, tests.
