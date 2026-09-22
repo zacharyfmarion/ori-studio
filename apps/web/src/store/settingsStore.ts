@@ -18,7 +18,9 @@ import {
 } from '../lib/oristudioBpViewportSettings';
 import {
   normalizePaperStylePreset,
+  paperPresetKey,
   parsePaperStylePreset,
+  userPaperPresetKey,
   type PaperPresetParseResult,
   type PaperStylePreset,
 } from '../lib/paper/paperPresets';
@@ -157,6 +159,31 @@ function withSlotStyle(
   style: PaperStyle
 ): PaperStyleSettings {
   return slot === 'export' ? { ...settings, export: style } : { ...settings, display: style };
+}
+
+/** The settings with one slot's remembered preset replaced. */
+function withAppliedPreset(
+  settings: PaperStyleSettings,
+  slot: PaperStyleSlot,
+  key: string | null
+): PaperStyleSettings {
+  return { ...settings, appliedPreset: { ...settings.appliedPreset, [slot]: key } };
+}
+
+/**
+ * A field write to one slot. Editing the export slot while it still follows
+ * display forks it, so the preset display was showing forks with it: the copy
+ * came from that preset and is about to differ from it, which is exactly what
+ * "modified" means.
+ */
+function withSlotEdit(
+  settings: PaperStyleSettings,
+  slot: PaperStyleSlot,
+  style: PaperStyle
+): PaperStyleSettings {
+  const next = withSlotStyle(settings, slot, style);
+  if (slot !== 'export' || settings.export !== null) return next;
+  return withAppliedPreset(next, 'export', settings.appliedPreset.display);
 }
 
 /** Presets are keyed by name: saving under a taken name replaces that preset in place. */
@@ -340,7 +367,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setPaperStyleField: (slot, field, value) => {
         const current = get().paperStyle;
-        const next = withSlotStyle(
+        const next = withSlotEdit(
           current,
           slot,
           withPaperStyleField(slotStyle(current, slot), field, value)
@@ -350,7 +377,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setPaperStyleFields: (slot, fields) => {
         const current = get().paperStyle;
-        const next = withSlotStyle(
+        const next = withSlotEdit(
           current,
           slot,
           effectivePaperStyle(slotStyle(current, slot), fields)
@@ -359,7 +386,12 @@ export const useSettingsStore = create<SettingsState>()(
         set({ paperStyle: next });
       },
       applyPaperPreset: (slot, preset) => {
-        const next = withSlotStyle(get().paperStyle, slot, preset.style);
+        const current = get().paperStyle;
+        const next = withAppliedPreset(
+          withSlotStyle(current, slot, preset.style),
+          slot,
+          paperPresetKey(preset)
+        );
         persistPaperStyle(next);
         set({ paperStyle: next });
       },
@@ -369,6 +401,12 @@ export const useSettingsStore = create<SettingsState>()(
         const next: PaperStyleSettings = {
           ...current,
           export: follows ? null : current.display,
+          // Detaching copies display, preset and all; following again leaves
+          // the export slot showing nobody's preset, because it shows display's.
+          appliedPreset: {
+            ...current.appliedPreset,
+            export: follows ? null : current.appliedPreset.display,
+          },
         };
         persistPaperStyle(next);
         set({ paperStyle: next });
@@ -382,16 +420,29 @@ export const useSettingsStore = create<SettingsState>()(
           style: slotStyle(current, slot),
         });
         if (!preset) return;
-        const next = { ...current, presets: withPreset(current.presets, preset) };
+        // The slot is now showing the preset it was just saved as, and is by
+        // construction unmodified against it.
+        const next = withAppliedPreset(
+          { ...current, presets: withPreset(current.presets, preset) },
+          slot,
+          paperPresetKey(preset)
+        );
         persistPaperStyle(next);
         set({ paperStyle: next });
       },
       removePaperPreset: (name) => {
         const current = get().paperStyle;
         if (!current.presets.some((preset) => preset.name === name)) return;
-        const next = {
+        // A slot that was showing it is showing nobody's preset now; the style
+        // it is holding does not change.
+        const gone = userPaperPresetKey(name);
+        const next: PaperStyleSettings = {
           ...current,
           presets: current.presets.filter((preset) => preset.name !== name),
+          appliedPreset: {
+            display: current.appliedPreset.display === gone ? null : current.appliedPreset.display,
+            export: current.appliedPreset.export === gone ? null : current.appliedPreset.export,
+          },
         };
         persistPaperStyle(next);
         set({ paperStyle: next });

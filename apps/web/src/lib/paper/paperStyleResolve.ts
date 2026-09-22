@@ -159,6 +159,15 @@ export function hexToUnitRgb(hex: Hex): Vec3 {
   ];
 }
 
+/** The inverse of {@link hexToUnitRgb}: a 0..1 colour as `#rrggbb`, clamped per channel. */
+export function unitRgbToHex(color: readonly [number, number, number]): Hex {
+  const channel = (value: number) =>
+    Math.round(Math.min(1, Math.max(0, value)) * 255)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${channel(color[0])}${channel(color[1])}${channel(color[2])}`;
+}
+
 /** A pen's dash as device-px runs: its multiples times its device-px width. */
 export function penDashDevicePx(pen: Pen, dpr: number): number[] | null {
   if (!pen.dash) return null;

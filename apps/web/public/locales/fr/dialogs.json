@@ -378,16 +378,29 @@
       "updateAvailable": "Plus récent que la version installée"
     },
     "paper": {
-      "auxVisible": "Afficher les plis existants sur le papier plié",
+      "auxVisible": "Afficher les plis existants",
+      "auxVisibleHint": "Plis déjà présents dans le papier, sur toutes les surfaces.",
       "back": "Verso",
       "cap": {
         "butt": "Plat",
         "round": "Arrondi"
       },
+      "dash": {
+        "custom": "Personnalisé",
+        "customField": "Pointillés personnalisés",
+        "customNamed": "Personnalisé · {{runs}}",
+        "customUnit": "× largeur",
+        "dashDot": "Tiret-point",
+        "dashed": "Tirets",
+        "dotted": "Pointillé",
+        "fineDash": "Tirets fins",
+        "longDash": "Longs tirets",
+        "solid": "Continu"
+      },
       "erode": "Retrait",
-      "erodeHint": "Raccourcit chaque pli depuis le bord de sa face, en pourcentage du papier.",
-      "exportFollowsDisplay": "L'exportation utilise le style d'affichage",
-      "exportFollowsDisplayHint": "Désactivé, le style d'exportation démarre comme une copie du style d'affichage et se modifie séparément.",
+      "erodeAmount": "{{percent}} % du papier",
+      "erodeHint": "Les plis se retirent du bord de la face sur laquelle ils reposent.",
+      "erodeOff": "Désactivé",
       "exportPage": {
         "background": "Arrière-plan",
         "keepHiddenFaces": "Conserver les faces cachées",
@@ -405,14 +418,25 @@
         "transparentHint": "Désactivé, la page est remplie d'une couleur derrière le papier."
       },
       "exportTitle": "Exporter le style de papier",
+      "foldedPaperTitle": "Papier plié",
       "front": "Recto",
       "importTitle": "Importer un style de papier",
+      "light": {
+        "disc": "Direction de la lumière : azimut {{azimuth}}, élévation {{elevation}}",
+        "discHint": "Faites glisser le reflet. Le centre pointe droit vers le papier."
+      },
       "lightAzimuth": "Azimut",
-      "lightAzimuthHint": "Degrés dans le sens horaire depuis la verticale vers le haut.",
       "lightElevation": "Élévation",
-      "lightElevationHint": "Degrés hors de l'écran ; 90 éclaire le papier de face.",
-      "lightEnabled": "Ombrer le papier plié avec une lumière directionnelle",
-      "lightTitle": "Lumière",
+      "lightEnabled": "Lumière directionnelle",
+      "lightEnabledHint": "Ombre le papier plié. Les figures à plat restent sans éclairage.",
+      "lightHint": "Simulateur, figures pliées",
+      "linesTitle": "Lignes",
+      "link": {
+        "detach": "Détacher",
+        "detached": "Les exportations ont leurs propres plumes et ne suivent plus le style d'affichage.",
+        "follow": "Suivre l'affichage",
+        "linked": "Les exportations utilisent le style d'affichage. Détachez-les pour leur donner leurs propres plumes."
+      },
       "paperTitle": "Papier",
       "pen": {
         "arrows": "Flèches",
@@ -426,7 +450,7 @@
       "penColorNamed": "Couleur : {{pen}}",
       "penDash": "Pointillés",
       "penDashNamed": "Pointillés : {{pen}}",
-      "pensTitle": "Plumes",
+      "pensHint": "Patron de pliage, figures pliées, étapes",
       "penWidth": "Largeur (pt)",
       "penWidthNamed": "Largeur : {{pen}}",
       "preset": {
@@ -435,11 +459,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "Personnalisé",
+        "fromDisplay": "{{preset}}, depuis l'affichage",
+        "modified": "{{preset}} · modifié",
+        "revert": "Rétablir"
+      },
       "presets": {
-        "apply": "Appliquer",
         "builtIn": "Intégrés",
         "by": "Par {{author}}",
         "delete": "Supprimer",
+        "deleteNamed": "Supprimer {{name}}",
         "export": "Exporter",
         "exportNamed": "Exporter {{name}}",
         "import": "Importer…",
@@ -451,9 +481,14 @@
       },
       "slot": {
         "display": "Affichage",
+        "displayHint": "Patron de pliage, simulateur, figures pliées et étapes, à l'écran.",
         "export": "Exportation",
+        "exportHint": "Utilisé par chaque SVG et PNG écrit par l'application.",
+        "exportLinked": "Exportation · liée",
         "title": "Style"
-      }
+      },
+      "stepsHint": "Références uniquement",
+      "stepsTitle": "Étapes"
     },
     "sections": "Sections des paramètres",
     "shortcuts": {

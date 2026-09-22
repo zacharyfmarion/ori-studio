@@ -27,6 +27,23 @@ export interface PaperStyleSettings {
   export: PaperStyle | null;
   /** The user's saved presets; the built-ins are not stored. */
   presets: PaperStylePreset[];
+  /**
+   * The preset each slot was last set from, keyed as `paperPresetKey` writes
+   * it, or `null` where the slot has never been handed one.
+   *
+   * A record of *where the style came from*, not of whether it still matches:
+   * an edit afterwards leaves this alone, and the UI says "modified" by
+   * comparing the live style with the named preset's. A stored dirty flag
+   * would have to be cleared by every path that happens to undo an edit, and
+   * the comparison is free.
+   */
+  appliedPreset: AppliedPaperPresets;
+}
+
+/** Which preset each slot is showing; see {@link PaperStyleSettings.appliedPreset}. */
+export interface AppliedPaperPresets {
+  display: string | null;
+  export: string | null;
 }
 
 export type PaperStyleSlot = 'display' | 'export';
@@ -37,6 +54,7 @@ export const DEFAULT_PAPER_STYLE_SETTINGS: PaperStyleSettings = {
   display: DEFAULT_PAPER_STYLE,
   export: null,
   presets: [],
+  appliedPreset: { display: null, export: null },
 };
 
 /**
@@ -65,6 +83,7 @@ export function persistedPaperStyleSettings(
     display: settings.display,
     export: settings.export,
     presets: settings.presets,
+    appliedPreset: settings.appliedPreset,
   };
 }
 
@@ -93,7 +112,20 @@ export function normalizePaperStyleSettings(source: unknown): PaperStyleSettings
     // the export slot existed would have written.
     export: raw.export === null || raw.export === undefined ? null : normalizePaperStyle(raw.export),
     presets,
+    appliedPreset: normalizeAppliedPaperPresets(raw.appliedPreset),
   };
+}
+
+/**
+ * The remembered preset keys from untrusted data. A key is only ever compared
+ * against the list the UI builds, so an unknown one reads as "no preset" there
+ * rather than needing to be validated against the built-ins here.
+ */
+function normalizeAppliedPaperPresets(source: unknown): AppliedPaperPresets {
+  if (!source || typeof source !== 'object') return { display: null, export: null };
+  const raw = source as Record<string, unknown>;
+  const key = (value: unknown) => (typeof value === 'string' && value ? value : null);
+  return { display: key(raw.display), export: key(raw.export) };
 }
 
 /**

@@ -362,16 +362,29 @@
       "updateAvailable": "설치된 것보다 최신"
     },
     "paper": {
-      "auxVisible": "접힌 종이에 기존 접힘선 표시",
+      "auxVisible": "기존 접힘선 표시",
+      "auxVisibleHint": "종이에 이미 있는 접힘선으로, 모든 화면에 표시됩니다.",
       "back": "뒷면",
       "cap": {
         "butt": "평평",
         "round": "둥글게"
       },
+      "dash": {
+        "custom": "사용자 지정",
+        "customField": "사용자 지정 파선",
+        "customNamed": "사용자 지정 · {{runs}}",
+        "customUnit": "× 너비",
+        "dashDot": "일점쇄선",
+        "dashed": "파선",
+        "dotted": "점선",
+        "fineDash": "가는 파선",
+        "longDash": "긴 파선",
+        "solid": "실선"
+      },
       "erode": "들여쓰기",
-      "erodeHint": "각 접힘선을 면의 가장자리에서 종이 크기의 백분율만큼 안쪽으로 줄입니다.",
-      "exportFollowsDisplay": "내보내기에 표시 스타일 사용",
-      "exportFollowsDisplayHint": "끄면 내보내기 스타일이 표시 스타일의 사본으로 시작되어 따로 편집됩니다.",
+      "erodeAmount": "종이의 {{percent}}%",
+      "erodeHint": "접힘선이 놓인 면의 가장자리에서 안쪽으로 물러납니다.",
+      "erodeOff": "끔",
       "exportPage": {
         "background": "배경",
         "keepHiddenFaces": "숨겨진 면 유지",
@@ -389,14 +402,25 @@
         "transparentHint": "끄면 종이 뒤의 페이지를 색으로 채웁니다."
       },
       "exportTitle": "종이 스타일 내보내기",
+      "foldedPaperTitle": "접힌 종이",
       "front": "앞면",
       "importTitle": "종이 스타일 가져오기",
+      "light": {
+        "disc": "빛 방향: 방위각 {{azimuth}}, 고도각 {{elevation}}",
+        "discHint": "하이라이트를 드래그하세요. 가운데는 종이를 정면으로 비춥니다."
+      },
       "lightAzimuth": "방위각",
-      "lightAzimuthHint": "정위쪽에서 시계 방향으로 잰 각도입니다.",
       "lightElevation": "고도각",
-      "lightElevationHint": "화면 밖으로 나오는 각도이며, 90이면 종이를 정면으로 비춥니다.",
-      "lightEnabled": "방향광으로 접힌 종이에 음영 넣기",
-      "lightTitle": "조명",
+      "lightEnabled": "방향광",
+      "lightEnabledHint": "접힌 종이에 음영을 넣습니다. 평면 도형은 음영 없이 유지됩니다.",
+      "lightHint": "시뮬레이터, 접힌 도형",
+      "linesTitle": "선",
+      "link": {
+        "detach": "분리",
+        "detached": "내보내기는 자체 펜을 사용하며 표시 스타일을 따르지 않습니다.",
+        "follow": "표시 따르기",
+        "linked": "내보내기는 표시 스타일을 사용합니다. 분리하면 내보내기 전용 펜을 쓸 수 있습니다."
+      },
       "paperTitle": "종이",
       "pen": {
         "arrows": "화살표",
@@ -410,7 +434,7 @@
       "penColorNamed": "{{pen}} 색상",
       "penDash": "파선",
       "penDashNamed": "{{pen}} 파선",
-      "pensTitle": "펜",
+      "pensHint": "전개도, 접힌 도형, 단계",
       "penWidth": "너비 (pt)",
       "penWidthNamed": "{{pen}} 너비",
       "preset": {
@@ -419,11 +443,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "사용자 지정",
+        "fromDisplay": "{{preset}} (표시에서)",
+        "modified": "{{preset}} · 수정됨",
+        "revert": "되돌리기"
+      },
       "presets": {
-        "apply": "적용",
         "builtIn": "기본 제공",
         "by": "제작: {{author}}",
         "delete": "삭제",
+        "deleteNamed": "{{name}} 삭제",
         "export": "내보내기",
         "exportNamed": "{{name}} 내보내기",
         "import": "가져오기…",
@@ -435,9 +465,14 @@
       },
       "slot": {
         "display": "표시",
+        "displayHint": "화면의 전개도, 시뮬레이터, 접힌 도형과 단계.",
         "export": "내보내기",
+        "exportHint": "앱이 쓰는 모든 SVG와 PNG에 사용됩니다.",
+        "exportLinked": "내보내기 · 연결됨",
         "title": "스타일"
-      }
+      },
+      "stepsHint": "참조 전용",
+      "stepsTitle": "단계"
     },
     "sections": "설정 섹션",
     "shortcuts": {

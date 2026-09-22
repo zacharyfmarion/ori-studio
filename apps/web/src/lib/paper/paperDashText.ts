@@ -7,11 +7,19 @@
 import { parseDash } from './paperStyle';
 
 /**
- * The field's text for a dash. Solid is the empty string; runs are written
- * with whatever precision they carry, so a `2.5` stays `2.5`.
+ * The field's text for a dash. Solid is the empty string.
+ *
+ * Runs are rounded to three decimals before they are written, because not
+ * every dash in the app was typed by a person: the mono-dashed crease style
+ * derives Oriedita's device-pixel runs as multiples of the pen's own width
+ * (`ORIEDITA_MOUNTAIN_DASH_MULTIPLES`), which is `9.090909090909092`. Printed
+ * in full that overruns the field and the trigger's label, and the reader
+ * learns nothing from the tail; three decimals is finer than any dash a pen
+ * can draw. A value that needs no rounding is untouched, so a typed `2.5`
+ * stays `2.5` and round-trips through {@link parseDashText} unchanged.
  */
 export function formatDashText(dash: number[] | null): string {
-  return dash ? dash.map((run) => String(run)).join(' ') : '';
+  return dash ? dash.map((run) => String(Math.round(run * 1000) / 1000)).join(' ') : '';
 }
 
 /**

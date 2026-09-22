@@ -370,16 +370,29 @@
       "updateAvailable": "Newer than what is installed"
     },
     "paper": {
-      "auxVisible": "Show existing creases on folded paper",
+      "auxVisible": "Show existing creases",
+      "auxVisibleHint": "Precreases already in the paper, on every surface.",
       "back": "Back",
       "cap": {
         "butt": "Flat",
         "round": "Round"
       },
+      "dash": {
+        "custom": "Custom",
+        "customField": "Custom dash",
+        "customNamed": "Custom · {{runs}}",
+        "customUnit": "× width",
+        "dashDot": "Dash-dot",
+        "dashed": "Dashed",
+        "dotted": "Dotted",
+        "fineDash": "Fine dash",
+        "longDash": "Long dash",
+        "solid": "Solid"
+      },
       "erode": "Erode",
-      "erodeHint": "Pull each crease back from the edge of its face, as a percentage of the sheet.",
-      "exportFollowsDisplay": "Export uses display style",
-      "exportFollowsDisplayHint": "Off, the export style starts as a copy of the display style and is edited on its own.",
+      "erodeAmount": "{{percent}}% of the sheet",
+      "erodeHint": "Creases pull back from the edge of the face they lie on.",
+      "erodeOff": "Off",
       "exportPage": {
         "background": "Background",
         "keepHiddenFaces": "Keep hidden faces",
@@ -397,14 +410,25 @@
         "transparentHint": "Off, the page is filled with a color behind the paper."
       },
       "exportTitle": "Export Paper Style",
+      "foldedPaperTitle": "Folded paper",
       "front": "Front",
       "importTitle": "Import Paper Style",
+      "light": {
+        "disc": "Light direction: azimuth {{azimuth}}, elevation {{elevation}}",
+        "discHint": "Drag the highlight. Centre is straight at the paper."
+      },
       "lightAzimuth": "Azimuth",
-      "lightAzimuthHint": "Degrees clockwise from straight up.",
       "lightElevation": "Elevation",
-      "lightElevationHint": "Degrees out of the screen; 90 is straight at the paper.",
-      "lightEnabled": "Shade folded paper by a directional light",
-      "lightTitle": "Light",
+      "lightEnabled": "Directional light",
+      "lightEnabledHint": "Shades folded paper. Flat figures stay unlit.",
+      "lightHint": "Simulator, folded figures",
+      "linesTitle": "Lines",
+      "link": {
+        "detach": "Detach",
+        "detached": "Exports have their own pens and no longer track the display style.",
+        "follow": "Follow display",
+        "linked": "Exports use the display style. Detach to give exports their own pens."
+      },
       "paperTitle": "Paper",
       "pen": {
         "arrows": "Arrows",
@@ -418,7 +442,7 @@
       "penColorNamed": "{{pen}} color",
       "penDash": "Dash",
       "penDashNamed": "{{pen}} dash",
-      "pensTitle": "Pens",
+      "pensHint": "Crease pattern, folded figures, steps",
       "penWidth": "Width (pt)",
       "penWidthNamed": "{{pen}} width",
       "preset": {
@@ -427,11 +451,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "Custom",
+        "fromDisplay": "{{preset}}, from display",
+        "modified": "{{preset}} · modified",
+        "revert": "Revert"
+      },
       "presets": {
-        "apply": "Apply",
         "builtIn": "Built in",
         "by": "By {{author}}",
         "delete": "Delete",
+        "deleteNamed": "Delete {{name}}",
         "export": "Export",
         "exportNamed": "Export {{name}}",
         "import": "Import…",
@@ -443,9 +473,14 @@
       },
       "slot": {
         "display": "Display",
+        "displayHint": "Crease pattern, simulator, folded figures and steps, on screen.",
         "export": "Export",
+        "exportHint": "Used by every SVG and PNG the app writes.",
+        "exportLinked": "Export · linked",
         "title": "Style"
-      }
+      },
+      "stepsHint": "References only",
+      "stepsTitle": "Steps"
     },
     "sections": "Settings sections",
     "shortcuts": {

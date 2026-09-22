@@ -362,16 +362,29 @@
       "updateAvailable": "比已安装的版本更新"
     },
     "paper": {
-      "auxVisible": "在折叠后的纸张上显示已有折痕",
+      "auxVisible": "显示已有折痕",
+      "auxVisibleHint": "纸张上已有的折痕，在所有界面中显示。",
       "back": "背面",
       "cap": {
         "butt": "平头",
         "round": "圆头"
       },
+      "dash": {
+        "custom": "自定义",
+        "customField": "自定义虚线",
+        "customNamed": "自定义 · {{runs}}",
+        "customUnit": "× 宽度",
+        "dashDot": "点划线",
+        "dashed": "短划线",
+        "dotted": "点线",
+        "fineDash": "细划线",
+        "longDash": "长划线",
+        "solid": "实线"
+      },
       "erode": "内缩",
-      "erodeHint": "将每条折痕从其所在面的边缘向内收缩，按纸张的百分比计。",
-      "exportFollowsDisplay": "导出使用显示样式",
-      "exportFollowsDisplayHint": "关闭后，导出样式以显示样式的副本开始，并单独编辑。",
+      "erodeAmount": "纸张的 {{percent}}%",
+      "erodeHint": "折痕会从所在面的边缘向内收缩。",
+      "erodeOff": "关闭",
       "exportPage": {
         "background": "背景",
         "keepHiddenFaces": "保留隐藏的面",
@@ -389,14 +402,25 @@
         "transparentHint": "关闭后，页面在纸张后方填充一种颜色。"
       },
       "exportTitle": "导出纸张样式",
+      "foldedPaperTitle": "折叠后的纸",
       "front": "正面",
       "importTitle": "导入纸张样式",
+      "light": {
+        "disc": "光照方向：方位角 {{azimuth}}，仰角 {{elevation}}",
+        "discHint": "拖动高光。中心表示正对纸张。"
+      },
       "lightAzimuth": "方位角",
-      "lightAzimuthHint": "从正上方起顺时针的角度。",
       "lightElevation": "仰角",
-      "lightElevationHint": "从屏幕射出的角度；90 为正对纸张。",
-      "lightEnabled": "用方向光为折叠后的纸张着色",
-      "lightTitle": "光源",
+      "lightEnabled": "方向光",
+      "lightEnabledHint": "为折叠后的纸张着色。平面图形不受光照。",
+      "lightHint": "模拟器、折叠图形",
+      "linesTitle": "线条",
+      "link": {
+        "detach": "分离",
+        "detached": "导出使用自己的画笔，不再跟随显示样式。",
+        "follow": "跟随显示",
+        "linked": "导出使用显示样式。分离后，导出可以拥有自己的画笔。"
+      },
       "paperTitle": "纸张",
       "pen": {
         "arrows": "箭头",
@@ -410,7 +434,7 @@
       "penColorNamed": "{{pen}}颜色",
       "penDash": "虚线",
       "penDashNamed": "{{pen}}虚线",
-      "pensTitle": "画笔",
+      "pensHint": "折痕图、折叠图形、步骤",
       "penWidth": "宽度 (pt)",
       "penWidthNamed": "{{pen}}宽度",
       "preset": {
@@ -419,11 +443,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "自定义",
+        "fromDisplay": "{{preset}}（来自显示）",
+        "modified": "{{preset}} · 已修改",
+        "revert": "还原"
+      },
       "presets": {
-        "apply": "应用",
         "builtIn": "内置",
         "by": "作者：{{author}}",
         "delete": "删除",
+        "deleteNamed": "删除 {{name}}",
         "export": "导出",
         "exportNamed": "导出 {{name}}",
         "import": "导入…",
@@ -435,9 +465,14 @@
       },
       "slot": {
         "display": "显示",
+        "displayHint": "屏幕上的折痕图、模拟器、折叠图形与步骤。",
         "export": "导出",
+        "exportHint": "应用写出的每个 SVG 和 PNG 都会使用它。",
+        "exportLinked": "导出 · 已关联",
         "title": "样式"
-      }
+      },
+      "stepsHint": "仅参考",
+      "stepsTitle": "步骤"
     },
     "sections": "设置分区",
     "shortcuts": {

@@ -370,16 +370,29 @@
       "updateAvailable": "Neuer als das installierte Modell"
     },
     "paper": {
-      "auxVisible": "Vorhandene Falten auf dem gefalteten Papier anzeigen",
+      "auxVisible": "Vorhandene Falten anzeigen",
+      "auxVisibleHint": "Falten, die bereits im Papier sind, auf jeder Oberfläche.",
       "back": "Rückseite",
       "cap": {
         "butt": "Flach",
         "round": "Rund"
       },
+      "dash": {
+        "custom": "Eigen",
+        "customField": "Eigenes Strichmuster",
+        "customNamed": "Eigen · {{runs}}",
+        "customUnit": "× Breite",
+        "dashDot": "Strichpunkt",
+        "dashed": "Gestrichelt",
+        "dotted": "Gepunktet",
+        "fineDash": "Fein gestrichelt",
+        "longDash": "Lang gestrichelt",
+        "solid": "Durchgezogen"
+      },
       "erode": "Einrücken",
-      "erodeHint": "Zieht jede Falte vom Rand ihrer Fläche zurück, als Prozentsatz des Papiers.",
-      "exportFollowsDisplay": "Export verwendet den Anzeigestil",
-      "exportFollowsDisplayHint": "Ausgeschaltet beginnt der Exportstil als Kopie des Anzeigestils und wird eigenständig bearbeitet.",
+      "erodeAmount": "{{percent}} % des Papiers",
+      "erodeHint": "Falten ziehen sich vom Rand der Fläche zurück, auf der sie liegen.",
+      "erodeOff": "Aus",
       "exportPage": {
         "background": "Hintergrund",
         "keepHiddenFaces": "Verdeckte Flächen behalten",
@@ -397,14 +410,25 @@
         "transparentHint": "Ausgeschaltet wird die Seite hinter dem Papier mit einer Farbe gefüllt."
       },
       "exportTitle": "Papierstil exportieren",
+      "foldedPaperTitle": "Gefaltetes Papier",
       "front": "Vorderseite",
       "importTitle": "Papierstil importieren",
+      "light": {
+        "disc": "Lichtrichtung: Azimut {{azimuth}}, Höhe {{elevation}}",
+        "discHint": "Ziehen Sie das Glanzlicht. Die Mitte zeigt direkt auf das Papier."
+      },
       "lightAzimuth": "Azimut",
-      "lightAzimuthHint": "Grad im Uhrzeigersinn, von senkrecht nach oben aus.",
       "lightElevation": "Höhe",
-      "lightElevationHint": "Grad aus dem Bildschirm heraus; 90 leuchtet direkt auf das Papier.",
-      "lightEnabled": "Gefaltetes Papier mit gerichtetem Licht schattieren",
-      "lightTitle": "Licht",
+      "lightEnabled": "Gerichtetes Licht",
+      "lightEnabledHint": "Schattiert gefaltetes Papier. Flache Figuren bleiben unbeleuchtet.",
+      "lightHint": "Simulator, gefaltete Figuren",
+      "linesTitle": "Linien",
+      "link": {
+        "detach": "Lösen",
+        "detached": "Exporte haben eigene Stifte und folgen dem Anzeigestil nicht mehr.",
+        "follow": "Anzeige folgen",
+        "linked": "Exporte verwenden den Anzeigestil. Lösen Sie sie, um ihnen eigene Stifte zu geben."
+      },
       "paperTitle": "Papier",
       "pen": {
         "arrows": "Pfeile",
@@ -418,7 +442,7 @@
       "penColorNamed": "Farbe für {{pen}}",
       "penDash": "Strichmuster",
       "penDashNamed": "Strichmuster für {{pen}}",
-      "pensTitle": "Stifte",
+      "pensHint": "Faltmuster, gefaltete Figuren, Schritte",
       "penWidth": "Breite (pt)",
       "penWidthNamed": "Breite für {{pen}}",
       "preset": {
@@ -427,11 +451,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "Eigener Stil",
+        "fromDisplay": "{{preset}}, von der Anzeige",
+        "modified": "{{preset}} · geändert",
+        "revert": "Zurücksetzen"
+      },
       "presets": {
-        "apply": "Anwenden",
         "builtIn": "Integriert",
         "by": "Von {{author}}",
         "delete": "Löschen",
+        "deleteNamed": "{{name}} löschen",
         "export": "Exportieren",
         "exportNamed": "{{name}} exportieren",
         "import": "Importieren…",
@@ -443,9 +473,14 @@
       },
       "slot": {
         "display": "Anzeige",
+        "displayHint": "Faltmuster, Simulator, gefaltete Figuren und Schritte, auf dem Bildschirm.",
         "export": "Export",
+        "exportHint": "Wird für jedes SVG und PNG verwendet, das die App schreibt.",
+        "exportLinked": "Export · verknüpft",
         "title": "Stil"
-      }
+      },
+      "stepsHint": "Nur Referenzen",
+      "stepsTitle": "Schritte"
     },
     "sections": "Einstellungsbereiche",
     "shortcuts": {

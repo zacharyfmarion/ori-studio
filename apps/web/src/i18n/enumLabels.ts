@@ -7,6 +7,7 @@ import type {
   OristudioCpDivideMode,
   OristudioCpLengthenColorMode,
 } from '../lib/oristudioCpToolSettings';
+import type { DashPresetId } from '../lib/paper/paperDashPresets';
 import type { BuiltInPaperPresetId } from '../lib/paper/paperPresets';
 import type { PaperCreaseStyle, PaperStyleField, PenCap } from '../lib/paper/paperStyle';
 import type { SimulatorColorMode } from '../lib/simulatorSettings';
@@ -132,6 +133,24 @@ export function paperPenLabel(
       return t('dialogs:settings.paper.pen.auxCreases', 'Existing creases');
     case 'arrows':
       return t('dialogs:settings.paper.pen.arrows', 'Arrows');
+  }
+}
+
+/** A named dash, as the pen card's dash menu lists it. */
+export function dashPresetLabel(t: TFunction, id: DashPresetId): string {
+  switch (id) {
+    case 'solid':
+      return t('dialogs:settings.paper.dash.solid', 'Solid');
+    case 'dashed':
+      return t('dialogs:settings.paper.dash.dashed', 'Dashed');
+    case 'dashDot':
+      return t('dialogs:settings.paper.dash.dashDot', 'Dash-dot');
+    case 'dotted':
+      return t('dialogs:settings.paper.dash.dotted', 'Dotted');
+    case 'longDash':
+      return t('dialogs:settings.paper.dash.longDash', 'Long dash');
+    case 'fineDash':
+      return t('dialogs:settings.paper.dash.fineDash', 'Fine dash');
   }
 }
 

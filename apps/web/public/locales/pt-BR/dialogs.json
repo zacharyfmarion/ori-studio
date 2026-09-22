@@ -378,16 +378,29 @@
       "updateAvailable": "Mais novo do que o instalado"
     },
     "paper": {
-      "auxVisible": "Mostrar vincos existentes no papel dobrado",
+      "auxVisible": "Mostrar vincos existentes",
+      "auxVisibleHint": "Vincos que já estão no papel, em todas as superfícies.",
       "back": "Verso",
       "cap": {
         "butt": "Reto",
         "round": "Arredondado"
       },
+      "dash": {
+        "custom": "Personalizado",
+        "customField": "Tracejado personalizado",
+        "customNamed": "Personalizado · {{runs}}",
+        "customUnit": "× largura",
+        "dashDot": "Traço-ponto",
+        "dashed": "Tracejado",
+        "dotted": "Pontilhado",
+        "fineDash": "Traço fino",
+        "longDash": "Traço longo",
+        "solid": "Contínuo"
+      },
       "erode": "Recuo",
-      "erodeHint": "Encurta cada vinco a partir da borda de sua face, como porcentagem do papel.",
-      "exportFollowsDisplay": "A exportação usa o estilo de exibição",
-      "exportFollowsDisplayHint": "Desligado, o estilo de exportação começa como uma cópia do estilo de exibição e é editado separadamente.",
+      "erodeAmount": "{{percent}}% do papel",
+      "erodeHint": "Os vincos recuam da borda da face em que estão.",
+      "erodeOff": "Desligado",
       "exportPage": {
         "background": "Fundo",
         "keepHiddenFaces": "Manter faces ocultas",
@@ -405,14 +418,25 @@
         "transparentHint": "Desligado, a página é preenchida com uma cor atrás do papel."
       },
       "exportTitle": "Exportar estilo de papel",
+      "foldedPaperTitle": "Papel dobrado",
       "front": "Frente",
       "importTitle": "Importar estilo de papel",
+      "light": {
+        "disc": "Direção da luz: azimute {{azimuth}}, elevação {{elevation}}",
+        "discHint": "Arraste o brilho. O centro aponta direto para o papel."
+      },
       "lightAzimuth": "Azimute",
-      "lightAzimuthHint": "Graus em sentido horário a partir da vertical para cima.",
       "lightElevation": "Elevação",
-      "lightElevationHint": "Graus para fora da tela; 90 incide direto no papel.",
-      "lightEnabled": "Sombrear o papel dobrado com uma luz direcional",
-      "lightTitle": "Luz",
+      "lightEnabled": "Luz direcional",
+      "lightEnabledHint": "Sombreia o papel dobrado. Figuras planas ficam sem iluminação.",
+      "lightHint": "Simulador, figuras dobradas",
+      "linesTitle": "Linhas",
+      "link": {
+        "detach": "Separar",
+        "detached": "As exportações têm as próprias canetas e não seguem mais o estilo de exibição.",
+        "follow": "Seguir a exibição",
+        "linked": "As exportações usam o estilo de exibição. Separe-as para dar a elas as próprias canetas."
+      },
       "paperTitle": "Papel",
       "pen": {
         "arrows": "Setas",
@@ -426,7 +450,7 @@
       "penColorNamed": "Cor de {{pen}}",
       "penDash": "Tracejado",
       "penDashNamed": "Tracejado de {{pen}}",
-      "pensTitle": "Canetas",
+      "pensHint": "Padrão de vincos, figuras dobradas, passos",
       "penWidth": "Largura (pt)",
       "penWidthNamed": "Largura de {{pen}}",
       "preset": {
@@ -435,11 +459,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "Personalizado",
+        "fromDisplay": "{{preset}}, da exibição",
+        "modified": "{{preset}} · modificado",
+        "revert": "Reverter"
+      },
       "presets": {
-        "apply": "Aplicar",
         "builtIn": "Integradas",
         "by": "Por {{author}}",
         "delete": "Excluir",
+        "deleteNamed": "Excluir {{name}}",
         "export": "Exportar",
         "exportNamed": "Exportar {{name}}",
         "import": "Importar…",
@@ -451,9 +481,14 @@
       },
       "slot": {
         "display": "Exibição",
+        "displayHint": "Padrão de vincos, simulador, figuras dobradas e passos, na tela.",
         "export": "Exportação",
+        "exportHint": "Usado em cada SVG e PNG que o aplicativo escreve.",
+        "exportLinked": "Exportação · vinculada",
         "title": "Estilo"
-      }
+      },
+      "stepsHint": "Apenas referências",
+      "stepsTitle": "Passos"
     },
     "sections": "Seções de configurações",
     "shortcuts": {

@@ -19,7 +19,7 @@ import type {
   PaperScene,
   ScenePoint,
 } from './paperScene';
-import { hexToUnitRgb } from './paperStyleResolve';
+import { hexToUnitRgb, unitRgbToHex } from './paperStyleResolve';
 import { PT_TO_CSS_PX, type Hex, type PaperStyle, type Pen } from './paperStyle';
 
 /** Points per CSS px: the 'as-shown' page is the screen at 96 px per inch. */
@@ -408,14 +408,6 @@ export function erodeSegment(
     onBoundary[0] ? [a[0] + ux, a[1] + uy] : a,
     onBoundary[1] ? [b[0] - ux, b[1] - uy] : b,
   ];
-}
-
-function unitRgbToHex(color: readonly [number, number, number]): Hex {
-  const channel = (value: number) =>
-    Math.round(Math.min(1, Math.max(0, value)) * 255)
-      .toString(16)
-      .padStart(2, '0');
-  return `#${channel(color[0])}${channel(color[1])}${channel(color[2])}`;
 }
 
 function pointText([x, y]: ScenePoint): string {

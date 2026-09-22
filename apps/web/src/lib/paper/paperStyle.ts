@@ -83,6 +83,17 @@ export const PEN_WIDTH_RANGE = { min: 0.1, max: 12, step: 0.05 } as const;
 export const ERODE_RANGE = { min: 0, max: 0.25, step: 0.005 } as const;
 
 /**
+ * The erode the Settings slider offers — a tenth of what a style may hold.
+ *
+ * Erode is a fraction of the *sheet*, so the useful band is tiny: a few
+ * percent already pulls a crease clear of its face, and a slider stretched to
+ * {@link ERODE_RANGE} spends nine tenths of its travel on settings nobody
+ * picks. {@link ERODE_RANGE} stays what a file may carry, so a style saved
+ * with more keeps it.
+ */
+export const ERODE_SLIDER_RANGE = { min: 0, max: 0.04, step: 0.0025 } as const;
+
+/**
  * Fixed origami-convention crease inks, deliberately not theme tokens: mountain
  * and valley have to stay high-contrast and recognisable in either theme.
  */
@@ -291,8 +302,8 @@ function parseErode(value: unknown): number | undefined {
   return Math.min(ERODE_RANGE.max, Math.max(ERODE_RANGE.min, value));
 }
 
-/** Wrap an angle into [0, 360). */
-function wrapDegrees(degrees: number): number {
+/** Wrap an angle into [0, 360), the range a stored azimuth keeps. */
+export function wrapDegrees(degrees: number): number {
   const wrapped = degrees % 360;
   return wrapped < 0 ? wrapped + 360 : wrapped;
 }
@@ -497,7 +508,13 @@ export const ORIEDITA_VALLEY_DASH_MULTIPLES: readonly number[] = ORIEDITA_DASH_V
  */
 const DASH_RUN_TOLERANCE = 1e-6;
 
-function dashEquals(a: readonly number[] | null, b: readonly number[] | null): boolean {
+/**
+ * Whether two dashes are the same pattern. Exported because the named dashes
+ * the Settings field offers are recognised the same way the crease-style switch
+ * recognises its own — one tolerance, so a dash reads the same wherever it is
+ * matched.
+ */
+export function dashEquals(a: readonly number[] | null, b: readonly number[] | null): boolean {
   if (a === null || b === null) return a === b;
   return (
     a.length === b.length &&

@@ -241,7 +241,12 @@ describe('paperStyle', () => {
 
   it('starts from the default style with export following display and no presets', async () => {
     const { paperStyle } = (await freshSettingsStore()).getState();
-    expect(paperStyle).toEqual({ display: DEFAULT_PAPER_STYLE, export: null, presets: [] });
+    expect(paperStyle).toEqual({
+      display: DEFAULT_PAPER_STYLE,
+      export: null,
+      presets: [],
+      appliedPreset: { display: null, export: null },
+    });
     // With nothing to migrate, nothing is persisted until the user edits.
     expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
   });
@@ -362,11 +367,45 @@ describe('paperStyle', () => {
     expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
   });
 
-  it('applies a preset to one slot only', () => {
+  it('applies a preset to one slot only, and remembers which it was', () => {
     useSettingsStore.getState().applyPaperPreset('export', builtInPaperPreset('oriedita'));
-    const { display, export: exported } = useSettingsStore.getState().paperStyle;
+    const { display, export: exported, appliedPreset } = useSettingsStore.getState().paperStyle;
     expect(exported).toEqual(builtInPaperPreset('oriedita').style);
     expect(display).toEqual(DEFAULT_PAPER_STYLE);
+    expect(appliedPreset).toEqual({ display: null, export: 'builtin:oriedita' });
+  });
+
+  it('carries the display slot’s preset over when the export slot is detached, and drops it when it follows again', () => {
+    const store = useSettingsStore.getState();
+    store.applyPaperPreset('display', builtInPaperPreset('oriedita'));
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(false);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset).toEqual({
+      display: 'builtin:oriedita',
+      export: 'builtin:oriedita',
+    });
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(true);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.export).toBeNull();
+  });
+
+  it('forks the display slot’s preset when an edit is what detaches the export slot', () => {
+    useSettingsStore.getState().applyPaperPreset('display', builtInPaperPreset('oriedita'));
+    useSettingsStore.getState().setPaperStyleField('export', 'erode', 0.1);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset).toEqual({
+      display: 'builtin:oriedita',
+      export: 'builtin:oriedita',
+    });
+  });
+
+  it('remembers a saved preset as the slot’s own, and forgets it when it is deleted', () => {
+    useSettingsStore.getState().savePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.display).toBe('user:Mine');
+    // An ordinary field edit is not a change of preset.
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.02);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.display).toBe('user:Mine');
+    useSettingsStore.getState().removePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.display).toBeNull();
+    // The style the preset held is left where it is.
+    expect(useSettingsStore.getState().paperStyle.display.erode).toBe(0.02);
   });
 
   it('saves, replaces, removes and imports presets by name', async () => {

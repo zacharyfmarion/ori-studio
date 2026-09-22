@@ -9,6 +9,12 @@ interface SliderProps {
   onChange: (value: number) => void;
   disabled?: boolean;
   'aria-label'?: string;
+  /**
+   * What the value means, for a slider whose number is not the whole answer —
+   * "2.5% of the sheet" rather than "2.5". Screen readers read it in place of
+   * the number.
+   */
+  'aria-valuetext'?: string;
   className?: string;
   /**
    * The underlying input, for callers that need the native `change` event —
@@ -32,6 +38,7 @@ export function Slider({
   onChange,
   disabled = false,
   'aria-label': ariaLabel,
+  'aria-valuetext': ariaValueText,
   className = '',
   ref,
 }: SliderProps) {
@@ -47,6 +54,7 @@ export function Slider({
       value={value}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-valuetext={ariaValueText}
       className={`ui-slider ${className}`.trim()}
       onChange={(event) => onChange(Number(event.target.value))}
       style={{

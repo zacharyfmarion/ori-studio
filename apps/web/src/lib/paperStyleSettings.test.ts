@@ -38,6 +38,7 @@ describe('normalizePaperStyleSettings', () => {
       display: { ...DEFAULT_PAPER_STYLE, erode: 0.1 },
       export: builtInPaperPreset('oriedita').style,
       presets: [{ version: 1 as const, name: 'Mine', style: DEFAULT_PAPER_STYLE }],
+      appliedPreset: { display: 'builtin:ori-default', export: 'user:Mine' },
     };
     const persisted = persistedPaperStyleSettings(settings);
     expect(persisted.version).toBe(1);
@@ -51,6 +52,22 @@ describe('normalizePaperStyleSettings', () => {
     expect(settings.display.paper).toEqual({ front: '#abcdef', back: DEFAULT_PAPER_STYLE.paper.back });
     expect(settings.export).toBeNull();
     expect(settings.presets).toEqual([]);
+    expect(settings.appliedPreset).toEqual({ display: null, export: null });
+  });
+
+  it('keeps the preset key each slot was set from, and reads a bad one as none', () => {
+    expect(
+      normalizePaperStyleSettings({ appliedPreset: { display: 'builtin:oriedita' } }).appliedPreset
+    ).toEqual({ display: 'builtin:oriedita', export: null });
+    // A key is only ever matched against the list the UI builds, so anything
+    // that is not a non-empty string is simply no preset.
+    expect(normalizePaperStyleSettings({ appliedPreset: { display: '', export: 7 } }).appliedPreset).toEqual(
+      { display: null, export: null }
+    );
+    expect(normalizePaperStyleSettings({ appliedPreset: 'oriedita' }).appliedPreset).toEqual({
+      display: null,
+      export: null,
+    });
   });
 
   it('drops presets that are not presets, and a second of the same name', () => {

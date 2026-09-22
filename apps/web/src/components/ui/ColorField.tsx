@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
  */
 export function ColorField({
   label,
+  inputLabel,
   value,
   onChange,
   onCommit,
@@ -27,6 +28,13 @@ export function ColorField({
   className,
 }: {
   label: string;
+  /**
+   * Accessible name for the swatch, where the visible label is not enough on
+   * its own: a pen card's heading reads "Mountain folds", but the control
+   * under it is that pen's *colour*, among its width, cap and dash. Defaults
+   * to {@link label}, which is right wherever the swatch is the whole row.
+   */
+  inputLabel?: string;
   /** The colour to show. A resolved default is fine when the setting is unset. */
   value: string;
   onChange: (value: string) => void;
@@ -81,7 +89,7 @@ export function ColorField({
       id={inputId}
       className="color-field__input"
       type="color"
-      aria-label={label}
+      aria-label={inputLabel ?? label}
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.currentTarget.value)}

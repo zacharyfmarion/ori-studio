@@ -13,12 +13,18 @@ import { ANALYTICS_EVENTS, track, type PaperPresetName } from '../../analytics';
 import {
   BUILT_IN_PAPER_PRESETS,
   PAPER_PRESET_FILE_EXTENSION,
+  paperPresetKey,
   serializePaperStylePreset,
   type BuiltInPaperPresetId,
   type PaperPresetParseFailure,
   type PaperStylePreset,
 } from '../../lib/paper/paperPresets';
-import type { PaperStyle, PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
+import {
+  paperStyleEquals,
+  type PaperStyle,
+  type PaperStyleField,
+  type PaperStyleValue,
+} from '../../lib/paper/paperStyle';
 import type { PaperStyleSlot } from '../../lib/paperStyleSettings';
 import { exportFilename } from '../../platform/exportFilename';
 import { getFileService, type FileService } from '../../platform/fileService';
@@ -45,6 +51,16 @@ export interface PaperSettingsBinding {
   editable: boolean;
   /** Built-ins first, then the user's, in the order they were saved. */
   presets: PaperPresetRow[];
+  /**
+   * The preset the slot is showing, or null when its style is nobody's. While
+   * the export slot follows display this is display's, because that is the
+   * style on show.
+   */
+  appliedPreset: PaperPresetRow | null;
+  /** Whether the style has been edited since {@link appliedPreset} was applied. */
+  modified: boolean;
+  /** Put the slot back to {@link appliedPreset}; a no-op when there is none. */
+  revert: () => void;
   applyPreset: (row: PaperPresetRow) => void;
   /** Save the slot's style under a name; replaces a user preset of that name. */
   savePreset: (name: string) => void;
@@ -95,14 +111,33 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
   const presets = useMemo<PaperPresetRow[]>(
     () => [
       ...BUILT_IN_PAPER_PRESETS.map((preset) => ({
-        key: `builtin:${preset.id}`,
+        key: paperPresetKey(preset),
         preset,
         builtIn: preset.id,
       })),
-      ...paperStyle.presets.map((preset) => ({ key: `user:${preset.name}`, preset, builtIn: null })),
+      ...paperStyle.presets.map((preset) => ({
+        key: paperPresetKey(preset),
+        preset,
+        builtIn: null,
+      })),
     ],
     [paperStyle.presets]
   );
+
+  // The slot the chip speaks for: the export slot shows display's style while
+  // it follows it, so it shows display's preset too.
+  const chipSlot: PaperStyleSlot = editable ? slot : 'display';
+  const appliedPreset = useMemo(() => {
+    const key = paperStyle.appliedPreset[chipSlot];
+    const recorded = key === null ? null : (presets.find((row) => row.key === key) ?? null);
+    if (recorded) return recorded;
+    // Nothing recorded: a fresh install, or a style carried over from before
+    // the slot remembered where it came from. A style that *is* a preset,
+    // field for field, is that preset — which is what a first run shows, since
+    // the default style is the first built-in.
+    return presets.find((row) => paperStyleEquals(row.preset.style, style)) ?? null;
+  }, [chipSlot, paperStyle.appliedPreset, presets, style]);
+  const modified = appliedPreset !== null && !paperStyleEquals(style, appliedPreset.preset.style);
 
   const applyPreset = useCallback(
     (row: PaperPresetRow) => {
@@ -143,6 +178,10 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     [fileService, t]
   );
 
+  const revert = useCallback(() => {
+    if (appliedPreset && editable) applyPreset(appliedPreset);
+  }, [appliedPreset, applyPreset, editable]);
+
   return useMemo(() => {
     const changed = (field: PaperStyleField) =>
       track(ANALYTICS_EVENTS.paperStyleChanged, { slot, field });
@@ -157,6 +196,9 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       style,
       editable,
       presets,
+      appliedPreset,
+      modified,
+      revert,
       applyPreset,
       savePreset: (name) => savePaperPreset(name, slot),
       removePreset: removePaperPreset,
@@ -177,13 +219,16 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       endAdjustment,
     };
   }, [
+    appliedPreset,
     applyPreset,
     editable,
     exportFollowsDisplay,
     exportPreset,
     importPreset,
+    modified,
     presets,
     removePaperPreset,
+    revert,
     savePaperPreset,
     setExportPaperStyleFollowsDisplay,
     setPaperStyleField,

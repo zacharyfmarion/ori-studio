@@ -160,6 +160,49 @@ describe('usePaperSettings', () => {
     expect(stored().display.paper).toEqual({ front: '#000004', back: '#000003' });
   });
 
+  it('names the preset the slot is showing, and says when it has been edited since', () => {
+    // Nothing recorded yet, but the default style *is* the first built-in.
+    expect(current().appliedPreset?.builtIn).toBe('ori-default');
+    expect(current().modified).toBe(false);
+
+    const oriedita = current().presets.find((row) => row.builtIn === 'oriedita')!;
+    act(() => current().applyPreset(oriedita));
+    expect(current().appliedPreset?.builtIn).toBe('oriedita');
+    expect(current().modified).toBe(false);
+
+    act(() => current().setField('erode', 0.02));
+    expect(current().appliedPreset?.builtIn).toBe('oriedita');
+    expect(current().modified).toBe(true);
+
+    act(() => current().revert());
+    expect(current().modified).toBe(false);
+    expect(stored().display).toEqual(oriedita.preset.style);
+  });
+
+  it('shows nobody’s preset for a style that is no preset’s', () => {
+    act(() => current().setField('paper.front', '#123456'));
+    expect(current().appliedPreset).toBeNull();
+    expect(current().modified).toBe(false);
+    // And reverting has nothing to put back.
+    act(() => current().revert());
+    expect(stored().display.paper.front).toBe('#123456');
+  });
+
+  it('speaks for the display slot’s preset while the export slot follows it', () => {
+    const oriedita = current().presets.find((row) => row.builtIn === 'oriedita')!;
+    act(() => current().applyPreset(oriedita));
+    act(() => current().setField('erode', 0.02));
+    act(() => current().setSlot('export'));
+    expect(current().editable).toBe(false);
+    expect(current().appliedPreset?.builtIn).toBe('oriedita');
+    expect(current().modified).toBe(true);
+    // Not editable, so reverting there would be writing to a style that does
+    // not exist yet.
+    act(() => current().revert());
+    expect(stored().export).toBeNull();
+    expect(stored().display.erode).toBe(0.02);
+  });
+
   it('imports a preset file, adds it and applies it as custom', async () => {
     openTextFile.mockResolvedValue({
       text: serializePaperStylePreset(userPreset('Shared')),

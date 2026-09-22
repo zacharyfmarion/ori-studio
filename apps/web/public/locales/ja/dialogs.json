@@ -362,16 +362,29 @@
       "updateAvailable": "インストール済みより新しいバージョン"
     },
     "paper": {
-      "auxVisible": "折った用紙に既存の折り線を表示",
+      "auxVisible": "既存の折り線を表示",
+      "auxVisibleHint": "すでに用紙に付いている折り線。すべての表示面に適用されます。",
       "back": "裏面",
       "cap": {
         "butt": "平ら",
         "round": "丸"
       },
+      "dash": {
+        "custom": "カスタム",
+        "customField": "カスタム破線",
+        "customNamed": "カスタム · {{runs}}",
+        "customUnit": "× 幅",
+        "dashDot": "一点鎖線",
+        "dashed": "破線",
+        "dotted": "点線",
+        "fineDash": "細破線",
+        "longDash": "長破線",
+        "solid": "実線"
+      },
       "erode": "エロード",
-      "erodeHint": "各折り線を面の縁から用紙の割合 (%) だけ内側に引き戻します。",
-      "exportFollowsDisplay": "書き出しに表示スタイルを使う",
-      "exportFollowsDisplayHint": "オフにすると、書き出しスタイルは表示スタイルのコピーから始まり、独立して編集できます。",
+      "erodeAmount": "用紙の {{percent}}%",
+      "erodeHint": "折り線は、それが乗っている面の縁から内側に引き戻されます。",
+      "erodeOff": "オフ",
       "exportPage": {
         "background": "背景",
         "keepHiddenFaces": "隠れた面を残す",
@@ -389,14 +402,25 @@
         "transparentHint": "オフにすると、用紙の背後のページを色で塗りつぶします。"
       },
       "exportTitle": "用紙スタイルを書き出し",
+      "foldedPaperTitle": "折った用紙",
       "front": "表面",
       "importTitle": "用紙スタイルを読み込み",
+      "light": {
+        "disc": "光の向き: 方位角 {{azimuth}}、仰角 {{elevation}}",
+        "discHint": "ハイライトをドラッグします。中心は用紙の正面です。"
+      },
       "lightAzimuth": "方位角",
-      "lightAzimuthHint": "真上から時計回りの角度。",
       "lightElevation": "仰角",
-      "lightElevationHint": "画面から手前への角度。90 で用紙に正面から当たります。",
-      "lightEnabled": "折った用紙を平行光源で陰影付けする",
-      "lightTitle": "光源",
+      "lightEnabled": "平行光源",
+      "lightEnabledHint": "折った用紙に陰影を付けます。平らな図形は陰影なしのままです。",
+      "lightHint": "シミュレーター、折り上がり図",
+      "linesTitle": "線",
+      "link": {
+        "detach": "切り離す",
+        "detached": "書き出しは独自のペンを持ち、表示スタイルには追従しません。",
+        "follow": "表示に合わせる",
+        "linked": "書き出しは表示スタイルを使います。切り離すと、書き出し専用のペンを持てます。"
+      },
       "paperTitle": "用紙",
       "pen": {
         "arrows": "矢印",
@@ -410,7 +434,7 @@
       "penColorNamed": "{{pen}}の色",
       "penDash": "破線",
       "penDashNamed": "{{pen}}の破線",
-      "pensTitle": "ペン",
+      "pensHint": "展開図、折り上がり図、手順",
       "penWidth": "幅 (pt)",
       "penWidthNamed": "{{pen}}の幅",
       "preset": {
@@ -419,11 +443,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "カスタム",
+        "fromDisplay": "{{preset}} (表示から)",
+        "modified": "{{preset}} · 変更あり",
+        "revert": "戻す"
+      },
       "presets": {
-        "apply": "適用",
         "builtIn": "組み込み",
         "by": "作者: {{author}}",
         "delete": "削除",
+        "deleteNamed": "{{name}} を削除",
         "export": "書き出し",
         "exportNamed": "{{name}} を書き出し",
         "import": "読み込み…",
@@ -435,9 +465,14 @@
       },
       "slot": {
         "display": "表示",
+        "displayHint": "画面上の展開図、シミュレーター、折り上がり図、手順。",
         "export": "書き出し",
+        "exportHint": "アプリが書き出すすべての SVG と PNG で使われます。",
+        "exportLinked": "書き出し · 連動",
         "title": "スタイル"
-      }
+      },
+      "stepsHint": "リファレンスのみ",
+      "stepsTitle": "手順"
     },
     "sections": "設定セクション",
     "shortcuts": {

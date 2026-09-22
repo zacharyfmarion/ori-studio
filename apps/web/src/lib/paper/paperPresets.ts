@@ -101,6 +101,26 @@ export function isBuiltInPaperPresetId(value: unknown): value is BuiltInPaperPre
   return BUILT_IN_PAPER_PRESETS.some((preset) => preset.id === value);
 }
 
+/**
+ * The identity a preset is remembered by — which one a slot is showing, and
+ * which row in the list that is.
+ *
+ * Two namespaces, kept apart by the prefix: a built-in is its id, because its
+ * name is translated and a French user's "Ori default" is not the string an
+ * English one saved; a user's preset is its name, because that is what the
+ * store applies, replaces and removes it by. Prefixing is what lets a preset
+ * the user names "Oriedita" be a different thing from the built-in.
+ */
+export function paperPresetKey(preset: PaperStylePreset): string {
+  const id = (preset as Partial<BuiltInPaperPreset>).id;
+  return isBuiltInPaperPresetId(id) ? `builtin:${id}` : userPaperPresetKey(preset.name);
+}
+
+/** {@link paperPresetKey} for a preset the user saved, from its name alone. */
+export function userPaperPresetKey(name: string): string {
+  return `user:${name}`;
+}
+
 /** Why a file did not parse, as a code the UI can put words to. */
 export type PaperPresetParseFailure = 'invalid-json' | 'not-a-preset';
 

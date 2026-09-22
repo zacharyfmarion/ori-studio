@@ -378,16 +378,29 @@
       "updateAvailable": "Más reciente que el instalado"
     },
     "paper": {
-      "auxVisible": "Mostrar los pliegues existentes sobre el papel plegado",
+      "auxVisible": "Mostrar los pliegues existentes",
+      "auxVisibleHint": "Pliegues que ya están en el papel, en todas las superficies.",
       "back": "Reverso",
       "cap": {
         "butt": "Plano",
         "round": "Redondo"
       },
+      "dash": {
+        "custom": "Personalizado",
+        "customField": "Trazo personalizado",
+        "customNamed": "Personalizado · {{runs}}",
+        "customUnit": "× anchura",
+        "dashDot": "Raya-punto",
+        "dashed": "Discontinuo",
+        "dotted": "Punteado",
+        "fineDash": "Raya fina",
+        "longDash": "Raya larga",
+        "solid": "Continuo"
+      },
       "erode": "Retraer",
-      "erodeHint": "Acorta cada pliegue desde el borde de su cara, como porcentaje del papel.",
-      "exportFollowsDisplay": "La exportación usa el estilo de pantalla",
-      "exportFollowsDisplayHint": "Desactivado, el estilo de exportación empieza como una copia del estilo de pantalla y se edita por separado.",
+      "erodeAmount": "{{percent}} % del papel",
+      "erodeHint": "Los pliegues se retraen desde el borde de la cara en la que están.",
+      "erodeOff": "Desactivado",
       "exportPage": {
         "background": "Fondo",
         "keepHiddenFaces": "Conservar caras ocultas",
@@ -405,14 +418,25 @@
         "transparentHint": "Desactivado, la página se rellena con un color detrás del papel."
       },
       "exportTitle": "Exportar estilo de papel",
+      "foldedPaperTitle": "Papel plegado",
       "front": "Anverso",
       "importTitle": "Importar estilo de papel",
+      "light": {
+        "disc": "Dirección de la luz: acimut {{azimuth}}, elevación {{elevation}}",
+        "discHint": "Arrastra el brillo. El centro apunta directo al papel."
+      },
       "lightAzimuth": "Acimut",
-      "lightAzimuthHint": "Grados en sentido horario desde la vertical hacia arriba.",
       "lightElevation": "Elevación",
-      "lightElevationHint": "Grados hacia fuera de la pantalla; 90 apunta directamente al papel.",
-      "lightEnabled": "Sombrear el papel plegado con una luz direccional",
-      "lightTitle": "Luz",
+      "lightEnabled": "Luz direccional",
+      "lightEnabledHint": "Sombrea el papel plegado. Las figuras planas quedan sin iluminar.",
+      "lightHint": "Simulador, figuras plegadas",
+      "linesTitle": "Líneas",
+      "link": {
+        "detach": "Separar",
+        "detached": "Las exportaciones tienen sus propias plumas y ya no siguen el estilo de pantalla.",
+        "follow": "Seguir la pantalla",
+        "linked": "Las exportaciones usan el estilo de pantalla. Sepáralas para darles sus propias plumas."
+      },
       "paperTitle": "Papel",
       "pen": {
         "arrows": "Flechas",
@@ -426,7 +450,7 @@
       "penColorNamed": "Color de {{pen}}",
       "penDash": "Trazo",
       "penDashNamed": "Trazo de {{pen}}",
-      "pensTitle": "Plumas",
+      "pensHint": "Patrón de pliegues, figuras plegadas, pasos",
       "penWidth": "Anchura (pt)",
       "penWidthNamed": "Anchura de {{pen}}",
       "preset": {
@@ -435,11 +459,17 @@
         "oriedita": "Oriedita",
         "origamiHouse": "Origami House"
       },
+      "presetChip": {
+        "custom": "Personalizado",
+        "fromDisplay": "{{preset}}, desde la pantalla",
+        "modified": "{{preset}} · modificado",
+        "revert": "Revertir"
+      },
       "presets": {
-        "apply": "Aplicar",
         "builtIn": "Integrados",
         "by": "Por {{author}}",
         "delete": "Eliminar",
+        "deleteNamed": "Eliminar {{name}}",
         "export": "Exportar",
         "exportNamed": "Exportar {{name}}",
         "import": "Importar…",
@@ -451,9 +481,14 @@
       },
       "slot": {
         "display": "Pantalla",
+        "displayHint": "Patrón de pliegues, simulador, figuras plegadas y pasos, en pantalla.",
         "export": "Exportación",
+        "exportHint": "Se usa en cada SVG y PNG que escribe la aplicación.",
+        "exportLinked": "Exportación · vinculada",
         "title": "Estilo"
-      }
+      },
+      "stepsHint": "Solo referencias",
+      "stepsTitle": "Pasos"
     },
     "sections": "Secciones de configuración",
     "shortcuts": {
