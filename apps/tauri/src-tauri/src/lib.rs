@@ -283,6 +283,7 @@ pub fn run() {
             write_binary_file,
             take_opened_files,
             updater::update_environment,
+            updater::update_check,
             // CP engine — keep in lockstep with cp_engine::NATIVE_CP_COMMAND_NAMES.
             cp_engine::cp_operation_descriptors,
             cp_engine::cp_load_cp,
