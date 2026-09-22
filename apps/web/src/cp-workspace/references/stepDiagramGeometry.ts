@@ -136,6 +136,26 @@ export function createOverlayProjector(
   return project;
 }
 
+/**
+ * The same drawing with other pens: a projector's copy that maps every point
+ * as it did and carries `pens` in place of its own. For a caller that was
+ * handed a projector and draws part of the picture with a pen of its own — a
+ * step's export, whose arrow is the paper style's.
+ */
+export function withPens(project: DiagramProjector, pens: DiagramPens): DiagramProjector {
+  const copy = ((point: readonly [number, number]) => project(point)) as DiagramProjector;
+  copy.scale = project.scale;
+  copy.ex = project.ex;
+  copy.ey = project.ey;
+  copy.ink = project.ink;
+  copy.pens = pens;
+  copy.dashScale = project.dashScale;
+  copy.viewBox = project.viewBox;
+  copy.size = project.size;
+  copy.mirrored = project.mirrored;
+  return copy;
+}
+
 /** Margin round the sheet as a fraction of the viewBox side, so labels at a corner fit. */
 export const DIAGRAM_PADDING = 0.1;
 
@@ -212,26 +232,62 @@ export function erodeCreaseOnSheet(
 ): [SheetPoint, SheetPoint] | null {
   const longer = Math.max(sheet.width, sheet.height);
   if (!(erode > 0) || !(longer > 0)) return [from, to];
-  const [cx, cy] = sheet.centre ?? [sheet.width / 2, sheet.height / 2];
-  const { x: xAxis, y: yAxis } = sheet.axes ?? UNIT_AXES;
-  const epsilon = longer * 1e-6;
-  const onBoundary = ([x, y]: SheetPoint): boolean => {
-    // The point in the paper's own frame: along its width and its height.
-    const u = (x - cx) * xAxis[0] + (y - cy) * xAxis[1];
-    const v = (x - cx) * yAxis[0] + (y - cy) * yAxis[1];
-    const du = Math.abs(Math.abs(u) - sheet.width / 2);
-    const dv = Math.abs(Math.abs(v) - sheet.height / 2);
-    const withinU = Math.abs(u) <= sheet.width / 2 + epsilon;
-    const withinV = Math.abs(v) <= sheet.height / 2 + epsilon;
-    return (du <= epsilon && withinV) || (dv <= epsilon && withinU);
-  };
   const eroded = erodeSegment(
     [from[0], from[1]],
     [to[0], to[1]],
-    [onBoundary(from), onBoundary(to)],
+    [onSheetBoundary(from, sheet), onSheetBoundary(to, sheet)],
     erode * longer
   );
   return eroded && [eroded[0], eroded[1]];
+}
+
+/**
+ * Whether a point lies on the sheet's edge: the rule {@link erodeCreaseOnSheet}
+ * reads an endpoint by, and the one a step's export flags an aux line's ends
+ * with, so the card, the canvas and the page pull the same ends in. The sheet
+ * is the rectangle round `sheet.centre` (or its own middle) along `sheet.axes`
+ * (or the space's own); the edge is read with a tolerance of a millionth of
+ * the sheet, since a crease to the edge is placed there by construction and
+ * not by rounding.
+ */
+export function onSheetBoundary([x, y]: SheetPoint, sheet: DiagramSheet): boolean {
+  const longer = Math.max(sheet.width, sheet.height);
+  if (!(longer > 0)) return false;
+  const { centre, xAxis, yAxis } = sheetFrame(sheet);
+  const epsilon = longer * 1e-6;
+  // The point in the paper's own frame: along its width and its height.
+  const u = (x - centre[0]) * xAxis[0] + (y - centre[1]) * xAxis[1];
+  const v = (x - centre[0]) * yAxis[0] + (y - centre[1]) * yAxis[1];
+  const du = Math.abs(Math.abs(u) - sheet.width / 2);
+  const dv = Math.abs(Math.abs(v) - sheet.height / 2);
+  const withinU = Math.abs(u) <= sheet.width / 2 + epsilon;
+  const withinV = Math.abs(v) <= sheet.height / 2 + epsilon;
+  return (du <= epsilon && withinV) || (dv <= epsilon && withinU);
+}
+
+/**
+ * The sheet's four corners in the primitives' space, from its bottom-left
+ * anticlockwise in the paper's own frame — the rectangle
+ * {@link onSheetBoundary} reads the edge of, as a ring.
+ */
+export function sheetCorners(sheet: DiagramSheet): [SheetPoint, SheetPoint, SheetPoint, SheetPoint] {
+  const { centre, xAxis, yAxis } = sheetFrame(sheet);
+  const at = (u: number, v: number): SheetPoint => [
+    centre[0] + u * xAxis[0] + v * yAxis[0],
+    centre[1] + u * xAxis[1] + v * yAxis[1],
+  ];
+  const w = sheet.width / 2;
+  const h = sheet.height / 2;
+  return [at(-w, -h), at(w, -h), at(w, h), at(-w, h)];
+}
+
+/** Where the paper is and which way it lies: its middle and its axes, with the unit frame's defaults. */
+function sheetFrame(sheet: DiagramSheet) {
+  return {
+    centre: sheet.centre ?? ([sheet.width / 2, sheet.height / 2] as const),
+    xAxis: sheet.axes?.x ?? UNIT_AXES.x,
+    yAxis: sheet.axes?.y ?? UNIT_AXES.y,
+  };
 }
 
 /** The space's own axes: a sheet that is not turned. */
@@ -420,6 +476,26 @@ export function arcSamplePoints(
 ): [[number, number], [number, number], [number, number]] {
   const half = (arcExtent(arc) / 2) * (arc.ccw ? 1 : -1);
   return [pointOnArc(arc, arc.from), pointOnArc(arc, arc.from + half), pointOnArc(arc, arc.to)];
+}
+
+/** The chord a flattened arc's vertices are spaced at, in radians: 5°, below any pen at any size a step is drawn. */
+const ARC_FLATTEN_STEP = Math.PI / 36;
+
+/**
+ * The arc as a run of points along it, from its start to its end in its
+ * direction of travel — for a painter that has no arc and draws a fold's arc
+ * as the line runs between these. One vertex every {@link ARC_FLATTEN_STEP},
+ * at least two; a full circle's ends coincide, as its `from` and `to` do.
+ */
+export function arcPolyline(arc: DiagramArc): [number, number][] {
+  const extent = arcExtent(arc);
+  const steps = Math.max(1, Math.ceil(extent / ARC_FLATTEN_STEP));
+  const signed = arc.ccw ? extent : -extent;
+  const points: [number, number][] = [];
+  for (let i = 0; i <= steps; i += 1) {
+    points.push(pointOnArc(arc, arc.from + (signed * i) / steps));
+  }
+  return points;
 }
 
 /**

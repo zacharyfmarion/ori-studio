@@ -261,6 +261,8 @@
   },
   "references": {
     "categoryLabel": "참조",
+    "exportStepPng": "단계를 PNG로 내보내기…",
+    "exportStepSvg": "단계를 SVG로 내보내기…",
     "nextCandidate": "다음 후보",
     "nextStep": "다음 단계",
     "playFold": "접기 재생",

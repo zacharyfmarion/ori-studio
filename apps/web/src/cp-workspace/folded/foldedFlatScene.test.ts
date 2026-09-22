@@ -202,7 +202,7 @@ function linesAfterEachFace(scene: PaperScene): Map<number, PaperLineItem[]> {
     if (item.kind === 'face') {
       current = [];
       after.set(index, current);
-    } else if (current) {
+    } else if (current && item.kind === 'line') {
       current.push(item);
     }
   });

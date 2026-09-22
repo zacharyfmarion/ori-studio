@@ -17,6 +17,7 @@ import type {
   DiagramLineStyleName,
   StepDiagramPrimitive,
 } from '../referenceFinderDiagramToPrimitives';
+import type { DiagramInlineInk, DiagramInlineStroke } from './diagramColors';
 import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
@@ -36,10 +37,17 @@ import {
  * One primitive as SVG, in whatever space the projector maps into.
  *
  * The card fits the paper into a box of its own; the layer over the crease
- * pattern projects through the live camera. Same shapes, same classes, same
- * pen — only the projector differs, which is the whole reason a step is
- * described as primitives rather than drawn twice.
+ * pattern projects through the live camera; a step's export paints the same
+ * shapes into a file. Same shapes, same pen — only the projector differs,
+ * which is the whole reason a step is described as primitives rather than
+ * drawn twice. On screen a shape carries a class and `theme.css` colours it;
+ * in a file there is no stylesheet, so the context carries the colours
+ * instead (`DiagramRenderContext.inline`) and the shape writes them as
+ * attributes with no class at all.
  */
+
+/** The font a letter is set in when the picture leaves the app: the app's own stack, named. */
+const INLINE_LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 
 /** Four decimals is under a device pixel at any size this is drawn at. */
 const round = (value: number) => Number(value.toFixed(4));
@@ -98,6 +106,11 @@ export interface DiagramRenderContext {
    * edge as a fraction of the sheet (D8).
    */
   creases: DiagramCreaseOptions;
+  /**
+   * The colours as attributes, for a picture no stylesheet reaches. Null on
+   * screen, where every shape carries its class and `theme.css` colours it.
+   */
+  inline: DiagramInlineInk | null;
 }
 
 export interface DiagramCreaseOptions {
@@ -119,7 +132,8 @@ export function createDiagramRenderContext(
   sheet: DiagramSheet,
   project: DiagramProjector,
   layout: LabelLayoutOptions = {},
-  creases: DiagramCreaseOptions = DEFAULT_DIAGRAM_CREASES
+  creases: DiagramCreaseOptions = DEFAULT_DIAGRAM_CREASES,
+  inline: DiagramInlineInk | null = null
 ): DiagramRenderContext {
   return {
     project,
@@ -127,6 +141,30 @@ export function createDiagramRenderContext(
     labels: placeLabels(primitives, sheet, project, layout),
     sheet,
     creases,
+    inline,
+  };
+}
+
+/**
+ * A shape's class on screen, or its colours in a file: the one place the two
+ * part, so every shape below says which class it would carry and which
+ * attributes the class would have given it.
+ */
+function inked(
+  context: DiagramRenderContext,
+  className: string,
+  attributes: (ink: DiagramInlineInk) => Record<string, string | number | undefined>
+): Record<string, string | number | undefined> {
+  return context.inline ? attributes(context.inline) : { className };
+}
+
+/** A stroke's colour and opacity as attributes, the pen's own opacity folded in. */
+function strokeInk(stroke: DiagramInlineStroke, penOpacity: number | undefined) {
+  const opacity = (stroke.opacity ?? 1) * (penOpacity ?? 1);
+  return {
+    fill: 'none',
+    stroke: stroke.color,
+    strokeOpacity: opacity === 1 ? undefined : opacity,
   };
 }
 
@@ -147,9 +185,11 @@ export function diagramPrimitiveShape(
       return (
         <rect
           key={index}
-          className={
-            mirrored ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet'
-          }
+          {...inked(
+            context,
+            mirrored ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet',
+            (ink) => ({ fill: mirrored ? ink.sheet.back : ink.sheet.front, stroke: ink.sheet.stroke })
+          )}
           x={Math.min(a.x, b.x)}
           y={Math.min(a.y, b.y)}
           width={Math.abs(b.x - a.x)}
@@ -186,26 +226,32 @@ export function diagramPrimitiveShape(
       // touch it: a phase is a distance along the line, whatever pattern
       // is laid along it, and every span of one line shares that ruler.
       const dashOffset = primitive.dashPhase ? primitive.dashPhase * project.scale : undefined;
+      const stroke = strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens);
       return (
         <line
           key={index}
-          className={`step-diagram__line step-diagram__line--${primitive.style}`}
           x1={from.x}
           y1={from.y}
           x2={to.x}
           y2={to.y}
           strokeDashoffset={dashOffset}
-          {...strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens)}
+          {...stroke}
+          {...inked(context, `step-diagram__line step-diagram__line--${primitive.style}`, (ink) =>
+            strokeInk(ink.lines[primitive.style], stroke.strokeOpacity)
+          )}
         />
       );
     }
     case 'arc': {
+      const stroke = strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens);
       return (
         <path
           key={index}
-          className={`step-diagram__arc step-diagram__line--${primitive.style}`}
           d={arcPathData(primitive, project)}
-          {...strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens)}
+          {...stroke}
+          {...inked(context, `step-diagram__arc step-diagram__line--${primitive.style}`, (ink) =>
+            strokeInk(ink.lines[primitive.style], stroke.strokeOpacity)
+          )}
         />
       );
     }
@@ -233,21 +279,26 @@ export function diagramPrimitiveShape(
         arrow.back.center[0] + arrow.back.radius * Math.cos(trimmed.tip),
         arrow.back.center[1] + arrow.back.radius * Math.sin(trimmed.tip),
       ]);
+      const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
+      const arrowInk = inked(context, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+        strokeInk(ink.lines.arrow, stroke.strokeOpacity)
+      );
+      const headInk = inked(context, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }));
       return (
-        <g key={index} className="step-diagram__arrow">
+        <g key={index} {...inked(context, 'step-diagram__arrow', () => ({}))}>
           <path
-            className="step-diagram__arc step-diagram__line--arrow"
             d={arcPathData({ ...arrow.out, from: trimmed.out.from }, project)}
-            {...strokeAttributes('arrow', project.ink, project.dashScale, project.pens)}
+            {...stroke}
+            {...arrowInk}
           />
           <path
-            className="step-diagram__arc step-diagram__line--arrow"
             d={arcPathData({ ...arrow.back, to: trimmed.back.to }, project)}
-            {...strokeAttributes('arrow', project.ink, project.dashScale, project.pens)}
+            {...stroke}
+            {...arrowInk}
           />
           <polygon
-            className="step-diagram__arrowhead"
             points={arrowheadPoints(tip, arcEndDirection(tipArc, project), head)}
+            {...headInk}
           />
         </g>
       );
@@ -259,7 +310,17 @@ export function diagramPrimitiveShape(
         .map((corner) => project(corner))
         .map((p) => `${round(p.x)},${round(p.y)}`)
         .join(' ');
-      return <polygon key={index} className="step-diagram__region" points={points} />;
+      return (
+        <polygon
+          key={index}
+          points={points}
+          {...inked(context, 'step-diagram__region', (ink) => ({
+            fill: ink.region.fill,
+            fillOpacity: ink.region.opacity,
+            stroke: 'none',
+          }))}
+        />
+      );
     }
     case 'turn-over': {
       const at = project(primitive.at);
@@ -268,24 +329,27 @@ export function diagramPrimitiveShape(
       // symbol for what the folder does, not part of the pattern.
       const x = at.x - (TURN_OVER_BOX.width / 2) * scale;
       const y = at.y - (TURN_OVER_BOX.height / 2) * scale;
+      const stroke = strokeAttributes('arrow', project.ink / scale, 1, project.pens);
       return (
         <g
           key={index}
-          className="step-diagram__turn-over"
+          {...inked(context, 'step-diagram__turn-over', () => ({}))}
           transform={`translate(${round(x)} ${round(y)}) scale(${round(scale)})`}
         >
           <path
-            className="step-diagram__arc step-diagram__line--arrow"
             d={TURN_OVER_PATH}
-            {...strokeAttributes('arrow', project.ink / scale, 1, project.pens)}
+            {...stroke}
+            {...inked(context, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+              strokeInk(ink.lines.arrow, stroke.strokeOpacity)
+            )}
           />
           <polygon
-            className="step-diagram__arrowhead"
             points={arrowheadPoints(
               { x: TURN_OVER_HEAD.at[0], y: TURN_OVER_HEAD.at[1] },
               { x: Math.cos(TURN_OVER_HEAD.angle), y: Math.sin(TURN_OVER_HEAD.angle) },
               TURN_OVER_HEAD.size
             )}
+            {...inked(context, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
           />
         </g>
       );
@@ -295,11 +359,14 @@ export function diagramPrimitiveShape(
       return (
         <circle
           key={index}
-          className={`step-diagram__point step-diagram__point--${primitive.style}`}
           cx={at.x}
           cy={at.y}
           r={DIAGRAM_MARK_INK.radius * project.ink}
           strokeWidth={DIAGRAM_MARK_INK.width * project.ink}
+          {...inked(context, `step-diagram__point step-diagram__point--${primitive.style}`, (ink) => ({
+            fill: 'none',
+            stroke: ink.mark,
+          }))}
         />
       );
     }
@@ -313,12 +380,19 @@ export function diagramPrimitiveShape(
       return (
         <text
           key={index}
-          className={`step-diagram__label step-diagram__label--${primitive.style}`}
           x={placement.x}
           y={placement.y}
           textAnchor={placement.anchor}
           fontSize={DIAGRAM_LABEL_INK.size * project.ink}
           strokeWidth={DIAGRAM_LABEL_INK.halo * project.ink}
+          {...inked(context, `step-diagram__label step-diagram__label--${primitive.style}`, (ink) => ({
+            fill: ink.label.fill[primitive.style],
+            stroke: ink.label.halo,
+            strokeLinejoin: 'round',
+            paintOrder: 'stroke',
+            fontFamily: INLINE_LABEL_FONT,
+            fontWeight: 700,
+          }))}
         >
           {primitive.text}
         </text>

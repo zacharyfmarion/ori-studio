@@ -248,11 +248,13 @@ export type PaperPresetName =
 /** The surfaces a document object can pin a paper-style field on. */
 export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
 
-/**
- * The surfaces that export a paper picture through the shared painter. The
- * References steps join as their export moves onto it.
- */
-export type PaperExportSurface = 'simulator' | 'inline-simulation' | 'folded-3d' | 'folded-flat';
+/** The surfaces that export a paper picture through the shared painter. */
+export type PaperExportSurface =
+  | 'simulator'
+  | 'inline-simulation'
+  | 'folded-3d'
+  | 'folded-flat'
+  | 'references';
 
 /** A paper export's image format — the file's kind only, never its name. */
 export type PaperExportFormat = 'svg' | 'png';

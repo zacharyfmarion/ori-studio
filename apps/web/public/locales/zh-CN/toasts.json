@@ -49,6 +49,11 @@
     "stopped": "搜索已取消",
     "stopping": "正在取消…"
   },
+  "referencesExport": {
+    "empty": "暂无可导出的步骤",
+    "failed": "无法导出此步骤",
+    "saved": "已导出 {{name}}"
+  },
   "simulatorExport": {
     "empty": "此模拟暂无可导出的内容",
     "failed": "无法导出此视图",

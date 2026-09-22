@@ -94,7 +94,32 @@ export interface PaperLineWhole {
   onBoundary: [boolean, boolean];
 }
 
-export type PaperItem = PaperFaceItem | PaperLineItem;
+/**
+ * Element markup the painter places on the page as it is: the step diagram's
+ * symbols — fold arrows, the turn-over glyph, regions, marks and letters —
+ * drawn by the one implementation that draws them on screen rather than by a
+ * second copy in the painter. The mesh producer never emits one; the painter
+ * wraps it in a group scaled from scene px to the page, in item order, so a
+ * producer places it where the symbols belong among the faces and lines.
+ */
+export interface PaperMarkupItem {
+  kind: 'markup';
+  /**
+   * SVG element markup in scene px, self-contained: every colour and width an
+   * attribute, no class or stylesheet reference, since a file carries none.
+   */
+  svg: string;
+  /**
+   * What the markup draws inside, in scene px. The painter cannot measure
+   * markup, so the producer states it — a scene's `bounds` covers it like any
+   * other item's extent.
+   */
+  bounds: SceneBounds;
+  /** Never buried: the symbols are drawn over the paper, not on a layer of it. */
+  hidden: false;
+}
+
+export type PaperItem = PaperFaceItem | PaperLineItem | PaperMarkupItem;
 
 export interface SceneBounds {
   minX: number;

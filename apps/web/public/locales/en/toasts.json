@@ -50,6 +50,11 @@
     "stopped": "Search cancelled",
     "stopping": "Cancelling…"
   },
+  "referencesExport": {
+    "empty": "There is no step to export yet",
+    "failed": "Could not export this step",
+    "saved": "Exported {{name}}"
+  },
   "simulatorExport": {
     "empty": "This simulation has nothing to export yet",
     "failed": "Could not export this view",

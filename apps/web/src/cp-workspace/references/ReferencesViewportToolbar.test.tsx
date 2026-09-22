@@ -70,6 +70,7 @@ function commandsFor(overrides: Partial<ReferencesActionState> = {}) {
         activeCandidate: 0,
         canRecompute: true,
         hasView: true,
+        hasDiagram: true,
         fold: { available: true, playing: false, folded: false, pleat: false },
         ...overrides,
       },
@@ -132,7 +133,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const BAR = ['Zoom Out', '100%', 'Zoom In', 'Fit', 'Play Fold', 'Recompute References'];
+const BAR = [
+  'Zoom Out',
+  '100%',
+  'Zoom In',
+  'Fit',
+  'Play Fold',
+  'Recompute References',
+  'Export step',
+];
+
+/** The export menu's rows, once the button has been pressed. */
+const exportRows = () =>
+  [...document.querySelectorAll<HTMLElement>('[role="menu"] [role="menuitem"]')].map((row) => ({
+    label: row.querySelector('.context-menu__label')?.textContent ?? '',
+    disabled: row.getAttribute('aria-disabled') === 'true',
+    row,
+  }));
 
 describe('ReferencesViewportToolbar', () => {
   it('holds the zoom cluster, Fit and Recompute, and nothing to overflow', () => {
@@ -172,6 +189,28 @@ describe('ReferencesViewportToolbar', () => {
     act(() => root?.unmount());
     render({ fold: { available: false, playing: false, folded: false, pleat: true } });
     expect(button('Play Fold')?.disabled).toBe(true);
+  });
+
+  it('opens the two export formats from one button and dispatches them by registry id', () => {
+    // As the simulator's export control: one glyph, a row per format. The rows
+    // are the catalog's commands, so the chord, the context-menu row and the
+    // button are one path.
+    render();
+
+    press(button('Export step'));
+    expect(exportRows().map((entry) => entry.label)).toEqual([
+      'Export step as SVG…',
+      'Export step as PNG…',
+    ]);
+    press(exportRows()[1]?.row);
+
+    expect(run).toHaveBeenLastCalledWith('references.exportStepPng');
+  });
+
+  it('disables Export when nothing is showing', () => {
+    render({ hasDiagram: false });
+
+    expect(button('Export step')?.disabled).toBe(true);
   });
 
   it("takes Recompute's gating from the catalog", () => {

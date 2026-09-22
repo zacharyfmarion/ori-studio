@@ -51,6 +51,11 @@
     "stopped": "Recherche annulée",
     "stopping": "Annulation…"
   },
+  "referencesExport": {
+    "empty": "Il n'y a pas encore d'étape à exporter",
+    "failed": "Impossible d'exporter cette étape",
+    "saved": "{{name}} exporté"
+  },
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter",
     "failed": "Impossible d'exporter cette vue",

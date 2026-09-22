@@ -3,7 +3,9 @@ import {
   meshToPaperScene,
   type MeshToPaperSceneOptions,
   type PaperFaceItem,
+  type PaperItem,
   type PaperLineItem,
+  type PaperMarkupItem,
   type PaperScene,
 } from '../src/paperScene.js';
 import { EDGE_CODE } from '../src/edgeCodes.js';
@@ -184,6 +186,21 @@ describe('the scene a mesh makes', () => {
     expect(lines(scene({ showFaces: false }))).toHaveLength(3);
     expect(lines(scene({ showEdges: false }))).toHaveLength(0);
     expect(faces(scene({ showEdges: false }))).toHaveLength(2);
+  });
+
+  it('never emits markup: a mesh has no symbols, only faces and lines', () => {
+    // The `markup` kind is a step diagram's, for the symbols it draws by its
+    // own shapes; a scene from a mesh is faces and lines alone. A markup item
+    // is data the painter places as it is, so the type says what one holds.
+    const markup: PaperMarkupItem = {
+      kind: 'markup',
+      svg: '<circle cx="0" cy="0" r="1"/>',
+      bounds: { minX: -1, minY: -1, maxX: 1, maxY: 1 },
+      hidden: false,
+    };
+    const items: PaperItem[] = [...scene().items, markup];
+    expect(items.filter((item) => item.kind === 'markup')).toEqual([markup]);
+    expect(scene().items.every((item) => item.kind !== 'markup')).toBe(true);
   });
 
   it('is empty, not broken, for an empty model', () => {

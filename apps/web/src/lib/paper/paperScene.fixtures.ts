@@ -3,6 +3,7 @@ import type {
   PaperItem,
   PaperLineItem,
   PaperLineRole,
+  PaperMarkupItem,
   PaperScene,
   PaperSide,
   SceneBounds,
@@ -41,6 +42,11 @@ export function line(
   return { kind: 'line', role, a, b, onBoundary: [false, false], hidden: false, ...options };
 }
 
+/** Markup in scene px; its bounds default to the fixture sheet. */
+export function markup(svg: string, bounds: SceneBounds = sceneBoundsOf([face([SQUARE])])): PaperMarkupItem {
+  return { kind: 'markup', svg, bounds, hidden: false };
+}
+
 /** The extent of every item, hidden ones included; zeros when there are none. */
 export function sceneBoundsOf(items: readonly PaperItem[]): SceneBounds {
   let minX = Infinity;
@@ -48,7 +54,15 @@ export function sceneBoundsOf(items: readonly PaperItem[]): SceneBounds {
   let maxX = -Infinity;
   let maxY = -Infinity;
   for (const item of items) {
-    const points = item.kind === 'face' ? item.rings.flat() : [item.a, item.b];
+    const points =
+      item.kind === 'face'
+        ? item.rings.flat()
+        : item.kind === 'line'
+          ? [item.a, item.b]
+          : [
+              [item.bounds.minX, item.bounds.minY],
+              [item.bounds.maxX, item.bounds.maxY],
+            ];
     for (const [x, y] of points) {
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);

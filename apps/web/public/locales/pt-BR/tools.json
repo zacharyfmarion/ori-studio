@@ -277,6 +277,8 @@
   },
   "references": {
     "categoryLabel": "Referências",
+    "exportStepPng": "Exportar passo como PNG…",
+    "exportStepSvg": "Exportar passo como SVG…",
     "nextCandidate": "Próxima candidata",
     "nextStep": "Próximo passo",
     "playFold": "Reproduzir dobra",

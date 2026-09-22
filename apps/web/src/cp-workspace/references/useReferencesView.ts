@@ -119,6 +119,14 @@ export interface ReferencesHighlights {
    * contains. Split into GPU lines and DOM symbols by `diagramToScene`.
    */
   diagram: StepDiagramModel | null;
+  /**
+   * The same step as a page carries it, for the export: the big view has the
+   * document's own creases under the overlay and a file has nothing under it,
+   * so a plan step's page diagram holds the build-up itself
+   * (`ReferencesPlanScene.pageDiagram`). A candidate's step draws on blank
+   * paper either way, so there the two are one model.
+   */
+  pageDiagram: StepDiagramModel | null;
   /** The active step's references, for framing. */
   stepBounds: ModelBounds | null;
   /**
@@ -264,6 +272,7 @@ export function useReferencesHighlights(
     highlightVertexIdx,
     selected,
     diagram,
+    pageDiagram: diagram,
     stepBounds,
     fold,
   };
@@ -274,6 +283,7 @@ const NO_HIGHLIGHTS: ReferencesHighlights = {
   highlightVertexIdx: EMPTY_IDS,
   selected: null,
   diagram: null,
+  pageDiagram: null,
   stepBounds: null,
   fold: null,
 };
@@ -315,7 +325,7 @@ function planHighlights(
   const fold = planFoldScene(variants, viewSteps, activeStep);
   if (target.kind === 'turn-over') {
     const scene = planTurnOverScene(entry.sequence, entry.model, target.after);
-    return { ...NO_HIGHLIGHTS, diagram: scene.diagram, fold };
+    return { ...NO_HIGHLIGHTS, diagram: scene.diagram, pageDiagram: scene.pageDiagram, fold };
   }
   if (target.kind !== 'fold') return NO_HIGHLIGHTS;
   const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin);
@@ -324,6 +334,7 @@ function planHighlights(
     highlightVertexIdx: EMPTY_IDS,
     selected: null,
     diagram: overlay.diagram,
+    pageDiagram: overlay.pageDiagram,
     stepBounds: overlay.bounds,
     fold,
   };

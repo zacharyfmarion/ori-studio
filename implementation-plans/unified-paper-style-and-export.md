@@ -805,7 +805,9 @@ are inlined as attributes from the style (no CSS classes in a file).
 
 **Producer** `cp-workspace/references/diagramToPaperScene.ts`:
 `diagramToPaperScene(model: StepDiagramModel, options: { style; mirrored; project: (p) => ScenePoint; sheetPx })`
-— the sheet → one `face` (`side` = `back` when mirrored, `shade` 1); lines by
+— the sheet → one `face` (`side` = `back` when mirrored, `shade` 1) and its
+four sides as `edge` lines, since a face carries only a seam hairline in its
+own fill and a model-frame diagram has no `sheet` primitive; lines by
 their `DiagramLineStyleName`: `valley` / `mountain` (and the pinch variants)
 → `mountain` / `valley` role, `edge` → `edge`, `crease` / `dotted` /
 `unfolded` → `aux` with `onBoundary` true at an endpoint on the sheet
@@ -1502,9 +1504,70 @@ option.
 
 ### Phase 6 — Precrease step export
 
-- [ ] `diagramToPaperScene`; export verbs (SVG / PNG for the current step) in
+- [x] `diagramToPaperScene`; export verbs (SVG / PNG for the current step) in
       `referencesActions.ts`, toolbar + context menu; analytics.
-- [ ] Mid-fold frame through `meshToPaperScene`.
+      `cp-workspace/references/diagramToPaperScene.ts` is the producer of §10
+      (the sheet as one face, lines by role, arcs with a fold style flattened,
+      everything else through `diagramPrimitiveShape` into one `markup` item
+      with its inks written in). **Deviation from §10's signature:** it takes
+      the `DiagramProjector` (`project`) rather than a bare point map and a
+      `sheetPx` — the scale, ink, pens and basis the symbols need are on it —
+      and `mirrored` is optional, read off the projector when absent. It must
+      be passed for the big view: a model-frame model's frame is left-handed
+      (`frame.rs`: `y_axis` is screen "up"), so a projector onto the canvas
+      reports `mirrored` *true* for the front; the panel knows which face the
+      reader is on (`sideAt`) and says so, while the projector's flag keeps
+      deciding the sweep of an arc in the markup. `referencesStepExport.ts`
+      (`referencesStepExportPage`, `referencesSheetCssPx`,
+      `referencesStepExportName`, `saveReferencesStep`) paints the diagram the
+      big view shows — the panel's `highlights.diagram`, which is the
+      Sequence's current step or turn-over, or the shown candidate's step in
+      Find — at the view's on-screen sheet size (the model sheet's longer
+      side through the camera's scale; a fixed 512 px before the first frame),
+      with `exportPaperStyle(paperStyle)` through the `references` policy and
+      `settingsStore.paperExport`; `useReferencesStepExport` is the panel's
+      binding (settings, camera, title read at export time; toasts as the
+      simulator's). A finished card has no diagram — the pattern itself is
+      that picture — so export is disabled on it, as on an empty strip and on
+      a finding. The verbs `references.exportStepSvg` /
+      `references.exportStepPng` are registry shortcuts with no default chord,
+      so the toolbar button, the context-menu row and a chord the user binds
+      are one path through the panel's executor; the toolbar renders them as
+      one Export button opening the two formats (the simulator's control),
+      the context menu as two rows after the camera verbs. **File naming:**
+      `<title> step N` for a sequence card, where N is the number the strip
+      prints on it (`foldCardNumbers`, which `planFilmstrip` and
+      `referencesSequenceSubject` share) and not its place in `viewSteps`,
+      which counts the turn-overs too; a turn-over card is
+      `<title> turn over after step N`, since it has no number of its own and
+      borrowing a fold's would collide with that fold's file; a candidate's
+      step is `<title> reference C step N` rather than `<title> reference C`,
+      or a candidate's four steps would all be one file.
+      **The page is the sheet as it stands.** The Sequence's canvas diagram is
+      built `earlier: 'unpatterned'` — it omits every earlier crease the
+      pattern holds, because the CP renderer draws those under the overlay in
+      the document's own M/V ink — and a file has nothing under it. So
+      `ReferencesPlanScene` carries a second model, `pageDiagram`, built with
+      the card's rule (`earlier: 'all'`), and the export paints that: the page
+      shows the build-up as a **card** does, in the aux pen, rather than as
+      the big view does in the pattern's own ink. `diagramToPaperScene` also
+      emits the paper's border as four `edge` lines, which nothing else on a
+      page would draw (a face is closed with a hairline in its own fill, and a
+      model-frame diagram carries no `sheet` primitive), and lays the letters
+      out unbounded as `ReferencesDiagramLayer` does — the scene's bounds grow
+      to whatever they took, rather than a card's box pushing a corner letter
+      somewhere the view does not show it. `paper exported` gains
+      `surface: 'references'` (`docs/analytics.md`). Tests:
+      `diagramToPaperScene.test.ts`, `referencesStepExport.test.ts`,
+      `useReferencesStepExport.test.tsx`, `referencesActions.test.ts`,
+      `referencesContextMenu.test.ts`, `ReferencesViewportToolbar.test.tsx`,
+      `referencesShortcuts.test.ts`. Not done: the References canvas draws
+      every crease at the reader's line width, and the page writes the
+      style's pen widths in pt, so a step's export is WYSIWYG in geometry and
+      colour but not in stroke weight — the same gap the flat figure has.
+- [ ] Mid-fold frame through `meshToPaperScene`. Not exported: the fold
+      animation's mid-fold pose is not part of the step's export (the step at
+      rest is the diagram), as §10 records.
 
 ### Phase 7 — Retire the projector
 

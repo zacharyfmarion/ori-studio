@@ -15,6 +15,7 @@ import type {
   PaperFaceItem,
   PaperLineItem,
   PaperLineRole,
+  PaperMarkupItem,
   PaperScene,
   ScenePoint,
 } from './paperScene';
@@ -155,6 +156,12 @@ export interface PaperSvgBodyOptions {
  * as {@link paperSceneToSvg}, at the caller's projection; the caller wraps the
  * result in whatever group it places the picture with, and gives that group
  * round joins as the page does, or the seam hairline can spike at a corner.
+ *
+ * A markup item's coordinates are scene px, and the painter carries it onto
+ * the page by a transform rather than by projecting its points, so a body
+ * caller whose projection is not a uniform scale and a shift cannot carry one:
+ * that throws ({@link markupTransform}) rather than placing the symbols
+ * somewhere the lines are not.
  */
 export function paperSceneSvgBody(
   scene: PaperScene,
@@ -178,10 +185,58 @@ function sceneElements(
     const element =
       item.kind === 'face'
         ? faceElement(item, style, project, unitsPerPt)
-        : lineElement(item, style, erodePx, project, unitsPerPt);
+        : item.kind === 'line'
+          ? lineElement(item, style, erodePx, project, unitsPerPt)
+          : markupElement(item, project);
     if (element) elements.push(element);
   }
   return elements;
+}
+
+/**
+ * A markup item placed on the page: its scene-px markup in a group whose
+ * transform is the projection — the scale every line's coordinates took, and
+ * the shift. Its pens are in scene px too, so a stroke drawn at the arrow
+ * pen's CSS px comes out at the pen's pt on an as-shown page. Markup is
+ * placed, not repainted: a sheet size scales it whole, strokes included, where
+ * a line keeps its pen's pt — the diagram's symbols are sized as shares of the
+ * paper on screen too, and scale with it there.
+ */
+function markupElement(
+  markup: PaperMarkupItem,
+  project: (point: ScenePoint) => ScenePoint
+): string | null {
+  if (markup.svg.trim() === '') return null;
+  return `  <g transform="${markupTransform(project)}">${markup.svg}</g>`;
+}
+
+/**
+ * The `transform` that carries scene px onto the page under `project`, read
+ * off three probes of it. Throws when the projection is not a uniform scale
+ * and a shift — a rotation, a mirror, an anisotropic scale — since markup is
+ * placed by this transform and could not follow the lines through one.
+ */
+export function markupTransform(project: (point: ScenePoint) => ScenePoint): string {
+  const origin = project([0, 0]);
+  const ex = project([1, 0]);
+  const ey = project([0, 1]);
+  const scaleX = ex[0] - origin[0];
+  const scaleY = ey[1] - origin[1];
+  const skew = Math.abs(ex[1] - origin[1]) + Math.abs(ey[0] - origin[0]);
+  const tolerance = 1e-9 * Math.max(1, Math.abs(scaleX));
+  if (!(scaleX > 0) || Math.abs(scaleX - scaleY) > tolerance || skew > tolerance) {
+    throw new Error(
+      'paper markup can only be placed by a uniform scale and a shift; ' +
+        `the projection maps (1,0) to (${scaleX}, ${ex[1] - origin[1]}) ` +
+        `and (0,1) to (${ey[0] - origin[0]}, ${scaleY})`
+    );
+  }
+  // The shift is a place on the page, so two decimals; the scale is a
+  // multiplier, and its rounding grows with the distance from the scene's
+  // origin — at two decimals a symbol at the far side of a sheet-size page
+  // lands a couple of points off the crease it points at, which is the one
+  // thing this transform exists to prevent.
+  return `translate(${num(origin[0])} ${num(origin[1])}) scale(${multiplier(scaleX)})`;
 }
 
 /** The colour a face is filled with: its side's paper, under its shade. */
@@ -370,4 +425,13 @@ function pointText([x, y]: ScenePoint): string {
 /** Two decimals, like every writer in the app: a hundredth of a pt is below any output device. */
 function num(value: number): string {
   return Number.isFinite(value) ? value.toFixed(2) : '0';
+}
+
+/**
+ * A multiplier, at the precision a double carries: rounded like a coordinate
+ * it would displace whatever it scales by that rounding times the distance
+ * from the origin, which is a visible error a page's width away.
+ */
+function multiplier(value: number): string {
+  return Number.isFinite(value) ? String(Number(value.toPrecision(12))) : '1';
 }

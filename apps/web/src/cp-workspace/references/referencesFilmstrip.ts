@@ -29,7 +29,7 @@ import {
 import type { PrecreasePlanStopReason } from './precreasePlan';
 import type { PrecreaseSequence } from './precreaseSequence';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
-import type { ReferencesViewStep } from './referencesSequenceView';
+import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
 import { describePlannerStep } from './referencesStepSentences';
 
 /** One card: a picture and the sentence under the strip when it is active. */
@@ -200,14 +200,13 @@ export function planFilmstrip(
   viewSteps: readonly ReferencesViewStep[],
   stopReasons: readonly PrecreasePlanStopReason[]
 ): ReferencesFilmstripStep[] {
-  let folds = 0;
+  const numbers = foldCardNumbers(viewSteps);
   return viewSteps.flatMap((view, viewIndex): ReferencesFilmstripStep[] => {
     const variant = variants[view.component];
     if (!variant) return [];
     const sequence = variant.sequence;
     switch (view.kind) {
       case 'fold': {
-        folds += 1;
         // A step that is not exact — folded by the closest construction there
         // was, or sighted from one — wears it on the card, not only in the
         // sentence: the folder reads the strip before the sentence. A grid
@@ -225,7 +224,7 @@ export function planFilmstrip(
             key: `plan-${view.component}-${view.step}`,
             kind: 'fold',
             badge,
-            number: folds,
+            number: numbers[viewIndex] ?? null,
             diagram: null,
             primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step, {
               twin: view.twin,

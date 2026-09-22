@@ -12,7 +12,10 @@
  */
 import { parseCssColor, readCssVarColor, readCssVarNumber } from '../../renderer/cssColor';
 import type { Rgba } from '../../renderer/types';
-import type { DiagramLineStyleName } from '../referenceFinderDiagramToPrimitives';
+import type {
+  DiagramLineStyleName,
+  DiagramPointStyleName,
+} from '../referenceFinderDiagramToPrimitives';
 import type { DiagramInkColors } from './diagramToScene';
 
 const TOKENS: Record<DiagramLineStyleName, string> = {
@@ -69,4 +72,99 @@ export function diagramInkColors(
     : readCssVarNumber(element, CREASE_ALPHA_VAR, CREASE_ALPHA_FALLBACK);
   resolved.crease = [crease[0], crease[1], crease[2], crease[3] * alpha];
   return resolved;
+}
+
+/**
+ * Every token the card's classes read, for a drawing that goes into a file.
+ *
+ * A file carries no stylesheet, so the third reader of the colours — after the
+ * card's classes and the canvas's uploads — takes them as attributes. The
+ * eight the paper style sets on the workspace root (`REFERENCES_PAPER_TOKENS`)
+ * and the three the theme alone sets: the reference accent, the letter's ink
+ * and the ground its halo is painted in.
+ */
+export const DIAGRAM_INLINE_TOKENS = [
+  '--references-paper-front',
+  '--references-paper-back',
+  '--fold-mountain',
+  '--fold-valley',
+  '--fold-border',
+  '--fold-unassigned',
+  '--references-crease-alpha',
+  '--cp-reference-input',
+  '--text-primary',
+  '--bg-primary',
+] as const;
+
+export type DiagramInlineToken = (typeof DIAGRAM_INLINE_TOKENS)[number];
+export type DiagramInlineTokens = Readonly<Record<DiagramInlineToken, string>>;
+
+/** A line style's stroke, and the opacity it draws at when that is not 1. */
+export interface DiagramInlineStroke {
+  color: string;
+  opacity?: number;
+}
+
+/**
+ * The colours a diagram is drawn in as attributes — what `theme.css` gives each
+ * class, resolved once from a token record, for `diagramPrimitiveShape` to
+ * write into a picture that no stylesheet will reach.
+ */
+export interface DiagramInlineInk {
+  lines: Readonly<Record<DiagramLineStyleName, DiagramInlineStroke>>;
+  /** The paper: the front, the back when the picture is mirrored, and its outline. */
+  sheet: { front: string; back: string; stroke: string };
+  arrowhead: string;
+  /** The wash a band step works in, at the stylesheet's opacity. */
+  region: { fill: string; opacity: number };
+  /** The ring round a mark. */
+  mark: string;
+  /** A letter's ink by its style, and the ground its halo is painted in. */
+  label: { fill: Readonly<Record<DiagramPointStyleName, string>>; halo: string };
+}
+
+/** `.step-diagram__region`'s `fill-opacity`. */
+const REGION_OPACITY = 0.12;
+
+/**
+ * The inline ink for a token record: the same style → token map the canvas
+ * resolves through the DOM, read off values instead. The earlier crease's
+ * alpha rides on its stroke, as it does in the canvas's colour and the card's
+ * `stroke-opacity`.
+ *
+ * `arrow` is the paper style's arrow pen colour, for the arrow's strokes, its
+ * head and the turn-over glyph. On screen those are the edge's ink through
+ * `--fold-border` — a diagram draws the motion in the paper's own black — but
+ * the style has a pen for arrows, and a file is drawn with the style's pens.
+ */
+export function diagramInlineInk(tokens: DiagramInlineTokens, arrow: string): DiagramInlineInk {
+  const lines = {} as Record<DiagramLineStyleName, DiagramInlineStroke>;
+  for (const [style, token] of Object.entries(TOKENS)) {
+    lines[style as DiagramLineStyleName] = { color: tokens[token as DiagramInlineToken] };
+  }
+  const alpha = Number(tokens['--references-crease-alpha']);
+  lines.crease = {
+    color: lines.crease.color,
+    opacity: Number.isFinite(alpha) ? alpha : CREASE_ALPHA_FALLBACK,
+  };
+  lines.arrow = { color: arrow };
+  return {
+    lines,
+    sheet: {
+      front: tokens['--references-paper-front'],
+      back: tokens['--references-paper-back'],
+      stroke: tokens['--fold-border'],
+    },
+    arrowhead: arrow,
+    region: { fill: tokens['--cp-reference-input'], opacity: REGION_OPACITY },
+    mark: tokens['--fold-border'],
+    label: {
+      fill: {
+        normal: tokens['--text-primary'],
+        highlight: tokens['--cp-reference-input'],
+        action: tokens['--fold-border'],
+      },
+      halo: tokens['--bg-primary'],
+    },
+  };
 }

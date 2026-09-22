@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Rewind } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { ChevronLeft, ChevronRight, Download, Pause, Play, RefreshCw, Rewind } from 'lucide-react';
 import {
   ViewportToolbar,
   type ViewportToolbarGroupSpec,
 } from '../../components/panels/ViewportToolbar';
+import { MenuIconButton } from '../../components/ui/MenuIconButton';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import {
   shortcutLabelForAction,
@@ -46,6 +48,12 @@ export interface ReferencesViewportToolbarProps {
  * either side of the cards left room for barely one card, so there the strip
  * is the cards alone and the stepping lives here, at the right-hand end where
  * a thumb is anyway.
+ *
+ * Export is one button opening the two formats, as the simulator's is: two
+ * inline buttons with the same glyph would say nothing about which is which,
+ * and a menu row per format reads. A node rather than two actions, so it is
+ * the same control on every pointer; the rows are the catalog's export
+ * commands and dispatch like every other press here.
  *
  * Every press dispatches the verb's registry id through the panel's executor,
  * as the header buttons did before the bar: the chord, the context-menu row
@@ -105,6 +113,9 @@ export function ReferencesViewportToolbar({
     );
   const recompute = command('recompute');
   const recomputeChord = shortcutLabelForAction('references.recompute', shortcuts);
+  const exports = commands.filter(
+    (entry) => entry.id === 'export-step-svg' || entry.id === 'export-step-png'
+  );
   const groups: ViewportToolbarGroupSpec[] = [
     ...(play
       ? [
@@ -144,6 +155,27 @@ export function ReferencesViewportToolbar({
           },
         ]
       : []),
+    ...(exports.length > 0
+      ? [
+          {
+            id: 'export',
+            items: [
+              {
+                kind: 'node' as const,
+                id: 'export-step',
+                node: (
+                  <ReferencesExportMenu
+                    label={t('panels:references.exportStep', 'Export step')}
+                    commands={exports}
+                    run={run}
+                    shortcuts={shortcuts}
+                  />
+                ),
+              },
+            ],
+          },
+        ]
+      : []),
     ...steps,
   ];
 
@@ -158,5 +190,54 @@ export function ReferencesViewportToolbar({
       setZoomLevel={(scale) => setZoomPercent(scale * 100)}
       groups={groups}
     />
+  );
+}
+
+/** The export button and its two rows, one per format. */
+function ReferencesExportMenu({
+  label,
+  commands,
+  run,
+  shortcuts,
+}: {
+  label: string;
+  commands: readonly ReferencesCommand[];
+  run: (id: ReferencesShortcutId) => void;
+  shortcuts?: ShortcutResolutionInput;
+}) {
+  return (
+    <DropdownMenu.Root>
+      <MenuIconButton
+        label={label}
+        icon={<Download size={14} />}
+        disabled={commands.every((entry) => entry.disabled)}
+      />
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          className="context-menu"
+          side="bottom"
+          align="end"
+          sideOffset={6}
+          collisionPadding={8}
+          loop
+        >
+          {commands.map((entry) => {
+            const chord = shortcutLabelForAction(entry.shortcutId, shortcuts);
+            return (
+              <DropdownMenu.Item
+                key={entry.id}
+                className="context-menu__item"
+                disabled={entry.disabled}
+                title={entry.hint}
+                onSelect={() => run(entry.shortcutId)}
+              >
+                <span className="context-menu__label">{entry.label}</span>
+                {chord != null && <span className="context-menu__shortcut">{chord}</span>}
+              </DropdownMenu.Item>
+            );
+          })}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }

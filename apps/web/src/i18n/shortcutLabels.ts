@@ -71,6 +71,10 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:references.zoomOut', 'Zoom Out References');
     case 'references.playFold':
       return t('tools:references.playFold', 'Play Fold');
+    case 'references.exportStepSvg':
+      return t('tools:references.exportStepSvg', 'Export step as SVG…');
+    case 'references.exportStepPng':
+      return t('tools:references.exportStepPng', 'Export step as PNG…');
     default:
       return definition.label;
   }

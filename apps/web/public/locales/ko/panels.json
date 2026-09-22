@@ -812,6 +812,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "표시 중인 단계가 없습니다",
       "noFoldHint": "이 카드에는 접을 것이 없습니다",
       "noTargetHint": "먼저 꼭짓점이나 접는 선을 선택하세요",
       "pauseFold": "접기 일시정지",
@@ -863,6 +864,7 @@
     "emptySheetHint": "이 종이에는 아직 접는 선이 없습니다. 편집에서 패턴을 그린 뒤 다시 돌아오세요.",
     "errorTitle": "참조를 사용할 수 없음",
     "exact": "정확",
+    "exportStep": "단계 내보내기",
     "filmstrip": {
       "label": "접기 단계"
     },

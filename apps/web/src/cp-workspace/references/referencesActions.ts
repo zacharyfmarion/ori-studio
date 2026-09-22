@@ -23,7 +23,9 @@ export type ReferencesActionIcon =
   | 'recompute'
   | 'reset-view'
   | 'zoom-in'
-  | 'zoom-out';
+  | 'zoom-out'
+  | 'export-step-svg'
+  | 'export-step-png';
 
 /**
  * What a command draws: its own id, or, for the one verb whose picture
@@ -65,6 +67,8 @@ export interface ReferencesActionState {
   canRecompute: boolean;
   /** The view has a pattern to look at. */
   hasView: boolean;
+  /** The view is showing a step or candidate diagram — the thing an export paints. */
+  hasDiagram: boolean;
   /** The active card's fold, as the transport has it. */
   fold: {
     /** The card has a fold to play. */
@@ -94,6 +98,7 @@ export function buildReferencesActions(
   const hasSteps = state.stepCount > 0;
   const hasCandidates = state.candidateCount > 0;
   const noTarget = t('panels:references.actions.noTargetHint', 'Pick a vertex or crease first');
+  const noDiagram = t('panels:references.actions.noDiagramHint', 'No step is showing');
   const command = (
     id: ReferencesActionIcon,
     shortcutId: ReferencesShortcutId,
@@ -173,6 +178,24 @@ export function buildReferencesActions(
     command('reset-view', 'references.resetView', 'Reset References View', !state.hasView),
     command('zoom-in', 'references.zoomIn', 'Zoom In References', !state.hasView),
     command('zoom-out', 'references.zoomOut', 'Zoom Out References', !state.hasView),
+    { kind: 'separator', id: 'before-export' },
+    // The step at rest, as the big view shows it. A finished card has no
+    // diagram of its own — the pattern itself is that picture — and an empty
+    // strip has none at all.
+    command(
+      'export-step-svg',
+      'references.exportStepSvg',
+      'Export step as SVG…',
+      !state.hasDiagram,
+      noDiagram
+    ),
+    command(
+      'export-step-png',
+      'references.exportStepPng',
+      'Export step as PNG…',
+      !state.hasDiagram,
+      noDiagram
+    ),
   ];
 }
 

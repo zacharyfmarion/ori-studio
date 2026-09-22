@@ -504,7 +504,15 @@ function boundsOf(items: readonly PaperItem[]): SceneBounds {
   let maxX = -Infinity;
   let maxY = -Infinity;
   for (const item of items) {
-    const points = item.kind === 'face' ? item.rings.flat() : [item.a, item.b];
+    const points =
+      item.kind === 'face'
+        ? item.rings.flat()
+        : item.kind === 'line'
+          ? [item.a, item.b]
+          : [
+              [item.bounds.minX, item.bounds.minY],
+              [item.bounds.maxX, item.bounds.maxY],
+            ];
     for (const [x, y] of points) {
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);

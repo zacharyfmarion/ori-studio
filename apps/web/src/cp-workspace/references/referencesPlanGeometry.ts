@@ -168,6 +168,17 @@ function extend(bounds: ModelBounds | null, point: Point): ModelBounds {
 export interface ReferencesPlanScene {
   /** The step's primitives in model space, or null when the index names no step. */
   diagram: StepDiagramModel | null;
+  /**
+   * The same step for a page, where nothing draws the pattern underneath.
+   *
+   * `diagram` leaves out every earlier crease the pattern already holds,
+   * because on the canvas the document's own creases are under it. A file
+   * carries only what the scene says, so an export built from that one is
+   * the current fold and its pinches on bare paper — no build-up at all. This
+   * is the card's reading instead (`earlier: 'all'`), so the page shows the
+   * creases so far as the card does, in the aux pen.
+   */
+  pageDiagram: StepDiagramModel | null;
   /** The active step's own chord, for framing a finding. */
   bounds: ModelBounds | null;
   /** The editor's 1-based crease ids the active step realises. */
@@ -181,16 +192,16 @@ export function planStepScene(
   twin?: number
 ): ReferencesPlanScene {
   const step = sequence.steps[index];
-  if (!step) return { diagram: null, bounds: null, highlightLineIds: [] };
+  if (!step) return { diagram: null, pageDiagram: null, bounds: null, highlightLineIds: [] };
   const twinStep = twin === undefined ? undefined : sequence.steps[twin];
+  const frame = modelFrame(sequence, model);
   // The canvas has the document's own creases under this, held to the steps
   // folded so far by `referencesCreaseVisibility` — so the step draws only what
   // the pattern cannot: its own crease, which is not folded yet, and the
   // pinches and auxiliary folds no crease pattern records.
-  const diagram = plannerStepDiagram(sequence, modelFrame(sequence, model), index, {
-    earlier: 'unpatterned',
-    twin,
-  });
+  const diagram = plannerStepDiagram(sequence, frame, index, { earlier: 'unpatterned', twin });
+  // A page has nothing under it, so it carries the build-up itself.
+  const pageDiagram = plannerStepDiagram(sequence, frame, index, { earlier: 'all', twin });
   const geometry = model.steps[index];
   const twinGeometry = twin === undefined ? undefined : model.steps[twin];
   // A grid step's own chord is its family's first line; the step is the
@@ -205,6 +216,7 @@ export function planStepScene(
   );
   return {
     diagram,
+    pageDiagram,
     bounds,
     highlightLineIds: [...step.cp_line_ids, ...(twinStep?.cp_line_ids ?? [])],
   };
@@ -232,10 +244,11 @@ export function planTurnOverScene(
   model: ReferencesPlanModel,
   after: number | null
 ): ReferencesPlanScene {
+  const frame = modelFrame(sequence, model);
   return {
-    diagram: plannerTurnOverDiagram(sequence, modelFrame(sequence, model), after, {
-      earlier: 'unpatterned',
-    }),
+    diagram: plannerTurnOverDiagram(sequence, frame, after, { earlier: 'unpatterned' }),
+    // A page has nothing under it, so it carries the build-up itself.
+    pageDiagram: plannerTurnOverDiagram(sequence, frame, after, { earlier: 'all' }),
     bounds: null,
     highlightLineIds: [],
   };

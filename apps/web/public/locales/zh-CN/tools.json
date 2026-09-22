@@ -261,6 +261,8 @@
   },
   "references": {
     "categoryLabel": "参考",
+    "exportStepPng": "将步骤导出为 PNG…",
+    "exportStepSvg": "将步骤导出为 SVG…",
     "nextCandidate": "下一个候选",
     "nextStep": "下一步",
     "playFold": "播放折叠",

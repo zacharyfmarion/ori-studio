@@ -841,6 +841,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "No step is showing",
       "noFoldHint": "Nothing to fold on this card",
       "noTargetHint": "Pick a vertex or crease first",
       "pauseFold": "Pause Fold",
@@ -893,6 +894,7 @@
     "emptySheetHint": "This sheet has no creases yet. Draw the pattern in Edit, then come back.",
     "errorTitle": "References unavailable",
     "exact": "Exact",
+    "exportStep": "Export step",
     "filmstrip": {
       "label": "Folding steps"
     },

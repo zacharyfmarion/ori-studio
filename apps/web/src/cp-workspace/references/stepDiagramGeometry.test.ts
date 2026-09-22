@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DIAGRAM_MARK_INK } from './diagram/diagramInk';
+import { DIAGRAM_LINE_INK, DIAGRAM_MARK_INK } from './diagram/diagramInk';
 import {
   ARROWHEAD_ASPECT,
   DIAGRAM_CARD_DASH_SCALE,
@@ -18,11 +18,15 @@ import {
   erodeCreaseOnSheet,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
+  arcPolyline,
   arcSamplePoints,
   arcThroughPoints,
   foldArrowArc,
   foldArrowLanding,
   foldArrowTrim,
+  onSheetBoundary,
+  sheetCorners,
+  withPens,
   type DiagramArc,
 } from './stepDiagramGeometry';
 
@@ -567,5 +571,90 @@ describe('erodeCreaseOnSheet', () => {
       [0, 0.5],
       [1, 0.5],
     ]);
+  });
+});
+
+describe('the sheet’s edge', () => {
+  const r = Math.SQRT1_2;
+  const turned = {
+    width: 2,
+    height: 2,
+    centre: [10, 10] as const,
+    axes: { x: [r, r] as const, y: [-r, r] as const },
+  };
+  const round = (p: readonly number[]) => p.map((v) => Number(v.toFixed(6)));
+
+  it('is the rule erode reads an endpoint by', () => {
+    expect(onSheetBoundary([0, 0.5], UNIT)).toBe(true);
+    expect(onSheetBoundary([0.5, 1], UNIT)).toBe(true);
+    expect(onSheetBoundary([0.5, 0.5], UNIT)).toBe(false);
+    // On the edge's line but off the paper: not on its edge.
+    expect(onSheetBoundary([-1, 0.5], UNIT)).toBe(false);
+    // Found round the centre, along the paper's own axes.
+    expect(onSheetBoundary([10, 10 - 2 * r], turned)).toBe(true);
+    expect(onSheetBoundary([11, 10], turned)).toBe(false);
+    expect(onSheetBoundary([0.5, 0.5], { width: 0, height: 0 })).toBe(false);
+  });
+
+  it('runs through the four corners, which are all on it', () => {
+    expect(sheetCorners(UNIT)).toEqual([
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ]);
+    expect(sheetCorners({ width: 2, height: 1, centre: [10, 10] })).toEqual([
+      [9, 9.5],
+      [11, 9.5],
+      [11, 10.5],
+      [9, 10.5],
+    ]);
+    const corners = sheetCorners(turned);
+    expect(corners.map(round)).toEqual([
+      round([10, 10 - 2 * r]),
+      round([10 + 2 * r, 10]),
+      round([10, 10 + 2 * r]),
+      round([10 - 2 * r, 10]),
+    ]);
+    for (const corner of corners) expect(onSheetBoundary(corner, turned)).toBe(true);
+  });
+});
+
+describe('arcPolyline', () => {
+  it('runs from the start to the end in the direction of travel, on the circle', () => {
+    const arc: DiagramArc = { center: [0, 0], radius: 2, from: 0, to: Math.PI / 2, ccw: true };
+    const points = arcPolyline(arc);
+    expect(points.length).toBeGreaterThanOrEqual(3);
+    expect(points[0]!.map((v) => Number(v.toFixed(9)))).toEqual([2, 0]);
+    expect(points[points.length - 1]!.map((v) => Number(v.toFixed(9)))).toEqual([0, 2]);
+    for (const [x, y] of points) expect(Math.hypot(x, y)).toBeCloseTo(2, 9);
+    // The same ends the other way round go the long way, clockwise.
+    const long = arcPolyline({ ...arc, ccw: false });
+    expect(long.length).toBeGreaterThan(points.length);
+    expect(long[Math.floor(long.length / 2)]![0]).toBeLessThan(0);
+  });
+
+  it('spaces its vertices under a pen: a chord of 5° at most', () => {
+    const arc: DiagramArc = { center: [0, 0], radius: 1, from: 0, to: Math.PI, ccw: true };
+    const points = arcPolyline(arc);
+    expect(points.length).toBe(37);
+    for (let i = 1; i < points.length; i += 1) {
+      const [ax, ay] = points[i - 1]!;
+      const [bx, by] = points[i]!;
+      expect(Math.hypot(bx - ax, by - ay)).toBeLessThanOrEqual(2 * Math.sin(Math.PI / 72) + 1e-9);
+    }
+  });
+});
+
+describe('withPens', () => {
+  it('is the same projection with the pens swapped', () => {
+    const pens = { ...DIAGRAM_LINE_INK, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 9 } };
+    const copy = withPens(CARD, pens);
+    expect(copy([0.25, 0.75])).toEqual(CARD([0.25, 0.75]));
+    expect(copy.pens).toBe(pens);
+    expect(CARD.pens).toBe(DIAGRAM_LINE_INK);
+    for (const key of ['scale', 'ex', 'ey', 'ink', 'dashScale', 'viewBox', 'size', 'mirrored'] as const) {
+      expect(copy[key]).toEqual(CARD[key]);
+    }
   });
 });

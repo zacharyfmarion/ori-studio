@@ -841,6 +841,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "Es wird kein Schritt angezeigt",
       "noFoldHint": "Auf dieser Karte gibt es nichts zu falten",
       "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte",
       "pauseFold": "Faltung pausieren",
@@ -893,6 +894,7 @@
     "emptySheetHint": "Dieses Blatt hat noch keine Falten. Zeichne das Muster unter Bearbeiten und komm dann zurück.",
     "errorTitle": "Referenzen nicht verfügbar",
     "exact": "Exakt",
+    "exportStep": "Schritt exportieren",
     "filmstrip": {
       "label": "Faltschritte"
     },

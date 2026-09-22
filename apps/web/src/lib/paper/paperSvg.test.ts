@@ -7,6 +7,8 @@ import {
   SQUARE,
   face,
   line,
+  markup,
+  sceneBoundsOf,
   sceneOf,
   sheetWithCrease,
 } from './paperScene.fixtures';
@@ -19,6 +21,7 @@ import {
   centredDashOffset,
   erodeLine,
   erodeSegment,
+  markupTransform,
   pageMarginPt,
   pagePtPerPx,
   paperFaceFill,
@@ -282,6 +285,79 @@ describe('lines', () => {
 
   it('leaves a zero-length line out', () => {
     expect(lines(paint(sceneOf([line('edge', [5, 5], [5, 5])])).svg)).toHaveLength(0);
+  });
+});
+
+describe('markup', () => {
+  const symbols = '<path d="M0 0L10 10" stroke="#000000" stroke-width="1.4"/>';
+
+  /** The `transform` of every group in the page, in order. */
+  const groups = (svg: string) =>
+    [...svg.matchAll(/<g transform="([^"]*)">([\s\S]*?)<\/g>/g)].map((match) => ({
+      transform: match[1]!,
+      inner: match[2]!,
+    }));
+
+  it('is placed after the faces and lines before it, scaled from scene px to the page', () => {
+    const scene = sceneOf([face([SQUARE]), line('mountain', [0, 50], [100, 50]), markup(symbols)]);
+    const { svg } = paint(scene);
+    const [group] = groups(svg);
+    // The lines' own projection: 0.75 pt per px, shifted by the margin.
+    expect(group!.transform).toBe(`translate(${ROOM.toFixed(2)} ${ROOM.toFixed(2)}) scale(0.75)`);
+    expect(group!.inner).toBe(symbols);
+    expect(svg.indexOf('<g transform')).toBeGreaterThan(svg.indexOf('<line'));
+  });
+
+  it('keeps its place in the item order', () => {
+    const scene = sceneOf([face([SQUARE]), markup(symbols), line('mountain', [0, 50], [100, 50])]);
+    const { svg } = paint(scene);
+    expect(svg.indexOf('<g transform')).toBeLessThan(svg.indexOf('<line'));
+  });
+
+  it('scales whole with a sheet size, and counts toward the page', () => {
+    const page: PaperPage = { ...TIGHT, sheet: { mm: 200 } };
+    const wide = markup(symbols, { minX: -20, minY: 0, maxX: 120, maxY: 100 });
+    const scene = sceneOf([face([SQUARE]), line('mountain', [0, 50], [100, 50]), wide]);
+    const ptPerPx = pagePtPerPx(scene, page);
+    const { svg, widthPt } = paint(scene, DEFAULT_PAPER_STYLE, page);
+    expect(sceneBoundsOf(scene.items).minX).toBe(-20);
+    expect(widthPt).toBeCloseTo(140 * ptPerPx + ROOM * 2, 6);
+    const [group] = groups(svg);
+    const placed = /^translate\((\S+) (\S+)\) scale\((\S+)\)$/.exec(group!.transform)!;
+    expect(Number(placed[1])).toBeCloseTo(20 * ptPerPx + ROOM, 2);
+    expect(Number(placed[2])).toBeCloseTo(ROOM, 2);
+    // Re-pinned against the lines rather than against the two-decimal string
+    // the painter used to write: `ptPerPx` here is an arbitrary ratio, and a
+    // scale rounded to a hundredth carries the far side of the sheet about
+    // two points off the crease that ends there. The residue left is the
+    // hundredth of a pt every coordinate on the page is written at.
+    expect(Number(placed[3])).toBeCloseTo(ptPerPx, 9);
+    const end = Number(lines(svg)[0]!.x2);
+    expect(Math.abs(Number(placed[1]) + Number(placed[3]) * 100 - end)).toBeLessThan(0.02);
+  });
+
+  it('is never dropped as hidden, and is left out when empty', () => {
+    const scene = sceneOf([face([SQUARE]), markup(symbols), markup('   ')]);
+    const { svg } = paint(scene, DEFAULT_PAPER_STYLE, { ...TIGHT, keepHiddenFaces: false });
+    expect(groups(svg)).toHaveLength(1);
+  });
+
+  it('goes through a body caller’s projection when it is a uniform scale and a shift', () => {
+    const body = paperSceneSvgBody(sceneOf([markup(symbols)]), DEFAULT_PAPER_STYLE, {
+      project: ([x, y]) => [x * 2 + 300, y * 2],
+      unitsPerPt: 4 / 3,
+      keepHiddenFaces: true,
+    });
+    expect(body).toBe(`  <g transform="translate(300.00 0.00) scale(2)">${symbols}</g>`);
+  });
+
+  it('refuses a projection that is not one, rather than misplacing the symbols', () => {
+    expect(() => markupTransform(([x, y]) => [-x, y])).toThrow(/uniform scale/);
+    expect(() => markupTransform(([x, y]) => [x * 2, y * 3])).toThrow(/uniform scale/);
+    expect(() => markupTransform(([x, y]) => [y, x])).toThrow(/uniform scale/);
+    expect(markupTransform(([x, y]) => [x * 0.75 + 5, y * 0.75 + 5])).toBe(
+      'translate(5.00 5.00) scale(0.75)'
+    );
   });
 });
 

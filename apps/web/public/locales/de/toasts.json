@@ -50,6 +50,11 @@
     "stopped": "Suche abgebrochen",
     "stopping": "Wird abgebrochen…"
   },
+  "referencesExport": {
+    "empty": "Es gibt noch keinen Schritt zum Exportieren",
+    "failed": "Dieser Schritt konnte nicht exportiert werden",
+    "saved": "{{name}} exportiert"
+  },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",
     "failed": "Diese Ansicht konnte nicht exportiert werden",

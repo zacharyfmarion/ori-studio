@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { diagramInkColors } from './diagramColors';
+import { diagramInkColors, diagramInlineInk, type DiagramInlineTokens } from './diagramColors';
 
 const hex = ([r, g, b]: readonly number[]): string =>
   `#${[r, g, b].map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('')}`;
@@ -80,5 +80,52 @@ describe('diagramInkColors', () => {
       0.5,
       9
     );
+  });
+});
+
+describe('diagramInlineInk', () => {
+  const tokens: DiagramInlineTokens = {
+    '--references-paper-front': '#fff8e1',
+    '--references-paper-back': '#d0d0d0',
+    '--fold-mountain': '#112233',
+    '--fold-valley': '#445566',
+    '--fold-border': '#000000',
+    '--fold-unassigned': '#aabbcc',
+    '--references-crease-alpha': '0.5',
+    '--cp-reference-input': '#ff00ff',
+    '--text-primary': '#222222',
+    '--bg-primary': '#fafafa',
+  };
+
+  it('resolves every style through the same map the canvas uses, off values', () => {
+    const ink = diagramInlineInk(tokens, '#405060');
+    expect(ink.lines.mountain).toEqual({ color: '#112233' });
+    expect(ink.lines['pinch-mountain']).toEqual({ color: '#112233' });
+    expect(ink.lines.valley).toEqual({ color: '#445566' });
+    expect(ink.lines.edge).toEqual({ color: '#000000' });
+    expect(ink.lines.highlight).toEqual({ color: '#ff00ff' });
+    expect(ink.lines.dotted).toEqual({ color: '#aabbcc' });
+    expect(ink.lines.unfolded).toEqual({ color: '#aabbcc' });
+    // The earlier crease sits back by the alpha, as on the canvas.
+    expect(ink.lines.crease).toEqual({ color: '#aabbcc', opacity: 0.5 });
+    // The arrow is the style's pen, head and glyph included, not the edge's ink.
+    expect(ink.lines.arrow).toEqual({ color: '#405060' });
+    expect(ink.arrowhead).toBe('#405060');
+  });
+
+  it('carries what the classes give the sheet, the wash, a mark and a letter', () => {
+    const ink = diagramInlineInk(tokens, '#405060');
+    expect(ink.sheet).toEqual({ front: '#fff8e1', back: '#d0d0d0', stroke: '#000000' });
+    expect(ink.region).toEqual({ fill: '#ff00ff', opacity: 0.12 });
+    expect(ink.mark).toBe('#000000');
+    expect(ink.label).toEqual({
+      fill: { normal: '#222222', highlight: '#ff00ff', action: '#000000' },
+      halo: '#fafafa',
+    });
+  });
+
+  it('falls back to the light theme’s crease alpha when the token is not a number', () => {
+    const ink = diagramInlineInk({ ...tokens, '--references-crease-alpha': 'thick' }, '#000000');
+    expect(ink.lines.crease.opacity).toBe(0.75);
   });
 });

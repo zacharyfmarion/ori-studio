@@ -874,6 +874,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "Nenhum passo está sendo mostrado",
       "noFoldHint": "Não há nada para dobrar neste cartão",
       "noTargetHint": "Escolha primeiro um vértice ou uma dobra",
       "pauseFold": "Pausar dobra",
@@ -927,6 +928,7 @@
     "emptySheetHint": "Esta folha ainda não tem dobras. Desenhe o padrão em Editar e depois volte.",
     "errorTitle": "Referências indisponíveis",
     "exact": "Exato",
+    "exportStep": "Exportar passo",
     "filmstrip": {
       "label": "Passos de dobra"
     },

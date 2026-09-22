@@ -874,6 +874,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "No se muestra ningún paso",
       "noFoldHint": "No hay nada que plegar en esta tarjeta",
       "noTargetHint": "Elige primero un vértice o un pliegue",
       "pauseFold": "Pausar pliegue",
@@ -927,6 +928,7 @@
     "emptySheetHint": "Esta hoja aún no tiene pliegues. Dibuja el patrón en Editar y vuelve después.",
     "errorTitle": "Referencias no disponibles",
     "exact": "Exacto",
+    "exportStep": "Exportar paso",
     "filmstrip": {
       "label": "Pasos de plegado"
     },

@@ -269,6 +269,8 @@
   },
   "references": {
     "categoryLabel": "References",
+    "exportStepPng": "Export step as PNG…",
+    "exportStepSvg": "Export step as SVG…",
     "nextCandidate": "Next Candidate",
     "nextStep": "Next Step",
     "playFold": "Play Fold",

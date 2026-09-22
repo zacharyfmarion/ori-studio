@@ -67,6 +67,7 @@ import {
   sheetLineIds,
 } from '../../cp-workspace/references/referencesSheets';
 import { sideAt } from '../../cp-workspace/references/referencesSequenceView';
+import { referencesSequenceSubject } from '../../cp-workspace/references/referencesStepExport';
 import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
@@ -79,6 +80,7 @@ import { useReferencesBreakdown } from '../../cp-workspace/references/useReferen
 import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
 import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/references/useReferencesRun';
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
+import { useReferencesStepExport } from '../../cp-workspace/references/useReferencesStepExport';
 import { useReferencesTarget } from '../../cp-workspace/references/useReferencesTarget';
 import {
   useReferencesHighlights,
@@ -394,6 +396,29 @@ export function ReferencesPanel() {
   // The lead's second sentence: to the sequence, which plans on arrival there.
   const planSequenceFromLead = useCallback(() => setMode('sequence', 'lead'), [setMode]);
 
+  // The step the big view shows, as a page: named after the card the strip
+  // has active — a candidate's step names the candidate too, and a sequence
+  // card takes the number the strip prints on it rather than its place in the
+  // view's steps, which counts the turn-overs.
+  const exportSubject = useMemo(
+    () =>
+      targeted
+        ? { kind: 'reference' as const, candidate: controller.activeCandidate, step: activeStep }
+        : referencesSequenceSubject(viewSteps, activeStep),
+    [targeted, controller.activeCandidate, activeStep, viewSteps]
+  );
+  const exportStep = useReferencesStepExport({
+    // The page's diagram, not the canvas's: a file has nothing under it, so
+    // it carries the creases made so far itself.
+    diagram: highlights.pageDiagram,
+    camera: diagramCamera,
+    mirrored,
+    lineWidth: view.lineWidth,
+    subject: exportSubject,
+  });
+  const exportStepSvg = useCallback(() => void exportStep('svg'), [exportStep]);
+  const exportStepPng = useCallback(() => void exportStep('png'), [exportStep]);
+
   /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {
     if (targeted) {
@@ -421,6 +446,8 @@ export function ReferencesPanel() {
     zoomOut,
     clearTarget: controller.clear,
     playFold: fold.toggle,
+    exportStepSvg,
+    exportStepPng,
   };
   useReferencesShortcuts(shortcutActions, view.hasDocument);
   // Read through a ref refreshed after each commit rather than closed over, so
@@ -445,6 +472,7 @@ export function ReferencesPanel() {
       activeCandidate: controller.activeCandidate,
       canRecompute,
       hasView: view.geometry !== null,
+      hasDiagram: highlights.diagram !== null,
       fold: {
         available: fold.available,
         playing: fold.playing,

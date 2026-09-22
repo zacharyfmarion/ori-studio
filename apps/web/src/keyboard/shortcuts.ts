@@ -62,7 +62,9 @@ export type ReferencesShortcutId =
   | 'references.zoomIn'
   | 'references.zoomOut'
   | 'references.clearTarget'
-  | 'references.playFold';
+  | 'references.playFold'
+  | 'references.exportStepSvg'
+  | 'references.exportStepPng';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
@@ -361,7 +363,7 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
 function referencesShortcut(
   id: ReferencesShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[]
+  defaultChord: KeyChord | KeyChord[] | null
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -417,6 +419,11 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   // stack together, and space-to-pan belongs to the crease-pattern scope
   // beneath this one.
   referencesShortcut('references.playFold', 'Play Fold', { key: ' ' }),
+  // Unbound: an export is a menu row and a toolbar button, not a key one
+  // reaches for while reading. Registered all the same so the row, the button
+  // and a chord the user binds are one verb through the panel's executor.
+  referencesShortcut('references.exportStepSvg', 'Export step as SVG…', null),
+  referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
 ];
 
 /**

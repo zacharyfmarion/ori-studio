@@ -3156,7 +3156,14 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6315,7 +6322,14 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9476,7 +9490,14 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12578,7 +12599,14 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15680,7 +15708,14 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18839,7 +18874,14 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21998,7 +22040,14 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25100,6 +25149,13 @@
     "panels:cpProperties.paperStyle.auxWidth": "5409b130acc0",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "866097a80915"
+    "dialogs:settings.paper.erodeHint": "866097a80915",
+    "panels:references.actions.noDiagramHint": "ff7d6e807c85",
+    "panels:references.exportStep": "7da7f353f6de",
+    "tools:references.exportStepPng": "2e86eb3cca56",
+    "tools:references.exportStepSvg": "45b229e7d6e8",
+    "toasts:referencesExport.empty": "efebbd5d1a6e",
+    "toasts:referencesExport.failed": "7e9c2f338c4f",
+    "toasts:referencesExport.saved": "b22cd4e87ce1"
   }
 }

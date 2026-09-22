@@ -261,6 +261,8 @@
   },
   "references": {
     "categoryLabel": "リファレンス",
+    "exportStepPng": "ステップを PNG で書き出す…",
+    "exportStepSvg": "ステップを SVG で書き出す…",
     "nextCandidate": "次の候補",
     "nextStep": "次のステップ",
     "playFold": "折りを再生",

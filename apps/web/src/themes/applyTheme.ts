@@ -68,7 +68,7 @@ const MOUNTAIN_VALLEY_COLORS = {
  * `selectionColor.test.ts` holds selections to. Light variants are the same
  * hues darkened to read on a light canvas.
  */
-const REFERENCE_COLORS = {
+export const REFERENCE_COLORS = {
   dark: { input: '#f25ab8', new: '#a3e635' },
   light: { input: '#c91d87', new: '#4d7c0f' },
 } as const;

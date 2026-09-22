@@ -45,6 +45,7 @@ export {
   type PaperLineItem,
   type PaperLineRole,
   type PaperLineWhole,
+  type PaperMarkupItem,
   type PaperScene,
   type PaperSide,
   type SceneBounds,

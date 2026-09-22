@@ -24,6 +24,7 @@ import {
   viewRotationFor,
   type CameraUniforms,
   type PaperFaceItem,
+  type PaperItem,
   type PaperLineItem,
   type PaperScene,
 } from '@treemaker/origami-simulator';
@@ -370,7 +371,7 @@ function scenePicture(scene: PaperScene, half: number): Picture {
   const pic = blank();
   scene.items.forEach((item, index) => {
     if (item.kind === 'face') fillRings(pic, item.rings, item.face, item.side === 'front' ? 1 : -1);
-    else stampSegment(pic, item.a, item.b, INK + index, half, null);
+    else if (item.kind === 'line') stampSegment(pic, item.a, item.b, INK + index, half, null);
   });
   return pic;
 }
@@ -478,6 +479,7 @@ describe('the scene the 3D figure exports', () => {
         [...buriedEverywhere(model, camera)].filter((face) => !edgeOn(model, face, uniforms))
       );
       for (const item of scene.items) {
+        if (item.kind === 'markup') continue;
         const face = item.face ?? -1;
         if (!buried.has(face)) continue;
         expect(item.hidden, `${name} @ ${label}, ${item.kind} of buried face ${face}`).toBe(true);
@@ -767,8 +769,9 @@ describe('the export camera', () => {
     const mesh = meshOf(model);
     const one = sceneOf(model, mesh, { ...DEFAULT_FOLDED_3D_CAMERA, zoom: 1 });
     const two = sceneOf(model, mesh, { ...DEFAULT_FOLDED_3D_CAMERA, zoom: 2 });
-    expect(two.items.map((item) => [item.kind, item.face])).toEqual(
-      one.items.map((item) => [item.kind, item.face])
+    const faceOf = (item: PaperItem) => (item.kind === 'markup' ? undefined : item.face);
+    expect(two.items.map((item) => [item.kind, faceOf(item)])).toEqual(
+      one.items.map((item) => [item.kind, faceOf(item)])
     );
     expect(two.sheet / one.sheet).toBeCloseTo(2, 6);
     const extent = (scene: PaperScene) => scene.bounds.maxX - scene.bounds.minX;

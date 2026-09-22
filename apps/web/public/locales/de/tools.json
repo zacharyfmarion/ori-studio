@@ -269,6 +269,8 @@
   },
   "references": {
     "categoryLabel": "Referenzen",
+    "exportStepPng": "Schritt als PNG exportieren…",
+    "exportStepSvg": "Schritt als SVG exportieren…",
     "nextCandidate": "Nächster Kandidat",
     "nextStep": "Nächster Schritt",
     "playFold": "Faltung abspielen",

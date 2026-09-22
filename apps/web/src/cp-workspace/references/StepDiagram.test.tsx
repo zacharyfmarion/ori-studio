@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE, type PaperStyleOverrides } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { cardChromeRects, StepDiagram } from './StepDiagram';
+import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/DiagramPrimitives';
+import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
 import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
@@ -552,5 +554,86 @@ describe('the existing creases on a card', () => {
     expect(Number(line.x2)).toBeCloseTo(right.x, 6);
     const valley = lines(markup).find((l) => l.class?.includes('valley'))!;
     expect(Number(valley.x1)).toBeCloseTo(project([0, 0]).x, 6);
+  });
+});
+
+describe('the same shapes, inked for a file', () => {
+  // On screen a shape carries a class and the stylesheet colours it; in a
+  // file there is no stylesheet, so the context carries the colours and the
+  // shape writes them as attributes and no class at all. One implementation,
+  // two outputs — a colour added to `theme.css` and not to the inline ink
+  // shows up as a shape the page draws in the wrong colour.
+  const tokens: DiagramInlineTokens = {
+    '--references-paper-front': '#fff8e1',
+    '--references-paper-back': '#d0d0d0',
+    '--fold-mountain': '#112233',
+    '--fold-valley': '#445566',
+    '--fold-border': '#000000',
+    '--fold-unassigned': '#aabbcc',
+    '--references-crease-alpha': '0.5',
+    '--cp-reference-input': '#ff00ff',
+    '--text-primary': '#222222',
+    '--bg-primary': '#fafafa',
+  };
+  const primitives: StepDiagramModel['primitives'] = [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'crease' },
+    { kind: 'line', from: [0, 0.25], to: [1, 0.25], style: 'unfolded' },
+    { kind: 'line', from: [0, 0], to: [1, 1], style: 'valley' },
+    { kind: 'region', corners: [[0.2, 0], [0.4, 0], [0.4, 1], [0.2, 1]] },
+    { kind: 'point', at: [0.5, 0.5], style: 'highlight' },
+    { kind: 'label', at: [0.5, 0.5], text: 'A', style: 'highlight' },
+    { kind: 'fold-arrow', out: foldArrowArc([0.2, 0.5], [0.8, 0.5], [0.5, 0.5])! },
+    { kind: 'turn-over', at: [0.5, 0.5] },
+  ];
+  const draw = (mirrored: boolean, inline: boolean) => {
+    const project = createDiagramProjector({ width: 1, height: 1 }, 100, mirrored);
+    const context = createDiagramRenderContext(
+      primitives,
+      { width: 1, height: 1 },
+      project,
+      {},
+      { visible: true, erode: 0 },
+      inline ? diagramInlineInk(tokens, '#405060') : null
+    );
+    return renderToStaticMarkup(
+      <svg>{primitives.map((primitive, index) => diagramPrimitiveShape(primitive, index, context))}</svg>
+    );
+  };
+
+  it('keeps every class on screen, and writes none into a file', () => {
+    const screen = draw(false, false);
+    expect(screen.match(/class="/g)!.length).toBeGreaterThanOrEqual(primitives.length);
+    expect(screen).not.toContain('stroke="#');
+    expect(screen).not.toContain('fill="#');
+    const file = draw(false, true);
+    expect(file).not.toContain('class=');
+  });
+
+  it('gives each shape the colour its class would have', () => {
+    const file = draw(false, true);
+    expect(elements(file, 'rect')[0]).toMatchObject({ fill: '#fff8e1', stroke: '#000000' });
+    expect(elements(draw(true, true), 'rect')[0]!.fill).toBe('#d0d0d0');
+    const [crease, unfolded, valley] = elements(file, 'line');
+    expect(crease).toMatchObject({ fill: 'none', stroke: '#aabbcc', 'stroke-opacity': '0.5' });
+    // The pen's own opacity and the ink's compose; a pen alone keeps its own.
+    expect(unfolded).toMatchObject({ stroke: '#aabbcc', 'stroke-opacity': '0.28' });
+    expect(valley).toMatchObject({ stroke: '#445566' });
+    expect(valley!['stroke-opacity']).toBeUndefined();
+    const polygons = elements(file, 'polygon');
+    expect(polygons[0]).toMatchObject({ fill: '#ff00ff', 'fill-opacity': '0.12', stroke: 'none' });
+    // The arrowhead and the turn-over glyph's head: the arrow pen's.
+    expect(polygons.slice(1).map((p) => p.fill)).toEqual(['#405060', '#405060']);
+    expect(elements(file, 'circle')[0]).toMatchObject({ fill: 'none', stroke: '#000000' });
+    expect(elements(file, 'text')[0]).toMatchObject({
+      fill: '#ff00ff',
+      stroke: '#fafafa',
+      'paint-order': 'stroke',
+      'stroke-linejoin': 'round',
+      'font-weight': '700',
+    });
+    for (const path of elements(file, 'path')) {
+      expect(path).toMatchObject({ fill: 'none', stroke: '#405060' });
+    }
   });
 });

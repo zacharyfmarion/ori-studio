@@ -285,6 +285,8 @@
   },
   "references": {
     "categoryLabel": "Референсы",
+    "exportStepPng": "Экспортировать шаг в PNG…",
+    "exportStepSvg": "Экспортировать шаг в SVG…",
     "nextCandidate": "Следующий вариант",
     "nextStep": "Следующий шаг",
     "playFold": "Воспроизвести сгиб",
