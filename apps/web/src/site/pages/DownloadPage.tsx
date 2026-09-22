@@ -12,7 +12,7 @@ import { CONTENT_PAGES, pagePath } from '../sitePages';
 import { useSitePage } from '../useSitePage';
 import { DesktopBuildList } from './DesktopBuildList';
 
-const GETTING_STARTED = CONTENT_PAGES.find((page) => page.id === 'getting-started');
+const ORIEDITA = CONTENT_PAGES.find((page) => page.id === 'oriedita');
 
 /**
  * `/download/` — the desktop app, and every build of it.
@@ -93,10 +93,10 @@ export function DownloadPage() {
               )}
             </dd>
           </dl>
-          {GETTING_STARTED && (
+          {ORIEDITA && (
             <p className="site-note">
-              <Link className="site-inline-link" to={pagePath(GETTING_STARTED, locale)}>
-                {t('site:download.gettingStartedLink', 'Installed? Here is where to begin')}
+              <Link className="site-inline-link" to={pagePath(ORIEDITA, locale)}>
+                {t('site:download.orieditaLink', 'Coming from Oriedita? Start here')}
               </Link>
             </p>
           )}

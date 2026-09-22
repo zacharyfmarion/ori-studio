@@ -107,7 +107,7 @@ export type DesktopDownloadSurface =
  * a `surface` this one does not need; it is not folded in here so its history stays
  * comparable. Kept in step with `SitePageId` by the `viewed` hook's parameter type.
  */
-export type SitePageViewedId = 'getting-started' | 'download' | 'oriedita' | 'faq';
+export type SitePageViewedId = 'download' | 'oriedita' | 'faq';
 
 /**
  * A feature slide in one of the landing carousels.

@@ -27,8 +27,6 @@ export function sitePageLabel(t: TFunction, id: SitePageId): string {
   switch (id) {
     case 'landing':
       return t('site:nav.home', 'Home');
-    case 'getting-started':
-      return t('site:nav.gettingStarted', 'Getting started');
     case 'download':
       return t('site:nav.download', 'Download');
     case 'oriedita':
@@ -50,8 +48,6 @@ export function sitePageTitle(t: TFunction, id: SitePageId): string {
   switch (id) {
     case 'landing':
       return t('site:landing.title', 'Ori Studio — Origami Design Workspace');
-    case 'getting-started':
-      return t('site:gettingStarted.pageTitle', 'Getting started with Ori Studio');
     case 'download':
       return t('site:download.pageTitle', 'Download Ori Studio for macOS, Windows and Linux');
     case 'oriedita':
@@ -73,11 +69,6 @@ export function sitePageDescription(t: TFunction, id: SitePageId): string {
       return t(
         'site:download.description',
         'Get the Ori Studio desktop app for macOS, Windows and Linux — the same free, open-source origami workspace as the browser version, with native menus, file dialogs and updates. Or open it in your browser with nothing to install.'
-      );
-    case 'getting-started':
-      return t(
-        'site:gettingStarted.description',
-        'The shortest path from opening Ori Studio to a crease pattern you can fold: the three ways in, the Edit, Design and Simulate workspaces, which files it opens and exports, how saving works, and the keyboard.'
       );
     case 'oriedita':
       return t(

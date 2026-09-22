@@ -339,11 +339,13 @@ all nine locales, as one PR (2026-09-22).
       condensed into the keyboard section, its caveats kept; says what carried
       over and what did not, and that the projects are separate. Links to
       Oriedita's site
-- [x] `/getting-started/` — the three start actions named with the start
-      screen's own `t()` strings (`dialogs:startScreen.*`, `common:workspaceRail.*`),
-      so the guide and the interface cannot disagree in any language; the three
-      workspaces; saving on each surface as `fileService` does it; the keyboard;
-      offline and mobile
+- [ ] ~~`/getting-started/`~~ — **written, then removed before merge**
+      (2026-09-22). It was a single page trying to be a manual; Zach wants
+      something more approachable and a real set of documentation pages instead,
+      which is its own piece of work rather than a section of this one. The page
+      component and its 30-odd keys are gone; the registry, the routes and the
+      prerender need nothing back when docs arrive — a page is an entry in
+      `SITE_PAGES` plus a component
 - [x] `/faq/` — ten questions, each an `<h2>` in the searcher's own words. Every
       answer is checkable against the code: formats from the landing's ring and
       the importers, saving from `fileService`, offline from the service worker,
@@ -355,12 +357,39 @@ all nine locales, as one PR (2026-09-22).
 - [x] All three in the nine locales at once: 88 keys × 8, written for each
       language's reader with the app's own UI labels quoted from its catalogs
       (設定 › ショートカット, 设置 › 快捷键 …), stamped, `i18n:check` green
-- [x] Nav order is the order Zach named: Getting started, Download, Oriedita, FAQ
-- [x] The pages link each other in their bodies (guide → Oriedita and download,
-      Oriedita → download, FAQ → both, download → guide), pinned by a test —
-      which caught the download page linking nowhere but the footer
+- [x] Nav order: Download, Oriedita, FAQ
+- [x] The pages link each other in their bodies (download → Oriedita,
+      Oriedita → download, FAQ → both), pinned by a test — which caught the
+      download page linking nowhere but the footer
 - [x] `DownloadPage` on the shared `SiteArticleHead` / `SiteSection` pieces, so
       four pages cannot drift into four heading sizes
+
+### Phase 3a — What review found (2026-09-22)
+
+**Text on the site pages selected but would not copy.** Not a CSS or selection
+problem — `user-select` is `auto` the whole way up and a drag selects fine. The
+app registers `edit.copy` as a global chord (`shortcuts.ts`), and
+`isShortcutEditingTarget` exempts only inputs and contenteditable, so a `<p>` is
+not an editing target: the capture-phase listener claimed ⌘C and
+`preventDefault`ed it, and the browser's own copy never ran. Measured as
+`defaultPrevented: true` with no `copy` event firing at all.
+
+Every other chord was swallowed on those pages too — there is no workspace
+mounted for any of them to act on. So the fix is a third "who owns this
+keystroke" predicate beside the two that exist: the *reader* owns them on a site
+page. `AppKeyboardActions.isReadingSitePage`, asked of the router rather than of
+focus, so it cannot be wrong about where focus happens to be.
+
+- [x] `handleAppKeyDown` stands down on a site page; wired in `App.tsx` from
+      `currentPath()` + `sitePageForPath`
+- [x] Tests: ⌘C is not claimed on a site page and Escape is not either; both are
+      still claimed in a workspace
+- [x] A note that follows a block gets its gap from a sibling rule
+      (`.site-definitions + .site-note`) rather than a modifier class, which
+      `.site-section > p` out-specified
+- [x] Bare "pattern" → "crease pattern" in the site and landing copy. The app's
+      own catalogs have ~70 more; swept separately, because Box Pleating
+      Studio's "pattern" means a stretch gadget and must not be rewritten
 
 ### Phase 4 — Measure
 

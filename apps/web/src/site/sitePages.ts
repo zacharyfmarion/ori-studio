@@ -21,7 +21,7 @@ import { WELCOME_PATH } from '../routing/paths';
  * `sitePageContent.tsx`, and the `Record` type there is what refuses an entry with no page
  * behind it.
  */
-export type ContentPageId = 'getting-started' | 'download' | 'oriedita' | 'faq';
+export type ContentPageId = 'download' | 'oriedita' | 'faq';
 export type SitePageId = 'landing' | ContentPageId;
 
 export interface SitePage<Id extends SitePageId = SitePageId> {
@@ -48,7 +48,6 @@ export const LANDING_PAGE: SitePage<'landing'> = { id: 'landing', path: '/' };
 
 /** The pages with a route of their own — every page but the landing, in nav order. */
 export const CONTENT_PAGES: readonly SitePage<ContentPageId>[] = [
-  { id: 'getting-started', path: '/getting-started/' },
   { id: 'download', path: '/download/' },
   { id: 'oriedita', path: '/oriedita/' },
   { id: 'faq', path: '/faq/' },

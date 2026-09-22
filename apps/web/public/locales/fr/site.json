@@ -7,10 +7,10 @@
     },
     "description": "Téléchargez l’application de bureau Ori Studio pour macOS, Windows et Linux : le même espace de travail libre et open source pour l’origami que la version navigateur, avec des menus natifs, des boîtes de dialogue de fichiers et des mises à jour. Ou ouvrez-le dans votre navigateur, sans rien installer.",
     "eyebrow": "Application de bureau",
-    "gettingStartedLink": "Installé ? Voici par où commencer",
     "latest": "Dernière version : {{version}}",
     "lead": "Ori Studio fonctionne dans votre navigateur, sans rien installer. L’application de bureau est le même espace de travail, empaqueté pour macOS, Windows et Linux — avec des menus et des boîtes de dialogue natifs, des projets qui s’ouvrent directement depuis le Finder ou l’Explorateur, et des mises à jour qui s’installent toutes seules.",
     "openInBrowser": "Ou ouvrez-le dans votre navigateur",
+    "orieditaLink": "Vous venez d’Oriedita ? Commencez ici",
     "pageTitle": "Télécharger Ori Studio pour macOS, Windows et Linux",
     "title": "Télécharger Ori Studio",
     "which": {
@@ -27,7 +27,7 @@
     "description": "Réponses aux questions que l’on pose sur Ori Studio : est-il gratuit, quels fichiers ouvre-t-il et exporte-t-il, où votre travail est-il enregistré, fonctionne-t-il hors ligne et sur un téléphone, que collecte-t-il, et quel est son lien avec Oriedita, TreeMaker et Box Pleating Studio.",
     "eyebrow": "FAQ",
     "files": {
-      "export": "Il exporte en .cp, .fold, .ori, .orh, .tmd4, .tmd5 et .bps, et rend un patron en SVG ou PNG. Un format qui n’a pas de place pour quelque chose — les photos de référence, les notes — le laisse simplement de côté.",
+      "export": "Il exporte en .cp, .fold, .ori, .orh, .tmd4, .tmd5 et .bps, et rend un patron de pliage en SVG ou PNG. Un format qui n’a pas de place pour quelque chose — les photos de référence, les notes — le laisse simplement de côté.",
       "open": "Il ouvre les projets Ori Studio (.osf) et importe les patrons de pliage .cp, .fold, .ori et .orh, les fichiers TreeMaker (.tmd, .tmd4, .tmd5) et les fichiers Box Pleating Studio (.bps).",
       "q": "Quels fichiers puis-je ouvrir et exporter ?"
     },
@@ -36,7 +36,7 @@
       "q": "Ori Studio est-il gratuit ?"
     },
     "help": {
-      "a": "Les bugs vont sur GitHub, où vit le code source. Les questions sont les bienvenues sur le Discord, où les versions sont aussi annoncées.",
+      "a": "Le meilleur endroit pour signaler un problème ou demander une fonctionnalité est le Discord d’Ori Studio.",
       "discord": "Rejoindre le Discord",
       "issues": "Signaler un bug sur GitHub",
       "q": "Où poser une question ou signaler un bug ?"
@@ -66,11 +66,11 @@
       "q": "Quel est son lien avec TreeMaker et Box Pleating Studio ?"
     },
     "privacy": {
-      "a": "Des comptages d’utilisation anonymes et des rapports de plantage, pour savoir quels outils sont utilisés et ce qui casse — jamais vos fichiers, vos patrons, leur géométrie ou vos images. Vous pouvez le désactiver dans Paramètres › Confidentialité, et l’application fonctionne exactement de la même façon dans les deux cas.",
+      "a": "Des comptages d’utilisation anonymes et des rapports de plantage, pour savoir quels outils sont utilisés et ce qui casse — jamais vos fichiers, vos patrons de pliage, leur géométrie ou vos images. Vous pouvez le désactiver dans Paramètres › Confidentialité, et l’application fonctionne exactement de la même façon dans les deux cas.",
       "q": "Que collecte-t-il ?"
     },
     "saving": {
-      "a": "Sur votre ordinateur, sous forme de fichier .osf, et nulle part ailleurs — aucun serveur ne conserve vos patrons. Dans Chrome et Edge, Enregistrer écrit directement dans le fichier que vous avez ouvert ; dans les autres navigateurs, chaque enregistrement télécharge une nouvelle copie. L’application de bureau utilise les boîtes de dialogue habituelles.",
+      "a": "Sur votre ordinateur, sous forme de fichier .osf, et nulle part ailleurs — aucun serveur ne conserve vos patrons de pliage. Dans Chrome et Edge, Enregistrer écrit directement dans le fichier que vous avez ouvert ; dans les autres navigateurs, chaque enregistrement télécharge une nouvelle copie. L’application de bureau utilise les boîtes de dialogue habituelles.",
       "q": "Où mon travail est-il enregistré ?"
     },
     "title": "Questions fréquentes"
@@ -83,45 +83,6 @@
     "note": "{{name}} est libre et open source.",
     "releases": "Versions"
   },
-  "gettingStarted": {
-    "anywhere": {
-      "body": "Chaque espace de travail s’ouvre sur un téléphone ou une tablette, même si un ordinateur portable est plus confortable pour dessiner. Après le premier chargement, l’application garde une copie d’elle-même et démarre sans connexion. Si vous préférez l’avoir comme application à part entière, il existe une version de bureau pour macOS, Windows et Linux.",
-      "title": "Partout, et hors ligne"
-    },
-    "description": "Le chemin le plus court entre l’ouverture d’Ori Studio et un patron de pliage que vous pouvez plier : les trois façons de commencer, les espaces de travail Édition, Conception et Simuler, les fichiers qu’il ouvre et exporte, le fonctionnement de l’enregistrement et le clavier.",
-    "download": "Ou installer l’application de bureau",
-    "eyebrow": "Guide",
-    "faqLink": "D’autres questions trouvent réponse dans la FAQ",
-    "keyboard": {
-      "layout": "L’éditeur est conçu pour être piloté au clavier. Les types de lignes sont sur la rangée du milieu — A, S, D et F — et chaque outil a un raccourci que vous pouvez modifier dans Paramètres › Raccourcis.",
-      "oriedita": "Vous venez d’Oriedita ? Vous pouvez importer les raccourcis dont vous avez l’habitude depuis son fichier de paramètres, pour que vos mains soient opérationnelles dès le premier jour.",
-      "orieditaLink": "Comment apporter votre clavier Oriedita",
-      "title": "Le clavier"
-    },
-    "lead": "Ori Studio fonctionne dans votre navigateur, sans compte et sans rien installer. Voici le chemin le plus court entre son ouverture et un patron de pliage que vous pouvez plier.",
-    "openApp": "Ouvrir Ori Studio",
-    "pageTitle": "Premiers pas avec Ori Studio",
-    "saving": {
-      "browser": "Dans le navigateur, Chrome et Edge écrivent l’enregistrement directement dans le fichier que vous avez ouvert ; les autres navigateurs téléchargent une nouvelle copie à chaque fois. L’application de bureau utilise les boîtes de dialogue habituelles.",
-      "export": "Pour transmettre un patron à un autre programme, exportez-le en .cp, .fold, .ori ou .orh, ou en SVG ou PNG. Tout ce que ces formats ne peuvent pas contenir — les photos, les notes — est proprement laissé de côté plutôt que de corrompre le fichier.",
-      "project": "Un projet Ori Studio est un fichier .osf. Il contient tout : le patron de pliage, les images de référence et les notes qui l’accompagnent, et chaque onglet de conception. Rien n’est stocké sur un serveur — le fichier est sur votre ordinateur.",
-      "title": "Enregistrer votre travail"
-    },
-    "title": "Premiers pas",
-    "ways": {
-      "createCp": "Un patron de pliage vierge et modifiable, avec les outils de dessin prêts. Pour quand vous connaissez le patron et voulez le dessiner.",
-      "createDesign": "Pour quand vous connaissez le sujet mais pas encore le patron. Esquissez sa structure sous forme d’arbre et laissez le placement de cercles trouver une base, ou disposez les pointes sur une grille de plissé carré ; dans les deux cas, le patron de pliage est construit pour vous.",
-      "lead": "L’écran d’accueil propose trois actions. Celle qu’il vous faut dépend de si vous connaissez déjà le patron de pliage.",
-      "openFile": "Un projet Ori Studio (.osf), ou un fichier venant d’un autre outil — .cp, .fold, .ori, .orh, .bps, ou un .tmd de TreeMaker. Déposer un fichier n’importe où sur la page revient au même.",
-      "title": "Trois façons de commencer"
-    },
-    "workspaces": {
-      "design": "Là où un modèle est placé avant d’être dessiné : plissé carré sur une grille, placement de cercles à partir d’un arbre, ou recherche dans l’archive de patrons à 22,5° d’ExplOri. Plusieurs conceptions restent ouvertes dans des onglets, et chacune peut envoyer son patron de pliage vers Édition.",
-      "edit": "L’éditeur de patrons de pliage, un portage d’Oriedita. Dessinez avec des outils de construction et de transformation aimantés à la grille et aux angles, voyez les problèmes de pliabilité dès que vous les créez, et gardez photos de référence, notes et aperçu plié sur le même canevas.",
-      "simulate": "Plie le patron en un modèle 3D que vous pouvez tourner et examiner, grâce à un portage d’Origami Simulator. Une simulation s’ouvre aussi dans une fenêtre à côté du patron que vous dessinez, si bien que vérifier une idée ne coûte qu’un coup d’œil.",
-      "title": "Les trois espaces de travail"
-    }
-  },
   "header": {
     "openApp": "Ouvrir l’application"
   },
@@ -132,7 +93,6 @@
   "nav": {
     "download": "Télécharger",
     "faq": "FAQ",
-    "gettingStarted": "Premiers pas",
     "home": "Accueil",
     "label": "Site",
     "oriedita": "Oriedita"
@@ -144,34 +104,30 @@
       "title": "À propos d’Oriedita"
     },
     "carries": {
-      "checks": "Les vérifications de pliabilité : Kawasaki et Maekawa là où le papier se plie à plat et, pour les plis qui ne le font pas, une vérification en trois dimensions de la fermeture de chaque sommet.",
-      "files": "Les fichiers. Ouvrez n’importe quel .ori ou .orh et exportez vers l’un ou l’autre — un patron peut passer d’un programme à l’autre dans les deux sens.",
-      "keyboard": "Votre clavier, si vous le souhaitez : les raccourcis d’Oriedita peuvent être importés depuis son propre fichier de paramètres.",
+      "checks": "Les vérifications de pliabilité : Kawasaki, Maekawa et big-little-big sont vérifiés de la même manière. Il y a quelques différences de nom — dans Ori Studio, nous parlons de pliabilité plutôt que de CAMV.",
+      "files": "Les fichiers. Ouvrez n’importe quel .ori ou .orh et exportez vers l’un ou l’autre — un patron de pliage peut passer d’un programme à l’autre dans les deux sens.",
+      "keyboard": "Votre clavier, si vous le souhaitez : les raccourcis d’Oriedita peuvent être importés dans Ori Studio.",
       "title": "Ce qui est conservé",
-      "tools": "L’éditeur. Les outils de dessin, de construction et de transformation sont des portages de ceux d’Oriedita, vérifiés contre l’original pour donner les mêmes résultats."
+      "tools": "L’éditeur. Les outils de dessin, de construction et de transformation sont des portages de ceux d’Oriedita et se comportent de façon quasi identique. Quelques petits changements ont été faits pour alléger l’interface, comme la fusion des variantes de l’outil Prolonger la ligne en un seul outil."
     },
     "description": "L’éditeur de patrons de pliage d’Ori Studio est un portage d’Oriedita qui fonctionne dans votre navigateur : les mêmes outils et vérifications de pliabilité, les fichiers .ori et .orh dans les deux sens, et vos raccourcis clavier Oriedita importés depuis un fichier .oriconfig.",
     "different": {
-      "browser": "Il fonctionne dans le navigateur. Ouvrez un onglet et dessinez ; l’application de bureau est le même éditeur avec des menus et des boîtes de dialogue natifs.",
-      "design": "Un espace de travail Conception à côté de l’éditeur : plissé carré sur une grille et placement de cercles à partir d’un arbre, chacun construisant un patron de pliage que vous pouvez envoyer directement vers Édition.",
-      "missing": "Quelques actions d’Oriedita n’ont pas encore d’équivalent — les images d’arrière-plan, le dimensionnement de la figure pliée, le changement de panneau, entre autres. L’import des raccourcis nomme chacune de celles qu’il ignore.",
-      "references": "Les photos de référence et les notes vivent sur le canevas à côté du patron, enregistrées avec le projet — et proprement laissées de côté à l’export en .ori, qui n’a pas de place pour elles.",
-      "simulate": "Un simulateur de pliage s’ouvre dans une fenêtre à côté du patron, si bien que vérifier qu’une idée se plie n’impose plus un aller-retour par un autre programme.",
+      "browser": "Il peut fonctionner dans le navigateur. Ori Studio est bâti sur des technologies web modernes et tourne entièrement dans un onglet. Si vous préférez, vous pouvez aussi le télécharger comme application native, sur toutes les plateformes.",
+      "design": "D’autres espaces de travail : en plus de l’édition, Ori Studio en propose plusieurs qui agissent sur les patrons de pliage — conception, simulation et références. Tous reposent sur de formidables outils libres créés par la communauté. Les réunir au même endroit leur permet de fonctionner ensemble, sans changer de contexte.",
+      "references": "Prise en charge de la 3D. Grâce au soutien de Brandon Wong (@theplantpsychologist sur Instagram), Ori Studio gère nativement les plis non plats : vous pouvez créer des patrons de pliage qui ne se plient pas à plat et en calculer la forme pliée.",
+      "simulate": "Vous pouvez sélectionner un patron de pliage et le simuler sur place pour vérifier rapidement comment il se plie.",
       "title": "Ce qui est différent"
     },
     "download": "Obtenir l’application de bureau",
     "eyebrow": "Compatibilité",
     "keyboard": {
-      "choice": "La boîte de dialogue propose deux options. « Reproduire le clavier d’Oriedita » applique la disposition d’Oriedita plus ce que vous avez personnalisé ; « Seulement mes personnalisations » n’applique que les raccourcis que vous avez modifiés et garde la disposition d’Ori Studio pour tout le reste. L’export d’Oriedita n’enregistre que les touches que vous avez modifiées : si vous n’avez jamais rien changé, la seconde option n’a rien à appliquer.",
-      "lead": "La disposition par défaut d’Ori Studio diffère volontairement — les types de lignes sont sur la rangée du milieu, A, S, D et F, là où Oriedita utilise M, V et L. Si vos mains connaissent Oriedita, deux étapes les rendent opérationnelles ici dès le premier jour.",
-      "skipped": "L’aperçu liste chaque raccourci qui ne sera pas importé, et pourquoi : une touche laissée vide dans Oriedita, une action sans équivalent ici, ou une touche déjà prise par un autre raccourci. Seuls les raccourcis clavier sont repris — les couleurs, les épaisseurs de ligne et les réglages de grille restent tels quels.",
-      "step1": "Dans Oriedita, ouvrez les Préférences et cliquez sur Exporter. Enregistrez le fichier .oriconfig où vous voulez.",
-      "step2": "Dans Ori Studio, ouvrez Paramètres › Raccourcis, cliquez sur « Importer depuis Oriedita... » et choisissez ce fichier. Rien ne change tant que vous n’avez pas passé en revue ce que l’import ferait et confirmé.",
+      "import": "Vous pouvez aussi importer les raccourcis clavier que vous aviez enregistrés dans Oriedita : exportez-les depuis les Préférences, puis importez-les dans Ori Studio depuis Paramètres › Raccourcis.",
+      "lead": "La disposition par défaut d’Ori Studio diffère volontairement — les types de lignes sont sur la rangée du milieu, A, S, D et F, là où Oriedita utilise M, V et L. Si vos mains connaissent Oriedita, vous pouvez basculer sur les réglages d’Oriedita dans Paramètres › Raccourcis.",
       "title": "Apportez votre clavier"
     },
-    "lead": "L’éditeur de patrons de pliage d’Ori Studio est un portage d’Oriedita : ses outils de dessin, ses vérifications de pliabilité et ses formats de fichiers, dans un onglet de navigateur sans rien installer — ou en application de bureau.",
+    "lead": "L’éditeur de patrons de pliage d’Ori Studio est un portage d’Oriedita : vous devriez vous y retrouver tout de suite. Il ouvre et exporte le format .ori, et nous nous engageons à maintenir l’interopérabilité autant que possible.",
     "openEditor": "Ouvrir l’éditeur",
     "pageTitle": "Oriedita dans votre navigateur — Ori Studio",
-    "title": "Oriedita, dans votre navigateur"
+    "title": "Vous venez d’Oriedita"
   }
 }

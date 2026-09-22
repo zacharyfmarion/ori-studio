@@ -6,6 +6,26 @@ import { handleShortcutRuntimeKeyDown } from '../keyboard/shortcutRuntime';
 import type { ShortcutDefaultsSource, ShortcutOverrides } from '../keyboard/shortcuts';
 
 export interface AppKeyboardActions {
+  /**
+   * Whether the app is showing a site page — the landing, `/faq/`, `/download/` —
+   * rather than a workspace.
+   *
+   * A third "who owns this keystroke" predicate, beside {@link isShortcutEditingTarget}
+   * (the target is typing) and {@link isOpenLayerTarget} (a layer is navigating): on a
+   * site page the *page* owns them, because the reader is reading it.
+   *
+   * Without this, every chord the app registers is claimed and `preventDefault`ed on a
+   * page where no workspace is mounted to act on it — and the one that matters is ⌘C.
+   * `edit.copy` is a registered shortcut, a `<p>` is not an editing target, so the
+   * runtime took the chord and the browser's own copy never ran: text on these pages
+   * selected but could not be copied. Reported 2026-09-22; measured as
+   * `defaultPrevented` with no `copy` event fired at all.
+   *
+   * Read through a getter, like the others here, because this handler outlives any one
+   * route — and it asks the router rather than the DOM, so it cannot be wrong about
+   * where focus happens to be.
+   */
+  isReadingSitePage?: () => boolean;
   getActiveEditingContext: () => EditingContext;
   getSelection: () => Selection;
   handleMenuAction: (id: string) => unknown;
@@ -31,7 +51,8 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
   if (
     event.defaultPrevented ||
     isShortcutEditingTarget(event.target) ||
-    isOpenLayerTarget(event.target)
+    isOpenLayerTarget(event.target) ||
+    actions.isReadingSitePage?.()
   ) {
     return false;
   }

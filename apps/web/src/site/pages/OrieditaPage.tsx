@@ -32,10 +32,10 @@ export function OrieditaPage() {
       <article className="site-article">
         <SiteArticleHead
           eyebrow={t('site:oriedita.eyebrow', 'Compatibility')}
-          title={t('site:oriedita.title', 'Oriedita, in your browser')}
+          title={t('site:oriedita.title', 'Coming from Oriedita')}
           lead={t(
             'site:oriedita.lead',
-            'Ori Studio’s crease-pattern editor is a port of Oriedita: its drawing tools, its foldability checks and its file formats, running in a browser tab with nothing to install — or as a desktop app.'
+            'Ori Studio’s crease-pattern editor is a port of Oriedita, so it should feel familiar right away. It supports opening and exporting to the .ori format, and we are committed to maintaining interoperability where possible.'
           )}
         >
           <div className="site-actions">
@@ -55,25 +55,25 @@ export function OrieditaPage() {
             <li>
               {t(
                 'site:oriedita.carries.tools',
-                'The editor. Drawing, construction and transform tools are ports of Oriedita’s, checked against the original for the same results.'
+                'The editor. Drawing, construction and transform tools are ports of Oriedita’s and behave in almost identical ways. There are some small changes that have been made for the sake of reducing clutter, such as the Extend Line tool’s variants being combined into one tool.'
               )}
             </li>
             <li>
               {t(
                 'site:oriedita.carries.checks',
-                'The foldability checks: Kawasaki and Maekawa where the paper folds flat, and for creases that do not, a check in three dimensions of whether each vertex closes.'
+                'The foldability checks: Kawasaki, Maekawa, and big-little-big are all checked in the same way. There are a couple of naming differences — in Ori Studio we use the term foldability instead of CAMV.'
               )}
             </li>
             <li>
               {t(
                 'site:oriedita.carries.files',
-                'The files. Open any .ori or .orh, and export back to either — a pattern can move between the two programs in both directions.'
+                'The files. Open any .ori or .orh, and export back to either — a crease pattern can move between the two programs in both directions.'
               )}
             </li>
             <li>
               {t(
                 'site:oriedita.carries.keyboard',
-                'Your keyboard, if you want it: Oriedita’s shortcuts can be imported from its own settings file.'
+                'Your keyboard, if you want it: Oriedita’s shortcuts can be imported into Ori Studio.'
               )}
             </li>
           </ul>
@@ -83,33 +83,13 @@ export function OrieditaPage() {
           <p>
             {t(
               'site:oriedita.keyboard.lead',
-              'Ori Studio’s default layout deliberately differs — the line types sit on the home row, A, S, D and F, where Oriedita uses M, V and L. If your hands know Oriedita, two steps make them work here on day one.'
-            )}
-          </p>
-          <ol className="site-list">
-            <li>
-              {t(
-                'site:oriedita.keyboard.step1',
-                'In Oriedita, open Preferences and click Export. Save the .oriconfig file anywhere.'
-              )}
-            </li>
-            <li>
-              {t(
-                'site:oriedita.keyboard.step2',
-                'In Ori Studio, open Settings › Shortcuts, click “Import from Oriedita…”, and pick that file. Nothing changes until you have reviewed what the import would do and confirmed it.'
-              )}
-            </li>
-          </ol>
-          <p>
-            {t(
-              'site:oriedita.keyboard.choice',
-              'The dialog offers two options. “Match Oriedita’s keyboard” applies Oriedita’s layout plus whatever you customized; “Only my customizations” applies just the hotkeys you changed and keeps Ori Studio’s layout for everything else. Oriedita’s export records only the keys you edited, so if you never changed anything the second option has nothing to apply.'
+              'Ori Studio’s default layout deliberately differs — the line types sit on the home row, A, S, D and F, where Oriedita uses M, V and L. If your hands know Oriedita, you can switch to using Oriedita defaults in Settings › Shortcuts.'
             )}
           </p>
           <p>
             {t(
-              'site:oriedita.keyboard.skipped',
-              'The preview lists every shortcut it will not import and why: a key left blank in Oriedita, an action with no counterpart here, or a key another shortcut already answers. Only hotkeys come across — colours, line widths and grid settings stay as they are.'
+              'site:oriedita.keyboard.import',
+              'You can also import your saved keyboard shortcuts from Oriedita by exporting them from Preferences, and importing them in Ori Studio from Settings › Shortcuts.'
             )}
           </p>
         </SiteSection>
@@ -119,31 +99,25 @@ export function OrieditaPage() {
             <li>
               {t(
                 'site:oriedita.different.browser',
-                'It runs in the browser. Open a tab and draw; the desktop app is the same editor with native menus and file dialogs.'
+                'It can run in the browser. Ori Studio was built around modern web tooling and can run entirely in a tab. You can also download it as a native app if you prefer on all platforms.'
               )}
             </li>
             <li>
               {t(
                 'site:oriedita.different.references',
-                'Reference photos and notes live on the canvas beside the pattern, saved with the project — and dropped cleanly when you export to .ori, which has no room for them.'
+                '3D Support. Thanks to the support of Brandon Wong (@theplantpsychologist on Instagram), Ori Studio has native support for non-flat creases, meaning you can both create and compute the folded form of crease patterns that are not flat foldable.'
               )}
             </li>
             <li>
               {t(
                 'site:oriedita.different.simulate',
-                'A fold simulator opens in a window next to the pattern, so checking whether an idea folds does not mean a round trip through another program.'
+                'You can select a crease pattern and simulate it inline to quickly check how it will fold.'
               )}
             </li>
             <li>
               {t(
                 'site:oriedita.different.design',
-                'A Design workspace alongside the editor: box pleating on a grid and circle packing from a tree, each building a crease pattern you can send straight to Edit.'
-              )}
-            </li>
-            <li>
-              {t(
-                'site:oriedita.different.missing',
-                'A few Oriedita actions have no counterpart yet — background images, folded-figure sizing, panel switching among them. The shortcut import names each one it skips.'
+                'Additional workspaces: In addition to the edit workspace, Ori Studio offers multiple other workspaces that act on crease patterns — design, simulate, and references. All of these workspaces are based on amazing open source tools built by the community. Bringing them all together in one place allows for them all to work together without having to context switch.'
               )}
             </li>
           </ul>

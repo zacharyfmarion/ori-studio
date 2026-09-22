@@ -253,6 +253,19 @@
   font-size: 0.86rem;
 }
 
+/*
+ * A note that follows a block rather than a paragraph.
+ *
+ * `.site-section > p` sets `margin: 0 0 …`, and it outranks a `.site-note` modifier
+ * class — (0,1,1) against (0,1,0) — so the note lands flush against the list above it.
+ * A sibling rule says the actual condition instead of out-specifying that one: the gap
+ * belongs between a block and the note that closes the section.
+ */
+.site-definitions + .site-note,
+.site-list + .site-note {
+  margin-top: var(--space-5);
+}
+
 .site-note a {
   color: var(--text-secondary);
   text-decoration: underline;

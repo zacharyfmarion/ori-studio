@@ -119,17 +119,9 @@ describe('content page prerender', () => {
 describe('each content page says what it is for', () => {
   const page = (id: string) => CONTENT_PAGES.find((candidate) => candidate.id === id)!;
 
-  it('getting started names the three start actions in the app’s own words', () => {
-    const markup = renderPageMarkup(page('getting-started'));
-    for (const label of ['Create a CP', 'Open a file', 'Create a design']) expect(markup).toContain(label);
-    for (const workspace of ['Edit', 'Design', 'Simulate']) expect(markup).toContain(`<dt>${workspace}</dt>`);
-    expect(markup).toContain('href="/edit"');
-  });
-
-  it('the Oriedita page explains the .oriconfig import and links to Oriedita', () => {
+  it('the Oriedita page explains the shortcut import and links to Oriedita', () => {
     const markup = renderPageMarkup(page('oriedita'));
-    expect(markup).toContain('.oriconfig');
-    expect(markup).toContain('Import from Oriedita');
+    expect(markup).toContain('Settings › Shortcuts');
     expect(markup).toContain('href="https://oriedita.github.io/"');
     // A crawler-visible claim about the relationship, in so many words.
     expect(markup).toContain('not affiliated with Oriedita');

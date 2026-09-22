@@ -94,7 +94,7 @@ export function FaqPage() {
           <p>
             {t(
               'site:faq.files.export',
-              'It exports .cp, .fold, .ori, .orh, .tmd4, .tmd5 and .bps, and renders a pattern to SVG or PNG. A format that has no room for something — the reference photos, the notes — simply leaves it out.'
+              'It exports .cp, .fold, .ori, .orh, .tmd4, .tmd5 and .bps, and renders a crease pattern to SVG or PNG. A format that has no room for something — the reference photos, the notes — simply leaves it out.'
             )}
           </p>
         </Question>
@@ -103,7 +103,7 @@ export function FaqPage() {
           <p>
             {t(
               'site:faq.saving.a',
-              'On your computer, as an .osf file, and nowhere else — there is no server holding your patterns. In Chrome and Edge, Save writes back into the file you opened; in other browsers each Save downloads a fresh copy. The desktop app uses the ordinary file dialogs.'
+              'On your computer, as an .osf file, and nowhere else — there is no server holding your crease patterns. In Chrome and Edge, Save writes back into the file you opened; in other browsers each Save downloads a fresh copy. The desktop app uses the ordinary file dialogs.'
             )}
           </p>
         </Question>
@@ -144,7 +144,7 @@ export function FaqPage() {
           <p>
             {t(
               'site:faq.privacy.a',
-              'Anonymous usage counts and crash reports, so we can tell which tools get used and what breaks — never your files, your patterns, their geometry or your images. You can switch it off under Settings › Privacy, and the app works exactly the same either way.'
+              'Anonymous usage counts and crash reports, so we can tell which tools get used and what breaks — never your files, your crease patterns, their geometry or your images. You can switch it off under Settings › Privacy, and the app works exactly the same either way.'
             )}
           </p>
         </Question>
@@ -153,7 +153,7 @@ export function FaqPage() {
           <p>
             {t(
               'site:faq.help.a',
-              'Bugs go on GitHub, where the source lives. Questions are welcome on the Discord, where releases are announced too.'
+              'The best place to report issues or request features is the Ori Studio Discord.'
             )}
           </p>
           <p className="site-note">

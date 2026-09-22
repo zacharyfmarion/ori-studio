@@ -24,8 +24,8 @@ describe('SITE_PAGES', () => {
     expect(LANDING_PAGE.path).toBe('/');
   });
 
-  it('lists the four content pages, in nav order', () => {
-    expect(CONTENT_PAGES.map((page) => page.id)).toEqual(['getting-started', 'download', 'oriedita', 'faq']);
+  it('lists the content pages, in nav order', () => {
+    expect(CONTENT_PAGES.map((page) => page.id)).toEqual(['download', 'oriedita', 'faq']);
   });
 
   it('gives every page a distinct path', () => {
