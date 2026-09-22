@@ -106,13 +106,13 @@ describe('settingsStore', () => {
     expect(useSettingsStore.getState().settingsInitialTab).toBe('workspace');
   });
 
-  it('plays folds on arrival by default, and remembers a reader turning that off', async () => {
+  it('leaves folds unplayed on arrival by default, and remembers a reader turning auto-play on', async () => {
     const key = storageKey(STORAGE_KEYS.referencesAutoPlayFolds);
     localStorage.removeItem(key);
-    expect((await freshSettingsStore()).getState().referencesAutoPlayFolds).toBe(true);
-    useSettingsStore.getState().setReferencesAutoPlayFolds(false);
-    expect(localStorage.getItem(key)).toBe('false');
     expect((await freshSettingsStore()).getState().referencesAutoPlayFolds).toBe(false);
+    useSettingsStore.getState().setReferencesAutoPlayFolds(true);
+    expect(localStorage.getItem(key)).toBe('true');
+    expect((await freshSettingsStore()).getState().referencesAutoPlayFolds).toBe(true);
   });
 
   it('defaults the crease-pattern canvas to scroll-zooms and persists a change', () => {
