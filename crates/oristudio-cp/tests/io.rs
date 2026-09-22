@@ -13,6 +13,16 @@ use oristudio_cp::{
 #[test]
 fn text_command_pipeline_round_trips_through_ori_and_fold() {
     let mut document = CreasePatternDocument::default();
+    // One genuine crease: FOLD import normalizes the pattern bounding box onto
+    // the sheet, and degenerate zero-extent input is a typed error (issue
+    // #367), so a crease-less document — whose export carries only the
+    // exporter's origin phantom — cannot round-trip through FOLD. The texts
+    // are the payload under test here, not the pattern.
+    document.crease_pattern.add_line(
+        Point::new(-200.0, -200.0),
+        Point::new(200.0, 200.0),
+        LineColor::Black0,
+    );
 
     let create = |point: Point, content: &str| {
         CreasePatternCommand::new(OperationId::Text).with_payload(CreasePatternCommandPayload {
