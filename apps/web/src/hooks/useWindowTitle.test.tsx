@@ -10,8 +10,10 @@ import {
   singleTreemakerDesignTab,
 } from '../store/workspaceStore/designTabs';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import i18n from '../i18n';
 import { EDIT_PATH, WELCOME_PATH } from '../routing/paths';
-import { CONTENT_PAGES } from '../site/sitePages';
+import { CONTENT_PAGES, pagePath } from '../site/sitePages';
+import { preloadLocale } from '../test/preloadLocale';
 
 /**
  * The window title names the **open file**, falling back to the **project** —
@@ -182,7 +184,26 @@ describe('useWindowTitle', () => {
     // The registry answers which pages exist, so this hook needs no list of its own.
     const [page] = CONTENT_PAGES;
     mountWith({ workspaceTitle: 'Crane', dirty: true, ...singleTreemakerDesignTab() }, page.path);
-    expect(window.document.title).toBe(page.title);
+    expect(window.document.title).toBe('Download Ori Studio for macOS, Windows and Linux');
+  });
+
+  it('titles a localized page in its language — the string the prerender wrote there', async () => {
+    // The catalogs never load under jsdom (no network), so the test supplies the one key
+    // and switches language the way `useRouteLocale` does on `/zh-CN/…`.
+    const [page] = CONTENT_PAGES;
+    preloadLocale('zh-CN');
+    i18n.addResourceBundle('zh-CN', 'site', { download: { pageTitle: '下载 Ori Studio' } }, true, true);
+    await act(async () => {
+      await i18n.changeLanguage('zh-CN');
+    });
+    try {
+      mountWith({ workspaceTitle: 'Crane', dirty: false, ...singleTreemakerDesignTab() }, pagePath(page, 'zh-CN'));
+      expect(window.document.title).toBe('下载 Ori Studio');
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
   });
 
   it('takes the document title back on the way into a workspace', () => {

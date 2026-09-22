@@ -5,10 +5,12 @@
       "lead": "One file per platform and architecture, published on GitHub Releases.",
       "title": "Every build"
     },
+    "description": "Get the Ori Studio desktop app for macOS, Windows and Linux — the same free, open-source origami workspace as the browser version, with native menus, file dialogs and updates. Or open it in your browser with nothing to install.",
     "eyebrow": "Desktop app",
     "latest": "Latest release: {{version}}",
     "lead": "Ori Studio runs in your browser with nothing to install. The desktop app is the same workspace, packaged for macOS, Windows and Linux — with native menus and file dialogs, projects that open straight from Finder or Explorer, and updates that install themselves.",
     "openInBrowser": "Or open it in your browser",
+    "pageTitle": "Download Ori Studio for macOS, Windows and Linux",
     "title": "Download Ori Studio",
     "which": {
       "linuxBody": "The .deb installs on Debian and Ubuntu and their relatives. The AppImage runs anywhere without installing: make it executable and launch it.",
@@ -24,11 +26,16 @@
     "communityLabel": "Community",
     "discord": "Discord",
     "github": "GitHub",
+    "languageLabel": "Language",
     "note": "{{name}} is free and open source.",
     "releases": "Releases"
   },
   "header": {
     "openApp": "Open the app"
+  },
+  "landing": {
+    "description": "Ori Studio is a free, open-source workspace for origami design: draw and edit crease patterns, design from a tree structure or a box-pleating grid, and fold the result in the simulator. Runs in your browser, or as a desktop app for macOS, Windows and Linux.",
+    "title": "Ori Studio — Origami Design Workspace"
   },
   "nav": {
     "download": "Download",

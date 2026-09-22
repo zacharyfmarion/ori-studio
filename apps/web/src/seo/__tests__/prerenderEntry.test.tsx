@@ -2,9 +2,22 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LANDING_SECTIONS } from '../../components/landing/WelcomeLanding';
-import { CONTENT_PAGES, LANDING_PAGE, SITE_PAGES } from '../../site/sitePages';
+import {
+  CONTENT_PAGES,
+  LANDING_PAGE,
+  PAGE_LOCALES,
+  pagePath,
+  SITE_LOCALES,
+  SITE_PAGES,
+} from '../../site/sitePages';
 import { escapeForScriptTag, landingJsonLd, landingJsonLdScript, pageJsonLd } from '../jsonLd';
-import { prerenderSite, renderLandingMarkup, renderPageMarkup } from '../prerenderEntry';
+import {
+  loadLocaleResources,
+  pageMeta,
+  prerenderSite,
+  renderLandingMarkup,
+  renderPageMarkup,
+} from '../prerenderEntry';
 import { SEO_CONTENT_ID, SITE_NAME, SITE_ORIGIN, SITE_TITLE, siteUrl } from '../siteMeta';
 
 /**
@@ -106,9 +119,9 @@ describe('content page prerender', () => {
 describe('prerenderSite', () => {
   const template = indexHtml().replace('<script type="module" src="/src/main.tsx"></script>', '');
   const files = prerenderSite(template);
-  const fileFor = (path: string) => {
-    const match = files.find(({ page }) => page.path === path);
-    if (!match) throw new Error(`no output for ${path}`);
+  const fileFor = (path: string, locale = 'en') => {
+    const match = files.find((entry) => entry.page.path === path && entry.locale === locale);
+    if (!match) throw new Error(`no output for ${path} in ${locale}`);
     return match;
   };
 
@@ -118,6 +131,18 @@ describe('prerenderSite', () => {
     expect(names).toContain('welcome/index.html');
     for (const page of CONTENT_PAGES) {
       expect(names).toContain(`${page.path.replace(/^\/|\/$/g, '')}/index.html`);
+    }
+  });
+
+  it('writes every page once per locale, under the locale', () => {
+    const names = files.map(({ file }) => file);
+    // 9 locales × the registry, plus /welcome.
+    expect(files).toHaveLength(PAGE_LOCALES.length * SITE_PAGES.length + 1);
+    for (const locale of SITE_LOCALES) {
+      expect(names).toContain(`${locale}/index.html`);
+      for (const page of CONTENT_PAGES) {
+        expect(names).toContain(`${locale}/${page.path.replace(/^\/|\/$/g, '')}/index.html`);
+      }
     }
   });
 
@@ -136,14 +161,16 @@ describe('prerenderSite', () => {
 
   it.each(CONTENT_PAGES)('gives $path its own title, description and card', (page) => {
     const { html } = fileFor(page.path);
-    expect(html).toContain(`<title>${page.title}</title>`);
-    expect(html).toContain(`<meta name="description" content="${page.description}" />`);
-    expect(html).toContain(`<meta property="og:title" content="${page.title}" />`);
-    expect(html).toContain(`<meta name="twitter:title" content="${page.title}" />`);
+    const { title, description } = pageMeta(page);
+    expect(html).toContain(`<title>${title}</title>`);
+    expect(html).toContain(`<meta name="description" content="${description}" />`);
+    expect(html).toContain(`<meta property="og:title" content="${title}" />`);
+    expect(html).toContain(`<meta name="twitter:title" content="${title}" />`);
   });
 
   it('leaves the landing’s head as index.html wrote it', () => {
     const { html } = fileFor('/');
+    expect(html).toContain('<html lang="en">');
     expect(html).toContain(`<link rel="canonical" href="${SITE_ORIGIN}/" />`);
     expect(html).toContain(`<title>${SITE_TITLE}</title>`);
     // The card says more than the title on purpose; the template's is the right one.
@@ -171,6 +198,79 @@ describe('prerenderSite', () => {
       expect(html).toContain(`<script>document.getElementById("${SEO_CONTENT_ID}").remove()</script>`);
       expect(html.indexOf(`id="${SEO_CONTENT_ID}"`)).toBeLessThan(html.indexOf('<div id="root"></div>'));
     }
+  });
+
+  /**
+   * The localized copies, through the same gate. Each assertion names a way a localized
+   * page fails without a sound: a Chinese page still marked English, a page whose canonical
+   * points at the English one and gets dropped as a duplicate, an `hreflang` set that names
+   * eight of nine and is ignored as malformed, an English title over Chinese copy.
+   */
+  describe.each(SITE_LOCALES)('in %s', (locale) => {
+    const resources = loadLocaleResources(locale)[locale] as { landing: { what: { title: string } } };
+    const localizedHeading = resources.landing.what.title;
+
+    it.each(SITE_PAGES)('marks $path with its own language', (page) => {
+      const { html } = fileFor(page.path, locale);
+      expect(html).toContain(`<html lang="${locale}">`);
+      expect(html).not.toContain('<html lang="en">');
+    });
+
+    it.each(SITE_PAGES)('gives $path a canonical to itself, never to the English page', (page) => {
+      // A translation is a different page for a different reader, not a duplicate. A
+      // canonical at the English page would have a crawler drop it — the opposite of the
+      // point — and still deploy, serve and 200.
+      const { html } = fileFor(page.path, locale);
+      const own = siteUrl(pagePath(page, locale));
+      expect(html).toContain(`<link rel="canonical" href="${own}" />`);
+      expect(html).not.toContain(`<link rel="canonical" href="${siteUrl(page.path)}" />`);
+      expect(html).toContain(`<meta property="og:url" content="${own}" />`);
+    });
+
+    it.each(SITE_PAGES)('names every copy of $path in its hreflang set, plus x-default', (page) => {
+      const { html } = fileFor(page.path, locale);
+      for (const other of PAGE_LOCALES) {
+        expect(html).toContain(
+          `<link rel="alternate" hreflang="${other}" href="${siteUrl(pagePath(page, other))}" />`
+        );
+      }
+      expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${siteUrl(page.path)}" />`);
+      expect(html.match(/rel="alternate" hreflang=/g)).toHaveLength(PAGE_LOCALES.length + 1);
+    });
+
+    it.each(SITE_PAGES)('titles and describes $path in its own language', (page) => {
+      const { html } = fileFor(page.path, locale);
+      const localized = pageMeta(page, locale);
+      const english = pageMeta(page);
+      expect(localized.title).not.toBe(english.title);
+      expect(html).toContain(`<title>${localized.title}</title>`);
+      expect(html).toContain(`<meta name="description" content="${localized.description}" />`);
+      expect(html).toContain(`<meta property="og:title" content="${localized.title}" />`);
+    });
+
+    it('carries the landing’s words in its language, and none of the English copy', () => {
+      const { html } = fileFor('/', locale);
+      expect(html).toContain(localizedHeading);
+      expect(html).not.toContain('A free, open-source workspace for origami design');
+    });
+
+    it('links its own language’s pages from the nav, and every language from the switch', () => {
+      const { html } = fileFor('/', locale);
+      for (const page of CONTENT_PAGES) {
+        expect(html).toContain(`href="${pagePath(page, locale)}"`);
+      }
+      for (const other of PAGE_LOCALES) {
+        expect(html).toContain(`href="${pagePath(LANDING_PAGE, other)}"`);
+      }
+    });
+  });
+
+  it('gives the English page the same hreflang set, so the nine agree', () => {
+    const { html } = fileFor('/');
+    expect(html.match(/rel="alternate" hreflang=/g)).toHaveLength(PAGE_LOCALES.length + 1);
+    expect(html).toContain(`<link rel="alternate" hreflang="zh-CN" href="${SITE_ORIGIN}/zh-CN/" />`);
+    expect(html).toContain('<meta property="og:locale" content="en_US" />');
+    expect(fileFor('/', 'zh-CN').html).toContain('<meta property="og:locale" content="zh_CN" />');
   });
 
   it('is idempotent over its own output', () => {
@@ -268,11 +368,12 @@ describe('landing JSON-LD', () => {
     );
   });
 
-  it('describes a content page as a WebPage of the site, not as the site', () => {
+  it('describes a content page as a WebPage of the site, in its language', () => {
     const [page] = CONTENT_PAGES;
-    const node = pageJsonLd(page);
+    const node = pageJsonLd(page, 'zh-CN', pageMeta(page, 'zh-CN'));
     expect(node['@type']).toBe('WebPage');
-    expect(node.url).toBe(siteUrl(page.path));
+    expect(node.url).toBe(siteUrl(pagePath(page, 'zh-CN')));
+    expect(node.inLanguage).toBe('zh-CN');
     expect(node.isPartOf).toEqual({ '@id': `${SITE_ORIGIN}/#website` });
     expect(SITE_PAGES).toContain(LANDING_PAGE);
   });

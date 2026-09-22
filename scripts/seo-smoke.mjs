@@ -66,7 +66,13 @@ const CHECKS = [
     path: '/sitemap.xml',
     rejectHtml: true,
     contentType: 'xml',
-    contains: ['<urlset', '<loc>https://oristudio.dev/</loc>', '<loc>https://oristudio.dev/download/</loc>'],
+    contains: [
+      '<urlset',
+      '<loc>https://oristudio.dev/</loc>',
+      '<loc>https://oristudio.dev/download/</loc>',
+      '<loc>https://oristudio.dev/zh-CN/</loc>',
+      '<loc>https://oristudio.dev/zh-CN/download/</loc>',
+    ],
   },
   {
     name: 'the root page carries its canonical and card metadata',
@@ -108,6 +114,34 @@ const CHECKS = [
       'Every build',
     ],
     absent: ['<link rel="canonical" href="https://oristudio.dev/" />'],
+  },
+  {
+    // A localized page, in its language. `lang` is what Baidu reads — it runs no JS and
+    // ignores `hreflang` — and the words are what it indexes. A Chinese page still marked
+    // `lang="en"`, or one whose canonical points at the English page, deploys and 200s and
+    // is indexed as English or dropped as a duplicate. The SPA fallback would pass every
+    // other check here, since it carries the English landing and `#seo-content`.
+    name: '/zh-CN/ is the landing in Chinese, as its own page',
+    path: '/zh-CN/',
+    contains: [
+      '<html lang="zh-CN">',
+      '<link rel="canonical" href="https://oristudio.dev/zh-CN/" />',
+      '<link rel="alternate" hreflang="en" href="https://oristudio.dev/" />',
+      '<link rel="alternate" hreflang="x-default" href="https://oristudio.dev/" />',
+      '折纸',
+      'id="seo-content"',
+    ],
+    absent: ['<html lang="en">', '<link rel="canonical" href="https://oristudio.dev/" />'],
+  },
+  {
+    name: '/ja/download/ is the download page in Japanese',
+    path: '/ja/download/',
+    contains: [
+      '<html lang="ja">',
+      '<link rel="canonical" href="https://oristudio.dev/ja/download/" />',
+      'ダウンロード',
+    ],
+    absent: ['<link rel="canonical" href="https://oristudio.dev/download/" />'],
   },
   {
     name: 'the OpenGraph image is served',

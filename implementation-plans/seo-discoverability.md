@@ -306,15 +306,20 @@ of value:
   The compatibility section already makes this claim truthfully; the titles and
   descriptions from Phase 2 should let those queries find it.
 
-### Phase 6 — Optional: localized landing pages
+### Phase 6 — Localized pages: pulled forward (2026-09-21)
 
-`public/locales/` already carries eight translated locales including the
-`landing` namespace, so prerendering `/{lng}/` variants with `hreflang` is mostly
-plumbing — and Japanese origami search volume is not small.
+This sat here as "optional, last" on the theory that Search Console data should
+justify it first. Then the analytics said nearly half the audience is in
+mainland China — where Search Console measures nothing, because Google is
+blocked and search is Baidu, whose crawler reads the raw HTML and finds it
+English. The English-only crawl copy is the entire reason a Chinese search finds
+nothing, so waiting for search data to justify fixing it was circular.
 
-Deliberately last, and genuinely optional: done wrong this produces thin
-duplicate pages and is a net negative. Only start it once Phases 1–5 have landed
-and Search Console shows the English page indexed and ranking for something.
+It is now **Phase 2 of `site-content-pages.md`**, for every locale the app ships,
+with the design there. The original caution was about thin duplicate pages; the
+answer to it is a canonical to itself on every localized page and a native read
+of the copy in audience order, not fewer locales — the app already shows these
+strings to these users, and a page is the same strings on a URL.
 
 ## Affected Areas
 
@@ -523,11 +528,9 @@ is already shipped.
 - [ ] Announce in r/origami and the origami Discords
 - [ ] Origami-L / BOS / OrigamiUSA where appropriate
 
-### Phase 6 — Localized pages (only after 1–5 land)
+### Phase 6 — Localized pages
 
-- [ ] Decide whether Search Console data justifies it
-- [ ] Prerender `/{lng}/` for the eight existing locales
-- [ ] `hreflang` + `x-default`; add the alternates to the sitemap
+Moved to `site-content-pages.md` Phase 2, all eight non-English locales at once.
 
 ### Validation
 

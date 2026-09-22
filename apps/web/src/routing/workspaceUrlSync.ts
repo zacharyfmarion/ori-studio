@@ -1,7 +1,8 @@
 import { useLayoutStore } from '../store/layoutStore';
 import { currentPath, navigateTo } from './appRouter';
 import { currentWorkspacePath } from './landing';
-import { parseWorkspacePath, WELCOME_PATH } from './paths';
+import { sitePageForPath } from '../site/sitePages';
+import { parseWorkspacePath } from './paths';
 
 /**
  * Keep the URL in sync with `activeWorkspace` (the store→URL direction).
@@ -18,14 +19,16 @@ import { parseWorkspacePath, WELCOME_PATH } from './paths';
  * The URL→store direction lives in {@link WorkspaceRoute}; both are guarded so
  * they settle without looping: navigate only fires when the derived path differs
  * from the current one, and `activateWorkspace` no-ops when already active. While
- * on `/welcome` the sync is suppressed — leaving the start screen is an explicit
- * UI navigation.
+ * on a site page — `/welcome`, `/`, `/zh-CN/`, `/download/` — the sync is
+ * suppressed: leaving the start screen is an explicit UI navigation, and the
+ * localized landings render the start screen too, which sets the workspace on
+ * arrival and would otherwise be bounced straight to `/design`.
  */
 export function startWorkspaceUrlSync(): () => void {
   return useLayoutStore.subscribe((state, prev) => {
     if (state.activeWorkspace === prev.activeWorkspace) return;
     const path = currentPath();
-    if (path === null || path === WELCOME_PATH || path === '/') return;
+    if (path === null || sitePageForPath(path) !== null) return;
     const desired = currentWorkspacePath();
     if (desired !== path) navigateTo(desired);
   });

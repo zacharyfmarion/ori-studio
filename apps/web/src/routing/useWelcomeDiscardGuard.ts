@@ -2,7 +2,20 @@ import { useEffect } from 'react';
 import { useBlocker } from 'react-router-dom';
 import { requestConfirmation } from '../store/commandDialogStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { DEFAULT_LOCALE } from '../i18n/locales';
+import { LANDING_PAGE, sitePageForPath } from '../site/sitePages';
 import { WELCOME_PATH } from './paths';
+
+/**
+ * The paths that render {@link WelcomeRoute}, and so clear the dirty flag on arrival:
+ * `/welcome`, and each localized landing (`/zh-CN/`). Not `/` — its loader redirects
+ * before anything renders, and it was never guarded.
+ */
+function rendersStartScreen(pathname: string): boolean {
+  if (pathname === WELCOME_PATH) return true;
+  const match = sitePageForPath(pathname);
+  return match !== null && match.page === LANDING_PAGE && match.locale !== DEFAULT_LOCALE;
+}
 
 /**
  * Guard against abandoning unsaved changes when returning to the start screen.
@@ -16,7 +29,7 @@ export function useWelcomeDiscardGuard(): void {
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       dirty &&
-      nextLocation.pathname === WELCOME_PATH &&
+      rendersStartScreen(nextLocation.pathname) &&
       currentLocation.pathname !== nextLocation.pathname
   );
 

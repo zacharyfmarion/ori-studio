@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { sitePageLabel } from './sitePageLabels';
-import { SITE_PAGES, sitePageForPath, type SitePage } from './sitePages';
+import { pagePath, SITE_PAGES, type SitePage } from './sitePages';
+import { useSitePage } from './useSitePage';
 import './site.css';
 
 /**
- * Links to every page of the site, in registry order.
+ * Links to every page of the site, in registry order, in the current locale.
  *
  * This is the part of the site work that a search engine actually needs. Sitelinks — the
  * sub-links under a result — are chosen from pages a crawler can reach and label, and a
@@ -18,7 +19,7 @@ import './site.css';
  */
 export function SiteNav({ pages = SITE_PAGES, label }: { pages?: readonly SitePage[]; label: string }) {
   const { t } = useTranslation();
-  const current = sitePageForPath(useLocation().pathname);
+  const current = useSitePage();
 
   return (
     <nav className="site-nav" aria-label={label}>
@@ -27,8 +28,8 @@ export function SiteNav({ pages = SITE_PAGES, label }: { pages?: readonly SitePa
           <li key={page.id}>
             <Link
               className="site-nav__link"
-              to={page.path}
-              aria-current={page === current ? 'page' : undefined}
+              to={pagePath(page, current.locale)}
+              aria-current={page === current.page ? 'page' : undefined}
             >
               {sitePageLabel(t, page.id)}
             </Link>
