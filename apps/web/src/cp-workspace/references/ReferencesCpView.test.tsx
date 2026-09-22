@@ -22,6 +22,7 @@ const uploads = vi.hoisted(() => ({
   setOverlayPoints: vi.fn(),
   setPoints: vi.fn(),
   setFolded: vi.fn(),
+  setSheetFill: vi.fn(),
   render: vi.fn(),
 }));
 vi.mock('../renderer/reglRenderer', () => ({
@@ -100,6 +101,7 @@ afterEach(() => {
   uploads.setOverlayPoints.mockClear();
   uploads.setPoints.mockClear();
   uploads.setFolded.mockClear();
+  uploads.setSheetFill.mockClear();
   uploads.render.mockClear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -550,6 +552,36 @@ describe('ReferencesCpView overlays', () => {
     act(() => ref.current?.setFoldPose(null));
     expect(uploads.setStrokes.mock.calls.at(-1)?.[0]).toBe(whole);
     expect(uploads.setFolded.mock.calls.at(-1)?.[0].fills.count).toBe(0);
+  });
+
+  // D13: the sheet is the paper style's paper, carried by the workspace root as
+  // `--references-paper-front` / `--references-paper-back`, not the theme's ground.
+  describe('the sheet under the pattern', () => {
+    const face = (): number[] =>
+      [...uploads.setSheetFill.mock.calls.at(-1)![0].color.slice(0, 4)].map((c: number) =>
+        Math.round(c * 255)
+      );
+    const border = { visible: null, dimmed: null, dimAlpha: 1, borderLineIds: new Set([1, 2]) };
+
+    it('is filled with the paper front the workspace carries, and the back when mirrored', () => {
+      container?.style.setProperty('--references-paper-front', '#ff0000');
+      container?.style.setProperty('--references-paper-back', '#0000ff');
+      mount({ creaseVisibility: border });
+      expect(face()).toEqual([255, 0, 0, 255]);
+      mount({ creaseVisibility: border, mirrored: true });
+      expect(face()).toEqual([0, 0, 255, 255]);
+    });
+
+    it('falls back to the style’s default paper outside a workspace', () => {
+      mount({ creaseVisibility: border });
+      // Oriedita's paper front: #ffff32.
+      expect(face()).toEqual([255, 255, 50, 255]);
+    });
+
+    it('is not drawn without a border to fill', () => {
+      mount();
+      expect(uploads.setSheetFill.mock.calls.at(-1)?.[0]).toBeNull();
+    });
   });
 
   it('exposes zoom, fit and framing on its handle', () => {

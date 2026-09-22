@@ -17,18 +17,43 @@ import {
   type BpTreeViewLayers,
 } from '../lib/oristudioBpViewportSettings';
 import {
+  normalizePaperStylePreset,
+  parsePaperStylePreset,
+  type PaperPresetParseResult,
+  type PaperStylePreset,
+} from '../lib/paper/paperPresets';
+import {
+  DEFAULT_PAPER_STYLE,
+  effectivePaperStyle,
+  paperStyleEquals,
+  setPaperStyleField as withPaperStyleField,
+  type PaperStyle,
+  type PaperStyleField,
+  type PaperStyleOverrides,
+  type PaperStyleValue,
+} from '../lib/paper/paperStyle';
+import {
+  normalizePaperStyleSettings,
+  paperStyleFromSimulatorSettings,
+  persistedPaperStyleSettings,
+  type PaperStyleSettings,
+  type PaperStyleSlot,
+} from '../lib/paperStyleSettings';
+import {
   readBoolean,
+  readJson,
   readNumber,
   readString,
   storageKey,
   STORAGE_KEYS,
   writeBoolean,
+  writeJson,
   writeNumber,
   writeString,
 } from '../lib/storage';
 import type { WheelGesturePreference } from '../lib/wheelGesture';
 
-export type SettingsTab = 'general' | 'appearance' | 'shortcuts' | 'workspace';
+export type SettingsTab = 'general' | 'appearance' | 'paper' | 'shortcuts' | 'workspace';
 
 const SHOW_WELCOME_ON_STARTUP_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
 const CP_DETECT_SUGGESTIONS_KEY = storageKey(STORAGE_KEYS.cpDetectSuggestions);
@@ -37,6 +62,8 @@ const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
 const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
 const CP_SNAP_RADIUS_KEY = storageKey(STORAGE_KEYS.cpSnapRadius);
 const REFERENCES_AUTO_PLAY_FOLDS_KEY = storageKey(STORAGE_KEYS.referencesAutoPlayFolds);
+const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
+const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
  * Anything unrecognised — absent, stale, hand-edited — reads as the default.
@@ -66,6 +93,53 @@ function storedCpSnapRadius(): number | null {
 /** A choice if there is one; otherwise the default this pointer deserves. */
 function readCpSnapRadius(): number {
   return resolveCpSnapRadius(storedCpSnapRadius(), hasCoarsePointer());
+}
+
+function persistPaperStyle(settings: PaperStyleSettings): void {
+  writeJson(PAPER_STYLE_KEY, persistedPaperStyleSettings(settings));
+}
+
+/**
+ * The persisted style, or — on the one read where there is none — a display
+ * style seeded from the simulator settings that held the colours before there
+ * was a style.
+ *
+ * A seed that carries the user's colours is written at once: the simulator
+ * slice rewrites its own key without those retired fields on its next edit, so
+ * the source does not survive to a second read. A seed that amounts to the
+ * defaults is not written, so a user who never touched them keeps following
+ * any later change to the defaults, the way an absent preference does
+ * elsewhere here.
+ */
+function readPaperStyleSettings(): PaperStyleSettings {
+  const stored = readJson<unknown>(PAPER_STYLE_KEY, null);
+  if (stored !== null) return normalizePaperStyleSettings(stored);
+  const seeded: PaperStyleSettings = {
+    ...normalizePaperStyleSettings(null),
+    display: paperStyleFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null)),
+  };
+  if (!paperStyleEquals(seeded.display, DEFAULT_PAPER_STYLE)) persistPaperStyle(seeded);
+  return seeded;
+}
+
+/** The style a slot edits: export starts from display the moment it stops following. */
+function slotStyle(settings: PaperStyleSettings, slot: PaperStyleSlot): PaperStyle {
+  return slot === 'export' ? (settings.export ?? settings.display) : settings.display;
+}
+
+function withSlotStyle(
+  settings: PaperStyleSettings,
+  slot: PaperStyleSlot,
+  style: PaperStyle
+): PaperStyleSettings {
+  return slot === 'export' ? { ...settings, export: style } : { ...settings, display: style };
+}
+
+/** Presets are keyed by name: saving under a taken name replaces that preset in place. */
+function withPreset(presets: PaperStylePreset[], preset: PaperStylePreset): PaperStylePreset[] {
+  const index = presets.findIndex((existing) => existing.name === preset.name);
+  if (index === -1) return [...presets, preset];
+  return presets.map((existing, i) => (i === index ? preset : existing));
 }
 
 interface SettingsState {
@@ -115,6 +189,13 @@ interface SettingsState {
    * A turn-over plays on arrival either way — see `FoldTransport.setScene`.
    */
   referencesAutoPlayFolds: boolean;
+  /**
+   * The app-wide paper style every surface that draws paper reads: a display
+   * style, an export style that is `null` while it follows display, and the
+   * user's saved presets. Per-object overrides live on the document objects,
+   * not here. See `implementation-plans/unified-paper-style-and-export.md`.
+   */
+  paperStyle: PaperStyleSettings;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -126,11 +207,41 @@ interface SettingsState {
   setCpWheelGesture: (value: WheelGesturePreference) => void;
   setCpSnapRadius: (value: number) => void;
   setReferencesAutoPlayFolds: (value: boolean) => void;
+  /** Write one field of a slot's style. Editing export while it follows display detaches it. */
+  setPaperStyleField: <F extends PaperStyleField>(
+    slot: PaperStyleSlot,
+    field: F,
+    value: PaperStyleValue<F>
+  ) => void;
+  /**
+   * Write several fields of a slot's style as one update — one store change,
+   * one persist — for an edit that touches a set of fields together, such as
+   * a reset. Fields left out keep their values.
+   */
+  setPaperStyleFields: (slot: PaperStyleSlot, fields: PaperStyleOverrides) => void;
+  /** Replace a slot's whole style with a preset's (a built-in or a saved one). */
+  applyPaperPreset: (slot: PaperStyleSlot, preset: PaperStylePreset) => void;
+  /**
+   * `true` makes the export style the display style again (the export slot is
+   * cleared); `false` pins the export style as a copy of display, to edit apart.
+   */
+  setExportPaperStyleFollowsDisplay: (follows: boolean) => void;
+  /**
+   * Save a slot's current style as a named preset, replacing one of the same
+   * name. Display unless told otherwise. A blank name saves nothing.
+   */
+  savePaperPreset: (name: string, slot?: PaperStyleSlot) => void;
+  removePaperPreset: (name: string) => void;
+  /**
+   * Add a preset from a `.json` file's text, replacing one of the same name.
+   * The parse result comes back so the caller can put words to a refusal.
+   */
+  importPaperPreset: (json: string) => PaperPresetParseResult;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       isSettingsOpen: false,
       settingsInitialTab: null,
       bpTreeLayers: DEFAULT_BP_TREE_VIEW_LAYERS,
@@ -142,6 +253,7 @@ export const useSettingsStore = create<SettingsState>()(
       cpWheelGesture: readCpWheelGesture(),
       cpSnapRadius: readCpSnapRadius(),
       referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, true),
+      paperStyle: readPaperStyleSettings(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -194,6 +306,74 @@ export const useSettingsStore = create<SettingsState>()(
         // Hand-placed like the two above: no chokepoint sees a preference
         // change, and on/off is the whole question.
         track(ANALYTICS_EVENTS.referencesFoldAutoplayChanged, { enabled: value ? 'on' : 'off' });
+      },
+      setPaperStyleField: (slot, field, value) => {
+        const current = get().paperStyle;
+        const next = withSlotStyle(
+          current,
+          slot,
+          withPaperStyleField(slotStyle(current, slot), field, value)
+        );
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      setPaperStyleFields: (slot, fields) => {
+        const current = get().paperStyle;
+        const next = withSlotStyle(
+          current,
+          slot,
+          effectivePaperStyle(slotStyle(current, slot), fields)
+        );
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      applyPaperPreset: (slot, preset) => {
+        const next = withSlotStyle(get().paperStyle, slot, preset.style);
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      setExportPaperStyleFollowsDisplay: (follows) => {
+        const current = get().paperStyle;
+        if (follows === (current.export === null)) return;
+        const next: PaperStyleSettings = {
+          ...current,
+          export: follows ? null : current.display,
+        };
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      savePaperPreset: (name, slot = 'display') => {
+        const current = get().paperStyle;
+        // The one validator: the same trim and length cap a file's name gets.
+        const preset = normalizePaperStylePreset({
+          version: 1,
+          name,
+          style: slotStyle(current, slot),
+        });
+        if (!preset) return;
+        const next = { ...current, presets: withPreset(current.presets, preset) };
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      removePaperPreset: (name) => {
+        const current = get().paperStyle;
+        if (!current.presets.some((preset) => preset.name === name)) return;
+        const next = {
+          ...current,
+          presets: current.presets.filter((preset) => preset.name !== name),
+        };
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      importPaperPreset: (json) => {
+        const result = parsePaperStylePreset(json);
+        if (result.ok) {
+          const current = get().paperStyle;
+          const next = { ...current, presets: withPreset(current.presets, result.preset) };
+          persistPaperStyle(next);
+          set({ paperStyle: next });
+        }
+        return result;
       },
     }),
     { name: 'SettingsStore' }

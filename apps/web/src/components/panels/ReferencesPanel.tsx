@@ -39,6 +39,7 @@ import {
   type ReferencesDiagramLayerHandle,
 } from '../../cp-workspace/references/ReferencesDiagramLayer';
 import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
+import { usePaperStyleTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
 import { ReferencesTargetControls } from '../../cp-workspace/references/ReferencesTargetControls';
@@ -212,6 +213,9 @@ export function ReferencesPanel() {
   // said from it — a mountain seen from the front is a valley seen from the
   // back — so it reaches the card, the overlay and the pattern's own creases.
   const mirrored = readingPlan && sideAt(viewSteps, breakdown.activeStep) === 'back';
+  // The paper style's inks, set on the workspace root so everything inside —
+  // cards, the canvas, the layer over it — draws in them and nothing outside does.
+  const { setRoot: setWorkspaceRoot, ...paper } = usePaperStyleTokens();
   // The step's picture, once: straight lines packed for the GPU, symbols for the
   // layer over it. Both off the same primitives the filmstrip card draws.
   const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
@@ -219,7 +223,7 @@ export function ReferencesPanel() {
     highlights.diagram,
     view.lineWidth,
     mirrored,
-    view.themeKey
+    paper
   );
 
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
@@ -495,7 +499,7 @@ export function ReferencesPanel() {
           : 'ready';
 
   return (
-    <div className="references-workspace">
+    <div className="references-workspace" ref={setWorkspaceRoot} style={paper.style}>
       <ReferencesApproximationWarningDialog {...approximationWarning} />
       {flow.screen !== 'detail' && (
         <ReferencesSheetsSidebar
@@ -604,7 +608,7 @@ export function ReferencesPanel() {
                 fold={foldScene}
                 onPick={onPick}
                 framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
-                themeKey={view.themeKey}
+                inkKey={paper.inkKey}
                 ariaLabel={t(
                   'panels:references.canvasAriaLabel',
                   'Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.'
@@ -616,6 +620,7 @@ export function ReferencesPanel() {
               model={scene.symbols}
               camera={diagramCamera}
               lineWidth={view.lineWidth}
+              arrowWidth={paper.arrowWidth}
               fold={foldScene}
             />
             {view.geometry && (

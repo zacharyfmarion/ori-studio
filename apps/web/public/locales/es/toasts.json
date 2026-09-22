@@ -39,6 +39,11 @@
     "solving": "Resolviendo…",
     "solvingLong": "Sigue resolviendo: esto puede tardar un rato"
   },
+  "paperPreset": {
+    "exported": "Se exportó {{name}}",
+    "invalidJson": "Ese archivo no es JSON",
+    "notAPreset": "Ese archivo no es un estilo de papel: necesita un nombre y un estilo"
+  },
   "references": {
     "searching": "Buscando referencias…",
     "searchingLong": "Aún buscando referencias: la primera búsqueda construye una tabla",

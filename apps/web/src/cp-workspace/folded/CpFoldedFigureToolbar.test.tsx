@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { cpOverlayViewStore } from '../cpOverlayViewStore';
 import { TooltipProvider } from '../../components/ui/Tooltip';
 import { CpFoldedFigureToolbar } from './CpFoldedFigureToolbar';
@@ -76,6 +77,8 @@ function makeDeps(
     setDisplayStyle: vi.fn(),
     updateModel: vi.fn(),
     endModelGesture: vi.fn(),
+    paperStyle: () => DEFAULT_PAPER_STYLE,
+    setAppearance: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
@@ -270,14 +273,18 @@ describe('CpFoldedFigureToolbar', () => {
       expect(document.querySelector('[role="menuitemcheckbox"]')?.textContent).toBe('Shadow');
     });
 
-    it('paints each swatch from the figure model', () => {
+    it('paints each swatch from the figure’s effective paper style', () => {
+      // Re-pinned for the paper style (Phase 1): the swatches show the
+      // figure's effective style — the display style with its pins — of
+      // which the kernel model's colours are a mirror, not the source.
       render(
-        makeFigure({
-          snapshot: {
-            model: { state: 'Front0', front_color: { red: 1, green: 2, blue: 3 } },
-            find_another_overlap_valid: true,
-          },
-        } as unknown as Partial<OristudioCpFoldedFigureEntry>)
+        makeFigure(),
+        makeDeps({
+          paperStyle: () => ({
+            ...DEFAULT_PAPER_STYLE,
+            paper: { front: '#010203', back: '#e9e9e9' },
+          }),
+        })
       );
       openMenu('Style');
       const swatches = Array.from(
@@ -303,7 +310,10 @@ describe('CpFoldedFigureToolbar', () => {
       expect(document.querySelector('[role="menu"]')).not.toBeNull();
     });
 
-    it('offers side and shadow disabled on a 3D figure, each saying why', () => {
+    it('offers side disabled on a 3D figure, saying why, and its light in place of the shadow', () => {
+      // Re-pinned for D7: the shadow is the flat figure's own option and is not
+      // offered on a 3D figure (it used to be offered disabled); the 3D figure
+      // has the paper style's light switch instead.
       render(
         makeFigure({
           snapshot: null,
@@ -313,11 +323,12 @@ describe('CpFoldedFigureToolbar', () => {
       );
       openMenu('Style');
       const side = rows().find((row) => row.textContent === 'Side');
-      const shadow = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]');
       expect(side?.getAttribute('data-disabled')).not.toBeNull();
       expect(side?.getAttribute('title')).toBe('Turn a 3D model with Other side');
-      expect(shadow?.getAttribute('data-disabled')).not.toBeNull();
-      expect(shadow?.getAttribute('title')).toBe('Shadows are not drawn for a 3D folded model yet');
+      const checks = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]'));
+      expect(checks.map((row) => row.textContent)).toEqual(['Lighting']);
+      expect(checks[0]?.getAttribute('data-disabled')).toBeNull();
+      expect(checks[0]?.getAttribute('aria-checked')).toBe('true');
     });
 
     // A modal menu puts `pointer-events: none` on everything outside it, so

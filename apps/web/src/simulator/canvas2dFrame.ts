@@ -1,21 +1,26 @@
-import { fitExtent, viewRotationFor } from "@treemaker/origami-simulator";
+import {
+  fitExtent,
+  shadeColor,
+  shadeFor,
+  viewRotationFor,
+} from "@treemaker/origami-simulator";
 import type {
   CreaseDash,
   FoldDocument as SimulatorFoldDocument,
+  Vec3Like,
 } from "@treemaker/origami-simulator";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
 import {
-  PAPER_LIGHT_DIRECTION,
-  renderColorToCss,
   renderColorToRgb,
+  renderColorToCss,
   type Rgb,
   type SimulatorPaint,
   type SimulatorSurfaceOptions,
 } from "./simulatorPalette";
 
-export { PAPER_LIGHT_DIRECTION, type SimulatorSurfaceOptions };
+export { type SimulatorSurfaceOptions };
 
 /**
  * The canvas-2D software rasterizer: the simulator's no-WebGL2 fallback.
@@ -175,17 +180,6 @@ export function drawFrame(
   const surfaceEdgeAlpha = xray ? 0.5 : 0.92;
 
   if (!xray && render.showFaces) {
-    if (render.lighting) {
-      drawProjectedPaperShadow(
-        ctx,
-        triangles,
-        projected,
-        map,
-        width,
-        height,
-        dpr,
-      );
-    }
     const depthSurface = drawPaperFacesWithDepth(
       ctx,
       model,
@@ -363,8 +357,11 @@ interface SimulatorPalette {
   highlight: string;
   highlightFace: string;
   highlightFaceRgb: Rgb;
-  paperFrontRgb: Rgb;
-  paperBackRgb: Rgb;
+  /** The two sides of the paper as 0..1 channels, the form the shade band multiplies. */
+  paperFront: Vec3Like;
+  paperBack: Vec3Like;
+  /** Where the light comes from, in view space; the same vector the GPU and SVG paths shade with. */
+  lightDir: Vec3Like;
   /** Device-pixel crease weight, so every path draws the chosen width. */
   creaseWidthPx: number;
   /** Dash runs by crease kind, or null for solid. Same values the shader gets. */
@@ -392,8 +389,9 @@ function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
     highlight: chrome.highlight,
     highlightFace: "rgb(240 198 116 / 0.3)",
     highlightFaceRgb: chrome.highlightFaceRgb,
-    paperFrontRgb: renderColorToRgb(render.frontColor),
-    paperBackRgb: renderColorToRgb(render.backColor),
+    paperFront: render.frontColor,
+    paperBack: render.backColor,
+    lightDir: render.lightDir,
     creaseWidthPx: render.creaseWidthPx,
     dash: render.creaseDash,
   };
@@ -417,40 +415,6 @@ function triangleOrder(
   return triangles.sort(
     (a, b) => averageDepth(a, projected) - averageDepth(b, projected),
   );
-}
-
-function drawProjectedPaperShadow(
-  ctx: CanvasRenderingContext2D,
-  triangles: OrderedTriangle[],
-  projected: ProjectedPoint[],
-  map: (point: ProjectedPoint) => { x: number; y: number },
-  width: number,
-  height: number,
-  dpr: number,
-): void {
-  const size = Math.min(width, height);
-  const shadowOffset = Math.max(5 * dpr, size * 0.018);
-  const shadowBlur = Math.max(10 * dpr, size * 0.03);
-  ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
-  ctx.shadowBlur = shadowBlur;
-  ctx.shadowOffsetX = shadowOffset;
-  ctx.shadowOffsetY = shadowOffset * 1.15;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-  ctx.beginPath();
-
-  for (const triangle of triangles) {
-    const a = map(projected[triangle.vertices[0]] ?? { x: 0, y: 0, depth: 0 });
-    const b = map(projected[triangle.vertices[1]] ?? { x: 0, y: 0, depth: 0 });
-    const c = map(projected[triangle.vertices[2]] ?? { x: 0, y: 0, depth: 0 });
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.lineTo(c.x, c.y);
-    ctx.closePath();
-  }
-
-  ctx.fill();
-  ctx.restore();
 }
 
 function averageDepth(
@@ -572,19 +536,38 @@ function edgeFunction(
 // Flip this if the flat sheet renders white instead of colored.
 const PAPER_FRONT_WINDING: 1 | -1 = 1;
 
-function triangleFaceRgb(
+function triangleFaceColor(
   triangle: number[],
   projected: ProjectedPoint[],
   palette: SimulatorPalette,
-): [number, number, number] {
+): Vec3Like {
   const a = projected[triangle[0]];
   const b = projected[triangle[1]];
   const c = projected[triangle[2]];
-  if (!a || !b || !c) return palette.paperFrontRgb;
+  if (!a || !b || !c) return palette.paperFront;
   const winding = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
   return winding * PAPER_FRONT_WINDING >= 0
-    ? palette.paperFrontRgb
-    : palette.paperBackRgb;
+    ? palette.paperFront
+    : palette.paperBack;
+}
+
+/**
+ * A face's paper colour under the light, as 0..255 channels. The shade band is
+ * the one the GPU and SVG renderers use (`shadeFor`), applied the way the
+ * framebuffer applies it — multiplied and clamped, so a face square to the
+ * light saturates rather than washing toward white.
+ */
+function triangleShadedRgb(
+  triangle: number[],
+  projected: ProjectedPoint[],
+  palette: SimulatorPalette,
+  lighting: boolean,
+): Rgb {
+  const base = triangleFaceColor(triangle, projected, palette);
+  const shade = lighting
+    ? shadeFor(triangleNormal(triangle, projected), palette.lightDir)
+    : 1;
+  return renderColorToRgb(shadeColor(base, shade));
 }
 
 function triangleColor(
@@ -594,13 +577,9 @@ function triangleColor(
   projected?: ProjectedPoint[],
   lighting = false,
 ): string {
-  const base = projected
-    ? triangleFaceRgb(triangle, projected, palette)
-    : palette.paperFrontRgb;
-  const [r, g, b] =
-    lighting && projected
-      ? shadeRgb(base, triangleLightIntensity(triangle, projected))
-      : base;
+  const [r, g, b] = projected
+    ? triangleShadedRgb(triangle, projected, palette, lighting)
+    : renderColorToRgb(palette.paperFront);
   return alpha >= 1 ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / ${alpha})`;
 }
 
@@ -611,82 +590,32 @@ function triangleRasterColor(
   projected: ProjectedPoint[],
   lighting: boolean,
 ): [number, number, number, number] {
-  const base = triangleFaceRgb(triangle, projected, palette);
-  const shaded = lighting
-    ? shadeRgb(base, triangleLightIntensity(triangle, projected))
-    : base;
+  const shaded = triangleShadedRgb(triangle, projected, palette, lighting);
   const rgb = highlighted
     ? blendRgb(shaded, palette.highlightFaceRgb, 0.3)
     : shaded;
   return [rgb[0], rgb[1], rgb[2], 255];
 }
 
-function triangleLightIntensity(
+/**
+ * The view-space normal of a projected triangle, unnormalised — `shadeFor`
+ * normalises, and treats a sliver's near-zero cross product as unlit.
+ */
+function triangleNormal(
   triangle: number[],
   projected: ProjectedPoint[],
-): number {
+): Vec3Like {
   const a = projected[triangle[0]];
   const b = projected[triangle[1]];
   const c = projected[triangle[2]];
-  if (!a || !b || !c) return 1;
-  const normal = triangleNormal(a, b, c);
-  if (!normal) return 1;
-  const oriented =
-    normal.z < 0 ? { x: -normal.x, y: -normal.y, z: -normal.z } : normal;
-  const [lx, ly, lz] = PAPER_LIGHT_DIRECTION;
-  const diffuse = Math.max(0, dotVector(oriented, { x: lx, y: ly, z: lz }));
-  return clamp(0.74 + diffuse * 0.3 + oriented.z * 0.04, 0.68, 1.08);
-}
-
-function triangleNormal(
-  a: ProjectedPoint,
-  b: ProjectedPoint,
-  c: ProjectedPoint,
-): { x: number; y: number; z: number } | null {
+  if (!a || !b || !c) return [0, 0, 0];
   const ux = b.x - a.x;
   const uy = b.y - a.y;
   const uz = b.depth - a.depth;
   const vx = c.x - a.x;
   const vy = c.y - a.y;
   const vz = c.depth - a.depth;
-  const normal = {
-    x: uy * vz - uz * vy,
-    y: uz * vx - ux * vz,
-    z: ux * vy - uy * vx,
-  };
-  const length = Math.hypot(normal.x, normal.y, normal.z);
-  if (length < 0.0001) return null;
-  return {
-    x: normal.x / length,
-    y: normal.y / length,
-    z: normal.z / length,
-  };
-}
-
-function dotVector(
-  a: { x: number; y: number; z: number },
-  b: { x: number; y: number; z: number },
-): number {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-function shadeRgb(
-  color: [number, number, number],
-  intensity: number,
-): [number, number, number] {
-  if (intensity <= 1) {
-    return [
-      Math.round(color[0] * intensity),
-      Math.round(color[1] * intensity),
-      Math.round(color[2] * intensity),
-    ];
-  }
-  const lift = Math.min(0.16, intensity - 1);
-  return [
-    Math.round(color[0] + (255 - color[0]) * lift),
-    Math.round(color[1] + (255 - color[1]) * lift),
-    Math.round(color[2] + (255 - color[2]) * lift),
-  ];
+  return [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
 }
 
 function blendRgb(

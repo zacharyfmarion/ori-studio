@@ -38,6 +38,7 @@ import {
   type SimulatorFrameView,
 } from '../simulator/useSimulatorRuntime';
 import { useWorkerGpuSupport } from '../simulator/workerGpuSupport';
+import { useObjectPaperStyle } from './paper/objectPaperStyle';
 import { foldNeedsTriangulation } from '../simulator/canvas2dFrame';
 import { useSimulatorShortcuts } from '../simulator/useSimulatorShortcuts';
 import { registerSimulatorView } from '../simulator/simulatorViewRegistry';
@@ -239,6 +240,8 @@ function InlineSimulationWindow({
 }) {
   const { t } = useTranslation();
   const viewportRef = useRef<SimulatorViewportHandle | null>(null);
+  // The app's display style with this window's own pins on top.
+  const paperStyle = useObjectPaperStyle(simulation);
   // Also this window's identity in a wheel gesture — the element an owner
   // elsewhere hands the event back to. See the passthrough below.
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
@@ -587,6 +590,7 @@ function InlineSimulationWindow({
         creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
         creaseWidthShrinkExponent={CREASE_SHRINK_EXPONENT}
         viewSettings={viewSettings}
+        paperStyle={paperStyle}
         pushCamera={pushCamera}
         pushRenderSettings={runtime.setRenderSettings}
         perfSurface="inline-window"

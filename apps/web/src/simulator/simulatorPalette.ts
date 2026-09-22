@@ -1,30 +1,22 @@
-import type { CreaseDash, RenderSettings } from '@treemaker/origami-simulator';
-import {
-  ORIEDITA_DASH_ONE_DOT,
-  ORIEDITA_DASH_VALLEY,
-} from '../lib/oristudioCpLineStyle';
-import type {
-  SimulatorColorSettingKey,
-  SimulatorCreaseStyle,
-  SimulatorSettings,
-} from '../lib/simulatorSettings';
+import type { RenderSettings } from '@treemaker/origami-simulator';
+import type { PaperStyle } from '../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES, resolvePaperStyle } from '../lib/paper/paperStyleResolve';
+import type { SimulatorSettings } from '../lib/simulatorSettings';
 
 /**
- * The one place a simulator colour is decided.
+ * The one place the simulator's frame is decided.
  *
- * There used to be two: `toRenderSettings` resolved a palette for the GPU and
- * SVG renderers, and `readSimulatorPalette` resolved a second one for the
- * canvas-2D renderer — and they disagreed. Mountains were `#db1f24` on one path
- * and `--status-danger` on the other; valleys were blue on one and
- * `--accent-primary` (teal) on the other. That was not a dormant fallback
- * either: a fold profile forces the canvas-2D path even on a machine with
- * WebGL2, so every segment and sequence-step simulation drew its valleys the
- * wrong colour.
+ * There used to be two resolvers of a simulator palette — one for the GPU and
+ * SVG renderers, one for the canvas-2D renderer — and they disagreed, which
+ * was not a dormant fallback: a fold profile forces the canvas-2D path even on
+ * a machine with WebGL2. `RenderSettings` is the struct all three renderers
+ * consume, so it is the contract, and it is built in one place.
  *
- * `RenderSettings` is the struct all three renderers consume, so it is the
- * contract, and this module is the only thing allowed to build one. Anything a
- * style option cannot express through it would diverge silently between the
- * screen and the export.
+ * That place is now `resolvePaperStyle` (`lib/paper/paperStyleResolve.ts`),
+ * which turns the app-wide {@link PaperStyle} into device px once for every
+ * surface. This module is the simulator's thin wrapper over it: it reads the
+ * one thing the style does not carry — the theme ground behind the paper — and
+ * the simulator's framing settings, and delegates the rest.
  */
 
 /** How the surface is framed, as opposed to how the paper is drawn. */
@@ -41,22 +33,8 @@ export interface SimulatorSurfaceOptions {
   creaseWidthShrinkExponent?: number;
 }
 
-/**
- * Fixed origami-convention crease inks.
- *
- * Deliberately not theme tokens: mountain and valley have to stay high-contrast
- * and recognisable in either theme, and a theme that tinted them would be
- * changing what the drawing *means* rather than how it looks. Users can still
- * override them per setting.
- */
-export const DEFAULT_MOUNTAIN_COLOR = '#db1f24';
-export const DEFAULT_VALLEY_COLOR = '#1c5cd9';
-
 /** Fallbacks for the theme tokens, for a surface with no computed style yet. */
 const FALLBACK = {
-  paperFront: '#ffff32',
-  paperBack: '#f2f0e7',
-  border: '#e8edf0',
   canvas: '#0c0f12',
   flat: '#aeb9bf',
   highlight: '#f0c674',
@@ -81,15 +59,6 @@ export interface SimulatorChrome {
 }
 
 export type Rgb = [number, number, number];
-
-/** Light direction shared by every renderer, so shading matches everywhere. */
-export const PAPER_LIGHT_DIRECTION: Rgb = normalize([-0.45, 0.58, 0.68]);
-
-function normalize([x, y, z]: Rgb): Rgb {
-  const length = Math.hypot(x, y, z);
-  if (length < 0.0001) return [0, 0, 1];
-  return [x / length, y / length, z / length];
-}
 
 function cssVar(styles: CSSStyleDeclaration | null, name: string, fallback: string): string {
   const value = styles?.getPropertyValue(name).trim();
@@ -126,91 +95,42 @@ function unit(rgb: Rgb): Rgb {
   return [rgb[0] / 255, rgb[1] / 255, rgb[2] / 255];
 }
 
-/**
- * Resolve a colour: the user's override if they set one, otherwise the theme
- * token (or a fixed convention colour, for the crease inks).
- */
-function resolve(
-  override: string | null,
-  styles: CSSStyleDeclaration | null,
-  token: string | null,
-  fallback: string
-): Rgb {
-  if (override) return parseCssRgb(override, parseCssRgb(fallback, [0, 0, 0]));
-  const themed = token ? cssVar(styles, token, fallback) : fallback;
-  return parseCssRgb(themed, parseCssRgb(fallback, [0, 0, 0]));
-}
-
-/**
- * Flatten a crease style into concrete dash patterns.
- *
- * This is the whole reason no renderer sees `SimulatorCreaseStyle`: three
- * renderers each interpreting a style name would be three chances to disagree,
- * where three renderers reading a colour and a run-length array cannot.
- *
- * The patterns are Oriedita's own, in device pixels and unscaled by zoom, so a
- * crease dashes the same here as in the crease pattern it came from.
- */
-export function creaseDashFor(style: SimulatorCreaseStyle): CreaseDash | undefined {
-  if (style !== 'mono-dashed') return undefined;
-  return {
-    // Paper boundaries are not folds, so they stay solid under every style.
-    border: null,
-    mountain: ORIEDITA_DASH_ONE_DOT,
-    valley: ORIEDITA_DASH_VALLEY,
-  };
-}
-
-/** True when the active style dashes anything — see the hidden-line note below. */
-export function creaseStyleDashes(style: SimulatorCreaseStyle): boolean {
-  return creaseDashFor(style) !== undefined;
+/** The theme's canvas colour, which is what shows behind the paper. */
+function themeGround(styles: CSSStyleDeclaration | null): Rgb {
+  return parseCssRgb(
+    cssVar(styles, '--bg-canvas', FALLBACK.canvas),
+    parseCssRgb(FALLBACK.canvas, [0, 0, 0])
+  );
 }
 
 /**
  * Build the render settings every renderer draws from.
  *
  * `styles` is the computed style of the surface the simulation is mounted in,
- * which is where the theme tokens come from; pass null when there is no element
- * (a test, or a headless render) and the fallbacks apply.
+ * which is where the theme ground comes from; pass null when there is no
+ * element (a test, or a headless render) and the fallback applies. `style` is
+ * the paper style the surface draws with — the app's display style, or an
+ * object's effective style once overrides reach the windows.
  */
 export function resolveRenderSettings(
   styles: CSSStyleDeclaration | null,
   settings: SimulatorSettings,
+  style: PaperStyle,
   surface: SimulatorSurfaceOptions = {}
 ): RenderSettings {
   const dpr = typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
-  const edge = resolve(settings.borderColor, styles, '--text-primary', FALLBACK.border);
-  const mono = settings.creaseStyle !== 'color';
-  return {
-    frontColor: unit(resolve(settings.paperFront, styles, '--sim-paper-front', FALLBACK.paperFront)),
-    backColor: unit(resolve(settings.paperBack, styles, '--sim-paper-back', FALLBACK.paperBack)),
-    // A mono style is one ink for every crease, so it overrides the per-kind
-    // colours rather than sitting alongside them — that is what "mono" means.
-    // The ink is the edge colour, which is theme-derived, so it stays legible on
-    // dark paper where a literal black would not.
-    mountainColor: unit(
-      mono ? edge : resolve(settings.mountainColor, styles, null, DEFAULT_MOUNTAIN_COLOR)
-    ),
-    valleyColor: unit(
-      mono ? edge : resolve(settings.valleyColor, styles, null, DEFAULT_VALLEY_COLOR)
-    ),
-    borderColor: unit(edge),
-    creaseDash: creaseDashFor(settings.creaseStyle),
-    background: unit(resolve(null, styles, '--bg-canvas', FALLBACK.canvas)),
+  return resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, {
+    dpr,
+    background: unit(themeGround(styles)),
     backgroundAlpha: surface.transparentBackground ? 0 : 1,
-    lightDir: PAPER_LIGHT_DIRECTION,
-    showFaces: settings.showFaces,
-    showEdges: settings.showEdges,
-    lighting: settings.lighting,
-    // Scaled to device pixels so a crease reads at the same on-screen weight on
-    // a hi-dpi display as on a standard one.
-    creaseWidthPx: Math.max(0.5, settings.creaseWidth * dpr),
-    creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
-    creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
     faceAlpha: settings.renderMode === 'xray' ? 0.48 : 1,
     colorMode: settings.colorMode,
     strainClip: settings.strainClip,
-  };
+    showFaces: settings.showFaces,
+    showEdges: settings.showEdges,
+    creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
+    creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
+  });
 }
 
 /**
@@ -230,10 +150,11 @@ export interface SimulatorPaint {
 export function resolveSimulatorPaint(
   styles: CSSStyleDeclaration | null,
   settings: SimulatorSettings,
+  style: PaperStyle,
   surface: SimulatorSurfaceOptions = {}
 ): SimulatorPaint {
   return {
-    render: resolveRenderSettings(styles, settings, surface),
+    render: resolveRenderSettings(styles, settings, style, surface),
     chrome: resolveSimulatorChrome(styles),
   };
 }
@@ -246,34 +167,6 @@ export function resolveSimulatorChrome(styles: CSSStyleDeclaration | null): Simu
     highlightFaceRgb: [240, 198, 116],
     flat: cssVar(styles, '--text-secondary', FALLBACK.flat),
     canvas: cssVar(styles, '--bg-canvas', FALLBACK.canvas),
-  };
-}
-
-/**
- * The colour each override falls back to, as `#rrggbb`.
- *
- * The options pane needs these because a swatch has to show *something* while
- * the setting is unset, and showing the theme's actual paper is the only honest
- * answer — a hardcoded swatch would tell the user a colour they are not looking
- * at. Recompute on a theme change; the values move with it.
- */
-export function simulatorStyleDefaults(
-  styles: CSSStyleDeclaration | null
-): Record<SimulatorColorSettingKey, string> {
-  const hex = (rgb: Rgb) =>
-    `#${rgb
-      .map((channel) =>
-        Math.round(Math.min(255, Math.max(0, channel)))
-          .toString(16)
-          .padStart(2, '0')
-      )
-      .join('')}`;
-  return {
-    paperFront: hex(resolve(null, styles, '--sim-paper-front', FALLBACK.paperFront)),
-    paperBack: hex(resolve(null, styles, '--sim-paper-back', FALLBACK.paperBack)),
-    mountainColor: DEFAULT_MOUNTAIN_COLOR,
-    valleyColor: DEFAULT_VALLEY_COLOR,
-    borderColor: hex(resolve(null, styles, '--text-primary', FALLBACK.border)),
   };
 }
 

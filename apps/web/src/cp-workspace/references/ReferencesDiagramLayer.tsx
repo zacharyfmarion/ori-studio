@@ -9,7 +9,7 @@ import {
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
 import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/DiagramPrimitives';
-import { canvasDiagramInk } from './diagram/diagramInk';
+import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
 import type { FoldPose } from './fold/foldPlayback';
 import type { FoldScene } from './fold/foldScene';
 import { symbolFlaps, symbolOpacity } from './fold/foldSymbolFade';
@@ -46,6 +46,8 @@ export interface ReferencesDiagramLayerProps {
   camera: ReferencesDiagramView | null;
   /** The reader's crease width, which is also this drawing's pen. */
   lineWidth: number;
+  /** The paper style's arrow pen, in CSS px (`ReferencesPaperStyle.arrowWidth`). */
+  arrowWidth: number;
   /** The card's fold, so the symbols on its moving paper can fade with it. */
   fold?: FoldScene | null;
 }
@@ -55,13 +57,19 @@ export type ReferencesDiagramLayerHandle = FoldPoseSink;
 export const ReferencesDiagramLayer = forwardRef<
   ReferencesDiagramLayerHandle,
   ReferencesDiagramLayerProps
->(function ReferencesDiagramLayer({ model, camera, lineWidth, fold = null }, ref) {
+>(function ReferencesDiagramLayer({ model, camera, lineWidth, arrowWidth, fold = null }, ref) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const poseRef = useRef<FoldPose | null>(null);
   const project = useMemo(
     () =>
-      camera ? createOverlayProjector(camera.view, canvasDiagramInk(lineWidth)) : null,
-    [camera, lineWidth]
+      camera
+        ? createOverlayProjector(
+            camera.view,
+            canvasDiagramInk(lineWidth),
+            canvasDiagramPens(lineWidth, arrowWidth)
+          )
+        : null,
+    [camera, lineWidth, arrowWidth]
   );
   // No bounds and nothing reserved: the canvas has no edge of its own and no
   // number over its corner, so a letter goes wherever its mark is.

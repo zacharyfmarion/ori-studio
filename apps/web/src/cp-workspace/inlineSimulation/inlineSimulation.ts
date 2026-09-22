@@ -1,6 +1,7 @@
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import type { FoldDocument } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { PaperStyleOverrides } from '../../lib/paper/paperStyle';
 import {
   cpLinesByIds,
   foldedSourceBounds,
@@ -86,6 +87,12 @@ export interface InlineSimulation {
    * unchanged, never the durable reference — see `sourceBoundary`.
    */
   segmentIdHint: number | null;
+  /**
+   * The paper-style fields the user pinned on this window; everything not here
+   * follows the app's display style. Absent when nothing is pinned, and left
+   * off the file then.
+   */
+  appearance?: PaperStyleOverrides;
 }
 
 /**

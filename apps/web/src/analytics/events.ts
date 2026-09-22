@@ -210,6 +210,44 @@ export type FoldedFigureStyleOption =
   | 'line_color'
   | 'shadow';
 
+/**
+ * Which slot of the app-wide paper style an edit went to: what is drawn on
+ * screen, or what an export draws when the user has set it apart.
+ */
+export type PaperStyleSlot = 'display' | 'export';
+
+/**
+ * The style field an edit touched, by its path. A fixed list of ten — never a
+ * value: a colour, a pen width or a light angle is the user's work. The
+ * question is which fields anyone reaches for, and whether the export slot
+ * ever gets set apart from display.
+ */
+export type PaperStyleFieldName =
+  | 'paper.front'
+  | 'paper.back'
+  | 'edges'
+  | 'mountainFolds'
+  | 'valleyFolds'
+  | 'auxCreases.visible'
+  | 'auxCreases.pen'
+  | 'arrows'
+  | 'erode'
+  | 'light';
+
+/**
+ * Which preset was applied: a built-in by id, or `custom` for any preset the
+ * user saved or imported — never its name, which is theirs.
+ */
+export type PaperPresetName =
+  | 'ori-default'
+  | 'oriedita'
+  | 'black-and-white'
+  | 'origami-house'
+  | 'custom';
+
+/** The surfaces a document object can pin a paper-style field on. */
+export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
+
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
@@ -674,6 +712,29 @@ export const ANALYTICS_EVENTS = {
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
   foldedFigureStyled: 'folded figure styled',
+  /**
+   * A field of the app-wide paper style was edited — from Settings ▸ Paper, the
+   * Simulate pane's Paper and Creases rows, or a window's sheet. `slot` is
+   * `display` or `export`, `field` the field's path. Once per adjustment: a
+   * colour drag counts when it starts, never per pointer move, and never with
+   * the value. The question is which fields earn their rows and whether the
+   * export slot is ever set apart from display.
+   */
+  paperStyleChanged: 'paper style changed',
+  /**
+   * A whole preset was applied to a slot. `preset` is a built-in's id or
+   * `custom` for a saved or imported one — never its name. Whether the
+   * built-ins cover what people want is what a high `custom` share answers.
+   */
+  paperPresetApplied: 'paper preset applied',
+  /**
+   * A document object had a paper-style field pinned, or the pin cleared
+   * (`reset: true`), from its Properties sheet or the folded Style menu.
+   * `surface` says which kind of object, `field` which row. Per-object pins
+   * are the case D1 in the plan was designed around; this is how often it
+   * happens at all.
+   */
+  paperStyleOverridden: 'paper style overridden',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —

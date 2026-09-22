@@ -69,7 +69,14 @@ describe('ReferencesDiagramLayer', () => {
     const render = (view: ReferencesDiagramView) =>
       act(() =>
         root?.render(
-          <ReferencesDiagramLayer ref={handle} model={MODEL} camera={view} lineWidth={1} fold={FOLD} />
+          <ReferencesDiagramLayer
+            ref={handle}
+            model={MODEL}
+            camera={view}
+            lineWidth={1}
+            arrowWidth={1.4}
+            fold={FOLD}
+          />
         )
       );
     render(camera(100));
@@ -90,9 +97,46 @@ describe('ReferencesDiagramLayer', () => {
 
   it('wraps nothing without a fold', () => {
     act(() =>
-      root?.render(<ReferencesDiagramLayer model={MODEL} camera={camera(100)} lineWidth={1} />)
+      root?.render(
+        <ReferencesDiagramLayer model={MODEL} camera={camera(100)} lineWidth={1} arrowWidth={1.4} />
+      )
     );
     expect(groups()).toHaveLength(0);
     expect(container?.querySelectorAll('svg > *').length).toBe(3);
+  });
+
+  // The arrow is the paper style's pen, in CSS px, whatever the crease width;
+  // the mark's ring beside it stays on the crease pen like every other mark.
+  it('draws the fold arrow at the paper style’s arrow pen', () => {
+    const arrow: StepDiagramModel = {
+      sheet: MODEL.sheet,
+      primitives: [
+        { kind: 'point', at: [0.5, 0.25], style: 'normal' },
+        {
+          kind: 'fold-arrow',
+          out: { center: [0.5, 0.5], radius: 0.25, from: -Math.PI / 2, to: Math.PI / 2, ccw: true },
+        },
+      ],
+    };
+    const strokeWidths = () =>
+      [...(container?.querySelectorAll<SVGElement>('.step-diagram__line--arrow') ?? [])].map(
+        (path) => Number(path.getAttribute('stroke-width'))
+      );
+    const ringWidth = () =>
+      Number(container?.querySelector('.step-diagram__point')?.getAttribute('stroke-width'));
+    act(() =>
+      root?.render(
+        <ReferencesDiagramLayer model={arrow} camera={camera(100)} lineWidth={1} arrowWidth={1.4} />
+      )
+    );
+    expect(strokeWidths()).toEqual([1.4, 1.4]);
+    const ring = ringWidth();
+    act(() =>
+      root?.render(
+        <ReferencesDiagramLayer model={arrow} camera={camera(100)} lineWidth={1} arrowWidth={4} />
+      )
+    );
+    expect(strokeWidths()).toEqual([4, 4]);
+    expect(ringWidth()).toBe(ring);
   });
 });

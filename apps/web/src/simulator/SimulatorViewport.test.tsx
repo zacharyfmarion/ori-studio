@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { DEFAULT_SIMULATOR_VIEW, SimulatorViewport } from './SimulatorViewport';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../lib/simulatorSettings';
+import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
 import type { SimulatorOrbitView } from '../lib/simulatorOrbit';
 
 /**
@@ -33,6 +34,7 @@ function render(interactive: boolean, claimsWheel?: () => boolean, viewCube = fa
         claimsWheel={claimsWheel}
         gpuActive
         viewSettings={DEFAULT_SIMULATOR_SETTINGS}
+        paperStyle={DEFAULT_PAPER_STYLE}
         viewCube={viewCube}
         pushCamera={pushCamera}
         pushRenderSettings={() => {}}
@@ -361,6 +363,7 @@ describe('SimulatorViewport on the canvas-2D path', () => {
           interactive
           gpuActive={false}
           viewSettings={DEFAULT_SIMULATOR_SETTINGS}
+          paperStyle={DEFAULT_PAPER_STYLE}
           pushCamera={pushCamera}
           pushRenderSettings={pushRenderSettings}
           ariaLabel="simulator"

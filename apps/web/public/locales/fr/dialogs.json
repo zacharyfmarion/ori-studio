@@ -377,6 +377,66 @@
       "update": "Mettre à jour",
       "updateAvailable": "Plus récent que la version installée"
     },
+    "paper": {
+      "auxVisible": "Afficher les plis existants sur le papier plié",
+      "back": "Verso",
+      "cap": {
+        "butt": "Plat",
+        "round": "Arrondi"
+      },
+      "exportFollowsDisplay": "L'exportation utilise le style d'affichage",
+      "exportFollowsDisplayHint": "Désactivé, le style d'exportation démarre comme une copie du style d'affichage et se modifie séparément.",
+      "exportTitle": "Exporter le style de papier",
+      "front": "Recto",
+      "importTitle": "Importer un style de papier",
+      "lightAzimuth": "Azimut",
+      "lightAzimuthHint": "Degrés dans le sens horaire depuis la verticale vers le haut.",
+      "lightElevation": "Élévation",
+      "lightElevationHint": "Degrés hors de l'écran ; 90 éclaire le papier de face.",
+      "lightEnabled": "Ombrer le papier plié avec une lumière directionnelle",
+      "lightTitle": "Lumière",
+      "paperTitle": "Papier",
+      "pen": {
+        "arrows": "Flèches",
+        "auxCreases": "Plis existants",
+        "edges": "Bords",
+        "mountainFolds": "Plis montagne",
+        "valleyFolds": "Plis vallée"
+      },
+      "penCap": "Extrémité",
+      "penCapNamed": "Extrémité : {{pen}}",
+      "penColorNamed": "Couleur : {{pen}}",
+      "penDash": "Pointillés",
+      "penDashNamed": "Pointillés : {{pen}}",
+      "pensTitle": "Plumes",
+      "penWidth": "Largeur (pt)",
+      "penWidthNamed": "Largeur : {{pen}}",
+      "preset": {
+        "blackAndWhite": "Noir et blanc",
+        "oriDefault": "Ori par défaut",
+        "oriedita": "Oriedita",
+        "origamiHouse": "Origami House"
+      },
+      "presets": {
+        "apply": "Appliquer",
+        "builtIn": "Intégrés",
+        "by": "Par {{author}}",
+        "delete": "Supprimer",
+        "export": "Exporter",
+        "exportNamed": "Exporter {{name}}",
+        "import": "Importer…",
+        "name": "Nom du préréglage",
+        "save": "Enregistrer",
+        "saveAs": "Enregistrer l'actuel sous…",
+        "title": "Préréglages",
+        "yours": "Enregistrés par vous"
+      },
+      "slot": {
+        "display": "Affichage",
+        "export": "Exportation",
+        "title": "Style"
+      }
+    },
     "sections": "Sections des paramètres",
     "shortcuts": {
       "alreadyAssigned": "{{chord}} est déjà attribué à {{label}}.",
@@ -447,6 +507,7 @@
     "tab": {
       "appearance": "Apparence",
       "general": "Général",
+      "paper": "Papier",
       "shortcuts": "Raccourcis",
       "workspace": "Espace de travail"
     },

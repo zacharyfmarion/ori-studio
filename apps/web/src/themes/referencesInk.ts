@@ -11,15 +11,21 @@
  * shouted over the dimmed mountains and valleys beside it, which sat at about
  * the light theme's step and so read as fainter than they were.
  *
- * So the alphas are derived per theme from the light theme's *outcome*, as
+ * So the alphas are derived from the light theme's *outcome*, as
  * `paperBack.ts` does for the paper's other side: the step in CIE lightness
- * (L*) between the drawn line and the ground is held to what the reference
- * light theme produces, and the alpha that gets there on this theme's ground
- * is what the theme carries. On a white ground that is the original tuning to
- * the byte; on a dark one the grey comes down to about half its alpha and the
- * dimmed creases come up a little, with a deliberate extra lift for dark
- * themes: a thin dashed line loses its colour near black faster than its
- * lightness says, and the step that reads right on white reads faint there.
+ * (L*) between the drawn line and the surface under it is held to what the
+ * reference light theme produces, and the alpha that gets there on this
+ * surface is what is carried. On white that is the original tuning to the
+ * byte; on a dark surface the grey comes down to about half its alpha and the
+ * dimmed creases come up a little, with a deliberate extra lift: a thin dashed
+ * line loses its colour near black faster than its lightness says, and the
+ * step that reads right on white reads faint there.
+ *
+ * The surface is whatever the line is drawn on. On `:root` the theme derives
+ * them against its ground, where the workspace has no paper yet; inside the
+ * References workspace the paper style sets the same names against its own
+ * paper (`usePaperStyleTokens`), because that is what the sheet is filled
+ * with (D13), and the inks are the style's too.
  */
 import { relativeLuminance } from './paperBack';
 import { mixHexColors } from '../lib/rgbColor';
@@ -42,8 +48,10 @@ const REFERENCE_DIM_ALPHA = 0.26;
  * darker dark.
  */
 const DARK_DIM_LIFT = 1.2;
-/** Nothing is drawn fainter than this, whatever the ground. */
+/** Nothing is drawn fainter than this, whatever the surface. */
 const MIN_ALPHA = 0.1;
+/** Below this L* a surface counts as dark, and the dimmed creases take the lift. */
+const DARK_SURFACE_LIGHTNESS = 50;
 
 /** CIE L* of a hex colour, from its WCAG relative luminance. */
 function lightness(hex: string): number {
@@ -51,23 +59,23 @@ function lightness(hex: string): number {
   return y > 0.008856 ? 116 * Math.cbrt(y) - 16 : 903.3 * y;
 }
 
-/** The lightness step a line drawn at `alpha` in `ink` takes off `ground`. */
-function step(ink: string, ground: string, alpha: number): number {
-  return Math.abs(lightness(mixHexColors(ink, ground, alpha)) - lightness(ground));
+/** The lightness step a line drawn at `alpha` in `ink` takes off `surface`. */
+function step(ink: string, surface: string, alpha: number): number {
+  return Math.abs(lightness(mixHexColors(ink, surface, alpha)) - lightness(surface));
 }
 
 /**
- * The alpha at which `ink` over `ground` steps `target` L* off it: the step
+ * The alpha at which `ink` over `surface` steps `target` L* off it: the step
  * grows with alpha, so a bisection finds it; `1` when even solid ink does not
  * get there.
  */
-function alphaForStep(ink: string, ground: string, target: number): number {
-  if (step(ink, ground, 1) <= target) return 1;
+function alphaForStep(ink: string, surface: string, target: number): number {
+  if (step(ink, surface, 1) <= target) return 1;
   let lo = 0;
   let hi = 1;
   for (let i = 0; i < 40; i += 1) {
     const mid = (lo + hi) / 2;
-    if (step(ink, ground, mid) < target) lo = mid;
+    if (step(ink, surface, mid) < target) lo = mid;
     else hi = mid;
   }
   return Math.max(MIN_ALPHA, hi);
@@ -79,25 +87,26 @@ const DIM_STEP =
     step(REFERENCE_VALLEY, REFERENCE_GROUND, REFERENCE_DIM_ALPHA)) /
   2;
 
-/** The alpha an earlier crease's grey draws at on `ground`. */
-export function referencesCreaseAlpha(ground: string): number {
-  return alphaForStep(FOLD_UNASSIGNED, ground, CREASE_STEP);
+/**
+ * The alpha an earlier crease draws at on `surface`, in `ink` — the theme's
+ * grey on `:root`, the paper style's aux pen inside the workspace.
+ */
+export function referencesCreaseAlpha(surface: string, ink: string = FOLD_UNASSIGNED): number {
+  return alphaForStep(ink, surface, CREASE_STEP);
 }
 
 /**
- * The alpha a pattern crease made by an earlier step draws at on `ground`, in
- * the theme's `mountain` and `valley` inks — one alpha for both, held to the
- * mean of their steps.
+ * The alpha a pattern crease made by an earlier step draws at on `surface`, in
+ * the `mountain` and `valley` inks — one alpha for both, held to the mean of
+ * their steps. A dark surface takes the lift; the surface's own lightness
+ * says, not the theme's type, because the paper the creases sit on is the
+ * style's and not the theme's.
  */
-export function referencesDimAlpha(
-  ground: string,
-  mountain: string,
-  valley: string,
-  themeType: 'light' | 'dark'
-): number {
-  const target = DIM_STEP * (themeType === 'dark' ? DARK_DIM_LIFT : 1);
+export function referencesDimAlpha(surface: string, mountain: string, valley: string): number {
+  const dark = lightness(surface) < DARK_SURFACE_LIGHTNESS;
+  const target = DIM_STEP * (dark ? DARK_DIM_LIFT : 1);
   const meanStep = (alpha: number) =>
-    (step(mountain, ground, alpha) + step(valley, ground, alpha)) / 2;
+    (step(mountain, surface, alpha) + step(valley, surface, alpha)) / 2;
   if (meanStep(1) <= target) return 1;
   let lo = 0;
   let hi = 1;

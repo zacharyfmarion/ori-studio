@@ -369,6 +369,66 @@
       "update": "Update",
       "updateAvailable": "Newer than what is installed"
     },
+    "paper": {
+      "auxVisible": "Show existing creases on folded paper",
+      "back": "Back",
+      "cap": {
+        "butt": "Flat",
+        "round": "Round"
+      },
+      "exportFollowsDisplay": "Export uses display style",
+      "exportFollowsDisplayHint": "Off, the export style starts as a copy of the display style and is edited on its own.",
+      "exportTitle": "Export Paper Style",
+      "front": "Front",
+      "importTitle": "Import Paper Style",
+      "lightAzimuth": "Azimuth",
+      "lightAzimuthHint": "Degrees clockwise from straight up.",
+      "lightElevation": "Elevation",
+      "lightElevationHint": "Degrees out of the screen; 90 is straight at the paper.",
+      "lightEnabled": "Shade folded paper by a directional light",
+      "lightTitle": "Light",
+      "paperTitle": "Paper",
+      "pen": {
+        "arrows": "Arrows",
+        "auxCreases": "Existing creases",
+        "edges": "Edges",
+        "mountainFolds": "Mountain folds",
+        "valleyFolds": "Valley folds"
+      },
+      "penCap": "Cap",
+      "penCapNamed": "{{pen}} cap",
+      "penColorNamed": "{{pen}} color",
+      "penDash": "Dash",
+      "penDashNamed": "{{pen}} dash",
+      "pensTitle": "Pens",
+      "penWidth": "Width (pt)",
+      "penWidthNamed": "{{pen}} width",
+      "preset": {
+        "blackAndWhite": "Black & white",
+        "oriDefault": "Ori default",
+        "oriedita": "Oriedita",
+        "origamiHouse": "Origami House"
+      },
+      "presets": {
+        "apply": "Apply",
+        "builtIn": "Built in",
+        "by": "By {{author}}",
+        "delete": "Delete",
+        "export": "Export",
+        "exportNamed": "Export {{name}}",
+        "import": "Import…",
+        "name": "Preset name",
+        "save": "Save",
+        "saveAs": "Save current as…",
+        "title": "Presets",
+        "yours": "Saved by you"
+      },
+      "slot": {
+        "display": "Display",
+        "export": "Export",
+        "title": "Style"
+      }
+    },
     "sections": "Settings sections",
     "shortcuts": {
       "alreadyAssigned": "{{chord}} is already assigned to {{label}}.",
@@ -435,6 +495,7 @@
     "tab": {
       "appearance": "Appearance",
       "general": "General",
+      "paper": "Paper",
       "shortcuts": "Shortcuts",
       "workspace": "Workspace"
     },

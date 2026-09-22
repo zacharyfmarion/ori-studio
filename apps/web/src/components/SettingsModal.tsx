@@ -15,6 +15,7 @@ import {
   Keyboard,
   LayoutDashboard,
   Palette,
+  PenTool,
   RotateCcw,
   SlidersHorizontal,
   X,
@@ -23,6 +24,7 @@ import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
 import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { UpdatesSection } from './settings/UpdatesSection';
 import { ModelsSection } from './settings/ModelsSection';
+import { PaperSettings } from './settings/PaperSettings';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
@@ -75,6 +77,7 @@ import { IconButton } from './ui/IconButton';
 const TABS: Array<{ key: SettingsTab; icon: typeof Palette }> = [
   { key: 'general', icon: SlidersHorizontal },
   { key: 'appearance', icon: Palette },
+  { key: 'paper', icon: PenTool },
   { key: 'shortcuts', icon: Keyboard },
   { key: 'workspace', icon: LayoutDashboard },
 ];
@@ -86,6 +89,8 @@ function tabLabel(t: TFunction, key: SettingsTab): string {
       return t('dialogs:settings.tab.general', 'General');
     case 'appearance':
       return t('dialogs:settings.tab.appearance', 'Appearance');
+    case 'paper':
+      return t('dialogs:settings.tab.paper', 'Paper');
     case 'shortcuts':
       return t('dialogs:settings.tab.shortcuts', 'Shortcuts');
     case 'workspace':
@@ -1106,6 +1111,7 @@ function ShortcutsTab() {
 const TAB_COMPONENTS: Record<SettingsTab, () => ReactElement> = {
   general: GeneralTab,
   appearance: AppearanceTab,
+  paper: PaperSettings,
   shortcuts: ShortcutsTab,
   workspace: WorkspaceTab,
 };

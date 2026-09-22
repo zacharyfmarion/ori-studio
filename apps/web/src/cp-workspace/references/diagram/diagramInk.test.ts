@@ -7,6 +7,8 @@ import {
   DIAGRAM_MARK_INK,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
+  canvasDiagramInk,
+  canvasDiagramPens,
   labelWidth,
 } from './diagramInk';
 
@@ -83,6 +85,21 @@ describe('the diagram’s pen', () => {
   it('keeps a letter’s box and standoff in step with its halo', () => {
     expect(DIAGRAM_LABEL_INK.glyph).toEqual({ height: 1, baseline: 0.86 });
     expect(DIAGRAM_LABEL_INK.standoff).toBe(DIAGRAM_LABEL_INK.halo / 2);
+  });
+
+  // Over the canvas the arrow is the paper style's own pen, in CSS pixels, and
+  // one ink there is a fixed number of CSS pixels — so the arrow's weight in
+  // ink is whatever puts its stroke at the pen. The rest of the table, and the
+  // card's copy of it, stay as they are.
+  it('draws the canvas’s arrow at the paper style’s pen and touches nothing else', () => {
+    const pens = canvasDiagramPens(1, 1.4);
+    expect(pens.arrow.width * canvasDiagramInk(1)).toBeCloseTo(1.4, 9);
+    expect(pens.arrow.cap).toBe('round');
+    expect(canvasDiagramPens(2, 4).arrow.width * canvasDiagramInk(2)).toBeCloseTo(4, 9);
+    const { arrow: _arrow, ...rest } = pens;
+    const { arrow: _tableArrow, ...table } = DIAGRAM_LINE_INK;
+    expect(rest).toEqual(table);
+    expect(DIAGRAM_LINE_INK.arrow.width).toBe(1.4);
   });
 
   // Sized by the letter, not by an average: a Q at the right edge of a card

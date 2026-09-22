@@ -41,6 +41,7 @@ import {
   type SimulatorViewDirection,
 } from "../lib/simulatorOrbit";
 import type { SimulatorSettings as SimulatorViewSettings } from "../lib/simulatorSettings";
+import type { PaperStyle } from "../lib/paper/paperStyle";
 import {
   SimulatorViewCube,
   type SimulatorViewCubeHandle,
@@ -200,6 +201,13 @@ export interface SimulatorViewportProps {
   creaseWidthShrinkExponent?: number;
   viewSettings: SimulatorViewSettings;
   /**
+   * How the paper is drawn — colours, pens, light. The app's display style for
+   * the Simulate workspace, an object's effective style for a window on the
+   * Edit canvas. Ignored when {@link renderSettings} is given, which already
+   * carries a resolved style.
+   */
+  paperStyle: PaperStyle;
+  /**
    * Offer a view cube in the bottom-left corner.
    *
    * Off by default, and deliberately not on for every surface that has a camera.
@@ -277,6 +285,7 @@ export function SimulatorViewport({
   creaseWidthReferenceEdge,
   creaseWidthShrinkExponent,
   viewSettings,
+  paperStyle,
   viewCube = false,
   initialView,
   renderSettings,
@@ -310,6 +319,7 @@ export function SimulatorViewport({
   // stale closure mid-gesture.
   const gpuActiveRef = useRef(gpuActive);
   const viewSettingsRef = useRef(viewSettings);
+  const paperStyleRef = useRef(paperStyle);
   const highlightsRef = useRef(highlights);
   const interactiveRef = useRef(interactive);
   const claimsWheelRef = useRef(claimsWheel);
@@ -393,6 +403,7 @@ export function SimulatorViewport({
     const paint = resolveSimulatorPaint(
       getComputedStyle(canvas),
       viewSettingsRef.current,
+      paperStyleRef.current,
       surfaceOptionsRef.current
     );
     paintRef.current = paint;
@@ -555,6 +566,7 @@ export function SimulatorViewport({
   // either has to be pushed the same way.
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
+    paperStyleRef.current = paperStyle;
     renderSettingsRef.current = renderSettings;
     surfaceOptionsRef.current = {
       transparentBackground,
@@ -565,6 +577,7 @@ export function SimulatorViewport({
   }, [
     refreshPaint,
     viewSettings,
+    paperStyle,
     renderSettings,
     transparentBackground,
     creaseWidthReferenceEdge,
@@ -798,7 +811,7 @@ export function SimulatorViewport({
         key={canvasKey}
         ref={setCanvas}
         className={className}
-        data-lighting={viewSettings.lighting || undefined}
+        data-lighting={paperStyle.light.enabled || undefined}
         aria-label={ariaLabel}
         title={title}
         onPointerDown={handlePointerDown}

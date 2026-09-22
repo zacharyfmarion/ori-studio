@@ -4,7 +4,6 @@ import {
   DEFAULT_SIMULATOR_SETTINGS,
   normalizeSimulatorSettings,
   simulatorMaterialOptions,
-  SIMULATOR_COLOR_KEYS,
   SIMULATOR_SETTING_RANGES,
 } from './simulatorSettings';
 
@@ -32,46 +31,20 @@ describe('simulatorSettings', () => {
     const restored = normalizeSimulatorSettings({
       colorMode: 'rainbow',
       damping: 'lots',
-      lighting: false,
+      showEdges: false,
       creaseStiffness: 2,
     });
 
     expect(restored.colorMode).toBe('paper');
     expect(restored.damping).toBe(DEFAULT_SIMULATOR_SETTINGS.damping);
-    expect(restored.lighting).toBe(false);
+    expect(restored.showEdges).toBe(false);
     expect(restored.creaseStiffness).toBe(2);
-  });
-  it('keeps a valid persisted colour and drops anything else', () => {
-    // These come back from localStorage, so a bad value must not reach a
-    // renderer. Null is meaningful (follow the theme) and has to survive.
-    const restored = normalizeSimulatorSettings({
-      paperFront: '#ff8800',
-      paperBack: 'rebeccapurple',
-      mountainColor: null,
-      valleyColor: '#abc',
-      borderColor: 42,
-    });
-
-    expect(restored.paperFront).toBe('#ff8800');
-    expect(restored.paperBack).toBeNull();
-    expect(restored.mountainColor).toBeNull();
-    // Three-digit hex is rejected too: every consumer here assumes six.
-    expect(restored.valleyColor).toBeNull();
-    expect(restored.borderColor).toBeNull();
-  });
-
-  it('defaults every colour to null, so the theme stays in charge', () => {
-    // A concrete default would freeze the paper the first time settings were
-    // persisted, and switching theme would stop moving it.
-    for (const key of SIMULATOR_COLOR_KEYS) {
-      expect(DEFAULT_SIMULATOR_SETTINGS[key]).toBeNull();
-    }
   });
 
   it('carries a stored settings object forward when a setting is added', () => {
     // Everything persisted before `showViewCube` existed has no such key, and
     // the cube would be missing for every returning user if that read as false.
-    const restored = normalizeSimulatorSettings({ lighting: false });
+    const restored = normalizeSimulatorSettings({ showEdges: false });
 
     expect(restored.showViewCube).toBe(true);
     expect(normalizeSimulatorSettings({ showViewCube: false }).showViewCube).toBe(false);
@@ -79,21 +52,33 @@ describe('simulatorSettings', () => {
 
   it('drops a setting that has since been retired', () => {
     // `showHiddenLines` was persisted for months before it went (only the
-    // canvas-2D fallback ever read it). Old JSON still carries it; it must not
-    // come back as a stray key on the live settings.
-    const restored = normalizeSimulatorSettings({ showHiddenLines: true, lighting: false });
+    // canvas-2D fallback ever read it), and the style keys moved to the paper
+    // style (`settingsStore.paperStyle`), which seeds itself from them on its
+    // first read. Old JSON still carries them all; none may come back as a
+    // stray key on the live settings.
+    const restored = normalizeSimulatorSettings({
+      showHiddenLines: true,
+      showEdges: false,
+      paperFront: '#ff8800',
+      paperBack: null,
+      mountainColor: '#111111',
+      valleyColor: '#222222',
+      borderColor: '#333333',
+      creaseWidth: 2,
+      creaseStyle: 'mono',
+      lighting: false,
+    });
 
-    expect('showHiddenLines' in restored).toBe(false);
-    expect(restored.lighting).toBe(false);
+    expect(restored).toEqual({ ...DEFAULT_SIMULATOR_SETTINGS, showEdges: false });
   });
 
-  it('validates the export background and clamps the crease weight', () => {
+  it('validates the export background and clamps a numeric setting', () => {
     expect(normalizeSimulatorSettings({ exportBackground: 'chartreuse' }).exportBackground).toBe(
       DEFAULT_SIMULATOR_SETTINGS.exportBackground
     );
     expect(normalizeSimulatorSettings({ exportBackground: 'white' }).exportBackground).toBe('white');
-    expect(normalizeSimulatorSettings({ creaseWidth: 999 }).creaseWidth).toBe(
-      SIMULATOR_SETTING_RANGES.creaseWidth.max
+    expect(normalizeSimulatorSettings({ strainClip: 999 }).strainClip).toBe(
+      SIMULATOR_SETTING_RANGES.strainClip.max
     );
   });
 });

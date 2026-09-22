@@ -1,5 +1,6 @@
 import type { OristudioCpFoldedFigureModel } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import type { FoldedModelWriteOptions } from '../../store/workspaceStore/types';
 
 /**
  * A flat folded figure's model lives in the kernel, and every colour tick is a
@@ -18,9 +19,18 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
  * merge base, the pending count, the superseded set) because a discrete verb
  * writes without this queue; this only orders the continuous writes.
  */
+interface QueuedWrite {
+  patch: Partial<OristudioCpFoldedFigureModel>;
+  /**
+   * A write is a mirror only while every patch folded into it is one: a
+   * user's edit coalesced with the store's mirror is still the user's edit.
+   */
+  mirror: boolean;
+}
+
 interface FigureQueue {
   inFlight: Promise<void> | null;
-  queued: Partial<OristudioCpFoldedFigureModel> | null;
+  queued: QueuedWrite | null;
   /** Resolved once nothing is in flight and nothing is queued. */
   waiters: Array<() => void>;
 }
@@ -35,9 +45,11 @@ function queueFor(id: string): FigureQueue {
   return created;
 }
 
-function issue(id: string, queue: FigureQueue, patch: Partial<OristudioCpFoldedFigureModel>): void {
-  const write = useWorkspaceStore.getState().updateOristudioCpFoldedFigureModel(id, patch);
-  queue.inFlight = Promise.resolve(write)
+function issue(id: string, queue: FigureQueue, write: QueuedWrite): void {
+  const issued = useWorkspaceStore
+    .getState()
+    .updateOristudioCpFoldedFigureModel(id, write.patch, { mirror: write.mirror });
+  queue.inFlight = Promise.resolve(issued)
     // A refused or failed write has still landed, as far as ordering goes.
     .then(
       () => undefined,
@@ -61,14 +73,19 @@ function issue(id: string, queue: FigureQueue, patch: Partial<OristudioCpFoldedF
 /** Issue `patch`, or fold it into the patch waiting behind the write in flight. */
 export function queueFoldedModelWrite(
   id: string,
-  patch: Partial<OristudioCpFoldedFigureModel>
+  patch: Partial<OristudioCpFoldedFigureModel>,
+  options: FoldedModelWriteOptions = {}
 ): void {
   const queue = queueFor(id);
+  const mirror = options.mirror === true;
   if (queue.inFlight) {
-    queue.queued = { ...(queue.queued ?? {}), ...patch };
+    queue.queued = {
+      patch: { ...(queue.queued?.patch ?? {}), ...patch },
+      mirror: (queue.queued?.mirror ?? true) && mirror,
+    };
     return;
   }
-  issue(id, queue, patch);
+  issue(id, queue, { patch, mirror });
 }
 
 /** Whether a continuous write for `id` is in flight or waiting to be. */

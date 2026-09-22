@@ -361,6 +361,66 @@
       "update": "更新",
       "updateAvailable": "インストール済みより新しいバージョン"
     },
+    "paper": {
+      "auxVisible": "折った用紙に既存の折り線を表示",
+      "back": "裏面",
+      "cap": {
+        "butt": "平ら",
+        "round": "丸"
+      },
+      "exportFollowsDisplay": "書き出しに表示スタイルを使う",
+      "exportFollowsDisplayHint": "オフにすると、書き出しスタイルは表示スタイルのコピーから始まり、独立して編集できます。",
+      "exportTitle": "用紙スタイルを書き出し",
+      "front": "表面",
+      "importTitle": "用紙スタイルを読み込み",
+      "lightAzimuth": "方位角",
+      "lightAzimuthHint": "真上から時計回りの角度。",
+      "lightElevation": "仰角",
+      "lightElevationHint": "画面から手前への角度。90 で用紙に正面から当たります。",
+      "lightEnabled": "折った用紙を平行光源で陰影付けする",
+      "lightTitle": "光源",
+      "paperTitle": "用紙",
+      "pen": {
+        "arrows": "矢印",
+        "auxCreases": "既存の折り線",
+        "edges": "辺",
+        "mountainFolds": "山折り",
+        "valleyFolds": "谷折り"
+      },
+      "penCap": "線端",
+      "penCapNamed": "{{pen}}の線端",
+      "penColorNamed": "{{pen}}の色",
+      "penDash": "破線",
+      "penDashNamed": "{{pen}}の破線",
+      "pensTitle": "ペン",
+      "penWidth": "幅 (pt)",
+      "penWidthNamed": "{{pen}}の幅",
+      "preset": {
+        "blackAndWhite": "白黒",
+        "oriDefault": "Ori 標準",
+        "oriedita": "Oriedita",
+        "origamiHouse": "Origami House"
+      },
+      "presets": {
+        "apply": "適用",
+        "builtIn": "組み込み",
+        "by": "作者: {{author}}",
+        "delete": "削除",
+        "export": "書き出し",
+        "exportNamed": "{{name}} を書き出し",
+        "import": "読み込み…",
+        "name": "プリセット名",
+        "save": "保存",
+        "saveAs": "現在の設定を保存…",
+        "title": "プリセット",
+        "yours": "自分で保存したもの"
+      },
+      "slot": {
+        "display": "表示",
+        "export": "書き出し",
+        "title": "スタイル"
+      }
+    },
     "sections": "設定セクション",
     "shortcuts": {
       "alreadyAssigned": "{{chord}} はすでに {{label}} に割り当てられています。",
@@ -423,6 +483,7 @@
     "tab": {
       "appearance": "外観",
       "general": "一般",
+      "paper": "用紙",
       "shortcuts": "ショートカット",
       "workspace": "ワークスペース"
     },

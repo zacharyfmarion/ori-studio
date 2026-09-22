@@ -19,6 +19,7 @@ import { isFoldedFigureStale } from './foldedFigureStaleness';
 import {
   foldedFigureFlipState,
   isFoldedFigureReady,
+  type FoldedAppearanceEdit,
   type FoldedFigureActionDeps,
   type FoldedModelGesture,
 } from './foldedFigureActions';
@@ -73,6 +74,8 @@ import { foldedFigureGesture } from './foldedFigureGesture';
 import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
 import { queueFoldedModelWrite } from './foldedModelWriteQueue';
 import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
+import { useSettingsStore } from '../../store/settingsStore';
+import { effectiveObjectPaperStyle, setFoldedFigureAppearance } from '../paper/objectPaperStyle';
 
 /**
  * The face folding holds fixed. Oriedita lets this be chosen and the kernel still
@@ -815,6 +818,57 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     [endOpenMenuGesture]
   );
 
+  /**
+   * Pin a paper-style field on a figure from the Style menu, under the same
+   * gesture protocol as {@link updateFoldedModel}: one entry through the
+   * override verb without a gesture, one run per control with. The kernel
+   * model follows through the paper-style mirror, so a colour drag is still a
+   * queued round trip per coalesced tick and the bracket's commit still waits
+   * for the kernel's answer. Counted once per run, never per pointer move.
+   */
+  const setFoldedAppearance = useCallback(
+    (
+      figure: OristudioCpFoldedFigureEntry,
+      edit: FoldedAppearanceEdit,
+      gesture?: FoldedModelGesture
+    ) => {
+      const surface = isFolded3dFigure(figure) ? 'folded-3d' : 'folded-flat';
+      if (!gesture) {
+        track(ANALYTICS_EVENTS.paperStyleOverridden, {
+          surface,
+          field: edit.field,
+          reset: edit.value === undefined,
+        });
+        void setFoldedFigureAppearance(figure.id, edit.field, edit.value);
+        return;
+      }
+      const open = menuGestureRef.current;
+      if (
+        !open ||
+        open.gesture.scope !== gesture.scope ||
+        !foldedFigureGesture.isOpen(open.token)
+      ) {
+        endOpenMenuGesture();
+        const token = foldedFigureGesture.begin(gesture.scope);
+        if (!token) return;
+        menuGestureRef.current = { gesture, token };
+        track(ANALYTICS_EVENTS.paperStyleOverridden, { surface, field: edit.field, reset: false });
+      }
+      useWorkspaceStore
+        .getState()
+        .setOristudioCpFoldedFigureAppearance(figure.id, edit.field, edit.value);
+    },
+    [endOpenMenuGesture]
+  );
+
+  // The display style, so a figure's effective style can be resolved for the
+  // Style menu's colour rows; the rows re-render when it moves.
+  const displayPaperStyle = useSettingsStore((state) => state.paperStyle.display);
+  const foldedPaperStyle = useCallback(
+    (figure: OristudioCpFoldedFigureEntry) => effectiveObjectPaperStyle(figure, displayPaperStyle),
+    [displayPaperStyle]
+  );
+
   const handleDuplicateFoldedFigure = useCallback(() => {
     if (!activeFoldedFigure) return;
     const id = activeFoldedFigure.id;
@@ -892,6 +946,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       },
       updateModel: updateFoldedModel,
       endModelGesture: endFoldedModelGesture,
+      paperStyle: foldedPaperStyle,
+      setAppearance: setFoldedAppearance,
       foldAnother: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
@@ -962,6 +1018,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       updateOristudioCpFoldedFigureModel,
       updateFoldedModel,
       endFoldedModelGesture,
+      foldedPaperStyle,
+      setFoldedAppearance,
       trackStyled,
       setOristudioCpFolded3dCamera,
       foldAnotherOristudioCpFigure,

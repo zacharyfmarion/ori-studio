@@ -17,6 +17,7 @@ import {
 import { ProjectFileFormatError } from './projectFileError';
 import { DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS, emptyOristudioCpSelection } from './creasePatternViewport';
 import { importedCpLineage } from './oristudioCpLineage';
+import { DEFAULT_PAPER_STYLE } from './paper/paperStyle';
 
 const now = new Date('2026-05-26T12:00:00.000Z');
 
@@ -650,6 +651,89 @@ describe('native project file', () => {
     const contradiction = { upper_face: 3, lower_face: 7 };
     const [entry] = reparse(roundTripCp([{ ...foldedFigure(), contradiction }]).serialized);
     expect(entry.contradiction).toEqual(contradiction);
+  });
+
+  it('carries the pinned style fields back, reading each one on its own terms', () => {
+    const appearance = {
+      'paper.front': '#ff0000',
+      edges: { width: 1, color: '#000000', dash: [2, 1], cap: 'round' as const },
+      erode: 0.1,
+    };
+    const [entry] = reparse(roundTripCp([{ ...foldedFigure(), appearance }]).serialized);
+    expect(entry.appearance).toEqual(appearance);
+
+    // A malformed value goes, not the figure; an unknown key goes too.
+    const { serialized } = roundTripCp([{ ...foldedFigure(), appearance }]);
+    serialized.workspace.creasePattern.viewState.foldedFigures[0].appearance = {
+      'paper.front': 'red',
+      erode: 0.1,
+      later: true,
+    };
+    expect(reparse(serialized)[0].appearance).toEqual({ erode: 0.1 });
+  });
+
+  it('writes the appearance key even when nothing is pinned, so a following figure keeps following', () => {
+    // The model colours are a mirror of the effective style, so a figure with
+    // nothing pinned under a non-default display style carries non-default
+    // colours. Only the key's presence tells the reader not to migrate those
+    // colours back into pins.
+    const figure = foldedFigure();
+    const recoloured = {
+      ...figure,
+      snapshot: {
+        ...figure.snapshot!,
+        model: { ...figure.snapshot!.model, front_color: { red: 255, green: 255, blue: 255 } },
+      },
+    };
+    const { serialized } = roundTripCp([recoloured]);
+    expect(serialized.workspace.creasePattern.viewState.foldedFigures[0].appearance).toEqual({});
+    const [entry] = reparse(serialized);
+    expect(entry.appearance).toBeUndefined();
+  });
+
+  it('reads a figure from before the style as pinned to whatever colours were not Oriedita’s', () => {
+    const figure = foldedFigure();
+    const { serialized } = roundTripCp([
+      {
+        ...figure,
+        snapshot: {
+          ...figure.snapshot!,
+          model: {
+            ...figure.snapshot!.model,
+            back_color: { red: 0, green: 128, blue: 255 },
+            line_color: { red: 255, green: 0, blue: 0 },
+          },
+        },
+      },
+    ]);
+    delete serialized.workspace.creasePattern.viewState.foldedFigures[0].appearance;
+
+    const [entry] = reparse(serialized);
+    // Front is Oriedita's default and follows; the other two were recoloured
+    // on purpose and stay put. A line colour pins the whole edge pen.
+    expect(entry.appearance).toEqual({
+      'paper.back': '#0080ff',
+      edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#ff0000' },
+    });
+  });
+
+  it('migrates a 3D figure from before the style from the model under folded3d', () => {
+    const figure = folded3dFigure();
+    const { serialized } = roundTripCp([figure]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    delete stored.appearance;
+    stored.folded3d.model = {
+      ...foldedFigure().snapshot!.model,
+      front_color: { red: 1, green: 2, blue: 3 },
+    };
+    expect(reparse(serialized)[0].appearance).toEqual({ 'paper.front': '#010203' });
+
+    // Oriedita's own colours read as following, and so does a figure whose
+    // model never made it to the file.
+    stored.folded3d.model = foldedFigure().snapshot!.model;
+    expect(reparse(serialized)[0].appearance).toBeUndefined();
+    delete stored.folded3d.model;
+    expect(reparse(serialized)[0].appearance).toBeUndefined();
   });
 
   it('loads a figure written before any of the 3D fields existed', () => {

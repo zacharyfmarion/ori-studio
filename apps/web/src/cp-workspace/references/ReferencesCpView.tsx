@@ -39,6 +39,8 @@ import {
 } from '../renderer/camera';
 import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { hexToUnitRgb } from '../../lib/paper/paperStyleResolve';
 import { canvasDiagramInk, diagramDashSlot } from './diagram/diagramInk';
 import type { FoldPose } from './fold/foldPlayback';
 import {
@@ -110,7 +112,7 @@ import {
  * take. Everything else it draws beyond the document arrives as props: which
  * creases to highlight, which vertices, the step's ghost lines and marks.
  * Colours are read from the theme on the canvas element and re-read when
- * `themeKey` changes.
+ * `inkKey` changes.
  */
 
 export interface ReferencesCpViewHandle {
@@ -223,22 +225,27 @@ export interface ReferencesCpViewProps {
   onZoomPercentChange?: (percent: number) => void;
   /** The camera refits when this changes (a new document), never on an edit. */
   framingKey: string;
-  /** Theme-resolved colours are re-read when this changes. */
-  themeKey?: string;
+  /** DOM-resolved colours — the theme's and the paper style's — are re-read when this changes. */
+  inkKey?: string;
   ariaLabel: string;
   className?: string;
 }
 
 const CANVAS_BG_VAR = '--bg-primary';
 /**
- * The paper's other face, filled as a shape under the creases.
+ * The paper, filled as a shape under the creases: the paper style's two faces
+ * (D13), which the workspace root carries and the step cards fill with too, so
+ * the strip and the view agree about what the sheet is and which face is up.
  *
- * The clear colour is the ground the sheet lies on, not the sheet — tinting the
- * whole canvas to say "you are looking at the back" claims the table turned
- * over too. Same token the step cards use, so the strip and the view agree
- * about which face is up.
+ * The clear colour is the ground the sheet lies on, not the sheet — tinting
+ * the whole canvas to say "you are looking at the back" claims the table
+ * turned over too. Outside the workspace the tokens are unset and the style's
+ * defaults stand in.
  */
-const PAPER_BACK_VAR = '--paper-back';
+const PAPER_FRONT_VAR = '--references-paper-front';
+const PAPER_BACK_VAR = '--references-paper-back';
+const PAPER_FRONT_FALLBACK: Rgba = [...hexToUnitRgb(DEFAULT_PAPER_STYLE.paper.front), 1];
+const PAPER_BACK_FALLBACK: Rgba = [...hexToUnitRgb(DEFAULT_PAPER_STYLE.paper.back), 1];
 /**
  * What a tilted flap is shaded toward. `--paper-shadow` is the folded figure's
  * own shadow ink and would be the token to use, but the theme emits it as a
@@ -359,7 +366,7 @@ interface FoldUploads {
   strokes: StrokeGeometry | null;
   points: PointGeometry | null;
   preview: StrokeGeometry | null;
-  /** The paper's other face, when the view is on its back; null on the front. */
+  /** The paper, in the colour of the face the reader is on; null when there is no geometry yet. */
   sheet: { geometry: CpGeometryTransport; border: ReadonlySet<number> | null; color: Rgba } | null;
 }
 
@@ -378,31 +385,37 @@ interface FoldRig {
   paint: Omit<FoldPaint, 'modelToUser'>;
 }
 
+/** The paper's two faces as the workspace carries them, the one the reader is on first. */
+function paperFaces(canvas: HTMLCanvasElement, mirrored: boolean): { up: Rgba; other: Rgba } {
+  const front = readCssVarColor(canvas, PAPER_FRONT_VAR, PAPER_FRONT_FALLBACK);
+  const back = readCssVarColor(canvas, PAPER_BACK_VAR, PAPER_BACK_FALLBACK);
+  return mirrored ? { up: back, other: front } : { up: front, other: back };
+}
+
 /**
- * The flap's inks, from the canvas's theme. The face the reader is on is the
- * ground the sheet is drawn as — the back when the view is mirrored — and
- * the other face the paper's other colour; the direction inks are the ones
- * `applyCreaseVisibility` gave the creases, so a swap on the other face
- * finds them.
+ * The flap's paper and inks, from the workspace's tokens. The face the reader
+ * is on is the one the sheet is filled with — the back when the view is
+ * mirrored — and the other face the paper's other colour; the direction inks
+ * are the ones `applyCreaseVisibility` gave the creases, so a swap on the
+ * other face finds them.
  */
 function foldPaint(canvas: HTMLCanvasElement, mirrored: boolean): Omit<FoldPaint, 'modelToUser'> {
-  const ground = readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR);
-  const back = readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR);
+  const { up, other } = paperFaces(canvas, mirrored);
   return {
-    up: mirrored ? back : ground,
-    other: mirrored ? ground : back,
+    up,
+    other,
     mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
     valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
     mountainSlot: diagramDashSlot('mountain'),
     valleySlot: diagramDashSlot('valley'),
-    shade: paperShade(canvas, ground),
+    shade: paperShade(canvas, up),
   };
 }
 
-/** The text colour at the shadow's share for the ground's lightness. */
-function paperShade(canvas: HTMLCanvasElement, ground: Rgba): Rgba {
+/** The text colour at the shadow's share for the paper's lightness. */
+function paperShade(canvas: HTMLCanvasElement, paper: Rgba): Rgba {
   const text = readCssVarColor(canvas, TEXT_COLOR_VAR, TEXT_FALLBACK);
-  const luminance = 0.2126 * ground[0] + 0.7152 * ground[1] + 0.0722 * ground[2];
+  const luminance = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2];
   const alpha = luminance > 0.5 ? PAPER_SHADE_LIGHT_ALPHA : PAPER_SHADE_DARK_ALPHA;
   return [text[0], text[1], text[2], alpha];
 }
@@ -411,7 +424,7 @@ function paperShade(canvas: HTMLCanvasElement, ground: Rgba): Rgba {
 interface LiveProps {
   /** Model → SVG, mirrored about the sheet when the paper is on its back. */
   modelToSvg: (point: Point) => Point;
-  /** The paper is on its back, so the ground takes the colour side's tint. */
+  /** The paper is on its back, so the sheet is filled with its other face. */
   mirrored: boolean;
   lineWidth: number;
   pointSize: number;
@@ -452,7 +465,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       fold = null,
       onPick,
       framingKey,
-      themeKey,
+      inkKey,
       ariaLabel,
       className,
     } = props;
@@ -1097,7 +1110,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
 
     // --- Scene uploads -------------------------------------------------------
     // Creases, with the highlighted ones in the "new crease" colour. Theme
-    // colours are DOM-resolved, so `themeKey` is a dependency on purpose.
+    // colours are DOM-resolved, so `inkKey` is a dependency on purpose.
     useEffect(() => {
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
@@ -1138,16 +1151,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         canvasDiagramInk(lineWidth)
       );
       applyFoldRef.current();
-      // Only when the paper is on its back: the front face is the same colour
-      // as the ground it lies on, so filling it would draw nothing and cost a
-      // buffer upload per theme change.
-      fullRef.current.sheet = mirrored
-        ? {
-            geometry,
-            border: creaseVisibility.borderLineIds ?? null,
-            color: readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR),
-          }
-        : null;
+      // The sheet, in the paper style's colour for the face the reader is on:
+      // the style's paper is not the theme's ground, so it is drawn on both.
+      fullRef.current.sheet = {
+        geometry,
+        border: creaseVisibility.borderLineIds ?? null,
+        color: paperFaces(canvas, mirrored).up,
+      };
       applyFoldRef.current();
       renderNowRef.current();
     }, [
@@ -1158,7 +1168,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       selected,
       creaseVisibility,
       mirrored,
-      themeKey,
+      inkKey,
       rendererGeneration,
     ]);
 
@@ -1183,7 +1193,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       );
       applyFoldRef.current();
       renderNowRef.current();
-    }, [drawnVertices, pointSize, themeKey, rendererGeneration]);
+    }, [drawnVertices, pointSize, inkKey, rendererGeneration]);
 
     // The step's lines that the pattern does not contain, over the creases —
     // and the crease under the pointer, in the accent it would be picked in.
@@ -1206,7 +1216,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       fullRef.current.preview = concatStrokes(diagramStrokes, hoverStroke);
       applyFoldRef.current();
       renderNowRef.current();
-    }, [diagramStrokes, hovered, selected, geometry, themeKey, rendererGeneration]);
+    }, [diagramStrokes, hovered, selected, geometry, inkKey, rendererGeneration]);
 
     // A different fold under the same uploads: the split is for the old one.
     useEffect(() => {
@@ -1249,14 +1259,14 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       hovered,
       vertices,
       pointSize,
-      themeKey,
+      inkKey,
       rendererGeneration,
     ]);
 
     // Width is a per-frame parameter; a change only needs a redraw.
     useEffect(() => {
       renderNowRef.current();
-    }, [lineWidth, themeKey]);
+    }, [lineWidth, inkKey]);
 
     // --- Imperative handle -----------------------------------------------------
     useImperativeHandle(

@@ -7,6 +7,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
@@ -684,6 +685,12 @@ export interface ClipboardSliceActions {
 
 export type ClipboardSlice = ClipboardSliceState & ClipboardSliceActions;
 
+/** See `updateOristudioCpFoldedFigureModel`. */
+export interface FoldedModelWriteOptions {
+  /** The write mirrors the figure's effective paper style: no selection, no dirty. */
+  mirror?: boolean;
+}
+
 /**
  * Which verb started a fold. One value per wrapped call site, so the indicator
  * and the analytics can tell a first fold from a refold without carrying
@@ -856,6 +863,19 @@ export interface CreasePatternSliceActions {
     patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'z'>>
   ) => void;
   removeOristudioCpInlineSimulation: (id: string) => void;
+  /**
+   * Pin one paper-style field on a window, or clear it with `undefined` so the
+   * window follows the app style again. A document edit — sets `dirty` — with
+   * no history push of its own, like {@link updateOristudioCpInlineSimulation}:
+   * the undo entry is the caller's bracket, one per discrete edit or per drag
+   * (`cp-workspace/paper/objectPaperStyle.ts`). `false` when there is no such
+   * window.
+   */
+  setOristudioCpInlineSimulationAppearance: <F extends PaperStyleField>(
+    id: string,
+    field: F,
+    value: PaperStyleValue<F> | undefined
+  ) => boolean;
   /** Hand the solver to a window, or to none. */
   focusOristudioCpInlineSimulation: (id: string | null) => void;
   /**
@@ -964,9 +984,18 @@ export interface CreasePatternSliceActions {
    * Rejects a flat figure: there is no viewpoint to move.
    */
   setOristudioCpFolded3dCamera: (id: string, camera: FoldedFigureCamera) => Promise<boolean>;
+  /**
+   * Write part of a figure's kernel model. A document edit with no history
+   * push of its own: the undo entry is the caller's bracket. Selects the
+   * figure and marks the project dirty — unless `mirror` is set, which is the
+   * store carrying a figure's *effective paper style* into the model it
+   * already draws with (`foldedFigurePaperMirror`): derived state, not a user
+   * edit, so it selects nothing and dirties nothing.
+   */
   updateOristudioCpFoldedFigureModel: (
     id: string,
-    update: Partial<OristudioCpFoldedFigureModel>
+    update: Partial<OristudioCpFoldedFigureModel>,
+    options?: FoldedModelWriteOptions
   ) => Promise<boolean>;
   /**
    * Make every in-flight live model write stale, for an undo taken mid-drag.
@@ -1023,6 +1052,19 @@ export interface CreasePatternSliceActions {
     id: string,
     patch: Partial<FoldedFigurePlacement>
   ) => void;
+  /**
+   * Pin one paper-style field on a figure, or clear it with `undefined` so the
+   * figure follows the app style again. Selects the figure, as editing its
+   * model does. A document edit with no history push of its own, on the same
+   * terms as {@link setOristudioCpFoldedFigurePlacement}: the undo entry is
+   * the caller's bracket (`cp-workspace/paper/objectPaperStyle.ts`). `false`
+   * when there is no such figure.
+   */
+  setOristudioCpFoldedFigureAppearance: <F extends PaperStyleField>(
+    id: string,
+    field: F,
+    value: PaperStyleValue<F> | undefined
+  ) => boolean;
   /**
    * Open an inline simulation of the region these creases enclose, falling back
    * to the Simulate panel when they are not one whole region.
@@ -1385,8 +1427,6 @@ export interface SimulatorSliceActions {
   setSimulatorSetting: <K extends SimulatorSettingKey>(key: K, value: SimulatorSettings[K]) => void;
   /** Restore the paper's material properties (stiffness, damping) to defaults. */
   resetSimulatorMaterial: () => void;
-  /** Paper and crease appearance back to the theme / origami-convention defaults. */
-  resetSimulatorStyle: () => void;
 }
 
 export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;

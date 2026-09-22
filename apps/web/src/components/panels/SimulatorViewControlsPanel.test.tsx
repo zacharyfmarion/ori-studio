@@ -1,7 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
+import { applyCreaseStyle, DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
@@ -21,7 +23,16 @@ afterEach(() => {
   root = null;
   container = null;
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  useSettingsStore.setState(useSettingsStore.getInitialState(), true);
 });
+
+/** Write the mountain and valley pens of the display style for a quick-switch mode. */
+function setCreaseStyle(mode: 'color' | 'mono' | 'mono-dashed'): void {
+  const { paperStyle, setPaperStyleField } = useSettingsStore.getState();
+  const next = applyCreaseStyle(paperStyle.display, mode);
+  setPaperStyleField('display', 'mountainFolds', next.mountainFolds);
+  setPaperStyleField('display', 'valleyFolds', next.valleyFolds);
+}
 
 function render(): HTMLDivElement {
   container = document.createElement('div');
@@ -131,9 +142,9 @@ describe('SimulatorViewControlsPanel', () => {
     // resets, so the section has to be open to reach it.
     toggle(rendered, 'Material');
     act(() => {
-      const store = useWorkspaceStore.getState();
-      store.setSimulatorSetting('creaseStiffness', 3);
-      store.setSimulatorSetting('lighting', false);
+      useWorkspaceStore.getState().setSimulatorSetting('creaseStiffness', 3);
+      const { paperStyle, setPaperStyleField } = useSettingsStore.getState();
+      setPaperStyleField('display', 'light', { ...paperStyle.display.light, enabled: false });
     });
 
     act(() => {
@@ -143,7 +154,29 @@ describe('SimulatorViewControlsPanel', () => {
     const settings = useWorkspaceStore.getState().simulatorSettings;
     expect(settings.creaseStiffness).toBe(DEFAULT_SIMULATOR_SETTINGS.creaseStiffness);
     // Render options are not material, so the reset leaves them alone.
-    expect(settings.lighting).toBe(false);
+    expect(useSettingsStore.getState().paperStyle.display.light.enabled).toBe(false);
+  });
+
+  // Re-pinned: the reset used to apply the whole Ori default preset, which also
+  // wiped fields this pane never shows.
+  it('resets the style rows it shows to the Ori default, and nothing else', () => {
+    const rendered = render();
+    toggle(rendered, 'Paper');
+    const arrows = { ...DEFAULT_PAPER_STYLE.arrows, color: '#ff00ff' };
+    act(() => {
+      useWorkspaceStore.getState().setSimulatorSetting('creaseStiffness', 3);
+      useSettingsStore.getState().setPaperStyleField('display', 'paper.front', '#ff8800');
+      useSettingsStore.getState().setPaperStyleField('display', 'arrows', arrows);
+    });
+
+    act(() => {
+      rendered.querySelector<HTMLButtonElement>('[aria-label="Reset style"]')?.click();
+    });
+
+    const display = useSettingsStore.getState().paperStyle.display;
+    expect(display.paper).toEqual(DEFAULT_PAPER_STYLE.paper);
+    expect(display.arrows).toEqual(arrows);
+    expect(useWorkspaceStore.getState().simulatorSettings.creaseStiffness).toBe(3);
   });
 
   it('reveals the strain clip only in strain colour mode', () => {
@@ -215,20 +248,50 @@ describe('collapsible sections', () => {
     expect(section(rendered, 'Creases').hasAttribute('data-open')).toBe(false);
   });
 
-  it('offers a colour reset only once the colour is overridden', () => {
-    // Absence of the affordance is the signal that the value still follows the
-    // theme, so it must not be there by default.
+  it('shows the display style’s paper, and writes a picked colour back to it', () => {
+    // Re-pinned: the swatches used to show a theme token until overridden and
+    // offer a clear back to it. The paper style is self-contained — every
+    // colour is a hex — so a swatch always shows the paper on screen and there
+    // is nothing to clear to.
     const rendered = render();
     toggle(rendered, 'Paper');
+    const front = () => rendered.querySelector<HTMLInputElement>('[aria-label="Front"]');
+    expect(front()?.value).toBe(DEFAULT_PAPER_STYLE.paper.front);
     expect(rendered.querySelector('.color-field__clear')).toBeNull();
 
     act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('paperFront', '#ff8800');
+      useSettingsStore.getState().setPaperStyleField('display', 'paper.front', '#ff8800');
     });
-    expect(rendered.querySelector('.color-field__clear')).not.toBeNull();
-    expect(
-      rendered.querySelector<HTMLInputElement>('[aria-label="Front"]')?.value
-    ).toBe('#ff8800');
+    expect(front()?.value).toBe('#ff8800');
+
+    act(() => {
+      const input = front();
+      if (!input) throw new Error('no front swatch');
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(input, '#123456');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(useSettingsStore.getState().paperStyle.display.paper.front).toBe('#123456');
+  });
+
+  it('offers the fold line weight in pt, and writes both fold pens', () => {
+    // Re-pinned: the slider used to be a CSS-px "Weight" on the simulator
+    // settings; it is now the mountain and valley pens' width in the style's
+    // own unit, and the label says so.
+    const rendered = render();
+    toggle(rendered, 'Creases');
+    expect(rendered.querySelector('input[aria-label="Weight"]')).toBeNull();
+    const input = slider(rendered, 'Fold line weight (pt)');
+    expect(Number(input.value)).toBe(DEFAULT_PAPER_STYLE.mountainFolds.width);
+    expect(Number(input.min)).toBe(0.4);
+    expect(Number(input.max)).toBe(4.5);
+
+    dragSlider(input, 2.5);
+
+    const display = useSettingsStore.getState().paperStyle.display;
+    expect(display.mountainFolds.width).toBe(2.5);
+    expect(display.valleyFolds.width).toBe(2.5);
+    expect(display.edges.width).toBe(DEFAULT_PAPER_STYLE.edges.width);
   });
 
   it('disables the per-kind swatches under a mono crease style', () => {
@@ -240,7 +303,7 @@ describe('collapsible sections', () => {
     expect(mountain()?.disabled).toBe(false);
 
     act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('creaseStyle', 'mono');
+      setCreaseStyle('mono');
     });
     expect(mountain()?.disabled).toBe(true);
     // The edge ink is what mono paints with, so it stays editable.

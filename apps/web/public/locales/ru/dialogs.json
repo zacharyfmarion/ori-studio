@@ -385,6 +385,66 @@
       "update": "Обновить",
       "updateAvailable": "Новее установленного"
     },
+    "paper": {
+      "auxVisible": "Показывать существующие складки на сложенной бумаге",
+      "back": "Изнанка",
+      "cap": {
+        "butt": "Плоский",
+        "round": "Круглый"
+      },
+      "exportFollowsDisplay": "Экспорт использует стиль отображения",
+      "exportFollowsDisplayHint": "Если выключено, стиль экспорта начинается как копия стиля отображения и редактируется отдельно.",
+      "exportTitle": "Экспорт стиля бумаги",
+      "front": "Лицо",
+      "importTitle": "Импорт стиля бумаги",
+      "lightAzimuth": "Азимут",
+      "lightAzimuthHint": "Градусы по часовой стрелке от направления вверх.",
+      "lightElevation": "Высота",
+      "lightElevationHint": "Градусы из плоскости экрана; 90 — свет падает прямо на бумагу.",
+      "lightEnabled": "Затенять сложенную бумагу направленным светом",
+      "lightTitle": "Свет",
+      "paperTitle": "Бумага",
+      "pen": {
+        "arrows": "Стрелки",
+        "auxCreases": "Существующие складки",
+        "edges": "Края",
+        "mountainFolds": "Горные сгибы",
+        "valleyFolds": "Долинные сгибы"
+      },
+      "penCap": "Конец линии",
+      "penCapNamed": "Конец линии: {{pen}}",
+      "penColorNamed": "Цвет: {{pen}}",
+      "penDash": "Штрих",
+      "penDashNamed": "Штрих: {{pen}}",
+      "pensTitle": "Перья",
+      "penWidth": "Ширина (пт)",
+      "penWidthNamed": "Ширина: {{pen}}",
+      "preset": {
+        "blackAndWhite": "Чёрно-белый",
+        "oriDefault": "Ori по умолчанию",
+        "oriedita": "Oriedita",
+        "origamiHouse": "Origami House"
+      },
+      "presets": {
+        "apply": "Применить",
+        "builtIn": "Встроенные",
+        "by": "Автор: {{author}}",
+        "delete": "Удалить",
+        "export": "Экспорт",
+        "exportNamed": "Экспортировать {{name}}",
+        "import": "Импорт…",
+        "name": "Название предустановки",
+        "save": "Сохранить",
+        "saveAs": "Сохранить текущий как…",
+        "title": "Предустановки",
+        "yours": "Сохранённые вами"
+      },
+      "slot": {
+        "display": "Отображение",
+        "export": "Экспорт",
+        "title": "Стиль"
+      }
+    },
     "sections": "Разделы настроек",
     "shortcuts": {
       "alreadyAssigned": "{{chord}} уже назначено для {{label}}.",
@@ -459,6 +519,7 @@
     "tab": {
       "appearance": "Внешний вид",
       "general": "Основные",
+      "paper": "Бумага",
       "shortcuts": "Сочетания клавиш",
       "workspace": "Рабочее пространство"
     },

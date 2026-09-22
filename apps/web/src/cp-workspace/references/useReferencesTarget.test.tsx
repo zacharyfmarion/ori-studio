@@ -151,7 +151,6 @@ function viewState(revision = 'r1'): ReferencesViewState {
     pointSize: 1,
     wheelGesture: 'zoom',
     snapRadius: 4,
-    themeKey: 'light',
   } as ReferencesViewState;
 }
 

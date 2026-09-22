@@ -37,6 +37,11 @@
     "solving": "푸는 중…",
     "solvingLong": "아직 푸는 중입니다 — 시간이 걸릴 수 있습니다"
   },
+  "paperPreset": {
+    "exported": "{{name}} 내보냄",
+    "invalidJson": "해당 파일은 JSON이 아닙니다",
+    "notAPreset": "해당 파일은 종이 스타일이 아닙니다. 이름과 스타일이 필요합니다"
+  },
   "references": {
     "searching": "기준점을 찾는 중…",
     "searchingLong": "아직 기준점을 찾는 중 — 첫 검색은 테이블을 만듭니다",

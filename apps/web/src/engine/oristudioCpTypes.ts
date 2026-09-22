@@ -1,4 +1,5 @@
 import type { Point } from '../lib/geometry';
+import type { PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type {
   OristudioCpOperationId,
@@ -1121,6 +1122,14 @@ export interface OristudioCpFoldedFigureEntry {
    * re-folded (it lives on the entry, so deletion removes it for free).
    */
   contradiction?: OristudioCpFoldContradiction | null;
+  /**
+   * The paper-style fields the user pinned on this figure; everything not here
+   * follows the app's display style. Absent when nothing is pinned, and left
+   * off the file then. The kernel model's colours are a derived mirror of the
+   * effective values, not a second source — see
+   * `implementation-plans/unified-paper-style-and-export.md` §4.
+   */
+  appearance?: PaperStyleOverrides;
 }
 
 /** Mirrors the kernel's `model::SnapCandidates`. */

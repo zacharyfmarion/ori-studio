@@ -377,6 +377,66 @@
       "update": "Actualizar",
       "updateAvailable": "Más reciente que el instalado"
     },
+    "paper": {
+      "auxVisible": "Mostrar los pliegues existentes sobre el papel plegado",
+      "back": "Reverso",
+      "cap": {
+        "butt": "Plano",
+        "round": "Redondo"
+      },
+      "exportFollowsDisplay": "La exportación usa el estilo de pantalla",
+      "exportFollowsDisplayHint": "Desactivado, el estilo de exportación empieza como una copia del estilo de pantalla y se edita por separado.",
+      "exportTitle": "Exportar estilo de papel",
+      "front": "Anverso",
+      "importTitle": "Importar estilo de papel",
+      "lightAzimuth": "Acimut",
+      "lightAzimuthHint": "Grados en sentido horario desde la vertical hacia arriba.",
+      "lightElevation": "Elevación",
+      "lightElevationHint": "Grados hacia fuera de la pantalla; 90 apunta directamente al papel.",
+      "lightEnabled": "Sombrear el papel plegado con una luz direccional",
+      "lightTitle": "Luz",
+      "paperTitle": "Papel",
+      "pen": {
+        "arrows": "Flechas",
+        "auxCreases": "Pliegues existentes",
+        "edges": "Bordes",
+        "mountainFolds": "Pliegues en monte",
+        "valleyFolds": "Pliegues en valle"
+      },
+      "penCap": "Extremo",
+      "penCapNamed": "Extremo de {{pen}}",
+      "penColorNamed": "Color de {{pen}}",
+      "penDash": "Trazo",
+      "penDashNamed": "Trazo de {{pen}}",
+      "pensTitle": "Plumas",
+      "penWidth": "Anchura (pt)",
+      "penWidthNamed": "Anchura de {{pen}}",
+      "preset": {
+        "blackAndWhite": "Blanco y negro",
+        "oriDefault": "Ori predeterminado",
+        "oriedita": "Oriedita",
+        "origamiHouse": "Origami House"
+      },
+      "presets": {
+        "apply": "Aplicar",
+        "builtIn": "Integrados",
+        "by": "Por {{author}}",
+        "delete": "Eliminar",
+        "export": "Exportar",
+        "exportNamed": "Exportar {{name}}",
+        "import": "Importar…",
+        "name": "Nombre del predefinido",
+        "save": "Guardar",
+        "saveAs": "Guardar el actual como…",
+        "title": "Predefinidos",
+        "yours": "Guardados por ti"
+      },
+      "slot": {
+        "display": "Pantalla",
+        "export": "Exportación",
+        "title": "Estilo"
+      }
+    },
     "sections": "Secciones de configuración",
     "shortcuts": {
       "alreadyAssigned": "{{chord}} ya está asignado a {{label}}.",
@@ -447,6 +507,7 @@
     "tab": {
       "appearance": "Apariencia",
       "general": "General",
+      "paper": "Papel",
       "shortcuts": "Atajos",
       "workspace": "Espacio de trabajo"
     },

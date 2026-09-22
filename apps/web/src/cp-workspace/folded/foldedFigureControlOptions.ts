@@ -5,7 +5,6 @@
  * literals, so a computed key would silently drop the string from the catalogue.
  */
 import type { TFunction } from 'i18next';
-import type { OristudioCpRgbColor } from '../../engine/oristudioCpTypes';
 import type { FoldedFigureSide } from '../../lib/foldedFigureSides';
 
 // Spelled out rather than initialled. Two options no longer need the abbreviation,
@@ -20,13 +19,14 @@ export function foldedStateLabel(t: TFunction, value: FoldedFigureSide): string 
 }
 
 // Front/back/line color pickers for a folded model (Oriedita's Front/Back/Line
-// color actions). Fallbacks mirror the Rust FoldedFigureModel defaults.
+// color actions), in the order the rows are offered. The values they show are
+// the figure's effective paper style; the kernel model's colours mirror it.
 export type FoldedColorKey = 'front_color' | 'back_color' | 'line_color';
 
-export const FOLDED_COLOR_FIELDS: Array<{ key: FoldedColorKey; fallback: OristudioCpRgbColor }> = [
-  { key: 'front_color', fallback: { red: 255, green: 255, blue: 50 } },
-  { key: 'back_color', fallback: { red: 233, green: 233, blue: 233 } },
-  { key: 'line_color', fallback: { red: 0, green: 0, blue: 0 } },
+export const FOLDED_COLOR_FIELDS: ReadonlyArray<{ key: FoldedColorKey }> = [
+  { key: 'front_color' },
+  { key: 'back_color' },
+  { key: 'line_color' },
 ];
 
 // Named "… color" rather than "Front" / "Back", which the Side rows above these

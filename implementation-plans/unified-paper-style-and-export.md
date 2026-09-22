@@ -645,16 +645,19 @@ overridden.
 
 ### Phase 1 — `PaperStyle`, resolver, settings, presets
 
-- [ ] `lib/paper/paperStyle.ts` schema + normaliser + defaults; unit tests.
-- [ ] `resolvePaperStyle` (pt → device px) + `SurfaceStylePolicy`;
+- [x] `lib/paper/paperStyle.ts` schema + normaliser + defaults; unit tests.
+- [x] `resolvePaperStyle` (pt → device px) + `SurfaceStylePolicy`;
       `RenderSettings` gains the aux/hidden pens, erode, light direction;
       `shading.ts` shared by GLSL / SVG / canvas-2D.
 - [x] `settingsStore.paperStyle` + storage key + migration from
       `simulator-settings`; simulator settings lose their style keys.
       Deviations from §5: `savePaperPreset(name, slot = 'display')` takes the
       slot as a second argument, since the Paper tab saves the slot it is
-      showing; `resetSimulatorStyle` is gone (the pane's reset applies the
-      `ori-default` preset to display); `simulatorPalette.resolveRenderSettings`
+      showing; `resetSimulatorStyle` is gone (the pane's reset writes the
+      `simulator` policy's fields back to the Ori default as one
+      `setPaperStyleFields` update, counted per field — not a preset, which
+      would also wipe the fields the pane never shows);
+      `simulatorPalette.resolveRenderSettings`
       takes the `PaperStyle` as a third argument and `SimulatorViewport` takes
       it as a `paperStyle` prop — the Simulate panel passes the display style,
       an inline window its effective style (`useObjectPaperStyle`).
@@ -750,6 +753,23 @@ overridden.
       the stylesheet and `diagramColors.ts` — and the crease alpha
       (`--references-crease-alpha`), which stays the theme's derivation from
       the fixed grey rather than the style's aux ink.
+- [x] References draws on the style's paper (D13). The `references` policy
+      applies `paper.front` and `paper.back`; `usePaperStyleTokens` sets
+      `--references-paper-front` / `--references-paper-back` on the workspace
+      root, and the card's `.step-diagram__sheet` (`--back` for a mirrored
+      card), the big view's sheet fill and the fold surface's `up` / `other`
+      faces (`ReferencesCpView.paperFaces`) take them, the back when the view
+      is mirrored (`ReferencesPanel`'s `mirrored`, from the step's side). The
+      canvas clear and the workspace ground stay `--bg-primary`. Both alphas
+      are now derived against the paper rather than the ground, and in the
+      style's inks: `referencesCreaseAlpha(surface, ink)` takes the aux pen,
+      and `referencesDimAlpha` decides its dark lift from the surface's own
+      lightness rather than the theme's type (the same answer on every
+      built-in theme's ground, so `:root` is unchanged). The workspace sets
+      `--references-crease-alpha` too, and `diagramInkColors` takes it as a
+      value with the inks. Outside a workspace the tokens are unset: the card
+      falls back to the theme's ground as before, the view to the style's
+      default paper.
 - [x] Presets: built-ins, import/export, Settings ▸ Paper tab; simulator View
       Controls + inline Properties + folded Style menu bound.
       `components/settings/PaperSettings.tsx` over `usePaperSettings.ts`: the

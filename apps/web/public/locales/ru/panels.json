@@ -251,9 +251,15 @@
       "title": "Изображение"
     },
     "inlineSimulation": {
+      "followsNote": "Следует стилю бумаги, если не переопределено",
+      "paper": "Бумага",
       "settings": "Настройки симулятора",
       "sharedNote": "Общие с рабочей областью «Симуляция» и всеми окнами",
       "title": "Окно симуляции"
+    },
+    "paperStyle": {
+      "changeAction": "Изменить стиль бумаги",
+      "resetAction": "Сбросить стиль бумаги"
     },
     "region": {
       "hidden": "Скрыта",
@@ -604,7 +610,6 @@
     "sendTextToBack": "Переместить текст на задний план",
     "setFoldedModelUpright": "Задать направление вверх сложенной модели",
     "shadow": "Тень",
-    "shadowUnsupported3d": "Тени пока не отрисовываются для трёхмерной сложенной модели",
     "stale": "Устарело",
     "viewFoldedModelOtherSide": "Посмотреть с другой стороны",
     "viewportControls": "Элементы управления областью просмотра паттерна складок",
@@ -1215,14 +1220,15 @@
     "creaseStiffness": "Сгиб",
     "creaseStyle": "Стиль",
     "creaseStyleColor": "Гора / долина",
+    "creaseStyleCustom": "Свой",
     "creaseStyleMono": "Один цвет",
     "creaseStyleMonoDashed": "Один цвет, штрих",
-    "creaseWidth": "Толщина",
     "damping": "Затухание",
     "export": "Экспорт",
     "exportHint": "Фон страницы экспортируемого изображения.",
     "faces": "Грани",
     "faceStiffness": "Грань",
+    "foldLineWeight": "Толщина линий сгиба (пт)",
     "lighting": "Освещение",
     "material": "Материал",
     "materialHint": "Насколько бумага сопротивляется растяжению и сгибанию.",

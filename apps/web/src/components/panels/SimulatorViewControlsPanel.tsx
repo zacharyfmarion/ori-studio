@@ -1,20 +1,20 @@
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { RotateCcw } from 'lucide-react';
+import { PAPER_CREASE_STYLES } from '../../lib/paper/paperStyle';
 import {
-  SIMULATOR_CREASE_STYLES,
   SIMULATOR_SETTING_RANGES,
-  type SimulatorColorSettingKey,
-  type SimulatorCreaseStyle,
   type SimulatorExportBackground,
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
 import { simulatorColorModeLabel, simulatorCreaseStyleLabel } from '../../i18n/enumLabels';
-import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
+import {
+  SIMULATOR_FOLD_WEIGHT_RANGE,
+  useSimulatorPaperStyle,
+  type SimulatorPenField,
+} from '../../simulator/useSimulatorPaperStyle';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useThemeStore } from '../../store/themeStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
 import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
@@ -42,31 +42,21 @@ export function SimulatorViewControlsPanel() {
   const settings = useWorkspaceStore((state) => state.simulatorSettings);
   const setSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const resetMaterial = useWorkspaceStore((state) => state.resetSimulatorMaterial);
-  const resetStyle = useWorkspaceStore((state) => state.resetSimulatorStyle);
-  // What an unset colour actually resolves to, so a swatch shows the paper the
-  // user is looking at rather than a hardcoded guess. Keyed on the theme because
-  // that is what moves them.
-  const theme = useThemeStore((state) => state.currentTheme);
-  const styleDefaults = useMemo(
-    () =>
-      simulatorStyleDefaults(
-        typeof document === 'undefined' ? null : getComputedStyle(document.documentElement)
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [theme]
-  );
+  // How the paper is drawn is the app-wide paper style, not a simulator
+  // setting; these rows are its simulator-facing subset.
+  const paper = useSimulatorPaperStyle();
   // A mono style paints every crease in the edge ink, so the per-kind swatches
   // stop doing anything; showing them live would promise an effect they no
-  // longer have.
-  const monoCreases = settings.creaseStyle !== 'color';
-  const colorRow = (key: SimulatorColorSettingKey, label: string, disabled = false) => (
+  // longer have. Custom pens are the user's own and stay editable.
+  const monoCreases = paper.creaseStyle === 'mono' || paper.creaseStyle === 'mono-dashed';
+  const penRow = (pen: SimulatorPenField, label: string, disabled = false) => (
     <ColorField
       label={label}
       layout="row"
-      value={settings[key] ?? styleDefaults[key]}
+      value={paper.style[pen].color}
       disabled={disabled}
-      onChange={(value) => setSetting(key, value)}
-      onClear={settings[key] === null ? undefined : () => setSetting(key, null)}
+      onChange={(value) => paper.setPenColor(pen, value)}
+      onCommit={paper.endAdjustment}
     />
   );
 
@@ -112,8 +102,8 @@ export function SimulatorViewControlsPanel() {
           />
           <ToggleRow
             label={t('panels:simulatorViewControls.lighting', 'Lighting')}
-            checked={settings.lighting}
-            onChange={(checked) => setSetting('lighting', checked)}
+            checked={paper.style.light.enabled}
+            onChange={paper.setLighting}
           />
           <ToggleRow
             label={t('panels:simulatorViewControls.viewCube', 'View cube')}
@@ -144,46 +134,62 @@ export function SimulatorViewControlsPanel() {
               className="collapsible-section__action"
               title={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
               aria-label={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
-              onClick={resetStyle}
+              onClick={paper.reset}
             >
               <RotateCcw size={12} />
             </button>
           }
         >
           <div className="simulator-view-controls-panel__colors">
-            {colorRow('paperFront', t('panels:simulatorViewControls.paperFront', 'Front'))}
-            {colorRow('paperBack', t('panels:simulatorViewControls.paperBack', 'Back'))}
+            <ColorField
+              label={t('panels:simulatorViewControls.paperFront', 'Front')}
+              layout="row"
+              value={paper.style.paper.front}
+              onChange={(value) => paper.setPaperColor('paper.front', value)}
+              onCommit={paper.endAdjustment}
+            />
+            <ColorField
+              label={t('panels:simulatorViewControls.paperBack', 'Back')}
+              layout="row"
+              value={paper.style.paper.back}
+              onChange={(value) => paper.setPaperColor('paper.back', value)}
+              onCommit={paper.endAdjustment}
+            />
           </div>
         </CollapsibleSection>
 
         <CollapsibleSection title={t('panels:simulatorViewControls.creases', 'Creases')} collapsible>
           <SelectRow
             label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
-            value={settings.creaseStyle}
-            options={SIMULATOR_CREASE_STYLES.map((value) => ({
+            // Pens edited past the three modes select nothing rather than lying.
+            value={paper.creaseStyle === 'custom' ? null : paper.creaseStyle}
+            placeholder={t('panels:simulatorViewControls.creaseStyleCustom', 'Custom')}
+            options={PAPER_CREASE_STYLES.map((value) => ({
               id: value,
               label: simulatorCreaseStyleLabel(t, value),
             }))}
-            onChange={(value) => setSetting('creaseStyle', value as SimulatorCreaseStyle)}
+            onChange={(value) =>
+              paper.setCreaseStyle(value as (typeof PAPER_CREASE_STYLES)[number])
+            }
           />
           <div className="simulator-view-controls-panel__colors">
-            {colorRow(
-              'mountainColor',
+            {penRow(
+              'mountainFolds',
               t('panels:simulatorViewControls.mountain', 'Mountain'),
               monoCreases
             )}
-            {colorRow(
-              'valleyColor',
-              t('panels:simulatorViewControls.valley', 'Valley'),
-              monoCreases
-            )}
-            {colorRow('borderColor', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
+            {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), monoCreases)}
+            {penRow('edges', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
-          <SettingSliderRow
-            settingKey="creaseWidth"
-            label={t('panels:simulatorViewControls.creaseWidth', 'Weight')}
-            settings={settings}
-            setSetting={setSetting}
+          <SliderRow
+            label={t('panels:simulatorViewControls.foldLineWeight', 'Fold line weight (pt)')}
+            min={SIMULATOR_FOLD_WEIGHT_RANGE.min}
+            max={SIMULATOR_FOLD_WEIGHT_RANGE.max}
+            step={SIMULATOR_FOLD_WEIGHT_RANGE.step}
+            value={paper.style.mountainFolds.width}
+            format={(value) => formatSettingValue(value, SIMULATOR_FOLD_WEIGHT_RANGE.step)}
+            onChange={paper.setCreaseWeight}
+            onGestureCommit={paper.endAdjustment}
           />
         </CollapsibleSection>
 

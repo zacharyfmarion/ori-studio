@@ -246,9 +246,15 @@
       "title": "Image"
     },
     "inlineSimulation": {
+      "followsNote": "Suit le style de papier, sauf remplacement",
+      "paper": "Papier",
       "settings": "Réglages du simulateur",
       "sharedNote": "Partagés avec l'espace de travail Simuler et toutes les fenêtres",
       "title": "Fenêtre de simulation"
+    },
+    "paperStyle": {
+      "changeAction": "Changer le style de papier",
+      "resetAction": "Réinitialiser le style de papier"
     },
     "region": {
       "hidden": "Masquée",
@@ -577,7 +583,6 @@
     "sendTextToBack": "Mettre le texte à l'arrière-plan",
     "setFoldedModelUpright": "Définir la verticale du modèle plié",
     "shadow": "Ombre",
-    "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
     "stale": "Obsolète",
     "viewFoldedModelOtherSide": "Voir de l’autre côté",
     "viewportControls": "Commandes d'affichage du patron de plis",
@@ -1177,14 +1182,15 @@
     "creaseStiffness": "Pli",
     "creaseStyle": "Style",
     "creaseStyleColor": "Montagne / vallée",
+    "creaseStyleCustom": "Personnalisé",
     "creaseStyleMono": "Une encre",
     "creaseStyleMonoDashed": "Une encre, pointillés",
-    "creaseWidth": "Épaisseur",
     "damping": "Amortissement",
     "export": "Exportation",
     "exportHint": "Arrière-plan de l'image exportée.",
     "faces": "Faces",
     "faceStiffness": "Face",
+    "foldLineWeight": "Épaisseur des lignes de pli (pt)",
     "lighting": "Éclairage",
     "material": "Matériau",
     "materialHint": "Résistance du papier à l'étirement et au pliage.",

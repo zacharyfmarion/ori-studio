@@ -68,10 +68,11 @@ export const FOLDED_APPEARANCE_OPTIONS: readonly FoldedAppearanceOption[] = [
 /**
  * Whether `option` does anything on `figure`.
  *
- * `scale`, `rotation` and `antiAlias` are `not-applicable` on **every** figure.
- * Anti-alias is explained at its arm below; the transform pair is the answer
- * worth explaining here. `FoldedFigureModel.scale` / `.rotation` are
- * Oriedita's own display transform, seeded only from imported Oriedita metadata.
+ * `scale`, `rotation` and `antiAlias` are `not-applicable` on **every** figure,
+ * and `shadow` on a 3D one. Anti-alias and shadow are explained at their arms
+ * below; the transform pair is the answer worth explaining here.
+ * `FoldedFigureModel.scale` / `.rotation` are Oriedita's own display
+ * transform, seeded only from imported Oriedita metadata.
  * Ori Studio scales and rotates a figure through `FoldedFigurePlacement`, driven
  * by the canvas handles and stored in the `.osf`. Wiring the model fields to a
  * control would give one figure two transforms that disagree — so there is no
@@ -122,10 +123,15 @@ export function foldedAppearanceSupport(
       return isFolded3dFigure(figure) ? 'unsupported' : 'supported';
     case 'shadow':
       // Oriedita's shadow is an offset band along a subface boundary, derived
-      // from the subface arrangement and the layer hierarchy. The 3D path keeps
-      // that machinery in the kernel and the projector never sees it, so there
-      // is nothing to sweep a band from yet. A flat figure has it.
-      return isFolded3dFigure(figure) ? 'unsupported' : 'supported';
+      // from the subface arrangement and the layer hierarchy — the flat
+      // figure's own parity option. A 3D figure has no such band and never
+      // will: it is lit from the paper style's light instead (D7 in
+      // `implementation-plans/unified-paper-style-and-export.md`), and the
+      // model field it used to accept was drawn as nothing. So the control is
+      // not offered there at all, rather than offered disabled — a flat
+      // figure's shadow and a 3D figure's light are different controls, not
+      // one control that one kind cannot do yet.
+      return isFolded3dFigure(figure) ? 'not-applicable' : 'supported';
   }
 }
 

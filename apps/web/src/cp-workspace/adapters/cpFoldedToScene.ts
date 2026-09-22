@@ -13,7 +13,6 @@ import type {
   OristudioCpFoldedRenderPathCommand,
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
-  OristudioCpFoldedRenderStroke,
   OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
 import type { Aabb } from '../picking/lineHitIndex';
@@ -26,13 +25,24 @@ import {
   type BesideAnchor,
 } from '../canvasObjects/placeBesideCp';
 import type { FillGeometry, FoldedGeometry, Rgba } from '../renderer/types';
+import { folded3dFrameHalfSide } from '../folded/folded3dFrame';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
 const CURVE_STEPS = 12;
 /** Points used to tessellate an ellipse. */
 const ELLIPSE_STEPS = 48;
-/** Default stroke width (user px) when a primitive has no basic stroke. */
-const DEFAULT_STROKE_WIDTH = 1;
+/**
+ * Every folded stroke's width multiplier, before the per-figure pen.
+ *
+ * The kernel stamps Oriedita's Java2D `BasicStroke` width on each stroke —
+ * 1.2 with anti-alias, 1.0 without — which upstream is a screen pixel and
+ * not a pen. The folded channel draws with the paper style's edge pen
+ * instead: the frame's `foldedStrokeWidthPx` is device px *per pt* and
+ * {@link cpFoldedToScene} multiplies in each figure's effective pen width in
+ * pt, so the kernel's number is not read at all (D6, D10 in
+ * `implementation-plans/unified-paper-style-and-export.md`).
+ */
+const KERNEL_STROKE_WIDTH_MUL = 1;
 
 function normColor(c: OristudioCpRgbaColor): Rgba {
   return [c.red / 255, c.green / 255, c.blue / 255, c.alpha / 255];
@@ -85,10 +95,6 @@ function paintColorAt(paint: OristudioCpFoldedRenderPaint, point: Point): Rgba |
       : Math.abs(raw % 2)
     : Math.min(1, Math.max(0, raw));
   return mixColor(normColor(paint.from_color), normColor(paint.to_color), t);
-}
-
-function strokeWidth(stroke: OristudioCpFoldedRenderStroke): number {
-  return stroke.kind === 'basic' ? stroke.width : DEFAULT_STROKE_WIDTH;
 }
 
 function flattenQuad(from: Point, control: Point, to: Point, out: Point[]): void {
@@ -376,7 +382,7 @@ export function foldedFigureLocalGeometry(
     const paint = primitive.style.paint;
     if (!paintDraws(paint)) continue;
     const isFill = primitive.kind.startsWith('fill_');
-    const width = isFill ? 0 : strokeWidth(primitive.style.stroke);
+    const width = isFill ? 0 : KERNEL_STROKE_WIDTH_MUL;
 
     for (const local of geometrySubpaths(primitive.geometry)) {
       // Colours are sampled in the primitive's space, where a gradient's axis is
@@ -487,7 +493,15 @@ export function cpFoldedToScene(
    * snapshot, so a figure changing opacity would otherwise keep serving its
    * previous vertices.
    */
-  figureOpacity?: (figure: OristudioCpFoldedFigureEntry) => number
+  figureOpacity?: (figure: OristudioCpFoldedFigureEntry) => number,
+  /**
+   * Per-figure stroke width, as a multiplier over the frame's
+   * `foldedStrokeWidthPx` — the effective edge pen's width in pt, with the
+   * frame supplying device px per pt. Defaults to 1. Applied while copying,
+   * like the opacity, so a figure pinning its own pen does not invalidate the
+   * cached local geometry.
+   */
+  figureStrokeWidth?: (figure: OristudioCpFoldedFigureEntry) => number
 ): FoldedGeometry {
   const fillPos: number[] = [];
   const fillColor: number[] = [];
@@ -513,6 +527,7 @@ export function cpFoldedToScene(
     const bandSpan = 1 / bands;
     const local = foldedFigureLocalGeometry(snapshot);
     const opacity = figureOpacity?.(figure) ?? 1;
+    const strokeWidth = figureStrokeWidth?.(figure) ?? 1;
     const { a, b, tx, ty } = placementAffine(figure.placement, foldedFigurePivot(figure, local));
 
     for (let i = 0; i < local.fillPos.length; i += 2) {
@@ -539,7 +554,7 @@ export function cpFoldedToScene(
       strokeColor.push(i % 4 === 3 ? local.strokeColor[i] * opacity : local.strokeColor[i]);
     }
     for (let i = 0; i < local.strokeWidthMul.length; i++) {
-      strokeWidthMul.push(local.strokeWidthMul[i]);
+      strokeWidthMul.push(local.strokeWidthMul[i] * strokeWidth);
     }
     for (let i = 0; i < local.strokeDepth.length; i++) {
       strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
@@ -646,8 +661,9 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
   if (!snapshot?.primitives.length) return null;
 
   // A 3D figure is a window onto the model, so its frame is fixed and square:
-  // sized once at fold time from the bounding sphere, which images to the same
-  // circle at every orientation. Deriving it from the projection instead is what
+  // sized once at fold time from the bounding sphere, whose perspective
+  // silhouette is the same circle at every orientation
+  // (`folded3dFrameHalfSide`). Deriving it from the projection instead is what
   // made the chrome resize and jump on every orbit.
   //
   // The centre is the placement offset alone, because the projection anchors the
@@ -659,7 +675,8 @@ export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
   const frameRadius = figure.frameRadius ?? null;
   if (frameRadius !== null && frameRadius > 0) {
     const pivot = foldedFigurePivot(figure, local);
-    const side = 2 * frameRadius * USER_UNITS_PER_MODEL_UNIT * figure.placement.scale;
+    const side =
+      2 * folded3dFrameHalfSide(frameRadius) * USER_UNITS_PER_MODEL_UNIT * figure.placement.scale;
     return {
       // The pivot, not the drawing's bounds — the same point `cpFoldedToScene`
       // pivots about, so the click polygon lands exactly on the figure.

@@ -96,13 +96,15 @@ describe('foldedAppearanceSupport', () => {
     expect(foldedAppearanceEnabled(figure('flat'), 'side')).toBe(true);
   });
 
-  it('shows shadow on a 3D figure but disabled, rather than enabled and inert', () => {
-    // The distinction the whole module exists for: visible so the control does
-    // not vanish between figure kinds, disabled so pressing it cannot do
-    // nothing.
-    expect(foldedAppearanceSupport(figure('spatial'), 'shadow')).toBe('unsupported');
-    expect(foldedAppearanceVisible(figure('spatial'), 'shadow')).toBe(true);
+  it('keeps shadow as the flat figure’s own option and offers a 3D figure none', () => {
+    // Re-pinned for D7: the shadow used to be offered disabled on a 3D figure
+    // ("not drawn yet"). A 3D figure is lit from the paper style's light and
+    // has no shadow band and no control for one, so the row is not offered at
+    // all — it is a different control, not the flat one waiting on a renderer.
+    expect(foldedAppearanceSupport(figure('spatial'), 'shadow')).toBe('not-applicable');
+    expect(foldedAppearanceVisible(figure('spatial'), 'shadow')).toBe(false);
     expect(foldedAppearanceEnabled(figure('spatial'), 'shadow')).toBe(false);
+    expect(foldedAppearanceSupport(figure('flat'), 'shadow')).toBe('supported');
     expect(foldedAppearanceEnabled(figure('flat'), 'shadow')).toBe(true);
   });
 });

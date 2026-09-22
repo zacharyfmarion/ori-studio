@@ -50,6 +50,7 @@ import { useSimulatorPhoneFlow } from "../../simulator/useSimulatorPhoneFlow";
 import { foldNeedsTriangulation } from "../../simulator/canvas2dFrame";
 import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
 import { useLayoutStore } from "../../store/layoutStore";
+import { useSimulatorPaperStyle } from "../../simulator/useSimulatorPaperStyle";
 import { useWorkspaceStore } from "../../store/workspaceStore";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
@@ -124,6 +125,10 @@ export function SimulatorPanel() {
   // Render/material/solver settings live in the store: the options pane is a
   // sibling panel, so this panel applies them but does not own them.
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
+  // How the paper is drawn is the app-wide style, not a simulator setting;
+  // the same binding the options pane edits it through.
+  const paper = useSimulatorPaperStyle();
+  const paperStyle = paper.style;
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const runConfig = simulatorRunConfig();
@@ -449,7 +454,13 @@ export function SimulatorPanel() {
     restart: restartSimulation,
     resetView,
     zoomBy,
-    toggleSetting: (key) => setSimulatorSetting(key, !viewSettings[key]),
+    toggleSetting: (key) => {
+      if (key === 'lighting') {
+        paper.setLighting(!paperStyle.light.enabled);
+        return;
+      }
+      setSimulatorSetting(key, !viewSettings[key]);
+    },
   };
 
   useSimulatorShortcuts({
@@ -474,7 +485,7 @@ export function SimulatorPanel() {
           run: (id) =>
             runSimulatorShortcut(id, simulatorHandlers, runConfig.foldStepPercent),
           playing,
-          settings: viewSettings,
+          settings: { ...viewSettings, lighting: paperStyle.light.enabled },
         }),
     });
   };
@@ -591,6 +602,7 @@ export function SimulatorPanel() {
               interactive={loadState === "ready"}
               gpuActive={gpuActive}
               viewSettings={viewSettings}
+              paperStyle={paperStyle}
               // This is the surface with room for one. `.simulator-panel__body` is
               // the positioned container it anchors to; see the prop.
               viewCube={viewSettings.showViewCube}

@@ -361,6 +361,66 @@
       "update": "更新",
       "updateAvailable": "比已安装的版本更新"
     },
+    "paper": {
+      "auxVisible": "在折叠后的纸张上显示已有折痕",
+      "back": "背面",
+      "cap": {
+        "butt": "平头",
+        "round": "圆头"
+      },
+      "exportFollowsDisplay": "导出使用显示样式",
+      "exportFollowsDisplayHint": "关闭后，导出样式以显示样式的副本开始，并单独编辑。",
+      "exportTitle": "导出纸张样式",
+      "front": "正面",
+      "importTitle": "导入纸张样式",
+      "lightAzimuth": "方位角",
+      "lightAzimuthHint": "从正上方起顺时针的角度。",
+      "lightElevation": "仰角",
+      "lightElevationHint": "从屏幕射出的角度；90 为正对纸张。",
+      "lightEnabled": "用方向光为折叠后的纸张着色",
+      "lightTitle": "光源",
+      "paperTitle": "纸张",
+      "pen": {
+        "arrows": "箭头",
+        "auxCreases": "已有折痕",
+        "edges": "边",
+        "mountainFolds": "山折",
+        "valleyFolds": "谷折"
+      },
+      "penCap": "线帽",
+      "penCapNamed": "{{pen}}线帽",
+      "penColorNamed": "{{pen}}颜色",
+      "penDash": "虚线",
+      "penDashNamed": "{{pen}}虚线",
+      "pensTitle": "画笔",
+      "penWidth": "宽度 (pt)",
+      "penWidthNamed": "{{pen}}宽度",
+      "preset": {
+        "blackAndWhite": "黑白",
+        "oriDefault": "Ori 默认",
+        "oriedita": "Oriedita",
+        "origamiHouse": "Origami House"
+      },
+      "presets": {
+        "apply": "应用",
+        "builtIn": "内置",
+        "by": "作者：{{author}}",
+        "delete": "删除",
+        "export": "导出",
+        "exportNamed": "导出 {{name}}",
+        "import": "导入…",
+        "name": "预设名称",
+        "save": "保存",
+        "saveAs": "将当前样式另存为…",
+        "title": "预设",
+        "yours": "我保存的"
+      },
+      "slot": {
+        "display": "显示",
+        "export": "导出",
+        "title": "样式"
+      }
+    },
     "sections": "设置分区",
     "shortcuts": {
       "alreadyAssigned": "{{chord}} 已分配给 {{label}}。",
@@ -423,6 +483,7 @@
     "tab": {
       "appearance": "外观",
       "general": "常规",
+      "paper": "纸张",
       "shortcuts": "快捷键",
       "workspace": "工作区"
     },

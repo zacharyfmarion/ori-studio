@@ -13,6 +13,7 @@
 import type { GlCore } from './glCore.js';
 import type { CameraUniforms, Mat3 } from './camera.js';
 import type { FoldAssignment } from '../types.js';
+import { SHADE_GLSL } from '../shading.js';
 
 export interface MeshTopology {
   /** Triangle vertex indices, 3 per face. */
@@ -454,6 +455,9 @@ vec3 hueToRgb(float h){
   return clamp(vec3(r, g, b), 0.0, 1.0);
 }
 
+// The shade band is shared with the SVG and canvas-2D paths -- see shading.ts.
+${SHADE_GLSL}
+
 void main(){
   vec3 normal = normalize(cross(dFdx(v_view), dFdy(v_view)));
   vec3 base = gl_FrontFacing ? u_frontColor : u_backColor;
@@ -466,12 +470,7 @@ void main(){
     fragColor = vec4(base, u_alpha);
     return;
   }
-  float shade = 1.0;
-  if (u_lighting > 0.5){
-    vec3 n = normal.z < 0.0 ? -normal : normal;
-    float diffuse = max(0.0, dot(n, normalize(u_lightDir)));
-    shade = clamp(0.74 + diffuse*0.3 + n.z*0.04, 0.68, 1.08);
-  }
+  float shade = u_lighting > 0.5 ? shadeFor(normal, u_lightDir) : 1.0;
   fragColor = vec4(base*shade, u_alpha);
 }`;
 

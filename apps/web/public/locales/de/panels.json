@@ -241,9 +241,15 @@
       "title": "Bild"
     },
     "inlineSimulation": {
+      "followsNote": "Folgt dem Papierstil, sofern nicht überschrieben",
+      "paper": "Papier",
       "settings": "Simulator-Einstellungen",
       "sharedNote": "Gemeinsam mit dem Simulieren-Arbeitsbereich und allen Fenstern",
       "title": "Simulationsfenster"
+    },
+    "paperStyle": {
+      "changeAction": "Papierstil ändern",
+      "resetAction": "Papierstil zurücksetzen"
     },
     "region": {
       "hidden": "Ausgeblendet",
@@ -550,7 +556,6 @@
     "sendTextToBack": "Text in den Hintergrund senden",
     "setFoldedModelUpright": "Oben-Richtung des gefalteten Modells festlegen",
     "shadow": "Schatten",
-    "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
     "stale": "Veraltet",
     "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",
     "viewportControls": "Ansichtssteuerung des Faltmusters",
@@ -1135,14 +1140,15 @@
     "creaseStiffness": "Falz",
     "creaseStyle": "Stil",
     "creaseStyleColor": "Berg / Tal",
+    "creaseStyleCustom": "Benutzerdefiniert",
     "creaseStyleMono": "Eine Farbe",
     "creaseStyleMonoDashed": "Eine Farbe, gestrichelt",
-    "creaseWidth": "Stärke",
     "damping": "Dämpfung",
     "export": "Export",
     "exportHint": "Seitenhintergrund des exportierten Bildes.",
     "faces": "Flächen",
     "faceStiffness": "Fläche",
+    "foldLineWeight": "Faltlinienstärke (pt)",
     "lighting": "Beleuchtung",
     "material": "Material",
     "materialHint": "Wie stark das Papier Dehnung und Faltung widersteht.",

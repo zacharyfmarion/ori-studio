@@ -56,7 +56,9 @@ const LINE: DiagramStrokeInk = { width: 1.2, cap: 'round' };
  *   at 1.6 wide they are `12.8 6.4` and `6.4 3.2 1.6 3.2`. `butt` caps because
  *   `round` inflates every mark until the mountain reads as a solid line.
  */
-export const DIAGRAM_LINE_INK: Record<DiagramLineStyleName, DiagramStrokeInk> = {
+export type DiagramPens = Readonly<Record<DiagramLineStyleName, DiagramStrokeInk>>;
+
+export const DIAGRAM_LINE_INK: DiagramPens = {
   // Its opacity is the theme's, not the pen's: `--references-crease-alpha`,
   // read by the card's CSS and by `diagramColors.ts` for the canvas, because
   // how far a grey sits back from the ground depends on the ground.
@@ -123,6 +125,23 @@ export const DIAGRAM_TURN_OVER_INK = 40.32;
 export function canvasDiagramInk(lineWidth: number): number {
   const CREASE_WIDTH_FACTOR = 1.5;
   return (CREASE_WIDTH_FACTOR * lineWidth) / DIAGRAM_LINE_INK.edge.width;
+}
+
+/**
+ * The pens the diagram over the crease pattern is drawn with: the table, with
+ * the arrow drawn by the paper style's own arrow pen.
+ *
+ * `arrowCss` is that pen in CSS pixels. Over the canvas one ink is a fixed
+ * number of CSS pixels ({@link canvasDiagramInk}), so the arrow's weight in ink
+ * is whatever puts its stroke at exactly the pen. The card keeps the table as
+ * it is: there the arrow is a share of the paper like every other mark, and a
+ * pen in points has no meaning on a thumbnail.
+ */
+export function canvasDiagramPens(lineWidth: number, arrowCss: number): DiagramPens {
+  return {
+    ...DIAGRAM_LINE_INK,
+    arrow: { ...DIAGRAM_LINE_INK.arrow, width: arrowCss / canvasDiagramInk(lineWidth) },
+  };
 }
 
 /**

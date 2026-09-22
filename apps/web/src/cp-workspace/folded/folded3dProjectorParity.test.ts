@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { cameraUniforms, projectVertices } from '@treemaker/origami-simulator';
 import { folded3dMesh, type Folded3dMesh } from './folded3dMesh';
 import { folded3dFrameFillZoom, FOLDED_3D_CREASE_DEPTH_BIAS } from './folded3dWindow';
+import { FOLDED_3D_SILHOUETTE_FACTOR } from './folded3dFrame';
 import { folded3dDrawPasses } from '../../simulator/foldedMeshSource';
 import { projectFolded3dModel, type FoldedFigureCamera } from './foldedFigure3dProjection';
 import type { Folded3dPaperStyle } from './folded3dStyle';
@@ -191,10 +192,26 @@ function projectorPicture(
   return pic;
 }
 
-/** The picture the window draws: the mesh path, with a depth buffer. */
+/**
+ * The picture the window draws: the mesh path, with a depth buffer.
+ *
+ * Projected orthographically on purpose. The window is perspective since Phase
+ * 1 of the unified paper style (D7, `foldedMeshSource.ts`), while the projector
+ * is still orthographic, so the two no longer draw the same *picture*; what
+ * this harness compares is the layer each path shows per pixel — the skins,
+ * the crease ownership and the fold-line draw order — which is a property of
+ * the draw passes and not of the projection. The projector retires in Phase 3,
+ * and the harness with it.
+ */
 function meshPicture(mesh: Folded3dMesh, camera: FoldedFigureCamera, half: number): Picture {
   const uniforms = cameraUniforms(
-    { yaw: camera.yaw, pitch: camera.pitch, zoom: folded3dFrameFillZoom(N, N) },
+    // The window's fill zoom leaves room for the perspective silhouette; an
+    // orthographic sphere has none, so the factor is put back.
+    {
+      yaw: camera.yaw,
+      pitch: camera.pitch,
+      zoom: folded3dFrameFillZoom(N, N) * FOLDED_3D_SILHOUETTE_FACTOR,
+    },
     mesh.center,
     mesh.radius,
     N,

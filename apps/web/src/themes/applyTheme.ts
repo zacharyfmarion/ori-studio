@@ -112,15 +112,16 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   // What the References workspace draws its context at — an earlier crease's
   // grey, and the pattern's creases made by earlier steps — held to the light
   // theme's step off the ground rather than to one alpha. See `referencesInk.ts`.
+  // Against the ground here, because `:root` has no paper; the workspace re-sets
+  // both against the paper style's sheet (`usePaperStyleTokens`).
   const ground = colors['bg.primary'];
-  setVar('--references-crease-alpha', referencesCreaseAlpha(ground).toFixed(3));
+  setVar('--references-crease-alpha', referencesCreaseAlpha(ground, FOLD_UNASSIGNED).toFixed(3));
   setVar(
     '--references-dim-alpha',
     referencesDimAlpha(
       ground,
       MOUNTAIN_VALLEY_COLORS[theme.type].mountain,
-      MOUNTAIN_VALLEY_COLORS[theme.type].valley,
-      theme.type
+      MOUNTAIN_VALLEY_COLORS[theme.type].valley
     ).toFixed(3)
   );
   setVar('--fold-border', colors['text.primary']);

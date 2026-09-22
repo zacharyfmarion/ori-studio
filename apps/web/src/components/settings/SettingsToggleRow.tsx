@@ -7,6 +7,8 @@ export interface SettingsToggleRowProps {
   description?: ReactNode;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  /** For a preference that is shown but not the user's to set right now. */
+  disabled?: boolean;
 }
 
 /**
@@ -21,6 +23,7 @@ export function SettingsToggleRow({
   description,
   checked,
   onChange,
+  disabled = false,
 }: SettingsToggleRowProps) {
   const labelId = useId();
   const descriptionId = useId();
@@ -28,10 +31,13 @@ export function SettingsToggleRow({
   return (
     <div
       className="settings-toggle-row"
+      data-disabled={disabled || undefined}
       // Mouse convenience, replacing the hit target the `<label>` checkboxes
       // used to give the copy. Not focusable on purpose: the switch already is,
       // and a second tab stop would announce the same preference twice.
-      onClick={() => onChange(!checked)}
+      onClick={() => {
+        if (!disabled) onChange(!checked);
+      }}
     >
       <span className="settings-toggle-row__copy">
         <span className="settings-toggle-row__label" id={labelId}>
@@ -46,6 +52,7 @@ export function SettingsToggleRow({
       <Toggle
         checked={checked}
         onChange={onChange}
+        disabled={disabled}
         aria-labelledby={labelId}
         aria-describedby={description === undefined ? undefined : descriptionId}
         // The switch answers its own click. Letting it reach the row as well

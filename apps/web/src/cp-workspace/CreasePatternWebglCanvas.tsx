@@ -107,6 +107,8 @@ import {
 } from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
+import { useObjectEdgePenWidth } from './paper/objectPaperStyle';
+import { ptToDevicePx } from '../lib/paper/paperStyle';
 import type { CpContextMenuRequest } from './contextMenuTarget';
 import { cpHasSelection, cpRightClickOutcome } from './contextMenu/cpRightClick';
 import {
@@ -1591,12 +1593,17 @@ export function CreasePatternWebglCanvas({
     [foldedFigures, windowedFoldedFigureIds]
   );
   const drawnFoldedFigures = useFolded3dOrbitFigures(sceneFoldedFigures);
+  // A figure's edges draw in its effective edge pen: the render call below
+  // supplies device px per pt, and this supplies each figure's pt.
+  const foldedPenWidth = useObjectEdgePenWidth();
   const foldedGeometry = useMemo(
     () =>
-      cpFoldedToScene(drawnFoldedFigures, (figure) =>
-        staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
+      cpFoldedToScene(
+        drawnFoldedFigures,
+        (figure) => (staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1),
+        foldedPenWidth
       ),
-    [drawnFoldedFigures, staleFoldedFigureIds]
+    [drawnFoldedFigures, staleFoldedFigureIds, foldedPenWidth]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global
@@ -1846,6 +1853,10 @@ export function CreasePatternWebglCanvas({
         // Constant screen size (CSS px * dpr) times the gentle zoom boost. Circle
         // radii still scale fully with zoom via userScalePx — real geometry.
         strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+        // Device px per pt; each figure's stroke multiplier is its edge pen's
+        // width in pt (`cpFoldedToScene`), so a folded edge is its pen at every
+        // zoom — 0.9 pt is the 1.2 CSS px the kernel's Java2D stroke used to be.
+        foldedStrokeWidthPx: ptToDevicePx(1, ratio),
         userScalePx: cam.zoom,
         markerScalePx,
         pointScalePx,

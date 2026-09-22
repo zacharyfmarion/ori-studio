@@ -369,6 +369,66 @@
       "update": "Aktualisieren",
       "updateAvailable": "Neuer als das installierte Modell"
     },
+    "paper": {
+      "auxVisible": "Vorhandene Falten auf dem gefalteten Papier anzeigen",
+      "back": "Rückseite",
+      "cap": {
+        "butt": "Flach",
+        "round": "Rund"
+      },
+      "exportFollowsDisplay": "Export verwendet den Anzeigestil",
+      "exportFollowsDisplayHint": "Ausgeschaltet beginnt der Exportstil als Kopie des Anzeigestils und wird eigenständig bearbeitet.",
+      "exportTitle": "Papierstil exportieren",
+      "front": "Vorderseite",
+      "importTitle": "Papierstil importieren",
+      "lightAzimuth": "Azimut",
+      "lightAzimuthHint": "Grad im Uhrzeigersinn, von senkrecht nach oben aus.",
+      "lightElevation": "Höhe",
+      "lightElevationHint": "Grad aus dem Bildschirm heraus; 90 leuchtet direkt auf das Papier.",
+      "lightEnabled": "Gefaltetes Papier mit gerichtetem Licht schattieren",
+      "lightTitle": "Licht",
+      "paperTitle": "Papier",
+      "pen": {
+        "arrows": "Pfeile",
+        "auxCreases": "Vorhandene Falten",
+        "edges": "Kanten",
+        "mountainFolds": "Bergfalten",
+        "valleyFolds": "Talfalten"
+      },
+      "penCap": "Linienende",
+      "penCapNamed": "Linienende für {{pen}}",
+      "penColorNamed": "Farbe für {{pen}}",
+      "penDash": "Strichmuster",
+      "penDashNamed": "Strichmuster für {{pen}}",
+      "pensTitle": "Stifte",
+      "penWidth": "Breite (pt)",
+      "penWidthNamed": "Breite für {{pen}}",
+      "preset": {
+        "blackAndWhite": "Schwarz-Weiß",
+        "oriDefault": "Ori-Standard",
+        "oriedita": "Oriedita",
+        "origamiHouse": "Origami House"
+      },
+      "presets": {
+        "apply": "Anwenden",
+        "builtIn": "Integriert",
+        "by": "Von {{author}}",
+        "delete": "Löschen",
+        "export": "Exportieren",
+        "exportNamed": "{{name}} exportieren",
+        "import": "Importieren…",
+        "name": "Name der Voreinstellung",
+        "save": "Speichern",
+        "saveAs": "Aktuellen speichern als…",
+        "title": "Voreinstellungen",
+        "yours": "Von dir gespeichert"
+      },
+      "slot": {
+        "display": "Anzeige",
+        "export": "Export",
+        "title": "Stil"
+      }
+    },
     "sections": "Einstellungsbereiche",
     "shortcuts": {
       "alreadyAssigned": "{{chord}} ist bereits {{label}} zugewiesen.",
@@ -435,6 +495,7 @@
     "tab": {
       "appearance": "Darstellung",
       "general": "Allgemein",
+      "paper": "Papier",
       "shortcuts": "Tastenkürzel",
       "workspace": "Arbeitsbereich"
     },

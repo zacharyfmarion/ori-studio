@@ -8,7 +8,12 @@
  * two.
  */
 
-import { DIAGRAM_ARROWHEAD_INK, DIAGRAM_INK_PER_SHEET } from './diagram/diagramInk';
+import {
+  DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_INK_PER_SHEET,
+  DIAGRAM_LINE_INK,
+  type DiagramPens,
+} from './diagram/diagramInk';
 
 export interface DiagramSheet {
   width: number;
@@ -52,6 +57,12 @@ export interface DiagramProjector {
    */
   ink: number;
   /**
+   * Each line style's weight, dash and cap, in ink. The card draws with the
+   * table as it stands; over the canvas the arrow is the paper style's own pen
+   * (`canvasDiagramPens`).
+   */
+  pens: DiagramPens;
+  /**
    * How much shorter this drawing's dash runs are than the pen says.
    *
    * The pen's runs suit the canvas, where a dash is measured against creases.
@@ -93,7 +104,8 @@ function mirrors(ex: SvgPoint, ey: SvgPoint): boolean {
  */
 export function createOverlayProjector(
   view: { origin: readonly [number, number]; ex: readonly [number, number]; ey: readonly [number, number] },
-  ink: number
+  ink: number,
+  pens: DiagramPens = DIAGRAM_LINE_INK
 ): DiagramProjector {
   const ex = { x: view.ex[0], y: view.ex[1] };
   const ey = { x: view.ey[0], y: view.ey[1] };
@@ -106,6 +118,7 @@ export function createOverlayProjector(
   project.ex = ex;
   project.ey = ey;
   project.ink = ink;
+  project.pens = pens;
   // The pen's own runs: on the canvas a dash is read against the creases.
   project.dashScale = 1;
   project.viewBox = '';
@@ -156,6 +169,7 @@ export function createDiagramProjector(
   project.ex = { x: mirrored ? -scale : scale, y: 0 };
   project.ey = { x: 0, y: -scale };
   project.ink = longer * scale * DIAGRAM_INK_PER_SHEET;
+  project.pens = DIAGRAM_LINE_INK;
   project.dashScale = DIAGRAM_CARD_DASH_SCALE;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;

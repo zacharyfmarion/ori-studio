@@ -22,6 +22,7 @@ import {
   DIAGRAM_MARK_INK,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
+  type DiagramPens,
 } from './diagramInk';
 import {
   diagramMarks,
@@ -49,10 +50,16 @@ const round = (value: number) => Number(value.toFixed(4));
  * stylesheet because a stylesheet cannot know how big the drawing is, and that
  * is exactly what these numbers depend on. `dashScale` is the projector's
  * (`DiagramProjector.dashScale`), and shortens the runs alone: the width is
- * the line's weight and stays the pen's.
+ * the line's weight and stays the pen's. `pens` is the projector's table too
+ * (`DiagramProjector.pens`); the card's is the one in `diagramInk.ts`.
  */
-export function strokeAttributes(style: DiagramLineStyleName, ink: number, dashScale = 1) {
-  const pen = DIAGRAM_LINE_INK[style];
+export function strokeAttributes(
+  style: DiagramLineStyleName,
+  ink: number,
+  dashScale = 1,
+  pens: DiagramPens = DIAGRAM_LINE_INK
+) {
+  const pen = pens[style];
   return {
     strokeWidth: pen.width * ink,
     strokeDasharray: pen.dash?.map((run) => run * ink * dashScale).join(' '),
@@ -157,7 +164,7 @@ export function diagramPrimitiveShape(
           x2={to.x}
           y2={to.y}
           strokeDashoffset={dashOffset}
-          {...strokeAttributes(primitive.style, project.ink, project.dashScale)}
+          {...strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens)}
         />
       );
     }
@@ -167,7 +174,7 @@ export function diagramPrimitiveShape(
           key={index}
           className={`step-diagram__arc step-diagram__line--${primitive.style}`}
           d={arcPathData(primitive, project)}
-          {...strokeAttributes(primitive.style, project.ink, project.dashScale)}
+          {...strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens)}
         />
       );
     }
@@ -200,12 +207,12 @@ export function diagramPrimitiveShape(
           <path
             className="step-diagram__arc step-diagram__line--arrow"
             d={arcPathData({ ...arrow.out, from: trimmed.out.from }, project)}
-            {...strokeAttributes('arrow', project.ink, project.dashScale)}
+            {...strokeAttributes('arrow', project.ink, project.dashScale, project.pens)}
           />
           <path
             className="step-diagram__arc step-diagram__line--arrow"
             d={arcPathData({ ...arrow.back, to: trimmed.back.to }, project)}
-            {...strokeAttributes('arrow', project.ink, project.dashScale)}
+            {...strokeAttributes('arrow', project.ink, project.dashScale, project.pens)}
           />
           <polygon
             className="step-diagram__arrowhead"
@@ -239,7 +246,7 @@ export function diagramPrimitiveShape(
           <path
             className="step-diagram__arc step-diagram__line--arrow"
             d={TURN_OVER_PATH}
-            {...strokeAttributes('arrow', project.ink / scale)}
+            {...strokeAttributes('arrow', project.ink / scale, 1, project.pens)}
           />
           <polygon
             className="step-diagram__arrowhead"

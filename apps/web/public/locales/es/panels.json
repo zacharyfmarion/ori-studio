@@ -246,9 +246,15 @@
       "title": "Imagen"
     },
     "inlineSimulation": {
+      "followsNote": "Sigue el estilo de papel salvo que se anule",
+      "paper": "Papel",
       "settings": "Ajustes del simulador",
       "sharedNote": "Compartidos con el espacio de trabajo Simular y con todas las ventanas",
       "title": "Ventana de simulación"
+    },
+    "paperStyle": {
+      "changeAction": "Cambiar estilo de papel",
+      "resetAction": "Restablecer estilo de papel"
     },
     "region": {
       "hidden": "Oculta",
@@ -577,7 +583,6 @@
     "sendTextToBack": "Enviar texto al fondo",
     "setFoldedModelUpright": "Definir la vertical del modelo plegado",
     "shadow": "Sombra",
-    "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
     "stale": "Obsoleto",
     "viewFoldedModelOtherSide": "Ver desde el otro lado",
     "viewportControls": "Controles de la vista del patrón de pliegues",
@@ -1175,14 +1180,15 @@
     "creaseStiffness": "Pliegue",
     "creaseStyle": "Estilo",
     "creaseStyleColor": "Monte / valle",
+    "creaseStyleCustom": "Personalizado",
     "creaseStyleMono": "Una tinta",
     "creaseStyleMonoDashed": "Una tinta, discontinua",
-    "creaseWidth": "Grosor",
     "damping": "Amortiguación",
     "export": "Exportar",
     "exportHint": "Fondo de página de la imagen exportada.",
     "faces": "Caras",
     "faceStiffness": "Cara",
+    "foldLineWeight": "Grosor de las líneas de pliegue (pt)",
     "lighting": "Iluminación",
     "material": "Material",
     "materialHint": "Cuánto resiste el papel al estiramiento y al plegado.",

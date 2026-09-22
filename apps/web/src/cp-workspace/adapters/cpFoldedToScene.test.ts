@@ -94,7 +94,25 @@ describe('cpFoldedToScene', () => {
     ]);
     expect(geo.fills.count).toBe(0);
     expect(geo.strokes.count).toBe(2); // 3 points -> 2 segments
-    expect(geo.strokes.widthMul[0]).toBeCloseTo(2);
+    // Re-pinned: the kernel's Java2D width (2 here, 1.2 in a real snapshot) is
+    // a screen hint, not a pen. The folded channel draws the paper style's
+    // edge pen, so the multiplier is 1 until the per-figure pen comes in.
+    expect(geo.strokes.widthMul[0]).toBe(1);
+  });
+
+  it('multiplies each figure’s own pen width into its strokes', () => {
+    // The frame's base is device px per pt; a figure pinning a 2 pt edge pen
+    // beside one following a 0.5 pt display style draws them at 2 : 0.5.
+    const first = strokeTriangle();
+    const second = { ...strokeTriangle(), id: 'f2' };
+    const geo = cpFoldedToScene([first, second], undefined, (figure) =>
+      figure.id === 'f2' ? 2 : 0.5
+    );
+    expect(geo.strokes.count).toBe(4);
+    expect(geo.strokes.widthMul[0]).toBeCloseTo(0.5);
+    expect(geo.strokes.widthMul[2]).toBeCloseTo(2);
+    // And the cached local geometry is untouched by the pen.
+    expect(foldedFigureLocalGeometry(first.renderSnapshot!).strokeWidthMul[0]).toBe(1);
   });
 
   it('skips figures without a render snapshot', () => {

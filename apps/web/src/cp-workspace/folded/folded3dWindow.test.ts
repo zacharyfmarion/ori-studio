@@ -3,6 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cameraUniforms, fitExtent } from '@treemaker/origami-simulator';
+import {
+  DEFAULT_PAPER_STYLE,
+  ORIEDITA_PAPER_BACK,
+  ORIEDITA_PAPER_FRONT,
+  ptToDevicePx,
+  type PaperStyle,
+} from '../../lib/paper/paperStyle';
+import { lightVector } from '../../lib/paper/paperStyleResolve';
 import type {
   OristudioCpFolded3dRenderModel,
   OristudioCpFoldedFigureEntry,
@@ -13,6 +21,7 @@ import {
   setFolded3dRenderModel,
 } from './folded3dRenderModels';
 import {
+  FOLDED_3D_CREASE_DEPTH_BIAS,
   canWindowFolded3dFigure,
   folded3dFrameFillZoom,
   folded3dMeshPayload,
@@ -22,11 +31,11 @@ import {
 } from './folded3dWindow';
 import { folded3dMesh, type Folded3dMesh } from './folded3dMesh';
 import {
-  TRANSPARENT_FACE_ALPHA,
-  UNDETERMINED_FACE_ALPHA,
-  folded3dPaperStyle,
-  type Folded3dPaperStyle,
-} from './folded3dStyle';
+  FOLDED_3D_CAMERA_DISTANCE_FACTOR,
+  FOLDED_3D_SILHOUETTE_FACTOR,
+  folded3dFrameHalfSide,
+} from './folded3dFrame';
+import { TRANSPARENT_FACE_ALPHA, UNDETERMINED_FACE_ALPHA } from './folded3dStyle';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '__fixtures__');
 
@@ -115,10 +124,26 @@ describe('deciding which figures become windows', () => {
 });
 
 describe('framing a figure inside its window', () => {
-  it('cancels the viewport padding so the model fills its frame', () => {
-    // A figure's frame is its bounding sphere: the window is already exactly the
-    // model's size, so `cameraUniforms`'s 8%-a-side viewport padding would draw
-    // every existing 3D figure about 16% smaller in the same box.
+  it('restates the camera distance the simulator fits with', () => {
+    // The silhouette factor is derived from `cameraUniforms`'s eye distance,
+    // which the simulator does not export. If that constant moves, the frame
+    // is sized for the wrong perspective and a model can leave its own box.
+    const camera = cameraUniforms({ yaw: 0, pitch: 0, zoom: 1 }, [0, 0, 0], 1, 512, 512);
+    expect(camera.camDist).toBeCloseTo(FOLDED_3D_CAMERA_DISTANCE_FACTOR, 12);
+    // r · d / √(d² − r²) at r = 1: a 5.3% growth, F11's number.
+    expect(FOLDED_3D_SILHOUETTE_FACTOR).toBeCloseTo(1.0527, 4);
+    expect(folded3dFrameHalfSide(40)).toBeCloseTo(40 * FOLDED_3D_SILHOUETTE_FACTOR, 12);
+  });
+
+  it('fits the model’s perspective silhouette, not its radius, to its frame', () => {
+    // Re-pinned for D7: the window draws with the mesh renderer's perspective
+    // since Phase 1, so the frame is the bounding sphere's *silhouette*
+    // (`folded3dFrameHalfSide`), and the fill zoom cancels both
+    // `cameraUniforms`'s 8%-a-side padding and the silhouette factor — the
+    // radius maps to `shortEdge / (2 · factor)` so the silhouette exactly
+    // touches the edge. Fitting the radius to the whole edge, as the
+    // orthographic window did, would let the model escape its box at every
+    // orientation by the 5% the perspective adds.
     for (const [width, height] of [
       [512, 512],
       [200, 320],
@@ -132,15 +157,21 @@ describe('framing a figure inside its window', () => {
         width!,
         height!
       );
-      // scale maps world units to pixels, so a unit-radius model spans the short
-      // edge exactly.
-      expect(camera.scale * 2).toBeCloseTo(Math.min(width!, height!), 6);
+      // scale maps world units to pixels; a unit-radius model's silhouette is
+      // `FOLDED_3D_SILHOUETTE_FACTOR` wide and spans the short edge exactly.
+      expect(camera.scale * 2 * FOLDED_3D_SILHOUETTE_FACTOR).toBeCloseTo(
+        Math.min(width!, height!),
+        6
+      );
     }
   });
 
   it('is derived from fitExtent rather than from its constant', () => {
     // So it stays exact if the padding is ever retuned.
-    expect(folded3dFrameFillZoom(512, 512)).toBeCloseTo(512 / fitExtent(512, 512), 12);
+    expect(folded3dFrameFillZoom(512, 512)).toBeCloseTo(
+      512 / fitExtent(512, 512) / FOLDED_3D_SILHOUETTE_FACTOR,
+      12
+    );
   });
 
   it('takes the figure’s angles and its zoom', () => {
@@ -167,40 +198,27 @@ describe('framing a figure inside its window', () => {
   });
 });
 
-/** A default kernel figure model — the alphas a real figure actually gets. */
-const PAPER_MODEL = {
-  front_color: { red: 255, green: 255, blue: 50 },
-  back_color: { red: 233, green: 233, blue: 233 },
-  line_color: { red: 0, green: 0, blue: 0 },
-  anti_alias: true,
-  transparent_transparency: 16,
-} as unknown as Parameters<typeof folded3dPaperStyle>[0];
-
 /**
  * Distinctive colours so a settings field that reads the wrong source is
- * obvious, over the alphas a real figure actually gets.
- *
- * `transparentAlpha` comes from `folded3dPaperStyle` rather than being written
- * out: it was hardcoded at the flat renderer's `16/255`, which is exactly the
- * value that made X-ray look like Wireframe, and a fixture that pins the wrong
- * number is a test agreeing with the bug.
+ * obvious, over the default pens and light.
  */
-const STYLE: Folded3dPaperStyle = {
-  ...folded3dPaperStyle(PAPER_MODEL),
-  front: [1, 0.5, 0.25],
-  back: [0.1, 0.2, 0.3],
-  line: [0.4, 0.4, 0.4],
+const STYLE: PaperStyle = {
+  ...DEFAULT_PAPER_STYLE,
+  paper: { front: '#ff8040', back: '#1a334d' },
+  edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#666666' },
+  mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#ff0000' },
+  valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#0000ff' },
 };
 
-describe('drawing a figure in its own colours', () => {
-  it('takes the paper colours from the figure, not from the simulator settings', () => {
+describe('drawing a figure in its effective paper style', () => {
+  it('takes the paper colours from the style, not from the simulator settings', () => {
     const settings = folded3dWindowRenderSettings({
       style: STYLE,
       displayStyle: 'Paper5',
       devicePixelRatio: 1,
     });
-    expect(settings.frontColor).toEqual([1, 0.5, 0.25]);
-    expect(settings.backColor).toEqual([0.1, 0.2, 0.3]);
+    expect(settings.frontColor.map((c) => Math.round(c * 255))).toEqual([255, 128, 64]);
+    expect(settings.backColor.map((c) => Math.round(c * 255))).toEqual([26, 51, 77]);
   });
 
   it('draws X-ray as paper you can see through, not as Wireframe', () => {
@@ -230,18 +248,66 @@ describe('drawing a figure in its own colours', () => {
     expect(xray.faceAlpha).toBeLessThan(1);
   });
 
-  it('inks every crease kind with the figure’s one line colour', () => {
-    // Reproduces today's single-ink linework exactly. The mesh does carry
-    // mountain/valley codes, so telling them apart is a colour change away —
-    // but that is a new appearance, not this phase.
+  it('inks every crease kind with the edge pen: the folded-3d policy has no fold pens', () => {
+    // Reproduces the figure's single-ink linework exactly. The mesh does carry
+    // mountain/valley codes, so telling them apart is a policy change away.
     const settings = folded3dWindowRenderSettings({
       style: STYLE,
       displayStyle: 'Paper5',
       devicePixelRatio: 1,
     });
-    expect(settings.mountainColor).toEqual([0.4, 0.4, 0.4]);
-    expect(settings.valleyColor).toEqual([0.4, 0.4, 0.4]);
-    expect(settings.borderColor).toEqual([0.4, 0.4, 0.4]);
+    const grey = [0.4, 0.4, 0.4];
+    expect(settings.mountainColor).toEqual(grey);
+    expect(settings.valleyColor).toEqual(grey);
+    expect(settings.borderColor).toEqual(grey);
+  });
+
+  it('draws the edge pen at its pt width in device pixels, and nothing bespoke', () => {
+    // Phase 1 replaces the window's own `1.5 × dpr` with the pen: 0.9 pt is the
+    // folded figure's 1.2 CSS px, times the device ratio. The below-reference
+    // shrink is the viewport's (`creaseWidthReferenceEdge`), not this module's.
+    for (const dpr of [1, 2]) {
+      const settings = folded3dWindowRenderSettings({
+        style: { ...STYLE, edges: { ...STYLE.edges, width: 0.9 } },
+        displayStyle: 'Paper5',
+        devicePixelRatio: dpr,
+      });
+      expect(settings.creaseWidthPx).toBeCloseTo(ptToDevicePx(0.9, dpr), 12);
+      expect(settings.creaseWidthReferenceEdge).toBeUndefined();
+    }
+  });
+
+  it('is lit from the style’s light, the same one the simulator uses', () => {
+    // D7: the 3D figure renders exactly as the simulator does, so the light is
+    // data from the style rather than the on-axis constant the window had.
+    const lit = folded3dWindowRenderSettings({
+      style: { ...STYLE, light: { enabled: true, azimuth: 30, elevation: 40 } },
+      displayStyle: 'Paper5',
+      devicePixelRatio: 1,
+    });
+    expect(lit.lighting).toBe(true);
+    expect(lit.lightDir).toEqual(lightVector(30, 40));
+    const unlit = folded3dWindowRenderSettings({
+      style: { ...STYLE, light: { enabled: false, azimuth: 30, elevation: 40 } },
+      displayStyle: 'Paper5',
+      devicePixelRatio: 1,
+    });
+    expect(unlit.lighting).toBe(false);
+  });
+
+  it('draws the defaults as the Oriedita figure it replaces', () => {
+    // Behaviour-preserving for a following figure: the default style's paper is
+    // Oriedita's, so a figure that pins nothing looks as it did.
+    const settings = folded3dWindowRenderSettings({
+      style: DEFAULT_PAPER_STYLE,
+      displayStyle: 'Paper5',
+      devicePixelRatio: 1,
+    });
+    expect(ORIEDITA_PAPER_FRONT).toBe('#ffff32');
+    expect(settings.frontColor.map((c) => Math.round(c * 255))).toEqual([255, 255, 50]);
+    expect(ORIEDITA_PAPER_BACK).toBe('#e9e9e9');
+    expect(settings.backColor.map((c) => Math.round(c * 255))).toEqual([233, 233, 233]);
+    expect(settings.borderColor).toEqual([0, 0, 0]);
   });
 
   it('maps every display style onto faces, edges and alpha', () => {
@@ -257,6 +323,16 @@ describe('drawing a figure in its own colours', () => {
       showFaces: true,
       faceAlpha: TRANSPARENT_FACE_ALPHA,
     });
+  });
+
+  it('keeps the crease depth rules the fold-line draw order relies on', () => {
+    const settings = folded3dWindowRenderSettings({
+      style: STYLE,
+      displayStyle: 'Paper5',
+      devicePixelRatio: 1,
+    });
+    expect(settings.creaseDepthBias).toBe(FOLDED_3D_CREASE_DEPTH_BIAS);
+    expect(settings.creaseWritesDepth).toBe(false);
   });
 
   it('never paints the frame, so the crease pattern shows through', () => {

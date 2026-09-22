@@ -2,14 +2,19 @@
  * How a 3D folded figure looks, independent of how it is drawn.
  *
  * Extracted from `foldedFigure3dProjection.ts` for the same reason
- * `folded3dModelReader.ts` was: two renderers now draw one figure — the CPU
- * projector (which becomes the vector-export path) and the GPU mesh in its
- * window — and a figure's colours and its display style have to mean the *same
- * thing* in both or the same figure looks different depending on which path drew
- * it. One module rather than two copies.
+ * `folded3dModelReader.ts` was: two renderers draw one figure — the CPU
+ * projector (the vector-export path until Phase 3 of the unified paper style)
+ * and the GPU mesh in its window — and a figure's display style has to mean
+ * the *same thing* in both or the same figure looks different depending on
+ * which path drew it. One module rather than two copies.
  *
- * Bodies are verbatim from the projector; the only change is that `stylePlan` is
- * exported under a qualified name.
+ * The window no longer reads {@link Folded3dPaperStyle}: it resolves the
+ * figure's effective `PaperStyle` through `resolvePaperStyle`
+ * (`folded3dWindowRenderSettings`), lit from the style's own light. The
+ * projector still builds this record from the kernel model, whose colours
+ * are the store's mirror of that same style, and stays lit on-axis until it
+ * retires — a display / export difference in shading, known and recorded in
+ * the plan.
  */
 
 import type {
@@ -64,7 +69,7 @@ export const UNDETERMINED_FACE_ALPHA = 0.45;
  */
 export const TRANSPARENT_FACE_ALPHA = 0.45;
 
-/** Paper style from a kernel figure model, so a 3D figure honours its colours. */
+/** The projector's paper style from a kernel figure model, whose colours mirror the figure's effective style. */
 export function folded3dPaperStyle(model: OristudioCpFoldedFigureModel): Folded3dPaperStyle {
   return {
     front: [model.front_color.red / 255, model.front_color.green / 255, model.front_color.blue / 255],

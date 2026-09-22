@@ -15,6 +15,7 @@ import { buildBsp, traverseBsp, type BspItem, type Vec3 } from './bsp.js';
 import { findVisiblePieces, type DrawnPiece } from './hiddenPieces.js';
 import { coplanarRuns, outlineOf, sourceFaceGroups, type RunPiece } from './coplanarRuns.js';
 import { creaseFrameScale, type MeshTopology, type RenderSettings } from './webgl/meshRenderer.js';
+import { shadeColor, shadeFor } from './shading.js';
 
 /** Edge assignment codes, matching `EDGE_ASSIGNMENT_CODES` and the edge shader. */
 const BORDER = 0;
@@ -492,7 +493,9 @@ function faceColor(
     return strainColor(mean, settings.strainClip ?? 5);
   }
   const base = triangle.winding >= 0 ? settings.frontColor : settings.backColor;
-  return settings.lighting ? shade(base, lightIntensity(triangle, projected, settings)) : base;
+  return settings.lighting
+    ? shadeColor(base, lightIntensity(triangle, projected, settings))
+    : base;
 }
 
 /**
@@ -532,35 +535,10 @@ function lightIntensity(
   const vx = cx - ax;
   const vy = cy - ay;
   const vz = cz - az;
-  let nx = uy * vz - uz * vy;
-  let ny = uz * vx - ux * vz;
-  let nz = ux * vy - uy * vx;
-  const length = Math.hypot(nx, ny, nz);
-  if (length < 0.0001) return 1;
-  nx /= length;
-  ny /= length;
-  nz /= length;
-  if (nz < 0) {
-    nx = -nx;
-    ny = -ny;
-    nz = -nz;
-  }
-  const [lx, ly, lz] = settings.lightDir;
-  const lightLength = Math.hypot(lx, ly, lz) || 1;
-  const diffuse = Math.max(0, (nx * lx + ny * ly + nz * lz) / lightLength);
-  return Math.min(1.08, Math.max(0.68, 0.74 + diffuse * 0.3 + nz * 0.04));
-}
-
-/** Multiply below 1, lift toward white above it — the shader's `base*shade`. */
-function shade(
-  color: readonly [number, number, number],
-  intensity: number
-): [number, number, number] {
-  return [
-    clampUnit(color[0] * intensity),
-    clampUnit(color[1] * intensity),
-    clampUnit(color[2] * intensity),
-  ];
+  return shadeFor(
+    [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx],
+    settings.lightDir
+  );
 }
 
 function creaseElement(

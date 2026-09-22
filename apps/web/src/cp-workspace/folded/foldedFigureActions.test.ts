@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureStatus,
@@ -67,6 +68,8 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     setDisplayStyle: vi.fn(),
     updateModel: vi.fn(),
     endModelGesture: vi.fn(),
+    paperStyle: () => DEFAULT_PAPER_STYLE,
+    setAppearance: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
@@ -560,7 +563,10 @@ describe('foldedFigureStyleGroup', () => {
     expect(side.options.some((option) => option.checked)).toBe(false);
   });
 
-  it('shows each colour as hex and streams a change under its own gesture', () => {
+  it('shows each colour of the effective style as hex and pins a change under its own gesture', () => {
+    // Re-pinned for the paper style (Phase 1): the rows read the figure's
+    // effective paper style and a change pins that field on the figure; the
+    // kernel model follows through the mirror rather than being written here.
     const deps = makeDeps();
     const figure = flat();
     const rows = colors(figure, deps);
@@ -570,23 +576,29 @@ describe('foldedFigureStyleGroup', () => {
       ['Line color', '#000000'],
     ]);
     rows[0]?.set('#ff0000');
-    expect(deps.updateModel).toHaveBeenCalledWith(
+    expect(deps.setAppearance).toHaveBeenCalledWith(
       figure,
-      { front_color: { red: 255, green: 0, blue: 0 } },
+      { field: 'paper.front', value: '#ff0000' },
       { scope: 'folded-color:folded-1:front_color', label: 'Change folded model color' }
     );
     rows[0]?.commit();
     expect(deps.endModelGesture).toHaveBeenCalledWith('folded-color:folded-1:front_color');
+    // The line colour is the edge pen's, and a pen is pinned whole.
+    rows[2]?.set('#0000ff');
+    expect(deps.setAppearance).toHaveBeenLastCalledWith(
+      figure,
+      { field: 'edges', value: { ...DEFAULT_PAPER_STYLE.edges, color: '#0000ff' } },
+      { scope: 'folded-color:folded-1:line_color', label: 'Change folded model color' }
+    );
   });
 
-  it('falls back to the model defaults for a figure whose model is not loaded', () => {
-    const rows = colors(flat({ state: 'Front0' }), makeDeps());
-    expect(rows.map((row) => row.value)).toEqual(['#ffff32', '#e9e9e9', '#000000']);
-  });
-
-  it('reads the colours of a 3D figure from folded3d, and lets them be edited', () => {
-    const rows = colors(spatial({ ...FULL_MODEL, front_color: { red: 1, green: 2, blue: 3 } }), makeDeps());
+  it('reads the colours from the effective style, whichever kind of figure', () => {
+    const style = { ...DEFAULT_PAPER_STYLE, paper: { front: '#010203', back: '#e9e9e9' } };
+    const rows = colors(spatial(), makeDeps({ paperStyle: () => style }));
     expect(rows[0]).toMatchObject({ value: '#010203', disabled: false });
+    expect(colors(flat({ state: 'Front0' }), makeDeps({ paperStyle: () => style }))[0]?.value).toBe(
+      '#010203'
+    );
   });
 
   it('toggles shadow as a discrete model change', () => {
@@ -598,10 +610,33 @@ describe('foldedFigureStyleGroup', () => {
     expect(deps.updateModel).toHaveBeenCalledWith(figure, { display_shadows: false });
   });
 
-  it('offers shadow on a 3D figure disabled, with the reason as its hint', () => {
-    const row = shadow(spatial(), makeDeps());
-    expect(row.disabled).toBe(true);
-    expect(row.hint).toBe('Shadows are not drawn for a 3D folded model yet');
+  it('offers a 3D figure the light in place of the shadow, as a pin', () => {
+    // Re-pinned for D7: the shadow used to be offered disabled on a 3D figure.
+    // It is the flat figure's own option; a 3D figure is lit from the paper
+    // style's light, whose switch pins the figure's `light`.
+    const deps = makeDeps();
+    const figure = spatial();
+    const items = foldedFigureStyleGroup(figure, deps).items;
+    expect(items.map((item) => `${item.kind}:${item.id}`)).toEqual([
+      'choice:display-style',
+      'choice:side',
+      'separator:before-colors',
+      'color:front-color',
+      'color:back-color',
+      'color:line-color',
+      'separator:before-light',
+      'toggle:light',
+    ]);
+    const light = items.find(
+      (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'light'
+    );
+    expect(light).toMatchObject({ checked: true, disabled: false });
+    light?.toggle();
+    expect(deps.setAppearance).toHaveBeenCalledWith(figure, {
+      field: 'light',
+      value: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
+    });
+    expect(deps.updateModel).not.toHaveBeenCalled();
   });
 
   it('disables the whole group, and every row in it, until the figure is ready', () => {

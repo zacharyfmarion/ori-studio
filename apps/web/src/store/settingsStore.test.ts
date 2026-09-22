@@ -6,8 +6,11 @@ import {
   CP_MAX_SNAP_RADIUS,
   CP_MIN_SNAP_RADIUS,
 } from '../lib/cpSnapRadiusSetting';
+import { builtInPaperPreset } from '../lib/paper/paperPresets';
+import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
 import { STORAGE_KEYS, storageKey } from '../lib/storage';
 import { useSettingsStore } from './settingsStore';
+import type { WorkspaceState } from './workspaceStore/types';
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
@@ -227,5 +230,179 @@ describe('cpDetectSuggestions', () => {
     useSettingsStore.getState().setCpDetectSuggestions(false);
     expect(useSettingsStore.getState().cpDetectSuggestions).toBe(false);
     expect(localStorage.getItem('oristudio:cp-detect-suggestions')).toBe('false');
+  });
+});
+
+describe('paperStyle', () => {
+  const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
+  const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
+
+  it('starts from the default style with export following display and no presets', async () => {
+    const { paperStyle } = (await freshSettingsStore()).getState();
+    expect(paperStyle).toEqual({ display: DEFAULT_PAPER_STYLE, export: null, presets: [] });
+    // With nothing to migrate, nothing is persisted until the user edits.
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('seeds the display style from the simulator settings when there is no style yet', async () => {
+    localStorage.setItem(
+      SIMULATOR_SETTINGS_KEY,
+      JSON.stringify({ paperFront: '#ff8800', borderColor: '#112233', creaseStyle: 'mono', lighting: false })
+    );
+    const { display, export: exported } = (await freshSettingsStore()).getState().paperStyle;
+    expect(display.paper.front).toBe('#ff8800');
+    expect(display.mountainFolds.color).toBe('#112233');
+    expect(display.light.enabled).toBe(false);
+    expect(exported).toBeNull();
+  });
+
+  it('keeps a seeded style once the simulator settings are rewritten without it', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ paperFront: '#ff8800' }));
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.front).toBe('#ff8800');
+    // The simulator slice persists its normalised settings, which no longer
+    // carry the retired style keys, on any edit.
+    const { createSimulatorSlice } = await import('./workspaceStore/slices/simulatorSlice');
+    const state = {} as WorkspaceState;
+    Object.assign(
+      state,
+      createSimulatorSlice((partial) => Object.assign(state, partial), () => state, {} as never)
+    );
+    state.setSimulatorSetting('showViewCube', false);
+    expect(JSON.parse(localStorage.getItem(SIMULATOR_SETTINGS_KEY) ?? '{}')).not.toHaveProperty(
+      'paperFront'
+    );
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.front).toBe('#ff8800');
+  });
+
+  it('writes nothing for a seed that amounts to the defaults', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ showViewCube: false }));
+    await freshSettingsStore();
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('writes nothing for retired keys that only restate the defaults', async () => {
+    // What every old build's persist wrote for a user who never touched the
+    // look: all eight retired keys, at their defaults. Pinning that would stop
+    // them following a later change to the defaults for no gain.
+    localStorage.setItem(
+      SIMULATOR_SETTINGS_KEY,
+      JSON.stringify({
+        paperFront: null,
+        paperBack: null,
+        mountainColor: null,
+        valleyColor: null,
+        borderColor: null,
+        creaseWidth: 1.1,
+        creaseStyle: 'color',
+        lighting: true,
+      })
+    );
+    expect((await freshSettingsStore()).getState().paperStyle.display).toEqual(DEFAULT_PAPER_STYLE);
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('prefers a persisted style over the simulator settings beside it', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ paperFront: '#ff8800' }));
+    localStorage.setItem(
+      PAPER_STYLE_KEY,
+      JSON.stringify({ version: 1, display: { paper: { front: '#123456' } }, export: null, presets: [] })
+    );
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.front).toBe('#123456');
+  });
+
+  it('writes a field and reads it back on the next start', async () => {
+    useSettingsStore.getState().setPaperStyleField('display', 'paper.back', '#abcdef');
+    expect(useSettingsStore.getState().paperStyle.display.paper.back).toBe('#abcdef');
+    const stored = JSON.parse(localStorage.getItem(PAPER_STYLE_KEY) ?? 'null');
+    expect(stored.version).toBe(1);
+    expect(stored.export).toBeNull();
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.back).toBe('#abcdef');
+  });
+
+  it('writes several fields as one update, and persists once', () => {
+    const updates = vi.fn();
+    const unsubscribe = useSettingsStore.subscribe(updates);
+    useSettingsStore
+      .getState()
+      .setPaperStyleFields('display', { 'paper.front': '#101010', erode: 0.1 });
+    unsubscribe();
+    expect(updates).toHaveBeenCalledTimes(1);
+    const { display } = useSettingsStore.getState().paperStyle;
+    expect(display).toEqual({
+      ...DEFAULT_PAPER_STYLE,
+      paper: { ...DEFAULT_PAPER_STYLE.paper, front: '#101010' },
+      erode: 0.1,
+    });
+    const stored = JSON.parse(localStorage.getItem(PAPER_STYLE_KEY) ?? 'null');
+    expect(stored.display.paper.front).toBe('#101010');
+  });
+
+  it('detaches the export style from display the moment it is edited', () => {
+    useSettingsStore.getState().setPaperStyleField('display', 'paper.front', '#101010');
+    useSettingsStore.getState().setPaperStyleField('export', 'erode', 0.1);
+    const { display, export: exported } = useSettingsStore.getState().paperStyle;
+    // Starts as a copy of display, so the one edit is the only difference.
+    expect(exported).toEqual({ ...display, erode: 0.1 });
+    // And display is no longer what export reads from.
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.2);
+    expect(useSettingsStore.getState().paperStyle.export?.erode).toBe(0.1);
+  });
+
+  it('makes export follow display again, and pins it as a copy when told not to', () => {
+    const store = useSettingsStore.getState();
+    store.setExportPaperStyleFollowsDisplay(false);
+    expect(useSettingsStore.getState().paperStyle.export).toEqual(DEFAULT_PAPER_STYLE);
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(true);
+    expect(useSettingsStore.getState().paperStyle.export).toBeNull();
+    // Idempotent: asking for what is already the case writes nothing.
+    localStorage.removeItem(PAPER_STYLE_KEY);
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(true);
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('applies a preset to one slot only', () => {
+    useSettingsStore.getState().applyPaperPreset('export', builtInPaperPreset('oriedita'));
+    const { display, export: exported } = useSettingsStore.getState().paperStyle;
+    expect(exported).toEqual(builtInPaperPreset('oriedita').style);
+    expect(display).toEqual(DEFAULT_PAPER_STYLE);
+  });
+
+  it('saves, replaces, removes and imports presets by name', async () => {
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.05);
+    useSettingsStore.getState().savePaperPreset('  Mine ');
+    expect(useSettingsStore.getState().paperStyle.presets).toEqual([
+      { version: 1, name: 'Mine', style: { ...DEFAULT_PAPER_STYLE, erode: 0.05 } },
+    ]);
+    // A blank name is not a preset.
+    useSettingsStore.getState().savePaperPreset('   ');
+    expect(useSettingsStore.getState().paperStyle.presets).toHaveLength(1);
+
+    // Same name replaces in place rather than adding a twin.
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.1);
+    useSettingsStore.getState().savePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.presets).toHaveLength(1);
+    expect(useSettingsStore.getState().paperStyle.presets[0]?.style.erode).toBe(0.1);
+
+    const imported = useSettingsStore
+      .getState()
+      .importPaperPreset(JSON.stringify({ name: 'Theirs', style: { erode: 0.2 } }));
+    expect(imported.ok).toBe(true);
+    expect(useSettingsStore.getState().importPaperPreset('{')).toEqual({
+      ok: false,
+      reason: 'invalid-json',
+    });
+    expect(useSettingsStore.getState().paperStyle.presets.map((preset) => preset.name)).toEqual([
+      'Mine',
+      'Theirs',
+    ]);
+
+    useSettingsStore.getState().removePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.presets.map((preset) => preset.name)).toEqual([
+      'Theirs',
+    ]);
+    // Everything above survives a restart.
+    expect((await freshSettingsStore()).getState().paperStyle.presets).toEqual([
+      { version: 1, name: 'Theirs', style: { ...DEFAULT_PAPER_STYLE, erode: 0.2 } },
+    ]);
   });
 });

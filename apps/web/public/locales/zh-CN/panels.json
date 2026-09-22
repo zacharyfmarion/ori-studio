@@ -236,9 +236,15 @@
       "title": "图像"
     },
     "inlineSimulation": {
+      "followsNote": "除非被覆盖，否则跟随纸张样式",
+      "paper": "纸张",
       "settings": "模拟器设置",
       "sharedNote": "与模拟工作区和所有窗口共享",
       "title": "模拟窗口"
+    },
+    "paperStyle": {
+      "changeAction": "更改纸张样式",
+      "resetAction": "重置纸张样式"
     },
     "region": {
       "hidden": "隐藏",
@@ -523,7 +529,6 @@
     "sendTextToBack": "将文本置于底层",
     "setFoldedModelUpright": "设置折叠模型的向上方向",
     "shadow": "阴影",
-    "shadowUnsupported3d": "尚不支持为 3D 折叠模型绘制阴影",
     "stale": "已过期",
     "viewFoldedModelOtherSide": "从另一侧查看",
     "viewportControls": "折痕图视口控件",
@@ -1099,14 +1104,15 @@
     "creaseStiffness": "折痕",
     "creaseStyle": "样式",
     "creaseStyleColor": "山折 / 谷折",
+    "creaseStyleCustom": "自定义",
     "creaseStyleMono": "单色",
     "creaseStyleMonoDashed": "单色虚线",
-    "creaseWidth": "粗细",
     "damping": "阻尼",
     "export": "导出",
     "exportHint": "导出图像的页面背景。",
     "faces": "面",
     "faceStiffness": "面",
+    "foldLineWeight": "折线粗细 (pt)",
     "lighting": "光照",
     "material": "材质",
     "materialHint": "纸张抵抗拉伸和折叠的程度。",

@@ -9,7 +9,6 @@ import {
 } from '../../lib/creasePatternViewport';
 import type { WheelGesturePreference } from '../../lib/wheelGesture';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useThemeStore } from '../../store/themeStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { creaseFingerprint } from '../cpSegmentationArtifacts';
@@ -71,8 +70,6 @@ export interface ReferencesViewState {
   pointSize: number;
   wheelGesture: WheelGesturePreference;
   snapRadius: number;
-  /** Theme name; the view re-reads its CSS colours when it changes. */
-  themeKey: string;
 }
 
 /**
@@ -91,7 +88,6 @@ export function useReferencesView(): ReferencesViewState {
   const viewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const wheelGesture = useSettingsStore((state) => state.cpWheelGesture);
   const snapRadius = useSettingsStore((state) => state.cpSnapRadius);
-  const themeKey = useThemeStore((state) => state.currentTheme.name);
 
   const loadSerial = document?.loadSerial ?? -1;
   return {
@@ -107,7 +103,6 @@ export function useReferencesView(): ReferencesViewState {
     pointSize: viewport.pointSize ?? DEFAULT_ORISTUDIO_CP_POINT_SIZE,
     wheelGesture,
     snapRadius,
-    themeKey,
   };
 }
 

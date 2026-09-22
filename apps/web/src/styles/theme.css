@@ -2617,6 +2617,15 @@ a.context-menu__item {
   align-items: start;
 }
 
+/* A switch the user cannot set right now: the row stops offering the click. */
+.settings-toggle-row[data-disabled] {
+  cursor: default;
+}
+
+.settings-toggle-row[data-disabled] .settings-toggle-row__label {
+  color: var(--text-tertiary);
+}
+
 .settings-toggle-row__field {
   flex: 0 0 auto;
   width: 132px;
@@ -2731,6 +2740,64 @@ a.context-menu__item {
 
 .settings-full-width {
   width: 100%;
+}
+
+/*
+ * Settings ▸ Paper. The two paper swatches sit side by side; a pen is one
+ * line — name, swatch, width, dash, cap — under a header line that names the
+ * three typed columns once rather than per row.
+ */
+.settings-paper-swatches {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.settings-paper-pens {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.settings-paper-pen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px 64px minmax(72px, 96px) 84px;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-paper-pen--head {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* The swatch alone: its label is the row's own name, read by the input's aria-label. */
+.settings-paper-pen__color .control-row__label {
+  display: none;
+}
+
+.settings-paper-pen__dash {
+  min-width: 0;
+}
+
+/* A row of verbs — the preset's Apply / Export / Delete, or the list's Save / Import. */
+.settings-paper-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The in-place name field: label, input and the two buttons on one line. */
+.settings-paper-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-paper-name .control-row__input {
+  flex: 1 1 auto;
+  width: auto;
 }
 
 .settings-shortcuts {
@@ -3005,6 +3072,20 @@ a.context-menu__item {
   }
 
   .settings-shortcuts__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Narrow: the pen's name takes the line, its four controls the next. */
+  .settings-paper-pen {
+    grid-template-columns: 22px 64px minmax(72px, 1fr) 84px;
+  }
+
+  .settings-paper-pen > .settings-toggle-row__label,
+  .settings-paper-pen--head > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .settings-paper-swatches {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -11553,7 +11634,10 @@ button.bp-packing-alert:focus-visible {
  * style code the core emits (`RefDgmr::LineStyle` / `PointStyle`) is a class
  * here, and every colour is a token — the `--fold-*` inks the crease pattern
  * itself draws with, plus the two References highlight colours — so the
- * thumbnails follow the theme like the view they sit beside.
+ * thumbnails follow the view they sit beside. Inside `.references-workspace`
+ * the `--fold-*` names are re-set from the paper style
+ * (`cp-workspace/references/usePaperStyleTokens.ts`); elsewhere they are the
+ * theme's.
  */
 /* `visible` was safe while every diagram sat alone in a row. Side by side in
    the filmstrip, an arc or a label that leaves the sheet would paint over the
@@ -11594,24 +11678,22 @@ button.bp-packing-alert:focus-visible {
 */
 
 /*
-  The sheet is drawn on the *canvas's* ground, not on `--bg-paper`.
-
-  `--bg-paper` is one of two near-whites — `applyTheme` branches on theme type
-  and picks between #fffdf7 and #f2f0e7 — while `--fold-border` is the theme's
-  own `text.primary`. In a dark theme that pairing is light ink on a near-white
-  square: 1.07:1 in dracula and monokai, 1.87:1 in the default one-dark. The
-  filmstrip sits directly above the crease pattern, and a card that does not
-  look like the pattern below it reads as a different drawing rather than the
-  same one at another moment.
+  The sheet is the paper style's paper (D13), set on the workspace root by
+  `usePaperStyleTokens` with the inks it is drawn in — so a black edge pen has
+  a sheet to sit on whatever the theme's ground, and the card draws what the
+  simulator beside it draws. The big view fills the same colour under the
+  pattern, so a card still looks like the pattern below it. Outside the
+  workspace the tokens are unset and the card falls back to the theme's ground,
+  as it drew before the style reached it.
 */
 .step-diagram__sheet {
-  fill: var(--bg-primary);
+  fill: var(--references-paper-front, var(--bg-primary));
   stroke: var(--fold-border);
 }
 
-/* The paper seen from its other face — see `--paper-back`. */
+/* The paper seen from its other face. */
 .step-diagram__sheet--back {
-  fill: var(--paper-back);
+  fill: var(--references-paper-back, var(--paper-back));
 }
 
 /* The band a grid step works in: a wash of the highlight ink, so it reads as

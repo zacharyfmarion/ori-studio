@@ -24,7 +24,7 @@ const LIGHT = { mountain: '#d91f3a', valley: '#2563eb' };
 describe('the References workspace’s context inks', () => {
   it('reproduce the tuning on the white ground it was made on', () => {
     expect(referencesCreaseAlpha('#ffffff')).toBeCloseTo(0.75, 2);
-    expect(referencesDimAlpha('#ffffff', LIGHT.mountain, LIGHT.valley, 'light')).toBeCloseTo(0.26, 2);
+    expect(referencesDimAlpha('#ffffff', LIGHT.mountain, LIGHT.valley)).toBeCloseTo(0.26, 2);
   });
 
   it('bring the grey down to about half on a dark ground, and lift the dimmed creases', () => {
@@ -32,7 +32,7 @@ describe('the References workspace’s context inks', () => {
     const crease = referencesCreaseAlpha('#0d1117');
     expect(crease).toBeGreaterThan(0.3);
     expect(crease).toBeLessThan(0.45);
-    const dim = referencesDimAlpha('#0d1117', DARK.mountain, DARK.valley, 'dark');
+    const dim = referencesDimAlpha('#0d1117', DARK.mountain, DARK.valley);
     expect(dim).toBeGreaterThan(0.26);
     expect(dim).toBeLessThan(0.4);
   });
@@ -41,7 +41,7 @@ describe('the References workspace’s context inks', () => {
     for (const theme of presets()) {
       const crease = referencesCreaseAlpha(theme.ground);
       const inks = theme.type === 'dark' ? DARK : LIGHT;
-      const dim = referencesDimAlpha(theme.ground, inks.mountain, inks.valley, theme.type);
+      const dim = referencesDimAlpha(theme.ground, inks.mountain, inks.valley);
       for (const alpha of [crease, dim]) {
         expect(alpha, theme.name).toBeGreaterThanOrEqual(0.1);
         expect(alpha, theme.name).toBeLessThanOrEqual(1);
@@ -50,5 +50,22 @@ describe('the References workspace’s context inks', () => {
       // theme it sits within the band the light reference sets.
       if (theme.type === 'dark') expect(crease, theme.name).toBeLessThan(0.6);
     }
+  });
+
+  // D13: inside References the surface is the style's paper, not the theme's
+  // ground, and the lift follows the paper's own lightness.
+  it('derive against the paper they are handed, in the ink they are handed', () => {
+    // A light paper on a dark theme reads as the light tuning, lift and all.
+    expect(referencesDimAlpha('#ffff32', LIGHT.mountain, LIGHT.valley)).toBeCloseTo(
+      referencesDimAlpha('#ffffff', LIGHT.mountain, LIGHT.valley),
+      1
+    );
+    expect(referencesDimAlpha('#ffff32', LIGHT.mountain, LIGHT.valley)).toBeLessThan(
+      referencesDimAlpha('#0d1117', DARK.mountain, DARK.valley)
+    );
+    // The aux pen's own colour sets the grey's alpha: a near-black pen on
+    // white paper needs less of itself than the theme's mid grey does.
+    expect(referencesCreaseAlpha('#ffffff', '#111111')).toBeLessThan(referencesCreaseAlpha('#ffffff'));
+    expect(referencesCreaseAlpha('#ffffff', '#111111')).toBeGreaterThanOrEqual(0.1);
   });
 });

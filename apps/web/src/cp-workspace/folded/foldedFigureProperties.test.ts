@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import type { PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
 import { FIGURE } from '../canvasObjects/canvasObjectKinds.fixtures';
 import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
@@ -61,8 +62,11 @@ function deps(
     held: false,
     begin: vi.fn(() => true),
     end: vi.fn(),
-    writeModel: vi.fn(),
     commitModel: vi.fn(),
+    style: DEFAULT_PAPER_STYLE,
+    overrides: undefined,
+    writeOverride: vi.fn(),
+    commitOverrides: vi.fn(),
     setDisplayStyle: vi.fn(),
     setCamera: vi.fn(),
     liveCamera: { read: () => camera, subscribe: () => () => {} },
@@ -114,7 +118,7 @@ describe('buildFoldedFigureProperties', () => {
     }
   });
 
-  it('disables side and shadows with their reasons on a 3D figure, and adds the camera', () => {
+  it('disables side with its reason on a 3D figure, offers its light, and adds the camera', () => {
     const sheet = sheetFor(SPATIAL);
     expect(sheet.sections.map((s) => s.id)).toEqual(['appearance', 'camera', 'placement']);
     // Shown disabled, with the Style menu's own hint: a control that vanished
@@ -124,11 +128,14 @@ describe('buildFoldedFigureProperties', () => {
       reason: 'Turn a 3D model with Other side',
     });
     expect(visibleIds(sheet)).toContain('side');
-    expect(field(sheet, 'shadows')).toMatchObject({
-      support: 'unsupported',
-      reason: 'Shadows are not drawn for a 3D folded model yet',
-    });
+    // Re-pinned for D7: the shadow is the flat figure's own option and is not
+    // offered on a 3D figure at all (it used to be offered disabled); the 3D
+    // figure has the paper style's light instead, as its policy applies it.
+    expect(visibleIds(sheet)).not.toContain('shadows');
+    expect(visibleIds(sheet)).toContain('lighting');
+    expect(field(sheet, 'lighting')).toMatchObject({ support: 'supported', value: true });
     expect(field(sheet, 'frontColor').support).toBe('supported');
+    expect(visibleIds(sheetFor(FLAT))).not.toContain('lighting');
   });
 
   it('disables every appearance field with the Refold reason on a figure that is not ready', () => {
@@ -177,7 +184,10 @@ describe('buildFoldedFigureProperties', () => {
     expect(side.kind === 'segmented' && side.value).toBeNull();
   });
 
-  it('runs a colour pick as begin once, queued writes, end once', () => {
+  it('runs a colour pick as begin once, pins per move, end once', () => {
+    // Re-pinned for the paper style (Phase 1): a colour row edits the figure's
+    // own pin on that style field, not the kernel model; the model follows
+    // through the mirror.
     const d = deps();
     const front = field(sheetFor(FLAT, d), 'frontColor');
     if (front.kind !== 'color') throw new Error('color');
@@ -186,10 +196,58 @@ describe('buildFoldedFigureProperties', () => {
     expect(front.begin()).toBe(true);
     expect(d.begin).toHaveBeenCalledWith('frontColor');
     front.update('#ff0000');
-    expect(d.writeModel).toHaveBeenCalledWith({ front_color: { red: 255, green: 0, blue: 0 } });
+    expect(d.writeOverride).toHaveBeenCalledWith('paper.front', '#ff0000');
     front.end();
-    expect(d.end).toHaveBeenCalledWith('Change folded model color');
+    expect(d.end).toHaveBeenCalledWith('Change paper style');
     expect(d.commitModel).not.toHaveBeenCalled();
+  });
+
+  it('shows the effective style, and pins the edge pen whole for the line colour', () => {
+    const d = deps({
+      style: {
+        ...DEFAULT_PAPER_STYLE,
+        paper: { front: '#112233', back: '#445566' },
+        edges: { ...DEFAULT_PAPER_STYLE.edges, width: 2, color: '#778899' },
+      },
+    });
+    const sheet = sheetFor(FLAT, d);
+    expect(['frontColor', 'backColor', 'lineColor'].map((id) => field(sheet, id).value)).toEqual([
+      '#112233',
+      '#445566',
+      '#778899',
+    ]);
+    const line = field(sheet, 'lineColor');
+    if (line.kind !== 'color') throw new Error('color');
+    line.update('#000000');
+    expect(d.writeOverride).toHaveBeenCalledWith('edges', {
+      ...DEFAULT_PAPER_STYLE.edges,
+      width: 2,
+      color: '#000000',
+    });
+  });
+
+  it('offers reset only while the row is pinned, and a reset clears the pin as one entry', () => {
+    const d = deps({
+      overrides: { 'paper.front': '#ff0000', light: { ...DEFAULT_PAPER_STYLE.light, enabled: false } },
+    });
+    const sheet = sheetFor(SPATIAL, d);
+    expect(field(sheet, 'frontColor').reset).toBeDefined();
+    expect(field(sheet, 'backColor').reset).toBeUndefined();
+    expect(field(sheet, 'lineColor').reset).toBeUndefined();
+    field(sheet, 'frontColor').reset?.();
+    expect(d.commitOverrides).toHaveBeenCalledWith([{ field: 'paper.front', value: undefined }]);
+    field(sheet, 'lighting').reset?.();
+    expect(d.commitOverrides).toHaveBeenLastCalledWith([{ field: 'light', value: undefined }]);
+  });
+
+  it('toggles the 3D figure’s light as a pin', () => {
+    const d = deps();
+    const light = field(sheetFor(SPATIAL, d), 'lighting');
+    if (light.kind !== 'toggle') throw new Error('toggle');
+    light.commit(false);
+    expect(d.commitOverrides).toHaveBeenCalledWith([
+      { field: 'light', value: { ...DEFAULT_PAPER_STYLE.light, enabled: false } },
+    ]);
   });
 
   it('reports the layer as held on every colour row', () => {

@@ -246,9 +246,15 @@
       "title": "Imagem"
     },
     "inlineSimulation": {
+      "followsNote": "Segue o estilo de papel, a menos que seja substituído",
+      "paper": "Papel",
       "settings": "Configurações do simulador",
       "sharedNote": "Compartilhadas com o espaço de trabalho Simular e todas as janelas",
       "title": "Janela de simulação"
+    },
+    "paperStyle": {
+      "changeAction": "Alterar estilo de papel",
+      "resetAction": "Redefinir estilo de papel"
     },
     "region": {
       "hidden": "Oculta",
@@ -577,7 +583,6 @@
     "sendTextToBack": "Enviar texto para trás",
     "setFoldedModelUpright": "Definir a vertical do modelo dobrado",
     "shadow": "Sombra",
-    "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
     "stale": "Desatualizado",
     "viewFoldedModelOtherSide": "Ver pelo outro lado",
     "viewportControls": "Controles da viewport do padrão de vincos",
@@ -1175,14 +1180,15 @@
     "creaseStiffness": "Dobra",
     "creaseStyle": "Estilo",
     "creaseStyleColor": "Monte / vale",
+    "creaseStyleCustom": "Personalizado",
     "creaseStyleMono": "Uma tinta",
     "creaseStyleMonoDashed": "Uma tinta, tracejada",
-    "creaseWidth": "Espessura",
     "damping": "Amortecimento",
     "export": "Exportar",
     "exportHint": "Fundo da página da imagem exportada.",
     "faces": "Faces",
     "faceStiffness": "Face",
+    "foldLineWeight": "Espessura das linhas de dobra (pt)",
     "lighting": "Iluminação",
     "material": "Material",
     "materialHint": "Quanto o papel resiste a esticar e dobrar.",

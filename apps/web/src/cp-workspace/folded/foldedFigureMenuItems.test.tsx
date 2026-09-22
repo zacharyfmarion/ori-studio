@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureStatus,
@@ -45,6 +46,8 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     setDisplayStyle: vi.fn(),
     updateModel: vi.fn(),
     endModelGesture: vi.fn(),
+    paperStyle: () => DEFAULT_PAPER_STYLE,
+    setAppearance: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
@@ -121,7 +124,9 @@ describe('foldedFigureMenuItems', () => {
     }
   });
 
-  it('routes a colour row and the shadow row to the model bindings', () => {
+  it('routes a colour row to the paper-style pin and the shadow row to the model', () => {
+    // Re-pinned for the paper style (Phase 1): a colour row pins the figure's
+    // own style field under its gesture; the shadow stays a model field.
     const deps = makeDeps();
     const figure = makeFigure({
       snapshot: {
@@ -138,14 +143,13 @@ describe('foldedFigureMenuItems', () => {
     front.onCommit();
     shadow.onToggle();
 
-    expect(deps.updateModel).toHaveBeenNthCalledWith(
-      1,
+    expect(deps.setAppearance).toHaveBeenCalledWith(
       figure,
-      { front_color: { red: 1, green: 2, blue: 3 } },
+      { field: 'paper.front', value: '#010203' },
       { scope: 'folded-color:folded-1:front_color', label: 'Change folded model color' }
     );
     expect(deps.endModelGesture).toHaveBeenCalledWith('folded-color:folded-1:front_color');
-    expect(deps.updateModel).toHaveBeenNthCalledWith(2, figure, { display_shadows: true });
+    expect(deps.updateModel).toHaveBeenCalledWith(figure, { display_shadows: true });
   });
 
   it('invokes the bound verb when an item is selected', () => {

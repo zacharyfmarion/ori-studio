@@ -236,9 +236,15 @@
       "title": "画像"
     },
     "inlineSimulation": {
+      "followsNote": "上書きしない限り用紙スタイルに従います",
+      "paper": "用紙",
       "settings": "シミュレーター設定",
       "sharedNote": "シミュレートワークスペースとすべてのウィンドウで共有",
       "title": "シミュレーションウィンドウ"
+    },
+    "paperStyle": {
+      "changeAction": "用紙スタイルを変更",
+      "resetAction": "用紙スタイルをリセット"
     },
     "region": {
       "hidden": "非表示",
@@ -523,7 +529,6 @@
     "sendTextToBack": "テキストを最背面へ",
     "setFoldedModelUpright": "折り上がりモデルの上方向を設定",
     "shadow": "影",
-    "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
     "stale": "要再折り",
     "viewFoldedModelOtherSide": "反対側から見る",
     "viewportControls": "展開図のビューポート操作",
@@ -1099,14 +1104,15 @@
     "creaseStiffness": "折り目",
     "creaseStyle": "スタイル",
     "creaseStyleColor": "山 / 谷",
+    "creaseStyleCustom": "カスタム",
     "creaseStyleMono": "単色",
     "creaseStyleMonoDashed": "単色・破線",
-    "creaseWidth": "太さ",
     "damping": "減衰",
     "export": "書き出し",
     "exportHint": "書き出す画像の背景です。",
     "faces": "面",
     "faceStiffness": "面",
+    "foldLineWeight": "折り線の太さ (pt)",
     "lighting": "照明",
     "material": "材質",
     "materialHint": "紙が伸びや折れにどれだけ抵抗するか。",

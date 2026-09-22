@@ -39,6 +39,17 @@ export {
   type SvgRenderResult,
 } from './svgRenderer.js';
 export {
+  SHADE_AMBIENT,
+  SHADE_DIFFUSE,
+  SHADE_FACING,
+  SHADE_GLSL,
+  SHADE_MAX,
+  SHADE_MIN,
+  shadeColor,
+  shadeFor,
+  type Vec3Like,
+} from './shading.js';
+export {
   findVisiblePieces,
   type DrawnPiece,
   type VisibilityOptions,

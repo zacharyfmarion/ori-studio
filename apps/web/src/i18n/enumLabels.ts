@@ -7,7 +7,9 @@ import type {
   OristudioCpDivideMode,
   OristudioCpLengthenColorMode,
 } from '../lib/oristudioCpToolSettings';
-import type { SimulatorColorMode, SimulatorCreaseStyle } from '../lib/simulatorSettings';
+import type { BuiltInPaperPresetId } from '../lib/paper/paperPresets';
+import type { PaperCreaseStyle, PaperStyleField, PenCap } from '../lib/paper/paperStyle';
+import type { SimulatorColorMode } from '../lib/simulatorSettings';
 import type { TextAlign, TextBlockType, TextColor } from '../cp-workspace/annotations/textFormatting';
 
 /**
@@ -85,7 +87,11 @@ export function simulatorColorModeLabel(t: TFunction, mode: SimulatorColorMode):
     : t('panels:simulatorViewControls.colorPaper', 'Paper');
 }
 
-export function simulatorCreaseStyleLabel(t: TFunction, style: SimulatorCreaseStyle): string {
+/** The paper style's crease-style switch — the Simulate pane and the inline window's sheet share it. */
+export function simulatorCreaseStyleLabel(
+  t: TFunction,
+  style: Exclude<PaperCreaseStyle, 'custom'>
+): string {
   switch (style) {
     case 'color':
       return t('panels:simulatorViewControls.creaseStyleColor', 'Mountain / valley');
@@ -94,6 +100,46 @@ export function simulatorCreaseStyleLabel(t: TFunction, style: SimulatorCreaseSt
     case 'mono-dashed':
       return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
   }
+}
+
+/** A built-in paper preset by its id; a user's preset shows its own name instead. */
+export function paperPresetLabel(t: TFunction, id: BuiltInPaperPresetId): string {
+  switch (id) {
+    case 'ori-default':
+      return t('dialogs:settings.paper.preset.oriDefault', 'Ori default');
+    case 'oriedita':
+      return t('dialogs:settings.paper.preset.oriedita', 'Oriedita');
+    case 'black-and-white':
+      return t('dialogs:settings.paper.preset.blackAndWhite', 'Black & white');
+    case 'origami-house':
+      return t('dialogs:settings.paper.preset.origamiHouse', 'Origami House');
+  }
+}
+
+/** The pen a paper-style field holds, as Settings ▸ Paper names its row. */
+export function paperPenLabel(
+  t: TFunction,
+  field: Extract<PaperStyleField, 'edges' | 'mountainFolds' | 'valleyFolds' | 'auxCreases.pen' | 'arrows'>
+): string {
+  switch (field) {
+    case 'edges':
+      return t('dialogs:settings.paper.pen.edges', 'Edges');
+    case 'mountainFolds':
+      return t('dialogs:settings.paper.pen.mountainFolds', 'Mountain folds');
+    case 'valleyFolds':
+      return t('dialogs:settings.paper.pen.valleyFolds', 'Valley folds');
+    case 'auxCreases.pen':
+      return t('dialogs:settings.paper.pen.auxCreases', 'Existing creases');
+    case 'arrows':
+      return t('dialogs:settings.paper.pen.arrows', 'Arrows');
+  }
+}
+
+/** A pen's line cap, in the words a drawing program uses. */
+export function penCapLabel(t: TFunction, cap: PenCap): string {
+  return cap === 'round'
+    ? t('dialogs:settings.paper.cap.round', 'Round')
+    : t('dialogs:settings.paper.cap.butt', 'Flat');
 }
 
 /** A text box's block preset — the editing toolbar's select and the Properties pane share it. */

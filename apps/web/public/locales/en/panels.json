@@ -241,9 +241,15 @@
       "title": "Image"
     },
     "inlineSimulation": {
+      "followsNote": "Follows the paper style unless overridden",
+      "paper": "Paper",
       "settings": "Simulator settings",
       "sharedNote": "Shared with the Simulate workspace and every window",
       "title": "Simulation window"
+    },
+    "paperStyle": {
+      "changeAction": "Change paper style",
+      "resetAction": "Reset paper style"
     },
     "region": {
       "hidden": "Hidden",
@@ -550,7 +556,6 @@
     "sendTextToBack": "Send text to back",
     "setFoldedModelUpright": "Set folded model upright",
     "shadow": "Shadow",
-    "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
     "stale": "Stale",
     "viewFoldedModelOtherSide": "View from the other side",
     "viewportControls": "Crease pattern viewport controls",
@@ -1141,14 +1146,15 @@
     "creaseStiffness": "Crease",
     "creaseStyle": "Style",
     "creaseStyleColor": "Mountain / valley",
+    "creaseStyleCustom": "Custom",
     "creaseStyleMono": "One ink",
     "creaseStyleMonoDashed": "One ink, dashed",
-    "creaseWidth": "Weight",
     "damping": "Damping",
     "export": "Export",
     "exportHint": "Page background of an exported image.",
     "faces": "Faces",
     "faceStiffness": "Face",
+    "foldLineWeight": "Fold line weight (pt)",
     "lighting": "Lighting",
     "material": "Material",
     "materialHint": "How the paper resists stretching and folding.",

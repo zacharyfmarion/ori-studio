@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldDocument } from '../../engine/types';
 import { createSampleProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorPanel } from './SimulatorPanel';
 import { createSimulatorSession } from '../../simulator/simulatorSession';
@@ -83,6 +84,7 @@ afterEach(() => {
   container = null;
   vi.restoreAllMocks();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  useSettingsStore.setState(useSettingsStore.getInitialState(), true);
 });
 
 describe('SimulatorPanel', () => {
@@ -95,12 +97,16 @@ describe('SimulatorPanel', () => {
       'true'
     );
     expect(putImageDataMock).toHaveBeenCalled();
-    expect(fillMock).toHaveBeenCalledTimes(putImageDataMock.mock.calls.length);
+    // Re-pinned: one `fill` per frame was the lit frame's drop shadow, which
+    // neither the GPU renderer nor the export drew. The paper itself goes
+    // through the depth rasterizer, so a lit frame fills no path at all now.
+    expect(fillMock).not.toHaveBeenCalled();
 
     // The render toggles now live in the options pane (a sibling panel), so the
     // canvas follows the shared store setting rather than a local button.
     act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('lighting', false);
+      const { paperStyle, setPaperStyleField } = useSettingsStore.getState();
+      setPaperStyleField('display', 'light', { ...paperStyle.display.light, enabled: false });
     });
 
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBeNull();

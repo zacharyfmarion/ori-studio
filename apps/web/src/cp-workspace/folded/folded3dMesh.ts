@@ -172,11 +172,12 @@ export interface Folded3dMeshSlots {
  * model rather than about the camera: built once, selected at draw time by a
  * single bit, `up · eye`.
  *
- * That selection is *exact* rather than approximate because a folded figure is
- * drawn orthographically (`withoutPerspective`, `foldedMeshSource.ts`). Every
- * ray shares one direction, so `up · eye` has one sign across the whole plane;
- * under perspective a near eye could see both sides of one sheet and the bit
- * would have to be per pixel.
+ * That selection is exact under an orthographic projection, where every ray
+ * shares one direction and `up · eye` has one sign across the whole plane. The
+ * window draws with the mesh renderer's perspective since D7 (eye at
+ * `3.2 · radius`, `foldedMeshSource.ts`), under which a plane seen nearly
+ * edge-on can show both sides at once; the bit is then the side the plane's
+ * centre shows, the same approximation as the planes' far-to-near draw order.
  *
  * Within a skin there is one face per cell and cells are area-disjoint, so
  * **nothing here is coplanar with anything else here**. That is the property the

@@ -19,6 +19,7 @@ import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { createSimulatorSlice } from './slices/simulatorSlice';
 import { createReferencesSlice } from './slices/referencesSlice';
 import { resolveEditingContext } from '../../workspaces/editingContext';
+import { installFoldedFigurePaperMirror } from './foldedFigurePaperMirror';
 import type { WorkspaceState } from './types';
 
 export const useWorkspaceStore = create<WorkspaceState>()(
@@ -98,6 +99,12 @@ useWorkspaceStore.subscribe((state) => {
     selectProject(state).edges.length > 0;
   if (hasDocument) useWorkspaceStore.setState({ projectEstablished: true });
 });
+
+// Every folded figure's kernel model colours follow its effective paper style
+// — the settings store's display style with the figure's own pins on top.
+// Subscribed here, where the other cross-store reactions live, rather than in
+// the slice: the slice owns the write, this owns *when*.
+installFoldedFigurePaperMirror(useWorkspaceStore);
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const debugWindow = window as Window & {

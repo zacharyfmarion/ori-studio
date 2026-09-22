@@ -7,12 +7,19 @@ import {
   type NativeDesignDocumentV8,
 } from './nativeProjectDesigns';
 import { IDENTITY_FOLDED_PLACEMENT } from '../engine/oristudioCpTypes';
+import {
+  hasPaperStyleOverrides,
+  normalizePaperStyleOverrides,
+  type PaperStyleOverrides,
+} from './paper/paperStyle';
+import { legacyPaperStyleOverrides } from './paper/paperStyleMigration';
 import type {
   FoldedFigurePlacement,
   FoldedSourceBounds,
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureEntry,
+  OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureStatus,
 } from '../engine/oristudioCpTypes';
 import type { ImportedCreasePatternSource } from './creasePatternImport';
@@ -683,6 +690,10 @@ function nativeFoldedFigures(entries: OristudioCpFoldedFigureEntry[]): Oristudio
     ...entry,
     handle: null,
     status: entry.status === 'loading' ? 'stale' : entry.status,
+    // Written even when empty: the key's presence is what tells the reader a
+    // style-aware build wrote this figure, so it follows the app style rather
+    // than having its (mirrored, effective) model colours read back as pins.
+    appearance: entry.appearance ?? {},
   }));
 }
 
@@ -766,7 +777,30 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     contradiction: isRecord(entry.contradiction)
       ? (entry.contradiction as unknown as OristudioCpFoldedFigureEntry['contradiction'])
       : null,
+    appearance: foldedFigureAppearance(entry, folded3d?.model ?? snapshot?.model),
   };
+}
+
+/**
+ * The style fields pinned on a figure.
+ *
+ * A file that carries the key was written by a build that knows the style, and
+ * the record is read field by field (unknown keys and malformed values
+ * dropped) — empty means "follows the app style", which is why the writer
+ * always emits it. A file without the key predates the style: its figure's
+ * model colours were the only appearance it had, so each one that differs from
+ * Oriedita's default becomes a pin (D1 in the plan), and a figure with the
+ * default colours follows. A 3D figure keeps its model under `folded3d`.
+ */
+function foldedFigureAppearance(
+  entry: Record<string, unknown>,
+  model: OristudioCpFoldedFigureModel | undefined
+): PaperStyleOverrides | undefined {
+  if ('appearance' in entry) {
+    const overrides = normalizePaperStyleOverrides(entry.appearance);
+    return hasPaperStyleOverrides(overrides) ? overrides : undefined;
+  }
+  return legacyPaperStyleOverrides(model);
 }
 
 /** The stored viewpoint of a 3D figure. Absent on every flat one. */
