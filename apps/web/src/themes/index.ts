@@ -57,5 +57,5 @@ export const DEFAULT_DARK_THEME = oneDarkTheme;
 export const DEFAULT_LIGHT_THEME = atomOneLightTheme;
 export const DEFAULT_THEME = DEFAULT_DARK_THEME;
 
-export { applyTheme } from './applyTheme';
+export { applyTheme, themeCssVariables } from './applyTheme';
 export type { SyntaxColors, ThemeTokens, TreeMakerTheme } from './types';

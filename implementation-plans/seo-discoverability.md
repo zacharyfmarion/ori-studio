@@ -274,6 +274,11 @@ Console under the new property and run the Change of Address tool.
 
 ### Phase 4 — Make the landing fast
 
+> **Superseded by `landing-page-performance.md` (2026-09-23)**, which re-measured
+> the landing (1,116 KB brotli by then). It found three more causes as large as
+> the bundle: the crawler copy is removed before first paint, the landing boots
+> both editor engines, and the screenshots ship at 3456 px.
+
 988 KB brotli of JS before first paint, on a page whose whole job is text and
 screenshots. Core Web Vitals are a real ranking input and this is the render
 Google scores.

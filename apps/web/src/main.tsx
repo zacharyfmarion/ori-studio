@@ -4,7 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import posthog from 'posthog-js';
-import * as Sentry from '@sentry/react';
+import { captureException, getCurrentScope, init as initSentry, setUser } from '@sentry/react';
 import {
   AnalyticsRuntimeProvider,
   consumeInternalUserFlag,
@@ -50,12 +50,21 @@ const analyticsEnabled = readBoolean(storageKey(STORAGE_KEYS.analyticsEnabled), 
 // while the rest of the app is still starting is still captured. Same shape of
 // firewall as PostHog below: no build-time DSN means `init` never runs, so local
 // and preview builds report nothing.
+//
+// Named imports, not `import * as Sentry`: passing the namespace object makes every
+// export reachable, which kept Replay and Feedback (≈200 KB, never enabled) in the bundle.
+const sentryClient: SentryClientLike = {
+  init: initSentry,
+  captureException,
+  setUser,
+  getCurrentScope,
+};
 const monitoringReady = initializeSentry(
-  Sentry as unknown as SentryClientLike,
+  sentryClient,
   { monitoringEnabled: analyticsEnabled },
   import.meta.env
 );
-const monitoringClient = monitoringReady ? (Sentry as unknown as SentryClientLike) : null;
+const monitoringClient = monitoringReady ? sentryClient : null;
 
 // Initialize PostHog before the first render so autocapture/pageview see the
 // full session. This is a no-op (returns false) unless both build-time keys are
