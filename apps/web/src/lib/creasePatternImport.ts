@@ -3,7 +3,9 @@ import type { FoldAssignment, FoldArtifacts, FoldDocument } from '../engine/type
 import { remapEdgeExtensionArrays } from './foldEdgeArrays';
 import type { CreaseLine, FacetShape, TreeProject } from './sampleProject';
 
-export type ImportedCreasePatternFormat = 'fold' | 'cp' | 'ori' | 'orh';
+import type { ImportedCreasePatternFormat } from './fileFormats';
+
+export { importedCreasePatternFormat, type ImportedCreasePatternFormat } from './fileFormats';
 
 export interface ImportedCreasePatternSource {
   format: ImportedCreasePatternFormat;
@@ -96,13 +98,6 @@ const VERTEX_BUCKET = EPSILON * 4;
 
 export function isCreasePatternFilename(filename: string): boolean {
   return /\.(fold|cp|ori|orh)$/i.test(filename);
-}
-
-export function importedCreasePatternFormat(filename: string): ImportedCreasePatternFormat {
-  if (/\.cp$/i.test(filename)) return 'cp';
-  if (/\.ori$/i.test(filename)) return 'ori';
-  if (/\.orh$/i.test(filename)) return 'orh';
-  return 'fold';
 }
 
 export function parseImportedCreasePattern(

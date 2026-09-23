@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
-import { handleFileDrop } from '../commands/fileDropController';
 import {
   describeDragPayload,
   dragCarriesFiles,
@@ -9,6 +8,11 @@ import {
 
 export interface UseFileDropTargetOptions {
   policy: DropTargetPolicy;
+  /**
+   * What happens to the files once dropped. Passed in rather than imported, so a page can
+   * accept drops without loading the controller (and the workspace behind it) up front.
+   */
+  onDropFiles: (files: File[]) => void;
 }
 
 export interface FileDropTargetProps {
@@ -42,7 +46,7 @@ export interface FileDropTarget {
  *   handles those) and stays generic for documents; the file is not named until
  *   it is actually dropped.
  */
-export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDropTarget {
+export function useFileDropTarget({ policy, onDropFiles }: UseFileDropTargetOptions): FileDropTarget {
   const [isDragActive, setDragActive] = useState(false);
   /**
    * Depth of nested dragenter/dragleave pairs. Moving the cursor onto a child
@@ -115,9 +119,9 @@ export function useFileDropTarget({ policy }: UseFileDropTargetOptions): FileDro
       });
       if (files.length === 0) return;
       event.preventDefault();
-      void handleFileDrop({ files, policy });
+      onDropFiles(files);
     },
-    [policy]
+    [onDropFiles, policy]
   );
 
   return {

@@ -193,6 +193,18 @@ load window. Before any other step, total bytes on desktop fall from 4.3 MB to
 about 2.6 MB. The main-thread effect is small, since wasm compiles in the
 workers. The bandwidth effect on mobile is large.
 
+**As built (2026-09-23), together with Step 4.** Two changes from the text above:
+
+- **Intent only, no idle start.** Once the split landed, "boot the engine" meant
+  "load and evaluate the workspace chunk" (2.5 MB), and evaluating it at idle lands
+  inside Lighthouse's trace and puts the long task back into TBT. The service
+  worker's idle warm (invariant 7) already downloads the chunk and the kernels for a
+  second visit. So a first-visit click that arrives before hover or focus has warmed
+  anything waits on the network.
+- **The pending state is the page's, not the card's.** A running action holds all
+  three actions, and the existing "Preparing the editor..." status line says so.
+  That means no new strings to translate, and no second action racing the first.
+
 ### Step 3 — Paint the prerendered page
 
 **The gate: the static paint must be pixel-identical to the rendered page, or
@@ -337,6 +349,47 @@ Expected: the landing entry falls from 1,116 KB to roughly 150–200 KB brotli.
 TBT then comes from React rendering the landing, not from evaluating 3.7 MB of
 modules. Record the before and after numbers from the attribution script.
 
+**As built (2026-09-23).** The shape, in code:
+
+- `routing/RootLayout.tsx` is the light root.
+- `routing/workspaceGateway.ts` is the single `import()`. It is loaded by the
+  workspace and share routes' `lazy`, by start-screen intent, and at startup on
+  desktop.
+- `routing/workspaceEntry.tsx` is what it loads: `App` (now the runtime, mounted
+  beside the route), the shell route, and the start actions.
+- `store/workspaceStore/engineBoot.ts` boots the engine exactly once.
+
+Things that had to move so the landing stops importing the store:
+
+- `lib/fileFormats.ts`: the landing's format list lived with the parsers.
+- `errorContext.ts` inverts into `workspaceErrorFacts.ts`: every error boundary
+  imported the whole store.
+- `useFileDropTarget` takes its handler.
+- `useSitePageTitle` splits site-page titling out of `useWindowTitle`.
+
+**The CSS was kept exactly as it was.** The workspace components' stylesheets
+(CpDetect, Sonner, Dockview, MenuBar) are imported first in `main.tsx`, so the
+eager stylesheet is byte-identical to before apart from the Step 1 contrast line
+(same hash as the Step 1 build) and no lazy CSS is emitted. The CSS PR can move
+them.
+
+Measured (`PROFILE=1` build, brotli q11). The landing entry went from 890 KB to
+286 KB, i.e. 1,006 KB → 286 KB since baseline; the workspace chunk is 606 KB.
+What remains in the entry:
+
+| Part | Size |
+| --- | --- |
+| posthog-js | 238 KB |
+| react-dom | 193 KB |
+| react-router | 98 KB |
+| Sentry | 96 KB |
+| The download button's Radix dropdown | ≈90 KB |
+
+The locale split is deferred. About 35 English plural forms live only in the
+catalogs, so doing it safely means the workspace routes must await their
+namespaces and the offline warm must cover them. That is a lot of care for about
+30 KB that is off the paint path once Step 3 lands.
+
 ### Step 5 — Keep it from regressing
 
 - **A CI budget.** Enforce a limit on the landing's initial JS + CSS in brotli
@@ -415,11 +468,12 @@ modules. Record the before and after numbers from the attribution script.
 
 ### Step 2 — Engine boot on intent
 
-- [ ] Boot on intent or idle on welcome and site routes; boot on mount on
-      workspace and share routes; boot at startup on desktop
-- [ ] Start actions enabled at once, with a per-card pending state; drop waits
-      for the boot
-- [ ] Update the `sw.ts` invariant 6 comment
+- [x] Boot on intent on welcome and site routes (idle dropped, see "As built");
+      boot on mount on workspace and share routes; boot at startup on desktop
+- [x] Start actions enabled at once; a running action holds the rest; a drop
+      waits for the boot. The file dialog opens inside the click, before anything
+      is awaited (`WelcomeRoute.test.tsx`)
+- [x] Update the `sw.ts` invariant 6 comment
 
 ### Step 3 — Static first paint
 
@@ -440,14 +494,18 @@ modules. Record the before and after numbers from the attribution script.
 
 ### Step 4 — Split
 
-- [ ] Thin root layout; lazy `App` shell; each `App` concern assigned to root or
+- [x] Thin root layout; lazy `App` shell; each `App` concern assigned to root or
       workspace
-- [ ] `WelcomeRoute` free of the workspace store; prefetch on intent
-- [ ] One guarded `import()` helper with reload-once
-- [ ] Workspace chunks in the SW warm set; `webkit-pwa-check` passes
-- [ ] Workspace CSS lazy (tokens, start screen, landing and site eager); check
-      that no selector is split across the cut; visual check of every workspace
-- [ ] English without catalog fetches; namespace split for other locales
+- [x] `WelcomeRoute` free of the workspace store; prefetch on intent
+- [x] One guarded `import()` helper with reload-once (`lib/importOrReload.ts`)
+- [x] Workspace chunks in the SW warm set (invariant 7); `webkit-pwa-check`
+      passes 26/26. It gained a landing-only-then-offline scenario, which fails
+      without `manifest.chunks` (checked), and it now waits for the app to render
+      rather than reading `#root` at `load`
+- [ ] ~~Workspace CSS lazy~~. Left to the CSS PR: all CSS stays eager and
+      byte-identical
+- [ ] ~~English without catalog fetches; namespace split~~. Deferred, see "As built"
+      under Step 4
 
 ### Step 5 — Guardrails
 

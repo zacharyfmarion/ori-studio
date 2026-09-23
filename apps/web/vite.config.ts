@@ -221,12 +221,37 @@ function serviceWorkerManifest(
     .map((name) => `/${name}`)
     .filter((path) => !uncacheable.includes(path));
 
+  // Code the page loads through an `import()` (the workspace, above all), with the CSS
+  // Vite attaches to it — what a session that never left the landing page has not
+  // fetched. The entry and its static imports load with the shell, so they are left out.
+  const staticGraph = new Set<string>();
+  const addStatic = (fileName: string) => {
+    if (staticGraph.has(fileName)) return;
+    staticGraph.add(fileName);
+    const file = bundleOutput[fileName];
+    if (file?.type === 'chunk') for (const imported of file.imports) addStatic(imported);
+  };
+  addStatic(entry.fileName);
+  const chunks = [
+    ...new Set(
+      Object.values(bundleOutput).flatMap((file) =>
+        file.type === 'chunk' && !staticGraph.has(file.fileName)
+          ? [file.fileName, ...(file.viteMetadata?.importedCss ?? [])]
+          : []
+      )
+    ),
+  ]
+    .map((name) => `/${name}`)
+    .filter((path) => !uncacheable.includes(path))
+    .sort();
+
   const body = {
     entry: `/${entry.fileName}`,
     assets: assets.map((name) => `/${name}`),
     uncacheable,
     workers,
     kernels,
+    chunks,
   };
   return {
     ...body,

@@ -34,6 +34,7 @@ import { IconButton, IconButtonLink } from './ui/IconButton';
 import { SplitButton } from './ui/SplitButton';
 import { useSendToEditActions } from '../designKinds/useSendToEditActions';
 import { trackCommunityLink } from '../analytics';
+import { handleFileDrop } from '../commands/fileDropController';
 import { handleMenuAction } from '../commands/menuActions';
 import { DISCORD_URL } from '../constants/release';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
@@ -69,6 +70,10 @@ const workspaceIcons: Record<WorkspaceId, typeof DraftingCompass> = {
  * about store state, not about which workspace happens to be visible.
  */
 const WORKSPACE_DROP_POLICY: DropTargetPolicy = 'open-or-import';
+
+function dropIntoWorkspace(files: File[]): void {
+  void handleFileDrop({ files, policy: WORKSPACE_DROP_POLICY });
+}
 
 /** Localized workspace-rail tooltip. Literal `t()` calls keep the keys extractable. */
 function workspaceTooltip(t: TFunction, id: WorkspaceId): string {
@@ -314,7 +319,10 @@ export function WorkspaceShell() {
   const setDockviewApi = useLayoutStore((state) => state.setDockviewApi);
   const loadLayout = useLayoutStore((state) => state.loadLayout);
   const saveLayout = useLayoutStore((state) => state.saveLayout);
-  const { dropTargetProps, isDragActive } = useFileDropTarget({ policy: WORKSPACE_DROP_POLICY });
+  const { dropTargetProps, isDragActive } = useFileDropTarget({
+    policy: WORKSPACE_DROP_POLICY,
+    onDropFiles: dropIntoWorkspace,
+  });
 
   // Dockview moves a panel with HTML5 drag-and-drop — `dragstart` plus a
   // `dataTransfer` payload — and iOS Safari fires neither for a finger. Under a

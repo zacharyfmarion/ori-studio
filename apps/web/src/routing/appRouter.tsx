@@ -1,15 +1,14 @@
 import { createBrowserRouter, createMemoryRouter, redirect } from 'react-router-dom';
-import App from '../App';
 import { RouteErrorElement } from '../components/errors/RouteErrorElement';
-import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
 import { SiteLocaleRoute } from '../site/SiteLocaleRoute';
 import { SitePageRoute } from '../site/SitePageRoute';
 import { CONTENT_PAGES, routeSegment, SITE_LOCALES } from '../site/sitePages';
 import { DESIGN_PATH, EDIT_PATH, LEGACY_DESIGN_PATHS, WELCOME_PATH } from './paths';
-import { ShareRoute } from './ShareRoute';
+import { RootLayout } from './RootLayout';
 import { WelcomeRoute } from './WelcomeRoute';
+import { loadWorkspace } from './workspaceGateway';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
 /**
@@ -48,6 +47,16 @@ function startupRedirect() {
 
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 
+// The routes that need the workspace load it through the gateway, which makes the
+// workspace one chunk no matter which of them asks first.
+async function shareRoute() {
+  return { Component: (await loadWorkspace()).ShareRoute };
+}
+
+async function workspaceShellRoute() {
+  return { Component: (await loadWorkspace()).WorkspaceShellRoute };
+}
+
 let appRouter: AppRouter | null = null;
 
 /** Register the live router so non-React code (menus, shortcuts) can navigate. */
@@ -75,7 +84,7 @@ export function createAppRouter(): AppRouter {
   const routes = [
     {
       path: '/',
-      element: <App />,
+      element: <RootLayout />,
       // Router-caught errors (loaders, and render throws inside route elements)
       // never reach a React error boundary, so the route tree needs its own.
       errorElement: <RouteErrorElement />,
@@ -119,10 +128,10 @@ export function createAppRouter(): AppRouter {
         //
         // Both shapes: `/s/<id>` for server-stored links, and bare `/s` for the
         // original `#<payload>` fragment scheme, which must keep working.
-        { path: 's', element: <ShareRoute /> },
-        { path: 's/:shareId', element: <ShareRoute /> },
+        { path: 's', lazy: shareRoute },
+        { path: 's/:shareId', lazy: shareRoute },
         {
-          element: <WorkspaceShell />,
+          lazy: workspaceShellRoute,
           children: [
             { path: 'design', element: <WorkspaceRoute workspace="design" /> },
             // The retired method sub-routes. A bookmark or a link from an older

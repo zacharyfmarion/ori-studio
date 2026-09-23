@@ -65,6 +65,12 @@ export interface ServiceWorkerManifest {
    * cause; see invariant 5 in `sw.ts`.
    */
   readonly kernels: readonly string[];
+  /**
+   * The code the page loads lazily — the workspace above all, which a visit that
+   * never left the landing page has not fetched. Warmed so an offline launch
+   * straight into a workspace still has it; see invariant 7 in `sw.ts`.
+   */
+  readonly chunks: readonly string[];
 }
 
 /**

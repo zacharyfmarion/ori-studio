@@ -1,5 +1,12 @@
 // First, before any module that could call a missing built-in at load time.
 import './polyfills';
+// Styles owned by workspace components, which now load lazily. Imported here, first and in
+// this order, so they stay in the one eager stylesheet exactly where they always sat: lazy
+// CSS is appended after it, which would change which rule wins wherever they overlap.
+import './components/CpDetectImportModal.css';
+import './styles/sonner.css';
+import 'dockview/dist/styles/dockview.css';
+import './components/MenuBar.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';

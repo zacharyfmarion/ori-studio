@@ -650,6 +650,26 @@ export function createDroppedFileService(file: File): FileService {
   };
 }
 
+/**
+ * A {@link FileService} whose open resolves to a pick already under way — how the start
+ * screen opens its dialog inside the click (browsers only allow a picker from a user
+ * gesture) while the workspace that will read the file is still loading.
+ *
+ * Unlike a drop, the pick keeps its `path`: on Chromium that is the save target token, so
+ * Save writes back to the file that was opened.
+ */
+export function createPickedFileService(picked: Promise<OpenTextFileResult | null>): FileService {
+  const base = getFileService();
+  return {
+    surface: base.surface,
+    supportsNativeDialogs: base.supportsNativeDialogs,
+    openTextFile: () => picked,
+    openBinaryFile: () => Promise.resolve(null),
+    saveTextFile: (options) => base.saveTextFile(options),
+    saveBinaryFile: (options) => base.saveBinaryFile(options),
+  };
+}
+
 export function createOpenedPathFileService(path: string): FileService {
   const desktopService = createFileService('desktop');
   return {
