@@ -3143,7 +3143,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -3190,7 +3190,14 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6336,7 +6343,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -6383,7 +6390,14 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9531,7 +9545,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -9578,7 +9592,14 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12667,7 +12688,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -12714,7 +12735,14 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15803,7 +15831,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -15850,7 +15878,14 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18996,7 +19031,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -19043,7 +19078,14 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22189,7 +22231,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -22236,7 +22278,14 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25325,7 +25374,7 @@
     "panels:cpProperties.paperStyle.auxWidth": "2cc3a17a1e51",
     "panels:cpProperties.paperStyle.erode": "66db9aaf76bb",
     "dialogs:settings.paper.erode": "daef5274cb31",
-    "dialogs:settings.paper.erodeHint": "2712aecef59e",
+    "dialogs:settings.paper.erodeHint": "2080f2d9760e",
     "panels:references.actions.noDiagramHint": "ff7d6e807c85",
     "panels:references.exportStep": "7da7f353f6de",
     "tools:references.exportStepPng": "2e86eb3cca56",
@@ -25372,6 +25421,13 @@
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
     "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
     "panels:references.settings.showAuxCreases": "6f75dd97a357",
-    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0",
+    "panels:cpProperties.paperStyle.foldsAsEdgesReason": "35f38c0d5885",
+    "panels:simulatorViewControls.foldsAsEdges": "20eceb78d701",
+    "panels:simulatorViewControls.foldsAsEdgesHelp": "cbc341ae5815",
+    "dialogs:settings.paper.erodeCloseUp": "223f4cd0ec6d",
+    "dialogs:settings.paper.erodePreview": "66d5a2360682",
+    "dialogs:settings.paper.foldsAsEdges": "20eceb78d701",
+    "dialogs:settings.paper.foldsAsEdgesHint": "6a701e6bb045"
   }
 }

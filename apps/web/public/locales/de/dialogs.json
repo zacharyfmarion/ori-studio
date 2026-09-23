@@ -391,8 +391,10 @@
       },
       "erode": "Einrücken",
       "erodeAmount": "{{percent}} % des Papiers",
-      "erodeHint": "Falten ziehen sich vom Rand der Fläche zurück, auf der sie liegen.",
+      "erodeCloseUp": "Nahaufnahme",
+      "erodeHint": "Hilfsfalten ziehen sich vom Rand der Fläche zurück, auf der sie liegen; Berg- und Talfalten reichen bis an ihn heran.",
       "erodeOff": "Aus",
+      "erodePreview": "Nahaufnahme eines Zehntels des Bogens: eine Talfalte, die bis an die Papierkante reicht, und eine Hilfsfalte, die davor endet",
       "exportPage": {
         "background": "Hintergrund",
         "keepHiddenFaces": "Verdeckte Flächen behalten",
@@ -411,6 +413,8 @@
       },
       "exportTitle": "Papierstil exportieren",
       "foldedPaperTitle": "Gefaltetes Papier",
+      "foldsAsEdges": "Alle Falten als Kanten zeichnen",
+      "foldsAsEdgesHint": "In Simulationen, die Falten sonst nach Richtung zeichnen. Gefaltete Figuren zeichnen sie immer als Kanten.",
       "front": "Vorderseite",
       "importTitle": "Papierstil importieren",
       "light": {

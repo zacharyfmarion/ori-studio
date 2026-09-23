@@ -63,6 +63,7 @@ describe('buildInlineSimulationProperties', () => {
       'frontColor',
       'backColor',
       'edgeColor',
+      'foldsAsEdges',
       'creaseStyle',
       'mountainColor',
       'valleyColor',
@@ -272,5 +273,31 @@ describe('buildInlineSimulationProperties', () => {
     for (const f of sheet.sections[1]!.fields) {
       if (f.protocol === 'continuous') expect(f.held).toBe(true);
     }
+  });
+
+  // "Render all creases as edges": a window's own pin like any other row, and
+  // while it is on the pens it makes moot are disabled with the reason — the
+  // fold line weight is still every line's weight, so it stays live.
+  it('offers folds as edges, and disables the rows it makes moot while on', () => {
+    const d = deps();
+    const off = buildInlineSimulationProperties(TARGET, d);
+    const toggle = off.sections[1]!.fields.find((f) => f.id === 'foldsAsEdges')!;
+    expect(toggle).toMatchObject({ kind: 'toggle', value: false, support: 'supported' });
+    if (toggle.kind !== 'toggle') throw new Error('toggle');
+    toggle.commit(true);
+    expect(d.commitOverrides).toHaveBeenCalledWith([{ field: 'foldsAsEdges', value: true }]);
+
+    const on = buildInlineSimulationProperties(TARGET, deps({ foldsAsEdges: true }));
+    const support = (id: string) => on.sections[1]!.fields.find((f) => f.id === id)!;
+    for (const id of ['creaseStyle', 'mountainColor', 'valleyColor']) {
+      expect(support(id)).toMatchObject({
+        support: 'unsupported',
+        reason: 'Every fold is drawn in the edge pen',
+      });
+    }
+    expect(support('foldLineWeight').support).toBe('supported');
+    expect(support('foldsAsEdges')).toMatchObject({ value: true, support: 'supported' });
+    // Pinned on this window, so it offers the way back to the style.
+    expect(support('foldsAsEdges').reset).toBeDefined();
   });
 });

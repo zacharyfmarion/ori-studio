@@ -253,6 +253,7 @@
       "auxWidth": "Aux crease width (pt)",
       "changeAction": "Change paper style",
       "erode": "Erode (% of sheet)",
+      "foldsAsEdgesReason": "Every fold is drawn in the edge pen",
       "resetAction": "Reset paper style"
     },
     "region": {
@@ -1162,6 +1163,8 @@
     "faces": "Faces",
     "faceStiffness": "Face",
     "foldLineWeight": "Fold line weight (pt)",
+    "foldsAsEdges": "Render all creases as edges",
+    "foldsAsEdgesHelp": "A fold that has happened is an edge of the paper: every fold is drawn in the edge pen, as a folded figure draws it. Off, folds are drawn by direction.",
     "keepHiddenFaces": "Keep hidden faces",
     "keepHiddenFacesHint": "Faces nothing shows stay in the file, under what covers them.",
     "lighting": "Lighting",

@@ -126,13 +126,14 @@ describe('PaperSettings', () => {
     ).toBe('Light direction: azimuth 322°, elevation 43°');
     // Erode, as a percentage of the sheet.
     expect(input('Erode').value).toBe('0');
-    // The aux toggle and the light switch are Radix switches named by their
-    // row; the slot's own state is the segmented control and the banner, not a
-    // switch of its own.
+    // The aux toggle, the simulations' folds-as-edges switch and the light
+    // switch are Radix switches named by their row; the slot's own state is
+    // the segmented control and the banner, not a switch of its own.
     const switches = styleSwitches(rendered);
-    expect(switches).toHaveLength(2);
+    expect(switches).toHaveLength(3);
     expect(switches.map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
+      'false',
       'true',
     ]);
   });
@@ -261,6 +262,7 @@ describe('PaperSettings', () => {
       rendered.querySelector<HTMLButtonElement>('.settings-paper-light__disc')?.disabled
     ).toBe(true);
     expect(styleSwitches(rendered).map((element) => element.hasAttribute('disabled'))).toEqual([
+      true,
       true,
       true,
     ]);

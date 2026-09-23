@@ -53,11 +53,21 @@ export interface PaperStyle {
   edges: Pen;
   mountainFolds: Pen;
   valleyFolds: Pen;
+  /**
+   * Draw every fold with the edge pen: a fold that has happened is an edge of
+   * the paper, not an instruction to fold. Read by the simulations, which
+   * draw mountain and valley otherwise; a folded figure always draws its
+   * folds as edges and a step diagram never does.
+   */
+  foldsAsEdges: boolean;
   /** Existing / auxiliary creases lying on the surface. */
   auxCreases: { visible: boolean; pen: Pen };
   /** References steps only. */
   arrows: Pen;
-  /** Creases pulled back from the edge of their face, as a fraction of the sheet; 0 = off. */
+  /**
+   * Aux creases pulled back from the edge of their face, as a fraction of the
+   * sheet; 0 = off. Folds are always drawn to the paper's edge.
+   */
   erode: number;
   /** Simulator and 3D figure only; the flat figure is drawn unlit. */
   light: PaperLight;
@@ -124,6 +134,7 @@ export const DEFAULT_PAPER_STYLE: PaperStyle = {
   edges: { width: 0.9, color: ORIEDITA_LINE_COLOR, dash: null, cap: 'butt' },
   mountainFolds: { width: 0.825, color: DEFAULT_MOUNTAIN_COLOR, dash: null, cap: 'butt' },
   valleyFolds: { width: 0.825, color: DEFAULT_VALLEY_COLOR, dash: null, cap: 'butt' },
+  foldsAsEdges: false,
   // Shown by default: a diagram draws the creases already made, and a folded
   // figure's construction lines are what the pen is for. Oriedita's preset
   // turns them off, as its own folded figure never draws them.
@@ -147,6 +158,7 @@ export interface PaperStyleFieldValues {
   edges: Pen;
   mountainFolds: Pen;
   valleyFolds: Pen;
+  foldsAsEdges: boolean;
   'auxCreases.visible': boolean;
   'auxCreases.pen': Pen;
   arrows: Pen;
@@ -163,6 +175,7 @@ export const PAPER_STYLE_FIELDS: readonly PaperStyleField[] = [
   'edges',
   'mountainFolds',
   'valleyFolds',
+  'foldsAsEdges',
   'auxCreases.visible',
   'auxCreases.pen',
   'arrows',
@@ -203,7 +216,7 @@ export function getPaperStyleField<F extends PaperStyleField>(
     case 'auxCreases.pen':
       return style.auxCreases.pen as PaperStyleValue<F>;
     default:
-      return style[field as Exclude<F, `${string}.${string}`>] as PaperStyleValue<F>;
+      return style[field as Exclude<F, `${string}.${string}`>] as unknown as PaperStyleValue<F>;
   }
 }
 
@@ -342,6 +355,7 @@ export function parsePaperStyleField<F extends PaperStyleField>(
     case 'arrows':
       return parsePen(value) as PaperStyleValue<F> | undefined;
     case 'auxCreases.visible':
+    case 'foldsAsEdges':
       return (typeof value === 'boolean' ? value : undefined) as PaperStyleValue<F> | undefined;
     case 'erode':
       return parseErode(value) as PaperStyleValue<F> | undefined;

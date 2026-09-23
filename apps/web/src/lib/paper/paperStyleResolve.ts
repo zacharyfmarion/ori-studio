@@ -51,25 +51,37 @@ const EVERY_SURFACE_FIELDS: PaperStyleField[] = [
 ];
 
 /**
- * A surface that draws its folds as the simulator does: M/V pens by fold sign,
- * the edge pen for borders, the aux pen for a 0° crease, under the light.
+ * A simulation: M/V pens by fold sign unless the style draws its folds as
+ * edges, the edge pen for borders, the aux pen for a 0° crease, under the
+ * light.
  */
 const SIMULATION_FIELDS: PaperStyleField[] = [
   ...EVERY_SURFACE_FIELDS,
   'mountainFolds',
   'valleyFolds',
+  'foldsAsEdges',
   'light',
 ];
 
 /**
+ * A folded figure in 3D: the flat figure's pens under the light. Every fold
+ * is drawn in the edge pen — a fold that has happened is an edge of the
+ * paper, not an instruction — and a 0° crease in the aux pen.
+ */
+const FOLDED_3D_FIELDS: PaperStyleField[] = [...EVERY_SURFACE_FIELDS, 'light'];
+
+/**
  * The policies. `auxCreases.*` and `erode` apply everywhere since Phase 5,
- * when every renderer learnt to draw them; the flat figure stays edge + aux
- * (D6: it has no visible M/V); `arrows` stays References-only.
+ * when every renderer learnt to draw them. A crease is drawn by what has
+ * happened to it (Phase 9): both folded figures draw their folds as edges,
+ * edge + aux (D6); a simulation draws mountain and valley unless its style
+ * says `foldsAsEdges`; References draws the fold to make in the M/V pens.
+ * `arrows` stays References-only.
  */
 export const PAPER_STYLE_POLICIES: Record<PaperSurface, SurfaceStylePolicy> = {
   simulator: { surface: 'simulator', applies: SIMULATION_FIELDS },
   'inline-simulation': { surface: 'inline-simulation', applies: SIMULATION_FIELDS },
-  'folded-3d': { surface: 'folded-3d', applies: SIMULATION_FIELDS },
+  'folded-3d': { surface: 'folded-3d', applies: FOLDED_3D_FIELDS },
   'folded-flat': { surface: 'folded-flat', applies: EVERY_SURFACE_FIELDS },
   // The paper too (D13): a step's sheet is filled with the style's paper, or a
   // black edge pen would vanish on a dark theme's ground. No light (D7).
@@ -120,6 +132,12 @@ export function surfacePaperStyle(style: PaperStyle, policy: SurfaceStylePolicy)
     return { ...seen, mountainFolds: edges, valleyFolds: edges };
   }
   const width = seen.mountainFolds.width;
+  // A simulation drawing its folds as edges: the edge pen for every line, at
+  // the one weight the simulation draws them all at.
+  if (seen.foldsAsEdges && policyApplies(policy, 'foldsAsEdges')) {
+    const pen = { ...edges, width };
+    return { ...seen, edges: pen, mountainFolds: pen, valleyFolds: pen };
+  }
   const valley = policyApplies(policy, 'valleyFolds') ? seen.valleyFolds : edges;
   return { ...seen, edges: { ...edges, width }, valleyFolds: { ...valley, width } };
 }

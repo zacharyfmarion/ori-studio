@@ -130,7 +130,9 @@ describe('useSimulatorPaperStyle', () => {
       useSettingsStore.getState().setPaperStyleField('display', 'light', light);
       current().setPaperColor('paper.front', '#ff8800');
       current().setCreaseStyle('mono');
+      current().setFoldsAsEdges(true);
     });
+    expect(display().foldsAsEdges).toBe(true);
     const updates = vi.fn();
     const unsubscribe = useSettingsStore.subscribe(updates);
     act(() => current().reset());
@@ -139,6 +141,7 @@ describe('useSimulatorPaperStyle', () => {
     expect(display().paper).toEqual(DEFAULT_PAPER_STYLE.paper);
     expect(display().mountainFolds).toEqual(DEFAULT_PAPER_STYLE.mountainFolds);
     expect(display().valleyFolds).toEqual(DEFAULT_PAPER_STYLE.valleyFolds);
+    expect(display().foldsAsEdges).toBe(false);
     // The edge row is a colour; the light row is a switch. Each resets its own.
     expect(display().edges).toEqual({ ...edges, color: DEFAULT_PAPER_STYLE.edges.color });
     expect(display().light).toEqual({ ...light, enabled: DEFAULT_PAPER_STYLE.light.enabled });

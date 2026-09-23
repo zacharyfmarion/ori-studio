@@ -258,6 +258,7 @@
       "auxWidth": "Largura do vinco auxiliar (pt)",
       "changeAction": "Alterar estilo de papel",
       "erode": "Recuo (% do papel)",
+      "foldsAsEdgesReason": "Todas as dobras são desenhadas com a caneta de borda",
       "resetAction": "Redefinir estilo de papel"
     },
     "region": {
@@ -1196,6 +1197,8 @@
     "faces": "Faces",
     "faceStiffness": "Face",
     "foldLineWeight": "Espessura das linhas de dobra (pt)",
+    "foldsAsEdges": "Desenhar todos os vincos como bordas",
+    "foldsAsEdgesHelp": "Uma dobra já feita é uma borda do papel: todas as dobras são desenhadas com a caneta de borda, como numa figura dobrada. Desligado, as dobras são desenhadas pela direção.",
     "keepHiddenFaces": "Manter faces ocultas",
     "keepHiddenFacesHint": "Faces que nada mostra ficam no arquivo, sob o que as cobre.",
     "lighting": "Iluminação",

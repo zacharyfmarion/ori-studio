@@ -1118,11 +1118,14 @@ describe('a stored PaperScene', () => {
     expect(blank.strokes.count).toBe(0);
   });
 
-  it('fills each face with its own side’s paper, and strokes each line with its role’s pen', () => {
+  // A 3D figure draws every fold as an edge (Phase 9): its mountain-role line
+  // takes the edge pen, whatever the mountain pen says.
+  it('fills each face with its own side’s paper, and strokes a fold with the edge pen', () => {
     const back: PaperFaceItem = { ...FRONT_TRIANGLE, face: 1, side: 'back' };
     const custom = style({
       paper: { front: '#ff0000', back: '#0000ff' },
-      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#00ff00', width: 3 },
+      edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#00ff00', width: 3 },
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#ff00ff', width: 5 },
     });
     const drawn = cpFoldedToScene(
       [sceneFigure([FRONT_TRIANGLE, back, MOUNTAIN])],

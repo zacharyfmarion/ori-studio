@@ -280,10 +280,12 @@ function sceneTopology(
   // --- creases ------------------------------------------------------------
   const edgeIndices: number[] = [];
   const edgeAssignments: number[] = [];
+  const auxEnds: number[] = [];
   const edgeOrder: number[] = [];
   const take = (edge: number, rank: number): void => {
     edgeIndices.push(topology.edgeIndices[edge * 2]!, topology.edgeIndices[edge * 2 + 1]!);
     edgeAssignments.push(topology.edgeAssignments[edge]!);
+    auxEnds.push(topology.auxEnds?.[edge] ?? 0);
     edgeOrder.push(creaseOrder(rank));
   };
   if (include.creases) {
@@ -321,6 +323,7 @@ function sceneTopology(
       faceIndices,
       edgeIndices: Uint32Array.from(edgeIndices),
       edgeAssignments: Uint8Array.from(edgeAssignments),
+      auxEnds: Uint8Array.from(auxEnds),
     },
     faceGroups,
     order,

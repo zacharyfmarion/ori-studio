@@ -399,8 +399,10 @@
       },
       "erode": "Retraer",
       "erodeAmount": "{{percent}} % del papel",
-      "erodeHint": "Los pliegues se retraen desde el borde de la cara en la que están.",
+      "erodeCloseUp": "Primer plano",
+      "erodeHint": "Los pliegues auxiliares se retraen desde el borde de la cara en la que están; los pliegues en monte y en valle llegan hasta él.",
       "erodeOff": "Desactivado",
+      "erodePreview": "Primer plano de una décima parte de la hoja: un pliegue en valle que llega al borde del papel y un pliegue auxiliar que se detiene antes",
       "exportPage": {
         "background": "Fondo",
         "keepHiddenFaces": "Conservar caras ocultas",
@@ -419,6 +421,8 @@
       },
       "exportTitle": "Exportar estilo de papel",
       "foldedPaperTitle": "Papel plegado",
+      "foldsAsEdges": "Dibujar todos los pliegues como bordes",
+      "foldsAsEdgesHint": "En las simulaciones, que si no dibujan los pliegues según su dirección. Las figuras plegadas siempre los dibujan como bordes.",
       "front": "Anverso",
       "importTitle": "Importar estilo de papel",
       "light": {

@@ -70,6 +70,11 @@
  * the edge pass draws it in the aux pen, hides it with the style's aux switch,
  * a skin shows it exactly when its layer is the one you can see, and the
  * vector scene, which finds a crease's layer by its vertices, finds this one's.
+ * Vertices of its own share nothing with the ring, though, so the erode rule
+ * cannot see where a cut meets its layer's outline: the mesh states it
+ * (`topology.auxEnds`) — an end on a ring segment this layer inks as paper
+ * edge or fold is on the outline, as a crease's end is where such an edge
+ * meets it.
  *
  * # Winding, which is easy to invert and was not guessed
  *
@@ -89,7 +94,14 @@
  */
 
 import earcut from 'earcut';
-import { EDGE_CODE, textureSizeFor, type MeshTopology, type Vec3 } from '@treemaker/origami-simulator';
+import {
+  EDGE_BOUNDARY_A,
+  EDGE_BOUNDARY_B,
+  EDGE_CODE,
+  textureSizeFor,
+  type MeshTopology,
+  type Vec3,
+} from '@treemaker/origami-simulator';
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
@@ -468,6 +480,12 @@ interface SlotCrease {
    * which the skins draw unconditionally.
    */
   hingePlane: number;
+  /**
+   * {@link EDGE_BOUNDARY_A} / {@link EDGE_BOUNDARY_B} for the ends of an aux
+   * cut that lie on its layer's outline; `0` for a ring crease, whose ends
+   * the erode rule reads off the vertices it shares.
+   */
+  auxEnds: number;
 }
 
 export function folded3dMesh(
@@ -617,14 +635,24 @@ export function folded3dMesh(
           requiredSide: conditional ? (hinge.exposedOnPlus ? 1 : -1) : 0,
           buried,
           hingePlane: conditional || buried ? hinge.partnerPlane : -1,
+          auxEnds: 0,
         });
       }
+
+      // An aux cut's end is on this layer's outline where it lies on a ring
+      // segment the layer inks as a paper edge or a fold — not an arrangement
+      // cut it runs on across, nor a zero-degree crease inside the layer.
+      const onOutline = (segments: readonly number[]): boolean =>
+        segments.some((segment) => {
+          const edge = ink.edgeAt(cell, slot, segment);
+          return edge >= 0 && (assignmentOf[edge] ?? EDGE_CODE.aux) <= EDGE_CODE.valley;
+        });
 
       // The document's aux lines this layer shows, each on two vertices of
       // the slot's own past its ring: unconditional, never a hinge.
       for (const cut of auxSlots.bySlot.get(cell)?.get(slot) ?? []) {
         const start = vertex;
-        for (const point of cut) {
+        for (const point of cut.ends) {
           const sim = toSimBasis(point);
           positions[vertex * 3] = sim[0] - centre[0];
           positions[vertex * 3 + 1] = sim[1] - centre[1];
@@ -639,6 +667,9 @@ export function folded3dMesh(
           requiredSide: 0,
           buried: false,
           hingePlane: -1,
+          auxEnds:
+            (onOutline(cut.onRing[0]) ? EDGE_BOUNDARY_A : 0) |
+            (onOutline(cut.onRing[1]) ? EDGE_BOUNDARY_B : 0),
         });
       }
       slotsOfCell[cell]!.push(slotCell.length);
@@ -656,6 +687,7 @@ export function folded3dMesh(
   const faceIndices: number[] = [];
   const edgeIndices: number[] = [];
   const edgeAssignments: number[] = [];
+  const auxEnds: number[] = [];
   const hingePartner: number[] = [];
   const hingeSide: number[] = [];
   const slotIndexStart: number[] = new Array<number>(slotCell.length).fill(0);
@@ -663,6 +695,7 @@ export function folded3dMesh(
   const appendCrease = (crease: SlotCrease): void => {
     edgeIndices.push(crease.a, crease.b);
     edgeAssignments.push(crease.assignment);
+    auxEnds.push(crease.auxEnds);
     hingePartner.push(crease.hingePlane);
     hingeSide.push(crease.buried ? 0 : crease.requiredSide);
   };
@@ -704,6 +737,7 @@ export function folded3dMesh(
     }
     edgeIndices.push(vertex - 2, vertex - 1);
     edgeAssignments.push(assignmentOf[edge] ?? 0);
+    auxEnds.push(0);
     hingePartner.push(-1);
     hingeSide.push(0);
   }
@@ -817,6 +851,7 @@ export function folded3dMesh(
         faceIndices: Uint32Array.from(faceIndices),
         edgeIndices: Uint32Array.from(edgeIndices),
         edgeAssignments: Uint8Array.from(edgeAssignments),
+        auxEnds: Uint8Array.from(auxEnds),
         textureDim: textureSizeFor(Math.floor(positions.length / 3)),
       },
       center: [0, 0, 0],

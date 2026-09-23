@@ -248,26 +248,26 @@ describe('drawing a figure in its effective paper style', () => {
     expect(xray.faceAlpha).toBeLessThan(1);
   });
 
-  it('inks the folds with the M/V pens and the borders with the edge pen, as the simulator does', () => {
-    // Re-pinned: every crease kind took the edge pen while the folded-3d
-    // policy had no fold pens; Phase 5 gave it them, so a 3D figure draws
-    // its creases as the simulator draws a fold.
+  it('inks every fold with the edge pen, as the flat figure does', () => {
+    // Re-pinned twice: Phase 5 gave the folded-3d policy the fold pens, so a
+    // 3D figure drew its creases as the simulator draws a fold; Phase 9 takes
+    // them away again — a fold that has happened is an edge of the paper.
     const settings = folded3dWindowRenderSettings({
       style: STYLE,
       displayStyle: 'Paper5',
       devicePixelRatio: 1,
     });
-    expect(settings.mountainColor).toEqual([1, 0, 0]);
-    expect(settings.valleyColor).toEqual([0, 0, 1]);
+    expect(settings.mountainColor).toEqual([0.4, 0.4, 0.4]);
+    expect(settings.valleyColor).toEqual([0.4, 0.4, 0.4]);
     expect(settings.borderColor).toEqual([0.4, 0.4, 0.4]);
   });
 
-  it('draws every fold line at the mountain pen’s pt width in device pixels, and nothing bespoke', () => {
-    // Phase 1 replaced the window's own `1.5 × dpr` with a pen; Phase 5's
-    // policy makes that pen the mountain pen's width, the simulator's fold
-    // line weight, under the resolver's one-width rule (re-pinned from the
-    // edge pen's own 0.9 pt). The below-reference shrink is the viewport's
-    // (`creaseWidthReferenceEdge`), not this module's.
+  it('draws every fold line at the edge pen’s pt width in device pixels, and nothing bespoke', () => {
+    // Phase 1 replaced the window's own `1.5 × dpr` with a pen. Phase 5 made
+    // it the mountain pen's width; Phase 9 draws every fold as an edge, so it
+    // is the edge pen's own again (re-pinned back from 1.2 to 0.9 pt). The
+    // below-reference shrink is the viewport's (`creaseWidthReferenceEdge`),
+    // not this module's.
     for (const dpr of [1, 2]) {
       const settings = folded3dWindowRenderSettings({
         style: {
@@ -278,7 +278,7 @@ describe('drawing a figure in its effective paper style', () => {
         displayStyle: 'Paper5',
         devicePixelRatio: dpr,
       });
-      expect(settings.creaseWidthPx).toBeCloseTo(ptToDevicePx(1.2, dpr), 12);
+      expect(settings.creaseWidthPx).toBeCloseTo(ptToDevicePx(0.9, dpr), 12);
       expect(settings.creaseWidthReferenceEdge).toBeUndefined();
     }
   });
@@ -383,9 +383,11 @@ describe('handing a mesh to the worker', () => {
     const mesh = meshOf('pinwheel');
     const { payload, transferables } = folded3dMeshPayload(mesh);
     expect(payload.faceIndices).not.toBe(mesh.topology.faceIndices.buffer);
-    expect(transferables).toHaveLength(4);
+    expect(payload.auxEnds).not.toBe(mesh.topology.auxEnds!.buffer);
+    expect(transferables).toHaveLength(5);
     // Same contents, different buffer.
     expect([...new Uint32Array(payload.faceIndices)]).toEqual([...mesh.topology.faceIndices]);
+    expect([...new Uint8Array(payload.auxEnds)]).toEqual([...mesh.topology.auxEnds!]);
     expect(mesh.topology.faceIndices.length).toBeGreaterThan(0);
   });
 

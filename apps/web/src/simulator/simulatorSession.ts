@@ -133,6 +133,12 @@ export interface SimulatorModelInfo {
    * erode from, as the GPU edge pass does.
    */
   edgeCodes: ArrayBuffer;
+  /**
+   * Per edge, the ends of an aux crease laid over the faces that lie on the
+   * paper's edge or a fold (`MeshTopology.auxEnds`), `Uint8` — so the fallback
+   * erodes what the GPU pass and the export erode.
+   */
+  auxEnds: ArrayBuffer;
   /** 3 edge indices per (triangulated) face; -1 where an edge was not found. */
   facesEdges: ArrayBuffer;
   /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
@@ -1106,7 +1112,9 @@ const api = {
       edgesAssignment[index] = code < 0 ? EDGE_ASSIGNMENT_CODES.indexOf('U') : code;
     });
 
-    const edgeCodes = meshTopologyFor(prepared).edgeAssignments;
+    const topology = meshTopologyFor(prepared);
+    const edgeCodes = topology.edgeAssignments;
+    const auxEnds = topology.auxEnds ?? new Uint8Array(edgeCodes.length);
 
     const facesEdges = new Int32Array(prepared.faceCount * 3);
     facesEdges.fill(-1);
@@ -1126,6 +1134,7 @@ const api = {
         edgesVertices: edgesVertices.buffer as ArrayBuffer,
         edgesAssignment: edgesAssignment.buffer as ArrayBuffer,
         edgeCodes: edgeCodes.buffer as ArrayBuffer,
+        auxEnds: auxEnds.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
         sheet: sheetExtent(model.originalPositions),
         diagnostics: backend.readDiagnostics(),
@@ -1137,6 +1146,7 @@ const api = {
         edgesVertices.buffer as ArrayBuffer,
         edgesAssignment.buffer as ArrayBuffer,
         edgeCodes.buffer as ArrayBuffer,
+        auxEnds.buffer as ArrayBuffer,
         facesEdges.buffer as ArrayBuffer,
       ]
     );

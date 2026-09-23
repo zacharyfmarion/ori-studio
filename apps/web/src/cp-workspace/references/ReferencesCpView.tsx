@@ -534,7 +534,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       // them, so where they cross a crease is not a place on the paper yet.
       const creases = new Set<number>();
       for (const id of visible) {
-        if (creaseVisibility.borderLineIds?.has(id) || creaseVisibility.aux?.ids.has(id)) continue;
+        if (creaseVisibility.borderLineIds?.has(id) || creaseVisibility.auxLines?.has(id)) continue;
         creases.add(id);
       }
       const kept = verticesOfLines(geometry, vertices, creases, { dropCollinear: true });
@@ -1146,8 +1146,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         creaseVisibility.dimAlpha < 1
           ? readCssVarNumber(canvas, DIM_ALPHA_VAR, creaseVisibility.dimAlpha)
           : creaseVisibility.dimAlpha;
-      // The pattern's aux lines in the aux pen's ink, held back as far as the
-      // creases an earlier step made — the card draws both with one pen.
+      // Thin lines — the creases an earlier step made, and the pattern's aux
+      // lines — in the aux pen's ink, held back as far as the card holds them.
       const aux = withAlpha(
         palette.unassigned,
         readCssVarNumber(canvas, CREASE_ALPHA_VAR, CREASE_ALPHA_FALLBACK)

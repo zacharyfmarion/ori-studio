@@ -227,7 +227,10 @@ Taken in the design discussion on 2026-09-21.
   for a crease drawn on a face, each endpoint that lies on that face's
   boundary is pulled toward the segment midpoint by a fixed distance; interior
   endpoints stay; a segment that would invert collapses and is dropped. The
-  distance is paper-relative (a fraction of the sheet), not px.
+  distance is paper-relative (a fraction of the sheet), not px. **Only aux
+  creases erode** (decided with the user in Phase 9): a fold is drawn to the
+  paper's edge, as a diagram's fold line is, and only an existing crease in
+  the aux pen stops short of it.
 - **D9. No front/back flip.** Retracted after F8: the surfaces already
   agree. Phase 0 fixes the stale header comment in `folded3dMesh.ts`.
 - **D10. Widths are in points, and the style is a set of role pens.** People
@@ -1768,6 +1771,70 @@ figure keeps drawing 0° creases in the aux pen, and References gets its own
 - [x] The flat aux fetch reports and retries instead of swallowing a
       failure: two more tries, 500 ms and 2 s later, then `reportError`
       (`askForAuxLines`, shared with the 3D sync).
+
+### Phase 9 — A crease is drawn by what has happened to it
+
+The diagram convention, decided with the user: a solid line is paper that is
+already folded (an edge), a mountain or valley dash is an instruction to fold,
+and a thin line is a crease that is there but flat. The flat figure already
+drew its folds as edges (D6); the 3D figure drew them in the M/V pens, and
+References drew the creases earlier steps made in their direction's ink.
+
+| A crease that is… | Pen | Where |
+| --- | --- | --- |
+| about to be folded | mountain / valley | References: the step's own fold, and the finished card (the collapse is the next fold) |
+| folded | edge | 2D and 3D figures; simulations when "Render all creases as edges" is on |
+| there but flat | aux | everywhere: precreases, 0° creases, aux lines |
+
+Simulations keep mountain / valley by default — the simulator is also how a
+pattern is checked, and colour by direction is how a misassigned crease shows.
+
+- [x] 3D figure: its policy stops applying the fold pens, as the flat
+      figure's does, so every fold is drawn in the edge pen — window, stored
+      picture, canvas ink and export alike, all through `surfacePaperStyle`.
+      0° creases stay in the aux pen. Its Style / Mountain / Valley / Fold line
+      weight rows go from Properties and the toolbar with the policy.
+      (`FOLDED_3D_FIELDS` is every surface's fields and the light.)
+- [x] `foldsAsEdges`, a style field ("Render all creases as edges"), read
+      by the simulation policies only: on, `surfacePaperStyle` draws every
+      fold in the edge pen at the simulation's one line weight (the Fold line
+      weight slider keeps meaning something). A style field rather than a view
+      preference so the export slot, presets and a window's own pin follow the
+      same rules as every other line. Offered in the Simulate pane's Creases
+      section, a simulation window's Properties and Settings ▸ Paper; while on,
+      the Style / Mountain / Valley rows are disabled with the reason.
+      (Analytics: `foldsAsEdges` joins `PaperStyleFieldName`.)
+- [x] References canvas: on a fold or turn-over card the creases earlier
+      steps made are thin lines in the aux pen, as the cards draw them, and
+      stay pickable; only the step's own fold is mountain / valley. The
+      finished card keeps each crease in the direction it was made.
+      (`ReferencesCreaseVisibility.thin` / `thinPen` replace the faded
+      direction ink; the dim channel stays, produced by nothing now.)
+- [x] Settings ▸ Paper: a live close-up beside the Erode slider — a paper
+      corner with a valley fold and an aux crease running into its edges,
+      drawn in the slot's own pens, magnified so a tenth of the sheet fills
+      it (the smallest step is a few pixels). Geometry is magnified, pens are
+      not, as on a zoomed canvas.
+- [x] Erode is the aux pen's alone (D8). The simulator package's one rule,
+      `edgeBoundaryFlags`, flags only an aux crease's ends, so the GPU edge
+      pass, the canvas-2D fallback and the vector scene of both the
+      simulations and the 3D figure stop eroding folds together; the flat
+      figure and References already flagged only aux-pen lines. The close-up
+      shows it — the valley fold reaches the edge, the aux crease stops short
+      — and Settings ▸ Paper puts Erode beside "Show auxiliary creases".
+- [x] An aux line on vertices of its own still erodes. The rule reads only
+      shared vertices, and two producers put aux lines on their own: the 3D
+      figure (each cut past its slot's ring) and the kernel's simulation
+      model (every aux line appended as a free `F` edge). A topology may now
+      state such ends (`EdgeBoundaryTopology.auxEnds`, read for aux edges
+      only): the 3D mesh from the cell-ring segment each cut end lies on
+      (`Folded3dAuxCut.onRing`, then whether this layer inks that segment as
+      a paper edge or fold), and `meshTopologyFor` from the flat sheet
+      (`auxEndsOnOutline`). Both reach every renderer — the window payload
+      and the worker's model info carry the buffer.
+      Found, not fixed here: the kernel's simulation model leaves those free
+      aux edges on no face, so in a simulation they stay in the flat sheet's
+      plane while the paper folds.
 
 ### Validation per phase
 

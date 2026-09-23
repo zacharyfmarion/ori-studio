@@ -223,6 +223,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
   const faceIndices = mesh.topology.faceIndices.slice();
   const edgeIndices = mesh.topology.edgeIndices.slice();
   const edgeAssignments = mesh.topology.edgeAssignments.slice();
+  const auxEnds = mesh.topology.auxEnds?.slice() ?? new Uint8Array(edgeAssignments.length);
   const payload: Folded3dMeshPayload = {
     positions: positions.buffer as ArrayBuffer,
     textureDim: mesh.topology.textureDim,
@@ -230,6 +231,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     faceIndices: faceIndices.buffer as ArrayBuffer,
     edgeIndices: edgeIndices.buffer as ArrayBuffer,
     edgeAssignments: edgeAssignments.buffer as ArrayBuffer,
+    auxEnds: auxEnds.buffer as ArrayBuffer,
     center: mesh.center,
     radius: mesh.radius,
     sheet: mesh.sheet,
@@ -245,6 +247,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
       payload.faceIndices,
       payload.edgeIndices,
       payload.edgeAssignments,
+      payload.auxEnds,
     ],
   };
 }

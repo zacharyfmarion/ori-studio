@@ -70,7 +70,7 @@ export function inflateRenderModel(info: SimulatorModelInfo): SimulatorRenderMod
     edgesAssignment,
     edgeCodes,
     edgeBoundary: edgeBoundaryFlags(
-      { edgeIndices: edgePairs, edgeAssignments: edgeCodes },
+      { edgeIndices: edgePairs, edgeAssignments: edgeCodes, auxEnds: new Uint8Array(info.auxEnds) },
       info.vertexCount
     ),
     facesEdges,

@@ -13,6 +13,10 @@
  * The cut is made in the plane's own `(u, v)`, where the cell rings are, and
  * lifted back through the plane's frame as the kernel lifts the rings — so a
  * piece lies in exactly the surface its layer is drawn as.
+ *
+ * Each cut also says which segments of its cell's ring its ends lie on: a cut
+ * sits on vertices of its own, so where it meets its layer's outline — which
+ * is where erode pulls an aux crease back — is only known here, in the plane.
  */
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
@@ -26,10 +30,20 @@ import { cellRing, cellStack, planeFrame } from './folded3dModelReader';
 /** One piece of an aux line on one layer, in the render model's coordinates. */
 export type Folded3dAuxPiece = readonly [Vec3, Vec3];
 
+/** A piece cut to one cell, and where its ends meet that cell's ring. */
+export interface Folded3dAuxCut {
+  ends: Folded3dAuxPiece;
+  /**
+   * Per end, the indices of the ring segments it lies on — segment `i` runs
+   * from ring point `i` to `i + 1` — two at a ring corner, none inside the cell.
+   */
+  onRing: readonly [readonly number[], readonly number[]];
+}
+
 export interface Folded3dAuxSlots {
-  /** The pieces each `(cell, slot)` shows: `cell → slot → pieces`. */
-  bySlot: ReadonlyMap<number, ReadonlyMap<number, readonly Folded3dAuxPiece[]>>;
-  /** How many pieces in all. */
+  /** The cuts each `(cell, slot)` shows: `cell → slot → cuts`. */
+  bySlot: ReadonlyMap<number, ReadonlyMap<number, readonly Folded3dAuxCut[]>>;
+  /** How many cuts in all. */
   count: number;
 }
 
@@ -37,6 +51,12 @@ export const NO_FOLDED_3D_AUX_SLOTS: Folded3dAuxSlots = { bySlot: new Map(), cou
 
 /** Pieces shorter than this share of the model's span are dust, and dropped. */
 const MIN_PIECE_RELATIVE = 1e-9;
+/**
+ * How near a ring segment, as a share of the model's span, an end is on it:
+ * the kernel's own shipped `distance_relative`, the tolerance it built the
+ * rings to.
+ */
+const ON_RING_RELATIVE = 1e-6;
 
 export function folded3dAuxSlots(
   model: OristudioCpFolded3dRenderModel,
@@ -57,7 +77,8 @@ export function folded3dAuxSlots(
   });
 
   const minLength = MIN_PIECE_RELATIVE * model.span;
-  const bySlot = new Map<number, Map<number, Folded3dAuxPiece[]>>();
+  const onRingTolerance = ON_RING_RELATIVE * model.span;
+  const bySlot = new Map<number, Map<number, Folded3dAuxCut[]>>();
   let count = 0;
   for (let cell = 0; cell < model.cell_count; cell += 1) {
     const stack = cellStack(model, cell);
@@ -90,10 +111,15 @@ export function folded3dAuxSlots(
         const a = toPlane(a3);
         const b = toPlane(b3);
         for (const [t0, t1] of clipToRing(a, b, ring, minLength)) {
-          const cut: Folded3dAuxPiece = [
-            lift(a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0),
-            lift(a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1),
-          ];
+          const from: [number, number] = [a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0];
+          const to: [number, number] = [a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1];
+          const cut: Folded3dAuxCut = {
+            ends: [lift(from[0], from[1]), lift(to[0], to[1])],
+            onRing: [
+              ringSegmentsAt(from, ring, onRingTolerance),
+              ringSegmentsAt(to, ring, onRingTolerance),
+            ],
+          };
           let slots = bySlot.get(cell);
           if (!slots) bySlot.set(cell, (slots = new Map()));
           const list = slots.get(slot);
@@ -156,6 +182,30 @@ export function clipToRing(
     else kept.push([t0, t1]);
   }
   return kept;
+}
+
+/** The segments of `ring` that `point` lies within `tolerance` of. */
+export function ringSegmentsAt(
+  point: readonly [number, number],
+  ring: readonly (readonly [number, number])[],
+  tolerance: number
+): number[] {
+  const found: number[] = [];
+  for (let i = 0; i < ring.length; i += 1) {
+    const p = ring[i]!;
+    const q = ring[(i + 1) % ring.length]!;
+    const ex = q[0] - p[0];
+    const ey = q[1] - p[1];
+    const lengthSq = ex * ex + ey * ey;
+    const t =
+      lengthSq > 0
+        ? Math.min(1, Math.max(0, ((point[0] - p[0]) * ex + (point[1] - p[1]) * ey) / lengthSq))
+        : 0;
+    const dx = point[0] - (p[0] + ex * t);
+    const dy = point[1] - (p[1] + ey * t);
+    if (Math.hypot(dx, dy) <= tolerance) found.push(i);
+  }
+  return found;
 }
 
 function inside(x: number, y: number, ring: readonly (readonly [number, number])[]): boolean {

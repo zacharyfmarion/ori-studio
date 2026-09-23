@@ -310,6 +310,34 @@ describe('collapsible sections', () => {
     expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
   });
 
+  // Simulations draw by direction by default; the switch draws every fold as
+  // an edge instead, so the pens and the style switch it makes moot are
+  // disabled, and the fold line weight — every line's weight — stays live.
+  it('renders all creases as edges when asked, and disables what that makes moot', () => {
+    const rendered = render();
+    toggle(rendered, 'Creases');
+    const asEdges = () =>
+      rendered.querySelector<HTMLButtonElement>(
+        'button[role="switch"][aria-label="Render all creases as edges"]'
+      )!;
+    const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
+    const style = () => section(rendered, 'Creases').querySelector<HTMLButtonElement>(
+      'button[aria-label="Style"]'
+    );
+    expect(asEdges().getAttribute('aria-checked')).toBe('false');
+    expect(mountain()?.disabled).toBe(false);
+
+    act(() => {
+      asEdges().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(useSettingsStore.getState().paperStyle.display.foldsAsEdges).toBe(true);
+    expect(asEdges().getAttribute('aria-checked')).toBe('true');
+    expect(mountain()?.disabled).toBe(true);
+    expect(style()?.disabled).toBe(true);
+    expect(slider(rendered, 'Fold line weight (pt)').disabled).toBe(false);
+    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
+  });
+
   it('binds the Export group to the app-wide export page', () => {
     // The same page Settings ▸ Paper's "Export page" section edits: one store
     // field, two places to reach it.

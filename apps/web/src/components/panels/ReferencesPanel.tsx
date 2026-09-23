@@ -345,6 +345,7 @@ export function ReferencesPanel() {
   // build-up so far while the plan is read.
   const { canvas } = surfaces;
   const auxShown = useMemo(() => shownSheetAux(sheetAux, paper.inks), [sheetAux, paper.inks]);
+  const auxPen = paper.inks.aux;
   const creaseVisibility = useMemo(() => {
     if (!sheetIds) return REFERENCES_ALL_CREASES;
     const input = {
@@ -352,7 +353,8 @@ export function ReferencesPanel() {
       borderLineIds: borderIds,
       activeLineIds: highlights.highlightLineIds,
       mirrored,
-      aux: auxShown,
+      auxPen,
+      auxLineIds: auxShown,
     };
     if (canvas === 'target') return targetVisibility(input);
     if (canvas === 'plan') {
@@ -369,6 +371,7 @@ export function ReferencesPanel() {
     viewSteps,
     breakdown.activeStep,
     auxShown,
+    auxPen,
   ]);
 
   // A tap on the sheet while the plan is read is navigation: to the step that

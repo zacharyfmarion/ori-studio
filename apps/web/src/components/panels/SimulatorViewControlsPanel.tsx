@@ -41,10 +41,13 @@ export function SimulatorViewControlsPanel() {
   // "Export page" section edits the same one); these rows are its simulator-
   // facing subset.
   const exportPage = usePaperExportPage();
-  // A mono style paints every crease in the edge ink, so the per-kind swatches
-  // stop doing anything; showing them live would promise an effect they no
-  // longer have. Custom pens are the user's own and stay editable.
-  const monoCreases = paper.creaseStyle === 'mono' || paper.creaseStyle === 'mono-dashed';
+  // Folds drawn as edges take the edge pen, and a mono style paints every
+  // crease in the edge ink, so the per-kind swatches stop doing anything;
+  // showing them live would promise an effect they no longer have. Custom
+  // pens are the user's own and stay editable.
+  const asEdges = paper.style.foldsAsEdges;
+  const monoCreases =
+    asEdges || paper.creaseStyle === 'mono' || paper.creaseStyle === 'mono-dashed';
   const penRow = (pen: SimulatorPenField, label: string, disabled = false) => (
     <ColorField
       label={label}
@@ -155,8 +158,18 @@ export function SimulatorViewControlsPanel() {
         </CollapsibleSection>
 
         <CollapsibleSection title={t('panels:simulatorViewControls.creases', 'Creases')} collapsible>
+          <ToggleRow
+            label={t('panels:simulatorViewControls.foldsAsEdges', 'Render all creases as edges')}
+            help={t(
+              'panels:simulatorViewControls.foldsAsEdgesHelp',
+              'A fold that has happened is an edge of the paper: every fold is drawn in the edge pen, as a folded figure draws it. Off, folds are drawn by direction.'
+            )}
+            checked={asEdges}
+            onChange={paper.setFoldsAsEdges}
+          />
           <SelectRow
             label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
+            disabled={asEdges}
             // Pens edited past the three modes select nothing rather than lying.
             value={paper.creaseStyle === 'custom' ? null : paper.creaseStyle}
             placeholder={t('panels:simulatorViewControls.creaseStyleCustom', 'Custom')}

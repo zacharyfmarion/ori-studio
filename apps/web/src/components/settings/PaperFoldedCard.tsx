@@ -1,7 +1,8 @@
 /**
  * What folding does to the drawing — the one group of a paper style the crease
- * pattern never shows: the creases already in the sheet, how far a crease
- * pulls back from the edge of its face, and the light the figure is shaded by.
+ * pattern never shows: the creases already in the sheet and how far they pull
+ * back from the edge of their face, whether a simulation's folds are drawn as
+ * edges, and the light the figure is shaded by.
  *
  * One card rather than three: they are all answers about a folded figure, and
  * each is a switch or a single number, so a card apiece would be more border
@@ -15,6 +16,7 @@ import {
   type PaperLight,
 } from '../../lib/paper/paperStyle';
 import { Slider } from '../ui/Slider';
+import { PaperErodePreview } from './PaperErodePreview';
 import { PaperLightDisc } from './PaperLightDisc';
 import { SettingsToggleRow } from './SettingsToggleRow';
 import type { PaperSettingsBinding } from './usePaperSettings';
@@ -106,7 +108,7 @@ export function PaperFoldedCard({ paper }: { paper: PaperSettingsBinding }) {
         onChange={(visible) => paper.setField('auxCreases.visible', visible)}
       />
       <hr className="settings-paper__rule" />
-      <div className="settings-paper-folded__field">
+      <div className="settings-paper-folded__field settings-paper-folded__field--erode">
         <div className="settings-paper-folded__head">
           {/* Decoration: the slider carries the name, and the value with it. */}
           <span className="settings-paper-folded__name" aria-hidden="true">
@@ -128,10 +130,23 @@ export function PaperFoldedCard({ paper }: { paper: PaperSettingsBinding }) {
         <span className="settings-paper-folded__desc">
           {t(
             'dialogs:settings.paper.erodeHint',
-            'Creases pull back from the edge of the face they lie on.'
+            'Auxiliary creases pull back from the edge of the face they lie on; folds run to it.'
           )}
         </span>
+        {/* Erode is invisible at the size of a whole sheet here: a close-up shows it. */}
+        <PaperErodePreview style={style} />
       </div>
+      <hr className="settings-paper__rule" />
+      <SettingsToggleRow
+        label={t('dialogs:settings.paper.foldsAsEdges', 'Render all creases as edges')}
+        description={t(
+          'dialogs:settings.paper.foldsAsEdgesHint',
+          'In simulations, which draw folds by direction otherwise. Folded figures always draw them as edges.'
+        )}
+        checked={style.foldsAsEdges}
+        disabled={!editable}
+        onChange={(on) => paper.setField('foldsAsEdges', on)}
+      />
       <hr className="settings-paper__rule" />
       <SettingsToggleRow
         label={t('dialogs:settings.paper.lightEnabled', 'Directional light')}

@@ -383,8 +383,10 @@
       },
       "erode": "内缩",
       "erodeAmount": "纸张的 {{percent}}%",
-      "erodeHint": "折痕会从所在面的边缘向内收缩。",
+      "erodeCloseUp": "特写",
+      "erodeHint": "辅助折痕会从所在面的边缘向内收缩；山折和谷折则一直画到边缘。",
       "erodeOff": "关闭",
+      "erodePreview": "纸张十分之一的特写：一条延伸到纸边的谷折线，和一条在纸边之前停住的辅助折痕",
       "exportPage": {
         "background": "背景",
         "keepHiddenFaces": "保留隐藏的面",
@@ -403,6 +405,8 @@
       },
       "exportTitle": "导出纸张样式",
       "foldedPaperTitle": "折叠后的纸",
+      "foldsAsEdges": "将所有折痕绘制为边",
+      "foldsAsEdgesHint": "用于模拟，否则按方向绘制折痕。折叠图形始终将折痕绘制为边。",
       "front": "正面",
       "importTitle": "导入纸张样式",
       "light": {

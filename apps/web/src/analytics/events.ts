@@ -217,7 +217,7 @@ export type FoldedFigureStyleOption =
 export type PaperStyleSlot = 'display' | 'export';
 
 /**
- * The style field an edit touched, by its path. A fixed list of ten — never a
+ * The style field an edit touched, by its path. A fixed list of eleven — never a
  * value: a colour, a pen width or a light angle is the user's work. The
  * question is which fields anyone reaches for, and whether the export slot
  * ever gets set apart from display.
@@ -228,6 +228,7 @@ export type PaperStyleFieldName =
   | 'edges'
   | 'mountainFolds'
   | 'valleyFolds'
+  | 'foldsAsEdges'
   | 'auxCreases.visible'
   | 'auxCreases.pen'
   | 'arrows'

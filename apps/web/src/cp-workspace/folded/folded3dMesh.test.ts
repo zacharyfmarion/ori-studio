@@ -715,11 +715,10 @@ describe('folded3dMesh', () => {
       // The window's edge pass reads `edgeBoundaryFlags` over the whole
       // buffer, where a crease appears in every run that inks it — a skin, a
       // hinge group, the translucent run — on the same two vertices; the
-      // export reads it from the translucent and undetermined runs, once. The
-      // rule counts each crease once whatever the buffer lists, or a crease's
-      // own copies would pass for other creases meeting its ends and the
-      // window would retreat an end the export leaves whole — a straight fold
-      // running across an arrangement cut, on four fixtures of the six.
+      // export reads it from the translucent and undetermined runs, once, with
+      // the aux ends the mesh states carried along. Erode is the aux pen's
+      // alone, and these figures have no aux creases, so neither retreats an
+      // end of anything here.
       const model = fixture(name);
       const mesh = meshOf(model);
       const start = mesh.translucent.edgeStart;
@@ -728,13 +727,12 @@ describe('folded3dMesh', () => {
       const once = edgeBoundaryFlags({
         edgeIndices: mesh.topology.edgeIndices.subarray(start * 2, end * 2),
         edgeAssignments: mesh.topology.edgeAssignments.subarray(start, end),
+        auxEnds: mesh.topology.auxEnds?.subarray(start, end),
       });
-      let flagged = 0;
       for (let crease = start; crease < end; crease += 1) {
         expect(window[crease], `${name} crease ${crease}`).toBe(once[crease - start]);
-        if (window[crease]) flagged += 1;
+        expect(window[crease], `${name} crease ${crease}`).toBe(0);
       }
-      expect(flagged).toBeGreaterThan(0);
     });
 
     it.each(NAMES)('%s places a crease on its fold line, at its layer', (name) => {

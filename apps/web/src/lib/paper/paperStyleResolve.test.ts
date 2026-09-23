@@ -155,18 +155,51 @@ describe('resolvePaperStyle', () => {
     expect(settings.creaseDash).toBeUndefined();
   });
 
-  it('draws the 3D figure’s folds with the M/V pens at the fold line weight, as the simulator does', () => {
+  // Phase 9: a fold that has happened is an edge of the paper, so a folded
+  // figure draws every fold in the edge pen, the 3D figure as the flat one.
+  it('draws the 3D figure’s folds in the edge pen, as the flat figure does', () => {
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
       edges: { width: 1.5, color: '#336699', dash: null, cap: 'butt' },
       mountainFolds: { width: 0.3, color: '#ff0000', dash: [4, 2], cap: 'butt' },
     };
     const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES['folded-3d'], OPTIONS);
-    expect(settings.creaseWidthPx).toBeCloseTo(0.5, 12);
-    expect(settings.mountainColor).toEqual(hexToUnitRgb('#ff0000'));
-    expect(settings.valleyColor).toEqual(hexToUnitRgb(DEFAULT_PAPER_STYLE.valleyFolds.color));
+    expect(settings.creaseWidthPx).toBeCloseTo(2, 12);
+    expect(settings.mountainColor).toEqual(hexToUnitRgb('#336699'));
+    expect(settings.valleyColor).toEqual(hexToUnitRgb('#336699'));
     expect(settings.borderColor).toEqual(hexToUnitRgb('#336699'));
-    expect(settings.creaseDash?.mountain).toEqual([4, 2].map((run) => expect.closeTo(run * 0.4, 9)));
+    expect(settings.creaseDash).toBeUndefined();
+  });
+
+  // A simulation draws by direction unless its style says otherwise; then the
+  // edge pen, at the one weight it draws every line at.
+  it('draws a simulation’s folds by direction, or as edges when the style says so', () => {
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { width: 1.5, color: '#336699', dash: null, cap: 'butt' },
+      mountainFolds: { width: 0.75, color: '#ff0000', dash: [4, 2], cap: 'butt' },
+    };
+    for (const surface of ['simulator', 'inline-simulation'] as const) {
+      const byDirection = resolvePaperStyle(style, PAPER_STYLE_POLICIES[surface], OPTIONS);
+      expect(byDirection.mountainColor, surface).toEqual(hexToUnitRgb('#ff0000'));
+      expect(byDirection.creaseWidthPx, surface).toBeCloseTo(1, 12);
+      const asEdges = resolvePaperStyle(
+        { ...style, foldsAsEdges: true },
+        PAPER_STYLE_POLICIES[surface],
+        OPTIONS
+      );
+      expect(asEdges.mountainColor, surface).toEqual(hexToUnitRgb('#336699'));
+      expect(asEdges.valleyColor, surface).toEqual(hexToUnitRgb('#336699'));
+      expect(asEdges.creaseDash, surface).toBeUndefined();
+      // The fold line weight still sets the one width a simulation draws at.
+      expect(asEdges.creaseWidthPx, surface).toBeCloseTo(1, 12);
+    }
+    // A surface that does not read the switch is not moved by it.
+    const references = surfacePaperStyle(
+      { ...style, foldsAsEdges: true },
+      PAPER_STYLE_POLICIES.references
+    );
+    expect(references.mountainFolds.color).toBe('#ff0000');
   });
 
   it('resolves the aux pen at its own width and dash, shown only when the style shows it', () => {
@@ -299,12 +332,15 @@ describe('applyPaperStylePolicy', () => {
         expect(policy.applies, `${policy.surface} ${field}`).toContain(field);
       }
     }
-    // The 3D figure draws its folds as the simulator does; the flat figure
-    // has no visible M/V (D6).
-    expect(PAPER_STYLE_POLICIES['folded-3d'].applies).toContain('mountainFolds');
-    expect(PAPER_STYLE_POLICIES['folded-3d'].applies).toContain('valleyFolds');
-    expect(PAPER_STYLE_POLICIES['folded-flat'].applies).not.toContain('mountainFolds');
-    expect(PAPER_STYLE_POLICIES['folded-flat'].applies).not.toContain('valleyFolds');
+    // Both folded figures draw their folds as edges (D6, Phase 9): neither
+    // reads the fold pens. Simulations and References do.
+    for (const surface of ['folded-3d', 'folded-flat'] as const) {
+      expect(PAPER_STYLE_POLICIES[surface].applies).not.toContain('mountainFolds');
+      expect(PAPER_STYLE_POLICIES[surface].applies).not.toContain('valleyFolds');
+    }
+    expect(PAPER_STYLE_POLICIES.simulator.applies).toContain('foldsAsEdges');
+    expect(PAPER_STYLE_POLICIES['inline-simulation'].applies).toContain('foldsAsEdges');
+    expect(PAPER_STYLE_POLICIES.references.applies).not.toContain('foldsAsEdges');
   });
 });
 
@@ -337,10 +373,19 @@ describe('surfacePaperStyle', () => {
     expect(seen.edges).toEqual(style.edges);
   });
 
-  it('draws the 3D figure’s pens at the fold line weight, as the simulator’s', () => {
+  it('draws the 3D figure’s folds with the edge pen, at the edge’s width', () => {
     const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES['folded-3d']);
-    expect(seen).toEqual(surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator));
-    expect(seen.edges).toEqual({ ...style.edges, width: 3 });
+    expect(seen.edges).toEqual(style.edges);
+    expect(seen.mountainFolds).toEqual(style.edges);
+    expect(seen.valleyFolds).toEqual(style.edges);
+  });
+
+  it('draws a simulation’s folds as edges at the fold line weight when asked', () => {
+    const seen = surfacePaperStyle({ ...style, foldsAsEdges: true }, PAPER_STYLE_POLICIES.simulator);
+    const pen = { ...style.edges, width: 3 };
+    expect(seen.edges).toEqual(pen);
+    expect(seen.mountainFolds).toEqual(pen);
+    expect(seen.valleyFolds).toEqual(pen);
   });
 
   it('leaves the aux pen at its own width', () => {

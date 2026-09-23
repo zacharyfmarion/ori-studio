@@ -715,11 +715,11 @@ describe('which endpoints lie on a boundary', () => {
       (line) => same(line.a, pointOf(from, FAN, OVERHEAD)) && same(line.b, pointOf(to, FAN, OVERHEAD))
     )!;
 
-  it('is true where a crease meets the border, false where it ends mid-face', () => {
-    // The rule: an endpoint is on the boundary when another border or fold edge
-    // meets it there — those are where the layer it is drawn on ends. Here the
-    // aux line starts on the border and ends at a centre where only aux and
-    // facet edges meet, which is the middle of a flat layer.
+  it('is true where an aux crease meets the border, false where it ends mid-face', () => {
+    // The rule: an aux crease's endpoint is on the boundary when a border or
+    // fold edge meets it there — those are where the layer it is drawn on
+    // ends. Here the aux line starts on the border and ends at a centre where
+    // only aux and facet edges meet, which is the middle of a flat layer.
     const result = scene(
       {},
       FAN,
@@ -729,7 +729,7 @@ describe('which endpoints lie on a boundary', () => {
     expect(lineFromTo(result, 4, 5).onBoundary).toEqual([true, false]);
   });
 
-  it('is true where a crease ends on a fold', () => {
+  it('is true where an aux crease ends on a fold', () => {
     // A mountain spoke into the centre turns it into a place the layer ends.
     const result = scene(
       {},
@@ -738,20 +738,20 @@ describe('which endpoints lie on a boundary', () => {
       OVERHEAD
     );
     expect(lineFromTo(result, 4, 5).onBoundary).toEqual([true, true]);
-    // The mountain itself: on the border at the corner, and alone at the
-    // centre — the aux and facet edges there are interior to its layer.
-    expect(lineFromTo(result, 2, 5).onBoundary).toEqual([true, false]);
   });
 
-  it('is true at a vertex where creases meet', () => {
+  it('never retreats a fold, which runs to the paper’s edge', () => {
+    // Erode is the aux pen's alone: folds meeting the border and each other
+    // keep both ends.
     const result = scene(
       {},
       FAN,
       fan({ toCorner1: EDGE_CODE.valley, toCorner2: EDGE_CODE.mountain, toCorner0: EDGE_CODE.aux }),
       OVERHEAD
     );
-    expect(lineFromTo(result, 2, 5).onBoundary).toEqual([true, true]);
-    expect(lineFromTo(result, 1, 5).onBoundary).toEqual([true, true]);
+    expect(lineFromTo(result, 2, 5).onBoundary).toEqual([false, false]);
+    expect(lineFromTo(result, 1, 5).onBoundary).toEqual([false, false]);
+    expect(lineFromTo(result, 4, 5).onBoundary).toEqual([true, true]);
   });
 
   it('never retreats a paper edge', () => {
@@ -769,10 +769,10 @@ describe('which endpoints lie on a boundary', () => {
   });
 
   it('is false at the end a cut left behind', () => {
-    // Two triangles through each other, and a mountain along the first's base
-    // that crosses the second's plane: the tree cuts it in two, and the cut end
-    // of each piece is nobody's boundary — or erode would open a gap where the
-    // pieces meet.
+    // Two triangles through each other, and an aux crease along the first's
+    // base that crosses the second's plane: the tree cuts it in two, and the
+    // cut end of each piece is nobody's boundary — or erode would open a gap
+    // where the pieces meet.
     const crossing = new Float32Array([
       -1, -1, 0, 1, -1, 0, 0, 1, 0,
       0, -1, -1, 0, -1, 1, 0, 1, 0,
@@ -780,11 +780,11 @@ describe('which endpoints lie on a boundary', () => {
     const mesh: SvgMeshTopology = {
       faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
       edgeIndices: new Uint32Array([0, 1, 1, 2, 2, 0]),
-      edgeAssignments: new Uint8Array([EDGE_CODE.mountain, EDGE_CODE.border, EDGE_CODE.border]),
+      edgeAssignments: new Uint8Array([EDGE_CODE.aux, EDGE_CODE.border, EDGE_CODE.border]),
     };
     const camera = cameraUniforms({ yaw: 0.6, pitch: -0.5, zoom: 1 }, [0, 0, 0], 1.5, 400, 400);
     const pieces = lines(meshToPaperScene(crossing, mesh, camera, { sheet: 2 })).filter(
-      (line) => line.role === 'mountain'
+      (line) => line.role === 'aux'
     );
     expect(pieces).toHaveLength(2);
     const start = pointOf(0, crossing, camera);
@@ -839,16 +839,18 @@ describe('which endpoints lie on a boundary', () => {
       fan({ toCorner1: EDGE_CODE.valley, toCorner2: EDGE_CODE.mountain, toCorner0: EDGE_CODE.aux }),
       camera
     );
-    const flags = lines(layered)
-      .filter((line) => line.role !== 'edge')
-      .map((line) => line.onBoundary);
-    // Two aux spokes and the two folds, every end at a corner or at the centre
-    // where the folds meet.
-    expect(flags).toEqual([
+    const creases = lines(layered).filter((line) => line.role !== 'edge');
+    const flags = (aux: boolean) =>
+      creases.filter((line) => (line.role === 'aux') === aux).map((line) => line.onBoundary);
+    // Two aux spokes, every end at a corner or at the centre where the folds
+    // meet; the two folds themselves run to their ends.
+    expect(flags(true)).toEqual([
       [true, true],
       [true, true],
-      [true, true],
-      [true, true],
+    ]);
+    expect(flags(false)).toEqual([
+      [false, false],
+      [false, false],
     ]);
   });
 
@@ -865,12 +867,12 @@ describe('which endpoints lie on a boundary', () => {
     const mesh: SvgMeshTopology = {
       faceIndices: new Uint32Array([3, 4, 5, 6, 7, 8, 0, 1, 2]),
       edgeIndices: new Uint32Array([0, 1, 1, 2, 2, 0]),
-      edgeAssignments: new Uint8Array([EDGE_CODE.mountain, EDGE_CODE.border, EDGE_CODE.border]),
+      edgeAssignments: new Uint8Array([EDGE_CODE.aux, EDGE_CODE.border, EDGE_CODE.border]),
     };
     const camera = cameraUniforms({ yaw: 0.6, pitch: -0.5, zoom: 1 }, [0, 0, 0], 1.5, 400, 400);
     const pieces = lines(
       meshToPaperScene(crossing, mesh, camera, { sheet: 2, layers: { coplanarEps: 1e-6 } })
-    ).filter((line) => line.role === 'mountain');
+    ).filter((line) => line.role === 'aux');
     expect(pieces).toHaveLength(2);
     const flags = pieces.map((line) => line.onBoundary).sort();
     expect(flags).toEqual([

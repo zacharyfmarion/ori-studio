@@ -97,16 +97,30 @@ export function edgeInkEdits(style: PaperStyle, color: Hex, foldPens: boolean): 
 }
 
 /**
- * The fold pens as the simulator's controls offer them: the crease style
- * switch that writes the mountain and valley pens together, the two colours,
- * and one fold line weight — the simulator draws every crease at the fold
- * pens' width (`useSimulatorPaperStyle.setCreaseWeight`). For a surface whose
- * policy applies `mountainFolds` / `valleyFolds`: the inline window and the
- * 3D figure.
+ * The fold pens as the simulator's controls offer them: whether every fold is
+ * drawn as an edge, the crease style switch that writes the mountain and
+ * valley pens together, the two colours, and one fold line weight — the
+ * simulator draws every crease at the fold pens' width
+ * (`useSimulatorPaperStyle.setCreaseWeight`). For a surface whose policy
+ * applies `mountainFolds` / `valleyFolds`: a simulation window.
+ *
+ * While folds are drawn as edges the style switch and the two colours do
+ * nothing, so they are offered disabled with the reason rather than live.
  */
 export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
   const { t, style, held } = deps;
-  const { changeStyle, support, resetOf } = rowParts(deps);
+  const { changeStyle, support: rowSupport, resetOf } = rowParts(deps);
+  const asEdges = style.foldsAsEdges;
+  const support =
+    asEdges && rowSupport.support === 'supported'
+      ? {
+          support: 'unsupported' as const,
+          reason: t(
+            'panels:cpProperties.paperStyle.foldsAsEdgesReason',
+            'Every fold is drawn in the edge pen'
+          ),
+        }
+      : rowSupport;
   // A pen is pinned whole, so a colour pick copies the effective pen and
   // changes its colour; a reset clears the whole pen.
   const penColor = (pen: 'mountainFolds' | 'valleyFolds', id: string, label: string): ColorField => ({
@@ -125,6 +139,17 @@ export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
   });
   const creaseStyle = creaseStyleOf(style);
   return [
+    {
+      id: 'foldsAsEdges',
+      kind: 'toggle',
+      label: t('panels:simulatorViewControls.foldsAsEdges', 'Render all creases as edges'),
+      ...rowSupport,
+      undoLabel: changeStyle,
+      protocol: 'discrete',
+      value: asEdges,
+      commit: (on) => deps.commitOverrides([{ field: 'foldsAsEdges', value: on }]),
+      ...resetOf('foldsAsEdges'),
+    },
     {
       id: 'creaseStyle',
       kind: 'select',
@@ -155,7 +180,8 @@ export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
       id: 'foldLineWeight',
       kind: 'slider',
       label: t('panels:simulatorViewControls.foldLineWeight', 'Fold line weight (pt)'),
-      ...support,
+      // Still the weight every line is drawn at when folds are edges.
+      ...rowSupport,
       undoLabel: changeStyle,
       min: SIMULATOR_FOLD_WEIGHT_RANGE.min,
       max: SIMULATOR_FOLD_WEIGHT_RANGE.max,

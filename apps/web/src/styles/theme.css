@@ -3181,6 +3181,47 @@ a.context-menu__item {
 }
 
 /*
+ * Erode's field carries its close-up beside the slider: the name, the slider
+ * and the line that says what it does in the first column, the picture of it
+ * in the second, beside all three.
+ */
+.settings-paper-folded__field--erode {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+}
+
+.settings-paper-folded__field--erode > * {
+  grid-column: 1;
+}
+
+.settings-paper-folded__field--erode > .settings-paper-erode {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+}
+
+.settings-paper-erode {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
+/* The ground the paper's corner lies on, framed like the light's disc. */
+.settings-paper-erode__picture {
+  display: block;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.settings-paper-erode__caption {
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+}
+
+/*
  * The light, aimed on a disc: a picture of the hemisphere it comes from, with
  * the angles beside it for a figure that has to match a diagram.
  */

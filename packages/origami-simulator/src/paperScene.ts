@@ -65,10 +65,10 @@ export interface PaperLineItem {
   a: ScenePoint;
   b: ScenePoint;
   /**
-   * Whether each endpoint should retreat under the style's erode: it lies on
-   * the sheet boundary, or on a fold edge of the layer the line is drawn on.
-   * See `edgeBoundaryFlags` for the rule, which the GPU and canvas-2D edge
-   * passes read from the same module.
+   * Whether each endpoint should retreat under the style's erode: the line
+   * is an aux crease, and the end lies on the sheet boundary or on a fold
+   * edge of the layer the line is drawn on. See `edgeBoundaryFlags` for the
+   * rule, which the GPU and canvas-2D edge passes read from the same module.
    */
   onBoundary: [boolean, boolean];
   /**

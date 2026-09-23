@@ -81,12 +81,12 @@ export function useReferencesSheetAux(
 }
 
 /**
- * What the canvas draws of a sheet's aux lines: their ids and the pen, when
- * they are shown (`referencesCreaseVisibility`), else nothing.
+ * The ids of a sheet's aux lines the canvas draws (`referencesCreaseVisibility`):
+ * all of them while they are shown, else none.
  */
 export function shownSheetAux(
   sheet: ReferencesSheetAux | null,
-  inks: Pick<ReferencesPaperInks, 'aux' | 'showAux'>
-): { ids: ReadonlySet<number>; pen: ReferencesPaperInks['aux'] } | null {
-  return sheet && inks.showAux ? { ids: sheet.ids, pen: inks.aux } : null;
+  inks: Pick<ReferencesPaperInks, 'showAux'>
+): ReadonlySet<number> | null {
+  return sheet && inks.showAux ? sheet.ids : null;
 }

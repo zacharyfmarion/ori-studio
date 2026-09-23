@@ -11,11 +11,15 @@
 // depth-tested (no painter's sort), two-tone via `gl_FrontFacing`, flat-lit from
 // the screen-space derivative of view position. Edges are a `LINES` pass.
 import type { GlCore } from './glCore.js';
-import type { CameraUniforms, Mat3 } from './camera.js';
+import { sheetExtent, type CameraUniforms, type Mat3 } from './camera.js';
 import type { FoldAssignment } from '../types.js';
 import { SHADE_GLSL } from '../shading.js';
 import { EDGE_CODE } from '../edgeCodes.js';
-import { edgeBoundaryFlags } from '../edgeBoundary.js';
+import {
+  AUX_END_ON_OUTLINE_RELATIVE,
+  auxEndsOnOutline,
+  edgeBoundaryFlags,
+} from '../edgeBoundary.js';
 
 export interface MeshTopology {
   /** Triangle vertex indices, 3 per face. */
@@ -29,6 +33,11 @@ export interface MeshTopology {
    * always and 3 when {@link RenderSettings.showAux} asks for it.
    */
   edgeAssignments: Uint8Array;
+  /**
+   * Ends of aux creases that lie on their layer's outline though no outline
+   * edge shares the vertex, for erode — see `EdgeBoundaryTopology.auxEnds`.
+   */
+  auxEnds?: Uint8Array;
   /** Square texture edge length the solver packs vertices into. */
   textureDim: number;
 }
@@ -123,10 +132,11 @@ export interface RenderSettings {
   /** Draw the auxiliary creases. Off by default: they clutter a fold. */
   showAux?: boolean;
   /**
-   * Erode (D8): how far a crease retreats from the outline of the layer it is
-   * drawn on, as a fraction of the unfolded sheet's extent. 0, the default,
-   * draws every crease to its ends. Which ends retreat is `edgeBoundaryFlags`,
-   * the rule the vector painter's `onBoundary` reads; the distance is the
+   * Erode (D8): how far an aux crease retreats from the outline of the layer
+   * it is drawn on, as a fraction of the unfolded sheet's extent. Folds are
+   * drawn to their ends whatever it is, and 0, the default, draws every crease
+   * to its ends. Which ends retreat is `edgeBoundaryFlags`, the rule the
+   * vector painter's `onBoundary` reads; the distance is the
    * painter's `erode × sheet` at the frame's camera, so the renderer has to
    * know the sheet's extent ({@link MeshRendererOptions.sheet}) and converts
    * per frame — a device-px figure would go stale on the first zoom.
@@ -340,6 +350,12 @@ export function meshTopologyFor(
      * a hand-built one that has no diagonals.
      */
     edgesFacet?: ReadonlyArray<boolean>;
+    /**
+     * The flat sheet, 3 per vertex. With it, an aux crease laid over the faces
+     * rather than into them has the ends that lie on the paper's edge or a
+     * fold stated (`auxEndsOnOutline`), so erode finds them.
+     */
+    originalPositions?: Float32Array;
   },
   /**
    * The solver's texture edge, which only the GL path reads — it is how the
@@ -357,12 +373,17 @@ export function meshTopologyFor(
       ? EDGE_CODE.facet
       : (ASSIGNMENT_CODE[prepared.edgesAssignment[index] ?? 'U'] ?? EDGE_CODE.border);
   });
-  return {
+  const topology: MeshTopology = {
     faceIndices: prepared.indices.slice(),
     edgeIndices,
     edgeAssignments,
     textureDim,
   };
+  const flat = prepared.originalPositions;
+  const auxEnds =
+    flat && auxEndsOnOutline(topology, flat, AUX_END_ON_OUTLINE_RELATIVE * sheetExtent(flat));
+  if (auxEnds) topology.auxEnds = auxEnds;
+  return topology;
 }
 
 // Interleaved edge-vertex layout: [this, a, b, side, assignment, shrink].

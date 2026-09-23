@@ -248,6 +248,7 @@
       "auxWidth": "補助折り線の幅 (pt)",
       "changeAction": "用紙スタイルを変更",
       "erode": "エロード (用紙の %)",
+      "foldsAsEdgesReason": "すべての折り線を辺のペンで描いています",
       "resetAction": "用紙スタイルをリセット"
     },
     "region": {
@@ -1120,6 +1121,8 @@
     "faces": "面",
     "faceStiffness": "面",
     "foldLineWeight": "折り線の太さ (pt)",
+    "foldsAsEdges": "すべての折り線を辺として描画",
+    "foldsAsEdgesHelp": "折り終えた線は紙の辺です。すべての折り線を折り図形と同じく辺のペンで描きます。オフにすると、山折り・谷折りの向きで描き分けます。",
     "keepHiddenFaces": "隠れた面を残す",
     "keepHiddenFacesHint": "どこにも見えない面を、覆うものの下にそのままファイルに残します。",
     "lighting": "照明",

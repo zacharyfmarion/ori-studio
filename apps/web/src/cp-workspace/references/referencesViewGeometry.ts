@@ -410,17 +410,24 @@ export interface ReferencesCreaseVisibility {
   ink?: {
     mountain: readonly [number, number, number, number];
     valley: readonly [number, number, number, number];
-    /** The aux pen's colour on this canvas, for {@link ReferencesCreaseVisibility.aux}. */
+    /** The aux pen's colour on this canvas, for {@link ReferencesCreaseVisibility.thin}. */
     aux?: readonly [number, number, number, number];
   } | null;
   /**
-   * The pattern's auxiliary lines on the sheet, and the paper style's aux pen
-   * they are drawn in (`referencesAuxCreases`). On the paper from the first
-   * step: never dimmed, never given a direction, never pickable and never a
-   * vertex — nothing folds them. Their ids are in `visible` too, since they
-   * are drawn; absent or null when they are not shown.
+   * Lines drawn thin, in the paper style's aux pen ({@link thinPen}), the way
+   * a card draws what is already on the paper: the creases an earlier step
+   * made — folded, and opened flat again — and the pattern's own aux lines
+   * when they are shown (`referencesAuxCreases`). Never dimmed and never given
+   * a direction. Their ids are in `visible` too, since they are drawn.
    */
-  aux?: { ids: ReadonlySet<number>; pen: { pen: Pen; css: number } } | null;
+  thin?: ReadonlySet<number> | null;
+  /** The aux pen {@link thin} is drawn in, and its width in CSS px. */
+  thinPen?: { pen: Pen; css: number } | null;
+  /**
+   * Of {@link thin}, the pattern's aux lines: nothing folds them, so they are
+   * never pickable and never make a vertex.
+   */
+  auxLines?: ReadonlySet<number> | null;
   /**
    * The 1-based ids drawn at all. `null` means every crease — the sheet is not
    * being read step by step, so nothing is held back.
@@ -482,18 +489,19 @@ export function applyCreaseVisibility(
     emphasisWidth = 1,
     directions = null,
     ink = null,
-    aux = null,
+    thin = null,
+    thinPen = null,
   } = visibility;
   const filters =
     visible !== null ||
     (dimmed !== null && dimmed.size > 0) ||
     (emphasis !== null && emphasis.size > 0) ||
     (directions !== null && directions.size > 0 && ink !== null) ||
-    (aux !== null && aux.ids.size > 0);
+    (thin !== null && thin.size > 0);
   if (!filters) return strokes;
   // The aux pen in the diagram's ink, which is what a crease's width is a
   // multiple of here: one unit of `widthMul` is the edge pen's weight.
-  const auxPen = aux ? penInk(aux.pen.pen, aux.pen.css / inkCss) : null;
+  const auxPen = thinPen ? penInk(thinPen.pen, thinPen.css / inkCss) : null;
   const color = new Float32Array(strokes.color);
   const widthMul = new Float32Array(strokes.widthMul);
   // A crease is split into a segment per crossing, and each one restarts its
@@ -519,7 +527,7 @@ export function applyCreaseVisibility(
       color[i * 4 + 3] = 0;
       continue;
     }
-    if (auxPen && aux?.ids.has(id)) {
+    if (auxPen && thin?.has(id)) {
       if (ink?.aux) color.set(ink.aux, i * 4);
       widthMul[i] = auxPen.width / DIAGRAM_LINE_INK.edge.width;
       dashSlot[i] = diagramDashSlot('aux');

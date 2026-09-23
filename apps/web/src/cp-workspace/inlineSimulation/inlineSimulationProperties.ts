@@ -109,8 +109,8 @@ export function buildInlineSimulationProperties(
         deps.commitOverrides([{ field: 'light', value: { ...style.light, enabled } }]),
       ...resetOf('light'),
     },
-    // The window's aux creases are the source's `F` edges; erode pulls every
-    // crease back from the edge of its face.
+    // The window's aux creases are the source's `F` edges; erode pulls them,
+    // and only them, back from the edge of their face.
     ...auxAndErodeFields(deps),
   ];
 

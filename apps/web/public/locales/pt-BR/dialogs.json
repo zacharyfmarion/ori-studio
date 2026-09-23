@@ -399,8 +399,10 @@
       },
       "erode": "Recuo",
       "erodeAmount": "{{percent}}% do papel",
-      "erodeHint": "Os vincos recuam da borda da face em que estão.",
+      "erodeCloseUp": "Detalhe",
+      "erodeHint": "Os vincos auxiliares recuam da borda da face em que estão; as dobras em monte e em vale vão até ela.",
       "erodeOff": "Desligado",
+      "erodePreview": "Detalhe de um décimo da folha: uma dobra em vale que chega até a borda do papel e um vinco auxiliar que para antes dela",
       "exportPage": {
         "background": "Fundo",
         "keepHiddenFaces": "Manter faces ocultas",
@@ -419,6 +421,8 @@
       },
       "exportTitle": "Exportar estilo de papel",
       "foldedPaperTitle": "Papel dobrado",
+      "foldsAsEdges": "Desenhar todos os vincos como bordas",
+      "foldsAsEdgesHint": "Nas simulações, que de outra forma desenham as dobras pela direção. Figuras dobradas sempre as desenham como bordas.",
       "front": "Frente",
       "importTitle": "Importar estilo de papel",
       "light": {

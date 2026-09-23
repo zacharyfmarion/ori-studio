@@ -383,8 +383,10 @@
       },
       "erode": "들여쓰기",
       "erodeAmount": "종이의 {{percent}}%",
-      "erodeHint": "접힘선이 놓인 면의 가장자리에서 안쪽으로 물러납니다.",
+      "erodeCloseUp": "확대",
+      "erodeHint": "보조 접힘선은 놓인 면의 가장자리에서 안쪽으로 물러납니다. 산 접기와 골 접기는 가장자리까지 그려집니다.",
       "erodeOff": "끔",
+      "erodePreview": "종이의 10분의 1을 확대한 모습: 종이 가장자리까지 이어지는 골 접기 선과, 그 앞에서 멈추는 보조 접힘선",
       "exportPage": {
         "background": "배경",
         "keepHiddenFaces": "숨겨진 면 유지",
@@ -403,6 +405,8 @@
       },
       "exportTitle": "종이 스타일 내보내기",
       "foldedPaperTitle": "접힌 종이",
+      "foldsAsEdges": "모든 접힘선을 모서리로 그리기",
+      "foldsAsEdgesHint": "시뮬레이션에서 적용되며, 꺼져 있으면 방향에 따라 그립니다. 접힌 도형은 항상 모서리로 그립니다.",
       "front": "앞면",
       "importTitle": "종이 스타일 가져오기",
       "light": {

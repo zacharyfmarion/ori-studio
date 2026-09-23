@@ -258,6 +258,7 @@
       "auxWidth": "Épaisseur des plis auxiliaires (pt)",
       "changeAction": "Changer le style de papier",
       "erode": "Retrait (% du papier)",
+      "foldsAsEdgesReason": "Tous les plis sont dessinés avec le stylo des bords",
       "resetAction": "Réinitialiser le style de papier"
     },
     "region": {
@@ -1198,6 +1199,8 @@
     "faces": "Faces",
     "faceStiffness": "Face",
     "foldLineWeight": "Épaisseur des lignes de pli (pt)",
+    "foldsAsEdges": "Dessiner tous les plis comme des bords",
+    "foldsAsEdgesHelp": "Un pli déjà fait est un bord du papier : tous les plis sont dessinés avec le stylo des bords, comme sur une figure pliée. Désactivé, les plis sont dessinés selon leur sens.",
     "keepHiddenFaces": "Conserver les faces cachées",
     "keepHiddenFacesHint": "Les faces que rien ne montre restent dans le fichier, sous ce qui les recouvre.",
     "lighting": "Éclairage",

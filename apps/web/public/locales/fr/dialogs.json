@@ -399,8 +399,10 @@
       },
       "erode": "Retrait",
       "erodeAmount": "{{percent}} % du papier",
-      "erodeHint": "Les plis se retirent du bord de la face sur laquelle ils reposent.",
+      "erodeCloseUp": "Gros plan",
+      "erodeHint": "Les plis auxiliaires se retirent du bord de la face sur laquelle ils reposent ; les plis montagne et vallée vont jusqu’à lui.",
       "erodeOff": "Désactivé",
+      "erodePreview": "Gros plan d’un dixième de la feuille : un pli vallée qui va jusqu’au bord du papier, et un pli auxiliaire qui s’arrête avant",
       "exportPage": {
         "background": "Arrière-plan",
         "keepHiddenFaces": "Conserver les faces cachées",
@@ -419,6 +421,8 @@
       },
       "exportTitle": "Exporter le style de papier",
       "foldedPaperTitle": "Papier plié",
+      "foldsAsEdges": "Dessiner tous les plis comme des bords",
+      "foldsAsEdgesHint": "Dans les simulations, qui dessinent sinon les plis selon leur sens. Les figures pliées les dessinent toujours comme des bords.",
       "front": "Recto",
       "importTitle": "Importer un style de papier",
       "light": {

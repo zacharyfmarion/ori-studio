@@ -81,9 +81,9 @@ describe('shownSheetAux', () => {
     showAux: true,
   };
 
-  it('hands the canvas the ids and the pen while they are shown', () => {
+  it('hands the canvas the ids while they are shown', () => {
     const aux = referencesSheetAux(sheet([5], [[0, 0.75, 1, 0.75]]), geometry);
-    expect(shownSheetAux(aux, inks)).toEqual({ ids: aux!.ids, pen: inks.aux });
+    expect(shownSheetAux(aux, inks)).toBe(aux!.ids);
     expect(shownSheetAux(aux, { ...inks, showAux: false })).toBeNull();
     expect(shownSheetAux(null, inks)).toBeNull();
   });

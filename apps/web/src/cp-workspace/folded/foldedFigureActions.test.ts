@@ -612,37 +612,22 @@ describe('foldedFigureStyleGroup', () => {
     );
   });
 
-  it('carries a new line ink onto a 3D figure’s fold pens under a mono style, in one gesture', () => {
-    // The 3D figure draws M/V in the fold pens (Phase 5): under mono they are
-    // the line ink and follow it, each pin joining the row's run. The flat
-    // figure has no fold pens to carry it onto (D6).
+  it('pins the edge pen alone with a new line ink, on either figure', () => {
+    // Re-pinned for Phase 9: the 3D figure drew M/V in the fold pens, so under
+    // mono its line ink carried onto them. Both folded figures now draw every
+    // fold as an edge, so the line ink is the edge pen and nothing more.
     const mono = applyCreaseStyle(DEFAULT_PAPER_STYLE, 'mono');
-    const deps = makeDeps({ paperStyle: () => mono });
-    const figure = spatial();
-    colors(figure, deps)[2]?.set('#333333');
     const gesture = { scope: 'folded-color:folded-1:line_color', label: 'Change folded model color' };
-    expect(deps.setAppearance).toHaveBeenCalledTimes(3);
-    expect(deps.setAppearance).toHaveBeenNthCalledWith(
-      1,
-      figure,
-      { field: 'edges', value: { ...mono.edges, color: '#333333' } },
-      gesture
-    );
-    expect(deps.setAppearance).toHaveBeenNthCalledWith(
-      2,
-      figure,
-      { field: 'mountainFolds', value: { ...mono.mountainFolds, color: '#333333' } },
-      gesture
-    );
-    expect(deps.setAppearance).toHaveBeenNthCalledWith(
-      3,
-      figure,
-      { field: 'valleyFolds', value: { ...mono.valleyFolds, color: '#333333' } },
-      gesture
-    );
-    const flatDeps = makeDeps({ paperStyle: () => mono });
-    colors(flat(), flatDeps)[2]?.set('#333333');
-    expect(flatDeps.setAppearance).toHaveBeenCalledTimes(1);
+    for (const figure of [spatial(), flat()]) {
+      const deps = makeDeps({ paperStyle: () => mono });
+      colors(figure, deps)[2]?.set('#333333');
+      expect(deps.setAppearance).toHaveBeenCalledTimes(1);
+      expect(deps.setAppearance).toHaveBeenCalledWith(
+        figure,
+        { field: 'edges', value: { ...mono.edges, color: '#333333' } },
+        gesture
+      );
+    }
   });
 
   it('reads the colours from the effective style, whichever kind of figure', () => {

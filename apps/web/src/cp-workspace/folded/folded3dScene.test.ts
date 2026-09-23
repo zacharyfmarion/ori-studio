@@ -57,6 +57,7 @@ import {
   FOLDED_3D_PLANE_FRAME_STRIDE,
   IDENTITY_FOLDED_PLACEMENT,
   type OristudioCpFold3dTolerances,
+  type OristudioCpFolded3dAuxLines,
   type OristudioCpFolded3dRenderModel,
   type OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
@@ -94,8 +95,11 @@ function fixture(name: string): OristudioCpFolded3dRenderModel {
   return JSON.parse(readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8'));
 }
 
-function meshOf(model: OristudioCpFolded3dRenderModel): Folded3dMesh {
-  const result = folded3dMesh(model);
+function meshOf(
+  model: OristudioCpFolded3dRenderModel,
+  aux?: OristudioCpFolded3dAuxLines
+): Folded3dMesh {
+  const result = folded3dMesh(model, aux);
   if (result.kind !== 'mesh') throw new Error(`expected a mesh, got ${result.kind}`);
   return result.mesh;
 }
@@ -708,33 +712,19 @@ describe('what the scene says about each item', () => {
     expect(kept.items.length).toBeGreaterThan(0);
   });
 
-  it('marks a fold’s ends on the boundary where it meets a face corner', () => {
-    // The hinge: one fold between two faces, each end at a corner where the
-    // paper's border meets it, so both ends retreat under erode. Under
-    // `layers` the tree cuts in view space, and ownership of an end is
-    // decided there; a page comparison reported every end false at any real
-    // orbit, since a vertex's page position and the projected vertex differ
-    // by float32 rounding.
+  it('marks an aux line’s ends where it meets the paper’s edge and a fold', () => {
+    // The hinge, with an aux line on face 0 from the paper's edge (x = 200) to
+    // the fold (x + y = 0). Under `layers` the tree cuts in view space, and
+    // ownership of an end is decided there; a page comparison reported every
+    // end false at any real orbit, since a vertex's page position and the
+    // projected vertex differ by float32 rounding. An end that retreats is a
+    // vertex of the mesh, never a point a cut left mid-crease — at 1e-3 px,
+    // since the page position is the float32 view position projected and the
+    // projected vertex is the float64 projection rounded.
     const model = fixture('hinge_90');
-    const mesh = meshOf(model);
+    const mesh = meshOf(model, { faces: [0], points: [200, 0, 0, 0, 0, 0] });
     for (const [label, camera] of CAMERAS) {
-      const folds = lines(sceneOf(model, mesh, camera)).filter((line) => line.role !== 'edge');
-      expect(folds.length, label).toBeGreaterThan(0);
-      for (const fold of folds) expect(fold.onBoundary, label).toEqual([true, true]);
-    }
-  });
-
-  it.each(NAMES)('%s never marks a fold’s end that the tree cut mid-crease', (name) => {
-    // An end that retreats is always a vertex of the mesh — never a point an
-    // arrangement cut left in the middle of a crease, which erode would open
-    // a gap at. At 1e-3 px: the page position is the float32 view position
-    // projected, and the projected vertex is the float64 projection rounded.
-    const model = fixture(name);
-    const mesh = meshOf(model);
-    let marked = 0;
-    for (const [label, camera] of CAMERAS) {
-      const uniforms = folded3dSceneCamera(camera, mesh, BOX);
-      const projected = projectVertices(mesh.positions, uniforms);
+      const projected = projectVertices(mesh.positions, folded3dSceneCamera(camera, mesh, BOX));
       const isVertex = (p: readonly number[]): boolean => {
         for (let v = 0; v < projected.count; v += 1) {
           if (
@@ -746,15 +736,25 @@ describe('what the scene says about each item', () => {
         }
         return false;
       };
-      for (const line of lines(sceneOf(model, mesh, camera))) {
-        for (const [end, point] of [[0, line.a], [1, line.b]] as const) {
-          if (!line.onBoundary[end]) continue;
-          marked += 1;
-          expect(isVertex(point), `${name} @ ${label}`).toBe(true);
-        }
+      const aux = lines(sceneOf(model, mesh, camera)).filter((line) => line.role === 'aux');
+      expect(aux.length, label).toBeGreaterThan(0);
+      for (const line of aux) {
+        expect(line.onBoundary, label).toEqual([true, true]);
+        expect(isVertex(line.a) && isVertex(line.b), label).toBe(true);
       }
     }
-    expect(marked, name).toBeGreaterThan(0);
+  });
+
+  it.each(NAMES)('%s never marks a fold’s end', (name) => {
+    // Erode is the aux pen's alone: a fold is drawn to its ends, whatever
+    // meets them — the paper's edge, another fold, a cut the tree made.
+    const model = fixture(name);
+    const mesh = meshOf(model);
+    for (const [label, camera] of CAMERAS) {
+      const folds = lines(sceneOf(model, mesh, camera)).filter((line) => line.role !== 'aux');
+      expect(folds.length, `${name} @ ${label}`).toBeGreaterThan(0);
+      for (const line of folds) expect(line.onBoundary, `${name} @ ${label}`).toEqual([false, false]);
+    }
   });
 });
 

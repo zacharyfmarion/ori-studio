@@ -253,6 +253,7 @@
       "auxWidth": "Hilfsfaltenbreite (pt)",
       "changeAction": "Papierstil ändern",
       "erode": "Einrücken (% des Papiers)",
+      "foldsAsEdgesReason": "Alle Falten werden mit dem Kantenstift gezeichnet",
       "resetAction": "Papierstil zurücksetzen"
     },
     "region": {
@@ -1156,6 +1157,8 @@
     "faces": "Flächen",
     "faceStiffness": "Fläche",
     "foldLineWeight": "Faltlinienstärke (pt)",
+    "foldsAsEdges": "Alle Falten als Kanten zeichnen",
+    "foldsAsEdgesHelp": "Eine gefaltete Falte ist eine Kante des Papiers: Jede Falte wird mit dem Kantenstift gezeichnet, wie bei einer gefalteten Figur. Aus: Falten werden nach Richtung gezeichnet.",
     "keepHiddenFaces": "Verdeckte Flächen behalten",
     "keepHiddenFacesHint": "Flächen, die nichts zeigt, bleiben in der Datei, unter dem, was sie verdeckt.",
     "lighting": "Beleuchtung",

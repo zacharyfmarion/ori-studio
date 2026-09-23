@@ -31,6 +31,7 @@ export const SIMULATOR_PANE_FIELDS: readonly PaperStyleField[] = [
   'edges',
   'mountainFolds',
   'valleyFolds',
+  'foldsAsEdges',
   'light',
 ];
 
@@ -55,6 +56,11 @@ export interface SimulatorPaperStyleBinding {
    * edges at the fold pens' width, and the folded figures' edge is their own.
    */
   setCreaseWeight: (widthPt: number) => void;
+  /**
+   * Draw every fold in the edge pen, at the fold line weight, as a folded
+   * figure does — or by direction again.
+   */
+  setFoldsAsEdges: (on: boolean) => void;
   setLighting: (enabled: boolean) => void;
   /**
    * The end of one continuous adjustment — a colour picker closing, a slider
@@ -158,6 +164,10 @@ export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
         count('valleyFolds');
         setField('display', 'mountainFolds', { ...style.mountainFolds, width });
         setField('display', 'valleyFolds', { ...style.valleyFolds, width });
+      },
+      setFoldsAsEdges: (on) => {
+        once('foldsAsEdges');
+        setField('display', 'foldsAsEdges', on);
       },
       setLighting: (enabled) => {
         once('light');

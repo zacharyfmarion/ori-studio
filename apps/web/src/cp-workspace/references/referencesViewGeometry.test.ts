@@ -234,9 +234,9 @@ describe('applyCreaseVisibility', () => {
     expect(alphaOf(out)).toEqual([1, 0.25, 0, 0, 0]);
   });
 
-  // The pattern's own aux lines: the aux pen's ink, width and dash, drawn at
-  // full strength among dimmed creases, and never given a direction.
-  it('draws the pattern’s aux lines in the aux pen', () => {
+  // Thin lines — creases an earlier step made, the pattern's own aux lines —
+  // take the aux pen's ink, width and dash, and never a direction.
+  it('draws thin lines in the aux pen', () => {
     const inkCss = 1.25;
     const pen = { width: 0.25, color: '#231f20', dash: [4, 2], cap: 'butt' as const };
     const css = 0.5;
@@ -250,7 +250,8 @@ describe('applyCreaseVisibility', () => {
         dimAlpha: 0.25,
         directions: new Map([[3, 'valley' as const]]),
         ink: { mountain: [1, 0, 0, 1], valley: [0, 0, 1, 1], aux: ink },
-        aux: { ids: new Set([2, 3]), pen: { pen, css } },
+        thin: new Set([2, 3]),
+        thinPen: { pen, css },
       },
       inkCss
     );

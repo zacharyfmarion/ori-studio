@@ -391,8 +391,10 @@
       },
       "erode": "Erode",
       "erodeAmount": "{{percent}}% of the sheet",
-      "erodeHint": "Creases pull back from the edge of the face they lie on.",
+      "erodeCloseUp": "Close-up",
+      "erodeHint": "Auxiliary creases pull back from the edge of the face they lie on; folds run to it.",
       "erodeOff": "Off",
+      "erodePreview": "Close-up of a tenth of the sheet: a valley fold running to the paper’s edge, and an auxiliary crease stopping short of it",
       "exportPage": {
         "background": "Background",
         "keepHiddenFaces": "Keep hidden faces",
@@ -411,6 +413,8 @@
       },
       "exportTitle": "Export Paper Style",
       "foldedPaperTitle": "Folded paper",
+      "foldsAsEdges": "Render all creases as edges",
+      "foldsAsEdgesHint": "In simulations, which draw folds by direction otherwise. Folded figures always draw them as edges.",
       "front": "Front",
       "importTitle": "Import Paper Style",
       "light": {

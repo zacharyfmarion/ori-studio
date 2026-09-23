@@ -30,9 +30,9 @@ const UNLIT: PaperStyle['light'] = { ...DEFAULT_PAPER_STYLE.light, enabled: fals
  * 0.75 pt. The template's hidden fold and hidden edge pens have nothing to
  * drive and are not here.
  *
- * Creases pull back half a percent of the sheet from the edge of the face they
- * lie on, which is how a printed diagram keeps a crease from touching the
- * outline it ends at.
+ * Aux creases pull back half a percent of the sheet from the edge of the face
+ * they lie on, which is how a printed diagram keeps an existing crease from
+ * touching the outline it ends at; a fold line still runs to the edge.
  */
 const DIAGRAM_INK = '#231f20';
 const DIAGRAM_PEN: Pen = { width: 0.75, color: DIAGRAM_INK, dash: null, cap: 'butt' };

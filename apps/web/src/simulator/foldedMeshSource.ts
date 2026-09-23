@@ -40,6 +40,8 @@ export interface Folded3dMeshPayload {
   edgeIndices: ArrayBuffer;
   /** One assignment code per crease, `Uint8`. */
   edgeAssignments: ArrayBuffer;
+  /** Per crease, the aux-cut ends on their layer's outline, `Uint8` — `MeshTopology.auxEnds`. */
+  auxEnds: ArrayBuffer;
   /** Camera fit — the mesh is already centroid-relative, so this is the origin. */
   center: [number, number, number];
   radius: number;
@@ -105,6 +107,7 @@ export class FoldedMeshSource {
           faceIndices: new Uint32Array(payload.faceIndices),
           edgeIndices: new Uint32Array(payload.edgeIndices),
           edgeAssignments: new Uint8Array(payload.edgeAssignments),
+          auxEnds: new Uint8Array(payload.auxEnds),
           textureDim: dim,
         },
         { sheet: payload.sheet }

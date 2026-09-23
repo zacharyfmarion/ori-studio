@@ -31,7 +31,12 @@ async function frame(
 // fold change has to actually restart a converged solve, and frames have to
 // carry live diagnostics rather than load-time ones.
 
-function miura(n: number, m: number): FoldDocument {
+/**
+ * A Miura-ori sheet of `n` × `m` parallelograms. With `auxDiagonals`, a flat
+ * crease (`F`) crosses every face corner to corner — aux lines that end where
+ * folds meet, which is where erode pulls them back.
+ */
+function miura(n: number, m: number, { auxDiagonals = false } = {}): FoldDocument {
   const angle = Math.PI / 3;
   const at = (i: number, j: number) => i * (m + 1) + j;
   const vertices: number[][] = [];
@@ -46,7 +51,7 @@ function miura(n: number, m: number): FoldDocument {
   const push = (u: number, v: number, kind: string) => {
     edges.push([u, v]);
     assignment.push(kind);
-    foldAngle.push(kind === 'B' ? null : kind === 'M' ? -150 : 150);
+    foldAngle.push(kind === 'B' ? null : kind === 'F' ? 0 : kind === 'M' ? -150 : 150);
   };
   for (let i = 0; i <= n; i += 1) {
     for (let j = 0; j <= m; j += 1) {
@@ -57,7 +62,13 @@ function miura(n: number, m: number): FoldDocument {
   const faces: number[][] = [];
   for (let i = 0; i < n; i += 1) {
     for (let j = 0; j < m; j += 1) {
-      faces.push([at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)]);
+      const corners = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)] as const;
+      if (!auxDiagonals) {
+        faces.push([...corners]);
+        continue;
+      }
+      push(corners[0], corners[2], 'F');
+      faces.push([corners[0], corners[1], corners[2]], [corners[0], corners[2], corners[3]]);
     }
   }
   return {
@@ -66,6 +77,38 @@ function miura(n: number, m: number): FoldDocument {
     edges_assignment: assignment as FoldDocument['edges_assignment'],
     edges_foldAngle: foldAngle,
     faces_vertices: faces,
+  };
+}
+
+/**
+ * A square with a mountain diagonal and an aux line across the middle, laid
+ * out as the crease-pattern kernel's simulation model lays it: the aux line on
+ * two vertices of its own, on no face, crossing the diagonal.
+ */
+function squareWithAuxLine(): FoldDocument {
+  return {
+    vertices_coords: [
+      [-1, -1, 0],
+      [1, -1, 0],
+      [1, 1, 0],
+      [-1, 1, 0],
+      [-1, 0, 0],
+      [1, 0, 0],
+    ],
+    edges_vertices: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 0],
+      [0, 2],
+      [4, 5],
+    ],
+    edges_assignment: ['B', 'B', 'B', 'B', 'M', 'F'],
+    edges_foldAngle: [null, null, null, null, -90, 0],
+    faces_vertices: [
+      [0, 1, 2],
+      [0, 2, 3],
+    ],
   };
 }
 
@@ -536,7 +579,7 @@ describe('exporting the current view as SVG', () => {
 
   it('applies the simulator’s policy: the light, and erode since Phase 5', async () => {
     const session = createSimulatorSession();
-    const info = session.load(miura(6, 6), {});
+    const info = session.load(miura(6, 6, { auxDiagonals: true }), {});
     session.setFoldPercent(50);
     await frame(session.settle(4000, {}));
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
@@ -550,20 +593,63 @@ describe('exporting the current view as SVG', () => {
     )!.svg;
     expect(lit).not.toBe(unlit);
 
-    // Re-pinned: the export used to ignore erode while the screen could not
-    // draw it. The policy applies it now and the painter retreats every fold
-    // end the scene flags, so at a fifth of the sheet most folds go entirely
-    // and the rest get shorter; no line grows and the paper is untouched.
+    // Re-pinned twice: the export used to ignore erode while the screen could
+    // not draw it, and since Phase 9 erode is the aux pen's alone. At a fifth
+    // of the sheet the aux lines retreat or go, while every fold and paper
+    // edge keeps its length and the paper is untouched.
+    const shown: PaperStyle = {
+      ...EXPORT_STYLE,
+      auxCreases: { ...EXPORT_STYLE.auxCreases, visible: true },
+    };
+    const whole = session.exportSvg(exportOptions({ token: info.token, style: shown }))!.svg;
     const eroded = session.exportSvg(
-      exportOptions({ token: info.token, style: { ...EXPORT_STYLE, erode: 0.2 } })
+      exportOptions({ token: info.token, style: { ...shown, erode: 0.2 } })
     )!.svg;
-    expect(eroded).not.toBe(unlit);
-    const lineCount = (svg: string) => svg.split('<line ').length - 1;
+    const inked = (svg: string, color: string) =>
+      (svg.match(/<line [^>]*\/>/g) ?? []).filter((line) => line.includes(`stroke="${color}"`));
+    const aux = shown.auxCreases.pen.color;
+    expect(inked(whole, aux).length).toBeGreaterThan(0);
+    expect(inked(eroded, aux).length).toBeLessThan(inked(whole, aux).length);
+    for (const color of [shown.mountainFolds.color, shown.valleyFolds.color, shown.edges.color]) {
+      expect(inked(whole, color).length, color).toBeGreaterThan(0);
+      expect(inked(eroded, color), color).toEqual(inked(whole, color));
+    }
     const polygonCount = (svg: string) => svg.split('<polygon ').length - 1;
-    expect(lineCount(eroded)).toBeLessThan(lineCount(unlit));
-    expect(polygonCount(eroded)).toBe(polygonCount(unlit));
+    expect(polygonCount(eroded)).toBe(polygonCount(whole));
     session.dispose();
   }, 30_000);
+
+  it('erodes an aux line laid over the faces, where it meets the paper’s edge', async () => {
+    // Its ends share no vertex with the border, so only the flat sheet can say
+    // they lie on it.
+    const session = createSimulatorSession();
+    const info = session.load(squareWithAuxLine(), {});
+    await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
+    const shown: PaperStyle = {
+      ...EXPORT_STYLE,
+      auxCreases: { ...EXPORT_STYLE.auxCreases, visible: true },
+    };
+    const lengths = (erode: number, color: string) => {
+      const svg = session.exportSvg(
+        exportOptions({ token: info.token, style: { ...shown, erode } })
+      )!.svg;
+      return (svg.match(/<line [^>]*\/>/g) ?? [])
+        .filter((line) => line.includes(`stroke="${color}"`))
+        .map((line) => {
+          const at = (name: string) => Number(line.match(new RegExp(` ${name}="([^"]+)"`))![1]);
+          return Math.hypot(at('x2') - at('x1'), at('y2') - at('y1'));
+        });
+    };
+    const aux = shown.auxCreases.pen.color;
+    const [whole] = lengths(0, aux);
+    const [eroded] = lengths(0.1, aux);
+    expect(whole).toBeGreaterThan(0);
+    expect(eroded).toBeGreaterThan(0);
+    expect(eroded!).toBeLessThan(whole! * 0.95);
+    // The fold it crosses is drawn to its ends either way.
+    expect(lengths(0.1, shown.mountainFolds.color)).toEqual(lengths(0, shown.mountainFolds.color));
+    session.dispose();
+  });
 
   it('answers null for a superseded token rather than another window’s model', async () => {
     // The failure this prevents: an inline simulation window that lost focus
@@ -809,6 +895,7 @@ describe('folded-figure meshes', () => {
     faceIndices: new Uint32Array([0, 1, 2]).buffer,
     edgeIndices: new Uint32Array([0, 1]).buffer,
     edgeAssignments: new Uint8Array([1]).buffer,
+    auxEnds: new Uint8Array([0]).buffer,
     center: [0, 0, 0] as [number, number, number],
     radius: 1,
     sheet: 1,

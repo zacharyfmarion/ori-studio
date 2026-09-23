@@ -248,6 +248,7 @@
       "auxWidth": "辅助折痕宽度 (pt)",
       "changeAction": "更改纸张样式",
       "erode": "内缩 (纸张的 %)",
+      "foldsAsEdgesReason": "所有折痕都以边线笔绘制",
       "resetAction": "重置纸张样式"
     },
     "region": {
@@ -1120,6 +1121,8 @@
     "faces": "面",
     "faceStiffness": "面",
     "foldLineWeight": "折线粗细 (pt)",
+    "foldsAsEdges": "将所有折痕绘制为边",
+    "foldsAsEdgesHelp": "已经折过的折痕就是纸的一条边：所有折痕都以边线笔绘制，与折叠图形相同。关闭时按方向绘制。",
     "keepHiddenFaces": "保留隐藏的面",
     "keepHiddenFacesHint": "完全看不到的面仍保留在文件中，位于遮盖它们的面之下。",
     "lighting": "光照",

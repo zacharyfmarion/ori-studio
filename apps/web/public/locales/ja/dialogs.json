@@ -383,8 +383,10 @@
       },
       "erode": "エロード",
       "erodeAmount": "用紙の {{percent}}%",
-      "erodeHint": "折り線は、それが乗っている面の縁から内側に引き戻されます。",
+      "erodeCloseUp": "拡大図",
+      "erodeHint": "補助折り線は、乗っている面の縁から内側に引き戻されます。山折り・谷折りは縁まで描かれます。",
       "erodeOff": "オフ",
+      "erodePreview": "用紙の10分の1の拡大図：用紙の縁まで届く谷折り線と、その手前で止まる補助折り線",
       "exportPage": {
         "background": "背景",
         "keepHiddenFaces": "隠れた面を残す",
@@ -403,6 +405,8 @@
       },
       "exportTitle": "用紙スタイルを書き出し",
       "foldedPaperTitle": "折った用紙",
+      "foldsAsEdges": "すべての折り線を辺として描画",
+      "foldsAsEdgesHint": "シミュレーションでの設定です（オフのときは方向で描き分けます）。折り図形は常に辺として描きます。",
       "front": "表面",
       "importTitle": "用紙スタイルを読み込み",
       "light": {

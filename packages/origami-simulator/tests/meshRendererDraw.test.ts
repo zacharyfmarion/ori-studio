@@ -342,8 +342,8 @@ describe('building the edge ribbons', () => {
     const quads = buildEdgeQuads(fanTopology());
     // The border edges never retreat.
     for (let edge = 0; edge < 4; edge += 1) expect(shrinkOf(quads, edge)).toEqual([0, 0, 0, 0, 0, 0]);
-    // The mountain spoke: on the border at the corner, alone at the centre.
-    expect(shrinkOf(quads, 4)).toEqual(Array(6).fill(EDGE_BOUNDARY_A));
+    // The mountain spoke is a fold, drawn to both its ends.
+    expect(shrinkOf(quads, 4)).toEqual([0, 0, 0, 0, 0, 0]);
     // The aux spoke: on the border at the corner, and at the centre it meets
     // the mountain, which is where its layer ends.
     expect(shrinkOf(quads, 5)).toEqual(Array(6).fill(EDGE_BOUNDARY_A | EDGE_BOUNDARY_B));

@@ -2,7 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LIGHT_DISC_SIZE } from '../../lib/paper/paperLightDisc';
-import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
+import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
+import { erodePreviewGap } from './PaperErodePreview';
 import { erodeSliderMax, formatErodePercent, PaperFoldedCard } from './PaperFoldedCard';
 import type { PaperSettingsBinding } from './usePaperSettings';
 
@@ -161,9 +162,11 @@ describe('erode slider', () => {
 describe('the card’s switches', () => {
   it('writes each one to the field it governs', () => {
     render(DEFAULT_PAPER_STYLE);
-    const [aux, light] = switches();
+    const [aux, foldsAsEdges, light] = switches();
     act(() => aux!.click());
     expect(calls.setField).toHaveBeenCalledWith('auxCreases.visible', false);
+    act(() => foldsAsEdges!.click());
+    expect(calls.setField).toHaveBeenCalledWith('foldsAsEdges', true);
     act(() => light!.click());
     expect(calls.setField).toHaveBeenCalledWith('light', {
       ...DEFAULT_PAPER_STYLE.light,
@@ -179,6 +182,7 @@ describe('the card’s switches', () => {
     expect(disc()).toBeNull();
     expect(switches().map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
+      'false',
       'false',
     ]);
   });
@@ -265,5 +269,44 @@ describe('the light disc', () => {
       { enabled: true, azimuth: 2, elevation: 83 },
     ]);
     expect(calls.adjustField).not.toHaveBeenCalled();
+  });
+});
+
+describe('the erode close-up', () => {
+  const line = (role: string) =>
+    container!.querySelector<SVGLineElement>(`.settings-paper-erode line[data-role="${role}"]`);
+
+  // Erode is a share of the whole sheet, invisible at a settings card's size;
+  // the close-up shows a tenth of the sheet, so the gap is ten times its
+  // share of the box, and the pens keep their own weight.
+  it('pulls the aux crease back from the paper’s edge by the erode, magnified', () => {
+    render({ ...DEFAULT_PAPER_STYLE, erode: 0.01 });
+    const gap = erodePreviewGap(0.01);
+    expect(gap).toBeCloseTo(12, 9);
+    expect(Number(line('aux')!.getAttribute('y2'))).toBeCloseTo(60 - gap, 9);
+    expect(Number(line('aux')!.getAttribute('stroke-width'))).toBeCloseTo(
+      DEFAULT_PAPER_STYLE.auxCreases.pen.width * PT_TO_CSS_PX,
+      9
+    );
+  });
+
+  it('runs the valley fold to the edge whatever the erode: only aux creases erode', () => {
+    render({ ...DEFAULT_PAPER_STYLE, erode: 0.01 });
+    expect(Number(line('valley')!.getAttribute('x2'))).toBe(104);
+    expect(Number(line('valley')!.getAttribute('stroke-width'))).toBeCloseTo(
+      DEFAULT_PAPER_STYLE.valleyFolds.width * PT_TO_CSS_PX,
+      9
+    );
+  });
+
+  it('runs the aux crease to the edge with erode off, and follows the style it shows', () => {
+    render({ ...DEFAULT_PAPER_STYLE, erode: 0 });
+    expect(Number(line('aux')!.getAttribute('y2'))).toBe(60);
+    rerender({
+      ...DEFAULT_PAPER_STYLE,
+      auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+    });
+    // A style that hides aux creases shows none here either.
+    expect(line('aux')).toBeNull();
   });
 });
