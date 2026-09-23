@@ -59,6 +59,18 @@
  * reader, because the window and the export disagreeing about which creases
  * exist is the failure this whole change is repairing.
  *
+ * # The document's aux lines ride the same layers
+ *
+ * An aux line of the crease pattern is on the paper and folded by nothing, so
+ * it is not in the render model: the kernel carries the document's current
+ * ones onto the faces separately (`folded_figure_3d_aux_lines`), and they are
+ * cut to the `(cell, slot)`s that show their face (`folded3dAuxPieces.ts`).
+ * Each cut is a crease of that slot, coded {@link EDGE_CODE.aux} like a
+ * zero-degree crease, on two vertices of the slot's own after its ring — so
+ * the edge pass draws it in the aux pen, hides it with the style's aux switch,
+ * a skin shows it exactly when its layer is the one you can see, and the
+ * vector scene, which finds a crease's layer by its vertices, finds this one's.
+ *
  * # Winding, which is easy to invert and was not guessed
  *
  * `MeshRenderer`'s view transform has determinant **−1** (yaw about Y, then a
@@ -84,8 +96,10 @@ import {
   FOLDED_3D_EDGE_ATTR_STRIDE,
   FOLDED_3D_EDGE_CREASE,
   FOLDED_3D_FACE_ATTR_STRIDE,
+  type OristudioCpFolded3dAuxLines,
   type OristudioCpFolded3dRenderModel,
 } from '../../engine/oristudioCpTypes';
+import { folded3dAuxSlots } from './folded3dAuxPieces';
 import {
   buildFolded3dInk,
   cellRing,
@@ -153,7 +167,8 @@ export interface Folded3dMeshSlots {
   /**
    * The vertex half of the same record: slot `i` owns vertices
    * `[vertexStart[i], vertexStart[i + 1])` of {@link Folded3dMesh.positions},
-   * one per point of its cell's ring, in ring order. Also `count + 1` long.
+   * one per point of its cell's ring, in ring order, then two per aux cut the
+   * slot shows. Also `count + 1` long.
    *
    * A slot keeps its own copy of the ring even though every slot of a cell now
    * sits at the same place: it is what lets one layer be addressed on its own,
@@ -455,11 +470,18 @@ interface SlotCrease {
   hingePlane: number;
 }
 
-export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
+export function folded3dMesh(
+  model: OristudioCpFolded3dRenderModel,
+  /** The document's aux lines on this figure, as the kernel carried them; none when absent. */
+  aux?: OristudioCpFolded3dAuxLines | null
+): Folded3dMeshResult {
   const centre = toSimBasis(modelCentroid(model));
   const radius = modelRadius(model);
 
-  const { vertexCount, slotVertexCount, maxStackDepth } = folded3dMeshExtent(model);
+  const extent = folded3dMeshExtent(model);
+  const { slotVertexCount, maxStackDepth } = extent;
+  const auxSlots = folded3dAuxSlots(model, aux);
+  const vertexCount = extent.vertexCount + auxSlots.count * 2;
   if (vertexCount > FOLDED_3D_MESH_VERTEX_BUDGET) {
     return { kind: 'too-large', vertexCount, limit: FOLDED_3D_MESH_VERTEX_BUDGET };
   }
@@ -474,7 +496,9 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     );
   }
 
-  const positions = new Float32Array((slotVertexCount + ink.orphanEdges.length * 2) * 3);
+  const positions = new Float32Array(
+    (slotVertexCount + ink.orphanEdges.length * 2 + auxSlots.count * 2) * 3
+  );
   let vertex = 0;
 
   // --- every layer, once, as geometry -------------------------------------
@@ -596,6 +620,27 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         });
       }
 
+      // The document's aux lines this layer shows, each on two vertices of
+      // the slot's own past its ring: unconditional, never a hinge.
+      for (const cut of auxSlots.bySlot.get(cell)?.get(slot) ?? []) {
+        const start = vertex;
+        for (const point of cut) {
+          const sim = toSimBasis(point);
+          positions[vertex * 3] = sim[0] - centre[0];
+          positions[vertex * 3 + 1] = sim[1] - centre[1];
+          positions[vertex * 3 + 2] = sim[2] - centre[2];
+          vertex += 1;
+        }
+        creases.push({
+          a: start,
+          b: start + 1,
+          assignment: EDGE_CODE.aux,
+          partnerPlane: -1,
+          requiredSide: 0,
+          buried: false,
+          hingePlane: -1,
+        });
+      }
       slotsOfCell[cell]!.push(slotCell.length);
       slotCell.push(cell);
       slotFace.push(face);
@@ -663,6 +708,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     hingeSide.push(0);
   }
   const fallbackEdgeCount = edgeAssignments.length;
+
 
   const determined = (cell: number): boolean =>
     (model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) !== FOLDED_3D_CELL_UNDETERMINED;

@@ -17,6 +17,7 @@ import type {
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
+  OristudioCpFolded3dAuxLines,
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
@@ -784,13 +785,28 @@ export async function getOristudioCpFoldedFigureRenderSnapshot(
 /**
  * The flat figure's paper scene for its current model — the export painter's
  * input (`folded_figure_paper_scene`). `null` when the fold has nothing to
- * draw, like the render snapshot.
+ * draw, like the render snapshot. Its aux lines are `documentHandle`'s as they
+ * stand now — an aux line needs no refold to show — or, without one, the ones
+ * the document held at the fold.
  */
 export async function getOristudioCpFoldedFigurePaperScene(
-  foldedFigureHandle: number
+  foldedFigureHandle: number,
+  documentHandle?: number | null
 ): Promise<OristudioCpFoldedPaperScene | null> {
   const api = await getOristudioCpClient();
-  return api.foldedFigurePaperScene(foldedFigureHandle);
+  return api.foldedFigurePaperScene(foldedFigureHandle, documentHandle);
+}
+
+/**
+ * The document's aux lines as they stand now, carried onto a 3D figure
+ * (`folded_figure_3d_aux_lines`).
+ */
+export async function getOristudioCpFolded3dAuxLines(
+  foldedFigureHandle: number,
+  documentHandle: number
+): Promise<OristudioCpFolded3dAuxLines> {
+  const api = await getOristudioCpClient();
+  return api.folded3dAuxLines(foldedFigureHandle, documentHandle);
 }
 
 export async function setOristudioCpFoldedFigureModel(

@@ -259,7 +259,7 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
             .any(|primitive| primitive["kind"] == "fill_polygon")
     );
 
-    let scene = oristudio_cp_wasm::folded_figure_paper_scene(folded_handle)
+    let scene = oristudio_cp_wasm::folded_figure_paper_scene(folded_handle, None)
         .expect("paper scene should serialize");
     let scene: serde_json::Value =
         serde_wasm_bindgen::from_value(scene).expect("paper scene deserializes");
@@ -304,7 +304,7 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
     let back_render: serde_json::Value =
         serde_wasm_bindgen::from_value(back_render).expect("back render snapshot deserializes");
     assert_eq!(back_render["pass"], "paper-back-full");
-    let back_scene = oristudio_cp_wasm::folded_figure_paper_scene(folded_handle)
+    let back_scene = oristudio_cp_wasm::folded_figure_paper_scene(folded_handle, None)
         .expect("back paper scene should serialize");
     let back_scene: serde_json::Value =
         serde_wasm_bindgen::from_value(back_scene).expect("back paper scene deserializes");

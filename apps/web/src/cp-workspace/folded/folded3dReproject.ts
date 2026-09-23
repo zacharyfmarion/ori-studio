@@ -37,6 +37,7 @@ import {
 } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { defaultFolded3dCamera, type FoldedFigureCamera } from './folded3dCamera';
+import { folded3dAuxLinesOf } from './folded3dAuxLines';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import { folded3dSceneStyleKey } from './folded3dScene';
 import { folded3dFigureScene, type Folded3dSceneFigure } from './folded3dStoredScene';
@@ -125,7 +126,12 @@ export function reproject3dSceneAt(
       camera: camera ?? defaultFolded3dCamera(render, snapshot.model.state),
     },
     render,
-    { style: storedSceneStyle(figure.appearance), space: 'document' }
+    {
+      style: storedSceneStyle(figure.appearance),
+      space: 'document',
+      // The document's aux lines as the figure last had them carried on.
+      aux: folded3dAuxLinesOf(figure.handle),
+    }
   );
 }
 

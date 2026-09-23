@@ -14,6 +14,7 @@ import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
 } from './foldedFigureHandles';
+import type { FoldedAuxSource } from './foldedAuxSource';
 import { foldedFlatSceneCount, resetFoldedFlatScenes } from './foldedFlatScenes';
 import { resetFoldedFlatAuxFetches, useFoldedFlatAux } from './useFoldedFlatAux';
 
@@ -28,11 +29,28 @@ import { resetFoldedFlatAuxFetches, useFoldedFlatAux } from './useFoldedFlatAux'
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const fetches = vi.hoisted(() => ({ calls: [] as number[], answer: null as unknown }));
-vi.mock('../../store/workspaceStore/oristudioCpRuntime', () => ({
-  getOristudioCpFoldedFigurePaperScene: async (handle: number) => {
+const fetches = vi.hoisted(() => ({
+  calls: [] as number[],
+  documents: [] as Array<number | null | undefined>,
+  answer: null as unknown,
+  failures: 0,
+}));
+vi.mock('../../store/workspaceStore/oristudioCpRuntime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../store/workspaceStore/oristudioCpRuntime')>()),
+  getOristudioCpFoldedFigurePaperScene: async (handle: number, documentHandle?: number | null) => {
     fetches.calls.push(handle);
+    fetches.documents.push(documentHandle);
+    if (fetches.failures > 0) {
+      fetches.failures -= 1;
+      throw { code: 'worker_busy', message: 'the worker could not answer' };
+    }
     return fetches.answer;
+  },
+}));
+const reported = vi.hoisted(() => ({ errors: [] as Array<{ error: unknown; surface?: string }> }));
+vi.mock('../../monitoring', () => ({
+  reportError: (error: unknown, context: { surface?: string } = {}) => {
+    reported.errors.push({ error, surface: context.surface });
   },
 }));
 
@@ -96,22 +114,28 @@ let container: HTMLDivElement | null = null;
 let reader: ((figure: OristudioCpFoldedFigureEntry) => FoldedFigureAuxStrokes | null) | null =
   null;
 
-function Probe({ figures }: { figures: readonly OristudioCpFoldedFigureEntry[] }): null {
-  const read = useFoldedFlatAux(figures);
+function Probe({
+  figures,
+  source,
+}: {
+  figures: readonly OristudioCpFoldedFigureEntry[];
+  source?: FoldedAuxSource;
+}): null {
+  const read = useFoldedFlatAux(figures, source);
   useEffect(() => {
     reader = read;
   });
   return null;
 }
 
-function mount(figures: readonly OristudioCpFoldedFigureEntry[]): void {
+function mount(figures: readonly OristudioCpFoldedFigureEntry[], source?: FoldedAuxSource): void {
   act(() => {
     if (!root) {
       container = document.createElement('div');
       document.body.appendChild(container);
       root = createRoot(container);
     }
-    root.render(<Probe figures={figures} />);
+    root.render(<Probe figures={figures} source={source} />);
   });
 }
 
@@ -130,6 +154,9 @@ function showAux(visible: boolean): void {
 
 beforeEach(async () => {
   fetches.calls = [];
+  fetches.documents = [];
+  fetches.failures = 0;
+  reported.errors = [];
   fetches.answer = SCENE;
   resetFoldedFlatAuxFetches();
   resetFoldedFlatScenes();
@@ -275,5 +302,59 @@ describe('useFoldedFlatAux', () => {
     mount([entry]);
     await settle();
     expect(reader!(entry)).toBeNull();
+  });
+
+  // An aux line drawn on the crease pattern after the fold is on the paper,
+  // not folded, so the figure asks for its scene again — from the document —
+  // and draws the one it has until the new one lands.
+  it('asks again when the document’s aux lines change, from the document', async () => {
+    const entry = figure('a');
+    showAux(true);
+    mount([entry], { documentHandle: 4, auxKey: 'one' });
+    await settle();
+    expect(fetches.calls).toEqual([7]);
+    expect(fetches.documents).toEqual([4]);
+    mount([entry], { documentHandle: 4, auxKey: 'one' });
+    await settle();
+    expect(fetches.calls).toEqual([7]);
+
+    const drawn = { ...SCENE, aux_lines: [{ from: { x: 50, y: 0 }, to: { x: 50, y: 100 }, face: 0 }] };
+    fetches.answer = drawn;
+    mount([entry], { documentHandle: 4, auxKey: 'two' });
+    // A fetch behind, the scene it has still draws.
+    expect(reader!(entry)!.segments).toEqual([{ a: { x: 10, y: 50 }, b: { x: 90, y: 50 } }]);
+    await settle();
+    expect(fetches.calls).toEqual([7, 7]);
+    expect(reader!(entry)!.segments).toEqual([{ a: { x: 50, y: 0 }, b: { x: 50, y: 100 } }]);
+  });
+
+  it('asks again after a failed fetch, and reports one that keeps failing', async () => {
+    vi.useFakeTimers();
+    try {
+      const entry = figure('a');
+      showAux(true);
+      fetches.failures = 1;
+      mount([entry]);
+      await settle();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(fetches.calls).toEqual([7, 7]);
+      expect(reader!(entry)).not.toBeNull();
+      expect(reported.errors).toEqual([]);
+
+      const next = { ...entry, snapshot: snapshot() };
+      fetches.failures = 3;
+      mount([next]);
+      await settle();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      expect(fetches.calls).toHaveLength(5);
+      expect(reported.errors).toHaveLength(1);
+      expect(reported.errors[0]!.surface).toBe('folded-flat-aux');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

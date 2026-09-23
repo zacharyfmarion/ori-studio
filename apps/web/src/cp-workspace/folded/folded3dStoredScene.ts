@@ -32,6 +32,7 @@
 import type { PaperScene, ScenePoint } from '@treemaker/origami-simulator';
 import type {
   FoldedFigurePlacement,
+  OristudioCpFolded3dAuxLines,
   OristudioCpFolded3dRenderModel,
   OristudioCpFolded3dSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
@@ -70,6 +71,11 @@ export interface Folded3dFigureSceneOptions {
    */
   space: 'document' | number;
   /**
+   * The document's aux lines on the figure (`folded3dAuxLines.ts`), drawn on
+   * the layers that show them; none when absent.
+   */
+  aux?: OristudioCpFolded3dAuxLines | null;
+  /**
    * Mark the pieces nothing shows. On for a stored scene, so the canvas can
    * leave buried paper out of every frame while an export that keeps hidden
    * faces still has it; off for a page that keeps them anyway, which is the
@@ -91,11 +97,11 @@ export interface Folded3dFigureSceneOptions {
 export function folded3dFigureScene(
   figure: Folded3dSceneFigure,
   model: OristudioCpFolded3dRenderModel,
-  { style, space, markHidden = true }: Folded3dFigureSceneOptions
+  { style, space, markHidden = true, aux = null }: Folded3dFigureSceneOptions
 ): PaperScene | null {
   const folded3d = figure.folded3d;
   if (!folded3d) return null;
-  const built = meshOf(model);
+  const built = meshOf(model, aux);
   if (built.kind !== 'mesh') return null;
   const box = sceneBox(figure, model, space);
   if (box === null) return null;
@@ -257,12 +263,19 @@ function scaleScene(scene: PaperScene, factor: number): PaperScene {
  * to hand the scene producer the same buffers each time. Keyed on the model
  * object, which the kernel replaces whenever the geometry does.
  */
-const meshes = new WeakMap<OristudioCpFolded3dRenderModel, Folded3dMeshResult>();
+const meshes = new WeakMap<
+  OristudioCpFolded3dRenderModel,
+  { aux: OristudioCpFolded3dAuxLines | null; built: Folded3dMeshResult }
+>();
 
-function meshOf(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
+/** The same, for the aux lines it was built with: new ones are a new mesh. */
+function meshOf(
+  model: OristudioCpFolded3dRenderModel,
+  aux: OristudioCpFolded3dAuxLines | null
+): Folded3dMeshResult {
   const cached = meshes.get(model);
-  if (cached) return cached;
-  const built = folded3dMesh(model);
-  meshes.set(model, built);
+  if (cached && cached.aux === aux) return cached.built;
+  const built = folded3dMesh(model, aux);
+  meshes.set(model, { aux, built });
   return built;
 }

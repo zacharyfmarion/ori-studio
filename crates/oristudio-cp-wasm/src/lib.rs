@@ -344,9 +344,14 @@ pub fn folded_figure_render_snapshot(
 /// snapshot's coordinates — the export painter's input. `null` when the fold
 /// has nothing to draw as paper: no faces, or no solved layer ordering (a
 /// fold with no solutions or a contradiction), whatever its display style.
+/// Its aux lines are `document_handle`'s as they stand now, or the ones
+/// captured at fold time when it is absent.
 #[wasm_bindgen]
-pub fn folded_figure_paper_scene(handle: u32) -> Result<JsValue, JsValue> {
-    let scene = with_session(|session| session.folded_figure_paper_scene(handle))?;
+pub fn folded_figure_paper_scene(
+    handle: u32,
+    document_handle: Option<u32>,
+) -> Result<JsValue, JsValue> {
+    let scene = with_session(|session| session.folded_figure_paper_scene(handle, document_handle))?;
     to_js_value(&scene)
 }
 
@@ -413,6 +418,16 @@ pub fn folded_figure_3d_fold_another(handle: u32, run_id: u32) -> Result<JsValue
         session.folded_figure_3d_fold_another(handle)
     })?;
     to_js_value(&result)
+}
+
+/// `document_handle`'s aux lines as they stand now, carried onto the 3D
+/// figure `handle`: `{ faces, points }`, one face and six coordinates per
+/// piece, in the render model's coordinates.
+#[wasm_bindgen]
+pub fn folded_figure_3d_aux_lines(handle: u32, document_handle: u32) -> Result<JsValue, JsValue> {
+    let lines =
+        with_session(|session| session.folded_figure_3d_aux_lines(handle, document_handle))?;
+    to_js_value(&lines)
 }
 
 #[wasm_bindgen]

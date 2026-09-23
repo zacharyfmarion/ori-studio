@@ -236,7 +236,9 @@ describe('exporting a flat folded figure with a live kernel', () => {
     const { done, files, svg, name } = await exportSvg();
 
     expect(done).toBe(true);
-    expect(kernel.paperScene).toHaveBeenCalledWith(HANDLE);
+    // No document open here, so the aux lines are the ones the fold captured;
+    // with one, the kernel reads its aux lines as they stand.
+    expect(kernel.paperScene).toHaveBeenCalledWith(HANDLE, null);
     expect(files.saveTextFile).toHaveBeenCalledTimes(1);
     expect(name).toMatch(/^Crane.*\.svg$/);
     // The painter's page in points, not the snapshot's 1024 px document.
@@ -347,7 +349,7 @@ describe('exporting a flat folded figure the scene has no picture for', () => {
 
     const { svg } = await exportSvg();
 
-    expect(kernel.paperScene).toHaveBeenCalledWith(HANDLE);
+    expect(kernel.paperScene).toHaveBeenCalledWith(HANDLE, null);
     expect(svg).toContain('aria-label="Folded figure"');
     expect(paperExported()).toEqual([]);
   });

@@ -19,6 +19,7 @@ import { createOristudioBpSlice } from './slices/oristudioBpSlice';
 import { createSimulatorSlice } from './slices/simulatorSlice';
 import { createReferencesSlice } from './slices/referencesSlice';
 import { resolveEditingContext } from '../../workspaces/editingContext';
+import { installFolded3dAuxLinesSync } from './folded3dAuxLinesSync';
 import { installFoldedFigurePaperMirror } from './foldedFigurePaperMirror';
 import type { WorkspaceState } from './types';
 
@@ -105,6 +106,11 @@ useWorkspaceStore.subscribe((state) => {
 // Subscribed here, where the other cross-store reactions live, rather than in
 // the slice: the slice owns the write, this owns *when*.
 installFoldedFigurePaperMirror(useWorkspaceStore);
+
+// A 3D figure's aux lines are the document's as they stand now — nothing folds
+// one — so they are asked for again when the document's change, and the stored
+// pictures rebuilt when they land.
+installFolded3dAuxLinesSync(useWorkspaceStore);
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const debugWindow = window as Window & {

@@ -2058,7 +2058,7 @@ fn session_paper_scene_folds_the_documents_aux_lines() {
         )
         .expect("the square folds");
     let scene = session
-        .folded_figure_paper_scene(folded.handle)
+        .folded_figure_paper_scene(folded.handle, None)
         .expect("session scene")
         .expect("drawn");
     assert_eq!(scene.faces.len(), 2, "the aux line did not split a face");
@@ -2074,6 +2074,66 @@ fn session_paper_scene_folds_the_documents_aux_lines() {
         .expect("segments scene")
         .expect("drawn"),
         "the session's aux lines are the document's"
+    );
+}
+
+/// An aux line drawn after the fold is on the paper, not folded, so it shows
+/// without a refold: named, the document answers for the scene's aux lines as
+/// it stands now; unnamed, the fold-time capture does.
+#[test]
+fn session_paper_scene_follows_the_documents_aux_lines_as_they_are_now() {
+    let segments = square_with_diagonal();
+    let mut session = oristudio_cp::session::CpSession::default();
+    let handle = session.load_document(oristudio_cp::CreasePatternDocument {
+        crease_pattern: oristudio_cp::CreasePatternModel {
+            line_segments: segments.clone(),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let ids: Vec<usize> = (1..=segments.len()).collect();
+    let folded = session
+        .folded_figure_fold_selected(
+            handle,
+            &ids,
+            1,
+            EstimationOrder::Order5,
+            FoldedFigureModel::default(),
+        )
+        .expect("the square folds");
+    let aux = LineSegment::with_color(Point::new(0.3, 0.1), Point::new(0.1, 0.3), LineColor::Cyan3);
+    session
+        .insert_line_segments(handle, std::slice::from_ref(&aux))
+        .expect("draw an aux line");
+
+    let at_fold = session
+        .folded_figure_paper_scene(folded.handle, None)
+        .expect("session scene")
+        .expect("drawn");
+    assert!(at_fold.aux_lines.is_empty(), "the fold held no aux line");
+    let now = session
+        .folded_figure_paper_scene(folded.handle, Some(handle))
+        .expect("session scene")
+        .expect("drawn");
+    assert_eq!(now.aux_lines.len(), 2, "one piece per triangle");
+    assert_eq!(
+        now,
+        folded_figure_paper_scene_from_segments(
+            &segments,
+            &[aux],
+            1,
+            &FoldedFigureModel::default()
+        )
+        .expect("segments scene")
+        .expect("drawn"),
+        "the aux lines are the document's, through the fold's faces"
+    );
+    // The creases are still the fold's: only the aux lines moved.
+    assert_eq!(now.faces, at_fold.faces);
+    assert!(
+        session
+            .folded_figure_paper_scene(folded.handle, Some(99))
+            .is_err()
     );
 }
 
@@ -2103,7 +2163,7 @@ fn session_paper_scene_matches_the_segments_path_and_follows_the_model() {
         .expect("kabuto folds");
 
     let front = session
-        .folded_figure_paper_scene(folded.handle)
+        .folded_figure_paper_scene(folded.handle, None)
         .expect("session scene")
         .expect("drawn");
     let fresh =
@@ -2121,7 +2181,7 @@ fn session_paper_scene_matches_the_segments_path_and_follows_the_model() {
         .folded_figure_set_model(folded.handle, back_model.clone())
         .expect("set model");
     let back = session
-        .folded_figure_paper_scene(folded.handle)
+        .folded_figure_paper_scene(folded.handle, None)
         .expect("session scene")
         .expect("drawn");
     assert!(back.flipped, "the scene follows the model's side");
@@ -2178,7 +2238,7 @@ fn session_paper_scene_declines_a_fold_with_no_layer_ordering() {
     assert!(!drawn.primitives.is_empty());
     assert_eq!(
         session
-            .folded_figure_paper_scene(folded.handle)
+            .folded_figure_paper_scene(folded.handle, None)
             .expect("no error for a state the drawer renders"),
         None,
         "a fold with no ordering has no paper scene"

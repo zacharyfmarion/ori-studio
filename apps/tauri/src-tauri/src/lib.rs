@@ -335,6 +335,7 @@ pub fn run() {
             cp_engine::cp_folded_figure_fold_3d,
             cp_engine::cp_folded_figure_3d_fold_another,
             cp_engine::cp_folded_figure_3d_duplicate,
+            cp_engine::cp_folded_figure_3d_aux_lines,
             cp_engine::cp_free_folded_figure,
             // Deliberately *not* in NATIVE_CP_COMMAND_NAMES: it maps to no
             // CpSession operation and never takes the engine mutex, which is the

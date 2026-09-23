@@ -82,6 +82,7 @@ import {
   type FoldedFigureExportFormat,
 } from '../../../cp-workspace/folded/foldedFigureExport';
 import { folded3dFigureExportPage } from '../../../cp-workspace/folded/folded3dFigureExport';
+import { folded3dAuxLinesSettled } from '../folded3dAuxLinesSync';
 import {
   foldedFlatFigureExportPage,
   foldedFlatFigureExportsScene,
@@ -3161,10 +3162,16 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         });
         let painted: { surface: PaperExportSurface; result: PaperSvgResult } | null = null;
         if (figure?.folded3d) {
+          // An aux line drawn a moment ago is on the page, not a fetch behind.
+          await folded3dAuxLinesSettled({ getState: get }, figure.handle);
           const result = folded3dFigureExportPage(figure, paint(figure));
           painted = result && { surface: 'folded-3d', result };
         } else if (figure && foldedFlatFigureExportsScene(figure)) {
-          const kernel = await getOristudioCpFoldedFigurePaperScene(figure.handle);
+          // The document's aux lines as they stand now, like the canvas draws.
+          const kernel = await getOristudioCpFoldedFigurePaperScene(
+            figure.handle,
+            get().oristudioCpDocument?.handle ?? null
+          );
           const result = kernel && foldedFlatFigureExportPage(figure, kernel, paint(figure));
           painted = result && { surface: 'folded-flat', result };
         }

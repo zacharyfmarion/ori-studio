@@ -13,6 +13,7 @@ import {
 import { useSettingsStore } from '../../store/settingsStore';
 import { getOristudioCpFoldedFigurePaperScene } from '../../store/workspaceStore/oristudioCpRuntime';
 import type { FoldedFigureAuxStrokes } from '../adapters/cpFoldedToScene';
+import { askForAuxLines, NO_FOLDED_AUX_SOURCE, type FoldedAuxSource } from './foldedAuxSource';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { foldedFigureHandleEpoch, foldedFigureHandleRefCount } from './foldedFigureHandles';
 import {
@@ -23,6 +24,7 @@ import {
 } from './foldedFlatAux';
 import {
   foldedFlatScene,
+  foldedFlatSceneAuxKey,
   foldedFlatScenes,
   setFoldedFlatScene,
   subscribeFoldedFlatScenes,
@@ -35,10 +37,19 @@ import {
  * fold when its effective `auxCreases.visible` is on — the display style with
  * the figure's own pins on top, through the `folded-flat` policy. The lines
  * come from the kernel's paper scene, which is fetched here, once per (handle,
- * kernel snapshot), the first time a figure wants it and not before: the
- * scene is a face-and-stack description of the whole figure, and most figures
- * never turn the toggle on. Held in `foldedFlatScenes.ts` against the handle,
- * so it goes when the session does.
+ * kernel snapshot, the document's aux lines), the first time a figure wants it
+ * and not before: the scene is a face-and-stack description of the whole
+ * figure, and most figures never turn the toggle on. Held in
+ * `foldedFlatScenes.ts` against the handle, so it goes when the session does.
+ *
+ * The aux lines are the document's as they stand now, not as they stood at
+ * the fold: nothing folds an aux line, so drawing one on the crease pattern
+ * shows on every figure without a refold (`foldedAuxSource.ts`). A scene a fetch
+ * behind keeps drawing until the next one lands.
+ *
+ * A failed fetch is asked again twice, a little later each time, and reported
+ * when it still fails: the picture is the drawer's either way, and it is the
+ * overlay that would otherwise go missing without a word.
  *
  * One hook rather than a fetch beside each of the store's fold completions:
  * whether a figure wants its scene is a function of the display style and its
@@ -55,10 +66,13 @@ import {
  * fetch lands or the display style moves.
  */
 export function useFoldedFlatAux(
-  figures: readonly OristudioCpFoldedFigureEntry[]
+  figures: readonly OristudioCpFoldedFigureEntry[],
+  /** The document the figures are folded from, whose aux lines they show. */
+  source: FoldedAuxSource = NO_FOLDED_AUX_SOURCE
 ): (figure: OristudioCpFoldedFigureEntry) => FoldedFigureAuxStrokes | null {
   const display = useSettingsStore((state) => state.paperStyle.display);
   const table = useSyncExternalStore(subscribeFoldedFlatScenes, foldedFlatScenes, foldedFlatScenes);
+  const { documentHandle, auxKey } = source;
 
   const wanting = useMemo(
     () => figures.filter((figure) => auxStyleOf(figure, display).auxCreases.visible),
@@ -67,10 +81,16 @@ export function useFoldedFlatAux(
 
   useEffect(() => {
     for (const figure of wanting) {
-      if (!fetchable(figure) || foldedFlatScene(figure.handle, figure.snapshot)) continue;
-      void fetchScene(figure.handle, figure.snapshot);
+      if (!fetchable(figure)) continue;
+      if (foldedFlatSceneAuxKey(figure.handle, figure.snapshot) === auxKey) continue;
+      void fetchScene({
+        handle: figure.handle,
+        snapshot: figure.snapshot,
+        auxKey,
+        documentHandle,
+      });
     }
-  }, [wanting]);
+  }, [wanting, auxKey, documentHandle]);
 
   return useCallback(
     (figure: OristudioCpFoldedFigureEntry): FoldedFigureAuxStrokes | null => {
@@ -109,33 +129,44 @@ function fetchable(
   return figure.handle != null && figure.snapshot !== null && !isFolded3dFigure(figure);
 }
 
-/** The snapshot a handle's fetch is in flight for, so one wait serves every render. */
-const inFlight = new Map<number, OristudioCpFoldedFigureSnapshot>();
+/** What one fetch asks for: a figure's scene under the document's aux lines. */
+interface SceneRequest {
+  handle: number;
+  snapshot: OristudioCpFoldedFigureSnapshot;
+  auxKey: string;
+  documentHandle: number | null;
+}
 
 /**
- * Fetch the handle's scene for `snapshot` into the runtime map, which tells
- * its subscribers. A handle freed or a document replaced while the kernel was
- * answering leaves nothing behind.
+ * The latest request per handle. One wait serves every render asking the
+ * same thing, and a request something newer has replaced lands nothing.
  */
-async function fetchScene(
-  handle: number,
-  snapshot: OristudioCpFoldedFigureSnapshot
-): Promise<void> {
-  if (inFlight.get(handle) === snapshot) return;
-  inFlight.set(handle, snapshot);
+const latest = new Map<number, SceneRequest>();
+
+const sameRequest = (a: SceneRequest | undefined, b: SceneRequest): boolean =>
+  a?.snapshot === b.snapshot && a.auxKey === b.auxKey && a.documentHandle === b.documentHandle;
+
+/**
+ * Fetch the handle's scene for `request` into the runtime map, which tells
+ * its subscribers. A handle freed, a document replaced, or a newer request
+ * while the kernel was answering leaves nothing behind.
+ */
+async function fetchScene(request: SceneRequest): Promise<void> {
+  if (sameRequest(latest.get(request.handle), request)) return;
+  latest.set(request.handle, request);
+  const { handle } = request;
   const epoch = foldedFigureHandleEpoch();
-  try {
-    const scene = await getOristudioCpFoldedFigurePaperScene(handle);
-    if (!scene || foldedFigureHandleEpoch() !== epoch || foldedFigureHandleRefCount(handle) === 0) {
-      return;
-    }
-    setFoldedFlatScene(handle, snapshot, scene);
-  } catch {
-    // The picture is the drawer's regardless; the overlay is what is missing,
-    // and the next figure change asks again.
-  } finally {
-    if (inFlight.get(handle) === snapshot) inFlight.delete(handle);
-  }
+  const wanted = () =>
+    latest.get(handle) === request &&
+    foldedFigureHandleEpoch() === epoch &&
+    foldedFigureHandleRefCount(handle) > 0;
+  const scene = await askForAuxLines(
+    () => getOristudioCpFoldedFigurePaperScene(handle, request.documentHandle),
+    wanted,
+    'folded-flat-aux'
+  );
+  if (scene && wanted()) setFoldedFlatScene(handle, request.snapshot, scene, request.auxKey);
+  if (latest.get(handle) === request) latest.delete(handle);
 }
 
 /**
@@ -161,5 +192,5 @@ function segmentsOf(
 
 /** Forget every fetch in flight. For test isolation. */
 export function resetFoldedFlatAuxFetches(): void {
-  inFlight.clear();
+  latest.clear();
 }

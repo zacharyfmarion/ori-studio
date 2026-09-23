@@ -31,6 +31,7 @@
 
 use crate::folding::FoldedFigureModel;
 use crate::folding3d::admit::{Admission, admit_with};
+use crate::folding3d::aux_lines::{Folded3dAuxLines, folded3d_aux_lines};
 use crate::folding3d::cells::CellIndex;
 use crate::folding3d::census::{Fold3dCensus, census_placement, tolerance_refusal};
 use crate::folding3d::interchange::{FoldedFormTooLarge, folded_form_frame};
@@ -227,6 +228,13 @@ impl Fold3dSession {
             self.ordering(),
             &self.render,
         )
+    }
+
+    /// `segments`' auxiliary lines carried onto this figure's faces — see
+    /// [`crate::folding3d::aux_lines`]. The same for every solution: a layer
+    /// order decides which piece is seen, not where it is.
+    pub fn aux_lines(&self, segments: &[LineSegment]) -> Folded3dAuxLines {
+        folded3d_aux_lines(&self.admission.placement, segments)
     }
 
     /// The geometry, for this solution.

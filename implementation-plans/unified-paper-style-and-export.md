@@ -1746,14 +1746,28 @@ figure keeps drawing 0° creases in the aux pen, and References gets its own
       creases made in earlier steps (`crease` ink) no longer hides with the
       aux switch. An aux-only edit still marks a plan out of date — the plan
       is keyed on every crease.
-- [ ] Flat figure: the kernel maps the *document's* current aux lines at
-      call time (the fold-time capture stays the fallback for a figure whose
-      document is gone); the canvas refetches on an aux fingerprint of the
-      pattern; export makes the same call.
-- [ ] 3D figure: the pattern's aux lines mapped per face, so a buried layer
-      hides its aux lines as it hides its 0° creases; live the same way.
-- [ ] The flat aux fetch reports and retries instead of swallowing a
-      failure.
+- [x] Flat figure: `folded_figure_paper_scene(handle, document_handle)`
+      maps the named document's current aux lines at call time (no document
+      → the fold-time capture). The canvas keys each scene on
+      `cpAuxLinesKey` — a hash of the document's aux segments, so only an aux
+      edit refetches — and keeps drawing the scene it has until the next one
+      lands; the export passes the document too.
+- [x] 3D figure: `folded_figure_3d_aux_lines(handle, document_handle)` clips
+      each aux line to every face of the unfolded sheet and places the pieces
+      by that face's rigid transform (`folding3d/aux_lines.rs`); the web cuts
+      them to each `(cell, slot)` that stacks their face
+      (`folded3dAuxPieces.ts`) and adds them to that slot as aux-coded
+      creases on vertices inside the slot's own range, so the skins, the
+      window and the vector scene all place them by layer, and a buried
+      layer's aux line hides with it — as its 0° creases do. A store-level
+      sync (`folded3dAuxLinesSync.ts`) asks again when the document's aux
+      lines change and rebuilds the stored pictures; an export waits for it.
+      Known gap: the shared erode rule finds an aux end on the outline by a
+      shared vertex, so a CP aux line on a 3D figure does not pull back from
+      the paper's edge the way a 0° crease does.
+- [x] The flat aux fetch reports and retries instead of swallowing a
+      failure: two more tries, 500 ms and 2 s later, then `reportError`
+      (`askForAuxLines`, shared with the 3D sync).
 
 ### Validation per phase
 

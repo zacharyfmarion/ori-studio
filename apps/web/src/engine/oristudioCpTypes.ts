@@ -928,6 +928,21 @@ export interface OristudioCpFolded3dRenderModel {
 }
 
 /**
+ * A document's auxiliary (`Cyan3`) lines carried onto a 3D figure —
+ * `folded_figure_3d_aux_lines(handle, document_handle)`: one piece per face
+ * each line crosses, placed by that face's transform, in the render model's
+ * coordinates. Nothing folds an aux line, so it is asked for again whenever
+ * the document's aux lines change; which layer shows a piece is the mesh's
+ * (`folded3dMesh`), by the face's slot in each cell's stack.
+ */
+export interface OristudioCpFolded3dAuxLines {
+  /** The render model's face each piece lies on. */
+  faces: number[];
+  /** `ax, ay, az, bx, by, bz` per piece. */
+  points: number[];
+}
+
+/**
  * What a 3D fold returned.
  *
  * A refusal is a **result**, not a thrown error: it must not reach the store's

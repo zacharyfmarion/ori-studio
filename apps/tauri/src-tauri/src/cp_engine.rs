@@ -22,6 +22,7 @@ use oristudio_cp::folding::{
     DisplayStyle, EstimationOrder, FoldedFigureModel, FoldedFigureRenderOptions,
     FoldedFigureRenderSnapshot, FoldedFigureSnapshot, FoldedPaperScene,
 };
+use oristudio_cp::folding3d::aux_lines::Folded3dAuxLines;
 use oristudio_cp::geometry::LineSegment;
 use oristudio_cp::geometry_transport::CompactGeometry;
 use oristudio_cp::session::{
@@ -508,10 +509,11 @@ pub async fn cp_folded_figure_render_snapshot(
 #[tauri::command]
 pub async fn cp_folded_figure_paper_scene(
     handle: u32,
+    document_handle: Option<u32>,
     state: State<'_, CpEngine>,
 ) -> Result<Option<FoldedPaperScene>, EngineError> {
     run(state, move |session| {
-        session.folded_figure_paper_scene(handle)
+        session.folded_figure_paper_scene(handle, document_handle)
     })
     .await
 }
@@ -613,6 +615,18 @@ pub async fn cp_folded_figure_3d_duplicate(
 }
 
 #[tauri::command]
+pub async fn cp_folded_figure_3d_aux_lines(
+    handle: u32,
+    document_handle: u32,
+    state: State<'_, CpEngine>,
+) -> Result<Folded3dAuxLines, EngineError> {
+    run(state, move |session| {
+        session.folded_figure_3d_aux_lines(handle, document_handle)
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn cp_free_folded_figure(
     handle: u32,
     state: State<'_, CpEngine>,
@@ -667,6 +681,7 @@ const NATIVE_CP_COMMAND_NAMES: &[&str] = &[
     "cp_folded_figure_fold_3d",
     "cp_folded_figure_3d_fold_another",
     "cp_folded_figure_3d_duplicate",
+    "cp_folded_figure_3d_aux_lines",
     "cp_free_folded_figure",
 ];
 

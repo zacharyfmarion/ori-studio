@@ -3022,6 +3022,7 @@ export function CreasePatternPanel() {
                   className={CP_VIEWPORT_CANVAS_CLASS}
                   lineSegments={editableCp.crease_pattern.line_segments}
                   geometry={oristudioCpDocument?.geometry ?? null}
+                  cpDocumentHandle={editableCpHandle}
                   images={imageAnnotations}
                   regions={regionAnnotations}
                   overlayBoxes={bindings.overlayBoxes}

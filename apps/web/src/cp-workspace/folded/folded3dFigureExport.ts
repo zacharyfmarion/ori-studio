@@ -27,6 +27,7 @@ import type { PaperPage } from '../../lib/paper/paperPage';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import { paperSceneToSvg, type PaperSvgResult } from '../../lib/paper/paperSvg';
+import { folded3dAuxLinesOf } from './folded3dAuxLines';
 import { folded3dRenderModel } from './folded3dRenderModels';
 import { folded3dFigureScene, folded3dStoredSceneInCssPx } from './folded3dStoredScene';
 
@@ -62,6 +63,7 @@ export function folded3dFigureExportPage(
         // A page that keeps buried faces has no use for the hidden test, which
         // is the expensive half of building the scene.
         markHidden: !page.keepHiddenFaces,
+        aux: folded3dAuxLinesOf(figure.handle),
       })
     : // The stored picture is in the figure's local user space, and the page is
       // sized in CSS px at pens that keep their pt widths — so it is carried

@@ -16,6 +16,7 @@ import {
 } from './canvasObjects/canvasWindowPlacement';
 import { useSettledScale } from './canvasObjects/useSettledScale';
 import { foldedFigureBox } from './adapters/cpFoldedToScene';
+import { useFolded3dAuxLines } from './folded/folded3dAuxLines';
 import { folded3dMesh } from './folded/folded3dMesh';
 import {
   folded3dFigureModel,
@@ -189,11 +190,14 @@ function Folded3dWindow({
   // figure it belongs to never reaches this layer — `canWindowFolded3dFigure`
   // checks the same budget from an integer pass.
   const model = folded3dFigureModel(figure);
+  // The document's aux lines on the figure: asked for again whenever they
+  // change (`folded3dAuxLinesSync`), so the mesh is rebuilt when they land.
+  const aux = useFolded3dAuxLines(figure.handle);
   const mesh = useMemo(() => {
     if (!model) return null;
-    const result = folded3dMesh(model);
+    const result = folded3dMesh(model, aux);
     return result.kind === 'mesh' ? result.mesh : null;
-  }, [model]);
+  }, [model, aux]);
 
   const presentFrame = useCallback((bitmap: ImageBitmap) => {
     viewportRef.current?.presentBitmap(bitmap);

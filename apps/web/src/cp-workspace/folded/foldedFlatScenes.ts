@@ -19,6 +19,11 @@
  * re-renders the picture (a selection marker, a display style), so the entry
  * remembers which snapshot it was fetched for and answers only for that one.
  *
+ * Its aux lines are the document's as they stood at the fetch
+ * (`foldedAuxSource.ts`), which the entry remembers too. An aux line drawn since
+ * leaves the faces as they were, so the scene still answers for its snapshot
+ * while the next one is fetched rather than dropping the overlay for a frame.
+ *
  * An external store, read with `useSyncExternalStore`: the table is replaced,
  * never mutated, so a reader holding the table it was handed sees a landed
  * fetch as a new table.
@@ -28,10 +33,13 @@ import type {
   OristudioCpFoldedFigureSnapshot,
   OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
+import { NO_AUX_LINES_KEY } from './foldedAuxSource';
 
 export interface FoldedFlatSceneEntry {
   /** The figure's kernel snapshot the scene was fetched for; identity is the key. */
   snapshot: OristudioCpFoldedFigureSnapshot;
+  /** The document's aux lines the scene carries (`cpAuxLinesKey`). */
+  auxKey: string;
   scene: OristudioCpFoldedPaperScene;
 }
 
@@ -45,15 +53,16 @@ function publish(next: FoldedFlatSceneTable): void {
   for (const listener of listeners) listener();
 }
 
-/** Remember the scene a handle's current snapshot folds to. */
+/** Remember the scene a handle's current snapshot folds to, under these aux lines. */
 export function setFoldedFlatScene(
   handle: number | null | undefined,
   snapshot: OristudioCpFoldedFigureSnapshot,
-  scene: OristudioCpFoldedPaperScene
+  scene: OristudioCpFoldedPaperScene,
+  auxKey: string = NO_AUX_LINES_KEY
 ): void {
   // Handle 0 is a valid wasm slot index; only null/undefined means "not ready".
   if (handle == null) return;
-  publish(new Map(scenes).set(handle, { snapshot, scene }));
+  publish(new Map(scenes).set(handle, { snapshot, auxKey, scene }));
 }
 
 /** The current table, for `useSyncExternalStore`. */
@@ -83,6 +92,21 @@ export function foldedFlatScene(
   if (handle == null || !snapshot) return undefined;
   const entry = table.get(handle);
   return entry?.snapshot === snapshot ? entry.scene : undefined;
+}
+
+/**
+ * The aux lines the handle's scene for this snapshot carries, or `undefined`
+ * when there is no such scene — what tells a reader its overlay is a fetch
+ * behind the document.
+ */
+export function foldedFlatSceneAuxKey(
+  handle: number | null | undefined,
+  snapshot: OristudioCpFoldedFigureSnapshot | null | undefined,
+  table: FoldedFlatSceneTable = scenes
+): string | undefined {
+  if (handle == null || !snapshot) return undefined;
+  const entry = table.get(handle);
+  return entry?.snapshot === snapshot ? entry.auxKey : undefined;
 }
 
 /** Forget one handle's scene. Called from the handle release path. */
