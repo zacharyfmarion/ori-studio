@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Shapes } from 'lucide-react';
 import { segmentSheetThumbnail } from '../../cp-workspace/sheets/segmentSheet';
 import { SheetGrid, type SheetGridItem } from '../../cp-workspace/sheets/SheetGrid';
+import { useSheetThumbnailInk } from '../../cp-workspace/sheets/useSheetThumbnailInk';
 import type { FoldDocument } from '../../engine/types';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 
@@ -18,6 +19,9 @@ import type { CpSegment } from '../../lib/creasePatternSegmentation';
  * behind a press (`useSimulatorPhoneFlow`) — and the stylesheet's phone block
  * is what stretches it and grows the cards (`theme.css`, `.segments-sidebar`
  * and `.sheet-grid`).
+ *
+ * The cards draw in the paper style's ink, the References rail's own, so the
+ * same pattern looks the same in both.
  *
  * Presentation only: the segments, which one is active, and a press reports
  * back. What a press *means* is the panel's — a selection beside the canvas
@@ -41,6 +45,7 @@ export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar({
   onSelect,
 }: SimulatorSegmentsSidebarProps) {
   const { t } = useTranslation();
+  const ink = useSheetThumbnailInk();
   // Sized in faces, not creases: the fold's edges are split at every crossing,
   // so a count of them is not the count of drawn lines the References rail
   // gives the same pattern.
@@ -68,7 +73,7 @@ export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar({
         <span className="panel-title">{t('panels:simulatorSegments.patterns', 'Patterns')}</span>
         <span className="segments-sidebar__count">{segments.length}</span>
       </div>
-      <SheetGrid sheets={items} selected={selected} onSelect={onSelect} />
+      <SheetGrid sheets={items} ink={ink} selected={selected} onSelect={onSelect} />
     </aside>
   );
 });

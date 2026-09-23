@@ -557,6 +557,7 @@ export function ReferencesPanel() {
           sheets={sheets}
           components={controller.frames?.components ?? []}
           geometry={view.geometry}
+          showAux={paper.inks.showAux}
           selected={selectedSheet}
           onSelect={flow.openSheet}
           breakdown={breakdown}

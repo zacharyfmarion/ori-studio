@@ -82,33 +82,70 @@ describe('sheetLineIds', () => {
 });
 
 describe('sheetThumbnail', () => {
-  // A unit square with one diagonal: border 0-3 black, crease 4 mountain.
+  // A square sheet, border 0-3 black, with one crease of each kind across it:
+  // 4 a mountain diagonal, 5 a cyan line (an aux line), 6 a crease with no
+  // colour, 7 an angle crease hinted valley, and 8 the sheet's own aux line.
   const geometry = {
     segEndpoints: Float64Array.from([
-      0, 0, 100, 0, 100, 0, 100, 100, 100, 100, 0, 100, 0, 100, 0, 0, 0, 0, 100, 100,
+      ...[0, 0, 100, 0],
+      ...[100, 0, 100, 100],
+      ...[100, 100, 0, 100],
+      ...[0, 100, 0, 0],
+      ...[0, 0, 100, 100],
+      ...[0, 20, 100, 20],
+      ...[0, 40, 100, 40],
+      ...[0, 60, 100, 60],
+      ...[0, 80, 100, 80],
     ]),
-    // Five segments at `SEG_ATTR_STRIDE` 5; only the fifth (the diagonal) is
-    // a mountain, so its colour sits at index 20.
+    // `SEG_ATTR_STRIDE` 5: `[color, active, selected, customized, hint]`.
     segAttr: Int32Array.from([
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+      ...[0, 0, 0, 0, 0],
+      ...[0, 0, 0, 0, 0],
+      ...[0, 0, 0, 0, 0],
+      ...[0, 0, 0, 0, 0],
+      ...[1, 0, 0, 0, 0],
+      ...[3, 0, 0, 0, 0],
+      ...[-1, 0, 0, 0, 0],
+      ...[-2, 0, 0, 0, 2],
+      ...[3, 0, 0, 0, 0],
     ]),
   } as unknown as CpGeometryTransport;
+  const sheet = () =>
+    component({ segment_indices: [4, 5, 6, 7], aux_segment_indices: [8] });
 
-  it('fits the sheet into the box and classifies its strokes', () => {
-    const thumbnail = sheetThumbnail(geometry, component(), 100);
+  it('fits the sheet into the box and gives each crease its role', () => {
+    const thumbnail = sheetThumbnail(geometry, sheet(), 100);
     expect(thumbnail).not.toBeNull();
     expect(thumbnail?.viewBox).toBe('0 0 100 100');
-    const kinds = thumbnail?.strokes.map((stroke) => stroke.kind) ?? [];
-    expect(kinds.filter((kind) => kind === 'border')).toHaveLength(4);
-    expect(kinds).toContain('mountain');
-    // The border draws last, over the creases that end on it.
-    expect(kinds[kinds.length - 1]).toBe('border');
+    const byY = new Map(
+      thumbnail?.strokes
+        .filter((stroke) => stroke.y1 === stroke.y2 && stroke.y1 > 0 && stroke.y1 < 100)
+        .map((stroke) => [stroke.y1, stroke.role])
+    );
+    // The kernel's reading of each colour, as the Simulate card reads the FOLD.
+    expect(byY.get(20)).toBe('aux');
+    expect(byY.get(40)).toBe('unassigned');
+    expect(byY.get(60)).toBe('valley');
+    expect(byY.get(80)).toBe('aux');
+    const roles = thumbnail?.strokes.map((stroke) => stroke.role) ?? [];
+    expect(roles.filter((role) => role === 'edge')).toHaveLength(4);
+    expect(roles).toContain('mountain');
+    // The paper's edge draws last, over the creases that end on it.
+    expect(roles[roles.length - 1]).toBe('edge');
     for (const stroke of thumbnail?.strokes ?? []) {
       for (const value of [stroke.x1, stroke.y1, stroke.x2, stroke.y2]) {
         expect(value).toBeGreaterThanOrEqual(0);
         expect(value).toBeLessThanOrEqual(100);
       }
     }
+  });
+
+  it('lays the sheet on the paper the canvas fills, and marks where aux lines meet it', () => {
+    const thumbnail = sheetThumbnail(geometry, sheet(), 100);
+    // The border's hull, counter-clockwise from its lowest point.
+    expect(thumbnail?.paper).toBe('M0 0L100 0L100 100L0 100Z');
+    const aux = thumbnail?.strokes.find((stroke) => stroke.role === 'aux' && stroke.y1 === 80);
+    expect(aux?.onBoundary).toEqual([true, true]);
   });
 
   it('refuses a degenerate sheet rather than dividing by zero', () => {

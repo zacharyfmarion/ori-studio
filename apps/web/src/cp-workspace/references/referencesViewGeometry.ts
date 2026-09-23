@@ -215,12 +215,9 @@ export function markersToOverlayPoints(
 /**
  * The picked vertex, and the vertices a step names, as overlay points.
  *
- * They ride the overlay channel rather than the crease-point layer because that
- * layer carries a whole-layer `pointOpacity` — the vertex crowding ramp — and on
- * a dense pattern it fades to zero. Picking a vertex is this workspace's primary
- * interaction, so the mark for the one that *was* picked has to survive the fade
- * that makes the pattern readable. Same CSS radius as an ordinary vertex dot, so
- * nothing changes on a sparse pattern where the layer is at full opacity.
+ * The view draws no vertex of its own — the creases say where they meet — so
+ * these, and the hover ring, are the only vertex marks. On the overlay channel,
+ * which is never faded, at the editor's vertex radius.
  */
 export function highlightedVerticesToOverlayPoints(
   points: readonly Point[],
@@ -244,10 +241,9 @@ export function highlightedVerticesToOverlayPoints(
 }
 
 /**
- * How much wider than an ordinary vertex dot the hover ring is drawn, and how
- * much of the accent its fill keeps. A ring rather than a dot: the dot
- * underneath stays visible inside it, so the mark reads as "this one, if you
- * click" rather than as a vertex that has changed.
+ * How much wider than a picked vertex's mark the hover ring is drawn, and how
+ * much of the accent its fill keeps. A ring rather than a dot, so the mark
+ * reads as "this one, if you click" rather than as a vertex already picked.
  */
 export const HOVER_RING_SCALE = 1.9;
 export const HOVER_FILL_ALPHA = 0.28;
@@ -255,12 +251,9 @@ export const HOVER_FILL_ALPHA = 0.28;
 export const HOVER_STROKE_ALPHA = 0.55;
 
 /**
- * The vertex under the pointer, as an overlay ring in the pick accent.
- *
- * On the overlay channel for the same reason the picked vertex is
- * ({@link highlightedVerticesToOverlayPoints}): the dot layer fades to nothing
- * on a dense pattern, and the affordance has to survive the fade — that is the
- * pattern on which a vertex is hardest to tell from a crease crossing.
+ * The vertex under the pointer, as an overlay ring in the pick accent — the
+ * one sign a vertex can be picked, since none is drawn until it is
+ * ({@link highlightedVerticesToOverlayPoints}).
  */
 export function hoveredVertexToOverlayPoint(
   point: Point,
@@ -424,11 +417,6 @@ export interface ReferencesCreaseVisibility {
   /** The aux pen {@link thin} is drawn in, and its width in CSS px. */
   thinPen?: { pen: Pen; css: number } | null;
   /**
-   * Of {@link thin}, the pattern's aux lines: nothing folds them, so they are
-   * never pickable and never make a vertex.
-   */
-  auxLines?: ReadonlySet<number> | null;
-  /**
    * The 1-based ids drawn at all. `null` means every crease — the sheet is not
    * being read step by step, so nothing is held back.
    */
@@ -443,13 +431,7 @@ export interface ReferencesCreaseVisibility {
   pickable?: ReadonlySet<number> | null;
   /** Ids drawn faintly: made by an earlier step, or simply not this step's. */
   dimmed: ReadonlySet<number> | null;
-  /**
-   * The sheet's border creases, which are always drawn.
-   *
-   * Carried so the point layer can tell them apart: the outline is the paper
-   * rather than one of the folds, and a dot at every place a crease will one
-   * day meet it is a giveaway and a crowd.
-   */
+  /** The sheet's border creases, which are always drawn: the outline the paper is filled inside. */
   borderLineIds?: ReadonlySet<number> | null;
   /** Multiplier on a dimmed crease's alpha. */
   dimAlpha: number;
@@ -650,7 +632,7 @@ export function verticesOfLines(
   // A vertex where one straight line simply continues is not a landmark. The
   // pattern splits a crease wherever its assignment changes, and the plan folds
   // the whole line one way (plan D20) — so those splits are invisible in the
-  // fold and a dot there marks nothing the folder can use.
+  // fold and picking one names nothing the folder can use.
   //
   // For the paper as it stands — what is drawn, and what can be picked while a
   // sequence is read. The set that scopes a sheet keeps it: it is still a real
@@ -679,12 +661,33 @@ function collinear(a: { x: number; y: number }, b: { x: number; y: number }): bo
 const COLLINEAR_SINE = 1e-6;
 
 /**
- * The paper as a filled shape: the sheet's outline, triangulated.
+ * The sheet's outline: the convex hull of its border creases' endpoints,
+ * counter-clockwise; empty without a border.
  *
- * Taken as the convex hull of the border creases' endpoints rather than by
- * walking the loop — a rectangle's hull *is* its outline, whichever order the
- * document happens to store its edges in, and the planner refuses anything that
- * is not a rectangle. Returns null when there is no border to fill.
+ * Taken as the hull rather than by walking the loop — a rectangle's hull *is*
+ * its outline, whichever order the document happens to store its edges in, and
+ * the planner refuses anything that is not a rectangle. The one reading of
+ * where the paper is: the canvas fills it, and the rail's card draws it.
+ */
+export function sheetOutline(
+  geometry: CpGeometryTransport,
+  borderLineIds: ReadonlySet<number> | null
+): Point[] {
+  if (!borderLineIds || borderLineIds.size === 0) return [];
+  const endpoints = geometry.segEndpoints;
+  const corners: Point[] = [];
+  for (const id of borderLineIds) {
+    const base = (id - 1) * 4;
+    if (base < 0 || base + 3 >= endpoints.length) continue;
+    corners.push({ x: endpoints[base], y: endpoints[base + 1] });
+    corners.push({ x: endpoints[base + 2], y: endpoints[base + 3] });
+  }
+  return convexHull(corners);
+}
+
+/**
+ * The paper as a filled shape: the sheet's outline ({@link sheetOutline}),
+ * triangulated. Returns null when there is no border to fill.
  */
 export function sheetFillGeometry(
   geometry: CpGeometryTransport,
@@ -699,16 +702,7 @@ export function sheetFillGeometry(
 ): FillGeometry | null {
   // The whole sheet in the air leaves no paper on the table.
   if (without.some((flap) => flap.whole)) return null;
-  if (!borderLineIds || borderLineIds.size === 0) return null;
-  const endpoints = geometry.segEndpoints;
-  const corners: Point[] = [];
-  for (const id of borderLineIds) {
-    const base = (id - 1) * 4;
-    if (base < 0 || base + 3 >= endpoints.length) continue;
-    corners.push({ x: endpoints[base], y: endpoints[base + 1] });
-    corners.push({ x: endpoints[base + 2], y: endpoints[base + 3] });
-  }
-  let hull = convexHull(corners);
+  let hull = sheetOutline(geometry, borderLineIds);
   for (const flap of without) hull = clipPolygonToSide(hull, flap.chord, -flap.side);
   if (hull.length < 3) return null;
 

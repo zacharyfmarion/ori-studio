@@ -6192,30 +6192,13 @@ button.cp-folded-figure-toolbar__notice:hover {
   height: 100%;
 }
 
-/* Hairlines whatever the card's size: the strokes are in the thumbnail's own
-   100-unit box, and a width that scaled with the card drew a phone's cards in
-   3px crayon. The crease tokens, so a card reads like the canvas. */
+/* The paper style's pens, inline on each line (`penSvgStroke`), at their
+   on-screen weight whatever the card's size: the strokes are in the
+   thumbnail's own 100-unit box, and a width that scaled with the card drew a
+   phone's cards in 3px crayon. Non-scaling holds the dash to the pen too. */
 .sheet-card__stroke {
   fill: none;
-  stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
-}
-
-.sheet-card__stroke--border {
-  stroke: var(--text-tertiary);
-  stroke-width: 1.6;
-}
-
-.sheet-card__stroke--mountain {
-  stroke: var(--fold-mountain);
-}
-
-.sheet-card__stroke--valley {
-  stroke: var(--fold-valley);
-}
-
-.sheet-card__stroke--other {
-  stroke: var(--fold-unassigned);
 }
 
 .sheet-card__meta {

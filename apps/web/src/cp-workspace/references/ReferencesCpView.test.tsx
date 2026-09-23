@@ -227,7 +227,7 @@ describe('ReferencesCpView picking', () => {
     const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
     expect(overlay?.count).toBe(1);
     expect([overlay.center[0], overlay.center[1]]).toEqual([100, 50]);
-    // A ring: a wider mark than the dot, filled faintly, outlined in full.
+    // A ring: a wider mark than a picked vertex's, filled faintly, outlined in full.
     expect(overlay.radius[0]).toBeGreaterThan(1);
     expect(overlay.fill[3]).toBeLessThan(overlay.stroke[3]);
 
@@ -373,7 +373,7 @@ describe('ReferencesCpView picking', () => {
 /**
  * A dense pattern: 200 short creases spread over the same extent as `GEOMETRY`,
  * so the fit camera puts neighbouring vertices a couple of CSS px apart — the
- * shape of a real 9k-segment CP, where the editor fades its vertex dots out.
+ * shape of a real 9k-segment CP.
  */
 const DENSE_GEOMETRY = (() => {
   const endpoints: number[] = [];
@@ -387,36 +387,26 @@ const DENSE_GEOMETRY = (() => {
   } as unknown as CpGeometryTransport;
 })();
 
-describe('ReferencesCpView vertex crowding', () => {
+describe('ReferencesCpView vertices', () => {
   beforeEach(stubWebgl);
 
-  it('keeps every vertex dot on a sparse pattern', () => {
+  it('draws no vertex of its own, sparse or dense', () => {
+    // The creases say where they meet; a dot at every crossing crowded them.
     mount();
-    expect(uploads.render.mock.calls.at(-1)?.[0].pointOpacity).toBe(1);
-  });
-
-  it('fades the vertex layer out on a dense one, as the editor does', () => {
     mount({ geometry: DENSE_GEOMETRY });
-    const frame = uploads.render.mock.calls.at(-1)?.[0];
-    expect(frame.pointOpacity).toBeLessThan(1);
-    expect(frame.pointOpacity).toBe(0);
-    // The outline ring collapses first, so it is gone too.
-    expect(frame.pointOutlinePx).toBe(0);
+    expect(uploads.setPoints).not.toHaveBeenCalled();
+    expect(uploads.setOverlayPoints.mock.calls.at(-1)?.[0] ?? null).toBeNull();
   });
 
-  it('still marks the picked vertex when the layer under it has faded', () => {
-    // The whole point of the workspace: picking a vertex must leave a visible
-    // mark on exactly the patterns where the dots had to be faded away.
+  it('marks the picked vertex', () => {
     mount({ geometry: DENSE_GEOMETRY, selected: { kind: 'vertex', idx: 0 } });
-    expect(uploads.render.mock.calls.at(-1)?.[0].pointOpacity).toBe(0);
     const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
     expect(overlay?.count).toBe(1);
     expect([overlay.center[0], overlay.center[1]]).toEqual([0, 0]);
-    // Drawn opaque: the overlay channel carries no per-instance alpha ramp.
     expect(overlay.fill[3]).toBeGreaterThan(0);
   });
 
-  it('marks the step-highlighted vertices there too', () => {
+  it('marks the step-highlighted vertices', () => {
     mount({ geometry: DENSE_GEOMETRY, highlightVertexIdx: new Set([0, 1]) });
     expect(uploads.setOverlayPoints.mock.calls.at(-1)?.[0]?.count).toBe(2);
   });

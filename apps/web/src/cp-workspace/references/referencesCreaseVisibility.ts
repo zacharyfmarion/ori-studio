@@ -133,7 +133,6 @@ export function unreadVisibility(input: ReferencesVisibilityInput): ReferencesCr
     dimAlpha: 1,
     thin: auxLineIds,
     thinPen: auxPen,
-    auxLines: auxLineIds,
   };
 }
 
@@ -228,8 +227,7 @@ export function planVisibility(
       borderLineIds,
       thin: auxLineIds,
       thinPen: auxPen,
-      auxLines: auxLineIds,
-    };
+      };
   }
   // A fold or a turn-over: the creases made so far were folded and opened
   // flat again, so they are the paper's now — thin, in the aux pen, as the
@@ -245,7 +243,6 @@ export function planVisibility(
     borderLineIds,
     thin,
     thinPen: auxPen,
-    auxLines: auxLineIds,
   };
 }
 

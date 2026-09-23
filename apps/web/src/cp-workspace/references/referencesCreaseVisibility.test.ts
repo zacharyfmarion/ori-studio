@@ -217,7 +217,6 @@ describe('the pattern’s auxiliary lines', () => {
       expect(at.visible?.has(21)).toBe(true);
       expect(at.thin?.has(20)).toBe(true);
       expect(at.pickable?.has(20)).toBe(false);
-      expect(at.auxLines).toBe(AUX);
       expect(at.thinPen).toBe(PEN);
     }
     // The creases made so far are still there to point at.
@@ -229,7 +228,6 @@ describe('the pattern’s auxiliary lines', () => {
     expect(at.visible?.has(20)).toBe(true);
     expect(at.pickable).toBe(SHEET);
     expect(at.thin).toBe(AUX);
-    expect(at.auxLines).toBe(AUX);
   });
 
   it('are not there when they are not shown', () => {

@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SheetThumbnail } from './sheetThumbnail';
+import { erodeSegment } from '../../lib/paper/paperSvg';
+import type { SheetThumbnail, ThumbnailStroke } from './sheetThumbnail';
+import type { SheetThumbnailInk } from './sheetThumbnailInk';
 
 /**
  * The document's crease patterns as cards, one of them selected.
@@ -17,6 +19,11 @@ import type { SheetThumbnail } from './sheetThumbnail';
  * for a thumb. The stylesheet's phone block draws the difference (`theme.css`,
  * `.sheet-grid`), because a second card component would be a second thing to
  * keep in step.
+ *
+ * Each card draws its pattern the way the paper style draws it on paper: the
+ * sheet in the paper's colour and every line in its role's pen, which the rail
+ * hands over as one ink (`useSheetThumbnailInk`) — so the two rails agree with
+ * each other and with Settings ▸ Paper.
  *
  * Presentation only: which sheets, which one is active, and a press reports
  * back. What a press *means* is the caller's — on the desktop it changes the
@@ -44,11 +51,18 @@ export interface SheetGridItem {
 
 export interface SheetGridProps {
   sheets: readonly SheetGridItem[];
+  /** The paper and pens every card draws with. */
+  ink: SheetThumbnailInk;
   selected: number | null;
   onSelect: (id: number) => void;
 }
 
-export const SheetGrid = memo(function SheetGrid({ sheets, selected, onSelect }: SheetGridProps) {
+export const SheetGrid = memo(function SheetGrid({
+  sheets,
+  ink,
+  selected,
+  onSelect,
+}: SheetGridProps) {
   const { t } = useTranslation();
   // A plain container, not a list: a `listbox` may own only `option` and
   // `group`, and wrapping each option in an `li` puts something between them.
@@ -63,6 +77,7 @@ export const SheetGrid = memo(function SheetGrid({ sheets, selected, onSelect }:
           key={sheet.id}
           sheet={sheet}
           index={index}
+          ink={ink}
           selected={sheet.id === selected}
           onSelect={() => onSelect(sheet.id)}
         />
@@ -74,11 +89,12 @@ export const SheetGrid = memo(function SheetGrid({ sheets, selected, onSelect }:
 interface SheetCardProps {
   sheet: SheetGridItem;
   index: number;
+  ink: SheetThumbnailInk;
   selected: boolean;
   onSelect: () => void;
 }
 
-function SheetCard({ sheet, index, selected, onSelect }: SheetCardProps) {
+function SheetCard({ sheet, index, ink, selected, onSelect }: SheetCardProps) {
   const { t } = useTranslation();
   const { thumbnail } = sheet;
   return (
@@ -98,15 +114,16 @@ function SheetCard({ sheet, index, selected, onSelect }: SheetCardProps) {
       <span className="sheet-card__thumb">
         {thumbnail && (
           <svg viewBox={thumbnail.viewBox} aria-hidden="true" className="sheet-card__svg">
-            {thumbnail.strokes.map((stroke, i) => (
-              <line
-                key={i}
-                className={`sheet-card__stroke sheet-card__stroke--${stroke.kind}`}
-                x1={stroke.x1}
-                y1={stroke.y1}
-                x2={stroke.x2}
-                y2={stroke.y2}
+            {thumbnail.paper && (
+              <path
+                className="sheet-card__paper"
+                d={thumbnail.paper}
+                fill={ink.paper}
+                fillRule="evenodd"
               />
+            )}
+            {thumbnail.strokes.map((stroke, i) => (
+              <ThumbnailLine key={i} stroke={stroke} ink={ink} size={thumbnail.size} />
             ))}
           </svg>
         )}
@@ -116,5 +133,41 @@ function SheetCard({ sheet, index, selected, onSelect }: SheetCardProps) {
         <span className="sheet-card__count">{sheet.size}</span>
       </span>
     </button>
+  );
+}
+
+/**
+ * One line in its role's pen, or nothing when the style does not draw its
+ * role. An aux line's ends on the paper's outline pull back by the style's
+ * erode, a share of the sheet — the box's side (D8).
+ */
+function ThumbnailLine({
+  stroke,
+  ink,
+  size,
+}: {
+  stroke: ThumbnailStroke;
+  ink: SheetThumbnailInk;
+  size: number;
+}) {
+  const pen = ink.pens[stroke.role];
+  if (!pen) return null;
+  const ends =
+    stroke.role === 'aux'
+      ? erodeSegment([stroke.x1, stroke.y1], [stroke.x2, stroke.y2], stroke.onBoundary, ink.erode * size)
+      : ([
+          [stroke.x1, stroke.y1],
+          [stroke.x2, stroke.y2],
+        ] as const);
+  if (!ends) return null;
+  return (
+    <line
+      className={`sheet-card__stroke sheet-card__stroke--${stroke.role}`}
+      x1={ends[0][0]}
+      y1={ends[0][1]}
+      x2={ends[1][0]}
+      y2={ends[1][1]}
+      {...pen}
+    />
   );
 }

@@ -1836,6 +1836,39 @@ pattern is checked, and colour by direction is how a misassigned crease shows.
       aux edges on no face, so in a simulation they stay in the flat sheet's
       plane while the paper folds.
 
+### Phase 10 — The pattern rails draw on the style's paper
+
+Asked for after Phase 9: the References canvas drew a dot at every vertex the
+creases so far make, and the two rails that pick a pattern — References and
+Simulate — drew their thumbnails in different colours (References' crease
+tokens were re-set by the style inside its workspace, Simulate's were the
+theme's), on a dark tile with no paper, and only one of them showed aux lines.
+
+- [x] References canvas: no vertex of its own. The point layer and its crowding
+      fade go (and `dropPointsOnFlaps`, `ReferencesCreaseVisibility.auxLines`,
+      which existed only for it); a vertex is marked only when it is hovered,
+      picked or named by a step, on the overlay channel as before. Picking is
+      unchanged.
+- [x] One thumbnail ink for both rails (`sheetThumbnailInk`, read live by
+      `useSheetThumbnailInk`): the display style through the References policy
+      — a thumbnail is a crease pattern on paper — so the sheet is filled with
+      the paper's front and every line takes its role's pen at its on-screen
+      weight and dash (`penSvgStroke`, shared with the erode close-up). Folds
+      are drawn by direction whatever `foldsAsEdges` says: nothing is folded in
+      a crease pattern.
+- [x] One role vocabulary (`SheetStrokeRole`: edge, mountain, valley,
+      unassigned, aux) read the kernel's way from both sources: a colour
+      (`fold_assignment_for_line_color` — black the edge, red / blue the folds,
+      cyan through grey `F`) and a FOLD assignment (B / C / J the edge, `F` an
+      aux line). A crease with no direction takes the aux pen and always
+      draws; an aux line draws while aux creases are shown — the References
+      option in its rail, the style's switch in Simulate's — and erodes at the
+      paper's edge (D8).
+- [x] The paper: References hands over the hull its canvas fills
+      (`sheetOutline`, now shared by the canvas and the card), Simulate the
+      segment's boundary rings; the Simulate rail also keeps lines on no face
+      that lie in the segment.
+
 ### Validation per phase
 
 Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,

@@ -11,7 +11,8 @@
  * too — the lines keep the weight they draw at, and only the gap grows.
  */
 import { useTranslation } from 'react-i18next';
-import { PT_TO_CSS_PX, type PaperStyle, type Pen } from '../../lib/paper/paperStyle';
+import type { PaperStyle } from '../../lib/paper/paperStyle';
+import { penSvgStroke } from '../../lib/paper/penSvgStroke';
 
 /** The close-up's box, in CSS px. */
 const WIDTH = 120;
@@ -28,18 +29,6 @@ const CREASE_X = 54;
 /** The gap erode leaves at the edge, in the close-up's px. */
 export function erodePreviewGap(erode: number): number {
   return (erode * WIDTH) / ERODE_PREVIEW_SHEET_SHARE;
-}
-
-/** A pen as SVG stroke attributes, at its on-screen weight. */
-function stroke(pen: Pen) {
-  const width = pen.width * PT_TO_CSS_PX;
-  return {
-    stroke: pen.color,
-    strokeWidth: width,
-    strokeLinecap: pen.cap,
-    strokeDasharray: pen.dash ? pen.dash.map((run) => run * width).join(' ') : undefined,
-    fill: 'none',
-  };
 }
 
 export function PaperErodePreview({ style }: { style: PaperStyle }) {
@@ -66,7 +55,8 @@ export function PaperErodePreview({ style }: { style: PaperStyle }) {
           y1={FOLD_Y}
           x2={EDGE_X}
           y2={FOLD_Y}
-          {...stroke(style.valleyFolds)}
+          fill="none"
+          {...penSvgStroke(style.valleyFolds)}
         />
         {/* Only while the style draws aux creases: the close-up shows what the style does. */}
         {style.auxCreases.visible && creaseEnd > 0 && (
@@ -76,13 +66,15 @@ export function PaperErodePreview({ style }: { style: PaperStyle }) {
             y1={0}
             x2={CREASE_X}
             y2={creaseEnd}
-            {...stroke(style.auxCreases.pen)}
+            fill="none"
+            {...penSvgStroke(style.auxCreases.pen)}
           />
         )}
         <polyline
           data-role="edge"
           points={`${EDGE_X},0 ${EDGE_X},${EDGE_Y} 0,${EDGE_Y}`}
-          {...stroke(style.edges)}
+          fill="none"
+          {...penSvgStroke(style.edges)}
         />
       </svg>
       <figcaption className="settings-paper-erode__caption">

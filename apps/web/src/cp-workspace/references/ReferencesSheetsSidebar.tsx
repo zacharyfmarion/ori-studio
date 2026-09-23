@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Shapes } from 'lucide-react';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { SheetGrid, type SheetGridItem } from '../sheets/SheetGrid';
+import { useSheetThumbnailInk } from '../sheets/useSheetThumbnailInk';
 import { hasReferencesFindings, ReferencesFindingsList } from './ReferencesFindingsList';
 import type { ReferencesAnalysis } from './referencesAnalysis';
 import { sheetThumbnail, type ReferencesSheet } from './referencesSheets';
@@ -38,6 +39,10 @@ import type { ReferencesBreakdownController } from './useReferencesBreakdown';
  * things at once. With nothing to note, the rail is the cards alone, as the
  * simulator's is.
  *
+ * The cards draw in the paper style's ink, as the canvas beside them does —
+ * the References "Show auxiliary creases" option included, handed down as
+ * `showAux`.
+ *
  * Presentation only: what to show and which row is active are props, and a
  * press reports back.
  */
@@ -45,6 +50,8 @@ export interface ReferencesSheetsSidebarProps {
   sheets: readonly ReferencesSheet[];
   components: readonly PrecreaseComponent[];
   geometry: CpGeometryTransport | null;
+  /** Whether the pattern's aux lines are drawn: the References option, or the style's switch. */
+  showAux: boolean;
   selected: number | null;
   onSelect: (component: number) => void;
   /** Whole-pattern mode's controller, for the findings and the active one. */
@@ -59,6 +66,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
   sheets,
   components,
   geometry,
+  showAux,
   selected,
   onSelect,
   breakdown,
@@ -67,6 +75,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
   onSelectFinding,
 }: ReferencesSheetsSidebarProps) {
   const { t } = useTranslation();
+  const ink = useSheetThumbnailInk(showAux);
   const findings = hasReferencesFindings(breakdown.record, analysis);
   // The rail's reading of the document, as the shared cards take it: a sheet's
   // component drawn into a thumbnail, and the refusal the planner gave it.
@@ -101,7 +110,9 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
         {sheets.length > 0 && <span className="references-sidebar__count">{sheets.length}</span>}
       </div>
 
-      {items.length > 0 && <SheetGrid sheets={items} selected={selected} onSelect={onSelect} />}
+      {items.length > 0 && (
+        <SheetGrid sheets={items} ink={ink} selected={selected} onSelect={onSelect} />
+      )}
 
       {/* No "work it out" button here: the sequence is planned the moment the
           workspace is switched to it (`useReferencesAutoPlan`), and the lead

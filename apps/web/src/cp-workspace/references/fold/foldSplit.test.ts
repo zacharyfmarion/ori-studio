@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { PointGeometry, StrokeGeometry } from '../../renderer/types';
-import { dropPointsOnFlaps, splitStrokesAtFolds } from './foldSplit';
+import type { StrokeGeometry } from '../../renderer/types';
+import { splitStrokesAtFolds } from './foldSplit';
 
 /** Strokes from `[ax, ay, bx, by]` rows, each with its own colour and width. */
 function strokes(rows: readonly (readonly [number, number, number, number])[]): StrokeGeometry {
@@ -94,7 +94,7 @@ describe('splitStrokesAtFolds', () => {
 });
 
 describe('a sheet turning over', () => {
-  it('takes every stroke and every mark with it, the line included', () => {
+  it('takes every stroke with it, the line included', () => {
     const source = strokes([
       [6, 1, 9, 1],
       [1, 3, 9, 3],
@@ -105,34 +105,5 @@ describe('a sheet turning over', () => {
     expect(base.count).toBe(0);
     expect(flap.count).toBe(3);
     expect(Array.from(flap.flap)).toEqual([0, 0, 0]);
-    const points: PointGeometry = {
-      center: Float32Array.from([1, 1, 5, 5, 9, 9]),
-      radius: Float32Array.from([1, 2, 3]),
-      screenSpace: Float32Array.from([1, 1, 1]),
-      fill: new Float32Array(12),
-      stroke: new Float32Array(12),
-      count: 3,
-    };
-    expect(dropPointsOnFlaps(points, [whole]).count).toBe(0);
-  });
-});
-
-describe('dropPointsOnFlaps', () => {
-  it('drops the marks that would move and keeps the rest, the hinge included', () => {
-    const points: PointGeometry = {
-      center: Float32Array.from([1, 1, 5, 5, 9, 9]),
-      radius: Float32Array.from([1, 2, 3]),
-      screenSpace: Float32Array.from([1, 1, 1]),
-      fill: new Float32Array(12).fill(0.5),
-      stroke: new Float32Array(12).fill(0.25),
-      count: 3,
-    };
-    const kept = dropPointsOnFlaps(points, [VERTICAL]);
-    expect(kept.count).toBe(2);
-    expect(Array.from(kept.center)).toEqual([5, 5, 9, 9]);
-    expect(Array.from(kept.radius)).toEqual([2, 3]);
-    // Nothing on the flap: the same buffer back.
-    expect(dropPointsOnFlaps(points, [{ ...VERTICAL, side: -1 }])).not.toBe(points);
-    expect(dropPointsOnFlaps(kept, [VERTICAL])).toBe(kept);
   });
 });
