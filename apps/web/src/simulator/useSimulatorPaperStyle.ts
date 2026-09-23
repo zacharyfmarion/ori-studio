@@ -8,7 +8,6 @@ import {
   paperStyleValueEquals,
   withPaperStyleOverride,
   type Hex,
-  type PaperCreaseStyle,
   type PaperStyle,
   type PaperStyleField,
   type PaperStyleOverrides,
@@ -45,12 +44,8 @@ export const SIMULATOR_FOLD_WEIGHT_RANGE = { min: 0.4, max: 4.5, step: 0.05 } as
 export interface SimulatorPaperStyleBinding {
   /** The app's display style — what the Simulate workspace and every window draw with. */
   style: PaperStyle;
-  /** The quick switch as the mountain and valley pens currently read; `custom` selects nothing. */
-  creaseStyle: PaperCreaseStyle;
   setPaperColor: (side: 'paper.front' | 'paper.back', color: Hex) => void;
   setPenColor: (pen: SimulatorPenField, color: Hex) => void;
-  /** Write the mountain and valley pens for a mode; see `applyCreaseStyle`. */
-  setCreaseStyle: (mode: Exclude<PaperCreaseStyle, 'custom'>) => void;
   /**
    * The fold pens' width in pt. Not the edge pen: the simulator draws its
    * edges at the fold pens' width, and the folded figures' edge is their own.
@@ -133,7 +128,6 @@ export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
     };
     return {
       style,
-      creaseStyle: creaseStyleOf(style),
       setPaperColor: (side, color) => {
         count(side);
         setField('display', side, color);
@@ -149,13 +143,6 @@ export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
         const next = applyCreaseStyle({ ...style, edges: { ...style.edges, color } }, mode);
         count('mountainFolds');
         count('valleyFolds');
-        setField('display', 'mountainFolds', next.mountainFolds);
-        setField('display', 'valleyFolds', next.valleyFolds);
-      },
-      setCreaseStyle: (mode) => {
-        const next = applyCreaseStyle(style, mode);
-        once('mountainFolds');
-        changed('valleyFolds');
         setField('display', 'mountainFolds', next.mountainFolds);
         setField('display', 'valleyFolds', next.valleyFolds);
       },

@@ -5,7 +5,14 @@
  * later build still applies what this one understands and a hand-edited value
  * that does not parse falls back rather than reaching a renderer.
  */
-import { DEFAULT_PAPER_STYLE, normalizePaperStyle, type PaperStyle, type Pen } from './paperStyle';
+import {
+  DEFAULT_PAPER_STYLE,
+  DIAGRAM_MOUNTAIN_DASH,
+  DIAGRAM_VALLEY_DASH,
+  normalizePaperStyle,
+  type PaperStyle,
+  type Pen,
+} from './paperStyle';
 
 export interface PaperStylePreset {
   version: 1;
@@ -40,8 +47,8 @@ const DIAGRAM_STYLE: PaperStyle = {
   ...DEFAULT_PAPER_STYLE,
   paper: { front: '#ffffff', back: '#b3b3b3' },
   edges: { ...DIAGRAM_PEN, width: 0.5 },
-  mountainFolds: { ...DIAGRAM_PEN, dash: [8, 2, 1, 2] },
-  valleyFolds: { ...DIAGRAM_PEN, dash: [4, 2] },
+  mountainFolds: { ...DIAGRAM_PEN, dash: [...DIAGRAM_MOUNTAIN_DASH] },
+  valleyFolds: { ...DIAGRAM_PEN, dash: [...DIAGRAM_VALLEY_DASH] },
   auxCreases: { visible: true, pen: { ...DIAGRAM_PEN, width: 0.25 } },
   arrows: { ...DIAGRAM_PEN, cap: 'round' },
   erode: 0.005,

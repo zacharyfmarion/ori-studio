@@ -120,7 +120,7 @@ export function ReferencesViewControlsPanel() {
             label={t('panels:references.settings.showAuxCreases', 'Show auxiliary creases')}
             help={t(
               'panels:references.settings.showAuxCreasesHelp',
-              'The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary pen and never folded. Follows Settings ▸ Paper until you change it here.'
+              'The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary crease style and never folded. Follows Settings ▸ Paper until you change it here.'
             )}
             checked={showAuxCreases}
             onChange={setShowAuxCreases}

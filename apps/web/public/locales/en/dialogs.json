@@ -404,7 +404,7 @@
         "pngDpi": "PNG density",
         "pngDpiHint": "Dots per inch of the page; 96 is the screen.",
         "sheetAsShown": "Sheet size as shown",
-        "sheetAsShownHint": "The paper is the size it is on screen. Off, the unfolded sheet spans a size in mm; the pens keep their widths.",
+        "sheetAsShownHint": "The paper is the size it is on screen. Off, the unfolded sheet spans a size in mm; lines keep their widths.",
         "sheetMm": "Sheet size",
         "sheetMmHint": "The unfolded sheet, edge to edge.",
         "title": "Export page",
@@ -429,9 +429,9 @@
       "linesTitle": "Lines",
       "link": {
         "detach": "Detach",
-        "detached": "Exports have their own pens and no longer track the display style.",
+        "detached": "Exports have their own style and no longer follow the display style.",
         "follow": "Follow display",
-        "linked": "Exports use the display style. Detach to give exports their own pens."
+        "linked": "Exports use the display style. Detach to give exports their own style."
       },
       "paperTitle": "Paper",
       "pen": {

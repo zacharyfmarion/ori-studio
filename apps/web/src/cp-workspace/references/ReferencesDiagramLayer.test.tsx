@@ -105,8 +105,9 @@ describe('ReferencesDiagramLayer', () => {
     expect(container?.querySelectorAll('svg > *').length).toBe(3);
   });
 
-  // The arrow is the paper style's pen, in CSS px, whatever the crease width;
-  // the mark's ring beside it stays on the crease pen like every other mark.
+  // The arrow is the paper style's pen, in CSS px, whatever the crease width,
+  // and never lighter than the table's (1.75 px at a line width of 1); the
+  // mark's ring beside it stays on the crease pen like every other mark.
   it('draws the fold arrow at the paper style’s arrow pen', () => {
     const arrow: StepDiagramModel = {
       sheet: MODEL.sheet,
@@ -129,7 +130,7 @@ describe('ReferencesDiagramLayer', () => {
         <ReferencesDiagramLayer model={arrow} camera={camera(100)} lineWidth={1} arrowWidth={1.4} />
       )
     );
-    expect(strokeWidths()).toEqual([1.4, 1.4]);
+    expect(strokeWidths()).toEqual([1.75, 1.75]);
     const ring = ringWidth();
     act(() =>
       root?.render(

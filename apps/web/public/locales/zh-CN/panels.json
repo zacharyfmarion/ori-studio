@@ -248,7 +248,7 @@
       "auxWidth": "辅助折痕宽度 (pt)",
       "changeAction": "更改纸张样式",
       "erode": "内缩 (纸张的 %)",
-      "foldsAsEdgesReason": "所有折痕都以边线笔绘制",
+      "foldsAsEdgesReason": "所有折痕都绘制为边",
       "resetAction": "重置纸张样式"
     },
     "region": {
@@ -999,7 +999,7 @@
       "precreaseGrid": "预折网格",
       "sequence": "预折顺序",
       "showAuxCreases": "显示辅助折痕",
-      "showAuxCreasesHelp": "折痕图中的辅助线，在每一步中用辅助线笔绘制在纸上，从不折叠。在此处更改之前，跟随“设置 ▸ 纸张”。",
+      "showAuxCreasesHelp": "折痕图中的辅助线，在每一步中以辅助折痕的样式绘制在纸上，从不折叠。在此处更改之前，跟随“设置 ▸ 纸张”。",
       "solutions": "解的数量"
     },
     "sheets": {
@@ -1110,11 +1110,6 @@
     "creaseLines": "折痕线",
     "creases": "折痕",
     "creaseStiffness": "折痕",
-    "creaseStyle": "样式",
-    "creaseStyleColor": "山折 / 谷折",
-    "creaseStyleCustom": "自定义",
-    "creaseStyleMono": "单色",
-    "creaseStyleMonoDashed": "单色虚线",
     "damping": "阻尼",
     "export": "导出",
     "exportHint": "导出图像所绘制的页面。",
@@ -1122,7 +1117,7 @@
     "faceStiffness": "面",
     "foldLineWeight": "折线粗细 (pt)",
     "foldsAsEdges": "将所有折痕绘制为边",
-    "foldsAsEdgesHelp": "已经折过的折痕就是纸的一条边：所有折痕都以边线笔绘制，与折叠图形相同。关闭时按方向绘制。",
+    "foldsAsEdgesHelp": "已经折过的折痕就是纸的一条边：所有折痕都像纸的边一样绘制，与折叠图形相同。关闭时按方向绘制。",
     "keepHiddenFaces": "保留隐藏的面",
     "keepHiddenFacesHint": "完全看不到的面仍保留在文件中，位于遮盖它们的面之下。",
     "lighting": "光照",

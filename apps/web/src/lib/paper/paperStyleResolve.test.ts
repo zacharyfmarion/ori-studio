@@ -71,14 +71,17 @@ describe('lightVector', () => {
 });
 
 describe('resolvePaperStyle', () => {
-  it('produces today’s simulator numbers for the defaults', () => {
+  // Re-pinned: the Default preset now draws a simulation's folds as edges,
+  // and dashes them as a diagram does when they are drawn by direction.
+  it('produces the simulator’s numbers for the defaults', () => {
     const settings = resolvePaperStyle(DEFAULT_PAPER_STYLE, PAPER_STYLE_POLICIES.simulator, OPTIONS);
     expect(settings.creaseWidthPx).toBeCloseTo(1.1, 12);
     expect(settings.borderColor).toEqual([0, 0, 0]);
     expect(settings.frontColor).toEqual(hexToUnitRgb('#ffff32'));
     expect(settings.backColor).toEqual(hexToUnitRgb('#e9e9e9'));
-    expect(settings.mountainColor).toEqual(hexToUnitRgb('#db1f24'));
-    expect(settings.valleyColor).toEqual(hexToUnitRgb('#1c5cd9'));
+    // Every fold in the edge pen, solid.
+    expect(settings.mountainColor).toEqual([0, 0, 0]);
+    expect(settings.valleyColor).toEqual([0, 0, 0]);
     expect(distance(settings.lightDir, legacyLight())).toBeLessThan(1e-6);
     expect(settings.lighting).toBe(true);
     expect(settings.creaseDash).toBeUndefined();
@@ -88,6 +91,20 @@ describe('resolvePaperStyle', () => {
     expect(settings.faceAlpha).toBe(1);
     expect(settings.colorMode).toBe('paper');
     expect(settings.strainClip).toBe(5);
+
+    // By direction: the convention inks, dash-dot and dashed at the 1.1 px pen.
+    const byDirection = resolvePaperStyle(
+      { ...DEFAULT_PAPER_STYLE, foldsAsEdges: false },
+      PAPER_STYLE_POLICIES.simulator,
+      OPTIONS
+    );
+    expect(byDirection.mountainColor).toEqual(hexToUnitRgb('#db1f24'));
+    expect(byDirection.valleyColor).toEqual(hexToUnitRgb('#1c5cd9'));
+    expect(byDirection.creaseDash?.mountain).toEqual(
+      [8.8, 2.2, 1.1, 2.2].map((run) => expect.closeTo(run, 9))
+    );
+    expect(byDirection.creaseDash?.valley).toEqual([4.4, 2.2].map((run) => expect.closeTo(run, 9)));
+    expect(byDirection.creaseDash?.border).toBeNull();
   });
 
   it('scales the crease width with the device pixel ratio', () => {
@@ -99,7 +116,7 @@ describe('resolvePaperStyle', () => {
   });
 
   it('turns a pen’s dash multiples into device-px runs', () => {
-    const dashed = applyCreaseStyle(DEFAULT_PAPER_STYLE, 'mono-dashed');
+    const dashed = applyCreaseStyle({ ...DEFAULT_PAPER_STYLE, foldsAsEdges: false }, 'mono-dashed');
     const settings = resolvePaperStyle(dashed, PAPER_STYLE_POLICIES.simulator, OPTIONS);
     expect(settings.creaseDash).toBeDefined();
     expect(settings.creaseDash!.border).toBeNull();
@@ -178,6 +195,7 @@ describe('resolvePaperStyle', () => {
       ...DEFAULT_PAPER_STYLE,
       edges: { width: 1.5, color: '#336699', dash: null, cap: 'butt' },
       mountainFolds: { width: 0.75, color: '#ff0000', dash: [4, 2], cap: 'butt' },
+      foldsAsEdges: false,
     };
     for (const surface of ['simulator', 'inline-simulation'] as const) {
       const byDirection = resolvePaperStyle(style, PAPER_STYLE_POLICIES[surface], OPTIONS);
@@ -350,6 +368,8 @@ describe('surfacePaperStyle', () => {
     edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9, dash: [4, 2] },
     mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 3 },
     valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, width: 0.5 },
+    // By direction, so each fold pen keeps its own ink and dash.
+    foldsAsEdges: false,
   };
 
   it('draws every simulator pen at the fold line weight, keeping each pen’s ink and dash', () => {

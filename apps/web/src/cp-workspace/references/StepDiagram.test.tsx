@@ -533,8 +533,8 @@ describe('the folds on a card', () => {
 
   it('draws them solid when the style’s folds are solid', () => {
     useSettingsStore.getState().setPaperStyleFields('display', {
-      mountainFolds: DEFAULT_PAPER_STYLE.mountainFolds,
-      valleyFolds: DEFAULT_PAPER_STYLE.valleyFolds,
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
     });
     const [valley, mountain] = elements(renderClient(<StepDiagram primitives={folds} size={100} />), 'line');
     expect(valley!['stroke-dasharray']).toBeUndefined();

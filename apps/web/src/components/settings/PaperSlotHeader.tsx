@@ -102,11 +102,11 @@ export function PaperLinkBanner({ paper }: { paper: PaperSettingsBinding }) {
         {linked
           ? t(
               'dialogs:settings.paper.link.linked',
-              'Exports use the display style. Detach to give exports their own pens.'
+              'Exports use the display style. Detach to give exports their own style.'
             )
           : t(
               'dialogs:settings.paper.link.detached',
-              'Exports have their own pens and no longer track the display style.'
+              'Exports have their own style and no longer follow the display style.'
             )}
       </span>
       <Button

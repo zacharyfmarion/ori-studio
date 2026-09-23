@@ -118,8 +118,8 @@ describe('PaperSettings', () => {
     expect(rendered.querySelectorAll('input[type="color"]')).toHaveLength(7);
     expect(input('Front').value).toBe(DEFAULT_PAPER_STYLE.paper.front);
     expect(input('Mountain folds width').value).toBe('0.825');
-    // The dash is picked by name from a menu, and the default pen is solid.
-    expect(dashTrigger('Mountain folds dash').textContent).toBe('Solid');
+    // The dash is picked by name from a menu, and the default fold is dash-dot.
+    expect(dashTrigger('Mountain folds dash').textContent).toBe('Dash-dot');
     // The light is aimed on the disc, which says where it is aimed.
     expect(
       rendered.querySelector('.settings-paper-light__disc')?.getAttribute('aria-label')
@@ -128,12 +128,13 @@ describe('PaperSettings', () => {
     expect(input('Erode').value).toBe('0');
     // The aux toggle, the simulations' folds-as-edges switch and the light
     // switch are Radix switches named by their row; the slot's own state is
-    // the segmented control and the banner, not a switch of its own.
+    // the segmented control and the banner, not a switch of its own. The
+    // Default preset has all three on.
     const switches = styleSwitches(rendered);
     expect(switches).toHaveLength(3);
     expect(switches.map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
-      'false',
+      'true',
       'true',
     ]);
   });
@@ -222,13 +223,13 @@ describe('PaperSettings', () => {
     expect(sample('Mountain folds').getAttribute('stroke')).toBe(
       DEFAULT_PAPER_STYLE.mountainFolds.color
     );
-    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBeNull();
+    // The multiples resolve against the pen's own width: 8 2 1 2 at 1.1 px.
+    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBe('8.8 2.2 1.1 2.2');
     expect(sample('Arrows').getAttribute('stroke-linecap')).toBe('round');
 
     act(() => dashTrigger('Mountain folds dash').click());
-    act(() => findButton('Dash-dot', document.querySelector('[role="menu"]')!).click());
-    // The multiples resolve against the pen's own width: 8 2 1 2 at 1.1 px.
-    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBe('8.8 2.2 1.1 2.2');
+    act(() => findButton('Solid', document.querySelector('[role="menu"]')!).click());
+    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBeNull();
   });
 
   it('edits erode as a percentage of the sheet', () => {
@@ -281,7 +282,7 @@ describe('PaperSettings', () => {
     expect(exported()).toEqual(DEFAULT_PAPER_STYLE);
     expect(rendered.querySelector('.settings-paper__style')?.hasAttribute('inert')).toBe(false);
     expect(input('Front').disabled).toBe(false);
-    expect(banner().textContent).toContain('no longer track the display style');
+    expect(banner().textContent).toContain('no longer follow the display style');
 
     typeInto(input('Front'), '#123456');
     expect(exported()?.paper.front).toBe('#123456');

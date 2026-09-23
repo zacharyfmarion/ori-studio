@@ -2,6 +2,8 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  applyCreaseStyle,
+  creaseStyleOf,
   DEFAULT_PAPER_STYLE,
   getPaperStyleField,
   PAPER_STYLE_FIELDS,
@@ -49,6 +51,15 @@ function current(): SimulatorPaperStyleBinding {
 
 const display = () => useSettingsStore.getState().paperStyle.display;
 
+/** Put the display style's fold pens in a mode, as a preset would. */
+function foldsIn(mode: 'color' | 'mono' | 'mono-dashed'): void {
+  const written = applyCreaseStyle(display(), mode);
+  useSettingsStore.getState().setPaperStyleFields('display', {
+    mountainFolds: written.mountainFolds,
+    valleyFolds: written.valleyFolds,
+  });
+}
+
 beforeEach(() => {
   tracked.length = 0;
   useSettingsStore.setState(initialSettings, true);
@@ -68,9 +79,8 @@ afterEach(() => {
 });
 
 describe('useSimulatorPaperStyle', () => {
-  it('reads the display style and the switch the pens amount to', () => {
+  it('reads the display style', () => {
     expect(current().style).toBe(DEFAULT_PAPER_STYLE);
-    expect(current().creaseStyle).toBe('color');
   });
 
   it('writes the paper and pen colours to the display slot', () => {
@@ -82,37 +92,29 @@ describe('useSimulatorPaperStyle', () => {
     expect(current().style.paper.back).toBe('#123456');
   });
 
-  it('writes both fold pens for the switch and the weight, leaving the edge pen alone', () => {
-    act(() => current().setCreaseStyle('mono'));
-    expect(current().creaseStyle).toBe('mono');
-    expect(display().mountainFolds.color).toBe(DEFAULT_PAPER_STYLE.edges.color);
-    expect(display().valleyFolds.color).toBe(DEFAULT_PAPER_STYLE.edges.color);
-
+  it('writes both fold pens for the weight, leaving the edge pen, the inks and the dashes alone', () => {
     act(() => current().setCreaseWeight(2));
-    expect(display().mountainFolds.width).toBe(2);
-    expect(display().valleyFolds.width).toBe(2);
+    expect(display().mountainFolds).toEqual({ ...DEFAULT_PAPER_STYLE.mountainFolds, width: 2 });
+    expect(display().valleyFolds).toEqual({ ...DEFAULT_PAPER_STYLE.valleyFolds, width: 2 });
     expect(display().edges.width).toBe(DEFAULT_PAPER_STYLE.edges.width);
-    // Still mono: the weight leaves the inks and dashes as they were.
-    expect(current().creaseStyle).toBe('mono');
   });
 
-  it('keeps the fold pens on the edge ink when it changes under a mono style', () => {
-    act(() => current().setCreaseStyle('mono-dashed'));
+  it('keeps the fold pens on the edge ink when it changes under a one-ink preset', () => {
+    act(() => foldsIn('mono-dashed'));
     act(() => current().setPenColor('edges', '#336699'));
     expect(display().mountainFolds.color).toBe('#336699');
     expect(display().valleyFolds.color).toBe('#336699');
-    expect(current().creaseStyle).toBe('mono-dashed');
-    // Under colour the fold pens are their own; the edge ink is theirs to ignore.
-    act(() => current().setCreaseStyle('color'));
+    expect(creaseStyleOf(display())).toBe('mono-dashed');
+    // In the convention inks the fold pens are their own; the edge ink is theirs to ignore.
+    act(() => foldsIn('color'));
     act(() => current().setPenColor('edges', '#112233'));
     expect(display().mountainFolds.color).toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
-    expect(current().creaseStyle).toBe('color');
   });
 
   it('still reads mono-dashed after a weight drag', () => {
-    act(() => current().setCreaseStyle('mono-dashed'));
+    act(() => foldsIn('mono-dashed'));
     act(() => current().setCreaseWeight(1.5));
-    expect(current().creaseStyle).toBe('mono-dashed');
+    expect(creaseStyleOf(display())).toBe('mono-dashed');
   });
 
   // Re-pinned twice: the reset used to apply the whole Default preset,
@@ -129,10 +131,10 @@ describe('useSimulatorPaperStyle', () => {
       useSettingsStore.getState().setPaperStyleField('display', 'edges', edges);
       useSettingsStore.getState().setPaperStyleField('display', 'light', light);
       current().setPaperColor('paper.front', '#ff8800');
-      current().setCreaseStyle('mono');
-      current().setFoldsAsEdges(true);
+      foldsIn('mono');
+      current().setFoldsAsEdges(!DEFAULT_PAPER_STYLE.foldsAsEdges);
     });
-    expect(display().foldsAsEdges).toBe(true);
+    expect(display().foldsAsEdges).toBe(!DEFAULT_PAPER_STYLE.foldsAsEdges);
     const updates = vi.fn();
     const unsubscribe = useSettingsStore.subscribe(updates);
     act(() => current().reset());
@@ -141,7 +143,7 @@ describe('useSimulatorPaperStyle', () => {
     expect(display().paper).toEqual(DEFAULT_PAPER_STYLE.paper);
     expect(display().mountainFolds).toEqual(DEFAULT_PAPER_STYLE.mountainFolds);
     expect(display().valleyFolds).toEqual(DEFAULT_PAPER_STYLE.valleyFolds);
-    expect(display().foldsAsEdges).toBe(false);
+    expect(display().foldsAsEdges).toBe(DEFAULT_PAPER_STYLE.foldsAsEdges);
     // The edge row is a colour; the light row is a switch. Each resets its own.
     expect(display().edges).toEqual({ ...edges, color: DEFAULT_PAPER_STYLE.edges.color });
     expect(display().light).toEqual({ ...light, enabled: DEFAULT_PAPER_STYLE.light.enabled });
@@ -234,16 +236,14 @@ describe('what it counts', () => {
 
   it('counts a discrete control every press, and ends any run', () => {
     act(() => current().setPenColor('edges', '#111111'));
-    act(() => current().setCreaseStyle('mono'));
+    act(() => foldsIn('mono'));
     act(() => current().setLighting(false));
     act(() => current().setLighting(true));
-    // The switch ended the edge run, so the next edge write is a new adjustment
-    // — and under mono it carries the fold pens with it.
+    // The light ended the edge run, so the next edge write is a new adjustment
+    // — and under one ink it carries the fold pens with it.
     act(() => current().setPenColor('edges', '#222222'));
     expect(fields()).toEqual([
       'edges',
-      'mountainFolds',
-      'valleyFolds',
       'light',
       'light',
       'edges',

@@ -396,7 +396,7 @@
         "pngDpi": "PNG 分辨率",
         "pngDpiHint": "页面每英寸的点数；96 即屏幕。",
         "sheetAsShown": "纸张大小按显示",
-        "sheetAsShownHint": "纸张与屏幕上的大小一致。关闭后，展开的纸张按 mm 指定大小；画笔粗细不变。",
+        "sheetAsShownHint": "纸张与屏幕上的大小一致。关闭后，展开的纸张按 mm 指定大小；线条粗细不变。",
         "sheetMm": "纸张大小",
         "sheetMmHint": "展开的纸张，从一边到另一边。",
         "title": "导出页面",
@@ -421,9 +421,9 @@
       "linesTitle": "线条",
       "link": {
         "detach": "分离",
-        "detached": "导出使用自己的画笔，不再跟随显示样式。",
+        "detached": "导出使用自己的样式，不再跟随显示样式。",
         "follow": "跟随显示",
-        "linked": "导出使用显示样式。分离后，导出可以拥有自己的画笔。"
+        "linked": "导出使用显示样式。分离后，导出可以拥有自己的样式。"
       },
       "paperTitle": "纸张",
       "pen": {

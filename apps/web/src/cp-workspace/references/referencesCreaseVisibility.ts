@@ -141,7 +141,9 @@ export function unreadVisibility(input: ReferencesVisibilityInput): ReferencesCr
 /**
  * The paper's outline and `activeLineIds`, at full strength; every other crease
  * of the sheet is hidden. A picked vertex has no line of its own, so its sheet
- * is blank paper with the vertex marked on it.
+ * is blank paper with the vertex marked on it. On its paper, as a step of the
+ * sequence is (D13): the border is what the canvas fills, and without it the
+ * construction's ink lands on the workspace's dark ground.
  */
 export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCreaseVisibility {
   const { sheetLineIds, borderLineIds, activeLineIds } = input;
@@ -159,6 +161,7 @@ export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCr
     pickable: visible,
     dimmed: null,
     dimAlpha: 1,
+    borderLineIds,
     emphasis: activeLineIds,
     emphasisWidth: REFERENCES_EMPHASIS_WIDTH,
   };

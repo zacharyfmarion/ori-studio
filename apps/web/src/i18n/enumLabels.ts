@@ -9,7 +9,7 @@ import type {
 } from '../lib/oristudioCpToolSettings';
 import type { DashPresetId } from '../lib/paper/paperDashPresets';
 import type { BuiltInPaperPresetId } from '../lib/paper/paperPresets';
-import type { PaperCreaseStyle, PaperStyleField, PenCap } from '../lib/paper/paperStyle';
+import type { PaperStyleField, PenCap } from '../lib/paper/paperStyle';
 import type { SimulatorColorMode } from '../lib/simulatorSettings';
 import type { TextAlign, TextBlockType, TextColor } from '../cp-workspace/annotations/textFormatting';
 
@@ -88,20 +88,6 @@ export function simulatorColorModeLabel(t: TFunction, mode: SimulatorColorMode):
     : t('panels:simulatorViewControls.colorPaper', 'Paper');
 }
 
-/** The paper style's crease-style switch — the Simulate pane and the inline window's sheet share it. */
-export function simulatorCreaseStyleLabel(
-  t: TFunction,
-  style: Exclude<PaperCreaseStyle, 'custom'>
-): string {
-  switch (style) {
-    case 'color':
-      return t('panels:simulatorViewControls.creaseStyleColor', 'Mountain / valley');
-    case 'mono':
-      return t('panels:simulatorViewControls.creaseStyleMono', 'One ink');
-    case 'mono-dashed':
-      return t('panels:simulatorViewControls.creaseStyleMonoDashed', 'One ink, dashed');
-  }
-}
 
 /** A built-in paper preset by its id; a user's preset shows its own name instead. */
 export function paperPresetLabel(t: TFunction, id: BuiltInPaperPresetId): string {

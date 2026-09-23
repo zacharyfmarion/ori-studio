@@ -41,6 +41,12 @@ function styleWith(patch: Partial<PaperStyle>): PaperStyle {
   return { ...DEFAULT_PAPER_STYLE, ...patch };
 }
 
+/**
+ * The defaults with the folds drawn by direction: the Default preset draws a
+ * simulation's folds as edges, and these are about the fold pens.
+ */
+const BY_DIRECTION: PaperStyle = { ...DEFAULT_PAPER_STYLE, foldsAsEdges: false };
+
 /** A 0..1 render colour back to hex, for legible assertions. */
 function hex(color: readonly [number, number, number]): string {
   const channel = (value: number) =>
@@ -68,15 +74,15 @@ describe('resolving simulator colours', () => {
     const settings = resolveRenderSettings(
       themed({ '--status-danger': '#00ff00', '--accent-primary': '#00ff00' }),
       DEFAULT_SIMULATOR_SETTINGS,
-      DEFAULT_PAPER_STYLE
+      BY_DIRECTION
     );
     expect(hex(settings.mountainColor)).toBe(DEFAULT_MOUNTAIN_COLOR);
     expect(hex(settings.valleyColor)).toBe(DEFAULT_VALLEY_COLOR);
   });
 
   it('carries the pens through', () => {
-    let style = setPaperStyleField(DEFAULT_PAPER_STYLE, 'mountainFolds', {
-      ...DEFAULT_PAPER_STYLE.mountainFolds,
+    let style = setPaperStyleField(BY_DIRECTION, 'mountainFolds', {
+      ...BY_DIRECTION.mountainFolds,
       color: '#aa0000',
       width: 3,
     });
@@ -167,7 +173,7 @@ describe('resolving simulator colours', () => {
     // #db1f24 and #1c5cd9. A fold profile forces the canvas-2D path even with
     // WebGL2 available, so that was what every segment simulation drew.
     const styles = themed({ '--status-danger': '#e06c75', '--accent-primary': '#5fb3a5' });
-    const paint = resolveSimulatorPaint(styles, DEFAULT_SIMULATOR_SETTINGS, DEFAULT_PAPER_STYLE);
+    const paint = resolveSimulatorPaint(styles, DEFAULT_SIMULATOR_SETTINGS, BY_DIRECTION);
     expect(hex(paint.render.mountainColor)).toBe(DEFAULT_MOUNTAIN_COLOR);
     expect(hex(paint.render.valleyColor)).toBe(DEFAULT_VALLEY_COLOR);
     // And the canvas-2D-only inks are separate, not a second copy of these.
@@ -201,7 +207,7 @@ describe('the crease-style switch through the palette', () => {
     const settings = resolveRenderSettings(
       themed(),
       DEFAULT_SIMULATOR_SETTINGS,
-      applyCreaseStyle(DEFAULT_PAPER_STYLE, 'color')
+      applyCreaseStyle(BY_DIRECTION, 'color')
     );
     expect(settings.creaseDash).toBeUndefined();
     expect(hex(settings.mountainColor)).toBe(DEFAULT_MOUNTAIN_COLOR);
@@ -230,7 +236,7 @@ describe('the crease-style switch through the palette', () => {
     const settings = resolveRenderSettings(
       themed(),
       DEFAULT_SIMULATOR_SETTINGS,
-      applyCreaseStyle(DEFAULT_PAPER_STYLE, 'mono-dashed')
+      applyCreaseStyle(BY_DIRECTION, 'mono-dashed')
     );
     const runs = settings.creaseDash?.mountain ?? [];
     expect(runs).toHaveLength(ORIEDITA_DASH_ONE_DOT.length);

@@ -412,7 +412,7 @@
         "pngDpi": "Densité du PNG",
         "pngDpiHint": "Points par pouce de la page ; 96 correspond à l'écran.",
         "sheetAsShown": "Taille de feuille comme affichée",
-        "sheetAsShownHint": "Le papier a la taille qu'il a à l'écran. Désactivé, la feuille dépliée couvre une taille en mm ; les plumes gardent leur épaisseur.",
+        "sheetAsShownHint": "Le papier a la taille qu'il a à l'écran. Désactivé, la feuille dépliée couvre une taille en mm ; les traits gardent leur épaisseur.",
         "sheetMm": "Taille de feuille",
         "sheetMmHint": "La feuille dépliée, d'un bord à l'autre.",
         "title": "Page d'exportation",
@@ -437,9 +437,9 @@
       "linesTitle": "Lignes",
       "link": {
         "detach": "Détacher",
-        "detached": "Les exportations ont leurs propres plumes et ne suivent plus le style d'affichage.",
+        "detached": "Les exportations ont leur propre style et ne suivent plus le style d'affichage.",
         "follow": "Suivre l'affichage",
-        "linked": "Les exportations utilisent le style d'affichage. Détachez-les pour leur donner leurs propres plumes."
+        "linked": "Les exportations utilisent le style d'affichage. Détachez-les pour leur donner leur propre style."
       },
       "paperTitle": "Papier",
       "pen": {

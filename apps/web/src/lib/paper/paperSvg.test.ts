@@ -272,7 +272,12 @@ describe('lines', () => {
   });
 
   it('writes a solid pen with no dash attributes', () => {
-    const [crease] = lines(paint().svg);
+    const solid: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
+    };
+    const [crease] = lines(paint(undefined, solid).svg);
     expect(crease!['stroke-dasharray']).toBeUndefined();
     expect(crease!['stroke-dashoffset']).toBeUndefined();
   });

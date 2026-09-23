@@ -431,7 +431,8 @@ export function ReferencesPanel() {
     diagram: highlights.pageDiagram,
     camera: diagramCamera,
     mirrored,
-    lineWidth: paper.canvasPens.lineWidth,
+    // The letters and arrows the size they are on screen.
+    lineWidth: view.lineWidth,
     subject: exportSubject,
   });
   const exportStepSvg = useCallback(() => void exportStep('svg'), [exportStep]);
@@ -666,7 +667,10 @@ export function ReferencesPanel() {
               ref={symbolsRef}
               model={scene.symbols}
               camera={diagramCamera}
-              lineWidth={paper.canvasPens.lineWidth}
+              // Letters, rings and arrows are sized from the reader's line
+              // width, not the paper's edge pen: a hairline edge must not
+              // shrink the lettering to nothing.
+              lineWidth={view.lineWidth}
               arrowWidth={paper.arrowWidth}
               fold={foldScene}
             />

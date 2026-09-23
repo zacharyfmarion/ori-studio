@@ -6,7 +6,6 @@ import {
   DEFAULT_VALLEY_COLOR,
   ORIEDITA_MOUNTAIN_DASH_MULTIPLES,
   ORIEDITA_VALLEY_DASH_MULTIPLES,
-  PAPER_CREASE_STYLES,
   PAPER_STYLE_FIELDS,
   PEN_WIDTH_RANGE,
   applyCreaseStyle,
@@ -207,13 +206,13 @@ describe('overrides', () => {
   });
 });
 
-describe('crease-style switch', () => {
-  it('reads the defaults as colour', () => {
-    expect(creaseStyleOf(DEFAULT_PAPER_STYLE)).toBe('color');
+describe('crease-style modes', () => {
+  it('reads the defaults as their own: the convention inks, dashed', () => {
+    expect(creaseStyleOf(DEFAULT_PAPER_STYLE)).toBe('custom');
   });
 
   it('round-trips every mode', () => {
-    for (const mode of PAPER_CREASE_STYLES) {
+    for (const mode of ['color', 'mono', 'mono-dashed'] as const) {
       const style = applyCreaseStyle(DEFAULT_PAPER_STYLE, mode);
       expect(creaseStyleOf(style)).toBe(mode);
       // Width and cap belong to the pen, not the switch.

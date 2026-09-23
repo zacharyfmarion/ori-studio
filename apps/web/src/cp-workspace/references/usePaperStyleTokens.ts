@@ -69,9 +69,10 @@ export interface ReferencesPaperInks {
  *
  * The References line width is the edge pen — the width at which the editor's
  * crease law (`CP_CREASE_WIDTH_FACTOR`) draws a crease exactly the edge pen's
- * CSS px — so every References ink measured from it (the creases, the diagram
- * over them, the symbol layer, the export's rings) follows Settings ▸ Paper
- * rather than the editor's View ▸ Line width.
+ * CSS px — so the creases and the diagram's lines over them follow Settings ▸
+ * Paper. The letters, rings and arrows over those do not: they are sized from
+ * the reader's own line width (View ▸ Line width), as they always were, so a
+ * hairline edge pen does not shrink the lettering until it cannot be read.
  */
 export interface ReferencesCanvasPens {
   lineWidth: number;

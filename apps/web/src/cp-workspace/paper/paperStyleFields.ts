@@ -1,10 +1,8 @@
 import type { TFunction } from 'i18next';
-import { simulatorCreaseStyleLabel } from '../../i18n/enumLabels';
 import {
   applyCreaseStyle,
   creaseStyleOf,
   ERODE_RANGE,
-  PAPER_CREASE_STYLES,
   PEN_WIDTH_RANGE,
   type Hex,
   type PaperStyle,
@@ -98,14 +96,14 @@ export function edgeInkEdits(style: PaperStyle, color: Hex, foldPens: boolean): 
 
 /**
  * The fold pens as the simulator's controls offer them: whether every fold is
- * drawn as an edge, the crease style switch that writes the mountain and
- * valley pens together, the two colours, and one fold line weight — the
- * simulator draws every crease at the fold pens' width
- * (`useSimulatorPaperStyle.setCreaseWeight`). For a surface whose policy
- * applies `mountainFolds` / `valleyFolds`: a simulation window.
+ * drawn as an edge, the two colours, and one fold line weight — the simulator
+ * draws every crease at the fold pens' width
+ * (`useSimulatorPaperStyle.setCreaseWeight`). How the folds are dashed is the
+ * paper preset's, in Settings ▸ Paper. For a surface whose policy applies
+ * `mountainFolds` / `valleyFolds`: a simulation window.
  *
- * While folds are drawn as edges the style switch and the two colours do
- * nothing, so they are offered disabled with the reason rather than live.
+ * While folds are drawn as edges the two colours do nothing, so they are
+ * offered disabled with the reason rather than live.
  */
 export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
   const { t, style, held } = deps;
@@ -117,7 +115,7 @@ export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
           support: 'unsupported' as const,
           reason: t(
             'panels:cpProperties.paperStyle.foldsAsEdgesReason',
-            'Every fold is drawn in the edge pen'
+            'Every fold is drawn as an edge'
           ),
         }
       : rowSupport;
@@ -137,7 +135,6 @@ export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
     held,
     ...resetOf(pen),
   });
-  const creaseStyle = creaseStyleOf(style);
   return [
     {
       id: 'foldsAsEdges',
@@ -149,30 +146,6 @@ export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
       value: asEdges,
       commit: (on) => deps.commitOverrides([{ field: 'foldsAsEdges', value: on }]),
       ...resetOf('foldsAsEdges'),
-    },
-    {
-      id: 'creaseStyle',
-      kind: 'select',
-      label: t('panels:simulatorViewControls.creaseStyle', 'Style'),
-      ...support,
-      undoLabel: changeStyle,
-      options: PAPER_CREASE_STYLES.map((mode) => ({
-        id: mode,
-        label: simulatorCreaseStyleLabel(t, mode),
-      })),
-      placeholder: t('panels:simulatorViewControls.creaseStyleCustom', 'Custom'),
-      protocol: 'discrete',
-      // Pens edited past the three modes select nothing rather than lying.
-      value: creaseStyle === 'custom' ? null : creaseStyle,
-      commit: (next) => {
-        if (next === null) return;
-        const written = applyCreaseStyle(style, next as (typeof PAPER_CREASE_STYLES)[number]);
-        deps.commitOverrides([
-          { field: 'mountainFolds', value: written.mountainFolds },
-          { field: 'valleyFolds', value: written.valleyFolds },
-        ]);
-      },
-      ...resetOf('mountainFolds', 'valleyFolds'),
     },
     penColor('mountainFolds', 'mountainColor', t('panels:simulatorViewControls.mountain', 'Mountain')),
     penColor('valleyFolds', 'valleyColor', t('panels:simulatorViewControls.valley', 'Valley')),

@@ -444,6 +444,9 @@ const EXPORT_STYLE: PaperStyle = {
   mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#ffff00' },
   valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#00ffff' },
   edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#ff00ff' },
+  // By direction, so each fold pen's ink reaches the file: the Default preset
+  // draws a simulation's folds as edges.
+  foldsAsEdges: false,
   light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
 };
 

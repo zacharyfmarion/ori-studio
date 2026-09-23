@@ -258,7 +258,7 @@
       "auxWidth": "Largura do vinco auxiliar (pt)",
       "changeAction": "Alterar estilo de papel",
       "erode": "Recuo (% do papel)",
-      "foldsAsEdgesReason": "Todas as dobras são desenhadas com a caneta de borda",
+      "foldsAsEdgesReason": "Todas as dobras são desenhadas como bordas",
       "resetAction": "Redefinir estilo de papel"
     },
     "region": {
@@ -1071,7 +1071,7 @@
       "precreaseGrid": "Pré-vincar a grade",
       "sequence": "Sequência de pré-dobras",
       "showAuxCreases": "Mostrar vincos auxiliares",
-      "showAuxCreasesHelp": "As linhas auxiliares do padrão de vincos, desenhadas no papel em cada passo com a caneta auxiliar e nunca dobradas. Segue Configurações ▸ Papel até que você altere aqui.",
+      "showAuxCreasesHelp": "As linhas auxiliares do padrão de vincos, desenhadas no papel em cada passo no estilo dos vincos auxiliares e nunca dobradas. Segue Configurações ▸ Papel até que você altere aqui.",
       "solutions": "Soluções"
     },
     "sheets": {
@@ -1186,11 +1186,6 @@
     "creaseLines": "Linhas de dobra",
     "creases": "Dobras",
     "creaseStiffness": "Dobra",
-    "creaseStyle": "Estilo",
-    "creaseStyleColor": "Monte / vale",
-    "creaseStyleCustom": "Personalizado",
-    "creaseStyleMono": "Uma tinta",
-    "creaseStyleMonoDashed": "Uma tinta, tracejada",
     "damping": "Amortecimento",
     "export": "Exportar",
     "exportHint": "A página em que a imagem exportada é desenhada.",
@@ -1198,7 +1193,7 @@
     "faceStiffness": "Face",
     "foldLineWeight": "Espessura das linhas de dobra (pt)",
     "foldsAsEdges": "Desenhar todos os vincos como bordas",
-    "foldsAsEdgesHelp": "Uma dobra já feita é uma borda do papel: todas as dobras são desenhadas com a caneta de borda, como numa figura dobrada. Desligado, as dobras são desenhadas pela direção.",
+    "foldsAsEdgesHelp": "Uma dobra já feita é uma borda do papel: todas as dobras são desenhadas como a borda do papel, como numa figura dobrada. Desligado, as dobras são desenhadas pela direção.",
     "keepHiddenFaces": "Manter faces ocultas",
     "keepHiddenFacesHint": "Faces que nada mostra ficam no arquivo, sob o que as cobre.",
     "lighting": "Iluminação",

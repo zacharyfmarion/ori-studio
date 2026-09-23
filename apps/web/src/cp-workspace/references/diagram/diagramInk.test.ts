@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_STYLE } from '../../../lib/paper/paperStyle';
+import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../../lib/paper/paperStyle';
+
+/** The defaults with solid folds: the Default preset dashes them. */
+const SOLID_FOLDS: PaperStyle = {
+  ...DEFAULT_PAPER_STYLE,
+  mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null },
+  valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
+};
 import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_DASH_SLOTS,
@@ -100,14 +107,21 @@ describe('the diagram’s pen', () => {
   // ink is whatever puts its stroke at the pen. The rest of the table, and the
   // card's copy of it, stay as they are.
   it('draws the canvas’s arrow at the paper style’s pen and touches nothing else', () => {
-    const pens = canvasDiagramPens(1, 1.4);
-    expect(pens.arrow.width * canvasDiagramInk(1)).toBeCloseTo(1.4, 9);
+    const pens = canvasDiagramPens(2, 4);
+    expect(pens.arrow.width * canvasDiagramInk(2)).toBeCloseTo(4, 9);
     expect(pens.arrow.cap).toBe('round');
-    expect(canvasDiagramPens(2, 4).arrow.width * canvasDiagramInk(2)).toBeCloseTo(4, 9);
     const { arrow: _arrow, ...rest } = pens;
     const { arrow: _tableArrow, ...table } = DIAGRAM_LINE_INK;
     expect(rest).toEqual(table);
     expect(DIAGRAM_LINE_INK.arrow.width).toBe(1.4);
+  });
+
+  // A print pen is a hairline on screen: the Diagram preset's 0.75 pt arrow
+  // is one CSS pixel beside thirteen-pixel lettering. The arrow keeps the
+  // table's weight at the least.
+  it('never draws the canvas’s arrow lighter than the table’s', () => {
+    expect(canvasDiagramPens(1, 1).arrow.width).toBe(DIAGRAM_LINE_INK.arrow.width);
+    expect(canvasDiagramPens(1, 1).arrow.width * canvasDiagramInk(1)).toBeCloseTo(1.75, 9);
   });
 
   // Sized by the letter, not by an average: a Q at the right edge of a card
@@ -160,7 +174,7 @@ describe('the existing crease as the paper style’s aux pen', () => {
   // Mountain and valley follow the style too: its dash, or none — a style with
   // solid folds draws a card's folds solid, not in the table's dashes.
   it('draws the card’s folds and edge in the style’s pens, at their ratio to the edge pen', () => {
-    const solid = cardDiagramPens(DEFAULT_PAPER_STYLE);
+    const solid = cardDiagramPens(SOLID_FOLDS);
     expect(solid.mountain.dash).toBeUndefined();
     expect(solid.valley.dash).toBeUndefined();
     expect(solid.edge.width).toBeCloseTo(1.2, 9);
@@ -169,8 +183,8 @@ describe('the existing crease as the paper style’s aux pen', () => {
       9
     );
     const dashedValley = cardDiagramPens({
-      ...DEFAULT_PAPER_STYLE,
-      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] },
+      ...SOLID_FOLDS,
+      valleyFolds: { ...SOLID_FOLDS.valleyFolds, dash: [4, 2] },
     });
     expect(dashedValley.valley.dash!.map((run) => run / dashedValley.valley.width)).toEqual([4, 2]);
     // The dash slots follow the pens: the valley's is the style's, the mountain's solid.
@@ -189,7 +203,7 @@ describe('the existing crease as the paper style’s aux pen', () => {
   });
 
   it('draws the canvas’s edge and folds at their pens in CSS px, when given them', () => {
-    const solid = { pen: DEFAULT_PAPER_STYLE.mountainFolds, css: 1.1 };
+    const solid = { pen: SOLID_FOLDS.mountainFolds, css: 1.1 };
     const pens = canvasDiagramPens(1, 1.4, undefined, {
       edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
       mountain: solid,

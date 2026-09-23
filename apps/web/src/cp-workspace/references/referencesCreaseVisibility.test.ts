@@ -158,6 +158,17 @@ describe('targetVisibility', () => {
     expect(at.pickable).toBe(at.visible);
   });
 
+  it('lies on the paper, as a step of the sequence does', () => {
+    // The border is what the canvas fills with the style's paper. Without it
+    // the construction drew its dark ink straight onto the dark ground.
+    const at = targetVisibility({
+      sheetLineIds: SHEET,
+      borderLineIds: BORDER,
+      activeLineIds: new Set([11]),
+    });
+    expect(at.borderLineIds).toBe(BORDER);
+  });
+
   it('shows blank paper for a picked vertex, which has no crease of its own', () => {
     const at = targetVisibility({
       sheetLineIds: SHEET,

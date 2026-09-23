@@ -27,7 +27,10 @@ describe('paperThumbnail', () => {
     ]);
     expect(thumb.lines[0]).toMatchObject({ x1: 9, y1: 7, x2: 69, y2: 67 });
     expect(thumb.lines[2]).toMatchObject({ x1: 39, y1: 7, x2: 39, y2: 67 });
-    expect(thumb.lines.every((line) => line.dash === null)).toBe(true);
+    // The Default preset's folds are dashed as a diagram's: dash-dot and dashed
+    // at the 1.1 px pen.
+    expect(thumb.lines[0]?.dash).toBe('8.8 2.2 1.1 2.2');
+    expect(thumb.lines[2]?.dash).toBe('4.4 2.2');
   });
 
   it('resolves a dash against the pen’s own width, as every other surface does', () => {

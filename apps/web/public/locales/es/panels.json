@@ -258,7 +258,7 @@
       "auxWidth": "Grosor del pliegue auxiliar (pt)",
       "changeAction": "Cambiar estilo de papel",
       "erode": "Retraer (% del papel)",
-      "foldsAsEdgesReason": "Todos los pliegues se dibujan con la pluma de borde",
+      "foldsAsEdgesReason": "Todos los pliegues se dibujan como bordes",
       "resetAction": "Restablecer estilo de papel"
     },
     "region": {
@@ -1071,7 +1071,7 @@
       "precreaseGrid": "Preplegar la cuadrícula",
       "sequence": "Secuencia de prepliegues",
       "showAuxCreases": "Mostrar los pliegues auxiliares",
-      "showAuxCreasesHelp": "Las líneas auxiliares del patrón de pliegues, dibujadas en el papel en cada paso con la pluma auxiliar y nunca plegadas. Sigue Configuración ▸ Papel hasta que lo cambies aquí.",
+      "showAuxCreasesHelp": "Las líneas auxiliares del patrón de pliegues, dibujadas en el papel en cada paso con el estilo de los pliegues auxiliares y nunca plegadas. Sigue Configuración ▸ Papel hasta que lo cambies aquí.",
       "solutions": "Soluciones"
     },
     "sheets": {
@@ -1186,11 +1186,6 @@
     "creaseLines": "Líneas de pliegue",
     "creases": "Pliegues",
     "creaseStiffness": "Pliegue",
-    "creaseStyle": "Estilo",
-    "creaseStyleColor": "Monte / valle",
-    "creaseStyleCustom": "Personalizado",
-    "creaseStyleMono": "Una tinta",
-    "creaseStyleMonoDashed": "Una tinta, discontinua",
     "damping": "Amortiguación",
     "export": "Exportar",
     "exportHint": "La página sobre la que se dibuja la imagen exportada.",
@@ -1198,7 +1193,7 @@
     "faceStiffness": "Cara",
     "foldLineWeight": "Grosor de las líneas de pliegue (pt)",
     "foldsAsEdges": "Dibujar todos los pliegues como bordes",
-    "foldsAsEdgesHelp": "Un pliegue ya hecho es un borde del papel: todos los pliegues se dibujan con la pluma de borde, como en una figura plegada. Desactivado, se dibujan según su dirección.",
+    "foldsAsEdgesHelp": "Un pliegue ya hecho es un borde del papel: todos los pliegues se dibujan como el borde del papel, como en una figura plegada. Desactivado, se dibujan según su dirección.",
     "keepHiddenFaces": "Conservar caras ocultas",
     "keepHiddenFacesHint": "Las caras que nada muestra se quedan en el archivo, bajo lo que las cubre.",
     "lighting": "Iluminación",

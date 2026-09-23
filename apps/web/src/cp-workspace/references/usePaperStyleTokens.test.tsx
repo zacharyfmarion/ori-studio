@@ -306,7 +306,12 @@ describe('referencesCanvasPens', () => {
   });
 
   it('dashes the folds as the style does: solid when solid', () => {
-    expect(referencesCanvasPens(DEFAULT_PAPER_STYLE).pens.valley.dash).toBeUndefined();
+    expect(
+      referencesCanvasPens({
+        ...DEFAULT_PAPER_STYLE,
+        valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
+      }).pens.valley.dash
+    ).toBeUndefined();
     const dashed = referencesCanvasPens({
       ...DEFAULT_PAPER_STYLE,
       valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] },

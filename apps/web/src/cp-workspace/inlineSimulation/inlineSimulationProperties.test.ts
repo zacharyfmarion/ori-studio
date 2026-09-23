@@ -64,7 +64,6 @@ describe('buildInlineSimulationProperties', () => {
       'backColor',
       'edgeColor',
       'foldsAsEdges',
-      'creaseStyle',
       'mountainColor',
       'valleyColor',
       'foldLineWeight',
@@ -96,7 +95,6 @@ describe('buildInlineSimulationProperties', () => {
       if (f.kind === 'color') f.update('#123456');
       else if (f.kind === 'slider') f.update(1);
       else if (f.kind === 'toggle') f.commit(false);
-      else if (f.kind === 'select') f.commit('mono');
       else if (f.kind === 'number') f.commit(1);
     }
     expect([...written].sort()).toEqual([...PAPER_STYLE_POLICIES['inline-simulation'].applies].sort());
@@ -207,22 +205,12 @@ describe('buildInlineSimulationProperties', () => {
     });
   });
 
-  it('writes both fold pens for the switch and the weight, and resets both', () => {
+  it('writes both fold pens for the weight, and resets both', () => {
     const d = deps();
     const sheet = buildInlineSimulationProperties(TARGET, d);
-    const style = field(sheet, 'creaseStyle');
-    if (style.kind !== 'select') throw new Error('select');
-    expect(style.value).toBe('color');
-    expect(style.reset).toBeUndefined();
-    style.commit('mono-dashed');
-    const mono = applyCreaseStyle(DEFAULT_PAPER_STYLE, 'mono-dashed');
-    expect(d.commitOverrides).toHaveBeenCalledWith([
-      { field: 'mountainFolds', value: mono.mountainFolds },
-      { field: 'valleyFolds', value: mono.valleyFolds },
-    ]);
-
     const weight = field(sheet, 'foldLineWeight');
     if (weight.kind !== 'slider') throw new Error('slider');
+    expect(weight.reset).toBeUndefined();
     expect(weight.value).toBe(DEFAULT_PAPER_STYLE.mountainFolds.width);
     expect(weight.min).toBe(0.4);
     expect(weight.max).toBe(4.5);
@@ -239,22 +227,13 @@ describe('buildInlineSimulationProperties', () => {
     // Either pen pinned is enough for both rows to offer a reset of both.
     const pinnedDeps = deps({ mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 3 } });
     const pinnedSheet = buildInlineSimulationProperties(TARGET, pinnedDeps);
-    field(pinnedSheet, 'creaseStyle').reset?.();
+    field(pinnedSheet, 'foldLineWeight').reset?.();
     expect(pinnedDeps.commitOverrides).toHaveBeenLastCalledWith([
       { field: 'mountainFolds', value: undefined },
       { field: 'valleyFolds', value: undefined },
     ]);
-    expect(field(pinnedSheet, 'foldLineWeight').reset).toBeDefined();
     expect(field(pinnedSheet, 'mountainColor').reset).toBeDefined();
     expect(field(pinnedSheet, 'valleyColor').reset).toBeUndefined();
-  });
-
-  it('selects no crease style once the pens are past the three modes', () => {
-    const d = deps({ mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: [1, 2] } });
-    const style = field(buildInlineSimulationProperties(TARGET, d), 'creaseStyle');
-    if (style.kind !== 'select') throw new Error('select');
-    expect(style.value).toBeNull();
-    expect(style.placeholder).toBe('Custom');
   });
 
   it('pins the light whole from the toggle', () => {
@@ -279,25 +258,34 @@ describe('buildInlineSimulationProperties', () => {
   // while it is on the pens it makes moot are disabled with the reason — the
   // fold line weight is still every line's weight, so it stays live.
   it('offers folds as edges, and disables the rows it makes moot while on', () => {
-    const d = deps();
+    // Pinned off on this window: the fold inks are live, and the toggle turns
+    // them moot again.
+    const d = deps({ foldsAsEdges: false });
     const off = buildInlineSimulationProperties(TARGET, d);
     const toggle = off.sections[1]!.fields.find((f) => f.id === 'foldsAsEdges')!;
     expect(toggle).toMatchObject({ kind: 'toggle', value: false, support: 'supported' });
     if (toggle.kind !== 'toggle') throw new Error('toggle');
     toggle.commit(true);
     expect(d.commitOverrides).toHaveBeenCalledWith([{ field: 'foldsAsEdges', value: true }]);
+    expect(off.sections[1]!.fields.find((f) => f.id === 'mountainColor')).toMatchObject({
+      support: 'supported',
+    });
 
-    const on = buildInlineSimulationProperties(TARGET, deps({ foldsAsEdges: true }));
+    // On, as the Default preset has it.
+    const on = buildInlineSimulationProperties(TARGET, deps());
     const support = (id: string) => on.sections[1]!.fields.find((f) => f.id === id)!;
-    for (const id of ['creaseStyle', 'mountainColor', 'valleyColor']) {
+    for (const id of ['mountainColor', 'valleyColor']) {
       expect(support(id)).toMatchObject({
         support: 'unsupported',
-        reason: 'Every fold is drawn in the edge pen',
+        reason: 'Every fold is drawn as an edge',
       });
     }
     expect(support('foldLineWeight').support).toBe('supported');
     expect(support('foldsAsEdges')).toMatchObject({ value: true, support: 'supported' });
-    // Pinned on this window, so it offers the way back to the style.
-    expect(support('foldsAsEdges').reset).toBeDefined();
+    // Following the style, there is nothing to reset; pinned on this window,
+    // it offers the way back to the style.
+    expect(support('foldsAsEdges').reset).toBeUndefined();
+    const pinned = buildInlineSimulationProperties(TARGET, deps({ foldsAsEdges: true }));
+    expect(pinned.sections[1]!.fields.find((f) => f.id === 'foldsAsEdges')!.reset).toBeDefined();
   });
 });

@@ -248,7 +248,7 @@
       "auxWidth": "補助折り線の幅 (pt)",
       "changeAction": "用紙スタイルを変更",
       "erode": "エロード (用紙の %)",
-      "foldsAsEdgesReason": "すべての折り線を辺のペンで描いています",
+      "foldsAsEdgesReason": "すべての折り線を辺として描いています",
       "resetAction": "用紙スタイルをリセット"
     },
     "region": {
@@ -999,7 +999,7 @@
       "precreaseGrid": "グリッドを先に折る",
       "sequence": "下折りの手順",
       "showAuxCreases": "補助折り線を表示",
-      "showAuxCreasesHelp": "展開図の補助線。すべての手順で補助線のペンで用紙に描かれ、折られることはありません。ここで変更するまでは「設定 ▸ 用紙」に従います。",
+      "showAuxCreasesHelp": "展開図の補助線。すべての手順で補助折り線のスタイルで用紙に描かれ、折られることはありません。ここで変更するまでは「設定 ▸ 用紙」に従います。",
       "solutions": "解の数"
     },
     "sheets": {
@@ -1110,11 +1110,6 @@
     "creaseLines": "折り線",
     "creases": "折り線",
     "creaseStiffness": "折り目",
-    "creaseStyle": "スタイル",
-    "creaseStyleColor": "山 / 谷",
-    "creaseStyleCustom": "カスタム",
-    "creaseStyleMono": "単色",
-    "creaseStyleMonoDashed": "単色・破線",
     "damping": "減衰",
     "export": "書き出し",
     "exportHint": "書き出す画像を描くページです。",
@@ -1122,7 +1117,7 @@
     "faceStiffness": "面",
     "foldLineWeight": "折り線の太さ (pt)",
     "foldsAsEdges": "すべての折り線を辺として描画",
-    "foldsAsEdgesHelp": "折り終えた線は紙の辺です。すべての折り線を折り図形と同じく辺のペンで描きます。オフにすると、山折り・谷折りの向きで描き分けます。",
+    "foldsAsEdgesHelp": "折り終えた線は紙の辺です。すべての折り線を、折り図形と同じく紙の辺のように描きます。オフにすると、山折り・谷折りの向きで描き分けます。",
     "keepHiddenFaces": "隠れた面を残す",
     "keepHiddenFacesHint": "どこにも見えない面を、覆うものの下にそのままファイルに残します。",
     "lighting": "照明",

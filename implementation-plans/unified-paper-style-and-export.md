@@ -1937,6 +1937,33 @@ alone cannot decide between coincident layers.
       every frame was dropped before; the frame loop stays awake until the
       camera has arrived, not only until the solver has.
 
+### Phase 13 — Review round after Phase 12
+
+- [x] The buried-crease fix is reverted and deferred (Phase 12 above); the
+      simulation camera following the fold stays.
+- [x] Settings copy says "style", not "pens": exports have their own style;
+      lines keep their widths; a fold is drawn as an edge. English and all
+      eight locales.
+- [x] A picked reference in Find lies on the paper, as a sequence step does:
+      `targetVisibility` hands the canvas the sheet's border to fill. Without
+      it the construction's dark ink drew on the dark ground.
+- [x] Letters, rings and arrows over the big view are sized from the reader's
+      View ▸ Line width again, as on main. Phase 11 measured them from the
+      paper's edge pen, so the Diagram preset's 0.5 pt edge drew 6 px
+      lettering. The creases keep the style's widths, and the step export
+      sizes its letters as the screen does. The arrow is never lighter than
+      the table's weight (1.75 px at a line width of 1); a heavier arrow pen
+      still draws heavier.
+- [x] The simulator's crease Style switch (Mountain / valley, One ink, One
+      ink dashed) is gone from the Simulate pane and the window's Properties:
+      the paper preset decides. `creaseStyleOf` / `applyCreaseStyle` stay for
+      the edge ink that one-ink folds follow, the legacy settings migration,
+      and the start figure.
+- [x] The Default preset dashes its folds as the Diagram preset does
+      (mountain 8:2:1:2, valley 4:2) and draws a simulation's folds as edges.
+      A saved style keeps its own values; picking Default again shows the
+      new one.
+
 ### Validation per phase
 
 Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,

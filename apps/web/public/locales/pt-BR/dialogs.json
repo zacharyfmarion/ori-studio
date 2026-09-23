@@ -412,7 +412,7 @@
         "pngDpi": "Densidade do PNG",
         "pngDpiHint": "Pontos por polegada da página; 96 é a tela.",
         "sheetAsShown": "Tamanho da folha como exibido",
-        "sheetAsShownHint": "O papel tem o tamanho que tem na tela. Desligado, a folha desdobrada abrange um tamanho em mm; as canetas mantêm suas larguras.",
+        "sheetAsShownHint": "O papel tem o tamanho que tem na tela. Desligado, a folha desdobrada abrange um tamanho em mm; as linhas mantêm suas larguras.",
         "sheetMm": "Tamanho da folha",
         "sheetMmHint": "A folha desdobrada, de borda a borda.",
         "title": "Página de exportação",
@@ -437,9 +437,9 @@
       "linesTitle": "Linhas",
       "link": {
         "detach": "Separar",
-        "detached": "As exportações têm as próprias canetas e não seguem mais o estilo de exibição.",
+        "detached": "As exportações têm o próprio estilo e não seguem mais o estilo de exibição.",
         "follow": "Seguir a exibição",
-        "linked": "As exportações usam o estilo de exibição. Separe-as para dar a elas as próprias canetas."
+        "linked": "As exportações usam o estilo de exibição. Separe-as para dar a elas o próprio estilo."
       },
       "paperTitle": "Papel",
       "pen": {

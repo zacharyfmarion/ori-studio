@@ -248,7 +248,7 @@
       "auxWidth": "보조 접힘선 두께 (pt)",
       "changeAction": "종이 스타일 변경",
       "erode": "들여쓰기 (종이의 %)",
-      "foldsAsEdgesReason": "모든 접힘선을 모서리 펜으로 그립니다",
+      "foldsAsEdgesReason": "모든 접힘선을 모서리로 그립니다",
       "resetAction": "종이 스타일 초기화"
     },
     "region": {
@@ -999,7 +999,7 @@
       "precreaseGrid": "격자 먼저 접기",
       "sequence": "사전 접기 순서",
       "showAuxCreases": "보조 접힘선 표시",
-      "showAuxCreasesHelp": "전개도의 보조선으로, 모든 단계에서 보조선 펜으로 종이에 그려지며 접히지 않습니다. 여기서 바꾸기 전까지는 설정 ▸ 종이를 따릅니다.",
+      "showAuxCreasesHelp": "전개도의 보조선으로, 모든 단계에서 보조 접힘선 스타일로 종이에 그려지며 접히지 않습니다. 여기서 바꾸기 전까지는 설정 ▸ 종이를 따릅니다.",
       "solutions": "해답 수"
     },
     "sheets": {
@@ -1110,11 +1110,6 @@
     "creaseLines": "접는 선",
     "creases": "접는 선",
     "creaseStiffness": "접힘",
-    "creaseStyle": "스타일",
-    "creaseStyleColor": "산 / 골",
-    "creaseStyleCustom": "사용자 지정",
-    "creaseStyleMono": "단색",
-    "creaseStyleMonoDashed": "단색 파선",
     "damping": "감쇠",
     "export": "내보내기",
     "exportHint": "내보낸 이미지가 그려지는 페이지입니다.",
@@ -1122,7 +1117,7 @@
     "faceStiffness": "면",
     "foldLineWeight": "접힘선 굵기 (pt)",
     "foldsAsEdges": "모든 접힘선을 모서리로 그리기",
-    "foldsAsEdgesHelp": "이미 접힌 선은 종이의 모서리입니다. 접힌 도형처럼 모든 접힘선을 모서리 펜으로 그립니다. 끄면 방향에 따라 그립니다.",
+    "foldsAsEdgesHelp": "이미 접힌 선은 종이의 모서리입니다. 접힌 도형처럼 모든 접힘선을 종이 모서리처럼 그립니다. 끄면 방향에 따라 그립니다.",
     "keepHiddenFaces": "숨겨진 면 유지",
     "keepHiddenFacesHint": "아무것도 보이지 않는 면을 덮고 있는 것 아래에 그대로 파일에 남깁니다.",
     "lighting": "조명",

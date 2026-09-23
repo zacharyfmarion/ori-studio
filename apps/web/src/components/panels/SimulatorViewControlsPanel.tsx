@@ -6,13 +6,12 @@ import {
   usePaperExportPage,
 } from '../../hooks/usePaperExportPage';
 import { PAPER_SHEET_MM_RANGE } from '../../lib/paper/paperPage';
-import { PAPER_CREASE_STYLES } from '../../lib/paper/paperStyle';
 import {
   SIMULATOR_SETTING_RANGES,
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
-import { simulatorColorModeLabel, simulatorCreaseStyleLabel } from '../../i18n/enumLabels';
+import { simulatorColorModeLabel } from '../../i18n/enumLabels';
 import {
   SIMULATOR_FOLD_WEIGHT_RANGE,
   useSimulatorPaperStyle,
@@ -41,13 +40,10 @@ export function SimulatorViewControlsPanel() {
   // "Export page" section edits the same one); these rows are its simulator-
   // facing subset.
   const exportPage = usePaperExportPage();
-  // Folds drawn as edges take the edge pen, and a mono style paints every
-  // crease in the edge ink, so the per-kind swatches stop doing anything;
-  // showing them live would promise an effect they no longer have. Custom
-  // pens are the user's own and stay editable.
+  // Folds drawn as edges are drawn like the paper's edge, so the per-kind
+  // swatches stop doing anything; showing them live would promise an effect
+  // they no longer have.
   const asEdges = paper.style.foldsAsEdges;
-  const monoCreases =
-    asEdges || paper.creaseStyle === 'mono' || paper.creaseStyle === 'mono-dashed';
   const penRow = (pen: SimulatorPenField, label: string, disabled = false) => (
     <ColorField
       label={label}
@@ -162,32 +158,14 @@ export function SimulatorViewControlsPanel() {
             label={t('panels:simulatorViewControls.foldsAsEdges', 'Render all creases as edges')}
             help={t(
               'panels:simulatorViewControls.foldsAsEdgesHelp',
-              'A fold that has happened is an edge of the paper: every fold is drawn in the edge pen, as a folded figure draws it. Off, folds are drawn by direction.'
+              'A fold that has happened is an edge of the paper: every fold is drawn like the paper’s edge, as a folded figure draws it. Off, folds are drawn by direction.'
             )}
             checked={asEdges}
             onChange={paper.setFoldsAsEdges}
           />
-          <SelectRow
-            label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
-            disabled={asEdges}
-            // Pens edited past the three modes select nothing rather than lying.
-            value={paper.creaseStyle === 'custom' ? null : paper.creaseStyle}
-            placeholder={t('panels:simulatorViewControls.creaseStyleCustom', 'Custom')}
-            options={PAPER_CREASE_STYLES.map((value) => ({
-              id: value,
-              label: simulatorCreaseStyleLabel(t, value),
-            }))}
-            onChange={(value) =>
-              paper.setCreaseStyle(value as (typeof PAPER_CREASE_STYLES)[number])
-            }
-          />
           <div className="simulator-view-controls-panel__colors">
-            {penRow(
-              'mountainFolds',
-              t('panels:simulatorViewControls.mountain', 'Mountain'),
-              monoCreases
-            )}
-            {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), monoCreases)}
+            {penRow('mountainFolds', t('panels:simulatorViewControls.mountain', 'Mountain'), asEdges)}
+            {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), asEdges)}
             {penRow('edges', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
           <SliderRow

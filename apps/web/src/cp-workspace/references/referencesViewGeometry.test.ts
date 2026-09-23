@@ -284,7 +284,7 @@ describe('applyCreaseVisibility', () => {
   it('keeps each crease’s own dash, and draws a settled direction in its pen', () => {
     const pens = canvasDiagramPens(1, 1.4, undefined, {
       edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
-      mountain: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 1.2 }, css: 1.6 },
+      mountain: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 1.2, dash: null }, css: 1.6 },
       valley: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] }, css: 1.1 },
     });
     const input = strokes();
@@ -328,7 +328,7 @@ describe('referencesCreasePens', () => {
   const pens = canvasDiagramPens(1, 1.4, { pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, dash: [1, 2] }, css: 0.5 }, {
     edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
     mountain: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: [8, 2, 1, 2] }, css: 1.2 },
-    valley: { pen: DEFAULT_PAPER_STYLE.valleyFolds, css: 1.2 },
+    valley: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null }, css: 1.2 },
   });
   const ink = {
     edge: [0, 0, 0, 1] as Rgba,

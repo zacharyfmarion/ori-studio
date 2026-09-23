@@ -199,6 +199,10 @@ export interface CssPen {
  * weight in ink is whatever puts its stroke at exactly the pen. Without an aux
  * pen the crease keeps the table's weight, and without the fold pens the folds
  * keep the table's (the reference diagrams drawn before there was a style).
+ *
+ * The arrow is never lighter than the table's: a print pen of 0.75 pt is a
+ * hairline beside the lettering on screen, and the arrow has to read at a
+ * glance. A heavier arrow pen still draws heavier.
  */
 export function canvasDiagramPens(
   lineWidth: number,
@@ -210,7 +214,7 @@ export function canvasDiagramPens(
   const at = ({ pen, css }: CssPen) => penInk(pen, css / ink);
   return {
     ...DIAGRAM_LINE_INK,
-    arrow: { ...DIAGRAM_LINE_INK.arrow, width: arrowCss / ink },
+    arrow: { ...DIAGRAM_LINE_INK.arrow, width: Math.max(arrowCss / ink, DIAGRAM_LINE_INK.arrow.width) },
     ...(aux ? { crease: at(aux), aux: at(aux) } : {}),
     ...(folds ? { edge: at(folds.edge), mountain: at(folds.mountain), valley: at(folds.valley) } : {}),
   };

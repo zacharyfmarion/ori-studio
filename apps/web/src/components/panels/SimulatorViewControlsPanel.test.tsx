@@ -26,7 +26,7 @@ afterEach(() => {
   useSettingsStore.setState(useSettingsStore.getInitialState(), true);
 });
 
-/** Write the mountain and valley pens of the display style for a quick-switch mode. */
+/** Write the mountain and valley pens of the display style for a mode, as a preset would. */
 function setCreaseStyle(mode: 'color' | 'mono' | 'mono-dashed'): void {
   const { paperStyle, setPaperStyleField } = useSettingsStore.getState();
   const next = applyCreaseStyle(paperStyle.display, mode);
@@ -294,26 +294,25 @@ describe('collapsible sections', () => {
     expect(display.edges.width).toBe(DEFAULT_PAPER_STYLE.edges.width);
   });
 
-  it('disables the per-kind swatches under a mono crease style', () => {
-    // They no longer affect anything there, and a live control that does nothing
-    // promises an effect it cannot deliver.
+  // How the folds are dashed and inked is the paper preset's (Settings ▸
+  // Paper); the Creases section offers no style switch of its own.
+  it('offers no crease style switch, and keeps the fold inks live under a one-ink preset', () => {
+    act(() => useSettingsStore.getState().setPaperStyleField('display', 'foldsAsEdges', false));
     const rendered = render();
     toggle(rendered, 'Creases');
+    expect(section(rendered, 'Creases').querySelector('button[aria-label="Style"]')).toBeNull();
     const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
-    expect(mountain()?.disabled).toBe(false);
-
     act(() => {
       setCreaseStyle('mono');
     });
-    expect(mountain()?.disabled).toBe(true);
-    // The edge ink is what mono paints with, so it stays editable.
+    expect(mountain()?.disabled).toBe(false);
     expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
   });
 
-  // Simulations draw by direction by default; the switch draws every fold as
-  // an edge instead, so the pens and the style switch it makes moot are
-  // disabled, and the fold line weight — every line's weight — stays live.
-  it('renders all creases as edges when asked, and disables what that makes moot', () => {
+  // Simulations draw every fold as an edge by default; switched off they draw
+  // by direction, and the fold inks that makes live are enabled. The fold line
+  // weight — every line's weight — is live either way.
+  it('renders all creases as edges by default, and disables what that makes moot', () => {
     const rendered = render();
     toggle(rendered, 'Creases');
     const asEdges = () =>
@@ -321,21 +320,17 @@ describe('collapsible sections', () => {
         'button[role="switch"][aria-label="Render all creases as edges"]'
       )!;
     const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
-    const style = () => section(rendered, 'Creases').querySelector<HTMLButtonElement>(
-      'button[aria-label="Style"]'
-    );
-    expect(asEdges().getAttribute('aria-checked')).toBe('false');
-    expect(mountain()?.disabled).toBe(false);
+    expect(asEdges().getAttribute('aria-checked')).toBe('true');
+    expect(mountain()?.disabled).toBe(true);
+    expect(slider(rendered, 'Fold line weight (pt)').disabled).toBe(false);
+    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
 
     act(() => {
       asEdges().dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(useSettingsStore.getState().paperStyle.display.foldsAsEdges).toBe(true);
-    expect(asEdges().getAttribute('aria-checked')).toBe('true');
-    expect(mountain()?.disabled).toBe(true);
-    expect(style()?.disabled).toBe(true);
-    expect(slider(rendered, 'Fold line weight (pt)').disabled).toBe(false);
-    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
+    expect(useSettingsStore.getState().paperStyle.display.foldsAsEdges).toBe(false);
+    expect(asEdges().getAttribute('aria-checked')).toBe('false');
+    expect(mountain()?.disabled).toBe(false);
   });
 
   it('binds the Export group to the app-wide export page', () => {

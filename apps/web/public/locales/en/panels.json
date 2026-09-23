@@ -253,7 +253,7 @@
       "auxWidth": "Aux crease width (pt)",
       "changeAction": "Change paper style",
       "erode": "Erode (% of sheet)",
-      "foldsAsEdgesReason": "Every fold is drawn in the edge pen",
+      "foldsAsEdgesReason": "Every fold is drawn as an edge",
       "resetAction": "Reset paper style"
     },
     "region": {
@@ -1039,7 +1039,7 @@
       "precreaseGrid": "Precrease grid",
       "sequence": "Precreasing sequence",
       "showAuxCreases": "Show auxiliary creases",
-      "showAuxCreasesHelp": "The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary pen and never folded. Follows Settings ▸ Paper until you change it here.",
+      "showAuxCreasesHelp": "The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary crease style and never folded. Follows Settings ▸ Paper until you change it here.",
       "solutions": "Solutions"
     },
     "sheets": {
@@ -1152,11 +1152,6 @@
     "creaseLines": "Crease lines",
     "creases": "Creases",
     "creaseStiffness": "Crease",
-    "creaseStyle": "Style",
-    "creaseStyleColor": "Mountain / valley",
-    "creaseStyleCustom": "Custom",
-    "creaseStyleMono": "One ink",
-    "creaseStyleMonoDashed": "One ink, dashed",
     "damping": "Damping",
     "export": "Export",
     "exportHint": "The page an exported image is drawn on.",
@@ -1164,7 +1159,7 @@
     "faceStiffness": "Face",
     "foldLineWeight": "Fold line weight (pt)",
     "foldsAsEdges": "Render all creases as edges",
-    "foldsAsEdgesHelp": "A fold that has happened is an edge of the paper: every fold is drawn in the edge pen, as a folded figure draws it. Off, folds are drawn by direction.",
+    "foldsAsEdgesHelp": "A fold that has happened is an edge of the paper: every fold is drawn like the paper’s edge, as a folded figure draws it. Off, folds are drawn by direction.",
     "keepHiddenFaces": "Keep hidden faces",
     "keepHiddenFacesHint": "Faces nothing shows stay in the file, under what covers them.",
     "lighting": "Lighting",

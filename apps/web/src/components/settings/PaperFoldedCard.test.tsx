@@ -166,7 +166,7 @@ describe('the card’s switches', () => {
     act(() => aux!.click());
     expect(calls.setField).toHaveBeenCalledWith('auxCreases.visible', false);
     act(() => foldsAsEdges!.click());
-    expect(calls.setField).toHaveBeenCalledWith('foldsAsEdges', true);
+    expect(calls.setField).toHaveBeenCalledWith('foldsAsEdges', !DEFAULT_PAPER_STYLE.foldsAsEdges);
     act(() => light!.click());
     expect(calls.setField).toHaveBeenCalledWith('light', {
       ...DEFAULT_PAPER_STYLE.light,
@@ -180,9 +180,10 @@ describe('the card’s switches', () => {
       light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
     });
     expect(disc()).toBeNull();
+    // Aux creases shown, folds drawn as edges (the Default preset), light off.
     expect(switches().map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
-      'false',
+      'true',
       'false',
     ]);
   });

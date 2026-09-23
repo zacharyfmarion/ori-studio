@@ -65,7 +65,7 @@ export function PaperExportPageSection() {
           label={t('dialogs:settings.paper.exportPage.sheetAsShown', 'Sheet size as shown')}
           description={t(
             'dialogs:settings.paper.exportPage.sheetAsShownHint',
-            'The paper is the size it is on screen. Off, the unfolded sheet spans a size in mm; the pens keep their widths.'
+            'The paper is the size it is on screen. Off, the unfolded sheet spans a size in mm; lines keep their widths.'
           )}
           checked={page.sheet === 'as-shown'}
           onChange={exportPage.setSheetAsShown}

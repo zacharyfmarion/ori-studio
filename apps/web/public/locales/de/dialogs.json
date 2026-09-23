@@ -404,7 +404,7 @@
         "pngDpi": "PNG-Auflösung",
         "pngDpiHint": "Punkte pro Zoll der Seite; 96 entspricht dem Bildschirm.",
         "sheetAsShown": "Bogengröße wie angezeigt",
-        "sheetAsShownHint": "Das Papier ist so groß wie auf dem Bildschirm. Ausgeschaltet spannt der ungefaltete Bogen eine Größe in mm auf; die Stifte behalten ihre Breiten.",
+        "sheetAsShownHint": "Das Papier ist so groß wie auf dem Bildschirm. Ausgeschaltet spannt der ungefaltete Bogen eine Größe in mm auf; die Linien behalten ihre Breiten.",
         "sheetMm": "Bogengröße",
         "sheetMmHint": "Der ungefaltete Bogen, von Kante zu Kante.",
         "title": "Exportseite",
@@ -429,9 +429,9 @@
       "linesTitle": "Linien",
       "link": {
         "detach": "Lösen",
-        "detached": "Exporte haben eigene Stifte und folgen dem Anzeigestil nicht mehr.",
+        "detached": "Exporte haben einen eigenen Stil und folgen dem Anzeigestil nicht mehr.",
         "follow": "Anzeige folgen",
-        "linked": "Exporte verwenden den Anzeigestil. Lösen Sie sie, um ihnen eigene Stifte zu geben."
+        "linked": "Exporte verwenden den Anzeigestil. Lösen Sie sie, um ihnen einen eigenen Stil zu geben."
       },
       "paperTitle": "Papier",
       "pen": {

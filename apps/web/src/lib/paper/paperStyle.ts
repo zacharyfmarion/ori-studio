@@ -124,17 +124,37 @@ export const DEFAULT_LIGHT_AZIMUTH = 322.19347;
 export const DEFAULT_LIGHT_ELEVATION = 42.80915;
 
 /**
- * Defaults, chosen so the first release is behaviour-preserving wherever a
- * surface already had a value: Oriedita's paper, the folded figure's 1.2 px
- * edge, the simulator's 1.1 px crease inks and its light.
+ * The mountain and valley dashes a printed diagram draws — the Diagram
+ * preset's, from the Origami House template: dash-dot 8:2:1:2 and dashed 4:2,
+ * as multiples of the pen's width.
+ */
+export const DIAGRAM_MOUNTAIN_DASH: readonly number[] = [8, 2, 1, 2];
+export const DIAGRAM_VALLEY_DASH: readonly number[] = [4, 2];
+
+/**
+ * The Default preset: Oriedita's paper, the folded figure's 1.2 px edge, the
+ * simulator's 1.1 px crease inks and its light — with the folds dashed as a
+ * diagram dashes them, so mountain and valley still read apart when the paper
+ * is turned over and the colours swap meaning, and a simulation drawing every
+ * fold as an edge, as a folded figure does.
  */
 export const DEFAULT_PAPER_STYLE: PaperStyle = {
   version: 1,
   paper: { front: ORIEDITA_PAPER_FRONT, back: ORIEDITA_PAPER_BACK },
   edges: { width: 0.9, color: ORIEDITA_LINE_COLOR, dash: null, cap: 'butt' },
-  mountainFolds: { width: 0.825, color: DEFAULT_MOUNTAIN_COLOR, dash: null, cap: 'butt' },
-  valleyFolds: { width: 0.825, color: DEFAULT_VALLEY_COLOR, dash: null, cap: 'butt' },
-  foldsAsEdges: false,
+  mountainFolds: {
+    width: 0.825,
+    color: DEFAULT_MOUNTAIN_COLOR,
+    dash: [...DIAGRAM_MOUNTAIN_DASH],
+    cap: 'butt',
+  },
+  valleyFolds: {
+    width: 0.825,
+    color: DEFAULT_VALLEY_COLOR,
+    dash: [...DIAGRAM_VALLEY_DASH],
+    cap: 'butt',
+  },
+  foldsAsEdges: true,
   // Shown by default: a diagram draws the creases already made, and a folded
   // figure's construction lines are what the pen is for. Oriedita's preset
   // turns them off, as its own folded figure never draws them.
@@ -479,21 +499,15 @@ export function withPaperStyleOverride<F extends PaperStyleField>(
 }
 
 /**
- * The simulator's quick switch, read from the mountain and valley pens.
+ * How the mountain and valley pens stand against the edge pen.
  *
  * `color` is the convention inks, solid; `mono` is the edge pen's colour,
  * solid; `mono-dashed` the edge pen's colour with Oriedita's CP dashes — and
- * anything else is `custom`, which the switch shows without a selection. Width
- * and cap are not part of the answer: the switch is about ink and dash, and
- * changing it leaves both alone.
+ * anything else is `custom`. Width and cap are not part of the answer. What
+ * reads it: a new edge ink keeps `mono` folds on it (`edgeInkEdits`), and a
+ * saved simulator setting from before the paper style migrates through it.
  */
 export type PaperCreaseStyle = 'color' | 'mono' | 'mono-dashed' | 'custom';
-
-export const PAPER_CREASE_STYLES: readonly Exclude<PaperCreaseStyle, 'custom'>[] = [
-  'color',
-  'mono',
-  'mono-dashed',
-];
 
 /** The CSS-px crease width Oriedita draws its dash patterns at. */
 const ORIEDITA_CREASE_PX = DEFAULT_PAPER_STYLE.mountainFolds.width * PT_TO_CSS_PX;
@@ -504,9 +518,9 @@ const ORIEDITA_CREASE_PX = DEFAULT_PAPER_STYLE.mountainFolds.width * PT_TO_CSS_P
  * multiples are those runs over 1.1 — at the default 0.825 pt (1.1 px) fold
  * pen they resolve to exactly `[10, 3, 3, 3]` and `[8, 8]` on a standard
  * display, and a heavier pen dashes proportionally longer. They are constants,
- * not a quotient of whatever width the pen has when the switch is pressed:
- * the switch is *defined* by them, so a weight change afterwards leaves the
- * dash alone and the switch still reads `mono-dashed` (§5).
+ * not a quotient of whatever width the pen has when the mode is applied: the
+ * mode is *defined* by them, so a weight change afterwards leaves the dash
+ * alone and the pens still read `mono-dashed` (§5).
  */
 export const ORIEDITA_MOUNTAIN_DASH_MULTIPLES: readonly number[] = ORIEDITA_DASH_ONE_DOT.map(
   (run) => run / ORIEDITA_CREASE_PX
@@ -517,16 +531,16 @@ export const ORIEDITA_VALLEY_DASH_MULTIPLES: readonly number[] = ORIEDITA_DASH_V
 
 /**
  * Two dashes are the same within a millionth of a pen width: a preset typed
- * or written to six decimals still reads as the switch, and no renderer can
+ * or written to six decimals still reads as its mode, and no renderer can
  * draw a smaller difference.
  */
 const DASH_RUN_TOLERANCE = 1e-6;
 
 /**
  * Whether two dashes are the same pattern. Exported because the named dashes
- * the Settings field offers are recognised the same way the crease-style switch
- * recognises its own — one tolerance, so a dash reads the same wherever it is
- * matched.
+ * the Settings field offers are recognised the same way {@link creaseStyleOf}
+ * recognises its modes — one tolerance, so a dash reads the same wherever it
+ * is matched.
  */
 export function dashEquals(a: readonly number[] | null, b: readonly number[] | null): boolean {
   if (a === null || b === null) return a === b;
@@ -557,7 +571,7 @@ export function creaseStyleOf(style: PaperStyle): PaperCreaseStyle {
   return 'custom';
 }
 
-/** Write the mountain and valley pens for a quick-switch mode; see {@link creaseStyleOf}. */
+/** Write the mountain and valley pens for a mode; see {@link creaseStyleOf}. */
 export function applyCreaseStyle(
   style: PaperStyle,
   mode: Exclude<PaperCreaseStyle, 'custom'>
