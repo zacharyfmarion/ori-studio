@@ -199,6 +199,12 @@ jobs:
       - name: Build web client
         run: npm run build:web --ignore-scripts
 
+      # What the landing page loads before anything lazy, held to a budget: it was the
+      # whole app until the workspace moved behind a lazy import, and it grew 13% in a
+      # month with nothing noticing. See scripts/landing-budget.mjs.
+      - name: Landing budget
+        run: node scripts/landing-budget.mjs apps/web/dist
+
       - name: WebKit PWA check
         run: npm run test:web:webkit-pwa
 
