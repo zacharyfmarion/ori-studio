@@ -172,9 +172,6 @@ export class StartFigureMesh {
           // A crease only has to beat the one face it lies on. Same rule as the
           // figure window.
           creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
-          // The figure's skins are already the layers on top; the settings are
-          // a simulation's, which asks for its creases to be sorted by paper.
-          creaseVisibility: 'depth',
         },
         null,
         {

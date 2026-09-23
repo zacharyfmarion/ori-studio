@@ -9,9 +9,7 @@
 // The projection is the exact orbit projection the canvas-2D renderer used (see
 // camera.ts), so the WebGL output matches what users already see. Faces are
 // depth-tested (no painter's sort), two-tone via `gl_FrontFacing`, flat-lit from
-// the screen-space derivative of view position. Creases are screen-space
-// ribbons, and — where the settings ask — a face-ID pass decides which of them
-// show (`RenderSettings.creaseVisibility`).
+// the screen-space derivative of view position. Edges are a `LINES` pass.
 import type { GlCore } from './glCore.js';
 import { sheetExtent, type CameraUniforms, type Mat3 } from './camera.js';
 import type { FoldAssignment } from '../types.js';
@@ -22,7 +20,6 @@ import {
   auxEndsOnOutline,
   edgeBoundaryFlags,
 } from '../edgeBoundary.js';
-import { faceAdjacency } from '../faceAdjacency.js';
 
 export interface MeshTopology {
   /** Triangle vertex indices, 3 per face. */
@@ -41,15 +38,6 @@ export interface MeshTopology {
    * edge shares the vertex, for erode — see `EdgeBoundaryTopology.auxEnds`.
    */
   auxEnds?: Uint8Array;
-  /**
-   * Which paper each crease lies on (`faceAdjacency`): the group of each
-   * triangle, and per edge the groups it bounds and each one's apex. What
-   * {@link RenderSettings.creaseVisibility} `'own-face'` reads; without it a
-   * renderer falls back to depth.
-   */
-  faceGroups?: Int32Array;
-  edgeFaces?: Int32Array;
-  edgeApex?: Int32Array;
   /** Square texture edge length the solver packs vertices into. */
   textureDim: number;
 }
@@ -253,26 +241,6 @@ export interface RenderSettings {
    * not something anything relies on.
    */
   creaseWritesDepth?: boolean;
-  /**
-   * Which creases show where layers meet. `'depth'`, the default: every crease
-   * that passes the depth test, nudged toward the viewer by
-   * {@link creaseDepthBias}. `'own-face'`: a crease draws only where one of
-   * the faces it bounds is the face the paint shows there — a face-ID pass
-   * records the frontmost face at each pixel, in the paint's own order.
-   *
-   * For a model whose layers can coincide: a mass-spring simulation has no
-   * thickness, so layers folded flat lie at one depth and the bias that keeps
-   * a crease on its own face lifts every buried layer's creases through the
-   * top one too. The face the paint shows is the only thing that says which
-   * layer is on top, so a crease shows exactly where its paper's colour does —
-   * judged beside the line, looking into the crease's own faces, so a paper
-   * edge draws whole over whatever lies outside it, and a layer showing only
-   * as a sliver beside the one on top draws no second outline there.
-   *
-   * Needs the topology's face adjacency (`MeshTopology.edgeFaces`); without
-   * it, and while faces are hidden or translucent, depth decides.
-   */
-  creaseVisibility?: 'depth' | 'own-face';
 }
 
 /**
@@ -415,17 +383,11 @@ export function meshTopologyFor(
   const auxEnds =
     flat && auxEndsOnOutline(topology, flat, AUX_END_ON_OUTLINE_RELATIVE * sheetExtent(flat));
   if (auxEnds) topology.auxEnds = auxEnds;
-  const { faceGroups, edgeFaces, edgeApex } = faceAdjacency(topology);
-  topology.faceGroups = faceGroups;
-  topology.edgeFaces = edgeFaces;
-  topology.edgeApex = edgeApex;
   return topology;
 }
 
-// Interleaved edge-vertex layout: [this, a, b, side, assignment, shrink,
-// face1, face2, apex1, apex2] — the last four the crease's faces and their
-// apexes (`faceAdjacency`), -1 where there is none.
-export const EDGE_STRIDE = 10;
+// Interleaved edge-vertex layout: [this, a, b, side, assignment, shrink].
+export const EDGE_STRIDE = 6;
 const EDGE_ATTRS: ReadonlyArray<readonly [string, number]> = [
   ['a_this', 0],
   ['a_a', 1],
@@ -433,10 +395,6 @@ const EDGE_ATTRS: ReadonlyArray<readonly [string, number]> = [
   ['a_side', 3],
   ['a_assignment', 4],
   ['a_shrink', 5],
-  ['a_face1', 6],
-  ['a_face2', 7],
-  ['a_apex1', 8],
-  ['a_apex2', 9],
 ];
 
 /** Ribbon vertices per drawn crease: two triangles. */
@@ -470,13 +428,10 @@ export function buildEdgeQuads(topology: MeshTopology): {
     if (topology.edgeAssignments[e]! <= EDGE_CODE.aux) drawn += 1;
   }
   const shrink = edgeBoundaryFlags(topology);
-  const faces = topology.edgeFaces;
-  const apexes = topology.edgeApex;
 
   const out = new Float32Array(drawn * EDGE_QUAD_VERTICES * EDGE_STRIDE);
   const vertexStart = new Uint32Array(edgeCount + 1);
   let v = 0;
-  let paper: readonly [number, number, number, number] = [-1, -1, -1, -1];
   const emit = (
     thisIndex: number,
     a: number,
@@ -491,10 +446,6 @@ export function buildEdgeQuads(topology: MeshTopology): {
     out[v + 3] = side;
     out[v + 4] = assignment;
     out[v + 5] = flags;
-    out[v + 6] = paper[0];
-    out[v + 7] = paper[1];
-    out[v + 8] = paper[2];
-    out[v + 9] = paper[3];
     v += EDGE_STRIDE;
   };
 
@@ -505,12 +456,6 @@ export function buildEdgeQuads(topology: MeshTopology): {
     const a = topology.edgeIndices[e * 2]!;
     const b = topology.edgeIndices[e * 2 + 1]!;
     const flags = shrink[e]!;
-    paper = [
-      faces?.[e * 2] ?? -1,
-      faces?.[e * 2 + 1] ?? -1,
-      apexes?.[e * 2] ?? -1,
-      apexes?.[e * 2 + 1] ?? -1,
-    ];
     // Two triangles: (Aleft, Aright, Bleft) and (Aright, Bright, Bleft).
     emit(a, a, b, 1, assignment, flags);
     emit(a, a, b, -1, assignment, flags);
@@ -569,10 +514,6 @@ uniform sampler2D u_originalPosition;
 uniform sampler2D u_lastVelocity;
 uniform int u_textureDim;
 ${VIEW_GLSL}
-// The face-ID pass computes the same positions in another program and must
-// rasterize exactly the triangles this one paints; invariance is what makes two
-// programs agree to the bit. See ID_VERT.
-invariant gl_Position;
 out vec3 v_view;
 out float v_strain;
 
@@ -666,25 +607,6 @@ flat out int v_assignment;
 // straight two-triangle ribbon, so the fragment stage can measure the run it
 // is in.
 out float v_alongPx;
-#ifdef OWN_FACE
-in float a_face1;      // the faces this crease bounds (faceAdjacency), -1 for none
-in float a_face2;
-in float a_apex1;      // each one's triangle's vertex off the crease
-in float a_apex2;
-flat out int v_face1;
-flat out int v_face2;
-// Which faces the fragment stage can look into: bit 1 face 1, bit 2 face 2 —
-// a face this crease bounds whose triangle has width on screen.
-flat out int v_paperFaces;
-// Each face's apex, in window pixels: the direction to look into it from.
-flat out vec2 v_apex1Px;
-flat out vec2 v_apex2Px;
-flat out vec2 v_perpPx;
-flat out float v_halfWidthPx;
-// Across the ribbon, -1..1: this fragment's distance from the line in
-// half-widths, so the fragment stage can find the point of the line it is on.
-out float v_across;
-#endif
 
 // The pattern's starting position that centres it on an edge of this length,
 // so both ends of a fold line look the same — the vector painter's
@@ -717,28 +639,7 @@ float projectDepth(int index){
   return toNdcDepth(toView(fetchPosition(index)).z);
 }
 
-#ifdef OWN_FACE
-// The apex of a face this crease bounds, in window pixels; false for no face,
-// or one whose triangle is under a pixel wide on screen — seen edge-on, with
-// nothing beside the line to look at.
-bool apexOf(float face, float apex, vec2 pxA, vec2 perpPx, out vec2 windowPx){
-  vec2 px = projectNdc(int(apex + 0.5)) * (u_viewport * 0.5);
-  windowPx = px + u_viewport * 0.5;
-  return face > -0.5 && abs(dot(px - pxA, perpPx)) >= 1.0;
-}
-#endif
-
 void main(){
-#ifdef OWN_FACE
-  v_face1 = int(floor(a_face1 + 0.5));
-  v_face2 = int(floor(a_face2 + 0.5));
-  v_paperFaces = 0;
-  v_apex1Px = vec2(0.0);
-  v_apex2Px = vec2(0.0);
-  v_perpPx = vec2(0.0);
-  v_halfWidthPx = 0.0;
-  v_across = a_side;
-#endif
   v_assignment = int(a_assignment + 0.5);
   // An auxiliary crease the style hides: put every vertex of its ribbon behind
   // the far plane, so the triangle is clipped before it costs a fragment.
@@ -789,18 +690,6 @@ void main(){
   vec2 perpPx = len > 0.0001 ? vec2(-dirPx.y, dirPx.x) / len : vec2(0.0);
   float halfWidthPx = v_assignment == ${EDGE_CODE.aux} ? u_auxHalfWidthPx : u_halfWidthPx;
   vec2 offsetPx = perpPx * halfWidthPx * a_side;
-#ifdef OWN_FACE
-  v_perpPx = perpPx;
-  v_halfWidthPx = halfWidthPx;
-  vec2 apex1;
-  vec2 apex2;
-  int faces = 0;
-  if (apexOf(a_face1, a_apex1, pxA, perpPx, apex1)) faces |= 1;
-  if (apexOf(a_face2, a_apex2, pxA, perpPx, apex2)) faces |= 2;
-  v_paperFaces = faces;
-  v_apex1Px = apex1;
-  v_apex2Px = apex2;
-#endif
   // Bias toward the viewer so a crease sits on top of the face it lies on —
   // and, where the model has coplanar layers, on top of *that* face and nothing
   // behind it. See RenderSettings.creaseDepthBias. An eroded end takes the
@@ -829,50 +718,6 @@ uniform float u_auxAlpha;
 uniform float u_dashRuns[${DASH_KINDS * MAX_DASH_RUNS}];
 uniform int u_dashCount[${DASH_KINDS}];
 out vec4 fragColor;
-#ifdef OWN_FACE
-// The face-ID pass: at each pixel, the group of the face the paint shows there,
-// -1 where it shows none.
-uniform highp isampler2D u_faceIds;
-uniform ivec2 u_faceIdSize;
-flat in int v_face1;
-flat in int v_face2;
-flat in int v_paperFaces;
-flat in vec2 v_apex1Px;
-flat in vec2 v_apex2Px;
-flat in vec2 v_perpPx;
-flat in float v_halfWidthPx;
-in float v_across;
-
-int faceIdAt(vec2 px){
-  ivec2 texel = clamp(ivec2(floor(px)), ivec2(0), u_faceIdSize - 1);
-  return texelFetch(u_faceIds, texel, 0).r;
-}
-
-bool ownFace(int id){
-  return id >= 0 && (id == v_face1 || id == v_face2);
-}
-
-// Whether the crease's paper is what shows beside it, looking into one of its
-// faces from the point of the line this fragment is on. The look goes toward
-// the face's apex, so it stays inside the face's own triangle however close to
-// a vertex it starts: a neighbour across another crease is never taken for a
-// layer on top, and a flap's point keeps its outline to the tip.
-//
-// Twice: just beside the line, where the crease's own face has to be what
-// shows; and past the ribbon's half-width, where it still has to be. The
-// second keeps a layer that sits a pixel proud of the one on top from drawing
-// its outline beside that layer's own. The paint shows the sliver, but a line
-// there makes one edge read as two — the simulation has no thickness, so
-// layers that meet in the model land a hair apart on screen.
-bool paperShows(vec2 foot, vec2 apex){
-  vec2 toApex = apex - foot;
-  float room = length(toApex);
-  if (room < 1.0) return false;
-  vec2 inward = toApex / room;
-  if (!ownFace(faceIdAt(foot + inward * min(1.0, room * 0.5)))) return false;
-  return ownFace(faceIdAt(foot + inward * min(v_halfWidthPx + 1.0, room * 0.9)));
-}
-#endif
 
 /** True where the dash pattern is "on" at this distance along the edge. */
 bool dashOn(int kind, float alongPx){
@@ -898,18 +743,6 @@ bool dashOn(int kind, float alongPx){
 }
 
 void main(){
-#ifdef OWN_FACE
-  // A crease shows where the paper it lies on is what the paint shows; see
-  // RenderSettings.creaseVisibility. A crease with no face to look into — a
-  // free aux line, or one whose faces are edge-on — has no paper to ask, and
-  // depth alone decides it.
-  if (v_paperFaces != 0){
-    vec2 foot = gl_FragCoord.xy - v_perpPx * (v_across * v_halfWidthPx);
-    bool shown = (v_paperFaces & 1) != 0 && paperShows(foot, v_apex1Px);
-    if (!shown) shown = (v_paperFaces & 2) != 0 && paperShows(foot, v_apex2Px);
-    if (!shown) discard;
-  }
-#endif
   vec3 color = u_borderColor;
   float alpha = u_alpha;
   if (v_assignment == 1) color = u_mountainColor;
@@ -920,62 +753,6 @@ void main(){
   if (!dashOn(v_assignment, v_alongPx)) discard;
   fragColor = vec4(color, alpha);
 }`;
-
-/**
- * The face-ID pass: every triangle again, into an integer target, each writing
- * the group of the face it belongs to — so the target holds, at each pixel, the
- * face the paint shows there. See {@link RenderSettings.creaseVisibility}.
- *
- * Drawn unindexed, a triangle's corners one after another, because WebGL2 has
- * no `gl_PrimitiveID` to name the triangle a fragment came from: each corner
- * carries its node and its triangle's group. The position is the face pass's,
- * by the same expressions and declared invariant in both, so the two programs
- * rasterize the same triangles to the same depths — and, drawn in the same
- * order against the same `LEQUAL` test, settle a tie between coincident layers
- * the same way the paint does. That is the whole point: the layer this pass
- * says is on top is the layer the paint shows.
- */
-const ID_VERT = `#version 300 es
-precision highp float;
-in float a_node;   // the node at this corner
-in float a_group;  // the face group of this corner's triangle
-uniform sampler2D u_lastPosition;
-uniform sampler2D u_originalPosition;
-uniform int u_textureDim;
-${VIEW_GLSL}
-invariant gl_Position;
-flat out int v_group;
-
-vec3 fetchPosition(int index){
-  ivec2 texel = ivec2(index % u_textureDim, index / u_textureDim);
-  return texelFetch(u_lastPosition, texel, 0).xyz + texelFetch(u_originalPosition, texel, 0).xyz;
-}
-
-void main(){
-  v_group = int(a_group + 0.5);
-  vec3 view = toView(fetchPosition(int(a_node + 0.5)));
-  gl_Position = vec4(toNdc(view), toNdcDepth(view.z), 1.0);
-}`;
-
-const ID_FRAG = `#version 300 es
-precision highp float;
-precision highp int;
-flat in int v_group;
-layout(location = 0) out int faceId;
-
-void main(){
-  faceId = v_group;
-}`;
-
-/** `source` with `#define name` after its `#version` line, which must stay first. */
-function withDefine(source: string, name: string): string {
-  const end = source.indexOf('\n');
-  return `${source.slice(0, end + 1)}#define ${name} 1\n${source.slice(end + 1)}`;
-}
-
-/** The ID pass's clear: no face. */
-const NO_FACE = new Int32Array([-1, 0, 0, 0]);
-const FAR_DEPTH = new Float32Array([1]);
 
 /**
  * How one {@link MeshRenderer.render} call composes with the ones around it.
@@ -1050,72 +827,15 @@ export interface MeshRendererOptions {
   sheet?: number;
 }
 
-/** A compiled edge program and its uniform locations. */
-interface EdgeProgram {
-  program: WebGLProgram;
-  uniforms: Map<string, WebGLUniformLocation | null>;
-}
-
-/** The face-ID pass's program, corners and target — see {@link ID_VERT}. */
-interface FaceIdPass {
-  program: WebGLProgram;
-  uniforms: Map<string, WebGLUniformLocation | null>;
-  corners: WebGLBuffer;
-  vao: WebGLVertexArrayObject;
-  framebuffer: WebGLFramebuffer;
-  texture: WebGLTexture;
-  depth: WebGLRenderbuffer;
-  /** Allocated size; grow-only, like the shared buffer the frame is drawn into. */
-  width: number;
-  height: number;
-}
-
-/** The ID pass's corner attributes, bound to fixed locations as the edge pass's are. */
-const ID_ATTRS: ReadonlyArray<readonly [string, number]> = [
-  ['a_node', 0],
-  ['a_group', 1],
-];
-const ID_STRIDE = ID_ATTRS.length;
-/** The ID target grows in steps of this, so a window being resized does not reallocate per frame. */
-const ID_TARGET_STEP = 128;
-/** Where the edge pass finds the face IDs; 0–2 are the solver's textures. */
-const FACE_ID_UNIT = 3;
-
-/**
- * The ID pass's corners, unindexed: per corner its node and its triangle's
- * group, three corners per triangle in the element buffer's order — so corner
- * `i` here is element `i` there, and a face range means the same run in both.
- */
-export function faceIdCorners(faceIndices: Uint32Array, faceGroups: Int32Array): Float32Array {
-  const out = new Float32Array(faceIndices.length * ID_STRIDE);
-  for (let i = 0; i < faceIndices.length; i += 1) {
-    out[i * ID_STRIDE] = faceIndices[i]!;
-    out[i * ID_STRIDE + 1] = faceGroups[Math.floor(i / 3)] ?? -1;
-  }
-  return out;
-}
-
 export class MeshRenderer {
   private readonly gl: WebGL2RenderingContext;
   private readonly faceProgram: WebGLProgram;
-  private readonly depthEdges: EdgeProgram;
-  /** The edge program that reads the face-ID pass, built the first time a frame asks for it. */
-  private ownFaceEdges: EdgeProgram | null = null;
-  private faceIds: FaceIdPass | null = null;
-  /**
-   * Why the face-ID pass could not be built, once it could not: the creases
-   * then fall back to depth rather than a frame failing over a refinement. Kept
-   * for the parity bench, which is where a shader that no longer links shows.
-   */
-  private faceIdError: Error | null = null;
+  private readonly edgeProgram: WebGLProgram;
   private readonly faceElements: WebGLBuffer;
   private readonly edgeBuffer: WebGLBuffer;
   private readonly faceVao: WebGLVertexArrayObject;
   private readonly edgeVao: WebGLVertexArrayObject;
   private readonly faceCount: number;
-  /** For the ID pass's corners, built with it. */
-  private readonly faceIndices: Uint32Array;
-  private readonly faceGroups: Int32Array | null;
   private readonly edgeVertexCount: number;
   /** Ribbon vertex offset per source edge — see {@link buildEdgeQuads}. */
   private readonly edgeVertexStart: Uint32Array;
@@ -1123,8 +843,7 @@ export class MeshRenderer {
   /** See {@link MeshRendererOptions.sheet}. */
   private readonly sheet: number;
   private readonly faceUniforms: Map<string, WebGLUniformLocation | null> = new Map();
-  /** How the last frame decided which creases show: what the settings asked, or depth if it could not. */
-  private lastCreaseVisibility: 'depth' | 'own-face' = 'depth';
+  private readonly edgeUniforms: Map<string, WebGLUniformLocation | null> = new Map();
 
   constructor(
     private readonly core: GlCore,
@@ -1136,14 +855,9 @@ export class MeshRenderer {
     this.textureDim = topology.textureDim;
     this.sheet = Math.max(0, options.sheet ?? 0);
     this.faceCount = topology.faceIndices.length;
-    this.faceIndices = topology.faceIndices;
-    this.faceGroups = topology.faceGroups ?? null;
 
     this.faceProgram = compile(gl, FACE_VERT, FACE_FRAG);
-    this.depthEdges = {
-      program: compile(gl, EDGE_VERT, EDGE_FRAG, EDGE_ATTRS),
-      uniforms: new Map(),
-    };
+    this.edgeProgram = compile(gl, EDGE_VERT, EDGE_FRAG);
 
     // Face pass: positions come from the texture via gl_VertexID, so the VAO
     // only holds the element buffer (no vertex attributes).
@@ -1153,32 +867,25 @@ export class MeshRenderer {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.faceElements);
 
     // Edge pass: each drawn crease becomes a 2-triangle screen-space ribbon (6
-    // vertices), interleaved as EDGE_ATTRS. Facet edges (the triangulation
-    // diagonals, 4) are skipped — they are not lines anyone drew; auxiliary
-    // creases (3) are built and clipped away by the shader unless the settings
-    // show them.
-    //
-    // Both edge programs bind their attributes to the same fixed locations, so
-    // this one VAO serves either.
+    // vertices), interleaved as [this, a, b, side, assignment, shrink]. Facet
+    // edges (the triangulation diagonals, 4) are skipped — they are not lines
+    // anyone drew; auxiliary creases (3) are built and clipped away by the
+    // shader unless the settings show them.
     const { interleaved, vertexStart } = buildEdgeQuads(topology);
     this.edgeVertexCount = interleaved.length / EDGE_STRIDE;
     this.edgeVertexStart = vertexStart;
     this.edgeVao = createVao(gl);
     gl.bindVertexArray(this.edgeVao);
     this.edgeBuffer = uploadFloats(gl, interleaved);
-    bindFloatAttributes(gl, EDGE_ATTRS, EDGE_STRIDE);
+    const stride = EDGE_STRIDE * 4;
+    for (const [name, offset] of EDGE_ATTRS) {
+      const loc = gl.getAttribLocation(this.edgeProgram, name);
+      if (loc < 0) continue;
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 1, gl.FLOAT, false, stride, offset * 4);
+    }
 
     gl.bindVertexArray(null);
-  }
-
-  /** How the last frame decided which creases show — `'depth'` where own-face was asked for but could not run. */
-  get creaseVisibilityInUse(): 'depth' | 'own-face' {
-    return this.lastCreaseVisibility;
-  }
-
-  /** Why own-face crease visibility could not run on this context, if it could not. */
-  get faceIdFailure(): Error | null {
-    return this.faceIdError;
   }
 
   render(
@@ -1237,11 +944,6 @@ export class MeshRenderer {
     }
 
     const translucent = settings.faceAlpha < 1;
-    const firstFace = clampRange(options.faceRange?.start ?? 0, this.faceCount);
-    const faceCount = clampRange(
-      options.faceRange?.count ?? this.faceCount - firstFace,
-      this.faceCount - firstFace
-    );
     if (settings.showFaces) {
       if (translucent) {
         gl.enable(gl.BLEND);
@@ -1271,24 +973,16 @@ export class MeshRenderer {
         'u_strainClip',
         settings.strainClip ?? 5
       );
+      const first = clampRange(options.faceRange?.start ?? 0, this.faceCount);
+      const count = clampRange(
+        options.faceRange?.count ?? this.faceCount - first,
+        this.faceCount - first
+      );
       // UNSIGNED_INT indices, so the byte offset is four per index.
-      if (faceCount > 0) {
-        gl.drawElements(gl.TRIANGLES, faceCount, gl.UNSIGNED_INT, firstFace * 4);
-      }
+      if (count > 0) gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_INT, first * 4);
     }
 
-    const drawEdges = settings.showEdges && this.edgeVertexCount > 0;
-    // Own-face visibility asks which face the paint shows, so it needs faces
-    // that are painted and opaque: over a translucent or hidden paper every
-    // crease shows through by design, and depth decides as it always has.
-    const faceIds =
-      drawEdges && settings.creaseVisibility === 'own-face' && settings.showFaces && !translucent
-        ? this.drawFaceIds(camera, firstFace, faceCount, options.clear ?? true, target)
-        : null;
-    this.lastCreaseVisibility = faceIds ? 'own-face' : 'depth';
-
-    if (drawEdges) {
-      const { program, uniforms } = (faceIds && this.ownFaceEdges) || this.depthEdges;
+    if (settings.showEdges && this.edgeVertexCount > 0) {
       // Crease width in device pixels; scaled up a touch on hi-dpi so it reads
       // at the same on-screen weight, then by the frame if these settings ask
       // for it. camera.width is device px.
@@ -1314,56 +1008,47 @@ export class MeshRenderer {
         gl.depthMask(settings.creaseWritesDepth ?? true);
       }
       gl.bindVertexArray(this.edgeVao);
-      gl.useProgram(program);
-      this.bindCommon(program, uniforms, camera);
-      if (faceIds) {
-        gl.activeTexture(gl.TEXTURE0 + FACE_ID_UNIT);
-        gl.bindTexture(gl.TEXTURE_2D, faceIds.texture);
-        this.setInt(program, uniforms, 'u_faceIds', FACE_ID_UNIT);
-        this.gl.uniform2i(
-          this.location(program, uniforms, 'u_faceIdSize'),
-          camera.width,
-          camera.height
-        );
-      }
-      this.setVec3(program, uniforms, 'u_mountainColor', settings.mountainColor);
-      this.setVec3(program, uniforms, 'u_valleyColor', settings.valleyColor);
-      this.setVec3(program, uniforms, 'u_borderColor', settings.borderColor);
-      this.setVec3(program, uniforms, 'u_auxColor', settings.auxColor ?? settings.borderColor);
-      this.setFloat(program, uniforms, 'u_halfWidthPx', ink.widthPx * 0.5);
-      this.setFloat(program, uniforms, 'u_auxHalfWidthPx', auxInk.widthPx * 0.5);
-      this.setFloat(program, uniforms, 'u_alpha', ink.alpha);
-      this.setFloat(program, uniforms, 'u_auxAlpha', auxInk.alpha);
-      this.setFloat(program, uniforms, 'u_showAux', showAux ? 1 : 0);
+      gl.useProgram(this.edgeProgram);
+      this.bindCommon(this.edgeProgram, this.edgeUniforms, camera);
+      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_mountainColor', settings.mountainColor);
+      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_valleyColor', settings.valleyColor);
+      this.setVec3(this.edgeProgram, this.edgeUniforms, 'u_borderColor', settings.borderColor);
+      this.setVec3(
+        this.edgeProgram,
+        this.edgeUniforms,
+        'u_auxColor',
+        settings.auxColor ?? settings.borderColor
+      );
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', ink.widthPx * 0.5);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_auxHalfWidthPx', auxInk.widthPx * 0.5);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', ink.alpha);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_auxAlpha', auxInk.alpha);
+      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_showAux', showAux ? 1 : 0);
       // The painter's `erode × sheet` in this frame's pixels: the sheet at the
       // camera's scale, which is why it is computed here rather than resolved
       // into the settings once.
-      this.setFloat(program, uniforms, 'u_erodePx', erodePx(settings, this.sheet, camera));
       this.setFloat(
-        program,
-        uniforms,
+        this.edgeProgram,
+        this.edgeUniforms,
+        'u_erodePx',
+        erodePx(settings, this.sheet, camera)
+      );
+      this.setFloat(
+        this.edgeProgram,
+        this.edgeUniforms,
         'u_depthBias',
         settings.creaseDepthBias ?? DEFAULT_CREASE_DEPTH_BIAS
       );
       // Dash runs are lengths along the crease in the same device pixels, so a
       // shrinking crease has to take its pattern with it or a thumbnail reads as
       // two long dashes rather than as a dashed line.
-      this.setDash(
-        { program, uniforms },
-        settings.creaseDash,
-        creaseFrameScale(settings, camera.width, camera.height)
-      );
+      this.setDash(settings.creaseDash, creaseFrameScale(settings, camera.width, camera.height));
       const edges = this.edgeVertexStart.length - 1;
       const firstEdge = clampRange(options.edgeRange?.start ?? 0, edges);
       const edgeCount = clampRange(options.edgeRange?.count ?? edges - firstEdge, edges - firstEdge);
       const firstVertex = this.edgeVertexStart[firstEdge]!;
       const vertexCount = this.edgeVertexStart[firstEdge + edgeCount]! - firstVertex;
       if (vertexCount > 0) gl.drawArrays(gl.TRIANGLES, firstVertex, vertexCount);
-      if (faceIds) {
-        gl.activeTexture(gl.TEXTURE0 + FACE_ID_UNIT);
-        gl.bindTexture(gl.TEXTURE_2D, null);
-        gl.activeTexture(gl.TEXTURE0);
-      }
     }
 
     gl.depthMask(true);
@@ -1378,151 +1063,11 @@ export class MeshRenderer {
   dispose(): void {
     const gl = this.gl;
     gl.deleteProgram(this.faceProgram);
-    gl.deleteProgram(this.depthEdges.program);
-    if (this.ownFaceEdges) gl.deleteProgram(this.ownFaceEdges.program);
+    gl.deleteProgram(this.edgeProgram);
     gl.deleteBuffer(this.faceElements);
     gl.deleteBuffer(this.edgeBuffer);
     gl.deleteVertexArray(this.faceVao);
     gl.deleteVertexArray(this.edgeVao);
-    this.disposeFaceIds();
-  }
-
-  /**
-   * The face-ID pass for this frame's faces — the same run of triangles the
-   * face pass painted, in the same order — leaving `target` bound and its
-   * viewport set, as the edge pass expects. Null when this context cannot back
-   * the pass; the creases then fall back to depth.
-   */
-  private drawFaceIds(
-    camera: CameraUniforms,
-    first: number,
-    count: number,
-    clear: boolean,
-    target: WebGLFramebuffer | null
-  ): FaceIdPass | null {
-    const pass = this.faceIdPass(camera.width, camera.height);
-    if (!pass) return null;
-    const gl = this.gl;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
-    gl.viewport(0, 0, camera.width, camera.height);
-    // An integer target cannot blend, and the pass is only ever opaque.
-    gl.disable(gl.BLEND);
-    gl.depthMask(true);
-    if (clear) {
-      // Scissored for the same reason the frame's clear is: the target is
-      // grow-only, and only the viewport is read.
-      gl.enable(gl.SCISSOR_TEST);
-      gl.scissor(0, 0, camera.width, camera.height);
-      gl.clearBufferiv(gl.COLOR, 0, NO_FACE);
-      gl.clearBufferfv(gl.DEPTH, 0, FAR_DEPTH);
-      gl.disable(gl.SCISSOR_TEST);
-    }
-    if (count > 0) {
-      gl.bindVertexArray(pass.vao);
-      gl.useProgram(pass.program);
-      this.bindCommon(pass.program, pass.uniforms, camera);
-      // Unindexed, corner `i` is element `i`: the same run the face pass drew.
-      gl.drawArrays(gl.TRIANGLES, first, count);
-    }
-    gl.bindFramebuffer(gl.FRAMEBUFFER, target);
-    gl.viewport(0, 0, camera.width, camera.height);
-    return pass;
-  }
-
-  /** The face-ID pass, built on first use and grown to `width`×`height`; null if it cannot be. */
-  private faceIdPass(width: number, height: number): FaceIdPass | null {
-    if (this.faceIdError || !this.faceGroups) return null;
-    try {
-      this.ownFaceEdges ??= {
-        program: compile(
-          this.gl,
-          withDefine(EDGE_VERT, 'OWN_FACE'),
-          withDefine(EDGE_FRAG, 'OWN_FACE'),
-          EDGE_ATTRS
-        ),
-        uniforms: new Map(),
-      };
-      this.faceIds ??= this.createFaceIdPass(this.faceGroups);
-      const pass = this.faceIds;
-      if (width > pass.width || height > pass.height) {
-        this.growFaceIdTarget(
-          pass,
-          Math.max(pass.width, stepUp(width)),
-          Math.max(pass.height, stepUp(height))
-        );
-      }
-      return pass;
-    } catch (error) {
-      this.faceIdError = error instanceof Error ? error : new Error(String(error));
-      this.disposeFaceIds();
-      return null;
-    }
-  }
-
-  private createFaceIdPass(faceGroups: Int32Array): FaceIdPass {
-    const gl = this.gl;
-    const program = compile(gl, ID_VERT, ID_FRAG, ID_ATTRS);
-    const vao = createVao(gl);
-    gl.bindVertexArray(vao);
-    const corners = uploadFloats(gl, faceIdCorners(this.faceIndices, faceGroups));
-    bindFloatAttributes(gl, ID_ATTRS, ID_STRIDE);
-    gl.bindVertexArray(null);
-    const framebuffer = gl.createFramebuffer();
-    const texture = gl.createTexture();
-    const depth = gl.createRenderbuffer();
-    if (!framebuffer || !texture || !depth) throw new Error('Unable to create the face-ID target');
-    return {
-      program,
-      uniforms: new Map(),
-      corners,
-      vao,
-      framebuffer,
-      texture,
-      depth,
-      width: 0,
-      height: 0,
-    };
-  }
-
-  private growFaceIdTarget(pass: FaceIdPass, width: number, height: number): void {
-    const gl = this.gl;
-    gl.activeTexture(gl.TEXTURE0 + FACE_ID_UNIT);
-    gl.bindTexture(gl.TEXTURE_2D, pass.texture);
-    // Integer textures cannot filter; texelFetch reads them either way, but an
-    // unfilterable texture with a filtering mode is incomplete.
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, width, height, 0, gl.RED_INTEGER, gl.INT, null);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.activeTexture(gl.TEXTURE0);
-    // 24 bits, as the default framebuffer the frame is drawn into has: two
-    // layers the paint cannot tell apart must be ones this cannot either.
-    gl.bindRenderbuffer(gl.RENDERBUFFER, pass.depth);
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, width, height);
-    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, pass.framebuffer);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, pass.texture, 0);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, pass.depth);
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-      throw new Error('The face-ID target is incomplete');
-    }
-    pass.width = width;
-    pass.height = height;
-  }
-
-  private disposeFaceIds(): void {
-    const pass = this.faceIds;
-    this.faceIds = null;
-    if (!pass) return;
-    const gl = this.gl;
-    gl.deleteProgram(pass.program);
-    gl.deleteBuffer(pass.corners);
-    gl.deleteVertexArray(pass.vao);
-    gl.deleteFramebuffer(pass.framebuffer);
-    gl.deleteTexture(pass.texture);
-    gl.deleteRenderbuffer(pass.depth);
   }
 
   private bindCommon(
@@ -1553,14 +1098,14 @@ export class MeshRenderer {
     this.setFloat(program, cache, 'u_camDist', camera.camDist);
   }
 
-  private setDash(edges: EdgeProgram, dash: CreaseDash | undefined, scale: number): void {
+  private setDash(dash: CreaseDash | undefined, scale: number): void {
     const { runs, counts } = packCreaseDash(dash);
     if (scale !== 1) {
       for (let i = 0; i < runs.length; i += 1) runs[i] = (runs[i] ?? 0) * scale;
     }
     const gl = this.gl;
-    gl.uniform1fv(this.location(edges.program, edges.uniforms, 'u_dashRuns'), runs);
-    gl.uniform1iv(this.location(edges.program, edges.uniforms, 'u_dashCount'), counts);
+    gl.uniform1fv(this.location(this.edgeProgram, this.edgeUniforms, 'u_dashRuns'), runs);
+    gl.uniform1iv(this.location(this.edgeProgram, this.edgeUniforms, 'u_dashCount'), counts);
   }
 
   private location(
@@ -1608,43 +1153,13 @@ export class MeshRenderer {
   }
 }
 
-/** A buffer size rounded up to the ID target's growth step. */
-function stepUp(size: number): number {
-  return Math.ceil(Math.max(1, size) / ID_TARGET_STEP) * ID_TARGET_STEP;
-}
-
-/**
- * Point the bound VAO's attributes at the bound buffer: one float each, at the
- * location {@link compile} bound the name to — its index in `attributes`.
- */
-function bindFloatAttributes(
-  gl: WebGL2RenderingContext,
-  attributes: ReadonlyArray<readonly [string, number]>,
-  stride: number
-): void {
-  attributes.forEach(([, offset], location) => {
-    gl.enableVertexAttribArray(location);
-    gl.vertexAttribPointer(location, 1, gl.FLOAT, false, stride * 4, offset * 4);
-  });
-}
-
-/**
- * Compile and link a program, binding each of `attributes` to its index in the
- * list — so programs built from variants of one source share a VAO.
- */
-function compile(
-  gl: WebGL2RenderingContext,
-  vertexSource: string,
-  fragmentSource: string,
-  attributes: ReadonlyArray<readonly [string, number]> = []
-): WebGLProgram {
+function compile(gl: WebGL2RenderingContext, vertexSource: string, fragmentSource: string): WebGLProgram {
   const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
   const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
   const program = gl.createProgram();
   if (!program) throw new Error('Unable to create mesh render program');
   gl.attachShader(program, vertex);
   gl.attachShader(program, fragment);
-  attributes.forEach(([name], location) => gl.bindAttribLocation(program, location, name));
   gl.linkProgram(program);
   gl.deleteShader(vertex);
   gl.deleteShader(fragment);

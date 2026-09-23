@@ -10,7 +10,6 @@ import {
 } from "@treemaker/origami-simulator";
 import type {
   CreaseDash,
-  FaceAdjacency,
   FoldDocument as SimulatorFoldDocument,
   Vec3Like,
 } from "@treemaker/origami-simulator";
@@ -73,12 +72,6 @@ interface ScreenPoint extends ProjectedPoint {
 
 interface DepthSurface {
   depths: Float32Array;
-  /**
-   * The face each pixel shows — its triangle's `FaceAdjacency.faceGroups`
-   * entry, -1 for none — when creases are drawn on their own paper; the GPU
-   * renderer's face-ID pass, recorded as the paint is laid down.
-   */
-  ids: Int32Array | null;
   width: number;
   height: number;
 }
@@ -203,10 +196,6 @@ export function drawFrame(
   const surfaceEdgeAlpha = xray ? 0.5 : 0.92;
 
   if (!xray && render.showFaces) {
-    // Creases on their own paper, as the GPU pass draws them — see
-    // `RenderSettings.creaseVisibility`.
-    const paper =
-      render.creaseVisibility === "own-face" ? (model.paper ?? null) : null;
     const depthSurface = drawPaperFacesWithDepth(
       ctx,
       model,
@@ -219,7 +208,6 @@ export function drawFrame(
       palette,
       highlights,
       render.lighting,
-      paper?.faceGroups ?? null,
     );
     if (depthSurface) {
       if (render.showEdges) {
@@ -233,7 +221,6 @@ export function drawFrame(
           palette,
           highlights,
           depthSurface,
-          paper,
         );
       }
       return arrived;
@@ -495,7 +482,6 @@ function drawPaperFacesWithDepth(
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
   lighting: boolean,
-  faceGroups: Int32Array | null,
 ): DepthSurface | null {
   let imageData: ImageData;
   try {
@@ -506,7 +492,6 @@ function drawPaperFacesWithDepth(
 
   const depths = new Float32Array(width * height);
   depths.fill(-Infinity);
-  const ids = faceGroups ? new Int32Array(width * height).fill(-1) : null;
 
   for (const triangle of triangles) {
     const points = triangle.vertices.map((vertex) => {
@@ -525,11 +510,11 @@ function drawPaperFacesWithDepth(
       projected,
       lighting,
     );
-    rasterizeDepthTriangle(imageData, depths, width, height, points, color, ids, faceGroups?.[triangle.faceIndex] ?? -1);
+    rasterizeDepthTriangle(imageData, depths, width, height, points, color);
   }
 
   ctx.putImageData(imageData, 0, 0);
-  return { depths, ids, width, height };
+  return { depths, width, height };
 }
 
 function rasterizeDepthTriangle(
@@ -539,8 +524,6 @@ function rasterizeDepthTriangle(
   height: number,
   points: [ScreenPoint, ScreenPoint, ScreenPoint],
   color: [number, number, number, number],
-  ids: Int32Array | null = null,
-  face = -1,
 ): void {
   const [a, b, c] = points;
   const area = edgeFunction(a, b, c);
@@ -572,7 +555,6 @@ function rasterizeDepthTriangle(
       if (depth < (depths[pixelIndex] ?? -Infinity)) continue;
 
       depths[pixelIndex] = depth;
-      if (ids) ids[pixelIndex] = face;
       const offset = pixelIndex * 4;
       data[offset] = color[0];
       data[offset + 1] = color[1];
@@ -769,7 +751,6 @@ function drawVisibleEdges(
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
   depthSurface: DepthSurface,
-  paper: FaceAdjacency | null,
 ): void {
   ctx.setLineDash([]);
   model.edgesVertices.forEach((edge, index) => {
@@ -786,7 +767,6 @@ function drawVisibleEdges(
       highlights,
       dpr,
       depthSurface,
-      paper,
     );
   });
 }
@@ -844,7 +824,6 @@ function drawVisibleEdgeSegment(
   highlights: SimulatorHighlights,
   dpr: number,
   depthSurface: DepthSurface,
-  paper: FaceAdjacency | null,
 ): void {
   const assignment = model.edgesAssignment[edgeIndex];
   const ink = edgeInk(model.edgeCodes[edgeIndex] ?? EDGE_CODE.border, assignment, palette, 1);
@@ -869,10 +848,6 @@ function drawVisibleEdgeSegment(
     fullLength > 0 ? Math.hypot(point.x - fullA.x, point.y - fullA.y) / fullLength : 0;
   const depthA = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(a);
   const depthB = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(b);
-  const look =
-    paper && depthSurface.ids
-      ? paperLook(paper, edgeIndex, projected, map, fullA, fullB, ink.width / 2)
-      : null;
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
   ctx.lineWidth = ink.width;
@@ -900,10 +875,7 @@ function drawVisibleEdgeSegment(
       y: a.y + (b.y - a.y) * t,
       depth: depthA + (depthB - depthA) * t,
     };
-    if (
-      edgePointIsVisible(point, depthSurface) &&
-      (!look || paperShowsAt(look, point, depthSurface))
-    ) {
+    if (edgePointIsVisible(point, depthSurface)) {
       segmentStart ??= point;
       previousVisible = point;
     } else {
@@ -929,95 +901,6 @@ function edgePointIsVisible(
   const surfaceDepth = depthSurface.depths[y * depthSurface.width + x];
   if (surfaceDepth === undefined || !Number.isFinite(surfaceDepth)) return true;
   return point.depth >= surfaceDepth - PAPER_EDGE_DEPTH_EPSILON;
-}
-
-/**
- * How to tell whether a crease's paper is what shows beside it: the faces it
- * bounds, and the apex of each one's triangle on screen — the direction the GPU
- * pass looks into a face from the line (`paperShows` in its edge shader). Null
- * when there is no face to look into, and depth alone decides.
- */
-interface PaperLook {
-  faces: [number, number];
-  apexes: [{ x: number; y: number } | null, { x: number; y: number } | null];
-  /** How far past the line the paper still has to be the crease's own. */
-  reach: number;
-}
-
-function paperLook(
-  paper: FaceAdjacency,
-  edge: number,
-  projected: ProjectedPoint[],
-  map: (point: ProjectedPoint) => { x: number; y: number },
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-  halfWidth: number,
-): PaperLook | null {
-  const length = Math.hypot(b.x - a.x, b.y - a.y);
-  if (length === 0) return null;
-  const perpendicular = { x: -(b.y - a.y) / length, y: (b.x - a.x) / length };
-  const apexOf = (side: 0 | 1) => {
-    const face = paper.edgeFaces[edge * 2 + side] ?? -1;
-    const apex = paper.edgeApex[edge * 2 + side] ?? -1;
-    if (face < 0 || apex < 0) return null;
-    const screen = map(projected[apex] ?? { x: 0, y: 0, depth: 0 });
-    // A triangle under a pixel wide is edge-on: nothing beside the line to look at.
-    const off =
-      (screen.x - a.x) * perpendicular.x + (screen.y - a.y) * perpendicular.y;
-    return Math.abs(off) >= 1 ? screen : null;
-  };
-  const apexes: PaperLook["apexes"] = [apexOf(0), apexOf(1)];
-  if (!apexes[0] && !apexes[1]) return null;
-  return {
-    faces: [paper.edgeFaces[edge * 2] ?? -1, paper.edgeFaces[edge * 2 + 1] ?? -1],
-    apexes,
-    reach: halfWidth + 1,
-  };
-}
-
-/** Whether the crease's paper is what shows beside `foot`, looking into either face. */
-function paperShowsAt(
-  look: PaperLook,
-  foot: { x: number; y: number },
-  surface: DepthSurface,
-): boolean {
-  return look.apexes.some(
-    (apex) => apex !== null && paperShowsToward(look, foot, apex, surface),
-  );
-}
-
-/**
- * From `foot` toward a face's apex, which stays inside that face's triangle:
- * just beside the line, and past the stroke's half-width, the pixel has to
- * show one of the crease's own faces.
- */
-function paperShowsToward(
-  look: PaperLook,
-  foot: { x: number; y: number },
-  apex: { x: number; y: number },
-  surface: DepthSurface,
-): boolean {
-  const dx = apex.x - foot.x;
-  const dy = apex.y - foot.y;
-  const room = Math.hypot(dx, dy);
-  if (room < 1) return false;
-  const at = (distance: number) =>
-    faceIdAt(surface, foot.x + (dx / room) * distance, foot.y + (dy / room) * distance);
-  return (
-    ownFace(look, at(Math.min(1, room * 0.5))) &&
-    ownFace(look, at(Math.min(look.reach, room * 0.9)))
-  );
-}
-
-function faceIdAt(surface: DepthSurface, x: number, y: number): number {
-  if (!surface.ids) return -1;
-  const px = clamp(Math.floor(x), 0, surface.width - 1);
-  const py = clamp(Math.floor(y), 0, surface.height - 1);
-  return surface.ids[py * surface.width + px] ?? -1;
-}
-
-function ownFace(look: PaperLook, id: number): boolean {
-  return id >= 0 && (id === look.faces[0] || id === look.faces[1]);
 }
 
 function findEdge(edges: [number, number][], from: number, to: number): number {

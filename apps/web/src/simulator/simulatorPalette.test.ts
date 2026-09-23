@@ -174,13 +174,6 @@ describe('resolving simulator colours', () => {
     expect(paint.chrome.highlight).toBeTruthy();
   });
 
-  it('draws a crease where its own paper shows, since a simulation’s layers coincide', () => {
-    // A simulation has no thickness, so depth cannot say which flat-folded
-    // layer is on top and every buried layer's creases would show through.
-    const render = resolveRenderSettings(themed(), DEFAULT_SIMULATOR_SETTINGS, DEFAULT_PAPER_STYLE);
-    expect(render.creaseVisibility).toBe('own-face');
-  });
-
   it('carries nothing a renderer does not read', () => {
     // Re-pinned: `showHiddenLines` used to ride here for the canvas-2D path
     // alone. A GPU-side no-op is gone rather than a third field the worker

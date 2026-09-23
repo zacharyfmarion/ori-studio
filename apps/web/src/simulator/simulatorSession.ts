@@ -143,15 +143,6 @@ export interface SimulatorModelInfo {
    * erodes what the GPU pass and the export erode.
    */
   auxEnds: ArrayBuffer;
-  /**
-   * Which paper each crease lies on — `MeshTopology.faceGroups` (per
-   * triangle), `edgeFaces` and `edgeApex` (two per edge), all `Int32` — so the
-   * fallback hides a buried crease as the GPU pass does
-   * (`RenderSettings.creaseVisibility`), without working it out again.
-   */
-  faceGroups: ArrayBuffer;
-  edgeFaces: ArrayBuffer;
-  edgeApex: ArrayBuffer;
   /** 3 edge indices per (triangulated) face; -1 where an edge was not found. */
   facesEdges: ArrayBuffer;
   /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
@@ -1140,9 +1131,6 @@ const api = {
     const topology = meshTopologyFor(prepared);
     const edgeCodes = topology.edgeAssignments;
     const auxEnds = topology.auxEnds ?? new Uint8Array(edgeCodes.length);
-    const faceGroups = topology.faceGroups ?? new Int32Array(prepared.faceCount).fill(-1);
-    const edgeFaces = topology.edgeFaces ?? new Int32Array(edgeCodes.length * 2).fill(-1);
-    const edgeApex = topology.edgeApex ?? new Int32Array(edgeCodes.length * 2).fill(-1);
 
     const facesEdges = new Int32Array(prepared.faceCount * 3);
     facesEdges.fill(-1);
@@ -1163,9 +1151,6 @@ const api = {
         edgesAssignment: edgesAssignment.buffer as ArrayBuffer,
         edgeCodes: edgeCodes.buffer as ArrayBuffer,
         auxEnds: auxEnds.buffer as ArrayBuffer,
-        faceGroups: faceGroups.buffer as ArrayBuffer,
-        edgeFaces: edgeFaces.buffer as ArrayBuffer,
-        edgeApex: edgeApex.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
         sheet: sheetExtent(model.originalPositions),
         diagnostics: backend.readDiagnostics(),
@@ -1178,9 +1163,6 @@ const api = {
         edgesAssignment.buffer as ArrayBuffer,
         edgeCodes.buffer as ArrayBuffer,
         auxEnds.buffer as ArrayBuffer,
-        faceGroups.buffer as ArrayBuffer,
-        edgeFaces.buffer as ArrayBuffer,
-        edgeApex.buffer as ArrayBuffer,
         facesEdges.buffer as ArrayBuffer,
       ]
     );
