@@ -184,6 +184,8 @@ describe('unreadVisibility', () => {
     expect(at.visible).toBe(SHEET);
     expect(at.dimmed).toBeNull();
     expect(at.dimAlpha).toBe(1);
+    // On its paper, as every step is: the border is what the canvas fills.
+    expect(at.borderLineIds).toBe(BORDER);
   });
 
   it('draws the whole document when no sheet is resolved', () => {

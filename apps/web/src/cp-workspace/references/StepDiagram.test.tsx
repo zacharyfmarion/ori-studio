@@ -1,7 +1,7 @@
 import { act, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE, type PaperStyleOverrides } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { cardChromeRects, StepDiagram } from './StepDiagram';
@@ -40,6 +40,46 @@ const model = (width: number, height: number): StepDiagramModel => ({
     },
   ],
 });
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+/**
+ * A card rendered on the client. A card reads its pens off the settings store,
+ * and a server render reads a store's *initial* state.
+ */
+function renderClient(element: ReactElement): string {
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  act(() => root.render(element));
+  const markup = container.innerHTML;
+  act(() => root.unmount());
+  return markup;
+}
+
+/**
+ * Fold pens that draw a card's folds exactly as the diagram table does: at the
+ * table's 1.6 ink against its 1.2 edge (so 4/3 of the edge pen), dashed 8:4
+ * and 4:2:1:2 in multiples of the width. The style's folds are solid by
+ * default, and these tests are about dashes.
+ */
+function useTableFolds() {
+  const set = (fields: PaperStyleOverrides) =>
+    useSettingsStore.getState().setPaperStyleFields('display', fields);
+  beforeEach(() => {
+    const width = (DEFAULT_PAPER_STYLE.edges.width * 1.6) / 1.2;
+    set({
+      edges: DEFAULT_PAPER_STYLE.edges,
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width, dash: [4, 2, 1, 2], cap: 'butt' },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, width, dash: [8, 4], cap: 'butt' },
+    });
+  });
+  afterEach(() => {
+    set({
+      mountainFolds: DEFAULT_PAPER_STYLE.mountainFolds,
+      valleyFolds: DEFAULT_PAPER_STYLE.valleyFolds,
+    });
+  });
+}
 
 const rectOf = (markup: string) => {
   const tag = markup.match(/<rect[^>]*>/)?.[0] ?? '';
@@ -100,6 +140,8 @@ function pieces(markup: string): { offset: number; length: number }[] {
 }
 
 describe('a crease split into spans still dashes as one line', () => {
+  useTableFolds();
+
   /** The valley's dash period, as the card actually draws it. */
   const periodOf = (markup: string) =>
     elements(markup, 'line')[0]!['stroke-dasharray']!.split(' ')
@@ -144,7 +186,7 @@ describe('a crease split into spans still dashes as one line', () => {
 
   it('carries the pattern across every seam', () => {
     const jumps = seamJumps(
-      renderToStaticMarkup(<StepDiagram primitives={model(true)} size={100} />)
+      renderClient(<StepDiagram primitives={model(true)} size={100} />)
     );
     expect(jumps).toHaveLength(spans.length - 1);
     for (const jump of jumps) expect(jump).toBeLessThan(0.01);
@@ -153,7 +195,7 @@ describe('a crease split into spans still dashes as one line', () => {
   // The state the reader actually saw: every piece restarting at ink.
   it('would restart at every seam without the phase', () => {
     const jumps = seamJumps(
-      renderToStaticMarkup(<StepDiagram primitives={model(false)} size={100} />)
+      renderClient(<StepDiagram primitives={model(false)} size={100} />)
     );
     expect(Math.max(...jumps)).toBeGreaterThan(1);
   });
@@ -161,7 +203,7 @@ describe('a crease split into spans still dashes as one line', () => {
   // Negating the offset is the bug this replaced: the phases were right and
   // every seam still landed somewhere else in the pattern.
   it('lands in the wrong place if the offset is negated', () => {
-    const markup = renderToStaticMarkup(<StepDiagram primitives={model(true)} size={100} />);
+    const markup = renderClient(<StepDiagram primitives={model(true)} size={100} />);
     const period = periodOf(markup);
     const drawn = pieces(markup).sort((a, b) => a.offset - b.offset);
     const negated = drawn.map((d) => ({ ...d, offset: -d.offset }));
@@ -271,6 +313,8 @@ describe('one model at two sizes', () => {
  * across a thumbnail read as a few strokes rather than a dashed line.
  */
 describe('the dashes on a card', () => {
+  useTableFolds();
+
   const dashed: StepDiagramModel = {
     sheet: { width: 1, height: 1 },
     primitives: [
@@ -283,7 +327,7 @@ describe('the dashes on a card', () => {
 
   it('are half the pen’s runs, at the pen’s full width', () => {
     const [valley, mountain] = elements(
-      renderToStaticMarkup(<StepDiagram primitives={dashed} size={100} />),
+      renderClient(<StepDiagram primitives={dashed} size={100} />),
       'line'
     );
     const runs = (line: Record<string, string>) => line['stroke-dasharray']!.split(' ').map(Number);
@@ -304,7 +348,7 @@ describe('the dashes on a card', () => {
         { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'valley', dashPhase: 0.25 },
       ],
     };
-    const markup = renderToStaticMarkup(<StepDiagram primitives={phased} size={100} />);
+    const markup = renderClient(<StepDiagram primitives={phased} size={100} />);
     const [line] = elements(markup, 'line');
     expect(Number(line!['stroke-dashoffset'])).toBeCloseTo(0.25 * 80, 9);
   });
@@ -474,6 +518,30 @@ describe('a fold arrow on a card', () => {
   });
 });
 
+describe('the folds on a card', () => {
+  // The style's fold pens, not the table's: a style with solid folds draws a
+  // card's folds solid — the finished card's included — and a dashed style
+  // its own runs.
+  const folds: StepDiagramModel = {
+    sheet: { width: 1, height: 1 },
+    primitives: [
+      { kind: 'sheet', width: 1, height: 1 },
+      { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'valley' },
+      { kind: 'line', from: [0, 0.4], to: [1, 0.4], style: 'mountain' },
+    ],
+  };
+
+  it('draws them solid when the style’s folds are solid', () => {
+    useSettingsStore.getState().setPaperStyleFields('display', {
+      mountainFolds: DEFAULT_PAPER_STYLE.mountainFolds,
+      valleyFolds: DEFAULT_PAPER_STYLE.valleyFolds,
+    });
+    const [valley, mountain] = elements(renderClient(<StepDiagram primitives={folds} size={100} />), 'line');
+    expect(valley!['stroke-dasharray']).toBeUndefined();
+    expect(mountain!['stroke-dasharray']).toBeUndefined();
+  });
+});
+
 describe('the aux-pen lines on a card', () => {
   // The `crease` ink — a crease an earlier step made — and the pattern's own
   // `aux` lines are the paper style's aux pen (Phase 5): its width as a ratio
@@ -534,9 +602,13 @@ describe('the aux-pen lines on a card', () => {
     const runs = line['stroke-dasharray']!.split(' ').map(Number);
     expect(runs[0]! / width).toBeCloseTo(4 * project.dashScale, 6);
     expect(runs[1]! / width).toBeCloseTo(2 * project.dashScale, 6);
-    // The valley is the table's.
+    // The valley is the style's valley pen, at its own ratio to the edge pen.
     const valley = lines(markup).find((l) => l.class?.includes('valley'))!;
-    expect(Number(valley['stroke-width'])).toBeCloseTo(DIAGRAM_LINE_INK.valley.width * project.ink, 6);
+    const valleyPen = useSettingsStore.getState().paperStyle.display.valleyFolds;
+    expect(Number(valley['stroke-width'])).toBeCloseTo(
+      DIAGRAM_LINE_INK.edge.width * (valleyPen.width / 0.9) * project.ink,
+      6
+    );
   });
 
   it('draws the creases an earlier step made whatever the aux switch says', () => {

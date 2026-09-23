@@ -110,7 +110,6 @@ afterEach(() => {
 function props(overrides: Partial<ReferencesCpViewProps> = {}): ReferencesCpViewProps {
   return {
     geometry: GEOMETRY,
-    lineStyle: 'color',
     mode: 'mvf',
     lineWidth: 1,
     pointSize: 1,

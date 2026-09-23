@@ -25,8 +25,12 @@ import {
   diagramDashPatterns,
   diagramDashSlot,
   penInk,
+  type DiagramPens,
 } from './diagram/diagramInk';
+import type { DiagramLineStyleName } from './referenceFinderDiagramToPrimitives';
 import type { Pen } from '../../lib/paper/paperStyle';
+import type { SheetStrokeRole } from '../sheets/sheetThumbnail';
+import { creaseRoleAt } from './creaseRole';
 import type {
   ModelBounds,
   ReferencesGhostKind,
@@ -461,7 +465,9 @@ export function applyCreaseVisibility(
   segmentCount: number,
   visibility: ReferencesCreaseVisibility,
   /** The diagram's pen, for the dash runs — see `diagram/diagramInk`. */
-  inkCss: number
+  inkCss: number,
+  /** The pens those runs are in, and a directed crease's width (`referencesCreasePens`). */
+  pens: DiagramPens = DIAGRAM_LINE_INK
 ): StrokeGeometry {
   const {
     visible,
@@ -486,6 +492,8 @@ export function applyCreaseVisibility(
   const auxPen = thinPen ? penInk(thinPen.pen, thinPen.css / inkCss) : null;
   const color = new Float32Array(strokes.color);
   const widthMul = new Float32Array(strokes.widthMul);
+  // One unit of `widthMul` is the edge pen's weight.
+  const unit = Math.max(pens.edge.width, Number.EPSILON);
   // A crease is split into a segment per crossing, and each one restarts its
   // dash — so a dashed line reads as a row of unrelated dashes with a reset at
   // every vertex. Giving collinear segments a shared parameterisation makes
@@ -494,11 +502,11 @@ export function applyCreaseVisibility(
   const a = new Float32Array(strokes.a);
   const b = new Float32Array(strokes.b);
   const dashPhase = new Float32Array(strokes.count);
-  // A diagram says mountain and valley with a *pattern*, not only a colour —
-  // which is the half that still reads when the paper is turned over and the
-  // two colours swap meaning. The crease pattern's own table only dashes under
-  // Oriedita's shape-coded line style, so this surface brings its own.
-  const dashSlot = new Float32Array(strokes.count);
+  // Each crease's dash is its pen's, already in the diagram's slots
+  // (`referencesCreasePens`); a direction the plan settles below replaces it.
+  const dashSlot = strokes.dashSlot
+    ? new Float32Array(strokes.dashSlot)
+    : new Float32Array(strokes.count);
   for (let i = 0; i < strokes.count; i += 1) {
     if (i >= segmentCount) {
       color[i * 4 + 3] = 0;
@@ -511,15 +519,17 @@ export function applyCreaseVisibility(
     }
     if (auxPen && thin?.has(id)) {
       if (ink?.aux) color.set(ink.aux, i * 4);
-      widthMul[i] = auxPen.width / DIAGRAM_LINE_INK.edge.width;
+      widthMul[i] = auxPen.width / unit;
       dashSlot[i] = diagramDashSlot('aux');
       continue;
     }
     // The direction the fold was made in, for every crease a step has made —
-    // not only the active one. Alpha is left alone: it carries the build-up.
+    // not only the active one — in that direction's pen. Alpha is left alone:
+    // it carries the build-up.
     const folded = directions?.get(id);
     if (folded) {
       dashSlot[i] = diagramDashSlot(folded);
+      widthMul[i] = pens[folded].width / unit;
       if (ink) {
         const rgba = folded === 'mountain' ? ink.mountain : ink.valley;
         color[i * 4] = rgba[0];
@@ -577,10 +587,57 @@ export function applyCreaseVisibility(
     widthMul,
     dashPhase,
     dashSlot,
-    dashPatterns: diagramDashPatterns(
-      inkCss,
-      auxPen ? { ...DIAGRAM_LINE_INK, crease: auxPen, aux: auxPen } : DIAGRAM_LINE_INK
-    ),
+    dashPatterns: diagramDashPatterns(inkCss, auxPen ? { ...pens, crease: auxPen, aux: auxPen } : pens),
+  };
+}
+
+/** The pen a crease takes for what it is on the paper; a crease with no direction takes the aux pen. */
+const ROLE_PEN: Record<SheetStrokeRole, DiagramLineStyleName> = {
+  edge: 'edge',
+  mountain: 'mountain',
+  valley: 'valley',
+  unassigned: 'aux',
+  aux: 'aux',
+};
+
+/**
+ * The document's creases in the paper style's pens: each takes the pen of what
+ * it is on the paper (`creaseRoleAt`) — its colour, its width as a multiple of
+ * the edge pen (the stroke's unit), and its dash, in the diagram's dash slots
+ * over `pens` so {@link applyCreaseVisibility} carries them on. A picked crease
+ * keeps the accent the stroke packer gave it, and its highlight width.
+ */
+export function referencesCreasePens(
+  strokes: StrokeGeometry,
+  segAttr: Int32Array,
+  segmentCount: number,
+  options: {
+    pens: DiagramPens;
+    /** The pens' ink, CSS px per unit — see `diagram/diagramInk`. */
+    inkCss: number;
+    /** Each pen's colour on this canvas. */
+    ink: Readonly<Record<'edge' | 'mountain' | 'valley' | 'aux', Rgba>>;
+    /** 1-based ids of the picked creases, which keep their accent. */
+    picked: ReadonlySet<number>;
+  }
+): StrokeGeometry {
+  const { pens, inkCss, ink, picked } = options;
+  const unit = Math.max(pens.edge.width, Number.EPSILON);
+  const color = new Float32Array(strokes.color);
+  const widthMul = new Float32Array(strokes.widthMul);
+  const dashSlot = new Float32Array(strokes.count);
+  for (let i = 0; i < Math.min(segmentCount, strokes.count); i += 1) {
+    const pen = ROLE_PEN[creaseRoleAt(segAttr, i)];
+    widthMul[i] *= pens[pen].width / unit;
+    dashSlot[i] = pen === 'edge' ? 0 : diagramDashSlot(pen);
+    if (!picked.has(i + 1)) color.set(ink[pen as keyof typeof ink], i * 4);
+  }
+  return {
+    ...strokes,
+    color,
+    widthMul,
+    dashSlot,
+    dashPatterns: diagramDashPatterns(inkCss, pens),
   };
 }
 

@@ -1869,6 +1869,72 @@ theme's), on a dark tile with no paper, and only one of them showed aux lines.
       segment's boundary rings; the Simulate rail also keeps lines on no face
       that lie in the segment.
 
+### Phase 11 — References draws the paper style, all of it
+
+Asked for after Phase 10. Three things in References still did not follow
+Settings ▸ Paper: the Find view drew the pattern on the theme's ground, in
+the editor's line style and width; every step drew mountain and valley in
+the diagram table's dashes (so a style with solid folds still got dashes on
+the finished card); and a fold or turn-over let a strip of the reader's face
+show along the bend.
+
+- [x] The Find view lies on the style's paper: `unreadVisibility` carries the
+      sheet's border, which is what the canvas fills.
+- [x] One pen set for References from the style (`referencesCanvasPens`): the
+      References line width is the edge pen (so every References ink — the
+      creases, the overlay, the symbol layer, the export's rings — is
+      measured from it rather than the editor's View ▸ Line width), and each
+      crease draws in its role's pen: the edge, mountain, valley and aux pens
+      at their own widths and dashes (a crease with no direction in the aux
+      pen). The overlay's and the cards' mountain and valley are the style's
+      pens too — solid when the style is solid — so the finished card, whose
+      creases are named by the plan, follows them. (`creaseRoleAt` is the one
+      colour-to-role reading, shared with the rail's card;
+      `referencesCreasePens` pens the document's creases before
+      `applyCreaseVisibility`, which now keeps their dashes and draws a
+      settled direction in that direction's pen.)
+- [x] A fold shows the face a real curl shows. The bend is sheared so the flap
+      lands exactly on its mirror (2026-09-16), and a sheared bend does not
+      overhang itself — so the part of it still facing the reader was never
+      covered by the part that has turned over, and showed through as a strip
+      along the crease (and as a band during a turn-over, whose roll is all
+      bend). A placed point now says which face a real bend shows there
+      (`PlacedPoint.face`: the reader's face short of `π − θ` into the bend,
+      the other face past it), each triangle takes its face from its own
+      centre so no triangle blends the two, and a crease on the bend is named
+      by the same rule.
+
+### Phase 12 — Simulation linework
+
+Asked for after Phase 10: with "Render all creases as edges", a simulation
+looks far heavier than the 3D figure of the same pattern.
+
+Why (measured on the reporter's file): the 3D figure knows the kernel's layer
+order and draws only the visible layer's creases (about 100 of 2,250 there);
+the simulation is a mass-spring model with no thickness, so layers folded
+flat lie at the same depth. Its crease pass is nudged toward the camera
+(`DEFAULT_CREASE_DEPTH_BIAS`) so a crease is not swallowed by the face it
+lies on — and the nudge is larger than the gap between stacked layers, so
+every buried layer's creases pass the depth test too. Stacked flaps whose
+edges land a hair apart then draw side by side, reading as one heavy line.
+Shrinking the nudge to the 3D figure's (tried, reverted) removed most of the
+buried linework but let faces start swallowing visible creases as well: depth
+alone cannot decide between coincident layers.
+
+- [ ] A crease is drawn where the paper it lies on is what shows: a face-ID
+      pass records which face is frontmost at each pixel, and the crease pass
+      draws a fragment only where one of its own faces is frontmost beside it
+      (probed a hair to each side of the line, so a border's outer half over
+      the background, or over a layer below it, still draws). Coincident
+      layers resolve exactly as their paint does, so a crease shows exactly
+      where its face's colour shows. Opt-in per surface
+      (`RenderSettings.creaseVisibility`), on for simulations; the 3D figure
+      keeps its own layer-exact skins.
+- [ ] A simulation window frames the model as it is: the camera fits the
+      current shape's bounds, eased, rather than the flat sheet's — so a fold
+      that ends a quarter the size of the sheet fills the window as the 3D
+      figure does, and the linework keeps its share of the paper.
+
 ### Validation per phase
 
 Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,

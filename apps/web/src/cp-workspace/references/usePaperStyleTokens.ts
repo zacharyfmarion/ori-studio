@@ -5,7 +5,12 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
 import { referencesCreaseAlpha, referencesDimAlpha } from '../../themes/referencesInk';
 import type { DiagramCreaseOptions } from './diagram/DiagramPrimitives';
-import { cardDiagramPens, type DiagramPens } from './diagram/diagramInk';
+import {
+  canvasDiagramPens,
+  cardDiagramPens,
+  CP_CREASE_WIDTH_FACTOR,
+  type DiagramPens,
+} from './diagram/diagramInk';
 import { referencesShowsAux } from './referencesAuxCreases';
 
 /**
@@ -59,6 +64,21 @@ export interface ReferencesPaperInks {
   erode: number;
 }
 
+/**
+ * The big view's pens: the style's, in one ink measured from its edge pen.
+ *
+ * The References line width is the edge pen — the width at which the editor's
+ * crease law (`CP_CREASE_WIDTH_FACTOR`) draws a crease exactly the edge pen's
+ * CSS px — so every References ink measured from it (the creases, the diagram
+ * over them, the symbol layer, the export's rings) follows Settings ▸ Paper
+ * rather than the editor's View ▸ Line width.
+ */
+export interface ReferencesCanvasPens {
+  lineWidth: number;
+  /** The diagram's pens in that ink: the style's edge, fold, aux and arrow pens over the table. */
+  pens: DiagramPens;
+}
+
 /** The same, for a card: the pens at the card's scale, and the crease switches. */
 export interface ReferencesCardInks {
   pens: DiagramPens;
@@ -79,6 +99,8 @@ export interface ReferencesPaperStyle {
   arrowWidth: number;
   /** The aux pen and switches, for the diagram drawn over the canvas and the sheet's aux lines. */
   inks: ReferencesPaperInks;
+  /** The big view's pens, and the line width they are measured from. */
+  canvasPens: ReferencesCanvasPens;
   /**
    * Changes when any colour the workspace reads off the DOM changes — the
    * theme's or the style's — so an effect that resolved colours re-reads them.
@@ -123,6 +145,22 @@ export function referencesPaperInks(
     aux: { pen: seen.auxCreases.pen, css: seen.auxCreases.pen.width * PT_TO_CSS_PX },
     showAux: referencesShowsAux(style, showAuxOption),
     erode: seen.erode,
+  };
+}
+
+/** The big view's pens for `style`, through the References policy. */
+export function referencesCanvasPens(style: PaperStyle): ReferencesCanvasPens {
+  const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
+  const css = (pen: Pen) => ({ pen, css: pen.width * PT_TO_CSS_PX });
+  const edge = css(seen.edges);
+  const lineWidth = edge.css / CP_CREASE_WIDTH_FACTOR;
+  return {
+    lineWidth,
+    pens: canvasDiagramPens(lineWidth, seen.arrows.width * PT_TO_CSS_PX, css(seen.auxCreases.pen), {
+      edge,
+      mountain: css(seen.mountainFolds),
+      valley: css(seen.valleyFolds),
+    }),
   };
 }
 
@@ -180,6 +218,7 @@ export function usePaperStyleTokens(): ReferencesPaperStyle & {
       tokens,
       arrowWidth: display.arrows.width * PT_TO_CSS_PX,
       inks: referencesPaperInks(display, showAux),
+      canvasPens: referencesCanvasPens(display),
       inkKey: [theme.name, ...REFERENCES_PAPER_TOKENS.map((token) => tokens[token])].join('|'),
     };
   }, [display, showAux, theme, root]);

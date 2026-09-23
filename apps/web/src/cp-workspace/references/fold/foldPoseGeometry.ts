@@ -125,16 +125,20 @@ function swapSlot(paint: FoldPaint, slot: number): number {
   return slot;
 }
 
-/** The face's paper colour at a point, darkened by how far it tilts from the reader. */
-function shadedFace(paint: FoldPaint, nz: number): Rgba {
-  const face = nz >= 0 ? paint.up : paint.other;
+/**
+ * A face's paper colour at a point, darkened by how far the paper tilts from
+ * the reader there. Which face is the surface's to say (`PlacedPoint.face`),
+ * not the tilt's.
+ */
+function shadedFace(paint: FoldPaint, face: 1 | -1, nz: number): Rgba {
+  const paper = face > 0 ? paint.up : paint.other;
   const k = paint.shade[3] * (1 - Math.min(1, Math.abs(nz)));
-  if (k <= 0) return face;
+  if (k <= 0) return paper;
   return [
-    face[0] * (1 - k) + paint.shade[0] * k,
-    face[1] * (1 - k) + paint.shade[1] * k,
-    face[2] * (1 - k) + paint.shade[2] * k,
-    face[3],
+    paper[0] * (1 - k) + paint.shade[0] * k,
+    paper[1] * (1 - k) + paint.shade[1] * k,
+    paper[2] * (1 - k) + paint.shade[2] * k,
+    paper[3],
   ];
 }
 
@@ -188,12 +192,14 @@ export function foldPoseGeometry(
   const color: number[] = [];
   const depth: number[] = [];
   const mesh = tessellateFlap(polygon, surface, shares.column * short);
-  for (const placed of mesh.vertices) {
+  mesh.vertices.forEach((placed, index) => {
     const at = paint.modelToUser(fromChordFrame(frame, placed.s, placed.v));
     position.push(at.x, at.y);
-    color.push(...shadedFace(paint, placed.nz));
+    // The triangle's face, so no triangle blends the two across the line
+    // where the shown face changes.
+    color.push(...shadedFace(paint, mesh.faces[Math.floor(index / 3)] ?? placed.face, placed.nz));
     depth.push(depthOf(placed.z));
-  }
+  });
 
   // Strokes: each cut where the surface bends under it, every piece placed.
   // Most of a dense pattern's creases lie past the bend and cross no ramp,
@@ -231,7 +237,8 @@ export function foldPoseGeometry(
         const ub = paint.modelToUser(fromChordFrame(frame, end.s, end.v));
         a.push(ua.x, ua.y);
         b.push(ub.x, ub.y);
-        const otherFace = start.nz + end.nz < 0;
+        // Named by the face its middle shows, as the paper under it is.
+        const otherFace = at((cuts[k - 1]! + cuts[k]!) / 2).face < 0;
         strokeColor.push(
           ...(otherFace
             ? otherFaceInk(paint, list.color, i * 4)

@@ -4,7 +4,13 @@ import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { LineHitIndex } from '../picking/lineHitIndex';
 import type { Rgba, StrokeGeometry } from '../renderer/types';
-import { DIAGRAM_LINE_INK, diagramDashSlot } from './diagram/diagramInk';
+import {
+  canvasDiagramInk,
+  canvasDiagramPens,
+  DIAGRAM_LINE_INK,
+  diagramDashSlot,
+} from './diagram/diagramInk';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
   applyCreaseVisibility,
   concatStrokes,
@@ -17,6 +23,7 @@ import {
   isClick,
   markersToOverlayPoints,
   modelBoundsToUser,
+  referencesCreasePens,
   resolveReferencesPick,
   sheetFillGeometry,
   transportUserBounds,
@@ -270,6 +277,99 @@ describe('applyCreaseVisibility', () => {
     const input = strokes();
     applyCreaseVisibility(input, 4, { visible: new Set([1]), dimmed: null, dimAlpha: 0.5 }, 1.25);
     expect(alphaOf(input)).toEqual([1, 1, 1, 1, 1]);
+  });
+
+  // Each crease's pen is already on it (`referencesCreasePens`); what the plan
+  // settles replaces it with that direction's pen, dash and width both.
+  it('keeps each crease’s own dash, and draws a settled direction in its pen', () => {
+    const pens = canvasDiagramPens(1, 1.4, undefined, {
+      edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
+      mountain: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 1.2 }, css: 1.6 },
+      valley: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] }, css: 1.1 },
+    });
+    const input = strokes();
+    input.dashSlot![1] = diagramDashSlot('valley');
+    const out = applyCreaseVisibility(
+      input,
+      4,
+      {
+        visible: new Set([1, 2, 3]),
+        dimmed: null,
+        dimAlpha: 1,
+        directions: new Map([[3, 'mountain' as const]]),
+        ink: { mountain: [1, 0, 0, 1], valley: [0, 0, 1, 1] },
+      },
+      canvasDiagramInk(1),
+      pens
+    );
+    expect(out.dashSlot?.[1]).toBe(diagramDashSlot('valley'));
+    expect(out.dashSlot?.[2]).toBe(diagramDashSlot('mountain'));
+    expect(out.widthMul[2]).toBeCloseTo(pens.mountain.width / pens.edge.width, 6);
+    // The slots are the style's: a solid mountain, the valley's own runs.
+    expect(out.dashPatterns?.[diagramDashSlot('mountain') - 1]).toEqual([]);
+    expect(out.dashPatterns?.[diagramDashSlot('valley') - 1]?.length).toBe(2);
+  });
+});
+
+describe('referencesCreasePens', () => {
+  // The document's creases by what each is on the paper: black the edge, red a
+  // mountain, blue a valley, cyan an aux line, no colour an unassigned crease.
+  const COLORS = [0, 1, 2, 3, -1];
+  const segAttr = Int32Array.from(COLORS.flatMap((color) => [color, 0, 0, 0, 0]));
+  const packed = (): StrokeGeometry =>
+    ({
+      a: new Float32Array(10),
+      b: new Float32Array(10),
+      color: new Float32Array(20).fill(1),
+      widthMul: Float32Array.from([1, 1, 2.6, 1, 1]),
+      dashSlot: new Float32Array(5),
+      count: 5,
+    }) as unknown as StrokeGeometry;
+  const pens = canvasDiagramPens(1, 1.4, { pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, dash: [1, 2] }, css: 0.5 }, {
+    edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
+    mountain: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: [8, 2, 1, 2] }, css: 1.2 },
+    valley: { pen: DEFAULT_PAPER_STYLE.valleyFolds, css: 1.2 },
+  });
+  const ink = {
+    edge: [0, 0, 0, 1] as Rgba,
+    mountain: [1, 0, 0, 1] as Rgba,
+    valley: [0, 0, 1, 1] as Rgba,
+    aux: [0.5, 0.5, 0.5, 0.6] as Rgba,
+  };
+  const out = referencesCreasePens(packed(), segAttr, 5, {
+    pens,
+    inkCss: canvasDiagramInk(1),
+    ink,
+    picked: new Set([3]),
+  });
+  const rgbaAt = (i: number) => Array.from(out.color.slice(i * 4, i * 4 + 4));
+
+  it('gives each its role’s colour, dash and width against the edge pen', () => {
+    expect(rgbaAt(0)).toEqual(Array.from(Float32Array.from(ink.edge)));
+    expect(rgbaAt(1)).toEqual(Array.from(Float32Array.from(ink.mountain)));
+    expect(rgbaAt(3)).toEqual(Array.from(Float32Array.from(ink.aux)));
+    // A crease with no direction takes the aux pen.
+    expect(rgbaAt(4)).toEqual(Array.from(Float32Array.from(ink.aux)));
+    expect(out.widthMul[0]).toBeCloseTo(1, 6);
+    expect(out.widthMul[1]).toBeCloseTo(1.2 / 1.5, 6);
+    expect(out.widthMul[4]).toBeCloseTo(0.5 / 1.5, 6);
+    expect(Array.from(out.dashSlot!)).toEqual([
+      0,
+      diagramDashSlot('mountain'),
+      diagramDashSlot('valley'),
+      diagramDashSlot('aux'),
+      diagramDashSlot('aux'),
+    ]);
+    // The slots carry the style's runs: the mountain dashed, the valley solid.
+    expect(out.dashPatterns?.[diagramDashSlot('mountain') - 1]?.length).toBe(4);
+    expect(out.dashPatterns?.[diagramDashSlot('valley') - 1]).toEqual([]);
+  });
+
+  it('leaves the picked crease its accent, and its highlight on top of its pen', () => {
+    // Crease 3 (index 2) is picked: its colour stays the packer's, its width the
+    // highlight times the valley pen.
+    expect(rgbaAt(2)).toEqual([1, 1, 1, 1]);
+    expect(out.widthMul[2]).toBeCloseTo(2.6 * (1.2 / 1.5), 6);
   });
 });
 

@@ -9,7 +9,7 @@ import {
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import type { Point } from '../../lib/geometry';
-import { cpModelToSvg, type OristudioCpLineStyle } from '../../lib/creasePatternViewport';
+import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { cpLineStyleDashPatterns } from '../../lib/oristudioCpLineStyle';
 import { CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
 import { resolveWheelGesture, type WheelGesturePreference } from '../../lib/wheelGesture';
@@ -39,7 +39,13 @@ import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { hexToUnitRgb } from '../../lib/paper/paperStyleResolve';
-import { canvasDiagramInk, diagramDashSlot } from './diagram/diagramInk';
+import {
+  canvasDiagramInk,
+  CP_CREASE_WIDTH_FACTOR,
+  DIAGRAM_LINE_INK,
+  diagramDashSlot,
+  type DiagramPens,
+} from './diagram/diagramInk';
 import type { FoldPose } from './fold/foldPlayback';
 import {
   DEFAULT_SURFACE_SHARES,
@@ -77,6 +83,7 @@ import {
   hoveredVertexToOverlayPoint,
   isClick,
   highlightedVerticesToOverlayPoints,
+  referencesCreasePens,
   modelBoundsToUser,
   resolveReferencesPick,
   transportUserBounds,
@@ -146,9 +153,17 @@ export type ReferencesSelection = { kind: 'line'; id: number } | { kind: 'vertex
 
 export interface ReferencesCpViewProps {
   geometry: CpGeometryTransport;
-  lineStyle: OristudioCpLineStyle;
   mode: 'mvf' | 'agrh';
+  /**
+   * The References line width: the paper style's edge pen, which every pen
+   * here is measured from (`referencesCanvasPens`).
+   */
   lineWidth: number;
+  /**
+   * The pens the creases are drawn in, by what each is on the paper, in the
+   * ink `lineWidth` makes (`referencesCanvasPens`). The diagram table without.
+   */
+  pens?: DiagramPens;
   pointSize: number;
   wheelGesture: WheelGesturePreference;
   /** The user's snap radius, model units; sets the click radii at the live zoom. */
@@ -256,8 +271,6 @@ const TEXT_FALLBACK: Rgba = [0.91, 0.929, 0.941, 1];
 const PAPER_SHADE_LIGHT_ALPHA = 0.18;
 const PAPER_SHADE_DARK_ALPHA = 0.28;
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
-/** Matches the editor's crease width law so the pattern looks the same here. */
-const CREASE_WIDTH_FACTOR = 1.5;
 const POINT_OUTLINE_CSS = 1.4;
 /** Highlighted creases draw this much wider than their neighbours. */
 const HIGHLIGHT_WIDTH_MUL = 2.6;
@@ -444,9 +457,9 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
   function ReferencesCpView(props, ref) {
     const {
       geometry,
-      lineStyle,
       mode,
       lineWidth,
+      pens = DIAGRAM_LINE_INK,
       pointSize,
       wheelGesture,
       snapRadius = CP_DEFAULT_SNAP_RADIUS,
@@ -729,9 +742,11 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
           view,
           userView,
-          strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+          // The edge pen is the unit width; each crease's own pen is its multiple.
+          strokeWidthPx: CP_CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
           // A crease on the flap is the same crease: the same pen.
-          foldedStrokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+          foldedStrokeWidthPx:
+            CP_CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
           userScalePx: cam.zoom,
           markerScalePx,
           pointScalePx,
@@ -1065,10 +1080,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       // one direction the step folds — see
       // `ReferencesCreaseVisibility.emphasisColor`.
       const picked = selected?.kind === 'line' ? new Set([selected.id]) : EMPTY_IDS;
-      const { strokes } = cpGeometryStrokesToScene(
+      // Colour by the crease's own colour; the paper style's pens replace the
+      // editor's line style below, so its View ▸ Line style has no say here.
+      const { strokes: packed } = cpGeometryStrokesToScene(
         geometry,
-        createCpLineAppearanceResolver(lineStyle, mode, canvas),
-        cpLineStyleDashPatterns(lineStyle),
+        createCpLineAppearanceResolver('color', mode, canvas),
+        cpLineStyleDashPatterns('color'),
         {
           selected: picked,
           color: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
@@ -1091,15 +1108,30 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         palette.unassigned,
         readCssVarNumber(canvas, CREASE_ALPHA_VAR, CREASE_ALPHA_FALLBACK)
       );
+      const segmentCount = geometry.segEndpoints.length / 4;
+      const inkCss = canvasDiagramInk(lineWidth);
+      // Every crease in its pen: the paper style's, by what it is on the paper.
+      const strokes = referencesCreasePens(packed, geometry.segAttr, segmentCount, {
+        pens,
+        inkCss,
+        ink: {
+          edge: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
+          mountain: palette.mountain,
+          valley: palette.valley,
+          aux,
+        },
+        picked,
+      });
       fullRef.current.strokes = applyCreaseVisibility(
         strokes,
-        geometry.segEndpoints.length / 4,
+        segmentCount,
         {
           ...creaseVisibility,
           dimAlpha,
           ink: { mountain: palette.mountain, valley: palette.valley, aux },
         },
-        canvasDiagramInk(lineWidth)
+        inkCss,
+        pens
       );
       applyFoldRef.current();
       // The sheet, in the paper style's colour for the face the reader is on:
@@ -1113,8 +1145,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       renderNowRef.current();
     }, [
       lineWidth,
+      pens,
       geometry,
-      lineStyle,
       mode,
       selected,
       creaseVisibility,

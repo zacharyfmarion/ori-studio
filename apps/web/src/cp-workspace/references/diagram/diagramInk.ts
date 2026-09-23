@@ -108,6 +108,9 @@ export const DIAGRAM_ARROWHEAD_INK = { length: 10.56, ofChord: 0.26 } as const;
 /** The turn-over glyph's width: 42% of the paper's shorter side on a card. */
 export const DIAGRAM_TURN_OVER_INK = 40.32;
 
+/** The editor's crease width law: a crease is this many CSS px per unit of line width. */
+export const CP_CREASE_WIDTH_FACTOR = 1.5;
+
 /**
  * The pen a diagram is drawn with **over the crease pattern**, in CSS pixels.
  *
@@ -126,8 +129,7 @@ export const DIAGRAM_TURN_OVER_INK = 40.32;
  * creases carry, so the dash patterns uploaded with the geometry stay put.
  */
 export function canvasDiagramInk(lineWidth: number): number {
-  const CREASE_WIDTH_FACTOR = 1.5;
-  return (CREASE_WIDTH_FACTOR * lineWidth) / DIAGRAM_LINE_INK.edge.width;
+  return (CP_CREASE_WIDTH_FACTOR * lineWidth) / DIAGRAM_LINE_INK.edge.width;
 }
 
 /**
@@ -142,52 +144,75 @@ export function penInk(pen: Pen, width: number): DiagramStrokeInk {
   };
 }
 
-/** The paper style's pens a diagram draws with: the aux pen for an existing crease. */
+/**
+ * The paper style's pens a diagram draws with: the edge pen for the paper's
+ * edge, the fold pens for a mountain and a valley, and the aux pen for an
+ * existing crease.
+ */
 export interface DiagramPaperPens {
-  /** Existing creases (`crease` ink) draw in this pen; the edge pen is what its width is measured against. */
+  /** Existing creases (`crease` ink) draw in this pen. */
   auxCreases: { pen: Pen };
+  /** What every other pen's width is measured against. */
   edges: Pen;
+  mountainFolds: Pen;
+  valleyFolds: Pen;
 }
 
 /**
- * The card's pens for a paper style: the table, with an existing crease drawn
- * by the style's aux pen.
+ * The card's pens for a paper style: the table, with the paper's edge, the
+ * folds and an existing crease drawn in the style's own pens.
  *
  * A card is a printed figure whose pen is a share of the paper, and a pen in
  * points has no meaning on a thumbnail — so what is taken from the style is
- * the *ratio*: the aux pen's width against the edge pen's, applied to the
- * table's edge weight. At the defaults (0.5 pt against 0.9 pt) that is 0.667
- * ink, near the 0.75 the table drew; a style that draws existing creases at
- * the edge's weight draws them at the card's edge weight too. The dash and
- * cap are the pen's.
+ * the *ratio*: each pen's width against the edge pen's, applied to the
+ * table's edge weight. At the defaults an existing crease (0.5 pt against
+ * 0.9 pt) is 0.667 ink, near the 0.75 the table drew. The dash and cap are
+ * the pen's, so a style with solid folds draws them solid.
  */
 export function cardDiagramPens(style: DiagramPaperPens): DiagramPens {
-  const ratio = style.auxCreases.pen.width / Math.max(style.edges.width, Number.EPSILON);
-  const aux = penInk(style.auxCreases.pen, DIAGRAM_LINE_INK.edge.width * ratio);
-  return { ...DIAGRAM_LINE_INK, crease: aux, aux };
+  const edge = Math.max(style.edges.width, Number.EPSILON);
+  const at = (pen: Pen) => penInk(pen, DIAGRAM_LINE_INK.edge.width * (pen.width / edge));
+  const aux = at(style.auxCreases.pen);
+  return {
+    ...DIAGRAM_LINE_INK,
+    edge: at(style.edges),
+    mountain: at(style.mountainFolds),
+    valley: at(style.valleyFolds),
+    crease: aux,
+    aux,
+  };
+}
+
+/** A pen and its width in CSS px, as the canvas draws it. */
+export interface CssPen {
+  pen: Pen;
+  css: number;
 }
 
 /**
  * The pens the diagram over the crease pattern is drawn with: the table, with
- * the arrow drawn by the paper style's own arrow pen and an existing crease by
- * its aux pen.
+ * the arrow drawn by the paper style's own arrow pen, an existing crease by
+ * its aux pen, and the paper's edge and the folds by theirs.
  *
- * `arrowCss` and `auxCss` are those pens in CSS pixels. Over the canvas one
+ * `arrowCss` and each pen's `css` are widths in CSS pixels. Over the canvas one
  * ink is a fixed number of CSS pixels ({@link canvasDiagramInk}), so a pen's
  * weight in ink is whatever puts its stroke at exactly the pen. Without an aux
- * pen the crease keeps the table's weight (the reference diagrams drawn
- * before there was a style).
+ * pen the crease keeps the table's weight, and without the fold pens the folds
+ * keep the table's (the reference diagrams drawn before there was a style).
  */
 export function canvasDiagramPens(
   lineWidth: number,
   arrowCss: number,
-  aux?: { pen: Pen; css: number }
+  aux?: CssPen,
+  folds?: { edge: CssPen; mountain: CssPen; valley: CssPen }
 ): DiagramPens {
   const ink = canvasDiagramInk(lineWidth);
+  const at = ({ pen, css }: CssPen) => penInk(pen, css / ink);
   return {
     ...DIAGRAM_LINE_INK,
     arrow: { ...DIAGRAM_LINE_INK.arrow, width: arrowCss / ink },
-    ...(aux ? { crease: penInk(aux.pen, aux.css / ink), aux: penInk(aux.pen, aux.css / ink) } : {}),
+    ...(aux ? { crease: at(aux), aux: at(aux) } : {}),
+    ...(folds ? { edge: at(folds.edge), mountain: at(folds.mountain), valley: at(folds.valley) } : {}),
   };
 }
 

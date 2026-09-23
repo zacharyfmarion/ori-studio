@@ -228,12 +228,7 @@ export function ReferencesPanel() {
   // The step's picture, once: straight lines packed for the GPU, symbols for the
   // layer over it. Both off the same primitives the filmstrip card draws.
   const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
-  const scene = useReferencesDiagramScene(
-    highlights.diagram,
-    view.lineWidth,
-    mirrored,
-    paper
-  );
+  const scene = useReferencesDiagramScene(highlights.diagram, mirrored, paper);
 
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const indicator = useReferencesRun();
@@ -436,7 +431,7 @@ export function ReferencesPanel() {
     diagram: highlights.pageDiagram,
     camera: diagramCamera,
     mirrored,
-    lineWidth: view.lineWidth,
+    lineWidth: paper.canvasPens.lineWidth,
     subject: exportSubject,
   });
   const exportStepSvg = useCallback(() => void exportStep('svg'), [exportStep]);
@@ -643,9 +638,9 @@ export function ReferencesPanel() {
               <ReferencesCpView
                 ref={viewRef}
                 geometry={view.geometry}
-                lineStyle={view.lineStyle}
                 mode={view.mode}
-                lineWidth={view.lineWidth}
+                lineWidth={paper.canvasPens.lineWidth}
+                pens={paper.canvasPens.pens}
                 pointSize={view.pointSize}
                 wheelGesture={view.wheelGesture}
                 snapRadius={view.snapRadius}
@@ -671,7 +666,7 @@ export function ReferencesPanel() {
               ref={symbolsRef}
               model={scene.symbols}
               camera={diagramCamera}
-              lineWidth={view.lineWidth}
+              lineWidth={paper.canvasPens.lineWidth}
               arrowWidth={paper.arrowWidth}
               fold={foldScene}
             />

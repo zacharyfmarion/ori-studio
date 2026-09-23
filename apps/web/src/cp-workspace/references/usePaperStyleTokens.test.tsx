@@ -7,10 +7,11 @@ import { useThemeStore } from '../../store/themeStore';
 import { applyTheme, DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../../themes';
 import { referencesCreaseAlpha, referencesDimAlpha } from '../../themes/referencesInk';
 import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
-import { DIAGRAM_LINE_INK } from './diagram/diagramInk';
+import { canvasDiagramInk, CP_CREASE_WIDTH_FACTOR, DIAGRAM_LINE_INK } from './diagram/diagramInk';
 import { useReferencesDiagramScene } from './useReferencesDiagramScene';
 import {
   REFERENCES_PAPER_TOKENS,
+  referencesCanvasPens,
   referencesCardInks,
   referencesPaperTokens,
   usePaperStyleTokens,
@@ -265,7 +266,7 @@ describe('useReferencesDiagramScene', () => {
     const scenes: ReturnType<typeof useReferencesDiagramScene>[] = [];
     function Probe() {
       const { setRoot, ...paper } = usePaperStyleTokens();
-      const scene = useReferencesDiagramScene(diagram, 1, false, paper);
+      const scene = useReferencesDiagramScene(diagram, false, paper);
       useEffect(() => {
         scenes.push(scene);
       });
@@ -282,5 +283,34 @@ describe('useReferencesDiagramScene', () => {
     expect(packed(scenes[scenes.length - 1]!)).toBe(MOUNTAIN);
     act(() => probeRoot.unmount());
     probeContainer.remove();
+  });
+});
+
+describe('referencesCanvasPens', () => {
+  // The References line width is the edge pen: every References ink is
+  // measured from it, in place of the editor's View ▸ Line width.
+  it('measures the big view from the edge pen, and draws each pen at its own width', () => {
+    const style = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9 },
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 0.75 },
+    };
+    const { lineWidth, pens } = referencesCanvasPens(style);
+    const edgeCss = 0.9 * PT_TO_CSS_PX;
+    expect(CP_CREASE_WIDTH_FACTOR * lineWidth).toBeCloseTo(edgeCss, 9);
+    const ink = canvasDiagramInk(lineWidth);
+    expect(pens.edge.width * ink).toBeCloseTo(edgeCss, 9);
+    expect(pens.mountain.width * ink).toBeCloseTo(0.75 * PT_TO_CSS_PX, 9);
+    expect(pens.aux.width * ink).toBeCloseTo(DEFAULT_PAPER_STYLE.auxCreases.pen.width * PT_TO_CSS_PX, 9);
+    expect(pens.arrow.width * ink).toBeCloseTo(DEFAULT_PAPER_STYLE.arrows.width * PT_TO_CSS_PX, 9);
+  });
+
+  it('dashes the folds as the style does: solid when solid', () => {
+    expect(referencesCanvasPens(DEFAULT_PAPER_STYLE).pens.valley.dash).toBeUndefined();
+    const dashed = referencesCanvasPens({
+      ...DEFAULT_PAPER_STYLE,
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] },
+    }).pens.valley;
+    expect(dashed.dash!.map((run) => run / dashed.width)).toEqual([4, 2]);
   });
 });

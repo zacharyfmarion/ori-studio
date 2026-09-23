@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { diagramInkColors } from './diagram/diagramColors';
 import { diagramToScene, type DiagramScene } from './diagram/diagramToScene';
-import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
+import { canvasDiagramInk } from './diagram/diagramInk';
 import { seenFromTheBack } from './diagram/diagramModel';
 import type { ReferencesPaperStyle } from './usePaperStyleTokens';
 
@@ -30,11 +30,10 @@ const EMPTY: ReferencesDiagramScene = { strokes: null, symbols: null };
 
 export function useReferencesDiagramScene(
   diagram: StepDiagramModel | null,
-  lineWidth: number,
   mirrored: boolean,
-  paper: Pick<ReferencesPaperStyle, 'root' | 'tokens' | 'arrowWidth' | 'inks'>
+  paper: Pick<ReferencesPaperStyle, 'root' | 'tokens' | 'inks' | 'canvasPens'>
 ): ReferencesDiagramScene {
-  const { root, tokens, arrowWidth, inks } = paper;
+  const { root, tokens, inks, canvasPens } = paper;
   return useMemo(() => {
     if (!diagram) return EMPTY;
     // A mountain seen from the front is a valley seen from the back.
@@ -46,15 +45,16 @@ export function useReferencesDiagramScene(
     // are one drawing. It scales the dash runs, which the stroke program reads
     // in screen pixels — and it deliberately excludes the zoom-dependent boost
     // the creases carry, or every zoom frame would have to re-upload them.
-    // Lines in the style's aux pen — the creases an earlier step made, and
-    // the pattern's own aux lines when they are shown — pulled back from the
+    // Every line in the style's pens (`referencesCanvasPens`): a fold in its
+    // direction's, and in the aux pen the creases an earlier step made and the
+    // pattern's own aux lines when they are shown — pulled back from the
     // sheet's edge as it says.
     const scene = diagramToScene(
       primitives,
       diagramInkColors(element, tokens),
-      canvasDiagramInk(lineWidth),
+      canvasDiagramInk(canvasPens.lineWidth),
       {
-        pens: canvasDiagramPens(lineWidth, arrowWidth, inks.aux),
+        pens: canvasPens.pens,
         sheet: diagram.sheet,
         creases: { showAux: inks.showAux, erode: inks.erode },
       }
@@ -65,5 +65,5 @@ export function useReferencesDiagramScene(
     };
     // `tokens` is a fresh object on a theme change too, which is what makes the
     // theme's own tokens (read off the DOM) a dependency.
-  }, [diagram, lineWidth, mirrored, root, tokens, arrowWidth, inks]);
+  }, [diagram, mirrored, root, tokens, inks, canvasPens]);
 }

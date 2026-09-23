@@ -150,15 +150,16 @@ describe('foldPoseGeometry, rigid', () => {
     const shares: FoldSurfaceShares = { ...RIGID, hingeOverlap: 0.05 };
     const { fills } = foldPoseGeometry(scene, pose(Math.PI), [], paint, shares);
     // The right half lands on the left, showing its other face; the overlap
-    // is the strip of base from the hinge at 0.5 back to 0.45. Its outer
-    // row is face up and on the paper, under the landed flap — in user
-    // units twice that; the hinge row itself already shows the other face.
+    // is the strip of base from the hinge at 0.5 back to 0.45 — in user units
+    // twice that — face up and on the paper, under the landed flap. The strip
+    // is one face, hinge row included: no triangle blends the two.
     const up = [...Array(fills.count).keys()].filter(
       (i) => Math.abs(rgba(fills.color, i * 4)[0]! - UP[0]) < 1e-3
     );
     expect(up.length).toBeGreaterThan(0);
     for (const i of up) {
-      expect(fills.position[i * 2]).toBeCloseTo(2 * 0.45, 6);
+      expect(fills.position[i * 2]).toBeGreaterThanOrEqual(2 * 0.45 - 1e-6);
+      expect(fills.position[i * 2]).toBeLessThanOrEqual(2 * 0.5 + 1e-6);
       expect(fills.depth![i]).toBeCloseTo(0.05);
     }
     // Without it, nothing face up is drawn at all.
@@ -301,11 +302,15 @@ describe('foldPoseGeometry, turning the sheet over', () => {
     const landing = 1 / (1 + Math.PI * roll);
     const { fills } = foldPoseGeometry(turning, pose(Math.PI * landing), [], paint);
     // The whole footprint again: the taken edge on the right, and the far
-    // edge on the left, face up, about to go round the bend.
+    // edge on the left, about to go round the bend.
     expect(Math.min(...xs(fills.position))).toBeCloseTo(0, 3);
     expect(Math.max(...xs(fills.position))).toBeCloseTo(2, 3);
+    // All of it the other face: what is left of the reader's face is under
+    // the roll, as it is under a real one. A sheared roll does not overhang
+    // itself, and coloured by its own normal it showed the reader's face as
+    // a band along its leading edge.
     const faces = [...Array(fills.count).keys()].map((i) => rgba(fills.color, i * 4)[0]);
-    expect(faces.some((red) => Math.abs(red - UP[0]) < 1e-3)).toBe(true);
+    expect(faces.every((red) => Math.abs(red - UP[0]) >= 1e-3)).toBe(true);
     expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
   });
 });

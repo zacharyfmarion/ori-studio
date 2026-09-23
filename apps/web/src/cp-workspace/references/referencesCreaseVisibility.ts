@@ -118,19 +118,21 @@ function withAux(
 
 /**
  * The sheet as it is, at full strength: no plan yet and nothing picked, so
- * there is no step to be at.
+ * there is no step to be at. On its paper, as every step is (D13): the border
+ * is what the canvas fills.
  */
 export function unreadVisibility(input: ReferencesVisibilityInput): ReferencesCreaseVisibility {
-  const { sheetLineIds, auxLineIds = null, auxPen = null } = input;
+  const { sheetLineIds, borderLineIds, auxLineIds = null, auxPen = null } = input;
   if (!sheetLineIds) return REFERENCES_ALL_CREASES;
   if (!auxLineIds || auxLineIds.size === 0) {
-    return { visible: sheetLineIds, dimmed: null, dimAlpha: 1 };
+    return { visible: sheetLineIds, dimmed: null, dimAlpha: 1, borderLineIds };
   }
   return {
     visible: withAux(sheetLineIds, auxLineIds),
     pickable: sheetLineIds,
     dimmed: null,
     dimAlpha: 1,
+    borderLineIds,
     thin: auxLineIds,
     thinPen: auxPen,
   };

@@ -17,14 +17,14 @@
  * each pattern is drawn on — `../sheets` fits both readings into the same
  * thumbnail, so the two rails list the same patterns the same way.
  */
-import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import { HINT_MOUNTAIN, HINT_VALLEY } from '../../lib/foldAngle';
+import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import {
   fitSheetThumbnail,
   type SheetStroke,
   type SheetStrokeRole,
   type SheetThumbnail,
 } from '../sheets/sheetThumbnail';
+import { creaseRoleAt } from './creaseRole';
 import { sheetOutline } from './referencesViewGeometry';
 import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
 
@@ -90,43 +90,6 @@ export function sheetBorderLineIds(component: PrecreaseComponent): Set<number> {
   return new Set(component.border_segment_indices.map((index) => index + 1));
 }
 
-/** Oriedita's colour codes, as `LINE_COLOR_BY_NUMBER` names them. */
-const CP_ANGLE = -2;
-const CP_BLACK = 0;
-const CP_MOUNTAIN = 1;
-const CP_VALLEY = 2;
-const CP_CYAN = 3;
-const CP_GREY = 10;
-
-/**
- * What a crease is on the paper, from its colour: the kernel's own FOLD
- * reading (`fold_assignment_for_line_color`) — black is the paper's edge, red
- * and blue the folds, cyan through grey the aux lines it exports as `F` — so a
- * card here and the Simulate rail's card of the same pattern agree. A crease
- * folded to an angle takes its hinted direction.
- *
- * Read from the raw number rather than through `lineColorName`, which throws on
- * a code outside its table: a thumbnail that cannot read a colour should draw
- * an unassigned line, not take the sidebar down. The planner's own steps do
- * not come through here — the crate settles their direction and `Step`
- * carries it (plan D24). This is the picker's own reading of a raw pattern,
- * which has no plan yet.
- */
-function strokeRole(attr: Int32Array, index: number): SheetStrokeRole {
-  // An unreadable slot is no colour at all, and falls through to unassigned.
-  const color = attr[index * SEG_ATTR_STRIDE] ?? Number.NaN;
-  if (color === CP_BLACK) return 'edge';
-  if (color === CP_MOUNTAIN) return 'mountain';
-  if (color === CP_VALLEY) return 'valley';
-  if (color >= CP_CYAN && color <= CP_GREY) return 'aux';
-  if (color === CP_ANGLE) {
-    const hint = attr[index * SEG_ATTR_STRIDE + 4];
-    if (hint === HINT_MOUNTAIN) return 'mountain';
-    if (hint === HINT_VALLEY) return 'valley';
-  }
-  return 'unassigned';
-}
-
 /**
  * A sheet drawn to fit `size`, in its own coordinates: the component's lines
  * read out of the transport — its border, its creases and its aux lines — on
@@ -153,7 +116,7 @@ export function sheetThumbnail(
     });
   };
   for (const index of component.border_segment_indices) add(index, 'edge');
-  for (const index of component.segment_indices) add(index, strokeRole(attr, index));
+  for (const index of component.segment_indices) add(index, creaseRoleAt(attr, index));
   for (const index of component.aux_segment_indices) add(index, 'aux');
   const outline = sheetOutline(geometry, sheetBorderLineIds(component));
   return fitSheetThumbnail(
