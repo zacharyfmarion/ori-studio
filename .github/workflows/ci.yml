@@ -190,14 +190,22 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
           restore-keys: ${{ runner.os }}-playwright-
 
-      - name: Install Playwright WebKit
-        run: npx playwright install --with-deps webkit
+      # Chromium as well, for the static first paint check below: the one lane that
+      # compares the two engines' renders of the same page.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
       # Also the only place a production build runs in CI. The service worker is
       # emitted by `vite build` and nothing before this step would notice it
       # failing to.
       - name: Build web client
         run: npm run build:web --ignore-scripts
+
+      # `--ignore-scripts` skips `postbuild` too, and with it the prerender — so without
+      # this every step below would check a landing page with no copy in it, which is
+      # not the page that deploys. The deploy workflows run a plain `build:web`.
+      - name: Prerender the site
+        run: node apps/web/scripts/prerender-landing.mjs
 
       # What the landing page loads before anything lazy, held to a budget: it was the
       # whole app until the workspace moved behind a lazy import, and it grew 13% in a
@@ -207,6 +215,14 @@ jobs:
 
       - name: WebKit PWA check
         run: npm run test:web:webkit-pwa
+
+      # The landing's first paint is the prerendered copy of the page, which React then
+      # replaces in one frame. That only works if the two are the same picture, so this
+      # holds them to zero differing pixels in Chromium and WebKit, on a desktop and a
+      # phone, in both default themes — and every frame on the way, since the parser
+      # paints half-read pages. About a minute. See scripts/static-paint-check.mjs.
+      - name: Static first paint check
+        run: node scripts/static-paint-check.mjs
 
   # The workspace has only ever been compiled and tested on Linux (this file) and
   # macOS (a developer's machine). That is the wrong platform to be missing:

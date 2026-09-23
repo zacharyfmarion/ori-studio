@@ -521,9 +521,12 @@ is already shipped.
 
 ### Phase 4 — Performance
 
-- [ ] Lazy-load the workspace shell so `/welcome` does not pull the editor
-- [ ] Measure the landing chunk before and after; record both numbers
-- [ ] Intrinsic `width`/`height` on landing figures; lazy below the fold
+Tracked in `landing-page-performance.md` from 2026-09-23.
+
+- [x] Lazy-load the workspace shell so `/welcome` does not pull the editor
+- [x] Measure the landing chunk before and after; record both numbers
+- [x] ~~Intrinsic `width`/`height` on landing figures~~. The figure frames hold
+      16:9 in CSS; CLS measures 0. Lazy below the fold
 - [ ] Lighthouse mobile against the deployed build; record LCP/CLS/INP
 
 ### Phase 5 — Off-page

@@ -78,6 +78,22 @@ describe('WelcomeRoute', () => {
     expect(Object.values(gateway.startActions).some((action) => action.mock.calls.length > 0)).toBe(false);
   });
 
+  it('takes over a prerendered copy of itself when it mounts, where the reader left it', () => {
+    // The first paint of a first visit (`seo/staticPaint.ts`): the copy, scrolled by the
+    // reader before the app arrived.
+    const copy = document.createElement('div');
+    copy.id = 'seo-content';
+    copy.setAttribute('data-scroll-top', '420');
+    document.body.prepend(copy);
+    document.documentElement.setAttribute('data-static-paint', 'shown');
+
+    render();
+
+    expect(document.getElementById('seo-content')).toBeNull();
+    expect(document.documentElement.hasAttribute('data-static-paint')).toBe(false);
+    expect(container?.querySelector<HTMLElement>('.welcome-page')?.scrollTop).toBe(420);
+  });
+
   it('warms the workspace when focus reaches an action', () => {
     render();
     act(() => button('Create a design').focus());

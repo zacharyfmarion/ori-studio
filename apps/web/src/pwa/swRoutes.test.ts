@@ -126,6 +126,14 @@ describe('shellEntryPath', () => {
     expect(shellEntryPath(shell('/assets/index-abc.js'), '/fallback.js')).not.toContain('.css');
   });
 
+  it('reads the entry the prerendered landing preloads for its body script to start', () => {
+    const landing =
+      `<!doctype html><html><head><link rel="modulepreload" crossorigin href="/assets/index-NEWBUILD.js">` +
+      `<link rel="stylesheet" crossorigin href="/assets/index-DanmBOkr.css"></head>` +
+      `<body><div id="seo-content"></div><div id="root"></div></body></html>`;
+    expect(shellEntryPath(landing, '/assets/index-OLD.js')).toBe('/assets/index-NEWBUILD.js');
+  });
+
   it('falls back to the manifest rather than to no offline start', () => {
     expect(shellEntryPath('<html><body>not our shell</body></html>', '/assets/index-abc.js')).toBe(
       '/assets/index-abc.js'

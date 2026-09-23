@@ -5,7 +5,7 @@ import { useIsPhoneLayout } from '../platform/phoneLayout';
 import { DesktopDownloadButton } from './download/DesktopDownloadButton';
 import { StartFigure } from './start/StartFigure';
 
-interface StartScreenProps {
+export interface StartScreenProps {
   /** A start action is waiting on the editor to load; every action is held until it lands. */
   preparing: boolean;
   /** Why the last start action failed, shown in the status line. */

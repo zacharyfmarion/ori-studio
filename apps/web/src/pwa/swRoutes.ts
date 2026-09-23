@@ -176,13 +176,18 @@ export function isStorableResponse(response: Response): boolean {
  * an empty `<div id="root">`. Reproduced against the real build in WebKit before
  * this existed.
  *
- * `index.html` carries one module script and Vite writes it as a plain
- * `src="/assets/…"`, so a regex is the whole of it. A shell that matches nothing
- * falls back to the manifest, i.e. to the old behaviour rather than to no
- * offline start at all.
+ * `index.html` carries one module entry and Vite writes it as a plain
+ * `src="/assets/…"`, so a regex is the whole of it. The prerendered landing names it
+ * in a `modulepreload` link instead, because its body script starts the app after the
+ * first paint (`seo/staticPaintBody.ts`). A shell that matches neither falls back to the
+ * manifest, i.e. to the old behaviour rather than to no offline start at all.
  */
 export function shellEntryPath(html: string, fallback: string): string {
-  return /<script[^>]*\ssrc="(\/assets\/[^"]+\.js)"/.exec(html)?.[1] ?? fallback;
+  return (
+    /<script[^>]*\ssrc="(\/assets\/[^"]+\.js)"/.exec(html)?.[1] ??
+    /<link[^>]*rel="modulepreload"[^>]*\shref="(\/assets\/[^"]+\.js)"/.exec(html)?.[1] ??
+    fallback
+  );
 }
 
 /**

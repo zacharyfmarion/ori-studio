@@ -295,6 +295,69 @@ those as targets to measure, not results. One caveat: on a very fast network the
 module can arrive and start evaluating before the first frame, and a long
 evaluation then delays the paint. Step 4 is what makes that window short.
 
+**As built (2026-09-23).** The gate held: zero differing pixels, and more than the
+plan asked for, since it now checks every frame on the way as well as the settled
+page. Several answers in the table changed once they met a real browser:
+
+- **One shared component.** `components/landing/WelcomePage.tsx` is the page's
+  markup, rendered by `WelcomeRoute` and by `StaticLanding`. The static copy adds
+  only the visually hidden site-title `<h1>`. The phone variant is prerendered
+  too (`ServerPhoneSurface`), and is held inert in a `<template>`.
+- **Two inline scripts, not one.** The parser paints whatever it has so far.
+  A Lighthouse trace caught Chrome painting the desktop copy on a phone before a
+  script placed after the copy could swap in the phone variant. So:
+  - `seo/staticPaintHead.ts` runs in `<head>`, after the viewport meta tag and
+    before the stylesheet. It decides (runtime, path, welcome preference,
+    language via `resolveInitialLanguage` itself, theme via `initialThemeName`),
+    applies the theme, and records the decision as `html[data-static-paint]`.
+  - A `<style>` beside it hides the copy from that moment until the body script
+    marks it `shown`. Without JavaScript the copy shows as written.
+  - `seo/staticPaintBody.ts` runs after the copy and the template. It swaps in
+    the phone variant, names the platform on the download button, switches to
+    the light screenshots, and marks the copy shown. It does all of this in one
+    task, so the first frame with the copy in it is the finished page. Any
+    failure removes the copy, and the app always starts.
+- **Theme.** The head carries the variables of the two default themes,
+  precomputed by `themeCssVariables`. A saved preset other than those two removes
+  the copy instead of replaying it, which keeps the head small. No generated CSS,
+  and `theme.css` is untouched.
+- **Download label.** The body script sets the text, rather than prerendering
+  every label for CSS to choose between, which would have put four labels in
+  front of crawlers.
+- **The takeover.** `takeOverStaticCopy` runs in `WelcomeRoute`'s layout effect.
+  It carries the scroll over and removes the copy in the commit that renders the
+  live page.
+- **When the app starts.** The HTML only preloads the entry (`modulepreload`,
+  `fetchpriority="low"`), and the body script starts it. It starts once the
+  browser has *recorded* the copy's paint — the first `largest-contentful-paint`
+  entry, 6–21 ms after the paint (measured) — not merely once it has been
+  presented. Chrome enters a text paint as the LCP only some time after
+  presenting it, and a copy replaced before then is dropped. In the Lighthouse
+  trace LCP then moved to React's identical `<h1>` 60 ms later. Where there is no
+  LCP entry type, it waits two frames. A safety timer runs from the first frame
+  (not from the script, which can run long before the stylesheet arrives), and a
+  hidden tab starts at once.
+- **Held screenshots.** None of the lazy screenshots is in the first screenful,
+  but lazy loading reaches 1250–2500 px, so the frame that paints the copy
+  requested most of them. Lantern charges LCP for every request that *starts*
+  before it: ~320 KB of images in the pessimistic graph, and 3.8 s of simulated
+  mobile LCP. The body script holds `src`/`srcset`/`alt` until the app starts.
+  The frames are sized by CSS, so nothing moves.
+
+`scripts/static-paint-check.mjs` is the gate: 54 checks, about a minute, in CI.
+- **Coverage.** Chromium and WebKit × desktop and phone × dark and light,
+  compared at the top and scrolled.
+- **Sampling.** It serves the HTML in 8 KB pieces, 40 ms apart, so browsers
+  render half-parsed frames. A probe samples every frame from document start.
+- **Every-frame rules.** No frame may show the copy unfinished or in the wrong
+  variant. No blank or doubled frame may appear between the copy and the live
+  page.
+- **Never shown to** another language, the desktop app, "Show welcome on
+  startup" off, a non-default saved theme, or the editor's URL.
+- **Mutation-checked.** Without the hide rule, 12 checks fail in both engines. A
+  copy removed a frame early fails the handover in all eight combinations.
+  Screenshots never released fail all eight scrolled comparisons.
+
 ### Step 4 — Split the bundle
 
 - **Restructure the router.**
@@ -414,6 +477,32 @@ namespaces and the offline warm must cover them. That is a lot of care for about
   - Keep `web-vitals.js`. Once the Cloudflare beacon is gone, it is the only
     real-user Core Web Vitals source.
 
+## Results
+
+Lighthouse 13.5.0, local build served the way Pages serves it
+(`node scripts/lighthouse.mjs --dist apps/web/dist --runs 3`), median of three:
+
+|               | Desktop before | Desktop after | Mobile before | Mobile after |
+| ------------- | -------------- | ------------- | ------------- | ------------ |
+| Performance   | 70 / 86 / 87   | 100           | 49 / 48       | 96           |
+| FCP           | 1.3–1.5 s      | 0.24 s        | 7.1 s         | 0.90 s       |
+| LCP           | 1.5–2.1 s      | 0.60 s        | 8.3 s         | 2.85 s       |
+| TBT           | 40–340 ms      | 0 ms          | 390–420 ms    | 42 ms        |
+| Speed Index   | 1.3–1.6 s      | 0.32 s        | 7.1 s         | 1.31 s       |
+| CLS           | 0              | 0             | 0.002         | 0            |
+| Accessibility | 97             | 100           | 96            | 100          |
+
+"Before" is production on 2026-09-23. "After" is local, and PSI's slower machines
+will read higher TBT.
+
+**What is left in mobile LCP.** It is the app's entry. The HTML preloads it from
+`<head>`, so its request starts before the observed LCP, and Lantern counts it
+(it counts every non-image request started before LCP, whatever its priority).
+Starting that download after first paint would take the simulated LCP to about
+FCP. It would also start the real download a round trip or more later, and
+visitors on slow networks would get an interactive page later, just to move a
+lab number. Not done; it is Zach's call.
+
 ## Affected Areas
 
 - `apps/web/src/main.tsx`: Sentry named imports; the pre-render removal moves
@@ -477,20 +566,24 @@ namespaces and the offline warm must cover them. That is a lot of care for about
 
 ### Step 3 — Static first paint
 
-- [ ] **Gate first:** the Playwright identity check (Chromium + WebKit ×
-      desktop + phone × dark + light, zero differing pixels, figure canvas
-      masked; the non-English and Tauri cases show the copy removed), run after
-      the build
-- [ ] Prerender `StartScreen` inside the live wrapper markup
-- [ ] Guarded removal (the welcome preference, language, Tauri); the language
-      resolution generated from the same module as `resolveInitialLanguage`;
-      mutation-check it in `prerenderHtml.test`
-- [ ] `data-os` on `<html>`, with every download label prerendered and one shown
-      by CSS
-- [ ] Generated default-theme CSS; inline saved-preset replay; fix `theme-color`
-- [ ] Remove `#seo-content` in the replacing route's `useLayoutEffect`; carry
-      over scroll
-- [ ] Trace: no CLS at the swap, and LCP stays at the static paint
+- [x] **Gate first:** `scripts/static-paint-check.mjs`. Every frame as well as
+      the settled page, and in CI after an explicit prerender step, since CI
+      builds with `--ignore-scripts`
+- [x] Prerender the whole welcome page through the shared `WelcomePage`, phone
+      variant included
+- [x] Guarded paint (Tauri, path, welcome preference, language, theme). The
+      head script bundles `resolveInitialLanguage` and `initialThemeName`
+      themselves, so nothing is generated or hand-copied
+      (`seo/__tests__/staticPaint.test.ts`)
+- [x] ~~`data-os` + CSS labels~~. The body script sets the label instead, so
+      crawlers see one
+- [x] ~~Generated default-theme CSS; saved-preset replay~~. The head applies the
+      two defaults' precomputed variables; any other saved preset gets no copy.
+      `theme-color` is unchanged, since it is not part of the page's pixels
+- [x] Remove `#seo-content` in `WelcomeRoute`'s layout effect; carry over scroll
+- [x] Trace: CLS 0, and LCP is the static `<h1>` at FCP (101.7 ms observed on
+      mobile) with no later candidate. That needed the app to start after the
+      copy's paint was recorded; see "As built"
 
 ### Step 4 — Split
 
@@ -509,14 +602,26 @@ namespaces and the offline warm must cover them. That is a lot of care for about
 
 ### Step 5 — Guardrails
 
-- [ ] Landing budget in CI
-- [ ] `scripts/lighthouse.mjs` (medians, desktop and mobile)
-- [ ] `seo-discoverability.md` Phase 4 points here
+- [x] Landing budget in CI (`scripts/landing-budget.mjs`: JS 258 KB of 300 KB,
+      CSS 31 KB of 40 KB, brotli q11)
+- [x] `scripts/lighthouse.mjs` (medians, desktop and mobile; `--dist` serves a
+      build the way Pages does, via `scripts/lib/serve-dist.mjs`)
+- [x] `seo-discoverability.md` Phase 4 points here
 
 ### Validation (every step)
 
-- [ ] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web`
-- [ ] `npm run build:web` (a plain build, so the prerender runs); read
-      `dist/index.html` by hand
-- [ ] `npm run check:desktop`; launch the Tauri app for Steps 2 and 4
-- [ ] Lighthouse desktop and mobile medians against the deploy; record them here
+- [x] `npm run lint:web`, `npm run typecheck:web`, `npm run test:web` (592 files,
+      7,505 tests), `npm run test:scripts`, `npm run i18n:check`
+- [x] Build as CI does (`build:web --ignore-scripts`, then the prerender as its own
+      step); `dist/index.html` read by hand; `seo-smoke.mjs --preview` against it
+      passes 45/45; `static-paint-check.mjs` 54/54; `webkit-pwa-check.mjs` 25/26,
+      the one failure being api.github.com's rate limit on this machine (403), not
+      the worker
+- [ ] `npm run check:desktop`; launch the Tauri app. Not run: no Rust or shell
+      change. The desktop risk is the CSP, since the painted page starts the app
+      from an inline script. That was checked in WebKit under `tauri.conf.json`'s
+      CSP with the hashes Tauri's codegen adds: it boots, and without the hashes it
+      does not. A test pins the setting that keeps Tauri hashing. Launch it once
+      before release
+- [ ] Lighthouse desktop and mobile medians against the deploy; local medians are
+      under Results

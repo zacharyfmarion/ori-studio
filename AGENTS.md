@@ -297,8 +297,11 @@ The same hook mechanism carries the landing prerender. `postbuild` runs
 page into `dist/index.html` and generates `dist/robots.txt` and
 `dist/sitemap.xml` from `src/seo/siteMeta.ts`. So `npm run build:web
 --ignore-scripts` produces a bundle that looks fine, deploys fine, and has no
-words in it for any crawler — the same silent class as a stale `.wasm`. Both
-deploy workflows run a plain `npm run build:web`, so this only bites locally.
+words in it for any crawler — the same silent class as a stale `.wasm`. It is
+also no longer the landing page that ships: the prerendered copy is that page's
+first paint (`src/seo/staticPaint.ts`). Both deploy workflows run a plain
+`npm run build:web`, and CI, which builds with `--ignore-scripts`, runs the
+prerender as a step of its own, so this only bites locally.
 
 `robots.txt` is crawlable **only** when `ORI_SITE_ENV=production`, which is set
 in `deploy-web.yml` and nowhere else. PR previews therefore de-index themselves
@@ -331,7 +334,9 @@ GitHub Actions runs two main jobs:
   this job), then installs Rust and Node, installs `wasm-pack`, builds the
   simulator and all four wasm bridges, and runs web lint, i18n check, typecheck,
   and unit tests (the latter with `--ignore-scripts`, so they do not rebuild what
-  the dedicated step just built).
+  the dedicated step just built). Then it builds and prerenders the site, and
+  checks the result in real browsers: the landing's JS/CSS budget, the WebKit PWA
+  lane, and the static first paint lane (`scripts/static-paint-check.mjs`).
 - `native-oracle`: installs Tauri Linux dependencies, runs Rust format, clippy,
   workspace tests, builds the C++ oracle, and runs oracle parity tests.
 

@@ -11,14 +11,17 @@ import {
   SITE_PAGES,
 } from '../../site/sitePages';
 import { escapeForScriptTag, landingJsonLd, landingJsonLdScript, pageJsonLd } from '../jsonLd';
+import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME, PRESET_THEMES, themeCssVariables } from '../../themes';
 import {
   loadLocaleResources,
   pageMeta,
   prerenderSite,
   renderLandingMarkup,
   renderPageMarkup,
+  staticPaintConfig,
 } from '../prerenderEntry';
 import { SEO_CONTENT_ID, SITE_NAME, SITE_ORIGIN, SITE_TITLE, siteUrl } from '../siteMeta';
+import { PHONE_COPY_TEMPLATE_ID, STATIC_PAINT_ATTRIBUTE } from '../staticPaint';
 
 /**
  * The PR-time gate on the prerender.
@@ -48,10 +51,30 @@ describe('landing prerender', () => {
     }
   });
 
-  it('gives the document exactly one h1, naming what the page is', () => {
-    const h1s = markup.match(/<h1[\s>]/g) ?? [];
-    expect(h1s).toHaveLength(1);
-    expect(markup).toContain(SITE_TITLE);
+  it('names the page in its first h1, ahead of the start screen’s own', () => {
+    // The start screen's heading ("Start a new origami workspace") is the live page's, and
+    // the copy has to carry it to paint as that page does. It heads a control panel, so the
+    // copy opens with one that says what the page is.
+    const h1s = markup.match(/<h1[^>]*>[^<]*<\/h1>/g) ?? [];
+    expect(h1s).toHaveLength(2);
+    expect(h1s[0]).toContain(SITE_TITLE);
+    expect(h1s[1]).toContain('id="start-screen-title"');
+  });
+
+  it('carries everything the body script finishes, by the names it finds them by', () => {
+    // `staticPaintBody.ts` finds these by class. A rename in the components would leave the
+    // copy naming no platform, or in the wrong screenshots, and nothing else would notice.
+    for (const needle of [
+      'ui-split-button__primary',
+      'class="landing-figure__image"',
+      'loading="lazy"',
+      'class="welcome-page"',
+      'welcome-scroll-cue',
+    ]) {
+      expect(markup).toContain(needle);
+    }
+    expect(markup).not.toContain('data-surface="phone"');
+    expect(renderPageMarkup(LANDING_PAGE, 'en', { phone: true })).toContain('data-surface="phone"');
   });
 
   it('hides that h1 by clipping, never by display:none', () => {
@@ -316,6 +339,148 @@ describe('prerenderSite', () => {
     const { html } = fileFor('/');
     const again = prerenderSite(html).find(({ file }) => file === 'index.html');
     expect(again?.html).toBe(html);
+  });
+});
+
+/**
+ * The landing as a first paint (`staticPaint.ts`), assembled from a stand-in for the *built*
+ * `index.html` — the entry and stylesheet where Vite writes them — and stand-ins for the two
+ * bundles, which `scripts/prerender-landing.mjs` builds and this test does not need to.
+ */
+describe('the painted landing', () => {
+  const ENTRY = '/assets/index-abc.js';
+  const built = indexHtml()
+    .replace('<script type="module" src="/src/main.tsx"></script>', '')
+    .replace(
+      '</head>',
+      `<script type="module" crossorigin src="${ENTRY}"></script>\n<link rel="stylesheet" crossorigin href="/assets/index-abc.css">\n</head>`
+    );
+  const scripts = { head: 'var HEAD_BUNDLE;', body: 'var BODY_BUNDLE;' };
+  const files = prerenderSite(built, scripts);
+  const landing = files.find(({ file }) => file === 'index.html')!.html;
+  const painted = (html: string) => html.includes(`<template id="${PHONE_COPY_TEMPLATE_ID}">`);
+
+  it('paints the English landing and /welcome, and removes every other page’s copy', () => {
+    for (const { file, html } of files) {
+      const expected = file === 'index.html' || file === 'welcome/index.html';
+      expect(painted(html), file).toBe(expected);
+      expect(html.includes(`<script>document.getElementById("${SEO_CONTENT_ID}").remove()</script>`), file).toBe(
+        !expected
+      );
+    }
+  });
+
+  it('preloads the entry for the body script to start, rather than running it', () => {
+    expect(landing).toContain(`<link rel="modulepreload" crossorigin fetchpriority="low" href="${ENTRY}">`);
+    expect(landing).not.toContain(`<script type="module" crossorigin src="${ENTRY}">`);
+    // A page that is not painted runs its entry as Vite wrote it.
+    const download = files.find(({ file }) => file === 'download/index.html')!.html;
+    expect(download).toContain(`<script type="module" crossorigin src="${ENTRY}"></script>`);
+  });
+
+  it('decides in the head: after the viewport meta tag, before the stylesheet', () => {
+    const decide = landing.indexOf('<script id="static-paint-head">');
+    expect(decide).toBeGreaterThan(landing.indexOf('name="viewport"'));
+    expect(decide).toBeLessThan(landing.indexOf('rel="stylesheet"'));
+    expect(landing.indexOf('<style id="static-paint">')).toBeLessThan(decide);
+    expect(landing).toContain('var HEAD_BUNDLE;\n__oriStaticPaint.decideStaticPaint({"paths":["/","/welcome"]');
+  });
+
+  it('finishes after the copy and its phone variant, and before #root', () => {
+    const copy = landing.indexOf(`<div id="${SEO_CONTENT_ID}"`);
+    const template = landing.indexOf(`<template id="${PHONE_COPY_TEMPLATE_ID}">`);
+    const finish = landing.indexOf('var BODY_BUNDLE;\n__oriStaticPaint.finishStaticPaint(');
+    expect(copy).toBeGreaterThan(-1);
+    expect(template).toBeGreaterThan(copy);
+    expect(finish).toBeGreaterThan(template);
+    expect(landing.indexOf('<div id="root"></div>')).toBeGreaterThan(finish);
+    expect(landing).toContain(`"entry":"${ENTRY}"`);
+  });
+
+  it('hides the copy from the head’s decision until the body script has finished it', () => {
+    const rule = /<style id="static-paint">([^<]*)<\/style>/.exec(landing)?.[1];
+    expect(rule).toBeTruthy();
+    const style = document.createElement('style');
+    style.textContent = rule!;
+    document.head.append(style);
+    const copy = document.createElement('div');
+    copy.id = SEO_CONTENT_ID;
+    document.body.append(copy);
+    const root = document.documentElement;
+    try {
+      // No decision: no JavaScript ran, and the copy shows as written.
+      expect(getComputedStyle(copy).display).not.toBe('none');
+      for (const decision of ['desktop', 'phone', 'off']) {
+        root.setAttribute(STATIC_PAINT_ATTRIBUTE, decision);
+        expect(getComputedStyle(copy).display, decision).toBe('none');
+      }
+      root.setAttribute(STATIC_PAINT_ATTRIBUTE, 'shown');
+      expect(getComputedStyle(copy).display).not.toBe('none');
+    } finally {
+      root.removeAttribute(STATIC_PAINT_ATTRIBUTE);
+      style.remove();
+      copy.remove();
+    }
+  });
+
+  it('is idempotent over its own output', () => {
+    const again = prerenderSite(landing, scripts).find(({ file }) => file === 'index.html');
+    expect(again?.html).toBe(landing);
+  });
+
+  it('refuses a bundle that would end its own script tag', () => {
+    expect(() => prerenderSite(built, { ...scripts, body: 'var s = "</script>";' })).toThrow('</script>');
+  });
+
+  it('can start in the desktop app, whose CSP allows an inline script only by its hash', () => {
+    // The body script is what starts the app, and `tauri.conf.json`'s CSP has no
+    // 'unsafe-inline'. Tauri hashes every inline script of the bundled HTML into it at
+    // compile time — unless asset CSP modification is disabled for script-src, which would
+    // leave the desktop app showing a copy that never starts. Measured under that CSP in
+    // WebKit: with the hashes it boots; without them, it does not.
+    const conf = JSON.parse(
+      readFileSync(join(dirname(new URL(import.meta.url).pathname), '../../../../tauri/src-tauri/tauri.conf.json'), 'utf8')
+    ) as { app: { security: { csp: string; dangerousDisableAssetCspModification?: boolean | string[] } } };
+    const { csp, dangerousDisableAssetCspModification: disabled } = conf.app.security;
+    const hashesInlineScripts =
+      disabled === undefined || disabled === false || (Array.isArray(disabled) && !disabled.includes('script-src'));
+    expect(hashesInlineScripts || /script-src[^;]*'unsafe-inline'/.test(csp)).toBe(true);
+  });
+
+  it('refuses a template with no entry for the body script to start', () => {
+    expect(() => prerenderSite(indexHtml(), scripts)).toThrow('no module entry script');
+  });
+});
+
+describe('staticPaintConfig', () => {
+  const { head, body } = staticPaintConfig(LANDING_PAGE, 'en', '/assets/index-abc.js');
+
+  it('knows the paths the landing is served at, as the router sees them', () => {
+    expect(head.paths).toEqual(['/', '/welcome']);
+    expect(head.locale).toBe('en');
+  });
+
+  it('carries both default themes as the app applies them, and knows every preset', () => {
+    expect(head.defaultThemes).toEqual({ dark: DEFAULT_DARK_THEME.name, light: DEFAULT_LIGHT_THEME.name });
+    expect(head.themes[DEFAULT_DARK_THEME.name]).toEqual({
+      type: 'dark',
+      variables: themeCssVariables(DEFAULT_DARK_THEME),
+    });
+    expect(head.themes[DEFAULT_LIGHT_THEME.name]?.type).toBe('light');
+    expect(Object.keys(head.themes)).toHaveLength(2);
+    expect(head.presetNames).toEqual(PRESET_THEMES.map((theme) => theme.name));
+  });
+
+  it('names the download button for every platform, as the live button does', () => {
+    expect(body).toEqual({
+      downloadLabels: {
+        macos: 'Download for macOS',
+        windows: 'Download for Windows',
+        linux: 'Download for Linux',
+        none: 'Download the desktop app',
+      },
+      entry: '/assets/index-abc.js',
+    });
   });
 });
 

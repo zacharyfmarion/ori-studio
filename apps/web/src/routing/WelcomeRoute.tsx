@@ -1,23 +1,15 @@
-import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useLandingSectionViewedEvents, useLandingViewedEvent } from '../analytics';
-import { FileDropOverlay } from '../components/FileDropOverlay';
-import {
-  FIRST_LANDING_SECTION_ID,
-  LANDING_SECTIONS,
-  trackCta,
-  WelcomeLanding,
-} from '../components/landing/WelcomeLanding';
-import { WelcomeScrollCue } from '../components/landing/WelcomeScrollCue';
-import { StartScreen } from '../components/StartScreen';
+import { LANDING_SECTIONS, trackCta } from '../components/landing/WelcomeLanding';
+import { WELCOME_DROP_POLICY, WelcomePage } from '../components/landing/WelcomePage';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
-import type { DropTargetPolicy } from '../lib/fileDrop';
 import { OPEN_PROJECT_DIALOG } from '../lib/fileFormats';
 import { humanizeError } from '../lib/toastMessages';
 import { getFileService } from '../platform/fileService';
 import { useIsPhoneSurface } from '../platform/mobileSurface';
-import { SiteFooter } from '../site/SiteFooter';
+import { takeOverStaticCopy } from '../seo/staticCopy';
 import { useSettingsStore } from '../store/settingsStore';
 import {
   loadedWorkspace,
@@ -25,13 +17,6 @@ import {
   startActions,
   type StartOutcome,
 } from './workspaceGateway';
-
-/**
- * The start screen only ever opens. The Edit canvas is always-live, so a crease
- * pattern can still be loaded while sitting here — but "merge into the document
- * you are not looking at" is not a choice worth offering.
- */
-const WELCOME_DROP_POLICY: DropTargetPolicy = 'open-only';
 
 /**
  * The `/welcome` route: a landing page led by the start screen.
@@ -53,8 +38,6 @@ export function WelcomeRoute() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const pageRef = useRef<HTMLElement | null>(null);
-  // Only for `data-surface`, which the landing sections below read. The page
-  // itself no longer branches on it.
   const phone = useIsPhoneSurface();
   const showWelcomeOnStartup = useSettingsStore((state) => state.showWelcomeOnStartup);
   const setShowWelcomeOnStartup = useSettingsStore((state) => state.setShowWelcomeOnStartup);
@@ -63,6 +46,10 @@ export function WelcomeRoute() {
 
   useLandingViewedEvent(phone ? 'phone' : 'desktop');
   useLandingSectionViewedEvents(pageRef, LANDING_SECTIONS);
+
+  // A first visit painted the prerendered copy of this page; swap it for this one in the
+  // same frame, before the browser paints again. See `seo/staticCopy.ts`.
+  useLayoutEffect(() => takeOverStaticCopy(pageRef.current), []);
 
   // Arriving here clears transient project state — once the workspace exists. On a
   // first visit there is nothing to clear, and asking would load it.
@@ -114,42 +101,19 @@ export function WelcomeRoute() {
   );
 
   return (
-    <div
-      className="app-layout app-layout--start file-drop-region"
-      data-surface={phone ? 'phone' : undefined}
-      {...dropTargetProps}
-      onDragEnter={warmThenDragEnter}
-    >
-      <main className="welcome-page" ref={pageRef}>
-        <StartScreen
-          preparing={preparing}
-          errorMessage={errorMessage}
-          onIntent={prefetchWorkspace}
-          onCreateCreasePattern={() => void run(startActions.createCreasePattern)}
-          onCreateDesign={() => void run(startActions.createDesign)}
-          onOpenFile={handleOpenFile}
-          showWelcomeOnStartup={showWelcomeOnStartup}
-          onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
-        />
-        <WelcomeLanding />
-        {/*
-          The landing's links to the rest of the site. Here rather than inside
-          `WelcomeLanding`, which stays a pure block of copy with no router
-          dependency; the prerender's `StaticLanding` places it the same way.
-        */}
-        <SiteFooter />
-      </main>
-      {/*
-        The cue exists to say "there is more below the first screenful". With no
-        hero there is no first screenful to get past — the landing is already
-        the top of the page — so on a phone it would point at what is on screen.
-      */}
-      <WelcomeScrollCue
-        scrollerRef={pageRef}
-        targetId={FIRST_LANDING_SECTION_ID}
-        onActivate={() => trackCta('scroll')}
-      />
-      <FileDropOverlay visible={isDragActive} policy={WELCOME_DROP_POLICY} />
-    </div>
+    <WelcomePage
+      pageRef={pageRef}
+      dropTargetProps={{ ...dropTargetProps, onDragEnter: warmThenDragEnter }}
+      isDragActive={isDragActive}
+      onScrollCue={() => trackCta('scroll')}
+      preparing={preparing}
+      errorMessage={errorMessage}
+      onIntent={prefetchWorkspace}
+      onCreateCreasePattern={() => void run(startActions.createCreasePattern)}
+      onCreateDesign={() => void run(startActions.createDesign)}
+      onOpenFile={handleOpenFile}
+      showWelcomeOnStartup={showWelcomeOnStartup}
+      onToggleShowWelcomeOnStartup={setShowWelcomeOnStartup}
+    />
   );
 }

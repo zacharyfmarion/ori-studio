@@ -1,4 +1,5 @@
 import { mixHexColors } from '../lib/rgbColor';
+import { applyThemeVariables } from './applyThemeVariables';
 import { paperBackFor } from './paperBack';
 import { FOLD_UNASSIGNED, referencesCreaseAlpha, referencesDimAlpha } from './referencesInk';
 import type { ThemeTokens, TreeMakerTheme } from './types';
@@ -166,11 +167,5 @@ export function themeCssVariables(theme: TreeMakerTheme): Array<[string, string]
 
 export function applyTheme(theme: TreeMakerTheme): void {
   if (typeof document === 'undefined') return;
-
-  const root = document.documentElement;
-  for (const [name, value] of themeCssVariables(theme)) {
-    root.style.setProperty(name, value);
-  }
-  root.setAttribute('data-theme-type', theme.type);
-  root.setAttribute('data-theme-name', theme.name);
+  applyThemeVariables(document.documentElement, theme, themeCssVariables(theme));
 }

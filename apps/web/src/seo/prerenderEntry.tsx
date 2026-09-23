@@ -5,12 +5,23 @@ import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { StaticRouter } from 'react-router-dom';
+import { desktopDownloadCtaLabel } from '../components/download/desktopBuildLabels';
 import { DEFAULT_LOCALE, I18N_NAMESPACES } from '../i18n/locales';
+import { ServerPhoneSurface } from '../platform/serverPhoneSurface';
 import { SITE_PAGE_CONTENT } from '../site/sitePageContent';
 import { sitePageDescription, sitePageTitle } from '../site/sitePageLabels';
 import { LANDING_PAGE, PAGE_LOCALES, pagePath, SITE_PAGES, type SitePage } from '../site/sitePages';
-import { buildPageHtml, outputFilesForPage, type PageMeta } from './prerenderHtml';
+import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME, PRESET_THEMES, themeCssVariables } from '../themes';
+import { escapeForScriptTag } from './jsonLd';
+import {
+  buildPageHtml,
+  entryScriptPath,
+  outputFilesForPage,
+  type PageMeta,
+  type StaticPaint,
+} from './prerenderHtml';
 import { SEO_CONTENT_ID } from './siteMeta';
+import type { StaticPaintBodyConfig, StaticPaintHeadConfig } from './staticPaint';
 
 /** `apps/web/public/locales`, resolved from this file so it holds under Vite SSR and Vitest. */
 const LOCALES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'locales');
@@ -69,16 +80,91 @@ function createPrerenderI18n(locale: string): I18n {
  * `Link`s that mark the current page and link within the current locale — the same markup
  * the live route renders, which is the point.
  */
-export function renderPageMarkup(page: SitePage, locale: string = DEFAULT_LOCALE): string {
+export function renderPageMarkup(
+  page: SitePage,
+  locale: string = DEFAULT_LOCALE,
+  { phone = false }: { phone?: boolean } = {}
+): string {
   const i18n = createPrerenderI18n(locale);
   const Content = SITE_PAGE_CONTENT[page.id];
   return renderToStaticMarkup(
     <I18nextProvider i18n={i18n}>
       <StaticRouter location={pagePath(page, locale)}>
-        <Content />
+        <ServerPhoneSurface.Provider value={phone}>
+          <Content />
+        </ServerPhoneSurface.Provider>
       </StaticRouter>
     </I18nextProvider>
   );
+}
+
+/**
+ * Whether a page's copy can be its own first paint (`staticPaint.ts`). The English landing
+ * only, for now: it is the page PageSpeed measures, and `scripts/static-paint-check.mjs`
+ * holds it to zero differing pixels. Every other copy is removed before it paints.
+ */
+export function paintsStatically(page: SitePage, locale: string): boolean {
+  return page.id === LANDING_PAGE.id && locale === DEFAULT_LOCALE;
+}
+
+/** The paths a page's files are served at, as the router sees them: no trailing slash. */
+function servedPaths(page: SitePage, locale: string): string[] {
+  return outputFilesForPage(page, locale).map(
+    (file) => `/${file.replace(/(^|\/)index\.html$/, '')}`.replace(/\/$/, '') || '/'
+  );
+}
+
+/** Everything the two static-paint scripts need to know about a page that only the build knows. */
+export function staticPaintConfig(
+  page: SitePage,
+  locale: string = DEFAULT_LOCALE,
+  entry = '/assets/index.js'
+): { head: StaticPaintHeadConfig; body: StaticPaintBodyConfig } {
+  const { t } = createPrerenderI18n(locale);
+  const themes = [DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME];
+  return {
+    head: {
+      paths: servedPaths(page, locale),
+      locale,
+      themes: Object.fromEntries(
+        themes.map((theme) => [theme.name, { type: theme.type, variables: themeCssVariables(theme) }])
+      ),
+      presetNames: PRESET_THEMES.map((theme) => theme.name),
+      defaultThemes: { dark: DEFAULT_DARK_THEME.name, light: DEFAULT_LIGHT_THEME.name },
+    },
+    body: {
+      downloadLabels: {
+        macos: desktopDownloadCtaLabel(t, 'macos'),
+        windows: desktopDownloadCtaLabel(t, 'windows'),
+        linux: desktopDownloadCtaLabel(t, 'linux'),
+        none: desktopDownloadCtaLabel(t, null),
+      },
+      entry,
+    },
+  };
+}
+
+/**
+ * `staticPaintHead.ts` and `staticPaintBody.ts`, each bundled as an IIFE that defines
+ * `__oriStaticPaint` (see `scripts/prerender-landing.mjs`).
+ */
+export interface StaticPaintScripts {
+  head: string;
+  body: string;
+}
+
+/** A bundle called with its config, wrapped so `__oriStaticPaint` stays local to its script. */
+function callBundle(bundle: string, fn: string, config: unknown): string {
+  return `(function(){${bundle}\n__oriStaticPaint.${fn}(${escapeForScriptTag(JSON.stringify(config))})})()`;
+}
+
+function staticPaintFor(page: SitePage, locale: string, scripts: StaticPaintScripts, entry: string): StaticPaint {
+  const config = staticPaintConfig(page, locale, entry);
+  return {
+    phoneMarkup: renderPageMarkup(page, locale, { phone: true }),
+    headScript: callBundle(scripts.head, 'decideStaticPaint', config.head),
+    bodyScript: callBundle(scripts.body, 'finishStaticPaint', config.body),
+  };
 }
 
 /** The title and description a page carries in a locale — what its `<head>` says. */
@@ -108,10 +194,25 @@ export interface PrerenderedFile {
  * pages exist, which languages, what each one's head says, where each one lands — all of it
  * is answered here from the registry, and all of it is testable without a Vite server.
  */
-export function prerenderSite(template: string): PrerenderedFile[] {
+export function prerenderSite(template: string, paintScripts?: StaticPaintScripts): PrerenderedFile[] {
+  // A painted page's body script is what starts the app, so a template it cannot find the
+  // entry in must stop the build rather than ship a page that never boots.
+  const entry = paintScripts ? entryScriptPath(template) : null;
+  if (paintScripts && !entry) throw new Error('index.html has no module entry script for the body script to start');
   return PAGE_LOCALES.flatMap((locale) =>
     SITE_PAGES.flatMap((page) => {
-      const html = buildPageHtml(template, page, locale, renderPageMarkup(page, locale), pageMeta(page, locale));
+      const paint =
+        paintScripts && entry && paintsStatically(page, locale)
+          ? staticPaintFor(page, locale, paintScripts, entry)
+          : undefined;
+      const html = buildPageHtml(
+        template,
+        page,
+        locale,
+        renderPageMarkup(page, locale),
+        pageMeta(page, locale),
+        paint
+      );
       return outputFilesForPage(page, locale).map((file) => ({ file, html, page, locale }));
     })
   );
