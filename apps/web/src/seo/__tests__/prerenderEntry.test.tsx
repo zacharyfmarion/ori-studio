@@ -433,11 +433,12 @@ describe('the painted landing', () => {
   });
 
   it('can start in the desktop app, whose CSP allows an inline script only by its hash', () => {
-    // The body script is what starts the app, and `tauri.conf.json`'s CSP has no
-    // 'unsafe-inline'. Tauri hashes every inline script of the bundled HTML into it at
-    // compile time — unless asset CSP modification is disabled for script-src, which would
-    // leave the desktop app showing a copy that never starts. Measured under that CSP in
-    // WebKit: with the hashes it boots; without them, it does not.
+    // A desktop bundle carries the prerender when it is built with a plain `tauri build`
+    // (`release.yml`'s skips it). Then the body script is what starts the app, and
+    // `tauri.conf.json`'s CSP has no 'unsafe-inline'. Tauri hashes every inline script of the
+    // bundled HTML into it at compile time — unless asset CSP modification is disabled for
+    // script-src, which would leave the desktop app showing a copy that never starts.
+    // Measured under that CSP in WebKit: with the hashes it boots; without them, it does not.
     const conf = JSON.parse(
       readFileSync(join(dirname(new URL(import.meta.url).pathname), '../../../../tauri/src-tauri/tauri.conf.json'), 'utf8')
     ) as { app: { security: { csp: string; dangerousDisableAssetCspModification?: boolean | string[] } } };

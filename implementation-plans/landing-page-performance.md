@@ -617,11 +617,13 @@ lab number. Not done; it is Zach's call.
       passes 45/45; `static-paint-check.mjs` 54/54; `webkit-pwa-check.mjs` 25/26,
       the one failure being api.github.com's rate limit on this machine (403), not
       the worker
-- [ ] `npm run check:desktop`; launch the Tauri app. Not run: no Rust or shell
-      change. The desktop risk is the CSP, since the painted page starts the app
-      from an inline script. That was checked in WebKit under `tauri.conf.json`'s
-      CSP with the hashes Tauri's codegen adds: it boots, and without the hashes it
-      does not. A test pins the setting that keeps Tauri hashing. Launch it once
-      before release
+- [ ] `npm run check:desktop`; launch the Tauri app. `check:desktop` not run: no
+      Rust or shell change. Release desktop builds carry no painted page:
+      `release.yml` builds the web bundle with `--ignore-scripts`, so the prerender
+      never runs. A plain `tauri build` does prerender, and then an inline script
+      starts the app under a CSP with no `'unsafe-inline'`. That case was checked in
+      WebKit with the hashes Tauri's codegen adds: it boots, and without them it
+      does not. A test pins the setting that keeps Tauri hashing. A production build
+      (the release recipe, locally) was made for a manual launch
 - [ ] Lighthouse desktop and mobile medians against the deploy; local medians are
       under Results

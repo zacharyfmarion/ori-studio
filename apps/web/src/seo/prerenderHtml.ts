@@ -66,9 +66,11 @@ export function stripExistingContent(html: string): string {
  * The `:has()` rule is the fallback for when no script runs (a future CSP blocking inline
  * scripts, say): whatever React renders into `#root` hides the copy. A painted page's scripts
  * have no such fallback — the body one is what starts the app — so any CSP must allow them by
- * hash. The desktop shell's does: `tauri.conf.json` has no `'unsafe-inline'`, and Tauri
- * hashes every inline script of the bundled HTML into the CSP at compile time, unless
- * `dangerousDisableAssetCspModification` covers `script-src` (a test pins that).
+ * hash. The desktop shell's does, whenever its bundle carries the prerender (a plain `tauri
+ * build` does; `release.yml` builds the web bundle with `--ignore-scripts`, which skips it):
+ * `tauri.conf.json` has no `'unsafe-inline'`, and Tauri hashes every inline script of the
+ * bundled HTML into the CSP at compile time, unless `dangerousDisableAssetCspModification`
+ * covers `script-src` (a test pins that).
  */
 export function injectContent(html: string, markup: string, paint?: StaticPaint): string {
   if (!html.includes(ROOT_ANCHOR)) throw new Error(`index.html has no ${ROOT_ANCHOR}`);
