@@ -64,6 +64,8 @@ export const DIAGRAM_LINE_INK: DiagramPens = {
   // read by the card's CSS and by `diagramColors.ts` for the canvas, because
   // how far a grey sits back from the ground depends on the ground.
   crease: { ...LINE, width: 0.75 },
+  // The pattern's own aux lines: the same pen as a made crease.
+  aux: { ...LINE, width: 0.75 },
   edge: { ...LINE },
   highlight: { ...LINE, width: 2 },
   valley: { ...LINE, width: 1.6, dash: [12.8, 6.4], cap: 'butt' },
@@ -161,10 +163,8 @@ export interface DiagramPaperPens {
  */
 export function cardDiagramPens(style: DiagramPaperPens): DiagramPens {
   const ratio = style.auxCreases.pen.width / Math.max(style.edges.width, Number.EPSILON);
-  return {
-    ...DIAGRAM_LINE_INK,
-    crease: penInk(style.auxCreases.pen, DIAGRAM_LINE_INK.edge.width * ratio),
-  };
+  const aux = penInk(style.auxCreases.pen, DIAGRAM_LINE_INK.edge.width * ratio);
+  return { ...DIAGRAM_LINE_INK, crease: aux, aux };
 }
 
 /**
@@ -187,7 +187,7 @@ export function canvasDiagramPens(
   return {
     ...DIAGRAM_LINE_INK,
     arrow: { ...DIAGRAM_LINE_INK.arrow, width: arrowCss / ink },
-    ...(aux ? { crease: penInk(aux.pen, aux.css / ink) } : {}),
+    ...(aux ? { crease: penInk(aux.pen, aux.css / ink), aux: penInk(aux.pen, aux.css / ink) } : {}),
   };
 }
 
@@ -260,9 +260,12 @@ export const DIAGRAM_DASH_SLOTS: readonly DiagramLineStyleName[] = [
   'crease',
 ];
 
-/** The slot a style takes; 0 is solid. */
+/**
+ * The slot a style takes; 0 is solid. The pattern's aux lines share the made
+ * crease's, since they are drawn in the same pen.
+ */
 export function diagramDashSlot(style: DiagramLineStyleName): number {
-  return DIAGRAM_DASH_SLOTS.indexOf(style) + 1;
+  return DIAGRAM_DASH_SLOTS.indexOf(style === 'aux' ? 'crease' : style) + 1;
 }
 
 /** The slot table for `pens`, with every run scaled by the pen. */

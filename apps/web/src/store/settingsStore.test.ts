@@ -120,6 +120,18 @@ describe('settingsStore', () => {
     expect((await freshSettingsStore()).getState().referencesAutoPlayFolds).toBe(false);
   });
 
+  it('leaves References aux creases to the paper style until set, and a reset forgets the choice', async () => {
+    const key = storageKey(STORAGE_KEYS.referencesShowAuxCreases);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBeNull();
+    useSettingsStore.getState().setReferencesShowAuxCreases(false);
+    expect(localStorage.getItem(key)).toBe('false');
+    expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBe(false);
+    useSettingsStore.getState().setReferencesShowAuxCreases(null);
+    expect(localStorage.getItem(key)).toBeNull();
+    expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBeNull();
+  });
+
   it('defaults the crease-pattern canvas to scroll-zooms and persists a change', () => {
     expect(useSettingsStore.getState().cpWheelGesture).toBe('zoom');
 

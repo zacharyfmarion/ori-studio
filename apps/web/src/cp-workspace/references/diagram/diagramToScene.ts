@@ -41,7 +41,7 @@ export interface DiagramSceneOptions {
   pens?: DiagramPens;
   /** The paper the primitives were measured against, for erode's edge. */
   sheet?: DiagramSheet;
-  /** Whether existing creases are drawn, and how far they stop short of the edge. */
+  /** Whether the pattern's aux lines are drawn, and how far aux-pen lines stop short of the edge. */
   creases?: DiagramCreaseOptions;
 }
 
@@ -55,10 +55,10 @@ type DiagramLine = Extract<StepDiagramPrimitive, { kind: 'line' }>;
  * the dash runs, which the program wants in screen pixels, and it is the base
  * width each style's own multiplier rides on.
  *
- * An existing crease (`crease` ink) is the paper style's: left out when the
- * style hides them, and pulled back from the sheet's edge by its erode — the
- * same rule the card applies (`erodeCreaseOnSheet`), so the two pictures of
- * a step agree.
+ * A line in the aux pen — a crease an earlier step made, or one of the
+ * pattern's aux lines — is pulled back from the sheet's edge by the style's
+ * erode, and an aux line is left out when they are not shown: the same rules
+ * the card applies (`erodeCreaseOnSheet`), so the two pictures of a step agree.
  */
 export function diagramToScene(
   primitives: readonly StepDiagramPrimitive[],
@@ -72,8 +72,8 @@ export function diagramToScene(
   const lines: DiagramLine[] = [];
   for (const primitive of primitives) {
     if (primitive.kind === 'line') {
-      if (primitive.style !== 'crease') lines.push(primitive);
-      else if (creases.visible) {
+      if (primitive.style !== 'crease' && primitive.style !== 'aux') lines.push(primitive);
+      else if (primitive.style === 'crease' || creases.showAux) {
         const ends = options.sheet
           ? erodeCreaseOnSheet(primitive.from, primitive.to, options.sheet, creases.erode)
           : ([primitive.from, primitive.to] as [SheetPoint, SheetPoint]);

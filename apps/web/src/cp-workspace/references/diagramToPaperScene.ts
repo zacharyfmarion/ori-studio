@@ -4,9 +4,11 @@
  * card and the big view draw.
  *
  * The paper is one face and the step's lines are lines with roles, so the
- * painter draws them with the style's pens, erodes an existing crease at the
- * sheet's edge and hides them all when the style says so — exactly as it does
- * for a folded figure. Everything the painter has no word for — the fold
+ * painter draws them with the style's pens and erodes an aux-pen line at the
+ * sheet's edge, exactly as it does for a folded figure. Which of those lines
+ * are on the page is decided here rather than by the painter's aux switch: the
+ * creases an earlier step made always are, and the pattern's own aux lines
+ * are when the References option says so (`referencesAuxCreases`). Everything the painter has no word for — the fold
  * arrow, the turn-over glyph, a band's wash, the rings and the letters — is
  * drawn by `diagramPrimitiveShape`, the one implementation that draws them on
  * screen, into a markup item with its colours written in (D12, D13: the
@@ -50,6 +52,7 @@ import {
   type DiagramProjector,
   type SheetPoint,
 } from './stepDiagramGeometry';
+import { referencesShowsAux } from './referencesAuxCreases';
 import { referencesPaperTokens } from './usePaperStyleTokens';
 
 export interface DiagramToPaperSceneOptions {
@@ -73,6 +76,11 @@ export interface DiagramToPaperSceneOptions {
    * it is for.
    */
   mirrored?: boolean;
+  /**
+   * The References "Show auxiliary creases" option: whether the pattern's aux
+   * lines are on the page. Absent or null follows the style's own switch.
+   */
+  showAux?: boolean | null;
   /**
    * The ground a letter's halo is painted in — the page's background, or
    * white when the page has none, since a letter is pushed off the sheet on
@@ -98,6 +106,7 @@ const LINE_ROLES: Partial<Record<DiagramLineStyleName, PaperLineRole>> = {
   valley: 'valley',
   'pinch-valley': 'valley',
   crease: 'aux',
+  aux: 'aux',
   dotted: 'aux',
   unfolded: 'aux',
 };
@@ -115,6 +124,7 @@ export function diagramToPaperScene(
   options: DiagramToPaperSceneOptions
 ): PaperScene {
   const seen = applyPaperStylePolicy(options.style, PAPER_STYLE_POLICIES.references);
+  const showAux = referencesShowsAux(options.style, options.showAux ?? null);
   const project = withPens(options.project, {
     ...options.project.pens,
     // The arrow is the style's pen: its width in pt as CSS px, in the
@@ -143,7 +153,7 @@ export function diagramToPaperScene(
     // which is the one thing an as-shown export must not do; the page grows
     // to hold them instead.
     {},
-    { visible: seen.auxCreases.visible, erode: seen.erode },
+    { showAux, erode: seen.erode },
     diagramInlineInk(inlineTokens(seen, options.ground ?? DEFAULT_GROUND), seen.arrows.color)
   );
 
@@ -171,6 +181,7 @@ export function diagramToPaperScene(
         // put it.
         return;
       case 'line': {
+        if (primitive.style === 'aux' && !showAux) return;
         const role = LINE_ROLES[primitive.style];
         if (role === undefined) symbols.push(index);
         else lines.push(lineItem(role, primitive.from, primitive.to));

@@ -25,15 +25,28 @@ describe('diagramToScene', () => {
     expect(scene.symbols.map((symbol) => symbol.kind)).toEqual(['point']);
   });
 
-  // The existing crease is the paper style's to show or hide (Phase 5); the
-  // valley is the step's own and stays.
-  it('leaves the existing creases out when the style hides them', () => {
+  // A crease an earlier step made is the paper as it stands, and is drawn
+  // whether the pattern's aux lines are shown or not.
+  it('always draws the creases an earlier step made', () => {
     const scene = diagramToScene(primitives, COLORS, 1, {
-      creases: { visible: false, erode: 0 },
+      creases: { showAux: false, erode: 0 },
     });
-    expect(scene.strokes?.count).toBe(1);
-    expect(scene.strokes?.dashSlot?.[0]).toBe(diagramDashSlot('valley'));
+    expect(scene.strokes?.count).toBe(2);
     expect(scene.symbols).toHaveLength(1);
+  });
+
+  // The pattern's own aux lines are the reader's to show or hide; shown, they
+  // are drawn in the made crease's pen and dash.
+  it('leaves the pattern’s aux lines out unless they are shown', () => {
+    const withAux: StepDiagramPrimitive[] = [
+      ...primitives,
+      { kind: 'line', from: [0.5, 0], to: [0.5, 1], style: 'aux' },
+    ];
+    const hidden = diagramToScene(withAux, COLORS, 1, { creases: { showAux: false, erode: 0 } });
+    expect(hidden.strokes?.count).toBe(2);
+    const shown = diagramToScene(withAux, COLORS, 1, { creases: { showAux: true, erode: 0 } });
+    expect(shown.strokes?.count).toBe(3);
+    expect(shown.strokes?.dashSlot?.[2]).toBe(diagramDashSlot('crease'));
   });
 
   // ...and pulls them back from the sheet's edge by its erode, the rule the
@@ -41,7 +54,7 @@ describe('diagramToScene', () => {
   it('erodes an existing crease at the sheet’s edge, given the sheet', () => {
     const scene = diagramToScene(primitives, COLORS, 1, {
       sheet: SHEET,
-      creases: { visible: true, erode: 0.1 },
+      creases: { showAux: true, erode: 0.1 },
     });
     // Float32 on the way to the GPU.
     const near = (values: ArrayLike<number>) => Array.from(values).map((v) => Number(v.toFixed(6)));
@@ -52,7 +65,7 @@ describe('diagramToScene', () => {
     // A crease the pull would invert is dropped rather than drawn backwards.
     const gone = diagramToScene(primitives, COLORS, 1, {
       sheet: SHEET,
-      creases: { visible: true, erode: 0.5 },
+      creases: { showAux: true, erode: 0.5 },
     });
     expect(gone.strokes?.count).toBe(1);
   });
@@ -73,7 +86,7 @@ describe('diagramToScene', () => {
       [{ kind: 'line', from: [50, 50 - half], to: [50, 50 + half], style: 'crease' }],
       COLORS,
       1,
-      { sheet: turned, creases: { visible: true, erode: 0.1 } }
+      { sheet: turned, creases: { showAux: true, erode: 0.1 } }
     );
     const near = (values: ArrayLike<number>) => Array.from(values).map((v) => Number(v.toFixed(3)));
     expect(near(scene.strokes!.a.slice(0, 2))).toEqual([50, Number((50 - half + 10).toFixed(3))]);
@@ -83,7 +96,7 @@ describe('diagramToScene', () => {
       [{ kind: 'line', from: [50, 50 - half], to: [50, 50 + half], style: 'crease' }],
       COLORS,
       1,
-      { sheet: { width: 100, height: 100, centre: [50, 50] }, creases: { visible: true, erode: 0.1 } }
+      { sheet: { width: 100, height: 100, centre: [50, 50] }, creases: { showAux: true, erode: 0.1 } }
     );
     expect(near(upright.strokes!.a.slice(0, 2))).toEqual([50, Number((50 - half).toFixed(3))]);
   });

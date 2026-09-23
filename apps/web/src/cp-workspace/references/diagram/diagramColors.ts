@@ -20,6 +20,7 @@ import type { DiagramInkColors } from './diagramToScene';
 
 const TOKENS: Record<DiagramLineStyleName, string> = {
   crease: '--fold-unassigned',
+  aux: '--fold-unassigned',
   edge: '--fold-border',
   highlight: '--cp-reference-input',
   valley: '--fold-valley',
@@ -65,12 +66,15 @@ export function diagramInkColors(
   // An earlier crease is context, and how far back it sits depends on the
   // paper under it: the workspace says, in the same variable the card's CSS
   // reads — as a value when the style sets it, like the inks.
-  const crease = resolved.crease;
+  // The pattern's own aux lines are drawn in the same pen, so the same.
   const own = set[CREASE_ALPHA_VAR] === undefined ? NaN : Number(set[CREASE_ALPHA_VAR]);
   const alpha = Number.isFinite(own)
     ? own
     : readCssVarNumber(element, CREASE_ALPHA_VAR, CREASE_ALPHA_FALLBACK);
-  resolved.crease = [crease[0], crease[1], crease[2], crease[3] * alpha];
+  for (const style of ['crease', 'aux'] as const) {
+    const ink = resolved[style];
+    resolved[style] = [ink[0], ink[1], ink[2], ink[3] * alpha];
+  }
   return resolved;
 }
 
@@ -143,10 +147,12 @@ export function diagramInlineInk(tokens: DiagramInlineTokens, arrow: string): Di
     lines[style as DiagramLineStyleName] = { color: tokens[token as DiagramInlineToken] };
   }
   const alpha = Number(tokens['--references-crease-alpha']);
-  lines.crease = {
-    color: lines.crease.color,
-    opacity: Number.isFinite(alpha) ? alpha : CREASE_ALPHA_FALLBACK,
-  };
+  for (const style of ['crease', 'aux'] as const) {
+    lines[style] = {
+      color: lines[style].color,
+      opacity: Number.isFinite(alpha) ? alpha : CREASE_ALPHA_FALLBACK,
+    };
+  }
   lines.arrow = { color: arrow };
   return {
     lines,

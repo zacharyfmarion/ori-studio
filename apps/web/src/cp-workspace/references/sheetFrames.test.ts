@@ -37,6 +37,8 @@ function component(overrides: Partial<PrecreaseComponent>): PrecreaseComponent {
     border_segment_indices: [],
     segment_indices: [],
     unit_segments: [],
+    aux_segment_indices: [],
+    aux_unit_segments: [],
     merged_lines: [],
     exactness: null,
     refused: null,

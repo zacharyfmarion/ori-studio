@@ -1069,6 +1069,8 @@
       "mergeSymmetricHelp": "Dos pliegues que son imagen especular uno del otro — la esquina izquierda al centro y la derecha al centro, por ejemplo — se muestran como un solo paso con una flecha para cada uno, como los pliega un diagrama. Desactivado, cada pliegue es un paso propio.",
       "precreaseGrid": "Preplegar la cuadrícula",
       "sequence": "Secuencia de prepliegues",
+      "showAuxCreases": "Mostrar los pliegues auxiliares",
+      "showAuxCreasesHelp": "Las líneas auxiliares del patrón de pliegues, dibujadas en el papel en cada paso con la pluma auxiliar y nunca plegadas. Sigue Configuración ▸ Papel hasta que lo cambies aquí.",
       "solutions": "Soluciones"
     },
     "sheets": {

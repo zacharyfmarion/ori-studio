@@ -1031,6 +1031,8 @@
       "mergeSymmetricHelp": "Zwei Faltungen, die sich spiegeln — etwa die linke Ecke zur Mitte und die rechte Ecke zur Mitte — werden als ein Schritt mit je einem Pfeil gezeigt, so wie ein Diagramm sie faltet. Aus: jede Faltung ist ein eigener Schritt.",
       "precreaseGrid": "Raster vorfalten",
       "sequence": "Vorfaltfolge",
+      "showAuxCreases": "Hilfsfalten anzeigen",
+      "showAuxCreasesHelp": "Die Hilfslinien des Faltmusters, bei jedem Schritt mit dem Hilfsstift auf das Papier gezeichnet und nie gefaltet. Folgt Einstellungen ▸ Papier, bis du es hier änderst.",
       "solutions": "Lösungen"
     },
     "sheets": {

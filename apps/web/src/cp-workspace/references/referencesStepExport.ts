@@ -66,6 +66,8 @@ export interface ReferencesStepExportOptions {
   sheetCssPx: number;
   /** The reader's crease width, which is the diagram's pen on the big view. */
   lineWidth: number;
+  /** The References "Show auxiliary creases" option; null follows the style. */
+  showAux?: boolean | null;
 }
 
 /**
@@ -81,7 +83,7 @@ export interface ReferencesStepExportOptions {
  */
 export function referencesStepExportPage(
   diagram: StepDiagramModel,
-  { style, page, mirrored, sheetCssPx, lineWidth }: ReferencesStepExportOptions
+  { style, page, mirrored, sheetCssPx, lineWidth, showAux = null }: ReferencesStepExportOptions
 ): PaperSvgResult {
   const longer = Math.max(diagram.sheet.width, diagram.sheet.height, Number.EPSILON);
   const scale = sheetCssPx / longer;
@@ -94,11 +96,19 @@ export function referencesStepExportPage(
     style,
     project,
     mirrored,
+    showAux,
     ...(page.background === null ? {} : { ground: page.background }),
   });
   // The painter takes the style as the view sees it: the policy applied, and
   // the fold pens' width on every crease, as the other surfaces hand theirs.
-  return paperSceneToSvg(scene, surfacePaperStyle(style, PAPER_STYLE_POLICIES.references), page);
+  // Its aux switch stays on: the scene already holds exactly the aux-pen lines
+  // the page carries, and the creases an earlier step made are among them.
+  const painted = surfacePaperStyle(style, PAPER_STYLE_POLICIES.references);
+  return paperSceneToSvg(
+    scene,
+    { ...painted, auxCreases: { ...painted.auxCreases, visible: true } },
+    page
+  );
 }
 
 /** Which diagram is being exported, for the file's name. */

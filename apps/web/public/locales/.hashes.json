@@ -3188,7 +3188,9 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6379,7 +6381,9 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9572,7 +9576,9 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12706,7 +12712,9 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15840,7 +15848,9 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -19031,7 +19041,9 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22222,7 +22234,9 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25356,6 +25370,8 @@
     "dialogs:settings.paper.presets.download": "efe0fdd7faae",
     "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f",
     "dialogs:settings.paper.preset.default": "21b111cbfe6e",
-    "dialogs:settings.paper.preset.diagram": "913c5e96ccce"
+    "dialogs:settings.paper.preset.diagram": "913c5e96ccce",
+    "panels:references.settings.showAuxCreases": "6f75dd97a357",
+    "panels:references.settings.showAuxCreasesHelp": "58f69d411bf0"
   }
 }

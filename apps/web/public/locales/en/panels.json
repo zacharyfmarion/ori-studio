@@ -1037,6 +1037,8 @@
       "mergeSymmetricHelp": "Two folds that mirror each other — the left corner to the centre and the right corner to the centre, say — are shown as one step with an arrow for each, the way a diagram folds them. Off, every fold is a step of its own.",
       "precreaseGrid": "Precrease grid",
       "sequence": "Precreasing sequence",
+      "showAuxCreases": "Show auxiliary creases",
+      "showAuxCreasesHelp": "The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary pen and never folded. Follows Settings ▸ Paper until you change it here.",
       "solutions": "Solutions"
     },
     "sheets": {

@@ -99,6 +99,8 @@ describe('useReferencesStepExport', () => {
       // 400 model units through a camera at 2 CSS px per unit.
       sheetCssPx: 800,
       lineWidth: 1,
+      // The References option, unset: the export style's own switch decides.
+      showAux: null,
     });
     expect(saveReferencesStep).toHaveBeenCalledWith({
       page: { svg: '<svg/>', widthPt: 10, heightPt: 10 },
@@ -123,9 +125,24 @@ describe('useReferencesStepExport', () => {
     ];
     expect(options.style.paper.front).toBe('#123456');
     expect(options.mirrored).toBe(true);
+    expect(options).toMatchObject({ showAux: null });
     expect(saveReferencesStep).toHaveBeenCalledWith(
       expect.objectContaining({ format: 'png', name: 'Crane reference 1 step 2' })
     );
+  });
+
+  it('hands the page the References aux option once the reader has set it', async () => {
+    useSettingsStore.getState().setReferencesShowAuxCreases(false);
+    const exportStep = mount();
+    await act(async () => {
+      await exportStep('svg');
+    });
+    const [, options] = referencesStepExportPage.mock.calls[0] as unknown as [
+      StepDiagramModel,
+      { showAux: boolean | null },
+    ];
+    expect(options.showAux).toBe(false);
+    useSettingsStore.getState().setReferencesShowAuxCreases(null);
   });
 
   it('carries the page and the density from the export settings', async () => {

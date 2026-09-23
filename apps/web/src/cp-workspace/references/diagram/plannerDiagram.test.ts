@@ -830,6 +830,37 @@ describe('the cards that are not folds', () => {
   });
 });
 
+describe('the pattern’s own aux lines', () => {
+  const sequence = plannerSequenceFixture();
+  const GUIDE = [
+    [
+      { x: 0, y: 0.25 },
+      { x: 1, y: 0.25 },
+    ],
+  ] as const;
+  const auxOf = (primitives: readonly StepDiagramPrimitive[]) =>
+    primitives.filter((p) => p.kind === 'line' && p.style === 'aux');
+
+  // On the paper from the start, so under everything the steps draw: the
+  // first thing after the sheet, on every kind of card.
+  it('are drawn on every card, straight after the sheet', () => {
+    const frame = unitFrame(sequence);
+    for (const diagram of [
+      plannerStepDiagram(sequence, frame, 0, { aux: GUIDE })!,
+      plannerStepDiagram(sequence, frame, 2, { aux: GUIDE })!,
+      plannerTurnOverDiagram(sequence, frame, 1, { aux: GUIDE }),
+      plannerFinishedDiagram(sequence, frame, { aux: GUIDE }),
+    ]) {
+      expect(auxOf(diagram.primitives)).toHaveLength(1);
+      expect(diagram.primitives[1]).toMatchObject({ kind: 'line', style: 'aux', from: [0, 0.25] });
+    }
+  });
+
+  it('are not drawn unless handed over', () => {
+    expect(auxOf(plannerStepDiagram(sequence, unitFrame(sequence), 2)!.primitives)).toHaveLength(0);
+  });
+});
+
 describe('a press step', () => {
   // A press carries the witness of the fold that made its line — here the
   // fixture's step 2, O2 folding the SW corner onto a mark — so it draws as

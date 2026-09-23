@@ -474,10 +474,12 @@ describe('a fold arrow on a card', () => {
   });
 });
 
-describe('the existing creases on a card', () => {
-  // The `crease` ink is the paper style's aux pen (Phase 5): its width as a
-  // ratio to the edge pen at the card's scale, its dash and cap; the style's
-  // toggle hides them and its erode pulls them back from the paper's edge.
+describe('the aux-pen lines on a card', () => {
+  // The `crease` ink — a crease an earlier step made — and the pattern's own
+  // `aux` lines are the paper style's aux pen (Phase 5): its width as a ratio
+  // to the edge pen at the card's scale, its dash and cap, pulled back from
+  // the paper's edge by erode. The made creases are always drawn; the aux
+  // lines as the References option says, the style's switch until it is set.
   // Every other line is the step's own and untouched.
   //
   // Rendered on the client, not to static markup: a card reads the style off
@@ -513,6 +515,7 @@ describe('the existing creases on a card', () => {
       edges: DEFAULT_PAPER_STYLE.edges,
       erode: 0,
     });
+    useSettingsStore.getState().setReferencesShowAuxCreases(null);
   });
 
   it('draws them at the aux pen: width as a ratio to the edge pen, dash in multiples, cap', () => {
@@ -536,11 +539,33 @@ describe('the existing creases on a card', () => {
     expect(Number(valley['stroke-width'])).toBeCloseTo(DIAGRAM_LINE_INK.valley.width * project.ink, 6);
   });
 
-  it('is left out when the style hides existing creases, and nothing else is', () => {
+  it('draws the creases an earlier step made whatever the aux switch says', () => {
     setDisplay({ 'auxCreases.visible': false });
     const markup = renderCard(<StepDiagram primitives={creased()} size={100} />);
-    expect(crease(markup)).toBeUndefined();
-    expect(lines(markup)).toHaveLength(1);
+    expect(crease(markup)).toBeDefined();
+    expect(lines(markup)).toHaveLength(2);
+  });
+
+  it('shows the pattern’s aux lines as the References option says, the style’s switch until set', () => {
+    const withAux = (): StepDiagramModel => ({
+      ...creased(),
+      primitives: [
+        ...creased().primitives,
+        { kind: 'line', from: [0.5, 0], to: [0.5, 1], style: 'aux' },
+      ],
+    });
+    const aux = () =>
+      lines(renderCard(<StepDiagram primitives={withAux()} size={100} />)).filter((line) =>
+        line.class?.includes('--aux')
+      );
+    expect(aux()).toHaveLength(1);
+    setDisplay({ 'auxCreases.visible': false });
+    expect(aux()).toHaveLength(0);
+    act(() => useSettingsStore.getState().setReferencesShowAuxCreases(true));
+    expect(aux()).toHaveLength(1);
+    setDisplay({ 'auxCreases.visible': true });
+    act(() => useSettingsStore.getState().setReferencesShowAuxCreases(false));
+    expect(aux()).toHaveLength(0);
   });
 
   it('stops short of the paper’s edge by erode, and the valley does not', () => {
@@ -593,7 +618,7 @@ describe('the same shapes, inked for a file', () => {
       { width: 1, height: 1 },
       project,
       {},
-      { visible: true, erode: 0 },
+      { showAux: true, erode: 0 },
       inline ? diagramInlineInk(tokens, '#405060') : null
     );
     return renderToStaticMarkup(

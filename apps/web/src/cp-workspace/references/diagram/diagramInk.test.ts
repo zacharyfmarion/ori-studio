@@ -40,6 +40,8 @@ describe('the diagram’s pen', () => {
     // not the pen's, so it is the one style with a weight and no opacity.
     expect(DIAGRAM_LINE_INK).toEqual({
       crease: { width: 0.75, cap: 'round' },
+      // The pattern's own aux lines: the made crease's pen.
+      aux: { width: 0.75, cap: 'round' },
       edge: { width: 1.2, cap: 'round' },
       highlight: { width: 2, cap: 'round' },
       valley: { width: 1.6, cap: 'butt', dash: [12.8, 6.4] },
@@ -145,9 +147,10 @@ describe('the existing crease as the paper style’s aux pen', () => {
     expect(restyled.crease.width).toBeCloseTo(0.6, 9);
     expect(restyled.crease.dash!.map((run) => run / restyled.crease.width)).toEqual([4, 2]);
     expect(restyled.crease.cap).toBe('round');
-    // Nothing else moves.
-    const { crease: _crease, ...rest } = restyled;
-    const { crease: _table, ...table } = DIAGRAM_LINE_INK;
+    // The pattern's aux lines take the same pen, and nothing else moves.
+    expect(restyled.aux).toEqual(restyled.crease);
+    const { crease: _crease, aux: _aux, ...rest } = restyled;
+    const { crease: _table, aux: _tableAux, ...table } = DIAGRAM_LINE_INK;
     expect(rest).toEqual(table);
   });
 

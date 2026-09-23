@@ -17,7 +17,15 @@ import type { Diagram, RawSolution } from './referenceFinder/solution';
 import type { DiagramArc, DiagramSheet } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
+  /** A crease an earlier step made: the paper as it stands. */
   | 'crease'
+  /**
+   * One of the pattern's own auxiliary lines — ours, never on the RF wire. The
+   * same pen and ink as `crease`; its own name because whether it is drawn is
+   * the References "Show auxiliary creases" option's, while the creases an
+   * earlier step made are always on the paper.
+   */
+  | 'aux'
   | 'edge'
   | 'highlight'
   | 'valley'

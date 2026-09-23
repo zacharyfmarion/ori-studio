@@ -4,7 +4,9 @@ import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/pap
 import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
 import { referencesCreaseAlpha, referencesDimAlpha } from '../../themes/referencesInk';
+import type { DiagramCreaseOptions } from './diagram/DiagramPrimitives';
 import { cardDiagramPens, type DiagramPens } from './diagram/diagramInk';
+import { referencesShowsAux } from './referencesAuxCreases';
 
 /**
  * The paper style's paper and inks, as the custom properties the References
@@ -42,16 +44,17 @@ export type ReferencesPaperToken = (typeof REFERENCES_PAPER_TOKENS)[number];
 export type ReferencesPaperTokens = Readonly<Record<ReferencesPaperToken, string>>;
 
 /**
- * What the style says about a step's existing creases, beyond their colour:
- * the aux pen they are drawn with, whether they are drawn at all, and how far
- * a crease is pulled back from the sheet's edge (D8) — for the big view's
- * lines (`useReferencesDiagramScene`) and the layer over it.
+ * What the style says about the lines drawn in its aux pen — the creases an
+ * earlier step made and the pattern's own aux lines — beyond their colour:
+ * the pen, whether the aux lines are drawn (`referencesAuxCreases`), and how
+ * far such a line is pulled back from the sheet's edge (D8). For the big
+ * view's lines (`useReferencesDiagramScene`) and the layer over it.
  */
 export interface ReferencesPaperInks {
   /** The aux pen through the References policy, and its width in CSS px. */
   aux: { pen: Pen; css: number };
-  /** Whether existing creases are drawn. */
-  auxVisible: boolean;
+  /** Whether the pattern's aux lines are drawn: the References option, or the style's switch. */
+  showAux: boolean;
   /** Erode, as a fraction of the sheet. */
   erode: number;
 }
@@ -59,7 +62,7 @@ export interface ReferencesPaperInks {
 /** The same, for a card: the pens at the card's scale, and the crease switches. */
 export interface ReferencesCardInks {
   pens: DiagramPens;
-  creases: { visible: boolean; erode: number };
+  creases: DiagramCreaseOptions;
 }
 
 export interface ReferencesPaperStyle {
@@ -74,7 +77,7 @@ export interface ReferencesPaperStyle {
   tokens: ReferencesPaperTokens;
   /** The style's arrow pen, in CSS px, for the diagram drawn over the canvas. */
   arrowWidth: number;
-  /** The existing creases' pen and switches, for the diagram drawn over the canvas. */
+  /** The aux pen and switches, for the diagram drawn over the canvas and the sheet's aux lines. */
   inks: ReferencesPaperInks;
   /**
    * Changes when any colour the workspace reads off the DOM changes — the
@@ -107,34 +110,44 @@ export function referencesPaperTokens(style: PaperStyle): ReferencesPaperTokens 
   };
 }
 
-/** The existing creases' pen and switches for `style`, through the References policy. */
-export function referencesPaperInks(style: PaperStyle): ReferencesPaperInks {
+/**
+ * The aux pen and switches for `style`, through the References policy, with
+ * the References "Show auxiliary creases" option (`null` follows the style).
+ */
+export function referencesPaperInks(
+  style: PaperStyle,
+  showAuxOption: boolean | null = null
+): ReferencesPaperInks {
   const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
   return {
     aux: { pen: seen.auxCreases.pen, css: seen.auxCreases.pen.width * PT_TO_CSS_PX },
-    auxVisible: seen.auxCreases.visible,
+    showAux: referencesShowsAux(style, showAuxOption),
     erode: seen.erode,
   };
 }
 
-/** A card's pens and crease switches for `style`, through the References policy. */
-export function referencesCardInks(style: PaperStyle): ReferencesCardInks {
+/** A card's pens and crease switches for `style`, as {@link referencesPaperInks}. */
+export function referencesCardInks(
+  style: PaperStyle,
+  showAuxOption: boolean | null = null
+): ReferencesCardInks {
   const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
   return {
     pens: cardDiagramPens(seen),
-    creases: { visible: seen.auxCreases.visible, erode: seen.erode },
+    creases: { showAux: referencesShowsAux(style, showAuxOption), erode: seen.erode },
   };
 }
 
 /**
- * {@link referencesCardInks} for the display style, live. A card reads it
- * itself rather than being handed it: the strip mounts one per step and the
- * style reaches all of them through the store, as the colours reach them
- * through the workspace root's tokens.
+ * {@link referencesCardInks} for the display style and the References option,
+ * live. A card reads it itself rather than being handed it: the strip mounts
+ * one per step and the style reaches all of them through the store, as the
+ * colours reach them through the workspace root's tokens.
  */
 export function useReferencesCardInks(): ReferencesCardInks {
   const display = useSettingsStore((state) => state.paperStyle.display);
-  return useMemo(() => referencesCardInks(display), [display]);
+  const showAux = useSettingsStore((state) => state.referencesShowAuxCreases);
+  return useMemo(() => referencesCardInks(display, showAux), [display, showAux]);
 }
 
 /** React's `CSSProperties` has no slot for custom properties; the cast is named once. */
@@ -153,6 +166,7 @@ export function usePaperStyleTokens(): ReferencesPaperStyle & {
   setRoot: (element: HTMLElement | null) => void;
 } {
   const display = useSettingsStore((state) => state.paperStyle.display);
+  const showAux = useSettingsStore((state) => state.referencesShowAuxCreases);
   const theme = useThemeStore((state) => state.currentTheme);
   // State, not a ref: a reader resolves colours against it during render, and
   // a ref's `current` is not for reading there.
@@ -165,8 +179,8 @@ export function usePaperStyleTokens(): ReferencesPaperStyle & {
       setRoot,
       tokens,
       arrowWidth: display.arrows.width * PT_TO_CSS_PX,
-      inks: referencesPaperInks(display),
+      inks: referencesPaperInks(display, showAux),
       inkKey: [theme.name, ...REFERENCES_PAPER_TOKENS.map((token) => tokens[token])].join('|'),
     };
-  }, [display, theme, root]);
+  }, [display, showAux, theme, root]);
 }

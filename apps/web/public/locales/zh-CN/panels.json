@@ -997,6 +997,8 @@
       "mergeSymmetricHelp": "两个互为镜像的折叠 — 例如左角折向中心和右角折向中心 — 会像折图那样显示为一个步骤，各带一个箭头。关闭后，每个折叠都是单独的步骤。",
       "precreaseGrid": "预折网格",
       "sequence": "预折顺序",
+      "showAuxCreases": "显示辅助折痕",
+      "showAuxCreasesHelp": "折痕图中的辅助线，在每一步中用辅助线笔绘制在纸上，从不折叠。在此处更改之前，跟随“设置 ▸ 纸张”。",
       "solutions": "解的数量"
     },
     "sheets": {

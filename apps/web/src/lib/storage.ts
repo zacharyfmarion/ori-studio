@@ -54,6 +54,11 @@ export const STORAGE_KEYS = {
   paperExport: 'paper-export',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
+  /**
+   * Whether the References workspace draws the pattern's auxiliary lines;
+   * absent while it follows the paper style's own switch.
+   */
+  referencesShowAuxCreases: 'references-show-aux-creases',
   /** Whether product analytics is enabled (opt-out preference; default true). */
   cpDetectSuggestions: 'cp-detect-suggestions',
   analyticsEnabled: 'analytics-enabled',
@@ -161,6 +166,21 @@ export function readBoolean(key: string, fallback: boolean): boolean {
 
 export function writeBoolean(key: string, value: boolean): void {
   writeString(key, value ? 'true' : 'false');
+}
+
+/**
+ * A boolean that may be unset, as {@link writeOptionalBoolean} stores it:
+ * `null` when the key is absent or holds anything but the two words.
+ */
+export function readOptionalBoolean(key: string): boolean | null {
+  const raw = readString(key);
+  return raw === 'true' ? true : raw === 'false' ? false : null;
+}
+
+/** Store a boolean, or remove the key for `null`. */
+export function writeOptionalBoolean(key: string, value: boolean | null): void {
+  if (value === null) removeKey(key);
+  else writeBoolean(key, value);
 }
 
 /**

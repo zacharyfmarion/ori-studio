@@ -6,6 +6,10 @@
 //! a refused loop are attached to that refused component; segments inside no
 //! loop are reported unassigned. Each rectangular component is then merged
 //! in its own unit frame and probed for exactness.
+//!
+//! An auxiliary segment is placed by the same rule but kept apart, in
+//! `aux_segment_indices`: it is on the paper for the picture, and no merge,
+//! probe or plan sees it.
 
 use std::collections::HashMap;
 
@@ -57,6 +61,14 @@ pub struct Component {
     pub segment_indices: Vec<u32>,
     /// Those segments in unit-frame coordinates, parallel to `segment_indices`.
     pub unit_segments: Vec<[f64; 4]>,
+    /// Auxiliary segments on the sheet, in the caller's numbering: guide lines
+    /// drawn on the paper that nothing folds. Only a sheet with a frame has
+    /// any, since they are only ever drawn in it.
+    #[serde(default)]
+    pub aux_segment_indices: Vec<u32>,
+    /// Those segments in unit-frame coordinates, parallel to `aux_segment_indices`.
+    #[serde(default)]
+    pub aux_unit_segments: Vec<[f64; 4]>,
     /// Distinct lines of the sheet's creases (unit frame).
     pub merged_lines: Vec<MergedLine>,
     /// The exactness probe; `None` for a refused sheet.
@@ -148,10 +160,37 @@ fn empty_component(id: u32) -> Component {
         border_segment_indices: Vec::new(),
         segment_indices: Vec::new(),
         unit_segments: Vec::new(),
+        aux_segment_indices: Vec::new(),
+        aux_unit_segments: Vec::new(),
         merged_lines: Vec::new(),
         exactness: None,
         refused: None,
     }
+}
+
+/// The sheet whose frame holds both ends of a segment, padded as the sheet's
+/// own outline is exact or not, and whether a second sheet holds it too.
+fn framed_sheet_of(components: &[Component], a: [f64; 2], b: [f64; 2]) -> (Option<usize>, bool) {
+    let mut first = None;
+    let mut more = false;
+    for (ci, component) in components.iter().enumerate() {
+        let Some(frame) = &component.frame else {
+            continue;
+        };
+        let pad = if component.outline_residual < TOL {
+            TOL
+        } else {
+            SNAP_RADIUS
+        };
+        if frame.contains_model(a, pad) && frame.contains_model(b, pad) {
+            if first.is_some() {
+                more = true;
+            } else {
+                first = Some(ci);
+            }
+        }
+    }
+    (first, more)
 }
 
 fn with_frame(component: &mut Component, frame: Frame) {
@@ -167,6 +206,11 @@ fn with_frame(component: &mut Component, frame: Frame) {
 /// one Oriedita colour code per segment (0 border, 1 mountain, 2 valley, 3
 /// auxiliary, negative unassigned); `paper_fallback` is `[x0, y0, x1, y1]`
 /// in model space, used only when there are no border creases.
+///
+/// An auxiliary segment is a guide line, not a crease: nothing folds it, so
+/// it joins no sheet, no merged line and no exactness probe, and is not
+/// reported as unassigned either. Every index the analysis holds is still the
+/// caller's, so the segments around an aux line keep their numbers.
 pub fn analyze(
     segments: &[f64],
     colors: &[i32],
@@ -179,7 +223,10 @@ pub fn analyze(
         .filter(|&i| kinds[i as usize] == LineKind::Border)
         .collect();
     let other_indices: Vec<u32> = (0..segs.len() as u32)
-        .filter(|&i| kinds[i as usize] != LineKind::Border)
+        .filter(|&i| !matches!(kinds[i as usize], LineKind::Border | LineKind::Auxiliary))
+        .collect();
+    let aux_indices: Vec<u32> = (0..segs.len() as u32)
+        .filter(|&i| kinds[i as usize] == LineKind::Auxiliary)
         .collect();
 
     let mut components: Vec<Component> = Vec::new();
@@ -241,24 +288,11 @@ pub fn analyze(
         let s = segs[gi as usize];
         let a = [s[0], s[1]];
         let b = [s[2], s[3]];
-        let mut hits: Vec<usize> = Vec::new();
-        for (ci, component) in components.iter().enumerate() {
-            let Some(frame) = &component.frame else {
-                continue;
-            };
-            let pad = if component.outline_residual < TOL {
-                TOL
-            } else {
-                SNAP_RADIUS
-            };
-            if frame.contains_model(a, pad) && frame.contains_model(b, pad) {
-                hits.push(ci);
-            }
-        }
-        if hits.len() > 1 {
+        let (hit, more) = framed_sheet_of(&components, a, b);
+        if more {
             overlapping += 1;
         }
-        if let Some(&ci) = hits.first() {
+        if let Some(ci) = hit {
             components[ci].segment_indices.push(gi);
             continue;
         }
@@ -270,6 +304,14 @@ pub fn analyze(
             continue;
         }
         unassigned.push(gi);
+    }
+    // An aux line off every sheet is simply not drawn: it is nobody's problem,
+    // so it is neither counted as overlapping nor reported unassigned.
+    for &gi in &aux_indices {
+        let s = segs[gi as usize];
+        if let (Some(ci), _) = framed_sheet_of(&components, [s[0], s[1]], [s[2], s[3]]) {
+            components[ci].aux_segment_indices.push(gi);
+        }
     }
     if overlapping > 0 {
         warnings.push(Warning::OverlappingSheets {
@@ -299,6 +341,16 @@ pub fn analyze(
         };
         component.unit_segments = component
             .segment_indices
+            .iter()
+            .map(|&gi| {
+                let s = segs[gi as usize];
+                let a = frame.model_to_unit([s[0], s[1]]);
+                let b = frame.model_to_unit([s[2], s[3]]);
+                [a[0], a[1], b[0], b[1]]
+            })
+            .collect();
+        component.aux_unit_segments = component
+            .aux_segment_indices
             .iter()
             .map(|&gi| {
                 let s = segs[gi as usize];

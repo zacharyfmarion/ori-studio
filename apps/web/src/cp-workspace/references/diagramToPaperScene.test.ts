@@ -225,6 +225,7 @@ describe('the lines', () => {
       ['valley', 'valley'],
       ['pinch-valley', 'valley'],
       ['crease', 'aux'],
+      ['aux', 'aux'],
       ['dotted', 'aux'],
       ['unfolded', 'aux'],
     ];
@@ -236,6 +237,29 @@ describe('the lines', () => {
     // In scene px, through the same projection as the sheet.
     near(creases(result)[0]!.a, [18, 82]);
     near(creases(result)[0]!.b, [82, 82]);
+  });
+
+  // The creases an earlier step made are the paper as it stands; the
+  // pattern's own aux lines are the References option's, the style's switch
+  // until it is set.
+  it('keep the made creases, and the pattern’s aux lines only when shown', () => {
+    const diagram = model(line('crease', [0, 0.5], [1, 0.5]), line('aux', [0.5, 0], [0.5, 1]));
+    const hidden: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+    };
+    const drawn = (style: PaperStyle, showAux?: boolean | null) =>
+      creases(
+        diagramToPaperScene(diagram, {
+          style,
+          project: createDiagramProjector(diagram.sheet, SIZE, false),
+          showAux,
+        })
+      ).length;
+    expect(drawn(DEFAULT_PAPER_STYLE)).toBe(2);
+    expect(drawn(hidden)).toBe(1);
+    expect(drawn(hidden, true)).toBe(2);
+    expect(drawn(DEFAULT_PAPER_STYLE, false)).toBe(1);
   });
 
   it('flag an aux line’s end on the sheet’s edge for erode, and nothing else’s', () => {

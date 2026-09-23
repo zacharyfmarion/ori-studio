@@ -51,12 +51,14 @@ import {
   readBoolean,
   readJson,
   readNumber,
+  readOptionalBoolean,
   readString,
   storageKey,
   STORAGE_KEYS,
   writeBoolean,
   writeJson,
   writeNumber,
+  writeOptionalBoolean,
   writeString,
 } from '../lib/storage';
 import type { WheelGesturePreference } from '../lib/wheelGesture';
@@ -70,6 +72,7 @@ const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
 const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
 const CP_SNAP_RADIUS_KEY = storageKey(STORAGE_KEYS.cpSnapRadius);
 const REFERENCES_AUTO_PLAY_FOLDS_KEY = storageKey(STORAGE_KEYS.referencesAutoPlayFolds);
+const REFERENCES_SHOW_AUX_CREASES_KEY = storageKey(STORAGE_KEYS.referencesShowAuxCreases);
 const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
 const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
@@ -241,6 +244,14 @@ interface SettingsState {
    */
   referencesAutoPlayFolds: boolean;
   /**
+   * Whether the References workspace draws the pattern's auxiliary lines, or
+   * `null` while it follows the paper style's own switch
+   * (`auxCreases.visible`). A view option in the way a folded figure's
+   * Properties are: set, it holds whatever the style says; reset, it follows
+   * the style again. See `cp-workspace/references/referencesAuxCreases.ts`.
+   */
+  referencesShowAuxCreases: boolean | null;
+  /**
    * The app-wide paper style every surface that draws paper reads: a display
    * style, an export style that is `null` while it follows display, and the
    * user's saved presets. Per-object overrides live on the document objects,
@@ -263,6 +274,8 @@ interface SettingsState {
   setCpWheelGesture: (value: WheelGesturePreference) => void;
   setCpSnapRadius: (value: number) => void;
   setReferencesAutoPlayFolds: (value: boolean) => void;
+  /** `null` hands the choice back to the paper style. */
+  setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
   setPaperStyleField: <F extends PaperStyleField>(
     slot: PaperStyleSlot,
@@ -310,6 +323,7 @@ export const useSettingsStore = create<SettingsState>()(
       cpWheelGesture: readCpWheelGesture(),
       cpSnapRadius: readCpSnapRadius(),
       referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, true),
+      referencesShowAuxCreases: readOptionalBoolean(REFERENCES_SHOW_AUX_CREASES_KEY),
       paperStyle: readPaperStyleSettings(),
       paperExport: readPaperExportSettings(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
@@ -364,6 +378,16 @@ export const useSettingsStore = create<SettingsState>()(
         // Hand-placed like the two above: no chokepoint sees a preference
         // change, and on/off is the whole question.
         track(ANALYTICS_EVENTS.referencesFoldAutoplayChanged, { enabled: value ? 'on' : 'off' });
+      },
+      setReferencesShowAuxCreases: (value) => {
+        if (get().referencesShowAuxCreases === value) return;
+        writeOptionalBoolean(REFERENCES_SHOW_AUX_CREASES_KEY, value);
+        set({ referencesShowAuxCreases: value });
+        // Hand-placed like the one above. `style` is a reset: whether readers
+        // who set it come back to the style's own answer.
+        track(ANALYTICS_EVENTS.referencesAuxCreasesChanged, {
+          shown: value === null ? 'style' : value ? 'on' : 'off',
+        });
       },
       setPaperStyleField: (slot, field, value) => {
         const current = get().paperStyle;

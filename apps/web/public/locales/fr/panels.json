@@ -1071,6 +1071,8 @@
       "mergeSymmetricHelp": "Deux plis qui se reflètent — le coin gauche vers le centre et le coin droit vers le centre, par exemple — sont montrés en une seule étape avec une flèche pour chacun, comme un diagramme les plie. Désactivé, chaque pli est une étape à part.",
       "precreaseGrid": "Préplier la grille",
       "sequence": "Séquence de prépliage",
+      "showAuxCreases": "Afficher les plis auxiliaires",
+      "showAuxCreasesHelp": "Les lignes auxiliaires du patron de plis, dessinées sur le papier à chaque étape avec le stylo auxiliaire et jamais pliées. Suit Paramètres ▸ Papier jusqu’à ce que vous le changiez ici.",
       "solutions": "Solutions"
     },
     "sheets": {

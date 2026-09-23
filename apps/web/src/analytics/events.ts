@@ -593,6 +593,11 @@ export const ANALYTICS_EVENTS = {
   /** The "Auto-play folds" preference was switched; `enabled` is `on` / `off`. */
   referencesFoldAutoplayChanged: 'references fold autoplay changed',
   /**
+   * The References "Show auxiliary creases" option was set; `shown` is `on` /
+   * `off`, or `style` when it was reset to follow the paper style.
+   */
+  referencesAuxCreasesChanged: 'references aux creases changed',
+  /**
    * The modal that warns that a precreasing sequence contains approximated
    * folds was shown — once per plan whose steps are not all exact, or that
    * stopped rather than approximate more lines than a sequence can carry.

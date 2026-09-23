@@ -46,8 +46,9 @@ export function useReferencesDiagramScene(
     // are one drawing. It scales the dash runs, which the stroke program reads
     // in screen pixels — and it deliberately excludes the zoom-dependent boost
     // the creases carry, or every zoom frame would have to re-upload them.
-    // The existing creases in the style's aux pen, shown or not and pulled
-    // back from the sheet's edge as it says.
+    // Lines in the style's aux pen — the creases an earlier step made, and
+    // the pattern's own aux lines when they are shown — pulled back from the
+    // sheet's edge as it says.
     const scene = diagramToScene(
       primitives,
       diagramInkColors(element, tokens),
@@ -55,7 +56,7 @@ export function useReferencesDiagramScene(
       {
         pens: canvasDiagramPens(lineWidth, arrowWidth, inks.aux),
         sheet: diagram.sheet,
-        creases: { visible: inks.auxVisible, erode: inks.erode },
+        creases: { showAux: inks.showAux, erode: inks.erode },
       }
     );
     return {

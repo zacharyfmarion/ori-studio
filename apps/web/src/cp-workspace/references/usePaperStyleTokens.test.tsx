@@ -203,15 +203,16 @@ describe('usePaperStyleTokens', () => {
     expect(latest?.inkKey).not.toBe(restyled);
   });
 
-  it('carries the existing creases’ pen and switches through the References policy', () => {
-    // Phase 5: the aux pen in CSS px, the toggle and erode, for the big view's
-    // lines; a card derives the same from the display style itself.
+  it('carries the aux pen and switches through the References policy', () => {
+    // Phase 5: the aux pen in CSS px, whether the pattern's aux lines show and
+    // erode, for the big view's lines; a card derives the same from the
+    // display style itself.
     expect(latest?.inks).toEqual({
       aux: {
         pen: DEFAULT_PAPER_STYLE.auxCreases.pen,
         css: DEFAULT_PAPER_STYLE.auxCreases.pen.width * PT_TO_CSS_PX,
       },
-      auxVisible: true,
+      showAux: true,
       erode: 0,
     });
     act(() =>
@@ -220,9 +221,16 @@ describe('usePaperStyleTokens', () => {
         erode: 0.05,
       })
     );
-    expect(latest?.inks).toMatchObject({ auxVisible: false, erode: 0.05 });
+    expect(latest?.inks).toMatchObject({ showAux: false, erode: 0.05 });
     const card = referencesCardInks(useSettingsStore.getState().paperStyle.display);
-    expect(card.creases).toEqual({ visible: false, erode: 0.05 });
+    expect(card.creases).toEqual({ showAux: false, erode: 0.05 });
+    // The References option, once set, is what decides.
+    act(() => useSettingsStore.getState().setReferencesShowAuxCreases(true));
+    expect(latest?.inks.showAux).toBe(true);
+    expect(referencesCardInks(useSettingsStore.getState().paperStyle.display, true).creases).toEqual(
+      { showAux: true, erode: 0.05 }
+    );
+    act(() => useSettingsStore.getState().setReferencesShowAuxCreases(null));
     expect(card.pens.crease.width).toBeCloseTo(
       (DIAGRAM_LINE_INK.edge.width * DEFAULT_PAPER_STYLE.auxCreases.pen.width) /
         DEFAULT_PAPER_STYLE.edges.width,

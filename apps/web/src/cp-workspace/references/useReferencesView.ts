@@ -20,6 +20,7 @@ import type {
   ReferencesTargetRecord,
 } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
+import type { ReferencesSheetAux } from './referencesAuxCreases';
 import { findingBounds, planStepScene, planTurnOverScene } from './referencesPlanGeometry';
 import { candidateFoldScene, planFoldScene, type FoldScene } from './fold/foldScene';
 import {
@@ -297,7 +298,8 @@ function planHighlights(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
-  activeFinding: number | null
+  activeFinding: number | null,
+  sheetAux: ReferencesSheetAux | null
 ): ReferencesHighlights {
   if (variants.length === 0) return NO_HIGHLIGHTS;
   if (activeFinding !== null) {
@@ -323,12 +325,14 @@ function planHighlights(
   // over a sheet the visibility rule has emptied for it. The finished card
   // has no picture of its own; the pattern itself is that one.
   const fold = planFoldScene(variants, viewSteps, activeStep);
+  // The page carries the sheet's aux lines; the canvas draws the document's.
+  const aux = sheetAux?.component === target.component ? sheetAux.model : undefined;
   if (target.kind === 'turn-over') {
-    const scene = planTurnOverScene(entry.sequence, entry.model, target.after);
+    const scene = planTurnOverScene(entry.sequence, entry.model, target.after, aux);
     return { ...NO_HIGHLIGHTS, diagram: scene.diagram, pageDiagram: scene.pageDiagram, fold };
   }
   if (target.kind !== 'fold') return NO_HIGHLIGHTS;
-  const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin);
+  const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin, aux);
   return {
     highlightLineIds: new Set(overlay.highlightLineIds),
     highlightVertexIdx: EMPTY_IDS,
@@ -353,10 +357,12 @@ export function useReferencesPlanHighlights(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
-  activeFinding: number | null
+  activeFinding: number | null,
+  /** The selected sheet's aux lines, for a step's page (`referencesAuxCreases`). */
+  sheetAux: ReferencesSheetAux | null = null
 ): ReferencesHighlights {
   return useMemo(
-    () => planHighlights(variants, viewSteps, activeStep, activeFinding),
-    [variants, viewSteps, activeStep, activeFinding]
+    () => planHighlights(variants, viewSteps, activeStep, activeFinding, sheetAux),
+    [variants, viewSteps, activeStep, activeFinding, sheetAux]
   );
 }

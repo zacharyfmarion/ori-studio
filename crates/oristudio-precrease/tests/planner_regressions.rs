@@ -484,3 +484,49 @@ fn a_line_a_hair_apart_from_a_folded_one_is_a_distinct_target() {
     let c = closure_of(&[v(0.5), v(0.5 + 5.0 * TOL)]);
     assert_eq!(c.folded().len() + c.remaining().len(), 2);
 }
+
+/// An auxiliary line in the pattern is a guide the editor drew, not a crease:
+/// the plan used to fold it as a step of its own, and the direction majority,
+/// finding no mountain or valley length on it, left it for the side of the
+/// sheet already facing up — which read as a valley.
+#[test]
+fn an_auxiliary_line_is_never_folded() {
+    let square = [
+        [-200.0, -200.0],
+        [200.0, -200.0],
+        [200.0, 200.0],
+        [-200.0, 200.0],
+    ];
+    let mut segments = Vec::new();
+    let mut colors = Vec::new();
+    let mut seg = |color: i32, a: [f64; 2], b: [f64; 2]| {
+        segments.extend_from_slice(&[a[0], a[1], b[0], b[1]]);
+        colors.push(color);
+    };
+    for i in 0..4 {
+        seg(0, square[i], square[(i + 1) % 4]);
+    }
+    seg(1, [-200.0, -200.0], [200.0, 200.0]);
+    seg(2, [-200.0, 200.0], [200.0, -200.0]);
+    // The book fold: constructible in one step, so it is the step the plan
+    // would take if it took it at all.
+    seg(3, [-200.0, 0.0], [200.0, 0.0]);
+    let cp = oristudio_precrease::fixture_io::LoadedCp { segments, colors };
+    let component = analyze_cp(&cp)
+        .components
+        .into_iter()
+        .next()
+        .expect("one sheet");
+    let (_, seq) = plan_component(&component, grid_off_options());
+    assert_eq!(seq.totals.cp_lines, 2, "{:?}", seq.totals);
+    assert_eq!(
+        seq.steps.iter().filter(|s| s.kind == StepKind::Cp).count(),
+        2
+    );
+    assert!(
+        !seq.steps
+            .iter()
+            .any(|s| s.kind == StepKind::Cp && s.line.approx_eq(&h(0.5))),
+        "the aux midline was planned as a pattern crease"
+    );
+}

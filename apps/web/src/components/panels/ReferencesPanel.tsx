@@ -40,6 +40,10 @@ import {
 } from '../../cp-workspace/references/ReferencesDiagramLayer';
 import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
 import { usePaperStyleTokens } from '../../cp-workspace/references/usePaperStyleTokens';
+import {
+  shownSheetAux,
+  useReferencesSheetAux,
+} from '../../cp-workspace/references/referencesAuxCreases';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
 import { ReferencesTargetControls } from '../../cp-workspace/references/ReferencesTargetControls';
@@ -158,6 +162,8 @@ export function ReferencesPanel() {
     controller.frames?.components.find((entry) => entry.id === selectedSheet) ?? null;
   const sheetIds = useMemo(() => (component ? sheetLineIds(component) : null), [component]);
   const borderIds = useMemo(() => (component ? sheetBorderLineIds(component) : null), [component]);
+  // The pattern's own aux lines on the sheet: never planned, drawn on every step.
+  const sheetAux = useReferencesSheetAux(component, view.geometry);
 
   const targeted = controller.target !== null && controller.target.kind !== 'whole';
   const breakdown = useReferencesBreakdown(
@@ -208,7 +214,8 @@ export function ReferencesPanel() {
     readingPlan ? breakdown.variants : [],
     viewSteps,
     breakdown.activeStep,
-    breakdown.activeFinding
+    breakdown.activeFinding,
+    sheetAux
   );
   const highlights = targeted ? targetHighlights : planHighlights;
   // Which face the reader is on. Everything the picture says about direction is
@@ -318,15 +325,26 @@ export function ReferencesPanel() {
       targeted
         ? candidateFilmstrip(t, active, rfSheet)
         : readingPlan
-          ? planFilmstrip(t, breakdown.variants, viewSteps, breakdown.stopReasons)
+          ? planFilmstrip(t, breakdown.variants, viewSteps, breakdown.stopReasons, sheetAux)
           : [],
-    [targeted, readingPlan, t, active, rfSheet, breakdown.variants, viewSteps, breakdown.stopReasons]
+    [
+      targeted,
+      readingPlan,
+      t,
+      active,
+      rfSheet,
+      breakdown.variants,
+      viewSteps,
+      breakdown.stopReasons,
+      sheetAux,
+    ]
   );
 
   // The sheet as it stands — see `referencesCreaseVisibility`: whole in Find
   // and before a plan, the outline and the picked crease for a target, the
   // build-up so far while the plan is read.
   const { canvas } = surfaces;
+  const auxShown = useMemo(() => shownSheetAux(sheetAux, paper.inks), [sheetAux, paper.inks]);
   const creaseVisibility = useMemo(() => {
     if (!sheetIds) return REFERENCES_ALL_CREASES;
     const input = {
@@ -334,6 +352,7 @@ export function ReferencesPanel() {
       borderLineIds: borderIds,
       activeLineIds: highlights.highlightLineIds,
       mirrored,
+      aux: auxShown,
     };
     if (canvas === 'target') return targetVisibility(input);
     if (canvas === 'plan') {
@@ -349,6 +368,7 @@ export function ReferencesPanel() {
     breakdown.variants,
     viewSteps,
     breakdown.activeStep,
+    auxShown,
   ]);
 
   // A tap on the sheet while the plan is read is navigation: to the step that

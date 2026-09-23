@@ -58,6 +58,7 @@ function paint(
     page?: PaperPage;
     mirrored?: boolean;
     sheetCssPx?: number;
+    showAux?: boolean | null;
   } = {}
 ) {
   return referencesStepExportPage(diagram, {
@@ -66,6 +67,7 @@ function paint(
     mirrored: options.mirrored ?? false,
     sheetCssPx: options.sheetCssPx ?? 512,
     lineWidth: 1,
+    showAux: options.showAux ?? null,
   });
 }
 
@@ -154,10 +156,14 @@ describe('a sequence step on the page', () => {
     ...DEFAULT_PAPER_STYLE,
     auxCreases: { visible: true, pen: { width: 0.3, color: AUX, dash: null, cap: 'butt' } },
   };
-  const auxLines = (diagram: StepDiagramModel) =>
-    [...paint(diagram, { style }).svg.matchAll(/<line\s([^>]*)\/>/g)].filter((match) =>
-      match[1]!.includes(`stroke="${AUX}"`)
-    ).length;
+  const auxLines = (
+    diagram: StepDiagramModel,
+    options: { style?: PaperStyle; showAux?: boolean | null } = {}
+  ) =>
+    [
+      ...paint(diagram, { style: options.style ?? style, showAux: options.showAux })
+        .svg.matchAll(/<line\s([^>]*)\/>/g),
+    ].filter((match) => match[1]!.includes(`stroke="${AUX}"`)).length;
 
   // The canvas has the document's own creases under the overlay, so the
   // diagram it draws leaves out every earlier crease the pattern holds; a
@@ -168,6 +174,29 @@ describe('a sequence step on the page', () => {
     const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
     const scene = planStepScene(sequence, model, 2);
     expect(auxLines(scene.pageDiagram!)).toBeGreaterThan(auxLines(scene.diagram!));
+  });
+
+  // The made creases are the paper as it stands, whatever the aux switch
+  // says; the pattern's own aux lines are on the page as the References
+  // option says, the export style's switch until it is set.
+  it('keeps the made creases with the aux switch off, and the sheet’s aux lines as shown', () => {
+    const sequence = plannerSequenceWithGridFixture();
+    const model = decodePlanModel(sequence, mapToModel(planModelPoints(sequence)));
+    const plain = planStepScene(sequence, model, 2).pageDiagram!;
+    const guides = planStepScene(sequence, model, 2, undefined, [
+      [
+        { x: -200, y: 0 },
+        { x: 200, y: 0 },
+      ],
+    ]).pageDiagram!;
+    const off: PaperStyle = { ...style, auxCreases: { ...style.auxCreases, visible: false } };
+    const made = auxLines(plain);
+    expect(made).toBeGreaterThan(0);
+    expect(auxLines(plain, { style: off })).toBe(made);
+    expect(auxLines(guides)).toBe(made + 1);
+    expect(auxLines(guides, { style: off })).toBe(made);
+    expect(auxLines(guides, { style: off, showAux: true })).toBe(made + 1);
+    expect(auxLines(guides, { showAux: false })).toBe(made);
   });
 });
 

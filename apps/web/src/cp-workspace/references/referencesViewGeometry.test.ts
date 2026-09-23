@@ -4,6 +4,7 @@ import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { LineHitIndex } from '../picking/lineHitIndex';
 import type { Rgba, StrokeGeometry } from '../renderer/types';
+import { DIAGRAM_LINE_INK, diagramDashSlot } from './diagram/diagramInk';
 import {
   applyCreaseVisibility,
   concatStrokes,
@@ -231,6 +232,37 @@ describe('applyCreaseVisibility', () => {
     // Crease 1 full, crease 2 dimmed, creases 3-4 hidden, and the appended hint
     // overlay (index 4, past the document's segments) dropped with them.
     expect(alphaOf(out)).toEqual([1, 0.25, 0, 0, 0]);
+  });
+
+  // The pattern's own aux lines: the aux pen's ink, width and dash, drawn at
+  // full strength among dimmed creases, and never given a direction.
+  it('draws the pattern’s aux lines in the aux pen', () => {
+    const inkCss = 1.25;
+    const pen = { width: 0.25, color: '#231f20', dash: [4, 2], cap: 'butt' as const };
+    const css = 0.5;
+    const ink: Rgba = [0.1, 0.2, 0.3, 0.6];
+    const out = applyCreaseVisibility(
+      strokes(),
+      4,
+      {
+        visible: new Set([1, 2, 3]),
+        dimmed: new Set([1]),
+        dimAlpha: 0.25,
+        directions: new Map([[3, 'valley' as const]]),
+        ink: { mountain: [1, 0, 0, 1], valley: [0, 0, 1, 1], aux: ink },
+        aux: { ids: new Set([2, 3]), pen: { pen, css } },
+      },
+      inkCss
+    );
+    expect(Array.from(out.color.slice(4, 8))).toEqual(Array.from(Float32Array.from(ink)));
+    // Its own ink even where a step's direction would have recoloured it.
+    expect(Array.from(out.color.slice(8, 12))).toEqual(Array.from(Float32Array.from(ink)));
+    expect(alphaOf(out)[0]).toBe(0.25);
+    // The pen in CSS px, as a multiple of the edge weight one unit of width is.
+    expect(out.widthMul[1]).toBeCloseTo(css / inkCss / DIAGRAM_LINE_INK.edge.width, 6);
+    const slot = diagramDashSlot('aux');
+    expect(out.dashSlot?.[1]).toBe(slot);
+    expect(out.dashPatterns?.[slot - 1]?.map((run) => run / css)).toEqual([4, 2]);
   });
 
   it('does not mutate the buffer it was given', () => {

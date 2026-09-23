@@ -3,6 +3,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { clearReferencesResults } from '../../cp-workspace/references/referencesResults';
 import { DEFAULT_REFERENCES_SETTINGS } from '../../store/workspaceStore/slices/referencesSlice';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { ReferencesViewControlsPanel } from './ReferencesViewControlsPanel';
@@ -58,6 +60,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  useSettingsStore.getState().setReferencesShowAuxCreases(null);
+  useSettingsStore.getState().setPaperStyleFields('display', {
+    'auxCreases.visible': DEFAULT_PAPER_STYLE.auxCreases.visible,
+  });
   if (root) act(() => root?.unmount());
   container?.remove();
   root = null;
@@ -84,6 +90,7 @@ describe('ReferencesViewControlsPanel', () => {
       'Allow dangling folds',
       'Merge symmetric steps',
       'Auto-play folds',
+      'Show auxiliary creases',
     ]);
     // The candidate count is the one setting that is not a switch.
     expect(rendered.querySelector('button[aria-label="Solutions"]')?.textContent).toContain(
@@ -158,7 +165,7 @@ describe('ReferencesViewControlsPanel', () => {
     // hover as well.
     expect(help?.getAttribute('aria-label')).toContain('A dangling fold is a crease');
     // Only the rows whose names do not say what they do carry one.
-    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(3);
+    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(4);
 
     expect(settings().allowDanglingFolds).toBe(true);
     press(toggle(rendered, 'Allow dangling folds'));
@@ -176,5 +183,39 @@ describe('ReferencesViewControlsPanel', () => {
     expect(settings().mergeSymmetricSteps).toBe(true);
     press(toggle(rendered, 'Merge symmetric steps'));
     expect(settings().mergeSymmetricSteps).toBe(false);
+  });
+
+  // A view option like a folded figure's in Properties: the paper style's own
+  // switch until it is set here, with a reset that hands it back.
+  it('shows auxiliary creases as the paper style says until set, and resets to it', () => {
+    const style = (visible: boolean) =>
+      act(() =>
+        useSettingsStore.getState().setPaperStyleFields('display', { 'auxCreases.visible': visible })
+      );
+    style(true);
+    const rendered = render();
+    const aux = () => toggle(rendered, 'Show auxiliary creases');
+    const reset = () =>
+      rendered.querySelector<HTMLButtonElement>(
+        'button[aria-label="Reset Show auxiliary creases to default"]'
+      );
+    expect(aux().getAttribute('aria-checked')).toBe('true');
+    expect(reset()).toBeNull();
+
+    style(false);
+    expect(aux().getAttribute('aria-checked')).toBe('false');
+
+    press(aux());
+    expect(useSettingsStore.getState().referencesShowAuxCreases).toBe(true);
+    expect(aux().getAttribute('aria-checked')).toBe('true');
+    // Set here, it holds whatever the style says.
+    style(true);
+    style(false);
+    expect(aux().getAttribute('aria-checked')).toBe('true');
+
+    press(reset()!);
+    expect(useSettingsStore.getState().referencesShowAuxCreases).toBeNull();
+    expect(aux().getAttribute('aria-checked')).toBe('false');
+    expect(reset()).toBeNull();
   });
 });

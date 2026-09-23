@@ -29,6 +29,7 @@ import {
 import type { PrecreasePlanStopReason } from './precreasePlan';
 import type { PrecreaseSequence } from './precreaseSequence';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
+import type { ReferencesSheetAux } from './referencesAuxCreases';
 import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
 import { describePlannerStep } from './referencesStepSentences';
 
@@ -198,13 +199,16 @@ export function planFilmstrip(
   t: TFunction,
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
-  stopReasons: readonly PrecreasePlanStopReason[]
+  stopReasons: readonly PrecreasePlanStopReason[],
+  /** The selected sheet's aux lines, drawn on every card of its plan. */
+  sheetAux: ReferencesSheetAux | null = null
 ): ReferencesFilmstripStep[] {
   const numbers = foldCardNumbers(viewSteps);
   return viewSteps.flatMap((view, viewIndex): ReferencesFilmstripStep[] => {
     const variant = variants[view.component];
     if (!variant) return [];
     const sequence = variant.sequence;
+    const aux = sheetAux?.component === view.component ? sheetAux.unit : undefined;
     switch (view.kind) {
       case 'fold': {
         // A step that is not exact — folded by the closest construction there
@@ -228,6 +232,7 @@ export function planFilmstrip(
             diagram: null,
             primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step, {
               twin: view.twin,
+              aux,
             }),
             mirrored: view.side === 'back',
             sentence: describePlannerStep(t, sequence, view.step, view.twin),
@@ -244,7 +249,7 @@ export function planFilmstrip(
             badge: t('panels:references.flip.turnOverBadge', 'Turn over'),
             number: null,
             diagram: null,
-            primitives: plannerTurnOverDiagram(sequence, unitFrame(sequence), view.after),
+            primitives: plannerTurnOverDiagram(sequence, unitFrame(sequence), view.after, { aux }),
             mirrored: view.side === 'back',
             sentence: t('panels:references.flip.turnOver', 'Turn the paper over, left to right.'),
           },
@@ -258,7 +263,7 @@ export function planFilmstrip(
             badge: ending.badge,
             number: null,
             diagram: null,
-            primitives: plannerFinishedDiagram(sequence, unitFrame(sequence)),
+            primitives: plannerFinishedDiagram(sequence, unitFrame(sequence), { aux }),
             mirrored: false,
             sentence: ending.sentence,
           },

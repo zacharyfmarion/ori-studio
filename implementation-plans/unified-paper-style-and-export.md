@@ -1727,14 +1727,25 @@ figure keeps drawing 0° creases in the aux pen, and References gets its own
       the chip shows as the preset the style matches.
 - [x] The copy says what the lines are: "Show auxiliary creases",
       "Auxiliary creases", "Aux crease color", "Aux crease width (pt)".
-- [ ] Planner: aux-coloured segments are never targets. Excluded at the
-      planner's entry with the caller's indices kept, so exactness, the grid
-      and the merged lines never see them either.
-- [ ] References: "Show auxiliary creases" view option — follows the style
-      by default, resettable while overridden, stored per app. When on, the
-      pattern's aux lines draw on every step in the aux pen, on the paper from
-      the start, never planned, never tappable. The build-up of creases made
-      in earlier steps no longer hides with the aux switch.
+- [x] Planner: aux-coloured segments are never targets. `analyze` keeps
+      them out of every sheet's creases with the caller's indices kept, so
+      exactness, the grid and the merged lines never see them either; each
+      sheet records its aux lines apart (`aux_segment_indices`,
+      `aux_unit_segments`) for the picture. Pinned by
+      `an_auxiliary_line_is_no_crease_of_the_sheet` and
+      `an_auxiliary_line_is_never_folded` (3 CP lines before, 2 after).
+- [x] References: "Show auxiliary creases" view option — follows the style
+      by default, resettable while overridden, stored per app
+      (`referencesShowAuxCreases`, `null` = follow). When on, the pattern's
+      aux lines draw on every step in the aux pen, on the paper from the
+      start, never planned, never tappable: on the canvas as the document's
+      own lines (`ReferencesCreaseVisibility.aux`, no vertex dots), on cards
+      and pages as a new `aux` diagram line style, which the export decides
+      with the export style's switch unless the option is set. Reading one
+      reference leaves them out with everything else. The build-up of
+      creases made in earlier steps (`crease` ink) no longer hides with the
+      aux switch. An aux-only edit still marks a plan out of date — the plan
+      is keyed on every crease.
 - [ ] Flat figure: the kernel maps the *document's* current aux lines at
       call time (the fold-time capture stays the fallback for a figure whose
       document is gone); the canvas refetches on an aux fingerprint of the

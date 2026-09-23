@@ -64,7 +64,7 @@ export function useReferencesStepExport({
       }
       // Read rather than subscribed: the style, the page and the title matter
       // at the moment of export, not on every render of the panel.
-      const { paperStyle, paperExport } = useSettingsStore.getState();
+      const { paperStyle, paperExport, referencesShowAuxCreases } = useSettingsStore.getState();
       const page = paperPageOf(paperExport);
       try {
         const painted = referencesStepExportPage(diagram, {
@@ -73,6 +73,9 @@ export function useReferencesStepExport({
           mirrored,
           sheetCssPx: referencesSheetCssPx(diagram.sheet, camera),
           lineWidth,
+          // The option when the reader has set it; otherwise the export
+          // style's own switch, as every other surface's export follows it.
+          showAux: referencesShowAuxCreases,
         });
         const saved = await saveReferencesStep({
           page: painted,

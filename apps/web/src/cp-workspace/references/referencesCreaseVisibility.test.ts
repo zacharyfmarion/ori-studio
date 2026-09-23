@@ -190,6 +190,55 @@ describe('unreadVisibility', () => {
   });
 });
 
+describe('the pattern’s auxiliary lines', () => {
+  // Guide lines the pattern draws on the paper: never planned, so on the paper
+  // from the first step, in the aux pen, and nothing to point at.
+  const AUX = {
+    ids: new Set([20, 21]),
+    pen: { pen: { width: 0.25, color: '#231f20', dash: null, cap: 'butt' as const }, css: 1 / 3 },
+  };
+  const variants = [variant([step(1, [10]), step(2, [11])])];
+  const flat: ReferencesViewStep[] = [fold(0), fold(1), { kind: 'done', side: 'front', component: 0 }];
+  const input = {
+    sheetLineIds: SHEET,
+    borderLineIds: BORDER,
+    activeLineIds: new Set<number>(),
+    aux: AUX,
+  };
+
+  it('are drawn from the first step, never dimmed and never pickable', () => {
+    for (const at of [0, 1, 2].map((index) => planVisibility(variants, flat, index, input))) {
+      expect(at.visible?.has(20)).toBe(true);
+      expect(at.visible?.has(21)).toBe(true);
+      expect(at.pickable?.has(20)).toBe(false);
+      expect(at.dimmed?.has(20) ?? false).toBe(false);
+      expect(at.aux).toBe(AUX);
+    }
+    // The creases made so far still build up as before.
+    expect(planVisibility(variants, flat, 1, input).pickable?.has(10)).toBe(true);
+  });
+
+  it('are on the whole sheet in Find, where only the pattern can be picked', () => {
+    const at = unreadVisibility(input);
+    expect(at.visible?.has(20)).toBe(true);
+    expect(at.pickable).toBe(SHEET);
+    expect(at.aux).toBe(AUX);
+  });
+
+  it('are not there when they are not shown', () => {
+    const hidden = { ...input, aux: null };
+    expect(planVisibility(variants, flat, 1, hidden).visible?.has(20)).toBe(false);
+    expect(unreadVisibility(hidden).visible).toBe(SHEET);
+  });
+
+  // A reference's construction is on blank paper, the pattern's guides included.
+  it('are left out while one reference is read', () => {
+    const at = targetVisibility({ ...input, activeLineIds: new Set([10]) });
+    expect(at.visible?.has(20)).toBe(false);
+    expect(at.aux ?? null).toBeNull();
+  });
+});
+
 describe('emphasis', () => {
   // A plan step has nothing to emphasise here: the crease it is about is not
   // in this channel, because the paper does not have it yet.

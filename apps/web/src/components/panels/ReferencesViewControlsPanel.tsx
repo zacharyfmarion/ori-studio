@@ -27,6 +27,10 @@ export function ReferencesViewControlsPanel() {
     hasDocument,
     autoPlayFolds,
     setAutoPlayFolds,
+    showAuxCreases,
+    showAuxCreasesSet,
+    setShowAuxCreases,
+    resetShowAuxCreases,
   } = useReferencesSettings();
 
   if (!hasDocument) {
@@ -111,6 +115,16 @@ export function ReferencesViewControlsPanel() {
             )}
             checked={autoPlayFolds}
             onChange={setAutoPlayFolds}
+          />
+          <ToggleRow
+            label={t('panels:references.settings.showAuxCreases', 'Show auxiliary creases')}
+            help={t(
+              'panels:references.settings.showAuxCreasesHelp',
+              'The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary pen and never folded. Follows Settings ▸ Paper until you change it here.'
+            )}
+            checked={showAuxCreases}
+            onChange={setShowAuxCreases}
+            onReset={showAuxCreasesSet ? resetShowAuxCreases : undefined}
           />
         </CollapsibleSection>
       </div>

@@ -1069,6 +1069,8 @@
       "mergeSymmetricHelp": "Duas dobras que se espelham — o canto esquerdo ao centro e o canto direito ao centro, por exemplo — aparecem como um só passo com uma seta para cada uma, como um diagrama as dobra. Desligado, cada dobra é um passo próprio.",
       "precreaseGrid": "Pré-vincar a grade",
       "sequence": "Sequência de pré-dobras",
+      "showAuxCreases": "Mostrar vincos auxiliares",
+      "showAuxCreasesHelp": "As linhas auxiliares do padrão de vincos, desenhadas no papel em cada passo com a caneta auxiliar e nunca dobradas. Segue Configurações ▸ Papel até que você altere aqui.",
       "solutions": "Soluções"
     },
     "sheets": {

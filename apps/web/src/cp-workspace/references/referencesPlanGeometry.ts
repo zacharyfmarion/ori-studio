@@ -14,7 +14,7 @@
  * view takes one set of props whichever mode the sidebar is in.
  */
 import type { Point } from '../../lib/geometry';
-import { modelFrame } from './diagram/diagramFrames';
+import { modelFrame, type DiagramSegment } from './diagram/diagramFrames';
 import { plannerStepDiagram, plannerTurnOverDiagram } from './diagram/plannerDiagram';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type {
@@ -189,7 +189,9 @@ export function planStepScene(
   sequence: PrecreaseSequence,
   model: ReferencesPlanModel,
   index: number,
-  twin?: number
+  twin?: number,
+  /** The sheet's aux lines in model space, for the page (`referencesAuxCreases`). */
+  aux?: readonly DiagramSegment[]
 ): ReferencesPlanScene {
   const step = sequence.steps[index];
   if (!step) return { diagram: null, pageDiagram: null, bounds: null, highlightLineIds: [] };
@@ -200,8 +202,9 @@ export function planStepScene(
   // the pattern cannot: its own crease, which is not folded yet, and the
   // pinches and auxiliary folds no crease pattern records.
   const diagram = plannerStepDiagram(sequence, frame, index, { earlier: 'unpatterned', twin });
-  // A page has nothing under it, so it carries the build-up itself.
-  const pageDiagram = plannerStepDiagram(sequence, frame, index, { earlier: 'all', twin });
+  // A page has nothing under it, so it carries the build-up itself, and the
+  // pattern's aux lines the canvas draws from the document.
+  const pageDiagram = plannerStepDiagram(sequence, frame, index, { earlier: 'all', twin, aux });
   const geometry = model.steps[index];
   const twinGeometry = twin === undefined ? undefined : model.steps[twin];
   // A grid step's own chord is its family's first line; the step is the
@@ -242,13 +245,15 @@ export function planStepScene(
 export function planTurnOverScene(
   sequence: PrecreaseSequence,
   model: ReferencesPlanModel,
-  after: number | null
+  after: number | null,
+  /** The sheet's aux lines in model space, for the page. */
+  aux?: readonly DiagramSegment[]
 ): ReferencesPlanScene {
   const frame = modelFrame(sequence, model);
   return {
     diagram: plannerTurnOverDiagram(sequence, frame, after, { earlier: 'unpatterned' }),
     // A page has nothing under it, so it carries the build-up itself.
-    pageDiagram: plannerTurnOverDiagram(sequence, frame, after, { earlier: 'all' }),
+    pageDiagram: plannerTurnOverDiagram(sequence, frame, after, { earlier: 'all', aux }),
     bounds: null,
     highlightLineIds: [],
   };

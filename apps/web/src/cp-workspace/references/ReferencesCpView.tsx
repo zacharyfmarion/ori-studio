@@ -289,6 +289,9 @@ const FOLDED_ALPHA = 0.55;
  * fallback is that tuning itself.
  */
 const DIM_ALPHA_VAR = '--references-dim-alpha';
+/** How far back a crease an earlier step made sits, which the aux lines share (`diagramColors.ts`). */
+const CREASE_ALPHA_VAR = '--references-crease-alpha';
+const CREASE_ALPHA_FALLBACK = 0.75;
 /** The part of a fold that is not creased: present, but barely. */
 const UNFOLDED_ALPHA = 0.22;
 
@@ -527,9 +530,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       // dot at every place a crease will *later* arrive, which is both a
       // giveaway and a lot of dots. So the point layer follows the creases,
       // and the border rides along only where one of them lands.
+      // The pattern's aux lines are drawn but make no landmarks: nothing folds
+      // them, so where they cross a crease is not a place on the paper yet.
       const creases = new Set<number>();
       for (const id of visible) {
-        if (!creaseVisibility.borderLineIds?.has(id)) creases.add(id);
+        if (creaseVisibility.borderLineIds?.has(id) || creaseVisibility.aux?.ids.has(id)) continue;
+        creases.add(id);
       }
       const kept = verticesOfLines(geometry, vertices, creases, { dropCollinear: true });
       return vertices.filter((_, i) => kept.has(i));
@@ -1140,13 +1146,19 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         creaseVisibility.dimAlpha < 1
           ? readCssVarNumber(canvas, DIM_ALPHA_VAR, creaseVisibility.dimAlpha)
           : creaseVisibility.dimAlpha;
+      // The pattern's aux lines in the aux pen's ink, held back as far as the
+      // creases an earlier step made — the card draws both with one pen.
+      const aux = withAlpha(
+        palette.unassigned,
+        readCssVarNumber(canvas, CREASE_ALPHA_VAR, CREASE_ALPHA_FALLBACK)
+      );
       fullRef.current.strokes = applyCreaseVisibility(
         strokes,
         geometry.segEndpoints.length / 4,
         {
           ...creaseVisibility,
           dimAlpha,
-          ink: { mountain: palette.mountain, valley: palette.valley },
+          ink: { mountain: palette.mountain, valley: palette.valley, aux },
         },
         canvasDiagramInk(lineWidth)
       );

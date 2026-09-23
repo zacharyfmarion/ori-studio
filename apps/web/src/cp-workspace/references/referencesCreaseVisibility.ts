@@ -56,7 +56,14 @@
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
  * one of them, and a diagram that fades it out reads as an empty page.
+ *
+ * The pattern's auxiliary lines, when they are shown (`referencesAuxCreases`),
+ * are on the paper from the start: drawn at every step of a plan and on the
+ * whole sheet, in the aux pen, never dimmed and never pickable — nothing folds
+ * them, so there is no step to jump to. Reading one reference leaves them out
+ * with everything else: its construction is on blank paper.
  */
+import type { Pen } from '../../lib/paper/paperStyle';
 import { flipDirection } from './diagram/diagramModel';
 import type { PrecreaseDirection, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
@@ -94,6 +101,17 @@ export interface ReferencesVisibilityInput {
   borderLineIds: ReadonlySet<number> | null;
   /** The creases the active step is about — the picked crease, or the step's. */
   activeLineIds: ReadonlySet<number>;
+  /** The sheet's aux lines and the pen they are drawn in, when they are shown. */
+  aux?: { ids: ReadonlySet<number>; pen: { pen: Pen; css: number } } | null;
+}
+
+/** `ids` with the shown aux lines added: what is drawn, of which only `ids` can be picked. */
+function withAux(
+  ids: ReadonlySet<number>,
+  aux: ReferencesVisibilityInput['aux']
+): ReadonlySet<number> {
+  if (!aux || aux.ids.size === 0) return ids;
+  return new Set([...ids, ...aux.ids]);
 }
 
 /**
@@ -101,9 +119,16 @@ export interface ReferencesVisibilityInput {
  * there is no step to be at.
  */
 export function unreadVisibility(input: ReferencesVisibilityInput): ReferencesCreaseVisibility {
-  const { sheetLineIds } = input;
+  const { sheetLineIds, aux = null } = input;
   if (!sheetLineIds) return REFERENCES_ALL_CREASES;
-  return { visible: sheetLineIds, dimmed: null, dimAlpha: 1 };
+  if (!aux) return { visible: sheetLineIds, dimmed: null, dimAlpha: 1 };
+  return {
+    visible: withAux(sheetLineIds, aux),
+    pickable: sheetLineIds,
+    dimmed: null,
+    dimAlpha: 1,
+    aux,
+  };
 }
 
 /**
@@ -146,7 +171,7 @@ export function planVisibility(
   activeStep: number,
   input: ReferencesVisibilityInput
 ): ReferencesCreaseVisibility {
-  const { sheetLineIds, borderLineIds, mirrored = false } = input;
+  const { sheetLineIds, borderLineIds, mirrored = false, aux = null } = input;
   const target = viewSteps[activeStep];
   // No step to be at: the sheet as it is, whole.
   if (!target) return unreadVisibility(input);
@@ -189,7 +214,15 @@ export function planVisibility(
   // face that comes up shows them mirrored with the assignment reversed —
   // the same rendering a fold card's flap gets (Zach, 2026-09-16).
   if (target.kind !== 'fold') {
-    return { visible, pickable: visible, dimmed: null, dimAlpha: 1, directions, borderLineIds };
+    return {
+      visible: withAux(visible, aux),
+      pickable: visible,
+      dimmed: null,
+      dimAlpha: 1,
+      directions,
+      borderLineIds,
+      aux,
+    };
   }
   const dimmed = new Set<number>();
   for (const id of visible) {
@@ -197,11 +230,12 @@ export function planVisibility(
     dimmed.add(id);
   }
   return {
-    visible,
+    visible: withAux(visible, aux),
     pickable: visible,
     dimmed,
     dimAlpha: REFERENCES_DIM_ALPHA,
     borderLineIds,
+    aux,
     // One step, one direction (plan D20), and it stays that way afterwards —
     // a line whose creases disagree would otherwise go back to reading red
     // here and blue there the moment its step stopped being active.

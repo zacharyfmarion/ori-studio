@@ -21,6 +21,8 @@ function component(overrides: Partial<PrecreaseComponent> = {}): PrecreaseCompon
     border_segment_indices: [0, 1, 2, 3],
     segment_indices: [4],
     unit_segments: [],
+    aux_segment_indices: [],
+    aux_unit_segments: [],
     merged_lines: [],
     exactness: null,
     refused: null,

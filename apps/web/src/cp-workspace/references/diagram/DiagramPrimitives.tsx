@@ -101,9 +101,10 @@ export interface DiagramRenderContext {
   /** The paper the primitives were measured against; where erode finds its edge. */
   sheet: DiagramSheet;
   /**
-   * What the paper style says about the existing creases (`crease` ink):
-   * whether they are drawn, and how far one is pulled back from the sheet's
-   * edge as a fraction of the sheet (D8).
+   * What the paper style says about the lines drawn in its aux pen — the
+   * creases an earlier step made (`crease`) and the pattern's own aux lines
+   * (`aux`): whether the aux lines are drawn, and how far either is pulled
+   * back from the sheet's edge as a fraction of the sheet (D8).
    */
   creases: DiagramCreaseOptions;
   /**
@@ -114,12 +115,16 @@ export interface DiagramRenderContext {
 }
 
 export interface DiagramCreaseOptions {
-  visible: boolean;
+  /**
+   * Whether the pattern's aux lines are drawn (`referencesAuxCreases`). The
+   * creases an earlier step made are the paper as it stands, and always are.
+   */
+  showAux: boolean;
   erode: number;
 }
 
 /** Drawn, at the edge: the diagrams before there was a style. */
-export const DEFAULT_DIAGRAM_CREASES: DiagramCreaseOptions = { visible: true, erode: 0 };
+export const DEFAULT_DIAGRAM_CREASES: DiagramCreaseOptions = { showAux: true, erode: 0 };
 
 /**
  * The context for drawing `primitives` through `project`. The list handed in
@@ -200,14 +205,15 @@ export function diagramPrimitiveShape(
       );
     }
     case 'line': {
-      // An existing crease is the style's to show or hide, and to pull back
-      // from the paper's edge; every other line is the step's own.
+      // A line in the aux pen is pulled back from the paper's edge, and the
+      // pattern's own aux lines are the reader's to show or hide; every other
+      // line is the step's own.
       let ends: [readonly [number, number], readonly [number, number]] | null = [
         primitive.from,
         primitive.to,
       ];
-      if (primitive.style === 'crease') {
-        if (!context.creases.visible) return null;
+      if (primitive.style === 'crease' || primitive.style === 'aux') {
+        if (primitive.style === 'aux' && !context.creases.showAux) return null;
         ends = erodeCreaseOnSheet(primitive.from, primitive.to, context.sheet, context.creases.erode);
         if (!ends) return null;
       }

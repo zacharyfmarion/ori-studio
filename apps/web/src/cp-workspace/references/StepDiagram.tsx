@@ -123,8 +123,9 @@ export function StepDiagram({
       return null;
     }
   }, [diagram, primitives]);
-  // The existing creases are the paper style's: their pen, whether they show,
-  // and how far they stop short of the paper's edge.
+  // The aux pen is the paper style's — the creases an earlier step made and
+  // the pattern's own aux lines — with how far they stop short of the paper's
+  // edge, and whether the aux lines show at all.
   const { pens, creases } = useReferencesCardInks();
   const project = useMemo(
     () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size, mirrored, pens),
