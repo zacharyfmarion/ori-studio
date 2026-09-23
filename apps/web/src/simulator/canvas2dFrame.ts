@@ -10,10 +10,17 @@ import {
 } from "@treemaker/origami-simulator";
 import type {
   CreaseDash,
+  FaceAdjacency,
   FoldDocument as SimulatorFoldDocument,
   Vec3Like,
 } from "@treemaker/origami-simulator";
 import { erodeSegment } from "../lib/paper/paperSvg";
+import {
+  createFramingFollow,
+  followFraming,
+  framingOf,
+  type FramingFollow,
+} from "./framingFollow";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
@@ -66,6 +73,12 @@ interface ScreenPoint extends ProjectedPoint {
 
 interface DepthSurface {
   depths: Float32Array;
+  /**
+   * The face each pixel shows — its triangle's `FaceAdjacency.faceGroups`
+   * entry, -1 for none — when creases are drawn on their own paper; the GPU
+   * renderer's face-ID pass, recorded as the paint is laid down.
+   */
+  ids: Int32Array | null;
   width: number;
   height: number;
 }
@@ -83,17 +96,18 @@ export function foldNeedsTriangulation(fold: SimulatorFoldDocument): boolean {
 
 /**
  * Per-canvas cache for the things `drawFrame` needs but that do not change per
- * frame: drawing-buffer size (layout), palette (computed style), and the
- * framing radius used by the auto-fit.
+ * frame: drawing-buffer size (layout), and the camera's framing of the model.
  *
- * Invalidated by the panel on resize and on theme change. This is deliberately
- * keyed off the canvas element so it survives re-renders and dies with it.
+ * Invalidated by the panel on resize, on theme change and on a new model. This
+ * is deliberately keyed off the canvas element so it survives re-renders and
+ * dies with it.
  */
 interface SimulatorSurface {
   width: number;
   height: number;
   dpr: number;
-  framingRadius: (positions: Float32Array) => number;
+  /** The shape as it is, eased — the same follow the GPU path's camera makes. */
+  framing: FramingFollow;
 }
 
 const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
@@ -110,23 +124,22 @@ function surfaceFor(canvas: HTMLCanvasElement): SimulatorSurface {
 
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  let radius: number | null = null;
 
   const surface: SimulatorSurface = {
     width: Math.max(360, Math.floor((rect.width || 720) * dpr)),
     height: Math.max(360, Math.floor((rect.height || 720) * dpr)),
     dpr,
-    framingRadius: (positions) => {
-      // Measured from the first frame after a (re)fit and held, so the folded
-      // form shrinks on screen as it actually shrinks.
-      radius ??= boundsRadius(positions);
-      return radius;
-    },
+    framing: createFramingFollow(),
   };
   surfaceCache.set(canvas, surface);
   return surface;
 }
 
+/**
+ * Draw one frame, and say whether the camera has arrived at the shape as it is
+ * (`framingFollow`). A caller that stops drawing when the model settles has to
+ * keep drawing until it has, or the camera stops partway.
+ */
 export function drawFrame(
   canvas: HTMLCanvasElement,
   model: SimulatorRenderModel,
@@ -134,7 +147,7 @@ export function drawFrame(
   view: SimulatorView,
   paint: SimulatorPaint,
   highlights: SimulatorHighlights,
-): void {
+): boolean {
   // Canvas size is cached rather than read per frame: getBoundingClientRect
   // forces layout, and a 60fps loop was paying for a full flush per frame purely
   // to learn something that only changes on resize. Colours are no longer cached
@@ -148,7 +161,7 @@ export function drawFrame(
   }
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return true;
   const render = paint.render;
   const palette = paletteFrom(paint);
 
@@ -163,17 +176,19 @@ export function drawFrame(
   // Only the canvas-2D path calls this, and only with a frame that carries
   // positions (GPU-render frames are null and drawn by the worker).
   const positions = frame.positions;
-  if (!positions) return;
+  if (!positions) return true;
 
-  const projected = projectPositions(positions, view);
+  // The shape as it is, eased, as the GPU path's camera follows it.
+  const { framing, arrived } = followFraming(
+    surface.framing,
+    performance.now(),
+    () => framingOf(positions),
+    frame.converged,
+  );
+  const projected = projectPositions(positions, view, framing.center);
   // Shared with the GPU renderer so the two frame a model identically.
   const availableSize = fitExtent(width, height);
-  // Framing radius is measured once per model rather than per frame. Refitting
-  // every frame made the model visibly "breathe" as it folded -- the sheet gets
-  // smaller as it closes, so the auto-fit zoomed in to compensate -- and cost
-  // three extra full walks of the position array per draw.
-  const scale =
-    (availableSize / (2 * surface.framingRadius(positions))) * view.zoom;
+  const scale = (availableSize / (2 * framing.radius)) * view.zoom;
   const map = (point: ProjectedPoint) => ({
     x: width / 2 + point.x * scale,
     y: height / 2 - point.y * scale,
@@ -188,6 +203,10 @@ export function drawFrame(
   const surfaceEdgeAlpha = xray ? 0.5 : 0.92;
 
   if (!xray && render.showFaces) {
+    // Creases on their own paper, as the GPU pass draws them — see
+    // `RenderSettings.creaseVisibility`.
+    const paper =
+      render.creaseVisibility === "own-face" ? (model.paper ?? null) : null;
     const depthSurface = drawPaperFacesWithDepth(
       ctx,
       model,
@@ -200,6 +219,7 @@ export function drawFrame(
       palette,
       highlights,
       render.lighting,
+      paper?.faceGroups ?? null,
     );
     if (depthSurface) {
       if (render.showEdges) {
@@ -213,9 +233,10 @@ export function drawFrame(
           palette,
           highlights,
           depthSurface,
+          paper,
         );
       }
-      return;
+      return arrived;
     }
   }
 
@@ -272,6 +293,7 @@ export function drawFrame(
   if (render.showEdges && !render.showFaces) {
     drawAllEdges(ctx, model, projected, map, dpr, 0.95, palette, highlights);
   }
+  return arrived;
 }
 
 export function normalizeVector(vector: { x: number; y: number; z: number }): {
@@ -291,8 +313,8 @@ export function normalizeVector(vector: { x: number; y: number; z: number }): {
 function projectPositions(
   positions: Float32Array,
   view: SimulatorView,
+  center: readonly [number, number, number],
 ): ProjectedPoint[] {
-  const center = boundsCenter(positions);
   const points: ProjectedPoint[] = [];
   // The same matrix the GPU path is handed, rather than a sixth transcription of
   // the yaw/pitch products — a machine without WebGL2 draws through here, and
@@ -300,9 +322,9 @@ function projectPositions(
   const m = viewRotationFor(view);
 
   for (let index = 0; index < positions.length; index += 3) {
-    const dx = (positions[index] ?? 0) - center.x;
-    const dy = (positions[index + 1] ?? 0) - center.y;
-    const dz = (positions[index + 2] ?? 0) - center.z;
+    const dx = (positions[index] ?? 0) - center[0];
+    const dy = (positions[index + 1] ?? 0) - center[1];
+    const dz = (positions[index + 2] ?? 0) - center[2];
     points.push({
       x: m[0] * dx + m[1] * dy + m[2] * dz,
       y: m[3] * dx + m[4] * dy + m[5] * dz,
@@ -310,45 +332,6 @@ function projectPositions(
     });
   }
   return points;
-}
-
-// Centroid (mean of vertex positions) rather than the bounding-box midpoint, so
-// the orbit pivot and framing sit on the object's visual center. For an
-// asymmetric folded shape the bbox midpoint is offset from the mass center,
-// which makes the model swing around an off-center point while orbiting.
-function boundsCenter(positions: Float32Array): {
-  x: number;
-  y: number;
-  z: number;
-} {
-  let sumX = 0;
-  let sumY = 0;
-  let sumZ = 0;
-  let count = 0;
-  for (let index = 0; index < positions.length; index += 3) {
-    sumX += positions[index] ?? 0;
-    sumY += positions[index + 1] ?? 0;
-    sumZ += positions[index + 2] ?? 0;
-    count += 1;
-  }
-  if (count === 0) return { x: 0, y: 0, z: 0 };
-  return { x: sumX / count, y: sumY / count, z: sumZ / count };
-}
-
-function boundsRadius(positions: Float32Array): number {
-  const center = boundsCenter(positions);
-  let radius = 0;
-  for (let index = 0; index < positions.length; index += 3) {
-    radius = Math.max(
-      radius,
-      Math.hypot(
-        (positions[index] ?? 0) - center.x,
-        (positions[index + 1] ?? 0) - center.y,
-        (positions[index + 2] ?? 0) - center.z,
-      ),
-    );
-  }
-  return Math.max(0.001, radius);
 }
 
 interface OrderedTriangle {
@@ -512,6 +495,7 @@ function drawPaperFacesWithDepth(
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
   lighting: boolean,
+  faceGroups: Int32Array | null,
 ): DepthSurface | null {
   let imageData: ImageData;
   try {
@@ -522,6 +506,7 @@ function drawPaperFacesWithDepth(
 
   const depths = new Float32Array(width * height);
   depths.fill(-Infinity);
+  const ids = faceGroups ? new Int32Array(width * height).fill(-1) : null;
 
   for (const triangle of triangles) {
     const points = triangle.vertices.map((vertex) => {
@@ -540,11 +525,11 @@ function drawPaperFacesWithDepth(
       projected,
       lighting,
     );
-    rasterizeDepthTriangle(imageData, depths, width, height, points, color);
+    rasterizeDepthTriangle(imageData, depths, width, height, points, color, ids, faceGroups?.[triangle.faceIndex] ?? -1);
   }
 
   ctx.putImageData(imageData, 0, 0);
-  return { depths, width, height };
+  return { depths, ids, width, height };
 }
 
 function rasterizeDepthTriangle(
@@ -554,6 +539,8 @@ function rasterizeDepthTriangle(
   height: number,
   points: [ScreenPoint, ScreenPoint, ScreenPoint],
   color: [number, number, number, number],
+  ids: Int32Array | null = null,
+  face = -1,
 ): void {
   const [a, b, c] = points;
   const area = edgeFunction(a, b, c);
@@ -585,6 +572,7 @@ function rasterizeDepthTriangle(
       if (depth < (depths[pixelIndex] ?? -Infinity)) continue;
 
       depths[pixelIndex] = depth;
+      if (ids) ids[pixelIndex] = face;
       const offset = pixelIndex * 4;
       data[offset] = color[0];
       data[offset + 1] = color[1];
@@ -781,6 +769,7 @@ function drawVisibleEdges(
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
   depthSurface: DepthSurface,
+  paper: FaceAdjacency | null,
 ): void {
   ctx.setLineDash([]);
   model.edgesVertices.forEach((edge, index) => {
@@ -797,6 +786,7 @@ function drawVisibleEdges(
       highlights,
       dpr,
       depthSurface,
+      paper,
     );
   });
 }
@@ -854,6 +844,7 @@ function drawVisibleEdgeSegment(
   highlights: SimulatorHighlights,
   dpr: number,
   depthSurface: DepthSurface,
+  paper: FaceAdjacency | null,
 ): void {
   const assignment = model.edgesAssignment[edgeIndex];
   const ink = edgeInk(model.edgeCodes[edgeIndex] ?? EDGE_CODE.border, assignment, palette, 1);
@@ -878,6 +869,10 @@ function drawVisibleEdgeSegment(
     fullLength > 0 ? Math.hypot(point.x - fullA.x, point.y - fullA.y) / fullLength : 0;
   const depthA = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(a);
   const depthB = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(b);
+  const look =
+    paper && depthSurface.ids
+      ? paperLook(paper, edgeIndex, projected, map, fullA, fullB, ink.width / 2)
+      : null;
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
   ctx.lineWidth = ink.width;
@@ -905,7 +900,10 @@ function drawVisibleEdgeSegment(
       y: a.y + (b.y - a.y) * t,
       depth: depthA + (depthB - depthA) * t,
     };
-    if (edgePointIsVisible(point, depthSurface)) {
+    if (
+      edgePointIsVisible(point, depthSurface) &&
+      (!look || paperShowsAt(look, point, depthSurface))
+    ) {
       segmentStart ??= point;
       previousVisible = point;
     } else {
@@ -931,6 +929,95 @@ function edgePointIsVisible(
   const surfaceDepth = depthSurface.depths[y * depthSurface.width + x];
   if (surfaceDepth === undefined || !Number.isFinite(surfaceDepth)) return true;
   return point.depth >= surfaceDepth - PAPER_EDGE_DEPTH_EPSILON;
+}
+
+/**
+ * How to tell whether a crease's paper is what shows beside it: the faces it
+ * bounds, and the apex of each one's triangle on screen — the direction the GPU
+ * pass looks into a face from the line (`paperShows` in its edge shader). Null
+ * when there is no face to look into, and depth alone decides.
+ */
+interface PaperLook {
+  faces: [number, number];
+  apexes: [{ x: number; y: number } | null, { x: number; y: number } | null];
+  /** How far past the line the paper still has to be the crease's own. */
+  reach: number;
+}
+
+function paperLook(
+  paper: FaceAdjacency,
+  edge: number,
+  projected: ProjectedPoint[],
+  map: (point: ProjectedPoint) => { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  halfWidth: number,
+): PaperLook | null {
+  const length = Math.hypot(b.x - a.x, b.y - a.y);
+  if (length === 0) return null;
+  const perpendicular = { x: -(b.y - a.y) / length, y: (b.x - a.x) / length };
+  const apexOf = (side: 0 | 1) => {
+    const face = paper.edgeFaces[edge * 2 + side] ?? -1;
+    const apex = paper.edgeApex[edge * 2 + side] ?? -1;
+    if (face < 0 || apex < 0) return null;
+    const screen = map(projected[apex] ?? { x: 0, y: 0, depth: 0 });
+    // A triangle under a pixel wide is edge-on: nothing beside the line to look at.
+    const off =
+      (screen.x - a.x) * perpendicular.x + (screen.y - a.y) * perpendicular.y;
+    return Math.abs(off) >= 1 ? screen : null;
+  };
+  const apexes: PaperLook["apexes"] = [apexOf(0), apexOf(1)];
+  if (!apexes[0] && !apexes[1]) return null;
+  return {
+    faces: [paper.edgeFaces[edge * 2] ?? -1, paper.edgeFaces[edge * 2 + 1] ?? -1],
+    apexes,
+    reach: halfWidth + 1,
+  };
+}
+
+/** Whether the crease's paper is what shows beside `foot`, looking into either face. */
+function paperShowsAt(
+  look: PaperLook,
+  foot: { x: number; y: number },
+  surface: DepthSurface,
+): boolean {
+  return look.apexes.some(
+    (apex) => apex !== null && paperShowsToward(look, foot, apex, surface),
+  );
+}
+
+/**
+ * From `foot` toward a face's apex, which stays inside that face's triangle:
+ * just beside the line, and past the stroke's half-width, the pixel has to
+ * show one of the crease's own faces.
+ */
+function paperShowsToward(
+  look: PaperLook,
+  foot: { x: number; y: number },
+  apex: { x: number; y: number },
+  surface: DepthSurface,
+): boolean {
+  const dx = apex.x - foot.x;
+  const dy = apex.y - foot.y;
+  const room = Math.hypot(dx, dy);
+  if (room < 1) return false;
+  const at = (distance: number) =>
+    faceIdAt(surface, foot.x + (dx / room) * distance, foot.y + (dy / room) * distance);
+  return (
+    ownFace(look, at(Math.min(1, room * 0.5))) &&
+    ownFace(look, at(Math.min(look.reach, room * 0.9)))
+  );
+}
+
+function faceIdAt(surface: DepthSurface, x: number, y: number): number {
+  if (!surface.ids) return -1;
+  const px = clamp(Math.floor(x), 0, surface.width - 1);
+  const py = clamp(Math.floor(y), 0, surface.height - 1);
+  return surface.ids[py * surface.width + px] ?? -1;
+}
+
+function ownFace(look: PaperLook, id: number): boolean {
+  return id >= 0 && (id === look.faces[0] || id === look.faces[1]);
 }
 
 function findEdge(edges: [number, number][], from: number, to: number): number {

@@ -11,14 +11,18 @@ import {
   type Folded3dMeshPayload,
 } from './foldedMeshSource';
 import {
+  createFramingFollow,
+  followFraming,
+  framingOf,
+  type FramingFollow,
+} from './framingFollow';
+import {
   GlCore,
   OrigamiModel,
   ReferenceSolver,
   SimulationClock,
   WebglSolver,
   cameraUniforms,
-  centroid,
-  boundingRadius,
   glContextAttributeOverrides,
   meshTopologyFor,
   meshToPaperScene,
@@ -139,6 +143,15 @@ export interface SimulatorModelInfo {
    * erodes what the GPU pass and the export erode.
    */
   auxEnds: ArrayBuffer;
+  /**
+   * Which paper each crease lies on — `MeshTopology.faceGroups` (per
+   * triangle), `edgeFaces` and `edgeApex` (two per edge), all `Int32` — so the
+   * fallback hides a buried crease as the GPU pass does
+   * (`RenderSettings.creaseVisibility`), without working it out again.
+   */
+  faceGroups: ArrayBuffer;
+  edgeFaces: ArrayBuffer;
+  edgeApex: ArrayBuffer;
   /** 3 edge indices per (triangulated) face; -1 where an edge was not found. */
   facesEdges: ArrayBuffer;
   /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
@@ -174,6 +187,12 @@ export interface SimulatorFramePayload {
   stepsThisTick: number;
   elapsedMs: number;
   converged: boolean;
+  /**
+   * Whether the camera has arrived at the shape as it is (`framingFollow`). A
+   * model can settle before its camera does, so the frame loop keeps asking for
+   * frames until both have.
+   */
+  framed: boolean;
   maxVelocity: number;
   foldPercent: number;
   /**
@@ -239,10 +258,15 @@ interface SessionView {
   width: number;
   height: number;
   settings: RenderSettings;
-  /** Camera fit, computed once from the settled model. */
+  /** The camera's fit: the shape as it is, eased — see {@link framing}. */
   center: [number, number, number];
   radius: number;
   fitted: boolean;
+  /**
+   * How the fit follows the shape as it folds (`framingFollow`); absent for a
+   * folded figure, whose shape is final and whose fit is known at load.
+   */
+  framing?: FramingFollow;
   /**
    * When this view last actually drew, so the shared buffer can be sized from
    * the windows in use rather than from every window that exists.
@@ -1087,6 +1111,7 @@ const api = {
         center: [0, 0, 0],
         radius: 1,
         fitted: false,
+        framing: createFramingFollow(),
         lastRenderedAt: -Infinity,
       },
       // A fresh load counts as the most recent use, so a window that has just
@@ -1115,6 +1140,9 @@ const api = {
     const topology = meshTopologyFor(prepared);
     const edgeCodes = topology.edgeAssignments;
     const auxEnds = topology.auxEnds ?? new Uint8Array(edgeCodes.length);
+    const faceGroups = topology.faceGroups ?? new Int32Array(prepared.faceCount).fill(-1);
+    const edgeFaces = topology.edgeFaces ?? new Int32Array(edgeCodes.length * 2).fill(-1);
+    const edgeApex = topology.edgeApex ?? new Int32Array(edgeCodes.length * 2).fill(-1);
 
     const facesEdges = new Int32Array(prepared.faceCount * 3);
     facesEdges.fill(-1);
@@ -1135,6 +1163,9 @@ const api = {
         edgesAssignment: edgesAssignment.buffer as ArrayBuffer,
         edgeCodes: edgeCodes.buffer as ArrayBuffer,
         auxEnds: auxEnds.buffer as ArrayBuffer,
+        faceGroups: faceGroups.buffer as ArrayBuffer,
+        edgeFaces: edgeFaces.buffer as ArrayBuffer,
+        edgeApex: edgeApex.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
         sheet: sheetExtent(model.originalPositions),
         diagnostics: backend.readDiagnostics(),
@@ -1147,6 +1178,9 @@ const api = {
         edgesAssignment.buffer as ArrayBuffer,
         edgeCodes.buffer as ArrayBuffer,
         auxEnds.buffer as ArrayBuffer,
+        faceGroups.buffer as ArrayBuffer,
+        edgeFaces.buffer as ArrayBuffer,
+        edgeApex.buffer as ArrayBuffer,
         facesEdges.buffer as ArrayBuffer,
       ]
     );
@@ -1284,9 +1318,11 @@ const api = {
     const prepared = active.model.prepared;
     const positions = new Float32Array(prepared.vertexCount * 3);
     active.backend.readPositions(positions);
-    // The GPU path fits on its first settled frame; the canvas-2D path has never
-    // had reason to, so fit here from the same positions being exported.
-    if (!active.view.fitted) fitTo(positions, active.view);
+    // The GPU path's fit is the one on screen, following the shape. The
+    // canvas-2D path frames on the main thread, where the worker cannot see
+    // it, and frames the shape as it is — so fit here from the same positions
+    // being exported.
+    if (!active.gpuRender || !active.view.fitted) fitTo(positions, active.view);
 
     // The camera in CSS px: the view is held in device pixels — the drawing
     // buffer's size — and the scene is measured in CSS px, so the same frame
@@ -1518,13 +1554,14 @@ async function readFrame(
   // GPU-render mode: the worker draws straight to the transferred canvas. No
   // positions cross to the main thread at all -- the whole point of this path.
   if (active.gpuRender) {
-    refitOnce(active.gpuRender, active.view);
+    const framed = followFit(active.gpuRender, active.view, tick.converged);
     const bitmap = await renderGpu(active.gpuRender, active.view);
     const payload = {
       positions: null,
       colors: null,
       renderedInWorker: true,
       bitmap,
+      framed,
       ...scalars,
     };
     return bitmap ? transfer(payload, [bitmap]) : payload;
@@ -1550,6 +1587,9 @@ async function readFrame(
       colors: colors ? (colors.buffer as ArrayBuffer) : null,
       renderedInWorker: false,
       bitmap: null,
+      // The canvas-2D path frames on the main thread, and redraws there until
+      // its own camera arrives.
+      framed: true,
       ...scalars,
     },
     transferables
@@ -1895,23 +1935,34 @@ async function renderGpu(
 }
 
 /**
- * Fit the camera once, from the first settled frame. Matches the canvas-2D
- * renderer, which also fits once (a folded model shrinks, and refitting every
- * frame makes it visibly "breathe"). A readback of positions here is a one-off
- * on load, not a per-frame cost.
+ * Frame the shape as it is, eased (`framingFollow`), and say whether the
+ * camera has arrived. The positions are read back only when a measure is due —
+ * a few times a second while the model moves, and once when it settles — so the
+ * render path stays free of readbacks in between.
  */
-function refitOnce(solver: WebglSolver, state: SessionView): void {
-  if (state.fitted) return;
-  const positions = new Float32Array(solver.vertexCount * 3);
-  solver.readPositions(positions);
-  fitTo(positions, state);
+function followFit(solver: WebglSolver, state: SessionView, settled: boolean): boolean {
+  state.framing ??= createFramingFollow();
+  const { framing, arrived } = followFraming(
+    state.framing,
+    nowMs(),
+    () => {
+      const positions = new Float32Array(solver.vertexCount * 3);
+      solver.readPositions(positions);
+      return framingOf(positions);
+    },
+    settled
+  );
+  state.center = [framing.center[0], framing.center[1], framing.center[2]];
+  state.radius = framing.radius;
+  state.fitted = true;
+  return arrived;
 }
 
 /** Frame a set of positions, which is what makes the camera's scale meaningful. */
 function fitTo(positions: Float32Array, state: SessionView): void {
-  const center = centroid(positions);
+  const { center, radius } = framingOf(positions);
   state.center = center;
-  state.radius = boundingRadius(positions, center);
+  state.radius = radius;
   state.fitted = true;
 }
 

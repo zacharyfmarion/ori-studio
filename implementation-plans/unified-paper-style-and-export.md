@@ -1921,19 +1921,42 @@ Shrinking the nudge to the 3D figure's (tried, reverted) removed most of the
 buried linework but let faces start swallowing visible creases as well: depth
 alone cannot decide between coincident layers.
 
-- [ ] A crease is drawn where the paper it lies on is what shows: a face-ID
+- [x] A crease is drawn where the paper it lies on is what shows: a face-ID
       pass records which face is frontmost at each pixel, and the crease pass
-      draws a fragment only where one of its own faces is frontmost beside it
-      (probed a hair to each side of the line, so a border's outer half over
-      the background, or over a layer below it, still draws). Coincident
-      layers resolve exactly as their paint does, so a crease shows exactly
-      where its face's colour shows. Opt-in per surface
-      (`RenderSettings.creaseVisibility`), on for simulations; the 3D figure
-      keeps its own layer-exact skins.
-- [ ] A simulation window frames the model as it is: the camera fits the
-      current shape's bounds, eased, rather than the flat sheet's — so a fold
-      that ends a quarter the size of the sheet fills the window as the 3D
-      figure does, and the linework keeps its share of the paper.
+      draws a fragment only where one of its own faces is frontmost beside it.
+      Coincident layers resolve exactly as their paint does (same program
+      math, declared `invariant`, same draw order, same `LEQUAL`), so a crease
+      shows exactly where its face's colour shows. Opt-in per surface
+      (`RenderSettings.creaseVisibility`), on for simulations
+      (`resolveRenderSettings`); the 3D figure and the start figure keep their
+      layer-exact skins and say `'depth'`.
+  - Faces are source faces (`faceAdjacency`, over `sourceFaceGroups`), so a
+    probe that crosses a triangulation diagonal is still on its own paper.
+  - The probe looks from the line toward each face's apex, not straight
+    across it: a perpendicular probe near a vertex lands on the neighbour
+    across the next crease and hid every crease a few pixels short of its
+    ends. Toward the apex the probe stays inside the crease's own triangle,
+    so a flap's point keeps its outline to the tip.
+  - Two probes: just beside the line, and past the pen's half-width. The
+    second keeps a layer that sits a pixel proud of the one on top (the
+    simulation's layers land a hair apart) from drawing a second outline
+    beside the top layer's.
+  - The canvas-2D fallback draws by the same rule from its software raster,
+    with the adjacency shipped from the worker rather than worked out again.
+  - Verified on the reporter's file: with hidden fragments painted magenta for
+    the check, the buried layers' creases were what disappeared, and the
+    outline stayed whole. What is left is the solver's own imprecision —
+    softer folds, and patches where a lower layer pokes through the one above
+    it, which the paint shows and the lines now follow.
+- [x] A simulation window frames the model as it is: the camera follows the
+      current shape's bounds, eased, rather than holding the flat sheet's — so
+      a fold that ends a quarter the size of the sheet fills the window as the
+      3D figure does, and the linework keeps its share of the paper
+      (`framingFollow`). Measured at most every 150 ms while the shape moves
+      (a GPU readback on the worker path) and once when it settles; a dead
+      band of 2% keeps a settling model from breathing, which is why fitting
+      every frame was dropped before; the frame loop stays awake until the
+      camera has arrived, not only until the solver has.
 
 ### Validation per phase
 

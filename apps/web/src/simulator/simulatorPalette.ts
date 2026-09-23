@@ -121,7 +121,7 @@ export function resolveRenderSettings(
   surface: SimulatorSurfaceOptions = {}
 ): RenderSettings {
   const dpr = typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
-  return resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, {
+  const render = resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, {
     dpr,
     background: unit(themeGround(styles)),
     backgroundAlpha: surface.transparentBackground ? 0 : 1,
@@ -133,6 +133,10 @@ export function resolveRenderSettings(
     creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
     creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
   });
+  // A simulation has no thickness, so its folded layers coincide and depth
+  // cannot say which is on top: a crease draws where its own paper is what
+  // shows, as a folded figure's layer-ordered skins draw it.
+  return { ...render, creaseVisibility: 'own-face' };
 }
 
 /**

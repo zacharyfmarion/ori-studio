@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EDGE_BOUNDARY_A, EDGE_CODE, type RenderSettings } from '@treemaker/origami-simulator';
+import {
+  EDGE_BOUNDARY_A,
+  EDGE_CODE,
+  faceAdjacency,
+  type RenderSettings,
+} from '@treemaker/origami-simulator';
 import { drawFrame, EMPTY_HIGHLIGHTS, invalidateSimulatorSurface } from './canvas2dFrame';
 import type { SimulatorRenderModel } from './renderModel';
 import type { SimulatorPaint } from './simulatorPalette';
@@ -321,5 +326,117 @@ describe('drawFrame edges', () => {
     // The aux line is √5 ≈ 2.24 units long and the pull is 1.2, past its
     // midpoint; the four borders never erode.
     expect(strokes()).toHaveLength(4);
+  });
+});
+
+/**
+ * Two layers of one square, coincident, as a flat-folded simulation leaves
+ * them: the lower one creased along a diagonal (a mountain, 0–2), the upper one
+ * a single face split by a triangulation diagonal (5–7). The upper layer is
+ * drawn last, so it is what the paint shows everywhere.
+ */
+function stackedLayers(): SimulatorRenderModel {
+  const edgesVertices: [number, number][] = [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [0, 2],
+    [4, 5],
+    [5, 6],
+    [6, 7],
+    [7, 4],
+    [5, 7],
+  ];
+  const edgeCodes = new Uint8Array([
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.mountain,
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.facet,
+  ]);
+  const indices = new Uint32Array([0, 1, 2, 0, 2, 3, 4, 5, 7, 5, 6, 7]);
+  return {
+    vertexCount: 8,
+    faceCount: 4,
+    indices,
+    edgesVertices,
+    edgesAssignment: ['B', 'B', 'B', 'B', 'M', 'B', 'B', 'B', 'B', 'F'],
+    edgeCodes,
+    edgeBoundary: new Uint8Array(10),
+    facesEdges: [
+      [0, 1, 4],
+      [4, 2, 3],
+      [5, 9, 8],
+      [6, 7, 9],
+    ],
+    paper: faceAdjacency({
+      faceIndices: indices,
+      edgeIndices: new Uint32Array(edgesVertices.flat()),
+      edgeAssignments: edgeCodes,
+    }),
+    sheet: 2,
+  };
+}
+const SQUARE = [-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1];
+const STACKED = frameOf([...SQUARE, ...SQUARE]);
+
+describe('drawFrame creases on their own paper', () => {
+  /** The stroke colour of every stroked run, in order. */
+  function strokedColours(): string[] {
+    const colours: string[] = [];
+    let current = '';
+    Object.defineProperty(recorded.ctx, 'strokeStyle', {
+      set: (value: string) => {
+        current = value;
+      },
+      get: () => current,
+    });
+    (recorded.ctx.stroke as unknown as { mockImplementation: (f: () => void) => void }).mockImplementation(
+      () => colours.push(current)
+    );
+    return colours;
+  }
+
+  it('draws a buried layer’s creases by depth, where coincident layers all pass', () => {
+    const colours = strokedColours();
+    drawFrame(canvas, stackedLayers(), STACKED, VIEW, paintWith({ showEdges: true }), EMPTY_HIGHLIGHTS);
+    // Both layers' outlines and the lower layer's mountain.
+    expect(colours.filter((colour) => colour === 'rgb(255 0 0)')).toHaveLength(1);
+    expect(colours).toHaveLength(9);
+  });
+
+  it('hides them where the layer on top is what the paint shows', () => {
+    const colours = strokedColours();
+    drawFrame(
+      canvas,
+      stackedLayers(),
+      STACKED,
+      VIEW,
+      paintWith({ showEdges: true, creaseVisibility: 'own-face' }),
+      EMPTY_HIGHLIGHTS
+    );
+    // The upper layer's outline, whole; nothing of the lower layer.
+    expect(colours.filter((colour) => colour === 'rgb(255 0 0)')).toHaveLength(0);
+    expect(colours).toHaveLength(4);
+  });
+
+  it('decides by depth for a model that carries no adjacency', () => {
+    const colours = strokedColours();
+    const { paper: _paper, ...withoutPaper } = stackedLayers();
+    drawFrame(
+      canvas,
+      withoutPaper,
+      STACKED,
+      VIEW,
+      paintWith({ showEdges: true, creaseVisibility: 'own-face' }),
+      EMPTY_HIGHLIGHTS
+    );
+    expect(colours).toHaveLength(9);
   });
 });

@@ -7,7 +7,7 @@ import { OrigamiModel } from '../../src/model.js';
 import { ReferenceSolver } from '../../src/referenceSolver.js';
 import { WebglSolver } from '../../src/webgl/webglSolver.js';
 import { cameraUniforms, centroid, boundingRadius } from '../../src/webgl/camera.js';
-import type { RenderSettings } from '../../src/webgl/meshRenderer.js';
+import type { MeshRenderer, RenderSettings } from '../../src/webgl/meshRenderer.js';
 import { FIXTURES } from '../fixtures.js';
 import type { FoldDocument } from '../../src/types.js';
 
@@ -30,6 +30,15 @@ interface RenderCheckRow {
   ok: boolean;
   /** Strain colour mode produced a different image than paper mode. */
   strainDiffers?: boolean;
+  /**
+   * What a frame asking for own-face creases actually used: `'depth'` means the
+   * face-ID pass could not run here — a shader that no longer links, or a
+   * target the context cannot back — and `ownFaceError` says which.
+   */
+  ownFace?: 'depth' | 'own-face';
+  ownFaceError?: string;
+  /** Fraction of the frame own-face creases changed against depth ones. */
+  ownFaceChanged?: number;
   error?: string;
 }
 
@@ -184,6 +193,26 @@ window.runRenderCheck = () => {
         }
       }
 
+      // Own-face creases: the face-ID pass has to link and run, not quietly
+      // fall back to depth. The picture is the user's to judge.
+      const ownFacePixels = solver.renderToImage(
+        camera,
+        { ...RENDER_SETTINGS, creaseVisibility: 'own-face' },
+        RENDER_SIZE,
+        RENDER_SIZE
+      );
+      const renderer = (solver as unknown as { meshRenderer: MeshRenderer | null }).meshRenderer;
+      let changed = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (
+          pixels[i] !== ownFacePixels[i] ||
+          pixels[i + 1] !== ownFacePixels[i + 1] ||
+          pixels[i + 2] !== ownFacePixels[i + 2]
+        ) {
+          changed += 1;
+        }
+      }
+
       const bg = [Math.round(0.05 * 255), Math.round(0.06 * 255), Math.round(0.07 * 255)];
       let covered = 0;
       const colors = new Set<number>();
@@ -207,6 +236,9 @@ window.runRenderCheck = () => {
         distinctColors: colors.size,
         ok: coverage > 0.02 && coverage < 0.99 && colors.size > 1,
         strainDiffers,
+        ownFace: renderer?.creaseVisibilityInUse,
+        ownFaceError: renderer?.faceIdFailure?.message,
+        ownFaceChanged: changed / (RENDER_SIZE * RENDER_SIZE),
       };
     } catch (cause) {
       row = { ...row, error: cause instanceof Error ? cause.message : String(cause) };

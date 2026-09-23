@@ -1,4 +1,8 @@
-import { edgeBoundaryFlags, type FoldAssignment } from '@treemaker/origami-simulator';
+import {
+  edgeBoundaryFlags,
+  type FaceAdjacency,
+  type FoldAssignment,
+} from '@treemaker/origami-simulator';
 import {
   EDGE_ASSIGNMENT_CODES,
   type SimulatorModelInfo,
@@ -26,6 +30,12 @@ export interface SimulatorRenderModel {
    */
   edgeBoundary: Uint8Array;
   facesEdges: number[][];
+  /**
+   * Which paper each crease lies on (`faceAdjacency`), for creases drawn only
+   * where their paper shows (`RenderSettings.creaseVisibility`). Absent, depth
+   * decides which creases show.
+   */
+  paper?: FaceAdjacency;
   /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
   sheet: number;
 }
@@ -74,6 +84,11 @@ export function inflateRenderModel(info: SimulatorModelInfo): SimulatorRenderMod
       info.vertexCount
     ),
     facesEdges,
+    paper: {
+      faceGroups: new Int32Array(info.faceGroups),
+      edgeFaces: new Int32Array(info.edgeFaces),
+      edgeApex: new Int32Array(info.edgeApex),
+    },
     sheet: info.sheet,
   };
 }

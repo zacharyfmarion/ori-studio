@@ -39,6 +39,7 @@ function liveFrame(): SimulatorFramePayload | null {
     // Not converged: a converged frame idles the loop, and these tests want it
     // running so an eviction has something to be noticed by.
     converged: false,
+    framed: true,
     maxVelocity: 0,
     foldPercent: 0,
     maxStrain: 0,

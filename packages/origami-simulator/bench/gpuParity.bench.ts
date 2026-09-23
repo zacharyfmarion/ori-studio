@@ -40,6 +40,9 @@ interface RenderCheckRow {
   distinctColors: number;
   ok: boolean;
   strainDiffers?: boolean;
+  ownFace?: 'depth' | 'own-face';
+  ownFaceError?: string;
+  ownFaceChanged?: number;
   error?: string;
 }
 
@@ -112,7 +115,9 @@ describe('GPU solver parity', () => {
           (row.error
             ? `ERROR: ${row.error}`
             : `coverage ${(row.coverage * 100).toFixed(1)}%  colors ${row.distinctColors}  ` +
-              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ${row.ok ? 'ok' : 'FAIL'}`)
+              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ` +
+              `creases ${row.ownFace ?? '?'}${row.ownFaceError ? ` (${row.ownFaceError})` : ''} ` +
+              `changed ${((row.ownFaceChanged ?? 0) * 100).toFixed(1)}%  ${row.ok ? 'ok' : 'FAIL'}`)
       );
       process.stdout.write(`render check:\n${renderLines.join('\n')}\n\n`);
 
@@ -122,6 +127,10 @@ describe('GPU solver parity', () => {
         expect(row.ok, `${row.fixture} rendered an implausible frame (coverage ${row.coverage}, colors ${row.distinctColors})`).toBe(true);
         // Strain visualization must actually change the image; it used to be a stub.
         expect(row.strainDiffers, `${row.fixture} strain colour mode changed nothing`).toBe(true);
+        // Own-face creases must run the face-ID pass, not fall back to depth.
+        expect(row.ownFace, `${row.fixture} own-face creases fell back: ${row.ownFaceError}`).toBe(
+          'own-face'
+        );
       }
     } finally {
       await browser?.close();

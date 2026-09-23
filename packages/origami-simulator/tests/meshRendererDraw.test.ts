@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   EDGE_QUAD_VERTICES,
   EDGE_STRIDE,
+  EDGE_VERT,
   MeshRenderer,
   buildEdgeQuads,
   erodePx,
+  faceIdCorners,
   type MeshTopology,
   type RenderSettings,
 } from '../src/webgl/meshRenderer.js';
@@ -12,6 +14,7 @@ import type { GlCore } from '../src/webgl/glCore.js';
 import { viewRotation, type CameraUniforms } from '../src/webgl/camera.js';
 import { EDGE_CODE } from '../src/edgeCodes.js';
 import { EDGE_BOUNDARY_A, EDGE_BOUNDARY_B } from '../src/edgeBoundary.js';
+import { faceAdjacency } from '../src/faceAdjacency.js';
 
 // WebGL2 does not exist in Node, so this covers the *command stream* the renderer
 // issues rather than the pixels it produces: which clears happen, and which slice
@@ -42,6 +45,12 @@ interface Recorder {
    * slow one, so nothing but this would notice it coming back.
    */
   clearScissors: ([number, number, number, number] | null)[];
+  /** Every framebuffer bound, in order; `null` is the caller's target. */
+  framebuffers: unknown[];
+  /** Each `bindAttribLocation`, as `name → location`, per program. */
+  attributeLocations: Map<unknown, Map<string, number>>;
+  /** What `checkFramebufferStatus` answers; complete unless a test says not. */
+  framebufferStatus: { value: number };
 }
 
 /** A WebGL2 stub that records the calls this test asks questions about. */
@@ -52,6 +61,9 @@ function recorder(): Recorder {
   const arrayDraws: [number, number][] = [];
   const floats = new Map<string, number>();
   const clearScissors: ([number, number, number, number] | null)[] = [];
+  const framebuffers: unknown[] = [];
+  const attributeLocations = new Map<unknown, Map<string, number>>();
+  const framebufferStatus = { value: 20 };
   let scissorEnabled = false;
   let scissorBox: [number, number, number, number] | null = null;
   const object = () => ({}) as never;
@@ -80,6 +92,17 @@ function recorder(): Recorder {
     COLOR_BUFFER_BIT: 0x4000,
     DEPTH_BUFFER_BIT: 0x0100,
     SCISSOR_TEST: 19,
+    FRAMEBUFFER_COMPLETE: 20,
+    COLOR: 21,
+    DEPTH: 22,
+    R32I: 23,
+    RED_INTEGER: 24,
+    INT: 25,
+    RENDERBUFFER: 26,
+    DEPTH_COMPONENT24: 27,
+    COLOR_ATTACHMENT0: 28,
+    DEPTH_ATTACHMENT: 29,
+    TEXTURE3: 103,
 
     createShader: object,
     shaderSource: () => {},
@@ -97,11 +120,34 @@ function recorder(): Recorder {
     bufferData: () => {},
     createVertexArray: object,
     bindVertexArray: () => {},
-    getAttribLocation: () => 0,
+    bindAttribLocation: (program: unknown, location: number, name: string) => {
+      const names = attributeLocations.get(program) ?? new Map<string, number>();
+      names.set(name, location);
+      attributeLocations.set(program, names);
+    },
     enableVertexAttribArray: () => {},
     vertexAttribPointer: () => {},
 
-    bindFramebuffer: () => {},
+    createFramebuffer: () => ({ framebuffer: true }),
+    createTexture: object,
+    createRenderbuffer: object,
+    bindRenderbuffer: () => {},
+    renderbufferStorage: () => {},
+    texParameteri: () => {},
+    texImage2D: () => {},
+    framebufferTexture2D: () => {},
+    framebufferRenderbuffer: () => {},
+    checkFramebufferStatus: () => framebufferStatus.value,
+    clearBufferiv: () => {},
+    clearBufferfv: () => {},
+    deleteProgram: () => {},
+    deleteBuffer: () => {},
+    deleteVertexArray: () => {},
+    deleteFramebuffer: () => {},
+    deleteTexture: () => {},
+    deleteRenderbuffer: () => {},
+
+    bindFramebuffer: (_target: number, framebuffer: unknown) => framebuffers.push(framebuffer),
     viewport: () => {},
     enable: (cap: number) => {
       if (cap === 19) scissorEnabled = true;
@@ -134,6 +180,7 @@ function recorder(): Recorder {
       if (location) floats.set(location.name, value);
     },
     uniform2f: () => {},
+    uniform2i: () => {},
     uniform3f: () => {},
     uniform1fv: () => {},
     uniform1iv: () => {},
@@ -148,7 +195,19 @@ function recorder(): Recorder {
     getTexture: () => ({}) as WebGLTexture,
   } as unknown as GlCore;
 
-  return { gl, core, clears, clearColors, draws, arrayDraws, floats, clearScissors };
+  return {
+    gl,
+    core,
+    clears,
+    clearColors,
+    draws,
+    arrayDraws,
+    floats,
+    clearScissors,
+    framebuffers,
+    attributeLocations,
+    framebufferStatus,
+  };
 }
 
 /** Six triangles, so a sub-range can be asked for and be wrong if ignored. */
@@ -418,5 +477,131 @@ describe('drawing the aux pass and the erode', () => {
       null
     );
     expect(floats.get('u_erodePx')).toBe(0);
+  });
+});
+
+/** The fan, with the adjacency `meshTopologyFor` attaches. */
+function fanWithAdjacency(): MeshTopology {
+  const topology = fanTopology();
+  return { ...topology, ...faceAdjacency(topology) };
+}
+
+/** Slots 6..9 — faces and apexes — of the first vertex of edge `edge`'s ribbon. */
+function paperOf(quads: ReturnType<typeof buildEdgeQuads>, edge: number): number[] {
+  const first = quads.vertexStart[edge]! * EDGE_STRIDE;
+  return Array.from(quads.interleaved.slice(first + 6, first + 10));
+}
+
+describe('which paper each crease lies on', () => {
+  it('carries each crease’s faces and their apexes on its ribbon', () => {
+    const topology = fanWithAdjacency();
+    const quads = buildEdgeQuads(topology);
+    // The facet spoke (2–4) joins the two triangles either side of it into
+    // one face, and no other edge joins anything.
+    const groups = topology.faceGroups!;
+    expect(groups[1]).toBe(groups[2]);
+    expect(new Set(groups).size).toBe(3);
+    // A border edge bounds one face; its apex is the fan's centre.
+    expect(paperOf(quads, 0)).toEqual([groups[0], -1, 4, -1]);
+    // The mountain spoke (0–4) bounds the triangles either side of it, whose
+    // apexes are the corners either side.
+    expect(paperOf(quads, 4)).toEqual([groups[0], groups[3], 1, 3]);
+    // Every vertex of a ribbon carries the same paper.
+    const first = quads.vertexStart[4]!;
+    for (let v = first; v < quads.vertexStart[5]!; v += 1) {
+      expect(Array.from(quads.interleaved.slice(v * EDGE_STRIDE + 6, v * EDGE_STRIDE + 10))).toEqual(
+        paperOf(quads, 4)
+      );
+    }
+  });
+
+  it('marks every crease paperless when the topology states no adjacency', () => {
+    const quads = buildEdgeQuads(fanTopology());
+    for (let edge = 0; edge < 6; edge += 1) expect(paperOf(quads, edge)).toEqual([-1, -1, -1, -1]);
+  });
+
+  it('lays the ID pass’s corners out as the element buffer’s, each with its triangle’s face', () => {
+    const topology = fanWithAdjacency();
+    const corners = faceIdCorners(topology.faceIndices, topology.faceGroups!);
+    expect(corners.length).toBe(topology.faceIndices.length * 2);
+    for (let i = 0; i < topology.faceIndices.length; i += 1) {
+      expect(corners[i * 2]).toBe(topology.faceIndices[i]);
+      expect(corners[i * 2 + 1]).toBe(topology.faceGroups![Math.floor(i / 3)]);
+    }
+  });
+
+  it('binds every attribute the edge shader declares to a location both variants share', () => {
+    const { core, attributeLocations } = recorder();
+    new MeshRenderer(core, fanWithAdjacency()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, creaseVisibility: 'own-face' },
+      null
+    );
+    const declared = [...EDGE_VERT.matchAll(/^in float (a_\w+);/gm)].map((match) => match[1]!);
+    expect(declared).toContain('a_face1');
+    // Two edge programs (depth and own-face) and the ID pass's.
+    const edgePrograms = [...attributeLocations.values()].filter((names) => names.has('a_this'));
+    expect(edgePrograms).toHaveLength(2);
+    for (const names of edgePrograms) {
+      for (const name of declared) expect(names.has(name), name).toBe(true);
+      expect(Object.fromEntries(names)).toEqual(Object.fromEntries(edgePrograms[0]!));
+    }
+  });
+});
+
+describe('drawing creases on their own paper', () => {
+  const OWN_FACE: RenderSettings = { ...SETTINGS, showEdges: true, creaseVisibility: 'own-face' };
+
+  it('draws the face-ID pass over the same faces, between the paint and the creases', () => {
+    const { core, arrayDraws, framebuffers } = recorder();
+    const renderer = new MeshRenderer(core, fanWithAdjacency());
+    renderer.render(CAMERA, OWN_FACE, null, { faceRange: { start: 3, count: 6 } });
+    // The ID pass draws corners 3..9 — the triangles the paint drew — and then
+    // the creases draw their ribbons.
+    expect(arrayDraws).toEqual([
+      [3, 6],
+      [0, 6 * EDGE_QUAD_VERTICES],
+    ]);
+    // Into its own target, and back to the caller's before the creases.
+    expect(framebuffers[0]).toBeNull();
+    expect(framebuffers.at(-1)).toBeNull();
+    expect(framebuffers.some((framebuffer) => framebuffer !== null)).toBe(true);
+    expect(renderer.creaseVisibilityInUse).toBe('own-face');
+  });
+
+  it('decides by depth unless asked, and over paper that is hidden or translucent', () => {
+    for (const settings of [
+      { ...OWN_FACE, creaseVisibility: 'depth' as const },
+      { ...OWN_FACE, creaseVisibility: undefined },
+      { ...OWN_FACE, showFaces: false },
+      { ...OWN_FACE, faceAlpha: 0.5 },
+    ]) {
+      const { core, arrayDraws } = recorder();
+      const renderer = new MeshRenderer(core, fanWithAdjacency());
+      renderer.render(CAMERA, settings, null);
+      expect(arrayDraws).toEqual([[0, 6 * EDGE_QUAD_VERTICES]]);
+      expect(renderer.creaseVisibilityInUse).toBe('depth');
+    }
+  });
+
+  it('decides by depth for a topology that states no adjacency', () => {
+    const { core, arrayDraws } = recorder();
+    const renderer = new MeshRenderer(core, fanTopology());
+    renderer.render(CAMERA, OWN_FACE, null);
+    expect(arrayDraws).toEqual([[0, 6 * EDGE_QUAD_VERTICES]]);
+    expect(renderer.creaseVisibilityInUse).toBe('depth');
+  });
+
+  it('falls back to depth, and says why, when the context cannot back the ID target', () => {
+    const { core, arrayDraws, framebufferStatus } = recorder();
+    framebufferStatus.value = 0;
+    const renderer = new MeshRenderer(core, fanWithAdjacency());
+    renderer.render(CAMERA, OWN_FACE, null);
+    expect(arrayDraws).toEqual([[0, 6 * EDGE_QUAD_VERTICES]]);
+    expect(renderer.creaseVisibilityInUse).toBe('depth');
+    expect(renderer.faceIdFailure?.message).toMatch(/incomplete/);
+    // And stops asking.
+    renderer.render(CAMERA, OWN_FACE, null);
+    expect(arrayDraws).toHaveLength(2);
   });
 });

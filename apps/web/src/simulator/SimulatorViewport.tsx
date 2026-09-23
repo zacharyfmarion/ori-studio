@@ -308,6 +308,9 @@ export function SimulatorViewport({
   const viewCubeRef = useRef<SimulatorViewCubeHandle | null>(null);
   // The rAF of a view cube snap in flight, or null. See `applyView`.
   const snapRef = useRef<number | null>(null);
+  // The rAF of a canvas-2D redraw while the camera is still arriving, or null.
+  // See `drawCurrentFrame`.
+  const framingRef = useRef<number | null>(null);
   // Which pointer the canvas is following. The angles it drags from live on the
   // gesture below, which the view cube drives too.
   const dragRef = useRef<{ pointerId: number } | null>(null);
@@ -368,16 +371,33 @@ export function SimulatorViewport({
   }, []);
 
   // In GPU mode the worker owns the canvas and draws; this no-ops. In CPU mode
-  // it rasterises the latest frame on this thread.
+  // it rasterises the latest frame on this thread — and again on the next
+  // animation frame while the camera is still easing to the shape, because the
+  // frames stop coming once the model settles and the camera may not have.
   const drawCurrentFrame = useCallback(() => {
-    if (gpuActiveRef.current) return;
-    const canvas = canvasRef.current;
-    const model = modelRef.current;
-    const frame = frameRef.current;
-    const paint = paintRef.current;
-    if (!canvas || !model || !frame || !frame.positions || !paint) return;
-    drawFrame(canvas, model, frame, viewRef.current, paint, highlightsRef.current);
+    if (framingRef.current !== null) window.cancelAnimationFrame(framingRef.current);
+    framingRef.current = null;
+    function draw() {
+      framingRef.current = null;
+      if (gpuActiveRef.current) return;
+      const canvas = canvasRef.current;
+      const model = modelRef.current;
+      const frame = frameRef.current;
+      const paint = paintRef.current;
+      if (!canvas || !model || !frame || !frame.positions || !paint) return;
+      const arrived = drawFrame(canvas, model, frame, viewRef.current, paint, highlightsRef.current);
+      if (!arrived) framingRef.current = window.requestAnimationFrame(draw);
+    }
+    draw();
   }, []);
+
+  useEffect(
+    () => () => {
+      if (framingRef.current !== null) window.cancelAnimationFrame(framingRef.current);
+      framingRef.current = null;
+    },
+    []
+  );
 
   /**
    * Re-resolve the palette and push it wherever it is needed.

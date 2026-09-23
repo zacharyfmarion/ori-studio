@@ -53,6 +53,11 @@ export {
 } from './paperScene.js';
 export { EDGE_CODE, type EdgeCode } from './edgeCodes.js';
 export {
+  faceAdjacency,
+  type FaceAdjacency,
+  type FaceAdjacencyTopology,
+} from './faceAdjacency.js';
+export {
   AUX_END_ON_OUTLINE_RELATIVE,
   EDGE_BOUNDARY_A,
   EDGE_BOUNDARY_B,

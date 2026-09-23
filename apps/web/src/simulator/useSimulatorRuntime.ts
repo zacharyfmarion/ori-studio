@@ -235,6 +235,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   // this is true and nothing is playing, so a converged simulator costs nothing
   // while still restarting the instant a new target arrives.
   const convergedRef = useRef(true);
+  // Whether the worker's camera has arrived at the shape as it is. The model
+  // can settle before its camera does, and the camera only moves on a frame.
+  const framedRef = useRef(true);
   const playingRef = useRef(false);
   const recycledRef = useRef<ArrayBuffer | undefined>(undefined);
   const generationRef = useRef(0);
@@ -325,6 +328,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       maxStrain: payload.maxStrain,
     });
     convergedRef.current = payload.converged;
+    framedRef.current = payload.framed;
     lastScalarsRef.current = {
       positions: null,
       step: payload.step,
@@ -518,8 +522,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       // Frozen: the caller wants this model held where it is. It still renders
       // on demand, it just does not advance.
       if (pausedRef.current) return;
-      // Idle: nothing to solve and nothing playing.
-      if (convergedRef.current && !playingRef.current) return;
+      // Idle: nothing to solve, nothing playing, and the camera where it is going.
+      if (convergedRef.current && framedRef.current && !playingRef.current) return;
 
       inFlightRef.current = true;
       const recycled = recycledRef.current;
