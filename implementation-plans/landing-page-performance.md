@@ -429,6 +429,10 @@ Things that had to move so the landing stops importing the store:
   imported the whole store.
 - `useFileDropTarget` takes its handler.
 - `useSitePageTitle` splits site-page titling out of `useWindowTitle`.
+- The settings and locale stores import `analytics/runtime` and `analytics/events`
+  directly, not the barrel. The runtime reads both stores, so importing the barrel
+  from them made a cycle through it. Once the barrel's modules were split across the
+  landing and workspace chunks, Rollup warned 34 times that it could not order it.
 
 **The CSS was kept exactly as it was.** The workspace components' stylesheets
 (CpDetect, Sonner, Dockview, MenuBar) are imported first in `main.tsx`, so the
