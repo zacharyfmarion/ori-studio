@@ -253,9 +253,9 @@
       "title": "Janela de simulação"
     },
     "paperStyle": {
-      "auxColor": "Cor do vinco",
-      "auxVisible": "Vincos existentes",
-      "auxWidth": "Largura do vinco (pt)",
+      "auxColor": "Cor do vinco auxiliar",
+      "auxVisible": "Vincos auxiliares",
+      "auxWidth": "Largura do vinco auxiliar (pt)",
       "changeAction": "Alterar estilo de papel",
       "erode": "Recuo (% do papel)",
       "resetAction": "Redefinir estilo de papel"

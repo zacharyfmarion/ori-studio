@@ -31,8 +31,8 @@ describe('paperThumbnail', () => {
   });
 
   it('resolves a dash against the pen’s own width, as every other surface does', () => {
-    const thumb = paperThumbnail(builtInPaperPreset('origami-house').style);
-    const mountain = builtInPaperPreset('origami-house').style.mountainFolds;
+    const thumb = paperThumbnail(builtInPaperPreset('diagram').style);
+    const mountain = builtInPaperPreset('diagram').style.mountainFolds;
     const width = mountain.width * PT_TO_CSS_PX;
     expect(thumb.lines[0]?.dash).toBe(
       mountain.dash?.map((run) => Math.round(run * width * 100) / 100).join(' ')
@@ -57,8 +57,8 @@ describe('paperThumbnail', () => {
   });
 
   it('paints an unlit style’s faces in the paper colours themselves', () => {
-    const thumb = paperThumbnail(builtInPaperPreset('black-and-white').style);
-    const { paper } = builtInPaperPreset('black-and-white').style;
+    const thumb = paperThumbnail(builtInPaperPreset('diagram').style);
+    const { paper } = builtInPaperPreset('diagram').style;
     expect(thumb.faces.map((face) => face.fill)).toEqual([paper.front, paper.back]);
   });
 });

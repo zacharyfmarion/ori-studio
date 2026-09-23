@@ -185,7 +185,7 @@ export function auxAndErodeFields(deps: PaperStyleRowDeps): PropertyField[] {
     {
       id: 'auxVisible',
       kind: 'toggle',
-      label: t('panels:cpProperties.paperStyle.auxVisible', 'Existing creases'),
+      label: t('panels:cpProperties.paperStyle.auxVisible', 'Auxiliary creases'),
       ...support,
       undoLabel: changeStyle,
       protocol: 'discrete',
@@ -196,7 +196,7 @@ export function auxAndErodeFields(deps: PaperStyleRowDeps): PropertyField[] {
     {
       id: 'auxColor',
       kind: 'color',
-      label: t('panels:cpProperties.paperStyle.auxColor', 'Crease color'),
+      label: t('panels:cpProperties.paperStyle.auxColor', 'Aux crease color'),
       ...support,
       undoLabel: changeStyle,
       protocol: 'continuous',
@@ -210,7 +210,7 @@ export function auxAndErodeFields(deps: PaperStyleRowDeps): PropertyField[] {
     {
       id: 'auxWidth',
       kind: 'number',
-      label: t('panels:cpProperties.paperStyle.auxWidth', 'Crease width (pt)'),
+      label: t('panels:cpProperties.paperStyle.auxWidth', 'Aux crease width (pt)'),
       ...support,
       undoLabel: changeStyle,
       min: PEN_WIDTH_RANGE.min,

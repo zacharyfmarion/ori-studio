@@ -157,9 +157,9 @@ describe('SimulatorViewControlsPanel', () => {
     expect(useSettingsStore.getState().paperStyle.display.light.enabled).toBe(false);
   });
 
-  // Re-pinned: the reset used to apply the whole Ori default preset, which also
+  // Re-pinned: the reset used to apply the whole Default preset, which also
   // wiped fields this pane never shows.
-  it('resets the style rows it shows to the Ori default, and nothing else', () => {
+  it('resets the style rows it shows to the Default preset, and nothing else', () => {
     const rendered = render();
     toggle(rendered, 'Paper');
     const arrows = { ...DEFAULT_PAPER_STYLE.arrows, color: '#ff00ff' };

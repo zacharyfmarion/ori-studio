@@ -248,9 +248,9 @@
       "title": "Simulation window"
     },
     "paperStyle": {
-      "auxColor": "Crease color",
-      "auxVisible": "Existing creases",
-      "auxWidth": "Crease width (pt)",
+      "auxColor": "Aux crease color",
+      "auxVisible": "Auxiliary creases",
+      "auxWidth": "Aux crease width (pt)",
       "changeAction": "Change paper style",
       "erode": "Erode (% of sheet)",
       "resetAction": "Reset paper style"

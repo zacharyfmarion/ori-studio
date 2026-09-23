@@ -250,7 +250,7 @@ describe('CpFoldedFigureToolbar', () => {
       );
     }
 
-    it('holds the render style, side, colours, shadow and existing creases as rows of one menu', () => {
+    it('holds the render style, side, colours, shadow and auxiliary creases as rows of one menu', () => {
       // Re-pinned for Phase 5: the existing-crease switch is the last row.
       render(makeFigure());
       openMenu('Style');
@@ -261,7 +261,7 @@ describe('CpFoldedFigureToolbar', () => {
         'Back color',
         'Line color',
         'Shadow',
-        'Existing creases',
+        'Auxiliary creases',
       ]);
       const submenus = rows().filter((row) => row.getAttribute('aria-haspopup') === 'menu');
       expect(submenus.map((row) => row.textContent)).toEqual(['Render as', 'Side']);
@@ -329,7 +329,7 @@ describe('CpFoldedFigureToolbar', () => {
       expect(side?.getAttribute('title')).toBe('Turn a 3D model with Other side');
       const checks = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]'));
       // Re-pinned for Phase 5: the existing-crease switch follows the light.
-      expect(checks.map((row) => row.textContent)).toEqual(['Lighting', 'Existing creases']);
+      expect(checks.map((row) => row.textContent)).toEqual(['Lighting', 'Auxiliary creases']);
       expect(checks[0]?.getAttribute('data-disabled')).toBeNull();
       expect(checks[0]?.getAttribute('aria-checked')).toBe('true');
     });

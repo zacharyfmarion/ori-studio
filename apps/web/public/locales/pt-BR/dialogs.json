@@ -378,8 +378,8 @@
       "updateAvailable": "Mais novo do que o instalado"
     },
     "paper": {
-      "auxVisible": "Mostrar vincos existentes",
-      "auxVisibleHint": "Vincos que já estão no papel, em todas as superfícies.",
+      "auxVisible": "Mostrar vincos auxiliares",
+      "auxVisibleHint": "As linhas auxiliares do padrão de vincos, desenhadas em todas as superfícies.",
       "back": "Verso",
       "cap": {
         "butt": "Reto",
@@ -440,7 +440,7 @@
       "paperTitle": "Papel",
       "pen": {
         "arrows": "Setas",
-        "auxCreases": "Vincos existentes",
+        "auxCreases": "Vincos auxiliares",
         "edges": "Bordas",
         "mountainFolds": "Dobras em monte",
         "valleyFolds": "Dobras em vale"
@@ -454,10 +454,8 @@
       "penWidth": "Largura (pt)",
       "penWidthNamed": "Largura de {{pen}}",
       "preset": {
-        "blackAndWhite": "Preto e branco",
-        "oriDefault": "Padrão do Ori",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "Padrão",
+        "diagram": "Diagrama"
       },
       "presetChip": {
         "custom": "Personalizado",

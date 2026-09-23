@@ -378,8 +378,8 @@
       "updateAvailable": "Más reciente que el instalado"
     },
     "paper": {
-      "auxVisible": "Mostrar los pliegues existentes",
-      "auxVisibleHint": "Pliegues que ya están en el papel, en todas las superficies.",
+      "auxVisible": "Mostrar los pliegues auxiliares",
+      "auxVisibleHint": "Las líneas auxiliares del patrón de pliegues, dibujadas en todas las superficies.",
       "back": "Reverso",
       "cap": {
         "butt": "Plano",
@@ -440,7 +440,7 @@
       "paperTitle": "Papel",
       "pen": {
         "arrows": "Flechas",
-        "auxCreases": "Pliegues existentes",
+        "auxCreases": "Pliegues auxiliares",
         "edges": "Bordes",
         "mountainFolds": "Pliegues en monte",
         "valleyFolds": "Pliegues en valle"
@@ -454,10 +454,8 @@
       "penWidth": "Anchura (pt)",
       "penWidthNamed": "Anchura de {{pen}}",
       "preset": {
-        "blackAndWhite": "Blanco y negro",
-        "oriDefault": "Ori predeterminado",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "Predeterminado",
+        "diagram": "Diagrama"
       },
       "presetChip": {
         "custom": "Personalizado",

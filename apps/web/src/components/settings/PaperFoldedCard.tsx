@@ -96,10 +96,10 @@ export function PaperFoldedCard({ paper }: { paper: PaperSettingsBinding }) {
   return (
     <div className="settings-paper__card settings-paper__card--folded">
       <SettingsToggleRow
-        label={t('dialogs:settings.paper.auxVisible', 'Show existing creases')}
+        label={t('dialogs:settings.paper.auxVisible', 'Show auxiliary creases')}
         description={t(
           'dialogs:settings.paper.auxVisibleHint',
-          'Precreases already in the paper, on every surface.'
+          'The crease pattern’s auxiliary lines, drawn on every surface.'
         )}
         checked={style.auxCreases.visible}
         disabled={!editable}

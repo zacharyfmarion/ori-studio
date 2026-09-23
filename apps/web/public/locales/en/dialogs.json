@@ -370,8 +370,8 @@
       "updateAvailable": "Newer than what is installed"
     },
     "paper": {
-      "auxVisible": "Show existing creases",
-      "auxVisibleHint": "Precreases already in the paper, on every surface.",
+      "auxVisible": "Show auxiliary creases",
+      "auxVisibleHint": "The crease pattern’s auxiliary lines, drawn on every surface.",
       "back": "Back",
       "cap": {
         "butt": "Flat",
@@ -432,7 +432,7 @@
       "paperTitle": "Paper",
       "pen": {
         "arrows": "Arrows",
-        "auxCreases": "Existing creases",
+        "auxCreases": "Auxiliary creases",
         "edges": "Edges",
         "mountainFolds": "Mountain folds",
         "valleyFolds": "Valley folds"
@@ -446,10 +446,8 @@
       "penWidth": "Width (pt)",
       "penWidthNamed": "{{pen}} width",
       "preset": {
-        "blackAndWhite": "Black & white",
-        "oriDefault": "Ori default",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "Default",
+        "diagram": "Diagram"
       },
       "presetChip": {
         "custom": "Custom",

@@ -1709,6 +1709,41 @@ against the mesh route no longer applies (F9).
       read (`minimal_repro`, which the `--out` set does not produce, is now
       listed in their README with that provenance).
 
+### Phase 8 — Auxiliary creases are the pattern's, live
+
+Review after Phase 7 found the aux layer right only in the simulator. The
+flat figure pinned its aux lines at fold time, so an aux crease drawn after
+folding never appeared; the 3D fold never received the pattern's aux lines at
+all; the precrease planner folded an aux line as the step's valley; and
+References had no rule for aux lines. Decisions taken with the user:
+aux lines follow the pattern live on both folded figures (no refold), the 3D
+figure keeps drawing 0° creases in the aux pen, and References gets its own
+"Show auxiliary creases" option beside "Auto-play folds".
+
+- [x] Built-in presets are **Default** (`default`) and **Diagram**
+      (`diagram`, the Origami House template, erode 0.5 % of the sheet);
+      Oriedita and Black & white are gone. The ids never shipped, so a stored
+      `builtin:ori-default` is not migrated — it reads as no preset, which
+      the chip shows as the preset the style matches.
+- [x] The copy says what the lines are: "Show auxiliary creases",
+      "Auxiliary creases", "Aux crease color", "Aux crease width (pt)".
+- [ ] Planner: aux-coloured segments are never targets. Excluded at the
+      planner's entry with the caller's indices kept, so exactness, the grid
+      and the merged lines never see them either.
+- [ ] References: "Show auxiliary creases" view option — follows the style
+      by default, resettable while overridden, stored per app. When on, the
+      pattern's aux lines draw on every step in the aux pen, on the paper from
+      the start, never planned, never tappable. The build-up of creases made
+      in earlier steps no longer hides with the aux switch.
+- [ ] Flat figure: the kernel maps the *document's* current aux lines at
+      call time (the fold-time capture stays the fallback for a figure whose
+      document is gone); the canvas refetches on an aux fingerprint of the
+      pattern; export makes the same call.
+- [ ] 3D figure: the pattern's aux lines mapped per face, so a buried layer
+      hides its aux lines as it hides its 0° creases; live the same way.
+- [ ] The flat aux fetch reports and retries instead of swallowing a
+      failure.
+
 ### Validation per phase
 
 Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`,

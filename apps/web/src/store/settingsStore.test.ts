@@ -368,31 +368,31 @@ describe('paperStyle', () => {
   });
 
   it('applies a preset to one slot only, and remembers which it was', () => {
-    useSettingsStore.getState().applyPaperPreset('export', builtInPaperPreset('oriedita'));
+    useSettingsStore.getState().applyPaperPreset('export', builtInPaperPreset('diagram'));
     const { display, export: exported, appliedPreset } = useSettingsStore.getState().paperStyle;
-    expect(exported).toEqual(builtInPaperPreset('oriedita').style);
+    expect(exported).toEqual(builtInPaperPreset('diagram').style);
     expect(display).toEqual(DEFAULT_PAPER_STYLE);
-    expect(appliedPreset).toEqual({ display: null, export: 'builtin:oriedita' });
+    expect(appliedPreset).toEqual({ display: null, export: 'builtin:diagram' });
   });
 
   it('carries the display slot’s preset over when the export slot is detached, and drops it when it follows again', () => {
     const store = useSettingsStore.getState();
-    store.applyPaperPreset('display', builtInPaperPreset('oriedita'));
+    store.applyPaperPreset('display', builtInPaperPreset('diagram'));
     useSettingsStore.getState().setExportPaperStyleFollowsDisplay(false);
     expect(useSettingsStore.getState().paperStyle.appliedPreset).toEqual({
-      display: 'builtin:oriedita',
-      export: 'builtin:oriedita',
+      display: 'builtin:diagram',
+      export: 'builtin:diagram',
     });
     useSettingsStore.getState().setExportPaperStyleFollowsDisplay(true);
     expect(useSettingsStore.getState().paperStyle.appliedPreset.export).toBeNull();
   });
 
   it('forks the display slot’s preset when an edit is what detaches the export slot', () => {
-    useSettingsStore.getState().applyPaperPreset('display', builtInPaperPreset('oriedita'));
+    useSettingsStore.getState().applyPaperPreset('display', builtInPaperPreset('diagram'));
     useSettingsStore.getState().setPaperStyleField('export', 'erode', 0.1);
     expect(useSettingsStore.getState().paperStyle.appliedPreset).toEqual({
-      display: 'builtin:oriedita',
-      export: 'builtin:oriedita',
+      display: 'builtin:diagram',
+      export: 'builtin:diagram',
     });
   });
 

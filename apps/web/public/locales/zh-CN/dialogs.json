@@ -362,8 +362,8 @@
       "updateAvailable": "比已安装的版本更新"
     },
     "paper": {
-      "auxVisible": "显示已有折痕",
-      "auxVisibleHint": "纸张上已有的折痕，在所有界面中显示。",
+      "auxVisible": "显示辅助折痕",
+      "auxVisibleHint": "折痕图中的辅助线，在所有界面中绘制。",
       "back": "背面",
       "cap": {
         "butt": "平头",
@@ -424,7 +424,7 @@
       "paperTitle": "纸张",
       "pen": {
         "arrows": "箭头",
-        "auxCreases": "已有折痕",
+        "auxCreases": "辅助折痕",
         "edges": "边",
         "mountainFolds": "山折",
         "valleyFolds": "谷折"
@@ -438,10 +438,8 @@
       "penWidth": "宽度 (pt)",
       "penWidthNamed": "{{pen}}宽度",
       "preset": {
-        "blackAndWhite": "黑白",
-        "oriDefault": "Ori 默认",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "默认",
+        "diagram": "图解"
       },
       "presetChip": {
         "custom": "自定义",

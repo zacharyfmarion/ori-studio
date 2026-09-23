@@ -115,7 +115,7 @@ describe('useSimulatorPaperStyle', () => {
     expect(current().creaseStyle).toBe('mono-dashed');
   });
 
-  // Re-pinned twice: the reset used to apply the whole Ori default preset,
+  // Re-pinned twice: the reset used to apply the whole Default preset,
   // which also wiped fields the pane never shows (the arrow pen, the edge
   // width); then it wrote one store update per row, and now writes one.
   it('toggles the light and resets the rows it offers, leaving the rest of the style alone', () => {

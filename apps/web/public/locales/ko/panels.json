@@ -243,9 +243,9 @@
       "title": "시뮬레이션 창"
     },
     "paperStyle": {
-      "auxColor": "접힘선 색상",
-      "auxVisible": "기존 접힘선",
-      "auxWidth": "접힘선 두께 (pt)",
+      "auxColor": "보조 접힘선 색상",
+      "auxVisible": "보조 접힘선",
+      "auxWidth": "보조 접힘선 두께 (pt)",
       "changeAction": "종이 스타일 변경",
       "erode": "들여쓰기 (종이의 %)",
       "resetAction": "종이 스타일 초기화"

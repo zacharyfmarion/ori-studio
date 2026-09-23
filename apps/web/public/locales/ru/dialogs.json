@@ -386,8 +386,8 @@
       "updateAvailable": "Новее установленного"
     },
     "paper": {
-      "auxVisible": "Показывать существующие складки",
-      "auxVisibleHint": "Складки, уже имеющиеся на бумаге, на всех поверхностях.",
+      "auxVisible": "Показывать вспомогательные складки",
+      "auxVisibleHint": "Вспомогательные линии паттерна складок, на всех поверхностях.",
       "back": "Изнанка",
       "cap": {
         "butt": "Плоский",
@@ -448,7 +448,7 @@
       "paperTitle": "Бумага",
       "pen": {
         "arrows": "Стрелки",
-        "auxCreases": "Существующие складки",
+        "auxCreases": "Вспомогательные складки",
         "edges": "Края",
         "mountainFolds": "Горные сгибы",
         "valleyFolds": "Долинные сгибы"
@@ -462,10 +462,8 @@
       "penWidth": "Ширина (пт)",
       "penWidthNamed": "Ширина: {{pen}}",
       "preset": {
-        "blackAndWhite": "Чёрно-белый",
-        "oriDefault": "Ori по умолчанию",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "По умолчанию",
+        "diagram": "Схема"
       },
       "presetChip": {
         "custom": "Свой стиль",

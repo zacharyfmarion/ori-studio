@@ -1,8 +1,9 @@
 /**
  * A pen's dash as the Settings field shows it: run lengths in multiples of
- * the width, separated by spaces — `8 2 1 2` is the Origami House mountain,
- * an empty field is solid. Written the way the template states its dashes,
- * so a value can be copied straight off a printed style guide.
+ * the width, separated by spaces — `8 2 1 2` is the Diagram preset's
+ * mountain, an empty field is solid. Written the way the Origami House
+ * template states its dashes, so a value can be copied straight off a
+ * printed style guide.
  */
 import { parseDash } from './paperStyle';
 

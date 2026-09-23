@@ -36,9 +36,9 @@ describe('normalizePaperStyleSettings', () => {
   it('round-trips the persisted form', () => {
     const settings = {
       display: { ...DEFAULT_PAPER_STYLE, erode: 0.1 },
-      export: builtInPaperPreset('oriedita').style,
+      export: builtInPaperPreset('diagram').style,
       presets: [{ version: 1 as const, name: 'Mine', style: DEFAULT_PAPER_STYLE }],
-      appliedPreset: { display: 'builtin:ori-default', export: 'user:Mine' },
+      appliedPreset: { display: 'builtin:default', export: 'user:Mine' },
     };
     const persisted = persistedPaperStyleSettings(settings);
     expect(persisted.version).toBe(1);
@@ -57,14 +57,14 @@ describe('normalizePaperStyleSettings', () => {
 
   it('keeps the preset key each slot was set from, and reads a bad one as none', () => {
     expect(
-      normalizePaperStyleSettings({ appliedPreset: { display: 'builtin:oriedita' } }).appliedPreset
-    ).toEqual({ display: 'builtin:oriedita', export: null });
+      normalizePaperStyleSettings({ appliedPreset: { display: 'builtin:diagram' } }).appliedPreset
+    ).toEqual({ display: 'builtin:diagram', export: null });
     // A key is only ever matched against the list the UI builds, so anything
     // that is not a non-empty string is simply no preset.
     expect(normalizePaperStyleSettings({ appliedPreset: { display: '', export: 7 } }).appliedPreset).toEqual(
       { display: null, export: null }
     );
-    expect(normalizePaperStyleSettings({ appliedPreset: 'oriedita' }).appliedPreset).toEqual({
+    expect(normalizePaperStyleSettings({ appliedPreset: 'diagram' }).appliedPreset).toEqual({
       display: null,
       export: null,
     });

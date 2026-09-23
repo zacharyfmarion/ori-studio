@@ -362,8 +362,8 @@
       "updateAvailable": "インストール済みより新しいバージョン"
     },
     "paper": {
-      "auxVisible": "既存の折り線を表示",
-      "auxVisibleHint": "すでに用紙に付いている折り線。すべての表示面に適用されます。",
+      "auxVisible": "補助折り線を表示",
+      "auxVisibleHint": "展開図の補助線。すべての表示面に描画されます。",
       "back": "裏面",
       "cap": {
         "butt": "平ら",
@@ -424,7 +424,7 @@
       "paperTitle": "用紙",
       "pen": {
         "arrows": "矢印",
-        "auxCreases": "既存の折り線",
+        "auxCreases": "補助折り線",
         "edges": "辺",
         "mountainFolds": "山折り",
         "valleyFolds": "谷折り"
@@ -438,10 +438,8 @@
       "penWidth": "幅 (pt)",
       "penWidthNamed": "{{pen}}の幅",
       "preset": {
-        "blackAndWhite": "白黒",
-        "oriDefault": "Ori 標準",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "標準",
+        "diagram": "折り図"
       },
       "presetChip": {
         "custom": "カスタム",

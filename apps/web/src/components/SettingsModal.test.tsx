@@ -262,7 +262,7 @@ describe('SettingsModal', () => {
     const rendered = renderModal('paper');
     expect(rendered.querySelector('.settings-modal__header h2')?.textContent).toBe('Paper');
     expect(rendered.querySelector('[data-testid="settings-paper"]')).not.toBeNull();
-    expect(rendered.textContent).toContain('Origami House');
+    expect(rendered.textContent).toContain('Diagram');
   });
 
   it('opens the requested tab and can reset the layout', async () => {

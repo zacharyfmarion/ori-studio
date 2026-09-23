@@ -525,7 +525,7 @@ describe('foldedFigureStyleGroup', () => {
     return found;
   }
 
-  it('lays out render style, side, the three colours, shadow and existing creases, in that order', () => {
+  it('lays out render style, side, the three colours, shadow and auxiliary creases, in that order', () => {
     // Re-pinned for Phase 5: the existing-crease toggle is the last row on
     // every kind, after the flat figure's shadow or the 3D figure's light.
     const group = foldedFigureStyleGroup(flat(), makeDeps());
@@ -702,7 +702,7 @@ describe('foldedFigureStyleGroup', () => {
       const aux = foldedFigureStyleGroup(figure, deps).items.find(
         (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'aux'
       );
-      expect(aux).toMatchObject({ label: 'Existing creases', checked: true, disabled: false });
+      expect(aux).toMatchObject({ label: 'Auxiliary creases', checked: true, disabled: false });
       aux?.toggle();
       expect(deps.setAppearance).toHaveBeenCalledWith(figure, {
         field: 'auxCreases.visible',

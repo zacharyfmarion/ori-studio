@@ -106,14 +106,10 @@ export function simulatorCreaseStyleLabel(
 /** A built-in paper preset by its id; a user's preset shows its own name instead. */
 export function paperPresetLabel(t: TFunction, id: BuiltInPaperPresetId): string {
   switch (id) {
-    case 'ori-default':
-      return t('dialogs:settings.paper.preset.oriDefault', 'Ori default');
-    case 'oriedita':
-      return t('dialogs:settings.paper.preset.oriedita', 'Oriedita');
-    case 'black-and-white':
-      return t('dialogs:settings.paper.preset.blackAndWhite', 'Black & white');
-    case 'origami-house':
-      return t('dialogs:settings.paper.preset.origamiHouse', 'Origami House');
+    case 'default':
+      return t('dialogs:settings.paper.preset.default', 'Default');
+    case 'diagram':
+      return t('dialogs:settings.paper.preset.diagram', 'Diagram');
   }
 }
 
@@ -130,7 +126,7 @@ export function paperPenLabel(
     case 'valleyFolds':
       return t('dialogs:settings.paper.pen.valleyFolds', 'Valley folds');
     case 'auxCreases.pen':
-      return t('dialogs:settings.paper.pen.auxCreases', 'Existing creases');
+      return t('dialogs:settings.paper.pen.auxCreases', 'Auxiliary creases');
     case 'arrows':
       return t('dialogs:settings.paper.pen.arrows', 'Arrows');
   }

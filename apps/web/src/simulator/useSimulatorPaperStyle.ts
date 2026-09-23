@@ -64,7 +64,7 @@ export interface SimulatorPaperStyleBinding {
   endAdjustment: () => void;
   /**
    * The rows this binding offers — {@link SIMULATOR_PANE_FIELDS} — back to
-   * the Ori default, as one store update. The rest of the display style —
+   * the Default preset, as one store update. The rest of the display style —
    * the aux and arrow pens, erode — is Settings ▸ Paper's and stays where the
    * user put it; see {@link resetRowValue} for the two rows that edit one
    * property of a field.
@@ -73,7 +73,7 @@ export interface SimulatorPaperStyleBinding {
 }
 
 /**
- * A row's value under the Ori default. The edge row edits the pen's colour
+ * A row's value under the Default preset. The edge row edits the pen's colour
  * and the light row its switch, so each resets that property and keeps the
  * rest: the edge width belongs to the folded figures (the simulator draws its
  * edges at the fold pens' width), the light's angles to Settings ▸ Paper.

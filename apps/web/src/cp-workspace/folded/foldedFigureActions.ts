@@ -526,7 +526,7 @@ export function foldedFigureStyleGroup(
             {
               kind: 'toggle',
               id: 'aux',
-              label: t('panels:cpProperties.paperStyle.auxVisible', 'Existing creases'),
+              label: t('panels:cpProperties.paperStyle.auxVisible', 'Auxiliary creases'),
               checked: style.auxCreases.visible,
               disabled: !modelReady,
               toggle: () =>

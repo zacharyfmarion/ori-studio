@@ -378,8 +378,8 @@
       "updateAvailable": "Plus récent que la version installée"
     },
     "paper": {
-      "auxVisible": "Afficher les plis existants",
-      "auxVisibleHint": "Plis déjà présents dans le papier, sur toutes les surfaces.",
+      "auxVisible": "Afficher les plis auxiliaires",
+      "auxVisibleHint": "Les lignes auxiliaires du patron de plis, dessinées sur toutes les surfaces.",
       "back": "Verso",
       "cap": {
         "butt": "Plat",
@@ -440,7 +440,7 @@
       "paperTitle": "Papier",
       "pen": {
         "arrows": "Flèches",
-        "auxCreases": "Plis existants",
+        "auxCreases": "Plis auxiliaires",
         "edges": "Bords",
         "mountainFolds": "Plis montagne",
         "valleyFolds": "Plis vallée"
@@ -454,10 +454,8 @@
       "penWidth": "Largeur (pt)",
       "penWidthNamed": "Largeur : {{pen}}",
       "preset": {
-        "blackAndWhite": "Noir et blanc",
-        "oriDefault": "Ori par défaut",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "Par défaut",
+        "diagram": "Diagramme"
       },
       "presetChip": {
         "custom": "Personnalisé",

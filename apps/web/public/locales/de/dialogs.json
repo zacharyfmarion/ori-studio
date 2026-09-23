@@ -370,8 +370,8 @@
       "updateAvailable": "Neuer als das installierte Modell"
     },
     "paper": {
-      "auxVisible": "Vorhandene Falten anzeigen",
-      "auxVisibleHint": "Falten, die bereits im Papier sind, auf jeder Oberfläche.",
+      "auxVisible": "Hilfsfalten anzeigen",
+      "auxVisibleHint": "Die Hilfslinien des Faltmusters, auf jeder Oberfläche gezeichnet.",
       "back": "Rückseite",
       "cap": {
         "butt": "Flach",
@@ -432,7 +432,7 @@
       "paperTitle": "Papier",
       "pen": {
         "arrows": "Pfeile",
-        "auxCreases": "Vorhandene Falten",
+        "auxCreases": "Hilfsfalten",
         "edges": "Kanten",
         "mountainFolds": "Bergfalten",
         "valleyFolds": "Talfalten"
@@ -446,10 +446,8 @@
       "penWidth": "Breite (pt)",
       "penWidthNamed": "Breite für {{pen}}",
       "preset": {
-        "blackAndWhite": "Schwarz-Weiß",
-        "oriDefault": "Ori-Standard",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "Standard",
+        "diagram": "Diagramm"
       },
       "presetChip": {
         "custom": "Eigener Stil",

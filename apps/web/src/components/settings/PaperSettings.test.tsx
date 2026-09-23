@@ -111,10 +111,8 @@ describe('PaperSettings', () => {
         (row) => row.getAttribute('data-testid')
       )
     ).toEqual([
-      'settings-paper-preset-builtin:ori-default',
-      'settings-paper-preset-builtin:oriedita',
-      'settings-paper-preset-builtin:black-and-white',
-      'settings-paper-preset-builtin:origami-house',
+      'settings-paper-preset-builtin:default',
+      'settings-paper-preset-builtin:diagram',
     ]);
     // Two paper swatches and one per pen.
     expect(rendered.querySelectorAll('input[type="color"]')).toHaveLength(7);
@@ -171,11 +169,11 @@ describe('PaperSettings', () => {
 
   it('applies a preset to the store and counts it', () => {
     render();
-    act(() => presetCard('builtin:oriedita').click());
-    expect(display()).toEqual(builtInPaperPreset('oriedita').style);
+    act(() => presetCard('builtin:diagram').click());
+    expect(display()).toEqual(builtInPaperPreset('diagram').style);
     expect(input('Mountain folds width').value).toBe('0.75');
     expect(tracked).toEqual([
-      { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'oriedita' } },
+      { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'diagram' } },
     ]);
   });
 
@@ -266,10 +264,10 @@ describe('PaperSettings', () => {
       true,
       true,
     ]);
-    expect(presetCard('builtin:oriedita').disabled).toBe(true);
+    expect(presetCard('builtin:diagram').disabled).toBe(true);
     // The values shown are display's, and the chip says so.
     expect(input('Front').value).toBe(DEFAULT_PAPER_STYLE.paper.front);
-    expect(chip().textContent).toBe('Ori default, from display');
+    expect(chip().textContent).toBe('Default, from display');
     // The export page below is not part of the style, and stays live.
     expect(
       rendered
@@ -304,22 +302,22 @@ describe('PaperSettings', () => {
   it('names the preset on show, marks it modified, and puts it back on Revert', () => {
     const rendered = render();
     // The default style is the first built-in, with nothing recorded yet.
-    expect(chip().textContent).toBe('Ori default');
+    expect(chip().textContent).toBe('Default');
     expect(chip().getAttribute('data-state')).toBe('preset');
     expect(rendered.querySelector('button.settings-paper__revert')).toBeNull();
 
-    act(() => presetCard('builtin:oriedita').click());
-    expect(chip().textContent).toBe('Oriedita');
-    expect(presetCard('builtin:oriedita').getAttribute('aria-pressed')).toBe('true');
-    expect(presetCard('builtin:ori-default').getAttribute('aria-pressed')).toBe('false');
+    act(() => presetCard('builtin:diagram').click());
+    expect(chip().textContent).toBe('Diagram');
+    expect(presetCard('builtin:diagram').getAttribute('aria-pressed')).toBe('true');
+    expect(presetCard('builtin:default').getAttribute('aria-pressed')).toBe('false');
 
     typeInto(input('Erode'), '2.5');
-    expect(chip().textContent).toBe('Oriedita · modified');
+    expect(chip().textContent).toBe('Diagram · modified');
     expect(chip().getAttribute('data-state')).toBe('modified');
 
     act(() => findButton('Revert').click());
-    expect(display()).toEqual(builtInPaperPreset('oriedita').style);
-    expect(chip().textContent).toBe('Oriedita');
+    expect(display()).toEqual(builtInPaperPreset('diagram').style);
+    expect(chip().textContent).toBe('Diagram');
   });
 
   it('says a style that is no preset’s is nobody’s', () => {
@@ -337,20 +335,20 @@ describe('PaperSettings', () => {
     const cards = Array.from(
       rendered.querySelectorAll('[data-testid^="settings-paper-preset-"]')
     );
-    expect(cards).toHaveLength(4);
+    expect(cards).toHaveLength(2);
     for (const card of cards) {
       // The square, its four creases and the two faces of the little figure.
       expect(card.querySelectorAll('.settings-paper-preset__thumb line')).toHaveLength(4);
       expect(card.querySelectorAll('.settings-paper-preset__thumb path')).toHaveLength(2);
     }
-    const oriedita = builtInPaperPreset('oriedita').style;
+    const diagram = builtInPaperPreset('diagram').style;
     expect(
-      presetRow('builtin:oriedita')
+      presetRow('builtin:diagram')
         .querySelector('.settings-paper-preset__thumb line')
         ?.getAttribute('stroke')
-    ).toBe(oriedita.mountainFolds.color);
+    ).toBe(diagram.mountainFolds.color);
     expect(
-      presetRow('builtin:ori-default')
+      presetRow('builtin:default')
         .querySelector('.settings-paper-preset__thumb line')
         ?.getAttribute('stroke')
     ).toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
@@ -405,8 +403,8 @@ describe('PaperSettings', () => {
     // Saving is applying: the slot is showing the preset it was just named as.
     expect(chip().textContent).toBe('Mine');
     // Built-ins cannot be deleted; every preset can be written to a file.
-    expect(iconButton('Download preset Ori default')).not.toBeNull();
-    expect(container!.querySelector('button[aria-label="Delete Ori default"]')).toBeNull();
+    expect(iconButton('Download preset Default')).not.toBeNull();
+    expect(container!.querySelector('button[aria-label="Delete Default"]')).toBeNull();
     act(() => iconButton('Delete Mine').click());
     expect(useSettingsStore.getState().paperStyle.presets).toEqual([]);
     expect(rendered.querySelector('[data-testid="settings-paper-preset-user:Mine"]')).toBeNull();

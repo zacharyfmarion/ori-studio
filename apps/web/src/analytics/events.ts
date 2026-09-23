@@ -238,12 +238,7 @@ export type PaperStyleFieldName =
  * Which preset was applied: a built-in by id, or `custom` for any preset the
  * user saved or imported — never its name, which is theirs.
  */
-export type PaperPresetName =
-  | 'ori-default'
-  | 'oriedita'
-  | 'black-and-white'
-  | 'origami-house'
-  | 'custom';
+export type PaperPresetName = 'default' | 'diagram' | 'custom';
 
 /** The surfaces a document object can pin a paper-style field on. */
 export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';

@@ -119,11 +119,11 @@ describe('usePaperSettings', () => {
   });
 
   it('applies a preset to the slot and counts it by id, or as custom', () => {
-    const oriedita = current().presets.find((row) => row.builtIn === 'oriedita')!;
-    act(() => current().applyPreset(oriedita));
-    expect(stored().display).toEqual(oriedita.preset.style);
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    act(() => current().applyPreset(diagram));
+    expect(stored().display).toEqual(diagram.preset.style);
     expect(tracked).toEqual([
-      { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'oriedita' } },
+      { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'diagram' } },
     ]);
 
     act(() => current().savePreset('Mine'));
@@ -162,21 +162,21 @@ describe('usePaperSettings', () => {
 
   it('names the preset the slot is showing, and says when it has been edited since', () => {
     // Nothing recorded yet, but the default style *is* the first built-in.
-    expect(current().appliedPreset?.builtIn).toBe('ori-default');
+    expect(current().appliedPreset?.builtIn).toBe('default');
     expect(current().modified).toBe(false);
 
-    const oriedita = current().presets.find((row) => row.builtIn === 'oriedita')!;
-    act(() => current().applyPreset(oriedita));
-    expect(current().appliedPreset?.builtIn).toBe('oriedita');
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    act(() => current().applyPreset(diagram));
+    expect(current().appliedPreset?.builtIn).toBe('diagram');
     expect(current().modified).toBe(false);
 
     act(() => current().setField('erode', 0.02));
-    expect(current().appliedPreset?.builtIn).toBe('oriedita');
+    expect(current().appliedPreset?.builtIn).toBe('diagram');
     expect(current().modified).toBe(true);
 
     act(() => current().revert());
     expect(current().modified).toBe(false);
-    expect(stored().display).toEqual(oriedita.preset.style);
+    expect(stored().display).toEqual(diagram.preset.style);
   });
 
   it('shows nobody’s preset for a style that is no preset’s', () => {
@@ -189,12 +189,12 @@ describe('usePaperSettings', () => {
   });
 
   it('speaks for the display slot’s preset while the export slot follows it', () => {
-    const oriedita = current().presets.find((row) => row.builtIn === 'oriedita')!;
-    act(() => current().applyPreset(oriedita));
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    act(() => current().applyPreset(diagram));
     act(() => current().setField('erode', 0.02));
     act(() => current().setSlot('export'));
     expect(current().editable).toBe(false);
-    expect(current().appliedPreset?.builtIn).toBe('oriedita');
+    expect(current().appliedPreset?.builtIn).toBe('diagram');
     expect(current().modified).toBe(true);
     // Not editable, so reverting there would be writing to a style that does
     // not exist yet.
@@ -238,16 +238,16 @@ describe('usePaperSettings', () => {
   });
 
   it('exports a preset as its own file, named after it', async () => {
-    saveTextFile.mockResolvedValue({ name: 'origami-house.json', path: null });
-    const row = current().presets.find((preset) => preset.builtIn === 'origami-house')!;
+    saveTextFile.mockResolvedValue({ name: 'diagram.json', path: null });
+    const row = current().presets.find((preset) => preset.builtIn === 'diagram')!;
     await act(() => current().exportPreset(row));
     expect(saveTextFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        suggestedName: 'Origami-House.json',
+        suggestedName: 'Diagram.json',
         extensions: ['json'],
         contents: serializePaperStylePreset(row.preset),
       })
     );
-    expect(toast.success).toHaveBeenCalledWith('Exported origami-house.json');
+    expect(toast.success).toHaveBeenCalledWith('Exported diagram.json');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_STYLE, creaseStyleOf, normalizePaperStyle } from './paperStyle';
+import { DEFAULT_PAPER_STYLE, normalizePaperStyle } from './paperStyle';
 import {
   BUILT_IN_PAPER_PRESETS,
   builtInPaperPreset,
@@ -10,13 +10,8 @@ import {
 } from './paperPresets';
 
 describe('built-in presets', () => {
-  it('has the four ids, each already normalised', () => {
-    expect(BUILT_IN_PAPER_PRESETS.map((preset) => preset.id)).toEqual([
-      'ori-default',
-      'oriedita',
-      'black-and-white',
-      'origami-house',
-    ]);
+  it('has the two ids, each already normalised', () => {
+    expect(BUILT_IN_PAPER_PRESETS.map((preset) => preset.id)).toEqual(['default', 'diagram']);
     for (const preset of BUILT_IN_PAPER_PRESETS) {
       expect(preset.version).toBe(1);
       expect(preset.name).not.toBe('');
@@ -26,13 +21,13 @@ describe('built-in presets', () => {
   });
 
   it('starts from the default style', () => {
-    expect(builtInPaperPreset('ori-default').style).toBe(DEFAULT_PAPER_STYLE);
-    expect(isBuiltInPaperPresetId('oriedita')).toBe(true);
+    expect(builtInPaperPreset('default').style).toBe(DEFAULT_PAPER_STYLE);
+    expect(isBuiltInPaperPresetId('diagram')).toBe(true);
     expect(isBuiltInPaperPresetId('custom')).toBe(false);
   });
 
-  it('transcribes the Origami House template', () => {
-    const { style } = builtInPaperPreset('origami-house');
+  it('transcribes the Origami House template as Diagram', () => {
+    const { style } = builtInPaperPreset('diagram');
     expect(style.paper).toEqual({ front: '#ffffff', back: '#b3b3b3' });
     expect(style.edges).toEqual({ width: 0.5, color: '#231f20', dash: null, cap: 'butt' });
     expect(style.mountainFolds).toEqual({
@@ -47,20 +42,8 @@ describe('built-in presets', () => {
     expect(style.light.enabled).toBe(false);
   });
 
-  it('reads black & white as the mono-dashed switch', () => {
-    const { style } = builtInPaperPreset('black-and-white');
-    expect(creaseStyleOf(style)).toBe('mono-dashed');
-    expect(style.mountainFolds.color).toBe(style.edges.color);
-  });
-
-  it('gives Oriedita its own paper and CP inks, unlit', () => {
-    const { style } = builtInPaperPreset('oriedita');
-    expect(style.paper).toEqual(DEFAULT_PAPER_STYLE.paper);
-    expect(style.mountainFolds.color).toBe('#ff0000');
-    expect(style.valleyFolds.color).toBe('#0000ff');
-    // Oriedita's own folded figure never draws aux creases, so its preset hides them.
-    expect(style.auxCreases).toMatchObject({ visible: false, pen: { color: '#00ffff' } });
-    expect(style.light.enabled).toBe(false);
+  it('erodes Diagram creases by half a percent of the sheet', () => {
+    expect(builtInPaperPreset('diagram').style.erode).toBe(0.005);
   });
 });
 
@@ -70,7 +53,7 @@ describe('preset files', () => {
       version: 1,
       name: 'Studio',
       author: 'Zach',
-      style: builtInPaperPreset('origami-house').style,
+      style: builtInPaperPreset('diagram').style,
     };
     const text = serializePaperStylePreset(preset);
     expect(text.endsWith('\n')).toBe(true);

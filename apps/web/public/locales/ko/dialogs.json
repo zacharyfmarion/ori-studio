@@ -362,8 +362,8 @@
       "updateAvailable": "설치된 것보다 최신"
     },
     "paper": {
-      "auxVisible": "기존 접힘선 표시",
-      "auxVisibleHint": "종이에 이미 있는 접힘선으로, 모든 화면에 표시됩니다.",
+      "auxVisible": "보조 접힘선 표시",
+      "auxVisibleHint": "전개도의 보조선으로, 모든 화면에 그려집니다.",
       "back": "뒷면",
       "cap": {
         "butt": "평평",
@@ -424,7 +424,7 @@
       "paperTitle": "종이",
       "pen": {
         "arrows": "화살표",
-        "auxCreases": "기존 접힘선",
+        "auxCreases": "보조 접힘선",
         "edges": "모서리",
         "mountainFolds": "산 접기",
         "valleyFolds": "골 접기"
@@ -438,10 +438,8 @@
       "penWidth": "너비 (pt)",
       "penWidthNamed": "{{pen}} 너비",
       "preset": {
-        "blackAndWhite": "흑백",
-        "oriDefault": "Ori 기본",
-        "oriedita": "Oriedita",
-        "origamiHouse": "Origami House"
+        "default": "기본",
+        "diagram": "도해"
       },
       "presetChip": {
         "custom": "사용자 지정",
