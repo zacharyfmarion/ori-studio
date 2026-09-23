@@ -74,10 +74,10 @@ export function PaperPresetCard({
       <span className="settings-paper-preset__verbs">
         <IconButton
           size="sm"
-          aria-label={t('dialogs:settings.paper.presets.exportNamed', 'Export {{name}}', {
+          aria-label={t('dialogs:settings.paper.presets.downloadNamed', 'Download preset {{name}}', {
             name: label,
           })}
-          title={t('dialogs:settings.paper.presets.export', 'Export')}
+          title={t('dialogs:settings.paper.presets.download', 'Download preset')}
           onClick={onExport}
         >
           <Download size={13} aria-hidden="true" />

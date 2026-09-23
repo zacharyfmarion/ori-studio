@@ -404,8 +404,8 @@ describe('PaperSettings', () => {
     expect(row.textContent).toContain('Saved by you');
     // Saving is applying: the slot is showing the preset it was just named as.
     expect(chip().textContent).toBe('Mine');
-    // Built-ins cannot be deleted; every preset can be exported.
-    expect(iconButton('Export Ori default')).not.toBeNull();
+    // Built-ins cannot be deleted; every preset can be written to a file.
+    expect(iconButton('Download preset Ori default')).not.toBeNull();
     expect(container!.querySelector('button[aria-label="Delete Ori default"]')).toBeNull();
     act(() => iconButton('Delete Mine').click());
     expect(useSettingsStore.getState().paperStyle.presets).toEqual([]);

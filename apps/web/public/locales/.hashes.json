@@ -3108,8 +3108,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -3190,7 +3188,9 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6301,8 +6301,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -6383,7 +6381,9 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9496,8 +9496,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -9578,7 +9576,9 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12632,8 +12632,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -12714,7 +12712,9 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15768,8 +15768,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -15850,7 +15848,9 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18961,8 +18961,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -19043,7 +19041,9 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22154,8 +22154,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -22236,7 +22234,9 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25290,8 +25290,6 @@
     "dialogs:settings.paper.presets.builtIn": "78a6a8fe9be5",
     "dialogs:settings.paper.presets.by": "9390142ff137",
     "dialogs:settings.paper.presets.delete": "e2d0a54968ea",
-    "dialogs:settings.paper.presets.export": "3664895579f0",
-    "dialogs:settings.paper.presets.exportNamed": "53a521aa1fca",
     "dialogs:settings.paper.presets.import": "ea94509e38cf",
     "dialogs:settings.paper.presets.name": "e534a6662ac8",
     "dialogs:settings.paper.presets.save": "1509f561f241",
@@ -25372,6 +25370,8 @@
     "dialogs:settings.paper.erodeOff": "ca7981b46ecf",
     "dialogs:settings.paper.light.disc": "c01b285e75cd",
     "dialogs:settings.paper.light.discHint": "8303abdc0e5f",
-    "dialogs:settings.paper.lightEnabledHint": "35780af4f112"
+    "dialogs:settings.paper.lightEnabledHint": "35780af4f112",
+    "dialogs:settings.paper.presets.download": "efe0fdd7faae",
+    "dialogs:settings.paper.presets.downloadNamed": "b7256c26a31f"
   }
 }
