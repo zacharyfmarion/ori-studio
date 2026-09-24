@@ -223,15 +223,37 @@ describe('PaperSettings', () => {
   /**
    * The strip under a pen's colour is the only thing on the card that says
    * what the pen looks like, so it is drawn at the width and dash the app will
-   * really use — pt at 4/3, and the dash multiples against that width — on the
-   * paper the pen draws on.
+   * really use — pt at 4/3, and the dash multiples against that width — on
+   * both sides of the paper the pen draws on: the front on the left, the back
+   * on the right, and the one line across the two.
    */
   it('draws each pen’s live sample at the width, dash and cap it will really use', () => {
     const rendered = render();
-    const sample = (pen: string) =>
+    const strip = (pen: string) =>
       rendered
         .querySelector(`[data-testid="settings-paper-pen-${pen}"]`)!
-        .querySelector('.settings-paper-pen__sample line')!;
+        .querySelector('.settings-paper-pen__sample')!;
+    const sample = (pen: string) => strip(pen).querySelector('line')!;
+    /** Every pen card's two halves, front and back, arrows included. */
+    const sides = () =>
+      Array.from(rendered.querySelectorAll('.settings-paper-pen')).map((card) =>
+        ['front', 'back'].map((side) =>
+          card
+            .querySelector(`.settings-paper-pen__sample rect[data-side="${side}"]`)
+            ?.getAttribute('fill')
+        )
+      );
+    const { front, back } = DEFAULT_PAPER_STYLE.paper;
+    expect(sides()).toEqual(Array.from({ length: 5 }, () => [front, back]));
+    // The front is the left half, and the line runs from it (11 px in) onto
+    // the back (95% across).
+    expect(strip('Edges').querySelector('rect[data-side="front"]')?.getAttribute('width')).toBe(
+      '50%'
+    );
+    expect([sample('Edges').getAttribute('x1'), sample('Edges').getAttribute('x2')]).toEqual([
+      '11',
+      '95%',
+    ]);
 
     // 0.825 pt is 1.1 CSS px, the width every surface draws a fold at.
     expect(sample('Mountain folds').getAttribute('stroke-width')).toBe('1.1');
@@ -245,6 +267,10 @@ describe('PaperSettings', () => {
     act(() => dashTrigger('Mountain folds dash').click());
     act(() => findButton('Solid', document.querySelector('[role="menu"]')!).click());
     expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBeNull();
+
+    // Live: a paper colour picked is the ground every sample shows on that side.
+    typeInto(input('Back'), '#123456');
+    expect(sides()).toEqual(Array.from({ length: 5 }, () => [front, '#123456']));
   });
 
   it('edits erode as a percentage of the sheet', () => {

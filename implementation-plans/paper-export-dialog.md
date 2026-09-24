@@ -673,10 +673,12 @@ Every pen card's sample strip is split down the middle: the left half on the
 paper's front, the right half on its back, with the one sample line running
 across both — so each pen is judged against both colours it is drawn on.
 
-- `PaperPenCard` takes `paper: { front, back }` in place of `ground`; the two
-  halves are two `<rect>`s under the line rather than a CSS background, so a
-  test can read which colour each half is. When front and back are the same
-  colour, the strip reads as one.
+- `PaperPenCard` takes `paper: { front, back }` in place of `ground`; the
+  paper is `<rect>`s under the line rather than a CSS background, so a test
+  can read which colour each half is. The back is a `<rect>` under the whole
+  strip and the front a `<rect>` over its left half, rather than two halves
+  meeting, so no anti-aliased seam shows the card between them and sides of
+  the same colour read as one strip.
 - The width, dash and cap the line is drawn at are unchanged
   (`samplePenWidth`, `samplePenDash`); the line spans both halves, so a dash
   pattern is seen crossing the fold between them.
@@ -906,14 +908,20 @@ CP canvas, and the crease-pattern export's own rendering of the pattern.
 
 ### Phase 3 — Settings: each pen's sample on both sides of the paper
 
-- [ ] `PaperPenCard`'s strip: front and back halves under one sample line;
+- [x] `PaperPenCard`'s strip: front and back halves under one sample line;
       `paper: { front, back }` replaces `ground`
-- [ ] Tests: each half carries its side's colour, the line spans both, and
+- [x] Tests: each half carries its side's colour, the line spans both, and
       width, dash and cap are unchanged (re-pin "draws each pen's live
       sample…" in `PaperSettings.test.tsx`)
 - [ ] Browser: Default and Diagram presets, a pen whose colour matches one
-      side
-- [ ] Validate; commit
+      side, both themes, Chrome and Safari (or Tauri): no seam between the
+      halves, the corners clipped round, the pen gone on only the matching
+      half. The strip's 1px border now lies over the card rather than over
+      the paper (the paper is the SVG's content, inside the border, where the
+      CSS background ran under it), so a pale paper on a dark theme sits
+      inside a card-coloured ring: keep it, or put the paper back under the
+      border
+- [x] Validate; commit
 
 ### Phase 4 — Simulations: every line at its own pen's width
 

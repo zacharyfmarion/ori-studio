@@ -9,7 +9,7 @@ import { PaperPenCard, samplePenDash, samplePenWidth } from './PaperPenCard';
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-function render(pen: Pen, ground = '#ffff32'): HTMLDivElement {
+function render(pen: Pen, paper = DEFAULT_PAPER_STYLE.paper): HTMLDivElement {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -18,7 +18,7 @@ function render(pen: Pen, ground = '#ffff32'): HTMLDivElement {
       <PaperPenCard
         label="Edges"
         pen={pen}
-        ground={ground}
+        paper={paper}
         disabled={false}
         onAdjust={vi.fn()}
         onSet={vi.fn()}
@@ -66,11 +66,43 @@ describe('PaperPenCard', () => {
     ]);
   });
 
-  it('sits the sample on the paper the pen draws on, not on a field of its own', () => {
-    const rendered = render(DEFAULT_PAPER_STYLE.edges, '#112233');
+  it('sits the sample on both sides of the paper the pen draws on, not on a field', () => {
+    const rendered = render(DEFAULT_PAPER_STYLE.edges, { front: '#112233', back: '#445566' });
     const sample = rendered.querySelector<SVGElement>('.settings-paper-pen__sample')!;
-    expect(sample.style.getPropertyValue('--settings-paper-sample-ground')).toBe('#112233');
+    const side = (name: string) => sample.querySelector(`rect[data-side="${name}"]`)!;
+    expect(side('front').getAttribute('fill')).toBe('#112233');
+    expect(side('back').getAttribute('fill')).toBe('#445566');
+    // The paper is the SVG's own, not a CSS ground behind it.
+    expect(sample.getAttribute('style')).toBeNull();
     // Decoration: the card's words already name the pen this draws.
     expect(sample.getAttribute('aria-hidden')).toBe('true');
   });
+
+  it('puts the front on the left, the back on the right, and one line across both', () => {
+    const sample = render(DEFAULT_PAPER_STYLE.edges).querySelector<SVGElement>(
+      '.settings-paper-pen__sample'
+    )!;
+    // Paint order: the back under the whole strip, the front over its left
+    // half, the pen over both — so the right half is the back.
+    expect(
+      Array.from(sample.children).map(
+        (child) => child.getAttribute('data-side') ?? child.tagName.toLowerCase()
+      )
+    ).toEqual(['back', 'front', 'line']);
+    const [back, front, line] = Array.from(sample.children);
+    expect([back.getAttribute('x'), back.getAttribute('width')]).toEqual([null, '100%']);
+    expect([front.getAttribute('x'), front.getAttribute('width')]).toEqual([null, '50%']);
+    // Wherever the strip's width lands, the line starts on the front and ends
+    // on the back: 11 px in, 95% across.
+    for (const width of [120, 480]) {
+      expect(stripPx(line.getAttribute('x1')!, width)).toBeLessThan(width / 2);
+      expect(stripPx(line.getAttribute('x2')!, width)).toBeGreaterThan(width / 2);
+    }
+  });
 });
+
+/** An SVG length on the strip, in px, at a strip `width` px wide. */
+function stripPx(length: string, width: number): number {
+  const value = Number.parseFloat(length);
+  return length.endsWith('%') ? (value / 100) * width : value;
+}

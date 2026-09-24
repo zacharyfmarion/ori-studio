@@ -161,7 +161,7 @@ function PenCards({
           key={field}
           label={paperPenLabel(t, field)}
           pen={getPaperStyleField(paper.style, field)}
-          ground={paper.style.paper.front}
+          paper={paper.style.paper}
           disabled={!paper.editable}
           onAdjust={(pen) => paper.adjustField(field, pen)}
           onSet={(pen) => paper.setField(field, pen)}

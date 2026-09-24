@@ -7,13 +7,22 @@
  * so the strip draws the pen at the size and pattern the app will really use
  * (`ptToDevicePx` at dpr 1, the dash resolved against that width), on the
  * paper the pen actually draws on rather than on a neutral ground, because a
- * black edge pen on a dark field is a pen you cannot see.
+ * black edge pen on a dark field is a pen you cannot see. On both sides of that
+ * paper, front on the left and back on the right: every pen is drawn on the
+ * back too, wherever the paper turns over, and a pen that reads on one colour
+ * can vanish on the other.
  */
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { penCapLabel } from '../../i18n/enumLabels';
 import { penDashDevicePx } from '../../lib/paper/paperStyleResolve';
-import { PEN_WIDTH_RANGE, ptToDevicePx, type Hex, type Pen, type PenCap } from '../../lib/paper/paperStyle';
+import {
+  PEN_WIDTH_RANGE,
+  ptToDevicePx,
+  type PaperStyle,
+  type Pen,
+  type PenCap,
+} from '../../lib/paper/paperStyle';
 import { ColorField } from '../ui/ColorField';
 import { NumberField } from '../ui/NumberField';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -41,7 +50,7 @@ export function samplePenDash(pen: Pen): string | undefined {
 export function PaperPenCard({
   label,
   pen,
-  ground,
+  paper,
   disabled,
   onAdjust,
   onSet,
@@ -50,8 +59,8 @@ export function PaperPenCard({
   /** The pen's name, which is the card's heading and the stem of every field's name. */
   label: string;
   pen: Pen;
-  /** The paper the sample sits on, so the sample says what the pen will look like. */
-  ground: Hex;
+  /** The paper the sample sits on, both sides, so the sample says what the pen will look like. */
+  paper: PaperStyle['paper'];
   disabled: boolean;
   /** A continuous write — the colour picker, firing per pointer move. */
   onAdjust: (pen: Pen) => void;
@@ -77,12 +86,15 @@ export function PaperPenCard({
         onCommit={onCommit}
       />
       {/* Decoration: the card's words already name the pen this draws. */}
-      <svg
-        className="settings-paper-pen__sample"
-        style={{ '--settings-paper-sample-ground': ground } as CSSProperties}
-        aria-hidden="true"
-        focusable="false"
-      >
+      <svg className="settings-paper-pen__sample" aria-hidden="true" focusable="false">
+        {/*
+          The back runs under the whole strip and the front covers its left
+          half, rather than two halves meeting: two anti-aliased edges at a
+          fractional x let the card show through the seam, and paper whose
+          sides match should read as one strip.
+        */}
+        <rect data-side="back" width="100%" height="100%" fill={paper.back} />
+        <rect data-side="front" width="50%" height="100%" fill={paper.front} />
         <line
           x1="11"
           y1="16"

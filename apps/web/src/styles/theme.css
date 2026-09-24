@@ -89,8 +89,8 @@
   --status-info: #7db7e8;
 
   /*
-   * Settings ▸ Paper. Two grounds the palette has no name for, both stated
-   * against the card the paper tab draws its fields on (`--bg-surface`).
+   * Settings ▸ Paper. A ground the palette has no name for, stated against
+   * the card the paper tab draws its fields on (`--bg-surface`).
    *
    * The well is a field's own ground: the width stepper's frame, the dash
    * trigger, the dash menu's custom field. `--bg-canvas` is whatever the theme
@@ -101,12 +101,6 @@
    * right only for the one dark palette a design is drawn in — would not.
    */
   --settings-well: var(--bg-canvas);
-  /*
-   * The strip a pen's live sample is drawn on. Named apart from the well
-   * because it is ink ground rather than a field: a pen card may set it inline
-   * to the style's own paper colour, which is what that pen really draws on.
-   */
-  --settings-paper-sample-ground: var(--settings-well);
 
   --shadow-overlay: rgba(0, 0, 0, 0.35);
   --shadow-context-menu: 0 4px 12px rgba(0, 0, 0, 0.35);
@@ -3380,15 +3374,18 @@ a.context-menu__item {
 /*
  * The live sample. On the style's own paper rather than a neutral field: the
  * pens that most need showing are black, and a black pen on the app's darkest
- * surface is a pen you cannot see.
+ * surface is a pen you cannot see. The paper's two sides are rects inside the
+ * SVG, and an SVG's content is trimmed to its rounded inner border only while
+ * its overflow is clipped, so the clip is set here rather than left to the UA
+ * sheet.
  */
 .settings-paper-pen__sample {
   display: block;
   width: 100%;
   height: 32px;
+  overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  background: var(--settings-paper-sample-ground);
 }
 
 .settings-paper-pen__row {
