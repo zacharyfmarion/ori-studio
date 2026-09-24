@@ -3,6 +3,7 @@ import {
   createDroppedFileService,
   createFileService,
   createOpenedPathFileService,
+  createPickedFileService,
   ensureExtension,
   filenameFromPath,
   filesystemPathOrNull,
@@ -93,6 +94,21 @@ describe('dropped file service', () => {
  * what it wrote. The handle from the save dialog does, so the second save
  * overwrites the first.
  */
+describe('picked file service', () => {
+  it('resolves to the pick already under way, save target and all', async () => {
+    const picked = { text: '1 0 0 400 0\n', name: 'crane.cp', path: 'web-save:3' };
+    const service = createPickedFileService(Promise.resolve(picked));
+
+    await expect(service.openTextFile({ title: 'ignored', extensions: [] })).resolves.toBe(picked);
+    await expect(service.openBinaryFile({ title: 'ignored', extensions: [] })).resolves.toBeNull();
+  });
+
+  it('passes a cancelled pick through as nothing chosen', async () => {
+    const service = createPickedFileService(Promise.resolve(null));
+    await expect(service.openTextFile({ title: 'ignored', extensions: [] })).resolves.toBeNull();
+  });
+});
+
 describe('browser document saves', () => {
   /** A stand-in for the file a picker hands back. */
   function fakeHandle(name: string) {

@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { applyWindowTitle, formatWindowTitle } from '../platform/windowTitle';
-import { sitePageTitle } from '../site/sitePageLabels';
 import { sitePageForPath } from '../site/sitePages';
 import { useWorkspaceStore } from '../store/workspaceStore';
 
@@ -30,28 +28,24 @@ import { useWorkspaceStore } from '../store/workspaceStore';
  * field choice here: the gate is `currentFilePath`, not `currentFileName` — see
  * `formatWindowTitle` for why the latter cannot answer "is there a file".
  *
- * **And it reads the route**, because a site page is not a document. This runs
- * from the root layout route, so it runs on the landing and on `/download/` too,
- * and naming those after the blank project behind them is what Google indexed the
- * site as — see the `pageTitle` note in `formatWindowTitle`. The registry answers
- * which pages those are, so a page added there is titled correctly without this
- * hook hearing about it. The title is the page's `t()` title, in the language the
- * route put the app in: on `/zh-CN/download/` that is the same string the
- * prerender wrote into that file's `<title>`.
+ * **And it reads the route**, because a site page is not a document: naming the
+ * landing after the blank project behind it is what Google indexed the site as
+ * (see the `pageTitle` note in `formatWindowTitle`). Site pages are titled by
+ * {@link useSitePageTitle}, which runs without the workspace; this leaves them
+ * alone. The registry answers which pages those are.
  */
 export function useWindowTitle() {
-  const { t } = useTranslation();
   const { pathname } = useLocation();
   const workspaceTitle = useWorkspaceStore((state) => state.workspaceTitle);
   const dirty = useWorkspaceStore((state) => state.dirty);
   const fileName = useWorkspaceStore((state) => state.currentFileName);
   const filePath = useWorkspaceStore((state) => state.currentFilePath);
-  const match = sitePageForPath(pathname);
-  const pageTitle = match ? sitePageTitle(t, match.page.id) : undefined;
+  const onSitePage = sitePageForPath(pathname) !== null;
 
   useEffect(() => {
+    if (onSitePage) return;
     void applyWindowTitle(
-      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath, pageTitle })
+      formatWindowTitle({ projectTitle: workspaceTitle, dirty, fileName, filePath })
     );
-  }, [dirty, fileName, filePath, pageTitle, workspaceTitle]);
+  }, [dirty, fileName, filePath, onSitePage, workspaceTitle]);
 }

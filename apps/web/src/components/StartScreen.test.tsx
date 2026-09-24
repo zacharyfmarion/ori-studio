@@ -15,7 +15,7 @@ function renderStartScreen(overrides: Partial<ComponentProps<typeof StartScreen>
   document.body.append(container);
   root = createRoot(container);
   const props: ComponentProps<typeof StartScreen> = {
-    status: 'ready',
+    preparing: false,
     errorMessage: null,
     onCreateCreasePattern: vi.fn(),
     onCreateDesign: vi.fn(),
@@ -140,12 +140,39 @@ describe('StartScreen', () => {
     expect(onCreateDesign).toHaveBeenCalledOnce();
   });
 
-  it('disables start actions while the engine is preparing', () => {
-    renderStartScreen({ status: 'loading_engine' });
+  it('holds every start action while one waits on the editor', () => {
+    renderStartScreen({ preparing: true });
 
     expect(button('Create a CP').disabled).toBe(true);
     expect(button('Open a file').disabled).toBe(true);
     expect(button('Create a design').disabled).toBe(true);
     expect(container?.textContent).toContain('Preparing the editor...');
+  });
+
+  it('is ready at once: nothing waits on the editor until an action is chosen', () => {
+    renderStartScreen();
+
+    expect(button('Create a CP').disabled).toBe(false);
+    expect(button('Open a file').disabled).toBe(false);
+    expect(button('Create a design').disabled).toBe(false);
+    expect(container?.textContent).toContain('Choose how you want to begin.');
+  });
+
+  it('reports why the last action failed', () => {
+    renderStartScreen({ errorMessage: 'That file is not a crease pattern.' });
+
+    const status = container?.querySelector('.start-screen__status');
+    expect(status?.textContent).toContain('That file is not a crease pattern.');
+    expect(status?.getAttribute('data-error')).toBe('true');
+  });
+
+  it('asks for the editor when the pointer or focus reaches an action', () => {
+    const onIntent = vi.fn();
+    renderStartScreen({ onIntent });
+
+    act(() => {
+      button('Open a file').focus();
+    });
+    expect(onIntent).toHaveBeenCalled();
   });
 });

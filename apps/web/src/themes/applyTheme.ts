@@ -1,4 +1,5 @@
 import { mixHexColors } from '../lib/rgbColor';
+import { applyThemeVariables } from './applyThemeVariables';
 import { paperBackFor } from './paperBack';
 import { FOLD_UNASSIGNED, referencesCreaseAlpha, referencesDimAlpha } from './referencesInk';
 import type { ThemeTokens, TreeMakerTheme } from './types';
@@ -145,17 +146,26 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--leaf-radius-stroke', colorMix(colors['port.image'], isLight ? 50 : 48));
 }
 
-export function applyTheme(theme: TreeMakerTheme): void {
-  if (typeof document === 'undefined') return;
-
-  const root = document.documentElement;
+/**
+ * Every custom property {@link applyTheme} sets, in the order it sets them (a later
+ * entry for the same name wins, exactly as repeated `setProperty` calls do).
+ */
+export function themeCssVariables(theme: TreeMakerTheme): Array<[string, string]> {
+  const variables: Array<[string, string]> = [];
+  const setVar = (name: string, value: string) => {
+    variables.push([name, value]);
+  };
   for (const [token, value] of Object.entries(theme.colors)) {
-    root.style.setProperty(tokenToCssVar(token), value);
+    setVar(tokenToCssVar(token), value);
   }
   for (const [token, variable] of TOKEN_VARIABLE_MAP) {
-    root.style.setProperty(variable, theme.colors[token]);
+    setVar(variable, theme.colors[token]);
   }
-  applyTreeMakerDerivedTokens(theme, (name, value) => root.style.setProperty(name, value));
-  root.setAttribute('data-theme-type', theme.type);
-  root.setAttribute('data-theme-name', theme.name);
+  applyTreeMakerDerivedTokens(theme, setVar);
+  return variables;
+}
+
+export function applyTheme(theme: TreeMakerTheme): void {
+  if (typeof document === 'undefined') return;
+  applyThemeVariables(document.documentElement, theme, themeCssVariables(theme));
 }

@@ -89,7 +89,7 @@ import {
   type ImportedCreasePatternResult,
   type ImportedCreasePatternSource,
 } from '../../../lib/creasePatternImport';
-import { OPENABLE_FILE_EXTENSIONS } from '../../../lib/fileDrop';
+import { OPEN_PROJECT_DIALOG } from '../../../lib/fileFormats';
 import {
   clampOrieditaGridAngle,
   DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
@@ -2553,10 +2553,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
       let openedSourceLength = 0;
       try {
-        const file = await fileService.openTextFile({
-          title: 'Open Ori Studio Project or Crease Pattern',
-          extensions: [...OPENABLE_FILE_EXTENSIONS],
-        });
+        const file = await fileService.openTextFile(OPEN_PROJECT_DIALOG);
         if (!file) return false;
         openedSourceLength = file.text.length;
         if (isNativeProjectFilename(file.name)) {

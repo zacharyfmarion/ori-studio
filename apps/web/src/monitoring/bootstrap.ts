@@ -3,7 +3,8 @@
  *
  * The client is passed in (dependency-injected) rather than imported here, so
  * tests can drive `initializeSentry` with a fake and assert the exact config.
- * Real wiring lives in `main.tsx`, which passes the `@sentry/react` namespace.
+ * Real wiring lives in `main.tsx`, which passes a client built from named
+ * `@sentry/react` imports (never the namespace, which defeats tree-shaking).
  *
  * This layer reports errors and nothing else: no tracing, no profiling, no
  * session replay. That is the same line the analytics layer draws with

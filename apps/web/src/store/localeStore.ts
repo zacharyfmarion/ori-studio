@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import { track } from '../analytics';
+// Not the `../analytics` barrel, for the reason `settingsStore.ts` gives: the analytics
+// runtime reads this store.
+import { track } from '../analytics/runtime';
 import i18n from '../i18n';
 import { writeString } from '../lib/storage';
 import {

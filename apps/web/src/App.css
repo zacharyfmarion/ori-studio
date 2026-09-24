@@ -332,8 +332,10 @@
   line-height: 1.25;
 }
 
+/* Secondary text alone is under 4.5:1 on this card in most presets (One Dark: 3.75);
+   `themes/startActionContrast.test.ts` holds every preset to the bar. */
 .start-action__description {
-  color: var(--text-secondary);
+  color: color-mix(in srgb, var(--text-secondary) 20%, var(--text-primary));
   font-size: 0.78rem;
   font-weight: 520;
   line-height: 1.46;

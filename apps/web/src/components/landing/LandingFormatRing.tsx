@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { OPENABLE_FILE_EXTENSIONS } from '../../lib/fileDrop';
-import { NATIVE_PROJECT_EXTENSION } from '../../lib/nativeProjectFile';
+import { NATIVE_PROJECT_EXTENSION, OPENABLE_FILE_EXTENSIONS } from '../../lib/fileFormats';
 
 /**
  * Everything File › Export offers, plus the two image formats the export-image

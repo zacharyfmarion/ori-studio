@@ -1,10 +1,17 @@
 // First, before any module that could call a missing built-in at load time.
 import './polyfills';
+// Styles owned by workspace components, which now load lazily. Imported here, first and in
+// this order, so they stay in the one eager stylesheet exactly where they always sat: lazy
+// CSS is appended after it, which would change which rule wins wherever they overlap.
+import './components/CpDetectImportModal.css';
+import './styles/sonner.css';
+import 'dockview/dist/styles/dockview.css';
+import './components/MenuBar.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
 import posthog from 'posthog-js';
-import * as Sentry from '@sentry/react';
+import { captureException, getCurrentScope, init as initSentry, setUser } from '@sentry/react';
 import {
   AnalyticsRuntimeProvider,
   consumeInternalUserFlag,
@@ -20,19 +27,10 @@ import { UnsupportedBrowserNotice } from './components/errors/UnsupportedBrowser
 import { readBoolean, storageKey, STORAGE_KEYS } from './lib/storage';
 import { registerServiceWorker } from './pwa/register';
 import { createAppRouter, setAppRouter } from './routing/appRouter';
-import { SEO_CONTENT_ID } from './seo/siteMeta';
 import './i18n';
 import './index.css';
 import './styles/theme.css';
 import './App.css';
-
-// Drop the prerendered landing copy the build injected for crawlers (see
-// `scripts/prerender-landing.mjs`). React is about to render the same words from the same
-// components, so leaving it would stack two copies of the page on top of each other.
-//
-// Before `createRoot`, not after: the node is a sibling of `#root`, so nothing else would
-// ever take it away. In dev there is no prerender and this is a no-op.
-document.getElementById(SEO_CONTENT_ID)?.remove();
 
 // `?internal=1` marks this device as a developer's own so analytics can filter it
 // out. Consumed before the router reads the URL and before PostHog registers
@@ -50,12 +48,21 @@ const analyticsEnabled = readBoolean(storageKey(STORAGE_KEYS.analyticsEnabled), 
 // while the rest of the app is still starting is still captured. Same shape of
 // firewall as PostHog below: no build-time DSN means `init` never runs, so local
 // and preview builds report nothing.
+//
+// Named imports, not `import * as Sentry`: passing the namespace object makes every
+// export reachable, which kept Replay and Feedback (≈200 KB, never enabled) in the bundle.
+const sentryClient: SentryClientLike = {
+  init: initSentry,
+  captureException,
+  setUser,
+  getCurrentScope,
+};
 const monitoringReady = initializeSentry(
-  Sentry as unknown as SentryClientLike,
+  sentryClient,
   { monitoringEnabled: analyticsEnabled },
   import.meta.env
 );
-const monitoringClient = monitoringReady ? (Sentry as unknown as SentryClientLike) : null;
+const monitoringClient = monitoringReady ? sentryClient : null;
 
 // Initialize PostHog before the first render so autocapture/pageview see the
 // full session. This is a no-op (returns false) unless both build-time keys are

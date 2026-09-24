@@ -168,6 +168,19 @@
  * miss and a `fetch` that could not resolve. Also reported from a real device.
  * They are in the warm set for that reason, and the page cannot name them
  * because it never fetched them.
+ *
+ * (The landing page no longer boots an engine at all, so a session that never
+ * left it has fetched none of them. The warm set names them regardless.)
+ *
+ * ## 7. So does the lazily loaded code
+ *
+ * The landing page renders without the workspace, which loads through one
+ * `import()` the first time something needs it (`routing/workspaceGateway.ts`).
+ * A session that only ever read the landing page has not fetched it, and an
+ * offline launch into `/edit` would then serve a shell whose workspace chunk
+ * cannot resolve — the same dead app as invariant 4, one layer up. So
+ * `manifest.chunks` — every chunk only reachable through an `import()`, and its
+ * CSS — is warmed with the kernels.
  */
 
 import {
@@ -416,7 +429,7 @@ worker.addEventListener('message', (event) => {
   event.waitUntil(
     warmOnce('cold-start', [
       SHELL_KEY,
-      ...new Set([...fromPage, ...manifest.workers, ...manifest.kernels]),
+      ...new Set([...fromPage, ...manifest.workers, ...manifest.kernels, ...manifest.chunks]),
     ])
   );
 });

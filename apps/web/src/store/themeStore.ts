@@ -9,9 +9,9 @@ import {
   type TreeMakerTheme,
 } from '../themes';
 import { readString, storageKey, STORAGE_KEYS, writeString } from '../lib/storage';
+import { initialThemeName, LIGHT_SCHEME_QUERY } from '../themes/initialTheme';
 
 export const THEME_STORAGE_KEY = storageKey(STORAGE_KEYS.theme);
-const LIGHT_SCHEME_QUERY = '(prefers-color-scheme: light)';
 
 function loadSavedThemeName(): string | null {
   return readString(THEME_STORAGE_KEY);
@@ -29,9 +29,13 @@ export function resolveSystemDefaultTheme(): TreeMakerTheme {
 }
 
 export function resolveInitialTheme(): TreeMakerTheme {
-  const savedName = loadSavedThemeName();
-  if (!savedName) return resolveSystemDefaultTheme();
-  return PRESET_THEMES.find((theme) => theme.name === savedName) ?? resolveSystemDefaultTheme();
+  const name = initialThemeName(
+    loadSavedThemeName(),
+    resolveSystemDefaultTheme() === DEFAULT_LIGHT_THEME,
+    PRESET_THEMES.map((theme) => theme.name),
+    { dark: DEFAULT_DARK_THEME.name, light: DEFAULT_LIGHT_THEME.name }
+  );
+  return PRESET_THEMES.find((theme) => theme.name === name) ?? DEFAULT_DARK_THEME;
 }
 
 interface ThemeState {

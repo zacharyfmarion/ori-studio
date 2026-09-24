@@ -11,8 +11,10 @@ import { useSettingsStore } from './settingsStore';
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
-vi.mock('../analytics', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../analytics')>();
+// The runtime rather than the barrel: the store imports `track` from it directly (see its
+// imports), and the barrel re-exports it, so this reaches every caller.
+vi.mock('../analytics/runtime', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../analytics/runtime')>();
   return { ...actual, track: analytics.track };
 });
 
