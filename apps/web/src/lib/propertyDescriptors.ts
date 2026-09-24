@@ -119,7 +119,17 @@ export type SliderField = FieldBase & {
   format?: (value: number) => string;
 } & ContinuousCommit<number>;
 /** `value` is `#rrggbb`. */
-export type ColorField = FieldBase & { kind: 'color' } & ContinuousCommit<string>;
+export type ColorField = FieldBase & {
+  kind: 'color';
+  /**
+   * Keep `reset` live while the row is 'unsupported'. An unsupported row's
+   * reset is disabled with it, which is right while the whole pin is inert;
+   * this is for a colour that is moot here but pinned as part of a pen whose
+   * other parts still draw — a fold pen while every fold is drawn as an edge,
+   * whose width still sets how heavy those folds are.
+   */
+  resetWhileUnsupported?: boolean;
+} & ContinuousCommit<string>;
 
 export type PropertyField =
   | ToggleField

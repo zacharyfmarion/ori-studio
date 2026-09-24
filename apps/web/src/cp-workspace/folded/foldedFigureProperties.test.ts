@@ -165,13 +165,7 @@ describe('buildFoldedFigureProperties', () => {
     expect(visibleIds(sheet)).toContain('lighting');
     // Not the fold pens: both folded figures draw every fold as an edge
     // (D6, Phase 9), so neither offers the simulator's fold controls.
-    for (const id of [
-      'foldsAsEdges',
-      'creaseStyle',
-      'mountainColor',
-      'valleyColor',
-      'foldLineWeight',
-    ]) {
+    for (const id of ['foldsAsEdges', 'creaseStyle', 'mountainColor', 'valleyColor']) {
       expect(visibleIds(sheet)).not.toContain(id);
       expect(visibleIds(sheetFor(FLAT))).not.toContain(id);
     }

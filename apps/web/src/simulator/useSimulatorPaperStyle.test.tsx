@@ -8,13 +8,11 @@ import {
   getPaperStyleField,
   PAPER_STYLE_FIELDS,
   paperStyleValueEquals,
-  PEN_WIDTH_RANGE,
   type PaperStyleValue,
 } from '../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES } from '../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../store/settingsStore';
 import {
-  SIMULATOR_FOLD_WEIGHT_RANGE,
   SIMULATOR_PANE_FIELDS,
   useSimulatorPaperStyle,
   type SimulatorPaperStyleBinding,
@@ -92,13 +90,6 @@ describe('useSimulatorPaperStyle', () => {
     expect(current().style.paper.back).toBe('#123456');
   });
 
-  it('writes both fold pens for the weight, leaving the edge pen, the inks and the dashes alone', () => {
-    act(() => current().setCreaseWeight(2));
-    expect(display().mountainFolds).toEqual({ ...DEFAULT_PAPER_STYLE.mountainFolds, width: 2 });
-    expect(display().valleyFolds).toEqual({ ...DEFAULT_PAPER_STYLE.valleyFolds, width: 2 });
-    expect(display().edges.width).toBe(DEFAULT_PAPER_STYLE.edges.width);
-  });
-
   it('keeps the fold pens on the edge ink when it changes under a one-ink preset', () => {
     act(() => foldsIn('mono-dashed'));
     act(() => current().setPenColor('edges', '#336699'));
@@ -111,15 +102,11 @@ describe('useSimulatorPaperStyle', () => {
     expect(display().mountainFolds.color).toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
   });
 
-  it('still reads mono-dashed after a weight drag', () => {
-    act(() => foldsIn('mono-dashed'));
-    act(() => current().setCreaseWeight(1.5));
-    expect(creaseStyleOf(display())).toBe('mono-dashed');
-  });
-
-  // Re-pinned twice: the reset used to apply the whole Default preset,
+  // Re-pinned three times: the reset used to apply the whole Default preset,
   // which also wiped fields the pane never shows (the arrow pen, the edge
-  // width); then it wrote one store update per row, and now writes one.
+  // width); then it wrote one store update per row, and now writes one. Since
+  // X14 the fold pens' widths are Settings ▸ Paper's too, so the fold rows
+  // reset their colours as the edge row does, and a preset's dashes stay.
   it('toggles the light and resets the rows it offers, leaving the rest of the style alone', () => {
     act(() => current().setLighting(false));
     expect(display().light).toEqual({ ...DEFAULT_PAPER_STYLE.light, enabled: false });
@@ -132,19 +119,31 @@ describe('useSimulatorPaperStyle', () => {
       useSettingsStore.getState().setPaperStyleField('display', 'light', light);
       current().setPaperColor('paper.front', '#ff8800');
       foldsIn('mono');
+      // A fold width, as Settings ▸ Paper's Valley folds card sets it.
+      useSettingsStore
+        .getState()
+        .setPaperStyleField('display', 'valleyFolds', { ...display().valleyFolds, width: 1.5 });
       current().setFoldsAsEdges(!DEFAULT_PAPER_STYLE.foldsAsEdges);
     });
     expect(display().foldsAsEdges).toBe(!DEFAULT_PAPER_STYLE.foldsAsEdges);
+    const { mountainFolds, valleyFolds } = display();
     const updates = vi.fn();
     const unsubscribe = useSettingsStore.subscribe(updates);
     act(() => current().reset());
     unsubscribe();
     expect(updates).toHaveBeenCalledTimes(1);
     expect(display().paper).toEqual(DEFAULT_PAPER_STYLE.paper);
-    expect(display().mountainFolds).toEqual(DEFAULT_PAPER_STYLE.mountainFolds);
-    expect(display().valleyFolds).toEqual(DEFAULT_PAPER_STYLE.valleyFolds);
     expect(display().foldsAsEdges).toBe(DEFAULT_PAPER_STYLE.foldsAsEdges);
-    // The edge row is a colour; the light row is a switch. Each resets its own.
+    // A pen's row is a colour; the light row is a switch. Each resets its own.
+    expect(display().mountainFolds).toEqual({
+      ...mountainFolds,
+      color: DEFAULT_PAPER_STYLE.mountainFolds.color,
+    });
+    expect(display().valleyFolds).toEqual({
+      ...valleyFolds,
+      color: DEFAULT_PAPER_STYLE.valleyFolds.color,
+    });
+    expect(display().valleyFolds.width).toBe(1.5);
     expect(display().edges).toEqual({ ...edges, color: DEFAULT_PAPER_STYLE.edges.color });
     expect(display().light).toEqual({ ...light, enabled: DEFAULT_PAPER_STYLE.light.enabled });
     expect(display().arrows).toEqual(arrows);
@@ -184,10 +183,10 @@ describe('useSimulatorPaperStyle', () => {
     expect(tracked.map((entry) => entry.properties?.field)).toEqual(applies);
     for (const field of PAPER_STYLE_FIELDS) {
       const value = getPaperStyleField(display(), field);
-      // The edge and light rows keep the properties they do not edit.
+      // The pen and light rows keep the properties they do not edit.
       const expected =
-        field === 'edges'
-          ? { ...display().edges, color: DEFAULT_PAPER_STYLE.edges.color }
+        field === 'edges' || field === 'mountainFolds' || field === 'valleyFolds'
+          ? { ...display()[field], color: DEFAULT_PAPER_STYLE[field].color }
           : field === 'light'
             ? { ...display().light, enabled: DEFAULT_PAPER_STYLE.light.enabled }
             : getPaperStyleField(DEFAULT_PAPER_STYLE, field);
@@ -196,13 +195,10 @@ describe('useSimulatorPaperStyle', () => {
         applies.includes(field)
       );
     }
-  });
-
-  it('offers the fold weight over the old slider’s span, inside the pen range', () => {
-    expect(SIMULATOR_FOLD_WEIGHT_RANGE.min).toBeGreaterThanOrEqual(PEN_WIDTH_RANGE.min);
-    expect(SIMULATOR_FOLD_WEIGHT_RANGE.max).toBeLessThanOrEqual(PEN_WIDTH_RANGE.max);
-    expect(DEFAULT_PAPER_STYLE.mountainFolds.width).toBeGreaterThan(SIMULATOR_FOLD_WEIGHT_RANGE.min);
-    expect(DEFAULT_PAPER_STYLE.mountainFolds.width).toBeLessThan(SIMULATOR_FOLD_WEIGHT_RANGE.max);
+    // Every pen keeps the width Settings ▸ Paper gave it.
+    for (const pen of ['edges', 'mountainFolds', 'valleyFolds'] as const) {
+      expect(display()[pen].width, pen).toBe(DEFAULT_PAPER_STYLE[pen].width + 1);
+    }
   });
 });
 
@@ -225,13 +221,16 @@ describe('what it counts', () => {
   });
 
   it('counts each field an adjustment touches once', () => {
-    // A weight drag writes both fold pens per move: two events, not two per move.
+    // Re-pinned from a weight drag, which the pane no longer has. An edge-ink
+    // drag under one ink writes all three pens per move: three events, not
+    // three per move.
+    act(() => foldsIn('mono'));
     act(() => {
-      current().setCreaseWeight(1);
-      current().setCreaseWeight(2);
+      current().setPenColor('edges', '#111111');
+      current().setPenColor('edges', '#222222');
     });
     act(() => current().endAdjustment());
-    expect(fields()).toEqual(['mountainFolds', 'valleyFolds']);
+    expect(fields()).toEqual(['edges', 'mountainFolds', 'valleyFolds']);
   });
 
   it('counts a discrete control every press, and ends any run', () => {

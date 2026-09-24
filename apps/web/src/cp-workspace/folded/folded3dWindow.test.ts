@@ -265,9 +265,10 @@ describe('drawing a figure in its effective paper style', () => {
   it('draws every fold line at the edge pen’s pt width in device pixels, and nothing bespoke', () => {
     // Phase 1 replaced the window's own `1.5 × dpr` with a pen. Phase 5 made
     // it the mountain pen's width; Phase 9 draws every fold as an edge, so it
-    // is the edge pen's own again (re-pinned back from 1.2 to 0.9 pt). The
-    // below-reference shrink is the viewport's (`creaseWidthReferenceEdge`),
-    // not this module's.
+    // is the edge pen's own again (re-pinned back from 1.2 to 0.9 pt). Since
+    // X14 the border and each fold kind carry a width of their own, and all
+    // three are the edge pen's. The below-reference shrink is the viewport's
+    // (`creaseWidthReferenceEdge`), not this module's.
     for (const dpr of [1, 2]) {
       const settings = folded3dWindowRenderSettings({
         style: {
@@ -278,7 +279,9 @@ describe('drawing a figure in its effective paper style', () => {
         displayStyle: 'Paper5',
         devicePixelRatio: dpr,
       });
-      expect(settings.creaseWidthPx).toBeCloseTo(ptToDevicePx(0.9, dpr), 12);
+      expect(settings.edgeWidthPx).toBeCloseTo(ptToDevicePx(0.9, dpr), 12);
+      expect(settings.mountainWidthPx).toBeCloseTo(ptToDevicePx(0.9, dpr), 12);
+      expect(settings.valleyWidthPx).toBeCloseTo(ptToDevicePx(0.9, dpr), 12);
       expect(settings.creaseWidthReferenceEdge).toBeUndefined();
     }
   });

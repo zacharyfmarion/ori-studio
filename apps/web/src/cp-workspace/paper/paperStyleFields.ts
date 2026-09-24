@@ -11,7 +11,6 @@ import {
   type PaperStyleValue,
 } from '../../lib/paper/paperStyle';
 import type { ColorField, PropertyField, PropertySupport } from '../../lib/propertyDescriptors';
-import { SIMULATOR_FOLD_WEIGHT_RANGE } from '../../simulator/useSimulatorPaperStyle';
 import type { PaperStyleOverrideEdit } from './objectPaperStyle';
 
 /**
@@ -96,29 +95,31 @@ export function edgeInkEdits(style: PaperStyle, color: Hex, foldPens: boolean): 
 
 /**
  * The fold pens as the simulator's controls offer them: whether every fold is
- * drawn as an edge, the two colours, and one fold line weight — the simulator
- * draws every crease at the fold pens' width
- * (`useSimulatorPaperStyle.setCreaseWeight`). How the folds are dashed is the
- * paper preset's, in Settings ▸ Paper. For a surface whose policy applies
- * `mountainFolds` / `valleyFolds`: a simulation window.
+ * drawn as an edge, and the two colours. How wide and how dashed the folds
+ * are is the paper preset's, in Settings ▸ Paper's pen cards, as it is for
+ * every other surface; a simulation draws each line at its own pen's width.
+ * For a surface whose policy applies `mountainFolds` / `valleyFolds`: a
+ * simulation window.
  *
  * While folds are drawn as edges the two colours do nothing, so they are
- * offered disabled with the reason rather than live.
+ * offered disabled with the reason rather than live. Their resets stay live:
+ * a pinned pen's width is still what those folds are drawn at (the average
+ * of the two), and the colour row is the only place its pin shows.
  */
 export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
   const { t, style, held } = deps;
   const { changeStyle, support: rowSupport, resetOf } = rowParts(deps);
-  const asEdges = style.foldsAsEdges;
-  const support =
-    asEdges && rowSupport.support === 'supported'
-      ? {
-          support: 'unsupported' as const,
-          reason: t(
-            'panels:cpProperties.paperStyle.foldsAsEdgesReason',
-            'Every fold is drawn as an edge'
-          ),
-        }
-      : rowSupport;
+  const moot = style.foldsAsEdges && rowSupport.support === 'supported';
+  const support = moot
+    ? {
+        support: 'unsupported' as const,
+        reason: t(
+          'panels:cpProperties.paperStyle.foldsAsEdgesReason',
+          'Every fold is drawn as an edge'
+        ),
+        resetWhileUnsupported: true,
+      }
+    : rowSupport;
   // A pen is pinned whole, so a colour pick copies the effective pen and
   // changes its colour; a reset clears the whole pen.
   const penColor = (pen: 'mountainFolds' | 'valleyFolds', id: string, label: string): ColorField => ({
@@ -143,33 +144,12 @@ export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
       ...rowSupport,
       undoLabel: changeStyle,
       protocol: 'discrete',
-      value: asEdges,
+      value: style.foldsAsEdges,
       commit: (on) => deps.commitOverrides([{ field: 'foldsAsEdges', value: on }]),
       ...resetOf('foldsAsEdges'),
     },
     penColor('mountainFolds', 'mountainColor', t('panels:simulatorViewControls.mountain', 'Mountain')),
     penColor('valleyFolds', 'valleyColor', t('panels:simulatorViewControls.valley', 'Valley')),
-    {
-      id: 'foldLineWeight',
-      kind: 'slider',
-      label: t('panels:simulatorViewControls.foldLineWeight', 'Fold line weight (pt)'),
-      // Still the weight every line is drawn at when folds are edges.
-      ...rowSupport,
-      undoLabel: changeStyle,
-      min: SIMULATOR_FOLD_WEIGHT_RANGE.min,
-      max: SIMULATOR_FOLD_WEIGHT_RANGE.max,
-      step: SIMULATOR_FOLD_WEIGHT_RANGE.step,
-      protocol: 'continuous',
-      value: style.mountainFolds.width,
-      begin: () => deps.begin('foldLineWeight'),
-      update: (width) => {
-        deps.writeOverride('mountainFolds', { ...style.mountainFolds, width });
-        deps.writeOverride('valleyFolds', { ...style.valleyFolds, width });
-      },
-      end: () => deps.end(changeStyle),
-      held,
-      ...resetOf('mountainFolds', 'valleyFolds'),
-    },
   ];
 }
 

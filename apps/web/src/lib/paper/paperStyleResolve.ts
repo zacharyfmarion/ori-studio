@@ -115,15 +115,13 @@ export function applyPaperStylePolicy(style: PaperStyle, policy: SurfaceStylePol
 
 /**
  * The style as a surface's renderers draw it, which is what its export must
- * paint with. The policy applied, and then one width for every fold line:
- * `RenderSettings` carries a single crease width, and the GPU and canvas-2D
- * renderers draw border, mountain and valley ribbons at it. Where the policy
- * applies the fold pens that width is the mountain pen's — the simulator's
- * "Fold line weight" — and the edge and valley pens take it here; where it does
- * not, the flat figure draws every crease with the edge pen, so the fold pens
- * *are* the edge pen. The aux pen is its own: the renderers draw it at its
- * width (`auxWidthPx`). A painter handed this style writes the widths the
- * screen showed rather than the ones the style states.
+ * paint with: the policy applied, and every line in its own pen, width
+ * included. Where the policy does not apply the fold pens, the folded figures
+ * draw every crease with the edge pen, so the fold pens *are* the edge pen.
+ * Where a simulation draws its folds as edges, the folds are one kind of line
+ * in the edge pen's colour, dash and cap, at the average of the two fold pens'
+ * widths — those pens still say how heavy a fold is — while the paper's own
+ * edge stays the edge pen exactly. The aux pen is always its own.
  */
 export function surfacePaperStyle(style: PaperStyle, policy: SurfaceStylePolicy): PaperStyle {
   const seen = applyPaperStylePolicy(style, policy);
@@ -131,15 +129,11 @@ export function surfacePaperStyle(style: PaperStyle, policy: SurfaceStylePolicy)
   if (!policyApplies(policy, 'mountainFolds')) {
     return { ...seen, mountainFolds: edges, valleyFolds: edges };
   }
-  const width = seen.mountainFolds.width;
-  // A simulation drawing its folds as edges: the edge pen for every line, at
-  // the one weight the simulation draws them all at.
   if (seen.foldsAsEdges && policyApplies(policy, 'foldsAsEdges')) {
-    const pen = { ...edges, width };
-    return { ...seen, edges: pen, mountainFolds: pen, valleyFolds: pen };
+    const fold = { ...edges, width: (seen.mountainFolds.width + seen.valleyFolds.width) / 2 };
+    return { ...seen, mountainFolds: fold, valleyFolds: fold };
   }
-  const valley = policyApplies(policy, 'valleyFolds') ? seen.valleyFolds : edges;
-  return { ...seen, edges: { ...edges, width }, valleyFolds: { ...valley, width } };
+  return seen;
 }
 
 export type Vec3 = [number, number, number];
@@ -186,6 +180,14 @@ export function unitRgbToHex(color: readonly [number, number, number]): Hex {
   return `#${channel(color[0])}${channel(color[1])}${channel(color[2])}`;
 }
 
+/** The floor under every resolved line width, in device px: a hairline still shows. */
+const MIN_PEN_DEVICE_PX = 0.5;
+
+/** A pen's width in device px, floored at {@link MIN_PEN_DEVICE_PX}. */
+function penWidthDevicePx(pen: Pen, dpr: number): number {
+  return Math.max(MIN_PEN_DEVICE_PX, ptToDevicePx(pen.width, dpr));
+}
+
 /** A pen's dash as device-px runs: its multiples times its device-px width. */
 export function penDashDevicePx(pen: Pen, dpr: number): number[] | null {
   if (!pen.dash) return null;
@@ -216,12 +218,11 @@ export interface ResolvePaperStyleOptions {
 /**
  * Build the render settings a surface draws from.
  *
- * The pens are the surface's ({@link surfacePaperStyle}): one width for every
- * fold line, the mountain pen's where the policy applies fold pens and the edge
- * pen's where it does not (the flat figure, whose creases are all drawn in the
- * line colour), and the aux pen at its own. A surface whose policy leaves out
- * `light` draws unlit. The light direction is data from the style either way,
- * so a lit surface and an unlit one agree on where the light would be.
+ * The pens are the surface's ({@link surfacePaperStyle}), each line at its own
+ * pen's width: the edge, the two folds and the aux pen. A surface whose policy
+ * leaves out `light` draws unlit. The light direction is data from the style
+ * either way, so a lit surface and an unlit one agree on where the light would
+ * be.
  *
  * Erode crosses as the style's own unit, a fraction of the sheet: the
  * renderers turn it into pixels per frame from the sheet extent they hold and
@@ -257,7 +258,7 @@ export function resolvePaperStyle(
     // Applied through the policy: a surface that leaves the toggle out sees
     // the default, off.
     showAux: seen.auxCreases.visible,
-    auxWidthPx: Math.max(0.5, ptToDevicePx(aux.width, dpr)),
+    auxWidthPx: penWidthDevicePx(aux, dpr),
     erode: seen.erode,
     creaseDash: anyDash ? dash : undefined,
     background: options.background,
@@ -266,9 +267,9 @@ export function resolvePaperStyle(
     showFaces: options.showFaces ?? true,
     showEdges: options.showEdges ?? true,
     lighting: policyApplies(policy, 'light') && seen.light.enabled,
-    // Every pen is at one width here; the floor keeps a hairline pen from
-    // vanishing on a standard display.
-    creaseWidthPx: Math.max(0.5, ptToDevicePx(edges.width, dpr)),
+    edgeWidthPx: penWidthDevicePx(edges, dpr),
+    mountainWidthPx: penWidthDevicePx(mountain, dpr),
+    valleyWidthPx: penWidthDevicePx(valley, dpr),
     creaseWidthReferenceEdge: options.creaseWidthReferenceEdge,
     creaseWidthShrinkExponent: options.creaseWidthShrinkExponent,
     faceAlpha: options.faceAlpha,

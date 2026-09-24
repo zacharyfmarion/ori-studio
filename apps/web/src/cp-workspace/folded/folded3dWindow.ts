@@ -169,11 +169,10 @@ export const FOLDED_3D_CREASE_DEPTH_BIAS = 1e-5;
  *
  * Built from the figure's **effective paper style** — the app's display style
  * with the figure's own pins on top (`effectiveObjectPaperStyle`) — through
- * the `folded-3d` policy: paper colours, the edge, fold and aux pens, erode
- * and the light. A 3D figure draws its creases as the simulator does: the M/V
- * pens by fold sign, the edge pen for borders, the aux pen for a 0° fold when
- * the style shows aux creases — under the resolver's one-width rule, every
- * fold line at the mountain pen's width (`surfacePaperStyle`).
+ * the `folded-3d` policy: paper colours, the edge and aux pens, erode and the
+ * light. A 3D figure draws every fold as an edge (D6): its borders and its
+ * folds in the edge pen, width included, and a 0° fold in the aux pen when the
+ * style shows aux creases (`surfacePaperStyle`).
  *
  * The pens' widths reach the GPU in device pixels through the resolver
  * (`ptToDevicePx`), and the frame shrink below the reference edge is the

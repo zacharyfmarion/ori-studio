@@ -2,6 +2,8 @@ import {
   EDGE_BOUNDARY_A,
   EDGE_BOUNDARY_B,
   EDGE_CODE,
+  creaseFrameScale,
+  creaseWidthsPx,
   erodePx,
   fitExtent,
   shadeColor,
@@ -156,7 +158,7 @@ export function drawFrame(
   const ctx = canvas.getContext("2d");
   if (!ctx) return true;
   const render = paint.render;
-  const palette = paletteFrom(paint);
+  const palette = paletteFrom(paint, width, height);
 
   // clearRect alone already leaves the frame transparent; the fill is what makes
   // it a backdrop, so a transparent surface simply skips it.
@@ -340,13 +342,16 @@ interface SimulatorPalette {
   paperBack: Vec3Like;
   /** Where the light comes from, in view space; the same vector the GPU and SVG paths shade with. */
   lightDir: Vec3Like;
-  /** Device-pixel crease weight, so every path draws the chosen width. */
-  creaseWidthPx: number;
+  /**
+   * Device-pixel width by crease kind in this frame, indexed by assignment
+   * code — the widths the shader gets, shrunk as it shrinks them, so every
+   * path draws each pen at its own width.
+   */
+  widthsPx: readonly [number, number, number, number];
   /** Dash runs by crease kind, or null for solid. Same values the shader gets. */
   dash: CreaseDash | undefined;
   /** The auxiliary crease pen, drawn only when {@link showAux}. */
   aux: string;
-  auxWidthPx: number;
   showAux: boolean;
   /** How far a flagged crease end retreats, in device px; 0 draws to the ends. */
   erodePx: number;
@@ -362,8 +367,16 @@ interface SimulatorPalette {
  * forces this path even on a machine with WebGL2, so that was what every segment
  * and sequence-step simulation actually drew.
  */
-function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
+function paletteFrom(
+  paint: SimulatorPaint,
+  width: number,
+  height: number,
+): SimulatorPalette {
   const { render, chrome } = paint;
+  // An inline window's frame shrink, as the GPU pass applies it: every kind
+  // of line thinner alike below the window's reference edge.
+  const shrink = creaseFrameScale(render, width, height);
+  const [edge, mountain, valley, aux] = creaseWidthsPx(render);
   return {
     canvas: chrome.canvas,
     mountain: renderColorToCss(render.mountainColor),
@@ -376,10 +389,9 @@ function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
     paperFront: render.frontColor,
     paperBack: render.backColor,
     lightDir: render.lightDir,
-    creaseWidthPx: render.creaseWidthPx,
+    widthsPx: [edge * shrink, mountain * shrink, valley * shrink, aux * shrink],
     dash: render.creaseDash,
     aux: renderColorToCss(render.auxColor ?? render.borderColor),
-    auxWidthPx: render.auxWidthPx ?? render.creaseWidthPx,
     showAux: render.showAux ?? false,
     // Set per frame, once the camera's scale is known.
     erodePx: 0,
@@ -402,13 +414,16 @@ function edgeInk(
     if (!palette.showAux) return null;
     return {
       color: palette.aux,
-      width: Math.max(0.5, palette.auxWidthPx * widthScale),
+      width: Math.max(0.5, palette.widthsPx[EDGE_CODE.aux] * widthScale),
       dash: palette.dash?.aux ?? null,
     };
   }
+  // Border, mountain or valley: each code is its own pen's width, as the GPU
+  // edge pass indexes it.
+  const widthPx = palette.widthsPx[code] ?? palette.widthsPx[EDGE_CODE.border];
   return {
     color: edgeColor(assignment, palette),
-    width: Math.max(0.5, palette.creaseWidthPx * widthScale),
+    width: Math.max(0.5, widthPx * widthScale),
     dash: edgeDash(assignment, palette),
   };
 }

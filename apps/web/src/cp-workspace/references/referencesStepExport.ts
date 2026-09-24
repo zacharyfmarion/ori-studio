@@ -100,7 +100,7 @@ export function referencesStepExportPage(
     ...(page.background === null ? {} : { ground: page.background }),
   });
   // The painter takes the style as the view sees it: the policy applied, and
-  // the fold pens' width on every crease, as the other surfaces hand theirs.
+  // every crease in its own pen, as the other surfaces hand theirs.
   // Its aux switch stays on: the scene already holds exactly the aux-pen lines
   // the page carries, and the creases an earlier step made are among them.
   const painted = surfacePaperStyle(style, PAPER_STYLE_POLICIES.references);

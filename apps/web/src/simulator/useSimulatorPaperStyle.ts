@@ -22,7 +22,8 @@ export type SimulatorPenField = 'mountainFolds' | 'valleyFolds' | 'edges';
  * The fields the Simulate pane's Paper and Creases rows edit, and so the ones
  * its reset touches. The simulator policy applies more — the aux pen, its
  * toggle and erode joined it in Phase 5 — but those rows are Settings ▸
- * Paper's; a reset here leaves them where the user put them.
+ * Paper's; a reset here leaves them where the user put them. So are the
+ * pens' widths, dashes and caps: the pane edits a pen's colour only.
  */
 export const SIMULATOR_PANE_FIELDS: readonly PaperStyleField[] = [
   'paper.front',
@@ -34,55 +35,48 @@ export const SIMULATOR_PANE_FIELDS: readonly PaperStyleField[] = [
   'light',
 ];
 
-/**
- * The fold pens' width as the simulator's slider offers it, in pt. The slider
- * used to span 0.5–6 CSS px; this is that span in the pen's unit, rounded to
- * the step.
- */
-export const SIMULATOR_FOLD_WEIGHT_RANGE = { min: 0.4, max: 4.5, step: 0.05 } as const;
-
 export interface SimulatorPaperStyleBinding {
   /** The app's display style — what the Simulate workspace and every window draw with. */
   style: PaperStyle;
   setPaperColor: (side: 'paper.front' | 'paper.back', color: Hex) => void;
   setPenColor: (pen: SimulatorPenField, color: Hex) => void;
   /**
-   * The fold pens' width in pt. Not the edge pen: the simulator draws its
-   * edges at the fold pens' width, and the folded figures' edge is their own.
-   */
-  setCreaseWeight: (widthPt: number) => void;
-  /**
-   * Draw every fold in the edge pen, at the fold line weight, as a folded
-   * figure does — or by direction again.
+   * Draw every fold in the edge pen's colour, dash and cap, at the average of
+   * the fold pens' widths — or by direction again.
    */
   setFoldsAsEdges: (on: boolean) => void;
   setLighting: (enabled: boolean) => void;
   /**
-   * The end of one continuous adjustment — a colour picker closing, a slider
-   * released. A control that fires per pointer move calls its setter per move
-   * and this once; nothing is written, it only settles the analytics count.
+   * The end of one continuous adjustment — a colour picker closing. A control
+   * that fires per pointer move calls its setter per move and this once;
+   * nothing is written, it only settles the analytics count.
    */
   endAdjustment: () => void;
   /**
    * The rows this binding offers — {@link SIMULATOR_PANE_FIELDS} — back to
    * the Default preset, as one store update. The rest of the display style —
-   * the aux and arrow pens, erode — is Settings ▸ Paper's and stays where the
-   * user put it; see {@link resetRowValue} for the two rows that edit one
-   * property of a field.
+   * the aux and arrow pens, erode, every pen's width — is Settings ▸ Paper's
+   * and stays where the user put it; see {@link resetRowValue} for the rows
+   * that edit one property of a field.
    */
   reset: () => void;
 }
 
 /**
- * A row's value under the Default preset. The edge row edits the pen's colour
- * and the light row its switch, so each resets that property and keeps the
- * rest: the edge width belongs to the folded figures (the simulator draws its
- * edges at the fold pens' width), the light's angles to Settings ▸ Paper.
+ * A row's value under the Default preset. A pen's row edits its colour and
+ * the light row its switch, so each resets that property and keeps the rest:
+ * the pens' widths, dashes and caps and the light's angles are Settings ▸
+ * Paper's — since X14 a simulation draws every line at its own pen's width,
+ * set there and nowhere in the pane.
  */
 function resetRowValue<F extends PaperStyleField>(style: PaperStyle, field: F): PaperStyleValue<F> {
   switch (field) {
     case 'edges':
-      return { ...style.edges, color: DEFAULT_PAPER_STYLE.edges.color } as PaperStyleValue<F>;
+    case 'mountainFolds':
+    case 'valleyFolds': {
+      const pen = field as SimulatorPenField;
+      return { ...style[pen], color: DEFAULT_PAPER_STYLE[pen].color } as PaperStyleValue<F>;
+    }
     case 'light':
       return { ...style.light, enabled: DEFAULT_PAPER_STYLE.light.enabled } as PaperStyleValue<F>;
     default:
@@ -145,12 +139,6 @@ export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
         count('valleyFolds');
         setField('display', 'mountainFolds', next.mountainFolds);
         setField('display', 'valleyFolds', next.valleyFolds);
-      },
-      setCreaseWeight: (width) => {
-        count('mountainFolds');
-        count('valleyFolds');
-        setField('display', 'mountainFolds', { ...style.mountainFolds, width });
-        setField('display', 'valleyFolds', { ...style.valleyFolds, width });
       },
       setFoldsAsEdges: (on) => {
         once('foldsAsEdges');

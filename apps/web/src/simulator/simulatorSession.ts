@@ -279,7 +279,9 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
   showFaces: true,
   showEdges: true,
   lighting: true,
-  creaseWidthPx: 3,
+  edgeWidthPx: 3,
+  mountainWidthPx: 3,
+  valleyWidthPx: 3,
   faceAlpha: 1,
 };
 
@@ -1318,9 +1320,9 @@ const api = {
       active.view.height / dpr
     );
     // As the simulator draws the style: the fields its policy applies, the
-    // rest at their defaults, and every pen at the fold pens' width, which is
-    // the one width the screen draws at. The inline-simulation policy applies
-    // the same fields, so one policy serves both surfaces here.
+    // rest at their defaults, every line in its own pen and at its width, as
+    // the screen draws it. The inline-simulation policy applies the same
+    // fields, so one policy serves both surfaces here.
     const style = surfacePaperStyle(options.style, PAPER_STYLE_POLICIES.simulator);
     const scene = meshToPaperScene(positions, meshTopologyFor(prepared), camera, {
       sheet: sheetExtent(active.model.originalPositions),

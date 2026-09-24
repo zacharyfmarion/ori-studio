@@ -142,9 +142,10 @@ function normalizeAppliedPaperPresets(source: unknown): AppliedPaperPresets {
  * - `mountainColor` / `valleyColor` / `borderColor` → the mountain, valley and
  *   edge pens' colours.
  * - `creaseWidth` (CSS px) → the mountain and valley pens' width in pt
- *   (`px × 3/4`). Not the edge pen: the simulator draws its edges at the fold
- *   pens' width, so its look is kept, while the folded figures' 0.9 pt edge
- *   was never the simulator's to move.
+ *   (`px × 3/4`). Not the edge pen: the folded figures' 0.9 pt edge was never
+ *   the simulator's to move. (The simulator drew its edges at the fold pens'
+ *   width when this was written, so its look was kept whole; since X14 its
+ *   edge is drawn at the edge pen's own width.)
  * - `creaseStyle` → the switch, written after the colours so `mono` takes the
  *   edge colour the user chose. `color` is left alone, since applying it would
  *   put the convention inks over the user's own.

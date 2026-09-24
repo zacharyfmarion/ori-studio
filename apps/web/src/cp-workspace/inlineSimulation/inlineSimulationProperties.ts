@@ -43,9 +43,9 @@ const COLOR_MODES: readonly SimulatorColorMode[] = ['paper', 'strain'];
  * affordance's absence says the row is still following.
  *
  * The render settings are preferences (no `undoLabel`, no bracket); the paper
- * rows are document edits, one entry each, with continuous colours and the
- * weight going through the layer's bracket under the pane's owner. Only the
- * keys `resolveRenderSettings` consumes appear. Transport, refresh, export and
+ * rows are document edits, one entry each, with continuous colours going
+ * through the layer's bracket under the pane's owner. Only the keys
+ * `resolveRenderSettings` consumes appear. Transport, refresh, export and
  * delete stay on the floating inspector.
  */
 export function buildInlineSimulationProperties(

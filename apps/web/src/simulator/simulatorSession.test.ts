@@ -433,7 +433,9 @@ const DEFAULT_EXPORT_SETTINGS: RenderSettings = {
   showFaces: true,
   showEdges: true,
   lighting: false,
-  creaseWidthPx: 2,
+  edgeWidthPx: 2,
+  mountainWidthPx: 2,
+  valleyWidthPx: 2,
   faceAlpha: 1,
 };
 
@@ -526,14 +528,43 @@ describe('exporting the current view as SVG', () => {
     session.dispose();
   }, 30_000);
 
-  it('writes the sheet edge at the width the screen draws it, the fold line weight', async () => {
-    // On screen every line is drawn at one width, the mountain pen's; the
-    // file's edge is the same width, not the edge pen's own.
+  /** Every `stroke` and `stroke-width` pair the file's lines are written with. */
+  function linePens(svg: string): Set<string> {
+    return new Set(
+      (svg.match(/<line [^>]*\/>/gu) ?? []).map((line) => {
+        const pen = /stroke="([^"]+)" stroke-width="([^"]+)"/u.exec(line);
+        return pen ? `${pen[1]} ${pen[2]}` : line;
+      })
+    );
+  }
+
+  /** What the screen draws a style's lines at, in pt, as the file writes them. */
+  function onScreenPt(style: PaperStyle): { edge: string; mountain: string; valley: string } {
+    const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, {
+      dpr: 1,
+      background: [0, 0, 0],
+      backgroundAlpha: 1,
+      faceAlpha: 1,
+      colorMode: 'paper',
+      strainClip: 5,
+    });
+    const pt = (px: number) => (px / PT_TO_CSS_PX).toFixed(2);
+    return {
+      edge: pt(settings.edgeWidthPx),
+      mountain: pt(settings.mountainWidthPx),
+      valley: pt(settings.valleyWidthPx),
+    };
+  }
+
+  it('writes each pen at its own width, as the screen draws it', async () => {
+    // Re-pinned for X14: the screen drew every line at the mountain pen's
+    // width, so the file's edge and valleys were written at it too. The
+    // screen draws each pen at its own width now, and so does the file.
     const style: PaperStyle = {
       ...EXPORT_STYLE,
       edges: { ...EXPORT_STYLE.edges, width: 0.9 },
       mountainFolds: { ...EXPORT_STYLE.mountainFolds, width: 3 },
-      valleyFolds: { ...EXPORT_STYLE.valleyFolds, width: 3 },
+      valleyFolds: { ...EXPORT_STYLE.valleyFolds, width: 1.5 },
     };
     const session = createSimulatorSession();
     const info = session.load(miura(6, 6), {});
@@ -541,17 +572,37 @@ describe('exporting the current view as SVG', () => {
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
 
     const svg = session.exportSvg(exportOptions({ token: info.token, style }))!.svg;
-    const onScreen = resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, {
-      dpr: 1,
-      background: [0, 0, 0],
-      backgroundAlpha: 1,
-      faceAlpha: 1,
-      colorMode: 'paper',
-      strainClip: 5,
-    }).creaseWidthPx;
-    const edgeWidth = `stroke-width="${(onScreen / PT_TO_CSS_PX).toFixed(2)}"`;
-    expect(svg).toMatch(new RegExp(`stroke="#ff00ff" ${edgeWidth}`, 'u'));
-    expect(svg).not.toContain('stroke-width="0.90"');
+    const screen = onScreenPt(style);
+    expect(screen).toEqual({ edge: '0.90', mountain: '3.00', valley: '1.50' });
+    expect(linePens(svg)).toEqual(
+      new Set([
+        `#ff00ff ${screen.edge}`,
+        `#ffff00 ${screen.mountain}`,
+        `#00ffff ${screen.valley}`,
+      ])
+    );
+    session.dispose();
+  }, 30_000);
+
+  it('writes folds drawn as edges in the edge pen at the fold pens’ average width', async () => {
+    // The folds take the edge pen's ink at (3 + 1) / 2 pt; the paper's own
+    // edge keeps the edge pen's 0.9 pt, as it does on screen.
+    const style: PaperStyle = {
+      ...EXPORT_STYLE,
+      edges: { ...EXPORT_STYLE.edges, width: 0.9 },
+      mountainFolds: { ...EXPORT_STYLE.mountainFolds, width: 3 },
+      valleyFolds: { ...EXPORT_STYLE.valleyFolds, width: 1 },
+      foldsAsEdges: true,
+    };
+    const session = createSimulatorSession();
+    const info = session.load(miura(6, 6), {});
+    await frame(session.settle(2000, {}));
+    await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
+
+    const svg = session.exportSvg(exportOptions({ token: info.token, style }))!.svg;
+    const screen = onScreenPt(style);
+    expect(screen).toEqual({ edge: '0.90', mountain: '2.00', valley: '2.00' });
+    expect(linePens(svg)).toEqual(new Set([`#ff00ff ${screen.edge}`, `#ff00ff ${screen.mountain}`]));
     session.dispose();
   }, 30_000);
 
@@ -930,7 +981,9 @@ describe('folded-figure meshes', () => {
         showFaces: true,
         showEdges: true,
         lighting: true,
-        creaseWidthPx: 3,
+        edgeWidthPx: 3,
+        mountainWidthPx: 3,
+        valleyWidthPx: 3,
         faceAlpha: 1,
       } satisfies RenderSettings)
     ).toBeNull();

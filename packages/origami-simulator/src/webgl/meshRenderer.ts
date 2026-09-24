@@ -58,7 +58,10 @@ export interface CreaseDash {
 /** Longest pattern the edge shader can hold, which bounds its uniform array. */
 export const MAX_DASH_RUNS = 6;
 
-/** Crease kinds the edge shader dashes, indexed by code: border, mountain, valley, aux. */
+/**
+ * Crease kinds the edge shader draws, each at its own dash and width, indexed
+ * by code: border, mountain, valley, aux.
+ */
 export const DASH_KINDS = 4;
 
 /**
@@ -124,10 +127,10 @@ export interface RenderSettings {
   /**
    * The auxiliary crease pen: a source `F` edge, {@link EDGE_CODE.aux}. Drawn
    * only when {@link showAux}; the colour defaults to {@link borderColor} and
-   * the width to {@link creaseWidthPx}. Its dash is `creaseDash.aux`.
+   * the width to {@link edgeWidthPx}. Its dash is `creaseDash.aux`.
    */
   auxColor?: [number, number, number];
-  /** Auxiliary crease width in device pixels; see {@link creaseWidthPx}. */
+  /** Auxiliary crease width in device pixels; see {@link edgeWidthPx}. */
   auxWidthPx?: number;
   /** Draw the auxiliary creases. Off by default: they clutter a fold. */
   showAux?: boolean;
@@ -154,10 +157,20 @@ export interface RenderSettings {
   showFaces: boolean;
   showEdges: boolean;
   lighting: boolean;
-  /** Crease line width in device pixels. */
-  creaseWidthPx: number;
   /**
-   * Frame edge, in device pixels, that {@link creaseWidthPx} is calibrated for.
+   * The paper's edge — a border ribbon, {@link EDGE_CODE.border} — width in
+   * device pixels. Every kind of line has its own width, as each has its own
+   * colour and dash: the pens a style states are what the screen draws.
+   */
+  edgeWidthPx: number;
+  /** Mountain fold width in device pixels; see {@link edgeWidthPx}. */
+  mountainWidthPx: number;
+  /** Valley fold width in device pixels; see {@link edgeWidthPx}. */
+  valleyWidthPx: number;
+  /**
+   * Frame edge, in device pixels, that the line widths ({@link edgeWidthPx},
+   * {@link mountainWidthPx}, {@link valleyWidthPx}, {@link auxWidthPx}) are
+   * calibrated for. All four shrink by the same factor.
    *
    * Left unset, a crease keeps a constant on-screen weight however large the
    * frame is. That is what a *viewport* wants: a Simulate-workspace pane is a
@@ -298,19 +311,41 @@ const MIN_RASTER_CREASE_WIDTH_PX = 1;
 const TRANSPARENT: readonly [number, number, number] = [0, 0, 0];
 
 /**
- * The width and opacity a rasterizing renderer should draw creases at.
+ * Each crease kind's declared width in device pixels, ordered by assignment
+ * code — border, mountain, valley, aux — as {@link packCreaseDash} orders the
+ * dashes, so a renderer indexes it by an edge's code. The aux pen falls back
+ * to the edge's width, as its colour falls back to the edge's.
+ *
+ * Shared by the GPU pass and the canvas-2D fallback, so the two cannot
+ * disagree about which pen an edge is drawn at.
+ */
+export function creaseWidthsPx(
+  settings: Pick<RenderSettings, 'edgeWidthPx' | 'mountainWidthPx' | 'valleyWidthPx' | 'auxWidthPx'>
+): [number, number, number, number] {
+  return [
+    settings.edgeWidthPx,
+    settings.mountainWidthPx,
+    settings.valleyWidthPx,
+    settings.auxWidthPx ?? settings.edgeWidthPx,
+  ];
+}
+
+/**
+ * The width and opacity a rasterizing renderer should draw a crease of
+ * `widthPx` declared device pixels at, in this frame.
  *
  * Vector output does not go through this: SVG has no sample grid, so it draws
  * the true scaled width and needs no alpha.
  */
 export function rasterCreaseInk(
+  widthPx: number,
   settings: RenderSettings,
   width: number,
   height: number
 ): { widthPx: number; alpha: number } {
-  const wanted = settings.creaseWidthPx * creaseFrameScale(settings, width, height);
-  const widthPx = Math.max(wanted, MIN_RASTER_CREASE_WIDTH_PX);
-  return { widthPx, alpha: Math.max(0, Math.min(1, wanted / widthPx)) };
+  const wanted = widthPx * creaseFrameScale(settings, width, height);
+  const drawn = Math.max(wanted, MIN_RASTER_CREASE_WIDTH_PX);
+  return { widthPx: drawn, alpha: Math.max(0, Math.min(1, wanted / drawn)) };
 }
 
 /**
@@ -594,8 +629,9 @@ uniform sampler2D u_lastPosition;
 uniform sampler2D u_originalPosition;
 uniform int u_textureDim;
 ${VIEW_GLSL}
-uniform float u_halfWidthPx;
-uniform float u_auxHalfWidthPx;
+// Half of each kind's ribbon width, indexed by assignment code as the dash
+// arrays are: every line is drawn at its own pen's width.
+uniform float u_halfWidthPx[${DASH_KINDS}];
 uniform float u_showAux;
 uniform float u_erodePx;
 uniform float u_depthBias;
@@ -688,8 +724,7 @@ void main(){
   float phase = dashPhase(v_assignment, erodedLen);
   v_alongPx = (atA ? 0.0 : erodedLen) + phase;
   vec2 perpPx = len > 0.0001 ? vec2(-dirPx.y, dirPx.x) / len : vec2(0.0);
-  float halfWidthPx = v_assignment == ${EDGE_CODE.aux} ? u_auxHalfWidthPx : u_halfWidthPx;
-  vec2 offsetPx = perpPx * halfWidthPx * a_side;
+  vec2 offsetPx = perpPx * u_halfWidthPx[v_assignment] * a_side;
   // Bias toward the viewer so a crease sits on top of the face it lies on —
   // and, where the model has coplanar layers, on top of *that* face and nothing
   // behind it. See RenderSettings.creaseDepthBias. An eroded end takes the
@@ -710,8 +745,9 @@ uniform vec3 u_mountainColor;
 uniform vec3 u_valleyColor;
 uniform vec3 u_borderColor;
 uniform vec3 u_auxColor;
-uniform float u_alpha;
-uniform float u_auxAlpha;
+// Each kind's opacity, by code: below 1 only where its width fell under a
+// pixel and the lost weight came out of alpha (see rasterCreaseInk).
+uniform float u_creaseAlpha[${DASH_KINDS}];
 // Dash runs for the four drawn kinds, packed [B..., M..., V..., aux...] with
 // MAX runs each, and how many of those runs each kind actually uses (0 =
 // solid).
@@ -744,14 +780,13 @@ bool dashOn(int kind, float alongPx){
 
 void main(){
   vec3 color = u_borderColor;
-  float alpha = u_alpha;
   if (v_assignment == 1) color = u_mountainColor;
   else if (v_assignment == 2) color = u_valleyColor;
-  else if (v_assignment == ${EDGE_CODE.aux}) { color = u_auxColor; alpha = u_auxAlpha; }
+  else if (v_assignment == ${EDGE_CODE.aux}) color = u_auxColor;
   // Discarding rather than blending to the background: a gap has to show the
   // face behind the crease, and it must not write depth either.
   if (!dashOn(v_assignment, v_alongPx)) discard;
-  fragColor = vec4(color, alpha);
+  fragColor = vec4(color, u_creaseAlpha[v_assignment]);
 }`;
 
 /**
@@ -983,18 +1018,17 @@ export class MeshRenderer {
     }
 
     if (settings.showEdges && this.edgeVertexCount > 0) {
-      // Crease width in device pixels; scaled up a touch on hi-dpi so it reads
-      // at the same on-screen weight, then by the frame if these settings ask
-      // for it. camera.width is device px.
-      const ink = rasterCreaseInk(settings, camera.width, camera.height);
-      const showAux = settings.showAux ?? false;
-      // The aux pen at its own width, through the same floor and frame shrink.
-      const auxInk = rasterCreaseInk(
-        { ...settings, creaseWidthPx: settings.auxWidthPx ?? settings.creaseWidthPx },
-        camera.width,
-        camera.height
+      // Each kind at its own pen's width in device pixels, by assignment code,
+      // through the same frame shrink and raster floor, so an inline window
+      // thins all four alike. camera.width is device px.
+      const inks = creaseWidthsPx(settings).map((widthPx) =>
+        rasterCreaseInk(widthPx, settings, camera.width, camera.height)
       );
-      if (ink.alpha < 1 || (showAux && auxInk.alpha < 1)) {
+      const showAux = settings.showAux ?? false;
+      // A hidden aux ribbon is clipped before it reaches a fragment, so its
+      // alpha has nothing to blend.
+      const faded = inks.some((ink, code) => ink.alpha < 1 && (showAux || code !== EDGE_CODE.aux));
+      if (faded) {
         gl.enable(gl.BLEND);
         // Colour blends against what is behind, but coverage must not: scaling
         // the frame's own alpha by a faded crease's would punch a hole through
@@ -1019,10 +1053,14 @@ export class MeshRenderer {
         'u_auxColor',
         settings.auxColor ?? settings.borderColor
       );
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx', ink.widthPx * 0.5);
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_auxHalfWidthPx', auxInk.widthPx * 0.5);
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_alpha', ink.alpha);
-      this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_auxAlpha', auxInk.alpha);
+      gl.uniform1fv(
+        this.location(this.edgeProgram, this.edgeUniforms, 'u_halfWidthPx'),
+        Float32Array.from(inks, (ink) => ink.widthPx * 0.5)
+      );
+      gl.uniform1fv(
+        this.location(this.edgeProgram, this.edgeUniforms, 'u_creaseAlpha'),
+        Float32Array.from(inks, (ink) => ink.alpha)
+      );
       this.setFloat(this.edgeProgram, this.edgeUniforms, 'u_showAux', showAux ? 1 : 0);
       // The painter's `erode × sheet` in this frame's pixels: the sheet at the
       // camera's scale, which is why it is computed here rather than resolved

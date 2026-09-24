@@ -274,24 +274,15 @@ describe('collapsible sections', () => {
     expect(useSettingsStore.getState().paperStyle.display.paper.front).toBe('#123456');
   });
 
-  it('offers the fold line weight in pt, and writes both fold pens', () => {
-    // Re-pinned: the slider used to be a CSS-px "Weight" on the simulator
-    // settings; it is now the mountain and valley pens' width in the style's
-    // own unit, and the label says so.
+  it('offers no line weight: each line is drawn at its own pen’s width', () => {
+    // Re-pinned for X14: the section had a "Fold line weight (pt)" slider
+    // that wrote one width into both fold pens, the one width a simulation
+    // drew every line at. Widths are the pen cards' in Settings ▸ Paper now.
     const rendered = render();
     toggle(rendered, 'Creases');
     expect(rendered.querySelector('input[aria-label="Weight"]')).toBeNull();
-    const input = slider(rendered, 'Fold line weight (pt)');
-    expect(Number(input.value)).toBe(DEFAULT_PAPER_STYLE.mountainFolds.width);
-    expect(Number(input.min)).toBe(0.4);
-    expect(Number(input.max)).toBe(4.5);
-
-    dragSlider(input, 2.5);
-
-    const display = useSettingsStore.getState().paperStyle.display;
-    expect(display.mountainFolds.width).toBe(2.5);
-    expect(display.valleyFolds.width).toBe(2.5);
-    expect(display.edges.width).toBe(DEFAULT_PAPER_STYLE.edges.width);
+    expect(rendered.querySelector('input[aria-label="Fold line weight (pt)"]')).toBeNull();
+    expect(section(rendered, 'Creases').querySelector('input[type="range"]')).toBeNull();
   });
 
   // How the folds are dashed and inked is the paper preset's (Settings ▸
@@ -310,8 +301,7 @@ describe('collapsible sections', () => {
   });
 
   // Simulations draw every fold as an edge by default; switched off they draw
-  // by direction, and the fold inks that makes live are enabled. The fold line
-  // weight — every line's weight — is live either way.
+  // by direction, and the fold inks that makes live are enabled.
   it('renders all creases as edges by default, and disables what that makes moot', () => {
     const rendered = render();
     toggle(rendered, 'Creases');
@@ -322,7 +312,6 @@ describe('collapsible sections', () => {
     const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
     expect(asEdges().getAttribute('aria-checked')).toBe('true');
     expect(mountain()?.disabled).toBe(true);
-    expect(slider(rendered, 'Fold line weight (pt)').disabled).toBe(false);
     expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
 
     act(() => {

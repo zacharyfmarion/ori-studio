@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
+import type { ColorField, PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
 import { PropertySheetView } from './PropertySheetView';
 
 /**
@@ -424,5 +424,39 @@ describe('PropertySheetView', () => {
     act(() => button?.click());
     expect(reset).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith('yaw');
+  });
+
+  it('disables an unsupported colour’s reset with it, unless its pin outlives the control', () => {
+    const colour = (id: string, extra: Partial<ColorField>): ColorField => ({
+      id,
+      kind: 'color',
+      label: id,
+      support: 'unsupported',
+      reason: 'Moot here',
+      protocol: 'continuous',
+      value: '#123456',
+      begin: vi.fn(() => true),
+      update: vi.fn(),
+      end: vi.fn(),
+      held: false,
+      reset: vi.fn(),
+      ...extra,
+    });
+    const inert = colour('inert', {});
+    const moot = colour('moot', { resetWhileUnsupported: true });
+    const onCommit = render(sheetOf(inert, moot));
+    const resetOf = (label: string) =>
+      container?.querySelector<HTMLButtonElement>(`button[aria-label="Reset ${label} to default"]`);
+    expect(input('inert').disabled).toBe(true);
+    expect(input('moot').disabled).toBe(true);
+    expect(resetOf('inert')?.disabled).toBe(true);
+    expect(resetOf('moot')?.disabled).toBe(false);
+    act(() => resetOf('moot')?.click());
+    expect(moot.reset).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith('moot');
+
+    // Another surface holding the bracket still disables it.
+    render(sheetOf(colour('moot', { resetWhileUnsupported: true, held: true })));
+    expect(resetOf('moot')?.disabled).toBe(true);
   });
 });

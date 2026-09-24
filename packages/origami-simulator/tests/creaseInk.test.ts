@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   creaseFrameScale,
+  creaseWidthsPx,
   rasterCreaseInk,
   type RenderSettings,
 } from '../src/webgl/meshRenderer.js';
@@ -24,7 +25,9 @@ function settings(overrides: Partial<RenderSettings> = {}): RenderSettings {
     showFaces: true,
     showEdges: true,
     lighting: true,
-    creaseWidthPx: 2.2,
+    edgeWidthPx: 2.2,
+    mountainWidthPx: 2.2,
+    valleyWidthPx: 2.2,
     faceAlpha: 1,
     ...overrides,
   };
@@ -73,7 +76,7 @@ describe('scaling crease weight to its frame', () => {
 describe('the width and opacity a rasterizer draws creases at', () => {
   it('draws the scaled width outright while it is still a pixel wide', () => {
     const config = settings({ creaseWidthReferenceEdge: 512 });
-    const ink = rasterCreaseInk(config, 256, 256);
+    const ink = rasterCreaseInk(2.2, config, 256, 256);
     expect(ink.widthPx).toBeCloseTo(1.1, 10);
     expect(ink.alpha).toBe(1);
   });
@@ -82,7 +85,7 @@ describe('the width and opacity a rasterizer draws creases at', () => {
     // Shrinking the geometry alone would flicker: a sub-pixel ribbon lands on a
     // sample or misses depending where it falls.
     const config = settings({ creaseWidthReferenceEdge: 512 });
-    const ink = rasterCreaseInk(config, 128, 128);
+    const ink = rasterCreaseInk(2.2, config, 128, 128);
     expect(ink.widthPx).toBe(1);
     expect(ink.alpha).toBeCloseTo(0.55, 10);
   });
@@ -92,7 +95,7 @@ describe('the width and opacity a rasterizer draws creases at', () => {
     // the frame, or a window would fatten again at the bottom of its range.
     const config = settings({ creaseWidthReferenceEdge: 512 });
     const inkAt = (edge: number) => {
-      const { widthPx, alpha } = rasterCreaseInk(config, edge, edge);
+      const { widthPx, alpha } = rasterCreaseInk(2.2, config, edge, edge);
       return widthPx * alpha;
     };
     expect(inkAt(64) / inkAt(128)).toBeCloseTo(0.5, 10);
@@ -100,10 +103,35 @@ describe('the width and opacity a rasterizer draws creases at', () => {
   });
 
   it('never fades a crease that is wide enough to draw', () => {
-    expect(rasterCreaseInk(settings(), 2048, 2048).alpha).toBe(1);
-    expect(rasterCreaseInk(settings({ creaseWidthPx: 0.5 }), 2048, 2048)).toEqual({
+    expect(rasterCreaseInk(2.2, settings(), 2048, 2048).alpha).toBe(1);
+    expect(rasterCreaseInk(0.5, settings(), 2048, 2048)).toEqual({
       widthPx: 1,
       alpha: 0.5,
     });
+  });
+
+  it('shrinks every kind’s width by the same factor, so the pens keep their proportions', () => {
+    // An inline window below its reference: a heavy edge and a light fold
+    // thin together rather than converging on one weight.
+    const config = settings({ creaseWidthReferenceEdge: 512 });
+    const edge = rasterCreaseInk(4, config, 256, 256);
+    const fold = rasterCreaseInk(2, config, 256, 256);
+    expect(edge.widthPx).toBeCloseTo(2, 10);
+    expect(fold.widthPx).toBeCloseTo(1, 10);
+  });
+});
+
+describe('each crease kind’s width', () => {
+  it('orders the pens by assignment code, as the dashes are packed', () => {
+    expect(
+      creaseWidthsPx({ edgeWidthPx: 1, mountainWidthPx: 2, valleyWidthPx: 3, auxWidthPx: 4 })
+    ).toEqual([1, 2, 3, 4]);
+  });
+
+  it('draws the aux pen at the edge’s width when it has none of its own', () => {
+    // As its colour falls back to the border's.
+    expect(creaseWidthsPx({ edgeWidthPx: 1.5, mountainWidthPx: 2, valleyWidthPx: 3 })).toEqual([
+      1.5, 2, 3, 1.5,
+    ]);
   });
 });

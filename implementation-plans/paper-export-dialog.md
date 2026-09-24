@@ -764,12 +764,20 @@ service's `file exported` fires once, `format: 'zip'`.
   at `(mountainFolds.width + valleyFolds.width) / 2`. The painter already draws
   per-pen widths, so an export matches the screen with no further change; the
   hidden test's ink allowance is still the widest pen (`widestPenCssPx`).
-- **The 3D figure** draws through the same settings, so its borders take the
-  edge pen's width and its folds their own, as its export already would.
+- **The 3D figure** draws through the same settings, so its borders and its
+  folds all take the edge pen's width (D6: a 3D figure draws every fold as an
+  edge), as its export already would.
+- **References** paints through the same `surfacePaperStyle`, so a step's
+  export writes the edge and valley pens at their own widths too, instead of
+  the mountain pen's — as its cards already draw them.
 - **The controls go:** the Simulate pane's slider and `setCreaseWeight` /
   `SIMULATOR_FOLD_WEIGHT_RANGE`, and the inline sheet's `foldLineWeight` row.
   An inline window's existing pins need nothing: its fold-pen pins hold whole
-  pens, width included, and the colour rows' reset clears them.
+  pens, width included, and the colour rows' reset clears them. That reset
+  stays live while folds are drawn as edges and the colour rows are disabled
+  (`ColorField.resetWhileUnsupported`), because the pinned widths still set
+  the folds' average there. The Simulate pane's *Reset style* resets the fold
+  pens' colours only, as it does the edge pen's: widths are Settings ▸ Paper's.
 - **What changes on screen:** the Default preset's edge pen is 0.9 pt and its
   folds 0.825 pt, so a simulation's outline gets slightly heavier than today,
   where everything drew at 0.825.
@@ -925,22 +933,27 @@ CP canvas, and the crease-pattern export's own rendering of the pattern.
 
 ### Phase 4 — Simulations: every line at its own pen's width
 
-- [ ] `RenderSettings`: `edgeWidthPx`, `mountainWidthPx`, `valleyWidthPx`
+- [x] `RenderSettings`: `edgeWidthPx`, `mountainWidthPx`, `valleyWidthPx`
       (with `auxWidthPx`); the edge shader and the canvas-2D fallback draw each
       kind at its width, shrunk alike in an inline window; package tests
-- [ ] `resolvePaperStyle` fills them from the pens; `surfacePaperStyle` stops
+- [x] `resolvePaperStyle` fills them from the pens; `surfacePaperStyle` stops
       unifying, keeping only the folds-as-edges rule (the edge pen at the
       average of the fold widths); re-pin "draws every simulator pen at the
       fold line weight…" and the palette and session tests that assumed one
       width
-- [ ] Remove the Simulate pane's *Fold line weight* slider and the inline
+- [x] Remove the Simulate pane's *Fold line weight* slider and the inline
       sheet's row, `setCreaseWeight` and `SIMULATOR_FOLD_WEIGHT_RANGE`;
       re-pin `SimulatorViewControlsPanel.test.tsx` and
-      `inlineSimulationProperties.test.ts`; the string leaves every locale
-- [ ] Rebuild the simulator package's `dist`; browser: the Simulate view, an
-      inline window and a 3D figure in both modes of *Render all creases as
-      edges*, with the edge and fold pens set to clearly different widths
-- [ ] Validate; commit
+      `inlineSimulationProperties.test.ts`; the string leaves every locale;
+      the folds-as-edges help and the *Lines* hint in Settings ▸ Paper say
+      what the simulator now draws
+- [x] References step exports write each pen at its own width (a side effect
+      of `surfacePaperStyle`); `referencesStepExport.test.ts` pins it
+- [x] Rebuild the simulator package's `dist`
+- [ ] Browser: the Simulate view, an inline window and a 3D figure in both
+      modes of *Render all creases as edges*, with the edge and fold pens set
+      to clearly different widths
+- [x] Validate; commit
 
 ### Phase 5 — The export dialog, on References steps
 

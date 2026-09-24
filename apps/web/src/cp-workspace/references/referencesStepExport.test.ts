@@ -111,6 +111,28 @@ describe('referencesStepExportPage', () => {
     expect(svg).toContain('stroke="#123456"');
   });
 
+  it('writes each line at its own pen’s width', () => {
+    // Re-pinned with X14: the edge and valley pens used to be written at the
+    // mountain pen's width, the one width a simulation drew every line at.
+    // Every pen is its own now, as the cards draw them.
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#000001', width: 2 },
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#000002', width: 0.5 },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#000003', width: 1.25 },
+    };
+    const valley: StepDiagramPrimitive = { ...MOUNTAIN, from: [200, 0], to: [200, 400], style: 'valley' };
+    const { svg } = paint(model(MOUNTAIN, valley), { style });
+    const widthsOf = (color: string) =>
+      [...svg.matchAll(new RegExp(`stroke="${color}" stroke-width="([^"]+)"`, 'g'))].map((match) =>
+        Number(match[1])
+      );
+    // The sheet's four sides in the edge pen, then one fold in each fold pen.
+    expect(widthsOf('#000001')).toEqual([2, 2, 2, 2]);
+    expect(widthsOf('#000002')).toEqual([0.5]);
+    expect(widthsOf('#000003')).toEqual([1.25]);
+  });
+
   it('paints the page it is given', () => {
     const page: PaperPage = { ...DEFAULT_PAPER_PAGE, background: '#fafafa' };
     const { svg } = paint(model(MOUNTAIN), { page });

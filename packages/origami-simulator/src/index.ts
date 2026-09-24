@@ -21,6 +21,7 @@ export {
   MAX_DASH_RUNS,
   packCreaseDash,
   creaseFrameScale,
+  creaseWidthsPx,
   erodePx,
   rasterCreaseInk,
   type CreaseDash,

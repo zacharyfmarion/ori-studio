@@ -596,7 +596,9 @@ describe('a replacement session opens on the view in use', () => {
     showFaces: true,
     showEdges: true,
     lighting: true,
-    creaseWidthPx: 3,
+    edgeWidthPx: 3,
+    mountainWidthPx: 3,
+    valleyWidthPx: 3,
     faceAlpha: 1,
   };
 
@@ -723,7 +725,9 @@ describe('the canvas-2D path exports what it shows', () => {
     showFaces: true,
     showEdges: true,
     lighting: true,
-    creaseWidthPx: 3,
+    edgeWidthPx: 3,
+    mountainWidthPx: 3,
+    valleyWidthPx: 3,
     faceAlpha: 1,
   };
 

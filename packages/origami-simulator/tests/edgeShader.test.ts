@@ -36,10 +36,18 @@ describe('the edge shader source', () => {
 
   it('clips a hidden aux ribbon in the vertex stage and inks a shown one in its pen', () => {
     expect(EDGE_VERT).toContain(`v_assignment == ${EDGE_CODE.aux} && u_showAux < 0.5`);
-    expect(EDGE_VERT).toContain('u_auxHalfWidthPx');
     expect(EDGE_FRAG).toContain(`v_assignment == ${EDGE_CODE.aux}`);
     expect(EDGE_FRAG).toContain('uniform vec3 u_auxColor;');
-    expect(EDGE_FRAG).toContain('uniform float u_auxAlpha;');
+  });
+
+  it('sizes and fades every drawn kind by its own entry, indexed by assignment', () => {
+    // Re-pinned: one width for border, mountain and valley and a second for
+    // aux became one entry per kind. An array sized for fewer kinds would
+    // still link, and draw the last kinds at whatever lies past its end.
+    expect(EDGE_VERT).toContain(`uniform float u_halfWidthPx[${DASH_KINDS}];`);
+    expect(EDGE_VERT).toContain('u_halfWidthPx[v_assignment]');
+    expect(EDGE_FRAG).toContain(`uniform float u_creaseAlpha[${DASH_KINDS}];`);
+    expect(EDGE_FRAG).toContain('u_creaseAlpha[v_assignment]');
   });
 
   it('centres the dash on the eroded segment, as the painter does', () => {

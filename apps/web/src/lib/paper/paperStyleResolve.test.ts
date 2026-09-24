@@ -75,7 +75,12 @@ describe('resolvePaperStyle', () => {
   // and dashes them as a diagram does when they are drawn by direction.
   it('produces the simulator’s numbers for the defaults', () => {
     const settings = resolvePaperStyle(DEFAULT_PAPER_STYLE, PAPER_STYLE_POLICIES.simulator, OPTIONS);
-    expect(settings.creaseWidthPx).toBeCloseTo(1.1, 12);
+    // Re-pinned for X14: every line used to draw at the folds' 1.1 px. The
+    // edge is its own pen now, 0.9 pt, and the folds as edges are the average
+    // of the two fold pens, both 0.825 pt.
+    expect(settings.edgeWidthPx).toBeCloseTo(1.2, 12);
+    expect(settings.mountainWidthPx).toBeCloseTo(1.1, 12);
+    expect(settings.valleyWidthPx).toBeCloseTo(1.1, 12);
     expect(settings.borderColor).toEqual([0, 0, 0]);
     expect(settings.frontColor).toEqual(hexToUnitRgb('#ffff32'));
     expect(settings.backColor).toEqual(hexToUnitRgb('#e9e9e9'));
@@ -107,12 +112,14 @@ describe('resolvePaperStyle', () => {
     expect(byDirection.creaseDash?.border).toBeNull();
   });
 
-  it('scales the crease width with the device pixel ratio', () => {
+  it('scales every line width with the device pixel ratio', () => {
     const settings = resolvePaperStyle(DEFAULT_PAPER_STYLE, PAPER_STYLE_POLICIES.simulator, {
       ...OPTIONS,
       dpr: 2,
     });
-    expect(settings.creaseWidthPx).toBeCloseTo(2.2, 12);
+    expect(settings.edgeWidthPx).toBeCloseTo(2.4, 12);
+    expect(settings.mountainWidthPx).toBeCloseTo(2.2, 12);
+    expect(settings.valleyWidthPx).toBeCloseTo(2.2, 12);
   });
 
   it('turns a pen’s dash multiples into device-px runs', () => {
@@ -142,10 +149,10 @@ describe('resolvePaperStyle', () => {
       edges: { width: 0.75, color: '#000000', dash: [1, 2], cap: 'round' },
     };
     const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, OPTIONS);
-    // Re-pinned: the runs are multiples of the width the edge is drawn at,
-    // which on the simulator is the fold line weight, not the edge pen's own.
-    const drawnWidth = DEFAULT_PAPER_STYLE.mountainFolds.width * (4 / 3);
-    expect(settings.creaseDash!.border).toEqual([1, 2].map((run) => expect.closeTo(run * drawnWidth, 9)));
+    // Re-pinned back for X14: the runs are multiples of the width the edge is
+    // drawn at, which on the simulator is the edge pen's own again, 1 px.
+    expect(settings.edgeWidthPx).toBeCloseTo(1, 12);
+    expect(settings.creaseDash!.border).toEqual([1, 2].map((run) => expect.closeTo(run, 9)));
     expect(penDashDevicePx(style.edges, 2)).toEqual([2, 4]);
   });
 
@@ -166,7 +173,9 @@ describe('resolvePaperStyle', () => {
       mountainFolds: { width: 0.3, color: '#ff0000', dash: [4, 2], cap: 'butt' },
     };
     const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES['folded-flat'], OPTIONS);
-    expect(settings.creaseWidthPx).toBeCloseTo(2, 12);
+    expect(settings.edgeWidthPx).toBeCloseTo(2, 12);
+    expect(settings.mountainWidthPx).toBeCloseTo(2, 12);
+    expect(settings.valleyWidthPx).toBeCloseTo(2, 12);
     expect(settings.mountainColor).toEqual(hexToUnitRgb('#336699'));
     expect(settings.valleyColor).toEqual(hexToUnitRgb('#336699'));
     expect(settings.creaseDash).toBeUndefined();
@@ -181,15 +190,18 @@ describe('resolvePaperStyle', () => {
       mountainFolds: { width: 0.3, color: '#ff0000', dash: [4, 2], cap: 'butt' },
     };
     const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES['folded-3d'], OPTIONS);
-    expect(settings.creaseWidthPx).toBeCloseTo(2, 12);
+    // Every fold is the edge pen, width included, as the border is.
+    expect(settings.edgeWidthPx).toBeCloseTo(2, 12);
+    expect(settings.mountainWidthPx).toBeCloseTo(2, 12);
+    expect(settings.valleyWidthPx).toBeCloseTo(2, 12);
     expect(settings.mountainColor).toEqual(hexToUnitRgb('#336699'));
     expect(settings.valleyColor).toEqual(hexToUnitRgb('#336699'));
     expect(settings.borderColor).toEqual(hexToUnitRgb('#336699'));
     expect(settings.creaseDash).toBeUndefined();
   });
 
-  // A simulation draws by direction unless its style says otherwise; then the
-  // edge pen, at the one weight it draws every line at.
+  // A simulation draws by direction unless its style says otherwise; then its
+  // folds take the edge pen's ink at the average of the fold pens' widths.
   it('draws a simulation’s folds by direction, or as edges when the style says so', () => {
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
@@ -200,7 +212,11 @@ describe('resolvePaperStyle', () => {
     for (const surface of ['simulator', 'inline-simulation'] as const) {
       const byDirection = resolvePaperStyle(style, PAPER_STYLE_POLICIES[surface], OPTIONS);
       expect(byDirection.mountainColor, surface).toEqual(hexToUnitRgb('#ff0000'));
-      expect(byDirection.creaseWidthPx, surface).toBeCloseTo(1, 12);
+      // Re-pinned for X14: each line at its own pen's width, where every line
+      // used to draw at the mountain pen's 1 px.
+      expect(byDirection.edgeWidthPx, surface).toBeCloseTo(2, 12);
+      expect(byDirection.mountainWidthPx, surface).toBeCloseTo(1, 12);
+      expect(byDirection.valleyWidthPx, surface).toBeCloseTo(1.1, 12);
       const asEdges = resolvePaperStyle(
         { ...style, foldsAsEdges: true },
         PAPER_STYLE_POLICIES[surface],
@@ -209,8 +225,11 @@ describe('resolvePaperStyle', () => {
       expect(asEdges.mountainColor, surface).toEqual(hexToUnitRgb('#336699'));
       expect(asEdges.valleyColor, surface).toEqual(hexToUnitRgb('#336699'));
       expect(asEdges.creaseDash, surface).toBeUndefined();
-      // The fold line weight still sets the one width a simulation draws at.
-      expect(asEdges.creaseWidthPx, surface).toBeCloseTo(1, 12);
+      // The paper's edge is the edge pen exactly; the folds are the average
+      // of the two fold pens, (0.75 + 0.825) / 2 pt = 1.05 px.
+      expect(asEdges.edgeWidthPx, surface).toBeCloseTo(2, 12);
+      expect(asEdges.mountainWidthPx, surface).toBeCloseTo(1.05, 12);
+      expect(asEdges.valleyWidthPx, surface).toBeCloseTo(1.05, 12);
     }
     // A surface that does not read the switch is not moved by it.
     const references = surfacePaperStyle(
@@ -304,11 +323,15 @@ describe('resolvePaperStyle', () => {
   it('floors a hairline pen so it does not vanish', () => {
     const hairline: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
+      foldsAsEdges: false,
+      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.1 },
       mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 0.1 },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, width: 0.1 },
     };
-    expect(
-      resolvePaperStyle(hairline, PAPER_STYLE_POLICIES.simulator, OPTIONS).creaseWidthPx
-    ).toBe(0.5);
+    const settings = resolvePaperStyle(hairline, PAPER_STYLE_POLICIES.simulator, OPTIONS);
+    expect(settings.edgeWidthPx).toBe(0.5);
+    expect(settings.mountainWidthPx).toBe(0.5);
+    expect(settings.valleyWidthPx).toBe(0.5);
   });
 });
 
@@ -372,21 +395,31 @@ describe('surfacePaperStyle', () => {
     foldsAsEdges: false,
   };
 
-  it('draws every simulator pen at the fold line weight, keeping each pen’s ink and dash', () => {
-    // The screen has one crease width, the mountain pen's; the edge and
-    // valley pens take it so an export writes the widths the screen showed.
-    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
-    expect(seen.edges).toEqual({ ...style.edges, width: 3 });
+  // Re-pinned for X14: every pen used to take the mountain pen's width, the
+  // one width the screen could draw; the screen draws each pen's own now.
+  it('draws every simulator pen as it is, width included', () => {
+    for (const policy of [PAPER_STYLE_POLICIES.simulator, PAPER_STYLE_POLICIES['inline-simulation']]) {
+      const seen = surfacePaperStyle(style, policy);
+      expect(seen.edges, policy.surface).toEqual(style.edges);
+      expect(seen.mountainFolds, policy.surface).toEqual(style.mountainFolds);
+      expect(seen.valleyFolds, policy.surface).toEqual(style.valleyFolds);
+    }
+    const settings = resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, OPTIONS);
+    expect(settings.edgeWidthPx).toBeCloseTo(0.9 * (4 / 3), 12);
+    expect(settings.mountainWidthPx).toBeCloseTo(3 * (4 / 3), 12);
+    expect(settings.valleyWidthPx).toBeCloseTo(0.5 * (4 / 3), 12);
+  });
+
+  it('hands References each pen as it is, as its view draws them', () => {
+    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES.references);
+    expect(seen.edges).toEqual(style.edges);
     expect(seen.mountainFolds).toEqual(style.mountainFolds);
-    expect(seen.valleyFolds).toEqual({ ...style.valleyFolds, width: 3 });
-    expect(
-      resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, OPTIONS).creaseWidthPx
-    ).toBeCloseTo(seen.edges.width * (4 / 3), 6);
+    expect(seen.valleyFolds).toEqual(style.valleyFolds);
   });
 
   it('gives the flat figure the edge pen for every crease', () => {
-    // Re-pinned from "a folded figure": the 3D figure's policy applies the
-    // fold pens since Phase 5, so it takes the simulator's one-width rule.
+    // Re-pinned from "a folded figure": the 3D figure's policy applied the
+    // fold pens from Phase 5 until Phase 9 drew its folds as edges again.
     const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES['folded-flat']);
     expect(seen.mountainFolds).toEqual(style.edges);
     expect(seen.valleyFolds).toEqual(style.edges);
@@ -400,12 +433,29 @@ describe('surfacePaperStyle', () => {
     expect(seen.valleyFolds).toEqual(style.edges);
   });
 
-  it('draws a simulation’s folds as edges at the fold line weight when asked', () => {
-    const seen = surfacePaperStyle({ ...style, foldsAsEdges: true }, PAPER_STYLE_POLICIES.simulator);
-    const pen = { ...style.edges, width: 3 };
-    expect(seen.edges).toEqual(pen);
-    expect(seen.mountainFolds).toEqual(pen);
-    expect(seen.valleyFolds).toEqual(pen);
+  it('draws a simulation’s folds as edges at the fold pens’ average width, its edge as the edge pen', () => {
+    // Re-pinned for X14: every line used to be the edge pen at the mountain
+    // pen's width. The folds are the edge pen's colour, dash and cap at the
+    // average of the fold widths, (3 + 0.5) / 2; the edge is left alone.
+    const asEdges = { ...style, foldsAsEdges: true };
+    for (const policy of [PAPER_STYLE_POLICIES.simulator, PAPER_STYLE_POLICIES['inline-simulation']]) {
+      const seen = surfacePaperStyle(asEdges, policy);
+      const fold = { ...style.edges, width: 1.75 };
+      expect(seen.edges, policy.surface).toEqual(style.edges);
+      expect(seen.mountainFolds, policy.surface).toEqual(fold);
+      expect(seen.valleyFolds, policy.surface).toEqual(fold);
+    }
+    const settings = resolvePaperStyle(asEdges, PAPER_STYLE_POLICIES.simulator, OPTIONS);
+    expect(settings.edgeWidthPx).toBeCloseTo(0.9 * (4 / 3), 12);
+    expect(settings.mountainWidthPx).toBeCloseTo(1.75 * (4 / 3), 12);
+    expect(settings.valleyWidthPx).toBeCloseTo(1.75 * (4 / 3), 12);
+    // The folds take the edge pen's dash, in multiples of their own width.
+    expect(settings.creaseDash?.mountain).toEqual(
+      [4, 2].map((run) => expect.closeTo(run * 1.75 * (4 / 3), 9))
+    );
+    expect(settings.creaseDash?.border).toEqual(
+      [4, 2].map((run) => expect.closeTo(run * 0.9 * (4 / 3), 9))
+    );
   });
 
   it('leaves the aux pen at its own width', () => {

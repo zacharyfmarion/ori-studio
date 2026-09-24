@@ -360,6 +360,7 @@ function ColorFieldView({
       label={field.label}
       value={field.value}
       disabled={disabled || field.held}
+      clearDisabled={(disabled && !field.resetWhileUnsupported) || field.held}
       title={title}
       onChange={(next) => {
         if (pick.current === 'refused') return;

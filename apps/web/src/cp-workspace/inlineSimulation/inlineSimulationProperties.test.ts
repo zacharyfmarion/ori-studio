@@ -1,5 +1,8 @@
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
+import { PropertySheetView } from '../../components/properties/PropertySheetView';
 import {
   applyCreaseStyle,
   DEFAULT_PAPER_STYLE,
@@ -36,6 +39,25 @@ function deps(
   };
 }
 
+/**
+ * The sheet as the Properties pane draws it, for what a descriptor alone
+ * cannot say: whether a control can actually be clicked.
+ */
+function renderSheet(sheet: ReturnType<typeof buildInlineSimulationProperties>) {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  act(() => root.render(createElement(PropertySheetView, { sheet })));
+  return {
+    querySelector: <E extends Element>(selector: string) => container.querySelector<E>(selector),
+    unmount: () => {
+      act(() => root.unmount());
+      container.remove();
+    },
+  };
+}
+
 function field(sheet: ReturnType<typeof buildInlineSimulationProperties>, id: string) {
   const found = sheet.sections.flatMap((section) => section.fields).find((f) => f.id === id);
   if (!found) throw new Error(`no field ${id}`);
@@ -66,7 +88,6 @@ describe('buildInlineSimulationProperties', () => {
       'foldsAsEdges',
       'mountainColor',
       'valleyColor',
-      'foldLineWeight',
       'lighting',
       'auxVisible',
       'auxColor',
@@ -205,35 +226,49 @@ describe('buildInlineSimulationProperties', () => {
     });
   });
 
-  it('writes both fold pens for the weight, and resets both', () => {
-    const d = deps();
-    const sheet = buildInlineSimulationProperties(TARGET, d);
-    const weight = field(sheet, 'foldLineWeight');
-    if (weight.kind !== 'slider') throw new Error('slider');
-    expect(weight.reset).toBeUndefined();
-    expect(weight.value).toBe(DEFAULT_PAPER_STYLE.mountainFolds.width);
-    expect(weight.min).toBe(0.4);
-    expect(weight.max).toBe(4.5);
-    weight.update(2);
-    expect(d.writeOverride).toHaveBeenCalledWith('mountainFolds', {
-      ...DEFAULT_PAPER_STYLE.mountainFolds,
-      width: 2,
+  // X14: the sheet's fold line weight row is gone with the Simulate pane's
+  // slider. A window's existing fold-pen pins hold whole pens, width
+  // included, so a pin made by the old row keeps its width, and the colour
+  // row's reset clears it. While folds are drawn as edges — the Default — the
+  // colour is moot but the pinned width is what they are drawn at, so that
+  // reset has to be one a user can click on a disabled row.
+  it('offers no fold line weight, and resets a pinned fold pen from its colour row', () => {
+    const pin = { mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 3 } };
+    const asEdges = deps(pin);
+    const sheet = buildInlineSimulationProperties(TARGET, asEdges);
+    expect(() => field(sheet, 'foldLineWeight')).toThrow('no field foldLineWeight');
+    expect(field(sheet, 'mountainColor')).toMatchObject({
+      support: 'unsupported',
+      resetWhileUnsupported: true,
     });
-    expect(d.writeOverride).toHaveBeenCalledWith('valleyFolds', {
-      ...DEFAULT_PAPER_STYLE.valleyFolds,
-      width: 2,
-    });
+    expect(field(sheet, 'valleyColor').reset).toBeUndefined();
 
-    // Either pen pinned is enough for both rows to offer a reset of both.
-    const pinnedDeps = deps({ mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 3 } });
-    const pinnedSheet = buildInlineSimulationProperties(TARGET, pinnedDeps);
-    field(pinnedSheet, 'foldLineWeight').reset?.();
-    expect(pinnedDeps.commitOverrides).toHaveBeenLastCalledWith([
+    const rendered = renderSheet(sheet);
+    try {
+      const swatch = rendered.querySelector<HTMLInputElement>('input[aria-label="Mountain"]');
+      expect(swatch?.disabled).toBe(true);
+      const reset = rendered.querySelector<HTMLButtonElement>(
+        'button[aria-label="Reset Mountain to default"]'
+      );
+      expect(reset?.disabled).toBe(false);
+      act(() => reset?.click());
+      expect(asEdges.commitOverrides).toHaveBeenLastCalledWith([
+        { field: 'mountainFolds', value: undefined },
+      ]);
+      expect(rendered.querySelector('button[aria-label="Reset Valley to default"]')).toBeNull();
+    } finally {
+      rendered.unmount();
+    }
+
+    // Drawn by direction, the row is live and so is its reset.
+    const byDirection = deps({ ...pin, foldsAsEdges: false });
+    const live = field(buildInlineSimulationProperties(TARGET, byDirection), 'mountainColor');
+    expect(live).toMatchObject({ support: 'supported' });
+    expect(live).not.toHaveProperty('resetWhileUnsupported');
+    live.reset?.();
+    expect(byDirection.commitOverrides).toHaveBeenLastCalledWith([
       { field: 'mountainFolds', value: undefined },
-      { field: 'valleyFolds', value: undefined },
     ]);
-    expect(field(pinnedSheet, 'mountainColor').reset).toBeDefined();
-    expect(field(pinnedSheet, 'valleyColor').reset).toBeUndefined();
   });
 
   it('pins the light whole from the toggle', () => {
@@ -255,8 +290,7 @@ describe('buildInlineSimulationProperties', () => {
   });
 
   // "Render all creases as edges": a window's own pin like any other row, and
-  // while it is on the pens it makes moot are disabled with the reason — the
-  // fold line weight is still every line's weight, so it stays live.
+  // while it is on the pens it makes moot are disabled with the reason.
   it('offers folds as edges, and disables the rows it makes moot while on', () => {
     // Pinned off on this window: the fold inks are live, and the toggle turns
     // them moot again.
@@ -280,7 +314,6 @@ describe('buildInlineSimulationProperties', () => {
         reason: 'Every fold is drawn as an edge',
       });
     }
-    expect(support('foldLineWeight').support).toBe('supported');
     expect(support('foldsAsEdges')).toMatchObject({ value: true, support: 'supported' });
     // Following the style, there is nothing to reset; pinned on this window,
     // it offers the way back to the style.

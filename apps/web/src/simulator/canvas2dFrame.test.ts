@@ -114,6 +114,25 @@ const SPLIT_MODEL: SimulatorRenderModel = {
 // The split sheet's positions: vertex 3 at the middle of the base.
 const SPLIT_SHEET = frameOf([-1, 0, -1, 1, 0, -1, -1, 0, 1, 0, 0, -1]);
 
+/**
+ * The split sheet with a line of each fold kind: the split is a mountain, the
+ * hypotenuse a valley, and the base's halves and the left side the paper's
+ * edge. The codes pick each line's width; the letters, kept in step with
+ * them, pick its ink and dash.
+ */
+const KINDS_MODEL: SimulatorRenderModel = {
+  ...SPLIT_MODEL,
+  edgesAssignment: ['B', 'B', 'V', 'B', 'M'],
+  edgeCodes: new Uint8Array([
+    EDGE_CODE.border,
+    EDGE_CODE.border,
+    EDGE_CODE.valley,
+    EDGE_CODE.border,
+    EDGE_CODE.mountain,
+  ]),
+  edgeBoundary: new Uint8Array([0, 0, 0, 0, 0]),
+};
+
 function frameOf(positions: number[]): SimulatorFrameView {
   return {
     positions: new Float32Array(positions),
@@ -146,7 +165,9 @@ function paintWith(render: Partial<RenderSettings>): SimulatorPaint {
       showFaces: true,
       showEdges: false,
       lighting: true,
-      creaseWidthPx: 1,
+      edgeWidthPx: 1,
+      mountainWidthPx: 1,
+      valleyWidthPx: 1,
       faceAlpha: 1,
       ...render,
     },
@@ -307,6 +328,95 @@ describe('drawFrame edges', () => {
     expect(eroded[1]).toBeCloseTo(whole[1] + uy * 0.2 * pxPerUnit, 6);
     expect(eroded[2]).toBeCloseTo(whole[2], 9);
     expect(eroded[3]).toBeCloseTo(whole[3], 9);
+  });
+
+  it('strokes each kind at its own pen’s width', () => {
+    // A wireframe frame draws every edge at 0.7 of its pen, so the widths
+    // come back scaled: the edge pen, the valley pen, the edge, the edge
+    // again and the mountain pen, in the model's edge order.
+    const widths: number[] = [];
+    recorded.ctx.stroke = vi.fn(() => {
+      widths.push(recorded.ctx.lineWidth);
+    });
+    drawFrame(
+      canvas,
+      KINDS_MODEL,
+      SPLIT_SHEET,
+      VIEW,
+      paintWith({
+        showFaces: false,
+        showEdges: true,
+        edgeWidthPx: 2,
+        mountainWidthPx: 1,
+        valleyWidthPx: 3,
+      }),
+      EMPTY_HIGHLIGHTS
+    );
+    expect(widths).toEqual([2, 2, 3, 2, 1].map((width) => expect.closeTo(width * 0.7, 9)));
+  });
+
+  it('shrinks every kind alike below an inline window’s reference edge, as the GPU pass does', () => {
+    // The stand-in surface is 720 px square; a 1440 px reference halves every
+    // pen at the default exponent, and a reference the frame reaches leaves
+    // them whole.
+    const widthsAt = (render: Partial<RenderSettings>) => {
+      recorded = recordingContext(720, 720);
+      vi.spyOn(canvas, 'getContext').mockImplementation(
+        () => recorded.ctx as unknown as ReturnType<HTMLCanvasElement['getContext']>
+      );
+      const widths: number[] = [];
+      recorded.ctx.stroke = vi.fn(() => {
+        widths.push(recorded.ctx.lineWidth);
+      });
+      drawFrame(
+        canvas,
+        KINDS_MODEL,
+        SPLIT_SHEET,
+        VIEW,
+        paintWith({
+          showFaces: false,
+          showEdges: true,
+          edgeWidthPx: 4,
+          mountainWidthPx: 2,
+          valleyWidthPx: 6,
+          ...render,
+        }),
+        EMPTY_HIGHLIGHTS
+      );
+      return widths;
+    };
+    // Wide enough that no halved pen meets the rasterizer's half-pixel floor.
+    const pens = [4, 4, 6, 4, 2];
+    expect(widthsAt({ creaseWidthReferenceEdge: 1440 })).toEqual(
+      pens.map((width) => expect.closeTo(width * 0.7 * 0.5, 9))
+    );
+    expect(widthsAt({ creaseWidthReferenceEdge: 720 })).toEqual(
+      pens.map((width) => expect.closeTo(width * 0.7, 9))
+    );
+  });
+
+  it('strokes a shown aux crease at the aux pen’s width, or the edge’s without one', () => {
+    const auxWidth = (render: Partial<RenderSettings>) => {
+      recorded = recordingContext(720, 720);
+      vi.spyOn(canvas, 'getContext').mockImplementation(
+        () => recorded.ctx as unknown as ReturnType<HTMLCanvasElement['getContext']>
+      );
+      const widths: number[] = [];
+      recorded.ctx.stroke = vi.fn(() => {
+        widths.push(recorded.ctx.lineWidth);
+      });
+      drawFrame(
+        canvas,
+        SPLIT_MODEL,
+        SPLIT_SHEET,
+        VIEW,
+        paintWith({ showFaces: false, showEdges: true, showAux: true, edgeWidthPx: 2, ...render }),
+        EMPTY_HIGHLIGHTS
+      );
+      return widths[4];
+    };
+    expect(auxWidth({ auxWidthPx: 4 })).toBeCloseTo(4 * 0.7, 9);
+    expect(auxWidth({})).toBeCloseTo(2 * 0.7, 9);
   });
 
   it('drops a crease the erosion would invert', () => {

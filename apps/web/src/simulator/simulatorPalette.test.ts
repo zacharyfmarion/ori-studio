@@ -90,9 +90,12 @@ describe('resolving simulator colours', () => {
     const settings = resolveRenderSettings(themed(), DEFAULT_SIMULATOR_SETTINGS, style);
     expect(hex(settings.mountainColor)).toBe('#aa0000');
     expect(hex(settings.borderColor)).toBe('#333333');
-    expect(settings.creaseWidthPx).toBeGreaterThan(
-      resolveRenderSettings(themed(), DEFAULT_SIMULATOR_SETTINGS, DEFAULT_PAPER_STYLE).creaseWidthPx
-    );
+    // Re-pinned for X14: a heavier mountain pen used to thicken every line.
+    // It thickens the mountains alone now; the edge and valley keep theirs.
+    const before = resolveRenderSettings(themed(), DEFAULT_SIMULATOR_SETTINGS, BY_DIRECTION);
+    expect(settings.mountainWidthPx).toBeGreaterThan(before.mountainWidthPx);
+    expect(settings.edgeWidthPx).toBe(before.edgeWidthPx);
+    expect(settings.valleyWidthPx).toBe(before.valleyWidthPx);
   });
 
   it('paints an opaque backdrop by default', () => {

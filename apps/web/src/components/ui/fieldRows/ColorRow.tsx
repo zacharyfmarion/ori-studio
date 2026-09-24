@@ -10,6 +10,7 @@ export function ColorRow({
   label,
   value,
   disabled,
+  clearDisabled,
   title,
   onChange,
   onCommit,
@@ -18,6 +19,8 @@ export function ColorRow({
   label: string;
   value: string;
   disabled?: boolean;
+  /** Whether the reset is disabled; defaults to {@link disabled}. */
+  clearDisabled?: boolean;
   /** Why the row is disabled, shown on hover. */
   title?: string;
   onChange: (value: string) => void;
@@ -30,6 +33,7 @@ export function ColorRow({
       layout="row"
       value={value}
       disabled={disabled}
+      clearDisabled={clearDisabled}
       title={title}
       onChange={onChange}
       onCommit={onCommit}

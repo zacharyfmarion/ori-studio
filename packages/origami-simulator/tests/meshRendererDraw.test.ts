@@ -35,6 +35,10 @@ interface Recorder {
   arrayDraws: [number, number][];
   /** The last scalar uploaded to each named uniform, across both programs. */
   floats: Map<string, number>;
+  /** The last float array uploaded to each named uniform. */
+  arrays: Map<string, number[]>;
+  /** How many draws blended — `blendFuncSeparate` is the edge pass's faded path. */
+  blends: number;
   /**
    * The scissor rect in force at each `clear`, or null if the test was
    * disabled. The clear has to be bounded to the viewport — see the render
@@ -51,6 +55,8 @@ function recorder(): Recorder {
   const draws: DrawCall[] = [];
   const arrayDraws: [number, number][] = [];
   const floats = new Map<string, number>();
+  const arrays = new Map<string, number[]>();
+  let blends = 0;
   const clearScissors: ([number, number, number, number] | null)[] = [];
   let scissorEnabled = false;
   let scissorBox: [number, number, number, number] | null = null;
@@ -115,7 +121,9 @@ function recorder(): Recorder {
     depthFunc: () => {},
     depthMask: () => {},
     blendFunc: () => {},
-    blendFuncSeparate: () => {},
+    blendFuncSeparate: () => {
+      blends += 1;
+    },
     clearColor: (red: number, green: number, blue: number, alpha: number) =>
       clearColors.push([red, green, blue, alpha]),
     clearDepth: () => {},
@@ -135,7 +143,9 @@ function recorder(): Recorder {
     },
     uniform2f: () => {},
     uniform3f: () => {},
-    uniform1fv: () => {},
+    uniform1fv: (location: { name: string } | null, values: Float32Array) => {
+      if (location) arrays.set(location.name, [...values]);
+    },
     uniform1iv: () => {},
     uniformMatrix3fv: () => {},
     drawElements: (_mode: number, count: number, _type: number, offset: number) =>
@@ -148,7 +158,20 @@ function recorder(): Recorder {
     getTexture: () => ({}) as WebGLTexture,
   } as unknown as GlCore;
 
-  return { gl, core, clears, clearColors, draws, arrayDraws, floats, clearScissors };
+  return {
+    gl,
+    core,
+    clears,
+    clearColors,
+    draws,
+    arrayDraws,
+    floats,
+    arrays,
+    get blends() {
+      return blends;
+    },
+    clearScissors,
+  };
 }
 
 /** Six triangles, so a sub-range can be asked for and be wrong if ignored. */
@@ -184,7 +207,9 @@ const SETTINGS: RenderSettings = {
   showFaces: true,
   showEdges: false,
   lighting: true,
-  creaseWidthPx: 3,
+  edgeWidthPx: 3,
+  mountainWidthPx: 3,
+  valleyWidthPx: 3,
   faceAlpha: 1,
 };
 
@@ -372,27 +397,82 @@ describe('drawing the aux pass and the erode', () => {
     expect(hidden.floats.get('u_showAux')).toBe(0);
   });
 
-  it('draws the aux pen at its own width, through the raster floor', () => {
-    const { core, floats } = recorder();
+  it('draws every kind at its own pen’s width, by assignment code', () => {
+    // Re-pinned: the border, mountain and valley ribbons used to share one
+    // width and only the aux pen had its own.
+    const { core, arrays } = recorder();
     new MeshRenderer(core, fanTopology()).render(
       CAMERA,
-      { ...SETTINGS, showEdges: true, showAux: true, creaseWidthPx: 3, auxWidthPx: 2 },
+      {
+        ...SETTINGS,
+        showEdges: true,
+        showAux: true,
+        edgeWidthPx: 3,
+        mountainWidthPx: 2,
+        valleyWidthPx: 4,
+        auxWidthPx: 1.5,
+      },
       null
     );
-    expect(floats.get('u_halfWidthPx')).toBe(1.5);
-    expect(floats.get('u_auxHalfWidthPx')).toBe(1);
-    expect(floats.get('u_alpha')).toBe(1);
-    expect(floats.get('u_auxAlpha')).toBe(1);
+    // Half widths, ordered border, mountain, valley, aux — EDGE_CODE's order.
+    expect(arrays.get('u_halfWidthPx')).toEqual([1.5, 1, 2, 0.75]);
+    expect(arrays.get('u_creaseAlpha')).toEqual([1, 1, 1, 1]);
   });
 
-  it('takes the aux width from the crease width when none is given', () => {
-    const { core, floats } = recorder();
+  it('takes the aux width from the edge width when none is given', () => {
+    const { core, arrays } = recorder();
     new MeshRenderer(core, fanTopology()).render(
       CAMERA,
-      { ...SETTINGS, showEdges: true, creaseWidthPx: 3 },
+      { ...SETTINGS, showEdges: true, edgeWidthPx: 3, mountainWidthPx: 2, valleyWidthPx: 2 },
       null
     );
-    expect(floats.get('u_auxHalfWidthPx')).toBe(1.5);
+    expect(arrays.get('u_halfWidthPx')?.[EDGE_CODE.aux]).toBe(1.5);
+  });
+
+  it('shrinks every kind alike in a frame below its reference edge', () => {
+    // An inline window at half its reference: each pen at half its width, so
+    // a heavy edge stays heavier than the folds on it.
+    const { core, arrays } = recorder();
+    new MeshRenderer(core, fanTopology()).render(
+      CAMERA,
+      {
+        ...SETTINGS,
+        showEdges: true,
+        showAux: true,
+        edgeWidthPx: 4,
+        mountainWidthPx: 2,
+        valleyWidthPx: 3,
+        auxWidthPx: 2,
+        creaseWidthReferenceEdge: CAMERA.width * 2,
+      },
+      null
+    );
+    expect(arrays.get('u_halfWidthPx')).toEqual([1, 0.5, 0.75, 0.5]);
+    expect(arrays.get('u_creaseAlpha')).toEqual([1, 1, 1, 1]);
+  });
+
+  it('fades a sub-pixel pen alone, and blends the pass for it', () => {
+    // The raster floor is per kind: a hairline mountain draws at one pixel
+    // and gives up the rest in alpha while the edge beside it is solid.
+    const faded = recorder();
+    new MeshRenderer(faded.core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, edgeWidthPx: 3, mountainWidthPx: 0.5, valleyWidthPx: 2 },
+      null
+    );
+    expect(faded.arrays.get('u_halfWidthPx')).toEqual([1.5, 0.5, 1, 1.5]);
+    expect(faded.arrays.get('u_creaseAlpha')).toEqual([1, 0.5, 1, 1]);
+    expect(faded.blends).toBe(1);
+
+    // A faint aux pen that is hidden draws nothing, so it blends nothing.
+    const hidden = recorder();
+    new MeshRenderer(hidden.core, fanTopology()).render(
+      CAMERA,
+      { ...SETTINGS, showEdges: true, auxWidthPx: 0.5 },
+      null
+    );
+    expect(hidden.arrays.get('u_creaseAlpha')).toEqual([1, 1, 1, 0.5]);
+    expect(hidden.blends).toBe(0);
   });
 
   it('erodes by the style’s fraction of the sheet at the camera’s scale', () => {

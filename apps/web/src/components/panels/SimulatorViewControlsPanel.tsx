@@ -13,7 +13,6 @@ import {
 } from '../../lib/simulatorSettings';
 import { simulatorColorModeLabel } from '../../i18n/enumLabels';
 import {
-  SIMULATOR_FOLD_WEIGHT_RANGE,
   useSimulatorPaperStyle,
   type SimulatorPenField,
 } from '../../simulator/useSimulatorPaperStyle';
@@ -40,7 +39,7 @@ export function SimulatorViewControlsPanel() {
   // "Export page" section edits the same one); these rows are its simulator-
   // facing subset.
   const exportPage = usePaperExportPage();
-  // Folds drawn as edges are drawn like the paper's edge, so the per-kind
+  // Folds drawn as edges take the paper edge's colour, so the per-kind
   // swatches stop doing anything; showing them live would promise an effect
   // they no longer have.
   const asEdges = paper.style.foldsAsEdges;
@@ -158,7 +157,7 @@ export function SimulatorViewControlsPanel() {
             label={t('panels:simulatorViewControls.foldsAsEdges', 'Render all creases as edges')}
             help={t(
               'panels:simulatorViewControls.foldsAsEdgesHelp',
-              'A fold that has happened is an edge of the paper: every fold is drawn like the paper’s edge, as a folded figure draws it. Off, folds are drawn by direction.'
+              'A fold that has happened is an edge of the paper: every fold is drawn in the paper edge’s color and dash, at the average of the mountain and valley widths. Off, folds are drawn by direction.'
             )}
             checked={asEdges}
             onChange={paper.setFoldsAsEdges}
@@ -168,16 +167,6 @@ export function SimulatorViewControlsPanel() {
             {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), asEdges)}
             {penRow('edges', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
-          <SliderRow
-            label={t('panels:simulatorViewControls.foldLineWeight', 'Fold line weight (pt)')}
-            min={SIMULATOR_FOLD_WEIGHT_RANGE.min}
-            max={SIMULATOR_FOLD_WEIGHT_RANGE.max}
-            step={SIMULATOR_FOLD_WEIGHT_RANGE.step}
-            value={paper.style.mountainFolds.width}
-            format={(value) => formatSettingValue(value, SIMULATOR_FOLD_WEIGHT_RANGE.step)}
-            onChange={paper.setCreaseWeight}
-            onGestureCommit={paper.endAdjustment}
-          />
         </CollapsibleSection>
 
         <CollapsibleSection

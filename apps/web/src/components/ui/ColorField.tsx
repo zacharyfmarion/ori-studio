@@ -22,6 +22,7 @@ export function ColorField({
   onCommit,
   onClear,
   disabled = false,
+  clearDisabled = disabled,
   title,
   layout = 'stacked',
   showValue = false,
@@ -49,6 +50,11 @@ export function ColorField({
   /** Offered as a reset affordance when the value can fall back to a default. */
   onClear?: () => void;
   disabled?: boolean;
+  /**
+   * Whether the reset is disabled; it follows {@link disabled} unless a caller
+   * says otherwise, for a swatch that is moot while its pin still counts.
+   */
+  clearDisabled?: boolean;
   /** Why the field is disabled, shown on hover over the whole row. */
   title?: string;
   /**
@@ -78,7 +84,7 @@ export function ColorField({
       className="color-field__clear"
       title={t('common:colorField.reset', 'Reset to default')}
       aria-label={t('common:colorField.resetNamed', 'Reset {{label}} to default', { label })}
-      disabled={disabled}
+      disabled={clearDisabled}
       onClick={onClear}
     >
       <RotateCcw size={11} />
