@@ -9707,13 +9707,46 @@ button.bp-packing-alert:focus-visible {
   stroke-width: 0.4;
 }
 
-.explori-graph-edge {
-  stroke: var(--tree-edge);
-  stroke-width: 2;
+/*
+ * The tree, weighted after ExplOri's own: 3px edges with round caps, and nodes
+ * a little under 3px with a 1.5px rim — ExplOri's 4px dots scaled down by a
+ * third, which read better beside a crease pattern. All of it in screen pixels
+ * at every card size: the marks carry `vector-effect: non-scaling-stroke`, and
+ * a node is a zero-length line whose round caps make the dot, so the widths
+ * here are pixels rather than viewBox units. Colours are the editor's own, so
+ * a result tree reads like the drawn one.
+ */
+.explori-figure--tree {
+  overflow: visible;
 }
 
-.explori-graph-node {
-  fill: var(--accent-secondary);
+.explori-graph-edge {
+  stroke: var(--tree-edge);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.explori-graph-node__rim,
+.explori-graph-node__dot {
+  stroke-linecap: round;
+}
+
+.explori-graph-node__rim {
+  stroke: var(--tree-node-stroke);
+  stroke-width: 8.5;
+}
+
+.explori-graph-node__dot {
+  stroke: var(--tree-node);
+  stroke-width: 5.5;
+}
+
+/* The mirror a symmetric result is drawn about, in the editor's own dash. */
+.explori-graph-axis {
+  stroke: var(--accent-tertiary);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.6;
 }
 
 /*
