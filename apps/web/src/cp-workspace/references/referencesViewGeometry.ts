@@ -784,7 +784,7 @@ const COLLINEAR_SINE = 1e-6;
  * Taken as the hull rather than by walking the loop — a rectangle's hull *is*
  * its outline, whichever order the document happens to store its edges in, and
  * the planner refuses anything that is not a rectangle. The one reading of
- * where the paper is: the canvas fills it, and the rail's card draws it.
+ * where the paper is, which the canvas fills.
  */
 export function sheetOutline(
   geometry: CpGeometryTransport,

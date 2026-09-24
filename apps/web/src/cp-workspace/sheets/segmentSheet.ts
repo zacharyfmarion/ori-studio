@@ -6,9 +6,9 @@
  * faces (`segmentEdges`) — plus any edge that lies on no face but inside the
  * segment, such as an aux line a source laid over the paper — read back into
  * model space through the fold's own `flatPlaneReader`; the base fold is y-down
- * like the canvas, so nothing here flips. The paper is the segment's own
- * boundary. The References rail reads the same card out of a precrease
- * component (`references/referencesSheets`); both end in `fitSheetThumbnail`.
+ * like the canvas, so nothing here flips. The References rail reads the same
+ * card out of a precrease component (`references/referencesSheets`); both end
+ * in `fitSheetThumbnail`.
  */
 import type { FoldDocument } from '../../engine/types';
 import {
@@ -79,7 +79,7 @@ function looseEdges(fold: FoldDocument, segment: CpSegment): SegmentEdge[] {
   return loose;
 }
 
-/** One segment's card thumbnail: its edges, border included, on its paper, fitted. */
+/** One segment's card thumbnail: its edges, border included, fitted. */
 export function segmentSheetThumbnail(
   fold: FoldDocument,
   segment: CpSegment
@@ -94,6 +94,5 @@ export function segmentSheetThumbnail(
     const to = readPoint(coords[b]);
     return { x1: from.x, y1: from.y, x2: to.x, y2: to.y, role: strokeRole(assignment) };
   });
-  const rings = segment.boundary.map((ring) => ring.map(({ x, y }) => [x, y] as const));
-  return fitSheetThumbnail(strokes, 100, rings);
+  return fitSheetThumbnail(strokes);
 }

@@ -379,7 +379,7 @@
     },
     "paper": {
       "auxVisible": "Afficher les plis auxiliaires",
-      "auxVisibleHint": "Les lignes auxiliaires du patron de plis, dessinées sur toutes les surfaces.",
+      "auxVisibleHint": "Les lignes auxiliaires du patron de plis, dessinées sur les simulations, les figures pliées et les étapes.",
       "back": "Verso",
       "cap": {
         "butt": "Plat",
@@ -454,7 +454,7 @@
       "penColorNamed": "Couleur : {{pen}}",
       "penDash": "Pointillés",
       "penDashNamed": "Pointillés : {{pen}}",
-      "pensHint": "Patron de pliage, figures pliées, étapes",
+      "pensHint": "Simulations, figures pliées, étapes",
       "penWidth": "Largeur (pt)",
       "penWidthNamed": "Largeur : {{pen}}",
       "preset": {
@@ -484,7 +484,7 @@
       },
       "slot": {
         "display": "Affichage",
-        "displayHint": "Patron de pliage, simulateur, figures pliées et étapes, à l'écran.",
+        "displayHint": "Simulations, figures pliées et étapes, à l'écran.",
         "export": "Exportation",
         "exportHint": "Utilisé par chaque SVG et PNG écrit par l'application.",
         "exportLinked": "Exportation · liée",

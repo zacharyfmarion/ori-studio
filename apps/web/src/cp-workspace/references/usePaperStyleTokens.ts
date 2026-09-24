@@ -23,8 +23,9 @@ import { referencesShowsAux } from './referencesAuxCreases';
  * tokens are global on purpose: the Edit canvas's line colours are Oriedita
  * parity and follow the theme. So the style re-sets the same names on the
  * workspace root alone (`.references-workspace`, D12), and everything inside
- * it follows the style while the editor keeps the theme's values. Nothing
- * here touches `:root`.
+ * it follows the style while the editor keeps the theme's values — all but
+ * the pattern rail, whose cards read the theme's inks through the
+ * `--sheet-thumb-*` aliases on `:root` (X10). Nothing here touches `:root`.
  *
  * The sheet is the style's paper (D13): `--references-paper-front` and
  * `--references-paper-back` are what a step's sheet — the card's, the big

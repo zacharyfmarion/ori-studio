@@ -49,7 +49,7 @@ export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
           ? t('dialogs:settings.paper.slot.exportHint', 'Used by every SVG and PNG the app writes.')
           : t(
               'dialogs:settings.paper.slot.displayHint',
-              'Crease pattern, simulator, folded figures and steps, on screen.'
+              'Simulations, folded figures and steps, on screen.'
             )}
       </span>
     </header>

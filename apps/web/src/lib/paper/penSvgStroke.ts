@@ -15,8 +15,7 @@ export interface PenSvgStroke {
  * multiples of its width — as runs of that many px.
  *
  * For a picture that keeps a pen's weight whatever size it is drawn at, as a
- * zoomed canvas does: the Settings close-up of erode, and the pattern
- * thumbnails (drawn non-scaling, so their own box does not scale the pen).
+ * zoomed canvas does: the Settings close-up of erode.
  */
 export function penSvgStroke(pen: Pen): PenSvgStroke {
   const width = pen.width * PT_TO_CSS_PX;

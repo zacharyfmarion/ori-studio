@@ -174,7 +174,7 @@ describe('PaperSettings', () => {
         (element) => element.textContent
       )
     ).toEqual([
-      'Crease pattern, folded figures, steps',
+      'Simulations, folded figures, steps',
       'References only',
       'Simulator, folded figures',
     ]);

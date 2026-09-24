@@ -363,7 +363,7 @@
     },
     "paper": {
       "auxVisible": "보조 접힘선 표시",
-      "auxVisibleHint": "전개도의 보조선으로, 모든 화면에 그려집니다.",
+      "auxVisibleHint": "전개도의 보조선으로, 시뮬레이션, 접힌 도형, 단계에 그려집니다.",
       "back": "뒷면",
       "cap": {
         "butt": "평평",
@@ -438,7 +438,7 @@
       "penColorNamed": "{{pen}} 색상",
       "penDash": "파선",
       "penDashNamed": "{{pen}} 파선",
-      "pensHint": "전개도, 접힌 도형, 단계",
+      "pensHint": "시뮬레이션, 접힌 도형, 단계",
       "penWidth": "너비 (pt)",
       "penWidthNamed": "{{pen}} 너비",
       "preset": {
@@ -468,7 +468,7 @@
       },
       "slot": {
         "display": "표시",
-        "displayHint": "화면의 전개도, 시뮬레이터, 접힌 도형과 단계.",
+        "displayHint": "화면의 시뮬레이션, 접힌 도형과 단계.",
         "export": "내보내기",
         "exportHint": "앱이 쓰는 모든 SVG와 PNG에 사용됩니다.",
         "exportLinked": "내보내기 · 연결됨",

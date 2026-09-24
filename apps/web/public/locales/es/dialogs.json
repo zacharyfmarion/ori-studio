@@ -379,7 +379,7 @@
     },
     "paper": {
       "auxVisible": "Mostrar los pliegues auxiliares",
-      "auxVisibleHint": "Las líneas auxiliares del patrón de pliegues, dibujadas en todas las superficies.",
+      "auxVisibleHint": "Las líneas auxiliares del patrón de pliegues, dibujadas en simulaciones, figuras plegadas y pasos.",
       "back": "Reverso",
       "cap": {
         "butt": "Plano",
@@ -454,7 +454,7 @@
       "penColorNamed": "Color de {{pen}}",
       "penDash": "Trazo",
       "penDashNamed": "Trazo de {{pen}}",
-      "pensHint": "Patrón de pliegues, figuras plegadas, pasos",
+      "pensHint": "Simulaciones, figuras plegadas, pasos",
       "penWidth": "Anchura (pt)",
       "penWidthNamed": "Anchura de {{pen}}",
       "preset": {
@@ -484,7 +484,7 @@
       },
       "slot": {
         "display": "Pantalla",
-        "displayHint": "Patrón de pliegues, simulador, figuras plegadas y pasos, en pantalla.",
+        "displayHint": "Simulaciones, figuras plegadas y pasos, en pantalla.",
         "export": "Exportación",
         "exportHint": "Se usa en cada SVG y PNG que escribe la aplicación.",
         "exportLinked": "Exportación · vinculada",

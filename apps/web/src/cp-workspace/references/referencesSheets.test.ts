@@ -140,14 +140,6 @@ describe('sheetThumbnail', () => {
     }
   });
 
-  it('lays the sheet on the paper the canvas fills, and marks where aux lines meet it', () => {
-    const thumbnail = sheetThumbnail(geometry, sheet(), 100);
-    // The border's hull, counter-clockwise from its lowest point.
-    expect(thumbnail?.paper).toBe('M0 0L100 0L100 100L0 100Z');
-    const aux = thumbnail?.strokes.find((stroke) => stroke.role === 'aux' && stroke.y1 === 80);
-    expect(aux?.onBoundary).toEqual([true, true]);
-  });
-
   it('refuses a degenerate sheet rather than dividing by zero', () => {
     const flat = {
       segEndpoints: Float64Array.from([5, 5, 5, 5]),

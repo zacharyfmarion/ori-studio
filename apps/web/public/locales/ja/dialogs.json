@@ -363,7 +363,7 @@
     },
     "paper": {
       "auxVisible": "補助折り線を表示",
-      "auxVisibleHint": "展開図の補助線。すべての表示面に描画されます。",
+      "auxVisibleHint": "展開図の補助線。シミュレーション、折り上がり図、手順に描画されます。",
       "back": "裏面",
       "cap": {
         "butt": "平ら",
@@ -438,7 +438,7 @@
       "penColorNamed": "{{pen}}の色",
       "penDash": "破線",
       "penDashNamed": "{{pen}}の破線",
-      "pensHint": "展開図、折り上がり図、手順",
+      "pensHint": "シミュレーション、折り上がり図、手順",
       "penWidth": "幅 (pt)",
       "penWidthNamed": "{{pen}}の幅",
       "preset": {
@@ -468,7 +468,7 @@
       },
       "slot": {
         "display": "表示",
-        "displayHint": "画面上の展開図、シミュレーター、折り上がり図、手順。",
+        "displayHint": "画面上のシミュレーション、折り上がり図、手順。",
         "export": "書き出し",
         "exportHint": "アプリが書き出すすべての SVG と PNG で使われます。",
         "exportLinked": "書き出し · 連動",

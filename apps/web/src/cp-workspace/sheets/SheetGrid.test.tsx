@@ -1,10 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
+import { REFERENCES_PAPER_TOKENS } from '../references/usePaperStyleTokens';
 import { SheetGrid, type SheetGridItem } from './SheetGrid';
-import { fitSheetThumbnail, type SheetRing, type SheetStroke } from './sheetThumbnail';
-import { sheetThumbnailInk, type SheetThumbnailInk } from './sheetThumbnailInk';
+import { fitSheetThumbnail, type SheetStroke } from './sheetThumbnail';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,37 +33,23 @@ const SQUARE: SheetStroke[] = [
   { x1: 0, y1: 100, x2: 0, y2: 0, role: 'edge' },
   { x1: 0, y1: 0, x2: 100, y2: 100, role: 'mountain' },
 ];
-const OUTLINE: SheetRing = [
-  [0, 0],
-  [100, 0],
-  [100, 100],
-  [0, 100],
-];
 /** An aux line across the middle, edge to edge. */
 const AUX: SheetStroke = { x1: 0, y1: 50, x2: 100, y2: 50, role: 'aux' };
 
 const SHEETS: SheetGridItem[] = [
-  { id: 0, thumbnail: fitSheetThumbnail(SQUARE, 100, [OUTLINE]), size: '5 creases' },
+  { id: 0, thumbnail: fitSheetThumbnail(SQUARE), size: '5 creases' },
   { id: 3, thumbnail: fitSheetThumbnail(SQUARE), size: '1 crease', refused: true },
 ];
-
-/** A style whose pens are told apart by colour. */
-const STYLE: PaperStyle = {
-  ...DEFAULT_PAPER_STYLE,
-  paper: { front: '#fefefe', back: '#dddddd' },
-  edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#010101', width: 1.5 },
-  mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#ff0000', dash: [8, 2, 1, 2] },
-  valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#0000ff' },
-  auxCreases: { visible: true, pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, color: '#00ff00' } },
-};
 
 function render(
   selected: number | null,
   onSelect: (id: number) => void,
-  { sheets = SHEETS, ink = sheetThumbnailInk(STYLE) }: { sheets?: SheetGridItem[]; ink?: SheetThumbnailInk } = {}
+  { sheets = SHEETS, showAux = true }: { sheets?: SheetGridItem[]; showAux?: boolean } = {}
 ) {
   act(() =>
-    root?.render(<SheetGrid sheets={sheets} ink={ink} selected={selected} onSelect={onSelect} />)
+    root?.render(
+      <SheetGrid sheets={sheets} showAux={showAux} selected={selected} onSelect={onSelect} />
+    )
   );
 }
 
@@ -85,45 +72,38 @@ describe('SheetGrid', () => {
     expect(first.querySelector('.sheet-card__count')?.textContent).toBe('5 creases');
     expect(second.querySelector('.sheet-card__count')?.textContent).toBe('1 crease');
     expect(first.title).toBe('Pattern 1: 5 creases');
-    // Each card carries its thumbnail: four edge strokes and the diagonal.
+    // Each card carries its thumbnail: four edge strokes and the diagonal,
+    // classed by role so the stylesheet inks them as the canvas does.
     expect(first.querySelectorAll('.sheet-card__stroke')).toHaveLength(5);
     expect(first.querySelectorAll('.sheet-card__stroke--edge')).toHaveLength(4);
     expect(first.querySelectorAll('.sheet-card__stroke--mountain')).toHaveLength(1);
   });
 
-  it('draws the pattern in the paper style: its paper, and each line in its pen', () => {
+  it('leaves every ink to the stylesheet: no paper, and no pen on a line', () => {
     render(null, () => {});
-    const [first, second] = cards();
-    const paper = first.querySelector('.sheet-card__paper');
-    expect(paper?.getAttribute('fill')).toBe('#fefefe');
-    expect(paper?.getAttribute('d')).toBe('M0 0L100 0L100 100L0 100Z');
-    // A rail that knows no outline draws no paper.
-    expect(second.querySelector('.sheet-card__paper')).toBeNull();
-    const edge = first.querySelector('.sheet-card__stroke--edge');
-    expect(edge?.getAttribute('stroke')).toBe('#010101');
-    expect(Number(edge?.getAttribute('stroke-width'))).toBeCloseTo(1.5 * PT_TO_CSS_PX, 9);
-    const mountain = first.querySelector('.sheet-card__stroke--mountain');
-    expect(mountain?.getAttribute('stroke')).toBe('#ff0000');
-    // The dash is the pen's, in multiples of its on-screen width.
-    const width = STYLE.mountainFolds.width * PT_TO_CSS_PX;
-    expect(mountain?.getAttribute('stroke-dasharray')).toBe(
-      [8, 2, 1, 2].map((run) => Math.round(run * width * 1000) / 1000).join(' ')
-    );
+    const [first] = cards();
+    const svg = first.querySelector('svg');
+    // Lines only — nothing under them is filled as paper.
+    expect([...(svg?.children ?? [])].every((child) => child.tagName === 'line')).toBe(true);
+    for (const line of first.querySelectorAll('.sheet-card__stroke')) {
+      for (const attribute of ['stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap']) {
+        expect(line.hasAttribute(attribute), attribute).toBe(false);
+      }
+    }
   });
 
-  it('draws the aux lines only while the style shows them, pulled back by erode', () => {
+  it('draws the aux lines while the rail shows them, end to end', () => {
     const sheets: SheetGridItem[] = [
-      { id: 0, thumbnail: fitSheetThumbnail([...SQUARE, AUX], 100, [OUTLINE]), size: '6 creases' },
+      { id: 0, thumbnail: fitSheetThumbnail([...SQUARE, AUX]), size: '6 creases' },
     ];
     const aux = () => cards()[0]?.querySelector('.sheet-card__stroke--aux') ?? null;
     render(null, () => {}, { sheets });
-    expect(aux()?.getAttribute('stroke')).toBe('#00ff00');
+    // Not pulled back from the paper's edge: erode is the paper style's.
     expect([aux()?.getAttribute('x1'), aux()?.getAttribute('x2')]).toEqual(['0', '100']);
-    render(null, () => {}, { sheets, ink: sheetThumbnailInk({ ...STYLE, erode: 0.02 }) });
-    // Two hundredths of the sheet off each end that meets the paper's edge.
-    expect([aux()?.getAttribute('x1'), aux()?.getAttribute('x2')]).toEqual(['2', '98']);
-    render(null, () => {}, { sheets, ink: sheetThumbnailInk(STYLE, false) });
+    render(null, () => {}, { sheets, showAux: false });
     expect(aux()).toBeNull();
+    // The rest of the pattern is unchanged.
+    expect(cards()[0]?.querySelectorAll('.sheet-card__stroke')).toHaveLength(5);
   });
 
   it('reports a press by the sheet id, not its position', () => {
@@ -141,11 +121,80 @@ describe('SheetGrid', () => {
   });
 });
 
+/**
+ * The cards' inks, read from the stylesheet: jsdom resolves no `var()`, so
+ * what a line is drawn in can only be pinned where it is written.
+ */
+describe('the cards’ stylesheet', () => {
+  // Vitest's root is `apps/web`. Resolved from there rather than from
+  // `import.meta.url`, which is not a file: URL once Vite has transformed this.
+  const css = readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//gu,
+    ''
+  );
+
+  /** Every block whose selector list names `selector` itself, as declarations. */
+  function rules(selector: string): Map<string, string>[] {
+    const found: Map<string, string>[] = [];
+    for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/gu)) {
+      const names = (match[1] ?? '').split(',').map((name) => name.trim());
+      if (!names.includes(selector)) continue;
+      const declarations = new Map<string, string>();
+      for (const declaration of (match[2] ?? '').split(';')) {
+        const colon = declaration.indexOf(':');
+        if (colon < 0) continue;
+        declarations.set(declaration.slice(0, colon).trim(), declaration.slice(colon + 1).trim());
+      }
+      found.push(declarations);
+    }
+    return found;
+  }
+
+  function rule(selector: string): Record<string, string> {
+    const [only, ...rest] = rules(selector);
+    expect(only, `no rule for ${selector}`).toBeDefined();
+    expect(rest, `more than one rule for ${selector}`).toHaveLength(0);
+    return Object.fromEntries(only ?? []);
+  }
+
+  it('draws every role solid and non-scaling, at main’s widths', () => {
+    expect(rule('.sheet-card__stroke')).toEqual({
+      fill: 'none',
+      'stroke-width': '1.1',
+      'vector-effect': 'non-scaling-stroke',
+    });
+    expect(rule('.sheet-card__stroke--edge')).toEqual({
+      stroke: 'var(--sheet-thumb-border)',
+      'stroke-width': '1.6',
+    });
+    expect(rule('.sheet-card__stroke--mountain')).toEqual({ stroke: 'var(--sheet-thumb-mountain)' });
+    expect(rule('.sheet-card__stroke--valley')).toEqual({ stroke: 'var(--sheet-thumb-valley)' });
+    // A crease with no direction and an aux line: the unassigned grey, as main drew both.
+    expect(rule('.sheet-card__stroke--unassigned')).toEqual({
+      stroke: 'var(--sheet-thumb-unassigned)',
+    });
+    expect(rule('.sheet-card__stroke--aux')).toEqual({ stroke: 'var(--sheet-thumb-unassigned)' });
+  });
+
+  it('reads the theme’s inks through aliases on :root, which the References workspace keeps', () => {
+    const [rootTokens] = rules(':root');
+    expect(rootTokens?.get('--sheet-thumb-border')).toBe('var(--text-tertiary)');
+    expect(rootTokens?.get('--sheet-thumb-mountain')).toBe('var(--fold-mountain)');
+    expect(rootTokens?.get('--sheet-thumb-valley')).toBe('var(--fold-valley)');
+    expect(rootTokens?.get('--sheet-thumb-unassigned')).toBe('var(--fold-unassigned)');
+    // The workspace re-sets the `--fold-*` names to the paper style's on its own
+    // root, around the rail; an alias it re-set too would carry the style in.
+    for (const token of REFERENCES_PAPER_TOKENS) {
+      expect(token.startsWith('--sheet-thumb-'), token).toBe(false);
+      expect(token, token).not.toBe('--text-tertiary');
+    }
+  });
+});
+
 describe('fitSheetThumbnail', () => {
   it('fits the strokes into the box, the paper’s edge last', () => {
     const thumbnail = fitSheetThumbnail([AUX, ...SQUARE], 100);
     expect(thumbnail?.viewBox).toBe('0 0 100 100');
-    expect(thumbnail?.size).toBe(100);
     const roles = thumbnail?.strokes.map((stroke) => stroke.role) ?? [];
     expect(roles.filter((role) => role === 'edge')).toHaveLength(4);
     // The aux line under the fold, the edge over the creases that end on it.
@@ -172,31 +221,6 @@ describe('fitSheetThumbnail', () => {
         [0, 62.5, 100, 62.5],
       ]
     );
-  });
-
-  it('fits the paper with the lines, and marks the aux ends that meet it', () => {
-    // A paper twice the pattern's size: the fit is the paper's, so the lines
-    // sit in its middle.
-    const thumbnail = fitSheetThumbnail(
-      [{ x1: 50, y1: 100, x2: 150, y2: 100, role: 'aux' }, { ...AUX, x1: 0, x2: 150, y1: 50, y2: 50, role: 'mountain' }],
-      100,
-      [
-        [
-          [0, 0],
-          [200, 0],
-          [200, 200],
-          [0, 200],
-        ],
-      ]
-    );
-    expect(thumbnail?.paper).toBe('M0 0L100 0L100 100L0 100Z');
-    const [aux] = thumbnail?.strokes ?? [];
-    expect([aux?.x1, aux?.x2]).toEqual([25, 75]);
-    // Neither end of this aux line reaches the paper's edge; a fold is never marked.
-    expect(aux?.onBoundary).toEqual([false, false]);
-    expect(thumbnail?.strokes[1]?.onBoundary).toEqual([false, false]);
-    const edgeToEdge = fitSheetThumbnail([AUX], 100, [OUTLINE]);
-    expect(edgeToEdge?.strokes[0]?.onBoundary).toEqual([true, true]);
   });
 
   it('refuses nothing drawable rather than dividing by zero', () => {

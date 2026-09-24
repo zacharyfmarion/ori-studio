@@ -379,7 +379,7 @@
     },
     "paper": {
       "auxVisible": "Mostrar vincos auxiliares",
-      "auxVisibleHint": "As linhas auxiliares do padrão de vincos, desenhadas em todas as superfícies.",
+      "auxVisibleHint": "As linhas auxiliares do padrão de vincos, desenhadas em simulações, figuras dobradas e passos.",
       "back": "Verso",
       "cap": {
         "butt": "Reto",
@@ -454,7 +454,7 @@
       "penColorNamed": "Cor de {{pen}}",
       "penDash": "Tracejado",
       "penDashNamed": "Tracejado de {{pen}}",
-      "pensHint": "Padrão de vincos, figuras dobradas, passos",
+      "pensHint": "Simulações, figuras dobradas, passos",
       "penWidth": "Largura (pt)",
       "penWidthNamed": "Largura de {{pen}}",
       "preset": {
@@ -484,7 +484,7 @@
       },
       "slot": {
         "display": "Exibição",
-        "displayHint": "Padrão de vincos, simulador, figuras dobradas e passos, na tela.",
+        "displayHint": "Simulações, figuras dobradas e passos, na tela.",
         "export": "Exportação",
         "exportHint": "Usado em cada SVG e PNG que o aplicativo escreve.",
         "exportLinked": "Exportação · vinculada",

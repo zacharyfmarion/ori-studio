@@ -187,6 +187,15 @@
   --fold-hinge: #4d88e8;
   --fold-pseudohinge: #3fbec4;
   --fold-gusset: #737f88;
+  /* The pattern rails' inks (`.sheet-card__stroke--*`): the theme's, wherever
+     a rail sits. The References workspace re-sets the `--fold-*` names to the
+     paper style's on its own root (`usePaperStyleTokens`), and its rail is
+     inside that root. A custom property resolves its `var()` where it is
+     declared, so these carry the root's values in, untouched by the re-set. */
+  --sheet-thumb-border: var(--text-tertiary);
+  --sheet-thumb-mountain: var(--fold-mountain);
+  --sheet-thumb-valley: var(--fold-valley);
+  --sheet-thumb-unassigned: var(--fold-unassigned);
   --domain-overlay-bg: rgba(16, 20, 23, 0.82);
   --domain-danger-border: rgba(224, 108, 117, 0.6);
   --leaf-radius-fill: rgba(143, 167, 255, 0.11);
@@ -6213,13 +6222,35 @@ button.cp-folded-figure-toolbar__notice:hover {
   height: 100%;
 }
 
-/* The paper style's pens, inline on each line (`penSvgStroke`), at their
-   on-screen weight whatever the card's size: the strokes are in the
-   thumbnail's own 100-unit box, and a width that scaled with the card drew a
-   phone's cards in 3px crayon. Non-scaling holds the dash to the pen too. */
+/* Hairlines whatever the card's size: the strokes are in the thumbnail's own
+   100-unit box, and a width that scaled with the card drew a phone's cards in
+   3px crayon. Solid, in the theme's crease inks (the `--sheet-thumb-*`
+   aliases on `:root`), so a card reads like the canvas — never the paper
+   style's dashes, which at this size are a field of dots. An aux line has no
+   ink of its own here; like any crease with no direction it is the
+   unassigned grey. */
 .sheet-card__stroke {
   fill: none;
+  stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
+}
+
+.sheet-card__stroke--edge {
+  stroke: var(--sheet-thumb-border);
+  stroke-width: 1.6;
+}
+
+.sheet-card__stroke--mountain {
+  stroke: var(--sheet-thumb-mountain);
+}
+
+.sheet-card__stroke--valley {
+  stroke: var(--sheet-thumb-valley);
+}
+
+.sheet-card__stroke--unassigned,
+.sheet-card__stroke--aux {
+  stroke: var(--sheet-thumb-unassigned);
 }
 
 .sheet-card__meta {

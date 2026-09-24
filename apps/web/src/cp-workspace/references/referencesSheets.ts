@@ -25,7 +25,6 @@ import {
   type SheetThumbnail,
 } from '../sheets/sheetThumbnail';
 import { creaseRoleAt } from './creaseRole';
-import { sheetOutline } from './referencesViewGeometry';
 import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
 
 /** One row of the sheet picker. */
@@ -92,9 +91,8 @@ export function sheetBorderLineIds(component: PrecreaseComponent): Set<number> {
 
 /**
  * A sheet drawn to fit `size`, in its own coordinates: the component's lines
- * read out of the transport — its border, its creases and its aux lines — on
- * the paper the canvas fills ({@link sheetOutline}), then the shared fit
- * (`fitSheetThumbnail`).
+ * read out of the transport — its border, its creases and its aux lines — then
+ * the shared fit (`fitSheetThumbnail`).
  */
 export function sheetThumbnail(
   geometry: CpGeometryTransport,
@@ -118,10 +116,5 @@ export function sheetThumbnail(
   for (const index of component.border_segment_indices) add(index, 'edge');
   for (const index of component.segment_indices) add(index, creaseRoleAt(attr, index));
   for (const index of component.aux_segment_indices) add(index, 'aux');
-  const outline = sheetOutline(geometry, sheetBorderLineIds(component));
-  return fitSheetThumbnail(
-    strokes,
-    size,
-    outline.length >= 3 ? [outline.map(({ x, y }) => [x, y] as const)] : []
-  );
+  return fitSheetThumbnail(strokes, size);
 }

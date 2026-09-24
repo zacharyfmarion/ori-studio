@@ -371,7 +371,7 @@
     },
     "paper": {
       "auxVisible": "Show auxiliary creases",
-      "auxVisibleHint": "The crease pattern’s auxiliary lines, drawn on every surface.",
+      "auxVisibleHint": "The crease pattern’s auxiliary lines, drawn on simulations, folded figures and steps.",
       "back": "Back",
       "cap": {
         "butt": "Flat",
@@ -446,7 +446,7 @@
       "penColorNamed": "{{pen}} color",
       "penDash": "Dash",
       "penDashNamed": "{{pen}} dash",
-      "pensHint": "Crease pattern, folded figures, steps",
+      "pensHint": "Simulations, folded figures, steps",
       "penWidth": "Width (pt)",
       "penWidthNamed": "{{pen}} width",
       "preset": {
@@ -476,7 +476,7 @@
       },
       "slot": {
         "display": "Display",
-        "displayHint": "Crease pattern, simulator, folded figures and steps, on screen.",
+        "displayHint": "Simulations, folded figures and steps, on screen.",
         "export": "Export",
         "exportHint": "Used by every SVG and PNG the app writes.",
         "exportLinked": "Export · linked",

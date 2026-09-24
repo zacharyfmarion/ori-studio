@@ -80,7 +80,7 @@ export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
           */}
           <PaperSection
             title={t('dialogs:settings.paper.linesTitle', 'Lines')}
-            hint={t('dialogs:settings.paper.pensHint', 'Crease pattern, folded figures, steps')}
+            hint={t('dialogs:settings.paper.pensHint', 'Simulations, folded figures, steps')}
           >
             <PenCards paper={paper} fields={LINE_PENS} />
           </PaperSection>

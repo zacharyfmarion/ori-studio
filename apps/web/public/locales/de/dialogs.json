@@ -371,7 +371,7 @@
     },
     "paper": {
       "auxVisible": "Hilfsfalten anzeigen",
-      "auxVisibleHint": "Die Hilfslinien des Faltmusters, auf jeder Oberfläche gezeichnet.",
+      "auxVisibleHint": "Die Hilfslinien des Faltmusters, gezeichnet auf Simulationen, gefalteten Figuren und Schritten.",
       "back": "Rückseite",
       "cap": {
         "butt": "Flach",
@@ -446,7 +446,7 @@
       "penColorNamed": "Farbe für {{pen}}",
       "penDash": "Strichmuster",
       "penDashNamed": "Strichmuster für {{pen}}",
-      "pensHint": "Faltmuster, gefaltete Figuren, Schritte",
+      "pensHint": "Simulationen, gefaltete Figuren, Schritte",
       "penWidth": "Breite (pt)",
       "penWidthNamed": "Breite für {{pen}}",
       "preset": {
@@ -476,7 +476,7 @@
       },
       "slot": {
         "display": "Anzeige",
-        "displayHint": "Faltmuster, Simulator, gefaltete Figuren und Schritte, auf dem Bildschirm.",
+        "displayHint": "Simulationen, gefaltete Figuren und Schritte, auf dem Bildschirm.",
         "export": "Export",
         "exportHint": "Wird für jedes SVG und PNG verwendet, das die App schreibt.",
         "exportLinked": "Export · verknüpft",

@@ -68,16 +68,6 @@ describe('segmentSheetThumbnail', () => {
     expect(rightRoles.filter((role) => role === 'aux')).toHaveLength(2);
   });
 
-  it('lays the pattern on its paper, the segment’s own outline', () => {
-    const fold = twoSquares();
-    const [left] = segmentFoldDocument(fold);
-    const paper = segmentSheetThumbnail(fold, left!)?.paper ?? '';
-    // The 10-unit square fills the 100-unit box.
-    for (const corner of ['0 0', '100 0', '100 100', '0 100']) expect(paper).toContain(corner);
-    expect(paper.startsWith('M')).toBe(true);
-    expect(paper.endsWith('Z')).toBe(true);
-  });
-
   it('keeps a line laid over the paper on no face, in the segment it lies in', () => {
     // An aux line across the left square, on two vertices of its own — the
     // way the kernel's simulation model carries one.
@@ -88,8 +78,8 @@ describe('segmentSheetThumbnail', () => {
     const [left, right] = segmentFoldDocument(fold);
     const aux = segmentSheetThumbnail(fold, left!)?.strokes.filter((stroke) => stroke.role === 'aux');
     expect(aux).toHaveLength(1);
-    // Edge to edge: both ends are on the paper's outline, for erode.
-    expect(aux?.[0]?.onBoundary).toEqual([true, true]);
+    // Edge to edge across the 10-unit square, fitted to the 100-unit box.
+    expect([aux?.[0]?.x1, aux?.[0]?.y1, aux?.[0]?.x2, aux?.[0]?.y2]).toEqual([0, 50, 100, 50]);
     // Not the other square's.
     expect(
       segmentSheetThumbnail(fold, right!)?.strokes.filter((stroke) => stroke.role === 'aux')

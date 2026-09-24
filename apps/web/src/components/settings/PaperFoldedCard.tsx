@@ -101,7 +101,7 @@ export function PaperFoldedCard({ paper }: { paper: PaperSettingsBinding }) {
         label={t('dialogs:settings.paper.auxVisible', 'Show auxiliary creases')}
         description={t(
           'dialogs:settings.paper.auxVisibleHint',
-          'The crease pattern’s auxiliary lines, drawn on every surface.'
+          'The crease pattern’s auxiliary lines, drawn on simulations, folded figures and steps.'
         )}
         checked={style.auxCreases.visible}
         disabled={!editable}

@@ -175,7 +175,12 @@ the paper turns over — so a pen that reads on the front can vanish on the
 back, and the card cannot show it. The Lines section's hint also still names
 the crease pattern among the surfaces its pens draw
 (`dialogs:settings.paper.pensHint`, "Crease pattern, folded figures, steps"),
-which stops being true with X10.
+which stops being true with X10. So do two more strings from the same
+commit: the Display slot's hint (`dialogs:settings.paper.slot.displayHint`,
+"Crease pattern, simulator, folded figures and steps, on screen.",
+`PaperSlotHeader.tsx`) and the aux switch's (`…paper.auxVisibleHint`, "drawn
+on every surface", `PaperFoldedCard.tsx`), which the Simulate rail stops
+honouring (§4).
 
 **E17. Steps export one at a time, and only from the view.** The References
 export verbs (`references.exportStepSvg` / `…Png`) paint the step the big view
@@ -564,7 +569,8 @@ Extract, translate the eight locales, stamp, check.
 the ground ink where it does not.
 
 - **The paper** is the outline the sheet is filled with — the hull
-  `sheetOutline` that the canvas and the cards already share — and, while a
+  `sheetOutline` the canvas fills (the rail's cards stopped drawing the paper
+  in Phase 2, §4) — and, while a
   fold plays, the moving flap's outline too, since it is paper and filled as
   such (the marks do show during a fold: only those riding the flap fade,
   and a fold card rests folded — Phase 1 found). The symbol
@@ -625,8 +631,12 @@ no paper fill and no erode.
   thumbnail renderer and one role vocabulary for both rails (`SheetStrokeRole`,
   read from colours and FOLD assignments alike), so the two rails still agree.
 - **Aux lines:** References' rail follows its own "Show auxiliary creases"
-  option; Simulate's draws them always, as the canvas beside it does. The
-  style's switch no longer reaches a flat pattern.
+  option, resolved as the canvas beside it resolves it (the style's switch
+  until the reader sets it). Simulate's draws them always, as main's did: the
+  style's switch there belongs to the simulation, and no longer reaches the
+  flat pattern beside it. So while that switch is off, the Simulate view hides
+  aux lines its rail still draws — deliberate, for review in Phase 2's browser
+  pass: a card is for picking the pattern, all of it.
 - **The theme's inks, not the workspace's:** the References rail sits inside
   `.references-workspace`, where the style re-sets `--fold-*` (D12), so both
   rails read root-level aliases (`--sheet-thumb-border`, `-mountain`,
@@ -812,7 +822,8 @@ service's `file exported` fires once, `format: 'zip'`.
   figure window's `RenderSettings` adapter.
 - Settings ▸ Paper's pens: `components/settings/PaperPenCard.tsx` (both
   sides), `PaperSettings.tsx` (the `paper` prop, the Lines hint),
-  `styles/theme.css` (`.settings-paper-pen__sample`).
+  `PaperSlotHeader.tsx` and `PaperFoldedCard.tsx` (the Display slot's and the
+  aux switch's hints), `styles/theme.css` (`.settings-paper-pen__sample`).
 - Settings: `components/settings/PaperExportPageSection.tsx` and
   `hooks/usePaperExportPage.ts` (removed in Phase 10), `PaperSettings.tsx`,
   `settingsNestedDialog.ts` → `nestedDialog.ts`.
@@ -882,15 +893,16 @@ CP canvas, and the crease-pattern export's own rendering of the pattern.
 
 ### Phase 2 — The pattern rails: main's look
 
-- [ ] Thumbnails in the theme's inks at main's widths, solid, no fill, no
+- [x] Thumbnails in the theme's inks at main's widths, solid, no fill, no
       erode, through root-level aliases; one renderer and role vocabulary kept
-- [ ] Aux lines: References' option in its rail, always in Simulate's
-- [ ] Delete `sheetThumbnailInk` / `useSheetThumbnailInk`; re-pin the rails'
+- [x] Aux lines: References' option in its rail, always in Simulate's
+- [x] Delete `sheetThumbnailInk` / `useSheetThumbnailInk`; re-pin the rails'
       tests
-- [ ] The Lines hint (`pensHint`) names what the pens now draw — "Simulations,
-      folded figures, steps"; eight locales
+- [x] The Lines hint (`pensHint`) names what the pens now draw — "Simulations,
+      folded figures, steps"; so do the Display slot's hint (`displayHint`)
+      and the aux switch's (`auxVisibleHint`); eight locales
 - [ ] Browser: both rails, both themes, with Default's dashed folds
-- [ ] Validate; commit
+- [x] Validate; commit
 
 ### Phase 3 — Settings: each pen's sample on both sides of the paper
 

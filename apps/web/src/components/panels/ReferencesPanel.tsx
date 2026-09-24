@@ -224,6 +224,8 @@ export function ReferencesPanel() {
   const mirrored = readingPlan && sideAt(viewSteps, breakdown.activeStep) === 'back';
   // The paper style's inks, set on the workspace root so everything inside —
   // cards, the canvas, the layer over it — draws in them and nothing outside does.
+  // The pattern rail is inside too, and reads the theme's inks through the
+  // `--sheet-thumb-*` aliases on `:root` instead (X10).
   const { setRoot: setWorkspaceRoot, ...paper } = usePaperStyleTokens();
   // The step's picture, once: straight lines packed for the GPU, symbols for the
   // layer over it. Both off the same primitives the filmstrip card draws, and
