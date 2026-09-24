@@ -269,6 +269,7 @@
   },
   "references": {
     "categoryLabel": "Referenzen",
+    "exportStep": "Schritt exportieren…",
     "exportStepPng": "Schritt als PNG exportieren…",
     "exportStepSvg": "Schritt als SVG exportieren…",
     "nextCandidate": "Nächster Kandidat",

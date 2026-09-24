@@ -9,12 +9,13 @@
  */
 import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { usePaperExportPage } from '../../hooks/usePaperExportPage';
 import {
   DEFAULT_PAPER_BACKGROUND,
+  PAPER_PADDING_MM_RANGE,
+  PAPER_SHEET_MM_RANGE,
   sheetMmOf,
-  usePaperExportPage,
-} from '../../hooks/usePaperExportPage';
-import { PAPER_PADDING_MM_RANGE, PAPER_SHEET_MM_RANGE } from '../../lib/paper/paperPage';
+} from '../../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../../lib/paper/paperPng';
 import { ColorField } from '../ui/ColorField';
 import { NumberField } from '../ui/NumberField';

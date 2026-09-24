@@ -307,8 +307,9 @@ Desktop: the crease-pattern dialog's frame (`.simple-modal__document--export`,
 │  142 × 98 mm · 1 072 × 740 px                   Resolution [ 2× · 192 dpi▾] │
 │                                                                             │
 │                                                 Page                        │
-│                                                 Background [■] Transparent  │
-│                                                 Keep hidden faces     [●]   │
+│                                                 Transparent background [ ]  │
+│                                                 Background [■] #ffffff      │
+│                                                 Keep hidden faces      [●]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                   [ Cancel ] [ Export PNG ] │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -317,21 +318,23 @@ Desktop: the crease-pattern dialog's frame (`.simple-modal__document--export`,
 - **Preview.** The painted page drawn at fit on the pane's ground, with a
   hairline page edge; a transparent page shows a checkerboard inside the page
   only, so the margin is visible. A caption under it states the page: mm
-  always, px for PNG, the file size for SVG, and "N hidden faces kept" when
-  there are any.
+  always, px for PNG, the file size for SVG, and "N hidden faces left out"
+  when an SVG drops any.
 - **Format** — a two-way segmented control. It decides which rows show:
   *Resolution* for PNG, *Keep hidden faces* for SVG on a surface whose
   picture can bury faces (X9).
 - **Style** — a Select: *Export style · ⟨chip⟩*, then Default, Diagram and the
   user's presets. The hint line under it names the object's pins, when there
-  are any.
+  are any — from Phase 7, the first surface with pins; a References step
+  pins nothing.
 - **Size** — *Sheet*: *As shown* (hint: "The size it is on screen at the
   current zoom") or *Custom* with a mm field (the unfolded sheet spans that
   size; lines keep their widths — the existing hint). *Margin* in mm.
   *Resolution* for PNG: 1× (96 dpi), 2× (192 dpi), 3× (288), 4× (384),
   300 dpi, 600 dpi, or Custom with a dpi field.
-- **Page** — *Background*: transparent, or a colour (`ColorField` with a clear
-  action). *Keep hidden faces*, per X9.
+- **Page** — *Transparent background*, a `Toggle`; turned off, a `ColorField`
+  under it picks the page's colour, starting from white. *Keep hidden faces*,
+  per X9.
 - **Footer** — Cancel, and a primary *Export SVG* / *Export PNG*.
 
 Phone (≤ 620 px, the existing breakpoint): one column — the preview at up to
@@ -344,10 +347,17 @@ export* with the reason (a simulation showing neither faces nor edges); the
 error, with Export disabled, if a scene fails; *Too large to export as PNG* in
 the caption, with Export disabled, past the canvas limit.
 
-Keyboard and focus: focus starts on the Export button, so Enter exports at the
-remembered options in one keystroke; Enter in a field submits; Escape closes
-unless a control inside handled it (§2); focus returns to whatever opened the
-dialog.
+Keyboard and focus: focus goes to the dialog as it opens, then to the Export
+button once there is a page to export (unless the reader has already moved
+it), so Enter exports at the remembered options in one keystroke. Enter in a
+text field commits the value and keeps focus in the dialog, rather than
+exporting a page that has not caught up with it; Enter with the dialog itself
+focused, or on the primary button, exports. Escape is taken by the innermost
+thing that has a use for it: a number field reverts and lets go, a colour
+field lets go, an open Select closes; only then does Escape close the dialog.
+While a save is in flight nothing closes the dialog — not Escape, the close
+button, Cancel or the backdrop. Focus returns to whatever opened the dialog,
+when that is still there (§2).
 
 A figure on the legacy snapshot path (E9) opens the same dialog with the
 format switch only, the preview of its saved picture, and a hint: refold the
@@ -384,19 +394,31 @@ interface PaperExportTarget {
    */
   sceneKey(input: PaperSceneInput): string;
   buildScene(input: PaperSceneInput): Promise<PaperScene | null>;
-  /** A picture the page options cannot change (E9); null for every scene target. */
-  fixedPicture: { svg: string; widthPx: number; heightPx: number } | null;
+  /**
+   * The style the painter draws with: the surface's policy applied, plus
+   * whatever the surface's own drawing adds (References forces its aux lines
+   * visible, as its old export did).
+   */
+  paintStyle(style: PaperStyle): PaperStyle;
   release(): void;                         // drop the worker snapshot / captured model
 }
 ```
 
+As shipped in Phase 5 the target has `paintStyle` and no `fixedPicture`.
+Phase 7 adds `fixedPicture: { svg: string; widthPx: number; heightPx: number }
+| null` — a picture the page options cannot change (E9), null for every scene
+target — for the legacy folded-figure path.
+
 Factories live beside their surfaces and capture at creation:
 
 - `cp-workspace/references/referencesExportTarget.ts` — the page diagram,
-  camera, mirroring, line width, subject and `referencesShowAuxCreases`, as
-  `useReferencesStepExport` reads them today; `buildScene` is
-  `diagramToPaperScene` (cheap; its key is the resolved style and the
-  background, since the markup inlines both).
+  mirroring, sheet size (`referencesSheetCssPx` of the camera), line width and
+  `referencesShowAuxCreases`, captured by `useReferencesStepExport` when the
+  verb runs, with the title and file stem from the subject; `buildScene` is
+  `referencesStepScene` (`diagramToPaperScene` through the big view's
+  projector — cheap; its key is the style through the References policy and
+  the background, since the markup inlines both); `paintStyle` is
+  `referencesStepPaintStyle`.
 - `cp-workspace/folded/foldedFigureExportTarget.ts` — 3D with a live model:
   the render model, camera (`folded3dSceneCamera`) and aux lines captured,
   `buildScene` = `folded3dPaperScene`, key = `folded3dSceneStyleKey` +
@@ -423,28 +445,71 @@ so a page change is a repaint with no round trip. `exportSvg`'s tests move to
 `exportScene`; the painter's are unchanged.
 
 **The session — scene cache and painter.** `paperExport/paperExportSession.ts`
-(React-free) holds a target's scenes by `sceneKey` and paints
-`paperSceneToSvg(scene, surfacePaperStyle(style, PAPER_STYLE_POLICIES[target.surface]), page)`.
-`paperExport/usePaperExportSession.ts` is the hook the dialog uses: it resolves
-the style from the choice (`exportStyle`, or `effectivePaperStyle(preset.style, pins)`),
-builds on a key change (keeping the previous page on screen while it runs),
-repaints on every option change through `useDeferredValue` so typing a margin
-stays responsive on a large scene, and owns the preview's object URL (revoked
-on each repaint and on close). Returns `{ status, page, pngSize, stats }`.
+(React-free) holds the dialog's pure reading of its options —
+`resolvePaperExportStyleChoice` (a preset that is gone reads as the export
+slot), `paperExportStyle` (`exportStyle`, or
+`effectivePaperStyle(preset.style, pins)`), `paperExportKeepsHiddenFaces`,
+`paperExportPage`, `paperExportSceneInput`, `paperSceneHiddenFaces` — and
+paints with `paintPaperExport`:
+`paperSceneToSvg(scene, target.paintStyle(style), page)`.
+`createPaperExportSession(target)` holds the target's scenes by `sceneKey` in
+an LRU of 8 (`PAPER_EXPORT_SCENE_CACHE_SIZE`): enough to toggle between a few
+styles and back without a rebuild, few enough that dragging a colour through
+a picker — a new key per colour on References — does not keep a scene per
+colour. A build in flight is shared by every caller that asks for its key; a
+failed build is forgotten, so asking again tries again.
 
-**Saving.** `paperExport/savePaperExport.ts` — one function for every surface:
-the SVG string through `saveTextFile`, or `paperSvgToPng(page, dpi)` through
-`saveBinaryFile`, named `exportFilename(target.fileStem, ext)`; the success
-toast; the one `paper exported` event (E1's three copies go); and, once a file
-is written, the options remembered (X6). A native save dialog cancelled
-leaves the export dialog open; a failed encode shows in the dialog, which
-stays open.
+**The hook.** `paperExport/usePaperExportDialog.ts` —
+`usePaperExportDialog(request, close)` — is the dialog's state and verbs:
+
+- **The draft.** Seeded once (`paperExportDraft`): the remembered options, the
+  verb's format when it names one (X4), and a style choice the presets can
+  still honour. `patch` edits the draft and nothing else.
+- **Build and paint.** The scene is built on a key change, from the input the
+  key stands for. While a new key builds, the preview keeps the last complete
+  page, dimmed under *Preparing preview…*; only the scene built for the
+  current key is painted, since an older one carries its own style in its
+  markup. Style and page reach the painter through `useDeferredValue`, so
+  typing a margin stays responsive on a large scene.
+- **The preview image.** The painted page and its object URL are set
+  together, so the box's aspect never runs ahead of the image. A URL is
+  revoked only after the commit that replaced it on screen — never while it is
+  still an `<img>`'s `src` — and every one is revoked on unmount.
+- **Save what you see (X2).** `canExport` holds only when the scene is
+  current (built and for the current key), the deferred style and page have
+  caught up, and the image on screen is that painted page — and the PNG fits
+  (X8) and no save is running. `exportNow` saves the shown page object
+  itself, so the file cannot be a page the reader has not seen.
+- **After a save.** The hook, not `savePaperExport`, owns what follows a
+  written file: it remembers the draft (X6), fires `paper exported`, shows the
+  toast and closes. A dismissed save dialog does none of these and leaves the
+  dialog open; a failed save shows in the footer, and the dialog stays open.
+  `close` is bound to the request's id (`closeRequest`), so a save settling
+  after its dialog was replaced cannot close the newer one.
+
+It returns `{ draft, patch, status, error, preview, pngSize, pngTooLarge,
+hiddenFacesDropped, keepsHiddenFaces, saving, saveError, canExport,
+exportNow }`.
+
+**Saving.** `paperExport/savePaperExport.ts` — one function for every surface,
+and it only writes: the SVG string through `saveTextFile`, or
+`paperSvgToPng(page, dpi)` through `saveBinaryFile`, named
+`exportFilename(fileStem, ext)`; the saved name, or null when the save dialog
+was dismissed. It takes an `AbortSignal`, aborted when the dialog unmounts and
+checked after the PNG encode, so a PNG still encoding is never offered to a
+save dialog nobody is waiting for. Beside it, `paperExportedEvent` maps the
+draft to the event's enums.
 
 **PNG limits (X8).** `lib/paper/pngCanvasLimits.ts`: the largest side and
-area each engine will encode. The numbers are measured at implementation on
-Chromium, WebKit on macOS (Tauri and Safari) and WebKit on iOS — not taken from
-memory — and stored with the engine they were measured on. `paperPngSize`
-feeds the check; the dialog disables Export past it.
+area the engine will encode, checked against `paperPngSize` of the shown page;
+the dialog disables Export past it. Two caps ship, picked by
+`isAppleMobilePlatform`: `DESKTOP_PNG_CANVAS_LIMIT` (16 384 px a side) and
+`APPLE_MOBILE_PNG_CANVAS_LIMIT` (16 384 px a side, 4 096² px of area). Both
+are the tightest engine the app runs on — WebKit's published limits, for
+Safari, the desktop app's WKWebView and iPhone and iPad. Chromium was measured
+in the app (152: a 65 535 px strip and an 8 192² page encode); WebKit's
+numbers are still to be measured and stored with the engine they were
+measured on (Phase 5's follow-up).
 
 **Options and persistence (X5, X6, X12).** Still one JSON value under
 `oristudio:paper-export` (E11) — per device, never in the `.osf`. Its end
@@ -497,42 +562,86 @@ Order: Phases 5–9 add `format`, `style` and the crease-pattern folded-figure
 style to today's single object, which the dialogs write on export while
 Settings and the Simulate pane still edit the page live. Phase 10 removes those
 two editors and only then splits the value per kind, so no surface ever reads
-options nothing can edit. The preset rows (`BUILT_IN_PAPER_PRESETS` + saved,
-as `usePaperSettings` builds them inline) move to a React-free
-`paperPresetRows()` in `lib/paper/paperPresets.ts` for everything that lists
-them.
+options nothing can edit. The preset rows and their labels live, React-free
+and store-free, in `lib/paperPresetRows.ts` for everything that lists them:
+`paperPresetRows(saved)` (`BUILT_IN_PAPER_PRESETS`, then the saved presets),
+`paperSlotPreset` (which preset a slot is showing, and whether it is
+modified), `paperPresetRowLabel` (a built-in's translated name, a saved
+preset's own) and `paperSlotChipLabel` ("Default · modified", "Default, from
+display") — so Settings ▸ Paper's chip and the picker's *Export style ·
+⟨chip⟩* are one reading.
 
 **The UI store.** `store/paperExportUiStore.ts`:
-`{ request: { target: PaperExportTarget; format?: 'svg' | 'png'; returnFocus: HTMLElement | null } | null; open(request); close() }`.
-`close()` releases the target. Opening while a request is open replaces it
-and releases the old target.
+`{ request: { id: number; target: PaperExportTarget; format: 'svg' | 'png' | null; returnFocus: HTMLElement | null } | null; open(request); close(); closeRequest(id) }`.
+`close()` releases the target; `closeRequest(id)` closes only if that request
+is still the open one. Opening while a request is open replaces it and
+releases the old target; the new `id` remounts the dialog, so no draft leaks
+from one export into the next.
+
+**Focus return.** A verb passes `focusedElement()` — the element focused when
+it ran — as `returnFocus`, and the frame hands focus back to it on close if it
+is still in the document. Keyboard activation always leaves one. A WebKit
+pointer press focuses nothing, and a context-menu item is gone by the time the
+dialog closes; focus then stays where the browser leaves it. Accepted as a
+limitation: the References keys are focus-independent, so they still work
+wherever focus lands.
 
 **Components.** `components/paperExport/`:
 
 - `ExportModalFrame.tsx` — the chrome: backdrop, document, header with title
-  and close, a preview slot, an options slot, a footer; the Escape rule;
-  initial focus and focus return. Extracted from `CreaseExportDialog`'s
-  markup; the CSS stays the existing `.export-modal*` classes, with the
-  preview-caption and checkerboard additions. The crease-pattern dialog keeps
-  its own markup (X10 leaves it where it is); it can adopt the frame later.
-- `PaperStylePicker.tsx` — the Style select and its pins hint, from
-  `paperPresetRows()` and the export slot's chip; used by the dialog, the
-  crease-pattern dialog and the share card (§5).
+  and close, a preview slot, an options slot, a footer; the key rules below;
+  initial focus and focus return; and `busy` — while a save is in flight,
+  nothing closes it. Extracted from `CreaseExportDialog`'s markup; the CSS stays the existing
+  `.export-modal*` classes, with the preview-caption and checkerboard
+  additions. The crease-pattern dialog keeps its own markup (X10 leaves it
+  where it is); it can adopt the frame later.
+- `PaperStylePicker.tsx` — the Style select, from `paperPresetRows()`, with
+  the export slot's entry named by `paperSlotChipLabel`; used by the dialog,
+  the crease-pattern dialog and the share card (§5). The pins hint under it
+  comes with Phase 7, the first surface with pins.
 - `PaperExportModal.tsx` — mounted in `App.tsx` under an
-  `OverlayErrorBoundary`; reads the UI store, wires the session hook, options
-  and save.
+  `OverlayErrorBoundary`, before `SettingsModal`: the two share a z-index, so
+  Settings raised over an open export dialog (from the native menu) must come
+  later in the document to be on top. It reads the UI store, remounts per
+  request `id`, wires `usePaperExportDialog`, the options and the footer, and
+  moves focus to Export the first time it is enabled.
 - `PaperExportPreview.tsx` — the page image, checkerboard, caption and states.
 - `PaperExportOptions.tsx` — the sections, from the existing primitives:
   `SegmentedControl`, `Select`, `NumberField` (with `suffix`), `ColorField`,
   `Toggle`. Not the Settings components: those bind the settings store's
   style slots (`usePaperSettings`) and lay out in a 680 px tab.
 
-**Escape (E7).** The frame listens on `window` in the *bubble* phase and
-closes only if `event.defaultPrevented` is false, so an open Select or a field
-reverting its edit keeps the key; `NumberField` calls `preventDefault` when
-Escape reverts. A prompt raised over the dialog flags it through the
-nested-dialog context (`components/settings/settingsNestedDialog.ts`, renamed
-to a general `nestedDialog.ts`) exactly as it does for Settings.
+**Keys (E7).** While the dialog is open its keys are its own:
+
+- **A shortcut barrier.** The dialog's root carries `data-shortcut-barrier`,
+  and `isShortcutBarrierTarget` (`keyboard/shortcutDispatcher.ts`, beside
+  `isShortcutEditingTarget` and `isOpenLayerTarget`) makes both the app
+  keyboard (`lib/appKeyboard.ts`) and the shortcut runtime stand down for any
+  key aimed inside it — Space on the focused Export button would otherwise
+  play References' fold, and the arrows step it. Opt-in by marker rather
+  than `aria-modal`, which drawers and sheets that want the workspace's keys
+  also carry.
+- **Focus stays inside.** The frame's document takes focus on open, and takes
+  it back when a field blurs itself to `<body>` (`NumberField` on Enter and
+  Escape, `ColorField` on Escape), so focus is never outside the barrier with
+  the dialog up.
+- **Escape** is the house pattern (`useCpToolsTrigger`, the View drawer):
+  capture on `window`, ahead of the workspace's own Escape (References binds
+  it). It stands down for an editing target (`isShortcutEditingTarget` — the
+  field reverts or lets go first), for an open layer (`isOpenLayerTarget` —
+  the Select closes first), and when another modal dialog is on top
+  (`isTopmostDialog`: the last `[role="dialog"][aria-modal="true"]` in the
+  document), whose Escape it is. `ColorField` blurs itself on Escape, since a
+  swatch has nothing to undo but would otherwise hold the key.
+- **Enter** in a text field commits it (the field blurs itself), and the
+  frame prevents the form's implicit submission — which would save a page
+  that has not caught up with the value — and puts focus back on its
+  document, where the next Enter exports. Enter on the document itself, or
+  the primary button (`type="submit"`), exports.
+
+No prompt is raised from the dialog yet, so the nested-dialog context
+(`components/settings/settingsNestedDialog.ts`) is unchanged; a dialog raised
+over this one is on top by document order and takes its own Escape.
 
 **Triggers (X4).**
 
@@ -543,8 +652,11 @@ to a general `nestedDialog.ts`) exactly as it does for Settings.
   figure toolbar and context menu; `deps.exportAs(format)` becomes
   `deps.openExport()`.
 - References: the toolbar's export node becomes one button, *Export step…*;
-  the context menu shows one *Export step…*; the two shortcut commands stay and
-  open the dialog on their format.
+  the context menu shows one *Export step…* — both the catalog command
+  `references.exportStep` (bindable, no default chord), which opens on the
+  remembered format; the two shortcut commands stay and open the dialog on
+  their format. `useReferencesStepExport` returns the three verbs
+  (`exportStep`, `exportStepSvg`, `exportStepPng`).
 - File ▸ Export ▸ Export SVG… / Export PNG… (the crease pattern) keeps its own
   dialog (§5).
 
@@ -557,6 +669,17 @@ chokepoint does not see). `paper exported` keeps `surface`, `format`,
 `options_changed` (`yes`/`no` — whether anything was touched before
 exporting, which says whether the dialog earns its step). Enums only; never a
 colour, size or name. `docs/analytics.md` rows updated.
+
+Both go through `analytics/trackPaperExport.ts`:
+`trackPaperExportOpened(surface)`, fired once per dialog by the hook (a ref,
+since a StrictMode mount runs the effect twice), and
+`trackPaperExported(event)`, which takes a typed
+`PaperExportedEvent` (built by `paperExportedEvent` in `savePaperExport.ts`)
+and buckets the density into `resolution` (`paperExportResolution`). The
+enums are declared in `analytics/events.ts` — `PaperExportStyleName`,
+`PaperExportSheet`, `PaperExportBackground`, `PaperExportResolution` — and
+`PaperExportFormat` is declared once there, re-exported by
+`lib/paperExportSettings.ts`.
 
 **i18n.** New strings under `dialogs:paperExport.*`; the page hints reuse the
 existing `dialogs:settings.paper.exportPage.*` keys (and their translations)
@@ -784,20 +907,35 @@ service's `file exported` fires once, `format: 'zip'`.
 
 ## Affected Areas
 
-- New `apps/web/src/paperExport/` — target type, session, hook, save, and
-  tests.
-- New `apps/web/src/components/paperExport/` — frame, style picker, modal,
-  preview, options, and tests; `App.tsx` mount.
+- New `apps/web/src/paperExport/` — `paperExportTarget.ts`,
+  `paperExportSession.ts`, `usePaperExportDialog.ts`, `savePaperExport.ts`,
+  and their tests.
+- New `apps/web/src/components/paperExport/` — `ExportModalFrame.tsx`,
+  `PaperStylePicker.tsx`, `PaperExportModal.tsx`, `PaperExportPreview.tsx`,
+  `PaperExportOptions.tsx`, and the modal's tests; the `App.tsx` mount,
+  before `SettingsModal`; `styles/theme.css` (`.paper-export*`).
 - New `apps/web/src/store/paperExportUiStore.ts`.
-- `apps/web/src/lib/paperExportSettings.ts`, `lib/paper/paperPresets.ts`,
-  new `lib/paper/pngCanvasLimits.ts`; `store/settingsStore.ts` (the stored
-  value's end state, the two `remember…` writers).
+- `apps/web/src/lib/paperExportSettings.ts` (`format`, `style`;
+  `PaperExportFormat` re-exported from the analytics enum), new
+  `lib/paperPresetRows.ts` (rows and their labels, shared with Settings ▸
+  Paper's `usePaperSettings.ts`, `PaperSlotHeader.tsx`, `PaperPresetCard.tsx`
+  and `PaperPresetsSection.tsx`), `lib/paper/paperPage.ts` (the page
+  constants the dialog and Settings share), new `lib/paper/pngCanvasLimits.ts`;
+  `store/settingsStore.ts` (the stored value's end state, the two `remember…`
+  writers).
+- Keys: `keyboard/shortcutDispatcher.ts` (`isShortcutBarrierTarget`),
+  `lib/appKeyboard.ts`, `components/ui/ColorField.tsx` (blurs on Escape).
 - References: `cp-workspace/references/diagram/DiagramPrimitives.tsx`,
   `diagram/diagramToScene.ts`, `diagram/diagramColors.ts`,
   `diagramToPaperScene.ts`, `usePaperStyleTokens.ts` (ink by ground, the
   arrow token); `referencesActions.ts`, `ReferencesViewportToolbar.tsx`,
   `referencesContextMenu.ts`, `referencesShortcuts.ts`,
-  `useReferencesStepExport.ts` (retired), new `referencesExportTarget.ts`;
+  `keyboard/shortcuts.ts` and `i18n/shortcutLabels.ts`
+  (`references.exportStep`); `useReferencesStepExport.ts` (now opens the
+  dialog), `referencesStepExport.ts` (the step's scene and paint style;
+  `referencesStepExportPage` and `saveReferencesStep` gone), new
+  `referencesExportTarget.ts` with its golden test
+  (`__fixtures__/referencesStepExportGolden.json`);
   `components/panels/ReferencesPanel.tsx`; `styles/theme.css` and the theme
   files (root-level aliases).
 - All steps: `components/panels/ReferencesViewControlsPanel.tsx` (the Export
@@ -835,10 +973,9 @@ service's `file exported` fires once, `format: 'zip'`.
   `PaperSlotHeader.tsx` and `PaperFoldedCard.tsx` (the Display slot's and the
   aux switch's hints), `styles/theme.css` (`.settings-paper-pen__sample`).
 - Settings: `components/settings/PaperExportPageSection.tsx` and
-  `hooks/usePaperExportPage.ts` (removed in Phase 10), `PaperSettings.tsx`,
-  `settingsNestedDialog.ts` → `nestedDialog.ts`.
-- `components/ui/NumberField.tsx` (Escape `preventDefault`).
-- `analytics/events.ts`, `docs/analytics.md`, `public/locales/**`.
+  `hooks/usePaperExportPage.ts` (removed in Phase 10), `PaperSettings.tsx`.
+- `analytics/events.ts` (the enums), new `analytics/trackPaperExport.ts`,
+  `analytics/index.ts`, `docs/analytics.md`, `public/locales/**`.
 
 Not touched: the Rust engine, the wasm bridges, the Tauri shell (saving goes
 through the shared file service), the painter, the producers' geometry, the
@@ -960,38 +1097,113 @@ CP canvas, and the crease-pattern export's own rendering of the pattern.
 References first: its producer is synchronous and cheap, so the whole flow —
 open, preview, options, save — is proven before the harder captures.
 
-- [ ] `PaperExportSettings` gains `format` and `style` (normaliser defaults,
+- [x] `PaperExportSettings` gains `format` and `style` (normaliser defaults,
       deleted-preset fallback); the dialog edits a draft and writes it only
-      when a file is saved; tests
-- [ ] `paperPresetRows()` extracted from `usePaperSettings`; both use it
-- [ ] `pngCanvasLimits.ts` with measured caps per engine; tests on the check
-- [ ] `PaperExportTarget`; `paperExportSession.ts` (scene cache by key, paint)
-      with tests: a page change repaints without a build, a key change
-      rebuilds, the flat figure's empty key never rebuilds
-- [ ] `usePaperExportSession` (style from the choice + pins, deferred repaint,
-      object URL lifecycle, build status) with tests
-- [ ] `savePaperExport` (SVG / PNG at dpi, filename, toast, `paper exported`,
-      remembering) with tests; a cancelled native dialog keeps the dialog open
-- [ ] `paperExportUiStore` (open, replace releases, close releases)
-- [ ] `ExportModalFrame` (bubble-phase Escape honouring `defaultPrevented`,
-      initial focus on Export, focus return); `NumberField` Escape
-      `preventDefault`; nested-dialog context generalised
-- [ ] `PaperStylePicker`, `PaperExportModal`, `PaperExportPreview`,
-      `PaperExportOptions`; CSS (checkerboard page, caption, narrow layout)
-- [ ] `referencesExportTarget` (key: resolved style + background);
-      toolbar and context menu → *Export step…*; shortcuts open on their
-      format; `useReferencesStepExport` retired
-- [ ] A parity test: at the default options the dialog's SVG equals what the
-      old References export wrote for the same step
-- [ ] Modal tests: preview shows; format switch swaps Resolution and Keep
-      hidden faces (and a target that buries no faces never shows the
-      latter); picking a preset repaints; Export saves the previewed string;
-      Escape in an open Select does not close; a too-large PNG disables
-      Export
-- [ ] Analytics: `paper export opened`, `paper exported`'s new properties;
+      when a file is saved (`rememberPaperExportOptions`); tests
+- [x] `paperPresetRows()` and `paperSlotPreset()` (`lib/paperPresetRows.ts`)
+      extracted from `usePaperSettings`; Settings and the picker both use
+      them, so "Export style · Default · modified" is the Settings chip's
+      reading
+- [x] `pngCanvasLimits.ts` with the caps; tests on the check. Only Chromium
+      was measured, in the app (152: a 65 535 px strip and an 8 192² page
+      encode). The caps that ship are WebKit's *published* limits — 16 384 px
+      a side, and on iPhone and iPad an area of 4 096² — taken as the
+      tightest engine, not measured
+- [ ] Follow-up: measure the WebKit caps — the largest side and area that
+      encode — in the Tauri macOS WKWebView and in the iOS Simulator, and
+      store each with the engine it was measured on in `pngCanvasLimits.ts`
+- [x] `PaperExportTarget`; `paperExportSession.ts` (scene cache by key, paint)
+      with tests. The target also carries `paintStyle` — References forces
+      its aux lines visible for the painter, as its old export did — rather
+      than the session applying the policy itself. No `fixedPicture` yet:
+      Phase 7 adds it with the legacy folded-figure path
+- [x] `usePaperExportDialog` (draft, style from the choice + pins, deferred
+      repaint, object URL lifecycle, build status, save) with tests
+- [x] `savePaperExport` (SVG / PNG at dpi, filename) and
+      `paperExportedEvent` (was `paperExportedProperties`); the toast, the
+      event and remembering are the dialog hook's; a cancelled native dialog
+      keeps the dialog open
+- [x] `paperExportUiStore` (open, replace releases, close releases)
+- [x] `ExportModalFrame`: Escape is the house pattern (capture on `window`,
+      standing down for a field or an open layer, as `useCpToolsTrigger` and
+      the View drawer do) rather than bubble-phase — it must land before the
+      workspace's shortcuts, and References binds Escape. So `NumberField`
+      needs no change, and no prompt is raised from the dialog, so the
+      nested-dialog context stays as it is. Focus goes to the dialog on open,
+      to Export once it is enabled, and back to the opener on close when the
+      opener held focus (see *Focus return* in §2)
+- [x] `PaperStylePicker`, `PaperExportModal`, `PaperExportPreview`,
+      `PaperExportOptions`; CSS (the page as a box of its own aspect sized by
+      container units, checkerboard inside it only, caption, phone layout)
+- [x] `referencesExportTarget` (key: the style through the References policy +
+      background); one catalog verb *Export step…* (`references.exportStep`)
+      on the toolbar and context menu; the two format shortcuts stay and
+      open the dialog on theirs; `useReferencesStepExport` now opens the
+      dialog; `saveReferencesStep` deleted
+- [x] A parity test: at the remembered defaults the dialog's SVG equals
+      `referencesStepExportPage`'s for the same step — superseded in review
+      by the golden test below: `referencesStepExportPage` was the dialog's
+      own scene and paint, so the comparison was the code with itself, and
+      it is now deleted
+- [x] Modal tests: preview and caption; format switch swaps Resolution and
+      Keep hidden faces (and a target that buries no faces never shows the
+      latter); Escape closes and hands focus back, and stands down in a
+      field; Export saves and closes; Cancel saves nothing; picking a preset
+      rebuilds and repaints, Escape in the open Select closes only the
+      Select (a Radix Select does open in jsdom); a PNG over the cap
+      disables Export and says why. Browser-checked: the picker repaints the
+      page in Diagram
+- [x] Analytics: `paper export opened`, `paper exported`'s new properties;
       `docs/analytics.md`
-- [ ] i18n: extract, eight locales, stamp, check
-- [ ] Validate; commit
+- [x] i18n: extract, eight locales, stamp, check
+- [x] Validate; commit
+
+From review (folded into the Phase 5 commit):
+
+- [x] A key barrier: the dialog's root is `data-shortcut-barrier`, and
+      `isShortcutBarrierTarget` stands both the app keyboard and the
+      shortcut runtime down for keys aimed inside it — Space on the focused
+      Export button played References' fold. The frame refocuses its
+      document when a field blurs itself to `<body>`; Escape also stands
+      down while another modal dialog is on top (`isTopmostDialog`), and
+      `PaperExportModal` mounts before `SettingsModal` so Settings raised
+      over it is that dialog; `ColorField` blurs on Escape; tests
+- [x] No close while busy: Escape, the close button, Cancel and the backdrop
+      all wait while a save is in flight. A PNG still encoding when the
+      dialog goes is not offered to the save dialog (`savePaperExport`'s
+      `AbortSignal`), and `closeRequest(id)` keeps a save that settles after
+      its dialog was replaced from closing the newer one; tests
+- [x] Save what you see: Export is enabled only when the scene is the
+      current key's, the deferred style and page have caught up, and the
+      image on screen is that page; `exportNow` saves the shown page object
+      itself; tests
+- [x] The preview URL's lifecycle: the URL and its page are set together,
+      and a URL is revoked only after the commit that replaced it on screen,
+      never while it is still the image's `src`; every one on unmount; tests
+- [x] A stale preview: while a new key builds, the last complete page stays
+      up, dimmed under *Preparing preview…*, and a scene built for an older
+      key is never painted with the new style — a late build is ignored.
+      The status reads *building* from the first commit of a new key, which
+      is what keeps the image up; tests
+- [x] The scene cache is an LRU of 8 (`PAPER_EXPORT_SCENE_CACHE_SIZE`), so
+      dragging a colour through a picker on References no longer keeps a
+      scene per colour; test
+- [x] Analytics helpers: `analytics/trackPaperExport.ts`
+      (`trackPaperExportOpened`, once per dialog under StrictMode;
+      `trackPaperExported`, from a typed `PaperExportedEvent`); the enums
+      `PaperExportStyleName`, `PaperExportSheet`, `PaperExportBackground`,
+      `PaperExportResolution` in `analytics/events.ts`, and
+      `PaperExportFormat` declared once there; tests
+- [x] Shared labels: `paperPresetRowLabel` and `paperSlotChipLabel` move into
+      `lib/paperPresetRows.ts`, so Settings ▸ Paper's chip and cards and the
+      picker's *Export style · ⟨chip⟩* are one reading
+- [x] A golden References parity test
+      (`cp-workspace/references/referencesExportTarget.test.ts`): the
+      dialog's own path — draft, style, session scene, paint — writes byte
+      for byte the pages the pre-dialog export painted at 197b46286
+      (`__fixtures__/referencesStepExportGolden.json`), at the defaults and
+      at a picked preset with a coloured page, a set size and margin, the
+      back, and aux lines shown
 
 ### Phase 6 — Export all steps
 
@@ -1023,7 +1235,8 @@ open, preview, options, save — is proven before the harder captures.
 
 - [ ] `foldedFigureExportTarget`: 3D live (captured model and camera, key =
       `folded3dSceneStyleKey` + hidden), 3D stored scene (re-light hint),
-      flat (kernel scene once), legacy `fixedPicture` (format only + hint)
+      flat (kernel scene once), legacy `fixedPicture` — added to
+      `PaperExportTarget` here (format only + hint)
 - [ ] `foldedFigureActions` `export` → action; toolbar and context menu;
       `projectSlice.exportOristudioCpFoldedFigure` retired into the target;
       the `paper exported` literal goes

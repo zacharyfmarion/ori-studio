@@ -277,6 +277,7 @@
   },
   "references": {
     "categoryLabel": "Références",
+    "exportStep": "Exporter l'étape…",
     "exportStepPng": "Exporter l'étape en PNG…",
     "exportStepSvg": "Exporter l'étape en SVG…",
     "nextCandidate": "Candidat suivant",

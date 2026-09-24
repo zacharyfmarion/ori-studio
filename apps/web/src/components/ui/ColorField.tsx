@@ -100,6 +100,12 @@ export function ColorField({
       disabled={disabled}
       onChange={(event) => onChange(event.currentTarget.value)}
       onBlur={onCommit}
+      // A swatch has nothing for Escape to undo, but as an input it holds the
+      // key away from the dialog around it; letting go of focus hands it back,
+      // as NumberField does after its revert.
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') event.currentTarget.blur();
+      }}
     />
   );
 

@@ -307,6 +307,12 @@ interface SettingsState {
    */
   importPaperPreset: (json: string) => PaperPresetParseResult;
   setPaperExportField: <F extends PaperExportField>(field: F, value: PaperExportSettings[F]) => void;
+  /**
+   * Keep the options an export was just saved with, for the next time the
+   * export dialog opens. Written once per saved file, not per change: the
+   * dialog edits a draft, so a dialog cancelled changes nothing.
+   */
+  rememberPaperExportOptions: (options: PaperExportSettings) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -485,6 +491,11 @@ export const useSettingsStore = create<SettingsState>()(
         // Through the normaliser, so a density typed past the range or a sheet
         // size below the minimum is held to it before it is stored.
         const next = normalizePaperExportSettings({ ...get().paperExport, [field]: value });
+        writeJson(PAPER_EXPORT_KEY, next);
+        set({ paperExport: next });
+      },
+      rememberPaperExportOptions: (options) => {
+        const next = normalizePaperExportSettings(options);
         writeJson(PAPER_EXPORT_KEY, next);
         set({ paperExport: next });
       },

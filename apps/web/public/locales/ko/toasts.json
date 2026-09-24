@@ -37,6 +37,9 @@
     "solving": "푸는 중…",
     "solvingLong": "아직 푸는 중입니다 — 시간이 걸릴 수 있습니다"
   },
+  "paperExport": {
+    "saved": "{{name}} 내보냄"
+  },
   "paperPreset": {
     "exported": "{{name}} 내보냄",
     "invalidJson": "해당 파일은 JSON이 아닙니다",
@@ -50,9 +53,7 @@
     "stopping": "취소 중…"
   },
   "referencesExport": {
-    "empty": "아직 내보낼 단계가 없습니다",
-    "failed": "이 단계를 내보낼 수 없습니다",
-    "saved": "{{name}} 내보냄"
+    "empty": "아직 내보낼 단계가 없습니다"
   },
   "simulatorExport": {
     "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다",

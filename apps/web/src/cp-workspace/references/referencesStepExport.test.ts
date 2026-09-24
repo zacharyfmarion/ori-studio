@@ -1,17 +1,17 @@
 import type { TFunction } from 'i18next';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
-import { PT_PER_CSS_PX, pageMarginPt, type PaperSvgResult } from '../../lib/paper/paperSvg';
-import type { FileService } from '../../platform/fileService';
+import { PT_PER_CSS_PX, pageMarginPt } from '../../lib/paper/paperSvg';
 import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
+import { paperSceneToSvg } from '../../lib/paper/paperSvg';
 import {
   REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX,
   referencesSheetCssPx,
   referencesSequenceSubject,
   referencesStepExportName,
-  referencesStepExportPage,
-  saveReferencesStep,
+  referencesStepPaintStyle,
+  referencesStepScene,
 } from './referencesStepExport';
 import { DIAGRAM_PADDING } from './stepDiagramGeometry';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
@@ -19,14 +19,6 @@ import { planFilmstrip } from './referencesFilmstrip';
 import type { ReferencesPlanVariant } from './referencesResults';
 import { decodePlanModel, planModelPoints, planStepScene } from './referencesPlanGeometry';
 import type { ReferencesViewStep } from './referencesSequenceView';
-
-const { paperSvgToPng } = vi.hoisted(() => ({
-  paperSvgToPng: vi.fn(async () => new Uint8Array([1, 2, 3])),
-}));
-vi.mock('../../lib/paper/paperPng', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/paper/paperPng')>()),
-  paperSvgToPng,
-}));
 
 /**
  * A step on the canvas: the model frame's sheet is 400 units square with its
@@ -61,14 +53,19 @@ function paint(
     showAux?: boolean | null;
   } = {}
 ) {
-  return referencesStepExportPage(diagram, {
-    style: options.style ?? DEFAULT_PAPER_STYLE,
-    page: options.page ?? DEFAULT_PAPER_PAGE,
+  // The step through the scene and the painter, as the export dialog's
+  // References target draws it (`referencesExportTarget`).
+  const style = options.style ?? DEFAULT_PAPER_STYLE;
+  const page = options.page ?? DEFAULT_PAPER_PAGE;
+  const scene = referencesStepScene(diagram, {
+    style,
     mirrored: options.mirrored ?? false,
     sheetCssPx: options.sheetCssPx ?? 512,
     lineWidth: 1,
     showAux: options.showAux ?? null,
+    background: page.background,
   });
+  return paperSceneToSvg(scene, referencesStepPaintStyle(style), page);
 }
 
 describe('referencesSheetCssPx', () => {
@@ -88,7 +85,7 @@ describe('referencesSheetCssPx', () => {
   });
 });
 
-describe('referencesStepExportPage', () => {
+describe('a step’s page', () => {
   it('puts the sheet on the page at its on-screen size, with the card’s band round it', () => {
     const page = paint(model(MOUNTAIN), { sheetCssPx: 512 });
     // The box is the sheet plus DIAGRAM_PADDING of the box each side.
@@ -288,62 +285,5 @@ describe('referencesSequenceSubject', () => {
         return subject.kind === 'step' ? subject.step + 1 : null;
       })
     ).toEqual(numbers);
-  });
-});
-
-describe('saveReferencesStep', () => {
-  const PAGE: PaperSvgResult = { svg: '<svg/>', widthPt: 10, heightPt: 10 };
-
-  function fileService() {
-    return {
-      saveTextFile: vi.fn(async (options: { suggestedName: string }) => ({
-        name: options.suggestedName,
-        path: null,
-      })),
-      saveBinaryFile: vi.fn(async (options: { suggestedName: string }) => ({
-        name: options.suggestedName,
-        path: null,
-      })),
-    } as unknown as FileService & {
-      saveTextFile: ReturnType<typeof vi.fn>;
-      saveBinaryFile: ReturnType<typeof vi.fn>;
-    };
-  }
-
-  it('saves the SVG under the step’s name, through the one filename rule', async () => {
-    const service = fileService();
-    await expect(
-      saveReferencesStep({ page: PAGE, format: 'svg', name: 'Crane step 3', fileService: service })
-    ).resolves.toBe('Crane-step-3.svg');
-    expect(service.saveTextFile).toHaveBeenCalledWith(
-      expect.objectContaining({ contents: '<svg/>', extensions: ['svg'] })
-    );
-    expect(service.saveBinaryFile).not.toHaveBeenCalled();
-  });
-
-  it('rasterises a PNG at the density asked for', async () => {
-    paperSvgToPng.mockClear();
-    const service = fileService();
-    await expect(
-      saveReferencesStep({
-        page: PAGE,
-        format: 'png',
-        pngDpi: 300,
-        name: 'Crane step 3',
-        fileService: service,
-      })
-    ).resolves.toBe('Crane-step-3.png');
-    expect(paperSvgToPng).toHaveBeenCalledWith(PAGE, 300);
-    expect(service.saveBinaryFile).toHaveBeenCalledWith(
-      expect.objectContaining({ mimeType: 'image/png', bytes: new Uint8Array([1, 2, 3]) })
-    );
-  });
-
-  it('answers null for a dismissed dialog', async () => {
-    const service = fileService();
-    service.saveTextFile.mockResolvedValueOnce(null);
-    await expect(
-      saveReferencesStep({ page: PAGE, format: 'svg', name: 'x', fileService: service })
-    ).resolves.toBeNull();
   });
 });

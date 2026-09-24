@@ -48,23 +48,18 @@ describe('referencesMenuItems', () => {
       'references.zoomIn',
       'references.zoomOut',
       '—',
-      'references.exportStepSvg',
-      'references.exportStepPng',
+      'references.exportStep',
     ]);
   });
 
-  it('offers the export verbs as rows with no chord, dispatching through the executor', () => {
+  it('offers export as one row with no chord, dispatching through the executor', () => {
     const { items, run } = menu();
-    const svg = find(items, 'references.exportStepSvg');
-    expect(svg.label).toBe('Export step as SVG…');
-    expect(svg.shortcut).toBeUndefined();
-    expect(svg.disabled).toBe(false);
-    svg.onSelect();
-    find(items, 'references.exportStepPng').onSelect();
-    expect(run.mock.calls.map(([id]) => id)).toEqual([
-      'references.exportStepSvg',
-      'references.exportStepPng',
-    ]);
+    const row = find(items, 'references.exportStep');
+    expect(row.label).toBe('Export step…');
+    expect(row.shortcut).toBeUndefined();
+    expect(row.disabled).toBe(false);
+    row.onSelect();
+    expect(run.mock.calls.map(([id]) => id)).toEqual(['references.exportStep']);
   });
 
   it('shows a bound chord on the row that has one', () => {
@@ -72,9 +67,9 @@ describe('referencesMenuItems', () => {
     expect(find(items, 'references.playFold').shortcut).toBeTruthy();
   });
 
-  it('greys the export rows with a reason when nothing is showing', () => {
+  it('greys the export row with a reason when nothing is showing', () => {
     const { items } = menu({ hasDiagram: false });
-    const row = find(items, 'references.exportStepSvg');
+    const row = find(items, 'references.exportStep');
     expect(row.disabled).toBe(true);
     expect(row.hint).toBe('No step is showing');
   });

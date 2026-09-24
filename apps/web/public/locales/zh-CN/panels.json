@@ -865,7 +865,6 @@
     "emptySheetHint": "此纸张尚无折痕。请在“编辑”中绘制图样，然后返回。",
     "errorTitle": "参考不可用",
     "exact": "精确",
-    "exportStep": "导出步骤",
     "filmstrip": {
       "label": "折叠步骤"
     },

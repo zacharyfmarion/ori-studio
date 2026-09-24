@@ -1,7 +1,11 @@
 import { selectionSize } from './selection';
 import type { Selection } from './sampleProject';
 import type { EditingContext } from '../workspaces/editingContext';
-import { isOpenLayerTarget, isShortcutEditingTarget } from '../keyboard/shortcutDispatcher';
+import {
+  isOpenLayerTarget,
+  isShortcutBarrierTarget,
+  isShortcutEditingTarget,
+} from '../keyboard/shortcutDispatcher';
 import { handleShortcutRuntimeKeyDown } from '../keyboard/shortcutRuntime';
 import type { ShortcutDefaultsSource, ShortcutOverrides } from '../keyboard/shortcuts';
 
@@ -31,7 +35,8 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
   if (
     event.defaultPrevented ||
     isShortcutEditingTarget(event.target) ||
-    isOpenLayerTarget(event.target)
+    isOpenLayerTarget(event.target) ||
+    isShortcutBarrierTarget(event.target)
   ) {
     return false;
   }

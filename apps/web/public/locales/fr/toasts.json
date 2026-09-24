@@ -39,6 +39,9 @@
     "solving": "Résolution…",
     "solvingLong": "Résolution toujours en cours — cela peut prendre du temps"
   },
+  "paperExport": {
+    "saved": "{{name}} exporté"
+  },
   "paperPreset": {
     "exported": "{{name}} exporté",
     "invalidJson": "Ce fichier n'est pas du JSON",
@@ -52,9 +55,7 @@
     "stopping": "Annulation…"
   },
   "referencesExport": {
-    "empty": "Il n'y a pas encore d'étape à exporter",
-    "failed": "Impossible d'exporter cette étape",
-    "saved": "{{name}} exporté"
+    "empty": "Il n'y a pas encore d'étape à exporter"
   },
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter",

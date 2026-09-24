@@ -431,7 +431,7 @@ export function ReferencesPanel() {
         : referencesSequenceSubject(viewSteps, activeStep),
     [targeted, controller.activeCandidate, activeStep, viewSteps]
   );
-  const exportStep = useReferencesStepExport({
+  const exportVerbs = useReferencesStepExport({
     // The page's diagram, not the canvas's: a file has nothing under it, so
     // it carries the creases made so far itself.
     diagram: highlights.pageDiagram,
@@ -441,8 +441,6 @@ export function ReferencesPanel() {
     lineWidth: view.lineWidth,
     subject: exportSubject,
   });
-  const exportStepSvg = useCallback(() => void exportStep('svg'), [exportStep]);
-  const exportStepPng = useCallback(() => void exportStep('png'), [exportStep]);
 
   /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {
@@ -471,8 +469,7 @@ export function ReferencesPanel() {
     zoomOut,
     clearTarget: controller.clear,
     playFold: fold.toggle,
-    exportStepSvg,
-    exportStepPng,
+    ...exportVerbs,
   };
   useReferencesShortcuts(shortcutActions, view.hasDocument);
   // Read through a ref refreshed after each commit rather than closed over, so

@@ -6,13 +6,12 @@
  * about, and the banner under it speaks for the same thing.
  */
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { Link2, Unlink2 } from 'lucide-react';
+import { paperSlotChipLabel } from '../../lib/paperPresetRows';
 import type { PaperStyleSlot } from '../../lib/paperStyleSettings';
 import { Button } from '../ui/Button';
 import { Chip } from '../ui/Chip';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { paperPresetRowLabel } from './PaperPresetCard';
 import type { PaperSettingsBinding } from './usePaperSettings';
 
 export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
@@ -36,7 +35,11 @@ export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
         />
         <span className="settings-paper__chip" data-state={presetChipState(paper)}>
           <span className="settings-paper__chip-dot" aria-hidden="true" />
-          {presetChipLabel(t, paper)}
+          {paperSlotChipLabel(
+            t,
+            { applied: paper.appliedPreset, modified: paper.modified },
+            { fromDisplay: !paper.editable }
+          )}
         </span>
         {paper.modified && paper.editable && (
           <Chip className="settings-paper__revert" onClick={paper.revert}>
@@ -60,23 +63,6 @@ export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
 function presetChipState(paper: PaperSettingsBinding): 'modified' | 'preset' | 'custom' {
   if (paper.modified) return 'modified';
   return paper.appliedPreset ? 'preset' : 'custom';
-}
-
-/**
- * The chip's words, built up rather than written out: the preset's name, then
- * whether it has been edited, then — on the export slot while it follows —
- * that this is display's style being shown, not the export slot's own.
- */
-function presetChipLabel(t: TFunction, paper: PaperSettingsBinding): string {
-  const name = paper.appliedPreset
-    ? paperPresetRowLabel(t, paper.appliedPreset)
-    : t('dialogs:settings.paper.presetChip.custom', 'Custom');
-  const preset = paper.modified
-    ? t('dialogs:settings.paper.presetChip.modified', '{{preset}} · modified', { preset: name })
-    : name;
-  return paper.editable
-    ? preset
-    : t('dialogs:settings.paper.presetChip.fromDisplay', '{{preset}}, from display', { preset });
 }
 
 /**

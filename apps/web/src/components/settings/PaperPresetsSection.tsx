@@ -12,9 +12,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { PaperPresetCard, paperPresetRowLabel } from './PaperPresetCard';
+import { paperPresetRowLabel, type PaperPresetRow } from '../../lib/paperPresetRows';
+import { PaperPresetCard } from './PaperPresetCard';
 import { PaperSection } from './PaperSection';
-import type { PaperPresetChoice, PaperPresetRow, PaperSettingsBinding } from './usePaperSettings';
+import type { PaperPresetChoice, PaperSettingsBinding } from './usePaperSettings';
 
 export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) {
   const { t } = useTranslation();

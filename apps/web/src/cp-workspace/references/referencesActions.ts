@@ -24,8 +24,7 @@ export type ReferencesActionIcon =
   | 'reset-view'
   | 'zoom-in'
   | 'zoom-out'
-  | 'export-step-svg'
-  | 'export-step-png';
+  | 'export-step';
 
 /**
  * What a command draws: its own id, or, for the one verb whose picture
@@ -181,21 +180,9 @@ export function buildReferencesActions(
     { kind: 'separator', id: 'before-export' },
     // The step at rest, as the big view shows it. A finished card has no
     // diagram of its own — the pattern itself is that picture — and an empty
-    // strip has none at all.
-    command(
-      'export-step-svg',
-      'references.exportStepSvg',
-      'Export step as SVG…',
-      !state.hasDiagram,
-      noDiagram
-    ),
-    command(
-      'export-step-png',
-      'references.exportStepPng',
-      'Export step as PNG…',
-      !state.hasDiagram,
-      noDiagram
-    ),
+    // strip has none at all. One verb: the dialog it opens chooses the format,
+    // with the page in view.
+    command('export-step', 'references.exportStep', 'Export step…', !state.hasDiagram, noDiagram),
   ];
 }
 

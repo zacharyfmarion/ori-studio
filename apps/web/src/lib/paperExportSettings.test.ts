@@ -13,7 +13,12 @@ describe('normalizePaperExportSettings', () => {
   it('reads nothing as the defaults', () => {
     expect(normalizePaperExportSettings(null)).toBe(DEFAULT_PAPER_EXPORT_SETTINGS);
     expect(normalizePaperExportSettings('page')).toBe(DEFAULT_PAPER_EXPORT_SETTINGS);
-    expect(DEFAULT_PAPER_EXPORT_SETTINGS).toEqual({ ...DEFAULT_PAPER_PAGE, pngDpi: DEFAULT_PAPER_PNG_DPI });
+    expect(DEFAULT_PAPER_EXPORT_SETTINGS).toEqual({
+      ...DEFAULT_PAPER_PAGE,
+      pngDpi: DEFAULT_PAPER_PNG_DPI,
+      format: 'svg',
+      style: 'export-style',
+    });
   });
 
   it('round-trips a complete page', () => {
@@ -23,8 +28,22 @@ describe('normalizePaperExportSettings', () => {
       background: '#ffffff',
       keepHiddenFaces: false,
       pngDpi: 300,
+      format: 'png',
+      style: 'builtin:diagram',
     };
     expect(normalizePaperExportSettings(JSON.parse(JSON.stringify(settings)))).toEqual(settings);
+  });
+
+  it('reads a page saved before the dialog remembered anything as the export slot, in SVG', () => {
+    const settings = normalizePaperExportSettings({ paddingMm: 5, pngDpi: 192 });
+    expect(settings.format).toBe('svg');
+    expect(settings.style).toBe('export-style');
+  });
+
+  it('drops a format it does not know and an empty style', () => {
+    const settings = normalizePaperExportSettings({ format: 'pdf', style: '' });
+    expect(settings.format).toBe('svg');
+    expect(settings.style).toBe('export-style');
   });
 
   it('normalises the page field by field and clamps the density', () => {
@@ -52,7 +71,8 @@ describe('clampPaperPngDpi', () => {
 
 describe('paperPageOf', () => {
   it('is the page without the density', () => {
-    expect(paperPageOf({ ...DEFAULT_PAPER_EXPORT_SETTINGS, pngDpi: 300 })).toEqual(DEFAULT_PAPER_PAGE);
+    const settings = { ...DEFAULT_PAPER_EXPORT_SETTINGS, pngDpi: 300 };
+    expect(paperPageOf(settings)).toEqual(DEFAULT_PAPER_PAGE);
   });
 });
 

@@ -1,15 +1,10 @@
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_SHEET_MM, PAPER_SHEET_MM_RANGE, sheetMmOf } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
 import { useSettingsStore } from '../store/settingsStore';
-import {
-  DEFAULT_PAPER_SHEET_MM,
-  sheetMmOf,
-  usePaperExportPage,
-  type PaperExportPageBinding,
-} from './usePaperExportPage';
+import { usePaperExportPage, type PaperExportPageBinding } from './usePaperExportPage';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

@@ -37,6 +37,9 @@
     "solving": "解いています…",
     "solvingLong": "まだ解いています — しばらく時間がかかる場合があります"
   },
+  "paperExport": {
+    "saved": "{{name}} を書き出しました"
+  },
   "paperPreset": {
     "exported": "{{name}} を書き出しました",
     "invalidJson": "このファイルは JSON ではありません",
@@ -50,9 +53,7 @@
     "stopping": "キャンセル中…"
   },
   "referencesExport": {
-    "empty": "書き出せるステップがまだありません",
-    "failed": "このステップを書き出せませんでした",
-    "saved": "{{name}} を書き出しました"
+    "empty": "書き出せるステップがまだありません"
   },
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません",

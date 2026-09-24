@@ -14,6 +14,7 @@ import { HelpModal } from './components/HelpModal';
 import { SelectByIndexModal } from './components/SelectByIndexModal';
 import { ShareLinkModal } from './cp-workspace/share/ShareLinkModal';
 import { SettingsModal } from './components/SettingsModal';
+import { PaperExportModal } from './components/paperExport/PaperExportModal';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
@@ -172,6 +173,12 @@ export default function App() {
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="bp-optimizer">
         <BpOptimizerModal />
+      </OverlayErrorBoundary>
+      {/* Before Settings: the two share a z-index, so a Settings window raised
+          over an open export dialog — from the native menu — must come later
+          in the document to be on top. */}
+      <OverlayErrorBoundary id="paper-export">
+        <PaperExportModal />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="settings">
         <SettingsModal />

@@ -1,11 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
-import {
-  DEFAULT_PAPER_BACKGROUND,
-  sheetMmOf,
-  usePaperExportPage,
-} from '../../hooks/usePaperExportPage';
-import { PAPER_SHEET_MM_RANGE } from '../../lib/paper/paperPage';
+import { usePaperExportPage } from '../../hooks/usePaperExportPage';
+import { DEFAULT_PAPER_BACKGROUND, PAPER_SHEET_MM_RANGE, sheetMmOf } from '../../lib/paper/paperPage';
 import {
   SIMULATOR_SETTING_RANGES,
   type SimulatorNumericSettingKey,

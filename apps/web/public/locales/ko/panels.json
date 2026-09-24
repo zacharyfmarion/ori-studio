@@ -865,7 +865,6 @@
     "emptySheetHint": "이 종이에는 아직 접는 선이 없습니다. 편집에서 패턴을 그린 뒤 다시 돌아오세요.",
     "errorTitle": "참조를 사용할 수 없음",
     "exact": "정확",
-    "exportStep": "단계 내보내기",
     "filmstrip": {
       "label": "접기 단계"
     },

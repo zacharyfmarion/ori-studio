@@ -1,35 +1,30 @@
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import type { TFunction } from 'i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_PAPER_PAGE } from '../../lib/paper/paperPage';
+import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../../lib/paperExportSettings';
+import { exportPaperStyle } from '../../lib/paperStyleSettings';
+import { paperExportSceneInput } from '../../paperExport/paperExportSession';
+import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
-import { useReferencesStepExport, type ReferencesStepExportInput } from './useReferencesStepExport';
+import {
+  referencesStepExportTitle,
+  useReferencesStepExport,
+  type ReferencesStepExportInput,
+  type ReferencesStepExportVerbs,
+} from './useReferencesStepExport';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const tracked: { event: string; properties?: Record<string, unknown> }[] = [];
-vi.mock('../../analytics', () => ({
-  ANALYTICS_EVENTS: new Proxy({}, { get: (_t, key) => String(key) }),
-  track: (event: string, properties?: Record<string, unknown>) => {
-    tracked.push(properties ? { event, properties } : { event });
-  },
-}));
-
-const { referencesStepExportPage, saveReferencesStep, toast } = vi.hoisted(() => ({
-  referencesStepExportPage: vi.fn(() => ({ svg: '<svg/>', widthPt: 10, heightPt: 10 })),
-  saveReferencesStep: vi.fn(async (): Promise<string | null> => 'Crane-step-3.svg'),
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
-vi.mock('./referencesStepExport', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./referencesStepExport')>()),
-  referencesStepExportPage,
-  saveReferencesStep,
-}));
+const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
 vi.mock('../../store/workspaceStore', () => ({
   useWorkspaceStore: { getState: () => ({ workspaceTitle: 'Crane' }) },
 }));
+
+const t = ((_key: string, fallback: string, options?: Record<string, unknown>) =>
+  fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(options?.[name]))) as unknown as TFunction;
 
 const DIAGRAM: StepDiagramModel = {
   sheet: { width: 400, height: 400, centre: [200, 200], axes: { x: [1, 0], y: [0, -1] } },
@@ -41,13 +36,13 @@ const initialSettings = useSettingsStore.getInitialState();
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
-const exported: { current: ((format: 'svg' | 'png') => Promise<boolean>) | null } = { current: null };
+const exported: { current: ReferencesStepExportVerbs | null } = { current: null };
 
 function Probe({ input }: { input: ReferencesStepExportInput }): null {
-  const exportStep = useReferencesStepExport(input);
+  const verbs = useReferencesStepExport(input);
   useEffect(() => {
-    exported.current = exportStep;
-  }, [exportStep]);
+    exported.current = verbs;
+  }, [verbs]);
   return null;
 }
 
@@ -65,13 +60,13 @@ function mount(overrides: Partial<ReferencesStepExportInput> = {}) {
   return exported.current;
 }
 
+const request = () => usePaperExportUiStore.getState().request;
+
 beforeEach(() => {
-  tracked.length = 0;
-  referencesStepExportPage.mockClear();
-  saveReferencesStep.mockClear();
   toast.success.mockClear();
   toast.error.mockClear();
   useSettingsStore.setState(initialSettings, true);
+  usePaperExportUiStore.setState({ request: null });
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -83,126 +78,67 @@ afterEach(() => {
   root = null;
   container = null;
   exported.current = null;
+  usePaperExportUiStore.setState({ request: null });
   useSettingsStore.setState(initialSettings, true);
 });
 
 describe('useReferencesStepExport', () => {
-  it('paints the shown diagram at the view’s sheet size on the export style and page, and saves it by the card', async () => {
-    const exportStep = mount();
-    await act(async () => {
-      await expect(exportStep('svg')).resolves.toBe(true);
-    });
-    expect(referencesStepExportPage).toHaveBeenCalledWith(DIAGRAM, {
-      style: initialSettings.paperStyle.display,
-      page: DEFAULT_PAPER_PAGE,
-      mirrored: false,
-      // 400 model units through a camera at 2 CSS px per unit.
-      sheetCssPx: 800,
-      lineWidth: 1,
-      // The References option, unset: the export style's own switch decides.
-      showAux: null,
-    });
-    expect(saveReferencesStep).toHaveBeenCalledWith({
-      page: { svg: '<svg/>', widthPt: 10, heightPt: 10 },
-      format: 'svg',
-      pngDpi: initialSettings.paperExport.pngDpi,
-      name: 'Crane step 3',
-    });
-    expect(toast.success).toHaveBeenCalled();
+  it('opens the export dialog on the step, named for the card, on the verb’s format', () => {
+    mount().exportStepPng();
+    const opened = request();
+    expect(opened?.format).toBe('png');
+    expect(opened?.target.surface).toBe('references');
+    expect(opened?.target.title).toBe('Export step 3');
+    expect(opened?.target.fileStem).toBe('Crane step 3');
+    expect(opened?.target.buriesFaces).toBe(false);
+    expect(opened?.target.pins).toBeNull();
   });
 
-  it('paints with the export style once it is set apart, and the reader’s side', async () => {
-    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(false);
-    useSettingsStore.getState().setPaperStyleField('export', 'paper.front', '#123456');
-    useSettingsStore.getState().setPaperStyleField('display', 'paper.front', '#654321');
-    const exportStep = mount({ mirrored: true, subject: { kind: 'reference', candidate: 0, step: 1 } });
-    await act(async () => {
-      await exportStep('png');
-    });
-    const [, options] = referencesStepExportPage.mock.calls[0] as unknown as [
-      StepDiagramModel,
-      { style: { paper: { front: string } }; mirrored: boolean },
-    ];
-    expect(options.style.paper.front).toBe('#123456');
-    expect(options.mirrored).toBe(true);
-    expect(options).toMatchObject({ showAux: null });
-    expect(saveReferencesStep).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'png', name: 'Crane reference 1 step 2' })
-    );
+  it('opens on the remembered format for Export step, and on its own for the SVG and PNG verbs', () => {
+    const verbs = mount();
+    verbs.exportStep();
+    expect(request()?.format).toBeNull();
+    verbs.exportStepSvg();
+    expect(request()?.format).toBe('svg');
+    verbs.exportStepPng();
+    expect(request()?.format).toBe('png');
   });
 
-  it('hands the page the References aux option once the reader has set it', async () => {
-    useSettingsStore.getState().setReferencesShowAuxCreases(false);
-    const exportStep = mount();
-    await act(async () => {
-      await exportStep('svg');
-    });
-    const [, options] = referencesStepExportPage.mock.calls[0] as unknown as [
-      StepDiagramModel,
-      { showAux: boolean | null },
-    ];
-    expect(options.showAux).toBe(false);
-    useSettingsStore.getState().setReferencesShowAuxCreases(null);
+  it('hands focus back to what held it when the verb ran', () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    mount().exportStep();
+    expect(request()?.returnFocus).toBe(opener);
+    opener.remove();
   });
 
-  it('carries the page and the density from the export settings', async () => {
-    useSettingsStore.getState().setPaperExportField('keepHiddenFaces', false);
-    useSettingsStore.getState().setPaperExportField('pngDpi', 300);
-    const exportStep = mount();
-    await act(async () => {
-      await exportStep('png');
-    });
-    expect(referencesStepExportPage).toHaveBeenCalledWith(
-      DIAGRAM,
-      expect.objectContaining({ page: { ...DEFAULT_PAPER_PAGE, keepHiddenFaces: false } })
-    );
-    expect(saveReferencesStep).toHaveBeenCalledWith(expect.objectContaining({ pngDpi: 300 }));
+  it('says there is nothing to export, and opens nothing, when no step is showing', () => {
+    mount({ diagram: null }).exportStepSvg();
+    expect(request()).toBeNull();
+    expect(toast.error).toHaveBeenCalledWith('There is no step to export yet');
   });
 
-  it('counts a saved export as the references surface, by format and hidden faces', async () => {
-    useSettingsStore.getState().setPaperExportField('keepHiddenFaces', false);
-    const exportStep = mount();
-    await act(async () => {
-      await exportStep('png');
-    });
-    expect(tracked).toEqual([
-      {
-        event: 'paperExported',
-        properties: { surface: 'references', format: 'png', hidden_faces: 'dropped' },
-      },
-    ]);
+  it('rebuilds the scene for a new style or ground, and only repaints for the rest', () => {
+    mount().exportStep();
+    const target = request()!.target;
+    const style = exportPaperStyle(useSettingsStore.getState().paperStyle);
+    const base = paperExportSceneInput(target, style, DEFAULT_PAPER_EXPORT_SETTINGS);
+    const key = target.sceneKey(base);
+    expect(target.sceneKey({ ...base, markHidden: true })).toBe(key);
+    expect(target.sceneKey({ ...base, background: '#000000' })).not.toBe(key);
+    expect(
+      target.sceneKey({ ...base, style: { ...style, arrows: { ...style.arrows, color: '#ff0000' } } })
+    ).not.toBe(key);
   });
+});
 
-  it('refuses politely with no diagram, and paints nothing', async () => {
-    const exportStep = mount({ diagram: null });
-    await act(async () => {
-      await expect(exportStep('svg')).resolves.toBe(false);
-    });
-    expect(referencesStepExportPage).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalled();
-    expect(tracked).toEqual([]);
-  });
-
-  it('says nothing for a dismissed dialog, and counts nothing', async () => {
-    saveReferencesStep.mockResolvedValueOnce(null);
-    const exportStep = mount();
-    await act(async () => {
-      await expect(exportStep('svg')).resolves.toBe(false);
-    });
-    expect(toast.success).not.toHaveBeenCalled();
-    expect(toast.error).not.toHaveBeenCalled();
-    expect(tracked).toEqual([]);
-  });
-
-  it('reports a save that failed', async () => {
-    saveReferencesStep.mockRejectedValueOnce(new Error('disk full'));
-    const exportStep = mount();
-    await act(async () => {
-      await expect(exportStep('svg')).resolves.toBe(false);
-    });
-    expect(toast.error).toHaveBeenCalledWith(
-      'Could not export this step',
-      expect.objectContaining({ description: 'disk full' })
+describe('referencesStepExportTitle', () => {
+  it('names a fold, a turn-over and a candidate’s step as the strip does', () => {
+    expect(referencesStepExportTitle(t, { kind: 'step', step: 0 })).toBe('Export step 1');
+    expect(referencesStepExportTitle(t, { kind: 'turn-over', after: 2 })).toBe('Export turn-over');
+    expect(referencesStepExportTitle(t, { kind: 'reference', candidate: 1, step: 3 })).toBe(
+      'Export reference 2, step 4'
     );
   });
 });

@@ -261,6 +261,18 @@ export type PaperExportFormat = 'svg' | 'png';
 /** Whether an export kept the faces no pixel of the page shows (D4 in the plan). */
 export type PaperExportHiddenFaces = 'kept' | 'dropped';
 
+/** Which style a paper export was painted with: the Settings export slot, or a preset by kind. */
+export type PaperExportStyleName = 'export-style' | PaperPresetName;
+
+/** A paper export's sheet: the size the view showed, or one typed in mm. */
+export type PaperExportSheet = 'as-shown' | 'custom';
+
+/** A paper export's page background: none, or a colour — never which colour. */
+export type PaperExportBackground = 'transparent' | 'colour';
+
+/** A PNG's density as the export dialog's picker names it; `none` for an SVG. */
+export type PaperExportResolution = '1x' | '2x' | '3x' | '4x' | '300' | '600' | 'custom' | 'none';
+
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
@@ -768,6 +780,12 @@ export const ANALYTICS_EVENTS = {
    * chokepoint cannot see.
    */
   paperExported: 'paper exported',
+  /**
+   * The export dialog opened on a paper surface's picture — the first step of
+   * the funnel whose last is `paper exported`. Its triggers are toolbar and
+   * context-menu verbs the menu chokepoint does not see.
+   */
+  paperExportOpened: 'paper export opened',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —

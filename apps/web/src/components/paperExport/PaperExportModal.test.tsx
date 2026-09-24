@@ -1,0 +1,488 @@
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  runReferencesShortcut,
+  type ReferencesShortcutActions,
+} from '../../cp-workspace/references/referencesShortcuts';
+import { registerReferencesShortcutExecutor } from '../../keyboard/shortcutRuntime';
+import { installAppKeyboardListener } from '../../lib/appKeyboard';
+import { builtInPaperPreset } from '../../lib/paper/paperPresets';
+import type { PaperScene } from '../../lib/paper/paperScene';
+import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
+import { emptyMultiSelection } from '../../lib/selection';
+import type { PaperExportTarget } from '../../paperExport/paperExportTarget';
+import type { FileService } from '../../platform/fileService';
+import { usePaperExportUiStore } from '../../store/paperExportUiStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { TooltipProvider } from '../ui/Tooltip';
+import { PaperExportModal } from './PaperExportModal';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+// Radix measures its controls; jsdom has nothing to measure with.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+// Radix Select scrolls the selected option into view as it opens.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
+vi.mock('../../analytics/runtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics/runtime')>()),
+  track: () => {},
+}));
+const { service } = vi.hoisted(() => ({
+  service: {
+    saveTextFile: vi.fn(async () => ({ name: 'Crane.svg', path: null })),
+    saveBinaryFile: vi.fn(async () => ({ name: 'Crane.png', path: null })),
+  },
+}));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('../../platform/fileService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../platform/fileService')>()),
+  getFileService: () => service as unknown as FileService,
+}));
+
+const SCENE: PaperScene = {
+  bounds: { minX: 0, minY: 0, maxX: 100, maxY: 50 },
+  sheet: 100,
+  items: [
+    { kind: 'face', face: 0, side: 'front', rings: [[[0, 0], [100, 0], [100, 50]]], shade: 1, hidden: false },
+  ],
+};
+
+function target(overrides: Partial<PaperExportTarget> = {}): PaperExportTarget {
+  return {
+    surface: 'folded-flat',
+    title: 'Export folded figure',
+    fileStem: 'Crane',
+    exportStyle: DEFAULT_PAPER_STYLE,
+    pins: null,
+    buriesFaces: true,
+    sceneKey: ({ style }) => style.paper.front,
+    buildScene: async () => SCENE,
+    paintStyle: (style: PaperStyle) => style,
+    release: vi.fn(),
+    ...overrides,
+  };
+}
+
+const initialSettings = useSettingsStore.getInitialState();
+let root: Root | null = null;
+let container: HTMLDivElement | null = null;
+
+async function open(
+  opened: PaperExportTarget,
+  returnFocus: HTMLElement | null = null,
+  format: 'svg' | 'png' | null = null
+) {
+  await act(async () => {
+    usePaperExportUiStore.getState().open({ target: opened, format, returnFocus });
+  });
+}
+
+const dialog = (title = 'Export folded figure') =>
+  document.querySelector<HTMLElement>(`[role="dialog"][aria-label="${title}"]`);
+const page = () => dialog()?.querySelector<HTMLElement>('[role="document"]') ?? null;
+const button = (name: string) =>
+  [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+    (element) => element.textContent?.trim() === name || element.getAttribute('aria-label') === name
+  );
+const field = (label: string, title?: string) =>
+  dialog(title)?.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`) ?? null;
+const text = () => dialog()?.textContent ?? '';
+
+function key(target: EventTarget, name: string): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+  act(() => {
+    target.dispatchEvent(event);
+  });
+  return event;
+}
+
+/** Settles what a keypress queued: the frame's refocus microtask, a deferred repaint. */
+async function flush() {
+  await act(async () => {});
+}
+
+/** Types into a React-controlled input the way the browser does. */
+function type(input: HTMLInputElement, value: string) {
+  act(() => {
+    input.focus();
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+/** Makes the next SVG save wait until the returned function settles it. */
+function holdNextSave(): (name: string) => Promise<void> {
+  let settle: (result: { name: string; path: null }) => void = () => {};
+  service.saveTextFile.mockImplementationOnce(
+    () => new Promise((resolve) => (settle = resolve))
+  );
+  return async (name) => {
+    await act(async () => settle({ name, path: null }));
+  };
+}
+
+async function submit() {
+  await act(async () => {
+    dialog()?.querySelector('form')?.requestSubmit();
+  });
+}
+
+beforeEach(() => {
+  useSettingsStore.setState(initialSettings, true);
+  usePaperExportUiStore.setState({ request: null });
+  service.saveTextFile.mockClear();
+  // jsdom has no object URLs.
+  URL.createObjectURL = vi.fn(() => 'blob:page');
+  URL.revokeObjectURL = vi.fn();
+  container = document.createElement('div');
+  document.body.append(container);
+  root = createRoot(container);
+  act(() =>
+    root?.render(
+      <TooltipProvider delayDuration={0}>
+        <PaperExportModal />
+      </TooltipProvider>
+    )
+  );
+});
+
+afterEach(() => {
+  act(() => root?.unmount());
+  container?.remove();
+  root = null;
+  container = null;
+  document.body.innerHTML = '';
+  usePaperExportUiStore.setState({ request: null });
+  useSettingsStore.setState(initialSettings, true);
+});
+
+describe('PaperExportModal', () => {
+  it('shows nothing until a surface opens it', () => {
+    expect(dialog()).toBeNull();
+  });
+
+  it('shows the page and states its size, with Export ready and focused', async () => {
+    await open(target());
+    expect(dialog()).not.toBeNull();
+    expect(dialog()?.querySelector('img')?.getAttribute('src')).toBe('blob:page');
+    expect(text()).toMatch(/\d+(\.\d)? × \d+(\.\d)? mm · \d+ KB/);
+    const exportButton = button('Export SVG');
+    expect(exportButton?.disabled).toBe(false);
+    expect(document.activeElement).toBe(exportButton);
+  });
+
+  it('shows Resolution for a PNG, and Keep hidden faces only for an SVG that can bury faces', async () => {
+    await open(target());
+    expect(text()).toContain('Keep hidden faces');
+    expect(text()).not.toContain('Resolution');
+    await act(async () => button('PNG')?.click());
+    expect(text()).toContain('Resolution');
+    expect(text()).not.toContain('Keep hidden faces');
+    expect(text()).toMatch(/px/);
+    expect(button('Export PNG')).toBeTruthy();
+
+    act(() => usePaperExportUiStore.getState().close());
+    await open(target({ buriesFaces: false }));
+    expect(text()).not.toContain('Keep hidden faces');
+  });
+
+  it('asks for a page colour once the page is not transparent', async () => {
+    await open(target());
+    expect(dialog()?.querySelector('input[type="color"]')).toBeNull();
+    await act(async () => button('Transparent background')?.click());
+    expect(dialog()?.querySelector('input[type="color"]')).not.toBeNull();
+  });
+
+  it('closes on Escape, releasing its capture, and hands focus back', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    const opened = target();
+    await open(opened, opener);
+    key(document.body, 'Escape');
+    expect(dialog()).toBeNull();
+    expect(opened.release).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it('leaves Escape to a field that is being typed in', async () => {
+    await open(target());
+    const margin = dialog()?.querySelector<HTMLInputElement>('input[aria-label="Margin"]');
+    expect(margin).toBeTruthy();
+    key(margin!, 'Escape');
+    expect(dialog()).not.toBeNull();
+  });
+
+  it('saves the page when Export is pressed, and closes', async () => {
+    await open(target());
+    await act(async () => {
+      dialog()?.querySelector('form')?.requestSubmit();
+    });
+    expect(service.saveTextFile).toHaveBeenCalledWith(expect.objectContaining({ suggestedName: 'Crane.svg' }));
+    expect(dialog()).toBeNull();
+  });
+
+  it('closes on Cancel without saving', async () => {
+    await open(target());
+    act(() => button('Cancel')?.click());
+    expect(dialog()).toBeNull();
+    expect(service.saveTextFile).not.toHaveBeenCalled();
+  });
+
+  it('closes on a press on the backdrop but not on one inside the page', async () => {
+    await open(target());
+    act(() => page()?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+    expect(dialog()).not.toBeNull();
+    act(() => dialog()?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+    expect(dialog()).toBeNull();
+  });
+
+  it('leaves Escape to a dialog stacked over it', async () => {
+    await open(target());
+    const settings = document.body.appendChild(document.createElement('div'));
+    settings.setAttribute('role', 'dialog');
+    settings.setAttribute('aria-modal', 'true');
+    const inside = settings.appendChild(document.createElement('button'));
+
+    key(inside, 'Escape');
+    expect(dialog()).not.toBeNull();
+
+    settings.remove();
+    key(page()!, 'Escape');
+    expect(dialog()).toBeNull();
+  });
+
+  it('opens on the remembered format, and names the PNG it cannot rasterise', async () => {
+    // 1000 mm at 600 dpi is about 23 900 px a side, past every engine's canvas.
+    useSettingsStore.setState({
+      paperExport: {
+        ...useSettingsStore.getState().paperExport,
+        format: 'png',
+        sheet: { mm: 1000 },
+        pngDpi: 600,
+      },
+    });
+    await open(target());
+    const caption = () => dialog()?.querySelector('.paper-export__caption')?.textContent ?? '';
+    expect(caption()).toMatch(/^Too large to export as PNG: [\d,]+ × [\d,]+ px/);
+    expect(button('Export PNG')?.disabled).toBe(true);
+
+    const sheet = field('Sheet size');
+    type(sheet!, '100');
+    key(sheet!, 'Enter');
+    await flush();
+    expect(caption()).toMatch(/^[\d.]+ × [\d.]+ mm · [\d,]+ × [\d,]+ px$/);
+    expect(button('Export PNG')?.disabled).toBe(false);
+  });
+
+  it('starts a fresh draft when opened over an open dialog, releasing the one it replaces', async () => {
+    const first = target();
+    await open(first);
+    const margin = field('Margin');
+    type(margin!, '12');
+    key(margin!, 'Enter');
+    expect(field('Margin')?.value).toBe('12');
+
+    await open(target({ title: 'Export step 2' }), null, 'png');
+    expect(dialog()).toBeNull();
+    expect(first.release).toHaveBeenCalledTimes(1);
+    expect(dialog('Export step 2')).not.toBeNull();
+    expect(field('Margin', 'Export step 2')?.value).toBe('5');
+    expect(button('Export PNG')).toBeTruthy();
+    // The draft that was dropped is not remembered either.
+    expect(useSettingsStore.getState().paperExport.paddingMm).toBe(5);
+  });
+
+  describe('while a save is in flight', () => {
+    it('cannot be closed, and closes once the file is written', async () => {
+      const settle = holdNextSave();
+      await open(target());
+      await submit();
+      expect(service.saveTextFile).toHaveBeenCalledTimes(1);
+      expect(button('Cancel')?.disabled).toBe(true);
+      expect(button('Close Export folded figure')?.disabled).toBe(true);
+      expect(button('Exporting…')?.disabled).toBe(true);
+
+      key(page()!, 'Escape');
+      expect(dialog()).not.toBeNull();
+      act(() => dialog()?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+      expect(dialog()).not.toBeNull();
+
+      await settle('Crane.svg');
+      expect(dialog()).toBeNull();
+    });
+
+    it('leaves a dialog opened over it open when it settles', async () => {
+      const settle = holdNextSave();
+      await open(target());
+      await submit();
+      await open(target({ title: 'Export step 2' }));
+
+      await settle('Crane.svg');
+      expect(dialog('Export step 2')).not.toBeNull();
+    });
+  });
+
+  describe('focus', () => {
+    it('keeps focus in the dialog when Enter commits a field, where the next Enter exports', async () => {
+      await open(target());
+      const margin = field('Margin');
+      type(margin!, '8');
+      const commit = key(margin!, 'Enter');
+      await flush();
+      expect(field('Margin')?.value).toBe('8');
+      // Not the form's implicit submission, which would save the page before the margin reached it.
+      expect(commit.defaultPrevented).toBe(true);
+      expect(service.saveTextFile).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(page());
+
+      await act(async () => {
+        page()?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+        );
+      });
+      expect(service.saveTextFile).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets go of the colour swatch on Escape, and closes on the next', async () => {
+      await open(target());
+      await act(async () => button('Transparent background')?.click());
+      const swatch = field('Background');
+      act(() => swatch?.focus());
+
+      key(swatch!, 'Escape');
+      await flush();
+      expect(dialog()).not.toBeNull();
+      expect(document.activeElement).toBe(page());
+
+      key(document.activeElement!, 'Escape');
+      expect(dialog()).toBeNull();
+    });
+  });
+
+  describe('style picker', () => {
+    const trigger = () => dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Style"]');
+    const listbox = () => document.querySelector<HTMLElement>('[role="listbox"]');
+    const option = (name: string) =>
+      [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (element) => element.textContent?.trim() === name
+      );
+
+    async function openPicker() {
+      // Enter opens the Select; it is not the dialog's Enter, which would export.
+      await act(async () => {
+        trigger()?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+        );
+      });
+      await flush();
+    }
+
+    it('names the export slot, and rebuilds and repaints the page in a picked preset', async () => {
+      let urls = 0;
+      URL.createObjectURL = vi.fn(() => `blob:page-${++urls}`);
+      const buildScene = vi.fn<PaperExportTarget['buildScene']>(async () => SCENE);
+      await open(target({ sceneKey: ({ style }) => JSON.stringify(style), buildScene }));
+      expect(trigger()?.textContent).toBe('Export style · Default, from display');
+      const before = dialog()?.querySelector('img')?.getAttribute('src');
+      buildScene.mockClear();
+
+      await openPicker();
+      expect(service.saveTextFile).not.toHaveBeenCalled();
+      expect(listbox()).not.toBeNull();
+      await act(async () => option('Diagram')?.click());
+      await flush();
+
+      expect(listbox()).toBeNull();
+      expect(trigger()?.textContent).toBe('Diagram');
+      expect(buildScene).toHaveBeenCalledTimes(1);
+      expect(buildScene.mock.calls[0]?.[0]?.style).toEqual(builtInPaperPreset('diagram').style);
+      expect(dialog()?.querySelector('img')?.getAttribute('src')).not.toBe(before);
+    });
+
+    it('closes the open Select on Escape and leaves the dialog open', async () => {
+      await open(target());
+      await openPicker();
+      expect(listbox()).not.toBeNull();
+      // Radix moves focus onto the selected option as the listbox opens.
+      expect(listbox()?.contains(document.activeElement)).toBe(true);
+
+      key(document.activeElement!, 'Escape');
+      expect(listbox()).toBeNull();
+      expect(dialog()).not.toBeNull();
+    });
+  });
+});
+
+describe('PaperExportModal over the References workspace', () => {
+  const references: ReferencesShortcutActions = {
+    nextStep: vi.fn(),
+    previousStep: vi.fn(),
+    nextCandidate: vi.fn(),
+    previousCandidate: vi.fn(),
+    recompute: vi.fn(),
+    toggleLandmarksFirst: vi.fn(),
+    resetView: vi.fn(),
+    zoomIn: vi.fn(),
+    zoomOut: vi.fn(),
+    clearTarget: vi.fn(),
+    playFold: vi.fn(),
+    exportStep: vi.fn(),
+    exportStepSvg: vi.fn(),
+    exportStepPng: vi.fn(),
+  };
+  let teardown: Array<() => void> = [];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    teardown = [
+      installAppKeyboardListener({
+        getActiveEditingContext: () => 'references',
+        getSelection: () => emptyMultiSelection(),
+        handleMenuAction: () => undefined,
+        selectNone: () => undefined,
+      }),
+      registerReferencesShortcutExecutor((id) => runReferencesShortcut(id, references)),
+    ];
+  });
+
+  afterEach(() => {
+    for (const undo of teardown) undo();
+    teardown = [];
+  });
+
+  it('reaches the workspace with no dialog up', () => {
+    const space = key(document.body, ' ');
+    expect(references.playFold).toHaveBeenCalledTimes(1);
+    expect(space.defaultPrevented).toBe(true);
+  });
+
+  it('keeps Space and the arrows on its focused Export button from the workspace behind', async () => {
+    await open(target());
+    const exportButton = button('Export SVG')!;
+    expect(document.activeElement).toBe(exportButton);
+
+    const space = key(exportButton, ' ');
+    const arrow = key(exportButton, 'ArrowRight');
+    expect(references.playFold).not.toHaveBeenCalled();
+    expect(references.nextStep).not.toHaveBeenCalled();
+    expect(space.defaultPrevented).toBe(false);
+    expect(arrow.defaultPrevented).toBe(false);
+  });
+
+  it('takes Escape for itself: it closes, and the workspace keeps its target', async () => {
+    await open(target());
+    key(button('Export SVG')!, 'Escape');
+    expect(dialog()).toBeNull();
+    expect(references.clearTarget).not.toHaveBeenCalled();
+  });
+});

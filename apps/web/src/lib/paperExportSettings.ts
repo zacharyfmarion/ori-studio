@@ -1,3 +1,4 @@
+import type { PaperExportFormat } from '../analytics/events';
 import { DEFAULT_PAPER_PAGE, normalizePaperPage, type PaperPage } from './paper/paperPage';
 import { DEFAULT_PAPER_PNG_DPI, PAPER_PNG_DPI_RANGE } from './paper/paperPng';
 
@@ -12,13 +13,34 @@ import { DEFAULT_PAPER_PNG_DPI, PAPER_PNG_DPI_RANGE } from './paper/paperPng';
  */
 export interface PaperExportSettings extends PaperPage {
   pngDpi: number;
+  /** The format the export dialog opens on: the last one a file was saved in. */
+  format: PaperExportFormat;
+  /**
+   * The style the dialog's picker last exported with: the export slot, or a
+   * preset by its `paperPresetKey`. A pointer, not a copy — the slot or the
+   * preset as it is at the next export. A key that names no preset any more
+   * reads as the export slot where the presets are known
+   * (`resolvePaperExportStyleChoice`), not here.
+   */
+  style: PaperExportStyleChoice;
 }
+
+/** An image export's format: declared once, with the analytics enum that reports it. */
+export type { PaperExportFormat };
+
+/** The Settings export slot, as the dialog's style picker names it. */
+export const PAPER_EXPORT_STYLE_SLOT = 'export-style';
+
+/** Which style an export paints with: the export slot, or a preset's key. */
+export type PaperExportStyleChoice = typeof PAPER_EXPORT_STYLE_SLOT | (string & {});
 
 export type PaperExportField = keyof PaperExportSettings;
 
 export const DEFAULT_PAPER_EXPORT_SETTINGS: PaperExportSettings = {
   ...DEFAULT_PAPER_PAGE,
   pngDpi: DEFAULT_PAPER_PNG_DPI,
+  format: 'svg',
+  style: PAPER_EXPORT_STYLE_SLOT,
 };
 
 /** Hold a density inside the range the UI offers; anything non-finite is the default. */
@@ -28,7 +50,7 @@ export function clampPaperPngDpi(value: number): number {
 }
 
 /** The painter's page, without the PNG density that only the rasteriser reads. */
-export function paperPageOf(settings: PaperExportSettings): PaperPage {
+export function paperPageOf(settings: Pick<PaperExportSettings, keyof PaperPage>): PaperPage {
   const { sheet, paddingMm, background, keepHiddenFaces } = settings;
   return { sheet, paddingMm, background, keepHiddenFaces };
 }
@@ -39,10 +61,12 @@ export function paperPageOf(settings: PaperExportSettings): PaperPage {
  */
 export function normalizePaperExportSettings(source: unknown): PaperExportSettings {
   if (!source || typeof source !== 'object') return DEFAULT_PAPER_EXPORT_SETTINGS;
-  const { pngDpi } = source as Record<string, unknown>;
+  const { pngDpi, format, style } = source as Record<string, unknown>;
   return {
     ...normalizePaperPage(source),
     pngDpi: typeof pngDpi === 'number' ? clampPaperPngDpi(pngDpi) : DEFAULT_PAPER_PNG_DPI,
+    format: format === 'svg' || format === 'png' ? format : DEFAULT_PAPER_EXPORT_SETTINGS.format,
+    style: typeof style === 'string' && style.length > 0 ? style : DEFAULT_PAPER_EXPORT_SETTINGS.style,
   };
 }
 

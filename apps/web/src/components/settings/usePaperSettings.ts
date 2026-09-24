@@ -16,26 +16,23 @@ import {
   type PaperPresetUnsavedChoice,
 } from '../../analytics';
 import {
-  BUILT_IN_PAPER_PRESETS,
   PAPER_PRESET_FILE_EXTENSION,
   paperPresetKey,
   serializePaperStylePreset,
-  type BuiltInPaperPresetId,
   type PaperPresetParseFailure,
-  type PaperStylePreset,
 } from '../../lib/paper/paperPresets';
+import type { PaperStyle, PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import {
-  paperStyleEquals,
-  type PaperStyle,
-  type PaperStyleField,
-  type PaperStyleValue,
-} from '../../lib/paper/paperStyle';
+  paperPresetRowLabel,
+  paperPresetRows,
+  paperSlotPreset,
+  type PaperPresetRow,
+} from '../../lib/paperPresetRows';
 import type { PaperStyleSlot } from '../../lib/paperStyleSettings';
 import { exportFilename } from '../../platform/exportFilename';
 import { getFileService, type FileService } from '../../platform/fileService';
 import { requestChoice, type ChoiceDialogOptions } from '../../store/commandDialogStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { paperPresetRowLabel } from './PaperPresetCard';
 import { useSettingsNestedDialog } from './settingsNestedDialog';
 
 /**
@@ -45,14 +42,6 @@ import { useSettingsNestedDialog } from './settingsNestedDialog';
  */
 export type PaperPresetChoice = 'applied' | 'save' | 'cancelled';
 
-/** One row of the preset list: a built-in, named by its id through i18n, or a user's, named by them. */
-export interface PaperPresetRow {
-  /** Stable across renders and unique in the list, for React keys and tests. */
-  key: string;
-  preset: PaperStylePreset;
-  /** The built-in's id, or null for a preset the user saved or imported. */
-  builtIn: BuiltInPaperPresetId | null;
-}
 
 export interface PaperSettingsBinding {
   slot: PaperStyleSlot;
@@ -139,36 +128,14 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
   const style = slot === 'export' ? (paperStyle.export ?? paperStyle.display) : paperStyle.display;
   const editable = slot === 'display' || !exportFollowsDisplay;
 
-  const presets = useMemo<PaperPresetRow[]>(
-    () => [
-      ...BUILT_IN_PAPER_PRESETS.map((preset) => ({
-        key: paperPresetKey(preset),
-        preset,
-        builtIn: preset.id,
-      })),
-      ...paperStyle.presets.map((preset) => ({
-        key: paperPresetKey(preset),
-        preset,
-        builtIn: null,
-      })),
-    ],
-    [paperStyle.presets]
-  );
+  const presets = useMemo(() => paperPresetRows(paperStyle.presets), [paperStyle.presets]);
 
   // The slot the chip speaks for: the export slot shows display's style while
-  // it follows it, so it shows display's preset too.
-  const chipSlot: PaperStyleSlot = editable ? slot : 'display';
-  const appliedPreset = useMemo(() => {
-    const key = paperStyle.appliedPreset[chipSlot];
-    const recorded = key === null ? null : (presets.find((row) => row.key === key) ?? null);
-    if (recorded) return recorded;
-    // Nothing recorded: a fresh install, or a style carried over from before
-    // the slot remembered where it came from. A style that *is* a preset,
-    // field for field, is that preset — which is what a first run shows, since
-    // the default style is the first built-in.
-    return presets.find((row) => paperStyleEquals(row.preset.style, style)) ?? null;
-  }, [chipSlot, paperStyle.appliedPreset, presets, style]);
-  const modified = appliedPreset !== null && !paperStyleEquals(style, appliedPreset.preset.style);
+  // it follows it, so it shows display's preset too (`paperSlotPreset`).
+  const { applied: appliedPreset, modified } = useMemo(
+    () => paperSlotPreset(paperStyle, slot, presets),
+    [paperStyle, slot, presets]
+  );
   const unsaved = editable && (modified || appliedPreset === null);
 
   const applyPreset = useCallback(

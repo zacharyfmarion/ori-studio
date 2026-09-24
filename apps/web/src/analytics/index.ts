@@ -40,8 +40,12 @@ export type {
   LandingSectionId,
   LandingSurface,
   OptimizerKind,
+  PaperExportBackground,
   PaperExportFormat,
   PaperExportHiddenFaces,
+  PaperExportResolution,
+  PaperExportSheet,
+  PaperExportStyleName,
   PaperExportSurface,
   PaperOverrideSurface,
   PaperPresetName,
@@ -77,6 +81,11 @@ export {
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export { trackDesktopDownload } from './trackDesktopDownload';
+export {
+  trackPaperExported,
+  trackPaperExportOpened,
+  type PaperExportedEvent,
+} from './trackPaperExport';
 export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';

@@ -140,16 +140,8 @@ const BAR = [
   'Fit',
   'Play Fold',
   'Recompute References',
-  'Export step',
+  'Export step…',
 ];
-
-/** The export menu's rows, once the button has been pressed. */
-const exportRows = () =>
-  [...document.querySelectorAll<HTMLElement>('[role="menu"] [role="menuitem"]')].map((row) => ({
-    label: row.querySelector('.context-menu__label')?.textContent ?? '',
-    disabled: row.getAttribute('aria-disabled') === 'true',
-    row,
-  }));
 
 describe('ReferencesViewportToolbar', () => {
   it('holds the zoom cluster, Fit and Recompute, and nothing to overflow', () => {
@@ -191,26 +183,20 @@ describe('ReferencesViewportToolbar', () => {
     expect(button('Play Fold')?.disabled).toBe(true);
   });
 
-  it('opens the two export formats from one button and dispatches them by registry id', () => {
-    // As the simulator's export control: one glyph, a row per format. The rows
-    // are the catalog's commands, so the chord, the context-menu row and the
-    // button are one path.
+  it('exports through one button, dispatched by registry id', () => {
+    // The dialog it opens chooses the format; the button is the catalog's
+    // command, so the chord, the context-menu row and the button are one path.
     render();
 
-    press(button('Export step'));
-    expect(exportRows().map((entry) => entry.label)).toEqual([
-      'Export step as SVG…',
-      'Export step as PNG…',
-    ]);
-    press(exportRows()[1]?.row);
+    press(button('Export step…'));
 
-    expect(run).toHaveBeenLastCalledWith('references.exportStepPng');
+    expect(run).toHaveBeenLastCalledWith('references.exportStep');
   });
 
   it('disables Export when nothing is showing', () => {
     render({ hasDiagram: false });
 
-    expect(button('Export step')?.disabled).toBe(true);
+    expect(button('Export step…')?.disabled).toBe(true);
   });
 
   it("takes Recompute's gating from the catalog", () => {

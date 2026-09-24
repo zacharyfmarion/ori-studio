@@ -285,6 +285,7 @@
   },
   "references": {
     "categoryLabel": "Референсы",
+    "exportStep": "Экспортировать шаг…",
     "exportStepPng": "Экспортировать шаг в PNG…",
     "exportStepSvg": "Экспортировать шаг в SVG…",
     "nextCandidate": "Следующий вариант",

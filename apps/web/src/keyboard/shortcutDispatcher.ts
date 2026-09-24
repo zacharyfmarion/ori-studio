@@ -104,6 +104,22 @@ export function isOpenLayerTarget(target: EventTarget | null): boolean {
   return target.closest('[role="menu"], [data-radix-popper-content-wrapper]') !== null;
 }
 
+/**
+ * Does the target sit inside a dialog that owns every key aimed at it — one
+ * marked `data-shortcut-barrier`?
+ *
+ * A modal is a layer too, but one that holds focus across ordinary buttons and
+ * switches, so the question the two predicates above ask of a key does not
+ * cover it: Space on its focused Export button is not typing and not a menu,
+ * and the workspace behind would take it — References plays its fold on Space,
+ * steps on the arrows. Opt-in by marker rather than by `aria-modal`, which the
+ * app also puts on drawers and sheets that do want the workspace's keys.
+ */
+export function isShortcutBarrierTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return target.closest('[data-shortcut-barrier]') !== null;
+}
+
 export function handleShortcutKeyDown(
   event: KeyboardEvent,
   options: ShortcutDispatchOptions
@@ -112,7 +128,8 @@ export function handleShortcutKeyDown(
     event.defaultPrevented ||
     event.isComposing ||
     isShortcutEditingTarget(event.target) ||
-    isOpenLayerTarget(event.target)
+    isOpenLayerTarget(event.target) ||
+    isShortcutBarrierTarget(event.target)
   ) {
     return false;
   }

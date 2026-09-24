@@ -63,6 +63,7 @@ export type ReferencesShortcutId =
   | 'references.zoomOut'
   | 'references.clearTarget'
   | 'references.playFold'
+  | 'references.exportStep'
   | 'references.exportStepSvg'
   | 'references.exportStepPng';
 export type ShortcutActionId =
@@ -422,6 +423,9 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   // Unbound: an export is a menu row and a toolbar button, not a key one
   // reaches for while reading. Registered all the same so the row, the button
   // and a chord the user binds are one verb through the panel's executor.
+  // The dialog opens on the format last used; the two below open it on theirs,
+  // and stay for anyone who bound them before there was a dialog to choose in.
+  referencesShortcut('references.exportStep', 'Export step…', null),
   referencesShortcut('references.exportStepSvg', 'Export step as SVG…', null),
   referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
 ];

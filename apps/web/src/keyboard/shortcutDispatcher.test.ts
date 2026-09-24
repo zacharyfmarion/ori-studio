@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { handleShortcutKeyDown, isOpenLayerTarget } from './shortcutDispatcher';
+import { handleShortcutKeyDown, isOpenLayerTarget, isShortcutBarrierTarget } from './shortcutDispatcher';
 import { SHORTCUT_DEFINITIONS } from './shortcuts';
 
 describe('shortcut dispatcher', () => {
@@ -279,6 +279,31 @@ describe('an open layer owns its keys', () => {
     ).toBe(false);
 
     expect(cpAction).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('leaves every key inside a shortcut barrier to the dialog that holds it', () => {
+    const host = mount(
+      '<div data-shortcut-barrier=""><button id="export">Export</button></div>' +
+        '<button id="outside">Outside</button>'
+    );
+    const inside = host.querySelector('#export') as HTMLElement;
+    expect(isShortcutBarrierTarget(inside)).toBe(true);
+    expect(isShortcutBarrierTarget(host.querySelector('#outside'))).toBe(false);
+    expect(isShortcutBarrierTarget(document.body)).toBe(false);
+
+    // Space on a focused button is not typing and not a menu; the barrier is
+    // what keeps it from playing a fold behind the dialog.
+    const references = vi.fn();
+    const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'target', { value: inside });
+    expect(
+      handleShortcutKeyDown(event, {
+        scopeStack: ['references', 'global'],
+        executors: { references },
+      })
+    ).toBe(false);
+    expect(references).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
   });
 });

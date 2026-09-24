@@ -9,18 +9,11 @@
  * inside, which is not markup a browser accepts.
  */
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { Check, Download, Trash2 } from 'lucide-react';
-import { paperPresetLabel } from '../../i18n/enumLabels';
 import { paperThumbnail } from '../../lib/paper/paperThumbnail';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
+import { paperPresetRowLabel, type PaperPresetRow } from '../../lib/paperPresetRows';
 import { IconButton } from '../ui/IconButton';
-import type { PaperPresetRow } from './usePaperSettings';
-
-/** A preset's name: a built-in's is translated from its id, a saved one's is the user's. */
-export function paperPresetRowLabel(t: TFunction, row: PaperPresetRow): string {
-  return row.builtIn ? paperPresetLabel(t, row.builtIn) : row.preset.name;
-}
 
 export function PaperPresetCard({
   row,

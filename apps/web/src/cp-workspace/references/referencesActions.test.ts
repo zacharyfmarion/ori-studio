@@ -48,8 +48,7 @@ describe('buildReferencesActions', () => {
       'reset-view',
       'zoom-in',
       'zoom-out',
-      'export-step-svg',
-      'export-step-png',
+      'export-step',
     ]);
   });
 
@@ -71,29 +70,25 @@ describe('buildReferencesActions', () => {
       'references.resetView',
       'references.zoomIn',
       'references.zoomOut',
-      'references.exportStepSvg',
-      'references.exportStepPng',
+      'references.exportStep',
     ]);
   });
 
-  it('offers the export verbs while a diagram is showing, and says why not otherwise', () => {
-    const svg = command(state(), 'export-step-svg');
-    expect(svg.label).toBe('Export step as SVG…');
-    expect(svg.disabled).toBe(false);
-    expect(svg.hint).toBeUndefined();
-    expect(command(state(), 'export-step-png').label).toBe('Export step as PNG…');
+  it('offers one export verb while a diagram is showing, and says why not otherwise', () => {
+    const exportStep = command(state(), 'export-step');
+    expect(exportStep.label).toBe('Export step…');
+    expect(exportStep.disabled).toBe(false);
+    expect(exportStep.hint).toBeUndefined();
     // A finished card, an empty strip, a finding: nothing to paint.
-    const blank = state({ hasDiagram: false });
-    for (const id of ['export-step-svg', 'export-step-png'] as const) {
-      expect(command(blank, id).disabled).toBe(true);
-      expect(command(blank, id).hint).toBe('No step is showing');
-    }
+    const blank = command(state({ hasDiagram: false }), 'export-step');
+    expect(blank.disabled).toBe(true);
+    expect(blank.hint).toBe('No step is showing');
   });
 
   it('separates export from the camera verbs in the menu', () => {
     const actions = buildReferencesActions(state(), { t });
     const before = actions.findIndex(
-      (action) => action.kind === 'command' && action.id === 'export-step-svg'
+      (action) => action.kind === 'command' && action.id === 'export-step'
     );
     expect(actions[before - 1]).toEqual({ kind: 'separator', id: 'before-export' });
   });

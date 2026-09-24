@@ -2525,6 +2525,103 @@ a.context-menu__item {
   grid-column: 1 / -1;
 }
 
+/*
+ * The paper export dialog (`PaperExportModal`): the export frame, with the page
+ * drawn at fit and its size stated under it.
+ *
+ * The page is a box of the page's own aspect, sized to the pane through
+ * container units, rather than an image `object-fit` into the pane: a fitted
+ * image's box is the whole pane, so a transparent page's checkerboard would
+ * fill the letterbox too, and the margin would stop reading as page.
+ */
+.paper-export__preview-column {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+}
+
+.paper-export__preview {
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.paper-export__sheet {
+  --page-inset: var(--space-3);
+
+  width: min(
+    calc(100cqw - 2 * var(--page-inset)),
+    calc((100cqh - 2 * var(--page-inset)) * var(--page-aspect, 1))
+  );
+  aspect-ratio: var(--page-aspect, 1);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+/* The export frame's own preview rule positions a bare image; this one is sized by its sheet. */
+.paper-export__sheet img {
+  position: static;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+}
+
+.paper-export__sheet--transparent {
+  background: repeating-conic-gradient(#dcdcdc 0% 25%, #ffffff 0% 50%) 0 0 / 12px 12px;
+}
+
+.paper-export__sheet--stale {
+  opacity: 0.55;
+}
+
+.paper-export__state {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.paper-export__state--error {
+  color: var(--status-danger);
+}
+
+.paper-export__caption {
+  min-height: 1.2em;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-export__caption--error {
+  color: var(--status-danger);
+}
+
+.paper-export .simple-modal__footer {
+  justify-content: flex-end;
+}
+
+.paper-export__save-error {
+  margin-right: auto;
+  color: var(--status-danger);
+  font-size: 0.72rem;
+}
+
+.export-modal__field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
@@ -3891,6 +3988,11 @@ a.context-menu__item {
 
   .export-modal__preview {
     min-height: 210px;
+  }
+
+  /* The page on top at up to 40% of the screen, the options scrolling under it, the footer pinned. */
+  .paper-export {
+    grid-template-rows: minmax(210px, 40vh) minmax(0, 1fr) auto;
   }
 
   .settings-modal__document {

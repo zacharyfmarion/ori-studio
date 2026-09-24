@@ -35,6 +35,20 @@ export const DEFAULT_PAPER_PAGE: PaperPage = {
   keepHiddenFaces: true,
 };
 
+/**
+ * The sheet size a user picks when they leave "as shown": a round number that
+ * is the kind of sheet a diagram is drawn at, well inside the range.
+ */
+export const DEFAULT_PAPER_SHEET_MM = 150;
+
+/** The page colour a transparent page turns into when the user asks for one. */
+export const DEFAULT_PAPER_BACKGROUND: Hex = '#ffffff';
+
+/** The sheet size in mm the size field shows: the chosen one, or the default while "as shown". */
+export function sheetMmOf(sheet: PaperSheetSize): number {
+  return sheet === 'as-shown' ? DEFAULT_PAPER_SHEET_MM : sheet.mm;
+}
+
 /** The sheet sizes the UI offers, in mm. */
 export const PAPER_SHEET_MM_RANGE = { min: 10, max: 1000, step: 1 } as const;
 

@@ -261,6 +261,7 @@
   },
   "references": {
     "categoryLabel": "참조",
+    "exportStep": "단계 내보내기…",
     "exportStepPng": "단계를 PNG로 내보내기…",
     "exportStepSvg": "단계를 SVG로 내보내기…",
     "nextCandidate": "다음 후보",

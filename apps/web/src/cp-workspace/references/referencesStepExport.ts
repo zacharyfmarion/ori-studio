@@ -14,26 +14,20 @@
  * own creases, and a file has nothing under it, so the build-up has to be in
  * the diagram — drawn as the card draws it, in the aux pen.
  *
- * Pure: the hook beside it (`useReferencesStepExport`) reads the settings, the
- * camera and the title at the moment of export and hands them here, so a test
- * can paint a step in Node and read the page.
+ * Pure: the export dialog's References target (`referencesExportTarget`)
+ * captures the camera, the face and the pen when the dialog opens and builds
+ * its scenes here, so a test can paint a step in Node and read the page.
  */
 import type { PaperPage } from '../../lib/paper/paperPage';
-import { paperSvgToPng } from '../../lib/paper/paperPng';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
-import { paperSceneToSvg, type PaperSvgResult } from '../../lib/paper/paperSvg';
-import { exportFilename } from '../../platform/exportFilename';
-import { getFileService, type FileService } from '../../platform/fileService';
+import type { PaperScene } from '../../lib/paper/paperScene';
 import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
 import { diagramToPaperScene } from './diagramToPaperScene';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
 import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
 import { createOverlayProjector, type DiagramSheet } from './stepDiagramGeometry';
-
-/** A step is an image, so these are the only two formats that make sense. */
-export type ReferencesStepExportFormat = 'svg' | 'png';
 
 /**
  * The sheet's longer side on the page, in CSS px, when the big view is not
@@ -56,10 +50,10 @@ export function referencesSheetCssPx(
   return px > 0 ? px : REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX;
 }
 
-export interface ReferencesStepExportOptions {
+/** What the step's scene is built from. */
+export interface ReferencesStepSceneOptions {
   /** The export style; the `references` policy is applied here. */
   style: PaperStyle;
-  page: PaperPage;
   /** The picture is of the paper's back — the side the reader is on. */
   mirrored: boolean;
   /** The sheet's longer side on the page, in CSS px ({@link referencesSheetCssPx}). */
@@ -68,10 +62,12 @@ export interface ReferencesStepExportOptions {
   lineWidth: number;
   /** The References "Show auxiliary creases" option; null follows the style. */
   showAux?: boolean | null;
+  /** The page's background — what a letter off the paper is haloed in — or null for a transparent page. */
+  background: PaperPage['background'];
 }
 
 /**
- * The step painted on `page`.
+ * The step as a scene: the diagram through the big view's projector.
  *
  * The projector is the big view's, rebuilt from the sheet size alone: model
  * space to scene px at the scale that puts the sheet's longer side at
@@ -81,10 +77,10 @@ export interface ReferencesStepExportOptions {
  * the origin is the model's. The ink is the view's (`canvasDiagramInk`), so a
  * letter and a mark's ring are the size they are on screen.
  */
-export function referencesStepExportPage(
+export function referencesStepScene(
   diagram: StepDiagramModel,
-  { style, page, mirrored, sheetCssPx, lineWidth, showAux = null }: ReferencesStepExportOptions
-): PaperSvgResult {
+  { style, mirrored, sheetCssPx, lineWidth, showAux = null, background }: ReferencesStepSceneOptions
+): PaperScene {
   const longer = Math.max(diagram.sheet.width, diagram.sheet.height, Number.EPSILON);
   const scale = sheetCssPx / longer;
   const project = createOverlayProjector(
@@ -92,23 +88,25 @@ export function referencesStepExportPage(
     canvasDiagramInk(lineWidth),
     canvasDiagramPens(lineWidth, style.arrows.width * PT_TO_CSS_PX)
   );
-  const scene = diagramToPaperScene(diagram, {
+  return diagramToPaperScene(diagram, {
     style,
     project,
     mirrored,
     showAux,
-    ...(page.background === null ? {} : { ground: page.background }),
+    ...(background === null ? {} : { ground: background }),
   });
-  // The painter takes the style as the view sees it: the policy applied, and
-  // every crease in its own pen, as the other surfaces hand theirs.
-  // Its aux switch stays on: the scene already holds exactly the aux-pen lines
-  // the page carries, and the creases an earlier step made are among them.
+}
+
+/**
+ * The style the painter draws a step's scene with: the style as the view sees
+ * it — the policy applied, and every crease in its own pen, as the other
+ * surfaces hand theirs. Its aux switch stays on: the scene already holds
+ * exactly the aux-pen lines the page carries, and the creases an earlier step
+ * made are among them.
+ */
+export function referencesStepPaintStyle(style: PaperStyle): PaperStyle {
   const painted = surfacePaperStyle(style, PAPER_STYLE_POLICIES.references);
-  return paperSceneToSvg(
-    scene,
-    { ...painted, auxCreases: { ...painted.auxCreases, visible: true } },
-    page
-  );
+  return { ...painted, auxCreases: { ...painted.auxCreases, visible: true } };
 }
 
 /** Which diagram is being exported, for the file's name. */
@@ -164,45 +162,4 @@ export function referencesSequenceSubject(
   let after = 0;
   for (let i = 0; i < index; i += 1) after = numbers[i] ?? after;
   return { kind: 'turn-over', after };
-}
-
-export interface SaveReferencesStepOptions {
-  page: PaperSvgResult;
-  format: ReferencesStepExportFormat;
-  /** The density a PNG rasterises at; the page is in points, so this alone sets its pixel size. */
-  pngDpi?: number;
-  /** Base name, before sanitising and before the extension. */
-  name: string;
-  fileService?: FileService;
-}
-
-/** The saved file's name, or null when the user dismissed the save dialog. */
-export async function saveReferencesStep({
-  page,
-  format,
-  pngDpi,
-  name,
-  fileService = getFileService(),
-}: SaveReferencesStepOptions): Promise<string | null> {
-  if (format === 'svg') {
-    const result = await fileService.saveTextFile({
-      title: 'Export Step SVG',
-      contents: page.svg,
-      suggestedName: exportFilename(name, 'svg'),
-      path: null,
-      extensions: ['svg'],
-    });
-    return result?.name ?? null;
-  }
-
-  const bytes = await paperSvgToPng(page, pngDpi);
-  const result = await fileService.saveBinaryFile({
-    title: 'Export Step PNG',
-    bytes,
-    suggestedName: exportFilename(name, 'png'),
-    path: null,
-    extensions: ['png'],
-    mimeType: 'image/png',
-  });
-  return result?.name ?? null;
 }
