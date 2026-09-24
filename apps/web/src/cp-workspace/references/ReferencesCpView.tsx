@@ -51,6 +51,7 @@ import {
   DEFAULT_SURFACE_SHARES,
   EMPTY_FOLDED,
   foldPoseGeometry,
+  PAPER_TILT_SHADE,
   type FoldPaint,
 } from './fold/foldPoseGeometry';
 import type { FoldScene } from './fold/foldScene';
@@ -259,17 +260,6 @@ const PAPER_FRONT_VAR = '--references-paper-front';
 const PAPER_BACK_VAR = '--references-paper-back';
 const PAPER_FRONT_FALLBACK: Rgba = [...hexToUnitRgb(DEFAULT_PAPER_STYLE.paper.front), 1];
 const PAPER_BACK_FALLBACK: Rgba = [...hexToUnitRgb(DEFAULT_PAPER_STYLE.paper.back), 1];
-/**
- * What a tilted flap is shaded toward. `--paper-shadow` is the folded figure's
- * own shadow ink and would be the token to use, but the theme emits it as a
- * `color-mix()` the renderer's colour reader cannot parse, so the same
- * derivation is made here: the text colour, at the shares `applyTheme` gives
- * the shadow on a light and on a dark ground.
- */
-const TEXT_COLOR_VAR = '--text-primary';
-const TEXT_FALLBACK: Rgba = [0.91, 0.929, 0.941, 1];
-const PAPER_SHADE_LIGHT_ALPHA = 0.18;
-const PAPER_SHADE_DARK_ALPHA = 0.28;
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 const POINT_OUTLINE_CSS = 1.4;
 /** Highlighted creases draw this much wider than their neighbours. */
@@ -420,16 +410,9 @@ function foldPaint(canvas: HTMLCanvasElement, mirrored: boolean): Omit<FoldPaint
     valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
     mountainSlot: diagramDashSlot('mountain'),
     valleySlot: diagramDashSlot('valley'),
-    shade: paperShade(canvas, up),
+    // The paper's own colour, darkened as it tilts: see `PAPER_TILT_SHADE`.
+    shade: PAPER_TILT_SHADE,
   };
-}
-
-/** The text colour at the shadow's share for the paper's lightness. */
-function paperShade(canvas: HTMLCanvasElement, paper: Rgba): Rgba {
-  const text = readCssVarColor(canvas, TEXT_COLOR_VAR, TEXT_FALLBACK);
-  const luminance = 0.2126 * paper[0] + 0.7152 * paper[1] + 0.0722 * paper[2];
-  const alpha = luminance > 0.5 ? PAPER_SHADE_LIGHT_ALPHA : PAPER_SHADE_DARK_ALPHA;
-  return [text[0], text[1], text[2], alpha];
 }
 
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */

@@ -60,6 +60,18 @@ export interface FoldPaint {
   modelToUser: (p: Point) => Point;
 }
 
+/**
+ * How a tilted face is shaded on screen: its own colour darkened toward black,
+ * by up to a quarter where the paper is edge-on — less light reaches paper
+ * turned away from the reader, so a bend reads as rounded in whatever colour
+ * the paper is: a grey curl in white paper, a darker yellow in yellow.
+ *
+ * Black rather than a theme ink. The flap was once the theme's dark ground,
+ * shaded toward its light text; the paper is the style's now, and the dark
+ * theme's near-white text over light paper shaded nothing at all.
+ */
+export const PAPER_TILT_SHADE: Rgba = [0, 0, 0, 0.25];
+
 /** The surface's sizes, as shares of the sheet's short side. */
 export interface FoldSurfaceShares {
   radius: number;

@@ -1967,6 +1967,12 @@ alone cannot decide between coincident layers.
       stands on: the paper's face on the sheet, the ground off it. The `action`
       letters were the style's black edge ink with a dark halo, which read as
       a bold smudge on the paper and would vanish off it (`labelOnPaper`).
+- [x] A folding flap's bend is shaded in the paper's own colour: darkened
+      toward black by up to a quarter where it tilts edge-on
+      (`PAPER_TILT_SHADE`). It was shaded toward the theme's text colour, a
+      holdover from when the flap was the dark ground; the dark theme's
+      near-white text over the style's light paper shaded nothing, and the
+      curl lost its rounded look.
 
 ### Validation per phase
 

@@ -3,6 +3,7 @@ import type { Rgba } from '../../renderer/types';
 import {
   DEFAULT_SURFACE_SHARES,
   foldPoseGeometry,
+  PAPER_TILT_SHADE,
   type FoldPaint,
   type FoldSurfaceShares,
 } from './foldPoseGeometry';
@@ -182,6 +183,33 @@ describe('foldPoseGeometry, curled', () => {
     const { fills } = foldPoseGeometry(scene, pose(0), [], paint);
     expect(fillArea(fills.position)).toBeCloseTo(2);
     for (let i = 0; i < fills.count; i += 1) expect(rgba(fills.color, i * 4)).toEqual(UP);
+  });
+
+  // The bend reads as rounded in the paper's own colour: darker where the
+  // paper tilts from the reader, the same hue all the way round, and never
+  // darker than the shade's strength allows.
+  it('shades a tilted face in its own colour, whatever the paper', () => {
+    for (const up of [
+      [1, 1, 1, 1],
+      [1, 1, 0.196, 1],
+    ] as Rgba[]) {
+      const own = { ...paint, up, other: up, shade: PAPER_TILT_SHADE };
+      const { fills } = foldPoseGeometry(scene, pose(Math.PI / 2), [], own);
+      // Raw, not through `rgba`, whose rounding is coarser than the check.
+      const shaded = [...Array(fills.count).keys()]
+        .map((i) => Array.from(fills.color.slice(i * 4, i * 4 + 4)))
+        .filter((color) => color[0]! < up[0] - 1e-6);
+      expect(shaded.length).toBeGreaterThan(0);
+      for (const color of shaded) {
+        const k = 1 - color[0]! / up[0];
+        expect(k).toBeLessThanOrEqual(PAPER_TILT_SHADE[3] + 1e-6);
+        // The same share off every channel: a darker version of the paper
+        // (to what a float32 colour carries).
+        expect(color[1]).toBeCloseTo(up[1] * (1 - k), 5);
+        expect(color[2]).toBeCloseTo(up[2] * (1 - k), 5);
+        expect(color[3]).toBe(1);
+      }
+    }
   });
 
   it('lands exactly on the other half, hovering, with the bend shaded', () => {
