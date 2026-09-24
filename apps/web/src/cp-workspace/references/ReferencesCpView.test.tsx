@@ -409,6 +409,42 @@ describe('ReferencesCpView vertices', () => {
     mount({ geometry: DENSE_GEOMETRY, highlightVertexIdx: new Set([0, 1]) });
     expect(uploads.setOverlayPoints.mock.calls.at(-1)?.[0]?.count).toBe(2);
   });
+
+  // X11: `--fold-border` is the style's edge ink inside the workspace, black
+  // on a dark theme's ground. A dot on the sheet's side is half off the paper,
+  // so it keeps the style's fill and takes the theme's ink for its ring.
+  it('inks the picked vertex by the ground under it', () => {
+    const square = {
+      segEndpoints: Float64Array.from([
+        ...[0, 0, 100, 0],
+        ...[100, 0, 100, 100],
+        ...[100, 100, 0, 100],
+        ...[0, 100, 0, 0],
+        ...[0, 0, 50, 50],
+        ...[50, 50, 100, 100],
+      ]),
+      segAttr: new Int32Array(6 * 5),
+    } as unknown as CpGeometryTransport;
+    const creaseVisibility = {
+      visible: null,
+      dimmed: null,
+      dimAlpha: 1,
+      borderLineIds: new Set([1, 2, 3, 4]),
+    };
+    container?.style.setProperty('--fold-border', '#000000');
+    container?.style.setProperty('--references-ground-ink', '#e0e0e0');
+    const vertices = vertexPointsFromTransport(square);
+    const hex = (rgba: Float32Array) =>
+      `#${[...rgba.slice(0, 3)].map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('')}`;
+    const dot = (x: number, y: number) => {
+      const idx = vertices.findIndex((p) => p.x === x && p.y === y);
+      mount({ geometry: square, creaseVisibility, selected: { kind: 'vertex', idx } });
+      const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
+      return { fill: hex(overlay.fill), stroke: hex(overlay.stroke) };
+    };
+    expect(dot(50, 50)).toEqual({ fill: '#000000', stroke: '#000000' });
+    expect(dot(100, 0)).toEqual({ fill: '#000000', stroke: '#e0e0e0' });
+  });
 });
 
 describe('ReferencesCpView device pixel ratio', () => {

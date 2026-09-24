@@ -3,6 +3,8 @@ import type { Rgba } from '../../renderer/types';
 import {
   DEFAULT_SURFACE_SHARES,
   foldPoseGeometry,
+  foldPoseOutline,
+  foldPosePaper,
   PAPER_TILT_SHADE,
   type FoldPaint,
   type FoldSurfaceShares,
@@ -340,5 +342,116 @@ describe('foldPoseGeometry, turning the sheet over', () => {
     const faces = [...Array(fills.count).keys()].map((i) => rgba(fills.color, i * 4)[0]);
     expect(faces.every((red) => Math.abs(red - UP[0]) >= 1e-3)).toBe(true);
     expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
+  });
+});
+
+describe('the paper at a pose', () => {
+  // X11: a mark over the canvas takes the style's ink on the paper and the
+  // theme's off it, and while a fold plays the moving flap is paper wherever
+  // it has swung — so the marks need its outline as the canvas draws it.
+  const flat: FoldPaint = { ...paint, modelToUser: (p) => p };
+  const box = (points: readonly { x: number; y: number }[]) => ({
+    minX: Math.min(...points.map((p) => p.x)),
+    maxX: Math.max(...points.map((p) => p.x)),
+    minY: Math.min(...points.map((p) => p.y)),
+    maxY: Math.max(...points.map((p) => p.y)),
+  });
+  // Five places: the mesh arrives as float32.
+  const near = (value: ReturnType<typeof box>) =>
+    Object.fromEntries(Object.entries(value).map(([key, v]) => [key, Number(v.toFixed(5))]));
+  /** Every fill vertex, as points. */
+  const vertices = (position: Float32Array) =>
+    Array.from({ length: position.length / 2 }, (_, i) => ({ x: position[i * 2]!, y: position[i * 2 + 1]! }));
+  /** Inside a counter-clockwise convex ring, within a hair. */
+  const inside = (ring: readonly { x: number; y: number }[], p: { x: number; y: number }) =>
+    ring.every((a, i) => {
+      const b = ring[(i + 1) % ring.length]!;
+      return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) >= -1e-6;
+    });
+
+  it('is the flap where it lies at the start of the swing, and its mirror once over', () => {
+    expect(near(box(foldPoseOutline(scene, pose(0), RIGID)))).toEqual({
+      minX: 0.5,
+      maxX: 1,
+      minY: 0,
+      maxY: 1,
+    });
+    expect(near(box(foldPoseOutline(scene, pose(Math.PI, 1), RIGID)))).toEqual({
+      minX: 0,
+      maxX: 0.5,
+      minY: 0,
+      maxY: 1,
+    });
+    // Edge-on, a rigid flap covers nothing but its hinge.
+    const edgeOn = box(foldPoseOutline(scene, pose(Math.PI / 2), RIGID));
+    expect(edgeOn.maxX - edgeOn.minX).toBeCloseTo(0, 9);
+  });
+
+  it('holds the mesh the canvas draws, curl and all, through the whole swing', () => {
+    for (const angle of [0.3, Math.PI / 2, 2, 2.9, Math.PI]) {
+      const outline = foldPoseOutline(scene, pose(angle, angle === Math.PI ? 0.5 : 0));
+      const { fills } = foldPoseGeometry(
+        scene,
+        pose(angle, angle === Math.PI ? 0.5 : 0),
+        [],
+        flat
+      );
+      const mesh = vertices(fills.position);
+      for (const vertex of mesh) expect(inside(outline, vertex), `${angle}`).toBe(true);
+      // And no more than it: the outline's extent is the mesh's.
+      expect(near(box(outline)), `${angle}`).toEqual(near(box(mesh)));
+    }
+  });
+
+  it('is the sheet on the resting side of the line and the flap as it stands, while a fold plays', () => {
+    const sheet = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+    ];
+    // At rest, the outline alone, with an empty second ring.
+    expect(foldPosePaper(sheet, scene, null)).toEqual([sheet, []]);
+    expect(foldPosePaper(sheet, null, pose(1))).toEqual([sheet, []]);
+    const [resting, flap] = foldPosePaper(sheet, scene, pose(Math.PI, 1));
+    // The paper the flap left is ground now.
+    expect(near(box(resting))).toEqual({ minX: 0, maxX: 0.5, minY: 0, maxY: 1 });
+    expect(near(box(flap))).toEqual(near(box(foldPoseOutline(scene, pose(Math.PI, 1)))));
+    // A pose on a flap the card does not have is no pose.
+    expect(foldPosePaper(sheet, scene, pose(1, 0, 3))).toEqual([sheet, []]);
+  });
+
+  it('is only the rolling sheet while the whole sheet turns over', () => {
+    const turning: FoldScene = {
+      kind: 'turn-over',
+      flaps: [
+        {
+          chord: CHORD,
+          side: 1,
+          polygon: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 1, y: 1 },
+            { x: 0, y: 1 },
+          ],
+          creased: [],
+          whole: true,
+        },
+      ],
+      sheetShortSide: 1,
+      reach: 0.5,
+    };
+    const sheet = turning.flaps[0]!.polygon;
+    const [resting, rolling] = foldPosePaper(sheet, turning, pose(Math.PI / 2));
+    expect(resting).toEqual([]);
+    const { fills } = foldPoseGeometry(turning, pose(Math.PI / 2), [], flat);
+    expect(near(box(rolling))).toEqual(near(box(vertices(fills.position))));
+    // Once over, the sheet's own footprint again.
+    expect(near(box(foldPoseOutline(turning, pose(Math.PI))))).toEqual({
+      minX: 0,
+      maxX: 1,
+      minY: 0,
+      maxY: 1,
+    });
   });
 });

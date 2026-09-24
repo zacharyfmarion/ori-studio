@@ -7,7 +7,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { cardChromeRects, StepDiagram } from './StepDiagram';
 import {
   createDiagramRenderContext,
-  diagramPrimitiveShape,
+  diagramShapes,
   labelOnPaper,
 } from './diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
@@ -415,7 +415,8 @@ describe('the letters on a card', () => {
         const texts = elements(markup, 'text');
         const rings = elements(markup, 'circle');
         expect(texts).toHaveLength(6);
-        expect(rings).toHaveLength(5);
+        // Each ring twice: through the paper, and through the ground (X11).
+        expect(rings).toHaveLength(10);
         const boxes = texts.map(boxOf);
         const reserved = cardChromeRects(100, chrome);
         boxes.forEach((box, i) => {
@@ -671,6 +672,7 @@ describe('the same shapes, inked for a file', () => {
     '--fold-valley': '#445566',
     '--fold-border': '#000000',
     '--fold-unassigned': '#aabbcc',
+    '--references-arrow': '#405060',
     '--references-crease-alpha': '0.5',
     '--cp-reference-input': '#ff00ff',
     '--bg-primary': '#fafafa',
@@ -688,17 +690,11 @@ describe('the same shapes, inked for a file', () => {
   ];
   const draw = (mirrored: boolean, inline: boolean) => {
     const project = createDiagramProjector({ width: 1, height: 1 }, 100, mirrored);
-    const context = createDiagramRenderContext(
-      primitives,
-      { width: 1, height: 1 },
-      project,
-      {},
-      { showAux: true, erode: 0 },
-      inline ? diagramInlineInk(tokens, '#405060') : null
-    );
-    return renderToStaticMarkup(
-      <svg>{primitives.map((primitive, index) => diagramPrimitiveShape(primitive, index, context))}</svg>
-    );
+    const context = createDiagramRenderContext(primitives, { width: 1, height: 1 }, project, {
+      creases: { showAux: true, erode: 0 },
+      inline: inline ? diagramInlineInk(tokens) : null,
+    });
+    return renderToStaticMarkup(<svg>{diagramShapes(primitives, context)}</svg>);
   };
 
   it('gives a letter on the paper the paper’s face for its halo, on screen too', () => {
@@ -745,6 +741,177 @@ describe('the same shapes, inked for a file', () => {
     for (const path of elements(file, 'path')) {
       expect(path).toMatchObject({ fill: 'none', stroke: '#405060' });
     }
+  });
+});
+
+describe('a mark that leaves the paper', () => {
+  // X11: an arrow, the turn-over glyph and a ring draw in the style's ink on
+  // the paper and in the ground's off it — each drawn twice, through a clip of
+  // the paper and a clip of everything else. Letters keep their halo rule, and
+  // creases lie on the paper.
+  const UNIT = { width: 1, height: 1 };
+  const marks: StepDiagramModel = {
+    sheet: UNIT,
+    primitives: [
+      { kind: 'sheet', width: 1, height: 1 },
+      { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+      { kind: 'line', from: [0.5, 0.5], to: [1.3, 0.5], style: 'arrow' },
+      { kind: 'point', at: [1, 0.5], style: 'normal' },
+      { kind: 'label', at: [1, 0.5], text: 'B', style: 'normal' },
+      { kind: 'fold-arrow', out: foldArrowArc([0.2, 0.5], [0.8, 0.5], [0.5, 0.5])! },
+      { kind: 'turn-over', at: [0.5, 1.05] },
+    ],
+  };
+  const mount = (markup: string): HTMLElement => {
+    const host = document.createElement('div');
+    host.innerHTML = markup;
+    return host;
+  };
+  const clipOf = (element: Element | null) => element?.getAttribute('clip-path') ?? null;
+  const tokens: DiagramInlineTokens = {
+    '--references-paper-front': '#fffdf7',
+    '--references-paper-back': '#e9e9e9',
+    '--fold-mountain': '#db1f24',
+    '--fold-valley': '#1c5cd9',
+    '--fold-border': '#000000',
+    '--fold-unassigned': '#9aa4ad',
+    '--references-arrow': '#000000',
+    '--references-crease-alpha': '0.75',
+    '--cp-reference-input': '#c91d87',
+    '--bg-primary': '#ffffff',
+  };
+  const inlineDraw = (ground: string, outline?: readonly (readonly [number, number])[]) => {
+    const project = createDiagramProjector(UNIT, 100);
+    const context = createDiagramRenderContext(marks.primitives, UNIT, project, {
+      inline: diagramInlineInk({ ...tokens, '--bg-primary': ground }),
+      ...(outline ? { outline } : {}),
+    });
+    return renderToStaticMarkup(<svg>{diagramShapes(marks.primitives, context)}</svg>);
+  };
+
+  it('draws each on a card twice, the ground’s copy under the paper’s, through a clip pair', () => {
+    const svg = mount(renderToStaticMarkup(<StepDiagram primitives={marks} size={100} />));
+    const [inside, outside] = [...svg.querySelectorAll('defs > clipPath')];
+    expect(inside).toBeDefined();
+    expect(outside).toBeDefined();
+    // The paper is the sheet the card fills: its corners through the fit.
+    expect(inside!.querySelector('polygon')!.getAttribute('points')).toBe('10,90 90,90 90,10 10,10');
+    expect(outside!.querySelector('path')!.getAttribute('clip-rule')).toBe('evenodd');
+    expect(outside!.querySelector('path')!.getAttribute('d')).toContain('M 10 90 L 90 90 L 90 10 L 10 10 Z');
+
+    const grounds = [...svg.querySelectorAll('.step-diagram__ground')];
+    // The arrow-style line, the ring, the fold arrow, the turn-over glyph.
+    expect(grounds).toHaveLength(4);
+    for (const ground of grounds) {
+      const pair = ground.parentElement!;
+      const copies = [...pair.children];
+      expect(copies).toHaveLength(2);
+      // Ground first, so where the paper overlaps itself the paper's ink is on top.
+      expect(copies[0]).toBe(ground);
+      expect(clipOf(ground)).toBe(`url(#${outside!.id})`);
+      expect(clipOf(copies[1]!)).toBe(`url(#${inside!.id})`);
+      // The same shape in both, told apart by its group alone.
+      expect(copies[1]!.innerHTML).toBe(ground.innerHTML);
+    }
+    // Creases and letters are drawn once, unclipped.
+    expect(svg.querySelectorAll('.step-diagram__line--valley')).toHaveLength(1);
+    expect(svg.querySelectorAll('text')).toHaveLength(1);
+    expect(svg.querySelector('text')!.closest('[clip-path]')).toBeNull();
+  });
+
+  it('names its clip pair apart from every other card’s', () => {
+    const host = mount(
+      renderToStaticMarkup(
+        <>
+          <StepDiagram primitives={marks} size={100} />
+          <StepDiagram primitives={marks} size={100} />
+        </>
+      )
+    );
+    const ids = [...host.querySelectorAll('clipPath')].map((clip) => clip.id);
+    expect(ids).toHaveLength(4);
+    expect(new Set(ids).size).toBe(4);
+    for (const id of ids) expect(id).toMatch(/^[\w-]+$/);
+  });
+
+  it('clips to the outline the paper is filled with, and a letter’s halo follows it too', () => {
+    // A mark well inside the sheet, with its letter.
+    const lettered: StepDiagramModel['primitives'] = [
+      { kind: 'sheet', width: 1, height: 1 },
+      { kind: 'point', at: [0.8, 0.3], style: 'normal' },
+      { kind: 'label', at: [0.8, 0.3], text: 'C', style: 'normal' },
+    ];
+    const project = createDiagramProjector(UNIT, 100);
+    const draw = (context: ReturnType<typeof createDiagramRenderContext>) =>
+      mount(renderToStaticMarkup(<svg>{diagramShapes(lettered, context)}</svg>));
+    const sheet = draw(createDiagramRenderContext(lettered, UNIT, project));
+    expect(sheet.querySelector('text')!.getAttribute('class')).toContain('step-diagram__label--on-paper');
+    // A paper narrower than the sheet — what the canvas fills is the one
+    // reading of where the paper is — leaves the mark and its letter off it.
+    const outline = [
+      [0, 0],
+      [0.6, 0],
+      [0.6, 1],
+      [0, 1],
+    ] as const;
+    const context = createDiagramRenderContext(lettered, UNIT, project, { outline });
+    expect(context.paper).toEqual(outline.map((corner) => project(corner)));
+    const narrow = draw(context);
+    expect(narrow.querySelector('clipPath polygon')!.getAttribute('points')).toBe(
+      '10,90 58,90 58,10 10,10'
+    );
+    expect(narrow.querySelector('text')!.getAttribute('class')).not.toContain('--on-paper');
+  });
+
+  it('is all ground where there is no paper to clip to', () => {
+    const project = createDiagramProjector(UNIT, 100);
+    const context = createDiagramRenderContext(marks.primitives, UNIT, project, { outline: [] });
+    expect(context.clip).toBeNull();
+    const svg = mount(renderToStaticMarkup(<svg>{diagramShapes(marks.primitives, context)}</svg>));
+    expect(svg.querySelectorAll('clipPath')).toHaveLength(0);
+    const grounds = [...svg.querySelectorAll('.step-diagram__ground')];
+    expect(grounds).toHaveLength(4);
+    for (const ground of grounds) expect(clipOf(ground)).toBeNull();
+    expect(svg.querySelectorAll('[clip-path]')).toHaveLength(0);
+  });
+
+  it('in a file whose ground takes the marks’ own inks, is one copy with no clip at all', () => {
+    const file = inlineDraw('#ffffff');
+    expect(file).not.toContain('clipPath');
+    expect(file).not.toContain('clip-path');
+    expect(elements(file, 'circle')).toHaveLength(1);
+    expect(elements(file, 'circle')[0]!.stroke).toBe('#000000');
+  });
+
+  it('in a file on a dark page, lifts the copy off the paper and keeps the paper’s', () => {
+    const file = inlineDraw('#15181c');
+    const svg = mount(file);
+    const [inside, outside] = [...svg.querySelectorAll('defs > clipPath')];
+    expect(inside!.id).toMatch(/^step-diagram-/);
+    // The same outline, the same id: two drawings sharing one share its paper.
+    expect(mount(inlineDraw('#15181c')).querySelector('clipPath')!.id).toBe(inside!.id);
+    const rings = [...svg.querySelectorAll('circle')];
+    expect(rings).toHaveLength(2);
+    const byClip = (ring: Element) => clipOf(ring.closest('[clip-path]'));
+    const off = rings.find((ring) => byClip(ring) === `url(#${outside!.id})`)!;
+    const on = rings.find((ring) => byClip(ring) === `url(#${inside!.id})`)!;
+    expect(off.getAttribute('stroke')).toBe('#ffffff');
+    expect(on.getAttribute('stroke')).toBe('#000000');
+    // The arrow's heads and strokes, off and on.
+    const heads = [...svg.querySelectorAll('polygon')].filter((p) => !p.closest('defs'));
+    expect(heads.map((head) => [byClip(head), head.getAttribute('fill')])).toEqual([
+      [`url(#${outside!.id})`, '#ffffff'],
+      [`url(#${inside!.id})`, '#000000'],
+      [`url(#${outside!.id})`, '#ffffff'],
+      [`url(#${inside!.id})`, '#000000'],
+    ]);
+    // Nothing that lies on the paper is drawn twice: the valley, and the letter.
+    const valley = svg.querySelectorAll('line[stroke="#1c5cd9"]');
+    expect(valley).toHaveLength(1);
+    expect(valley[0]!.closest('[clip-path]')).toBeNull();
+    expect(svg.querySelectorAll('text')).toHaveLength(1);
+    expect(svg.querySelector('text')!.closest('[clip-path]')).toBeNull();
+    expect(file).not.toContain('class=');
   });
 });
 

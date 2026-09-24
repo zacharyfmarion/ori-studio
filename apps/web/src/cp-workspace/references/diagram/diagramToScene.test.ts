@@ -115,3 +115,98 @@ describe('diagramToScene', () => {
     expect(diagramToScene(primitives, COLORS, 2).strokes!.dashPatterns![3]).toEqual([]);
   });
 });
+
+describe('diagramToScene, a line in the arrow’s pen', () => {
+  // X11: an arrow-style line can leave the paper, and where it does it takes
+  // the ground's ink — the rule the card applies to the same line by clipping.
+  const ARROW: Rgba = [0.1, 0.2, 0.3, 1];
+  const GROUND: Rgba = [0.9, 0.9, 0.9, 1];
+  const colors = { ...COLORS, arrow: ARROW } as DiagramInkColors;
+  const outline = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ] as const;
+  const paper = { outline, ground: GROUND };
+  const near = (values: ArrayLike<number>) => Array.from(values).map((v) => Number(v.toFixed(6)));
+  const inkOf = (scene: ReturnType<typeof diagramToScene>, i: number) =>
+    near(scene.strokes!.color.slice(i * 4, i * 4 + 4));
+
+  it('is cut where it crosses the paper’s outline, each piece in its ink', () => {
+    const scene = diagramToScene(
+      [{ kind: 'line', from: [-0.5, 0.5], to: [1.5, 0.5], style: 'arrow' }],
+      colors,
+      1,
+      { paper }
+    );
+    expect(scene.strokes?.count).toBe(3);
+    expect(near(scene.strokes!.a)).toEqual([-0.5, 0.5, 0, 0.5, 1, 0.5]);
+    expect(near(scene.strokes!.b)).toEqual([0, 0.5, 1, 0.5, 1.5, 0.5]);
+    expect([0, 1, 2].map((i) => inkOf(scene, i))).toEqual([near(GROUND), near(ARROW), near(GROUND)]);
+    // Every piece is the same pen, dashing on from where the last one stopped.
+    const slot = diagramDashSlot('arrow');
+    expect(Array.from(scene.strokes!.dashSlot!)).toEqual([slot, slot, slot]);
+    expect(near(scene.strokes!.dashPhase!)).toEqual([0, 0.5, 1.5]);
+  });
+
+  it('carries its own dash phase into every piece', () => {
+    const scene = diagramToScene(
+      [{ kind: 'line', from: [0.5, 0.5], to: [0.5, 2], style: 'arrow', dashPhase: 3 }],
+      colors,
+      1,
+      { paper }
+    );
+    expect(scene.strokes?.count).toBe(2);
+    expect(near(scene.strokes!.dashPhase!)).toEqual([3, 3.5]);
+    expect([inkOf(scene, 0), inkOf(scene, 1)]).toEqual([near(ARROW), near(GROUND)]);
+  });
+
+  it('is whole in its own ink on the paper, and whole in the ground’s off it', () => {
+    const on = diagramToScene(
+      [{ kind: 'line', from: [0.2, 0.2], to: [0.8, 0.8], style: 'arrow' }],
+      colors,
+      1,
+      { paper }
+    );
+    expect(on.strokes?.count).toBe(1);
+    expect(inkOf(on, 0)).toEqual(near(ARROW));
+    const off = diagramToScene(
+      [{ kind: 'line', from: [1.2, 0.2], to: [1.8, 0.8], style: 'arrow' }],
+      colors,
+      1,
+      { paper }
+    );
+    expect(off.strokes?.count).toBe(1);
+    expect(inkOf(off, 0)).toEqual(near(GROUND));
+    // With no paper in scope, nothing is paper.
+    const none = diagramToScene(
+      [{ kind: 'line', from: [0.2, 0.2], to: [0.8, 0.8], style: 'arrow' }],
+      colors,
+      1,
+      { paper: { outline: [], ground: GROUND } }
+    );
+    expect(inkOf(none, 0)).toEqual(near(GROUND));
+  });
+
+  it('leaves every other line alone, and every line without a paper to cut at', () => {
+    const across = [-0.5, 0.5] as const;
+    const scene = diagramToScene(
+      [
+        { kind: 'line', from: across, to: [1.5, 0.5], style: 'valley' },
+        { kind: 'line', from: across, to: [1.5, 0.5], style: 'highlight' },
+      ],
+      colors,
+      1,
+      { paper }
+    );
+    expect(scene.strokes?.count).toBe(2);
+    const bare = diagramToScene(
+      [{ kind: 'line', from: across, to: [1.5, 0.5], style: 'arrow' }],
+      colors,
+      1
+    );
+    expect(bare.strokes?.count).toBe(1);
+    expect(inkOf(bare, 0)).toEqual(near(ARROW));
+  });
+});

@@ -10,12 +10,11 @@
  * creases an earlier step made always are, and the pattern's own aux lines
  * are when the References option says so (`referencesAuxCreases`). Everything the painter has no word for — the fold
  * arrow, the turn-over glyph, a band's wash, the rings and the letters — is
- * drawn by `diagramPrimitiveShape`, the one implementation that draws them on
+ * drawn by `diagramShapes`, the one implementation that draws them on
  * screen, into a markup item with its colours written in (D12, D13: the
  * References inks and paper through the `references` policy). No React state
  * and no store: a test hands it a model and reads the page.
  */
-import { createElement, Fragment } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type {
   PaperItem,
@@ -31,7 +30,7 @@ import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/pap
 import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import {
   createDiagramRenderContext,
-  diagramPrimitiveShape,
+  diagramShapes,
   type DiagramRenderContext,
 } from './diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
@@ -85,12 +84,14 @@ export interface DiagramToPaperSceneOptions {
    * The ground a letter's halo is painted in — the page's background, or
    * white when the page has none, since a letter is pushed off the sheet on
    * purpose and its halo is what it stands on there. On screen it is the
-   * workspace's ground.
+   * workspace's ground. A mark that leaves the sheet — an arrow, the turn-over
+   * glyph, a ring — is inked against it there: the style's ink where that
+   * reads, black or white where it does not (`referencesGroundInk`).
    */
   ground?: Hex;
 }
 
-/** A letter's halo when the page has no background: a printed diagram's paper. */
+/** The ground when the page has none: a printed diagram's paper, which is how a transparent page reads. */
 const DEFAULT_GROUND: Hex = '#ffffff';
 
 /**
@@ -143,19 +144,23 @@ export function diagramToPaperScene(
   const corners = outline.map(point);
   const sheetPx = Math.max(sheet.width, sheet.height) * project.scale;
 
-  const context = createDiagramRenderContext(
-    drawn,
-    sheet,
-    project,
+  const context = createDiagramRenderContext(drawn, sheet, project, {
     // No box to hold the letters in, as on the big view: a card's bounds are
     // its viewBox, and a page has no edge of its own. Charging a letter for
     // leaving a box the reader never saw puts it somewhere the view does not,
     // which is the one thing an as-shown export must not do; the page grows
     // to hold them instead.
-    {},
-    { showAux, erode: seen.erode },
-    diagramInlineInk(inlineTokens(seen, options.ground ?? DEFAULT_GROUND), seen.arrows.color)
-  );
+    layout: {},
+    creases: { showAux, erode: seen.erode },
+    // The page's ground is also what a mark off the sheet is inked against:
+    // the style's ink where that reads on it, black or white where it does
+    // not (X11 of the paper export plan). The paper it is clipped to is the
+    // face below, the sheet's own corners.
+    inline: diagramInlineInk(inlineTokens(seen, options.ground ?? DEFAULT_GROUND)),
+    // The face below, which a letter on it is haloed in: the caller's word
+    // over the projector's handedness, as for the face itself.
+    back: mirrored,
+  });
 
   /** A line on the sheet, in scene px; an aux line's end on the sheet's edge is flagged for erode. */
   const lineItem = (role: PaperLineRole, from: SheetPoint, to: SheetPoint): PaperLineItem => ({
@@ -235,10 +240,10 @@ export function diagramToPaperScene(
 }
 
 /**
- * The tokens the card's classes read, as the style has them: the eight the
+ * The tokens the card's classes read, as the style has them: those the
  * workspace root carries, the accent the light theme gives a reference (a
  * printed diagram is on light paper) — every letter's ink — and the page's
- * ground for the halo of a letter off the paper.
+ * ground, for the halo of a letter off the paper and the ink of a mark off it.
  */
 function inlineTokens(seen: PaperStyle, ground: Hex): DiagramInlineTokens {
   return {
@@ -251,7 +256,9 @@ function inlineTokens(seen: PaperStyle, ground: Hex): DiagramInlineTokens {
 /**
  * The listed primitives drawn by their shapes, as one markup item; null when
  * there are none, or none of them draws anything. The indices are into the
- * drawn list, which is what the context's letters are keyed by.
+ * drawn list, which is what the context's letters are keyed by. The clip pair
+ * the marks among them are drawn through, when any need it, is in the same
+ * item: a page is one document, and the item is where the marks are.
  */
 function markupItem(
   drawn: readonly StepDiagramPrimitive[],
@@ -260,8 +267,7 @@ function markupItem(
   bounds: SceneBounds
 ): PaperMarkupItem | null {
   if (indices.length === 0) return null;
-  const shapes = indices.map((index) => diagramPrimitiveShape(drawn[index]!, index, context));
-  const svg = renderToStaticMarkup(createElement(Fragment, null, ...shapes));
+  const svg = renderToStaticMarkup(diagramShapes(drawn, context, { indices }));
   if (svg === '') return null;
   return { kind: 'markup', svg, bounds, hidden: false };
 }

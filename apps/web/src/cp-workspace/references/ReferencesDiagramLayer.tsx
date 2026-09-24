@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useCallback,
+  useId,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
@@ -8,13 +9,23 @@ import {
 } from 'react';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
-import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/DiagramPrimitives';
+import {
+  createDiagramRenderContext,
+  diagramShapes,
+  type DiagramRenderContext,
+} from './diagram/DiagramPrimitives';
 import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
 import type { FoldPose } from './fold/foldPlayback';
+import { foldPosePaper } from './fold/foldPoseGeometry';
 import type { FoldScene } from './fold/foldScene';
 import { symbolFlaps, symbolOpacity } from './fold/foldSymbolFade';
 import type { FoldPoseSink } from './fold/foldTransport';
-import { createOverlayProjector } from './stepDiagramGeometry';
+import {
+  createOverlayProjector,
+  offPaperPathData,
+  paperRingPoints,
+  type SheetPoint,
+} from './stepDiagramGeometry';
 
 /**
  * The half of a step's diagram the crease-pattern renderer cannot draw.
@@ -37,11 +48,27 @@ import { createOverlayProjector } from './stepDiagramGeometry';
  * The fold reaches it the way it reaches the canvas: as a pose pushed through
  * the handle each frame, never as React state. A symbol that rides the moving
  * paper is wrapped in a group tagged with its flap, and a pose sets the
- * group's opacity in place (`foldSymbolFade`).
+ * group's opacity in place (`foldSymbolFade`). The paper the marks are clipped
+ * to moves with it: the flap is paper wherever it has swung, and the place it
+ * lifted from is ground (`foldPosePaper`), so the clip's rings are set in place
+ * too.
  */
 export interface ReferencesDiagramLayerProps {
   /** The step's symbols, in model space, and the sheet they were measured against. */
   model: StepDiagramModel | null;
+  /**
+   * The outline the canvas fills the paper inside, in model space
+   * (`ReferencesDiagramScene.outline`): where a mark takes the style's ink, and
+   * where a letter's halo is the paper's.
+   */
+  outline: readonly SheetPoint[];
+  /**
+   * The picture is of the paper's back, as the canvas under it is: which face
+   * a letter on the paper is haloed in. Said here rather than read off the
+   * camera, whose model space is left-handed — its `mirrored` is true on the
+   * front (`DiagramRenderOptions.back`).
+   */
+  mirrored: boolean;
   /** The canvas's live camera, or null before the first frame. */
   camera: ReferencesDiagramView | null;
   /** The reader's crease width, which is also this drawing's pen. */
@@ -54,12 +81,25 @@ export interface ReferencesDiagramLayerProps {
 
 export type ReferencesDiagramLayerHandle = FoldPoseSink;
 
+/** What a pose is applied against: the render in force. */
+interface LayerLive {
+  context: DiagramRenderContext | null;
+  outline: readonly SheetPoint[];
+  fold: FoldScene | null;
+}
+
 export const ReferencesDiagramLayer = forwardRef<
   ReferencesDiagramLayerHandle,
   ReferencesDiagramLayerProps
->(function ReferencesDiagramLayer({ model, camera, lineWidth, arrowWidth, fold = null }, ref) {
+>(function ReferencesDiagramLayer(
+  { model, outline, mirrored, camera, lineWidth, arrowWidth, fold = null },
+  ref
+) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const poseRef = useRef<FoldPose | null>(null);
+  const liveRef = useRef<LayerLive>({ context: null, outline, fold });
+  // The clip pair's ids: this layer shares its document with every card.
+  const id = useId();
   const project = useMemo(
     () =>
       camera
@@ -75,8 +115,14 @@ export const ReferencesDiagramLayer = forwardRef<
   // number over its corner, so a letter goes wherever its mark is.
   const context = useMemo(
     () =>
-      model && project ? createDiagramRenderContext(model.primitives, model.sheet, project) : null,
-    [model, project]
+      model && project
+        ? createDiagramRenderContext(model.primitives, model.sheet, project, {
+            outline,
+            id: `references-diagram-${id}`,
+            back: mirrored,
+          })
+        : null,
+    [model, project, outline, id, mirrored]
   );
   // Each symbol's flaps, as the group's tag: `"0"`, `"0 1"` for one riding both
   // halves of a twin, or nothing for one that stays put.
@@ -96,6 +142,19 @@ export const ReferencesDiagramLayer = forwardRef<
       const riding = (group.dataset.foldFlap ?? '').split(' ').map(Number);
       group.style.opacity = String(symbolOpacity(riding, pose));
     }
+    const live = liveRef.current;
+    const clip = live.context?.clip;
+    if (!live.context || !clip) return;
+    const { project: at } = live.context;
+    const resting = live.outline.map(([x, y]) => ({ x, y }));
+    const rings = foldPosePaper(resting, live.fold, pose).map((ring) =>
+      ring.map((p) => at([p.x, p.y]))
+    );
+    const inside = svg.querySelectorAll<SVGPolygonElement>(`[id="${clip.inside}"] polygon`);
+    inside.forEach((polygon, index) => {
+      polygon.setAttribute('points', paperRingPoints(rings[index] ?? []));
+    });
+    svg.querySelector(`[id="${clip.outside}"] path`)?.setAttribute('d', offPaperPathData(rings));
   }, []);
   useImperativeHandle(
     ref,
@@ -108,8 +167,10 @@ export const ReferencesDiagramLayer = forwardRef<
     [applyPose]
   );
   // A render can mount a fresh group — a new camera, a re-themed picture —
-  // and the fresh group knows nothing of the pose in force.
+  // and the fresh group knows nothing of the pose in force; nor does a clip
+  // drawn for a new camera.
   useLayoutEffect(() => {
+    liveRef.current = { context, outline, fold };
     applyPose();
   });
 
@@ -123,16 +184,19 @@ export const ReferencesDiagramLayer = forwardRef<
       style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}
       aria-hidden="true"
     >
-      {model.primitives.map((primitive, index) => {
-        const shape = diagramPrimitiveShape(primitive, index, context);
-        const riding = flaps?.[index] ?? '';
-        return riding === '' ? (
-          shape
-        ) : (
-          <g key={index} data-fold-flap={riding}>
-            {shape}
-          </g>
-        );
+      {diagramShapes(model.primitives, context, {
+        // Two rings, the second empty at rest: a pose adds the lifted flap.
+        rings: [context.paper, []],
+        wrap: (shape, index) => {
+          const riding = flaps?.[index] ?? '';
+          return riding === '' ? (
+            shape
+          ) : (
+            <g key={index} data-fold-flap={riding}>
+              {shape}
+            </g>
+          );
+        },
       })}
     </svg>
   );

@@ -566,15 +566,18 @@ the ground ink where it does not.
 - **The paper** is the outline the sheet is filled with — the hull
   `sheetOutline` that the canvas and the cards already share — and, while a
   fold plays, the moving flap's outline too, since it is paper and filled as
-  such (if the marks show during a fold at all; Phase 1 checks). The symbol
+  such (the marks do show during a fold: only those riding the flap fade,
+  and a fold card rests folded — Phase 1 found). The symbol
   layer's `paper`, which `labelOnPaper` reads, is the square's corners
   (`sheetCorners`) today; it moves to the same outline, so letters and marks
   agree on where the paper is.
 - **The marks** are the fold arrows (arc and head), straight lines in the
-  arrow style, the turn-over glyph and mark rings — the ones that were
-  `--fold-border` on main. Letters keep their own rule (the reference colour,
-  haloed by what they stand on). Creases and edges lie on the paper and are
-  untouched.
+  arrow style, the turn-over glyph, mark rings and the canvas's dot on a
+  picked or named vertex — the ones that were `--fold-border` on main.
+  Letters keep their own rule (the reference colour, haloed by what they
+  stand on — the face the view shows, which the caller names: a projector
+  onto the canvas's model space reports a mirror on the front). Creases and
+  edges lie on the paper and are untouched.
 - **The ground ink on screen** is the theme's own value of the mark's token —
   what main drew with. Inside the workspace the style has re-set the
   `--fold-*` names (D12), so the theme's values are reached through aliases
@@ -598,6 +601,10 @@ the ground ink where it does not.
 - The canvas (`diagram/diagramToScene.ts`) splits an arrow-style line where it
   crosses the outline (a segment against a convex polygon) and packs each
   piece with its ink.
+- The canvas's vertex dot (`highlightedVerticesToOverlayPoints`) cannot be
+  clipped, so its ink goes by where the vertex lies: the style's on the
+  paper, the theme's off it, and on the paper's edge — most references —
+  the style's fill ringed in the theme's ink.
 - The export's markup item (`diagramToPaperScene.ts`) carries the same clip
   pair, with the ground ink resolved from the page as above.
 
@@ -820,22 +827,58 @@ CP canvas, and the crease-pattern export's own rendering of the pattern.
 
 ### Phase 1 — References: ink by ground
 
-- [ ] Root-level aliases for the theme's inks that the workspace re-sets; a
+- [x] Root-level aliases for the theme's inks that the workspace re-sets; a
       test that inside `.references-workspace` the alias gives the theme's
       value while `--fold-*` gives the style's
-- [ ] `--references-arrow` from `arrows.color`; arrows, heads and the canvas's
+      — `--theme-fold-{mountain,valley,border,unassigned}` and
+      `--references-ground-ink` on `:root` in `theme.css`. jsdom inherits a
+      custom property but never substitutes `var()`, so the test shows that
+      nothing but `:root` declares or sets the aliases, then resolves what the
+      workspace inherits against `:root` as a browser does: the dark and the
+      light theme's `--fold-border`, while the workspace's own is the style's.
+      The colour a browser hands the canvas is still a browser check.
+- [x] `--references-arrow` from `arrows.color`; arrows, heads and the canvas's
       arrow lines read it (E13); tests
-- [ ] Symbol layer: arrows, the turn-over glyph and rings in two inks,
+- [x] Symbol layer: arrows, the turn-over glyph and rings in two inks,
       clipped by the paper outline, on the cards and the big view (and the
       flap's outline during a fold, if they show then); tests on the clip
-- [ ] Canvas: arrow-style lines split at the outline, each piece in its ink;
-      tests
-- [ ] Export: `diagramToPaperScene`'s markup in the same two inks, the ground
-      ink from the page by contrast; tests (a transparent page unchanged, a
-      dark background lifts the off-paper arrows)
+      — they do show during a fold: only the marks riding the moving flap
+      fade (`foldSymbolFade`), and a fold card rests folded. So the big
+      view's clip follows the pose (`foldPosePaper`: the sheet on the resting
+      side plus the flap's posed outline, `foldPoseOutline`). The paper the
+      layer is told of (`outline`) is the canvas's hull (`sheetOutline`), a
+      card's its sheet rect.
+- [x] Canvas: arrow-style lines split at the outline, each piece in its ink;
+      tests — at the resting outline only: while a fold plays, a piece riding
+      the flap keeps the ink it was cut in, where the symbol layer's clip
+      follows the pose. Left so because no step draws such a line
+      (ReferenceFinder's arrow is an arc; a planner step has no arrow-pen
+      line); a later phase that adds one, or an as-shown export mid-fold,
+      re-cuts at `foldPosePaper`.
+- [x] Canvas: the picked or named vertex's dot, which review found still in
+      the style's ink (`--fold-border`) and half lost on a dark ground at the
+      sheet's edge — inked by where the vertex lies (`paperSideOf`); tests
+- [x] Letters' halo on the paper takes the face from the caller
+      (`DiagramRenderContext.back`), not the projector's handedness: the big
+      view and a step's export haloed a letter on the front in the back's
+      colour (pre-existing, e007f9f99); tests
+- [x] One way to draw a diagram's shapes with their clip pair
+      (`diagramShapes`), so no shape names a clip its document lacks
+- [x] Export: `diagramToPaperScene`'s markup in the same two inks, the ground
+      ink from the page by contrast; tests (a transparent page unchanged —
+      pinned byte for byte to c53cc04d9's markup — and a dark background
+      lifts the off-paper arrows)
 - [ ] Browser: dark and light themes, a card and the big view, a fold whose
-      arrow leaves the sheet
-- [ ] Validate; commit
+      arrow leaves the sheet — not run by the implementing agent or the one
+      that applied review (no browser in either session). Check that
+      `getComputedStyle(workspaceRoot).getPropertyValue('--references-ground-ink')`
+      is the theme's `--fold-border` and not the style's edge ink; that a
+      card's turn-over glyph and an arrow arcing off the sheet read on the
+      dark ground; that the big view's clip follows the flap through Play; that
+      a picked vertex on the sheet's edge (Find) reads on both grounds; and
+      that a letter on the front face is haloed in the front's colour. In
+      Chromium and WebKit
+- [x] Validate; commit
 
 ### Phase 2 — The pattern rails: main's look
 

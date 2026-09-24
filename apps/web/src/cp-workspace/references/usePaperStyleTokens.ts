@@ -33,6 +33,12 @@ import { referencesShowsAux } from './referencesAuxCreases';
  * with them: how faint an earlier crease's grey and an earlier step's creases
  * draw is derived from the style's inks over the style's paper
  * (`referencesInk.ts`), because that is what they sit on.
+ *
+ * `--references-arrow` is the style's arrow pen colour, which the arrows, their
+ * heads and the turn-over glyph draw in on the paper — the pen the export has
+ * always drawn them with (E13 of the paper export plan). Off the paper a mark
+ * takes the theme's ink instead, through `--references-ground-ink`, which is
+ * declared on `:root` and never set here.
  */
 export const REFERENCES_PAPER_TOKENS = [
   '--references-paper-front',
@@ -41,6 +47,7 @@ export const REFERENCES_PAPER_TOKENS = [
   '--fold-valley',
   '--fold-border',
   '--fold-unassigned',
+  '--references-arrow',
   '--references-crease-alpha',
   '--references-dim-alpha',
 ] as const;
@@ -128,6 +135,7 @@ export function referencesPaperTokens(style: PaperStyle): ReferencesPaperTokens 
     '--fold-valley': valley,
     '--fold-border': seen.edges.color,
     '--fold-unassigned': aux,
+    '--references-arrow': seen.arrows.color,
     '--references-crease-alpha': referencesCreaseAlpha(paper, aux).toFixed(3),
     '--references-dim-alpha': referencesDimAlpha(paper, mountain, valley).toFixed(3),
   };

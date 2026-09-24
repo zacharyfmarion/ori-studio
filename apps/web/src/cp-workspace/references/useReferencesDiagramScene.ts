@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
+import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
-import { diagramInkColors } from './diagram/diagramColors';
+import { diagramGroundInk, diagramInkColors } from './diagram/diagramColors';
 import { diagramToScene, type DiagramScene } from './diagram/diagramToScene';
 import { canvasDiagramInk } from './diagram/diagramInk';
 import { seenFromTheBack } from './diagram/diagramModel';
+import { sheetOutline } from './referencesViewGeometry';
+import type { SheetPoint } from './stepDiagramGeometry';
 import type { ReferencesPaperStyle } from './usePaperStyleTokens';
 
 /**
@@ -24,18 +27,41 @@ export interface ReferencesDiagramScene {
   strokes: DiagramScene['strokes'];
   /** The symbols, wrapped with the sheet they were measured against. */
   symbols: StepDiagramModel | null;
+  /**
+   * The outline the canvas fills the paper inside, in model space — where a
+   * mark that can leave the paper takes the style's ink rather than the
+   * ground's. Empty with no sheet in scope, when nothing is paper.
+   */
+  outline: readonly SheetPoint[];
 }
 
-const EMPTY: ReferencesDiagramScene = { strokes: null, symbols: null };
+/** The sheet the workspace answers for: the document, and its border's crease ids. */
+export interface ReferencesSheetInScope {
+  geometry: CpGeometryTransport | null;
+  border: ReadonlySet<number> | null;
+}
+
+const NO_PAPER: readonly SheetPoint[] = [];
 
 export function useReferencesDiagramScene(
   diagram: StepDiagramModel | null,
   mirrored: boolean,
-  paper: Pick<ReferencesPaperStyle, 'root' | 'tokens' | 'inks' | 'canvasPens'>
+  paper: Pick<ReferencesPaperStyle, 'root' | 'tokens' | 'inks' | 'canvasPens'>,
+  sheet: ReferencesSheetInScope
 ): ReferencesDiagramScene {
   const { root, tokens, inks, canvasPens } = paper;
+  const { geometry, border } = sheet;
+  // The one reading of where the paper is: the hull the canvas fills
+  // (`sheetFillGeometry`), so an arrow changes ink exactly at the paper's edge.
+  const outline = useMemo<readonly SheetPoint[]>(
+    () =>
+      geometry
+        ? sheetOutline(geometry, border).map(({ x, y }): SheetPoint => [x, y])
+        : NO_PAPER,
+    [geometry, border]
+  );
   return useMemo(() => {
-    if (!diagram) return EMPTY;
+    if (!diagram) return { strokes: null, symbols: null, outline };
     // A mountain seen from the front is a valley seen from the back.
     const primitives = mirrored ? seenFromTheBack(diagram.primitives) : diagram.primitives;
     // The theme's own tokens are on `:root`, so before the workspace root has
@@ -48,7 +74,8 @@ export function useReferencesDiagramScene(
     // Every line in the style's pens (`referencesCanvasPens`): a fold in its
     // direction's, and in the aux pen the creases an earlier step made and the
     // pattern's own aux lines when they are shown — pulled back from the
-    // sheet's edge as it says.
+    // sheet's edge as it says. A line in the arrow's pen takes the theme's ink
+    // where it leaves the paper, as the layer's marks do.
     const scene = diagramToScene(
       primitives,
       diagramInkColors(element, tokens),
@@ -57,13 +84,15 @@ export function useReferencesDiagramScene(
         pens: canvasPens.pens,
         sheet: diagram.sheet,
         creases: { showAux: inks.showAux, erode: inks.erode },
+        paper: { outline, ground: diagramGroundInk(element) },
       }
     );
     return {
       strokes: scene.strokes,
       symbols: { sheet: diagram.sheet, primitives: scene.symbols },
+      outline,
     };
     // `tokens` is a fresh object on a theme change too, which is what makes the
     // theme's own tokens (read off the DOM) a dependency.
-  }, [diagram, mirrored, root, tokens, inks, canvasPens]);
+  }, [diagram, mirrored, root, tokens, inks, canvasPens, outline]);
 }

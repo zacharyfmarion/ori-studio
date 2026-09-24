@@ -142,6 +142,19 @@
   --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
+  /* The theme's own fold inks, under names the References workspace does not
+     re-set. The workspace re-sets the `--fold-*` names from the paper style
+     (usePaperStyleTokens), so inside it those are the style's; a custom
+     property is resolved where it is declared, so these carry the theme's
+     values into it untouched. */
+  --theme-fold-mountain: var(--fold-mountain);
+  --theme-fold-valley: var(--fold-valley);
+  --theme-fold-border: var(--fold-border);
+  --theme-fold-unassigned: var(--fold-unassigned);
+  /* What a References mark — an arrow, the turn-over glyph, a ring — draws in
+     where it has left the paper: the theme's edge ink, which reads on the
+     theme's ground, as every mark did before the sheet took the style's paper. */
+  --references-ground-ink: var(--theme-fold-border);
   /* Selected creases and points: the theme's accent, unless that accent is
      confusable with a fold colour -- red is mountain, blue is valley. One-dark's
      accent is blue, so it overrides to its gold; see themes/applyTheme. */
@@ -12567,9 +12580,11 @@ button.bp-packing-alert:focus-visible {
 
 /* Arrows are ink, not colour. A printed diagram draws the motion in the same
    black as the paper's edge; giving it a hue makes it compete with the two
-   hues that carry meaning here, mountain and valley. */
+   hues that carry meaning here, mountain and valley. The ink is the paper
+   style's arrow pen, which the workspace sets as `--references-arrow`; outside
+   it the edge's. */
 .step-diagram__line--arrow {
-  stroke: var(--fold-border);
+  stroke: var(--references-arrow, var(--fold-border));
 }
 
 .step-diagram__line--dotted {
@@ -12595,7 +12610,7 @@ button.bp-packing-alert:focus-visible {
 }
 
 .step-diagram__arrowhead {
-  fill: var(--fold-border);
+  fill: var(--references-arrow, var(--fold-border));
 }
 
 /*
@@ -12609,6 +12624,26 @@ button.bp-packing-alert:focus-visible {
 .step-diagram__point {
   fill: none;
   stroke: var(--fold-border);
+}
+
+/*
+  The same marks where they have left the paper. The style's inks are chosen
+  for the style's paper, and a black arrow arcing off the sheet onto a dark
+  theme's ground is no arrow at all. So each mark is drawn twice, clipped to the
+  paper and to everything else (`DiagramPrimitives.tsx`), and the second copy
+  sits in this group and takes the theme's ink — the one it drew in before the
+  sheet took the style's paper. Letters have their own rule: their halo.
+*/
+.step-diagram__ground .step-diagram__line--arrow {
+  stroke: var(--references-ground-ink);
+}
+
+.step-diagram__ground .step-diagram__arrowhead {
+  fill: var(--references-ground-ink);
+}
+
+.step-diagram__ground .step-diagram__point {
+  stroke: var(--references-ground-ink);
 }
 
 /*

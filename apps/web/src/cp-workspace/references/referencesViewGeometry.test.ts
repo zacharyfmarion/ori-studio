@@ -15,6 +15,7 @@ import {
   applyCreaseVisibility,
   concatStrokes,
   ghostSegmentsToStrokes,
+  highlightedVerticesToOverlayPoints,
   hoveredCreaseToPreviewStroke,
   hoveredVertexToOverlayPoint,
   HOVER_FILL_ALPHA,
@@ -23,6 +24,7 @@ import {
   isClick,
   markersToOverlayPoints,
   modelBoundsToUser,
+  paperSideOf,
   referencesCreasePens,
   resolveReferencesPick,
   sheetFillGeometry,
@@ -585,6 +587,76 @@ describe('the hover marks', () => {
     expect(ring.radius[0] / HOVER_RING_SCALE).toBeLessThan(ring.radius[0]);
     expect(ring.fill[3]).toBeCloseTo(HOVER_FILL_ALPHA);
     expect([...ring.stroke]).toEqual(accent);
+  });
+});
+
+describe('a vertex’s dot, by the ground under it', () => {
+  // X11: the style's ink is for the style's paper, and a black dot off it is
+  // no dot on a dark theme's ground. The overlay channel cannot clip a disc,
+  // so the ink goes by where the vertex lies. Oriedita's sheet, wound as the
+  // hull winds it and the other way.
+  const SHEET = [
+    { x: -200, y: -200 },
+    { x: 200, y: -200 },
+    { x: 200, y: 200 },
+    { x: -200, y: 200 },
+  ];
+  const PAPER: Rgba = [0, 0, 0, 1];
+  const GROUND: Rgba = [0.875, 0.875, 0.875, 1];
+
+  it('finds a point on the paper, on its edge or off it, either winding', () => {
+    for (const outline of [SHEET, [...SHEET].reverse()]) {
+      expect(paperSideOf({ x: 0, y: 0 }, outline)).toBe('paper');
+      expect(paperSideOf({ x: 199.9, y: 0 }, outline)).toBe('paper');
+      expect(paperSideOf({ x: 200, y: 50 }, outline)).toBe('edge');
+      expect(paperSideOf({ x: -200, y: -200 }, outline)).toBe('edge');
+      // An intersection on the side, a rounding error either way of it.
+      expect(paperSideOf({ x: 200 + 1e-9, y: 50 }, outline)).toBe('edge');
+      expect(paperSideOf({ x: 200 - 1e-9, y: 50 }, outline)).toBe('edge');
+      expect(paperSideOf({ x: 210, y: 0 }, outline)).toBe('ground');
+      // Past a corner along one side's line: on that line, off the paper.
+      expect(paperSideOf({ x: 250, y: 200 }, outline)).toBe('ground');
+    }
+  });
+
+  it('is all ground with no paper', () => {
+    expect(paperSideOf({ x: 0, y: 0 }, [])).toBe('ground');
+    expect(paperSideOf({ x: 0, y: 0 }, SHEET.slice(0, 2))).toBe('ground');
+  });
+
+  it('inks a dot on the paper in the style’s ink, off it in the theme’s, and on the edge in both', () => {
+    const dots = highlightedVerticesToOverlayPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 200, y: 0 },
+        { x: 260, y: 0 },
+      ],
+      { paper: PAPER, ground: GROUND },
+      2,
+      SHEET
+    )!;
+    const at = (buffer: Float32Array, i: number) => [...buffer.slice(i * 4, i * 4 + 4)];
+    expect(dots.count).toBe(3);
+    // On the paper: the style's, fill and rim alike, as before.
+    expect(at(dots.fill, 0)).toEqual(PAPER);
+    expect(at(dots.stroke, 0)).toEqual(PAPER);
+    // On the edge: filled for the paper, ringed for the ground.
+    expect(at(dots.fill, 1)).toEqual(PAPER);
+    expect(at(dots.stroke, 1)).toEqual(GROUND);
+    // Off it: the theme's.
+    expect(at(dots.fill, 2)).toEqual(GROUND);
+    expect(at(dots.stroke, 2)).toEqual(GROUND);
+  });
+
+  it('draws every dot on the ground before there is a sheet', () => {
+    const dot = highlightedVerticesToOverlayPoints(
+      [{ x: 0, y: 0 }],
+      { paper: PAPER, ground: GROUND },
+      2,
+      []
+    );
+    expect([...dot!.fill]).toEqual(GROUND);
+    expect([...dot!.stroke]).toEqual(GROUND);
   });
 });
 

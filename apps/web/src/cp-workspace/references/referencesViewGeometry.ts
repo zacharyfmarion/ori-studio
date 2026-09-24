@@ -5,7 +5,7 @@
  * than hoped for.
  */
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import type { Point } from '../../lib/geometry';
+import { convexHull, type Point } from '../../lib/geometry';
 import { clipPolygonToSide } from './diagram/plannerDiagram';
 import { cpModelToSvg, cpVertexId } from '../../lib/creasePatternViewport';
 import type { UserBounds } from '../renderer/camera';
@@ -217,16 +217,75 @@ export function markersToOverlayPoints(
 }
 
 /**
+ * How near the paper's edge a point counts as on it, as a share of the
+ * paper's size: a vertex on the sheet's side is an intersection worked out in
+ * floating point, and lands a rounding error to one side or the other.
+ */
+const ON_EDGE_SHARE = 1e-7;
+
+/**
+ * Where a point lies against the paper: on it, on its edge, or off it on the
+ * ground. `outline` is the paper as the canvas fills it — convex, wound either
+ * way (`sheetOutline`) — and no outline is no paper, so everything is ground.
+ */
+export function paperSideOf(point: Point, outline: readonly Point[]): 'paper' | 'edge' | 'ground' {
+  const n = outline.length;
+  if (n < 3) return 'ground';
+  let area = 0;
+  let size = 0;
+  for (let i = 0; i < n; i += 1) {
+    const a = outline[i]!;
+    const b = outline[(i + 1) % n]!;
+    area += a.x * b.y - b.x * a.y;
+    size = Math.max(size, Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+  }
+  const orientation = Math.sign(area);
+  if (orientation === 0) return 'ground';
+  // The nearest edge line, signed inward: for a convex outline, the distance
+  // in from the edge when inside, and negative when outside any of them.
+  let inset = Infinity;
+  for (let i = 0; i < n; i += 1) {
+    const a = outline[i]!;
+    const b = outline[(i + 1) % n]!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length === 0) continue;
+    const cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
+    inset = Math.min(inset, (orientation * cross) / length);
+  }
+  const tolerance = ON_EDGE_SHARE * size;
+  if (inset > tolerance) return 'paper';
+  return inset < -tolerance ? 'ground' : 'edge';
+}
+
+/** What a vertex's dot is drawn in: the style's ink on the paper, the theme's off it. */
+export interface VertexDotInks {
+  /** The paper style's edge ink, which the paper is drawn for. */
+  paper: Rgba;
+  /** The theme's own ink, which reads on its ground (`--references-ground-ink`). */
+  ground: Rgba;
+}
+
+/**
  * The picked vertex, and the vertices a step names, as overlay points.
  *
  * The view draws no vertex of its own — the creases say where they meet — so
  * these, and the hover ring, are the only vertex marks. On the overlay channel,
  * which is never faded, at the editor's vertex radius.
+ *
+ * A dot is a mark in the drawing's ink, and the style's ink is chosen for the
+ * style's paper: a black dot off it vanishes into a dark theme's ground (X11 of
+ * the paper export plan). The channel cannot clip a disc the way the symbol
+ * layer clips a ring, so the ink goes by where the vertex lies against
+ * `outline`: on the paper, the style's; off it, the theme's; on its edge —
+ * where a reference often is, on a side or a corner of the sheet — the dot
+ * straddles both, so it is filled in the style's ink and ringed in the
+ * theme's, and the half on the ground reads by its ring.
  */
 export function highlightedVerticesToOverlayPoints(
   points: readonly Point[],
-  color: Rgba,
-  pointSize: number
+  inks: VertexDotInks,
+  pointSize: number,
+  outline: readonly Point[]
 ): PointGeometry | null {
   const count = points.length;
   if (count === 0) return null;
@@ -238,8 +297,9 @@ export function highlightedVerticesToOverlayPoints(
   points.forEach((point, i) => {
     center[i * 2] = point.x;
     center[i * 2 + 1] = point.y;
-    fill.set(color, i * 4);
-    stroke.set(color, i * 4);
+    const side = paperSideOf(point, outline);
+    fill.set(side === 'ground' ? inks.ground : inks.paper, i * 4);
+    stroke.set(side === 'paper' ? inks.paper : inks.ground, i * 4);
   });
   return { center, radius, screenSpace, fill, stroke, count };
 }
@@ -776,25 +836,6 @@ export function sheetFillGeometry(
     });
   }
   return { position, color: colors, count: triangles * 3 };
-}
-
-/** Andrew's monotone chain, counter-clockwise. */
-function convexHull(points: readonly Point[]): Point[] {
-  if (points.length < 3) return [...points];
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-  const cross = (o: Point, a: Point, b: Point) =>
-    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  const half = (source: readonly Point[]) => {
-    const out: Point[] = [];
-    for (const p of source) {
-      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
-      out.push(p);
-    }
-    return out;
-  };
-  const lower = half(sorted);
-  const upper = half([...sorted].reverse());
-  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
 
 /** `color` with its alpha scaled — for the uncreased part of a fold. */

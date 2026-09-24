@@ -3,6 +3,7 @@ import { DIAGRAM_LINE_INK, DIAGRAM_MARK_INK } from './diagram/diagramInk';
 import {
   ARROWHEAD_ASPECT,
   DIAGRAM_CARD_DASH_SCALE,
+  OFF_PAPER_REACH,
   arcEndDirection,
   arcEndPoint,
   arcExtent,
@@ -24,7 +25,10 @@ import {
   foldArrowArc,
   foldArrowLanding,
   foldArrowTrim,
+  offPaperPathData,
   onSheetBoundary,
+  paperRingPoints,
+  paperSpan,
   sheetCorners,
   withPens,
   type DiagramArc,
@@ -656,5 +660,92 @@ describe('withPens', () => {
     for (const key of ['scale', 'ex', 'ey', 'ink', 'dashScale', 'viewBox', 'size', 'mirrored'] as const) {
       expect(copy[key]).toEqual(CARD[key]);
     }
+  });
+});
+
+describe('paperSpan', () => {
+  const square: readonly (readonly [number, number])[] = sheetCorners(UNIT);
+  const span = (
+    from: readonly [number, number],
+    to: readonly [number, number],
+    outline: readonly (readonly [number, number])[] = square
+  ) => {
+    const found = paperSpan(from, to, outline);
+    return found && found.map((t) => Number(t.toFixed(9)));
+  };
+
+  it('is the whole of a segment on the paper, and none of one off it', () => {
+    expect(span([0.2, 0.2], [0.8, 0.6])).toEqual([0, 1]);
+    expect(span([1.2, 0.2], [1.5, 0.9])).toBeNull();
+    // Beside the paper and parallel to an edge: off it all the way along.
+    expect(span([-0.2, 0.1], [-0.2, 0.9])).toBeNull();
+  });
+
+  it('is the stretch between where the segment crosses the outline', () => {
+    // In from the left, out through the right.
+    expect(span([-0.5, 0.5], [1.5, 0.5])).toEqual([0.25, 0.75]);
+    // Leaving through one edge only.
+    expect(span([0.5, 0.5], [0.5, 2])).toEqual([0, 1 / 3].map((t) => Number(t.toFixed(9))));
+    // Through a corner's neighbourhood diagonally.
+    expect(span([-1, -1], [2, 2])).toEqual([1 / 3, 2 / 3].map((t) => Number(t.toFixed(9))));
+  });
+
+  it('counts a segment along an edge, or just touching a corner from inside, as on the paper', () => {
+    expect(span([0, 0.2], [0, 0.8])).toEqual([0, 1]);
+    expect(span([0.5, 0.5], [1, 1])).toEqual([0, 1]);
+    // Touching the paper at one point is not a stretch of it.
+    expect(span([1, 1], [2, 1.5])).toBeNull();
+  });
+
+  it('reads the outline wound either way, and turned', () => {
+    expect(span([-0.5, 0.5], [1.5, 0.5], [...square].reverse())).toEqual([0.25, 0.75]);
+    // A diamond: the unit square turned 45° about its middle.
+    const r = Math.SQRT1_2;
+    const diamond = [
+      [0.5, 0.5 - r],
+      [0.5 + r, 0.5],
+      [0.5, 0.5 + r],
+      [0.5 - r, 0.5],
+    ] as const;
+    const [t0, t1] = paperSpan([-1, 0.5], [2, 0.5], diamond)!;
+    expect(t0).toBeCloseTo((1.5 - r) / 3, 9);
+    expect(t1).toBeCloseTo((1.5 + r) / 3, 9);
+  });
+
+  it('is none without a paper to lie on', () => {
+    expect(span([0, 0], [1, 1], [])).toBeNull();
+    expect(span([0, 0], [1, 1], [[0, 0], [1, 1], [2, 2]])).toBeNull();
+  });
+});
+
+describe('offPaperPathData', () => {
+  const ring = [
+    { x: 10, y: 10 },
+    { x: 90, y: 10 },
+    { x: 90, y: 90 },
+    { x: 10, y: 90 },
+  ];
+
+  it('cuts the paper out of a box that reaches well past it', () => {
+    const reach = OFF_PAPER_REACH * 80;
+    expect(offPaperPathData([ring])).toBe(
+      `M ${10 - reach} ${10 - reach} H ${90 + reach} V ${90 + reach} H ${10 - reach} Z ` +
+        'M 10 10 L 90 10 L 90 90 L 10 90 Z'
+    );
+    expect(paperRingPoints(ring)).toBe('10,10 90,10 90,90 10,90');
+  });
+
+  it('cuts every ring, skips an empty one, and is empty with no paper at all', () => {
+    const flap = [
+      { x: 90, y: 10 },
+      { x: 130, y: 10 },
+      { x: 130, y: 90 },
+    ];
+    const path = offPaperPathData([ring, [], flap]);
+    expect(path.match(/M /g)).toHaveLength(3);
+    // The box spans both rings.
+    const reach = OFF_PAPER_REACH * 120;
+    expect(path.startsWith(`M ${10 - reach} ${10 - reach} H ${130 + reach} `)).toBe(true);
+    expect(offPaperPathData([[], []])).toBe('');
   });
 });

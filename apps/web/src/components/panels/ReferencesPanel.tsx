@@ -226,9 +226,13 @@ export function ReferencesPanel() {
   // cards, the canvas, the layer over it — draws in them and nothing outside does.
   const { setRoot: setWorkspaceRoot, ...paper } = usePaperStyleTokens();
   // The step's picture, once: straight lines packed for the GPU, symbols for the
-  // layer over it. Both off the same primitives the filmstrip card draws.
+  // layer over it. Both off the same primitives the filmstrip card draws, and
+  // both told where the paper is, since a mark off it takes the theme's ink.
   const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
-  const scene = useReferencesDiagramScene(highlights.diagram, mirrored, paper);
+  const scene = useReferencesDiagramScene(highlights.diagram, mirrored, paper, {
+    geometry: view.geometry,
+    border: borderIds,
+  });
 
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const indicator = useReferencesRun();
@@ -666,6 +670,8 @@ export function ReferencesPanel() {
             <ReferencesDiagramLayer
               ref={symbolsRef}
               model={scene.symbols}
+              outline={scene.outline}
+              mirrored={mirrored}
               camera={diagramCamera}
               // Letters, rings and arrows are sized from the reader's line
               // width, not the paper's edge pen: a hairline edge must not

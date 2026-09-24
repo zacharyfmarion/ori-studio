@@ -27,7 +27,7 @@
  * paper (`usePaperStyleTokens`), because that is what the sheet is filled
  * with (D13), and the inks are the style's too.
  */
-import { relativeLuminance } from './paperBack';
+import { relativeLuminance, wcagContrast } from './paperBack';
 import { mixHexColors } from '../lib/rgbColor';
 
 /** The grey an earlier crease draws in: `--fold-unassigned`, the same on every theme. */
@@ -116,4 +116,27 @@ export function referencesDimAlpha(surface: string, mountain: string, valley: st
     else hi = mid;
   }
   return Math.max(MIN_ALPHA, hi);
+}
+
+/**
+ * The contrast a mark off the paper keeps against the ground it lies on: WCAG's
+ * floor for graphics, which a ring or an arrowhead is.
+ */
+export const GROUND_INK_CONTRAST = 3;
+
+/**
+ * What a References mark draws in where it has left the paper, on `ground`:
+ * its own `ink` wherever that reads there, and otherwise black or white,
+ * whichever reads better.
+ *
+ * For a file, whose ground is the page's (X11 of the paper export plan). A
+ * mark is drawn in the style's ink because the style's paper is what it sits
+ * on; an arrow that arcs off the sheet lies on the page instead, and a black
+ * pen on a dark page is no mark at all. On screen the ground is the theme's
+ * and so is the ink off the paper (`--references-ground-ink`), so nothing is
+ * decided here.
+ */
+export function referencesGroundInk(ink: string, ground: string): string {
+  if (wcagContrast(ink, ground) >= GROUND_INK_CONTRAST) return ink;
+  return wcagContrast('#000000', ground) >= wcagContrast('#ffffff', ground) ? '#000000' : '#ffffff';
 }

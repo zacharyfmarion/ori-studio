@@ -46,6 +46,7 @@ import {
   diagramDashSlot,
   type DiagramPens,
 } from './diagram/diagramInk';
+import { diagramGroundInk } from './diagram/diagramColors';
 import type { FoldPose } from './fold/foldPlayback';
 import {
   DEFAULT_SURFACE_SHARES,
@@ -89,6 +90,7 @@ import {
   resolveReferencesPick,
   transportUserBounds,
   sheetFillGeometry,
+  sheetOutline,
   verticesOfLines,
   type ReferencesCreaseVisibility,
   type ReferencesOverlayColors,
@@ -505,6 +507,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
     const contentBounds = useMemo(
       () => transportUserBounds(geometry, sheetLineIds),
       [geometry, sheetLineIds]
+    );
+    // The paper as the sheet fill draws it, for the marks that take a
+    // different ink off it.
+    const borderLineIds = creaseVisibility.borderLineIds ?? null;
+    const paperOutline = useMemo(
+      () => sheetOutline(geometry, borderLineIds),
+      [geometry, borderLineIds]
     );
     /**
      * Model → SVG, reflected about the sheet's own vertical centre when the
@@ -1175,7 +1184,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      const newColor = readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK);
+      // The style's ink on the paper, the theme's off it: a dot on the sheet's
+      // edge is half on the ground (`highlightedVerticesToOverlayPoints`).
+      const dotInks = {
+        paper: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
+        ground: diagramGroundInk(canvas),
+      };
       const highlighted = new Set(highlightVertexIdx);
       if (selected?.kind === 'vertex') highlighted.add(selected.idx);
       const picked = [...highlighted]
@@ -1191,7 +1205,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           : null;
       renderer.setOverlayPoints(
         concatOverlayPoints(
-          highlightedVerticesToOverlayPoints(picked, newColor, pointSize),
+          highlightedVerticesToOverlayPoints(picked, dotInks, pointSize, paperOutline),
           hoverRing
         )
       );
@@ -1202,6 +1216,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       hovered,
       vertices,
       pointSize,
+      paperOutline,
       inkKey,
       rendererGeneration,
     ]);

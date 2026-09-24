@@ -129,6 +129,31 @@ describe('the sheet', () => {
     expect(creases(back)[0]!.role).toBe('valley');
   });
 
+  it('haloes a letter on the paper in the face the caller names, not the projector’s', () => {
+    // A step's export is drawn through the big view's model-space projector,
+    // whose handedness is the opposite of the face: a letter on the front was
+    // haloed in the back's colour, a grey box on yellow paper.
+    const canvas = createOverlayProjector({ origin: [0, 0], ex: [80, 0], ey: [0, 80] }, 1);
+    const lettered = model(
+      { kind: 'point', at: [0.5, 0.5], style: 'highlight' },
+      { kind: 'label', at: [0.5, 0.5], text: 'B', style: 'highlight' }
+    );
+    const halo = (mirrored: boolean) => {
+      const result = diagramToPaperScene(lettered, {
+        style: DEFAULT_PAPER_STYLE,
+        project: canvas,
+        mirrored,
+      });
+      return elements(markups(result).at(-1)!.svg, 'text')[0]!.stroke;
+    };
+    expect(halo(false)).toBe(DEFAULT_PAPER_STYLE.paper.front);
+    expect(halo(true)).toBe(DEFAULT_PAPER_STYLE.paper.back);
+    // A card's fit says the face through its own handedness, as before.
+    expect(elements(markups(scene(lettered)).at(-1)!.svg, 'text')[0]!.stroke).toBe(
+      DEFAULT_PAPER_STYLE.paper.front
+    );
+  });
+
   it('is drawn wherever the frame put it, and the sheet primitive is not a second one', () => {
     const placed: StepDiagramModel = {
       sheet: { width: 2, height: 1, centre: [10, 10] },
@@ -413,6 +438,119 @@ describe('the markup', () => {
       'face',
       ...Array<'line'>(5).fill('line'),
     ]);
+  });
+});
+
+/**
+ * `leaving`'s marks on a transparent page, as `diagramToPaperScene` drew them
+ * before X11 (generated at c53cc04d9): one copy of each mark, in the style's
+ * inks, no clip.
+ */
+const BEFORE_TWO_INKS = [
+  '<circle cx="34" cy="50" r="3.1999999999999997" stroke-width="0.9999999999999999" fill="none" stroke="#000000"></circle>',
+  '<circle cx="94" cy="50" r="3.1999999999999997" stroke-width="0.9999999999999999" fill="none" stroke="#000000"></circle>',
+  '<g>',
+  '<path d="M 36.813 48.475 A 60 60 0 0 1 91.187 48.475" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',
+  '<path d="M 91.187 48.475 A 40.928 40.928 0 0 0 41.244 36.598" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',
+  '<polygon points="33.765,41.203 38.564,33.03 42.877,38.594" fill="#000000"></polygon>',
+  '</g>',
+  '<g transform="translate(33.2 -2.9103) scale(1.1586)">',
+  '<path d="M 25.282 4.923 C 21.103 -0.049 13.926 1.855 13.926 1.855 C 8.533 2.887 8.711 7.191 8.711 7.191 C 8.698 9.071 9.698 10.738 11.328 11.674 C 12.958 12.610 14.966 12.596 16.583 11.638 C 18.200 10.679 19.176 8.925 19.138 7.046 C 19.138 7.046 19.318 2.887 13.925 1.855 C 13.925 1.855 5.675 0.094 1.496 5.066" stroke-width="1.2083333333333333" stroke-linecap="round" fill="none" stroke="#000000"></path>',
+  '<polygon points="25.282,4.923 21.389,2.839 23.9,0.729" fill="#000000"></polygon>',
+  '</g>',
+].join('');
+
+describe('a mark off the sheet, on the page', () => {
+  // X11: an arrow that arcs off the sheet, the turn-over glyph beside it and a
+  // ring past the edge lie on the page, and take an ink that reads there.
+  const leaving = model(
+    line('valley', [0.5, 0], [0.5, 1]),
+    { kind: 'point', at: [0.3, 0.5], style: 'normal' },
+    { kind: 'point', at: [1.05, 0.5], style: 'normal' },
+    { kind: 'fold-arrow', out: foldArrowArc([0.3, 0.5], [1.05, 0.5], [0.5, 0.5])! },
+    { kind: 'turn-over', at: [0.5, 1.06] }
+  );
+  const over = (result: PaperScene) => markups(result).at(-1)!.svg;
+  const host = (svg: string) => {
+    const element = document.createElement('div');
+    element.innerHTML = `<svg>${svg}</svg>`;
+    return element;
+  };
+  const clipOf = (element: Element) => element.closest('[clip-path]')?.getAttribute('clip-path');
+
+  it('is unchanged on a transparent page, which reads as white', () => {
+    const transparent = scene(leaving);
+    // The markup as it was before a mark had two inks (c53cc04d9), byte for
+    // byte: a page that takes the marks' own inks gets what it always got.
+    expect(over(transparent)).toBe(BEFORE_TWO_INKS);
+    expect(over(scene(leaving, { ground: '#ffffff' }))).toBe(BEFORE_TWO_INKS);
+    // Black ink on white: one copy of each mark, in the style's ink, no clip.
+    expect(over(transparent)).not.toContain('clip');
+    expect(elements(over(transparent), 'circle').map((ring) => ring.stroke)).toEqual([
+      DEFAULT_PAPER_STYLE.edges.color,
+      DEFAULT_PAPER_STYLE.edges.color,
+    ]);
+    const heads = elements(over(transparent), 'polygon');
+    expect(heads.map((head) => head.fill)).toEqual([
+      DEFAULT_PAPER_STYLE.arrows.color,
+      DEFAULT_PAPER_STYLE.arrows.color,
+    ]);
+  });
+
+  it('lifts the marks off the sheet on a dark page, and leaves the paper’s alone', () => {
+    const dark = scene(leaving, { ground: '#15181c' });
+    const svg = host(over(dark));
+    const [paper, ground] = [...svg.querySelectorAll('defs > clipPath')];
+    // The paper is the face below: the sheet's corners through the fit.
+    expect(paper!.querySelector('polygon')!.getAttribute('points')).toBe('10,90 90,90 90,10 10,10');
+    expect(ground!.querySelector('path')!.getAttribute('clip-rule')).toBe('evenodd');
+    const inks = (tag: string, attribute: string) =>
+      [...svg.querySelectorAll(tag)]
+        .filter((element) => !element.closest('defs'))
+        .map((element) => [clipOf(element), element.getAttribute(attribute)]);
+    const off = `url(#${ground!.id})`;
+    const on = `url(#${paper!.id})`;
+    // Each ring twice: white where it is off the sheet, the edge pen's ink on it.
+    expect(inks('circle', 'stroke')).toEqual([
+      [off, '#ffffff'],
+      [on, DEFAULT_PAPER_STYLE.edges.color],
+      [off, '#ffffff'],
+      [on, DEFAULT_PAPER_STYLE.edges.color],
+    ]);
+    // The arrow's strokes and the glyph's, and both heads, the same way.
+    for (const [clip, color] of inks('path', 'stroke')) {
+      expect(color).toBe(clip === off ? '#ffffff' : DEFAULT_PAPER_STYLE.arrows.color);
+    }
+    expect(inks('path', 'stroke')).toHaveLength(6);
+    for (const [clip, color] of inks('polygon', 'fill')) {
+      expect(color).toBe(clip === off ? '#ffffff' : DEFAULT_PAPER_STYLE.arrows.color);
+    }
+    // The creases are the painter's, on the paper, in their pens.
+    expect(creases(dark).map((crease) => crease.role)).toEqual(['valley']);
+  });
+
+  it('keeps a style ink that already reads on the page', () => {
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#f4f4f4' },
+      arrows: { ...DEFAULT_PAPER_STYLE.arrows, color: '#ffd400' },
+    };
+    const result = scene(leaving, { style, ground: '#15181c' });
+    expect(over(result)).not.toContain('clip');
+    expect(elements(over(result), 'polygon').map((head) => head.fill)).toEqual(['#ffd400', '#ffd400']);
+  });
+
+  it('paints through paperSceneToSvg with its clip pair inside the page', () => {
+    const page = paperSceneToSvg(scene(leaving, { ground: '#15181c' }), DEFAULT_PAPER_STYLE, {
+      ...DEFAULT_PAPER_PAGE,
+      background: '#15181c',
+    });
+    const ids = [...page.svg.matchAll(/<clipPath id="([^"]+)"/g)].map((match) => match[1]);
+    expect(ids).toHaveLength(2);
+    for (const id of ids) expect(page.svg).toContain(`clip-path="url(#${id})"`);
+    const opened = page.svg.match(/<(g|text|clipPath|defs)\b/g)!.length;
+    const closed = page.svg.match(/<\/(g|text|clipPath|defs)>/g)!.length;
+    expect(opened).toBe(closed);
   });
 });
 

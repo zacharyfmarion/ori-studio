@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -33,6 +36,9 @@ const hex = ([r, g, b]: readonly number[]): string =>
 const rootVar = (name: string) => document.documentElement.style.getPropertyValue(name);
 
 const initialSettings = useSettingsStore.getInitialState();
+
+/** No document: the scene's lines are packed with no sheet in scope. */
+const NO_SHEET = { geometry: null, border: null };
 
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
@@ -106,6 +112,7 @@ describe('referencesPaperTokens', () => {
       '--fold-valley': DEFAULT_PAPER_STYLE.valleyFolds.color,
       '--fold-border': DEFAULT_PAPER_STYLE.edges.color,
       '--fold-unassigned': DEFAULT_PAPER_STYLE.auxCreases.pen.color,
+      '--references-arrow': DEFAULT_PAPER_STYLE.arrows.color,
       '--references-crease-alpha': referencesCreaseAlpha(
         front,
         DEFAULT_PAPER_STYLE.auxCreases.pen.color
@@ -117,6 +124,28 @@ describe('referencesPaperTokens', () => {
       ).toFixed(3),
     });
     expect(Object.keys(tokens)).toEqual([...REFERENCES_PAPER_TOKENS]);
+  });
+
+  // E13: the screen draws the arrow pen the export already draws, rather than
+  // the edge pen's ink the two built-in presets happened to share with it.
+  it('carries the arrow pen’s own colour, apart from the edge’s', () => {
+    const style = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#102030' },
+      arrows: { ...DEFAULT_PAPER_STYLE.arrows, color: '#405060' },
+    };
+    expect(referencesPaperTokens(style)['--references-arrow']).toBe('#405060');
+    expect(referencesPaperTokens(style)['--fold-border']).toBe('#102030');
+  });
+
+  // X11: the ground ink is the theme's, reached through an alias declared on
+  // `:root`. The workspace re-sets the `--fold-*` names, and must never re-set
+  // the aliases, or the alias would carry the style's ink.
+  it('never sets the theme’s own inks under their alias names', () => {
+    for (const token of REFERENCES_PAPER_TOKENS) {
+      expect(token.startsWith('--theme-')).toBe(false);
+      expect(token).not.toBe('--references-ground-ink');
+    }
   });
 
   it('ignores fields outside the policy', () => {
@@ -254,6 +283,128 @@ describe('usePaperStyleTokens', () => {
   });
 });
 
+describe('the theme’s inks inside the workspace', () => {
+  // X11: off the paper a mark draws in the theme's ink, which inside the
+  // workspace the style has re-set. The theme's value is carried in by
+  // aliases declared on `:root`: a custom property's `var()` is resolved on
+  // the element that declares it, and descendants inherit the result.
+  //
+  // jsdom inherits custom properties but never substitutes `var()`: inside the
+  // workspace it hands back the alias's declared text. So the tests show the
+  // aliases are declared on `:root` and nowhere else, and then resolve what
+  // the workspace inherits there, as a browser does — which lands on the
+  // theme's `--fold-border` while the workspace's own is the style's.
+  const css = readFileSync(resolve(process.cwd(), 'src/styles/theme.css'), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//g,
+    ''
+  );
+  /** The first `:root { … }` block, the theme's tokens. */
+  const rootBlock = (() => {
+    const start = css.indexOf(':root {');
+    return css.slice(start, css.indexOf('}', start) + 1);
+  })();
+  const ALIASES = {
+    '--theme-fold-mountain': 'var(--fold-mountain)',
+    '--theme-fold-valley': 'var(--fold-valley)',
+    '--theme-fold-border': 'var(--fold-border)',
+    '--theme-fold-unassigned': 'var(--fold-unassigned)',
+    '--references-ground-ink': 'var(--theme-fold-border)',
+  };
+
+  it('declares an alias for each ink the workspace re-sets on :root, and nowhere else', () => {
+    for (const [alias, value] of Object.entries(ALIASES)) {
+      expect(rootBlock).toContain(`${alias}: ${value};`);
+      // Declared once in the whole stylesheet: never re-pointed below `:root`.
+      expect(css.split(`${alias}:`).length - 1, alias).toBe(1);
+    }
+    // Every `--fold-*` ink the style re-sets has one.
+    for (const token of REFERENCES_PAPER_TOKENS.filter((name) => name.startsWith('--fold-'))) {
+      expect(ALIASES).toHaveProperty(`--theme-${token.slice(2)}`);
+    }
+  });
+
+  /**
+   * A custom property as a browser reads it on `element`: each `var()` it
+   * holds resolved where it was declared — on `:root`, which the test above
+   * shows is the only place the aliases are. jsdom hands back the declared
+   * text; a browser hands back the colour, which is taken as it is.
+   */
+  const resolvedOn = (element: Element, name: string): string => {
+    let value = getComputedStyle(element).getPropertyValue(name).trim();
+    for (let hops = 0; hops < 8; hops += 1) {
+      const reference = /^var\(\s*(--[\w-]+)\s*\)$/.exec(value);
+      if (!reference) break;
+      value = getComputedStyle(document.documentElement).getPropertyValue(reference[1]!).trim();
+    }
+    return value;
+  };
+
+  it.each([
+    ['dark', DEFAULT_DARK_THEME],
+    ['light', DEFAULT_LIGHT_THEME],
+  ])('inside the workspace, gives the %s theme’s ink while --fold-border is the style’s', (_, theme) => {
+    const style = document.createElement('style');
+    style.textContent = rootBlock;
+    document.head.append(style);
+    try {
+      act(() => {
+        useThemeStore.getState().setTheme(theme);
+        applyTheme(theme);
+      });
+      restyle();
+      const canvas = workspace?.querySelector('canvas');
+      if (!canvas) throw new Error('no canvas');
+      const themes = rootVar('--fold-border');
+      expect(themes).not.toBe('');
+      expect(themes).not.toBe(EDGE);
+      expect(getComputedStyle(canvas).getPropertyValue('--fold-border')).toBe(EDGE);
+      expect(resolvedOn(canvas, '--references-ground-ink')).toBe(themes);
+      expect(resolvedOn(canvas, '--theme-fold-border')).toBe(themes);
+      // Nothing on the way down re-points them.
+      expect(workspace?.style.getPropertyValue('--references-ground-ink')).toBe('');
+      expect(workspace?.style.getPropertyValue('--theme-fold-border')).toBe('');
+    } finally {
+      style.remove();
+    }
+  });
+
+  it('draws a mark off the paper in the alias, and the arrow in the arrow pen on it', () => {
+    const rule = (selector: string) => {
+      const at = css.indexOf(`${selector} {`);
+      expect(at, selector).toBeGreaterThanOrEqual(0);
+      return css.slice(at, css.indexOf('}', at));
+    };
+    expect(rule('.step-diagram__line--arrow')).toContain(
+      'stroke: var(--references-arrow, var(--fold-border));'
+    );
+    expect(rule('.step-diagram__arrowhead')).toContain(
+      'fill: var(--references-arrow, var(--fold-border));'
+    );
+    expect(rule('.step-diagram__ground .step-diagram__line--arrow')).toContain(
+      'stroke: var(--references-ground-ink);'
+    );
+    expect(rule('.step-diagram__ground .step-diagram__arrowhead')).toContain(
+      'fill: var(--references-ground-ink);'
+    );
+    expect(rule('.step-diagram__ground .step-diagram__point')).toContain(
+      'stroke: var(--references-ground-ink);'
+    );
+  });
+
+  it('sets the arrow pen on the workspace root, from the display style', () => {
+    const inline = (name: string) => workspace?.style.getPropertyValue(name);
+    expect(inline('--references-arrow')).toBe(DEFAULT_PAPER_STYLE.arrows.color);
+    act(() =>
+      useSettingsStore
+        .getState()
+        .setPaperStyleField('display', 'arrows', { ...DEFAULT_PAPER_STYLE.arrows, color: '#405060' })
+    );
+    expect(inline('--references-arrow')).toBe('#405060');
+    // A colour the canvas re-reads: the ink key moves with it.
+    expect(latest?.tokens['--references-arrow']).toBe('#405060');
+  });
+});
+
 describe('useReferencesDiagramScene', () => {
   it('packs the lines in the workspace’s inks and repacks when they change', () => {
     const diagram = {
@@ -266,7 +417,7 @@ describe('useReferencesDiagramScene', () => {
     const scenes: ReturnType<typeof useReferencesDiagramScene>[] = [];
     function Probe() {
       const { setRoot, ...paper } = usePaperStyleTokens();
-      const scene = useReferencesDiagramScene(diagram, false, paper);
+      const scene = useReferencesDiagramScene(diagram, false, paper, NO_SHEET);
       useEffect(() => {
         scenes.push(scene);
       });
@@ -281,6 +432,60 @@ describe('useReferencesDiagramScene', () => {
     expect(packed(scenes[scenes.length - 1]!)).toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
     restyle();
     expect(packed(scenes[scenes.length - 1]!)).toBe(MOUNTAIN);
+    act(() => probeRoot.unmount());
+    probeContainer.remove();
+  });
+
+  // X11: an arrow-style line is cut at the outline the canvas fills — the
+  // hull of the sheet's border creases — and the piece off it is handed to
+  // the renderer in the ground's ink, the theme's. jsdom does not resolve the
+  // alias, so the probe carries the value a browser would read off it.
+  it('cuts an arrow-style line at the sheet the canvas fills, off it in the theme’s ink', () => {
+    const geometry = {
+      segEndpoints: Float64Array.from([
+        ...[0, 0, 100, 0],
+        ...[100, 0, 100, 100],
+        ...[100, 100, 0, 100],
+        ...[0, 100, 0, 0],
+      ]),
+      segAttr: new Int32Array(20),
+    } as unknown as CpGeometryTransport;
+    const border = new Set([1, 2, 3, 4]);
+    const diagram = {
+      sheet: { width: 100, height: 100, centre: [50, 50] as [number, number] },
+      primitives: [
+        { kind: 'line' as const, from: [50, 50] as [number, number], to: [150, 50] as [number, number], style: 'arrow' as const },
+      ],
+    };
+    const scenes: ReturnType<typeof useReferencesDiagramScene>[] = [];
+    function Probe() {
+      const { setRoot, ...paper } = usePaperStyleTokens();
+      const scene = useReferencesDiagramScene(diagram, false, paper, { geometry, border });
+      useEffect(() => {
+        scenes.push(scene);
+      });
+      return (
+        <div
+          ref={setRoot}
+          style={{ ...paper.style, ['--references-ground-ink' as string]: '#e6e6e6' }}
+        />
+      );
+    }
+    const probeContainer = document.createElement('div');
+    document.body.appendChild(probeContainer);
+    const probeRoot = createRoot(probeContainer);
+    act(() => probeRoot.render(<Probe />));
+    // Once the root has mounted, the ground ink is read off it.
+    act(() => probeRoot.render(<Probe />));
+    const scene = scenes[scenes.length - 1]!;
+    expect(scene.outline.map(([x, y]) => `${x},${y}`).sort()).toEqual(
+      ['0,0', '100,0', '100,100', '0,100'].sort()
+    );
+    expect(scene.strokes?.count).toBe(2);
+    const ink = (i: number) => hex([...(scene.strokes?.color.slice(i * 4, i * 4 + 3) ?? [])]);
+    expect(ink(0)).toBe(DEFAULT_PAPER_STYLE.arrows.color);
+    expect(ink(1)).toBe('#e6e6e6');
+    expect(Array.from(scene.strokes!.a.slice(2, 4))).toEqual([100, 50]);
     act(() => probeRoot.unmount());
     probeContainer.remove();
   });

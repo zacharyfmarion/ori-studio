@@ -23,8 +23,9 @@
  * both taken out (2026-09-16): from straight above they read as grey slabs
  * beside the paper, not as height.
  */
-import type { Point } from '../../../lib/geometry';
+import { convexHull, type Point } from '../../../lib/geometry';
 import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../renderer/types';
+import { clipPolygonToSide } from '../diagram/plannerDiagram';
 import type { FoldPose } from './foldPlayback';
 import { chordFrame, fromChordFrame, inChordFrame, type FoldScene } from './foldScene';
 import type { FlapStrokes } from './foldSplit';
@@ -155,21 +156,13 @@ function shadedFace(paint: FoldPaint, face: 1 | -1, nz: number): Rgba {
 }
 
 /**
- * The flap the pose names, at that pose. Every stroke list rides it; the
- * card's other flaps lie flat and are not drawn here at all.
+ * The moving flap in its own frame, on its surface at the pose: what the mesh,
+ * the strokes riding it and its outline are all placed through. Null when the
+ * pose names no flap of the scene.
  */
-export function foldPoseGeometry(
-  scene: FoldScene,
-  pose: FoldPose,
-  strokes: readonly (FlapStrokes | null | undefined)[],
-  paint: FoldPaint,
-  shares: FoldSurfaceShares = DEFAULT_SURFACE_SHARES
-): FoldedGeometry {
+function posedFlap(scene: FoldScene, pose: FoldPose, shares: FoldSurfaceShares) {
   const flap = scene.flaps[pose.flap];
-  if (!flap) return EMPTY_FOLDED;
-  const reach = scene.reach > 0 ? scene.reach : 1;
-  const depthOf = (z: number): number =>
-    DEPTH_FLOOR + DEPTH_SPAN * Math.max(0, Math.min(1, z / reach));
+  if (!flap) return null;
   const short = scene.sheetShortSide > 0 ? scene.sheetShortSide : 1;
   const frame = chordFrame(flap.chord, flap.side);
   const overlap = flap.whole ? 0 : Math.max(0, shares.hingeOverlap);
@@ -197,6 +190,83 @@ export function foldPoseGeometry(
         creased: flap.creased,
         ramp: shares.ramp * short,
       });
+  return { short, frame, polygon, uMin, uMax, surface };
+}
+
+/**
+ * The paper the moving flap covers at a pose, as seen from above: the convex
+ * outline of its mesh, in model space — the flap is paper wherever it has
+ * swung to, and the sheet's own fill has left the place it lifted from
+ * (`sheetFillGeometry`). For the marks drawn over the canvas, which take the
+ * style's ink on paper and the theme's off it (X11 of the paper export plan).
+ *
+ * Its edges are placed at every row through the bend and every column the
+ * surface breaks at — the only places it is not straight — and the hull taken,
+ * which is the mesh's outline wherever the flap is convex and a hair more
+ * where a bend bulges it. Empty when the pose names no flap.
+ */
+export function foldPoseOutline(
+  scene: FoldScene,
+  pose: FoldPose,
+  shares: FoldSurfaceShares = DEFAULT_SURFACE_SHARES
+): Point[] {
+  const posed = posedFlap(scene, pose, shares);
+  if (!posed || posed.polygon.length < 3) return [];
+  const { frame, polygon, uMin, uMax, surface } = posed;
+  const rows = surface.rows(uMin, uMax);
+  const columns = surface.breakpoints();
+  const placed: Point[] = [];
+  polygon.forEach((from, index) => {
+    const to = polygon[(index + 1) % polygon.length]!;
+    const cuts = new Set<number>([0]);
+    const du = to.u - from.u;
+    const ds = to.s - from.s;
+    if (du !== 0) for (const u of rows) cuts.add((u - from.u) / du);
+    if (ds !== 0) for (const s of columns) cuts.add((s - from.s) / ds);
+    for (const t of cuts) {
+      if (t < 0 || t >= 1) continue;
+      const at = surface.place(from.s + ds * t, from.u + du * t);
+      placed.push(fromChordFrame(frame, at.s, at.v));
+    }
+  });
+  return convexHull(placed);
+}
+
+/**
+ * The paper at a pose, as the canvas fills it: the sheet's `outline` on the
+ * resting side of the moving flap's line (none of it while the whole sheet
+ * turns over), and the flap wherever it has swung to ({@link foldPoseOutline}).
+ * At rest, the outline alone. Always two rings, the second empty at rest, so a
+ * clip drawn from them keeps its shape from one frame to the next.
+ */
+export function foldPosePaper(
+  outline: readonly Point[],
+  scene: FoldScene | null,
+  pose: FoldPose | null
+): [Point[], Point[]] {
+  const moving = pose && scene ? scene.flaps[pose.flap] : undefined;
+  if (!pose || !scene || !moving) return [[...outline], []];
+  const resting = moving.whole ? [] : clipPolygonToSide(outline, moving.chord, -moving.side);
+  return [resting, foldPoseOutline(scene, pose)];
+}
+
+/**
+ * The flap the pose names, at that pose. Every stroke list rides it; the
+ * card's other flaps lie flat and are not drawn here at all.
+ */
+export function foldPoseGeometry(
+  scene: FoldScene,
+  pose: FoldPose,
+  strokes: readonly (FlapStrokes | null | undefined)[],
+  paint: FoldPaint,
+  shares: FoldSurfaceShares = DEFAULT_SURFACE_SHARES
+): FoldedGeometry {
+  const posed = posedFlap(scene, pose, shares);
+  if (!posed) return EMPTY_FOLDED;
+  const { short, frame, polygon, surface } = posed;
+  const reach = scene.reach > 0 ? scene.reach : 1;
+  const depthOf = (z: number): number =>
+    DEPTH_FLOOR + DEPTH_SPAN * Math.max(0, Math.min(1, z / reach));
   const breakpoints = surface.breakpoints();
 
   // Fills: the paper meshed on its surface.

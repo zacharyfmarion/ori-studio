@@ -850,6 +850,109 @@ export function dashZeroOf(
   return best;
 }
 
+/**
+ * The stretch of a segment that lies on the paper, as `[t0, t1]` along it from
+ * `from` (0) to `to` (1); null when none of it does, or only a point.
+ *
+ * `outline` is the paper as it is filled — convex, wound either way, the hull
+ * `sheetOutline` takes — so one pass of half-planes finds it (Cyrus–Beck). A
+ * segment lying along an edge counts as on the paper: the edge is the paper's.
+ * For a mark that may leave the sheet, which takes a different ink off it
+ * (X11 of the paper export plan).
+ */
+export function paperSpan(
+  from: SheetPoint,
+  to: SheetPoint,
+  outline: readonly SheetPoint[]
+): [number, number] | null {
+  const n = outline.length;
+  if (n < 3) return null;
+  let area = 0;
+  let size = 0;
+  for (let i = 0; i < n; i += 1) {
+    const a = outline[i]!;
+    const b = outline[(i + 1) % n]!;
+    area += a[0] * b[1] - b[0] * a[1];
+    size = Math.max(size, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+  }
+  const orientation = Math.sign(area);
+  if (orientation === 0) return null;
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const length = Math.hypot(dx, dy);
+  let t0 = 0;
+  let t1 = 1;
+  for (let i = 0; i < n; i += 1) {
+    const a = outline[i]!;
+    const b = outline[(i + 1) % n]!;
+    const ex = b[0] - a[0];
+    const ey = b[1] - a[1];
+    const edge = Math.hypot(ex, ey);
+    // Inside this edge's half-plane where `at + rate · t ≥ 0`.
+    const at = orientation * (ex * (from[1] - a[1]) - ey * (from[0] - a[0]));
+    const rate = orientation * (ex * dy - ey * dx);
+    // Parallel to the edge: all on its inner side, or none of it — allowing a
+    // billionth of the paper for a segment laid along the edge by construction.
+    if (Math.abs(rate) <= 1e-12 * edge * length) {
+      if (at < -1e-9 * size * edge) return null;
+      continue;
+    }
+    const t = -at / rate;
+    if (rate > 0) t0 = Math.max(t0, t);
+    else t1 = Math.min(t1, t);
+    // A touch at one point — a corner grazed from outside — is no stretch.
+    if (t1 - t0 <= 1e-9) return null;
+  }
+  return [t0, t1];
+}
+
+/**
+ * How far past the paper the box a mark off it is clipped to reaches, in
+ * shares of the paper's larger side. An arrow arcs off the sheet by a
+ * fraction of it; four sheets is room for any mark and still a box a vector
+ * editor draws at a sane size.
+ */
+export const OFF_PAPER_REACH = 4;
+
+/** A ring as SVG `points`. */
+export function paperRingPoints(ring: readonly SvgPoint[]): string {
+  return ring.map((p) => `${fmt(p.x)},${fmt(p.y)}`).join(' ');
+}
+
+/**
+ * Everything but the paper, as one path to clip with under `clip-rule:
+ * evenodd`: a box reaching {@link OFF_PAPER_REACH} of the paper's size past it
+ * on every side, each ring cut out of it. Empty when there is no paper.
+ *
+ * Two rings that overlap — a flap folded back over the paper it lies on —
+ * count twice under evenodd, and their overlap comes back as ground. The
+ * caller draws the paper's copy of a mark over the ground's, so that stretch
+ * still reads as paper.
+ */
+export function offPaperPathData(rings: readonly (readonly SvgPoint[])[]): string {
+  const drawn = rings.filter((ring) => ring.length >= 3);
+  if (drawn.length === 0) return '';
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const ring of drawn) {
+    for (const p of ring) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    }
+  }
+  const reach = OFF_PAPER_REACH * Math.max(maxX - minX, maxY - minY, Number.EPSILON);
+  const [x0, y0, x1, y1] = [minX - reach, minY - reach, maxX + reach, maxY + reach].map(fmt);
+  const box = `M ${x0} ${y0} H ${x1} V ${y1} H ${x0} Z`;
+  const cut = drawn.map(
+    (ring) => `M ${ring.map((p) => `${fmt(p.x)} ${fmt(p.y)}`).join(' L ')} Z`
+  );
+  return [box, ...cut].join(' ');
+}
+
 function fmt(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/\.?0+$/, '');
 }

@@ -12,6 +12,7 @@
  */
 import { parseCssColor, readCssVarColor, readCssVarNumber } from '../../renderer/cssColor';
 import type { Rgba } from '../../renderer/types';
+import { referencesGroundInk } from '../../../themes/referencesInk';
 import type {
   DiagramLineStyleName,
   DiagramPointStyleName,
@@ -25,13 +26,30 @@ const TOKENS: Record<DiagramLineStyleName, string> = {
   highlight: '--cp-reference-input',
   valley: '--fold-valley',
   mountain: '--fold-mountain',
-  arrow: '--fold-border',
+  arrow: '--references-arrow',
   dotted: '--fold-unassigned',
   pinch: '--fold-unassigned',
   'pinch-mountain': '--fold-mountain',
   'pinch-valley': '--fold-valley',
   unfolded: '--fold-unassigned',
 };
+
+/**
+ * A token's own fallback where the stylesheet gives it one: the arrow pen is
+ * the paper style's, set on the workspace root alone, and a diagram drawn
+ * outside it keeps the edge's ink (`var(--references-arrow, var(--fold-border))`).
+ */
+const TOKEN_FALLBACKS: Readonly<Record<string, string>> = {
+  '--references-arrow': '--fold-border',
+};
+
+/**
+ * What a mark draws in off the paper, on screen: the theme's own edge ink, as
+ * it drew before the paper style reached References. An alias declared on
+ * `:root` in `theme.css`, because inside the workspace `--fold-border` is the
+ * style's (X11 of the paper export plan).
+ */
+export const GROUND_INK_VAR = '--references-ground-ink';
 
 /** Mid grey: visible on either ground, so a missing token is a wrong colour rather than an invisible line. */
 const FALLBACK: Rgba = [0.6, 0.6, 0.6, 1];
@@ -58,10 +76,17 @@ export function diagramInkColors(
   element: Element,
   set: Readonly<Record<string, string>> = {}
 ): DiagramInkColors {
+  const styles = getComputedStyle(element);
+  const read = (token: string): Rgba | null => {
+    const own = set[token] === undefined ? null : parseCssColor(set[token]);
+    const found = own ?? parseCssColor(styles.getPropertyValue(token));
+    if (found) return found;
+    const fallback = TOKEN_FALLBACKS[token];
+    return fallback === undefined ? null : read(fallback);
+  };
   const resolved = {} as DiagramInkColors;
   for (const [style, token] of Object.entries(TOKENS)) {
-    const own = set[token] === undefined ? null : parseCssColor(set[token]);
-    resolved[style as DiagramLineStyleName] = own ?? readCssVarColor(element, token, FALLBACK);
+    resolved[style as DiagramLineStyleName] = read(token) ?? FALLBACK;
   }
   // An earlier crease is context, and how far back it sits depends on the
   // paper under it: the workspace says, in the same variable the card's CSS
@@ -79,13 +104,24 @@ export function diagramInkColors(
 }
 
 /**
+ * The ink an arrow-style line takes off the paper, on the canvas: the theme's,
+ * read through {@link GROUND_INK_VAR}. Only the theme sets it, so it is always
+ * read off the element; a browser hands back the alias resolved at `:root`.
+ */
+export function diagramGroundInk(element: Element): Rgba {
+  return readCssVarColor(element, GROUND_INK_VAR, FALLBACK);
+}
+
+/**
  * Every token the card's classes read, for a drawing that goes into a file.
  *
  * A file carries no stylesheet, so the third reader of the colours — after the
  * card's classes and the canvas's uploads — takes them as attributes. The
- * eight the paper style sets on the workspace root (`REFERENCES_PAPER_TOKENS`)
- * and the two the theme alone sets: the reference accent, which is also every
- * letter's ink, and the ground a letter off the paper has for its halo.
+ * paper style's tokens (`REFERENCES_PAPER_TOKENS`) bar the dimmed creases'
+ * alpha, which a step's markup never draws, and the two the theme alone sets:
+ * the reference accent, which is also every letter's ink, and the ground —
+ * the page's, in a file — which a letter off the paper has for its halo and a
+ * mark off it is inked against.
  */
 export const DIAGRAM_INLINE_TOKENS = [
   '--references-paper-front',
@@ -94,6 +130,7 @@ export const DIAGRAM_INLINE_TOKENS = [
   '--fold-valley',
   '--fold-border',
   '--fold-unassigned',
+  '--references-arrow',
   '--references-crease-alpha',
   '--cp-reference-input',
   '--bg-primary',
@@ -124,6 +161,13 @@ export interface DiagramInlineInk {
   mark: string;
   /** A letter's ink by its style, and the ground its halo is painted in. */
   label: { fill: Readonly<Record<DiagramPointStyleName, string>>; halo: string };
+  /**
+   * What a mark that has left the paper draws in there: the arrow (its
+   * strokes, its head and the turn-over glyph) and a ring, each its own ink
+   * where that reads against the ground and black or white where it does not
+   * (`referencesGroundInk`).
+   */
+  ground: { arrow: string; mark: string };
 }
 
 /** `.step-diagram__region`'s `fill-opacity`. */
@@ -135,12 +179,12 @@ const REGION_OPACITY = 0.12;
  * alpha rides on its stroke, as it does in the canvas's colour and the card's
  * `stroke-opacity`.
  *
- * `arrow` is the paper style's arrow pen colour, for the arrow's strokes, its
- * head and the turn-over glyph. On screen those are the edge's ink through
- * `--fold-border` — a diagram draws the motion in the paper's own black — but
- * the style has a pen for arrows, and a file is drawn with the style's pens.
+ * The arrow is the paper style's arrow pen colour (`--references-arrow`), for
+ * the arrow's strokes, its head and the turn-over glyph, as on screen. Off the
+ * paper, the arrow and the rings take the ground's rule against
+ * `--bg-primary`, which in a file is the page.
  */
-export function diagramInlineInk(tokens: DiagramInlineTokens, arrow: string): DiagramInlineInk {
+export function diagramInlineInk(tokens: DiagramInlineTokens): DiagramInlineInk {
   const lines = {} as Record<DiagramLineStyleName, DiagramInlineStroke>;
   for (const [style, token] of Object.entries(TOKENS)) {
     lines[style as DiagramLineStyleName] = { color: tokens[token as DiagramInlineToken] };
@@ -152,7 +196,9 @@ export function diagramInlineInk(tokens: DiagramInlineTokens, arrow: string): Di
       opacity: Number.isFinite(alpha) ? alpha : CREASE_ALPHA_FALLBACK,
     };
   }
-  lines.arrow = { color: arrow };
+  const arrow = tokens['--references-arrow'];
+  const mark = tokens['--fold-border'];
+  const ground = tokens['--bg-primary'];
   return {
     lines,
     sheet: {
@@ -162,7 +208,7 @@ export function diagramInlineInk(tokens: DiagramInlineTokens, arrow: string): Di
     },
     arrowhead: arrow,
     region: { fill: tokens['--cp-reference-input'], opacity: REGION_OPACITY },
-    mark: tokens['--fold-border'],
+    mark,
     // Every letter in the reference colour, as `.step-diagram__label` draws
     // it; the halo here is the ground, and a letter on the paper takes the
     // paper's face instead (`diagramPrimitiveShape`).
@@ -172,7 +218,11 @@ export function diagramInlineInk(tokens: DiagramInlineTokens, arrow: string): Di
         highlight: tokens['--cp-reference-input'],
         action: tokens['--cp-reference-input'],
       },
-      halo: tokens['--bg-primary'],
+      halo: ground,
+    },
+    ground: {
+      arrow: referencesGroundInk(arrow, ground),
+      mark: referencesGroundInk(mark, ground),
     },
   };
 }
