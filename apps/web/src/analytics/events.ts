@@ -241,6 +241,9 @@ export type PaperStyleFieldName =
  */
 export type PaperPresetName = 'default' | 'diagram' | 'custom';
 
+/** What the user did with unsaved edits a preset would have replaced. */
+export type PaperPresetUnsavedChoice = 'save' | 'discard' | 'cancel';
+
 /** The surfaces a document object can pin a paper-style field on. */
 export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
 
@@ -742,6 +745,13 @@ export const ANALYTICS_EVENTS = {
    * built-ins cover what people want is what a high `custom` share answers.
    */
   paperPresetApplied: 'paper preset applied',
+  /**
+   * A preset was picked while the slot held unsaved edits, and the user was
+   * asked what to do with them. `choice` is `save` (kept as a preset of their
+   * own first), `discard` or `cancel`. How often edits are thrown away versus
+   * kept is what says whether the prompt earns its interruption.
+   */
+  paperPresetUnsavedChanges: 'paper preset unsaved changes',
   /**
    * A document object had a paper-style field pinned, or the pin cleared
    * (`reset: true`), from its Properties sheet or the folded Style menu.

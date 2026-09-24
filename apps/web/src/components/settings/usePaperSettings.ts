@@ -9,7 +9,12 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { toast } from 'sonner';
-import { ANALYTICS_EVENTS, track, type PaperPresetName } from '../../analytics';
+import {
+  ANALYTICS_EVENTS,
+  track,
+  type PaperPresetName,
+  type PaperPresetUnsavedChoice,
+} from '../../analytics';
 import {
   BUILT_IN_PAPER_PRESETS,
   PAPER_PRESET_FILE_EXTENSION,
@@ -28,7 +33,17 @@ import {
 import type { PaperStyleSlot } from '../../lib/paperStyleSettings';
 import { exportFilename } from '../../platform/exportFilename';
 import { getFileService, type FileService } from '../../platform/fileService';
+import { requestChoice, type ChoiceDialogOptions } from '../../store/commandDialogStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { paperPresetRowLabel } from './PaperPresetCard';
+import { useSettingsNestedDialog } from './settingsNestedDialog';
+
+/**
+ * What became of a preset the user picked: `applied`, with or without asking;
+ * `save`, the changes it would replace are to be kept as a preset first — the
+ * caller asks for a name, saves, then applies it; or `cancelled`.
+ */
+export type PaperPresetChoice = 'applied' | 'save' | 'cancelled';
 
 /** One row of the preset list: a built-in, named by its id through i18n, or a user's, named by them. */
 export interface PaperPresetRow {
@@ -59,14 +74,29 @@ export interface PaperSettingsBinding {
   appliedPreset: PaperPresetRow | null;
   /** Whether the style has been edited since {@link appliedPreset} was applied. */
   modified: boolean;
+  /**
+   * Whether applying a preset now would throw away edits no preset holds: the
+   * style has been changed since its preset was applied, or it is nobody's.
+   */
+  unsaved: boolean;
   /** Put the slot back to {@link appliedPreset}; a no-op when there is none. */
   revert: () => void;
   applyPreset: (row: PaperPresetRow) => void;
+  /**
+   * Apply a preset the user picked, asking first when that would throw away
+   * {@link unsaved} edits: keep them as a preset of their own, discard them,
+   * or stay put. Resolves what the user chose (`PaperPresetChoice`).
+   */
+  choosePreset: (row: PaperPresetRow) => Promise<PaperPresetChoice>;
   /** Save the slot's style under a name; replaces a user preset of that name. */
   savePreset: (name: string) => void;
   removePreset: (name: string) => void;
-  /** Pick a `.json` file, add it to the list and apply it to the slot. */
-  importPreset: () => Promise<void>;
+  /**
+   * Pick a `.json` file, add it to the list and apply it to the slot — through
+   * {@link choosePreset}, so unsaved edits are asked about first. Resolves the
+   * imported row and what became of it, or null when nothing was imported.
+   */
+  importPreset: () => Promise<{ row: PaperPresetRow; choice: PaperPresetChoice } | null>;
   /** Write a preset to a `.json` file. */
   exportPreset: (row: PaperPresetRow) => Promise<void>;
   /** A discrete control's write: a number committed, a switch flipped, a cap picked. */
@@ -90,6 +120,7 @@ function presetName(row: PaperPresetRow): PaperPresetName {
 
 export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): PaperSettingsBinding {
   const { t } = useTranslation();
+  const setNestedDialogOpen = useSettingsNestedDialog();
   const [slot, setSlot] = useState<PaperStyleSlot>('display');
   const paperStyle = useSettingsStore((state) => state.paperStyle);
   const setPaperStyleField = useSettingsStore((state) => state.setPaperStyleField);
@@ -138,6 +169,7 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     return presets.find((row) => paperStyleEquals(row.preset.style, style)) ?? null;
   }, [chipSlot, paperStyle.appliedPreset, presets, style]);
   const modified = appliedPreset !== null && !paperStyleEquals(style, appliedPreset.preset.style);
+  const unsaved = editable && (modified || appliedPreset === null);
 
   const applyPreset = useCallback(
     (row: PaperPresetRow) => {
@@ -148,19 +180,51 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     [applyPaperPreset, slot]
   );
 
+  const choosePreset = useCallback(
+    async (row: PaperPresetRow): Promise<PaperPresetChoice> => {
+      if (!unsaved) {
+        applyPreset(row);
+        return 'applied';
+      }
+      // The dialog opens over Settings, whose Escape would otherwise close
+      // both: while it is up, Escape is the dialog's (`settingsNestedDialog`).
+      setNestedDialogOpen(true);
+      let picked: string | null;
+      try {
+        picked = await requestChoice(unsavedChangesPrompt(t, appliedPreset, row));
+      } finally {
+        setNestedDialogOpen(false);
+      }
+      const choice: PaperPresetUnsavedChoice =
+        picked === 'save' || picked === 'discard' ? picked : 'cancel';
+      track(ANALYTICS_EVENTS.paperPresetUnsavedChanges, { slot, choice });
+      if (choice === 'discard') {
+        applyPreset(row);
+        return 'applied';
+      }
+      return choice === 'save' ? 'save' : 'cancelled';
+    },
+    [appliedPreset, applyPreset, setNestedDialogOpen, slot, t, unsaved]
+  );
+
   const importPreset = useCallback(async () => {
     const file = await (fileService ?? getFileService()).openTextFile({
       title: t('dialogs:settings.paper.importTitle', 'Import Paper Style'),
       extensions: [PAPER_PRESET_FILE_EXTENSION.slice(1)],
     });
-    if (!file) return;
+    if (!file) return null;
     const result = importPaperPreset(file.text);
     if (!result.ok) {
       toast.error(importFailureMessage(t, result.reason));
-      return;
+      return null;
     }
-    applyPreset({ key: `user:${result.preset.name}`, preset: result.preset, builtIn: null });
-  }, [applyPreset, fileService, importPaperPreset, t]);
+    const row: PaperPresetRow = {
+      key: paperPresetKey(result.preset),
+      preset: result.preset,
+      builtIn: null,
+    };
+    return { row, choice: await choosePreset(row) };
+  }, [choosePreset, fileService, importPaperPreset, t]);
 
   const exportPreset = useCallback(
     async (row: PaperPresetRow) => {
@@ -198,8 +262,10 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       presets,
       appliedPreset,
       modified,
+      unsaved,
       revert,
       applyPreset,
+      choosePreset,
       savePreset: (name) => savePaperPreset(name, slot),
       removePreset: removePaperPreset,
       importPreset,
@@ -221,6 +287,7 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
   }, [
     appliedPreset,
     applyPreset,
+    choosePreset,
     editable,
     exportFollowsDisplay,
     exportPreset,
@@ -234,7 +301,63 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     setPaperStyleField,
     slot,
     style,
+    unsaved,
   ]);
+}
+
+/**
+ * The question asked before a preset replaces unsaved edits, and what can be
+ * done about them: keep them as a preset of their own first, or let them go.
+ */
+function unsavedChangesPrompt(
+  t: TFunction,
+  applied: PaperPresetRow | null,
+  next: PaperPresetRow
+): ChoiceDialogOptions {
+  const nextName = paperPresetRowLabel(t, next);
+  const message =
+    applied === null
+      ? t(
+          'dialogs:settings.paper.unsaved.custom',
+          'This style isn’t saved as a preset. Applying {{next}} replaces it.',
+          { next: nextName }
+        )
+      : applied.key === next.key
+        ? t(
+            'dialogs:settings.paper.unsaved.revert',
+            'You’ve changed {{preset}}. Applying it again undoes your changes.',
+            { preset: nextName }
+          )
+        : t(
+            'dialogs:settings.paper.unsaved.modified',
+            'You’ve changed {{preset}}. Applying {{next}} replaces your changes.',
+            { preset: paperPresetRowLabel(t, applied), next: nextName }
+          );
+  return {
+    title: t('dialogs:settings.paper.unsaved.title', 'Unsaved changes'),
+    message,
+    options: [
+      {
+        id: 'save',
+        label: t('dialogs:settings.paper.unsaved.save', 'Save as a new preset…'),
+        description: t(
+          'dialogs:settings.paper.unsaved.saveHint',
+          'Keep your changes as a preset of your own, then apply {{next}}.',
+          { next: nextName }
+        ),
+      },
+      {
+        id: 'discard',
+        label: t('dialogs:settings.paper.unsaved.discard', 'Discard changes'),
+        description: t(
+          'dialogs:settings.paper.unsaved.discardHint',
+          'Apply {{next}} without keeping your changes.',
+          { next: nextName }
+        ),
+        tone: 'danger',
+      },
+    ],
+  };
 }
 
 function importFailureMessage(t: TFunction, reason: PaperPresetParseFailure): string {

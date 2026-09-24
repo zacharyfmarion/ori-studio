@@ -470,6 +470,7 @@
         "name": "Preset name",
         "save": "Save",
         "saveAs": "Save current as…",
+        "saveThenApply": "Name a preset for your changes. {{preset}} is applied once it is saved.",
         "title": "Presets",
         "yours": "Saved by you"
       },
@@ -482,7 +483,17 @@
         "title": "Style"
       },
       "stepsHint": "References only",
-      "stepsTitle": "Steps"
+      "stepsTitle": "Steps",
+      "unsaved": {
+        "custom": "This style isn’t saved as a preset. Applying {{next}} replaces it.",
+        "discard": "Discard changes",
+        "discardHint": "Apply {{next}} without keeping your changes.",
+        "modified": "You’ve changed {{preset}}. Applying {{next}} replaces your changes.",
+        "revert": "You’ve changed {{preset}}. Applying it again undoes your changes.",
+        "save": "Save as a new preset…",
+        "saveHint": "Keep your changes as a preset of your own, then apply {{next}}.",
+        "title": "Unsaved changes"
+      }
     },
     "sections": "Settings sections",
     "shortcuts": {

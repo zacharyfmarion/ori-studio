@@ -45,6 +45,7 @@ export type {
   PaperExportSurface,
   PaperOverrideSurface,
   PaperPresetName,
+  PaperPresetUnsavedChoice,
   PaperStyleFieldName,
   ProjectOpenSource,
   ReferenceExactnessClass,

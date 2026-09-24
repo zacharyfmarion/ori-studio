@@ -20,6 +20,17 @@ vi.mock('../../analytics', () => ({
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
+const requestChoice = vi.hoisted(() => vi.fn<(options: unknown) => Promise<string | null>>());
+vi.mock('../../store/commandDialogStore', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../store/commandDialogStore')>()),
+  requestChoice,
+}));
+/** The message of the one unsaved-changes prompt asked so far. */
+function promptMessage(): string {
+  expect(requestChoice).toHaveBeenCalledTimes(1);
+  return (requestChoice.mock.calls[0]![0] as { message: string }).message;
+}
+
 const initialSettings = useSettingsStore.getInitialState();
 
 let root: Root | null = null;
@@ -63,6 +74,7 @@ beforeEach(() => {
   toast.error.mockReset();
   openTextFile.mockReset();
   saveTextFile.mockReset();
+  requestChoice.mockReset();
   useSettingsStore.setState(initialSettings, true);
   container = document.createElement('div');
   document.body.append(container);
@@ -217,6 +229,74 @@ describe('usePaperSettings', () => {
       { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'custom' } },
     ]);
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('has unsaved edits when the slot is a changed preset, or no preset at all', () => {
+    expect(current().unsaved).toBe(false);
+    // Nothing is recorded yet, so an edit leaves the default style no preset's.
+    act(() => current().setField('paper.front', '#123456'));
+    expect(current().appliedPreset).toBeNull();
+    expect(current().unsaved).toBe(true);
+
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    act(() => current().applyPreset(diagram));
+    expect(current().unsaved).toBe(false);
+    act(() => current().setField('erode', 0.02));
+    expect(current().unsaved).toBe(true);
+    // The following export slot has nothing of its own to lose.
+    act(() => current().setSlot('export'));
+    expect(current().unsaved).toBe(false);
+    act(() => current().setSlot('display'));
+    act(() => current().revert());
+    expect(current().unsaved).toBe(false);
+  });
+
+  it('applies a preset without asking while nothing is unsaved', async () => {
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    await expect(act(() => current().choosePreset(diagram))).resolves.toBe('applied');
+    expect(requestChoice).not.toHaveBeenCalled();
+    expect(stored().display).toEqual(diagram.preset.style);
+  });
+
+  it('says what applying the changed preset again would undo', async () => {
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    act(() => current().applyPreset(diagram));
+    act(() => current().setField('erode', 0.02));
+    requestChoice.mockResolvedValueOnce('discard');
+    await expect(act(() => current().choosePreset(diagram))).resolves.toBe('applied');
+    expect(promptMessage()).toBe('You’ve changed Diagram. Applying it again undoes your changes.');
+    expect(stored().display).toEqual(diagram.preset.style);
+  });
+
+  it('says a style that is no preset’s would be replaced, and leaves it on a save', async () => {
+    act(() => current().setField('paper.front', '#123456'));
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    requestChoice.mockResolvedValueOnce('save');
+    await expect(act(() => current().choosePreset(diagram))).resolves.toBe('save');
+    expect(promptMessage()).toBe('This style isn’t saved as a preset. Applying Diagram replaces it.');
+    // Saving is the caller's to do, with a name; until then nothing moves.
+    expect(stored().display.paper.front).toBe('#123456');
+    expect(tracked.at(-1)).toEqual({
+      event: 'paperPresetUnsavedChanges',
+      properties: { slot: 'display', choice: 'save' },
+    });
+  });
+
+  it('asks before an imported preset replaces unsaved edits, keeping the import either way', async () => {
+    act(() => current().applyPreset(current().presets.find((row) => row.builtIn === 'diagram')!));
+    act(() => current().setField('erode', 0.02));
+    openTextFile.mockResolvedValue({
+      text: serializePaperStylePreset(userPreset('Shared')),
+      name: 'shared.json',
+      path: null,
+    });
+    requestChoice.mockResolvedValueOnce(null);
+    const imported = await act(() => current().importPreset());
+    expect(imported?.row.key).toBe('user:Shared');
+    expect(imported?.choice).toBe('cancelled');
+    expect(promptMessage()).toBe('You’ve changed Diagram. Applying Shared replaces your changes.');
+    expect(stored().presets.map((preset) => preset.name)).toEqual(['Shared']);
+    expect(stored().display.erode).toBe(0.02);
   });
 
   it('says why a file did not import, and changes nothing', async () => {

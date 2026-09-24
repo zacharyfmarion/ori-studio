@@ -3634,6 +3634,14 @@ a.context-menu__item {
   width: auto;
 }
 
+/* Why the name field opened when a picked preset is waiting on it. */
+.settings-paper-name__why {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .settings-shortcuts {
   gap: var(--space-3);
 }

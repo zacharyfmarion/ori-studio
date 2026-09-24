@@ -6,6 +6,7 @@ import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { PaperSettings } from './PaperSettings';
+import { SettingsNestedDialogContext } from './settingsNestedDialog';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -17,10 +18,20 @@ vi.mock('../../analytics', () => ({
   },
 }));
 
+// The unsaved-changes prompt is a command dialog; the host that answers it is
+// the app's, so the answer is the test's to give.
+const requestChoice = vi.hoisted(() => vi.fn<(options: unknown) => Promise<string | null>>());
+vi.mock('../../store/commandDialogStore', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../store/commandDialogStore')>()),
+  requestChoice,
+}));
+
 const initialSettings = useSettingsStore.getInitialState();
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+/** What the Settings modal is told about a dialog the tab opened over it. */
+const nestedDialog = vi.fn<(open: boolean) => void>();
 
 function render(): HTMLDivElement {
   container = document.createElement('div');
@@ -30,9 +41,11 @@ function render(): HTMLDivElement {
   // mounts one provider at its root.
   act(() =>
     root?.render(
-      <TooltipProvider delayDuration={0}>
-        <PaperSettings />
-      </TooltipProvider>
+      <SettingsNestedDialogContext.Provider value={nestedDialog}>
+        <TooltipProvider delayDuration={0}>
+          <PaperSettings />
+        </TooltipProvider>
+      </SettingsNestedDialogContext.Provider>
     )
   );
   return container;
@@ -89,6 +102,8 @@ const styleSwitches = (within: ParentNode) =>
 
 beforeEach(() => {
   tracked.length = 0;
+  requestChoice.mockReset();
+  nestedDialog.mockReset();
   useSettingsStore.setState(initialSettings, true);
 });
 
@@ -389,6 +404,78 @@ describe('PaperSettings', () => {
     expect(exportPage().pngDpi).toBe(300);
     // Export page edits are not style edits, and count as none.
     expect(tracked).toEqual([]);
+  });
+
+  it('asks before a preset replaces unsaved edits, and keeps them as a preset first on request', async () => {
+    const rendered = render();
+    typeInto(input('Erode'), '2.5');
+    const edited = display();
+    requestChoice.mockResolvedValueOnce('save');
+    await act(async () => presetCard('builtin:diagram').click());
+    const prompt = requestChoice.mock.calls[0]![0] as { title: string; message: string };
+    expect(prompt.title).toBe('Unsaved changes');
+    expect(prompt.message).toContain('Applying Diagram');
+    // Over Settings, whose Escape is the dialog's while it is up.
+    expect(nestedDialog.mock.calls).toEqual([[true], [false]]);
+    // Nothing is applied yet: the edits are asked a name first.
+    expect(display()).toBe(edited);
+    expect(rendered.querySelector('.settings-paper-name__why')?.textContent).toBe(
+      'Name a preset for your changes. Diagram is applied once it is saved.'
+    );
+    typeInto(rendered.querySelector<HTMLInputElement>('.settings-paper-name input')!, 'Mine');
+    act(() => findButton('Save').click());
+    expect(useSettingsStore.getState().paperStyle.presets).toEqual([
+      { version: 1, name: 'Mine', style: edited },
+    ]);
+    expect(display()).toEqual(builtInPaperPreset('diagram').style);
+    expect(chip().textContent).toBe('Diagram');
+    expect(rendered.querySelector('.settings-paper-name')).toBeNull();
+    expect(tracked).toContainEqual({
+      event: 'paperPresetUnsavedChanges',
+      properties: { slot: 'display', choice: 'save' },
+    });
+  });
+
+  it('throws unsaved edits away on Discard, and keeps them on Cancel', async () => {
+    render();
+    typeInto(input('Erode'), '2.5');
+    const edited = display();
+    requestChoice.mockResolvedValueOnce(null);
+    await act(async () => presetCard('builtin:diagram').click());
+    expect(display()).toBe(edited);
+    expect(container!.querySelector('.settings-paper-name')).toBeNull();
+
+    requestChoice.mockResolvedValueOnce('discard');
+    await act(async () => presetCard('builtin:diagram').click());
+    expect(display()).toEqual(builtInPaperPreset('diagram').style);
+    expect(
+      tracked.filter((entry) => entry.event === 'paperPresetUnsavedChanges').map((entry) => entry.properties)
+    ).toEqual([
+      { slot: 'display', choice: 'cancel' },
+      { slot: 'display', choice: 'discard' },
+    ]);
+  });
+
+  it('stops asking for a name once another pick throws the edits away', async () => {
+    render();
+    typeInto(input('Erode'), '2.5');
+    requestChoice.mockResolvedValueOnce('save');
+    await act(async () => presetCard('builtin:diagram').click());
+    expect(container!.querySelector('.settings-paper-name')).not.toBeNull();
+
+    requestChoice.mockResolvedValueOnce('discard');
+    await act(async () => presetCard('builtin:default').click());
+    expect(display()).toEqual(builtInPaperPreset('default').style);
+    expect(container!.querySelector('.settings-paper-name')).toBeNull();
+    expect(container!.querySelector('.settings-paper-name__why')).toBeNull();
+  });
+
+  it('applies a preset without asking when nothing would be lost', () => {
+    render();
+    act(() => presetCard('builtin:diagram').click());
+    act(() => presetCard('builtin:default').click());
+    expect(requestChoice).not.toHaveBeenCalled();
+    expect(display()).toEqual(builtInPaperPreset('default').style);
   });
 
   it('saves the current style under a typed name and can delete it', () => {

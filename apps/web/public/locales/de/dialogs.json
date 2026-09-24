@@ -470,6 +470,7 @@
         "name": "Name der Voreinstellung",
         "save": "Speichern",
         "saveAs": "Aktuellen speichern als…",
+        "saveThenApply": "Benenne eine Voreinstellung für deine Änderungen. {{preset}} wird nach dem Speichern angewendet.",
         "title": "Voreinstellungen",
         "yours": "Von dir gespeichert"
       },
@@ -482,7 +483,17 @@
         "title": "Stil"
       },
       "stepsHint": "Nur Referenzen",
-      "stepsTitle": "Schritte"
+      "stepsTitle": "Schritte",
+      "unsaved": {
+        "custom": "Dieser Stil ist nicht als Voreinstellung gespeichert. Wenn du {{next}} anwendest, wird er ersetzt.",
+        "discard": "Änderungen verwerfen",
+        "discardHint": "Wende {{next}} an, ohne deine Änderungen zu behalten.",
+        "modified": "Du hast die Voreinstellung {{preset}} geändert. Wenn du {{next}} anwendest, werden deine Änderungen ersetzt.",
+        "revert": "Du hast die Voreinstellung {{preset}} geändert. Erneutes Anwenden macht deine Änderungen rückgängig.",
+        "save": "Als neue Voreinstellung speichern…",
+        "saveHint": "Behalte deine Änderungen als eigene Voreinstellung und wende dann {{next}} an.",
+        "title": "Nicht gespeicherte Änderungen"
+      }
     },
     "sections": "Einstellungsbereiche",
     "shortcuts": {

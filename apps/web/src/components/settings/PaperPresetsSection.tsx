@@ -3,25 +3,52 @@
  * place rather than a command dialog: the Settings modal takes Escape on
  * `window` ahead of any dialog opened from inside it, so a prompt would need
  * the nested-dialog handshake for one text field.
+ *
+ * Picking a preset while the slot holds unsaved edits asks first
+ * (`PaperSettingsBinding.choosePreset`). Keeping them opens the same name
+ * field, with the picked preset waiting: it is applied once they are saved.
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { PaperPresetCard } from './PaperPresetCard';
+import { PaperPresetCard, paperPresetRowLabel } from './PaperPresetCard';
 import { PaperSection } from './PaperSection';
-import type { PaperSettingsBinding } from './usePaperSettings';
+import type { PaperPresetChoice, PaperPresetRow, PaperSettingsBinding } from './usePaperSettings';
 
 export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) {
   const { t } = useTranslation();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
+  // The preset to apply once the edits it would have replaced are saved.
+  const [waiting, setWaiting] = useState<PaperPresetRow | null>(null);
   const trimmed = name.trim();
+
+  const startNaming = (then: PaperPresetRow | null) => {
+    setWaiting(then);
+    setName('');
+    setNaming(true);
+  };
+  const stopNaming = () => {
+    setNaming(false);
+    setWaiting(null);
+  };
+  /** What became of a pick: a `save` asks for the name the edits are kept under. */
+  const settle = (row: PaperPresetRow, choice: PaperPresetChoice) => {
+    if (choice === 'save') startNaming(row);
+    // Another pick went through instead, so the edits a waiting preset was
+    // held back for are gone, and so is the reason to name them.
+    else if (choice === 'applied' && waiting) stopNaming();
+  };
 
   const save = () => {
     if (!trimmed) return;
     paper.savePreset(trimmed);
-    setNaming(false);
+    // Saved over the very preset that was waiting, the edits *are* that preset
+    // now; applying the old copy would only undo the save.
+    const replaced = waiting?.builtIn === null && waiting.preset.name === trimmed;
+    if (waiting && !replaced) paper.applyPreset(waiting);
+    stopNaming();
     setName('');
   };
 
@@ -37,12 +64,21 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
             row={row}
             applied={paper.appliedPreset?.key === row.key}
             disabled={!paper.editable}
-            onApply={() => paper.applyPreset(row)}
+            onApply={() => void paper.choosePreset(row).then((choice) => settle(row, choice))}
             onExport={() => void paper.exportPreset(row)}
             onDelete={row.builtIn ? null : () => paper.removePreset(row.preset.name)}
           />
         ))}
       </div>
+      {naming && waiting && (
+        <p className="settings-paper-name__why">
+          {t(
+            'dialogs:settings.paper.presets.saveThenApply',
+            'Name a preset for your changes. {{preset}} is applied once it is saved.',
+            { preset: paperPresetRowLabel(t, waiting) }
+          )}
+        </p>
+      )}
       {naming ? (
         <form
           className="settings-paper-name"
@@ -69,17 +105,25 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
             {t('dialogs:settings.paper.presets.save', 'Save')}
           </Button>
           {/* The outline sibling of Save, as the two verbs it replaced are. */}
-          <Button size="sm" variant="secondary" onClick={() => setNaming(false)}>
+          <Button size="sm" variant="secondary" onClick={stopNaming}>
             {t('dialogs:common.cancel', 'Cancel')}
           </Button>
         </form>
       ) : (
         <div className="settings-paper-actions">
-          <Button size="sm" variant="secondary" onClick={() => setNaming(true)}>
+          <Button size="sm" variant="secondary" onClick={() => startNaming(null)}>
             <Plus size={13} aria-hidden="true" />
             {t('dialogs:settings.paper.presets.saveAs', 'Save current as…')}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => void paper.importPreset()}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              void paper.importPreset().then((imported) => {
+                if (imported) settle(imported.row, imported.choice);
+              })
+            }
+          >
             <Upload size={14} aria-hidden="true" />
             {t('dialogs:settings.paper.presets.import', 'Import…')}
           </Button>

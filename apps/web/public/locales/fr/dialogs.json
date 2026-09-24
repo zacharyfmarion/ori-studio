@@ -478,6 +478,7 @@
         "name": "Nom du préréglage",
         "save": "Enregistrer",
         "saveAs": "Enregistrer l'actuel sous…",
+        "saveThenApply": "Nommez un préréglage pour vos modifications. {{preset}} sera appliqué après l’enregistrement.",
         "title": "Préréglages",
         "yours": "Enregistrés par vous"
       },
@@ -490,7 +491,17 @@
         "title": "Style"
       },
       "stepsHint": "Références uniquement",
-      "stepsTitle": "Étapes"
+      "stepsTitle": "Étapes",
+      "unsaved": {
+        "custom": "Ce style n’est pas enregistré comme préréglage. Appliquer {{next}} le remplace.",
+        "discard": "Abandonner les modifications",
+        "discardHint": "Appliquez {{next}} sans conserver vos modifications.",
+        "modified": "Vous avez modifié {{preset}}. Appliquer {{next}} remplace vos modifications.",
+        "revert": "Vous avez modifié {{preset}}. L’appliquer de nouveau annule vos modifications.",
+        "save": "Enregistrer comme nouveau préréglage…",
+        "saveHint": "Conservez vos modifications dans votre propre préréglage, puis appliquez {{next}}.",
+        "title": "Modifications non enregistrées"
+      }
     },
     "sections": "Sections des paramètres",
     "shortcuts": {

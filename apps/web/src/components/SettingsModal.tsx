@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useId,
   useMemo,
@@ -25,6 +23,10 @@ import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { UpdatesSection } from './settings/UpdatesSection';
 import { ModelsSection } from './settings/ModelsSection';
 import { PaperSettings } from './settings/PaperSettings';
+import {
+  SettingsNestedDialogContext,
+  useSettingsNestedDialog,
+} from './settings/settingsNestedDialog';
 import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
@@ -399,16 +401,6 @@ function WorkspaceTab() {
   );
 }
 
-/**
- * Lets a tab tell the Settings modal that it has opened a dialog of its own.
- *
- * Both this modal and a nested dialog listen for Escape on `window` in the
- * capture phase, and the modal's listener is registered first — so
- * `stopPropagation` from the inner one cannot suppress it, and Escape in the
- * import review was tearing down the whole Settings modal instead of returning
- * the user to the Shortcuts list they came from.
- */
-const NestedDialogContext = createContext<(open: boolean) => void>(() => {});
 
 /** Chords as one comparable string, so two resolutions can be diffed by value. */
 function chordListId(chords: KeyChord[]): string {
@@ -759,7 +751,7 @@ function ShortcutsTab() {
     text: string;
   } | null>(null);
   const [importing, setImporting] = useState(false);
-  const setNestedDialogOpen = useContext(NestedDialogContext);
+  const setNestedDialogOpen = useSettingsNestedDialog();
   useEffect(() => {
     setNestedDialogOpen(importing);
     return () => setNestedDialogOpen(false);
@@ -1131,7 +1123,7 @@ function SettingsModalContent({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      // A nested dialog owns Escape while it is open; see NestedDialogContext.
+      // A nested dialog owns Escape while it is open; see SettingsNestedDialogContext.
       if (nestedDialogOpen) return;
       event.preventDefault();
       event.stopPropagation();
@@ -1187,9 +1179,9 @@ function SettingsModalContent({
             </IconButton>
           </header>
           <div className="settings-modal__body">
-            <NestedDialogContext.Provider value={setNestedDialogOpen}>
+            <SettingsNestedDialogContext.Provider value={setNestedDialogOpen}>
               <ActiveTab />
-            </NestedDialogContext.Provider>
+            </SettingsNestedDialogContext.Provider>
           </div>
         </section>
       </div>

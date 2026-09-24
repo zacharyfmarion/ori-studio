@@ -478,6 +478,7 @@
         "name": "Nombre del predefinido",
         "save": "Guardar",
         "saveAs": "Guardar el actual como…",
+        "saveThenApply": "Ponle nombre a un predefinido con tus cambios. {{preset}} se aplicará al guardarlo.",
         "title": "Predefinidos",
         "yours": "Guardados por ti"
       },
@@ -490,7 +491,17 @@
         "title": "Estilo"
       },
       "stepsHint": "Solo referencias",
-      "stepsTitle": "Pasos"
+      "stepsTitle": "Pasos",
+      "unsaved": {
+        "custom": "Este estilo no está guardado como predefinido. Aplicar {{next}} lo reemplaza.",
+        "discard": "Descartar cambios",
+        "discardHint": "Aplica {{next}} sin conservar tus cambios.",
+        "modified": "Has cambiado {{preset}}. Aplicar {{next}} reemplaza tus cambios.",
+        "revert": "Has cambiado {{preset}}. Volver a aplicarlo deshace tus cambios.",
+        "save": "Guardar como nuevo predefinido…",
+        "saveHint": "Conserva tus cambios como un predefinido propio y luego aplica {{next}}.",
+        "title": "Cambios sin guardar"
+      }
     },
     "sections": "Secciones de configuración",
     "shortcuts": {

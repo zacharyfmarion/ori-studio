@@ -462,6 +462,7 @@
         "name": "预设名称",
         "save": "保存",
         "saveAs": "将当前样式另存为…",
+        "saveThenApply": "为你的更改命名一个预设。保存后将应用“{{preset}}”。",
         "title": "预设",
         "yours": "我保存的"
       },
@@ -474,7 +475,17 @@
         "title": "样式"
       },
       "stepsHint": "仅参考",
-      "stepsTitle": "步骤"
+      "stepsTitle": "步骤",
+      "unsaved": {
+        "custom": "此样式尚未保存为预设。应用“{{next}}”会替换它。",
+        "discard": "放弃更改",
+        "discardHint": "应用“{{next}}”，不保留你的更改。",
+        "modified": "你已更改“{{preset}}”。应用“{{next}}”会替换你的更改。",
+        "revert": "你已更改“{{preset}}”。再次应用它会撤销你的更改。",
+        "save": "另存为新预设…",
+        "saveHint": "先将你的更改保存为自己的预设，再应用“{{next}}”。",
+        "title": "未保存的更改"
+      }
     },
     "sections": "设置分区",
     "shortcuts": {

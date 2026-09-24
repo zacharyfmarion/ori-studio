@@ -1973,6 +1973,14 @@ alone cannot decide between coincident layers.
       holdover from when the flap was the dark ground; the dark theme's
       near-white text over the style's light paper shaded nothing, and the
       curl lost its rounded look.
+- [x] Picking a preset while the slot holds unsaved edits asks first
+      (`choosePreset`): save them as a new preset, discard them, or cancel.
+      Edits are unsaved when the slot is a changed preset, or a style that is
+      no preset's. Saving opens the name field with the picked preset waiting,
+      applied once the edits are saved. An import that would replace edits
+      asks too, and keeps the imported preset either way. The prompt opens
+      over Settings, so Settings leaves Escape to it (`settingsNestedDialog`);
+      counted as `paper preset unsaved changes` by choice.
 
 ### Validation per phase
 
