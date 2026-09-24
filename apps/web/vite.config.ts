@@ -7,6 +7,7 @@ import { build as bundle, type Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import type { ServiceWorkerManifest } from './src/pwa/swRoutes';
+import { exploriMock, exploriMockEnabled } from './vite/exploriMock';
 
 const DIST_PLACEHOLDER = 'apps/web/dist/.gitkeep';
 const DIST_PLACEHOLDER_TEXT =
@@ -371,12 +372,16 @@ function sentryRelease(): string {
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const uploadSourcemaps = Boolean(sentryAuthToken);
 
+/** Where the dev proxy sends ExplOri searches; the archive itself unless redirected. */
+const EXPLORI_DEV_ORIGIN = process.env.EXPLORI_DEV_ORIGIN || 'https://225.designorigami.net';
+
 export default defineConfig({
   plugins: [
     react(),
     keepTauriFrontendDistPath(),
     oriServiceWorker(),
     simPerfLogSink(),
+    ...(exploriMockEnabled() ? [exploriMock(resolve(__dirname, '../../'))] : []),
     ...(uploadSourcemaps
       ? [
           sentryVitePlugin({
@@ -472,20 +477,28 @@ export default defineConfig({
      * The two differences from the real proxy are worth knowing while
      * developing against it: nothing is stripped (so a dev response carries the
      * ~47% pickle the Function drops), and nothing is rate-limited.
+     *
+     * Two switches keep development off that server, which is one person's
+     * machine. `EXPLORI_MOCK=1` answers searches from the local fixtures
+     * instead — see `vite/exploriMock.ts` — and takes the proxy out entirely,
+     * so nothing can reach upstream by mistake. `EXPLORI_DEV_ORIGIN` points the
+     * proxy at another instance, such as the archive's server run locally.
      */
-    proxy: {
-      '/api/explori/query': {
-        target: 'https://225.designorigami.net',
-        changeOrigin: true,
-        rewrite: () => '/api/query',
-      },
-      '/api/explori/tiling': {
-        target: 'https://225.designorigami.net',
-        changeOrigin: true,
-        rewrite: (path: string) =>
-          `/api/fetch_tiling${path.slice(path.indexOf('?') === -1 ? path.length : path.indexOf('?'))}`,
-      },
-    },
+    proxy: exploriMockEnabled()
+      ? {}
+      : {
+          '/api/explori/query': {
+            target: EXPLORI_DEV_ORIGIN,
+            changeOrigin: true,
+            rewrite: () => '/api/query',
+          },
+          '/api/explori/tiling': {
+            target: EXPLORI_DEV_ORIGIN,
+            changeOrigin: true,
+            rewrite: (path: string) =>
+              `/api/fetch_tiling${path.slice(path.indexOf('?') === -1 ? path.length : path.indexOf('?'))}`,
+          },
+        },
   },
   preview: {
     headers: crossOriginIsolationHeaders,

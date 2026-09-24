@@ -56,3 +56,10 @@ Artifacts are written to `target/release-artifacts/vX.Y.Z/` by default:
 - `OriStudio_X.Y.Z_aarch64.dmg`
 - `OriStudio_latest_aarch64.dmg`
 - `sha256-aarch64.txt`
+
+## `explori/`
+
+Offline tooling for the ExplOri design kind: exporting the local tiling
+databases as a tree corpus, building API-shaped fixtures from them, and running
+the dev server against those fixtures instead of the archive's own server. See
+[explori/README.md](explori/README.md).

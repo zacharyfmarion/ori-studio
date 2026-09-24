@@ -20,6 +20,7 @@ import {
   type ExploriThumbMode,
 } from '../../explori/renderers';
 import { exploriMatchQuality, exploriMatchQualityLabel } from '../../explori/matchQuality';
+import type { ExploriDocument } from '../../explori/document';
 import { exploriResultUrl, exploriTilingLabel, type ExploriResult } from '../../explori/types';
 import { useDesignPaneSwitcher } from '../../hooks/useDesignPaneSwitcher';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -52,28 +53,55 @@ const DETAIL_SIZE = 400;
  */
 type ExploriCardMode = ExploriThumbMode | 'pair';
 
+/**
+ * The drawn tree travels to every tree figure: a result whose paper cannot say
+ * which way is up is turned to lean the way the drawn tree leans.
+ */
+type Query = ExploriDocument | null;
+
 function ResultFigure({
   result,
   mode,
   size,
+  query,
 }: {
   result: ExploriResult;
   mode: ExploriThumbMode;
   size: number;
+  query: Query;
 }) {
   if (mode === 'packing') return <ExploriCpFigure cp={result.packing} size={size} variant="packing" />;
   if (mode === 'fold' && result.fold) return <ExploriFoldFigure fold={result.fold} size={size} />;
-  if (mode === 'tree' && result.tree) return <ExploriGraphFigure graph={result.tree} size={size} />;
+  if (mode === 'tree' && result.tree) {
+    return (
+      <ExploriGraphFigure
+        graph={result.tree}
+        size={size}
+        symmetry={result.symmetry}
+        query={query}
+        cp={result.cp}
+        packing={result.packing}
+      />
+    );
+  }
   return <ExploriCpFigure cp={result.cp} size={size} />;
 }
 
 /** A card's figure, which is either one view or the tree beside the pattern. */
-function CardFigure({ result, mode }: { result: ExploriResult; mode: ExploriCardMode }) {
-  if (mode !== 'pair') return <ResultFigure result={result} mode={mode} size={THUMB_SIZE} />;
+function CardFigure({
+  result,
+  mode,
+  query,
+}: {
+  result: ExploriResult;
+  mode: ExploriCardMode;
+  query: Query;
+}) {
+  if (mode !== 'pair') return <ResultFigure result={result} mode={mode} size={THUMB_SIZE} query={query} />;
   return (
     <div className="explori-result-card__pair">
-      <ResultFigure result={result} mode="tree" size={THUMB_SIZE} />
-      <ResultFigure result={result} mode="cp" size={THUMB_SIZE} />
+      <ResultFigure result={result} mode="tree" size={THUMB_SIZE} query={query} />
+      <ResultFigure result={result} mode="cp" size={THUMB_SIZE} query={query} />
     </div>
   );
 }
@@ -120,15 +148,17 @@ function ExploriDetailFigure({
   result,
   mode,
   label,
+  query,
 }: {
   result: ExploriResult;
   mode: ExploriThumbMode;
   label: string;
+  query: Query;
 }) {
   return (
     <figure className="explori-detail__pane">
       <div className="explori-detail__figure">
-        <ResultFigure result={result} mode={mode} size={DETAIL_SIZE} />
+        <ResultFigure result={result} mode={mode} size={DETAIL_SIZE} query={query} />
       </div>
       <figcaption className="explori-detail__caption">{label}</figcaption>
     </figure>
@@ -301,21 +331,25 @@ export function ExploriResultsPanel() {
         <div className="explori-detail__panes">
           <ExploriDetailFigure
             result={detail}
+            query={design.document}
             mode="cp"
             label={t('panels:explori.viewCp', 'Crease pattern')}
           />
           <ExploriDetailFigure
             result={detail}
+            query={design.document}
             mode="packing"
             label={t('panels:explori.viewPacking', 'Packing')}
           />
           <ExploriDetailFigure
             result={detail}
+            query={design.document}
             mode="tree"
             label={t('panels:explori.viewTree', 'Tree')}
           />
           <ExploriDetailFigure
             result={detail}
+            query={design.document}
             mode="fold"
             label={t('panels:explori.viewFold', 'Folded form')}
           />
@@ -395,7 +429,7 @@ export function ExploriResultsPanel() {
                       id: exploriTilingLabel(result),
                     })}
                   >
-                    <CardFigure result={result} mode={cardMode} />
+                    <CardFigure result={result} mode={cardMode} query={design.document} />
                   </button>
                   <div className="explori-result-card__meta">
                     <span className={`explori-quality explori-quality--${quality}`}>
