@@ -12,6 +12,7 @@ import {
   foldAndUnfoldFromArc,
   foldArrowLanding,
   foldArrowTrim,
+  sheetCorners,
 } from '../stepDiagramGeometry';
 import type {
   DiagramLineStyleName,
@@ -101,6 +102,11 @@ export interface DiagramRenderContext {
   /** The paper the primitives were measured against; where erode finds its edge. */
   sheet: DiagramSheet;
   /**
+   * That paper's outline in the projector's units: what a letter's halo is
+   * painted to match when the letter stands on it.
+   */
+  paper: readonly SvgPoint[];
+  /**
    * What the paper style says about the lines drawn in its aux pen — the
    * creases an earlier step made (`crease`) and the pattern's own aux lines
    * (`aux`): whether the aux lines are drawn, and how far either is pulled
@@ -145,9 +151,31 @@ export function createDiagramRenderContext(
     marks: diagramMarks(primitives, project),
     labels: placeLabels(primitives, sheet, project, layout),
     sheet,
+    paper: sheetCorners(sheet).map((corner) => project(corner)),
     creases,
     inline,
   };
+}
+
+/**
+ * Whether a letter stands on the paper: its box's middle inside the paper's
+ * outline. The outline is convex, so the middle is inside when it is on the
+ * same side of every edge, whichever way round the projector winds it.
+ */
+export function labelOnPaper(box: LabelPlacement['box'], paper: readonly SvgPoint[]): boolean {
+  if (paper.length < 3) return false;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  let sign = 0;
+  for (let i = 0; i < paper.length; i += 1) {
+    const a = paper[i]!;
+    const b = paper[(i + 1) % paper.length]!;
+    const cross = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+    if (cross === 0) continue;
+    if (sign === 0) sign = Math.sign(cross);
+    else if (Math.sign(cross) !== sign) return false;
+  }
+  return true;
 }
 
 /**
@@ -383,6 +411,15 @@ export function diagramPrimitiveShape(
       // drawn somewhere wrong.
       const placement = context.labels.get(index);
       if (!placement) return null;
+      // The halo is what the letter stands on: the paper, on the face the
+      // picture shows, or the ground round it where a letter was pushed off
+      // the sheet — so it reads as a knock-out, never as a ring.
+      const onPaper = labelOnPaper(placement.box, context.paper);
+      const ground = onPaper
+        ? mirrored
+          ? ' step-diagram__label--on-back'
+          : ' step-diagram__label--on-paper'
+        : '';
       return (
         <text
           key={index}
@@ -391,9 +428,9 @@ export function diagramPrimitiveShape(
           textAnchor={placement.anchor}
           fontSize={DIAGRAM_LABEL_INK.size * project.ink}
           strokeWidth={DIAGRAM_LABEL_INK.halo * project.ink}
-          {...inked(context, `step-diagram__label step-diagram__label--${primitive.style}`, (ink) => ({
+          {...inked(context, `step-diagram__label step-diagram__label--${primitive.style}${ground}`, (ink) => ({
             fill: ink.label.fill[primitive.style],
-            stroke: ink.label.halo,
+            stroke: onPaper ? (mirrored ? ink.sheet.back : ink.sheet.front) : ink.label.halo,
             strokeLinejoin: 'round',
             paintOrder: 'stroke',
             fontFamily: INLINE_LABEL_FONT,

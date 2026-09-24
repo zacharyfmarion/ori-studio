@@ -12604,12 +12604,18 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
-  The halo is the ground the label sits on. `placeLabels` pushes a label off
-  the sheet into the padding band on purpose, so a halo painted in `--bg-paper`
-  was a near-white ring floating on the dark card — which is what it looked like.
+  Every letter is in the reference colour: a letter is an annotation, not part
+  of the picture, and it has to read on the paper and on the dark ground round
+  it alike — the paper's own ink is black, which vanishes off the sheet.
+
+  The halo is what the letter stands on, so it knocks out the lines behind the
+  letter without drawing a ring of its own: the paper, on the face the picture
+  shows, for a letter on the sheet; the ground for one `placeLabels` pushed off
+  it into the padding band. One halo for both was a dark ring round every
+  letter on the paper, and round a black one it read as a smudge.
 */
 .step-diagram__label {
-  fill: var(--text-primary);
+  fill: var(--cp-reference-input);
   font-family: inherit;
   font-weight: 700;
   paint-order: stroke;
@@ -12617,11 +12623,11 @@ button.bp-packing-alert:focus-visible {
   stroke-linejoin: round;
 }
 
-.step-diagram__label--highlight {
-  fill: var(--cp-reference-input);
+.step-diagram__label--on-paper {
+  stroke: var(--references-paper-front, var(--bg-primary));
 }
 
-.step-diagram__label--action {
-  fill: var(--fold-border);
+.step-diagram__label--on-back {
+  stroke: var(--references-paper-back, var(--paper-back));
 }
 

@@ -84,8 +84,8 @@ export function diagramInkColors(
  * A file carries no stylesheet, so the third reader of the colours — after the
  * card's classes and the canvas's uploads — takes them as attributes. The
  * eight the paper style sets on the workspace root (`REFERENCES_PAPER_TOKENS`)
- * and the three the theme alone sets: the reference accent, the letter's ink
- * and the ground its halo is painted in.
+ * and the two the theme alone sets: the reference accent, which is also every
+ * letter's ink, and the ground a letter off the paper has for its halo.
  */
 export const DIAGRAM_INLINE_TOKENS = [
   '--references-paper-front',
@@ -96,7 +96,6 @@ export const DIAGRAM_INLINE_TOKENS = [
   '--fold-unassigned',
   '--references-crease-alpha',
   '--cp-reference-input',
-  '--text-primary',
   '--bg-primary',
 ] as const;
 
@@ -164,11 +163,14 @@ export function diagramInlineInk(tokens: DiagramInlineTokens, arrow: string): Di
     arrowhead: arrow,
     region: { fill: tokens['--cp-reference-input'], opacity: REGION_OPACITY },
     mark: tokens['--fold-border'],
+    // Every letter in the reference colour, as `.step-diagram__label` draws
+    // it; the halo here is the ground, and a letter on the paper takes the
+    // paper's face instead (`diagramPrimitiveShape`).
     label: {
       fill: {
-        normal: tokens['--text-primary'],
+        normal: tokens['--cp-reference-input'],
         highlight: tokens['--cp-reference-input'],
-        action: tokens['--fold-border'],
+        action: tokens['--cp-reference-input'],
       },
       halo: tokens['--bg-primary'],
     },

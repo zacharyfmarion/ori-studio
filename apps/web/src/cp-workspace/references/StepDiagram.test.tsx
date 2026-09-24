@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE, type PaperStyleOverrides } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { cardChromeRects, StepDiagram } from './StepDiagram';
-import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/DiagramPrimitives';
+import {
+  createDiagramRenderContext,
+  diagramPrimitiveShape,
+  labelOnPaper,
+} from './diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineTokens } from './diagram/diagramColors';
 import {
   DIAGRAM_LABEL_INK,
@@ -669,7 +673,6 @@ describe('the same shapes, inked for a file', () => {
     '--fold-unassigned': '#aabbcc',
     '--references-crease-alpha': '0.5',
     '--cp-reference-input': '#ff00ff',
-    '--text-primary': '#222222',
     '--bg-primary': '#fafafa',
   };
   const primitives: StepDiagramModel['primitives'] = [
@@ -698,6 +701,13 @@ describe('the same shapes, inked for a file', () => {
     );
   };
 
+  it('gives a letter on the paper the paper’s face for its halo, on screen too', () => {
+    const [front] = elements(draw(false, false), 'text');
+    expect(front!.class).toContain('step-diagram__label--on-paper');
+    const [back] = elements(draw(true, false), 'text');
+    expect(back!.class).toContain('step-diagram__label--on-back');
+  });
+
   it('keeps every class on screen, and writes none into a file', () => {
     const screen = draw(false, false);
     expect(screen.match(/class="/g)!.length).toBeGreaterThanOrEqual(primitives.length);
@@ -722,15 +732,42 @@ describe('the same shapes, inked for a file', () => {
     // The arrowhead and the turn-over glyph's head: the arrow pen's.
     expect(polygons.slice(1).map((p) => p.fill)).toEqual(['#405060', '#405060']);
     expect(elements(file, 'circle')[0]).toMatchObject({ fill: 'none', stroke: '#000000' });
+    // The letter stands on the paper, so its halo is the paper's face: a
+    // knock-out of the lines behind it, not a ring of the ground's colour.
     expect(elements(file, 'text')[0]).toMatchObject({
       fill: '#ff00ff',
-      stroke: '#fafafa',
+      stroke: '#fff8e1',
       'paint-order': 'stroke',
       'stroke-linejoin': 'round',
       'font-weight': '700',
     });
+    expect(elements(draw(true, true), 'text')[0]!.stroke).toBe('#d0d0d0');
     for (const path of elements(file, 'path')) {
       expect(path).toMatchObject({ fill: 'none', stroke: '#405060' });
     }
+  });
+});
+
+describe('labelOnPaper', () => {
+  // The paper's outline as a projector hands it over: either winding, since a
+  // mirrored projector turns it round.
+  const square = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 100 },
+    { x: 0, y: 100 },
+  ];
+  const box = (x: number, y: number) => ({ x: x - 5, y: y - 6, width: 10, height: 12 });
+
+  it('stands a letter on the paper by its box’s middle', () => {
+    expect(labelOnPaper(box(50, 50), square)).toBe(true);
+    expect(labelOnPaper(box(50, 50), [...square].reverse())).toBe(true);
+    // Pushed off the sheet into the band round it.
+    expect(labelOnPaper(box(108, 50), square)).toBe(false);
+    expect(labelOnPaper(box(50, -8), [...square].reverse())).toBe(false);
+  });
+
+  it('puts nothing on paper that has no outline', () => {
+    expect(labelOnPaper(box(50, 50), [])).toBe(false);
   });
 });

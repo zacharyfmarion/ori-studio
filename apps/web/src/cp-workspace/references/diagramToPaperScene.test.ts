@@ -365,13 +365,13 @@ describe('the markup', () => {
       stroke: 'none',
     });
     // The arrowhead is the arrow pen's; the mark's ring takes the edge pen's
-    // ink; the letter the accent, with the page's ground for its halo, in a
-    // named font.
+    // ink; the letter the accent, in a named font, with the paper it stands on
+    // for its halo (the page's ground is the halo of a letter off the sheet).
     expect(elements(over!.svg, 'polygon').map((p) => p.fill)).toEqual(['#405060', '#405060']);
     expect(elements(over!.svg, 'circle')[0]).toMatchObject({ fill: 'none', stroke: '#102030' });
     expect(elements(over!.svg, 'text')[0]).toMatchObject({
       fill: REFERENCE_COLORS.light.input,
-      stroke: '#fafafa',
+      stroke: '#fff8e1',
       'paint-order': 'stroke',
       'font-weight': '700',
     });

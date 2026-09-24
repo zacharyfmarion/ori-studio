@@ -93,7 +93,6 @@ describe('diagramInlineInk', () => {
     '--fold-unassigned': '#aabbcc',
     '--references-crease-alpha': '0.5',
     '--cp-reference-input': '#ff00ff',
-    '--text-primary': '#222222',
     '--bg-primary': '#fafafa',
   };
 
@@ -118,8 +117,10 @@ describe('diagramInlineInk', () => {
     expect(ink.sheet).toEqual({ front: '#fff8e1', back: '#d0d0d0', stroke: '#000000' });
     expect(ink.region).toEqual({ fill: '#ff00ff', opacity: 0.12 });
     expect(ink.mark).toBe('#000000');
+    // Every letter in the reference colour, whatever its style: black letters
+    // vanished off the sheet and, ringed in the dark ground, smudged on it.
     expect(ink.label).toEqual({
-      fill: { normal: '#222222', highlight: '#ff00ff', action: '#000000' },
+      fill: { normal: '#ff00ff', highlight: '#ff00ff', action: '#ff00ff' },
       halo: '#fafafa',
     });
   });

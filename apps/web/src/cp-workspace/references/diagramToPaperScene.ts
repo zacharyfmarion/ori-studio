@@ -236,15 +236,14 @@ export function diagramToPaperScene(
 
 /**
  * The tokens the card's classes read, as the style has them: the eight the
- * workspace root carries, the accent the light theme gives a reference
- * (a printed diagram is on light paper), the edge pen for a letter's ink and
- * the page's ground for its halo.
+ * workspace root carries, the accent the light theme gives a reference (a
+ * printed diagram is on light paper) — every letter's ink — and the page's
+ * ground for the halo of a letter off the paper.
  */
 function inlineTokens(seen: PaperStyle, ground: Hex): DiagramInlineTokens {
   return {
     ...referencesPaperTokens(seen),
     '--cp-reference-input': REFERENCE_COLORS.light.input,
-    '--text-primary': seen.edges.color,
     '--bg-primary': ground,
   };
 }
