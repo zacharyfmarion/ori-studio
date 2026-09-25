@@ -11026,6 +11026,12 @@ button.bp-packing-alert:focus-visible {
     scroll-snap-align: center;
   }
 
+  /* The ways row's chevrons, thumb-sized like the mode tabs. */
+  .references-workspace .references-filmstrip__ways button {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+
 }
 
 /*
@@ -11321,6 +11327,32 @@ button.bp-packing-alert:focus-visible {
   text-transform: uppercase;
 }
 
+/* A card that can be folded more than one way: a dot per way along its foot,
+   the one it shows filled, so a card left on another way reads so in the strip
+   before its sentence does. */
+.references-card__ways {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none;
+}
+
+.references-card__way {
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--text-tertiary);
+  border-radius: 50%;
+}
+
+.references-card__way--shown {
+  border-color: var(--text-secondary);
+  background: var(--text-secondary);
+}
+
 /* A fold that is not exact carries both: its number where every fold's is,
    and the badge in the opposite corner. */
 .references-card--fold .references-card__badge {
@@ -11496,6 +11528,24 @@ button.bp-packing-alert:focus-visible {
   display: block;
   color: var(--text-tertiary);
   font-size: 0.7rem;
+}
+
+/* The active card's other ways to fold it, under its sentence: "Way 2 of 3"
+   and a chevron each way — up and down, as the keys step through the ways
+   while left and right step through the cards. */
+.references-filmstrip__ways {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-1);
+}
+
+.references-filmstrip__ways-readout {
+  margin-right: var(--space-1);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* The picked target, and the way back out of it: a row of its own under the

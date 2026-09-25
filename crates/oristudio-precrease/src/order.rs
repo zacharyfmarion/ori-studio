@@ -37,6 +37,7 @@ mod search;
 pub use search::improve;
 pub mod construction;
 pub mod rollout;
+pub mod ways;
 
 /// Improve the emitted construction within one shared wall-clock budget.
 /// A short ordering pass is followed by joint witness/extent cleanup; both
@@ -1756,6 +1757,95 @@ fn pick_witness(
     pick_scored(state, fold, spans, witnesses, &scored)
 }
 
+/// The pick's preference between two scored witnesses, criterion by
+/// criterion in [`pick_witness`]'s order: the lesser key is the better fold.
+/// A struct rather than a tuple so [`ways`] can say which criterion
+/// separated two witnesses; the fields compare in declaration order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CardKey {
+    impractical: bool,
+    /// Free folds the folder can watch; then free folds lined up under the
+    /// paper beside folds a single press makes watchable — the one thing a
+    /// press may buy; then by the presses.
+    press_tier: usize,
+    /// Corner to corner before everything else that is free: the fold every
+    /// diagram makes that way, and the most exact (markhor's card 6, the
+    /// diagonals).
+    not_corner_to_corner: bool,
+    /// Ink before sight: a crease joined between marks far beyond it is
+    /// crease the pattern does not ask for, and Zach would rather have a fold
+    /// with less to go on than twice the crease.
+    overlong: bool,
+    hidden: bool,
+    imprecise: bool,
+    not_local: bool,
+    no_crossing: bool,
+    /// A spot still to be pinched while its crease is made: ink for no step.
+    /// A press has paid for its marks in the tier already.
+    marks_unreal: bool,
+    /// One motion before two hands, and only now: a fold lined up half a
+    /// sheet from its crease is not made easier by being one motion
+    /// (markhor 31, 32, 48).
+    two_hands: bool,
+    ease: u8,
+    skinny: bool,
+    error: u64,
+    /// A perpendicular through the mark nearest the crease's middle: its
+    /// direction is the line's, and where it lies is the mark's, so the
+    /// crease is off by the mark's error grown over the distance to it,
+    /// least when the mark is in the crease (tabby cat 46).
+    mark_offset: u64,
+    residual: u64,
+    /// A fold perpendicular to one edge is perpendicular to the opposite one
+    /// too, and both are witnesses of equal ease. The folder wants the edge
+    /// the crease is at: "fold the bottom edge onto itself" for a crease that
+    /// runs up from the bottom, whichever edge the mark is nearer. So the tie
+    /// goes to the edge whose foot on the fold is nearest the crease the
+    /// pattern wants.
+    edge_gap: u64,
+}
+
+/// [`CardKey`] of witness `w`, scored as `c`, for a fold along `fold` whose
+/// pattern creases are `spans`.
+fn card_key(
+    state: &State,
+    fold: &Line,
+    spans: &[[[f64; 2]; 2]],
+    w: &Witness,
+    c: &Scored,
+) -> CardKey {
+    let j = &c.judgement;
+    let press_tier = if c.cost == 0 && j.visible {
+        0
+    } else if c.cost == 0 || (c.cost <= MAX_PRESSES_FOR_PREFERENCE && j.visible) {
+        1
+    } else {
+        2 + c.cost
+    };
+    CardKey {
+        impractical: !j.practical,
+        press_tier,
+        not_corner_to_corner: !j.corner_to_corner,
+        overlong: j.overlong,
+        hidden: !j.visible,
+        imprecise: !j.precise,
+        not_local: !j.local(),
+        no_crossing: !j.crossings,
+        marks_unreal: c.cost == 0 && !j.marks_real,
+        two_hands: !c.one_motion,
+        ease: j.ease,
+        skinny: j.skinny,
+        error: j.error.map_or(0, |e| (e * 1e3) as u64),
+        mark_offset: j.mark_offset.map_or(0, |o| (o * 1e3) as u64),
+        residual: (w.err / 1e-18) as u64,
+        edge_gap: if w.folds_edge_onto_itself() {
+            (edge_foot_gap(state, fold, spans, w) / 1e-9) as u64
+        } else {
+            0
+        },
+    }
+}
+
 /// [`pick_witness`] over witnesses already scored.
 fn pick_scored(
     state: &State,
@@ -1764,18 +1854,6 @@ fn pick_scored(
     witnesses: &[Witness],
     scored: &[Scored],
 ) -> Option<(usize, Judgement)> {
-    // A fold perpendicular to one edge is perpendicular to the opposite
-    // one too, and both are witnesses of equal ease. The folder wants the
-    // edge the crease is at: "fold the bottom edge onto itself" for a
-    // crease that runs up from the bottom, whichever edge the mark is
-    // nearer. So the tie goes to the edge whose foot on the fold is
-    // nearest the crease the pattern wants.
-    let at_the_crease = |w: &Witness| -> u64 {
-        if !w.folds_edge_onto_itself() {
-            return 0;
-        }
-        (edge_foot_gap(state, fold, spans, w) / 1e-9) as u64
-    };
     // A crease through two marks that are on the paper is a fold the
     // folder can make now, and a real diagram makes it — whatever its
     // length — rather than put a mark on the paper for a fold of an
@@ -1785,61 +1863,7 @@ fn pick_scored(
         .iter()
         .any(|c| c.cost == 0 && witnesses[c.index].axiom == 1);
     let practical_exists = scored.iter().any(|c| c.judgement.practical);
-    let key = |c: &Scored| {
-        let w = &witnesses[c.index];
-        let j = &c.judgement;
-        // Free folds the folder can watch; then free folds lined up under
-        // the paper beside folds a single press makes watchable — the one
-        // thing a press may buy; then by the presses.
-        let press_tier = if c.cost == 0 && j.visible {
-            0
-        } else if c.cost == 0 || (c.cost <= MAX_PRESSES_FOR_PREFERENCE && j.visible) {
-            1
-        } else {
-            2 + c.cost
-        };
-        (
-            !j.practical,
-            press_tier,
-            (
-                // Corner to corner before everything else that is free:
-                // the fold every diagram makes that way, and the most
-                // exact (markhor's card 6, the diagonals).
-                !j.corner_to_corner,
-                // Ink before sight: a crease joined between marks far
-                // beyond it is crease the pattern does not ask for, and
-                // Zach would rather have a fold with less to go on than
-                // twice the crease.
-                j.overlong,
-            ),
-            !j.visible,
-            !j.precise,
-            !j.local(),
-            !j.crossings,
-            // A spot still to be pinched while its crease is made: ink for
-            // no step. A press has paid for its marks in the tier already.
-            c.cost == 0 && !j.marks_real,
-            // One motion before two hands, and only now: a fold lined up
-            // half a sheet from its crease is not made easier by being one
-            // motion (markhor 31, 32, 48).
-            !c.one_motion,
-            j.ease,
-            j.skinny,
-            // The numbers, last and together: a tuple's ordering stops at
-            // twelve fields.
-            (
-                j.error.map_or(0, |e| (e * 1e3) as u64),
-                // A perpendicular through the mark nearest the crease's
-                // middle: its direction is the line's, and where it lies is
-                // the mark's, so the crease is off by the mark's error grown
-                // over the distance to it, least when the mark is in the
-                // crease (tabby cat 46).
-                j.mark_offset.map_or(0, |o| (o * 1e3) as u64),
-                (w.err / 1e-18) as u64,
-                at_the_crease(w),
-            ),
-        )
-    };
+    let key = |c: &Scored| card_key(state, fold, spans, &witnesses[c.index], c);
     let best = scored
         .iter()
         .filter(|c| c.cost == 0 || !through_marks)
@@ -1854,7 +1878,15 @@ fn pick_scored(
     // the crease over two edge marks at the far edge).
     let class = |c: &Scored| {
         let k = key(c);
-        (k.0, c.cost, k.2, k.3, k.4, k.5)
+        (
+            k.impractical,
+            c.cost,
+            k.not_corner_to_corner,
+            k.overlong,
+            k.hidden,
+            k.imprecise,
+            k.not_local,
+        )
     };
     // Among those, the one the key likes best — not the most accurate of
     // them: past three times better, a corner swing the folder makes in one

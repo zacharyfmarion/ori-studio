@@ -3163,7 +3163,13 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6329,7 +6335,13 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9497,7 +9509,13 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12606,7 +12624,13 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15715,7 +15739,13 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18881,7 +18911,13 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22047,7 +22083,13 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25156,6 +25198,12 @@
     "site:oriedita.pageTitle": "07a1cdaa2de2",
     "site:oriedita.title": "5b3afe91e5f8",
     "site:download.orieditaLink": "71bb2c00639a",
-    "site:oriedita.keyboard.import": "d0af0c12e6c1"
+    "site:oriedita.keyboard.import": "d0af0c12e6c1",
+    "panels:references.actions.oneWayHint": "bdf8a3a4ba79",
+    "panels:references.ways.label": "616d1d037bc6",
+    "panels:references.ways.readout": "baea3853d6b7",
+    "panels:references.ways.readoutShort": "e5c69eab87c9",
+    "tools:references.nextWay": "8c7a20491359",
+    "tools:references.previousWay": "1aa51b71acbf"
   }
 }

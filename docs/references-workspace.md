@@ -63,6 +63,23 @@ search is bounded — it looks a fixed distance ahead and stops — so a shorter
 sequence may exist. The lower bound beside it is what a shorter one would have
 to beat.
 
+## Other ways to fold a step
+
+A crease can often be made more than one way: a diagonal corner onto corner,
+by folding one edge onto the other, or through the two corners it joins. Each
+card shows the way the planner prefers, and a card that can be folded another
+way has a row of dots along its foot, one per way, with the way it is showing
+filled in. Under the step's sentence, **Way 1 of 3** and the up and down
+arrows switch between them — or press **↑** and **↓**, as **←** and **→** step
+through the cards. The picture, the sentence and the fold animation all follow.
+
+Only ways that change nothing else are offered: each is made from what is
+already on the paper at that step and leaves exactly the crease and the marks
+the planner's own way leaves, so every later step reads as it did. A card
+offers at most four, each a different kind of fold rather than the same fold
+lined up on other marks. Your choices last until the sequence is worked out
+again.
+
 ## Pinches
 
 An auxiliary fold is often needed only for the point where it crosses something

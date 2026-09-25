@@ -506,7 +506,8 @@ export const ANALYTICS_EVENTS = {
    * references, likewise), `dangling_folds` (`allowed` / `disallowed` — the
    * "Allow dangling folds" setting the plan was made under),
    * `symmetric_steps` (`merged` / `separate` — the "Merge symmetric steps"
-   * setting, likewise) and, on a refusal, `refusal_reason`.
+   * setting, likewise), `cards_with_ways_bucket` (how many cards offer
+   * another way to fold them) and, on a refusal, `refusal_reason`.
    * Never a fold
    * count, a line, a coordinate or anything else derived from the user's
    * geometry — the shape of a design is the design.
@@ -552,11 +553,30 @@ export const ANALYTICS_EVENTS = {
    * A step's fold was set moving in the References workspace. `trigger` is
    * `user` (the button, Space or the menu row) or `auto` (the setting);
    * `direction` is `fold` or `unfold`; `step_kind` is `cp`, `aux`, `press`,
-   * `turn_over` or `reference` (a ReferenceFinder step in the Find tab), and
-   * `tab` is `find` or `sequence`. A pause is not counted. Nothing about the
-   * fold itself.
+   * `turn_over` or `reference` (a ReferenceFinder step in the Find tab),
+   * `tab` is `find` or `sequence`, and `way` — only on a card that offers
+   * other ways to fold it — is `recommended` or `alternative`, so a way the
+   * reader chose and then watched is told from one only glanced at. A pause is
+   * not counted. Nothing about the fold itself.
    */
   referencesFoldPlayed: 'references fold played',
+  /**
+   * The reader looked at the other ways to fold a card of the sequence and
+   * moved on: once per visit to a card on which they changed the way, sent as
+   * they leave it, and never again for the same card of the same plan unless
+   * they settle on a different way. `settled` is `recommended` (they looked
+   * and kept the planner's pick) or `alternative`; `from_kind` is the pick's
+   * kind of fold and `to_kind` the settled way's — the planner's codes, axiom
+   * and the kinds of reference it lines up (`O2:cp`, a corner onto a mark);
+   * `decided_by` is the criterion of the planner's ranking the pick won on
+   * against the settled way (`none` when they kept the pick); `ways` and
+   * `viewed` how many were offered and looked at; `step_kind` `cp`, `aux`
+   * or `press`; `twin` whether it was a card of two mirrored folds. Which
+   * picks readers overrule, and on which rule, is how the ranking gets
+   * adjusted. Metadata about how the app folds one step — never a line, a
+   * reference, a coordinate or a step number.
+   */
+  referencesWaysExplored: 'references ways explored',
   /** The "Auto-play folds" preference was switched; `enabled` is `on` / `off`. */
   referencesFoldAutoplayChanged: 'references fold autoplay changed',
   /**

@@ -238,6 +238,23 @@ fn a_quarter_grid_closes_with_no_auxiliary_fold() {
 }
 
 #[wasm_bindgen_test]
+fn a_card_offers_its_other_ways_through_the_bridge() {
+    let mut p = planner(&[200.0]);
+    p.close(0.0).expect("close");
+    let seq = json(p.sequence(false).expect("sequence"));
+    let ways = seq["steps"][0]["ways"].as_array().expect("ways");
+    assert!(ways.len() >= 2, "{ways:?}");
+    assert_eq!(ways[0]["kind"], "O2:cc");
+    assert!(ways[0].get("decided_by").is_none());
+    assert!(
+        ways.iter()
+            .any(|w| w["kind"] == "O3:ee" && w["decided_by"] == "corner_to_corner"),
+        "{ways:?}"
+    );
+    assert!(ways.iter().all(|w| w["witness"]["axiom"].is_number()));
+}
+
+#[wasm_bindgen_test]
 fn a_stuck_target_is_reported_then_solved_by_the_forward_search() {
     // x = ¾ is not constructible from the bare sheet; x = ½ unlocks it (O2
     // from the mark it makes onto the right-hand corner), so the search

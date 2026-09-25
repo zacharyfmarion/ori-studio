@@ -121,9 +121,16 @@ describe('FoldTransport', () => {
     expect(t.status().folded).toBe(false);
     expect(lastPose()).toBeNull();
     expect(onPlay).toHaveBeenCalledTimes(2);
-    expect(onPlay).toHaveBeenLastCalledWith('user', 'unfold', 'cp');
+    expect(onPlay).toHaveBeenLastCalledWith('user', 'unfold', 'cp', undefined);
     // Available, playing, rested folded, playing, rested flat.
     expect(changes).toHaveBeenCalledTimes(5);
+  });
+
+  it('says which way a card with other ways was played on', () => {
+    const t = transport();
+    t.setScene({ ...scene(), way: 'alternative' });
+    t.toggle();
+    expect(onPlay).toHaveBeenLastCalledWith('user', 'fold', 'cp', 'alternative');
   });
 
   it('turns the sheet over at its own, slower pace', () => {
@@ -135,7 +142,7 @@ describe('FoldTransport', () => {
     expect(lastPose()?.angle).toBeLessThan(Math.PI);
     clock.frame(TURN_OVER_DURATION_MS - FOLD_DURATION_MS);
     expect(t.status()).toEqual({ available: true, playing: false, folded: true });
-    expect(onPlay).toHaveBeenLastCalledWith('user', 'fold', 'turn-over');
+    expect(onPlay).toHaveBeenLastCalledWith('user', 'fold', 'turn-over', undefined);
   });
 
   it('pauses without counting a play, and lays the paper flat on a new card', () => {
@@ -180,7 +187,7 @@ describe('FoldTransport', () => {
     expect(t.status().playing).toBe(false);
     clock.wait(AUTO_PLAY_SETTLE_MS);
     expect(t.status().playing).toBe(true);
-    expect(onPlay).toHaveBeenLastCalledWith('auto', 'fold', 'aux');
+    expect(onPlay).toHaveBeenLastCalledWith('auto', 'fold', 'aux', undefined);
     // Stepping straight on before it settles starts nothing for the card left.
     t.setScene(scene());
     t.setScene(scene());
@@ -207,7 +214,7 @@ describe('FoldTransport', () => {
     expect(t.status().playing).toBe(false);
     clock.wait(AUTO_PLAY_SETTLE_MS);
     expect(t.status().playing).toBe(true);
-    expect(onPlay).toHaveBeenLastCalledWith('auto', 'fold', 'turn-over');
+    expect(onPlay).toHaveBeenLastCalledWith('auto', 'fold', 'turn-over', undefined);
     // A fold card after it still waits to be asked.
     t.setScene(scene());
     clock.wait(AUTO_PLAY_SETTLE_MS * 2);

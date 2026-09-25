@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import { IconButton } from '../../components/ui/IconButton';
 import type { ReferencesFilmstripStep } from './referencesFilmstrip';
 import { StepDiagram } from './StepDiagram';
@@ -67,6 +67,17 @@ export interface ReferencesStepFilmstripProps {
    */
   previousDisabled: boolean;
   nextDisabled: boolean;
+  /**
+   * The verbs that switch the active card between the ways it can be folded,
+   * labelled and gated by the action catalog like the chevrons. The row under
+   * the sentence is drawn only for a card that offers more than one way.
+   */
+  onPreviousWay?: () => void;
+  onNextWay?: () => void;
+  previousWayLabel?: string;
+  nextWayLabel?: string;
+  previousWayDisabled?: boolean;
+  nextWayDisabled?: boolean;
 }
 
 /**
@@ -91,6 +102,12 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
   nextLabel,
   previousDisabled,
   nextDisabled,
+  onPreviousWay,
+  onNextWay,
+  previousWayLabel = '',
+  nextWayLabel = '',
+  previousWayDisabled = true,
+  nextWayDisabled = true,
 }: ReferencesStepFilmstripProps) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -138,6 +155,16 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
   }, [activeStep, steps, virtualizer]);
 
   const active = steps[activeStep] ?? null;
+  const wayReadout = (way: { index: number; count: number }, short: boolean) =>
+    short
+      ? t('panels:references.ways.readoutShort', '{{n}} / {{total}}', {
+          n: way.index + 1,
+          total: way.count,
+        })
+      : t('panels:references.ways.readout', 'Way {{n}} of {{total}}', {
+          n: way.index + 1,
+          total: way.count,
+        });
 
   return (
     <div className="references-filmstrip">
@@ -208,6 +235,27 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
                     {step.badge !== '' && (
                       <span className="references-card__badge">{step.badge}</span>
                     )}
+                    {step.ways && (
+                      // One dot per way, the one showing filled: a card left
+                      // on a way other than the planner's reads so in the
+                      // strip. Named in words for the card's accessible name.
+                      <span
+                        className="references-card__ways"
+                        role="img"
+                        aria-label={wayReadout(step.ways, false)}
+                      >
+                        {Array.from({ length: step.ways.count }, (_, way) => (
+                          <span
+                            key={way}
+                            className={
+                              way === step.ways?.index
+                                ? 'references-card__way references-card__way--shown'
+                                : 'references-card__way'
+                            }
+                          />
+                        ))}
+                      </span>
+                    )}
                     <span className="references-card__thumb">
                       {step.diagram ? (
                         <StepDiagram
@@ -255,6 +303,35 @@ export const ReferencesStepFilmstrip = memo(function ReferencesStepFilmstrip({
         )}
         {note && <span className="references-filmstrip__note">{note}</span>}
       </p>
+      {active?.ways && onPreviousWay && onNextWay && (
+        <div
+          className="references-filmstrip__ways"
+          role="group"
+          aria-label={t('panels:references.ways.label', 'Ways to fold this step')}
+        >
+          <span className="references-filmstrip__ways-readout" aria-live="polite">
+            {wayReadout(active.ways, !navigation)}
+          </span>
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={previousWayLabel}
+            disabled={previousWayDisabled}
+            onClick={onPreviousWay}
+          >
+            <ChevronUp size={14} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            variant="toolbar"
+            title={nextWayLabel}
+            disabled={nextWayDisabled}
+            onClick={onNextWay}
+          >
+            <ChevronDown size={14} />
+          </IconButton>
+        </div>
+      )}
     </div>
   );
 });
