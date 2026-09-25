@@ -484,10 +484,23 @@ without the ReferenceFinder fallback, the plan's own placement:
 | ways swapped in and replayed | 5,968, none changed the plan |
 | `decided_by` | local 1,843 · visible 1,047 · ease 759 · precise 670 · one motion 650 · crossing 386 · plan 368 · accuracy 345 · corner to corner 105 · overlong 8 |
 
-The time is paid twice per plan in the worker (both presentation orders) and
-wasm is slower than native, so a large design gains on the order of a second
-of planning. The next lever, if that shows, is to keep each kind's best from
-`sight`'s already-scored pool and only validate it here.
+In the product runtime — the planner's wasm, `main` against this branch on
+the same 43 designs, each planned as the web's driver plans it and then
+ordered both ways — finding ways adds:
+
+| | p50 | p90 | worst |
+| --- | --- | --- | --- |
+| planning today (`main`, product settings) | 8.8 s | 30.2 s | 101.5 s |
+| added (both orderings) | +116 ms | +502 ms | +1.59 s (markhor-detailed) |
+| as a share of planning | +1.7% | +3.8% | +7.3% |
+
++11.0 s on 614 s over the corpus (+1.8%). The added time is the difference
+in `sequence()` with the optimiser off (median of three; deterministic work,
+where the optimiser's wall-clock budget is noisier than the effect), and the
+share divides it by the product-settings plan on `main`. The browser also
+asks ReferenceFinder when stuck, so its plans are longer and the share
+smaller. The next lever, if the cost ever shows, is to keep each kind's best
+from `sight`'s already-scored pool and only validate it here.
 
 ## Decisions (Zach, 2026-09-24)
 
