@@ -1161,9 +1161,7 @@
     }
   },
   "simulatorExport": {
-    "png": "Imagen PNG",
-    "svg": "Imagen SVG",
-    "trigger": "Exportar vista"
+    "trigger": "Exportar vista…"
   },
   "simulatorSegments": {
     "creasePatterns": "Patrones de pliegues",

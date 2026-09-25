@@ -44,8 +44,8 @@ import { ContextMenu } from "../ui/ContextMenu";
 import { useContextMenuController } from "../../menus/context/useContextMenuController";
 import { useShortcutStore } from "../../store/shortcutStore";
 import { FoldPlayhead } from "../../simulator/foldPlayhead";
-import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
-import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
+import { SimulatorExportButton } from "../../simulator/SimulatorExportButton";
+import { useSimulatorExport } from "../../simulator/useSimulatorExport";
 import { useSimulatorPhoneFlow } from "../../simulator/useSimulatorPhoneFlow";
 import { foldNeedsTriangulation } from "../../simulator/canvas2dFrame";
 import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
@@ -224,7 +224,7 @@ export function SimulatorPanel() {
     setMaterial: pushMaterial,
   } = runtime;
 
-  const exportView = useSimulatorViewExport(runtime.exportSvg, { surface: "simulator" });
+  const exportView = useSimulatorExport(runtime.beginExport, { surface: "simulator" });
 
   // Apply material/stability edits to the live solver. The load effect ignores
   // solverOptions on purpose -- reloading the model would throw away the current
@@ -562,8 +562,8 @@ export function SimulatorPanel() {
                 `toolbar` to match the export control beside it. Omitting the
                 variant gives the ghost look, which sat next to the export button's
                 filled one and read as two different kinds of control rather than
-                two actions. `SimulatorExportMenu` defaults to `toolbar` and this
-                panel does not override it, so that is the look this header has.
+                two actions. `SimulatorExportButton` is always `toolbar`, so that is
+                the look this header has.
               */}
               <IconButton
                 size="sm"
@@ -577,8 +577,8 @@ export function SimulatorPanel() {
               >
                 <Axis3d size={14} />
               </IconButton>
-              <SimulatorExportMenu
-                onExport={exportView}
+              <SimulatorExportButton
+                onExport={() => void exportView()}
                 disabled={loadState !== "ready"}
               />
               {/*

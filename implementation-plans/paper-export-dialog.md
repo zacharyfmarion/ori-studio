@@ -438,15 +438,19 @@ Factories live beside their surfaces and capture at creation:
   alone, the PNG at the picture's own pixel size.
 - `simulator/simulatorExportTarget.ts` — a worker-side snapshot (below);
   `buildScene` asks the worker for a scene from it; key = light + widest pen
-  + `markHidden`, as `folded3dSceneStyleKey` does for the 3D figure.
+  + `markHidden` (`simulatorSceneStyleKey`), as `folded3dSceneStyleKey` does
+  for the 3D figure. As built in Phase 8, `useSimulatorExport` is the one
+  verb both the Simulate view and an inline window run: it freezes the frame
+  through the runtime's `beginExport` and opens the dialog; the snapshot is
+  released when the dialog closes.
 
 **The worker snapshot (E4).** `simulatorSession.ts` gains three calls and
 loses `exportSvg`:
 
 ```ts
-beginExportSnapshot({ token, camera?, settings?, devicePixelRatio }): number  // copies positions, camera uniforms, sheet, faces/edges flags
-exportScene(snapshot: number, { lighting, lightDir, lineWidth, markHidden }): PaperScene | null
-endExportSnapshot(snapshot: number): void                                     // also dropped when the session unloads
+beginExportSnapshot({ token, camera?, settings?, devicePixelRatio }): number | null  // copies positions, camera uniforms, sheet, faces/edges flags
+exportScene(snapshot: number, { style, markHidden }): PaperScene | null             // the style's light and widest pen, through the simulator policy
+endExportSnapshot(snapshot: number): void                                           // also dropped when the session is disposed
 ```
 
 The scene crosses to the main thread (structured clone) and is painted there,
@@ -983,12 +987,15 @@ exported` gains `scope` and, for all steps, `page_count_bucket`
   `cp-workspace/references/ReferencesSheetsSidebar.tsx`,
   `components/panels/SimulatorSegmentsPanel.tsx`.
 - Simulator: `simulator/simulatorSession.ts` (snapshot calls, `exportSvg`
-  retired), `useSimulatorRuntime.ts`, `SimulatorExportMenu.tsx`,
+  retired), `useSimulatorRuntime.ts` (`beginExport`),
+  `SimulatorExportMenu.tsx` → new `SimulatorExportButton.tsx`,
   `useSimulatorViewExport.ts` and `simulatorViewExport.ts` (retired), new
-  `simulatorExportTarget.ts`; `components/panels/SimulatorPanel.tsx`,
-  `SimulatorViewControlsPanel.tsx` (Export group removed).
+  `simulatorExportTarget.ts` and `useSimulatorExport.ts`, the golden pages in
+  `simulator/__fixtures__/`; `components/panels/SimulatorPanel.tsx`,
+  `SimulatorViewControlsPanel.tsx` (Export group removed, Phase 10).
 - Inline simulation: `cp-workspace/InlineSimulationLayer.tsx`,
-  `inlineSimulation/inlineSimulationRuntime.ts`, `useInlineSimulations.ts`.
+  `InlineSimulationInspector.tsx`, `inlineSimulation/inlineSimulationRuntime.ts`
+  (the exporter registry takes no format), `useInlineSimulations.ts`.
 - Folded figures: `cp-workspace/folded/foldedFigureActions.ts` (one
   *Export…* verb), `useFoldedFigures.ts`, new `foldedFigureExportTarget.ts`
   and `openFoldedFigureExport.ts`; `folded3dFigureExport.ts` deleted,
@@ -1310,18 +1317,26 @@ From review (folded into the Phase 5 commit):
 
 ### Phase 8 — The export dialog, on simulations
 
-- [ ] Worker `beginExportSnapshot` / `exportScene` / `endExportSnapshot`;
-      snapshots dropped on unload; `exportSvg` retired; tests: a solver step
-      after `begin` does not change the scene
-- [ ] `simulatorExportTarget`; the Simulate view and inline windows open the
-      dialog; `SimulatorExportMenu` → *Export view…* button;
-      `useSimulatorViewExport` / `saveSimulatorView` retired
-- [ ] The first build runs after the dialog paints; *Preparing preview…* on a
-      large model
-- [ ] Parity test against the old worker export at default options; re-pin
-      `simulatorSession.test.ts`, `useSimulatorRuntime.test.tsx`,
-      `inlineSimulationExport.test.ts`, `SimulatorPanel.test.tsx`
-- [ ] Validate; `npm run build:web`; commit
+- [x] Worker `beginExportSnapshot` / `exportScene` / `endExportSnapshot`;
+      snapshots dropped with their session (release, eviction, dispose);
+      `exportSvg` retired; tests: a solver step after `begin` does not change
+      the scene
+- [x] `simulatorExportTarget`; the Simulate view and inline windows open the
+      dialog through `useSimulatorExport` and the runtime's `beginExport`;
+      `SimulatorExportMenu` → `SimulatorExportButton`, *Export view…*;
+      `useSimulatorViewExport` / `saveSimulatorView` retired, and with them
+      the last hand-placed `paper exported`
+- [x] The first build runs after the dialog paints (the build is an effect),
+      so a large model shows *Preparing preview…* rather than a delay before
+      the dialog
+- [x] Parity test against the old worker export: golden pages captured from
+      `exportSvg` before it went (`simulator/__fixtures__/simulatorExportGolden.json`)
+      at the defaults and at a picked page, reproduced through the dialog's
+      path; `simulatorSession.test.ts`, `useSimulatorRuntime.test.tsx`, the
+      inline and panel tests re-pinned
+- [x] Validate; `npm run build:web`; browser: the Simulate view's *Export
+      view…* opens the dialog on the frozen frame, and a picked preset
+      rebuilds it; commit
 
 ### Phase 9 — The folded figure beside a crease pattern
 

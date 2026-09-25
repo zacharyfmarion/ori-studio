@@ -363,6 +363,7 @@
     "titleAllSteps": "Alle Schritte exportieren",
     "titleFoldedFigure": "{{title}} exportieren",
     "titleReference": "Referenz {{candidate}}, Schritt {{number}} exportieren",
+    "titleSimulation": "Ansicht exportieren",
     "titleStep": "Schritt {{number}} exportieren",
     "titleTurnOver": "„Wenden“ exportieren",
     "zipFiles_one": "{{count}} Datei · ZIP",

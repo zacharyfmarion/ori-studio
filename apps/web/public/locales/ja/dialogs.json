@@ -354,6 +354,7 @@
     "titleAllSteps": "すべてのステップを書き出す",
     "titleFoldedFigure": "{{title}} を書き出す",
     "titleReference": "参照点 {{candidate}} のステップ {{number}} を書き出す",
+    "titleSimulation": "ビューを書き出す",
     "titleStep": "ステップ {{number}} を書き出す",
     "titleTurnOver": "裏返しを書き出す",
     "zipFiles_other": "{{count}} ファイル · ZIP"

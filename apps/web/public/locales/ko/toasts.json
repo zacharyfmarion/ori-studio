@@ -61,9 +61,7 @@
     "noSteps": "아직 내보낼 단계가 없습니다"
   },
   "simulatorExport": {
-    "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다",
-    "failed": "이 보기를 내보낼 수 없습니다",
-    "saved": "{{name}} 내보냄"
+    "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다"
   },
   "update": {
     "available": "버전 {{version}}을(를) 사용할 수 있습니다",

@@ -61,9 +61,7 @@
     "noSteps": "暂无可导出的步骤"
   },
   "simulatorExport": {
-    "empty": "此模拟暂无可导出的内容",
-    "failed": "无法导出此视图",
-    "saved": "已导出 {{name}}"
+    "empty": "此模拟暂无可导出的内容"
   },
   "update": {
     "available": "版本 {{version}} 可用",

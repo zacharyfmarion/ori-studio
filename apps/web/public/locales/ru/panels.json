@@ -1200,9 +1200,7 @@
     }
   },
   "simulatorExport": {
-    "png": "Изображение PNG",
-    "svg": "Изображение SVG",
-    "trigger": "Экспорт вида"
+    "trigger": "Экспорт вида…"
   },
   "simulatorSegments": {
     "creasePatterns": "Паттерны складок",

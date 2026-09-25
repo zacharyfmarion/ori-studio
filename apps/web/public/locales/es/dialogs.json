@@ -372,6 +372,7 @@
     "titleAllSteps": "Exportar todos los pasos",
     "titleFoldedFigure": "Exportar {{title}}",
     "titleReference": "Exportar la referencia {{candidate}}, paso {{number}}",
+    "titleSimulation": "Exportar vista",
     "titleStep": "Exportar el paso {{number}}",
     "titleTurnOver": "Exportar «Dar la vuelta»",
     "zipFiles_one": "{{count}} archivo · ZIP",

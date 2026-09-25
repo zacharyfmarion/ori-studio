@@ -1836,9 +1836,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -1901,8 +1899,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -3260,7 +3256,8 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -5099,9 +5096,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -5164,8 +5159,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -6523,7 +6516,8 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -8362,9 +8356,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -8427,8 +8419,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -9788,7 +9778,8 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -11612,9 +11603,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -11677,8 +11666,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -12992,7 +12979,8 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -14816,9 +14804,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -14881,8 +14867,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -16196,7 +16180,8 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18035,9 +18020,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -18100,8 +18083,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -19459,7 +19440,8 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -21298,9 +21280,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -21363,8 +21343,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -22722,7 +22700,8 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -24546,9 +24525,7 @@
     "panels:simulator.strain": "39505dbfb831",
     "panels:simulator.title": "33d02eb2e57b",
     "panels:simulator.unavailable": "27396f06b7ac",
-    "panels:simulatorExport.png": "6ef9788d38d3",
-    "panels:simulatorExport.svg": "8592788575cc",
-    "panels:simulatorExport.trigger": "ef26ebe23b37",
+    "panels:simulatorExport.trigger": "9e7c18c371ce",
     "panels:simulatorSegments.creasePatterns": "f66a64c16ad8",
     "panels:simulatorSegments.patterns": "160a13d94fb0",
     "panels:simulatorViewControls.axialStiffness": "a33fbcf83f7b",
@@ -24611,8 +24588,6 @@
     "toasts:global.error": "dc7385533aa8",
     "toasts:global.folding": "73700a8434f9",
     "toasts:simulatorExport.empty": "457128ee0558",
-    "toasts:simulatorExport.failed": "a70048490aab",
-    "toasts:simulatorExport.saved": "b22cd4e87ce1",
     "tools:cpContext.angleFieldAria": "18c88c5c4821",
     "tools:cpContext.angleSystem": "9f2e61c62ffa",
     "tools:cpContext.angleSystemDivider": "79e3ae359410",
@@ -25926,6 +25901,7 @@
     "dialogs:paperExport.storedSceneHint": "27ce2fd80f39",
     "dialogs:paperExport.titleFoldedFigure": "2cf47572d5aa",
     "toasts:foldedFigureExport.empty": "b8fd1a43076b",
-    "toasts:foldedFigureExport.failed": "a08146246569"
+    "toasts:foldedFigureExport.failed": "a08146246569",
+    "dialogs:paperExport.titleSimulation": "ef26ebe23b37"
   }
 }

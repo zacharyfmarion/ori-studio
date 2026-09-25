@@ -1161,9 +1161,7 @@
     }
   },
   "simulatorExport": {
-    "png": "Imagem PNG",
-    "svg": "Imagem SVG",
-    "trigger": "Exportar visualização"
+    "trigger": "Exportar visualização…"
   },
   "simulatorSegments": {
     "creasePatterns": "Padrões de vincos",

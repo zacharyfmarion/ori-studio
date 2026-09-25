@@ -1,5 +1,4 @@
 import type { FoldDocument } from '../../engine/types';
-import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExport';
 
 /**
  * The heavy, unserializable half of an inline simulation window.
@@ -161,7 +160,7 @@ export function inlineSimulationSourceCount(): number {
  * The same reason the fold percentages above are here: this is the
  * unserializable half of a window, and none of it belongs in the store.
  */
-type InlineSimulationExporter = (format: SimulatorViewExportFormat) => Promise<boolean>;
+type InlineSimulationExporter = () => Promise<void>;
 
 const exporters = new Map<string, InlineSimulationExporter>();
 
@@ -178,13 +177,13 @@ export function registerInlineSimulationExporter(
 }
 
 /**
- * Export a window's view. False when no window with that id is mounted, which is
- * the honest answer for a toolbar that outlived its window rather than a fault.
+ * Open the export dialog on a window's view. False when no window with that id
+ * is mounted, which is the honest answer for a toolbar that outlived its
+ * window rather than a fault.
  */
-export function exportInlineSimulation(
-  id: string,
-  format: SimulatorViewExportFormat
-): Promise<boolean> {
+export function exportInlineSimulation(id: string): boolean {
   const exporter = exporters.get(id);
-  return exporter ? exporter(format) : Promise.resolve(false);
+  if (!exporter) return false;
+  void exporter();
+  return true;
 }

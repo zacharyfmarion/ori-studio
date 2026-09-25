@@ -62,9 +62,7 @@
     "noSteps": "Es gibt noch keine Schritte zum Exportieren"
   },
   "simulatorExport": {
-    "empty": "Diese Simulation hat noch nichts zu exportieren",
-    "failed": "Diese Ansicht konnte nicht exportiert werden",
-    "saved": "{{name}} exportiert"
+    "empty": "Diese Simulation hat noch nichts zu exportieren"
   },
   "update": {
     "available": "Version {{version}} ist verfügbar",

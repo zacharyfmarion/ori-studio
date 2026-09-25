@@ -381,6 +381,7 @@
     "titleAllSteps": "Экспорт всех шагов",
     "titleFoldedFigure": "Экспорт: {{title}}",
     "titleReference": "Экспорт ориентира {{candidate}}, шаг {{number}}",
+    "titleSimulation": "Экспорт вида",
     "titleStep": "Экспорт шага {{number}}",
     "titleTurnOver": "Экспорт переворота",
     "zipFiles_one": "{{count}} файл · ZIP",

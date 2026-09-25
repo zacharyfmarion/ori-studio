@@ -1,8 +1,8 @@
 import { transfer } from 'comlink';
-import type { PaperPage } from '../lib/paper/paperPage';
 import type { PaperStyle } from '../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, lightVector, surfacePaperStyle } from '../lib/paper/paperStyleResolve';
-import { paperSceneToSvg, widestPenCssPx, type PaperSvgResult } from '../lib/paper/paperSvg';
+import type { PaperScene } from '../lib/paper/paperScene';
+import { widestPenCssPx } from '../lib/paper/paperSvg';
 import { PreparedModelCache } from '../lib/preparedModelCache';
 import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_FOLDED_MESHES } from './simulatorLimits';
 import {
@@ -285,15 +285,8 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
   faceAlpha: 1,
 };
 
-export interface SimulatorExportSvgOptions {
+export interface SimulatorExportSnapshotOptions {
   token?: SimulatorSessionToken;
-  /**
-   * The style to paint with — the app's export style with the object's
-   * overrides applied, resolved on the main thread where the settings live.
-   */
-  style: PaperStyle;
-  /** The page to paint onto; see `lib/paper/paperPage.ts`. */
-  page: PaperPage;
   /**
    * Device pixels per CSS pixel of the frame being exported. The view is held
    * in device pixels — the drawing buffer's size — and the scene is measured in
@@ -310,10 +303,34 @@ export interface SimulatorExportSvgOptions {
    * defaults at the opening camera. On the GPU path they are what was already
    * pushed, or a camera still queued behind an in-flight one, and either way
    * the newest. Of the settings only `showFaces` / `showEdges` reach the page:
-   * the look comes from `style`.
+   * the look comes from the style each scene is built with.
    */
   camera?: SimulatorCamera;
   settings?: RenderSettings;
+}
+
+/** What a scene of a frozen frame is built with. */
+export interface SimulatorExportSceneOptions {
+  /**
+   * The style the page will be painted with — the app's export style or a
+   * preset, with the object's overrides applied, resolved on the main thread
+   * where the settings live. The scene takes its light and its widest pen.
+   */
+  style: PaperStyle;
+  /** Mark the pieces no pixel shows: asked for only when the page drops them. */
+  markHidden: boolean;
+}
+
+/** A frame frozen for an export dialog: everything a scene of it is built from. */
+interface ExportSnapshot {
+  session: Session;
+  positions: Float32Array;
+  topology: ReturnType<typeof meshTopologyFor>;
+  camera: CameraUniforms;
+  sheet: ReturnType<typeof sheetExtent>;
+  perspective: boolean;
+  showFaces: boolean;
+  showEdges: boolean;
 }
 
 /**
@@ -347,6 +364,9 @@ export type SimulatorSessionToken = number;
  * camera moves them, which is the whole point.
  */
 const sessions = new Map<SimulatorSessionToken, Session>();
+/** Frames frozen for open export dialogs, by the id `beginExportSnapshot` handed out. */
+const exportSnapshots = new Map<number, ExportSnapshot>();
+let exportSnapshotId = 0;
 let sessionToken: SimulatorSessionToken = 0;
 /** Ticks on every session access, so eviction can order by use. */
 let useCounter = 0;
@@ -446,6 +466,9 @@ function disposeSession(token: SimulatorSessionToken): void {
   if (!existing) return;
   existing.backend.dispose();
   sessions.delete(token);
+  for (const [id, snapshot] of exportSnapshots) {
+    if (snapshot.session === existing) exportSnapshots.delete(id);
+  }
 }
 
 /**
@@ -1275,22 +1298,21 @@ const api = {
   },
 
   /**
-   * The current view as a standalone SVG page, or null when there is nothing
-   * to draw.
+   * Freeze the current view for an export dialog, and answer the id its
+   * scenes are asked for by; null for a session that is not there.
    *
    * Here rather than on the main thread because this is where the complete
    * render state already lives: positions in the solver, the camera and
-   * framing on {@link SessionView}. It is the vector sibling of
-   * {@link renderGpu} — same positions, same topology, same camera — which is
-   * what makes the file the view the user is looking at rather than a second
-   * interpretation of it. The picture is built as a scene (`meshToPaperScene`)
-   * and painted with the style the caller resolved, so the simulator exports
-   * through the same painter as every other paper surface.
+   * framing on {@link SessionView}. The positions are copied, so the solver
+   * moving on — a fold still settling — changes nothing the dialog shows or
+   * saves (E4 in `implementation-plans/paper-export-dialog.md`): every scene
+   * of the snapshot is the frame the user opened the dialog on, the vector
+   * sibling of {@link renderGpu} — same positions, same topology, same camera.
    *
    * Distinct from {@link exportGeometry}, which serves STL/OBJ and wants raw
    * geometry with no camera at all.
    */
-  exportSvg(options: SimulatorExportSvgOptions): PaperSvgResult | null {
+  beginExportSnapshot(options: SimulatorExportSnapshotOptions = {}): number | null {
     const active = sessionFor(options.token);
     if (!active) return null;
     if (options.camera) {
@@ -1312,34 +1334,59 @@ const api = {
     // buffer's size — and the scene is measured in CSS px, so the same frame
     // exports at the same size from every display.
     const dpr = Math.max(1, options.devicePixelRatio ?? 1);
-    const camera = cameraUniforms(
-      active.view.view,
-      active.view.center,
-      active.view.radius,
-      active.view.width / dpr,
-      active.view.height / dpr
-    );
-    // As the simulator draws the style: the fields its policy applies, the
-    // rest at their defaults, every line in its own pen and at its width, as
-    // the screen draws it. The inline-simulation policy applies the same
-    // fields, so one policy serves both surfaces here.
-    const style = surfacePaperStyle(options.style, PAPER_STYLE_POLICIES.simulator);
-    const scene = meshToPaperScene(positions, meshTopologyFor(prepared), camera, {
+    exportSnapshotId += 1;
+    exportSnapshots.set(exportSnapshotId, {
+      session: active,
+      positions,
+      topology: meshTopologyFor(prepared),
+      camera: cameraUniforms(
+        active.view.view,
+        active.view.center,
+        active.view.radius,
+        active.view.width / dpr,
+        active.view.height / dpr
+      ),
       sheet: sheetExtent(active.model.originalPositions),
       // The canvas-2D fallback is orthographic, so a machine drawing through it
       // must export the way its own screen looks.
       perspective: Boolean(active.gpuRender),
-      // A page that keeps buried faces has no use for the hidden test, which
-      // is the expensive half of building the scene.
-      markHidden: !options.page.keepHiddenFaces,
-      lighting: style.light.enabled,
-      lightDir: lightVector(style.light.azimuth, style.light.elevation),
-      lineWidth: widestPenCssPx(style),
       showFaces: active.view.settings.showFaces,
       showEdges: active.view.settings.showEdges,
     });
-    if (scene.items.length === 0) return null;
-    return paperSceneToSvg(scene, style, options.page);
+    return exportSnapshotId;
+  },
+
+  /**
+   * A scene of a frozen frame, built with a style's light and widest pen, or
+   * null when there is nothing to draw or the snapshot has gone. It crosses to
+   * the main thread and is painted there, so a page option is a repaint with
+   * no round trip.
+   */
+  exportScene(snapshotId: number, { style, markHidden }: SimulatorExportSceneOptions): PaperScene | null {
+    const snapshot = exportSnapshots.get(snapshotId);
+    if (!snapshot) return null;
+    // As the simulator draws the style: the fields its policy applies, the
+    // rest at their defaults. The inline-simulation policy applies the same
+    // fields, so one policy serves both surfaces here.
+    const drawn = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
+    const scene = meshToPaperScene(snapshot.positions, snapshot.topology, snapshot.camera, {
+      sheet: snapshot.sheet,
+      perspective: snapshot.perspective,
+      // A page that keeps buried faces has no use for the hidden test, which
+      // is the expensive half of building the scene.
+      markHidden,
+      lighting: drawn.light.enabled,
+      lightDir: lightVector(drawn.light.azimuth, drawn.light.elevation),
+      lineWidth: widestPenCssPx(drawn),
+      showFaces: snapshot.showFaces,
+      showEdges: snapshot.showEdges,
+    });
+    return scene.items.length === 0 ? null : scene;
+  },
+
+  /** Let a frozen frame go: its dialog closed. Snapshots also go with their session. */
+  endExportSnapshot(snapshotId: number): void {
+    exportSnapshots.delete(snapshotId);
   },
 
   diagnostics(): SimulatorDiagnostics {

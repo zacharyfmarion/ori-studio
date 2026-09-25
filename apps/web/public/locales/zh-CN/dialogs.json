@@ -354,6 +354,7 @@
     "titleAllSteps": "导出全部步骤",
     "titleFoldedFigure": "导出{{title}}",
     "titleReference": "导出参考点 {{candidate}} 的第 {{number}} 步",
+    "titleSimulation": "导出视图",
     "titleStep": "导出第 {{number}} 步",
     "titleTurnOver": "导出翻面",
     "zipFiles_other": "{{count}} 个文件 · ZIP"

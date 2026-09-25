@@ -1128,9 +1128,7 @@
     }
   },
   "simulatorExport": {
-    "png": "PNG image",
-    "svg": "SVG image",
-    "trigger": "Export view"
+    "trigger": "Export view…"
   },
   "simulatorSegments": {
     "creasePatterns": "Crease patterns",

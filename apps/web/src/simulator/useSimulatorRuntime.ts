@@ -22,9 +22,8 @@ import {
 } from './simulatorPerfProbe';
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
-import type { PaperPage } from '../lib/paper/paperPage';
-import type { PaperStyle } from '../lib/paper/paperStyle';
-import type { PaperSvgResult } from '../lib/paper/paperSvg';
+import type { PaperScene } from '../lib/paper/paperScene';
+import type { SimulatorExportSceneOptions } from './simulatorSession';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -47,10 +46,13 @@ interface SimulatorCameraRequest {
   height: number;
 }
 
-/** What an export needs beyond the view: the style to paint with and the page to paint onto. */
-export interface SimulatorExportRequest {
-  style: PaperStyle;
-  page: PaperPage;
+/**
+ * The view frozen for the export dialog, and the scenes built from it. The
+ * worker holds the frame; `release` lets it go when the dialog closes.
+ */
+export interface SimulatorExportSnapshot {
+  scene: (options: SimulatorExportSceneOptions) => Promise<PaperScene | null>;
+  release: () => void;
 }
 
 export interface SimulatorFrameView {
@@ -170,25 +172,25 @@ export interface SimulatorRuntime {
   canvasGeneration: number;
   /**
    * Push a new orbit camera to the worker (GPU mode). In CPU mode it is only
-   * remembered, for the next session to open on and for {@link exportSvg}.
+   * remembered, for the next session to open on and for {@link beginExport}.
    */
   setCamera: (view: OrbitView, width: number, height: number) => void;
   /** Push render settings to the worker (GPU mode); remembered in CPU mode. */
   setRenderSettings: (settings: RenderSettings) => void;
   /**
-   * The current view as a standalone SVG page, or null when there is nothing
-   * to draw or this runtime holds no model.
+   * Freeze the current view for the export dialog, or null when this runtime
+   * holds no model.
    *
-   * The worker builds it: that is where the complete render state lives, so this
-   * is one message rather than an exporter reaching for positions, a camera and a
-   * palette from three different owners. Keeps the session token private, like
-   * every other call here. The camera and settings last handed to `setCamera`
-   * and `setRenderSettings` travel with the request, which is what makes the
-   * file the view on screen on the canvas-2D path, where the worker was never
-   * sent them. The style and page come from the caller, which is where the
-   * app's export settings and the object's overrides are known.
+   * The worker keeps the frame: that is where the complete render state
+   * lives, so a scene of it is one message rather than an exporter reaching
+   * for positions, a camera and a palette from three different owners, and a
+   * solver still settling changes nothing the dialog shows. Keeps the session
+   * token private, like every other call here. The camera and settings last
+   * handed to `setCamera` and `setRenderSettings` travel with the request,
+   * which is what makes the file the view on screen on the canvas-2D path,
+   * where the worker was never sent them.
    */
-  exportSvg: (request: SimulatorExportRequest) => Promise<PaperSvgResult | null>;
+  beginExport: () => Promise<SimulatorExportSnapshot | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -720,7 +722,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       .catch(() => undefined);
   }, []);
 
-  const exportSvg = useCallback(async ({ style, page }: SimulatorExportRequest) => {
+  const beginExport = useCallback(async (): Promise<SimulatorExportSnapshot | null> => {
     const client = clientRef.current;
     if (!client || tokenRef.current === undefined) return null;
     // The worker holds the frame in device pixels; the ratio the viewport sized
@@ -731,14 +733,18 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     // and this is the newest. On the canvas-2D path the worker was never sent
     // either, so without them the file would be the worker's defaults at the
     // opening camera rather than what is on screen.
-    return client.exportSvg({
+    const snapshot = await client.beginExportSnapshot({
       token: tokenRef.current,
-      style,
-      page,
       devicePixelRatio: simulatorDevicePixelRatio(),
       camera: lastCameraRef.current ?? undefined,
       settings: lastRenderSettingsRef.current ?? undefined,
     });
+    if (snapshot === null) return null;
+    return {
+      scene: (options) => client.exportScene(snapshot, options),
+      // A worker that has gone takes its snapshots with it.
+      release: () => void client.endExportSnapshot(snapshot).catch(() => undefined),
+    };
   }, []);
 
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
@@ -762,6 +768,6 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     canvasGeneration,
     setCamera,
     setRenderSettings,
-    exportSvg,
+    beginExport,
   };
 }

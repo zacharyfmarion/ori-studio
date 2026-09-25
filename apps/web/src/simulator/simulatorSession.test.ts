@@ -4,13 +4,31 @@ import {
   foldScaledForSolver,
   sheetExtent,
   widestPenCssPx,
-  type SimulatorExportSvgOptions,
+  type SimulatorCamera,
   type SimulatorFramePayload,
+  type SimulatorWorkerApi,
 } from './simulatorSession';
+import { simulatorExportTarget } from './simulatorExportTarget';
 import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
-import { DEFAULT_PAPER_PAGE } from '../lib/paper/paperPage';
+import golden from './__fixtures__/simulatorExportGolden.json';
+import { DEFAULT_PAPER_PAGE, type PaperPage } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../lib/paper/paperStyle';
-import { PAPER_STYLE_POLICIES, resolvePaperStyle } from '../lib/paper/paperStyleResolve';
+import {
+  PAPER_STYLE_POLICIES,
+  resolvePaperStyle,
+  surfacePaperStyle,
+} from '../lib/paper/paperStyleResolve';
+import { paperSceneToSvg, type PaperSvgResult } from '../lib/paper/paperSvg';
+import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
+import { paperPresetRows } from '../lib/paperPresetRows';
+import {
+  createPaperExportSession,
+  paintPaperExport,
+  paperExportPage,
+  paperExportSceneInput,
+  paperExportStyle,
+} from '../paperExport/paperExportSession';
+import { paperExportDraft } from '../paperExport/usePaperExportDialog';
 import type { FoldDocument, RenderSettings } from '@treemaker/origami-simulator';
 
 /**
@@ -452,19 +470,40 @@ const EXPORT_STYLE: PaperStyle = {
   light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
 };
 
-/** The one export request every test starts from: the style above on the default page. */
-function exportOptions(
-  overrides: Partial<SimulatorExportSvgOptions> = {}
-): SimulatorExportSvgOptions {
-  return { style: EXPORT_STYLE, page: DEFAULT_PAPER_PAGE, ...overrides };
+interface ExportViewOptions {
+  token?: number;
+  style?: PaperStyle;
+  page?: PaperPage;
+  devicePixelRatio?: number;
+  camera?: SimulatorCamera;
+  settings?: RenderSettings;
 }
 
 /**
- * Re-pinned onto the scene + painter path: the page is in points (`widthPt`),
- * the look is the style handed over rather than the render settings pushed,
- * and a page background is the export page's, not a mode. What stayed the
- * same is what these tests are for — the worker exports the view on screen,
- * at the camera and framing it was last told, from any session by token.
+ * The view as a page: a snapshot, one scene of it, and the shared painter
+ * through the simulator's policy — the style above on the default page unless
+ * told otherwise. Null wherever the dialog would have nothing to show.
+ */
+function exportView(
+  session: SimulatorWorkerApi,
+  { style = EXPORT_STYLE, page = DEFAULT_PAPER_PAGE, ...snapshot }: ExportViewOptions = {}
+): PaperSvgResult | null {
+  const id = session.beginExportSnapshot(snapshot);
+  if (id === null) return null;
+  try {
+    const scene = session.exportScene(id, { style, markHidden: !page.keepHiddenFaces });
+    if (!scene) return null;
+    return paperSceneToSvg(scene, surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator), page);
+  } finally {
+    session.endExportSnapshot(id);
+  }
+}
+
+/**
+ * Re-pinned from `exportSvg` onto a snapshot, its scenes and the painter the
+ * export dialog paints with. What stayed the same is what these tests are for
+ * — the worker exports the view on screen, at the camera and framing it was
+ * last told, from any session by token, in the style it is handed.
  */
 describe('exporting the current view as SVG', () => {
   it('draws the folded model, not the flat sheet', async () => {
@@ -473,7 +512,7 @@ describe('exporting the current view as SVG', () => {
     session.setFoldPercent(70);
     await frame(session.settle(4000, {}));
 
-    const page = session.exportSvg(exportOptions());
+    const page = exportView(session);
     expect(page).not.toBeNull();
     expect(page!.svg).toContain('<svg');
     expect(page!.svg).toContain('<polygon');
@@ -486,7 +525,7 @@ describe('exporting the current view as SVG', () => {
     // 70%-folded one, so the two documents cannot be the same.
     session.reset();
     await frame(session.settle(4000, {}));
-    expect(session.exportSvg(exportOptions())!.svg).not.toBe(page!.svg);
+    expect(exportView(session)!.svg).not.toBe(page!.svg);
     session.dispose();
   }, 30_000);
 
@@ -501,11 +540,11 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(2000, {}));
 
     await session.setCamera({ view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 });
-    const angled = session.exportSvg(exportOptions());
+    const angled = exportView(session);
     expect(angled).not.toBeNull();
 
     await session.setCamera({ view: { yaw: 0, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 });
-    expect(session.exportSvg(exportOptions())!.svg).not.toBe(angled!.svg);
+    expect(exportView(session)!.svg).not.toBe(angled!.svg);
     session.dispose();
   }, 30_000);
 
@@ -515,7 +554,7 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(2000, {}));
     await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, mountainColor: [0, 0, 0] }, info.token);
 
-    const svg = session.exportSvg(exportOptions({ token: info.token }))!.svg;
+    const svg = exportView(session, { token: info.token })!.svg;
     expect(svg).toContain('<polygon');
     expect(svg).toContain('<line');
     expect(svg).toContain('stroke="#ffff00"');
@@ -571,7 +610,7 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(2000, {}));
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
 
-    const svg = session.exportSvg(exportOptions({ token: info.token, style }))!.svg;
+    const svg = exportView(session, { token: info.token, style })!.svg;
     const screen = onScreenPt(style);
     expect(screen).toEqual({ edge: '0.90', mountain: '3.00', valley: '1.50' });
     expect(linePens(svg)).toEqual(
@@ -599,7 +638,7 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(2000, {}));
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
 
-    const svg = session.exportSvg(exportOptions({ token: info.token, style }))!.svg;
+    const svg = exportView(session, { token: info.token, style })!.svg;
     const screen = onScreenPt(style);
     expect(screen).toEqual({ edge: '0.90', mountain: '2.00', valley: '2.00' });
     expect(linePens(svg)).toEqual(new Set([`#ff00ff ${screen.edge}`, `#ff00ff ${screen.mountain}`]));
@@ -612,22 +651,25 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(2000, {}));
 
     await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, showEdges: false }, info.token);
-    const facesOnly = session.exportSvg(exportOptions({ token: info.token }))!.svg;
+    const facesOnly = exportView(session, { token: info.token })!.svg;
     expect(facesOnly).toContain('<polygon');
     expect(facesOnly).not.toContain('<line');
 
     await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, showFaces: false }, info.token);
-    const linesOnly = session.exportSvg(exportOptions({ token: info.token }))!.svg;
+    const linesOnly = exportView(session, { token: info.token })!.svg;
     expect(linesOnly).not.toContain('<polygon');
     expect(linesOnly).toContain('<line');
 
-    // Neither is a page with nothing on it, which the hook reads as "nothing to
-    // export yet".
+    // Neither is a scene with nothing in it, which the dialog reads as nothing
+    // to export.
     await session.setRenderSettings(
       { ...DEFAULT_EXPORT_SETTINGS, showFaces: false, showEdges: false },
       info.token
     );
-    expect(session.exportSvg(exportOptions({ token: info.token }))).toBeNull();
+    const id = session.beginExportSnapshot({ token: info.token });
+    expect(id).not.toBeNull();
+    expect(session.exportScene(id!, { style: EXPORT_STYLE, markHidden: false })).toBeNull();
+    expect(session.exportScene(id!, { style: EXPORT_STYLE, markHidden: true })).toBeNull();
     session.dispose();
   }, 30_000);
 
@@ -638,13 +680,11 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(4000, {}));
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
 
-    const unlit = session.exportSvg(exportOptions({ token: info.token }))!.svg;
-    const lit = session.exportSvg(
-      exportOptions({
-        token: info.token,
-        style: { ...EXPORT_STYLE, light: { ...EXPORT_STYLE.light, enabled: true } },
-      })
-    )!.svg;
+    const unlit = exportView(session, { token: info.token })!.svg;
+    const lit = exportView(session, {
+      token: info.token,
+      style: { ...EXPORT_STYLE, light: { ...EXPORT_STYLE.light, enabled: true } },
+    })!.svg;
     expect(lit).not.toBe(unlit);
 
     // Re-pinned twice: the export used to ignore erode while the screen could
@@ -655,10 +695,11 @@ describe('exporting the current view as SVG', () => {
       ...EXPORT_STYLE,
       auxCreases: { ...EXPORT_STYLE.auxCreases, visible: true },
     };
-    const whole = session.exportSvg(exportOptions({ token: info.token, style: shown }))!.svg;
-    const eroded = session.exportSvg(
-      exportOptions({ token: info.token, style: { ...shown, erode: 0.2 } })
-    )!.svg;
+    const whole = exportView(session, { token: info.token, style: shown })!.svg;
+    const eroded = exportView(session, {
+      token: info.token,
+      style: { ...shown, erode: 0.2 },
+    })!.svg;
     const inked = (svg: string, color: string) =>
       (svg.match(/<line [^>]*\/>/g) ?? []).filter((line) => line.includes(`stroke="${color}"`));
     const aux = shown.auxCreases.pen.color;
@@ -684,9 +725,7 @@ describe('exporting the current view as SVG', () => {
       auxCreases: { ...EXPORT_STYLE.auxCreases, visible: true },
     };
     const lengths = (erode: number, color: string) => {
-      const svg = session.exportSvg(
-        exportOptions({ token: info.token, style: { ...shown, erode } })
-      )!.svg;
+      const svg = exportView(session, { token: info.token, style: { ...shown, erode } })!.svg;
       return (svg.match(/<line [^>]*\/>/g) ?? [])
         .filter((line) => line.includes(`stroke="${color}"`))
         .map((line) => {
@@ -713,14 +752,14 @@ describe('exporting the current view as SVG', () => {
     session.load(miura(8, 8), {});
     session.release(first.token);
 
-    expect(session.exportSvg(exportOptions({ token: first.token }))).toBeNull();
-    expect(session.exportSvg(exportOptions())).not.toBeNull();
+    expect(session.beginExportSnapshot({ token: first.token })).toBeNull();
+    expect(exportView(session)).not.toBeNull();
     session.dispose();
   });
 
   it('answers null when nothing is loaded', () => {
     const session = createSimulatorSession();
-    expect(session.exportSvg(exportOptions())).toBeNull();
+    expect(session.beginExportSnapshot()).toBeNull();
     session.dispose();
   });
 
@@ -736,10 +775,11 @@ describe('exporting the current view as SVG', () => {
     // still export an opaque page when one is asked for.
     await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, backgroundAlpha: 0 }, info.token);
 
-    expect(session.exportSvg(exportOptions({ token: info.token }))!.svg).not.toContain('<rect');
-    const white = session.exportSvg(
-      exportOptions({ token: info.token, page: { ...DEFAULT_PAPER_PAGE, background: '#ffffff' } })
-    )!.svg;
+    expect(exportView(session, { token: info.token })!.svg).not.toContain('<rect');
+    const white = exportView(session, {
+      token: info.token,
+      page: { ...DEFAULT_PAPER_PAGE, background: '#ffffff' },
+    })!.svg;
     expect(white).toContain('<rect');
     expect(white).toContain('fill="#ffffff"');
     session.dispose();
@@ -752,10 +792,11 @@ describe('exporting the current view as SVG', () => {
     await frame(session.settle(6000, {}));
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
 
-    const kept = session.exportSvg(exportOptions({ token: info.token }))!.svg;
-    const dropped = session.exportSvg(
-      exportOptions({ token: info.token, page: { ...DEFAULT_PAPER_PAGE, keepHiddenFaces: false } })
-    )!.svg;
+    const kept = exportView(session, { token: info.token })!.svg;
+    const dropped = exportView(session, {
+      token: info.token,
+      page: { ...DEFAULT_PAPER_PAGE, keepHiddenFaces: false },
+    })!.svg;
     const polygons = (svg: string) => (svg.match(/<polygon/gu) ?? []).length;
     // A nearly flat-folded Miura buries most of its faces.
     expect(polygons(dropped)).toBeLessThan(polygons(kept));
@@ -779,8 +820,8 @@ describe('exporting the current view as SVG', () => {
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
     const margin = DEFAULT_PAPER_PAGE.paddingMm * (72 / 25.4);
 
-    const standard = session.exportSvg(exportOptions({ token: info.token }))!;
-    const retina = session.exportSvg(exportOptions({ token: info.token, devicePixelRatio: 2 }))!;
+    const standard = exportView(session, { token: info.token })!;
+    const retina = exportView(session, { token: info.token, devicePixelRatio: 2 })!;
 
     expect(retina.widthPt - margin * 2).toBeCloseTo((standard.widthPt - margin * 2) / 2, 6);
     expect(retina.heightPt - margin * 2).toBeCloseTo((standard.heightPt - margin * 2) / 2, 6);
@@ -788,7 +829,7 @@ describe('exporting the current view as SVG', () => {
     expect(strokes(retina.svg)).toEqual(strokes(standard.svg));
 
     // A ratio of 1 is the page as it always was.
-    expect(session.exportSvg(exportOptions({ token: info.token, devicePixelRatio: 1 }))!.svg).toBe(
+    expect(exportView(session, { token: info.token, devicePixelRatio: 1 })!.svg).toBe(
       standard.svg
     );
     session.dispose();
@@ -808,16 +849,232 @@ describe('exporting the current view as SVG', () => {
     const camera = { view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 };
     const settings = { ...DEFAULT_EXPORT_SETTINGS, showEdges: false };
 
-    const handed = session.exportSvg(exportOptions({ token: info.token, camera, settings }))!.svg;
+    const handed = exportView(session, { token: info.token, camera, settings })!.svg;
     expect(handed).not.toContain('<line');
 
     await session.setCamera(camera, other.token);
     await session.setRenderSettings(settings, other.token);
-    expect(session.exportSvg(exportOptions({ token: other.token }))!.svg).toBe(handed);
+    expect(exportView(session, { token: other.token })!.svg).toBe(handed);
 
     // Without either, the export is the worker's own view -- which is now the
     // handed one, the same as after a push.
-    expect(session.exportSvg(exportOptions({ token: info.token }))!.svg).toBe(handed);
+    expect(exportView(session, { token: info.token })!.svg).toBe(handed);
+    session.dispose();
+  }, 30_000);
+});
+
+describe('export snapshots', () => {
+  const UNMARKED = { style: EXPORT_STYLE, markHidden: false };
+  const MARKED = { style: EXPORT_STYLE, markHidden: true };
+
+  it('keeps every scene of a snapshot on the frame it froze while the solver moves on', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(6, 6), {});
+    session.setFoldPercent(40, info.token);
+    await frame(session.settle(3000, { token: info.token }));
+
+    const frozen = session.beginExportSnapshot({ token: info.token })!;
+    // A second snapshot of the same frame, to check a scene first built after the solver moved.
+    const witness = session.beginExportSnapshot({ token: info.token })!;
+    const before = session.exportScene(frozen, UNMARKED);
+    const witnessMarked = session.exportScene(witness, MARKED);
+    expect(before).not.toBeNull();
+    expect(witnessMarked).not.toBeNull();
+
+    session.setFoldPercent(90, info.token);
+    await frame(session.tick({ token: info.token }));
+    await frame(session.settle(3000, { token: info.token }));
+
+    expect(session.exportScene(frozen, UNMARKED)).toEqual(before);
+    expect(session.exportScene(frozen, MARKED)).toEqual(witnessMarked);
+
+    const fresh = session.beginExportSnapshot({ token: info.token })!;
+    expect(session.exportScene(fresh, UNMARKED)).not.toEqual(before);
+    // A later snapshot is its own frame, not the earlier one's buffer.
+    expect(session.exportScene(frozen, UNMARKED)).toEqual(before);
+    session.dispose();
+  }, 30_000);
+
+  it('keeps the camera and the faces and edges it froze, however the view changes after', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(6, 6), {});
+    await frame(session.settle(2000, { token: info.token }));
+    await session.setCamera({ view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 }, info.token);
+    await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
+    const frozen = session.beginExportSnapshot({ token: info.token })!;
+    const before = session.exportScene(frozen, UNMARKED);
+
+    await session.setCamera({ view: { yaw: -0.4, pitch: 0.3, zoom: 2 }, width: 320, height: 640 }, info.token);
+    await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, showEdges: false }, info.token);
+
+    expect(session.exportScene(frozen, UNMARKED)).toEqual(before);
+    const fresh = session.beginExportSnapshot({ token: info.token })!;
+    expect(session.exportScene(fresh, UNMARKED)).not.toEqual(before);
+    session.dispose();
+  }, 30_000);
+
+  it('builds with the style as the simulator draws it, and its widest pen', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(8, 8), {});
+    session.setFoldPercent(95);
+    await frame(session.settle(6000, {}));
+    const id = session.beginExportSnapshot({ token: info.token })!;
+    const scene = (style: PaperStyle) => session.exportScene(id, { style, markHidden: true });
+    // Folds drawn as edges at a mountain pen far wider than the valley's: the
+    // simulator's policy decides which pen the hidden test allows for.
+    const raw: PaperStyle = {
+      ...EXPORT_STYLE,
+      foldsAsEdges: true,
+      mountainFolds: { ...EXPORT_STYLE.mountainFolds, width: 6 },
+      valleyFolds: { ...EXPORT_STYLE.valleyFolds, width: 1 },
+    };
+    expect(scene(raw)).toEqual(scene(surfacePaperStyle(raw, PAPER_STYLE_POLICIES.simulator)));
+    const wide: PaperStyle = {
+      ...EXPORT_STYLE,
+      edges: { ...EXPORT_STYLE.edges, width: 6 },
+      mountainFolds: { ...EXPORT_STYLE.mountainFolds, width: 6 },
+      valleyFolds: { ...EXPORT_STYLE.valleyFolds, width: 6 },
+    };
+    expect(scene(wide)).not.toEqual(scene(EXPORT_STYLE));
+    session.dispose();
+  }, 30_000);
+
+  it('drops a snapshot when its dialog ends it', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    const id = session.beginExportSnapshot({ token: info.token })!;
+    expect(session.exportScene(id, UNMARKED)).not.toBeNull();
+
+    session.endExportSnapshot(id);
+    expect(session.exportScene(id, UNMARKED)).toBeNull();
+    session.dispose();
+  });
+
+  it('drops a released session’s snapshots and keeps every other session’s', () => {
+    const session = createSimulatorSession();
+    const released = session.load(miura(4, 4), {});
+    const kept = session.load(miura(4, 4), {});
+    const releasedId = session.beginExportSnapshot({ token: released.token })!;
+    const keptId = session.beginExportSnapshot({ token: kept.token })!;
+
+    session.release(released.token);
+    expect(session.exportScene(releasedId, UNMARKED)).toBeNull();
+    expect(session.exportScene(keptId, UNMARKED)).not.toBeNull();
+    session.dispose();
+  });
+
+  it('drops every snapshot on dispose', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    const id = session.beginExportSnapshot({ token: info.token })!;
+
+    session.dispose();
+    expect(session.exportScene(id, UNMARKED)).toBeNull();
+  });
+
+  it('drops an evicted session’s snapshot', async () => {
+    const session = createSimulatorSession();
+    const first = session.load(miura(4, 4), {});
+    const id = session.beginExportSnapshot({ token: first.token })!;
+    expect(session.exportScene(id, UNMARKED)).not.toBeNull();
+
+    // Two past the cap in all, as the eviction test above loads, so the snapshotted session goes.
+    for (let i = 0; i < MAX_CONCURRENT_SIMULATIONS + 1; i += 1) session.load(miura(4, 4), {});
+
+    expect(await session.tick({ token: first.token })).toBeNull();
+    expect(session.exportScene(id, UNMARKED)).toBeNull();
+    session.dispose();
+  });
+
+  it('answers null for a token or a snapshot id it does not know', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    expect(session.beginExportSnapshot({ token: info.token + 1 })).toBeNull();
+
+    const id = session.beginExportSnapshot({ token: info.token })!;
+    // The next id has not been handed out yet.
+    expect(session.exportScene(id + 1, UNMARKED)).toBeNull();
+    session.dispose();
+  });
+
+  it('marks hidden items only when asked', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(8, 8), {});
+    session.setFoldPercent(95);
+    await frame(session.settle(6000, {}));
+    const id = session.beginExportSnapshot({ token: info.token })!;
+    const hiddenCount = (options: typeof UNMARKED) =>
+      session.exportScene(id, options)!.items.filter((item) => item.hidden).length;
+
+    expect(hiddenCount(UNMARKED)).toBe(0);
+    expect(hiddenCount(MARKED)).toBeGreaterThan(0);
+    session.dispose();
+  }, 30_000);
+});
+
+/** The page the export dialog saves of a snapshot: the target, the draft, the scene session and the painter. */
+async function dialogPage(
+  session: SimulatorWorkerApi,
+  token: number,
+  exportStyle: PaperStyle,
+  page: PaperPage,
+  devicePixelRatio?: number
+): Promise<PaperSvgResult> {
+  const id = session.beginExportSnapshot({ token, devicePixelRatio });
+  if (id === null) throw new Error('expected a snapshot');
+  const target = simulatorExportTarget({
+    snapshot: {
+      scene: async (options) => session.exportScene(id, options),
+      release: () => session.endExportSnapshot(id),
+    },
+    surface: 'simulator',
+    title: 'Export view',
+    fileStem: 'x',
+    exportStyle,
+    pins: null,
+  });
+  try {
+    const rows = paperPresetRows([]);
+    const draft = paperExportDraft(
+      { ...DEFAULT_PAPER_EXPORT_SETTINGS, ...page },
+      { format: 'svg' },
+      rows
+    );
+    const style = paperExportStyle(target, draft.style, rows);
+    const scene = await createPaperExportSession(target).scene(
+      paperExportSceneInput(target, style, draft)
+    );
+    if (!scene) throw new Error('expected a scene');
+    return paintPaperExport(target, scene, style, paperExportPage(target, draft));
+  } finally {
+    target.release();
+  }
+}
+
+describe('the export dialog’s page of a simulation', () => {
+  it('is the page the retired exportSvg wrote, byte for byte', async () => {
+    // `simulatorExportGolden.json` was written by `exportSvg` before it was
+    // retired, from exactly this session and these two requests.
+    const session = createSimulatorSession();
+    const info = session.load(miura(6, 6), {});
+    session.setFoldPercent(60);
+    await frame(session.settle(3000, {}));
+    await session.setCamera(
+      { view: { yaw: 0.8, pitch: -0.6, zoom: 1.2 }, width: 640, height: 480 },
+      info.token
+    );
+
+    const defaults = await dialogPage(session, info.token, DEFAULT_PAPER_STYLE, DEFAULT_PAPER_PAGE);
+    const custom = await dialogPage(
+      session,
+      info.token,
+      EXPORT_STYLE,
+      { sheet: { mm: 120 }, paddingMm: 12, background: '#223344', keepHiddenFaces: false },
+      2
+    );
+
+    expect(defaults).toEqual(golden.defaults);
+    expect(custom).toEqual(golden.custom);
     session.dispose();
   }, 30_000);
 });
@@ -1022,7 +1279,7 @@ describe('the view a new session opens on', () => {
     const info = session.load(miura(4, 4), { view: { camera, settings: OPENING_SETTINGS } });
     await frame(session.settle(2000, { token: info.token }));
 
-    const opened = session.exportSvg(exportOptions({ token: info.token }))!.svg;
+    const opened = exportView(session, { token: info.token })!.svg;
     // Faces only, as the framing it was handed says, at the camera it was
     // handed — the same document as pushing both after the fact. (Re-pinned
     // from the mountain colour: the look now comes from the style, so the
@@ -1030,7 +1287,7 @@ describe('the view a new session opens on', () => {
     expect(opened).not.toContain('<line');
     await session.setCamera(camera, info.token);
     await session.setRenderSettings(OPENING_SETTINGS, info.token);
-    expect(session.exportSvg(exportOptions({ token: info.token }))!.svg).toBe(opened);
+    expect(exportView(session, { token: info.token })!.svg).toBe(opened);
     session.dispose();
   }, 30_000);
 
@@ -1044,7 +1301,7 @@ describe('the view a new session opens on', () => {
 
     const second = session.load(miura(4, 4), { view: { camera, settings: OPENING_SETTINGS } });
     await frame(session.settle(2000, { token: second.token }));
-    const svg = session.exportSvg(exportOptions({ token: second.token }))!.svg;
+    const svg = exportView(session, { token: second.token })!.svg;
     expect(svg).not.toContain('<line');
 
     // And without the answer, the same gap really does fall back to defaults —
@@ -1052,7 +1309,7 @@ describe('the view a new session opens on', () => {
     session.release(second.token);
     const third = session.load(miura(4, 4), {});
     await frame(session.settle(2000, { token: third.token }));
-    expect(session.exportSvg(exportOptions({ token: third.token }))!.svg).toContain('<line');
+    expect(exportView(session, { token: third.token })!.svg).toContain('<line');
     session.dispose();
   }, 30_000);
 
@@ -1064,7 +1321,7 @@ describe('the view a new session opens on', () => {
 
     const second = session.load(miura(4, 4), {});
     await frame(session.settle(2000, { token: second.token }));
-    expect(session.exportSvg(exportOptions({ token: second.token }))!.svg).not.toContain('<line');
+    expect(exportView(session, { token: second.token })!.svg).not.toContain('<line');
     session.dispose();
   }, 30_000);
 });

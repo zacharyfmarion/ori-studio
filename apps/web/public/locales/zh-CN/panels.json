@@ -1087,9 +1087,7 @@
     }
   },
   "simulatorExport": {
-    "png": "PNG 图像",
-    "svg": "SVG 图像",
-    "trigger": "导出视图"
+    "trigger": "导出视图…"
   },
   "simulatorSegments": {
     "creasePatterns": "折痕图",

@@ -28,7 +28,7 @@ import {
   subscribeInlineSimulationSources,
   subscribeInlineSimulationFoldTarget,
 } from './inlineSimulation/inlineSimulationRuntime';
-import { useSimulatorViewExport } from '../simulator/useSimulatorViewExport';
+import { useSimulatorExport } from '../simulator/useSimulatorExport';
 import {
   SimulatorViewport,
   type SimulatorViewportHandle,
@@ -540,7 +540,7 @@ function InlineSimulationWindow({
    * Registered while mounted rather than only while focused: an unfocused window
    * keeps its model loaded, so its view is still exportable.
    */
-  const exportView = useSimulatorViewExport(runtime.exportSvg, {
+  const exportView = useSimulatorExport(runtime.beginExport, {
     surface: 'inline-simulation',
     overrides: simulation.appearance,
   });

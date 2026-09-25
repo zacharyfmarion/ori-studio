@@ -1122,9 +1122,7 @@
     }
   },
   "simulatorExport": {
-    "png": "PNG-Bild",
-    "svg": "SVG-Bild",
-    "trigger": "Ansicht exportieren"
+    "trigger": "Ansicht exportieren…"
   },
   "simulatorSegments": {
     "creasePatterns": "Faltmuster",

@@ -12,6 +12,7 @@ import { createSimulatorSession } from '../../simulator/simulatorSession';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
 import { useLayoutStore } from '../../store/layoutStore';
+import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -83,6 +84,7 @@ afterEach(() => {
   root = null;
   container = null;
   vi.restoreAllMocks();
+  usePaperExportUiStore.getState().close();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   useSettingsStore.setState(useSettingsStore.getInitialState(), true);
 });
@@ -116,9 +118,44 @@ describe('SimulatorPanel', () => {
     const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
     await flushSimulator();
 
-    const trigger = rendered.querySelector<HTMLButtonElement>('[aria-label="Export view"]');
+    const trigger = exportTrigger(rendered);
     expect(trigger).not.toBeNull();
     expect(trigger?.disabled).toBe(false);
+    // One button now: the dialog it opens chooses the format.
+    expect(trigger?.getAttribute('aria-haspopup')).toBeNull();
+  });
+
+  it('opens the export dialog on the frame the worker froze', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+    act(() => useWorkspaceStore.setState({ workspaceTitle: 'Crane base' }));
+    expect(usePaperExportUiStore.getState().request).toBeNull();
+
+    act(() => exportTrigger(rendered)?.click());
+    await flushSimulator();
+
+    const request = usePaperExportUiStore.getState().request;
+    if (!request) throw new Error('the export dialog did not open');
+    expect(request.format).toBeNull();
+    expect(request.scope).toBe('this');
+    const { target } = request;
+    expect(target.surface).toBe('simulator');
+    expect(target.title).toBe('Export view');
+    expect(target.fileStem).toBe('Crane base');
+    expect(target.pages).toBeNull();
+    expect(target.pins).toBeNull();
+    expect(target.buriesFaces).toBe(true);
+
+    // The target reaches the in-process session: a scene of the loaded model.
+    const input = { page: 0, style: target.exportStyle, markHidden: false, background: null };
+    const scene = await target.buildScene(input);
+    expect(scene?.items.length).toBeGreaterThan(0);
+
+    // Closing the dialog lets the worker drop the frame, so a late rebuild
+    // finds nothing to draw.
+    act(() => usePaperExportUiStore.getState().close());
+    await flushSimulator();
+    await expect(target.buildScene(input)).resolves.toBeNull();
   });
 
   it('offers a view cube, turned to the camera before its first paint', async () => {
@@ -161,7 +198,8 @@ describe('SimulatorPanel', () => {
     // enabled control here would open a dialog and then fail.
     const rendered = renderPanel({});
 
-    const trigger = rendered.querySelector<HTMLButtonElement>('[aria-label="Export view"]');
+    const trigger = exportTrigger(rendered);
+    expect(trigger).not.toBeNull();
     expect(trigger?.disabled).toBe(true);
   });
 
@@ -450,6 +488,10 @@ function pressKey(key: string, init: KeyboardEventInit = {}): void {
       menu: () => {},
     }
   );
+}
+
+function exportTrigger(rendered: HTMLElement): HTMLButtonElement | null {
+  return rendered.querySelector<HTMLButtonElement>('button[aria-label="Export view…"]');
 }
 
 function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {

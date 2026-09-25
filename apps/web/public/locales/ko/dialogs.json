@@ -354,6 +354,7 @@
     "titleAllSteps": "모든 단계 내보내기",
     "titleFoldedFigure": "{{title}} 내보내기",
     "titleReference": "기준점 {{candidate}}의 {{number}}단계 내보내기",
+    "titleSimulation": "보기 내보내기",
     "titleStep": "{{number}}단계 내보내기",
     "titleTurnOver": "뒤집기 내보내기",
     "zipFiles_other": "파일 {{count}}개 · ZIP"
