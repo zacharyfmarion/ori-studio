@@ -299,6 +299,7 @@
     "willUnbind_other": "할당 해제됨 ({{count}})"
   },
   "paperExport": {
+    "background": "배경",
     "confirmZip": "{{format}}을(를) ZIP으로 내보내기",
     "empty": "내보낼 것이 없습니다. 보기에 종이가 없습니다.",
     "exporting": "내보내는 중…",
@@ -307,7 +308,10 @@
     "fixedHint": "이 모델은 저장된 그대로 내보내집니다. 스타일과 페이지는 그려졌을 때의 것입니다. 원하는 스타일, 크기, 페이지로 내보내려면 다시 접으세요.",
     "format": "형식",
     "hiddenFacesDropped_other": "숨겨진 면 {{count}}개 생략",
+    "keepHiddenFaces": "숨겨진 면 유지",
+    "keepHiddenFacesHint": "아무것도 보이지 않는 면을 덮고 있는 것 아래에 그대로 파일에 남겨, 드로잉 편집기에서 면을 지우면 그 아래 면이 드러납니다.",
     "nextPage": "다음 단계",
+    "padding": "여백",
     "page": "페이지",
     "pageMm": "{{width}} × {{height}} mm",
     "pagePx": "{{width}} × {{height}} px",
@@ -346,6 +350,7 @@
     "sheetAsShownHint": "현재 확대/축소에서 화면에 보이는 크기입니다.",
     "sheetCustom": "사용자 지정",
     "sheetCustomHint": "펼친 종이가 가장자리에서 가장자리까지 이 크기가 됩니다. 선 굵기는 그대로입니다.",
+    "sheetMm": "종이 크기",
     "size": "크기",
     "sizeKb": "{{size}} KB",
     "sizeMb": "{{size}} MB",
@@ -357,6 +362,7 @@
     "titleSimulation": "보기 내보내기",
     "titleStep": "{{number}}단계 내보내기",
     "titleTurnOver": "뒤집기 내보내기",
+    "transparent": "투명한 배경",
     "zipFiles_other": "파일 {{count}}개 · ZIP"
   },
   "referencesApproximationWarning": {
@@ -448,22 +454,6 @@
       "erodeHint": "보조 접힘선은 놓인 면의 가장자리에서 안쪽으로 물러납니다. 산 접기와 골 접기는 가장자리까지 그려집니다.",
       "erodeOff": "끔",
       "erodePreview": "종이의 10분의 1을 확대한 모습: 종이 가장자리까지 이어지는 골 접기 선과, 그 앞에서 멈추는 보조 접힘선",
-      "exportPage": {
-        "background": "배경",
-        "keepHiddenFaces": "숨겨진 면 유지",
-        "keepHiddenFacesHint": "아무것도 보이지 않는 면을 덮고 있는 것 아래에 그대로 파일에 남겨, 드로잉 편집기에서 면을 지우면 그 아래 면이 드러납니다.",
-        "padding": "여백",
-        "paddingHint": "작품 둘레의 네 변 각각에 둡니다.",
-        "pngDpi": "PNG 해상도",
-        "pngDpiHint": "페이지의 인치당 점 수입니다. 96이 화면과 같습니다.",
-        "sheetAsShown": "종이 크기를 표시된 대로",
-        "sheetAsShownHint": "종이는 화면에 보이는 크기가 됩니다. 끄면 펼친 종이가 mm 단위로 지정한 크기가 되며, 선 굵기는 그대로입니다.",
-        "sheetMm": "종이 크기",
-        "sheetMmHint": "펼친 종이의 가장자리에서 가장자리까지입니다.",
-        "title": "내보내기 페이지",
-        "transparent": "투명한 배경",
-        "transparentHint": "끄면 종이 뒤의 페이지를 색으로 채웁니다."
-      },
       "exportTitle": "종이 스타일 내보내기",
       "foldedPaperTitle": "접힌 종이",
       "foldsAsEdges": "모든 접힘선을 모서리로 그리기",

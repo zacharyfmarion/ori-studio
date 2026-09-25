@@ -35,10 +35,14 @@ import {
   type PaperStyleValue,
 } from '../lib/paper/paperStyle';
 import {
+  normalizePaperExportMemory,
   normalizePaperExportSettings,
   PAPER_EXPORT_STYLE_SLOT,
   paperExportFromSimulatorSettings,
-  type PaperExportField,
+  paperExportMemoryOf,
+  persistedPaperExport,
+  type PaperExportKind,
+  type PaperExportMemory,
   type PaperExportSettings,
   type PaperExportStyleChoice,
 } from '../lib/paperExportSettings';
@@ -138,20 +142,23 @@ function readPaperStyleSettings(): PaperStyleSettings {
 }
 
 /**
- * The persisted export page, or — on the one read where there is none — a
- * page seeded from the simulator settings' retired `exportBackground`.
+ * Every kind's remembered export options (`normalizePaperExportMemory`: a
+ * single object from before the split seeds every kind), or — on the one read
+ * where there is nothing — every kind seeded from the simulator settings'
+ * retired `exportBackground`.
  *
  * Written at once when the seed differs from the defaults, for the same reason
  * the style's seed is: the simulator slice rewrites its own key without the
  * retired field on its next edit, so the source does not survive to a second
  * read. A seed that is the defaults is not written.
  */
-function readPaperExportSettings(): PaperExportSettings {
+function readPaperExportMemory(): PaperExportMemory {
   const stored = readJson<unknown>(PAPER_EXPORT_KEY, null);
-  if (stored !== null) return normalizePaperExportSettings(stored);
+  if (stored !== null) return normalizePaperExportMemory(stored);
   const seeded = paperExportFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null));
-  if (seeded.background !== null) writeJson(PAPER_EXPORT_KEY, seeded);
-  return seeded;
+  const memory = paperExportMemoryOf(seeded);
+  if (seeded.background !== null) writeJson(PAPER_EXPORT_KEY, persistedPaperExport(memory));
+  return memory;
 }
 
 /** The remembered style of the folded figure beside a crease pattern; the export slot until one is saved. */
@@ -269,10 +276,11 @@ interface SettingsState {
    */
   paperStyle: PaperStyleSettings;
   /**
-   * The page every paper export is painted onto, and the PNG density. Export
-   * options rather than style: the same picture goes out on any page.
+   * What each kind of paper export was last saved with (X6): format, style,
+   * page and PNG density. Export options rather than style: the same picture
+   * goes out on any page. The export dialog is their only editor.
    */
-  paperExport: PaperExportSettings;
+  paperExport: PaperExportMemory;
   /**
    * Which style the folded figure beside a crease pattern is drawn in: the
    * export slot or a preset. Shared by the crease-pattern export and the share
@@ -322,13 +330,13 @@ interface SettingsState {
    * The parse result comes back so the caller can put words to a refusal.
    */
   importPaperPreset: (json: string) => PaperPresetParseResult;
-  setPaperExportField: <F extends PaperExportField>(field: F, value: PaperExportSettings[F]) => void;
   /**
-   * Keep the options an export was just saved with, for the next time the
-   * export dialog opens. Written once per saved file, not per change: the
-   * dialog edits a draft, so a dialog cancelled changes nothing.
+   * Keep the options an export of `kind` was just saved with, for the next
+   * time the export dialog opens on that kind. Written once per saved file,
+   * not per change: the dialog edits a draft, so a dialog cancelled changes
+   * nothing.
    */
-  rememberPaperExportOptions: (options: PaperExportSettings) => void;
+  rememberPaperExportOptions: (kind: PaperExportKind, options: PaperExportSettings) => void;
   /** Keep the folded figure's style a crease-pattern file was saved, or a share published, with. */
   rememberCreasePatternFoldedFigureStyle: (style: PaperExportStyleChoice) => void;
 }
@@ -349,7 +357,7 @@ export const useSettingsStore = create<SettingsState>()(
       referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, true),
       referencesShowAuxCreases: readOptionalBoolean(REFERENCES_SHOW_AUX_CREASES_KEY),
       paperStyle: readPaperStyleSettings(),
-      paperExport: readPaperExportSettings(),
+      paperExport: readPaperExportMemory(),
       creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
@@ -506,16 +514,11 @@ export const useSettingsStore = create<SettingsState>()(
         }
         return result;
       },
-      setPaperExportField: (field, value) => {
-        // Through the normaliser, so a density typed past the range or a sheet
-        // size below the minimum is held to it before it is stored.
-        const next = normalizePaperExportSettings({ ...get().paperExport, [field]: value });
-        writeJson(PAPER_EXPORT_KEY, next);
-        set({ paperExport: next });
-      },
-      rememberPaperExportOptions: (options) => {
-        const next = normalizePaperExportSettings(options);
-        writeJson(PAPER_EXPORT_KEY, next);
+      rememberPaperExportOptions: (kind, options) => {
+        // Through the normaliser, so a density past the range or a sheet size
+        // below the minimum is held to it before it is stored.
+        const next = { ...get().paperExport, [kind]: normalizePaperExportSettings(options) };
+        writeJson(PAPER_EXPORT_KEY, persistedPaperExport(next));
         set({ paperExport: next });
       },
       rememberCreasePatternFoldedFigureStyle: (style) => {

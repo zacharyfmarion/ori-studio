@@ -16,6 +16,7 @@ import {
   type PaperStyle,
   type PaperStyleOverrides,
 } from '../../lib/paper/paperStyle';
+import { DEFAULT_PAPER_EXPORT_SETTINGS, paperExportMemoryOf } from '../../lib/paperExportSettings';
 import { emptyMultiSelection } from '../../lib/selection';
 import type {
   PaperExportPages,
@@ -284,12 +285,11 @@ describe('PaperExportModal', () => {
 
   it('opens on the remembered format, and names the PNG it cannot rasterise', async () => {
     // 1000 mm at 600 dpi is about 23 900 px a side, past every engine's canvas.
+    const { paperExport } = useSettingsStore.getState();
     useSettingsStore.setState({
       paperExport: {
-        ...useSettingsStore.getState().paperExport,
-        format: 'png',
-        sheet: { mm: 1000 },
-        pngDpi: 600,
+        ...paperExport,
+        'folded-figure': { ...paperExport['folded-figure'], format: 'png', sheet: { mm: 1000 }, pngDpi: 600 },
       },
     });
     await open(target());
@@ -320,7 +320,7 @@ describe('PaperExportModal', () => {
     expect(field('Margin', 'Export step 2')?.value).toBe('5');
     expect(button('Export PNG')).toBeTruthy();
     // The draft that was dropped is not remembered either.
-    expect(useSettingsStore.getState().paperExport.paddingMm).toBe(5);
+    expect(useSettingsStore.getState().paperExport).toEqual(initialSettings.paperExport);
   });
 
   describe('while a save is in flight', () => {
@@ -740,7 +740,7 @@ describe('PaperExportModal on a fixed picture', () => {
 
   it('captions a PNG with the picture’s own pixel size, whatever density was remembered', async () => {
     useSettingsStore.setState({
-      paperExport: { ...useSettingsStore.getState().paperExport, pngDpi: 600 },
+      paperExport: paperExportMemoryOf({ ...DEFAULT_PAPER_EXPORT_SETTINGS, pngDpi: 600 }),
     });
     await open(fixed(), null, 'png');
     expect(caption()).toMatch(/^[\d.]+ × [\d.]+ mm · 400 × 300 px$/);

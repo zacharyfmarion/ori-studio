@@ -31,7 +31,11 @@ import {
   pngFitsCanvas,
 } from '../lib/paper/pngCanvasLimits';
 import { PT_PER_CSS_PX, type PaperSvgResult } from '../lib/paper/paperSvg';
-import { paperPageOf, type PaperExportSettings } from '../lib/paperExportSettings';
+import {
+  paperExportKindOf,
+  paperPageOf,
+  type PaperExportSettings,
+} from '../lib/paperExportSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
 import { isAppleMobilePlatform } from '../platform/runtime';
 import { useSettingsStore } from '../store/settingsStore';
@@ -143,8 +147,10 @@ export function usePaperExportDialog(
   const rows = useMemo(() => paperPresetRows(savedPresets), [savedPresets]);
   const remember = useSettingsStore((state) => state.rememberPaperExportOptions);
 
+  // This kind's options: a step's, a figure's or a simulation's (X6).
+  const kind = paperExportKindOf(target.surface);
   const [seed] = useState(() =>
-    paperExportDraft(useSettingsStore.getState().paperExport, request, rows)
+    paperExportDraft(useSettingsStore.getState().paperExport[kind], request, rows)
   );
   const [draft, setDraft] = useState(seed);
   const patch = useCallback(
@@ -279,7 +285,7 @@ export function usePaperExportDialog(
             });
       // A dismissed save dialog: the options are still in front of the reader.
       if (!name) return;
-      remember(draft);
+      remember(kind, draft);
       trackPaperExported(
         // The density the file was written at, which a fixed picture sets itself.
         paperExportedEvent(target.surface, { ...draft, pngDpi }, {
@@ -312,6 +318,7 @@ export function usePaperExportDialog(
     pageOptions,
     draft,
     remember,
+    kind,
     keepsHiddenFaces,
     rows,
     seed,

@@ -621,6 +621,11 @@ View Controls' Export group (background, keep hidden faces, sheet size).
 `SimulatorSettings.exportBackground` retires: `'white'` seeds `#ffffff`,
 anything else `null`.
 
+> **Superseded** by `implementation-plans/paper-export-dialog.md` (Phase 10):
+> both editors are gone; the export dialog is the only place a page is set,
+> and each kind of export remembers its own options (`PersistedPaperExport`
+> v2 under the same key, the single object above read as every kind's seed).
+
 **Simulator path.** The main thread resolves the *export* style —
 `effectivePaperStyle(paperStyle.export ?? paperStyle.display, object?.appearance)`
 — and hands it, the page and the last camera to the worker:
@@ -829,6 +834,10 @@ as-shown), saved as `<workspace> step N.svg|png` through the file service;
 `paper exported { surface: 'references', … }`. The fold animation's mid-fold
 pose is not exported (the step at rest is the diagram); recorded as a later
 option.
+
+> **Superseded** by `implementation-plans/paper-export-dialog.md` (Phases 5–6):
+> the verbs open the export dialog, which picks the format, style and page,
+> and can save every step as one ZIP.
 
 ### 11. Phase 7 contracts
 
@@ -1184,7 +1193,9 @@ against the mesh route no longer applies (F9).
 - [ ] Aux edge pass in the GPU renderer — with Phase 5's "simulator GPU aux
       pass", which is the same item.
 - [x] Simulator `exportSvg` → scene → painter; `keepHiddenFaces` export
-      option in the simulator export menu; page per D3. Export page settings
+      option in the simulator export menu; page per D3. *(The page editors
+      below were retired by `paper-export-dialog.md` Phase 10: the export
+      dialog sets the page, per kind.)* Export page settings
       (`settingsStore.paperExport`, `lib/paperExportSettings.ts`, seeded from
       the retired `exportBackground`) edited in Settings ▸ Paper's "Export
       page" section and the Simulate pane's Export group through one hook
@@ -1596,7 +1607,8 @@ against the mesh route no longer applies (F9).
 ### Phase 6 — Precrease step export
 
 - [x] `diagramToPaperScene`; export verbs (SVG / PNG for the current step) in
-      `referencesActions.ts`, toolbar + context menu; analytics.
+      `referencesActions.ts`, toolbar + context menu; analytics. *(The verbs
+      now open the export dialog — `paper-export-dialog.md` Phases 5–6.)*
       `cp-workspace/references/diagramToPaperScene.ts` is the producer of §10
       (the sheet as one face, lines by role, arcs with a fold style flattened,
       everything else through `diagramPrimitiveShape` into one `markup` item
@@ -1837,6 +1849,10 @@ pattern is checked, and colour by direction is how a misassigned crease shows.
       plane while the paper folds.
 
 ### Phase 10 — The pattern rails draw on the style's paper
+
+> **Superseded** in part by `implementation-plans/paper-export-dialog.md`
+> (Phases 1–2): References inks its lines by the ground they lie on, and the
+> two pattern rails went back to main's look rather than the style's paper.
 
 Asked for after Phase 9: the References canvas drew a dot at every vertex the
 creases so far make, and the two rails that pick a pattern — References and

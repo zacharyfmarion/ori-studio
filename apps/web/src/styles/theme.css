@@ -2917,12 +2917,7 @@ a.context-menu__item {
   min-width: 0;
 }
 
-/*
- * The slot's own fields — everything the slot switch governs. The export page
- * below is deliberately outside it: a page size is not part of a style, and
- * dimming it while the export *style* follows display would be saying
- * something untrue about it.
- */
+/* The slot's own fields — everything the slot switch governs. */
 .settings-paper__style {
   display: grid;
   gap: 22px;

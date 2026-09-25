@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PaperScene } from '../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
-import { DEFAULT_PAPER_EXPORT_SETTINGS, type PaperExportSettings } from '../lib/paperExportSettings';
+import {
+  DEFAULT_PAPER_EXPORT_SETTINGS,
+  type PaperExportKind,
+  type PaperExportSettings,
+} from '../lib/paperExportSettings';
 import { paperPngSize } from '../lib/paper/paperPng';
 import { paperPresetRows } from '../lib/paperPresetRows';
 import { readJson, readString, removeKey, STORAGE_KEYS, storageKey } from '../lib/storage';
@@ -188,6 +192,17 @@ function paintedFrom(scene: PaperScene, target: PaperExportTarget, draft: PaperE
   return paintPaperExport(target, scene, style, paperExportPage(target, draft)).svg;
 }
 
+/** What `kind` remembers. */
+const remembered = (kind: PaperExportKind) => useSettingsStore.getState().paperExport[kind];
+
+/** Has `kind` remember `options` over the defaults, leaving the other kinds as they are. */
+function rememberFor(kind: PaperExportKind, options: Partial<PaperExportSettings>) {
+  const { paperExport } = useSettingsStore.getState();
+  useSettingsStore.setState({
+    paperExport: { ...paperExport, [kind]: { ...DEFAULT_PAPER_EXPORT_SETTINGS, ...options } },
+  });
+}
+
 const initialSettings = useSettingsStore.getInitialState();
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -260,9 +275,7 @@ afterEach(() => {
 
 describe('usePaperExportDialog', () => {
   it('opens on the remembered options, on the verb’s format, and counts the opening', async () => {
-    useSettingsStore.setState({
-      paperExport: { ...DEFAULT_PAPER_EXPORT_SETTINGS, format: 'svg', paddingMm: 8 },
-    });
+    rememberFor('folded-figure', { format: 'svg', paddingMm: 8 });
     const { target } = fakeTarget();
     const dialog = await open(target, 'png');
     expect(dialog().draft).toMatchObject({ format: 'png', paddingMm: 8 });
@@ -312,7 +325,7 @@ describe('usePaperExportDialog', () => {
     expect(service.saveTextFile).toHaveBeenCalledWith(
       expect.objectContaining({ contents: previewed, suggestedName: 'Crane-folded.svg' })
     );
-    expect(useSettingsStore.getState().paperExport.paddingMm).toBe(12);
+    expect(remembered('folded-figure').paddingMm).toBe(12);
     expect(tracked).toContainEqual({
       event: 'paper exported',
       properties: expect.objectContaining({ surface: 'folded-flat', format: 'svg', options_changed: 'yes' }),
@@ -367,7 +380,7 @@ describe('usePaperExportDialog', () => {
     await act(async () => dialog().patch({ paddingMm: 30 }));
     await act(async () => dialog().exportNow());
     expect(close).not.toHaveBeenCalled();
-    expect(useSettingsStore.getState().paperExport.paddingMm).toBe(DEFAULT_PAPER_EXPORT_SETTINGS.paddingMm);
+    expect(useSettingsStore.getState().paperExport).toEqual(initialSettings.paperExport);
   });
 
   it('says why a save failed, and stays open', async () => {
@@ -401,8 +414,11 @@ describe('usePaperExportDialog', () => {
     await act(async () => dialog().patch({ format: 'png', style: 'builtin:diagram' }));
     await act(async () => dialog().exportNow());
     expect(service.saveBinaryFile).toHaveBeenCalledTimes(1);
-    expect(useSettingsStore.getState().paperExport).toMatchObject({ format: 'png', style: 'builtin:diagram' });
-    expect(readJson(PAPER_EXPORT_KEY, null)).toMatchObject({ format: 'png', style: 'builtin:diagram' });
+    expect(remembered('folded-figure')).toMatchObject({ format: 'png', style: 'builtin:diagram' });
+    expect(readJson(PAPER_EXPORT_KEY, null)).toMatchObject({
+      version: 2,
+      kinds: { 'folded-figure': { format: 'png', style: 'builtin:diagram' } },
+    });
 
     unmount();
     root = createRoot(container!);
@@ -411,12 +427,12 @@ describe('usePaperExportDialog', () => {
   });
 
   it('opens a remembered preset that no longer exists as the export style, and remembers that', async () => {
-    useSettingsStore.setState({ paperExport: { ...DEFAULT_PAPER_EXPORT_SETTINGS, style: 'user:Gone' } });
+    rememberFor('folded-figure', { style: 'user:Gone' });
     const { target } = fakeTarget();
     const dialog = await open(target);
     expect(dialog().draft.style).toBe('export-style');
     await act(async () => dialog().exportNow());
-    expect(useSettingsStore.getState().paperExport.style).toBe('export-style');
+    expect(remembered('folded-figure').style).toBe('export-style');
   });
 
   it('shows the scene for the options as they stand when an older build resolves late', async () => {
@@ -585,6 +601,61 @@ describe('usePaperExportDialog', () => {
   });
 });
 
+describe('usePaperExportDialog, each kind of export on options of its own', () => {
+  const KINDS: readonly (readonly [PaperExportTarget['surface'], PaperExportKind])[] = [
+    ['references', 'step'],
+    ['folded-flat', 'folded-figure'],
+    ['folded-3d', 'folded-figure'],
+    ['simulator', 'simulation'],
+    ['inline-simulation', 'simulation'],
+  ];
+
+  /** Every kind on options of its own. */
+  function rememberEveryKind() {
+    rememberFor('simulation', { paddingMm: 7, background: '#111111' });
+    rememberFor('folded-figure', { paddingMm: 11, format: 'png', pngDpi: 300 });
+    rememberFor('step', { paddingMm: 13, style: 'builtin:diagram' });
+    return useSettingsStore.getState().paperExport;
+  }
+
+  it.each(KINDS)('opens a %s target on what a %s remembers', async (surface, kind) => {
+    const memory = rememberEveryKind();
+    const dialog = await open(fakeTarget({ surface }).target);
+    expect(dialog().draft).toEqual(memory[kind]);
+  });
+
+  it('remembers a save into its own kind alone, in the store and in what is stored', async () => {
+    const before = rememberEveryKind();
+    const dialog = await open(fakeTarget({ surface: 'references' }).target);
+    await act(async () => dialog().patch({ paddingMm: 20, background: '#445566' }));
+    await act(async () => dialog().exportNow());
+    expect(service.saveTextFile).toHaveBeenCalledTimes(1);
+
+    const step = { ...before.step, paddingMm: 20, background: '#445566' };
+    expect(useSettingsStore.getState().paperExport).toEqual({ ...before, step });
+    expect(readJson(PAPER_EXPORT_KEY, null)).toEqual({ version: 2, kinds: { ...before, step } });
+  });
+
+  it('opens a simulation and a figure on SVG after a step was saved as a PNG, and the next step on PNG', async () => {
+    const step = await open(fakeTarget({ surface: 'references' }).target);
+    await act(async () => step().patch({ format: 'png' }));
+    await act(async () => step().exportNow());
+    expect(service.saveBinaryFile).toHaveBeenCalledTimes(1);
+
+    const reopenedOn = [
+      ['simulator', 'svg'],
+      ['folded-flat', 'svg'],
+      ['references', 'png'],
+    ] as const;
+    for (const [surface, format] of reopenedOn) {
+      unmount();
+      root = createRoot(container!);
+      const reopened = await open(fakeTarget({ surface }).target);
+      expect(reopened().draft.format, surface).toBe(format);
+    }
+  });
+});
+
 describe('usePaperExportDialog on a target with several pages', () => {
   it('on This step, offers both scopes and builds and shows only the page on show, on its own crop', async () => {
     const { target, builtPages } = stepsTarget();
@@ -702,7 +773,7 @@ describe('usePaperExportDialog on a target with several pages', () => {
     );
     expect([...files['Crane-step-2.svg']!]).toEqual([...strToU8(previewed)]);
 
-    expect(useSettingsStore.getState().paperExport).toMatchObject({ paddingMm: 12, background: '#112233' });
+    expect(remembered('step')).toMatchObject({ paddingMm: 12, background: '#112233' });
     expect(tracked).toContainEqual({
       event: 'paper exported',
       properties: expect.objectContaining({

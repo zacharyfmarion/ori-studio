@@ -570,6 +570,12 @@ interface PersistedPaperExport {
 - Not remembered: the picture (captured at each open), the file name (from
   the workspace, figure or step, and editable in the save dialog), and an
   object's pins (the document's, saved in the `.osf`).
+- **As built** (Phase 10): one kind's options kept the name they had,
+  `PaperExportSettings` (`lib/paperExportSettings.ts`), rather than a second
+  `PaperExportOptions` beside the dialog's component of that name; and the
+  crease pattern's folded-figure style is stored under its own key
+  (`STORAGE_KEYS.creasePatternFoldedFigure`, Phase 9), not inside
+  `PersistedPaperExport`, so the two writers never rewrite each other's value.
 
 Order: Phases 5–9 add `format`, `style` and the crease-pattern folded-figure
 style to today's single object, which the dialogs write on export while
@@ -1371,20 +1377,25 @@ From review (folded into the Phase 5 commit):
 
 ### Phase 10 — Retire the old export settings; remember options per kind
 
-- [ ] Remove the two editors of export options outside the dialog: Settings ▸
+- [x] Remove the two editors of export options outside the dialog: Settings ▸
       Paper's Export page section (with `usePaperExportPage`) and the
       Simulate pane's Export group
       (`SimulatorViewControlsPanel.test.tsx:340-352` goes with it)
-- [ ] Per kind: `PaperExportKind`, `PaperExportOptions`,
+- [x] Per kind: `PaperExportKind`, `PaperExportOptions`,
       `PersistedPaperExport` v2, `rememberPaperExportOptions`; the dialog
       seeds from and writes to its target's kind; tests — today's single
       object seeds every kind, the first-run simulator seed still applies, a
       malformed kind defaults alone, an older build's read of v2 defaults
-- [ ] Move the reused `exportPage.*` strings under `dialogs:paperExport.*`;
-      i18n loop
-- [ ] Mark the superseded wiring in the older plan (Phase 2 "Export page
+      — one kind's options are `PaperExportSettings` (see "As built" under
+      Options and persistence); `setPaperExportField` is gone with its editors
+- [x] Move the reused `exportPage.*` strings under `dialogs:paperExport.*`;
+      i18n loop — the translations carried over as they were
+- [x] Mark the superseded wiring in the older plan (Phase 2 "Export page
       settings", Phase 6 "Verbs", Phase 10's rail ink) as moved here
-- [ ] Validate; commit
+- [x] Validate; commit — browser: Settings ▸ Paper ends at Folded paper; the
+      Simulate pane's groups are Render, Paper, Creases, Material, Solver; a
+      pre-split stored value seeds every kind at SVG; a simulation saved as
+      PNG writes v2 with only `simulation` changed, and reopens on PNG
 
 ### Validation per phase
 

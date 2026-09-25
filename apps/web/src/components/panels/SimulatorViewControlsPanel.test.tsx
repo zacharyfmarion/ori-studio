@@ -218,7 +218,7 @@ describe('collapsible sections', () => {
     // by default it pushed the rest below the fold. Follows GridSettingsSection
     // in the Edit workspace's view pane.
     const rendered = render();
-    for (const title of ['Paper', 'Creases', 'Export', 'Material', 'Solver']) {
+    for (const title of ['Paper', 'Creases', 'Material', 'Solver']) {
       const element = section(rendered, title);
       expect(element.hasAttribute('data-open')).toBe(false);
       expect(element.querySelectorAll('.control-row')).toHaveLength(0);
@@ -322,34 +322,20 @@ describe('collapsible sections', () => {
     expect(mountain()?.disabled).toBe(false);
   });
 
-  it('binds the Export group to the app-wide export page', () => {
-    // The same page Settings ▸ Paper's "Export page" section edits: one store
-    // field, two places to reach it.
+  // Re-pinned for X7: the pane had an Export group bound to the one page every
+  // export went out on. A simulation's export options are its own kind's now,
+  // and the export dialog is the only place that edits them.
+  it('offers no Export group, which is the export dialog’s to edit', () => {
     const rendered = render();
-    toggle(rendered, 'Export');
-    const keep = () => rendered.querySelector<HTMLButtonElement>('[aria-label="Keep hidden faces"]');
-    expect(keep()?.getAttribute('aria-checked')).toBe('true');
-    act(() => keep()?.click());
-    expect(useSettingsStore.getState().paperExport.keepHiddenFaces).toBe(false);
-
-    // A transparent page shows no swatch; a coloured one does, and the swatch
-    // writes the page's background. The sheet size field appears the same way.
-    expect(rendered.querySelector('input[aria-label="Color"]')).toBeNull();
+    const titles = [...rendered.querySelectorAll('.collapsible-section__title')].map(
+      (title) => title.textContent
+    );
+    expect(titles).toEqual(['Render', 'Paper', 'Creases', 'Material', 'Solver']);
+    // A collapsed section mounts no body: open them all, so no row can hide in one.
+    for (const title of titles.slice(1)) toggle(rendered, title!);
+    expect(rendered.querySelector('[aria-label="Keep hidden faces"]')).toBeNull();
     expect(rendered.querySelector('[aria-label="Sheet (mm)"]')).toBeNull();
-    act(() => {
-      useSettingsStore.getState().setPaperExportField('background', '#ffffff');
-      useSettingsStore.getState().setPaperExportField('sheet', { mm: 210 });
-    });
-    const swatch = rendered.querySelector<HTMLInputElement>('input[aria-label="Color"]');
-    expect(swatch?.value).toBe('#ffffff');
-    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Sheet (mm)"]')?.value).toBe('210');
-    act(() => {
-      if (!swatch) throw new Error('no background swatch');
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-      setter?.call(swatch, '#123456');
-      swatch.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    expect(useSettingsStore.getState().paperExport.background).toBe('#123456');
+    expect(rendered.textContent).not.toContain('The page an exported image is drawn on.');
   });
 
   it('labels each swatch to its own input', () => {

@@ -1,7 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
-import { usePaperExportPage } from '../../hooks/usePaperExportPage';
-import { DEFAULT_PAPER_BACKGROUND, PAPER_SHEET_MM_RANGE, sheetMmOf } from '../../lib/paper/paperPage';
 import {
   SIMULATOR_SETTING_RANGES,
   type SimulatorNumericSettingKey,
@@ -15,7 +13,7 @@ import {
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
-import { ColorRow, NumberRow, SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
+import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 
 /**
  * Options pane for the Simulate workspace, mirroring the Edit workspace's view
@@ -31,10 +29,7 @@ export function SimulatorViewControlsPanel() {
   // How the paper is drawn is the app-wide paper style, not a simulator
   // setting; these rows are its simulator-facing subset.
   const paper = useSimulatorPaperStyle();
-  // The page an export is painted onto is app-wide too (Settings ▸ Paper's
-  // "Export page" section edits the same one); these rows are its simulator-
-  // facing subset.
-  const exportPage = usePaperExportPage();
+  // The page an export is painted onto is the export dialog's alone (X7).
   // Folds drawn as edges take the paper edge's colour, so the per-kind
   // swatches stop doing anything; showing them live would promise an effect
   // they no longer have.
@@ -163,66 +158,6 @@ export function SimulatorViewControlsPanel() {
             {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), asEdges)}
             {penRow('edges', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          title={t('panels:simulatorViewControls.export', 'Export')}
-          collapsible
-          description={t(
-            'panels:simulatorViewControls.exportHint',
-            'The page an exported image is drawn on.'
-          )}
-        >
-          <SelectRow
-            label={t('panels:simulatorViewControls.background', 'Background')}
-            value={exportPage.page.background === null ? 'transparent' : 'color'}
-            options={[
-              {
-                id: 'transparent',
-                label: t('panels:simulatorViewControls.backgroundTransparent', 'Transparent'),
-              },
-              { id: 'color', label: t('panels:simulatorViewControls.backgroundColor', 'Color') },
-            ]}
-            onChange={(value) =>
-              exportPage.setBackground(value === 'color' ? DEFAULT_PAPER_BACKGROUND : null)
-            }
-          />
-          {exportPage.page.background !== null && (
-            <ColorRow
-              label={t('panels:simulatorViewControls.backgroundColor', 'Color')}
-              value={exportPage.page.background}
-              onChange={exportPage.setBackground}
-            />
-          )}
-          <ToggleRow
-            label={t('panels:simulatorViewControls.keepHiddenFaces', 'Keep hidden faces')}
-            help={t(
-              'panels:simulatorViewControls.keepHiddenFacesHint',
-              'Faces nothing shows stay in the file, under what covers them.'
-            )}
-            checked={exportPage.page.keepHiddenFaces}
-            onChange={exportPage.setKeepHiddenFaces}
-          />
-          <SelectRow
-            label={t('panels:simulatorViewControls.sheetSize', 'Sheet size')}
-            value={exportPage.page.sheet === 'as-shown' ? 'as-shown' : 'mm'}
-            options={[
-              { id: 'as-shown', label: t('panels:simulatorViewControls.sheetAsShown', 'As shown') },
-              { id: 'mm', label: t('panels:simulatorViewControls.sheetMm', 'Millimetres') },
-            ]}
-            onChange={(value) => exportPage.setSheetAsShown(value === 'as-shown')}
-          />
-          {exportPage.page.sheet !== 'as-shown' && (
-            <NumberRow
-              label={t('panels:simulatorViewControls.sheetMmValue', 'Sheet (mm)')}
-              value={sheetMmOf(exportPage.page.sheet)}
-              min={PAPER_SHEET_MM_RANGE.min}
-              max={PAPER_SHEET_MM_RANGE.max}
-              step={PAPER_SHEET_MM_RANGE.step}
-              suffix="mm"
-              onCommit={exportPage.setSheetMm}
-            />
-          )}
         </CollapsibleSection>
 
         <CollapsibleSection

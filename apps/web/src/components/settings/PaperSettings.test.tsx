@@ -92,13 +92,7 @@ const iconButton = (label: string) =>
   container?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`) as HTMLButtonElement;
 const display = () => useSettingsStore.getState().paperStyle.display;
 const exported = () => useSettingsStore.getState().paperStyle.export;
-const exportPage = () => useSettingsStore.getState().paperExport;
-
-/** The style's switches: the export-page section below has three of its own. */
-const styleSwitches = (within: ParentNode) =>
-  Array.from(within.querySelectorAll('[role="switch"]')).filter(
-    (element) => !element.closest('[data-testid="settings-paper-export"]')
-  );
+const styleSwitches = (within: ParentNode) => Array.from(within.querySelectorAll('[role="switch"]'));
 
 beforeEach(() => {
   tracked.length = 0;
@@ -168,7 +162,7 @@ describe('PaperSettings', () => {
       )
       // The slot switch is above the groups, in a header of its own, so the
       // first eyebrow is the first group.
-    ).toEqual(['Presets', 'Paper', 'Lines', 'Steps', 'Folded paper', 'Export page']);
+    ).toEqual(['Presets', 'Paper', 'Lines', 'Steps', 'Folded paper']);
     expect(
       Array.from(rendered.querySelectorAll('.settings-paper__hint')).map(
         (element) => element.textContent
@@ -178,9 +172,9 @@ describe('PaperSettings', () => {
       'References only',
       'Simulator, folded figures',
     ]);
-    // Two colour cards, one per pen, the folded-paper card and the export
-    // page; the preset grid is cards of its own rather than one boxed group.
-    expect(rendered.querySelectorAll('.settings-paper__card')).toHaveLength(9);
+    // Two colour cards, one per pen and the folded-paper card; the preset
+    // grid is cards of its own rather than one boxed group.
+    expect(rendered.querySelectorAll('.settings-paper__card')).toHaveLength(8);
     expect(rendered.querySelector('.settings-section, .settings-section__title')).toBeNull();
   });
 
@@ -312,12 +306,6 @@ describe('PaperSettings', () => {
     // The values shown are display's, and the chip says so.
     expect(input('Front').value).toBe(DEFAULT_PAPER_STYLE.paper.front);
     expect(chip().textContent).toBe('Default, from display');
-    // The export page below is not part of the style, and stays live.
-    expect(
-      rendered
-        .querySelector('[data-testid="settings-paper-export"]')
-        ?.closest('.settings-paper__style')
-    ).toBeNull();
 
     act(() => findButton('Detach').click());
     expect(exported()).toEqual(DEFAULT_PAPER_STYLE);
@@ -398,38 +386,18 @@ describe('PaperSettings', () => {
     ).toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
   });
 
-  it('edits the export page: background, hidden faces, sheet size, margin and density', () => {
+  // Re-pinned for X7: the tab had an Export page section editing the one page
+  // every export went out on. Each kind of export remembers its own now, and
+  // the export dialog is the only place that edits them.
+  it('offers no export page, which is the export dialog’s to edit', () => {
     const rendered = render();
-    const section = rendered.querySelector('[data-testid="settings-paper-export"]')!;
-    const switches = () => Array.from(section.querySelectorAll<HTMLButtonElement>('[role="switch"]'));
-    // Transparent, keep hidden faces, sheet as shown: all on by default, and
-    // neither the background swatch nor the sheet size field shows.
-    expect(switches().map((element) => element.getAttribute('aria-checked'))).toEqual([
-      'true',
-      'true',
-      'true',
-    ]);
-    expect(section.querySelector('input[type="color"]')).toBeNull();
-    expect(section.querySelector('input[aria-label="Sheet size"]')).toBeNull();
-
-    act(() => switches()[0]!.click());
-    expect(exportPage().background).toBe('#ffffff');
-    expect(input('Background').value).toBe('#ffffff');
-    act(() => switches()[1]!.click());
-    expect(exportPage().keepHiddenFaces).toBe(false);
-    act(() => switches()[2]!.click());
-    expect(exportPage().sheet).toEqual({ mm: 150 });
-    typeInto(input('Sheet size'), '210');
-    blur(input('Sheet size'));
-    expect(exportPage().sheet).toEqual({ mm: 210 });
-    typeInto(input('Margin'), '2');
-    blur(input('Margin'));
-    expect(exportPage().paddingMm).toBe(2);
-    typeInto(input('PNG density'), '300');
-    blur(input('PNG density'));
-    expect(exportPage().pngDpi).toBe(300);
-    // Export page edits are not style edits, and count as none.
-    expect(tracked).toEqual([]);
+    expect(rendered.querySelector('[data-testid="settings-paper-export"]')).toBeNull();
+    expect(rendered.textContent).not.toContain('Export page');
+    for (const label of ['Background', 'Sheet size', 'Margin', 'PNG density']) {
+      expect(rendered.querySelector(`input[aria-label="${label}"]`), label).toBeNull();
+    }
+    expect(rendered.textContent).not.toContain('Transparent background');
+    expect(rendered.textContent).not.toContain('Keep hidden faces');
   });
 
   it('asks before a preset replaces unsaved edits, and keeps them as a preset first on request', async () => {

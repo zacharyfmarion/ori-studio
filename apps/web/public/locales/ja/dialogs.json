@@ -299,6 +299,7 @@
     "willUnbind_other": "割り当て解除 ({{count}})"
   },
   "paperExport": {
+    "background": "背景",
     "confirmZip": "{{format}} を ZIP で書き出す",
     "empty": "書き出すものがありません。ビューに紙が表示されていません。",
     "exporting": "書き出し中…",
@@ -307,7 +308,10 @@
     "fixedHint": "この折り図は保存されたときのまま書き出されます。スタイルとページは描かれたときのものです。スタイル、サイズ、ページを選んで書き出すには、もう一度折ってください。",
     "format": "形式",
     "hiddenFacesDropped_other": "隠れた面 {{count}} 枚を省略",
+    "keepHiddenFaces": "隠れた面を残す",
+    "keepHiddenFacesHint": "どこにも見えない面を、覆うものの下にそのままファイルに残します。ドローソフトで面を削除すると、その下の面が現れます。",
     "nextPage": "次のステップ",
+    "padding": "余白",
     "page": "ページ",
     "pageMm": "{{width}} × {{height}} mm",
     "pagePx": "{{width}} × {{height}} px",
@@ -346,6 +350,7 @@
     "sheetAsShownHint": "画面上の大きさです（現在のズーム）。",
     "sheetCustom": "カスタム",
     "sheetCustomHint": "広げた用紙が端から端までこの大きさになります。線の太さは変わりません。",
+    "sheetMm": "用紙サイズ",
     "size": "サイズ",
     "sizeKb": "{{size}} KB",
     "sizeMb": "{{size}} MB",
@@ -357,6 +362,7 @@
     "titleSimulation": "ビューを書き出す",
     "titleStep": "ステップ {{number}} を書き出す",
     "titleTurnOver": "裏返しを書き出す",
+    "transparent": "背景を透明にする",
     "zipFiles_other": "{{count}} ファイル · ZIP"
   },
   "referencesApproximationWarning": {
@@ -448,22 +454,6 @@
       "erodeHint": "補助折り線は、乗っている面の縁から内側に引き戻されます。山折り・谷折りは縁まで描かれます。",
       "erodeOff": "オフ",
       "erodePreview": "用紙の10分の1の拡大図：用紙の縁まで届く谷折り線と、その手前で止まる補助折り線",
-      "exportPage": {
-        "background": "背景",
-        "keepHiddenFaces": "隠れた面を残す",
-        "keepHiddenFacesHint": "どこにも見えない面を、覆うものの下にそのままファイルに残します。ドローソフトで面を削除すると、その下の面が現れます。",
-        "padding": "余白",
-        "paddingHint": "作品の周囲、四辺それぞれに取ります。",
-        "pngDpi": "PNG の解像度",
-        "pngDpiHint": "ページの 1 インチあたりのドット数。96 が画面と同じです。",
-        "sheetAsShown": "用紙サイズは表示どおり",
-        "sheetAsShownHint": "用紙は画面上の大きさになります。オフにすると、広げた用紙が mm で指定した大きさになります。線の太さは変わりません。",
-        "sheetMm": "用紙サイズ",
-        "sheetMmHint": "広げた用紙の、端から端まで。",
-        "title": "書き出しページ",
-        "transparent": "背景を透明にする",
-        "transparentHint": "オフにすると、用紙の背後のページを色で塗りつぶします。"
-      },
       "exportTitle": "用紙スタイルを書き出し",
       "foldedPaperTitle": "折った用紙",
       "foldsAsEdges": "すべての折り線を辺として描画",

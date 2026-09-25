@@ -299,6 +299,7 @@
     "willUnbind_other": "将取消分配（{{count}}）"
   },
   "paperExport": {
+    "background": "背景",
     "confirmZip": "将 {{format}} 导出为 ZIP",
     "empty": "没有可导出的内容：视图中没有纸张。",
     "exporting": "正在导出…",
@@ -307,7 +308,10 @@
     "fixedHint": "此折叠模型按保存时的样子导出：样式和页面都是绘制时的。重新折叠后，即可按你选择的样式、尺寸和页面导出。",
     "format": "格式",
     "hiddenFacesDropped_other": "省略了 {{count}} 个隐藏面",
+    "keepHiddenFaces": "保留隐藏的面",
+    "keepHiddenFacesHint": "完全看不到的面仍保留在文件中，位于遮盖它们的面之下，因此在绘图软件中删除一个面会露出下面的面。",
     "nextPage": "下一步",
+    "padding": "边距",
     "page": "页面",
     "pageMm": "{{width}} × {{height}} mm",
     "pagePx": "{{width}} × {{height}} px",
@@ -346,6 +350,7 @@
     "sheetAsShownHint": "屏幕上的大小，按当前缩放。",
     "sheetCustom": "自定义",
     "sheetCustomHint": "展开的纸张从一边到另一边为此尺寸。线条粗细不变。",
+    "sheetMm": "纸张大小",
     "size": "尺寸",
     "sizeKb": "{{size}} KB",
     "sizeMb": "{{size}} MB",
@@ -357,6 +362,7 @@
     "titleSimulation": "导出视图",
     "titleStep": "导出第 {{number}} 步",
     "titleTurnOver": "导出翻面",
+    "transparent": "透明背景",
     "zipFiles_other": "{{count}} 个文件 · ZIP"
   },
   "referencesApproximationWarning": {
@@ -448,22 +454,6 @@
       "erodeHint": "辅助折痕会从所在面的边缘向内收缩；山折和谷折则一直画到边缘。",
       "erodeOff": "关闭",
       "erodePreview": "纸张十分之一的特写：一条延伸到纸边的谷折线，和一条在纸边之前停住的辅助折痕",
-      "exportPage": {
-        "background": "背景",
-        "keepHiddenFaces": "保留隐藏的面",
-        "keepHiddenFacesHint": "完全看不到的面仍保留在文件中，位于遮盖它们的面之下，因此在绘图软件中删除一个面会露出下面的面。",
-        "padding": "边距",
-        "paddingHint": "图稿四周的每一边。",
-        "pngDpi": "PNG 分辨率",
-        "pngDpiHint": "页面每英寸的点数；96 即屏幕。",
-        "sheetAsShown": "纸张大小按显示",
-        "sheetAsShownHint": "纸张与屏幕上的大小一致。关闭后，展开的纸张按 mm 指定大小；线条粗细不变。",
-        "sheetMm": "纸张大小",
-        "sheetMmHint": "展开的纸张，从一边到另一边。",
-        "title": "导出页面",
-        "transparent": "透明背景",
-        "transparentHint": "关闭后，页面在纸张后方填充一种颜色。"
-      },
       "exportTitle": "导出纸张样式",
       "foldedPaperTitle": "折叠后的纸",
       "foldsAsEdges": "将所有折痕绘制为边",

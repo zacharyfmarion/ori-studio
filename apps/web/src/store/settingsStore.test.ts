@@ -8,8 +8,13 @@ import {
 } from '../lib/cpSnapRadiusSetting';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
 import { PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
+import { PAPER_PNG_DPI_RANGE } from '../lib/paper/paperPng';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
-import { DEFAULT_PAPER_EXPORT_SETTINGS, PAPER_EXPORT_STYLE_SLOT } from '../lib/paperExportSettings';
+import {
+  DEFAULT_PAPER_EXPORT_SETTINGS,
+  PAPER_EXPORT_STYLE_SLOT,
+  paperExportMemoryOf,
+} from '../lib/paperExportSettings';
 import { readJson, STORAGE_KEYS, storageKey } from '../lib/storage';
 import { useSettingsStore } from './settingsStore';
 import type { WorkspaceState } from './workspaceStore/types';
@@ -463,48 +468,84 @@ describe('paperStyle', () => {
 describe('paperExport', () => {
   const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
   const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
+  const WHITE_PAGE = { ...DEFAULT_PAPER_EXPORT_SETTINGS, background: '#ffffff' };
 
-  it('starts from the default page and writes nothing until the user edits', async () => {
+  it('starts every kind from the defaults and writes nothing until the user exports', async () => {
     const { paperExport } = (await freshSettingsStore()).getState();
-    expect(paperExport).toEqual(DEFAULT_PAPER_EXPORT_SETTINGS);
+    expect(paperExport).toEqual(paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS));
     expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
   });
 
-  it('seeds a white page from the simulator settings’ retired export background, once', async () => {
+  it('seeds every kind with a white page from the simulator settings’ retired export background, once', async () => {
     localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
-    expect((await freshSettingsStore()).getState().paperExport.background).toBe('#ffffff');
+    expect((await freshSettingsStore()).getState().paperExport).toEqual(
+      paperExportMemoryOf(WHITE_PAGE)
+    );
     // Written at once: the simulator slice drops the retired key on its next
     // edit, so the seed would otherwise be lost to the second read.
-    expect(JSON.parse(localStorage.getItem(PAPER_EXPORT_KEY) ?? 'null')?.background).toBe(
-      '#ffffff'
-    );
+    expect(readJson(PAPER_EXPORT_KEY, null)).toEqual({
+      version: 2,
+      kinds: paperExportMemoryOf(WHITE_PAGE),
+    });
     localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ showViewCube: false }));
-    expect((await freshSettingsStore()).getState().paperExport.background).toBe('#ffffff');
+    expect((await freshSettingsStore()).getState().paperExport).toEqual(
+      paperExportMemoryOf(WHITE_PAGE)
+    );
   });
 
   it('reads a transparent or theme export background as a transparent page, and writes nothing', async () => {
-    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'theme' }));
-    expect((await freshSettingsStore()).getState().paperExport.background).toBeNull();
-    expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
+    for (const exportBackground of ['transparent', 'theme']) {
+      localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground }));
+      expect((await freshSettingsStore()).getState().paperExport).toEqual(
+        paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS)
+      );
+      expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
+    }
   });
 
-  it('prefers a persisted page over the simulator settings beside it', async () => {
+  it('reads a page stored before the split as every kind’s, over the simulator settings beside it', async () => {
     localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
-    localStorage.setItem(PAPER_EXPORT_KEY, JSON.stringify({ background: null, pngDpi: 300 }));
+    localStorage.setItem(
+      PAPER_EXPORT_KEY,
+      JSON.stringify({ background: null, pngDpi: 300, format: 'png', style: 'builtin:diagram' })
+    );
     const { paperExport } = (await freshSettingsStore()).getState();
-    expect(paperExport.background).toBeNull();
-    expect(paperExport.pngDpi).toBe(300);
+    expect(paperExport).toEqual(
+      paperExportMemoryOf({ ...DEFAULT_PAPER_EXPORT_SETTINGS, background: null, pngDpi: 300 })
+    );
   });
 
-  it('writes a field, held to its range, and reads it back on the next start', async () => {
-    useSettingsStore.getState().setPaperExportField('keepHiddenFaces', false);
-    useSettingsStore.getState().setPaperExportField('sheet', { mm: 5 });
-    useSettingsStore.getState().setPaperExportField('pngDpi', 300);
-    const { paperExport } = useSettingsStore.getState();
-    expect(paperExport.keepHiddenFaces).toBe(false);
-    expect(paperExport.sheet).toEqual({ mm: PAPER_SHEET_MM_RANGE.min });
-    expect(paperExport.pngDpi).toBe(300);
-    expect((await freshSettingsStore()).getState().paperExport).toEqual(paperExport);
+  it('remembers one kind’s options, held to their range, and leaves the other kinds as they were', async () => {
+    const simulation = { ...WHITE_PAGE, pngDpi: 600, format: 'png' as const };
+    const foldedFigure = { ...DEFAULT_PAPER_EXPORT_SETTINGS, style: 'builtin:diagram' };
+    localStorage.setItem(
+      PAPER_EXPORT_KEY,
+      JSON.stringify({
+        version: 2,
+        kinds: { simulation, 'folded-figure': foldedFigure, step: DEFAULT_PAPER_EXPORT_SETTINGS },
+      })
+    );
+    const store = await freshSettingsStore();
+    store.getState().rememberPaperExportOptions('step', {
+      ...DEFAULT_PAPER_EXPORT_SETTINGS,
+      sheet: { mm: 5 },
+      keepHiddenFaces: false,
+      pngDpi: 5000,
+      format: 'png',
+      style: 'user:Mine',
+    });
+    const step = {
+      ...DEFAULT_PAPER_EXPORT_SETTINGS,
+      sheet: { mm: PAPER_SHEET_MM_RANGE.min },
+      keepHiddenFaces: false,
+      pngDpi: PAPER_PNG_DPI_RANGE.max,
+      format: 'png',
+      style: 'user:Mine',
+    };
+    const expected = { simulation, 'folded-figure': foldedFigure, step };
+    expect(store.getState().paperExport).toEqual(expected);
+    expect(readJson(PAPER_EXPORT_KEY, null)).toEqual({ version: 2, kinds: expected });
+    expect((await freshSettingsStore()).getState().paperExport).toEqual(expected);
   });
 });
 
@@ -540,8 +581,10 @@ describe('creasePatternFoldedFigureStyle', () => {
     expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
   });
 
-  it('leaves the paper export’s own style alone', () => {
+  it('leaves every paper export kind’s own style alone', () => {
     useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('builtin:diagram');
-    expect(useSettingsStore.getState().paperExport.style).toBe(PAPER_EXPORT_STYLE_SLOT);
+    for (const options of Object.values(useSettingsStore.getState().paperExport)) {
+      expect(options.style).toBe(PAPER_EXPORT_STYLE_SLOT);
+    }
   });
 });

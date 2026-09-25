@@ -21,7 +21,6 @@ import { useTranslation } from 'react-i18next';
 import { paperPenLabel } from '../../i18n/enumLabels';
 import { getPaperStyleField, type PaperStyleField } from '../../lib/paper/paperStyle';
 import { ColorField } from '../ui/ColorField';
-import { PaperExportPageSection } from './PaperExportPageSection';
 import { PaperFoldedCard } from './PaperFoldedCard';
 import { PaperPenCard } from './PaperPenCard';
 import { PaperPresetsSection } from './PaperPresetsSection';
@@ -99,8 +98,6 @@ export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
             <PaperFoldedCard paper={paper} />
           </PaperSection>
         </div>
-
-        <PaperExportPageSection />
       </div>
     </div>
   );

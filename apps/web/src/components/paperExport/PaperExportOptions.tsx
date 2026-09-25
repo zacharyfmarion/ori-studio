@@ -136,7 +136,7 @@ export function PaperExportOptions({
           />
           {sheetMode === 'custom' && (
             <NumberField
-              label={t('dialogs:settings.paper.exportPage.sheetMm', 'Sheet size')}
+              label={t('dialogs:paperExport.sheetMm', 'Sheet size')}
               value={draft.sheet === 'as-shown' ? DEFAULT_PAPER_SHEET_MM : draft.sheet.mm}
               min={PAPER_SHEET_MM_RANGE.min}
               max={PAPER_SHEET_MM_RANGE.max}
@@ -156,10 +156,10 @@ export function PaperExportOptions({
         </div>
         <div className="export-modal__field-row">
           <span className="export-modal__label">
-            {t('dialogs:settings.paper.exportPage.padding', 'Margin')}
+            {t('dialogs:paperExport.padding', 'Margin')}
           </span>
           <NumberField
-            label={t('dialogs:settings.paper.exportPage.padding', 'Margin')}
+            label={t('dialogs:paperExport.padding', 'Margin')}
             value={draft.paddingMm}
             min={PAPER_PADDING_MM_RANGE.min}
             max={PAPER_PADDING_MM_RANGE.max}
@@ -226,7 +226,7 @@ export function PaperExportOptions({
         <div className="export-modal__toggle-row">
           <div className="export-modal__toggle-copy">
             <span>
-              {t('dialogs:settings.paper.exportPage.transparent', 'Transparent background')}
+              {t('dialogs:paperExport.transparent', 'Transparent background')}
             </span>
           </div>
           <Toggle
@@ -234,14 +234,14 @@ export function PaperExportOptions({
             onChange={(transparent) =>
               patch({ background: transparent ? null : DEFAULT_PAPER_BACKGROUND })
             }
-            aria-label={t('dialogs:settings.paper.exportPage.transparent', 'Transparent background')}
+            aria-label={t('dialogs:paperExport.transparent', 'Transparent background')}
           />
         </div>
         {draft.background !== null && (
           <ColorField
             layout="inline"
             showValue
-            label={t('dialogs:settings.paper.exportPage.background', 'Background')}
+            label={t('dialogs:paperExport.background', 'Background')}
             value={draft.background}
             onChange={(background) => patch({ background })}
           />
@@ -249,10 +249,10 @@ export function PaperExportOptions({
         {!png && buriesFaces && (
           <div className="export-modal__toggle-row">
             <div className="export-modal__toggle-copy">
-              <span>{t('dialogs:settings.paper.exportPage.keepHiddenFaces', 'Keep hidden faces')}</span>
+              <span>{t('dialogs:paperExport.keepHiddenFaces', 'Keep hidden faces')}</span>
               <small className="export-modal__hint">
                 {t(
-                  'dialogs:settings.paper.exportPage.keepHiddenFacesHint',
+                  'dialogs:paperExport.keepHiddenFacesHint',
                   'Faces nothing shows stay in the file under what covers them, so deleting a face in a drawing editor reveals the one beneath.'
                 )}
               </small>
@@ -260,7 +260,7 @@ export function PaperExportOptions({
             <Toggle
               checked={draft.keepHiddenFaces}
               onChange={(keepHiddenFaces) => patch({ keepHiddenFaces })}
-              aria-label={t('dialogs:settings.paper.exportPage.keepHiddenFaces', 'Keep hidden faces')}
+              aria-label={t('dialogs:paperExport.keepHiddenFaces', 'Keep hidden faces')}
             />
           </div>
         )}

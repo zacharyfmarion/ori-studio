@@ -16,9 +16,9 @@ import type { SimulatorOptions } from '@treemaker/origami-simulator';
  * `mountainColor`, `valleyColor`, `borderColor`, `creaseWidth`, `creaseStyle`,
  * `lighting`) seed that style on its first read and are dropped from old JSON
  * by {@link normalizeSimulatorSettings} like any other retired key. The page
- * an export is painted onto is likewise the app-wide export page
- * (`settingsStore.paperExport`); its `exportBackground` seeded that page's
- * background and is retired the same way.
+ * an export is painted onto is the export dialog's, remembered per kind of
+ * export (`settingsStore.paperExport`); its `exportBackground` seeded every
+ * kind's background and is retired the same way.
  */
 
 export type SimulatorRenderMode = 'paper' | 'xray';
