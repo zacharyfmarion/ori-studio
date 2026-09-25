@@ -1035,6 +1035,71 @@ fn project_graphics_snapshot_exports_node_graphics_and_invalid_junctions() {
     assert!(!snapshot.invalid_junctions[0].polygon.is_empty());
 }
 
+const HAIRLINE_OVERLAP_SAMPLE: &str =
+    include_str!("../../../tests/fixtures/bp-studio/stretched-flap-hairline-overlap.sample.json");
+
+#[test]
+fn project_graphics_snapshot_reports_how_far_a_hairline_conflict_overlaps() {
+    // Flap 6 at (5,5) r=4 sits sqrt(80) from the left end (13,9) of stretched
+    // flap 5 (7 wide, r=5): 8.944 apart on a tree distance of 9. Upstream's
+    // createJunction makes that an InvalidJunction, and its polygon a lens
+    // 0.056 units thick.
+    let project: Project = serde_json::from_str(HAIRLINE_OVERLAP_SAMPLE).unwrap();
+
+    let snapshot = project_graphics_snapshot(&project).unwrap();
+
+    assert_eq!(snapshot.invalid_junctions.len(), 1);
+    let junction = &snapshot.invalid_junctions[0];
+    assert_eq!(junction.id, "5,6");
+    assert_eq!(junction.flap_ids, [5, 6]);
+    // Directly connected flaps have no river between them, so the wire's
+    // `narrowness` is zero — it must not be read as "no overlap".
+    assert_eq!(junction.narrowness, 0.0);
+    assert!((junction.overlap - (9.0 - 80f64.sqrt())).abs() < 1e-9);
+    // One two-arc lens, one arc on each flap's circle.
+    assert_eq!(junction.polygon.len(), 1);
+    assert_eq!(junction.polygon[0].len(), 2);
+    assert_eq!(
+        junction.polygon[0]
+            .iter()
+            .map(|point| point.r)
+            .collect::<Vec<_>>(),
+        [Some(5.0), Some(4.0)]
+    );
+    // No stretch: an invalid junction builds no gadget.
+    assert!(snapshot.stretches.is_empty());
+}
+
+#[test]
+fn project_graphics_snapshot_overlap_is_the_one_axis_gap_when_projections_overlap() {
+    // The sample tree's leaves are 1 and 2 long, a tree distance of 3. Put them
+    // in one column 2.5 apart: the rectangles overlap in x, so the gap is the
+    // vertical 2.5 alone and the overlap 0.5 — not the 3 a corner-to-corner
+    // reading of a negative x separation would give.
+    let mut project = sample_project();
+    project.design.layout.flaps = vec![
+        Flap {
+            id: 1,
+            x: 1.0,
+            y: 1.0,
+            width: 0.0,
+            height: 0.0,
+        },
+        Flap {
+            id: 2,
+            x: 1.0,
+            y: 3.5,
+            width: 0.0,
+            height: 0.0,
+        },
+    ];
+
+    let snapshot = project_graphics_snapshot(&project).unwrap();
+
+    assert_eq!(snapshot.invalid_junctions.len(), 1);
+    assert!((snapshot.invalid_junctions[0].overlap - 0.5).abs() < 1e-9);
+}
+
 const PATTERNLESS_STRETCH_SAMPLE: &str =
     include_str!("../../../tests/fixtures/bp-studio/patternless-stretch.sample.json");
 

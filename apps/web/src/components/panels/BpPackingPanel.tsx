@@ -63,7 +63,7 @@ import {
   toggleBpRiverSelection,
 } from '../../lib/oristudioBpSelection';
 import {
-  bpArcPathThickness,
+  bpConflictStrokePx,
   bpArcPathToSvgPath,
   bpPackingFlapClearanceRect,
   bpPackingGridLines,
@@ -895,31 +895,28 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
     [document.snapshot.diagnostics]
   );
   const conflictVisuals = useMemo(() => {
-    const thicknessPx = (thickness: number | null): number | null =>
-      thickness === null ? null : thickness * unit * (zoomPercent / 100);
+    const cameraScale = zoomPercent / 100;
     return packing.invalidJunctions.map((junction) => ({
-        junction,
-        active: linkedSelection.invalidJunctions.has(junction.id),
-        paths: junction.paths.map((path) => ({
-          d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
-          strokeWidth: conflictStrokeWidth(
-            // Rendered thickness: grid units → SVG units → screen pixels.
-            thicknessPx(bpArcPathThickness(path)),
-            // Screen pixels per grid cell: SVG user units scaled by the camera.
-            unit * (zoomPercent / 100)
-          ),
-        })),
+      junction,
+      active: linkedSelection.invalidJunctions.has(junction.id),
+      paths: junction.paths.map((path) => ({
+        d: bpArcPathToSvgPath(path, packing.sheet, paperRect),
+        // The rule is in screen pixels; the attribute is in SVG units. The
+        // camera is a CSS transform outside the <svg>, which
+        // `vector-effect: non-scaling-stroke` does not counter, so the
+        // conversion is explicit — as `BpFlapResizeHandles` sizes its handles.
+        strokeWidth: bpConflictStrokePx(path, unit * cameraScale) / cameraScale,
+      })),
     }));
   }, [
-      linkedSelection.invalidJunctions,
-      packing.invalidJunctions,
-      packing.sheet,
-      paperRect,
-      unit,
-      // The stroke is in screen pixels, so it has to be recomputed as you zoom.
-      zoomPercent,
-    ]
-  );
+    linkedSelection.invalidJunctions,
+    packing.invalidJunctions,
+    packing.sheet,
+    paperRect,
+    unit,
+    // The stroke is in screen pixels, so it has to be recomputed as you zoom.
+    zoomPercent,
+  ]);
   useBpPatternNotFoundEvent(packing.stretches);
   const patternlessVisuals = useMemo(
     () =>
@@ -937,7 +934,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
    * group here too. `outsidePaper` lifts the crop; upstream has no equivalent.
    */
   const sheetClipPath = layers.outsidePaper ? undefined : `url(#${sheetClipId})`;
-  const flapsClipId = useId();
 
   const eventToPackingPoint = useCallback(
     (event: PointerEvent): Point => {
@@ -1493,28 +1489,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
             onContextMenu={onCanvasContextMenu}
           >
             <defs>
-              {/*
-                * A conflict lives inside the flaps it belongs to, so nothing in
-                * that layer may paint outside one. Its outline stroke is centred
-                * on the region's edge — and that edge *is* the flap circle — so
-                * without this half the stroke renders outside the flap and reads
-                * as the conflict being in the wrong place.
-                */}
-              <clipPath id={flapsClipId}>
-                {packing.flaps.map((flap) => {
-                  const shape = bpPackingFlapClearanceRect(flap, packing.sheet, paperRect);
-                  return (
-                    <rect
-                      key={flap.id}
-                      x={shape.x}
-                      y={shape.y}
-                      width={shape.width}
-                      height={shape.height}
-                      rx={shape.radius}
-                    />
-                  );
-                })}
-              </clipPath>
               <clipPath id={sheetClipId}>
                 {isDiagonalSheet ? (
                   <polygon points={sheetPolygonPoints} />
@@ -1641,37 +1615,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ) : null
               )}
             </g>
-            {layers.conflicts && (
-              // Conflict fills sit *under* the creases, rivers and flaps, so an
-              // overlap never hides the geometry you need in order to fix it.
-              // (Box Pleating Studio draws its `Layer.junction` above them; on
-              // our canvas the fill obscured the creases, so this deviates
-              // deliberately.) Clipped to the sheet and non-interactive — the
-              // hit targets are a separate group below the flap shades.
-              <g className="bp-packing-conflicts" clipPath={sheetClipPath} aria-hidden="true">
-                <g clipPath={`url(#${flapsClipId})`}>
-                  {conflictVisuals.map((visual) => (
-                    <g
-                      key={visual.junction.id}
-                      className={
-                        visual.active
-                          ? 'bp-packing-conflict-group bp-packing-conflict--selected'
-                          : 'bp-packing-conflict-group'
-                      }
-                    >
-                      {visual.paths.map((path, index) => (
-                        <path
-                          key={`${visual.junction.id}:${index}`}
-                          className="bp-packing-conflict"
-                          d={path.d}
-                          strokeWidth={path.strokeWidth}
-                        />
-                      ))}
-                    </g>
-                  ))}
-                </g>
-              </g>
-            )}
             {layers.conflicts && (
               // Hit targets only — the conflict graphics render above the flaps (see
               // below), but the click targets stay under the flap shades so a flap
@@ -1896,6 +1839,39 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
                 ) : null
               )}
             </g>
+            {layers.conflicts && (
+              // Box Pleating Studio's `Layer.junction`: above the shade, hinge,
+              // ridge and axis-parallel layers, so a conflict is painted over the
+              // flap outlines it sits between. A hairline overlap is a lens whose
+              // two edges *are* those outlines; drawn underneath them (9c4ff55b2)
+              // it had nothing left to show. The fill is translucent, so the
+              // creases still read through it. Clipped to the sheet and
+              // non-interactive — the hit targets are the group above, under the
+              // flap shades, so a flap stays selectable where a conflict overlaps
+              // it. Dots and labels are drawn with their flap, so they sit under
+              // this layer rather than over it as upstream's do.
+              <g className="bp-packing-conflicts" clipPath={sheetClipPath} aria-hidden="true">
+                {conflictVisuals.map((visual) => (
+                  <g
+                    key={visual.junction.id}
+                    className={
+                      visual.active
+                        ? 'bp-packing-conflict-group bp-packing-conflict--selected'
+                        : 'bp-packing-conflict-group'
+                    }
+                  >
+                    {visual.paths.map((path, index) => (
+                      <path
+                        key={`${visual.junction.id}:${index}`}
+                        className="bp-packing-conflict"
+                        d={path.d}
+                        strokeWidth={path.strokeWidth}
+                      />
+                    ))}
+                  </g>
+                ))}
+              </g>
+            )}
             {/* Selection chrome, so above every geometry layer and outside the
                 sheet clip — a corner flap's handles must not be masked away. */}
             {flapResize.flap && (
@@ -2050,33 +2026,6 @@ function BpPackingAlerts({
       )}
     </div>
   );
-}
-
-/**
- * Smallest a conflict region may render before it needs help to be seen, in
- * screen pixels.
- */
-const MIN_CONFLICT_VISIBLE_PX = 2.5;
-
-/**
- * Stroke width for a conflict outline, in screen pixels — 0 for anything already
- * thick enough to read as a filled shape.
- *
- * Box Pleating Studio strokes the outline when `narrowness` (the ratio of the
- * arcs' anchor span to their chord) falls under a threshold, at width
- * `2 / narrowness` (`Junction.$draw`). That ratio is a proxy for "this is too
- * thin to see"; we measure the thing itself, because the stroke has a cost the
- * ratio can't account for.
- *
- * The cost: the stroke is centred on the region's outline, and that outline's
- * outer edge *is* the flap circle. Clipping it to the flap (which is what keeps
- * it from painting outside) then truncates it at the region's tips, blunting
- * points that should be sharp. So stroke only what would otherwise be invisible,
- * and only by enough to reach that floor.
- */
-function conflictStrokeWidth(thicknessPx: number | null, cellPx: number): number {
-  if (thicknessPx === null || thicknessPx >= MIN_CONFLICT_VISIBLE_PX) return 0;
-  return Math.min(MIN_CONFLICT_VISIBLE_PX - thicknessPx, cellPx);
 }
 
 /**
