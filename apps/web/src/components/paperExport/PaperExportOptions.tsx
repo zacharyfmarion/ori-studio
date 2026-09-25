@@ -40,6 +40,8 @@ export function PaperExportOptions({
   patch,
   buriesFaces,
   scopes,
+  fixed,
+  styleHint,
 }: {
   draft: PaperExportSettings;
   patch: (next: Partial<PaperExportSettings>) => void;
@@ -47,6 +49,10 @@ export function PaperExportOptions({
   buriesFaces: boolean;
   /** The step on show or every step, for a target with several; null hides the choice. */
   scopes: PaperExportDialogBinding['scopes'];
+  /** The picture cannot be restyled or re-paged: only the format is offered. */
+  fixed: boolean;
+  /** Under the style picker: what of the style the picture keeps of its own, or cannot take. */
+  styleHint: string | null;
 }) {
   const { t } = useTranslation();
   const png = draft.format === 'png';
@@ -55,6 +61,39 @@ export function PaperExportOptions({
   );
   const dpiValue = customDpi ? CUSTOM : String(draft.pngDpi);
   const sheetMode: SheetMode = draft.sheet === 'as-shown' ? 'as-shown' : 'custom';
+
+  const formatSection = (
+    <section className="export-modal__section">
+      <div className="export-modal__control-group">
+        <span className="export-modal__label">{t('dialogs:paperExport.format', 'Format')}</span>
+        <SegmentedControl<PaperExportFormat>
+          aria-label={t('dialogs:paperExport.format', 'Format')}
+          value={draft.format}
+          onChange={(format) => patch({ format })}
+          options={[
+            { value: 'svg', label: 'SVG' },
+            { value: 'png', label: 'PNG' },
+          ]}
+        />
+      </div>
+    </section>
+  );
+
+  if (fixed) {
+    return (
+      <>
+        {formatSection}
+        <section className="export-modal__section">
+          <small className="export-modal__hint">
+            {t(
+              'dialogs:paperExport.fixedHint',
+              'This figure is exported as it was saved: its style and page are the ones it was drawn with. Fold it again to export it in a style, at a size and on a page of your choosing.'
+            )}
+          </small>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>
@@ -71,23 +110,14 @@ export function PaperExportOptions({
           />
         </section>
       )}
-      <section className="export-modal__section">
-        <div className="export-modal__control-group">
-          <span className="export-modal__label">{t('dialogs:paperExport.format', 'Format')}</span>
-          <SegmentedControl<PaperExportFormat>
-            aria-label={t('dialogs:paperExport.format', 'Format')}
-            value={draft.format}
-            onChange={(format) => patch({ format })}
-            options={[
-              { value: 'svg', label: 'SVG' },
-              { value: 'png', label: 'PNG' },
-            ]}
-          />
-        </div>
-      </section>
+      {formatSection}
 
       <section className="export-modal__section">
-        <PaperStylePicker value={draft.style} onChange={(style) => patch({ style })} />
+        <PaperStylePicker
+          value={draft.style}
+          onChange={(style) => patch({ style })}
+          hint={styleHint}
+        />
       </section>
 
       <section className="export-modal__section">

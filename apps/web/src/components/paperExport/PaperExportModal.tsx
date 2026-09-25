@@ -18,6 +18,7 @@ import { Button } from '../ui/Button';
 import { ExportModalFrame } from './ExportModalFrame';
 import { PaperExportOptions } from './PaperExportOptions';
 import { PaperExportPreview } from './PaperExportPreview';
+import { paperExportPinsHint } from './PaperStylePicker';
 
 export function PaperExportModal() {
   const request = usePaperExportUiStore((state) => state.request);
@@ -26,7 +27,7 @@ export function PaperExportModal() {
 }
 
 function PaperExportDialog({ request }: { request: PaperExportRequest }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const closeRequest = usePaperExportUiStore((state) => state.closeRequest);
   // This dialog only: a save settling after it was replaced leaves the newer one open.
   const close = useCallback(() => closeRequest(request.id), [closeRequest, request.id]);
@@ -73,6 +74,12 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
           patch={patch}
           buriesFaces={request.target.buriesFaces}
           scopes={dialog.scopes}
+          fixed={dialog.fixed}
+          styleHint={
+            [paperExportPinsHint(t, i18n.language, request.target.pins), request.target.hint ?? null]
+              .filter(Boolean)
+              .join(' ') || null
+          }
         />
       }
       footer={

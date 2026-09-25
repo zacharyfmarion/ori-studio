@@ -798,8 +798,6 @@
     "delete": "Supprimer",
     "duplicate": "Dupliquer",
     "export": "Exporter…",
-    "exportPng": "Image PNG",
-    "exportSvg": "Image SVG",
     "firstSolution": "Revenir à la première solution",
     "flip": "Retourner",
     "label": "Actions du modèle plié",

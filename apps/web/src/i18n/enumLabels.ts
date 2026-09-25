@@ -118,6 +118,37 @@ export function paperPenLabel(
   }
 }
 
+/**
+ * A paper-style field as a list of an object's own pins names it — "Keeps its
+ * own front colour and light" — so each is a fragment, not a heading.
+ */
+export function paperStyleFieldLabel(t: TFunction, field: PaperStyleField): string {
+  switch (field) {
+    case 'paper.front':
+      return t('dialogs:paperExport.pin.paperFront', 'front colour');
+    case 'paper.back':
+      return t('dialogs:paperExport.pin.paperBack', 'back colour');
+    case 'edges':
+      return t('dialogs:paperExport.pin.edges', 'edge pen');
+    case 'mountainFolds':
+      return t('dialogs:paperExport.pin.mountainFolds', 'mountain fold pen');
+    case 'valleyFolds':
+      return t('dialogs:paperExport.pin.valleyFolds', 'valley fold pen');
+    case 'foldsAsEdges':
+      return t('dialogs:paperExport.pin.foldsAsEdges', 'creases drawn as edges');
+    case 'auxCreases.visible':
+      return t('dialogs:paperExport.pin.auxVisible', 'auxiliary creases shown or hidden');
+    case 'auxCreases.pen':
+      return t('dialogs:paperExport.pin.auxPen', 'auxiliary crease pen');
+    case 'arrows':
+      return t('dialogs:paperExport.pin.arrows', 'arrow pen');
+    case 'erode':
+      return t('dialogs:paperExport.pin.erode', 'erode');
+    case 'light':
+      return t('dialogs:paperExport.pin.light', 'light');
+  }
+}
+
 /** A named dash, as the pen card's dash menu lists it. */
 export function dashPresetLabel(t: TFunction, id: DashPresetId): string {
   switch (id) {

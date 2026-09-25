@@ -24,6 +24,10 @@
     "ignoredFile": "{{name}} verwendet; 1 weitere abgelegte Datei wurde ignoriert.",
     "ignoredFiles": "{{name}} verwendet; {{others}} weitere abgelegte Dateien wurden ignoriert."
   },
+  "foldedFigureExport": {
+    "empty": "Dieses gefaltete Modell hat noch nichts zu exportieren",
+    "failed": "Dieses gefaltete Modell konnte nicht exportiert werden"
+  },
   "global": {
     "error": "Ori Studio-Fehler",
     "folding": "Wird gefaltet…",

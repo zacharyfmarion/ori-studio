@@ -55,6 +55,17 @@ export interface PaperExportPages {
   zipStem: string;
 }
 
+/**
+ * A picture the options cannot change: a folded figure saved before its
+ * picture could be repainted, which exports as it was drawn (E9).
+ */
+export interface PaperExportFixedPicture {
+  svg: string;
+  /** The picture's size in CSS px, which is its PNG's too. */
+  widthPx: number;
+  heightPx: number;
+}
+
 /** Which of a target's pages an export writes: declared once, with the analytics enum that reports it. */
 export type { PaperExportScope };
 
@@ -76,6 +87,13 @@ export interface PaperExportTarget {
   pins: PaperStyleOverrides | null;
   /** Whether the picture can have buried faces at all: false for a References step, one sheet with nothing under it. */
   buriesFaces: boolean;
+  /**
+   * The picture itself when no option can change it; the dialog then offers
+   * the format alone. Absent for every target that builds scenes.
+   */
+  fixedPicture?: PaperExportFixedPicture | null;
+  /** A line under the style picker: what of the style this picture cannot take. */
+  hint?: string | null;
   /**
    * Everything the picture depends on, as a string: the scene is rebuilt only
    * when this changes, and a page option that is not in it only repaints.

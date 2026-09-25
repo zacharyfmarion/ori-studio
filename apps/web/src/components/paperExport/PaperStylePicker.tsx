@@ -11,6 +11,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { paperStyleFieldLabel } from '../../i18n/enumLabels';
+import { PAPER_STYLE_FIELDS, type PaperStyleOverrides } from '../../lib/paper/paperStyle';
 import { PAPER_EXPORT_STYLE_SLOT, type PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import {
   paperPresetRowLabel,
@@ -21,6 +23,25 @@ import {
 } from '../../lib/paperPresetRows';
 import { useSettingsStore } from '../../store/settingsStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
+
+/**
+ * What an object's own pins keep whichever style it is exported in, as a line
+ * under the picker; null for an object that pins nothing.
+ */
+export function paperExportPinsHint(
+  t: TFunction,
+  language: string,
+  pins: PaperStyleOverrides | null | undefined
+): string | null {
+  const fields = PAPER_STYLE_FIELDS.filter((field) => pins?.[field] !== undefined);
+  if (fields.length === 0) return null;
+  const list = new Intl.ListFormat(language, { type: 'conjunction' }).format(
+    fields.map((field) => paperStyleFieldLabel(t, field))
+  );
+  return t('dialogs:paperExport.pinsHint', 'Keeps its own {{fields}}, whichever style is picked.', {
+    fields: list,
+  });
+}
 
 /** The export slot's entry: "Export style ·" and the slot's style as the Settings chip names it. */
 export function exportStyleEntryLabel(
@@ -35,10 +56,13 @@ export function exportStyleEntryLabel(
 export function PaperStylePicker({
   value,
   onChange,
+  hint = null,
   id,
 }: {
   value: PaperExportStyleChoice;
   onChange: (value: PaperExportStyleChoice) => void;
+  /** A line under the picker: what of the style the picture keeps of its own, or cannot take. */
+  hint?: string | null;
   id?: string;
 }) {
   const { t } = useTranslation();
@@ -64,6 +88,7 @@ export function PaperStylePicker({
           ))}
         </SelectContent>
       </Select>
+      {hint && <small className="export-modal__hint">{hint}</small>}
     </div>
   );
 }

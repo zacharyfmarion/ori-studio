@@ -7,10 +7,15 @@ import {
   type ReferencesShortcutActions,
 } from '../../cp-workspace/references/referencesShortcuts';
 import { registerReferencesShortcutExecutor } from '../../keyboard/shortcutRuntime';
+import i18n from '../../i18n';
 import { installAppKeyboardListener } from '../../lib/appKeyboard';
 import { builtInPaperPreset } from '../../lib/paper/paperPresets';
 import type { PaperScene } from '../../lib/paper/paperScene';
-import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
+import {
+  DEFAULT_PAPER_STYLE,
+  type PaperStyle,
+  type PaperStyleOverrides,
+} from '../../lib/paper/paperStyle';
 import { emptyMultiSelection } from '../../lib/selection';
 import type {
   PaperExportPages,
@@ -22,6 +27,7 @@ import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { PaperExportModal } from './PaperExportModal';
+import { paperExportPinsHint } from './PaperStylePicker';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -695,5 +701,105 @@ describe('PaperExportModal on a target with several pages', () => {
       await act(async () => settle({ name: 'Crane-steps.zip', path: null }));
       expect(dialog('Export all steps')).toBeNull();
     });
+  });
+});
+
+describe('PaperExportModal on a fixed picture', () => {
+  const fixed = () =>
+    target({
+      surface: 'folded-3d',
+      title: 'Export Crane',
+      fixedPicture: {
+        svg: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"></svg>',
+        widthPx: 400,
+        heightPx: 300,
+      },
+    });
+  const labels = () =>
+    [...(dialog('Export Crane')?.querySelectorAll('.export-modal__label') ?? [])].map(
+      (label) => label.textContent
+    );
+  const fixedText = () => dialog('Export Crane')?.textContent ?? '';
+  const caption = () => document.querySelector('.paper-export__caption')?.textContent ?? '';
+
+  it('offers the format alone, and says why', async () => {
+    await open(fixed());
+    expect(labels()).toEqual(['Format']);
+    expect(dialog('Export Crane')?.querySelector('button[aria-label="Style"]')).toBeNull();
+    expect(field('Margin', 'Export Crane')).toBeNull();
+    expect(fixedText()).not.toContain('Transparent background');
+    expect(fixedText()).not.toContain('Keep hidden faces');
+    expect(fixedText()).toContain('This figure is exported as it was saved');
+    expect(button('Export SVG')?.disabled).toBe(false);
+
+    await act(async () => button('PNG')?.click());
+    expect(labels()).toEqual(['Format']);
+    expect(fixedText()).not.toContain('Resolution');
+    expect(button('Export PNG')?.disabled).toBe(false);
+  });
+
+  it('captions a PNG with the picture’s own pixel size, whatever density was remembered', async () => {
+    useSettingsStore.setState({
+      paperExport: { ...useSettingsStore.getState().paperExport, pngDpi: 600 },
+    });
+    await open(fixed(), null, 'png');
+    expect(caption()).toMatch(/^[\d.]+ × [\d.]+ mm · 400 × 300 px$/);
+  });
+});
+
+describe('PaperExportModal style hint', () => {
+  const PINS: PaperStyleOverrides = {
+    'paper.front': '#ff00ff',
+    light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
+  };
+  const PINS_LINE = 'Keeps its own front colour and light, whichever style is picked.';
+  const hint = () =>
+    dialog()
+      ?.querySelector('button[aria-label="Style"]')
+      ?.closest('.export-modal__control-group')
+      ?.querySelector('.export-modal__hint')?.textContent ?? null;
+
+  it('names the fields the object keeps of its own under the Style picker', async () => {
+    await open(target({ pins: PINS }));
+    expect(hint()).toBe(PINS_LINE);
+  });
+
+  it('follows the pins with the target’s own hint', async () => {
+    await open(target({ pins: PINS, hint: 'X' }));
+    expect(hint()).toBe(`${PINS_LINE} X`);
+  });
+
+  it('shows the target’s hint alone when nothing is pinned', async () => {
+    await open(target({ hint: 'X' }));
+    expect(hint()).toBe('X');
+  });
+
+  it('shows no hint with no pins and no hint of its own', async () => {
+    await open(target({ pins: {} }));
+    expect(dialog()?.querySelector('button[aria-label="Style"]')).not.toBeNull();
+    expect(hint()).toBeNull();
+  });
+});
+
+describe('paperExportPinsHint', () => {
+  it('is null for an object that pins nothing', () => {
+    expect(paperExportPinsHint(i18n.t, 'en', null)).toBeNull();
+    expect(paperExportPinsHint(i18n.t, 'en', undefined)).toBeNull();
+    expect(paperExportPinsHint(i18n.t, 'en', {})).toBeNull();
+    expect(paperExportPinsHint(i18n.t, 'en', { 'paper.front': undefined })).toBeNull();
+  });
+
+  it('lists the pinned fields in the style’s own order, as the locale joins a list', () => {
+    const pins: PaperStyleOverrides = {
+      light: DEFAULT_PAPER_STYLE.light,
+      'auxCreases.visible': false,
+      'paper.front': '#ff00ff',
+    };
+    expect(paperExportPinsHint(i18n.t, 'en', pins)).toBe(
+      'Keeps its own front colour, auxiliary creases shown or hidden, and light, whichever style is picked.'
+    );
+    expect(paperExportPinsHint(i18n.t, 'de', pins)).toBe(
+      'Keeps its own front colour, auxiliary creases shown or hidden und light, whichever style is picked.'
+    );
   });
 });

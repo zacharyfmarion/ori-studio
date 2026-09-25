@@ -736,8 +736,6 @@
     "delete": "删除",
     "duplicate": "复制",
     "export": "导出…",
-    "exportPng": "PNG 图像",
-    "exportSvg": "SVG 图像",
     "firstSolution": "返回第一个解",
     "flip": "翻转",
     "label": "折叠模型操作",

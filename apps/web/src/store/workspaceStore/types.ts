@@ -42,7 +42,6 @@ import type {
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
-import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
@@ -438,20 +437,6 @@ export interface ProjectSliceActions {
   dismissOristudioCpShare: () => void;
   /** Record a share payload for the Edit surface to open. Set by `/s` only. */
   setPendingSharedCp: (pending: PendingSharedCp) => void;
-  /**
-   * Save one folded figure as a standalone image. A figure with a live kernel
-   * paints its scene through the shared painter on the export style and page
-   * — the window's scene for a 3D figure
-   * (`cp-workspace/folded/folded3dFigureExport.ts`), the kernel's paper scene
-   * for a flat one (`cp-workspace/folded/foldedFlatFigureExport.ts`); any
-   * other figure is serialized from the snapshot already on screen rather than
-   * re-folded (`cp-workspace/folded/foldedFigureExport.ts`).
-   */
-  exportOristudioCpFoldedFigure: (
-    format: FoldedFigureExportFormat,
-    figureId: string,
-    fileService?: FileService
-  ) => Promise<boolean>;
   /**
    * Load a bundled example. False when nothing was established — an unknown id, a
    * declined discard prompt, or a load that failed — so the caller can tell an

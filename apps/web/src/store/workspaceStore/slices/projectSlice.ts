@@ -60,7 +60,6 @@ import {
   DESIGN_TAB_COUNT_BUCKETS,
   track,
   type DesignTabSource,
-  type PaperExportSurface,
 } from '../../../analytics';
 import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
@@ -76,24 +75,6 @@ import {
   rememberAuthor,
   uploadCpShareThumbnail,
 } from '../../../cp-workspace/share/cpShareService';
-import {
-  renderFoldedFigurePng,
-  serializeFoldedFigureSvg,
-  type FoldedFigureExportFormat,
-} from '../../../cp-workspace/folded/foldedFigureExport';
-import { folded3dFigureExportPage } from '../../../cp-workspace/folded/folded3dFigureExport';
-import { folded3dAuxLinesSettled } from '../folded3dAuxLinesSync';
-import {
-  foldedFlatFigureExportPage,
-  foldedFlatFigureExportsScene,
-} from '../../../cp-workspace/folded/foldedFlatFigureExport';
-import { cpOverlayViewStore } from '../../../cp-workspace/cpOverlayViewStore';
-import { overlayCssPerModel } from '../../../cp-workspace/annotations/annotationTransform';
-import { paperSvgToPng } from '../../../lib/paper/paperPng';
-import type { PaperSvgResult } from '../../../lib/paper/paperSvg';
-import { paperPageOf } from '../../../lib/paperExportSettings';
-import { exportPaperStyle } from '../../../lib/paperStyleSettings';
-import { useSettingsStore } from '../../settingsStore';
 import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
 import {
   importedCreasePatternFormat,
@@ -264,15 +245,6 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-/**
- * CSS px per crease-pattern user unit at the mounted canvas — what a folded
- * figure's on-screen box is measured in, so its export page is its on-screen
- * size (D3). 1 when no canvas is mounted, which is the box at zoom 1.
- */
-function foldedFigureCssPerUserUnit(): number {
-  const user = cpOverlayViewStore.get()?.user;
-  return user ? overlayCssPerModel(user) : 1;
-}
 
 
 function cpHistoryEntry(
@@ -3123,124 +3095,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           suggestedName: defaultFilename(patternTitle, format),
           path: null,
           extensions: [format],
-        });
-        if (!result) return false;
-        set({ projectMessage: `Exported ${result.name}` });
-        return true;
-      } catch (error) {
-        set({ status: 'error', error: engineError(error) });
-        return false;
-      }
-    },
-
-    exportOristudioCpFoldedFigure: async (
-      format: FoldedFigureExportFormat,
-      figureId: string,
-      fileService = getFileService()
-    ) => {
-      try {
-        const figure = get().oristudioCpFoldedFigures.find(
-          (candidate) => candidate.id === figureId
-        );
-        const name = figure ? `${get().workspaceTitle} ${figure.title}` : '';
-
-        // A figure with a live kernel exports its scene through the shared
-        // painter, on the export style and page every paper surface shares:
-        // the window's scene for a 3D figure, the kernel's paper scene for a
-        // flat one. Read at the moment of export, as the simulator's hook reads
-        // them. A figure this answers null for — reopened from a file and not
-        // yet rehydrated, so there is no render model or handle — keeps the
-        // snapshot path below (R7). For a 3D figure that is a file written
-        // before its stored picture became a scene; a stored scene re-paints
-        // through the painter instead.
-        const { paperStyle, paperExport } = useSettingsStore.getState();
-        const page = paperPageOf(paperExport);
-        const paint = (figure: OristudioCpFoldedFigureEntry) => ({
-          style: exportPaperStyle(paperStyle, figure.appearance),
-          page,
-          cssPerUserUnit: foldedFigureCssPerUserUnit(),
-        });
-        let painted: { surface: PaperExportSurface; result: PaperSvgResult } | null = null;
-        if (figure?.folded3d) {
-          // An aux line drawn a moment ago is on the page, not a fetch behind.
-          await folded3dAuxLinesSettled({ getState: get }, figure.handle);
-          const result = folded3dFigureExportPage(figure, paint(figure));
-          painted = result && { surface: 'folded-3d', result };
-        } else if (figure && foldedFlatFigureExportsScene(figure)) {
-          // The document's aux lines as they stand now, like the canvas draws.
-          const kernel = await getOristudioCpFoldedFigurePaperScene(
-            figure.handle,
-            get().oristudioCpDocument?.handle ?? null
-          );
-          const result = kernel && foldedFlatFigureExportPage(figure, kernel, paint(figure));
-          painted = result && { surface: 'folded-flat', result };
-        }
-        if (painted) {
-          const saved =
-            format === 'svg'
-              ? await fileService.saveTextFile({
-                  title: 'Export Folded Figure SVG',
-                  contents: painted.result.svg,
-                  suggestedName: defaultFilename(name, 'svg'),
-                  path: null,
-                  extensions: ['svg'],
-                })
-              : await fileService.saveBinaryFile({
-                  title: 'Export Folded Figure PNG',
-                  bytes: await paperSvgToPng(painted.result, paperExport.pngDpi),
-                  suggestedName: defaultFilename(name, 'png'),
-                  path: null,
-                  extensions: ['png'],
-                  mimeType: 'image/png',
-                });
-          if (!saved) return false;
-          // Hand-placed: the file service's `file exported` sees a format and
-          // nothing of which surface drew it or on what page.
-          track('paper exported', {
-            surface: painted.surface,
-            format,
-            hidden_faces: page.keepHiddenFaces ? 'kept' : 'dropped',
-          });
-          set({ projectMessage: `Exported ${saved.name}` });
-          return true;
-        }
-
-        // Serialized straight from the snapshot the canvas is drawing, so the
-        // file is the figure the user is looking at — no second fold.
-        const snapshot = figure?.renderSnapshot;
-        if (!snapshot) {
-          const message = 'This folded model has nothing to export yet';
-          set({
-            oristudioCpError: message,
-            error: { code: 'invalid_operation', message },
-          });
-          return false;
-        }
-
-        if (format === 'svg') {
-          const contents = serializeFoldedFigureSvg(snapshot);
-          if (!contents) return false;
-          const result = await fileService.saveTextFile({
-            title: 'Export Folded Figure SVG',
-            contents,
-            suggestedName: defaultFilename(name, 'svg'),
-            path: null,
-            extensions: ['svg'],
-          });
-          if (!result) return false;
-          set({ projectMessage: `Exported ${result.name}` });
-          return true;
-        }
-
-        const bytes = await renderFoldedFigurePng(snapshot);
-        if (!bytes) return false;
-        const result = await fileService.saveBinaryFile({
-          title: 'Export Folded Figure PNG',
-          bytes,
-          suggestedName: defaultFilename(name, 'png'),
-          path: null,
-          extensions: ['png'],
-          mimeType: 'image/png',
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });

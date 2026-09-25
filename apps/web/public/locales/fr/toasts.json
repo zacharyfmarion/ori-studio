@@ -25,6 +25,10 @@
     "ignoredFile": "{{name}} utilisé ; 1 autre fichier déposé a été ignoré.",
     "ignoredFiles": "{{name}} utilisé ; {{others}} autres fichiers déposés ont été ignorés."
   },
+  "foldedFigureExport": {
+    "empty": "Ce modèle plié n'a encore rien à exporter",
+    "failed": "Impossible d'exporter ce modèle plié"
+  },
   "global": {
     "error": "Erreur Ori Studio",
     "folding": "Pliage…",

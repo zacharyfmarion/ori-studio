@@ -1,7 +1,7 @@
 /**
  * The flat figure's export page, on a real fold: the Oriedita solution sample
- * folded by the wasm kernel in this process, its paper scene painted at the
- * figure's on-screen size.
+ * folded by the wasm kernel in this process, its paper scene painted through
+ * the export dialog's target at the figure's on-screen size.
  */
 
 import { readFileSync } from 'node:fs';
@@ -25,12 +25,18 @@ import {
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { pageMarginPt, PT_PER_CSS_PX } from '../../lib/paper/paperSvg';
+import {
+  paintPaperExport,
+  paperExportPage,
+  paperExportSceneInput,
+} from '../../paperExport/paperExportSession';
 import { foldedFigureUserPerModelUnit } from '../adapters/cpFoldedToScene';
 import {
-  foldedFlatFigureExportPage,
-  foldedFlatFigureExportsScene,
-  foldedFlatFigureScenePxPerUnit,
-} from './foldedFlatFigureExport';
+  foldedFigureExportPicture,
+  foldedFigureExportTarget,
+  type FoldedFigureExportPicture,
+} from './foldedFigureExportTarget';
+import { foldedFlatFigureExportsScene, foldedFlatFigureScenePxPerUnit } from './foldedFlatFigureExport';
 
 const FIXTURES = resolve(process.cwd(), '../../tests/fixtures');
 
@@ -81,8 +87,28 @@ function figure(overrides: Partial<OristudioCpFoldedFigureEntry> = {}): Oristudi
 
 const TIGHT: PaperPage = { ...DEFAULT_PAPER_PAGE, paddingMm: 0 };
 
-const paint = (entry = figure(), page = TIGHT, cssPerUserUnit = 1) =>
-  foldedFlatFigureExportPage(entry, kernel, { style: DEFAULT_PAPER_STYLE, page, cssPerUserUnit });
+function target(entry: OristudioCpFoldedFigureEntry, picture: FoldedFigureExportPicture) {
+  return foldedFigureExportTarget({
+    figure: entry,
+    picture,
+    title: 'Export Folded model 1',
+    fileStem: 'sample Folded model 1',
+    exportStyle: DEFAULT_PAPER_STYLE,
+    storedSceneHint: '',
+  });
+}
+
+/** The page the export dialog paints for the figure, as it paints it: the scene its target builds for `page`. */
+async function paint(entry = figure(), page = TIGHT, cssPerUserUnit = 1) {
+  const picture = foldedFigureExportPicture(entry, { model: null, aux: null, kernel, cssPerUserUnit });
+  expect(picture?.kind).toBe('flat');
+  const exported = target(entry, picture!);
+  const options = { ...page, format: 'svg' as const };
+  const scene = await exported.buildScene(
+    paperExportSceneInput(exported, DEFAULT_PAPER_STYLE, options)
+  );
+  return scene && paintPaperExport(exported, scene, DEFAULT_PAPER_STYLE, paperExportPage(exported, options));
+}
 
 /** The artwork's width in pt, the margin taken off. */
 function artworkWidthPt(page: PaperPage, widthPt: number): number {
@@ -127,9 +153,9 @@ describe('foldedFlatFigureExportsScene', () => {
   });
 });
 
-describe('foldedFlatFigureExportPage', () => {
-  it('paints every face of the fold as a page in points', () => {
-    const page = paint()!;
+describe('the flat figure’s export page', () => {
+  it('paints every face of the fold as a page in points', async () => {
+    const page = (await paint())!;
     expect(page).not.toBeNull();
     expect(page.svg).toMatch(/^<\?xml[^]*<svg [^>]*width="[\d.]+pt"/);
     // One polygon per face: the sample stacks acyclically, so no face is split.
@@ -138,37 +164,48 @@ describe('foldedFlatFigureExportPage', () => {
     expect(page.svg).toContain(`stroke="${DEFAULT_PAPER_STYLE.edges.color}"`);
   });
 
-  it('is the figure at its on-screen size: kernel units through the paper affine and the placement', () => {
+  it('is the figure at its on-screen size: kernel units through the paper affine and the placement', async () => {
     const extent = Math.max(...kernel.faces.flatMap((face) => face.outline.map((p) => p.x)));
     const origin = Math.min(...kernel.faces.flatMap((face) => face.outline.map((p) => p.x)));
-    const widthPt = artworkWidthPt(TIGHT, paint()!.widthPt);
+    const widthPt = artworkWidthPt(TIGHT, (await paint())!.widthPt);
     const perUnit = foldedFlatFigureScenePxPerUnit(figure());
     expect(perUnit).toBeCloseTo(foldedFigureUserPerModelUnit(figure()), 12);
     expect(widthPt).toBeCloseTo((extent - origin) * perUnit * PT_PER_CSS_PX, 1);
 
     // A canvas at 200% doubles it; so does a placement at scale 2. The
     // placement's turn and offset are not a standalone image's.
-    expect(artworkWidthPt(TIGHT, paint(figure(), TIGHT, 2)!.widthPt)).toBeCloseTo(widthPt * 2, 1);
+    expect(artworkWidthPt(TIGHT, (await paint(figure(), TIGHT, 2))!.widthPt)).toBeCloseTo(
+      widthPt * 2,
+      1
+    );
     const placed = figure({
       placement: { offset: { x: 500, y: -200 }, scale: 2, rotation: 0.7 },
     });
-    expect(artworkWidthPt(TIGHT, paint(placed)!.widthPt)).toBeCloseTo(widthPt * 2, 1);
+    expect(artworkWidthPt(TIGHT, (await paint(placed))!.widthPt)).toBeCloseTo(widthPt * 2, 1);
   });
 
-  it('keeps or drops the buried layers as the page says', () => {
-    const kept = paint()!.svg.match(/<polygon /g)!.length;
-    const dropped = paint(figure(), { ...TIGHT, keepHiddenFaces: false })!.svg.match(/<polygon /g)!
-      .length;
+  it('keeps or drops the buried layers as the page says', async () => {
+    const kept = (await paint())!.svg.match(/<polygon /g)!.length;
+    const dropped = (await paint(figure(), { ...TIGHT, keepHiddenFaces: false }))!.svg.match(
+      /<polygon /g
+    )!.length;
     const visible = new Set(kernel.subfaces.map((subface) => subface.faces_top_to_bottom[0])).size;
     expect(kept).toBe(kernel.faces.length);
     expect(dropped).toBe(visible);
     expect(dropped).toBeLessThan(kept);
   });
 
-  it('answers null for a scene with nothing in it', () => {
+  it('has nothing to paint for a scene with nothing in it', async () => {
     const empty: OristudioCpFoldedPaperScene = { ...kernel, faces: [], subfaces: [], aux_lines: [] };
+    // Not the kernel's picture, then, and this figure stores none of its own.
     expect(
-      foldedFlatFigureExportPage(figure(), empty, { style: DEFAULT_PAPER_STYLE, page: TIGHT })
+      foldedFigureExportPicture(figure(), { model: null, aux: null, kernel: empty, cssPerUserUnit: 1 })
     ).toBeNull();
+    const exported = target(figure(), { kind: 'flat', kernel: empty, cssPerUserUnit: 1 });
+    await expect(
+      exported.buildScene(
+        paperExportSceneInput(exported, DEFAULT_PAPER_STYLE, { ...TIGHT, format: 'svg' })
+      )
+    ).resolves.toBeNull();
   });
 });

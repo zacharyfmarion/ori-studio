@@ -102,17 +102,13 @@ describe('foldedFigureMenuItems', () => {
   // on showing the state it was built with. Its picks close it, as a context
   // menu's picks do everywhere; the toolbar asks for the opposite explicitly.
   it('closes on a pick in the context menu, and stays open only where asked', () => {
-    const items = foldedFigureMenuItems(makeFigure(), makeDeps({ exportAs: vi.fn() }));
-    const style = styleMenu(items).items;
+    const style = styleMenu(foldedFigureMenuItems(makeFigure(), makeDeps())).items;
     for (const item of style) {
       if (item.kind === 'submenu') {
         expect(item.items.every((row) => row.kind === 'radio' && !row.keepOpen)).toBe(true);
       }
       if (item.kind === 'checkbox') expect(item.keepOpen).toBeFalsy();
     }
-    const exportMenu = items.find((item) => item.kind === 'submenu' && item.id === 'export');
-    if (exportMenu?.kind !== 'submenu') throw new Error('no export submenu');
-    expect(exportMenu.items.every((row) => row.kind === 'action')).toBe(true);
 
     const group = buildFoldedFigureActions(makeFigure(), makeDeps()).find(
       (action) => action.kind === 'group'
@@ -153,6 +149,20 @@ describe('foldedFigureMenuItems', () => {
     );
     expect(deps.endModelGesture).toHaveBeenCalledWith('folded-color:folded-1:front_color');
     expect(deps.updateModel).toHaveBeenCalledWith(figure, { display_shadows: true });
+  });
+
+  it('offers export as one item, not a submenu of formats, that hands the figure to the dialog', () => {
+    const exportFigure = vi.fn();
+    const figure = makeFigure();
+    const items = foldedFigureMenuItems(figure, makeDeps({ exportFigure }));
+    expect(items.flatMap((item) => (item.kind === 'submenu' ? [item.id] : []))).toEqual(['style']);
+    const exported = items.find((item) => item.kind === 'action' && item.id === 'export');
+    if (exported?.kind !== 'action') throw new Error('no export item');
+    expect(exported).toMatchObject({ label: 'Export…', disabled: false });
+
+    exported.onSelect();
+    expect(exportFigure).toHaveBeenCalledTimes(1);
+    expect(exportFigure).toHaveBeenCalledWith(figure);
   });
 
   it('invokes the bound verb when an item is selected', () => {

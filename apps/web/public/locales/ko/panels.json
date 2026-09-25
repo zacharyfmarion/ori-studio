@@ -736,8 +736,6 @@
     "delete": "삭제",
     "duplicate": "복제",
     "export": "내보내기…",
-    "exportPng": "PNG 이미지",
-    "exportSvg": "SVG 이미지",
     "firstSolution": "첫 번째 해로 돌아가기",
     "flip": "뒤집기",
     "label": "접힌 모델 작업",

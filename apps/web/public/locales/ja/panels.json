@@ -736,8 +736,6 @@
     "delete": "削除",
     "duplicate": "複製",
     "export": "エクスポート…",
-    "exportPng": "PNG 画像",
-    "exportSvg": "SVG 画像",
     "firstSolution": "最初の解に戻る",
     "flip": "裏返す",
     "label": "折り上がり図の操作",

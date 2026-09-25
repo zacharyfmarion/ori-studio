@@ -23,6 +23,10 @@
     "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
     "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"
   },
+  "foldedFigureExport": {
+    "empty": "此折叠模型暂无可导出的内容",
+    "failed": "无法导出此折叠模型"
+  },
   "global": {
     "error": "Ori Studio 错误",
     "folding": "正在折叠…",

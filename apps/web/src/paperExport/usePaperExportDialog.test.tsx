@@ -817,3 +817,73 @@ describe('usePaperExportDialog on a set with a page that draws nothing', () => {
     expect(dialog().canExport).toBe(true);
   });
 });
+
+describe('usePaperExportDialog on a fixed picture', () => {
+  const FIXED_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#abcdef"/></svg>';
+  const FIXED_PAGE = { svg: FIXED_SVG, widthPt: 300, heightPt: 225 };
+
+  function fixedTarget() {
+    return fakeTarget({
+      surface: 'folded-3d',
+      fixedPicture: { svg: FIXED_SVG, widthPx: 400, heightPx: 300 },
+    });
+  }
+
+  it('builds no scene, and previews the picture as it is at its own size', async () => {
+    const { target, buildScene } = fixedTarget();
+    const dialog = await open(target);
+    expect(buildScene).not.toHaveBeenCalled();
+    expect(dialog()).toMatchObject({ status: 'ready', fixed: true, canExport: true });
+    expect(dialog().preview!.page).toEqual(FIXED_PAGE);
+    expect(dialog().pngSize).toEqual({ width: 400, height: 300 });
+  });
+
+  it('changes nothing for a style or page option, which the picture cannot take', async () => {
+    const { target, buildScene } = fixedTarget();
+    const dialog = await open(target);
+    const shown = dialog().preview;
+    await act(async () => dialog().patch({ style: 'builtin:diagram', paddingMm: 20, background: '#112233' }));
+    expect(buildScene).not.toHaveBeenCalled();
+    expect(dialog().preview).toBe(shown);
+    expect(dialog().canExport).toBe(true);
+  });
+
+  it('sizes the PNG at the picture’s own pixels, whatever the density', async () => {
+    const { target } = fixedTarget();
+    const dialog = await open(target, 'png');
+    for (const pngDpi of [72, 300, 1200]) {
+      await act(async () => dialog().patch({ pngDpi }));
+      expect(dialog().pngSize).toEqual({ width: 400, height: 300 });
+      expect(dialog().pngTooLarge).toBe(false);
+      expect(dialog().canExport).toBe(true);
+    }
+  });
+
+  it('saves the SVG exactly as the picture is', async () => {
+    const { target } = fixedTarget();
+    const dialog = await open(target);
+    await act(async () => dialog().exportNow());
+    expect(service.saveTextFile).toHaveBeenCalledWith(
+      expect.objectContaining({ contents: FIXED_SVG, suggestedName: 'Crane-folded.svg' })
+    );
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('rasterises the PNG at 96 dpi, where a CSS px is a pixel', async () => {
+    const { target } = fixedTarget();
+    const dialog = await open(target, 'png');
+    await act(async () => dialog().patch({ pngDpi: 600 }));
+    await act(async () => dialog().exportNow());
+    expect(encodePng).toHaveBeenCalledTimes(1);
+    expect(encodePng).toHaveBeenCalledWith(FIXED_PAGE, 96);
+    expect(service.saveBinaryFile).toHaveBeenCalledWith(
+      expect.objectContaining({ suggestedName: 'Crane-folded.png', mimeType: 'image/png' })
+    );
+    // The density the file was written at, not the one the draft remembers.
+    expect(tracked).toContainEqual({
+      event: 'paper exported',
+      properties: expect.objectContaining({ format: 'png', resolution: '1x' }),
+    });
+  });
+});

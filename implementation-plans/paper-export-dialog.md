@@ -419,14 +419,23 @@ Factories live beside their surfaces and capture at creation:
   projector — cheap; its key is the style through the References policy and
   the background, since the markup inlines both); `paintStyle` is
   `referencesStepPaintStyle`.
-- `cp-workspace/folded/foldedFigureExportTarget.ts` — 3D with a live model:
-  the render model, camera (`folded3dSceneCamera`) and aux lines captured,
-  `buildScene` = `folded3dPaperScene`, key = `folded3dSceneStyleKey` +
-  `markHidden`. 3D with only a stored scene: that scene in CSS px, which
-  cannot be re-lit — when the picked style's key differs, the hint says the
-  figure is shaded as it was last folded. Flat: the kernel scene fetched once
-  (`getOristudioCpFoldedFigurePaperScene`), `buildScene` =
-  `foldedFlatPaperScene`, key = `markHidden` only. Legacy: `fixedPicture`.
+- `cp-workspace/folded/foldedFigureExportTarget.ts` — as built in Phase 7,
+  `foldedFigureExportPicture` reads which picture the figure can give and
+  `foldedFigureExportTarget` wraps it; `openFoldedFigureExport.ts` captures
+  it when the verb runs (awaiting the 3D aux lines, fetching the flat
+  kernel scene) and opens the dialog. 3D with a live model: the render
+  model and aux lines captured, `buildScene` = `folded3dFigureScene` (the
+  window's scene at its camera), key = `folded3dSceneStyleKey` +
+  `markHidden`; a model the mesh cannot take falls back to the stored scene.
+  3D with only a stored scene: that scene in CSS px, which cannot be re-lit —
+  the hint under Style says it is shaded as it was folded (always: which
+  style it was folded under is not recorded). Flat: the kernel scene fetched
+  once (`getOristudioCpFoldedFigurePaperScene`), `buildScene` =
+  `foldedFlatPaperScene`, key = `markHidden` only; a kernel scene with no
+  faces falls back to the fixed picture, as the old path fell back to the
+  snapshot. Legacy: `fixedPicture` — `foldedFigureExportDocument` of the
+  render snapshot, exported as it was drawn; the dialog offers the format
+  alone, the PNG at the picture's own pixel size.
 - `simulator/simulatorExportTarget.ts` — a worker-side snapshot (below);
   `buildScene` asks the worker for a scene from it; key = light + widest pen
   + `markHidden`, as `folded3dSceneStyleKey` does for the 3D figure.
@@ -980,10 +989,15 @@ exported` gains `scope` and, for all steps, `page_count_bucket`
   `SimulatorViewControlsPanel.tsx` (Export group removed).
 - Inline simulation: `cp-workspace/InlineSimulationLayer.tsx`,
   `inlineSimulation/inlineSimulationRuntime.ts`, `useInlineSimulations.ts`.
-- Folded figures: `cp-workspace/folded/foldedFigureActions.ts`,
-  `useFoldedFigures.ts`, `CpFoldedFigureToolbar.tsx`,
-  `foldedFigureMenuItems.tsx`, new `foldedFigureExportTarget.ts`;
-  `projectSlice.exportOristudioCpFoldedFigure` (retired into the target).
+- Folded figures: `cp-workspace/folded/foldedFigureActions.ts` (one
+  *Export…* verb), `useFoldedFigures.ts`, new `foldedFigureExportTarget.ts`
+  and `openFoldedFigureExport.ts`; `folded3dFigureExport.ts` deleted,
+  `foldedFlatFigureExport.ts` and `foldedFigureExport.ts` reduced to what the
+  target reads; `projectSlice.exportOristudioCpFoldedFigure` and its type
+  retired into the target; the golden pages in
+  `__fixtures__/foldedFigureExportGolden.json`; `paperExportTarget.ts`
+  (`fixedPicture`, `hint`), the dialog's fixed path, the pins hint
+  (`paperExportPinsHint`, `paperStyleFieldLabel`).
 - Crease-pattern export and share card: `components/CreaseExportDialog.tsx`,
   `cp-workspace/share/ShareLinkModal.tsx`, `hooks/useCreaseExportPaper.ts`,
   `lib/creaseExport.ts` (the folded-figure defaults).
@@ -1270,17 +1284,29 @@ From review (folded into the Phase 5 commit):
 
 ### Phase 7 — The export dialog, on folded figures
 
-- [ ] `foldedFigureExportTarget`: 3D live (captured model and camera, key =
-      `folded3dSceneStyleKey` + hidden), 3D stored scene (re-light hint),
-      flat (kernel scene once), legacy `fixedPicture` — added to
-      `PaperExportTarget` here (format only + hint)
-- [ ] `foldedFigureActions` `export` → action; toolbar and context menu;
-      `projectSlice.exportOristudioCpFoldedFigure` retired into the target;
-      the `paper exported` literal goes
-- [ ] The dialog names the figure's pins under Style
-- [ ] Parity tests: 3D and flat default-option SVG equals the old export's;
-      re-pin `exportFoldedFigure3d.test.ts` / `exportFoldedFigureFlat.test.ts`
-- [ ] Validate; commit
+- [x] `foldedFigureExportTarget`: 3D live (captured model and aux lines, key
+      = `folded3dSceneStyleKey` + hidden, the stored scene as its fallback),
+      3D stored scene (hint: shaded as it was folded), flat (kernel scene
+      once), legacy `fixedPicture` — added to `PaperExportTarget` here with a
+      `hint`, and a fixed path in the dialog (format only, the picture's own
+      pixel size)
+- [x] `foldedFigureActions` `export` → one command; toolbar and context menu;
+      `projectSlice.exportOristudioCpFoldedFigure` retired into
+      `openFoldedFigureExport`; the `paper exported` literal goes, and with
+      it `folded3dFigureExport.ts`, `foldedFlatFigureExportPage` and the
+      snapshot serializers the action alone used
+- [x] The dialog names the figure's pins under Style (`paperExportPinsHint`)
+- [x] Parity tests: the dialog's pages equal golden pages captured from the
+      old store action before it was retired — 3D live and stored, flat, at
+      the defaults and at a picked page with pins, and the legacy picture;
+      the store tests re-pinned onto the opener and the target
+- [x] One behaviour differs from the retired action, by design: a live 3D
+      figure whose build gives nothing (past the mesh's budget) with no
+      stored scene now opens the dialog on its empty state rather than a
+      toast — and one with a stored scene now exports that scene where the
+      action fell to the render snapshot. A fixed picture's PNG reports the
+      96 dpi it is written at in `paper exported`, not the draft's density
+- [x] Validate; commit
 
 ### Phase 8 — The export dialog, on simulations
 

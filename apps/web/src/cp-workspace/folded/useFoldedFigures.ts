@@ -74,6 +74,7 @@ import { foldedFigureGesture } from './foldedFigureGesture';
 import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
 import { queueFoldedModelWrite } from './foldedModelWriteQueue';
 import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
+import { openFoldedFigureExport } from './openFoldedFigureExport';
 import { useSettingsStore } from '../../store/settingsStore';
 import { effectiveObjectPaperStyle, setFoldedFigureAppearance } from '../paper/objectPaperStyle';
 
@@ -171,9 +172,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
   const refoldOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.refoldOristudioCpFoldedFigure
-  );
-  const exportOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.exportOristudioCpFoldedFigure
   );
   const setOristudioCpViewportOption = useWorkspaceStore(
     (state) => state.setOristudioCpViewportOption
@@ -971,8 +969,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       isStale: (figure) => staleFoldedFigureIds.has(figure.id),
       // Not wrapped in runFoldedFigureAction: saving a file changes nothing
       // about the document, so it is not an undo step.
-      exportAs: (figure, format) => {
-        void exportOristudioCpFoldedFigure(format, figure.id);
+      exportFigure: (figure) => {
+        void openFoldedFigureExport(figure.id, t);
       },
       // What a 3D verdict offers to do about itself. None of the three is an
       // undo step: two only change what is shown, and the third opens a
@@ -1025,7 +1023,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       foldAnotherOristudioCpFigure,
       duplicateOristudioCpFoldedFigure,
       refoldOristudioCpFoldedFigure,
-      exportOristudioCpFoldedFigure,
       runFoldedFigureAction,
       setOristudioCpViewportOption,
       requestOristudioCpAction,

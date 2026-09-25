@@ -103,7 +103,7 @@ function command(
   return found;
 }
 
-/** A choice by id, whether it sits at the top level (export) or inside Style. */
+/** A choice by id, whether it sits at the top level or inside Style. */
 function choice(
   figure: OristudioCpFoldedFigureEntry,
   deps: FoldedFigureActionDeps,
@@ -271,56 +271,45 @@ describe('buildFoldedFigureActions', () => {
 
   describe('export', () => {
     it('is absent when the caller supplies no export support', () => {
-      expect(choiceIds(makeFigure(), makeDeps())).toEqual([]);
+      expect(commandIds(makeFigure(), makeDeps())).not.toContain('export');
     });
 
-    it('sits between the solution group and the manage group', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      const ids = buildFoldedFigureActions(makeFigure(), deps)
-        .filter((action) => action.kind !== 'separator')
-        .map((action) => action.id);
-      expect(ids).toEqual(['flip', 'style', 'another', 'export', 'duplicate', 'delete']);
+    it('sits after a separator of its own, between the solution group and the manage group', () => {
+      const actions = buildFoldedFigureActions(makeFigure(), makeDeps({ exportFigure: vi.fn() }));
+      expect(
+        actions.filter((action) => action.kind !== 'separator').map((action) => action.id)
+      ).toEqual(['flip', 'style', 'another', 'export', 'duplicate', 'delete']);
+      const at = actions.findIndex((action) => action.id === 'export');
+      expect(actions[at - 1]).toEqual({ kind: 'separator', id: 'before-export' });
     });
 
-    it('offers image formats only — a folded figure is geometry on a page', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      expect(choice(makeFigure(), deps, 'export').options.map((option) => option.id)).toEqual([
-        'export-svg',
-        'export-png',
-      ]);
-    });
-
-    // Not an exclusive set, so renderers must not reserve a check column for it:
-    // an always-empty column reads as a stray indent beside the labels.
-    it('is a list of actions, not a current mode', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      const group = choice(makeFigure(), deps, 'export');
-      expect(group.exclusive).toBe(false);
-      expect(group.options.every((option) => !option.checked)).toBe(true);
-    });
-
-    it('routes each format to the export dependency', () => {
-      const exportAs = vi.fn();
-      const deps = makeDeps({ exportAs });
+    // The dialog it opens chooses the format, so there is no list of formats to pick from.
+    it('is one command, Export…, that hands the figure to the dialog once', () => {
+      const exportFigure = vi.fn();
+      const deps = makeDeps({ exportFigure });
       const figure = makeFigure();
-      choice(figure, deps, 'export').options.forEach((option) => option.run());
-      expect(exportAs).toHaveBeenNthCalledWith(1, figure, 'svg');
-      expect(exportAs).toHaveBeenNthCalledWith(2, figure, 'png');
+      const action = command(figure, deps, 'export');
+      expect(action).toMatchObject({ label: 'Export…', icon: 'export', disabled: false });
+      expect(choiceIds(figure, deps)).toEqual([]);
+
+      action.run();
+      expect(exportFigure).toHaveBeenCalledTimes(1);
+      expect(exportFigure).toHaveBeenCalledWith(figure);
     });
 
     // Exported from the figure's own picture, so a figure whose creases have
     // since moved can still be saved — but one that has never drawn cannot.
     // Either picture counts: a 3D figure keeps a scene and no snapshot.
     it('is disabled only when the figure has neither picture', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      expect(choice(makeFigure({ status: 'stale' }), deps, 'export').disabled).toBe(false);
-      expect(choice(makeFigure({ renderSnapshot: null }), deps, 'export').disabled).toBe(true);
+      const deps = makeDeps({ exportFigure: vi.fn() });
+      expect(command(makeFigure({ status: 'stale' }), deps, 'export').disabled).toBe(false);
       expect(
-        choice(
-          makeFigure({ renderSnapshot: null, scene: SCENE }),
-          deps,
-          'export'
-        ).disabled
+        command(makeFigure({ status: 'loading', snapshot: null, handle: null }), deps, 'export')
+          .disabled
+      ).toBe(false);
+      expect(command(makeFigure({ renderSnapshot: null }), deps, 'export').disabled).toBe(true);
+      expect(
+        command(makeFigure({ renderSnapshot: null, scene: SCENE }), deps, 'export').disabled
       ).toBe(false);
     });
   });

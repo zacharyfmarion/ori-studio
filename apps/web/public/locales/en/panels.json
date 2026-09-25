@@ -765,8 +765,6 @@
     "delete": "Delete",
     "duplicate": "Duplicate",
     "export": "Export…",
-    "exportPng": "PNG image",
-    "exportSvg": "SVG image",
     "firstSolution": "Back to first solution",
     "flip": "Flip",
     "label": "Folded figure actions",

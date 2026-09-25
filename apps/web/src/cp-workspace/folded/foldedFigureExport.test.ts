@@ -3,7 +3,7 @@ import type {
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
 } from '../../engine/oristudioCpTypes';
-import { foldedFigureExportDocument, serializeFoldedFigureSvg } from './foldedFigureExport';
+import { foldedFigureExportDocument } from './foldedFigureExport';
 
 const solid = (r: number, g: number, b: number, a: number) =>
   ({ kind: 'color', color: { red: r, green: g, blue: b, alpha: a } }) as const;
@@ -90,23 +90,23 @@ describe('foldedFigureExportDocument', () => {
   });
 
   it('draws a background by default and omits it on request', () => {
-    expect(serializeFoldedFigureSvg(snapshot([square()]))).toContain('<rect width="100%"');
+    expect(foldedFigureExportDocument(snapshot([square()]))!.svg).toContain('<rect width="100%"');
     expect(
-      serializeFoldedFigureSvg(snapshot([square()]), { showBackgroundColor: false })
+      foldedFigureExportDocument(snapshot([square()]), { showBackgroundColor: false })!.svg
     ).not.toContain('<rect width="100%"');
   });
 
   it('honours the export theme', () => {
-    expect(serializeFoldedFigureSvg(snapshot([square()]), { theme: 'dark' })).toContain(
+    expect(foldedFigureExportDocument(snapshot([square()]), { theme: 'dark' })!.svg).toContain(
       '#101317'
     );
-    expect(serializeFoldedFigureSvg(snapshot([square()]), { theme: 'light' })).toContain(
+    expect(foldedFigureExportDocument(snapshot([square()]), { theme: 'light' })!.svg).toContain(
       '#ffffff'
     );
   });
 
   it('emits a standalone SVG document', () => {
-    const svg = serializeFoldedFigureSvg(snapshot([square()])) ?? '';
+    const svg = foldedFigureExportDocument(snapshot([square()]))!.svg;
     expect(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
     expect(svg.trimEnd().endsWith('</svg>')).toBe(true);
@@ -156,13 +156,13 @@ describe('exporting a figure from its stored snapshot', () => {
   });
 
   it('emits a standalone document, the same serialization a flat figure takes', () => {
-    const svg = serializeFoldedFigureSvg(stored) ?? '';
+    const svg = foldedFigureExportDocument(stored)!.svg;
     expect(svg.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(svg.trimEnd().endsWith('</svg>')).toBe(true);
   });
 
   it('draws every primitive the stream carries, in order', () => {
-    const svg = serializeFoldedFigureSvg(stored) ?? '';
+    const svg = foldedFigureExportDocument(stored)!.svg;
     // One drawn element per primitive; the page's own background `<rect>` is
     // the only other shape in the file.
     const drawn = svg.match(/<(?:path|polygon|line|ellipse)\b/g) ?? [];

@@ -30,7 +30,7 @@ import {
   DESKTOP_PNG_CANVAS_LIMIT,
   pngFitsCanvas,
 } from '../lib/paper/pngCanvasLimits';
-import type { PaperSvgResult } from '../lib/paper/paperSvg';
+import { PT_PER_CSS_PX, type PaperSvgResult } from '../lib/paper/paperSvg';
 import { paperPageOf, type PaperExportSettings } from '../lib/paperExportSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
 import { isAppleMobilePlatform } from '../platform/runtime';
@@ -72,6 +72,9 @@ export function paperExportDraft(
   };
 }
 
+/** A fixed picture's PNG is its own pixel size: the density at which a CSS px is a pixel. */
+const CSS_PX_PER_INCH = 96;
+
 function sameOptions(a: PaperExportSettings, b: PaperExportSettings): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -79,6 +82,8 @@ function sameOptions(a: PaperExportSettings, b: PaperExportSettings): boolean {
 export interface PaperExportDialogBinding {
   /** The dialog's title: the page's, or the set's while it exports every page. */
   title: string;
+  /** The picture is fixed: only the format can be chosen. */
+  fixed: boolean;
   draft: PaperExportSettings;
   /** Change some options; nothing is remembered until a file is saved. */
   patch: (next: Partial<PaperExportSettings>) => void;
@@ -147,14 +152,26 @@ export function usePaperExportDialog(
     []
   );
 
+  // A picture no option can change (E9): exported as it is, in the format
+  // chosen, at its own pixel size.
+  const fixed = target.fixedPicture ?? null;
+  const fixedPage = useMemo<PaperSvgResult | null>(
+    () =>
+      fixed && {
+        svg: fixed.svg,
+        widthPt: fixed.widthPx * PT_PER_CSS_PX,
+        heightPt: fixed.heightPx * PT_PER_CSS_PX,
+      },
+    [fixed]
+  );
   const choosable = pages !== null && pages.list.length > 1;
   const [scope, setScope] = useState<PaperExportScope>(choosable ? request.scope : 'this');
   const [pagerIndex, setPagerIndex] = useState(pages?.current ?? 0);
   const all = scope === 'all' && pages !== null;
   // The pages the options call for, and which of them the preview shows.
   const pageIndices = useMemo(
-    () => (all ? pages.list.map((_, index) => index) : [pages?.current ?? 0]),
-    [all, pages]
+    () => (fixed ? [] : all ? pages.list.map((_, index) => index) : [pages?.current ?? 0]),
+    [fixed, all, pages]
   );
   const shownAt = all ? pagerIndex : 0;
 
@@ -205,13 +222,14 @@ export function usePaperExportDialog(
   // another would show neither. While the next builds, the preview keeps its
   // image.
   const painted = useMemo(
-    () => (scene ? paintPaperExport(target, scene, deferredStyle, deferredPage) : null),
-    [scene, target, deferredStyle, deferredPage]
+    () => fixedPage ?? (scene ? paintPaperExport(target, scene, deferredStyle, deferredPage) : null),
+    [fixedPage, scene, target, deferredStyle, deferredPage]
   );
   const preview = usePreviewImage(painted, status === 'building');
 
   const shown = preview?.page ?? null;
-  const pngSize = shown ? paperPngSize(shown, draft.pngDpi) : null;
+  const pngDpi = fixed ? CSS_PX_PER_INCH : draft.pngDpi;
+  const pngSize = shown ? paperPngSize(shown, pngDpi) : null;
   const limit = isAppleMobilePlatform() ? APPLE_MOBILE_PNG_CANVAS_LIMIT : DESKTOP_PNG_CANVAS_LIMIT;
   const pngTooLarge = format === 'png' && pngSize !== null && !pngFitsCanvas(pngSize, limit);
 
@@ -255,7 +273,7 @@ export function usePaperExportDialog(
           : await savePaperExport({
               page: shown,
               format: draft.format,
-              pngDpi: draft.pngDpi,
+              pngDpi,
               fileStem: target.fileStem,
               signal,
             });
@@ -263,7 +281,8 @@ export function usePaperExportDialog(
       if (!name) return;
       remember(draft);
       trackPaperExported(
-        paperExportedEvent(target.surface, draft, {
+        // The density the file was written at, which a fixed picture sets itself.
+        paperExportedEvent(target.surface, { ...draft, pngDpi }, {
           keepsHiddenFaces,
           style: draft.style,
           rows,
@@ -283,6 +302,7 @@ export function usePaperExportDialog(
   }, [
     canExport,
     shown,
+    pngDpi,
     all,
     pages,
     scenes,
@@ -303,6 +323,7 @@ export function usePaperExportDialog(
   const painting = progress !== null && progress.done < progress.total;
   return {
     title: all ? pages.title : target.title,
+    fixed: fixed !== null,
     draft,
     patch,
     scopes: choosable ? { scope, setScope } : null,

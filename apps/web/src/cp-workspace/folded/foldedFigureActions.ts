@@ -7,7 +7,6 @@ import type {
 import { FOLDED_FIGURE_SIDES } from '../../lib/foldedFigureSides';
 import type { Hex, PaperStyle, PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, policyApplies } from '../../lib/paper/paperStyleResolve';
-import type { FoldedFigureExportFormat } from './foldedFigureExport';
 import { flipFoldedState, foldedFigureCycling, foldedFigureModel } from './foldedFigureState';
 import { foldedFigureCapabilities, isFolded3dFigure } from './foldedFigureCapabilities';
 import { foldedAppearanceEnabled, foldedAppearanceVisible } from './foldedFigureAppearance';
@@ -58,6 +57,7 @@ export interface FoldedFigureCommand {
     | 'set-upright'
     | 'another'
     | 'refold'
+    | 'export'
     | 'duplicate'
     | 'delete';
   label: string;
@@ -85,7 +85,7 @@ export interface FoldedFigureChoiceOption {
  */
 export interface FoldedFigureChoice {
   kind: 'choice';
-  id: 'display-style' | 'side' | 'export';
+  id: 'display-style' | 'side';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
@@ -276,11 +276,8 @@ export interface FoldedFigureActionDeps {
   refold?: (figure: OristudioCpFoldedFigureEntry) => void;
   /** Whether the figure's source creases have changed since it was folded. */
   isStale?: (figure: OristudioCpFoldedFigureEntry) => boolean;
-  /** Save the figure on its own as an image. Omitted drops the export menu. */
-  exportAs?: (
-    figure: OristudioCpFoldedFigureEntry,
-    format: FoldedFigureExportFormat
-  ) => void;
+  /** Open the export dialog on the figure on its own. Omitted drops the verb. */
+  exportFigure?: (figure: OristudioCpFoldedFigureEntry) => void;
   /**
    * Act on a 3D figure's verdict: reveal the CAMV issues, select the creases a
    * crossing names, or simulate a figure whose layers could not be ordered.
@@ -308,21 +305,6 @@ export function isFoldedFigureReady(figure: OristudioCpFoldedFigureEntry): boole
   );
 }
 
-/** A folded figure is geometry on a page, so it exports as an image only. */
-export const FOLDED_FIGURE_EXPORT_FORMATS: readonly FoldedFigureExportFormat[] = [
-  'svg',
-  'png',
-];
-
-export function foldedExportFormatLabel(t: TFunction, value: FoldedFigureExportFormat): string {
-  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
-  switch (value) {
-    case 'svg':
-      return t('panels:foldedFigureActions.exportSvg', 'SVG image');
-    case 'png':
-      return t('panels:foldedFigureActions.exportPng', 'PNG image');
-  }
-}
 
 export function foldedDisplayStyleChoiceLabel(
   t: TFunction,
@@ -658,27 +640,21 @@ export function buildFoldedFigureActions(
     });
   }
 
-  if (deps.exportAs) {
-    const exportAs = deps.exportAs;
+  if (deps.exportFigure) {
+    const exportFigure = deps.exportFigure;
     actions.push(
       { kind: 'separator', id: 'before-export' },
       {
-        kind: 'choice',
+        kind: 'command',
         id: 'export',
+        // One verb: the dialog it opens chooses the format, with the page in view.
         label: t('panels:foldedFigureActions.export', 'Export…'),
         icon: 'export',
         // Exported from the figure's own picture — a 3D figure's scene, a flat
         // figure's render snapshot — so anything on screen can be saved,
         // including a figure whose creases have since moved.
         disabled: figure.renderSnapshot === null && (figure.scene ?? null) === null,
-        // One-shot actions, not a mode: no current format to check.
-        exclusive: false,
-        options: FOLDED_FIGURE_EXPORT_FORMATS.map((value) => ({
-          id: `export-${value}`,
-          label: foldedExportFormatLabel(t, value),
-          checked: false,
-          run: () => exportAs(figure, value),
-        })),
+        run: () => exportFigure(figure),
       }
     );
   }

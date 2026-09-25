@@ -1,46 +1,34 @@
 import type { OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
-import { creaseExportPalette, svgToPng, type CreaseExportTheme } from '../../lib/creaseExport';
+import { creaseExportPalette, type CreaseExportTheme } from '../../lib/creaseExport';
 import { foldedFigureSvgBody, projectedFoldedFigureBounds } from '../../lib/foldedFigureSvg';
 import type { Point } from '../../lib/geometry';
 
 /**
- * Export one folded figure on its own, straight from its render snapshot.
+ * A folded figure's stored render snapshot as a standalone page: what a figure
+ * with no scene to paint exports — the export dialog's fixed picture (E9 in
+ * `implementation-plans/paper-export-dialog.md`).
  *
- * Deliberately not routed through the crease-pattern export dialog: that dialog
- * is scoped to a crease pattern and *re-folds* a segment to draw its figure. A
- * figure on the canvas already has its geometry, so exporting it is a
- * serialization, not another fold — no kernel round trip, and the file is
- * exactly the figure the user is looking at.
+ * A figure with a live kernel exports its scene through the shared painter
+ * instead — the window's scene for a 3D figure, the kernel's paper scene for a
+ * flat one (`foldedFigureExportTarget.ts`) — so the file is the picture the
+ * canvas shows, on the export style and page, with every layer in it. What
+ * comes through here is a figure reopened from a file and not yet rehydrated:
+ * it has no render model or handle to build a scene from, so its stored
+ * `renderSnapshot` — the same picture the canvas and the CP export dialog draw
+ * for it (R7) — is serialized as it always was, a serialization rather than
+ * another fold. So does a flat figure in a display style the paper scene has
+ * no form for (`Wire2`, `None0`, the development views).
  *
  * The figure's canvas placement (offset, scale, rotation) is not applied. That
  * transform says where the figure sits *on the crease-pattern canvas*, and a
- * standalone image has no canvas; the crease-pattern export draws its folded
- * figure from the snapshot alone for the same reason.
- *
- * # A figure with a live kernel does not export from here
- *
- * It exports its scene through the shared painter instead — the window's
- * scene for a 3D figure (`folded3dFigureExport.ts`), the kernel's paper scene
- * for a flat one (`foldedFlatFigureExport.ts`) — so the file is the picture
- * the canvas shows, on the export style and page, with every layer in it.
- * What *does* come through here is a figure reopened from a file and not yet
- * rehydrated: it has no render model or handle to build a scene from, so its
- * stored `renderSnapshot` — the same picture the canvas and the CP export
- * dialog draw for it (R7) — is serialized as it always was. So does a flat
- * figure in a display style the paper scene has no form for (`Wire2`,
- * `None0`, the development views).
+ * standalone image has no canvas.
  *
  * A **3D** figure reaches here only from a file written before its stored
- * picture became a `PaperScene` (Phase 7 of
- * `implementation-plans/unified-paper-style-and-export.md`): a figure with a
- * scene and no handle re-paints that scene through the painter instead. Such a
- * snapshot is fitted to the figure's frame at any zoom, and keeps the **red
- * annotation** on cells whose order the solver could not decide, which nothing
- * draws any more.
+ * picture became a `PaperScene`: a figure with a scene and no handle re-paints
+ * that scene through the painter instead. Such a snapshot is fitted to the
+ * figure's frame at any zoom, and keeps the **red annotation** on cells whose
+ * order the solver could not decide, which nothing draws any more.
  */
-
-/** Formats a folded figure can be exported to: it is geometry, so images only. */
-export type FoldedFigureExportFormat = 'svg' | 'png';
 
 /** Side of the exported image's longest edge, in px, before padding. */
 const FIGURE_SIZE = 1024;
@@ -106,22 +94,4 @@ export function foldedFigureExportDocument(
     .join('\n');
 
   return { svg, width, height };
-}
-
-/** The figure as a standalone SVG file. Null when it draws nothing. */
-export function serializeFoldedFigureSvg(
-  snapshot: OristudioCpFoldedRenderSnapshot | null | undefined,
-  options: FoldedFigureExportOptions = {}
-): string | null {
-  return foldedFigureExportDocument(snapshot, options)?.svg ?? null;
-}
-
-/** The figure rasterized to PNG bytes. Null when it draws nothing. */
-export async function renderFoldedFigurePng(
-  snapshot: OristudioCpFoldedRenderSnapshot | null | undefined,
-  options: FoldedFigureExportOptions = {}
-): Promise<Uint8Array | null> {
-  const page = foldedFigureExportDocument(snapshot, options);
-  if (!page) return null;
-  return svgToPng(page.svg, page.width, page.height);
 }

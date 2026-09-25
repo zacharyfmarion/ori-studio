@@ -176,14 +176,11 @@ describe('CpFoldedFigureToolbar', () => {
   // IconButton's own tooltip trigger and the Radix menu trigger could not both
   // wrap the button. Hovering a menu button showed nothing at all.
   it('gives dropdown triggers a tooltip, not just an accessible name', () => {
-    render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
+    render(makeFigure(), makeDeps({ exportFigure: vi.fn() }));
     const menuButtons = buttons().filter(
       (button) => button.getAttribute('aria-haspopup') === 'menu'
     );
-    expect(menuButtons.map((button) => button.getAttribute('aria-label'))).toEqual([
-      'Style',
-      'Export…',
-    ]);
+    expect(menuButtons.map((button) => button.getAttribute('aria-label'))).toEqual(['Style']);
     // Whether the tooltip actually appears is Radix's contract and needs a real
     // browser — it gates on focus-visible and pointer state that jsdom does not
     // model, so asserting it here would only ever test the stub. `data-state` is
@@ -217,7 +214,7 @@ describe('CpFoldedFigureToolbar', () => {
   });
 
   it('shows the export control when the caller supports exporting', () => {
-    render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
+    render(makeFigure(), makeDeps({ exportFigure: vi.fn() }));
     expect(labels()).toEqual([
       'Flip',
       'Style',
@@ -227,6 +224,20 @@ describe('CpFoldedFigureToolbar', () => {
       'Delete',
     ]);
     expect(toolbar()?.querySelectorAll('.floating-toolbar__separator')).toHaveLength(3);
+  });
+
+  it('exports with one button that opens no menu and hands the figure to the dialog', () => {
+    const exportFigure = vi.fn();
+    const figure = makeFigure();
+    render(figure, makeDeps({ exportFigure }));
+    const exportButton = buttons().find((button) => button.getAttribute('aria-label') === 'Export…');
+    expect(exportButton?.getAttribute('aria-haspopup')).toBeNull();
+    act(() => {
+      exportButton?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+    expect(exportFigure).toHaveBeenCalledTimes(1);
+    expect(exportFigure).toHaveBeenCalledWith(figure);
+    expect(document.querySelector('[role="menu"]')).toBeNull();
   });
 
   describe('Style menu', () => {
@@ -354,12 +365,6 @@ describe('CpFoldedFigureToolbar', () => {
         );
       });
       expect(document.querySelector('[role="menu"]')).toBeNull();
-    });
-
-    it('still lists the export formats behind their own trigger', () => {
-      render(makeFigure(), makeDeps({ exportAs: vi.fn() }));
-      openMenu('Export…');
-      expect(rows().map((row) => row.textContent)).toEqual(['SVG image', 'PNG image']);
     });
   });
 
