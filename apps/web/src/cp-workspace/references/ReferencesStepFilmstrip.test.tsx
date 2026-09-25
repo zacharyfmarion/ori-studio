@@ -56,7 +56,11 @@ const steps: ReferencesFilmstripStep[] = [0, 1, 2].map((i) => ({
   primitives: null,
   mirrored: false,
   sentence: `step ${i + 1}`,
+  // The middle card can be folded three ways and shows the second.
+  ways: i === 1 ? { count: 3, index: 1 } : null,
 }));
+
+let wayPresses: string[] = [];
 
 function show(activeStep: number): void {
   act(() => {
@@ -66,6 +70,12 @@ function show(activeStep: number): void {
         <ReferencesStepFilmstrip
           steps={steps}
           activeStep={activeStep}
+          onPreviousWay={() => wayPresses.push('previous')}
+          onNextWay={() => wayPresses.push('next')}
+          previousWayLabel="Previous Way"
+          nextWayLabel="Next Way"
+          previousWayDisabled={false}
+          nextWayDisabled={true}
           onSelectStep={() => {}}
           onPrevious={() => {}}
           onNext={() => {}}
@@ -132,6 +142,39 @@ describe('the active card', () => {
     show(1);
     expect(document.activeElement).toBe(outside);
     outside.remove();
+  });
+});
+
+describe('a card with other ways to fold it', () => {
+  const waysRow = () => container?.querySelector('.references-filmstrip__ways') ?? null;
+
+  it('shows a dot per way on its card, the one it shows filled', () => {
+    show(0);
+    const dots = cards()[1].querySelectorAll('.references-card__way');
+    expect(dots).toHaveLength(3);
+    expect([...dots].map((dot) => dot.classList.contains('references-card__way--shown'))).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    expect(cards()[1].querySelector('.references-card__ways')?.getAttribute('aria-label')).toBe(
+      'Way 2 of 3'
+    );
+    expect(cards()[0].querySelector('.references-card__ways')).toBeNull();
+  });
+
+  it('puts the switcher under its sentence only while it is the active card', () => {
+    wayPresses = [];
+    show(0);
+    expect(waysRow()).toBeNull();
+    show(1);
+    const row = waysRow();
+    expect(row?.textContent).toContain('Way 2 of 3');
+    expect(row?.querySelector('[aria-live="polite"]')).not.toBeNull();
+    const [previous, next] = [...(row?.querySelectorAll('button') ?? [])] as HTMLButtonElement[];
+    expect(next.disabled).toBe(true);
+    act(() => previous.click());
+    expect(wayPresses).toEqual(['previous']);
   });
 });
 

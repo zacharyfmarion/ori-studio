@@ -208,7 +208,7 @@ fn tighten_extents(
     }
     let mut papers = Vec::new();
     let mut quality =
-        crate::quality::replay(closure, &placed, |_, paper| papers.push(paper.clone()));
+        crate::quality::replay(closure, &placed, |_, now| papers.push(now.paper.clone()));
     for k in 0..placed.len() {
         if deadline.expired() {
             break;

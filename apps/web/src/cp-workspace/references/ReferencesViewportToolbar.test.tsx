@@ -68,6 +68,8 @@ function commandsFor(overrides: Partial<ReferencesActionState> = {}) {
         activeStep: 0,
         candidateCount: 0,
         activeCandidate: 0,
+        wayCount: 0,
+        activeWay: 0,
         canRecompute: true,
         hasView: true,
         fold: { available: true, playing: false, folded: false, pleat: false },

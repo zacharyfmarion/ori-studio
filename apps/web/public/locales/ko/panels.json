@@ -805,6 +805,7 @@
     "actions": {
       "noFoldHint": "이 카드에는 접을 것이 없습니다",
       "noTargetHint": "먼저 꼭짓점이나 접는 선을 선택하세요",
+      "oneWayHint": "이 단계는 한 가지 방법으로만 접습니다",
       "pauseFold": "접기 일시정지",
       "pleatHint": "주름 접기는 아직 애니메이션되지 않습니다",
       "unfold": "펼치기"
@@ -1022,6 +1023,11 @@
       "refusedSheets": "종이 {{n}}장은 직사각형이 아니어서 제외됩니다.",
       "unassignedSegments": "{{n}}개의 접는 선이 어느 용지에도 속하지 않아 제외됩니다.",
       "zeroLengthSegments": "{{n}}개의 접는 선이 너무 짧아 측정할 수 없어 건너뛰었습니다."
+    },
+    "ways": {
+      "label": "이 단계를 접는 방법",
+      "readout": "방법 {{n}} / {{total}}",
+      "readoutShort": "{{n}} / {{total}}"
     }
   },
   "sheets": {

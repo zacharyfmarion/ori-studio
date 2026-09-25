@@ -867,6 +867,7 @@
     "actions": {
       "noFoldHint": "Rien à plier sur cette carte",
       "noTargetHint": "Choisissez d’abord un sommet ou un pli",
+      "oneWayHint": "Cette étape ne se plie que d’une façon",
       "pauseFold": "Mettre le pli en pause",
       "pleatHint": "Les plissés ne sont pas encore animés",
       "unfold": "Déplier"
@@ -1098,6 +1099,11 @@
       "refusedSheets": "{{n}} feuille(s) ne sont pas des rectangles et sont laissées de côté.",
       "unassignedSegments": "{{n}} pli(s) se trouvent en dehors de toute feuille et sont ignorés.",
       "zeroLengthSegments": "{{n}} pli(s) sont trop courts pour être mesurés et ont été ignorés."
+    },
+    "ways": {
+      "label": "Façons de plier cette étape",
+      "readout": "Façon {{n}} sur {{total}}",
+      "readoutShort": "{{n}} / {{total}}"
     }
   },
   "sheets": {

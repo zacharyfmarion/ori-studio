@@ -46,12 +46,13 @@ export function useFoldPlayback({
           },
         }),
         reducedMotion: prefersReducedMotion,
-        onPlay: (trigger, heading, kind) =>
+        onPlay: (trigger, heading, kind, way) =>
           track(ANALYTICS_EVENTS.referencesFoldPlayed, {
             trigger,
             direction: heading,
             step_kind: kind === 'turn-over' ? 'turn_over' : kind,
             tab: kind === 'reference' ? 'find' : 'sequence',
+            ...(way ? { way } : {}),
           }),
       })
   );

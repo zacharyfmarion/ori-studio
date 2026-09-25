@@ -8,12 +8,12 @@
 use serde::Serialize;
 
 use crate::closure::Closure;
-use crate::direction::Side;
+use crate::direction::{Direction, Side};
 use crate::judge::{MAX_PINCH_ERROR, Vouch, judge};
 use crate::line::Line;
 use crate::marks::{Creased, crease_runs, end_is_found, witness_sightable};
 use crate::order::Placed;
-use crate::pinch::{Extent, PINCH_HALF_LENGTH, placed_pinch_pass};
+use crate::pinch::{Extent, PINCH_HALF_LENGTH, PinchVerdict, placed_pinch_pass};
 use crate::state::LineTag;
 use crate::tol::TOL;
 
@@ -145,14 +145,41 @@ pub fn evaluate(closure: &Closure, placed: &[Placed]) -> Quality {
     replay(closure, placed, |_, _| {})
 }
 
+/// What the replay knows as it reaches a placed entry: the paper the earlier
+/// instructions left, and what they settled about the lines on it.
+pub(crate) struct ReplayAt<'a> {
+    pub paper: &'a Creased,
+    /// The direction each line was folded in so far, for `judge`.
+    pub direction: &'a [Option<Direction>],
+    /// Which lines are exact so far (`sequence::witness_is_exact`).
+    pub exact_lines: &'a [bool],
+}
+
 pub(crate) fn replay(
     closure: &Closure,
     placed: &[Placed],
-    mut before: impl FnMut(usize, &Creased),
+    before: impl FnMut(usize, &ReplayAt),
+) -> Quality {
+    replay_with(closure, placed, &placed_pinch_pass(closure, placed), before)
+}
+
+/// [`evaluate`] with the auxiliary pinch pass's verdicts given rather than
+/// derived again from `placed`: the plan's own, for a placement whose
+/// witnesses differ from the plan's only in what a card presents
+/// (`order::ways`), which leaves every other card — the auxiliary folds'
+/// pinches among them — as the plan has it.
+pub fn evaluate_with(closure: &Closure, placed: &[Placed], extents: &[PinchVerdict]) -> Quality {
+    replay_with(closure, placed, extents, |_, _| {})
+}
+
+fn replay_with(
+    closure: &Closure,
+    placed: &[Placed],
+    extents: &[PinchVerdict],
+    mut before: impl FnMut(usize, &ReplayAt),
 ) -> Quality {
     let state = closure.state();
     let folded = closure.folded();
-    let extents = placed_pinch_pass(closure, placed);
     let mut paper = Creased::new(state);
     // Lengths count pinches too; visibility/alignment must keep them separate.
     let mut ink = Creased::new(state);
@@ -185,7 +212,14 @@ pub(crate) fn replay(
         }
     }
     for (k, p) in placed.iter().enumerate() {
-        before(k, &paper);
+        before(
+            k,
+            &ReplayAt {
+                paper: &paper,
+                direction: &direction,
+                exact_lines: &exact_lines,
+            },
+        );
         let f = &folded[p.folded];
         let target = f.target.map(|t| &closure.targets()[t]);
         let pattern = target.map_or(&[][..], |t| t.spans.as_slice());

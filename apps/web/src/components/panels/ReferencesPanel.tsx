@@ -79,6 +79,7 @@ import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferen
 import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/references/useReferencesRun';
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
 import { useReferencesTarget } from '../../cp-workspace/references/useReferencesTarget';
+import { useReferencesWays } from '../../cp-workspace/references/useReferencesWays';
 import {
   useReferencesHighlights,
   useReferencesPlanHighlights,
@@ -269,6 +270,14 @@ export function ReferencesPanel() {
   const selectStep = targeted ? controller.selectStep : breakdown.selectStep;
   const nextStep = useCallback(() => selectStep(activeStep + 1), [selectStep, activeStep]);
   const previousStep = useCallback(() => selectStep(activeStep - 1), [selectStep, activeStep]);
+  // The active card's other ways to fold it, while the plan is read.
+  const ways = useReferencesWays(
+    breakdown.record,
+    breakdown.variants,
+    viewSteps,
+    breakdown.activeStep,
+    readingPlan
+  );
 
   const active = controller.active;
   /**
@@ -410,6 +419,8 @@ export function ReferencesPanel() {
     previousStep,
     nextCandidate: controller.nextCandidate,
     previousCandidate: controller.previousCandidate,
+    nextWay: ways.nextWay,
+    previousWay: ways.previousWay,
     recompute,
     toggleLandmarksFirst: breakdown.toggleLandmarksFirst,
     resetView: fitView,
@@ -439,6 +450,8 @@ export function ReferencesPanel() {
       activeStep,
       candidateCount: controller.candidates?.length ?? 0,
       activeCandidate: controller.activeCandidate,
+      wayCount: ways.active?.count ?? 0,
+      activeWay: ways.active?.index ?? 0,
       canRecompute,
       hasView: view.geometry !== null,
       fold: {
@@ -579,6 +592,12 @@ export function ReferencesPanel() {
               // Off on the phone, whose flow is the one that has a screen at all.
               navigation={flow.screen === null}
               placeholder={filmstripPlaceholder}
+              onPreviousWay={ways.previousWay}
+              onNextWay={ways.nextWay}
+              previousWayLabel={commandById('previous-way')?.label ?? ''}
+              nextWayLabel={commandById('next-way')?.label ?? ''}
+              previousWayDisabled={commandById('previous-way')?.disabled ?? true}
+              nextWayDisabled={commandById('next-way')?.disabled ?? true}
             />
           )}
 

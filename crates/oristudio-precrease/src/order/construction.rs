@@ -251,9 +251,9 @@ pub fn refine(
                 continue;
             };
             let mut before = None;
-            quality::replay(closure, &placed, |at, paper| {
+            quality::replay(closure, &placed, |at, now| {
                 if at == k {
-                    before = Some(paper.clone());
+                    before = Some(now.paper.clone());
                 }
             });
             let Some(paper) = before else {

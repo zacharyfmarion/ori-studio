@@ -55,7 +55,12 @@ export interface FoldTransportOptions {
   /** The view to pose, looked up at each push: it may not be mounted yet. */
   sink: () => FoldPoseSink | null;
   /** Every play, for the analytics event; a pause is not one. */
-  onPlay?: (trigger: FoldPlayTrigger, heading: FoldHeading, kind: FoldSceneKind) => void;
+  onPlay?: (
+    trigger: FoldPlayTrigger,
+    heading: FoldHeading,
+    kind: FoldSceneKind,
+    way?: FoldScene['way']
+  ) => void;
   /** Motion is unwelcome: Play snaps between the rest poses instead. */
   reducedMotion?: () => boolean;
   clock?: FoldTransportClock;
@@ -154,7 +159,7 @@ export class FoldTransport {
     if (next.playing) this.start();
     else this.stop();
     // A pause is not a play; everything else that moves the paper is.
-    if (!before.playing) this.options.onPlay?.(trigger, runHeading(next), scene.kind);
+    if (!before.playing) this.options.onPlay?.(trigger, runHeading(next), scene.kind, scene.way);
   }
 
   private start(): void {

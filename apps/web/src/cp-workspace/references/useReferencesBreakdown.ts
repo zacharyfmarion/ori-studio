@@ -55,6 +55,7 @@ import {
 } from './referencesResults';
 import { beginReferencesRun, endReferencesRun, referencesRunSnapshot } from './referencesRun';
 import { referencesViewSteps, type ReferencesViewStep } from './referencesSequenceView';
+import { presentedSequence } from './referencesWays';
 import { refusalMessageFor } from './referencesSidebarText';
 import type {
   PrecreaseComponent,
@@ -592,7 +593,7 @@ export function useReferencesBreakdown(
       setReferencesPlanRecord(record);
       const nextSummary = summaryOf(record);
       setReferencesPlan(nextSummary);
-      setReferencesView({ activeStep: 0, activeFinding: null });
+      setReferencesView({ activeStep: 0, activeFinding: null, planWays: {} });
       setReferencesRun({ status: 'idle' });
       trackPlan(record, nextSummary, controller.signal.aborted);
     })();
@@ -714,10 +715,18 @@ export function useReferencesBreakdown(
     targeted,
   ]);
 
+  // The plan as the reader chose to fold it: each card on the way picked for
+  // it (`referencesWays`), so every surface below draws and says that way.
   const landmarksFirst = viewState.landmarksFirst;
+  const planWays = viewState.planWays;
   const variants = useMemo<ReferencesPlanVariant[]>(
-    () => record?.components.map((entry) => planVariant(entry, landmarksFirst)) ?? [],
-    [record, landmarksFirst]
+    () =>
+      record?.components.map((entry, index) => {
+        const variant = planVariant(entry, landmarksFirst);
+        const sequence = presentedSequence(variant.sequence, index, planWays);
+        return sequence === variant.sequence ? variant : { ...variant, sequence };
+      }) ?? [],
+    [record, landmarksFirst, planWays]
   );
 
   const components = useMemo<ReferencesBreakdownComponent[]>(

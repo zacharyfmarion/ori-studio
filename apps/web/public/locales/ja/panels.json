@@ -805,6 +805,7 @@
     "actions": {
       "noFoldHint": "このカードには折るものがありません",
       "noTargetHint": "先に頂点または折り線を選んでください",
+      "oneWayHint": "このステップの折り方は1つだけです",
       "pauseFold": "折りを一時停止",
       "pleatHint": "プリーツはまだアニメーションされません",
       "unfold": "開く"
@@ -1022,6 +1023,11 @@
       "refusedSheets": "{{n}} 枚の用紙は長方形ではないため除外されます。",
       "unassignedSegments": "{{n}} 本の折り線がどの用紙にも入らないため除外されます。",
       "zeroLengthSegments": "{{n}} 本の折り線は短すぎて測定できないため、省略しました。"
+    },
+    "ways": {
+      "label": "このステップの折り方",
+      "readout": "折り方 {{n}} / {{total}}",
+      "readoutShort": "{{n}} / {{total}}"
     }
   },
   "sheets": {
