@@ -59,8 +59,13 @@ import {
   COUNT_BUCKETS,
   DESIGN_TAB_COUNT_BUCKETS,
   track,
+  trackCreasePatternExported,
+  type CreasePatternFoldedFigure,
   type DesignTabSource,
 } from '../../../analytics';
+import type { PaperExportStyleChoice } from '../../../lib/paperExportSettings';
+import { paperPresetRows, paperStyleChoiceName } from '../../../lib/paperPresetRows';
+import { useSettingsStore } from '../../settingsStore';
 import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
@@ -240,6 +245,22 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpGridMetadata,
 } from '../../../engine/oristudioCpTypes';
+
+/** The folded figure beside a crease pattern, as the analytics name it: its style, or none. */
+function creasePatternFoldedFigureName(style: PaperExportStyleChoice | null): CreasePatternFoldedFigure {
+  if (style === null) return 'none';
+  return paperStyleChoiceName(style, paperPresetRows(useSettingsStore.getState().paperStyle.presets));
+}
+
+/**
+ * A crease pattern saved as an image: remember the style its folded figure
+ * took, for the next export and share (X12), and say which it was.
+ */
+function recordCreasePatternImageExport(format: 'svg' | 'png', options: CreaseExportOptions): void {
+  const style = options.includeFoldedFigure ? options.foldedFigureStyle : null;
+  if (style !== null) useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(style);
+  trackCreasePatternExported({ format, foldedFigure: creasePatternFoldedFigureName(style) });
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -2810,6 +2831,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           extensions: ['svg'],
         });
         if (!result) return false;
+        recordCreasePatternImageExport('svg', resolved.options);
         set({ projectMessage: `Exported ${result.name}` });
         return true;
       } catch (error) {
@@ -2840,6 +2862,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           mimeType: 'image/png',
         });
         if (!result) return false;
+        recordCreasePatternImageExport('png', resolved.options);
         set({ projectMessage: `Exported ${result.name}` });
         return true;
       } catch (error) {
@@ -2957,7 +2980,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
      * must degrade to the generic card rather than to a failed share. The Worker
      * serves a default when R2 has nothing, so there is no broken-image state.
      */
-    publishOristudioCpShare: async ({ title, author, renderCard }) => {
+    publishOristudioCpShare: async ({ title, author, renderCard, foldedFigureStyle = null }) => {
       const draft = get().oristudioCpShareDraft;
       if (!draft) return false;
       try {
@@ -2972,12 +2995,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           set({ oristudioCpShareDraft: { ...draft, url: created.url } });
         }
         if (author) rememberAuthor(author);
+        if (foldedFigureStyle !== null) {
+          useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(foldedFigureStyle);
+        }
         // The published link and its geometry are never sent — only that a share
-        // was created, a bucketed size, and whether it was titled/attributed.
+        // was created, a bucketed size, whether it was titled/attributed, and
+        // which style its folded figure took, if it had one.
         track('crease pattern shared', {
           crease_count_bucket: bucketCount(draft.fold.edges_vertices?.length ?? 0, COUNT_BUCKETS),
           had_title: Boolean(title),
           had_author: Boolean(author),
+          folded_figure: creasePatternFoldedFigureName(foldedFigureStyle),
         });
 
         void (async () => {
@@ -3068,6 +3096,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               extensions: ['svg'],
             });
             if (!result) return false;
+            recordCreasePatternImageExport('svg', resolved.options);
             set({ projectMessage: `Exported ${result.name}` });
             return true;
           }
@@ -3081,6 +3110,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             mimeType: 'image/png',
           });
           if (!result) return false;
+          recordCreasePatternImageExport('png', resolved.options);
           set({ projectMessage: `Exported ${result.name}` });
           return true;
         }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isOpenLayerTarget } from '../../keyboard/shortcutDispatcher';
 import { useTranslation } from 'react-i18next';
 import { Check, Copy, Link2, X } from 'lucide-react';
 import { track } from '../../analytics';
@@ -24,7 +25,15 @@ import {
 import { cpFoldAngleDisplayLabel } from '../../i18n/enumLabels';
 import { shareCardTitle } from '../../lib/shareCardText';
 import { useFoldedFigurePreview } from '../folded/useFoldedFigurePreview';
-import { useCreaseExportPaper } from '../../hooks/useCreaseExportPaper';
+import {
+  creaseExportFigureColours,
+  creaseExportFigureStyle,
+  openingCreaseExportFigure,
+  useCreaseExportPaper,
+} from '../../hooks/useCreaseExportPaper';
+import { PAPER_EXPORT_STYLE_SLOT, type PaperExportStyleChoice } from '../../lib/paperExportSettings';
+import { useSettingsStore } from '../../store/settingsStore';
+import { PaperStylePicker } from '../../components/paperExport/PaperStylePicker';
 import { readRememberedAuthor } from './cpShareService';
 import { Button } from '../../components/ui/Button';
 import { ColorField } from '../../components/ui/ColorField';
@@ -80,6 +89,7 @@ export function ShareLinkModal() {
     DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY
   );
   const [side, setSide] = useState<FoldedFigureSide>('Front0');
+  const [figureStyle, setFigureStyle] = useState<PaperExportStyleChoice>(PAPER_EXPORT_STYLE_SLOT);
   const [frontColor, setFrontColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.frontColor);
   const [backColor, setBackColor] = useState(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.backColor);
   const [publishing, setPublishing] = useState(false);
@@ -100,15 +110,33 @@ export function ShareLinkModal() {
       useWorkspaceStore.getState().oristudioCpViewport.foldAngleDisplay ??
         DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY
     );
+    // The folded figure on the style last picked for it, shared with the
+    // crease-pattern export, its paper colours from that style (E15).
+    const opening = openingCreaseExportFigure();
+    setFigureStyle(opening.style);
+    setFrontColor(opening.colours.frontColor);
+    setBackColor(opening.colours.backColor);
   }, [open]);
+
+  // A new style re-seeds Front and Back from its paper; editing them after
+  // pins over it.
+  const pickFigureStyle = (style: PaperExportStyleChoice) => {
+    const colours = creaseExportFigureColours(
+      creaseExportFigureStyle(useSettingsStore.getState().paperStyle, style)
+    );
+    setFigureStyle(style);
+    setFrontColor(colours.frontColor);
+    setBackColor(colours.backColor);
+  };
 
   useEffect(() => {
     if (!open) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dismiss();
-      }
+      if (event.key !== 'Escape') return;
+      // An open Select or menu in the card closes itself first.
+      if (isOpenLayerTarget(event.target)) return;
+      event.preventDefault();
+      dismiss();
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
@@ -159,7 +187,7 @@ export function ShareLinkModal() {
     cacheKeyPrefix: String(draft?.segmentId ?? ''),
     onError: () => setShowFolded(false),
   });
-  const paper = useCreaseExportPaper();
+  const paper = useCreaseExportPaper(figureStyle);
 
   // The card is composed from the same primitives the export dialog previews with, so
   // what is published is what was shown.
@@ -233,7 +261,13 @@ export function ShareLinkModal() {
   const onPublish = async () => {
     setPublishing(true);
     try {
-      await publish({ title: title.trim(), author: author.trim() || null, renderCard });
+      await publish({
+        title: title.trim(),
+        author: author.trim() || null,
+        renderCard,
+        // The style is the card's only when it carries the figure.
+        foldedFigureStyle: showFolded && canFold ? figureStyle : null,
+      });
     } finally {
       setPublishing(false);
     }
@@ -252,10 +286,13 @@ export function ShareLinkModal() {
   };
 
   return (
+    // A shortcut barrier, as the export dialogs are: Space on its style picker
+    // or its switches is theirs, not the Edit workspace's behind it.
     <div
       role="dialog"
       aria-modal="true"
       aria-label={t('dialogs:shareLink.title', 'Share crease pattern')}
+      data-shortcut-barrier=""
       className="simple-modal"
       onMouseDown={dismiss}
     >
@@ -393,6 +430,7 @@ export function ShareLinkModal() {
 
             {showFolded && canFold && (
               <div className="share-link-modal__folded">
+                <PaperStylePicker value={figureStyle} onChange={pickFigureStyle} />
                 <div className="share-link-modal__folded-row">
                   <span className="share-link-modal__folded-label">
                     {t('dialogs:share.side', 'Side')}

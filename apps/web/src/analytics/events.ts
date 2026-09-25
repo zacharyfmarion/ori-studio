@@ -274,6 +274,9 @@ export type PaperExportBackground = 'transparent' | 'colour';
 /** A PNG's density as the export dialog's picker names it; `none` for an SVG. */
 export type PaperExportResolution = '1x' | '2x' | '3x' | '4x' | '300' | '600' | 'custom' | 'none';
 
+/** The folded figure beside a crease pattern: the style it was drawn in, or none. */
+export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
+
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
 
@@ -827,6 +830,14 @@ export const ANALYTICS_EVENTS = {
   simulatorPatternOpened: 'simulator pattern opened',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
+  /**
+   * A crease pattern was saved as an SVG or PNG image from its export dialog.
+   * `folded_figure` is the style the folded figure beside it was drawn in —
+   * the export slot or a preset by kind — or `none` without one: whether the
+   * figure is used, and whether its picker earns its place. The menu
+   * chokepoint sees only the command, not what the dialog made of it.
+   */
+  creasePatternExported: 'crease pattern exported',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',
   exploriSearch: 'explori search',

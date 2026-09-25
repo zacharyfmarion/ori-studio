@@ -8,13 +8,12 @@
 import type { PaperExportedEvent, PaperExportScope, PaperExportSurface } from '../analytics';
 import { paperSvgToPng } from '../lib/paper/paperPng';
 import type { PaperSvgResult } from '../lib/paper/paperSvg';
-import {
-  PAPER_EXPORT_STYLE_SLOT,
-  type PaperExportFormat,
-  type PaperExportSettings,
-  type PaperExportStyleChoice,
+import type {
+  PaperExportFormat,
+  PaperExportSettings,
+  PaperExportStyleChoice,
 } from '../lib/paperExportSettings';
-import type { PaperPresetRow } from '../lib/paperPresetRows';
+import { paperStyleChoiceName, type PaperPresetRow } from '../lib/paperPresetRows';
 import { exportFilename } from '../platform/exportFilename';
 import { getFileService, type FileService } from '../platform/fileService';
 import { zipPages, type ZipEntry } from './zipPages';
@@ -134,15 +133,11 @@ export function paperExportedEvent(
     pageCount: number;
   }
 ): PaperExportedEvent {
-  const row =
-    details.style === PAPER_EXPORT_STYLE_SLOT
-      ? null
-      : (details.rows.find((entry) => entry.key === details.style) ?? null);
   return {
     surface,
     format: options.format,
     hiddenFaces: details.keepsHiddenFaces ? 'kept' : 'dropped',
-    style: row === null ? 'export-style' : (row.builtIn ?? 'custom'),
+    style: paperStyleChoiceName(details.style, details.rows),
     sheet: options.sheet === 'as-shown' ? 'as-shown' : 'custom',
     background: options.background === null ? 'transparent' : 'colour',
     pngDpi: options.pngDpi,

@@ -1209,7 +1209,7 @@ describe('folded figure placement', () => {
     const artwork = buildCreaseExportArtwork(fold, segments, options, {
       foldedFigure: tallFigure(),
       foldedFigureScene: tallScene(),
-      paper: { style, keepHiddenFaces: true },
+      paper: { style },
     });
 
     // Every layer, back to front — the buried face 1 (front up) under face 0
@@ -1236,7 +1236,9 @@ describe('folded figure placement', () => {
     expect(svg).toMatch(/<g transform="translate\([\d.]+, [\d.]+\)" stroke-linejoin="round">/);
   });
 
-  it('drops the buried layer when the paper says so', () => {
+  it('keeps every layer: the paper it is handed has no hidden-face option', () => {
+    // The inset is a figure beside its pattern, not a drawing to peel apart:
+    // the option belongs to the paper dialog (X12, E10).
     const fold = twoPatternFold();
     const segments = segmentFoldDocument(fold);
     const artwork = buildCreaseExportArtwork(
@@ -1246,11 +1248,11 @@ describe('folded figure placement', () => {
       {
         foldedFigure: tallFigure(),
         foldedFigureScene: tallScene(),
-        paper: { style: DEFAULT_PAPER_STYLE, keepHiddenFaces: false },
+        paper: { style: DEFAULT_PAPER_STYLE },
       }
     );
 
-    expect(polygonFills(artwork.folded!)).toEqual([DEFAULT_PAPER_STYLE.paper.back]);
+    expect(polygonFills(artwork.folded!)).toHaveLength(2);
   });
 
   it('keeps the snapshot path for a fold with no scene, and when the figure is left out', () => {

@@ -8,7 +8,11 @@ import {
   requestPositiveNumber,
   useCommandDialogStore,
 } from '../store/commandDialogStore';
-import { CREASE_EXPORT_PALETTES, DEFAULT_CREASE_EXPORT_OPTIONS } from '../lib/creaseExport';
+import {
+  CREASE_EXPORT_PALETTES,
+  DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
+  DEFAULT_CREASE_EXPORT_OPTIONS,
+} from '../lib/creaseExport';
 import type { CreaseExportDialogResult } from '../store/commandDialogStore';
 import { segmentFoldDocument } from '../lib/creasePatternSegmentation';
 import type { FoldDocument } from '../engine/types';
@@ -17,7 +21,9 @@ import type {
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
+import { builtInPaperPreset } from '../lib/paper/paperPresets';
 import { IDENTITY_CP_MODEL_TO_FOLD } from '../lib/creaseExportFold';
+import { useSettingsStore } from '../store/settingsStore';
 import { CommandDialogModal } from './CommandDialogModal';
 
 function exportFold(): FoldDocument {
@@ -164,6 +170,10 @@ if (!globalThis.ResizeObserver) {
     disconnect() {}
   };
 }
+// Radix Select scrolls the selected option into view as it opens.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -301,7 +311,7 @@ describe('CommandDialogModal', () => {
       content: {
         foldedFigure: null,
         foldedFigureScene: null,
-        paper: { style: DEFAULT_PAPER_STYLE, keepHiddenFaces: true },
+        paper: { style: DEFAULT_PAPER_STYLE },
         foldedFigureTransform: undefined,
         grid: null,
       },
@@ -459,7 +469,7 @@ describe('CommandDialogModal', () => {
       content: {
         foldedFigure: { primitives: expect.any(Array) },
         foldedFigureScene: { faces: expect.any(Array) },
-        paper: { style: DEFAULT_PAPER_STYLE, keepHiddenFaces: true },
+        paper: { style: DEFAULT_PAPER_STYLE },
         foldedFigureTransform: IDENTITY_CP_MODEL_TO_FOLD,
       },
     });
@@ -766,6 +776,182 @@ describe('CommandDialogModal', () => {
     });
 
     await expect(result).resolves.toBe(false);
+  });
+
+  describe('folded figure style', () => {
+    const diagram = builtInPaperPreset('diagram').style;
+
+    const styleTrigger = () =>
+      container?.querySelector<HTMLButtonElement>('button[aria-label="Style"]') ?? null;
+    const colourField = (label: 'Front' | 'Back') =>
+      container?.querySelector<HTMLInputElement>(`input[type="color"][aria-label="${label}"]`) ??
+      null;
+    const preview = () =>
+      decodeURIComponent(
+        container?.querySelector('.export-modal__preview img')?.getAttribute('src') ?? ''
+      );
+
+    afterEach(() => {
+      useSettingsStore.setState(useSettingsStore.getInitialState(), true);
+    });
+
+    /** Opens the dialog on a foldable pattern with the figure included and its section open. */
+    async function openWithFigure(): Promise<{
+      result: Promise<CreaseExportDialogResult | null>;
+    }> {
+      const rendered = renderModalHost();
+      const fold = exportFold();
+      let result = Promise.resolve<CreaseExportDialogResult | null>(null);
+      act(() => {
+        result = requestCreasePatternExportOptions({
+          title: 'Export SVG',
+          format: 'svg',
+          fold,
+          segments: segmentFoldDocument(fold),
+          initialOptions: { ...DEFAULT_CREASE_EXPORT_OPTIONS },
+          grid: null,
+          foldSegment: vi.fn(async () => ({
+            snapshot: foldedSnapshot(),
+            scene: foldedScene(),
+            discoveredCases: 1,
+            transform: IDENTITY_CP_MODEL_TO_FOLD,
+          })),
+          confirmLabel: 'Export SVG',
+        });
+      });
+      await act(async () => {
+        (
+          rendered.querySelector('[aria-label="Include folded figure"]') as HTMLButtonElement
+        ).click();
+      });
+      act(() => {
+        openSection(rendered, 'Folded figure');
+      });
+      return { result };
+    }
+
+    async function pickStyle(name: string) {
+      // Enter opens the Select without a pointer, which jsdom cannot aim.
+      await act(async () => {
+        styleTrigger()?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+        );
+      });
+      const option = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).find(
+        (element) => element.textContent?.trim() === name
+      );
+      expect(option).toBeDefined();
+      await act(async () => {
+        option?.click();
+      });
+    }
+
+    async function submit(result: Promise<CreaseExportDialogResult | null>) {
+      await act(async () => {
+        findButton('Export SVG').click();
+        await result;
+      });
+      return result;
+    }
+
+    it('leaves Escape to the open style picker, and keys aimed inside it to the dialog', async () => {
+      const { result } = await openWithFigure();
+      const dialogRoot = styleTrigger()!.closest('[role="dialog"]');
+      expect(dialogRoot?.hasAttribute('data-shortcut-barrier')).toBe(true);
+
+      await act(async () => {
+        styleTrigger()?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+        );
+      });
+      const option = document.querySelector<HTMLElement>('[role="option"]')!;
+      await act(async () => {
+        option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      });
+      expect(document.querySelector('[role="option"]')).toBeNull();
+      expect(styleTrigger()).not.toBeNull();
+
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await result;
+      });
+      await expect(result).resolves.toBeNull();
+    });
+
+    it('opens on the export slot with default settings, and resolves as before', async () => {
+      const { result } = await openWithFigure();
+
+      expect(styleTrigger()?.textContent).toBe('Export style · Default, from display');
+      expect(colourField('Front')?.value).toBe(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.frontColor);
+      expect(colourField('Back')?.value).toBe(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.backColor);
+
+      const resolved = await submit(result);
+      expect(resolved?.options).toEqual({
+        ...DEFAULT_CREASE_EXPORT_OPTIONS,
+        includeFoldedFigure: true,
+        foldedFigureStyle: 'export-style',
+      });
+      expect(resolved?.content.paper).toEqual({ style: DEFAULT_PAPER_STYLE });
+    });
+
+    it('opens on the remembered style, heading the Folded figure section, its colours from that paper', async () => {
+      useSettingsStore.setState({ creasePatternFoldedFigureStyle: 'builtin:diagram' });
+      const { result } = await openWithFigure();
+
+      const section = styleTrigger()?.closest('.export-modal__section');
+      expect(section?.querySelector('.export-modal__section-toggle')?.textContent).toBe(
+        'Folded figure'
+      );
+      expect(section?.querySelector('.export-modal__label')?.textContent).toBe('Style');
+      expect(styleTrigger()?.textContent).toBe('Diagram');
+      expect(colourField('Front')?.value).toBe(diagram.paper.front);
+      expect(colourField('Back')?.value).toBe(diagram.paper.back);
+
+      const resolved = await submit(result);
+      expect(resolved?.options).toMatchObject({
+        foldedFigureStyle: 'builtin:diagram',
+        foldedFigure: { frontColor: diagram.paper.front, backColor: diagram.paper.back },
+      });
+      expect(resolved?.content.paper).toEqual({ style: diagram });
+    });
+
+    it('opens on the export slot when the remembered style names no preset', async () => {
+      useSettingsStore.setState({ creasePatternFoldedFigureStyle: 'user:Deleted since' });
+      const { result } = await openWithFigure();
+
+      expect(styleTrigger()?.textContent).toBe('Export style · Default, from display');
+      expect(colourField('Front')?.value).toBe(DEFAULT_CREASE_EXPORT_FOLDED_FIGURE.frontColor);
+
+      const resolved = await submit(result);
+      expect(resolved?.options.foldedFigureStyle).toBe('export-style');
+      expect(resolved?.content.paper).toEqual({ style: DEFAULT_PAPER_STYLE });
+    });
+
+    it('re-seeds Front and Back from a picked style, and keeps an edit made after it', async () => {
+      const { result } = await openWithFigure();
+      expect(preview()).toContain(`fill="${DEFAULT_PAPER_STYLE.paper.front}"`);
+
+      await pickStyle('Diagram');
+      expect(styleTrigger()?.textContent).toBe('Diagram');
+      expect(colourField('Front')?.value).toBe(diagram.paper.front);
+      expect(colourField('Back')?.value).toBe(diagram.paper.back);
+      expect(preview()).not.toContain(`fill="${DEFAULT_PAPER_STYLE.paper.front}"`);
+
+      await act(async () => {
+        setFieldValue(colourField('Front')!, '#123456');
+      });
+      expect(colourField('Front')?.value).toBe('#123456');
+      expect(colourField('Back')?.value).toBe(diagram.paper.back);
+      expect(styleTrigger()?.textContent).toBe('Diagram');
+      expect(preview()).toContain('fill="#123456"');
+
+      const resolved = await submit(result);
+      expect(resolved?.options).toMatchObject({
+        foldedFigureStyle: 'builtin:diagram',
+        foldedFigure: { frontColor: '#123456', backColor: diagram.paper.back },
+      });
+      expect(resolved?.content.paper).toEqual({ style: diagram });
+    });
   });
 
   describe('choice dialog', () => {

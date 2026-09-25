@@ -23,6 +23,7 @@ export type {
   ContextMenuSurface,
   ContextMenuTargetKind,
   CpFavoriteSurface,
+  CreasePatternFoldedFigure,
   DesignMethod,
   DesignTabSource,
   DesignVariant,
@@ -82,6 +83,7 @@ export {
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export { trackDesktopDownload } from './trackDesktopDownload';
+export { trackCreasePatternExported } from './trackCreasePatternExport';
 export {
   trackPaperExported,
   trackPaperExportOpened,

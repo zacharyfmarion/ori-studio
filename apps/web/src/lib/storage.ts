@@ -52,6 +52,12 @@ export const STORAGE_KEYS = {
    * retired `exportBackground`; see `lib/paperExportSettings.ts`.
    */
   paperExport: 'paper-export',
+  /**
+   * The style the folded figure beside a crease pattern is drawn in, picked in
+   * the crease-pattern export dialog or the share card and remembered for
+   * both — apart from the folded figure's own export (X12).
+   */
+  creasePatternFoldedFigure: 'crease-pattern-folded-figure',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
   /**

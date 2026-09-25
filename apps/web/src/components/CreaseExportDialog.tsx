@@ -38,7 +38,15 @@ import type {
   OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
-import { useCreaseExportPaper } from '../hooks/useCreaseExportPaper';
+import {
+  creaseExportFigureColours,
+  creaseExportFigureStyle,
+  openingCreaseExportFigure,
+  useCreaseExportPaper,
+} from '../hooks/useCreaseExportPaper';
+import type { PaperExportStyleChoice } from '../lib/paperExportSettings';
+import { useSettingsStore } from '../store/settingsStore';
+import { PaperStylePicker } from './paperExport/PaperStylePicker';
 import { FOLDED_FIGURE_SIDES, type FoldedFigureSide } from '../lib/foldedFigureSides';
 import { cpFoldAngleDisplayLabel, cpLineStyleLabel } from '../i18n/enumLabels';
 import { Button } from './ui/Button';
@@ -121,12 +129,27 @@ interface PatternOption {
   svg: string;
 }
 
+/**
+ * The dialog's options as it opens: the folded figure on the style last picked
+ * for it, its Front and Back from that style's paper (E15).
+ */
+function withOpeningFigure(options: CreaseExportOptions): CreaseExportOptions {
+  const { style, colours } = openingCreaseExportFigure();
+  return {
+    ...options,
+    foldedFigureStyle: style,
+    foldedFigure: { ...options.foldedFigure, ...colours },
+  };
+}
+
 export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDialog }) {
   const { t } = useTranslation();
-  const [options, setOptions] = useState<CreaseExportOptions>(dialog.initialOptions);
+  const [options, setOptions] = useState<CreaseExportOptions>(() =>
+    withOpeningFigure(dialog.initialOptions)
+  );
   const [foldedFigure, setFoldedFigure] = useState<OristudioCpFoldedRenderSnapshot | null>(null);
   const [foldedScene, setFoldedScene] = useState<OristudioCpFoldedPaperScene | null>(null);
-  const paper = useCreaseExportPaper();
+  const paper = useCreaseExportPaper(options.foldedFigureStyle);
   const [folding, setFolding] = useState(false);
   const [foldError, setFoldError] = useState<string | null>(null);
   const [discoveredCases, setDiscoveredCases] = useState(1);
@@ -145,7 +168,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const foldCache = useRef(new Map<string, CreaseExportFoldResult>());
 
   useEffect(() => {
-    setOptions(dialog.initialOptions);
+    setOptions(withOpeningFigure(dialog.initialOptions));
   }, [dialog.initialOptions]);
 
   const {
@@ -248,6 +271,16 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
       ...current,
       foldedFigure: { ...current.foldedFigure, ...next },
     }));
+  // A new style re-seeds Front and Back from its paper; editing them after
+  // pins over it, as it always has.
+  const pickFoldedStyle = (foldedFigureStyle: PaperExportStyleChoice) => {
+    const style = creaseExportFigureStyle(useSettingsStore.getState().paperStyle, foldedFigureStyle);
+    setOptions((current) => ({
+      ...current,
+      foldedFigureStyle,
+      foldedFigure: { ...current.foldedFigure, ...creaseExportFigureColours(style) },
+    }));
+  };
 
   const palette = creaseExportPalette(theme);
 
@@ -315,10 +348,13 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
   const cancelLabel = dialog.cancelLabel ?? t('dialogs:common.cancel', 'Cancel');
 
   return (
+    // A shortcut barrier, as the paper export dialog is: Space on its style
+    // picker or its switches is theirs, not the Edit workspace's behind it.
     <div
       role="dialog"
       aria-modal="true"
       aria-label={dialog.title}
+      data-shortcut-barrier=""
       className="simple-modal"
       onMouseDown={() => cancelCommandDialog(dialog.id)}
     >
@@ -594,6 +630,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 open={openSections.folded}
                 onToggle={toggleSection}
             >
+                <PaperStylePicker value={options.foldedFigureStyle} onChange={pickFoldedStyle} />
                 <div className="export-modal__control-group">
                   <span className="export-modal__label">
                     {t('dialogs:export.foldedSide', 'Side')}

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_PAPER_PRESETS, builtInPaperPreset } from './paper/paperPresets';
 import { DEFAULT_PAPER_STYLE } from './paper/paperStyle';
-import { paperPresetRows, paperSlotPreset } from './paperPresetRows';
+import { PAPER_EXPORT_STYLE_SLOT } from './paperExportSettings';
+import { paperPresetRows, paperSlotPreset, paperStyleChoiceName } from './paperPresetRows';
 
 const MINE = { version: 1 as const, name: 'Mine', style: { ...DEFAULT_PAPER_STYLE, erode: 0.01 } };
 const ROWS = paperPresetRows([MINE]);
@@ -50,5 +51,24 @@ describe('paperSlotPreset', () => {
     expect(paperSlotPreset(following, 'export', ROWS).applied?.builtIn).toBe('diagram');
     const apart = { ...following, export: MINE.style, appliedPreset: { display: 'builtin:diagram', export: 'user:Mine' } };
     expect(paperSlotPreset(apart, 'export', ROWS).applied?.key).toBe('user:Mine');
+  });
+});
+
+describe('paperStyleChoiceName', () => {
+  it('names the export slot', () => {
+    expect(paperStyleChoiceName(PAPER_EXPORT_STYLE_SLOT, ROWS)).toBe('export-style');
+  });
+
+  it('names a built-in by its id', () => {
+    expect(paperStyleChoiceName('builtin:default', ROWS)).toBe('default');
+    expect(paperStyleChoiceName('builtin:diagram', ROWS)).toBe('diagram');
+  });
+
+  it('names a saved preset custom, never by its name', () => {
+    expect(paperStyleChoiceName('user:Mine', ROWS)).toBe('custom');
+  });
+
+  it('names a key that is no preset’s the export slot, as the export paints it', () => {
+    expect(paperStyleChoiceName('user:Gone', ROWS)).toBe('export-style');
   });
 });

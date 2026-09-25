@@ -794,10 +794,18 @@ it changes.
   them still pins over the style, as `creaseExportPaperStyle` does now.
 - **Hidden faces are kept.** The inset stops reading
   `paperExport.keepHiddenFaces` (E10), which becomes the paper dialog's per
-  kind; `useCreaseExportPaper` becomes the resolver of the pick.
+  kind; `useCreaseExportPaper` becomes the resolver of the pick. As built,
+  `CreaseExportPaperOptions` is `{ style }` alone: the artwork paints every
+  layer.
 - **Remembered once for both** (`creasePatternFoldedFigure.style`), written
   when a file is saved or a share published, and separate from the
-  folded-figure export's kind.
+  folded-figure export's kind. As built: `settingsStore
+  .creasePatternFoldedFigureStyle` under its own storage key, written by the
+  project slice after each of the four crease-pattern image saves
+  (`recordCreasePatternImageExport`) and by `publishOristudioCpShare`, and
+  only when the figure was drawn; the dialog's options carry the pick as
+  `foldedFigureStyle`, and the dialog and the card open on it
+  (`openingCreaseExportFigure`).
 - **Analytics.** `crease pattern exported { folded_figure }` on save
   (`none`/`export-style`/`default`/`diagram`/`custom`; the menu chokepoint
   sees only the command), and `crease pattern shared` gains the same
@@ -1340,18 +1348,26 @@ From review (folded into the Phase 5 commit):
 
 ### Phase 9 — The folded figure beside a crease pattern
 
-- [ ] `PaperStylePicker` in the crease-pattern dialog's Folded figure section
+- [x] `PaperStylePicker` in the crease-pattern dialog's Folded figure section
       and in the share card's folded-figure controls
-- [ ] Front and Back seeded from the pick and re-seeded when it changes;
+- [x] Front and Back seeded from the pick and re-seeded when it changes;
       editing still pins (E15); tests
-- [ ] The inset keeps hidden faces; `useCreaseExportPaper` resolves the pick;
-      re-pin the dialog's (`CommandDialogModal.test.tsx`) and the share
-      card's tests
-- [ ] Remember the pick (`creasePatternFoldedFigure.style`) on save and on
+- [x] The inset keeps hidden faces (`CreaseExportPaperOptions` is `{ style }`);
+      `useCreaseExportPaper` resolves the pick; re-pin the dialog's
+      (`CommandDialogModal.test.tsx`) and the share card's tests
+- [x] Remember the pick (`creasePatternFoldedFigureStyle`) on save and on
       publish; tests
-- [ ] Analytics: `crease pattern exported { folded_figure }`;
+- [x] Analytics: `crease pattern exported { format, folded_figure }`;
       `crease pattern shared` gains `folded_figure`; `docs/analytics.md`
-- [ ] i18n; validate; commit
+- [x] Found in the browser: the crease-pattern dialog and the share card
+      were not shortcut barriers, so Space on the new picker went to the Edit
+      workspace (prevented, the Select never opened), and their Escape closed
+      the whole dialog from inside an open Select. Both roots are now
+      `data-shortcut-barrier`, and `CommandDialogModal`'s and the card's
+      Escape stand down for `isOpenLayerTarget`; tests
+- [x] i18n (no new strings: the picker's are the dialog's); validate;
+      browser: the picker in the crease-pattern dialog opens on the slot and
+      a pick re-seeds Front and Back; commit
 
 ### Phase 10 — Retire the old export settings; remember options per kind
 

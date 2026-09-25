@@ -9,7 +9,9 @@
  * settings they hold and their `t`.
  */
 import type { TFunction } from 'i18next';
+import type { PaperExportStyleName } from '../analytics/events';
 import { paperPresetLabel } from '../i18n/enumLabels';
+import { PAPER_EXPORT_STYLE_SLOT, type PaperExportStyleChoice } from './paperExportSettings';
 import {
   BUILT_IN_PAPER_PRESETS,
   paperPresetKey,
@@ -63,6 +65,20 @@ export function paperSlotPreset(
   const recorded = key === null ? null : (rows.find((row) => row.key === key) ?? null);
   const applied = recorded ?? rows.find((row) => paperStyleEquals(row.preset.style, style)) ?? null;
   return { applied, modified: applied !== null && !paperStyleEquals(style, applied.preset.style) };
+}
+
+/**
+ * A style choice as the analytics name it: the export slot, a built-in preset
+ * by its id, or `custom` for a preset the user saved or imported — never its
+ * name. A choice that names no preset any more reads as the export slot.
+ */
+export function paperStyleChoiceName(
+  choice: PaperExportStyleChoice,
+  rows: readonly PaperPresetRow[]
+): PaperExportStyleName {
+  if (choice === PAPER_EXPORT_STYLE_SLOT) return 'export-style';
+  const row = rows.find((entry) => entry.key === choice);
+  return row ? (row.builtIn ?? 'custom') : 'export-style';
 }
 
 /** A preset's name: a built-in's is translated from its id, a saved one's is the user's. */

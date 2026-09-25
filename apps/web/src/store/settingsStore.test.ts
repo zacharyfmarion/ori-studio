@@ -9,8 +9,8 @@ import {
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
 import { PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
-import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
-import { STORAGE_KEYS, storageKey } from '../lib/storage';
+import { DEFAULT_PAPER_EXPORT_SETTINGS, PAPER_EXPORT_STYLE_SLOT } from '../lib/paperExportSettings';
+import { readJson, STORAGE_KEYS, storageKey } from '../lib/storage';
 import { useSettingsStore } from './settingsStore';
 import type { WorkspaceState } from './workspaceStore/types';
 
@@ -505,5 +505,43 @@ describe('paperExport', () => {
     expect(paperExport.sheet).toEqual({ mm: PAPER_SHEET_MM_RANGE.min });
     expect(paperExport.pngDpi).toBe(300);
     expect((await freshSettingsStore()).getState().paperExport).toEqual(paperExport);
+  });
+});
+
+describe('creasePatternFoldedFigureStyle', () => {
+  const FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
+
+  it('starts on the export slot with nothing stored', async () => {
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe(
+      PAPER_EXPORT_STYLE_SLOT
+    );
+  });
+
+  it('reads a stored pick back, even one naming no preset, for the pickers to resolve', async () => {
+    localStorage.setItem(FOLDED_FIGURE_KEY, JSON.stringify({ style: 'builtin:diagram' }));
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('builtin:diagram');
+    localStorage.setItem(FOLDED_FIGURE_KEY, JSON.stringify({ style: 'user:Gone' }));
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('user:Gone');
+  });
+
+  it('reads anything else stored as the export slot', async () => {
+    for (const junk of ['not json', '"builtin:diagram"', 'null', '{}', '{"style":3}', '{"style":""}']) {
+      localStorage.setItem(FOLDED_FIGURE_KEY, junk);
+      expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe(
+        PAPER_EXPORT_STYLE_SLOT
+      );
+    }
+  });
+
+  it('remembers a pick in the store and on disk, and reads it back on the next start', async () => {
+    useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('user:Mine');
+    expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
+    expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'user:Mine' });
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
+  });
+
+  it('leaves the paper export’s own style alone', () => {
+    useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('builtin:diagram');
+    expect(useSettingsStore.getState().paperExport.style).toBe(PAPER_EXPORT_STYLE_SLOT);
   });
 });

@@ -31,6 +31,7 @@ import {
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from './paper/paperStyleResolve';
 import { paperSceneSvgBody } from './paper/paperSvg';
 import { degreesToFoldMagnitude } from './foldAngle';
+import { PAPER_EXPORT_STYLE_SLOT, type PaperExportStyleChoice } from './paperExportSettings';
 import { rgbColorToHex } from './rgbColor';
 import type {
   OristudioCpDocumentSnapshot,
@@ -171,6 +172,11 @@ export interface CreaseExportOptions {
    */
   includeFoldedFigure: boolean;
   foldedFigure: CreaseExportFoldedFigureSettings;
+  /**
+   * The style the folded figure is drawn in: the Settings export slot or a
+   * preset. The figure's Front and Back start from its paper colours.
+   */
+  foldedFigureStyle: PaperExportStyleChoice;
   caption: CreaseExportCaption;
 }
 
@@ -197,6 +203,7 @@ export const DEFAULT_CREASE_EXPORT_OPTIONS: CreaseExportOptions = {
   theme: 'light',
   includeFoldedFigure: false,
   foldedFigure: DEFAULT_CREASE_EXPORT_FOLDED_FIGURE,
+  foldedFigureStyle: PAPER_EXPORT_STYLE_SLOT,
   caption: EMPTY_CREASE_EXPORT_CAPTION,
 };
 
@@ -882,15 +889,18 @@ export interface CreaseExportGridSource {
 
 /** How a folded figure's paper scene is painted on the crease-pattern page. */
 export interface CreaseExportPaperOptions {
-  /** The app's export style (`exportPaperStyle`); the dialog's colours go over it. */
+  /**
+   * The style the folded figure is drawn in — the Settings export slot or the
+   * preset picked for it (`creaseExportFigureStyle`); the dialog's colours go
+   * over it. Every layer is kept: the inset is a figure beside its pattern, not
+   * a drawing to peel apart, and E10 kept one dialog's option from repainting
+   * another's.
+   */
   style: PaperStyle;
-  /** The export page's "Keep hidden faces" (D4): every layer, or the visible ones. */
-  keepHiddenFaces: boolean;
 }
 
 export const DEFAULT_CREASE_EXPORT_PAPER: CreaseExportPaperOptions = {
   style: DEFAULT_PAPER_STYLE,
-  keepHiddenFaces: true,
 };
 
 /**
@@ -1222,7 +1232,7 @@ export function buildCreaseExportArtwork(
     // states — the same picture the figure exports on its own, on this page.
     const paper = content.paper ?? DEFAULT_CREASE_EXPORT_PAPER;
     const scene = foldedFlatPaperScene(foldedScene, {
-      markHidden: !paper.keepHiddenFaces,
+      markHidden: false,
       toScenePx: (point) => {
         const projected = projectFoldedPoint(point);
         return [projected.x, projected.y];
@@ -1238,7 +1248,7 @@ export function buildCreaseExportArtwork(
         // A pen is stated in pt and drawn on screen at 4/3 CSS px per pt; the
         // page is the screen at `VIEW_SCALE`, as the creases beside it are.
         unitsPerPt: PT_TO_CSS_PX * VIEW_SCALE,
-        keepHiddenFaces: paper.keepHiddenFaces,
+        keepHiddenFaces: true,
       });
     }
   } else if (foldedSnapshot) {

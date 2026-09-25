@@ -36,9 +36,11 @@ import {
 } from '../lib/paper/paperStyle';
 import {
   normalizePaperExportSettings,
+  PAPER_EXPORT_STYLE_SLOT,
   paperExportFromSimulatorSettings,
   type PaperExportField,
   type PaperExportSettings,
+  type PaperExportStyleChoice,
 } from '../lib/paperExportSettings';
 import {
   normalizePaperStyleSettings,
@@ -75,6 +77,7 @@ const REFERENCES_AUTO_PLAY_FOLDS_KEY = storageKey(STORAGE_KEYS.referencesAutoPla
 const REFERENCES_SHOW_AUX_CREASES_KEY = storageKey(STORAGE_KEYS.referencesShowAuxCreases);
 const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
 const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
+const CP_FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -149,6 +152,13 @@ function readPaperExportSettings(): PaperExportSettings {
   const seeded = paperExportFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null));
   if (seeded.background !== null) writeJson(PAPER_EXPORT_KEY, seeded);
   return seeded;
+}
+
+/** The remembered style of the folded figure beside a crease pattern; the export slot until one is saved. */
+function readCreasePatternFoldedFigureStyle(): PaperExportStyleChoice {
+  const stored = readJson<unknown>(CP_FOLDED_FIGURE_KEY, null);
+  const style = stored && typeof stored === 'object' ? (stored as { style?: unknown }).style : null;
+  return typeof style === 'string' && style.length > 0 ? style : PAPER_EXPORT_STYLE_SLOT;
 }
 
 /** The style a slot edits: export starts from display the moment it stops following. */
@@ -263,6 +273,12 @@ interface SettingsState {
    * options rather than style: the same picture goes out on any page.
    */
   paperExport: PaperExportSettings;
+  /**
+   * Which style the folded figure beside a crease pattern is drawn in: the
+   * export slot or a preset. Shared by the crease-pattern export and the share
+   * card, and apart from the folded figure's own export (X12).
+   */
+  creasePatternFoldedFigureStyle: PaperExportStyleChoice;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -313,6 +329,8 @@ interface SettingsState {
    * dialog edits a draft, so a dialog cancelled changes nothing.
    */
   rememberPaperExportOptions: (options: PaperExportSettings) => void;
+  /** Keep the folded figure's style a crease-pattern file was saved, or a share published, with. */
+  rememberCreasePatternFoldedFigureStyle: (style: PaperExportStyleChoice) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -332,6 +350,7 @@ export const useSettingsStore = create<SettingsState>()(
       referencesShowAuxCreases: readOptionalBoolean(REFERENCES_SHOW_AUX_CREASES_KEY),
       paperStyle: readPaperStyleSettings(),
       paperExport: readPaperExportSettings(),
+      creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -498,6 +517,10 @@ export const useSettingsStore = create<SettingsState>()(
         const next = normalizePaperExportSettings(options);
         writeJson(PAPER_EXPORT_KEY, next);
         set({ paperExport: next });
+      },
+      rememberCreasePatternFoldedFigureStyle: (style) => {
+        writeJson(CP_FOLDED_FIGURE_KEY, { style });
+        set({ creasePatternFoldedFigureStyle: style });
       },
     }),
     { name: 'SettingsStore' }

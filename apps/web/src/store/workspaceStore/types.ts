@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import type {
   ConditionKind,
   FoldArtifacts,
@@ -424,6 +425,11 @@ export interface ProjectSliceActions {
     title: string;
     author: string | null;
     renderCard: () => Promise<Uint8Array | null>;
+    /**
+     * The style the card's folded figure is drawn in, remembered for the next
+     * share and crease-pattern export; null when the card shows no figure.
+     */
+    foldedFigureStyle?: PaperExportStyleChoice | null;
   }) => Promise<boolean>;
   /**
    * Fold the drafted share's pattern for its card preview. Injected through the store
