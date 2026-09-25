@@ -207,6 +207,58 @@ function geometrySubpaths(geometry: OristudioCpFoldedRenderGeometry): Point[][] 
 }
 
 /** Accumulates GPU-ready fill triangles and edge strokes across all figures. */
+/**
+ * Whether `inner` lies inside `outer`, rings of one even-odd set, which never
+ * cross: read at a vertex of `inner` off `outer`'s boundary, since a ring
+ * that only shares edges with another has vertices on it. A ring with no such
+ * vertex traces `outer` itself and is not inside it.
+ */
+function ringInside(inner: readonly Point[], outer: readonly Point[]): boolean {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of outer) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const tolerance = 1e-9 * Math.max(maxX - minX, maxY - minY, 1);
+  for (const point of inner) {
+    if (onRing(outer, point, tolerance)) continue;
+    return pointInRing(outer, point);
+  }
+  return false;
+}
+
+function onRing(ring: readonly Point[], point: Point, tolerance: number): boolean {
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const a = ring[j]!;
+    const b = ring[i]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length2 = dx * dx + dy * dy;
+    const t = length2 > 0 ? ((point.x - a.x) * dx + (point.y - a.y) * dy) / length2 : 0;
+    const clamped = Math.min(1, Math.max(0, t));
+    if (Math.hypot(point.x - (a.x + dx * clamped), point.y - (a.y + dy * clamped)) <= tolerance) return true;
+  }
+  return false;
+}
+
+/** Even-odd containment of `point` in `ring`. */
+function pointInRing(ring: readonly Point[], point: Point): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.y > point.y !== b.y > point.y && point.x < a.x + ((point.y - a.y) / (b.y - a.y)) * (b.x - a.x)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 class FoldedBuilder {
   fillPos: number[] = [];
   fillColor: number[] = [];
@@ -247,28 +299,37 @@ class FoldedBuilder {
   }
 
   /**
-   * A face with holes: the outer ring first, each hole after it, triangulated
-   * as one even-odd region — the shape {@link PaperFaceItem.rings} carries and
-   * the painter writes as a single `fill-rule="evenodd"` path.
+   * A face's region: its rings as one even-odd set — the shape
+   * {@link PaperFaceItem.rings} carries and the painter writes as a single
+   * `fill-rule="evenodd"` path, so disjoint pieces and holes alike. A ring
+   * inside an even number of the others outlines a piece, triangulated with
+   * the rings directly inside it cut out as holes.
    */
   addFillRegion(rings: readonly (readonly Point[])[], color: Rgba): void {
-    const outer = rings[0];
-    if (!outer || outer.length < 3) return;
-    if (rings.length === 1) {
-      this.addFillRing([...outer], color);
+    const usable = rings.filter((ring) => ring.length >= 3);
+    if (usable.length === 0) return;
+    if (usable.length === 1) {
+      this.addFillRing([...usable[0]!], color);
       return;
     }
-    const flat: number[] = [];
-    const holes: number[] = [];
-    for (const [index, ring] of rings.entries()) {
-      if (index > 0) holes.push(flat.length / 2);
-      for (const p of ring) flat.push(p.x, p.y);
-    }
-    for (const i of earcut(flat, holes)) {
-      this.fillPos.push(flat[i * 2], flat[i * 2 + 1]);
-      this.fillColor.push(color[0], color[1], color[2], color[3]);
-      this.fillDepth.push(this.depth);
-    }
+    const within = (inner: number, outer: number): boolean =>
+      inner !== outer && ringInside(usable[inner]!, usable[outer]!);
+    const depth = usable.map((_, i) => usable.filter((__, j) => within(i, j)).length);
+    usable.forEach((outline, i) => {
+      if (depth[i]! % 2 !== 0) return;
+      const holes = usable.filter((_, j) => depth[j] === depth[i]! + 1 && within(j, i));
+      const flat: number[] = [];
+      const starts: number[] = [];
+      for (const [index, ring] of [outline, ...holes].entries()) {
+        if (index > 0) starts.push(flat.length / 2);
+        for (const p of ring) flat.push(p.x, p.y);
+      }
+      for (const v of earcut(flat, starts)) {
+        this.fillPos.push(flat[v * 2]!, flat[v * 2 + 1]!);
+        this.fillColor.push(color[0], color[1], color[2], color[3]);
+        this.fillDepth.push(this.depth);
+      }
+    });
   }
 
   addStrokePolyline(points: Point[], colors: Rgba | Rgba[], width: number): void {

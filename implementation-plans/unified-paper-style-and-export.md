@@ -1439,6 +1439,37 @@ against the mesh route no longer applies (F9).
       not run locally for this phase; CI's `native-oracle` job covers the
       `paper_hierarchy_table` extraction.
 - [x] `PORTING.md` note.
+- [x] Fix (2026-09-25), reported on a TreeMaker-style base whose stacking
+      has a 144-face cycle: the figure beside a crease pattern (and the share
+      card and the flat figure's own export) showed visible edges as broken
+      hairlines. A split face's piece is cut along subface boundaries that are
+      not its outline and draws no line there, so a later piece beside a
+      visible line painted over the outer half of its stroke, and its seam
+      most of what was left. The main drawer painted every fill before every
+      line and could not do this; whole faces cannot either (a later face
+      along a line has its own edge there and redraws it). Now, in
+      `emitSplitFaces`: a piece on top of its subface draws its lines after
+      the whole component (keyed on depth, not `hidden`, which the
+      crease-pattern export never sets); a face's pieces on top are one item,
+      its rings their subfaces' polygons, which removes faint seams along the
+      cuts where a buried line showed through the antialiasing; and a split
+      face's aux lines are cut at its pieces, each stretch drawn with the piece
+      it crosses (they were drawn whole after the face's last piece, over
+      pieces that bury them), the stretches on top joined so a dash runs on,
+      drawn under the component's edges as the canvas draws aux, and eroded
+      on the whole crease (`whole`, as the 3D producer's cut creases are).
+      `PaperFaceItem.rings` is now one even-odd set — disjoint pieces as well
+      as holes — and the canvas adapter's `addFillRegion` groups rings by
+      nesting before triangulating (it read every ring after the first as a
+      hole; latent, since no flat scene reaches the canvas yet). Tests: a
+      half-cover detector over the real fixtures, the weave and Oriedita's
+      `glitch.cp` (whose back is mostly a 30-odd-face cycle), with every part
+      mutation-checked. Measured before the change on 486 real passes
+      (glitch, generated twists, the acyclic fixtures): 1.49 M half-covered
+      line samples, all from split pieces; after, none; and a review over 60
+      cyclic scenes found the painted line set equal to the kernel drawer's.
+      Left as is: an outline portion no piece claims (only a rounding sliver
+      can) is still drawn with the face's last piece, not deferred.
 
 ### Phase 5 — Aux creases and erode on every surface
 

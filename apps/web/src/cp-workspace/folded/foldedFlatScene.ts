@@ -26,10 +26,24 @@
  * faces of a non-trivial strongly-connected component are split into their
  * subface polygons, each piece placed by its position in that subface's stack,
  * and only those faces: everything outside the cycle stays whole. A split
- * face's outline lines go with the piece they bound, so a line the cycle
- * buries is drawn under the piece that buries it; the pieces of one component
- * are emitted deepest first, which is consistent because pieces in different
- * subfaces never overlap.
+ * face's outline lines, and its aux lines, go with the piece they bound or
+ * cross, so a line the cycle buries is drawn under the piece that buries it;
+ * the pieces of one component are emitted deepest first, which is consistent
+ * because pieces in different subfaces never overlap.
+ *
+ * The lines of a piece on top of its subface wait until every piece of the
+ * component is down. A piece is cut along subface boundaries that are not its
+ * face's outline, so it draws no line there, and a later piece beside a line
+ * would paint over the outer half of its stroke: a visible edge left half as
+ * wide, broken wherever the neighbouring subface changed. A line on top of its
+ * subface is on top of whatever lies beside it, so nothing drawn after it can
+ * rightly cover it.
+ *
+ * A face's pieces on top of their subfaces are one item, its rings those
+ * subfaces' polygons: pieces on top never overlap one another, so they can be
+ * drawn together, and one path is antialiased as one shape — two abutting
+ * polygons each let a sliver of what lies beneath show along the cut, where a
+ * buried line reads as a faint seam across the face.
  *
  * # Side, shade, hidden
  *
@@ -293,8 +307,11 @@ function emitWholeFace(items: PaperItem[], context: EmitContext, face: number): 
 
 /**
  * A cyclic component's faces as their subface pieces, deepest first. Each
- * piece carries the portions of its face's outline that bound it; whatever
- * portion of an outline no piece claimed follows the face's last piece.
+ * piece carries the portions of its face's outline that bound it, and of its
+ * face's aux lines that cross it; whatever portion of an outline no piece
+ * claimed follows the face's last piece. A face's pieces on top of their
+ * subfaces are drawn as one item, and their lines after the whole component
+ * (see the module note).
  */
 function emitSplitFaces(
   items: PaperItem[],
@@ -303,7 +320,7 @@ function emitSplitFaces(
 ): void {
   const { kernel, options } = context;
   const members = new Set(component);
-  const pieces: Array<{ subface: number; face: number; depth: number }> = [];
+  const pieces: SplitPiece[] = [];
   kernel.subfaces.forEach(({ faces_top_to_bottom: stack }, subface) => {
     stack.forEach((face, depth) => {
       if (members.has(face)) pieces.push({ subface, face, depth });
@@ -317,12 +334,30 @@ function emitSplitFaces(
   }
   const lastPiece = new Map<number, number>();
   pieces.forEach((piece, index) => lastPiece.set(piece.face, index));
+  const auxPortions = auxPortionsByPiece(context, pieces);
 
+  const topRings = new Map<number, ScenePoint[][]>();
+  for (const { subface, face, depth } of pieces) {
+    if (depth > 0) continue;
+    const rings = topRings.get(face) ?? [];
+    rings.push(kernel.subfaces[subface]!.polygon.map(options.toScenePx));
+    topRings.set(face, rings);
+  }
+
+  const onTop: PaperItem[] = [];
+  const onTopAux: AuxPortion[] = [];
   pieces.forEach(({ subface, face, depth }, index) => {
     const source = kernel.faces[face]!;
     const polygon = kernel.subfaces[subface]!.polygon;
     const hidden = options.markHidden && depth > 0;
-    items.push(faceItem(face, source, [polygon.map(options.toScenePx)], hidden));
+    if (depth > 0) {
+      items.push(faceItem(face, source, [polygon.map(options.toScenePx)], hidden));
+    } else if (topRings.has(face)) {
+      // The face's first piece on top draws all of them.
+      items.push(faceItem(face, source, topRings.get(face)!, false));
+      topRings.delete(face);
+    }
+    const lines = depth === 0 ? onTop : items;
     const intervals = claimed.get(face)!;
     for (let i = 0; i < polygon.length; i += 1) {
       const from = polygon[i]!;
@@ -330,11 +365,16 @@ function emitSplitFaces(
       const found = outlineEdgeUnder(source, from, to, context.epsilon);
       if (!found) continue;
       intervals[found.edge]!.push(found.span);
-      items.push(outlineLine(context, face, found.edge, from, to, hidden));
+      lines.push(outlineLine(context, face, found.edge, from, to, hidden));
+    }
+    for (const portion of auxPortions.get(index) ?? []) {
+      if (depth === 0) onTopAux.push(portion);
+      else items.push(auxLine(context, portion, hidden));
     }
     if (lastPiece.get(face) !== index) return;
     // The face's last piece: what no piece bounded goes here, in the face's
-    // own visibility, and its aux lines with it.
+    // own visibility — which is per face, not per portion, so it does not
+    // wait with the lines on top.
     const faceHidden = options.markHidden && !context.top.has(face);
     source.edges.forEach((edge, edgeIndex) => {
       const slack = context.epsilon / edgeLength(edge);
@@ -344,8 +384,133 @@ function emitSplitFaces(
         items.push(outlineLine(context, face, edgeIndex, from, to, faceHidden));
       }
     });
-    emitAuxLines(items, context, face, faceHidden);
+    for (const portion of auxPortions.get(-1 - face) ?? []) {
+      items.push(auxLine(context, portion, faceHidden));
+    }
   });
+  // Aux under the edges, as a whole face draws its own and the canvas draws
+  // every aux line: one along another layer's edge must not ink over it.
+  for (const portion of joinedAuxPortions(onTopAux)) items.push(auxLine(context, portion, false));
+  items.push(...onTop);
+}
+
+interface SplitPiece {
+  subface: number;
+  face: number;
+  depth: number;
+}
+
+/** A stretch of one aux line, as parameters along it. */
+interface AuxPortion {
+  aux: OristudioCpFoldedPaperAuxLine;
+  span: [number, number];
+}
+
+/**
+ * Every aux line of a split face, cut where it crosses the boundary of one of
+ * that face's pieces, each stretch handed to the piece it lies in — the
+ * shallowest, where it runs along a boundary two pieces share, since that is
+ * the one that shows. Keyed by piece index; a stretch no piece holds (only a
+ * rounding gap could leave one) is keyed `-1 - face`, for the face's last
+ * piece to draw.
+ */
+function auxPortionsByPiece(
+  context: EmitContext,
+  pieces: readonly SplitPiece[]
+): Map<number, AuxPortion[]> {
+  const { kernel, epsilon } = context;
+  const portions = new Map<number, AuxPortion[]>();
+  const add = (key: number, aux: OristudioCpFoldedPaperAuxLine, span: [number, number]) => {
+    const list = portions.get(key) ?? [];
+    list.push({ aux, span });
+    portions.set(key, list);
+  };
+  const piecesOf = new Map<number, number[]>();
+  pieces.forEach((piece, index) => {
+    if (!piecesOf.has(piece.face)) piecesOf.set(piece.face, []);
+    piecesOf.get(piece.face)!.push(index);
+  });
+  for (const aux of kernel.aux_lines) {
+    const own = piecesOf.get(aux.face);
+    if (!own) continue;
+    const slack = epsilon / edgeLength(aux);
+    const crossings: number[] = [];
+    for (const index of own) {
+      const polygon = kernel.subfaces[pieces[index]!.subface]!.polygon;
+      for (let i = 0; i < polygon.length; i += 1) {
+        const t = crossingOn(aux.from, aux.to, polygon[i]!, polygon[(i + 1) % polygon.length]!, epsilon);
+        if (t !== undefined) crossings.push(t);
+      }
+    }
+    // The cuts, a slack apart and clear of the ends, so no stretch is a sliver
+    // and the line's own ends stay its ends.
+    const cuts = [0];
+    for (const t of crossings.sort((a, b) => a - b)) {
+      if (t - cuts[cuts.length - 1]! > slack && 1 - t > slack) cuts.push(t);
+    }
+    cuts.push(1);
+    for (let i = 0; i + 1 < cuts.length; i += 1) {
+      const span: [number, number] = [cuts[i]!, cuts[i + 1]!];
+      const middle = lerp(aux.from, aux.to, (span[0] + span[1]) / 2);
+      let holder: number | undefined;
+      for (const index of own) {
+        const polygon = kernel.subfaces[pieces[index]!.subface]!.polygon;
+        if (!insideOrOn(polygon, middle, epsilon)) continue;
+        if (holder === undefined || pieces[index]!.depth < pieces[holder]!.depth) holder = index;
+      }
+      add(holder ?? -1 - aux.face, aux, span);
+    }
+  }
+  return portions;
+}
+
+/**
+ * The stretches drawn on top, one line per run: stretches of one aux line that
+ * meet end to end join, so a dash pattern does not restart at every piece the
+ * line crossed.
+ */
+function joinedAuxPortions(portions: readonly AuxPortion[]): AuxPortion[] {
+  const byLine = new Map<OristudioCpFoldedPaperAuxLine, Array<[number, number]>>();
+  for (const { aux, span } of portions) {
+    if (!byLine.has(aux)) byLine.set(aux, []);
+    byLine.get(aux)!.push(span);
+  }
+  const joined: AuxPortion[] = [];
+  for (const [aux, spans] of byLine) {
+    spans.sort((a, b) => a[0] - b[0]);
+    let run: [number, number] = [...spans[0]!];
+    for (const span of spans.slice(1)) {
+      if (span[0] === run[1]) run[1] = span[1];
+      else {
+        joined.push({ aux, span: run });
+        run = [...span];
+      }
+    }
+    joined.push({ aux, span: run });
+  }
+  return joined;
+}
+
+/**
+ * A stretch of an aux line as a line. Only an end the whole line has retreats
+ * under erode, and a stretch carries the whole crease, so the pull is measured
+ * on the crease as the canvas measures it: a stretch near a retreating end
+ * keeps what the pull leaves of it, and gives up what the pull takes.
+ */
+function auxLine(context: EmitContext, { aux, span }: AuxPortion, hidden: boolean): PaperLineItem {
+  const { toScenePx } = context.options;
+  const [atFrom, atTo] = auxLineOnBoundary(context.kernel, aux, context.epsilon);
+  const whole = span[0] === 0 && span[1] === 1;
+  return {
+    kind: 'line',
+    role: 'aux',
+    a: toScenePx(lerp(aux.from, aux.to, span[0])),
+    b: toScenePx(lerp(aux.from, aux.to, span[1])),
+    onBoundary: [atFrom && span[0] === 0, atTo && span[1] === 1],
+    ...(whole ? {} : { whole: { a: toScenePx(aux.from), b: toScenePx(aux.to), onBoundary: [atFrom, atTo] } }),
+    face: aux.face,
+    hidden,
+  };
 }
 
 function emitAuxLines(
@@ -458,6 +623,41 @@ function parameterOn(a: Point, b: Point, point: Point, epsilon: number): number 
   const slack = epsilon / Math.sqrt(length2);
   if (t < -slack || t > 1 + slack) return undefined;
   return Math.min(1, Math.max(0, t));
+}
+
+/**
+ * Where the segment `a`→`b` crosses or touches the segment `p`→`q`, as a
+ * parameter along `a`→`b`; undefined when they miss or run parallel (a
+ * collinear run is cut by the neighbouring edges, which meet it at its ends).
+ */
+function crossingOn(a: Point, b: Point, p: Point, q: Point, epsilon: number): number | undefined {
+  const rx = b.x - a.x;
+  const ry = b.y - a.y;
+  const sx = q.x - p.x;
+  const sy = q.y - p.y;
+  const denominator = rx * sy - ry * sx;
+  if (Math.abs(denominator) <= Number.EPSILON * Math.hypot(rx, ry) * Math.hypot(sx, sy)) return undefined;
+  const t = ((p.x - a.x) * sy - (p.y - a.y) * sx) / denominator;
+  const u = ((p.x - a.x) * ry - (p.y - a.y) * rx) / denominator;
+  const tSlack = epsilon / Math.hypot(rx, ry);
+  const uSlack = epsilon / Math.hypot(sx, sy);
+  if (t < -tSlack || t > 1 + tSlack || u < -uSlack || u > 1 + uSlack) return undefined;
+  return Math.min(1, Math.max(0, t));
+}
+
+/** Whether `point` is inside `polygon` (even-odd) or within `epsilon` of its boundary. */
+function insideOrOn(polygon: readonly Point[], point: Point, epsilon: number): boolean {
+  if (onOutline(polygon, point, epsilon)) return true;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const a = polygon[i]!;
+    const b = polygon[j]!;
+    if (a.y > point.y !== b.y > point.y) {
+      const x = a.x + ((point.y - a.y) / (b.y - a.y)) * (b.x - a.x);
+      if (point.x < x) inside = !inside;
+    }
+  }
+  return inside;
 }
 
 /** The gaps of `[0, 1]` that `intervals` leave, ignoring gaps under `slack`. */

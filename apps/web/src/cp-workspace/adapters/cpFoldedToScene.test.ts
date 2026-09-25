@@ -1227,6 +1227,38 @@ describe('a stored PaperScene', () => {
     expect(holed.fills.count).toBeGreaterThan(whole.fills.count);
   });
 
+  it('fills a face’s rings as one even-odd set: pieces, holes, and islands in holes', () => {
+    const square = (x: number, y: number, side: number): [number, number][] => [
+      [x, y],
+      [x + side, y],
+      [x + side, y + side],
+      [x, y + side],
+    ];
+    const area = (rings: [number, number][][]) => {
+      const { fills } = cpFoldedToScene(
+        [sceneFigure([{ ...FRONT_TRIANGLE, rings }])],
+        undefined,
+        undefined,
+        undefined,
+        () => style()
+      );
+      let total = 0;
+      for (let v = 0; v + 2 < fills.count; v += 3) {
+        const [ax, ay, bx, by, cx, cy] = fills.position.slice(v * 2, v * 2 + 6);
+        total += Math.abs((bx! - ax!) * (cy! - ay!) - (cx! - ax!) * (by! - ay!)) / 2;
+      }
+      return total;
+    };
+    // Two pieces that share an edge — a flat figure's face on top of two
+    // neighbouring subfaces — are both filled, not one read as the other's hole.
+    expect(area([square(0, 0, 10), square(10, 0, 10)])).toBeCloseTo(200, 6);
+    // A holed piece, a separate piece, and an island inside the hole.
+    expect(area([square(0, 0, 10), square(2, 2, 6), square(20, 0, 10), square(4, 4, 2)])).toBeCloseTo(
+      100 - 36 + 100 + 4,
+      6
+    );
+  });
+
   it('erodes a line back from the boundary, as the painter does', () => {
     const onBoundary: PaperLineItem = { ...MOUNTAIN, onBoundary: [true, true] };
     const eroded = cpFoldedToScene(

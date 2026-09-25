@@ -48,9 +48,10 @@ export interface PaperFaceItem {
   face: number;
   side: PaperSide;
   /**
-   * One ring for a simple region; several when the region has holes, drawn
-   * as one even-odd path. Every ring is closed, its last point joining its
-   * first.
+   * One ring for a simple region; several for a region with holes, or for
+   * disjoint pieces of one face drawn as one item — one even-odd set either
+   * way, drawn as one even-odd path: a ring inside an odd number of the
+   * others is a hole. Every ring is closed, its last point joining its first.
    */
   rings: ScenePoint[][];
   /** The face shader's flat lighting factor; 1 is unlit. */
