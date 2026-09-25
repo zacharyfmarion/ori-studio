@@ -990,6 +990,7 @@
       "autoPlayFoldsHelp": "카드에 도달하는 즉시 해당 단계의 접기를 재생합니다. 끄면 재생 또는 Space를 누를 때 접기가 재생되고, 다시 누르면 되돌아갑니다. 종이 뒤집기는 꺼져 있어도 자동으로 재생됩니다.",
       "candidates": "후보 수",
       "emptyNote": "참조를 찾는 방식을 조정하려면 전개도를 여세요.",
+      "export": "내보내기",
       "gridWhereNeeded": "필요한 곳에만",
       "includeApproximate": "근사 해 포함",
       "landmarksFirst": "기준점 먼저",

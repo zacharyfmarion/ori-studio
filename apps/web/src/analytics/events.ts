@@ -121,7 +121,8 @@ export type ExportFormat =
   | 'ori'
   | 'orh'
   | 'svg'
-  | 'png';
+  | 'png'
+  | 'zip';
 
 /** Formats the folded-form (simulator) export offers. */
 export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
@@ -272,6 +273,9 @@ export type PaperExportBackground = 'transparent' | 'colour';
 
 /** A PNG's density as the export dialog's picker names it; `none` for an SVG. */
 export type PaperExportResolution = '1x' | '2x' | '3x' | '4x' | '300' | '600' | 'custom' | 'none';
+
+/** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
+export type PaperExportScope = 'this' | 'all';
 
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
@@ -984,6 +988,9 @@ export function bucketCount(value: number, thresholds: readonly number[]): strin
   const last = thresholds[thresholds.length - 1];
   return `>${last}`;
 }
+
+/** Threshold ladder for how many pages an export of every step wrote. */
+export const PAPER_EXPORT_PAGE_COUNT_BUCKETS = [5, 10, 25] as const;
 
 /** Default threshold ladder for element counts (nodes, lines, etc.). */
 export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;

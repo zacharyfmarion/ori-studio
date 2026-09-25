@@ -24,7 +24,8 @@ export type ReferencesActionIcon =
   | 'reset-view'
   | 'zoom-in'
   | 'zoom-out'
-  | 'export-step';
+  | 'export-step'
+  | 'export-all-steps';
 
 /**
  * What a command draws: its own id, or, for the one verb whose picture
@@ -183,6 +184,15 @@ export function buildReferencesActions(
     // strip has none at all. One verb: the dialog it opens chooses the format,
     // with the page in view.
     command('export-step', 'references.exportStep', 'Export step…', !state.hasDiagram, noDiagram),
+    // Every card with a picture, as one ZIP: open as long as the strip has
+    // cards, whichever of them is on show.
+    command(
+      'export-all-steps',
+      'references.exportAllSteps',
+      'Export all steps…',
+      !hasSteps,
+      hasSteps ? undefined : noTarget
+    ),
   ];
 }
 

@@ -1,3 +1,4 @@
+import { unzipSync } from 'fflate';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +12,11 @@ import { builtInPaperPreset } from '../../lib/paper/paperPresets';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { emptyMultiSelection } from '../../lib/selection';
-import type { PaperExportTarget } from '../../paperExport/paperExportTarget';
+import type {
+  PaperExportPages,
+  PaperExportScope,
+  PaperExportTarget,
+} from '../../paperExport/paperExportTarget';
 import type { FileService } from '../../platform/fileService';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -37,16 +42,22 @@ vi.mock('../../analytics/runtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics/runtime')>()),
   track: () => {},
 }));
-const { service } = vi.hoisted(() => ({
+const { service, paperSvgToPng } = vi.hoisted(() => ({
   service: {
     saveTextFile: vi.fn(async () => ({ name: 'Crane.svg', path: null })),
     saveBinaryFile: vi.fn(async () => ({ name: 'Crane.png', path: null })),
   },
+  paperSvgToPng: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('../../platform/fileService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../platform/fileService')>()),
   getFileService: () => service as unknown as FileService,
+}));
+// jsdom cannot rasterise; a ZIP of PNGs only needs the bytes to arrive.
+vi.mock('../../lib/paper/paperPng', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/paper/paperPng')>()),
+  paperSvgToPng,
 }));
 
 const SCENE: PaperScene = {
@@ -62,6 +73,7 @@ function target(overrides: Partial<PaperExportTarget> = {}): PaperExportTarget {
     surface: 'folded-flat',
     title: 'Export folded figure',
     fileStem: 'Crane',
+    pages: null,
     exportStyle: DEFAULT_PAPER_STYLE,
     pins: null,
     buriesFaces: true,
@@ -80,10 +92,11 @@ let container: HTMLDivElement | null = null;
 async function open(
   opened: PaperExportTarget,
   returnFocus: HTMLElement | null = null,
-  format: 'svg' | 'png' | null = null
+  format: 'svg' | 'png' | null = null,
+  scope: PaperExportScope = 'this'
 ) {
   await act(async () => {
-    usePaperExportUiStore.getState().open({ target: opened, format, returnFocus });
+    usePaperExportUiStore.getState().open({ target: opened, format, scope, returnFocus });
   });
 }
 
@@ -141,6 +154,8 @@ beforeEach(() => {
   useSettingsStore.setState(initialSettings, true);
   usePaperExportUiStore.setState({ request: null });
   service.saveTextFile.mockClear();
+  service.saveBinaryFile.mockClear();
+  paperSvgToPng.mockClear();
   // jsdom has no object URLs.
   URL.createObjectURL = vi.fn(() => 'blob:page');
   URL.revokeObjectURL = vi.fn();
@@ -437,6 +452,7 @@ describe('PaperExportModal over the References workspace', () => {
     clearTarget: vi.fn(),
     playFold: vi.fn(),
     exportStep: vi.fn(),
+    exportAllSteps: vi.fn(),
     exportStepSvg: vi.fn(),
     exportStepPng: vi.fn(),
   };
@@ -484,5 +500,200 @@ describe('PaperExportModal over the References workspace', () => {
     key(button('Export SVG')!, 'Escape');
     expect(dialog()).toBeNull();
     expect(references.clearTarget).not.toHaveBeenCalled();
+  });
+});
+
+describe('PaperExportModal on a target with several pages', () => {
+  const STEPS: PaperExportPages = {
+    list: [
+      { label: 'Step 1', fileStem: '01 step 1' },
+      { label: 'Step 2', fileStem: '02 step 2' },
+      { label: 'Turn over', fileStem: '03 turn over after step 2' },
+    ],
+    current: 1,
+    title: 'Export all steps',
+    zipStem: 'Crane steps',
+  };
+
+  const steps = (overrides: Partial<PaperExportTarget> = {}) =>
+    target({
+      surface: 'references',
+      title: 'Export step 2',
+      fileStem: 'Crane step 2',
+      pages: STEPS,
+      buriesFaces: false,
+      sceneKey: ({ page, style }) => `${page}:${style.paper.front}`,
+      ...overrides,
+    });
+
+  const scopeGroup = () => document.querySelector<HTMLElement>('[role="group"][aria-label="Steps"]');
+  const pagerLabel = () =>
+    document.querySelector('.paper-export__pager [aria-live]')?.textContent ?? null;
+  const caption = () => document.querySelector('.paper-export__caption')?.textContent ?? '';
+
+  /** Makes each of the next `count` rasterisations wait until its own release. */
+  function holdRasterising(count: number): Array<() => Promise<void>> {
+    return Array.from({ length: count }, () => {
+      let settle: () => void = () => {};
+      paperSvgToPng.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            settle = () => resolve(new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
+          })
+      );
+      return async () => {
+        await act(async () => settle());
+      };
+    });
+  }
+
+  it('offers no Steps switch for a target with one page', async () => {
+    await open(target());
+    expect(scopeGroup()).toBeNull();
+
+    act(() => usePaperExportUiStore.getState().close());
+    await open(steps({ pages: { ...STEPS, list: STEPS.list.slice(0, 1), current: 0 } }));
+    expect(dialog('Export step 2')).not.toBeNull();
+    expect(scopeGroup()).toBeNull();
+  });
+
+  it('opens on This step, exporting the page on show alone', async () => {
+    await open(steps());
+    expect(scopeGroup()).not.toBeNull();
+    expect(button('This step')?.getAttribute('aria-pressed')).toBe('true');
+    expect(pagerLabel()).toBeNull();
+    expect(caption()).not.toContain('ZIP');
+    expect(button('Export SVG')).toBeTruthy();
+  });
+
+  it('switches to All steps: retitled, paged through, and captioned as a ZIP', async () => {
+    await open(steps());
+    await act(async () => button('All steps')?.click());
+    await flush();
+
+    expect(dialog('Export step 2')).toBeNull();
+    expect(dialog('Export all steps')).not.toBeNull();
+    expect(button('All steps')?.getAttribute('aria-pressed')).toBe('true');
+    // The pager opens on the step the surface was showing.
+    expect(pagerLabel()).toBe('Step 2 · 2 of 3');
+    expect(caption()).toMatch(/ · 3 files · ZIP$/);
+    expect(button('Export SVGs as ZIP')?.disabled).toBe(false);
+
+    await act(async () => button('Previous step')?.click());
+    expect(pagerLabel()).toBe('Step 1 · 1 of 3');
+    expect(button('Previous step')?.disabled).toBe(true);
+    expect(button('Next step')?.disabled).toBe(false);
+
+    await act(async () => button('Next step')?.click());
+    await act(async () => button('Next step')?.click());
+    expect(pagerLabel()).toBe('Turn over · 3 of 3');
+    expect(button('Next step')?.disabled).toBe(true);
+    expect(button('Previous step')?.disabled).toBe(false);
+  });
+
+  it('saves every step as one ZIP when Export is pressed, and closes', async () => {
+    await open(steps());
+    await act(async () => button('All steps')?.click());
+    await flush();
+
+    await act(async () => button('Export SVGs as ZIP')?.click());
+    // fflate is loaded on demand, past the microtasks one act settles.
+    await act(async () => {
+      await vi.waitFor(() => expect(service.saveBinaryFile).toHaveBeenCalled());
+    });
+    await flush();
+
+    expect(service.saveTextFile).not.toHaveBeenCalled();
+    expect(service.saveBinaryFile).toHaveBeenCalledTimes(1);
+    const saved = (service.saveBinaryFile.mock.calls[0] as unknown[])[0] as {
+      bytes: Uint8Array;
+      suggestedName: string;
+      mimeType: string;
+    };
+    expect(saved).toMatchObject({ mimeType: 'application/zip', suggestedName: 'Crane-steps.zip' });
+    const entries = unzipSync(saved.bytes);
+    expect(Object.keys(entries)).toEqual([
+      '01-step-1.svg',
+      '02-step-2.svg',
+      '03-turn-over-after-step-2.svg',
+    ]);
+    for (const entry of Object.values(entries)) {
+      expect(new TextDecoder().decode(entry)).toContain('<svg');
+    }
+    expect(dialog('Export all steps')).toBeNull();
+  });
+
+  it('opens straight on All steps when the request asks for every step', async () => {
+    await open(steps(), null, null, 'all');
+    await flush();
+    expect(dialog('Export all steps')).not.toBeNull();
+    expect(button('All steps')?.getAttribute('aria-pressed')).toBe('true');
+    expect(pagerLabel()).toBe('Step 2 · 2 of 3');
+    expect(button('Export SVGs as ZIP')).toBeTruthy();
+  });
+
+  it('opens a target with one page on that page, whatever the request asks for', async () => {
+    await open(target(), null, null, 'all');
+    expect(dialog()).not.toBeNull();
+    expect(pagerLabel()).toBeNull();
+    expect(button('Export SVG')).toBeTruthy();
+  });
+
+  describe('while the pages of a ZIP paint', () => {
+    it('counts them off on Export, and stays open to Cancel', async () => {
+      const [first] = holdRasterising(2);
+      await open(steps(), null, 'png', 'all');
+      await flush();
+
+      await act(async () => button('Export PNGs as ZIP')?.click());
+      expect(paperSvgToPng).toHaveBeenCalledTimes(1);
+      expect(button('Exporting 1 of 3…')?.disabled).toBe(true);
+      expect(button('Cancel')?.disabled).toBe(false);
+      expect(button('Close Export all steps')?.disabled).toBe(false);
+
+      await first!();
+      expect(button('Exporting 2 of 3…')).toBeTruthy();
+    });
+
+    it('stops at the next page when cancelled, and saves nothing', async () => {
+      const [first, second] = holdRasterising(2);
+      const opened = steps();
+      await open(opened, null, 'png', 'all');
+      await flush();
+
+      await act(async () => button('Export PNGs as ZIP')?.click());
+      await first!();
+      expect(button('Exporting 2 of 3…')).toBeTruthy();
+
+      act(() => button('Cancel')?.click());
+      expect(dialog('Export all steps')).toBeNull();
+      expect(opened.release).toHaveBeenCalledTimes(1);
+
+      await second!();
+      await flush();
+      expect(paperSvgToPng).toHaveBeenCalledTimes(2);
+      expect(service.saveBinaryFile).not.toHaveBeenCalled();
+    });
+
+    it('cannot be closed once every page is painted and the ZIP is being written', async () => {
+      let settle: (result: { name: string; path: null }) => void = () => {};
+      service.saveBinaryFile.mockImplementationOnce(
+        () => new Promise((resolve) => (settle = resolve))
+      );
+      await open(steps(), null, 'png', 'all');
+      await flush();
+
+      await act(async () => button('Export PNGs as ZIP')?.click());
+      await act(async () => {
+        await vi.waitFor(() => expect(service.saveBinaryFile).toHaveBeenCalled());
+      });
+      expect(button('Exporting 3 of 3…')?.disabled).toBe(true);
+      expect(button('Cancel')?.disabled).toBe(true);
+      key(dialog('Export all steps')!.querySelector('[role="document"]')!, 'Escape');
+      expect(dialog('Export all steps')).not.toBeNull();
+
+      await act(async () => settle({ name: 'Crane-steps.zip', path: null }));
+      expect(dialog('Export all steps')).toBeNull();
+    });
   });
 });

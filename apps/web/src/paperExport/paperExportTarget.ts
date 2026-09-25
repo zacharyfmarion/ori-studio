@@ -12,12 +12,15 @@
  * style and a page's background into a scene, so the dialog can be driven by
  * a fake one in a test.
  */
+import type { PaperExportScope } from '../analytics/events';
 import type { PaperScene } from '../lib/paper/paperScene';
 import type { Hex, PaperStyle, PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
 
 /** What a scene is built from, beyond the capture itself. */
 export interface PaperSceneInput {
+  /** Which of the target's pages; 0 for a target with one picture. */
+  page: number;
   /** The style the page is painted with, before the surface's policy. */
   style: PaperStyle;
   /**
@@ -30,6 +33,31 @@ export interface PaperSceneInput {
   background: Hex | null;
 }
 
+/** One page of a target that has several: a step of a References sequence. */
+export interface PaperExportPage {
+  /** Its name in the dialog's pager: "Step 3", "Turn over". */
+  label: string;
+  /** Its file's name inside the ZIP, before sanitising and without an extension. */
+  fileStem: string;
+}
+
+/**
+ * The pages of a target that has more than one picture, all captured when the
+ * dialog opens. The dialog exports the page on show, or every page as a ZIP.
+ */
+export interface PaperExportPages {
+  list: readonly PaperExportPage[];
+  /** The page the surface was showing: the one "this step" exports. */
+  current: number;
+  /** The dialog's title while it exports every page: "Export all steps". */
+  title: string;
+  /** The ZIP's name, before sanitising and without an extension. */
+  zipStem: string;
+}
+
+/** Which of a target's pages an export writes: declared once, with the analytics enum that reports it. */
+export type { PaperExportScope };
+
 export interface PaperExportTarget {
   /** Which surface this is: the analytics enum, and the style policy (`PAPER_STYLE_POLICIES[surface]`). */
   surface: PaperSurface;
@@ -37,6 +65,11 @@ export interface PaperExportTarget {
   title: string;
   /** The suggested file name, before sanitising and without an extension. */
   fileStem: string;
+  /**
+   * Its pages, when it has more than one picture; null for a surface with one.
+   * `title` and `fileStem` are then the current page's.
+   */
+  pages: PaperExportPages | null;
   /** The Settings export style with the object's own pins on top: the style picker's first entry. */
   exportStyle: PaperStyle;
   /** The fields the object pins itself, applied over a picked preset as well. */

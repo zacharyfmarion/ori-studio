@@ -20,6 +20,7 @@ function mockActions(): ReferencesShortcutActions {
     clearTarget: vi.fn(),
     playFold: vi.fn(),
     exportStep: vi.fn(),
+    exportAllSteps: vi.fn(),
     exportStepSvg: vi.fn(),
     exportStepPng: vi.fn(),
   };

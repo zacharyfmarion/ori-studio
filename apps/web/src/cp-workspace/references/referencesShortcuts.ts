@@ -14,6 +14,7 @@ export const REFERENCES_SHORTCUT_IDS: readonly ReferencesShortcutId[] = [
   'references.clearTarget',
   'references.playFold',
   'references.exportStep',
+  'references.exportAllSteps',
   'references.exportStepSvg',
   'references.exportStepPng',
 ];
@@ -41,6 +42,7 @@ export interface ReferencesShortcutActions {
    * saved in, or on SVG / PNG. Unbound by default.
    */
   exportStep: () => void;
+  exportAllSteps: () => void;
   exportStepSvg: () => void;
   exportStepPng: () => void;
 }
@@ -93,6 +95,9 @@ export function runReferencesShortcut(
       return;
     case 'references.exportStep':
       actions.exportStep();
+      return;
+    case 'references.exportAllSteps':
+      actions.exportAllSteps();
       return;
     case 'references.exportStepSvg':
       actions.exportStepSvg();

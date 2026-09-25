@@ -1064,6 +1064,7 @@
       "autoPlayFoldsHelp": "Joue le pli d’une étape dès que sa carte est atteinte. Désactivé, le pli se joue quand vous appuyez sur Lecture ou Espace, et se rejoue à l’envers quand vous appuyez à nouveau ; le papier se retourne tout de même de lui-même.",
       "candidates": "Candidats",
       "emptyNote": "Ouvrez un patron de pliage pour régler la recherche de ses références.",
+      "export": "Exportation",
       "gridWhereNeeded": "Seulement où nécessaire",
       "includeApproximate": "Inclure les solutions approximatives",
       "landmarksFirst": "Repères d’abord",

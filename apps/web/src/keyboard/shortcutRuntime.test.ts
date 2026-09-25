@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   handleShortcutRuntimeKeyDown,
   registerCpActionShortcutExecutor,
+  registerReferencesShortcutExecutor,
   registerViewportShortcutExecutor,
+  runReferencesCommand,
   shortcutScopeStackForContext,
 } from './shortcutRuntime';
 import type { ViewportShortcutId } from './shortcuts';
@@ -54,6 +56,42 @@ describe('shortcut runtime', () => {
         activeEditingContext: 'references',
       })
     ).toEqual(['viewport', 'global']);
+  });
+
+  describe('runReferencesCommand', () => {
+    it('runs the registered References executor with the id, and says it did', () => {
+      const references = vi.fn();
+      cleanupWith(registerReferencesShortcutExecutor(references));
+
+      expect(runReferencesCommand('references.exportAllSteps')).toBe(true);
+      expect(references).toHaveBeenCalledTimes(1);
+      expect(references).toHaveBeenCalledWith('references.exportAllSteps');
+    });
+
+    it('answers false while no References view is mounted', () => {
+      expect(runReferencesCommand('references.exportAllSteps')).toBe(false);
+    });
+
+    it('answers false again once the registration is disposed', () => {
+      const references = vi.fn();
+      const dispose = registerReferencesShortcutExecutor(references);
+      dispose();
+
+      expect(runReferencesCommand('references.exportAllSteps')).toBe(false);
+      expect(references).not.toHaveBeenCalled();
+    });
+
+    it('keeps a newer registration when an older one is disposed', () => {
+      const older = vi.fn();
+      const newer = vi.fn();
+      const disposeOlder = registerReferencesShortcutExecutor(older);
+      cleanupWith(registerReferencesShortcutExecutor(newer));
+      disposeOlder();
+
+      expect(runReferencesCommand('references.exportAllSteps')).toBe(true);
+      expect(newer).toHaveBeenCalledWith('references.exportAllSteps');
+      expect(older).not.toHaveBeenCalled();
+    });
   });
 
   it('lets viewport ownership differ from editing ownership', () => {

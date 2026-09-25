@@ -990,6 +990,7 @@
       "autoPlayFoldsHelp": "カードに到達した時点で手順の折りを再生します。オフの場合は再生または Space を押すと折りが再生され、もう一度押すと戻ります。紙の裏返しはオフでも自動で再生されます。",
       "candidates": "候補数",
       "emptyNote": "リファレンスの探し方を調整するには展開図を開いてください。",
+      "export": "書き出し",
       "gridWhereNeeded": "必要な場所だけ",
       "includeApproximate": "近似解も含める",
       "landmarksFirst": "目印を先に",

@@ -72,13 +72,15 @@ export function paperExportPage(
   return { ...paperPageOf(options), keepHiddenFaces: paperExportKeepsHiddenFaces(target, options) };
 }
 
-/** What a scene for these options is built from. */
+/** What a scene of `page` for these options is built from. */
 export function paperExportSceneInput(
   target: Pick<PaperExportTarget, 'buriesFaces'>,
   style: PaperStyle,
-  options: Pick<PaperExportSettings, 'format' | 'keepHiddenFaces' | 'background'>
+  options: Pick<PaperExportSettings, 'format' | 'keepHiddenFaces' | 'background'>,
+  page = 0
 ): PaperSceneInput {
   return {
+    page,
     style,
     markHidden: !paperExportKeepsHiddenFaces(target, options),
     background: options.background,
@@ -93,6 +95,24 @@ export function paintPaperExport(
   page: PaperPage
 ): PaperSvgResult {
   return paperSceneToSvg(scene, target.paintStyle(style), page);
+}
+
+/**
+ * Every scene cropped alike — to the union of their bounds — so a set of pages
+ * puts the sheet at the same place and size on each, and lines up when flipped
+ * through or laid side by side. The painter crops to a scene's bounds, so this
+ * is all it takes.
+ */
+export function paperScenesOnOneCrop(scenes: readonly PaperScene[]): PaperScene[] {
+  if (scenes.length < 2) return [...scenes];
+  const bounds = { ...scenes[0]!.bounds };
+  for (const { bounds: next } of scenes) {
+    bounds.minX = Math.min(bounds.minX, next.minX);
+    bounds.minY = Math.min(bounds.minY, next.minY);
+    bounds.maxX = Math.max(bounds.maxX, next.maxX);
+    bounds.maxY = Math.max(bounds.maxY, next.maxY);
+  }
+  return scenes.map((scene) => ({ ...scene, bounds }));
 }
 
 /** How many faces a page has that no pixel of it shows; the preview says so when it keeps them. */

@@ -1,9 +1,11 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearReferencesResults } from '../../cp-workspace/references/referencesResults';
+import { registerReferencesShortcutExecutor } from '../../keyboard/shortcutRuntime';
 import { DEFAULT_REFERENCES_SETTINGS } from '../../store/workspaceStore/slices/referencesSlice';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -50,6 +52,14 @@ function press(element: Element) {
   act(() => {
     element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
+}
+
+function buttonNamed(rendered: HTMLDivElement, name: string): HTMLButtonElement {
+  const found = [...rendered.querySelectorAll<HTMLButtonElement>('button')].find(
+    (element) => element.textContent?.trim() === name
+  );
+  if (!found) throw new Error(`no button named ${name}`);
+  return found;
 }
 
 const settings = () => useWorkspaceStore.getState().referencesSettings;
@@ -217,5 +227,41 @@ describe('ReferencesViewControlsPanel', () => {
     expect(useSettingsStore.getState().referencesShowAuxCreases).toBeNull();
     expect(aux().getAttribute('aria-checked')).toBe('false');
     expect(reset()).toBeNull();
+  });
+});
+
+describe('ReferencesViewControlsPanel export section', () => {
+  let unregister: (() => void) | null = null;
+
+  afterEach(() => {
+    unregister?.();
+    unregister = null;
+  });
+
+  it('runs the References view’s export-all-steps command', () => {
+    const references = vi.fn();
+    unregister = registerReferencesShortcutExecutor(references);
+    const rendered = render();
+
+    press(buttonNamed(rendered, 'Export all steps…'));
+
+    expect(references).toHaveBeenCalledTimes(1);
+    expect(references).toHaveBeenCalledWith('references.exportAllSteps');
+  });
+
+  it('does nothing while no References view is mounted', () => {
+    const rendered = render();
+    const exportAll = buttonNamed(rendered, 'Export all steps…');
+
+    expect(() => press(exportAll)).not.toThrow();
+    expect(usePaperExportUiStore.getState().request).toBeNull();
+  });
+
+  it('offers no export before a crease pattern is open', () => {
+    useWorkspaceStore.setState({ oristudioCpDocument: null } as never);
+
+    const rendered = render();
+
+    expect(rendered.textContent).not.toContain('Export all steps…');
   });
 });

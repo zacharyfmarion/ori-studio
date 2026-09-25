@@ -17,6 +17,8 @@ import {
 } from '../../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../../lib/paper/paperPng';
 import type { PaperExportFormat, PaperExportSettings } from '../../lib/paperExportSettings';
+import type { PaperExportScope } from '../../paperExport/paperExportTarget';
+import type { PaperExportDialogBinding } from '../../paperExport/usePaperExportDialog';
 import { ColorField } from '../ui/ColorField';
 import { NumberField } from '../ui/NumberField';
 import { SegmentedControl } from '../ui/SegmentedControl';
@@ -37,11 +39,14 @@ export function PaperExportOptions({
   draft,
   patch,
   buriesFaces,
+  scopes,
 }: {
   draft: PaperExportSettings;
   patch: (next: Partial<PaperExportSettings>) => void;
   /** The picture can have buried faces; false hides Keep hidden faces. */
   buriesFaces: boolean;
+  /** The step on show or every step, for a target with several; null hides the choice. */
+  scopes: PaperExportDialogBinding['scopes'];
 }) {
   const { t } = useTranslation();
   const png = draft.format === 'png';
@@ -53,6 +58,19 @@ export function PaperExportOptions({
 
   return (
     <>
+      {scopes && (
+        <section className="export-modal__section">
+          <SegmentedControl<PaperExportScope>
+            aria-label={t('dialogs:paperExport.scope', 'Steps')}
+            value={scopes.scope}
+            onChange={scopes.setScope}
+            options={[
+              { value: 'this', label: t('dialogs:paperExport.scopeThis', 'This step') },
+              { value: 'all', label: t('dialogs:paperExport.scopeAll', 'All steps') },
+            ]}
+          />
+        </section>
+      )}
       <section className="export-modal__section">
         <div className="export-modal__control-group">
           <span className="export-modal__label">{t('dialogs:paperExport.format', 'Format')}</span>

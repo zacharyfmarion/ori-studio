@@ -55,7 +55,8 @@
     "stopping": "Cancelando…"
   },
   "referencesExport": {
-    "empty": "Aún no hay ningún paso que exportar"
+    "empty": "Aún no hay ningún paso que exportar",
+    "noSteps": "Aún no hay pasos que exportar"
   },
   "simulatorExport": {
     "empty": "Esta simulación aún no tiene nada que exportar",

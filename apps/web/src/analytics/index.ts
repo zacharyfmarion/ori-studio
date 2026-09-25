@@ -44,6 +44,7 @@ export type {
   PaperExportFormat,
   PaperExportHiddenFaces,
   PaperExportResolution,
+  PaperExportScope,
   PaperExportSheet,
   PaperExportStyleName,
   PaperExportSurface,

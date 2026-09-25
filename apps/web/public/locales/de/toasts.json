@@ -54,7 +54,8 @@
     "stopping": "Wird abgebrochen…"
   },
   "referencesExport": {
-    "empty": "Es gibt noch keinen Schritt zum Exportieren"
+    "empty": "Es gibt noch keinen Schritt zum Exportieren",
+    "noSteps": "Es gibt noch keine Schritte zum Exportieren"
   },
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren",

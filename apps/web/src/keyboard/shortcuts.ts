@@ -64,6 +64,7 @@ export type ReferencesShortcutId =
   | 'references.clearTarget'
   | 'references.playFold'
   | 'references.exportStep'
+  | 'references.exportAllSteps'
   | 'references.exportStepSvg'
   | 'references.exportStepPng';
 export type ShortcutActionId =
@@ -426,6 +427,7 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   // The dialog opens on the format last used; the two below open it on theirs,
   // and stay for anyone who bound them before there was a dialog to choose in.
   referencesShortcut('references.exportStep', 'Export step…', null),
+  referencesShortcut('references.exportAllSteps', 'Export all steps…', null),
   referencesShortcut('references.exportStepSvg', 'Export step as SVG…', null),
   referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
 ];

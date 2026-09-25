@@ -282,7 +282,8 @@ export function sheetCorners(sheet: DiagramSheet): [SheetPoint, SheetPoint, Shee
 }
 
 /** Where the paper is and which way it lies: its middle and its axes, with the unit frame's defaults. */
-function sheetFrame(sheet: DiagramSheet) {
+/** The sheet's middle and axes in its diagram's space, with their defaults filled in. */
+export function sheetFrame(sheet: DiagramSheet) {
   return {
     centre: sheet.centre ?? ([sheet.width / 2, sheet.height / 2] as const),
     xAxis: sheet.axes?.x ?? UNIT_AXES.x,

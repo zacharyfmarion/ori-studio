@@ -261,6 +261,7 @@
   },
   "references": {
     "categoryLabel": "参考",
+    "exportAllSteps": "导出全部步骤…",
     "exportStep": "导出步骤…",
     "exportStepPng": "将步骤导出为 PNG…",
     "exportStepSvg": "将步骤导出为 SVG…",

@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import { Download } from 'lucide-react';
+import { runReferencesCommand } from '../../keyboard/shortcutRuntime';
 import { REFERENCES_CANDIDATE_COUNTS } from '../../store/workspaceStore/slices/referencesSlice';
 import { useReferencesSettings } from '../../cp-workspace/references/useReferencesSettings';
+import { Button } from '../ui/Button';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { SelectRow, ToggleRow } from '../ui/fieldRows';
 
@@ -15,7 +18,9 @@ import { SelectRow, ToggleRow } from '../ui/fieldRows';
  *
  * Two groups, the split the popover drew: what to ask ReferenceFinder for a
  * picked vertex or crease — always from the bare sheet — and how the
- * whole-pattern sequence is made.
+ * whole-pattern sequence is made. Then Export, for every step at once: the
+ * diagrams are the view's, so the button runs the view's own command
+ * (`references.exportAllSteps`) rather than reaching for them from here.
  */
 export function ReferencesViewControlsPanel() {
   const { t } = useTranslation();
@@ -126,6 +131,18 @@ export function ReferencesViewControlsPanel() {
             onChange={setShowAuxCreases}
             onReset={showAuxCreasesSet ? resetShowAuxCreases : undefined}
           />
+        </CollapsibleSection>
+
+        <CollapsibleSection title={t('panels:references.settings.export', 'Export')}>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="references-view-controls-panel__export"
+            onClick={() => runReferencesCommand('references.exportAllSteps')}
+          >
+            <Download size={14} aria-hidden="true" />
+            {t('tools:references.exportAllSteps', 'Export all steps…')}
+          </Button>
         </CollapsibleSection>
       </div>
     </section>

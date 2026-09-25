@@ -53,7 +53,8 @@
     "stopping": "취소 중…"
   },
   "referencesExport": {
-    "empty": "아직 내보낼 단계가 없습니다"
+    "empty": "아직 내보낼 단계가 없습니다",
+    "noSteps": "아직 내보낼 단계가 없습니다"
   },
   "simulatorExport": {
     "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다",

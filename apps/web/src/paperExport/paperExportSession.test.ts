@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
 import type { PaperScene } from '../lib/paper/paperScene';
+import { DEFAULT_PAPER_PAGE } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
+import { paperSceneToSvg } from '../lib/paper/paperSvg';
 import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
 import {
@@ -11,6 +13,7 @@ import {
   paperExportSceneInput,
   paperExportStyle,
   paperSceneHiddenFaces,
+  paperScenesOnOneCrop,
   resolvePaperExportStyleChoice,
 } from './paperExportSession';
 
@@ -89,8 +92,30 @@ describe('hidden faces', () => {
   });
 });
 
+describe('paperScenesOnOneCrop', () => {
+  it('crops every scene to the union of their bounds, so each page is the same size', () => {
+    const left = { ...SCENE, bounds: { minX: 0, minY: 0, maxX: 100, maxY: 50 } };
+    const right = { ...SCENE, bounds: { minX: 40, minY: -10, maxX: 160, maxY: 30 } };
+    const cropped = paperScenesOnOneCrop([left, right]);
+    expect(cropped.map((scene) => scene.bounds)).toEqual([
+      { minX: 0, minY: -10, maxX: 160, maxY: 50 },
+      { minX: 0, minY: -10, maxX: 160, maxY: 50 },
+    ]);
+    const pages = cropped.map((scene) => paperSceneToSvg(scene, EXPORT_STYLE, DEFAULT_PAPER_PAGE));
+    expect(pages[1]!.widthPt).toBe(pages[0]!.widthPt);
+    expect(pages[1]!.heightPt).toBe(pages[0]!.heightPt);
+    // A single page keeps its own crop.
+    expect(paperScenesOnOneCrop([right])[0]!.bounds).toEqual(right.bounds);
+  });
+});
+
 describe('createPaperExportSession', () => {
-  const input = (background: string | null) => ({ style: EXPORT_STYLE, markHidden: false, background });
+  const input = (background: string | null) => ({
+    page: 0,
+    style: EXPORT_STYLE,
+    markHidden: false,
+    background,
+  });
 
   it('builds a scene once per key, and again only when the key changes', async () => {
     const buildScene = vi.fn(async () => SCENE);

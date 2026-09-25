@@ -9,9 +9,12 @@ import {
   REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX,
   referencesSheetCssPx,
   referencesSequenceSubject,
+  referencesStepEntryName,
   referencesStepExportName,
   referencesStepPaintStyle,
   referencesStepScene,
+  referencesStepsArchiveName,
+  type ReferencesStepExportSubject,
 } from './referencesStepExport';
 import { DIAGRAM_PADDING } from './stepDiagramGeometry';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
@@ -238,6 +241,73 @@ describe('referencesStepExportName', () => {
     expect(referencesStepExportName('Crane', { kind: 'turn-over', after: 0 })).toBe(
       'Crane turn over'
     );
+  });
+});
+
+describe('referencesStepEntryName', () => {
+  const step = (number: number): ReferencesStepExportSubject => ({ kind: 'step', step: number - 1 });
+  const turnOver = (after: number): ReferencesStepExportSubject => ({ kind: 'turn-over', after });
+
+  it('leads with the card’s place, zero-padded to the set’s size, so a file browser sorts the strip', () => {
+    const subjects = [
+      step(1),
+      turnOver(1),
+      step(2),
+      step(3),
+      turnOver(3),
+      step(4),
+      step(5),
+      turnOver(5),
+      step(6),
+      step(7),
+    ];
+    const names = subjects.map((subject, index) =>
+      referencesStepEntryName(subject, index, subjects.length)
+    );
+    expect(names).toEqual([
+      '01 step 1',
+      '02 turn over after step 1',
+      '03 step 2',
+      '04 step 3',
+      '05 turn over after step 3',
+      '06 step 4',
+      '07 step 5',
+      '08 turn over after step 5',
+      '09 step 6',
+      '10 step 7',
+    ]);
+    expect([...names].sort()).toEqual(names);
+  });
+
+  it('pads only as wide as the count needs', () => {
+    expect(referencesStepEntryName(step(1), 0, 9)).toBe('1 step 1');
+    expect(referencesStepEntryName(step(1), 0, 10)).toBe('01 step 1');
+    expect(referencesStepEntryName(step(12), 11, 100)).toBe('012 step 12');
+  });
+
+  it('names an opening turn-over without a step, and a candidate’s step by its number alone', () => {
+    expect(referencesStepEntryName(turnOver(0), 0, 4)).toBe('1 turn over');
+    // The archive is named for the candidate, so its entries need not be.
+    expect(referencesStepEntryName({ kind: 'reference', candidate: 2, step: 1 }, 1, 4)).toBe(
+      '2 step 2'
+    );
+  });
+});
+
+describe('referencesStepsArchiveName', () => {
+  it('names the sequence’s archive for the workspace, whichever card is on show', () => {
+    expect(referencesStepsArchiveName('Crane', { kind: 'step', step: 3 })).toBe('Crane steps');
+    expect(referencesStepsArchiveName('Crane', { kind: 'turn-over', after: 2 })).toBe('Crane steps');
+  });
+
+  it('names a candidate’s archive for the candidate too', () => {
+    expect(referencesStepsArchiveName('Crane', { kind: 'reference', candidate: 2, step: 0 })).toBe(
+      'Crane reference 3 steps'
+    );
+  });
+
+  it('names an untitled workspace’s archive as a file of one step is named', () => {
+    expect(referencesStepsArchiveName('  ', { kind: 'step', step: 0 })).toBe('Untitled steps');
   });
 });
 

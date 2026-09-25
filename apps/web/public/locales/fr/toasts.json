@@ -55,7 +55,8 @@
     "stopping": "Annulation…"
   },
   "referencesExport": {
-    "empty": "Il n'y a pas encore d'étape à exporter"
+    "empty": "Il n'y a pas encore d'étape à exporter",
+    "noSteps": "Il n'y a pas encore d'étapes à exporter"
   },
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter",

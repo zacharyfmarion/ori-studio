@@ -1,9 +1,10 @@
-import { ANALYTICS_EVENTS } from './events';
+import { ANALYTICS_EVENTS, bucketCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS } from './events';
 import type {
   PaperExportBackground,
   PaperExportFormat,
   PaperExportHiddenFaces,
   PaperExportResolution,
+  PaperExportScope,
   PaperExportSheet,
   PaperExportStyleName,
   PaperExportSurface,
@@ -15,8 +16,8 @@ import { track } from './runtime';
  * step. Its triggers are toolbar and context-menu verbs as well as shortcuts,
  * which the menu chokepoint does not all see.
  */
-export function trackPaperExportOpened(surface: PaperExportSurface): void {
-  track(ANALYTICS_EVENTS.paperExportOpened, { surface });
+export function trackPaperExportOpened(surface: PaperExportSurface, scope: PaperExportScope): void {
+  track(ANALYTICS_EVENTS.paperExportOpened, { surface, scope });
 }
 
 /** A saved paper export, as the dialog knows it: every field an enum, or a density bucketed into one. */
@@ -31,6 +32,9 @@ export interface PaperExportedEvent {
   pngDpi: number;
   /** Whether anything was touched in the dialog before saving: does the dialog earn its step. */
   optionsChanged: boolean;
+  scope: PaperExportScope;
+  /** How many pages the ZIP holds; read only for every page. */
+  pageCount: number;
 }
 
 const RESOLUTION_BY_DPI: Readonly<Record<number, PaperExportResolution>> = {
@@ -63,5 +67,9 @@ export function trackPaperExported(event: PaperExportedEvent): void {
     background: event.background,
     resolution: paperExportResolution(event.format, event.pngDpi),
     options_changed: event.optionsChanged ? 'yes' : 'no',
+    scope: event.scope,
+    ...(event.scope === 'all'
+      ? { page_count_bucket: bucketCount(event.pageCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS) }
+      : {}),
   });
 }

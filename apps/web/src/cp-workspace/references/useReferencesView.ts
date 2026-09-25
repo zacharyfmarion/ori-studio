@@ -27,6 +27,7 @@ import {
   candidateViewSteps,
   clampCandidateStep,
   diagonalStepDiagram,
+  type ReferencesCandidateStep,
 } from './referencesCandidateSteps';
 import {
   diagramInModel,
@@ -216,16 +217,10 @@ export function useReferencesHighlights(
   // of an RF step is kept for the framing bounds alone; a diagonal frames
   // itself.
   const step = steps[at] ?? null;
-  const diagram = useMemo(() => {
-    if (!candidate || !results || !step) return null;
-    if (step.kind === 'diagonal') {
-      return diagramInModel(
-        diagonalStepDiagram(step.diagonal, rfSheetOfFrame(results.frame)),
-        results.frame
-      );
-    }
-    return referenceFinderStepInModel(candidate.raw, step, results.frame);
-  }, [candidate, results, step]);
+  const diagram = useMemo(
+    () => (candidate && results && step ? candidateStepDiagram(candidate, results, step) : null),
+    [candidate, results, step]
+  );
   const stepBounds = useMemo<ModelBounds | null>(() => {
     if (!candidate || !results || !step) return null;
     if (step.kind === 'diagonal') {
@@ -279,6 +274,25 @@ export function useReferencesHighlights(
   };
 }
 
+/**
+ * What a candidate's step card draws, on the pattern: a diagonal step's own
+ * primitives, or ReferenceFinder's diagram of its step. The view and the export
+ * of every step read a step through this one function.
+ */
+export function candidateStepDiagram(
+  candidate: ReferencesCandidateResult,
+  results: ReferencesResults,
+  step: ReferencesCandidateStep
+): StepDiagramModel | null {
+  if (step.kind === 'diagonal') {
+    return diagramInModel(
+      diagonalStepDiagram(step.diagonal, rfSheetOfFrame(results.frame)),
+      results.frame
+    );
+  }
+  return referenceFinderStepInModel(candidate.raw, step, results.frame);
+}
+
 const NO_HIGHLIGHTS: ReferencesHighlights = {
   highlightLineIds: EMPTY_IDS,
   highlightVertexIdx: EMPTY_IDS,
@@ -294,7 +308,7 @@ const NO_HIGHLIGHTS: ReferencesHighlights = {
  * the React compiler can keep: a memo whose body branches and returns early
  * cannot be preserved, and the branching is what this does.
  */
-function planHighlights(
+export function planHighlights(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,

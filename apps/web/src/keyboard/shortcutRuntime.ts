@@ -110,6 +110,18 @@ export function registerReferencesShortcutExecutor(executor: ReferencesExecutor)
   };
 }
 
+/**
+ * Run a References verb from outside the References view — its right rail is a
+ * panel of its own, and the view is what holds the diagrams a verb acts on.
+ * Through the executor the view registers, so a button there and the view's
+ * own key are one path. False while no References view is mounted.
+ */
+export function runReferencesCommand(id: ReferencesShortcutId): boolean {
+  if (!referencesExecutor) return false;
+  referencesExecutor(id);
+  return true;
+}
+
 export function registerCpActionShortcutExecutor(executor: CpActionExecutor): () => void {
   cpActionExecutor = executor;
   return () => {

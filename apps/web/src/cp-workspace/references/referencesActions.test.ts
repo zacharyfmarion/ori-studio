@@ -49,6 +49,7 @@ describe('buildReferencesActions', () => {
       'zoom-in',
       'zoom-out',
       'export-step',
+      'export-all-steps',
     ]);
   });
 
@@ -71,6 +72,7 @@ describe('buildReferencesActions', () => {
       'references.zoomIn',
       'references.zoomOut',
       'references.exportStep',
+      'references.exportAllSteps',
     ]);
   });
 
@@ -83,6 +85,16 @@ describe('buildReferencesActions', () => {
     const blank = command(state({ hasDiagram: false }), 'export-step');
     expect(blank.disabled).toBe(true);
     expect(blank.hint).toBe('No step is showing');
+  });
+
+  it('offers every step while the strip has cards, whichever is showing', () => {
+    // The finished card has no diagram of its own, but the steps before it do.
+    const finished = command(state({ hasDiagram: false }), 'export-all-steps');
+    expect(finished.label).toBe('Export all steps…');
+    expect(finished.disabled).toBe(false);
+    const empty = command(state({ stepCount: 0, activeStep: 0 }), 'export-all-steps');
+    expect(empty.disabled).toBe(true);
+    expect(empty.hint).toBe('Pick a vertex or crease first');
   });
 
   it('separates export from the camera verbs in the menu', () => {

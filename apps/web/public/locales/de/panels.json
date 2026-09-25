@@ -1024,6 +1024,7 @@
       "autoPlayFoldsHelp": "Spielt die Faltung eines Schritts ab, sobald seine Karte erreicht ist. Aus: Die Faltung läuft, wenn du Abspielen oder die Leertaste drückst, und zurück, wenn du erneut drückst; das Papier wendet sich trotzdem von selbst.",
       "candidates": "Kandidaten",
       "emptyNote": "Öffne ein Faltmuster, um einzustellen, wie seine Referenzen gefunden werden.",
+      "export": "Export",
       "gridWhereNeeded": "Nur wo nötig",
       "includeApproximate": "Näherungslösungen einbeziehen",
       "landmarksFirst": "Orientierungspunkte zuerst",

@@ -9,13 +9,16 @@
  */
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import type { PaperExportFormat } from '../../lib/paperExportSettings';
 import type {
+  PaperExportDialogBinding,
   PaperExportPreviewImage,
   PaperExportStatus,
 } from '../../paperExport/usePaperExportDialog';
+import { IconButton } from '../ui/IconButton';
 
 /** A length in mm as the caption prints it: whole mm from 100, tenths below. */
 export function formatPageMm(pt: number): string {
@@ -42,6 +45,7 @@ export function PaperExportPreview({
   pngSize,
   pngTooLarge,
   hiddenFacesDropped,
+  pager,
 }: {
   status: PaperExportStatus;
   error: string | null;
@@ -52,6 +56,8 @@ export function PaperExportPreview({
   pngSize: { width: number; height: number } | null;
   pngTooLarge: boolean;
   hiddenFacesDropped: number;
+  /** Every step's page, one at a time, while all of them are exported. */
+  pager: PaperExportDialogBinding['pager'];
 }) {
   const { t, i18n } = useTranslation();
   const number = (value: number) => value.toLocaleString(i18n.language);
@@ -78,6 +84,14 @@ export function PaperExportPreview({
         t('dialogs:paperExport.hiddenFacesDropped', '{{count}} hidden faces left out', {
           count: hiddenFacesDropped,
           defaultValue_one: '{{count}} hidden face left out',
+        })
+      );
+    }
+    if (pager) {
+      parts.push(
+        t('dialogs:paperExport.zipFiles', '{{count}} files · ZIP', {
+          count: pager.count,
+          defaultValue_one: '{{count}} file · ZIP',
         })
       );
     }
@@ -118,6 +132,33 @@ export function PaperExportPreview({
           </span>
         )}
       </div>
+      {pager && (
+        <div className="paper-export__pager">
+          <IconButton
+            size="sm"
+            aria-label={t('dialogs:paperExport.previousPage', 'Previous step')}
+            disabled={pager.index <= 0}
+            onClick={() => pager.setIndex(pager.index - 1)}
+          >
+            <ChevronLeft size={14} />
+          </IconButton>
+          <span aria-live="polite">
+            {t('dialogs:paperExport.pagerLabel', '{{label}} · {{index}} of {{total}}', {
+              label: pager.label,
+              index: pager.index + 1,
+              total: pager.count,
+            })}
+          </span>
+          <IconButton
+            size="sm"
+            aria-label={t('dialogs:paperExport.nextPage', 'Next step')}
+            disabled={pager.index >= pager.count - 1}
+            onClick={() => pager.setIndex(pager.index + 1)}
+          >
+            <ChevronRight size={14} />
+          </IconButton>
+        </div>
+      )}
       <p
         className={`paper-export__caption${pngTooLarge ? ' paper-export__caption--error' : ''}`}
         aria-live="polite"

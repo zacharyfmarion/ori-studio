@@ -84,6 +84,7 @@ import { useReferencesBreakdown } from '../../cp-workspace/references/useReferen
 import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
 import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/references/useReferencesRun';
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
+import type { ReferencesStepsSource } from '../../cp-workspace/references/referencesExportSteps';
 import { useReferencesStepExport } from '../../cp-workspace/references/useReferencesStepExport';
 import { useReferencesTarget } from '../../cp-workspace/references/useReferencesTarget';
 import {
@@ -431,6 +432,32 @@ export function ReferencesPanel() {
         : referencesSequenceSubject(viewSteps, activeStep),
     [targeted, controller.activeCandidate, activeStep, viewSteps]
   );
+  // What the strip holds, for an export of every step: a Find candidate's
+  // steps while its answer is current, or the sequence while it is read.
+  const exportSource = useMemo<ReferencesStepsSource>(
+    () =>
+      targeted
+        ? {
+            kind: 'find',
+            results: controller.stale ? null : controller.results,
+            candidate: controller.activeCandidate,
+            activeStep,
+          }
+        : readingPlan
+          ? { kind: 'sequence', variants: breakdown.variants, viewSteps, sheetAux, activeStep }
+          : { kind: 'none' },
+    [
+      targeted,
+      readingPlan,
+      controller.stale,
+      controller.results,
+      controller.activeCandidate,
+      breakdown.variants,
+      viewSteps,
+      sheetAux,
+      activeStep,
+    ]
+  );
   const exportVerbs = useReferencesStepExport({
     // The page's diagram, not the canvas's: a file has nothing under it, so
     // it carries the creases made so far itself.
@@ -440,6 +467,7 @@ export function ReferencesPanel() {
     // The letters and arrows the size they are on screen.
     lineWidth: view.lineWidth,
     subject: exportSubject,
+    source: exportSource,
   });
 
   /** Recompute re-runs whatever the workspace is showing. */

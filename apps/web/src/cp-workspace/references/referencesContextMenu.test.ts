@@ -49,6 +49,7 @@ describe('referencesMenuItems', () => {
       'references.zoomOut',
       '—',
       'references.exportStep',
+      'references.exportAllSteps',
     ]);
   });
 

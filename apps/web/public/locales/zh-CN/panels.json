@@ -990,6 +990,7 @@
       "autoPlayFoldsHelp": "到达某一步的卡片时立即播放该步的折叠。关闭后，按“播放”或空格键播放折叠，再按一次则折回；纸张仍会自动翻面。",
       "candidates": "候选数",
       "emptyNote": "打开折痕图以调整其参考的查找方式。",
+      "export": "导出",
       "gridWhereNeeded": "仅在需要处",
       "includeApproximate": "包含近似解",
       "landmarksFirst": "先做基准点",

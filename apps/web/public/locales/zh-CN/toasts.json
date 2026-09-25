@@ -53,7 +53,8 @@
     "stopping": "正在取消…"
   },
   "referencesExport": {
-    "empty": "暂无可导出的步骤"
+    "empty": "暂无可导出的步骤",
+    "noSteps": "暂无可导出的步骤"
   },
   "simulatorExport": {
     "empty": "此模拟暂无可导出的内容",

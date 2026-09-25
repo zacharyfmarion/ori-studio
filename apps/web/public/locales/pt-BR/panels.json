@@ -1062,6 +1062,7 @@
       "autoPlayFoldsHelp": "Reproduz a dobra de um passo assim que seu cartão é alcançado. Desligado, a dobra é reproduzida ao pressionar Reproduzir ou Espaço, e volta ao pressionar de novo; o papel ainda vira sozinho.",
       "candidates": "Candidatos",
       "emptyNote": "Abra um padrão de vincos para ajustar como suas referências são encontradas.",
+      "export": "Exportar",
       "gridWhereNeeded": "Só onde for preciso",
       "includeApproximate": "Incluir soluções aproximadas",
       "landmarksFirst": "Marcos primeiro",

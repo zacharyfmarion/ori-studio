@@ -1,18 +1,24 @@
 /**
- * The export dialog's state and verbs: the draft options, the scene they call
+ * The export dialog's state and verbs: the draft options, the scenes they call
  * for, the page they paint, and the save.
  *
  * The dialog edits a draft seeded from the remembered options, so a dialog
  * closed without saving changes nothing; a save remembers the draft for next
- * time. The scene is built from the target's capture only when its key
- * changes; every other change repaints the scene in hand, through a deferred
- * value so typing a margin stays responsive on a large scene.
+ * time. The scenes are built from the target's capture only when their key
+ * changes (`usePaperExportScenes`); every other change repaints the page in
+ * hand, through a deferred value so typing a margin stays responsive on a
+ * large scene.
  *
  * What Export saves is the page the preview shows — the same object — and it
- * is enabled only once that page is the options as they stand: the scene
+ * is enabled only once that page is the options as they stand: the scenes
  * built for the current key, painted with the current style and page, and on
  * screen. So the file is the preview (X2), and the PNG size cap is checked on
  * the page that will be written (X8).
+ *
+ * A target with several pages (a References sequence) exports the page on
+ * show or every page as one ZIP (X13). Every page is then painted on one crop,
+ * so the set lines up; the pager shows any of them, and every page the ZIP
+ * holds is painted from the same scenes and options as the one on screen.
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +30,6 @@ import {
   DESKTOP_PNG_CANVAS_LIMIT,
   pngFitsCanvas,
 } from '../lib/paper/pngCanvasLimits';
-import type { PaperScene } from '../lib/paper/paperScene';
 import type { PaperSvgResult } from '../lib/paper/paperSvg';
 import { paperPageOf, type PaperExportSettings } from '../lib/paperExportSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
@@ -34,23 +39,19 @@ import type { PaperExportRequest } from '../store/paperExportUiStore';
 import {
   createPaperExportSession,
   paintPaperExport,
+  PAPER_EXPORT_SCENE_CACHE_SIZE,
   paperExportKeepsHiddenFaces,
   paperExportSceneInput,
   paperExportStyle,
   paperSceneHiddenFaces,
+  paperScenesOnOneCrop,
   resolvePaperExportStyleChoice,
 } from './paperExportSession';
-import { paperExportedEvent, savePaperExport } from './savePaperExport';
+import type { PaperExportScope } from './paperExportTarget';
+import { paperExportedEvent, savePaperExport, savePaperExportZip } from './savePaperExport';
+import { usePaperExportScenes, type PaperExportStatus } from './usePaperExportScenes';
 
-/** Where the preview is: building a scene, showing one, or unable to. */
-export type PaperExportStatus = 'building' | 'ready' | 'empty' | 'error';
-
-interface SceneState {
-  key: string;
-  scene: PaperScene | null;
-  status: PaperExportStatus;
-  error: string | null;
-}
+export type { PaperExportStatus };
 
 /** The image on screen: a painted page and the object URL it is shown through. */
 export interface PaperExportPreviewImage {
@@ -76,9 +77,23 @@ function sameOptions(a: PaperExportSettings, b: PaperExportSettings): boolean {
 }
 
 export interface PaperExportDialogBinding {
+  /** The dialog's title: the page's, or the set's while it exports every page. */
+  title: string;
   draft: PaperExportSettings;
   /** Change some options; nothing is remembered until a file is saved. */
   patch: (next: Partial<PaperExportSettings>) => void;
+  /** Whether the target has pages to choose between, and which the export writes. */
+  scopes: { scope: PaperExportScope; setScope: (scope: PaperExportScope) => void } | null;
+  /**
+   * The pager while every page is exported: which page the preview shows, of
+   * how many, and its name.
+   */
+  pager: {
+    index: number;
+    count: number;
+    label: string;
+    setIndex: (index: number) => void;
+  } | null;
   status: PaperExportStatus;
   error: string | null;
   /**
@@ -87,7 +102,7 @@ export interface PaperExportDialogBinding {
    * nothing to show.
    */
   preview: PaperExportPreviewImage | null;
-  /** The shown page's PNG pixel size at the draft's density. */
+  /** The shown page's PNG pixel size at the draft's density; every page of a set is that size. */
   pngSize: { width: number; height: number } | null;
   /** The PNG would be larger than this browser will rasterise. */
   pngTooLarge: boolean;
@@ -96,6 +111,13 @@ export interface PaperExportDialogBinding {
   /** Whether the page keeps its buried faces, as the options and the surface decide. */
   keepsHiddenFaces: boolean;
   saving: boolean;
+  /** How far an export of every page has got, while it paints them; null otherwise. */
+  progress: { done: number; total: number } | null;
+  /**
+   * A file is being written and the dialog cannot be closed. Painting the
+   * pages of a ZIP is not: closing then stops it, and nothing is saved.
+   */
+  busy: boolean;
   saveError: string | null;
   canExport: boolean;
   exportNow: () => Promise<void>;
@@ -111,6 +133,7 @@ export function usePaperExportDialog(
 ): PaperExportDialogBinding {
   const { t } = useTranslation();
   const { target } = request;
+  const { pages } = target;
   const savedPresets = useSettingsStore((state) => state.paperStyle.presets);
   const rows = useMemo(() => paperPresetRows(savedPresets), [savedPresets]);
   const remember = useSettingsStore((state) => state.rememberPaperExportOptions);
@@ -124,61 +147,48 @@ export function usePaperExportDialog(
     []
   );
 
+  const choosable = pages !== null && pages.list.length > 1;
+  const [scope, setScope] = useState<PaperExportScope>(choosable ? request.scope : 'this');
+  const [pagerIndex, setPagerIndex] = useState(pages?.current ?? 0);
+  const all = scope === 'all' && pages !== null;
+  // The pages the options call for, and which of them the preview shows.
+  const pageIndices = useMemo(
+    () => (all ? pages.list.map((_, index) => index) : [pages?.current ?? 0]),
+    [all, pages]
+  );
+  const shownAt = all ? pagerIndex : 0;
+
   // Once per dialog: a ref rather than the effect's deps alone, since a
   // development StrictMode mount runs the effect twice.
   const opened = useRef(false);
   useEffect(() => {
     if (opened.current) return;
     opened.current = true;
-    trackPaperExportOpened(target.surface);
-  }, [target]);
+    trackPaperExportOpened(target.surface, scope);
+  }, [target, scope]);
 
   const { format, keepHiddenFaces, background, sheet, paddingMm } = draft;
   const keepsHiddenFaces = paperExportKeepsHiddenFaces(target, { format, keepHiddenFaces });
-  const session = useMemo(() => createPaperExportSession(target), [target]);
-  const style = useMemo(() => paperExportStyle(target, draft.style, rows), [target, draft.style, rows]);
-  const input = useMemo(
-    () => paperExportSceneInput(target, style, { format, keepHiddenFaces, background }),
-    [target, style, format, keepHiddenFaces, background]
+  const session = useMemo(
+    () => createPaperExportSession(target, PAPER_EXPORT_SCENE_CACHE_SIZE * (pages?.list.length ?? 1)),
+    [target, pages]
   );
-  const key = target.sceneKey(input);
-
-  const [sceneState, setSceneState] = useState<SceneState>({
-    key: '',
-    scene: null,
-    status: 'building',
-    error: null,
-  });
-  // The input a key stands for, read when the build starts; a ref so the
-  // effect below runs per key rather than per render. Refreshed by the effect
-  // declared first, so it is current when the build effect reads it.
-  const inputRef = useRef(input);
-  useEffect(() => {
-    inputRef.current = input;
-  });
-  useEffect(() => {
-    let current = true;
-    // The page in hand stays on screen while the next one builds.
-    setSceneState((previous) => ({ ...previous, status: 'building', error: null }));
-    session.scene(inputRef.current).then(
-      (scene) => {
-        if (!current) return;
-        setSceneState({ key, scene, status: scene ? 'ready' : 'empty', error: null });
-      },
-      (cause: unknown) => {
-        if (!current) return;
-        setSceneState({
-          key,
-          scene: null,
-          status: 'error',
-          error: cause instanceof Error ? cause.message : String(cause),
-        });
-      }
-    );
-    return () => {
-      current = false;
-    };
-  }, [key, session]);
+  const style = useMemo(() => paperExportStyle(target, draft.style, rows), [target, draft.style, rows]);
+  const inputs = useMemo(
+    () =>
+      pageIndices.map((page) =>
+        paperExportSceneInput(target, style, { format, keepHiddenFaces, background }, page)
+      ),
+    [pageIndices, target, style, format, keepHiddenFaces, background]
+  );
+  const key = inputs.map((input) => target.sceneKey(input)).join('\n');
+  const built = usePaperExportScenes(session, inputs, key);
+  const { status } = built;
+  const scenes = useMemo(
+    () => (all ? paperScenesOnOneCrop(built.scenes) : built.scenes),
+    [all, built.scenes]
+  );
+  const scene = scenes[shownAt] ?? null;
 
   // `paperExportPage`, memoised on what the page reads: the format and the
   // density change the file, not the page, and repaint nothing — the format
@@ -190,17 +200,13 @@ export function usePaperExportDialog(
   const deferredPage = useDeferredValue(pageOptions);
   const deferredStyle = useDeferredValue(style);
   const caughtUp = deferredPage === pageOptions && deferredStyle === style;
-  const { scene } = sceneState;
-  // A scene built for another key is on its way out: the build effect has yet
-  // to run for the key this render asks for.
-  const status: PaperExportStatus = sceneState.key === key ? sceneState.status : 'building';
-  const sceneCurrent = status === 'ready';
-  // Only the scene built for the current key is painted: an older one carries
-  // the style it was built with in its markup, and painting it with another
-  // would show neither. While the next builds, the preview keeps its image.
+  // Only the scenes built for the current key are painted: an older one
+  // carries the style it was built with in its markup, and painting it with
+  // another would show neither. While the next builds, the preview keeps its
+  // image.
   const painted = useMemo(
-    () => (sceneCurrent && scene ? paintPaperExport(target, scene, deferredStyle, deferredPage) : null),
-    [sceneCurrent, scene, target, deferredStyle, deferredPage]
+    () => (scene ? paintPaperExport(target, scene, deferredStyle, deferredPage) : null),
+    [scene, target, deferredStyle, deferredPage]
   );
   const preview = usePreviewImage(painted, status === 'building');
 
@@ -210,12 +216,13 @@ export function usePaperExportDialog(
   const pngTooLarge = format === 'png' && pngSize !== null && !pngFitsCanvas(pngSize, limit);
 
   const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const canExport =
-    sceneCurrent && caughtUp && shown !== null && shown === painted && !pngTooLarge && !saving;
+    status === 'ready' && caughtUp && shown !== null && shown === painted && !pngTooLarge && !saving;
 
-  // Aborted when the dialog goes, so a PNG still encoding is not then offered
-  // to a save dialog nobody is waiting for.
+  // Aborted when the dialog goes, so a PNG still encoding, or a ZIP's pages
+  // still painting, is not then offered to a save dialog nobody is waiting for.
   const aborter = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -225,16 +232,33 @@ export function usePaperExportDialog(
 
   const exportNow = useCallback(async () => {
     if (!canExport || !shown) return;
+    const signal = aborter.current?.signal;
     setSaving(true);
     setSaveError(null);
+    if (all) setProgress({ done: 0, total: scenes.length });
     try {
-      const name = await savePaperExport({
-        page: shown,
-        format: draft.format,
-        pngDpi: draft.pngDpi,
-        fileStem: target.fileStem,
-        signal: aborter.current?.signal,
-      });
+      const name =
+        all && pages
+          ? await savePaperExportZip({
+              // Every page from the scenes and options the one on screen was
+              // painted from; that one is the very page shown.
+              pages: scenes.map((each, index) => ({
+                page: index === shownAt ? shown : paintPaperExport(target, each, style, pageOptions),
+                fileStem: pages.list[index]!.fileStem,
+              })),
+              format: draft.format,
+              pngDpi: draft.pngDpi,
+              zipStem: pages.zipStem,
+              signal,
+              onProgress: (done, total) => setProgress({ done, total }),
+            })
+          : await savePaperExport({
+              page: shown,
+              format: draft.format,
+              pngDpi: draft.pngDpi,
+              fileStem: target.fileStem,
+              signal,
+            });
       // A dismissed save dialog: the options are still in front of the reader.
       if (!name) return;
       remember(draft);
@@ -244,6 +268,8 @@ export function usePaperExportDialog(
           style: draft.style,
           rows,
           changed: !sameOptions(draft, seed),
+          scope,
+          pageCount: scenes.length,
         })
       );
       toast.success(t('toasts:paperExport.saved', 'Exported {{name}}', { name }));
@@ -252,20 +278,53 @@ export function usePaperExportDialog(
       setSaveError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setSaving(false);
+      setProgress(null);
     }
-  }, [canExport, shown, target, draft, remember, keepsHiddenFaces, rows, seed, t, close]);
+  }, [
+    canExport,
+    shown,
+    all,
+    pages,
+    scenes,
+    shownAt,
+    target,
+    style,
+    pageOptions,
+    draft,
+    remember,
+    keepsHiddenFaces,
+    rows,
+    seed,
+    scope,
+    t,
+    close,
+  ]);
 
+  const painting = progress !== null && progress.done < progress.total;
   return {
+    title: all ? pages.title : target.title,
     draft,
     patch,
+    scopes: choosable ? { scope, setScope } : null,
+    pager:
+      all && pages
+        ? {
+            index: pagerIndex,
+            count: pages.list.length,
+            label: pages.list[pagerIndex]?.label ?? '',
+            setIndex: (index) => setPagerIndex(Math.min(pages.list.length - 1, Math.max(0, index))),
+          }
+        : null,
     status,
-    error: status === 'error' ? sceneState.error : null,
+    error: built.error,
     preview,
     pngSize,
     pngTooLarge,
     hiddenFacesDropped: scene && !keepsHiddenFaces ? paperSceneHiddenFaces(scene) : 0,
     keepsHiddenFaces,
     saving,
+    progress,
+    busy: saving && !painting,
     saveError,
     canExport,
     exportNow,

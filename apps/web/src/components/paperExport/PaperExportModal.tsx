@@ -8,7 +8,11 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePaperExportDialog } from '../../paperExport/usePaperExportDialog';
+import type { TFunction } from 'i18next';
+import {
+  usePaperExportDialog,
+  type PaperExportDialogBinding,
+} from '../../paperExport/usePaperExportDialog';
 import { usePaperExportUiStore, type PaperExportRequest } from '../../store/paperExportUiStore';
 import { Button } from '../ui/Button';
 import { ExportModalFrame } from './ExportModalFrame';
@@ -45,10 +49,10 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
   }, [dialog.canExport]);
   return (
     <ExportModalFrame
-      title={request.target.title}
+      title={dialog.title}
       onClose={close}
       onSubmit={() => void dialog.exportNow()}
-      busy={dialog.saving}
+      busy={dialog.busy}
       returnFocus={request.returnFocus}
       preview={
         <PaperExportPreview
@@ -60,10 +64,16 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
           pngSize={dialog.pngSize}
           pngTooLarge={dialog.pngTooLarge}
           hiddenFacesDropped={dialog.hiddenFacesDropped}
+          pager={dialog.pager}
         />
       }
       options={
-        <PaperExportOptions draft={draft} patch={patch} buriesFaces={request.target.buriesFaces} />
+        <PaperExportOptions
+          draft={draft}
+          patch={patch}
+          buriesFaces={request.target.buriesFaces}
+          scopes={dialog.scopes}
+        />
       }
       footer={
         <>
@@ -74,7 +84,7 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
               })}
             </span>
           )}
-          <Button size="sm" variant="ghost" disabled={dialog.saving} onClick={close}>
+          <Button size="sm" variant="ghost" disabled={dialog.busy} onClick={close}>
             {t('dialogs:common.cancel', 'Cancel')}
           </Button>
           <Button
@@ -84,12 +94,23 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
             type="submit"
             disabled={!dialog.canExport}
           >
-            {dialog.saving
-              ? t('dialogs:paperExport.exporting', 'Exporting…')
-              : t('dialogs:export.confirm', 'Export {{format}}', { format })}
+            {exportLabel(t, dialog, format)}
           </Button>
         </>
       }
     />
   );
+}
+
+/** The primary button: what it will write, or how far it has got. */
+function exportLabel(t: TFunction, dialog: PaperExportDialogBinding, format: string): string {
+  if (dialog.progress) {
+    return t('dialogs:paperExport.exportingPages', 'Exporting {{done}} of {{total}}…', {
+      done: Math.min(dialog.progress.done + 1, dialog.progress.total),
+      total: dialog.progress.total,
+    });
+  }
+  if (dialog.saving) return t('dialogs:paperExport.exporting', 'Exporting…');
+  if (dialog.pager) return t('dialogs:paperExport.confirmZip', 'Export {{format}}s as ZIP', { format });
+  return t('dialogs:export.confirm', 'Export {{format}}', { format });
 }

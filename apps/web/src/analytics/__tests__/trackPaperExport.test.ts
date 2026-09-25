@@ -23,6 +23,8 @@ const SVG = {
   background: 'transparent',
   pngDpi: 192,
   optionsChanged: false,
+  scope: 'this',
+  pageCount: 1,
 } as const;
 
 beforeEach(() => {
@@ -31,8 +33,11 @@ beforeEach(() => {
 
 describe('trackPaperExportOpened', () => {
   it('names the surface', () => {
-    trackPaperExportOpened('references');
-    expect(runtime.track).toHaveBeenCalledWith('paper export opened', { surface: 'references' });
+    trackPaperExportOpened('references', 'all');
+    expect(runtime.track).toHaveBeenCalledWith('paper export opened', {
+      surface: 'references',
+      scope: 'all',
+    });
   });
 });
 
@@ -48,7 +53,15 @@ describe('trackPaperExported', () => {
       background: 'transparent',
       resolution: 'none',
       options_changed: 'no',
+      scope: 'this',
     });
+  });
+
+  it('buckets how many pages an export of every step wrote', () => {
+    trackPaperExported({ ...SVG, scope: 'all', pageCount: 12 });
+    const properties = runtime.track.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(properties).toMatchObject({ scope: 'all', page_count_bucket: '<=25' });
+    expect(Object.values(properties)).not.toContain(12);
   });
 
   it('names a PNG’s density by the picker’s preset, and any other as custom', () => {

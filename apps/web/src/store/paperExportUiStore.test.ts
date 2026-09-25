@@ -11,18 +11,18 @@ afterEach(() => usePaperExportUiStore.setState({ request: null }));
 describe('usePaperExportUiStore', () => {
   it('opens on a target, and gives each opening its own id', () => {
     const store = usePaperExportUiStore.getState();
-    store.open({ target: target(), format: 'png', returnFocus: null });
+    store.open({ target: target(), format: 'png', scope: 'this', returnFocus: null });
     const first = usePaperExportUiStore.getState().request;
     expect(first?.format).toBe('png');
-    usePaperExportUiStore.getState().open({ target: target(), format: null, returnFocus: null });
+    usePaperExportUiStore.getState().open({ target: target(), format: null, scope: 'this', returnFocus: null });
     expect(usePaperExportUiStore.getState().request?.id).not.toBe(first?.id);
   });
 
   it('releases the capture it replaces, and the one it closes', () => {
     const replaced = target();
     const kept = target();
-    usePaperExportUiStore.getState().open({ target: replaced, format: null, returnFocus: null });
-    usePaperExportUiStore.getState().open({ target: kept, format: null, returnFocus: null });
+    usePaperExportUiStore.getState().open({ target: replaced, format: null, scope: 'this', returnFocus: null });
+    usePaperExportUiStore.getState().open({ target: kept, format: null, scope: 'this', returnFocus: null });
     expect(replaced.release).toHaveBeenCalledTimes(1);
     expect(kept.release).not.toHaveBeenCalled();
     usePaperExportUiStore.getState().close();

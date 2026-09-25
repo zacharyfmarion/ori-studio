@@ -53,7 +53,8 @@
     "stopping": "キャンセル中…"
   },
   "referencesExport": {
-    "empty": "書き出せるステップがまだありません"
+    "empty": "書き出せるステップがまだありません",
+    "noSteps": "書き出せるステップがまだありません"
   },
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません",

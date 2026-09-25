@@ -9,7 +9,7 @@
  */
 import { create } from 'zustand';
 import type { PaperExportFormat } from '../lib/paperExportSettings';
-import type { PaperExportTarget } from '../paperExport/paperExportTarget';
+import type { PaperExportScope, PaperExportTarget } from '../paperExport/paperExportTarget';
 
 export interface PaperExportRequest {
   /** Distinguishes one opening from the next, so the dialog starts fresh each time. */
@@ -17,6 +17,11 @@ export interface PaperExportRequest {
   target: PaperExportTarget;
   /** The format to open on, when the verb that opened it names one; otherwise the remembered one. */
   format: PaperExportFormat | null;
+  /**
+   * The page on show, or every page, for a target with several. Not
+   * remembered: where the export started says what was meant.
+   */
+  scope: PaperExportScope;
   /** Where focus goes back to when the dialog closes. */
   returnFocus: HTMLElement | null;
 }

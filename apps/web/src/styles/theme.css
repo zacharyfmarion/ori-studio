@@ -2536,7 +2536,7 @@ a.context-menu__item {
  */
 .paper-export__preview-column {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   gap: var(--space-2);
   min-width: 0;
   min-height: 0;
@@ -2591,6 +2591,22 @@ a.context-menu__item {
 
 .paper-export__state--error {
   color: var(--status-danger);
+}
+
+.references-view-controls-panel__export {
+  width: 100%;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.paper-export__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .paper-export__caption {

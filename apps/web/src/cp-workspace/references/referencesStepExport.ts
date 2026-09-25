@@ -27,7 +27,7 @@ import { diagramToPaperScene } from './diagramToPaperScene';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
 import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
-import { createOverlayProjector, type DiagramSheet } from './stepDiagramGeometry';
+import { createOverlayProjector, sheetFrame, type DiagramSheet } from './stepDiagramGeometry';
 
 /**
  * The sheet's longer side on the page, in CSS px, when the big view is not
@@ -72,10 +72,12 @@ export interface ReferencesStepSceneOptions {
  * The projector is the big view's, rebuilt from the sheet size alone: model
  * space to scene px at the scale that puts the sheet's longer side at
  * `sheetCssPx`, and reflected about x when the paper is on its back, as the
- * view's own affine is (`ReferencesCpView.modelToSvg`). Where the sheet lands
- * on the page does not matter — the painter crops to the scene's bounds — so
- * the origin is the model's. The ink is the view's (`canvasDiagramInk`), so a
- * letter and a mark's ring are the size they are on screen.
+ * view's own affine is (`ReferencesCpView.modelToSvg`) — about the sheet's own
+ * middle, so the back lands where the front does. One page is cropped to its
+ * scene's bounds and would not care, but the pages of a set share one crop
+ * (`paperScenesOnOneCrop`), and the sheet must sit in the same place on every
+ * one. The ink is the view's (`canvasDiagramInk`), so a letter and a mark's
+ * ring are the size they are on screen.
  */
 export function referencesStepScene(
   diagram: StepDiagramModel,
@@ -83,8 +85,9 @@ export function referencesStepScene(
 ): PaperScene {
   const longer = Math.max(diagram.sheet.width, diagram.sheet.height, Number.EPSILON);
   const scale = sheetCssPx / longer;
+  const [middle] = sheetFrame(diagram.sheet).centre;
   const project = createOverlayProjector(
-    { origin: [0, 0], ex: [mirrored ? -scale : scale, 0], ey: [0, scale] },
+    { origin: [mirrored ? 2 * scale * middle : 0, 0], ex: [mirrored ? -scale : scale, 0], ey: [0, scale] },
     canvasDiagramInk(lineWidth),
     canvasDiagramPens(lineWidth, style.arrows.width * PT_TO_CSS_PX)
   );
@@ -140,6 +143,40 @@ export function referencesStepExportName(title: string, subject: ReferencesStepE
     case 'reference':
       return `${base} reference ${subject.candidate + 1} step ${subject.step + 1}`;
   }
+}
+
+/**
+ * A step's name inside the ZIP of every step: its place in the set first,
+ * zero-padded to the set's size, then the card as the strip names it — "01 step
+ * 1", "02 turn over", "03 step 2". The place leads because a file browser sorts
+ * by name, and the strip's own names would put every turn-over after every
+ * step. The workspace's title is the archive's name, so it is not repeated.
+ */
+export function referencesStepEntryName(
+  subject: ReferencesStepExportSubject,
+  index: number,
+  count: number
+): string {
+  const place = String(index + 1).padStart(String(count).length, '0');
+  switch (subject.kind) {
+    case 'step':
+      return `${place} step ${subject.step + 1}`;
+    case 'turn-over':
+      return subject.after > 0 ? `${place} turn over after step ${subject.after}` : `${place} turn over`;
+    case 'reference':
+      return `${place} step ${subject.step + 1}`;
+  }
+}
+
+/** The archive of every step: the sequence's, or one candidate's. */
+export function referencesStepsArchiveName(
+  title: string,
+  subject: ReferencesStepExportSubject
+): string {
+  const base = title.trim() || 'Untitled';
+  return subject.kind === 'reference'
+    ? `${base} reference ${subject.candidate + 1} steps`
+    : `${base} steps`;
 }
 
 /**

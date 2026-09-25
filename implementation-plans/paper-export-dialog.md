@@ -813,65 +813,82 @@ across both — so each pen is judged against both colours it is drawn on.
 **Entry points.**
 
 - **The right rail.** An *Export* section at the foot of
-  `ReferencesViewControlsPanel`, one button: *Export all steps…*, enabled when
-  the strip has a step with a diagram. The rail is its own panel and the
-  diagrams live in `ReferencesPanel`, so the button runs a new command,
-  `references.exportAllSteps` (bindable, no default chord, like the other
-  two), through a public `runReferencesCommand(id)` beside the private
-  executor in `keyboard/shortcutRuntime.ts` — the one registry the keyboard
-  already uses, and focus-independent. Its enabled state is a selector over
-  the References slice, the same condition the panel uses.
-- **The dialog.** When the target is a References step and the strip has more
-  than one, a *This step | All steps* switch heads the options. *Export
-  step…* opens on *This step*; the rail's button on *All steps*. The scope is
-  not remembered: where you started says what you meant.
+  `ReferencesViewControlsPanel`, one button: *Export all steps…*. The rail is
+  its own panel and the diagrams live in `ReferencesPanel`, so the button runs
+  the command `references.exportAllSteps` (bindable, no default chord, like
+  the other two) through a public `runReferencesCommand(id)` beside the
+  private executor in `keyboard/shortcutRuntime.ts` — the one registry the
+  keyboard already uses, and focus-independent. The button is always
+  enabled: the verb says *There are no steps to export yet* when the strip
+  has no page, which spares the rail a second reading of the References
+  slice. The action catalog carries the same verb (so it is in the context
+  menu too), disabled only while the strip is empty — a finished card has no
+  diagram, but the steps before it do.
+- **The dialog.** When the target has more than one page, a *This step | All
+  steps* switch heads the options. *Export step…* opens on *This step*; the
+  rail's button on *All steps*. The scope is not remembered: where you
+  started says what you meant.
 
 **Which steps.** The strip's, as it shows them, captured when the dialog opens
-(X3). Sequence: every card with a diagram — `planStepScene(…).pageDiagram` for
-each index, turn-overs included, symmetric steps merged as the strip merges
+(X3), by `cp-workspace/references/referencesExportSteps.ts`. Sequence: every
+card with a diagram — `planHighlights(…).pageDiagram` for each card, the view's
+own reading, turn-overs included, symmetric steps merged as the strip merges
 them, the finished card (which has no diagram of its own) left out. Find:
-every step of the shown candidate (`candidateStepDiagram`).
+every step of the shown candidate (`candidateStepDiagram`, the function the
+view draws a candidate's step with). The step on show is the view's own
+diagram — the very picture *This step* exports — so the two scopes agree on
+it; the page current is the card on show, or the nearest before it with a
+page.
 
-**A multi-page target.** The References target carries
-`pages: { label: string; fileStem: string }[]` and the index of the step on
-show; `sceneKey` and `buildScene` take the page. A single step is one page.
-The session caches scenes per page and key, and builds a page's scene when
-the preview first shows it or when Export reaches it.
+**A multi-page target.** `PaperExportTarget.pages` is
+`{ list: { label, fileStem }[]; current; title; zipStem } | null`, and
+`PaperSceneInput` carries the `page`; `sceneKey` and `buildScene` take it. A
+surface with one picture has `pages: null`. The session's LRU scales with
+the page count. The scenes a scope calls for are built together
+(`paperExport/usePaperExportScenes.ts`), once per key — the pages' keys
+joined — and the status reads *building* from the first render of a new key.
 
 **One crop for the set.** Under *All steps*, every page is painted with one
-crop — the union of all the steps' scene bounds — so the sheet sits at the
-same place and size on every page, and the set lines up when flipped through
-or laid side by side. The painter crops to `scene.bounds`, so the session
-hands it scenes whose bounds are the union. *This step* keeps its own crop.
-(All steps therefore builds every page's scene before the first preview; the
-steps are cheap, E5.)
+crop — the union of all the steps' scene bounds (`paperScenesOnOneCrop`) — so
+the sheet sits at the same place and size on every page, and the set lines up
+when flipped through or laid side by side. The painter crops to
+`scene.bounds`, so that is all it takes. *This step* keeps its own crop. (All
+steps builds every page's scene before the first preview; the steps are
+cheap, E5.)
 
-**Preview.** The page of the step shown, with a pager under it (‹ Step 3 of
-12 ›) to look at every page before saving; the caption gives this page's size
-(px for PNG) and the footer "12 files · ZIP". The PNG limit (X8) is checked on
-every page; one too large disables Export and names the step.
+**Preview.** The page of the step shown, with a pager under it (‹ Step 3 ·
+4 of 12 › — the card's name, then its place among the pages, since the strip
+numbers folds and not turn-overs); the caption gives this page's size (px for
+PNG) and "12 files · ZIP". One crop makes every page the same size, so the
+PNG limit (X8) checked on the shown page holds for all of them.
 
-**Saving.** Each page painted (SVG) or rasterised (PNG) in turn, then zipped
-with `fflate` — a direct dependency of `@treemaker/web` at its current major
-rather than posthog-js's copy, deflate for SVG (text) and stored for PNG
-(already compressed) — and saved once through `saveBinaryFile`
-(`application/zip`, `.zip`): a download on the web, the save dialog on
-desktop. `fflate` is loaded on demand, and the `import()` is guarded as
-`StartFigure` guards its own: after a deploy an old tab's chunk is gone, and
-a bare `await import()` becomes an unhandled rejection. A failed load shows in
-the dialog. While exporting, the footer shows progress ("Exporting 5 of
-12…"); Cancel stops before the next page, and nothing is saved unless every
-page is.
+**Saving.** `savePaperExportZip`: each page painted from the scenes and
+options the shown one was (that one *is* the preview's page, X2), then
+rasterised for PNG, then zipped with `fflate` — a direct dependency of
+`@treemaker/web` rather than posthog-js's copy, deflate for SVG (text) and
+stored for PNG (already compressed) — and saved once through
+`saveBinaryFile` (`application/zip`, `.zip`): a download on the web, the save
+dialog on desktop. `fflate` is loaded on demand (`paperExport/zipPages.ts`),
+and the `import()` is guarded as `StartFigure` guards its own: after a deploy
+an old tab's chunk is gone, and a bare `await import()` becomes an unhandled
+rejection; a failed load is an error the dialog words. While the pages paint,
+the button shows progress ("Exporting 5 of 12…"), and closing the dialog —
+Cancel, Escape, the backdrop — stops before the next page: nothing is saved
+unless every page is. Once they are all painted the ZIP is being written, and
+the dialog cannot be closed, as for a single file.
 
-**Names.** The ZIP is `<title> steps.zip` for a Sequence and
-`<title> reference C steps.zip` for a Find candidate. Inside, each file is
-`referencesStepExportName` with its step number zero-padded to the count's
-width, so the files sort in order (`… step 01.svg`, `… turn over after step
-03.svg`).
+**Names.** The ZIP is `<title> steps.zip` for a Sequence and `<title>
+reference C steps.zip` for a Find candidate. Inside, each file leads with its
+place in the set, zero-padded to the set's size, then the card as the strip
+names it — `01 step 1.svg`, `02 turn over after step 1.svg` — so a file
+browser lists them in the strip's order (the strip's own names alone would
+sort every turn-over after every step); the archive carries the title, so the
+entries do not repeat it.
 
-**Analytics.** `paper exported` gains `scope` (`step`/`all-steps`) and, for
-all steps, `step_count` in buckets (`2-5`/`6-10`/`11-25`/`26+`). The file
-service's `file exported` fires once, `format: 'zip'`.
+**Analytics.** `paper export opened` gains `scope` (`this`/`all`); `paper
+exported` gains `scope` and, for all steps, `page_count_bucket`
+(`bucketCount` over 5/10/25: `<=5`/`<=10`/`<=25`/`>25`). The file service's
+`file exported` fires once, `format: 'zip'`.
 
 ### 8. Every simulated line at its own pen's width (X14)
 
@@ -942,8 +959,16 @@ service's `file exported` fires once, `format: 'zip'`.
   section), `keyboard/shortcutRuntime.ts` (`runReferencesCommand`),
   `keyboard/shortcuts.ts` and `i18n/shortcutLabels.ts`
   (`references.exportAllSteps`), `cp-workspace/references/referencesShortcuts.ts`,
-  `referencesActions.ts`, new `paperExport/zipPages.ts`; `apps/web/package.json`
-  (`fflate`).
+  `referencesActions.ts`, new `referencesExportSteps.ts`,
+  `referencesStepExport.ts` (entry and archive names),
+  `useReferencesStepExport.ts` (`exportAllSteps`), `useReferencesView.ts`
+  (`planHighlights` and `candidateStepDiagram` exported); new
+  `paperExport/zipPages.ts` and `paperExport/usePaperExportScenes.ts`,
+  `paperExportTarget.ts` (`pages`, `page`), `paperExportSession.ts`
+  (`paperScenesOnOneCrop`), `savePaperExport.ts` (`savePaperExportZip`),
+  `usePaperExportDialog.ts` (scope, pager, progress), the dialog's options
+  and preview; `analytics/events.ts` and `trackPaperExport.ts` (`scope`);
+  `apps/web/package.json` (`fflate`).
 - Rails: `cp-workspace/sheets/SheetGrid.tsx`, `sheetThumbnail.ts`,
   `sheetThumbnailInk.ts` and `useSheetThumbnailInk.ts` (deleted),
   `cp-workspace/references/ReferencesSheetsSidebar.tsx`,
@@ -1207,29 +1232,41 @@ From review (folded into the Phase 5 commit):
 
 ### Phase 6 — Export all steps
 
-- [ ] `fflate` as a direct dependency; `paperExport/zipPages.ts` (deflate for
+- [x] `fflate` as a direct dependency; `paperExport/zipPages.ts` (deflate for
       SVG, stored for PNG) with a guarded on-demand import; tests: the entries
       round-trip, a failed import surfaces as an error, not a rejection
-- [ ] The References target goes multi-page: every step captured at open
-      (Sequence: `planStepScene` per card with a diagram; Find: the shown
-      candidate's `candidateStepDiagram`); tests: turn-overs in, the finished
-      card out, merged steps as the strip merges them
-- [ ] One crop for the set (the union of the pages' bounds); a test that the
-      sheet lands at the same page coordinates on every page
-- [ ] Dialog: *This step | All steps* switch (References only, more than one
-      step); the pager; "N files · ZIP"; the PNG limit per page; progress and
-      Cancel; nothing saved unless every page is
-- [ ] Names: `<title> steps.zip` / `<title> reference C steps.zip`, entries
-      zero-padded to sort; tests
-- [ ] `references.exportAllSteps` (catalog, shortcut label, bindable, no
-      chord); `runReferencesCommand` in the shortcut runtime; the rail's
-      Export section and button with its enabled selector; tests: the button
-      opens the dialog on All steps, and does nothing while no References
-      view is mounted
-- [ ] Analytics: `scope`, `step_count`; `docs/analytics.md`
-- [ ] i18n; validate (`npm run build:web` too: the lazy chunk); browser:
-      a Sequence and a Find candidate, SVG and PNG, the ZIP opened and its
-      pages compared with the preview; desktop save dialog; commit
+- [x] The References target goes multi-page: every step captured at open
+      (`referencesExportSteps.ts` — Sequence: `planHighlights` per card with a
+      diagram; Find: the shown candidate's `candidateStepDiagram`), the step
+      on show being the view's own diagram; `PaperExportTarget.pages`,
+      `PaperSceneInput.page`, `usePaperExportScenes`; tests: turn-overs in,
+      the finished card out, merged steps as the strip merges them
+- [x] One crop for the set (`paperScenesOnOneCrop`); a test that every page
+      comes out the same size
+- [x] Dialog: *This step | All steps* switch (more than one page); the pager;
+      "N files · ZIP"; progress; closing while pages paint stops the export
+      and saves nothing; `savePaperExportZip`
+- [x] Names: `<title> steps.zip` / `<title> reference C steps.zip`, entries
+      led by their zero-padded place; tests
+- [x] `references.exportAllSteps` (catalog and context menu, shortcut label,
+      bindable, no chord); `runReferencesCommand` in the shortcut runtime; the
+      rail's Export section and button; tests: the button runs the command,
+      and does nothing while no References view is mounted
+- [x] Analytics: `scope`, `page_count_bucket`; `file exported` `zip`;
+      `docs/analytics.md`
+- [x] A back page is reflected about the sheet's own middle
+      (`referencesStepScene`), not the model's origin: found in the browser,
+      where one crop over front and back pages came out 224 × 129 mm with the
+      sheet on one side on the front pages and the other on the back; now
+      every page of the set is the sheet's own size, with the sheet at the
+      same corners. Test: a front and a back page on one crop match a page
+      alone
+- [x] i18n; validate (a production build: `fflate` is its own 32 KB lazy
+      chunk; posthog-js's copy in the main bundle is its own); browser: a
+      Sequence of 7 cards and a Find candidate of 4, SVG and PNG, the ZIP
+      captured in the page (no download) and its entries read back — every
+      page the same size, the PNGs at the caption's pixel size, in the
+      strip's order; commit
 
 ### Phase 7 — The export dialog, on folded figures
 

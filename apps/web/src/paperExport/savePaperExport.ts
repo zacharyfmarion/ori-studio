@@ -5,7 +5,7 @@
  * is, and a PNG is that same string rasterised at the chosen density, so the
  * file is the preview (X2). Nothing is rebuilt here.
  */
-import type { PaperExportedEvent, PaperExportSurface } from '../analytics';
+import type { PaperExportedEvent, PaperExportScope, PaperExportSurface } from '../analytics';
 import { paperSvgToPng } from '../lib/paper/paperPng';
 import type { PaperSvgResult } from '../lib/paper/paperSvg';
 import {
@@ -17,6 +17,7 @@ import {
 import type { PaperPresetRow } from '../lib/paperPresetRows';
 import { exportFilename } from '../platform/exportFilename';
 import { getFileService, type FileService } from '../platform/fileService';
+import { zipPages, type ZipEntry } from './zipPages';
 
 export interface SavePaperExportOptions {
   page: PaperSvgResult;
@@ -65,6 +66,58 @@ export async function savePaperExport({
   return result?.name ?? null;
 }
 
+export interface SavePaperExportZipOptions {
+  /** Every page, painted, with its file's stem inside the archive. */
+  pages: readonly { page: PaperSvgResult; fileStem: string }[];
+  format: PaperExportFormat;
+  pngDpi: number;
+  /** The archive's name, before sanitising and before the extension. */
+  zipStem: string;
+  fileService?: FileService;
+  /** Aborted to stop: checked before each page, and before the save dialog. */
+  signal?: AbortSignal;
+  /** Called as each page is ready: `done` of `total`. */
+  onProgress?: (done: number, total: number) => void;
+}
+
+/**
+ * Every page as one ZIP: each SVG as painted, or rasterised at the density,
+ * named from its stem. Nothing is saved unless every page is ready — an abort
+ * between pages answers null without offering a save dialog.
+ */
+export async function savePaperExportZip({
+  pages,
+  format,
+  pngDpi,
+  zipStem,
+  fileService = getFileService(),
+  signal,
+  onProgress,
+}: SavePaperExportZipOptions): Promise<string | null> {
+  const encoder = new TextEncoder();
+  const entries: ZipEntry[] = [];
+  for (const [index, { page, fileStem }] of pages.entries()) {
+    if (signal?.aborted) return null;
+    entries.push({
+      name: exportFilename(fileStem, format),
+      data: format === 'svg' ? encoder.encode(page.svg) : await paperSvgToPng(page, pngDpi),
+      compress: format === 'svg',
+    });
+    onProgress?.(index + 1, pages.length);
+  }
+  const bytes = await zipPages(entries);
+  if (signal?.aborted) return null;
+  const result = await fileService.saveBinaryFile({
+    title: 'Export ZIP',
+    bytes,
+    suggestedName: exportFilename(zipStem, 'zip'),
+    path: null,
+    extensions: ['zip'],
+    mimeType: 'application/zip',
+  });
+  return result?.name ?? null;
+}
+
 /**
  * The `paper exported` event for a save: which style, sheet and background, as
  * enums. `changed` is whether anything was touched in the dialog before saving.
@@ -77,6 +130,8 @@ export function paperExportedEvent(
     style: PaperExportStyleChoice;
     rows: readonly PaperPresetRow[];
     changed: boolean;
+    scope: PaperExportScope;
+    pageCount: number;
   }
 ): PaperExportedEvent {
   const row =
@@ -92,5 +147,7 @@ export function paperExportedEvent(
     background: options.background === null ? 'transparent' : 'colour',
     pngDpi: options.pngDpi,
     optionsChanged: details.changed,
+    scope: details.scope,
+    pageCount: details.pageCount,
   };
 }

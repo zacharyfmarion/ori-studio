@@ -277,6 +277,7 @@
   },
   "references": {
     "categoryLabel": "Referencias",
+    "exportAllSteps": "Exportar todos los pasos…",
     "exportStep": "Exportar paso…",
     "exportStepPng": "Exportar paso como PNG…",
     "exportStepSvg": "Exportar paso como SVG…",
