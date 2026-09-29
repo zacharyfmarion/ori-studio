@@ -9,7 +9,12 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorPanel } from './SimulatorPanel';
 import { createSimulatorSession } from '../../simulator/simulatorSession';
-import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
+import {
+  handleShortcutRuntimeKeyDown,
+  runSimulatorCommand,
+} from '../../keyboard/shortcutRuntime';
+import { announceUprightSet } from '../../lib/uprightFeedback';
+import { setUprightView } from '../../lib/simulatorOrbit';
 import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
 import { useLayoutStore } from '../../store/layoutStore';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
@@ -33,6 +38,14 @@ function asPromiseClient<T extends object>(session: T): T {
     },
   });
 }
+
+// The toast and the analytics event are the verb's outward sign — the picture
+// does not move on the press — and the orbit it takes is what it changes.
+vi.mock('../../lib/uprightFeedback', () => ({ announceUprightSet: vi.fn() }));
+vi.mock('../../lib/simulatorOrbit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/simulatorOrbit')>();
+  return { ...actual, setUprightView: vi.fn(actual.setUprightView) };
+});
 
 vi.mock('../../store/workspaceStore/simulatorRuntime', () => ({
   retainSimulatorClient: () => asPromiseClient(createSimulatorSession()),
@@ -114,24 +127,30 @@ describe('SimulatorPanel', () => {
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBeNull();
   });
 
-  it('offers the current view for export once a model is loaded', async () => {
+  it('leaves Export and Set upright to the options rail', async () => {
     const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
     await flushSimulator();
 
-    const trigger = exportTrigger(rendered);
-    expect(trigger).not.toBeNull();
-    expect(trigger?.disabled).toBe(false);
-    // One button now: the dialog it opens chooses the format.
-    expect(trigger?.getAttribute('aria-haspopup')).toBeNull();
+    const toolbar = rendered.querySelector('.simulator-panel .panel-toolbar');
+    expect(toolbar).not.toBeNull();
+    expect(toolbar?.querySelector('button[aria-label="Export view…"]')).toBeNull();
+    expect(toolbar?.querySelector('button[aria-label="Set upright"]')).toBeNull();
+    // The touch layer's Settings pill keeps its seat.
+    expect(toolbar?.querySelector('.panel-toolbar__pills')).not.toBeNull();
   });
 
   it('opens the export dialog on the frame the worker froze', async () => {
-    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    renderPanel({ foldArtifacts: { fold: simpleFold() } });
     await flushSimulator();
     act(() => useWorkspaceStore.setState({ workspaceTitle: 'Crane base' }));
     expect(usePaperExportUiStore.getState().request).toBeNull();
 
-    act(() => exportTrigger(rendered)?.click());
+    // The rail's button, which reaches the view through its executor.
+    let ran = false;
+    act(() => {
+      ran = runSimulatorCommand('simulator.exportView');
+    });
+    expect(ran).toBe(true);
     await flushSimulator();
 
     const request = usePaperExportUiStore.getState().request;
@@ -193,14 +212,32 @@ describe('SimulatorPanel', () => {
     expect(Array.from(spots).every((spot) => spot.disabled)).toBe(true);
   });
 
-  it('does not offer an export with nothing to draw', () => {
-    // Rendered with no fold artifacts, so the panel never reaches "ready". An
-    // enabled control here would open a dialog and then fail.
-    const rendered = renderPanel({});
+  it('sets the model upright through the view’s own verb', async () => {
+    renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+    vi.mocked(announceUprightSet).mockClear();
+    vi.mocked(setUprightView).mockClear();
 
-    const trigger = exportTrigger(rendered);
-    expect(trigger).not.toBeNull();
-    expect(trigger?.disabled).toBe(true);
+    let ran = false;
+    act(() => {
+      ran = runSimulatorCommand('simulator.setUpright');
+    });
+
+    expect(ran).toBe(true);
+    expect(setUprightView).toHaveBeenCalledTimes(1);
+    expect(announceUprightSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes no verbs with nothing to draw', () => {
+    // Rendered with no fold artifacts, so the panel never reaches "ready" and
+    // never registers an executor: the rail's buttons, which follow that, are
+    // disabled, and a run finds nothing. An export here would open a dialog
+    // and then fail.
+    renderPanel({});
+
+    expect(runSimulatorCommand('simulator.exportView')).toBe(false);
+    expect(runSimulatorCommand('simulator.setUpright')).toBe(false);
+    expect(usePaperExportUiStore.getState().request).toBeNull();
   });
 
   it('triangulates polygonal fold faces before rendering', async () => {
@@ -488,10 +525,6 @@ function pressKey(key: string, init: KeyboardEventInit = {}): void {
       menu: () => {},
     }
   );
-}
-
-function exportTrigger(rendered: HTMLElement): HTMLButtonElement | null {
-  return rendered.querySelector<HTMLButtonElement>('button[aria-label="Export view…"]');
 }
 
 function renderPanel(state: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {

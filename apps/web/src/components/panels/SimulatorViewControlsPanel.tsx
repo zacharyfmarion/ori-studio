@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { RotateCcw } from 'lucide-react';
+import { Axis3d, Download, RotateCcw } from 'lucide-react';
+import { runSimulatorCommand } from '../../keyboard/shortcutRuntime';
 import {
   SIMULATOR_SETTING_RANGES,
   type SimulatorNumericSettingKey,
@@ -10,22 +11,32 @@ import {
   useSimulatorPaperStyle,
   type SimulatorPenField,
 } from '../../simulator/useSimulatorPaperStyle';
+import { useSimulationInHand } from '../../simulator/useSimulatorShortcuts';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
 import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
+import { ViewControlsAction, ViewControlsActions } from './ViewControlsActions';
 
 /**
  * Options pane for the Simulate workspace, mirroring the Edit workspace's view
  * pane. Render options are applied by the simulator panel; material and solver
  * options go to the engine live (both backends recompute their timestep on a
  * material change), so nothing here reloads the model.
+ *
+ * It leads with the two things done *to* the view rather than configured for
+ * it — export it, and set which way is up. Both act on the viewport, which is
+ * the simulator panel's, so each runs that panel's own verb
+ * (`simulator.exportView`, `simulator.setUpright`) through its executor. The
+ * panel registers one only while its simulation is ready, so whether one is
+ * registered is also what enables them.
  */
 export function SimulatorViewControlsPanel() {
   const { t } = useTranslation();
   const settings = useWorkspaceStore((state) => state.simulatorSettings);
   const setSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const resetMaterial = useWorkspaceStore((state) => state.resetSimulatorMaterial);
+  const ready = useSimulationInHand();
   // How the paper is drawn is the app-wide paper style, not a simulator
   // setting; these rows are its simulator-facing subset.
   const paper = useSimulatorPaperStyle();
@@ -47,6 +58,31 @@ export function SimulatorViewControlsPanel() {
 
   return (
     <section className="panel-shell simulator-view-controls-panel">
+      <ViewControlsActions>
+        <ViewControlsAction
+          icon={<Download size={14} aria-hidden="true" />}
+          label={t('panels:simulatorExport.trigger', 'Export view…')}
+          disabled={!ready}
+          onClick={() => runSimulatorCommand('simulator.exportView')}
+        />
+        {/*
+          Which way the model is up. The orbit is a turntable about the paper's
+          *normal*, which is up for a flat sheet and is not for a model that
+          stands — so a standing figure tumbles rather than turning, and dragging
+          cannot fix it because yaw and pitch only move the eye on a sphere whose
+          pole is fixed. This picks the pole.
+
+          No matching "clear": the way back is the view reset (0 / Home, or
+          double-click the canvas), which drops the orientation with the angles.
+          See `SimulatorViewport.resetView`.
+        */}
+        <ViewControlsAction
+          icon={<Axis3d size={14} aria-hidden="true" />}
+          label={t('panels:simulator.setUpright', 'Set upright')}
+          disabled={!ready}
+          onClick={() => runSimulatorCommand('simulator.setUpright')}
+        />
+      </ViewControlsActions>
       <div className="panel-body simulator-view-controls-panel__body">
         <CollapsibleSection title={t('panels:simulatorViewControls.render', 'Render')}>
           <SelectRow
@@ -97,19 +133,6 @@ export function SimulatorViewControlsPanel() {
           />
         </CollapsibleSection>
 
-        {/*
-          Which way the model is up. The orbit is a turntable about the paper's
-          *normal*, which is up for a flat sheet and is not for a model that
-          stands — so a standing figure tumbles rather than turning, and dragging
-          cannot fix it because yaw and pitch only move the eye on a sphere whose
-          pole is fixed. These two verbs pick the pole.
-
-          Both are offered unconditionally. Whether an upright is set lives in
-          the viewport's own ref (it is session-only for a simulation), so this
-          store-driven pane has nothing to gate on — and clearing when none is
-          set is simply a reset, which is harmless. The folded figure's copy of
-          this verb *can* gate, because its upright is document state.
-        */}
         <CollapsibleSection
           title={t('panels:simulatorViewControls.paper', 'Paper')}
           collapsible

@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import type { PaperExportMark } from '../../lib/paperExportSettings';
 import {
   usePaperExportDialog,
   type PaperExportDialogBinding,
@@ -19,6 +20,8 @@ import { ExportModalFrame } from './ExportModalFrame';
 import { PaperExportOptions } from './PaperExportOptions';
 import { PaperExportPreview } from './PaperExportPreview';
 import { paperExportPinsHint } from './PaperStylePicker';
+
+const NO_MARKS: readonly PaperExportMark[] = [];
 
 export function PaperExportModal() {
   const request = usePaperExportUiStore((state) => state.request);
@@ -73,6 +76,7 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
           draft={draft}
           patch={patch}
           buriesFaces={request.target.buriesFaces}
+          marks={request.target.marks ?? NO_MARKS}
           scopes={dialog.scopes}
           fixed={dialog.fixed}
           styleHint={

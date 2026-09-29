@@ -1,11 +1,16 @@
 import type { PaperExportFormat, PaperExportSurface } from '../analytics/events';
-import { DEFAULT_PAPER_PAGE, normalizePaperPage, type PaperPage } from './paper/paperPage';
+import {
+  DEFAULT_PAPER_PAGE,
+  DEFAULT_PAPER_SHEET_MM,
+  normalizePaperPage,
+  type PaperPage,
+} from './paper/paperPage';
 import { DEFAULT_PAPER_PNG_DPI, PAPER_PNG_DPI_RANGE } from './paper/paperPng';
 
 /**
  * What one kind of paper export remembers (X6): the format and style it was
- * last saved in, the painter's {@link PaperPage}, and the density a PNG
- * rasterises at.
+ * last saved in, the painter's {@link PaperPage}, the density a PNG
+ * rasterises at, and which of a diagram's marks the page carries.
  *
  * Pure data plus normalisers, with no React or store dependency, in the
  * `paperStyleSettings` pattern: the settings store reads and writes these
@@ -24,6 +29,39 @@ export interface PaperExportSettings extends PaperPage {
    * (`resolvePaperExportStyleChoice`), not here.
    */
   style: PaperExportStyleChoice;
+  /**
+   * The marks a diagram's page carries, for a target that can leave them out
+   * (`PaperExportTarget.marks`); every other target draws its picture whole
+   * and never reads this.
+   */
+  marks: PaperExportMarks;
+}
+
+/**
+ * A mark a step's diagram can be exported without: its letters — the names of
+ * the points a step refers to — and its line highlights, the accent over the
+ * lines a step lines up. Both help a reader on screen; a page going into a
+ * diagram of one's own may want neither.
+ */
+export type PaperExportMark = 'letters' | 'highlights';
+
+export const PAPER_EXPORT_MARKS: readonly PaperExportMark[] = ['letters', 'highlights'];
+
+/** Which marks a page carries: true draws it. */
+export type PaperExportMarks = Readonly<Record<PaperExportMark, boolean>>;
+
+export const DEFAULT_PAPER_EXPORT_MARKS: PaperExportMarks = { letters: true, highlights: true };
+
+/** Read an untrusted marks object field by field: a missing or non-boolean mark is shown. */
+export function normalizePaperExportMarks(source: unknown): PaperExportMarks {
+  if (!source || typeof source !== 'object') return DEFAULT_PAPER_EXPORT_MARKS;
+  const raw = source as Record<string, unknown>;
+  const marks: Record<PaperExportMark, boolean> = { ...DEFAULT_PAPER_EXPORT_MARKS };
+  for (const mark of PAPER_EXPORT_MARKS) {
+    const value = raw[mark];
+    if (typeof value === 'boolean') marks[mark] = value;
+  }
+  return marks;
 }
 
 /** An image export's format: declared once, with the analytics enum that reports it. */
@@ -40,6 +78,7 @@ export const DEFAULT_PAPER_EXPORT_SETTINGS: PaperExportSettings = {
   pngDpi: DEFAULT_PAPER_PNG_DPI,
   format: 'svg',
   style: PAPER_EXPORT_STYLE_SLOT,
+  marks: DEFAULT_PAPER_EXPORT_MARKS,
 };
 
 /** Hold a density inside the range the UI offers; anything non-finite is the default. */
@@ -56,22 +95,24 @@ export function paperPageOf(settings: Pick<PaperExportSettings, keyof PaperPage>
 
 /**
  * Normalise an untrusted (persisted) settings object into a complete one: the
- * page field by field through `normalizePaperPage`, the density clamped.
+ * page field by field through `normalizePaperPage`, the density clamped, and
+ * each mark on its own.
  */
 export function normalizePaperExportSettings(source: unknown): PaperExportSettings {
   if (!source || typeof source !== 'object') return DEFAULT_PAPER_EXPORT_SETTINGS;
-  const { pngDpi, format, style } = source as Record<string, unknown>;
+  const { pngDpi, format, style, marks } = source as Record<string, unknown>;
   return {
     ...normalizePaperPage(source),
     pngDpi: typeof pngDpi === 'number' ? clampPaperPngDpi(pngDpi) : DEFAULT_PAPER_PNG_DPI,
     format: format === 'svg' || format === 'png' ? format : DEFAULT_PAPER_EXPORT_SETTINGS.format,
     style: typeof style === 'string' && style.length > 0 ? style : DEFAULT_PAPER_EXPORT_SETTINGS.style,
+    marks: normalizePaperExportMarks(marks),
   };
 }
 
 /**
- * The export page a user's old simulator settings amount to: every kind's
- * first-run options.
+ * The export page a user's old simulator settings amount to: the seed of every
+ * kind's first-run options (`paperExportKindDefaults`).
  *
  * Before there was a page, the simulator held its own `exportBackground`:
  * `'transparent'`, `'white'` or `'theme'`. A user who had chosen white should
@@ -126,27 +167,57 @@ export function paperExportMemoryOf(settings: PaperExportSettings): PaperExportM
 }
 
 /**
+ * Every kind's options before it has exported anything: the seed, except that
+ * a folded figure goes out on a sheet of {@link DEFAULT_PAPER_SHEET_MM}.
+ *
+ * A figure lies small beside its crease pattern, so "as shown" gave it a page
+ * some 40 mm across, on which pens drawn in pt — 0.9 pt is a fine line on a
+ * sheet of paper — outweighed the figure. A simulation and a step fill their
+ * view, and their on-screen size is a fair page.
+ */
+export function paperExportKindDefaults(
+  seed: PaperExportSettings = DEFAULT_PAPER_EXPORT_SETTINGS
+): PaperExportMemory {
+  return {
+    ...paperExportMemoryOf(seed),
+    'folded-figure': { ...seed, sheet: { mm: DEFAULT_PAPER_SHEET_MM } },
+  };
+}
+
+/**
  * Read a stored value, whatever it is, as every kind's options:
  *
- * - v2: each kind normalised on its own, so a malformed kind defaults alone;
+ * - v2: each kind normalised on its own, so a malformed or missing kind takes
+ *   its own first-run options alone;
+ * - a value from a newer build, which this one cannot read: every kind's
+ *   first-run options;
  * - a single object from before the split: its page — sheet, margin,
  *   background, hidden faces, density — seeds every kind, at the default
  *   format and style, which were one kind's choice and not the others', so
  *   nobody's page resets;
- * - nothing: `firstRun` for every kind (the old simulator setting's seed).
+ * - nothing: every kind's first-run options from `firstRun` (the old
+ *   simulator setting's seed).
  */
 export function normalizePaperExportMemory(
   source: unknown,
   firstRun: PaperExportSettings = DEFAULT_PAPER_EXPORT_SETTINGS
 ): PaperExportMemory {
-  if (!source || typeof source !== 'object') return paperExportMemoryOf(firstRun);
+  if (!source || typeof source !== 'object') return paperExportKindDefaults(firstRun);
   const { version, kinds } = source as { version?: unknown; kinds?: unknown };
   if (version === 2) {
     const stored = kinds && typeof kinds === 'object' ? (kinds as Record<string, unknown>) : {};
+    const defaults = paperExportKindDefaults();
     const memory = {} as Record<PaperExportKind, PaperExportSettings>;
-    for (const kind of PAPER_EXPORT_KINDS) memory[kind] = normalizePaperExportSettings(stored[kind]);
+    for (const kind of PAPER_EXPORT_KINDS) {
+      const options = stored[kind];
+      memory[kind] =
+        options && typeof options === 'object' ? normalizePaperExportSettings(options) : defaults[kind];
+    }
     return memory;
   }
+  // Only the versioned form carries a version; the object from before the
+  // split never had one.
+  if (version !== undefined) return paperExportKindDefaults();
   const { format, style } = DEFAULT_PAPER_EXPORT_SETTINGS;
   return paperExportMemoryOf({ ...normalizePaperExportSettings(source), format, style });
 }

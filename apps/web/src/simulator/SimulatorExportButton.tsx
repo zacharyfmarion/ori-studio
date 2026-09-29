@@ -3,8 +3,9 @@ import { Download } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
 
 /**
- * "Export view…", for wherever a simulation is shown: the Simulate
- * workspace's toolbar and an inline simulation window's floating toolbar.
+ * "Export view…" on an inline simulation window's floating toolbar. The
+ * Simulate workspace offers the same verb as a button on its rail
+ * (`simulator.exportView`), where there is room to say it in words.
  *
  * One button, where there was a menu of two formats: the export dialog it
  * opens chooses the format, with the page in view.

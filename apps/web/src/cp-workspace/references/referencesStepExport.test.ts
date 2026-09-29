@@ -8,6 +8,7 @@ import { paperSceneToSvg } from '../../lib/paper/paperSvg';
 import {
   REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX,
   referencesSheetCssPx,
+  referencesStepDiagramMarks,
   referencesSequenceSubject,
   referencesStepEntryName,
   referencesStepExportName,
@@ -159,6 +160,69 @@ describe('a step’s page', () => {
     expect(back).toContain('fill="#00ff00"');
     expect(back).toContain('stroke="#222222"');
     expect(back).not.toContain('stroke="#111111"');
+  });
+});
+
+describe('referencesStepDiagramMarks', () => {
+  const HIGHLIGHT: StepDiagramPrimitive = {
+    ...MOUNTAIN,
+    from: [200, 0],
+    to: [200, 400],
+    style: 'highlight',
+  };
+  const HIGHLIGHT_ARC: StepDiagramPrimitive = {
+    kind: 'arc',
+    center: [200, 200],
+    radius: 50,
+    from: 0,
+    to: Math.PI / 2,
+    ccw: true,
+    style: 'highlight',
+  };
+  const VALLEY_ARC: StepDiagramPrimitive = { ...HIGHLIGHT_ARC, style: 'valley' };
+  const POINT: StepDiagramPrimitive = { kind: 'point', at: [0, 0], style: 'highlight' };
+  /** A letter well off the paper, which widens the page to hold it. */
+  const OFF_SHEET: StepDiagramPrimitive = { kind: 'label', at: [-80, 200], text: 'B', style: 'normal' };
+  const EVERYTHING = model(MOUNTAIN, HIGHLIGHT, HIGHLIGHT_ARC, VALLEY_ARC, POINT, LETTER, OFF_SHEET);
+  const sceneOf = (diagram: StepDiagramModel) =>
+    referencesStepScene(diagram, {
+      style: DEFAULT_PAPER_STYLE,
+      mirrored: false,
+      sheetCssPx: 512,
+      lineWidth: 1,
+      background: null,
+    });
+
+  it('is the diagram itself with every mark shown', () => {
+    expect(referencesStepDiagramMarks(EVERYTHING, { letters: true, highlights: true })).toBe(EVERYTHING);
+  });
+
+  it('takes out the letters alone, keeping the points they name', () => {
+    const bare = referencesStepDiagramMarks(EVERYTHING, { letters: false, highlights: true });
+    expect(bare.sheet).toBe(EVERYTHING.sheet);
+    expect(bare.primitives).toEqual([MOUNTAIN, HIGHLIGHT, HIGHLIGHT_ARC, VALLEY_ARC, POINT]);
+  });
+
+  it('takes out the lines and arcs in the highlight pen alone', () => {
+    const bare = referencesStepDiagramMarks(EVERYTHING, { letters: true, highlights: false });
+    expect(bare.primitives).toEqual([MOUNTAIN, VALLEY_ARC, POINT, LETTER, OFF_SHEET]);
+    const neither = referencesStepDiagramMarks(EVERYTHING, { letters: false, highlights: false });
+    expect(neither.primitives).toEqual([MOUNTAIN, VALLEY_ARC, POINT]);
+  });
+
+  it('leaves no room on the page for a letter it took out', () => {
+    const lettered = model(MOUNTAIN, OFF_SHEET);
+    const without = sceneOf(referencesStepDiagramMarks(lettered, { letters: false, highlights: true }));
+    // The letter widened the page; without it the page is the letterless diagram's.
+    expect(sceneOf(lettered).bounds.minX).toBeLessThan(without.bounds.minX);
+    expect(without).toEqual(sceneOf(model(MOUNTAIN)));
+  });
+
+  it('draws no highlight when it is off', () => {
+    const highlighted = model(MOUNTAIN, HIGHLIGHT);
+    const without = sceneOf(referencesStepDiagramMarks(highlighted, { letters: true, highlights: false }));
+    expect(without).toEqual(sceneOf(model(MOUNTAIN)));
+    expect(sceneOf(highlighted)).not.toEqual(without);
   });
 });
 

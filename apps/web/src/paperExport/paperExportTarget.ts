@@ -16,6 +16,7 @@ import type { PaperExportScope } from '../analytics/events';
 import type { PaperScene } from '../lib/paper/paperScene';
 import type { Hex, PaperStyle, PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
+import type { PaperExportMark, PaperExportMarks } from '../lib/paperExportSettings';
 
 /** What a scene is built from, beyond the capture itself. */
 export interface PaperSceneInput {
@@ -31,6 +32,12 @@ export interface PaperSceneInput {
   markHidden: boolean;
   /** The page's background, or null for a transparent one: the ground a mark off the paper is drawn against. */
   background: Hex | null;
+  /**
+   * Which of a diagram's marks the page carries; absent carries every one.
+   * Read only by a target that declares them (`PaperExportTarget.marks`), and
+   * then part of its key. The dialog always fills it (`paperExportSceneInput`).
+   */
+  marks?: PaperExportMarks;
 }
 
 /** One page of a target that has several: a step of a References sequence. */
@@ -94,6 +101,12 @@ export interface PaperExportTarget {
   fixedPicture?: PaperExportFixedPicture | null;
   /** A line under the style picker: what of the style this picture cannot take. */
   hint?: string | null;
+  /**
+   * The marks the picture can be exported without, which the dialog offers
+   * as options: a References step's letters and line highlights. Absent for a
+   * picture that has none — it is drawn whole whatever the options say.
+   */
+  marks?: readonly PaperExportMark[];
   /**
    * Everything the picture depends on, as a string: the scene is rebuilt only
    * when this changes, and a page option that is not in it only repaints.

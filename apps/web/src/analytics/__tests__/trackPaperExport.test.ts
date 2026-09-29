@@ -64,6 +64,15 @@ describe('trackPaperExported', () => {
     expect(Object.values(properties)).not.toContain(12);
   });
 
+  it('reports a step’s letters and line highlights only when the event carries them', () => {
+    trackPaperExported({ ...SVG, letters: 'hidden', highlights: 'shown' });
+    expect(runtime.track.mock.calls[0]?.[1]).toMatchObject({ letters: 'hidden', highlights: 'shown' });
+    trackPaperExported({ ...SVG, surface: 'folded-3d' });
+    const properties = runtime.track.mock.calls[1]?.[1] as Record<string, unknown>;
+    expect(properties).not.toHaveProperty('letters');
+    expect(properties).not.toHaveProperty('highlights');
+  });
+
   it('names a PNG’s density by the picker’s preset, and any other as custom', () => {
     trackPaperExported({ ...SVG, format: 'png', pngDpi: 288, optionsChanged: true });
     expect(runtime.track.mock.calls[0]?.[1]).toMatchObject({ resolution: '3x', options_changed: 'yes' });

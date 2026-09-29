@@ -36,10 +36,13 @@ export const DEFAULT_PAPER_PAGE: PaperPage = {
 };
 
 /**
- * The sheet size a user picks when they leave "as shown": a round number that
- * is the kind of sheet a diagram is drawn at, well inside the range.
+ * The sheet size a user gets when they leave "as shown", on every kind of
+ * export, and a folded figure's first-run sheet: a round number about the
+ * size of a sheet of printer paper, well inside the range. Big enough that a
+ * figure's pens, which keep their pt widths at any size, read as fine lines
+ * rather than outweighing the picture.
  */
-export const DEFAULT_PAPER_SHEET_MM = 150;
+export const DEFAULT_PAPER_SHEET_MM = 250;
 
 /** The page colour a transparent page turns into when the user asks for one. */
 export const DEFAULT_PAPER_BACKGROUND: Hex = '#ffffff';

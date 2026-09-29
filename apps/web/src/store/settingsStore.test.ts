@@ -7,12 +7,13 @@ import {
   CP_MIN_SNAP_RADIUS,
 } from '../lib/cpSnapRadiusSetting';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
-import { PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_SHEET_MM, PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../lib/paper/paperPng';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
 import {
   DEFAULT_PAPER_EXPORT_SETTINGS,
   PAPER_EXPORT_STYLE_SLOT,
+  paperExportKindDefaults,
   paperExportMemoryOf,
 } from '../lib/paperExportSettings';
 import { readJson, STORAGE_KEYS, storageKey } from '../lib/storage';
@@ -470,26 +471,30 @@ describe('paperExport', () => {
   const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
   const WHITE_PAGE = { ...DEFAULT_PAPER_EXPORT_SETTINGS, background: '#ffffff' };
 
-  it('starts every kind from the defaults and writes nothing until the user exports', async () => {
+  it('starts every kind from its first-run options and writes nothing until the user exports', async () => {
     const { paperExport } = (await freshSettingsStore()).getState();
-    expect(paperExport).toEqual(paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS));
+    expect(paperExport).toEqual(paperExportKindDefaults());
+    // A folded figure opens on a sheet it reads well at; the others as shown.
+    expect(paperExport['folded-figure'].sheet).toEqual({ mm: DEFAULT_PAPER_SHEET_MM });
+    expect(paperExport.simulation.sheet).toBe('as-shown');
+    expect(paperExport.step.sheet).toBe('as-shown');
     expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
   });
 
   it('seeds every kind with a white page from the simulator settings’ retired export background, once', async () => {
     localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
     expect((await freshSettingsStore()).getState().paperExport).toEqual(
-      paperExportMemoryOf(WHITE_PAGE)
+      paperExportKindDefaults(WHITE_PAGE)
     );
     // Written at once: the simulator slice drops the retired key on its next
     // edit, so the seed would otherwise be lost to the second read.
     expect(readJson(PAPER_EXPORT_KEY, null)).toEqual({
       version: 2,
-      kinds: paperExportMemoryOf(WHITE_PAGE),
+      kinds: paperExportKindDefaults(WHITE_PAGE),
     });
     localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ showViewCube: false }));
     expect((await freshSettingsStore()).getState().paperExport).toEqual(
-      paperExportMemoryOf(WHITE_PAGE)
+      paperExportKindDefaults(WHITE_PAGE)
     );
   });
 
@@ -497,7 +502,7 @@ describe('paperExport', () => {
     for (const exportBackground of ['transparent', 'theme']) {
       localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground }));
       expect((await freshSettingsStore()).getState().paperExport).toEqual(
-        paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS)
+        paperExportKindDefaults()
       );
       expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
     }
@@ -533,6 +538,7 @@ describe('paperExport', () => {
       pngDpi: 5000,
       format: 'png',
       style: 'user:Mine',
+      marks: { letters: false, highlights: true },
     });
     const step = {
       ...DEFAULT_PAPER_EXPORT_SETTINGS,
@@ -541,6 +547,7 @@ describe('paperExport', () => {
       pngDpi: PAPER_PNG_DPI_RANGE.max,
       format: 'png',
       style: 'user:Mine',
+      marks: { letters: false, highlights: true },
     };
     const expected = { simulation, 'folded-figure': foldedFigure, step };
     expect(store.getState().paperExport).toEqual(expected);

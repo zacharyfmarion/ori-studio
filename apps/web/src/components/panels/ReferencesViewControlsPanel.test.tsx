@@ -230,12 +230,25 @@ describe('ReferencesViewControlsPanel', () => {
   });
 });
 
-describe('ReferencesViewControlsPanel export section', () => {
+describe('ReferencesViewControlsPanel export action', () => {
   let unregister: (() => void) | null = null;
 
   afterEach(() => {
     unregister?.();
     unregister = null;
+  });
+
+  it('leads the rail with it, above the first section', () => {
+    const rendered = render();
+
+    const rail = rendered.querySelector('.references-view-controls-panel')!;
+    const lead = rail.firstElementChild;
+    expect(lead?.classList.contains('view-controls-actions')).toBe(true);
+    expect(lead?.textContent?.trim()).toBe('Export all steps…');
+    // The section that used to hold it is gone.
+    expect(
+      [...rendered.querySelectorAll('.collapsible-section__title')].map((title) => title.textContent)
+    ).not.toContain('Export');
   });
 
   it('runs the References view’s export-all-steps command', () => {

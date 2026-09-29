@@ -39,7 +39,7 @@ import {
   normalizePaperExportSettings,
   PAPER_EXPORT_STYLE_SLOT,
   paperExportFromSimulatorSettings,
-  paperExportMemoryOf,
+  paperExportKindDefaults,
   persistedPaperExport,
   type PaperExportKind,
   type PaperExportMemory,
@@ -144,8 +144,9 @@ function readPaperStyleSettings(): PaperStyleSettings {
 /**
  * Every kind's remembered export options (`normalizePaperExportMemory`: a
  * single object from before the split seeds every kind), or — on the one read
- * where there is nothing — every kind seeded from the simulator settings'
- * retired `exportBackground`.
+ * where there is nothing — every kind's first-run options
+ * (`paperExportKindDefaults`) seeded from the simulator settings' retired
+ * `exportBackground`.
  *
  * Written at once when the seed differs from the defaults, for the same reason
  * the style's seed is: the simulator slice rewrites its own key without the
@@ -156,7 +157,7 @@ function readPaperExportMemory(): PaperExportMemory {
   const stored = readJson<unknown>(PAPER_EXPORT_KEY, null);
   if (stored !== null) return normalizePaperExportMemory(stored);
   const seeded = paperExportFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null));
-  const memory = paperExportMemoryOf(seeded);
+  const memory = paperExportKindDefaults(seeded);
   if (seeded.background !== null) writeJson(PAPER_EXPORT_KEY, persistedPaperExport(memory));
   return memory;
 }

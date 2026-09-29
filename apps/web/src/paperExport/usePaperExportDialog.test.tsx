@@ -2,6 +2,7 @@ import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_PAPER_SHEET_MM } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
@@ -653,6 +654,81 @@ describe('usePaperExportDialog, each kind of export on options of its own', () =
       const reopened = await open(fakeTarget({ surface }).target);
       expect(reopened().draft.format, surface).toBe(format);
     }
+  });
+});
+
+describe('usePaperExportDialog on its first run', () => {
+  it('opens a folded figure on a sheet it reads well at, and a simulation and a step as shown', async () => {
+    const openedOn = [
+      ['folded-flat', { mm: DEFAULT_PAPER_SHEET_MM }],
+      ['folded-3d', { mm: DEFAULT_PAPER_SHEET_MM }],
+      ['simulator', 'as-shown'],
+      ['references', 'as-shown'],
+    ] as const;
+    for (const [surface, sheet] of openedOn) {
+      unmount();
+      root = createRoot(container!);
+      const dialog = await open(fakeTarget({ surface }).target);
+      expect(dialog().draft.sheet, surface).toEqual(sheet);
+    }
+  });
+});
+
+describe('usePaperExportDialog on a target with diagram marks', () => {
+  /** A References step whose scene bakes in its marks, as the real target's does. */
+  function markedTarget() {
+    return fakeTarget({
+      surface: 'references',
+      buriesFaces: false,
+      marks: ['letters', 'highlights'],
+      sceneKey: ({ page, style, marks }) => `${page}|${style.paper.front}|${JSON.stringify(marks)}`,
+    });
+  }
+
+  it('builds the scene with the marks the options carry, and rebuilds when one is turned off', async () => {
+    const { target, buildScene } = markedTarget();
+    const dialog = await open(target);
+    expect(buildScene.mock.calls[0]![0].marks).toEqual({ letters: true, highlights: true });
+    await act(async () => dialog().patch({ marks: { letters: false, highlights: true } }));
+    expect(buildScene).toHaveBeenCalledTimes(2);
+    expect(buildScene.mock.calls[1]![0].marks).toEqual({ letters: false, highlights: true });
+  });
+
+  it('builds every page of the set without the marks that are off', async () => {
+    const { target, buildScene } = markedTarget();
+    const dialog = await open(
+      { ...target, pages: { list: STEP_PAGES, current: 0, title: 'Export all steps', zipStem: 'Crane steps' } },
+      null,
+      'all'
+    );
+    buildScene.mockClear();
+    await act(async () => dialog().patch({ marks: { letters: true, highlights: false } }));
+    expect(buildScene.mock.calls.map(([input]) => input.page)).toEqual([0, 1, 2]);
+    for (const [input] of buildScene.mock.calls) {
+      expect(input.marks).toEqual({ letters: true, highlights: false });
+    }
+  });
+
+  it('remembers the marks with the step’s options, and reports them', async () => {
+    const { target } = markedTarget();
+    const dialog = await open(target);
+    await act(async () => dialog().patch({ marks: { letters: false, highlights: true } }));
+    await act(async () => dialog().exportNow());
+    expect(remembered('step').marks).toEqual({ letters: false, highlights: true });
+    expect(remembered('folded-figure').marks).toEqual({ letters: true, highlights: true });
+    expect(tracked).toContainEqual({
+      event: 'paper exported',
+      properties: expect.objectContaining({ letters: 'hidden', highlights: 'shown' }),
+    });
+  });
+
+  it('reports no marks for a target that offers none', async () => {
+    const { target } = fakeTarget();
+    const dialog = await open(target);
+    await act(async () => dialog().exportNow());
+    const exported = tracked.find(({ event }) => event === 'paper exported');
+    expect(exported?.properties).not.toHaveProperty('letters');
+    expect(exported?.properties).not.toHaveProperty('highlights');
   });
 });
 

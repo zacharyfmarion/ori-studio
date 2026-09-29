@@ -1060,7 +1060,6 @@
       "autoPlayFoldsHelp": "Reproduce el pliegue de un paso en cuanto se llega a su tarjeta. Desactivado, el pliegue se reproduce al pulsar Reproducir o Espacio, y vuelve atrás al pulsar de nuevo; el papel se sigue dando la vuelta por sí solo.",
       "candidates": "Candidatos",
       "emptyNote": "Abre un patrón de plegado para ajustar cómo se buscan sus referencias.",
-      "export": "Exportar",
       "gridWhereNeeded": "Solo donde haga falta",
       "includeApproximate": "Incluir soluciones aproximadas",
       "landmarksFirst": "Referencias primero",

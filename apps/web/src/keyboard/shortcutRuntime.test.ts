@@ -2,10 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   handleShortcutRuntimeKeyDown,
   registerCpActionShortcutExecutor,
+  hasSimulatorExecutor,
   registerReferencesShortcutExecutor,
+  registerSimulatorShortcutExecutor,
   registerViewportShortcutExecutor,
   runReferencesCommand,
+  runSimulatorCommand,
   shortcutScopeStackForContext,
+  subscribeSimulatorExecutor,
 } from './shortcutRuntime';
 import type { ViewportShortcutId } from './shortcuts';
 
@@ -91,6 +95,43 @@ describe('shortcut runtime', () => {
       expect(runReferencesCommand('references.exportAllSteps')).toBe(true);
       expect(newer).toHaveBeenCalledWith('references.exportAllSteps');
       expect(older).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('runSimulatorCommand', () => {
+    it('answers false while no simulation is in hand', () => {
+      expect(hasSimulatorExecutor()).toBe(false);
+      expect(runSimulatorCommand('simulator.exportView')).toBe(false);
+    });
+
+    it('runs the registered simulator executor with the id, and says it did', () => {
+      const simulator = vi.fn();
+      cleanupWith(registerSimulatorShortcutExecutor(simulator));
+
+      expect(runSimulatorCommand('simulator.setUpright')).toBe(true);
+      expect(simulator).toHaveBeenCalledWith('simulator.setUpright');
+    });
+
+    it('tells subscribers when a simulation comes and goes, and not otherwise', () => {
+      const listener = vi.fn();
+      cleanupWith(subscribeSimulatorExecutor(listener));
+
+      const disposeOlder = registerSimulatorShortcutExecutor(vi.fn());
+      const disposeNewer = registerSimulatorShortcutExecutor(vi.fn());
+      // Both unregisters are idempotent, so a failed assertion cannot leave
+      // an executor behind for the next test.
+      cleanupWith(disposeOlder);
+      cleanupWith(disposeNewer);
+      expect(listener).toHaveBeenCalledTimes(2);
+
+      // A stale unregister finds a newer executor and leaves it: no news.
+      disposeOlder();
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(hasSimulatorExecutor()).toBe(true);
+
+      disposeNewer();
+      expect(listener).toHaveBeenCalledTimes(3);
+      expect(hasSimulatorExecutor()).toBe(false);
     });
   });
 

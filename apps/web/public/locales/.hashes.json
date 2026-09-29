@@ -3199,7 +3199,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -3238,7 +3237,12 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6440,7 +6444,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -6479,7 +6482,12 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9683,7 +9691,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -9722,7 +9729,12 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12866,7 +12878,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -12904,7 +12915,12 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -16048,7 +16064,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -16086,7 +16101,12 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -19288,7 +19308,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -19327,7 +19346,12 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22529,7 +22553,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -22568,7 +22591,12 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25712,7 +25740,6 @@
     "dialogs:paperExport.titleTurnOver": "a521a7f931ed",
     "tools:references.exportStep": "30843ce207f2",
     "toasts:paperExport.saved": "b22cd4e87ce1",
-    "panels:references.settings.export": "3664895579f0",
     "dialogs:paperExport.confirmZip": "b0e9f607b19e",
     "dialogs:paperExport.exportingPages": "887ca944b6e1",
     "dialogs:paperExport.nextPage": "298a9207a732",
@@ -25750,6 +25777,11 @@
     "dialogs:paperExport.keepHiddenFacesHint": "2c5d427fd27e",
     "dialogs:paperExport.padding": "2bf63d817630",
     "dialogs:paperExport.sheetMm": "6957cfc76c44",
-    "dialogs:paperExport.transparent": "0fcc9d09de99"
+    "dialogs:paperExport.transparent": "0fcc9d09de99",
+    "dialogs:paperExport.highlights": "de6ea38f1162",
+    "dialogs:paperExport.highlightsHint": "483611c6b33a",
+    "dialogs:paperExport.letters": "0b438c8abb4d",
+    "dialogs:paperExport.lettersHint": "52292469c5e0",
+    "dialogs:paperExport.marks": "65479e3e408a"
   }
 }

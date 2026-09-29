@@ -3,9 +3,9 @@ import { Download } from 'lucide-react';
 import { runReferencesCommand } from '../../keyboard/shortcutRuntime';
 import { REFERENCES_CANDIDATE_COUNTS } from '../../store/workspaceStore/slices/referencesSlice';
 import { useReferencesSettings } from '../../cp-workspace/references/useReferencesSettings';
-import { Button } from '../ui/Button';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { SelectRow, ToggleRow } from '../ui/fieldRows';
+import { ViewControlsAction, ViewControlsActions } from './ViewControlsActions';
 
 /**
  * Options pane for the References workspace, mirroring the Edit and Simulate
@@ -16,11 +16,11 @@ import { SelectRow, ToggleRow } from '../ui/fieldRows';
  * (`useReferencesBreakdown`), and "landmarks first" at once, since both orders
  * were computed when the plan landed.
  *
- * Two groups, the split the popover drew: what to ask ReferenceFinder for a
- * picked vertex or crease — always from the bare sheet — and how the
- * whole-pattern sequence is made. Then Export, for every step at once: the
- * diagrams are the view's, so the button runs the view's own command
- * (`references.exportAllSteps`) rather than reaching for them from here.
+ * It leads with Export, for every step at once: the diagrams are the view's,
+ * so the button runs the view's own command (`references.exportAllSteps`)
+ * rather than reaching for them from here. Then two groups, the split the
+ * popover drew: what to ask ReferenceFinder for a picked vertex or crease —
+ * always from the bare sheet — and how the whole-pattern sequence is made.
  */
 export function ReferencesViewControlsPanel() {
   const { t } = useTranslation();
@@ -55,6 +55,13 @@ export function ReferencesViewControlsPanel() {
 
   return (
     <section className="panel-shell references-view-controls-panel">
+      <ViewControlsActions>
+        <ViewControlsAction
+          icon={<Download size={14} aria-hidden="true" />}
+          label={t('tools:references.exportAllSteps', 'Export all steps…')}
+          onClick={() => runReferencesCommand('references.exportAllSteps')}
+        />
+      </ViewControlsActions>
       <div className="panel-body references-view-controls-panel__body">
         <CollapsibleSection title={t('panels:references.settings.candidates', 'Candidates')}>
           <SelectRow
@@ -131,18 +138,6 @@ export function ReferencesViewControlsPanel() {
             onChange={setShowAuxCreases}
             onReset={showAuxCreasesSet ? resetShowAuxCreases : undefined}
           />
-        </CollapsibleSection>
-
-        <CollapsibleSection title={t('panels:references.settings.export', 'Export')}>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="references-view-controls-panel__export"
-            onClick={() => runReferencesCommand('references.exportAllSteps')}
-          >
-            <Download size={14} aria-hidden="true" />
-            {t('tools:references.exportAllSteps', 'Export all steps…')}
-          </Button>
         </CollapsibleSection>
       </div>
     </section>

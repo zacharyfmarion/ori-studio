@@ -190,7 +190,7 @@ export function usePaperExportDialog(
     trackPaperExportOpened(target.surface, scope);
   }, [target, scope]);
 
-  const { format, keepHiddenFaces, background, sheet, paddingMm } = draft;
+  const { format, keepHiddenFaces, background, sheet, paddingMm, marks } = draft;
   const keepsHiddenFaces = paperExportKeepsHiddenFaces(target, { format, keepHiddenFaces });
   const session = useMemo(
     () => createPaperExportSession(target, PAPER_EXPORT_SCENE_CACHE_SIZE * (pages?.list.length ?? 1)),
@@ -200,9 +200,9 @@ export function usePaperExportDialog(
   const inputs = useMemo(
     () =>
       pageIndices.map((page) =>
-        paperExportSceneInput(target, style, { format, keepHiddenFaces, background }, page)
+        paperExportSceneInput(target, style, { format, keepHiddenFaces, background, marks }, page)
       ),
-    [pageIndices, target, style, format, keepHiddenFaces, background]
+    [pageIndices, target, style, format, keepHiddenFaces, background, marks]
   );
   const key = inputs.map((input) => target.sceneKey(input)).join('\n');
   const built = usePaperExportScenes(session, inputs, key);
@@ -295,6 +295,7 @@ export function usePaperExportDialog(
           changed: !sameOptions(draft, seed),
           scope,
           pageCount: scenes.length,
+          marks: target.marks ?? [],
         })
       );
       toast.success(t('toasts:paperExport.saved', 'Exported {{name}}', { name }));

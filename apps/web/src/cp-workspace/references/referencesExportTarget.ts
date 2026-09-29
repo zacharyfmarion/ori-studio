@@ -5,16 +5,20 @@
  * of them (X13).
  *
  * The scene is cheap to build and reads the style (its markup inlines the
- * colours) and the page's background (a letter off the paper is haloed in it),
- * so its key is exactly those two and the page; the margin and the sheet size
+ * colours), the page's background (a letter off the paper is haloed in it) and
+ * which of the diagram's marks the page carries — its letters and its line
+ * highlights, which a reader drawing a diagram of their own may not want — so
+ * its key is exactly those three and the page; the margin and the sheet size
  * only repaint. A step is one sheet with nothing under it, so it has no buried
  * faces to keep.
  */
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
+import { DEFAULT_PAPER_EXPORT_MARKS, PAPER_EXPORT_MARKS } from '../../lib/paperExportSettings';
 import type { PaperExportTarget } from '../../paperExport/paperExportTarget';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import {
+  referencesStepDiagramMarks,
   referencesStepPaintStyle,
   referencesStepScene,
   type ReferencesStepSceneOptions,
@@ -63,12 +67,13 @@ export function referencesExportTarget(capture: ReferencesExportCapture): PaperE
     exportStyle: capture.exportStyle,
     pins: null,
     buriesFaces: false,
-    sceneKey: ({ page, style, background }) =>
-      `${page}|${JSON.stringify(applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references))}|${background ?? ''}`,
-    buildScene: async ({ page, style, background }) => {
+    marks: PAPER_EXPORT_MARKS,
+    sceneKey: ({ page, style, background, marks = DEFAULT_PAPER_EXPORT_MARKS }) =>
+      `${page}|${JSON.stringify(applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references))}|${background ?? ''}|${marks.letters}|${marks.highlights}`,
+    buildScene: async ({ page, style, background, marks = DEFAULT_PAPER_EXPORT_MARKS }) => {
       const step = steps[page];
       if (!step) return null;
-      return referencesStepScene(step.diagram, {
+      return referencesStepScene(referencesStepDiagramMarks(step.diagram, marks), {
         style,
         mirrored: step.mirrored,
         sheetCssPx,

@@ -747,6 +747,84 @@ describe('PaperExportModal on a fixed picture', () => {
   });
 });
 
+describe('PaperExportModal diagram marks', () => {
+  /** A References step whose scene bakes in its marks, as the real target's does. */
+  const stepTarget = (buildScene = vi.fn(async () => SCENE)) =>
+    target({
+      surface: 'references',
+      title: 'Export step 3',
+      buriesFaces: false,
+      marks: ['letters', 'highlights'],
+      sceneKey: ({ style, marks }) => `${style.paper.front}|${JSON.stringify(marks)}`,
+      buildScene,
+    });
+  const stepText = () => dialog('Export step 3')?.textContent ?? '';
+  // The sections are found by their headings.
+  const sections = (title?: string) =>
+    [...(dialog(title)?.querySelectorAll('.export-modal__label') ?? [])].map((label) => label.textContent);
+  const toggle = (name: string, title?: string) =>
+    dialog(title)?.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`) ?? null;
+
+  it('offers Letters and Line highlights, both on, for a target that declares them', async () => {
+    await open(stepTarget());
+    expect(sections('Export step 3')).toContain('Marks');
+    expect(stepText()).toContain('The names of the points a step refers to.');
+    expect(toggle('Letters', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
+    expect(toggle('Line highlights', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('offers no Marks section for a target without marks, nor for a fixed picture', async () => {
+    await open(target());
+    expect(sections()).not.toContain('Marks');
+    expect(toggle('Letters')).toBeNull();
+
+    act(() => usePaperExportUiStore.getState().close());
+    await open(
+      target({
+        marks: ['letters', 'highlights'],
+        fixedPicture: { svg: '<svg xmlns="http://www.w3.org/2000/svg"></svg>', widthPx: 10, heightPx: 10 },
+      })
+    );
+    expect(sections()).toEqual(['Format']);
+    expect(toggle('Letters')).toBeNull();
+  });
+
+  it('rebuilds and repaints the page when a mark is turned off, and remembers it for the next step', async () => {
+    const buildScene = vi.fn(async () => SCENE);
+    await open(stepTarget(buildScene));
+    const painted = vi.mocked(URL.createObjectURL).mock.calls.length;
+    await act(async () => toggle('Letters', 'Export step 3')?.click());
+    expect(toggle('Letters', 'Export step 3')?.getAttribute('aria-checked')).toBe('false');
+    expect(buildScene).toHaveBeenLastCalledWith(
+      expect.objectContaining({ marks: { letters: false, highlights: true } })
+    );
+    expect(vi.mocked(URL.createObjectURL).mock.calls.length).toBeGreaterThan(painted);
+
+    await act(async () => {
+      dialog('Export step 3')?.querySelector('form')?.requestSubmit();
+    });
+    expect(service.saveTextFile).toHaveBeenCalledTimes(1);
+    const { paperExport } = useSettingsStore.getState();
+    expect(paperExport.step.marks).toEqual({ letters: false, highlights: true });
+    expect(paperExport['folded-figure'].marks).toEqual({ letters: true, highlights: true });
+
+    await open(stepTarget());
+    expect(toggle('Letters', 'Export step 3')?.getAttribute('aria-checked')).toBe('false');
+    expect(toggle('Line highlights', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('turns Line highlights off on its own, leaving Letters as they are', async () => {
+    const buildScene = vi.fn(async () => SCENE);
+    await open(stepTarget(buildScene));
+    await act(async () => toggle('Line highlights', 'Export step 3')?.click());
+    expect(toggle('Line highlights', 'Export step 3')?.getAttribute('aria-checked')).toBe('false');
+    expect(toggle('Letters', 'Export step 3')?.getAttribute('aria-checked')).toBe('true');
+    expect(buildScene).toHaveBeenLastCalledWith(
+      expect.objectContaining({ marks: { letters: true, highlights: false } })
+    );
+  });
+});
+
 describe('PaperExportModal style hint', () => {
   const PINS: PaperStyleOverrides = {
     'paper.front': '#ff00ff',

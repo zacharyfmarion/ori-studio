@@ -3,6 +3,7 @@ import type {
   PaperExportBackground,
   PaperExportFormat,
   PaperExportHiddenFaces,
+  PaperExportMarkShown,
   PaperExportResolution,
   PaperExportScope,
   PaperExportSheet,
@@ -35,6 +36,12 @@ export interface PaperExportedEvent {
   scope: PaperExportScope;
   /** How many pages the ZIP holds; read only for every page. */
   pageCount: number;
+  /**
+   * Whether the page carried the step's letters and its line highlights; set
+   * only for a surface that offers them (References), and sent only then.
+   */
+  letters?: PaperExportMarkShown;
+  highlights?: PaperExportMarkShown;
 }
 
 const RESOLUTION_BY_DPI: Readonly<Record<number, PaperExportResolution>> = {
@@ -71,5 +78,7 @@ export function trackPaperExported(event: PaperExportedEvent): void {
     ...(event.scope === 'all'
       ? { page_count_bucket: bucketCount(event.pageCount, PAPER_EXPORT_PAGE_COUNT_BUCKETS) }
       : {}),
+    ...(event.letters ? { letters: event.letters } : {}),
+    ...(event.highlights ? { highlights: event.highlights } : {}),
   });
 }

@@ -948,7 +948,7 @@
       "refused": "Cette feuille n’a pas pu être planifiée ; les notes sous les cartes expliquent pourquoi.",
       "stopped": "Arrêté ici à votre demande, avec {{made}} plis sur {{total}} faits. Recalculer reprend le plan depuis le début.",
       "stoppedBadge": "Arrêté",
-      "tooManyApproximations": "La planification s’est arrêtée avec {{made}} plis sur {{total}} faits : les autres n’ont pas de construction exacte, et les plier par références demanderait plus de plis de référence qu’une séquence ne peut en porter.",
+      "tooManyApproximations": "La planification s’est arrêtée avec {{made}} plis sur {{total}} faits\u00a0: les autres n’ont pas de construction exacte, et les plier par références demanderait plus de plis de référence qu’une séquence ne peut en porter.",
       "turnOver": "Retournez le papier, de gauche à droite.",
       "turnOverBadge": "Retourner",
       "unsolved": "{{made}} plis sur {{total}} sont faits. Pour les autres, le planificateur n’a trouvé aucune construction ; ils sont listés sous les cartes."
@@ -1062,7 +1062,6 @@
       "autoPlayFoldsHelp": "Joue le pli d’une étape dès que sa carte est atteinte. Désactivé, le pli se joue quand vous appuyez sur Lecture ou Espace, et se rejoue à l’envers quand vous appuyez à nouveau ; le papier se retourne tout de même de lui-même.",
       "candidates": "Candidats",
       "emptyNote": "Ouvrez un patron de pliage pour régler la recherche de ses références.",
-      "export": "Exportation",
       "gridWhereNeeded": "Seulement où nécessaire",
       "includeApproximate": "Inclure les solutions approximatives",
       "landmarksFirst": "Repères d’abord",
@@ -1083,7 +1082,7 @@
     },
     "sidebar": {
       "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
-      "nonePlanned": "Aucune feuille n’a pu être planifiée ; les notes sous les cartes expliquent pourquoi."
+      "nonePlanned": "Aucune feuille n’a pu être planifiée\u00a0; les notes sous les cartes expliquent pourquoi."
     },
     "step": {
       "axiom1": "Pliez {{x}} en passant par {{p0}} et {{p1}}.",

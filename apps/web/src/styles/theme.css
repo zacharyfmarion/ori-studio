@@ -2494,8 +2494,6 @@ a.context-menu__item {
 
 .export-modal .segmented__option {
   flex: 1 1 0;
-  height: 36px;
-  font-size: 0.78rem;
 }
 
 .export-modal__toggle-row {
@@ -2591,12 +2589,6 @@ a.context-menu__item {
 
 .paper-export__state--error {
   color: var(--status-danger);
-}
-
-.references-view-controls-panel__export {
-  width: 100%;
-  justify-content: center;
-  gap: var(--space-1);
 }
 
 .paper-export__pager {
@@ -8025,6 +8017,24 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   align-items: flex-start;
   padding: var(--space-3);
+}
+
+/* The actions a rail leads with, above its sections and outside the scroll; see
+   ViewControlsActions.tsx. Inset like a section's rows. Two buttons share a line
+   while it has room for both, and each takes a line of its own when not. */
+.view-controls-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.view-controls-actions__button {
+  flex: 1 1 auto;
+  justify-content: center;
+  gap: var(--space-1);
 }
 
 /* A text action inside a section body, rather than the icon-only affordance in a

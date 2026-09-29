@@ -51,6 +51,12 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:simulator.toggleCreases', 'Crease lines');
     case 'simulator.toggleLighting':
       return t('tools:simulator.toggleLighting', 'Lighting');
+    // The rail's own buttons' wording, so the shortcut list names the verb the
+    // button does.
+    case 'simulator.exportView':
+      return t('panels:simulatorExport.trigger', 'Export view…');
+    case 'simulator.setUpright':
+      return t('panels:simulator.setUpright', 'Set upright');
     case 'references.nextStep':
       return t('tools:references.nextStep', 'Next Step');
     case 'references.previousStep':

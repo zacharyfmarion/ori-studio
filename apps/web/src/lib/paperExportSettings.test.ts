@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_PAGE } from './paper/paperPage';
+import { DEFAULT_PAPER_PAGE, DEFAULT_PAPER_SHEET_MM } from './paper/paperPage';
 import { DEFAULT_PAPER_PNG_DPI, PAPER_PNG_DPI_RANGE } from './paper/paperPng';
 import type { PaperExportSurface } from '../analytics/events';
 import {
+  DEFAULT_PAPER_EXPORT_MARKS,
   DEFAULT_PAPER_EXPORT_SETTINGS,
   PAPER_EXPORT_KINDS,
   clampPaperPngDpi,
+  normalizePaperExportMarks,
   normalizePaperExportMemory,
   normalizePaperExportSettings,
   paperExportFromSimulatorSettings,
+  paperExportKindDefaults,
   paperExportKindOf,
   paperExportMemoryOf,
   paperPageOf,
@@ -26,6 +29,7 @@ describe('normalizePaperExportSettings', () => {
       pngDpi: DEFAULT_PAPER_PNG_DPI,
       format: 'svg',
       style: 'export-style',
+      marks: { letters: true, highlights: true },
     });
   });
 
@@ -38,6 +42,7 @@ describe('normalizePaperExportSettings', () => {
       pngDpi: 300,
       format: 'png',
       style: 'builtin:diagram',
+      marks: { letters: false, highlights: true },
     };
     expect(normalizePaperExportSettings(JSON.parse(JSON.stringify(settings)))).toEqual(settings);
   });
@@ -66,6 +71,32 @@ describe('normalizePaperExportSettings', () => {
     expect(settings.keepHiddenFaces).toBe(true);
     expect(settings.pngDpi).toBe(PAPER_PNG_DPI_RANGE.max);
     expect(normalizePaperExportSettings({ pngDpi: 'high' }).pngDpi).toBe(DEFAULT_PAPER_PNG_DPI);
+  });
+});
+
+describe('normalizePaperExportMarks', () => {
+  it('shows every mark when options from before the marks have none', () => {
+    expect(normalizePaperExportSettings({ paddingMm: 5 }).marks).toEqual(DEFAULT_PAPER_EXPORT_MARKS);
+    for (const source of [null, undefined, 'letters', 3, true]) {
+      expect(normalizePaperExportMarks(source)).toEqual({ letters: true, highlights: true });
+    }
+  });
+
+  it('reads each mark on its own: a missing or non-boolean one is shown', () => {
+    expect(normalizePaperExportMarks({ letters: false })).toEqual({ letters: false, highlights: true });
+    // Only `false` hides a mark: a falsy value of another type is not a choice.
+    expect(normalizePaperExportMarks({ letters: 0, highlights: '' })).toEqual({
+      letters: true,
+      highlights: true,
+    });
+    expect(normalizePaperExportMarks({ letters: 'no', highlights: false })).toEqual({
+      letters: true,
+      highlights: false,
+    });
+    expect(normalizePaperExportMarks({ letters: false, highlights: false, arrows: false })).toEqual({
+      letters: false,
+      highlights: false,
+    });
   });
 });
 
@@ -113,6 +144,7 @@ const SIMULATION_OPTIONS: PaperExportSettings = {
   pngDpi: 600,
   format: 'png',
   style: 'builtin:diagram',
+  marks: DEFAULT_PAPER_EXPORT_MARKS,
 };
 
 const STEP_OPTIONS: PaperExportSettings = {
@@ -120,6 +152,13 @@ const STEP_OPTIONS: PaperExportSettings = {
   paddingMm: 10,
   pngDpi: 150,
   style: 'user:Mine',
+  marks: { letters: false, highlights: false },
+};
+
+/** A folded figure's first-run options: the defaults on a sheet of the default size. */
+const FIGURE_FIRST_RUN: PaperExportSettings = {
+  ...DEFAULT_PAPER_EXPORT_SETTINGS,
+  sheet: { mm: DEFAULT_PAPER_SHEET_MM },
 };
 
 describe('paperExportKindOf', () => {
@@ -156,6 +195,25 @@ describe('paperExportMemoryOf', () => {
   });
 });
 
+describe('paperExportKindDefaults', () => {
+  it('opens a folded figure on a sheet of the default size, and every other kind as shown', () => {
+    expect(DEFAULT_PAPER_SHEET_MM).toBe(250);
+    expect(paperExportKindDefaults()).toEqual({
+      simulation: DEFAULT_PAPER_EXPORT_SETTINGS,
+      'folded-figure': FIGURE_FIRST_RUN,
+      step: DEFAULT_PAPER_EXPORT_SETTINGS,
+    });
+  });
+
+  it('seeds every kind from the seed, the folded figure keeping its sheet', () => {
+    const seed = { ...DEFAULT_PAPER_EXPORT_SETTINGS, background: '#ffffff', pngDpi: 300 };
+    const defaults = paperExportKindDefaults(seed);
+    expect(defaults.simulation).toEqual(seed);
+    expect(defaults.step).toEqual(seed);
+    expect(defaults['folded-figure']).toEqual({ ...seed, sheet: { mm: DEFAULT_PAPER_SHEET_MM } });
+  });
+});
+
 describe('normalizePaperExportMemory', () => {
   it('reads a v2 value kind by kind', () => {
     const kinds = {
@@ -176,14 +234,29 @@ describe('normalizePaperExportMemory', () => {
     expect(memory.step).toEqual(STEP_OPTIONS);
   });
 
-  it('defaults a malformed kind alone, and the others keep theirs', () => {
+  it('gives a malformed kind its own first-run options alone, and the others keep theirs', () => {
     const memory = normalizePaperExportMemory({
       version: 2,
       kinds: { simulation: SIMULATION_OPTIONS, 'folded-figure': 'broken', step: STEP_OPTIONS },
     });
-    expect(memory['folded-figure']).toEqual(DEFAULT_PAPER_EXPORT_SETTINGS);
+    expect(memory['folded-figure']).toEqual(FIGURE_FIRST_RUN);
     expect(memory.simulation).toEqual(SIMULATION_OPTIONS);
     expect(memory.step).toEqual(STEP_OPTIONS);
+    const missing = normalizePaperExportMemory({
+      version: 2,
+      kinds: { 'folded-figure': SIMULATION_OPTIONS },
+    });
+    expect(missing).toEqual({
+      simulation: DEFAULT_PAPER_EXPORT_SETTINGS,
+      'folded-figure': SIMULATION_OPTIONS,
+      step: DEFAULT_PAPER_EXPORT_SETTINGS,
+    });
+  });
+
+  it('keeps a folded figure that remembers “as shown” as shown', () => {
+    const figure = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: 'as-shown' as const };
+    const memory = normalizePaperExportMemory({ version: 2, kinds: { 'folded-figure': figure } });
+    expect(memory['folded-figure'].sheet).toBe('as-shown');
   });
 
   it('reads only the kinds it knows, so an unknown one is not written back', () => {
@@ -194,17 +267,15 @@ describe('normalizePaperExportMemory', () => {
     expect(Object.keys(memory).sort()).toEqual([...PAPER_EXPORT_KINDS].sort());
   });
 
-  it('reads a value from a newer build as the defaults', () => {
+  it('reads a value from a newer build as the first-run options', () => {
     expect(
       normalizePaperExportMemory({ version: 3, kinds: { simulation: SIMULATION_OPTIONS } })
-    ).toEqual(paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS));
+    ).toEqual(paperExportKindDefaults());
   });
 
-  it('defaults every kind when a v2 value has no kinds to read', () => {
+  it('gives every kind its first-run options when a v2 value has no kinds to read', () => {
     for (const kinds of [undefined, null, 'kinds', 7]) {
-      expect(normalizePaperExportMemory({ version: 2, kinds })).toEqual(
-        paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS)
-      );
+      expect(normalizePaperExportMemory({ version: 2, kinds })).toEqual(paperExportKindDefaults());
     }
   });
 
@@ -215,17 +286,17 @@ describe('normalizePaperExportMemory', () => {
       pngDpi: SIMULATION_OPTIONS.pngDpi,
       format: DEFAULT_PAPER_EXPORT_SETTINGS.format,
       style: DEFAULT_PAPER_EXPORT_SETTINGS.style,
+      marks: DEFAULT_PAPER_EXPORT_MARKS,
     };
+    // The folded figure too: its stored sheet wins over the first-run one.
     expect(memory).toEqual(paperExportMemoryOf(seeded));
   });
 
-  it('reads nothing as the first-run options for every kind', () => {
+  it('reads nothing as every kind’s first-run options', () => {
     const firstRun = { ...DEFAULT_PAPER_EXPORT_SETTINGS, background: '#ffffff' };
     for (const source of [null, undefined, 'page', 0]) {
-      expect(normalizePaperExportMemory(source, firstRun)).toEqual(paperExportMemoryOf(firstRun));
-      expect(normalizePaperExportMemory(source)).toEqual(
-        paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS)
-      );
+      expect(normalizePaperExportMemory(source, firstRun)).toEqual(paperExportKindDefaults(firstRun));
+      expect(normalizePaperExportMemory(source)).toEqual(paperExportKindDefaults());
     }
   });
 

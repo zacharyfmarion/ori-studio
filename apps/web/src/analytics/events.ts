@@ -280,6 +280,9 @@ export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
 /** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
 export type PaperExportScope = 'this' | 'all';
 
+/** Whether a page carried one of a diagram's optional marks — a References step's letters or line highlights. */
+export type PaperExportMarkShown = 'shown' | 'hidden';
+
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
 
@@ -782,9 +785,11 @@ export const ANALYTICS_EVENTS = {
   /**
    * A paper surface's view went out through the shared painter as an SVG or
    * PNG. `surface` says which, `format` which file, `hidden_faces` whether the
-   * buried faces were kept — the default, and the setting D4 exists for. The
-   * file service's `file exported` fires too; this one carries what that
-   * chokepoint cannot see.
+   * buried faces were kept — the default, and the setting D4 exists for;
+   * `letters` and `highlights`, for References alone, whether the step's
+   * letters and line highlights were on the page. The file service's
+   * `file exported` fires too; this one carries what that chokepoint cannot
+   * see.
    */
   paperExported: 'paper exported',
   /**

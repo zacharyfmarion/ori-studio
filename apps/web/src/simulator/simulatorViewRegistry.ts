@@ -11,8 +11,9 @@
  * no prop path between them, exactly the split the crease-pattern camera solved
  * the same way.
  *
- * The Simulate workspace does not use it: its button sits in the same panel that
- * owns the ref, so it calls the handle directly.
+ * The Simulate workspace does not use it: its Set upright button is on the
+ * options rail, which reaches the view through the verb its panel's executor
+ * answers (`simulator.setUpright`), and the panel holds the handle itself.
  */
 export interface SimulatorViewHandle {
   /**

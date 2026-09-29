@@ -50,7 +50,9 @@ export type SimulatorShortcutId =
   | 'simulator.zoomOut'
   | 'simulator.toggleFaces'
   | 'simulator.toggleCreases'
-  | 'simulator.toggleLighting';
+  | 'simulator.toggleLighting'
+  | 'simulator.exportView'
+  | 'simulator.setUpright';
 export type ReferencesShortcutId =
   | 'references.nextStep'
   | 'references.previousStep'
@@ -320,7 +322,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
 function simulatorShortcut(
   id: SimulatorShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[]
+  defaultChord: KeyChord | KeyChord[] | null
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -360,6 +362,12 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.toggleFaces', 'Toggle Faces', { key: 'f' }),
   simulatorShortcut('simulator.toggleCreases', 'Toggle Crease Lines', { key: 'c' }),
   simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
+  // Unbound, as References' exports are: these are the Simulate rail's buttons,
+  // not keys one reaches for while turning a model. Registered all the same so
+  // the rail reaches the view through its executor (`runSimulatorCommand`), and
+  // a chord the user binds is the same verb as the button.
+  simulatorShortcut('simulator.exportView', 'Export view…', null),
+  simulatorShortcut('simulator.setUpright', 'Set upright', null),
 ];
 
 function referencesShortcut(

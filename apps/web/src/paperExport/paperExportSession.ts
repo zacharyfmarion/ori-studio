@@ -14,6 +14,7 @@ import type { PaperScene } from '../lib/paper/paperScene';
 import { effectivePaperStyle, type PaperStyle } from '../lib/paper/paperStyle';
 import { paperSceneToSvg, type PaperSvgResult } from '../lib/paper/paperSvg';
 import {
+  DEFAULT_PAPER_EXPORT_MARKS,
   PAPER_EXPORT_STYLE_SLOT,
   paperPageOf,
   type PaperExportSettings,
@@ -72,11 +73,15 @@ export function paperExportPage(
   return { ...paperPageOf(options), keepHiddenFaces: paperExportKeepsHiddenFaces(target, options) };
 }
 
-/** What a scene of `page` for these options is built from. */
+/**
+ * What a scene of `page` for these options is built from. Options without
+ * marks — a page's alone — carry every mark.
+ */
 export function paperExportSceneInput(
   target: Pick<PaperExportTarget, 'buriesFaces'>,
   style: PaperStyle,
-  options: Pick<PaperExportSettings, 'format' | 'keepHiddenFaces' | 'background'>,
+  options: Pick<PaperExportSettings, 'format' | 'keepHiddenFaces' | 'background'> &
+    Partial<Pick<PaperExportSettings, 'marks'>>,
   page = 0
 ): PaperSceneInput {
   return {
@@ -84,6 +89,7 @@ export function paperExportSceneInput(
     style,
     markHidden: !paperExportKeepsHiddenFaces(target, options),
     background: options.background,
+    marks: options.marks ?? DEFAULT_PAPER_EXPORT_MARKS,
   };
 }
 

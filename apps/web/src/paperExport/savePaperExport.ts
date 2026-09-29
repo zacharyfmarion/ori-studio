@@ -6,10 +6,12 @@
  * file is the preview (X2). Nothing is rebuilt here.
  */
 import type { PaperExportedEvent, PaperExportScope, PaperExportSurface } from '../analytics';
+import type { PaperExportMarkShown } from '../analytics/events';
 import { paperSvgToPng } from '../lib/paper/paperPng';
 import type { PaperSvgResult } from '../lib/paper/paperSvg';
 import type {
   PaperExportFormat,
+  PaperExportMark,
   PaperExportSettings,
   PaperExportStyleChoice,
 } from '../lib/paperExportSettings';
@@ -120,6 +122,8 @@ export async function savePaperExportZip({
 /**
  * The `paper exported` event for a save: which style, sheet and background, as
  * enums. `changed` is whether anything was touched in the dialog before saving.
+ * `marks` are the ones the target offered (`PaperExportTarget.marks`): only
+ * those are reported, since a picture without letters has none to hide.
  */
 export function paperExportedEvent(
   surface: PaperExportSurface,
@@ -131,8 +135,11 @@ export function paperExportedEvent(
     changed: boolean;
     scope: PaperExportScope;
     pageCount: number;
+    marks: readonly PaperExportMark[];
   }
 ): PaperExportedEvent {
+  const shown = (mark: PaperExportMark): PaperExportMarkShown =>
+    options.marks[mark] ? 'shown' : 'hidden';
   return {
     surface,
     format: options.format,
@@ -144,5 +151,7 @@ export function paperExportedEvent(
     optionsChanged: details.changed,
     scope: details.scope,
     pageCount: details.pageCount,
+    ...(details.marks.includes('letters') ? { letters: shown('letters') } : {}),
+    ...(details.marks.includes('highlights') ? { highlights: shown('highlights') } : {}),
   };
 }

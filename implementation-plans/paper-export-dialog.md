@@ -1401,23 +1401,27 @@ From review (folded into the Phase 5 commit):
 
 Asked for after Phase 10 (2026-09-29).
 
-- [ ] The dialogs' button groups at the app's standard control height: the
+- [x] The dialogs' button groups at the app's standard control height: the
       `.export-modal` rule made every segmented control 36 px tall with a
       larger label, where the rest of the app's are 26 px. Shared by the
       crease-pattern export dialog, which follows.
-- [ ] References steps: two page options, **Letters** and **Line
+- [x] References steps: two page options, **Letters** and **Line
       highlights** (both on by default), in the dialog for a step or all
       steps. A target declares which marks it can leave out; the References
       target filters its diagram's letters and its accent highlight lines out
       of the page when one is off, and both are in its scene key. Remembered
       with the rest of the step kind's options; `paper exported` reports them
-      as enums for References.
-- [ ] Folded figures open at a 250 mm sheet: a figure beside a crease pattern
+      as enums for References. — The section is headed **Marks**: "Diagram"
+      is also a preset's name, right above it. Letters are the diagram's
+      `label` primitives, line highlights its `highlight`-styled lines and
+      arcs (`referencesStepDiagramMarks`); points stay, and so does a band
+      step's shaded region, which is an area, not a line.
+- [x] Folded figures open at a 250 mm sheet: a figure beside a crease pattern
       is small on screen, so *As shown* gave a ~40 mm page on which a
       0.9 pt pen reads fat. The folded-figure kind's first-run sheet is
       Custom 250 mm, and Custom's prefill is 250 mm for every kind. (A kind
       that already remembers *As shown* keeps it until changed.)
-- [ ] The sidebars lead with their actions: References' **Export all
+- [x] The sidebars lead with their actions: References' **Export all
       steps…** moves from the bottom section to the top of its rail, with the
       rail's margins; the Simulate pane's rail gains **Export view…** and
       **Set upright** at its top, and the two icon buttons leave the
@@ -1425,8 +1429,15 @@ Asked for after Phase 10 (2026-09-29).
       `simulator.exportView` and `simulator.setUpright` (registry shortcuts
       with no default chord, run by the view's executor, as References'
       `references.exportAllSteps` is). Inline simulation windows keep theirs.
-- [ ] Tests; i18n loop; validate; browser (both rails, the dialog on a step,
-      a figure and a simulation); commit
+      — Shared as `ViewControlsActions`, above each rail's scrolling
+      sections. The Simulate buttons are enabled exactly while the view has an
+      executor registered, which it does only while its simulation is ready —
+      the executor's presence is observable (`subscribeSimulatorExecutor`)
+      rather than a second flag.
+- [x] Tests (each new one mutation-checked); i18n loop; validate; browser
+      (both rails measured in the DOM, the dialog on a sequence's steps with
+      each mark toggled, a simulation; a figure's first-run 250 mm read from
+      the store — the pane could not screenshot while hidden); commit
 
 ### Validation per phase
 

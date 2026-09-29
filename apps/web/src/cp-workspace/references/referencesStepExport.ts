@@ -19,12 +19,13 @@
  * its scenes here, so a test can paint a step in Node and read the page.
  */
 import type { PaperPage } from '../../lib/paper/paperPage';
+import type { PaperExportMarks } from '../../lib/paperExportSettings';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
 import { diagramToPaperScene } from './diagramToPaperScene';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
 import type { ReferencesDiagramView } from './ReferencesCpView';
 import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
 import { createOverlayProjector, sheetFrame, type DiagramSheet } from './stepDiagramGeometry';
@@ -98,6 +99,34 @@ export function referencesStepScene(
     showAux,
     ...(background === null ? {} : { ground: background }),
   });
+}
+
+/**
+ * The step's diagram with the marks the page leaves out taken out of it, so
+ * the scene built from it has no trace of them — not even the room a letter
+ * off the paper would have widened the page by. Letters are the diagram's
+ * labels; line highlights are its lines and arcs in the highlight pen. A
+ * point stays: it is where a fold lands, not a name for it.
+ *
+ * The diagram itself when every mark is shown.
+ */
+export function referencesStepDiagramMarks(
+  diagram: StepDiagramModel,
+  marks: PaperExportMarks
+): StepDiagramModel {
+  if (marks.letters && marks.highlights) return diagram;
+  const kept = (primitive: StepDiagramPrimitive): boolean => {
+    switch (primitive.kind) {
+      case 'label':
+        return marks.letters;
+      case 'line':
+      case 'arc':
+        return marks.highlights || primitive.style !== 'highlight';
+      default:
+        return true;
+    }
+  };
+  return { ...diagram, primitives: diagram.primitives.filter(kept) };
 }
 
 /**

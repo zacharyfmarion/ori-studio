@@ -42,6 +42,13 @@ let activeViewportSurface: ViewportSurface | null = null;
  */
 let simulatorExecutor: SimulatorExecutor | null = null;
 /**
+ * Told whenever {@link simulatorExecutor} comes or goes. The Simulate rail's
+ * buttons are enabled by exactly this: the panel registers its executor only
+ * while its simulation is ready, so "is there one" is the readiness the rail
+ * needs, and a second flag for it would be a second source of truth.
+ */
+const simulatorExecutorListeners = new Set<() => void>();
+/**
  * Set while the References panel is mounted. Same mechanism as the simulator's:
  * its presence pushes the `references` scope, so the step and zoom keys apply
  * only while that workspace is on screen.
@@ -89,12 +96,46 @@ export function registerViewportShortcutExecutor(
  * unmount, or the CP tools stay shadowed after the simulation is gone.
  */
 export function registerSimulatorShortcutExecutor(executor: SimulatorExecutor): () => void {
-  simulatorExecutor = executor;
+  setSimulatorExecutor(executor);
   return () => {
     if (simulatorExecutor === executor) {
-      simulatorExecutor = null;
+      setSimulatorExecutor(null);
     }
   };
+}
+
+function setSimulatorExecutor(next: SimulatorExecutor | null): void {
+  if (simulatorExecutor === next) return;
+  simulatorExecutor = next;
+  for (const listener of simulatorExecutorListeners) listener();
+}
+
+/**
+ * Hear when a simulation takes or gives up the keyboard. Shaped for
+ * `useSyncExternalStore`, with {@link hasSimulatorExecutor} as the snapshot.
+ */
+export function subscribeSimulatorExecutor(listener: () => void): () => void {
+  simulatorExecutorListeners.add(listener);
+  return () => {
+    simulatorExecutorListeners.delete(listener);
+  };
+}
+
+/** Whether a simulation is in hand, so its verbs have somewhere to go. */
+export function hasSimulatorExecutor(): boolean {
+  return simulatorExecutor !== null;
+}
+
+/**
+ * Run a simulator verb from outside the simulation's view — the Simulate
+ * workspace's rail is a panel of its own, and the view is what holds the
+ * viewport and the renderer a verb acts on. The same arrangement as
+ * {@link runReferencesCommand}. False while no simulation is in hand.
+ */
+export function runSimulatorCommand(id: SimulatorShortcutId): boolean {
+  if (!simulatorExecutor) return false;
+  simulatorExecutor(id);
+  return true;
 }
 
 /**

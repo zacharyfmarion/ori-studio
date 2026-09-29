@@ -1,10 +1,11 @@
 /**
- * The export dialog's options: format, style, size, page.
+ * The export dialog's options: format, style, the diagram's marks, size, page.
  *
  * Presentation over the dialog's draft (`usePaperExportDialog`): every control
  * patches the draft and nothing else, so the preview beside it is the whole of
  * what a change does. A row that would do nothing is not shown — Resolution for
- * an SVG, Keep hidden faces for a PNG or for a picture with nothing buried in it.
+ * an SVG, Keep hidden faces for a PNG or for a picture with nothing buried in
+ * it, the Diagram section for a picture with no marks to leave out.
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +17,11 @@ import {
   sheetMmOf,
 } from '../../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../../lib/paper/paperPng';
-import type { PaperExportFormat, PaperExportSettings } from '../../lib/paperExportSettings';
+import type {
+  PaperExportFormat,
+  PaperExportMark,
+  PaperExportSettings,
+} from '../../lib/paperExportSettings';
 import type { PaperExportScope } from '../../paperExport/paperExportTarget';
 import type { PaperExportDialogBinding } from '../../paperExport/usePaperExportDialog';
 import { ColorField } from '../ui/ColorField';
@@ -39,6 +44,7 @@ export function PaperExportOptions({
   draft,
   patch,
   buriesFaces,
+  marks,
   scopes,
   fixed,
   styleHint,
@@ -47,6 +53,8 @@ export function PaperExportOptions({
   patch: (next: Partial<PaperExportSettings>) => void;
   /** The picture can have buried faces; false hides Keep hidden faces. */
   buriesFaces: boolean;
+  /** The marks the picture can be exported without (`PaperExportTarget.marks`); none hides the Diagram section. */
+  marks: readonly PaperExportMark[];
   /** The step on show or every step, for a target with several; null hides the choice. */
   scopes: PaperExportDialogBinding['scopes'];
   /** The picture cannot be restyled or re-paged: only the format is offered. */
@@ -61,6 +69,20 @@ export function PaperExportOptions({
   );
   const dpiValue = customDpi ? CUSTOM : String(draft.pngDpi);
   const sheetMode: SheetMode = draft.sheet === 'as-shown' ? 'as-shown' : 'custom';
+  const markRow = (mark: PaperExportMark, label: string, hint: string) =>
+    marks.includes(mark) && (
+      <div className="export-modal__toggle-row">
+        <div className="export-modal__toggle-copy">
+          <span>{label}</span>
+          <small className="export-modal__hint">{hint}</small>
+        </div>
+        <Toggle
+          checked={draft.marks[mark]}
+          onChange={(shown) => patch({ marks: { ...draft.marks, [mark]: shown } })}
+          aria-label={label}
+        />
+      </div>
+    );
 
   const formatSection = (
     <section className="export-modal__section">
@@ -119,6 +141,22 @@ export function PaperExportOptions({
           hint={styleHint}
         />
       </section>
+
+      {marks.length > 0 && (
+        <section className="export-modal__section">
+          <span className="export-modal__label">{t('dialogs:paperExport.marks', 'Marks')}</span>
+          {markRow(
+            'letters',
+            t('dialogs:paperExport.letters', 'Letters'),
+            t('dialogs:paperExport.lettersHint', 'The names of the points a step refers to.')
+          )}
+          {markRow(
+            'highlights',
+            t('dialogs:paperExport.highlights', 'Line highlights'),
+            t('dialogs:paperExport.highlightsHint', 'The accent over the lines a step lines up.')
+          )}
+        </section>
+      )}
 
       <section className="export-modal__section">
         <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>

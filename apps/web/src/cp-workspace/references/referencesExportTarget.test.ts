@@ -137,6 +137,29 @@ describe('referencesExportTarget', () => {
     await expect(exported.buildScene({ ...input, page: 2 })).resolves.toBeNull();
   });
 
+  it('offers both marks, keys its scene by them, and builds a page without the ones that are off', async () => {
+    const exported = target({ mirrored: false, sheetCssPx: 400, lineWidth: 1, showAux: null });
+    expect(exported.marks).toEqual(['letters', 'highlights']);
+    const input = paperExportSceneInput(exported, DEFAULT_PAPER_STYLE, DEFAULT_PAPER_EXPORT_SETTINGS);
+    const keys = new Set(
+      [
+        { letters: true, highlights: true },
+        { letters: false, highlights: true },
+        { letters: true, highlights: false },
+        { letters: false, highlights: false },
+      ].map((marks) => exported.sceneKey({ ...input, marks }))
+    );
+    expect(keys.size).toBe(4);
+
+    const lettered = await exported.buildScene(input);
+    const bare = await exported.buildScene({ ...input, marks: { letters: false, highlights: true } });
+    const style = paperExportStyle(exported, 'export-style', paperPresetRows([]));
+    const page = (scene: PaperScene) =>
+      paintPaperExport(exported, scene, style, paperExportPage(exported, DEFAULT_PAPER_EXPORT_SETTINGS)).svg;
+    expect(page(lettered!)).toContain('>A<');
+    expect(page(bare!)).not.toContain('>A<');
+  });
+
   it('puts the sheet in the same place on a front page and a back page cropped alike', async () => {
     // A sheet away from the model's origin, as the canvas has it.
     const diagram: StepDiagramModel = {

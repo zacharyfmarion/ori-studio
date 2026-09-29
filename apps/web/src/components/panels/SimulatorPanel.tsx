@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   ArrowLeft,
-  Axis3d,
   Pause,
   Play,
   RotateCcw,
@@ -44,7 +43,6 @@ import { ContextMenu } from "../ui/ContextMenu";
 import { useContextMenuController } from "../../menus/context/useContextMenuController";
 import { useShortcutStore } from "../../store/shortcutStore";
 import { FoldPlayhead } from "../../simulator/foldPlayhead";
-import { SimulatorExportButton } from "../../simulator/SimulatorExportButton";
 import { useSimulatorExport } from "../../simulator/useSimulatorExport";
 import { useSimulatorPhoneFlow } from "../../simulator/useSimulatorPhoneFlow";
 import { foldNeedsTriangulation } from "../../simulator/canvas2dFrame";
@@ -461,6 +459,13 @@ export function SimulatorPanel() {
       }
       setSimulatorSetting(key, !viewSettings[key]);
     },
+    // The options rail's two buttons. The rail is a sibling panel, so it runs
+    // these through the executor rather than holding the viewport itself.
+    exportView: () => void exportView(),
+    setUpright: () => {
+      viewportRef.current?.setUpright();
+      announceUprightSet(t);
+    },
   };
 
   useSimulatorShortcuts({
@@ -549,44 +554,11 @@ export function SimulatorPanel() {
             </div>
             <div className="panel-toolbar__group">
               {/*
-                Which way the model is up. Here rather than in the view pane because
-                it is something you reach for *while* positioning a model — it acts
-                on the thing beside it, and the options pane is for settings you
-                configure once.
-
-                No matching "clear": the way back is the view reset (0 / Home, or
-                double-click the canvas), which drops the orientation with the
-                angles. See `SimulatorViewport.resetView`.
-              */}
-              {/*
-                `toolbar` to match the export control beside it. Omitting the
-                variant gives the ghost look, which sat next to the export button's
-                filled one and read as two different kinds of control rather than
-                two actions. `SimulatorExportButton` is always `toolbar`, so that is
-                the look this header has.
-              */}
-              <IconButton
-                size="sm"
-                variant="toolbar"
-                title={t("panels:simulator.setUpright", "Set upright")}
-                disabled={loadState !== "ready"}
-                onClick={() => {
-                  viewportRef.current?.setUpright();
-                  announceUprightSet(t);
-                }}
-              >
-                <Axis3d size={14} />
-              </IconButton>
-              <SimulatorExportButton
-                onExport={() => void exportView()}
-                disabled={loadState !== "ready"}
-              />
-              {/*
                 Where the touch layer's Settings pill goes: the right end of the
-                toolbar, beside Export. Seated here rather than floated over the
-                canvas so the phone's list screen, which has no simulator for the
-                settings to be about, carries no pill (`WorkspaceViewDrawer`).
-                Empty under a fine pointer, where the settings are the docked pane.
+                toolbar. Seated here rather than floated over the canvas so the
+                phone's list screen, which has no simulator for the settings to
+                be about, carries no pill (`WorkspaceViewDrawer`). Empty under a
+                fine pointer, where the settings are the docked pane.
               */}
               <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
             </div>

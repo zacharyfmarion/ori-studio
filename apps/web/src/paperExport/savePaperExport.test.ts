@@ -220,6 +220,7 @@ describe('paperExportedEvent', () => {
     changed: false,
     scope: 'this' as const,
     pageCount: 1,
+    marks: [] as const,
   };
 
   it('names the style by kind: the slot, a built-in by id, anything else as custom', () => {
@@ -262,5 +263,17 @@ describe('paperExportedEvent', () => {
       pngDpi: 288,
       optionsChanged: true,
     });
+  });
+
+  it('reports the diagram’s marks only for a target that offers them', () => {
+    const bare = { ...DEFAULT_PAPER_EXPORT_SETTINGS, marks: { letters: false, highlights: true } };
+    const offered = { ...details, marks: ['letters', 'highlights'] as const };
+    expect(paperExportedEvent('references', bare, offered)).toMatchObject({
+      letters: 'hidden',
+      highlights: 'shown',
+    });
+    const event = paperExportedEvent('folded-3d', bare, details);
+    expect(event).not.toHaveProperty('letters');
+    expect(event).not.toHaveProperty('highlights');
   });
 });

@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { registerSimulatorShortcutExecutor } from '../../keyboard/shortcutRuntime';
 import { applyCreaseStyle, DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -346,5 +347,62 @@ describe('collapsible sections', () => {
     const input = field?.querySelector('input');
     expect(label?.htmlFor).toBeTruthy();
     expect(label?.htmlFor).toBe(input?.id);
+  });
+});
+
+describe('SimulatorViewControlsPanel actions', () => {
+  let unregister: (() => void) | null = null;
+
+  afterEach(() => {
+    unregister?.();
+    unregister = null;
+  });
+
+  function actions(rendered: HTMLDivElement): HTMLButtonElement[] {
+    return [
+      ...rendered.querySelectorAll<HTMLButtonElement>('.view-controls-actions button'),
+    ];
+  }
+
+  it('leads the rail with Export view and Set upright', () => {
+    const rendered = render();
+
+    const body = rendered.querySelector('.simulator-view-controls-panel')!;
+    expect(body.firstElementChild?.classList.contains('view-controls-actions')).toBe(true);
+    expect(actions(rendered).map((button) => button.textContent?.trim())).toEqual([
+      'Export view…',
+      'Set upright',
+    ]);
+  });
+
+  it('disables both while no simulation is ready', () => {
+    const rendered = render();
+
+    expect(actions(rendered).every((button) => button.disabled)).toBe(true);
+  });
+
+  it('runs the simulation’s own verbs once one is in hand', () => {
+    const rendered = render();
+    const simulator = vi.fn();
+    // Registered after the first render, as a simulation that finishes loading
+    // would: the rail must follow it without a render of its own.
+    act(() => {
+      unregister = registerSimulatorShortcutExecutor(simulator);
+    });
+    const [exportView, setUpright] = actions(rendered);
+    expect(exportView?.disabled).toBe(false);
+    expect(setUpright?.disabled).toBe(false);
+
+    act(() => exportView?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    act(() => setUpright?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+    expect(simulator.mock.calls).toEqual([['simulator.exportView'], ['simulator.setUpright']]);
+
+    // And back off when the simulation goes.
+    act(() => {
+      unregister?.();
+      unregister = null;
+    });
+    expect(actions(rendered).every((button) => button.disabled)).toBe(true);
   });
 });
