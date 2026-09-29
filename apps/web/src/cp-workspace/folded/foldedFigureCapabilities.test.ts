@@ -61,6 +61,7 @@ function deps(): FoldedFigureActionDeps {
     updateModel: () => {},
     endModelGesture: () => {},
     paperStyle: () => DEFAULT_PAPER_STYLE,
+    inheritedPaperStyle: DEFAULT_PAPER_STYLE,
     setAppearance: () => {},
     foldAnother: () => {},
     duplicate: () => {},

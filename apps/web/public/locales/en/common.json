@@ -281,6 +281,9 @@
     },
     "otherPlatforms": "Other platforms"
   },
+  "fieldRow": {
+    "overridden": "Overridden"
+  },
   "fileDrop": {
     "open": "Drop to open",
     "openOrImport": "Drop to open or import"

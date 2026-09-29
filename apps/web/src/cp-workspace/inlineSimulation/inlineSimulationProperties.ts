@@ -18,6 +18,8 @@ export interface InlineSimulationPropertyDeps {
   setSetting<K extends keyof SimulatorSettings>(key: K, value: SimulatorSettings[K]): void;
   /** The window's effective style: the app's display style with its own pins on top. */
   style: PaperStyle;
+  /** The app's display style: what a paper row shows once its pin is cleared. */
+  inherited: PaperStyle;
   /** Which fields are pinned on this window, and to what. */
   overrides: PaperStyleOverrides | undefined;
   /** True while another surface holds the inline-simulation layer's bracket. */
@@ -105,6 +107,7 @@ export function buildInlineSimulationProperties(
       undoLabel: changeLabel,
       protocol: 'discrete',
       value: style.light.enabled,
+      inherited: deps.inherited.light.enabled,
       commit: (enabled) =>
         deps.commitOverrides([{ field: 'light', value: { ...style.light, enabled } }]),
       ...resetOf('light'),

@@ -65,6 +65,7 @@ function deps(
     end: vi.fn(),
     commitModel: vi.fn(),
     style: DEFAULT_PAPER_STYLE,
+    inherited: DEFAULT_PAPER_STYLE,
     overrides: undefined,
     writeOverride: vi.fn(),
     commitOverrides: vi.fn(),
@@ -300,6 +301,29 @@ describe('buildFoldedFigureProperties', () => {
     expect(d.commitOverrides).toHaveBeenCalledWith([
       { field: 'light', value: { ...DEFAULT_PAPER_STYLE.light, enabled: false } },
     ]);
+  });
+
+  it('names the display style’s value as what each paper toggle inherits, not the pin’s', () => {
+    const display = {
+      ...DEFAULT_PAPER_STYLE,
+      auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+    };
+    const sheet = sheetFor(
+      SPATIAL,
+      deps({
+        style: { ...display, light: { ...display.light, enabled: false } },
+        inherited: display,
+        overrides: { light: { ...display.light, enabled: false } },
+      })
+    );
+    const inheritedOf = (id: string) => {
+      const found = field(sheet, id);
+      if (found.kind !== 'toggle') throw new Error('toggle');
+      return found.inherited;
+    };
+    expect(field(sheet, 'lighting').value).toBe(false);
+    expect(inheritedOf('lighting')).toBe(true);
+    expect(inheritedOf('auxVisible')).toBe(false);
   });
 
   it('reports the layer as held on every colour row', () => {

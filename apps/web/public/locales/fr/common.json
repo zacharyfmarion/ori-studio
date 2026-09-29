@@ -281,6 +281,9 @@
     },
     "otherPlatforms": "Autres plateformes"
   },
+  "fieldRow": {
+    "overridden": "Remplacé"
+  },
   "fileDrop": {
     "open": "Déposez pour ouvrir",
     "openOrImport": "Déposez pour ouvrir ou importer"

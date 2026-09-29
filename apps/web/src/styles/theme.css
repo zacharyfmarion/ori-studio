@@ -7908,7 +7908,29 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-align: right;
 }
 
+/* A toggle's "Overridden", in the place its reset button would have taken: on
+   a second grid line under the label, so the line the switch sits on — and the
+   switch with it — stays exactly where it was. The line is one fixed height,
+   empty or not and never wrapped, so a toggle that can be overridden is one
+   height whichever it is (`FieldRow.overridable`). */
+.control-row--noted {
+  row-gap: 1px;
+}
+
+.control-row__note {
+  grid-column: 1;
+  min-width: 0;
+  height: 1.2em;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .control-row[data-disabled] .control-row__label,
+.control-row[data-disabled] .control-row__note,
 .control-row[data-disabled] .control-row__readout {
   opacity: 0.5;
 }

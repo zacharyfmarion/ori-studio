@@ -51,6 +51,8 @@ export interface FoldedFigurePropertyDeps {
   commitModel(patch: Partial<OristudioCpFoldedFigureModel>): void;
   /** The figure's effective paper style: the app's display style with its own pins on top. */
   style: PaperStyle;
+  /** The app's display style: what a style row shows once its pin is cleared. */
+  inherited: PaperStyle;
   /** Which fields are pinned on this figure, and to what. */
   overrides: PaperStyleOverrides | undefined;
   /** A continuous pin inside an open bracket; the kernel follows through the mirror, records nothing. */
@@ -248,6 +250,7 @@ export function buildFoldedFigureProperties(
             undoLabel: changeStyle,
             protocol: 'discrete',
             value: style.light.enabled,
+            inherited: deps.inherited.light.enabled,
             commit: (enabled) =>
               deps.commitOverrides([{ field: 'light', value: { ...style.light, enabled } }]),
             ...resetOf('light'),

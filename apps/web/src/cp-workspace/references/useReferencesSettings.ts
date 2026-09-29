@@ -29,6 +29,8 @@ export interface ReferencesSettingsState {
   showAuxCreases: boolean;
   /** Set here, so it no longer follows the paper style until it is reset. */
   showAuxCreasesSet: boolean;
+  /** What the display style's own switch says: the value a reset hands back. */
+  showAuxCreasesInherited: boolean;
   setShowAuxCreases: (value: boolean) => void;
   resetShowAuxCreases: () => void;
 }
@@ -55,6 +57,7 @@ export function useReferencesSettings(): ReferencesSettingsState {
     setAutoPlayFolds,
     showAuxCreases: referencesShowsAux(display, auxOption),
     showAuxCreasesSet: auxOption !== null,
+    showAuxCreasesInherited: referencesShowsAux(display, null),
     setShowAuxCreases: setAuxOption,
     resetShowAuxCreases: () => setAuxOption(null),
   };

@@ -196,8 +196,11 @@ describe('ReferencesViewControlsPanel', () => {
   });
 
   // A view option like a folded figure's in Properties: the paper style's own
-  // switch until it is set here, with a reset that hands it back.
-  it('shows auxiliary creases as the paper style says until set, and resets to it', () => {
+  // switch until it is set here. Re-pinned: a reset button used to trail the
+  // switch while set, and moved it each time it appeared; the row now says
+  // "Overridden" under its label, and switching back to the style's value is
+  // the reset.
+  it('shows auxiliary creases as the paper style says until set, and switching back resets to it', () => {
     const style = (visible: boolean) =>
       act(() =>
         useSettingsStore.getState().setPaperStyleFields('display', { 'auxCreases.visible': visible })
@@ -205,12 +208,9 @@ describe('ReferencesViewControlsPanel', () => {
     style(true);
     const rendered = render();
     const aux = () => toggle(rendered, 'Show auxiliary creases');
-    const reset = () =>
-      rendered.querySelector<HTMLButtonElement>(
-        'button[aria-label="Reset Show auxiliary creases to default"]'
-      );
+    const note = () => aux().closest('.control-row')?.querySelector('.control-row__note');
     expect(aux().getAttribute('aria-checked')).toBe('true');
-    expect(reset()).toBeNull();
+    expect(note()?.textContent).toBe('');
 
     style(false);
     expect(aux().getAttribute('aria-checked')).toBe('false');
@@ -218,15 +218,22 @@ describe('ReferencesViewControlsPanel', () => {
     press(aux());
     expect(useSettingsStore.getState().referencesShowAuxCreases).toBe(true);
     expect(aux().getAttribute('aria-checked')).toBe('true');
+    expect(note()?.textContent).toBe('Overridden');
+    expect(
+      rendered.querySelector('button[aria-label="Reset Show auxiliary creases to default"]')
+    ).toBeNull();
     // Set here, it holds whatever the style says.
     style(true);
     style(false);
     expect(aux().getAttribute('aria-checked')).toBe('true');
 
-    press(reset()!);
+    press(aux());
     expect(useSettingsStore.getState().referencesShowAuxCreases).toBeNull();
     expect(aux().getAttribute('aria-checked')).toBe('false');
-    expect(reset()).toBeNull();
+    expect(note()?.textContent).toBe('');
+    // Following again: it moves with the style.
+    style(true);
+    expect(aux().getAttribute('aria-checked')).toBe('true');
   });
 });
 

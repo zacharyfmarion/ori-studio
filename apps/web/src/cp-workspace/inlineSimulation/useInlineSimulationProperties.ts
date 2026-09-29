@@ -8,6 +8,7 @@ import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
 import { usePaneGesture } from '../canvasObjects/usePaneGesture';
 import {
   setInlineSimulationAppearances,
+  useInheritedPaperStyle,
   useObjectPaperStyle,
   type PaperStyleOverrideEdit,
 } from '../paper/objectPaperStyle';
@@ -36,6 +37,7 @@ export function useInlineSimulationProperties(
   const settings = useWorkspaceStore((state) => state.simulatorSettings);
   const setSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const style = useObjectPaperStyle(target.simulation);
+  const inherited = useInheritedPaperStyle();
   const overrides = target.simulation.appearance;
   const id = target.id;
   const gesture = usePaneGesture(inlineSimulationGesture);
@@ -87,6 +89,7 @@ export function useInlineSimulationProperties(
       settings,
       setSetting,
       style,
+      inherited,
       overrides,
       held: gesture.held,
       begin: gesture.begin,
@@ -99,6 +102,7 @@ export function useInlineSimulationProperties(
       settings,
       setSetting,
       style,
+      inherited,
       overrides,
       gesture.held,
       gesture.begin,

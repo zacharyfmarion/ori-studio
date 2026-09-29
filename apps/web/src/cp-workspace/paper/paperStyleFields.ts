@@ -23,12 +23,16 @@ import type { PaperStyleOverrideEdit } from './objectPaperStyle';
  *
  * Each row edits the object's own pin on that field and offers `reset` only
  * while pinned, like every other paper-style row. A pen is pinned whole: a
- * colour or width edit copies the effective pen and changes that one part.
+ * colour or width edit copies the effective pen and changes that one part. A
+ * toggle also names the value it would inherit, so switching back to it clears
+ * the pin (`ToggleField.inherited`).
  */
 export interface PaperStyleRowDeps {
   t: TFunction;
   /** The object's effective style: the app's display style with its own pins on top. */
   style: PaperStyle;
+  /** The app's display style: what a row shows once its pin is cleared. */
+  inherited: PaperStyle;
   /** Which fields are pinned on this object, and to what. */
   overrides: PaperStyleOverrides | undefined;
   /** True while another surface holds the object's layer bracket. */
@@ -145,6 +149,7 @@ export function foldPenFields(deps: PaperStyleRowDeps): PropertyField[] {
       undoLabel: changeStyle,
       protocol: 'discrete',
       value: style.foldsAsEdges,
+      inherited: deps.inherited.foldsAsEdges,
       commit: (on) => deps.commitOverrides([{ field: 'foldsAsEdges', value: on }]),
       ...resetOf('foldsAsEdges'),
     },
@@ -169,6 +174,7 @@ export function auxAndErodeFields(deps: PaperStyleRowDeps): PropertyField[] {
       undoLabel: changeStyle,
       protocol: 'discrete',
       value: style.auxCreases.visible,
+      inherited: deps.inherited.auxCreases.visible,
       commit: (visible) => deps.commitOverrides([{ field: 'auxCreases.visible', value: visible }]),
       ...resetOf('auxCreases.visible'),
     },

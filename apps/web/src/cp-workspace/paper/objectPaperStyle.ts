@@ -49,6 +49,14 @@ export function effectiveObjectPaperStyle(
   return effectivePaperStyle(display, entry.appearance);
 }
 
+/**
+ * The style an object follows wherever it pins nothing — the app's display
+ * style, live: what one of its rows shows once that row's pin is cleared.
+ */
+export function useInheritedPaperStyle(): PaperStyle {
+  return useSettingsStore((state) => state.paperStyle.display);
+}
+
 /** {@link effectiveObjectPaperStyle}, live: re-renders when the display style or the overrides move. */
 export function useObjectPaperStyle(entry: PaperObject): PaperStyle {
   const display = useSettingsStore((state) => state.paperStyle.display);

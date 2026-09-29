@@ -47,6 +47,7 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     updateModel: vi.fn(),
     endModelGesture: vi.fn(),
     paperStyle: () => DEFAULT_PAPER_STYLE,
+    inheritedPaperStyle: DEFAULT_PAPER_STYLE,
     setAppearance: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),

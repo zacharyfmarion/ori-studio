@@ -860,7 +860,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
 
   // The display style, so a figure's effective style can be resolved for the
-  // Style menu's colour rows; the rows re-render when it moves.
+  // Style menu's colour rows and its switches know what clearing a pin hands
+  // back; the rows re-render when it moves.
   const displayPaperStyle = useSettingsStore((state) => state.paperStyle.display);
   const foldedPaperStyle = useCallback(
     (figure: OristudioCpFoldedFigureEntry) => effectiveObjectPaperStyle(figure, displayPaperStyle),
@@ -945,6 +946,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       updateModel: updateFoldedModel,
       endModelGesture: endFoldedModelGesture,
       paperStyle: foldedPaperStyle,
+      inheritedPaperStyle: displayPaperStyle,
       setAppearance: setFoldedAppearance,
       foldAnother: (figure) =>
         runFoldedFigureAction(
@@ -1017,6 +1019,7 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       updateFoldedModel,
       endFoldedModelGesture,
       foldedPaperStyle,
+      displayPaperStyle,
       setFoldedAppearance,
       trackStyled,
       setOristudioCpFolded3dCamera,

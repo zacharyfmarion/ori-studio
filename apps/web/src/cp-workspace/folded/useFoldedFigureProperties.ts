@@ -13,6 +13,7 @@ import type { TargetOf } from '../canvasObjects/canvasObjectKinds';
 import { usePaneGesture } from '../canvasObjects/usePaneGesture';
 import {
   setFoldedFigureAppearances,
+  useInheritedPaperStyle,
   useObjectPaperStyle,
   type PaperStyleOverrideEdit,
 } from '../paper/objectPaperStyle';
@@ -52,6 +53,7 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
   const stale = useMemo(() => isFoldedFigureStale(document, figure), [document, figure]);
   const gesture = usePaneGesture(foldedFigureGesture);
   const style = useObjectPaperStyle(figure);
+  const inherited = useInheritedPaperStyle();
   const overrides = figure.appearance;
   const surface = isFolded3dFigure(figure) ? 'folded-3d' : 'folded-flat';
   // The fields counted in the gesture under way. A set held for the hook's
@@ -133,6 +135,7 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       end,
       commitModel,
       style,
+      inherited,
       overrides,
       writeOverride,
       commitOverrides,
@@ -149,6 +152,7 @@ export function useFoldedFigureProperties(target: TargetOf<'folded-figure'>): Pr
       end,
       commitModel,
       style,
+      inherited,
       overrides,
       writeOverride,
       commitOverrides,

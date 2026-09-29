@@ -89,7 +89,16 @@ export interface PropertyOption {
   label: string;
 }
 
-export type ToggleField = FieldBase & { kind: 'toggle' } & DiscreteCommit<boolean>;
+export type ToggleField = FieldBase & {
+  kind: 'toggle';
+  /**
+   * The value the row shows once `reset` has cleared it — what it follows
+   * while nothing is pinned. A toggle offers no reset button (`FieldRow`), so
+   * while `reset` is offered, switching to this value runs `reset` rather than
+   * pinning a value that merely agrees with it.
+   */
+  inherited?: boolean;
+} & DiscreteCommit<boolean>;
 /** `value: null` is the mixed state — nothing chosen, the placeholder shown. */
 export type SelectField = FieldBase & {
   kind: 'select';

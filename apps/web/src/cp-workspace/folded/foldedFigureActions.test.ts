@@ -77,6 +77,7 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     updateModel: vi.fn(),
     endModelGesture: vi.fn(),
     paperStyle: () => DEFAULT_PAPER_STYLE,
+    inheritedPaperStyle: DEFAULT_PAPER_STYLE,
     setAppearance: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
@@ -683,6 +684,30 @@ describe('foldedFigureStyleGroup', () => {
         value: false,
       });
     }
+  });
+
+  // The Properties sheet's switch clears a pin by flipping back to what it
+  // inherits (`ToggleRow`). A menu that pinned the app's own value instead
+  // left that row "Overridden" and showing the inherited value, which only a
+  // flip away and back again could clear.
+  it('clears the pin rather than copying the app style when a switch goes back to it', () => {
+    const figure = spatial();
+    const pinned = {
+      ...DEFAULT_PAPER_STYLE,
+      light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
+      auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+    };
+    const deps = makeDeps({ paperStyle: () => pinned, inheritedPaperStyle: DEFAULT_PAPER_STYLE });
+    const toggles = foldedFigureStyleGroup(figure, deps).items.filter(
+      (item): item is FoldedFigureToggleOption => item.kind === 'toggle'
+    );
+    for (const toggle of toggles) toggle.toggle();
+    expect(deps.setAppearance).toHaveBeenCalledTimes(2);
+    expect(deps.setAppearance).toHaveBeenCalledWith(figure, { field: 'light', value: undefined });
+    expect(deps.setAppearance).toHaveBeenCalledWith(figure, {
+      field: 'auxCreases.visible',
+      value: undefined,
+    });
   });
 
   it('disables the whole group, and every row in it, until the figure is ready', () => {

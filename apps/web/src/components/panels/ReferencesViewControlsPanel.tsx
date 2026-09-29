@@ -34,6 +34,7 @@ export function ReferencesViewControlsPanel() {
     setAutoPlayFolds,
     showAuxCreases,
     showAuxCreasesSet,
+    showAuxCreasesInherited,
     setShowAuxCreases,
     resetShowAuxCreases,
   } = useReferencesSettings();
@@ -135,6 +136,7 @@ export function ReferencesViewControlsPanel() {
               'The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary crease style and never folded. Follows Settings ▸ Paper until you change it here.'
             )}
             checked={showAuxCreases}
+            inherited={showAuxCreasesInherited}
             onChange={setShowAuxCreases}
             onReset={showAuxCreasesSet ? resetShowAuxCreases : undefined}
           />

@@ -255,6 +255,8 @@ export interface FoldedFigureActionDeps {
   endModelGesture: (scope: string) => void;
   /** The figure's effective paper style: the app's display style with its pins on top. */
   paperStyle: (figure: OristudioCpFoldedFigureEntry) => PaperStyle;
+  /** The app's display style: what a figure shows for a field it does not pin. */
+  inheritedPaperStyle: PaperStyle;
   /**
    * Pin one paper-style field on the figure, or clear it with `undefined` so
    * the figure follows the app style for it again. The same gesture protocol
@@ -382,8 +384,11 @@ function foldedColorValue(key: FoldedColorKey, style: PaperStyle): string {
  * field on the figure; the shadow is the flat figure's own Oriedita model
  * field, and the light and the existing-crease toggle are the style's,
  * offered where the surface's policy applies them (`PAPER_STYLE_POLICIES`).
- * The aux pen and erode are numbers a menu has no row for; the Properties
- * sheet has them.
+ * Switching either back to the app style's value clears the figure's pin
+ * rather than pinning a copy of it, as the Properties sheet's switches do
+ * (`ToggleRow`): a pin that only agrees with the app would leave that row
+ * "Overridden" with no one-click way back. The aux pen and erode are numbers
+ * a menu has no row for; the Properties sheet has them.
  *
  * Gated in two layers. The whole group waits on `ready`, like every other
  * kernel-backed verb; the model rows additionally ask `foldedAppearanceEnabled`
@@ -408,6 +413,7 @@ export function foldedFigureStyleGroup(
   const shadowEnabled = enabled('shadow');
   const colorLabel = t('panels:creasePattern.changeFoldedColor', 'Change folded model color');
   const style = deps.paperStyle(figure);
+  const inherited = deps.inheritedPaperStyle;
   const policy = PAPER_STYLE_POLICIES[isFolded3dFigure(figure) ? 'folded-3d' : 'folded-flat'];
 
   return {
@@ -494,11 +500,14 @@ export function foldedFigureStyleGroup(
               label: t('panels:simulatorViewControls.lighting', 'Lighting'),
               checked: style.light.enabled,
               disabled: !modelReady,
-              toggle: () =>
+              toggle: () => {
+                const on = !style.light.enabled;
                 deps.setAppearance(figure, {
                   field: 'light',
-                  value: { ...style.light, enabled: !style.light.enabled },
-                }),
+                  value:
+                    on === inherited.light.enabled ? undefined : { ...style.light, enabled: on },
+                });
+              },
             } as const,
           ]
         : []),
@@ -511,11 +520,13 @@ export function foldedFigureStyleGroup(
               label: t('panels:cpProperties.paperStyle.auxVisible', 'Auxiliary creases'),
               checked: style.auxCreases.visible,
               disabled: !modelReady,
-              toggle: () =>
+              toggle: () => {
+                const on = !style.auxCreases.visible;
                 deps.setAppearance(figure, {
                   field: 'auxCreases.visible',
-                  value: !style.auxCreases.visible,
-                }),
+                  value: on === inherited.auxCreases.visible ? undefined : on,
+                });
+              },
             } as const,
           ]
         : []),

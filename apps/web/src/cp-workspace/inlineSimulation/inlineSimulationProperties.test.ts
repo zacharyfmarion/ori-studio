@@ -30,6 +30,7 @@ function deps(
     settings: { ...DEFAULT_SIMULATOR_SETTINGS, ...settings },
     setSetting: vi.fn(),
     style: effectivePaperStyle(DEFAULT_PAPER_STYLE, overrides),
+    inherited: DEFAULT_PAPER_STYLE,
     overrides,
     held,
     begin: vi.fn(() => true),
@@ -318,5 +319,44 @@ describe('buildInlineSimulationProperties', () => {
     }
     expect(support('foldsAsEdges')).toMatchObject({ value: true, support: 'supported' });
     expect(support('foldsAsEdges').reset).toBeDefined();
+  });
+
+  // A toggle has no reset button, so the switch is the way back: each
+  // pinnable toggle names the value it would follow — the display style's,
+  // not its pin's — and switching to that value clears the pin.
+  it('names what each paper toggle inherits, and switching back to it clears the pin', () => {
+    const display = {
+      ...DEFAULT_PAPER_STYLE,
+      light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
+      auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+    };
+    const pins: PaperStyleOverrides = { foldsAsEdges: true };
+    const d = { ...deps(pins), style: effectivePaperStyle(display, pins), inherited: display };
+    const sheet = buildInlineSimulationProperties(TARGET, d);
+    const toggle = (id: string) => {
+      const found = field(sheet, id);
+      if (found.kind !== 'toggle') throw new Error('toggle');
+      return { value: found.value, inherited: found.inherited, pinned: found.reset !== undefined };
+    };
+    expect(toggle('foldsAsEdges')).toEqual({ value: true, inherited: false, pinned: true });
+    expect(toggle('lighting')).toEqual({ value: false, inherited: false, pinned: false });
+    expect(toggle('auxVisible')).toEqual({ value: false, inherited: false, pinned: false });
+
+    const rendered = renderSheet(sheet);
+    try {
+      const row = (label: string) =>
+        rendered.querySelector(`button[aria-label="${label}"]`)?.closest('.control-row');
+      expect(row('Render all creases as edges')?.textContent).toContain('Overridden');
+      expect(row('Lighting')?.querySelector('.control-row__note')?.textContent).toBe('');
+      act(() =>
+        rendered
+          .querySelector<HTMLButtonElement>('button[aria-label="Render all creases as edges"]')
+          ?.click()
+      );
+      expect(d.commitOverrides).toHaveBeenCalledTimes(1);
+      expect(d.commitOverrides).toHaveBeenCalledWith([{ field: 'foldsAsEdges', value: undefined }]);
+    } finally {
+      rendered.unmount();
+    }
   });
 });
