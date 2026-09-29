@@ -3058,7 +3058,7 @@ a.context-menu__item {
   background: var(--status-warning);
 }
 
-.settings-paper__revert {
+.settings-paper__slot-action {
   height: 24px;
   padding: 0 9px;
   border-color: var(--border-default);

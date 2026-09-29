@@ -375,7 +375,7 @@ describe('PaperSettings', () => {
     // The default style is the first built-in, with nothing recorded yet.
     expect(chip().textContent).toBe('Default');
     expect(chip().getAttribute('data-state')).toBe('preset');
-    expect(rendered.querySelector('button.settings-paper__revert')).toBeNull();
+    expect(rendered.querySelector('button.settings-paper__slot-action')).toBeNull();
 
     act(() => presetCard('builtin:diagram').click());
     expect(chip().textContent).toBe('Diagram');
