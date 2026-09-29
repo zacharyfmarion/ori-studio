@@ -305,6 +305,23 @@ describe('PaperExportModal', () => {
     expect(button('Export PNG')?.disabled).toBe(false);
   });
 
+  it('offers a folded figure its sheet size alone, starting there even when "as shown" is remembered', async () => {
+    const { paperExport } = useSettingsStore.getState();
+    useSettingsStore.setState({
+      paperExport: { ...paperExport, 'folded-figure': { ...paperExport['folded-figure'], sheet: 'as-shown' } },
+    });
+    await open(target({ sheetAsShown: false }));
+    expect(button('As shown')).toBeUndefined();
+    expect(button('Custom')).toBeUndefined();
+    expect(field('Sheet size')?.value).toBe('250');
+    expect(text()).toContain('The unfolded sheet spans this size');
+
+    act(() => usePaperExportUiStore.getState().close());
+    await open(target());
+    expect(button('As shown')).toBeDefined();
+    expect(field('Sheet size')).toBeNull();
+  });
+
   it('starts a fresh draft when opened over an open dialog, releasing the one it replaces', async () => {
     const first = target();
     await open(first);

@@ -44,6 +44,7 @@ export function PaperExportOptions({
   draft,
   patch,
   buriesFaces,
+  sheetAsShown = true,
   marks,
   scopes,
   fixed,
@@ -53,6 +54,8 @@ export function PaperExportOptions({
   patch: (next: Partial<PaperExportSettings>) => void;
   /** The picture can have buried faces; false hides Keep hidden faces. */
   buriesFaces: boolean;
+  /** Its screen size is a size to export at (`PaperExportTarget.sheetAsShown`); false offers the sheet size alone. */
+  sheetAsShown?: boolean;
   /** The marks the picture can be exported without (`PaperExportTarget.marks`); none hides the Diagram section. */
   marks: readonly PaperExportMark[];
   /** The step on show or every step, for a target with several; null hides the choice. */
@@ -161,17 +164,19 @@ export function PaperExportOptions({
       <section className="export-modal__section">
         <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>
         <div className="export-modal__control-group">
-          <SegmentedControl<SheetMode>
-            aria-label={t('dialogs:paperExport.sheet', 'Sheet')}
-            value={sheetMode}
-            onChange={(mode) =>
-              patch({ sheet: mode === 'as-shown' ? 'as-shown' : { mm: sheetMmOf(draft.sheet) } })
-            }
-            options={[
-              { value: 'as-shown', label: t('dialogs:paperExport.sheetAsShown', 'As shown') },
-              { value: 'custom', label: t('dialogs:paperExport.sheetCustom', 'Custom') },
-            ]}
-          />
+          {sheetAsShown && (
+            <SegmentedControl<SheetMode>
+              aria-label={t('dialogs:paperExport.sheet', 'Sheet')}
+              value={sheetMode}
+              onChange={(mode) =>
+                patch({ sheet: mode === 'as-shown' ? 'as-shown' : { mm: sheetMmOf(draft.sheet) } })
+              }
+              options={[
+                { value: 'as-shown', label: t('dialogs:paperExport.sheetAsShown', 'As shown') },
+                { value: 'custom', label: t('dialogs:paperExport.sheetCustom', 'Custom') },
+              ]}
+            />
+          )}
           {sheetMode === 'custom' && (
             <NumberField
               label={t('dialogs:paperExport.sheetMm', 'Sheet size')}

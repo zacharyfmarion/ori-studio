@@ -19,7 +19,11 @@ import type { PaperExportRequest } from '../store/paperExportUiStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { paintPaperExport, paperExportPage, paperExportStyle } from './paperExportSession';
 import type { PaperExportPage, PaperExportScope, PaperExportTarget, PaperSceneInput } from './paperExportTarget';
-import { usePaperExportDialog, type PaperExportDialogBinding } from './usePaperExportDialog';
+import {
+  paperExportDraft,
+  usePaperExportDialog,
+  type PaperExportDialogBinding,
+} from './usePaperExportDialog';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -272,6 +276,21 @@ afterEach(() => {
   binding.current = null;
   removeKey(PAPER_EXPORT_KEY);
   useSettingsStore.setState(initialSettings, true);
+});
+
+describe('paperExportDraft', () => {
+  const asShown = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: 'as-shown' as const };
+
+  it('opens a target with no on-screen size on the sheet size, and keeps a chosen one', () => {
+    const figure = { format: null, target: { sheetAsShown: false } };
+    expect(paperExportDraft(asShown, figure, []).sheet).toEqual({ mm: 250 });
+    expect(paperExportDraft({ ...asShown, sheet: { mm: 90 } }, figure, []).sheet).toEqual({ mm: 90 });
+  });
+
+  it('keeps "as shown" for every other target', () => {
+    expect(paperExportDraft(asShown, { format: null, target: {} }, []).sheet).toBe('as-shown');
+    expect(paperExportDraft(asShown, { format: null }, []).sheet).toBe('as-shown');
+  });
 });
 
 describe('usePaperExportDialog', () => {

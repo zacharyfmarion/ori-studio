@@ -462,6 +462,19 @@ describe('foldedFigureExportTarget', () => {
     expect(targetOf(legacyFlat, pictureOf(legacyFlat)!).surface).toBe('folded-flat');
   });
 
+  it('never offers "as shown": a figure lies small beside its crease pattern, whatever picture it is', () => {
+    const stored = spatial({ handle: null });
+    const legacy = flat({ handle: null });
+    for (const exported of [
+      liveTarget(),
+      targetOf(stored, pictureOf(stored)!),
+      targetOf(flat(), pictureOf(flat(), { kernel: kernelScene() })!),
+      targetOf(legacy, pictureOf(legacy)!),
+    ]) {
+      expect(exported.sheetAsShown).toBe(false);
+    }
+  });
+
   it('buries faces, and has no fixed picture, unless it is fixed', async () => {
     const stored = spatial({ handle: null });
     for (const exported of [

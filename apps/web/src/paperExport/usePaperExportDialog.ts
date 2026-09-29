@@ -24,6 +24,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { trackPaperExported, trackPaperExportOpened } from '../analytics';
+import { DEFAULT_PAPER_SHEET_MM } from '../lib/paper/paperPage';
 import { paperPngSize } from '../lib/paper/paperPng';
 import {
   APPLE_MOBILE_PNG_CANVAS_LIMIT,
@@ -51,7 +52,7 @@ import {
   paperScenesOnOneCrop,
   resolvePaperExportStyleChoice,
 } from './paperExportSession';
-import type { PaperExportScope } from './paperExportTarget';
+import type { PaperExportScope, PaperExportTarget } from './paperExportTarget';
 import { paperExportedEvent, savePaperExport, savePaperExportZip } from './savePaperExport';
 import { usePaperExportScenes, type PaperExportStatus } from './usePaperExportScenes';
 
@@ -66,13 +67,18 @@ export interface PaperExportPreviewImage {
 /** The draft the dialog opens on: the remembered options, the verb's format, and a style choice the presets can still honour. */
 export function paperExportDraft(
   remembered: PaperExportSettings,
-  request: Pick<PaperExportRequest, 'format'>,
+  request: Pick<PaperExportRequest, 'format'> & {
+    target?: Pick<PaperExportTarget, 'sheetAsShown'>;
+  },
   rows: Parameters<typeof resolvePaperExportStyleChoice>[1]
 ): PaperExportSettings {
+  const asShown = request.target?.sheetAsShown !== false;
   return {
     ...remembered,
     format: request.format ?? remembered.format,
     style: resolvePaperExportStyleChoice(remembered.style, rows),
+    // A target whose screen size is no size opens on the sheet size instead.
+    sheet: remembered.sheet === 'as-shown' && !asShown ? { mm: DEFAULT_PAPER_SHEET_MM } : remembered.sheet,
   };
 }
 

@@ -113,6 +113,7 @@ export function foldedFigureExportTarget({
     pages: null,
     exportStyle,
     pins: figure.appearance ?? null,
+    sheetAsShown: false,
     // The painter takes the style as the figure's view sees it — every
     // crease at the edge pen, the fields the policy does not apply at their
     // defaults — as the figure hands its own policy's view to the canvas.

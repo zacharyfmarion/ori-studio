@@ -76,6 +76,7 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
           draft={draft}
           patch={patch}
           buriesFaces={request.target.buriesFaces}
+          sheetAsShown={request.target.sheetAsShown}
           marks={request.target.marks ?? NO_MARKS}
           scopes={dialog.scopes}
           fixed={dialog.fixed}

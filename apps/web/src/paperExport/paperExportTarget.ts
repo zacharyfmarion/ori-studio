@@ -95,6 +95,13 @@ export interface PaperExportTarget {
   /** Whether the picture can have buried faces at all: false for a References step, one sheet with nothing under it. */
   buriesFaces: boolean;
   /**
+   * Whether its size on screen is a size to export at, so the dialog offers
+   * "As shown" beside a sheet size. False for a folded figure: it lies small
+   * beside its crease pattern, at whatever zoom the pattern is at. Omitted
+   * means it is.
+   */
+  sheetAsShown?: boolean;
+  /**
    * The picture itself when no option can change it; the dialog then offers
    * the format alone. Absent for every target that builds scenes.
    */
