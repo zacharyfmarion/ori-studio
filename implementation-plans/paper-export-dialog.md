@@ -166,7 +166,9 @@ from Oriedita's `#ffff32` / `#e9e9e9` (`DEFAULT_CREASE_EXPORT_FOLDED_FIGURE`,
 pinned over the style (`creaseExportPaperStyle`, `lib/creaseExport.ts:904-913`),
 so the inset shows yellow paper whatever the export style says.
 
-**E16. A pen's sample shows one side of the paper.** Every pen card in
+**E16. A pen's sample shows one side of the paper.** (The mountain and valley
+folds are two pairs of pens since `implementation-plans/crease-and-fold-pens.md`; the Lines hint is
+`linesHint` now.) Every pen card in
 Settings ▸ Paper (edges, mountain and valley folds, aux creases, arrows) draws
 its sample line on the paper's front only: the strip's CSS background is the
 `ground` prop, `paper.front` (`components/settings/PaperPenCard.tsx:80-96`,

@@ -243,6 +243,12 @@ Taken in the design discussion on 2026-09-21.
   mono-dashed" switch becomes a quick way to write the mountain and valley
   pens. On screen a pen is drawn at `width × 4/3` CSS px, non-scaling with
   zoom, as every surface draws today.
+  > **Superseded in part** by `implementation-plans/crease-and-fold-pens.md` (2026-09-29):
+  > mountain and valley are two pairs of pens, not one — the fold pens
+  > (`mountainFolds` / `valleyFolds`, a crease pattern's line, solid by
+  > default) and the diagram-crease pens (`mountainDiagramCreases` /
+  > `valleyDiagramCreases`, a step's instruction, dashed). The switch writes
+  > the fold pens.
 - **D12. The paper style's inks reach References through the workspace root,
   not `:root`.** The four `--fold-*` tokens are global: the CP editor's own
   line colours map to them (`cpLineColor.ts`), and those are Oriedita parity
@@ -272,6 +278,9 @@ picture + style into SVG (and PNG). Live views stay on the GPU but read the same
 style and the same unit rules, so they match by construction.
 
 ### 1. `PaperStyle` — the style sheet
+
+> The type below has one mountain / valley pair; it now has two (fold and
+> diagram crease) — see `implementation-plans/crease-and-fold-pens.md`.
 
 New module `apps/web/src/lib/paper/` (no CP-workspace or store dependency, so
 the simulator worker and every surface can import it):
@@ -1825,7 +1834,7 @@ References drew the creases earlier steps made in their direction's ink.
 
 | A crease that is… | Pen | Where |
 | --- | --- | --- |
-| about to be folded | mountain / valley | References: the step's own fold, and the finished card (the collapse is the next fold) |
+| about to be folded | mountain / valley | References: the step's own fold, and the finished card (the collapse is the next fold) — *superseded: the step's fold takes the diagram-crease pens and the finished card the fold pens, a crease pattern's (`implementation-plans/crease-and-fold-pens.md`)* |
 | folded | edge | 2D and 3D figures; simulations when "Render all creases as edges" is on |
 | there but flat | aux | everywhere: precreases, 0° creases, aux lines |
 
@@ -1917,6 +1926,11 @@ theme's), on a dark tile with no paper, and only one of them showed aux lines.
       that lie in the segment.
 
 ### Phase 11 — References draws the paper style, all of it
+
+> Where this phase has References draw "mountain and valley" in the style's
+> pens, the two meanings are now two pairs: the Find tab's pattern and the
+> finished card in the fold pens, a step's own fold in the diagram-crease
+> pens — `implementation-plans/crease-and-fold-pens.md`.
 
 Asked for after Phase 10. Three things in References still did not follow
 Settings ▸ Paper: the Find view drew the pattern on the theme's ground, in
