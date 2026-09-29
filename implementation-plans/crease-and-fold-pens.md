@@ -188,12 +188,16 @@ follows.
 
 ## Checklist
 
+Ordered so every commit draws correctly: the new pens arrive carrying
+today's dashed values (nothing changes on screen), References moves its
+instruction lines onto them, and only then do the fold pens turn solid.
+
 ### Phase 1 — The model, the painter, Settings
 
 - [ ] `mountainDiagramCreases` / `valleyDiagramCreases` in `PaperStyle`, the
       field lists, `parsePaperStyleField`, `DEFAULT_PAPER_STYLE` and the
-      Diagram preset; the fold pens solid by default; `PAPER_STYLE_PEN_FIELDS`
-      deleted; a round-trip test over every pen field
+      Diagram preset — at today's fold-pen values, so nothing changes yet;
+      `PAPER_STYLE_PEN_FIELDS` deleted; a round-trip test over every pen field
 - [ ] Roles `'diagram-mountain'` / `'diagram-valley'`; `penForRole` and
       `widestPenPt`; every role list; `diagramToPaperScene` emits them for the
       instruction styles; simulator `dist` rebuilt
@@ -202,9 +206,7 @@ follows.
       Auxiliary creases), Steps (Mountain diagram creases, Valley diagram
       creases, Arrows); hints; pen and pin labels; `PaperStyleFieldName` and a
       test tying it to `PAPER_STYLE_FIELDS`; `docs/analytics.md`; i18n loop
-- [ ] Tests re-pinned (presets, painter, step export, resolver, Settings,
-      simulations' Default dash) and mutation-checked
-- [ ] Validate; commit
+- [ ] Tests, mutation-checked; validate; commit
 
 ### Phase 2 — References
 
@@ -217,13 +219,22 @@ follows.
       the fold pose's merged table and other-face swap carry both pairs
 - [ ] Tests: tokens, card and canvas pens, the finished card, crease
       visibility, the fold pose (a fold animating over the crease channel
-      keeps its diagram-crease dash), the step export
-- [ ] Browser: Find tab solid under Default and Diagram; a step card and its
-      animation still dashed; earlier creases unchanged; the finished card
-      solid; dark and light themes
+      keeps its diagram-crease dash), the step export; mutation-checked
 - [ ] Validate; commit
 
-### Phase 3 — Plans and docs
+### Phase 3 — The fold pens turn solid
+
+- [ ] Default: `mountainFolds` / `valleyFolds` solid, same inks and weight;
+      Diagram: solid red/blue at 0.75 pt; the diagram-crease pens keep the
+      dashes. `creaseStyleOf(DEFAULT_PAPER_STYLE)` is now `'color'`
+- [ ] Re-pin every test that read Default's fold dash (simulations, the
+      Simulate pane, the preset thumbnail, the erode close-up, Settings)
+- [ ] Browser: Find tab solid under Default and Diagram; a step card and its
+      animation still dashed; earlier creases unchanged; the finished card
+      solid; a simulation drawn by direction solid; dark and light themes
+- [ ] Validate; commit
+
+### Phase 4 — Plans and docs
 
 - [ ] Mark the older plans' one-pair wording as superseded here
 - [ ] `git diff --check`; commit
