@@ -1142,6 +1142,25 @@ describe('a stored PaperScene', () => {
     expect(drawn.strokes.widthMul[0]).toBe(3);
   });
 
+  it('strokes every line role it can be handed, a step’s instruction in the edge pen as any fold', () => {
+    // A figure never draws an instruction, so its policy leaves the
+    // diagram-crease pens out and they are its fold pens — the edge pen here.
+    const custom = style({
+      edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#00ff00', width: 3 },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, color: '#ff00ff', width: 5 },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, color: '#ff00ff', width: 5 },
+    });
+    const lines = (['diagram-mountain', 'diagram-valley'] as const).map(
+      (role): PaperLineItem => ({ ...MOUNTAIN, role })
+    );
+    const drawn = cpFoldedToScene([sceneFigure(lines)], undefined, undefined, undefined, () => custom);
+    expect(drawn.strokes.count).toBe(2);
+    for (let i = 0; i < 2; i += 1) {
+      expect([...drawn.strokes.color.slice(i * 4, i * 4 + 3)]).toEqual([0, 1, 0]);
+      expect(drawn.strokes.widthMul[i]).toBe(3);
+    }
+  });
+
   it('shades a face rather than painting its side flat', () => {
     const lit: PaperFaceItem = { ...FRONT_TRIANGLE, shade: 0.5 };
     const drawn = cpFoldedToScene([sceneFigure([lit])], undefined, undefined, undefined, () =>

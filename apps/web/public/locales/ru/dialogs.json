@@ -358,9 +358,11 @@
       "erode": "отступ",
       "foldsAsEdges": "складки как края",
       "light": "свет",
+      "mountainDiagramCreases": "перо горных сгибов на схеме",
       "mountainFolds": "перо горных сгибов",
       "paperBack": "цвет изнанки",
       "paperFront": "цвет лица",
+      "valleyDiagramCreases": "перо долинных сгибов на схеме",
       "valleyFolds": "перо долинных сгибов"
     },
     "pinsHint": "Сохраняет свои настройки — {{fields}} — какой бы стиль ни был выбран.",
@@ -504,6 +506,7 @@
       "lightEnabled": "Направленный свет",
       "lightEnabledHint": "Затеняет сложенную бумагу. Плоские фигуры остаются без освещения.",
       "lightHint": "Симулятор, сложенные фигуры",
+      "linesHint": "Симуляции, сложенные фигуры, паттерн в референсах",
       "linesTitle": "Линии",
       "link": {
         "detach": "Отвязать",
@@ -516,7 +519,9 @@
         "arrows": "Стрелки",
         "auxCreases": "Вспомогательные складки",
         "edges": "Края",
+        "mountainDiagramCreases": "Горные сгибы на схеме",
         "mountainFolds": "Горные сгибы",
+        "valleyDiagramCreases": "Долинные сгибы на схеме",
         "valleyFolds": "Долинные сгибы"
       },
       "penCap": "Конец линии",
@@ -524,7 +529,6 @@
       "penColorNamed": "Цвет: {{pen}}",
       "penDash": "Штрих",
       "penDashNamed": "Штрих: {{pen}}",
-      "pensHint": "Симуляции, сложенные фигуры, шаги",
       "penWidth": "Ширина (пт)",
       "penWidthNamed": "Ширина: {{pen}}",
       "preset": {

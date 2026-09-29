@@ -636,7 +636,14 @@ function sceneInkKey(style: PaperStyle): string {
   return `${style.paper.front}${style.paper.back}|${style.erode}|${pens.join('|')}`;
 }
 
-const PAPER_LINE_ROLES = ['edge', 'mountain', 'valley', 'aux'] as const satisfies readonly PaperLineRole[];
+const PAPER_LINE_ROLES = [
+  'edge',
+  'mountain',
+  'valley',
+  'diagram-mountain',
+  'diagram-valley',
+  'aux',
+] as const satisfies readonly PaperLineRole[];
 
 function scenePoint([x, y]: ScenePoint): Point {
   return { x, y };

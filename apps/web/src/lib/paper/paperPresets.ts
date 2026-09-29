@@ -33,7 +33,8 @@ const UNLIT: PaperStyle['light'] = { ...DEFAULT_PAPER_STYLE.light, enabled: fals
  * The diagramming style, transcribed from the Origami House template's own
  * labels and dash arrays (A4 in mm, every line in pt): paper white with a 30%
  * grey colour side, one `#231f20` ink, edge 0.5 pt, mountain 0.75 pt dash-dot
- * 8:2:1:2, valley 0.75 pt dashed 4:2, auxiliary creases 0.25 pt, arrows
+ * 8:2:1:2, valley 0.75 pt dashed 4:2 (the fold and the diagram-crease pens
+ * alike), auxiliary creases 0.25 pt, arrows
  * 0.75 pt. The template's hidden fold and hidden edge pens have nothing to
  * drive and are not here.
  *
@@ -49,6 +50,8 @@ const DIAGRAM_STYLE: PaperStyle = {
   edges: { ...DIAGRAM_PEN, width: 0.5 },
   mountainFolds: { ...DIAGRAM_PEN, dash: [...DIAGRAM_MOUNTAIN_DASH] },
   valleyFolds: { ...DIAGRAM_PEN, dash: [...DIAGRAM_VALLEY_DASH] },
+  mountainDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_MOUNTAIN_DASH] },
+  valleyDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_VALLEY_DASH] },
   auxCreases: { visible: true, pen: { ...DIAGRAM_PEN, width: 0.25 } },
   arrows: { ...DIAGRAM_PEN, cap: 'round' },
   erode: 0.005,

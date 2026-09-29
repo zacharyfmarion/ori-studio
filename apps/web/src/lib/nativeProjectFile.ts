@@ -862,7 +862,12 @@ function scenePaperItem(value: unknown): PaperItem | null {
 }
 
 function sceneLineRole(value: unknown): PaperLineRole | null {
-  return value === 'edge' || value === 'mountain' || value === 'valley' || value === 'aux'
+  return value === 'edge' ||
+    value === 'mountain' ||
+    value === 'valley' ||
+    value === 'diagram-mountain' ||
+    value === 'diagram-valley' ||
+    value === 'aux'
     ? value
     : null;
 }

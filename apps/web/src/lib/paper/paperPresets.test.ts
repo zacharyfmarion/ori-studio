@@ -20,6 +20,27 @@ describe('built-in presets', () => {
     }
   });
 
+  it('gives each preset’s diagram creases the pens its folds had, so a step looks as it did', () => {
+    // Until References draws its instruction in the diagram-crease pens and
+    // the fold pens turn solid, each pair carries the other's values.
+    for (const { style } of BUILT_IN_PAPER_PRESETS) {
+      expect(style.mountainDiagramCreases).toEqual(style.mountainFolds);
+      expect(style.valleyDiagramCreases).toEqual(style.valleyFolds);
+    }
+    expect(DEFAULT_PAPER_STYLE.mountainDiagramCreases).toEqual({
+      width: 0.825,
+      color: '#db1f24',
+      dash: [8, 2, 1, 2],
+      cap: 'butt',
+    });
+    expect(DEFAULT_PAPER_STYLE.valleyDiagramCreases).toEqual({
+      width: 0.825,
+      color: '#1c5cd9',
+      dash: [4, 2],
+      cap: 'butt',
+    });
+  });
+
   it('starts from the default style', () => {
     expect(builtInPaperPreset('default').style).toBe(DEFAULT_PAPER_STYLE);
     expect(isBuiltInPaperPresetId('diagram')).toBe(true);
@@ -37,6 +58,9 @@ describe('built-in presets', () => {
       cap: 'butt',
     });
     expect(style.valleyFolds).toEqual({ width: 0.75, color: '#231f20', dash: [4, 2], cap: 'butt' });
+    // The step's instruction in the template's own mountain and valley pens.
+    expect(style.mountainDiagramCreases).toEqual(style.mountainFolds);
+    expect(style.valleyDiagramCreases).toEqual(style.valleyFolds);
     expect(style.auxCreases).toMatchObject({ visible: true, pen: { width: 0.25 } });
     expect(style.arrows.width).toBe(0.75);
     expect(style.light.enabled).toBe(false);

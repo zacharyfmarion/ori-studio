@@ -13,7 +13,8 @@ import {
   sheetWithCrease,
 } from './paperScene.fixtures';
 import { DEFAULT_PAPER_STYLE, type PaperStyle, type Pen } from './paperStyle';
-import { hexToUnitRgb } from './paperStyleResolve';
+import { builtInPaperPreset } from './paperPresets';
+import { hexToUnitRgb, PAPER_STYLE_POLICIES, surfacePaperStyle } from './paperStyleResolve';
 import {
   PT_PER_CSS_PX,
   PT_PER_MM,
@@ -146,10 +147,26 @@ describe('the page', () => {
     const aux = { ...DEFAULT_PAPER_STYLE, auxCreases: { visible: true, pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, width: 4 } } };
     expect(widestPenPt(aux)).toBe(4);
     expect(widestPenPt({ ...aux, auxCreases: { ...aux.auxCreases, visible: false } })).toBeLessThan(4);
+    // And the diagram-crease pens, which a step's page draws its fold in.
+    const diagram = withPen('edges', { width: 0.1 });
+    expect(widestPenPt({ ...diagram, mountainDiagramCreases: { ...diagram.mountainDiagramCreases, width: 5 } })).toBe(5);
+    expect(widestPenPt({ ...diagram, valleyDiagramCreases: { ...diagram.valleyDiagramCreases, width: 6 } })).toBe(6);
     const { svg, widthPt } = paint(sheetWithCrease(), wide, TIGHT);
     expect(widthPt).toBeCloseTo(FIXTURE_SHEET_PX * PT_PER_CSS_PX + 3, 6);
     const [sheet] = polygons(svg);
     expect(sheet!.points.split(' ')[0]).toBe('1.50,1.50');
+  });
+
+  it('measures a surface by the pens it draws with, not by the diagram creases it never draws', () => {
+    // The Diagram preset: 0.5 pt edges, 0.75 pt folds and diagram creases. A
+    // folded figure draws every fold as an edge; a simulation draws its folds.
+    const diagram = builtInPaperPreset('diagram').style;
+    expect(widestPenPt(surfacePaperStyle(diagram, PAPER_STYLE_POLICIES['folded-3d']))).toBe(0.5);
+    expect(widestPenPt(surfacePaperStyle(diagram, PAPER_STYLE_POLICIES.simulator))).toBe(0.75);
+    // A diagram crease widened past everything counts only where it is drawn.
+    const wide = { ...diagram, mountainDiagramCreases: { ...diagram.mountainDiagramCreases, width: 4 } };
+    expect(widestPenPt(surfacePaperStyle(wide, PAPER_STYLE_POLICIES['folded-3d']))).toBe(0.5);
+    expect(widestPenPt(surfacePaperStyle(wide, PAPER_STYLE_POLICIES.references))).toBe(4);
   });
 
   it('writes every number with two decimals', () => {
@@ -251,6 +268,42 @@ describe('lines', () => {
       { stroke: '#aa0000', 'stroke-width': '0.75', 'stroke-linecap': 'butt' },
       { stroke: '#0000aa', 'stroke-width': '1.50', 'stroke-linecap': 'round' },
     ]);
+  });
+
+  it('draws a step’s instruction in the diagram-crease pens and a pattern’s line in the fold pens', () => {
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      mountainFolds: { width: 0.75, color: '#aa0000', dash: null, cap: 'butt' },
+      valleyFolds: { width: 1.5, color: '#0000aa', dash: null, cap: 'butt' },
+      mountainDiagramCreases: { width: 0.5, color: '#bb0000', dash: [8, 2, 1, 2], cap: 'butt' },
+      valleyDiagramCreases: { width: 1.25, color: '#0000bb', dash: [4, 2], cap: 'round' },
+    };
+    const scene = sceneOf([
+      line('mountain', [0, 10], [100, 10]),
+      line('valley', [0, 20], [100, 20]),
+      line('diagram-mountain', [0, 30], [100, 30]),
+      line('diagram-valley', [0, 40], [100, 40]),
+    ]);
+    expect(lines(paint(scene, style).svg)).toMatchObject([
+      { stroke: '#aa0000', 'stroke-width': '0.75' },
+      { stroke: '#0000aa', 'stroke-width': '1.50' },
+      { stroke: '#bb0000', 'stroke-width': '0.50', 'stroke-dasharray': '4.00 1.00 0.50 1.00' },
+      { stroke: '#0000bb', 'stroke-width': '1.25', 'stroke-linecap': 'round' },
+    ]);
+  });
+
+  it('keeps a simulation’s valley in the fold pen while a step’s takes the diagram-crease pen', () => {
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      foldsAsEdges: false,
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, color: '#00bb00' },
+    };
+    const simulation = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
+    const [fold] = lines(paint(sheetWithCrease('valley'), simulation).svg);
+    expect(fold!.stroke).toBe(DEFAULT_PAPER_STYLE.valleyFolds.color);
+    const step = surfacePaperStyle(style, PAPER_STYLE_POLICIES.references);
+    const [instruction] = lines(paint(sheetWithCrease('diagram-valley'), step).svg);
+    expect(instruction!.stroke).toBe('#00bb00');
   });
 
   it('draws aux creases only when the style shows them', () => {

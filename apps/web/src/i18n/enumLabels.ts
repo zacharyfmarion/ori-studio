@@ -102,7 +102,16 @@ export function paperPresetLabel(t: TFunction, id: BuiltInPaperPresetId): string
 /** The pen a paper-style field holds, as Settings ▸ Paper names its row. */
 export function paperPenLabel(
   t: TFunction,
-  field: Extract<PaperStyleField, 'edges' | 'mountainFolds' | 'valleyFolds' | 'auxCreases.pen' | 'arrows'>
+  field: Extract<
+    PaperStyleField,
+    | 'edges'
+    | 'mountainFolds'
+    | 'valleyFolds'
+    | 'mountainDiagramCreases'
+    | 'valleyDiagramCreases'
+    | 'auxCreases.pen'
+    | 'arrows'
+  >
 ): string {
   switch (field) {
     case 'edges':
@@ -111,6 +120,10 @@ export function paperPenLabel(
       return t('dialogs:settings.paper.pen.mountainFolds', 'Mountain folds');
     case 'valleyFolds':
       return t('dialogs:settings.paper.pen.valleyFolds', 'Valley folds');
+    case 'mountainDiagramCreases':
+      return t('dialogs:settings.paper.pen.mountainDiagramCreases', 'Mountain diagram creases');
+    case 'valleyDiagramCreases':
+      return t('dialogs:settings.paper.pen.valleyDiagramCreases', 'Valley diagram creases');
     case 'auxCreases.pen':
       return t('dialogs:settings.paper.pen.auxCreases', 'Auxiliary creases');
     case 'arrows':
@@ -134,6 +147,10 @@ export function paperStyleFieldLabel(t: TFunction, field: PaperStyleField): stri
       return t('dialogs:paperExport.pin.mountainFolds', 'mountain fold pen');
     case 'valleyFolds':
       return t('dialogs:paperExport.pin.valleyFolds', 'valley fold pen');
+    case 'mountainDiagramCreases':
+      return t('dialogs:paperExport.pin.mountainDiagramCreases', 'mountain diagram crease pen');
+    case 'valleyDiagramCreases':
+      return t('dialogs:paperExport.pin.valleyDiagramCreases', 'valley diagram crease pen');
     case 'foldsAsEdges':
       return t('dialogs:paperExport.pin.foldsAsEdges', 'creases drawn as edges');
     case 'auxCreases.visible':

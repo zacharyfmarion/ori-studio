@@ -124,7 +124,7 @@ describe('PaperSettings', () => {
       'settings-paper-preset-builtin:diagram',
     ]);
     // Two paper swatches and one per pen.
-    expect(rendered.querySelectorAll('input[type="color"]')).toHaveLength(7);
+    expect(rendered.querySelectorAll('input[type="color"]')).toHaveLength(9);
     expect(input('Front').value).toBe(DEFAULT_PAPER_STYLE.paper.front);
     expect(input('Mountain folds width').value).toBe('0.825');
     // The dash is picked by name from a menu, and the default fold is dash-dot.
@@ -168,14 +168,48 @@ describe('PaperSettings', () => {
         (element) => element.textContent
       )
     ).toEqual([
-      'Simulations, folded figures, steps',
+      'Simulations, folded figures, the pattern in References',
       'References only',
       'Simulator, folded figures',
     ]);
     // Two colour cards, one per pen and the folded-paper card; the preset
     // grid is cards of its own rather than one boxed group.
-    expect(rendered.querySelectorAll('.settings-paper__card')).toHaveLength(8);
+    expect(rendered.querySelectorAll('.settings-paper__card')).toHaveLength(10);
     expect(rendered.querySelector('.settings-section, .settings-section__title')).toBeNull();
+  });
+
+  /**
+   * A fold is a line of a crease pattern and a diagram crease the instruction
+   * on a step, so the fold pens sit with the lines every drawing is made of
+   * and the diagram-crease pens with the arrows only a step draws.
+   */
+  it('puts the fold pens under Lines and the diagram-crease pens under Steps', () => {
+    const rendered = render();
+    const pensUnder = (eyebrow: string) => {
+      const section = Array.from(rendered.querySelectorAll('.settings-paper__section')).find(
+        (element) => element.querySelector('.settings-paper__eyebrow')?.textContent === eyebrow
+      )!;
+      return Array.from(section.querySelectorAll('.settings-paper-pen')).map((card) =>
+        card.getAttribute('data-testid')?.replace('settings-paper-pen-', '')
+      );
+    };
+    expect(pensUnder('Lines')).toEqual(['Edges', 'Mountain folds', 'Valley folds', 'Auxiliary creases']);
+    expect(pensUnder('Steps')).toEqual(['Mountain diagram creases', 'Valley diagram creases', 'Arrows']);
+  });
+
+  it('edits a diagram-crease pen on its own field, leaving the fold pen alone', () => {
+    render();
+    typeInto(input('Valley diagram creases color'), '#00ff00');
+    expect(display().valleyDiagramCreases.color).toBe('#00ff00');
+    expect(display().valleyFolds).toEqual(DEFAULT_PAPER_STYLE.valleyFolds);
+    typeInto(input('Mountain diagram creases width'), '1.5');
+    blur(input('Mountain diagram creases width'));
+    expect(display().mountainDiagramCreases.width).toBe(1.5);
+    expect(display().mountainFolds).toEqual(DEFAULT_PAPER_STYLE.mountainFolds);
+    expect(tracked.map((entry) => entry.properties?.field)).toEqual([
+      'valleyDiagramCreases',
+      'mountainDiagramCreases',
+    ]);
   });
 
   it('applies a preset to the store and counts it', () => {
@@ -238,7 +272,7 @@ describe('PaperSettings', () => {
         )
       );
     const { front, back } = DEFAULT_PAPER_STYLE.paper;
-    expect(sides()).toEqual(Array.from({ length: 5 }, () => [front, back]));
+    expect(sides()).toEqual(Array.from({ length: 7 }, () => [front, back]));
     // The front is the left half, and the line runs from it (11 px in) onto
     // the back (95% across).
     expect(strip('Edges').querySelector('rect[data-side="front"]')?.getAttribute('width')).toBe(
@@ -256,6 +290,11 @@ describe('PaperSettings', () => {
     );
     // The multiples resolve against the pen's own width: 8 2 1 2 at 1.1 px.
     expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBe('8.8 2.2 1.1 2.2');
+    // A step's diagram creases, drawn at their own pens the same way.
+    expect(sample('Valley diagram creases').getAttribute('stroke')).toBe(
+      DEFAULT_PAPER_STYLE.valleyDiagramCreases.color
+    );
+    expect(sample('Valley diagram creases').getAttribute('stroke-dasharray')).toBe('4.4 2.2');
     expect(sample('Arrows').getAttribute('stroke-linecap')).toBe('round');
 
     act(() => dashTrigger('Mountain folds dash').click());
@@ -264,7 +303,7 @@ describe('PaperSettings', () => {
 
     // Live: a paper colour picked is the ground every sample shows on that side.
     typeInto(input('Back'), '#123456');
-    expect(sides()).toEqual(Array.from({ length: 5 }, () => [front, '#123456']));
+    expect(sides()).toEqual(Array.from({ length: 7 }, () => [front, '#123456']));
   });
 
   it('edits erode as a percentage of the sheet', () => {

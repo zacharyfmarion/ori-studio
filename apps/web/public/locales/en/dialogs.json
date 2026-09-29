@@ -340,9 +340,11 @@
       "erode": "erode",
       "foldsAsEdges": "creases drawn as edges",
       "light": "light",
+      "mountainDiagramCreases": "mountain diagram crease pen",
       "mountainFolds": "mountain fold pen",
       "paperBack": "back colour",
       "paperFront": "front colour",
+      "valleyDiagramCreases": "valley diagram crease pen",
       "valleyFolds": "valley fold pen"
     },
     "pinsHint": "Keeps its own {{fields}}, whichever style is picked.",
@@ -484,6 +486,7 @@
       "lightEnabled": "Directional light",
       "lightEnabledHint": "Shades folded paper. Flat figures stay unlit.",
       "lightHint": "Simulator, folded figures",
+      "linesHint": "Simulations, folded figures, the pattern in References",
       "linesTitle": "Lines",
       "link": {
         "detach": "Detach",
@@ -496,7 +499,9 @@
         "arrows": "Arrows",
         "auxCreases": "Auxiliary creases",
         "edges": "Edges",
+        "mountainDiagramCreases": "Mountain diagram creases",
         "mountainFolds": "Mountain folds",
+        "valleyDiagramCreases": "Valley diagram creases",
         "valleyFolds": "Valley folds"
       },
       "penCap": "Cap",
@@ -504,7 +509,6 @@
       "penColorNamed": "{{pen}} color",
       "penDash": "Dash",
       "penDashNamed": "{{pen}} dash",
-      "pensHint": "Simulations, folded figures, steps",
       "penWidth": "Width (pt)",
       "penWidthNamed": "{{pen}} width",
       "preset": {

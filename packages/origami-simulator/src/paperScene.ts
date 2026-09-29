@@ -38,7 +38,20 @@ import {
 
 export type ScenePoint = [number, number];
 
-export type PaperLineRole = 'edge' | 'mountain' | 'valley' | 'aux';
+/**
+ * What a line is, which is what picks its pen. `'mountain'` / `'valley'` are a
+ * line of a crease pattern — a fold, as the mesh and a folded figure emit
+ * them. `'diagram-mountain'` / `'diagram-valley'` are an instruction on a
+ * diagram step — fold here, this way — drawn in the style's diagram-crease
+ * pens; only a References step emits them.
+ */
+export type PaperLineRole =
+  | 'edge'
+  | 'mountain'
+  | 'valley'
+  | 'diagram-mountain'
+  | 'diagram-valley'
+  | 'aux';
 
 export type PaperSide = 'front' | 'back';
 

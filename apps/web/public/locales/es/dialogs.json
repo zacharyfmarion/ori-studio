@@ -349,9 +349,11 @@
       "erode": "retracción",
       "foldsAsEdges": "pliegues dibujados como bordes",
       "light": "luz",
+      "mountainDiagramCreases": "lápiz de los pliegues en monte del diagrama",
       "mountainFolds": "lápiz de los pliegues en monte",
       "paperBack": "color del reverso",
       "paperFront": "color del anverso",
+      "valleyDiagramCreases": "lápiz de los pliegues en valle del diagrama",
       "valleyFolds": "lápiz de los pliegues en valle"
     },
     "pinsHint": "Conserva su propio {{fields}}, sea cual sea el estilo elegido.",
@@ -494,6 +496,7 @@
       "lightEnabled": "Luz direccional",
       "lightEnabledHint": "Sombrea el papel plegado. Las figuras planas quedan sin iluminar.",
       "lightHint": "Simulador, figuras plegadas",
+      "linesHint": "Simulaciones, figuras plegadas, el patrón en Referencias",
       "linesTitle": "Líneas",
       "link": {
         "detach": "Separar",
@@ -506,7 +509,9 @@
         "arrows": "Flechas",
         "auxCreases": "Pliegues auxiliares",
         "edges": "Bordes",
+        "mountainDiagramCreases": "Pliegues en monte del diagrama",
         "mountainFolds": "Pliegues en monte",
+        "valleyDiagramCreases": "Pliegues en valle del diagrama",
         "valleyFolds": "Pliegues en valle"
       },
       "penCap": "Extremo",
@@ -514,7 +519,6 @@
       "penColorNamed": "Color de {{pen}}",
       "penDash": "Trazo",
       "penDashNamed": "Trazo de {{pen}}",
-      "pensHint": "Simulaciones, figuras plegadas, pasos",
       "penWidth": "Anchura (pt)",
       "penWidthNamed": "Anchura de {{pen}}",
       "preset": {

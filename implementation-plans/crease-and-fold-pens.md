@@ -104,8 +104,12 @@ rebuilt (a stale copied `dist` presents as a missing role).
 
 `PAPER_STYLE_POLICIES.references` applies the fold pens, the diagram-crease
 pens and the arrows. No other policy applies the diagram-crease pens (no other
-surface draws an instruction), so no object can pin them and `surfacePaperStyle`
-needs no alias for them.
+surface draws an instruction), so no object can pin them. `surfacePaperStyle`
+does alias them, though, for every surface whose policy leaves them out: to
+that surface's fold pens. `widestPenPt` counts every role, and left at their
+defaults (0.825 pt) the diagram-crease pens would widen a simulation's or a
+folded figure's ink allowance and page margin — the Diagram preset's 0.5 pt
+edge would measure 0.825 pt — though the surface never draws one.
 
 ### References
 
@@ -194,32 +198,39 @@ instruction lines onto them, and only then do the fold pens turn solid.
 
 ### Phase 1 — The model, the painter, Settings
 
-- [ ] `mountainDiagramCreases` / `valleyDiagramCreases` in `PaperStyle`, the
+- [x] `mountainDiagramCreases` / `valleyDiagramCreases` in `PaperStyle`, the
       field lists, `parsePaperStyleField`, `DEFAULT_PAPER_STYLE` and the
       Diagram preset — at today's fold-pen values, so nothing changes yet;
       `PAPER_STYLE_PEN_FIELDS` deleted; a round-trip test over every pen field
-- [ ] Roles `'diagram-mountain'` / `'diagram-valley'`; `penForRole` and
-      `widestPenPt`; every role list; `diagramToPaperScene` emits them for the
-      instruction styles; simulator `dist` rebuilt
-- [ ] The References policy applies the diagram-crease pens
-- [ ] Settings ▸ Paper: Lines (Edges, Mountain folds, Valley folds,
+- [x] Roles `'diagram-mountain'` / `'diagram-valley'`; `penForRole` and
+      `widestPenPt`; every role list; simulator `dist` rebuilt. (Emitting
+      them from `diagramToPaperScene` moved to Phase 2: switched alone, a
+      step's page would draw in the diagram-crease pens while its card still
+      drew in the fold pens, which differ as soon as either is edited — the
+      Simulate pane's Mono mode writes the fold pens, for one.)
+- [x] The References policy applies the diagram-crease pens; every other
+      surface sees them as its fold pens (`surfacePaperStyle`)
+- [x] Settings ▸ Paper: Lines (Edges, Mountain folds, Valley folds,
       Auxiliary creases), Steps (Mountain diagram creases, Valley diagram
       creases, Arrows); hints; pen and pin labels; `PaperStyleFieldName` and a
       test tying it to `PAPER_STYLE_FIELDS`; `docs/analytics.md`; i18n loop
-- [ ] Tests, mutation-checked; validate; commit
+- [x] Tests, mutation-checked; validate; commit
 
 ### Phase 2 — References
 
 - [ ] `--diagram-mountain` / `--diagram-valley` on the workspace root;
       `--references-dim-alpha` removed
 - [ ] The instruction styles (cards, big view, animation) on the
-      diagram-crease pens; the crease channel and the finished card (strip
-      and big view, with its own style pair) on the fold pens
+      diagram-crease pens, and `diagramToPaperScene` emitting the diagram
+      roles for them, in the same commit; the crease channel and the finished
+      card (strip and big view, with its own style pair) on the fold pens
 - [ ] Six shared dash slots; `MAX_DASH_SLOTS` and the stroke program to 6;
       the fold pose's merged table and other-face swap carry both pairs
 - [ ] Tests: tokens, card and canvas pens, the finished card, crease
       visibility, the fold pose (a fold animating over the crease channel
-      keeps its diagram-crease dash), the step export; mutation-checked
+      keeps its diagram-crease dash), the step export, and **screen–page
+      parity**: for one style, a step card's ink and dash for each line equal
+      the exported page's pen; mutation-checked
 - [ ] Validate; commit
 
 ### Phase 3 — The fold pens turn solid

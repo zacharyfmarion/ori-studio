@@ -331,9 +331,11 @@
       "erode": "エロード",
       "foldsAsEdges": "折り線を辺として描画",
       "light": "光源",
+      "mountainDiagramCreases": "折り図の山折り線のペン",
       "mountainFolds": "山折りのペン",
       "paperBack": "裏面の色",
       "paperFront": "表面の色",
+      "valleyDiagramCreases": "折り図の谷折り線のペン",
       "valleyFolds": "谷折りのペン"
     },
     "pinsHint": "どのスタイルを選んでも、独自の{{fields}}を保ちます。",
@@ -474,6 +476,7 @@
       "lightEnabled": "平行光源",
       "lightEnabledHint": "折った用紙に陰影を付けます。平らな図形は陰影なしのままです。",
       "lightHint": "シミュレーター、折り上がり図",
+      "linesHint": "シミュレーション、折り上がり図、リファレンスの展開図",
       "linesTitle": "線",
       "link": {
         "detach": "切り離す",
@@ -486,7 +489,9 @@
         "arrows": "矢印",
         "auxCreases": "補助折り線",
         "edges": "辺",
+        "mountainDiagramCreases": "折り図の山折り線",
         "mountainFolds": "山折り",
+        "valleyDiagramCreases": "折り図の谷折り線",
         "valleyFolds": "谷折り"
       },
       "penCap": "線端",
@@ -494,7 +499,6 @@
       "penColorNamed": "{{pen}}の色",
       "penDash": "破線",
       "penDashNamed": "{{pen}}の破線",
-      "pensHint": "シミュレーション、折り上がり図、手順",
       "penWidth": "幅 (pt)",
       "penWidthNamed": "{{pen}}の幅",
       "preset": {

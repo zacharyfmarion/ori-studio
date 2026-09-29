@@ -331,9 +331,11 @@
       "erode": "内缩",
       "foldsAsEdges": "将折痕绘制为边",
       "light": "光照",
+      "mountainDiagramCreases": "图解山折线画笔",
       "mountainFolds": "山折画笔",
       "paperBack": "背面颜色",
       "paperFront": "正面颜色",
+      "valleyDiagramCreases": "图解谷折线画笔",
       "valleyFolds": "谷折画笔"
     },
     "pinsHint": "无论选择哪种样式，都保留其自身的{{fields}}。",
@@ -474,6 +476,7 @@
       "lightEnabled": "方向光",
       "lightEnabledHint": "为折叠后的纸张着色。平面图形不受光照。",
       "lightHint": "模拟器、折叠图形",
+      "linesHint": "模拟、折叠图形、参考中的折痕图",
       "linesTitle": "线条",
       "link": {
         "detach": "分离",
@@ -486,7 +489,9 @@
         "arrows": "箭头",
         "auxCreases": "辅助折痕",
         "edges": "边",
+        "mountainDiagramCreases": "图解山折线",
         "mountainFolds": "山折",
+        "valleyDiagramCreases": "图解谷折线",
         "valleyFolds": "谷折"
       },
       "penCap": "线帽",
@@ -494,7 +499,6 @@
       "penColorNamed": "{{pen}}颜色",
       "penDash": "虚线",
       "penDashNamed": "{{pen}}虚线",
-      "pensHint": "模拟、折叠图形、步骤",
       "penWidth": "宽度 (pt)",
       "penWidthNamed": "{{pen}}宽度",
       "preset": {

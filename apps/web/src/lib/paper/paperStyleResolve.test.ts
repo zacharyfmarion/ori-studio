@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ORIEDITA_DASH_ONE_DOT, ORIEDITA_DASH_VALLEY } from '../oristudioCpLineStyle';
+import { widestPenPt } from './paperSvg';
 import {
   DEFAULT_LIGHT_AZIMUTH,
   DEFAULT_LIGHT_ELEVATION,
@@ -383,6 +384,22 @@ describe('applyPaperStylePolicy', () => {
     expect(PAPER_STYLE_POLICIES['inline-simulation'].applies).toContain('foldsAsEdges');
     expect(PAPER_STYLE_POLICIES.references.applies).not.toContain('foldsAsEdges');
   });
+
+  it('applies the diagram-crease pens on References alone, the one surface that draws an instruction', () => {
+    for (const field of ['mountainDiagramCreases', 'valleyDiagramCreases'] as const) {
+      expect(PAPER_STYLE_POLICIES.references.applies).toContain(field);
+      for (const surface of ['simulator', 'inline-simulation', 'folded-3d', 'folded-flat'] as const) {
+        expect(PAPER_STYLE_POLICIES[surface].applies, `${surface} ${field}`).not.toContain(field);
+      }
+    }
+    const pinned: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      valleyDiagramCreases: { width: 2, color: '#00ff00', dash: null, cap: 'round' },
+    };
+    expect(applyPaperStylePolicy(pinned, PAPER_STYLE_POLICIES.references).valleyDiagramCreases).toEqual(
+      pinned.valleyDiagramCreases
+    );
+  });
 });
 
 describe('surfacePaperStyle', () => {
@@ -411,10 +428,36 @@ describe('surfacePaperStyle', () => {
   });
 
   it('hands References each pen as it is, as its view draws them', () => {
-    const seen = surfacePaperStyle(style, PAPER_STYLE_POLICIES.references);
+    const instructed: PaperStyle = {
+      ...style,
+      mountainDiagramCreases: { ...style.mountainDiagramCreases, width: 1.5, color: '#00aa00' },
+      valleyDiagramCreases: { ...style.valleyDiagramCreases, width: 0.4, color: '#00bb00' },
+    };
+    const seen = surfacePaperStyle(instructed, PAPER_STYLE_POLICIES.references);
     expect(seen.edges).toEqual(style.edges);
     expect(seen.mountainFolds).toEqual(style.mountainFolds);
     expect(seen.valleyFolds).toEqual(style.valleyFolds);
+    expect(seen.mountainDiagramCreases).toEqual(instructed.mountainDiagramCreases);
+    expect(seen.valleyDiagramCreases).toEqual(instructed.valleyDiagramCreases);
+  });
+
+  it('gives a surface that draws no instruction its fold pens as diagram creases, so they widen nothing', () => {
+    // Left at their defaults they would be a pen the surface never draws, and
+    // the widest pen — its hidden test's ink allowance and its page's margin —
+    // would count it: the Diagram preset's 0.5 pt edge would measure 0.825 pt.
+    const thin: PaperStyle = {
+      ...style,
+      edges: { ...style.edges, width: 0.3 },
+      mountainFolds: { ...style.mountainFolds, width: 0.2 },
+      valleyFolds: { ...style.valleyFolds, width: 0.2 },
+      auxCreases: { visible: true, pen: { ...style.auxCreases.pen, width: 0.1 } },
+    };
+    for (const surface of ['simulator', 'inline-simulation', 'folded-3d', 'folded-flat'] as const) {
+      const seen = surfacePaperStyle(thin, PAPER_STYLE_POLICIES[surface]);
+      expect(seen.mountainDiagramCreases, surface).toEqual(seen.mountainFolds);
+      expect(seen.valleyDiagramCreases, surface).toEqual(seen.valleyFolds);
+      expect(widestPenPt(seen), surface).toBeCloseTo(0.3, 12);
+    }
   });
 
   it('gives the flat figure the edge pen for every crease', () => {

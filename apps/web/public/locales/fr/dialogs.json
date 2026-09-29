@@ -349,9 +349,11 @@
       "erode": "retrait",
       "foldsAsEdges": "plis dessinés comme des bords",
       "light": "lumière",
+      "mountainDiagramCreases": "crayon des plis montagne du diagramme",
       "mountainFolds": "crayon des plis montagne",
       "paperBack": "couleur du verso",
       "paperFront": "couleur du recto",
+      "valleyDiagramCreases": "crayon des plis vallée du diagramme",
       "valleyFolds": "crayon des plis vallée"
     },
     "pinsHint": "Garde ses propres réglages\u00a0: {{fields}}, quel que soit le style choisi.",
@@ -494,6 +496,7 @@
       "lightEnabled": "Lumière directionnelle",
       "lightEnabledHint": "Ombre le papier plié. Les figures à plat restent sans éclairage.",
       "lightHint": "Simulateur, figures pliées",
+      "linesHint": "Simulations, figures pliées, le patron dans Références",
       "linesTitle": "Lignes",
       "link": {
         "detach": "Détacher",
@@ -506,7 +509,9 @@
         "arrows": "Flèches",
         "auxCreases": "Plis auxiliaires",
         "edges": "Bords",
+        "mountainDiagramCreases": "Plis montagne du diagramme",
         "mountainFolds": "Plis montagne",
+        "valleyDiagramCreases": "Plis vallée du diagramme",
         "valleyFolds": "Plis vallée"
       },
       "penCap": "Extrémité",
@@ -514,7 +519,6 @@
       "penColorNamed": "Couleur : {{pen}}",
       "penDash": "Pointillés",
       "penDashNamed": "Pointillés : {{pen}}",
-      "pensHint": "Simulations, figures pliées, étapes",
       "penWidth": "Largeur (pt)",
       "penWidthNamed": "Largeur : {{pen}}",
       "preset": {

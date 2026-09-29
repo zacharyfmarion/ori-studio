@@ -76,7 +76,8 @@ const FOLDED_3D_FIELDS: PaperStyleField[] = [...EVERY_SURFACE_FIELDS, 'light'];
  * happened to it (Phase 9): both folded figures draw their folds as edges,
  * edge + aux (D6); a simulation draws mountain and valley unless its style
  * says `foldsAsEdges`; References draws the fold to make in the M/V pens.
- * `arrows` stays References-only.
+ * `arrows` and the diagram-crease pens stay References-only: no other surface
+ * draws an instruction, so no object can pin them.
  */
 export const PAPER_STYLE_POLICIES: Record<PaperSurface, SurfaceStylePolicy> = {
   simulator: { surface: 'simulator', applies: SIMULATION_FIELDS },
@@ -87,7 +88,14 @@ export const PAPER_STYLE_POLICIES: Record<PaperSurface, SurfaceStylePolicy> = {
   // black edge pen would vanish on a dark theme's ground. No light (D7).
   references: {
     surface: 'references',
-    applies: [...EVERY_SURFACE_FIELDS, 'mountainFolds', 'valleyFolds', 'arrows'],
+    applies: [
+      ...EVERY_SURFACE_FIELDS,
+      'mountainFolds',
+      'valleyFolds',
+      'mountainDiagramCreases',
+      'valleyDiagramCreases',
+      'arrows',
+    ],
   },
 };
 
@@ -122,9 +130,24 @@ export function applyPaperStylePolicy(style: PaperStyle, policy: SurfaceStylePol
  * in the edge pen's colour, dash and cap, at the average of the two fold pens'
  * widths — those pens still say how heavy a fold is — while the paper's own
  * edge stays the edge pen exactly. The aux pen is always its own.
+ *
+ * A surface that draws no instruction has no diagram creases, so they are its
+ * fold pens: left at their defaults they would be a pen the surface never
+ * draws, and the widest pen — the ink allowance a scene's hidden test and a
+ * page's margin are measured by — would count it.
  */
 export function surfacePaperStyle(style: PaperStyle, policy: SurfaceStylePolicy): PaperStyle {
-  const seen = applyPaperStylePolicy(style, policy);
+  const drawn = surfaceFoldPens(applyPaperStylePolicy(style, policy), policy);
+  if (policyApplies(policy, 'mountainDiagramCreases')) return drawn;
+  return {
+    ...drawn,
+    mountainDiagramCreases: drawn.mountainFolds,
+    valleyDiagramCreases: drawn.valleyFolds,
+  };
+}
+
+/** The fold pens a surface draws with: its own, the edge pen, or the edge pen at the folds' weight. */
+function surfaceFoldPens(seen: PaperStyle, policy: SurfaceStylePolicy): PaperStyle {
   const edges = seen.edges;
   if (!policyApplies(policy, 'mountainFolds')) {
     return { ...seen, mountainFolds: edges, valleyFolds: edges };

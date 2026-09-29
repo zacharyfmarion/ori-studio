@@ -74,12 +74,16 @@ export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
 
           {/*
             The pens, in the two groups the surfaces make of them: the lines a
-            drawing is made of, and the arrows only a step diagram draws. One
-            card each, because a pen is four decisions and a table row is one.
+            drawing is made of, and the instructions only a step diagram draws.
+            One card each, because a pen is four decisions and a table row is
+            one.
           */}
           <PaperSection
             title={t('dialogs:settings.paper.linesTitle', 'Lines')}
-            hint={t('dialogs:settings.paper.pensHint', 'Simulations, folded figures, steps')}
+            hint={t(
+              'dialogs:settings.paper.linesHint',
+              'Simulations, folded figures, the pattern in References'
+            )}
           >
             <PenCards paper={paper} fields={LINE_PENS} />
           </PaperSection>
@@ -105,13 +109,22 @@ export function PaperSettings({ deps }: { deps?: PaperSettingsDeps } = {}) {
 
 type PenField = Extract<
   PaperStyleField,
-  'edges' | 'mountainFolds' | 'valleyFolds' | 'auxCreases.pen' | 'arrows'
+  | 'edges'
+  | 'mountainFolds'
+  | 'valleyFolds'
+  | 'mountainDiagramCreases'
+  | 'valleyDiagramCreases'
+  | 'auxCreases.pen'
+  | 'arrows'
 >;
 
-/** The pens every drawing is made of: the sheet's own edges, the folds, the creases already in it. */
+/**
+ * The pens every drawing is made of: the sheet's own edges, the folds — a
+ * crease pattern's lines — and the creases already in it.
+ */
 const LINE_PENS: readonly PenField[] = ['edges', 'mountainFolds', 'valleyFolds', 'auxCreases.pen'];
-/** The pens only a step diagram uses. */
-const STEP_PENS: readonly PenField[] = ['arrows'];
+/** The pens only a step diagram uses: its instruction, the diagram creases, and the arrows. */
+const STEP_PENS: readonly PenField[] = ['mountainDiagramCreases', 'valleyDiagramCreases', 'arrows'];
 
 /** One paper colour, on a card of its own. */
 function PaperColorCard({

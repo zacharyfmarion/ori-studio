@@ -63,6 +63,32 @@ describe('normalizePaperStyle', () => {
     expect(normalizePaperStyle(JSON.parse(JSON.stringify(style)))).toEqual(style);
   });
 
+  it('keeps every pen field through a load and through a pin', () => {
+    // A pen field parsePaperStyleField has no case for parses as undefined:
+    // it resets to its default on every load and drops from every pin, and
+    // nothing fails to type-check. Every field holding a pen is found here by
+    // its value, so a pen added later is covered without being listed.
+    const penFields = PAPER_STYLE_FIELDS.filter((field) => {
+      const value = getPaperStyleField(DEFAULT_PAPER_STYLE, field);
+      return typeof value === 'object' && value !== null && 'width' in value && 'dash' in value;
+    });
+    expect(penFields).toEqual([
+      'edges',
+      'mountainFolds',
+      'valleyFolds',
+      'mountainDiagramCreases',
+      'valleyDiagramCreases',
+      'auxCreases.pen',
+      'arrows',
+    ]);
+    for (const field of penFields) {
+      const style = setPaperStyleField(DEFAULT_PAPER_STYLE, field, RED_PEN);
+      expect(normalizePaperStyle(JSON.parse(JSON.stringify(style))), field).toEqual(style);
+      const pinned = JSON.parse(JSON.stringify({ [field]: RED_PEN }));
+      expect(normalizePaperStyleOverrides(pinned), field).toEqual({ [field]: RED_PEN });
+    }
+  });
+
   it('is the default for anything that is not an object', () => {
     expect(normalizePaperStyle(undefined)).toBe(DEFAULT_PAPER_STYLE);
     expect(normalizePaperStyle(null)).toBe(DEFAULT_PAPER_STYLE);

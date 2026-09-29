@@ -331,9 +331,11 @@
       "erode": "들여쓰기",
       "foldsAsEdges": "접힘선을 모서리로 그리기",
       "light": "조명",
+      "mountainDiagramCreases": "도해의 산 접기 펜",
       "mountainFolds": "산 접기 펜",
       "paperBack": "뒷면 색",
       "paperFront": "앞면 색",
+      "valleyDiagramCreases": "도해의 골 접기 펜",
       "valleyFolds": "골 접기 펜"
     },
     "pinsHint": "어떤 스타일을 고르든 자체 {{fields}} 설정을 유지합니다.",
@@ -474,6 +476,7 @@
       "lightEnabled": "방향광",
       "lightEnabledHint": "접힌 종이에 음영을 넣습니다. 평면 도형은 음영 없이 유지됩니다.",
       "lightHint": "시뮬레이터, 접힌 도형",
+      "linesHint": "시뮬레이션, 접힌 도형, 참조의 전개도",
       "linesTitle": "선",
       "link": {
         "detach": "분리",
@@ -486,7 +489,9 @@
         "arrows": "화살표",
         "auxCreases": "보조 접힘선",
         "edges": "모서리",
+        "mountainDiagramCreases": "도해의 산 접기",
         "mountainFolds": "산 접기",
+        "valleyDiagramCreases": "도해의 골 접기",
         "valleyFolds": "골 접기"
       },
       "penCap": "선 끝",
@@ -494,7 +499,6 @@
       "penColorNamed": "{{pen}} 색상",
       "penDash": "파선",
       "penDashNamed": "{{pen}} 파선",
-      "pensHint": "시뮬레이션, 접힌 도형, 단계",
       "penWidth": "너비 (pt)",
       "penWidthNamed": "{{pen}} 너비",
       "preset": {

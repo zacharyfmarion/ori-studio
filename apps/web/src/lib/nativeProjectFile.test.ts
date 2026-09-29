@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PaperScene } from '@treemaker/origami-simulator';
+import type { PaperLineRole, PaperScene } from '@treemaker/origami-simulator';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
@@ -663,6 +663,32 @@ describe('native project file', () => {
     // its other ring, and a line whose `face` did not read is a line without one.
     expect(entry.scene?.items[0]).toMatchObject({ kind: 'face', rings: [[[2, 2], [6, 2], [6, 5]]] });
     expect(entry.scene?.items[1]).not.toHaveProperty('face');
+  });
+
+  it('reads every line role a scene can carry, a step’s instruction included', () => {
+    // A role the reader does not list drops its line as malformed, silently.
+    const roles: PaperLineRole[] = [
+      'edge',
+      'mountain',
+      'valley',
+      'diagram-mountain',
+      'diagram-valley',
+      'aux',
+    ];
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    stored.scene.items = roles.map((role) => ({
+      kind: 'line',
+      role,
+      a: [0, 0],
+      b: [1, 1],
+      onBoundary: [false, false],
+      hidden: false,
+    }));
+    const [entry] = reparse(serialized);
+    expect(entry.scene?.items.map((item) => (item.kind === 'line' ? item.role : item.kind))).toEqual(
+      roles
+    );
   });
 
   it('refuses a stored picture with no bounds rather than drawing at the origin', () => {

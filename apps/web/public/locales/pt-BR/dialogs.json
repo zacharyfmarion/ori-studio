@@ -349,9 +349,11 @@
       "erode": "recuo",
       "foldsAsEdges": "vincos desenhados como bordas",
       "light": "luz",
+      "mountainDiagramCreases": "caneta das dobras em monte do diagrama",
       "mountainFolds": "caneta das dobras em monte",
       "paperBack": "cor do verso",
       "paperFront": "cor da frente",
+      "valleyDiagramCreases": "caneta das dobras em vale do diagrama",
       "valleyFolds": "caneta das dobras em vale"
     },
     "pinsHint": "Mantém suas próprias configurações — {{fields}} — qualquer que seja o estilo escolhido.",
@@ -494,6 +496,7 @@
       "lightEnabled": "Luz direcional",
       "lightEnabledHint": "Sombreia o papel dobrado. Figuras planas ficam sem iluminação.",
       "lightHint": "Simulador, figuras dobradas",
+      "linesHint": "Simulações, figuras dobradas, o padrão em Referências",
       "linesTitle": "Linhas",
       "link": {
         "detach": "Separar",
@@ -506,7 +509,9 @@
         "arrows": "Setas",
         "auxCreases": "Vincos auxiliares",
         "edges": "Bordas",
+        "mountainDiagramCreases": "Dobras em monte do diagrama",
         "mountainFolds": "Dobras em monte",
+        "valleyDiagramCreases": "Dobras em vale do diagrama",
         "valleyFolds": "Dobras em vale"
       },
       "penCap": "Extremidade",
@@ -514,7 +519,6 @@
       "penColorNamed": "Cor de {{pen}}",
       "penDash": "Tracejado",
       "penDashNamed": "Tracejado de {{pen}}",
-      "pensHint": "Simulações, figuras dobradas, passos",
       "penWidth": "Largura (pt)",
       "penWidthNamed": "Largura de {{pen}}",
       "preset": {

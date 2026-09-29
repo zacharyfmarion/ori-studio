@@ -3112,7 +3112,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -3242,7 +3241,12 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6357,7 +6361,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -6487,7 +6490,12 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9604,7 +9612,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -9734,7 +9741,12 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12792,7 +12804,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -12920,7 +12931,12 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15978,7 +15994,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -16106,7 +16121,12 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -19221,7 +19241,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -19351,7 +19370,12 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22466,7 +22490,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -22596,7 +22619,12 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25654,7 +25682,6 @@
     "tools:references.exportStepSvg": "45b229e7d6e8",
     "toasts:referencesExport.empty": "efebbd5d1a6e",
     "dialogs:settings.paper.lightHint": "f1ae690168db",
-    "dialogs:settings.paper.pensHint": "02996c3d3d04",
     "dialogs:settings.paper.link.detach": "74bc11743543",
     "dialogs:settings.paper.link.detached": "ef00645e33e4",
     "dialogs:settings.paper.link.follow": "cf8613880b33",
@@ -25782,6 +25809,11 @@
     "dialogs:paperExport.highlightsHint": "483611c6b33a",
     "dialogs:paperExport.letters": "0b438c8abb4d",
     "dialogs:paperExport.lettersHint": "52292469c5e0",
-    "dialogs:paperExport.marks": "65479e3e408a"
+    "dialogs:paperExport.marks": "65479e3e408a",
+    "dialogs:paperExport.pin.mountainDiagramCreases": "adb8cab7803f",
+    "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
+    "dialogs:settings.paper.linesHint": "9109194ed1d5",
+    "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
   }
 }

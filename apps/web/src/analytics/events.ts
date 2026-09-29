@@ -218,23 +218,32 @@ export type FoldedFigureStyleOption =
 export type PaperStyleSlot = 'display' | 'export';
 
 /**
- * The style field an edit touched, by its path. A fixed list of eleven — never a
- * value: a colour, a pen width or a light angle is the user's work. The
- * question is which fields anyone reaches for, and whether the export slot
- * ever gets set apart from display.
+ * The style field an edit touched, by its path. A fixed list — never a value:
+ * a colour, a pen width or a light angle is the user's work. The question is
+ * which fields anyone reaches for, and whether the export slot ever gets set
+ * apart from display.
+ *
+ * Written out here rather than derived from the style's own field list, so the
+ * taxonomy stays a leaf with no app imports; a test pins the two lists equal,
+ * so a field added to the style cannot go uncounted.
  */
-export type PaperStyleFieldName =
-  | 'paper.front'
-  | 'paper.back'
-  | 'edges'
-  | 'mountainFolds'
-  | 'valleyFolds'
-  | 'foldsAsEdges'
-  | 'auxCreases.visible'
-  | 'auxCreases.pen'
-  | 'arrows'
-  | 'erode'
-  | 'light';
+export const PAPER_STYLE_FIELD_NAMES = [
+  'paper.front',
+  'paper.back',
+  'edges',
+  'mountainFolds',
+  'valleyFolds',
+  'mountainDiagramCreases',
+  'valleyDiagramCreases',
+  'foldsAsEdges',
+  'auxCreases.visible',
+  'auxCreases.pen',
+  'arrows',
+  'erode',
+  'light',
+] as const;
+
+export type PaperStyleFieldName = (typeof PAPER_STYLE_FIELD_NAMES)[number];
 
 /**
  * Which preset was applied: a built-in by id, or `custom` for any preset the

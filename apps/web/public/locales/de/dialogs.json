@@ -340,9 +340,11 @@
       "erode": "Einrücken",
       "foldsAsEdges": "Falten als Kanten",
       "light": "Licht",
+      "mountainDiagramCreases": "Stift der Diagramm-Bergfalten",
       "mountainFolds": "Stift der Bergfalten",
       "paperBack": "Farbe der Rückseite",
       "paperFront": "Farbe der Vorderseite",
+      "valleyDiagramCreases": "Stift der Diagramm-Talfalten",
       "valleyFolds": "Stift der Talfalten"
     },
     "pinsHint": "Behält eigene Einstellungen – {{fields}} –, welcher Stil auch gewählt wird.",
@@ -484,6 +486,7 @@
       "lightEnabled": "Gerichtetes Licht",
       "lightEnabledHint": "Schattiert gefaltetes Papier. Flache Figuren bleiben unbeleuchtet.",
       "lightHint": "Simulator, gefaltete Figuren",
+      "linesHint": "Simulationen, gefaltete Figuren, das Faltmuster in Referenzen",
       "linesTitle": "Linien",
       "link": {
         "detach": "Lösen",
@@ -496,7 +499,9 @@
         "arrows": "Pfeile",
         "auxCreases": "Hilfsfalten",
         "edges": "Kanten",
+        "mountainDiagramCreases": "Diagramm-Bergfalten",
         "mountainFolds": "Bergfalten",
+        "valleyDiagramCreases": "Diagramm-Talfalten",
         "valleyFolds": "Talfalten"
       },
       "penCap": "Linienende",
@@ -504,7 +509,6 @@
       "penColorNamed": "Farbe für {{pen}}",
       "penDash": "Strichmuster",
       "penDashNamed": "Strichmuster für {{pen}}",
-      "pensHint": "Simulationen, gefaltete Figuren, Schritte",
       "penWidth": "Breite (pt)",
       "penWidthNamed": "Breite für {{pen}}",
       "preset": {

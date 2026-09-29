@@ -53,13 +53,23 @@ export function pagePtPerPx(scene: PaperScene, page: PaperPage): number {
   return (page.sheet.mm * PT_PER_MM) / scene.sheet;
 }
 
+/** Every role a line can have, so a question over all of them misses none. */
+const LINE_ROLES = [
+  'edge',
+  'mountain',
+  'valley',
+  'diagram-mountain',
+  'diagram-valley',
+  'aux',
+] as const satisfies readonly PaperLineRole[];
+
 /**
- * The widest pen the style draws a line with, in pt: the edge and fold pens,
- * and the aux pen when aux creases show.
+ * The widest pen the style draws a line with, in pt: the edge, fold and
+ * diagram-crease pens, and the aux pen when aux creases show.
  */
 export function widestPenPt(style: PaperStyle): number {
   let widest = 0;
-  for (const role of ['edge', 'mountain', 'valley', 'aux'] as const) {
+  for (const role of LINE_ROLES) {
     const pen = penForRole(style, role);
     if (pen) widest = Math.max(widest, pen.width);
   }
@@ -248,7 +258,9 @@ export function paperFaceFill(style: PaperStyle, side: PaperFaceItem['side'], sh
 /**
  * The pen a line's role draws with, or null when the style leaves that role
  * out: aux creases are in the scene whenever the mesh carries them, and it is
- * the style that says whether they show.
+ * the style that says whether they show. A pattern's mountain and valley take
+ * the fold pens and a step's instruction the diagram-crease pens; which one a
+ * line is, the scene's producer says.
  */
 export function penForRole(style: PaperStyle, role: PaperLineRole): Pen | null {
   switch (role) {
@@ -258,6 +270,10 @@ export function penForRole(style: PaperStyle, role: PaperLineRole): Pen | null {
       return style.mountainFolds;
     case 'valley':
       return style.valleyFolds;
+    case 'diagram-mountain':
+      return style.mountainDiagramCreases;
+    case 'diagram-valley':
+      return style.valleyDiagramCreases;
     case 'aux':
       return style.auxCreases.visible ? style.auxCreases.pen : null;
   }

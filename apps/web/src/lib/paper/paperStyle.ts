@@ -51,8 +51,21 @@ export interface PaperStyle {
   paper: { front: Hex; back: Hex };
   /** Raw and folded paper edges. */
   edges: Pen;
+  /**
+   * A fold is a line of a crease pattern: this crease exists and goes this
+   * way. Drawn wherever a pattern lies on the style's paper — a simulation
+   * drawing its creases by direction, the pattern in References.
+   */
   mountainFolds: Pen;
   valleyFolds: Pen;
+  /**
+   * A diagram crease is the instruction on a step: fold here, this way. Only
+   * References steps draw one. "Crease" and "fold" alone are used
+   * interchangeably in origami, so the names carry the distinction — the
+   * *diagram* crease is the instruction, the fold is the pattern's line.
+   */
+  mountainDiagramCreases: Pen;
+  valleyDiagramCreases: Pen;
   /**
    * Draw every fold with the edge pen: a fold that has happened is an edge of
    * the paper, not an instruction to fold. Read by the simulations, which
@@ -136,7 +149,8 @@ export const DIAGRAM_VALLEY_DASH: readonly number[] = [4, 2];
  * simulator's 1.1 px crease inks and its light — with the folds dashed as a
  * diagram dashes them, so mountain and valley still read apart when the paper
  * is turned over and the colours swap meaning, and a simulation drawing every
- * fold as an edge, as a folded figure does.
+ * fold as an edge, as a folded figure does. A step's diagram creases are the
+ * same two pens: the dashes are the diagramming convention they follow.
  */
 export const DEFAULT_PAPER_STYLE: PaperStyle = {
   version: 1,
@@ -149,6 +163,18 @@ export const DEFAULT_PAPER_STYLE: PaperStyle = {
     cap: 'butt',
   },
   valleyFolds: {
+    width: 0.825,
+    color: DEFAULT_VALLEY_COLOR,
+    dash: [...DIAGRAM_VALLEY_DASH],
+    cap: 'butt',
+  },
+  mountainDiagramCreases: {
+    width: 0.825,
+    color: DEFAULT_MOUNTAIN_COLOR,
+    dash: [...DIAGRAM_MOUNTAIN_DASH],
+    cap: 'butt',
+  },
+  valleyDiagramCreases: {
     width: 0.825,
     color: DEFAULT_VALLEY_COLOR,
     dash: [...DIAGRAM_VALLEY_DASH],
@@ -178,6 +204,8 @@ export interface PaperStyleFieldValues {
   edges: Pen;
   mountainFolds: Pen;
   valleyFolds: Pen;
+  mountainDiagramCreases: Pen;
+  valleyDiagramCreases: Pen;
   foldsAsEdges: boolean;
   'auxCreases.visible': boolean;
   'auxCreases.pen': Pen;
@@ -195,20 +223,14 @@ export const PAPER_STYLE_FIELDS: readonly PaperStyleField[] = [
   'edges',
   'mountainFolds',
   'valleyFolds',
+  'mountainDiagramCreases',
+  'valleyDiagramCreases',
   'foldsAsEdges',
   'auxCreases.visible',
   'auxCreases.pen',
   'arrows',
   'erode',
   'light',
-];
-
-export const PAPER_STYLE_PEN_FIELDS: readonly PaperStyleField[] = [
-  'edges',
-  'mountainFolds',
-  'valleyFolds',
-  'auxCreases.pen',
-  'arrows',
 ];
 
 export function isPaperStyleField(value: unknown): value is PaperStyleField {
@@ -371,6 +393,8 @@ export function parsePaperStyleField<F extends PaperStyleField>(
     case 'edges':
     case 'mountainFolds':
     case 'valleyFolds':
+    case 'mountainDiagramCreases':
+    case 'valleyDiagramCreases':
     case 'auxCreases.pen':
     case 'arrows':
       return parsePen(value) as PaperStyleValue<F> | undefined;
