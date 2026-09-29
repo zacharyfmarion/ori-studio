@@ -2023,7 +2023,10 @@ alone cannot decide between coincident layers.
 - [x] The Default preset dashes its folds as the Diagram preset does
       (mountain 8:2:1:2, valley 4:2) and draws a simulation's folds as edges.
       A saved style keeps its own values; picking Default again shows the
-      new one.
+      new one. *Superseded: the fold pens are solid and the dashes are the
+      diagram-crease pens' (`implementation-plans/crease-and-fold-pens.md`),
+      so a simulation draws its folds by direction by default again
+      (`foldsAsEdges: false`).*
 - [x] Every step letter is in the reference colour, with a halo of what it
       stands on: the paper's face on the sheet, the ground off it. The `action`
       letters were the style's black edge ink with a dark halo, which read as
