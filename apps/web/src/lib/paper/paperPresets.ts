@@ -32,10 +32,10 @@ const UNLIT: PaperStyle['light'] = { ...DEFAULT_PAPER_STYLE.light, enabled: fals
 /**
  * The diagramming style, transcribed from the Origami House template's own
  * labels and dash arrays (A4 in mm, every line in pt): paper white with a 30%
- * grey colour side, one `#231f20` ink, edge 0.5 pt, mountain 0.75 pt dash-dot
- * 8:2:1:2, valley 0.75 pt dashed 4:2 (the fold and the diagram-crease pens
- * alike), auxiliary creases 0.25 pt, arrows
- * 0.75 pt. The template's hidden fold and hidden edge pens have nothing to
+ * grey colour side, one `#231f20` ink, edge 0.5 pt, the diagram creases
+ * 0.75 pt — mountain dash-dot 8:2:1:2, valley dashed 4:2 — auxiliary creases
+ * 0.25 pt, arrows 0.75 pt. The folds, a crease pattern's lines, are the only
+ * colour: solid, red and blue, at the diagram creases' weight. The template's hidden fold and hidden edge pens have nothing to
  * drive and are not here.
  *
  * Aux creases pull back half a percent of the sheet from the edge of the face
@@ -48,8 +48,10 @@ const DIAGRAM_STYLE: PaperStyle = {
   ...DEFAULT_PAPER_STYLE,
   paper: { front: '#ffffff', back: '#b3b3b3' },
   edges: { ...DIAGRAM_PEN, width: 0.5 },
-  mountainFolds: { ...DIAGRAM_PEN, dash: [...DIAGRAM_MOUNTAIN_DASH] },
-  valleyFolds: { ...DIAGRAM_PEN, dash: [...DIAGRAM_VALLEY_DASH] },
+  // A crease pattern reads by colour; black would leave mountain and valley
+  // apart only by dash, which is the diagram creases' job.
+  mountainFolds: { ...DIAGRAM_PEN, color: DEFAULT_PAPER_STYLE.mountainFolds.color },
+  valleyFolds: { ...DIAGRAM_PEN, color: DEFAULT_PAPER_STYLE.valleyFolds.color },
   mountainDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_MOUNTAIN_DASH] },
   valleyDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_VALLEY_DASH] },
   auxCreases: { visible: true, pen: { ...DIAGRAM_PEN, width: 0.25 } },

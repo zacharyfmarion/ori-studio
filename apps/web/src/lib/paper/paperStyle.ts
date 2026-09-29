@@ -146,28 +146,18 @@ export const DIAGRAM_VALLEY_DASH: readonly number[] = [4, 2];
 
 /**
  * The Default preset: Oriedita's paper, the folded figure's 1.2 px edge, the
- * simulator's 1.1 px crease inks and its light — with the folds dashed as a
- * diagram dashes them, so mountain and valley still read apart when the paper
- * is turned over and the colours swap meaning, and a simulation drawing every
- * fold as an edge, as a folded figure does. A step's diagram creases are the
- * same two pens: the dashes are the diagramming convention they follow.
+ * simulator's 1.1 px crease inks and its light, and a simulation drawing every
+ * fold as an edge, as a folded figure does. A crease pattern's folds are
+ * solid, told apart by colour, as a crease pattern is drawn; a step's diagram
+ * creases are the same inks dashed, valley and dash-dot mountain, as a diagram
+ * draws the fold it asks for.
  */
 export const DEFAULT_PAPER_STYLE: PaperStyle = {
   version: 1,
   paper: { front: ORIEDITA_PAPER_FRONT, back: ORIEDITA_PAPER_BACK },
   edges: { width: 0.9, color: ORIEDITA_LINE_COLOR, dash: null, cap: 'butt' },
-  mountainFolds: {
-    width: 0.825,
-    color: DEFAULT_MOUNTAIN_COLOR,
-    dash: [...DIAGRAM_MOUNTAIN_DASH],
-    cap: 'butt',
-  },
-  valleyFolds: {
-    width: 0.825,
-    color: DEFAULT_VALLEY_COLOR,
-    dash: [...DIAGRAM_VALLEY_DASH],
-    cap: 'butt',
-  },
+  mountainFolds: { width: 0.825, color: DEFAULT_MOUNTAIN_COLOR, dash: null, cap: 'butt' },
+  valleyFolds: { width: 0.825, color: DEFAULT_VALLEY_COLOR, dash: null, cap: 'butt' },
   mountainDiagramCreases: {
     width: 0.825,
     color: DEFAULT_MOUNTAIN_COLOR,

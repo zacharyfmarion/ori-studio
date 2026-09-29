@@ -1064,11 +1064,24 @@ describe('the export dialog’s page of a simulation', () => {
       info.token
     );
 
-    const defaults = await dialogPage(session, info.token, DEFAULT_PAPER_STYLE, DEFAULT_PAPER_PAGE);
+    // The styles as they were when it was written: the fold pens dashed, as the
+    // Default preset had them then — the diagram-crease pens carry those dashes
+    // now.
+    const writtenWith = (style: PaperStyle): PaperStyle => ({
+      ...style,
+      mountainFolds: { ...style.mountainFolds, dash: DEFAULT_PAPER_STYLE.mountainDiagramCreases.dash },
+      valleyFolds: { ...style.valleyFolds, dash: DEFAULT_PAPER_STYLE.valleyDiagramCreases.dash },
+    });
+    const defaults = await dialogPage(
+      session,
+      info.token,
+      writtenWith(DEFAULT_PAPER_STYLE),
+      DEFAULT_PAPER_PAGE
+    );
     const custom = await dialogPage(
       session,
       info.token,
-      EXPORT_STYLE,
+      writtenWith(EXPORT_STYLE),
       { sheet: { mm: 120 }, paddingMm: 12, background: '#223344', keepHiddenFaces: false },
       2
     );

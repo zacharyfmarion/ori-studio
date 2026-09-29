@@ -98,7 +98,7 @@ describe('resolvePaperStyle', () => {
     expect(settings.colorMode).toBe('paper');
     expect(settings.strainClip).toBe(5);
 
-    // By direction: the convention inks, dash-dot and dashed at the 1.1 px pen.
+    // By direction: the convention inks, solid, at the 1.1 px pen.
     const byDirection = resolvePaperStyle(
       { ...DEFAULT_PAPER_STYLE, foldsAsEdges: false },
       PAPER_STYLE_POLICIES.simulator,
@@ -106,11 +106,26 @@ describe('resolvePaperStyle', () => {
     );
     expect(byDirection.mountainColor).toEqual(hexToUnitRgb('#db1f24'));
     expect(byDirection.valleyColor).toEqual(hexToUnitRgb('#1c5cd9'));
-    expect(byDirection.creaseDash?.mountain).toEqual(
+    expect(byDirection.creaseDash?.mountain ?? null).toBeNull();
+    expect(byDirection.creaseDash?.valley ?? null).toBeNull();
+
+    // A dashed fold pen reaches the simulator in device px: dash-dot and
+    // dashed, the diagram creases' dashes, at the 1.1 px pen.
+    const dashed = resolvePaperStyle(
+      {
+        ...DEFAULT_PAPER_STYLE,
+        foldsAsEdges: false,
+        mountainFolds: DEFAULT_PAPER_STYLE.mountainDiagramCreases,
+        valleyFolds: DEFAULT_PAPER_STYLE.valleyDiagramCreases,
+      },
+      PAPER_STYLE_POLICIES.simulator,
+      OPTIONS
+    );
+    expect(dashed.creaseDash?.mountain).toEqual(
       [8.8, 2.2, 1.1, 2.2].map((run) => expect.closeTo(run, 9))
     );
-    expect(byDirection.creaseDash?.valley).toEqual([4.4, 2.2].map((run) => expect.closeTo(run, 9)));
-    expect(byDirection.creaseDash?.border).toBeNull();
+    expect(dashed.creaseDash?.valley).toEqual([4.4, 2.2].map((run) => expect.closeTo(run, 9)));
+    expect(dashed.creaseDash?.border).toBeNull();
   });
 
   it('scales every line width with the device pixel ratio', () => {

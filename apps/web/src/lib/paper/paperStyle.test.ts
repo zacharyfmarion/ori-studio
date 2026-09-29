@@ -233,8 +233,8 @@ describe('overrides', () => {
 });
 
 describe('crease-style modes', () => {
-  it('reads the defaults as their own: the convention inks, dashed', () => {
-    expect(creaseStyleOf(DEFAULT_PAPER_STYLE)).toBe('custom');
+  it('reads the defaults as the colour mode: the convention inks, solid, as main’s simulator drew them', () => {
+    expect(creaseStyleOf(DEFAULT_PAPER_STYLE)).toBe('color');
   });
 
   it('round-trips every mode', () => {

@@ -27,15 +27,20 @@ describe('paperThumbnail', () => {
     ]);
     expect(thumb.lines[0]).toMatchObject({ x1: 9, y1: 7, x2: 69, y2: 67 });
     expect(thumb.lines[2]).toMatchObject({ x1: 39, y1: 7, x2: 39, y2: 67 });
-    // The Default preset's folds are dashed as a diagram's: dash-dot and dashed
-    // at the 1.1 px pen.
-    expect(thumb.lines[0]?.dash).toBe('8.8 2.2 1.1 2.2');
-    expect(thumb.lines[2]?.dash).toBe('4.4 2.2');
+    // The Default preset's folds are a crease pattern's: solid.
+    expect(thumb.lines[0]?.dash ?? null).toBeNull();
+    expect(thumb.lines[2]?.dash ?? null).toBeNull();
   });
 
   it('resolves a dash against the pen’s own width, as every other surface does', () => {
-    const thumb = paperThumbnail(builtInPaperPreset('diagram').style);
-    const mountain = builtInPaperPreset('diagram').style.mountainFolds;
+    // Diagram's folds given its diagram creases' dashed pens.
+    const diagram = builtInPaperPreset('diagram').style;
+    const thumb = paperThumbnail({
+      ...diagram,
+      mountainFolds: diagram.mountainDiagramCreases,
+      valleyFolds: diagram.valleyDiagramCreases,
+    });
+    const mountain = diagram.mountainDiagramCreases;
     const width = mountain.width * PT_TO_CSS_PX;
     expect(thumb.lines[0]?.dash).toBe(
       mountain.dash?.map((run) => Math.round(run * width * 100) / 100).join(' ')

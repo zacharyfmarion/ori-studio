@@ -255,15 +255,22 @@ instruction lines onto them, and only then do the fold pens turn solid.
 
 ### Phase 3 — The fold pens turn solid
 
-- [ ] Default: `mountainFolds` / `valleyFolds` solid, same inks and weight;
+- [x] Default: `mountainFolds` / `valleyFolds` solid, same inks and weight;
       Diagram: solid red/blue at 0.75 pt; the diagram-crease pens keep the
       dashes. `creaseStyleOf(DEFAULT_PAPER_STYLE)` is now `'color'`
-- [ ] Re-pin every test that read Default's fold dash (simulations, the
-      Simulate pane, the preset thumbnail, the erode close-up, Settings)
-- [ ] Browser: Find tab solid under Default and Diagram; a step card and its
-      animation still dashed; earlier creases unchanged; the finished card
-      solid; a simulation drawn by direction solid; dark and light themes
-- [ ] Validate; commit
+- [x] Re-pin every test that read Default's fold dash (simulations, the
+      Simulate pane, the preset thumbnail, the erode close-up, Settings) —
+      nine, in the presets, crease modes, resolver, thumbnail, Settings and
+      the simulation export's golden, which is now painted with the fold pens
+      dashed as they were when it was written rather than re-recorded, so it
+      still proves the dialog's page is the retired `exportSvg`'s
+- [x] Browser: Find tab solid under Default and Diagram; a step card and its
+      big view still dashed (the animation runs too fast to catch mid-pose;
+      its dash under the merged table is the fold pose's unit test); earlier
+      creases unchanged (the aux pen); the finished card solid on the strip
+      and the big view; a simulation drawn by direction solid; dark and light
+      themes
+- [x] Validate; commit
 
 ### Phase 4 — Plans and docs
 

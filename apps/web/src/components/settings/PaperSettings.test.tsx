@@ -127,8 +127,10 @@ describe('PaperSettings', () => {
     expect(rendered.querySelectorAll('input[type="color"]')).toHaveLength(9);
     expect(input('Front').value).toBe(DEFAULT_PAPER_STYLE.paper.front);
     expect(input('Mountain folds width').value).toBe('0.825');
-    // The dash is picked by name from a menu, and the default fold is dash-dot.
-    expect(dashTrigger('Mountain folds dash').textContent).toBe('Dash-dot');
+    // The dash is picked by name from a menu: the default fold is a crease
+    // pattern's, solid, and the default diagram crease a diagram's dash-dot.
+    expect(dashTrigger('Mountain folds dash').textContent).toBe('Solid');
+    expect(dashTrigger('Mountain diagram creases dash').textContent).toBe('Dash-dot');
     // The light is aimed on the disc, which says where it is aimed.
     expect(
       rendered.querySelector('.settings-paper-light__disc')?.getAttribute('aria-label')
@@ -288,8 +290,10 @@ describe('PaperSettings', () => {
     expect(sample('Mountain folds').getAttribute('stroke')).toBe(
       DEFAULT_PAPER_STYLE.mountainFolds.color
     );
-    // The multiples resolve against the pen's own width: 8 2 1 2 at 1.1 px.
-    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBe('8.8 2.2 1.1 2.2');
+    // Solid by default; the multiples resolve against the pen's own width:
+    // 8 2 1 2 at 1.1 px.
+    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBeNull();
+    expect(sample('Mountain diagram creases').getAttribute('stroke-dasharray')).toBe('8.8 2.2 1.1 2.2');
     // A step's diagram creases, drawn at their own pens the same way.
     expect(sample('Valley diagram creases').getAttribute('stroke')).toBe(
       DEFAULT_PAPER_STYLE.valleyDiagramCreases.color
@@ -298,8 +302,8 @@ describe('PaperSettings', () => {
     expect(sample('Arrows').getAttribute('stroke-linecap')).toBe('round');
 
     act(() => dashTrigger('Mountain folds dash').click());
-    act(() => findButton('Solid', document.querySelector('[role="menu"]')!).click());
-    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBeNull();
+    act(() => findButton('Dash-dot', document.querySelector('[role="menu"]')!).click());
+    expect(sample('Mountain folds').getAttribute('stroke-dasharray')).toBe('8.8 2.2 1.1 2.2');
 
     // Live: a paper colour picked is the ground every sample shows on that side.
     typeInto(input('Back'), '#123456');
