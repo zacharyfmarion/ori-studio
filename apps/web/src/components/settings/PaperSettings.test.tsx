@@ -140,12 +140,13 @@ describe('PaperSettings', () => {
     // The aux toggle, the simulations' folds-as-edges switch and the light
     // switch are Radix switches named by their row; the slot's own state is
     // the segmented control and the banner, not a switch of its own. The
-    // Default preset has all three on.
+    // Default preset shows aux creases and lights the paper, and draws a
+    // simulation's folds by direction.
     const switches = styleSwitches(rendered);
     expect(switches).toHaveLength(3);
     expect(switches.map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
-      'true',
+      'false',
       'true',
     ]);
   });

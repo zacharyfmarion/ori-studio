@@ -146,9 +146,9 @@ export const DIAGRAM_VALLEY_DASH: readonly number[] = [4, 2];
 
 /**
  * The Default preset: Oriedita's paper, the folded figure's 1.2 px edge, the
- * simulator's 1.1 px crease inks and its light, and a simulation drawing every
- * fold as an edge, as a folded figure does. A crease pattern's folds are
- * solid, told apart by colour, as a crease pattern is drawn; a step's diagram
+ * simulator's 1.1 px crease inks and its light. A crease pattern's folds are
+ * solid, told apart by colour, as a crease pattern is drawn — a simulation's
+ * too, which draws them by direction rather than as edges; a step's diagram
  * creases are the same inks dashed, valley and dash-dot mountain, as a diagram
  * draws the fold it asks for.
  */
@@ -170,7 +170,7 @@ export const DEFAULT_PAPER_STYLE: PaperStyle = {
     dash: [...DIAGRAM_VALLEY_DASH],
     cap: 'butt',
   },
-  foldsAsEdges: true,
+  foldsAsEdges: false,
   // Shown by default: a diagram draws the creases already made, and a folded
   // figure's construction lines are what the pen is for. Oriedita's preset
   // turns them off, as its own folded figure never draws them.

@@ -464,8 +464,8 @@ const EXPORT_STYLE: PaperStyle = {
   mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#ffff00' },
   valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#00ffff' },
   edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#ff00ff' },
-  // By direction, so each fold pen's ink reaches the file: the Default preset
-  // draws a simulation's folds as edges.
+  // By direction, so each fold pen's ink reaches the file — as the Default
+  // preset draws a simulation's, but said here, since that is the point.
   foldsAsEdges: false,
   light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
 };
@@ -1066,7 +1066,7 @@ describe('the export dialog’s page of a simulation', () => {
 
     // The styles as they were when it was written: the fold pens dashed, as the
     // Default preset had them then — the diagram-crease pens carry those dashes
-    // now.
+    // now — and the Default drawing a simulation's folds as edges.
     const writtenWith = (style: PaperStyle): PaperStyle => ({
       ...style,
       mountainFolds: { ...style.mountainFolds, dash: DEFAULT_PAPER_STYLE.mountainDiagramCreases.dash },
@@ -1075,7 +1075,7 @@ describe('the export dialog’s page of a simulation', () => {
     const defaults = await dialogPage(
       session,
       info.token,
-      writtenWith(DEFAULT_PAPER_STYLE),
+      { ...writtenWith(DEFAULT_PAPER_STYLE), foldsAsEdges: true },
       DEFAULT_PAPER_PAGE
     );
     const custom = await dialogPage(

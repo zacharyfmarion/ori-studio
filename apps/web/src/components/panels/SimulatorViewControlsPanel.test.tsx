@@ -301,9 +301,10 @@ describe('collapsible sections', () => {
     expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
   });
 
-  // Simulations draw every fold as an edge by default; switched off they draw
-  // by direction, and the fold inks that makes live are enabled.
-  it('renders all creases as edges by default, and disables what that makes moot', () => {
+  // Simulations draw their folds by direction by default, in the fold pens'
+  // solid inks; switched on, every fold is an edge and the fold inks that
+  // makes moot are disabled.
+  it('draws creases by direction by default, and disables what edges make moot', () => {
     const rendered = render();
     toggle(rendered, 'Creases');
     const asEdges = () =>
@@ -311,16 +312,16 @@ describe('collapsible sections', () => {
         'button[role="switch"][aria-label="Render all creases as edges"]'
       )!;
     const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
-    expect(asEdges().getAttribute('aria-checked')).toBe('true');
-    expect(mountain()?.disabled).toBe(true);
-    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
+    expect(asEdges().getAttribute('aria-checked')).toBe('false');
+    expect(mountain()?.disabled).toBe(false);
 
     act(() => {
       asEdges().dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(useSettingsStore.getState().paperStyle.display.foldsAsEdges).toBe(false);
-    expect(asEdges().getAttribute('aria-checked')).toBe('false');
-    expect(mountain()?.disabled).toBe(false);
+    expect(useSettingsStore.getState().paperStyle.display.foldsAsEdges).toBe(true);
+    expect(asEdges().getAttribute('aria-checked')).toBe('true');
+    expect(mountain()?.disabled).toBe(true);
+    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
   });
 
   // Re-pinned for X7: the pane had an Export group bound to the one page every

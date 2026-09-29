@@ -72,22 +72,22 @@ describe('lightVector', () => {
 });
 
 describe('resolvePaperStyle', () => {
-  // Re-pinned: the Default preset now draws a simulation's folds as edges,
-  // and dashes them as a diagram does when they are drawn by direction.
+  // Re-pinned: the Default preset draws a simulation's folds by direction
+  // again, now that its fold pens are a crease pattern's solid lines.
   it('produces the simulator’s numbers for the defaults', () => {
     const settings = resolvePaperStyle(DEFAULT_PAPER_STYLE, PAPER_STYLE_POLICIES.simulator, OPTIONS);
     // Re-pinned for X14: every line used to draw at the folds' 1.1 px. The
-    // edge is its own pen now, 0.9 pt, and the folds as edges are the average
-    // of the two fold pens, both 0.825 pt.
+    // edge is its own pen now, 0.9 pt, and the folds are their own pens,
+    // both 0.825 pt.
     expect(settings.edgeWidthPx).toBeCloseTo(1.2, 12);
     expect(settings.mountainWidthPx).toBeCloseTo(1.1, 12);
     expect(settings.valleyWidthPx).toBeCloseTo(1.1, 12);
     expect(settings.borderColor).toEqual([0, 0, 0]);
     expect(settings.frontColor).toEqual(hexToUnitRgb('#ffff32'));
     expect(settings.backColor).toEqual(hexToUnitRgb('#e9e9e9'));
-    // Every fold in the edge pen, solid.
-    expect(settings.mountainColor).toEqual([0, 0, 0]);
-    expect(settings.valleyColor).toEqual([0, 0, 0]);
+    // Every fold in its own pen's ink, solid.
+    expect(settings.mountainColor).toEqual(hexToUnitRgb(DEFAULT_PAPER_STYLE.mountainFolds.color));
+    expect(settings.valleyColor).toEqual(hexToUnitRgb(DEFAULT_PAPER_STYLE.valleyFolds.color));
     expect(distance(settings.lightDir, legacyLight())).toBeLessThan(1e-6);
     expect(settings.lighting).toBe(true);
     expect(settings.creaseDash).toBeUndefined();

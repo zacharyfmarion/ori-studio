@@ -180,10 +180,10 @@ describe('the card’s switches', () => {
       light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
     });
     expect(disc()).toBeNull();
-    // Aux creases shown, folds drawn as edges (the Default preset), light off.
+    // Aux creases shown, folds drawn by direction (the Default preset), light off.
     expect(switches().map((element) => element.getAttribute('aria-checked'))).toEqual([
       'true',
-      'true',
+      'false',
       'false',
     ]);
   });

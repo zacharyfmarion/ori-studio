@@ -42,8 +42,8 @@ function styleWith(patch: Partial<PaperStyle>): PaperStyle {
 }
 
 /**
- * The defaults with the folds drawn by direction: the Default preset draws a
- * simulation's folds as edges, and these are about the fold pens.
+ * The defaults with the folds drawn by direction — as the Default preset draws
+ * a simulation's, but said here, since these are about the fold pens.
  */
 const BY_DIRECTION: PaperStyle = { ...DEFAULT_PAPER_STYLE, foldsAsEdges: false };
 

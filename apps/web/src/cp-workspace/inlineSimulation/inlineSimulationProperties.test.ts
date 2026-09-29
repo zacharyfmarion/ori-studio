@@ -229,12 +229,12 @@ describe('buildInlineSimulationProperties', () => {
   // X14: the sheet's fold line weight row is gone with the Simulate pane's
   // slider. A window's existing fold-pen pins hold whole pens, width
   // included, so a pin made by the old row keeps its width, and the colour
-  // row's reset clears it. While folds are drawn as edges — the Default — the
-  // colour is moot but the pinned width is what they are drawn at, so that
-  // reset has to be one a user can click on a disabled row.
+  // row's reset clears it. While folds are drawn as edges the colour is moot
+  // but the pinned width is what they are drawn at, so that reset has to be
+  // one a user can click on a disabled row.
   it('offers no fold line weight, and resets a pinned fold pen from its colour row', () => {
     const pin = { mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 3 } };
-    const asEdges = deps(pin);
+    const asEdges = deps({ ...pin, foldsAsEdges: true });
     const sheet = buildInlineSimulationProperties(TARGET, asEdges);
     expect(() => field(sheet, 'foldLineWeight')).toThrow('no field foldLineWeight');
     expect(field(sheet, 'mountainColor')).toMatchObject({
@@ -260,8 +260,8 @@ describe('buildInlineSimulationProperties', () => {
       rendered.unmount();
     }
 
-    // Drawn by direction, the row is live and so is its reset.
-    const byDirection = deps({ ...pin, foldsAsEdges: false });
+    // Drawn by direction — the Default — the row is live and so is its reset.
+    const byDirection = deps(pin);
     const live = field(buildInlineSimulationProperties(TARGET, byDirection), 'mountainColor');
     expect(live).toMatchObject({ support: 'supported' });
     expect(live).not.toHaveProperty('resetWhileUnsupported');
@@ -292,12 +292,13 @@ describe('buildInlineSimulationProperties', () => {
   // "Render all creases as edges": a window's own pin like any other row, and
   // while it is on the pens it makes moot are disabled with the reason.
   it('offers folds as edges, and disables the rows it makes moot while on', () => {
-    // Pinned off on this window: the fold inks are live, and the toggle turns
-    // them moot again.
-    const d = deps({ foldsAsEdges: false });
+    // Off, as the Default preset has it: the fold inks are live, and the
+    // toggle turns them moot. Following the style, there is nothing to reset.
+    const d = deps();
     const off = buildInlineSimulationProperties(TARGET, d);
     const toggle = off.sections[1]!.fields.find((f) => f.id === 'foldsAsEdges')!;
     expect(toggle).toMatchObject({ kind: 'toggle', value: false, support: 'supported' });
+    expect(toggle.reset).toBeUndefined();
     if (toggle.kind !== 'toggle') throw new Error('toggle');
     toggle.commit(true);
     expect(d.commitOverrides).toHaveBeenCalledWith([{ field: 'foldsAsEdges', value: true }]);
@@ -305,8 +306,9 @@ describe('buildInlineSimulationProperties', () => {
       support: 'supported',
     });
 
-    // On, as the Default preset has it.
-    const on = buildInlineSimulationProperties(TARGET, deps());
+    // Pinned on this window: the pens it makes moot are disabled with the
+    // reason, and the toggle offers the way back to the style.
+    const on = buildInlineSimulationProperties(TARGET, deps({ foldsAsEdges: true }));
     const support = (id: string) => on.sections[1]!.fields.find((f) => f.id === id)!;
     for (const id of ['mountainColor', 'valleyColor']) {
       expect(support(id)).toMatchObject({
@@ -315,10 +317,6 @@ describe('buildInlineSimulationProperties', () => {
       });
     }
     expect(support('foldsAsEdges')).toMatchObject({ value: true, support: 'supported' });
-    // Following the style, there is nothing to reset; pinned on this window,
-    // it offers the way back to the style.
-    expect(support('foldsAsEdges').reset).toBeUndefined();
-    const pinned = buildInlineSimulationProperties(TARGET, deps({ foldsAsEdges: true }));
-    expect(pinned.sections[1]!.fields.find((f) => f.id === 'foldsAsEdges')!.reset).toBeDefined();
+    expect(support('foldsAsEdges').reset).toBeDefined();
   });
 });
