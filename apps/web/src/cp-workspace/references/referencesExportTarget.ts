@@ -1,16 +1,18 @@
 /**
  * A References step as the export dialog's target: the diagram the big view
- * shows, captured with the camera, face and pen it is drawn with at the moment
- * the dialog opens — and every other step the strip has, for an export of all
- * of them (X13).
+ * shows, captured with the face and pen it is drawn with at the moment the
+ * dialog opens — and every other step the strip has, for an export of all of
+ * them (X13).
  *
  * The scene is cheap to build and reads the style (its markup inlines the
- * colours), the page's background (a letter off the paper is haloed in it) and
+ * colours), the page's background (a letter off the paper is haloed in it),
  * which of the diagram's marks the page carries — its letters and its line
- * highlights, which a reader drawing a diagram of their own may not want — so
- * its key is exactly those three and the page; the margin and the sheet size
- * only repaint. A step is one sheet with nothing under it, so it has no buried
- * faces to keep.
+ * highlights, which a reader drawing a diagram of their own may not want — and
+ * the sheet size, since it is drawn at the page's own scale so that its marks
+ * keep their on-screen size as its lines keep their widths
+ * (`referencesStepSheetCssPx`). So its key is exactly those four and the page;
+ * the margin alone only repaints. A step is one sheet with nothing under it,
+ * so it has no buried faces to keep.
  */
 import { DIAGRAM_STEP_SHEET_MM } from '../../lib/paper/paperPage';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
@@ -22,6 +24,7 @@ import {
   referencesStepDiagramMarks,
   referencesStepPaintStyle,
   referencesStepScene,
+  referencesStepSheetCssPx,
   type ReferencesStepSceneOptions,
 } from './referencesStepExport';
 
@@ -38,7 +41,7 @@ export interface ReferencesExportPageCapture {
 }
 
 export interface ReferencesExportCapture
-  extends Pick<ReferencesStepSceneOptions, 'sheetCssPx' | 'lineWidth' | 'showAux'> {
+  extends Pick<ReferencesStepSceneOptions, 'lineWidth' | 'showAux'> {
   /** The strip's steps, in order; one when there is nothing else to export. */
   steps: readonly ReferencesExportPageCapture[];
   /** The step on show. */
@@ -54,7 +57,7 @@ export interface ReferencesExportCapture
 }
 
 export function referencesExportTarget(capture: ReferencesExportCapture): PaperExportTarget {
-  const { steps, sheetCssPx, lineWidth, showAux = null } = capture;
+  const { steps, lineWidth, showAux = null } = capture;
   return {
     surface: 'references',
     title: capture.title,
@@ -70,15 +73,30 @@ export function referencesExportTarget(capture: ReferencesExportCapture): PaperE
     pins: null,
     buriesFaces: false,
     marks: PAPER_EXPORT_MARKS,
-    sceneKey: ({ page, style, background, marks = DEFAULT_PAPER_EXPORT_MARKS }) =>
-      `${page}|${JSON.stringify(applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references))}|${background ?? ''}|${marks.letters}|${marks.highlights}`,
-    buildScene: async ({ page, style, background, marks = DEFAULT_PAPER_EXPORT_MARKS }) => {
+    // Keyed by the size the scene is built at, so "As shown" and the size it
+    // reads as are one scene.
+    sceneKey: ({ page, style, background, marks = DEFAULT_PAPER_EXPORT_MARKS, sheet = 'as-shown' }) =>
+      [
+        page,
+        JSON.stringify(applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references)),
+        background ?? '',
+        marks.letters,
+        marks.highlights,
+        referencesStepSheetCssPx(sheet),
+      ].join('|'),
+    buildScene: async ({
+      page,
+      style,
+      background,
+      marks = DEFAULT_PAPER_EXPORT_MARKS,
+      sheet = 'as-shown',
+    }) => {
       const step = steps[page];
       if (!step) return null;
       return referencesStepScene(referencesStepDiagramMarks(step.diagram, marks), {
         style,
         mirrored: step.mirrored,
-        sheetCssPx,
+        sheetCssPx: referencesStepSheetCssPx(sheet),
         lineWidth,
         showAux,
         background,

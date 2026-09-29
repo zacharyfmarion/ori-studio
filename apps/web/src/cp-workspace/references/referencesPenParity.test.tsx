@@ -36,7 +36,11 @@ import type {
   DiagramLineStyleName,
   StepDiagramModel,
 } from './referenceFinderDiagramToPrimitives';
-import { referencesStepPaintStyle, referencesStepScene } from './referencesStepExport';
+import {
+  referencesStepPaintStyle,
+  referencesStepScene,
+  referencesStepSheetCssPx,
+} from './referencesStepExport';
 import { StepDiagram } from './StepDiagram';
 import { DIAGRAM_CARD_DASH_SCALE } from './stepDiagramGeometry';
 import { referencesCanvasPens, referencesPaperTokens } from './usePaperStyleTokens';
@@ -103,7 +107,7 @@ function page(diagram: StepDiagramModel, style: PaperStyle): Record<string, stri
   const scene = referencesStepScene(diagram, {
     style,
     mirrored: false,
-    sheetCssPx: 512,
+    sheetCssPx: referencesStepSheetCssPx(DEFAULT_PAPER_PAGE.sheet),
     lineWidth: 1,
     showAux: null,
     background: DEFAULT_PAPER_PAGE.background,

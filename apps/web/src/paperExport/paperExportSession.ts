@@ -4,10 +4,11 @@
  *
  * A scene carries geometry and roles, and bakes in only what its target's
  * `sceneKey` names (the light, the widest pen, the ground for References'
- * marks). So an option that changes the key rebuilds the scene from the
- * target's capture, and every other option — the sheet size, the margin, the
- * background of a surface that does not draw against it — only repaints,
- * which is a string built from the scene already in hand.
+ * marks, and a References step's sheet size, since its marks keep their size
+ * at any). So an option that changes the key rebuilds the scene from the
+ * target's capture, and every other option — the sheet size of every other
+ * surface, the margin, the background of a surface that does not draw against
+ * it — only repaints, which is a string built from the scene already in hand.
  */
 import type { PaperPage } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
@@ -80,7 +81,7 @@ export function paperExportPage(
 export function paperExportSceneInput(
   target: Pick<PaperExportTarget, 'buriesFaces'>,
   style: PaperStyle,
-  options: Pick<PaperExportSettings, 'format' | 'keepHiddenFaces' | 'background'> &
+  options: Pick<PaperExportSettings, 'format' | 'keepHiddenFaces' | 'background' | 'sheet'> &
     Partial<Pick<PaperExportSettings, 'marks'>>,
   page = 0
 ): PaperSceneInput {
@@ -90,6 +91,7 @@ export function paperExportSceneInput(
     markHidden: !paperExportKeepsHiddenFaces(target, options),
     background: options.background,
     marks: options.marks ?? DEFAULT_PAPER_EXPORT_MARKS,
+    sheet: options.sheet,
   };
 }
 

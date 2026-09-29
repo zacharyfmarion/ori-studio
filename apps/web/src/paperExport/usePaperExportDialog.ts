@@ -205,9 +205,14 @@ export function usePaperExportDialog(
   const inputs = useMemo(
     () =>
       pageIndices.map((page) =>
-        paperExportSceneInput(target, style, { format, keepHiddenFaces, background, marks }, page)
+        paperExportSceneInput(
+          target,
+          style,
+          { format, keepHiddenFaces, background, marks, sheet },
+          page
+        )
       ),
-    [pageIndices, target, style, format, keepHiddenFaces, background, marks]
+    [pageIndices, target, style, format, keepHiddenFaces, background, marks, sheet]
   );
   const key = inputs.map((input) => target.sceneKey(input)).join('\n');
   const built = usePaperExportScenes(session, inputs, key);

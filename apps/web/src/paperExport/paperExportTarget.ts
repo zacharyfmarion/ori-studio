@@ -3,8 +3,9 @@
  * dialog opens, and what the dialog needs to know about it.
  *
  * A surface's export verb no longer saves. It captures what it would have
- * exported at that moment into a target — the diagram and camera, the folded
- * figure's model, the simulation's positions — and opens the dialog on it, so
+ * exported at that moment into a target — the step's diagram and the face and
+ * pen it is drawn with, the folded figure's model, the simulation's
+ * positions — and opens the dialog on it, so
  * every repaint and rebuild the dialog makes works from that one capture
  * (X3 in `implementation-plans/paper-export-dialog.md`).
  *
@@ -13,6 +14,7 @@
  * a fake one in a test.
  */
 import type { PaperExportScope } from '../analytics/events';
+import type { PaperSheetSize } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
 import type { Hex, PaperStyle, PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
@@ -38,6 +40,13 @@ export interface PaperSceneInput {
    * then part of its key. The dialog always fills it (`paperExportSceneInput`).
    */
   marks?: PaperExportMarks;
+  /**
+   * The page's sheet size; absent is "As shown". Read only by a target whose
+   * scene is drawn at the page's own scale — a References step, whose marks
+   * keep their size on the page as its lines keep their widths — and then part
+   * of its key. The dialog always fills it (`paperExportSceneInput`).
+   */
+  sheet?: PaperSheetSize;
 }
 
 /** One page of a target that has several: a step of a References sequence. */

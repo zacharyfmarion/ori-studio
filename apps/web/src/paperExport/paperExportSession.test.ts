@@ -93,24 +93,26 @@ describe('hidden faces', () => {
 });
 
 describe('paperExportSceneInput', () => {
-  it('hands the target the marks the options carry', () => {
+  it('hands the target the marks and the sheet size the options carry', () => {
     const marks = { letters: false, highlights: true };
-    const options = { ...DEFAULT_PAPER_EXPORT_SETTINGS, marks };
+    const options = { ...DEFAULT_PAPER_EXPORT_SETTINGS, marks, sheet: { mm: 41 } };
     expect(paperExportSceneInput({ buriesFaces: false }, EXPORT_STYLE, options, 2)).toEqual({
       page: 2,
       style: EXPORT_STYLE,
       markHidden: false,
       background: null,
       marks,
+      sheet: { mm: 41 },
     });
   });
 
   it('carries every mark for options without any', () => {
-    const { format, keepHiddenFaces, background } = DEFAULT_PAPER_EXPORT_SETTINGS;
+    const { format, keepHiddenFaces, background, sheet } = DEFAULT_PAPER_EXPORT_SETTINGS;
     const input = paperExportSceneInput({ buriesFaces: false }, EXPORT_STYLE, {
       format,
       keepHiddenFaces,
       background,
+      sheet,
     });
     expect(input.marks).toEqual({ letters: true, highlights: true });
   });

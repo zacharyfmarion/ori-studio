@@ -74,11 +74,14 @@ describe('simulatorExportTarget', () => {
     for (const changed of rebuilt) expect(target.sceneKey(changed)).not.toBe(key);
   });
 
-  it('only repaints for a colour, the background, or a pen the simulator does not draw', () => {
+  it('only repaints for a colour, the background, the sheet size, or a pen it does not draw', () => {
     const target = targetOf();
     const key = target.sceneKey(input());
     const repainted = [
       input({ background: '#000000' }),
+      // Only a References step is drawn at the page's scale.
+      input({ sheet: { mm: 41 } }),
+      input({ sheet: { mm: 120 } }),
       input({ style: restyled(() => ({ paper: { front: '#ff0000', back: '#00ff00' } })) }),
       input({ style: restyled(({ edges }) => ({ edges: { ...edges, color: '#ff0000' } })) }),
       // Wider than every pen the simulator draws, but only References draws arrows.

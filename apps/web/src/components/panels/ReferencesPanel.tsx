@@ -462,7 +462,6 @@ export function ReferencesPanel() {
     // The page's diagram, not the canvas's: a file has nothing under it, so
     // it carries the creases made so far itself.
     diagram: highlights.pageDiagram,
-    camera: diagramCamera,
     mirrored,
     // The letters and arrows the size they are on screen.
     lineWidth: view.lineWidth,

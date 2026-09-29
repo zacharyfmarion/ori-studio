@@ -9,8 +9,11 @@
 // see one. That split is what lets the app's paper style reach every export
 // through one painter rather than one serializer per surface.
 //
-// Scene coordinates are the CSS pixels of the camera the surface showed, which
-// every producer already has. The painter is the one place they become points.
+// Scene coordinates are CSS pixels. The two producers here use the camera the
+// surface showed, which they already have. The app's References step is drawn
+// at the page's own scale instead, so that one of its px is 0.75 pt on the
+// page whatever the sheet size and its marks keep their on-screen size. The
+// painter is the one place they become points.
 import {
   projectVertices,
   projectViewPoint,

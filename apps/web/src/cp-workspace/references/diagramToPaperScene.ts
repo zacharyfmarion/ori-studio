@@ -59,9 +59,10 @@ export interface DiagramToPaperSceneOptions {
   style: PaperStyle;
   /**
    * Sheet units to scene px: the fit a card draws through, or the big view's
-   * camera. Its `mirrored` says the picture is of the paper's back, and the
-   * scene follows it — the sheet's back, every fold named from that side —
-   * as the card follows the flag it built its projector from.
+   * projector at the page's scale (`referencesStepScene`). Its `mirrored`
+   * says the picture is of the paper's back, and the scene follows it — the
+   * sheet's back, every fold named from that side — as the card follows the
+   * flag it built its projector from.
    */
   project: DiagramProjector;
   /**
@@ -134,7 +135,8 @@ export function diagramToPaperScene(
   const project = withPens(options.project, {
     ...options.project.pens,
     // The arrow is the style's pen: its width in pt as CSS px, in the
-    // drawing's ink, with the pen's own dash and cap.
+    // drawing's ink, with the pen's own dash and cap — so on a page painted
+    // at the screen's ratio, which a step's page is, it is the pen's pt.
     arrow: penInk(seen.arrows, (seen.arrows.width * PT_TO_CSS_PX) / options.project.ink),
   });
   const mirrored = options.mirrored ?? project.mirrored;
@@ -152,9 +154,8 @@ export function diagramToPaperScene(
   const context = createDiagramRenderContext(drawn, sheet, project, {
     // No box to hold the letters in, as on the big view: a card's bounds are
     // its viewBox, and a page has no edge of its own. Charging a letter for
-    // leaving a box the reader never saw puts it somewhere the view does not,
-    // which is the one thing an as-shown export must not do; the page grows
-    // to hold them instead.
+    // leaving a box the reader never saw would push it somewhere the view
+    // does not; the page grows to hold them instead.
     layout: {},
     creases: { showAux, erode: seen.erode },
     // The page's ground is also what a mark off the sheet is inked against:

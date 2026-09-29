@@ -324,6 +324,9 @@ describe('usePaperExportDialog', () => {
     await act(async () => dialog().patch({ paddingMm: 20 }));
     expect(buildScene).toHaveBeenCalledTimes(1);
     expect(dialog().preview!.page.widthPt).toBeGreaterThan(narrow);
+    // A sheet size is a page option for a target whose key leaves it out.
+    await act(async () => dialog().patch({ sheet: { mm: 120 } }));
+    expect(buildScene).toHaveBeenCalledTimes(1);
     await act(async () => dialog().patch({ style: 'builtin:diagram' }));
     expect(buildScene).toHaveBeenCalledTimes(2);
     expect(buildScene.mock.calls[1]![0].style.paper.front).toBe(builtInPaperPreset('diagram').style.paper.front);
@@ -713,6 +716,22 @@ describe('usePaperExportDialog on a target with diagram marks', () => {
     await act(async () => dialog().patch({ marks: { letters: false, highlights: true } }));
     expect(buildScene).toHaveBeenCalledTimes(2);
     expect(buildScene.mock.calls[1]![0].marks).toEqual({ letters: false, highlights: true });
+  });
+
+  it('builds the scene at the page’s sheet size, and rebuilds it for another', async () => {
+    // A References step's scene is drawn at the page's scale, so its key names the size.
+    const { target, buildScene } = fakeTarget({
+      surface: 'references',
+      buriesFaces: false,
+      defaultSheetMm: 41,
+      sceneKey: ({ page, style, sheet }) => `${page}|${style.paper.front}|${JSON.stringify(sheet)}`,
+    });
+    const dialog = await open(target);
+    expect(buildScene.mock.calls[0]![0].sheet).toEqual({ mm: 41 });
+    await act(async () => dialog().patch({ sheet: { mm: 120 } }));
+    expect(buildScene).toHaveBeenCalledTimes(2);
+    expect(buildScene.mock.calls[1]![0].sheet).toEqual({ mm: 120 });
+    expect(dialog().canExport).toBe(true);
   });
 
   it('builds every page of the set without the marks that are off', async () => {

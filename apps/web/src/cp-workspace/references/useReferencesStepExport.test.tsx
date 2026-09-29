@@ -19,8 +19,8 @@ import type { ReferencesResults } from './referencesResults';
 import { referencesViewSteps } from './referencesSequenceView';
 import {
   referencesSequenceSubject,
-  referencesSheetCssPx,
   referencesStepScene,
+  referencesStepSheetCssPx,
 } from './referencesStepExport';
 import {
   referencesStepExportTitle,
@@ -44,7 +44,6 @@ const DIAGRAM: StepDiagramModel = {
   sheet: { width: 400, height: 400, centre: [200, 200], axes: { x: [1, 0], y: [0, -1] } },
   primitives: [{ kind: 'line', from: [0, 200], to: [400, 200], style: 'mountain' }],
 };
-const CAMERA = { view: { origin: [0, 0] as const, ex: [2, 0] as const, ey: [0, 2] as const } };
 
 /** The planner's unit frame scaled and flipped, as `rfToModelMany` maps it. */
 function mapToModel(points: Float64Array): Float64Array {
@@ -148,7 +147,6 @@ function Probe({ input }: { input: ReferencesStepExportInput }): null {
 function mount(overrides: Partial<ReferencesStepExportInput> = {}) {
   const input: ReferencesStepExportInput = {
     diagram: DIAGRAM,
-    camera: CAMERA,
     mirrored: false,
     lineWidth: 1,
     subject: { kind: 'step', step: 2 },
@@ -219,17 +217,24 @@ describe('useReferencesStepExport', () => {
     expect(toast.error).toHaveBeenCalledWith('There is no step to export yet');
   });
 
-  it('rebuilds the scene for a new style or ground, and only repaints for the rest', () => {
+  it('rebuilds the scene for a new style, ground or sheet size, and only repaints for the rest', () => {
     mount().exportStep();
     const target = request()!.target;
     const style = exportPaperStyle(useSettingsStore.getState().paperStyle);
-    const base = paperExportSceneInput(target, style, DEFAULT_PAPER_EXPORT_SETTINGS);
+    const base = paperExportSceneInput(target, style, {
+      ...DEFAULT_PAPER_EXPORT_SETTINGS,
+      sheet: { mm: 41 },
+    });
     const key = target.sceneKey(base);
     expect(target.sceneKey({ ...base, markHidden: true })).toBe(key);
     expect(target.sceneKey({ ...base, background: '#000000' })).not.toBe(key);
     expect(
       target.sceneKey({ ...base, style: { ...style, arrows: { ...style.arrows, color: '#ff0000' } } })
     ).not.toBe(key);
+    // Drawn at the page's scale, so its marks keep their size on any sheet.
+    expect(target.sceneKey({ ...base, sheet: { mm: 120 } })).not.toBe(key);
+    // "As shown" is the size it reads as, so it is the same scene.
+    expect(target.sceneKey({ ...base, sheet: 'as-shown' })).toBe(key);
   });
 });
 
@@ -276,7 +281,7 @@ describe('useReferencesStepExport, on every step', () => {
     const style = exportPaperStyle(useSettingsStore.getState().paperStyle);
     const options = {
       style,
-      sheetCssPx: referencesSheetCssPx(DIAGRAM.sheet, CAMERA),
+      sheetCssPx: referencesStepSheetCssPx(DEFAULT_PAPER_EXPORT_SETTINGS.sheet),
       lineWidth: 1,
       showAux: useSettingsStore.getState().referencesShowAuxCreases,
       background: DEFAULT_PAPER_EXPORT_SETTINGS.background,
@@ -367,7 +372,7 @@ describe('useReferencesStepExport, on every step', () => {
       referencesStepScene(captured[3]!.diagram, {
         style,
         mirrored: captured[3]!.mirrored,
-        sheetCssPx: referencesSheetCssPx(captured[3]!.diagram.sheet, CAMERA),
+        sheetCssPx: referencesStepSheetCssPx(DEFAULT_PAPER_EXPORT_SETTINGS.sheet),
         lineWidth: 1,
         showAux: useSettingsStore.getState().referencesShowAuxCreases,
         background: DEFAULT_PAPER_EXPORT_SETTINGS.background,

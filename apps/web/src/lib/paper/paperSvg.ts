@@ -1,8 +1,10 @@
 /**
  * The painter: a {@link PaperScene} and a {@link PaperStyle} to an SVG page.
  *
- * The one place a scene's CSS px become points. Every producer hands over the
- * picture at the camera its surface showed; this module places it on a page
+ * The one place a scene's CSS px become points. A producer hands over the
+ * picture at the camera its surface showed — or, for a References step, at the
+ * page's own scale ({@link mmToCssPx}), so that its marks keep their on-screen
+ * size on a sheet of any size; this module places it on a page
  * in pt (`width`/`height` with a matching viewBox, so an editor reads a 0.75 pt
  * pen as 0.75 pt), inks each face with the paper colour its side and shade
  * call for, and draws each line with the pen its role names. No React, no
@@ -26,6 +28,17 @@ import { PT_TO_CSS_PX, type Hex, type PaperStyle, type Pen } from './paperStyle'
 export const PT_PER_CSS_PX = 0.75;
 
 export const PT_PER_MM = 72 / 25.4;
+
+/**
+ * A length on the page in the scene px that measure it at the screen's own
+ * ratio ({@link PT_PER_CSS_PX}): how long a scene must draw something for it
+ * to span `mm` on the page. A scene built at this size for its sheet is
+ * painted at the screen's ratio whatever sheet size the page asks for, so
+ * whatever it sizes in CSS px — a References step's marks — keeps that size.
+ */
+export function mmToCssPx(mm: number): number {
+  return (mm * PT_PER_MM) / PT_PER_CSS_PX;
+}
 
 /**
  * Hairline stroke on each face, in its own fill colour.
@@ -209,8 +222,11 @@ function sceneElements(
  * the shift. Its pens are in scene px too, so a stroke drawn at the arrow
  * pen's CSS px comes out at the pen's pt on an as-shown page. Markup is
  * placed, not repainted: a sheet size scales it whole, strokes included, where
- * a line keeps its pen's pt — the diagram's symbols are sized as shares of the
- * paper on screen too, and scale with it there.
+ * a line keeps its pen's pt. A producer whose marks should keep their size as
+ * the lines keep their widths builds its scene at the page's own scale
+ * ({@link mmToCssPx}), so the scale here is the as-shown one at any sheet size.
+ * A References step is built so, and its arrows, rings and letters are the
+ * size they are on screen on every page.
  */
 function markupElement(
   markup: PaperMarkupItem,

@@ -23,6 +23,7 @@ import {
   erodeLine,
   erodeSegment,
   markupTransform,
+  mmToCssPx,
   pageMarginPt,
   pagePtPerPx,
   paperFaceFill,
@@ -94,6 +95,15 @@ describe('the page', () => {
 
   it('falls back to the screen ratio when the scene has no sheet to scale by', () => {
     expect(pagePtPerPx(sceneOf([], 0), { ...TIGHT, sheet: { mm: 200 } })).toBe(PT_PER_CSS_PX);
+  });
+
+  it('measures a length in mm as the scene px that span it at the screen’s ratio', () => {
+    // An inch is 96 CSS px.
+    expect(mmToCssPx(25.4)).toBeCloseTo(96, 9);
+    // A scene whose sheet is that long is painted at the screen's ratio at
+    // that sheet size, so what it sizes in CSS px keeps its size on the page.
+    const page: PaperPage = { ...TIGHT, sheet: { mm: 41 } };
+    expect(pagePtPerPx(sceneOf([], mmToCssPx(41)), page)).toBeCloseTo(PT_PER_CSS_PX, 12);
   });
 
   it('crops to the scene bounds, hidden included, so dropping them does not move the page', () => {

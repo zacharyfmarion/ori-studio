@@ -9,7 +9,6 @@ import { focusedElement, usePaperExportUiStore } from '../../store/paperExportUi
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
-import type { ReferencesDiagramView } from './ReferencesCpView';
 import {
   referencesExportSteps,
   type ReferencesExportStep,
@@ -17,7 +16,6 @@ import {
 } from './referencesExportSteps';
 import { referencesExportTarget } from './referencesExportTarget';
 import {
-  referencesSheetCssPx,
   referencesStepEntryName,
   referencesStepExportName,
   referencesStepsArchiveName,
@@ -29,11 +27,11 @@ import {
  * export commands in the action catalog.
  *
  * The panel hands it what it alone knows — the diagram the big view is
- * showing, the camera it draws through, which face the reader is on and which
- * card it is, and what the strip holds. A verb captures that as the export
- * dialog's target — the step on show and every other step the strip has — and
- * opens the dialog on the step or on all of them, where the style, the page
- * and the format are chosen with the page in view (`PaperExportModal`).
+ * showing, which face the reader is on and which card it is, and what the
+ * strip holds. A verb captures that as the export dialog's target — the step
+ * on show and every other step the strip has — and opens the dialog on the
+ * step or on all of them, where the style, the page and the format are chosen
+ * with the page in view (`PaperExportModal`).
  *
  * The diagram is the step at rest: the fold animation's mid-fold pose is not
  * exported (the plan records it as a later option).
@@ -45,8 +43,6 @@ export interface ReferencesStepExportInput {
    * or null when there is no step showing.
    */
   diagram: StepDiagramModel | null;
-  /** The big view's camera, or null before its first frame; the page then takes a fixed sheet size. */
-  camera: ReferencesDiagramView | null;
   /** The reader is on the paper's back. */
   mirrored: boolean;
   /** The reader's crease width, which is the diagram's pen on the big view. */
@@ -125,7 +121,6 @@ function capturedSteps(
 /** Open the export dialog on the step, or on every step: on the remembered format, or on the verb's own. */
 export function useReferencesStepExport({
   diagram,
-  camera,
   mirrored,
   lineWidth,
   subject,
@@ -162,8 +157,6 @@ export function useReferencesStepExport({
         allTitle: t('dialogs:paperExport.titleAllSteps', 'Export all steps'),
         zipStem: referencesStepsArchiveName(workspaceTitle, onShow.subject),
         exportStyle: exportPaperStyle(paperStyle),
-        // Every step is the same sheet, drawn at the big view's scale.
-        sheetCssPx: referencesSheetCssPx(onShow.diagram.sheet, camera),
         lineWidth,
         // The option when the reader has set it; otherwise the export style's
         // own switch, as every other surface's export follows it.
@@ -176,7 +169,7 @@ export function useReferencesStepExport({
       // focus, still work.
       usePaperExportUiStore.getState().open({ target, format, scope, returnFocus: focusedElement() });
     },
-    [diagram, camera, mirrored, lineWidth, subject, source, t]
+    [diagram, mirrored, lineWidth, subject, source, t]
   );
 
   return useMemo(

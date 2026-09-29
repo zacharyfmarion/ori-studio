@@ -1,19 +1,18 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_PAGE, type PaperPage } from '../../lib/paper/paperPage';
+import { DEFAULT_PAPER_PAGE, DIAGRAM_STEP_SHEET_MM, type PaperPage } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
-import { PT_PER_CSS_PX, pageMarginPt } from '../../lib/paper/paperSvg';
+import { PT_PER_MM, mmToCssPx, pageMarginPt } from '../../lib/paper/paperSvg';
 import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
 import { paperSceneToSvg } from '../../lib/paper/paperSvg';
 import {
-  REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX,
-  referencesSheetCssPx,
   referencesStepDiagramMarks,
   referencesSequenceSubject,
   referencesStepEntryName,
   referencesStepExportName,
   referencesStepPaintStyle,
   referencesStepScene,
+  referencesStepSheetCssPx,
   referencesStepsArchiveName,
   type ReferencesStepExportSubject,
 } from './referencesStepExport';
@@ -47,24 +46,26 @@ const MOUNTAIN: StepDiagramPrimitive = {
 };
 const LETTER: StepDiagramPrimitive = { kind: 'label', at: [0, 0], text: 'A', style: 'action' };
 
+/** A printed diagram's step: the page the dialog opens a step on. */
+const STEP_PAGE: PaperPage = { ...DEFAULT_PAPER_PAGE, sheet: { mm: DIAGRAM_STEP_SHEET_MM } };
+
 function paint(
   diagram: StepDiagramModel,
   options: {
     style?: PaperStyle;
     page?: PaperPage;
     mirrored?: boolean;
-    sheetCssPx?: number;
     showAux?: boolean | null;
   } = {}
 ) {
   // The step through the scene and the painter, as the export dialog's
-  // References target draws it (`referencesExportTarget`).
+  // References target draws it (`referencesExportTarget`): at the page's scale.
   const style = options.style ?? DEFAULT_PAPER_STYLE;
-  const page = options.page ?? DEFAULT_PAPER_PAGE;
+  const page = options.page ?? STEP_PAGE;
   const scene = referencesStepScene(diagram, {
     style,
     mirrored: options.mirrored ?? false,
-    sheetCssPx: options.sheetCssPx ?? 512,
+    sheetCssPx: referencesStepSheetCssPx(page.sheet),
     lineWidth: 1,
     showAux: options.showAux ?? null,
     background: page.background,
@@ -72,33 +73,30 @@ function paint(
   return paperSceneToSvg(scene, referencesStepPaintStyle(style), page);
 }
 
-describe('referencesSheetCssPx', () => {
-  it('is the sheet’s longer side through the camera’s scale', () => {
-    const camera = { view: { origin: [10, 20] as const, ex: [2, 0] as const, ey: [0, 2] as const } };
-    expect(referencesSheetCssPx({ width: 400, height: 300 }, camera)).toBe(800);
-    // The mirrored view reflects x; the size is the same.
-    const back = { view: { origin: [10, 20] as const, ex: [-2, 0] as const, ey: [0, 2] as const } };
-    expect(referencesSheetCssPx({ width: 400, height: 300 }, back)).toBe(800);
+describe('referencesStepSheetCssPx', () => {
+  it('is the page’s sheet size in the scene px that span it at 0.75 pt a px', () => {
+    expect(referencesStepSheetCssPx({ mm: 120 })).toBe(mmToCssPx(120));
+    expect(referencesStepSheetCssPx({ mm: 41 })).toBeCloseTo((41 * PT_PER_MM) / 0.75, 9);
   });
 
-  it('takes a fixed size before the view has drawn a frame', () => {
-    expect(referencesSheetCssPx({ width: 400, height: 400 }, null)).toBe(
-      REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX
+  it('reads "As shown", which the dialog does not offer a step, as a printed diagram’s step', () => {
+    expect(referencesStepSheetCssPx('as-shown')).toBe(
+      referencesStepSheetCssPx({ mm: DIAGRAM_STEP_SHEET_MM })
     );
-    expect(REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX).toBe(512);
   });
 });
 
 describe('a step’s page', () => {
-  it('puts the sheet on the page at its on-screen size, with the card’s band round it', () => {
-    const page = paint(model(MOUNTAIN), { sheetCssPx: 512 });
+  it('puts the sheet on the page at the page’s sheet size, with the card’s band round it', () => {
+    const page = paint(model(MOUNTAIN));
     // The box is the sheet plus DIAGRAM_PADDING of the box each side.
-    const boxPx = 512 / (1 - 2 * DIAGRAM_PADDING);
-    const margin = pageMarginPt(DEFAULT_PAPER_STYLE, DEFAULT_PAPER_PAGE);
-    expect(page.widthPt).toBeCloseTo(boxPx * PT_PER_CSS_PX + 2 * margin, 6);
-    expect(page.heightPt).toBeCloseTo(boxPx * PT_PER_CSS_PX + 2 * margin, 6);
-    // A bigger view is a bigger page: as shown.
-    expect(paint(model(MOUNTAIN), { sheetCssPx: 1024 }).widthPt).toBeGreaterThan(page.widthPt);
+    const boxPt = (DIAGRAM_STEP_SHEET_MM * PT_PER_MM) / (1 - 2 * DIAGRAM_PADDING);
+    const margin = pageMarginPt(DEFAULT_PAPER_STYLE, STEP_PAGE);
+    expect(page.widthPt).toBeCloseTo(boxPt + 2 * margin, 6);
+    expect(page.heightPt).toBeCloseTo(boxPt + 2 * margin, 6);
+    // A bigger sheet is a bigger page.
+    const bigger: PaperPage = { ...STEP_PAGE, sheet: { mm: 120 } };
+    expect(paint(model(MOUNTAIN), { page: bigger }).widthPt).toBeGreaterThan(page.widthPt);
   });
 
   it('paints with the style handed to it, through the references policy', () => {
@@ -164,7 +162,7 @@ describe('a step’s page', () => {
   });
 
   it('paints the page it is given', () => {
-    const page: PaperPage = { ...DEFAULT_PAPER_PAGE, background: '#fafafa' };
+    const page: PaperPage = { ...STEP_PAGE, background: '#fafafa' };
     const { svg } = paint(model(MOUNTAIN), { page });
     expect(svg).toContain('fill="#fafafa"');
     // The page's ground is a letter's halo, as the workspace's ground is on screen.
@@ -217,7 +215,7 @@ describe('referencesStepDiagramMarks', () => {
     referencesStepScene(diagram, {
       style: DEFAULT_PAPER_STYLE,
       mirrored: false,
-      sheetCssPx: 512,
+      sheetCssPx: referencesStepSheetCssPx(STEP_PAGE.sheet),
       lineWidth: 1,
       background: null,
     });

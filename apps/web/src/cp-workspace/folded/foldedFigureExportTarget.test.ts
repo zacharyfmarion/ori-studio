@@ -374,6 +374,8 @@ describe('foldedFigureExportTarget’s scene key', () => {
     expect(sceneKey(input({ markHidden: true }))).not.toBe(plain);
     expect(sceneKey(input({ style: recoloured }))).toBe(plain);
     expect(sceneKey(input({ background: '#223344' }))).toBe(plain);
+    // Only a References step is drawn at the page's scale.
+    expect(sceneKey(input({ sheet: { mm: 120 } }))).toBe(plain);
   });
 
   it('never rebuilds a stored 3D scene or a fixed picture', () => {
@@ -390,6 +392,7 @@ describe('foldedFigureExportTarget’s scene key', () => {
         input({ style: recoloured }),
         input({ markHidden: true }),
         input({ background: '#223344' }),
+        input({ sheet: { mm: 120 } }),
       ]) {
         expect(sceneKey(changed)).toBe(plain);
       }
@@ -402,6 +405,7 @@ describe('foldedFigureExportTarget’s scene key', () => {
     expect(sceneKey(input({ markHidden: true }))).not.toBe(plain);
     for (const style of [relit, heavier, recoloured]) expect(sceneKey(input({ style }))).toBe(plain);
     expect(sceneKey(input({ background: '#223344' }))).toBe(plain);
+    expect(sceneKey(input({ sheet: { mm: 120 } }))).toBe(plain);
   });
 
   it('builds the live 3D scene the key names', async () => {

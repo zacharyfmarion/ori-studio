@@ -2,12 +2,32 @@
  * A precrease step as a painted page, and the file it is saved as.
  *
  * The step the big view shows — a plan step, a turn-over, or a ReferenceFinder
- * step of the shown candidate — goes through `diagramToPaperScene` at the size
- * the view draws its sheet, and onto the export page through the shared
- * painter, as the simulator and the folded figures do (D3: the default sheet
- * size is the on-screen size, which is exact WYSIWYG). The style is the export
- * style through the `references` policy: the same reading of it the workspace
- * root carries and the cards draw with.
+ * step of the shown candidate — goes through `diagramToPaperScene` by the big
+ * view's projector, and onto the export page through the shared painter, as
+ * the simulator and the folded figures do. The style is the export style
+ * through the `references` policy: the same reading of it the workspace root
+ * carries and the cards draw with.
+ *
+ * The scene is built at the page's own scale, not the view's: its sheet is as
+ * many CSS px as the page's sheet size is at 0.75 pt a px
+ * ({@link referencesStepSheetCssPx}). The painter draws a line at its pen's pt
+ * width whatever the sheet size, but places the diagram's marks — the arrows
+ * and their heads, the rings, the letters and their halos, the turn-over
+ * glyph — by scaling them with the paper. Built at the page's scale, that
+ * scale is the screen's own, so every mark is the size it is on screen on a
+ * page of any size, as every line is the width it is, and only the paper
+ * grows or shrinks with the sheet size. Built at the view's size instead, a
+ * 41 mm step shrank a 160 mm view's arrows to a quarter of their weight.
+ *
+ * One mark gives way to the paper: an arrowhead is held to a quarter of its
+ * own arrow's chord (`arrowheadSize`), here as on screen, so that a short fold
+ * gets a head rather than a blob. The chord is paper and shrinks with the
+ * sheet, so a short fold on a small sheet has a smaller head than on a large
+ * view — the head the view itself draws when it shows the sheet at the page's
+ * size — while its stroke keeps the pen's weight. At the 41 mm a step opens
+ * at and the default line width, that is a fold shorter than about a third of
+ * the sheet. Giving the head its full size there instead would draw what the
+ * cap exists to prevent: a head that is most of its arrow.
  *
  * The diagram handed here is the *page's* (`ReferencesPlanScene.pageDiagram`),
  * not the canvas's: the big view's picture is the overlay over the document's
@@ -15,40 +35,31 @@
  * the diagram — drawn as the card draws it, in the aux pen.
  *
  * Pure: the export dialog's References target (`referencesExportTarget`)
- * captures the camera, the face and the pen when the dialog opens and builds
- * its scenes here, so a test can paint a step in Node and read the page.
+ * captures the face and the pen when the dialog opens and builds its scenes
+ * here, one per sheet size, so a test can paint a step in Node and read the
+ * page.
  */
-import type { PaperPage } from '../../lib/paper/paperPage';
+import { DIAGRAM_STEP_SHEET_MM, type PaperPage, type PaperSheetSize } from '../../lib/paper/paperPage';
 import type { PaperExportMarks } from '../../lib/paperExportSettings';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import type { PaperScene } from '../../lib/paper/paperScene';
+import { mmToCssPx } from '../../lib/paper/paperSvg';
 import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
 import { diagramToPaperScene } from './diagramToPaperScene';
 import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
-import type { ReferencesDiagramView } from './ReferencesCpView';
 import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
-import { createOverlayProjector, sheetFrame, type DiagramSheet } from './stepDiagramGeometry';
+import { createOverlayProjector, sheetFrame } from './stepDiagramGeometry';
 
 /**
- * The sheet's longer side on the page, in CSS px, when the big view is not
- * there to measure it against — the panel before its first frame, or a test.
+ * The sheet's longer side on the page, in CSS px, for the page's sheet size:
+ * the size a step's scene is built at, so the painter places it at the
+ * screen's own ratio and its marks keep their on-screen size on a sheet of any
+ * size. "As shown" is no size for a step — the dialog does not offer it
+ * (`PaperExportTarget.defaultSheetMm`) — and reads as a printed diagram's.
  */
-export const REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX = 512;
-
-/**
- * The sheet's longer side as the big view draws it, in CSS px: the model
- * sheet through the camera's scale. The view's camera is a similarity with no
- * rotation, so one number is the whole of what the page needs from it.
- */
-export function referencesSheetCssPx(
-  sheet: Pick<DiagramSheet, 'width' | 'height'>,
-  camera: ReferencesDiagramView | null
-): number {
-  if (!camera) return REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX;
-  const { ex } = camera.view;
-  const px = Math.max(sheet.width, sheet.height) * Math.hypot(ex[0], ex[1]);
-  return px > 0 ? px : REFERENCES_STEP_EXPORT_FALLBACK_SHEET_PX;
+export function referencesStepSheetCssPx(sheet: PaperSheetSize): number {
+  return mmToCssPx(sheet === 'as-shown' ? DIAGRAM_STEP_SHEET_MM : sheet.mm);
 }
 
 /** What the step's scene is built from. */
@@ -57,7 +68,10 @@ export interface ReferencesStepSceneOptions {
   style: PaperStyle;
   /** The picture is of the paper's back — the side the reader is on. */
   mirrored: boolean;
-  /** The sheet's longer side on the page, in CSS px ({@link referencesSheetCssPx}). */
+  /**
+   * The sheet's longer side on the page, in CSS px: the scene's scale. The
+   * export builds at the page's sheet size ({@link referencesStepSheetCssPx}).
+   */
   sheetCssPx: number;
   /** The reader's crease width, which is the diagram's pen on the big view. */
   lineWidth: number;
@@ -78,7 +92,8 @@ export interface ReferencesStepSceneOptions {
  * scene's bounds and would not care, but the pages of a set share one crop
  * (`paperScenesOnOneCrop`), and the sheet must sit in the same place on every
  * one. The ink is the view's (`canvasDiagramInk`), so a letter and a mark's
- * ring are the size they are on screen.
+ * ring are the size they are on screen on a page painted at the screen's
+ * ratio — which, at {@link referencesStepSheetCssPx}, is every page.
  */
 export function referencesStepScene(
   diagram: StepDiagramModel,

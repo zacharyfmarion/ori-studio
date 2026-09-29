@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PaperScene } from '../../lib/paper/paperScene';
-import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
+import { PT_PER_CSS_PX, PT_PER_MM } from '../../lib/paper/paperSvg';
 import { DEFAULT_PAPER_EXPORT_SETTINGS, type PaperExportSettings } from '../../lib/paperExportSettings';
 import { paperPresetRows } from '../../lib/paperPresetRows';
 import {
@@ -14,19 +15,29 @@ import {
 import { paperExportDraft } from '../../paperExport/usePaperExportDialog';
 import golden from './__fixtures__/referencesStepExportGolden.json';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
-import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
+import {
+  canvasDiagramInk,
+  DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_LABEL_INK,
+  DIAGRAM_MARK_INK,
+} from './diagram/diagramInk';
+import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
 import { referencesExportTarget } from './referencesExportTarget';
 import { decodePlanModel, planModelPoints, planStepScene } from './referencesPlanGeometry';
 
 /**
- * The export dialog must write, for a References step, byte for byte the page
- * the direct export wrote before the dialog existed.
+ * The page the export dialog writes for a References step, byte for byte,
+ * through the dialog's own path: the draft, the style it resolves, the
+ * session's scene, and the paint.
  *
- * The golden pages were painted by that export — `referencesStepExportPage`
- * and its hook, as they stood before the dialog (197b46286) — and are
- * compared here with the dialog's own path: the draft, the style it resolves,
- * the session's scene, and the paint. Comparing with today's
- * `referencesStepScene` instead would compare the code with itself.
+ * The golden pages were first painted by the direct export the dialog
+ * replaced — `referencesStepExportPage` and its hook, as they stood before
+ * the dialog (197b46286) — and were repainted when a step's scene came to be
+ * built at the page's scale, so that its marks keep their on-screen size on a
+ * sheet of any size (`referencesStepSheetCssPx`). At a chosen sheet size the
+ * sheet and every line on it stayed the direct export's to the byte; only the
+ * marks, and the room a letter takes, changed. The defaults page is a printed
+ * diagram's step, the size the dialog opens a step at.
  */
 
 function mapToModel(points: Float64Array): Float64Array {
@@ -51,7 +62,6 @@ function stepDiagram(): StepDiagramModel {
 
 interface StepCapture {
   mirrored: boolean;
-  sheetCssPx: number;
   lineWidth: number;
   showAux: boolean | null;
 }
@@ -65,7 +75,6 @@ function target(capture: StepCapture, diagrams: readonly StepDiagramModel[] = [s
       entryStem: `${index + 1} step ${index + 1}`,
     })),
     current: 0,
-    sheetCssPx: capture.sheetCssPx,
     lineWidth: capture.lineWidth,
     showAux: capture.showAux,
     title: 'Export step 3',
@@ -80,7 +89,7 @@ function target(capture: StepCapture, diagrams: readonly StepDiagramModel[] = [s
 async function dialogPage(capture: StepCapture, remembered: PaperExportSettings) {
   const exported = target(capture);
   const rows = paperPresetRows([]);
-  const draft = paperExportDraft(remembered, { format: null }, rows);
+  const draft = paperExportDraft(remembered, { format: null, target: exported }, rows);
   const style = paperExportStyle(exported, draft.style, rows);
   const scene = await createPaperExportSession(exported).scene(
     paperExportSceneInput(exported, style, draft)
@@ -89,9 +98,9 @@ async function dialogPage(capture: StepCapture, remembered: PaperExportSettings)
 }
 
 describe('referencesExportTarget', () => {
-  it('writes the direct export’s page at the defaults', async () => {
+  it('writes a printed diagram’s step at the defaults', async () => {
     const page = await dialogPage(
-      { mirrored: false, sheetCssPx: 800, lineWidth: 1, showAux: null },
+      { mirrored: false, lineWidth: 1, showAux: null },
       DEFAULT_PAPER_EXPORT_SETTINGS
     );
     expect(page).toEqual(golden.defaults);
@@ -99,7 +108,7 @@ describe('referencesExportTarget', () => {
 
   it('writes it for a picked preset, a coloured page, a set size and margin, the back, and aux lines shown', async () => {
     const page = await dialogPage(
-      { mirrored: true, sheetCssPx: 640, lineWidth: 1.5, showAux: true },
+      { mirrored: true, lineWidth: 1.5, showAux: true },
       {
         ...DEFAULT_PAPER_EXPORT_SETTINGS,
         style: 'builtin:diagram',
@@ -114,7 +123,7 @@ describe('referencesExportTarget', () => {
   it('builds each page from its own step, and keys it by the page', async () => {
     const first = stepDiagram();
     const second: StepDiagramModel = { ...first, primitives: first.primitives.slice(0, 3) };
-    const exported = target({ mirrored: false, sheetCssPx: 400, lineWidth: 1, showAux: null }, [
+    const exported = target({ mirrored: false, lineWidth: 1, showAux: null }, [
       first,
       second,
     ]);
@@ -138,11 +147,11 @@ describe('referencesExportTarget', () => {
   });
 
   it('opens at a printed diagram’s step size, with no "as shown"', () => {
-    expect(target({ mirrored: false, sheetCssPx: 400, lineWidth: 1, showAux: null }).defaultSheetMm).toBe(41);
+    expect(target({ mirrored: false, lineWidth: 1, showAux: null }).defaultSheetMm).toBe(41);
   });
 
   it('offers both marks, keys its scene by them, and builds a page without the ones that are off', async () => {
-    const exported = target({ mirrored: false, sheetCssPx: 400, lineWidth: 1, showAux: null });
+    const exported = target({ mirrored: false, lineWidth: 1, showAux: null });
     expect(exported.marks).toEqual(['letters', 'highlights']);
     const input = paperExportSceneInput(exported, DEFAULT_PAPER_STYLE, DEFAULT_PAPER_EXPORT_SETTINGS);
     const keys = new Set(
@@ -179,7 +188,6 @@ describe('referencesExportTarget', () => {
         { diagram, mirrored: true, label: 'Step 2', entryStem: '2 step 2' },
       ],
       current: 0,
-      sheetCssPx: 400,
       lineWidth: 1,
       showAux: null,
       title: 'Export step 1',
@@ -201,5 +209,152 @@ describe('referencesExportTarget', () => {
       expect(each.widthPt).toBeCloseTo(alone.widthPt, 6);
       expect(sheetCorners(each.svg)).toEqual(sheetCorners(alone.svg));
     }
+  });
+});
+
+describe('a step’s marks on the page', () => {
+  /** The arrow and the edge each in an ink nothing else on the page is drawn in. */
+  const STYLE: PaperStyle = {
+    ...DEFAULT_PAPER_STYLE,
+    edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#0a0b0c' },
+    arrows: { width: 1.2, color: '#1a2b3c', dash: null, cap: 'round' },
+  };
+  const LINE_WIDTH = 1;
+
+  /** Every element of one tag in some markup, as its attribute map. */
+  function elements(markup: string, tag: string): Record<string, string>[] {
+    return [...markup.matchAll(new RegExp(`<${tag}\\s([^>]*?)/?>`, 'g'))].map((match) =>
+      Object.fromEntries([...match[1]!.matchAll(/([\w-]+)="([^"]*)"/g)].map((a) => [a[1], a[2]]))
+    );
+  }
+
+  /** A ring, at the sheet's centre. */
+  const RING: StepDiagramPrimitive = { kind: 'point', at: [0, 0], style: 'highlight' };
+
+  /**
+   * The step — the plan's, with its letter off the paper, and `extra` after
+   * it — on a page of `mm`, through the target and the painter as the dialog
+   * paints it: the page's own lines and face, and its marks with the scale the
+   * painter placed them at.
+   */
+  async function pageAt(mm: number, extra: readonly StepDiagramPrimitive[] = [RING]) {
+    const diagram = stepDiagram();
+    const extended: StepDiagramModel = { ...diagram, primitives: [...diagram.primitives, ...extra] };
+    const exported = target({ mirrored: false, lineWidth: LINE_WIDTH, showAux: null }, [extended]);
+    const options = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm } };
+    const scene = await exported.buildScene(paperExportSceneInput(exported, STYLE, options));
+    const { svg } = paintPaperExport(exported, scene!, STYLE, paperExportPage(exported, options));
+    const rows = svg.split('\n');
+    const group = rows.find((row) => row.startsWith('  <g transform='))!;
+    const placed = /^ {2}<g transform="translate\(\S+ \S+\) scale\(([^)]+)\)">(.*)<\/g>$/;
+    const [, scale, markup] = placed.exec(group)!;
+    return {
+      /** The page outside the marks: the face and the lines, one element a row. */
+      page: rows.filter((row) => row !== group).join('\n'),
+      markup: markup!,
+      /** Page pt per unit of the marks' own markup. */
+      scale: Number(scale),
+    };
+  }
+
+  it('keeps every mark its on-screen size at any sheet size, as the lines keep their widths', async () => {
+    // What each mark is on screen, in pt: its CSS px in the big view's ink.
+    const ink = canvasDiagramInk(LINE_WIDTH) * PT_PER_CSS_PX;
+    for (const mm of [41, 120]) {
+      const { page, markup, scale } = await pageAt(mm);
+      // The paper alone takes the sheet size.
+      const [sheet] = elements(page, 'polygon');
+      const corners = sheet!.points!.split(' ').map((pair) => pair.split(',').map(Number));
+      const xs = corners.map(([x]) => x!);
+      const ys = corners.map(([, y]) => y!);
+      expect(Math.max(...xs) - Math.min(...xs), `${mm} mm`).toBeCloseTo(mm * PT_PER_MM, 1);
+      expect(Math.max(...ys) - Math.min(...ys), `${mm} mm`).toBeCloseTo(mm * PT_PER_MM, 1);
+      // The edge is its pen's pt.
+      const edges = elements(page, 'line').filter((line) => line.stroke === STYLE.edges.color);
+      expect(edges).toHaveLength(4);
+      for (const edge of edges) expect(Number(edge['stroke-width'])).toBe(STYLE.edges.width);
+      // The marks are placed at the screen's own ratio, so each is its CSS size.
+      expect(scale, `${mm} mm`).toBeCloseTo(PT_PER_CSS_PX, 9);
+      // The arrow is its pen's pt, as a line is.
+      const arrows = [...elements(markup, 'path'), ...elements(markup, 'line')].filter(
+        (element) => element.stroke === STYLE.arrows.color
+      );
+      expect(arrows.length, `${mm} mm`).toBeGreaterThan(0);
+      for (const arrow of arrows) {
+        expect(Number(arrow['stroke-width']) * scale, `${mm} mm`).toBeCloseTo(STYLE.arrows.width, 6);
+      }
+      // A letter and its halo, and a ring, are what they are on screen.
+      const letters = elements(markup, 'text');
+      expect(letters.length, `${mm} mm`).toBeGreaterThan(0);
+      for (const letter of letters) {
+        expect(Number(letter['font-size']) * scale).toBeCloseTo(DIAGRAM_LABEL_INK.size * ink, 6);
+        expect(Number(letter['stroke-width']) * scale).toBeCloseTo(DIAGRAM_LABEL_INK.halo * ink, 6);
+      }
+      const rings = elements(markup, 'circle');
+      expect(rings.length, `${mm} mm`).toBeGreaterThan(0);
+      for (const ring of rings) {
+        expect(Number(ring.r) * scale).toBeCloseTo(DIAGRAM_MARK_INK.radius * ink, 6);
+        expect(Number(ring['stroke-width']) * scale).toBeCloseTo(DIAGRAM_MARK_INK.width * ink, 6);
+      }
+    }
+  });
+
+  /** An arrowhead's length, tip to the middle of its base, in its own units. */
+  function headLength(points: string): number {
+    const [tip, left, right] = points.split(' ').map((pair) => pair.split(',').map(Number));
+    const base = [(left![0]! + right![0]!) / 2, (left![1]! + right![1]!) / 2];
+    return Math.hypot(tip![0]! - base[0]!, tip![1]! - base[1]!);
+  }
+
+  it('gives an arrowhead its on-screen size, and a short fold’s a quarter of its chord, as the view does', async () => {
+    // A quarter-turn of a 40-unit circle: a chord of 57 units on the plan's
+    // 400-unit sheet, where the plan's own fold spans 141.
+    const short: StepDiagramPrimitive = {
+      kind: 'fold-arrow',
+      out: { center: [0, 0], radius: 40, from: 0, to: Math.PI / 2, ccw: true },
+    };
+    const chordPt = (mm: number) => (40 * Math.SQRT2 * mm * PT_PER_MM) / 400;
+    const onScreen = DIAGRAM_ARROWHEAD_INK.length * canvasDiagramInk(LINE_WIDTH) * PT_PER_CSS_PX;
+    /** Each arrow's head, and every arrow stroke's weight, in pt on the page. */
+    const arrowsAt = async (mm: number) => {
+      const { markup, scale } = await pageAt(mm, [short]);
+      const inArrowInk = (element: Record<string, string>) =>
+        element.fill === STYLE.arrows.color || element.stroke === STYLE.arrows.color;
+      return {
+        heads: elements(markup, 'polygon')
+          .filter(inArrowInk)
+          .map((polygon) => headLength(polygon.points!) * scale),
+        strokes: elements(markup, 'path')
+          .filter(inArrowInk)
+          .map((path) => Number(path['stroke-width']) * scale),
+      };
+    };
+    const small = await arrowsAt(41);
+    const large = await arrowsAt(120);
+    const [planned41, short41] = small.heads;
+    const [planned120, short120] = large.heads;
+    // A fold long enough for its head keeps the head's on-screen size.
+    expect(planned41).toBeCloseTo(onScreen, 2);
+    expect(planned120).toBeCloseTo(onScreen, 2);
+    expect(short120).toBeCloseTo(onScreen, 2);
+    // On a 41 mm sheet the short one's chord is 16 pt, and a full head would
+    // be 60% of it: it is held to the share of its own chord the view holds
+    // it to, while every stroke keeps the pen's weight.
+    expect(short41).toBeCloseTo(DIAGRAM_ARROWHEAD_INK.ofChord * chordPt(41), 2);
+    expect(short41).toBeLessThan(onScreen);
+    for (const { strokes } of [small, large]) {
+      expect(strokes).toHaveLength(4);
+      for (const stroke of strokes) expect(stroke).toBeCloseTo(STYLE.arrows.width, 6);
+    }
+  });
+
+  it('builds a scene per sheet size, and one for "As shown" and the size it reads as', () => {
+    const exported = target({ mirrored: false, lineWidth: LINE_WIDTH, showAux: null });
+    const key = (sheet: PaperExportSettings['sheet']) =>
+      exported.sceneKey(
+        paperExportSceneInput(exported, STYLE, { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet })
+      );
+    expect(key({ mm: 120 })).not.toBe(key({ mm: 41 }));
+    expect(key('as-shown')).toBe(key({ mm: 41 }));
   });
 });
