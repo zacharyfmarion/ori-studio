@@ -175,6 +175,8 @@ export function dashPresetLabel(t: TFunction, id: DashPresetId): string {
       return t('dialogs:settings.paper.dash.dashed', 'Dashed');
     case 'dashDot':
       return t('dialogs:settings.paper.dash.dashDot', 'Dash-dot');
+    case 'dashDoubleDot':
+      return t('dialogs:settings.paper.dash.dashDoubleDot', 'Dash double-dot');
     case 'dotted':
       return t('dialogs:settings.paper.dash.dotted', 'Dotted');
     case 'longDash':

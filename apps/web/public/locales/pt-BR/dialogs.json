@@ -469,6 +469,7 @@
         "customNamed": "Personalizado · {{runs}}",
         "customUnit": "× largura",
         "dashDot": "Traço-ponto",
+        "dashDoubleDot": "Traço-ponto-ponto",
         "dashed": "Tracejado",
         "dotted": "Pontilhado",
         "fineDash": "Traço fino",

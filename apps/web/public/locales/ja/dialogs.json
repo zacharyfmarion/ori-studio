@@ -449,6 +449,7 @@
         "customNamed": "カスタム · {{runs}}",
         "customUnit": "× 幅",
         "dashDot": "一点鎖線",
+        "dashDoubleDot": "二点鎖線",
         "dashed": "破線",
         "dotted": "点線",
         "fineDash": "細破線",

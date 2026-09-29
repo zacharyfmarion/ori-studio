@@ -449,6 +449,7 @@
         "customNamed": "사용자 지정 · {{runs}}",
         "customUnit": "× 너비",
         "dashDot": "일점쇄선",
+        "dashDoubleDot": "이점쇄선",
         "dashed": "파선",
         "dotted": "점선",
         "fineDash": "가는 파선",

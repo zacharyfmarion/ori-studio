@@ -13,9 +13,9 @@ import {
   Keyboard,
   LayoutDashboard,
   Palette,
-  PenTool,
   RotateCcw,
   SlidersHorizontal,
+  StickyNote,
   X,
 } from 'lucide-react';
 import { OrieditaImportDialog } from './settings/OrieditaImportDialog';
@@ -79,7 +79,8 @@ import { IconButton } from './ui/IconButton';
 const TABS: Array<{ key: SettingsTab; icon: typeof Palette }> = [
   { key: 'general', icon: SlidersHorizontal },
   { key: 'appearance', icon: Palette },
-  { key: 'paper', icon: PenTool },
+  // A sheet with a corner folded over: the paper, not the pen.
+  { key: 'paper', icon: StickyNote },
   { key: 'shortcuts', icon: Keyboard },
   { key: 'workspace', icon: LayoutDashboard },
 ];

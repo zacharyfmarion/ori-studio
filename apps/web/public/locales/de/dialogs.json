@@ -459,6 +459,7 @@
         "customNamed": "Eigen · {{runs}}",
         "customUnit": "× Breite",
         "dashDot": "Strichpunkt",
+        "dashDoubleDot": "Strich-Zweipunkt",
         "dashed": "Gestrichelt",
         "dotted": "Gepunktet",
         "fineDash": "Fein gestrichelt",

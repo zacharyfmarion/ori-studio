@@ -98,14 +98,16 @@ describe('PaperDashMenu', () => {
       'Solid',
       'Dashed',
       'Dash-dot',
+      'Dash double-dot',
       'Dotted',
       'Long dash',
       'Fine dash',
     ]);
     // Every option is drawn, not just named.
-    expect(container!.querySelectorAll('[role="menuitemradio"] line')).toHaveLength(6);
+    expect(container!.querySelectorAll('[role="menuitemradio"] line')).toHaveLength(7);
     expect(options().map((option) => option.getAttribute('aria-checked'))).toEqual([
       'true',
+      'false',
       'false',
       'false',
       'false',
@@ -117,13 +119,13 @@ describe('PaperDashMenu', () => {
   it('opens at the dash the pen is on, and walks the options and the field with the arrows', () => {
     render({ ...DEFAULT_PAPER_STYLE.edges, dash: [1, 2] });
     open();
-    expect(document.activeElement).toBe(options()[3]);
+    expect(document.activeElement).toBe(options()[4]);
 
     press('ArrowDown');
-    expect(document.activeElement).toBe(options()[4]);
+    expect(document.activeElement).toBe(options()[5]);
     press('ArrowUp');
     press('ArrowUp');
-    expect(document.activeElement).toBe(options()[2]);
+    expect(document.activeElement).toBe(options()[3]);
     press('End');
     // Past the last named dash is the custom field: it is one of the answers.
     expect(document.activeElement).toBe(customField());
@@ -144,14 +146,14 @@ describe('PaperDashMenu', () => {
     press('End', customField());
     expect(document.activeElement).toBe(customField());
     press('ArrowUp', customField());
-    expect(document.activeElement).toBe(options()[5]);
+    expect(document.activeElement).toBe(options()[6]);
   });
 
   it('keeps the custom field out of the menu, which may own only menu items', () => {
     render();
     open();
     expect(menu()!.contains(customField())).toBe(false);
-    expect(menu()!.querySelectorAll('[role="menuitemradio"]')).toHaveLength(6);
+    expect(menu()!.querySelectorAll('[role="menuitemradio"]')).toHaveLength(7);
   });
 
   it('writes the dash it is asked for and closes back onto the trigger', () => {
@@ -164,6 +166,14 @@ describe('PaperDashMenu', () => {
     expect(trigger().textContent).toBe('Dash-dot');
   });
 
+  it('writes a dash with two dots, the diagrammer’s mountain fold', () => {
+    render();
+    open();
+    act(() => options()[3]!.click());
+    expect(pen().dash).toEqual([8, 2, 1, 2, 1, 2]);
+    expect(trigger().textContent).toBe('Dash double-dot');
+  });
+
   it('takes a dash the list does not hold, and names it by its runs', () => {
     render();
     open();
@@ -173,7 +183,7 @@ describe('PaperDashMenu', () => {
     // The field is the long way round to the same answer, so the menu stays.
     expect(menu()).not.toBeNull();
     expect(options().map((option) => option.getAttribute('aria-checked'))).toEqual(
-      new Array(6).fill('false')
+      new Array(7).fill('false')
     );
     act(() => trigger().click());
     expect(trigger().textContent).toBe('Custom · 3 1 5');

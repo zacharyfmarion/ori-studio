@@ -469,6 +469,7 @@
         "customNamed": "Personalizado · {{runs}}",
         "customUnit": "× anchura",
         "dashDot": "Raya-punto",
+        "dashDoubleDot": "Raya-punto-punto",
         "dashed": "Discontinuo",
         "dotted": "Punteado",
         "fineDash": "Raya fina",

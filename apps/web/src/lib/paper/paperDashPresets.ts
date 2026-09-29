@@ -14,7 +14,14 @@
  */
 import { dashEquals, type Pen } from './paperStyle';
 
-export type DashPresetId = 'solid' | 'dashed' | 'dashDot' | 'dotted' | 'longDash' | 'fineDash';
+export type DashPresetId =
+  | 'solid'
+  | 'dashed'
+  | 'dashDot'
+  | 'dashDoubleDot'
+  | 'dotted'
+  | 'longDash'
+  | 'fineDash';
 
 /** A named dash, or `custom` for a pattern the list does not hold. */
 export type DashChoice = DashPresetId | 'custom';
@@ -30,6 +37,9 @@ export const DASH_PRESETS: readonly DashPreset[] = [
   { id: 'solid', dash: null },
   { id: 'dashed', dash: [4, 2] },
   { id: 'dashDot', dash: [8, 2, 1, 2] },
+  // The diagrammer's mountain fold beside the dash-dot: the same dash and dots,
+  // one dot more — what the edit canvas's "black two-dot" line style draws.
+  { id: 'dashDoubleDot', dash: [8, 2, 1, 2, 1, 2] },
   { id: 'dotted', dash: [1, 2] },
   { id: 'longDash', dash: [12, 3] },
   { id: 'fineDash', dash: [2, 2] },

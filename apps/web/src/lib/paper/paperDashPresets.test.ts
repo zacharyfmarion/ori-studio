@@ -14,6 +14,7 @@ describe('paperDashPresets', () => {
       'solid',
       'dashed',
       'dashDot',
+      'dashDoubleDot',
       'dotted',
       'longDash',
       'fineDash',

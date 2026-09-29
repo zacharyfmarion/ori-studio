@@ -469,6 +469,7 @@
         "customNamed": "Personnalisé · {{runs}}",
         "customUnit": "× largeur",
         "dashDot": "Tiret-point",
+        "dashDoubleDot": "Tiret-point-point",
         "dashed": "Tirets",
         "dotted": "Pointillé",
         "fineDash": "Tirets fins",

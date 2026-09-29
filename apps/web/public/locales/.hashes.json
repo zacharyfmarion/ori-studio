@@ -3246,7 +3246,8 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6495,7 +6496,8 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9746,7 +9748,8 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12936,7 +12939,8 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -16126,7 +16130,8 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -19375,7 +19380,8 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22624,7 +22630,8 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25814,6 +25821,7 @@
     "dialogs:paperExport.pin.valleyDiagramCreases": "284b8494e2ad",
     "dialogs:settings.paper.linesHint": "9109194ed1d5",
     "dialogs:settings.paper.pen.mountainDiagramCreases": "af75fe792c0e",
-    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c"
+    "dialogs:settings.paper.pen.valleyDiagramCreases": "f198fad3b64c",
+    "dialogs:settings.paper.dash.dashDoubleDot": "ed699d8954d2"
   }
 }

@@ -459,6 +459,7 @@
         "customNamed": "Custom · {{runs}}",
         "customUnit": "× width",
         "dashDot": "Dash-dot",
+        "dashDoubleDot": "Dash double-dot",
         "dashed": "Dashed",
         "dotted": "Dotted",
         "fineDash": "Fine dash",

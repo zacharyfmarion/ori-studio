@@ -449,6 +449,7 @@
         "customNamed": "自定义 · {{runs}}",
         "customUnit": "× 宽度",
         "dashDot": "点划线",
+        "dashDoubleDot": "双点划线",
         "dashed": "短划线",
         "dotted": "点线",
         "fineDash": "细划线",
