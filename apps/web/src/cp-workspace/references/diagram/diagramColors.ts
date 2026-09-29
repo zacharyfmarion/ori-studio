@@ -19,28 +19,39 @@ import type {
 } from '../referenceFinderDiagramToPrimitives';
 import type { DiagramInkColors } from './diagramToScene';
 
+/**
+ * A step's fold is an instruction and takes the diagram-crease inks, pinches
+ * included; a line of the finished pattern takes the fold inks a crease
+ * pattern is drawn in.
+ */
 const TOKENS: Record<DiagramLineStyleName, string> = {
   crease: '--fold-unassigned',
   aux: '--fold-unassigned',
   edge: '--fold-border',
   highlight: '--cp-reference-input',
-  valley: '--fold-valley',
-  mountain: '--fold-mountain',
+  valley: '--diagram-valley',
+  mountain: '--diagram-mountain',
+  'fold-valley': '--fold-valley',
+  'fold-mountain': '--fold-mountain',
   arrow: '--references-arrow',
   dotted: '--fold-unassigned',
   pinch: '--fold-unassigned',
-  'pinch-mountain': '--fold-mountain',
-  'pinch-valley': '--fold-valley',
+  'pinch-mountain': '--diagram-mountain',
+  'pinch-valley': '--diagram-valley',
   unfolded: '--fold-unassigned',
 };
 
 /**
- * A token's own fallback where the stylesheet gives it one: the arrow pen is
- * the paper style's, set on the workspace root alone, and a diagram drawn
- * outside it keeps the edge's ink (`var(--references-arrow, var(--fold-border))`).
+ * A token's own fallback where the stylesheet gives it one. The arrow pen and
+ * the diagram-crease inks are the paper style's, set on the workspace root
+ * alone, and a diagram drawn outside it keeps the theme's: the edge's ink for
+ * an arrow (`var(--references-arrow, var(--fold-border))`), the fold inks for
+ * a step's fold (`var(--diagram-valley, var(--fold-valley))`).
  */
 const TOKEN_FALLBACKS: Readonly<Record<string, string>> = {
   '--references-arrow': '--fold-border',
+  '--diagram-mountain': '--fold-mountain',
+  '--diagram-valley': '--fold-valley',
 };
 
 /**
@@ -116,10 +127,9 @@ export function diagramGroundInk(element: Element): Rgba {
  * Every token the card's classes read, for a drawing that goes into a file.
  *
  * A file carries no stylesheet, so the third reader of the colours — after the
- * card's classes and the canvas's uploads — takes them as attributes. The
- * paper style's tokens (`REFERENCES_PAPER_TOKENS`) bar the dimmed creases'
- * alpha, which a step's markup never draws, and the two the theme alone sets:
- * the reference accent, which is also every letter's ink, and the ground —
+ * card's classes and the canvas's uploads — takes them as attributes: the
+ * paper style's tokens (`REFERENCES_PAPER_TOKENS`), and the two the theme
+ * alone sets — the reference accent, which is also every letter's ink, and the ground —
  * the page's, in a file — which a letter off the paper has for its halo and a
  * mark off it is inked against.
  */
@@ -128,6 +138,8 @@ export const DIAGRAM_INLINE_TOKENS = [
   '--references-paper-back',
   '--fold-mountain',
   '--fold-valley',
+  '--diagram-mountain',
+  '--diagram-valley',
   '--fold-border',
   '--fold-unassigned',
   '--references-arrow',

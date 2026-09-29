@@ -8,7 +8,7 @@ import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
 import { applyTheme, DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../../themes';
-import { referencesCreaseAlpha, referencesDimAlpha } from '../../themes/referencesInk';
+import { referencesCreaseAlpha } from '../../themes/referencesInk';
 import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
 import { canvasDiagramInk, CP_CREASE_WIDTH_FACTOR, DIAGRAM_LINE_INK } from './diagram/diagramInk';
 import { useReferencesDiagramScene } from './useReferencesDiagramScene';
@@ -25,6 +25,9 @@ import {
 
 const MOUNTAIN = '#112233';
 const VALLEY = '#445566';
+/** The diagram-crease pens', apart from the fold pens' so a swap cannot pass. */
+const DIAGRAM_MOUNTAIN = '#a01020';
+const DIAGRAM_VALLEY = '#2010a0';
 const EDGE = '#778899';
 const AUX = '#aabbcc';
 const FRONT = '#ddeeff';
@@ -90,6 +93,14 @@ function restyle() {
       ...DEFAULT_PAPER_STYLE.valleyFolds,
       color: VALLEY,
     });
+    store.setPaperStyleField('display', 'mountainDiagramCreases', {
+      ...DEFAULT_PAPER_STYLE.mountainDiagramCreases,
+      color: DIAGRAM_MOUNTAIN,
+    });
+    store.setPaperStyleField('display', 'valleyDiagramCreases', {
+      ...DEFAULT_PAPER_STYLE.valleyDiagramCreases,
+      color: DIAGRAM_VALLEY,
+    });
     store.setPaperStyleField('display', 'edges', { ...DEFAULT_PAPER_STYLE.edges, color: EDGE });
     store.setPaperStyleField('display', 'auxCreases.pen', {
       ...DEFAULT_PAPER_STYLE.auxCreases.pen,
@@ -101,8 +112,8 @@ function restyle() {
 }
 
 describe('referencesPaperTokens', () => {
-  // D13: the paper is the style's too, and the alphas are derived against it.
-  it('maps the References policy’s paper and inks onto the tokens, with the alphas derived against the paper', () => {
+  // D13: the paper is the style's too, and the alpha is derived against it.
+  it('maps the References policy’s paper and inks onto the tokens, with the alpha derived against the paper', () => {
     const tokens = referencesPaperTokens(DEFAULT_PAPER_STYLE);
     const { front, back } = DEFAULT_PAPER_STYLE.paper;
     expect(tokens).toEqual({
@@ -110,6 +121,8 @@ describe('referencesPaperTokens', () => {
       '--references-paper-back': back,
       '--fold-mountain': DEFAULT_PAPER_STYLE.mountainFolds.color,
       '--fold-valley': DEFAULT_PAPER_STYLE.valleyFolds.color,
+      '--diagram-mountain': DEFAULT_PAPER_STYLE.mountainDiagramCreases.color,
+      '--diagram-valley': DEFAULT_PAPER_STYLE.valleyDiagramCreases.color,
       '--fold-border': DEFAULT_PAPER_STYLE.edges.color,
       '--fold-unassigned': DEFAULT_PAPER_STYLE.auxCreases.pen.color,
       '--references-arrow': DEFAULT_PAPER_STYLE.arrows.color,
@@ -117,13 +130,29 @@ describe('referencesPaperTokens', () => {
         front,
         DEFAULT_PAPER_STYLE.auxCreases.pen.color
       ).toFixed(3),
-      '--references-dim-alpha': referencesDimAlpha(
-        front,
-        DEFAULT_PAPER_STYLE.mountainFolds.color,
-        DEFAULT_PAPER_STYLE.valleyFolds.color
-      ).toFixed(3),
     });
     expect(Object.keys(tokens)).toEqual([...REFERENCES_PAPER_TOKENS]);
+  });
+
+  // A step's fold is an instruction, in the diagram-crease inks; a crease
+  // pattern's line is in the fold inks. Each token takes its own pair.
+  it('carries the diagram-crease inks apart from the fold inks', () => {
+    const tokens = referencesPaperTokens({
+      ...DEFAULT_PAPER_STYLE,
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: MOUNTAIN },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: VALLEY },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, color: DIAGRAM_MOUNTAIN },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, color: DIAGRAM_VALLEY },
+    });
+    expect(tokens['--fold-mountain']).toBe(MOUNTAIN);
+    expect(tokens['--fold-valley']).toBe(VALLEY);
+    expect(tokens['--diagram-mountain']).toBe(DIAGRAM_MOUNTAIN);
+    expect(tokens['--diagram-valley']).toBe(DIAGRAM_VALLEY);
+  });
+
+  // Derived from the fold inks and read by nothing: every visibility dims by 1.
+  it('carries no dimmed-crease alpha', () => {
+    expect(REFERENCES_PAPER_TOKENS).not.toContain('--references-dim-alpha');
   });
 
   // E13: the screen draws the arrow pen the export already draws, rather than
@@ -153,12 +182,9 @@ describe('referencesPaperTokens', () => {
     expect(referencesPaperTokens(restyled)).toEqual(referencesPaperTokens(DEFAULT_PAPER_STYLE));
   });
 
-  it('derives the alphas against the front face, so a dark paper on a light theme dims like a dark one', () => {
+  it('derives the alpha against the front face, so a dark paper on a light theme dims like a dark one', () => {
     const dark = { ...DEFAULT_PAPER_STYLE, paper: { front: '#0d1117', back: '#ffffff' } };
     const light = { ...DEFAULT_PAPER_STYLE, paper: { front: '#ffffff', back: '#0d1117' } };
-    expect(referencesPaperTokens(dark)['--references-dim-alpha']).not.toBe(
-      referencesPaperTokens(light)['--references-dim-alpha']
-    );
     expect(Number(referencesPaperTokens(dark)['--references-crease-alpha'])).toBeLessThan(
       Number(referencesPaperTokens(light)['--references-crease-alpha'])
     );
@@ -173,14 +199,19 @@ describe('usePaperStyleTokens', () => {
       border: rootVar('--fold-border'),
       unassigned: rootVar('--fold-unassigned'),
       crease: rootVar('--references-crease-alpha'),
-      dim: rootVar('--references-dim-alpha'),
-      // The theme never sets a paper for References; the workspace alone does.
+      // The theme never sets a paper or diagram-crease inks for References;
+      // the workspace alone does.
       front: rootVar('--references-paper-front'),
       back: rootVar('--references-paper-back'),
+      diagramMountain: rootVar('--diagram-mountain'),
+      diagramValley: rootVar('--diagram-valley'),
     };
     // The theme's own inks are not the defaults, so a match below is the style's doing.
     expect(themed.mountain).not.toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
     expect(themed.front).toBe('');
+    expect(themed.diagramMountain).toBe('');
+    // Derived from the fold inks and read by nothing, so the theme sets it no more.
+    expect(rootVar('--references-dim-alpha')).toBe('');
 
     const inline = (name: string) => workspace?.style.getPropertyValue(name);
     expect(inline('--fold-mountain')).toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
@@ -191,15 +222,14 @@ describe('usePaperStyleTokens', () => {
     restyle();
     expect(inline('--fold-mountain')).toBe(MOUNTAIN);
     expect(inline('--fold-valley')).toBe(VALLEY);
+    expect(inline('--diagram-mountain')).toBe(DIAGRAM_MOUNTAIN);
+    expect(inline('--diagram-valley')).toBe(DIAGRAM_VALLEY);
     expect(inline('--fold-border')).toBe(EDGE);
     expect(inline('--fold-unassigned')).toBe(AUX);
     expect(inline('--references-paper-front')).toBe(FRONT);
     expect(inline('--references-paper-back')).toBe(BACK);
     // D13: against the style's paper, not the theme's ground.
     expect(inline('--references-crease-alpha')).toBe(referencesCreaseAlpha(FRONT, AUX).toFixed(3));
-    expect(inline('--references-dim-alpha')).toBe(
-      referencesDimAlpha(FRONT, MOUNTAIN, VALLEY).toFixed(3)
-    );
 
     // The Edit canvas reads these off :root, and the theme still owns them there.
     expect({
@@ -208,9 +238,10 @@ describe('usePaperStyleTokens', () => {
       border: rootVar('--fold-border'),
       unassigned: rootVar('--fold-unassigned'),
       crease: rootVar('--references-crease-alpha'),
-      dim: rootVar('--references-dim-alpha'),
       front: rootVar('--references-paper-front'),
       back: rootVar('--references-paper-back'),
+      diagramMountain: rootVar('--diagram-mountain'),
+      diagramValley: rootVar('--diagram-valley'),
     }).toEqual(themed);
   });
 
@@ -406,7 +437,7 @@ describe('the theme’s inks inside the workspace', () => {
 });
 
 describe('useReferencesDiagramScene', () => {
-  it('packs the lines in the workspace’s inks and repacks when they change', () => {
+  it('packs a step’s fold in the workspace’s diagram-crease ink and repacks when it changes', () => {
     const diagram = {
       sheet: { width: 1, height: 1, centre: [0.5, 0.5] as [number, number] },
       primitives: [
@@ -429,9 +460,10 @@ describe('useReferencesDiagramScene', () => {
     act(() => probeRoot.render(<Probe />));
     const packed = (scene: ReturnType<typeof useReferencesDiagramScene>) =>
       hex([...(scene.strokes?.color.slice(0, 3) ?? [])]);
-    expect(packed(scenes[scenes.length - 1]!)).toBe(DEFAULT_PAPER_STYLE.mountainFolds.color);
+    expect(packed(scenes[scenes.length - 1]!)).toBe(DEFAULT_PAPER_STYLE.mountainDiagramCreases.color);
     restyle();
-    expect(packed(scenes[scenes.length - 1]!)).toBe(MOUNTAIN);
+    // The instruction's pen, not the fold pen a crease pattern is drawn in.
+    expect(packed(scenes[scenes.length - 1]!)).toBe(DIAGRAM_MOUNTAIN);
     act(() => probeRoot.unmount());
     probeContainer.remove();
   });
@@ -499,28 +531,34 @@ describe('referencesCanvasPens', () => {
       ...DEFAULT_PAPER_STYLE,
       edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9 },
       mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 0.75 },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, width: 1.4 },
     };
     const { lineWidth, pens } = referencesCanvasPens(style);
     const edgeCss = 0.9 * PT_TO_CSS_PX;
     expect(CP_CREASE_WIDTH_FACTOR * lineWidth).toBeCloseTo(edgeCss, 9);
     const ink = canvasDiagramInk(lineWidth);
     expect(pens.edge.width * ink).toBeCloseTo(edgeCss, 9);
-    expect(pens.mountain.width * ink).toBeCloseTo(0.75 * PT_TO_CSS_PX, 9);
+    // A step's fold in the diagram-crease pen, the pattern's in the fold pen.
+    expect(pens.mountain.width * ink).toBeCloseTo(1.4 * PT_TO_CSS_PX, 9);
+    expect(pens['fold-mountain'].width * ink).toBeCloseTo(0.75 * PT_TO_CSS_PX, 9);
     expect(pens.aux.width * ink).toBeCloseTo(DEFAULT_PAPER_STYLE.auxCreases.pen.width * PT_TO_CSS_PX, 9);
     expect(pens.arrow.width * ink).toBeCloseTo(DEFAULT_PAPER_STYLE.arrows.width * PT_TO_CSS_PX, 9);
   });
 
-  it('dashes the folds as the style does: solid when solid', () => {
-    expect(
-      referencesCanvasPens({
-        ...DEFAULT_PAPER_STYLE,
-        valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
-      }).pens.valley.dash
-    ).toBeUndefined();
-    const dashed = referencesCanvasPens({
+  it('dashes each line as its own pen does: solid when solid', () => {
+    const { pens } = referencesCanvasPens({
+      ...DEFAULT_PAPER_STYLE,
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: [4, 2] },
+    });
+    expect(pens['fold-valley'].dash).toBeUndefined();
+    expect(pens.valley.dash!.map((run) => run / pens.valley.width)).toEqual([4, 2]);
+    const swapped = referencesCanvasPens({
       ...DEFAULT_PAPER_STYLE,
       valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] },
-    }).pens.valley;
-    expect(dashed.dash!.map((run) => run / dashed.width)).toEqual([4, 2]);
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: null },
+    }).pens;
+    expect(swapped.valley.dash).toBeUndefined();
+    expect(swapped['fold-valley'].dash!.map((run) => run / swapped['fold-valley'].width)).toEqual([4, 2]);
   });
 });

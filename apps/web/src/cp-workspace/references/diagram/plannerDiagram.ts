@@ -981,6 +981,17 @@ function styleOf(direction: PrecreaseDirection, made: boolean): DiagramLineStyle
   return 'crease';
 }
 
+/**
+ * A line of the finished pattern in `direction`: the fold pens a crease
+ * pattern is drawn in, not the diagram-crease pens of a step's instruction
+ * (`styleOf`). An auxiliary line is the aux pen's, as on a step.
+ */
+function patternStyleOf(direction: PrecreaseDirection): DiagramLineStyleName {
+  if (direction === 'mountain') return 'fold-mountain';
+  if (direction === 'valley') return 'fold-valley';
+  return 'crease';
+}
+
 export function plannerStepDiagram(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
@@ -1442,6 +1453,10 @@ function turnOverSymbol(frame: DiagramFrame): StepDiagramPrimitive[] {
  * Which is not, on a mixed line, the direction the pattern ends up assigning
  * every one of its creases — a precrease sequence puts the crease in the right
  * place, and the collapse settles the rest (plan D26).
+ *
+ * The card is the pattern, not an instruction, so its lines are drawn in the
+ * fold pens (`patternStyleOf`) — the crease pattern's convention, as the big
+ * view draws the same card's creases.
  */
 export function plannerFinishedDiagram(
   sequence: PrecreaseSequence,
@@ -1462,7 +1477,7 @@ export function plannerFinishedDiagram(
     // auxiliary like any other.
     if (step.grid) {
       for (const line of frame.gridLines(step)) {
-        const style = styleOf(line.inPattern ? line.direction : 'unassigned', true);
+        const style = patternStyleOf(line.inPattern ? line.direction : 'unassigned');
         const zero = dashZeroOf(line.spans);
         for (const span of line.spans) {
           primitives.push(spanLine(span, style, zero));
@@ -1470,7 +1485,7 @@ export function plannerFinishedDiagram(
       }
       continue;
     }
-    const style = styleOf(step.kind === 'aux' ? 'unassigned' : step.direction, true);
+    const style = patternStyleOf(step.kind === 'aux' ? 'unassigned' : step.direction);
     const spans = creasedSpans(frame, step);
     const zero = dashZeroOf(spans);
     for (const span of spans) {

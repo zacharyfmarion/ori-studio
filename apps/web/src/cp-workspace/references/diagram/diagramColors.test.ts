@@ -42,15 +42,27 @@ afterEach(() => {
 
 describe('diagramInkColors', () => {
   it('reads the tokens off the element it is given, not the document', () => {
-    const element = scoped({ '--fold-mountain': '#112233', '--fold-valley': '#445566' });
+    const element = scoped({
+      '--fold-mountain': '#112233',
+      '--fold-valley': '#445566',
+      '--diagram-mountain': '#a01020',
+      '--diagram-valley': '#2010a0',
+    });
     const colors = diagramInkColors(element);
-    expect(hex(colors.mountain)).toBe('#112233');
-    expect(hex(colors['pinch-mountain'])).toBe('#112233');
-    expect(hex(colors.valley)).toBe('#445566');
+    // A step's fold, pinches included, in the diagram-crease inks.
+    expect(hex(colors.mountain)).toBe('#a01020');
+    expect(hex(colors['pinch-mountain'])).toBe('#a01020');
+    expect(hex(colors.valley)).toBe('#2010a0');
+    expect(hex(colors['pinch-valley'])).toBe('#2010a0');
+    // A line of the finished pattern in the fold inks.
+    expect(hex(colors['fold-mountain'])).toBe('#112233');
+    expect(hex(colors['fold-valley'])).toBe('#445566');
     // What the element does not set, it inherits — the theme's own tokens.
     expect(hex(colors.edge)).toBe('#000000');
     expect(hex(colors.highlight)).toBe('#ff00ff');
+    // Outside the workspace nothing sets the diagram-crease inks: the theme's fold inks.
     expect(hex(diagramInkColors(document.documentElement).mountain)).toBe('#ff0000');
+    expect(hex(diagramInkColors(document.documentElement).valley)).toBe('#0000ff');
   });
 
   it('takes the values it is handed over the DOM, and the DOM over one it cannot parse', () => {
@@ -123,6 +135,8 @@ describe('diagramInlineInk', () => {
     '--references-paper-back': '#d0d0d0',
     '--fold-mountain': '#112233',
     '--fold-valley': '#445566',
+    '--diagram-mountain': '#a01020',
+    '--diagram-valley': '#2010a0',
     '--fold-border': '#000000',
     '--fold-unassigned': '#aabbcc',
     '--references-arrow': '#405060',
@@ -133,9 +147,12 @@ describe('diagramInlineInk', () => {
 
   it('resolves every style through the same map the canvas uses, off values', () => {
     const ink = diagramInlineInk(tokens);
-    expect(ink.lines.mountain).toEqual({ color: '#112233' });
-    expect(ink.lines['pinch-mountain']).toEqual({ color: '#112233' });
-    expect(ink.lines.valley).toEqual({ color: '#445566' });
+    expect(ink.lines.mountain).toEqual({ color: '#a01020' });
+    expect(ink.lines['pinch-mountain']).toEqual({ color: '#a01020' });
+    expect(ink.lines.valley).toEqual({ color: '#2010a0' });
+    expect(ink.lines['pinch-valley']).toEqual({ color: '#2010a0' });
+    expect(ink.lines['fold-mountain']).toEqual({ color: '#112233' });
+    expect(ink.lines['fold-valley']).toEqual({ color: '#445566' });
     expect(ink.lines.edge).toEqual({ color: '#000000' });
     expect(ink.lines.highlight).toEqual({ color: '#ff00ff' });
     expect(ink.lines.dotted).toEqual({ color: '#aabbcc' });

@@ -3,7 +3,7 @@ import { PT_TO_CSS_PX, type PaperStyle, type Pen } from '../../lib/paper/paperSt
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useThemeStore } from '../../store/themeStore';
-import { referencesCreaseAlpha, referencesDimAlpha } from '../../themes/referencesInk';
+import { referencesCreaseAlpha } from '../../themes/referencesInk';
 import type { DiagramCreaseOptions } from './diagram/DiagramPrimitives';
 import {
   canvasDiagramPens,
@@ -30,10 +30,17 @@ import { referencesShowsAux } from './referencesAuxCreases';
  * The sheet is the style's paper (D13): `--references-paper-front` and
  * `--references-paper-back` are what a step's sheet — the card's, the big
  * view's, and the flap during a fold — is filled with, the back when the view
- * is mirrored. The workspace's ground stays the theme's. The two alphas come
- * with them: how faint an earlier crease's grey and an earlier step's creases
- * draw is derived from the style's inks over the style's paper
- * (`referencesInk.ts`), because that is what they sit on.
+ * is mirrored. The workspace's ground stays the theme's. The alpha comes with
+ * them: how faint an earlier crease's grey draws is derived from the style's
+ * aux ink over the style's paper (`referencesInk.ts`), because that is what it
+ * sits on.
+ *
+ * `--diagram-mountain` and `--diagram-valley` are the style's diagram-crease
+ * pens' colours, beside the fold pens' `--fold-mountain` and `--fold-valley`:
+ * a step's own fold is an instruction and is drawn in the first pair, a line
+ * of a crease pattern — the Find tab's pattern, the finished card — in the
+ * second. Only the workspace sets the first pair; a reader outside it falls
+ * back to the theme's fold inks.
  *
  * `--references-arrow` is the style's arrow pen colour, which the arrows, their
  * heads and the turn-over glyph draw in on the paper — the pen the export has
@@ -46,11 +53,12 @@ export const REFERENCES_PAPER_TOKENS = [
   '--references-paper-back',
   '--fold-mountain',
   '--fold-valley',
+  '--diagram-mountain',
+  '--diagram-valley',
   '--fold-border',
   '--fold-unassigned',
   '--references-arrow',
   '--references-crease-alpha',
-  '--references-dim-alpha',
 ] as const;
 
 export type ReferencesPaperToken = (typeof REFERENCES_PAPER_TOKENS)[number];
@@ -84,7 +92,11 @@ export interface ReferencesPaperInks {
  */
 export interface ReferencesCanvasPens {
   lineWidth: number;
-  /** The diagram's pens in that ink: the style's edge, fold, aux and arrow pens over the table. */
+  /**
+   * The diagram's pens in that ink: the style's edge, diagram-crease, fold, aux
+   * and arrow pens over the table — a step's fold in the diagram-crease pens,
+   * the crease pattern under it in the fold pens.
+   */
   pens: DiagramPens;
 }
 
@@ -120,25 +132,24 @@ export interface ReferencesPaperStyle {
 /**
  * The tokens for `style`; the References policy decides which fields count.
  *
- * The alphas are derived against the front face: one token serves every card
+ * The alpha is derived against the front face: one token serves every card
  * on the strip, and a strip mixes faces once a plan turns the paper over.
  */
 export function referencesPaperTokens(style: PaperStyle): ReferencesPaperTokens {
   const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
   const paper = seen.paper.front;
-  const mountain = seen.mountainFolds.color;
-  const valley = seen.valleyFolds.color;
   const aux = seen.auxCreases.pen.color;
   return {
     '--references-paper-front': paper,
     '--references-paper-back': seen.paper.back,
-    '--fold-mountain': mountain,
-    '--fold-valley': valley,
+    '--fold-mountain': seen.mountainFolds.color,
+    '--fold-valley': seen.valleyFolds.color,
+    '--diagram-mountain': seen.mountainDiagramCreases.color,
+    '--diagram-valley': seen.valleyDiagramCreases.color,
     '--fold-border': seen.edges.color,
     '--fold-unassigned': aux,
     '--references-arrow': seen.arrows.color,
     '--references-crease-alpha': referencesCreaseAlpha(paper, aux).toFixed(3),
-    '--references-dim-alpha': referencesDimAlpha(paper, mountain, valley).toFixed(3),
   };
 }
 
@@ -168,8 +179,10 @@ export function referencesCanvasPens(style: PaperStyle): ReferencesCanvasPens {
     lineWidth,
     pens: canvasDiagramPens(lineWidth, seen.arrows.width * PT_TO_CSS_PX, css(seen.auxCreases.pen), {
       edge,
-      mountain: css(seen.mountainFolds),
-      valley: css(seen.valleyFolds),
+      mountainFolds: css(seen.mountainFolds),
+      valleyFolds: css(seen.valleyFolds),
+      mountainDiagramCreases: css(seen.mountainDiagramCreases),
+      valleyDiagramCreases: css(seen.valleyDiagramCreases),
     }),
   };
 }

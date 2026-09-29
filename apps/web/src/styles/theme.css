@@ -12721,11 +12721,22 @@ button.bp-packing-alert:focus-visible {
   stroke: var(--cp-reference-input);
 }
 
+/* A step's own fold is an instruction, in the paper style's diagram-crease
+   inks, which the workspace sets; outside it the theme's fold inks. */
 .step-diagram__line--valley {
-  stroke: var(--fold-valley);
+  stroke: var(--diagram-valley, var(--fold-valley));
 }
 
 .step-diagram__line--mountain {
+  stroke: var(--diagram-mountain, var(--fold-mountain));
+}
+
+/* A line of the finished pattern: the fold inks a crease pattern is drawn in. */
+.step-diagram__line--fold-valley {
+  stroke: var(--fold-valley);
+}
+
+.step-diagram__line--fold-mountain {
   stroke: var(--fold-mountain);
 }
 
@@ -12748,11 +12759,11 @@ button.bp-packing-alert:focus-visible {
 }
 
 .step-diagram__line--pinch-mountain {
-  stroke: var(--fold-mountain);
+  stroke: var(--diagram-mountain, var(--fold-mountain));
 }
 
 .step-diagram__line--pinch-valley {
-  stroke: var(--fold-valley);
+  stroke: var(--diagram-valley, var(--fold-valley));
 }
 
 /* The rest of a fold, which is not creased: the same line, barely there. */

@@ -1,11 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../../lib/paper/paperStyle';
+import { MAX_DASH_SLOTS } from '../../renderer/types';
 
 /** The defaults with solid folds: the Default preset dashes them. */
 const SOLID_FOLDS: PaperStyle = {
   ...DEFAULT_PAPER_STYLE,
   mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null },
   valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
+};
+
+/** A stroke's dash in multiples of its width, rounded past float noise. */
+const runs = (ink: { width: number; dash?: readonly number[] }) =>
+  (ink.dash ?? []).map((run) => Number((run / ink.width).toFixed(9)));
+
+/**
+ * The two pairs apart in width, dash and cap, so a line that took the other
+ * pair's pen cannot pass for its own.
+ */
+const APART: PaperStyle = {
+  ...DEFAULT_PAPER_STYLE,
+  mountainFolds: { width: 0.5, color: '#a00001', dash: null, cap: 'round' },
+  valleyFolds: { width: 0.6, color: '#0000a1', dash: [2, 1], cap: 'round' },
+  mountainDiagramCreases: { width: 1.2, color: '#a00002', dash: [5, 1, 1, 1], cap: 'butt' },
+  valleyDiagramCreases: { width: 1.5, color: '#0000a2', dash: [6, 3], cap: 'butt' },
 };
 import {
   DIAGRAM_ARROWHEAD_INK,
@@ -53,6 +70,9 @@ describe('the diagram’s pen', () => {
       highlight: { width: 2, cap: 'round' },
       valley: { width: 1.6, cap: 'butt', dash: [12.8, 6.4] },
       mountain: { width: 1.6, cap: 'butt', dash: [6.4, 3.2, 1.6, 3.2] },
+      // The finished pattern's lines weigh what a step's fold does in the table.
+      'fold-valley': { width: 1.6, cap: 'butt', dash: [12.8, 6.4] },
+      'fold-mountain': { width: 1.6, cap: 'butt', dash: [6.4, 3.2, 1.6, 3.2] },
       arrow: { width: 1.4, cap: 'round' },
       dotted: { width: 1.2, cap: 'butt', dash: [1.2, 3.6] },
       pinch: { width: 2.4, cap: 'round' },
@@ -159,6 +179,8 @@ describe('the existing crease as the paper style’s aux pen', () => {
       edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9 },
       mountainFolds: DEFAULT_PAPER_STYLE.mountainFolds,
       valleyFolds: DEFAULT_PAPER_STYLE.valleyFolds,
+      mountainDiagramCreases: DEFAULT_PAPER_STYLE.mountainDiagramCreases,
+      valleyDiagramCreases: DEFAULT_PAPER_STYLE.valleyDiagramCreases,
     });
     expect(restyled.crease.width).toBeCloseTo(0.6, 9);
     expect(restyled.crease.dash!.map((run) => run / restyled.crease.width)).toEqual([4, 2]);
@@ -166,19 +188,41 @@ describe('the existing crease as the paper style’s aux pen', () => {
     // The pattern's aux lines take the same pen; the marks the style has no
     // pen for keep the table's.
     expect(restyled.aux).toEqual(restyled.crease);
-    const { crease: _c, aux: _a, edge: _e, mountain: _m, valley: _v, ...rest } = restyled;
-    const { crease: _tc, aux: _ta, edge: _te, mountain: _tm, valley: _tv, ...table } = DIAGRAM_LINE_INK;
+    const {
+      crease: _c,
+      aux: _a,
+      edge: _e,
+      mountain: _m,
+      valley: _v,
+      'fold-mountain': _fm,
+      'fold-valley': _fv,
+      ...rest
+    } = restyled;
+    const {
+      crease: _tc,
+      aux: _ta,
+      edge: _te,
+      mountain: _tm,
+      valley: _tv,
+      'fold-mountain': _tfm,
+      'fold-valley': _tfv,
+      ...table
+    } = DIAGRAM_LINE_INK;
     expect(rest).toEqual(table);
   });
 
   // Mountain and valley follow the style too: its dash, or none — a style with
-  // solid folds draws a card's folds solid, not in the table's dashes.
-  it('draws the card’s folds and edge in the style’s pens, at their ratio to the edge pen', () => {
+  // solid folds draws a card's finished pattern solid, not in the table's
+  // dashes. A step's fold is an instruction and is not the fold pens' to say.
+  it('draws the card’s pattern lines and edge in the style’s fold pens, at their ratio to the edge pen', () => {
     const solid = cardDiagramPens(SOLID_FOLDS);
-    expect(solid.mountain.dash).toBeUndefined();
-    expect(solid.valley.dash).toBeUndefined();
+    expect(solid['fold-mountain'].dash).toBeUndefined();
+    expect(solid['fold-valley'].dash).toBeUndefined();
+    // The step's fold keeps the diagram-crease pens' dashes.
+    expect(solid.mountain.dash).toBeDefined();
+    expect(solid.valley.dash).toBeDefined();
     expect(solid.edge.width).toBeCloseTo(1.2, 9);
-    expect(solid.mountain.width).toBeCloseTo(
+    expect(solid['fold-mountain'].width).toBeCloseTo(
       (1.2 * DEFAULT_PAPER_STYLE.mountainFolds.width) / DEFAULT_PAPER_STYLE.edges.width,
       9
     );
@@ -186,10 +230,25 @@ describe('the existing crease as the paper style’s aux pen', () => {
       ...SOLID_FOLDS,
       valleyFolds: { ...SOLID_FOLDS.valleyFolds, dash: [4, 2] },
     });
-    expect(dashedValley.valley.dash!.map((run) => run / dashedValley.valley.width)).toEqual([4, 2]);
-    // The dash slots follow the pens: the valley's is the style's, the mountain's solid.
-    expect(diagramDashPatterns(1, dashedValley)[0]!.length).toBe(2);
-    expect(diagramDashPatterns(1, dashedValley)[1]).toEqual([]);
+    expect(
+      dashedValley['fold-valley'].dash!.map((run) => run / dashedValley['fold-valley'].width)
+    ).toEqual([4, 2]);
+    // The dash slots follow the pens: the fold valley's is the style's, the fold mountain's solid.
+    expect(diagramDashPatterns(1, dashedValley)[diagramDashSlot('fold-valley') - 1]!.length).toBe(2);
+    expect(diagramDashPatterns(1, dashedValley)[diagramDashSlot('fold-mountain') - 1]).toEqual([]);
+  });
+
+  // The two pairs mean two things — a step's instruction and a crease
+  // pattern's line — and a card draws each in its own.
+  it('draws a step’s fold in the diagram-crease pens and a pattern’s line in the fold pens', () => {
+    const pens = cardDiagramPens(APART);
+    const at = (width: number) => (1.2 * width) / APART.edges.width;
+    expect(pens.mountain).toEqual({ width: at(1.2), dash: [5, 1, 1, 1].map((r) => r * at(1.2)), cap: 'butt' });
+    expect(pens.valley).toEqual({ width: at(1.5), dash: [6, 3].map((r) => r * at(1.5)), cap: 'butt' });
+    expect(pens['fold-mountain']).toEqual({ width: at(0.5), cap: 'round' });
+    expect(pens['fold-valley']).toEqual({ width: at(0.6), dash: [2, 1].map((r) => r * at(0.6)), cap: 'round' });
+    // A pinch takes only its colour from the pens: its weight is the table's.
+    expect(pens['pinch-mountain']).toEqual(DIAGRAM_LINE_INK['pinch-mountain']);
   });
 
   // Over the canvas one ink is a fixed number of CSS pixels, so the crease's
@@ -202,30 +261,67 @@ describe('the existing crease as the paper style’s aux pen', () => {
     expect(canvasDiagramPens(1, 1.4).crease).toEqual(DIAGRAM_LINE_INK.crease);
   });
 
-  it('draws the canvas’s edge and folds at their pens in CSS px, when given them', () => {
-    const solid = { pen: SOLID_FOLDS.mountainFolds, css: 1.1 };
+  it('draws the canvas’s edge and lines at their pens in CSS px, when given them', () => {
     const pens = canvasDiagramPens(1, 1.4, undefined, {
       edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
-      mountain: solid,
-      valley: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] }, css: 1.1 },
+      mountainFolds: { pen: APART.mountainFolds, css: 0.7 },
+      valleyFolds: { pen: APART.valleyFolds, css: 0.8 },
+      mountainDiagramCreases: { pen: APART.mountainDiagramCreases, css: 1.6 },
+      valleyDiagramCreases: { pen: APART.valleyDiagramCreases, css: 2 },
     });
-    expect(pens.edge.width * canvasDiagramInk(1)).toBeCloseTo(1.5, 9);
-    expect(pens.mountain.width * canvasDiagramInk(1)).toBeCloseTo(1.1, 9);
-    expect(pens.mountain.dash).toBeUndefined();
-    expect(pens.valley.dash!.map((run) => run / pens.valley.width)).toEqual([4, 2]);
+    const ink = canvasDiagramInk(1);
+    expect(pens.edge.width * ink).toBeCloseTo(1.5, 9);
+    // A step's fold in the diagram-crease pens.
+    expect(pens.mountain.width * ink).toBeCloseTo(1.6, 9);
+    expect(runs(pens.mountain)).toEqual([5, 1, 1, 1]);
+    expect(pens.valley.width * ink).toBeCloseTo(2, 9);
+    expect(runs(pens.valley)).toEqual([6, 3]);
+    // A pattern's line in the fold pens.
+    expect(pens['fold-mountain'].width * ink).toBeCloseTo(0.7, 9);
+    expect(pens['fold-mountain'].dash).toBeUndefined();
+    expect(pens['fold-valley'].width * ink).toBeCloseTo(0.8, 9);
+    expect(runs(pens['fold-valley'])).toEqual([2, 1]);
     // Without them the table's, as the reference diagrams drew before a style.
     expect(canvasDiagramPens(1, 1.4).mountain).toEqual(DIAGRAM_LINE_INK.mountain);
+    expect(canvasDiagramPens(1, 1.4)['fold-mountain']).toEqual(DIAGRAM_LINE_INK['fold-mountain']);
+  });
+
+  // Six slots, one assignment for both channels: a step's fold, a dotted
+  // line, an earlier crease and a pattern's line, each in its own. The stroke
+  // program reads a fixed number of them, and a seventh would draw solid.
+  it('fills six slots, within what the stroke program reads', () => {
+    expect(DIAGRAM_DASH_SLOTS).toEqual([
+      'valley',
+      'mountain',
+      'dotted',
+      'crease',
+      'fold-valley',
+      'fold-mountain',
+    ]);
+    expect(DIAGRAM_DASH_SLOTS.length).toBeLessThanOrEqual(MAX_DASH_SLOTS);
+    // A pinch is solid on screen, whichever pair its colour comes from.
+    expect(diagramDashSlot('pinch-mountain')).toBe(0);
+    expect(diagramDashSlot('pinch-valley')).toBe(0);
+    // Each pair's patterns are its own pens'.
+    const pens = cardDiagramPens(APART);
+    const patterns = diagramDashPatterns(1, pens);
+    const ratio = (style: 'mountain' | 'valley' | 'fold-mountain' | 'fold-valley') =>
+      patterns[diagramDashSlot(style) - 1]!.map((run) => run / pens[style].width);
+    expect(ratio('mountain')).toEqual([5, 1, 1, 1]);
+    expect(ratio('valley')).toEqual([6, 3]);
+    expect(ratio('fold-mountain')).toEqual([]);
+    expect(ratio('fold-valley')).toEqual([2, 1]);
   });
 
   // The fourth dash slot is the crease's, filled from the pens in hand: solid
   // for the table, the aux pen's runs when the style dashes it.
   it('gives the crease the fourth slot and its pen’s runs', () => {
-    expect(DIAGRAM_DASH_SLOTS).toEqual(['valley', 'mountain', 'dotted', 'crease']);
     expect(diagramDashSlot('crease')).toBe(4);
     expect(diagramDashPatterns(2)[3]).toEqual([]);
     const pens = canvasDiagramPens(1, 1.4, { pen: dashed, css: 0.6 });
     const width = pens.crease.width * 2;
     expect(diagramDashPatterns(2, pens)[3]!.map((run) => run / width)).toEqual([4, 2]);
     expect(diagramDashPatterns(2, pens).slice(0, 3)).toEqual(diagramDashPatterns(2).slice(0, 3));
+    expect(diagramDashPatterns(2, pens).slice(4)).toEqual(diagramDashPatterns(2).slice(4));
   });
 });

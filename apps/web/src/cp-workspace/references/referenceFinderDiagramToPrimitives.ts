@@ -28,8 +28,20 @@ export type DiagramLineStyleName =
   | 'aux'
   | 'edge'
   | 'highlight'
+  /**
+   * The step's own fold, as an instruction: fold here, this way. Drawn in the
+   * paper style's diagram-crease pens, as are the pinches in a direction.
+   */
   | 'valley'
   | 'mountain'
+  /**
+   * A line of the finished crease pattern — ours, never on the RF wire. The
+   * finished card is the pattern rather than a step, so its creases take the
+   * fold pens a crease pattern is drawn in, not the diagram-crease pens of an
+   * instruction.
+   */
+  | 'fold-valley'
+  | 'fold-mountain'
   | 'arrow'
   | 'dotted'
   | 'pinch'

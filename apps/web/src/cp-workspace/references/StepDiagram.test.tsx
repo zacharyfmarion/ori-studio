@@ -61,10 +61,10 @@ function renderClient(element: ReactElement): string {
 }
 
 /**
- * Fold pens that draw a card's folds exactly as the diagram table does: at the
- * table's 1.6 ink against its 1.2 edge (so 4/3 of the edge pen), dashed 8:4
- * and 4:2:1:2 in multiples of the width. The style's folds are solid by
- * default, and these tests are about dashes.
+ * Diagram-crease pens that draw a step's fold on a card exactly as the diagram
+ * table does: at the table's 1.6 ink against its 1.2 edge (so 4/3 of the edge
+ * pen), dashed 8:4 and 4:2:1:2 in multiples of the width. These tests are
+ * about the table's dashes, not the style's.
  */
 function useTableFolds() {
   const set = (fields: PaperStyleOverrides) =>
@@ -73,14 +73,19 @@ function useTableFolds() {
     const width = (DEFAULT_PAPER_STYLE.edges.width * 1.6) / 1.2;
     set({
       edges: DEFAULT_PAPER_STYLE.edges,
-      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width, dash: [4, 2, 1, 2], cap: 'butt' },
-      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, width, dash: [8, 4], cap: 'butt' },
+      mountainDiagramCreases: {
+        ...DEFAULT_PAPER_STYLE.mountainDiagramCreases,
+        width,
+        dash: [4, 2, 1, 2],
+        cap: 'butt',
+      },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, width, dash: [8, 4], cap: 'butt' },
     });
   });
   afterEach(() => {
     set({
-      mountainFolds: DEFAULT_PAPER_STYLE.mountainFolds,
-      valleyFolds: DEFAULT_PAPER_STYLE.valleyFolds,
+      mountainDiagramCreases: DEFAULT_PAPER_STYLE.mountainDiagramCreases,
+      valleyDiagramCreases: DEFAULT_PAPER_STYLE.valleyDiagramCreases,
     });
   });
 }
@@ -524,26 +529,74 @@ describe('a fold arrow on a card', () => {
 });
 
 describe('the folds on a card', () => {
-  // The style's fold pens, not the table's: a style with solid folds draws a
-  // card's folds solid — the finished card's included — and a dashed style
-  // its own runs.
+  // The style's pens, not the table's, and each line in the pair its meaning
+  // names: a step's fold is an instruction, in the diagram-crease pens; a line
+  // of the finished pattern is a crease pattern's, in the fold pens.
   const folds: StepDiagramModel = {
     sheet: { width: 1, height: 1 },
     primitives: [
       { kind: 'sheet', width: 1, height: 1 },
       { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'valley' },
       { kind: 'line', from: [0, 0.4], to: [1, 0.4], style: 'mountain' },
+      { kind: 'line', from: [0, 0.6], to: [1, 0.6], style: 'fold-valley' },
+      { kind: 'line', from: [0, 0.8], to: [1, 0.8], style: 'fold-mountain' },
     ],
   };
+  const set = (fields: PaperStyleOverrides) =>
+    useSettingsStore.getState().setPaperStyleFields('display', fields);
+  afterEach(() => {
+    set({
+      mountainFolds: DEFAULT_PAPER_STYLE.mountainFolds,
+      valleyFolds: DEFAULT_PAPER_STYLE.valleyFolds,
+      mountainDiagramCreases: DEFAULT_PAPER_STYLE.mountainDiagramCreases,
+      valleyDiagramCreases: DEFAULT_PAPER_STYLE.valleyDiagramCreases,
+    });
+  });
 
-  it('draws them solid when the style’s folds are solid', () => {
-    useSettingsStore.getState().setPaperStyleFields('display', {
+  it('draws a pattern’s lines solid when the fold pens are, and a step’s fold in its own dash', () => {
+    set({
       mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null },
       valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: [4, 2, 1, 2] },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: [8, 4] },
     });
-    const [valley, mountain] = elements(renderClient(<StepDiagram primitives={folds} size={100} />), 'line');
+    const [valley, mountain, foldValley, foldMountain] = elements(
+      renderClient(<StepDiagram primitives={folds} size={100} />),
+      'line'
+    );
+    expect(valley!['stroke-dasharray']).toBeDefined();
+    expect(mountain!['stroke-dasharray']).toBeDefined();
+    expect(foldValley!['stroke-dasharray']).toBeUndefined();
+    expect(foldMountain!['stroke-dasharray']).toBeUndefined();
+  });
+
+  it('draws a step’s fold solid when the diagram-crease pens are, whatever the fold pens say', () => {
+    set({
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: [4, 2, 1, 2] },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [8, 4] },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: null },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: null },
+    });
+    const [valley, mountain, foldValley, foldMountain] = elements(
+      renderClient(<StepDiagram primitives={folds} size={100} />),
+      'line'
+    );
     expect(valley!['stroke-dasharray']).toBeUndefined();
     expect(mountain!['stroke-dasharray']).toBeUndefined();
+    expect(foldValley!['stroke-dasharray']).toBeDefined();
+    expect(foldMountain!['stroke-dasharray']).toBeDefined();
+  });
+
+  it('names each line’s class for its meaning, so the stylesheet inks it from its own pair', () => {
+    const classes = elements(renderToStaticMarkup(<StepDiagram primitives={folds} size={100} />), 'line').map(
+      (line) => line.class
+    );
+    expect(classes).toEqual([
+      'step-diagram__line step-diagram__line--valley',
+      'step-diagram__line step-diagram__line--mountain',
+      'step-diagram__line step-diagram__line--fold-valley',
+      'step-diagram__line step-diagram__line--fold-mountain',
+    ]);
   });
 });
 
@@ -607,9 +660,10 @@ describe('the aux-pen lines on a card', () => {
     const runs = line['stroke-dasharray']!.split(' ').map(Number);
     expect(runs[0]! / width).toBeCloseTo(4 * project.dashScale, 6);
     expect(runs[1]! / width).toBeCloseTo(2 * project.dashScale, 6);
-    // The valley is the style's valley pen, at its own ratio to the edge pen.
+    // The valley is the style's valley diagram-crease pen — a step's fold is
+    // an instruction — at its own ratio to the edge pen.
     const valley = lines(markup).find((l) => l.class?.includes('valley'))!;
-    const valleyPen = useSettingsStore.getState().paperStyle.display.valleyFolds;
+    const valleyPen = useSettingsStore.getState().paperStyle.display.valleyDiagramCreases;
     expect(Number(valley['stroke-width'])).toBeCloseTo(
       DIAGRAM_LINE_INK.edge.width * (valleyPen.width / 0.9) * project.ink,
       6
@@ -670,6 +724,8 @@ describe('the same shapes, inked for a file', () => {
     '--references-paper-back': '#d0d0d0',
     '--fold-mountain': '#112233',
     '--fold-valley': '#445566',
+    '--diagram-mountain': '#a01020',
+    '--diagram-valley': '#2010a0',
     '--fold-border': '#000000',
     '--fold-unassigned': '#aabbcc',
     '--references-arrow': '#405060',
@@ -721,7 +777,8 @@ describe('the same shapes, inked for a file', () => {
     expect(crease).toMatchObject({ fill: 'none', stroke: '#aabbcc', 'stroke-opacity': '0.5' });
     // The pen's own opacity and the ink's compose; a pen alone keeps its own.
     expect(unfolded).toMatchObject({ stroke: '#aabbcc', 'stroke-opacity': '0.28' });
-    expect(valley).toMatchObject({ stroke: '#445566' });
+    // A step's fold is an instruction: the diagram-crease ink, not the fold ink.
+    expect(valley).toMatchObject({ stroke: '#2010a0' });
     expect(valley!['stroke-opacity']).toBeUndefined();
     const polygons = elements(file, 'polygon');
     expect(polygons[0]).toMatchObject({ fill: '#ff00ff', 'fill-opacity': '0.12', stroke: 'none' });
@@ -773,6 +830,8 @@ describe('a mark that leaves the paper', () => {
     '--references-paper-back': '#e9e9e9',
     '--fold-mountain': '#db1f24',
     '--fold-valley': '#1c5cd9',
+    '--diagram-mountain': '#db1f24',
+    '--diagram-valley': '#1c5cd9',
     '--fold-border': '#000000',
     '--fold-unassigned': '#9aa4ad',
     '--references-arrow': '#000000',

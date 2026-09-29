@@ -105,11 +105,36 @@ describe('a step’s page', () => {
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
       paper: { ...DEFAULT_PAPER_STYLE.paper, front: '#ab12cd' },
-      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#123456' },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, color: '#123456' },
     };
     const { svg } = paint(model(MOUNTAIN), { style });
     expect(svg).toContain('fill="#ab12cd"');
     expect(svg).toContain('stroke="#123456"');
+  });
+
+  it('draws the step’s fold in the diagram-crease pens, never the fold pens', () => {
+    // The fold pens are a crease pattern's lines; a step's mountain and valley
+    // are its instruction, which the diagram-crease pens are for.
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#0000f1' },
+      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#0000f2' },
+      mountainDiagramCreases: {
+        width: 0.6,
+        color: '#0000d1',
+        dash: [3, 1],
+        cap: 'round',
+      },
+      valleyDiagramCreases: { width: 0.9, color: '#0000d2', dash: null, cap: 'butt' },
+    };
+    const valley: StepDiagramPrimitive = { ...MOUNTAIN, from: [200, 0], to: [200, 400], style: 'valley' };
+    const { svg } = paint(model(MOUNTAIN, valley), { style });
+    expect(svg).toMatch(
+      /stroke="#0000d1" stroke-width="0.60"[^>]*stroke-linecap="round"[^>]*stroke-dasharray="1.80 0.60"/
+    );
+    expect(svg).toContain('stroke="#0000d2" stroke-width="0.90"');
+    expect(svg).not.toContain('#0000f1');
+    expect(svg).not.toContain('#0000f2');
   });
 
   it('writes each line at its own pen’s width', () => {
@@ -119,8 +144,12 @@ describe('a step’s page', () => {
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
       edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#000001', width: 2 },
-      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#000002', width: 0.5 },
-      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#000003', width: 1.25 },
+      mountainDiagramCreases: {
+        ...DEFAULT_PAPER_STYLE.mountainDiagramCreases,
+        color: '#000002',
+        width: 0.5,
+      },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, color: '#000003', width: 1.25 },
     };
     const valley: StepDiagramPrimitive = { ...MOUNTAIN, from: [200, 0], to: [200, 400], style: 'valley' };
     const { svg } = paint(model(MOUNTAIN, valley), { style });
@@ -128,7 +157,7 @@ describe('a step’s page', () => {
       [...svg.matchAll(new RegExp(`stroke="${color}" stroke-width="([^"]+)"`, 'g'))].map((match) =>
         Number(match[1])
       );
-    // The sheet's four sides in the edge pen, then one fold in each fold pen.
+    // The sheet's four sides in the edge pen, then one fold in each diagram-crease pen.
     expect(widthsOf('#000001')).toEqual([2, 2, 2, 2]);
     expect(widthsOf('#000002')).toEqual([0.5]);
     expect(widthsOf('#000003')).toEqual([1.25]);
@@ -148,8 +177,8 @@ describe('a step’s page', () => {
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
       paper: { front: '#ffffff', back: '#00ff00' },
-      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, color: '#111111' },
-      valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, color: '#222222' },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, color: '#111111' },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, color: '#222222' },
     };
     const front = paint(model(MOUNTAIN), { style }).svg;
     expect(front).toContain('fill="#ffffff"');

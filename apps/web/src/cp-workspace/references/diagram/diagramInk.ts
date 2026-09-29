@@ -70,6 +70,11 @@ export const DIAGRAM_LINE_INK: DiagramPens = {
   highlight: { ...LINE, width: 2 },
   valley: { ...LINE, width: 1.6, dash: [12.8, 6.4], cap: 'butt' },
   mountain: { ...LINE, width: 1.6, dash: [6.4, 3.2, 1.6, 3.2], cap: 'butt' },
+  // The finished pattern's lines weigh what a step's fold does: the table has
+  // one convention, and the paper style is what tells a pattern's line from an
+  // instruction (`cardDiagramPens`, `canvasDiagramPens`).
+  'fold-valley': { ...LINE, width: 1.6, dash: [12.8, 6.4], cap: 'butt' },
+  'fold-mountain': { ...LINE, width: 1.6, dash: [6.4, 3.2, 1.6, 3.2], cap: 'butt' },
   arrow: { ...LINE, width: 1.4 },
   dotted: { ...LINE, dash: [1.2, 3.6], cap: 'butt' },
   // A pinch is a crease, so it takes its direction's own colour and only its
@@ -146,16 +151,21 @@ export function penInk(pen: Pen, width: number): DiagramStrokeInk {
 
 /**
  * The paper style's pens a diagram draws with: the edge pen for the paper's
- * edge, the fold pens for a mountain and a valley, and the aux pen for an
- * existing crease.
+ * edge, the diagram-crease pens for a step's fold — the instruction — the fold
+ * pens for a line of the finished pattern, and the aux pen for an existing
+ * crease.
  */
 export interface DiagramPaperPens {
   /** Existing creases (`crease` ink) draw in this pen. */
   auxCreases: { pen: Pen };
   /** What every other pen's width is measured against. */
   edges: Pen;
+  /** The finished pattern's lines (`fold-mountain`, `fold-valley`). */
   mountainFolds: Pen;
   valleyFolds: Pen;
+  /** A step's own fold (`mountain`, `valley`). */
+  mountainDiagramCreases: Pen;
+  valleyDiagramCreases: Pen;
 }
 
 /**
@@ -176,8 +186,10 @@ export function cardDiagramPens(style: DiagramPaperPens): DiagramPens {
   return {
     ...DIAGRAM_LINE_INK,
     edge: at(style.edges),
-    mountain: at(style.mountainFolds),
-    valley: at(style.valleyFolds),
+    mountain: at(style.mountainDiagramCreases),
+    valley: at(style.valleyDiagramCreases),
+    'fold-mountain': at(style.mountainFolds),
+    'fold-valley': at(style.valleyFolds),
     crease: aux,
     aux,
   };
@@ -189,16 +201,29 @@ export interface CssPen {
   css: number;
 }
 
+/** The paper style's pens the canvas draws a line in, each with its width in CSS px. */
+export interface CanvasPaperPens {
+  edge: CssPen;
+  /** The finished pattern's lines, and the crease channel's (`fold-mountain`, `fold-valley`). */
+  mountainFolds: CssPen;
+  valleyFolds: CssPen;
+  /** A step's own fold (`mountain`, `valley`). */
+  mountainDiagramCreases: CssPen;
+  valleyDiagramCreases: CssPen;
+}
+
 /**
  * The pens the diagram over the crease pattern is drawn with: the table, with
  * the arrow drawn by the paper style's own arrow pen, an existing crease by
- * its aux pen, and the paper's edge and the folds by theirs.
+ * its aux pen, and the paper's edge, a step's fold and a pattern's line by
+ * theirs.
  *
  * `arrowCss` and each pen's `css` are widths in CSS pixels. Over the canvas one
  * ink is a fixed number of CSS pixels ({@link canvasDiagramInk}), so a pen's
  * weight in ink is whatever puts its stroke at exactly the pen. Without an aux
- * pen the crease keeps the table's weight, and without the fold pens the folds
- * keep the table's (the reference diagrams drawn before there was a style).
+ * pen the crease keeps the table's weight, and without the style's line pens
+ * the lines keep the table's (the reference diagrams drawn before there was a
+ * style).
  *
  * The arrow is never lighter than the table's: a print pen of 0.75 pt is a
  * hairline beside the lettering on screen, and the arrow has to read at a
@@ -208,7 +233,7 @@ export function canvasDiagramPens(
   lineWidth: number,
   arrowCss: number,
   aux?: CssPen,
-  folds?: { edge: CssPen; mountain: CssPen; valley: CssPen }
+  lines?: CanvasPaperPens
 ): DiagramPens {
   const ink = canvasDiagramInk(lineWidth);
   const at = ({ pen, css }: CssPen) => penInk(pen, css / ink);
@@ -216,7 +241,15 @@ export function canvasDiagramPens(
     ...DIAGRAM_LINE_INK,
     arrow: { ...DIAGRAM_LINE_INK.arrow, width: Math.max(arrowCss / ink, DIAGRAM_LINE_INK.arrow.width) },
     ...(aux ? { crease: at(aux), aux: at(aux) } : {}),
-    ...(folds ? { edge: at(folds.edge), mountain: at(folds.mountain), valley: at(folds.valley) } : {}),
+    ...(lines
+      ? {
+          edge: at(lines.edge),
+          mountain: at(lines.mountainDiagramCreases),
+          valley: at(lines.valleyDiagramCreases),
+          'fold-mountain': at(lines.mountainFolds),
+          'fold-valley': at(lines.valleyFolds),
+        }
+      : {}),
   };
 }
 
@@ -270,13 +303,23 @@ export function labelWidth(text: string, size: number): number {
 /**
  * The dash slots a diagram uses, and the patterns that fill them.
  *
- * All four the stroke program offers. The crease pattern's own table
- * (`lib/oristudioCpLineStyle`) spends them on Oriedita's shape-coded style,
- * and this surface replaces it rather than sharing it: the References workspace
- * is a diagram, and a diagram says mountain and valley with a *pattern* — the
- * one thing that still reads when the paper is turned over and the colours
- * change meaning. The fourth is the existing crease's, which is solid in the
- * table and takes the aux pen's dash when the style has one.
+ * All six the stroke program offers. The crease pattern's own table
+ * (`lib/oristudioCpLineStyle`) spends its slots on Oriedita's shape-coded
+ * style, and this surface replaces it rather than sharing it: the References
+ * workspace is a diagram, and a diagram says mountain and valley with a
+ * *pattern* — the one thing that still reads when the paper is turned over
+ * and the colours change meaning. The fourth is the existing crease's, which
+ * is solid in the table and takes the aux pen's dash when the style has one.
+ * The last two are the fold pens': a crease pattern's lines, which the crease
+ * channel draws and the finished card is, dash as the style's fold pens say —
+ * apart from the diagram-crease pens a step's instruction dashes in.
+ *
+ * One assignment for both channels, the diagram's and the crease pattern's
+ * under it, and the same patterns in both: while a fold plays the flap's
+ * strokes from the two are drawn as one geometry under one table
+ * (`foldPoseGeometry`), so a slot that meant one pen in one channel and
+ * another in the other would draw the step's fold in the pattern's dash
+ * mid-swing.
  *
  * Runs are in CSS pixels, which is what the program wants, so the pen decides
  * them. Every table pattern is at most two on/off pairs, inside the three the
@@ -287,6 +330,8 @@ export const DIAGRAM_DASH_SLOTS: readonly DiagramLineStyleName[] = [
   'mountain',
   'dotted',
   'crease',
+  'fold-valley',
+  'fold-mountain',
 ];
 
 /**

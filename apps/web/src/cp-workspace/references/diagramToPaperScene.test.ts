@@ -103,7 +103,7 @@ describe('the sheet', () => {
   it('is the back when the projector is mirrored, with every fold named from that side', () => {
     const result = scene(model(line('mountain', [0, 0.5], [1, 0.5])), { mirrored: true });
     expect(faces(result)[0]!.side).toBe('back');
-    expect(creases(result)[0]!.role).toBe('valley');
+    expect(creases(result)[0]!.role).toBe('diagram-valley');
   });
 
   it('takes which face the reader is on from the caller over the projector', () => {
@@ -119,14 +119,14 @@ describe('the sheet', () => {
       mirrored: false,
     });
     expect(faces(front)[0]!.side).toBe('front');
-    expect(creases(front)[0]!.role).toBe('mountain');
+    expect(creases(front)[0]!.role).toBe('diagram-mountain');
     const back = diagramToPaperScene(diagram, {
       style: DEFAULT_PAPER_STYLE,
       project: canvas,
       mirrored: true,
     });
     expect(faces(back)[0]!.side).toBe('back');
-    expect(creases(back)[0]!.role).toBe('valley');
+    expect(creases(back)[0]!.role).toBe('diagram-valley');
   });
 
   it('haloes a letter on the paper in the face the caller names, not the projector’s', () => {
@@ -242,13 +242,13 @@ describe('the sheet', () => {
 });
 
 describe('the lines', () => {
-  it('take the role their style names', () => {
+  it('take the role their style names, a step’s fold as an instruction', () => {
     const styles: Array<[DiagramLineStyleName, PaperLineItem['role']]> = [
       ['edge', 'edge'],
-      ['mountain', 'mountain'],
-      ['pinch-mountain', 'mountain'],
-      ['valley', 'valley'],
-      ['pinch-valley', 'valley'],
+      ['mountain', 'diagram-mountain'],
+      ['pinch-mountain', 'diagram-mountain'],
+      ['valley', 'diagram-valley'],
+      ['pinch-valley', 'diagram-valley'],
       ['crease', 'aux'],
       ['aux', 'aux'],
       ['dotted', 'aux'],
@@ -327,7 +327,7 @@ describe('the lines', () => {
     expect(runs).toHaveLength(samples.length - 1);
     const project = createDiagramProjector(UNIT, SIZE);
     runs.forEach((run, i) => {
-      expect(run.role).toBe('mountain');
+      expect(run.role).toBe('diagram-mountain');
       const from = project(samples[i]!);
       const to = project(samples[i + 1]!);
       near(run.a, [from.x, from.y]);
@@ -526,7 +526,7 @@ describe('a mark off the sheet, on the page', () => {
       expect(color).toBe(clip === off ? '#ffffff' : DEFAULT_PAPER_STYLE.arrows.color);
     }
     // The creases are the painter's, on the paper, in their pens.
-    expect(creases(dark).map((crease) => crease.role)).toEqual(['valley']);
+    expect(creases(dark).map((crease) => crease.role)).toEqual(['diagram-valley']);
   });
 
   it('keeps a style ink that already reads on the page', () => {
@@ -555,7 +555,7 @@ describe('a mark off the sheet, on the page', () => {
 });
 
 describe('a whole step', () => {
-  it('paints through paperSceneToSvg as a page in the style’s pens', () => {
+  it('paints through paperSceneToSvg as a page in the style’s pens, its fold in the diagram-crease pen', () => {
     const sequence = plannerSequenceWithGridFixture();
     // The fixture's CP step: earlier creases, the references it is made
     // against, its fold arrow, the valley it makes, and the letters.
@@ -564,7 +564,9 @@ describe('a whole step', () => {
     expect(step.primitives.some((p) => p.kind === 'line' && p.style === 'valley')).toBe(true);
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,
-      valleyFolds: { width: 0.7, color: '#123456', dash: [4, 2], cap: 'butt' },
+      valleyDiagramCreases: { width: 0.7, color: '#123456', dash: [4, 2], cap: 'butt' },
+      // The fold pen is a crease pattern's line, which a step's instruction is not.
+      valleyFolds: { width: 1.2, color: '#fedcba', dash: null, cap: 'butt' },
       auxCreases: { visible: true, pen: { width: 0.3, color: '#abcdef', dash: null, cap: 'butt' } },
       erode: 0.02,
     };
@@ -585,6 +587,7 @@ describe('a whole step', () => {
     const valley = drawn.filter((l) => l.stroke === '#123456');
     expect(valley.length).toBeGreaterThan(0);
     expect(valley[0]).toMatchObject({ 'stroke-width': '0.70', 'stroke-dasharray': '2.80 1.40' });
+    expect(drawn.some((l) => l.stroke === '#fedcba')).toBe(false);
     expect(drawn.some((l) => l.stroke === '#abcdef' && l['stroke-width'] === '0.30')).toBe(true);
     expect(elements(page.svg, 'polygon')[0]!.fill).toBe(style.paper.front);
     // The step's own arrow and letters are in the page, in the page's group.

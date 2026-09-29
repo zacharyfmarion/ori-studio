@@ -821,9 +821,14 @@ describe('the cards that are not folds', () => {
     const finished = directed('valley', 'mountain', 'valley');
     const diagram = plannerFinishedDiagram(finished, unitFrame(finished));
     const styles = diagram.primitives.flatMap((p) => (p.kind === 'line' ? [p.style] : []));
-    expect(styles).toContain('mountain');
-    expect(styles).toContain('valley');
+    // The card is the pattern, so its lines are a crease pattern's — the fold
+    // pens' styles — and never a step's instruction.
+    expect(styles).toContain('fold-mountain');
+    expect(styles).toContain('fold-valley');
     expect(styles).toContain('crease');
+    for (const instruction of ['mountain', 'valley', 'pinch-mountain', 'pinch-valley'] as const) {
+      expect(styles).not.toContain(instruction);
+    }
     const auxStyles = plannerFinishedDiagram(finished, unitFrame(finished))
       .primitives.filter((p) => p.kind === 'line' && p.style === 'pinch-valley');
     expect(auxStyles).toHaveLength(0);
@@ -1827,17 +1832,18 @@ describe('a grid step', () => {
   it('finishes with in-pattern grid lines by pleat direction and the rest as crease', () => {
     const drawn = lines(plannerFinishedDiagram(sequence, unit).primitives);
     const styleOf = (a: number[], b: number[]) => drawn.find((l) => isSeg(l, a, b))?.style;
-    expect(styleOf([0.25, 0], [0.25, 1])).toBe('mountain');
-    expect(styleOf([0.5, 0], [0.5, 1])).toBe('valley');
+    // In the fold pens' styles: the finished card is the pattern.
+    expect(styleOf([0.25, 0], [0.25, 1])).toBe('fold-mountain');
+    expect(styleOf([0.5, 0], [0.5, 1])).toBe('fold-valley');
     expect(styleOf([0.75, 0], [0.75, 1])).toBe('crease');
     // y = ½ is pleated as a valley and the pattern wants a mountain: the
     // pleat's direction is the one the folder made.
     expect(sequence.steps[1]!.grid!.lines[1]!.pattern_direction).toBe('mountain');
-    expect(styleOf([0, 0.5], [1, 0.5])).toBe('valley');
+    expect(styleOf([0, 0.5], [1, 0.5])).toBe('fold-valley');
     expect(styleOf([0, 0.25], [1, 0.25])).toBe('crease');
     expect(styleOf([0, 0.75], [1, 0.75])).toBe('crease');
     // And the fold after the grid, in its own direction.
-    expect(styleOf([0, 0.5], [0.5, 1])).toBe('valley');
+    expect(styleOf([0, 0.5], [0.5, 1])).toBe('fold-valley');
   });
 
   // A grid step that is not a pleat makes one level's lines in bands, and

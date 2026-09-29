@@ -42,16 +42,32 @@ import {
   type PlacedPoint,
 } from './foldSurface';
 
+/**
+ * A mountain and a valley of one kind of line: the ink and the dash slot each
+ * is drawn with. On the other face each becomes the other of its own pair.
+ */
+export interface FoldDirectionPens {
+  mountain: Rgba;
+  valley: Rgba;
+  mountainSlot: number;
+  valleySlot: number;
+}
+
 export interface FoldPaint {
   /** The paper colour of the face the reader is on, and of the other face. */
   up: Rgba;
   other: Rgba;
-  /** The inks that name a direction; each becomes the other on the other face. */
-  mountain: Rgba;
-  valley: Rgba;
-  /** The dash slots that name a direction, swapped the same way. */
-  mountainSlot: number;
-  valleySlot: number;
+  /**
+   * The pairs that name a direction. The flap carries two kinds of mountain
+   * and valley at once — the step's own fold from the diagram, in the
+   * diagram-crease pens, and the pattern's creases under it, in the fold
+   * pens — and each swaps within its pair, never into the other kind. A
+   * stroke's dash slot says which pair it is drawn in, since no two pairs
+   * share a slot; a stroke in no pair's slot — a solid pinch, but also an
+   * edge, a dotted line or an earlier crease — is looked up by its ink, so
+   * one whose ink happens to equal a pair's is swapped as that pair's.
+   */
+  directions: readonly FoldDirectionPens[];
   /**
    * What a tilted face is shaded toward, its alpha the strength at edge-on.
    * Exactly nothing when the paper is flat, so the flap at rest is the sheet.
@@ -120,22 +136,53 @@ const sameInk = (a: Rgba, color: ArrayLike<number>, at: number): boolean =>
   Math.abs(a[1] - color[at + 1]!) < 1e-3 &&
   Math.abs(a[2] - color[at + 2]!) < 1e-3;
 
-/** The same crease named from the other face: mountain ink for valley ink, and back. */
-function otherFaceInk(paint: FoldPaint, color: ArrayLike<number>, at: number): Rgba {
-  const other = sameInk(paint.mountain, color, at)
-    ? paint.valley
-    : sameInk(paint.valley, color, at)
-      ? paint.mountain
-      : null;
-  return other
-    ? [other[0], other[1], other[2], color[at + 3]!]
-    : [color[at]!, color[at + 1]!, color[at + 2]!, color[at + 3]!];
+/**
+ * The pair a stroke is drawn in: the one whose slot it takes, or for a stroke
+ * in no pair's slot the one whose ink it is in; null for a line that names no
+ * direction.
+ */
+function directionPair(
+  paint: FoldPaint,
+  color: ArrayLike<number>,
+  at: number,
+  slot: number
+): FoldDirectionPens | null {
+  const bySlot = paint.directions.find(
+    (pair) => slot !== 0 && (slot === pair.mountainSlot || slot === pair.valleySlot)
+  );
+  if (bySlot) return bySlot;
+  return (
+    paint.directions.find(
+      (pair) => sameInk(pair.mountain, color, at) || sameInk(pair.valley, color, at)
+    ) ?? null
+  );
 }
 
-function swapSlot(paint: FoldPaint, slot: number): number {
-  if (slot === paint.mountainSlot) return paint.valleySlot;
-  if (slot === paint.valleySlot) return paint.mountainSlot;
-  return slot;
+/**
+ * The same crease named from the other face, within its pair: mountain ink
+ * for valley ink and back, and the same for the dash slot. A stroke in its
+ * pair's slot but not its ink — the picked crease, in the accent — keeps the
+ * ink.
+ */
+function otherFace(
+  paint: FoldPaint,
+  color: ArrayLike<number>,
+  at: number,
+  slot: number
+): { ink: Rgba; slot: number } {
+  const own: Rgba = [color[at]!, color[at + 1]!, color[at + 2]!, color[at + 3]!];
+  const pair = directionPair(paint, color, at, slot);
+  if (!pair) return { ink: own, slot };
+  const ink = sameInk(pair.mountain, color, at)
+    ? pair.valley
+    : sameInk(pair.valley, color, at)
+      ? pair.mountain
+      : null;
+  return {
+    ink: ink ? [ink[0], ink[1], ink[2], own[3]] : own,
+    slot:
+      slot === pair.mountainSlot ? pair.valleySlot : slot === pair.valleySlot ? pair.mountainSlot : slot,
+  };
 }
 
 /**
@@ -320,14 +367,13 @@ export function foldPoseGeometry(
         a.push(ua.x, ua.y);
         b.push(ub.x, ub.y);
         // Named by the face its middle shows, as the paper under it is.
-        const otherFace = at((cuts[k - 1]! + cuts[k]!) / 2).face < 0;
-        strokeColor.push(
-          ...(otherFace
-            ? otherFaceInk(paint, list.color, i * 4)
-            : [list.color[i * 4]!, list.color[i * 4 + 1]!, list.color[i * 4 + 2]!, list.color[i * 4 + 3]!])
-        );
+        const seen =
+          at((cuts[k - 1]! + cuts[k]!) / 2).face < 0
+            ? otherFace(paint, list.color, i * 4, list.dashSlot[i]!)
+            : { ink: list.color.subarray(i * 4, i * 4 + 4), slot: list.dashSlot[i]! };
+        strokeColor.push(...seen.ink);
         widthMul.push(list.widthMul[i]!);
-        dashSlot.push(otherFace ? swapSlot(paint, list.dashSlot[i]!) : list.dashSlot[i]!);
+        dashSlot.push(seen.slot);
         // The phase is in the drawn piece's own units, so it scales with the
         // piece: a foreshortened one dashes continuously with its neighbours.
         const flatPiece = flat * (cuts[k]! - cuts[k - 1]!);

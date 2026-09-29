@@ -48,9 +48,11 @@
  *   that are not made yet exactly as a fold card does — but the fold it comes
  *   after *is* made, so its crease is on the paper, thin like the rest. The
  *   creases stay pickable: a tap on one still jumps to the step that made it.
- * - **The finished card is the pattern to collapse.** Every crease in the
- *   direction it was made, at full strength: the collapse is the next fold,
- *   so its creases are instructions again, not the paper's history.
+ * - **The finished card is the pattern.** Every crease in the direction it
+ *   was made, at full strength, in the fold pens a crease pattern is drawn
+ *   in — not the diagram-crease pens of an instruction, and not thin like the
+ *   paper's history: what the sequence has put on the paper is the pattern
+ *   the folder collapses.
  *
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
@@ -220,8 +222,8 @@ export function planVisibility(
     }
     }
   }
-  // The finished card is the pattern the collapse folds next: each crease in
-  // the direction it was made, at full strength — an instruction again.
+  // The finished card is the pattern: each crease in the direction it was
+  // made, at full strength, in the fold pens (`applyCreaseVisibility`).
   if (target.kind === 'done') {
     return {
       visible: withAux(visible, auxLineIds),

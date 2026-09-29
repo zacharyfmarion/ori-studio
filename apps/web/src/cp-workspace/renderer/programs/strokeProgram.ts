@@ -61,6 +61,10 @@ uniform vec3 u_dashOn3;
 uniform vec3 u_dashOff3;
 uniform vec3 u_dashOn4;
 uniform vec3 u_dashOff4;
+uniform vec3 u_dashOn5;
+uniform vec3 u_dashOff5;
+uniform vec3 u_dashOn6;
+uniform vec3 u_dashOff6;
 varying vec4 vColor;
 varying float vDist;     // device px along the segment (for screen-space dashing)
 varying vec3 vDashOn;
@@ -85,7 +89,13 @@ void main() {
   float modelLen = length(aB - aA);
   float pxPerModel = modelLen > 0.0 ? len / modelLen : 0.0;
   vDist = corner.x * len + aDashPhase * pxPerModel;
-  if (aDashSlot > 3.5) {
+  if (aDashSlot > 5.5) {
+    vDashOn = u_dashOn6;
+    vDashOff = u_dashOff6;
+  } else if (aDashSlot > 4.5) {
+    vDashOn = u_dashOn5;
+    vDashOff = u_dashOff5;
+  } else if (aDashSlot > 3.5) {
     vDashOn = u_dashOn4;
     vDashOff = u_dashOff4;
   } else if (aDashSlot > 2.5) {
@@ -205,6 +215,10 @@ interface StrokeDrawParams {
   dashOff3: Vec3;
   dashOn4: Vec3;
   dashOff4: Vec3;
+  dashOn5: Vec3;
+  dashOff5: Vec3;
+  dashOn6: Vec3;
+  dashOff6: Vec3;
   aBuf: Buffer;
   bBuf: Buffer;
   colorBuf: Buffer;
@@ -230,6 +244,10 @@ interface StrokeUniforms {
   u_dashOff3: Vec3;
   u_dashOn4: Vec3;
   u_dashOff4: Vec3;
+  u_dashOn5: Vec3;
+  u_dashOff5: Vec3;
+  u_dashOn6: Vec3;
+  u_dashOff6: Vec3;
 }
 
 /** Attribute key shapes; values are regl attribute configs (kept permissive). */
@@ -312,6 +330,10 @@ export function createStrokeProgram(
       u_dashOff3: (_ctx, props) => props.dashOff3,
       u_dashOn4: (_ctx, props) => props.dashOn4,
       u_dashOff4: (_ctx, props) => props.dashOff4,
+      u_dashOn5: (_ctx, props) => props.dashOn5,
+      u_dashOff5: (_ctx, props) => props.dashOff5,
+      u_dashOn6: (_ctx, props) => props.dashOn6,
+      u_dashOff6: (_ctx, props) => props.dashOff6,
     },
     // Premultiplied-alpha blend: a no-op for opaque creases (alpha 1), and lets
     // semi-transparent strokes (e.g. grid lines) composite over the background.
@@ -359,7 +381,7 @@ export function createStrokeProgram(
         !depthBuf
       )
         return;
-      const [slot1, slot2, slot3, slot4] = dashTableUniforms(dashPatterns, viewport.dpr);
+      const [slot1, slot2, slot3, slot4, slot5, slot6] = dashTableUniforms(dashPatterns, viewport.dpr);
       draw({
         originArr: [view.origin[0], view.origin[1]],
         exArr: [view.ex[0], view.ex[1]],
@@ -374,6 +396,10 @@ export function createStrokeProgram(
         dashOff3: slot3.off,
         dashOn4: slot4.on,
         dashOff4: slot4.off,
+        dashOn5: slot5.on,
+        dashOff5: slot5.off,
+        dashOn6: slot6.on,
+        dashOff6: slot6.off,
         aBuf,
         bBuf,
         colorBuf,

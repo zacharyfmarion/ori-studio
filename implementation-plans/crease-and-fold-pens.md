@@ -218,20 +218,40 @@ instruction lines onto them, and only then do the fold pens turn solid.
 
 ### Phase 2 — References
 
-- [ ] `--diagram-mountain` / `--diagram-valley` on the workspace root;
-      `--references-dim-alpha` removed
-- [ ] The instruction styles (cards, big view, animation) on the
+- [x] `--diagram-mountain` / `--diagram-valley` on the workspace root;
+      `--references-dim-alpha` removed. (Also from `:root`: `applyTheme` set
+      it too, and `referencesDimAlpha` goes with it. The visibility's own
+      `dimmed` / `dimAlpha` fields stay — every visibility still returns 1 —
+      since dropping that channel is a separate change. Outside the workspace
+      the diagram-crease inks fall back to the theme's fold inks, in the card
+      CSS and in `diagramColors`' `TOKEN_FALLBACKS`, as the arrow pen does.)
+- [x] The instruction styles (cards, big view, animation) on the
       diagram-crease pens, and `diagramToPaperScene` emitting the diagram
       roles for them, in the same commit; the crease channel and the finished
-      card (strip and big view, with its own style pair) on the fold pens
-- [ ] Six shared dash slots; `MAX_DASH_SLOTS` and the stroke program to 6;
-      the fold pose's merged table and other-face swap carry both pairs
-- [ ] Tests: tokens, card and canvas pens, the finished card, crease
+      card (strip and big view, with its own style pair) on the fold pens.
+      (The pair is `fold-mountain` / `fold-valley`; the crease channel's
+      `ROLE_PEN` and the `done` directions read them through one `FOLD_PEN`
+      map, and its ink record is keyed by them.)
+- [x] Six shared dash slots; `MAX_DASH_SLOTS` and the stroke program to 6;
+      the fold pose's merged table and other-face swap carry both pairs.
+      (The fold slots are appended as 5 and 6, so the first four keep their
+      numbers. `FoldPaint` carries a list of direction pairs, and a stroke's
+      pair is found by its dash slot — no two pairs share one — with its ink
+      as the fallback for a solid pinch; ink alone would be ambiguous as soon
+      as one pair's mountain ink equals the other's valley.)
+- [x] Tests: tokens, card and canvas pens, the finished card, crease
       visibility, the fold pose (a fold animating over the crease channel
       keeps its diagram-crease dash), the step export, and **screen–page
       parity**: for one style, a step card's ink and dash for each line equal
-      the exported page's pen; mutation-checked
-- [ ] Validate; commit
+      the exported page's pen; mutation-checked. (Parity is
+      `referencesPenParity.test.tsx`: card, big view and page, for a step's
+      fold and for the real finished card, with the two pairs apart in colour,
+      width, dash and cap. Twenty mutations, each caught.) The review found
+      the canvas's own inks untested — which pair the Find tab's pattern and a
+      flap's other face take — so they moved out of `ReferencesCpView` into
+      `referencesCanvasInks.ts`, pure over a token reader, with tests; and
+      pinned each dash uniform to its own slot and the pinches' card colours.
+- [x] Validate; commit
 
 ### Phase 3 — The fold pens turn solid
 

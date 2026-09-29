@@ -95,17 +95,22 @@ export interface DiagramToPaperSceneOptions {
 const DEFAULT_GROUND: Hex = '#ffffff';
 
 /**
- * Which pen a line style draws with on the page. A style not here — the
+ * Which pen a line style draws with on the page. A step's mountain and valley
+ * are its instruction — fold here, this way — so they take the diagram-crease
+ * pens, not the fold pens a crease pattern is drawn in; the finished card's
+ * lines are that pattern, and take the fold pens. A style not here — the
  * accent's `highlight`, an `arrow` drawn as a plain line, a pinch of no known
  * direction — has no pen of its own in the style and keeps its on-screen
  * look through the markup instead.
  */
 const LINE_ROLES: Partial<Record<DiagramLineStyleName, PaperLineRole>> = {
   edge: 'edge',
-  mountain: 'mountain',
-  'pinch-mountain': 'mountain',
-  valley: 'valley',
-  'pinch-valley': 'valley',
+  mountain: 'diagram-mountain',
+  'pinch-mountain': 'diagram-mountain',
+  valley: 'diagram-valley',
+  'pinch-valley': 'diagram-valley',
+  'fold-mountain': 'mountain',
+  'fold-valley': 'valley',
   crease: 'aux',
   aux: 'aux',
   dotted: 'aux',

@@ -37,13 +37,10 @@ import {
 } from '../renderer/camera';
 import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
-import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
-import { hexToUnitRgb } from '../../lib/paper/paperStyleResolve';
 import {
   canvasDiagramInk,
   CP_CREASE_WIDTH_FACTOR,
   DIAGRAM_LINE_INK,
-  diagramDashSlot,
   type DiagramPens,
 } from './diagram/diagramInk';
 import { diagramGroundInk } from './diagram/diagramColors';
@@ -52,10 +49,20 @@ import {
   DEFAULT_SURFACE_SHARES,
   EMPTY_FOLDED,
   foldPoseGeometry,
-  PAPER_TILT_SHADE,
   type FoldPaint,
 } from './fold/foldPoseGeometry';
 import type { FoldScene } from './fold/foldScene';
+import {
+  INK_COLOR_VAR,
+  INK_FALLBACK,
+  INPUT_COLOR_VAR,
+  INPUT_FALLBACK,
+  referencesFoldPaint,
+  referencesOverlayColors,
+  referencesPaperFaces,
+  withAlpha,
+  type ReadTokenColor,
+} from './referencesCanvasInks';
 import { splitStrokesAtFolds, type SplitStrokes } from './fold/foldSplit';
 import { createReglRenderer } from '../renderer/reglRenderer';
 import type { Rgba, StrokeGeometry, Viewport } from '../renderer/types';
@@ -93,7 +100,6 @@ import {
   sheetOutline,
   verticesOfLines,
   type ReferencesCreaseVisibility,
-  type ReferencesOverlayColors,
   type ReferencesHitIndexes,
   type ReferencesPick,
 } from './referencesViewGeometry';
@@ -248,20 +254,6 @@ export interface ReferencesCpViewProps {
 }
 
 const CANVAS_BG_VAR = '--bg-primary';
-/**
- * The paper, filled as a shape under the creases: the paper style's two faces
- * (D13), which the workspace root carries and the step cards fill with too, so
- * the strip and the view agree about what the sheet is and which face is up.
- *
- * The clear colour is the ground the sheet lies on, not the sheet — tinting
- * the whole canvas to say "you are looking at the back" claims the table
- * turned over too. Outside the workspace the tokens are unset and the style's
- * defaults stand in.
- */
-const PAPER_FRONT_VAR = '--references-paper-front';
-const PAPER_BACK_VAR = '--references-paper-back';
-const PAPER_FRONT_FALLBACK: Rgba = [...hexToUnitRgb(DEFAULT_PAPER_STYLE.paper.front), 1];
-const PAPER_BACK_FALLBACK: Rgba = [...hexToUnitRgb(DEFAULT_PAPER_STYLE.paper.back), 1];
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
 const POINT_OUTLINE_CSS = 1.4;
 /** Highlighted creases draw this much wider than their neighbours. */
@@ -274,29 +266,9 @@ const HIGHLIGHT_WIDTH_MUL = 2.6;
 const HINGE_OVERLAP_CSS = 0.75;
 const ZOOM_STEP = 1.25;
 
-const MOUNTAIN_COLOR_VAR = '--fold-mountain';
-const MOUNTAIN_FALLBACK: Rgba = [1, 0.302, 0.365, 1];
-const VALLEY_COLOR_VAR = '--fold-valley';
-const VALLEY_FALLBACK: Rgba = [0.376, 0.647, 0.98, 1];
-const INK_COLOR_VAR = '--fold-border';
-const INK_FALLBACK: Rgba = [0.067, 0.078, 0.09, 1];
-const INPUT_COLOR_VAR = '--cp-reference-input';
-const INPUT_FALLBACK: Rgba = [0.949, 0.353, 0.722, 1];
-const FOLDED_COLOR_VAR = '--fold-unassigned';
-const FOLDED_FALLBACK: Rgba = [0.604, 0.643, 0.678, 1];
-/** Ghosted "folded so far" lines sit back from the pattern. */
-const FOLDED_ALPHA = 0.55;
-/**
- * How faint a pattern crease made by an earlier step draws: the theme's, held
- * to the light theme's step off the ground (`themes/referencesInk.ts`). The
- * fallback is that tuning itself.
- */
-const DIM_ALPHA_VAR = '--references-dim-alpha';
 /** How far back a crease an earlier step made sits, which the aux lines share (`diagramColors.ts`). */
 const CREASE_ALPHA_VAR = '--references-crease-alpha';
 const CREASE_ALPHA_FALLBACK = 0.75;
-/** The part of a fold that is not creased: present, but barely. */
-const UNFOLDED_ALPHA = 0.22;
 
 const EMPTY_IDS: ReadonlySet<number> = new Set();
 /** No step filter: the whole document, at full strength. */
@@ -336,8 +308,9 @@ function sheetCentreX(
   return Number.isFinite(min) && Number.isFinite(max) ? (min + max) / 2 : null;
 }
 
-function withAlpha(color: Rgba, alpha: number): Rgba {
-  return [color[0], color[1], color[2], color[3] * alpha];
+/** The workspace's tokens as the canvas resolves them. */
+function tokenColorsOf(canvas: HTMLCanvasElement): ReadTokenColor {
+  return (name, fallback) => readCssVarColor(canvas, name, fallback);
 }
 
 /** The same thing under the pointer as a frame ago, by identity rather than position. */
@@ -345,26 +318,6 @@ function samePick(a: ReferencesPick | null, b: ReferencesPick | null): boolean {
   if (a === null || b === null) return a === b;
   if (a.kind === 'line') return b.kind === 'line' && a.id === b.id;
   return b.kind === 'vertex' && a.idx === b.idx;
-}
-
-/**
- * The overlay's inks, resolved from the canvas's own theme.
- *
- * A crease is drawn in the colour that says which way it folds — the one thing
- * the reader is looking for — so the overlay has no "new crease" hue of its
- * own. Marks and arrows take the ink the paper's edge is drawn in, the way a
- * printed diagram does.
- */
-function overlayColors(canvas: HTMLCanvasElement): ReferencesOverlayColors {
-  return {
-    folded: withAlpha(readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK), FOLDED_ALPHA),
-    input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
-    mark: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
-    mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
-    valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
-    unassigned: readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK),
-    unfoldedAlpha: UNFOLDED_ALPHA,
-  };
 }
 
 /** What the upload effects last computed, before any fold was applied. */
@@ -387,34 +340,6 @@ interface FoldRig {
   strokes: { source: StrokeGeometry; split: SplitStrokes } | null;
   preview: { source: StrokeGeometry; split: SplitStrokes } | null;
   paint: Omit<FoldPaint, 'modelToUser'>;
-}
-
-/** The paper's two faces as the workspace carries them, the one the reader is on first. */
-function paperFaces(canvas: HTMLCanvasElement, mirrored: boolean): { up: Rgba; other: Rgba } {
-  const front = readCssVarColor(canvas, PAPER_FRONT_VAR, PAPER_FRONT_FALLBACK);
-  const back = readCssVarColor(canvas, PAPER_BACK_VAR, PAPER_BACK_FALLBACK);
-  return mirrored ? { up: back, other: front } : { up: front, other: back };
-}
-
-/**
- * The flap's paper and inks, from the workspace's tokens. The face the reader
- * is on is the one the sheet is filled with — the back when the view is
- * mirrored — and the other face the paper's other colour; the direction inks
- * are the ones `applyCreaseVisibility` gave the creases, so a swap on the
- * other face finds them.
- */
-function foldPaint(canvas: HTMLCanvasElement, mirrored: boolean): Omit<FoldPaint, 'modelToUser'> {
-  const { up, other } = paperFaces(canvas, mirrored);
-  return {
-    up,
-    other,
-    mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
-    valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
-    mountainSlot: diagramDashSlot('mountain'),
-    valleySlot: diagramDashSlot('valley'),
-    // The paper's own colour, darkened as it tilts: see `PAPER_TILT_SHADE`.
-    shade: PAPER_TILT_SHADE,
-  };
 }
 
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */
@@ -784,7 +709,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
             flap: pose.flap,
             strokes: null,
             preview: null,
-            paint: foldPaint(canvas, liveRef.current.mirrored),
+            paint: referencesFoldPaint(tokenColorsOf(canvas), liveRef.current.mirrored),
           };
           rigRef.current = rig;
           // The paper the flap has left is the ground now, not sheet.
@@ -1086,14 +1011,10 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       );
       // The directions the crate settled, in this canvas's ink. Resolved here
       // because this is the one place that owns the palette; the rule that says
-      // *which* direction lives in `referencesCreaseVisibility`.
-      const palette = overlayColors(canvas);
-      // How far back the earlier steps' creases sit is the theme's call too:
-      // one alpha reads twice as strong over a dark ground as over a light.
-      const dimAlpha =
-        creaseVisibility.dimAlpha < 1
-          ? readCssVarNumber(canvas, DIM_ALPHA_VAR, creaseVisibility.dimAlpha)
-          : creaseVisibility.dimAlpha;
+      // *which* direction lives in `referencesCreaseVisibility`. A crease of
+      // the pattern is a crease pattern's line, so its direction is in the fold
+      // inks, never the diagram-crease inks a step's instruction is drawn in.
+      const palette = referencesOverlayColors(tokenColorsOf(canvas));
       // Thin lines — the creases an earlier step made, and the pattern's aux
       // lines — in the aux pen's ink, held back as far as the card holds them.
       const aux = withAlpha(
@@ -1108,8 +1029,8 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         inkCss,
         ink: {
           edge: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
-          mountain: palette.mountain,
-          valley: palette.valley,
+          'fold-mountain': palette.mountain,
+          'fold-valley': palette.valley,
           aux,
         },
         picked,
@@ -1119,7 +1040,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         segmentCount,
         {
           ...creaseVisibility,
-          dimAlpha,
           ink: { mountain: palette.mountain, valley: palette.valley, aux },
         },
         inkCss,
@@ -1131,7 +1051,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       fullRef.current.sheet = {
         geometry,
         border: creaseVisibility.borderLineIds ?? null,
-        color: paperFaces(canvas, mirrored).up,
+        color: referencesPaperFaces(tokenColorsOf(canvas), mirrored).up,
       };
       applyFoldRef.current();
       renderNowRef.current();

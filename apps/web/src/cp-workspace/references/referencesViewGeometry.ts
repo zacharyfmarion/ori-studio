@@ -460,7 +460,9 @@ export interface ReferencesCreaseVisibility {
    */
   directions?: ReadonlyMap<number, 'mountain' | 'valley'> | null;
   /**
-   * The ink a folded crease takes, by direction, overriding the crease's own.
+   * The ink a folded crease takes, by direction, overriding the crease's own:
+   * the fold pens' inks, since the pattern's creases are a crease pattern's
+   * lines even where a step made them.
    *
    * Resolved by the view from {@link ReferencesCreaseVisibility.directions}.
    */
@@ -584,12 +586,14 @@ export function applyCreaseVisibility(
       continue;
     }
     // The direction the fold was made in, for every crease a step has made —
-    // not only the active one — in that direction's pen. Alpha is left alone:
-    // it carries the build-up.
+    // not only the active one — in that direction's fold pen: the pattern's
+    // lines, on the finished card, not a step's instruction. Alpha is left
+    // alone: it carries the build-up.
     const folded = directions?.get(id);
     if (folded) {
-      dashSlot[i] = diagramDashSlot(folded);
-      widthMul[i] = pens[folded].width / unit;
+      const pen = FOLD_PEN[folded];
+      dashSlot[i] = diagramDashSlot(pen);
+      widthMul[i] = pens[pen].width / unit;
       if (ink) {
         const rgba = folded === 'mountain' ? ink.mountain : ink.valley;
         color[i * 4] = rgba[0];
@@ -651,21 +655,32 @@ export function applyCreaseVisibility(
   };
 }
 
-/** The pen a crease takes for what it is on the paper; a crease with no direction takes the aux pen. */
-const ROLE_PEN: Record<SheetStrokeRole, DiagramLineStyleName> = {
+/** A direction's fold pen: a line of a crease pattern, which is what this channel draws. */
+const FOLD_PEN = { mountain: 'fold-mountain', valley: 'fold-valley' } as const;
+
+/**
+ * The pen a crease takes for what it is on the paper: a mountain or a valley
+ * is a crease pattern's line, in the fold pens — never the diagram-crease
+ * pens a step's instruction is drawn in over it. A crease with no direction
+ * takes the aux pen.
+ */
+const ROLE_PEN = {
   edge: 'edge',
-  mountain: 'mountain',
-  valley: 'valley',
+  mountain: FOLD_PEN.mountain,
+  valley: FOLD_PEN.valley,
   unassigned: 'aux',
   aux: 'aux',
-};
+} as const satisfies Record<SheetStrokeRole, DiagramLineStyleName>;
+
+type CreasePen = (typeof ROLE_PEN)[SheetStrokeRole];
 
 /**
  * The document's creases in the paper style's pens: each takes the pen of what
- * it is on the paper (`creaseRoleAt`) — its colour, its width as a multiple of
- * the edge pen (the stroke's unit), and its dash, in the diagram's dash slots
- * over `pens` so {@link applyCreaseVisibility} carries them on. A picked crease
- * keeps the accent the stroke packer gave it, and its highlight width.
+ * it is on the paper (`creaseRoleAt`, {@link ROLE_PEN}; a direction's is its
+ * fold pen) — its colour, its width as a multiple of the edge pen (the
+ * stroke's unit), and its dash, in the diagram's dash slots over `pens` so
+ * {@link applyCreaseVisibility} carries them on. A picked crease keeps the
+ * accent the stroke packer gave it, and its highlight width, over its pen's.
  */
 export function referencesCreasePens(
   strokes: StrokeGeometry,
@@ -675,8 +690,8 @@ export function referencesCreasePens(
     pens: DiagramPens;
     /** The pens' ink, CSS px per unit — see `diagram/diagramInk`. */
     inkCss: number;
-    /** Each pen's colour on this canvas. */
-    ink: Readonly<Record<'edge' | 'mountain' | 'valley' | 'aux', Rgba>>;
+    /** Each pen's colour on this canvas: the fold pens' inks for a direction. */
+    ink: Readonly<Record<CreasePen, Rgba>>;
     /** 1-based ids of the picked creases, which keep their accent. */
     picked: ReadonlySet<number>;
   }
@@ -690,7 +705,7 @@ export function referencesCreasePens(
     const pen = ROLE_PEN[creaseRoleAt(segAttr, i)];
     widthMul[i] *= pens[pen].width / unit;
     dashSlot[i] = pen === 'edge' ? 0 : diagramDashSlot(pen);
-    if (!picked.has(i + 1)) color.set(ink[pen as keyof typeof ink], i * 4);
+    if (!picked.has(i + 1)) color.set(ink[pen], i * 4);
   }
   return {
     ...strokes,

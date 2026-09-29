@@ -10,6 +10,10 @@ import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import type { StrokeGeometry } from '../renderer/types';
+import { canvasDiagramInk, canvasDiagramPens, diagramDashSlot } from './diagram/diagramInk';
+import { applyCreaseVisibility } from './referencesViewGeometry';
 
 function step(id: number, cpLineIds: number[]): PrecreaseStep {
   return {
@@ -291,8 +295,8 @@ describe('a card that is not a fold', () => {
   const variants = [variant([step(1, [10]), step(2, [11]), step(3, [12])])];
   const input = { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set<number>() };
 
-  // The finished card is the pattern the collapse folds next: its creases are
-  // instructions again, each in the direction it was made, at full strength.
+  // The finished card is the pattern: each crease in the direction it was
+  // made, at full strength, in the fold pens a crease pattern is drawn in.
   it('shows the finished pattern at full strength, by direction', () => {
     const views: ReferencesViewStep[] = [
       fold(0),
@@ -307,6 +311,41 @@ describe('a card that is not a fold', () => {
     expect([...(done.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11, 12]);
     expect(done.directions?.size).toBe(3);
     expect(done.thin ?? null).toBeNull();
+  });
+
+  // Not the diagram-crease pens a step's instruction is drawn in: the two
+  // pairs are apart here, so a direction drawn in the wrong one shows.
+  it('draws the finished pattern’s directions in the fold pens', () => {
+    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2), { kind: 'done', side: 'front', component: 0 }];
+    const done = planVisibility(variants, views, 3, input);
+    const pens = canvasDiagramPens(1, 1.4, undefined, {
+      edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1 },
+      mountainFolds: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null }, css: 0.5 },
+      valleyFolds: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [2, 1] }, css: 0.6 },
+      mountainDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: [5, 1, 1, 1] }, css: 1.6 },
+      valleyDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: [6, 3] }, css: 2 },
+    });
+    // Creases 10-12, one segment each, the rest of the sheet after them.
+    const count = 13;
+    const strokes = {
+      a: new Float32Array(count * 2),
+      b: Float32Array.from({ length: count * 2 }, (_, i) => (i % 2 === 0 ? 1 : 0)),
+      color: new Float32Array(count * 4).fill(1),
+      widthMul: new Float32Array(count).fill(1),
+      count,
+    } as unknown as StrokeGeometry;
+    const out = applyCreaseVisibility(
+      strokes,
+      count,
+      { ...done, ink: { mountain: [1, 0, 0, 1], valley: [0, 0, 1, 1] } },
+      canvasDiagramInk(1),
+      pens
+    );
+    // Every step here is a valley: each of its creases in the fold valley pen.
+    for (const id of [10, 11, 12]) {
+      expect(out.dashSlot![id - 1]).toBe(diagramDashSlot('fold-valley'));
+      expect(out.widthMul[id - 1]).toBeCloseTo(pens['fold-valley'].width / pens.edge.width, 6);
+    }
   });
 
   // The turn-over card shows the build-up whole — thin, as the card draws it,

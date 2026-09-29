@@ -11,19 +11,35 @@ import {
 } from './foldPoseGeometry';
 import type { FoldScene } from './foldScene';
 import type { FlapStrokes } from './foldSplit';
+import { DEFAULT_PAPER_STYLE } from '../../../lib/paper/paperStyle';
+import { cardDiagramPens, diagramDashPatterns, diagramDashSlot } from '../diagram/diagramInk';
 
 const UP: Rgba = [1, 1, 1, 1];
 const OTHER: Rgba = [0.2, 0.2, 0.2, 1];
+/** The diagram-crease inks: a step's own fold. */
 const MOUNTAIN: Rgba = [1, 0, 0, 1];
 const VALLEY: Rgba = [0, 0, 1, 1];
+/** The fold inks: the pattern's creases under it, apart from the diagram's. */
+const FOLD_MOUNTAIN: Rgba = [0.5, 0.25, 0, 1];
+const FOLD_VALLEY: Rgba = [0, 0.5, 0.25, 1];
 
 const paint: FoldPaint = {
   up: UP,
   other: OTHER,
-  mountain: MOUNTAIN,
-  valley: VALLEY,
-  mountainSlot: 2,
-  valleySlot: 1,
+  directions: [
+    {
+      mountain: MOUNTAIN,
+      valley: VALLEY,
+      mountainSlot: diagramDashSlot('mountain'),
+      valleySlot: diagramDashSlot('valley'),
+    },
+    {
+      mountain: FOLD_MOUNTAIN,
+      valley: FOLD_VALLEY,
+      mountainSlot: diagramDashSlot('fold-mountain'),
+      valleySlot: diagramDashSlot('fold-valley'),
+    },
+  ],
   shade: [0, 0, 0, 0.5],
   modelToUser: (p) => ({ x: p.x * 2, y: -p.y * 2 }),
 };
@@ -175,6 +191,80 @@ describe('foldPoseGeometry, rigid', () => {
 
   it('draws nothing for a flap the card does not have', () => {
     expect(foldPoseGeometry(scene, pose(1, 0, 3), [creases()], paint).fills.count).toBe(0);
+  });
+});
+
+/**
+ * A flap carries two kinds of mountain and valley: the step's own fold from
+ * the diagram channel, in the diagram-crease pens, and the pattern's creases
+ * from the crease channel, in the fold pens. The pose draws both under one
+ * dash table — the first channel's — so the two channels share one slot
+ * assignment and one table, and each kind swaps within its own pair.
+ */
+describe('foldPoseGeometry, the two channels under one table', () => {
+  // The two pairs apart in dash, so a line drawn in the other pair's slot shows.
+  const pens = cardDiagramPens({
+    ...DEFAULT_PAPER_STYLE,
+    mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: [5, 1, 1, 1] },
+    valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: [6, 3] },
+    mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null },
+    valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [2, 1] },
+  });
+  // What `referencesCreasePens` / `applyCreaseVisibility` and `diagramToScene`
+  // each upload: the same table, built from the same pens.
+  const table = diagramDashPatterns(1, pens);
+  const one = (x: number, color: Rgba, slot: number): FlapStrokes => ({
+    a: Float32Array.from([x, 0.2]),
+    b: Float32Array.from([x, 0.8]),
+    color: Float32Array.from(color),
+    widthMul: Float32Array.from([1]),
+    dashSlot: Float32Array.from([slot]),
+    dashPhase: Float32Array.from([0]),
+    flap: Uint8Array.from([0]),
+    count: 1,
+    dashPatterns: table,
+  });
+  /** The pattern's crease on the flap: a fold-pen mountain. */
+  const pattern = () => one(0.6, FOLD_MOUNTAIN, diagramDashSlot('fold-mountain'));
+  /** The step's own fold on the flap: a diagram-crease mountain. */
+  const step = () => one(0.9, MOUNTAIN, diagramDashSlot('mountain'));
+  const runsOf = (strokes: ReturnType<typeof foldPoseGeometry>['strokes'], i: number) =>
+    strokes.dashPatterns![strokes.dashSlot![i]! - 1]!;
+
+  it('keeps the step’s fold in its diagram-crease dash while it rides the crease channel’s table', () => {
+    // The crease channel comes first, so its table is the one the pose keeps.
+    const { strokes } = foldPoseGeometry(scene, pose(0), [pattern(), step()], paint, RIGID);
+    expect(strokes.count).toBe(2);
+    expect(strokes.dashPatterns).toBe(table);
+    expect(runsOf(strokes, 1)).toEqual(pens.mountain.dash);
+    expect(runsOf(strokes, 1)).not.toEqual(pens['fold-mountain'].dash ?? []);
+    expect(rgba(strokes.color, 4)).toEqual(MOUNTAIN);
+    // And the pattern's crease in its fold pen's: solid.
+    expect(runsOf(strokes, 0)).toEqual([]);
+    expect(rgba(strokes.color, 0)).toEqual(FOLD_MOUNTAIN);
+  });
+
+  it('names each from the other face within its own pair once over', () => {
+    const { strokes } = foldPoseGeometry(scene, pose(Math.PI), [pattern(), step()], paint, RIGID);
+    // The pattern's mountain becomes the fold pens' valley, ink and dash.
+    expect(rgba(strokes.color, 0)).toEqual(FOLD_VALLEY);
+    expect(strokes.dashSlot![0]).toBe(diagramDashSlot('fold-valley'));
+    expect(runsOf(strokes, 0)).toEqual(pens['fold-valley'].dash);
+    // The step's mountain becomes the diagram-crease valley, ink and dash.
+    expect(rgba(strokes.color, 4)).toEqual(VALLEY);
+    expect(strokes.dashSlot![1]).toBe(diagramDashSlot('valley'));
+    expect(runsOf(strokes, 1)).toEqual(pens.valley.dash);
+  });
+
+  it('swaps a solid pinch by its ink, and leaves a picked crease’s accent alone', () => {
+    const pinch = one(0.7, MOUNTAIN, 0);
+    const ACCENT: Rgba = [0.9, 0.2, 0.7, 1];
+    const picked = one(0.8, ACCENT, diagramDashSlot('fold-valley'));
+    const { strokes } = foldPoseGeometry(scene, pose(Math.PI), [pinch, picked], paint, RIGID);
+    expect(rgba(strokes.color, 0)).toEqual(VALLEY);
+    expect(strokes.dashSlot![0]).toBe(0);
+    expect(rgba(strokes.color, 4)).toEqual(ACCENT);
+    expect(strokes.dashSlot![1]).toBe(diagramDashSlot('fold-mountain'));
   });
 });
 
