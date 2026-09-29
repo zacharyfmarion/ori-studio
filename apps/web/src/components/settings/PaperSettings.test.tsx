@@ -391,6 +391,28 @@ describe('PaperSettings', () => {
     expect(chip().textContent).toBe('Diagram');
   });
 
+  it('offers Update beside Revert for a changed saved preset, and not for a built-in', () => {
+    render();
+    const buttons = () =>
+      Array.from(container!.querySelectorAll<HTMLButtonElement>('.settings-paper__slot-row button')).map(
+        (button) => button.textContent
+      );
+    act(() => presetCard('builtin:diagram').click());
+    typeInto(input('Erode'), '2.5');
+    expect(buttons()).toContain('Revert');
+    expect(buttons()).not.toContain('Update');
+
+    act(() => useSettingsStore.getState().savePaperPreset('Mine'));
+    typeInto(input('Erode'), '1');
+    expect(chip().textContent).toBe('Mine · modified');
+    expect(buttons()).toEqual(expect.arrayContaining(['Update', 'Revert']));
+
+    act(() => findButton('Update').click());
+    expect(chip().textContent).toBe('Mine');
+    expect(useSettingsStore.getState().paperStyle.presets[0]!.style.erode).toBeCloseTo(0.01, 9);
+    expect(buttons()).not.toContain('Update');
+  });
+
   it('says a style that is no preset’s is nobody’s', () => {
     render();
     typeInto(input('Front'), '#123456');

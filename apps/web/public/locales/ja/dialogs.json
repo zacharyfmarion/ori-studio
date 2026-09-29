@@ -510,7 +510,8 @@
         "custom": "カスタム",
         "fromDisplay": "{{preset}} (表示から)",
         "modified": "{{preset}} · 変更あり",
-        "revert": "戻す"
+        "revert": "戻す",
+        "update": "更新"
       },
       "presets": {
         "builtIn": "組み込み",
@@ -545,7 +546,9 @@
         "revert": "「{{preset}}」を変更しています。もう一度適用すると、変更は元に戻ります。",
         "save": "新しいプリセットとして保存…",
         "saveHint": "変更を自分のプリセットとして保存してから、「{{next}}」を適用します。",
-        "title": "未保存の変更"
+        "title": "未保存の変更",
+        "update": "「{{preset}}」を更新",
+        "updateHint": "変更を「{{preset}}」に保存してから、「{{next}}」を適用します。"
       }
     },
     "sections": "設定セクション",

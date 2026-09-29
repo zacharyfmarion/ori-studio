@@ -520,7 +520,8 @@
         "custom": "Eigener Stil",
         "fromDisplay": "{{preset}}, von der Anzeige",
         "modified": "{{preset}} · geändert",
-        "revert": "Zurücksetzen"
+        "revert": "Zurücksetzen",
+        "update": "Aktualisieren"
       },
       "presets": {
         "builtIn": "Integriert",
@@ -555,7 +556,9 @@
         "revert": "Du hast die Voreinstellung {{preset}} geändert. Erneutes Anwenden macht deine Änderungen rückgängig.",
         "save": "Als neue Voreinstellung speichern…",
         "saveHint": "Behalte deine Änderungen als eigene Voreinstellung und wende dann {{next}} an.",
-        "title": "Nicht gespeicherte Änderungen"
+        "title": "Nicht gespeicherte Änderungen",
+        "update": "{{preset}} aktualisieren",
+        "updateHint": "Speichere deine Änderungen in {{preset}} und wende dann {{next}} an."
       }
     },
     "sections": "Einstellungsbereiche",

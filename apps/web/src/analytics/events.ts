@@ -252,7 +252,7 @@ export type PaperStyleFieldName = (typeof PAPER_STYLE_FIELD_NAMES)[number];
 export type PaperPresetName = 'default' | 'diagram' | 'custom';
 
 /** What the user did with unsaved edits a preset would have replaced. */
-export type PaperPresetUnsavedChoice = 'save' | 'discard' | 'cancel';
+export type PaperPresetUnsavedChoice = 'save' | 'update' | 'discard' | 'cancel';
 
 /** The surfaces a document object can pin a paper-style field on. */
 export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
@@ -779,10 +779,19 @@ export const ANALYTICS_EVENTS = {
   /**
    * A preset was picked while the slot held unsaved edits, and the user was
    * asked what to do with them. `choice` is `save` (kept as a preset of their
-   * own first), `discard` or `cancel`. How often edits are thrown away versus
-   * kept is what says whether the prompt earns its interruption.
+   * own first), `update` (written into the saved preset they were made to),
+   * `discard` or `cancel`. How often edits are thrown away versus kept is what
+   * says whether the prompt earns its interruption.
    */
   paperPresetUnsavedChanges: 'paper preset unsaved changes',
+  /**
+   * A saved preset was overwritten with the slot's edits to it — from the Update
+   * beside Revert, or the unsaved-changes prompt's Update. Only ever a preset
+   * the user saved or imported: a built-in cannot be. The question is whether
+   * people keep a preset of their own and refine it, or save a new one each
+   * time.
+   */
+  paperPresetUpdated: 'paper preset updated',
   /**
    * A document object had a paper-style field pinned, or the pin cleared
    * (`reset: true`), from its Properties sheet or the folded Style menu.

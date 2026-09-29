@@ -510,7 +510,8 @@
         "custom": "自定义",
         "fromDisplay": "{{preset}}（来自显示）",
         "modified": "{{preset}} · 已修改",
-        "revert": "还原"
+        "revert": "还原",
+        "update": "更新"
       },
       "presets": {
         "builtIn": "内置",
@@ -545,7 +546,9 @@
         "revert": "你已更改“{{preset}}”。再次应用它会撤销你的更改。",
         "save": "另存为新预设…",
         "saveHint": "先将你的更改保存为自己的预设，再应用“{{next}}”。",
-        "title": "未保存的更改"
+        "title": "未保存的更改",
+        "update": "更新“{{preset}}”",
+        "updateHint": "将更改保存到“{{preset}}”，然后应用“{{next}}”。"
       }
     },
     "sections": "设置分区",

@@ -530,7 +530,8 @@
         "custom": "Personalizado",
         "fromDisplay": "{{preset}}, desde la pantalla",
         "modified": "{{preset}} · modificado",
-        "revert": "Revertir"
+        "revert": "Revertir",
+        "update": "Actualizar"
       },
       "presets": {
         "builtIn": "Integrados",
@@ -565,7 +566,9 @@
         "revert": "Has cambiado {{preset}}. Volver a aplicarlo deshace tus cambios.",
         "save": "Guardar como nuevo predefinido…",
         "saveHint": "Conserva tus cambios como un predefinido propio y luego aplica {{next}}.",
-        "title": "Cambios sin guardar"
+        "title": "Cambios sin guardar",
+        "update": "Actualizar {{preset}}",
+        "updateHint": "Guarda tus cambios en {{preset}} y luego aplica {{next}}."
       }
     },
     "sections": "Secciones de configuración",

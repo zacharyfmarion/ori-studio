@@ -282,6 +282,68 @@ describe('usePaperSettings', () => {
     });
   });
 
+  it('updates a saved preset in place with the slot’s edits, and never a built-in', () => {
+    // A built-in, edited: only Revert or a new preset.
+    act(() => current().applyPreset(current().presets.find((row) => row.builtIn === 'diagram')!));
+    act(() => current().setField('erode', 0.02));
+    expect(current().modified).toBe(true);
+    expect(current().update).toBeNull();
+
+    act(() => current().savePreset('Mine'));
+    expect(current().appliedPreset?.key).toBe('user:Mine');
+    // Unedited, there is nothing to write.
+    expect(current().update).toBeNull();
+    act(() => current().setField('paper.front', '#abcdef'));
+    expect(current().update).not.toBeNull();
+
+    tracked.length = 0;
+    act(() => current().update!());
+    // The preset holds the edit, is still the one applied, and shows no change.
+    expect(stored().presets).toHaveLength(1);
+    expect(stored().presets[0]!.style.paper.front).toBe('#abcdef');
+    expect(stored().presets[0]!.style.erode).toBe(0.02);
+    expect(current().appliedPreset?.key).toBe('user:Mine');
+    expect(current().modified).toBe(false);
+    expect(current().update).toBeNull();
+    expect(tracked).toEqual([{ event: 'paperPresetUpdated', properties: { slot: 'display' } }]);
+  });
+
+  it('offers no update on the export slot while it follows display', () => {
+    act(() => current().savePreset('Mine'));
+    act(() => current().setField('paper.front', '#abcdef'));
+    act(() => current().setSlot('export'));
+    expect(current().modified).toBe(true);
+    expect(current().update).toBeNull();
+  });
+
+  it('offers to update a changed saved preset before another replaces it, and applies the other after', async () => {
+    act(() => current().savePreset('Mine'));
+    act(() => current().setField('paper.front', '#abcdef'));
+    const diagram = current().presets.find((row) => row.builtIn === 'diagram')!;
+    requestChoice.mockResolvedValueOnce('update');
+    await expect(act(() => current().choosePreset(diagram))).resolves.toBe('applied');
+    const { options } = requestChoice.mock.calls[0]![0] as { options: { id: string; label: string }[] };
+    expect(options.map((option) => option.id)).toEqual(['update', 'save', 'discard']);
+    expect(options[0]!.label).toBe('Update Mine');
+    expect(stored().presets[0]!.style.paper.front).toBe('#abcdef');
+    expect(stored().display).toEqual(diagram.preset.style);
+    expect(tracked.slice(-3).map((entry) => entry.event)).toEqual([
+      'paperPresetUnsavedChanges',
+      'paperPresetUpdated',
+      'paperPresetApplied',
+    ]);
+    expect(tracked.at(-3)?.properties).toEqual({ slot: 'display', choice: 'update' });
+  });
+
+  it('offers no update for a changed built-in, whose edits can only become a new preset', async () => {
+    act(() => current().applyPreset(current().presets.find((row) => row.builtIn === 'diagram')!));
+    act(() => current().setField('erode', 0.02));
+    requestChoice.mockResolvedValueOnce(null);
+    await act(() => current().choosePreset(current().presets[0]!));
+    const { options } = requestChoice.mock.calls[0]![0] as { options: { id: string }[] };
+    expect(options.map((option) => option.id)).toEqual(['save', 'discard']);
+  });
+
   it('asks before an imported preset replaces unsaved edits, keeping the import either way', async () => {
     act(() => current().applyPreset(current().presets.find((row) => row.builtIn === 'diagram')!));
     act(() => current().setField('erode', 0.02));

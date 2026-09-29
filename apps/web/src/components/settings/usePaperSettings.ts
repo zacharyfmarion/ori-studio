@@ -70,6 +70,12 @@ export interface PaperSettingsBinding {
   unsaved: boolean;
   /** Put the slot back to {@link appliedPreset}; a no-op when there is none. */
   revert: () => void;
+  /**
+   * Write the slot's edits into {@link appliedPreset}, which then shows them
+   * unmodified. Null unless that preset is one the user saved — a built-in is
+   * never overwritten, only saved as a new preset — and has been edited.
+   */
+  update: (() => void) | null;
   applyPreset: (row: PaperPresetRow) => void;
   /**
    * Apply a preset the user picked, asking first when that would throw away
@@ -163,15 +169,19 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
         setNestedDialogOpen(false);
       }
       const choice: PaperPresetUnsavedChoice =
-        picked === 'save' || picked === 'discard' ? picked : 'cancel';
+        picked === 'save' || picked === 'update' || picked === 'discard' ? picked : 'cancel';
       track(ANALYTICS_EVENTS.paperPresetUnsavedChanges, { slot, choice });
-      if (choice === 'discard') {
+      if (choice === 'update' && appliedPreset) {
+        track(ANALYTICS_EVENTS.paperPresetUpdated, { slot });
+        savePaperPreset(appliedPreset.preset.name, slot);
+      }
+      if (choice === 'discard' || choice === 'update') {
         applyPreset(row);
         return 'applied';
       }
       return choice === 'save' ? 'save' : 'cancelled';
     },
-    [appliedPreset, applyPreset, setNestedDialogOpen, slot, t, unsaved]
+    [appliedPreset, applyPreset, savePaperPreset, setNestedDialogOpen, slot, t, unsaved]
   );
 
   const importPreset = useCallback(async () => {
@@ -213,6 +223,19 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     if (appliedPreset && editable) applyPreset(appliedPreset);
   }, [appliedPreset, applyPreset, editable]);
 
+  // A preset of the user's own, edited: saving under its name replaces it.
+  const updatable = editable && modified && appliedPreset !== null && appliedPreset.builtIn === null;
+  const update = useMemo(
+    () =>
+      updatable && appliedPreset
+        ? () => {
+            track(ANALYTICS_EVENTS.paperPresetUpdated, { slot });
+            savePaperPreset(appliedPreset.preset.name, slot);
+          }
+        : null,
+    [appliedPreset, savePaperPreset, slot, updatable]
+  );
+
   return useMemo(() => {
     const changed = (field: PaperStyleField) =>
       track(ANALYTICS_EVENTS.paperStyleChanged, { slot, field });
@@ -231,6 +254,7 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       modified,
       unsaved,
       revert,
+      update,
       applyPreset,
       choosePreset,
       savePreset: (name) => savePaperPreset(name, slot),
@@ -265,6 +289,7 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     revert,
     savePaperPreset,
     setExportPaperStyleFollowsDisplay,
+    update,
     setPaperStyleField,
     slot,
     style,
@@ -274,7 +299,9 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
 
 /**
  * The question asked before a preset replaces unsaved edits, and what can be
- * done about them: keep them as a preset of their own first, or let them go.
+ * done about them: keep them as a preset of their own first, write them into
+ * the saved preset they were made to, or let them go. A built-in is never
+ * written to, so its edits can only be kept as a new preset.
  */
 function unsavedChangesPrompt(
   t: TFunction,
@@ -304,6 +331,21 @@ function unsavedChangesPrompt(
     title: t('dialogs:settings.paper.unsaved.title', 'Unsaved changes'),
     message,
     options: [
+      ...(applied !== null && applied.builtIn === null
+        ? [
+            {
+              id: 'update',
+              label: t('dialogs:settings.paper.unsaved.update', 'Update {{preset}}', {
+                preset: paperPresetRowLabel(t, applied),
+              }),
+              description: t(
+                'dialogs:settings.paper.unsaved.updateHint',
+                'Save your changes into {{preset}}, then apply {{next}}.',
+                { preset: paperPresetRowLabel(t, applied), next: nextName }
+              ),
+            },
+          ]
+        : []),
       {
         id: 'save',
         label: t('dialogs:settings.paper.unsaved.save', 'Save as a new preset…'),

@@ -520,7 +520,8 @@
         "custom": "Custom",
         "fromDisplay": "{{preset}}, from display",
         "modified": "{{preset}} · modified",
-        "revert": "Revert"
+        "revert": "Revert",
+        "update": "Update"
       },
       "presets": {
         "builtIn": "Built in",
@@ -555,7 +556,9 @@
         "revert": "You’ve changed {{preset}}. Applying it again undoes your changes.",
         "save": "Save as a new preset…",
         "saveHint": "Keep your changes as a preset of your own, then apply {{next}}.",
-        "title": "Unsaved changes"
+        "title": "Unsaved changes",
+        "update": "Update {{preset}}",
+        "updateHint": "Save your changes into {{preset}}, then apply {{next}}."
       }
     },
     "sections": "Settings sections",

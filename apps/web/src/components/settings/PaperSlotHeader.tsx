@@ -41,6 +41,11 @@ export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
             { fromDisplay: !paper.editable }
           )}
         </span>
+        {paper.update && (
+          <Chip className="settings-paper__revert" onClick={paper.update}>
+            {t('dialogs:settings.paper.presetChip.update', 'Update')}
+          </Chip>
+        )}
         {paper.modified && paper.editable && (
           <Chip className="settings-paper__revert" onClick={paper.revert}>
             {t('dialogs:settings.paper.presetChip.revert', 'Revert')}
