@@ -274,5 +274,8 @@ instruction lines onto them, and only then do the fold pens turn solid.
 
 ### Phase 4 — Plans and docs
 
-- [ ] Mark the older plans' one-pair wording as superseded here
-- [ ] `git diff --check`; commit
+- [x] Mark the older plans' one-pair wording as superseded here — D10, §1
+      `PaperStyle`, the Phase 9 ink table's "about to be folded" row and
+      Phase 11 of `unified-paper-style-and-export.md`; E16 of
+      `paper-export-dialog.md`, which also names `pensHint` → `linesHint`
+- [x] `git diff --check`; commit
