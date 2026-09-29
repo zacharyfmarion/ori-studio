@@ -27,6 +27,7 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
+import { DEFAULT_PAPER_SHEET_MM } from '../../lib/paper/paperPage';
 import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
@@ -113,7 +114,7 @@ export function foldedFigureExportTarget({
     pages: null,
     exportStyle,
     pins: figure.appearance ?? null,
-    sheetAsShown: false,
+    defaultSheetMm: DEFAULT_PAPER_SHEET_MM,
     // The painter takes the style as the figure's view sees it — every
     // crease at the edge pen, the fields the policy does not apply at their
     // defaults — as the figure hands its own policy's view to the canvas.

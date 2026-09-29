@@ -12,6 +12,7 @@
  * only repaint. A step is one sheet with nothing under it, so it has no buried
  * faces to keep.
  */
+import { DIAGRAM_STEP_SHEET_MM } from '../../lib/paper/paperPage';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { DEFAULT_PAPER_EXPORT_MARKS, PAPER_EXPORT_MARKS } from '../../lib/paperExportSettings';
@@ -65,6 +66,7 @@ export function referencesExportTarget(capture: ReferencesExportCapture): PaperE
       zipStem: capture.zipStem,
     },
     exportStyle: capture.exportStyle,
+    defaultSheetMm: DIAGRAM_STEP_SHEET_MM,
     pins: null,
     buriesFaces: false,
     marks: PAPER_EXPORT_MARKS,

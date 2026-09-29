@@ -137,6 +137,10 @@ describe('referencesExportTarget', () => {
     await expect(exported.buildScene({ ...input, page: 2 })).resolves.toBeNull();
   });
 
+  it('opens at a printed diagram’s step size, with no "as shown"', () => {
+    expect(target({ mirrored: false, sheetCssPx: 400, lineWidth: 1, showAux: null }).defaultSheetMm).toBe(41);
+  });
+
   it('offers both marks, keys its scene by them, and builds a page without the ones that are off', async () => {
     const exported = target({ mirrored: false, sheetCssPx: 400, lineWidth: 1, showAux: null });
     expect(exported.marks).toEqual(['letters', 'highlights']);

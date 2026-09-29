@@ -305,12 +305,12 @@ describe('PaperExportModal', () => {
     expect(button('Export PNG')?.disabled).toBe(false);
   });
 
-  it('offers a folded figure its sheet size alone, starting there even when "as shown" is remembered', async () => {
+  it('offers a target with a sheet of its own the sheet size alone, starting there even when "as shown" is remembered', async () => {
     const { paperExport } = useSettingsStore.getState();
     useSettingsStore.setState({
       paperExport: { ...paperExport, 'folded-figure': { ...paperExport['folded-figure'], sheet: 'as-shown' } },
     });
-    await open(target({ sheetAsShown: false }));
+    await open(target({ defaultSheetMm: 250 }));
     expect(button('As shown')).toBeUndefined();
     expect(button('Custom')).toBeUndefined();
     expect(field('Sheet size')?.value).toBe('250');

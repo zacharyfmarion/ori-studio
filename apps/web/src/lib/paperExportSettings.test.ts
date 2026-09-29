@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_PAGE, DEFAULT_PAPER_SHEET_MM } from './paper/paperPage';
+import { DEFAULT_PAPER_PAGE, DEFAULT_PAPER_SHEET_MM, DIAGRAM_STEP_SHEET_MM } from './paper/paperPage';
 import { DEFAULT_PAPER_PNG_DPI, PAPER_PNG_DPI_RANGE } from './paper/paperPng';
 import type { PaperExportSurface } from '../analytics/events';
 import {
@@ -196,12 +196,13 @@ describe('paperExportMemoryOf', () => {
 });
 
 describe('paperExportKindDefaults', () => {
-  it('opens a folded figure on a sheet of the default size, and every other kind as shown', () => {
+  it('opens a folded figure at 250 mm and a step at a diagram’s 41 mm; a simulation as shown', () => {
     expect(DEFAULT_PAPER_SHEET_MM).toBe(250);
+    expect(DIAGRAM_STEP_SHEET_MM).toBe(41);
     expect(paperExportKindDefaults()).toEqual({
       simulation: DEFAULT_PAPER_EXPORT_SETTINGS,
       'folded-figure': FIGURE_FIRST_RUN,
-      step: DEFAULT_PAPER_EXPORT_SETTINGS,
+      step: { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: DIAGRAM_STEP_SHEET_MM } },
     });
   });
 
@@ -209,7 +210,7 @@ describe('paperExportKindDefaults', () => {
     const seed = { ...DEFAULT_PAPER_EXPORT_SETTINGS, background: '#ffffff', pngDpi: 300 };
     const defaults = paperExportKindDefaults(seed);
     expect(defaults.simulation).toEqual(seed);
-    expect(defaults.step).toEqual(seed);
+    expect(defaults.step).toEqual({ ...seed, sheet: { mm: DIAGRAM_STEP_SHEET_MM } });
     expect(defaults['folded-figure']).toEqual({ ...seed, sheet: { mm: DEFAULT_PAPER_SHEET_MM } });
   });
 });
@@ -249,7 +250,7 @@ describe('normalizePaperExportMemory', () => {
     expect(missing).toEqual({
       simulation: DEFAULT_PAPER_EXPORT_SETTINGS,
       'folded-figure': SIMULATION_OPTIONS,
-      step: DEFAULT_PAPER_EXPORT_SETTINGS,
+      step: { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: DIAGRAM_STEP_SHEET_MM } },
     });
   });
 

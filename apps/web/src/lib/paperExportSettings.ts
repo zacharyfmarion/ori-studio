@@ -2,6 +2,7 @@ import type { PaperExportFormat, PaperExportSurface } from '../analytics/events'
 import {
   DEFAULT_PAPER_PAGE,
   DEFAULT_PAPER_SHEET_MM,
+  DIAGRAM_STEP_SHEET_MM,
   normalizePaperPage,
   type PaperPage,
 } from './paper/paperPage';
@@ -168,12 +169,15 @@ export function paperExportMemoryOf(settings: PaperExportSettings): PaperExportM
 
 /**
  * Every kind's options before it has exported anything: the seed, except that
- * a folded figure goes out on a sheet of {@link DEFAULT_PAPER_SHEET_MM}.
+ * a folded figure goes out on a sheet of {@link DEFAULT_PAPER_SHEET_MM} and a
+ * step on a diagram's {@link DIAGRAM_STEP_SHEET_MM} — the sizes their export
+ * targets open at, having no "as shown" (`PaperExportTarget.defaultSheetMm`).
  *
  * A figure lies small beside its crease pattern, so "as shown" gave it a page
  * some 40 mm across, on which pens drawn in pt — 0.9 pt is a fine line on a
- * sheet of paper — outweighed the figure. A simulation and a step fill their
- * view, and their on-screen size is a fair page.
+ * sheet of paper — outweighed the figure. A step is the size a printed diagram
+ * gives it, whatever the zoom. A simulation fills its view, and its on-screen
+ * size is a fair page.
  */
 export function paperExportKindDefaults(
   seed: PaperExportSettings = DEFAULT_PAPER_EXPORT_SETTINGS
@@ -181,6 +185,7 @@ export function paperExportKindDefaults(
   return {
     ...paperExportMemoryOf(seed),
     'folded-figure': { ...seed, sheet: { mm: DEFAULT_PAPER_SHEET_MM } },
+    step: { ...seed, sheet: { mm: DIAGRAM_STEP_SHEET_MM } },
   };
 }
 

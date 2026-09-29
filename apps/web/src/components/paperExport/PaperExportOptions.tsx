@@ -44,7 +44,7 @@ export function PaperExportOptions({
   draft,
   patch,
   buriesFaces,
-  sheetAsShown = true,
+  defaultSheetMm,
   marks,
   scopes,
   fixed,
@@ -54,8 +54,8 @@ export function PaperExportOptions({
   patch: (next: Partial<PaperExportSettings>) => void;
   /** The picture can have buried faces; false hides Keep hidden faces. */
   buriesFaces: boolean;
-  /** Its screen size is a size to export at (`PaperExportTarget.sheetAsShown`); false offers the sheet size alone. */
-  sheetAsShown?: boolean;
+  /** The sheet it opens at when its screen size is no size (`PaperExportTarget.defaultSheetMm`); set, the sheet size is offered alone. */
+  defaultSheetMm?: number;
   /** The marks the picture can be exported without (`PaperExportTarget.marks`); none hides the Diagram section. */
   marks: readonly PaperExportMark[];
   /** The step on show or every step, for a target with several; null hides the choice. */
@@ -164,7 +164,7 @@ export function PaperExportOptions({
       <section className="export-modal__section">
         <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>
         <div className="export-modal__control-group">
-          {sheetAsShown && (
+          {defaultSheetMm === undefined && (
             <SegmentedControl<SheetMode>
               aria-label={t('dialogs:paperExport.sheet', 'Sheet')}
               value={sheetMode}

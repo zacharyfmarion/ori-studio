@@ -24,7 +24,6 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { trackPaperExported, trackPaperExportOpened } from '../analytics';
-import { DEFAULT_PAPER_SHEET_MM } from '../lib/paper/paperPage';
 import { paperPngSize } from '../lib/paper/paperPng';
 import {
   APPLE_MOBILE_PNG_CANVAS_LIMIT,
@@ -68,17 +67,17 @@ export interface PaperExportPreviewImage {
 export function paperExportDraft(
   remembered: PaperExportSettings,
   request: Pick<PaperExportRequest, 'format'> & {
-    target?: Pick<PaperExportTarget, 'sheetAsShown'>;
+    target?: Pick<PaperExportTarget, 'defaultSheetMm'>;
   },
   rows: Parameters<typeof resolvePaperExportStyleChoice>[1]
 ): PaperExportSettings {
-  const asShown = request.target?.sheetAsShown !== false;
+  const opensAt = request.target?.defaultSheetMm;
   return {
     ...remembered,
     format: request.format ?? remembered.format,
     style: resolvePaperExportStyleChoice(remembered.style, rows),
-    // A target whose screen size is no size opens on the sheet size instead.
-    sheet: remembered.sheet === 'as-shown' && !asShown ? { mm: DEFAULT_PAPER_SHEET_MM } : remembered.sheet,
+    // A target whose screen size is no size opens at its own sheet instead.
+    sheet: remembered.sheet === 'as-shown' && opensAt !== undefined ? { mm: opensAt } : remembered.sheet,
   };
 }
 

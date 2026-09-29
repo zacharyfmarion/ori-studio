@@ -1421,10 +1421,13 @@ Asked for after Phase 10 (2026-09-29).
       0.9 pt pen reads fat. The folded-figure kind's first-run sheet is
       Custom 250 mm, and Custom's prefill is 250 mm for every kind. (A kind
       that already remembers *As shown* keeps it until changed.)
-      — Then, at the user's word, a folded figure has no *As shown* at all:
-      the target says its screen size is no size (`sheetAsShown: false`), the
-      dialog offers the sheet size alone, and a remembered *As shown* opens
-      as 250 mm.
+      — Then, at the user's word, a folded figure has no *As shown* at all,
+      and nor does a step: each target names the sheet it opens at
+      (`defaultSheetMm` — 250 mm for a figure, 41 mm for a step, the square
+      a printed diagram draws a step on, measured off a diagrammer's A4
+      template at 40.85 mm), the dialog offers the sheet size alone, and a
+      remembered *As shown* opens at that size. Only a simulation, which
+      fills its view, keeps *As shown*.
 - [x] The sidebars lead with their actions: References' **Export all
       steps…** moves from the bottom section to the top of its rail, with the
       rail's margins; the Simulate pane's rail gains **Export view…** and

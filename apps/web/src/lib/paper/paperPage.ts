@@ -36,13 +36,19 @@ export const DEFAULT_PAPER_PAGE: PaperPage = {
 };
 
 /**
- * The sheet size a user gets when they leave "as shown", on every kind of
- * export, and a folded figure's first-run sheet: a round number about the
- * size of a sheet of printer paper, well inside the range. Big enough that a
- * figure's pens, which keep their pt widths at any size, read as fine lines
- * rather than outweighing the picture.
+ * The sheet size a user gets when they leave "as shown", and a folded figure's
+ * sheet: a round number about the size of a sheet of printer paper, well
+ * inside the range. Big enough that a figure's pens, which keep their pt
+ * widths at any size, read as fine lines rather than outweighing the picture.
  */
 export const DEFAULT_PAPER_SHEET_MM = 250;
+
+/**
+ * A diagram step's sheet: the square a printed diagram draws each step on,
+ * about 41 mm a side — measured off a diagrammer's A4 template, whose front and
+ * back squares are 40.85 mm with a 0.5 pt edge.
+ */
+export const DIAGRAM_STEP_SHEET_MM = 41;
 
 /** The page colour a transparent page turns into when the user asks for one. */
 export const DEFAULT_PAPER_BACKGROUND: Hex = '#ffffff';

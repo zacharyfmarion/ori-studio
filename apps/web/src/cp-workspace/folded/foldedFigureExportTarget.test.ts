@@ -471,7 +471,7 @@ describe('foldedFigureExportTarget', () => {
       targetOf(flat(), pictureOf(flat(), { kernel: kernelScene() })!),
       targetOf(legacy, pictureOf(legacy)!),
     ]) {
-      expect(exported.sheetAsShown).toBe(false);
+      expect(exported.defaultSheetMm).toBe(250);
     }
   });
 

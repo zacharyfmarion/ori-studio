@@ -2,7 +2,7 @@ import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_PAPER_SHEET_MM } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_SHEET_MM, DIAGRAM_STEP_SHEET_MM } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
@@ -281,9 +281,11 @@ afterEach(() => {
 describe('paperExportDraft', () => {
   const asShown = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: 'as-shown' as const };
 
-  it('opens a target with no on-screen size on the sheet size, and keeps a chosen one', () => {
-    const figure = { format: null, target: { sheetAsShown: false } };
+  it('opens a target with a sheet of its own at that sheet, and keeps a chosen one', () => {
+    const figure = { format: null, target: { defaultSheetMm: 250 } };
+    const step = { format: null, target: { defaultSheetMm: 41 } };
     expect(paperExportDraft(asShown, figure, []).sheet).toEqual({ mm: 250 });
+    expect(paperExportDraft(asShown, step, []).sheet).toEqual({ mm: 41 });
     expect(paperExportDraft({ ...asShown, sheet: { mm: 90 } }, figure, []).sheet).toEqual({ mm: 90 });
   });
 
@@ -677,12 +679,12 @@ describe('usePaperExportDialog, each kind of export on options of its own', () =
 });
 
 describe('usePaperExportDialog on its first run', () => {
-  it('opens a folded figure on a sheet it reads well at, and a simulation and a step as shown', async () => {
+  it('opens a folded figure on a sheet it reads well at, a step at a diagram’s, a simulation as shown', async () => {
     const openedOn = [
       ['folded-flat', { mm: DEFAULT_PAPER_SHEET_MM }],
       ['folded-3d', { mm: DEFAULT_PAPER_SHEET_MM }],
       ['simulator', 'as-shown'],
-      ['references', 'as-shown'],
+      ['references', { mm: DIAGRAM_STEP_SHEET_MM }],
     ] as const;
     for (const [surface, sheet] of openedOn) {
       unmount();
