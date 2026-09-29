@@ -1397,6 +1397,37 @@ From review (folded into the Phase 5 commit):
       pre-split stored value seeds every kind at SVG; a simulation saved as
       PNG writes v2 with only `simulation` changed, and reopens on PNG
 
+### Phase 11 — Review round: controls, diagram marks, figure size, sidebars
+
+Asked for after Phase 10 (2026-09-29).
+
+- [ ] The dialogs' button groups at the app's standard control height: the
+      `.export-modal` rule made every segmented control 36 px tall with a
+      larger label, where the rest of the app's are 26 px. Shared by the
+      crease-pattern export dialog, which follows.
+- [ ] References steps: two page options, **Letters** and **Line
+      highlights** (both on by default), in the dialog for a step or all
+      steps. A target declares which marks it can leave out; the References
+      target filters its diagram's letters and its accent highlight lines out
+      of the page when one is off, and both are in its scene key. Remembered
+      with the rest of the step kind's options; `paper exported` reports them
+      as enums for References.
+- [ ] Folded figures open at a 250 mm sheet: a figure beside a crease pattern
+      is small on screen, so *As shown* gave a ~40 mm page on which a
+      0.9 pt pen reads fat. The folded-figure kind's first-run sheet is
+      Custom 250 mm, and Custom's prefill is 250 mm for every kind. (A kind
+      that already remembers *As shown* keeps it until changed.)
+- [ ] The sidebars lead with their actions: References' **Export all
+      steps…** moves from the bottom section to the top of its rail, with the
+      rail's margins; the Simulate pane's rail gains **Export view…** and
+      **Set upright** at its top, and the two icon buttons leave the
+      simulator's toolbar. The rail reaches the view through two new verbs,
+      `simulator.exportView` and `simulator.setUpright` (registry shortcuts
+      with no default chord, run by the view's executor, as References'
+      `references.exportAllSteps` is). Inline simulation windows keep theirs.
+- [ ] Tests; i18n loop; validate; browser (both rails, the dialog on a step,
+      a figure and a simulation); commit
+
 ### Validation per phase
 
 `npm run lint:web`, `npm run typecheck:web`, `npm run test:web` (Node 22, from
