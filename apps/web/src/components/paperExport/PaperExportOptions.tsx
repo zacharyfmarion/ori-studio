@@ -161,32 +161,46 @@ export function PaperExportOptions({
         </section>
       )}
 
+      {/* Size, Margin and Resolution are rows of one kind — the label on the
+          left, a control of one width on the right — so the controls line up
+          under one another. A picture with no sheet of its own chooses first
+          between its size on screen and a custom one, and the Size row is then
+          the custom size. */}
       <section className="export-modal__section">
-        <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>
         <div className="export-modal__control-group">
           {defaultSheetMm === undefined && (
-            <SegmentedControl<SheetMode>
-              aria-label={t('dialogs:paperExport.sheet', 'Sheet')}
-              value={sheetMode}
-              onChange={(mode) =>
-                patch({ sheet: mode === 'as-shown' ? 'as-shown' : { mm: sheetMmOf(draft.sheet) } })
-              }
-              options={[
-                { value: 'as-shown', label: t('dialogs:paperExport.sheetAsShown', 'As shown') },
-                { value: 'custom', label: t('dialogs:paperExport.sheetCustom', 'Custom') },
-              ]}
-            />
+            <>
+              <span className="export-modal__label">
+                {t('dialogs:paperExport.sheet', 'Sheet')}
+              </span>
+              <SegmentedControl<SheetMode>
+                aria-label={t('dialogs:paperExport.sheet', 'Sheet')}
+                value={sheetMode}
+                onChange={(mode) =>
+                  patch({
+                    sheet: mode === 'as-shown' ? 'as-shown' : { mm: sheetMmOf(draft.sheet) },
+                  })
+                }
+                options={[
+                  { value: 'as-shown', label: t('dialogs:paperExport.sheetAsShown', 'As shown') },
+                  { value: 'custom', label: t('dialogs:paperExport.sheetCustom', 'Custom') },
+                ]}
+              />
+            </>
           )}
           {sheetMode === 'custom' && (
-            <NumberField
-              label={t('dialogs:paperExport.sheetMm', 'Sheet size')}
-              value={draft.sheet === 'as-shown' ? DEFAULT_PAPER_SHEET_MM : draft.sheet.mm}
-              min={PAPER_SHEET_MM_RANGE.min}
-              max={PAPER_SHEET_MM_RANGE.max}
-              step={PAPER_SHEET_MM_RANGE.step}
-              suffix="mm"
-              onCommit={(mm) => patch({ sheet: { mm } })}
-            />
+            <div className="export-modal__field-row">
+              <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>
+              <NumberField
+                label={t('dialogs:paperExport.sheetMm', 'Sheet size')}
+                value={draft.sheet === 'as-shown' ? DEFAULT_PAPER_SHEET_MM : draft.sheet.mm}
+                min={PAPER_SHEET_MM_RANGE.min}
+                max={PAPER_SHEET_MM_RANGE.max}
+                step={PAPER_SHEET_MM_RANGE.step}
+                suffix="mm"
+                onCommit={(mm) => patch({ sheet: { mm } })}
+              />
+            </div>
           )}
           <small className="export-modal__hint">
             {sheetMode === 'as-shown'
@@ -213,52 +227,57 @@ export function PaperExportOptions({
         </div>
         {png && (
           <div className="export-modal__control-group">
-            <span className="export-modal__label">
-              {t('dialogs:paperExport.resolution', 'Resolution')}
-            </span>
-            <Select
-              value={dpiValue}
-              onValueChange={(next) => {
-                if (next === CUSTOM) {
-                  setCustomDpi(true);
-                  return;
-                }
-                setCustomDpi(false);
-                patch({ pngDpi: Number(next) });
-              }}
-            >
-              <SelectTrigger
-                aria-label={t('dialogs:paperExport.resolution', 'Resolution')}
-                className="export-modal__select"
+            <div className="export-modal__field-row">
+              <span className="export-modal__label">
+                {t('dialogs:paperExport.resolution', 'Resolution')}
+              </span>
+              <Select
+                value={dpiValue}
+                onValueChange={(next) => {
+                  if (next === CUSTOM) {
+                    setCustomDpi(true);
+                    return;
+                  }
+                  setCustomDpi(false);
+                  patch({ pngDpi: Number(next) });
+                }}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAPER_EXPORT_DPI_PRESETS.map((dpi) => (
-                  <SelectItem key={dpi} value={String(dpi)}>
-                    {dpi % SCREEN_DPI === 0
-                      ? t('dialogs:paperExport.resolutionScale', '{{scale}}× · {{dpi}} dpi', {
-                          scale: dpi / SCREEN_DPI,
-                          dpi,
-                        })
-                      : t('dialogs:paperExport.resolutionDpi', '{{dpi}} dpi', { dpi })}
+                <SelectTrigger
+                  aria-label={t('dialogs:paperExport.resolution', 'Resolution')}
+                  className="export-modal__select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAPER_EXPORT_DPI_PRESETS.map((dpi) => (
+                    <SelectItem key={dpi} value={String(dpi)}>
+                      {dpi % SCREEN_DPI === 0
+                        ? t('dialogs:paperExport.resolutionScale', '{{scale}}× · {{dpi}} dpi', {
+                            scale: dpi / SCREEN_DPI,
+                            dpi,
+                          })
+                        : t('dialogs:paperExport.resolutionDpi', '{{dpi}} dpi', { dpi })}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM}>
+                    {t('dialogs:paperExport.resolutionCustom', 'Custom')}
                   </SelectItem>
-                ))}
-                <SelectItem value={CUSTOM}>
-                  {t('dialogs:paperExport.resolutionCustom', 'Custom')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* The Resolution row's second line: the menu's own label names it. */}
             {customDpi && (
-              <NumberField
-                label={t('dialogs:paperExport.resolutionDpiField', 'Resolution in dpi')}
-                value={draft.pngDpi}
-                min={PAPER_PNG_DPI_RANGE.min}
-                max={PAPER_PNG_DPI_RANGE.max}
-                step={PAPER_PNG_DPI_RANGE.step}
-                suffix="dpi"
-                onCommit={(pngDpi) => patch({ pngDpi })}
-              />
+              <div className="export-modal__field-row">
+                <NumberField
+                  label={t('dialogs:paperExport.resolutionDpiField', 'Resolution in dpi')}
+                  value={draft.pngDpi}
+                  min={PAPER_PNG_DPI_RANGE.min}
+                  max={PAPER_PNG_DPI_RANGE.max}
+                  step={PAPER_PNG_DPI_RANGE.step}
+                  suffix="dpi"
+                  onCommit={(pngDpi) => patch({ pngDpi })}
+                />
+              </div>
             )}
           </div>
         )}

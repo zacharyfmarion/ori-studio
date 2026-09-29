@@ -322,6 +322,33 @@ describe('PaperExportModal', () => {
     expect(field('Sheet size')).toBeNull();
   });
 
+  it('puts Size and Margin on rows of one kind, each labelled beside its field', async () => {
+    const rowLabel = (label: string) =>
+      field(label)
+        ?.closest('.export-modal__field-row')
+        ?.querySelector('.export-modal__label')?.textContent ?? null;
+    const { paperExport } = useSettingsStore.getState();
+    useSettingsStore.setState({
+      paperExport: { ...paperExport, 'folded-figure': { ...paperExport['folded-figure'], sheet: 'as-shown' } },
+    });
+
+    await open(target({ defaultSheetMm: 250 }));
+    expect(rowLabel('Sheet size')).toBe('Size');
+    expect(rowLabel('Margin')).toBe('Margin');
+
+    // With "As shown" on offer, the choice has a heading of its own, and the
+    // Size row comes with Custom.
+    act(() => usePaperExportUiStore.getState().close());
+    await open(target());
+    const headings = () =>
+      [...(dialog()?.querySelectorAll('.export-modal__label') ?? [])].map((label) => label.textContent);
+    expect(headings()).toContain('Sheet');
+    expect(headings()).not.toContain('Size');
+    await act(async () => button('Custom')?.click());
+    expect(rowLabel('Sheet size')).toBe('Size');
+    expect(rowLabel('Margin')).toBe('Margin');
+  });
+
   it('starts a fresh draft when opened over an open dialog, releasing the one it replaces', async () => {
     const first = target();
     await open(first);

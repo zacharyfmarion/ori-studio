@@ -2623,11 +2623,46 @@ a.context-menu__item {
   font-size: 0.72rem;
 }
 
+/*
+ * A label on the left and one control on the right: Size, Margin, Resolution.
+ * Every control takes the same width rather than whatever its label leaves, so
+ * the steppers and the menu under one another line up on both edges.
+ */
 .export-modal__field-row {
+  --export-modal-field-width: 136px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+}
+
+/* The label gives way before the control does: truncated, it can still be read. */
+.export-modal__field-row > .export-modal__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The auto margin keeps a row with no label of its own (the custom dpi under
+   Resolution) on the right. `min-content` is the floor should the row's width
+   ever be less than a stepper needs: the row then widens out of line rather
+   than cutting the number off. */
+.export-modal__field-row > .number-field,
+.export-modal__field-row > .select-trigger {
+  flex: none;
+  width: var(--export-modal-field-width);
+  min-width: min-content;
+  margin-inline-start: auto;
+}
+
+/* Every value these fields take is at most four characters (1000 mm, 99.5 mm,
+   1200 dpi), so the input's floor is four digits plus its padding and border.
+   Written in `ch`, it follows the 16px a touch screen gives the input, where
+   the number field's own 44px floor holds only three. */
+.export-modal__field-row .number-field__input {
+  min-width: calc(4ch + 16px);
 }
 
 .field-row {
@@ -10908,6 +10943,14 @@ button.bp-packing-alert:focus-visible {
   .control-row__label {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* The export dialog's rows, for the same steppers. Two 44px buttons, three
+     4px gaps and the unit take about 120px, and four digits at the input's
+     16px take another 56px with its padding — so about 176px, and 184px leaves
+     the number some room. One width for every row keeps them lined up. */
+  .export-modal__field-row {
+    --export-modal-field-width: 184px;
   }
 
   .cp-tool-rail__button {
