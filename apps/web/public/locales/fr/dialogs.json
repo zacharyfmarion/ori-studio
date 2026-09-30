@@ -120,6 +120,14 @@
       "timeoutPartial_other": "Le solveur avait mis {{count}} sommets en place avant l’expiration du délai, et vous pouvez ajouter ce résultat partiel plutôt que le candidat brut."
     }
   },
+  "discardChanges": {
+    "confirm": "Abandonner",
+    "message": "Votre projet actuel comporte des modifications non enregistrées. Continuer et les abandonner ?",
+    "newBoxPleatMessage": "Votre projet actuel comporte des modifications non enregistrées. Commencer une nouvelle conception en pliage en boîte et les abandonner ?",
+    "sharedLinkMessage": "Ouvrir ce patron de plis partagé remplacera votre travail actuel. Continuer et l’abandonner ?",
+    "startScreenMessage": "Votre projet actuel comporte des modifications non enregistrées. Revenir à l’écran d’accueil et les abandonner ?",
+    "title": "Abandonner les modifications non enregistrées ?"
+  },
   "export": {
     "allPatterns": "Tous les patrons",
     "appearanceSection": "Apparence",
@@ -127,6 +135,7 @@
     "creasePatternToExport": "Patron de plis à exporter",
     "description": "Description",
     "descriptionPlaceholder": "Facultatif",
+    "dialogTitle": "Exporter {{format}}",
     "foldAngleDisplay": "Style d’angle de pliage",
     "foldedBackColor": "Verso",
     "foldedCase": "Cas de pliage",
@@ -181,6 +190,30 @@
     "featureCount": "{{feature}} ({{total}})",
     "message": "Ce projet utilise des fonctionnalités que le format {{format}} ne peut pas stocker. Elles seront omises de l’exportation : {{features}}.",
     "title": "Certaines fonctionnalités ne peuvent pas être exportées"
+  },
+  "fileDialog": {
+    "exportBps": "Exporter le projet Box Pleating Studio",
+    "exportCp": "Exporter le document CP",
+    "exportCreasePatternPng": "Exporter le patron de plis en PNG",
+    "exportCreasePatternSvg": "Exporter le patron de plis en SVG",
+    "exportFold": "Exporter le document FOLD",
+    "exportFoldedFigurePng": "Exporter la figure pliée en PNG",
+    "exportFoldedFigureSvg": "Exporter la figure pliée en SVG",
+    "exportFoldedFold": "Exporter le FOLD plié",
+    "exportFoldedObj": "Exporter l’OBJ plié",
+    "exportFoldedStl": "Exporter le STL plié",
+    "exportFormat": "Exporter {{format}}",
+    "exportOrh": "Exporter le document ORH Oriedita",
+    "exportOri": "Exporter le document ORI Oriedita",
+    "exportTreeMaker4": "Exporter le projet TreeMaker 4",
+    "exportTreeMaker5": "Exporter le projet TreeMaker 5",
+    "exportViewPng": "Exporter la vue en PNG",
+    "exportViewSvg": "Exporter la vue en SVG",
+    "importIntoCreasePattern": "Importer dans le patron de plis",
+    "saveOrh": "Enregistrer le document ORH Oriedita",
+    "saveOri": "Enregistrer le document ORI Oriedita",
+    "saveProject": "Enregistrer le projet Ori Studio",
+    "saveProjectAs": "Enregistrer le projet Ori Studio sous"
   },
   "fileDrop": {
     "choiceMessage": "{{name}} est un patron de plis : il peut être fusionné avec celui que vous modifiez ou ouvert séparément.",
@@ -249,6 +282,11 @@
       }
     },
     "closeLabel": "Fermer {{title}}"
+  },
+  "legacyOrh": {
+    "confirm": "Exporter ORH",
+    "message": "ORH est un format hérité d’Oriedita/Orihime qui ne peut conserver ni l’état de l’espace de travail d’Ori Studio, ni les trames FOLD intégrées, ni toutes les métadonnées de l’éditeur moderne.",
+    "title": "Exporter au format ORH hérité ?"
   },
   "number": {
     "tooSmall": "Saisissez un nombre supérieur à {{minimum}}."
@@ -322,6 +360,18 @@
     "message": "Cette séquence contient des plis approximatifs. Si ce patron de pliage provient de « Détecter le CP depuis une image », la détection a peut-être convergé vers une solution inexacte. Vérifiez que tous les points de référence sont corrects.",
     "title": "Plis approximatifs"
   },
+  "replaceEditedCp": {
+    "cancel": "Conserver le patron de plis actuel",
+    "confirm": "Remplacer le patron de plis",
+    "message": "Régénérer à partir de la conception remplacera le patron de plis modifiable généré précédemment. L’arbre reste inchangé.",
+    "title": "Remplacer le patron de plis modifié ?"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "Mettre à l’échelle",
+    "label": "Facteur",
+    "meta": "Multiplie les longueurs des arêtes sélectionnées par ce facteur.",
+    "title": "Mettre à l’échelle les longueurs d’arête"
+  },
   "selectByIndex": {
     "available": "Disponible : {{ids}}",
     "close": "Fermer la sélection par index",
@@ -339,6 +389,12 @@
     "partType": "Type de partie",
     "select": "Sélectionner",
     "title": "Sélectionner par index"
+  },
+  "setEdgeLength": {
+    "confirm": "Définir",
+    "label": "Longueur",
+    "meta": "Applique exactement cette longueur à l’arête sélectionnée.",
+    "title": "Définir la longueur d’arête"
   },
   "settings": {
     "appearance": {
@@ -510,6 +566,12 @@
     "copy": "Copier le lien",
     "title": "Partager le patron de plis",
     "url": "Lien de partage"
+  },
+  "splitEdge": {
+    "confirm": "Diviser",
+    "label": "Distance",
+    "meta": "Distance le long de l’arête sous tension sélectionnée.",
+    "title": "Diviser l’arête"
   },
   "startScreen": {
     "chooseBegin": "Choisissez comment vous voulez commencer.",

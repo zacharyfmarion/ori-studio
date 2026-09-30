@@ -525,12 +525,21 @@ function defaultNativeFilename(title: string): string {
   return defaultFilename(title, NATIVE_PROJECT_EXTENSION);
 }
 
+function saveProjectDialogTitle(saveAs: boolean): string {
+  return saveAs
+    ? i18n.t('dialogs:fileDialog.saveProjectAs', 'Save Ori Studio Project As')
+    : i18n.t('dialogs:fileDialog.saveProject', 'Save Ori Studio Project');
+}
+
 async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
   if (!dirty) return true;
   return requestConfirmation({
-    title: 'Discard unsaved changes?',
-    message: 'Your current project has unsaved changes. Continue and discard them?',
-    confirmLabel: 'Discard',
+    title: i18n.t('dialogs:discardChanges.title', 'Discard unsaved changes?'),
+    message: i18n.t(
+      'dialogs:discardChanges.message',
+      'Your current project has unsaved changes. Continue and discard them?'
+    ),
+    confirmLabel: i18n.t('dialogs:discardChanges.confirm', 'Discard'),
     tone: 'danger',
   });
 }
@@ -735,9 +744,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (options) {
       return { options, content: { ...EMPTY_CREASE_EXPORT_CONTENT, grid }, fold, segments };
     }
-    const label = format.toUpperCase();
     const resolved = await requestCreasePatternExportOptions({
-      title: `Export ${label}`,
+      title: i18n.t('dialogs:export.dialogTitle', 'Export {{format}}', {
+        format: format.toUpperCase(),
+      }),
       format,
       fold,
       segments,
@@ -749,17 +759,18 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         ? (segment, settings) =>
             foldExportSegment(get().oristudioCpDocument, fold, segment, settings)
         : null,
-      confirmLabel: `Export ${label}`,
     });
     return resolved ? { ...resolved, fold, segments } : null;
   };
 
   const confirmLossyOrhWrite = () =>
     requestConfirmation({
-      title: 'Export legacy ORH?',
-      message:
-        'ORH is a legacy Oriedita/Orihime format and cannot preserve Ori Studio workspace state, embedded FOLD frames, or all modern editor metadata.',
-      confirmLabel: 'Export ORH',
+      title: i18n.t('dialogs:legacyOrh.title', 'Export legacy ORH?'),
+      message: i18n.t(
+        'dialogs:legacyOrh.message',
+        'ORH is a legacy Oriedita/Orihime format and cannot preserve Ori Studio workspace state, embedded FOLD frames, or all modern editor metadata.'
+      ),
+      confirmLabel: i18n.t('dialogs:legacyOrh.confirm', 'Export ORH'),
       tone: 'danger',
     });
 
@@ -1579,7 +1590,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const target = nativeSaveTarget();
     const result = await fileService.saveTextFile({
-      title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
+      title: saveProjectDialogTitle(forceSaveAs),
       contents,
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
@@ -1746,7 +1757,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const importedCreasePattern = get().importedCreasePattern;
     const result = await fileService.saveTextFile({
-      title: 'Save Oriedita ORI Document',
+      title: i18n.t('dialogs:fileDialog.saveOri', 'Save Oriedita ORI Document'),
       contents,
       suggestedName: ensureExtension(get().currentFileName, 'ori'),
       path: get().currentFilePath,
@@ -1794,7 +1805,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const importedCreasePattern = get().importedCreasePattern;
     const result = await fileService.saveTextFile({
-      title: 'Save Oriedita ORH Document',
+      title: i18n.t('dialogs:fileDialog.saveOrh', 'Save Oriedita ORH Document'),
       contents,
       suggestedName: ensureExtension(get().currentFileName, 'orh'),
       path: get().currentFilePath,
@@ -1860,7 +1871,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     const target = nativeSaveTarget();
     const result = await fileService.saveTextFile({
-      title: forceSaveAs ? 'Save Ori Studio Project As' : 'Save Ori Studio Project',
+      title: saveProjectDialogTitle(forceSaveAs),
       contents,
       suggestedName: target.suggestedName,
       path: forceSaveAs ? null : target.path,
@@ -2374,7 +2385,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     importAddCreasePattern: async (fileService = getFileService()) => {
       if (rejectDisabled('file.importAdd')) return false;
       const file = await fileService.openTextFile({
-        title: 'Import Into Crease Pattern',
+        title: i18n.t('dialogs:fileDialog.importIntoCreasePattern', 'Import Into Crease Pattern'),
         extensions: ['fold', 'cp', 'ori', 'orh'],
       });
       if (!file) return false;
@@ -2605,7 +2616,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (rejectDisabled('file.exportV5')) return false;
         const contents = await currentTreeTmd5Text();
         const result = await fileService.saveTextFile({
-          title: 'Export TreeMaker 5 Project',
+          title: i18n.t('dialogs:fileDialog.exportTreeMaker5', 'Export TreeMaker 5 Project'),
           contents,
           suggestedName: defaultFilename(get().workspaceTitle, 'tmd5'),
           path: null,
@@ -2626,7 +2637,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const { api, treeHandle } = await ensureTreeHandle();
         const contents = await api.exportV4(treeHandle);
         const result = await fileService.saveTextFile({
-          title: 'Export TreeMaker 4 Project',
+          title: i18n.t('dialogs:fileDialog.exportTreeMaker4', 'Export TreeMaker 4 Project'),
           contents,
           suggestedName: defaultFilename(get().workspaceTitle, 'tmd4'),
           path: null,
@@ -2648,7 +2659,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (cpLoss !== true && !(await cpLoss)) return false;
         const contents = await exportOristudioCpDocumentAsCp();
         const result = await fileService.saveTextFile({
-          title: 'Export CP Document',
+          title: i18n.t('dialogs:fileDialog.exportCp', 'Export CP Document'),
           contents,
           suggestedName: defaultFilename(
             get().oristudioCpDocument?.summary.title || get().workspaceTitle,
@@ -2680,7 +2691,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (symmetryLoss !== true && !(await symmetryLoss)) return false;
         const contents = await exportOristudioBpProjectAsBps();
         const result = await fileService.saveTextFile({
-          title: 'Export Box Pleating Studio Project',
+          title: i18n.t('dialogs:fileDialog.exportBps', 'Export Box Pleating Studio Project'),
           contents,
           suggestedName: defaultFilename(
             selectOristudioBpDocument(get(), designId)?.snapshot?.summary?.title ||
@@ -2721,7 +2732,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
                 return api.exportFold(treeHandle);
               })();
         const result = await fileService.saveTextFile({
-          title: 'Export FOLD Document',
+          title: i18n.t('dialogs:fileDialog.exportFold', 'Export FOLD Document'),
           contents,
           suggestedName: defaultFilename(get().workspaceTitle, 'fold'),
           path: null,
@@ -2745,7 +2756,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           flattenTextAnnotations(get().oristudioCpAnnotations)
         );
         const result = await fileService.saveTextFile({
-          title: 'Export Oriedita ORI Document',
+          title: i18n.t('dialogs:fileDialog.exportOri', 'Export Oriedita ORI Document'),
           contents,
           suggestedName: defaultFilename(
             get().oristudioCpDocument?.summary.title || get().workspaceTitle,
@@ -2773,7 +2784,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           flattenTextAnnotations(get().oristudioCpAnnotations)
         );
         const result = await fileService.saveTextFile({
-          title: 'Export Oriedita ORH Document',
+          title: i18n.t('dialogs:fileDialog.exportOrh', 'Export Oriedita ORH Document'),
           contents,
           suggestedName: defaultFilename(
             get().oristudioCpDocument?.summary.title || get().workspaceTitle,
@@ -2805,7 +2816,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           resolved.content
         );
         const result = await fileService.saveTextFile({
-          title: 'Export Crease Pattern SVG',
+          title: i18n.t('dialogs:fileDialog.exportCreasePatternSvg', 'Export Crease Pattern SVG'),
           contents,
           suggestedName: defaultFilename(get().workspaceTitle, 'svg'),
           path: null,
@@ -2834,7 +2845,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           resolved.content
         );
         const result = await fileService.saveBinaryFile({
-          title: 'Export Crease Pattern PNG',
+          title: i18n.t('dialogs:fileDialog.exportCreasePatternPng', 'Export Crease Pattern PNG'),
           bytes,
           suggestedName: defaultFilename(get().workspaceTitle, 'png'),
           path: null,
@@ -2858,7 +2869,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const source = simulationFoldOf(get().foldArtifacts!);
         const contents = JSON.stringify(foldedFoldDocument(source, geometry), null, 2);
         const result = await fileService.saveTextFile({
-          title: 'Export Folded FOLD',
+          title: i18n.t('dialogs:fileDialog.exportFoldedFold', 'Export Folded FOLD'),
           contents,
           suggestedName: defaultFilename(`${get().workspaceTitle} folded`, 'fold'),
           path: null,
@@ -2879,7 +2890,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const geometry = await readFoldedGeometry();
         if (!geometry) return false;
         const result = await fileService.saveTextFile({
-          title: 'Export Folded OBJ',
+          title: i18n.t('dialogs:fileDialog.exportFoldedObj', 'Export Folded OBJ'),
           contents: foldedObj(geometry, get().workspaceTitle || 'folded'),
           suggestedName: defaultFilename(`${get().workspaceTitle} folded`, 'obj'),
           path: null,
@@ -2900,7 +2911,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const geometry = await readFoldedGeometry();
         if (!geometry) return false;
         const result = await fileService.saveBinaryFile({
-          title: 'Export Folded STL',
+          title: i18n.t('dialogs:fileDialog.exportFoldedStl', 'Export Folded STL'),
           bytes: foldedStl(geometry),
           suggestedName: defaultFilename(`${get().workspaceTitle} folded`, 'stl'),
           path: null,
@@ -3044,9 +3055,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           // Open the export-image modal pre-scoped to this segment.
           const fold = foldArtifacts.fold;
           const segments = segmentFoldDocument(fold);
-          const label = format.toUpperCase();
           const resolved = await requestCreasePatternExportOptions({
-            title: `Export ${label}`,
+            title: i18n.t('dialogs:export.dialogTitle', 'Export {{format}}', {
+              format: format.toUpperCase(),
+            }),
             format,
             fold,
             segments,
@@ -3058,12 +3070,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               ? (segment, settings) =>
                   foldExportSegment(get().oristudioCpDocument, fold, segment, settings)
               : null,
-            confirmLabel: `Export ${label}`,
           });
           if (!resolved) return false;
           if (format === 'svg') {
             const result = await fileService.saveTextFile({
-              title: 'Export Crease Pattern SVG',
+              title: i18n.t(
+                'dialogs:fileDialog.exportCreasePatternSvg',
+                'Export Crease Pattern SVG'
+              ),
               contents: serializeCreasePatternSvg(fold, segments, resolved.options, resolved.content),
               suggestedName: defaultFilename(patternTitle, 'svg'),
               path: null,
@@ -3075,7 +3089,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           }
           const bytes = await renderCreasePatternPng(fold, segments, resolved.options, resolved.content);
           const result = await fileService.saveBinaryFile({
-            title: 'Export Crease Pattern PNG',
+            title: i18n.t('dialogs:fileDialog.exportCreasePatternPng', 'Export Crease Pattern PNG'),
             bytes,
             suggestedName: defaultFilename(patternTitle, 'png'),
             path: null,
@@ -3092,7 +3106,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         if (!subFold) return false;
         const contents = await exportFoldFrameAsFormat(JSON.stringify(subFold), format);
         const result = await fileService.saveTextFile({
-          title: `Export ${format.toUpperCase()}`,
+          title: i18n.t('dialogs:fileDialog.exportFormat', 'Export {{format}}', {
+            format: format.toUpperCase(),
+          }),
           contents,
           suggestedName: defaultFilename(patternTitle, format),
           path: null,
@@ -3133,7 +3149,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           const contents = serializeFoldedFigureSvg(snapshot);
           if (!contents) return false;
           const result = await fileService.saveTextFile({
-            title: 'Export Folded Figure SVG',
+            title: i18n.t('dialogs:fileDialog.exportFoldedFigureSvg', 'Export Folded Figure SVG'),
             contents,
             suggestedName: defaultFilename(name, 'svg'),
             path: null,
@@ -3147,7 +3163,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         const bytes = await renderFoldedFigurePng(snapshot);
         if (!bytes) return false;
         const result = await fileService.saveBinaryFile({
-          title: 'Export Folded Figure PNG',
+          title: i18n.t('dialogs:fileDialog.exportFoldedFigurePng', 'Export Folded Figure PNG'),
           bytes,
           suggestedName: defaultFilename(name, 'png'),
           path: null,

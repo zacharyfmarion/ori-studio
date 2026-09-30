@@ -212,7 +212,7 @@ export function CommandDialogModal() {
             <Ruler size={15} aria-hidden="true" />
             {dialog.title}
           </span>
-          <IconButton size="sm" aria-label={`Close ${dialog.title}`} onClick={() => cancelCommandDialog(dialog.id)}>
+          <IconButton size="sm" aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: dialog.title })} onClick={() => cancelCommandDialog(dialog.id)}>
             <X size={15} />
           </IconButton>
         </header>

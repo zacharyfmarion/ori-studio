@@ -1,4 +1,5 @@
 import type { SvgRenderResult } from '@treemaker/origami-simulator';
+import i18n from '../i18n';
 import { svgToPng } from '../lib/creaseExport';
 import { getFileService, type FileService } from '../platform/fileService';
 import { exportFilename } from '../platform/exportFilename';
@@ -41,7 +42,7 @@ export async function saveSimulatorView({
 }: SaveSimulatorViewOptions): Promise<string | null> {
   if (format === 'svg') {
     const result = await fileService.saveTextFile({
-      title: 'Export View SVG',
+      title: i18n.t('dialogs:fileDialog.exportViewSvg', 'Export View SVG'),
       contents: page.svg,
       suggestedName: exportFilename(name, 'svg'),
       path: null,
@@ -52,7 +53,7 @@ export async function saveSimulatorView({
 
   const bytes = await svgToPng(page.svg, page.width * PNG_SCALE, page.height * PNG_SCALE);
   const result = await fileService.saveBinaryFile({
-    title: 'Export View PNG',
+    title: i18n.t('dialogs:fileDialog.exportViewPng', 'Export View PNG'),
     bytes,
     suggestedName: exportFilename(name, 'png'),
     path: null,

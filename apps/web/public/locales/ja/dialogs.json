@@ -116,6 +116,14 @@
       "timeoutPartial_other": "時間切れまでに頂点 {{count}} 個を所定の位置へ動かしており、素の候補の代わりにその途中結果を追加できます。"
     }
   },
+  "discardChanges": {
+    "confirm": "破棄",
+    "message": "現在のプロジェクトに未保存の変更があります。続行してこれらを破棄しますか？",
+    "newBoxPleatMessage": "現在のプロジェクトに未保存の変更があります。新しいボックスプリーツデザインを開始してこれらを破棄しますか？",
+    "sharedLinkMessage": "この共有された展開図を開くと、現在の作業が置き換えられます。続行して破棄しますか？",
+    "startScreenMessage": "現在のプロジェクトに未保存の変更があります。スタート画面に戻ってこれらを破棄しますか？",
+    "title": "未保存の変更を破棄しますか？"
+  },
   "export": {
     "allPatterns": "すべてのパターン",
     "appearanceSection": "外観",
@@ -123,6 +131,7 @@
     "creasePatternToExport": "エクスポートする展開図",
     "description": "説明",
     "descriptionPlaceholder": "任意",
+    "dialogTitle": "{{format}} をエクスポート",
     "foldAngleDisplay": "折り角度スタイル",
     "foldedBackColor": "裏",
     "foldedCase": "折りケース",
@@ -175,6 +184,30 @@
     "featureCount": "{{feature}}（{{total}}）",
     "message": "このプロジェクトには {{format}} 形式では保存できない要素が含まれています。エクスポート時に次の内容が省略されます: {{features}}。",
     "title": "一部の機能はエクスポートできません"
+  },
+  "fileDialog": {
+    "exportBps": "Box Pleating Studio プロジェクトをエクスポート",
+    "exportCp": "CP ドキュメントをエクスポート",
+    "exportCreasePatternPng": "展開図を PNG としてエクスポート",
+    "exportCreasePatternSvg": "展開図を SVG としてエクスポート",
+    "exportFold": "FOLD ドキュメントをエクスポート",
+    "exportFoldedFigurePng": "折り上がり図を PNG としてエクスポート",
+    "exportFoldedFigureSvg": "折り上がり図を SVG としてエクスポート",
+    "exportFoldedFold": "折り上がり FOLD を書き出す",
+    "exportFoldedObj": "折り上がり OBJ を書き出す",
+    "exportFoldedStl": "折り上がり STL を書き出す",
+    "exportFormat": "{{format}} をエクスポート",
+    "exportOrh": "Oriedita ORH ドキュメントをエクスポート",
+    "exportOri": "Oriedita ORI ドキュメントをエクスポート",
+    "exportTreeMaker4": "TreeMaker 4 プロジェクトをエクスポート",
+    "exportTreeMaker5": "TreeMaker 5 プロジェクトをエクスポート",
+    "exportViewPng": "ビューを PNG として書き出す",
+    "exportViewSvg": "ビューを SVG として書き出す",
+    "importIntoCreasePattern": "展開図にインポート",
+    "saveOrh": "Oriedita ORH ドキュメントを保存",
+    "saveOri": "Oriedita ORI ドキュメントを保存",
+    "saveProject": "Ori Studio プロジェクトを保存",
+    "saveProjectAs": "Ori Studio プロジェクトに名前を付けて保存"
   },
   "fileDrop": {
     "choiceMessage": "{{name}} は展開図です。編集中の展開図に結合することも、単独で開くこともできます。",
@@ -244,6 +277,11 @@
     },
     "closeLabel": "{{title}}を閉じる"
   },
+  "legacyOrh": {
+    "confirm": "ORH をエクスポート",
+    "message": "ORH は Oriedita/Orihime の従来の形式で、Ori Studio のワークスペースの状態や埋め込まれた FOLD フレームを保持できず、最新のエディターのメタデータもすべては保持できません。",
+    "title": "従来の ORH をエクスポートしますか？"
+  },
   "number": {
     "tooSmall": "{{minimum}} より大きい数値を入力してください。"
   },
@@ -306,6 +344,18 @@
     "message": "この手順には近似の折りが含まれています。この展開図が「画像から CP を検出」で作られたものなら、検出が不正確な結果に収束した可能性があります。基準点が正しいか確認してください。",
     "title": "近似の折り"
   },
+  "replaceEditedCp": {
+    "cancel": "現在の CP を保持",
+    "confirm": "CP を置き換え",
+    "message": "デザインから再作成すると、以前に生成した編集可能な展開図が置き換えられます。ツリーは変更されません。",
+    "title": "編集済みの CP を置き換えますか？"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "拡大縮小",
+    "label": "倍率",
+    "meta": "選択した辺の長さにこの倍率を掛けます。",
+    "title": "辺の長さを拡大縮小"
+  },
   "selectByIndex": {
     "available": "利用可能: {{ids}}",
     "close": "インデックスで選択を閉じる",
@@ -323,6 +373,12 @@
     "partType": "部分のタイプ",
     "select": "選択",
     "title": "インデックスで選択"
+  },
+  "setEdgeLength": {
+    "confirm": "設定",
+    "label": "長さ",
+    "meta": "選択した辺をちょうどこの長さにします。",
+    "title": "辺の長さを設定"
   },
   "settings": {
     "appearance": {
@@ -486,6 +542,12 @@
     "copy": "リンクをコピー",
     "title": "折り線パターンを共有",
     "url": "共有リンク"
+  },
+  "splitEdge": {
+    "confirm": "分割",
+    "label": "距離",
+    "meta": "選択したひずみのある辺に沿った距離です。",
+    "title": "辺を分割"
   },
   "startScreen": {
     "chooseBegin": "開始方法を選択してください。",

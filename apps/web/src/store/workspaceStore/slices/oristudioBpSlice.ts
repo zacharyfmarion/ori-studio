@@ -153,9 +153,12 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
   const confirmDiscardDirty = async (dirty: boolean): Promise<boolean> => {
     if (!dirty) return true;
     return requestConfirmation({
-      title: 'Discard unsaved changes?',
-      message: 'Your current project has unsaved changes. Start a new Box Pleat design and discard them?',
-      confirmLabel: 'Discard',
+      title: i18n.t('dialogs:discardChanges.title', 'Discard unsaved changes?'),
+      message: i18n.t(
+        'dialogs:discardChanges.newBoxPleatMessage',
+        'Your current project has unsaved changes. Start a new Box Pleat design and discard them?'
+      ),
+      confirmLabel: i18n.t('dialogs:discardChanges.confirm', 'Discard'),
       tone: 'danger',
     });
   };

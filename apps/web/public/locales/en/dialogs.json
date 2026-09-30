@@ -118,6 +118,14 @@
       "timeoutPartial_other": "It had moved {{count}} vertices into place before the clock ran out, and you can add that partial result instead of the raw candidate."
     }
   },
+  "discardChanges": {
+    "confirm": "Discard",
+    "message": "Your current project has unsaved changes. Continue and discard them?",
+    "newBoxPleatMessage": "Your current project has unsaved changes. Start a new Box Pleat design and discard them?",
+    "sharedLinkMessage": "Opening this shared crease pattern will replace your current work. Continue and discard it?",
+    "startScreenMessage": "Your current project has unsaved changes. Return to the start screen and discard them?",
+    "title": "Discard unsaved changes?"
+  },
   "export": {
     "allPatterns": "All patterns",
     "appearanceSection": "Appearance",
@@ -125,6 +133,7 @@
     "creasePatternToExport": "Crease pattern to export",
     "description": "Description",
     "descriptionPlaceholder": "Optional",
+    "dialogTitle": "Export {{format}}",
     "foldAngleDisplay": "Fold angle style",
     "foldedBackColor": "Back",
     "foldedCase": "Fold case",
@@ -178,6 +187,30 @@
     "featureCount": "{{feature}} ({{total}})",
     "message": "This project uses features the {{format}} format can’t store. They’ll be omitted from the export: {{features}}.",
     "title": "Some features can’t be exported"
+  },
+  "fileDialog": {
+    "exportBps": "Export Box Pleating Studio Project",
+    "exportCp": "Export CP Document",
+    "exportCreasePatternPng": "Export Crease Pattern PNG",
+    "exportCreasePatternSvg": "Export Crease Pattern SVG",
+    "exportFold": "Export FOLD Document",
+    "exportFoldedFigurePng": "Export Folded Figure PNG",
+    "exportFoldedFigureSvg": "Export Folded Figure SVG",
+    "exportFoldedFold": "Export Folded FOLD",
+    "exportFoldedObj": "Export Folded OBJ",
+    "exportFoldedStl": "Export Folded STL",
+    "exportFormat": "Export {{format}}",
+    "exportOrh": "Export Oriedita ORH Document",
+    "exportOri": "Export Oriedita ORI Document",
+    "exportTreeMaker4": "Export TreeMaker 4 Project",
+    "exportTreeMaker5": "Export TreeMaker 5 Project",
+    "exportViewPng": "Export View PNG",
+    "exportViewSvg": "Export View SVG",
+    "importIntoCreasePattern": "Import Into Crease Pattern",
+    "saveOrh": "Save Oriedita ORH Document",
+    "saveOri": "Save Oriedita ORI Document",
+    "saveProject": "Save Ori Studio Project",
+    "saveProjectAs": "Save Ori Studio Project As"
   },
   "fileDrop": {
     "choiceMessage": "{{name}} is a crease pattern, so it can be merged into the one you are editing or opened on its own.",
@@ -247,6 +280,11 @@
     },
     "closeLabel": "Close {{title}}"
   },
+  "legacyOrh": {
+    "confirm": "Export ORH",
+    "message": "ORH is a legacy Oriedita/Orihime format and cannot preserve Ori Studio workspace state, embedded FOLD frames, or all modern editor metadata.",
+    "title": "Export legacy ORH?"
+  },
   "number": {
     "tooSmall": "Enter a number greater than {{minimum}}."
   },
@@ -314,6 +352,18 @@
     "message": "This sequence contains approximated folds. If this crease pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution. Please verify that any reference points are correct.",
     "title": "Approximated folds"
   },
+  "replaceEditedCp": {
+    "cancel": "Keep Current CP",
+    "confirm": "Replace CP",
+    "message": "Rebuilding from the design will replace the editable crease pattern generated earlier. The tree stays unchanged.",
+    "title": "Replace Edited CP?"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "Scale",
+    "label": "Factor",
+    "meta": "Multiplies selected edge lengths by this factor.",
+    "title": "Scale Edge Lengths"
+  },
   "selectByIndex": {
     "available": "Available: {{ids}}",
     "close": "Close select by index",
@@ -331,6 +381,12 @@
     "partType": "Part type",
     "select": "Select",
     "title": "Select by index"
+  },
+  "setEdgeLength": {
+    "confirm": "Set",
+    "label": "Length",
+    "meta": "Applies this exact length to the selected edge.",
+    "title": "Set Edge Length"
   },
   "settings": {
     "appearance": {
@@ -498,6 +554,12 @@
     "copy": "Copy link",
     "title": "Share crease pattern",
     "url": "Share link"
+  },
+  "splitEdge": {
+    "confirm": "Split",
+    "label": "Distance",
+    "meta": "Distance along the selected strained edge.",
+    "title": "Split Edge"
   },
   "startScreen": {
     "chooseBegin": "Choose how you want to begin.",

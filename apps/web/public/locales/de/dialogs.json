@@ -118,6 +118,14 @@
       "timeoutPartial_other": "Der Solver hatte {{count}} Knoten an ihre Plätze gerückt, bevor die Zeit ablief; Sie können dieses Teilergebnis statt des rohen Kandidaten hinzufügen."
     }
   },
+  "discardChanges": {
+    "confirm": "Verwerfen",
+    "message": "Ihr aktuelles Projekt enthält nicht gespeicherte Änderungen. Fortfahren und verwerfen?",
+    "newBoxPleatMessage": "Ihr aktuelles Projekt enthält nicht gespeicherte Änderungen. Ein neues Box-Pleating-Design beginnen und verwerfen?",
+    "sharedLinkMessage": "Das Öffnen dieses geteilten Faltmusters ersetzt Ihre aktuelle Arbeit. Fortfahren und verwerfen?",
+    "startScreenMessage": "Ihr aktuelles Projekt enthält nicht gespeicherte Änderungen. Zum Startbildschirm zurückkehren und verwerfen?",
+    "title": "Nicht gespeicherte Änderungen verwerfen?"
+  },
   "export": {
     "allPatterns": "Alle Muster",
     "appearanceSection": "Erscheinungsbild",
@@ -125,6 +133,7 @@
     "creasePatternToExport": "Zu exportierendes Faltmuster",
     "description": "Beschreibung",
     "descriptionPlaceholder": "Optional",
+    "dialogTitle": "{{format}} exportieren",
     "foldAngleDisplay": "Faltwinkel-Stil",
     "foldedBackColor": "Rückseite",
     "foldedCase": "Faltfall",
@@ -178,6 +187,30 @@
     "featureCount": "{{feature}} ({{total}})",
     "message": "Dieses Projekt verwendet Funktionen, die das Format {{format}} nicht speichern kann. Beim Export werden sie weggelassen: {{features}}.",
     "title": "Einige Funktionen können nicht exportiert werden"
+  },
+  "fileDialog": {
+    "exportBps": "Box Pleating Studio-Projekt exportieren",
+    "exportCp": "CP-Dokument exportieren",
+    "exportCreasePatternPng": "Faltmuster als PNG exportieren",
+    "exportCreasePatternSvg": "Faltmuster als SVG exportieren",
+    "exportFold": "FOLD-Dokument exportieren",
+    "exportFoldedFigurePng": "Gefaltete Figur als PNG exportieren",
+    "exportFoldedFigureSvg": "Gefaltete Figur als SVG exportieren",
+    "exportFoldedFold": "Gefaltetes FOLD exportieren",
+    "exportFoldedObj": "Gefaltetes OBJ exportieren",
+    "exportFoldedStl": "Gefaltetes STL exportieren",
+    "exportFormat": "{{format}} exportieren",
+    "exportOrh": "Oriedita-ORH-Dokument exportieren",
+    "exportOri": "Oriedita-ORI-Dokument exportieren",
+    "exportTreeMaker4": "TreeMaker 4-Projekt exportieren",
+    "exportTreeMaker5": "TreeMaker 5-Projekt exportieren",
+    "exportViewPng": "Ansicht als PNG exportieren",
+    "exportViewSvg": "Ansicht als SVG exportieren",
+    "importIntoCreasePattern": "In das Faltmuster importieren",
+    "saveOrh": "Oriedita-ORH-Dokument speichern",
+    "saveOri": "Oriedita-ORI-Dokument speichern",
+    "saveProject": "Ori Studio-Projekt speichern",
+    "saveProjectAs": "Ori Studio-Projekt speichern unter"
   },
   "fileDrop": {
     "choiceMessage": "{{name}} ist ein Faltmuster und kann daher in das gerade bearbeitete Muster eingefügt oder eigenständig geöffnet werden.",
@@ -247,6 +280,11 @@
     },
     "closeLabel": "{{title}} schließen"
   },
+  "legacyOrh": {
+    "confirm": "ORH exportieren",
+    "message": "ORH ist ein Legacy-Format von Oriedita/Orihime und kann weder den Arbeitsbereichszustand von Ori Studio noch eingebettete FOLD-Frames noch sämtliche Metadaten des modernen Editors erhalten.",
+    "title": "Legacy-ORH exportieren?"
+  },
   "number": {
     "tooSmall": "Geben Sie eine Zahl größer als {{minimum}} ein."
   },
@@ -314,6 +352,18 @@
     "message": "Diese Sequenz enthält näherungsweise Faltungen. Stammt dieses Crease Pattern aus „CP aus Bild erkennen“, ist die Erkennung möglicherweise zu einer ungenauen Lösung konvergiert. Bitte prüfe, ob alle Referenzpunkte stimmen.",
     "title": "Näherungsweise Faltungen"
   },
+  "replaceEditedCp": {
+    "cancel": "Aktuelles CP behalten",
+    "confirm": "CP ersetzen",
+    "message": "Beim Neuerstellen aus dem Design wird das zuvor erzeugte bearbeitbare Faltmuster ersetzt. Der Baum bleibt unverändert.",
+    "title": "Bearbeitetes CP ersetzen?"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "Skalieren",
+    "label": "Faktor",
+    "meta": "Multipliziert die ausgewählten Kantenlängen mit diesem Faktor.",
+    "title": "Kantenlängen skalieren"
+  },
   "selectByIndex": {
     "available": "Verfügbar: {{ids}}",
     "close": "Auswahl nach Index schließen",
@@ -331,6 +381,12 @@
     "partType": "Teiltyp",
     "select": "Auswählen",
     "title": "Nach Index auswählen"
+  },
+  "setEdgeLength": {
+    "confirm": "Festlegen",
+    "label": "Länge",
+    "meta": "Wendet genau diese Länge auf die ausgewählte Kante an.",
+    "title": "Kantenlänge festlegen"
   },
   "settings": {
     "appearance": {
@@ -498,6 +554,12 @@
     "copy": "Link kopieren",
     "title": "Faltmuster teilen",
     "url": "Link zum Teilen"
+  },
+  "splitEdge": {
+    "confirm": "Teilen",
+    "label": "Abstand",
+    "meta": "Abstand entlang der ausgewählten gedehnten Kante.",
+    "title": "Kante teilen"
   },
   "startScreen": {
     "chooseBegin": "Wählen Sie, wie Sie beginnen möchten.",

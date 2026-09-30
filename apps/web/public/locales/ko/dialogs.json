@@ -116,6 +116,14 @@
       "timeoutPartial_other": "시간이 끝나기 전까지 꼭짓점 {{count}}개를 제자리로 옮겼으며, 원본 후보 대신 그 부분 결과를 추가할 수 있습니다."
     }
   },
+  "discardChanges": {
+    "confirm": "저장 안 함",
+    "message": "현재 프로젝트에 저장되지 않은 변경 사항이 있습니다. 계속하고 변경 사항을 버리시겠습니까?",
+    "newBoxPleatMessage": "현재 프로젝트에 저장되지 않은 변경 사항이 있습니다. 새 박스 플리츠 디자인을 시작하고 변경 사항을 버리시겠습니까?",
+    "sharedLinkMessage": "이 공유된 전개도를 열면 현재 작업이 대체됩니다. 계속하고 현재 작업을 버리시겠습니까?",
+    "startScreenMessage": "현재 프로젝트에 저장되지 않은 변경 사항이 있습니다. 시작 화면으로 돌아가서 변경 사항을 버리시겠습니까?",
+    "title": "저장되지 않은 변경 사항을 버리시겠습니까?"
+  },
   "export": {
     "allPatterns": "모든 패턴",
     "appearanceSection": "모양",
@@ -123,6 +131,7 @@
     "creasePatternToExport": "내보낼 전개도",
     "description": "설명",
     "descriptionPlaceholder": "선택 사항",
+    "dialogTitle": "{{format}} 내보내기",
     "foldAngleDisplay": "접기 각도 스타일",
     "foldedBackColor": "뒷면",
     "foldedCase": "접기 케이스",
@@ -175,6 +184,30 @@
     "featureCount": "{{feature}}({{total}})",
     "message": "이 프로젝트에는 {{format}} 형식이 저장할 수 없는 기능이 있습니다. 내보낼 때 다음 항목이 생략됩니다: {{features}}.",
     "title": "일부 기능은 내보낼 수 없습니다"
+  },
+  "fileDialog": {
+    "exportBps": "Box Pleating Studio 프로젝트 내보내기",
+    "exportCp": "CP 문서 내보내기",
+    "exportCreasePatternPng": "전개도를 PNG로 내보내기",
+    "exportCreasePatternSvg": "전개도를 SVG로 내보내기",
+    "exportFold": "FOLD 문서 내보내기",
+    "exportFoldedFigurePng": "접힌 도형을 PNG로 내보내기",
+    "exportFoldedFigureSvg": "접힌 도형을 SVG로 내보내기",
+    "exportFoldedFold": "접힌 FOLD 내보내기",
+    "exportFoldedObj": "접힌 OBJ 내보내기",
+    "exportFoldedStl": "접힌 STL 내보내기",
+    "exportFormat": "{{format}} 내보내기",
+    "exportOrh": "Oriedita ORH 문서 내보내기",
+    "exportOri": "Oriedita ORI 문서 내보내기",
+    "exportTreeMaker4": "TreeMaker 4 프로젝트 내보내기",
+    "exportTreeMaker5": "TreeMaker 5 프로젝트 내보내기",
+    "exportViewPng": "보기를 PNG로 내보내기",
+    "exportViewSvg": "보기를 SVG로 내보내기",
+    "importIntoCreasePattern": "전개도로 가져오기",
+    "saveOrh": "Oriedita ORH 문서 저장",
+    "saveOri": "Oriedita ORI 문서 저장",
+    "saveProject": "Ori Studio 프로젝트 저장",
+    "saveProjectAs": "다른 이름으로 Ori Studio 프로젝트 저장"
   },
   "fileDrop": {
     "choiceMessage": "{{name}}은(는) 전개도이므로 편집 중인 전개도에 병합하거나 따로 열 수 있습니다.",
@@ -244,6 +277,11 @@
     },
     "closeLabel": "{{title}} 닫기"
   },
+  "legacyOrh": {
+    "confirm": "ORH 내보내기",
+    "message": "ORH는 레거시 Oriedita/Orihime 형식이라 Ori Studio 작업 공간 상태와 포함된 FOLD 프레임을 보존할 수 없고, 최신 편집기 메타데이터도 모두 보존되지는 않습니다.",
+    "title": "레거시 ORH로 내보내시겠습니까?"
+  },
   "number": {
     "tooSmall": "{{minimum}}보다 큰 숫자를 입력하세요."
   },
@@ -306,6 +344,18 @@
     "message": "이 시퀀스에는 근사 접기가 포함되어 있습니다. 이 전개도가 “이미지에서 CP 감지”로 만들어졌다면 감지가 부정확한 결과로 수렴했을 수 있습니다. 모든 기준점이 정확한지 확인하세요.",
     "title": "근사 접기"
   },
+  "replaceEditedCp": {
+    "cancel": "현재 전개도 유지",
+    "confirm": "전개도 대체",
+    "message": "디자인에서 다시 생성하면 이전에 생성한 편집 가능한 전개도가 대체됩니다. 트리는 변경되지 않습니다.",
+    "title": "편집한 전개도를 대체하시겠습니까?"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "배율 조정",
+    "label": "배율",
+    "meta": "선택한 모서리 길이에 이 배율을 곱합니다.",
+    "title": "모서리 길이 배율 조정"
+  },
   "selectByIndex": {
     "available": "사용 가능: {{ids}}",
     "close": "인덱스로 선택 닫기",
@@ -323,6 +373,12 @@
     "partType": "부분 유형",
     "select": "선택",
     "title": "인덱스로 선택"
+  },
+  "setEdgeLength": {
+    "confirm": "설정",
+    "label": "길이",
+    "meta": "선택한 모서리에 이 길이를 정확히 적용합니다.",
+    "title": "모서리 길이 설정"
   },
   "settings": {
     "appearance": {
@@ -486,6 +542,12 @@
     "copy": "링크 복사",
     "title": "접힘 패턴 공유",
     "url": "공유 링크"
+  },
+  "splitEdge": {
+    "confirm": "분할",
+    "label": "거리",
+    "meta": "장력이 걸린 선택한 모서리를 따라 잰 거리입니다.",
+    "title": "모서리 분할"
   },
   "startScreen": {
     "chooseBegin": "시작 방법을 선택하세요.",

@@ -203,9 +203,12 @@ import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
 async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
   if (!dirty) return true;
   return requestConfirmation({
-    title: 'Discard unsaved changes?',
-    message: 'Opening this shared crease pattern will replace your current work. Continue and discard it?',
-    confirmLabel: 'Discard',
+    title: i18n.t('dialogs:discardChanges.title', 'Discard unsaved changes?'),
+    message: i18n.t(
+      'dialogs:discardChanges.sharedLinkMessage',
+      'Opening this shared crease pattern will replace your current work. Continue and discard it?'
+    ),
+    confirmLabel: i18n.t('dialogs:discardChanges.confirm', 'Discard'),
     tone: 'danger',
   });
 }
@@ -493,11 +496,13 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       return true;
     }
     return requestConfirmation({
-      title: 'Replace Edited CP?',
-      message:
-        'Rebuilding from the design will replace the editable crease pattern generated earlier. The tree stays unchanged.',
-      confirmLabel: 'Replace CP',
-      cancelLabel: 'Keep Current CP',
+      title: i18n.t('dialogs:replaceEditedCp.title', 'Replace Edited CP?'),
+      message: i18n.t(
+        'dialogs:replaceEditedCp.message',
+        'Rebuilding from the design will replace the editable crease pattern generated earlier. The tree stays unchanged.'
+      ),
+      confirmLabel: i18n.t('dialogs:replaceEditedCp.confirm', 'Replace CP'),
+      cancelLabel: i18n.t('dialogs:replaceEditedCp.cancel', 'Keep Current CP'),
       tone: 'danger',
     });
   }
