@@ -1,3 +1,5 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from './__fixtures__/queryResponse.json';
 import { createExploriDocument, type ExploriDocument } from './document';
@@ -163,5 +165,41 @@ describe('reading a response', () => {
     vi.stubGlobal('fetch', fetchSpy);
     await expect(queryExplori(createExploriDocument())).rejects.toBeInstanceOf(ExploriError);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Vitest runs with `apps/web` as its root. The bundles are written by
+// `scripts/explori/build-fixtures.py` with upstream's own serializers into an
+// ignored artifact — the archive's tiling data is private and lives only on
+// the machine that holds the database files — and the dev mock serves them.
+// A fixture the client would trim is a fixture that has drifted from what the
+// client accepts.
+const FIXTURE_DIR = resolve(process.cwd(), '../../artifacts/explori/local-tilings');
+const fixtureFiles = existsSync(FIXTURE_DIR)
+  ? readdirSync(FIXTURE_DIR).filter((name) => name.endsWith('.json')).sort()
+  : [];
+
+describe.skipIf(fixtureFiles.length === 0)('the fixtures built from the local archive', () => {
+  const dir = FIXTURE_DIR;
+  const files = fixtureFiles;
+
+  it.each(files)('%s parses with nothing dropped', async (file) => {
+    const bundle = JSON.parse(readFileSync(resolve(dir, file), 'utf8')) as {
+      results: { tiling_id: number; symmetry: string; tree: { nodes: unknown[] } }[];
+    };
+    const response = new Response(JSON.stringify(bundle), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => response));
+    const parsed = await queryExplori(documentWith());
+    expect(parsed.results.map((result) => result.tilingId)).toEqual(
+      bundle.results.map((result) => result.tiling_id)
+    );
+    for (const [index, result] of parsed.results.entries()) {
+      expect(result.symmetry).toBe(bundle.results[index].symmetry);
+      expect(result.tree?.nodes.length).toBe(bundle.results[index].tree.nodes.length);
+      expect(result.cp.edges.length).toBeGreaterThan(0);
+    }
   });
 });

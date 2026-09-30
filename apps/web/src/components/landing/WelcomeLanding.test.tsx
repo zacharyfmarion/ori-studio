@@ -1,14 +1,22 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
 import { RELEASES_LATEST_URL } from '../../platform/desktopDownload';
+import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
 import { resetDesktopReleaseCache } from '../../platform/desktopRelease';
 import {
   FIRST_LANDING_SECTION_ID,
   LANDING_SECTIONS,
   WelcomeLanding,
 } from './WelcomeLanding';
+
+const track = vi.fn();
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  track: (...args: unknown[]) => track(...args),
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -19,7 +27,13 @@ function renderLanding(): HTMLDivElement {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
-  act(() => root?.render(<WelcomeLanding />));
+  act(() =>
+    root?.render(
+      <MemoryRouter>
+        <WelcomeLanding />
+      </MemoryRouter>
+    )
+  );
   return container;
 }
 
@@ -31,7 +45,20 @@ function link(label: string): HTMLAnchorElement {
   return match as HTMLAnchorElement;
 }
 
+/** Answer the phone query, and only it — a tablet is coarse but not a phone. */
+function stubPhoneViewport(): void {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: query === PHONE_MEDIA_QUERY,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  );
+}
+
 beforeEach(() => {
+  track.mockClear();
   // The download button asks GitHub for the newest release on mount. Left alone
   // it would make every case in this file a network test; refused, the button
   // renders the state this suite is actually about — its fallback.
@@ -135,6 +162,25 @@ describe('WelcomeLanding', () => {
 
     expect(link('Download').getAttribute('href')).toBeTruthy();
     expect(rendered.textContent).toMatch(/desktop app/i);
+  });
+
+  it('offers a phone the browser app instead of a desktop build it cannot run', () => {
+    stubPhoneViewport();
+    const rendered = renderLanding();
+    const actions = rendered.querySelector('#landing-get .landing-actions');
+
+    expect(link('Start creating').getAttribute('href')).toBe('/edit');
+    expect(actions?.textContent).not.toMatch(/download/i);
+    expect(actions?.querySelector('.ui-split-button')).toBeNull();
+  });
+
+  it('reports the phone call to action as a landing cta', () => {
+    stubPhoneViewport();
+    renderLanding();
+
+    act(() => link('Start creating').click());
+
+    expect(track).toHaveBeenCalledWith('landing cta clicked', { cta: 'start' });
   });
 
   it('links somewhere real before — and without — a resolved release', () => {

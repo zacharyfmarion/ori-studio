@@ -57,8 +57,8 @@ export function WelcomePage({
         <WelcomeLanding />
         {/*
           The landing's links to the rest of the site. Here rather than inside
-          `WelcomeLanding`, which stays a pure block of copy with no router
-          dependency.
+          `WelcomeLanding`, which is the landing's own copy and nothing around
+          it.
         */}
         <SiteFooter />
       </main>

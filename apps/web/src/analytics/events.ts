@@ -50,7 +50,7 @@ export type LandingSectionId =
   | 'get';
 
 /** The landing page's calls to action. */
-export type LandingCta = 'discord' | 'github' | 'scroll' | 'download';
+export type LandingCta = 'discord' | 'github' | 'scroll' | 'download' | 'start';
 
 /**
  * Where a link out to the community Discord was followed from.
@@ -66,11 +66,10 @@ export type CommunityLinkSurface = 'toolbar';
 /**
  * Which desktop build a download was started for.
  *
- * `releases-page` is not a build: it is the fallback every control falls back to
- * when the release could not be read (offline, rate-limited, blocked), and it is
- * in the same enum so the failure is *counted* rather than invisible. A ratio of
- * it against the real builds is the only signal that the GitHub fetch is not
- * working for a population.
+ * `releases-page` is not a build: it is the link a control carries when it has
+ * no file to hand over, and it is in the same enum so that case is *counted*
+ * rather than invisible. It has two causes, which {@link DesktopDownloadFallbackReason}
+ * tells apart; only one of them is the GitHub fetch failing.
  *
  * These mirror `DesktopBuildId` in `platform/desktopDownload.ts`; `trackDesktopDownload`
  * passes one straight through, so the two cannot drift without a type error.
@@ -84,6 +83,22 @@ export type DesktopDownloadBuild =
   | 'linux-deb-arm64'
   | 'linux-appimage-arm64'
   | 'releases-page';
+
+/**
+ * Why a download went to the releases page instead of a file. Sent only with
+ * `build: 'releases-page'`.
+ *
+ * - `no_platform`: the release was read, but there is nothing to recommend for
+ *   this device — a phone, a tablet, or a host whose user agent names no desktop
+ *   OS. The control is working as designed.
+ * - `release_unresolved`: no builds were known yet — the GitHub lookup had not
+ *   answered, or had failed (offline, rate-limited, blocked). The ratio of this
+ *   one against real builds is the signal that the fetch is not working.
+ *
+ * Before this existed the two were one number, and the phones made it look like
+ * GitHub was failing half the landing page's visitors.
+ */
+export type DesktopDownloadFallbackReason = 'no_platform' | 'release_unresolved';
 
 /**
  * Where a download was started from.
