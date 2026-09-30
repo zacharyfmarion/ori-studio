@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostHogClientLike } from '../bootstrap';
 import { AnalyticsRuntimeProvider } from '../runtime';
 import {
+  arriveWaysExplored,
   initialWaysExploredState,
   stepWaysExplored,
   useReferencesWaysExploredEvent,
@@ -32,12 +33,25 @@ function card(key: string, index: number, overrides: Partial<ReferencesWaysVisit
   };
 }
 
-/** Feed a sequence of renders through the bookkeeping; the events it sends. */
-function run(inputs: readonly ReferencesWaysExploredInput[]): ReferencesWaysExploredProperties[] {
+/** A card reached by switching it, as it stood before the switch. */
+interface Arrival {
+  arrive: { plan: object | null; card: ReferencesWaysVisitCard };
+}
+
+/**
+ * Feed a sequence of renders — and arrivals, between them — through the
+ * bookkeeping; the events it sends.
+ */
+function run(
+  inputs: readonly (ReferencesWaysExploredInput | Arrival)[]
+): ReferencesWaysExploredProperties[] {
   let state = initialWaysExploredState();
   const events: ReferencesWaysExploredProperties[] = [];
   for (const input of inputs) {
-    const next = stepWaysExplored(state, input);
+    const next =
+      'arrive' in input
+        ? arriveWaysExplored(state, input.arrive)
+        : stepWaysExplored(state, input);
     state = next.state;
     if (next.event) events.push(next.event);
   }
@@ -117,6 +131,50 @@ describe('stepWaysExplored', () => {
       { plan: planA, card: null },
     ]);
     expect(events.map((event) => event.to_kind)).toEqual(['O1:cc', 'O3:ee']);
+  });
+
+  // A swipe on a card other than the active one selects it and switches it in
+  // one render. Seen only as renders, that is a card that was never anything
+  // but its new way, and the change is lost.
+  it('reads a card reached by switching it as a change made on it', () => {
+    const swipedTo = [
+      { plan: planA, card: card('0:5', 0) },
+      { plan: planA, card: card('0:6', 1) },
+      { plan: planA, card: null },
+    ];
+    expect(run(swipedTo)).toEqual([]);
+    expect(
+      run([swipedTo[0], { arrive: { plan: planA, card: card('0:6', 0) } }, ...swipedTo.slice(1)])
+    ).toEqual([
+      {
+        tab: 'sequence',
+        settled: 'alternative',
+        from_kind: 'O2:cc',
+        to_kind: 'O1:cc',
+        decided_by: 'one_motion',
+        ways: '3',
+        viewed: '2',
+        step_kind: 'cp',
+        twin: false,
+      },
+    ]);
+  });
+
+  it('ends the card being read when another is reached, and ignores reaching it again', () => {
+    const events = run([
+      { plan: planA, card: card('0:5', 0) },
+      { plan: planA, card: card('0:5', 2) },
+      { arrive: { plan: planA, card: card('0:6', 0) } },
+      { plan: planA, card: card('0:6', 1) },
+      // A second swipe on the card now being read is an ordinary change.
+      { arrive: { plan: planA, card: card('0:6', 1) } },
+      { plan: planA, card: card('0:6', 2) },
+      { plan: planA, card: null },
+    ]);
+    expect(events.map((event) => [event.to_kind, event.viewed])).toEqual([
+      ['O3:ee', '2'],
+      ['O3:ee', '3'],
+    ]);
   });
 
   it('ends the visit when a new plan lands, and starts the new plan afresh', () => {

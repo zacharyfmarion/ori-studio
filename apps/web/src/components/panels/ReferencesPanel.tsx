@@ -594,6 +594,7 @@ export function ReferencesPanel() {
               placeholder={filmstripPlaceholder}
               onPreviousWay={ways.previousWay}
               onNextWay={ways.nextWay}
+              onShiftWay={ways.shiftWay}
               previousWayLabel={commandById('previous-way')?.label ?? ''}
               nextWayLabel={commandById('next-way')?.label ?? ''}
               previousWayDisabled={commandById('previous-way')?.disabled ?? true}

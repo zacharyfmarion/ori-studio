@@ -61,8 +61,10 @@ const steps: ReferencesFilmstripStep[] = [0, 1, 2].map((i) => ({
 }));
 
 let wayPresses: string[] = [];
+let selections: number[] = [];
+let shifts: Array<[number, number]> = [];
 
-function show(activeStep: number): void {
+function show(activeStep: number, { navigation = true } = {}): void {
   act(() => {
     root?.render(
       // The chevrons are IconButtons, which are tooltip triggers.
@@ -70,13 +72,15 @@ function show(activeStep: number): void {
         <ReferencesStepFilmstrip
           steps={steps}
           activeStep={activeStep}
+          navigation={navigation}
           onPreviousWay={() => wayPresses.push('previous')}
           onNextWay={() => wayPresses.push('next')}
+          onShiftWay={(index, delta) => shifts.push([index, delta])}
           previousWayLabel="Previous Way"
           nextWayLabel="Next Way"
           previousWayDisabled={false}
           nextWayDisabled={true}
-          onSelectStep={() => {}}
+          onSelectStep={(index) => selections.push(index)}
           onPrevious={() => {}}
           onNext={() => {}}
           placeholder=""
@@ -105,6 +109,8 @@ beforeEach(() => {
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
+  selections = [];
+  shifts = [];
 });
 
 afterEach(() => {
@@ -175,6 +181,96 @@ describe('a card with other ways to fold it', () => {
     expect(next.disabled).toBe(true);
     act(() => previous.click());
     expect(wayPresses).toEqual(['previous']);
+  });
+});
+
+/** A finger drawn from `from` to `to` px down the screen, starting on `target`. */
+function swipe(target: Element | null | undefined, from: number, to: number): void {
+  const at = (type: string, y: number) =>
+    act(() => {
+      target?.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          pointerId: 1,
+          pointerType: 'touch',
+          isPrimary: true,
+          clientX: 50,
+          clientY: y,
+        })
+      );
+    });
+  at('pointerdown', from);
+  at('pointermove', (from + to) / 2);
+  at('pointermove', to);
+  at('pointerup', to);
+}
+
+describe('a swipe on the strip', () => {
+  it('switches the card it lands on, selecting it first — up is the next way', () => {
+    show(0);
+    swipe(cards()[1].querySelector('.references-card__thumb'), 100, 40);
+    expect(selections).toEqual([1]);
+    expect(shifts).toEqual([[1, 1]]);
+  });
+
+  it('switches the active card from its sentence — down is the way before', () => {
+    show(1);
+    swipe(container?.querySelector('.references-filmstrip__caption'), 40, 100);
+    expect(selections).toEqual([]);
+    expect(shifts).toEqual([[1, -1]]);
+  });
+
+  it('does nothing on a card with one way, or for a drag along the strip', () => {
+    show(1);
+    swipe(cards()[0], 100, 40);
+    const card = cards()[1];
+    act(() => {
+      card.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          pointerType: 'touch',
+          isPrimary: true,
+          clientX: 0,
+          clientY: 50,
+        })
+      );
+      card.dispatchEvent(
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          pointerType: 'touch',
+          isPrimary: true,
+          clientX: 90,
+          clientY: 80,
+        })
+      );
+    });
+    expect(shifts).toEqual([]);
+    expect(selections).toEqual([]);
+  });
+
+  it('frees only the cards that offer ways from vertical scrolling', () => {
+    show(1);
+    expect(cards().map((card) => card.classList.contains('references-card--ways'))).toEqual([
+      false,
+      true,
+      false,
+    ]);
+  });
+
+  // The phone's switcher is the swipe; the chevrons stay for a screen reader,
+  // hidden from sight by the stylesheet.
+  it('keeps the chevrons on the phone only for a screen reader', () => {
+    show(1, { navigation: false });
+    const row = container?.querySelector('.references-filmstrip__ways');
+    expect(row?.classList.contains('references-filmstrip__ways--swipe')).toBe(true);
+    expect(row?.textContent).toContain('2 / 3');
+    expect(row?.querySelectorAll('button')).toHaveLength(2);
+    show(1);
+    expect(
+      container
+        ?.querySelector('.references-filmstrip__ways')
+        ?.classList.contains('references-filmstrip__ways--swipe')
+    ).toBe(false);
   });
 });
 

@@ -11059,12 +11059,6 @@ button.bp-packing-alert:focus-visible {
     scroll-snap-align: center;
   }
 
-  /* The ways row's chevrons, thumb-sized like the mode tabs. */
-  .references-workspace .references-filmstrip__ways button {
-    min-width: var(--touch-target);
-    min-height: var(--touch-target);
-  }
-
 }
 
 /*
@@ -11578,6 +11572,32 @@ button.bp-packing-alert:focus-visible {
   color: var(--text-secondary);
   font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A vertical swipe switches a card's way (`useVerticalSwipe`), so the browser
+   must not take one for a scroll wherever a swipe means that: on a card that
+   offers ways, and under the active one's sentence and readout. `pan-x` keeps
+   the strip scrolling sideways under the same finger. */
+.references-card--ways,
+.references-filmstrip--ways .references-filmstrip__caption,
+.references-filmstrip__ways {
+  touch-action: pan-x;
+}
+
+/* On the phone the swipe is the switcher, and the row is its readout alone.
+   The chevrons stay for a screen reader, which keeps swipes for its own
+   navigation and so cannot make this one, and are hidden from sight only. */
+.references-filmstrip__ways--swipe > :not(.references-filmstrip__ways-readout) {
+  position: absolute;
+  width: 1px;
+  min-width: 0;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
 }
 

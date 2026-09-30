@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ANALYTICS_EVENTS } from './events';
 import { track } from './runtime';
 
@@ -109,6 +109,20 @@ export function stepWaysExplored(
 }
 
 /**
+ * The reader reached a card by switching it: a swipe on a card other than the
+ * one being read selects it and changes its way at once, so no render shows it
+ * as it stood. `input.card` is the card as it stood; the visit starts there,
+ * and the render that follows reads as a change made on it.
+ */
+export function arriveWaysExplored(
+  state: ReferencesWaysExploredState,
+  input: { plan: object | null; card: ReferencesWaysVisitCard }
+): { state: ReferencesWaysExploredState; event: ReferencesWaysExploredProperties | null } {
+  const staying = input.plan === state.plan && state.visit?.card.key === input.card.key;
+  return staying ? { state, event: null } : stepWaysExplored(state, input);
+}
+
+/**
  * Emit `references ways explored` as the reader leaves a card on which they
  * looked at its other ways — whether they kept the planner's pick or settled
  * on another, what kind each fold is, and which of the planner's criteria the
@@ -116,8 +130,13 @@ export function stepWaysExplored(
  * back reads as one look that confirmed the pick. Enums only: the kind codes
  * are the planner's closed vocabulary, never a reference or a coordinate
  * (`docs/analytics.md`).
+ *
+ * Returns the note for a card reached by switching it
+ * ({@link arriveWaysExplored}), to be called before the switch is stored.
  */
-export function useReferencesWaysExploredEvent(input: ReferencesWaysExploredInput): void {
+export function useReferencesWaysExploredEvent(
+  input: ReferencesWaysExploredInput
+): (card: ReferencesWaysVisitCard) => void {
   const state = useRef(initialWaysExploredState());
   const { plan, card } = input;
   useEffect(() => {
@@ -125,6 +144,14 @@ export function useReferencesWaysExploredEvent(input: ReferencesWaysExploredInpu
     state.current = next.state;
     if (next.event) track(ANALYTICS_EVENTS.referencesWaysExplored, next.event);
   }, [plan, card]);
+  const arrive = useCallback(
+    (arrived: ReferencesWaysVisitCard) => {
+      const next = arriveWaysExplored(state.current, { plan, card: arrived });
+      state.current = next.state;
+      if (next.event) track(ANALYTICS_EVENTS.referencesWaysExplored, next.event);
+    },
+    [plan]
+  );
   useEffect(
     () => () => {
       const event = ending(state.current.visit, state.current.reported);
@@ -133,4 +160,5 @@ export function useReferencesWaysExploredEvent(input: ReferencesWaysExploredInpu
     },
     []
   );
+  return arrive;
 }

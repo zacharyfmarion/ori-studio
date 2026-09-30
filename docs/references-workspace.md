@@ -71,7 +71,9 @@ card shows the way the planner prefers, and a card that can be folded another
 way has a row of dots along its foot, one per way, with the way it is showing
 filled in. Under the step's sentence, **Way 1 of 3** and the up and down
 arrows switch between them — or press **↑** and **↓**, as **←** and **→** step
-through the cards. The picture, the sentence and the fold animation all follow.
+through the cards. On a touch screen, swipe up on a card for its next way and
+down for the one before; a phone has no arrows, just the swipe. The picture,
+the sentence and the fold animation all follow.
 
 Only ways that change nothing else are offered: each is made from what is
 already on the paper at that step and leaves exactly the crease and the marks

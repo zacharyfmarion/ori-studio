@@ -236,10 +236,14 @@ nothing downstream changes.
   and fold animation follow the card, and with Auto-play folds on, the new
   way plays as a newly selected card does.
 - **Twin cards** switch both folds together: the card is one instruction.
-- **Phone.** The row sits under the sentence, readout compact ("2 / 3"),
-  targets finger-sized under a coarse pointer
-  (`references-find-and-sequence-modes.md`). The floating bar stays the
-  step transport.
+- **Phone.** A vertical swipe on a card switches its way — up for the next,
+  down for the one before — and selects it if it was not the active card; a
+  swipe on the sentence or the readout switches the active card. The row
+  under the sentence is the compact readout ("2 / 3") alone: its chevrons
+  are hidden from sight and kept for a screen reader, whose swipes are its
+  own. The swipe works on any touch screen, the chevrons staying where there
+  is room for them (Zach, 2026-09-30). The floating bar stays the step
+  transport.
 
 Considered and not chosen: a chip per way naming its kind (a name per axiom
 × input kinds, in nine locales, and the sentence already says it); a popover
@@ -439,6 +443,11 @@ exception.
       pane on a square with both diagonals, both midlines and two quarter
       lines. Not yet on markhor, and not on a phone.
 - [ ] Zach reads a sequence with it.
+- [x] **Phone swipe** (Zach, 2026-09-30). `hooks/useVerticalSwipe.ts`;
+      `shiftWay` for any card; `touch-action: pan-x` where a swipe means
+      one; chevrons visually hidden on the phone; the explored event's
+      arrival note (`arriveWaysExplored`), since a swipe on another card
+      selects and switches it in one render.
 - [ ] **Phase 2 — Find.** `ways::for_construction`, `construction_ways`;
       the lazy fetch and cache; planner-drawn ways on Find cards and the
       canvas; ReferenceFinder's labels in `inputLetters`; diagonal cards;
