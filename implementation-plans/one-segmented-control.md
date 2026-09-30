@@ -166,9 +166,12 @@ wanted become props.
 
 ### Phase 3 — The other look-alikes
 
-- [ ] Fold direction chips → `SegmentedControl` (a mixed selection presses
-      nothing)
-- [ ] Tests; browser; validate; commit
+- [x] Fold direction chips → `SegmentedControl` (a mixed selection presses
+      nothing), `sm` and `fill` like the rest of the context panel. Each
+      option's accessible name is now its visible label, with the longer
+      description as its title — the chips named themselves by the description
+- [x] Tests (the control had none: pressed state, None, mixed, the verb);
+      browser (an undecided crease, hinted from the panel); validate; commit
 
 ### Phase 4 — Close out
 
