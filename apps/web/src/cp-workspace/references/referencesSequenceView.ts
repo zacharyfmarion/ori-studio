@@ -24,7 +24,7 @@
  *   in.
  */
 import type { ReferencesFlatStep } from './referencesBreakdown';
-import type { PrecreaseSide } from './precreaseSequence';
+import type { PrecreaseSequence, PrecreaseSide } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
 
 /** Which face of the paper is up while a step is performed. */
@@ -52,6 +52,23 @@ export type ReferencesViewStep =
   | { kind: 'turn-over'; side: ReferencesPaperSide; component: number; after: number | null }
   /** The finished pattern, read from the front. */
   | { kind: 'done'; side: 'front'; component: number };
+
+/**
+ * The planner step made at once with step `index` on one card, when there is
+ * one: its twin must be the very next step of the same sheet, on the same
+ * side — which is how the crate places it; anything else is read as two
+ * cards.
+ */
+export function cardTwin(
+  sequence: PrecreaseSequence | undefined,
+  index: number
+): number | undefined {
+  const step = sequence?.steps[index];
+  const next = sequence?.steps[index + 1];
+  return step?.twin !== undefined && next?.id === step.twin && next.side === step.side
+    ? index + 1
+    : undefined;
+}
 
 /** The planner step a view step stands for, or null for a flip step. */
 export function planStepOf(step: ReferencesViewStep): ReferencesFlatStep | null {
@@ -93,14 +110,7 @@ export function referencesViewSteps(
       });
       side = wants;
     }
-    // The twin must be the very next planner step of the same sheet, on the
-    // same side — which is how the crate places it; anything else is read
-    // as two cards.
-    const next = sequence?.steps[flat.step + 1];
-    const twin =
-      step?.twin !== undefined && next?.id === step.twin && next.side === step.side
-        ? flat.step + 1
-        : undefined;
+    const twin = cardTwin(sequence, flat.step);
     if (twin !== undefined) paired.add(`${flat.component}:${twin}`);
     steps.push({
       kind: 'fold',

@@ -20,6 +20,8 @@ export type ReferencesActionIcon =
   | 'play-fold'
   | 'previous-candidate'
   | 'next-candidate'
+  | 'previous-way'
+  | 'next-way'
   | 'recompute'
   | 'reset-view'
   | 'zoom-in'
@@ -61,6 +63,9 @@ export interface ReferencesActionState {
   activeStep: number;
   candidateCount: number;
   activeCandidate: number;
+  /** How many ways the active card offers — 0 for a card with one — and which it shows. */
+  wayCount: number;
+  activeWay: number;
   /** A target exists and no query is in flight. */
   canRecompute: boolean;
   /** The view has a pattern to look at. */
@@ -94,6 +99,7 @@ export function buildReferencesActions(
   const hasSteps = state.stepCount > 0;
   const hasCandidates = state.candidateCount > 0;
   const noTarget = t('panels:references.actions.noTargetHint', 'Pick a vertex or crease first');
+  const oneWay = t('panels:references.actions.oneWayHint', 'This step folds only one way');
   const command = (
     id: ReferencesActionIcon,
     shortcutId: ReferencesShortcutId,
@@ -147,6 +153,21 @@ export function buildReferencesActions(
     ),
     playFold,
     { kind: 'separator', id: 'after-steps' },
+    command(
+      'previous-way',
+      'references.previousWay',
+      'Previous Way',
+      state.wayCount < 2 || state.activeWay <= 0,
+      state.wayCount < 2 ? oneWay : undefined
+    ),
+    command(
+      'next-way',
+      'references.nextWay',
+      'Next Way',
+      state.wayCount < 2 || state.activeWay >= state.wayCount - 1,
+      state.wayCount < 2 ? oneWay : undefined
+    ),
+    { kind: 'separator', id: 'after-ways' },
     command(
       'previous-candidate',
       'references.previousCandidate',

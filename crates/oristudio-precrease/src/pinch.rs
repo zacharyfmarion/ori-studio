@@ -137,10 +137,7 @@ pub fn pinch_pass(
 /// Final instructions can show a second alignment or repeat an earlier
 /// alignment on a press. Every displayed input must retain its reference
 /// marks, even when only the primary witness was chosen by the closure.
-pub(crate) fn placed_pinch_pass(
-    closure: &Closure,
-    placed: &[crate::order::Placed],
-) -> Vec<PinchVerdict> {
+pub fn placed_pinch_pass(closure: &Closure, placed: &[crate::order::Placed]) -> Vec<PinchVerdict> {
     let order: Vec<_> = placed.iter().map(|p| p.folded).collect();
     let inputs: Vec<Vec<&Witness>> = placed
         .iter()

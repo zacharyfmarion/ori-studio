@@ -867,6 +867,7 @@
     "actions": {
       "noFoldHint": "Não há nada para dobrar neste cartão",
       "noTargetHint": "Escolha primeiro um vértice ou uma dobra",
+      "oneWayHint": "Este passo só se dobra de uma forma",
       "pauseFold": "Pausar dobra",
       "pleatHint": "Pregas ainda não são animadas",
       "unfold": "Desdobrar"
@@ -1096,6 +1097,11 @@
       "refusedSheets": "{{n}} folha(s) não são retângulos e ficam de fora.",
       "unassignedSegments": "{{n}} vinco(s) ficam fora de todas as folhas e são deixados de fora.",
       "zeroLengthSegments": "{{n}} vinco(s) são curtos demais para medir e foram ignorados."
+    },
+    "ways": {
+      "label": "Formas de dobrar este passo",
+      "readout": "Forma {{n}} de {{total}}",
+      "readoutShort": "{{n}} / {{total}}"
     }
   },
   "sheets": {

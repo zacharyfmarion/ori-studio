@@ -834,6 +834,7 @@
     "actions": {
       "noFoldHint": "Auf dieser Karte gibt es nichts zu falten",
       "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte",
+      "oneWayHint": "Dieser Schritt lässt sich nur auf eine Weise falten",
       "pauseFold": "Faltung pausieren",
       "pleatHint": "Plissees werden noch nicht animiert",
       "unfold": "Entfalten"
@@ -1057,6 +1058,11 @@
       "refusedSheets": "{{n}} Bogen/Bögen sind keine Rechtecke und werden ausgelassen.",
       "unassignedSegments": "{{n}} Faltlinie(n) liegen außerhalb jedes Papiers und werden ausgelassen.",
       "zeroLengthSegments": "{{n}} Faltlinie(n) sind zu kurz zum Messen und wurden übersprungen."
+    },
+    "ways": {
+      "label": "Möglichkeiten, diesen Schritt zu falten",
+      "readout": "Möglichkeit {{n}} von {{total}}",
+      "readoutShort": "{{n}} / {{total}}"
     }
   },
   "sheets": {

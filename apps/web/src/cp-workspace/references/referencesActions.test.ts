@@ -17,6 +17,8 @@ function state(overrides: Partial<ReferencesActionState> = {}): ReferencesAction
     activeStep: 1,
     candidateCount: 3,
     activeCandidate: 1,
+    wayCount: 3,
+    activeWay: 1,
     canRecompute: true,
     hasView: true,
     fold: { available: true, playing: false, folded: false, pleat: false },
@@ -33,7 +35,18 @@ function command(s: ReferencesActionState, id: ReferencesCommand['id']): Referen
 }
 
 describe('buildReferencesActions', () => {
-  it('orders the verbs steps, candidates, recompute, then the camera', () => {
+  it('steps through the active card\'s ways, and says why when it has one', () => {
+    expect(command(state({ activeWay: 0 }), 'previous-way').disabled).toBe(true);
+    expect(command(state({ activeWay: 0 }), 'next-way').disabled).toBe(false);
+    expect(command(state({ activeWay: 2 }), 'next-way').disabled).toBe(true);
+    expect(command(state({ activeWay: 2 }), 'previous-way').disabled).toBe(false);
+    const single = command(state({ wayCount: 0, activeWay: 0 }), 'next-way');
+    expect(single.disabled).toBe(true);
+    expect(single.hint).toBe('This step folds only one way');
+    expect(command(state(), 'next-way').label).toBe('Next Way');
+  });
+
+  it('orders the verbs steps, ways, candidates, recompute, then the camera', () => {
     const ids = referencesCommands(buildReferencesActions(state(), { t })).map(
       (action) => action.id
     );
@@ -41,6 +54,8 @@ describe('buildReferencesActions', () => {
       'previous-step',
       'next-step',
       'play-fold',
+      'previous-way',
+      'next-way',
       'previous-candidate',
       'next-candidate',
       'recompute',
@@ -62,6 +77,8 @@ describe('buildReferencesActions', () => {
       'references.previousStep',
       'references.nextStep',
       'references.playFold',
+      'references.previousWay',
+      'references.nextWay',
       'references.previousCandidate',
       'references.nextCandidate',
       'references.recompute',

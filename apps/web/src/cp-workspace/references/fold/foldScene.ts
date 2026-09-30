@@ -26,6 +26,7 @@ import type {
   ReferencesPlanVariant,
 } from '../referencesResults';
 import type { ReferencesViewStep } from '../referencesSequenceView';
+import { cardWays } from '../referencesWays';
 import { arcSamplePoints } from '../stepDiagramGeometry';
 import type { PrecreaseFrame } from '../sheetFrames';
 
@@ -55,6 +56,11 @@ export type FoldSceneKind = FoldMotionKind | 'turn-over' | 'reference';
 
 export interface FoldScene {
   kind: FoldSceneKind;
+  /**
+   * On a card that offers other ways to fold it (`referencesWays`), whether
+   * this is the planner's pick or one the reader chose; absent otherwise.
+   */
+  way?: 'recommended' | 'alternative';
   flaps: readonly FoldFlapScene[];
   /** The sheet's shorter side in model units: what a bend radius is a share of. */
   sheetShortSide: number;
@@ -248,8 +254,10 @@ export function planFoldScene(
     reach = Math.max(reach, scene.reach);
     return scene.flap;
   });
+  const ways = cardWays(variant.sequence.steps[target.step]);
   return {
     kind: motion.kind,
+    ...(ways ? { way: ways.index > 0 ? ('alternative' as const) : ('recommended' as const) } : {}),
     flaps,
     sheetShortSide: Math.min(frame.sheet.width, frame.sheet.height),
     reach,

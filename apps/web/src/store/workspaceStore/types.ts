@@ -1587,6 +1587,13 @@ export interface ReferencesView {
   landmarksFirst: boolean;
   /** The analysis finding the view frames; null for none. */
   activeFinding: number | null;
+  /**
+   * The other ways the reader chose to fold the plan's cards
+   * (`cp-workspace/references/referencesWays.ts`): a construction's signature
+   * per card, keyed by sheet and line. Only what differs from the planner's
+   * picks; every new plan starts from those.
+   */
+  planWays: Readonly<Record<string, string>>;
 }
 
 export type ReferencesRun =

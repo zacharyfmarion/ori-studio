@@ -524,6 +524,7 @@ fn grid_steps(closure: &Closure, sheet: &Sheet) -> Vec<Step> {
                 impractical: false,
                 card: 0,
                 twin: None,
+                ways: Vec::new(),
                 grid: Some(GridStep {
                     kind: grid.kind,
                     family: fi,
@@ -1271,6 +1272,8 @@ impl Planner {
         };
         let folded = closure.folded();
         let verdicts = crate::pinch::placed_pinch_pass(closure, &placed);
+        // The other ways each card offers, read off the paper the plan leaves.
+        let ways = crate::order::ways::of(closure, &placed, &verdicts);
         let state = closure.state();
 
         // The grid comes first, one step per family, ahead of every placed
@@ -1334,9 +1337,9 @@ impl Planner {
                 .and_then(|_| {
                     placed
                         .iter()
-                        .find(|q| q.folded == p.folded && q.press.is_none())
+                        .position(|q| q.folded == p.folded && q.press.is_none())
                 });
-            let presenting = original.unwrap_or(p);
+            let presenting = original.map_or(p, |j| &placed[j]);
             let chosen_index = presenting.chosen;
             // The recorded witnesses, plus the one the ordering pass found
             // against the paper when none of them was clean; `chosen`
@@ -1347,11 +1350,21 @@ impl Planner {
                 .chain(presenting.found.as_ref())
                 .cloned()
                 .collect();
+            // The other ways the card offers; a press that shows its fold's
+            // witness offers the fold's.
+            let offered = &ways[original.unwrap_or(k)];
             let chosen = chosen_index.and_then(|c| witnesses.get(c)).cloned();
             let chosen = chosen.as_ref();
-            // The card draws the mirror alignment's marks too, so they are
-            // in the table beside the chosen witness's.
-            for w in chosen.into_iter().chain(presenting.also.as_ref()) {
+            // The card draws the mirror alignment's marks too, and every
+            // way's, so they are in the table beside the chosen witness's.
+            let way_witnesses = offered
+                .iter()
+                .flat_map(|way| std::iter::once(&way.witness).chain(way.also.as_ref()));
+            for w in chosen
+                .into_iter()
+                .chain(presenting.also.as_ref())
+                .chain(way_witnesses)
+            {
                 for r in &w.inputs {
                     if r.is_point() && !referenced_points.contains(&r.id()) {
                         referenced_points.push(r.id());
@@ -1456,6 +1469,7 @@ impl Planner {
                 impractical: presenting.impractical,
                 card: 0,
                 twin: None,
+                ways: offered.clone(),
                 grid: None,
             });
         }

@@ -1,6 +1,7 @@
 import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, DURATION_MS_BUCKETS, track } from '../../analytics';
 import type { ReferencesPlanSummary } from '../../store/workspaceStore/types';
 import type { ReferencesPlanRecord } from './referencesResults';
+import { cardsWithWays } from './referencesWays';
 
 /**
  * The analytics event a breakdown ends in — one of `folding steps completed`,
@@ -60,6 +61,12 @@ export function trackPlan(
     // Whether mirrored folds were shown as one card, and how many cards that
     // saved — bucketed, like every count here.
     symmetric_steps: record.mergeSymmetricSteps ? ('merged' as const) : ('separate' as const),
+    // How many cards offer another way to fold them: against `references ways
+    // explored`, how often readers take up a choice they were given.
+    cards_with_ways_bucket: bucketCount(
+      record.components.reduce((n, entry) => n + cardsWithWays(entry.plain.sequence), 0),
+      COUNT_BUCKETS
+    ),
   };
   if (aborted) {
     track(ANALYTICS_EVENTS.foldingStepsCancelled, properties);

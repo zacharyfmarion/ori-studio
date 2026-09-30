@@ -867,6 +867,7 @@
     "actions": {
       "noFoldHint": "No hay nada que plegar en esta tarjeta",
       "noTargetHint": "Elige primero un vértice o un pliegue",
+      "oneWayHint": "Este paso solo se pliega de una forma",
       "pauseFold": "Pausar pliegue",
       "pleatHint": "Los plisados aún no se animan",
       "unfold": "Desplegar"
@@ -1096,6 +1097,11 @@
       "refusedSheets": "{{n}} hoja(s) no son rectángulos y se omiten.",
       "unassignedSegments": "{{n}} pliegue(s) quedan fuera de todas las hojas y se dejan fuera.",
       "zeroLengthSegments": "{{n}} pliegue(s) son demasiado cortos para medirlos y se omitieron."
+    },
+    "ways": {
+      "label": "Formas de plegar este paso",
+      "readout": "Forma {{n}} de {{total}}",
+      "readoutShort": "{{n}} / {{total}}"
     }
   },
   "sheets": {

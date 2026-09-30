@@ -57,6 +57,8 @@ export type ReferencesShortcutId =
   | 'references.previousStep'
   | 'references.nextCandidate'
   | 'references.previousCandidate'
+  | 'references.nextWay'
+  | 'references.previousWay'
   | 'references.recompute'
   | 'references.toggleLandmarksFirst'
   | 'references.resetView'
@@ -396,6 +398,9 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
     shift: true,
     key: 'arrowleft',
   }),
+  // The active card's other ways, down the strip as the steps run across it.
+  referencesShortcut('references.nextWay', 'Next Way', { key: 'arrowdown' }),
+  referencesShortcut('references.previousWay', 'Previous Way', { key: 'arrowup' }),
   referencesShortcut('references.recompute', 'Recompute References', {
     primary: true,
     shift: true,

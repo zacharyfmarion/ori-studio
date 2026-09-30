@@ -61,6 +61,10 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:references.nextCandidate', 'Next Candidate');
     case 'references.previousCandidate':
       return t('tools:references.previousCandidate', 'Previous Candidate');
+    case 'references.nextWay':
+      return t('tools:references.nextWay', 'Next Way');
+    case 'references.previousWay':
+      return t('tools:references.previousWay', 'Previous Way');
     case 'references.recompute':
       return t('tools:references.recompute', 'Recompute References');
     case 'references.toggleLandmarksFirst':

@@ -49,6 +49,45 @@ export interface PrecreaseWitness {
   err: number;
 }
 
+/**
+ * Which criterion of the planner's card key the pick won on against another
+ * way — `Criterion` in `crates/oristudio-precrease/src/sequence.rs`, in the
+ * key's order. `accuracy` is its numbers and the three-times-as-accurate
+ * override; `plan` a way the key prefers that the plan passed over for the
+ * sequence as a whole.
+ */
+export type PrecreaseWayCriterion =
+  | 'corner_to_corner'
+  | 'overlong'
+  | 'visible'
+  | 'precise'
+  | 'local'
+  | 'crossing'
+  | 'one_motion'
+  | 'ease'
+  | 'thin_flap'
+  | 'accuracy'
+  | 'plan';
+
+/**
+ * Another construction of a step's crease the reader can take in place of
+ * the pick: from the paper as it stands at that step, leaving the paper as the
+ * plan has it, so nothing else in the sequence changes
+ * (`crates/oristudio-precrease/src/order/ways.rs`).
+ */
+export interface PrecreaseWay {
+  /** The construction. */
+  witness: PrecreaseWitness;
+  /** Its own mirror alignment of the same fold, as `PrecreaseStep.also`. */
+  also?: PrecreaseWitness;
+  /** As `PrecreaseStep.alignment`, for this way. */
+  alignment?: number;
+  /** What kind of fold it is — axiom and kinds of reference — e.g. `O2:cp`. */
+  kind: string;
+  /** Why the pick is not this way; absent for the pick itself. */
+  decided_by?: PrecreaseWayCriterion;
+}
+
 /** How much of a folded line is creased. */
 export type PrecreaseExtent =
   | { kind: 'full' }
@@ -430,6 +469,13 @@ export interface PrecreaseStep {
    * diagram folds such a pair as one step, and so does the card.
    */
   twin?: number;
+  /**
+   * The ways the reader can make this step instead, the pick first, one of
+   * each kind; absent unless there are at least two. A press that shows its
+   * fold's witness carries the fold's; a twin pair's two lists are
+   * index-aligned mirrors, switched together.
+   */
+  ways?: PrecreaseWay[];
 }
 
 /**
