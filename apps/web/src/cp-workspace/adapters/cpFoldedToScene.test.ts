@@ -1084,9 +1084,11 @@ describe('layer shadow paint', () => {
       scale: 2,
       rotation: Math.PI / 2,
     };
-    const still = cpFoldedToScene([figure([shadowed()])]).shadows;
-    const moved = cpFoldedToScene([figure([shadowed()], placement)]).shadows;
-    const local = foldedFigureLocalGeometry(figure([shadowed()]).renderSnapshot!);
+    // With the paper it falls on, as the kernel draws it: the figure turns
+    // about the centre of its extent, and a shadow adds nothing to that.
+    const still = cpFoldedToScene([figure([paper, shadowed()])]).shadows;
+    const moved = cpFoldedToScene([figure([paper, shadowed()], placement)]).shadows;
+    const local = foldedFigureLocalGeometry(figure([paper, shadowed()]).renderSnapshot!);
     const center = local.center;
     expect(still && moved).toBeTruthy();
     if (!still || !moved) return;
