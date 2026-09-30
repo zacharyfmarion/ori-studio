@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ORIEDITA_DASH_ONE_DOT, ORIEDITA_DASH_VALLEY } from '../oristudioCpLineStyle';
+import { builtInPaperPreset } from './paperPresets';
 import { widestPenPt } from './paperSvg';
 import {
   DEFAULT_LIGHT_AZIMUTH,
@@ -74,6 +75,20 @@ describe('lightVector', () => {
 describe('resolvePaperStyle', () => {
   // Re-pinned: the Default preset draws a simulation's folds by direction
   // again, now that its fold pens are a crease pattern's solid lines.
+  // Diagram is black and white throughout: a simulation in it draws its folds
+  // in the one ink its aux creases and edge are drawn in, under the light.
+  it('draws a simulation in the Diagram preset lit, and in its one ink', () => {
+    const diagram = builtInPaperPreset('diagram').style;
+    const settings = resolvePaperStyle(diagram, PAPER_STYLE_POLICIES.simulator, OPTIONS);
+    const ink = hexToUnitRgb(diagram.auxCreases.pen.color);
+    expect(settings.mountainColor).toEqual(ink);
+    expect(settings.valleyColor).toEqual(ink);
+    expect(settings.borderColor).toEqual(ink);
+    expect(settings.lighting).toBe(true);
+    expect(settings.creaseDash?.mountain ?? null).toBeNull();
+    expect(settings.creaseDash?.valley ?? null).toBeNull();
+  });
+
   it('produces the simulator’s numbers for the defaults', () => {
     const settings = resolvePaperStyle(DEFAULT_PAPER_STYLE, PAPER_STYLE_POLICIES.simulator, OPTIONS);
     // Re-pinned for X14: every line used to draw at the folds' 1.1 px. The

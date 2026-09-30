@@ -65,8 +65,9 @@ describe('paperThumbnail', () => {
   });
 
   it('paints an unlit style’s faces in the paper colours themselves', () => {
-    const thumb = paperThumbnail(builtInPaperPreset('diagram').style);
-    const { paper } = builtInPaperPreset('diagram').style;
-    expect(thumb.faces.map((face) => face.fill)).toEqual([paper.front, paper.back]);
+    const diagram = builtInPaperPreset('diagram').style;
+    const unlit = { ...diagram, light: { ...diagram.light, enabled: false } };
+    const thumb = paperThumbnail(unlit);
+    expect(thumb.faces.map((face) => face.fill)).toEqual([diagram.paper.front, diagram.paper.back]);
   });
 });

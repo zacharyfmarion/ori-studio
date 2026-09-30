@@ -57,6 +57,10 @@ surface but References steps, and turn solid by default.
 The Diagram preset keeps red/blue fold pens: a crease pattern is read by
 colour, and black would leave mountain and valley apart only by dash, which is
 the diagram creases' job. (Proposed — the user can pick black.)
+> **Decided otherwise** (2026-09-30): the user picked black. Diagram is black
+> and white throughout — its fold pens are its one `#231f20` ink, as its aux
+> creases and edge are — so a simulation in it has no colour on the page. It
+> is lit, too, as the Default is.
 
 Default's fold pens become exactly main's simulator crease look, so
 `creaseStyleOf(DEFAULT_PAPER_STYLE)` becomes `'color'` (main's simulator
@@ -256,8 +260,8 @@ instruction lines onto them, and only then do the fold pens turn solid.
 ### Phase 3 — The fold pens turn solid
 
 - [x] Default: `mountainFolds` / `valleyFolds` solid, same inks and weight;
-      Diagram: solid red/blue at 0.75 pt; the diagram-crease pens keep the
-      dashes. `creaseStyleOf(DEFAULT_PAPER_STYLE)` is now `'color'`
+      Diagram: solid red/blue at 0.75 pt (*later black: see the note on the
+      Diagram preset above*); the diagram-crease pens keep the dashes. `creaseStyleOf(DEFAULT_PAPER_STYLE)` is now `'color'`
 - [x] Re-pin every test that read Default's fold dash (simulations, the
       Simulate pane, the preset thumbnail, the erode close-up, Settings) —
       nine, in the presets, crease modes, resolver, thumbnail, Settings and

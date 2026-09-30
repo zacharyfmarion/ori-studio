@@ -76,13 +76,15 @@ describe('built-in presets', () => {
       dash: [4, 2],
       cap: 'butt',
     });
-    // A crease pattern reads by colour: its folds solid, red and blue, at the
-    // diagram creases' weight.
-    expect(style.mountainFolds).toEqual({ width: 0.75, color: '#db1f24', dash: null, cap: 'butt' });
-    expect(style.valleyFolds).toEqual({ width: 0.75, color: '#1c5cd9', dash: null, cap: 'butt' });
-    expect(style.auxCreases).toMatchObject({ visible: true, pen: { width: 0.25 } });
+    // Black and white throughout: the folds are the one ink too, solid, at the
+    // diagram creases' weight, as the aux creases and the edge are.
+    expect(style.mountainFolds).toEqual({ width: 0.75, color: '#231f20', dash: null, cap: 'butt' });
+    expect(style.valleyFolds).toEqual({ width: 0.75, color: '#231f20', dash: null, cap: 'butt' });
+    expect(style.auxCreases).toMatchObject({ visible: true, pen: { width: 0.25, color: '#231f20' } });
     expect(style.arrows.width).toBe(0.75);
-    expect(style.light.enabled).toBe(false);
+    // Lit, as the Default is.
+    expect(style.light).toEqual(DEFAULT_PAPER_STYLE.light);
+    expect(style.light.enabled).toBe(true);
   });
 
   it('erodes Diagram creases by half a percent of the sheet', () => {

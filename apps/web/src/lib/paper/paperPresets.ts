@@ -27,16 +27,17 @@ export interface BuiltInPaperPreset extends PaperStylePreset {
   id: BuiltInPaperPresetId;
 }
 
-const UNLIT: PaperStyle['light'] = { ...DEFAULT_PAPER_STYLE.light, enabled: false };
-
 /**
  * The diagramming style, transcribed from the Origami House template's own
  * labels and dash arrays (A4 in mm, every line in pt): paper white with a 30%
  * grey colour side, one `#231f20` ink, edge 0.5 pt, the diagram creases
  * 0.75 pt — mountain dash-dot 8:2:1:2, valley dashed 4:2 — auxiliary creases
- * 0.25 pt, arrows 0.75 pt. The folds, a crease pattern's lines, are the only
- * colour: solid, red and blue, at the diagram creases' weight. The template's hidden fold and hidden edge pens have nothing to
- * drive and are not here.
+ * 0.25 pt, arrows 0.75 pt. The folds, a crease pattern's lines, are that ink
+ * too, solid, at the diagram creases' weight: the style is black and white
+ * throughout. They were red and blue, which a folded model drawn in this style
+ * wore as the only colour on the page. The template's hidden fold and hidden
+ * edge pens have nothing to drive and are not here. The paper is lit, as the
+ * Default's is: a model's shading is what shows its form on a white sheet.
  *
  * Aux creases pull back half a percent of the sheet from the edge of the face
  * they lie on, which is how a printed diagram keeps an existing crease from
@@ -48,16 +49,13 @@ const DIAGRAM_STYLE: PaperStyle = {
   ...DEFAULT_PAPER_STYLE,
   paper: { front: '#ffffff', back: '#b3b3b3' },
   edges: { ...DIAGRAM_PEN, width: 0.5 },
-  // A crease pattern reads by colour; black would leave mountain and valley
-  // apart only by dash, which is the diagram creases' job.
-  mountainFolds: { ...DIAGRAM_PEN, color: DEFAULT_PAPER_STYLE.mountainFolds.color },
-  valleyFolds: { ...DIAGRAM_PEN, color: DEFAULT_PAPER_STYLE.valleyFolds.color },
+  mountainFolds: { ...DIAGRAM_PEN },
+  valleyFolds: { ...DIAGRAM_PEN },
   mountainDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_MOUNTAIN_DASH] },
   valleyDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_VALLEY_DASH] },
   auxCreases: { visible: true, pen: { ...DIAGRAM_PEN, width: 0.25 } },
   arrows: { ...DIAGRAM_PEN, cap: 'round' },
   erode: 0.005,
-  light: UNLIT,
 };
 
 /**
