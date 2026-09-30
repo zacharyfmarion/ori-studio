@@ -48,7 +48,7 @@ const paint = (scene = sheetWithCrease(), style = DEFAULT_PAPER_STYLE, page = TI
 /** Every `<tag …/>` element in the page, as its attribute map. */
 function elements(
   svg: string,
-  tag: 'line' | 'polygon' | 'path' | 'rect'
+  tag: 'line' | 'polygon' | 'path' | 'rect' | 'circle'
 ): Record<string, string>[] {
   const found: Record<string, string>[] = [];
   for (const match of svg.matchAll(new RegExp(`<${tag}\\s([^>]*)/>`, 'g'))) {
@@ -362,6 +362,59 @@ describe('lines', () => {
 
   it('leaves a zero-length line out', () => {
     expect(lines(paint(sceneOf([line('edge', [5, 5], [5, 5])])).svg)).toHaveLength(0);
+  });
+
+  // A mesh draws a crease as a chain of pieces, and a butt cap at every link
+  // left a wedge out of the outside of each bend: the painter joins a piece to
+  // what carries on from it, and keeps the pen's cap for the line's own ends.
+  describe('where a line joins another', () => {
+    const BUTT = withPen('mountainFolds', { width: 1, color: '#aa0000', dash: null, cap: 'butt' });
+    const drawn = (joined: [boolean, boolean] | undefined, style = BUTT, erode = 0) =>
+      paint(
+        sceneOf([line('mountain', [0, 10], [100, 10], { ...(joined ? { joined } : {}), onBoundary: [true, false] })]),
+        { ...style, erode }
+      ).svg;
+
+    it('draws a solid butt pen round at both joints, and the pen’s cap at an end of its own', () => {
+      expect(lines(drawn([true, true]))).toMatchObject([{ 'stroke-linecap': 'round' }]);
+      expect(elements(drawn([true, true]), 'circle')).toHaveLength(0);
+      expect(lines(drawn(undefined))).toMatchObject([{ 'stroke-linecap': 'butt' }]);
+      expect(elements(drawn(undefined), 'circle')).toHaveLength(0);
+
+      // Joined at one end only: the other keeps its butt cap, and the joint is
+      // a dot the line's width, in its ink, where the line ends.
+      const one = drawn([false, true]);
+      const [piece] = lines(one);
+      expect(piece).toMatchObject({ 'stroke-linecap': 'butt' });
+      const [dot] = elements(one, 'circle');
+      expect(dot).toMatchObject({ cx: piece!.x2, cy: piece!.y2, r: '0.50', fill: '#aa0000' });
+    });
+
+    it('leaves a dashed pen, a round one and an end erode pulled back as they are', () => {
+      const dashed = drawn([true, true], withPen('mountainFolds', { ...BUTT.mountainFolds, dash: [4, 2] }));
+      expect(lines(dashed)).toMatchObject([{ 'stroke-linecap': 'butt' }]);
+      expect(elements(dashed, 'circle')).toHaveLength(0);
+      const round = drawn([false, true], withPen('mountainFolds', { ...BUTT.mountainFolds, cap: 'round' }));
+      expect(lines(round)).toMatchObject([{ 'stroke-linecap': 'round' }]);
+      expect(elements(round, 'circle')).toHaveLength(0);
+      // Erode pulls the flagged end back to leave a gap on purpose: that end
+      // is no joint any more, and only the other is joined.
+      const eroded = drawn([true, true], BUTT, 0.1);
+      const [piece] = lines(eroded);
+      expect(Number(piece!.x1)).toBeGreaterThan(ROOM + 0.5);
+      expect(piece).toMatchObject({ 'stroke-linecap': 'butt' });
+      expect(elements(eroded, 'circle')).toMatchObject([{ cx: piece!.x2 }]);
+    });
+
+    it('draws nothing for a piece joined at both ends and shorter than its own width', () => {
+      // Round, it is a blob where a crease peeks out from under a face; the
+      // pieces either side reach half a width into the span it covers.
+      const wide = withPen('mountainFolds', { ...BUTT.mountainFolds, width: 2 });
+      const stub = (joined: [boolean, boolean]) =>
+        paint(sceneOf([line('mountain', [0, 10], [2, 10], { joined })]), wide).svg;
+      expect(lines(stub([true, true]))).toHaveLength(0);
+      expect(lines(stub([false, true]))).toHaveLength(1);
+    });
   });
 });
 

@@ -768,6 +768,45 @@ describe('which endpoints lie on a boundary', () => {
     }
   });
 
+  // A mesh draws a crease as a chain of pieces, and the painter joins a piece's
+  // end to what carries on from it rather than capping it, or a butt cap at
+  // every link leaves a wedge out of the outside of each bend.
+  it('says which ends another drawn line carries on from', () => {
+    // The aux line from the border (4) up to the centre (5): the border meets
+    // it at 4. At the centre only facet edges meet it, so that end is its own.
+    const alone = scene(
+      {},
+      FAN,
+      fan({ toCorner1: EDGE_CODE.facet, toCorner2: EDGE_CODE.facet, toCorner0: EDGE_CODE.facet }),
+      OVERHEAD
+    );
+    expect(lineFromTo(alone, 4, 5).joined).toEqual([true, false]);
+    // An aux spoke into the centre is another drawn line there.
+    const met = scene(
+      {},
+      FAN,
+      fan({ toCorner1: EDGE_CODE.facet, toCorner2: EDGE_CODE.facet, toCorner0: EDGE_CODE.aux }),
+      OVERHEAD
+    );
+    expect(lineFromTo(met, 4, 5).joined).toEqual([true, true]);
+    // The outline is one closed chain: every edge meets the next at a corner.
+    for (const [from, to] of [[0, 4], [4, 1], [1, 2]] as const) {
+      expect(lineFromTo(met, from, to).joined).toEqual([true, true]);
+    }
+  });
+
+  it('says nothing for a line that meets no other', () => {
+    // One mountain crease across a triangle whose other edges are facets.
+    const mesh: SvgMeshTopology = {
+      faceIndices: new Uint32Array([0, 1, 2]),
+      edgeIndices: new Uint32Array([0, 1, 1, 2, 2, 0]),
+      edgeAssignments: new Uint8Array([EDGE_CODE.mountain, EDGE_CODE.facet, EDGE_CODE.facet]),
+    };
+    const [only] = lines(scene({}, positions(), mesh));
+    expect(only!.role).toBe('mountain');
+    expect(only!.joined).toBeUndefined();
+  });
+
   it('is false at the end a cut left behind', () => {
     // Two triangles through each other, and an aux crease along the first's
     // base that crosses the second's plane: the tree cuts it in two, and the
@@ -793,6 +832,9 @@ describe('which endpoints lie on a boundary', () => {
     const second = pieces.find((line) => same(line.b, end))!;
     expect(first.onBoundary).toEqual([true, false]);
     expect(second.onBoundary).toEqual([false, true]);
+    // The cut is a joint: the rest of the crease carries on from it.
+    expect(first.joined?.[1]).toBe(true);
+    expect(second.joined?.[0]).toBe(true);
     // Each piece carries the crease it was cut from, with the crease's own
     // flags, for the painter to erode the crease rather than the piece; the
     // two meet at the cut, on the crease's straight screen segment.

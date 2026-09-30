@@ -99,6 +99,15 @@ export interface PaperLineItem {
    * crease, whose `a`, `b` and `onBoundary` then say it all.
    */
   whole?: PaperLineWhole;
+  /**
+   * Whether each end continues into another line of the scene — the rest of
+   * its own crease past a cut, or another crease or edge meeting it at a
+   * vertex — where the painter joins the two rather than capping the end. A
+   * mesh draws a crease as a chain of pieces, and a butt cap at every link
+   * left a wedge-shaped gap on the outside of each bend. Absent, both ends are
+   * the line's own and take its pen's cap.
+   */
+  joined?: [boolean, boolean];
   /** The face the line is drawn on, when one is known. */
   face?: number;
   hidden: boolean;
@@ -293,6 +302,13 @@ export function meshToPaperScene(
   const byEdge = trianglesByEdge(triangles);
   const faceOfLine = lineFaces(creases, triangles, attributes, byEdge);
   const boundary = edgeBoundaryFlags(topology, projected.count);
+  // How many drawn lines end at each vertex: an end another one shares is a
+  // joint, not an end of the line.
+  const linesAt = new Uint32Array(projected.count);
+  for (const crease of creases) {
+    linesAt[crease.from] = (linesAt[crease.from] ?? 0) + 1;
+    linesAt[crease.to] = (linesAt[crease.to] ?? 0) + 1;
+  }
 
   const items: BspItem[] = [];
   if (options.showFaces !== false) {
@@ -460,6 +476,7 @@ export function meshToPaperScene(
         vertexAt,
         toScreen,
         boundary,
+        linesAt,
         faceOfLine[item.ref],
         isHidden
       )
@@ -700,6 +717,7 @@ function lineItem(
   vertexAt: (vertex: number) => Vec3,
   toScreen: (point: Vec3) => ScenePoint,
   boundary: Uint8Array,
+  linesAt: Uint32Array,
   face: number | undefined,
   hidden: boolean
 ): PaperLineItem {
@@ -732,6 +750,10 @@ function lineItem(
     ownsA && ownsB
       ? undefined
       : { a: toScreen(vertexAt(crease.from)), b: toScreen(vertexAt(crease.to)), onBoundary };
+  // A cut end is always a joint: the rest of the crease carries on from it.
+  // A vertex is one when another drawn line ends there too.
+  const joinedAt = (owns: boolean, vertex: number) => !owns || (linesAt[vertex] ?? 0) > 1;
+  const joined: [boolean, boolean] = [joinedAt(ownsA, crease.from), joinedAt(ownsB, crease.to)];
   return {
     kind: 'line',
     role,
@@ -739,6 +761,7 @@ function lineItem(
     b: screen[1]!,
     onBoundary: [ownsA && onBoundary[0], ownsB && onBoundary[1]],
     ...(whole ? { whole } : {}),
+    ...(joined[0] || joined[1] ? { joined } : {}),
     ...(face === undefined ? {} : { face }),
     hidden,
   };

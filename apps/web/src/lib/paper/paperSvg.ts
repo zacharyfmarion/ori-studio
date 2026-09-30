@@ -351,12 +351,48 @@ function lineElement(
     ? ` stroke-dasharray="${dash.map(num).join(' ')}" ` +
       `stroke-dashoffset="${num(centredDashOffset(dash, length))}"`
     : '';
-  return (
+  const width = pen.width * unitsPerPt;
+  const [joinsA, joinsB] = joints(line, eroded, pen, dash !== null);
+  // Joined at both ends, the line is all joint; at one, the pen's cap stays on
+  // the other end, and the joint is a dot the width of the line. A piece
+  // shorter than its own width, drawn round, is a blob — where a crease peeks
+  // out from under a face by a sliver — and the pieces either side each reach
+  // half a width into the span it covers, so it draws nothing they do not.
+  if (joinsA && joinsB && length < width) return null;
+  const cap = joinsA && joinsB ? 'round' : pen.cap;
+  const dot = joinsA !== joinsB ? (joinsA ? from : to) : null;
+  const element =
     `  <line x1="${num(from[0])}" y1="${num(from[1])}" ` +
     `x2="${num(to[0])}" y2="${num(to[1])}" ` +
-    `stroke="${pen.color}" stroke-width="${num(pen.width * unitsPerPt)}" ` +
-    `stroke-linecap="${pen.cap}"${dashAttr}/>`
-  );
+    `stroke="${pen.color}" stroke-width="${num(width)}" ` +
+    `stroke-linecap="${cap}"${dashAttr}/>`;
+  return dot
+    ? `${element}\n  <circle cx="${num(dot[0])}" cy="${num(dot[1])}" r="${num(width / 2)}" fill="${pen.color}"/>`
+    : element;
+}
+
+/**
+ * Which ends of a line are joints the pen's own cap would open a gap at: an
+ * end another line carries on from (`PaperLineItem.joined`), drawn round so
+ * the two meet whole — the pieces a mesh draws one crease in bend at every
+ * link, and a butt end at each left a wedge out of the outside of the bend.
+ *
+ * Only for a solid pen with butt caps: a round cap already joins, and a dash
+ * is gaps on purpose. And never an end erode pulled back, which was meant to
+ * stop short of what it met.
+ */
+function joints(
+  line: PaperLineItem,
+  eroded: readonly [ScenePoint, ScenePoint],
+  pen: Pen,
+  dashed: boolean
+): [boolean, boolean] {
+  if (!line.joined || pen.cap !== 'butt' || dashed) return [false, false];
+  const stays = (end: ScenePoint, at: ScenePoint) => end[0] === at[0] && end[1] === at[1];
+  return [
+    line.joined[0] && stays(eroded[0], line.a),
+    line.joined[1] && stays(eroded[1], line.b),
+  ];
 }
 
 /** A pen's dash as pt runs: its multiples times its pt width. */

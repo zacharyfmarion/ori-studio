@@ -57,7 +57,9 @@ import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
  * longer side is now 120 mm, where the unfolded sheet used to be. The default
  * pages were repainted when "as shown" went, and every page became a size in
  * mm: they are 60 mm across. Only the scale moved on either; everything drawn
- * is still the direct export's.
+ * is still the direct export's. The 3D pages were repainted again when a
+ * mesh's line pieces came to join where they meet — drawn round at a link
+ * rather than butt-ended — and that is all that changed on them.
  */
 
 type Entry = OristudioCpFoldedFigureEntry;
