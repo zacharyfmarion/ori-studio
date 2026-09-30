@@ -344,9 +344,7 @@ page. Several answers in the table changed once they met a real browser:
   mobile LCP. The body script holds `src`/`srcset`/`alt` until the app starts.
   The frames are sized by CSS, so nothing moves.
 
-`scripts/static-paint-check.mjs` is the gate: 54 checks, about 25 seconds, in CI's
-`web-browser` job. That job runs beside `web-client` with every browser check, so none
-of them adds to CI's wall time.
+`scripts/static-paint-check.mjs` is the gate: 54 checks, about 25 seconds, in CI.
 - **Coverage.** Chromium and WebKit × desktop and phone × dark and light,
   compared at the top and scrolled.
 - **Sampling.** It serves the HTML in 8 KB pieces, 40 ms apart, so browsers

@@ -327,19 +327,16 @@ in `implementation-plans/angle-restricted-endpoint-snap.md`.)
 
 ## CI
 
-GitHub Actions runs three main jobs:
+GitHub Actions runs two main jobs:
 
 - `web-client`: first asserts nothing under `apps/web/src/generated/` is tracked
   (see the wasm note above — a committed artifact passes every other check in
-  this job), then installs the toolchains and builds the simulator and all four
-  wasm bridges (`.github/actions/build-web-assets`), and runs web lint, i18n
-  check, typecheck, and unit tests (the latter with `--ignore-scripts`, so they
-  do not rebuild what the dedicated step just built).
-- `web-browser`: beside it, the same wasm build, then the production build and
-  the prerender, checked in real browsers: the landing's JS/CSS budget, the
-  WebKit PWA lane, and the static first paint lane
-  (`scripts/static-paint-check.mjs`). A job of its own because `web-client` is
-  CI's longest, and these steps at its end added to every run's wall time.
+  this job), then installs Rust and Node, installs `wasm-pack`, builds the
+  simulator and all four wasm bridges, and runs web lint, i18n check, typecheck,
+  and unit tests (the latter with `--ignore-scripts`, so they do not rebuild what
+  the dedicated step just built). Then it builds and prerenders the site, and
+  checks the result in real browsers: the landing's JS/CSS budget, the WebKit PWA
+  lane, and the static first paint lane (`scripts/static-paint-check.mjs`).
 - `native-oracle`: installs Tauri Linux dependencies, runs Rust format, clippy,
   workspace tests, builds the C++ oracle, and runs oracle parity tests.
 
