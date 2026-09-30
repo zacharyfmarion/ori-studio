@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useBlocker } from 'react-router-dom';
 import { requestConfirmation } from '../store/commandDialogStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -25,6 +26,7 @@ function rendersStartScreen(pathname: string): boolean {
  * the store, so nothing is lost.
  */
 export function useWelcomeDiscardGuard(): void {
+  const { t } = useTranslation();
   const dirty = useWorkspaceStore((state) => state.dirty);
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -37,10 +39,12 @@ export function useWelcomeDiscardGuard(): void {
     if (blocker.state !== 'blocked') return;
     let cancelled = false;
     void requestConfirmation({
-      title: 'Discard unsaved changes?',
-      message:
-        'Your current project has unsaved changes. Return to the start screen and discard them?',
-      confirmLabel: 'Discard',
+      title: t('dialogs:discardChanges.title', 'Discard unsaved changes?'),
+      message: t(
+        'dialogs:discardChanges.startScreenMessage',
+        'Your current project has unsaved changes. Return to the start screen and discard them?'
+      ),
+      confirmLabel: t('dialogs:discardChanges.confirm', 'Discard'),
       tone: 'danger',
     }).then((confirmed) => {
       if (cancelled) return;
@@ -50,5 +54,5 @@ export function useWelcomeDiscardGuard(): void {
     return () => {
       cancelled = true;
     };
-  }, [blocker]);
+  }, [blocker, t]);
 }

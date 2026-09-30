@@ -120,6 +120,14 @@
       "timeoutPartial_other": "Ele havia colocado {{count}} vértices no lugar antes de o tempo acabar, e você pode adicionar esse resultado parcial em vez do candidato bruto."
     }
   },
+  "discardChanges": {
+    "confirm": "Descartar",
+    "message": "Seu projeto atual tem alterações não salvas. Continuar e descartá-las?",
+    "newBoxPleatMessage": "Seu projeto atual tem alterações não salvas. Iniciar um novo design de dobra em caixa e descartá-las?",
+    "sharedLinkMessage": "Abrir este padrão de vincos compartilhado substituirá seu trabalho atual. Continuar e descartá-lo?",
+    "startScreenMessage": "Seu projeto atual tem alterações não salvas. Voltar à tela inicial e descartá-las?",
+    "title": "Descartar alterações não salvas?"
+  },
   "export": {
     "allPatterns": "Todos os padrões",
     "appearanceSection": "Aparência",
@@ -127,6 +135,7 @@
     "creasePatternToExport": "Padrão de vincos a exportar",
     "description": "Descrição",
     "descriptionPlaceholder": "Opcional",
+    "dialogTitle": "Exportar {{format}}",
     "foldAngleDisplay": "Estilo de ângulo de dobra",
     "foldedBackColor": "Verso",
     "foldedCase": "Caso de dobra",
@@ -181,6 +190,30 @@
     "featureCount": "{{feature}} ({{total}})",
     "message": "Este projeto usa recursos que o formato {{format}} não consegue armazenar. Eles serão omitidos na exportação: {{features}}.",
     "title": "Alguns recursos não podem ser exportados"
+  },
+  "fileDialog": {
+    "exportBps": "Exportar projeto do Box Pleating Studio",
+    "exportCp": "Exportar documento CP",
+    "exportCreasePatternPng": "Exportar padrão de vincos como PNG",
+    "exportCreasePatternSvg": "Exportar padrão de vincos como SVG",
+    "exportFold": "Exportar documento FOLD",
+    "exportFoldedFigurePng": "Exportar figura dobrada como PNG",
+    "exportFoldedFigureSvg": "Exportar figura dobrada como SVG",
+    "exportFoldedFold": "Exportar FOLD dobrado",
+    "exportFoldedObj": "Exportar OBJ dobrado",
+    "exportFoldedStl": "Exportar STL dobrado",
+    "exportFormat": "Exportar {{format}}",
+    "exportOrh": "Exportar documento ORH do Oriedita",
+    "exportOri": "Exportar documento ORI do Oriedita",
+    "exportTreeMaker4": "Exportar projeto do TreeMaker 4",
+    "exportTreeMaker5": "Exportar projeto do TreeMaker 5",
+    "exportViewPng": "Exportar visualização como PNG",
+    "exportViewSvg": "Exportar visualização como SVG",
+    "importIntoCreasePattern": "Importar para o padrão de vincos",
+    "saveOrh": "Salvar documento ORH do Oriedita",
+    "saveOri": "Salvar documento ORI do Oriedita",
+    "saveProject": "Salvar projeto do Ori Studio",
+    "saveProjectAs": "Salvar projeto do Ori Studio como"
   },
   "fileDrop": {
     "choiceMessage": "{{name}} é um padrão de vincos, então pode ser mesclado ao que você está editando ou aberto separadamente.",
@@ -249,6 +282,11 @@
       }
     },
     "closeLabel": "Fechar {{title}}"
+  },
+  "legacyOrh": {
+    "confirm": "Exportar ORH",
+    "message": "ORH é um formato legado do Oriedita/Orihime e não consegue preservar o estado do workspace do Ori Studio, os quadros FOLD incorporados nem todos os metadados do editor moderno.",
+    "title": "Exportar ORH legado?"
   },
   "number": {
     "tooSmall": "Insira um número maior que {{minimum}}."
@@ -322,6 +360,18 @@
     "message": "Esta sequência contém dobras aproximadas. Se este padrão de vincos veio de “Detectar CP a partir de imagem”, a detecção pode ter convergido para uma solução imprecisa. Verifique se todos os pontos de referência estão corretos.",
     "title": "Dobras aproximadas"
   },
+  "replaceEditedCp": {
+    "cancel": "Manter o padrão de vincos atual",
+    "confirm": "Substituir padrão de vincos",
+    "message": "Regerar a partir do design substituirá o padrão de vincos editável gerado anteriormente. A árvore permanece inalterada.",
+    "title": "Substituir o padrão de vincos editado?"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "Escalar",
+    "label": "Fator",
+    "meta": "Multiplica os comprimentos das arestas selecionadas por este fator.",
+    "title": "Escalar comprimentos das arestas"
+  },
   "selectByIndex": {
     "available": "Disponível: {{ids}}",
     "close": "Fechar seleção por índice",
@@ -339,6 +389,12 @@
     "partType": "Tipo de parte",
     "select": "Selecionar",
     "title": "Selecionar por índice"
+  },
+  "setEdgeLength": {
+    "confirm": "Definir",
+    "label": "Comprimento",
+    "meta": "Aplica exatamente este comprimento à aresta selecionada.",
+    "title": "Definir comprimento da aresta"
   },
   "settings": {
     "appearance": {
@@ -510,6 +566,12 @@
     "copy": "Copiar link",
     "title": "Compartilhar padrão de vincos",
     "url": "Link de compartilhamento"
+  },
+  "splitEdge": {
+    "confirm": "Dividir",
+    "label": "Distância",
+    "meta": "Distância ao longo da aresta com tensão selecionada.",
+    "title": "Dividir aresta"
   },
   "startScreen": {
     "chooseBegin": "Escolha como você quer começar.",

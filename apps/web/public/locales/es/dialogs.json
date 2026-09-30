@@ -120,6 +120,14 @@
       "timeoutPartial_other": "Había colocado {{count}} vértices en su sitio antes de agotarse el tiempo, y puedes añadir ese resultado parcial en lugar del candidato sin resolver."
     }
   },
+  "discardChanges": {
+    "confirm": "Descartar",
+    "message": "El proyecto actual tiene cambios sin guardar. ¿Continuar y descartarlos?",
+    "newBoxPleatMessage": "El proyecto actual tiene cambios sin guardar. ¿Iniciar un nuevo diseño de plegado en caja y descartarlos?",
+    "sharedLinkMessage": "Abrir este patrón de pliegues compartido reemplazará tu trabajo actual. ¿Continuar y descartarlo?",
+    "startScreenMessage": "El proyecto actual tiene cambios sin guardar. ¿Volver a la pantalla de inicio y descartarlos?",
+    "title": "¿Descartar los cambios sin guardar?"
+  },
   "export": {
     "allPatterns": "Todos los patrones",
     "appearanceSection": "Apariencia",
@@ -127,6 +135,7 @@
     "creasePatternToExport": "Patrón de pliegues a exportar",
     "description": "Descripción",
     "descriptionPlaceholder": "Opcional",
+    "dialogTitle": "Exportar {{format}}",
     "foldAngleDisplay": "Estilo de ángulo de plegado",
     "foldedBackColor": "Reverso",
     "foldedCase": "Caso de plegado",
@@ -181,6 +190,30 @@
     "featureCount": "{{feature}} ({{total}})",
     "message": "Este proyecto usa funciones que el formato {{format}} no puede almacenar. Se omitirán en la exportación: {{features}}.",
     "title": "Algunas funciones no se pueden exportar"
+  },
+  "fileDialog": {
+    "exportBps": "Exportar proyecto de Box Pleating Studio",
+    "exportCp": "Exportar documento CP",
+    "exportCreasePatternPng": "Exportar patrón de pliegues como PNG",
+    "exportCreasePatternSvg": "Exportar patrón de pliegues como SVG",
+    "exportFold": "Exportar documento FOLD",
+    "exportFoldedFigurePng": "Exportar figura plegada como PNG",
+    "exportFoldedFigureSvg": "Exportar figura plegada como SVG",
+    "exportFoldedFold": "Exportar FOLD plegado",
+    "exportFoldedObj": "Exportar OBJ plegado",
+    "exportFoldedStl": "Exportar STL plegado",
+    "exportFormat": "Exportar {{format}}",
+    "exportOrh": "Exportar documento ORH de Oriedita",
+    "exportOri": "Exportar documento ORI de Oriedita",
+    "exportTreeMaker4": "Exportar proyecto de TreeMaker 4",
+    "exportTreeMaker5": "Exportar proyecto de TreeMaker 5",
+    "exportViewPng": "Exportar vista como PNG",
+    "exportViewSvg": "Exportar vista como SVG",
+    "importIntoCreasePattern": "Importar al patrón de pliegues",
+    "saveOrh": "Guardar documento ORH de Oriedita",
+    "saveOri": "Guardar documento ORI de Oriedita",
+    "saveProject": "Guardar proyecto de Ori Studio",
+    "saveProjectAs": "Guardar proyecto de Ori Studio como"
   },
   "fileDrop": {
     "choiceMessage": "{{name}} es un patrón de pliegues, así que puede fusionarse con el que estás editando o abrirse por separado.",
@@ -249,6 +282,11 @@
       }
     },
     "closeLabel": "Cerrar {{title}}"
+  },
+  "legacyOrh": {
+    "confirm": "Exportar ORH",
+    "message": "ORH es un formato heredado de Oriedita/Orihime y no puede conservar el estado del espacio de trabajo de Ori Studio, los fotogramas FOLD incrustados ni todos los metadatos del editor moderno.",
+    "title": "¿Exportar ORH heredado?"
   },
   "number": {
     "tooSmall": "Introduce un número mayor que {{minimum}}."
@@ -322,6 +360,18 @@
     "message": "Esta secuencia contiene pliegues aproximados. Si este patrón de pliegues proviene de «Detectar CP desde imagen», la detección puede haber convergido en una solución inexacta. Verifica que todos los puntos de referencia sean correctos.",
     "title": "Pliegues aproximados"
   },
+  "replaceEditedCp": {
+    "cancel": "Conservar el CP actual",
+    "confirm": "Reemplazar CP",
+    "message": "Regenerar a partir del diseño reemplazará el patrón de pliegues editable generado anteriormente. El árbol no cambia.",
+    "title": "¿Reemplazar el CP editado?"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "Escalar",
+    "label": "Factor",
+    "meta": "Multiplica las longitudes de las aristas seleccionadas por este factor.",
+    "title": "Escalar longitudes de arista"
+  },
   "selectByIndex": {
     "available": "Disponibles: {{ids}}",
     "close": "Cerrar seleccionar por índice",
@@ -339,6 +389,12 @@
     "partType": "Tipo de parte",
     "select": "Seleccionar",
     "title": "Seleccionar por índice"
+  },
+  "setEdgeLength": {
+    "confirm": "Establecer",
+    "label": "Longitud",
+    "meta": "Aplica exactamente esta longitud a la arista seleccionada.",
+    "title": "Establecer longitud de arista"
   },
   "settings": {
     "appearance": {
@@ -510,6 +566,12 @@
     "copy": "Copiar enlace",
     "title": "Compartir patrón de pliegues",
     "url": "Enlace para compartir"
+  },
+  "splitEdge": {
+    "confirm": "Dividir",
+    "label": "Distancia",
+    "meta": "Distancia a lo largo de la arista con tensión seleccionada.",
+    "title": "Dividir arista"
   },
   "startScreen": {
     "chooseBegin": "Elige cómo quieres empezar.",

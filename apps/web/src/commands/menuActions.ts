@@ -647,12 +647,12 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return true;
       case 'edit.splitEdge': {
         const distance = await (deps.requestPositiveNumber ?? requestPositiveNumber)({
-          title: 'Split Edge',
-          label: 'Distance',
+          title: i18n.t('dialogs:splitEdge.title', 'Split Edge'),
+          label: i18n.t('dialogs:splitEdge.label', 'Distance'),
           initialValue: '0.5',
-          confirmLabel: 'Split',
+          confirmLabel: i18n.t('dialogs:splitEdge.confirm', 'Split'),
           minExclusive: 0,
-          meta: 'Distance along the selected strained edge.',
+          meta: i18n.t('dialogs:splitEdge.meta', 'Distance along the selected strained edge.'),
         });
         if (distance === null) return false;
         await deps.workspace.splitSelectedEdge(distance);
@@ -660,12 +660,15 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       }
       case 'edit.setEdgeLength': {
         const length = await (deps.requestPositiveNumber ?? requestPositiveNumber)({
-          title: 'Set Edge Length',
-          label: 'Length',
+          title: i18n.t('dialogs:setEdgeLength.title', 'Set Edge Length'),
+          label: i18n.t('dialogs:setEdgeLength.label', 'Length'),
           initialValue: '1',
-          confirmLabel: 'Set',
+          confirmLabel: i18n.t('dialogs:setEdgeLength.confirm', 'Set'),
           minExclusive: 0,
-          meta: 'Applies this exact length to the selected edge.',
+          meta: i18n.t(
+            'dialogs:setEdgeLength.meta',
+            'Applies this exact length to the selected edge.'
+          ),
         });
         if (length === null) return false;
         await deps.workspace.setSelectedEdgeLengths(length);
@@ -673,12 +676,15 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
       }
       case 'edit.scaleEdgeLengths': {
         const factor = await (deps.requestPositiveNumber ?? requestPositiveNumber)({
-          title: 'Scale Edge Lengths',
-          label: 'Factor',
+          title: i18n.t('dialogs:scaleEdgeLengths.title', 'Scale Edge Lengths'),
+          label: i18n.t('dialogs:scaleEdgeLengths.label', 'Factor'),
           initialValue: '1',
-          confirmLabel: 'Scale',
+          confirmLabel: i18n.t('dialogs:scaleEdgeLengths.confirm', 'Scale'),
           minExclusive: 0,
-          meta: 'Multiplies selected edge lengths by this factor.',
+          meta: i18n.t(
+            'dialogs:scaleEdgeLengths.meta',
+            'Multiplies selected edge lengths by this factor.'
+          ),
         });
         if (factor === null) return false;
         await deps.workspace.scaleSelectedEdgeLengths(factor);

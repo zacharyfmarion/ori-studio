@@ -86,6 +86,8 @@ import {
   resolveCommandDialog,
   useCommandDialogStore,
 } from '../commandDialogStore';
+import i18n from '../../i18n';
+import { preloadLocale } from '../../test/preloadLocale';
 
 const engineMocks = vi.hoisted(() => ({
   createBlankTree: vi.fn(),
@@ -1734,6 +1736,58 @@ describe('workspace store slices', () => {
 
     useWorkspaceStore.getState().clearProjectMessage();
     expect(useWorkspaceStore.getState().projectMessage).toBeNull();
+  });
+
+  it('titles its file dialogs in the language active when each one opens', async () => {
+    // Looked up at the moment of asking, not when the store loaded, so a language
+    // picked mid-session reaches the very next dialog. The crease export dialog
+    // gets no button label from here: it names its own, and an English one passed
+    // in used to override the translation.
+    resetStores(seedSnapshot());
+    const fileService = createFileService({
+      text: 'opened text',
+      name: 'opened.tmd5',
+      path: '/tmp/opened.tmd5',
+    });
+    await useWorkspaceStore.getState().initEngine();
+    await useWorkspaceStore.getState().loadProjectText('loaded text', {
+      title: 'Loaded design',
+      filename: 'loaded.tmd5',
+      path: '/tmp/loaded.tmd5',
+    });
+    await useWorkspaceStore.getState().buildCreasePattern();
+
+    preloadLocale('de');
+    i18n.addResourceBundle(
+      'de',
+      'dialogs',
+      {
+        fileDialog: { saveProjectAs: 'Ori Studio-Projekt speichern unter' },
+        export: { dialogTitle: '{{format}} exportieren' },
+      },
+      true,
+      true
+    );
+    await i18n.changeLanguage('de');
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      await expect(useWorkspaceStore.getState().saveProjectAs(fileService)).resolves.toBe(true);
+      expect(fileService.saveTextFile).toHaveBeenLastCalledWith(
+        expect.objectContaining({ title: 'Ori Studio-Projekt speichern unter' })
+      );
+
+      const exporting = useWorkspaceStore.getState().exportSvg(fileService);
+      await vi.waitFor(() => expect(useCommandDialogStore.getState().dialog).not.toBeNull());
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({ type: 'crease-export', title: 'SVG exportieren' });
+      expect(dialog).not.toHaveProperty('confirmLabel');
+      if (!dialog) throw new Error('expected the crease export dialog');
+      resolveCommandDialog(dialog.id, null);
+      await expect(exporting).resolves.toBe(false);
+    } finally {
+      unregisterDialogHost();
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('creates a blank editable CP document', async () => {

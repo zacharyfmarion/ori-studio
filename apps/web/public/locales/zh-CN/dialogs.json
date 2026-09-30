@@ -116,6 +116,14 @@
       "timeoutPartial_other": "超时前它已将 {{count}} 个顶点移动到位，你可以添加该部分结果，而不是原始候选图案。"
     }
   },
+  "discardChanges": {
+    "confirm": "放弃",
+    "message": "您当前的项目有未保存的更改。继续并放弃这些更改吗？",
+    "newBoxPleatMessage": "您当前的项目有未保存的更改。新建箱形褶皱设计并放弃这些更改吗？",
+    "sharedLinkMessage": "打开此分享的折痕图将替换您当前的工作。继续并放弃当前工作吗？",
+    "startScreenMessage": "您当前的项目有未保存的更改。返回开始界面并放弃这些更改吗？",
+    "title": "放弃未保存的更改？"
+  },
   "export": {
     "allPatterns": "所有折痕图",
     "appearanceSection": "外观",
@@ -123,6 +131,7 @@
     "creasePatternToExport": "要导出的折痕图",
     "description": "描述",
     "descriptionPlaceholder": "可选",
+    "dialogTitle": "导出 {{format}}",
     "foldAngleDisplay": "折叠角度样式",
     "foldedBackColor": "背面",
     "foldedCase": "折叠情形",
@@ -175,6 +184,30 @@
     "featureCount": "{{feature}}（{{total}}）",
     "message": "此项目使用了 {{format}} 格式无法保存的功能，导出时将省略：{{features}}。",
     "title": "部分功能无法导出"
+  },
+  "fileDialog": {
+    "exportBps": "导出 Box Pleating Studio 项目",
+    "exportCp": "导出 CP 文档",
+    "exportCreasePatternPng": "将折痕图导出为 PNG",
+    "exportCreasePatternSvg": "将折痕图导出为 SVG",
+    "exportFold": "导出 FOLD 文档",
+    "exportFoldedFigurePng": "将折叠图导出为 PNG",
+    "exportFoldedFigureSvg": "将折叠图导出为 SVG",
+    "exportFoldedFold": "导出折叠后 FOLD",
+    "exportFoldedObj": "导出折叠后 OBJ",
+    "exportFoldedStl": "导出折叠后 STL",
+    "exportFormat": "导出 {{format}}",
+    "exportOrh": "导出 Oriedita ORH 文档",
+    "exportOri": "导出 Oriedita ORI 文档",
+    "exportTreeMaker4": "导出 TreeMaker 4 项目",
+    "exportTreeMaker5": "导出 TreeMaker 5 项目",
+    "exportViewPng": "将视图导出为 PNG",
+    "exportViewSvg": "将视图导出为 SVG",
+    "importIntoCreasePattern": "导入到折痕图",
+    "saveOrh": "保存 Oriedita ORH 文档",
+    "saveOri": "保存 Oriedita ORI 文档",
+    "saveProject": "保存 Ori Studio 项目",
+    "saveProjectAs": "Ori Studio 项目另存为"
   },
   "fileDrop": {
     "choiceMessage": "{{name}} 是折痕图，可以合并到正在编辑的折痕图中，也可以单独打开。",
@@ -244,6 +277,11 @@
     },
     "closeLabel": "关闭 {{title}}"
   },
+  "legacyOrh": {
+    "confirm": "导出 ORH",
+    "message": "ORH 是旧版 Oriedita/Orihime 格式，无法保留 Ori Studio 工作区状态和嵌入的 FOLD 帧，也无法完整保留现代编辑器的全部元数据。",
+    "title": "导出旧版 ORH？"
+  },
   "number": {
     "tooSmall": "请输入大于 {{minimum}} 的数字。"
   },
@@ -306,6 +344,18 @@
     "message": "此序列包含近似折痕。如果这张折痕图来自“从图像检测 CP”，检测可能收敛到了不准确的结果。请核对所有参考点是否正确。",
     "title": "近似折痕"
   },
+  "replaceEditedCp": {
+    "cancel": "保留当前折痕图",
+    "confirm": "替换折痕图",
+    "message": "从设计重新生成将替换之前生成的可编辑折痕图。树保持不变。",
+    "title": "替换已编辑的折痕图？"
+  },
+  "scaleEdgeLengths": {
+    "confirm": "缩放",
+    "label": "系数",
+    "meta": "将所选边长乘以此系数。",
+    "title": "缩放边长"
+  },
   "selectByIndex": {
     "available": "可用：{{ids}}",
     "close": "关闭按索引选择",
@@ -323,6 +373,12 @@
     "partType": "部件类型",
     "select": "选择",
     "title": "按索引选择"
+  },
+  "setEdgeLength": {
+    "confirm": "设置",
+    "label": "长度",
+    "meta": "将所选边设为此精确长度。",
+    "title": "设置边长"
   },
   "settings": {
     "appearance": {
@@ -486,6 +542,12 @@
     "copy": "复制链接",
     "title": "共享折痕图",
     "url": "共享链接"
+  },
+  "splitEdge": {
+    "confirm": "拆分",
+    "label": "距离",
+    "meta": "沿所选受张力边的距离。",
+    "title": "拆分边"
   },
   "startScreen": {
     "chooseBegin": "选择您希望的开始方式。",
