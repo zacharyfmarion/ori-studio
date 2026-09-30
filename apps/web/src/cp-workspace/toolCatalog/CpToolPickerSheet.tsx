@@ -39,7 +39,9 @@ import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { cpActionLabel, cpGroupLabel } from '../../i18n/cpVocab';
 import { IconButton } from '../../components/ui/IconButton';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { CpShiftLatchToggle } from '../touchModifiers/CpShiftLatchToggle';
+import { CpLineTypeMark } from './CpLineTypeMark';
 import { cpRailGroups } from './cpRailActions';
 import { useCpToolFavorites } from './cpToolFavorites';
 import { CpToolPickerFavorites } from './CpToolPickerFavorites';
@@ -127,38 +129,22 @@ export function CpToolPickerSheet({
                 <h3 className="cp-tool-picker__group-title">{cpGroupLabel(t, group)}</h3>
                 {/* The line types are five one-letter choices, so as full rows
                     they cost a third of the sheet to say what five chips say —
-                    and the same segmented group the rail uses is already the
+                    and the segmented control the rail uses is already the
                     clearer picture of "one control, one answer". Every other
                     group stays a list: those are tools with names worth reading,
-                    which is what the rows are for. */}
+                    which is what the rows are for. Unlike the rail's, a pick
+                    here closes the sheet. */}
                 {group.id === 'line-type' ? (
-                  <div
-                    className="cp-tool-picker__types"
-                    role="radiogroup"
-                    aria-label={cpGroupLabel(t, group)}
-                  >
-                    {actions.map((action) => {
-                      const isActive =
-                        action.kind === 'line-type' && activeLineColor === action.lineColor;
-                      return (
-                        <button
-                          key={action.id}
-                          type="button"
-                          className="cp-tool-picker__type"
-                          role="radio"
-                          aria-checked={isActive}
-                          aria-label={cpActionLabel(t, action)}
-                          data-active={isActive || undefined}
-                          data-line-color={action.kind === 'line-type' ? action.lineColor : undefined}
-                          onClick={() => {
-                            onSelectAction(action);
-                            close();
-                          }}
-                        >
-                          {action.railLabel}
-                        </button>
-                      );
-                    })}
+                  <div className="cp-tool-picker__types">
+                    <CpToolPickerLineTypes
+                      label={cpGroupLabel(t, group)}
+                      actions={actions}
+                      activeLineColor={activeLineColor}
+                      onSelect={(action) => {
+                        onSelectAction(action);
+                        close();
+                      }}
+                    />
                   </div>
                 ) : (
                 <ul className="cp-tool-picker__list">
@@ -199,5 +185,40 @@ export function CpToolPickerSheet({
         </div>
       </div>
     </div>
+  );
+}
+
+function CpToolPickerLineTypes({
+  label,
+  actions,
+  activeLineColor,
+  onSelect,
+}: {
+  label: string;
+  actions: readonly OristudioCpActionDefinition[];
+  activeLineColor: OristudioCpLineColor;
+  onSelect: (action: OristudioCpActionDefinition) => void;
+}) {
+  const { t } = useTranslation();
+  const lineTypes = actions.filter((action) => action.kind === 'line-type');
+  return (
+    <SegmentedControl<OristudioCpLineColor>
+      fill
+      iconsOnly
+      aria-label={label}
+      value={activeLineColor}
+      options={lineTypes.map((action) => ({
+        value: action.lineColor,
+        label: cpActionLabel(t, action),
+        icon: <CpLineTypeMark action={action} size="lg" />,
+        // A letter names nothing to someone who has not met it; holding one
+        // says which, without picking it and closing the sheet.
+        tooltip: cpActionLabel(t, action),
+      }))}
+      onChange={(lineColor) => {
+        const action = lineTypes.find((candidate) => candidate.lineColor === lineColor);
+        if (action) onSelect(action);
+      }}
+    />
   );
 }

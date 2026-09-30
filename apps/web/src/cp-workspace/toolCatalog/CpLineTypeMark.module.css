@@ -1,0 +1,34 @@
+/*
+ * A line type's letter, in the ink of the creases it draws.
+ *
+ * No rule for edge (`Black0`) on purpose: `--fold-border` is near-black, and on
+ * a dark theme the letter would all but vanish. The mark is a label rather than
+ * a crease, and edge has no hue worth spending legibility on, so it keeps the
+ * option's own text colour.
+ */
+.mark {
+  font-size: 0.8rem;
+  font-weight: 780;
+  line-height: 1;
+}
+
+/* Sized for a thumb: the phone tool sheet's pills are a touch target tall. */
+.mark[data-size='lg'] {
+  font-size: 0.95rem;
+}
+
+.mark[data-line-color='Red1'] {
+  color: var(--fold-mountain);
+}
+
+.mark[data-line-color='Blue2'] {
+  color: var(--fold-valley);
+}
+
+.mark[data-line-color='Cyan3'] {
+  color: var(--fold-flat);
+}
+
+.mark[data-line-color='None'] {
+  color: var(--fold-unassigned);
+}

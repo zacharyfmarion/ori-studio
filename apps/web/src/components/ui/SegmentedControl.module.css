@@ -85,18 +85,21 @@
 }
 
 /* Fainter than the chosen pill, so hovering one never reads as choosing it. */
-.option:hover:not(:disabled) {
+.option:hover:not(:disabled, [aria-disabled='true']) {
   background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
   color: var(--text-primary);
 }
 
 .option[data-active],
-.option[data-active]:hover:not(:disabled) {
+.option[data-active]:hover {
   background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
   color: var(--text-primary);
 }
 
-.option:disabled {
+/* `aria-disabled` is one option refusing a choice while it stays focusable, so
+   its tooltip can still say why. */
+.option:disabled,
+.option[aria-disabled='true'] {
   cursor: default;
   opacity: 0.5;
 }

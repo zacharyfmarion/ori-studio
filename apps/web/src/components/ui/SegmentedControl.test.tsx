@@ -1,7 +1,13 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SegmentedControl, type SegmentedControlSize } from './SegmentedControl';
+import {
+  SegmentedControl,
+  type SegmentedControlSize,
+  type SegmentedOption,
+} from './SegmentedControl';
+import { TooltipProvider } from './Tooltip';
+import { TOUCH_LABEL_HOLD_MS } from './useTouchLabel';
 
 /**
  * What a screen can ask of the control, and what it cannot get wrong: the
@@ -24,6 +30,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const OPTIONS = [
@@ -111,5 +119,91 @@ describe('SegmentedControl', () => {
     mount({ size: 'sm', fill: true });
     expect(group()?.dataset.size).toBe('sm');
     expect(group()?.hasAttribute('data-fill')).toBe(true);
+  });
+});
+
+/**
+ * What the line types needed to move onto the control: letters for icons, the
+ * app tooltip a finger can summon, and one option refusing on its own.
+ */
+describe('SegmentedControl option extras', () => {
+  type Side = 'front' | 'back';
+  const withExtras = (extras: Partial<SegmentedOption<Side>>, onChange = vi.fn()) => {
+    act(() =>
+      root.render(
+        <TooltipProvider delayDuration={0}>
+          <SegmentedControl<Side>
+            aria-label="Side"
+            iconsOnly
+            value="front"
+            onChange={onChange}
+            options={[
+              { value: 'front', label: 'Front', icon: <b>F</b> },
+              { value: 'back', label: 'Back', icon: <b>B</b>, ...extras },
+            ]}
+          />
+        </TooltipProvider>
+      )
+    );
+    return onChange;
+  };
+  const byName = (name: string) =>
+    container.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+
+  it('draws only the icon, naming the option by its label', () => {
+    withExtras({});
+    expect(byName('Back')?.textContent).toBe('B');
+  });
+
+  it('shows a tooltip instead of the native title', () => {
+    withExtras({ tooltip: 'The side facing away' });
+    expect(byName('Back')?.hasAttribute('title')).toBe(false);
+    expect(byName('Front')?.title).toBe('Front');
+  });
+
+  it('names an option on a press-and-hold without choosing it', () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query.includes('pointer: coarse'),
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+    const onChange = withExtras({ tooltip: 'The side facing away' });
+    const back = byName('Back');
+    const touch = (type: string) =>
+      new PointerEvent(type, { bubbles: true, pointerType: 'touch', clientX: 0, clientY: 0 });
+
+    act(() => {
+      back?.dispatchEvent(touch('pointerdown'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
+    });
+    expect(document.querySelector('.tooltip-content')?.textContent).toContain(
+      'The side facing away'
+    );
+
+    act(() => {
+      back?.dispatchEvent(touch('pointerup'));
+      back?.click();
+    });
+    expect(onChange).not.toHaveBeenCalled();
+
+    act(() => back?.click());
+    expect(onChange).toHaveBeenCalledWith('back');
+  });
+
+  it('lets one option refuse, still focusable so its tooltip can say why', () => {
+    const onChange = withExtras({ disabled: true, tooltip: 'Not on this sheet' });
+    const back = byName('Back');
+    expect(back?.getAttribute('aria-disabled')).toBe('true');
+    expect(back?.disabled).toBe(false);
+    act(() => back?.click());
+    expect(onChange).not.toHaveBeenCalled();
+    act(() => byName('Front')?.click());
+    expect(onChange).toHaveBeenCalledWith('front');
   });
 });

@@ -34,7 +34,7 @@ const CEILINGS: Record<string, number> = {
   'components/landing/WelcomeLanding.css': 610,
   'index.css': 62,
   'styles/sonner.css': 55,
-  'styles/theme.css': 9184,
+  'styles/theme.css': 9096,
 };
 
 /** How far under its ceiling a stylesheet may sit before the ceiling follows it down. */

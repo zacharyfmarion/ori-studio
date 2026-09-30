@@ -6,6 +6,7 @@ import {
   type OristudioCpActionDefinition,
   type OristudioCpActionGroupDefinition,
   type OristudioCpActionId,
+  type OristudioCpLineTypeActionDefinition,
 } from '../../lib/oristudioCpActions';
 import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
 import { shortcutLabelForAction, type ShortcutResolution } from '../../keyboard/shortcuts';
@@ -20,10 +21,12 @@ import {
   cpGroupRailLabel,
 } from '../../i18n/cpVocab';
 import { cpRailGroups } from '../../cp-workspace/toolCatalog/cpRailActions';
+import { CpLineTypeMark } from '../../cp-workspace/toolCatalog/CpLineTypeMark';
 import { CpToolGlyph } from '../../cp-workspace/toolCatalog/cpToolGlyph';
 import { CpShiftLatchToggle } from '../../cp-workspace/touchModifiers/CpShiftLatchToggle';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { useTouchLabel } from '../ui/useTouchLabel';
 
@@ -161,23 +164,33 @@ function CpToolRailGroup({
       </button>
       {open && (
         <div className="cp-tool-rail__buttons" id={buttonsId} data-group={group.id}>
-          {actions.map((action) => {
-            const isActive =
-              action.kind === 'line-type'
-                ? activeLineColor === action.lineColor
-                : activeActionId === action.id;
-            return (
-              <CpToolButton
-                key={action.id}
-                action={action}
-                editable={editable}
-                isActive={isActive}
-                glyphOperationId={isActive ? activeOperationId : null}
-                onSelectAction={onSelectAction}
-                shortcutLabel={shortcutLabelForAction(action.id, shortcutResolution)}
-              />
-            );
-          })}
+          {group.id === 'line-type' ? (
+            // One control with one answer, so the line types are a segmented
+            // control rather than five loose tool buttons.
+            <CpLineTypeControl
+              label={cpGroupLabel(t, group)}
+              actions={actions.filter((action) => action.kind === 'line-type')}
+              activeLineColor={activeLineColor}
+              editable={editable}
+              onSelectAction={onSelectAction}
+              shortcutResolution={shortcutResolution}
+            />
+          ) : (
+            actions.map((action) => {
+              const isActive = activeActionId === action.id;
+              return (
+                <CpToolButton
+                  key={action.id}
+                  action={action}
+                  editable={editable}
+                  isActive={isActive}
+                  glyphOperationId={isActive ? activeOperationId : null}
+                  onSelectAction={onSelectAction}
+                  shortcutLabel={shortcutLabelForAction(action.id, shortcutResolution)}
+                />
+              );
+            })
+          )}
         </div>
       )}
     </section>
@@ -208,10 +221,7 @@ const CpToolButton = memo(function CpToolButton({
   const hold = useTouchLabel();
   const available = editable && action.uiStatus === 'ready';
   const label = cpActionLabel(t, action);
-  const statusLabel = commandStatusLabel(action, editable, t);
-  const title = shortcutLabel
-    ? `${label} (${shortcutLabel}) - ${statusLabel}`
-    : `${label} - ${statusLabel}`;
+  const title = railTooltip(t, action, editable, shortcutLabel);
 
   const button = (
     <button
@@ -220,8 +230,6 @@ const CpToolButton = memo(function CpToolButton({
       aria-label={label}
       aria-disabled={!available}
       data-active={isActive || undefined}
-      data-action-kind={action.kind}
-      data-line-color={action.kind === 'line-type' ? action.lineColor : undefined}
       data-ui-status={action.uiStatus}
       {...hold.handlers}
       onClick={() => {
@@ -243,12 +251,67 @@ const CpToolButton = memo(function CpToolButton({
   );
 });
 
-function commandStatusLabel(
+/**
+ * The line types, as one segmented control across the rail's width. Each keeps
+ * what a tool button gives it: the tooltip naming it with its shortcut, the
+ * press-and-hold label on touch, and a refusal while nothing is editable.
+ */
+function CpLineTypeControl({
+  label,
+  actions,
+  activeLineColor,
+  editable,
+  onSelectAction,
+  shortcutResolution,
+}: {
+  label: string;
+  actions: readonly OristudioCpLineTypeActionDefinition[];
+  activeLineColor: OristudioCpLineColor;
+  editable: boolean;
+  onSelectAction: (action: OristudioCpActionDefinition) => void;
+  shortcutResolution: ShortcutResolution;
+}) {
+  const { t } = useTranslation();
+  return (
+    <SegmentedControl<OristudioCpLineColor>
+      size="lg"
+      fill
+      iconsOnly
+      tooltipSide="right"
+      aria-label={label}
+      value={activeLineColor}
+      options={actions.map((action) => ({
+        value: action.lineColor,
+        label: cpActionLabel(t, action),
+        icon: <CpLineTypeMark action={action} />,
+        tooltip: railTooltip(
+          t,
+          action,
+          editable,
+          shortcutLabelForAction(action.id, shortcutResolution)
+        ),
+        disabled: !(editable && action.uiStatus === 'ready'),
+      }))}
+      onChange={(lineColor) => {
+        const action = actions.find((candidate) => candidate.lineColor === lineColor);
+        if (action) onSelectAction(action);
+      }}
+    />
+  );
+}
+
+/** What a rail tool's tooltip says: its name, its shortcut, and what it does or why it cannot. */
+function railTooltip(
+  t: TFunction,
   action: OristudioCpActionDefinition,
   editable: boolean,
-  t: TFunction
+  shortcutLabel: string | undefined
 ): string {
-  if (!editable) return t('tools:cpRail.openEditableFirst', 'Open an editable crease pattern first');
-  if (action.uiStatus === 'ready') return cpActionTooltip(t, action);
-  return cpActionDisabledReason(t, action);
+  const label = cpActionLabel(t, action);
+  const status = !editable
+    ? t('tools:cpRail.openEditableFirst', 'Open an editable crease pattern first')
+    : action.uiStatus === 'ready'
+      ? cpActionTooltip(t, action)
+      : cpActionDisabledReason(t, action);
+  return shortcutLabel ? `${label} (${shortcutLabel}) - ${status}` : `${label} - ${status}`;
 }

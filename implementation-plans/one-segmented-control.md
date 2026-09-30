@@ -152,11 +152,16 @@ wanted become props.
 
 ### Phase 2 — The line types onto the component
 
-- [ ] Option `tooltip` (hold-to-label on touch) and per-option `disabled`
-- [ ] The rail's line types and the phone sheet's through `SegmentedControl`;
-      delete `.cp-tool-rail__buttons[data-group='line-type']` and
-      `.cp-tool-picker__types`
-- [ ] Tests; browser (rail tooltip with shortcut, touch hold, the sheet closing
+- [x] Option `tooltip` (hold-to-label on touch) and per-option `disabled`
+      (`aria-disabled`, so the option stays focusable and its tooltip can say
+      why — the whole control's `disabled` stays native and inert), and
+      `iconsOnly` for options whose icon is the whole label
+- [x] The rail's line types and the phone sheet's through `SegmentedControl`,
+      each letter a `CpLineTypeMark` in its creases' ink (its own module);
+      the rail's and the sheet's hand-built group CSS deleted, and the dead
+      `.cp-line-type-toolbar__button` with it. The sheet's letters were
+      `action.railLabel` and are now localized, like the rail's
+- [x] Tests; browser (rail tooltip with shortcut, touch hold, the sheet closing
       on a pick); validate; commit
 
 ### Phase 3 — The other look-alikes

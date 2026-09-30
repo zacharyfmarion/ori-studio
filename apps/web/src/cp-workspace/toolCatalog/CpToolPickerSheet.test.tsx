@@ -83,7 +83,7 @@ describe('CpToolPickerSheet catalogue', () => {
     // is what this test is for, and a chip that dropped its label would be a
     // regression the row query alone could not see.
     const labels = [
-      ...[...sheet.querySelectorAll('.cp-tool-picker__type')].map((node) =>
+      ...[...sheet.querySelectorAll('.cp-tool-picker__types button')].map((node) =>
         node.getAttribute('aria-label')
       ),
       ...[...sheet.querySelectorAll('.cp-tool-picker__label')].map((node) => node.textContent),
@@ -131,6 +131,56 @@ describe('CpToolPickerSheet catalogue', () => {
 
     expect(selected).toHaveLength(1);
     expect(closed).toHaveBeenCalledTimes(1);
+  });
+
+  it('picks a line type and closes, like a row', () => {
+    const selected: string[] = [];
+    const closed = vi.fn();
+    const sheet = renderSheet((action) => selected.push(action.id), closed);
+
+    const valley = sheet.querySelector<HTMLButtonElement>(
+      '.cp-tool-picker__types button[aria-label="Valley"]'
+    );
+    act(() => {
+      valley?.click();
+    });
+
+    const valleyAction = ORISTUDIO_CP_ACTIONS.find(
+      (action) => action.kind === 'line-type' && action.lineColor === 'Blue2'
+    );
+    expect(selected).toEqual([valleyAction?.id]);
+    expect(closed).toHaveBeenCalledTimes(1);
+  });
+
+  // A letter names nothing to someone who has not met it. Holding one says
+  // which, and must not also pick it — the pick would close the sheet on them.
+  it('names a line type on a press-and-hold, without picking it or closing', () => {
+    vi.useFakeTimers();
+    const selected: string[] = [];
+    const closed = vi.fn();
+    const sheet = renderSheet((action) => selected.push(action.id), closed);
+    const valley = sheet.querySelector<HTMLButtonElement>(
+      '.cp-tool-picker__types button[aria-label="Valley"]'
+    );
+    if (!valley) throw new Error('no Valley chip');
+
+    const touch = (type: string) =>
+      new PointerEvent(type, { bubbles: true, pointerType: 'touch', clientX: 0, clientY: 0 });
+    act(() => {
+      valley.dispatchEvent(touch('pointerdown'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
+    });
+    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Valley');
+
+    act(() => {
+      valley.dispatchEvent(touch('pointerup'));
+      valley.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(selected).toEqual([]);
+    expect(closed).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it('refuses a tool that is not ready, rather than hiding it', () => {
@@ -241,7 +291,7 @@ describe('CpToolPickerSheet favorites', () => {
     expect(sheet.querySelectorAll('.cp-tool-picker__row').length).toBe(
       sheet.querySelectorAll('.cp-tool-picker__star').length
     );
-    for (const chip of sheet.querySelectorAll('.cp-tool-picker__type')) {
+    for (const chip of sheet.querySelectorAll('.cp-tool-picker__types button')) {
       expect(chip.querySelector('.cp-tool-picker__star')).toBeNull();
     }
   });

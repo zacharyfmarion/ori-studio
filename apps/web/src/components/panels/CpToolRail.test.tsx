@@ -1,6 +1,7 @@
 import { act, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ORISTUDIO_CP_LINE_TYPE_ACTIONS } from '../../lib/oristudioCpActions';
 import { storageKey, STORAGE_KEYS } from '../../lib/storage';
 import { resetShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
 import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
@@ -53,7 +54,8 @@ function stubPointer(coarse: boolean, phone = false) {
 
 function renderRail(
   active: Partial<CpToolRailActive> = {},
-  onSelectAction: ComponentProps<typeof CpToolRail>['onSelectAction'] = () => {}
+  onSelectAction: ComponentProps<typeof CpToolRail>['onSelectAction'] = () => {},
+  editable = true
 ): HTMLDivElement {
   container = document.createElement('div');
   document.body.appendChild(container);
@@ -65,7 +67,7 @@ function renderRail(
           activeActionId={active.activeActionId ?? null}
           activeOperationId={active.activeOperationId ?? null}
           activeLineColor="Red1"
-          editable
+          editable={editable}
           onSelectAction={onSelectAction}
         />
       </TooltipProvider>
@@ -266,6 +268,76 @@ describe('CpToolRail touch affordances', () => {
     });
 
     expect(selected).toHaveLength(1);
+  });
+});
+
+/*
+ * The line types are one segmented control rather than five tool buttons, and
+ * each option keeps what a tool button gives it: its name, a hold that names it
+ * without choosing it, and a refusal while nothing is editable.
+ */
+describe('CpToolRail line types', () => {
+  const valley = ORISTUDIO_CP_LINE_TYPE_ACTIONS.find((action) => action.lineColor === 'Blue2');
+
+  const lineTypes = (host: HTMLDivElement) =>
+    host.querySelectorAll<HTMLButtonElement>(
+      '#cp-tool-rail-group-line-type [role="group"] button'
+    );
+
+  it('are one labelled group that presses the active type', () => {
+    const host = renderRail();
+    const pressed = [...lineTypes(host)].map((button) => [
+      button.getAttribute('aria-label'),
+      button.getAttribute('aria-pressed'),
+    ]);
+    expect(pressed).toEqual([
+      ['Mountain', 'true'],
+      ['Valley', 'false'],
+      ['Edge', 'false'],
+      ['Auxiliary', 'false'],
+      ['Unassigned', 'false'],
+    ]);
+  });
+
+  it('pick a type with a click', () => {
+    const selected: string[] = [];
+    const host = renderRail({}, (action) => selected.push(action.id));
+    act(() => buttonFor(host, 'Valley').click());
+    expect(selected).toEqual([valley?.id]);
+  });
+
+  it('name a type on a press-and-hold without picking it', () => {
+    vi.useFakeTimers();
+    stubPointer(true);
+    const selected: string[] = [];
+    const host = renderRail({}, (action) => selected.push(action.id));
+    const button = buttonFor(host, 'Valley');
+
+    act(() => {
+      button.dispatchEvent(touchPointer('pointerdown'));
+    });
+    act(() => {
+      vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
+    });
+    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Valley');
+
+    act(() => {
+      button.dispatchEvent(touchPointer('pointerup'));
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(selected).toEqual([]);
+  });
+
+  it('refuse a pick while nothing is editable, staying reachable to say why', () => {
+    const selected: string[] = [];
+    const host = renderRail({}, (action) => selected.push(action.id), false);
+    const button = buttonFor(host, 'Valley');
+
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    // Focusable, unlike a native `disabled`: the tooltip is where it says why.
+    expect(button.hasAttribute('disabled')).toBe(false);
+    act(() => button.click());
+    expect(selected).toEqual([]);
   });
 });
 

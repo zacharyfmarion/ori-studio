@@ -5189,28 +5189,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-muted);
 }
 
-.cp-tool-rail__button[data-action-kind='line-type'] {
-  font-size: 0.8rem;
-  font-weight: 780;
-}
-
-.cp-tool-rail__button[data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-tool-rail__button[data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-/* No `Black0` rule on purpose. `--fold-border` is #111417 and the rail sits on
-   #171d22, so colouring the E chip with it made the letter invisible — about a
-   1.05:1 ratio. The chip is a label rather than a crease, and edge has no hue
-   worth spending legibility on, so it inherits the button's own text colour. */
-
-.cp-tool-rail__button[data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
 .cp-tool-rail__button[data-active] {
   border-color: transparent;
   box-shadow: inset 0 0 0 1px
@@ -5221,19 +5199,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
   background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
   color: var(--text-primary);
-}
-
-.cp-tool-rail__button[data-active][data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-tool-rail__button[data-active][data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-
-.cp-tool-rail__button[data-active][data-line-color='Cyan3'] {
-  color: var(--fold-flat);
 }
 
 .cp-tool-rail__button-label {
@@ -7687,12 +7652,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin-inline: 1px;
 }
 
-.cp-line-type-toolbar__button {
-  min-width: 28px;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
 .cp-view-controls-panel__empty {
   display: flex;
   align-items: flex-start;
@@ -8278,49 +8237,10 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 
-/* Line-type chips share a single row: they are glyphs, not icons, so they do
-   not need the tool button's footprint. Flex rather than a fixed column count
-   so the row stays correct as chips are shown or hidden. */
+/* The line types are one segmented control (`CpToolRail`), which fills the
+   column the tool grid spans rather than taking one of its cells. */
 .cp-tool-rail__buttons[data-group='line-type'] {
-  display: flex;
-  /* One control with one answer, so the line types read as a segmented group
-     rather than five loose buttons: one border round the set, hairline dividers
-     between, no gaps. It is also what makes room for the fifth — unassigned was
-     hidden from the rail until now, and a fifth loose button in a four-column
-     grid either orphans onto a second row or squeezes the rest. */
-  gap: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.cp-tool-rail__buttons[data-group='line-type'] > * {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button {
-  border: 0;
-  border-radius: 0;
-}
-
-.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button + .cp-tool-rail__button {
-  border-left: 1px solid var(--border-default);
-}
-
-/* Inset rather than a border, so lighting a segment cannot nudge its
-   neighbours by the pixel a border would add. */
-.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button[data-active] {
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-}
-
-.cp-tool-rail__button[data-line-color='None'] {
-  color: var(--fold-unassigned);
-}
-
-.cp-tool-rail__button[data-active][data-line-color='None'] {
-  color: var(--fold-unassigned);
+  display: block;
 }
 
 .viewport-toolbar__dropdown-item {
@@ -11566,56 +11486,9 @@ button.bp-packing-alert:focus-visible {
     line-height: 1.35;
   }
 
-  /* The line types, as the same segmented group the rail draws — see
-     `.cp-tool-rail__buttons[data-group='line-type']`. Not shared markup: this
-     one is sized for a thumb rather than a cursor, and the sheet's buttons
-     close it on select where the rail's do not. */
+  /* Places the line types' segmented control under its heading. */
   .cp-tool-picker__types {
-    display: flex;
     margin: 0 var(--space-3) var(--space-2);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-
-  .cp-tool-picker__type {
-    flex: 1 1 0;
-    min-width: 0;
-    /* The rail's chips are 38px, which is under the 44px a thumb wants. */
-    min-height: 44px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    font-weight: 780;
-    cursor: pointer;
-  }
-
-  .cp-tool-picker__type + .cp-tool-picker__type {
-    border-left: 1px solid var(--border-default);
-  }
-
-  .cp-tool-picker__type[data-active] {
-    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  }
-
-  .cp-tool-picker__type[data-line-color='Red1'] {
-    color: var(--fold-mountain);
-  }
-
-  .cp-tool-picker__type[data-line-color='Blue2'] {
-    color: var(--fold-valley);
-  }
-
-  .cp-tool-picker__type[data-line-color='Cyan3'] {
-    color: var(--fold-flat);
-  }
-
-  .cp-tool-picker__type[data-line-color='None'] {
-    color: var(--fold-unassigned);
   }
 
   /*
