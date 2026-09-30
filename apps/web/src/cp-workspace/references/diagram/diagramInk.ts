@@ -288,9 +288,12 @@ export function canvasDiagramPens(
  * that box and whatever it stands beside, and it is the halo's own reach: the
  * halo is painted in the ground colour, so a halo over a ring erases a piece
  * of it.
+ *
+ * `size` was `10.8` — `9 × 1.2` — until a step's page, where a letter keeps
+ * its on-screen size beside pens drawn in pt, showed it a touch large.
  */
 export const DIAGRAM_LABEL_INK = {
-  size: 10.8,
+  size: 9.6,
   halo: 3,
   standoff: 1.5,
   glyph: { height: 1, baseline: 0.86 },

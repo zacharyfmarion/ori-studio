@@ -126,10 +126,11 @@ describe('the diagram’s pen', () => {
 
   // A letter and its halo already scaled with the viewBox, unlike the strokes,
   // so they convert at 1.2 ink to the user unit rather than 1:1. Getting that
-  // backwards shrinks every letter by a fifth.
+  // backwards shrinks every letter by a fifth. The letter was 9 user units
+  // until a step's page showed it a touch large; it is 8.
   it('converts the label from user units, not from screen pixels', () => {
     const inkPerUserUnit = 96 / 80;
-    expect(DIAGRAM_LABEL_INK.size / inkPerUserUnit).toBeCloseTo(9, 6);
+    expect(DIAGRAM_LABEL_INK.size / inkPerUserUnit).toBeCloseTo(8, 6);
     expect(DIAGRAM_LABEL_INK.halo / inkPerUserUnit).toBeCloseTo(2.5, 6);
   });
 

@@ -119,9 +119,10 @@ const LINE_ROLES: Partial<Record<DiagramLineStyleName, PaperLineRole>> = {
 };
 
 /**
- * The scene for a step. Items in draw order: the sheet and its border, then a
- * band's wash (drawn under the lines on screen, so under them here), then the
- * lines as the model orders them, then the symbols over everything. `bounds`
+ * The scene for a step. Items in draw order: the sheet, then a band's wash
+ * (drawn under the lines on screen, so under them here), then the lines as the
+ * model orders them, then the sheet's border over them, then the symbols over
+ * everything. `bounds`
  * is the card's box round the sheet — the padding band a letter at a corner is
  * pushed into — grown to whatever the letters took, and `sheet` is the paper's
  * longer side in scene px, the unit erode is measured in.
@@ -132,12 +133,20 @@ export function diagramToPaperScene(
 ): PaperScene {
   const seen = applyPaperStylePolicy(options.style, PAPER_STYLE_POLICIES.references);
   const showAux = referencesShowsAux(options.style, options.showAux ?? null);
+  const ink = options.project.ink;
   const project = withPens(options.project, {
     ...options.project.pens,
     // The arrow is the style's pen: its width in pt as CSS px, in the
     // drawing's ink, with the pen's own dash and cap — so on a page painted
     // at the screen's ratio, which a step's page is, it is the pen's pt.
-    arrow: penInk(seen.arrows, (seen.arrows.width * PT_TO_CSS_PX) / options.project.ink),
+    arrow: penInk(seen.arrows, (seen.arrows.width * PT_TO_CSS_PX) / ink),
+    // The accent over the lines a step lines up lies on those lines — the
+    // paper's edges, mostly — so it is drawn at the edge pen's weight, the
+    // line it covers, in its own ink.
+    highlight: {
+      ...options.project.pens.highlight,
+      width: (seen.edges.width * PT_TO_CSS_PX) / ink,
+    },
   });
   const mirrored = options.mirrored ?? project.mirrored;
   const drawn = mirrored ? seenFromTheBack(model.primitives) : model.primitives;
@@ -229,17 +238,21 @@ export function diagramToPaperScene(
       shade: 1,
       hidden: false,
     },
-    // The paper's border. On screen it is drawn for us — the card strokes the
-    // sheet rect, the big view has the document's own border creases under
-    // the overlay — but a page carries only what the scene says, and a face
-    // is closed with a hairline in its own fill, never the edge pen. Without
-    // these four a light paper on a blank page is invisible but for its
-    // creases, where every other surface's export draws its outline.
-    ...outline.map((from, index) => lineItem('edge', from, outline[(index + 1) % outline.length]!)),
   ];
   const wash = markupItem(drawn, washes, context, bounds);
   if (wash) items.push(wash);
   items.push(...lines);
+  // The paper's border. On screen it is drawn for us — the card strokes the
+  // sheet rect, the big view has the document's own border creases under the
+  // overlay — but a page carries only what the scene says, and a face is
+  // closed with a hairline in its own fill, never the edge pen. Without these
+  // four a light paper on a blank page is invisible but for its creases, where
+  // every other surface's export draws its outline. Over the step's lines, not
+  // under them: a crease that ends on the edge, drawn after it, laid its own
+  // grey across the outline and broke it into pieces.
+  items.push(
+    ...outline.map((from, index) => lineItem('edge', from, outline[(index + 1) % outline.length]!))
+  );
   const over = markupItem(drawn, symbols, context, bounds);
   if (over) items.push(over);
   return { bounds, sheet: sheetPx, items };

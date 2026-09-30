@@ -69,10 +69,10 @@ const faces = (result: PaperScene) =>
   result.items.filter((item): item is PaperFaceItem => item.kind === 'face');
 const lines = (result: PaperScene) =>
   result.items.filter((item): item is PaperLineItem => item.kind === 'line');
-/** The paper's border: the four edge lines the producer draws round the face itself. */
-const border = (result: PaperScene) => lines(result).slice(0, 4);
-/** The lines the model drew, which follow the border. */
-const creases = (result: PaperScene) => lines(result).slice(4);
+/** The paper's border: the four edge lines the producer draws round the face itself, last. */
+const border = (result: PaperScene) => lines(result).slice(-4);
+/** The lines the model drew, which the border is painted over. */
+const creases = (result: PaperScene) => lines(result).slice(0, -4);
 const markups = (result: PaperScene) =>
   result.items.filter((item): item is PaperMarkupItem => item.kind === 'markup');
 
@@ -328,8 +328,8 @@ describe('the lines', () => {
     const result = scene(model(line('crease', [0, 0.5], [1, 0.5])), { style });
     const page = { ...screenPage(result), paddingMm: 0 };
     const { svg } = paperSceneToSvg(result, style, page);
-    // The border's four lines come first; the crease is the fifth.
-    const crease = elements(svg, 'line')[4];
+    // The crease comes first; the border's four lines are painted over it.
+    const crease = elements(svg, 'line')[0];
     // 0.1 of 80 px is 8 px in from the sheet's edge at 10 px; 0.75 pt per px
     // on a page at the screen's ratio, past the stroke room a zero margin keeps.
     const room = pageMarginPt(style, page);
@@ -375,8 +375,13 @@ describe('the markup', () => {
   it('carries every symbol the painter has no word for, after the lines, with the wash under them', () => {
     const result = scene(symbols);
     const kinds = result.items.map((item) => item.kind);
-    // The face, its border, the wash, the model's one crease, the symbols.
-    expect(kinds).toEqual(['face', 'line', 'line', 'line', 'line', 'markup', 'line', 'markup']);
+    // The face, the wash, the model's one crease, the border over it, the
+    // symbols.
+    expect(kinds).toEqual(['face', 'markup', 'line', 'line', 'line', 'line', 'line', 'markup']);
+    expect((result.items[2] as PaperLineItem).role).not.toBe('edge');
+    expect(
+      result.items.slice(3, 7).every((item) => item.kind === 'line' && item.role === 'edge')
+    ).toBe(true);
     const [wash, over] = markups(result);
     expect(elements(wash!.svg, 'polygon')).toHaveLength(1);
     expect(wash!.svg).not.toContain('<path');

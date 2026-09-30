@@ -46,6 +46,8 @@ import { decodePlanModel, planModelPoints, planStepScene } from './referencesPla
  * sit on their strokes' ends: only the return stroke's end and the head moved.
  * Then the rings shrank to four fifths and took the arrow's pen, and the
  * letters that keep clear of them drew in, so the crop round them tightened.
+ * Then the letters shrank by a ninth, the accent over a step's lines took the
+ * edge pen's weight, and the sheet's border moved over the step's lines.
  * The defaults page is a printed diagram's step, the size the dialog opens a
  * step at.
  */
