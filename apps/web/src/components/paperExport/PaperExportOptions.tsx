@@ -85,7 +85,7 @@ export function PaperExportOptions({
 
   const formatSection = (
     <section className="export-modal__section">
-      <div className="export-modal__control-group">
+      <div className="export-modal__field-row">
         <span className="export-modal__label">{t('dialogs:paperExport.format', 'Format')}</span>
         <SegmentedControl<PaperExportFormat>
           aria-label={t('dialogs:paperExport.format', 'Format')}

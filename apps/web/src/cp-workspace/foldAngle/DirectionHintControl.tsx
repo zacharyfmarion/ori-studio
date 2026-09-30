@@ -46,7 +46,6 @@ export function DirectionHintControl() {
           on a mixed selection — the convention the fold-angle group uses when
           its creases disagree, rather than picking a winner to highlight. */}
       <SegmentedControl<DirectionHintChange>
-        size="sm"
         fill
         aria-label={title}
         value={

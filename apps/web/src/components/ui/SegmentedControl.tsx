@@ -1,4 +1,15 @@
-import type { ComponentPropsWithRef, ReactNode } from 'react';
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useOptimistic,
+  useRef,
+  type ComponentPropsWithRef,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { observeResizeDeferred } from './observeResizeDeferred';
 import styles from './SegmentedControl.module.css';
 import { Tooltip, TooltipContent, TooltipTrigger } from './Tooltip';
 import { useTouchLabel } from './useTouchLabel';
@@ -75,16 +86,45 @@ export function SegmentedControl<T extends string>({
   tooltipSide = 'top',
   'aria-label': ariaLabel,
 }: SegmentedControlProps<T>) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLSpanElement>(null);
+  // A choice shows at once, rather than when the owner's re-render lands: the
+  // context panel's re-renders the whole crease-pattern panel, and the pill
+  // used to wait ~100ms (in development) before it moved. The owner's update
+  // runs as a transition, and if it keeps the old value, the pill goes back.
+  const [shownValue, showValue] = useOptimistic(value);
+  const choose = (next: T) =>
+    startTransition(() => {
+      showValue(next);
+      onChange(next);
+    });
+  const activeIndex = options.findIndex((option) => option.value === shownValue);
+  useActiveIndicator(
+    trackRef,
+    indicatorRef,
+    activeIndex,
+    // What moves the options without a new choice: their labels, and the size.
+    `${size} ${fill} ${iconsOnly} ${options.map((option) => option.label).join('\u0000')}`
+  );
   return (
     <div
+      ref={trackRef}
       className={styles.track}
       data-size={size}
       data-fill={fill || undefined}
+      data-refused={disabled || options[activeIndex]?.disabled || undefined}
       role="group"
       aria-label={ariaLabel}
     >
+      <span ref={indicatorRef} className={styles.indicator} aria-hidden="true" />
       {options.map((option) => {
-        const props = { option, active: option.value === value, disabled, iconsOnly, onChange };
+        const props = {
+          option,
+          active: option.value === shownValue,
+          disabled,
+          iconsOnly,
+          onChange: choose,
+        };
         return option.tooltip ? (
           <TooltipOption key={option.value} {...props} side={tooltipSide} />
         ) : (
@@ -160,4 +200,72 @@ function TooltipOption<T extends string>({
       <TooltipContent side={side}>{props.option.tooltip}</TooltipContent>
     </Tooltip>
   );
+}
+
+/**
+ * Keeps the indicator — the chosen pill's background — over the chosen option.
+ *
+ * A new choice slides it there. Anything else that moves the options (new
+ * labels, a new size, the container resizing or first being laid out) puts it
+ * there at once: sliding after a layout change would read as the choice
+ * changing when it has not. With nothing chosen, or the options not laid out
+ * yet, the indicator hides, and the next placement is a jump rather than a
+ * slide from wherever it last was.
+ *
+ * Positioned from the option's offsets, which are relative to the track's
+ * padding edge — the same edge the indicator's `top: 0; left: 0` is measured
+ * from, as the track is its containing block.
+ */
+function useActiveIndicator(
+  trackRef: RefObject<HTMLDivElement | null>,
+  indicatorRef: RefObject<HTMLSpanElement | null>,
+  activeIndex: number,
+  layoutKey: string
+) {
+  /** Whether the indicator is showing somewhere it can slide from. */
+  const shownRef = useRef(false);
+  const lastIndexRef = useRef(activeIndex);
+
+  const place = useCallback(
+    (slide: boolean) => {
+      const indicator = indicatorRef.current;
+      const active = trackRef.current?.querySelector<HTMLElement>(':scope > [data-active]');
+      if (!indicator) return;
+      if (!active || active.offsetWidth === 0) {
+        delete indicator.dataset.shown;
+        shownRef.current = false;
+        return;
+      }
+      const jump = !(slide && shownRef.current);
+      if (jump) indicator.style.transition = 'none';
+      indicator.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+      indicator.style.width = `${active.offsetWidth}px`;
+      indicator.style.height = `${active.offsetHeight}px`;
+      indicator.dataset.shown = '';
+      if (jump) {
+        // Commit the jump before the transition comes back, or it slides anyway.
+        void indicator.offsetWidth;
+        indicator.style.transition = '';
+      }
+      shownRef.current = true;
+    },
+    [indicatorRef, trackRef]
+  );
+
+  useLayoutEffect(() => {
+    const chose = lastIndexRef.current !== activeIndex;
+    lastIndexRef.current = activeIndex;
+    place(chose);
+  }, [activeIndex, layoutKey, place]);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || typeof ResizeObserver === 'undefined') return;
+    // The options as well as the track: a filled track keeps its width while
+    // its options' widths change under it, as they do when a font arrives.
+    const stops = [track, ...track.querySelectorAll(':scope > button')].map((element) =>
+      observeResizeDeferred(element, () => place(false))
+    );
+    return () => stops.forEach((stop) => stop());
+  }, [layoutKey, place, trackRef]);
 }

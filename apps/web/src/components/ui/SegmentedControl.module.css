@@ -10,6 +10,7 @@
 /* `fit-content`, so it hugs its options even where its container would stretch
    it, as a grid or a flex column does; `fill` is the one way to stretch it. */
 .track {
+  position: relative;
   display: inline-flex;
   align-items: stretch;
   gap: 3px;
@@ -42,9 +43,48 @@
   width: 100%;
 }
 
+/*
+ * The chosen pill's background: one element under the options rather than each
+ * option's own, so that a new choice slides it across rather than switching one
+ * pill off and another on. The component places it over the chosen option
+ * (`useActiveIndicator`) and shows it only while something is chosen and laid
+ * out — not for a mixed value, and not inside a container still hidden.
+ */
+.indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.indicator[data-shown] {
+  opacity: 1;
+}
+
+/* A control that refuses its choice dims the chosen pill with the options. */
+.track[data-refused] .indicator[data-shown] {
+  opacity: 0.5;
+}
+
+.track[data-size='sm'] .indicator {
+  border-radius: 4px;
+}
+
+.track[data-size='lg'] .indicator {
+  border-radius: 6px;
+}
+
 /* An option gives way only when the labels cannot all fit: see the ellipsis
-   below. */
+   below. Positioned, so it paints over the indicator that comes before it. */
 .option {
+  position: relative;
   display: inline-flex;
   flex: 0 1 auto;
   align-items: center;
@@ -62,6 +102,9 @@
   letter-spacing: 0;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
 .track[data-size='sm'] .option {
@@ -90,9 +133,10 @@
   color: var(--text-primary);
 }
 
+/* The chosen option's background is the indicator under it. */
 .option[data-active],
 .option[data-active]:hover {
-  background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -115,5 +159,12 @@
 
   .option {
     min-height: var(--touch-target);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator,
+  .option {
+    transition: none;
   }
 }

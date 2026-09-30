@@ -127,6 +127,20 @@ wanted become props.
    interaction, not a mode of this one.
 4. **Fold direction becomes a segmented control.**
 
+### Follow-up (2026-09-30)
+
+- A labelled control sits on one row, label left and control right, like the
+  rows around it: the export dialog's Format and the crease export's Side on
+  `export-modal__field-row`, and the context panel's mode switches (Extend
+  color, Divide mode) on the same `SegmentedToolOption` row the Square tool's
+  options use, in place of a group title above a full-width control.
+- The context panel's controls are `md` (32px): at `sm` the pills read short.
+- The chosen pill's background is one element that slides to a new choice
+  (160ms), and jumps rather than slides when only the layout changes. A choice
+  shows at once (`useOptimistic`), with the owner's update run as a
+  transition: the context panel's owner re-renders the whole crease-pattern
+  panel, and the pill used to wait ~100ms for it in development.
+
 ## Checklist
 
 ### Phase 1 — The component takes the pill look; its sites follow

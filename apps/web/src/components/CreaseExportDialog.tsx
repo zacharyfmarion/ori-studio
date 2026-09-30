@@ -631,7 +631,7 @@ export function CreaseExportDialog({ dialog }: { dialog: CreasePatternExportDial
                 onToggle={toggleSection}
             >
                 <PaperStylePicker value={options.foldedFigureStyle} onChange={pickFoldedStyle} />
-                <div className="export-modal__control-group">
+                <div className="export-modal__field-row">
                   <span className="export-modal__label">
                     {t('dialogs:export.foldedSide', 'Side')}
                   </span>

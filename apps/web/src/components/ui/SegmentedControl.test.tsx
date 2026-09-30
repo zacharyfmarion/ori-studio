@@ -96,6 +96,16 @@ describe('SegmentedControl', () => {
     expect(onChange).toHaveBeenCalledWith('back');
   });
 
+  // A choice shows before the owner answers, so the owner's answer must win:
+  // one that keeps its value takes the control back with it.
+  it("returns to the owner's value when the owner does not take the choice", () => {
+    const onChange = vi.fn();
+    mount({ value: 'front', onChange });
+    act(() => option('Back')?.click());
+    expect(onChange).toHaveBeenCalledWith('back');
+    expect(pressed()).toEqual(['true', 'false']);
+  });
+
   it('stays readable but refuses a choice when disabled', () => {
     const onChange = vi.fn();
     mount({ onChange, disabled: true });
@@ -205,5 +215,97 @@ describe('SegmentedControl option extras', () => {
     expect(onChange).not.toHaveBeenCalled();
     act(() => byName('Front')?.click());
     expect(onChange).toHaveBeenCalledWith('front');
+  });
+});
+
+/**
+ * The chosen pill's background is one element that slides between options.
+ * jsdom lays nothing out, so each pill is given the box it would have: 60px
+ * wide, 3px of track padding, 3px gaps.
+ */
+describe('SegmentedControl active indicator', () => {
+  /** Every read of an element's width, so a test can see the indicator's own. */
+  let widthReads: Element[] = [];
+
+  beforeEach(() => {
+    widthReads = [];
+    const pillIndex = (element: HTMLElement) =>
+      [...(element.parentElement?.querySelectorAll(':scope > button') ?? [])].indexOf(
+        element as HTMLButtonElement
+      );
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      widthReads.push(this);
+      return this.tagName === 'BUTTON' ? 60 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return this.tagName === 'BUTTON' ? 24 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetLeft', 'get').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return this.tagName === 'BUTTON' ? 3 + pillIndex(this) * 63 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return this.tagName === 'BUTTON' ? 3 : 0;
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const indicator = () => group()?.querySelector<HTMLElement>(':scope > span');
+  /**
+   * A jump commits its position with a layout read before its transition comes
+   * back; a slide lets the transition run. So the indicator's own width reads
+   * count the jumps.
+   */
+  const jumps = () => widthReads.filter((element) => element === indicator()).length;
+
+  it('sits under the chosen option', () => {
+    mount({ value: 'back' });
+    expect(indicator()?.hasAttribute('data-shown')).toBe(true);
+    expect(indicator()?.style.transform).toBe('translate(66px, 3px)');
+    expect(indicator()?.style.width).toBe('60px');
+    expect(indicator()?.style.height).toBe('24px');
+  });
+
+  it('jumps into place at first, and slides to a new choice', () => {
+    mount({ value: 'back' });
+    expect(jumps()).toBe(1);
+
+    mount({ value: 'front' });
+    expect(indicator()?.style.transform).toBe('translate(3px, 3px)');
+    expect(jumps()).toBe(1);
+  });
+
+  // Sliding after a layout change would read as the choice changing.
+  it('jumps, rather than slides, when only the layout changes', () => {
+    mount({ value: 'back' });
+    mount({ value: 'back', size: 'lg' });
+    expect(jumps()).toBe(2);
+  });
+
+  it('hides for a mixed value, and comes back without sliding from where it was', () => {
+    mount({ value: 'back' });
+    mount({ value: null });
+    expect(indicator()?.hasAttribute('data-shown')).toBe(false);
+
+    mount({ value: 'front' });
+    expect(indicator()?.hasAttribute('data-shown')).toBe(true);
+    expect(jumps()).toBe(2);
+  });
+
+  it('dims with a control that refuses its choice', () => {
+    mount({ value: 'back', disabled: true });
+    expect(group()?.hasAttribute('data-refused')).toBe(true);
+    mount({ value: 'back' });
+    expect(group()?.hasAttribute('data-refused')).toBe(false);
   });
 });
