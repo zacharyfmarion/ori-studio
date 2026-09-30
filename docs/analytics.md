@@ -241,7 +241,9 @@ the person chose it or is following their OS. Two things it is deliberately not:
 | `command invoked` | `command_id`, `command_group` | A menu / keyboard / palette action (recognized ids only; data suffixes stripped) |
 | `cp tool used` | `operation`, `group` | A CP editor operation executes |
 | `workspace viewed` | `workspace` | The active workspace changes. Design carries no `variant`: it holds tabs, so it has no single method to name |
-| `site page viewed` | `page` (`getting-started` / `download` / `oriedita` / `faq`) | A content page of the site — `/download/` and its siblings — is opened. The pages exist to be found from a search result; this is how we learn whether they are |
+| `site page viewed` | `page` (`download` / `oriedita` / `faq`) | A content page of the site — `/download/` and its siblings — is opened. The pages exist to be found from a search result; this is how we learn whether they are |
+| `landing cta clicked` | `cta` (`discord`/`github`/`scroll`/`start`) | A call to action on the landing page is followed. `start` is the phone's "Start creating" link to `/edit`, which takes the place of the desktop download a phone cannot run |
+| `desktop download started` | `build` (a build id, or `releases-page`), `surface` (`landing`/`start-screen`/`toolbar`/`about`/`download-page`), on `releases-page` only `fallback_reason` (`no_platform`/`release_unresolved`) | A desktop installer link is followed. `releases-page` means no file was handed over: `no_platform` is a device with no desktop build to recommend (a tablet, an unrecognized host), which is the control working as designed; `release_unresolved` is the GitHub lookup not having answered, and only its share says the fetch is failing. Before 2026-09-29 the two were one number, and phones made it look like an outage |
 | `crease pattern built` | `node_count_bucket`, `had_conditions` | A tree is compiled to a CP |
 | `optimizer run` | `kind`, `succeeded`, `feasible` | A TreeMaker optimizer runs |
 | `project opened` | `source` (`file`/`example`/`new`) | A project is opened/created |
