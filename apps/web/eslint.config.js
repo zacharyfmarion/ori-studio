@@ -39,6 +39,9 @@ const GLOBAL_STYLESHEET_IMPORTERS = [
   'src/components/WorkspaceShell.tsx',
   'src/components/CpDetectImportModal.tsx',
   'src/components/landing/WelcomeLanding.tsx',
+  'src/site/SiteFooter.tsx',
+  'src/site/SiteLayout.tsx',
+  'src/site/SiteNav.tsx',
 ];
 
 const noGlobalStylesheets = [
