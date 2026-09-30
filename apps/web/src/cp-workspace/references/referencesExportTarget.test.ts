@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_CSS_PX, PT_PER_MM } from '../../lib/paper/paperSvg';
-import {
-  DEFAULT_PAPER_EXPORT_SETTINGS,
-  paperExportKindDefaults,
-  type PaperExportSettings,
-} from '../../lib/paperExportSettings';
+import { DEFAULT_PAPER_EXPORT_SETTINGS, type PaperExportSettings } from '../../lib/paperExportSettings';
 import { paperPresetRows } from '../../lib/paperPresetRows';
 import {
   createPaperExportSession,
@@ -47,7 +43,9 @@ import { decodePlanModel, planModelPoints, planStepScene } from './referencesPla
  * Then the rings shrank to four fifths and took the arrow's pen, and the
  * letters that keep clear of them drew in, so the crop round them tightened.
  * Then the letters shrank by a ninth, the accent over a step's lines took the
- * edge pen's weight, and the sheet's border moved over the step's lines.
+ * edge pen's weight — later the arrow's — and the sheet's border moved over
+ * the step's lines. The defaults page opens at 50 mm, the size every export
+ * opens at, where it was a 41 mm diagram step.
  * The defaults page is a printed diagram's step, the size the dialog opens a
  * step at.
  */
@@ -113,7 +111,7 @@ describe('referencesExportTarget', () => {
   it('writes a printed diagram’s step at the defaults', async () => {
     const page = await dialogPage(
       { mirrored: false, lineWidth: 1, showAux: null },
-      paperExportKindDefaults().step
+      DEFAULT_PAPER_EXPORT_SETTINGS
     );
     expect(page).toEqual(golden.defaults);
   });
@@ -160,7 +158,7 @@ describe('referencesExportTarget', () => {
 
   it('sizes a step by its sheet, the frame a diagram’s steps share', () => {
     expect(target({ mirrored: false, lineWidth: 1, showAux: null }).sizeMeasures).toBe('sheet');
-    expect(paperExportKindDefaults().step.sheet).toEqual({ mm: 41 });
+    expect(DEFAULT_PAPER_EXPORT_SETTINGS.sheet).toEqual({ mm: 50 });
   });
 
   it('offers both marks, keys its scene by them, and builds a page without the ones that are off', async () => {

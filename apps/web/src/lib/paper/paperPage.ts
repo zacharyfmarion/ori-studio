@@ -49,26 +49,20 @@ export interface PaperPage {
 }
 
 /**
- * The size a figure's picture opens at — a folded figure's or a simulation's —
- * across its longer side: a finished model's picture in a printed diagram,
- * about half again a step's square. Its pens keep their pt widths at any
- * size, so this is what sets how fine they read.
+ * The size every picture opens at: a step's sheet, and a folded figure or a
+ * simulation across its longer side ({@link PaperSizeMeasure}). One size for
+ * every kind, so a step and the model it folds into come out at one scale of
+ * pen to paper. The pens keep their pt widths at any size, so this is what
+ * sets how fine they read.
  */
-export const DEFAULT_PAPER_FIGURE_MM = 60;
+export const DEFAULT_PAPER_SIZE_MM = 50;
 
 export const DEFAULT_PAPER_PAGE: PaperPage = {
-  sheet: { mm: DEFAULT_PAPER_FIGURE_MM },
+  sheet: { mm: DEFAULT_PAPER_SIZE_MM },
   paddingMm: 5,
   background: null,
   keepHiddenFaces: true,
 };
-
-/**
- * A diagram step's sheet: the square a printed diagram draws each step on,
- * about 41 mm a side — measured off a diagrammer's A4 template, whose front and
- * back squares are 40.85 mm with a 0.5 pt edge.
- */
-export const DIAGRAM_STEP_SHEET_MM = 41;
 
 /** The page colour a transparent page turns into when the user asks for one. */
 export const DEFAULT_PAPER_BACKGROUND: Hex = '#ffffff';

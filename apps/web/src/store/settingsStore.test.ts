@@ -7,13 +7,12 @@ import {
   CP_MIN_SNAP_RADIUS,
 } from '../lib/cpSnapRadiusSetting';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
-import { DEFAULT_PAPER_FIGURE_MM, DIAGRAM_STEP_SHEET_MM, PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_SIZE_MM, PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../lib/paper/paperPng';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
 import {
   DEFAULT_PAPER_EXPORT_SETTINGS,
   PAPER_EXPORT_STYLE_SLOT,
-  paperExportKindDefaults,
   paperExportMemoryOf,
 } from '../lib/paperExportSettings';
 import { readJson, STORAGE_KEYS, storageKey } from '../lib/storage';
@@ -473,29 +472,29 @@ describe('paperExport', () => {
 
   it('starts every kind from its first-run options and writes nothing until the user exports', async () => {
     const { paperExport } = (await freshSettingsStore()).getState();
-    expect(paperExport).toEqual(paperExportKindDefaults());
-    // Every kind opens at a size in mm: a figure 60 mm across, a step at a
-    // printed diagram's.
-    expect(paperExport['folded-figure'].sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
-    expect(paperExport.step.sheet).toEqual({ mm: DIAGRAM_STEP_SHEET_MM });
-    expect(paperExport.simulation.sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
+    expect(paperExport).toEqual(paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS));
+    // Every kind opens at one size in mm: a step's sheet, a figure across its
+    // longer side.
+    for (const kind of ['folded-figure', 'step', 'simulation'] as const) {
+      expect(paperExport[kind].sheet).toEqual({ mm: DEFAULT_PAPER_SIZE_MM });
+    }
     expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
   });
 
   it('seeds every kind with a white page from the simulator settings’ retired export background, once', async () => {
     localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
     expect((await freshSettingsStore()).getState().paperExport).toEqual(
-      paperExportKindDefaults(WHITE_PAGE)
+      paperExportMemoryOf(WHITE_PAGE)
     );
     // Written at once: the simulator slice drops the retired key on its next
     // edit, so the seed would otherwise be lost to the second read.
     expect(readJson(PAPER_EXPORT_KEY, null)).toEqual({
       version: 2,
-      kinds: paperExportKindDefaults(WHITE_PAGE),
+      kinds: paperExportMemoryOf(WHITE_PAGE),
     });
     localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ showViewCube: false }));
     expect((await freshSettingsStore()).getState().paperExport).toEqual(
-      paperExportKindDefaults(WHITE_PAGE)
+      paperExportMemoryOf(WHITE_PAGE)
     );
   });
 
@@ -503,7 +502,7 @@ describe('paperExport', () => {
     for (const exportBackground of ['transparent', 'theme']) {
       localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground }));
       expect((await freshSettingsStore()).getState().paperExport).toEqual(
-        paperExportKindDefaults()
+        paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS)
       );
       expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
     }

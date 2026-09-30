@@ -1,11 +1,5 @@
 import type { PaperExportFormat, PaperExportSurface } from '../analytics/events';
-import {
-  DEFAULT_PAPER_PAGE,
-  DEFAULT_PAPER_FIGURE_MM,
-  DIAGRAM_STEP_SHEET_MM,
-  normalizePaperPage,
-  type PaperPage,
-} from './paper/paperPage';
+import { DEFAULT_PAPER_PAGE, normalizePaperPage, type PaperPage } from './paper/paperPage';
 import { DEFAULT_PAPER_PNG_DPI, PAPER_PNG_DPI_RANGE } from './paper/paperPng';
 
 /**
@@ -113,7 +107,7 @@ export function normalizePaperExportSettings(source: unknown): PaperExportSettin
 
 /**
  * The export page a user's old simulator settings amount to: the seed of every
- * kind's first-run options (`paperExportKindDefaults`).
+ * kind's first-run options (`paperExportMemoryOf` of it).
  *
  * Before there was a page, the simulator held its own `exportBackground`:
  * `'transparent'`, `'white'` or `'theme'`. A user who had chosen white should
@@ -162,27 +156,15 @@ export function paperExportKindOf(surface: PaperExportSurface): PaperExportKind 
   }
 }
 
-/** Every kind on the same options. */
+/**
+ * Every kind on the same options — which is also every kind's first run, from
+ * the defaults: every page opens at one size in mm (`DEFAULT_PAPER_SIZE_MM`),
+ * never the picture's size on screen. A figure beside its crease pattern is a
+ * few centimetres across at whatever zoom the pattern is at, and its pens,
+ * drawn in pt, outweighed it there.
+ */
 export function paperExportMemoryOf(settings: PaperExportSettings): PaperExportMemory {
   return { simulation: settings, 'folded-figure': settings, step: settings };
-}
-
-/**
- * Every kind's options before it has exported anything: the seed, except that
- * a folded figure goes out {@link DEFAULT_PAPER_FIGURE_MM} across and a step
- * on a printed diagram's {@link DIAGRAM_STEP_SHEET_MM} sheet. Every page is a
- * size chosen in mm, never the picture's size on screen: a
- * figure beside its crease pattern is a few centimetres across at whatever
- * zoom the pattern is at, and its pens, drawn in pt, outweighed it there.
- */
-export function paperExportKindDefaults(
-  seed: PaperExportSettings = DEFAULT_PAPER_EXPORT_SETTINGS
-): PaperExportMemory {
-  return {
-    ...paperExportMemoryOf(seed),
-    'folded-figure': { ...seed, sheet: { mm: DEFAULT_PAPER_FIGURE_MM } },
-    step: { ...seed, sheet: { mm: DIAGRAM_STEP_SHEET_MM } },
-  };
 }
 
 /**
@@ -203,11 +185,11 @@ export function normalizePaperExportMemory(
   source: unknown,
   firstRun: PaperExportSettings = DEFAULT_PAPER_EXPORT_SETTINGS
 ): PaperExportMemory {
-  if (!source || typeof source !== 'object') return paperExportKindDefaults(firstRun);
+  if (!source || typeof source !== 'object') return paperExportMemoryOf(firstRun);
   const { version, kinds } = source as { version?: unknown; kinds?: unknown };
   if (version === 2) {
     const stored = kinds && typeof kinds === 'object' ? (kinds as Record<string, unknown>) : {};
-    const defaults = paperExportKindDefaults();
+    const defaults = paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS);
     const memory = {} as Record<PaperExportKind, PaperExportSettings>;
     for (const kind of PAPER_EXPORT_KINDS) {
       const options = stored[kind];
@@ -218,7 +200,7 @@ export function normalizePaperExportMemory(
   }
   // Only the versioned form carries a version; the object from before the
   // split never had one.
-  if (version !== undefined) return paperExportKindDefaults();
+  if (version !== undefined) return paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS);
   const { format, style } = DEFAULT_PAPER_EXPORT_SETTINGS;
   return paperExportMemoryOf({ ...normalizePaperExportSettings(source), format, style });
 }

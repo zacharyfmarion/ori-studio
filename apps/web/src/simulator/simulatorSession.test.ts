@@ -1073,7 +1073,7 @@ describe('the export dialog’s page of a simulation', () => {
     // page was repainted when a simulation's size came to measure the model
     // rather than its unfolded sheet — at 120 mm the drawing's longer side is
     // now 120 mm — and the default one when "as shown" went and every page
-    // became a size in mm: it is 60 mm across. Only the scale moved. Both were
+    // became a size in mm: it is 50 mm across. Only the scale moved. Both were
     // repainted again when a crease's pieces came to join where they meet:
     // a solid fold's links are drawn round, and a sliver shorter than its own
     // width, which round would make a blob, is left to its neighbours.

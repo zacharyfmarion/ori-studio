@@ -44,6 +44,13 @@ export interface DiagramStrokeInk {
 const LINE: DiagramStrokeInk = { width: 1.2, cap: 'round' };
 
 /**
+ * The fold arrow's weight — and the accent's over the lines a step lines up:
+ * both are marks of the step drawn over the paper, and a heavier accent than
+ * the arrow read as a line of the pattern rather than a mark.
+ */
+const MARK_WIDTH = 1.4;
+
+/**
  * Each line style's weight.
  *
  * The tuning is the standard diagramming template's, and the two derivations
@@ -67,7 +74,7 @@ export const DIAGRAM_LINE_INK: DiagramPens = {
   // The pattern's own aux lines: the same pen as a made crease.
   aux: { ...LINE, width: 0.75 },
   edge: { ...LINE },
-  highlight: { ...LINE, width: 2 },
+  highlight: { ...LINE, width: MARK_WIDTH },
   valley: { ...LINE, width: 1.6, dash: [12.8, 6.4], cap: 'butt' },
   mountain: { ...LINE, width: 1.6, dash: [6.4, 3.2, 1.6, 3.2], cap: 'butt' },
   // The finished pattern's lines weigh what a step's fold does: the table has
@@ -75,7 +82,7 @@ export const DIAGRAM_LINE_INK: DiagramPens = {
   // instruction (`cardDiagramPens`, `canvasDiagramPens`).
   'fold-valley': { ...LINE, width: 1.6, dash: [12.8, 6.4], cap: 'butt' },
   'fold-mountain': { ...LINE, width: 1.6, dash: [6.4, 3.2, 1.6, 3.2], cap: 'butt' },
-  arrow: { ...LINE, width: 1.4 },
+  arrow: { ...LINE, width: MARK_WIDTH },
   dotted: { ...LINE, dash: [1.2, 3.6], cap: 'butt' },
   // A pinch is a crease, so it takes its direction's own colour and only its
   // weight is shared: it is pressed harder than the crease it is part of, which
@@ -254,9 +261,12 @@ export function canvasDiagramPens(
 ): DiagramPens {
   const ink = canvasDiagramInk(lineWidth);
   const at = ({ pen, css }: CssPen) => penInk(pen, css / ink);
+  const markWidth = Math.max(arrowCss / ink, DIAGRAM_LINE_INK.arrow.width);
   return {
     ...DIAGRAM_LINE_INK,
-    arrow: { ...DIAGRAM_LINE_INK.arrow, width: Math.max(arrowCss / ink, DIAGRAM_LINE_INK.arrow.width) },
+    arrow: { ...DIAGRAM_LINE_INK.arrow, width: markWidth },
+    // The accent is the arrow's weight, as in the table.
+    highlight: { ...DIAGRAM_LINE_INK.highlight, width: markWidth },
     ...(aux ? { crease: at(aux), aux: at(aux) } : {}),
     ...(lines
       ? {

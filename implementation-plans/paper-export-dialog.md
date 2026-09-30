@@ -1475,6 +1475,11 @@ same size. And *As shown* should not exist at all, on any surface.
 - [x] Goldens repainted at the new sizes (only the scale moved); tests of
       "the scene is in on-screen CSS px" read the scene's bounds rather than
       a page's width; i18n loop; validate; commit
+- [x] Then, at the user's word, one size for every kind: 50 mm
+      (`DEFAULT_PAPER_SIZE_MM`) — a step's sheet, a folded figure or a
+      simulation across its longer side — replacing the step's 41 mm and the
+      figures' 60 mm, and with it the per-kind first-run function
+      (`paperExportMemoryOf` of the defaults is every kind's first run)
 
 ### Validation per phase
 

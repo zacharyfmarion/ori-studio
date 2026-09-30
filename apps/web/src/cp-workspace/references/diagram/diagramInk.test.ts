@@ -70,7 +70,8 @@ describe('the diagram’s pen', () => {
       // The pattern's own aux lines: the made crease's pen.
       aux: { width: 0.75, cap: 'round' },
       edge: { width: 1.2, cap: 'round' },
-      highlight: { width: 2, cap: 'round' },
+      // The accent weighs what the arrow does: both are marks of the step.
+      highlight: { width: 1.4, cap: 'round' },
       valley: { width: 1.6, cap: 'butt', dash: [12.8, 6.4] },
       mountain: { width: 1.6, cap: 'butt', dash: [6.4, 3.2, 1.6, 3.2] },
       // The finished pattern's lines weigh what a step's fold does in the table.
@@ -145,16 +146,19 @@ describe('the diagram’s pen', () => {
 
   // Over the canvas the arrow is the paper style's own pen, in CSS pixels, and
   // one ink there is a fixed number of CSS pixels — so the arrow's weight in
-  // ink is whatever puts its stroke at the pen. The rest of the table, and the
-  // card's copy of it, stay as they are.
-  it('draws the canvas’s arrow at the paper style’s pen and touches nothing else', () => {
+  // ink is whatever puts its stroke at the pen. The accent follows it, as in
+  // the table; the rest of the table, and the card's copy of it, stay as they
+  // are.
+  it('draws the canvas’s arrow, and the accent at its weight, at the paper style’s pen and touches nothing else', () => {
     const pens = canvasDiagramPens(2, 4);
     expect(pens.arrow.width * canvasDiagramInk(2)).toBeCloseTo(4, 9);
     expect(pens.arrow.cap).toBe('round');
-    const { arrow: _arrow, ...rest } = pens;
-    const { arrow: _tableArrow, ...table } = DIAGRAM_LINE_INK;
+    expect(pens.highlight).toEqual({ ...DIAGRAM_LINE_INK.highlight, width: pens.arrow.width });
+    const { arrow: _arrow, highlight: _highlight, ...rest } = pens;
+    const { arrow: _tableArrow, highlight: _tableHighlight, ...table } = DIAGRAM_LINE_INK;
     expect(rest).toEqual(table);
     expect(DIAGRAM_LINE_INK.arrow.width).toBe(1.4);
+    expect(DIAGRAM_LINE_INK.highlight.width).toBe(DIAGRAM_LINE_INK.arrow.width);
   });
 
   // A print pen is a hairline on screen: the Diagram preset's 0.75 pt arrow

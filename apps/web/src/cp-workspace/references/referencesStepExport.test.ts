@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_PAGE, DIAGRAM_STEP_SHEET_MM, type PaperPage } from '../../lib/paper/paperPage';
+import { DEFAULT_PAPER_PAGE, DEFAULT_PAPER_SIZE_MM, type PaperPage } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_MM, mmToCssPx, pageMarginPt } from '../../lib/paper/paperSvg';
 import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
@@ -47,7 +47,7 @@ const MOUNTAIN: StepDiagramPrimitive = {
 const LETTER: StepDiagramPrimitive = { kind: 'label', at: [0, 0], text: 'A', style: 'action' };
 
 /** A printed diagram's step: the page the dialog opens a step on. */
-const STEP_PAGE: PaperPage = { ...DEFAULT_PAPER_PAGE, sheet: { mm: DIAGRAM_STEP_SHEET_MM } };
+const STEP_PAGE: PaperPage = { ...DEFAULT_PAPER_PAGE, sheet: { mm: DEFAULT_PAPER_SIZE_MM } };
 
 function paint(
   diagram: StepDiagramModel,
@@ -84,7 +84,7 @@ describe('a step’s page', () => {
   it('puts the sheet on the page at the page’s sheet size, with the card’s band round it', () => {
     const page = paint(model(MOUNTAIN));
     // The box is the sheet plus DIAGRAM_PADDING of the box each side.
-    const boxPt = (DIAGRAM_STEP_SHEET_MM * PT_PER_MM) / (1 - 2 * DIAGRAM_PADDING);
+    const boxPt = (DEFAULT_PAPER_SIZE_MM * PT_PER_MM) / (1 - 2 * DIAGRAM_PADDING);
     const margin = pageMarginPt(DEFAULT_PAPER_STYLE, STEP_PAGE);
     expect(page.widthPt).toBeCloseTo(boxPt + 2 * margin, 6);
     expect(page.heightPt).toBeCloseTo(boxPt + 2 * margin, 6);

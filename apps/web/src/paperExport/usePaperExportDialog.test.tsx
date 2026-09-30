@@ -2,7 +2,7 @@ import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_PAPER_FIGURE_MM, DIAGRAM_STEP_SHEET_MM } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_SIZE_MM } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
@@ -673,12 +673,12 @@ describe('usePaperExportDialog, each kind of export on options of its own', () =
 });
 
 describe('usePaperExportDialog on its first run', () => {
-  it('opens a figure at a size it reads well at and a step at a diagram’s, never as shown', async () => {
+  it('opens every kind at the one default size, never as shown', async () => {
     const openedOn = [
-      ['folded-flat', { mm: DEFAULT_PAPER_FIGURE_MM }],
-      ['folded-3d', { mm: DEFAULT_PAPER_FIGURE_MM }],
-      ['simulator', { mm: DEFAULT_PAPER_FIGURE_MM }],
-      ['references', { mm: DIAGRAM_STEP_SHEET_MM }],
+      ['folded-flat', { mm: DEFAULT_PAPER_SIZE_MM }],
+      ['folded-3d', { mm: DEFAULT_PAPER_SIZE_MM }],
+      ['simulator', { mm: DEFAULT_PAPER_SIZE_MM }],
+      ['references', { mm: DEFAULT_PAPER_SIZE_MM }],
     ] as const;
     for (const [surface, sheet] of openedOn) {
       unmount();
@@ -718,7 +718,7 @@ describe('usePaperExportDialog on a target with diagram marks', () => {
       sceneKey: ({ page, style, sheet }) => `${page}|${style.paper.front}|${JSON.stringify(sheet)}`,
     });
     const dialog = await open(target);
-    expect(buildScene.mock.calls[0]![0].sheet).toEqual({ mm: 41 });
+    expect(buildScene.mock.calls[0]![0].sheet).toEqual({ mm: DEFAULT_PAPER_SIZE_MM });
     await act(async () => dialog().patch({ sheet: { mm: 120 } }));
     expect(buildScene).toHaveBeenCalledTimes(2);
     expect(buildScene.mock.calls[1]![0].sheet).toEqual({ mm: 120 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PAPER_PAGE,
-  DEFAULT_PAPER_FIGURE_MM,
+  DEFAULT_PAPER_SIZE_MM,
   PAPER_PADDING_MM_RANGE,
   PAPER_SHEET_MM_RANGE,
   normalizePaperPage,
@@ -9,11 +9,11 @@ import {
 
 describe('the default page', () => {
   // Always a size: the picture's size on screen is not one anybody chose.
-  it('is a 60 mm figure, and a stored "as shown" from an older build reads as it', () => {
-    expect(DEFAULT_PAPER_FIGURE_MM).toBe(60);
-    expect(DEFAULT_PAPER_PAGE.sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
+  it('is 50 mm, and a stored "as shown" from an older build reads as it', () => {
+    expect(DEFAULT_PAPER_SIZE_MM).toBe(50);
+    expect(DEFAULT_PAPER_PAGE.sheet).toEqual({ mm: DEFAULT_PAPER_SIZE_MM });
     expect(normalizePaperPage({ ...DEFAULT_PAPER_PAGE, sheet: 'as-shown' }).sheet).toEqual({
-      mm: DEFAULT_PAPER_FIGURE_MM,
+      mm: DEFAULT_PAPER_SIZE_MM,
     });
   });
 });

@@ -134,19 +134,16 @@ export function diagramToPaperScene(
   const seen = applyPaperStylePolicy(options.style, PAPER_STYLE_POLICIES.references);
   const showAux = referencesShowsAux(options.style, options.showAux ?? null);
   const ink = options.project.ink;
+  const markWidth = (seen.arrows.width * PT_TO_CSS_PX) / ink;
   const project = withPens(options.project, {
     ...options.project.pens,
     // The arrow is the style's pen: its width in pt as CSS px, in the
     // drawing's ink, with the pen's own dash and cap — so on a page painted
     // at the screen's ratio, which a step's page is, it is the pen's pt.
-    arrow: penInk(seen.arrows, (seen.arrows.width * PT_TO_CSS_PX) / ink),
-    // The accent over the lines a step lines up lies on those lines — the
-    // paper's edges, mostly — so it is drawn at the edge pen's weight, the
-    // line it covers, in its own ink.
-    highlight: {
-      ...options.project.pens.highlight,
-      width: (seen.edges.width * PT_TO_CSS_PX) / ink,
-    },
+    arrow: penInk(seen.arrows, markWidth),
+    // The accent over the lines a step lines up is a mark of the step, as the
+    // arrow is, and drawn at the arrow's weight, in its own ink.
+    highlight: { ...options.project.pens.highlight, width: markWidth },
   });
   const mirrored = options.mirrored ?? project.mirrored;
   const drawn = mirrored ? seenFromTheBack(model.primitives) : model.primitives;

@@ -10,13 +10,12 @@ import type {
   OristudioCpFoldedRenderSnapshot,
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
-import { DEFAULT_PAPER_FIGURE_MM } from '../../lib/paper/paperPage';
+import { DEFAULT_PAPER_SIZE_MM } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import {
   DEFAULT_PAPER_EXPORT_SETTINGS,
-  paperExportKindDefaults,
   type PaperExportSettings,
 } from '../../lib/paperExportSettings';
 import { paperPresetRows } from '../../lib/paperPresetRows';
@@ -56,7 +55,7 @@ import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
  * figure rather than the sheet it was folded from: at 120 mm the drawing's
  * longer side is now 120 mm, where the unfolded sheet used to be. The default
  * pages were repainted when "as shown" went, and every page became a size in
- * mm: they are 60 mm across. Only the scale moved on either; everything drawn
+ * mm: they are 50 mm across. Only the scale moved on either; everything drawn
  * is still the direct export's. The 3D pages were repainted again when a
  * mesh's line pieces came to join where they meet — drawn round at a link
  * rather than butt-ended — and that is all that changed on them.
@@ -479,9 +478,9 @@ describe('foldedFigureExportTarget', () => {
     expect(targetOf(legacyFlat, pictureOf(legacyFlat)!).surface).toBe('folded-flat');
   });
 
-  it('sizes the figure, whatever picture it is, opening 60 mm across', () => {
-    expect(DEFAULT_PAPER_FIGURE_MM).toBe(60);
-    expect(paperExportKindDefaults()['folded-figure'].sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
+  it('sizes the figure, whatever picture it is, opening 50 mm across', () => {
+    expect(DEFAULT_PAPER_SIZE_MM).toBe(50);
+    expect(DEFAULT_PAPER_EXPORT_SETTINGS.sheet).toEqual({ mm: DEFAULT_PAPER_SIZE_MM });
     const stored = spatial({ handle: null });
     const legacy = flat({ handle: null });
     for (const exported of [
