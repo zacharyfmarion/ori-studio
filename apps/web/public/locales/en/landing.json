@@ -51,7 +51,7 @@
     "share": {
       "body": "Send someone a crease pattern as a URL. They open it in their browser with nothing to install.",
       "figureAlt": "The share-link dialog with a copyable URL.",
-      "title": "Share a pattern with a link"
+      "title": "Share a crease pattern with a link"
     },
     "title": "An editor that keeps up"
   },
@@ -68,6 +68,7 @@
     "eyebrow": "Get started",
     "github": "Source and issues",
     "lead": "Ori Studio runs entirely in your browser, but if you prefer, you can install it as a desktop app.",
+    "startCreating": "Start creating",
     "title": "Open a tab, or install it"
   },
   "scrollCue": "See what it does",
@@ -75,7 +76,7 @@
     "eyebrow": "Simulate",
     "figureAlt": "A folded 3D model simulating inline beside its crease pattern.",
     "lead": "Open a simulation in a window right next to the crease pattern you are drawing, so checking an idea costs a glance instead of a round trip through another program. A full Simulate workspace is there when you want the model on its own.",
-    "title": "Fold it without leaving the pattern"
+    "title": "Fold it without leaving the crease pattern"
   },
   "what": {
     "eyebrow": "What it is",

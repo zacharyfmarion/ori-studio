@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { ANALYTICS_EVENTS, bucketCount, CP_SNAP_RADIUS_BUCKETS, track } from '../analytics';
+// The analytics modules themselves, not the `../analytics` barrel: the analytics runtime
+// reads this store, and the barrel re-exports the runtime, so importing it here closes a
+// cycle that Rollup cannot order once the landing and the workspace are separate chunks.
+import { ANALYTICS_EVENTS, bucketCount, CP_SNAP_RADIUS_BUCKETS } from '../analytics/events';
+import { track } from '../analytics/runtime';
 import {
   hasCoarsePointer,
   resolveCpSnapRadius,

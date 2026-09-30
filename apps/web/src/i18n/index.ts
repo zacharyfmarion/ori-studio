@@ -29,7 +29,15 @@ export const i18nReady = i18n
     lng: resolveInitialLanguage(),
     fallbackLng: DEFAULT_LOCALE,
     supportedLngs: SUPPORTED_LOCALE_CODES,
-    nonExplicitSupportedLngs: true,
+    // Every code that reaches i18next is already one of `SUPPORTED_LOCALE_CODES`, exactly:
+    // `normalizeLocale` maps the browser's `zh`, `zh-TW`, `en-US`, `pt` onto them first.
+    // So the check here must be exact too. `nonExplicitSupportedLngs: true` — the setting
+    // that shipped with the i18n infrastructure — compares only the *language part* of a
+    // code against that list, and `zh` and `pt` are not in it: `zh-CN` and `pt-BR` were
+    // rejected as unsupported, resolved to English, and every Chinese and Brazilian
+    // reader saw an English app with `<html lang="zh-CN">` on it. The six region-free
+    // locales never hit the bug, which is how it survived a full translation pass.
+    nonExplicitSupportedLngs: false,
     load: 'currentOnly',
     ns: I18N_NAMESPACES,
     defaultNS: DEFAULT_NAMESPACE,

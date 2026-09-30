@@ -20,6 +20,7 @@ import { exploriDocument, replaceExploriDocument } from '../../../explori/handle
 import { queryExplori, ExploriError } from '../../../explori/exploriService';
 import { exploriMatchQuality } from '../../../explori/matchQuality';
 import { exploriTilingLabel, type ExploriDbConfig, type ExploriResult } from '../../../explori/types';
+import { reportError } from '../../../monitoring';
 import { isPhoneLayout } from '../../../platform/phoneLayout';
 import type { Point } from '../../../lib/geometry';
 import { reflectPointAcrossSymmetryAxis } from '../../../lib/symmetryGeometry';
@@ -499,6 +500,10 @@ export const createExploriSlice: WorkspaceSliceCreator<ExploriSlice> = (set, get
         if (isPhoneLayout()) useLayoutStore.getState().activatePanel('explori-results');
         return true;
       } catch (error) {
+        // An `ExploriError` is the service saying what happened; anything else
+        // is a defect this catch would otherwise hide. One WebKit without
+        // `AbortSignal.timeout` produced 13 `unknown` failures and no stack.
+        if (!(error instanceof ExploriError)) reportError(error, { surface: 'explori:query' });
         set(
           patchExploriDesign(get(), designId, {
             searching: false,

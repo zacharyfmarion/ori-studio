@@ -247,6 +247,9 @@
   "number": {
     "tooSmall": "{{minimum}}보다 큰 숫자를 입력하세요."
   },
+  "openProject": {
+    "title": "Ori Studio 프로젝트 또는 전개도 열기"
+  },
   "orieditaImport": {
     "alreadyMatches_other": "변경 없음 ({{count}})",
     "apply_other": "단축키 {{count}}개 적용",

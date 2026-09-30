@@ -301,15 +301,9 @@ function bytesToBase64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-/** Escape for an HTML attribute value. Title and author are user-supplied. */
-export function escapeHtmlAttribute(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// Title and author are user-supplied, and this is what makes them safe in an attribute.
+// Lives with the rest of the `<head>` surgery now that the prerender needs it too.
+export { escapeHtmlAttribute } from '../../src/seo/htmlMeta';
 
 /**
  * Escape a JSON string for embedding in a `<script>` element.

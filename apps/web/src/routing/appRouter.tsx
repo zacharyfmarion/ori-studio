@@ -1,12 +1,14 @@
 import { createBrowserRouter, createMemoryRouter, redirect } from 'react-router-dom';
-import App from '../App';
 import { RouteErrorElement } from '../components/errors/RouteErrorElement';
-import { WorkspaceShell } from '../components/WorkspaceShell';
 import { readBoolean, storageKey, STORAGE_KEYS } from '../lib/storage';
 import { getRuntimeSurface } from '../platform/runtime';
+import { SiteLocaleRoute } from '../site/SiteLocaleRoute';
+import { SitePageRoute } from '../site/SitePageRoute';
+import { CONTENT_PAGES, routeSegment, SITE_LOCALES } from '../site/sitePages';
 import { DESIGN_PATH, EDIT_PATH, LEGACY_DESIGN_PATHS, WELCOME_PATH } from './paths';
-import { ShareRoute } from './ShareRoute';
+import { RootLayout } from './RootLayout';
 import { WelcomeRoute } from './WelcomeRoute';
+import { loadWorkspace } from './workspaceGateway';
 import { WorkspaceRoute } from './WorkspaceRoute';
 
 /**
@@ -45,6 +47,16 @@ function startupRedirect() {
 
 type AppRouter = ReturnType<typeof createBrowserRouter>;
 
+// The routes that need the workspace load it through the gateway, which makes the
+// workspace one chunk no matter which of them asks first.
+async function shareRoute() {
+  return { Component: (await loadWorkspace()).ShareRoute };
+}
+
+async function workspaceShellRoute() {
+  return { Component: (await loadWorkspace()).WorkspaceShellRoute };
+}
+
 let appRouter: AppRouter | null = null;
 
 /** Register the live router so non-React code (menus, shortcuts) can navigate. */
@@ -68,26 +80,58 @@ export function currentPath(): string | null {
  * no server rewrite, so it uses an in-memory history to avoid deep-link 404s.
  */
 export function createAppRouter(): AppRouter {
+  const desktop = getRuntimeSurface() === 'desktop';
   const routes = [
     {
       path: '/',
-      element: <App />,
+      element: <RootLayout />,
       // Router-caught errors (loaders, and render throws inside route elements)
       // never reach a React error boundary, so the route tree needs its own.
       errorElement: <RouteErrorElement />,
       children: [
         { index: true, loader: startupRedirect },
         { path: 'welcome', element: <WelcomeRoute /> },
+        // The site's content pages — `/download/` and its siblings — built from the
+        // registry, so a page the prerender writes a file for is a page the router
+        // knows. Without a route the crawler is fine (Pages serves the file) and a
+        // reader is not: React boots, nothing matches, and the catch-all below
+        // bounces them to the start screen. Web only: the same `dist` ships inside
+        // Tauri, where a download page is nonsense and the footer that would link
+        // to it renders nothing.
+        ...(desktop
+          ? []
+          : [
+              ...CONTENT_PAGES.map((page) => ({
+                path: routeSegment(page),
+                element: <SitePageRoute page={page} />,
+              })),
+              // The same pages under a locale prefix — `/zh-CN/`, `/zh-CN/download/` —
+              // each locale a literal segment rather than one `:locale` param, so an
+              // unknown prefix falls through to the catch-all instead of needing a
+              // guard. The prefixed landing is the start screen too, as `/welcome` is;
+              // the URL sync and the discard guard know a site page when they see one.
+              ...SITE_LOCALES.map((locale) => ({
+                path: locale,
+                element: <SiteLocaleRoute locale={locale} />,
+                children: [
+                  { index: true, element: <WelcomeRoute /> },
+                  ...CONTENT_PAGES.map((page) => ({
+                    path: routeSegment(page),
+                    element: <SitePageRoute page={page} />,
+                  })),
+                ],
+              })),
+            ]),
         // Share links land here, stash their intent, and redirect to Edit. A real
         // route (rather than a fragment on `/edit`) so the share leaves the URL on
         // arrival and this handling never runs on a normal start.
         //
         // Both shapes: `/s/<id>` for server-stored links, and bare `/s` for the
         // original `#<payload>` fragment scheme, which must keep working.
-        { path: 's', element: <ShareRoute /> },
-        { path: 's/:shareId', element: <ShareRoute /> },
+        { path: 's', lazy: shareRoute },
+        { path: 's/:shareId', lazy: shareRoute },
         {
-          element: <WorkspaceShell />,
+          lazy: workspaceShellRoute,
           children: [
             { path: 'design', element: <WorkspaceRoute workspace="design" /> },
             // The retired method sub-routes. A bookmark or a link from an older
@@ -107,7 +151,7 @@ export function createAppRouter(): AppRouter {
     },
   ];
 
-  if (getRuntimeSurface() === 'desktop') {
+  if (desktop) {
     // Start at the index so `startupRedirect` applies the welcome/Edit preference
     // on desktop too (there's no address bar to deep-link from).
     return createMemoryRouter(routes, { initialEntries: ['/'] });

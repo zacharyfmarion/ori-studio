@@ -248,6 +248,22 @@ async function settleCache(page) {
  * reports a quiet cache several seconds before the warm starts. Waited for
  * explicitly, with its own bound.
  */
+/**
+ * Whether the app rendered into `#root`, not just its shell. Waited for rather than read at
+ * `load`: the workspace routes load their code through a dynamic `import()`, which `load`
+ * does not wait on (see `apps/web/src/routing/workspaceGateway.ts`).
+ */
+async function appRendered(page) {
+  return page
+    .waitForFunction(() => !!document.querySelector('#root')?.firstElementChild, null, {
+      timeout: 20_000,
+    })
+    .then(
+      () => true,
+      () => false
+    );
+}
+
 async function waitForKernels(page, expected) {
   for (let i = 0; i < 40; i += 1) {
     const cached = await cacheKeys(page);
@@ -368,10 +384,7 @@ async function main() {
       .goto(`${server.origin}/edit`, { waitUntil: 'load' })
       .catch((error) => (firstSessionOffline = String(error.message).split('\n')[0]));
     const bootedOffline =
-      firstSessionOffline === '' &&
-      (await relaunchAfterFirstSession
-        .evaluate(() => !!document.querySelector('#root')?.firstElementChild)
-        .catch(() => false));
+      firstSessionOffline === '' && (await appRendered(relaunchAfterFirstSession));
     await relaunchAfterFirstSession.close();
     server = await startServer(Number(port));
     check(
@@ -384,10 +397,7 @@ async function main() {
     await page.reload({ waitUntil: 'load' });
     const warm = await readIsolation(page);
     check('controlled load is cross-origin isolated', warm.isolated && warm.sharedArrayBuffer);
-    check(
-      'app boots through the worker',
-      await page.evaluate(() => !!document.querySelector('#root')?.firstElementChild)
-    );
+    check('app boots through the worker', await appRendered(page));
 
     const settled = await settleCache(page);
     const cached = await cacheKeys(page);
@@ -559,6 +569,45 @@ async function main() {
       shareOffline = 'failed';
     });
     check('offline share link fails rather than faking an empty editor', shareOffline === 'failed');
+
+    // ---- A visit that only ever read the landing page. The workspace loads on demand
+    // (`apps/web/src/routing/workspaceGateway.ts`), so such a visit never asked for it, and
+    // its chunk reaches the cache only through the worker's warm (`manifest.chunks`,
+    // invariant 7 in `sw.ts`). Without that, launching straight into `/edit` with no
+    // network serves a shell whose workspace cannot load. A new context is a new install:
+    // nothing cached above carries over.
+    server = await startServer(Number(port));
+    const readerContext = await browser.newContext();
+    try {
+      const reader = await readerContext.newPage();
+      // `/`, not `/welcome`: this server has no directory indexes; the router redirects.
+      await reader.goto(`${server.origin}/`, { waitUntil: 'load' });
+      await reader.waitForFunction(() => navigator.serviceWorker.controller, null, {
+        timeout: 30_000,
+      });
+      let warmedWorkspace = false;
+      for (let i = 0; i < 60 && !warmedWorkspace; i += 1) {
+        warmedWorkspace = (await cacheKeys(reader)).some((key) => /workspaceEntry-/.test(key));
+        if (!warmedWorkspace) await reader.waitForTimeout(500);
+      }
+      check('reading only the landing page warms the workspace for offline', warmedWorkspace);
+      await settleCache(reader);
+      await server.kill();
+
+      const launch = await readerContext.newPage();
+      let landingOnlyOffline = '';
+      await launch
+        .goto(`${server.origin}/edit`, { waitUntil: 'load' })
+        .catch((error) => (landingOnlyOffline = String(error.message).split('\n')[0]));
+      await launch.waitForSelector('canvas', { timeout: 20_000 }).catch(() => {});
+      check(
+        'offline start into the editor works after only reading the landing page',
+        landingOnlyOffline === '' && (await launch.evaluate(() => !!document.querySelector('canvas'))),
+        landingOnlyOffline
+      );
+    } finally {
+      await readerContext.close();
+    }
   } finally {
     await browser.close();
     await server.kill().catch(() => {});

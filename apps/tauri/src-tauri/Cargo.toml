@@ -33,6 +33,16 @@ tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 # `relaunch()` after the update installs. Separate plugin from the updater.
 tauri-plugin-process = "2"
+# The updater plugin's HTTP client, named here for two reasons. `system-proxy`
+# makes it honour the operating system's proxy settings (the Windows registry,
+# macOS System Settings) the way the webview already does; without it a machine
+# behind a configured proxy connects straight out, and every update check fails
+# while every other request the app makes succeeds. Cargo unifies features, so
+# naming it here turns it on inside the plugin. And `updater.rs` needs the error
+# type to say *why* a check failed — the plugin only ever reports the message.
+reqwest = { version = "0.13", default-features = false, features = ["system-proxy"] }
+# The plugin's publish-date type, formatted the way its own check command does.
+time = { version = "0.3", features = ["formatting"] }
 
 # Windows and Linux only. macOS enforces one instance per .app bundle itself and
 # routes a double-clicked document through `RunEvent::Opened`; on the other two a

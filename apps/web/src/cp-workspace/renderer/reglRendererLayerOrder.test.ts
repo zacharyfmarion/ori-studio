@@ -4,6 +4,7 @@ import type {
   FillGeometry,
   FoldedGeometry,
   PointGeometry,
+  ShadowGeometry,
   StrokeGeometry,
   ViewTransform,
 } from './types';
@@ -55,6 +56,7 @@ vi.mock('regl', () => ({
 vi.mock('./programs/strokeProgram', () => ({ createStrokeProgram: () => mockProgram() }));
 vi.mock('./programs/pointProgram', () => ({ createPointProgram: () => mockProgram() }));
 vi.mock('./programs/fillProgram', () => ({ createFillProgram: () => mockProgram() }));
+vi.mock('./programs/shadowProgram', () => ({ createShadowProgram: () => mockProgram() }));
 vi.mock('./programs/markerProgram', () => ({ createMarkerProgram: () => mockProgram() }));
 vi.mock('./programs/wedgeProgram', () => ({ createWedgeProgram: () => mockProgram() }));
 // Two programs are identified by construction rather than by their upload:
@@ -134,8 +136,28 @@ function points(layer: string): PointGeometry {
   return geometry;
 }
 
+/** A one-triangle layer-shadow buffer, tagged as `layer` for the draw log. */
+function shadows(layer: string): ShadowGeometry {
+  const geometry: ShadowGeometry = {
+    position: new Float32Array([0, 0, 1, 0, 0, 1]),
+    depth: new Float32Array(3),
+    edgeRange: new Float32Array([0, 1, 0, 1, 0, 1]),
+    falloff: new Float32Array([10, 0.2, 10, 0.2, 10, 0.2]),
+    edges: new Float32Array([0, 0, 1, 0]),
+    edgeSteps: new Uint8Array([1]),
+    count: 3,
+    edgeCount: 1,
+  };
+  layerOf.set(geometry, layer);
+  return geometry;
+}
+
 function folded(prefix: string): FoldedGeometry {
-  return { fills: fills(`${prefix}-fills`), strokes: strokes(`${prefix}-strokes`) };
+  return {
+    fills: fills(`${prefix}-fills`),
+    strokes: strokes(`${prefix}-strokes`),
+    shadows: shadows(`${prefix}-shadows`),
+  };
 }
 
 /** A renderer with every layer this file asserts on already uploaded. */
@@ -180,6 +202,19 @@ describe('reglRenderer layer order', () => {
   });
 
   /**
+   * A layer shadow darkens the paper under it and sits under that paper's
+   * creases. The depth attribute orders the three within a figure, but only
+   * once each program has drawn at all — and the shadow program writes depth,
+   * so drawn last it would still cover the creases of an earlier figure.
+   */
+  it('draws layer shadows after the folded fills and before the folded creases', () => {
+    renderScene();
+
+    expect(drawLog.indexOf('folded-shadows')).toBeGreaterThan(drawLog.indexOf('folded-fills'));
+    expect(drawLog.indexOf('folded-shadows')).toBeLessThan(drawLog.indexOf('folded-strokes'));
+  });
+
+  /**
    * Imported `.fold` forms share the folded figures' row layout and user-space
    * placement, so they belong in the same band — splitting them across the point
    * layer would flip which one wins where two overlap.
@@ -211,6 +246,7 @@ describe('reglRenderer layer order', () => {
       'creases',
       'points',
       'folded-fills',
+      'folded-shadows',
       'folded-strokes',
       'imported-fills',
       'imported-strokes',

@@ -42,7 +42,13 @@ export function DesktopDownloadMenuItems({
           href={fallbackUrl}
           target="_blank"
           rel="noreferrer noopener"
-          onClick={() => trackDesktopDownload({ build: 'releases-page', surface })}
+          onClick={() =>
+            trackDesktopDownload({
+              build: 'releases-page',
+              surface,
+              fallbackReason: 'release_unresolved',
+            })
+          }
         >
           <span className="context-menu__label">
             {t('common:download.allReleases', 'All downloads on GitHub')}

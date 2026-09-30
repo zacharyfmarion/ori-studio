@@ -2,7 +2,13 @@ import { forwardRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes } from
 import { cva, type VariantProps } from 'class-variance-authority';
 import { CONTROL_RADIUS_CLASS, CONTROL_SIZE_CLASSES } from './controlStyles';
 
-const button = cva(['ui-button', CONTROL_RADIUS_CLASS].join(' '), {
+/**
+ * The button's classes, for an element that has to be something other than a `<button>`
+ * or an `<a>` — a react-router `Link`, which renders its own anchor. Exported as the class
+ * builder rather than as another wrapper so the site's call to action wears exactly what a
+ * `ButtonLink` wears, and cannot drift from it the way a hand-written class list would.
+ */
+export const buttonClassName = cva(['ui-button', CONTROL_RADIUS_CLASS].join(' '), {
   variants: {
     variant: {
       primary: 'ui-button--primary',
@@ -20,7 +26,7 @@ const button = cva(['ui-button', CONTROL_RADIUS_CLASS].join(' '), {
 
 export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof button> {
+    VariantProps<typeof buttonClassName> {
   isActive?: boolean;
 }
 
@@ -29,7 +35,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       type={type}
-      className={button({ variant, size, className })}
+      className={buttonClassName({ variant, size, className })}
       data-active={isActive || undefined}
       {...props}
     />
@@ -40,7 +46,7 @@ Button.displayName = 'Button';
 
 export interface ButtonLinkProps
   extends AnchorHTMLAttributes<HTMLAnchorElement>,
-    VariantProps<typeof button> {}
+    VariantProps<typeof buttonClassName> {}
 
 /**
  * A link that acts as a button, wearing the button's own classes.
@@ -54,7 +60,7 @@ export interface ButtonLinkProps
  */
 export const ButtonLink = forwardRef<HTMLAnchorElement, ButtonLinkProps>(
   ({ variant, size, className = '', ...props }, ref) => (
-    <a ref={ref} className={button({ variant, size, className })} {...props} />
+    <a ref={ref} className={buttonClassName({ variant, size, className })} {...props} />
   )
 );
 

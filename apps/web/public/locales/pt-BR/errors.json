@@ -29,6 +29,9 @@
   "creasePattern": {
     "imageNotDecodable": "O Ori Studio não conseguiu ler {{name}} como imagem. Tente PNG, JPEG ou WebP."
   },
+  "explori": {
+    "unrouted": "Esta versão não consegue acessar o serviço de pesquisa."
+  },
   "fileDrop": {
     "dialogOpen": "Conclua a caixa de diálogo aberta antes de soltar um arquivo.",
     "imageNotHere": "Solte {{name}} sobre o padrão de vincos para adicioná-lo como imagem de referência.",

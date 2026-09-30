@@ -253,6 +253,9 @@
   "number": {
     "tooSmall": "Insira um número maior que {{minimum}}."
   },
+  "openProject": {
+    "title": "Abrir projeto do Ori Studio ou padrão de vincos"
+  },
   "orieditaImport": {
     "alreadyMatches_one": "Já corresponde ({{count}})",
     "alreadyMatches_many": "Já corresponde ({{count}})",

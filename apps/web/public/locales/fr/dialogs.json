@@ -253,6 +253,9 @@
   "number": {
     "tooSmall": "Saisissez un nombre supérieur à {{minimum}}."
   },
+  "openProject": {
+    "title": "Ouvrir un projet Ori Studio ou un patron de plis"
+  },
   "orieditaImport": {
     "alreadyMatches_one": "Déjà identique ({{count}})",
     "alreadyMatches_many": "Déjà identique ({{count}})",

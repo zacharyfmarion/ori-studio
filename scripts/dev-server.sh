@@ -5,8 +5,8 @@
 # `preview_start` (the agent Browser pane, `.claude/launch.json`) owns the
 # process it spawns and stops it when the session goes away — so the server dies
 # every time the tooling restarts, which is not when you wanted it to. This
-# starts vite with `setsid` + `nohup` instead: it belongs to no shell, no pane
-# and no session, and it keeps running until you stop it.
+# starts vite with `nohup`, in a process group of its own, instead: it belongs
+# to no shell, no pane and no session, and it keeps running until you stop it.
 #
 #   scripts/dev-server.sh start     # idempotent — reuses a healthy server
 #   scripts/dev-server.sh status
@@ -56,6 +56,7 @@ stop() {
 }
 
 start() {
+  local pid
   if healthy; then
     echo "already serving on http://localhost:$PORT/ (pid $(listeners | tr '\n' ' '))"
     return 0
@@ -64,31 +65,46 @@ start() {
   [ -n "$(listeners)" ] && stop
 
   mkdir -p "$LOG_DIR"
+  rm -f "$PID_FILE"
   # `--strictPort` on purpose: silently sliding to 5225 is how you end up
   # reading a stale tab. Fail loudly instead.
   #
-  # Detached in two ways, because one is not enough and macOS has no `setsid`:
-  # `nohup`, so a hangup on the caller's terminal does not reach it, and a
-  # subshell that exits immediately, so the server is re-parented to init and
-  # belongs to no process group this script's caller can kill.
+  # Detached three ways, because macOS has no `setsid` and one is not enough:
+  # `nohup`, so a hangup on the caller's terminal does not reach it; `set -m`,
+  # so bash starts it in a process group of its own, out of reach of a kill
+  # aimed at this script's group; and a subshell that exits immediately, so
+  # the server is re-parented to init.
   #
-  # Nothing is waited on. An earlier version reaped the subshell with
-  # `wait $!` — but `$!` here is the server, not the subshell, so the script
-  # sat on a `wait` that only returns when the dev server stops, and every
-  # caller that read its output blocked with it. The readiness loop below is
-  # what tells us the server came up; there is nothing else to wait for.
-  ( cd "$ROOT" \
-      && nohup npx vite apps/web --port "$PORT" --strictPort >"$LOG" 2>&1 < /dev/null &
-    echo $! > "$PID_FILE"
-    disown 2>/dev/null || true ) &
+  # The braces make the `&` bind to `nohup` alone. Written as
+  # `cd "$ROOT" && nohup … &`, the `&` takes the whole AND-list: bash forks a
+  # subshell that runs vite in its *foreground* and waits on it for the
+  # server's whole life — and since only vite's output is redirected, that
+  # subshell keeps the caller's stdout open, so `start | tail` never sees EOF
+  # and every session that ran `start` left a `bash … start` at PPID 1. The
+  # outer subshell is redirected for the same reason: nothing in the detached
+  # chain may hold the caller's pipe.
+  #
+  # Nothing is waited on. The readiness loop below is what tells us the
+  # server came up; there is nothing else to wait for.
+  ( set -m
+    cd "$ROOT" && {
+      nohup npx vite apps/web --port "$PORT" --strictPort >"$LOG" 2>&1 </dev/null &
+      echo $! >"$PID_FILE"
+    } ) >/dev/null 2>&1 &
 
   for _ in $(seq 1 120); do
     if healthy; then
-      echo "serving on http://localhost:$PORT/ (pid $(cat "$PID_FILE"))"
+      # `$!` above is the `npm exec` wrapper `npx` turns into, one level up
+      # from vite; now that the port answers, record what actually holds it.
+      listeners >"$PID_FILE"
+      echo "serving on http://localhost:$PORT/ (pid $(listeners | tr '\n' ' '))"
       echo "logs: $LOG"
       return 0
     fi
-    if ! kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null && [ -z "$(listeners)" ]; then
+    # An empty pid file means the subshell has not written it yet, not that
+    # vite died; the wrapper exiting with nothing on the port means it did.
+    pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null && [ -z "$(listeners)" ]; then
       echo "vite exited before it served. Last lines:" >&2
       tail -n 30 "$LOG" >&2
       return 1

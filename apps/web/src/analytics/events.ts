@@ -50,7 +50,7 @@ export type LandingSectionId =
   | 'get';
 
 /** The landing page's calls to action. */
-export type LandingCta = 'discord' | 'github' | 'scroll' | 'download';
+export type LandingCta = 'discord' | 'github' | 'scroll' | 'download' | 'start';
 
 /**
  * Where a link out to the community Discord was followed from.
@@ -66,11 +66,10 @@ export type CommunityLinkSurface = 'toolbar';
 /**
  * Which desktop build a download was started for.
  *
- * `releases-page` is not a build: it is the fallback every control falls back to
- * when the release could not be read (offline, rate-limited, blocked), and it is
- * in the same enum so the failure is *counted* rather than invisible. A ratio of
- * it against the real builds is the only signal that the GitHub fetch is not
- * working for a population.
+ * `releases-page` is not a build: it is the link a control carries when it has
+ * no file to hand over, and it is in the same enum so that case is *counted*
+ * rather than invisible. It has two causes, which {@link DesktopDownloadFallbackReason}
+ * tells apart; only one of them is the GitHub fetch failing.
  *
  * These mirror `DesktopBuildId` in `platform/desktopDownload.ts`; `trackDesktopDownload`
  * passes one straight through, so the two cannot drift without a type error.
@@ -86,6 +85,22 @@ export type DesktopDownloadBuild =
   | 'releases-page';
 
 /**
+ * Why a download went to the releases page instead of a file. Sent only with
+ * `build: 'releases-page'`.
+ *
+ * - `no_platform`: the release was read, but there is nothing to recommend for
+ *   this device — a phone, a tablet, or a host whose user agent names no desktop
+ *   OS. The control is working as designed.
+ * - `release_unresolved`: no builds were known yet — the GitHub lookup had not
+ *   answered, or had failed (offline, rate-limited, blocked). The ratio of this
+ *   one against real builds is the signal that the fetch is not working.
+ *
+ * Before this existed the two were one number, and the phones made it look like
+ * GitHub was failing half the landing page's visitors.
+ */
+export type DesktopDownloadFallbackReason = 'no_platform' | 'release_unresolved';
+
+/**
  * Where a download was started from.
  *
  * The question this exists to answer is whether the toolbar icon earns its place
@@ -93,7 +108,21 @@ export type DesktopDownloadBuild =
  * `toolbar` came from somebody already using the app, and one from `landing`
  * from somebody deciding whether to.
  */
-export type DesktopDownloadSurface = 'start-screen' | 'landing' | 'toolbar' | 'about';
+export type DesktopDownloadSurface =
+  | 'start-screen'
+  | 'landing'
+  | 'toolbar'
+  | 'about'
+  | 'download-page';
+
+/**
+ * A page of the site — the landing's siblings, not the app's workspaces.
+ *
+ * The landing itself reports as `landing viewed`, which predates these pages and carries
+ * a `surface` this one does not need; it is not folded in here so its history stays
+ * comparable. Kept in step with `SitePageId` by the `viewed` hook's parameter type.
+ */
+export type SitePageViewedId = 'download' | 'oriedita' | 'faq';
 
 /**
  * A feature slide in one of the landing carousels.
@@ -868,6 +897,13 @@ export const ANALYTICS_EVENTS = {
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
   landingViewed: 'landing viewed',
+  /**
+   * A content page of the site was opened — `/download/` and its siblings.
+   *
+   * The pages exist to be found from a search result, and this is the only way to tell
+   * whether they are: a page nobody arrives at is a page not worth translating further.
+   */
+  sitePageViewed: 'site page viewed',
   landingSectionViewed: 'landing section viewed',
   landingFeatureOpened: 'landing feature opened',
   landingCtaClicked: 'landing cta clicked',
@@ -1140,9 +1176,27 @@ export type UpdateFailureStage = 'check' | 'download' | 'install';
  * against the public key compiled into the app, which is either a corrupted
  * object or an attack, and — if it is a key mismatch — it is fleet-wide.
  * `stale_manifest` means the endpoint offered a version below one already seen.
+ *
+ * The transport reasons are named by the shell, which is the only place the
+ * cause of a failed request can be read: the updater plugin reports every one
+ * of them as the same "error sending request" string, which is how half the
+ * Windows fleet spent a month filed under `unknown`. `dns`, `connect`, `tls`,
+ * `proxy` and `timeout` are the causes it could name; `network` is a transport
+ * failure it could not. `http_status`, `parse` and `no_platform_entry` are the
+ * manifest's fault, and therefore fleet-wide; `unsupported` is this build's.
+ * Mirrors `UpdateCheckErrorKind` in `platform/updateService.ts` plus the two
+ * reasons only the frontend can raise.
  */
 export type UpdateFailureReason =
   | 'network'
+  | 'dns'
+  | 'connect'
+  | 'tls'
+  | 'proxy'
+  | 'timeout'
+  | 'http_status'
+  | 'parse'
+  | 'no_platform_entry'
   | 'signature'
   | 'stale_manifest'
   | 'unsupported'

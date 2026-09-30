@@ -1,3 +1,6 @@
+import i18n from '../i18n';
+import { getRuntimeSurface, type RuntimeSurface } from '../platform/runtime';
+import { SITE_ORIGIN } from '../seo/siteMeta';
 import type { ExploriDocument } from './document';
 import { effectiveExploriDbConfigs, exploriEdgeLength } from './document';
 import type {
@@ -27,10 +30,30 @@ import { EXPLORI_SYMMETRIES } from './types';
  * input rather than as the shape we expect.
  */
 
-/** Where the proxy lives. Same origin in production; overridable for dev. */
-export function exploriApiBase(): string {
-  const configured = import.meta.env.VITE_EXPLORI_API_URL;
-  if (typeof configured === 'string' && configured.length > 0) return configured;
+/**
+ * Where the proxy lives.
+ *
+ * The web app reads its own origin: the deploy that serves the app serves
+ * `/api/explori/*`. A deployed desktop shell cannot — it runs on
+ * `tauri://localhost`, which serves the bundle and nothing else, and Tauri's
+ * asset resolver answers any unknown path with `index.html`, status 200. That
+ * page parsed as upstream's timeout page (see `readResponse`), so every desktop
+ * search failed as "timed out" from the day the feature shipped, while the web
+ * was fine. The desktop reads the site's proxy instead, the way it reads the
+ * site's models (`cpDetectModelBaseUrl`); the desktop CSP already names that
+ * origin for the same reason.
+ *
+ * A *dev* desktop shell is served by the dev server, whose Vite proxy is the
+ * hop, so it keeps its own origin the way a dev browser does. A build-time
+ * override wins on both.
+ */
+export function exploriApiBase(
+  surface: RuntimeSurface = getRuntimeSurface(),
+  override: string | undefined = import.meta.env.VITE_EXPLORI_API_URL,
+  dev: boolean = Boolean(import.meta.env.DEV)
+): string {
+  if (typeof override === 'string' && override.length > 0) return override;
+  if (surface === 'desktop' && !dev) return SITE_ORIGIN;
   return typeof window === 'undefined' ? '' : window.location.origin;
 }
 
@@ -40,6 +63,8 @@ export const EXPLORI_MIN_EDGES = 4;
 export type ExploriErrorCode =
   | 'network'
   | 'timeout'
+  /** Answered by something with no route for the proxy — never by the proxy. */
+  | 'unrouted'
   | 'upstream_error'
   | 'invalid_tree'
   | 'rate_limited'
@@ -137,11 +162,23 @@ async function readResponse(response: Response): Promise<unknown> {
   try {
     payload = text ? JSON.parse(text) : null;
   } catch {
+    const isHtml = text.trim().toLowerCase().startsWith('<');
     // Upstream answers a timeout with an HTML error page rather than JSON, which
     // their own client special-cases too. Reporting "invalid JSON" here would
     // name the symptom instead of the cause.
-    if (text.trim().toLowerCase().startsWith('<')) {
+    if (isHtml && !response.ok) {
       throw new ExploriError('timeout', 'The search service timed out.');
+    }
+    // An HTML page with a *success* status never came from the proxy: it is the
+    // app's own `index.html`, from a host that serves the bundle and has no
+    // route for `/api/explori/*` — a deployed desktop shell on its own origin, a
+    // Pages deploy whose Functions did not come up. Reading that as a timeout
+    // is what hid the desktop bug for two releases.
+    if (isHtml) {
+      throw new ExploriError(
+        'unrouted',
+        i18n.t('errors:explori.unrouted', 'This build cannot reach the search service.')
+      );
     }
     throw new ExploriError('upstream_error', 'The search service sent an unreadable response.');
   }
@@ -151,6 +188,10 @@ async function readResponse(response: Response): Promise<unknown> {
     const message = typeof record.error === 'string' ? record.error : '';
     if (response.status === 429 || code === 'rate_limited') {
       throw new ExploriError('rate_limited', 'Too many searches just now — try again shortly.');
+    }
+    // The proxy has already read upstream's HTML timeout page and named it.
+    if (code === 'upstream_timeout') {
+      throw new ExploriError('timeout', message || 'The search service timed out.');
     }
     if (response.status === 400) {
       throw new ExploriError('invalid_tree', message || 'The search service refused this tree.');

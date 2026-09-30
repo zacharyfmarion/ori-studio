@@ -1,4 +1,4 @@
-import { callExplori, errorResponse, type ExploriContext } from '../../_lib/explori';
+import { callExplori, errorResponse, preflight, type ExploriContext } from '../../_lib/explori';
 
 /**
  * `POST /api/explori/query` — search the archive for a drawn tree.
@@ -179,4 +179,8 @@ export async function onRequestPost(context: ExploriContext): Promise<Response> 
     // Rebuilt from validated parts, never the caller's object.
     body: JSON.stringify({ tree: { nodes, edges }, db_configs: dbConfigs, n }),
   });
+}
+
+export async function onRequestOptions(): Promise<Response> {
+  return preflight();
 }

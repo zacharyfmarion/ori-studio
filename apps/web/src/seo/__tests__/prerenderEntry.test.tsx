@@ -2,9 +2,26 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LANDING_SECTIONS } from '../../components/landing/WelcomeLanding';
-import { escapeForScriptTag, landingJsonLd, landingJsonLdScript } from '../jsonLd';
-import { renderLandingMarkup } from '../prerenderEntry';
-import { SEO_CONTENT_ID, SITE_NAME, SITE_ORIGIN, SITE_TITLE, SITEMAP_PATHS } from '../siteMeta';
+import {
+  CONTENT_PAGES,
+  LANDING_PAGE,
+  PAGE_LOCALES,
+  pagePath,
+  SITE_LOCALES,
+  SITE_PAGES,
+} from '../../site/sitePages';
+import { escapeForScriptTag, landingJsonLd, landingJsonLdScript, pageJsonLd } from '../jsonLd';
+import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME, PRESET_THEMES, themeCssVariables } from '../../themes';
+import {
+  loadLocaleResources,
+  pageMeta,
+  prerenderSite,
+  renderLandingMarkup,
+  renderPageMarkup,
+  staticPaintConfig,
+} from '../prerenderEntry';
+import { SEO_CONTENT_ID, SITE_NAME, SITE_ORIGIN, SITE_TITLE, siteUrl } from '../siteMeta';
+import { PHONE_COPY_TEMPLATE_ID, STATIC_PAINT_ATTRIBUTE } from '../staticPaint';
 
 /**
  * The PR-time gate on the prerender.
@@ -34,10 +51,30 @@ describe('landing prerender', () => {
     }
   });
 
-  it('gives the document exactly one h1, naming what the page is', () => {
-    const h1s = markup.match(/<h1[\s>]/g) ?? [];
-    expect(h1s).toHaveLength(1);
-    expect(markup).toContain(SITE_TITLE);
+  it('names the page in its first h1, ahead of the start screen’s own', () => {
+    // The start screen's heading ("Start a new origami workspace") is the live page's, and
+    // the copy has to carry it to paint as that page does. It heads a control panel, so the
+    // copy opens with one that says what the page is.
+    const h1s = markup.match(/<h1[^>]*>[^<]*<\/h1>/g) ?? [];
+    expect(h1s).toHaveLength(2);
+    expect(h1s[0]).toContain(SITE_TITLE);
+    expect(h1s[1]).toContain('id="start-screen-title"');
+  });
+
+  it('carries everything the body script finishes, by the names it finds them by', () => {
+    // `staticPaintBody.ts` finds these by class. A rename in the components would leave the
+    // copy naming no platform, or in the wrong screenshots, and nothing else would notice.
+    for (const needle of [
+      'ui-split-button__primary',
+      'class="landing-figure__image"',
+      'loading="lazy"',
+      'class="welcome-page"',
+      'welcome-scroll-cue',
+    ]) {
+      expect(markup).toContain(needle);
+    }
+    expect(markup).not.toContain('data-surface="phone"');
+    expect(renderPageMarkup(LANDING_PAGE, 'en', { phone: true })).toContain('data-surface="phone"');
   });
 
   it('hides that h1 by clipping, never by display:none', () => {
@@ -52,6 +89,399 @@ describe('landing prerender', () => {
     // hydration markers would be bytes shipped to every visitor for no reason.
     expect(markup).not.toContain('data-reactroot');
     expect(markup).not.toContain('<!--$-->');
+  });
+
+  it('links every other page of the site from the landing', () => {
+    // The footer is the only place the landing points at its siblings, which makes it
+    // the way a crawler on the homepage learns a download page exists. Sitelinks are
+    // chosen from pages Google can reach; a page linked from nowhere is not one.
+    for (const page of CONTENT_PAGES) {
+      expect(markup).toContain(`href="${page.path}"`);
+    }
+  });
+});
+
+/**
+ * The content pages, through the same gate.
+ *
+ * Every assertion here names one of the ways a page fails without a sound — a copy
+ * with no words, a page that does not link back, a heading structure a crawler cannot
+ * read — and each one still deploys, serves and 200s.
+ */
+describe('content page prerender', () => {
+  it.each(CONTENT_PAGES)('renders $path with its own h1 and real copy', (page) => {
+    const markup = renderPageMarkup(page);
+    const h1s = markup.match(/<h1[\s>]/g) ?? [];
+    expect(h1s).toHaveLength(1);
+    expect(markup.length).toBeGreaterThan(2000);
+  });
+
+  it.each(CONTENT_PAGES)('marks $path as the current page in its own nav', (page) => {
+    const markup = renderPageMarkup(page);
+    const current = markup.match(/<a\b[^>]*aria-current="page"[^>]*>/g) ?? [];
+    expect(current.length).toBeGreaterThan(0);
+    for (const tag of current) expect(tag).toContain(`href="${page.path}"`);
+  });
+
+  it.each(CONTENT_PAGES)('links $path back to the landing and to every sibling', (page) => {
+    const markup = renderPageMarkup(page);
+    expect(markup).toContain('href="/"');
+    for (const other of CONTENT_PAGES) {
+      expect(markup).toContain(`href="${other.path}"`);
+    }
+  });
+});
+
+/**
+ * What each page is *for*, pinned by the words that make it that page. The generic
+ * checks above prove every page is well-formed; these prove the download page still
+ * lists builds, the Oriedita page still explains the import, the FAQ still asks
+ * questions, and the guide still names the start screen's actions with the start
+ * screen's own strings.
+ */
+describe('each content page says what it is for', () => {
+  const page = (id: string) => CONTENT_PAGES.find((candidate) => candidate.id === id)!;
+
+  it('the Oriedita page explains the shortcut import and links to Oriedita', () => {
+    const markup = renderPageMarkup(page('oriedita'));
+    expect(markup).toContain('Settings › Shortcuts');
+    expect(markup).toContain('href="https://oriedita.github.io/"');
+    // A crawler-visible claim about the relationship, in so many words.
+    expect(markup).toContain('not affiliated with Oriedita');
+  });
+
+  it('the FAQ is a list of questions, each an h2, each a real question', () => {
+    const markup = renderPageMarkup(page('faq'));
+    const questions = markup.match(/<h2[^>]*class="[^"]*site-faq__question[^"]*"[^>]*>([^<]*)<\/h2>/g) ?? [];
+    expect(questions.length).toBeGreaterThanOrEqual(8);
+    for (const question of questions) expect(question).toMatch(/\?<\/h2>$/);
+  });
+
+  it('every content page links to at least one other content page', () => {
+    // The pages form a small graph — guide → Oriedita → download, FAQ → both — and a page
+    // linked only from the footer is a page a crawler weights as a footer link.
+    for (const current of CONTENT_PAGES) {
+      const markup = renderPageMarkup(current);
+      const body = markup.slice(0, markup.indexOf('<footer'));
+      const others = CONTENT_PAGES.filter((other) => other !== current);
+      expect(others.some((other) => body.includes(`href="${other.path}"`)), current.id).toBe(true);
+    }
+  });
+});
+
+/**
+ * The whole assembly, against a stand-in for the built `index.html`.
+ *
+ * A template rather than the real `dist/index.html`, which CI never builds — but with the
+ * real `<head>` from `apps/web/index.html`, because the canonical it hardcodes is the
+ * exact thing a content page has to overwrite.
+ */
+describe('prerenderSite', () => {
+  const template = indexHtml().replace('<script type="module" src="/src/main.tsx"></script>', '');
+  const files = prerenderSite(template);
+  const fileFor = (path: string, locale = 'en') => {
+    const match = files.find((entry) => entry.page.path === path && entry.locale === locale);
+    if (!match) throw new Error(`no output for ${path} in ${locale}`);
+    return match;
+  };
+
+  it('writes the landing to the root and to /welcome, and every content page to its directory', () => {
+    const names = files.map(({ file }) => file);
+    expect(names).toContain('index.html');
+    expect(names).toContain('welcome/index.html');
+    for (const page of CONTENT_PAGES) {
+      expect(names).toContain(`${page.path.replace(/^\/|\/$/g, '')}/index.html`);
+    }
+  });
+
+  it('writes every page once per locale, under the locale', () => {
+    const names = files.map(({ file }) => file);
+    // 9 locales × the registry, plus /welcome.
+    expect(files).toHaveLength(PAGE_LOCALES.length * SITE_PAGES.length + 1);
+    for (const locale of SITE_LOCALES) {
+      expect(names).toContain(`${locale}/index.html`);
+      for (const page of CONTENT_PAGES) {
+        expect(names).toContain(`${locale}/${page.path.replace(/^\/|\/$/g, '')}/index.html`);
+      }
+    }
+  });
+
+  /**
+   * The central trap. `index.html` says `canonical → /`, which is right for the landing
+   * and for the app routes that fold into it. A content page shipped with it would tell a
+   * crawler the page *is* the homepage, be consolidated into it, and never be indexed as
+   * itself — while deploying, serving and 200ing exactly like a page that works.
+   */
+  it.each(CONTENT_PAGES)('gives $path its own canonical, not the homepage’s', (page) => {
+    const { html } = fileFor(page.path);
+    expect(html).toContain(`<link rel="canonical" href="${siteUrl(page.path)}" />`);
+    expect(html).not.toContain(`<link rel="canonical" href="${SITE_ORIGIN}/" />`);
+    expect(html).toContain(`<meta property="og:url" content="${siteUrl(page.path)}" />`);
+  });
+
+  it.each(CONTENT_PAGES)('gives $path its own title, description and card', (page) => {
+    const { html } = fileFor(page.path);
+    const { title, description } = pageMeta(page);
+    expect(html).toContain(`<title>${title}</title>`);
+    expect(html).toContain(`<meta name="description" content="${description}" />`);
+    expect(html).toContain(`<meta property="og:title" content="${title}" />`);
+    expect(html).toContain(`<meta name="twitter:title" content="${title}" />`);
+  });
+
+  it('leaves the landing’s head as index.html wrote it', () => {
+    const { html } = fileFor('/');
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain(`<link rel="canonical" href="${SITE_ORIGIN}/" />`);
+    expect(html).toContain(`<title>${SITE_TITLE}</title>`);
+    // The card says more than the title on purpose; the template's is the right one.
+    expect(html).toContain(
+      '<meta property="og:title" content="Ori Studio — origami crease pattern editor and folding simulator" />'
+    );
+  });
+
+  it('gives the landing the site graph and a content page only a WebPage', () => {
+    expect(fileFor('/').html).toContain('"@type":"WebSite"');
+    for (const page of CONTENT_PAGES) {
+      const { html } = fileFor(page.path);
+      // A `WebSite` node is homepage-only by definition; a download page carrying one
+      // would be claiming to be the site from a URL that is not the site.
+      expect(html).not.toContain('"@type":"WebSite"');
+      expect(html).not.toContain('"@type":"SoftwareApplication"');
+      expect(html).toContain('"@type":"WebPage"');
+      expect(html).toContain(`"isPartOf":{"@id":"${SITE_ORIGIN}/#website"}`);
+    }
+  });
+
+  it('puts every page’s copy before #root with the script that removes it', () => {
+    for (const { html } of files) {
+      expect(html).toContain(`<div id="${SEO_CONTENT_ID}">`);
+      expect(html).toContain(`<script>document.getElementById("${SEO_CONTENT_ID}").remove()</script>`);
+      expect(html.indexOf(`id="${SEO_CONTENT_ID}"`)).toBeLessThan(html.indexOf('<div id="root"></div>'));
+    }
+  });
+
+  /**
+   * The localized copies, through the same gate. Each assertion names a way a localized
+   * page fails without a sound: a Chinese page still marked English, a page whose canonical
+   * points at the English one and gets dropped as a duplicate, an `hreflang` set that names
+   * eight of nine and is ignored as malformed, an English title over Chinese copy.
+   */
+  describe.each(SITE_LOCALES)('in %s', (locale) => {
+    const resources = loadLocaleResources(locale)[locale] as { landing: { what: { title: string } } };
+    const localizedHeading = resources.landing.what.title;
+
+    it.each(SITE_PAGES)('marks $path with its own language', (page) => {
+      const { html } = fileFor(page.path, locale);
+      expect(html).toContain(`<html lang="${locale}">`);
+      expect(html).not.toContain('<html lang="en">');
+    });
+
+    it.each(SITE_PAGES)('gives $path a canonical to itself, never to the English page', (page) => {
+      // A translation is a different page for a different reader, not a duplicate. A
+      // canonical at the English page would have a crawler drop it — the opposite of the
+      // point — and still deploy, serve and 200.
+      const { html } = fileFor(page.path, locale);
+      const own = siteUrl(pagePath(page, locale));
+      expect(html).toContain(`<link rel="canonical" href="${own}" />`);
+      expect(html).not.toContain(`<link rel="canonical" href="${siteUrl(page.path)}" />`);
+      expect(html).toContain(`<meta property="og:url" content="${own}" />`);
+    });
+
+    it.each(SITE_PAGES)('names every copy of $path in its hreflang set, plus x-default', (page) => {
+      const { html } = fileFor(page.path, locale);
+      for (const other of PAGE_LOCALES) {
+        expect(html).toContain(
+          `<link rel="alternate" hreflang="${other}" href="${siteUrl(pagePath(page, other))}" />`
+        );
+      }
+      expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${siteUrl(page.path)}" />`);
+      expect(html.match(/rel="alternate" hreflang=/g)).toHaveLength(PAGE_LOCALES.length + 1);
+    });
+
+    it.each(SITE_PAGES)('titles and describes $path in its own language', (page) => {
+      const { html } = fileFor(page.path, locale);
+      const localized = pageMeta(page, locale);
+      const english = pageMeta(page);
+      expect(localized.title).not.toBe(english.title);
+      expect(html).toContain(`<title>${localized.title}</title>`);
+      expect(html).toContain(`<meta name="description" content="${localized.description}" />`);
+      expect(html).toContain(`<meta property="og:title" content="${localized.title}" />`);
+    });
+
+    it('carries the landing’s words in its language, and none of the English copy', () => {
+      const { html } = fileFor('/', locale);
+      expect(html).toContain(localizedHeading);
+      expect(html).not.toContain('A free, open-source workspace for origami design');
+    });
+
+    it('links its own language’s pages from the nav, and every language from the switch', () => {
+      const { html } = fileFor('/', locale);
+      for (const page of CONTENT_PAGES) {
+        expect(html).toContain(`href="${pagePath(page, locale)}"`);
+      }
+      for (const other of PAGE_LOCALES) {
+        expect(html).toContain(`href="${pagePath(LANDING_PAGE, other)}"`);
+      }
+    });
+  });
+
+  it('gives the English page the same hreflang set, so the nine agree', () => {
+    const { html } = fileFor('/');
+    expect(html.match(/rel="alternate" hreflang=/g)).toHaveLength(PAGE_LOCALES.length + 1);
+    expect(html).toContain(`<link rel="alternate" hreflang="zh-CN" href="${SITE_ORIGIN}/zh-CN/" />`);
+    expect(html).toContain('<meta property="og:locale" content="en_US" />');
+    expect(fileFor('/', 'zh-CN').html).toContain('<meta property="og:locale" content="zh_CN" />');
+  });
+
+  it('is idempotent over its own output', () => {
+    // Running the script twice over the same `dist` is the obvious way to iterate on it,
+    // and used to leave two copies of the landing and two JSON-LD blocks.
+    const { html } = fileFor('/');
+    const again = prerenderSite(html).find(({ file }) => file === 'index.html');
+    expect(again?.html).toBe(html);
+  });
+});
+
+/**
+ * The landing as a first paint (`staticPaint.ts`), assembled from a stand-in for the *built*
+ * `index.html` — the entry and stylesheet where Vite writes them — and stand-ins for the two
+ * bundles, which `scripts/prerender-landing.mjs` builds and this test does not need to.
+ */
+describe('the painted landing', () => {
+  const ENTRY = '/assets/index-abc.js';
+  const built = indexHtml()
+    .replace('<script type="module" src="/src/main.tsx"></script>', '')
+    .replace(
+      '</head>',
+      `<script type="module" crossorigin src="${ENTRY}"></script>\n<link rel="stylesheet" crossorigin href="/assets/index-abc.css">\n</head>`
+    );
+  const scripts = { head: 'var HEAD_BUNDLE;', body: 'var BODY_BUNDLE;' };
+  const files = prerenderSite(built, scripts);
+  const landing = files.find(({ file }) => file === 'index.html')!.html;
+  const painted = (html: string) => html.includes(`<template id="${PHONE_COPY_TEMPLATE_ID}">`);
+
+  it('paints the English landing and /welcome, and removes every other page’s copy', () => {
+    for (const { file, html } of files) {
+      const expected = file === 'index.html' || file === 'welcome/index.html';
+      expect(painted(html), file).toBe(expected);
+      expect(html.includes(`<script>document.getElementById("${SEO_CONTENT_ID}").remove()</script>`), file).toBe(
+        !expected
+      );
+    }
+  });
+
+  it('preloads the entry for the body script to start, rather than running it', () => {
+    expect(landing).toContain(`<link rel="modulepreload" crossorigin fetchpriority="low" href="${ENTRY}">`);
+    expect(landing).not.toContain(`<script type="module" crossorigin src="${ENTRY}">`);
+    // A page that is not painted runs its entry as Vite wrote it.
+    const download = files.find(({ file }) => file === 'download/index.html')!.html;
+    expect(download).toContain(`<script type="module" crossorigin src="${ENTRY}"></script>`);
+  });
+
+  it('decides in the head: after the viewport meta tag, before the stylesheet', () => {
+    const decide = landing.indexOf('<script id="static-paint-head">');
+    expect(decide).toBeGreaterThan(landing.indexOf('name="viewport"'));
+    expect(decide).toBeLessThan(landing.indexOf('rel="stylesheet"'));
+    expect(landing.indexOf('<style id="static-paint">')).toBeLessThan(decide);
+    expect(landing).toContain('var HEAD_BUNDLE;\n__oriStaticPaint.decideStaticPaint({"paths":["/","/welcome"]');
+  });
+
+  it('finishes after the copy and its phone variant, and before #root', () => {
+    const copy = landing.indexOf(`<div id="${SEO_CONTENT_ID}"`);
+    const template = landing.indexOf(`<template id="${PHONE_COPY_TEMPLATE_ID}">`);
+    const finish = landing.indexOf('var BODY_BUNDLE;\n__oriStaticPaint.finishStaticPaint(');
+    expect(copy).toBeGreaterThan(-1);
+    expect(template).toBeGreaterThan(copy);
+    expect(finish).toBeGreaterThan(template);
+    expect(landing.indexOf('<div id="root"></div>')).toBeGreaterThan(finish);
+    expect(landing).toContain(`"entry":"${ENTRY}"`);
+  });
+
+  it('hides the copy from the head’s decision until the body script has finished it', () => {
+    const rule = /<style id="static-paint">([^<]*)<\/style>/.exec(landing)?.[1];
+    expect(rule).toBeTruthy();
+    const style = document.createElement('style');
+    style.textContent = rule!;
+    document.head.append(style);
+    const copy = document.createElement('div');
+    copy.id = SEO_CONTENT_ID;
+    document.body.append(copy);
+    const root = document.documentElement;
+    try {
+      // No decision: no JavaScript ran, and the copy shows as written.
+      expect(getComputedStyle(copy).display).not.toBe('none');
+      for (const decision of ['desktop', 'phone', 'off']) {
+        root.setAttribute(STATIC_PAINT_ATTRIBUTE, decision);
+        expect(getComputedStyle(copy).display, decision).toBe('none');
+      }
+      root.setAttribute(STATIC_PAINT_ATTRIBUTE, 'shown');
+      expect(getComputedStyle(copy).display).not.toBe('none');
+    } finally {
+      root.removeAttribute(STATIC_PAINT_ATTRIBUTE);
+      style.remove();
+      copy.remove();
+    }
+  });
+
+  it('is idempotent over its own output', () => {
+    const again = prerenderSite(landing, scripts).find(({ file }) => file === 'index.html');
+    expect(again?.html).toBe(landing);
+  });
+
+  it('refuses a bundle that would end its own script tag', () => {
+    expect(() => prerenderSite(built, { ...scripts, body: 'var s = "</script>";' })).toThrow('</script>');
+  });
+
+  it('can start in the desktop app, whose CSP allows an inline script only by its hash', () => {
+    // A desktop bundle carries the prerender when it is built with a plain `tauri build`
+    // (`release.yml`'s skips it). Then the body script is what starts the app, and
+    // `tauri.conf.json`'s CSP has no 'unsafe-inline'. Tauri hashes every inline script of the
+    // bundled HTML into it at compile time — unless asset CSP modification is disabled for
+    // script-src, which would leave the desktop app showing a copy that never starts.
+    // Measured under that CSP in WebKit: with the hashes it boots; without them, it does not.
+    const conf = JSON.parse(
+      readFileSync(join(dirname(new URL(import.meta.url).pathname), '../../../../tauri/src-tauri/tauri.conf.json'), 'utf8')
+    ) as { app: { security: { csp: string; dangerousDisableAssetCspModification?: boolean | string[] } } };
+    const { csp, dangerousDisableAssetCspModification: disabled } = conf.app.security;
+    const hashesInlineScripts =
+      disabled === undefined || disabled === false || (Array.isArray(disabled) && !disabled.includes('script-src'));
+    expect(hashesInlineScripts || /script-src[^;]*'unsafe-inline'/.test(csp)).toBe(true);
+  });
+
+  it('refuses a template with no entry for the body script to start', () => {
+    expect(() => prerenderSite(indexHtml(), scripts)).toThrow('no module entry script');
+  });
+});
+
+describe('staticPaintConfig', () => {
+  const { head, body } = staticPaintConfig(LANDING_PAGE, 'en', '/assets/index-abc.js');
+
+  it('knows the paths the landing is served at, as the router sees them', () => {
+    expect(head.paths).toEqual(['/', '/welcome']);
+    expect(head.locale).toBe('en');
+  });
+
+  it('carries both default themes as the app applies them, and knows every preset', () => {
+    expect(head.defaultThemes).toEqual({ dark: DEFAULT_DARK_THEME.name, light: DEFAULT_LIGHT_THEME.name });
+    expect(head.themes[DEFAULT_DARK_THEME.name]).toEqual({
+      type: 'dark',
+      variables: themeCssVariables(DEFAULT_DARK_THEME),
+    });
+    expect(head.themes[DEFAULT_LIGHT_THEME.name]?.type).toBe('light');
+    expect(Object.keys(head.themes)).toHaveLength(2);
+    expect(head.presetNames).toEqual(PRESET_THEMES.map((theme) => theme.name));
+  });
+
+  it('names the download button for every platform, as the live button does', () => {
+    expect(body).toEqual({
+      downloadLabels: {
+        macos: 'Download for macOS',
+        windows: 'Download for Windows',
+        linux: 'Download for Linux',
+        none: 'Download the desktop app',
+      },
+      entry: '/assets/index-abc.js',
+    });
   });
 });
 
@@ -100,7 +530,8 @@ describe('site metadata', () => {
 
   it('builds absolute sitemap URLs on the canonical origin', () => {
     expect(SITE_ORIGIN).not.toMatch(/\/$/);
-    expect(SITEMAP_PATHS).toContain('/');
+    expect(siteUrl('/')).toBe(`${SITE_ORIGIN}/`);
+    expect(siteUrl('/download/')).toBe(`${SITE_ORIGIN}/download/`);
   });
 });
 
@@ -138,6 +569,16 @@ describe('landing JSON-LD', () => {
     expect(app.sameAs).toEqual(
       expect.arrayContaining([expect.stringContaining('github.com')])
     );
+  });
+
+  it('describes a content page as a WebPage of the site, in its language', () => {
+    const [page] = CONTENT_PAGES;
+    const node = pageJsonLd(page, 'zh-CN', pageMeta(page, 'zh-CN'));
+    expect(node['@type']).toBe('WebPage');
+    expect(node.url).toBe(siteUrl(pagePath(page, 'zh-CN')));
+    expect(node.inLanguage).toBe('zh-CN');
+    expect(node.isPartOf).toEqual({ '@id': `${SITE_ORIGIN}/#website` });
+    expect(SITE_PAGES).toContain(LANDING_PAGE);
   });
 
   it('escapes < so a value can never close the script tag', () => {

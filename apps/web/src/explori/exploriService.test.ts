@@ -1,8 +1,12 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from './__fixtures__/queryResponse.json';
 import { createExploriDocument, type ExploriDocument } from './document';
+import { SITE_ORIGIN } from '../seo/siteMeta';
 import {
   ExploriError,
+  exploriApiBase,
   exploriDbConfigsForQuery,
   exploriQueryBlocker,
   exploriQueryTree,
@@ -68,6 +72,26 @@ describe('the query payload', () => {
   });
 });
 
+describe('where the proxy lives', () => {
+  it('is the site from a deployed desktop shell, and its own origin on the web', () => {
+    // `tauri://localhost` serves the bundle and nothing else, and answers any
+    // unknown path with `index.html`, status 200 — which is how every desktop
+    // search read as a timeout for two releases.
+    expect(exploriApiBase('desktop', undefined, false)).toBe(SITE_ORIGIN);
+    expect(exploriApiBase('web', undefined, false)).toBe(window.location.origin);
+  });
+
+  it('is the dev server from a dev desktop shell, whose Vite proxy is the hop', () => {
+    expect(exploriApiBase('desktop', undefined, true)).toBe(window.location.origin);
+  });
+
+  it('lets a build-time override win on both surfaces', () => {
+    expect(exploriApiBase('web', 'http://localhost:8788', false)).toBe('http://localhost:8788');
+    expect(exploriApiBase('desktop', 'http://localhost:8788', false)).toBe('http://localhost:8788');
+    expect(exploriApiBase('desktop', '', false)).toBe(SITE_ORIGIN);
+  });
+});
+
 describe('reading a response', () => {
   function stubFetch(body: unknown, init: { status?: number; text?: string } = {}) {
     const response = new Response(init.text ?? JSON.stringify(body), {
@@ -112,6 +136,25 @@ describe('reading a response', () => {
     await expect(queryExplori(documentWith())).rejects.toMatchObject({ code: 'timeout' });
   });
 
+  it("reads the proxy's named upstream timeout as a timeout too", async () => {
+    stubFetch(
+      { code: 'upstream_timeout', error: 'The search service timed out.' },
+      { status: 502 }
+    );
+    await expect(queryExplori(documentWith())).rejects.toMatchObject({
+      code: 'timeout',
+      message: 'The search service timed out.',
+    });
+  });
+
+  it('does not read a served app page as a timeout', async () => {
+    // HTML with a success status never came from the proxy: it is `index.html`
+    // from a host with no route for `/api/explori/*` — a deployed desktop shell
+    // on `tauri://localhost`, a Pages deploy whose Functions did not come up.
+    stubFetch(null, { status: 200, text: '<!doctype html><html><head></head><body></body></html>' });
+    await expect(queryExplori(documentWith())).rejects.toMatchObject({ code: 'unrouted' });
+  });
+
   it('names a rate limit as one', async () => {
     stubFetch({ code: 'rate_limited', error: 'slow down' }, { status: 429 });
     await expect(queryExplori(documentWith())).rejects.toMatchObject({ code: 'rate_limited' });
@@ -122,5 +165,41 @@ describe('reading a response', () => {
     vi.stubGlobal('fetch', fetchSpy);
     await expect(queryExplori(createExploriDocument())).rejects.toBeInstanceOf(ExploriError);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Vitest runs with `apps/web` as its root. The bundles are written by
+// `scripts/explori/build-fixtures.py` with upstream's own serializers into an
+// ignored artifact — the archive's tiling data is private and lives only on
+// the machine that holds the database files — and the dev mock serves them.
+// A fixture the client would trim is a fixture that has drifted from what the
+// client accepts.
+const FIXTURE_DIR = resolve(process.cwd(), '../../artifacts/explori/local-tilings');
+const fixtureFiles = existsSync(FIXTURE_DIR)
+  ? readdirSync(FIXTURE_DIR).filter((name) => name.endsWith('.json')).sort()
+  : [];
+
+describe.skipIf(fixtureFiles.length === 0)('the fixtures built from the local archive', () => {
+  const dir = FIXTURE_DIR;
+  const files = fixtureFiles;
+
+  it.each(files)('%s parses with nothing dropped', async (file) => {
+    const bundle = JSON.parse(readFileSync(resolve(dir, file), 'utf8')) as {
+      results: { tiling_id: number; symmetry: string; tree: { nodes: unknown[] } }[];
+    };
+    const response = new Response(JSON.stringify(bundle), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => response));
+    const parsed = await queryExplori(documentWith());
+    expect(parsed.results.map((result) => result.tilingId)).toEqual(
+      bundle.results.map((result) => result.tiling_id)
+    );
+    for (const [index, result] of parsed.results.entries()) {
+      expect(result.symmetry).toBe(bundle.results[index].symmetry);
+      expect(result.tree?.nodes.length).toBe(bundle.results[index].tree.nodes.length);
+      expect(result.cp.edges.length).toBeGreaterThan(0);
+    }
   });
 });

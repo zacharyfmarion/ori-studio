@@ -61,7 +61,17 @@ export function DesktopDownloadButton({
         target={isFallback ? '_blank' : undefined}
         rel="noreferrer noopener"
         onClick={() =>
-          trackDesktopDownload({ build: recommended?.id ?? 'releases-page', surface })
+          trackDesktopDownload(
+            recommended
+              ? { build: recommended.id, surface }
+              : {
+                  build: 'releases-page',
+                  surface,
+                  // Builds known but none recommended is a device with no desktop
+                  // OS to match, not a lookup that failed.
+                  fallbackReason: builds.length > 0 ? 'no_platform' : 'release_unresolved',
+                }
+          )
         }
       >
         <Download size={15} aria-hidden="true" />

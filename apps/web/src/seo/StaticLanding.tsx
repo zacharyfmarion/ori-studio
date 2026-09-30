@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
-import { WelcomeLanding } from '../components/landing/WelcomeLanding';
-import { SITE_TITLE } from './siteMeta';
+import { useTranslation } from 'react-i18next';
+import { WelcomePage } from '../components/landing/WelcomePage';
+import { sitePageTitle } from '../site/sitePageLabels';
 
 /**
  * The standard accessible-hiding pattern, inline rather than as a global class.
@@ -22,27 +23,37 @@ const visuallyHidden: CSSProperties = {
   border: 0,
 };
 
+const ignore = () => undefined;
+
 /**
- * The landing page as a crawler receives it.
+ * The landing page as a crawler receives it, and as a first visit first paints it.
  *
- * Deliberately thin: it renders {@link WelcomeLanding} — the *same* component the running
- * app renders — so the prerendered HTML and the React page cannot describe the product
- * differently. That is the whole reason this is a composition rather than a second copy of
- * the marketing copy, and it is the discipline `functions/_lib/cpShareHtml.ts` already
- * follows by importing `shareCardText` instead of restating it.
+ * It renders {@link WelcomePage} — the *same* component `WelcomeRoute` renders — in the
+ * state the live page opens in, so the prerendered HTML and the React page cannot describe
+ * the product differently, and so the copy can stand in for the live page until the app
+ * takes over (`staticPaint.ts`). That is the whole reason this is a composition rather than
+ * a second copy of the page, and it is the discipline `functions/_lib/cpShareHtml.ts`
+ * already follows by importing `shareCardText` instead of restating it.
  *
- * The one thing it adds is an `<h1>`. Every landing section is an `<h2>`, and the only
- * `<h1>` in the app belongs to the start screen ("Start a new origami workspace") — a UI
- * heading for a control panel, not a description of the page. A document with no `<h1>`
- * leaves a crawler to guess what the page is about. It is hidden because the app's own
- * heading structure takes over the moment React mounts, and a heading that exists for two
- * hundred milliseconds should not push the layout around while it is there.
+ * The one thing it adds is an `<h1>` naming the site, first in the document. The start
+ * screen's own `<h1>` ("Start a new origami workspace") heads a control panel rather than
+ * describing the page, and a crawler reading bytes should not have to guess what the page is
+ * about. It is visually hidden, so it takes no part in the first paint.
  */
 export function StaticLanding() {
+  const { t } = useTranslation();
   return (
     <>
-      <h1 style={visuallyHidden}>{SITE_TITLE}</h1>
-      <WelcomeLanding />
+      <h1 style={visuallyHidden}>{sitePageTitle(t, 'landing')}</h1>
+      <WelcomePage
+        preparing={false}
+        errorMessage={null}
+        showWelcomeOnStartup
+        onCreateCreasePattern={ignore}
+        onCreateDesign={ignore}
+        onOpenFile={ignore}
+        onToggleShowWelcomeOnStartup={ignore}
+      />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { callExplori, errorResponse, type ExploriContext } from '../../_lib/explori';
+import { callExplori, errorResponse, preflight, type ExploriContext } from '../../_lib/explori';
 
 /**
  * `GET /api/explori/tiling?id&N&sym` — one tiling, by its exact id.
@@ -38,4 +38,8 @@ export async function onRequestGet(context: ExploriContext): Promise<Response> {
   const cacheable = new Response(response.body, response);
   cacheable.headers.set('Cache-Control', `public, max-age=${CACHE_SECONDS}, immutable`);
   return cacheable;
+}
+
+export async function onRequestOptions(): Promise<Response> {
+  return preflight();
 }

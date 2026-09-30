@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-09-21
+
+Two desktop fixes — a folded figure's colour picker, and ExplOri search — with faster precreasing sequences and a detector solve that reads the image's own ink.
+
+### Added
+
+- Offer **Review & Fix** beside Add after a clean Detect CP solve, not only after something went wrong. It opens the recognised pattern in the Edit workspace with the image behind it and the solver attached, which is the one place a vertex can be pinned or moved before the solve is run again.
+- Warn, once per plan, when a precreasing sequence contains approximated folds. If the pattern came from Detect CP from Image, the detection may have converged on an inaccurate solution, and the reference points are worth checking.
+
+### Improved
+
+- Recover a detected pattern's construction from the image's own ink. A solve that passed the folding checks could still carry dimensions a little off the reference; the solver now measures the original strokes, proposes nearby constructions, and adopts one only when it fits the image better and passes every check. Exact recoveries on the clean benchmark rise from 287 to 319 of 421.
+- Plan a precreasing sequence in a fraction of the time. The presentation pass stops scanning at its own caps, so a 3,600-crease pattern's sequence takes 34 seconds where it took 125; and ReferenceFinder's line search scores each reference once, so a round of line queries on a 330-line pattern takes seconds rather than a minute.
+- Let a precreasing sequence run as long as the pattern needs. The 30-second ceiling is gone, Stop now reaches the plan (it never had), and the last card says how the run ended — finished, stopped with N of M creases made, or incomplete with the rest listed under the cards. The progress counter counts what is left, rather than reading "Folded 0 of 332" a minute in.
+- Give the Simulate workspace's Patterns rail the References look: crease-coloured thumbnails at a constant stroke width, with an index chip and a face count under each card. On a phone the list comes first, and a card opens the simulator with a Back button.
+
+### Fixed
+
+- Keep a folded figure's colour picker open. On the desktop app and in Safari, choosing Front or Back colour from the figure's Style menu showed the picker only until the mouse moved, and a pick that did land left the next click on the page dead.
+- Reach ExplOri search from the desktop app. Every search from the desktop had failed since the feature shipped: the app asked its own origin, which has no search proxy, and reported the answer as a timeout.
+- Restore Undo on older WebKit. On a WebKit from before Safari 15.4, every ⌘Z was refused; a similar gap on macOS 10.15 failed an ExplOri search before the request left the app.
+- Refuse a Copy or Move whose points would place creases nowhere. Clicking the same source vertex twice in a four-point Copy scaled every endpoint to infinity and appended invisible creases that poisoned point snapping and stopped the file opening again. The transform is now refused, the snap ignores such points, and a file already carrying them opens with them dropped.
+- Stop a precreasing sequence on a very dense pattern failing outright. Passing the planner's point cap now ends the plan cleanly and says so.
+- Show the context-lost notice, and recover when the context returns, when WebGL is lost before the first frame — instead of telling the user to update their graphics drivers.
+- Tell a browser without module workers that it cannot run Ori Studio, instead of failing every engine with a "worker stopped" toast.
+- Stop a page Chrome has translated raising an error toast for the browser's own cross-origin placeholder error.
+
 ## [0.5.0] - 2026-09-17
 
 A References workspace that works out how to fold a pattern, a Properties pane, and a new crease-pattern detector.

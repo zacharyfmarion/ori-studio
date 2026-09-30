@@ -253,3 +253,68 @@ describe('POST /api/explori/query — accepts what the client actually sends', (
     expect(forwarded.db_configs).toHaveLength(4);
   });
 });
+
+/**
+ * The desktop shell calls this proxy from `tauri://localhost`, so every answer
+ * has to be readable cross-origin — the refusals included, or a refused query
+ * on the desktop reads as "could not reach" rather than as the refusal it is.
+ * `fetch` is stubbed so nothing here contacts upstream.
+ */
+describe('CORS — the desktop shell reads this proxy from its own origin', () => {
+  async function load() {
+    vi.resetModules();
+    // The suites above stub `callExplori`; this one needs the real one.
+    vi.doUnmock('../_lib/explori');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{"query_id":"q","results":[]}', { status: 200 }))
+    );
+    return {
+      query: await import('../api/explori/query'),
+      tiling: await import('../api/explori/tiling'),
+    };
+  }
+
+  it('answers a preflight for a JSON POST and a GET', async () => {
+    const { query, tiling } = await load();
+    for (const route of [query, tiling]) {
+      const response = await route.onRequestOptions();
+      expect(response.status).toBe(204);
+      expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+      expect(response.headers.get('Access-Control-Allow-Methods')).toContain('POST');
+      expect(response.headers.get('Access-Control-Allow-Headers')).toContain('Content-Type');
+    }
+  });
+
+  it('marks a result, a refusal and a tiling readable from any origin', async () => {
+    const { query, tiling } = await load();
+    const post = (body: unknown) =>
+      query.onRequestPost({
+        request: new Request('https://x/api/explori/query', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+        env: {},
+      } as never);
+    const nodes = [0, 1, 2, 3, 4].map((id) => ({ id, x: id, y: 0 }));
+    const edges = [1, 2, 3, 4].map((v) => ({ u: 0, v, length: 1 }));
+
+    const result = await post({ tree: { nodes, edges }, db_configs: [{ N: 4, symmetry: 'book' }] });
+    expect(result.status).toBe(200);
+    expect(result.headers.get('Access-Control-Allow-Origin')).toBe('*');
+
+    const refusal = await post({ tree: { nodes, edges: [] }, db_configs: [] });
+    expect(refusal.status).toBe(400);
+    expect(refusal.headers.get('Access-Control-Allow-Origin')).toBe('*');
+
+    const one = await tiling.onRequestGet({
+      request: new Request('https://x/api/explori/tiling?id=1&N=4&sym=book'),
+      env: {},
+    } as never);
+    expect(one.status).toBe(200);
+    expect(one.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(one.headers.get('Cache-Control')).toContain('immutable');
+
+    vi.unstubAllGlobals();
+  });
+});

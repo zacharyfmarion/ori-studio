@@ -253,6 +253,9 @@
   "number": {
     "tooSmall": "Introduce un número mayor que {{minimum}}."
   },
+  "openProject": {
+    "title": "Abrir proyecto de Ori Studio o patrón de pliegues"
+  },
   "orieditaImport": {
     "alreadyMatches_one": "Ya coincide ({{count}})",
     "alreadyMatches_many": "Ya coincide ({{count}})",

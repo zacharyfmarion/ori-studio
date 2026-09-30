@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { useSitePageTitle } from './useSitePageTitle';
 import { useWindowTitle } from './useWindowTitle';
 import { SITE_TITLE } from '../seo/siteMeta';
 import {
@@ -10,7 +11,10 @@ import {
   singleTreemakerDesignTab,
 } from '../store/workspaceStore/designTabs';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import i18n from '../i18n';
 import { EDIT_PATH, WELCOME_PATH } from '../routing/paths';
+import { CONTENT_PAGES, pagePath } from '../site/sitePages';
+import { preloadLocale } from '../test/preloadLocale';
 
 /**
  * The window title names the **open file**, falling back to the **project** —
@@ -39,8 +43,10 @@ import { EDIT_PATH, WELCOME_PATH } from '../routing/paths';
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
+/** Both title hooks, as the app mounts them: `RootLayout` and the workspace runtime. */
 function Probe() {
   useWindowTitle();
+  useSitePageTitle();
   return null;
 }
 
@@ -176,6 +182,33 @@ describe('useWindowTitle', () => {
     expect(window.document.title).toBe(SITE_TITLE);
   });
 
+  it('titles a content page by its own title, in the form the deploy serves it', () => {
+    // `/download/` is what Pages answers with, and react-router reports it verbatim.
+    // The registry answers which pages exist, so this hook needs no list of its own.
+    const page = CONTENT_PAGES.find((candidate) => candidate.id === 'download')!;
+    mountWith({ workspaceTitle: 'Crane', dirty: true, ...singleTreemakerDesignTab() }, page.path);
+    expect(window.document.title).toBe('Download Ori Studio for macOS, Windows and Linux');
+  });
+
+  it('titles a localized page in its language — the string the prerender wrote there', async () => {
+    // The catalogs never load under jsdom (no network), so the test supplies the one key
+    // and switches language the way `useRouteLocale` does on `/zh-CN/…`.
+    const page = CONTENT_PAGES.find((candidate) => candidate.id === 'download')!;
+    preloadLocale('zh-CN');
+    i18n.addResourceBundle('zh-CN', 'site', { download: { pageTitle: '下载 Ori Studio' } }, true, true);
+    await act(async () => {
+      await i18n.changeLanguage('zh-CN');
+    });
+    try {
+      mountWith({ workspaceTitle: 'Crane', dirty: false, ...singleTreemakerDesignTab() }, pagePath(page, 'zh-CN'));
+      expect(window.document.title).toBe('下载 Ori Studio');
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  });
+
   it('takes the document title back on the way into a workspace', () => {
     mountWith({ workspaceTitle: 'Crane', dirty: false, ...singleTreemakerDesignTab() }, EDIT_PATH);
     expect(window.document.title).toBe('Crane - Ori Studio');
@@ -199,5 +232,39 @@ describe('useWindowTitle', () => {
       });
     });
     expect(window.document.title).toBe('crane-v2.osf - Ori Studio');
+  });
+
+  it('titles a site page by itself, before any workspace has loaded', () => {
+    // What the landing renders on a first visit: `RootLayout` alone, no runtime.
+    function SitePageOnly() {
+      useSitePageTitle();
+      return null;
+    }
+    act(() =>
+      root?.render(
+        <MemoryRouter initialEntries={[WELCOME_PATH]}>
+          <SitePageOnly />
+        </MemoryRouter>
+      )
+    );
+    expect(window.document.title).toBe(SITE_TITLE);
+  });
+
+  it('leaves a site page to useSitePageTitle', () => {
+    function DocumentOnly() {
+      useWindowTitle();
+      return null;
+    }
+    act(() => {
+      useWorkspaceStore.setState({ workspaceTitle: 'Crane', ...singleTreemakerDesignTab() } as never);
+    });
+    act(() =>
+      root?.render(
+        <MemoryRouter initialEntries={[WELCOME_PATH]}>
+          <DocumentOnly />
+        </MemoryRouter>
+      )
+    );
+    expect(window.document.title).toBe('');
   });
 });

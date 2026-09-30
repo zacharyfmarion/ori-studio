@@ -1,8 +1,10 @@
-import { Github, MessageCircle } from 'lucide-react';
+import { Github, MessageCircle, PenTool } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { track, type LandingCta, type LandingSectionId } from '../../analytics';
 import { DISCORD_URL, REPOSITORY_URL } from '../../constants/release';
-import { ButtonLink } from '../ui/Button';
+import { EDIT_PATH } from '../../routing/paths';
+import { buttonClassName, ButtonLink } from '../ui/Button';
 import { DesktopDownloadButton } from '../download/DesktopDownloadButton';
 import { LandingFeatureList } from './LandingFeatureList';
 import { LandingSwipeCarousel, type LandingSwipeItem } from './LandingSwipeCarousel';
@@ -126,7 +128,7 @@ export function WelcomeLanding() {
             {
               id: 'edit-share',
               figure: 'edit-share',
-              title: t('landing:edit.share.title', 'Share a pattern with a link'),
+              title: t('landing:edit.share.title', 'Share a crease pattern with a link'),
               body: t(
                 'landing:edit.share.body',
                 'Send someone a crease pattern as a URL. They open it in their browser with nothing to install.'
@@ -204,7 +206,7 @@ export function WelcomeLanding() {
         tone="raised"
         layout="split-reverse"
         eyebrow={t('landing:simulate.eyebrow', 'Simulate')}
-        title={t('landing:simulate.title', 'Fold it without leaving the pattern')}
+        title={t('landing:simulate.title', 'Fold it without leaving the crease pattern')}
         lead={t(
           'landing:simulate.lead',
           'Open a simulation in a window right next to the crease pattern you are drawing, so checking an idea costs a glance instead of a round trip through another program. A full Simulate workspace is there when you want the model on its own.'
@@ -243,12 +245,24 @@ export function WelcomeLanding() {
         )}
       >
         <div className="landing-actions">
-          {/*
-            Renders nothing in the desktop app. That leaves Discord as the
-            leading control there, which is the right one to lead with in a
-            build whose reader has already installed this.
-          */}
-          <DesktopDownloadButton surface="landing" />
+          {phone ? (
+            // A phone cannot run any desktop build, and this button used to
+            // send it to GitHub's releases page regardless. The browser app is
+            // the one way in a phone has, so that is what it leads with.
+            <Link
+              className={buttonClassName({ variant: 'primary', size: 'lg' })}
+              to={EDIT_PATH}
+              onClick={() => trackCta('start')}
+            >
+              <PenTool size={15} aria-hidden="true" />
+              {t('landing:get.startCreating', 'Start creating')}
+            </Link>
+          ) : (
+            // Renders nothing in the desktop app. That leaves Discord as the
+            // leading control there, which is the right one to lead with in a
+            // build whose reader has already installed this.
+            <DesktopDownloadButton surface="landing" />
+          )}
           <ButtonLink
             variant="secondary"
             size="lg"
