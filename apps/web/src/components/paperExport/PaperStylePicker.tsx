@@ -23,6 +23,7 @@ import {
 } from '../../lib/paperPresetRows';
 import { useSettingsStore } from '../../store/settingsStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
+import styles from './PaperStylePicker.module.css';
 
 /**
  * What an object's own pins keep whichever style it is exported in, as a line
@@ -72,22 +73,28 @@ export function PaperStylePicker({
   const label = t('dialogs:paperExport.style', 'Style');
   return (
     <div className="export-modal__control-group">
-      <span className="export-modal__label">{label}</span>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} aria-label={label} className="export-modal__select">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={PAPER_EXPORT_STYLE_SLOT}>
-            {exportStyleEntryLabel(t, slot, { fromDisplay: paperStyle.export === null })}
-          </SelectItem>
-          {rows.map((row) => (
-            <SelectItem key={row.key} value={row.key}>
-              {paperPresetRowLabel(t, row)}
+      <div className={styles.row}>
+        <span className="export-modal__label">{label}</span>
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger
+            id={id}
+            aria-label={label}
+            className={`export-modal__select ${styles.select}`}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={PAPER_EXPORT_STYLE_SLOT}>
+              {exportStyleEntryLabel(t, slot, { fromDisplay: paperStyle.export === null })}
             </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            {rows.map((row) => (
+              <SelectItem key={row.key} value={row.key}>
+                {paperPresetRowLabel(t, row)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       {hint && <small className="export-modal__hint">{hint}</small>}
     </div>
   );

@@ -135,6 +135,9 @@ wanted become props.
   color, Divide mode) on the same `SegmentedToolOption` row the Square tool's
   options use, in place of a group title above a full-width control.
 - The context panel's controls are `md` (32px): at `sm` the pills read short.
+- The export dialogs' Style picker takes the same row, its select as wide as
+  the style it names (`PaperStylePicker.module.css`), so every labelled
+  control in the paper export dialog lines up on the right.
 - The chosen pill's background is one element that slides to a new choice
   (160ms), and jumps rather than slides when only the layout changes. A choice
   shows at once (`useOptimistic`), with the owner's update run as a
