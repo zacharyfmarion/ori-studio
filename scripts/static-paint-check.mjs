@@ -49,10 +49,15 @@ const PROFILES = {
   phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true },
 };
 
-const results = [];
-function check(name, ok, detail = '') {
-  results.push({ name, ok });
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
+/**
+ * The lanes run side by side — the engines are independent, and this is CI's longest job
+ * — so each keeps its own results, and they are printed together, in order, once all of
+ * them have finished.
+ */
+function lane() {
+  const results = [];
+  const check = (name, ok, detail = '') => results.push({ name, ok, detail });
+  return { results, check };
 }
 
 const TOOK_OVER = () => !document.getElementById('seo-content') && !!document.querySelector('#root .welcome-page');
@@ -92,9 +97,12 @@ async function settle(page) {
   await page.waitForLoadState('networkidle');
   await page.evaluate(async () => {
     await document.fonts.ready;
+    // Both axes: a phone's swipe carousel holds its other slides beside the visible one,
+    // and WebKit rightly leaves them unloaded until swiped to — waiting on them cost the
+    // phone half of this lane 10 s a settle.
     const inView = [...document.images].filter((image) => {
       const box = image.getBoundingClientRect();
-      return box.width > 0 && box.bottom > 0 && box.top < innerHeight;
+      return box.width > 0 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth;
     });
     const loaded = (image) =>
       image.complete
@@ -166,7 +174,7 @@ async function pair(browser, profile, colorScheme, url) {
 }
 
 /** What the frame samples say about one combination, as named checks. */
-function frameChecks(name, device, frames) {
+function frameChecks(check, name, device, frames) {
   const all = [...frames.first, ...frames.live];
   const withCopy = all.filter((frame) => frame.copy);
   const unfinished = withCopy.filter((frame) => !frame.finished).length;
@@ -227,51 +235,68 @@ async function copySurvives(browser, url, setup = {}) {
   return survives;
 }
 
+/** Every device and theme in one engine: the first paint against the live page, and every frame. */
+async function engineLane(engine, browser, url, comparer, failures) {
+  const { results, check } = lane();
+  for (const [device, profile] of Object.entries(PROFILES)) {
+    for (const scheme of ['dark', 'light']) {
+      const name = `${engine} ${device} ${scheme}`;
+      const shots = await pair(browser, profile, scheme, url);
+      check(`${name}: the copy is the first paint`, shots.kept);
+      frameChecks(check, name, device, shots.frames);
+      for (const [where, [first, live]] of Object.entries({ top: shots.top, scrolled: shots.scrolled })) {
+        const diff = await differingPixels(comparer, first, live);
+        if (diff !== 0) {
+          const stem = path.join(failures, `${name.replaceAll(' ', '-')}-${where}`);
+          writeFileSync(`${stem}-first.png`, first);
+          writeFileSync(`${stem}-live.png`, live);
+        }
+        check(`${name}: identical to the live page ${where === 'top' ? 'at the top' : 'scrolled'}`, diff === 0, diff ? `${diff} px differ` : '');
+      }
+    }
+  }
+  return results;
+}
+
+/** Who gets the copy at all: `/welcome` does, and nobody the copy could not match. */
+async function visitorsLane(browser, url) {
+  const { results, check } = lane();
+  check('/welcome paints its copy too', await copySurvives(browser, `${url}welcome`));
+  const removed = {
+    'a reader whose language is not English': { context: { locale: 'ja-JP' } },
+    'the desktop app': { init: () => { window.__TAURI_INTERNALS__ = {}; } },
+    '"Show welcome on startup" turned off': {
+      init: () => localStorage.setItem('oristudio:show-welcome-on-startup', 'false'),
+    },
+    'a saved theme the copy was not painted in': { init: () => localStorage.setItem('oristudio:theme', 'Dracula') },
+  };
+  for (const [who, setup] of Object.entries(removed)) {
+    check(`never shows the copy to ${who}`, !(await copySurvives(browser, url, setup)));
+  }
+  check('never shows the copy on the editor’s URL', !(await copySurvives(browser, `${url}edit`)));
+  return results;
+}
+
 async function main() {
   const server = await servePagesLike(distDir, { trickleHtml: TRICKLE });
   const failures = mkdtempSync(path.join(tmpdir(), 'ori-static-paint-'));
   const browsers = { chromium: await chromium.launch(), webkit: await webkit.launch() };
   const comparer = await (await browsers.chromium.newContext()).newPage();
+  let results;
   try {
-    for (const [engine, browser] of Object.entries(browsers)) {
-      for (const [device, profile] of Object.entries(PROFILES)) {
-        for (const scheme of ['dark', 'light']) {
-          const name = `${engine} ${device} ${scheme}`;
-          const shots = await pair(browser, profile, scheme, server.url);
-          check(`${name}: the copy is the first paint`, shots.kept);
-          frameChecks(name, device, shots.frames);
-          for (const [where, [first, live]] of Object.entries({ top: shots.top, scrolled: shots.scrolled })) {
-            const diff = await differingPixels(comparer, first, live);
-            if (diff !== 0) {
-              const stem = path.join(failures, `${name.replaceAll(' ', '-')}-${where}`);
-              writeFileSync(`${stem}-first.png`, first);
-              writeFileSync(`${stem}-live.png`, live);
-            }
-            check(`${name}: identical to the live page ${where === 'top' ? 'at the top' : 'scrolled'}`, diff === 0, diff ? `${diff} px differ` : '');
-          }
-        }
-      }
-    }
-
-    const { chromium: browser } = browsers;
-    check('/welcome paints its copy too', await copySurvives(browser, `${server.url}welcome`));
-    const removed = {
-      'a reader whose language is not English': { context: { locale: 'ja-JP' } },
-      'the desktop app': { init: () => { window.__TAURI_INTERNALS__ = {}; } },
-      '"Show welcome on startup" turned off': {
-        init: () => localStorage.setItem('oristudio:show-welcome-on-startup', 'false'),
-      },
-      'a saved theme the copy was not painted in': { init: () => localStorage.setItem('oristudio:theme', 'Dracula') },
-    };
-    for (const [who, setup] of Object.entries(removed)) {
-      check(`never shows the copy to ${who}`, !(await copySurvives(browser, server.url, setup)));
-    }
-    check('never shows the copy on the editor’s URL', !(await copySurvives(browser, `${server.url}edit`)));
+    const lanes = await Promise.all([
+      ...Object.entries(browsers).map(([engine, browser]) => engineLane(engine, browser, server.url, comparer, failures)),
+      visitorsLane(browsers.chromium, server.url),
+    ]);
+    results = lanes.flat();
   } finally {
     await Promise.all(Object.values(browsers).map((browser) => browser.close()));
     await server.close();
   }
 
+  for (const { name, ok, detail } of results) {
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
+  }
   const failed = results.filter((result) => !result.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
   if (failed.length) {
