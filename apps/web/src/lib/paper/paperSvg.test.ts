@@ -93,6 +93,18 @@ describe('the page', () => {
     expect(crease!['stroke-width']).toBe(DEFAULT_PAPER_STYLE.mountainFolds.width.toFixed(2));
   });
 
+  // A folded figure's or a simulation's sheet is not in its picture: its size
+  // is the drawing's own longer side, whatever sheet it was folded from.
+  it('scales a figure by its own longer side when the size measures the figure', () => {
+    const page: PaperPage = { ...TIGHT, sheet: { mm: 50 } };
+    const scene = { ...sceneOf([], 400), bounds: { minX: 10, minY: 20, maxX: 130, maxY: 80 } };
+    expect(pagePtPerPx(scene, page, 'figure')).toBeCloseTo((50 * PT_PER_MM) / 120, 9);
+    expect(pagePtPerPx(scene, page, 'sheet')).toBeCloseTo((50 * PT_PER_MM) / 400, 9);
+    const { widthPt, heightPt } = paperSceneToSvg(scene, DEFAULT_PAPER_STYLE, page, 'figure');
+    expect(widthPt - 2 * pageMarginPt(DEFAULT_PAPER_STYLE, page)).toBeCloseTo(50 * PT_PER_MM, 6);
+    expect(heightPt - 2 * pageMarginPt(DEFAULT_PAPER_STYLE, page)).toBeCloseTo(25 * PT_PER_MM, 6);
+  });
+
   it('falls back to the screen ratio when the scene has no sheet to scale by', () => {
     expect(pagePtPerPx(sceneOf([], 0), { ...TIGHT, sheet: { mm: 200 } })).toBe(PT_PER_CSS_PX);
   });

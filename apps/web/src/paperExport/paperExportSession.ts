@@ -97,12 +97,12 @@ export function paperExportSceneInput(
 
 /** The page, painted: the painter's reading of the scene through the target's style. */
 export function paintPaperExport(
-  target: Pick<PaperExportTarget, 'paintStyle'>,
+  target: Pick<PaperExportTarget, 'paintStyle' | 'sizeMeasures'>,
   scene: PaperScene,
   style: PaperStyle,
   page: PaperPage
 ): PaperSvgResult {
-  return paperSceneToSvg(scene, target.paintStyle(style), page);
+  return paperSceneToSvg(scene, target.paintStyle(style), page, target.sizeMeasures);
 }
 
 /**

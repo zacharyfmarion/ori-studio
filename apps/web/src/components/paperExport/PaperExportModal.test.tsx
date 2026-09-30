@@ -83,6 +83,7 @@ function target(overrides: Partial<PaperExportTarget> = {}): PaperExportTarget {
     pages: null,
     exportStyle: DEFAULT_PAPER_STYLE,
     pins: null,
+    sizeMeasures: 'sheet',
     buriesFaces: true,
     sceneKey: ({ style }) => style.paper.front,
     buildScene: async () => SCENE,
@@ -320,6 +321,20 @@ describe('PaperExportModal', () => {
     await open(target());
     expect(button('As shown')).toBeDefined();
     expect(field('Sheet size')).toBeNull();
+  });
+
+  // A folded figure's or a simulation's sheet is nowhere in its picture, so
+  // its size is the figure's own, and the field and its hint say so.
+  it('sizes a picture with no sheet in it by the figure, and says so', async () => {
+    const { paperExport } = useSettingsStore.getState();
+    useSettingsStore.setState({
+      paperExport: { ...paperExport, 'folded-figure': { ...paperExport['folded-figure'], sheet: { mm: 50 } } },
+    });
+    await open(target({ sizeMeasures: 'figure', defaultSheetMm: 60 }));
+    expect(field('Sheet size')).toBeNull();
+    expect(field('Figure size')?.value).toBe('50');
+    expect(text()).toContain('The figure spans this size across its longer side');
+    expect(text()).not.toContain('The unfolded sheet spans this size');
   });
 
   it('puts Size and Margin on rows of one kind, each labelled beside its field', async () => {

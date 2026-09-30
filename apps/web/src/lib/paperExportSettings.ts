@@ -1,7 +1,7 @@
 import type { PaperExportFormat, PaperExportSurface } from '../analytics/events';
 import {
   DEFAULT_PAPER_PAGE,
-  DEFAULT_PAPER_SHEET_MM,
+  DEFAULT_PAPER_FIGURE_MM,
   DIAGRAM_STEP_SHEET_MM,
   normalizePaperPage,
   type PaperPage,
@@ -169,8 +169,8 @@ export function paperExportMemoryOf(settings: PaperExportSettings): PaperExportM
 
 /**
  * Every kind's options before it has exported anything: the seed, except that
- * a folded figure goes out on a sheet of {@link DEFAULT_PAPER_SHEET_MM} and a
- * step on a diagram's {@link DIAGRAM_STEP_SHEET_MM} — the sizes their export
+ * a folded figure goes out {@link DEFAULT_PAPER_FIGURE_MM} across and a step
+ * on a diagram's {@link DIAGRAM_STEP_SHEET_MM} sheet — the sizes their export
  * targets open at, having no "as shown" (`PaperExportTarget.defaultSheetMm`).
  *
  * A figure lies small beside its crease pattern, so "as shown" gave it a page
@@ -184,7 +184,7 @@ export function paperExportKindDefaults(
 ): PaperExportMemory {
   return {
     ...paperExportMemoryOf(seed),
-    'folded-figure': { ...seed, sheet: { mm: DEFAULT_PAPER_SHEET_MM } },
+    'folded-figure': { ...seed, sheet: { mm: DEFAULT_PAPER_FIGURE_MM } },
     step: { ...seed, sheet: { mm: DIAGRAM_STEP_SHEET_MM } },
   };
 }

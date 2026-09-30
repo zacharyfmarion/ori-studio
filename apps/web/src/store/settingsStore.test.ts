@@ -7,7 +7,7 @@ import {
   CP_MIN_SNAP_RADIUS,
 } from '../lib/cpSnapRadiusSetting';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
-import { DEFAULT_PAPER_SHEET_MM, DIAGRAM_STEP_SHEET_MM, PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_FIGURE_MM, DIAGRAM_STEP_SHEET_MM, PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../lib/paper/paperPng';
 import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
 import {
@@ -476,7 +476,7 @@ describe('paperExport', () => {
     expect(paperExport).toEqual(paperExportKindDefaults());
     // A folded figure opens on a sheet it reads well at, a step at a printed
     // diagram's; only a simulation as shown.
-    expect(paperExport['folded-figure'].sheet).toEqual({ mm: DEFAULT_PAPER_SHEET_MM });
+    expect(paperExport['folded-figure'].sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
     expect(paperExport.step.sheet).toEqual({ mm: DIAGRAM_STEP_SHEET_MM });
     expect(paperExport.simulation.sheet).toBe('as-shown');
     expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();

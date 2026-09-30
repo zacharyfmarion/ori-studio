@@ -69,6 +69,8 @@ export function referencesExportTarget(capture: ReferencesExportCapture): PaperE
       zipStem: capture.zipStem,
     },
     exportStyle: capture.exportStyle,
+    // A step is drawn on its sheet, the frame a diagram's steps share.
+    sizeMeasures: 'sheet',
     defaultSheetMm: DIAGRAM_STEP_SHEET_MM,
     pins: null,
     buriesFaces: false,

@@ -305,6 +305,8 @@
     "exporting": "正在导出…",
     "exportingPages": "正在导出第 {{done}} 个，共 {{total}} 个…",
     "exportStyle": "导出样式 · {{style}}",
+    "figureMm": "图形尺寸",
+    "figureSizeHint": "图形的长边为此尺寸。线条保持原有粗细。",
     "fixedHint": "此折叠模型按保存时的样子导出：样式和页面都是绘制时的。重新折叠后，即可按你选择的样式、尺寸和页面导出。",
     "format": "格式",
     "hiddenFacesDropped_other": "省略了 {{count}} 个隐藏面",

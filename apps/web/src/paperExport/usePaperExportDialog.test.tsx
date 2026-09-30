@@ -2,7 +2,7 @@ import { strFromU8, strToU8, unzipSync } from 'fflate';
 import { act, StrictMode, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_PAPER_SHEET_MM, DIAGRAM_STEP_SHEET_MM } from '../lib/paper/paperPage';
+import { DEFAULT_PAPER_FIGURE_MM, DIAGRAM_STEP_SHEET_MM } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../lib/paper/paperStyle';
 import { builtInPaperPreset } from '../lib/paper/paperPresets';
@@ -103,6 +103,7 @@ function fakeTarget(overrides: Partial<PaperExportTarget> = {}) {
     pages: null,
     exportStyle: DEFAULT_PAPER_STYLE,
     pins: null,
+    sizeMeasures: 'figure',
     buriesFaces: true,
     // The paper colour and the hidden test are what this fake's picture bakes in.
     sceneKey: ({ style, markHidden }) => `${style.paper.front}|${markHidden}`,
@@ -684,8 +685,8 @@ describe('usePaperExportDialog, each kind of export on options of its own', () =
 describe('usePaperExportDialog on its first run', () => {
   it('opens a folded figure on a sheet it reads well at, a step at a diagram’s, a simulation as shown', async () => {
     const openedOn = [
-      ['folded-flat', { mm: DEFAULT_PAPER_SHEET_MM }],
-      ['folded-3d', { mm: DEFAULT_PAPER_SHEET_MM }],
+      ['folded-flat', { mm: DEFAULT_PAPER_FIGURE_MM }],
+      ['folded-3d', { mm: DEFAULT_PAPER_FIGURE_MM }],
       ['simulator', 'as-shown'],
       ['references', { mm: DIAGRAM_STEP_SHEET_MM }],
     ] as const;

@@ -52,6 +52,9 @@ export function simulatorExportTarget({
     pages: null,
     exportStyle,
     pins,
+    // The model as it stands, not the unfolded sheet, which a folding model
+    // only is at the very start.
+    sizeMeasures: 'figure',
     buriesFaces: true,
     sceneKey: ({ style, markHidden }) => `${simulatorSceneStyleKey(style)}|${markHidden}`,
     buildScene: ({ style, markHidden }) => snapshot.scene({ style, markHidden }),

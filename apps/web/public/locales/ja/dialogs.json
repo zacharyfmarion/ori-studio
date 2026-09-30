@@ -305,6 +305,8 @@
     "exporting": "書き出し中…",
     "exportingPages": "{{total}} 件中 {{done}} 件目を書き出し中…",
     "exportStyle": "書き出しスタイル · {{style}}",
+    "figureMm": "図のサイズ",
+    "figureSizeHint": "図の長い辺がこの大きさになります。線の太さは変わりません。",
     "fixedHint": "この折り図は保存されたときのまま書き出されます。スタイルとページは描かれたときのものです。スタイル、サイズ、ページを選んで書き出すには、もう一度折ってください。",
     "format": "形式",
     "hiddenFacesDropped_other": "隠れた面 {{count}} 枚を省略",

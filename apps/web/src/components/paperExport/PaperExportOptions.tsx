@@ -11,10 +11,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_PAPER_BACKGROUND,
-  DEFAULT_PAPER_SHEET_MM,
+  DEFAULT_PAPER_FIGURE_MM,
   PAPER_PADDING_MM_RANGE,
   PAPER_SHEET_MM_RANGE,
   sheetMmOf,
+  type PaperSizeMeasure,
 } from '../../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../../lib/paper/paperPng';
 import type {
@@ -44,6 +45,7 @@ export function PaperExportOptions({
   draft,
   patch,
   buriesFaces,
+  sizeMeasures,
   defaultSheetMm,
   marks,
   scopes,
@@ -54,6 +56,8 @@ export function PaperExportOptions({
   patch: (next: Partial<PaperExportSettings>) => void;
   /** The picture can have buried faces; false hides Keep hidden faces. */
   buriesFaces: boolean;
+  /** What its size measures (`PaperExportTarget.sizeMeasures`): the sheet or the figure, which the hint says. */
+  sizeMeasures: PaperSizeMeasure;
   /** The sheet it opens at when its screen size is no size (`PaperExportTarget.defaultSheetMm`); set, the sheet size is offered alone. */
   defaultSheetMm?: number;
   /** The marks the picture can be exported without (`PaperExportTarget.marks`); none hides the Diagram section. */
@@ -192,8 +196,12 @@ export function PaperExportOptions({
             <div className="export-modal__field-row">
               <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>
               <NumberField
-                label={t('dialogs:paperExport.sheetMm', 'Sheet size')}
-                value={draft.sheet === 'as-shown' ? DEFAULT_PAPER_SHEET_MM : draft.sheet.mm}
+                label={
+                  sizeMeasures === 'figure'
+                    ? t('dialogs:paperExport.figureMm', 'Figure size')
+                    : t('dialogs:paperExport.sheetMm', 'Sheet size')
+                }
+                value={draft.sheet === 'as-shown' ? DEFAULT_PAPER_FIGURE_MM : draft.sheet.mm}
                 min={PAPER_SHEET_MM_RANGE.min}
                 max={PAPER_SHEET_MM_RANGE.max}
                 step={PAPER_SHEET_MM_RANGE.step}
@@ -205,10 +213,15 @@ export function PaperExportOptions({
           <small className="export-modal__hint">
             {sheetMode === 'as-shown'
               ? t('dialogs:paperExport.sheetAsShownHint', 'The size it is on screen, at the current zoom.')
-              : t(
-                  'dialogs:paperExport.sheetCustomHint',
-                  'The unfolded sheet spans this size, edge to edge. Lines keep their widths.'
-                )}
+              : sizeMeasures === 'figure'
+                ? t(
+                    'dialogs:paperExport.figureSizeHint',
+                    'The figure spans this size across its longer side. Lines keep their widths.'
+                  )
+                : t(
+                    'dialogs:paperExport.sheetCustomHint',
+                    'The unfolded sheet spans this size, edge to edge. Lines keep their widths.'
+                  )}
           </small>
         </div>
         <div className="export-modal__field-row">

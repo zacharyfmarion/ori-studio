@@ -313,6 +313,8 @@
     "exporting": "Exporting…",
     "exportingPages": "Exporting {{done}} of {{total}}…",
     "exportStyle": "Export style · {{style}}",
+    "figureMm": "Figure size",
+    "figureSizeHint": "The figure spans this size across its longer side. Lines keep their widths.",
     "fixedHint": "This figure is exported as it was saved: its style and page are the ones it was drawn with. Fold it again to export it in a style, at a size and on a page of your choosing.",
     "format": "Format",
     "hiddenFacesDropped_one": "{{count}} hidden face left out",

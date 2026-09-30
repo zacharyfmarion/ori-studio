@@ -321,6 +321,8 @@
     "exporting": "Exportation…",
     "exportingPages": "Exportation {{done}} sur {{total}}…",
     "exportStyle": "Style d'exportation · {{style}}",
+    "figureMm": "Taille de la figure",
+    "figureSizeHint": "La figure mesure cette taille sur son côté le plus long. Les traits gardent leur épaisseur.",
     "fixedHint": "Ce modèle est exporté tel qu'il a été enregistré\u00a0: son style et sa page sont ceux avec lesquels il a été dessiné. Repliez-le pour l'exporter dans le style, à la taille et sur la page de votre choix.",
     "format": "Format",
     "hiddenFacesDropped_one": "{{count}} face cachée omise",

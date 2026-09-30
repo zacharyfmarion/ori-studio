@@ -313,6 +313,8 @@
     "exporting": "Wird exportiert…",
     "exportingPages": "{{done}} von {{total}} wird exportiert…",
     "exportStyle": "Exportstil · {{style}}",
+    "figureMm": "Figurgröße",
+    "figureSizeHint": "Die Figur misst an ihrer längeren Seite diese Größe. Linien behalten ihre Breiten.",
     "fixedHint": "Diese Figur wird so exportiert, wie sie gespeichert wurde: Stil und Seite sind die, mit denen sie gezeichnet wurde. Falte sie erneut, um sie in einem Stil, einer Größe und auf einer Seite deiner Wahl zu exportieren.",
     "format": "Format",
     "hiddenFacesDropped_one": "{{count}} verdeckte Fläche weggelassen",

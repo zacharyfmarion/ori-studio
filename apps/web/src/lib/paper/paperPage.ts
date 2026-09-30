@@ -12,8 +12,23 @@ import { parseHex, type Hex } from './paperStyle';
 export type PaperSheetSize =
   /** The sheet's on-screen size, 1 CSS px = 0.75 pt: exact WYSIWYG. */
   | 'as-shown'
-  /** The unfolded sheet spans this many mm; the pens keep their pt widths. */
+  /**
+   * The picture is this many mm across what its kind measures
+   * ({@link PaperSizeMeasure}); the pens keep their pt widths.
+   */
   | { mm: number };
+
+/**
+ * What a size in mm measures on a picture.
+ *
+ * `'sheet'`: the unfolded sheet, edge to edge — for a picture that shows it,
+ * a diagram step, where the sheet is the frame the reader reads the step in.
+ * `'figure'`: the drawing itself, across its longer side — for a folded figure
+ * or a simulation, whose unfolded sheet is nowhere in the picture. Measured by
+ * the sheet, a folded model came out a third of the size asked for, and its
+ * pens, which keep their pt widths, drew it like a cartoon.
+ */
+export type PaperSizeMeasure = 'sheet' | 'figure';
 
 export interface PaperPage {
   sheet: PaperSheetSize;
@@ -36,12 +51,12 @@ export const DEFAULT_PAPER_PAGE: PaperPage = {
 };
 
 /**
- * The sheet size a user gets when they leave "as shown", and a folded figure's
- * sheet: a round number about the size of a sheet of printer paper, well
- * inside the range. Big enough that a figure's pens, which keep their pt
- * widths at any size, read as fine lines rather than outweighing the picture.
+ * The size a figure's picture opens at — a folded figure's, and a simulation's
+ * when a user leaves "as shown" — across its longer side: a finished model's
+ * picture in a printed diagram, about half again a step's square. Its pens
+ * keep their pt widths at any size, so this is what sets how fine they read.
  */
-export const DEFAULT_PAPER_SHEET_MM = 250;
+export const DEFAULT_PAPER_FIGURE_MM = 60;
 
 /**
  * A diagram step's sheet: the square a printed diagram draws each step on,
@@ -53,9 +68,9 @@ export const DIAGRAM_STEP_SHEET_MM = 41;
 /** The page colour a transparent page turns into when the user asks for one. */
 export const DEFAULT_PAPER_BACKGROUND: Hex = '#ffffff';
 
-/** The sheet size in mm the size field shows: the chosen one, or the default while "as shown". */
+/** The size in mm the size field shows: the chosen one, or a figure's default while "as shown". */
 export function sheetMmOf(sheet: PaperSheetSize): number {
-  return sheet === 'as-shown' ? DEFAULT_PAPER_SHEET_MM : sheet.mm;
+  return sheet === 'as-shown' ? DEFAULT_PAPER_FIGURE_MM : sheet.mm;
 }
 
 /** The sheet sizes the UI offers, in mm. */

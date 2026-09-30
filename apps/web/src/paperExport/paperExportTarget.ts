@@ -14,7 +14,7 @@
  * a fake one in a test.
  */
 import type { PaperExportScope } from '../analytics/events';
-import type { PaperSheetSize } from '../lib/paper/paperPage';
+import type { PaperSheetSize, PaperSizeMeasure } from '../lib/paper/paperPage';
 import type { PaperScene } from '../lib/paper/paperScene';
 import type { Hex, PaperStyle, PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { PaperSurface } from '../lib/paper/paperStyleResolve';
@@ -104,8 +104,15 @@ export interface PaperExportTarget {
   /** Whether the picture can have buried faces at all: false for a References step, one sheet with nothing under it. */
   buriesFaces: boolean;
   /**
-   * The sheet size it opens at, for a picture whose size on screen is no size
-   * to export at; the dialog then offers no "As shown". A folded figure lies
+   * What its size in mm measures: the unfolded sheet, for a picture that shows
+   * it (a step), or the figure across its longer side, for one that does not
+   * (a folded figure, a simulation). The painter scales by it and the size
+   * field's hint says which.
+   */
+  sizeMeasures: PaperSizeMeasure;
+  /**
+   * The size it opens at, for a picture whose size on screen is no size to
+   * export at; the dialog then offers no "As shown". A folded figure lies
    * small beside its crease pattern, at whatever zoom the pattern is at, and a
    * step has the size a printed diagram gives it. Omitted — a simulation —
    * means "As shown" is offered and is where a first export starts.

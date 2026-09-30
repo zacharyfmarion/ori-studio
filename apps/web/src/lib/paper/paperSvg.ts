@@ -12,7 +12,7 @@
  * can read the page off a hand-built scene.
  */
 import { shadeColor } from '@treemaker/origami-simulator';
-import type { PaperPage } from './paperPage';
+import type { PaperPage, PaperSizeMeasure } from './paperPage';
 import type {
   PaperFaceItem,
   PaperLineItem,
@@ -58,12 +58,23 @@ export interface PaperSvgResult {
 
 /**
  * Points per scene px for a page: the screen's own ratio, or whatever makes
- * the unfolded sheet span the sheet size asked for. A scene with no sheet
- * extent (an empty one) has nothing to scale by and takes the screen's ratio.
+ * what the size measures span the size asked for — the unfolded sheet, or the
+ * figure's longer side (its bounds). A scene with nothing to measure (an empty
+ * one) has nothing to scale by and takes the screen's ratio.
  */
-export function pagePtPerPx(scene: PaperScene, page: PaperPage): number {
-  if (page.sheet === 'as-shown' || !(scene.sheet > 0)) return PT_PER_CSS_PX;
-  return (page.sheet.mm * PT_PER_MM) / scene.sheet;
+export function pagePtPerPx(
+  scene: PaperScene,
+  page: PaperPage,
+  measure: PaperSizeMeasure = 'sheet'
+): number {
+  const span = measure === 'figure' ? sceneFigureSpan(scene) : scene.sheet;
+  if (page.sheet === 'as-shown' || !(span > 0)) return PT_PER_CSS_PX;
+  return (page.sheet.mm * PT_PER_MM) / span;
+}
+
+/** A scene's drawing across its longer side, in scene px. */
+function sceneFigureSpan({ bounds }: PaperScene): number {
+  return Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
 }
 
 /** Every role a line can have, so a question over all of them misses none. */
@@ -112,15 +123,17 @@ export function pageMarginPt(style: PaperStyle, page: PaperPage): number {
 /**
  * Paint a scene onto a page. The artwork is cropped to the scene's bounds —
  * hidden pieces included, so the page does not move when they are dropped —
- * with the margin ({@link pageMarginPt}) around it, at `sheet`'s scale. The
- * pens keep their pt widths whatever the scale, as a drawing editor's do.
+ * with the margin ({@link pageMarginPt}) around it, at the scale that gives
+ * what `measure` names the page's size. The pens keep their pt widths
+ * whatever the scale, as a drawing editor's do.
  */
 export function paperSceneToSvg(
   scene: PaperScene,
   style: PaperStyle,
-  page: PaperPage
+  page: PaperPage,
+  measure: PaperSizeMeasure = 'sheet'
 ): PaperSvgResult {
-  const ptPerPx = pagePtPerPx(scene, page);
+  const ptPerPx = pagePtPerPx(scene, page, measure);
   const marginPt = pageMarginPt(style, page);
   const { bounds } = scene;
   const widthPt = (bounds.maxX - bounds.minX) * ptPerPx + marginPt * 2;

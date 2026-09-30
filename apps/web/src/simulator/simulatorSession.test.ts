@@ -18,7 +18,7 @@ import {
   resolvePaperStyle,
   surfacePaperStyle,
 } from '../lib/paper/paperStyleResolve';
-import { paperSceneToSvg, type PaperSvgResult } from '../lib/paper/paperSvg';
+import { PT_PER_MM, paperSceneToSvg, type PaperSvgResult } from '../lib/paper/paperSvg';
 import { DEFAULT_PAPER_EXPORT_SETTINGS } from '../lib/paperExportSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
 import {
@@ -1052,9 +1052,12 @@ async function dialogPage(
 }
 
 describe('the export dialog’s page of a simulation', () => {
-  it('is the page the retired exportSvg wrote, byte for byte', async () => {
+  it('is the page the retired exportSvg wrote, byte for byte, and a sized page sizes the figure', async () => {
     // `simulatorExportGolden.json` was written by `exportSvg` before it was
-    // retired, from exactly this session and these two requests.
+    // retired, from exactly this session and these two requests. The sized
+    // page was repainted when a simulation's size came to measure the model
+    // rather than its unfolded sheet: at 120 mm the drawing's longer side is
+    // now 120 mm. Only the scale moved.
     const session = createSimulatorSession();
     const info = session.load(miura(6, 6), {});
     session.setFoldPercent(60);
@@ -1088,6 +1091,8 @@ describe('the export dialog’s page of a simulation', () => {
 
     expect(defaults).toEqual(golden.defaults);
     expect(custom).toEqual(golden.custom);
+    // 120 mm across the model's longer side, inside two 12 mm margins.
+    expect(Math.max(custom.widthPt, custom.heightPt) / PT_PER_MM - 2 * 12).toBeCloseTo(120, 6);
     session.dispose();
   }, 30_000);
 });

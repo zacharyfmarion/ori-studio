@@ -10,7 +10,9 @@ import type {
   OristudioCpFoldedRenderSnapshot,
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
+import { DEFAULT_PAPER_FIGURE_MM } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
+import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import {
   DEFAULT_PAPER_EXPORT_SETTINGS,
@@ -48,6 +50,11 @@ import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
  * on these figures, with the settings store at its defaults and no canvas
  * mounted, and are compared here with the dialog's own path: the capture, the
  * draft, the style it resolves, the session's scene, and the paint.
+ *
+ * The custom pages were repainted when a figure's size came to measure the
+ * figure rather than the sheet it was folded from: at 120 mm the drawing's
+ * longer side is now 120 mm, where the unfolded sheet used to be. Only the
+ * scale moved; the default pages, drawn as shown, are the direct export's.
  */
 
 type Entry = OristudioCpFoldedFigureEntry;
@@ -467,6 +474,7 @@ describe('foldedFigureExportTarget', () => {
   });
 
   it('never offers "as shown": a figure lies small beside its crease pattern, whatever picture it is', () => {
+    expect(DEFAULT_PAPER_FIGURE_MM).toBe(60);
     const stored = spatial({ handle: null });
     const legacy = flat({ handle: null });
     for (const exported of [
@@ -475,7 +483,25 @@ describe('foldedFigureExportTarget', () => {
       targetOf(flat(), pictureOf(flat(), { kernel: kernelScene() })!),
       targetOf(legacy, pictureOf(legacy)!),
     ]) {
-      expect(exported.defaultSheetMm).toBe(250);
+      expect(exported.defaultSheetMm).toBe(DEFAULT_PAPER_FIGURE_MM);
+      expect(exported.sizeMeasures).toBe('figure');
+    }
+  });
+
+  // The sheet a figure was folded from is nowhere in its picture, so a size
+  // is the drawing's own: its longer side, margins aside, is what was asked for.
+  it('sizes the figure, not the sheet it was folded from', async () => {
+    for (const [figure, runtime] of [
+      [spatial(), { model: RENDER_MODEL }],
+      [spatial(), {}],
+      [flat(), { kernel: kernelScene() }],
+    ] as const) {
+      for (const mm of [41, 120]) {
+        const svg = await dialogSvg(figure, runtime, { ...CUSTOM, sheet: { mm } });
+        const [, width, height] = /width="([\d.]+)pt" height="([\d.]+)pt"/.exec(svg)!;
+        const longerMm = Math.max(Number(width), Number(height)) / PT_PER_MM - 2 * CUSTOM.paddingMm;
+        expect(longerMm).toBeCloseTo(mm, 1);
+      }
     }
   });
 

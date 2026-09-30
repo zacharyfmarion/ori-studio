@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PAPER_PAGE,
-  DEFAULT_PAPER_SHEET_MM,
+  DEFAULT_PAPER_FIGURE_MM,
   PAPER_PADDING_MM_RANGE,
   PAPER_SHEET_MM_RANGE,
   normalizePaperPage,
@@ -9,9 +9,9 @@ import {
 } from './paperPage';
 
 describe('sheetMmOf', () => {
-  it('fills Custom with a 250 mm sheet while the page is "as shown", and keeps a chosen size', () => {
-    expect(DEFAULT_PAPER_SHEET_MM).toBe(250);
-    expect(sheetMmOf('as-shown')).toBe(250);
+  it('fills Custom with a 60 mm figure while the page is "as shown", and keeps a chosen size', () => {
+    expect(DEFAULT_PAPER_FIGURE_MM).toBe(60);
+    expect(sheetMmOf('as-shown')).toBe(60);
     expect(sheetMmOf({ mm: 80 })).toBe(80);
   });
 });
