@@ -21,9 +21,10 @@
  * assembly testable: the failure it guards against (a page carrying the homepage's
  * canonical) deploys and serves without a sound.
  */
+import { build } from 'esbuild';
 import { createServer } from 'vite';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -75,16 +76,59 @@ async function withVite(fn) {
   }
 }
 
+/**
+ * The landing's two static-paint scripts (`src/seo/staticPaint.ts`), each as one
+ * self-contained script to inline — the head half in `<head>`, the body half after the copy.
+ * Their own bundles rather than chunks of the app's: they run during the parse, before the
+ * app's module script has even been fetched. The ceiling catches an import that drags
+ * something heavy in — React has no `sideEffects` flag, so one stray hook import would.
+ */
+const STATIC_PAINT_CEILING = 16_000;
+
+async function bundleStaticPaint() {
+  const result = await build({
+    entryPoints: {
+      head: resolve(webRoot, 'src/seo/staticPaintHead.ts'),
+      body: resolve(webRoot, 'src/seo/staticPaintBody.ts'),
+    },
+    // Nothing is written; esbuild needs a directory to name two outputs.
+    outdir: resolve(webRoot, 'static-paint'),
+    bundle: true,
+    format: 'iife',
+    globalName: '__oriStaticPaint',
+    platform: 'browser',
+    target: 'es2020',
+    minify: true,
+    write: false,
+    logLevel: 'warning',
+  });
+  const scripts = Object.fromEntries(
+    result.outputFiles.map((file) => [basename(file.path, '.js'), file.text.trim()])
+  );
+  for (const [half, code] of Object.entries(scripts)) {
+    if (code.length > STATIC_PAINT_CEILING) {
+      fail(`the static-paint ${half} script is ${code.length} bytes, over ${STATIC_PAINT_CEILING} — check what it imports`);
+    }
+  }
+  if (!scripts.head || !scripts.body) fail('esbuild did not produce both static-paint scripts');
+  return scripts;
+}
+
 async function main() {
   const template = await readFile(resolve(dist, 'index.html'), 'utf8');
+  const paintScripts = await bundleStaticPaint();
 
-  const { files, paths, meta } = await withVite(async (load) => {
+  const { files, paths, meta, bare } = await withVite(async (load) => {
     const entry = await load('/src/seo/prerenderEntry.tsx');
     const pages = await load('/src/site/sitePages.ts');
+    const html = await load('/src/seo/prerenderHtml.ts');
     return {
-      files: entry.prerenderSite(template),
+      files: entry.prerenderSite(template, paintScripts),
       paths: pages.SITEMAP_PATHS,
       meta: await load('/src/seo/siteMeta.ts'),
+      // Measured against the template without a copy, so a re-run over this script's own
+      // output (the quick way to iterate on it) measures the page, not the difference.
+      bare: html.stripExistingContent(template),
     };
   });
   const { SITE_ORIGIN, siteUrl } = meta;
@@ -93,7 +137,7 @@ async function main() {
     // A render that silently produced nothing would sail through every later check: the
     // file would still be valid HTML, still deploy, still 200. Only the words would be
     // gone, which is the one thing nothing downstream inspects.
-    const size = html.length - template.length;
+    const size = html.length - bare.length;
     if (size < 1000) fail(`${page.path} rendered only ${size} bytes of markup — expected a page`);
     const target = resolve(dist, file);
     await mkdir(dirname(target), { recursive: true });

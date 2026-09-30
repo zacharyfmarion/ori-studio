@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { useSitePageTitle } from './useSitePageTitle';
 import { useWindowTitle } from './useWindowTitle';
 import { SITE_TITLE } from '../seo/siteMeta';
 import {
@@ -42,8 +43,10 @@ import { preloadLocale } from '../test/preloadLocale';
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
+/** Both title hooks, as the app mounts them: `RootLayout` and the workspace runtime. */
 function Probe() {
   useWindowTitle();
+  useSitePageTitle();
   return null;
 }
 
@@ -229,5 +232,39 @@ describe('useWindowTitle', () => {
       });
     });
     expect(window.document.title).toBe('crane-v2.osf - Ori Studio');
+  });
+
+  it('titles a site page by itself, before any workspace has loaded', () => {
+    // What the landing renders on a first visit: `RootLayout` alone, no runtime.
+    function SitePageOnly() {
+      useSitePageTitle();
+      return null;
+    }
+    act(() =>
+      root?.render(
+        <MemoryRouter initialEntries={[WELCOME_PATH]}>
+          <SitePageOnly />
+        </MemoryRouter>
+      )
+    );
+    expect(window.document.title).toBe(SITE_TITLE);
+  });
+
+  it('leaves a site page to useSitePageTitle', () => {
+    function DocumentOnly() {
+      useWindowTitle();
+      return null;
+    }
+    act(() => {
+      useWorkspaceStore.setState({ workspaceTitle: 'Crane', ...singleTreemakerDesignTab() } as never);
+    });
+    act(() =>
+      root?.render(
+        <MemoryRouter initialEntries={[WELCOME_PATH]}>
+          <DocumentOnly />
+        </MemoryRouter>
+      )
+    );
+    expect(window.document.title).toBe('');
   });
 });

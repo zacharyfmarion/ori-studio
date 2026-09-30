@@ -1,9 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-
-/** Scroll distance past which the page is no longer "at the top". */
-const AT_TOP_THRESHOLD_PX = 24;
+import { AT_TOP_THRESHOLD_PX } from './scrollCueThreshold';
 
 interface WelcomeScrollCueProps {
   /** The welcome page's scroll container. */

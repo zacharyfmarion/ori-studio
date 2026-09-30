@@ -274,6 +274,11 @@ Console under the new property and run the Change of Address tool.
 
 ### Phase 4 — Make the landing fast
 
+> **Superseded by `landing-page-performance.md` (2026-09-23)**, which re-measured
+> the landing (1,116 KB brotli by then). It found three more causes as large as
+> the bundle: the crawler copy is removed before first paint, the landing boots
+> both editor engines, and the screenshots ship at 3456 px.
+
 988 KB brotli of JS before first paint, on a page whose whole job is text and
 screenshots. Core Web Vitals are a real ranking input and this is the render
 Google scores.
@@ -516,9 +521,12 @@ is already shipped.
 
 ### Phase 4 — Performance
 
-- [ ] Lazy-load the workspace shell so `/welcome` does not pull the editor
-- [ ] Measure the landing chunk before and after; record both numbers
-- [ ] Intrinsic `width`/`height` on landing figures; lazy below the fold
+Tracked in `landing-page-performance.md` from 2026-09-23.
+
+- [x] Lazy-load the workspace shell so `/welcome` does not pull the editor
+- [x] Measure the landing chunk before and after; record both numbers
+- [x] ~~Intrinsic `width`/`height` on landing figures~~. The figure frames hold
+      16:9 in CSS; CLS measures 0. Lazy below the fold
 - [ ] Lighthouse mobile against the deployed build; record LCP/CLS/INP
 
 ### Phase 5 — Off-page

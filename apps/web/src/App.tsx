@@ -1,9 +1,7 @@
 import { selectSelection } from './store/workspaceStore/designTabs';
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { useAppOpenedEvent } from './analytics';
 import { BpOptimizerModal } from './components/BpOptimizerModal';
 import { CommandDialogModal } from './components/CommandDialogModal';
 import { CpDetectImportModal } from './components/CpDetectImportModal';
@@ -35,16 +33,18 @@ import { sitePageForPath } from './site/sitePages';
 import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
+import { ensureEngineBooted } from './store/workspaceStore/engineBoot';
 import './styles/sonner.css';
 
 /**
- * Root layout route. Owns app-wide lifecycle (engine init, window title, close
- * guards, global keyboard, workspace↔URL sync) and the always-mounted overlays,
- * and renders the active route (`/welcome` or a workspace) into the outlet.
+ * The workspace runtime: app-wide lifecycle (engine init, window title, close
+ * guards, global keyboard, workspace↔URL sync) and the always-mounted overlays.
+ * Loaded through `routing/workspaceGateway.ts` and mounted by `RootLayout` beside
+ * the active route once loaded, which is what lets the landing page render
+ * without it.
  */
 export default function App() {
   const { t } = useTranslation();
-  const initEngine = useWorkspaceStore((state) => state.initEngine);
   const openProject = useWorkspaceStore((state) => state.openProject);
   const selectNone = useWorkspaceStore((state) => state.selectNone);
   const engineReady = useWorkspaceStore((state) => state.engineReady);
@@ -52,21 +52,16 @@ export default function App() {
 
   useWelcomeDiscardGuard();
 
-  // Fire `app opened` once per launch (super properties ride along).
-  useAppOpenedEvent();
-
   useEffect(() => startWorkspaceUrlSync(), []);
 
   useTauriNativeMenu();
   useUpdateCheck();
 
-  // Unconditional. A phone used to skip it — the workspaces were closed there,
-  // so the CP and TreeMaker bridges were pure cost on the connection least able
-  // to afford them — but a phone can reach a workspace now, and a start screen
-  // whose engine never booted sits on "Preparing the editor…" forever.
+  // Every device, once the runtime is mounted — which is only once the workspace is
+  // in use or asked for. The landing page's first load boots nothing.
   useEffect(() => {
-    void initEngine();
-  }, [initEngine]);
+    void ensureEngineBooted();
+  }, []);
 
   // Route worker deaths into the store's error envelope so they reach the same
   // toast as engine errors. The runtime modules that own the workers keep no
@@ -166,7 +161,6 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <Outlet />
       <OverlayErrorBoundary id="help">
         <HelpModal />
       </OverlayErrorBoundary>

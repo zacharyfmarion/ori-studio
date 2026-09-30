@@ -250,6 +250,9 @@
   "number": {
     "tooSmall": "Enter a number greater than {{minimum}}."
   },
+  "openProject": {
+    "title": "Open Ori Studio Project or Crease Pattern"
+  },
   "orieditaImport": {
     "alreadyMatches_one": "Already matches ({{count}})",
     "alreadyMatches_other": "Already matches ({{count}})",

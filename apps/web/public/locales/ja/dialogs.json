@@ -247,6 +247,9 @@
   "number": {
     "tooSmall": "{{minimum}} より大きい数値を入力してください。"
   },
+  "openProject": {
+    "title": "Ori Studio プロジェクトまたは展開図を開く"
+  },
   "orieditaImport": {
     "alreadyMatches_other": "変更なし ({{count}})",
     "apply_other": "{{count}} 件のショートカットを適用",
