@@ -23,6 +23,7 @@ import {
 } from './diagram/diagramInk';
 import type { StepDiagramModel, StepDiagramPrimitive } from './referenceFinderDiagramToPrimitives';
 import { referencesExportTarget } from './referencesExportTarget';
+import { ARROWHEAD_MIN_STROKES } from './stepDiagramGeometry';
 import { decodePlanModel, planModelPoints, planStepScene } from './referencesPlanGeometry';
 
 /**
@@ -36,8 +37,13 @@ import { decodePlanModel, planModelPoints, planStepScene } from './referencesPla
  * built at the page's scale, so that its marks keep their on-screen size on a
  * sheet of any size (`referencesStepSheetCssPx`). At a chosen sheet size the
  * sheet and every line on it stayed the direct export's to the byte; only the
- * marks, and the room a letter takes, changed. The defaults page is a printed
- * diagram's step, the size the dialog opens a step at.
+ * marks, and the room a letter takes, changed. They were repainted again when
+ * the arrowheads took a printed diagram's smaller, concave shape and came to
+ * sit on their strokes' ends: only the return stroke's end and the head moved.
+ * Then the rings shrank to four fifths and took the arrow's pen, and the
+ * letters that keep clear of them drew in, so the crop round them tightened.
+ * The defaults page is a printed diagram's step, the size the dialog opens a
+ * step at.
  */
 
 function mapToModel(points: Float64Array): Float64Array {
@@ -283,7 +289,8 @@ describe('a step’s marks on the page', () => {
       for (const arrow of arrows) {
         expect(Number(arrow['stroke-width']) * scale, `${mm} mm`).toBeCloseTo(STYLE.arrows.width, 6);
       }
-      // A letter and its halo, and a ring, are what they are on screen.
+      // A letter and its halo, and a ring, are what they are on screen; the
+      // ring's stroke is the arrow's pen, which it shares with its arrow.
       const letters = elements(markup, 'text');
       expect(letters.length, `${mm} mm`).toBeGreaterThan(0);
       for (const letter of letters) {
@@ -294,19 +301,24 @@ describe('a step’s marks on the page', () => {
       expect(rings.length, `${mm} mm`).toBeGreaterThan(0);
       for (const ring of rings) {
         expect(Number(ring.r) * scale).toBeCloseTo(DIAGRAM_MARK_INK.radius * ink, 6);
-        expect(Number(ring['stroke-width']) * scale).toBeCloseTo(DIAGRAM_MARK_INK.width * ink, 6);
+        expect(Number(ring['stroke-width']) * scale).toBeCloseTo(STYLE.arrows.width, 6);
       }
     }
   });
 
-  /** An arrowhead's length, tip to the middle of its base, in its own units. */
-  function headLength(points: string): number {
-    const [tip, left, right] = points.split(' ').map((pair) => pair.split(',').map(Number));
-    const base = [(left![0]! + right![0]!) / 2, (left![1]! + right![1]!) / 2];
-    return Math.hypot(tip![0]! - base[0]!, tip![1]! - base[1]!);
+  /**
+   * An arrowhead's length, tip to the middle of the line through its barbs, in
+   * its own units, from its path: `M tip L barb Q control barb Z`.
+   */
+  function headLength(d: string): number {
+    const [tx, ty, ax, ay, , , bx, by] = d
+      .split(' ')
+      .filter((token) => !/[A-Z]/.test(token))
+      .map(Number) as [number, number, number, number, number, number, number, number];
+    return Math.hypot(tx - (ax + bx) / 2, ty - (ay + by) / 2);
   }
 
-  it('gives an arrowhead its on-screen size, and a short fold’s a quarter of its chord, as the view does', async () => {
+  it('gives an arrowhead its on-screen size, and a short fold’s a share of its chord but never under four strokes, as the view does', async () => {
     // A quarter-turn of a 40-unit circle: a chord of 57 units on the plan's
     // 400-unit sheet, where the plan's own fold spans 141.
     const short: StepDiagramPrimitive = {
@@ -318,14 +330,14 @@ describe('a step’s marks on the page', () => {
     /** Each arrow's head, and every arrow stroke's weight, in pt on the page. */
     const arrowsAt = async (mm: number) => {
       const { markup, scale } = await pageAt(mm, [short]);
-      const inArrowInk = (element: Record<string, string>) =>
-        element.fill === STYLE.arrows.color || element.stroke === STYLE.arrows.color;
+      const paths = elements(markup, 'path');
       return {
-        heads: elements(markup, 'polygon')
-          .filter(inArrowInk)
-          .map((polygon) => headLength(polygon.points!) * scale),
-        strokes: elements(markup, 'path')
-          .filter(inArrowInk)
+        // A head is filled in the arrow's ink, a stroke stroked in it.
+        heads: paths
+          .filter((path) => path.fill === STYLE.arrows.color)
+          .map((path) => headLength(path.d!) * scale),
+        strokes: paths
+          .filter((path) => path.stroke === STYLE.arrows.color)
           .map((path) => Number(path['stroke-width']) * scale),
       };
     };
@@ -338,9 +350,12 @@ describe('a step’s marks on the page', () => {
     expect(planned120).toBeCloseTo(onScreen, 2);
     expect(short120).toBeCloseTo(onScreen, 2);
     // On a 41 mm sheet the short one's chord is 16 pt, and a full head would
-    // be 60% of it: it is held to the share of its own chord the view holds
-    // it to, while every stroke keeps the pen's weight.
-    expect(short41).toBeCloseTo(DIAGRAM_ARROWHEAD_INK.ofChord * chordPt(41), 2);
+    // be half of it: it is held to the share of its own chord the view holds
+    // it to — which here would leave it no wider than its stroke, so it stops
+    // at four strokes long — while every stroke keeps the pen's weight.
+    const floor = ARROWHEAD_MIN_STROKES * STYLE.arrows.width;
+    expect(DIAGRAM_ARROWHEAD_INK.ofChord * chordPt(41)).toBeLessThan(floor);
+    expect(short41).toBeCloseTo(floor, 2);
     expect(short41).toBeLessThan(onScreen);
     for (const { strokes } of [small, large]) {
       expect(strokes).toHaveLength(4);

@@ -127,7 +127,9 @@ describe('ReferencesDiagramLayer', () => {
   // The arrow is the paper style's pen, in CSS px, whatever the crease width,
   // and never lighter than the table's (1.75 px at a line width of 1); the
   // mark's ring beside it stays on the crease pen like every other mark.
-  it('draws the fold arrow at the paper style’s arrow pen', () => {
+  // The ring round the point the arrow leaves is drawn in the same pen, so the
+  // two are one weight.
+  it('draws the fold arrow, and the ring it leaves, at the paper style’s arrow pen', () => {
     const arrow: StepDiagramModel = {
       sheet: MODEL.sheet,
       primitives: [
@@ -158,7 +160,7 @@ describe('ReferencesDiagramLayer', () => {
     );
     // The arrow's two strokes, each drawn twice: on the paper and off it.
     expect(strokeWidths()).toEqual([1.75, 1.75, 1.75, 1.75]);
-    const ring = ringWidth();
+    expect(ringWidth()).toBe(1.75);
     act(() =>
       root?.render(
         <ReferencesDiagramLayer
@@ -172,7 +174,7 @@ describe('ReferencesDiagramLayer', () => {
       )
     );
     expect(strokeWidths()).toEqual([4, 4, 4, 4]);
-    expect(ringWidth()).toBe(ring);
+    expect(ringWidth()).toBe(4);
   });
 });
 

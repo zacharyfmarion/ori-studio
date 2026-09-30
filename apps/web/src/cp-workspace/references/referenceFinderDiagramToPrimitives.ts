@@ -84,10 +84,10 @@ export type StepDiagramPrimitive =
    * The path the paper takes over a crease and back.
    *
    * Only the outgoing arc: the return that makes it a round trip is the *same*
-   * arc bulged further and stopped beside the mark, and how far beside is an
-   * arrowhead's length — which a card measures against the paper and a camera
-   * view against the pen. So it is derived where the picture is drawn, and this
-   * stays the one thing both surfaces agree on.
+   * arc bulged further and stopped beside the mark, and how far beside is a
+   * length of the drawing's (`foldReturnOffset`) — which a card measures
+   * against the paper and a camera view against the pen. So it is derived where
+   * the picture is drawn, and this stays the one thing both surfaces agree on.
    */
   | { kind: 'fold-arrow'; out: DiagramArc }
   /**

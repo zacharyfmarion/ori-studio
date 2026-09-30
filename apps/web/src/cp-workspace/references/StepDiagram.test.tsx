@@ -18,7 +18,14 @@ import {
   labelWidth,
 } from './diagram/diagramInk';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
-import { createDiagramProjector, foldArrowArc } from './stepDiagramGeometry';
+import {
+  arcEndPoint,
+  arrowheadReach,
+  arrowheadSize,
+  createDiagramProjector,
+  foldArrowArc,
+  returnStroke,
+} from './stepDiagramGeometry';
 
 /** Every element of one tag in the markup, as its attributes plus its `text`. */
 function elements(markup: string, tag: string): Record<string, string>[] {
@@ -526,6 +533,87 @@ describe('a fold arrow on a card', () => {
     const landing = project(onLine);
     expect(Math.hypot(end.x - landing.x, end.y - landing.y)).toBeLessThan(1e-3);
   });
+
+  /** A fold onto a line: nothing marked at its far end, so the return starts right where the fold lands. */
+  const ontoLine = () => {
+    const p: [number, number] = [0.25, 0.8];
+    const onLine: [number, number] = [0.8, 0.2];
+    const out = foldArrowArc(p, onLine, [0.5, 0.5]);
+    if (!out) throw new Error('no arc');
+    const model: StepDiagramModel = {
+      sheet,
+      primitives: [
+        { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'line', from: [0, 0.2], to: [1, 0.2], style: 'highlight' },
+        { kind: 'point', at: p, style: 'highlight' },
+        { kind: 'fold-arrow', out },
+      ],
+    };
+    return { out, model };
+  };
+
+  /** The return stroke and the head as drawn: `M x y A r r 0 large sweep x y`, `M tip L a Q c b Z`. */
+  const drawnReturn = (model: StepDiagramModel) => {
+    const markup = renderToStaticMarkup(<StepDiagram primitives={model} size={100} />);
+    const arrow = markup.slice(markup.indexOf('step-diagram__arrow'));
+    const [, back, head] = elements(arrow, 'path');
+    const b = back!.d!.split(' ').filter((token) => !/[A-Z]/.test(token)).map(Number);
+    const h = head!.d!.split(' ').filter((token) => !/[A-Z]/.test(token)).map(Number);
+    const point = (n: number[], i: number) => ({ x: n[i]!, y: n[i + 1]! });
+    const [tip, a, control, c] = [0, 2, 4, 6].map((i) => point(h, i)) as [
+      { x: number; y: number },
+      { x: number; y: number },
+      { x: number; y: number },
+      { x: number; y: number },
+    ];
+    return {
+      start: point(b, 0),
+      radius: b[2]!,
+      end: point(b, 7),
+      tip,
+      // The back's quadratic at its middle.
+      notch: { x: (a.x + 2 * control.x + c.x) / 4, y: (a.y + 2 * control.y + c.y) / 4 },
+    };
+  };
+
+  // The shaft runs into the head's notch and stops there, so the head sits on
+  // its end: no gap, and the round cap buried in the head.
+  it('ends the return at the head’s notch', () => {
+    const { end, notch } = drawnReturn(ontoLine().model);
+    expect(Math.hypot(end.x - notch.x, end.y - notch.y)).toBeLessThan(2e-3);
+  });
+
+  // Centred on the tangent where the return stops, so a curving shaft runs
+  // straight into the middle of the head's back.
+  it('lays the head along the return where it stops', () => {
+    const { out, model } = ontoLine();
+    const { end, tip, notch } = drawnReturn(model);
+    const offset = (10.56 * project.ink) / project.scale;
+    const centre = project(returnStroke(out, offset)!.center);
+    const axis = { x: tip.x - notch.x, y: tip.y - notch.y };
+    const radial = { x: end.x - centre.x, y: end.y - centre.y };
+    const cos =
+      (axis.x * radial.x + axis.y * radial.y) / (Math.hypot(axis.x, axis.y) * Math.hypot(radial.x, radial.y));
+    expect(Math.abs(cos)).toBeLessThan(1e-3);
+    expect(Math.hypot(axis.x, axis.y)).toBeCloseTo(arrowheadReach(arrowheadSize(out, project)), 2);
+  });
+
+  // The head got smaller; the loop did not. The return still ends as far to
+  // the side of the mark as it did when it was offset by one of the old,
+  // larger heads — 10.56 ink on a long fold — so it is drawn on that circle.
+  it('opens the loop as wide as the old, larger head did', () => {
+    const { out, model } = ontoLine();
+    const { start, radius, end } = drawnReturn(model);
+    const before = returnStroke(out, (10.56 * project.ink) / project.scale)!;
+    const centre = project(before.center);
+    expect(radius).toBeCloseTo(before.radius * project.scale, 2);
+    expect(Math.hypot(start.x - centre.x, start.y - centre.y)).toBeCloseTo(radius, 2);
+    expect(Math.hypot(end.x - centre.x, end.y - centre.y)).toBeCloseTo(radius, 2);
+    // From where the fold lands; and wider than the head is long now.
+    const landing = project(arcEndPoint(out));
+    expect(Math.hypot(start.x - landing.x, start.y - landing.y)).toBeLessThan(2e-3);
+    expect(10.56 * project.ink).toBeGreaterThan(arrowheadSize(out, project));
+  });
 });
 
 describe('the folds on a card', () => {
@@ -781,9 +869,14 @@ describe('the same shapes, inked for a file', () => {
     expect(valley).toMatchObject({ stroke: '#2010a0' });
     expect(valley!['stroke-opacity']).toBeUndefined();
     const polygons = elements(file, 'polygon');
+    expect(polygons).toHaveLength(1);
     expect(polygons[0]).toMatchObject({ fill: '#ff00ff', 'fill-opacity': '0.12', stroke: 'none' });
-    // The arrowhead and the turn-over glyph's head: the arrow pen's.
-    expect(polygons.slice(1).map((p) => p.fill)).toEqual(['#405060', '#405060']);
+    // The arrowhead and the turn-over glyph's head, filled in the arrow pen's
+    // ink with no stroke of their own; every other path is a stroke.
+    const paths = elements(file, 'path');
+    const heads = paths.filter((path) => path.fill !== 'none');
+    expect(heads.map((head) => head.fill)).toEqual(['#405060', '#405060']);
+    for (const head of heads) expect(head.stroke).toBeUndefined();
     expect(elements(file, 'circle')[0]).toMatchObject({ fill: 'none', stroke: '#000000' });
     // The letter stands on the paper, so its halo is the paper's face: a
     // knock-out of the lines behind it, not a ring of the ground's colour.
@@ -795,7 +888,7 @@ describe('the same shapes, inked for a file', () => {
       'font-weight': '700',
     });
     expect(elements(draw(true, true), 'text')[0]!.stroke).toBe('#d0d0d0');
-    for (const path of elements(file, 'path')) {
+    for (const path of paths.filter((each) => !heads.includes(each))) {
       expect(path).toMatchObject({ fill: 'none', stroke: '#405060' });
     }
   });
@@ -957,7 +1050,9 @@ describe('a mark that leaves the paper', () => {
     expect(off.getAttribute('stroke')).toBe('#ffffff');
     expect(on.getAttribute('stroke')).toBe('#000000');
     // The arrow's heads and strokes, off and on.
-    const heads = [...svg.querySelectorAll('polygon')].filter((p) => !p.closest('defs'));
+    const heads = [...svg.querySelectorAll('path')].filter(
+      (path) => !path.closest('defs') && path.getAttribute('fill') !== 'none'
+    );
     expect(heads.map((head) => [byClip(head), head.getAttribute('fill')])).toEqual([
       [`url(#${outside!.id})`, '#ffffff'],
       [`url(#${inside!.id})`, '#000000'],

@@ -10,7 +10,7 @@ import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../../lib/pa
 import { PT_PER_CSS_PX, pageMarginPt, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
-import { DIAGRAM_INK_PER_SHEET, DIAGRAM_LINE_INK } from './diagram/diagramInk';
+import { DIAGRAM_INK_PER_SHEET, DIAGRAM_LINE_INK, penInk } from './diagram/diagramInk';
 import { createDiagramRenderContext } from './diagram/DiagramPrimitives';
 import { unitFrame } from './diagram/diagramFrames';
 import { plannerStepDiagram } from './diagram/plannerDiagram';
@@ -26,6 +26,7 @@ import {
   createDiagramProjector,
   createOverlayProjector,
   foldArrowArc,
+  withPens,
   type DiagramArc,
 } from './stepDiagramGeometry';
 
@@ -75,6 +76,9 @@ function elements(svg: string, tag: string): Record<string, string>[] {
     Object.fromEntries([...match[1]!.matchAll(/([\w-]+)="([^"]*)"/g)].map((a) => [a[1], a[2]]))
   );
 }
+
+/** The arrowheads in some markup: the paths that are filled rather than stroked. */
+const heads = (svg: string) => elements(svg, 'path').filter((path) => path.fill && path.fill !== 'none');
 
 /** Two points of the card's projection, to two decimals. */
 const near = (point: readonly number[], want: readonly number[]) => {
@@ -204,7 +208,16 @@ describe('the sheet', () => {
       { kind: 'point', at: [1, 0], style: 'highlight' },
       { kind: 'label', at: [1, 0], text: 'A', style: 'highlight' }
     );
-    const project = createDiagramProjector(UNIT, SIZE);
+    // In the style's arrow pen, as the page is: a letter keeps clear of the
+    // ring, and the ring is drawn in that pen.
+    const card = createDiagramProjector(UNIT, SIZE);
+    const project = withPens(card, {
+      ...card.pens,
+      arrow: penInk(
+        DEFAULT_PAPER_STYLE.arrows,
+        (DEFAULT_PAPER_STYLE.arrows.width * PT_TO_CSS_PX) / card.ink
+      ),
+    });
     const free = createDiagramRenderContext(corner.primitives, UNIT, project);
     const placed = [...free.labels.values()][0]!;
     const [letter] = elements(markups(scene(corner))[0]!.svg, 'text');
@@ -392,7 +405,7 @@ describe('the markup', () => {
     // The arrowhead is the arrow pen's; the mark's ring takes the edge pen's
     // ink; the letter the accent, in a named font, with the paper it stands on
     // for its halo (the page's ground is the halo of a letter off the sheet).
-    expect(elements(over!.svg, 'polygon').map((p) => p.fill)).toEqual(['#405060', '#405060']);
+    expect(heads(over!.svg).map((p) => p.fill)).toEqual(['#405060', '#405060']);
     expect(elements(over!.svg, 'circle')[0]).toMatchObject({ fill: 'none', stroke: '#102030' });
     expect(elements(over!.svg, 'text')[0]).toMatchObject({
       fill: REFERENCE_COLORS.light.input,
@@ -444,19 +457,23 @@ describe('the markup', () => {
 /**
  * `leaving`'s marks on a transparent page, as `diagramToPaperScene` drew them
  * before X11 (generated at c53cc04d9): one copy of each mark, in the style's
- * inks, no clip.
+ * inks, no clip. Regenerated when the heads took a printed diagram's slimmer,
+ * concave shape and came to sit on their strokes' ends — the return stops at
+ * the head's notch, and the glyph's stroke at its own — and again when the
+ * rings shrank to four fifths and took the arrow's pen: the outgoing stroke
+ * starts and stops on the smaller rim, and the return is built from there.
  */
 const BEFORE_TWO_INKS = [
-  '<circle cx="34" cy="50" r="3.1999999999999997" stroke-width="0.9999999999999999" fill="none" stroke="#000000"></circle>',
-  '<circle cx="94" cy="50" r="3.1999999999999997" stroke-width="0.9999999999999999" fill="none" stroke="#000000"></circle>',
+  '<circle cx="34" cy="50" r="2.558333333333333" stroke-width="1.4" fill="none" stroke="#000000"></circle>',
+  '<circle cx="94" cy="50" r="2.558333333333333" stroke-width="1.4" fill="none" stroke="#000000"></circle>',
   '<g>',
-  '<path d="M 36.813 48.475 A 60 60 0 0 1 91.187 48.475" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',
-  '<path d="M 91.187 48.475 A 40.928 40.928 0 0 0 41.244 36.598" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',
-  '<polygon points="33.765,41.203 38.564,33.03 42.877,38.594" fill="#000000"></polygon>',
+  '<path d="M 36.242 48.768 A 60 60 0 0 1 91.758 48.768" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',
+  '<path d="M 91.758 48.768 A 41.321 41.321 0 0 0 38.65 37.996" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',
+  '<path d="M 33.595 40.857 L 38.734 35.555 Q 37.54 38.624 40.786 39.181 Z" fill="#000000"></path>',
   '</g>',
   '<g transform="translate(33.2 -2.9103) scale(1.1586)">',
-  '<path d="M 25.282 4.923 C 21.103 -0.049 13.926 1.855 13.926 1.855 C 8.533 2.887 8.711 7.191 8.711 7.191 C 8.698 9.071 9.698 10.738 11.328 11.674 C 12.958 12.610 14.966 12.596 16.583 11.638 C 18.200 10.679 19.176 8.925 19.138 7.046 C 19.138 7.046 19.318 2.887 13.925 1.855 C 13.925 1.855 5.675 0.094 1.496 5.066" stroke-width="1.2083333333333333" stroke-linecap="round" fill="none" stroke="#000000"></path>',
-  '<polygon points="25.282,4.923 21.389,2.839 23.9,0.729" fill="#000000"></polygon>',
+  '<path d="M 22.698 2.802 C 18.677 0.595 13.926 1.855 13.926 1.855 C 8.533 2.887 8.711 7.191 8.711 7.191 C 8.698 9.071 9.698 10.738 11.328 11.674 C 12.958 12.610 14.966 12.596 16.583 11.638 C 18.200 10.679 19.176 8.925 19.138 7.046 C 19.138 7.046 19.318 2.887 13.925 1.855 C 13.925 1.855 5.675 0.094 1.496 5.066" stroke-width="1.2083333333333333" stroke-linecap="round" fill="none" stroke="#000000"></path>',
+  '<path d="M 25.645 4.42 L 21.471 3.504 Q 23.345 3.157 22.632 1.39 Z" fill="#000000"></path>',
   '</g>',
 ].join('');
 
@@ -490,8 +507,7 @@ describe('a mark off the sheet, on the page', () => {
       DEFAULT_PAPER_STYLE.edges.color,
       DEFAULT_PAPER_STYLE.edges.color,
     ]);
-    const heads = elements(over(transparent), 'polygon');
-    expect(heads.map((head) => head.fill)).toEqual([
+    expect(heads(over(transparent)).map((head) => head.fill)).toEqual([
       DEFAULT_PAPER_STYLE.arrows.color,
       DEFAULT_PAPER_STYLE.arrows.color,
     ]);
@@ -518,11 +534,14 @@ describe('a mark off the sheet, on the page', () => {
       [on, DEFAULT_PAPER_STYLE.edges.color],
     ]);
     // The arrow's strokes and the glyph's, and both heads, the same way.
-    for (const [clip, color] of inks('path', 'stroke')) {
+    const strokes = inks('path', 'stroke').filter(([, color]) => color !== null);
+    for (const [clip, color] of strokes) {
       expect(color).toBe(clip === off ? '#ffffff' : DEFAULT_PAPER_STYLE.arrows.color);
     }
-    expect(inks('path', 'stroke')).toHaveLength(6);
-    for (const [clip, color] of inks('polygon', 'fill')) {
+    expect(strokes).toHaveLength(6);
+    const filled = inks('path', 'fill').filter(([, color]) => color !== 'none');
+    expect(filled).toHaveLength(4);
+    for (const [clip, color] of filled) {
       expect(color).toBe(clip === off ? '#ffffff' : DEFAULT_PAPER_STYLE.arrows.color);
     }
     // The creases are the painter's, on the paper, in their pens.
@@ -537,7 +556,7 @@ describe('a mark off the sheet, on the page', () => {
     };
     const result = scene(leaving, { style, ground: '#15181c' });
     expect(over(result)).not.toContain('clip');
-    expect(elements(over(result), 'polygon').map((head) => head.fill)).toEqual(['#ffd400', '#ffd400']);
+    expect(heads(over(result)).map((head) => head.fill)).toEqual(['#ffd400', '#ffd400']);
   });
 
   it('paints through paperSceneToSvg with its clip pair inside the page', () => {

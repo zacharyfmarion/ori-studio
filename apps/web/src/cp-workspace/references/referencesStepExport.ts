@@ -25,9 +25,13 @@
  * sheet, so a short fold on a small sheet has a smaller head than on a large
  * view — the head the view itself draws when it shows the sheet at the page's
  * size — while its stroke keeps the pen's weight. At the 41 mm a step opens
- * at and the default line width, that is a fold shorter than about a third of
- * the sheet. Giving the head its full size there instead would draw what the
- * cap exists to prevent: a head that is most of its arrow.
+ * at and the default line width, that is a fold shorter than about a quarter
+ * of the sheet. Giving the head its full size there instead would draw what
+ * the cap exists to prevent: a head that is most of its arrow. It stops
+ * shrinking at four of its stroke's widths, where it would be no wider than
+ * the stroke it ends. How far a
+ * fold-and-unfold arrow's return stands off (`foldReturnOffset`) is capped by
+ * the same share of the chord, from a fold shorter than about a third.
  *
  * The diagram handed here is the *page's* (`ReferencesPlanScene.pageDiagram`),
  * not the canvas's: the big view's picture is the overlay over the document's

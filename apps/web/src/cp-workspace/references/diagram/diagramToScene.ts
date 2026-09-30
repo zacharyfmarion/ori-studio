@@ -2,7 +2,7 @@
  * A step's primitives split between the two things that draw them.
  *
  * The crease pattern's own renderer draws straight lines by the hundred
- * thousand and cannot draw an arc, a filled triangle or a letter. A DOM layer
+ * thousand and cannot draw an arc, a filled arrowhead or a letter. A DOM layer
  * draws all three and should not be asked for a thousand lines. So the seam is
  * simply that: **lines to the GPU, symbols to the DOM.** Both halves come off
  * one primitive list, so neither can invent anything the card does not have.

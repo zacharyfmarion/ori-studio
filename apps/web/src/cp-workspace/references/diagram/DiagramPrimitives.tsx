@@ -7,16 +7,17 @@ import type {
 } from '../stepDiagramGeometry';
 import {
   TURN_OVER_BOX,
-  TURN_OVER_HEAD,
+  TURN_OVER_HEAD_PATH,
   TURN_OVER_PATH,
-  arcEndDirection,
+  arcArrowhead,
   arcPathData,
-  arrowheadPoints,
+  arrowheadPath,
   arrowheadSize,
   erodeCreaseOnSheet,
   foldAndUnfoldFromArc,
   foldArrowLanding,
   foldArrowTrim,
+  foldReturnOffset,
   offPaperPathData,
   paperRingPoints,
   sheetCorners,
@@ -36,6 +37,7 @@ import {
 } from './diagramInk';
 import {
   diagramMarks,
+  markRingWidth,
   placeLabels,
   type LabelLayoutOptions,
   type LabelPlacement,
@@ -548,24 +550,22 @@ function diagramPrimitiveShape(
       // is derived — the return starts where the outgoing stroke stops.
       const out = foldArrowLanding(primitive.out, context.marks, rim, project);
       // The return, derived here rather than carried: how far to the side it
-      // ends is an arrowhead's length, and that is the drawing's business —
-      // see the primitive's own note.
-      const arrow = foldAndUnfoldFromArc(out, head / project.scale);
+      // ends is the drawing's business — see the primitive's own note.
+      const offset = foldReturnOffset(primitive.out, project);
+      const arrow = foldAndUnfoldFromArc(out, offset / project.scale);
       if (!arrow) return null;
       const scaled = {
         out: { ...arrow.out, radius: arrow.out.radius * project.scale },
         back: { ...arrow.back, radius: arrow.back.radius * project.scale },
       };
       const trimmed = foldArrowTrim(scaled, head, rim);
-      const tipArc = { ...arrow.back, to: trimmed.tip };
-      const tip = project([
-        arrow.back.center[0] + arrow.back.radius * Math.cos(trimmed.tip),
-        arrow.back.center[1] + arrow.back.radius * Math.sin(trimmed.tip),
-      ]);
+      const shaft = { ...arrow.back, to: trimmed.back.to };
       const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
       const outPath = arcPathData({ ...arrow.out, from: trimmed.out.from }, project);
-      const backPath = arcPathData({ ...arrow.back, to: trimmed.back.to }, project);
-      const headPoints = arrowheadPoints(tip, arcEndDirection(tipArc, project), head);
+      const backPath = arcPathData(shaft, project);
+      // On the return's end and along it, so the stroke runs into the notch
+      // and its cap is buried in the head.
+      const headPath = arrowheadPath(arcArrowhead(shaft, project, head));
       return onAndOffPaper(context, index, (inks) => {
         const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
           strokeInk(ink.lines.arrow, stroke.strokeOpacity)
@@ -574,8 +574,8 @@ function diagramPrimitiveShape(
           <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
             <path d={outPath} {...stroke} {...arrowInk} />
             <path d={backPath} {...stroke} {...arrowInk} />
-            <polygon
-              points={headPoints}
+            <path
+              d={headPath}
               {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
             />
           </g>
@@ -624,12 +624,8 @@ function diagramPrimitiveShape(
               strokeInk(ink.lines.arrow, stroke.strokeOpacity)
             )}
           />
-          <polygon
-            points={arrowheadPoints(
-              { x: TURN_OVER_HEAD.at[0], y: TURN_OVER_HEAD.at[1] },
-              { x: Math.cos(TURN_OVER_HEAD.angle), y: Math.sin(TURN_OVER_HEAD.angle) },
-              TURN_OVER_HEAD.size
-            )}
+          <path
+            d={TURN_OVER_HEAD_PATH}
             {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
           />
         </g>
@@ -643,7 +639,7 @@ function diagramPrimitiveShape(
           cx={at.x}
           cy={at.y}
           r={DIAGRAM_MARK_INK.radius * project.ink}
-          strokeWidth={DIAGRAM_MARK_INK.width * project.ink}
+          strokeWidth={markRingWidth(project)}
           {...inked(inks, `step-diagram__point step-diagram__point--${primitive.style}`, (ink) => ({
             fill: 'none',
             stroke: ink.mark,

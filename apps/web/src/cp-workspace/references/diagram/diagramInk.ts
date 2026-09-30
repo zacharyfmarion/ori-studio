@@ -90,25 +90,42 @@ export const DIAGRAM_LINE_INK: DiagramPens = {
 export const DIAGRAM_SHEET_INK = { width: 1, opacity: 0.55 } as const;
 
 /**
- * The ring round a reference mark.
+ * The ring round a reference mark: its radius. Its stroke is the arrow's pen
+ * (`markRingWidth`), so a ring and the arrow that leaves it are one weight.
  *
- * `3.84` is 4% of the paper on a card — `0.04 × 96` — which is what the
- * reference diagrams draw. In ink rather than as a share of the sheet because
- * the same picture is also drawn over the crease pattern, where the "paper" is
- * whatever the camera is showing and a share of it is a ring that inflates as
- * you zoom in.
+ * `3.07` is four fifths of the `3.84` the reference diagrams draw — 4% of the
+ * paper on a card, `0.04 × 96` — which set beside a printed diagram on a
+ * step's page read as a ring too big for the point it marks. In ink rather
+ * than as a share of the sheet because the same picture is also drawn over the
+ * crease pattern, where the "paper" is whatever the camera is showing and a
+ * share of it is a ring that inflates as you zoom in.
  */
-export const DIAGRAM_MARK_INK = { width: 1.2, radius: 3.84 } as const;
+export const DIAGRAM_MARK_INK = { radius: 3.07 } as const;
 
 /**
- * An arrowhead: its length, and the cap for a short arrow as a share of the
- * chord it spans.
+ * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
+ * share of the chord it spans.
  *
- * `10.56` is upstream's `0.11` of the paper on a card. The cap stays a share of
- * the arrow's own chord — it is about that arrow, not about the pen — so a
+ * `8.5` is a printed diagram's head: at the default pen over the crease
+ * pattern (1.25 CSS px to the ink) it is 10.6 px, so on a step's page about
+ * 8 pt — 2.8 mm long and, at `ARROWHEAD_ASPECT`, 1.65 mm wide. It was `10.56`,
+ * upstream's `0.11` of the paper on a card, until a reader set a step's page
+ * beside a printed diagram and found the heads too big. The cap stays a share
+ * of the arrow's own chord — it is about that arrow, not about the pen — so a
  * short motion still gets a head rather than a blob.
  */
-export const DIAGRAM_ARROWHEAD_INK = { length: 10.56, ofChord: 0.26 } as const;
+export const DIAGRAM_ARROWHEAD_INK = { length: 8.5, ofChord: 0.26 } as const;
+
+/**
+ * How far to the side a fold-and-unfold arrow's return ends, and the same cap
+ * for a short arrow as the head's.
+ *
+ * `10.56` — upstream's `0.11` of the paper on a card — is the head's old
+ * length. The return used to be offset by one head, so when the head was made
+ * smaller the offset kept the old length as its own: a smaller head is no
+ * reason for the two strokes to crowd each other.
+ */
+export const DIAGRAM_FOLD_RETURN_INK = { offset: 10.56, ofChord: 0.26 } as const;
 
 /** The turn-over glyph's width: 42% of the paper's shorter side on a card. */
 export const DIAGRAM_TURN_OVER_INK = 40.32;

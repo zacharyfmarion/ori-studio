@@ -11,6 +11,7 @@
 import { erodeSegment } from '../../lib/paper/paperSvg';
 import {
   DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LINE_INK,
   type DiagramPens,
@@ -389,18 +390,6 @@ const ARROW_HALF_ANGLE = Math.PI / 6;
  */
 const RETURN_HALF_ANGLE = Math.PI / 4;
 
-/**
- * How far to the side the returning stroke ends, in arrowheads.
- *
- * The paper comes back to where it started, so the head belongs *beside* that
- * point rather than on it or past it. Carrying the return on round its own
- * circle instead put the head beyond the mark and across the shaft that starts
- * there — the two ends of one loop crossing, which reads as a tangle rather
- * than a journey. So the return simply stays out on its own side of the loop
- * and stops level with the mark, offset by this much.
- */
-const RETURN_OFFSET_HEADS = 1;
-
 /** The arc between two points and the centre it turns about. */
 function arcThrough(
   fromPt: readonly [number, number],
@@ -595,12 +584,12 @@ export function returnStroke(out: DiagramArc, offset: number): DiagramArc | null
  *
  * The one place the side-step is decided, so an arrow built from a witness and
  * one read off the wire cannot end up with different symbols. `offset` is how
- * far to the side the return ends, in the arc's own units — an arrowhead's
- * length, which the *drawing* decides, because a card sizes its head by the
- * paper and a camera view sizes it by the pen.
+ * far to the side the return ends, in the arc's own units —
+ * {@link foldReturnOffset}, which the *drawing* decides, because a card sizes
+ * it by the paper and a camera view sizes it by the pen.
  */
 export function foldAndUnfoldFromArc(out: DiagramArc, offset: number): FoldUnfoldArrow | null {
-  const back = returnStroke(out, offset * RETURN_OFFSET_HEADS);
+  const back = returnStroke(out, offset);
   return back ? { out, back } : null;
 }
 
@@ -660,112 +649,303 @@ export function foldArrowLanding(
 }
 
 /**
- * The two strokes as drawn, and where the head's tip goes.
+ * The two strokes as drawn.
  *
  * The shaft starts on the rim of the ring round the mark rather than at its
- * centre, and the return stops a head short of its own end, which is where the
- * tip goes — beside the mark, not on it and not past it.
+ * centre. The return stops where its head's notch goes: the head's reach
+ * ({@link arrowheadReach}) short of its own end, so that the head, laid on
+ * that end along the stroke's own direction ({@link arcArrowhead}), puts its
+ * tip within a hair of where the return used to end — beside the mark, not on
+ * it and not past it. The hair is how far the arc bends away from its tangent
+ * over the reach, about `reach² / 2r`: a pixel or so on a step's page.
  *
  * `head` and `rim` are lengths in the same units as the radii, so the caller
  * passes all three in whichever space it is drawing.
  */
-export function foldArrowTrim(
-  arrow: FoldUnfoldArrow,
-  head: number,
-  rim = 0
-): { out: DiagramArc; back: DiagramArc; tip: number } {
+export function foldArrowTrim(arrow: FoldUnfoldArrow, head: number, rim = 0): FoldUnfoldArrow {
   return {
     out: { ...arrow.out, from: arrow.out.from + alongArc(arrow.out, rim) },
-    back: { ...arrow.back, to: arrow.back.to - alongArc(arrow.back, head) },
-    tip: arrow.back.to,
+    back: { ...arrow.back, to: arrow.back.to - alongArc(arrow.back, arrowheadReach(head)) },
   };
 }
 
 /**
- * How long an arrow's head should be, in the projector's own units.
+ * `ink` of the drawing's pen, in the projector's own units, but no more than
+ * `ofChord` of the chord `arc` spans.
+ */
+function inkUpToChord(
+  arc: DiagramArc,
+  project: DiagramProjector,
+  ink: number,
+  ofChord: number
+): number {
+  const from = pointOnArc(arc, arc.from);
+  const to = pointOnArc(arc, arc.to);
+  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]) * project.scale;
+  return Math.min(ink * project.ink, ofChord * chord);
+}
+
+/**
+ * How long an arrow's head should be, tip to barbs, in the projector's own
+ * units.
  *
  * From the pen rather than from the paper, because the same picture is drawn
  * over a camera as well as into a box: a share of the paper is a head that
  * grows to eighty pixels on a fit view and keeps growing as you zoom. Capped at
  * a share of the chord the arrow spans, which *is* about that arrow, so a short
- * motion still gets a head rather than a blob.
+ * motion still gets a head rather than a blob — but never shorter than
+ * {@link ARROWHEAD_MIN_STROKES} of the arrow's own stroke, below which the
+ * head is no wider than the shaft it ends and the stroke's cap shows through
+ * its sides.
  */
 export function arrowheadSize(arc: DiagramArc, project: DiagramProjector): number {
-  const from = pointOnArc(arc, arc.from);
-  const to = pointOnArc(arc, arc.to);
-  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]) * project.scale;
-  return Math.min(
-    DIAGRAM_ARROWHEAD_INK.length * project.ink,
-    DIAGRAM_ARROWHEAD_INK.ofChord * chord
-  );
+  const sized = inkUpToChord(arc, project, DIAGRAM_ARROWHEAD_INK.length, DIAGRAM_ARROWHEAD_INK.ofChord);
+  return Math.max(sized, ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink);
 }
 
 /**
- * A filled arrowhead as SVG polygon `points`: the tip at `tip`, pointing along
- * `direction`, `size` long and two thirds as wide.
+ * The shortest head, in widths of the arrow's own stroke. At
+ * {@link ARROWHEAD_ASPECT} a head this long is a little over twice as wide as
+ * its shaft, and its sides stand clear of the shaft's round cap at the notch.
  */
-export function arrowheadPoints(tip: SvgPoint, direction: SvgPoint, size: number): string {
-  const back = arrowheadBase(tip, direction, size);
-  const length = Math.hypot(direction.x, direction.y) || 1;
-  const ux = direction.x / length;
-  const uy = direction.y / length;
-  const half = size / ARROWHEAD_ASPECT;
-  const left = { x: back.x - uy * half, y: back.y + ux * half };
-  const right = { x: back.x + uy * half, y: back.y - ux * half };
-  return [tip, left, right].map((p) => `${fmt(p.x)},${fmt(p.y)}`).join(' ');
-}
+export const ARROWHEAD_MIN_STROKES = 4;
 
 /**
- * Where an arrowhead's base sits: `size` back from the tip along `direction`.
+ * How far to the side a fold-and-unfold arrow's return ends, in the
+ * projector's own units: the width the loop opens to at the mark.
  *
- * The base is perpendicular to `direction` by construction, so a stroke that
- * stops here meets the head square on rather than running through it to the
- * point. Exported so the arc can be trimmed to exactly this spot.
+ * The paper comes back to where it started, so the head belongs *beside* that
+ * point rather than on it or past it. Carrying the return on round its own
+ * circle instead put the head beyond the mark and across the shaft that starts
+ * there — the two ends of one loop crossing, which reads as a tangle rather
+ * than a journey. So the return simply stays out on its own side of the loop
+ * and stops level with the mark, offset by this much.
+ *
+ * Sized as the head is — by the pen, capped at a share of the chord — and for
+ * the same reasons, but not *by* the head: it was one head length until the
+ * head was made smaller, and a smaller head is no reason for the two strokes
+ * to crowd each other (`DIAGRAM_FOLD_RETURN_INK`).
  */
-export function arrowheadBase(tip: SvgPoint, direction: SvgPoint, size: number): SvgPoint {
-  const length = Math.hypot(direction.x, direction.y) || 1;
+export function foldReturnOffset(arc: DiagramArc, project: DiagramProjector): number {
+  return inkUpToChord(arc, project, DIAGRAM_FOLD_RETURN_INK.offset, DIAGRAM_FOLD_RETURN_INK.ofChord);
+}
+
+/**
+ * How long an arrowhead is against its half-width: 3.4 : 1, a little over
+ * half as wide as it is long.
+ *
+ * `images/arrow_head.svg`, the house template's head, is a straight-backed
+ * triangle 5.7005 long on a half-base of 2.2805 — 2.5 : 1 — and the head was
+ * drawn at exactly that until a reader set it beside a printed diagram. The
+ * heads there are slimmer, with a back that curves in toward the tip
+ * ({@link ARROWHEAD_NOTCH}); beside them the template's triangle read as a
+ * blunt wedge, so this follows the printed diagram rather than the template.
+ * Twice as long as wide (4 : 1) was then a little too narrow.
+ */
+export const ARROWHEAD_ASPECT = 3.4;
+
+/**
+ * How far an arrowhead's back curves in toward its tip, as a share of its
+ * length: the notch, where the back crosses the axis, stands this far in front
+ * of the line through the two barbs.
+ */
+export const ARROWHEAD_NOTCH = 0.18;
+
+/** A filled arrowhead's outline, in the drawing's units. */
+export interface Arrowhead {
+  tip: SvgPoint;
+  /** The back corners, one either side of the axis. */
+  barbs: readonly [SvgPoint, SvgPoint];
+  /**
+   * Where the back crosses the axis. A shaft that feeds the head ends here,
+   * so the head sits on the shaft and continues it.
+   */
+  notch: SvgPoint;
+}
+
+/** How far an arrowhead's tip stands in front of its notch, for a head `length` long. */
+export function arrowheadReach(length: number): number {
+  return length * (1 - ARROWHEAD_NOTCH);
+}
+
+/**
+ * An arrowhead `length` long, tip to barbs, with its notch at `notch` and its
+ * axis along `direction`.
+ */
+export function arrowheadAt(notch: SvgPoint, direction: SvgPoint, length: number): Arrowhead {
+  const norm = Math.hypot(direction.x, direction.y) || 1;
+  const ux = direction.x / norm;
+  const uy = direction.y / norm;
+  const reach = arrowheadReach(length);
+  const behind = length - reach;
+  const half = length / ARROWHEAD_ASPECT;
+  // The middle of the line through the barbs, behind the notch.
+  const base = { x: notch.x - ux * behind, y: notch.y - uy * behind };
   return {
-    x: tip.x - (direction.x / length) * size,
-    y: tip.y - (direction.y / length) * size,
+    tip: { x: notch.x + ux * reach, y: notch.y + uy * reach },
+    barbs: [
+      { x: base.x - uy * half, y: base.y + ux * half },
+      { x: base.x + uy * half, y: base.y - ux * half },
+    ],
+    notch,
   };
 }
 
 /**
- * The turn-over symbol, verbatim from `images/turn_over_symbol.svg`: a stroke
- * that comes in from the left, loops once, and leaves to the right, where the
- * arrowhead is. Its own box is 29 × 14.
+ * The head a stroke ending at `arc`'s `to` carries: its notch on that end and
+ * its axis along the arc's direction of travel there, so it sits squarely on
+ * the stroke and carries it on. `length` is in the projector's own units, and
+ * the head is in them too.
  *
- * Transcribed rather than re-derived — an arc-and-circle approximation of a
- * hand-drawn loop is not the same glyph, and this one is the house's.
+ * The tangent is taken where the stroke *stops*, not where the tip lands. A
+ * head aimed along the tangent at its tip sat skewed on a curved shaft: its
+ * back was centred off the stroke by about `length² / 2r`, enough on a step's
+ * arcs to see the shaft run into the head to one side of its middle.
  */
-export const TURN_OVER_PATH =
-  'M 25.282 4.923 C 21.103 -0.049 13.926 1.855 13.926 1.855 ' +
+export function arcArrowhead(
+  arc: DiagramArc,
+  project: DiagramProjector,
+  length: number
+): Arrowhead {
+  return arrowheadAt(project(arcEndPoint(arc)), arcEndDirection(arc, project), length);
+}
+
+/**
+ * A filled arrowhead as SVG path data: from the tip to one barb, back across a
+ * shallow curve through the notch to the other barb, and home to the tip.
+ *
+ * The back is a quadratic whose control point stands as far in front of the
+ * notch as the notch does of the barbs' midpoint — which puts the curve's own
+ * midpoint exactly on the notch, where the shaft ends.
+ */
+export function arrowheadPath(head: Arrowhead): string {
+  const [a, b] = head.barbs;
+  const control = {
+    x: 2 * head.notch.x - (a.x + b.x) / 2,
+    y: 2 * head.notch.y - (a.y + b.y) / 2,
+  };
+  return `M ${pointText(head.tip)} L ${pointText(a)} Q ${pointText(control)} ${pointText(b)} Z`;
+}
+
+/** A cubic Bézier's four control points. */
+type Cubic = readonly [SvgPoint, SvgPoint, SvgPoint, SvgPoint];
+
+/** The point at parameter `t` on a cubic. */
+function cubicPoint([p0, p1, p2, p3]: Cubic, t: number): SvgPoint {
+  const s = 1 - t;
+  const [a, b, c, d] = [s * s * s, 3 * s * s * t, 3 * s * t * t, t * t * t];
+  return {
+    x: a * p0.x + b * p1.x + c * p2.x + d * p3.x,
+    y: a * p0.y + b * p1.y + c * p2.y + d * p3.y,
+  };
+}
+
+/** The part of a cubic from parameter `t` to its end, as a cubic of its own (de Casteljau). */
+function cubicFrom([p0, p1, p2, p3]: Cubic, t: number): Cubic {
+  const lerp = (a: SvgPoint, b: SvgPoint) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const [a, b, c] = [lerp(p0, p1), lerp(p1, p2), lerp(p2, p3)];
+  const [d, e] = [lerp(a, b), lerp(b, c)];
+  return [lerp(d, e), e, c, p3];
+}
+
+/** The parameter at which `length` of a cubic has been travelled from its start; 1 past its end. */
+function cubicParameterAt(cubic: Cubic, length: number): number {
+  const steps = 1024;
+  let travelled = 0;
+  let last = cubic[0];
+  for (let i = 1; i <= steps; i += 1) {
+    const next = cubicPoint(cubic, i / steps);
+    const step = Math.hypot(next.x - last.x, next.y - last.y);
+    if (travelled + step >= length) return (i - 1 + (length - travelled) / step) / steps;
+    travelled += step;
+    last = next;
+  }
+  return 1;
+}
+
+/**
+ * The turn-over symbol's stroke opens with this curve, from the end the head
+ * is on into the loop, in the symbol's own box.
+ */
+const TURN_OVER_LEAD: Cubic = [
+  { x: 25.282, y: 4.923 },
+  { x: 21.103, y: -0.049 },
+  { x: 13.926, y: 1.855 },
+  { x: 13.926, y: 1.855 },
+];
+
+/** The rest of the stroke: the loop, and out the other side. */
+const TURN_OVER_LOOP =
   'C 8.533 2.887 8.711 7.191 8.711 7.191 ' +
   'C 8.698 9.071 9.698 10.738 11.328 11.674 ' +
   'C 12.958 12.610 14.966 12.596 16.583 11.638 ' +
   'C 18.200 10.679 19.176 8.925 19.138 7.046 ' +
   'C 19.138 7.046 19.318 2.887 13.925 1.855 ' +
   'C 13.925 1.855 5.675 0.094 1.496 5.066';
-/** The symbol's own coordinate box, and where the arrowhead sits on it. */
-export const TURN_OVER_BOX = { width: 29, height: 14 } as const;
-/**
- * The stroke's arrowhead end, the direction it points, and how long the head
- * is — all in the symbol's own box.
- *
- * The angle is the reverse of the path's opening tangent: the stroke leaves
- * (25.282, 4.923) toward its first control point at (21.103, −0.049), so the
- * head points back the other way. The length is set to give the reference
- * glyph's base width at this file's 2.5 : 1 aspect.
- */
-export const TURN_OVER_HEAD = { at: [25.282, 4.923] as const, angle: 0.872, size: 4.1 };
 
 /**
- * How long an arrowhead is against its half-width.
- *
- * `images/arrow_head.svg` is a triangle 5.7005 long on a half-base of 2.2805 —
- * exactly 2.5 : 1. The head drawn here was 3 : 1, which reads as a dart.
+ * How long the turn-over glyph's head is, tip to barbs, in the symbol's own
+ * box. It was set to give the reference glyph's base width at the template's
+ * 2.5 : 1; kept at the slimmer {@link ARROWHEAD_ASPECT}, the head is the fold
+ * arrow's shape and narrower than the glyph it was copied from.
  */
-export const ARROWHEAD_ASPECT = 2.5;
+const TURN_OVER_HEAD_LENGTH = 4.1;
+
+/**
+ * The opening curve as drawn: the head's reach taken off its front, which is
+ * the stretch the head covers, so it starts where the head's notch goes.
+ */
+const TURN_OVER_SHAFT = cubicFrom(
+  TURN_OVER_LEAD,
+  cubicParameterAt(TURN_OVER_LEAD, arrowheadReach(TURN_OVER_HEAD_LENGTH))
+);
+
+/**
+ * The turn-over glyph's head, in the symbol's own box: the fold arrow's head,
+ * fitted to the stroke by the fold arrow's rule — its notch where the stroke
+ * now ends and its axis back along the stroke's direction there (the stroke
+ * is written from the head end, so the head points against it). Its tip lands
+ * within two thirds of a unit of the end the stroke was transcribed with,
+ * about a pixel on a step's page.
+ *
+ * The head used to have its tip on that end, pointing along the opening
+ * tangent, with the stroke running on underneath it to the point. The stroke
+ * turns twenty degrees within a head's length there, so it left the head
+ * through one side, and its round cap stood proud of the tip.
+ */
+export const TURN_OVER_HEAD: Arrowhead = arrowheadAt(
+  TURN_OVER_SHAFT[0],
+  {
+    x: TURN_OVER_SHAFT[0].x - TURN_OVER_SHAFT[1].x,
+    y: TURN_OVER_SHAFT[0].y - TURN_OVER_SHAFT[1].y,
+  },
+  TURN_OVER_HEAD_LENGTH
+);
+
+/** {@link TURN_OVER_HEAD} as SVG path data. */
+export const TURN_OVER_HEAD_PATH = arrowheadPath(TURN_OVER_HEAD);
+
+/**
+ * The turn-over symbol, from `images/turn_over_symbol.svg`: a stroke that
+ * comes in from the left, loops once, and leaves to the right, where the
+ * arrowhead is. Its own box is 29 × 14.
+ *
+ * Transcribed rather than re-derived — an arc-and-circle approximation of a
+ * hand-drawn loop is not the same glyph, and this one is the house's. Verbatim
+ * but for the front of its opening curve, which stops at the head's notch
+ * ({@link TURN_OVER_HEAD}) as a fold arrow's shaft does, so its cap is buried
+ * in the head.
+ */
+export const TURN_OVER_PATH =
+  `M ${pointText(TURN_OVER_SHAFT[0])} ` +
+  `C ${TURN_OVER_SHAFT.slice(1).map(pointText).join(' ')} ${TURN_OVER_LOOP}`;
+/** The symbol's own coordinate box. */
+export const TURN_OVER_BOX = { width: 29, height: 14 } as const;
+
+/** A point as SVG path data writes one. */
+function pointText(p: SvgPoint): string {
+  return `${fmt(p.x)} ${fmt(p.y)}`;
+}
 
 /**
  * Put a segment on its line's own axis, and say how far along it starts.

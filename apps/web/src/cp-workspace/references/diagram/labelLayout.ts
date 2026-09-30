@@ -126,9 +126,14 @@ export function diagramMarks(
   return marks;
 }
 
+/** A ring's stroke, in the projector's units: the arrow's pen, which a ring and its arrow share. */
+export function markRingWidth(project: DiagramProjector): number {
+  return project.pens.arrow.width * project.ink;
+}
+
 /** A ring's outer edge: its radius plus half its stroke, in the projector's units. */
 export function markOuterRadius(project: DiagramProjector): number {
-  return (DIAGRAM_MARK_INK.radius + DIAGRAM_MARK_INK.width / 2) * project.ink;
+  return DIAGRAM_MARK_INK.radius * project.ink + markRingWidth(project) / 2;
 }
 
 /**

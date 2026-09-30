@@ -3,7 +3,7 @@ import markFixture from './referenceFinder/__fixtures__/mark.json';
 import markCentreFixture from './referenceFinder/__fixtures__/mark-centre.json';
 import lineFixture from './referenceFinder/__fixtures__/line-exact.json';
 import { extractSolution } from './referenceFinder/extractor';
-import { arrowheadSize, createDiagramProjector, returnStroke } from './stepDiagramGeometry';
+import { createDiagramProjector, foldReturnOffset, returnStroke } from './stepDiagramGeometry';
 import type { ReferenceFinderReplayFixture } from './referenceFinder/replayClient';
 import type { Diagram } from './referenceFinder/solution';
 import {
@@ -55,15 +55,15 @@ describe('referenceFinderDiagramToPrimitives', () => {
 
   // Upstream's arc is the *outgoing* stroke and nothing else: the return that
   // makes it a round trip is derived where the picture is drawn, because how
-  // far beside the mark it ends is an arrowhead's length and only the drawing
-  // knows how big that is.
+  // far beside the mark it ends is a length of the drawing's, and only the
+  // drawing knows how big that is.
   it('keeps upstream\u2019s arc as the outgoing stroke, whole', () => {
     const model = referenceFinderDiagramToPrimitives(mark.solutions[0].diagrams[0]);
     const arrow = model.primitives.find((p) => p.kind === 'fold-arrow');
     if (arrow?.kind !== 'fold-arrow') throw new Error('no fold arrow');
     const card = createDiagramProjector(sheet, 100);
-    // The offset is in the arc's own units, so the projected head comes back.
-    const back = returnStroke(arrow.out, arrowheadSize(arrow.out, card) / card.scale);
+    // The offset is in the arc's own units, so the projected one comes back.
+    const back = returnStroke(arrow.out, foldReturnOffset(arrow.out, card) / card.scale);
     expect(back).not.toBeNull();
     // It bulges further, or the two strokes would lie on top of each other.
     expect(back!.radius).toBeLessThan(arrow.out.radius);

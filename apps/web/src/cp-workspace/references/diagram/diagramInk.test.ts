@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../../lib/paper/paperStyle';
+import { PT_PER_CSS_PX, PT_PER_MM } from '../../../lib/paper/paperSvg';
 import { MAX_DASH_SLOTS } from '../../renderer/types';
+import { ARROWHEAD_ASPECT } from '../stepDiagramGeometry';
 
 /** The defaults with solid folds: the Default preset dashes them. */
 const SOLID_FOLDS: PaperStyle = {
@@ -27,6 +29,7 @@ const APART: PaperStyle = {
 import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_DASH_SLOTS,
+  DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
@@ -81,7 +84,9 @@ describe('the diagram’s pen', () => {
       unfolded: { width: 1, cap: 'round', opacity: 0.28 },
     });
     expect(DIAGRAM_SHEET_INK).toEqual({ width: 1, opacity: 0.55 });
-    expect(DIAGRAM_MARK_INK).toEqual({ width: 1.2, radius: 3.84 });
+    // Four fifths of the reference diagrams' 4% of the card's paper.
+    expect(DIAGRAM_MARK_INK).toEqual({ radius: 3.07 });
+    expect(DIAGRAM_MARK_INK.radius / 3.84).toBeCloseTo(0.8, 2);
   });
 
   // The template's ratios, in units of the stroke width: valley 8:4, mountain
@@ -99,9 +104,24 @@ describe('the diagram’s pen', () => {
   // these reproduce exactly the shares of the paper they replace.
   it('keeps the card’s own proportions for the annotations', () => {
     const perSheet = 1 / DIAGRAM_INK_PER_SHEET;
-    expect(DIAGRAM_MARK_INK.radius / perSheet).toBeCloseTo(0.04, 9);
-    expect(DIAGRAM_ARROWHEAD_INK.length / perSheet).toBeCloseTo(0.11, 9);
+    // The ring is four fifths of the card's 4%, which read as too big on a page.
+    expect(DIAGRAM_MARK_INK.radius / perSheet).toBeCloseTo(0.032, 3);
     expect(DIAGRAM_TURN_OVER_INK / perSheet).toBeCloseTo(0.42, 9);
+    // The return's offset is what the head was: the loop keeps its width.
+    expect(DIAGRAM_FOLD_RETURN_INK.offset / perSheet).toBeCloseTo(0.11, 9);
+    expect(DIAGRAM_FOLD_RETURN_INK.ofChord).toBe(DIAGRAM_ARROWHEAD_INK.ofChord);
+  });
+
+  // The head is a printed diagram's, not upstream's 0.11 of the paper, which a
+  // reader found too big beside one: at the default pen on a step's page it
+  // is about 2.8 mm long and 1.65 mm wide.
+  it('draws an arrowhead the size of a printed diagram’s', () => {
+    expect(DIAGRAM_ARROWHEAD_INK.length).toBe(8.5);
+    expect(DIAGRAM_ARROWHEAD_INK.ofChord).toBe(0.26);
+    const mm = (DIAGRAM_ARROWHEAD_INK.length * canvasDiagramInk(1) * PT_PER_CSS_PX) / PT_PER_MM;
+    expect(mm).toBeCloseTo(2.8, 1);
+    expect((2 * mm) / ARROWHEAD_ASPECT).toBeCloseTo(1.65, 1);
+    expect(DIAGRAM_ARROWHEAD_INK.length).toBeLessThan(DIAGRAM_FOLD_RETURN_INK.offset);
   });
 
   // A letter and its halo already scaled with the viewBox, unlike the strokes,
