@@ -120,6 +120,8 @@ export function PaperPenCard({
         </PenField>
         <PenField label={t('dialogs:settings.paper.penCap', 'Cap')}>
           <SegmentedControl<PenCap>
+            size="sm"
+            fill
             aria-label={t('dialogs:settings.paper.penCapNamed', '{{pen}} cap', { pen: label })}
             value={pen.cap}
             disabled={disabled}

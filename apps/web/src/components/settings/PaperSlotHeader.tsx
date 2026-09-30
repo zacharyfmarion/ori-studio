@@ -20,6 +20,7 @@ export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
     <header className="settings-paper__slot">
       <div className="settings-paper__slot-row">
         <SegmentedControl<PaperStyleSlot>
+          size="lg"
           aria-label={t('dialogs:settings.paper.slot.title', 'Style')}
           value={paper.slot}
           onChange={paper.setSlot}

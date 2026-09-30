@@ -94,7 +94,7 @@ const seated = () => document.querySelector<HTMLButtonElement>('.test-slot .view
 const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
 const sheet = () => document.querySelector<HTMLElement>('.view-drawer__sheet');
 const tab = (label: string) =>
-  [...document.querySelectorAll<HTMLButtonElement>('.view-drawer__header .segmented__option')].find(
+  [...document.querySelectorAll<HTMLButtonElement>('.view-drawer__header [role="group"] button')].find(
     (option) => option.textContent === label
   );
 

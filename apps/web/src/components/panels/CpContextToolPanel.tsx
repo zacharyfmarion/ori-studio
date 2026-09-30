@@ -1268,7 +1268,11 @@ function ModeToolOption<T extends string>({
   return (
     <div className="cp-context-panel__group">
       <div className="cp-context-panel__group-title">{title}</div>
+      {/* Stretched: the group is the panel's full-width column, and a control
+          hugging its labels would leave the rest of it empty. */}
       <SegmentedControl
+        size="sm"
+        fill
         aria-label={title}
         value={value}
         options={modes.map((mode) => ({ value: mode, label: label(mode), title: describe(mode) }))}

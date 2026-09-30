@@ -19,13 +19,14 @@
  * Failing loudly here is cheap; the alternative is finding out through a layout
  * that looks slightly wrong in a way nobody can place.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 // Vitest's root is `apps/web`. Resolved from there rather than from
 // `import.meta.url`, which is not a file: URL once Vite has transformed this.
 const THEME_CSS = resolve(process.cwd(), 'src/styles/theme.css');
+const SRC = resolve(process.cwd(), 'src');
 
 /** `--foo: value;` — a definition, not a use. */
 const DEFINITION = /^\s*(--[\w-]+)\s*:/gmu;
@@ -102,5 +103,42 @@ describe('theme.css custom properties', () => {
         'define the token, give the var() a fallback, or, if it arrived with a merge ' +
         'and is not yours to value, add it to KNOWN_MISSING with a note'
     ).toEqual(KNOWN_MISSING);
+  });
+});
+
+/**
+ * A CSS module reads the global tokens and defines none of its own
+ * (`docs/styling.md`), so every `var()` in one has to name a property
+ * `theme.css` defines — the same silent drop as above, one file away from where
+ * the token lives.
+ */
+describe('CSS module custom properties', () => {
+  it('reads only properties theme.css defines', () => {
+    const defined = new Set<string>();
+    const theme = readFileSync(THEME_CSS, 'utf8').replace(/\/\*[\s\S]*?\*\//gu, '');
+    for (const match of theme.matchAll(DEFINITION)) {
+      if (match[1]) defined.add(match[1]);
+    }
+
+    const modules = readdirSync(SRC, { recursive: true, encoding: 'utf8' }).filter((path) =>
+      path.endsWith('.module.css')
+    );
+    expect(modules.length, 'found no CSS module under src/; check SRC').toBeGreaterThan(0);
+
+    const missing: string[] = [];
+    for (const path of modules) {
+      const css = readFileSync(resolve(SRC, path), 'utf8').replace(/\/\*[\s\S]*?\*\//gu, '');
+      for (const match of css.matchAll(REFERENCE)) {
+        const name = match[1];
+        if (!name || match[2] === ',' || defined.has(name) || RUNTIME_INJECTED.test(name)) continue;
+        missing.push(`${path}: ${name}`);
+      }
+    }
+
+    expect(
+      missing,
+      'a CSS module reads a property theme.css never defines, so the browser drops the ' +
+        'declaration — declare the token in theme.css, in both themes'
+    ).toEqual([]);
   });
 });

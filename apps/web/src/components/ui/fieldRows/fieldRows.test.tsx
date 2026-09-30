@@ -219,7 +219,7 @@ describe('SelectRow and SegmentedRow', () => {
       </>
     );
     expect(view.querySelector('.select-trigger')?.textContent).toContain('Mixed');
-    const pressed = [...view.querySelectorAll<HTMLButtonElement>('.segmented__option')].map(
+    const pressed = [...view.querySelectorAll<HTMLButtonElement>('[role="group"] button')].map(
       (button) => button.getAttribute('aria-pressed')
     );
     expect(pressed).toEqual(['false', 'false']);
@@ -238,7 +238,7 @@ describe('SelectRow and SegmentedRow', () => {
         onChange={onChange}
       />
     );
-    const buttons = view.querySelectorAll<HTMLButtonElement>('.segmented__option');
+    const buttons = view.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Align"] button');
     act(() => buttons[1]?.click());
     expect(onChange).toHaveBeenCalledWith('right');
   });

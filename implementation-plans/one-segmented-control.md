@@ -83,8 +83,13 @@ wanted become props.
      control lines up with a button, input or select beside it. The pills are
      the track's height less its padding. The Paper slot switch is `lg` —
      exactly its look today (28px pills in a 36px track).
-   - `fill` shares the container's width equally among the options, for the
-     places that need a stretched control. Everything else hugs its options.
+   - `fill` stretches the control to its container, for the places that need
+     it: each option takes its label's width and an equal share of the room
+     left over. Split into equal widths, a longer label was cut while a shorter
+     one had room to spare (a pen card's Cap, 99px wide, cut "Round" to
+     "Ro…"). Everything else hugs its options — the track is
+     `width: fit-content`, so it hugs even in a grid or flex column that would
+     stretch it (the export dialog's groups did).
    - Every context override above is deleted; the dead
      `.simulator-view-settings` rule goes with them.
 3. **Per-option extras the look-alikes need**, so they can move onto the one
@@ -126,18 +131,24 @@ wanted become props.
 
 ### Phase 1 — The component takes the pill look; its sites follow
 
-- [ ] The scoped-CSS setup lands first (`implementation-plans/scoped-css.md`)
-- [ ] `SegmentedControl`: pill track and pills in `SegmentedControl.module.css`
+- [x] The scoped-CSS setup lands first (`implementation-plans/scoped-css.md`)
+- [x] `SegmentedControl`: pill track and pills in `SegmentedControl.module.css`
       (its `theme.css` rules deleted), the `--segmented-track` token (light
       and dark), a distinct hover tint, `size` on the shared scale, `fill`
-- [ ] The 10 sites: sizes and `fill` per the decisions above; delete every
-      context override and the dead simulator rule
-- [ ] Tests: the component (size, fill, a `null` value presses nothing,
+- [x] The 10 sites: sizes and `fill` per the decisions above; delete every
+      context override and the dead simulator rule. `lg` for the Paper slot
+      switch; `sm` with `fill` for the pen cards' Cap and the context panel
+      (mode switches, the Square tool's options); `sm` in property rows; the
+      dialogs and the phone drawer at the default `md`, hugging
+- [x] Tests: the component (size, fill, a `null` value presses nothing,
       disabled refuses), and every existing test that reads the markup —
       moved from `.segmented__option` to roles and pressed state
-- [ ] Browser: each site in dark and light themes, and at phone width with a
-      touch pointer (the coarse-pointer minimum height)
-- [ ] Validate; commit
+- [x] Browser: each site in dark and light themes, and at phone width with a
+      touch pointer (the coarse-pointer minimum height). Known limit, not new:
+      a pen card's Cap field is 99px, and the Russian and Portuguese labels
+      (Плоский / Круглый, Reto / Arredondado) do not fit it at any padding —
+      they now end in an ellipsis where they used to be clipped
+- [x] Validate; commit
 
 ### Phase 2 — The line types onto the component
 

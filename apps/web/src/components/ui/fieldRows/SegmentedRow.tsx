@@ -33,6 +33,7 @@ export function SegmentedRow({
   return (
     <FieldRow label={label} kind="segmented" disabled={disabled} title={title} onReset={onReset}>
       <SegmentedControl
+        size="sm"
         aria-label={label}
         options={options.map((option) => ({
           value: option.id,

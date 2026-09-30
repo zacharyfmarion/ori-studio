@@ -176,7 +176,7 @@ describe('PropertySheetView', () => {
     act(() => container?.querySelector<HTMLButtonElement>('[role="switch"]')?.click());
     expect(toggle).toHaveBeenCalledWith(true);
 
-    const options = [...container!.querySelectorAll<HTMLButtonElement>('.segmented__option')];
+    const options = [...container!.querySelectorAll<HTMLButtonElement>('[role="group"] button')];
     act(() => options.find((option) => option.textContent === 'Front')?.click());
     expect(segmented).not.toHaveBeenCalled();
     act(() => options.find((option) => option.textContent === 'Back')?.click());

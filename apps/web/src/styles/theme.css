@@ -101,6 +101,8 @@
    * right only for the one dark palette a design is drawn in — would not.
    */
   --settings-well: var(--bg-canvas);
+  /* The segmented control's track: a well, for the same reason. */
+  --segmented-track: var(--bg-canvas);
 
   --shadow-overlay: rgba(0, 0, 0, 0.35);
   --shadow-context-menu: 0 4px 12px rgba(0, 0, 0, 0.35);
@@ -1353,42 +1355,6 @@ a.context-menu__item {
   font-size: 0.72rem;
 }
 
-.segmented {
-  display: inline-flex;
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-  background: var(--bg-elevated);
-}
-
-.segmented__option {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  height: 26px;
-  padding: 0 8px;
-  border: 0;
-  border-left: 1px solid var(--border-default);
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0;
-  cursor: pointer;
-}
-
-.segmented__option:first-child {
-  border-left: 0;
-}
-
-.segmented__option:hover,
-.segmented__option[data-active] {
-  background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
-  color: var(--text-primary);
-}
-
 .toggle-switch {
   position: relative;
   display: inline-flex;
@@ -2487,15 +2453,6 @@ a.context-menu__item {
   box-shadow: 0 0 0 2px var(--accent-primary);
 }
 
-.export-modal .segmented {
-  display: flex;
-  width: 100%;
-}
-
-.export-modal .segmented__option {
-  flex: 1 1 0;
-}
-
 .export-modal__toggle-row {
   display: flex;
   align-items: center;
@@ -3004,25 +2961,6 @@ a.context-menu__item {
 }
 
 /*
- * Every segmented control on this tab — the slot switch and the pen cards'
- * Cap — is a padded track with separate pills inside it rather than the shared
- * primitive's flush box divided by hairlines. Scoped to the tab: the divided
- * box is right where a `.segmented` sits in a toolbar, hard against its
- * neighbours.
- */
-.settings-paper .segmented {
-  gap: 3px;
-  padding: 3px;
-  border-radius: 7px;
-  background: var(--settings-well);
-}
-
-.settings-paper .segmented__option {
-  border-left: 0;
-  border-radius: 5px;
-}
-
-/*
  * Which style is being edited, and where it came from: the slot switch, the
  * preset chip, and the line naming the surfaces the slot reaches.
  */
@@ -3038,16 +2976,6 @@ a.context-menu__item {
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-}
-
-/* The slot switch is the larger of the tab's two segmented controls. */
-.settings-paper__slot-row .segmented {
-  border-radius: 8px;
-}
-
-.settings-paper__slot-row .segmented__option {
-  height: 28px;
-  border-radius: 6px;
 }
 
 .settings-paper__slot-hint {
@@ -3547,16 +3475,10 @@ a.context-menu__item {
   text-transform: uppercase;
 }
 
-.settings-paper-pen__field .number-field,
-.settings-paper-pen__field .segmented {
+.settings-paper-pen__field .number-field {
   width: 100%;
   min-width: 0;
   height: 28px;
-}
-
-/* The Cap pills fill the track they sit in, which is what fixes its height. */
-.settings-paper-pen__field .segmented__option {
-  height: 100%;
 }
 
 /*
@@ -6200,11 +6122,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   flex-wrap: wrap;
 }
 
-.simulator-view-settings .segmented__option {
-  height: 24px;
-  padding: 0 7px;
-}
-
 .simulator-panel__empty {
   position: absolute;
   inset: 0;
@@ -7244,20 +7161,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: grid;
   gap: 6px;
   min-width: 0;
-}
-
-/* A settings group is a full-width column, so the grid stretches a segmented
-   control rather than letting it hug its labels — and its options, sized to
-   their text, then leave the rest of the track empty. Sharing the width evenly
-   is what a stretched segmented control is supposed to look like. Every other
-   `.segmented` in the app sits in a row that lets it hug, so this is scoped
-   here rather than changing the control. */
-.cp-context-panel__group .segmented {
-  display: flex;
-}
-
-.cp-context-panel__group .segmented__option {
-  flex: 1 1 0;
 }
 
 .cp-context-panel__instructions {
@@ -10906,7 +10809,6 @@ button.bp-packing-alert:focus-visible {
   .ui-icon-control--md,
   .ui-icon-control--lg,
   .select-trigger,
-  .segmented__option,
   .viewport-toolbar__zoom-button,
   .viewport-toolbar__symmetry-button,
   .cp-selection-transform__menu button,

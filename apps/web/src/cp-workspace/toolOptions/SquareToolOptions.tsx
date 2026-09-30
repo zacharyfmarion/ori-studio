@@ -192,6 +192,7 @@ function NumberToolOption({
  * A `div` rather than the `label` element the numeric field uses: a label points
  * at a single control, and this names a group of buttons. The group carries its
  * own `aria-label`, so the accessible name does not depend on the visible text.
+ * It fills the control column, as the numeric fields do, so the two line up.
  */
 function SegmentedToolOption<T extends string>({
   label,
@@ -209,7 +210,14 @@ function SegmentedToolOption<T extends string>({
   return (
     <div className="cp-context-panel__field">
       <span>{label}</span>
-      <SegmentedControl aria-label={ariaLabel} value={value} options={options} onChange={onChange} />
+      <SegmentedControl
+        size="sm"
+        fill
+        aria-label={ariaLabel}
+        value={value}
+        options={options}
+        onChange={onChange}
+      />
     </div>
   );
 }

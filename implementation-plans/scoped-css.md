@@ -68,11 +68,17 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
 
 ## Setup
 
-- `vite.config.ts`: pin `css.modules.generateScopedName` — readable in dev
-  (`[name]_[local]_[hash:base64:5]`), short in production — so the class names
-  the landing prerender writes (`scripts/prerender-landing.mjs`, which loads
-  components through Vite's `ssrLoadModule`) are the ones the client bundle
-  ships. Verify by prerendering a page that uses a module.
+- **One class-name generator for every build**, in
+  `apps/web/scripts/cssModuleNames.mjs` (`SegmentedControl__track__FnzQS`: file,
+  local name, and a hash of the module's path). `vite.config.ts` and the landing
+  prerender both import it, because the prerender starts Vite with
+  `configFile: false` and would otherwise name every class its own way — the
+  painted page would carry names the bundle does not ship. A function rather
+  than Vite's `[name]__[local]__[hash]` string: that pattern hashes the path
+  from the working directory, and measured, the dev server (run from the repo
+  root) and a build (run from `apps/web`) gave the same class different names.
+  The function hashes from `apps/web` wherever the process runs. Verified: the
+  prerender's SSR path, a build, and the dev server all give the name above.
 - Vitest: nothing required. Measured under the current config, a module import
   resolves to a stable hashed name (`styles.track` → `_track_1c28cb`). For the
   migration, `test.css.modules.classNameStrategy: 'non-scoped'` would keep a
@@ -87,7 +93,13 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
     `max-lines`): a unit test fails if `theme.css` grows past its recorded
     ceiling, and when it shrinks well below, until the ceiling is lowered to
     match — so the number only goes down and slack cannot build up. A test
-    rather than a CI step, so it runs everywhere the tests do.
+    rather than a CI step, so it runs everywhere the tests do. Landed as
+    `src/styles/globalStylesheets.test.ts`: every global stylesheet has a
+    ceiling in code lines (comments and blanks free) with 25 lines of slack,
+    and a plain stylesheet that is not on the list fails it.
+  - `themeTokens.test.ts` also reads every `*.module.css`: a module's `var()`
+    must name a token `theme.css` defines, or the browser drops the
+    declaration without a word.
 
 ## Beside PR #412 (landing performance)
 
@@ -121,10 +133,13 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
 
 ## Checklist
 
-- [ ] `generateScopedName` pinned; a prerendered page using a module keeps its
-      styles (class names in `dist/index.html` match the built CSS)
-- [ ] ESLint rule and allowlist; the `theme.css` ratchet test
-- [ ] Convention in `AGENTS.md` and `apps/web/docs/styling.md`
-- [ ] First module lands with it: `SegmentedControl.module.css`, its context
+- [x] One class-name generator shared by the build and the prerender; the SSR
+      path the prerender uses and the built CSS name the same class the same
+      way (the landing has no module yet, so this is checked on
+      `SegmentedControl`)
+- [x] ESLint rule and allowlist; the global-stylesheet ratchet test; module
+      tokens checked
+- [x] Convention in `AGENTS.md` and `apps/web/docs/styling.md`
+- [x] First module lands with it: `SegmentedControl.module.css`, its context
       overrides replaced by props (the segmented-control plan's Phase 1)
-- [ ] Validate (lint, typecheck, tests, `build:web` with the prerender); commit
+- [x] Validate (lint, typecheck, tests, `build:web` with the prerender); commit
