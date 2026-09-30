@@ -3169,7 +3169,8 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6341,7 +6342,8 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9515,7 +9517,8 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12630,7 +12633,8 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -15745,7 +15749,8 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -18917,7 +18922,8 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22089,7 +22095,8 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25204,6 +25211,7 @@
     "panels:references.ways.readout": "baea3853d6b7",
     "panels:references.ways.readoutShort": "e5c69eab87c9",
     "tools:references.nextWay": "8c7a20491359",
-    "tools:references.previousWay": "1aa51b71acbf"
+    "tools:references.previousWay": "1aa51b71acbf",
+    "landing:get.startCreating": "eff3d8eb5558"
   }
 }

@@ -128,8 +128,8 @@ export function WelcomeRoute() {
         <WelcomeLanding />
         {/*
           The landing's links to the rest of the site. Here rather than inside
-          `WelcomeLanding`, which stays a pure block of copy with no router
-          dependency; the prerender's `StaticLanding` places it the same way.
+          `WelcomeLanding`, which is the landing's own copy and nothing around
+          it; the prerender's `StaticLanding` places it the same way.
         */}
         <SiteFooter />
       </main>

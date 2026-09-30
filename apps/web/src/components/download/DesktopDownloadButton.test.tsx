@@ -5,6 +5,12 @@ import { RELEASES_LATEST_URL } from '../../platform/desktopDownload';
 import { resetDesktopReleaseCache } from '../../platform/desktopRelease';
 import { DesktopDownloadButton } from './DesktopDownloadButton';
 
+const trackDesktopDownload = vi.fn();
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  trackDesktopDownload: (...args: unknown[]) => trackDesktopDownload(...args),
+}));
+
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const RELEASE = {
@@ -43,6 +49,7 @@ function primary(): HTMLAnchorElement | null {
 }
 
 beforeEach(() => {
+  trackDesktopDownload.mockClear();
   resetDesktopReleaseCache();
   localStorage.clear();
   poseAsMac();
@@ -130,5 +137,55 @@ describe('DesktopDownloadButton', () => {
 
     expect(rendered.textContent).toContain('Download the desktop app');
     expect(primary()?.getAttribute('href')).toBe(RELEASES_LATEST_URL);
+  });
+
+  describe('what a click reports', () => {
+    function click(): void {
+      // jsdom does not navigate, so a click runs the handler and goes nowhere.
+      act(() => primary()?.click());
+    }
+
+    it('reports the build it handed over', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => RELEASE }));
+      await render();
+
+      click();
+
+      expect(trackDesktopDownload).toHaveBeenCalledWith({ build: 'macos-arm64', surface: 'landing' });
+    });
+
+    it('reports a failed lookup as release_unresolved', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+      await render();
+
+      click();
+
+      expect(trackDesktopDownload).toHaveBeenCalledWith({
+        build: 'releases-page',
+        surface: 'landing',
+        fallbackReason: 'release_unresolved',
+      });
+    });
+
+    it('reports a device with no desktop build as no_platform, not as a failure', async () => {
+      // The release resolved fine; there is just nothing to recommend to an iPad.
+      // Counting this as a failed lookup is what made phones look like GitHub
+      // outages on the dashboard.
+      vi.stubGlobal('navigator', {
+        platform: 'MacIntel',
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/26.2 Safari/605.1.15',
+        maxTouchPoints: 5,
+      });
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => RELEASE }));
+      await render();
+
+      click();
+
+      expect(trackDesktopDownload).toHaveBeenCalledWith({
+        build: 'releases-page',
+        surface: 'landing',
+        fallbackReason: 'no_platform',
+      });
+    });
   });
 });
