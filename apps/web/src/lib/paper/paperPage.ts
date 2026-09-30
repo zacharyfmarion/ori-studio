@@ -9,14 +9,19 @@
  */
 import { parseHex, type Hex } from './paperStyle';
 
-export type PaperSheetSize =
-  /** The sheet's on-screen size, 1 CSS px = 0.75 pt: exact WYSIWYG. */
-  | 'as-shown'
-  /**
-   * The picture is this many mm across what its kind measures
-   * ({@link PaperSizeMeasure}); the pens keep their pt widths.
-   */
-  | { mm: number };
+/**
+ * How big the picture is: this many mm across what its kind measures
+ * ({@link PaperSizeMeasure}), the pens keeping their pt widths.
+ *
+ * Always a size. There was an "as shown" — the picture at its size on screen —
+ * but that is a size nobody chose: it moved with the zoom, a folded figure
+ * beside its crease pattern came out a few centimetres across, and a page
+ * whose pens are drawn in pt needs to know how big the drawing is to read
+ * right.
+ */
+export interface PaperSheetSize {
+  mm: number;
+}
 
 /**
  * What a size in mm measures on a picture.
@@ -43,20 +48,20 @@ export interface PaperPage {
   keepHiddenFaces: boolean;
 }
 
+/**
+ * The size a figure's picture opens at — a folded figure's or a simulation's —
+ * across its longer side: a finished model's picture in a printed diagram,
+ * about half again a step's square. Its pens keep their pt widths at any
+ * size, so this is what sets how fine they read.
+ */
+export const DEFAULT_PAPER_FIGURE_MM = 60;
+
 export const DEFAULT_PAPER_PAGE: PaperPage = {
-  sheet: 'as-shown',
+  sheet: { mm: DEFAULT_PAPER_FIGURE_MM },
   paddingMm: 5,
   background: null,
   keepHiddenFaces: true,
 };
-
-/**
- * The size a figure's picture opens at — a folded figure's, and a simulation's
- * when a user leaves "as shown" — across its longer side: a finished model's
- * picture in a printed diagram, about half again a step's square. Its pens
- * keep their pt widths at any size, so this is what sets how fine they read.
- */
-export const DEFAULT_PAPER_FIGURE_MM = 60;
 
 /**
  * A diagram step's sheet: the square a printed diagram draws each step on,
@@ -68,11 +73,6 @@ export const DIAGRAM_STEP_SHEET_MM = 41;
 /** The page colour a transparent page turns into when the user asks for one. */
 export const DEFAULT_PAPER_BACKGROUND: Hex = '#ffffff';
 
-/** The size in mm the size field shows: the chosen one, or a figure's default while "as shown". */
-export function sheetMmOf(sheet: PaperSheetSize): number {
-  return sheet === 'as-shown' ? DEFAULT_PAPER_FIGURE_MM : sheet.mm;
-}
-
 /** The sheet sizes the UI offers, in mm. */
 export const PAPER_SHEET_MM_RANGE = { min: 10, max: 1000, step: 1 } as const;
 
@@ -80,7 +80,6 @@ export const PAPER_SHEET_MM_RANGE = { min: 10, max: 1000, step: 1 } as const;
 export const PAPER_PADDING_MM_RANGE = { min: 0, max: 100, step: 0.5 } as const;
 
 function parseSheet(value: unknown): PaperSheetSize | undefined {
-  if (value === 'as-shown') return value;
   if (!value || typeof value !== 'object') return undefined;
   const { mm } = value as Record<string, unknown>;
   if (typeof mm !== 'number' || !Number.isFinite(mm) || mm <= 0) return undefined;

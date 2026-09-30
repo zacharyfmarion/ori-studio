@@ -306,21 +306,17 @@ describe('PaperExportModal', () => {
     expect(button('Export PNG')?.disabled).toBe(false);
   });
 
-  it('offers a target with a sheet of its own the sheet size alone, starting there even when "as shown" is remembered', async () => {
-    const { paperExport } = useSettingsStore.getState();
-    useSettingsStore.setState({
-      paperExport: { ...paperExport, 'folded-figure': { ...paperExport['folded-figure'], sheet: 'as-shown' } },
-    });
-    await open(target({ defaultSheetMm: 250 }));
+  // A page is always a size chosen in mm: there is no "as shown", whatever
+  // the picture.
+  it('offers a size in mm and nothing else, starting at the kind’s own', async () => {
+    await open(target());
     expect(button('As shown')).toBeUndefined();
     expect(button('Custom')).toBeUndefined();
-    expect(field('Sheet size')?.value).toBe('250');
+    expect(field('Sheet size')?.value).toBe(
+      String(useSettingsStore.getState().paperExport['folded-figure'].sheet.mm)
+    );
     expect(text()).toContain('The unfolded sheet spans this size');
-
-    act(() => usePaperExportUiStore.getState().close());
-    await open(target());
-    expect(button('As shown')).toBeDefined();
-    expect(field('Sheet size')).toBeNull();
+    expect(text()).not.toContain('on screen');
   });
 
   // A folded figure's or a simulation's sheet is nowhere in its picture, so
@@ -330,7 +326,7 @@ describe('PaperExportModal', () => {
     useSettingsStore.setState({
       paperExport: { ...paperExport, 'folded-figure': { ...paperExport['folded-figure'], sheet: { mm: 50 } } },
     });
-    await open(target({ sizeMeasures: 'figure', defaultSheetMm: 60 }));
+    await open(target({ sizeMeasures: 'figure' }));
     expect(field('Sheet size')).toBeNull();
     expect(field('Figure size')?.value).toBe('50');
     expect(text()).toContain('The figure spans this size across its longer side');
@@ -342,26 +338,12 @@ describe('PaperExportModal', () => {
       field(label)
         ?.closest('.export-modal__field-row')
         ?.querySelector('.export-modal__label')?.textContent ?? null;
-    const { paperExport } = useSettingsStore.getState();
-    useSettingsStore.setState({
-      paperExport: { ...paperExport, 'folded-figure': { ...paperExport['folded-figure'], sheet: 'as-shown' } },
-    });
-
-    await open(target({ defaultSheetMm: 250 }));
-    expect(rowLabel('Sheet size')).toBe('Size');
-    expect(rowLabel('Margin')).toBe('Margin');
-
-    // With "As shown" on offer, the choice has a heading of its own, and the
-    // Size row comes with Custom.
-    act(() => usePaperExportUiStore.getState().close());
-    await open(target());
-    const headings = () =>
-      [...(dialog()?.querySelectorAll('.export-modal__label') ?? [])].map((label) => label.textContent);
-    expect(headings()).toContain('Sheet');
-    expect(headings()).not.toContain('Size');
-    await act(async () => button('Custom')?.click());
-    expect(rowLabel('Sheet size')).toBe('Size');
-    expect(rowLabel('Margin')).toBe('Margin');
+    for (const sizeMeasures of ['sheet', 'figure'] as const) {
+      await open(target({ sizeMeasures }));
+      expect(rowLabel(sizeMeasures === 'sheet' ? 'Sheet size' : 'Figure size')).toBe('Size');
+      expect(rowLabel('Margin')).toBe('Margin');
+      act(() => usePaperExportUiStore.getState().close());
+    }
   });
 
   it('starts a fresh draft when opened over an open dialog, releasing the one it replaces', async () => {

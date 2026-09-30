@@ -24,7 +24,7 @@ import type {
 import { hexToUnitRgb, unitRgbToHex } from './paperStyleResolve';
 import { PT_TO_CSS_PX, type Hex, type PaperStyle, type Pen } from './paperStyle';
 
-/** Points per CSS px: the 'as-shown' page is the screen at 96 px per inch. */
+/** Points per CSS px: the screen, at 96 px per inch. */
 export const PT_PER_CSS_PX = 0.75;
 
 export const PT_PER_MM = 72 / 25.4;
@@ -57,10 +57,10 @@ export interface PaperSvgResult {
 }
 
 /**
- * Points per scene px for a page: the screen's own ratio, or whatever makes
- * what the size measures span the size asked for — the unfolded sheet, or the
- * figure's longer side (its bounds). A scene with nothing to measure (an empty
- * one) has nothing to scale by and takes the screen's ratio.
+ * Points per scene px for a page: whatever makes what the size measures span
+ * the size asked for — the unfolded sheet, or the figure's longer side (its
+ * bounds). A scene with nothing to measure (an empty one) has nothing to scale
+ * by and takes the screen's ratio.
  */
 export function pagePtPerPx(
   scene: PaperScene,
@@ -68,7 +68,7 @@ export function pagePtPerPx(
   measure: PaperSizeMeasure = 'sheet'
 ): number {
   const span = measure === 'figure' ? sceneFigureSpan(scene) : scene.sheet;
-  if (page.sheet === 'as-shown' || !(span > 0)) return PT_PER_CSS_PX;
+  if (!(span > 0)) return PT_PER_CSS_PX;
   return (page.sheet.mm * PT_PER_MM) / span;
 }
 
@@ -233,13 +233,13 @@ function sceneElements(
  * A markup item placed on the page: its scene-px markup in a group whose
  * transform is the projection — the scale every line's coordinates took, and
  * the shift. Its pens are in scene px too, so a stroke drawn at the arrow
- * pen's CSS px comes out at the pen's pt on an as-shown page. Markup is
- * placed, not repainted: a sheet size scales it whole, strokes included, where
- * a line keeps its pen's pt. A producer whose marks should keep their size as
- * the lines keep their widths builds its scene at the page's own scale
- * ({@link mmToCssPx}), so the scale here is the as-shown one at any sheet size.
- * A References step is built so, and its arrows, rings and letters are the
- * size they are on screen on every page.
+ * pen's CSS px comes out at the pen's pt when a scene px is a CSS px on the
+ * page. Markup is placed, not repainted: a size scales it whole, strokes
+ * included, where a line keeps its pen's pt. A producer whose marks should
+ * keep their size as the lines keep their widths builds its scene at the
+ * page's own scale ({@link mmToCssPx}), so the scale here is the screen's at
+ * any size. A References step is built so, and its arrows, rings and letters
+ * are the size they are on screen on every page.
  */
 function markupElement(
   markup: PaperMarkupItem,

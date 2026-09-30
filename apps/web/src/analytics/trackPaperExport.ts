@@ -6,7 +6,6 @@ import type {
   PaperExportMarkShown,
   PaperExportResolution,
   PaperExportScope,
-  PaperExportSheet,
   PaperExportStyleName,
   PaperExportSurface,
 } from './events';
@@ -27,7 +26,6 @@ export interface PaperExportedEvent {
   format: PaperExportFormat;
   hiddenFaces: PaperExportHiddenFaces;
   style: PaperExportStyleName;
-  sheet: PaperExportSheet;
   background: PaperExportBackground;
   /** The PNG's density; read only for a PNG. */
   pngDpi: number;
@@ -70,7 +68,6 @@ export function trackPaperExported(event: PaperExportedEvent): void {
     format: event.format,
     hidden_faces: event.hiddenFaces,
     style: event.style,
-    sheet: event.sheet,
     background: event.background,
     resolution: paperExportResolution(event.format, event.pngDpi),
     options_changed: event.optionsChanged ? 'yes' : 'no',

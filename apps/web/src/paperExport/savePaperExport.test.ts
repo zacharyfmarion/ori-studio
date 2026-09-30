@@ -229,7 +229,6 @@ describe('paperExportedEvent', () => {
       format: 'svg',
       hiddenFaces: 'kept',
       style: 'export-style',
-      sheet: 'as-shown',
       background: 'transparent',
       pngDpi: DEFAULT_PAPER_EXPORT_SETTINGS.pngDpi,
       optionsChanged: false,
@@ -245,7 +244,7 @@ describe('paperExportedEvent', () => {
     ).toBe('custom');
   });
 
-  it('says what kind of sheet and background, and whether anything was changed', () => {
+  it('says what kind of background, and whether anything was changed', () => {
     const png = {
       ...DEFAULT_PAPER_EXPORT_SETTINGS,
       format: 'png' as const,
@@ -258,7 +257,6 @@ describe('paperExportedEvent', () => {
     ).toMatchObject({
       format: 'png',
       hiddenFaces: 'dropped',
-      sheet: 'custom',
       background: 'colour',
       pngDpi: 288,
       optionsChanged: true,

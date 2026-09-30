@@ -157,15 +157,18 @@ function sceneBox(
  * A stored scene in the space a *page* scene is built in: local user units
  * scaled to the CSS px the figure covers on the canvas.
  *
- * For a figure with no live kernel, which is the one that cannot rebuild. The
- * page keeps the pens at their pt widths whatever the artwork's scale
- * (`paperSvg`), and the default sheet is `'as-shown'` — so painting a document
- * scene as if it were a page one is not merely a smaller sheet, it is a
- * different drawing: the same figure would export with creases
- * `placement.scale × cssPerUserUnit` times as heavy relative to the paper as
- * the live path gives it. The factor is exactly that product, because a page
- * scene's box is the local frame side through both
- * ({@link folded3dFigureBoxCssPx} over `foldedFigureBox`).
+ * For a figure with no live kernel, which is the one that cannot rebuild. A
+ * page scene is in the CSS px its live build measures its pens in
+ * (`widestPenCssPx`), so the stored scene is brought into them and the two
+ * builds of one figure are one scene. The factor is `placement.scale ×
+ * cssPerUserUnit`, because a page scene's box is the local frame side through
+ * both ({@link folded3dFigureBoxCssPx} over `foldedFigureBox`).
+ *
+ * How heavy its creases read on the page no longer turns on it: the painter
+ * sizes a figure by its own longer side (`PaperSizeMeasure`), whatever units
+ * the scene is in. It did while a page could be drawn at the scene's own
+ * scale, when a document scene painted as a page one exported its creases
+ * that factor too heavy against the paper.
  */
 export function folded3dStoredSceneInCssPx(
   scene: PaperScene,

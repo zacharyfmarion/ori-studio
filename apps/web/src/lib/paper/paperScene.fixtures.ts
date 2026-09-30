@@ -9,6 +9,7 @@ import type {
   SceneBounds,
   ScenePoint,
 } from './paperScene';
+import { DEFAULT_PAPER_PAGE, type PaperPage } from './paperPage';
 
 /**
  * Hand-built scenes for the painter's tests and for any surface's export test
@@ -17,6 +18,16 @@ import type {
  */
 
 export const FIXTURE_SHEET_PX = 100;
+
+/**
+ * The default page at the size that paints a fixture's sheet at the screen's
+ * own ratio — 0.75 pt per scene px, 96 px to the inch — so a test's arithmetic
+ * on scene px carries straight onto the page.
+ */
+export const FIXTURE_PAGE: PaperPage = {
+  ...DEFAULT_PAPER_PAGE,
+  sheet: { mm: (FIXTURE_SHEET_PX * 25.4) / 96 },
+};
 
 /** The unit square in scene px, wound clockwise on screen (y down). */
 export const SQUARE: ScenePoint[] = [

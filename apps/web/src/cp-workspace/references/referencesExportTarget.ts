@@ -14,7 +14,6 @@
  * the margin alone only repaints. A step is one sheet with nothing under it,
  * so it has no buried faces to keep.
  */
-import { DIAGRAM_STEP_SHEET_MM } from '../../lib/paper/paperPage';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { DEFAULT_PAPER_EXPORT_MARKS, PAPER_EXPORT_MARKS } from '../../lib/paperExportSettings';
@@ -71,13 +70,11 @@ export function referencesExportTarget(capture: ReferencesExportCapture): PaperE
     exportStyle: capture.exportStyle,
     // A step is drawn on its sheet, the frame a diagram's steps share.
     sizeMeasures: 'sheet',
-    defaultSheetMm: DIAGRAM_STEP_SHEET_MM,
     pins: null,
     buriesFaces: false,
     marks: PAPER_EXPORT_MARKS,
-    // Keyed by the size the scene is built at, so "As shown" and the size it
-    // reads as are one scene.
-    sceneKey: ({ page, style, background, marks = DEFAULT_PAPER_EXPORT_MARKS, sheet = 'as-shown' }) =>
+    // Keyed by the size the scene is built at.
+    sceneKey: ({ page, style, background, marks = DEFAULT_PAPER_EXPORT_MARKS, sheet }) =>
       [
         page,
         JSON.stringify(applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references)),
@@ -91,7 +88,7 @@ export function referencesExportTarget(capture: ReferencesExportCapture): PaperE
       style,
       background,
       marks = DEFAULT_PAPER_EXPORT_MARKS,
-      sheet = 'as-shown',
+      sheet,
     }) => {
       const step = steps[page];
       if (!step) return null;

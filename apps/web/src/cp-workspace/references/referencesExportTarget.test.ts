@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_CSS_PX, PT_PER_MM } from '../../lib/paper/paperSvg';
-import { DEFAULT_PAPER_EXPORT_SETTINGS, type PaperExportSettings } from '../../lib/paperExportSettings';
+import {
+  DEFAULT_PAPER_EXPORT_SETTINGS,
+  paperExportKindDefaults,
+  type PaperExportSettings,
+} from '../../lib/paperExportSettings';
 import { paperPresetRows } from '../../lib/paperPresetRows';
 import {
   createPaperExportSession,
@@ -95,7 +99,7 @@ function target(capture: StepCapture, diagrams: readonly StepDiagramModel[] = [s
 async function dialogPage(capture: StepCapture, remembered: PaperExportSettings) {
   const exported = target(capture);
   const rows = paperPresetRows([]);
-  const draft = paperExportDraft(remembered, { format: null, target: exported }, rows);
+  const draft = paperExportDraft(remembered, { format: null }, rows);
   const style = paperExportStyle(exported, draft.style, rows);
   const scene = await createPaperExportSession(exported).scene(
     paperExportSceneInput(exported, style, draft)
@@ -107,7 +111,7 @@ describe('referencesExportTarget', () => {
   it('writes a printed diagram’s step at the defaults', async () => {
     const page = await dialogPage(
       { mirrored: false, lineWidth: 1, showAux: null },
-      DEFAULT_PAPER_EXPORT_SETTINGS
+      paperExportKindDefaults().step
     );
     expect(page).toEqual(golden.defaults);
   });
@@ -152,8 +156,9 @@ describe('referencesExportTarget', () => {
     await expect(exported.buildScene({ ...input, page: 2 })).resolves.toBeNull();
   });
 
-  it('opens at a printed diagram’s step size, with no "as shown"', () => {
-    expect(target({ mirrored: false, lineWidth: 1, showAux: null }).defaultSheetMm).toBe(41);
+  it('sizes a step by its sheet, the frame a diagram’s steps share', () => {
+    expect(target({ mirrored: false, lineWidth: 1, showAux: null }).sizeMeasures).toBe('sheet');
+    expect(paperExportKindDefaults().step.sheet).toEqual({ mm: 41 });
   });
 
   it('offers both marks, keys its scene by them, and builds a page without the ones that are off', async () => {
@@ -363,13 +368,13 @@ describe('a step’s marks on the page', () => {
     }
   });
 
-  it('builds a scene per sheet size, and one for "As shown" and the size it reads as', () => {
+  it('builds a scene per sheet size', () => {
     const exported = target({ mirrored: false, lineWidth: LINE_WIDTH, showAux: null });
     const key = (sheet: PaperExportSettings['sheet']) =>
       exported.sceneKey(
         paperExportSceneInput(exported, STYLE, { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet })
       );
     expect(key({ mm: 120 })).not.toBe(key({ mm: 41 }));
-    expect(key('as-shown')).toBe(key({ mm: 41 }));
+    expect(key({ mm: 41 })).toBe(key({ mm: 41 }));
   });
 });

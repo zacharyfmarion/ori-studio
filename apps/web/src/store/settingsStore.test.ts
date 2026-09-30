@@ -474,11 +474,11 @@ describe('paperExport', () => {
   it('starts every kind from its first-run options and writes nothing until the user exports', async () => {
     const { paperExport } = (await freshSettingsStore()).getState();
     expect(paperExport).toEqual(paperExportKindDefaults());
-    // A folded figure opens on a sheet it reads well at, a step at a printed
-    // diagram's; only a simulation as shown.
+    // Every kind opens at a size in mm: a figure 60 mm across, a step at a
+    // printed diagram's.
     expect(paperExport['folded-figure'].sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
     expect(paperExport.step.sheet).toEqual({ mm: DIAGRAM_STEP_SHEET_MM });
-    expect(paperExport.simulation.sheet).toBe('as-shown');
+    expect(paperExport.simulation.sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
     expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
   });
 

@@ -141,6 +141,7 @@ describe('createPaperExportSession', () => {
     style: EXPORT_STYLE,
     markHidden: false,
     background,
+    sheet: { mm: 60 },
   });
 
   it('builds a scene once per key, and again only when the key changes', async () => {

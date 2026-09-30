@@ -67,6 +67,7 @@ the sheet's on-screen size (D3 of the older plan); for a folded figure that is
 the CP canvas zoom (`foldedFigureCssPerUserUnit`, `projectSlice.ts:272-275`),
 for References the big view's sheet. The same export at two zoom levels makes
 two page sizes, and nothing says so.
+> Resolved in Phase 12: there is no *As shown*. Every page is a size in mm.
 
 **E4. The simulator exports whatever the solver holds at that instant.** The
 worker's `exportSvg` reads positions at call time
@@ -332,6 +333,9 @@ Desktop: the crease-pattern dialog's frame (`.simple-modal__document--export`,
 - **Size** — *Sheet*: *As shown* (hint: "The size it is on screen at the
   current zoom") or *Custom* with a mm field (the unfolded sheet spans that
   size; lines keep their widths — the existing hint). *Margin* in mm.
+  *(Superseded by Phase 12: Size is always a mm field — across the sheet for
+  a step, across the figure for a folded figure or a simulation — with no
+  As shown.)*
   *Resolution* for PNG: 1× (96 dpi), 2× (192 dpi), 3× (288), 4× (384),
   300 dpi, 600 dpi, or Custom with a dpi field.
 - **Page** — *Transparent background*, a `Toggle`; turned off, a `ColorField`
@@ -1447,6 +1451,30 @@ Asked for after Phase 10 (2026-09-29).
       (both rails measured in the DOM, the dialog on a sequence's steps with
       each mark toggled, a simulation; a figure's first-run 250 mm read from
       the store — the pane could not screenshot while hidden); commit
+
+### Phase 12 — Every page is a size; a figure is sized by itself
+
+At the user's word after Phase 11: a folded figure exported at 50 mm came out
+a 17 mm drawing — *Size* was the unfolded sheet's, and a folded model is a
+third of its sheet — so its pt pens read like a cartoon beside a step at the
+same size. And *As shown* should not exist at all, on any surface.
+
+- [x] Each target says what its size measures (`PaperExportTarget.sizeMeasures`,
+      `PaperSizeMeasure`): `'sheet'` for a References step, whose sheet is its
+      frame; `'figure'` for a folded figure and a simulation, whose sheet is
+      nowhere in the picture. The painter scales a figure by its bounds'
+      longer side (`pagePtPerPx`), and the Size field is *Sheet size* or
+      *Figure size* with its own hint. A figure opens 60 mm across
+      (`DEFAULT_PAPER_FIGURE_MM`, was a 250 mm sheet).
+- [x] *As shown* is gone: `PaperSheetSize` is `{ mm }` alone, the dialog has
+      no Sheet switch, `defaultSheetMm` and the draft's coercion are gone
+      (each kind's first-run memory carries its size — 41 mm for a step,
+      60 mm for the rest), a stored `'as-shown'` normalises to the default,
+      the analytics `sheet` property is dropped, and the page's scene input
+      always carries its size.
+- [x] Goldens repainted at the new sizes (only the scale moved); tests of
+      "the scene is in on-screen CSS px" read the scene's bounds rather than
+      a page's width; i18n loop; validate; commit
 
 ### Validation per phase
 

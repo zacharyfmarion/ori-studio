@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_PAGE } from '../../lib/paper/paperPage';
+import { DEFAULT_PAPER_PAGE, type PaperPage } from '../../lib/paper/paperPage';
 import type {
   PaperFaceItem,
   PaperLineItem,
@@ -7,7 +7,7 @@ import type {
   PaperScene,
 } from '../../lib/paper/paperScene';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
-import { PT_PER_CSS_PX, pageMarginPt, paperSceneToSvg } from '../../lib/paper/paperSvg';
+import { PT_PER_CSS_PX, mmToCssPx, pageMarginPt, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { REFERENCE_COLORS } from '../../themes/applyTheme';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import { DIAGRAM_INK_PER_SHEET, DIAGRAM_LINE_INK, penInk } from './diagram/diagramInk';
@@ -58,6 +58,12 @@ function scene(
     ...(options.ground ? { ground: options.ground } : {}),
   });
 }
+
+/** The page that paints `result` at the screen's ratio, 0.75 pt per scene px. */
+const screenPage = (result: PaperScene): PaperPage => ({
+  ...DEFAULT_PAPER_PAGE,
+  sheet: { mm: result.sheet / mmToCssPx(1) },
+});
 
 const faces = (result: PaperScene) =>
   result.items.filter((item): item is PaperFaceItem => item.kind === 'face');
@@ -320,12 +326,12 @@ describe('the lines', () => {
   it('erode on the page by the style’s share of the sheet, as the card does', () => {
     const style: PaperStyle = { ...DEFAULT_PAPER_STYLE, erode: 0.1 };
     const result = scene(model(line('crease', [0, 0.5], [1, 0.5])), { style });
-    const page = { ...DEFAULT_PAPER_PAGE, paddingMm: 0 };
+    const page = { ...screenPage(result), paddingMm: 0 };
     const { svg } = paperSceneToSvg(result, style, page);
     // The border's four lines come first; the crease is the fifth.
     const crease = elements(svg, 'line')[4];
     // 0.1 of 80 px is 8 px in from the sheet's edge at 10 px; 0.75 pt per px
-    // on an as-shown page, past the stroke room a zero margin keeps.
+    // on a page at the screen's ratio, past the stroke room a zero margin keeps.
     const room = pageMarginPt(style, page);
     expect(Number(crease!.x1)).toBeCloseTo(18 * PT_PER_CSS_PX + room, 2);
     expect(Number(crease!.x2)).toBeCloseTo(82 * PT_PER_CSS_PX + room, 2);
@@ -435,8 +441,8 @@ describe('the markup', () => {
       expect(Number(stroke['stroke-width'])).toBeCloseTo(widthPx, 6);
       expect(stroke['stroke-linecap']).toBe('round');
     }
-    // On an as-shown page the group scales by 0.75 pt/px, so the pen is its pt.
-    const { svg } = paperSceneToSvg(result, style, DEFAULT_PAPER_PAGE);
+    // At the screen's ratio the group scales by 0.75 pt/px, so the pen is its pt.
+    const { svg } = paperSceneToSvg(result, style, screenPage(result));
     const group = svg.match(/<g transform="translate\([^)]*\) scale\(([\d.]+)\)">/);
     expect(Number(group![1]) * widthPx).toBeCloseTo(1.5, 2);
     // A card's own arrow, for comparison, is the table's weight in ink.

@@ -170,14 +170,10 @@ export function paperExportMemoryOf(settings: PaperExportSettings): PaperExportM
 /**
  * Every kind's options before it has exported anything: the seed, except that
  * a folded figure goes out {@link DEFAULT_PAPER_FIGURE_MM} across and a step
- * on a diagram's {@link DIAGRAM_STEP_SHEET_MM} sheet — the sizes their export
- * targets open at, having no "as shown" (`PaperExportTarget.defaultSheetMm`).
- *
- * A figure lies small beside its crease pattern, so "as shown" gave it a page
- * some 40 mm across, on which pens drawn in pt — 0.9 pt is a fine line on a
- * sheet of paper — outweighed the figure. A step is the size a printed diagram
- * gives it, whatever the zoom. A simulation fills its view, and its on-screen
- * size is a fair page.
+ * on a printed diagram's {@link DIAGRAM_STEP_SHEET_MM} sheet. Every page is a
+ * size chosen in mm, never the picture's size on screen: a
+ * figure beside its crease pattern is a few centimetres across at whatever
+ * zoom the pattern is at, and its pens, drawn in pt, outweighed it there.
  */
 export function paperExportKindDefaults(
   seed: PaperExportSettings = DEFAULT_PAPER_EXPORT_SETTINGS

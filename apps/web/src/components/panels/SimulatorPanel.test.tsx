@@ -166,7 +166,13 @@ describe('SimulatorPanel', () => {
     expect(target.buriesFaces).toBe(true);
 
     // The target reaches the in-process session: a scene of the loaded model.
-    const input = { page: 0, style: target.exportStyle, markHidden: false, background: null };
+    const input = {
+      page: 0,
+      style: target.exportStyle,
+      markHidden: false,
+      background: null,
+      sheet: { mm: 60 },
+    };
     const scene = await target.buildScene(input);
     expect(scene?.items.length).toBeGreaterThan(0);
 

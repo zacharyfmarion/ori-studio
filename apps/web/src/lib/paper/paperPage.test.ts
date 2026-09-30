@@ -5,14 +5,16 @@ import {
   PAPER_PADDING_MM_RANGE,
   PAPER_SHEET_MM_RANGE,
   normalizePaperPage,
-  sheetMmOf,
 } from './paperPage';
 
-describe('sheetMmOf', () => {
-  it('fills Custom with a 60 mm figure while the page is "as shown", and keeps a chosen size', () => {
+describe('the default page', () => {
+  // Always a size: the picture's size on screen is not one anybody chose.
+  it('is a 60 mm figure, and a stored "as shown" from an older build reads as it', () => {
     expect(DEFAULT_PAPER_FIGURE_MM).toBe(60);
-    expect(sheetMmOf('as-shown')).toBe(60);
-    expect(sheetMmOf({ mm: 80 })).toBe(80);
+    expect(DEFAULT_PAPER_PAGE.sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
+    expect(normalizePaperPage({ ...DEFAULT_PAPER_PAGE, sheet: 'as-shown' }).sheet).toEqual({
+      mm: DEFAULT_PAPER_FIGURE_MM,
+    });
   });
 });
 
@@ -32,7 +34,7 @@ describe('normalizePaperPage', () => {
       keepHiddenFaces: false,
     };
     expect(normalizePaperPage(page)).toEqual(page);
-    expect(normalizePaperPage({ ...page, sheet: 'as-shown' }).sheet).toBe('as-shown');
+    expect(normalizePaperPage({ ...page, sheet: 'as-shown' }).sheet).toEqual(DEFAULT_PAPER_PAGE.sheet);
   });
 
   it('defaults each malformed field on its own', () => {
@@ -44,8 +46,8 @@ describe('normalizePaperPage', () => {
         keepHiddenFaces: 'yes',
       })
     ).toEqual(DEFAULT_PAPER_PAGE);
-    expect(normalizePaperPage({ sheet: { mm: -5 } }).sheet).toBe('as-shown');
-    expect(normalizePaperPage({ sheet: { mm: 0 } }).sheet).toBe('as-shown');
+    expect(normalizePaperPage({ sheet: { mm: -5 } }).sheet).toEqual(DEFAULT_PAPER_PAGE.sheet);
+    expect(normalizePaperPage({ sheet: { mm: 0 } }).sheet).toEqual(DEFAULT_PAPER_PAGE.sheet);
   });
 
   it('reads a null background as transparent and folds a hex to lowercase', () => {

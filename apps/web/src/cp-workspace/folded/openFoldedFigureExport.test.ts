@@ -13,11 +13,9 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
-import { pageMarginPt } from '../../lib/paper/paperSvg';
 import {
   DEFAULT_PAPER_EXPORT_SETTINGS,
   PAPER_EXPORT_STYLE_SLOT,
-  paperPageOf,
   type PaperExportSettings,
   type PaperExportStyleChoice,
 } from '../../lib/paperExportSettings';
@@ -296,10 +294,15 @@ async function paint(
   return paintPaperExport(target, scene, style, paperExportPage(target, options)).svg;
 }
 
-/** The page's width less its margin, in pt: the artwork alone. */
-async function artworkWidthPt(target: PaperExportTarget): Promise<number> {
-  const [, widthPt] = /width="([\d.]+)pt"/.exec(await paint(target))!;
-  return Number(widthPt) - 2 * pageMarginPt(DEFAULT_PAPER_STYLE, paperPageOf(DEFAULT_PAPER_EXPORT_SETTINGS));
+/**
+ * The width the dialog's first scene is built at, in its own px: the CSS px
+ * the figure covers on the canvas. The page is the size asked for whatever
+ * this is; the scene's px are what a pen is measured against while building.
+ */
+async function sceneWidthPx(target: PaperExportTarget): Promise<number> {
+  const scene = await firstScene(target);
+  if (!scene) throw new Error('the target built no scene');
+  return scene.bounds.maxX - scene.bounds.minX;
 }
 
 /** Every `<polygon>` fill in the page, back to front. */
@@ -401,11 +404,10 @@ describe('opening the export of a 3D folded figure with a live kernel', () => {
     expect(diagram).not.toContain('stroke="#0000ff"');
   });
 
-  it('sizes the page from the figure’s on-screen box at the mounted canvas', async () => {
-    // D3: the default sheet is the on-screen size, read from the live
-    // user-space affine the canvas publishes. A canvas at 200% doubles the
-    // box, so the artwork is twice as wide; the margin stays.
-    const atUnit = await artworkWidthPt(await openTarget('spatial-1'));
+  it('builds the scene at the figure’s on-screen box at the mounted canvas', async () => {
+    // Read from the live user-space affine the canvas publishes. A canvas at
+    // 200% doubles the box, so the scene is twice as wide.
+    const atUnit = await sceneWidthPx(await openTarget('spatial-1'));
     // Folded figures are drawn in user space; the model affine is set apart
     // so reading the wrong one shows.
     cpOverlayViewStore.set({
@@ -413,20 +415,19 @@ describe('opening the export of a 3D folded figure with a live kernel', () => {
       user: { origin: [40, 40], ex: [2, 0], ey: [0, 2] },
     });
     expect(foldedFigureCssPerUserUnit()).toBe(2);
-    const atDouble = await artworkWidthPt(await openTarget('spatial-1'));
+    const atDouble = await sceneWidthPx(await openTarget('spatial-1'));
 
     expect(atUnit).toBeGreaterThan(0);
-    // To the precision the page writes its width at.
     expect(atDouble / atUnit).toBeCloseTo(2, 3);
   });
 
   it('keeps the canvas scale it was opened at, however the canvas zooms while it is open', async () => {
     const target = await openTarget('spatial-1');
-    const atOpen = await artworkWidthPt(target);
+    const atOpen = await sceneWidthPx(target);
 
     cpOverlayViewStore.set({ model: UNIT_VIEW, user: { origin: [0, 0], ex: [2, 0], ey: [0, 2] } });
 
-    expect(await artworkWidthPt(target)).toBeCloseTo(atOpen, 6);
+    expect(await sceneWidthPx(target)).toBeCloseTo(atOpen, 6);
   });
 
   it('waits for the figure’s aux lines to settle, and paints the ones that landed', async () => {
@@ -491,17 +492,16 @@ describe('opening the export of a 3D folded figure without a kernel', () => {
     expect(kernel.paperScene).not.toHaveBeenCalled();
   });
 
-  it('paints the stored picture at the size the live path would have given it', async () => {
-    // The page keeps its pens at their pt widths whatever the artwork's
-    // scale, so painting the stored scene where it lies would draw heavier
-    // creases relative to the paper: the same figure must export the same
-    // page whether or not it has been rehydrated.
+  it('builds the stored picture at the size the live path would have given it', async () => {
+    // One figure is one scene, whether or not it has been rehydrated: the
+    // stored one is brought into the CSS px the live build measures its pens
+    // in (`folded3dStoredSceneInCssPx`).
     const placement = { ...IDENTITY_FOLDED_PLACEMENT, scale: 2 };
     cpOverlayViewStore.set({ model: UNIT_VIEW, user: { origin: [0, 0], ex: [3, 0], ey: [0, 3] } });
     setFigures(spatial({ placement }));
-    const live = await artworkWidthPt(await openTarget('spatial-1'));
+    const live = await sceneWidthPx(await openTarget('spatial-1'));
     setFigures(spatial({ placement, handle: null }));
-    const stored = await artworkWidthPt(await openTarget('spatial-1'));
+    const stored = await sceneWidthPx(await openTarget('spatial-1'));
 
     expect(live).toBeGreaterThan(0);
     expect(stored / live).toBeCloseTo(1, 3);
@@ -592,19 +592,19 @@ describe('opening the export of a flat folded figure', () => {
     expect(polygonFills(await paint(target, PAPER_EXPORT_STYLE_SLOT, dropping))).toHaveLength(1);
   });
 
-  it('sizes the page from the figure’s on-screen size: its placement at the mounted canvas', async () => {
-    const atUnit = await artworkWidthPt(await openTarget('flat-1'));
-    expect(atUnit).toBeCloseTo(200 * foldedFlatFigureScenePxPerUnit(flat()) * 0.75, 1);
+  it('builds the scene at the figure’s on-screen size: its placement at the mounted canvas', async () => {
+    const atUnit = await sceneWidthPx(await openTarget('flat-1'));
+    expect(atUnit).toBeCloseTo(200 * foldedFlatFigureScenePxPerUnit(flat()), 1);
 
     cpOverlayViewStore.set({
       model: { origin: [40, 40], ex: [3, 0], ey: [0, 3] },
       user: { origin: [40, 40], ex: [2, 0], ey: [0, 2] },
     });
-    expect((await artworkWidthPt(await openTarget('flat-1'))) / atUnit).toBeCloseTo(2, 3);
+    expect((await sceneWidthPx(await openTarget('flat-1'))) / atUnit).toBeCloseTo(2, 3);
 
     cpOverlayViewStore.set({ model: UNIT_VIEW, user: UNIT_VIEW });
     setFigures(flat({ placement: { ...IDENTITY_FOLDED_PLACEMENT, scale: 3, rotation: 1 } }));
-    expect((await artworkWidthPt(await openTarget('flat-1'))) / atUnit).toBeCloseTo(3, 3);
+    expect((await sceneWidthPx(await openTarget('flat-1'))) / atUnit).toBeCloseTo(3, 3);
   });
 
   const unsolved = flat({

@@ -43,7 +43,7 @@
  * here, one per sheet size, so a test can paint a step in Node and read the
  * page.
  */
-import { DIAGRAM_STEP_SHEET_MM, type PaperPage, type PaperSheetSize } from '../../lib/paper/paperPage';
+import type { PaperPage, PaperSheetSize } from '../../lib/paper/paperPage';
 import type { PaperExportMarks } from '../../lib/paperExportSettings';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
@@ -59,11 +59,10 @@ import { createOverlayProjector, sheetFrame } from './stepDiagramGeometry';
  * The sheet's longer side on the page, in CSS px, for the page's sheet size:
  * the size a step's scene is built at, so the painter places it at the
  * screen's own ratio and its marks keep their on-screen size on a sheet of any
- * size. "As shown" is no size for a step — the dialog does not offer it
- * (`PaperExportTarget.defaultSheetMm`) — and reads as a printed diagram's.
+ * size.
  */
 export function referencesStepSheetCssPx(sheet: PaperSheetSize): number {
-  return mmToCssPx(sheet === 'as-shown' ? DIAGRAM_STEP_SHEET_MM : sheet.mm);
+  return mmToCssPx(sheet.mm);
 }
 
 /** What the step's scene is built from. */

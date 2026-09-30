@@ -24,7 +24,8 @@ import {
 } from '../../generated/oristudio-cp-wasm/oristudio_cp_wasm';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
-import { pageMarginPt, PT_PER_CSS_PX } from '../../lib/paper/paperSvg';
+import { pageMarginPt, PT_PER_MM } from '../../lib/paper/paperSvg';
+import type { PaperScene } from '../../lib/paper/paperScene';
 import {
   paintPaperExport,
   paperExportPage,
@@ -99,7 +100,8 @@ function target(entry: OristudioCpFoldedFigureEntry, picture: FoldedFigureExport
 }
 
 /** The page the export dialog paints for the figure, as it paints it: the scene its target builds for `page`. */
-async function paint(entry = figure(), page = TIGHT, cssPerUserUnit = 1) {
+/** The figure's scene as the dialog builds it, with its target and options. */
+async function build(entry = figure(), page = TIGHT, cssPerUserUnit = 1) {
   const picture = foldedFigureExportPicture(entry, { model: null, aux: null, kernel, cssPerUserUnit });
   expect(picture?.kind).toBe('flat');
   const exported = target(entry, picture!);
@@ -107,6 +109,11 @@ async function paint(entry = figure(), page = TIGHT, cssPerUserUnit = 1) {
   const scene = await exported.buildScene(
     paperExportSceneInput(exported, DEFAULT_PAPER_STYLE, options)
   );
+  return { exported, options, scene };
+}
+
+async function paint(entry = figure(), page = TIGHT, cssPerUserUnit = 1) {
+  const { exported, options, scene } = await build(entry, page, cssPerUserUnit);
   return scene && paintPaperExport(exported, scene, DEFAULT_PAPER_STYLE, paperExportPage(exported, options));
 }
 
@@ -114,6 +121,9 @@ async function paint(entry = figure(), page = TIGHT, cssPerUserUnit = 1) {
 function artworkWidthPt(page: PaperPage, widthPt: number): number {
   return widthPt - 2 * pageMarginPt(DEFAULT_PAPER_STYLE, page);
 }
+
+/** A scene's width in its own px. */
+const sceneWidthPx = ({ bounds }: PaperScene) => bounds.maxX - bounds.minX;
 
 describe('foldedFlatFigureExportsScene', () => {
   it('is a solved flat figure with a live handle in a paper display style', () => {
@@ -164,24 +174,32 @@ describe('the flat figure’s export page', () => {
     expect(page.svg).toContain(`stroke="${DEFAULT_PAPER_STYLE.edges.color}"`);
   });
 
-  it('is the figure at its on-screen size: kernel units through the paper affine and the placement', async () => {
+  it('builds the figure at its on-screen size: kernel units through the paper affine and the placement', async () => {
     const extent = Math.max(...kernel.faces.flatMap((face) => face.outline.map((p) => p.x)));
     const origin = Math.min(...kernel.faces.flatMap((face) => face.outline.map((p) => p.x)));
-    const widthPt = artworkWidthPt(TIGHT, (await paint())!.widthPt);
+    const widthPx = sceneWidthPx((await build()).scene!);
     const perUnit = foldedFlatFigureScenePxPerUnit(figure());
     expect(perUnit).toBeCloseTo(foldedFigureUserPerModelUnit(figure()), 12);
-    expect(widthPt).toBeCloseTo((extent - origin) * perUnit * PT_PER_CSS_PX, 1);
+    expect(widthPx).toBeCloseTo((extent - origin) * perUnit, 1);
 
     // A canvas at 200% doubles it; so does a placement at scale 2. The
     // placement's turn and offset are not a standalone image's.
-    expect(artworkWidthPt(TIGHT, (await paint(figure(), TIGHT, 2))!.widthPt)).toBeCloseTo(
-      widthPt * 2,
-      1
-    );
+    expect(sceneWidthPx((await build(figure(), TIGHT, 2)).scene!)).toBeCloseTo(widthPx * 2, 1);
     const placed = figure({
       placement: { offset: { x: 500, y: -200 }, scale: 2, rotation: 0.7 },
     });
-    expect(artworkWidthPt(TIGHT, (await paint(placed))!.widthPt)).toBeCloseTo(widthPt * 2, 1);
+    expect(sceneWidthPx((await build(placed)).scene!)).toBeCloseTo(widthPx * 2, 1);
+
+    // The page is the size asked for across the figure, whatever size it
+    // was built at.
+    for (const [entry, cssPerUserUnit] of [[figure(), 1], [figure(), 2], [placed, 1]] as const) {
+      const page = (await paint(entry, TIGHT, cssPerUserUnit))!;
+      const longerPt = Math.max(
+        artworkWidthPt(TIGHT, page.widthPt),
+        page.heightPt - 2 * pageMarginPt(DEFAULT_PAPER_STYLE, TIGHT)
+      );
+      expect(longerPt).toBeCloseTo(TIGHT.sheet.mm * PT_PER_MM, 6);
+    }
   });
 
   it('keeps or drops the buried layers as the page says', async () => {

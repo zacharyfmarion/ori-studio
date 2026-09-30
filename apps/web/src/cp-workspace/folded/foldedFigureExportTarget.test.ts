@@ -16,6 +16,7 @@ import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import { PAPER_STYLE_POLICIES, surfacePaperStyle } from '../../lib/paper/paperStyleResolve';
 import {
   DEFAULT_PAPER_EXPORT_SETTINGS,
+  paperExportKindDefaults,
   type PaperExportSettings,
 } from '../../lib/paperExportSettings';
 import { paperPresetRows } from '../../lib/paperPresetRows';
@@ -53,8 +54,10 @@ import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
  *
  * The custom pages were repainted when a figure's size came to measure the
  * figure rather than the sheet it was folded from: at 120 mm the drawing's
- * longer side is now 120 mm, where the unfolded sheet used to be. Only the
- * scale moved; the default pages, drawn as shown, are the direct export's.
+ * longer side is now 120 mm, where the unfolded sheet used to be. The default
+ * pages were repainted when "as shown" went, and every page became a size in
+ * mm: they are 60 mm across. Only the scale moved on either; everything drawn
+ * is still the direct export's.
  */
 
 type Entry = OristudioCpFoldedFigureEntry;
@@ -248,7 +251,7 @@ const CUSTOM: PaperExportSettings = {
   keepHiddenFaces: false,
 };
 
-describe('foldedFigureExportTarget matches the direct export', () => {
+describe('foldedFigureExportTarget draws the direct export’s picture', () => {
   it('for a live 3D figure at the defaults', async () => {
     const svg = await dialogSvg(spatial(), { model: RENDER_MODEL }, DEFAULT_PAPER_EXPORT_SETTINGS);
     expect(svg).toBe(golden['3d'].liveDefaults);
@@ -357,6 +360,7 @@ const input = (overrides: Partial<PaperSceneInput> = {}): PaperSceneInput => ({
   style: DEFAULT_PAPER_STYLE,
   markHidden: false,
   background: null,
+  sheet: { mm: 60 },
   ...overrides,
 });
 
@@ -473,8 +477,9 @@ describe('foldedFigureExportTarget', () => {
     expect(targetOf(legacyFlat, pictureOf(legacyFlat)!).surface).toBe('folded-flat');
   });
 
-  it('never offers "as shown": a figure lies small beside its crease pattern, whatever picture it is', () => {
+  it('sizes the figure, whatever picture it is, opening 60 mm across', () => {
     expect(DEFAULT_PAPER_FIGURE_MM).toBe(60);
+    expect(paperExportKindDefaults()['folded-figure'].sheet).toEqual({ mm: DEFAULT_PAPER_FIGURE_MM });
     const stored = spatial({ handle: null });
     const legacy = flat({ handle: null });
     for (const exported of [
@@ -483,7 +488,6 @@ describe('foldedFigureExportTarget', () => {
       targetOf(flat(), pictureOf(flat(), { kernel: kernelScene() })!),
       targetOf(legacy, pictureOf(legacy)!),
     ]) {
-      expect(exported.defaultSheetMm).toBe(DEFAULT_PAPER_FIGURE_MM);
       expect(exported.sizeMeasures).toBe('figure');
     }
   });

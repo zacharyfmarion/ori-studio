@@ -36,7 +36,14 @@ function targetOf(overrides: Partial<SimulatorExportCapture> = {}) {
 }
 
 function input(overrides: Partial<PaperSceneInput> = {}): PaperSceneInput {
-  return { page: 0, style: DEFAULT_PAPER_STYLE, markHidden: false, background: null, ...overrides };
+  return {
+    page: 0,
+    style: DEFAULT_PAPER_STYLE,
+    markHidden: false,
+    background: null,
+    sheet: { mm: 60 },
+    ...overrides,
+  };
 }
 
 /** The default style with one field of it changed. */

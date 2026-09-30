@@ -194,6 +194,10 @@ Taken in the design discussion on 2026-09-21.
   is exact WYSIWYG. PNG takes a dpi. "Frame" (the viewport as seen, with clip)
   is a later option. The simulator's page unit changes from device px; its
   pinned page-size tests are re-pinned deliberately.
+  > **Superseded in part** by Phase 12 of
+  > `implementation-plans/paper-export-dialog.md`: there is no on-screen
+  > default. Every page is a size in mm — across the sheet for a step, across
+  > the figure for a folded figure or a simulation.
 - **D4. Buried faces are kept by default** (`keepHiddenFaces: boolean`, an
   export option, not a style field — distinct from *hidden lines* below), on
   every surface. For the flat figure that means emitting every layer in

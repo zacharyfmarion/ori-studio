@@ -51,7 +51,7 @@ import {
   paperScenesOnOneCrop,
   resolvePaperExportStyleChoice,
 } from './paperExportSession';
-import type { PaperExportScope, PaperExportTarget } from './paperExportTarget';
+import type { PaperExportScope } from './paperExportTarget';
 import { paperExportedEvent, savePaperExport, savePaperExportZip } from './savePaperExport';
 import { usePaperExportScenes, type PaperExportStatus } from './usePaperExportScenes';
 
@@ -66,18 +66,13 @@ export interface PaperExportPreviewImage {
 /** The draft the dialog opens on: the remembered options, the verb's format, and a style choice the presets can still honour. */
 export function paperExportDraft(
   remembered: PaperExportSettings,
-  request: Pick<PaperExportRequest, 'format'> & {
-    target?: Pick<PaperExportTarget, 'defaultSheetMm'>;
-  },
+  request: Pick<PaperExportRequest, 'format'>,
   rows: Parameters<typeof resolvePaperExportStyleChoice>[1]
 ): PaperExportSettings {
-  const opensAt = request.target?.defaultSheetMm;
   return {
     ...remembered,
     format: request.format ?? remembered.format,
     style: resolvePaperExportStyleChoice(remembered.style, rows),
-    // A target whose screen size is no size opens at its own sheet instead.
-    sheet: remembered.sheet === 'as-shown' && opensAt !== undefined ? { mm: opensAt } : remembered.sheet,
   };
 }
 

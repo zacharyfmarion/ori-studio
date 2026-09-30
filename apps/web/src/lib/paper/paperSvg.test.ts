@@ -1,8 +1,9 @@
 import { shadeColor } from '@treemaker/origami-simulator';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAPER_PAGE, type PaperPage } from './paperPage';
+import type { PaperPage } from './paperPage';
 import type { PaperLineWhole } from './paperScene';
 import {
+  FIXTURE_PAGE,
   FIXTURE_SHEET_PX,
   SQUARE,
   face,
@@ -36,7 +37,7 @@ import {
  * A page with no margin asked for, so a scene px lands where the arithmetic
  * says, offset by {@link ROOM} — the stroke room a zero margin still keeps.
  */
-const TIGHT: PaperPage = { ...DEFAULT_PAPER_PAGE, paddingMm: 0 };
+const TIGHT: PaperPage = { ...FIXTURE_PAGE, paddingMm: 0 };
 
 /** Half the default edge pen (0.45 pt): the margin `TIGHT` actually gets. */
 const ROOM = pageMarginPt(DEFAULT_PAPER_STYLE, TIGHT);
@@ -66,12 +67,8 @@ function withPen(field: 'edges' | 'mountainFolds' | 'valleyFolds', pen: Partial<
 }
 
 describe('the page', () => {
-  it('is in points, as shown: 0.75 pt per scene px plus the margin on every side', () => {
-    const { svg, widthPt, heightPt } = paint(
-      sheetWithCrease(),
-      DEFAULT_PAPER_STYLE,
-      DEFAULT_PAPER_PAGE
-    );
+  it('is in points: the size asked for plus the margin on every side', () => {
+    const { svg, widthPt, heightPt } = paint(sheetWithCrease(), DEFAULT_PAPER_STYLE, FIXTURE_PAGE);
     const padding = 5 * PT_PER_MM;
     expect(widthPt).toBeCloseTo(FIXTURE_SHEET_PX * PT_PER_CSS_PX + padding * 2, 6);
     expect(heightPt).toBeCloseTo(widthPt, 6);
@@ -149,7 +146,7 @@ describe('the page', () => {
   });
 
   it('writes an empty scene as a margin-sized page', () => {
-    const { svg, widthPt } = paint(sceneOf([]), DEFAULT_PAPER_STYLE, DEFAULT_PAPER_PAGE);
+    const { svg, widthPt } = paint(sceneOf([]), DEFAULT_PAPER_STYLE, FIXTURE_PAGE);
     expect(widthPt).toBeCloseTo(10 * PT_PER_MM, 6);
     expect(polygons(svg)).toHaveLength(0);
     expect(lines(svg)).toHaveLength(0);
@@ -163,7 +160,7 @@ describe('the page', () => {
     expect(widestPenPt(wide)).toBe(3);
     expect(pageMarginPt(wide, TIGHT)).toBe(1.5);
     expect(pageMarginPt(wide, { ...TIGHT, paddingMm: 0.2 })).toBe(1.5);
-    expect(pageMarginPt(wide, DEFAULT_PAPER_PAGE)).toBeCloseTo(5 * PT_PER_MM, 9);
+    expect(pageMarginPt(wide, FIXTURE_PAGE)).toBeCloseTo(5 * PT_PER_MM, 9);
     expect(ROOM).toBeCloseTo(DEFAULT_PAPER_STYLE.edges.width / 2, 9);
     // The aux pen counts only when aux creases show.
     const aux = { ...DEFAULT_PAPER_STYLE, auxCreases: { visible: true, pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, width: 4 } } };

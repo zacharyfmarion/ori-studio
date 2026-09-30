@@ -41,12 +41,11 @@ export interface PaperSceneInput {
    */
   marks?: PaperExportMarks;
   /**
-   * The page's sheet size; absent is "As shown". Read only by a target whose
-   * scene is drawn at the page's own scale — a References step, whose marks
-   * keep their size on the page as its lines keep their widths — and then part
-   * of its key. The dialog always fills it (`paperExportSceneInput`).
+   * The page's size. Read only by a target whose scene is drawn at the page's
+   * own scale — a References step, whose marks keep their size on the page as
+   * its lines keep their widths — and then part of its key.
    */
-  sheet?: PaperSheetSize;
+  sheet: PaperSheetSize;
 }
 
 /** One page of a target that has several: a step of a References sequence. */
@@ -110,14 +109,6 @@ export interface PaperExportTarget {
    * field's hint says which.
    */
   sizeMeasures: PaperSizeMeasure;
-  /**
-   * The size it opens at, for a picture whose size on screen is no size to
-   * export at; the dialog then offers no "As shown". A folded figure lies
-   * small beside its crease pattern, at whatever zoom the pattern is at, and a
-   * step has the size a printed diagram gives it. Omitted — a simulation —
-   * means "As shown" is offered and is where a first export starts.
-   */
-  defaultSheetMm?: number;
   /**
    * The picture itself when no option can change it; the dialog then offers
    * the format alone. Absent for every target that builds scenes.

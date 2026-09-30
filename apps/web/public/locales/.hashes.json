@@ -3184,11 +3184,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -3253,7 +3248,8 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6440,11 +6436,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -6509,7 +6500,8 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -9698,11 +9690,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -9767,7 +9754,8 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -12896,11 +12884,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -12964,7 +12947,8 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -16093,11 +16077,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -16161,7 +16140,8 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -19348,11 +19328,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -19417,7 +19392,8 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -22604,11 +22580,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -22673,7 +22644,8 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -25802,11 +25774,6 @@
     "dialogs:paperExport.resolutionDpiField": "0b7b6f6bc887",
     "dialogs:paperExport.resolutionScale": "1ddbacb9aab1",
     "dialogs:paperExport.saveFailed": "95c640fc6feb",
-    "dialogs:paperExport.sheet": "54bf0ebbfb3e",
-    "dialogs:paperExport.sheetAsShown": "0e7a95775964",
-    "dialogs:paperExport.sheetAsShownHint": "23c18a7cd779",
-    "dialogs:paperExport.sheetCustom": "494ca78f7374",
-    "dialogs:paperExport.sheetCustomHint": "652795c24fdb",
     "dialogs:paperExport.size": "1af851907331",
     "dialogs:paperExport.sizeKb": "1d772587be1b",
     "dialogs:paperExport.sizeMb": "395b037b6eca",
@@ -25870,6 +25837,7 @@
     "dialogs:settings.paper.unsaved.updateHint": "40e21109ae51",
     "common:fieldRow.overridden": "62a03f092038",
     "dialogs:paperExport.figureMm": "3447483de3d2",
-    "dialogs:paperExport.figureSizeHint": "bd9c398033a7"
+    "dialogs:paperExport.figureSizeHint": "bd9c398033a7",
+    "dialogs:paperExport.sheetSizeHint": "652795c24fdb"
   }
 }

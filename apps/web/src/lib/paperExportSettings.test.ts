@@ -66,7 +66,7 @@ describe('normalizePaperExportSettings', () => {
       keepHiddenFaces: 'yes',
       pngDpi: 5000,
     });
-    expect(settings.sheet).toBe('as-shown');
+    expect(settings.sheet).toEqual(DEFAULT_PAPER_PAGE.sheet);
     expect(settings.background).toBe('#123456');
     expect(settings.keepHiddenFaces).toBe(true);
     expect(settings.pngDpi).toBe(PAPER_PNG_DPI_RANGE.max);
@@ -196,7 +196,7 @@ describe('paperExportMemoryOf', () => {
 });
 
 describe('paperExportKindDefaults', () => {
-  it('opens a folded figure 60 mm across and a step at a diagram’s 41 mm; a simulation as shown', () => {
+  it('opens a folded figure and a simulation 60 mm across, and a step at a diagram’s 41 mm', () => {
     expect(DEFAULT_PAPER_FIGURE_MM).toBe(60);
     expect(DIAGRAM_STEP_SHEET_MM).toBe(41);
     expect(paperExportKindDefaults()).toEqual({
@@ -254,10 +254,12 @@ describe('normalizePaperExportMemory', () => {
     });
   });
 
-  it('keeps a folded figure that remembers “as shown” as shown', () => {
-    const figure = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: 'as-shown' as const };
+  // There is no "as shown" any more: a kind that remembers one from an older
+  // build opens at the default size.
+  it('reads a remembered “as shown” as the default size', () => {
+    const figure = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: 'as-shown' };
     const memory = normalizePaperExportMemory({ version: 2, kinds: { 'folded-figure': figure } });
-    expect(memory['folded-figure'].sheet).toBe('as-shown');
+    expect(memory['folded-figure'].sheet).toEqual(DEFAULT_PAPER_PAGE.sheet);
   });
 
   it('reads only the kinds it knows, so an unknown one is not written back', () => {

@@ -233,8 +233,6 @@ describe('useReferencesStepExport', () => {
     ).not.toBe(key);
     // Drawn at the page's scale, so its marks keep their size on any sheet.
     expect(target.sceneKey({ ...base, sheet: { mm: 120 } })).not.toBe(key);
-    // "As shown" is the size it reads as, so it is the same scene.
-    expect(target.sceneKey({ ...base, sheet: 'as-shown' })).toBe(key);
   });
 });
 

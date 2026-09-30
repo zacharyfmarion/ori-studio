@@ -78,12 +78,6 @@ describe('referencesStepSheetCssPx', () => {
     expect(referencesStepSheetCssPx({ mm: 120 })).toBe(mmToCssPx(120));
     expect(referencesStepSheetCssPx({ mm: 41 })).toBeCloseTo((41 * PT_PER_MM) / 0.75, 9);
   });
-
-  it('reads "As shown", which the dialog does not offer a step, as a printed diagram’s step', () => {
-    expect(referencesStepSheetCssPx('as-shown')).toBe(
-      referencesStepSheetCssPx({ mm: DIAGRAM_STEP_SHEET_MM })
-    );
-  });
 });
 
 describe('a step’s page', () => {

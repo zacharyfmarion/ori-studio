@@ -159,7 +159,7 @@ describe('useSimulatorExport', () => {
     const target = request()!.target;
     const style = { ...DEFAULT_PAPER_STYLE, light: { ...DEFAULT_PAPER_STYLE.light, azimuth: 30 } };
     await expect(
-      target.buildScene({ page: 0, style, markHidden: true, background: null })
+      target.buildScene({ page: 0, style, markHidden: true, background: null, sheet: { mm: 60 } })
     ).resolves.toBe(SCENE);
     expect(frame.scene).toHaveBeenCalledWith({ style, markHidden: true });
     expect(frame.release).not.toHaveBeenCalled();

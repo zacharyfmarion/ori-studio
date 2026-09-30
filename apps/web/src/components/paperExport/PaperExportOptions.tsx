@@ -11,10 +11,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DEFAULT_PAPER_BACKGROUND,
-  DEFAULT_PAPER_FIGURE_MM,
   PAPER_PADDING_MM_RANGE,
   PAPER_SHEET_MM_RANGE,
-  sheetMmOf,
   type PaperSizeMeasure,
 } from '../../lib/paper/paperPage';
 import { PAPER_PNG_DPI_RANGE } from '../../lib/paper/paperPng';
@@ -39,14 +37,11 @@ const SCREEN_DPI = 96;
 
 const CUSTOM = 'custom';
 
-type SheetMode = 'as-shown' | 'custom';
-
 export function PaperExportOptions({
   draft,
   patch,
   buriesFaces,
   sizeMeasures,
-  defaultSheetMm,
   marks,
   scopes,
   fixed,
@@ -58,8 +53,6 @@ export function PaperExportOptions({
   buriesFaces: boolean;
   /** What its size measures (`PaperExportTarget.sizeMeasures`): the sheet or the figure, which the hint says. */
   sizeMeasures: PaperSizeMeasure;
-  /** The sheet it opens at when its screen size is no size (`PaperExportTarget.defaultSheetMm`); set, the sheet size is offered alone. */
-  defaultSheetMm?: number;
   /** The marks the picture can be exported without (`PaperExportTarget.marks`); none hides the Diagram section. */
   marks: readonly PaperExportMark[];
   /** The step on show or every step, for a target with several; null hides the choice. */
@@ -75,7 +68,6 @@ export function PaperExportOptions({
     () => !(PAPER_EXPORT_DPI_PRESETS as readonly number[]).includes(draft.pngDpi)
   );
   const dpiValue = customDpi ? CUSTOM : String(draft.pngDpi);
-  const sheetMode: SheetMode = draft.sheet === 'as-shown' ? 'as-shown' : 'custom';
   const markRow = (mark: PaperExportMark, label: string, hint: string) =>
     marks.includes(mark) && (
       <div className="export-modal__toggle-row">
@@ -167,61 +159,35 @@ export function PaperExportOptions({
 
       {/* Size, Margin and Resolution are rows of one kind — the label on the
           left, a control of one width on the right — so the controls line up
-          under one another. A picture with no sheet of its own chooses first
-          between its size on screen and a custom one, and the Size row is then
-          the custom size. */}
+          under one another. */}
       <section className="export-modal__section">
         <div className="export-modal__control-group">
-          {defaultSheetMm === undefined && (
-            <>
-              <span className="export-modal__label">
-                {t('dialogs:paperExport.sheet', 'Sheet')}
-              </span>
-              <SegmentedControl<SheetMode>
-                aria-label={t('dialogs:paperExport.sheet', 'Sheet')}
-                value={sheetMode}
-                onChange={(mode) =>
-                  patch({
-                    sheet: mode === 'as-shown' ? 'as-shown' : { mm: sheetMmOf(draft.sheet) },
-                  })
-                }
-                options={[
-                  { value: 'as-shown', label: t('dialogs:paperExport.sheetAsShown', 'As shown') },
-                  { value: 'custom', label: t('dialogs:paperExport.sheetCustom', 'Custom') },
-                ]}
-              />
-            </>
-          )}
-          {sheetMode === 'custom' && (
-            <div className="export-modal__field-row">
-              <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>
-              <NumberField
-                label={
-                  sizeMeasures === 'figure'
-                    ? t('dialogs:paperExport.figureMm', 'Figure size')
-                    : t('dialogs:paperExport.sheetMm', 'Sheet size')
-                }
-                value={draft.sheet === 'as-shown' ? DEFAULT_PAPER_FIGURE_MM : draft.sheet.mm}
-                min={PAPER_SHEET_MM_RANGE.min}
-                max={PAPER_SHEET_MM_RANGE.max}
-                step={PAPER_SHEET_MM_RANGE.step}
-                suffix="mm"
-                onCommit={(mm) => patch({ sheet: { mm } })}
-              />
-            </div>
-          )}
+          <div className="export-modal__field-row">
+            <span className="export-modal__label">{t('dialogs:paperExport.size', 'Size')}</span>
+            <NumberField
+              label={
+                sizeMeasures === 'figure'
+                  ? t('dialogs:paperExport.figureMm', 'Figure size')
+                  : t('dialogs:paperExport.sheetMm', 'Sheet size')
+              }
+              value={draft.sheet.mm}
+              min={PAPER_SHEET_MM_RANGE.min}
+              max={PAPER_SHEET_MM_RANGE.max}
+              step={PAPER_SHEET_MM_RANGE.step}
+              suffix="mm"
+              onCommit={(mm) => patch({ sheet: { mm } })}
+            />
+          </div>
           <small className="export-modal__hint">
-            {sheetMode === 'as-shown'
-              ? t('dialogs:paperExport.sheetAsShownHint', 'The size it is on screen, at the current zoom.')
-              : sizeMeasures === 'figure'
-                ? t(
-                    'dialogs:paperExport.figureSizeHint',
-                    'The figure spans this size across its longer side. Lines keep their widths.'
-                  )
-                : t(
-                    'dialogs:paperExport.sheetCustomHint',
-                    'The unfolded sheet spans this size, edge to edge. Lines keep their widths.'
-                  )}
+            {sizeMeasures === 'figure'
+              ? t(
+                  'dialogs:paperExport.figureSizeHint',
+                  'The figure spans this size across its longer side. Lines keep their widths.'
+                )
+              : t(
+                  'dialogs:paperExport.sheetSizeHint',
+                  'The unfolded sheet spans this size, edge to edge. Lines keep their widths.'
+                )}
           </small>
         </div>
         <div className="export-modal__field-row">

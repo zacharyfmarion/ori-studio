@@ -29,7 +29,7 @@ import {
   paperExportStyle,
 } from '../paperExport/paperExportSession';
 import { paperExportDraft } from '../paperExport/usePaperExportDialog';
-import type { FoldDocument, RenderSettings } from '@treemaker/origami-simulator';
+import type { FoldDocument, PaperScene, RenderSettings } from '@treemaker/origami-simulator';
 
 /**
  * A frame the session actually produced. `tick`/`settle` return null when the
@@ -488,12 +488,20 @@ function exportView(
   session: SimulatorWorkerApi,
   { style = EXPORT_STYLE, page = DEFAULT_PAPER_PAGE, ...snapshot }: ExportViewOptions = {}
 ): PaperSvgResult | null {
+  const scene = exportViewScene(session, { style, page, ...snapshot });
+  if (!scene) return null;
+  return paperSceneToSvg(scene, surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator), page);
+}
+
+/** The scene `exportView` paints: the view in its own px. */
+function exportViewScene(
+  session: SimulatorWorkerApi,
+  { style = EXPORT_STYLE, page = DEFAULT_PAPER_PAGE, ...snapshot }: ExportViewOptions = {}
+): PaperScene | null {
   const id = session.beginExportSnapshot(snapshot);
   if (id === null) return null;
   try {
-    const scene = session.exportScene(id, { style, markHidden: !page.keepHiddenFaces });
-    if (!scene) return null;
-    return paperSceneToSvg(scene, surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator), page);
+    return session.exportScene(id, { style, markHidden: !page.keepHiddenFaces });
   } finally {
     session.endExportSnapshot(id);
   }
@@ -804,12 +812,12 @@ describe('exporting the current view as SVG', () => {
     session.dispose();
   }, 30_000);
 
-  it('writes the page in points off CSS pixels, whatever the display drew it at', async () => {
+  it('builds the scene in CSS pixels, whatever the display drew it at', async () => {
     // The view is held in device pixels: the drawing buffer is the frame times
-    // the device-pixel ratio. Exported as they are, a Retina frame came out at
-    // twice its on-screen size. The ratio the viewport sized the frame by takes
-    // the camera back down to CSS pixels, and the painter writes those as
-    // points; the pens are in points already and never scale.
+    // the device-pixel ratio. Taken as they are, a Retina frame was twice its
+    // on-screen size. The ratio the viewport sized the frame by takes the
+    // camera back down to CSS pixels; the page is then the size asked for,
+    // and the pens are in points already and never scale.
     const session = createSimulatorSession();
     const info = session.load(miura(6, 6), {});
     await frame(session.settle(2000, {}));
@@ -818,13 +826,20 @@ describe('exporting the current view as SVG', () => {
       info.token
     );
     await session.setRenderSettings(DEFAULT_EXPORT_SETTINGS, info.token);
-    const margin = DEFAULT_PAPER_PAGE.paddingMm * (72 / 25.4);
+    const size = ({ bounds }: PaperScene) => [bounds.maxX - bounds.minX, bounds.maxY - bounds.minY];
 
+    const [standardWidth, standardHeight] = size(exportViewScene(session, { token: info.token })!);
+    const [retinaWidth, retinaHeight] = size(
+      exportViewScene(session, { token: info.token, devicePixelRatio: 2 })!
+    );
+    expect(retinaWidth).toBeCloseTo(standardWidth! / 2, 6);
+    expect(retinaHeight).toBeCloseTo(standardHeight! / 2, 6);
+
+    // So the page does not care what the display drew it at.
     const standard = exportView(session, { token: info.token })!;
     const retina = exportView(session, { token: info.token, devicePixelRatio: 2 })!;
-
-    expect(retina.widthPt - margin * 2).toBeCloseTo((standard.widthPt - margin * 2) / 2, 6);
-    expect(retina.heightPt - margin * 2).toBeCloseTo((standard.heightPt - margin * 2) / 2, 6);
+    expect(retina.widthPt).toBeCloseTo(standard.widthPt, 6);
+    expect(retina.heightPt).toBeCloseTo(standard.heightPt, 6);
     const strokes = (svg: string) => new Set(svg.match(/stroke-width="[\d.]+"/gu));
     expect(strokes(retina.svg)).toEqual(strokes(standard.svg));
 
@@ -1052,12 +1067,13 @@ async function dialogPage(
 }
 
 describe('the export dialog’s page of a simulation', () => {
-  it('is the page the retired exportSvg wrote, byte for byte, and a sized page sizes the figure', async () => {
+  it('is the picture the retired exportSvg wrote, sized across the figure', async () => {
     // `simulatorExportGolden.json` was written by `exportSvg` before it was
     // retired, from exactly this session and these two requests. The sized
     // page was repainted when a simulation's size came to measure the model
-    // rather than its unfolded sheet: at 120 mm the drawing's longer side is
-    // now 120 mm. Only the scale moved.
+    // rather than its unfolded sheet — at 120 mm the drawing's longer side is
+    // now 120 mm — and the default one when "as shown" went and every page
+    // became a size in mm: it is 60 mm across. Only the scale moved.
     const session = createSimulatorSession();
     const info = session.load(miura(6, 6), {});
     session.setFoldPercent(60);

@@ -280,19 +280,9 @@ afterEach(() => {
 });
 
 describe('paperExportDraft', () => {
-  const asShown = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: 'as-shown' as const };
-
-  it('opens a target with a sheet of its own at that sheet, and keeps a chosen one', () => {
-    const figure = { format: null, target: { defaultSheetMm: 250 } };
-    const step = { format: null, target: { defaultSheetMm: 41 } };
-    expect(paperExportDraft(asShown, figure, []).sheet).toEqual({ mm: 250 });
-    expect(paperExportDraft(asShown, step, []).sheet).toEqual({ mm: 41 });
-    expect(paperExportDraft({ ...asShown, sheet: { mm: 90 } }, figure, []).sheet).toEqual({ mm: 90 });
-  });
-
-  it('keeps "as shown" for every other target', () => {
-    expect(paperExportDraft(asShown, { format: null, target: {} }, []).sheet).toBe('as-shown');
-    expect(paperExportDraft(asShown, { format: null }, []).sheet).toBe('as-shown');
+  it('opens at the remembered size', () => {
+    const remembered = { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 90 } };
+    expect(paperExportDraft(remembered, { format: null }, []).sheet).toEqual({ mm: 90 });
   });
 });
 
@@ -683,11 +673,11 @@ describe('usePaperExportDialog, each kind of export on options of its own', () =
 });
 
 describe('usePaperExportDialog on its first run', () => {
-  it('opens a folded figure on a sheet it reads well at, a step at a diagram’s, a simulation as shown', async () => {
+  it('opens a figure at a size it reads well at and a step at a diagram’s, never as shown', async () => {
     const openedOn = [
       ['folded-flat', { mm: DEFAULT_PAPER_FIGURE_MM }],
       ['folded-3d', { mm: DEFAULT_PAPER_FIGURE_MM }],
-      ['simulator', 'as-shown'],
+      ['simulator', { mm: DEFAULT_PAPER_FIGURE_MM }],
       ['references', { mm: DIAGRAM_STEP_SHEET_MM }],
     ] as const;
     for (const [surface, sheet] of openedOn) {
@@ -723,8 +713,8 @@ describe('usePaperExportDialog on a target with diagram marks', () => {
     // A References step's scene is drawn at the page's scale, so its key names the size.
     const { target, buildScene } = fakeTarget({
       surface: 'references',
+      sizeMeasures: 'sheet',
       buriesFaces: false,
-      defaultSheetMm: 41,
       sceneKey: ({ page, style, sheet }) => `${page}|${style.paper.front}|${JSON.stringify(sheet)}`,
     });
     const dialog = await open(target);

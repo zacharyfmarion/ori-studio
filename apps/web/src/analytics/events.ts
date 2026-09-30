@@ -274,9 +274,6 @@ export type PaperExportHiddenFaces = 'kept' | 'dropped';
 /** Which style a paper export was painted with: the Settings export slot, or a preset by kind. */
 export type PaperExportStyleName = 'export-style' | PaperPresetName;
 
-/** A paper export's sheet: the size the view showed, or one typed in mm. */
-export type PaperExportSheet = 'as-shown' | 'custom';
-
 /** A paper export's page background: none, or a colour — never which colour. */
 export type PaperExportBackground = 'transparent' | 'colour';
 

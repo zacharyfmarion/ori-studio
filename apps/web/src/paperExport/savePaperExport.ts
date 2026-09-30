@@ -120,7 +120,7 @@ export async function savePaperExportZip({
 }
 
 /**
- * The `paper exported` event for a save: which style, sheet and background, as
+ * The `paper exported` event for a save: which style and background, as
  * enums. `changed` is whether anything was touched in the dialog before saving.
  * `marks` are the ones the target offered (`PaperExportTarget.marks`): only
  * those are reported, since a picture without letters has none to hide.
@@ -145,7 +145,6 @@ export function paperExportedEvent(
     format: options.format,
     hiddenFaces: details.keepsHiddenFaces ? 'kept' : 'dropped',
     style: paperStyleChoiceName(details.style, details.rows),
-    sheet: options.sheet === 'as-shown' ? 'as-shown' : 'custom',
     background: options.background === null ? 'transparent' : 'colour',
     pngDpi: options.pngDpi,
     optionsChanged: details.changed,
