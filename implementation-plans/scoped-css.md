@@ -84,13 +84,38 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
     the five component stylesheets) are the allowlist, shrinking as they
     migrate.
   - A ratchet on the global files' line count (the idea behind the panels'
-    `max-lines`): CI fails if `theme.css` grows. The number only goes down.
+    `max-lines`): a unit test fails if `theme.css` grows past its recorded
+    ceiling, and when it shrinks well below, until the ceiling is lowered to
+    match — so the number only goes down and slack cannot build up. A test
+    rather than a CI step, so it runs everywhere the tests do.
+
+## Beside PR #412 (landing performance)
+
+- **One job.** #412 kept every stylesheet eager on purpose and deferred "the CSS
+  restructure" to a separate PR: 38 KB of the landing's 42 KB render-blocking
+  stylesheet is unused there. A module's CSS ships with the chunk that imports
+  it, so every block that moves into a module leaves the landing's stylesheet —
+  the migration plan is that restructure, and the landing budget
+  (`scripts/landing-budget.mjs`, which counts only the stylesheets `index.html`
+  links) is one of its measures.
+- **The first lazy CSS is safe.** A workspace-only module is the app's first
+  lazily loaded CSS. The service worker's warm set already carries each lazy
+  chunk's CSS (`viteMetadata.importedCss`), so an offline launch still has it,
+  and Vite loads a chunk's CSS before its `import()` resolves, so nothing
+  flashes unstyled.
+- **The landing is last, and guarded.** Its prerendered copy is its first paint,
+  the inline scripts (`seo/staticPaint*.ts`) select into it, and
+  `scripts/static-paint-check.mjs` demands zero differing pixels between the copy
+  and the live page. A landing module needs the pinned class names and data
+  attribute hooks for those scripts, and that check proves both.
+- **Merge order.** #412 moves the global stylesheet imports into `main.tsx`; the
+  ESLint allowlist is reconciled when this branch merges main.
 
 ## Affected Areas
 
 - `apps/web/vite.config.ts`, `apps/web/eslint.config.js`
 - `AGENTS.md`, `apps/web/docs/styling.md` (new)
-- A check script beside the other CI checks, and its wiring in CI
+- The ratchet test beside the global stylesheet
 - The first module: `SegmentedControl` (see
   `implementation-plans/one-segmented-control.md`)
 
@@ -98,7 +123,7 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
 
 - [ ] `generateScopedName` pinned; a prerendered page using a module keeps its
       styles (class names in `dist/index.html` match the built CSS)
-- [ ] ESLint rule and allowlist; the `theme.css` ratchet and its CI step
+- [ ] ESLint rule and allowlist; the `theme.css` ratchet test
 - [ ] Convention in `AGENTS.md` and `apps/web/docs/styling.md`
 - [ ] First module lands with it: `SegmentedControl.module.css`, its context
       overrides replaced by props (the segmented-control plan's Phase 1)

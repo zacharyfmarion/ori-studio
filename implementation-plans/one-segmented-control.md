@@ -50,14 +50,13 @@ the look the user prefers exists only inside Settings ▸ Paper.
 - The phone tool sheet's line types (`toolCatalog/CpToolPickerSheet.tsx`, CSS
   `.cp-tool-picker__types`): a hand-built radio group; picking one closes the
   sheet.
-- ExplOri's Symmetry (`panels/ExploriQueryBar.tsx`, CSS
-  `.explori-symmetry-group`): a flush divided group — but **multi-select**,
-  each symmetry toggled on or off independently.
 - The context panel's Fold direction (`foldAngle/DirectionHintControl.tsx`):
   Mountain / Valley / None as a row of `Chip`s, with nothing pressed on a
   mixed selection — exactly what `SegmentedControl`'s `value: null` means.
 
-**Not this pattern** (left alone): the References mode switch and the Design
+**Not this pattern** (left alone): ExplOri's Symmetry
+(`panels/ExploriQueryBar.tsx`), which looks like one but is multi-select —
+each symmetry toggles on its own — and is a different component; the References mode switch and the Design
 tab strip (navigation tabs, `design-tab-strip`); the fold-angle preset chips
 and the crease-angle popover's chips (presets sitting beside an action chip
 and a number field, deliberately not a group — see the note at the top of
@@ -114,21 +113,14 @@ wanted become props.
   `foldedFigureProperties.test.ts`, and the rail / picker / ExplOri / fold
   direction tests
 
-## Open questions
+## Decisions (2026-09-30)
 
-1. **Stretch or hug in dialogs?** The export dialog's Format and Steps switches
-   stretch across the column today; the Paper tab's hugs. Proposed: hug in
-   dialogs and settings (as the Paper tab does), and `fill` only in the CP
-   context panel's column, whose dense rows were built around a full-width
-   control.
-2. **The rail's line types** — move them onto the component (proposed, with
-   the tooltip support in step 3), or leave them as tool-rail buttons in a
-   restyled group?
-3. **ExplOri's Symmetry is multi-select.** Give the component a
-   `multiple` mode (value is a set, each pill toggles) so it uses the same
-   control (proposed), or leave it out as a different interaction?
-4. **Fold direction** (Mountain / Valley / None) — convert the chips
-   (proposed), or keep chips there alongside the fold-angle presets?
+1. **Hug in dialogs and settings**, as the Paper tab does; `fill` only in the
+   CP context panel's column.
+2. **The rail's line types move onto the component**, with option tooltips.
+3. **ExplOri's Symmetry stays its own component**: multi-select is a different
+   interaction, not a mode of this one.
+4. **Fold direction becomes a segmented control.**
 
 ## Checklist
 
@@ -138,7 +130,7 @@ wanted become props.
 - [ ] `SegmentedControl`: pill track and pills in `SegmentedControl.module.css`
       (its `theme.css` rules deleted), the `--segmented-track` token (light
       and dark), a distinct hover tint, `size` on the shared scale, `fill`
-- [ ] The 10 sites: sizes and `fill` per the answers above; delete every
+- [ ] The 10 sites: sizes and `fill` per the decisions above; delete every
       context override and the dead simulator rule
 - [ ] Tests: the component (size, fill, a `null` value presses nothing,
       disabled refuses), and every existing test that reads the markup —
@@ -160,8 +152,6 @@ wanted become props.
 
 - [ ] Fold direction chips → `SegmentedControl` (a mixed selection presses
       nothing)
-- [ ] ExplOri Symmetry → `SegmentedControl` in `multiple` mode, if chosen;
-      delete `.explori-symmetry-*`
 - [ ] Tests; browser; validate; commit
 
 ### Phase 4 — Close out
