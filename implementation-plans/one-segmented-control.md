@@ -130,8 +130,9 @@ wanted become props.
 ### Follow-up (2026-09-30)
 
 - A labelled control sits on one row, label left and control right, like the
-  rows around it: the export dialog's Format and the crease export's Side on
-  `export-modal__field-row`, and the context panel's mode switches (Extend
+  rows around it: the export dialog's Format and step scope (labelled Steps,
+  the name it already had for a screen reader) and the crease export's Side
+  on `export-modal__field-row`, and the context panel's mode switches (Extend
   color, Divide mode) on the same `SegmentedToolOption` row the Square tool's
   options use, in place of a group title above a full-width control.
 - The context panel's controls are `md` (32px): at `sm` the pills read short.

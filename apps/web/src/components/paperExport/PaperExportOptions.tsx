@@ -120,15 +120,18 @@ export function PaperExportOptions({
     <>
       {scopes && (
         <section className="export-modal__section">
-          <SegmentedControl<PaperExportScope>
-            aria-label={t('dialogs:paperExport.scope', 'Steps')}
-            value={scopes.scope}
-            onChange={scopes.setScope}
-            options={[
-              { value: 'this', label: t('dialogs:paperExport.scopeThis', 'This step') },
-              { value: 'all', label: t('dialogs:paperExport.scopeAll', 'All steps') },
-            ]}
-          />
+          <div className="export-modal__field-row">
+            <span className="export-modal__label">{t('dialogs:paperExport.scope', 'Steps')}</span>
+            <SegmentedControl<PaperExportScope>
+              aria-label={t('dialogs:paperExport.scope', 'Steps')}
+              value={scopes.scope}
+              onChange={scopes.setScope}
+              options={[
+                { value: 'this', label: t('dialogs:paperExport.scopeThis', 'This step') },
+                { value: 'all', label: t('dialogs:paperExport.scopeAll', 'All steps') },
+              ]}
+            />
+          </div>
         </section>
       )}
       {formatSection}
