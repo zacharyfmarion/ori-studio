@@ -2,13 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const controllerMocks = vi.hoisted(() => ({
-  handleFileDrop: vi.fn(async () => null),
-}));
-
-vi.mock('../commands/fileDropController', () => ({
-  handleFileDrop: controllerMocks.handleFileDrop,
-}));
+const onDropFiles = vi.fn();
 
 import { useFileDropTarget } from './useFileDropTarget';
 import type { DropTargetPolicy } from '../lib/fileDrop';
@@ -19,7 +13,7 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 function Host({ policy }: { policy: DropTargetPolicy }) {
-  const { dropTargetProps, isDragActive } = useFileDropTarget({ policy });
+  const { dropTargetProps, isDragActive } = useFileDropTarget({ policy, onDropFiles });
   return (
     <div data-testid="target" data-active={isDragActive || undefined} {...dropTargetProps}>
       <div data-testid="child">child</div>
@@ -161,23 +155,20 @@ describe('useFileDropTarget', () => {
     expect(isActive()).toBe(false);
   });
 
-  it('hands dropped files to the controller with its policy', () => {
+  it('hands dropped files to the caller', () => {
     render('open-only');
     const file = new File(['x'], 'design.cp');
 
     fire(element('target'), 'dragenter', documentDrag);
     fire(element('target'), 'drop', { ...documentDrag, files: [file] });
 
-    expect(controllerMocks.handleFileDrop).toHaveBeenCalledWith({
-      files: [file],
-      policy: 'open-only',
-    });
+    expect(onDropFiles).toHaveBeenCalledWith([file]);
     expect(isActive()).toBe(false);
   });
 
-  it('does not call the controller for a drop with no files', () => {
+  it('does not call the caller for a drop with no files', () => {
     render();
     fire(element('target'), 'drop', inPageDrag);
-    expect(controllerMocks.handleFileDrop).not.toHaveBeenCalled();
+    expect(onDropFiles).not.toHaveBeenCalled();
   });
 });

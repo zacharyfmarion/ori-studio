@@ -1,15 +1,6 @@
-import { selectProject } from '../../store/workspaceStore/designTabs';
-import {
-  describeCpDocument,
-  describeTreeDocument,
-  unavailableContext,
-  UNAVAILABLE,
-  type ErrorReportContext,
-} from '../../lib/errorReport';
+import { unavailableContext, UNAVAILABLE, type ErrorReportContext } from '../../lib/errorReport';
 import { getRuntimeSurface } from '../../platform/runtime';
-import { useLayoutStore } from '../../store/layoutStore';
 import { useLocaleStore } from '../../store/localeStore';
-import { useWorkspaceStore } from '../../store/workspaceStore';
 
 /**
  * Collects the app state that goes into an error report.
@@ -35,41 +26,20 @@ function safely(read: () => string): string {
 }
 
 /**
- * Counts and kind only — see the privacy note in `lib/errorReport.ts`. The CP
- * document's `source.filename`/`source.path` and the project title are
- * deliberately not read.
+ * What only the workspace can say about itself. Registered by `workspaceErrorFacts.ts`
+ * when the workspace code loads, so the error boundaries — which the landing page mounts
+ * too — never import the workspace store themselves.
  */
-function readDocument(): string {
-  const state = useWorkspaceStore.getState();
-  const cp = state.oristudioCpDocument;
-  if (cp) {
-    const summary = cp.summary;
-    const description = describeCpDocument({
-      lineSegments: summary.line_segments,
-      auxLineSegments: summary.aux_line_segments,
-      circles: summary.circles,
-      points: summary.points,
-      texts: summary.texts,
-    });
-    return state.dirty ? `${description} · unsaved changes` : description;
-  }
+export interface WorkspaceErrorFacts {
+  workspace(): string;
+  editingContext(): string;
+  document(): string;
+}
 
-  // `project` is never null — the store seeds an empty tree — so emptiness, not
-  // nullness, is what distinguishes "no document" from "an empty tree the user
-  // is working on". Reporting the latter as a tree would be a small lie in the
-  // one artifact whose whole job is to be accurate.
-  const project = selectProject(state);
-  if (project && (project.nodes.length > 0 || project.edges.length > 0)) {
-    const description = describeTreeDocument({
-      nodes: project.nodes.length,
-      edges: project.edges.length,
-      paths: project.paths.length,
-      conditions: project.conditions.length,
-    });
-    return state.dirty ? `${description} · unsaved changes` : description;
-  }
+let workspaceFacts: WorkspaceErrorFacts | null = null;
 
-  return 'none open';
+export function registerWorkspaceErrorFacts(facts: WorkspaceErrorFacts | null): void {
+  workspaceFacts = facts;
 }
 
 /**
@@ -84,9 +54,10 @@ export function collectErrorContext(surface: string): ErrorReportContext {
       runtime: safely(() => getRuntimeSurface()),
       userAgent: safely(() => (typeof navigator === 'undefined' ? '' : navigator.userAgent)),
       locale: safely(() => useLocaleStore.getState().locale),
-      workspace: safely(() => useLayoutStore.getState().activeWorkspace),
-      editingContext: safely(() => useWorkspaceStore.getState().activeEditingContext),
-      document: safely(readDocument),
+      // Before the workspace has loaded there is none, and no document either.
+      workspace: safely(() => workspaceFacts?.workspace() ?? ''),
+      editingContext: safely(() => workspaceFacts?.editingContext() ?? ''),
+      document: safely(() => workspaceFacts?.document() ?? 'none open'),
     };
   } catch {
     return unavailableContext(surface);

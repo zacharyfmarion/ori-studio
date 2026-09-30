@@ -250,6 +250,9 @@
   "number": {
     "tooSmall": "Geben Sie eine Zahl größer als {{minimum}} ein."
   },
+  "openProject": {
+    "title": "Ori-Studio-Projekt oder Faltmuster öffnen"
+  },
   "orieditaImport": {
     "alreadyMatches_one": "Stimmt bereits überein ({{count}})",
     "alreadyMatches_other": "Stimmt bereits überein ({{count}})",

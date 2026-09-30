@@ -1,6 +1,11 @@
-import { importedCreasePatternFormat, type ImportedCreasePatternFormat } from './creasePatternImport';
+import {
+  importedCreasePatternFormat,
+  NATIVE_PROJECT_EXTENSION,
+  type ImportedCreasePatternFormat,
+} from './fileFormats';
 import { isDecodableImageType } from './imageFormats';
-import { NATIVE_PROJECT_EXTENSION } from './nativeProjectFile';
+
+export { OPENABLE_FILE_EXTENSIONS } from './fileFormats';
 
 /**
  * What a dropped file is, and what the app can do with it.
@@ -21,23 +26,6 @@ export type DroppedFileKind =
   | { kind: 'crease-pattern'; format: ImportedCreasePatternFormat }
   | { kind: 'image' }
   | { kind: 'unsupported' };
-
-/**
- * Extensions File ▸ Open accepts, in the order its dialog filter lists them.
- * `openProject` consumes this list, so the set a drop understands and the set
- * the Open dialog offers cannot drift apart.
- */
-export const OPENABLE_FILE_EXTENSIONS = [
-  NATIVE_PROJECT_EXTENSION,
-  'tmd',
-  'tmd4',
-  'tmd5',
-  'fold',
-  'cp',
-  'ori',
-  'orh',
-  'bps',
-] as const;
 
 const CREASE_PATTERN_EXTENSIONS = new Set(['fold', 'cp', 'ori', 'orh']);
 const TREE_EXTENSIONS = new Set(['tmd', 'tmd4', 'tmd5']);

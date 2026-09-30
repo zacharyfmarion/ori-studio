@@ -1,4 +1,11 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+
+// Where paths resolve is the question here, not what the workspace renders — and the real
+// workspace is most of the app, which is slow to load in jsdom.
+vi.mock('./workspaceGateway', () => ({
+  loadWorkspace: async () => ({ ShareRoute: () => null, WorkspaceShellRoute: () => null }),
+}));
+
 import { storageKey, STORAGE_KEYS } from '../lib/storage';
 import { PHONE_MEDIA_QUERY } from '../platform/mobileSurface';
 import { CONTENT_PAGES, pagePath, SITE_LOCALES, SITE_PAGES } from '../site/sitePages';

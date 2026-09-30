@@ -73,6 +73,8 @@ export const STORAGE_KEYS = {
    * download button — the links it holds keep working until the next release.
    */
   desktopRelease: 'desktop-release',
+  /** When a missing lazy chunk last reloaded the page (`importOrReload`), so it happens once. */
+  chunkReload: 'chunk-reload',
 } as const;
 
 /** Build a namespaced key: `storageKey('layout', 'design') → 'oristudio:layout:design'`. */

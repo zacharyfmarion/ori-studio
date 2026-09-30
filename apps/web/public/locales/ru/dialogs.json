@@ -256,6 +256,9 @@
   "number": {
     "tooSmall": "Введите число больше {{minimum}}."
   },
+  "openProject": {
+    "title": "Открыть проект Ori Studio или паттерн складок"
+  },
   "orieditaImport": {
     "alreadyMatches_one": "Уже совпадает ({{count}})",
     "alreadyMatches_few": "Уже совпадает ({{count}})",

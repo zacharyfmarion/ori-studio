@@ -46,7 +46,7 @@ import { validateUserCamera } from '../cp-workspace/renderer/camera';
 import type { UserCamera } from '../cp-workspace/renderer/camera';
 
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
-export const NATIVE_PROJECT_EXTENSION = 'osf';
+export { NATIVE_PROJECT_EXTENSION } from './fileFormats';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
 export const NATIVE_PROJECT_SCHEMA_VERSION = 8;
 

@@ -1,6 +1,7 @@
-import { useSyncExternalStore } from 'react';
+import { useContext, useSyncExternalStore } from 'react';
 import { isPhoneLayout, PHONE_MEDIA_QUERY } from './phoneLayout';
 import { getRuntimeSurface } from './runtime';
+import { ServerPhoneSurface } from './serverPhoneSurface';
 
 /**
  * Whether this is a phone-shaped *browser* session, for the handful of places
@@ -73,5 +74,6 @@ function subscribe(onChange: () => void): () => void {
 
 /** Reactive {@link isPhoneSurface}, for layout that follows the viewport. */
 export function useIsPhoneSurface(): boolean {
-  return useSyncExternalStore(subscribe, isPhoneSurface, () => false);
+  const server = useContext(ServerPhoneSurface);
+  return useSyncExternalStore(subscribe, isPhoneSurface, () => server);
 }

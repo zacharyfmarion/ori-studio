@@ -3,7 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } f
 import { useTranslation } from 'react-i18next';
 import { track, type LandingFeatureId } from '../../analytics';
 import { carouselKeyTarget } from './carouselKeys';
-import { LandingFigure } from './LandingFigure';
+import { LANDING_FIGURE_SIZES, LandingFigure } from './LandingFigure';
 import { usePointerDrag } from './usePointerDrag';
 
 /** How long the track must sit still before the landed-on slide is reported. */
@@ -225,7 +225,7 @@ export function LandingSwipeCarousel({
               // track scrollable — but they are not content anyone is shown.
               aria-hidden={index === active ? undefined : true}
             >
-              <LandingFigure name={item.figure} alt={item.figureAlt} />
+              <LandingFigure name={item.figure} alt={item.figureAlt} sizes={LANDING_FIGURE_SIZES.wide} />
               {showTabs ? null : (
                 <h3 className="landing-swipe__slide-title">{item.title}</h3>
               )}

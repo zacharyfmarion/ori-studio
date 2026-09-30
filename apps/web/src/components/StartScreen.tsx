@@ -1,14 +1,17 @@
 import { DraftingCompass, FilePlus, FolderOpen, PenTool } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AppStatus } from '../lib/sampleProject';
 import { useIsPhoneLayout } from '../platform/phoneLayout';
 import { DesktopDownloadButton } from './download/DesktopDownloadButton';
 import { StartFigure } from './start/StartFigure';
 
-interface StartScreenProps {
-  status: AppStatus;
+export interface StartScreenProps {
+  /** A start action is waiting on the editor to load; every action is held until it lands. */
+  preparing: boolean;
+  /** Why the last start action failed, shown in the status line. */
   errorMessage: string | null;
+  /** The pointer or focus reached a start action: a cue to start loading the editor. */
+  onIntent?: () => void;
   onCreateCreasePattern: () => void;
   onCreateDesign: () => void;
   onOpenFile: () => void;
@@ -17,8 +20,9 @@ interface StartScreenProps {
 }
 
 export function StartScreen({
-  status,
+  preparing,
   errorMessage,
+  onIntent,
   onCreateCreasePattern,
   onCreateDesign,
   onOpenFile,
@@ -32,11 +36,10 @@ export function StartScreen({
   // up: that one asks whether the app should refuse to open here and exempts the
   // Tauri shell, and this control is already absent there.
   const phone = useIsPhoneLayout();
-  const preparing = status === 'loading_engine';
-  const disabled = preparing || status === 'optimizing' || status === 'building_crease_pattern';
+  const failed = !preparing && errorMessage !== null;
   const statusMessage = preparing
     ? t('dialogs:startScreen.preparing', 'Preparing the editor...')
-    : status === 'error' && errorMessage
+    : failed
       ? errorMessage
       : t('dialogs:startScreen.chooseBegin', 'Choose how you want to begin.');
 
@@ -88,7 +91,13 @@ export function StartScreen({
           </div>
         </div>
 
-        <div className="start-screen__actions" aria-label={t('dialogs:startScreen.startOptions', 'Start options')}>
+        <div
+          className="start-screen__actions"
+          aria-label={t('dialogs:startScreen.startOptions', 'Start options')}
+          onPointerEnter={onIntent}
+          onPointerDown={onIntent}
+          onFocus={onIntent}
+        >
           <StartAction
             title={t('dialogs:startScreen.createCp.title', 'Create a CP')}
             description={t(
@@ -96,7 +105,7 @@ export function StartScreen({
               'Open a blank editable crease-pattern document with CP drawing tools ready.'
             )}
             icon={<PenTool size={20} />}
-            disabled={disabled}
+            disabled={preparing}
             onClick={onCreateCreasePattern}
           />
           <StartAction
@@ -106,7 +115,7 @@ export function StartScreen({
               'Open .osf projects or import .cp, .fold, .ori, .orh, .tmd, .tmd4, and .tmd5 files through the shared file workflow.'
             )}
             icon={<FolderOpen size={20} />}
-            disabled={disabled}
+            disabled={preparing}
             onClick={onOpenFile}
           />
           <StartAction
@@ -116,13 +125,13 @@ export function StartScreen({
               'Start from a blank tree, then optimize it and build a crease pattern.'
             )}
             icon={<DraftingCompass size={20} />}
-            disabled={disabled}
+            disabled={preparing}
             onClick={onCreateDesign}
           />
         </div>
 
         <div className="start-screen__footer">
-          <div className="start-screen__status" data-error={status === 'error' || undefined}>
+          <div className="start-screen__status" data-error={failed || undefined}>
             <FilePlus size={14} />
             <span>{statusMessage}</span>
           </div>
