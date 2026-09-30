@@ -175,6 +175,9 @@ wanted become props.
 
 ### Phase 4 — Close out
 
-- [ ] No `.segmented` rule outside the component's own; no hand-built
-      segmented group left (grep for `border-right` / hairline groups)
-- [ ] `git diff --check`; commit
+- [x] No `.segmented` rule outside the component's own; no hand-built
+      segmented group left. Every other `aria-pressed` control is on the "not
+      this pattern" list above (on/off toggles, theme and preset cards, the
+      angle presets, ExplOri's multi-select), and the one radio group left is
+      the Square tool's 3×3 anchor picker, a two-dimensional choice
+- [x] `git diff --check`; commit
