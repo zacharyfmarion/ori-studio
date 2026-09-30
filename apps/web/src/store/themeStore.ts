@@ -21,20 +21,22 @@ function saveThemeName(name: string): void {
   writeString(THEME_STORAGE_KEY, name);
 }
 
+function prefersLightScheme(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia(LIGHT_SCHEME_QUERY).matches;
+}
+
 export function resolveSystemDefaultTheme(): TreeMakerTheme {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return DEFAULT_DARK_THEME;
-  }
-  return window.matchMedia(LIGHT_SCHEME_QUERY).matches ? DEFAULT_LIGHT_THEME : DEFAULT_DARK_THEME;
+  return prefersLightScheme() ? DEFAULT_LIGHT_THEME : DEFAULT_DARK_THEME;
 }
 
 export function resolveInitialTheme(): TreeMakerTheme {
-  const name = initialThemeName(
-    loadSavedThemeName(),
-    resolveSystemDefaultTheme() === DEFAULT_LIGHT_THEME,
-    PRESET_THEMES.map((theme) => theme.name),
-    { dark: DEFAULT_DARK_THEME.name, light: DEFAULT_LIGHT_THEME.name }
-  );
+  const name = initialThemeName({
+    savedName: loadSavedThemeName(),
+    prefersLight: prefersLightScheme(),
+    presetNames: PRESET_THEMES.map((theme) => theme.name),
+    defaults: { dark: DEFAULT_DARK_THEME.name, light: DEFAULT_LIGHT_THEME.name },
+  });
   return PRESET_THEMES.find((theme) => theme.name === name) ?? DEFAULT_DARK_THEME;
 }
 

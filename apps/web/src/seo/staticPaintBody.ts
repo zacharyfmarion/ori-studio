@@ -111,7 +111,7 @@ const RECORD_WAIT_MS = 500;
  * to wait for: the first callback runs before its frame renders. A hidden tab renders no
  * frames, and has no paint to protect.
  */
-function startApp(entry: string, afterPaint: boolean, win: Window): void {
+function startApp({ entry, afterPaint }: { entry: string; afterPaint: boolean }, win: Window): void {
   const doc = win.document;
   let observer: PerformanceObserver | null = null;
   let started = false;
@@ -166,7 +166,7 @@ export function finishStaticPaint(config: StaticPaintBodyConfig, win: Window = w
     root.removeAttribute(STATIC_PAINT_ATTRIBUTE);
   } finally {
     template?.remove();
-    startApp(config.entry, kept, win);
+    startApp({ entry: config.entry, afterPaint: kept }, win);
   }
   return kept;
 }

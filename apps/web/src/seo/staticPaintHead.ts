@@ -41,12 +41,12 @@ function liveTheme(config: StaticPaintHeadConfig, win: Window): (StaticPaintThem
   // The app renders in the reader's language, not the URL's.
   if (resolveInitialLanguage() !== config.locale) return null;
   const host = mediaHost(win);
-  const name = initialThemeName(
-    readString(storageKey(STORAGE_KEYS.theme)),
-    host?.matchMedia(LIGHT_SCHEME_QUERY).matches ?? false,
-    config.presetNames,
-    config.defaultThemes
-  );
+  const name = initialThemeName({
+    savedName: readString(storageKey(STORAGE_KEYS.theme)),
+    prefersLight: host?.matchMedia(LIGHT_SCHEME_QUERY).matches ?? false,
+    presetNames: config.presetNames,
+    defaults: config.defaultThemes,
+  });
   const theme = config.themes[name];
   return theme ? { name, ...theme } : null;
 }
