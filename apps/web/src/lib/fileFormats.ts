@@ -1,3 +1,5 @@
+import type { TFunction } from 'i18next';
+
 /**
  * The file formats Ori Studio opens, named without the parsers that read them.
  *
@@ -34,8 +36,14 @@ export const OPENABLE_FILE_EXTENSIONS = [
   'bps',
 ] as const;
 
-/** File ▸ Open's dialog. The start screen opens the same one before the workspace has loaded. */
-export const OPEN_PROJECT_DIALOG = {
-  title: 'Open Ori Studio Project or Crease Pattern',
-  extensions: [...OPENABLE_FILE_EXTENSIONS],
-};
+/**
+ * File ▸ Open's dialog. The start screen opens the same one before the workspace has loaded.
+ * Given `t` rather than importing the app's i18n instance, which would put that module
+ * wherever the format list goes.
+ */
+export function openProjectDialog(t: TFunction) {
+  return {
+    title: t('dialogs:openProject.title', 'Open Ori Studio Project or Crease Pattern'),
+    extensions: [...OPENABLE_FILE_EXTENSIONS],
+  };
+}

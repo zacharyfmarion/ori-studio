@@ -247,6 +247,9 @@
   "number": {
     "tooSmall": "请输入大于 {{minimum}} 的数字。"
   },
+  "openProject": {
+    "title": "打开 Ori Studio 项目或折痕图"
+  },
   "orieditaImport": {
     "alreadyMatches_other": "无需更改（{{count}}）",
     "apply_other": "应用 {{count}} 个快捷键",

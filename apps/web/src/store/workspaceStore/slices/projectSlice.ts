@@ -89,7 +89,7 @@ import {
   type ImportedCreasePatternResult,
   type ImportedCreasePatternSource,
 } from '../../../lib/creasePatternImport';
-import { OPEN_PROJECT_DIALOG } from '../../../lib/fileFormats';
+import { openProjectDialog } from '../../../lib/fileFormats';
 import {
   clampOrieditaGridAngle,
   DEFAULT_ORISTUDIO_CP_FOLD_ANGLE_DISPLAY,
@@ -2553,7 +2553,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       }
       let openedSourceLength = 0;
       try {
-        const file = await fileService.openTextFile(OPEN_PROJECT_DIALOG);
+        const file = await fileService.openTextFile(openProjectDialog(i18n.t));
         if (!file) return false;
         openedSourceLength = file.text.length;
         if (isNativeProjectFilename(file.name)) {

@@ -5,7 +5,7 @@ import { useLandingSectionViewedEvents, useLandingViewedEvent } from '../analyti
 import { LANDING_SECTIONS, trackCta } from '../components/landing/WelcomeLanding';
 import { WELCOME_DROP_POLICY, WelcomePage } from '../components/landing/WelcomePage';
 import { useFileDropTarget } from '../hooks/useFileDropTarget';
-import { OPEN_PROJECT_DIALOG } from '../lib/fileFormats';
+import { openProjectDialog } from '../lib/fileFormats';
 import { humanizeError } from '../lib/toastMessages';
 import { getFileService } from '../platform/fileService';
 import { useIsPhoneSurface } from '../platform/mobileSurface';
@@ -77,11 +77,11 @@ export function WelcomeRoute() {
   const handleOpenFile = useCallback(() => {
     // Opened here, inside the click: a browser shows a file picker only for a user
     // gesture, and the workspace that will read the file may still be loading.
-    const picked = getFileService().openTextFile(OPEN_PROJECT_DIALOG);
+    const picked = getFileService().openTextFile(openProjectDialog(t));
     // Observed now so a failed pick is not reported unhandled before the workspace reads it.
     picked.catch(() => undefined);
     void run(() => startActions.openPicked(picked));
-  }, [run]);
+  }, [run, t]);
 
   const onDropFiles = useCallback(
     (files: File[]) => void run(() => startActions.dropFiles(files)),
