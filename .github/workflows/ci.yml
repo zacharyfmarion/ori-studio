@@ -70,49 +70,10 @@ jobs:
             exit 1
           fi
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Set up sccache
-        uses: mozilla-actions/sccache-action@v0.0.10
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-${{ github.repository }}-web-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ github.repository }}-web-cargo-
-
-      - name: Install wasm-pack
-        uses: ./.github/actions/install-wasm-pack
-
-      # ReferenceFinder is C++ compiled with em++ (scripts/build-reference-finder.mjs),
-      # so `build:wasm` needs Emscripten beside wasm-pack.
-      - name: Install Emscripten SDK
-        uses: ./.github/actions/install-emsdk
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      # Build the simulator + wasm crates once. The typecheck/test steps below
-      # skip their pre-hooks (which would rebuild these) via --ignore-scripts.
+      # Toolchains, `npm ci`, and the simulator and wasm bridges, built once. The steps
+      # below skip their pre-hooks (which would rebuild these) with --ignore-scripts.
       - name: Build web assets (simulator + wasm)
-        run: npm --workspace @treemaker/web run build:simulator && npm --workspace @treemaker/web run build:wasm
-        env:
-          # The ReferenceFinder build may fall back to upstream's committed binary
-          # when em++ is missing locally; a CI build must never accept that.
-          REFERENCE_FINDER_FORCE_SOURCE: '1'
+        uses: ./.github/actions/build-web-assets
 
       # Same C++ as upstream, but our compiler and flags: the from-source wasm must
       # answer every query exactly like the artifact upstream committed at the
@@ -163,23 +124,35 @@ jobs:
       - name: Unit test repo scripts
         run: npm run test:scripts
 
-      # WebKit is the only engine the app ships to that nothing here ran: vitest
-      # runs in jsdom and the one screenshot lane runs Chromium, so a Safari- or
-      # iPadOS-only regression reached users before it reached CI. These four
-      # steps close that for the PWA specifically — a service worker decides the
-      # page's cross-origin isolation, and gets it wrong invisibly and only on
-      # the *second* load. See the header of scripts/webkit-pwa-check.mjs.
+  # The web app built for production and checked in real browsers — beside
+  # web-client rather than at the end of it. Every step here needs a production
+  # build, which needs the wasm bridges, and at the end of web-client, CI's
+  # longest job, they added two minutes to every run. Here they cost a second
+  # wasm build on another runner, and no wall time. Allow for apt, which
+  # `--with-deps` runs every time: usually half a minute, once fourteen.
+  web-browser:
+    name: Web build and browser checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build web assets (simulator + wasm)
+        uses: ./.github/actions/build-web-assets
+
+      # WebKit is the only engine the app ships to that nothing else here runs:
+      # vitest runs in jsdom, so a Safari- or iPadOS-only regression reached users
+      # before it reached CI. The PWA check closes that for the service worker
+      # specifically — it decides the page's cross-origin isolation, and gets it
+      # wrong invisibly and only on the *second* load. See the header of
+      # scripts/webkit-pwa-check.mjs.
       #
       # What it does **not** cover, so nobody reads more into a green tick than
       # is there: layout, hit targets, and anything a person would call "does it
       # look right on an iPad". The check asserts the app boots and the cache is
       # correct. Push every panel off-screen with one CSS rule and it still
       # passes — measured.
-      #
-      # Cost, since the checks themselves are ~10s: the browser download is
-      # cached, but `--with-deps` still runs apt on every run, and the build step
-      # below re-runs `tsc --noEmit` on top of the typecheck above. Budget two to
-      # three minutes on the job, not ten seconds.
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -198,9 +171,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps --only-shell chromium webkit
 
-      # Also the only place a production build runs in CI. The service worker is
-      # emitted by `vite build` and nothing before this step would notice it
-      # failing to.
+      # The only place a production build runs in CI. The service worker is
+      # emitted by `vite build`, and nothing else would notice it failing to.
       - name: Build web client
         run: npm run build:web --ignore-scripts
 
