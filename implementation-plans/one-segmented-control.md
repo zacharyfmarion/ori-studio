@@ -66,6 +66,12 @@ button, the CP detect overlays); Settings' theme cards.
 
 ## Approach
 
+The control is the first component styled under the scoped-CSS convention
+(`implementation-plans/scoped-css.md`): its CSS moves out of `theme.css` into
+`SegmentedControl.module.css`, so no screen can restyle it again — which is
+what made the two looks in the first place — and the variations those screens
+wanted become props.
+
 1. **The pill look becomes the component's own.** The track is a padded well
    (3px padding and gap, rounded) and each option a rounded pill; the chosen
    pill keeps today's accent tint, and hover gets a fainter tint of its own so
@@ -128,13 +134,15 @@ button, the CP detect overlays); Settings' theme cards.
 
 ### Phase 1 — The component takes the pill look; its sites follow
 
-- [ ] `SegmentedControl`: pill track and pills in its own CSS, the
-      `--segmented-track` token (light and dark), a distinct hover tint,
-      `size` on the shared scale, `fill`
+- [ ] The scoped-CSS setup lands first (`implementation-plans/scoped-css.md`)
+- [ ] `SegmentedControl`: pill track and pills in `SegmentedControl.module.css`
+      (its `theme.css` rules deleted), the `--segmented-track` token (light
+      and dark), a distinct hover tint, `size` on the shared scale, `fill`
 - [ ] The 10 sites: sizes and `fill` per the answers above; delete every
       context override and the dead simulator rule
 - [ ] Tests: the component (size, fill, a `null` value presses nothing,
-      disabled refuses), and every existing test that reads the markup
+      disabled refuses), and every existing test that reads the markup —
+      moved from `.segmented__option` to roles and pressed state
 - [ ] Browser: each site in dark and light themes, and at phone width with a
       touch pointer (the coarse-pointer minimum height)
 - [ ] Validate; commit
