@@ -177,11 +177,17 @@ describe('the page', () => {
   });
 
   it('measures a surface by the pens it draws with, not by the diagram creases it never draws', () => {
-    // The Diagram preset: 0.5 pt edges, 0.75 pt folds and diagram creases. A
-    // folded figure draws every fold as an edge; a simulation draws its folds.
+    // The Diagram preset: 0.5 pt edges, 0.25 pt folds, 0.75 pt diagram
+    // creases. Neither surface draws a diagram crease, so its edges are the
+    // widest pen either has.
     const diagram = builtInPaperPreset('diagram').style;
     expect(widestPenPt(surfacePaperStyle(diagram, PAPER_STYLE_POLICIES['folded-3d']))).toBe(0.5);
-    expect(widestPenPt(surfacePaperStyle(diagram, PAPER_STYLE_POLICIES.simulator))).toBe(0.75);
+    expect(widestPenPt(surfacePaperStyle(diagram, PAPER_STYLE_POLICIES.simulator))).toBe(0.5);
+    // A folded figure draws every fold as an edge; a simulation draws its
+    // folds, so a heavy fold pen counts there alone.
+    const heavy = { ...diagram, mountainFolds: { ...diagram.mountainFolds, width: 2 } };
+    expect(widestPenPt(surfacePaperStyle(heavy, PAPER_STYLE_POLICIES['folded-3d']))).toBe(0.5);
+    expect(widestPenPt(surfacePaperStyle(heavy, PAPER_STYLE_POLICIES.simulator))).toBe(2);
     // A diagram crease widened past everything counts only where it is drawn.
     const wide = { ...diagram, mountainDiagramCreases: { ...diagram.mountainDiagramCreases, width: 4 } };
     expect(widestPenPt(surfacePaperStyle(wide, PAPER_STYLE_POLICIES['folded-3d']))).toBe(0.5);

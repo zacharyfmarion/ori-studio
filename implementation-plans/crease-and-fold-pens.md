@@ -60,7 +60,9 @@ the diagram creases' job. (Proposed — the user can pick black.)
 > **Decided otherwise** (2026-09-30): the user picked black. Diagram is black
 > and white throughout — its fold pens are its one `#231f20` ink, as its aux
 > creases and edge are — so a simulation in it has no colour on the page. It
-> is lit, too, as the Default is.
+> is lit, too, as the Default is. And its fold pens are the template's crease
+> lines, 0.25 pt — the aux creases' weight, under the 0.5 pt edges; only the
+> diagram creases, a step's instruction, stay 0.75 pt.
 
 Default's fold pens become exactly main's simulator crease look, so
 `creaseStyleOf(DEFAULT_PAPER_STYLE)` becomes `'color'` (main's simulator

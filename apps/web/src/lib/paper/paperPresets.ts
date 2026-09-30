@@ -33,9 +33,11 @@ export interface BuiltInPaperPreset extends PaperStylePreset {
  * grey colour side, one `#231f20` ink, edge 0.5 pt, the diagram creases
  * 0.75 pt — mountain dash-dot 8:2:1:2, valley dashed 4:2 — auxiliary creases
  * 0.25 pt, arrows 0.75 pt. The folds, a crease pattern's lines, are that ink
- * too, solid, at the diagram creases' weight: the style is black and white
- * throughout. They were red and blue, which a folded model drawn in this style
- * wore as the only colour on the page. The template's hidden fold and hidden
+ * too, solid, at the template's crease-line weight of 0.25 pt — the weight it
+ * gives every crease on the paper, the aux creases' — and under its 0.5 pt
+ * edges: the style is black and white throughout. They were red and blue at
+ * 0.75 pt, which a folded model drawn in this style wore as the only colour
+ * on the page, heavier than its outline. The template's hidden fold and hidden
  * edge pens have nothing to drive and are not here. The paper is lit, as the
  * Default's is: a model's shading is what shows its form on a white sheet.
  *
@@ -49,8 +51,8 @@ const DIAGRAM_STYLE: PaperStyle = {
   ...DEFAULT_PAPER_STYLE,
   paper: { front: '#ffffff', back: '#b3b3b3' },
   edges: { ...DIAGRAM_PEN, width: 0.5 },
-  mountainFolds: { ...DIAGRAM_PEN },
-  valleyFolds: { ...DIAGRAM_PEN },
+  mountainFolds: { ...DIAGRAM_PEN, width: 0.25 },
+  valleyFolds: { ...DIAGRAM_PEN, width: 0.25 },
   mountainDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_MOUNTAIN_DASH] },
   valleyDiagramCreases: { ...DIAGRAM_PEN, dash: [...DIAGRAM_VALLEY_DASH] },
   auxCreases: { visible: true, pen: { ...DIAGRAM_PEN, width: 0.25 } },

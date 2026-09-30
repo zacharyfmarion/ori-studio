@@ -219,7 +219,7 @@ describe('PaperSettings', () => {
     render();
     act(() => presetCard('builtin:diagram').click());
     expect(display()).toEqual(builtInPaperPreset('diagram').style);
-    expect(input('Mountain folds width').value).toBe('0.75');
+    expect(input('Mountain folds width').value).toBe('0.25');
     expect(tracked).toEqual([
       { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'diagram' } },
     ]);

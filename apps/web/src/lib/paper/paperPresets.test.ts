@@ -77,9 +77,11 @@ describe('built-in presets', () => {
       cap: 'butt',
     });
     // Black and white throughout: the folds are the one ink too, solid, at the
-    // diagram creases' weight, as the aux creases and the edge are.
-    expect(style.mountainFolds).toEqual({ width: 0.75, color: '#231f20', dash: null, cap: 'butt' });
-    expect(style.valleyFolds).toEqual({ width: 0.75, color: '#231f20', dash: null, cap: 'butt' });
+    // template's crease-line weight — every crease on the paper is 0.25 pt, the
+    // aux creases' too — under the 0.5 pt edges.
+    expect(style.mountainFolds).toEqual({ width: 0.25, color: '#231f20', dash: null, cap: 'butt' });
+    expect(style.valleyFolds).toEqual({ width: 0.25, color: '#231f20', dash: null, cap: 'butt' });
+    expect(style.auxCreases.pen.width).toBe(style.mountainFolds.width);
     expect(style.auxCreases).toMatchObject({ visible: true, pen: { width: 0.25, color: '#231f20' } });
     expect(style.arrows.width).toBe(0.75);
     // Lit, as the Default is.
