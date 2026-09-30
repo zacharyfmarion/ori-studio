@@ -6,6 +6,8 @@ export const REFERENCES_SHORTCUT_IDS: readonly ReferencesShortcutId[] = [
   'references.nextStep',
   'references.previousCandidate',
   'references.nextCandidate',
+  'references.previousWay',
+  'references.nextWay',
   'references.recompute',
   'references.toggleLandmarksFirst',
   'references.resetView',
@@ -28,6 +30,9 @@ export interface ReferencesShortcutActions {
   previousStep: () => void;
   nextCandidate: () => void;
   previousCandidate: () => void;
+  /** The active card's other ways to fold it (`↑` / `↓`). */
+  nextWay: () => void;
+  previousWay: () => void;
   recompute: () => void;
   toggleLandmarksFirst: () => void;
   resetView: () => void;
@@ -71,6 +76,12 @@ export function runReferencesShortcut(
       return;
     case 'references.previousCandidate':
       actions.previousCandidate();
+      return;
+    case 'references.nextWay':
+      actions.nextWay();
+      return;
+    case 'references.previousWay':
+      actions.previousWay();
       return;
     case 'references.recompute':
       actions.recompute();

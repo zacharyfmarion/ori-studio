@@ -491,6 +491,8 @@ describe('PaperExportModal over the References workspace', () => {
     previousStep: vi.fn(),
     nextCandidate: vi.fn(),
     previousCandidate: vi.fn(),
+    nextWay: vi.fn(),
+    previousWay: vi.fn(),
     recompute: vi.fn(),
     toggleLandmarksFirst: vi.fn(),
     resetView: vi.fn(),

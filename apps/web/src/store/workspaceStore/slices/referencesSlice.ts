@@ -12,6 +12,7 @@ export const DEFAULT_REFERENCES_VIEW: ReferencesView = {
   activeCandidate: 0,
   landmarksFirst: false,
   activeFinding: null,
+  planWays: {},
 };
 
 /** Upstream's `count`, and exact-only answers (plan decision D8). */

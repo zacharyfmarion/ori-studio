@@ -98,6 +98,10 @@ export {
   useLandingViewedEvent,
 } from './useLandingViewedEvent';
 export { useWorkspaceViewedEvent } from './useWorkspaceViewedEvent';
+export {
+  useReferencesWaysExploredEvent,
+  type ReferencesWaysVisitCard,
+} from './useReferencesWaysExploredEvent';
 export { useSitePageViewedEvent } from './useSitePageViewedEvent';
 
 export {

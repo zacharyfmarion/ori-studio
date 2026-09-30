@@ -843,6 +843,7 @@
       "noDiagramHint": "No step is showing",
       "noFoldHint": "Nothing to fold on this card",
       "noTargetHint": "Pick a vertex or crease first",
+      "oneWayHint": "This step folds only one way",
       "pauseFold": "Pause Fold",
       "pleatHint": "Pleats aren’t animated yet",
       "unfold": "Unfold"
@@ -1074,6 +1075,11 @@
       "refusedSheets": "{{n}} sheet(s) are not rectangles and are left out.",
       "unassignedSegments": "{{n}} crease(s) fall outside every sheet and are left out.",
       "zeroLengthSegments": "{{n}} crease(s) are too short to measure and were skipped."
+    },
+    "ways": {
+      "label": "Ways to fold this step",
+      "readout": "Way {{n}} of {{total}}",
+      "readoutShort": "{{n}} / {{total}}"
     }
   },
   "sheets": {

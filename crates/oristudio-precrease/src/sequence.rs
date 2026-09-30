@@ -184,6 +184,49 @@ fn default_true() -> bool {
     true
 }
 
+/// Which criterion of the card key the pick won on, when it was not a way
+/// the reader might prefer (`order::ways`). In the key's order; `Accuracy`
+/// is its numbers and the three-times-as-accurate override, and `Plan` a
+/// way the key prefers that the plan passed over for the sequence as a
+/// whole — a re-pick to vouch for a pinch, the optimiser, a twin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Criterion {
+    CornerToCorner,
+    Overlong,
+    Visible,
+    Precise,
+    Local,
+    Crossing,
+    OneMotion,
+    Ease,
+    ThinFlap,
+    Accuracy,
+    Plan,
+}
+
+/// Another construction of a step's crease — from the paper as it stands
+/// when the step is reached, leaving the paper as the plan has it, so the
+/// reader can take it in place of the pick and nothing else in the sequence
+/// changes (`order::ways`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Way {
+    /// The construction.
+    pub witness: Witness,
+    /// Its own mirror alignment of the same fold, as `Step::also`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub also: Option<Witness>,
+    /// As `Step::alignment`, for this way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alignment: Option<f64>,
+    /// What kind of fold it is (`order::ways::kind`): `O2:cp` for a corner
+    /// onto a mark.
+    pub kind: String,
+    /// Why the pick is not this way; absent for the pick itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decided_by: Option<Criterion>,
+}
+
 /// One fold in the presentation order.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Step {
@@ -329,6 +372,12 @@ pub struct Step {
     /// to it. A diagram folds such a pair as one step, and so does the card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub twin: Option<u32>,
+    /// The ways the reader can make this step instead, the presented witness
+    /// first, one of each kind; empty unless there are at least two. A press
+    /// that presents its fold's witness carries the fold's; a twin pair's two
+    /// lists are index-aligned mirrors, switched together.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ways: Vec<Way>,
 }
 
 /// Consecutive steps of one side, direction, axiom and input pattern.

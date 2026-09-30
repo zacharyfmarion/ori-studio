@@ -15,6 +15,7 @@ import {
   plannerFinishedDiagram,
   plannerStepDiagram,
   plannerTurnOverDiagram,
+  type PlannerStepDiagramOptions,
 } from './diagram/plannerDiagram';
 import { unitFrame } from './diagram/diagramFrames';
 import type { Diagram } from './referenceFinder/solution';
@@ -27,11 +28,12 @@ import {
   type RfSheet,
 } from './referencesCandidateSteps';
 import type { PrecreasePlanStopReason } from './precreasePlan';
-import type { PrecreaseSequence } from './precreaseSequence';
+import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesSheetAux } from './referencesAuxCreases';
 import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
 import { describePlannerStep } from './referencesStepSentences';
+import { cardWays, type ReferencesCardWays } from './referencesWays';
 
 /** One card: a picture and the sentence under the strip when it is active. */
 export interface ReferencesFilmstripStep {
@@ -63,6 +65,11 @@ export interface ReferencesFilmstripStep {
   /** The card draws the paper's back, as the view does on that side. */
   mirrored: boolean;
   sentence: string;
+  /**
+   * How many ways the card can be folded and which one it shows, when it
+   * offers more than one (`referencesWays`); null otherwise.
+   */
+  ways: ReferencesCardWays | null;
 }
 
 /**
@@ -90,6 +97,7 @@ export function candidateFilmstrip(
           primitives: diagonalStepDiagram(step.diagonal, sheet),
           mirrored: false,
           sentence: describeCandidateStep(t, candidate.solution, step, sheet),
+          ways: null,
         }
       : {
           key: `rf-${step.steps[0] ?? 'final'}`,
@@ -100,6 +108,7 @@ export function candidateFilmstrip(
           primitives: null,
           mirrored: false,
           sentence: describeCandidateStep(t, candidate.solution, step, sheet),
+          ways: null,
         }
   );
 }
@@ -185,6 +194,38 @@ export function planEndingCard(
 }
 
 /**
+ * A fold card's picture, drawn once per step object. A card draws its own
+ * step (and twin) over the creases made before it, and a way the reader
+ * chooses changes only what its own step presents — the steps it leaves
+ * alone keep their identity (`presentedSequence`) — so a switch redraws one
+ * card, not the strip. The sheet's aux lines are drawn on every card, so a
+ * change to them, or to whether they show, redraws each one.
+ */
+const cardPictures = new WeakMap<
+  PrecreaseStep,
+  {
+    twin: PrecreaseStep | undefined;
+    aux: PlannerStepDiagramOptions['aux'];
+    model: StepDiagramModel | null;
+  }
+>();
+
+function cardPicture(
+  sequence: PrecreaseSequence,
+  index: number,
+  twin: number | undefined,
+  aux: PlannerStepDiagramOptions['aux']
+): StepDiagramModel | null {
+  const step = sequence.steps[index];
+  const twinStep = twin === undefined ? undefined : sequence.steps[twin];
+  const cached = step ? cardPictures.get(step) : undefined;
+  if (cached && cached.twin === twinStep && cached.aux === aux) return cached.model;
+  const model = plannerStepDiagram(sequence, unitFrame(sequence), index, { twin, aux });
+  if (step) cardPictures.set(step, { twin: twinStep, aux, model });
+  return model;
+}
+
+/**
  * The planner's steps for the sheet being read, plus the turn-overs between
  * them and the pattern as the plan left it at the end.
  *
@@ -230,12 +271,10 @@ export function planFilmstrip(
             badge,
             number: numbers[viewIndex] ?? null,
             diagram: null,
-            primitives: plannerStepDiagram(sequence, unitFrame(sequence), view.step, {
-              twin: view.twin,
-              aux,
-            }),
+            primitives: cardPicture(sequence, view.step, view.twin, aux),
             mirrored: view.side === 'back',
             sentence: describePlannerStep(t, sequence, view.step, view.twin),
+            ways: cardWays(step),
           },
         ];
       }
@@ -252,6 +291,7 @@ export function planFilmstrip(
             primitives: plannerTurnOverDiagram(sequence, unitFrame(sequence), view.after, { aux }),
             mirrored: view.side === 'back',
             sentence: t('panels:references.flip.turnOver', 'Turn the paper over, left to right.'),
+            ways: null,
           },
         ];
       case 'done': {
@@ -266,6 +306,7 @@ export function planFilmstrip(
             primitives: plannerFinishedDiagram(sequence, unitFrame(sequence), { aux }),
             mirrored: false,
             sentence: ending.sentence,
+            ways: null,
           },
         ];
       }
