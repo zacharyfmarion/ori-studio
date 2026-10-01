@@ -6,9 +6,11 @@ density — is a prop the component offers, never a selector another screen
 writes against its class names.
 
 This is where the app is going, not where it is: almost all of today's CSS is
-global (`src/styles/theme.css` and the stylesheets `main.tsx` imports), and it
-moves into modules block by block. New and changed components follow the rules
-below from the start. The decision and its background are in
+global (`src/styles/theme.css` and the stylesheets `main.tsx` imports). There is
+no migration project. It moves as the code is worked on: whoever changes a
+component's styles first moves that component into a module
+([Moving a block into a module](#moving-a-block-into-a-module)), and new
+components start in one. The decision and its background are in
 `implementation-plans/scoped-css.md`.
 
 ## Why
@@ -40,9 +42,19 @@ override. A primitive could not be trusted to look like itself.
 5. **Tests find elements by role, accessible name or data attribute**, never by
    a module class. The class is an implementation detail, and under Vitest it
    resolves to a hashed name of Vitest's own, not the local one.
-6. **Tokens stay global.** A module reads `var(--…)`; a token a module needs
-   (`--segmented-track`) is declared with the others in `theme.css`, in both
-   themes.
+6. **Tokens stay global, and only tokens do.** A module reads `var(--…)`.
+   - **A token** is a value that one of these must agree on:
+     - components that do not know about each other (`--touch-target`, the
+       spacing scale)
+     - third-party markup
+     - a theme (`--segmented-track` differs between light and dark)
+
+     It is declared with the others in `theme.css`, in both themes.
+   - **Everything else about a component** stays in its module, as a local
+     custom property if it repeats. A toolbar's padding belongs to the toolbar
+     however many screens use one, and so does the radius derived from it. A
+     global for it would be a selector by another name: something any file can
+     reach.
 
 ## What holds it
 
@@ -52,6 +64,12 @@ override. A primitive could not be trusted to look like itself.
 - **A ratchet** (`src/styles/globalStylesheets.test.ts`) fails when a global
   stylesheet grows past its recorded ceiling, and when it shrinks well below it
   until the ceiling is lowered — so the global CSS only goes down.
+- **A dead-selector test** (`src/styles/liveSelectors.test.ts`) fails when a
+  global stylesheet styles a class that no source file names. That is what a
+  rule left behind by a move looks like: once its class is hashed it matches
+  nothing, and nothing else would say so.
+- Nothing enforces the move itself. That is `AGENTS.md`'s "Migrate what you
+  touch", and review.
 
 ## A module, start to finish
 
@@ -76,6 +94,80 @@ The track is `width: fit-content`, so it hugs its options even inside a grid
 or a flex column that would stretch it. The export dialog, which used to
 stretch it with `.export-modal .segmented`, now simply lets it hug; the context
 panel, which needs it stretched, passes `fill`.
+
+## Moving a block into a module
+
+A component's **block** is every selector for its classes, wherever it is. When
+it moves depends on who uses it:
+
+- **One owner**: only that component (and its own tests) names the classes. The
+  block moves when somebody changes the component's styles — adding, editing or
+  deleting a rule that styles it, or giving its markup a class to be styled —
+  as a commit of its own, made before the change, after which nothing on screen
+  differs.
+- **Shared**: another component wears the classes, looks elements up by them,
+  or restyles them. Moving it means designing what those users get instead, so
+  it moves in a PR of its own, never inside an unrelated fix. The known ones are
+  listed in `implementation-plans/scoped-css.md`. Until then a fix may edit
+  their rules in place, but never add one.
+
+Either way, the steps are the same:
+
+1. **Collect the whole block.** That is every selector for the component's
+   classes, wherever it is:
+   - its own rules and its media queries
+   - its copies in the coarse-pointer blocks at the end of `theme.css`
+   - every other screen's rule that restyles it, which becomes a prop
+     (rule 3)
+2. **Find what leans on the class names.** Grep `src/` and `scripts/` for each
+   one; a stale class name matches nothing, and nothing says so. TypeScript and
+   ESLint cannot see these:
+   - A `querySelector` or `closest` by class becomes a data attribute.
+   - A test query becomes a role, an accessible name or a data attribute
+     (rule 5).
+   - Another component wearing the class for its look wears a component
+     instead. A look several components share goes in `components/ui/`, so
+     look there first. Never import another component's module.
+3. **Move it.** Locals are camelCase, and state and variants are data
+   attributes (rules 1–2). Delete every global rule you collected: a rule left
+   behind is dead the moment the class is hashed, and the dead-selector test
+   fails on it. No `:global(...)`, except for
+   third-party markup the component renders.
+4. **Do not lean on precedence.** A module's CSS loads with the chunk that
+   imports it.
+   - The modules in the lazily loaded workspace come after `theme.css`.
+   - `main.tsx` imports the router before `theme.css`, so a module in the
+     entry chunk can come before it.
+   - A tie between a module rule and a global one can therefore go either way.
+     This is why the overrides and coarse-pointer copies move with the block
+     rather than staying behind to win by source order.
+5. **Prove nothing changed.** In the browser, snapshot the computed styles of
+   the component's elements before the move and compare after it. Do it in
+   both themes and, if the component has touch rules, under a coarse pointer:
+
+   ```js
+   // In the console, with `root` the component's root element.
+   const snap = (root) =>
+     [...root.querySelectorAll('*')].map((el) => {
+       const s = getComputedStyle(el);
+       return [el.tagName, s.display, s.width, s.height, s.padding, s.margin,
+         s.border, s.borderRadius, s.background, s.color, s.font].join('|');
+     });
+   ```
+
+6. **Lower the ratchet** in `src/styles/globalStylesheets.test.ts` to the count
+   the move leaves. A ceiling is one number per stylesheet, so moves made in
+   parallel conflict there; take the merged count.
+
+**A hotfix** may leave a move for later, saying so in the PR.
+
+**Not by this route:**
+
+- Tokens, resets, the app shell and third-party overrides are global by nature
+  (rule 4).
+- The landing and site pages move under the landing step of
+  `implementation-plans/scoped-css.md`, because their prerendered copy must
+  match the live page pixel for pixel (see below).
 
 ## Where a module's CSS goes
 
