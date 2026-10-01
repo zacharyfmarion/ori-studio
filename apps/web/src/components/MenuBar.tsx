@@ -264,51 +264,45 @@ export function MenuBar() {
   useEffect(() => {
     if (openMenu === null) return undefined;
 
-    const onClickOutside = (event: Event) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setOpenMenu(null);
-      }
-    };
     /**
-     * The touch dismissal, which has to do two things a mouse's does not.
+     * The dismissal: a press anywhere outside the bar.
      *
-     * **Close at all.** `mousedown` cannot dismiss a menu over the canvas: on
-     * touch it is a *compatibility* event, synthesised after `touchend` and not
-     * synthesised at all when the page claims the contact — and the crease
-     * pattern canvas claims every one. Measured with File open: the tap left the
-     * menu standing, so the largest region of the screen was not a way out.
-     * `pointerdown` is a real event, and a capture listener runs before the
-     * canvas can claim it.
+     * **On `pointerdown`, in the capture phase.** `mousedown` cannot dismiss a
+     * menu over the canvas. It is a *compatibility* event, and none is sent for
+     * a press whose `pointerdown` the page cancels, which the crease pattern
+     * canvas does on every press, with a mouse as much as with a finger.
+     * Measured with File open on a phone: the tap left the menu standing; and
+     * reported with View open over Edit's canvas: so did a click. A capture
+     * listener runs before the canvas can claim the press.
      *
-     * **Not also act.** A capture listener that only closes still lets the
+     * **On touch, not also act.** A listener that only closes still lets the
      * contact through, so the tap that dismissed the menu goes on to draw a
      * crease. Measured on a tablet: two taps to get out of an open File menu
      * committed a line. Swallowing the contact is what makes a dismissal only a
-     * dismissal, which is what every native menu does.
+     * dismissal, which is what every native touch menu does.
      *
-     * Keyed on the **pointer**, not on phone size. The reason above is that
-     * touch suppresses `mousedown`, and that is as true of an 820px tablet as of
-     * a 393px phone — an earlier version gated this on the phone layout and left
-     * every tablet unable to close a menu without editing the document. A fine
-     * pointer keeps `mousedown` and keeps its long-standing behaviour, including
-     * that a click outside both dismisses and acts.
+     * Keyed on the **pointer**, not on phone size: an 820px tablet is as much a
+     * touch screen as a 393px phone, and an earlier version gated this on the
+     * phone layout and left every tablet unable to close a menu without editing
+     * the document. A fine pointer keeps its long-standing behaviour, that a
+     * click outside both dismisses and acts.
      */
-    const onTouchOutside = (event: PointerEvent) => {
+    const onPressOutside = (event: PointerEvent) => {
       if (menuRef.current?.contains(event.target as Node)) return;
-      event.preventDefault();
-      event.stopPropagation();
+      if (coarsePointer) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       setOpenMenu(null);
     };
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpenMenu(null);
     };
 
-    document.addEventListener('mousedown', onClickOutside);
-    if (coarsePointer) document.addEventListener('pointerdown', onTouchOutside, true);
+    document.addEventListener('pointerdown', onPressOutside, true);
     document.addEventListener('keydown', onEscape);
     return () => {
-      document.removeEventListener('mousedown', onClickOutside);
-      document.removeEventListener('pointerdown', onTouchOutside, true);
+      document.removeEventListener('pointerdown', onPressOutside, true);
       document.removeEventListener('keydown', onEscape);
     };
   }, [openMenu, coarsePointer]);

@@ -289,22 +289,33 @@ describe('the menu bar on a mouse', () => {
     expect(host.querySelector('[role="menu"][data-phone] [role="menu"]')).toBeNull();
   });
 
-  it('still dismisses on mousedown, and only on mousedown', () => {
+  it('dismisses on a press outside it, and lets the press through', () => {
     stubViewport(false);
     const host = renderMenuBar();
     openMenu(host, 'File');
 
-    // The extra `pointerdown` listener is the phone's, and a fine pointer must
-    // not acquire it: `mousedown` reaches this bar on every surface that has a
-    // mouse, and an earlier close would be a behaviour change nobody asked for.
-    act(() => {
-      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    });
-    expect(host.querySelector('[role="menu"]')).not.toBeNull();
+    // On `pointerdown`, not `mousedown`, for a mouse too: the crease pattern
+    // canvas cancels every `pointerdown`, and a cancelled one is followed by no
+    // `mousedown` whatever the pointer. View, open over Edit's canvas, stayed
+    // open through a click there.
+    const canvas = document.createElement('div');
+    canvas.addEventListener('pointerdown', (event) => event.preventDefault());
+    document.body.append(canvas);
+    const event = new Event('pointerdown', { bubbles: true, cancelable: true });
+    let reachedTheCanvas = false;
+    const onCanvas = () => {
+      reachedTheCanvas = true;
+    };
+    document.body.addEventListener('pointerdown', onCanvas);
 
     act(() => {
-      document.body.dispatchEvent(new Event('mousedown', { bubbles: true }));
+      canvas.dispatchEvent(event);
     });
+
     expect(host.querySelector('[role="menu"]')).toBeNull();
+    // Unlike a tap, a click outside both dismisses and acts, as it always has.
+    expect(reachedTheCanvas).toBe(true);
+    document.body.removeEventListener('pointerdown', onCanvas);
+    canvas.remove();
   });
 });
