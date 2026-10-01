@@ -48,7 +48,7 @@ export function useCpToolHintAnchor(container: HTMLElement | null): CpToolHintPl
       // Scoped to this viewport, so it cannot pick up another surface's toolbar.
       // Measured rather than assumed constant: which controls the toolbar carries
       // depends on the document, and so does how wide it ends up.
-      const toolbar = container.querySelector('.viewport-toolbar');
+      const toolbar = container.querySelector('[data-viewport-toolbar]');
       // Observed here rather than at setup, because it mounts with the document
       // and then changes width in place — gaining folded-figure controls, say —
       // which the container's own box never reflects. `observe` is idempotent per

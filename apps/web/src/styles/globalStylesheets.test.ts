@@ -35,7 +35,7 @@ const CEILINGS: Record<string, number> = {
   'index.css': 62,
   'site/site.css': 306,
   'styles/sonner.css': 55,
-  'styles/theme.css': 7992,
+  'styles/theme.css': 7811,
 };
 
 /** How far under its ceiling a stylesheet may sit before the ceiling follows it down. */

@@ -266,7 +266,7 @@ describe('DesignPanel', () => {
   // one that overrode the visible "Symmetry" text, which is exactly the
   // Label-in-Name failure that was removed.
   const symmetryToggle = () =>
-    [...(container?.querySelectorAll<HTMLButtonElement>('.viewport-toolbar__symmetry-button') ?? [])]
+    [...(container?.querySelectorAll<HTMLButtonElement>('button[aria-pressed]') ?? [])]
       .find((button) => button.textContent?.includes('Symmetry'));
   const symmetryOptionsButton = () =>
     container?.querySelector<HTMLButtonElement>('button[aria-label="Symmetry options"]');

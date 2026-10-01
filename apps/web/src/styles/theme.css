@@ -6448,46 +6448,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   outline: none;
 }
 
-.viewport-toolbar {
-  position: absolute;
-  left: 50%;
-  bottom: var(--space-3);
-  z-index: 17;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  max-width: calc(100% - var(--space-6));
-  min-height: 32px;
-  padding: 2px 6px;
-  transform: translateX(-50%);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-/*
- * A run of controls that belongs together.
- *
- * `display: contents` here rather than a box, so on a pointer device the bar's
- * flex container still sees exactly the flat sequence of controls it always did
- * — the grouping is structure the markup carries and this stylesheet ignores.
- * The coarse block at the end of the file is where it becomes a box, and with it
- * the unit that a line break has to respect.
- */
-.viewport-toolbar__group {
-  display: contents;
-}
-
-.viewport-toolbar__separator {
-  width: 1px;
-  height: 18px;
-  margin: 0 5px;
-  background: var(--border-default);
-}
-
 /*
  * The `⋯` menu scrolls where `.context-menu` alone would truncate.
  *
@@ -6502,14 +6462,6 @@ button.cp-folded-figure-toolbar__notice:hover {
  * Only the vertical axis is offered, and the chain stops here so reaching the
  * end of the list does not start moving whatever is behind it.
  */
-.viewport-toolbar__overflow-menu {
-  overflow: hidden auto;
-  overscroll-behavior: contain;
-}
-
-.viewport-toolbar .ui-button--icon {
-  margin-inline: 1px;
-}
 
 .cp-view-controls-panel__empty {
   display: flex;
@@ -6874,64 +6826,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-primary);
 }
 
-.viewport-toolbar__menu-anchor {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.viewport-toolbar__zoom-button,
-.viewport-toolbar__dropdown-item {
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.72rem;
-}
-
-.viewport-toolbar__zoom-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-  min-width: 52px;
-  padding: 0 8px;
-  color: var(--text-primary);
-}
-
-/* Editable view-rotation readout. Sits quietly like the zoom percent until
-   focused, so it reads as a value rather than a form field. */
-.viewport-toolbar__rotation-input {
-  height: 28px;
-  /* Sized to the widest reachable value, -168.75 degrees, which needs 48px of
-     text; the rest is the 1px border and padding either side. */
-  width: 52px;
-  padding: 0 1px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  /* `font` shorthand for the family (inputs default to the system UI font),
-     then the toolbar's control size — inheriting alone would take the
-     container's 1rem and render larger than the zoom readout beside it. */
-  font: inherit;
-  font-size: 0.72rem;
-  text-align: center;
-}
-
-.viewport-toolbar__rotation-input:hover {
-  border-color: var(--border-default);
-}
-
-.viewport-toolbar__rotation-input:focus,
-.viewport-toolbar__rotation-input:focus-visible {
-  border-color: var(--accent-primary);
-  background: var(--bg-surface);
-  outline: none;
-}
-
 /* The active crease angle: an editable readout plus a caret that opens the
    popover. Sized and styled off `__rotation-input` beside it, because the two
    are the same kind of control and reading as a pair is the point. */
@@ -7055,30 +6949,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   gap: 4px;
 }
 
-.viewport-toolbar__zoom-button:hover,
-.viewport-toolbar__dropdown-item:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.viewport-toolbar__dropdown,
-.design-layer-menu {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  box-shadow: 0 10px 28px var(--shadow-overlay);
-}
-
-.viewport-toolbar__dropdown {
-  left: 50%;
-  display: grid;
-  min-width: 76px;
-  padding: 4px;
-  transform: translateX(-50%);
-}
-
 
 /* The line types are one segmented control (`CpToolRail`), which fills the
    column the tool grid spans rather than taking one of its cells. */
@@ -7086,44 +6956,11 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: block;
 }
 
-.viewport-toolbar__dropdown-item {
-  min-height: 26px;
-  padding: 0 10px;
-  text-align: center;
-}
-
-.design-layer-menu {
-  right: 0;
-  display: grid;
-  min-width: 150px;
-  padding: 6px;
-  gap: 1px;
-}
-
-.design-layer-option {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
-  min-height: 28px;
-  padding: 0 7px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.74rem;
-}
-
-.design-layer-option:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.design-layer-option input {
-  accent-color: var(--accent-primary);
-}
-
+/* The sheet popover's content (`ViewportToolbarPopover` is only its frame). */
 .bp-sheet-menu {
+  display: grid;
   min-width: 190px;
+  padding: 6px;
   gap: 6px;
 }
 
@@ -7183,33 +7020,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* Symmetry (mirror-draw) menu — shared by the Design tree and the BP tree panels. */
-/* Mirror draw, named rather than abbreviated — see `ViewportSymmetryToggle`.
-   Shared by all three tree canvases; the box-pleating editor's own mirror
-   button is icon-only on purpose and is not this. */
-.viewport-toolbar__symmetry-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 8px;
-  appearance: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-  cursor: pointer;
-}
-
-.viewport-toolbar__symmetry-button:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.viewport-toolbar__symmetry-button[data-active] {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
-}
 
 /* The toolbar is nowrap so its own controls stay on one line, and this dropdown
    inherits it. Left alone, the status sentence sizes the panel to its full
@@ -7217,6 +7027,7 @@ button.cp-folded-figure-toolbar__notice:hover {
    for the same sentence translated: a locale that compounds words can push the
    panel past a width no wrapping can pull back. */
 .symmetry-menu__panel {
+  display: grid;
   min-width: 210px;
   max-width: min(280px, calc(100vw - var(--space-6)));
   gap: 8px;
@@ -7423,11 +7234,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .symmetry-menu__field input::-webkit-inner-spin-button {
   appearance: none;
   margin: 0;
-}
-
-.design-layer-option__icon {
-  display: inline-flex;
-  color: var(--text-tertiary);
 }
 
 @media (max-width: 720px) {
@@ -9381,8 +9187,6 @@ button.bp-packing-alert:focus-visible {
   .ui-icon-control--md,
   .ui-icon-control--lg,
   .select-trigger,
-  .viewport-toolbar__zoom-button,
-  .viewport-toolbar__symmetry-button,
   .bp-packing-dpad button,
   .number-field__step {
     min-height: var(--touch-target);
@@ -9446,7 +9250,6 @@ button.bp-packing-alert:focus-visible {
      siblings now, in the same place. */
   .select-item,
   .context-menu__item,
-  .viewport-toolbar__dropdown-item,
   .symmetry-menu__item,
   .menu-dropdown__item {
     min-height: var(--touch-target);
@@ -9482,66 +9285,6 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
-   * The bottom toolbar.
-   *
-   * Bigger targets make it wider than a portrait canvas column, and it is a
-   * flex row pinned to `left: 50%` — so left alone it overflows off screen on
-   * both sides and buttons become unreachable. Most of that width is now given
-   * back by the overflow menu (`ViewportToolbarOverflowMenu`), which is why the
-   * crease-pattern bar fits one line on an iPad mini where it wanted 615px
-   * against a 470px pane. Wrapping stays as the fallback for whatever is still
-   * too wide — a docked pair of panes, Split View — and spends height, which
-   * the bar has: it is anchored by its bottom edge and grows upward.
-   *
-   * What it must not do is wrap *raggedly*. That is what the group below is
-   * for: the break can only fall on a seam the surface chose.
-   */
-  .viewport-toolbar {
-    /*
-     * The bar could never use the width its `max-width` promises, and this is
-     * the larger half of why it wrapped three times on an iPad.
-     *
-     * It is absolutely positioned with `left: 50%` and no `right`, so its width
-     * is shrink-to-fit — and the "available space" that feeds shrink-to-fit is
-     * *containing block minus left*, i.e. half the pane. Measured on the CP
-     * editor at 744px: a 494px pane, `max-width` resolving to 470px, and a used
-     * width of 247px. The `translateX(-50%)` centres the box afterwards, which
-     * hides the cause: the bar looks centred and simply refuses to grow.
-     *
-     * Anchoring both edges and centring with auto margins instead makes the
-     * available space the whole pane, so `fit-content` can reach the row's real
-     * width and `max-width` becomes the cap it was written to be. Same 382px row
-     * as `left: 50%` produced — on one line rather than two.
-     */
-    left: 0;
-    right: 0;
-    width: fit-content;
-    margin-inline: auto;
-    transform: none;
-
-    flex-wrap: wrap;
-    justify-content: center;
-    /* Row seam, then group seam. The group seam replaces the hairline below,
-       which is worth 11px a piece the row does not have to spend. */
-    gap: 6px 10px;
-  }
-
-  .viewport-toolbar__group {
-    display: flex;
-    align-items: center;
-    /* The spacing the bar itself used before the groups existed, so a run looks
-       the same as it always did. */
-    gap: 4px;
-    /* Belt and braces: a group is an atomic flex item, and nothing inside it
-       may break to the next line. */
-    flex-wrap: nowrap;
-  }
-
-  .viewport-toolbar__separator {
-    display: none;
-  }
-
-  /*
    * Safari zooms the whole page in whenever a field below 16px takes focus, and
    * `body { overflow: hidden }` means there is no scroll gesture to get back —
    * the app is simply left magnified with its chrome off screen. So the size is
@@ -9571,7 +9314,6 @@ button.bp-packing-alert:focus-visible {
   .cp-context-panel__field input:not(.number-field__input),
   .cp-context-panel__field select,
   .cp-context-panel__field textarea,
-  .viewport-toolbar__rotation-input,
   .bp-sheet-menu__input,
   .symmetry-menu__field input,
   .bp-tree-edge-editor__input,
@@ -10323,18 +10065,6 @@ button.bp-packing-alert:focus-visible {
   }
 
   .simulator-readout > *:not(:first-child) {
-    display: none;
-  }
-
-  /*
-   * The zoom percent goes too, leaving the − and + it sat between. The readout
-   * is a `button` that opens a preset menu, so unlike the two above this one
-   * *is* a control — but every preset in it is reachable by pinching, and Fit
-   * is its own button two positions along, so nothing is lost. What it buys is
-   * the width: the bar is a single scrolling row on a phone and the percent is
-   * the one item in it that is text rather than a target.
-   */
-  .viewport-toolbar__zoom-button {
     display: none;
   }
 

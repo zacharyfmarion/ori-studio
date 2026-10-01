@@ -1,0 +1,69 @@
+/*
+ * The chrome every floating bar wears (Toolbar.tsx): its ground, border,
+ * shadow, inset and radius, and how its controls sit and wrap. Where a bar
+ * sits is its owner's business, through a class on the root.
+ */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--domain-overlay-bg);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/*
+ * A run of controls that belongs together.
+ *
+ * `display: contents` here rather than a box, so on a pointer device the bar's
+ * flex container still sees exactly the flat sequence of controls it always did
+ * — the grouping is structure the markup carries and this stylesheet ignores.
+ * The coarse block below is where it becomes a box, and with it the unit that a
+ * line break has to respect.
+ */
+.group {
+  display: contents;
+}
+
+.separator {
+  width: 1px;
+  height: 18px;
+  margin: 0 5px;
+  background: var(--border-default);
+}
+
+@media (pointer: coarse) {
+  /*
+   * Bigger targets make a bar wider than a portrait canvas column. Wrapping is
+   * the fallback for whatever is still too wide, and spends height. What it must
+   * not do is wrap *raggedly*: the break can only fall on a seam the owner chose,
+   * between groups.
+   */
+  .bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    /* Row seam, then group seam. The group seam replaces the hairline below,
+       which is worth 11px a piece the row does not have to spend. */
+    gap: 6px 10px;
+  }
+
+  .group {
+    display: flex;
+    align-items: center;
+    /* The spacing the bar itself used before the groups existed, so a run looks
+       the same as it always did. */
+    gap: 4px;
+    /* Belt and braces: a group is an atomic flex item, and nothing inside it
+       may break to the next line. */
+    flex-wrap: nowrap;
+  }
+
+  .separator {
+    display: none;
+  }
+}

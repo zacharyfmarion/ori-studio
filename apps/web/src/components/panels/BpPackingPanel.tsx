@@ -124,7 +124,6 @@ import {
 } from '../../hooks/useViewportSurface';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { IconButton } from '../ui/IconButton';
 import {
   bpPackingNudgeDirectionFromKey,
   constrainBpPackingDeviceTarget,
@@ -146,6 +145,9 @@ import { BpRiverEditor } from './BpRiverEditor';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
+  ViewportToolbarButton,
+  ViewportToolbarMenuAnchor,
+  ViewportToolbarPopover,
   viewportLayerItems,
   type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
@@ -425,18 +427,16 @@ function BpPackingViewportToolbar({
   }, [sheetOpen]);
 
   const sheetMenu = (
-    <div className="viewport-toolbar__menu-anchor" ref={sheetMenuRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
+    <ViewportToolbarMenuAnchor ref={sheetMenuRef}>
+      <ViewportToolbarButton
         title={t('panels:bpPacking.sheetSizeGrid', 'Sheet size & grid')}
         isActive={sheetOpen}
         onClick={() => setSheetOpen((open) => !open)}
       >
         <Ruler size={14} />
-      </IconButton>
+      </ViewportToolbarButton>
       {sheetOpen && (
-        <div className="design-layer-menu bp-sheet-menu" role="menu">
+        <ViewportToolbarPopover align="end" className="bp-sheet-menu" role="menu">
           <div className="bp-sheet-menu__row">
             <span className="bp-sheet-menu__label">{t('panels:bpPacking.grid', 'Grid')}</span>
             <div className="bp-sheet-menu__segment">
@@ -493,9 +493,9 @@ function BpPackingViewportToolbar({
             </>
           )}
           <BpSheetTransformRow />
-        </div>
+        </ViewportToolbarPopover>
       )}
-    </div>
+    </ViewportToolbarMenuAnchor>
   );
 
   const groups: ViewportToolbarGroupSpec[] = [

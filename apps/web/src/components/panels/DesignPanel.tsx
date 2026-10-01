@@ -80,12 +80,14 @@ import {
 } from '../../lib/designTreeContextMenu';
 import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
-import { IconButton } from '../ui/IconButton';
 import { SurfaceFailure } from '../ui/SurfaceFailure';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
+  ViewportToolbarButton,
+  ViewportToolbarMenuAnchor,
+  ViewportToolbarPopover,
   viewportLayerItems,
   viewportSymmetryItems,
   type ViewportToolbarGroupSpec,
@@ -249,10 +251,8 @@ function DesignSymmetryOptionsButton({
   }, [open]);
 
   return (
-    <div className="viewport-toolbar__menu-anchor design-symmetry-menu" ref={menuRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
+    <ViewportToolbarMenuAnchor className="design-symmetry-menu" ref={menuRef}>
+      <ViewportToolbarButton
         title={t('panels:design.symmetryOptions', 'Symmetry options')}
         isActive={open}
         aria-haspopup="menu"
@@ -260,10 +260,11 @@ function DesignSymmetryOptionsButton({
         onClick={() => setOpen((current) => !current)}
       >
         <SlidersHorizontal size={14} />
-      </IconButton>
+      </ViewportToolbarButton>
       {open && (
-        <div
-          className="viewport-toolbar__dropdown symmetry-menu__panel"
+        <ViewportToolbarPopover
+          align="center"
+          className="symmetry-menu__panel"
           role="menu"
           aria-label={t('panels:design.symmetryControls', 'Design symmetry controls')}
         >
@@ -328,9 +329,9 @@ function DesignSymmetryOptionsButton({
             ariaLabel={t('panels:design.axisYAria', 'Design symmetry axis Y')}
             onCommit={(y) => onCustomSymmetryChange({ symLoc: { ...symmetryLoc, y } })}
           />
-        </div>
+        </ViewportToolbarPopover>
       )}
-    </div>
+    </ViewportToolbarMenuAnchor>
   );
 }
 

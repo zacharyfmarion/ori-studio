@@ -218,7 +218,7 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
     )
   );
   const query = (selector: string) => container?.querySelector(selector) ?? null;
-  expect(query('.viewport-toolbar')).toBeNull();
+  expect(query('[data-viewport-toolbar]')).toBeNull();
 
   act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(1) } as never));
 
@@ -232,7 +232,7 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
     )
   ).toEqual(['tab:Find a reference', 'tab:Precreasing sequence']);
   expect(header?.querySelector('[role="tablist"]')).not.toBeNull();
-  const bar = query('.references-panel__body .viewport-toolbar');
+  const bar = query('.references-panel__body [data-viewport-toolbar]');
   expect(
     [...(bar?.querySelectorAll('button') ?? [])].map(
       (button) => button.getAttribute('aria-label') ?? button.textContent

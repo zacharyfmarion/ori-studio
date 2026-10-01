@@ -9,6 +9,7 @@ import {
   type ViewportToolbarAction,
   type ViewportToolbarOverflowGroup,
 } from './viewportToolbarLayout';
+import styles from './ViewportToolbarOverflowMenu.module.css';
 
 function OverflowItem({
   action,
@@ -100,6 +101,7 @@ export function ViewportToolbarOverflowMenu({
       <MenuIconButton
         label={t('tools:viewport.more', 'More view controls')}
         icon={<MoreHorizontal size={14} />}
+        className={styles.trigger}
         // Pressed while open, and while something it hides is in a state with
         // nothing else on screen to say so — a mode switched on, or a value away
         // from its default.
@@ -107,7 +109,7 @@ export function ViewportToolbarOverflowMenu({
       />
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          className="context-menu viewport-toolbar__overflow-menu"
+          className={`context-menu ${styles.menu}`}
           // Upward, like every other menu on this bar — the bar sits on the
           // bottom edge of the canvas, so there is nowhere below to open into.
           side="top"

@@ -226,7 +226,6 @@ import {
   readCpMeasurePreferences,
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
-import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { CpToolRail } from './CpToolRail';
@@ -235,6 +234,7 @@ import { NextDocumentAction } from './NextDocumentAction';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
+  ViewportToolbarButton,
   type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 import type { FoldDocument } from '../../engine/types';
@@ -2940,9 +2940,7 @@ export function CreasePatternPanel() {
                   kind: 'node',
                   id: 'fold',
                   node: (
-                    <IconButton
-                      size="sm"
-                      variant="toolbar"
+                    <ViewportToolbarButton
                       title={
                         foldShortcutLabel
                           ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
@@ -2952,7 +2950,7 @@ export function CreasePatternPanel() {
                       onClick={folded.foldModel}
                     >
                       <Origami size={14} />
-                    </IconButton>
+                    </ViewportToolbarButton>
                   ),
                 },
               ],

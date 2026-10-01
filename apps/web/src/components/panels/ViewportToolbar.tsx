@@ -1,4 +1,12 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  forwardRef,
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlipHorizontal2,
@@ -11,7 +19,8 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { IconButton } from '../ui/IconButton';
+import { IconButton, type IconButtonProps } from '../ui/IconButton';
+import { Toolbar, ToolbarGroup, ToolbarSeparator } from '../ui/Toolbar';
 import { primaryModifierLabel } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
@@ -23,6 +32,7 @@ import {
   type ViewportToolbarGroupSpec,
   type ViewportToolbarItem,
 } from './viewportToolbarLayout';
+import styles from './ViewportToolbar.module.css';
 
 export type { ViewportToolbarEntry, ViewportToolbarGroupSpec } from './viewportToolbarLayout';
 
@@ -100,10 +110,11 @@ function ZoomReadout({
   const { open, setOpen, anchorRef } = useToolbarPopover();
 
   return (
-    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
+    <div className={styles.menuAnchor} ref={anchorRef}>
       <button
         type="button"
-        className="viewport-toolbar__zoom-button"
+        className={styles.zoomButton}
+        data-viewport-zoom=""
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
@@ -111,12 +122,12 @@ function ZoomReadout({
         {zoomPercent}%
       </button>
       {open && (
-        <div className="viewport-toolbar__dropdown" role="menu">
+        <ViewportToolbarPopover align="center" className={styles.presets} role="menu">
           {ZOOM_PRESETS.map((preset) => (
             <button
               key={preset}
               type="button"
-              className="viewport-toolbar__dropdown-item"
+              className={styles.presetItem}
               onClick={() => {
                 setZoomLevel(preset / 100);
                 setOpen(false);
@@ -125,7 +136,7 @@ function ZoomReadout({
               {preset}%
             </button>
           ))}
-        </div>
+        </ViewportToolbarPopover>
       )}
     </div>
   );
@@ -164,7 +175,7 @@ function RotationField({
     <input
       type="text"
       inputMode="decimal"
-      className="viewport-toolbar__rotation-input"
+      className={styles.rotationInput}
       aria-label={t('tools:viewport.rotation', 'View rotation in degrees')}
       title={t('tools:viewport.rotation', 'View rotation in degrees')}
       value={draft ?? formatRotation(viewRotation)}
@@ -195,9 +206,7 @@ function RotationField({
 function InlineItem({ item }: { item: ViewportToolbarItem }) {
   if (item.kind === 'node') return <>{item.node}</>;
   return (
-    <IconButton
-      size="sm"
-      variant="toolbar"
+    <ViewportToolbarButton
       title={item.title ?? item.label}
       aria-label={item.label}
       isActive={item.checked}
@@ -205,7 +214,7 @@ function InlineItem({ item }: { item: ViewportToolbarItem }) {
       onClick={item.onSelect}
     >
       {item.icon}
-    </IconButton>
+    </ViewportToolbarButton>
   );
 }
 
@@ -457,21 +466,21 @@ export function ViewportToolbar({
       : plan.inline;
 
   return (
-    <div className="viewport-toolbar" aria-label={ariaLabel}>
+    <Toolbar aria-label={ariaLabel} className={styles.placement} data-viewport-toolbar="">
       {viewportToolbarSlots(inlineGroups).map((slot) =>
         slot.kind === 'separator' ? (
-          <span key={slot.id} className="viewport-toolbar__separator" />
+          <ToolbarSeparator key={slot.id} />
         ) : (
-          <div key={slot.id} className="viewport-toolbar__group">
+          <ToolbarGroup key={slot.id}>
             {slot.group.items.map((item) => (
               <Fragment key={item.id}>
                 <InlineItem item={item} />
               </Fragment>
             ))}
-          </div>
+          </ToolbarGroup>
         )
       )}
-    </div>
+    </Toolbar>
   );
 }
 
@@ -502,7 +511,7 @@ export function ViewportSymmetryToggle({
   return (
     <button
       type="button"
-      className="viewport-toolbar__symmetry-button"
+      className={styles.symmetryButton}
       data-active={enabled || undefined}
       aria-pressed={enabled}
       // No `aria-label`: it would override the visible "Symmetry" text, so the
@@ -631,30 +640,28 @@ export function ViewportLayerMenu<Key extends string>({
   const { open, setOpen, anchorRef } = useToolbarPopover();
 
   return (
-    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
+    <div className={styles.menuAnchor} ref={anchorRef}>
+      <ViewportToolbarButton
         title={title}
         isActive={open}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
       >
         <Layers size={14} />
-      </IconButton>
+      </ViewportToolbarButton>
       {open && (
-        <div className="design-layer-menu" role="menu">
+        <ViewportToolbarPopover align="end" className={styles.options} role="menu">
           {options.map((option) => (
-            <label key={option.key} className="design-layer-option">
+            <label key={option.key} className={styles.option}>
               <input
                 type="checkbox"
                 checked={visible[option.key]}
                 onChange={(event) => onChange(option.key, event.target.checked)}
               />
-              <span className="design-layer-option__icon">{option.icon}</span>
+              <span className={styles.optionIcon}>{option.icon}</span>
               <span>{option.label}</span>
             </label>
           ))}
-        </div>
+        </ViewportToolbarPopover>
       )}
     </div>
   );
@@ -685,20 +692,18 @@ export function ViewportChoiceMenu<Value extends string | number>({
   const { open, setOpen, anchorRef } = useToolbarPopover();
 
   return (
-    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
+    <div className={styles.menuAnchor} ref={anchorRef}>
+      <ViewportToolbarButton
         title={title}
         isActive={open}
         onClick={() => setOpen((wasOpen) => !wasOpen)}
       >
         {icon}
-      </IconButton>
+      </ViewportToolbarButton>
       {open && (
-        <div className="design-layer-menu" role="menu">
+        <ViewportToolbarPopover align="end" className={styles.options} role="menu">
           {options.map((option) => (
-            <label key={String(option.value)} className="design-layer-option">
+            <label key={String(option.value)} className={styles.option}>
               <input
                 type="radio"
                 checked={option.value === value}
@@ -710,8 +715,61 @@ export function ViewportChoiceMenu<Value extends string | number>({
               <span>{option.label}</span>
             </label>
           ))}
-        </div>
+        </ViewportToolbarPopover>
       )}
     </div>
+  );
+}
+
+/**
+ * An icon button on the bar: the shared `IconButton` at the bar's size, spaced
+ * the way the bar spaces its icons. For an owner putting its own control on the
+ * bar — a menu trigger, say — so it sits like the bar's own.
+ */
+export const ViewportToolbarButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  function ViewportToolbarButton({ className, size = 'sm', variant = 'toolbar', ...props }, ref) {
+    return (
+      <IconButton
+        ref={ref}
+        size={size}
+        variant={variant}
+        className={className ? `${styles.iconButton} ${className}` : styles.iconButton}
+        {...props}
+      />
+    );
+  }
+);
+
+/** What a bar popover opens from: its trigger and the popover, side by side. */
+export const ViewportToolbarMenuAnchor = forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement>
+>(function ViewportToolbarMenuAnchor({ className, ...props }, ref) {
+  return (
+    <div
+      ref={ref}
+      className={className ? `${styles.menuAnchor} ${className}` : styles.menuAnchor}
+      {...props}
+    />
+  );
+});
+
+/**
+ * A popover opening upward out of the bar from its anchor: the frame and the
+ * place. Its content lays itself out — the `className` sets the popover's
+ * padding, gap and width, since those are the content's. `center` opens over
+ * the trigger, `end` flush with its right edge.
+ */
+export function ViewportToolbarPopover({
+  align = 'center',
+  className,
+  ...props
+}: { align?: 'center' | 'end' } & HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={className ? `${styles.popover} ${className}` : styles.popover}
+      data-align={align}
+      {...props}
+    />
   );
 }
