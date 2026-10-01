@@ -195,15 +195,15 @@ describe('CpToolRail touch affordances', () => {
     stubPointer(false);
     const host = renderRail();
 
-    expect(host.querySelector('.cp-tool-rail__touch-header')).toBeNull();
-    expect(host.querySelector('.cp-tool-rail__latch')).toBeNull();
+    expect(host.querySelector('[data-rail-part="touch-header"]')).toBeNull();
+    expect(host.querySelector('[data-shift-latch]')).toBeNull();
   });
 
   it('offers the Shift latch on a tablet', () => {
     stubPointer(true);
     const host = renderRail();
 
-    expect(host.querySelector('.cp-tool-rail__latch')).not.toBeNull();
+    expect(host.querySelector('[data-shift-latch]')).not.toBeNull();
   });
 
   // The phone layout hides this rail and puts the latch in the tool sheet that
@@ -213,8 +213,8 @@ describe('CpToolRail touch affordances', () => {
     stubPointer(true, true);
     const host = renderRail();
 
-    expect(host.querySelector('.cp-tool-rail__touch-header')).toBeNull();
-    expect(host.querySelector('.cp-tool-rail__latch')).toBeNull();
+    expect(host.querySelector('[data-rail-part="touch-header"]')).toBeNull();
+    expect(host.querySelector('[data-shift-latch]')).toBeNull();
   });
 
   it('keeps the button grid exactly as wide as it was', () => {
@@ -224,10 +224,10 @@ describe('CpToolRail touch affordances', () => {
     // The affordances are rows above the grid, not columns beside it: the
     // iPad's constraint is horizontal, and a rail that got wider to fit labels
     // would trade one problem for another.
-    const header = host.querySelector('.cp-tool-rail__touch-header');
-    const buttons = host.querySelector('.cp-tool-rail__buttons');
+    const header = host.querySelector('[data-rail-part="touch-header"]');
+    const buttons = host.querySelector('[data-group]');
     expect(header?.contains(buttons ?? null)).toBe(false);
-    expect(header?.nextElementSibling?.className).toBe('cp-tool-rail__groups');
+    expect(header?.nextElementSibling?.getAttribute('data-rail-part')).toBe('groups');
   });
 
   it('names a tool on a press-and-hold without arming it', () => {
@@ -243,7 +243,7 @@ describe('CpToolRail touch affordances', () => {
     act(() => {
       vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
     });
-    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Eraser');
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Eraser');
 
     act(() => {
       button.dispatchEvent(touchPointer('pointerup'));
@@ -319,7 +319,7 @@ describe('CpToolRail line types', () => {
     act(() => {
       vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
     });
-    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Valley');
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Valley');
 
     act(() => {
       button.dispatchEvent(touchPointer('pointerup'));
@@ -357,10 +357,10 @@ describe('CpToolRail desktop layout', () => {
   it('has exactly the children it had before the touch work', () => {
     stubPointer(false);
     const host = renderRail();
-    const rail = host.querySelector('.cp-tool-rail');
+    const rail = host.querySelector('aside[aria-label="Crease pattern tools"]');
 
-    expect([...(rail?.children ?? [])].map((node) => node.className)).toEqual([
-      'cp-tool-rail__groups',
+    expect([...(rail?.children ?? [])].map((node) => node.getAttribute('data-rail-part'))).toEqual([
+      'groups',
     ]);
   });
 });

@@ -32,7 +32,7 @@ describe('CpContextToolReset', () => {
         />
       );
     });
-    return host.querySelector('.cp-context-panel__reset');
+    return host.querySelector('[data-tool-reset]');
   };
 
   it('stays hidden while every visible setting is at its default', () => {
@@ -71,7 +71,7 @@ describe('CpContextToolReset', () => {
       );
     });
     act(() => {
-      host.querySelector<HTMLButtonElement>('.cp-context-panel__reset')?.click();
+      host.querySelector<HTMLButtonElement>('[data-tool-reset]')?.click();
     });
     expect(options.angleSystemDivider).toBe(DEFAULT_ORISTUDIO_CP_TOOL_OPTIONS.angleSystemDivider);
     expect(options.polygonCorners).toBe(9);

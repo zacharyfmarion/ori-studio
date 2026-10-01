@@ -1,0 +1,178 @@
+/*
+ * The floating bar of view controls over a canvas (ViewportToolbar.tsx). The bar
+ * itself is a `Toolbar`; this is where it sits, and the controls and popovers
+ * that are particular to it.
+ */
+
+/* Centred on the canvas's bottom edge. */
+.placement {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-3);
+  z-index: 17;
+  max-width: calc(100% - var(--space-6));
+  transform: translateX(-50%);
+}
+
+.menuAnchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The zoom percent: a control on the bar, at its controls' radius, that opens
+   the preset menu. */
+.zoomButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  min-width: 52px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.zoomButton:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Editable view-rotation readout. Sits quietly like the zoom percent until
+   focused, so it reads as a value rather than a form field. */
+.rotationInput {
+  height: 28px;
+  /* Sized to the widest reachable value, -168.75 degrees, which needs 48px of
+     text; the rest is the 1px border and padding either side. */
+  width: 52px;
+  padding: 0 1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  /* `font` shorthand for the family (inputs default to the system UI font),
+     then the toolbar's control size — inheriting alone would take the
+     container's 1rem and render larger than the zoom readout beside it. */
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.rotationInput:hover {
+  border-color: var(--border-default);
+}
+
+.rotationInput:focus,
+.rotationInput:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+/*
+ * A popover opening upward out of the bar, from the anchor it belongs to: its
+ * frame and its place, and nothing about what is inside. What is inside lays
+ * itself out — the class the owner gives the popover sets its padding, gap and
+ * width.
+ */
+.popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  box-shadow: 0 10px 28px var(--shadow-overlay);
+}
+
+.popover[data-align='center'] {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.popover[data-align='end'] {
+  right: 0;
+}
+
+/* Mirror draw, named rather than abbreviated — see `ViewportSymmetryToggle`.
+   Shared by all three tree canvases; the box-pleating editor's own mirror
+   button is icon-only on purpose and is not this. */
+.symmetryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.symmetryButton:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.symmetryButton[data-active] {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+@media (pointer: coarse) {
+  /*
+   * The bar could never use the width its `max-width` promises, and this is
+   * the larger half of why it wrapped three times on an iPad.
+   *
+   * It is absolutely positioned with `left: 50%` and no `right`, so its width
+   * is shrink-to-fit — and the "available space" that feeds shrink-to-fit is
+   * *containing block minus left*, i.e. half the pane. Measured on the CP
+   * editor at 744px: a 494px pane, `max-width` resolving to 470px, and a used
+   * width of 247px. The `translateX(-50%)` centres the box afterwards, which
+   * hides the cause: the bar looks centred and simply refuses to grow.
+   *
+   * Anchoring both edges and centring with auto margins instead makes the
+   * available space the whole pane, so `fit-content` can reach the row's real
+   * width and `max-width` becomes the cap it was written to be. Same 382px row
+   * as `left: 50%` produced — on one line rather than two.
+   */
+  .placement {
+    left: 0;
+    right: 0;
+    width: fit-content;
+    margin-inline: auto;
+    transform: none;
+  }
+
+  .zoomButton,
+  .symmetryButton {
+    min-height: var(--touch-target);
+  }
+
+  /* Safari zooms the page in when a field below 16px takes focus; see the
+     coarse-pointer block at the end of theme.css. */
+  .rotationInput {
+    font-size: 16px;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  /*
+   * The zoom percent goes on a phone, leaving the − and + it sat between. The
+   * readout is a `button` that opens a preset menu, so it *is* a control — but
+   * every preset in it is reachable by pinching, and Fit is its own button two
+   * positions along, so nothing is lost. What it buys is the width: the bar is
+   * a single scrolling row on a phone and the percent is the one item in it
+   * that is text rather than a target.
+   */
+  .zoomButton {
+    display: none;
+  }
+}

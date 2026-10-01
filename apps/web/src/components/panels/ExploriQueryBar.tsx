@@ -13,6 +13,7 @@ import {
 } from '../../explori/types';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTabs';
+import styles from './ExploriQueryBar.module.css';
 
 /**
  * What to search, and the button that searches it.
@@ -80,18 +81,18 @@ export function ExploriQueryBar() {
         : undefined;
 
   return (
-    <div className="explori-query-bar">
-      <div className="explori-query-bar__row">
+    <div className={styles.bar}>
+      <div className={styles.row}>
         {/* Each control captioned rather than labelled inline: the bar is the
             surface's primary action and reads better as a short command strip
             than as a sentence of small grey words. */}
-        <div className="explori-field">
-          <span className="explori-field__label">
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
             {t('panels:explori.symmetryModes', 'Symmetry')}
           </span>
-          <div className="explori-field__control">
+          <div className={styles.fieldControl}>
             <div
-              className="explori-symmetry-group"
+              className={styles.symmetryGroup}
               role="group"
               aria-label={t('panels:explori.symmetryModes', 'Symmetry')}
             >
@@ -99,7 +100,7 @@ export function ExploriQueryBar() {
                 <button
                   key={symmetry}
                   type="button"
-                  className="explori-symmetry-toggle"
+                  className={styles.symmetryToggle}
                   aria-pressed={symmetryOn(symmetry)}
                   onClick={() => toggleSymmetry(symmetry)}
                 >
@@ -107,7 +108,7 @@ export function ExploriQueryBar() {
                 </button>
               ))}
             </div>
-            <div className="explori-advanced">
+            <div className={styles.advanced}>
               <IconButton
                 ref={advancedTriggerRef}
                 size="sm"
@@ -125,7 +126,7 @@ export function ExploriQueryBar() {
                   down each time it opened. */}
               {advancedOpen && (
                 <div
-                  className="explori-advanced__popover"
+                  className={styles.advancedPopover}
                   role="dialog"
                   aria-label={t('panels:explori.advancedDatabases', 'Choose topology sizes')}
                   // Escape closes it here rather than falling through to the
@@ -139,7 +140,7 @@ export function ExploriQueryBar() {
                     advancedTriggerRef.current?.focus();
                   }}
                 >
-                  <table className="explori-db-table">
+                  <table className={styles.dbTable}>
                     <thead>
                       <tr>
                         <th scope="col">{t('panels:explori.topologySize', 'Size')}</th>
@@ -178,12 +179,12 @@ export function ExploriQueryBar() {
           </div>
         </div>
 
-        <div className="explori-field">
-          <span className="explori-field__label">
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
             {t('panels:explori.searchSize', 'Results')}
           </span>
           <input
-            className="explori-query-bar__count"
+            className={styles.count}
             type="number"
             min={1}
             max={50}
@@ -196,9 +197,9 @@ export function ExploriQueryBar() {
           />
         </div>
 
-        <span className="explori-query-bar__spacer" />
+        <span className={styles.spacer} />
         <Button
-          className="explori-query-bar__search"
+          className={styles.search}
           variant="primary"
           disabled={blocker !== null || design.searching}
           title={reason}
@@ -213,7 +214,7 @@ export function ExploriQueryBar() {
 
       {/* Said out loud rather than only as a disabled button, because "why can I
           not search" is the question the empty state actually raises. */}
-      {reason && <p className="explori-query-bar__hint">{reason}</p>}
+      {reason && <p className={styles.hint}>{reason}</p>}
 
     </div>
   );

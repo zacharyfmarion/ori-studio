@@ -53,7 +53,7 @@
 
 /* Beats `[data-sonner-toast][data-styled='true']` (0,2,0). */
 :root [data-sonner-toaster] [data-sonner-toast] {
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   box-shadow: 0 14px 38px var(--shadow-overlay);
 }
 
@@ -78,7 +78,7 @@
    * than a one-off mix invented to claw contrast out of two adjacent tokens. */
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   color: var(--text-primary);
   font-weight: 600;
 

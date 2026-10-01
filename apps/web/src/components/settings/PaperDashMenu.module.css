@@ -1,0 +1,180 @@
+/*
+ * The dash, picked by name from a menu that draws each option
+ * (PaperDashMenu.tsx). Its own menu rather than a `Select`: the custom field
+ * lives inside it.
+ */
+.root {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  min-width: 0;
+  padding: 0 9px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--settings-well);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.trigger:hover:not(:disabled),
+.trigger[data-open] {
+  border-color: var(--border-strong);
+}
+
+.trigger[data-open] {
+  border-color: var(--accent-primary);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.trigger:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.preview {
+  flex: 0 0 auto;
+}
+
+.label {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Above the cards that follow it; both are inside the tab's own flow. */
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  /* The surface every menu in the app is drawn on. */
+  background: var(--bg-elevated);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
+}
+
+/* Opened downward, unless it would reach past the bottom of the scrolling tab. */
+.menu[data-placement='bottom'] {
+  top: calc(100% + 6px);
+}
+
+.menu[data-placement='top'] {
+  bottom: calc(100% + 6px);
+}
+
+/*
+ * The named dashes, which are the menu proper. The custom field is a sibling
+ * rather than a child: a textbox is not something `role="menu"` may own, and
+ * an assistive technology that switches to menu navigation inside one reaches
+ * the field either not at all or with its keys already spoken for.
+ */
+.options {
+  display: grid;
+  min-width: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 0;
+  /* Concentric with the menu's corner: its radius less the 4px padding. */
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The highlight every menu shares (theme.css: --menu-highlight). The preview
+   line is drawn in `currentColor`, so it follows the text. */
+.option:hover,
+.option:focus-visible {
+  background: var(--menu-highlight);
+  color: var(--menu-highlight-text);
+  outline: none;
+}
+
+/* The dash the pen is drawn with: a check in a leading column every option
+   keeps, as a menu's radio rows have, so the previews still line up. The
+   highlight follows the pointer, so this is what says which dash is current. */
+.check {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+}
+
+.custom {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  /* A grid item is at least its content wide unless told otherwise, and the
+     field's own intrinsic width would push the unit out of the menu. */
+  min-width: 0;
+  margin-top: 3px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.customName {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.customField {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--settings-well);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.customField:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.customUnit {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}

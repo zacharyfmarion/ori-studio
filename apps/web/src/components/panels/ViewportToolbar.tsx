@@ -1,5 +1,12 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  forwardRef,
+  Fragment,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   FlipHorizontal2,
   Hand,
@@ -11,53 +18,28 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { IconButton } from '../ui/IconButton';
+import { IconButton, type IconButtonProps } from '../ui/IconButton';
+import { MenuContent, MenuItem, MenuItemLabel } from '../ui/Menu';
+import { MenuIconButton } from '../ui/MenuIconButton';
+import { Toolbar, ToolbarGroup, ToolbarSeparator } from '../ui/Toolbar';
 import { primaryModifierLabel } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
+import { ViewportToolbarMenuRow } from './ViewportToolbarMenuRow';
 import { ViewportToolbarOverflowMenu } from './ViewportToolbarOverflowMenu';
 import {
   planViewportToolbar,
   viewportToolbarSlots,
+  type ViewportToolbarAction,
   type ViewportToolbarEntry,
   type ViewportToolbarGroupSpec,
   type ViewportToolbarItem,
 } from './viewportToolbarLayout';
+import styles from './ViewportToolbar.module.css';
 
 export type { ViewportToolbarEntry, ViewportToolbarGroupSpec } from './viewportToolbarLayout';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
-
-/**
- * Close an open popover when the press lands outside its anchor.
- *
- * `pointerdown` and not `mousedown`, which is what the bar's three popovers used
- * and what made them undismissable on an iPad. The compatibility mouse events a
- * touch produces are suppressed entirely when `pointerdown` is canceled, and the
- * crease-pattern canvas cancels it on essentially every press (see
- * `CreasePatternWebglCanvas`'s `onPointerDown`) — so tapping the paper to put a
- * menu away fired no `mousedown`, and the menu stayed up over the canvas.
- *
- * Dismissing this early cannot mis-route the rest of the tap the way the View
- * drawer's did: these popovers cover only their own box, so whatever the press
- * landed on was already its target.
- */
-function useToolbarPopover() {
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: PointerEvent) => {
-      if (anchorRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
-
-  return { open, setOpen, anchorRef };
-}
 
 /** `Label (Chord)` when the action has a chord bound, plain label otherwise. */
 function withShortcut(label: string, shortcut: string | undefined): string {
@@ -89,7 +71,14 @@ export function isViewportInteractiveTarget(target: EventTarget | null): boolean
   );
 }
 
-/** The zoom percentage, and the preset list behind it. */
+/**
+ * The zoom percentage, and the preset list behind it: a menu like any other,
+ * opening upward out of the bar.
+ *
+ * Not modal: a press elsewhere puts it away *and* does what it would have done,
+ * as the bar's popovers always have — a modal menu would swallow that press, and
+ * a press on the canvas is how a selection is dropped.
+ */
 function ZoomReadout({
   zoomPercent,
   setZoomLevel,
@@ -97,37 +86,28 @@ function ZoomReadout({
   zoomPercent: number;
   setZoomLevel: (scale: number) => void;
 }) {
-  const { open, setOpen, anchorRef } = useToolbarPopover();
-
   return (
-    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
-      <button
-        type="button"
-        className="viewport-toolbar__zoom-button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger asChild>
+        <button type="button" className={styles.zoomButton} data-viewport-zoom="">
+          {zoomPercent}%
+        </button>
+      </DropdownMenu.Trigger>
+      <MenuContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        collisionPadding={8}
+        loop
+        fitTrigger
       >
-        {zoomPercent}%
-      </button>
-      {open && (
-        <div className="viewport-toolbar__dropdown" role="menu">
-          {ZOOM_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              className="viewport-toolbar__dropdown-item"
-              onClick={() => {
-                setZoomLevel(preset / 100);
-                setOpen(false);
-              }}
-            >
-              {preset}%
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+        {ZOOM_PRESETS.map((preset) => (
+          <MenuItem key={preset} onSelect={() => setZoomLevel(preset / 100)}>
+            <MenuItemLabel>{preset}%</MenuItemLabel>
+          </MenuItem>
+        ))}
+      </MenuContent>
+    </DropdownMenu.Root>
   );
 }
 
@@ -164,7 +144,7 @@ function RotationField({
     <input
       type="text"
       inputMode="decimal"
-      className="viewport-toolbar__rotation-input"
+      className={styles.rotationInput}
       aria-label={t('tools:viewport.rotation', 'View rotation in degrees')}
       title={t('tools:viewport.rotation', 'View rotation in degrees')}
       value={draft ?? formatRotation(viewRotation)}
@@ -195,9 +175,7 @@ function RotationField({
 function InlineItem({ item }: { item: ViewportToolbarItem }) {
   if (item.kind === 'node') return <>{item.node}</>;
   return (
-    <IconButton
-      size="sm"
-      variant="toolbar"
+    <ViewportToolbarButton
       title={item.title ?? item.label}
       aria-label={item.label}
       isActive={item.checked}
@@ -205,7 +183,7 @@ function InlineItem({ item }: { item: ViewportToolbarItem }) {
       onClick={item.onSelect}
     >
       {item.icon}
-    </IconButton>
+    </ViewportToolbarButton>
   );
 }
 
@@ -457,21 +435,21 @@ export function ViewportToolbar({
       : plan.inline;
 
   return (
-    <div className="viewport-toolbar" aria-label={ariaLabel}>
+    <Toolbar aria-label={ariaLabel} className={styles.placement} data-viewport-toolbar="">
       {viewportToolbarSlots(inlineGroups).map((slot) =>
         slot.kind === 'separator' ? (
-          <span key={slot.id} className="viewport-toolbar__separator" />
+          <ToolbarSeparator key={slot.id} />
         ) : (
-          <div key={slot.id} className="viewport-toolbar__group">
+          <ToolbarGroup key={slot.id}>
             {slot.group.items.map((item) => (
               <Fragment key={item.id}>
                 <InlineItem item={item} />
               </Fragment>
             ))}
-          </div>
+          </ToolbarGroup>
         )
       )}
-    </div>
+    </Toolbar>
   );
 }
 
@@ -502,7 +480,7 @@ export function ViewportSymmetryToggle({
   return (
     <button
       type="button"
-      className="viewport-toolbar__symmetry-button"
+      className={styles.symmetryButton}
       data-active={enabled || undefined}
       aria-pressed={enabled}
       // No `aria-label`: it would override the visible "Symmetry" text, so the
@@ -568,12 +546,13 @@ export interface ViewportLayerOption<Key extends string> {
 }
 
 /**
- * The layer popover as toolbar items: the popover on a pointer device, one
- * checkable menu row per layer on touch.
+ * The layers as toolbar items: the layer menu on a pointer device, and on touch
+ * one checkable row per layer in the `⋯` menu, which spends the trigger's 46px
+ * on the rows instead.
  *
- * The popover survives the move intact because it is already a data-driven
- * option list; what it gains is a 44px row per layer in place of a 24px native
- * checkbox, and the trigger's 46px back for the row.
+ * Both are the same rows, built from the same action ({@link layerAction}) by
+ * the same component ({@link ViewportToolbarMenuRow}), so a layer toggle looks
+ * and behaves the same wherever it lands.
  */
 export function viewportLayerItems<Key extends string>({
   title,
@@ -596,22 +575,34 @@ export function viewportLayerItems<Key extends string>({
       ),
     },
     ...options.map(
-      (option): ViewportToolbarEntry => ({
-        kind: 'action',
-        id: `layer-${option.key}`,
-        only: 'coarse',
-        label: option.label,
-        icon: option.icon,
-        checked: visible[option.key],
-        onSelect: () => onChange(option.key, !visible[option.key]),
-      })
+      (option): ViewportToolbarEntry => ({ ...layerAction(option, visible, onChange), only: 'coarse' })
     ),
   ];
 }
 
+/** A layer as a toolbar action: a mode, on while the layer shows. */
+function layerAction<Key extends string>(
+  option: ViewportLayerOption<Key>,
+  visible: Record<Key, boolean>,
+  onChange: (key: Key, next: boolean) => void
+): ViewportToolbarAction {
+  return {
+    kind: 'action',
+    id: `layer-${option.key}`,
+    label: option.label,
+    icon: option.icon,
+    checked: visible[option.key],
+    onSelect: () => onChange(option.key, !visible[option.key]),
+  };
+}
+
 /**
- * The toolbar's layer-visibility popover: a toggle button and a checkbox list
- * that closes on an outside click.
+ * The toolbar's layer-visibility menu: one checkable row per layer, and the
+ * same rows the touch `⋯` menu shows when these collapse into it
+ * ({@link ViewportToolbarMenuRow}), so a layer toggle is one thing on either.
+ *
+ * Toggling leaves it open, since layers are set in runs. Not modal, for the
+ * reason {@link ZoomReadout} gives.
  *
  * Both BP panes carried their own copy of this, including the outside-click
  * effect. Only the option table and its labels differ, so those are the props;
@@ -628,90 +619,64 @@ export function ViewportLayerMenu<Key extends string>({
   visible: Record<Key, boolean>;
   onChange: (key: Key, next: boolean) => void;
 }) {
-  const { open, setOpen, anchorRef } = useToolbarPopover();
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={title}
-        isActive={open}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
-      >
-        <Layers size={14} />
-      </IconButton>
-      {open && (
-        <div className="design-layer-menu" role="menu">
-          {options.map((option) => (
-            <label key={option.key} className="design-layer-option">
-              <input
-                type="checkbox"
-                checked={visible[option.key]}
-                onChange={(event) => onChange(option.key, event.target.checked)}
-              />
-              <span className="design-layer-option__icon">{option.icon}</span>
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
+    <DropdownMenu.Root modal={false} open={open} onOpenChange={setOpen}>
+      <MenuIconButton label={title} icon={<Layers size={14} />} isActive={open} />
+      <MenuContent side="top" align="end" sideOffset={8} collisionPadding={8} loop>
+        {options.map((option) => (
+          <ViewportToolbarMenuRow
+            key={option.key}
+            action={layerAction(option, visible, onChange)}
+          />
+        ))}
+      </MenuContent>
+    </DropdownMenu.Root>
   );
 }
 
-export interface ViewportChoiceOption<Value extends string | number> {
-  value: Value;
-  label: string;
-}
+/**
+ * An icon button on the bar: the shared `IconButton` at the bar's size and in
+ * its variant. For an owner putting its own control on the bar — a menu
+ * trigger, say — so it matches the bar's own.
+ */
+export const ViewportToolbarButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  function ViewportToolbarButton({ size = 'sm', variant = 'toolbar', ...props }, ref) {
+    return <IconButton ref={ref} size={size} variant={variant} {...props} />;
+  }
+);
+
+/** What a bar popover opens from: its trigger and the popover, side by side. */
+export const ViewportToolbarMenuAnchor = forwardRef<
+  HTMLDivElement,
+  HTMLAttributes<HTMLDivElement>
+>(function ViewportToolbarMenuAnchor({ className, ...props }, ref) {
+  return (
+    <div
+      ref={ref}
+      className={className ? `${styles.menuAnchor} ${className}` : styles.menuAnchor}
+      {...props}
+    />
+  );
+});
 
 /**
- * Single-select sibling of {@link ViewportLayerMenu}, for a toolbar control with
- * a handful of mutually exclusive choices.
+ * A popover opening upward out of the bar from its anchor: the frame and the
+ * place. Its content lays itself out — the `className` sets the popover's
+ * padding, gap and width, since those are the content's. `center` opens over
+ * the trigger, `end` flush with its right edge.
  */
-export function ViewportChoiceMenu<Value extends string | number>({
-  title,
-  icon,
-  options,
-  value,
-  onChange,
-}: {
-  title: string;
-  icon: ReactNode;
-  options: readonly ViewportChoiceOption<Value>[];
-  value: Value;
-  onChange: (value: Value) => void;
-}) {
-  const { open, setOpen, anchorRef } = useToolbarPopover();
-
+export function ViewportToolbarPopover({
+  align = 'center',
+  className,
+  ...props
+}: { align?: 'center' | 'end' } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className="viewport-toolbar__menu-anchor" ref={anchorRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={title}
-        isActive={open}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
-      >
-        {icon}
-      </IconButton>
-      {open && (
-        <div className="design-layer-menu" role="menu">
-          {options.map((option) => (
-            <label key={String(option.value)} className="design-layer-option">
-              <input
-                type="radio"
-                checked={option.value === value}
-                onChange={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
+    <div
+      className={className ? `${styles.popover} ${className}` : styles.popover}
+      data-align={align}
+      {...props}
+    />
   );
 }

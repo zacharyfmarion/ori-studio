@@ -10,10 +10,26 @@
      `var(--font-mono)` reads resolve instead of being dropped. */
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* The radius: the icon buttons' 8px, which every control and every floating
+     surface wears. The rest of the scale derives from it, so this is the one
+     number to change. Concentric radii are derived in the module that owns the
+     padding (docs/styling.md, "Radius"); they are not tokens. */
+  --radius: 8px;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
   --radius-full: 999px;
+
+  /* One motion for a control changing state: the segmented control's sliding
+     pill, and the tool card's height following what the pill chose. Shared so
+     the two move as one. */
+  --motion-duration: 160ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* A workspace's header row: Design's tab strip, a panel's toolbar, and the
+     dock's tab bar beside it. One value, so the rows meet in a line wherever
+     they sit side by side, and every workspace's header is the same height. */
+  --workspace-header-height: 36px;
 
   /* Apple's minimum pick target, 44pt. Read only from the coarse-pointer layer at
      the end of this file — a mouse hits a 26px control fine, and sizing the
@@ -70,6 +86,13 @@
   --text-tertiary: #78858e;
   --text-muted: #5e6a72;
   --text-inverse: #0d1114;
+  /* Text on a solid fill of the accent or of danger: a highlighted menu row, a
+     destructive one. Not --text-inverse, which is the inverse of the *ground*
+     (white in a dark theme) and reads at under 4.5:1 on the accent of 22 of the
+     23 presets. `applyTheme` derives both per theme (themes/textOnFill.ts);
+     these defaults are the same rule against the default ground above. */
+  --text-on-accent: #101417;
+  --text-on-danger: #101417;
 
   --border-default: #303b45;
   --border-subtle: rgba(232, 237, 240, 0.08);
@@ -87,6 +110,13 @@
      the app's danger hue is too muted to read as a conflict at 60% opacity. */
   --bp-junction: #ff0000;
   --status-info: #7db7e8;
+
+  /* A highlighted row in any menu or list popover — Menu, Select, the menu bar,
+     the dash menu — is one fill and one text colour, so the next change to how
+     a menu highlights is these two lines rather than four modules. A
+     destructive row fills --status-danger with --text-on-danger instead. */
+  --menu-highlight: var(--accent-primary);
+  --menu-highlight-text: var(--text-on-accent);
 
   /*
    * Settings ▸ Paper. A ground the palette has no name for, stated against
@@ -242,7 +272,7 @@
 }
 
 .ui-control--rounded {
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
 }
 
 .ui-control--sm {
@@ -499,180 +529,6 @@
   color: var(--text-secondary);
 }
 
-.select-content {
-  z-index: var(--z-portaled-popover);
-  overflow: hidden;
-  min-width: var(--radix-select-trigger-width);
-  max-height: min(var(--radix-select-content-available-height), 220px);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
-}
-
-.select-content__viewport {
-  padding: 4px;
-}
-
-.select-item {
-  display: block;
-  min-height: 28px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  cursor: default;
-  font-size: 12px;
-  outline: none;
-  padding: 5px 7px;
-  user-select: none;
-}
-
-.select-item[data-highlighted] {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
-}
-
-.context-menu {
-  z-index: var(--z-portaled-popover);
-  min-width: 180px;
-  max-height: var(--radix-dropdown-menu-content-available-height);
-  overflow: hidden;
-  padding: 4px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
-}
-
-.context-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  cursor: default;
-  font-size: 12px;
-  outline: none;
-  padding: 5px 8px;
-  user-select: none;
-}
-
-.context-menu__item[data-highlighted] {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
-}
-
-/* An item that is genuinely an anchor — a download link, reached through Radix's
-   `asChild`. Two things the item class does not cover: the user-agent's
-   underline for `a` survives it, and an underlined row reads as prose inside a
-   menu; and `cursor: default` above is right for a row that only selects, but
-   wrong for one that goes somewhere. */
-a.context-menu__item {
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.context-menu__item[data-disabled] {
-  color: var(--text-disabled, var(--text-secondary));
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-/* An item that qualifies the one above it — "Only where needed" under
-   "Precrease grid" — sits a step in, so the pair reads as one setting. */
-.context-menu__item--nested {
-  padding-left: 24px;
-}
-
-.context-menu__item[data-danger] {
-  color: var(--status-danger);
-}
-
-.context-menu__item[data-danger][data-highlighted] {
-  background: color-mix(in srgb, var(--status-danger) 16%, var(--bg-elevated));
-}
-
-.context-menu__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  color: currentcolor;
-}
-
-.context-menu__label {
-  flex: 1;
-}
-
-.context-menu__shortcut {
-  color: var(--text-secondary);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-}
-
-.context-menu__separator {
-  height: 1px;
-  margin: 4px 6px;
-  background: var(--border-default);
-}
-
-/* A `DropdownMenu.Label` heading a group of items — an operating system over its
-   builds, say. Not focusable and not an item, so it takes none of the item
-   padding that would make it look like one. */
-.context-menu__group-label {
-  padding: 6px 8px 2px;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* Trailing chevron on a submenu trigger; the leading slot stays the icon's. */
-.context-menu__subtrigger-arrow {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  color: var(--text-secondary);
-}
-
-.context-menu__item[data-highlighted] .context-menu__subtrigger-arrow {
-  color: currentcolor;
-}
-
-/* A colour row's value, painted, in the leading slot where a sibling's icon
-   sits. The native input lies over it invisibly so the engine's picker anchors
-   beside the swatch rather than at the row's origin, and `pointer-events: none`
-   sends a click to the row instead — whose select opens the picker, so it
-   cannot open twice. */
-.context-menu__swatch {
-  position: relative;
-  display: block;
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-}
-
-.context-menu__color-input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Up while a colour row's picker is open: the press that closes the picker
-   lands here and goes no further. Below the menu, so its rows stay usable, and
-   above everything else — see contextMenuPicker.tsx. */
-.context-menu__picker-shield {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-portaled-popover) - 1);
-}
-
 .panel-shell {
   display: flex;
   flex-direction: column;
@@ -685,7 +541,7 @@ a.context-menu__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
+  min-height: var(--workspace-header-height);
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);
@@ -730,17 +586,6 @@ a.context-menu__item {
 .panel-toolbar__pills .view-drawer__trigger {
   border-color: var(--border-subtle);
   box-shadow: none;
-}
-
-.panel-toolbar__meta {
-  overflow: hidden;
-  max-width: 150px;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .panel-body {
@@ -795,7 +640,7 @@ a.context-menu__item {
   height: 26px;
   padding: 0 7px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font: inherit;
@@ -846,7 +691,7 @@ a.context-menu__item {
   height: 26px;
   padding: 0;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   cursor: pointer;
@@ -873,34 +718,6 @@ a.context-menu__item {
   font-size: 0.72rem;
 }
 
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-  padding: var(--space-3);
-}
-
-.metric {
-  min-width: 0;
-  padding: var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-}
-
-.metric__label {
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-}
-
-.metric__value {
-  margin-top: 4px;
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-}
-
 .status-row {
   display: flex;
   align-items: center;
@@ -923,357 +740,6 @@ a.context-menu__item {
   color: var(--status-danger);
 }
 
-.sequence-panel__body {
-  display: flex;
-  flex-direction: column;
-}
-
-.sequence-panel__toolbar-summary {
-  max-width: 190px;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sequence-panel__toolbar-summary[data-tone='good'] {
-  color: var(--status-success);
-}
-
-.sequence-panel__toolbar-summary[data-tone='warn'] {
-  color: var(--status-warning);
-}
-
-.sequence-panel__toolbar-summary[data-tone='bad'] {
-  color: var(--status-danger);
-}
-
-.sequence-panel__details {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.sequence-panel__details summary {
-  display: flex;
-  min-height: 30px;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  font-weight: 750;
-  cursor: pointer;
-  list-style: none;
-}
-
-.sequence-panel__details summary::-webkit-details-marker {
-  display: none;
-}
-
-.sequence-panel__details summary::before {
-  content: '>';
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-}
-
-.sequence-panel__details[open] summary::before {
-  content: 'v';
-}
-
-.sequence-panel__details summary span:first-child {
-  margin-right: auto;
-}
-
-.sequence-panel__details summary span:last-child {
-  max-width: 68%;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sequence-panel__metrics {
-  padding-top: 0;
-}
-
-.sequence-planning-card {
-  display: grid;
-  gap: var(--space-2);
-  margin: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--status-warning) 30%, var(--border-subtle));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--status-warning) 8%, var(--bg-primary));
-}
-
-.sequence-planning-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 760;
-}
-
-.sequence-planning-card__header span:last-child {
-  color: var(--status-warning);
-  font-variant-numeric: tabular-nums;
-}
-
-.sequence-planning-progress {
-  position: relative;
-  height: 6px;
-  overflow: hidden;
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
-}
-
-.sequence-planning-progress span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 42%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, transparent, var(--status-warning), transparent);
-  animation: sequence-progress-slide 1.15s ease-in-out infinite;
-}
-
-.sequence-planning-card p {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-  font-weight: 620;
-  line-height: 1.4;
-}
-
-.sequence-panel__preview {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-}
-
-.sequence-panel__preview-title {
-  display: flex;
-  min-height: 28px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-weight: 750;
-}
-
-.sequence-panel__preview-title span:nth-child(2) {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sequence-panel__preview-title span:last-child {
-  margin-left: auto;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.sequence-panel__preview-empty {
-  display: grid;
-  min-height: 108px;
-  place-items: center;
-  padding: var(--space-3);
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 650;
-}
-
-.sequence-preview-canvas {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-}
-
-.sequence-preview-plane {
-  fill: color-mix(in srgb, var(--text-primary) 4%, transparent);
-  stroke: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  stroke-width: 1;
-}
-
-.sequence-preview-face {
-  fill: color-mix(in srgb, var(--bg-paper) 28%, transparent);
-  stroke: color-mix(in srgb, var(--bg-primary) 72%, transparent);
-  stroke-width: 1.1;
-}
-
-.sequence-preview-face--highlight {
-  fill: color-mix(in srgb, var(--accent-tertiary) 46%, var(--bg-paper));
-  stroke: color-mix(in srgb, var(--accent-tertiary) 92%, transparent);
-}
-
-.sequence-preview-crease {
-  stroke-width: 2.2;
-  stroke-linecap: round;
-}
-
-.sequence-preview-crease--b {
-  stroke: var(--fold-border);
-}
-
-.sequence-preview-crease--m {
-  stroke: var(--fold-mountain);
-}
-
-.sequence-preview-crease--v {
-  stroke: var(--fold-valley);
-}
-
-.sequence-preview-crease--f,
-.sequence-preview-crease--u,
-.sequence-preview-crease--c,
-.sequence-preview-crease--j {
-  stroke: var(--fold-flat);
-}
-
-.sequence-preview-crease--highlight {
-  stroke: var(--status-warning);
-  stroke-width: 5;
-}
-
-.sequence-panel__steps {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin: 0;
-  padding: var(--space-3);
-  list-style: none;
-}
-
-.sequence-panel__empty-step {
-  display: grid;
-  min-height: 120px;
-  place-items: center;
-  color: var(--text-tertiary);
-  font-size: 0.74rem;
-  font-weight: 650;
-}
-
-.sequence-diagram-step {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-  align-items: stretch;
-  min-width: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-}
-
-.sequence-diagram-step__copy {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: var(--space-2);
-  padding-top: var(--space-1);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.sequence-diagram-step__header {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  font-weight: 760;
-  text-transform: uppercase;
-}
-
-.sequence-diagram-step__header-main {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.sequence-diagram-step__header strong {
-  min-width: 0;
-  overflow: hidden;
-  padding: 2px 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.sequence-diagram-step__header-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.sequence-diagram-step__simulate {
-  height: 28px;
-  padding: 0 9px;
-  font-size: 0.68rem;
-  text-transform: none;
-}
-
-.sequence-diagram-step__label {
-  min-width: 0;
-  color: var(--text-primary);
-  font-size: 0.86rem;
-  font-weight: 760;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.sequence-diagram-step__meta {
-  color: var(--text-tertiary);
-  font-size: 0.7rem;
-  font-weight: 650;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.sequence-diagram-step__visuals {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: center;
-  min-width: 0;
-}
-
-.sequence-diagram-step__arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary);
-}
-
-.sequence-diagram-step__visuals .sequence-panel__preview {
-  align-self: stretch;
-}
-
-.sequence-diagram-step__visuals .sequence-panel__preview-title {
-  min-height: 24px;
-}
-
-.sequence-diagram-step__visuals .sequence-preview-canvas {
-  min-height: 120px;
-}
-
 @keyframes sequence-progress-slide {
   from {
     transform: translateX(-110%);
@@ -1282,77 +748,6 @@ a.context-menu__item {
   to {
     transform: translateX(250%);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sequence-planning-progress span {
-    width: 100%;
-    opacity: 0.55;
-    animation: none;
-  }
-}
-
-.diagnostic-list {
-  display: grid;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.diagnostic-list__item {
-  border: 0;
-  background: transparent;
-  display: grid;
-  grid-template-columns: minmax(56px, max-content) 1fr;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 7px var(--space-3);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.72rem;
-  text-align: left;
-}
-
-.diagnostic-list__item:hover,
-.diagnostic-list__item[data-active='true'] {
-  background: color-mix(in srgb, var(--status-danger) 11%, transparent);
-}
-
-.diagnostic-list__item[data-severity='warning']:hover,
-.diagnostic-list__item[data-severity='warning'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
-}
-
-.diagnostic-list__item[data-severity='info']:hover,
-.diagnostic-list__item[data-severity='info'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-success) 12%, transparent);
-}
-
-.diagnostic-list__item + .diagnostic-list__item {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.diagnostic-list__item span:first-child {
-  color: var(--status-danger);
-  font-weight: 750;
-}
-
-.diagnostic-list__item[data-severity='warning'] span:first-child {
-  color: var(--status-warning);
-}
-
-.diagnostic-list__item[data-severity='info'] span:first-child {
-  color: var(--status-success);
-}
-
-.tooltip-content {
-  z-index: var(--z-portaled-popover);
-  max-width: 220px;
-  padding: 6px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  font-size: 0.72rem;
 }
 
 .toggle-switch {
@@ -1820,7 +1215,7 @@ a.context-menu__item {
   min-width: 0;
   padding: var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.8125rem;
@@ -1936,7 +1331,7 @@ a.context-menu__item {
   min-width: 0;
   padding: var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-secondary);
   font-family: var(--font-mono);
@@ -1966,112 +1361,6 @@ a.context-menu__item {
 .simple-modal__document--bp-optimizer .simple-modal__body {
   gap: var(--space-5);
   padding: var(--space-4);
-}
-
-.simple-modal__document--bp-optimizer .bp-optimizer__row {
-  align-items: center;
-}
-
-.bp-optimizer__row {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-3);
-}
-
-.bp-optimizer__row-label {
-  padding-top: 5px;
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.bp-optimizer__control {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.bp-optimizer__check {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-
-.bp-optimizer__count {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-}
-
-.bp-optimizer__count input {
-  width: 84px;
-  height: 30px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.78rem;
-  padding: 0 var(--space-2);
-}
-
-.bp-optimizer__error {
-  color: var(--text-danger, #f87171);
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.bp-optimizer__progress {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.bp-optimizer__progress-label {
-  color: var(--text-primary);
-  font-size: 0.8rem;
-}
-
-.bp-optimizer__progress-track {
-  overflow: hidden;
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--bg-primary);
-}
-
-.bp-optimizer__progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent-primary, #3b82f6);
-  transition: width 120ms linear;
-}
-
-.bp-optimizer__progress-fill--indeterminate {
-  width: 40%;
-  animation: bp-optimizer-progress-slide 1.15s ease-in-out infinite;
-}
-
-@keyframes bp-optimizer-progress-slide {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(250%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bp-optimizer__progress-fill--indeterminate {
-    animation: none;
-    width: 100%;
-    opacity: 0.5;
-  }
 }
 
 .simple-modal__meta {
@@ -2133,51 +1422,6 @@ a.context-menu__item {
   box-shadow: 0 6px 20px color-mix(in srgb, var(--bg-canvas) 55%, transparent);
 }
 
-.choice-dialog__options {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.choice-dialog__option {
-  display: grid;
-  gap: 2px;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.choice-dialog__option:hover,
-.choice-dialog__option:focus-visible {
-  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
-}
-
-.choice-dialog__option[data-tone='danger']:hover,
-.choice-dialog__option[data-tone='danger']:focus-visible {
-  border-color: color-mix(in srgb, var(--status-danger) 44%, var(--border-default));
-  background: color-mix(in srgb, var(--status-danger) 6%, var(--bg-elevated));
-}
-
-.choice-dialog__option-label {
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.choice-dialog__option[data-tone='danger'] .choice-dialog__option-label {
-  color: var(--status-danger);
-}
-
-.choice-dialog__option-description {
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-  line-height: 1.45;
-}
-
 .export-modal {
   flex: 1 1 auto;
   grid-template-columns: minmax(220px, 1fr) minmax(240px, 300px);
@@ -2208,7 +1452,7 @@ a.context-menu__item {
   gap: 4px;
   padding: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-secondary);
   cursor: pointer;
@@ -2247,7 +1491,7 @@ a.context-menu__item {
   min-height: 280px;
   overflow: hidden;
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
 }
 
@@ -2330,24 +1574,6 @@ a.context-menu__item {
   gap: var(--space-2);
 }
 
-.export-modal__color {
-  display: grid;
-  gap: 4px;
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.export-modal__color input[type='color'] {
-  width: 100%;
-  height: 28px;
-  padding: 2px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-primary);
-  cursor: pointer;
-}
-
 .export-modal__hint {
   color: var(--text-tertiary);
   font-size: 0.68rem;
@@ -2365,7 +1591,7 @@ a.context-menu__item {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: inherit;
@@ -2398,7 +1624,7 @@ a.context-menu__item {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.78rem;
@@ -2637,7 +1863,7 @@ a.context-menu__item {
   min-width: 0;
   height: 30px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font: inherit;
@@ -2795,82 +2021,6 @@ a.context-menu__item {
   gap: var(--space-2);
 }
 
-.settings-theme-card {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
-  min-height: 70px;
-  padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  cursor: pointer;
-  font: inherit;
-  letter-spacing: 0;
-  text-align: left;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.15s ease;
-}
-
-.settings-theme-card:hover,
-.settings-theme-card[data-selected] {
-  border-color: var(--accent-primary);
-  background: var(--bg-elevated);
-}
-
-.settings-theme-card:hover {
-  transform: translateY(-1px);
-}
-
-.settings-theme-card:focus {
-  outline: none;
-}
-
-.settings-theme-card:focus-visible {
-  box-shadow: 0 0 0 2px var(--accent-primary);
-}
-
-.settings-theme-card[data-selected] {
-  box-shadow: inset 0 0 0 1px var(--accent-primary);
-}
-
-.settings-theme-card[data-selected]:focus-visible {
-  box-shadow:
-    inset 0 0 0 1px var(--accent-primary),
-    0 0 0 2px var(--accent-primary);
-}
-
-.settings-theme-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.settings-theme-card__name {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-theme-card__swatches {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  width: 100%;
-  height: 14px;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-}
-
 .settings-full-width {
   width: 100%;
 }
@@ -2956,7 +2106,7 @@ a.context-menu__item {
   min-width: 0;
   padding: 11px 12px;
   border: 1px solid var(--border-default);
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--bg-surface);
 }
 
@@ -3038,7 +2188,7 @@ a.context-menu__item {
   min-width: 0;
   padding: 11px 12px;
   border: 1px solid var(--border-default);
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--bg-surface);
 }
 
@@ -3081,7 +2231,7 @@ a.context-menu__item {
   padding: 0;
   gap: 0;
   border: 1px solid var(--border-default);
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--bg-surface);
   overflow: hidden;
   cursor: pointer;
@@ -3290,7 +2440,7 @@ a.context-menu__item {
 .settings-paper-erode__picture {
   display: block;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
 }
 
@@ -3412,7 +2562,7 @@ a.context-menu__item {
   width: 30px;
   height: 24px;
   border-color: var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .settings-paper__card--color .color-field__hex {
@@ -3448,7 +2598,7 @@ a.context-menu__item {
   height: 32px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .settings-paper-pen__row {
@@ -3490,7 +2640,7 @@ a.context-menu__item {
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--settings-well);
 }
 
@@ -3515,179 +2665,6 @@ a.context-menu__item {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   text-align: center;
-}
-
-/*
- * The dash, picked by name from a menu that draws each option. Its own menu
- * rather than a `Select`: the custom field lives inside it — see
- * `PaperDashMenu.tsx`.
- */
-.settings-paper-dash {
-  position: relative;
-  display: grid;
-  min-width: 0;
-}
-
-.settings-paper-dash__trigger {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 30px;
-  min-width: 0;
-  padding: 0 9px;
-  border: 1px solid var(--border-default);
-  border-radius: 7px;
-  background: var(--settings-well);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.settings-paper-dash__trigger:hover:not(:disabled),
-.settings-paper-dash__trigger[data-open] {
-  border-color: var(--border-strong);
-}
-
-.settings-paper-dash__trigger[data-open] {
-  border-color: var(--accent-primary);
-}
-
-.settings-paper-dash__trigger:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-.settings-paper-dash__trigger:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.settings-paper-dash__preview {
-  flex: 0 0 auto;
-}
-
-.settings-paper-dash__label {
-  overflow: hidden;
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-paper-dash__chevron {
-  flex: 0 0 auto;
-  color: var(--text-tertiary);
-}
-
-.settings-paper-dash__menu {
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Above the cards that follow it; both are inside the tab's own flow. */
-  z-index: 3;
-  display: grid;
-  gap: 2px;
-  padding: 6px;
-  border: 1px solid var(--border-default);
-  border-radius: 9px;
-  /* The surface every menu in the app is drawn on. */
-  background: var(--bg-elevated);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
-}
-
-/* Opened downward, unless it would reach past the bottom of the scrolling tab. */
-.settings-paper-dash__menu[data-placement='bottom'] {
-  top: calc(100% + 6px);
-}
-
-.settings-paper-dash__menu[data-placement='top'] {
-  bottom: calc(100% + 6px);
-}
-
-/*
- * The named dashes, which are the menu proper. The custom field is a sibling
- * rather than a child: a textbox is not something `role="menu"` may own, and
- * an assistive technology that switches to menu navigation inside one reaches
- * the field either not at all or with its keys already spoken for.
- */
-.settings-paper-dash__options {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.settings-paper-dash__option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 28px;
-  min-width: 0;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.settings-paper-dash__option:hover,
-.settings-paper-dash__option:focus-visible {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
-  outline: none;
-}
-
-/* The dash the pen is drawn with, named in the accent it is previewed in. */
-.settings-paper-dash__option[data-current] {
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-elevated));
-  color: var(--accent-primary);
-}
-
-.settings-paper-dash__custom {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  /* A grid item is at least its content wide unless told otherwise, and the
-     field's own intrinsic width would push the unit out of the menu. */
-  min-width: 0;
-  margin-top: 3px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.settings-paper-dash__custom-name {
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.settings-paper-dash__custom-field {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--settings-well);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-}
-
-.settings-paper-dash__custom-field:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.settings-paper-dash__custom-unit {
-  color: var(--text-muted);
-  font-size: 0.66rem;
-  white-space: nowrap;
 }
 
 /* A row of verbs — the preset's Apply / Export / Delete, or the list's Save / Import. */
@@ -3749,7 +2726,7 @@ a.context-menu__item {
   min-width: 6rem;
   height: 32px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font: inherit;
@@ -3772,7 +2749,7 @@ a.context-menu__item {
   height: 32px;
   padding: 0 var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-secondary);
   font-size: 0.74rem;
@@ -3845,7 +2822,7 @@ a.context-menu__item {
   gap: 1px;
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--border-default);
 }
 
@@ -3888,7 +2865,7 @@ a.context-menu__item {
   height: 28px;
   padding: 0 var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   cursor: pointer;
@@ -4084,7 +3061,7 @@ a.context-menu__item {
   height: 34px;
   place-items: center;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-elevated));
   color: var(--accent-primary);
 }
@@ -4131,8 +3108,7 @@ a.context-menu__item {
 }
 
 .about-modal__intro p,
-.about-modal__ack p,
-.about-modal__facts dd {
+.about-modal__ack p {
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.82rem;
@@ -4193,7 +3169,7 @@ a.context-menu__item {
   min-width: 0;
   padding: var(--space-3);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   text-decoration: none;
   transition:
@@ -4208,8 +3184,7 @@ a.context-menu__item {
   outline: none;
 }
 
-.about-modal__ack strong,
-.about-modal__facts dt {
+.about-modal__ack strong {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4223,18 +3198,6 @@ a.context-menu__item {
 .about-modal__ack strong svg {
   flex: 0 0 auto;
   color: var(--text-tertiary);
-}
-
-.about-modal__facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.about-modal__facts div {
-  display: grid;
-  grid-template-columns: 128px minmax(0, 1fr);
-  gap: var(--space-3);
 }
 
 @media (max-width: 680px) {
@@ -4261,188 +3224,15 @@ a.context-menu__item {
     flex-direction: column;
   }
 
-  .about-modal__intro,
-  .about-modal__facts div {
+  .about-modal__intro {
     grid-template-columns: minmax(0, 1fr);
   }
-}
-
-/* Design workspace: one tab strip spanning the canvas above every dock panel. */
-.design-tab-strip {
-  display: flex;
-  align-items: stretch;
-  min-height: 32px;
-  padding-right: var(--space-1);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-primary);
-}
-
-.design-tab-strip__root {
-  display: flex;
-  min-width: 0;
-  /* Shrinks, never grows. Growing to fill the strip parked the add button
-     against the far edge of the workspace, an inch of empty bar away from the
-     last tab; browsers put it immediately after, and so does this. Shrinking is
-     what keeps it reachable once the tabs overflow — the row scrolls under it
-     rather than pushing it off-screen. */
-  flex: 0 1 auto;
-}
-
-.design-tab-strip__list {
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.design-tab-strip__list::-webkit-scrollbar {
-  display: none;
-}
-
-.design-tab-strip__add {
-  align-self: center;
-  flex: none;
-  margin-left: var(--space-1);
-}
-
-.design-tab {
-  /* One gutter, both ends. The label's left padding and the close button's
-     right offset are the two sides of the same inset; written as independent
-     literals they drifted, and a tab read 12px in on the left and 4px on the
-     right. */
-  --design-tab-pad-x: var(--space-3);
-  --design-tab-close-size: 18px;
-  /* Mirrors the `<X size={12} />` the close button renders. */
-  --design-tab-close-icon-size: 12px;
-  /* The gutter is measured to the *glyph*, not to the button around it: the
-     button is wider than its icon, so insetting its box by the full gutter
-     would sit the X further from the tab's edge than the label is from the
-     opposite one. */
-  --design-tab-close-inset: calc(
-    var(--design-tab-pad-x) - (var(--design-tab-close-size) - var(--design-tab-close-icon-size)) / 2
-  );
-  /* Containing block for the close button, which floats above the trigger
-     rather than sitting beside it — see `.design-tab__close`. */
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: none;
-  max-width: 220px;
-  border-right: 1px solid var(--border-subtle);
-  color: var(--text-tertiary);
-  background: transparent;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.design-tab:hover {
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-}
-
-/* The active tab reads as continuous with the surface below it: same
-   background, and the strip's bottom border interrupted under it. */
-.design-tab:has(.design-tab__trigger[data-state='active']) {
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  box-shadow: inset 0 2px 0 var(--accent-primary);
-}
-
-.design-tab--dragging {
-  opacity: 0.6;
-}
-
-/* The trigger *is* the tab: it takes the full height and width of its wrapper so
-   that every point of the tab activates it. Sized to its content it left dead
-   strips above, below, and beside the label where a click hit the wrapper and
-   did nothing. */
-.design-tab__trigger {
-  display: flex;
-  align-items: center;
-  align-self: stretch;
-  flex: 1 1 auto;
-  gap: var(--space-2);
-  min-width: 0;
-  padding: 0 var(--design-tab-pad-x);
-  border: 0;
-  font: inherit;
-  font-size: 12px;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-/* The close button overlaps the trigger, so the label stops short of it. */
-.design-tab:has(.design-tab__close) .design-tab__trigger {
-  padding-right: calc(
-    var(--design-tab-close-inset) + var(--design-tab-close-size) + var(--space-2)
-  );
-}
-
-.design-tab__trigger:focus-visible {
-  outline: 1px solid var(--accent-primary);
-  outline-offset: -2px;
-}
-
-.design-tab__title {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 /* Lifted out of the row and floated over the trigger's reserved padding. As a
    flex sibling it was an 18px box in a 32px tab, so the strips directly above
    and below it fell through to the wrapper and swallowed the click; the trigger
    now runs the full height underneath it. */
-.design-tab__close {
-  position: absolute;
-  top: 50%;
-  right: var(--design-tab-close-inset);
-  transform: translateY(-50%);
-  display: grid;
-  place-items: center;
-  width: var(--design-tab-close-size);
-  height: var(--design-tab-close-size);
-  /* Not redundant: a button carries `padding: 1px 6px` from the UA sheet, which
-     under `border-box` leaves this 18px box a 6px content box. The 12px icon
-     then overflows it, and Chrome resolves that overflow to one side only — so
-     `place-items: center` still rendered the X flush against the right edge.
-     Every shared icon button (`.ui-icon-control--*`) zeroes it for this reason. */
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  background: transparent;
-  cursor: pointer;
-}
-
-.design-tab__close:hover {
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
-
-.design-tab__close:focus-visible {
-  outline: 1px solid var(--accent-primary);
-  outline-offset: -1px;
-}
-
-.design-tab__name-input {
-  min-width: 0;
-  width: 140px;
-  margin: 0 var(--space-2);
-  padding: 2px var(--space-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  font: inherit;
-  font-size: 12px;
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
-
-.design-tab__name-input:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-}
 
 .design-panel__body,
 .cp-panel__body,
@@ -4512,116 +3302,6 @@ a.context-menu__item {
   background: transparent;
 }
 
-/* Text-annotation labels over the WebGL surface: a DOM overlay (low glyph count,
-   CSS-styled) that scales with zoom. Container is click-through; each label opts back
-   into pointer events only when the active tool allows entity selection. */
-.cp-text-overlay {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 7;
-}
-
-.cp-text-label {
-  position: absolute;
-  /* The model point is the SVG text baseline-start; nudge so the label sits there. */
-  transform: translateY(-0.85em);
-  white-space: nowrap;
-  line-height: 1;
-  font-weight: 600;
-  font-family: Inter, system-ui, sans-serif;
-  color: var(--text-primary);
-  /* Halo so text reads over creases (mirrors the SVG's stroke paint-order). */
-  text-shadow:
-    0 0 3px var(--bg-primary),
-    0 0 3px var(--bg-primary),
-    0 0 3px var(--bg-primary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.cp-text-label--selected {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-primary) 80%, transparent));
-}
-
-/* Inline editor for the Text tool. Anchored at the same model point as a label
-   (baseline-start), it stands in for the label while editing. Pointer-enabled so
-   it captures typing; the rest of the overlay stays click-through. */
-.cp-text-editor {
-  position: absolute;
-  transform: translateY(-0.85em);
-  margin: 0;
-  padding: 0 2px;
-  min-width: 3ch;
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-family: Inter, system-ui, sans-serif;
-  line-height: 1;
-  white-space: pre;
-  overflow: hidden;
-  resize: none;
-  pointer-events: auto;
-  z-index: 8;
-}
-
-.cp-text-editor:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 35%, transparent);
-}
-
-/* Transparent click-catcher shown only while the inline editor is open. It sits
-   above the canvas but below the labels/editor (earlier in the DOM), so clicking
-   empty space dismisses the editor instead of creating a new text box. */
-.cp-text-editor-backdrop {
-  position: absolute;
-  inset: 0;
-  pointer-events: auto;
-}
-
-/* Reference-image editing overlay (selection outline + handles). Above the
-   text overlay so image handles are clickable while the Images tool is on. */
-.cp-image-overlay {
-  z-index: 8;
-}
-
-/* Floating controls for the selected reference image. */
-/* Generic floating toolbar pill. Position/transform are set inline by
-   @floating-ui (fixed strategy, body-portaled), so this only styles the pill. */
-.floating-toolbar {
-  display: flex;
-  align-items: center;
-  /* Wraps rather than overflows. `FloatingToolbar`'s `size` middleware caps the
-     pill's width to the space its boundary leaves, and a pill that cannot fit —
-     the inline-simulation inspector on a narrow pane — has to become two rows,
-     because the alternative is controls hanging outside the very pane the
-     boundary exists to keep it inside. */
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 4px 8px;
-  background: var(--bg-elevated, var(--bg-secondary));
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
-  /* Pane-owned chrome, not a popover: it is persistent, so it must not cover a
-     menu or modal the user just opened. The menus it opens itself portal at
-     `--z-portaled-popover` and so still land on top of it. */
-  z-index: var(--z-canvas-overlay);
-  pointer-events: auto;
-}
-
-.floating-toolbar__separator {
-  align-self: stretch;
-  width: 1px;
-  margin: 2px 2px;
-  background: var(--border-default);
-}
-
 /* A 3D folded figure's verdict, as a chip at the head of its toolbar.
 
    Rendered as a button when the verdict offers something to do about it and as
@@ -4663,59 +3343,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   max-width: 16ch;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.floating-toolbar__opacity {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.floating-toolbar__opacity input {
-  width: 90px;
-}
-
-/* "Looks like a crease pattern — Detect creases?" on a reference image.
-   Floating-toolbar chrome, so it is one of the canvas's own controls and not a
-   notification; only the fade-in and the label are its own. */
-.cp-detect-suggestion {
-  animation: cp-detect-suggestion-in 150ms ease-out;
-}
-
-.cp-detect-suggestion__body {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cp-detect-suggestion__icon {
-  color: var(--accent-primary);
-  flex: 0 0 auto;
-}
-
-.cp-detect-suggestion__label {
-  font-size: 11px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-@keyframes cp-detect-suggestion-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cp-detect-suggestion {
-    animation: none;
-  }
 }
 
 /* --- Text annotations --------------------------------------------------- */
@@ -4814,166 +3441,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 0 6px;
 }
 
-/* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
-   painting the (large) SVG DOM. visibility:hidden keeps its layout box so the
-   camera can still seed from its fit. */
-.cp-canvas[data-webgl-hidden='true'] {
-  visibility: hidden;
-}
-
-.cp-diagnostic-hud {
-  position: absolute;
-  z-index: 12;
-  top: var(--space-4);
-  right: var(--space-4);
-  display: grid;
-  /* One number for both states: the cap a collapsed badge may grow to, and the
-     width an expanded panel takes. Sharing it is what stops the badge from
-     being able to come out wider closed than open.
-
-     The gutter is the inset doubled — one on each side — written in terms of the
-     inset above so the two cannot drift apart. It said `var(--space-8)` until
-     the list was windowed; that token does not exist (the scale stops at
-     `--space-6`), so the declaration was invalid at computed-value time and
-     dropped, leaving `max-width: none`. Nothing revealed it while the rows were
-     still in normal flow. */
-  --cp-diagnostic-hud-width: min(360px, calc(100% - var(--space-4) * 2));
-
-  /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
-     absolutely positioned box shrinks to fit. The cap still applies, so a long
-     headline wraps inside the width instead of running off the canvas. */
-  max-width: var(--cp-diagnostic-hud-width);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
-  box-shadow: var(--shadow-soft);
-  color: var(--text-primary);
-  font-weight: 760;
-  line-height: 1.2;
-  text-align: right;
-}
-
-/* Expanded, the width has to be stated. The rows are windowed and therefore out
-   of flow, so they contribute no intrinsic width — left to shrink to fit, the
-   panel would size itself to the headline and wrap every message to two lines. */
-.cp-diagnostic-hud[data-expanded] {
-  width: var(--cp-diagnostic-hud-width);
-}
-
-.cp-diagnostic-hud__summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 8px 10px 8px 11px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: right;
-}
-
-.cp-diagnostic-hud__summary:hover {
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
-
-.cp-diagnostic-hud__copy {
-  display: grid;
-  min-width: 0;
-  justify-items: end;
-}
-
-.cp-diagnostic-hud__copy small {
-  max-width: 100%;
-  margin-top: 3px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cp-diagnostic-hud__list {
-  max-height: min(320px, calc(100vh - 170px));
-  overflow: auto;
-  border-top: 1px solid var(--border-subtle);
-  text-align: left;
-  /* The list is windowed: only the rows near the viewport are in the DOM, so
-     scroll position comes from a spacer of the full height rather than from the
-     rows themselves. See CpDiagnosticHud.tsx.
-
-     `layout paint` only — NOT `strict`/`size`, which would compute this box as
-     if it had no contents and collapse the scroll container to nothing. */
-  contain: layout paint;
-}
-
-/* Full-height spacer; rows are positioned into it by the virtualizer. */
-.cp-diagnostic-hud__spacer {
-  position: relative;
-  width: 100%;
-}
-
-.cp-diagnostic-hud__row {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: grid;
-  /* The marker glyph, then the message. The kind column is gone: the HUD header
-     already names the check, and the glyph carries which rule failed — see
-     cp-workspace/diagnostics/CpDiagnosticGlyph.tsx. */
-  grid-template-columns: 12px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 7px 10px;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.72rem;
-  line-height: 1.25;
-  text-align: left;
-}
-
-/* A border on the row itself, not `.row + .row` and not `:first-child`. Windowed
-   rows are absolutely positioned and only the ones near the viewport exist, so
-   neither sibling order nor "is it the first child" tracks position in the list.
-   The entry's own index does.
-
-   Transparent rather than absent on the first row so every row measures the same
-   height — the virtualizer caches what it measures, and a 1px-shorter row 0
-   would put a permanent 1px skew in the total. */
-.cp-diagnostic-hud__row {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.cp-diagnostic-hud__row[data-index='0'] {
-  border-top-color: transparent;
-}
-
-.cp-diagnostic-hud__row:hover,
-.cp-diagnostic-hud__row[data-active='true'] {
-  background: color-mix(in srgb, var(--status-danger) 11%, transparent);
-}
-
-.cp-diagnostic-hud__row[data-severity='warning']:hover,
-.cp-diagnostic-hud__row[data-severity='warning'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
-}
-
-.cp-diagnostic-hud__row[data-severity='info']:hover,
-.cp-diagnostic-hud__row[data-severity='info'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-success) 12%, transparent);
-}
-
-.cp-diagnostic-hud__row span {
-  color: var(--text-primary);
-}
-
 /* The issue-list twin of the WebGL diagnostic markers. Shape and tone are chosen
    by cpDiagnosticMarkerStyle — the same call the canvas makes — and the tone
    resolves to the same theme tokens resolveCpDiagnosticToneColors reads, so the
@@ -5028,210 +3495,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-linecap: round;
 }
 
-.cp-diagnostic-hud[data-tone='error'] {
-  border-color: color-mix(in srgb, var(--status-danger) 70%, transparent);
-  color: var(--status-danger);
-}
-
-.cp-diagnostic-hud[data-tone='warn'] {
-  border-color: color-mix(in srgb, var(--status-warning) 72%, transparent);
-  color: var(--status-warning);
-}
-
-.cp-diagnostic-hud[data-tone='ok'] {
-  border-color: color-mix(in srgb, var(--status-success) 72%, transparent);
-  color: var(--status-success);
-}
-
-/* The fourth tone: the check has not finished with this document. Deliberately
-   not amber — a pattern mid-design is majority undecided, so a warning colour
-   would be a permanent false alarm — and deliberately not green, which is the
-   claim never-report-silence.md exists to stop the app making. */
-.cp-diagnostic-hud[data-tone='info'] {
-  border-color: color-mix(in srgb, var(--status-info) 60%, transparent);
-  color: var(--status-info);
-}
-
-.cp-tool-rail {
-  z-index: 15;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
-  min-width: 0;
-  min-height: 0;
-  border-right: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
-}
-
-.cp-tool-rail__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 30px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-tertiary);
-  font-size: 0.62rem;
-  font-weight: 750;
-  letter-spacing: 0;
-}
-
-.cp-tool-rail__groups {
-  display: grid;
-  align-content: start;
-  min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding: 6px 5px 10px;
-}
-
-.cp-tool-rail__group {
-  display: grid;
-  gap: 4px;
-  padding: 5px 0 7px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.cp-tool-rail__group:last-child {
-  border-bottom: 0;
-}
-
-.cp-tool-rail__group-label {
-  overflow: hidden;
-  color: var(--text-muted);
-  font-size: 0.56rem;
-  font-weight: 750;
-  letter-spacing: 0;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cp-tool-rail__group-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.cp-tool-rail__group-toggle .cp-tool-rail__group-label {
-  min-width: 0;
-}
-
-.cp-tool-rail__group-toggle:hover .cp-tool-rail__group-label,
-.cp-tool-rail__group-toggle:hover .cp-tool-rail__group-chevron {
-  color: var(--text-primary);
-}
-
-.cp-tool-rail__group-toggle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent-primary);
-}
-
-.cp-tool-rail__group-chevron {
-  flex: 0 0 auto;
-  color: var(--text-muted);
-  transition: transform 0.15s ease;
-}
-
-.cp-tool-rail__group[data-open] .cp-tool-rail__group-chevron {
-  transform: rotate(180deg);
-}
-
-.cp-tool-rail__buttons {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  justify-content: center;
-  justify-self: center;
-  gap: 4px;
-  width: min(100%, 172px);
-  min-width: 0;
-}
-
-.cp-tool-rail__button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-width: 0;
-  height: 38px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.cp-tool-rail__button:hover,
-.cp-tool-rail__button:focus-visible {
-  border-color: var(--border-default);
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  outline: none;
-}
-
-.cp-tool-rail__button[aria-disabled='true'] {
-  color: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.cp-tool-rail__button[aria-disabled='true']:hover,
-.cp-tool-rail__button[aria-disabled='true']:focus-visible {
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-muted);
-}
-
-.cp-tool-rail__button[data-active] {
-  border-color: transparent;
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-}
-
-.cp-tool-rail__button[data-active] {
-  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
-  color: var(--text-primary);
-}
-
-.cp-tool-rail__button-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.cp-tool-rail__oriedita-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-family: 'Oriedita Icons', sans-serif;
-  font-size: 23px;
-  font-style: normal;
-  font-weight: 400;
-  line-height: 1;
-  pointer-events: none;
-  transform: translateY(2px);
-}
-
-.cp-tool-rail__button > svg {
-  pointer-events: none;
-}
-
-.design-canvas,
-.cp-canvas {
+.design-canvas {
   display: block;
   min-width: 0;
   min-height: 0;
@@ -5248,22 +3512,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   vector-effect: non-scaling-stroke;
 }
 
-.cp-point--selected,
-.cp-vertex--selected,
-.cp-circle--selected,
-.cp-text--selected {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-primary) 80%, transparent));
-}
-
-.cp-line-hit-target {
-  stroke: transparent;
-  stroke-width: 13;
-  stroke-linecap: round;
-  cursor: pointer;
-  pointer-events: stroke;
-  vector-effect: non-scaling-stroke;
-}
-
 .cp-vertex {
   fill: var(--bg-paper);
   stroke: color-mix(in srgb, var(--text-secondary) 72%, transparent);
@@ -5273,26 +3521,10 @@ button.cp-folded-figure-toolbar__notice:hover {
   vector-effect: non-scaling-stroke;
 }
 
-.cp-vertex-hit-target {
-  fill: transparent;
-  stroke: transparent;
-  cursor: pointer;
-  pointer-events: all;
-}
-
-.cp-vertex:hover,
-.cp-vertex--selected {
+.cp-vertex:hover {
   fill: var(--accent-primary);
   stroke: var(--bg-primary);
   opacity: 1;
-}
-
-.cp-circle {
-  fill: transparent;
-  stroke: var(--accent-secondary);
-  stroke-width: 1.4;
-  cursor: pointer;
-  vector-effect: non-scaling-stroke;
 }
 
 .cp-text {
@@ -5303,46 +3535,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-width: 3px;
   cursor: pointer;
   user-select: none;
-}
-
-.cp-folded-form-layer {
-  pointer-events: none;
-}
-
-.cp-generated-folded-figure {
-  cursor: grab;
-  pointer-events: all;
-}
-
-.cp-generated-folded-figure-primitive {
-  pointer-events: all;
-}
-
-.cp-generated-folded-figure-hit-target {
-  fill: transparent;
-  pointer-events: all;
-  stroke: none;
-}
-
-.cp-generated-folded-figure[data-folded-figure-active='true'] {
-  filter: drop-shadow(0 0 5px rgb(37 99 235 / 0.45));
-}
-
-.cp-generated-folded-figure-face {
-  fill-opacity: 0.7;
-  stroke: none;
-}
-
-.cp-generated-folded-figure-edge {
-  stroke-width: 1.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.92;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-generated-folded-figure--stale {
-  opacity: 0.42;
 }
 
 /* Inline simulation windows: a live fold placed on the crease pattern. */
@@ -5494,25 +3686,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke: none;
 }
 
-.cp-folded-form-edge {
-  stroke: color-mix(in srgb, var(--text-primary) 84%, #111111);
-  stroke-width: 1.15;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.86;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-snap-target {
-  fill: transparent;
-  stroke: var(--accent-primary);
-  stroke-width: 1.4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-command-preview,
-.cp-command-box-preview,
 .cp-operation-frame {
   fill: none;
   stroke: var(--accent-primary);
@@ -5520,251 +3693,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-dasharray: 6 4;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
-}
-
-.cp-command-preview {
-  opacity: 0.82;
-}
-
-.cp-command-box-preview {
-  fill: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  opacity: 0.9;
-}
-
-.cp-command-candidate {
-  opacity: 0.7;
-  stroke-dasharray: 5 4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-selection-transform {
-  pointer-events: none;
-}
-
-.cp-selection-transform__box {
-  fill: color-mix(in srgb, var(--accent-primary) 8%, transparent);
-  stroke: color-mix(in srgb, var(--accent-primary) 86%, var(--text-primary));
-  stroke-width: 1.2;
-  stroke-dasharray: 4 4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-selection-transform__move-hit-area {
-  fill: transparent;
-  cursor: move;
-  pointer-events: all;
-}
-
-.cp-selection-transform__menu-foreign {
-  overflow: visible;
-  pointer-events: all;
-}
-
-.cp-selection-transform__menu {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px;
-  border: 1px solid color-mix(in srgb, var(--border-default) 88%, transparent);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
-  box-shadow: 0 8px 22px var(--shadow-overlay);
-  pointer-events: all;
-}
-
-.cp-selection-transform__menu button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 25px;
-  height: 25px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--text-secondary);
-  background: transparent;
-  cursor: pointer;
-}
-
-.cp-selection-transform__menu button:hover {
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
-
-.cp-selection-transform__menu button:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-.cp-selection-transform__menu button > svg {
-  pointer-events: none;
-}
-
-.cp-selection-transform__separator {
-  width: 1px;
-  height: 18px;
-  background: var(--border-subtle);
-}
-
-.cp-selection-transform__rotate-hit-area {
-  fill: transparent;
-  pointer-events: all;
-  cursor:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M17 5v5h-5' fill='none' stroke='%230d1114' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M17 10a6.5 6.5 0 1 0 1.6 4.3' fill='none' stroke='%230d1114' stroke-width='2.3' stroke-linecap='round'/%3E%3C/svg%3E")
-      12 12,
-    grab;
-}
-
-.cp-selection-transform__resize-handle {
-  fill: var(--bg-paper);
-  stroke: var(--accent-primary);
-  stroke-width: 1.5;
-  pointer-events: all;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='ew'] {
-  cursor: ew-resize;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='ns'] {
-  cursor: ns-resize;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='nwse'] {
-  cursor: nwse-resize;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='nesw'] {
-  cursor: nesw-resize;
-}
-
-.cp-selection-transform-preview {
-  opacity: 0.66;
-  stroke-dasharray: 7 4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-command-candidate-point {
-  fill: var(--accent-primary);
-  stroke: var(--bg-primary);
-  stroke-width: 1.3;
-  opacity: 0.86;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-segment {
-  stroke: var(--status-danger);
-  stroke-width: 3.2;
-  stroke-linecap: round;
-  opacity: 0.78;
-  cursor: pointer;
-  pointer-events: stroke;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-segment--active {
-  stroke-width: 5.2;
-  opacity: 0.95;
-}
-
-.cp-diagnostic-segment[data-diagnostic-color='Cyan3'] {
-  stroke: var(--status-success);
-}
-
-.cp-diagnostic-segment[data-diagnostic-color='Magenta5'] {
-  stroke: var(--status-danger);
-}
-
-.cp-diagnostic-segment[data-diagnostic-color='Yellow7'] {
-  stroke: var(--status-warning);
-}
-
-.cp-diagnostic-point {
-  --cp-diagnostic-color: var(--status-danger);
-  --cp-diagnostic-fill-opacity: 0.16;
-  --cp-diagnostic-blb-fill-opacity: 0.2;
-  --cp-diagnostic-stroke-opacity: 0.46;
-  cursor: pointer;
-  pointer-events: all;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='mountain'] {
-  --cp-diagnostic-color: var(--fold-mountain);
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='valley'] {
-  --cp-diagnostic-color: var(--fold-valley);
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='neutral'] {
-  --cp-diagnostic-color: var(--fold-unassigned);
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='unknown'] {
-  --cp-diagnostic-color: #ff0093;
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='warning'] {
-  --cp-diagnostic-color: var(--status-warning);
-}
-
-.cp-diagnostic-point__halo {
-  fill: color-mix(in srgb, var(--cp-diagnostic-color) 16%, transparent);
-  stroke: var(--cp-diagnostic-color);
-  stroke-width: 2.4;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point__core {
-  fill: var(--cp-diagnostic-color);
-  stroke: var(--bg-paper);
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point__cross {
-  stroke: var(--cp-diagnostic-color);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point__oriedita-shape,
-.cp-diagnostic-blb-sector {
-  fill: var(--cp-diagnostic-color);
-  fill-opacity: var(--cp-diagnostic-fill-opacity);
-  stroke: var(--cp-diagnostic-color);
-  stroke-opacity: var(--cp-diagnostic-stroke-opacity);
-  stroke-width: 1.8;
-  stroke-linejoin: bevel;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point[data-marker-shape='ring'] .cp-diagnostic-point__oriedita-shape {
-  fill: transparent;
-}
-
-.cp-diagnostic-blb-sector {
-  fill: transparent;
-  fill-opacity: 0;
-}
-
-.cp-diagnostic-blb-sector[data-violating='true'] {
-  fill: var(--cp-diagnostic-color);
-  fill-opacity: var(--cp-diagnostic-blb-fill-opacity);
-}
-
-.cp-diagnostic-point--active {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--cp-diagnostic-color) 55%, transparent));
-}
-
-.cp-diagnostic-point--active .cp-diagnostic-point__halo {
-  stroke-width: 3.2;
 }
 
 .cp-operation-frame {
@@ -6081,12 +4009,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   }
 }
 
-.simulator-view-settings {
-  flex: 1 1 auto;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-
 .simulator-panel__empty {
   position: absolute;
   inset: 0;
@@ -6144,7 +4066,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 36px;
+  min-height: var(--workspace-header-height);
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);
@@ -6204,7 +4126,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 100%;
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--radius);
   background: var(--bg-canvas, #0c0f12);
   color: var(--text-secondary);
   cursor: pointer;
@@ -6361,7 +4283,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   max-width: 52ch;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--status-danger) 8%, transparent);
   color: var(--text-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -6418,19 +4340,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 680;
   line-height: 1.45;
   text-wrap: balance;
-}
-
-.document-mode-empty__filename {
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-}
-
-.document-mode-empty__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
 }
 
 .simulator-controls {
@@ -6498,17 +4407,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   fill: var(--bg-paper);
   stroke: var(--paper-stroke);
   stroke-width: 2;
-}
-
-.cp-canvas[data-canvas-mode='editable'] .paper--editable-cp-guide {
-  fill: transparent;
-  stroke: color-mix(in srgb, var(--border-strong) 66%, transparent);
-  stroke-width: 1.25;
-  pointer-events: all;
-}
-
-.paper-border {
-  display: none;
 }
 
 .paper-hit-area {
@@ -6682,13 +4580,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-width: 4;
 }
 
-.tree-node--pending-edge {
-  stroke: var(--status-warning);
-  stroke-width: 4;
-}
-
 .design-panel__body[data-space-pan] .design-canvas,
-.cp-panel__body[data-space-pan] .cp-canvas,
 .design-panel__body[data-space-pan] .paper-hit-area,
 .design-panel__body[data-space-pan] .tree-edge,
 .design-panel__body[data-space-pan] .tree-node,
@@ -6711,204 +4603,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .control-row--button:hover {
   background: var(--bg-surface);
-}
-
-.conditions-panel__body {
-  display: grid;
-  align-content: start;
-  gap: var(--space-4);
-  padding: var(--space-3);
-  box-sizing: border-box;
-}
-
-.condition-section {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-section__title {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.condition-toggle,
-.condition-number {
-  display: grid;
-  grid-template-columns: minmax(88px, 1fr) minmax(0, 1.2fr);
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.condition-toggle {
-  grid-template-columns: auto 1fr;
-}
-
-.condition-number input {
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font: inherit;
-  padding: 5px 7px;
-}
-
-.condition-advanced {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-disclosure {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0;
-  padding: 2px 0;
-  text-transform: none;
-}
-
-.condition-disclosure:hover {
-  color: var(--text-primary);
-}
-
-.condition-disclosure svg {
-  flex: 0 0 auto;
-  transition: transform 0.15s ease;
-}
-
-.condition-disclosure[data-open] svg {
-  transform: rotate(90deg);
-}
-
-.condition-disclosure span {
-  min-width: 0;
-  overflow: hidden;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.condition-advanced__body {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-actions,
-.condition-path-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.condition-action,
-.toolbar-text-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  min-height: 30px;
-  padding: 6px 8px;
-}
-
-.condition-action-tooltip-trigger {
-  display: block;
-  min-width: 0;
-}
-
-.condition-action-tooltip-trigger .condition-action {
-  width: 100%;
-  height: 100%;
-}
-
-.condition-action-tooltip-trigger[data-disabled] {
-  cursor: not-allowed;
-}
-
-.condition-action-tooltip-trigger .condition-action:disabled {
-  pointer-events: none;
-}
-
-.toolbar-text-button {
-  min-height: 24px;
-  padding: 3px 8px;
-}
-
-.condition-action:hover,
-.toolbar-text-button:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-surface);
-}
-
-.condition-action:disabled,
-.toolbar-text-button:disabled {
-  color: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.condition-list {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: var(--space-2);
-  text-align: left;
-}
-
-.condition-item[data-active] {
-  border-color: var(--accent-primary);
-}
-
-.condition-item:not([data-feasible]) {
-  border-color: var(--domain-danger-border);
-}
-
-.condition-item strong,
-.condition-item small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.condition-item strong {
-  font-size: 12px;
-}
-
-.condition-item small {
-  color: var(--text-secondary);
-  font-size: 11px;
-  margin-top: 2px;
 }
 
 .empty-note {
@@ -6963,46 +4657,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   white-space: nowrap;
 }
 
-.design-status-readout,
-.viewport-status-readout {
-  position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-  z-index: 12;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 24px;
-  padding: 3px 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  color: var(--text-secondary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-}
-
-/* Narrow panes. The cap stops the strip at the viewport's edge instead of letting
-   it run past and be clipped by `.app-layout`'s `overflow: hidden`, and wrapping
-   at the gaps moves whole fields to a second line rather than breaking the prompt
-   mid-sentence. That second line is the height the diagnostic HUD stacks below —
-   see cp-workspace/diagnostics/hudPlacement.ts.
-
-   This is **not** inert for a mouse, which an earlier version of this comment
-   claimed. Measured at fine pointer: one line from 1440 down to 720, two lines at
-   700 and below. So a desktop user with a narrow pane sees a two-line readout
-   where they used to see one — but what they used to see was a *clipped* one,
-   with the tail of the step prompt cut off against the pane edge and no way to
-   read it. Left unscoped deliberately: the old behaviour was worse, and the HUD
-   measures the box rather than assuming its height, so it follows. */
-.viewport-status-readout {
-  flex-wrap: wrap;
-  max-width: calc(100% - var(--space-3) * 2);
-}
-
 /* Quiet full-width attribution bar pinned to the bottom of a design pane. As a
    flex child of `.panel-shell` (below the `flex: 1` canvas body) it spans the
    pane and reserves its own height rather than overlaying the canvas. */
@@ -7038,88 +4692,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .design-attribution__link:hover {
   color: var(--accent-primary);
   text-decoration: underline;
-}
-
-/* The tool hint window: a floating window over the bottom right of the Edit
-   workspace, overhanging the seam between the crease-pattern viewport and the
-   View pane.
-
-   `left`, `bottom` and `width` come from `cpToolHintPlacement` as inline style —
-   they are a function of a measured rect, so they cannot live here. Everything
-   else does. It is body-portaled, which is what `fixed` needs to mean the
-   browser window rather than the nearest Dockview panel. */
-.cp-context-panel {
-  position: fixed;
-  z-index: var(--z-canvas-overlay);
-  --cp-context-reset-gutter: 58px;
-  display: grid;
-  /* `minmax(0, …)` on the body row is what lets it shrink below its content and
-     therefore scroll; without it the row takes its full intrinsic height and the
-     max-height below just clips the bottom off. */
-  grid-template-rows: auto minmax(0, 1fr);
-  /* Never taller than the viewport it floats over. The body scrolls; the header
-     stays put, so the tool is always named even mid-scroll. */
-  max-height: min(60vh, 520px);
-  overflow: hidden;
-  /* `--border-default`, not `--border-strong`. Strong maps to the theme preset's
-     *active* border (a saturated blue), so a window wearing it looks permanently
-     focused — the emphasis here has to come from the shadow and the fill. */
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-}
-
-/* Collapsed the window is only its header, so a max-height meant for the open
-   state would leave it able to grow. */
-.cp-context-panel[data-collapsed] {
-  max-height: none;
-}
-
-.cp-context-panel__header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 30px;
-  padding: 5px 8px;
-  border: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
-  color: var(--text-primary);
-  font: inherit;
-  cursor: pointer;
-}
-
-.cp-context-panel__header:focus-visible {
-  outline: 1px solid var(--accent-primary);
-  outline-offset: -1px;
-}
-
-.cp-context-panel__title {
-  overflow: hidden;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cp-context-panel__meta {
-  color: var(--text-tertiary);
-  font-size: 0.62rem;
-  font-weight: 700;
-}
-
-.cp-context-panel__body {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  /* Was `visible`, from when this sat in a scrolling pane that took the overflow.
-     Floating, it has to take its own. Nothing here escapes the box that needs to
-     — the selects are native and the menus are portaled. */
-  overflow-y: auto;
-  padding: 8px;
 }
 
 .cp-context-panel__group {
@@ -7199,7 +4771,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   height: 22px;
   min-width: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font: inherit;
@@ -7211,11 +4783,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   height: auto;
   min-height: 54px;
   resize: vertical;
-}
-
-.cp-context-panel__field--textarea {
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: start;
 }
 
 .cp-context-panel__field input:disabled {
@@ -7255,7 +4822,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 2px 4px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font: inherit;
@@ -7326,46 +4893,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   align-items: start;
 }
 
-/*
- * Square tool anchor picker: a 3x3 transform-origin grid naming where on the
- * square's bounding box the click lands. Sized to read as one small control
- * rather than nine buttons, so it sits beside the segmented controls above it.
- */
-.cp-square-anchor {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  width: 54px;
-  padding: 2px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-}
-
-.cp-square-anchor__cell {
-  aspect-ratio: 1;
-  min-width: 0;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  background: var(--bg-tertiary);
-  cursor: pointer;
-}
-
-.cp-square-anchor__cell:hover {
-  border-color: var(--border-default);
-}
-
-.cp-square-anchor__cell[data-active] {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-}
-
-.cp-square-anchor__cell:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
 .cp-context-panel__readout {
   color: var(--text-secondary);
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -7373,8 +4900,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* Fold-angle quick-pick chips. Keeps typing off the common path: a box is 90
-   everywhere, a prism 60/120. */
 /* Promote the badge layer to its own compositor layer, for the same reason the
    SVG crease-pattern layer above is promoted: a pan only translates it, and
    without this the whole layer re-rasterizes every frame — 300 text nodes'
@@ -7443,42 +4968,11 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin: 0 0 6px;
   padding: 5px 7px;
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 0.68rem;
   line-height: 1.35;
-}
-
-/* Appears only when a setting in this panel is off its default — so it is both
-   the way back and the only hint that something here was remembered from a
-   previous session. Sits in the header, out of the way of the controls. */
-/* The header is a full-width button and cannot nest one, so the reset is
-   positioned over it — and this gutter is what stops it landing on the setting
-   count, which shares that corner. */
-.cp-context-panel:has(.cp-context-panel__reset) .cp-context-panel__header {
-  padding-right: calc(8px + var(--cp-context-reset-gutter));
-}
-
-.cp-context-panel__reset {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 5px;
-  border: 1px solid var(--border-default);
-  border-radius: 3px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.62rem;
-  cursor: pointer;
-}
-
-.cp-context-panel__reset:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
 }
 
 /* The tool overrode the active line type because the maths forced it. Accented
@@ -7495,10 +4989,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   gap: 4px;
 }
 
-.cp-context-panel__measure-kinds {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 /* The measured value is the answer the tool exists to give: largest type in the
    panel, tabular so digits don't jitter as the live value updates. It is a button
    because clicking it copies the full-precision value. */
@@ -7506,7 +4996,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -7547,7 +5037,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-height: 26px;
   padding: 3px 9px;
   border: 1px solid color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-tertiary));
   color: var(--text-primary);
   font: inherit;
@@ -7574,7 +5064,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-height: 24px;
   padding: 3px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font: inherit;
@@ -7587,80 +5077,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   border-color: var(--border-default);
   color: var(--text-primary);
   outline: none;
-}
-
-.viewport-toolbar {
-  position: absolute;
-  left: 50%;
-  bottom: var(--space-3);
-  z-index: 17;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  max-width: calc(100% - var(--space-6));
-  min-height: 32px;
-  padding: 2px 6px;
-  transform: translateX(-50%);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-/*
- * A run of controls that belongs together.
- *
- * `display: contents` here rather than a box, so on a pointer device the bar's
- * flex container still sees exactly the flat sequence of controls it always did
- * — the grouping is structure the markup carries and this stylesheet ignores.
- * The coarse block at the end of the file is where it becomes a box, and with it
- * the unit that a line break has to respect.
- */
-.viewport-toolbar__group {
-  display: contents;
-}
-
-.viewport-toolbar__separator {
-  width: 1px;
-  height: 18px;
-  margin: 0 5px;
-  background: var(--border-default);
-}
-
-/*
- * The `⋯` menu scrolls where `.context-menu` alone would truncate.
- *
- * That base rule caps itself at Radix's available height and leaves
- * `overflow: hidden`, which is survivable for a menu of a handful of 28px rows
- * and is not for this one: on a coarse pointer every row is `--touch-target`,
- * and the packing pane's menu is fifteen of them plus two seams — around 690px,
- * against roughly 530px of room above the bar on a small tablet in landscape.
- * The remainder had no way to be reached, since the bar sits on the bottom edge
- * and there is nowhere below for Radix to flip into.
- *
- * Only the vertical axis is offered, and the chain stops here so reaching the
- * end of the list does not start moving whatever is behind it.
- */
-.viewport-toolbar__overflow-menu {
-  overflow: hidden auto;
-  overscroll-behavior: contain;
-}
-
-.viewport-toolbar .ui-button--icon {
-  margin-inline: 1px;
-}
-
-.cp-view-controls-panel__empty {
-  display: flex;
-  align-items: flex-start;
-  padding: var(--space-3);
-}
-
-.cp-view-controls-panel__body {
-  display: flex;
-  flex-direction: column;
 }
 
 /* The Properties pane's one-line empty state sits where a sheet's first row
@@ -7731,10 +5147,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .property-sheet__section:last-child {
   border-bottom: 0;
-}
-
-.cp-view-controls-panel__view-options {
-  flex: 0 0 auto;
 }
 
 .control-row__value--toggle {
@@ -7906,7 +5318,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   justify-content: center;
   padding: 2px;
   border: 0;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -7918,8 +5330,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* An option that qualifies the one above it — "Only where needed" under
-   "Precrease grid" — sits a step in, so the pair reads as one setting. The
-   menu form of the same idea is `.context-menu__item--nested`. */
+   "Precrease grid" — sits a step in, so the pair reads as one setting. */
 .control-row--nested {
   padding-left: 24px;
 }
@@ -7956,331 +5367,11 @@ button.cp-folded-figure-toolbar__notice:hover {
   gap: var(--space-1);
 }
 
-/* A text action inside a section body, rather than the icon-only affordance in a
-   section header. Sized to the pane's other controls so a row of them lines up
-   with the selects and toggles above. */
-.simulator-view-controls-panel__action {
-  flex: 1;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--border-subtle, rgb(255 255 255 / 10%));
-  border-radius: var(--radius-sm, 4px);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.simulator-view-controls-panel__action:hover {
-  background: var(--surface-hover, rgb(255 255 255 / 8%));
-  color: var(--text-primary);
-}
-
-.grid-scale-row {
-  display: grid;
-  grid-template-columns: minmax(56px, auto) 1fr;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.grid-scale-row__label {
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-}
-
-.grid-scale-row__formula {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 5px;
-}
-
-.grid-scale-row__op {
-  color: var(--text-tertiary);
-  font-size: 0.78rem;
-}
-
-.grid-scale-row__input.control-row__input {
-  width: 48px;
-  min-width: 0;
-  padding: 0 5px;
-  text-align: center;
-}
-
-.grid-settings__reset {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 30px;
-  margin: 8px var(--space-3) 2px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.grid-settings__reset:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-.viewport-toolbar__menu-anchor {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.viewport-toolbar__zoom-button,
-.viewport-toolbar__dropdown-item {
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.72rem;
-}
-
-.viewport-toolbar__zoom-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-  min-width: 52px;
-  padding: 0 8px;
-  color: var(--text-primary);
-}
-
-/* Editable view-rotation readout. Sits quietly like the zoom percent until
-   focused, so it reads as a value rather than a form field. */
-.viewport-toolbar__rotation-input {
-  height: 28px;
-  /* Sized to the widest reachable value, -168.75 degrees, which needs 48px of
-     text; the rest is the 1px border and padding either side. */
-  width: 52px;
-  padding: 0 1px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  /* `font` shorthand for the family (inputs default to the system UI font),
-     then the toolbar's control size — inheriting alone would take the
-     container's 1rem and render larger than the zoom readout beside it. */
-  font: inherit;
-  font-size: 0.72rem;
-  text-align: center;
-}
-
-.viewport-toolbar__rotation-input:hover {
-  border-color: var(--border-default);
-}
-
-.viewport-toolbar__rotation-input:focus,
-.viewport-toolbar__rotation-input:focus-visible {
-  border-color: var(--accent-primary);
-  background: var(--bg-surface);
-  outline: none;
-}
-
-/* The active crease angle: an editable readout plus a caret that opens the
-   popover. Sized and styled off `__rotation-input` beside it, because the two
-   are the same kind of control and reading as a pair is the point. */
-.crease-angle-field {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-
-.crease-angle-field__input {
-  height: 28px;
-  /* Sized to the widest reachable value: `-` is impossible here (a magnitude is
-     unsigned), so `180°` plus two decimals is the ceiling. */
-  width: 48px;
-  padding: 0 1px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  /* `font` shorthand for the family (inputs default to the system UI font),
-     then the toolbar's control size. */
-  font: inherit;
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.crease-angle-field__input:hover {
-  border-color: var(--border-default);
-}
-
-.crease-angle-field__input:focus,
-.crease-angle-field__input:focus-visible {
-  border-color: var(--accent-primary);
-  background: var(--bg-surface);
-  outline: none;
-}
-
-/* A pen off 180 changes what every stroke does, so it is not allowed to look
-   like an idle readout. The accent is on the number rather than a badge beside
-   it: the value *is* the state. */
-.crease-angle-field[data-angled] .crease-angle-field__input {
-  color: var(--accent-primary);
-  font-weight: 600;
-}
-
-.crease-angle-field__caret {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Explicit, because the UA button padding would otherwise defeat centering
-     on a bespoke icon button this small. */
-  padding: 0;
-  width: 16px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.crease-angle-field__caret:hover {
-  border-color: var(--border-default);
-  color: var(--text-primary);
-}
-
-/* Fills whichever frame it is in. The width belongs to the *frame*, not the
-   body: anchored, the pill sizes itself (below); as a modal, the document is
-   already `min(360px, 100vw - 24px)` and a body with a width of its own left the
-   form huddled in the corner of it. */
-.crease-angle-popover {
-  display: grid;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3);
-}
-
-/* The floating frame is a `FloatingToolbar` pill, which is laid out for a row of
-   icon buttons; this body is a small form, so it takes the padding back and
-   states the width the pill has no content-based reason to pick. */
-.crease-angle-popover__floating {
-  width: 232px;
-  padding: 0;
-}
-
-.crease-angle-popover__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.crease-angle-popover__input {
-  width: 100%;
-  height: 28px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.crease-angle-popover__input:focus,
-.crease-angle-popover__input:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.crease-angle-popover__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.viewport-toolbar__zoom-button:hover,
-.viewport-toolbar__dropdown-item:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.viewport-toolbar__dropdown,
-.design-layer-menu {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  box-shadow: 0 10px 28px var(--shadow-overlay);
-}
-
-.viewport-toolbar__dropdown {
-  left: 50%;
-  display: grid;
-  min-width: 76px;
-  padding: 4px;
-  transform: translateX(-50%);
-}
-
-
-/* The line types are one segmented control (`CpToolRail`), which fills the
-   column the tool grid spans rather than taking one of its cells. */
-.cp-tool-rail__buttons[data-group='line-type'] {
-  display: block;
-}
-
-.viewport-toolbar__dropdown-item {
-  min-height: 26px;
-  padding: 0 10px;
-  text-align: center;
-}
-
-.design-layer-menu {
-  right: 0;
-  display: grid;
-  min-width: 150px;
-  padding: 6px;
-  gap: 1px;
-}
-
-.design-layer-option {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
-  min-height: 28px;
-  padding: 0 7px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.74rem;
-}
-
-.design-layer-option:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.design-layer-option input {
-  accent-color: var(--accent-primary);
-}
-
+/* The sheet popover's content (`ViewportToolbarPopover` is only its frame). */
 .bp-sheet-menu {
+  display: grid;
   min-width: 190px;
+  padding: 6px;
   gap: 6px;
 }
 
@@ -8298,7 +5389,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
 }
 
@@ -8307,7 +5398,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   border: none;
   background: transparent;
   padding: 4px 6px;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 2px);
   color: var(--text-secondary);
   font-size: 0.72rem;
   cursor: pointer;
@@ -8326,7 +5417,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 .bp-sheet-menu__input {
   width: 100%;
   padding: 4px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   border: 1px solid var(--border-strong);
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -8340,33 +5431,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* Symmetry (mirror-draw) menu — shared by the Design tree and the BP tree panels. */
-/* Mirror draw, named rather than abbreviated — see `ViewportSymmetryToggle`.
-   Shared by all three tree canvases; the box-pleating editor's own mirror
-   button is icon-only on purpose and is not this. */
-.viewport-toolbar__symmetry-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 8px;
-  appearance: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-  cursor: pointer;
-}
-
-.viewport-toolbar__symmetry-button:hover {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-}
-
-.viewport-toolbar__symmetry-button[data-active] {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
-}
 
 /* The toolbar is nowrap so its own controls stay on one line, and this dropdown
    inherits it. Left alone, the status sentence sizes the panel to its full
@@ -8374,6 +5438,7 @@ button.cp-folded-figure-toolbar__notice:hover {
    for the same sentence translated: a locale that compounds words can push the
    panel past a width no wrapping can pull back. */
 .symmetry-menu__panel {
+  display: grid;
   min-width: 210px;
   max-width: min(280px, calc(100vw - var(--space-6)));
   gap: 8px;
@@ -8433,7 +5498,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 5px 6px;
   appearance: none;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 0.72rem;
@@ -8456,7 +5521,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 6px 8px;
   appearance: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 0.72rem;
@@ -8515,7 +5580,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;
   padding: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
 }
 
@@ -8527,7 +5592,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   align-items: center;
   justify-content: center;
   padding: 4px 0;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 2px);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -8557,7 +5622,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-width: 0;
   padding: 4px 6px;
   appearance: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   border: 1px solid var(--border-default);
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -8582,17 +5647,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin: 0;
 }
 
-.design-layer-option__icon {
-  display: inline-flex;
-  color: var(--text-tertiary);
-}
-
 @media (max-width: 720px) {
   .design-legend {
-    display: none;
-  }
-
-  .cp-tool-rail__header {
     display: none;
   }
 }
@@ -8608,14 +5664,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   .cp-panel__body--with-tools {
     grid-template-columns: 156px minmax(0, 1fr);
   }
-
-  .cp-tool-rail__buttons {
-    width: min(100%, 148px);
-  }
-
-  .cp-tool-rail__button {
-    height: 32px;
-  }
 }
 
 /* Three 44px columns rather than four narrow ones: the rail comes out narrower
@@ -8625,33 +5673,11 @@ button.cp-folded-figure-toolbar__notice:hover {
   .cp-panel__body--with-tools {
     grid-template-columns: 152px minmax(0, 1fr);
   }
-
-  .cp-tool-rail__buttons {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: min(100%, 140px);
-  }
 }
 
 .facet {
   stroke: none;
   cursor: pointer;
-}
-
-.facet--white {
-  fill: color-mix(in srgb, var(--status-info) 18%, transparent);
-}
-
-.facet--color {
-  fill: color-mix(in srgb, var(--accent-secondary) 18%, transparent);
-}
-
-.facet--unset {
-  fill: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-}
-
-.facet--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 3;
 }
 
 .crease {
@@ -8663,59 +5689,9 @@ button.cp-folded-figure-toolbar__notice:hover {
   filter: brightness(1.35);
 }
 
-/* Oriedita line styles for the editable crease pattern. The base crease color
-   classes provide the default COLOR style; --cp-line-width sets a uniform width
-   and data-cp-line-style layers Oriedita's black/white and chain-line dashes.
-   Selected creases keep their highlight treatment. */
-.cp-canvas[data-canvas-mode='editable'] .crease {
-  stroke-dasharray: none;
-}
-
-.cp-canvas[data-canvas-mode='editable'] .crease:not(.crease--selected) {
-  stroke-width: calc(var(--cp-line-width, 1) * 1.5px);
-}
-
-/* Mountain: one-dot chain (color+shape / black one-dot), two-dot chain (black two-dot). */
-.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='mountain']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
-  stroke-dasharray: 10 3 3 3;
-}
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
-  stroke-dasharray: 10 3 3 3 3 3;
-}
-
-/* Valley: dashed for every shape/black style. */
-.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='valley']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
-  stroke-dasharray: 8 8;
-}
-
-/* Black chain-line styles draw every crease black. */
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease:not(.crease--selected) {
-  stroke: #000;
-}
-
-/* Black & white: edge + mountain black, valley grey. */
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='edge']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
-  stroke: #000;
-}
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
-  stroke: #a2a2a2;
-}
-
 /* Point size for the editable crease pattern (Oriedita pointSize): scales the
    vertex markers drawn at every line endpoint plus explicit CP points. A size of
    0 hides them, matching Oriedita. */
-.cp-canvas[data-canvas-mode='editable'] .cp-vertex {
-  r: calc(var(--cp-point-size, 1) * 1.6px);
-}
-
-.cp-canvas[data-canvas-mode='editable'] .cp-point {
-  r: calc(var(--cp-point-size, 1) * 2px);
-}
 
 .crease--fold-mountain {
   stroke: var(--fold-mountain);
@@ -8800,32 +5776,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-width: 3;
 }
 
-.crease--kind-gusset {
-  stroke: var(--fold-gusset);
-  stroke-width: 2;
-}
-
-.crease--kind-ridge {
-  stroke: var(--fold-ridge);
-  stroke-width: 2.5;
-}
-
-.crease--kind-hinge {
-  stroke: var(--fold-hinge);
-  stroke-width: 2.5;
-}
-
-.crease--kind-pseudohinge {
-  stroke: var(--fold-pseudohinge);
-  stroke-width: 2;
-}
-
-.crease.crease--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 5;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent-primary) 45%, transparent));
-}
-
 .inspector-heading {
   display: flex;
   align-items: center;
@@ -8837,56 +5787,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 750;
 }
 
-/* ===== Box Pleating surfaces: app semantic tokens (no --bp-* palette) ===== */
-
-.bp-tree-grid {
-  pointer-events: none;
-}
-
-.bp-tree-grid-line {
-  stroke: var(--bg-canvas-grid);
-  stroke-width: 1;
-}
-
-.bp-tree-grid-line--major {
-  stroke: var(--bg-canvas-grid);
-  stroke-width: 1.5;
-}
-
-.bp-tree-grid-line--diagonal {
-  stroke: var(--bg-canvas-grid);
-  stroke-dasharray: 4 5;
-  opacity: 0.72;
-}
-
-/*
- * Every tree edge is the same line, as in Box Pleating Studio itself — which has
- * one `edge` style and no river/flap distinction. Rivers used to be drawn in
- * `--border-strong`, the theme's *active* colour and a near-match for the accent
- * a selected edge wears, so a tree of rivers read as a tree of selected edges.
- * Which edge is which stays legible from the length label, carried by flap edges
- * only.
- */
-.bp-tree-edge--river,
-.bp-tree-edge--leaf {
-  stroke: var(--tree-edge);
-}
-
-/*
- * A selected edge is just the edge, drawn in the accent colour and a little
- * heavier — no ring, no halo. Scoped to the BP canvas so the TreeMaker design
- * pane keeps its own selection weight.
- */
-.bp-tree-edge.tree-edge--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 7;
-}
-
 /* The root marker is identity, not state — same opt-out as `[data-leaf]` above, so
  * selecting the root still reads as selected. */
-.bp-tree-node--root:not(:hover, .tree-node--selected) {
-  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
-}
 
 .bp-packing-sheet {
   fill: var(--bg-primary);
@@ -9259,93 +6161,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /*
- * Bottom-left, not top-left: the contextual toolbars (flap editor, stretch
- * navigator) are centred at the top and grow with their content, so a top-left
- * stack collided with them on a narrow pane and covered the controls the
- * warning is telling you to use. The bottom-left corner is clear — the zoom
- * toolbar is centred and the d-pad is bottom-right — and the offset lifts the
- * stack over the zoom toolbar's row.
- */
-.bp-packing-alerts {
-  position: absolute;
-  bottom: calc(var(--space-3) + 52px);
-  left: var(--space-3);
-  z-index: 13;
-  display: grid;
-  gap: 6px;
-  width: min(420px, calc(100% - var(--space-6)));
-  pointer-events: none;
-}
-
-.bp-packing-alert {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  align-items: start;
-  gap: 7px;
-  max-width: 100%;
-  padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--status-warning) 42%, var(--border-subtle));
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  color: var(--text-secondary);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  font: inherit;
-  pointer-events: auto;
-  text-align: left;
-}
-
-.bp-packing-alert[data-severity='error'] {
-  border-color: color-mix(in srgb, var(--status-danger) 50%, var(--border-subtle));
-}
-
-.bp-packing-alert svg {
-  margin-top: 1px;
-  color: var(--status-warning);
-}
-
-.bp-packing-alert[data-severity='error'] svg {
-  color: var(--status-danger);
-}
-
-.bp-packing-alert strong,
-.bp-packing-alert small {
-  display: block;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.bp-packing-alert strong {
-  color: var(--text-primary);
-  font-size: 0.74rem;
-  font-weight: 750;
-}
-
-.bp-packing-alert small {
-  margin-top: 2px;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  line-height: 1.35;
-}
-
-button.bp-packing-alert {
-  cursor: pointer;
-}
-
-button.bp-packing-alert:hover,
-button.bp-packing-alert:focus-visible {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-  outline: none;
-}
-
-.bp-packing-alert--more {
-  grid-template-columns: minmax(0, 1fr);
-  border-color: var(--border-subtle);
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-}
-
-/*
  * Flaps whose overlap has no crease pattern. Warning-coloured and dashed so it
  * reads as "unresolved" next to the solid red conflict fill, which means
  * something stronger: an overlap that is invalid outright.
@@ -9375,299 +6190,6 @@ button.bp-packing-alert:focus-visible {
 
 .bp-packing-patternless--selected .bp-packing-patternless-flap {
   opacity: 1;
-}
-
-.bp-tree-edge-editor {
-  position: absolute;
-  top: var(--space-3);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-context-menu);
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
-.bp-tree-edge-editor__title {
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.bp-tree-edge-editor__label {
-  color: var(--text-secondary);
-}
-
-.bp-tree-edge-editor__input {
-  width: 56px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.bp-tree-edge-editor__input:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-.bp-name-editor {
-  position: absolute;
-  top: var(--space-3);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-context-menu);
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
-.bp-name-editor__title {
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.bp-name-editor__label {
-  color: var(--text-secondary);
-}
-
-.bp-name-editor__input {
-  width: 140px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.bp-name-editor__input:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-/* Compact radius/width/height fields appended to the flap pill. */
-.bp-flap-editor__field {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.bp-flap-editor__input {
-  width: 48px;
-  padding: 3px 4px;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-  text-align: right;
-}
-
-.bp-flap-editor__input:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-.bp-packing-stretch-nav {
-  position: absolute;
-  top: var(--space-3);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  /* Flap names are user text of any length, so the pill has to be bounded by
-     the pane or it grows past both edges of a centred overlay. */
-  max-width: calc(100% - var(--space-6));
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-context-menu);
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
-/* The title is the only part that gives way: the stepper and the status are
-   fixed-size and are what the control is for. The full name stays in the
-   tooltip and in the group's accessible name. */
-.bp-packing-stretch-nav__title {
-  min-width: 3ch;
-  overflow: hidden;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bp-packing-stretch-nav__stepper {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 4px;
-}
-
-.bp-packing-stretch-nav__label {
-  color: var(--text-secondary);
-}
-
-.bp-packing-stretch-nav__count {
-  min-width: 30px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.bp-packing-stretch-nav__warning {
-  flex-shrink: 0;
-  color: var(--status-danger);
-  font-weight: 600;
-}
-
-/* "Only one pattern": a fact about the stretch, not a problem with it. */
-.bp-packing-stretch-nav__note {
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-}
-
-.bp-packing-dpad {
-  position: absolute;
-  right: var(--space-3);
-  bottom: calc(var(--space-3) + 52px);
-  z-index: 14;
-  display: none;
-  grid-template-columns: 36px 36px 36px;
-  grid-template-rows: 36px 36px 36px;
-  gap: 5px;
-  pointer-events: none;
-}
-
-.bp-packing-dpad[data-enabled='true'] {
-  pointer-events: auto;
-}
-
-.bp-packing-dpad button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  color: var(--text-primary);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  touch-action: none;
-}
-
-.bp-packing-dpad button:active {
-  background: color-mix(in srgb, var(--accent-primary) 18%, var(--domain-overlay-bg));
-  color: var(--accent-primary);
-}
-
-.bp-packing-dpad__up {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.bp-packing-dpad__left {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.bp-packing-dpad__right {
-  grid-column: 3;
-  grid-row: 2;
-}
-
-.bp-packing-dpad__down {
-  grid-column: 2;
-  grid-row: 3;
-}
-
-@media (pointer: coarse) {
-  .bp-packing-dpad[data-enabled='true'] {
-      display: grid;
-    }
-}
-
-.bp-design-empty {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  padding: var(--space-6);
-}
-
-.bp-design-empty__body {
-  display: grid;
-  gap: var(--space-4);
-  width: min(100%, 520px);
-  text-align: center;
-}
-
-.bp-design-empty__title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 1.1rem;
-  font-weight: 760;
-}
-
-.bp-design-empty__subtitle {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-.bp-design-empty__examples {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.bp-design-empty__example {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.bp-design-empty__example:hover,
-.bp-design-empty__example:focus-visible {
-  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
-}
-
-.bp-design-empty__example-title {
-  color: var(--text-primary);
-  font-size: 0.92rem;
-  font-weight: 720;
-}
-
-.bp-design-empty__example-desc {
-  color: var(--text-secondary);
-  font-size: 0.78rem;
 }
 
 .bp-tree-panel,
@@ -9803,7 +6325,7 @@ button.bp-packing-alert:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  border-radius: calc(var(--radius) - 1px);
   background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-secondary));
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -9835,7 +6357,7 @@ button.bp-packing-alert:focus-visible {
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   cursor: pointer;
 }
@@ -9849,12 +6371,12 @@ button.bp-packing-alert:focus-visible {
 
 .color-field__input::-webkit-color-swatch {
   border: 0;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 1px);
 }
 
 .color-field__input::-moz-color-swatch {
   border: 0;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 1px);
 }
 
 .color-field__input:focus-visible {
@@ -9930,7 +6452,7 @@ button.bp-packing-alert:focus-visible {
   height: 22px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -9963,7 +6485,7 @@ button.bp-packing-alert:focus-visible {
   margin-left: 4px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -9981,27 +6503,6 @@ button.bp-packing-alert:focus-visible {
 
 .simulator-view-controls-panel__colors > .control-row:last-child {
   border-bottom: 0;
-}
-
-.bp-optimizer__hint {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.5;
-  text-wrap: pretty;
-}
-
-/* Separates the design-level fold from the per-run toggle above it. */
-.bp-optimizer__field-label {
-  margin-top: 2px;
-  font-size: 0.64rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-tertiary);
-}
-
-.bp-optimizer__hint--warn {
-  color: var(--text-warning, var(--text-secondary));
 }
 
 
@@ -10026,9 +6527,9 @@ button.bp-packing-alert:focus-visible {
   background: transparent;
 }
 
-/* Wears `.floating-toolbar` for its colour, border, radius and shadow, so it
-   matches every other floating control over the canvas by construction rather
-   than by copied values. Everything here is about *attachment*: it shares the
+/* A `Toolbar` (raised, attached at the bottom) for its colour, border, radius
+   and shadow, so it matches every other floating control over the canvas by
+   construction rather than by copied values. Everything here is about *attachment*: it shares the
    frame's top edge and is pinned to its right, `min-width` spanning a wide frame
    and `max-content` outgrowing a narrow one leftward — either way its right edge
    is the frame's, which is what says which region these controls belong to. */
@@ -10115,19 +6616,6 @@ button.bp-packing-alert:focus-visible {
  * stay shared, and a surface can restyle its own tree without reaching into
  * another's.
  */
-.explori-tree-edge--river,
-.explori-tree-edge--leaf {
-  stroke: var(--tree-edge);
-}
-
-.explori-tree-edge.tree-edge--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 7;
-}
-
-.explori-tree-node--root:not(:hover, .tree-node--selected) {
-  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
-}
 
 .explori-tree-panel {
   display: flex;
@@ -10135,361 +6623,11 @@ button.bp-packing-alert:focus-visible {
   min-height: 0;
 }
 
-.explori-tree-panel .explori-tree-panel__body {
-  flex: 1;
-  min-height: 0;
-}
-
-/*
- * The surface's primary action, sized like one.
- *
- * It began as a thin strip of small grey controls that read as a status bar and
- * was missed accordingly. Now it is a command strip: captioned fields, a real
- * button, and enough room around them to be the obvious next thing to do after
- * drawing a tree.
- */
-.explori-query-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 16px 14px;
-  border-top: 1px solid var(--border-default);
-  background: var(--bg-secondary);
-}
-
-.explori-query-bar__row {
-  display: flex;
-  align-items: flex-end;
-  gap: 18px;
-  flex-wrap: wrap;
-}
-
-.explori-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.explori-field__label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.explori-field__control {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.explori-query-bar__spacer {
-  flex: 1;
-  min-width: 12px;
-}
-
-.explori-query-bar__search {
-  min-width: 132px;
-  height: 34px;
-}
-
-.explori-query-bar__hint {
-  margin: 0;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.explori-query-bar__count {
-  width: 62px;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* One segmented control, so the three read as a set rather than three buttons. */
-.explori-symmetry-group {
-  display: inline-flex;
-  height: 30px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.explori-symmetry-toggle {
-  padding: 0 14px;
-  border: none;
-  border-right: 1px solid var(--border-default);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.explori-symmetry-toggle:last-child {
-  border-right: none;
-}
-
-.explori-symmetry-toggle:hover {
-  color: var(--text-primary);
-}
-
-.explori-symmetry-toggle[aria-pressed='true'] {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
-}
-
-/* Anchors the popover to the gear that opens it. */
-.explori-advanced {
-  position: relative;
-  display: inline-flex;
-}
-
-/*
- * Floated over the canvas rather than inserted into the bar. As a row it pushed
- * every control — and the drawing above them — up and down each time it opened.
- */
-.explori-advanced__popover {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  /* Above the canvas's own viewport toolbar (17), which it opens across. */
-  z-index: 20;
-  padding: 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
-}
-
-/*
- * The per-size grid: twelve checkboxes are legible with one set of column
- * headers and unreadable without them, which is the whole reason this is a
- * table and not the inline row it started as.
- */
-.explori-db-table {
-  border-collapse: collapse;
-  font-size: 11px;
-  color: var(--text-secondary);
-  align-self: flex-start;
-}
-
-.explori-db-table th,
-.explori-db-table td {
-  padding: 3px 10px;
-  border: 1px solid var(--border-default);
-  text-align: center;
-  font-weight: 500;
-}
-
-.explori-db-table thead th,
-.explori-db-table tbody th {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-.explori-db-table input {
-  cursor: pointer;
-}
-
-.explori-results-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-/*
- * The way back to the search, on a phone — and the only one, since ExplOri
- * declines the floating pane switcher. `align-self: flex-start` so it is a
- * button rather than a full-width bar in the column above; `flex: 0 0 auto` so
- * a status state that fills the pane does not squeeze it away.
- */
-.explori-results__back {
-  flex: 0 0 auto;
-  align-self: flex-start;
-}
-
-.explori-results__error {
-  margin: 0;
-  padding: 12px;
-  font-size: 12px;
-  color: var(--status-error, var(--accent-primary));
-  text-align: center;
-}
-
-/*
- * The pane with nothing in it: searching, not yet searched, or searched and
- * empty-handed. Centred in the pane rather than left at the top of it — the
- * results half is as tall as the tree half beside it, and one grey sentence
- * against that top edge reads as something that failed to render.
- */
-.explori-results__state {
-  display: grid;
-  flex: 1 1 auto;
-  place-content: center;
-  justify-items: center;
-  gap: var(--space-2);
-  padding: var(--space-5);
-  text-align: center;
-}
-
-.explori-results__state-icon {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  margin-bottom: var(--space-1);
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, var(--border-subtle));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-secondary));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 7%, transparent);
-}
-
-.explori-results__state-title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 0.86rem;
-  font-weight: 680;
-}
-
-.explori-results__state-detail {
-  max-width: 34ch;
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  line-height: 1.5;
-  text-wrap: balance;
-}
-
-/* `surface-loading-spin` is the app's spinner keyframe, defined in App.css
-   beside the surface-wide loading state. Shared rather than copied a third
-   time — main.tsx loads both stylesheets. */
-.explori-results__spinner {
-  animation: surface-loading-spin 0.9s linear infinite;
-}
-
-.explori-results__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-/*
- * Sized to its content, not to the header. The select trigger is a flex child
- * and stretched to fill the row, which read as a full-width bar rather than a
- * control.
- */
-.explori-results__mode {
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 132px;
-}
-
 /*
  * Cards size themselves to the pane. The results pane is one half of a design
  * tab and gets resized constantly, so a fixed column count would be wrong at
  * every width but one.
  */
-/*
- * Cards size themselves to the pane, with a floor big enough to read a crease
- * pattern at. Below about 200px the thumbnails stop being something you can
- * judge a match from, which is the only reason to look at them.
- */
-.explori-results__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 12px;
-}
-
-.explori-result-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--bg-canvas);
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease;
-}
-
-/*
- * Lit the same way the start screen's cards are, because they are the same
- * gesture — a tile you click to go somewhere. `:focus-within` rather than a
- * rule on the button: the whole card is what visibly responds, and keyboard
- * focus lands on the open button inside it.
- */
-.explori-result-card:hover,
-.explori-result-card:focus-within {
-  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
-}
-
-.explori-result-card__open {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
-/* The card carries the focus ring, so the button inside it does not draw a
-   second one on top. */
-.explori-result-card__open:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
-  outline-offset: -2px;
-}
-
-.explori-result-card__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 9px;
-  border-top: 1px solid var(--border-default);
-  font-size: 11px;
-}
-
-.explori-result-card__meta .explori-quality {
-  /* As wide as its words. It used to take `flex: 1` so the send button reached
-     the right edge; the slack belongs to a margin, not to a pill that then read
-     as a progress bar. */
-  margin-right: auto;
-  white-space: nowrap;
-}
-
-/*
- * Tree beside crease pattern, the default a card opens in: the candidate is
- * only judgeable next to the tree it claims to match.
- *
- * The pair keeps the same footprint as a single figure, so a grid of cards is
- * one rhythm whichever view it is in — hence the wider track below.
- */
-.explori-result-card__pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
-.explori-result-card__pair > * {
-  min-width: 0;
-}
-
-.explori-results__grid[data-mode='pair'] {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-}
-
 /*
  * Quality as a colour ramp, green through amber to red — upstream's five hues,
  * worn as a tinted pill.
@@ -10499,122 +6637,6 @@ button.bp-packing-alert:focus-visible {
  * same non-answer. The pill carries the hue in its text, border and fill so it
  * survives being small.
  */
-/* Sized as a `sm` control (28px, see `.ui-control--sm`), because it sits in a
-   row of them — a shorter pill left the detail header's controls on three
-   different baselines. */
-.explori-quality {
-  --quality-rgb: 122, 123, 132;
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid rgb(var(--quality-rgb) / 30%);
-  border-radius: 999px;
-  background: rgb(var(--quality-rgb) / 10%);
-  color: rgb(var(--quality-rgb));
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.explori-quality--great {
-  --quality-rgb: 28 184 112;
-}
-
-.explori-quality--good {
-  --quality-rgb: 92 194 106;
-}
-
-.explori-quality--acceptable {
-  --quality-rgb: 214 180 55;
-}
-
-.explori-quality--poor {
-  --quality-rgb: 237 136 63;
-}
-
-.explori-quality--terrible {
-  --quality-rgb: 236 82 94;
-}
-
-/*
- * The header stays put while the four figures scroll — the controls it holds
- * (Back, the step arrows, Send to Edit) are the ones you reach for after
- * looking at a figure, and they used to scroll away exactly when you had
- * decided.
- *
- * It is outside the scrolling box rather than `sticky` inside it, which is what
- * lets its rule reach both pane edges: a sticky header is laid out in the
- * scroll container's content box, so the scrollbar gutter cuts its right end
- * short. The pane's padding moves onto the header and the figures for the same
- * reason — inset by the pane, the rule stopped short at *both* ends.
- */
-.explori-results-panel--detail {
-  padding: 0;
-  gap: 0;
-  overflow: hidden;
-}
-
-.explori-detail__header {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 10px 8px;
-  border-bottom: 1px solid var(--border-default);
-}
-
-/* Stepping through results, in the header with the other controls. It used to
-   float over the pane edges, which put two targets on top of the figures. */
-.explori-detail__steps {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-}
-
-.explori-detail__position {
-  padding: 0 4px;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-/* Four figures, two by two. Never one across: the point of the detail is
-   comparing them, and a single column makes that a scroll.
-   This is also the detail's scrolling box — see the header above. */
-.explori-detail__panes {
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  gap: 14px;
-  min-height: 0;
-  padding: 18px 12px;
-  overflow-y: auto;
-}
-
-.explori-detail__pane {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  margin: 0;
-}
-
-.explori-detail__figure {
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--bg-canvas);
-  padding: 4px;
-}
-
-.explori-detail__caption {
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
 .explori-figure {
   width: 100%;
   height: auto;
@@ -10762,10 +6784,6 @@ button.bp-packing-alert:focus-visible {
   .ui-icon-control--md,
   .ui-icon-control--lg,
   .select-trigger,
-  .viewport-toolbar__zoom-button,
-  .viewport-toolbar__symmetry-button,
-  .cp-selection-transform__menu button,
-  .bp-packing-dpad button,
   .number-field__step {
     min-height: var(--touch-target);
   }
@@ -10776,8 +6794,6 @@ button.bp-packing-alert:focus-visible {
   .ui-icon-control--sm,
   .ui-icon-control--md,
   .ui-icon-control--lg,
-  .cp-selection-transform__menu button,
-  .bp-packing-dpad button,
   .number-field__step {
     min-width: var(--touch-target);
   }
@@ -10808,30 +6824,10 @@ button.bp-packing-alert:focus-visible {
     --export-modal-field-width: 184px;
   }
 
-  .cp-tool-rail__button {
-    min-height: var(--touch-target);
-  }
-
-  /* The group headers are the rail's only way to collapse a section, and at
-     `font-size: 0.56rem` the toggle is a hairline. */
-  .cp-tool-rail__group-toggle {
-    min-height: 32px;
-  }
-
   /* Rows in a portalled menu. Nothing sits beside them, so height is free.
-
-     `.menu-dropdown__item` is the menu bar's own row, and it belongs here for
-     the same reason as the rest: row height is a question about the finger, not
-     about the screen. It was first given the target inside `MenuBar.css`'s phone
-     block, which left every tablet on the 28px default — the menu bar is the
-     only way to reach a large part of the app, and on an iPad it had the one
-     kind of row a finger could not reliably hit. Same predicate as its
-     siblings now, in the same place. */
-  .select-item,
-  .context-menu__item,
-  .viewport-toolbar__dropdown-item,
-  .symmetry-menu__item,
-  .menu-dropdown__item {
+     The other menus' rows (the menu bar, `Menu`) take the same target in their
+     own modules. */
+  .symmetry-menu__item {
     min-height: var(--touch-target);
   }
 
@@ -10865,66 +6861,6 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
-   * The bottom toolbar.
-   *
-   * Bigger targets make it wider than a portrait canvas column, and it is a
-   * flex row pinned to `left: 50%` — so left alone it overflows off screen on
-   * both sides and buttons become unreachable. Most of that width is now given
-   * back by the overflow menu (`ViewportToolbarOverflowMenu`), which is why the
-   * crease-pattern bar fits one line on an iPad mini where it wanted 615px
-   * against a 470px pane. Wrapping stays as the fallback for whatever is still
-   * too wide — a docked pair of panes, Split View — and spends height, which
-   * the bar has: it is anchored by its bottom edge and grows upward.
-   *
-   * What it must not do is wrap *raggedly*. That is what the group below is
-   * for: the break can only fall on a seam the surface chose.
-   */
-  .viewport-toolbar {
-    /*
-     * The bar could never use the width its `max-width` promises, and this is
-     * the larger half of why it wrapped three times on an iPad.
-     *
-     * It is absolutely positioned with `left: 50%` and no `right`, so its width
-     * is shrink-to-fit — and the "available space" that feeds shrink-to-fit is
-     * *containing block minus left*, i.e. half the pane. Measured on the CP
-     * editor at 744px: a 494px pane, `max-width` resolving to 470px, and a used
-     * width of 247px. The `translateX(-50%)` centres the box afterwards, which
-     * hides the cause: the bar looks centred and simply refuses to grow.
-     *
-     * Anchoring both edges and centring with auto margins instead makes the
-     * available space the whole pane, so `fit-content` can reach the row's real
-     * width and `max-width` becomes the cap it was written to be. Same 382px row
-     * as `left: 50%` produced — on one line rather than two.
-     */
-    left: 0;
-    right: 0;
-    width: fit-content;
-    margin-inline: auto;
-    transform: none;
-
-    flex-wrap: wrap;
-    justify-content: center;
-    /* Row seam, then group seam. The group seam replaces the hairline below,
-       which is worth 11px a piece the row does not have to spend. */
-    gap: 6px 10px;
-  }
-
-  .viewport-toolbar__group {
-    display: flex;
-    align-items: center;
-    /* The spacing the bar itself used before the groups existed, so a run looks
-       the same as it always did. */
-    gap: 4px;
-    /* Belt and braces: a group is an atomic flex item, and nothing inside it
-       may break to the next line. */
-    flex-wrap: nowrap;
-  }
-
-  .viewport-toolbar__separator {
-    display: none;
-  }
-
-  /*
    * Safari zooms the whole page in whenever a field below 16px takes focus, and
    * `body { overflow: hidden }` means there is no scroll gesture to get back —
    * the app is simply left magnified with its chrome off screen. So the size is
@@ -10945,22 +6881,15 @@ button.bp-packing-alert:focus-visible {
 
   .control-row__input,
   .share-link-modal__field input,
-  .bp-optimizer__count input,
   .export-modal__input,
   .export-modal__select,
   .field-row input,
   .settings-shortcuts__toolbar input[type='search'],
-  .design-tab__name-input,
-  .condition-number input,
   .cp-context-panel__field input:not(.number-field__input),
   .cp-context-panel__field select,
   .cp-context-panel__field textarea,
-  .viewport-toolbar__rotation-input,
   .bp-sheet-menu__input,
-  .symmetry-menu__field input,
-  .bp-tree-edge-editor__input,
-  .bp-name-editor__input,
-  .bp-flap-editor__input {
+  .symmetry-menu__field input {
     font-size: 16px;
   }
 }
@@ -10975,10 +6904,6 @@ button.bp-packing-alert:focus-visible {
 @media (pointer: coarse) and (min-width: 721px) {
   .cp-panel__body--with-tools {
     grid-template-columns: 200px minmax(0, 1fr);
-  }
-
-  .cp-tool-rail__buttons {
-    width: min(100%, 188px);
   }
 }
 
@@ -11222,25 +7147,6 @@ button.bp-packing-alert:focus-visible {
     line-height: 1;
   }
 
-  .cp-tools-trigger__glyph .cp-tool-rail__oriedita-icon {
-    font-size: 18px;
-    transform: none;
-  }
-
-  /*
-   * The diagnostic HUD owns the same corner of the crease-pattern viewport, so it
-   * moves down out of the lane.
-   *
-   * `margin-top` and not `top`: `useCpDiagnosticHudLane` writes an inline `top`
-   * whenever the HUD would collide with the viewport status readout, and an
-   * inline style beats any stylesheet rule. A margin composes with whichever
-   * `top` is in force instead of racing it. The subtraction is the HUD's own
-   * inset, which already counts toward the lane.
-   */
-  .cp-diagnostic-hud {
-    margin-top: calc(var(--view-drawer-lane) - var(--space-4));
-  }
-
   /*
    * The sheet. `position: fixed`, so unlike the trigger it is *not* inside
    * `.app-layout` for layout purposes and does not inherit the safe-area padding
@@ -11337,46 +7243,9 @@ button.bp-packing-alert:focus-visible {
  */
 @media (pointer: coarse) {
   .ui-button,
-  .ui-button-tooltip-trigger,
-  .cp-tool-rail__button {
+  .ui-button-tooltip-trigger {
     -webkit-touch-callout: none;
     user-select: none;
-  }
-
-  /*
-   * `.cp-tool-rail` ships one explicit row, `minmax(0, 1fr)`, sized for its only
-   * child being the scrolling group list. The touch header takes that row simply
-   * by being first, which demotes the group list to an implicit `auto` one — and
-   * an `auto` track holding an `overflow-y: auto` child reports a min-content
-   * contribution of 0 and a max-content contribution of the whole list, so it
-   * absorbs the rail's full height and the `fr` track resolves to 0. Measured on
-   * a base iPad: `grid-template-rows` came out `0px 700px`, and the header's
-   * buttons painted on top of the Type group instead of above it.
-   *
-   * So the rows are named here, where the header exists. Unconditional inside
-   * this block even though the header's gate is now narrower than it —
-   * `useIsCoarsePointerSurface() && !useIsPhoneLayout()`, so a phone-sized coarse
-   * viewport has a header-less rail whose group list would land back in the
-   * `auto` row and collapse the `fr` one to 0 all over again. That never paints
-   * only because the phone block at the end of this file hides `.cp-tool-rail`
-   * outright, off the same query string the predicate reads — so anything that
-   * un-hides the rail at phone width has to bring a row assignment with it.
-   * Under a fine pointer the rail keeps the single-row rule above.
-   */
-  .cp-tool-rail {
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
-  /*
-   * The rail's one touch-only row: the Shift latch. Full width on purpose — the
-   * rail's constraint is horizontal, the button grid below keeps every pixel it
-   * has, and what this spends is height in a column that already scrolls.
-   */
-  .cp-tool-rail__touch-header {
-    display: grid;
-    gap: var(--space-1);
-    padding: var(--space-2) 5px;
-    border-bottom: 1px solid var(--border-subtle);
   }
 
   /*
@@ -11389,26 +7258,6 @@ button.bp-packing-alert:focus-visible {
   .cp-context-panel__secondary {
     min-height: var(--touch-target);
     padding-inline: var(--space-3);
-  }
-
-  .cp-tool-rail__latch {
-    justify-content: flex-start;
-    gap: var(--space-2);
-    width: 100%;
-    min-height: var(--touch-target);
-    padding-inline: var(--space-2);
-    text-align: left;
-  }
-
-  /*
-   * The latch is a mode, and a mode that is on with nothing on screen saying so
-   * is how a user ends up adding to a selection they meant to replace. `ghost`
-   * gives `[data-active]` no fill of its own, so it gets one here.
-   */
-  .cp-tool-rail__latch[data-active] {
-    border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
-    color: var(--text-primary);
   }
 
   /*
@@ -11681,17 +7530,15 @@ button.bp-packing-alert:focus-visible {
  */
 @media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
   /*
-   * Two diagnostic readouts, hidden.
+   * The simulator's diagnostic readout, hidden, for the reason the crease
+   * pattern's goes (`ViewportStatusReadout`'s `hideOnPhone`).
    *
-   * Both are pure output — no control lives in either — so nothing becomes
-   * unreachable, and both say things a phone user can already see elsewhere:
-   * the zoom percent is in the viewport toolbar, the active tool is the Tools
-   * pill's own glyph, and a tool's instructions are what the hint window is for.
-   * What they cost is a box over the corner of a canvas that, on a phone, is
-   * the scarcest thing on the screen.
+   * It is pure output — no control lives in it — so nothing becomes
+   * unreachable, and it says things a phone user can already see elsewhere.
+   * What it costs is a box over the corner of a canvas that, on a phone, is the
+   * scarcest thing on the screen.
    *
-   * Phone-only, not every coarse pointer. A tablet has room for both and keeps
-   * the ambient step prompt, which is the part with no equivalent anywhere else.
+   * Phone-only, not every coarse pointer. A tablet has room for it.
    *
    * The simulator's block is hidden **only in its `ready` state**, because
    * `statusLabel` is doing two jobs: the vertex and triangle count when things
@@ -11701,24 +7548,11 @@ button.bp-packing-alert:focus-visible {
    * regardless, and `:not(:first-child)` is exactly that set because the status
    * span leads.
    */
-  .viewport-status-readout,
   .simulator-readout[data-state='ready'] {
     display: none;
   }
 
   .simulator-readout > *:not(:first-child) {
-    display: none;
-  }
-
-  /*
-   * The zoom percent goes too, leaving the − and + it sat between. The readout
-   * is a `button` that opens a preset menu, so unlike the two above this one
-   * *is* a control — but every preset in it is reachable by pinching, and Fit
-   * is its own button two positions along, so nothing is lost. What it buys is
-   * the width: the bar is a single scrolling row on a phone and the percent is
-   * the one item in it that is text rather than a target.
-   */
-  .viewport-toolbar__zoom-button {
     display: none;
   }
 
@@ -11770,9 +7604,6 @@ button.bp-packing-alert:focus-visible {
    * one `display: none` is the whole change; the Shift latch it used to carry is
    * moved in the markup, not hidden, so there is only ever one of it.
    */
-  .cp-tool-rail {
-    display: none;
-  }
 
   .cp-panel__body--with-tools {
     grid-template-columns: minmax(0, 1fr);
@@ -11929,32 +7760,11 @@ button.bp-packing-alert:focus-visible {
     white-space: nowrap;
   }
 
-  /* The mode tabs take a row of their own under the Back button, the two of
-     them sharing the width, each a thumb-sized target. */
+  /* The mode tabs take a row of their own under the Back button. Sharing the
+     width, each a thumb-sized target, is the strip's own `fill`. */
   .references-workspace .references-mode {
     flex: 1 0 100%;
     order: 1;
-  }
-
-  .references-workspace .references-mode .design-tab-strip__root,
-  .references-workspace .references-mode .design-tab-strip__list {
-    flex: 1 1 auto;
-    width: 100%;
-  }
-
-  .references-workspace .references-mode .design-tab {
-    flex: 1 1 0;
-    max-width: none;
-    min-height: var(--touch-target);
-  }
-
-  .references-workspace .references-mode .design-tab:last-child {
-    border-right: 0;
-  }
-
-  .references-workspace .references-mode .design-tab__trigger {
-    justify-content: center;
-    font-size: 0.8rem;
   }
 
   /* One card at a time under a thumb: the strip snaps to a card's centre. */
@@ -12023,10 +7833,10 @@ button.bp-packing-alert:focus-visible {
 
 /*
  * The switch between the workspace's two jobs is the header: the Design
- * workspace's tab strip (`.design-tab-strip`, the same classes) inside the
- * panel toolbar, which already has the strip's height, ground and bottom
- * border — so the strip brings none of its own, and the tabs run flush from
- * the toolbar's left edge the way the design tabs do from the shell's.
+ * workspace's tab strip (`WorkspaceTabStrip`, `embedded`) inside the panel
+ * toolbar, which already has the strip's height, ground and bottom border — so
+ * the strip brings none of its own, and the tabs run flush from the toolbar's
+ * left edge the way the design tabs do from the shell's.
  */
 .references-panel .panel-toolbar {
   padding-left: 0;
@@ -12037,40 +7847,6 @@ button.bp-packing-alert:focus-visible {
    target's controls in the same group stay centred by the group's own rule. */
 .references-panel .panel-toolbar > .panel-toolbar__group {
   align-self: stretch;
-}
-
-.references-mode.design-tab-strip {
-  align-self: stretch;
-  min-height: 0;
-  padding-right: 0;
-  border-bottom: 0;
-  background: transparent;
-}
-
-.references-mode .design-tab-strip__root,
-.references-mode .design-tab-strip__list,
-.references-mode .design-tab {
-  align-self: stretch;
-}
-
-/*
- * Two tabs that are peers, not a row of documents one of which dominates: the
- * Design strip dims an inactive tab to the tertiary colour, which with two
- * tabs read as disabled and hid the second job. Here the inactive one keeps
- * the secondary colour with its icon at full strength, gains a ground on
- * hover, and the active one keeps the accent line and the lighter ground.
- */
-.references-mode .design-tab {
-  color: var(--text-secondary);
-}
-
-.references-mode .design-tab .design-tab__trigger > svg {
-  color: var(--text-primary);
-}
-
-.references-mode .design-tab:hover {
-  color: var(--text-primary);
-  background: var(--bg-secondary);
 }
 
 /*
@@ -12193,7 +7969,7 @@ button.bp-packing-alert:focus-visible {
   width: var(--references-card-size);
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--radius);
   background: var(--bg-canvas, #0c0f12);
   color: var(--text-secondary);
   cursor: pointer;

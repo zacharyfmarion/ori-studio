@@ -1,0 +1,56 @@
+/*
+ * A select's list and its options (Select.tsx). The trigger is still the
+ * global `.select-trigger`: the export dialogs restyle it, so it moves when
+ * they get a prop instead (implementation-plans/scoped-css.md).
+ */
+.content {
+  z-index: var(--z-portaled-popover);
+  overflow: hidden;
+  min-width: var(--radix-select-trigger-width);
+  max-height: min(var(--radix-select-content-available-height), 220px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
+}
+
+.viewport {
+  padding: 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: default;
+  font-size: 12px;
+  outline: none;
+  user-select: none;
+}
+
+/* The highlight every menu shares (theme.css: --menu-highlight). */
+.item[data-highlighted] {
+  background: var(--menu-highlight);
+  color: var(--menu-highlight-text);
+}
+
+/* The current value's check, in a column every option keeps so the labels line
+   up, as a menu's radio rows do. The highlight follows the pointer, so this is
+   what still says which value is chosen. */
+.indicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+}
+
+@media (pointer: coarse) {
+  .item {
+    min-height: var(--touch-target);
+  }
+}

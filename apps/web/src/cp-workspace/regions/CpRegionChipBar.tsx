@@ -8,6 +8,7 @@ import type { AnnotationBox } from '../annotations/annotationTransform';
 import { regionChipPlacement } from './regionChipPlacement';
 import type { CpRegionChipDragHandlers } from './useCpRegionChipDrag';
 import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface';
+import { Toolbar } from '../../components/ui/Toolbar';
 
 /**
  * The bar a suppression region wears along its top edge.
@@ -15,10 +16,10 @@ import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface'
  * Chrome only: it decides *where* the controls go and *how wide* they are, and
  * hosts the region's move gesture. What is on it is the caller's business.
  *
- * It wears `.floating-toolbar` for its colour, border, radius and shadow, so it
+ * It is a `Toolbar` (raised) for its colour, border, radius and shadow, so it
  * matches every other floating control over the canvas by construction rather
- * than by copied values — the same borrowing `.cp-tool-option__header` does, and
- * for the same reason. Only its attachment to the region is local, and that is
+ * than by copied values — as the tool option header does, and for the same
+ * reason. Only its attachment to the region is local, and that is
  * {@link regionChipPlacement}. `box-sizing: border-box` is global, so the width
  * written here *is* the bar's outer width: it matches the region exactly, with
  * no allowance for the class's own padding to drift out of date.
@@ -30,7 +31,7 @@ import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface'
  * safe.
  *
  * **The font size is set here, on the bar, and not on each text child.**
- * `.floating-toolbar` supplies colour and shape but no `font-size`, and nothing
+ * `Toolbar` supplies colour and shape but no `font-size`, and nothing
  * above it does either — not `.cp-region-chip`, which has no stylesheet at all,
  * and not `html`/`body`/`#root` — so a child that does not name its own size
  * inherits the UA default and renders 16px beside its 11px siblings. That is not
@@ -107,10 +108,11 @@ export function CpRegionChipBar({
 
   return (
     <FloatingPortal>
-      <div
+      <Toolbar
         ref={setBar}
-        className="floating-toolbar cp-region-chip"
-        role="toolbar"
+        className="cp-region-chip"
+        tone="raised"
+        wrap="always"
         aria-label={ariaLabel}
         {...CANVAS_COMPANION_PROPS}
         style={{
@@ -145,7 +147,7 @@ export function CpRegionChipBar({
         }
       >
         {children}
-      </div>
+      </Toolbar>
     </FloatingPortal>
   );
 }

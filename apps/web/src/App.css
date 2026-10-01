@@ -341,164 +341,6 @@
   line-height: 1.46;
 }
 
-.design-method-chooser {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  padding: var(--space-6);
-}
-
-.design-method-chooser__body {
-  display: grid;
-  gap: var(--space-5);
-  width: min(100%, 940px);
-}
-
-.design-method-chooser__intro {
-  display: grid;
-  gap: var(--space-2);
-  text-align: center;
-}
-
-.design-method-chooser__title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 1.15rem;
-  font-weight: 760;
-}
-
-.design-method-chooser__subtitle {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-/*
- * Why the last attempt failed, above the cards rather than on one of them: the
- * detail is a sentence or two (the offline case is the long one) and a card is
- * a fixed-width tile in a grid.
- */
-.design-method-chooser__failure {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--status-danger);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
-.design-method-chooser__failure svg {
-  flex: 0 0 auto;
-  color: var(--status-danger);
-}
-
-.design-method-chooser__failure-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  flex: 1 1 auto;
-  font-size: 0.8rem;
-}
-
-.design-method-chooser__failure-copy span {
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-/*
- * Fits every kind on one row where there is room, rather than a fixed two —
- * a third card wrapped onto a line of its own and read as an afterthought.
- * `auto-fit` still wraps when the pane is genuinely too narrow.
- */
-.design-method-chooser__options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-  gap: var(--space-4);
-}
-
-.design-method-card {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-3);
-  min-width: 0;
-  min-height: 168px;
-  align-content: start;
-  padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent);
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.design-method-card:hover:not(:disabled),
-.design-method-card:focus-visible {
-  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
-}
-
-.design-method-card:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
-  outline-offset: 2px;
-}
-
-.design-method-card:disabled {
-  cursor: default;
-  opacity: 0.56;
-}
-
-/* The card being created keeps full contrast: it is the one thing still
-   happening, so dimming it with the others would hide the feedback. */
-.design-method-card[data-pending] {
-  opacity: 1;
-  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
-}
-
-.design-method-card__spinner {
-  animation: surface-loading-spin 0.9s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .design-method-card__spinner {
-    animation: none;
-  }
-}
-
-.design-method-card__icon {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle));
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
-  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-primary));
-}
-
-.design-method-card__title {
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 760;
-  line-height: 1.2;
-}
-
-.design-method-card__description {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-weight: 520;
-  line-height: 1.5;
-}
-
-@media (max-width: 640px) {
-  .design-method-chooser__options {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .start-screen__status {
   display: inline-flex;
   width: fit-content;
@@ -860,7 +702,7 @@
   overflow: auto;
   background: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   line-height: 1.55;
@@ -958,7 +800,7 @@
   min-height: 0;
 }
 
-.design-tab-strip {
+.workspace-shell__tabs {
   grid-row: 1;
 }
 
@@ -1163,30 +1005,6 @@
   }
 
   /*
-   * The menu bar shrinks by truncating its widest trigger rather than by
-   * scrolling. A scroll container would clip the dropdown — it is an absolutely
-   * positioned child of the trigger's wrapper — and the File menu is the only way
-   * to reach New/Open/Save at any width, so clipping it is the one failure this
-   * must not have. Truncation happens on the button's own text, which the
-   * dropdown is a sibling of.
-   *
-   * Flexbox shrinks in proportion to base size, so "Crease Pattern" gives way
-   * first and File stays whole. In English at 375px nothing truncates at all;
-   * this is for Russian, for a 320px SE, and for the Design workspace's wider
-   * actions column.
-   */
-  .toolbar__brand .menubar__menu-wrapper {
-    min-width: 0;
-  }
-
-  .toolbar__brand .menubar__trigger {
-    min-width: 0;
-    min-height: var(--touch-target);
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /*
    * Bottom tabs, the way a phone app has them: the rail stops being column 1 and
    * becomes row 2, full width, under the canvas.
    *
@@ -1319,15 +1137,15 @@
 
 /*
  * The Simulate and References workspaces dock one pane beside a headerless
- * primary whose own toolbar is 36px (`.toolbar`, `.panel-toolbar`). The pane's
- * tab bar is the dock's 28px, so the two headers met at different heights and
- * the seam between them read as a step. Sized to the toolbar in those two
- * workspaces — on the dock's own element, since the theme class sets the
+ * primary whose own toolbar (`.panel-toolbar`) is the workspace header height.
+ * The pane's tab bar is the dock's 28px, so the two headers met at different
+ * heights and the seam between them read as a step. Sized to the header in those
+ * two workspaces — on the dock's own element, since the theme class sets the
  * variable there and an inherited value would lose to it.
  */
 .workspace-shell__dock[data-workspace='simulate'] .dockview-theme-treemaker,
 .workspace-shell__dock[data-workspace='references'] .dockview-theme-treemaker {
-  --dv-tabs-and-actions-container-height: 36px;
+  --dv-tabs-and-actions-container-height: var(--workspace-header-height);
 }
 
 .dockview-theme-treemaker .dv-split-view-container .dv-sash-container .dv-sash {
@@ -1373,144 +1191,3 @@
   }
 }
 
-/*
- * The update affordance: a card floating over the bottom-left of whatever is on
- * screen.
- *
- * Bottom-*left* on purpose — Sonner puts toasts bottom-right, and an update
- * notice that a save confirmation can slide over is one nobody sees. Fixed
- * rather than in the toolbar so it also covers the welcome screen, which is
- * where the app opens.
- *
- * z-index sits above the workspace chrome and below the modal layer (900): it
- * should float over the canvas, never over a dialog asking a question.
- *
- * It is accent-outlined rather than neutral because it competes with a full
- * canvas behind it. This is the one piece of chrome that appears unprompted and
- * has a deadline attached, so it is allowed to be the brightest edge on screen;
- * everything quieter read as part of the background.
- */
-.update-card {
-  position: fixed;
-  /* Same reason as `.error-fallback--overlay`: fixed elements sit outside
-     `.app-layout`'s safe-area padding and have to clear the insets themselves. */
-  left: max(var(--space-4), var(--safe-left));
-  bottom: max(var(--space-4), var(--safe-bottom));
-  z-index: 30;
-  display: flex;
-  align-items: stretch;
-  border: 1px solid var(--accent-primary);
-  border-radius: 12px;
-  /* Opaque, and tinted toward the accent. An earlier revision asked for
-     `--surface-raised`, which this stylesheet does not define — the declaration
-     was dropped and the card rendered with no background at all, which is
-     exactly what "it fades into the background" looks like. */
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-elevated));
-  /* Ambient elevation plus an accent halo, to lift it off a busy canvas.
-     Deliberately not `--shadow-soft`: that token is undefined repo-wide and is
-     already tracked as such in styles/themeTokens.test.ts, so naming it here
-     would drop this declaration entirely. */
-  box-shadow:
-    var(--shadow-context-menu),
-    0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
-  /* Lower bound as well as upper: with the leading icon gone, a short label
-     ("Update available") would otherwise shrink the card to a size that reads
-     as a tooltip rather than a notification. */
-  min-width: 240px;
-  max-width: min(320px, calc(100vw - var(--space-6)));
-}
-
-.update-card__main {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border: none;
-  border-radius: 12px;
-  background: none;
-  color: var(--text-primary);
-  cursor: pointer;
-  text-align: left;
-  min-width: 0;
-  width: 100%;
-}
-
-.update-card__main:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
-}
-
-.update-card__main:disabled {
-  cursor: default;
-  opacity: 0.75;
-}
-
-.update-card__text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.update-card__label {
-  color: var(--text-primary);
-  font-size: 0.86rem;
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.update-card__version {
-  color: var(--text-tertiary);
-  font-size: 0.74rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.update-card__chevron {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding-left: var(--space-2);
-  color: var(--accent-primary);
-}
-
-/*
- * Hidden until hover or keyboard focus. `:focus-visible` is what keeps it
- * reachable without a pointer — a dismiss control that only exists on hover
- * cannot be tabbed to, and this is the only way to get rid of the card.
- */
-.update-card__dismiss {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 1px solid var(--accent-primary);
-  border-radius: 50%;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.update-card:hover .update-card__dismiss,
-.update-card__dismiss:focus-visible {
-  opacity: 1;
-}
-
-.update-card__dismiss:hover {
-  color: var(--text-primary);
-  background: var(--bg-surface);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .update-card__dismiss {
-    transition: none;
-  }
-}

@@ -1,0 +1,80 @@
+/*
+ * Edit's View pane (CpViewControlsPanel.tsx): its rows are the shared
+ * `control-row`s; this is the pane's own layout, the grid scale formula and
+ * the grid reset.
+ */
+.empty {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--space-3);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+}
+
+.viewOptions {
+  flex: 0 0 auto;
+}
+
+.scaleRow {
+  display: grid;
+  grid-template-columns: minmax(56px, auto) 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.scaleLabel {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+.scaleFormula {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.scaleOp {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+}
+
+/* The fields also wear the shared `.control-row__input` (NumberField); two
+   classes outrank its one rather than tying with it, which a module's load
+   order could settle either way. */
+.scaleFormula .scaleInput {
+  width: 48px;
+  min-width: 0;
+  padding: 0 5px;
+  text-align: center;
+}
+
+/* A text action inside a section body, rather than the icon-only affordance in a
+   section header. Sized to the pane's other controls so a row of them lines up
+   with the selects and toggles above. */
+.reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  margin: 8px var(--space-3) 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reset:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}

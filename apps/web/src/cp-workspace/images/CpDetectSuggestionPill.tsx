@@ -6,6 +6,7 @@ import { IconButton } from '../../components/ui/IconButton';
 import { resolveCpViewportCanvas } from '../cpViewportCanvas';
 import { useCanvasObjectAnchor } from '../canvasObjects/useCanvasObjectAnchor';
 import type { CpImage } from './cpImage';
+import styles from './CpDetectSuggestionPill.module.css';
 
 /**
  * "Looks like a crease pattern — Detect creases?" on a reference image.
@@ -43,12 +44,12 @@ export function CpDetectSuggestionPill({
       placement="bottom-start"
       boundary={container}
       wheelTarget={resolveCpViewportCanvas}
-      className="cp-detect-suggestion"
+      className={styles.pill}
       ariaLabel={t('panels:cpDetectSuggestion.ariaLabel', 'Crease pattern detected in image')}
     >
-      <div className="cp-detect-suggestion__body" role="status" aria-live="polite">
-        <ScanLine size={14} aria-hidden="true" className="cp-detect-suggestion__icon" />
-        <span className="cp-detect-suggestion__label">
+      <div className={styles.body} role="status" aria-live="polite">
+        <ScanLine size={14} aria-hidden="true" className={styles.icon} />
+        <span className={styles.label}>
           {t('panels:cpDetectSuggestion.label', 'Looks like a crease pattern')}
         </span>
         <Button size="sm" variant="primary" onClick={onDetect}>

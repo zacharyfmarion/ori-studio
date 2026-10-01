@@ -1,0 +1,163 @@
+/*
+ * The ExplOri search bar (ExploriQueryBar.tsx): symmetry, the advanced
+ * database filter, the result count and Search.
+ */
+/*
+ * The surface's primary action, sized like one.
+ *
+ * It began as a thin strip of small grey controls that read as a status bar and
+ * was missed accordingly. Now it is a command strip: captioned fields, a real
+ * button, and enough room around them to be the obvious next thing to do after
+ * drawing a tree.
+ */
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+}
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fieldLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.fieldControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+/* Taller than the shared `md` button it is (`.ui-control--md`, 32px); inside
+   the row, two classes outrank that one rather than tying with it, which a
+   module's load order could settle either way. */
+.row .search {
+  min-width: 132px;
+  height: 34px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.count {
+  width: 62px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* One segmented control, so the three read as a set rather than three buttons. */
+.symmetryGroup {
+  display: inline-flex;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.symmetryToggle {
+  padding: 0 14px;
+  border: none;
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.symmetryToggle:last-child {
+  border-right: none;
+}
+
+.symmetryToggle:hover {
+  color: var(--text-primary);
+}
+
+.symmetryToggle[aria-pressed='true'] {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+/* Anchors the popover to the gear that opens it. */
+.advanced {
+  position: relative;
+  display: inline-flex;
+}
+
+/*
+ * Floated over the canvas rather than inserted into the bar. As a row it pushed
+ * every control — and the drawing above them — up and down each time it opened.
+ */
+.advancedPopover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  /* Above the canvas's own viewport toolbar (17), which it opens across. */
+  z-index: 20;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+}
+
+/*
+ * The per-size grid: twelve checkboxes are legible with one set of column
+ * headers and unreadable without them, which is the whole reason this is a
+ * table and not the inline row it started as.
+ */
+.dbTable {
+  border-collapse: collapse;
+  font-size: 11px;
+  color: var(--text-secondary);
+  align-self: flex-start;
+}
+
+.dbTable th,
+.dbTable td {
+  padding: 3px 10px;
+  border: 1px solid var(--border-default);
+  text-align: center;
+  font-weight: 500;
+}
+
+.dbTable thead th,
+.dbTable tbody th {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dbTable input {
+  cursor: pointer;
+}

@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MenuContent } from '../../components/ui/Menu';
 import { FloatingToolbar } from '../../components/ui/FloatingToolbar';
 import { resolveCpViewportCanvas } from '../cpViewportCanvas';
 import { IconButton } from '../../components/ui/IconButton';
@@ -18,6 +19,7 @@ import {
 import { foldedFigureActionIconNode } from './foldedFigureActionIcons';
 import { choiceMenuItems, styleMenuItems } from './foldedFigureMenuItems';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
+import { ToolbarSeparator } from '../../components/ui/Toolbar';
 
 function CommandButton({ action }: { action: FoldedFigureCommand }) {
   return (
@@ -96,18 +98,15 @@ function ToolbarMenu({
   return (
     <DropdownMenu.Root modal={false}>
       <MenuIconButton label={label} icon={icon} disabled={disabled} />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="context-menu"
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={8}
-          loop
-        >
-          <ContextMenuItems items={items} />
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      <MenuContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={8}
+        loop
+      >
+        <ContextMenuItems items={items} />
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }
@@ -162,7 +161,7 @@ export function CpFoldedFigureToolbar({
       {actions.map((action) => {
         switch (action.kind) {
           case 'separator':
-            return <span key={action.id} className="floating-toolbar__separator" />;
+            return <ToolbarSeparator key={action.id} />;
           case 'choice':
             return (
               <ToolbarMenu

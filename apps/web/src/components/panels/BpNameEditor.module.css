@@ -1,0 +1,22 @@
+/* The name field of a flap's or vertex's bar (BpNameEditor.tsx). */
+.input {
+  width: 140px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+/* At 16px iOS Safari does not zoom the page into a focused field. */
+@media (pointer: coarse) {
+  .input {
+    font-size: 16px;
+  }
+}

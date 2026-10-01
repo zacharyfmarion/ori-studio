@@ -1,4 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MenuContent } from '../ui/Menu';
 import { ChevronDown, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { trackDesktopDownload, type DesktopDownloadSurface } from '../../analytics';
@@ -88,22 +89,19 @@ export function DesktopDownloadButton({
             <ChevronDown size={14} />
           </Button>
         </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            className="context-menu"
-            side="bottom"
-            align="end"
-            sideOffset={6}
-            collisionPadding={8}
-            loop
-          >
-            <DesktopDownloadMenuItems
-              builds={builds}
-              fallbackUrl={fallbackUrl}
-              surface={surface}
-            />
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
+        <MenuContent
+          side="bottom"
+          align="end"
+          sideOffset={6}
+          collisionPadding={8}
+          loop
+        >
+          <DesktopDownloadMenuItems
+            builds={builds}
+            fallbackUrl={fallbackUrl}
+            surface={surface}
+          />
+        </MenuContent>
       </DropdownMenu.Root>
     </div>
   );

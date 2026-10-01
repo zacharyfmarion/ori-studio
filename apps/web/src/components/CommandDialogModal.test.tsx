@@ -196,11 +196,15 @@ function findButton(label: string): HTMLButtonElement {
   return button as HTMLButtonElement;
 }
 
-/** Choice options carry a label and a description, so match on the label span. */
+/**
+ * Choice options carry a label and a description, so match on the label: an
+ * option's first child. The dialog's other buttons (close, Cancel) have none
+ * with text.
+ */
 function findOption(label: string): HTMLButtonElement {
-  const option = Array.from(
-    container?.querySelectorAll<HTMLButtonElement>('.choice-dialog__option') ?? []
-  ).find((element) => element.querySelector('.choice-dialog__option-label')?.textContent === label);
+  const option = Array.from(container?.querySelectorAll<HTMLButtonElement>('button') ?? []).find(
+    (element) => element.firstElementChild?.textContent === label
+  );
   expect(option).toBeDefined();
   return option as HTMLButtonElement;
 }

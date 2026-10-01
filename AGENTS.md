@@ -165,10 +165,68 @@ New and changed components are styled with a **CSS module beside them**
 - Global CSS is for tokens, resets, typography, the app shell and third-party
   markup. ESLint rejects new plain-stylesheet imports, and a ratchet test keeps
   the global stylesheets from growing.
+- A token is a value that components which do not know about each other,
+  third-party markup, or a theme must agree on (`--touch-target`,
+  `--segmented-track`). A value that belongs to one component stays in its
+  module, as a local custom property if it repeats. A toolbar's padding belongs
+  to the toolbar, however many screens use one.
 - Tests find elements by role, name or data attribute, never by a module class.
+- One radius, `--radius` (8px), for every control, card and floating surface;
+  a small detail inside a card (a swatch, a thumbnail, a badge) is
+  `--radius-sm`. A container that hugs controls is concentric with them,
+  `calc(var(--radius) + var(--pad))` with `--pad` its own; a row inside a
+  surface is the surface's radius less its padding. Bars, menus, tab strips and canvas readouts already
+  exist in `components/ui/` (`Toolbar`, `Menu`, `WorkspaceTabStrip`,
+  `CanvasContextBar`, `ViewportStatusReadout`): compose those rather than
+  copying their class lists.
 
-Most of today's CSS is still global (`src/styles/theme.css`); it moves into
-modules block by block. Do not add to it.
+#### Migrate what you touch
+
+Most of today's CSS is still global: `src/styles/theme.css` and the other
+stylesheets `src/styles/globalStylesheets.test.ts` lists. There is no migration
+project; it moves into modules as agents work on the components it styles. A
+component's **block** is every selector for its classes, wherever it is: its
+media queries, its copies in the coarse-pointer blocks at the end of
+`theme.css`, and other screens' overrides of it. What you do with a block
+depends on who uses it.
+
+- **A block with one owner moves when you touch it.** One owner means only that
+  component (and its own tests) names the classes. Touching means adding,
+  editing or deleting a rule that styles the component, or giving its markup a
+  class to be styled; a one-line fix counts. Move the whole block into the
+  component's module as a commit of its own that changes nothing on screen,
+  then make the change you came for. Prove "nothing" in the browser: the
+  component's computed styles match before and after.
+- **A shared block moves only in its own PR.** Shared means another component
+  wears the classes for its look, looks elements up by them (`querySelector`,
+  `closest`, a test), or restyles them. Moving it means designing what those
+  users get instead — a component, a prop, a data attribute — and that does not
+  belong inside an unrelated fix. The known shared blocks are listed in
+  `implementation-plans/scoped-css.md`. Until one moves, a fix may edit its
+  existing rules in place; it never adds any.
+- **Every move:**
+  - Grep `src/` (tests included) and `scripts/` for each class before it goes;
+    TypeScript and ESLint see none of these uses. A lookup by class becomes a
+    data attribute, a test query a role, name or data attribute, and a look
+    another component wears becomes a component (in `components/ui/` if
+    several share it — look there first).
+  - Move every selector, overrides included (they become props). A rule left
+    behind stops matching without a word once the class is hashed; the
+    dead-selector test (`src/styles/liveSelectors.test.ts`) catches it. Never
+    rely on a tie between a module and a global rule: a module's CSS loads with
+    its chunk, which can be before or after `theme.css`.
+  - Never import another component's module. No `:global(...)`, except for
+    third-party markup the component renders.
+  - Lower the ratchet in `src/styles/globalStylesheets.test.ts` to what the
+    move leaves. Moves made in parallel collide on those numbers; take the
+    merged count.
+- **Exceptions.** Tokens, resets, the app shell and third-party overrides stay
+  global. The landing and site pages are prerendered and pixel-checked against
+  their first paint, so they move only under the landing step of
+  `implementation-plans/scoped-css.md`. A hotfix may leave a move for later; say
+  so in the PR.
+
+`apps/web/docs/styling.md` has the step-by-step version.
 
 ### Panel components
 

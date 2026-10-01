@@ -99,7 +99,7 @@ function render(overrides: Partial<ReferencesActionState> = {}) {
   );
 }
 
-const toolbar = () => container?.querySelector<HTMLElement>('.viewport-toolbar');
+const toolbar = () => container?.querySelector<HTMLElement>('[data-viewport-toolbar]');
 const button = (label: string) =>
   toolbar()?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 
@@ -213,8 +213,9 @@ describe('ReferencesViewportToolbar', () => {
     // a chord cannot say "50%", so the camera's own setter takes it.
     render();
 
-    press(toolbar()?.querySelector('.viewport-toolbar__zoom-button'));
-    const preset = [...(toolbar()?.querySelectorAll('.viewport-toolbar__dropdown-item') ?? [])].find(
+    press(toolbar()?.querySelector('[data-viewport-zoom]'));
+    // A menu, portalled to the body like every other.
+    const preset = [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find(
       (item) => item.textContent === '50%'
     );
     press(preset);

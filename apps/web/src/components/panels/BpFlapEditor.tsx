@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OristudioBpFlap, OristudioBpSheet } from '../../engine/oristudioBpTypes';
 import { bpPackingCanResizeFlap } from '../../lib/bpPackingViewport';
+import { CanvasContextBarLabel } from '../ui/CanvasContextBar';
 import { BpNameEditor } from './BpNameEditor';
+import styles from './BpFlapEditor.module.css';
 
 /**
  * Contextual editor for a single selected BP flap, shown as the top-center pill
@@ -140,10 +142,10 @@ function BpFlapNumberField({
   };
 
   return (
-    <label className="bp-flap-editor__field">
-      <span className="bp-name-editor__label">{label}</span>
+    <label className={styles.field}>
+      <CanvasContextBarLabel>{label}</CanvasContextBarLabel>
       <input
-        className="bp-flap-editor__input"
+        className={styles.input}
         type="number"
         aria-label={ariaLabel}
         min={min}

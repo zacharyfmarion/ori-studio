@@ -53,6 +53,7 @@ export function CpToolsTrigger() {
               action={active.action}
               glyphOperationId={active.glyphOperationId}
               size={16}
+              compact
             />
           </span>
         )}

@@ -1,0 +1,25 @@
+/* A colour row's value, painted, in the leading slot where a sibling's icon
+   sits (ContextMenuColorItem.tsx). The native input lies over it invisibly so
+   the engine's picker anchors beside the swatch rather than at the row's
+   origin, and `pointer-events: none` sends a click to the row instead — whose
+   select opens the picker, so it cannot open twice. */
+.swatch {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.colorInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}

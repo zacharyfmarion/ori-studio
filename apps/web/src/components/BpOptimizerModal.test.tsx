@@ -240,7 +240,7 @@ describe('BpOptimizerModal', () => {
 
     const bar = container?.querySelector('[role="progressbar"]');
     expect(bar?.getAttribute('aria-valuenow')).toBeNull();
-    expect(container?.querySelector('.bp-optimizer__progress-fill--indeterminate')).toBeTruthy();
+    expect(container?.querySelector('[data-indeterminate]')).toBeTruthy();
   });
 });
 

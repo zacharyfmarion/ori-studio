@@ -1,7 +1,8 @@
 import * as RadixSelect from '@radix-ui/react-select';
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { CONTROL_RADIUS_CLASS } from './controlStyles';
+import styles from './Select.module.css';
 
 export const Select = RadixSelect.Root;
 export const SelectValue = RadixSelect.Value;
@@ -26,17 +27,17 @@ SelectTrigger.displayName = 'SelectTrigger';
 
 export const SelectContent = forwardRef<
   HTMLDivElement,
-  ComponentPropsWithoutRef<typeof RadixSelect.Content>
->(({ children, className = '', ...props }, ref) => (
+  Omit<ComponentPropsWithoutRef<typeof RadixSelect.Content>, 'className'>
+>(({ children, ...props }, ref) => (
   <RadixSelect.Portal>
     <RadixSelect.Content
       ref={ref}
-      className={`select-content ${className}`.trim()}
+      className={styles.content}
       position="popper"
       sideOffset={4}
       {...props}
     >
-      <RadixSelect.Viewport className="select-content__viewport">{children}</RadixSelect.Viewport>
+      <RadixSelect.Viewport className={styles.viewport}>{children}</RadixSelect.Viewport>
     </RadixSelect.Content>
   </RadixSelect.Portal>
 ));
@@ -45,9 +46,14 @@ SelectContent.displayName = 'SelectContent';
 
 export const SelectItem = forwardRef<
   HTMLDivElement,
-  ComponentPropsWithoutRef<typeof RadixSelect.Item>
->(({ children, className = '', ...props }, ref) => (
-  <RadixSelect.Item ref={ref} className={`select-item ${className}`.trim()} {...props}>
+  Omit<ComponentPropsWithoutRef<typeof RadixSelect.Item>, 'className'>
+>(({ children, ...props }, ref) => (
+  <RadixSelect.Item ref={ref} className={styles.item} {...props}>
+    <span className={styles.indicator} aria-hidden>
+      <RadixSelect.ItemIndicator>
+        <Check size={12} />
+      </RadixSelect.ItemIndicator>
+    </span>
     <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
   </RadixSelect.Item>
 ));

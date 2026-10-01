@@ -18,10 +18,6 @@ import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
   Blend,
   Circle,
   CircleDot,
@@ -92,7 +88,8 @@ import {
   bpSteppedSheetSize,
 } from '../../lib/bpSheetSize';
 import { bpPatternlessStretchVisuals } from '../../lib/bpPatternlessStretches';
-import { bpDefaultFlapLabel, bpFlapLabel, bpFlapLabelList } from '../../lib/bpFlapLabel';
+import { bpDefaultFlapLabel, bpFlapLabel } from '../../lib/bpFlapLabel';
+import { BpPackingAlerts } from './BpPackingAlerts';
 import { edgeLengthRepositions } from '../../tree-editor/dragRule';
 import { treeTopology } from '../../tree-editor/model';
 import { hasPassedDragThreshold } from '../../lib/pointerGesture';
@@ -124,7 +121,6 @@ import {
 } from '../../hooks/useViewportSurface';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { IconButton } from '../ui/IconButton';
 import {
   bpPackingNudgeDirectionFromKey,
   constrainBpPackingDeviceTarget,
@@ -141,11 +137,15 @@ import type {
 import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
 import { BpPackingRiverBandLayer } from './BpPackingRiverBandLayer';
 import { BpFlapEditor } from './BpFlapEditor';
+import { BpPackingDPad } from './BpPackingDPad';
 import { BpFlapResizeHandles } from './BpFlapResizeHandles';
 import { BpRiverEditor } from './BpRiverEditor';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
+  ViewportToolbarButton,
+  ViewportToolbarMenuAnchor,
+  ViewportToolbarPopover,
   viewportLayerItems,
   type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
@@ -208,11 +208,6 @@ interface BpPackingDragState {
   moved: boolean;
 }
 
-
-const BP_DPAD_INITIAL_REPEAT_MS = 750;
-const BP_DPAD_REPEAT_MS = 150;
-/** Alerts shown before the stack collapses into a "+N more" row. */
-const BP_PACKING_ALERT_LIMIT = 3;
 
 const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'grid', icon: <Grid2X2 size={13} /> },
@@ -425,18 +420,16 @@ function BpPackingViewportToolbar({
   }, [sheetOpen]);
 
   const sheetMenu = (
-    <div className="viewport-toolbar__menu-anchor" ref={sheetMenuRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
+    <ViewportToolbarMenuAnchor ref={sheetMenuRef}>
+      <ViewportToolbarButton
         title={t('panels:bpPacking.sheetSizeGrid', 'Sheet size & grid')}
         isActive={sheetOpen}
         onClick={() => setSheetOpen((open) => !open)}
       >
         <Ruler size={14} />
-      </IconButton>
+      </ViewportToolbarButton>
       {sheetOpen && (
-        <div className="design-layer-menu bp-sheet-menu" role="menu">
+        <ViewportToolbarPopover align="end" className="bp-sheet-menu" role="menu">
           <div className="bp-sheet-menu__row">
             <span className="bp-sheet-menu__label">{t('panels:bpPacking.grid', 'Grid')}</span>
             <div className="bp-sheet-menu__segment">
@@ -493,9 +486,9 @@ function BpPackingViewportToolbar({
             </>
           )}
           <BpSheetTransformRow />
-        </div>
+        </ViewportToolbarPopover>
       )}
-    </div>
+    </ViewportToolbarMenuAnchor>
   );
 
   const groups: ViewportToolbarGroupSpec[] = [
@@ -568,130 +561,6 @@ function BpPackingViewportToolbar({
       setZoomLevel={setZoomLevel}
       groups={groups}
     />
-  );
-}
-
-function BpPackingDPad({
-  enabled,
-  onNudge,
-}: {
-  enabled: boolean;
-  onNudge: (direction: BpPackingNudgeDirection) => boolean;
-}) {
-  const { t } = useTranslation();
-  const repeatTimerRef = useRef<number | null>(null);
-  const clearRepeat = useCallback(() => {
-    if (repeatTimerRef.current !== null) {
-      window.clearTimeout(repeatTimerRef.current);
-      repeatTimerRef.current = null;
-    }
-  }, []);
-  const startNudge = useCallback(
-    (direction: BpPackingNudgeDirection) => {
-      if (!enabled) return;
-      clearRepeat();
-      onNudge(direction);
-      const repeat = () => {
-        onNudge(direction);
-        repeatTimerRef.current = window.setTimeout(repeat, BP_DPAD_REPEAT_MS);
-      };
-      repeatTimerRef.current = window.setTimeout(repeat, BP_DPAD_INITIAL_REPEAT_MS);
-    },
-    [clearRepeat, enabled, onNudge]
-  );
-
-  useEffect(() => clearRepeat, [clearRepeat]);
-  useEffect(() => {
-    window.addEventListener('blur', clearRepeat);
-    return () => window.removeEventListener('blur', clearRepeat);
-  }, [clearRepeat]);
-
-  return (
-    <div className="bp-packing-dpad" data-enabled={enabled || undefined} aria-hidden={!enabled}>
-      <DPadButton
-        className="bp-packing-dpad__up"
-        direction="up"
-        label={t('panels:bpPacking.nudgeUp', 'Nudge BP selection up')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowUp size={15} />
-      </DPadButton>
-      <DPadButton
-        className="bp-packing-dpad__left"
-        direction="left"
-        label={t('panels:bpPacking.nudgeLeft', 'Nudge BP selection left')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowLeft size={15} />
-      </DPadButton>
-      <DPadButton
-        className="bp-packing-dpad__right"
-        direction="right"
-        label={t('panels:bpPacking.nudgeRight', 'Nudge BP selection right')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowRight size={15} />
-      </DPadButton>
-      <DPadButton
-        className="bp-packing-dpad__down"
-        direction="down"
-        label={t('panels:bpPacking.nudgeDown', 'Nudge BP selection down')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowDown size={15} />
-      </DPadButton>
-    </div>
-  );
-}
-
-function DPadButton({
-  className,
-  direction,
-  label,
-  disabled,
-  onStart,
-  onStop,
-  children,
-}: {
-  className: string;
-  direction: BpPackingNudgeDirection;
-  label: string;
-  disabled: boolean;
-  onStart: (direction: BpPackingNudgeDirection) => void;
-  onStop: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      className={className}
-      type="button"
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
-        onStart(direction);
-      }}
-      onPointerUp={(event) => {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        onStop();
-      }}
-      onPointerCancel={onStop}
-      onPointerLeave={onStop}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -1993,65 +1862,6 @@ export function BpPackingPanel({ document }: { document: OristudioBpDocumentStat
   );
 }
 
-function BpPackingAlerts({
-  diagnostics,
-  onActivate,
-}: {
-  diagnostics: OristudioBpDiagnostic[];
-  onActivate: (diagnostic: OristudioBpDiagnostic) => void;
-}) {
-  const { t } = useTranslation();
-  if (diagnostics.length === 0) return null;
-  const shown = diagnostics.slice(0, BP_PACKING_ALERT_LIMIT);
-  const hidden = diagnostics.length - shown.length;
-  return (
-    <div className="bp-packing-alerts" aria-label={t('panels:bpPacking.warnings', 'Box Pleat packing warnings')}>
-      {shown.map((diagnostic) => {
-        const content = (
-          <>
-            <TriangleAlert size={14} />
-            <span>
-              <strong>{bpPackingAlertLabel(diagnostic, t)}</strong>
-              <small>{bpPackingAlertMessage(diagnostic, t)}</small>
-            </span>
-          </>
-        );
-        return diagnostic.selection ? (
-          <button
-            type="button"
-            className="bp-packing-alert"
-            data-severity={diagnostic.severity}
-            key={diagnostic.id}
-            onClick={() => onActivate(diagnostic)}
-          >
-            {content}
-          </button>
-        ) : (
-          <div
-            className="bp-packing-alert"
-            data-severity={diagnostic.severity}
-            key={diagnostic.id}
-            role="status"
-          >
-            {content}
-          </div>
-        );
-      })}
-      {hidden > 0 && (
-        // Never truncate silently: a capped list otherwise reads as "that's all
-        // of them".
-        <div className="bp-packing-alert bp-packing-alert--more" role="status">
-          {hidden === 1
-            ? t('panels:bpPacking.moreWarningsOne', '{{count}} more warning', { count: hidden })
-            : t('panels:bpPacking.moreWarningsOther', '{{count}} more warnings', {
-                count: hidden,
-              })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /**
  * Smallest a conflict region may render before it needs help to be seen, in
  * screen pixels.
@@ -2161,37 +1971,6 @@ function bpPackingAlertDiagnostics(
       diagnostic.kind === 'unsupported' ||
       diagnostic.kind === 'upstream-gap'
   );
-}
-
-function bpPackingAlertLabel(diagnostic: OristudioBpDiagnostic, t: TFunction): string {
-  if (diagnostic.detail?.kind === 'patternless-stretch') {
-    // Name the flaps in the headline. "Pattern not found" on its own left the
-    // user with nothing to look for on the canvas.
-    return t('panels:bpPacking.patternNotFoundFor', 'No crease pattern for {{flaps}}', {
-      flaps: bpFlapLabelList(diagnostic.detail.flapLabels, t),
-    });
-  }
-  if (diagnostic.kind === 'pattern-not-found') return t('panels:bpPacking.patternNotFound', 'Pattern not found');
-  if (diagnostic.kind === 'upstream-gap') return t('panels:bpPacking.upstreamGap', 'Upstream gap');
-  if (diagnostic.kind === 'layout-graphics-error') {
-    return t('panels:bpPacking.layoutGraphicsError', 'Layout could not be drawn');
-  }
-  return t('panels:bpPacking.unsupportedOperation', 'Unsupported BP operation');
-}
-
-function bpPackingAlertMessage(diagnostic: OristudioBpDiagnostic, t: TFunction): string {
-  if (diagnostic.detail?.kind !== 'patternless-stretch') return diagnostic.message;
-  // The overlap itself is legal in both cases; what differs is how far the
-  // search got, and therefore whether cycling configurations is worth trying.
-  return diagnostic.detail.hasConfiguration
-    ? t(
-        'panels:bpPacking.patternNotFoundWithConfig',
-        'These flaps overlap in a way Ori Studio can lay out but not crease. Try another configuration, move one flap away from the others, or enlarge the sheet.'
-      )
-    : t(
-        'panels:bpPacking.patternNotFoundNoConfig',
-        'These flaps overlap in a way Ori Studio cannot crease yet. Move one of them away from the others, or enlarge the sheet.'
-      );
 }
 
 function selectedFlapDragIds(

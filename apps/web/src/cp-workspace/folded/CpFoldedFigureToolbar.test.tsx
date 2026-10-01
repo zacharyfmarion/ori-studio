@@ -190,7 +190,7 @@ describe('CpFoldedFigureToolbar', () => {
 
   it('separates the action groups', () => {
     render(makeFigure());
-    expect(toolbar()?.querySelectorAll('.floating-toolbar__separator')).toHaveLength(2);
+    expect(toolbar()?.querySelectorAll('[role="separator"]')).toHaveLength(2);
   });
 
   it('invokes the bound action when a button is clicked', () => {
@@ -224,7 +224,7 @@ describe('CpFoldedFigureToolbar', () => {
       'Duplicate',
       'Delete',
     ]);
-    expect(toolbar()?.querySelectorAll('.floating-toolbar__separator')).toHaveLength(3);
+    expect(toolbar()?.querySelectorAll('[role="separator"]')).toHaveLength(3);
   });
 
   it('exports with one button that opens no menu and hands the figure to the dialog', () => {
@@ -258,7 +258,7 @@ describe('CpFoldedFigureToolbar', () => {
     /** Menu content portals to `body`, so read the rows from there. */
     function rows(): HTMLElement[] {
       return Array.from(
-        document.querySelectorAll<HTMLElement>('[role="menu"] .context-menu__item')
+        document.querySelectorAll<HTMLElement>('[role="menu"] [role^="menuitem"]')
       );
     }
 
@@ -281,7 +281,7 @@ describe('CpFoldedFigureToolbar', () => {
       // check — so the labels line up without any row reserving an empty one.
       for (const row of rows()) {
         if (row.getAttribute('role') === 'menuitemcheckbox') continue;
-        expect(row.querySelector('.context-menu__icon')?.childElementCount, row.textContent ?? '').toBe(1);
+        expect(row.querySelector('[data-menu-icon]')?.childElementCount, row.textContent ?? '').toBe(1);
       }
       expect(document.querySelectorAll('[role="menu"] input[type="color"]')).toHaveLength(3);
       expect(document.querySelector('[role="menuitemcheckbox"]')?.textContent).toBe('Shadow');
@@ -302,7 +302,7 @@ describe('CpFoldedFigureToolbar', () => {
       );
       openMenu('Style');
       const swatches = Array.from(
-        document.querySelectorAll<HTMLElement>('[role="menu"] .context-menu__swatch')
+        document.querySelectorAll<HTMLElement>('[role="menu"] [data-menu-swatch]')
       );
       expect(swatches.map((swatch) => swatch.style.background)).toEqual([
         'rgb(1, 2, 3)',

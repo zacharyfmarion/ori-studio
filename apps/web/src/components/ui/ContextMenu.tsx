@@ -1,7 +1,18 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { ContextMenuColorItem } from './ContextMenuColorItem';
+import {
+  MenuCheckboxItem,
+  MenuContent,
+  MenuItem,
+  MenuItemIcon,
+  MenuItemLabel,
+  MenuItemShortcut,
+  MenuSeparator,
+  MenuSubContent,
+  MenuSubTrigger,
+} from './Menu';
 import { MenuPickerProvider, hoverFocusProps, useMenuPicker } from './contextMenuPicker';
 import type { ContextMenuItem } from './contextMenuTypes';
 
@@ -39,31 +50,17 @@ function renderItem(
 ): React.ReactNode {
   switch (item.kind) {
     case 'separator':
-      return (
-        <DropdownMenu.Separator key={`separator-${index}`} className="context-menu__separator" />
-      );
+      return <MenuSeparator key={`separator-${index}`} />;
     case 'submenu':
       return (
         <DropdownMenu.Sub key={item.id}>
-          <DropdownMenu.SubTrigger
-            className="context-menu__item"
-            disabled={item.disabled}
-            title={item.hint}
-            {...hover}
-          >
-            {(item.icon != null || reserveLeading) && (
-              <span className="context-menu__icon">{item.icon}</span>
-            )}
-            <span className="context-menu__label">{item.label}</span>
-            <span className="context-menu__subtrigger-arrow" aria-hidden>
-              <ChevronRight size={12} />
-            </span>
-          </DropdownMenu.SubTrigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.SubContent className="context-menu" sideOffset={2} collisionPadding={8}>
-              <ContextMenuRows items={item.items} />
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Portal>
+          <MenuSubTrigger disabled={item.disabled} title={item.hint} {...hover}>
+            {(item.icon != null || reserveLeading) && <MenuItemIcon>{item.icon}</MenuItemIcon>}
+            <MenuItemLabel>{item.label}</MenuItemLabel>
+          </MenuSubTrigger>
+          <MenuSubContent sideOffset={2} collisionPadding={8}>
+            <ContextMenuRows items={item.items} />
+          </MenuSubContent>
         </DropdownMenu.Sub>
       );
     case 'radio':
@@ -72,9 +69,8 @@ function renderItem(
       // is current), and a group would need a single value binding that the
       // generic item list deliberately does not model.
       return (
-        <DropdownMenu.Item
+        <MenuItem
           key={item.id}
-          className="context-menu__item"
           disabled={item.disabled}
           {...hover}
           onSelect={(event) => {
@@ -82,15 +78,14 @@ function renderItem(
             item.onSelect();
           }}
         >
-          <span className="context-menu__icon">{item.checked && <Check size={12} />}</span>
-          <span className="context-menu__label">{item.label}</span>
-        </DropdownMenu.Item>
+          <MenuItemIcon>{item.checked && <Check size={12} />}</MenuItemIcon>
+          <MenuItemLabel>{item.label}</MenuItemLabel>
+        </MenuItem>
       );
     case 'checkbox':
       return (
-        <DropdownMenu.CheckboxItem
+        <MenuCheckboxItem
           key={item.id}
-          className="context-menu__item"
           checked={item.checked}
           disabled={item.disabled}
           title={item.hint}
@@ -100,17 +95,16 @@ function renderItem(
             item.onToggle();
           }}
         >
-          <span className="context-menu__icon">{item.checked && <Check size={12} />}</span>
-          <span className="context-menu__label">{item.label}</span>
-        </DropdownMenu.CheckboxItem>
+          <MenuItemIcon>{item.checked && <Check size={12} />}</MenuItemIcon>
+          <MenuItemLabel>{item.label}</MenuItemLabel>
+        </MenuCheckboxItem>
       );
     case 'color':
       return <ContextMenuColorItem key={item.id} item={item} />;
     case 'action':
       return (
-        <DropdownMenu.Item
+        <MenuItem
           key={item.id}
-          className="context-menu__item"
           data-danger={item.danger || undefined}
           disabled={item.disabled}
           // Radix renders a `div`, not a native control, so a disabled row still
@@ -120,14 +114,10 @@ function renderItem(
           {...hover}
           onSelect={item.onSelect}
         >
-          {(item.icon != null || reserveLeading) && (
-            <span className="context-menu__icon">{item.icon}</span>
-          )}
-          <span className="context-menu__label">{item.label}</span>
-          {item.shortcut != null && (
-            <span className="context-menu__shortcut">{item.shortcut}</span>
-          )}
-        </DropdownMenu.Item>
+          {(item.icon != null || reserveLeading) && <MenuItemIcon>{item.icon}</MenuItemIcon>}
+          <MenuItemLabel>{item.label}</MenuItemLabel>
+          {item.shortcut != null && <MenuItemShortcut>{item.shortcut}</MenuItemShortcut>}
+        </MenuItem>
       );
   }
 }
@@ -228,19 +218,16 @@ export function ContextMenu({
         </DropdownMenu.Trigger>,
         document.body
       )}
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="context-menu"
-          side="bottom"
-          align="start"
-          sideOffset={2}
-          collisionPadding={8}
-          loop
-          onCloseAutoFocus={onCloseAutoFocus}
-        >
-          <ContextMenuItems items={items} />
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      <MenuContent
+        side="bottom"
+        align="start"
+        sideOffset={2}
+        collisionPadding={8}
+        loop
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
+        <ContextMenuItems items={items} />
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }

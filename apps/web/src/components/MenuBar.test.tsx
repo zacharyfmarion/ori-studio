@@ -126,7 +126,7 @@ function renderMenuBar(): HTMLDivElement {
 }
 
 function openMenu(host: HTMLElement, label: string): void {
-  const trigger = [...host.querySelectorAll<HTMLButtonElement>('.menubar__trigger')].find(
+  const trigger = [...host.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="menu"]:not([role="menuitem"])')].find(
     (button) => button.textContent?.trim() === label
   );
   if (!trigger) throw new Error(`no menu named ${label}`);
@@ -135,7 +135,7 @@ function openMenu(host: HTMLElement, label: string): void {
 
 function submenuTrigger(host: HTMLElement, label: string): HTMLButtonElement {
   const trigger = [
-    ...host.querySelectorAll<HTMLButtonElement>('.menu-dropdown__item--submenu'),
+    ...host.querySelectorAll<HTMLButtonElement>('[role="menuitem"][aria-haspopup="menu"]'),
   ].find((button) => button.textContent?.trim().startsWith(label));
   if (!trigger) throw new Error(`no submenu named ${label}`);
   return trigger;
@@ -164,14 +164,14 @@ describe('the menu bar on a phone', () => {
     act(() => exportTrigger.click());
     expect(exportTrigger.getAttribute('aria-expanded')).toBe('true');
     expect(host.querySelectorAll('[role="menu"]')).toHaveLength(2);
-    expect(host.querySelector('.menu-dropdown__group')).not.toBeNull();
+    expect(host.querySelector('[role="menu"][data-phone] [role="menu"]')).not.toBeNull();
     expect(
-      host.querySelectorAll('.menu-dropdown__group .menu-dropdown__item').length
+      host.querySelectorAll('[role="menu"][data-phone] [role="menu"] [role="menuitem"]').length
     ).toBeGreaterThan(0);
 
     act(() => exportTrigger.click());
     expect(exportTrigger.getAttribute('aria-expanded')).toBe('false');
-    expect(host.querySelector('.menu-dropdown__group')).toBeNull();
+    expect(host.querySelector('[role="menu"][data-phone] [role="menu"]')).toBeNull();
   });
 
   it('never emits the fly-out classes, so no overflow can clip one', () => {
@@ -180,11 +180,11 @@ describe('the menu bar on a phone', () => {
     openMenu(host, 'File');
     act(() => submenuTrigger(host, 'Export').click());
 
-    // `.menu-dropdown--submenu` is what `top: -5px; left: calc(100% - 4px)` and
+    // `data-flyout` is what `top: -5px; left: calc(100% - 4px)` and
     // the `:hover` / `:focus-within` reveal both key off. Absent, the scroll
     // container on the root has nothing left to clip.
-    expect(host.querySelector('.menu-dropdown--submenu')).toBeNull();
-    expect(host.querySelector('.menu-dropdown--phone')).not.toBeNull();
+    expect(host.querySelector('[data-flyout]')).toBeNull();
+    expect(host.querySelector('[data-phone][role="menu"]')).not.toBeNull();
   });
 
   it('keeps one group open at a time', () => {
@@ -194,14 +194,14 @@ describe('the menu bar on a phone', () => {
 
     // Select, Node, Edge, Strain, Stubs — asserted so this cannot go vacuous if
     // a capability change ever prunes the menu down to one group.
-    const groups = [...host.querySelectorAll<HTMLButtonElement>('.menu-dropdown__item--submenu')];
+    const groups = [...host.querySelectorAll<HTMLButtonElement>('[role="menuitem"][aria-haspopup="menu"]')];
     expect(groups.length).toBeGreaterThanOrEqual(2);
 
     act(() => groups[0].click());
     act(() => groups[1].click());
     expect(groups[0].getAttribute('aria-expanded')).toBe('false');
     expect(groups[1].getAttribute('aria-expanded')).toBe('true');
-    expect(host.querySelectorAll('.menu-dropdown__group')).toHaveLength(1);
+    expect(host.querySelectorAll('[role="menu"][data-phone] [role="menu"]')).toHaveLength(1);
   });
 
   /**
@@ -216,12 +216,12 @@ describe('the menu bar on a phone', () => {
     stubViewport(true);
     const host = renderMenuBar();
     openMenu(host, 'File');
-    expect(host.querySelector('.menu-dropdown')).not.toBeNull();
+    expect(host.querySelector('[role="menu"]')).not.toBeNull();
 
     act(() => {
       document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     });
-    expect(host.querySelector('.menu-dropdown')).toBeNull();
+    expect(host.querySelector('[role="menu"]')).toBeNull();
   });
 
   it('dismisses on a tablet too, and swallows the tap that did it', () => {
@@ -233,7 +233,7 @@ describe('the menu bar on a phone', () => {
     stubViewport(false, true);
     const host = renderMenuBar();
     openMenu(host, 'File');
-    expect(host.querySelector('.menu-dropdown')).not.toBeNull();
+    expect(host.querySelector('[role="menu"]')).not.toBeNull();
 
     const outside = document.createElement('div');
     document.body.append(outside);
@@ -247,7 +247,7 @@ describe('the menu bar on a phone', () => {
       outside.dispatchEvent(event);
     });
 
-    expect(host.querySelector('.menu-dropdown')).toBeNull();
+    expect(host.querySelector('[role="menu"]')).toBeNull();
     // The second half. Closing is not enough if the same contact goes on to
     // reach the tool underneath — a dismissal has to be only a dismissal.
     expect(reachedTheCanvas).toBe(false);
@@ -259,13 +259,13 @@ describe('the menu bar on a phone', () => {
     const host = renderMenuBar();
     openMenu(host, 'File');
 
-    const row = host.querySelector('.menu-dropdown__item');
+    const row = host.querySelector('[role="menuitem"]');
     act(() => {
       row!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     });
     // Otherwise the menu would tear itself down under the finger between
     // pointerdown and click, and no row could ever be chosen.
-    expect(host.querySelector('.menu-dropdown')).not.toBeNull();
+    expect(host.querySelector('[role="menu"]')).not.toBeNull();
   });
 });
 
@@ -279,32 +279,43 @@ describe('the menu bar on a mouse', () => {
     // The open state is `:hover` / `:focus-within` here, so React genuinely does
     // not know it — and a hardcoded `aria-expanded` would be a lie.
     expect(exportTrigger.hasAttribute('aria-expanded')).toBe(false);
-    expect(host.querySelector('.menu-dropdown--submenu')).not.toBeNull();
-    expect(host.querySelector('.menu-dropdown__group')).toBeNull();
-    expect(host.querySelector('.menu-dropdown--phone')).toBeNull();
+    expect(host.querySelector('[data-flyout]')).not.toBeNull();
+    expect(host.querySelector('[role="menu"][data-phone] [role="menu"]')).toBeNull();
+    expect(host.querySelector('[data-phone][role="menu"]')).toBeNull();
 
     // Clicking it does nothing at all: the fly-out is CSS's business.
     act(() => exportTrigger.click());
-    expect(host.querySelector('.menu-dropdown--submenu')).not.toBeNull();
-    expect(host.querySelector('.menu-dropdown__group')).toBeNull();
+    expect(host.querySelector('[data-flyout]')).not.toBeNull();
+    expect(host.querySelector('[role="menu"][data-phone] [role="menu"]')).toBeNull();
   });
 
-  it('still dismisses on mousedown, and only on mousedown', () => {
+  it('dismisses on a press outside it, and lets the press through', () => {
     stubViewport(false);
     const host = renderMenuBar();
     openMenu(host, 'File');
 
-    // The extra `pointerdown` listener is the phone's, and a fine pointer must
-    // not acquire it: `mousedown` reaches this bar on every surface that has a
-    // mouse, and an earlier close would be a behaviour change nobody asked for.
-    act(() => {
-      document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
-    });
-    expect(host.querySelector('.menu-dropdown')).not.toBeNull();
+    // On `pointerdown`, not `mousedown`, for a mouse too: the crease pattern
+    // canvas cancels every `pointerdown`, and a cancelled one is followed by no
+    // `mousedown` whatever the pointer. View, open over Edit's canvas, stayed
+    // open through a click there.
+    const canvas = document.createElement('div');
+    canvas.addEventListener('pointerdown', (event) => event.preventDefault());
+    document.body.append(canvas);
+    const event = new Event('pointerdown', { bubbles: true, cancelable: true });
+    let reachedTheCanvas = false;
+    const onCanvas = () => {
+      reachedTheCanvas = true;
+    };
+    document.body.addEventListener('pointerdown', onCanvas);
 
     act(() => {
-      document.body.dispatchEvent(new Event('mousedown', { bubbles: true }));
+      canvas.dispatchEvent(event);
     });
-    expect(host.querySelector('.menu-dropdown')).toBeNull();
+
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    // Unlike a tap, a click outside both dismisses and acts, as it always has.
+    expect(reachedTheCanvas).toBe(true);
+    document.body.removeEventListener('pointerdown', onCanvas);
+    canvas.remove();
   });
 });

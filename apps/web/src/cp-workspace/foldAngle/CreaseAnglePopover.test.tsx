@@ -60,13 +60,16 @@ function renderPopover({
 }
 
 function input(): HTMLInputElement {
-  const found = document.querySelector<HTMLInputElement>('.crease-angle-popover__input');
+  const found = document.querySelector<HTMLInputElement>(
+    'input[aria-label="Crease angle in degrees"]'
+  );
   if (!found) throw new Error('the popover rendered no input');
   return found;
 }
 
 function chips(): HTMLButtonElement[] {
-  return [...document.querySelectorAll<HTMLButtonElement>('.crease-angle-popover__chips .ui-chip')];
+  // The presets are the dialog's pressable buttons; its close button is not one.
+  return [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button[aria-pressed]')];
 }
 
 function chip(label: string): HTMLButtonElement {

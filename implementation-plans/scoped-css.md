@@ -80,10 +80,11 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
   The function hashes from `apps/web` wherever the process runs. Verified: the
   prerender's SSR path, a build, and the dev server all give the name above.
 - Vitest: nothing required. Measured under the current config, a module import
-  resolves to a stable hashed name (`styles.track` → `_track_1c28cb`). For the
-  migration, `test.css.modules.classNameStrategy: 'non-scoped'` would keep a
-  migrated block's old BEM local names visible to the tests that still query
-  them — a crutch the migration plan decides whether to use.
+  resolves to a stable hashed name (`styles.track` → `_track_1c28cb`).
+  `test.css.modules.classNameStrategy: 'non-scoped'` would keep a migrated
+  block's old BEM local names visible to the tests that still query them. It is
+  not used: a move rewrites those queries to roles, names and data attributes
+  (see "Migration" below).
 - **Enforcement**, so the convention holds without review catching it:
   - ESLint `no-restricted-imports` forbids importing a non-module `.css` file
     from components; the existing global entry points (`main.tsx`, `App.tsx`,
@@ -106,10 +107,10 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
 - **One job.** #412 kept every stylesheet eager on purpose and deferred "the CSS
   restructure" to a separate PR: 38 KB of the landing's 42 KB render-blocking
   stylesheet is unused there. A module's CSS ships with the chunk that imports
-  it, so every block that moves into a module leaves the landing's stylesheet —
-  the migration plan is that restructure, and the landing budget
-  (`scripts/landing-budget.mjs`, which counts only the stylesheets `index.html`
-  links) is one of its measures.
+  it, so every block that moves into a module leaves the landing's stylesheet.
+  The migration below is that restructure, carried out a block at a time, and
+  the landing budget (`scripts/landing-budget.mjs`, which counts only the
+  stylesheets `index.html` links) is one of its measures.
 - **The first lazy CSS is safe.** A workspace-only module is the app's first
   lazily loaded CSS. The service worker's warm set already carries each lazy
   chunk's CSS (`viteMetadata.importedCss`), so an offline launch still has it,
@@ -122,6 +123,69 @@ These go into `AGENTS.md` (the "Web and Tauri" rules) and a longer
   attribute hooks for those scripts, and that check proves both.
 - **Merge order.** #412 moves the global stylesheet imports into `main.tsx`; the
   ESLint allowlist is reconciled when this branch merges main.
+
+## Migration (decided 2026-10-01)
+
+There is no migration project. The global CSS moves the way the rest of the
+code improves, and how depends on who uses a block:
+
+- **A block with one owner** moves when somebody changes that component's
+  styles: the whole block into its module, as a commit of its own that changes
+  nothing on screen, then their change. A scan on 2026-10-01 found 170 of
+  `theme.css`'s 287 blocks (about 4,100 code lines) like this.
+- **A shared block** — worn, looked up or restyled by another component —
+  moves only in a PR of its own, because moving it means designing what those
+  users get instead. Until then, fixes may edit its rules in place but never
+  add one. The known ones are below.
+- **Dead blocks** go at once, and `src/styles/liveSelectors.test.ts` keeps
+  them from coming back: the same scan found 43 blocks (about 820 code lines)
+  that no source file names. The styling-refinements branch deletes them.
+- The rule and its checklist are in `AGENTS.md` ("Migrate what you touch") and
+  `apps/web/docs/styling.md` ("Moving a block into a module").
+- The landing and site pages are the exception. They still move last, under
+  the guard above.
+
+### Known shared blocks
+
+From the 2026-10-01 scan (a class named in a string literal in two or more
+source files), with generic words such as `crease` and `paper` left out. Not
+exhaustive: check before you assume a block has one owner.
+
+Moved by `implementation-plans/styling-refinements.md`: `viewport-toolbar`
+(with the chrome of `symmetry-menu`, `bp-sheet-menu` and `design-layer-menu`),
+`floating-toolbar`, `design-tab` / `design-tab-strip`, `cp-tool-rail`,
+`context-menu` (onto the parts in `components/ui/Menu.tsx`), the chrome of
+`cp-context-panel`, `viewport-status-readout`, `bp-name-editor`, `update-card`,
+and the whole of `MenuBar.css`.
+
+Still shared:
+
+- **Panel frame**: `panel-shell`, `panel-toolbar`, `panel-body`,
+  `panel-title`, `empty-note` (15+ panels) — likely a `Panel` component
+- **Rows and fields**: `control-row` (10 files), `collapsible-section`,
+  `field-row`, `settings-section`, `settings-toggle-row`, `settings-checkbox`
+- **Dialogs**: `simple-modal` (9 files), `export-modal` (6),
+  `settings-shortcuts`, `settings-paper` (5)
+- **The select trigger**: `select-trigger`. The export dialogs restyle it
+  through `.export-modal__select` (padding, border, ground, radius) and place
+  it from their field rows, so it stayed global when `Select`'s list and
+  options moved. It moves with a `SelectTrigger` prop for that look, in the
+  dialogs' own PR.
+- **The CP tool card's content**: `cp-context-panel` groups and fields
+  (`CpContextToolPanel` and the controls it renders)
+- **CP workspace**: `cp-panel` (looked up by the tool card and the HUD lane),
+  `cp-tool-picker`, `cp-tool-option`, `cp-inline-simulation` and
+  `cp-folded-figure-window` (with `canvasWindowPlacement`), `cp-webgl-layer`,
+  `cp-operation-frame`
+- **References**: `step-diagram`, `references-card`, `sheet-card`,
+  `sheet-grid`
+- **Design scene** (TreeScene, sceneDom, DesignPanel, BpPackingPanel):
+  `tree-node`, `tree-edge`, `node-label`, `edge-label`, `symmetry-*`,
+  `design-canvas`, `design-panel`, `paper-hit-area`, `paper-shadow`
+- **Primitives**: `ui-button` (Button, IconButton, ErrorFallback), `ui-chip`,
+  `ui-control`, `ui-split-button` (the landing's static paint names it)
+- **App.css**: `error-fallback`, `workspace-rail`, `canvas-pill`,
+  `file-drop-region` (the landing uses it)
 
 ## Affected Areas
 

@@ -25,9 +25,10 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { dashPresetLabel } from '../../i18n/enumLabels';
 import { isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
 import {
@@ -37,6 +38,7 @@ import {
 } from '../../lib/paper/paperDashPresets';
 import { formatDashText, parseDashText } from '../../lib/paper/paperDashText';
 import type { Pen } from '../../lib/paper/paperStyle';
+import styles from './PaperDashMenu.module.css';
 
 /**
  * The preview line's width, and so the unit its multiples resolve against: a
@@ -84,7 +86,7 @@ function menuItems(menu: HTMLElement | null): HTMLElement[] {
 function DashPreview({ dash, width }: { dash: number[] | null; width: number }) {
   return (
     <svg
-      className="settings-paper-dash__preview"
+      className={styles.preview}
       width={width}
       height={12}
       aria-hidden="true"
@@ -177,6 +179,15 @@ export function PaperDashMenu({
     if (formatDashText(parsed) !== formatDashText(pen.dash)) onCommit(parsed);
   };
 
+  // A row highlights under the pointer and on keyboard focus, so the pointer
+  // takes focus with it, as a native menu's does: the two can then never light
+  // different rows, and the arrow keys carry on from where the pointer is.
+  const followPointer = (event: ReactPointerEvent<HTMLElement>) => {
+    if (document.activeElement !== event.currentTarget) {
+      event.currentTarget.focus({ preventScroll: true });
+    }
+  };
+
   const onMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -209,11 +220,11 @@ export function PaperDashMenu({
   };
 
   return (
-    <div className="settings-paper-dash">
+    <div className={styles.root}>
       <button
         ref={triggerRef}
         type="button"
-        className="settings-paper-dash__trigger"
+        className={styles.trigger}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -228,19 +239,19 @@ export function PaperDashMenu({
         }}
       >
         <DashPreview dash={pen.dash} width={TRIGGER_PREVIEW_WIDTH} />
-        <span className="settings-paper-dash__label">
+        <span className={styles.label}>
           {choice === 'custom'
             ? t('dialogs:settings.paper.dash.customNamed', 'Custom · {{runs}}', {
                 runs: formatDashText(pen.dash),
               })
             : dashPresetLabel(t, choice)}
         </span>
-        <ChevronDown size={12} aria-hidden="true" className="settings-paper-dash__chevron" />
+        <ChevronDown size={12} aria-hidden="true" className={styles.chevron} />
       </button>
       {open && (
         <div
           ref={menuRef}
-          className="settings-paper-dash__menu"
+          className={styles.menu}
           data-placement={flipUp ? 'top' : 'bottom'}
           onKeyDown={onMenuKeyDown}
         >
@@ -251,7 +262,7 @@ export function PaperDashMenu({
             a screen reader that switches to menu navigation there, which is
             the one control this field exists to be.
           */}
-          <div role="menu" aria-label={label} className="settings-paper-dash__options">
+          <div role="menu" aria-label={label} className={styles.options}>
             {DASH_PRESETS.map((preset) => {
               const current = choice === preset.id;
               return (
@@ -260,27 +271,31 @@ export function PaperDashMenu({
                   type="button"
                   role="menuitemradio"
                   aria-checked={current}
-                  className="settings-paper-dash__option"
+                  className={styles.option}
                   data-dash-item=""
                   data-current={current || undefined}
                   tabIndex={-1}
+                  onPointerMove={followPointer}
                   onClick={() => {
                     onCommit(dashPresetRuns(preset.id));
                     close(true);
                   }}
                 >
+                  <span className={styles.check} aria-hidden="true">
+                    {current && <Check size={12} />}
+                  </span>
                   <DashPreview dash={preset.dash} width={OPTION_PREVIEW_WIDTH} />
                   <span>{dashPresetLabel(t, preset.id)}</span>
                 </button>
               );
             })}
           </div>
-          <div className="settings-paper-dash__custom" role="group" aria-labelledby={customId}>
-            <span className="settings-paper-dash__custom-name" id={customId}>
+          <div className={styles.custom} role="group" aria-labelledby={customId}>
+            <span className={styles.customName} id={customId}>
               {t('dialogs:settings.paper.dash.custom', 'Custom')}
             </span>
             <input
-              className="settings-paper-dash__custom-field"
+              className={styles.customField}
               type="text"
               aria-label={t('dialogs:settings.paper.dash.customField', 'Custom dash')}
               placeholder="8 2 1 2"
@@ -296,7 +311,7 @@ export function PaperDashMenu({
                 }
               }}
             />
-            <span className="settings-paper-dash__custom-unit">
+            <span className={styles.customUnit}>
               {t('dialogs:settings.paper.dash.customUnit', '× width')}
             </span>
           </div>

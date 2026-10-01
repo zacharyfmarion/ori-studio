@@ -6,6 +6,7 @@ import { RELEASES_URL } from '../constants/release';
 import { relaunchIntoUpdate, startUpdateDownload } from '../lib/updateController';
 import { confirmDiscardUnsavedWork } from '../lib/unsavedWork';
 import { shouldShowUpdateCard, useUpdateStore } from '../store/updateStore';
+import styles from './UpdateCard.module.css';
 
 /**
  * The update affordance: a card floating over the bottom-left of whatever is on
@@ -98,13 +99,19 @@ export function UpdateCard() {
   }
 
   return (
-    <div className="update-card" data-status={status} role="status">
-      <button type="button" className="update-card__main" onClick={action} disabled={busy}>
-        <span className="update-card__text">
-          <span className="update-card__label">{label}</span>
-          <span className="update-card__version">{`v${version}`}</span>
+    <div className={styles.card} data-status={status} role="status">
+      <button
+        type="button"
+        className={styles.main}
+        data-update-part="main"
+        onClick={action}
+        disabled={busy}
+      >
+        <span className={styles.text}>
+          <span className={styles.label}>{label}</span>
+          <span className={styles.version}>{`v${version}`}</span>
         </span>
-        <span className="update-card__chevron" aria-hidden="true">
+        <span className={styles.chevron} aria-hidden="true">
           <ArrowRight size={16} />
         </span>
       </button>
@@ -113,7 +120,8 @@ export function UpdateCard() {
           keyboard focus, so it is reachable without a pointer. */}
       <button
         type="button"
-        className="update-card__dismiss"
+        className={styles.dismiss}
+        data-update-part="dismiss"
         onClick={onDismiss}
         aria-label={t('common:update.dismiss', 'Dismiss')}
         title={t('common:update.dismiss', 'Dismiss')}

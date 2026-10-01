@@ -55,8 +55,7 @@ export function FieldRow({
   disabled?: boolean;
   /**
    * A step in, for an option that qualifies the one above it — "Only where
-   * needed" under "Precrease grid" — so the pair reads as one setting, the way
-   * `.context-menu__item--nested` does in a menu.
+   * needed" under "Precrease grid" — so the pair reads as one setting.
    */
   nested?: boolean;
   /** Why the row is disabled, shown on hover; the row itself carries it, not the control. */

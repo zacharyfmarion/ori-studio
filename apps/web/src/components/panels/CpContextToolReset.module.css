@@ -1,0 +1,21 @@
+/*
+ * Put this tool's settings back to their defaults (CpContextToolReset.tsx). The
+ * tool hint window places it in its header; this is only how it looks.
+ */
+.reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.reset:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}

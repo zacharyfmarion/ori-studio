@@ -13,6 +13,8 @@ import { useWheelPassthrough } from '../../hooks/useWheelPassthrough';
 import { anchorIntersectsBoundary, toolbarMaxWidth } from './floatingToolbarBounds';
 import { observeResizeDeferred } from './observeResizeDeferred';
 import { CANVAS_COMPANION_PROPS } from '../../cp-workspace/canvasObjects/canvasCompanionSurface';
+import { Toolbar } from './Toolbar';
+import styles from './FloatingToolbar.module.css';
 
 /**
  * A rectangle in viewport (CSS px) coordinates that a {@link FloatingToolbar}
@@ -61,6 +63,12 @@ export interface FloatingToolbarProps {
   wheelTarget?: () => Element | null | undefined;
   ariaLabel?: string;
   className?: string;
+  /**
+   * The toolbar's inset around its controls, in px (see `Toolbar`). 0 for a
+   * popover whose content brings its own padding: the corners then fall back to
+   * the shared radius.
+   */
+  inset?: number;
   children: ReactNode;
 }
 
@@ -99,6 +107,7 @@ export function FloatingToolbar({
   wheelTarget,
   ariaLabel,
   className,
+  inset,
   children,
 }: FloatingToolbarProps) {
   const rectRef = useRef(anchorRect);
@@ -202,10 +211,12 @@ export function FloatingToolbar({
 
   return (
     <FloatingPortal>
-      <div
+      <Toolbar
         ref={setToolbarRef}
-        className={['floating-toolbar', className].filter(Boolean).join(' ')}
-        role="toolbar"
+        tone="raised"
+        wrap="always"
+        inset={inset}
+        className={className ? `${styles.placement} ${className}` : styles.placement}
         aria-label={ariaLabel}
         // A floating toolbar over the canvas edits what is selected there, so a
         // press or a focus move into it must not read as leaving the selection.
@@ -223,7 +234,7 @@ export function FloatingToolbar({
         }}
       >
         {children}
-      </div>
+      </Toolbar>
     </FloatingPortal>
   );
 }

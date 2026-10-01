@@ -1,4 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MenuGroupLabel, MenuItem, MenuItemLabel, MenuItemShortcut } from '../ui/Menu';
 import { useTranslation } from 'react-i18next';
 import { trackDesktopDownload, type DesktopDownloadSurface } from '../../analytics';
 import {
@@ -37,7 +38,7 @@ export function DesktopDownloadMenuItems({
 
   if (builds.length === 0) {
     return (
-      <DropdownMenu.Item asChild className="context-menu__item">
+      <MenuItem asChild>
         <a
           href={fallbackUrl}
           target="_blank"
@@ -50,11 +51,11 @@ export function DesktopDownloadMenuItems({
             })
           }
         >
-          <span className="context-menu__label">
+          <MenuItemLabel>
             {t('common:download.allReleases', 'All downloads on GitHub')}
-          </span>
+          </MenuItemLabel>
         </a>
-      </DropdownMenu.Item>
+      </MenuItem>
     );
   }
 
@@ -65,21 +66,19 @@ export function DesktopDownloadMenuItems({
         if (group.length === 0) return null;
         return (
           <DropdownMenu.Group key={os}>
-            <DropdownMenu.Label className="context-menu__group-label">
-              {downloadOsLabel(t, os)}
-            </DropdownMenu.Label>
+            <MenuGroupLabel>{downloadOsLabel(t, os)}</MenuGroupLabel>
             {group.map((build) => {
               const size = formatDownloadSize(build.size);
               return (
-                <DropdownMenu.Item key={build.id} asChild className="context-menu__item">
+                <MenuItem key={build.id} asChild>
                   <a
                     href={build.url}
                     onClick={() => trackDesktopDownload({ build: build.id, surface })}
                   >
-                    <span className="context-menu__label">{desktopBuildLabel(t, build.id)}</span>
-                    {size && <span className="context-menu__shortcut">{size}</span>}
+                    <MenuItemLabel>{desktopBuildLabel(t, build.id)}</MenuItemLabel>
+                    {size && <MenuItemShortcut>{size}</MenuItemShortcut>}
                   </a>
-                </DropdownMenu.Item>
+                </MenuItem>
               );
             })}
           </DropdownMenu.Group>

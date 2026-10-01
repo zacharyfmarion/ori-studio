@@ -2,6 +2,7 @@ import { mixHexColors } from '../lib/rgbColor';
 import { applyThemeVariables } from './applyThemeVariables';
 import { paperBackFor } from './paperBack';
 import { FOLD_UNASSIGNED, referencesCreaseAlpha } from './referencesInk';
+import { textOnFill } from './textOnFill';
 import type { ThemeTokens, TreeMakerTheme } from './types';
 import { tokenToCssVar } from './types';
 
@@ -132,6 +133,11 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--fold-hinge', colors['port.image']);
   setVar('--fold-pseudohinge', colors['port.bool']);
   setVar('--fold-gusset', colorMix(colors['text.primary'], 70));
+
+  // Text on a solid fill: a menu row highlighted on the accent, a destructive
+  // one on danger. See `textOnFill.ts`.
+  setVar('--text-on-accent', textOnFill(colors['accent.primary'], colors['bg.primary']));
+  setVar('--text-on-danger', textOnFill(colors['status.danger'], colors['bg.primary']));
 
   setVar('--domain-overlay-bg', colorMix(colors['bg.primary'], isLight ? 88 : 82));
   setVar('--domain-danger-border', colorMix(colors['status.danger'], 64));

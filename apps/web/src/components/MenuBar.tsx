@@ -9,7 +9,7 @@ import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import { useShortcutStore } from '../store/shortcutStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
-import './MenuBar.css';
+import styles from './MenuBar.module.css';
 
 /**
  * Where an open phone dropdown has to stop.
@@ -80,16 +80,19 @@ function usePhoneMenuMaxHeight(enabled: boolean): (node: HTMLDivElement | null) 
 }
 
 /**
- * A phone renders a submenu as an indented group inside the dropdown, so the
- * classes that make one a sideways fly-out are never emitted there at all —
- * `.menu-dropdown--submenu` and the `:hover` / `:focus-within` rules that reveal
- * it simply cannot match. That is what lets the root scroll: an overflow of any
- * kind would clip a box that opens *out of* its parent, and the box in question
- * is Export.
+ * A phone renders a submenu as an indented group inside the dropdown, so what
+ * makes one a sideways fly-out is never emitted there at all — `data-flyout`,
+ * and the `:hover` / `:focus-within` rules that reveal it, simply cannot match.
+ * That is what lets the root scroll: an overflow of any kind would clip a box
+ * that opens *out of* its parent, and the box in question is Export.
  */
-function dropdownClassName(nested: boolean, phone: boolean): string {
-  if (nested) return phone ? 'menu-dropdown__group' : 'menu-dropdown menu-dropdown--submenu';
-  return phone ? 'menu-dropdown menu-dropdown--phone' : 'menu-dropdown';
+function dropdownProps(nested: boolean, phone: boolean) {
+  if (nested && phone) return { className: styles.group };
+  return {
+    className: styles.dropdown,
+    'data-flyout': (nested && !phone) || undefined,
+    'data-phone': (!nested && phone) || undefined,
+  };
 }
 
 function MenuDropdown({
@@ -115,10 +118,10 @@ function MenuDropdown({
   const setMenuNode = usePhoneMenuMaxHeight(phone && !nested);
 
   return (
-    <div className={dropdownClassName(nested, phone)} role="menu" ref={setMenuNode}>
+    <div {...dropdownProps(nested, phone)} role="menu" ref={setMenuNode}>
       {visibleItems.map((item, index) => {
         if (item.type === 'separator') {
-          return <div key={`separator-${index}`} className="menu-dropdown__separator" />;
+          return <div key={`separator-${index}`} className={styles.separator} />;
         }
 
         if (item.type === 'command') {
@@ -126,7 +129,7 @@ function MenuDropdown({
             <button
               key={`command-${index}-${item.actionId}`}
               type="button"
-              className="menu-dropdown__item"
+              className={styles.item}
               role="menuitem"
               disabled={item.disabled}
               onClick={() => {
@@ -135,7 +138,7 @@ function MenuDropdown({
                 onClose();
               }}
             >
-              <span className="menu-dropdown__item-label">{item.label}</span>
+              <span className={styles.itemLabel}>{item.label}</span>
             </button>
           );
         }
@@ -146,12 +149,10 @@ function MenuDropdown({
           const expanded = phone && expandedLabel === item.label;
 
           return (
-            <div key={item.label} className="menu-dropdown__submenu" role="none">
+            <div key={item.label} className={styles.submenu} role="none">
               <button
                 type="button"
-                className={`menu-dropdown__item menu-dropdown__item--submenu ${
-                  expanded ? 'menu-dropdown__item--expanded' : ''
-                }`.trim()}
+                className={styles.item}
                 role="menuitem"
                 aria-haspopup="menu"
                 // Stated only where React knows it. On a mouse the open state
@@ -172,8 +173,8 @@ function MenuDropdown({
                     : (event) => event.preventDefault()
                 }
               >
-                <span className="menu-dropdown__item-label">{item.label}</span>
-                <span className="menu-dropdown__submenu-arrow" aria-hidden="true">
+                <span className={styles.itemLabel}>{item.label}</span>
+                <span className={styles.submenuArrow} aria-hidden="true">
                   <ChevronRight size={13} />
                 </span>
               </button>
@@ -201,7 +202,7 @@ function MenuDropdown({
           <button
             key={item.id}
             type="button"
-            className="menu-dropdown__item"
+            className={styles.item}
             role="menuitem"
             disabled={capability ? !capability.enabled : false}
             title={capability?.reason}
@@ -211,9 +212,9 @@ function MenuDropdown({
               onClose();
             }}
           >
-            <span className="menu-dropdown__item-label">{capability?.label ?? item.label}</span>
+            <span className={styles.itemLabel}>{capability?.label ?? item.label}</span>
             {item.shortcut && (
-              <span className="menu-dropdown__item-shortcut">{item.shortcut}</span>
+              <span className={styles.itemShortcut}>{item.shortcut}</span>
             )}
           </button>
         );
@@ -263,65 +264,58 @@ export function MenuBar() {
   useEffect(() => {
     if (openMenu === null) return undefined;
 
-    const onClickOutside = (event: Event) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setOpenMenu(null);
-      }
-    };
     /**
-     * The touch dismissal, which has to do two things a mouse's does not.
+     * The dismissal: a press anywhere outside the bar.
      *
-     * **Close at all.** `mousedown` cannot dismiss a menu over the canvas: on
-     * touch it is a *compatibility* event, synthesised after `touchend` and not
-     * synthesised at all when the page claims the contact — and the crease
-     * pattern canvas claims every one. Measured with File open: the tap left the
-     * menu standing, so the largest region of the screen was not a way out.
-     * `pointerdown` is a real event, and a capture listener runs before the
-     * canvas can claim it.
+     * **On `pointerdown`, in the capture phase.** `mousedown` cannot dismiss a
+     * menu over the canvas. It is a *compatibility* event, and none is sent for
+     * a press whose `pointerdown` the page cancels, which the crease pattern
+     * canvas does on every press, with a mouse as much as with a finger.
+     * Measured with File open on a phone: the tap left the menu standing; and
+     * reported with View open over Edit's canvas: so did a click. A capture
+     * listener runs before the canvas can claim the press.
      *
-     * **Not also act.** A capture listener that only closes still lets the
+     * **On touch, not also act.** A listener that only closes still lets the
      * contact through, so the tap that dismissed the menu goes on to draw a
      * crease. Measured on a tablet: two taps to get out of an open File menu
      * committed a line. Swallowing the contact is what makes a dismissal only a
-     * dismissal, which is what every native menu does.
+     * dismissal, which is what every native touch menu does.
      *
-     * Keyed on the **pointer**, not on phone size. The reason above is that
-     * touch suppresses `mousedown`, and that is as true of an 820px tablet as of
-     * a 393px phone — an earlier version gated this on the phone layout and left
-     * every tablet unable to close a menu without editing the document. A fine
-     * pointer keeps `mousedown` and keeps its long-standing behaviour, including
-     * that a click outside both dismisses and acts.
+     * Keyed on the **pointer**, not on phone size: an 820px tablet is as much a
+     * touch screen as a 393px phone, and an earlier version gated this on the
+     * phone layout and left every tablet unable to close a menu without editing
+     * the document. A fine pointer keeps its long-standing behaviour, that a
+     * click outside both dismisses and acts.
      */
-    const onTouchOutside = (event: PointerEvent) => {
+    const onPressOutside = (event: PointerEvent) => {
       if (menuRef.current?.contains(event.target as Node)) return;
-      event.preventDefault();
-      event.stopPropagation();
+      if (coarsePointer) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       setOpenMenu(null);
     };
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpenMenu(null);
     };
 
-    document.addEventListener('mousedown', onClickOutside);
-    if (coarsePointer) document.addEventListener('pointerdown', onTouchOutside, true);
+    document.addEventListener('pointerdown', onPressOutside, true);
     document.addEventListener('keydown', onEscape);
     return () => {
-      document.removeEventListener('mousedown', onClickOutside);
-      document.removeEventListener('pointerdown', onTouchOutside, true);
+      document.removeEventListener('pointerdown', onPressOutside, true);
       document.removeEventListener('keydown', onEscape);
     };
   }, [openMenu, coarsePointer]);
 
   return (
-    <div className="menubar" ref={menuRef}>
-      <div className="menubar__menus">
+    <div className={styles.root} data-phone={phone || undefined} ref={menuRef}>
+      <div className={styles.menus}>
         {visibleMenus.map((menu, index) => (
-          <div key={menu.label} className="menubar__menu-wrapper">
+          <div key={menu.label} className={styles.menuWrapper}>
             <button
               type="button"
-              className={`menubar__trigger ${
-                openMenu === index ? 'menubar__trigger--active' : ''
-              }`}
+              className={styles.trigger}
+              data-active={openMenu === index || undefined}
               aria-haspopup="menu"
               aria-expanded={openMenu === index}
               onClick={() => setOpenMenu(openMenu === index ? null : index)}

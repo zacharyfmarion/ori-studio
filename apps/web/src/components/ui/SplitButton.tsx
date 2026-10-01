@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MenuContent, MenuItem, MenuItemLabel } from './Menu';
 import { ChevronDown } from 'lucide-react';
 import { Button, type ButtonProps } from './Button';
 
@@ -84,28 +85,24 @@ export function SplitButton({
             <ChevronDown size={14} />
           </Button>
         </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            className="context-menu"
-            side="bottom"
-            align="end"
-            sideOffset={6}
-            collisionPadding={8}
-            loop
-          >
-            {actions.map((action) => (
-              <DropdownMenu.Item
-                key={action.id}
-                className="context-menu__item"
-                disabled={action.disabled}
-                title={action.title}
-                onSelect={action.onSelect}
-              >
-                <span className="context-menu__label">{action.label}</span>
-              </DropdownMenu.Item>
-            ))}
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
+        <MenuContent
+          side="bottom"
+          align="end"
+          sideOffset={6}
+          collisionPadding={8}
+          loop
+        >
+          {actions.map((action) => (
+            <MenuItem
+              key={action.id}
+              disabled={action.disabled}
+              title={action.title}
+              onSelect={action.onSelect}
+            >
+              <MenuItemLabel>{action.label}</MenuItemLabel>
+            </MenuItem>
+          ))}
+        </MenuContent>
       </DropdownMenu.Root>
     </div>
   );

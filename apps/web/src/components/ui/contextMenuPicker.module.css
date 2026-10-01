@@ -1,0 +1,8 @@
+/* Up while a colour row's picker is open (contextMenuPicker.tsx): the press
+   that closes the picker lands here and goes no further. Below the menu, so its
+   rows stay usable, and above everything else. */
+.shield {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-portaled-popover) - 1);
+}

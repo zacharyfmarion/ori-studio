@@ -226,8 +226,8 @@ import {
   readCpMeasurePreferences,
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
-import { IconButton } from '../ui/IconButton';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
+import { ViewportStatusReadout } from '../ui/ViewportStatusReadout';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { CpToolRail } from './CpToolRail';
 import { withShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
@@ -235,6 +235,7 @@ import { NextDocumentAction } from './NextDocumentAction';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
+  ViewportToolbarButton,
   type ViewportToolbarGroupSpec,
 } from './ViewportToolbar';
 import type { FoldDocument } from '../../engine/types';
@@ -2940,9 +2941,7 @@ export function CreasePatternPanel() {
                   kind: 'node',
                   id: 'fold',
                   node: (
-                    <IconButton
-                      size="sm"
-                      variant="toolbar"
+                    <ViewportToolbarButton
                       title={
                         foldShortcutLabel
                           ? `${t('panels:creasePattern.fold', 'Fold')} (${foldShortcutLabel})`
@@ -2952,7 +2951,7 @@ export function CreasePatternPanel() {
                       onClick={folded.foldModel}
                     >
                       <Origami size={14} />
-                    </IconButton>
+                    </ViewportToolbarButton>
                   ),
                 },
               ],
@@ -3411,7 +3410,7 @@ export function CreasePatternPanel() {
                   onCancelInput={cpInputPending ? cancelActiveCpInput : undefined}
                 />
               )}
-              <div className="viewport-status-readout">
+              <ViewportStatusReadout hideOnPhone>
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}
                 {editableCp && <span>{cpLineTypeStatusLabel(effectiveCpLineColor, t)}</span>}
@@ -3421,7 +3420,7 @@ export function CreasePatternPanel() {
                 {editableCp && editableSelectionSize > 0 && (
                   <span>{t('panels:creasePattern.selectedCount', '{{count}} selected', { count: editableSelectionSize })}</span>
                 )}
-              </div>
+              </ViewportStatusReadout>
             </div>
           </>
         ) : (

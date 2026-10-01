@@ -13,7 +13,8 @@ import type { TFunction } from 'i18next';
  * The raw number is deliberately not shown, as upstream does not show it: the
  * distance is only meaningful relative to other results of the same query. What
  * it gets instead is a colour, so a grid of results reads as a ramp at a glance
- * rather than as five different words — see `.explori-quality` in `theme.css`.
+ * rather than as five different words — see `.quality` in
+ * `components/panels/ExploriResultsPanel.module.css`.
  */
 
 export type ExploriMatchQuality = 'great' | 'good' | 'acceptable' | 'poor' | 'terrible';

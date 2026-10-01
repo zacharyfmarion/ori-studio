@@ -1,0 +1,12 @@
+/* A tooltip (Tooltip.tsx). Radix places it; this is its look. */
+.content {
+  z-index: var(--z-portaled-popover);
+  max-width: 220px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  font-size: 0.72rem;
+}

@@ -2,6 +2,12 @@ import { type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import {
+  MenuCheckboxItem,
+  MenuContent,
+  MenuItemIcon,
+  MenuItemLabel,
+} from '../../components/ui/Menu';
 import { Check, EyeOff, ListChecks, Trash2 } from 'lucide-react';
 import { IconButton } from '../../components/ui/IconButton';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
@@ -105,6 +111,9 @@ const HIDDEN_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 3,
+  // Text at the bar's edge brings its own inset: the bar's is sized for the
+  // buttons at its ends, whose corners nest in its own.
+  paddingInlineStart: 4,
   flex: '1 1 auto',
   minWidth: 0,
   overflow: 'hidden',
@@ -281,34 +290,30 @@ function CheckClassMenu({
         icon={<ListChecks size={14} />}
         isActive={suppress.length > 0}
       />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="context-menu"
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={8}
-          loop
-        >
-          {CP_CHECK_CLASSES.map((cpCheckClass) => {
-            const checked = suppress.includes(cpCheckClass);
-            return (
-              <DropdownMenu.CheckboxItem
-                key={cpCheckClass}
-                className="context-menu__item"
-                checked={checked}
-                onSelect={(event) => {
-                  event.preventDefault();
-                  onToggle(cpCheckClass);
-                }}
-              >
-                <span className="context-menu__icon">{checked && <Check size={12} />}</span>
-                <span className="context-menu__label">{cpCheckClassLabel(t, cpCheckClass)}</span>
-              </DropdownMenu.CheckboxItem>
-            );
-          })}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      <MenuContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={8}
+        loop
+      >
+        {CP_CHECK_CLASSES.map((cpCheckClass) => {
+          const checked = suppress.includes(cpCheckClass);
+          return (
+            <MenuCheckboxItem
+              key={cpCheckClass}
+              checked={checked}
+              onSelect={(event) => {
+                event.preventDefault();
+                onToggle(cpCheckClass);
+              }}
+            >
+              <MenuItemIcon>{checked && <Check size={12} />}</MenuItemIcon>
+              <MenuItemLabel>{cpCheckClassLabel(t, cpCheckClass)}</MenuItemLabel>
+            </MenuCheckboxItem>
+          );
+        })}
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }

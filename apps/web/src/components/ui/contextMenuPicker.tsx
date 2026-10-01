@@ -8,6 +8,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react';
+import styles from './contextMenuPicker.module.css';
 
 /**
  * The colour input whose picker is open in this menu, if one is.
@@ -45,7 +46,8 @@ const MenuPickerContext = createContext<MenuPicker | null>(null);
  */
 function mountPickerShield(onPress: () => void): () => void {
   const shield = document.createElement('div');
-  shield.className = 'context-menu__picker-shield';
+  shield.className = styles.shield;
+  shield.dataset.menuPickerShield = '';
   shield.setAttribute('aria-hidden', 'true');
   const swallow = (event: Event) => event.stopPropagation();
   shield.addEventListener('pointerdown', (event) => {

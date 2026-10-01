@@ -207,7 +207,9 @@ describe('CpViewControlsPanel', () => {
       'Show diagonal gridlines'
     );
 
-    const reset = view.querySelector<HTMLButtonElement>('.grid-settings__reset');
+    const reset = [...view.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent?.trim() === 'Reset grid shape'
+    );
     act(() => reset?.click());
     expect(updateOristudioCpGrid).toHaveBeenLastCalledWith(
       {

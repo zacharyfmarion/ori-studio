@@ -1064,9 +1064,9 @@ describe('BP packing pane — a selected river gets a width pill', () => {
 
   it('shows no pill until a river is selected', () => {
     const host = renderPacking();
-    expect(host.querySelector('.bp-tree-edge-editor')).toBeNull();
+    expect(host.querySelector('[role="group"][aria-label="River 1 width"]')).toBeNull();
     selectRiver();
-    expect(host.querySelector('.bp-tree-edge-editor')).not.toBeNull();
+    expect(host.querySelector('[role="group"][aria-label="River 1 width"]')).not.toBeNull();
   });
 
   /**
@@ -1081,7 +1081,7 @@ describe('BP packing pane — a selected river gets a width pill', () => {
       useWorkspaceStore.setState({ setOristudioBpTreeEdgeLength: setEdgeLength });
     });
     selectRiver();
-    const increase = host.querySelectorAll('.bp-tree-edge-editor button')[1] as HTMLButtonElement;
+    const increase = host.querySelectorAll('[role="group"][aria-label="River 1 width"] button')[1] as HTMLButtonElement;
     act(() => increase.click());
     // Edge 2 runs from the root (8,8) to vertex 2 at (8,9), length 1. Stepping
     // to 2 pushes the child out along the direction it already points.

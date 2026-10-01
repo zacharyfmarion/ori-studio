@@ -31,6 +31,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCpToolHintAnchor } from './useCpToolHintAnchor';
 import { useCpToolHintCollapsed } from './useCpToolHintCollapsed';
+import styles from './CpToolHintWindow.module.css';
+import { useAnimatedHeight } from '../../hooks/useAnimatedHeight';
 
 export function CpToolHintWindow({
   container,
@@ -60,14 +62,20 @@ export function CpToolHintWindow({
 }) {
   const [collapsed, setCollapsed] = useCpToolHintCollapsed();
   const placement = useCpToolHintAnchor(container);
+  const { attachFrame, attachContent, attachScroller, closing } = useAnimatedHeight({
+    collapsed,
+  });
 
   // No rect yet, or a viewport that is laid out but not displayed. Rendering
   // unpositioned would park the window in the corner of the screen for a frame.
   if (!placement) return null;
+  // A collapse keeps the body until the window has closed over it.
+  const bodyMounted = !collapsed || closing;
 
   return createPortal(
     <section
-      className="cp-context-panel"
+      ref={attachFrame}
+      className={styles.window}
       data-collapsed={collapsed || undefined}
       style={{ left: placement.left, bottom: placement.bottom, width: placement.width }}
       aria-label={ariaLabel}
@@ -78,17 +86,32 @@ export function CpToolHintWindow({
       onClick={(event) => event.stopPropagation()}
     >
       <button
-        className="cp-context-panel__header"
+        className={styles.header}
         type="button"
         aria-expanded={!collapsed}
         onClick={() => setCollapsed(!collapsed)}
       >
         {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-        <span className="cp-context-panel__title">{title}</span>
-        <span className="cp-context-panel__meta">{meta}</span>
+        <span className={styles.title}>{title}</span>
+        <span className={styles.meta}>{meta}</span>
       </button>
-      {headerAction}
-      {!collapsed && <div className="cp-context-panel__body">{children}</div>}
+      {/* Always mounted, so the header reserves its gutter only while the
+          action actually renders something (`:has()` in the module). */}
+      <div className={styles.action} data-header-action="">
+        {headerAction}
+      </div>
+      {bodyMounted && (
+        <div
+          ref={attachScroller}
+          className={styles.body}
+          inert={closing}
+          aria-hidden={closing || undefined}
+        >
+          <div ref={attachContent} className={styles.content}>
+            {children}
+          </div>
+        </div>
+      )}
     </section>,
     document.body
   );

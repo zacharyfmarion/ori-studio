@@ -66,22 +66,22 @@ function render(props: Partial<Parameters<typeof BpPackingStretchNav>[0]> = {}) 
 }
 
 function steppers() {
-  return [...container.querySelectorAll('.bp-packing-stretch-nav__stepper')].map(
-    (el) => el.querySelector('.bp-packing-stretch-nav__label')?.textContent
+  return [...container.querySelectorAll('[data-stretch-part="stepper"]')].map(
+    (el) => el.querySelector('[data-stretch-part="label"]')?.textContent
   );
 }
 
 describe('BpPackingStretchNav', () => {
   it('names the stretch by its flaps, not its id', () => {
     render();
-    expect(container.querySelector('.bp-packing-stretch-nav__title')?.textContent).toBe(
+    expect(container.querySelector('[data-stretch-part="title"]')?.textContent).toBe(
       'Stretch K and M'
     );
   });
 
   it('uses a flap name over its letter default', () => {
     render({ flaps: [flap(10, 'Head'), flap(12)] });
-    expect(container.querySelector('.bp-packing-stretch-nav__title')?.textContent).toBe(
+    expect(container.querySelector('[data-stretch-part="title"]')?.textContent).toBe(
       'Stretch Head and M'
     );
   });
@@ -91,9 +91,9 @@ describe('BpPackingStretchNav', () => {
     // so the title is truncated visually and has to stay readable on hover and
     // to assistive tech.
     render({ flaps: [flap(10, 'left back leg'), flap(12, 'tail blah blah')] });
-    const title = container.querySelector('.bp-packing-stretch-nav__title');
+    const title = container.querySelector('[data-stretch-part="title"]');
     expect(title?.getAttribute('title')).toBe('Stretch left back leg and tail blah blah');
-    expect(container.querySelector('.bp-packing-stretch-nav')?.getAttribute('aria-label')).toBe(
+    expect(container.querySelector('[role="group"]')?.getAttribute('aria-label')).toBe(
       'Stretch left back leg and tail blah blah pattern navigation'
     );
   });
@@ -103,7 +103,7 @@ describe('BpPackingStretchNav', () => {
     // panel replaces both steppers with a sentence in this case.
     render();
     expect(steppers()).toEqual([]);
-    expect(container.querySelector('.bp-packing-stretch-nav__note')?.textContent).toBe(
+    expect(container.querySelector('[data-stretch-part="note"]')?.textContent).toBe(
       'Only one pattern'
     );
   });
@@ -111,7 +111,7 @@ describe('BpPackingStretchNav', () => {
   it('shows only Pattern when the configuration is the only one', () => {
     render({ stretch: stretch({ patternCount: 2 }) });
     expect(steppers()).toEqual(['Pattern']);
-    expect(container.querySelector('.bp-packing-stretch-nav__note')).toBeNull();
+    expect(container.querySelector('[data-stretch-part="note"]')).toBeNull();
   });
 
   it('shows only Config when its pattern is the only one', () => {
@@ -126,7 +126,7 @@ describe('BpPackingStretchNav', () => {
 
   it('counts from one, not from zero', () => {
     render({ stretch: stretch({ patternIndex: 1, patternCount: 2 }) });
-    expect(container.querySelector('.bp-packing-stretch-nav__count')?.textContent).toBe('2/2');
+    expect(container.querySelector('[data-stretch-part="count"]')?.textContent).toBe('2/2');
   });
 
   it('offers no picker at all for a stretch with no pattern', () => {
@@ -134,8 +134,8 @@ describe('BpPackingStretchNav', () => {
       stretch: stretch({ configCount: 0, patternCount: 0, patternFound: false }),
     });
     expect(steppers()).toEqual([]);
-    expect(container.querySelector('.bp-packing-stretch-nav__note')).toBeNull();
-    expect(container.querySelector('.bp-packing-stretch-nav__warning')?.textContent).toBe(
+    expect(container.querySelector('[data-stretch-part="note"]')).toBeNull();
+    expect(container.querySelector('[data-stretch-part="warning"]')?.textContent).toBe(
       'No valid pattern'
     );
   });
@@ -143,7 +143,7 @@ describe('BpPackingStretchNav', () => {
   it('steps with wraparound deltas', () => {
     const onSwitchPattern = vi.fn();
     render({ stretch: stretch({ patternCount: 2 }), onSwitchPattern });
-    const buttons = container.querySelectorAll('.bp-packing-stretch-nav__stepper button');
+    const buttons = container.querySelectorAll('[data-stretch-part="stepper"] button');
     act(() => (buttons[0] as HTMLButtonElement).click());
     act(() => (buttons[1] as HTMLButtonElement).click());
     expect(onSwitchPattern.mock.calls).toEqual([[-1], [1]]);

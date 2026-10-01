@@ -231,7 +231,7 @@ describe('SuppressionRegionChip', () => {
   });
 
   it('gives its size to the bar, so a child cannot inherit the browser default', () => {
-    // `.floating-toolbar` supplies no font-size and neither does anything above
+    // `Toolbar` supplies no font-size and neither does anything above
     // it, so a text child that names none renders at 16px beside its 11px
     // siblings. That shipped once here and once on `.cp-tool-option__header`.
     renderChip({ hiddenCount: 4 });
@@ -318,7 +318,7 @@ describe('SuppressionRegionChip', () => {
       openImageMenu();
 
       const item = (label: string) =>
-        [...document.querySelectorAll<HTMLElement>('.context-menu__item')].find((candidate) =>
+        [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')].find((candidate) =>
           candidate.textContent?.includes(label)
         );
       act(() => item('Show reference image')?.click());

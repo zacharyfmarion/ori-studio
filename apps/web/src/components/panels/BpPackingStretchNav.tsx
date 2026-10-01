@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { OristudioBpFlap, OristudioBpStretch } from '../../engine/oristudioBpTypes';
 import { bpFlapLabelList, bpFlapLabels } from '../../lib/bpFlapLabel';
 import { IconButton } from '../ui/IconButton';
+import { CanvasContextBar, CanvasContextBarLabel, CanvasContextBarTitle } from '../ui/CanvasContextBar';
+import styles from './BpPackingStretchNav.module.css';
 
 /**
  * One "pick which of these" control. Only rendered when there is more than one
@@ -21,8 +23,8 @@ function StretchStepper({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="bp-packing-stretch-nav__stepper">
-      <span className="bp-packing-stretch-nav__label">{label}</span>
+    <div className={styles.stepper} data-stretch-part="stepper">
+      <CanvasContextBarLabel data-stretch-part="label">{label}</CanvasContextBarLabel>
       <IconButton
         size="sm"
         variant="toolbar"
@@ -33,7 +35,7 @@ function StretchStepper({
       >
         <ChevronLeft size={14} />
       </IconButton>
-      <span className="bp-packing-stretch-nav__count">{`${index + 1}/${count}`}</span>
+      <span className={styles.count} data-stretch-part="count">{`${index + 1}/${count}`}</span>
       <IconButton
         size="sm"
         variant="toolbar"
@@ -84,18 +86,16 @@ export function BpPackingStretchNav({
   const patternCount = stretch.patternCount ?? 0;
   const hasChoice = configCount > 1 || patternCount > 1;
   return (
-    <div
-      className="bp-packing-stretch-nav"
-      role="group"
+    <CanvasContextBar
       aria-label={t('panels:bpPacking.stretchNav', 'Stretch {{id}} pattern navigation', {
         id: name,
       })}
     >
       {/* A flap can be named anything, so the title is ellipsized in CSS and the
           full text kept here — the group's accessible name carries it too. */}
-      <span className="bp-packing-stretch-nav__title" title={title}>
+      <CanvasContextBarTitle title={title} data-stretch-part="title">
         {title}
-      </span>
+      </CanvasContextBarTitle>
       {configCount > 1 && (
         <StretchStepper
           label={t('panels:bpPacking.config', 'Config')}
@@ -113,16 +113,16 @@ export function BpPackingStretchNav({
         />
       )}
       {stretch.patternFound === false ? (
-        <span className="bp-packing-stretch-nav__warning">
+        <span className={styles.warning} data-stretch-part="warning">
           {t('panels:bpPacking.noValidPattern', 'No valid pattern')}
         </span>
       ) : (
         !hasChoice && (
-          <span className="bp-packing-stretch-nav__note">
+          <span className={styles.note} data-stretch-part="note">
             {t('panels:bpPacking.onlyOnePattern', 'Only one pattern')}
           </span>
         )
       )}
-    </div>
+    </CanvasContextBar>
   );
 }

@@ -31,6 +31,7 @@ import { CpDiagnosticGlyph } from './CpDiagnosticGlyph';
 import { useCpDiagnosticList } from './useCpDiagnosticList';
 import { useCpDiagnosticHudLane } from './useCpDiagnosticHudLane';
 import type { CpDiagnosticHudStatus } from './hudStatus';
+import styles from './CpDiagnosticHud.module.css';
 
 /**
  * A one-line row, from the stylesheet: 7px padding twice, 0.72rem at line-height
@@ -79,7 +80,8 @@ const CpDiagnosticHudRow = memo(function CpDiagnosticHudRow({
   return (
     <button
       type="button"
-      className="cp-diagnostic-hud__row"
+      className={styles.row}
+      data-hud-part="row"
       data-active={active || undefined}
       data-severity={entry.severity}
       data-index={index}
@@ -172,7 +174,8 @@ export function CpDiagnosticHud() {
   return (
     <div
       ref={setHudEl}
-      className="cp-diagnostic-hud"
+      className={styles.hud}
+      data-diagnostic-hud=""
       data-tone={shown.tone}
       data-expanded={expanded || undefined}
       // Nothing at all while the HUD clears the status readout, which is every
@@ -183,17 +186,18 @@ export function CpDiagnosticHud() {
     >
       <button
         type="button"
-        className="cp-diagnostic-hud__summary"
+        className={styles.summary}
+        data-hud-part="summary"
         aria-expanded={expanded}
         onClick={() => setExpanded((open) => !open)}
       >
-        <span className="cp-diagnostic-hud__copy">
+        <span className={styles.copy} data-hud-part="copy">
           <span>{shown.label}</span>
           {shown.detail && shown.detail !== shown.label && <small>{shown.detail}</small>}
           {/* Only when a check named the headline — otherwise the note *is* the
               headline and this would say it twice. */}
           {status && hiddenNote && (
-            <small className="cp-diagnostic-hud__hidden">{hiddenNote}</small>
+            <small data-hud-part="hidden">{hiddenNote}</small>
           )}
         </span>
         {expanded ? (
@@ -204,7 +208,8 @@ export function CpDiagnosticHud() {
       </button>
       {expanded && entries.length > 0 && (
         <div
-          className="cp-diagnostic-hud__list"
+          className={styles.list}
+          data-hud-part="list"
           ref={listRef}
           onClick={handleRowClick}
           // `group` so the label below is actually exposed: `aria-label` on a
@@ -220,7 +225,8 @@ export function CpDiagnosticHud() {
           })}
         >
           <div
-            className="cp-diagnostic-hud__spacer"
+            className={styles.spacer}
+            data-hud-part="spacer"
             style={{ height: `${virtualizer.getTotalSize()}px` }}
           >
             {items.map((item) => {

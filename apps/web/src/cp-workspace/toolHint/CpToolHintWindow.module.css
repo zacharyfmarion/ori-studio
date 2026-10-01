@@ -1,0 +1,131 @@
+/*
+ * The tool hint window (CpToolHintWindow.tsx): a floating window over the bottom
+ * right of the Edit workspace, overhanging the seam between the crease-pattern
+ * viewport and the View pane. The chrome only — the tool's content inside it is
+ * CpContextToolPanel's.
+ *
+ * `left`, `bottom` and `width` come from `cpToolHintPlacement` as inline style —
+ * they are a function of a measured rect, so they cannot live here. Everything
+ * else does. It is body-portaled, which is what `fixed` needs to mean the
+ * browser window rather than the nearest Dockview panel.
+ */
+.window {
+  position: fixed;
+  z-index: var(--z-canvas-overlay);
+  /* The room the header keeps clear on its right for a header action. */
+  --action-gutter: 58px;
+  display: grid;
+  /* `minmax(0, …)` on the body row is what lets it shrink below its content and
+     therefore scroll; without it the row takes its full intrinsic height and the
+     max-height below just clips the bottom off. */
+  grid-template-rows: auto minmax(0, 1fr);
+  /* Never taller than the viewport it floats over. The body scrolls; the header
+     stays put, so the tool is always named even mid-scroll. */
+  max-height: min(60vh, 520px);
+  overflow: hidden;
+  /* `--border-default`, not `--border-strong`. Strong maps to the theme preset's
+     *active* border (a saturated blue), so a window wearing it looks permanently
+     focused — the emphasis here has to come from the shadow and the fill. */
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  /* The height follows the content (useAnimatedHeight), at the pace of the
+     segmented pill whose choice usually changed it. */
+  transition: height var(--motion-duration) var(--motion-ease);
+}
+
+/* Collapsed the window is only its header, so a max-height meant for the open
+   state would leave it able to grow. */
+.window[data-collapsed] {
+  max-height: none;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.header:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
+}
+
+.title {
+  overflow: hidden;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.body {
+  display: grid;
+  align-content: start;
+  /* Floating, the window takes its own overflow. Nothing here escapes the box
+     that needs to — the selects are native and the menus are portaled. */
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* Always its natural height, however tall the window is mid-resize: this is
+   what is measured. */
+.content {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * The window is pinned by its bottom edge, so it grows and shrinks at the top.
+ * While it moves, the content sits on that bottom edge too: everything below a
+ * change stays where it was and only the header travels. Left at the top, the
+ * control just pressed — Extend Line's Active / Same, at the bottom — would drop
+ * away from the pointer on every press and slide back.
+ */
+.window[data-resizing] .body {
+  overflow: hidden;
+  align-content: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window {
+    transition: none;
+  }
+}
+
+/*
+ * The header action (the Reset) sits over the header's right-hand end. The
+ * header is a full-width button and cannot nest one, so the action is placed
+ * over it rather than in it — and the gutter is what stops it landing on the
+ * setting count, which shares that corner. Reserved only while an action is
+ * actually there: the Reset renders only when a setting is off its default.
+ */
+.window:has(.action > *) .header {
+  padding-right: calc(8px + var(--action-gutter));
+}
+
+.action {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+}

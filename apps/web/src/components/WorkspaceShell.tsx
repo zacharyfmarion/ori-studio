@@ -285,7 +285,7 @@ function Toolbar() {
 function DesignWorkspaceTabs() {
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
   if (activeWorkspace !== 'design') return null;
-  return <DesignTabStrip />;
+  return <DesignTabStrip className="workspace-shell__tabs" />;
 }
 
 /**

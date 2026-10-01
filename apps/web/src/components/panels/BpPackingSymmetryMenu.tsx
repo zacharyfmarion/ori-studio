@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { FlipHorizontal2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { IconButton } from '../ui/IconButton';
 import { Toggle } from '../ui/Toggle';
 import { SYMMETRY_FOLDS, symmetryFoldLabel } from '../../lib/bpSymmetryLabels';
 import type { BpPackingSymmetryView } from '../../hooks/useBpPackingSymmetry';
+import {
+  ViewportToolbarButton,
+  ViewportToolbarMenuAnchor,
+  ViewportToolbarPopover,
+} from './ViewportToolbar';
 
 /**
  * Mirror draw for the packing pane: whether it is on, and which fold of the
@@ -35,10 +39,8 @@ export function BpPackingSymmetryMenu({ symmetry }: { symmetry: BpPackingSymmetr
   }, [open]);
 
   return (
-    <div className="viewport-toolbar__menu-anchor" ref={menuRef}>
-      <IconButton
-        size="sm"
-        variant="toolbar"
+    <ViewportToolbarMenuAnchor ref={menuRef}>
+      <ViewportToolbarButton
         title={
           symmetry.enabled
             ? t('panels:bpPacking.mirrorDrawOn', 'Mirror draw (on)')
@@ -50,10 +52,11 @@ export function BpPackingSymmetryMenu({ symmetry }: { symmetry: BpPackingSymmetr
         onClick={() => setOpen((current) => !current)}
       >
         <FlipHorizontal2 size={14} />
-      </IconButton>
+      </ViewportToolbarButton>
       {open && (
-        <div
-          className="viewport-toolbar__dropdown symmetry-menu__panel"
+        <ViewportToolbarPopover
+          align="center"
+          className="symmetry-menu__panel"
           role="menu"
           aria-label={t('panels:bpPacking.symmetryControls', 'Box Pleat symmetry controls')}
         >
@@ -114,8 +117,8 @@ export function BpPackingSymmetryMenu({ symmetry }: { symmetry: BpPackingSymmetr
             {symmetry.pairAllCount > 0 && <small>{symmetry.pairAllCount}</small>}
           </button>
           <p className="symmetry-menu__status">{symmetry.status}</p>
-        </div>
+        </ViewportToolbarPopover>
       )}
-    </div>
+    </ViewportToolbarMenuAnchor>
   );
 }

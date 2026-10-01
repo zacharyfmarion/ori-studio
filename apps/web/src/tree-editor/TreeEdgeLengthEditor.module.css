@@ -1,0 +1,24 @@
+/* The length field of a tree edge's bar (TreeEdgeLengthEditor.tsx). */
+.input {
+  width: 56px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+/* At 16px iOS Safari does not zoom the page into a focused field. */
+@media (pointer: coarse) {
+  .input {
+    font-size: 16px;
+  }
+}

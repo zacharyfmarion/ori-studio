@@ -25,6 +25,7 @@ export function MenuIconButton({
   size = 'sm',
   variant = 'toolbar',
   tooltipSide,
+  className,
 }: {
   /** Accessible name and tooltip text — a menu button has no other label. */
   label: string;
@@ -38,6 +39,8 @@ export function MenuIconButton({
   size?: 'sm' | 'md';
   variant?: 'default' | 'toolbar';
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left';
+  /** Placement by the parent, on the button's root only. */
+  className?: string;
 }) {
   return (
     <Tooltip>
@@ -51,6 +54,7 @@ export function MenuIconButton({
             aria-label={label}
             disabled={disabled}
             isActive={isActive}
+            className={className}
           >
             {icon}
           </IconButton>

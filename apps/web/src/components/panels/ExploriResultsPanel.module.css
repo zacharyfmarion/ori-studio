@@ -1,0 +1,307 @@
+/*
+ * ExplOri's results (ExploriResultsPanel.tsx): the grid of matching crease
+ * patterns, a result's detail view, and the status while a search runs.
+ */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/*
+ * The way back to the search, on a phone — and the only one, since ExplOri
+ * declines the floating pane switcher. `align-self: flex-start` so it is a
+ * button rather than a full-width bar in the column above; `flex: 0 0 auto` so
+ * a status state that fills the pane does not squeeze it away.
+ */
+.back {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.error {
+  margin: 0;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--status-error, var(--accent-primary));
+  text-align: center;
+}
+
+/*
+ * The pane with nothing in it: searching, not yet searched, or searched and
+ * empty-handed. Centred in the pane rather than left at the top of it — the
+ * results half is as tall as the tree half beside it, and one grey sentence
+ * against that top edge reads as something that failed to render.
+ */
+.state {
+  display: grid;
+  flex: 1 1 auto;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.stateIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  margin-bottom: var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, var(--border-subtle));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-secondary));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 7%, transparent);
+}
+
+.stateTitle {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 680;
+}
+
+.stateDetail {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
+/* `surface-loading-spin` is the app's spinner keyframe, defined in App.css
+   beside the surface-wide loading state. Shared rather than copied a third
+   time — main.tsx loads both stylesheets. */
+.spinner {
+  animation: surface-loading-spin 0.9s linear infinite;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/*
+ * Sized to its content, not to the header. The select trigger is a flex child
+ * and stretched to fill the row, which read as a full-width bar rather than a
+ * control.
+ */
+.mode {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 132px;
+}
+
+/*
+ * Cards size themselves to the pane, with a floor big enough to read a crease
+ * pattern at. Below about 200px the thumbnails stop being something you can
+ * judge a match from, which is the only reason to look at them.
+ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-canvas);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+/*
+ * Lit the same way the start screen's cards are, because they are the same
+ * gesture — a tile you click to go somewhere. `:focus-within` rather than a
+ * rule on the button: the whole card is what visibly responds, and keyboard
+ * focus lands on the open button inside it.
+ */
+.card:hover,
+.card:focus-within {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
+}
+
+.cardOpen {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* The card carries the focus ring, so the button inside it does not draw a
+   second one on top. */
+.cardOpen:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary) 72%, transparent);
+  outline-offset: -2px;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-top: 1px solid var(--border-default);
+  font-size: 11px;
+}
+
+.cardMeta .quality {
+  /* As wide as its words. It used to take `flex: 1` so the send button reached
+     the right edge; the slack belongs to a margin, not to a pill that then read
+     as a progress bar. */
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+/*
+ * Tree beside crease pattern, the default a card opens in: the candidate is
+ * only judgeable next to the tree it claims to match.
+ *
+ * The pair keeps the same footprint as a single figure, so a grid of cards is
+ * one rhythm whichever view it is in — hence the wider track below.
+ */
+.cardPair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.cardPair > * {
+  min-width: 0;
+}
+
+.grid[data-mode='pair'] {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+/* Sized as a `sm` control (28px, see `.ui-control--sm`), because it sits in a
+   row of them — a shorter pill left the detail header's controls on three
+   different baselines. */
+.quality {
+  --quality-rgb: 122, 123, 132;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgb(var(--quality-rgb) / 30%);
+  border-radius: 999px;
+  background: rgb(var(--quality-rgb) / 10%);
+  color: rgb(var(--quality-rgb));
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.quality[data-quality='great'] {
+  --quality-rgb: 28 184 112;
+}
+
+.quality[data-quality='good'] {
+  --quality-rgb: 92 194 106;
+}
+
+.quality[data-quality='acceptable'] {
+  --quality-rgb: 214 180 55;
+}
+
+.quality[data-quality='poor'] {
+  --quality-rgb: 237 136 63;
+}
+
+.quality[data-quality='terrible'] {
+  --quality-rgb: 236 82 94;
+}
+
+/*
+ * The header stays put while the four figures scroll — the controls it holds
+ * (Back, the step arrows, Send to Edit) are the ones you reach for after
+ * looking at a figure, and they used to scroll away exactly when you had
+ * decided.
+ *
+ * It is outside the scrolling box rather than `sticky` inside it, which is what
+ * lets its rule reach both pane edges: a sticky header is laid out in the
+ * scroll container's content box, so the scrollbar gutter cuts its right end
+ * short. The pane's padding moves onto the header and the figures for the same
+ * reason — inset by the pane, the rule stopped short at *both* ends.
+ */
+.panel[data-view='detail'] {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.detailHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* Stepping through results, in the header with the other controls. It used to
+   float over the pane edges, which put two targets on top of the figures. */
+.detailSteps {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.detailPosition {
+  padding: 0 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Four figures, two by two. Never one across: the point of the detail is
+   comparing them, and a single column makes that a scroll.
+   This is also the detail's scrolling box — see the header above. */
+.detailPanes {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  padding: 18px 12px;
+  overflow-y: auto;
+}
+
+.detailPane {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.detailFigure {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-canvas);
+  padding: 4px;
+}
+
+.detailCaption {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+}

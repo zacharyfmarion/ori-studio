@@ -8,8 +8,8 @@
  * so where its left edge lands is a fact about the layout too, not a constant
  * this file could restate.
  *
- * The viewport is found by class, and the readout inside it the same way
- * `useCpToolHintAnchor` finds the viewport toolbar. One lookup serves twice: the
+ * The viewport is found by class, and the readout inside it by its data
+ * attribute, the same way `useCpToolHintAnchor` finds the viewport toolbar. One lookup serves twice: the
  * viewport is both the box the HUD's `top` resolves against and the scope that
  * keeps the readout query off another surface's status strip.
  */
@@ -39,7 +39,7 @@ export function useCpDiagnosticHudLane(hud: HTMLElement | null): number | null {
         return;
       }
 
-      const readout = viewport.querySelector('.viewport-status-readout');
+      const readout = viewport.querySelector('[data-viewport-status-readout]');
       // Observed here rather than at setup, because it mounts with the editable
       // document and then changes size in place as the step prompt and counts
       // change under it. `observe` is idempotent per element, so repeating it

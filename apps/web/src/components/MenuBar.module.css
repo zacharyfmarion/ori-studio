@@ -1,25 +1,34 @@
-.menubar {
+/*
+ * The menu bar (MenuBar.tsx): its triggers, and the dropdowns they open.
+ *
+ * A dropdown is one of three things, marked on its element:
+ * - a root dropdown, under its trigger;
+ * - `data-flyout`: a submenu opening sideways out of a row, on a mouse;
+ * - `data-phone`: a root dropdown on a phone, where submenus expand in place
+ *   as an indented `.group` instead.
+ */
+.root {
   display: flex;
   align-items: center;
   height: 100%;
   min-width: 0;
 }
 
-.menubar__menus {
+.menus {
   display: flex;
   align-items: center;
   height: 100%;
   min-width: 0;
 }
 
-.menubar__menu-wrapper {
+.menuWrapper {
   position: relative;
   display: flex;
   align-items: center;
   height: 100%;
 }
 
-.menubar__trigger {
+.trigger {
   height: 100%;
   padding: 0 10px;
   border: 0;
@@ -36,37 +45,46 @@
     color 0.12s ease;
 }
 
-.menubar__trigger:hover,
-.menubar__trigger--active {
+.trigger:hover,
+.trigger[data-active] {
   color: var(--text-primary);
   background: var(--bg-secondary);
 }
 
-.menubar__trigger:focus-visible {
+.trigger:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--accent-primary);
 }
 
-.menu-dropdown {
+/* Hangs straight off its trigger, with the corner it hangs from square, so the
+   two read as one piece rather than a menu floating near a button. Otherwise
+   the surface every menu shares (docs/styling.md, "Menus"). */
+.dropdown {
   position: absolute;
-  top: calc(100% + 2px);
+  top: 100%;
   left: 0;
   z-index: 9999;
   min-width: 218px;
-  padding: 4px 0;
+  padding: 4px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  box-shadow: 0 12px 32px var(--shadow-overlay);
+  border-radius: var(--radius);
+  border-top-left-radius: 0;
+  background: var(--bg-elevated);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
 }
 
-.menu-dropdown--submenu {
+/* A fly-out hangs off a row, not the bar, so it keeps all four corners. Its
+   first row lines up with the row it opened from: `top` is its border and
+   padding, raised. */
+.dropdown[data-flyout] {
   top: -5px;
-  left: calc(100% - 4px);
+  left: 100%;
   display: none;
+  border-top-left-radius: var(--radius);
 }
 
-.menu-dropdown__item {
+/* A row inset in the dropdown, its corners concentric with the surface's. */
+.item {
   position: relative;
   display: flex;
   align-items: center;
@@ -74,8 +92,9 @@
   width: 100%;
   min-height: 28px;
   gap: var(--space-4);
-  padding: 5px 12px;
+  padding: 5px 8px;
   border: 0;
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   background: none;
   font-family: inherit;
@@ -87,88 +106,113 @@
   cursor: pointer;
 }
 
-.menu-dropdown__submenu {
+.submenu {
   position: relative;
 }
 
-.menu-dropdown__submenu:hover > .menu-dropdown--submenu,
-.menu-dropdown__submenu:focus-within > .menu-dropdown--submenu {
+.submenu:hover > .dropdown[data-flyout],
+.submenu:focus-within > .dropdown[data-flyout] {
   display: block;
 }
 
-.menu-dropdown__item--submenu {
-  padding-right: 8px;
-}
-
-.menu-dropdown__item:hover,
-.menu-dropdown__item:focus-visible {
+/*
+ * The highlight every menu shares (theme.css: --menu-highlight), under the
+ * pointer and on keyboard focus.
+ *
+ * A fly-out's trigger keeps it while the fly-out is open — the pointer, or
+ * focus, is still inside its `.submenu` — so the path to the row under the
+ * pointer stays lit, as a native menu's does. On a phone the trigger expands a
+ * group in place and says so with `aria-expanded`, and is left alone.
+ */
+.item:hover,
+.item:focus-visible,
+.submenu:hover > .item:not([aria-expanded]),
+.submenu:focus-within > .item:not([aria-expanded]) {
   outline: none;
-  color: var(--text-inverse);
-  background: var(--accent-primary);
+  color: var(--menu-highlight-text);
+  background: var(--menu-highlight);
 }
 
-.menu-dropdown__item:disabled {
+.item:disabled {
   color: var(--text-tertiary);
   cursor: default;
   opacity: 0.62;
 }
 
-.menu-dropdown__item:disabled:hover,
-.menu-dropdown__item:disabled:focus-visible {
+.item:disabled:hover,
+.item:disabled:focus-visible {
   color: var(--text-tertiary);
   background: none;
 }
 
-.menu-dropdown__item-label {
+.itemLabel {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.menu-dropdown__item-shortcut {
+.itemShortcut {
   flex: 0 0 auto;
-  color: var(--text-muted);
-  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.02em;
 }
 
-.menu-dropdown__submenu-arrow {
+.submenuArrow {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.9rem;
   line-height: 1;
 }
 
-.menu-dropdown__item:hover .menu-dropdown__item-shortcut,
-.menu-dropdown__item:focus-visible .menu-dropdown__item-shortcut,
-.menu-dropdown__item:hover .menu-dropdown__submenu-arrow,
-.menu-dropdown__item:focus-visible .menu-dropdown__submenu-arrow {
-  color: var(--text-inverse);
+/* The shortcut and the chevron take the highlighted row's text colour. */
+.item:hover .itemShortcut,
+.item:focus-visible .itemShortcut,
+.item:hover .submenuArrow,
+.item:focus-visible .submenuArrow,
+.submenu:hover > .item:not([aria-expanded]) .submenuArrow,
+.submenu:focus-within > .item:not([aria-expanded]) .submenuArrow {
+  color: currentcolor;
 }
 
-.menu-dropdown__item:disabled .menu-dropdown__item-shortcut {
+.item:disabled .itemShortcut {
   color: var(--text-tertiary);
 }
 
-.menu-dropdown__separator {
+.separator {
   height: 1px;
-  margin: 4px 0;
+  margin: 4px 6px;
   background: var(--border-default);
 }
 
 @media (max-width: 460px) {
-  .menubar__trigger {
+  .trigger {
     padding: 0 7px;
   }
 
-  .menu-dropdown {
+  .dropdown {
     min-width: min(218px, calc(100vw - 16px));
   }
 
-  .menu-dropdown--submenu {
+  .dropdown[data-flyout] {
     top: calc(100% - 2px);
     left: 8px;
+  }
+}
+
+/*
+ * Rows in a portalled menu, on touch. Nothing sits beside them, so height is
+ * free, and it is a question about the finger rather than about the screen: the
+ * same predicate as the other menus' rows, not the phone's. It was first given
+ * the target in the phone block below, which left every tablet on the 28px
+ * default — and the menu bar is the only way to reach a large part of the app,
+ * so on an iPad it had the one kind of row a finger could not reliably hit.
+ */
+@media (pointer: coarse) {
+  .item {
+    min-height: var(--touch-target);
   }
 }
 
@@ -176,24 +220,44 @@
  * ---------------------------------------------------------------------------
  * Phones: submenus that expand in place, and a dropdown that fits the band.
  *
- * Scoped by a class rather than by a copy of `PHONE_MEDIA_QUERY`, and the class
- * comes from `useIsPhoneLayout()` — the same predicate, read through the module
- * that owns it. The markup already has to branch in React (`aria-expanded` is
- * only knowable when React holds the open state, and a collapsed group has to
- * leave the accessibility tree), so a media query here could only ever be a
- * second answer to a question already answered, free to disagree with it. The
- * two stylesheets that do restate the query are listed in
+ * Scoped by `data-phone` rather than by a copy of `PHONE_MEDIA_QUERY`, and the
+ * attribute comes from `useIsPhoneLayout()` — the same predicate, read through
+ * the module that owns it. The markup already has to branch in React
+ * (`aria-expanded` is only knowable when React holds the open state, and a
+ * collapsed group has to leave the accessibility tree), so a media query here
+ * could only ever be a second answer to a question already answered, free to
+ * disagree with it. The two stylesheets that do restate the query are listed in
  * `platform/phoneLayout.test.ts`; this file deliberately stays off that list.
  *
- * Row height is **not** here, and that is the point of the split. It is a
- * question about the finger rather than about the screen, so it sits in
- * theme.css's coarse block beside `.select-item`, `.context-menu__item` and the
- * other portalled rows. It was briefly in this block, which quietly left every
- * tablet on the 28px default. What belongs here is only what is genuinely about
- * a phone: a fly-out has nowhere to go on a 393px screen, and the dropdown has
- * to fit the band between two bars.
+ * What belongs here is only what is genuinely about a phone: a fly-out has
+ * nowhere to go on a 393px screen, the dropdown has to fit the band between two
+ * bars, and the bar itself has to fit beside the toolbar's actions.
  * ---------------------------------------------------------------------------
  */
+
+/*
+ * The bar shrinks by truncating its widest trigger rather than by scrolling. A
+ * scroll container would clip the dropdown — it is an absolutely positioned
+ * child of the trigger's wrapper — and the File menu is the only way to reach
+ * New/Open/Save at any width, so clipping it is the one failure this must not
+ * have. Truncation happens on the button's own text, which the dropdown is a
+ * sibling of.
+ *
+ * Flexbox shrinks in proportion to base size, so "Crease Pattern" gives way
+ * first and File stays whole. In English at 375px nothing truncates at all;
+ * this is for Russian, for a 320px SE, and for the Design workspace's wider
+ * actions column.
+ */
+.root[data-phone] .menuWrapper {
+  min-width: 0;
+}
+
+.root[data-phone] .trigger {
+  min-width: 0;
+  min-height: var(--touch-target);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /*
  * The dropdown is capped to the band between the toolbar and the tab bar, and
@@ -213,7 +277,7 @@
  * minus one more target of slack because both of those are minimums rather than
  * fixed heights.
  */
-.menu-dropdown--phone {
+.dropdown[data-phone] {
   max-height: var(
     --menu-dropdown-max-height,
     calc(100dvh - var(--safe-top) - var(--safe-bottom) - 3 * var(--touch-target))
@@ -248,20 +312,20 @@
  * An expanded submenu: the same rows indented under their trigger, marked by a
  * rule down the left, instead of a second box floating over the canvas.
  */
-.menu-dropdown__group {
+.group {
   margin-left: 12px;
   border-left: 2px solid var(--border-default);
 }
 
-.menu-dropdown__group .menu-dropdown__item {
+.group .item {
   padding-left: 14px;
 }
 
 /* The chevron points at what the row will do: down to expand, up to collapse. */
-.menu-dropdown--phone .menu-dropdown__submenu-arrow {
+.dropdown[data-phone] .submenuArrow {
   transform: rotate(90deg);
 }
 
-.menu-dropdown--phone .menu-dropdown__item--expanded .menu-dropdown__submenu-arrow {
+.dropdown[data-phone] .item[aria-expanded='true'] .submenuArrow {
   transform: rotate(-90deg);
 }

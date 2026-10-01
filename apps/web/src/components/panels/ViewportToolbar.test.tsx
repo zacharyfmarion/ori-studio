@@ -132,7 +132,7 @@ function render(props: { panToolActive?: boolean; viewRotation?: number } = {}) 
   );
 }
 
-const toolbar = () => container?.querySelector<HTMLElement>('.viewport-toolbar');
+const toolbar = () => container?.querySelector<HTMLElement>('[data-viewport-toolbar]');
 const overflowTrigger = () =>
   container?.querySelector<HTMLButtonElement>('button[aria-label="More view controls"]');
 
@@ -214,7 +214,7 @@ describe('ViewportToolbar on a fine pointer', () => {
 
   it('keeps the editable rotation readout, and leaves the reset off the bar', () => {
     render({ viewRotation: Math.PI / 8 });
-    const field = toolbar()?.querySelector<HTMLInputElement>('.viewport-toolbar__rotation-input');
+    const field = toolbar()?.querySelector<HTMLInputElement>('input[aria-label="View rotation in degrees"]');
     expect(field?.value).toBe('22.5°');
     expect(inlineLabels()).not.toContain('Reset view rotation');
   });
@@ -226,22 +226,41 @@ describe('ViewportToolbar on a fine pointer', () => {
    * popover listening for `mousedown` could not be put away by tapping the
    * paper.
    */
-  it('dismisses the zoom presets on a press outside the readout', () => {
+  it('toggles a layer from its menu, and stays open for the next', () => {
+    // The same rows the touch `⋯` menu shows: a layer is a checkable row, and
+    // layers are set in runs, so a toggle does not close the menu.
     render();
-    press(toolbar()?.querySelector('.viewport-toolbar__zoom-button'));
-    expect(toolbar()?.querySelector('.viewport-toolbar__dropdown')).toBeTruthy();
+    press(toolbar()?.querySelector('button[aria-label="Layers"]'));
+    const row = menuItems().find((item) => item.textContent === 'Labels');
+    expect(row?.getAttribute('role')).toBe('menuitemcheckbox');
+    expect(row?.getAttribute('aria-checked')).toBe('true');
+    press(row);
+    expect(camera.onLayerChange).toHaveBeenCalledWith('labels', false);
+    expect(document.querySelector('[role="menu"]')).toBeTruthy();
+  });
+
+  it('dismisses the zoom presets on a press outside the readout', async () => {
+    render();
+    press(toolbar()?.querySelector('[data-viewport-zoom]'));
+    // A menu, portalled to the body like every other.
+    expect(document.querySelector('[role="menu"]')).toBeTruthy();
+    // Radix starts listening for the outside press a tick after opening, so
+    // the press that opened the menu cannot also close it.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     act(() => {
       document.body.dispatchEvent(
         new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 })
       );
     });
-    expect(toolbar()?.querySelector('.viewport-toolbar__dropdown')).toBeFalsy();
+    expect(document.querySelector('[role="menu"]')).toBeFalsy();
   });
 
   it('draws a hairline between groups and never at an end', () => {
     render();
     const kinds = [...(toolbar()?.children ?? [])].map((child) =>
-      child.classList.contains('viewport-toolbar__separator') ? '|' : 'group'
+      child.getAttribute('role') === 'separator' ? '|' : 'group'
     );
     expect(kinds[0]).toBe('group');
     expect(kinds[kinds.length - 1]).toBe('group');
@@ -261,7 +280,7 @@ describe('ViewportToolbar on a coarse pointer', () => {
       'Fit',
       'More view controls',
     ]);
-    expect(toolbar()?.querySelector('.viewport-toolbar__rotation-input')).toBeFalsy();
+    expect(toolbar()?.querySelector('input[aria-label="View rotation in degrees"]')).toBeFalsy();
   });
 
   it('offers everything it took away, as menu items', () => {

@@ -15,6 +15,7 @@ import {
 } from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
+import styles from './ConditionsPanel.module.css';
 
 export function ConditionsPanel() {
   const { t } = useTranslation();
@@ -59,10 +60,10 @@ export function ConditionsPanel() {
   };
 
   return (
-    <section className="panel-shell conditions-panel">
+    <section className="panel-shell">
       <div className="panel-toolbar panel-toolbar--actions-only">
         <button
-          className="toolbar-text-button"
+          className={styles.toolbarButton}
           type="button"
           disabled={project.conditions.length === 0}
           onClick={() => void clearConditions()}
@@ -70,9 +71,9 @@ export function ConditionsPanel() {
           {t('panels:conditions.clear', 'Clear')}
         </button>
       </div>
-      <div className="panel-body conditions-panel__body">
-        <section className="condition-section">
-          <div className="condition-section__title">{t('panels:conditions.paper.title', 'Paper')}</div>
+      <div className={`panel-body ${styles.body}`}>
+        <section className={styles.section}>
+          <div className={styles.sectionTitle}>{t('panels:conditions.paper.title', 'Paper')}</div>
           <NumberControl
             label={t('panels:conditions.paper.width', 'Width')}
             value={project.paper.width}
@@ -89,11 +90,11 @@ export function ConditionsPanel() {
           />
         </section>
 
-        <section className="condition-section">
-          <div className="condition-section__title">
+        <section className={styles.section}>
+          <div className={styles.sectionTitle}>
             {t('panels:conditions.addFromSelection.title', 'Add From Selection')}
           </div>
-          <div className="condition-actions">
+          <div className={styles.actions}>
             <ConditionAction
               icon={<LockKeyhole size={14} />}
               label={t('panels:conditions.actions.fixNode.label', 'Fix node')}
@@ -200,7 +201,7 @@ export function ConditionsPanel() {
             />
           </div>
           {selectedPath && (
-            <div className="condition-path-controls">
+            <div className={styles.pathControls}>
               <NumberControl label="Angle" value={angle} step={1} onCommit={setAngle} />
               <ConditionAction
                 icon={<Plus size={14} />}
@@ -233,7 +234,7 @@ export function ConditionsPanel() {
               />
             </div>
           )}
-          <div className="condition-actions">
+          <div className={styles.actions}>
             <ConditionAction
               icon={<Trash2 size={14} />}
               label="Remove node conditions"
@@ -259,8 +260,8 @@ export function ConditionsPanel() {
         </section>
 
         {editedCondition && (
-          <section className="condition-section">
-            <div className="condition-section__title">{t('panels:conditions.editor', 'Editor')}</div>
+          <section className={styles.section}>
+            <div className={styles.sectionTitle}>{t('panels:conditions.editor', 'Editor')}</div>
             <ConditionEditor
               condition={editedCondition}
               onUpdate={(kind) => void updateCondition(editedCondition.id, kind)}
@@ -268,15 +269,15 @@ export function ConditionsPanel() {
           </section>
         )}
 
-        <section className="condition-section">
-          <div className="condition-section__title">{t('panels:conditions.list', 'List')}</div>
+        <section className={styles.section}>
+          <div className={styles.sectionTitle}>{t('panels:conditions.list', 'List')}</div>
           {project.conditions.length === 0 ? (
             <div className="empty-note">{t('panels:conditions.noConditions', 'No conditions')}</div>
           ) : (
-            <div className="condition-list">
+            <div className={styles.list}>
               {project.conditions.map((condition) => (
                 <button
-                  className="condition-item"
+                  className={styles.item}
                   data-active={isConditionSelected(selection, condition.id) || undefined}
                   data-feasible={condition.isFeasible || undefined}
                   key={condition.id}
@@ -327,7 +328,7 @@ function ConditionEditor({
   switch (kind.type) {
     case 'node_combo':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node" value={kind.node} min={1} step={1} onCommit={(value) => updateInt('node', value)} />
           <ToggleControl label="Sym line" checked={kind.to_symmetry_line} onChange={(value) => updateBool('to_symmetry_line', value)} />
           <ToggleControl label="Paper edge" checked={kind.to_paper_edge} onChange={(value) => updateBool('to_paper_edge', value)} />
@@ -340,7 +341,7 @@ function ConditionEditor({
       );
     case 'node_fixed':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node" value={kind.node} min={1} step={1} onCommit={(value) => updateInt('node', value)} />
           <ToggleControl label="Fix X" checked={kind.x_fixed} onChange={(value) => updateBool('x_fixed', value)} />
           <NumberControl label="X" value={kind.x_fix_value} step={0.01} onCommit={(value) => updateNumber('x_fix_value', value)} />
@@ -352,20 +353,20 @@ function ConditionEditor({
     case 'node_on_edge':
     case 'node_symmetric':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node" value={kind.node} min={1} step={1} onCommit={(value) => updateInt('node', value)} />
         </div>
       );
     case 'nodes_paired':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
           <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
         </div>
       );
     case 'nodes_collinear':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
           <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
           <NumberControl label="Node 3" value={kind.node3} min={1} step={1} onCommit={(value) => updateInt('node3', value)} />
@@ -373,20 +374,20 @@ function ConditionEditor({
       );
     case 'edge_length_fixed':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Edge" value={kind.edge} min={1} step={1} onCommit={(value) => updateInt('edge', value)} />
         </div>
       );
     case 'edges_same_strain':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Edge 1" value={kind.edge1} min={1} step={1} onCommit={(value) => updateInt('edge1', value)} />
           <NumberControl label="Edge 2" value={kind.edge2} min={1} step={1} onCommit={(value) => updateInt('edge2', value)} />
         </div>
       );
     case 'path_combo':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
           <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
           <ToggleControl label="Fix angle" checked={kind.is_angle_fixed} onChange={(value) => updateBool('is_angle_fixed', value)} />
@@ -398,14 +399,14 @@ function ConditionEditor({
       );
     case 'path_active':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
           <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
         </div>
       );
     case 'path_angle_fixed':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
           <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
           <NumberControl label="Angle" value={kind.angle} step={1} onCommit={(value) => updateNumber('angle', value)} />
@@ -413,7 +414,7 @@ function ConditionEditor({
       );
     case 'path_angle_quant':
       return (
-        <div className="condition-advanced__body">
+        <div className={styles.advancedBody}>
           <NumberControl label="Node 1" value={kind.node1} min={1} step={1} onCommit={(value) => updateInt('node1', value)} />
           <NumberControl label="Node 2" value={kind.node2} min={1} step={1} onCommit={(value) => updateInt('node2', value)} />
           <NumberControl label="Quant" value={kind.quant} min={1} step={1} onCommit={(value) => updateInt('quant', value)} />
@@ -437,7 +438,7 @@ function ConditionAction({
   onClick: () => void;
 }) {
   const button = (
-    <button className="condition-action" type="button" disabled={disabled} onClick={onClick}>
+    <button className={styles.action} type="button" disabled={disabled} onClick={onClick}>
       {icon}
       <span>{label}</span>
     </button>
@@ -446,7 +447,7 @@ function ConditionAction({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="condition-action-tooltip-trigger" data-disabled={disabled || undefined}>
+        <span className={styles.actionTooltipTrigger} data-disabled={disabled || undefined}>
           {button}
         </span>
       </TooltipTrigger>
@@ -489,7 +490,7 @@ function NumberControl({
   };
 
   return (
-    <label className="condition-number">
+    <label className={styles.number}>
       <span>{label}</span>
       <input
         type="number"
@@ -521,7 +522,7 @@ function ToggleControl({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="condition-toggle">
+    <label className={styles.toggle}>
       <span>{label}</span>
       <input
         type="checkbox"

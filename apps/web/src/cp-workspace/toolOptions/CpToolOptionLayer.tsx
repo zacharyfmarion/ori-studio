@@ -29,6 +29,7 @@ import { Button } from '../../components/ui/Button';
 import { IconButton } from '../../components/ui/IconButton';
 import type { CpToolOptionWindow } from './toolOptionWindow';
 import { toolOptionFrame, toolOptionHeaderOffset, type Size } from './toolOptionPlacement';
+import { Toolbar } from '../../components/ui/Toolbar';
 
 export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | null }) {
   const { t } = useTranslation(['tools', 'common']);
@@ -130,12 +131,15 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
         }}
       >
         <div className="cp-tool-option__frame" aria-hidden />
-        <div
+        <Toolbar
           ref={chromeRef}
-          // Wears the shared floating-toolbar look rather than restating it:
-          // this is one of several floating controls over the canvas and they
-          // must not drift apart. Only its attachment to the frame is local.
-          className={`floating-toolbar cp-tool-option__header${
+          // The shared toolbar chrome rather than a restatement of it: this is
+          // one of several floating controls over the canvas and they must not
+          // drift apart. Only its attachment to the frame is local.
+          tone="raised"
+          wrap="always"
+          attach="bottom"
+          className={`cp-tool-option__header${
             actionsOnly ? ' cp-tool-option__header--actions-only' : ''
           }`}
           style={{
@@ -190,7 +194,7 @@ export function CpToolOptionLayer({ option }: { option: CpToolOptionWindow | nul
               {t('common:cancel', 'Cancel')}
             </Button>
           </div>
-        </div>
+        </Toolbar>
         {option.note ? <p className="cp-tool-option__note">{option.note}</p> : null}
       </div>
     </div>

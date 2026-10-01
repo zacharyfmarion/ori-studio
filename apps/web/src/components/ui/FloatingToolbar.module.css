@@ -1,0 +1,12 @@
+/*
+ * Where a floating toolbar sits (FloatingToolbar.tsx). Its position and
+ * transform are set inline by @floating-ui (fixed strategy, body-portaled); its
+ * chrome is the shared `Toolbar`'s.
+ */
+.placement {
+  /* Pane-owned chrome, not a popover: it is persistent, so it must not cover a
+     menu or modal the user just opened. The menus it opens itself portal at
+     `--z-portaled-popover` and so still land on top of it. */
+  z-index: var(--z-canvas-overlay);
+  pointer-events: auto;
+}

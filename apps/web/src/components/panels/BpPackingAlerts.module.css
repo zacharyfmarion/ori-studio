@@ -1,0 +1,88 @@
+/*
+ * The packing pane's warnings (BpPackingAlerts.tsx).
+ *
+ * Bottom-left, not top-left: the contextual toolbars (flap editor, stretch
+ * navigator) are centred at the top and grow with their content, so a top-left
+ * stack collided with them on a narrow pane and covered the controls the
+ * warning is telling you to use. The bottom-left corner is clear — the zoom
+ * toolbar is centred and the d-pad is bottom-right — and the offset lifts the
+ * stack over the zoom toolbar's row.
+ */
+.alerts {
+  position: absolute;
+  bottom: calc(var(--space-3) + 52px);
+  left: var(--space-3);
+  z-index: 13;
+  display: grid;
+  gap: 6px;
+  width: min(420px, calc(100% - var(--space-6)));
+  pointer-events: none;
+}
+
+.alert {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  max-width: 100%;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--status-warning) 42%, var(--border-subtle));
+  border-radius: var(--radius);
+  background: var(--domain-overlay-bg);
+  color: var(--text-secondary);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  font: inherit;
+  pointer-events: auto;
+  text-align: left;
+}
+
+.alert[data-severity='error'] {
+  border-color: color-mix(in srgb, var(--status-danger) 50%, var(--border-subtle));
+}
+
+.alert svg {
+  margin-top: 1px;
+  color: var(--status-warning);
+}
+
+.alert[data-severity='error'] svg {
+  color: var(--status-danger);
+}
+
+.alert strong,
+.alert small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.alert strong {
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.alert small {
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+button.alert {
+  cursor: pointer;
+}
+
+button.alert:hover,
+button.alert:focus-visible {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.alert[data-more] {
+  grid-template-columns: minmax(0, 1fr);
+  border-color: var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+}
