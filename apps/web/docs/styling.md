@@ -60,9 +60,19 @@ override. A primitive could not be trusted to look like itself.
 
 ## Radius
 
-**One number: `--radius`**, the icon buttons' 8px. Every control wears it, and
-so does every floating surface: cards, menus, popovers, tooltips and readouts.
-The rest of `theme.css`'s scale derives from it.
+**One number: `--radius`**, the icon buttons' 8px. The rest of `theme.css`'s
+scale derives from it. What a thing is decides what it wears:
+
+- **A control: `--radius`.** Anything you type into, pick from or press, at
+  any size. That covers an input, a number field and its steppers, a select,
+  a button, the outer edge of a joined group, and a segmented control's track.
+- **A surface: `--radius`.** A card, a notice, a table, a preview well, and
+  every floating surface: menus, popovers, tooltips, toasts and readouts.
+- **A detail inside a card: `--radius-sm` (4px).** A swatch strip, a
+  thumbnail, a sample, a badge or an index chip. At 8px a 14px strip would
+  round into a pill.
+- **A pill stays a pill:** switches, chips, counters, the match-quality tags.
+  Checkboxes and focus rings keep their own small radii.
 
 **A container that hugs controls is concentric with them.** Its radius is
 theirs plus its padding, so the gap around a corner control is as even as the
@@ -77,11 +87,14 @@ the container's module from its own padding, not read from a token:
 }
 ```
 
-**A row inside a surface is concentric the other way**: the surface's radius
-less its padding.
+**A row or a part inside a surface or a control is concentric the other way**:
+the outer radius less its padding. A part that sits right against a border,
+with no padding, takes the radius less the border.
 
 - An 8px menu with 4px padding has 4px rows.
 - The segmented control's 8px track with 3px padding has 5px pills.
+- The square tool's 8px anchor picker with 2px padding has 6px cells.
+- A colour field's swatch, inside its 1px border, is 7px.
 
 ## Menus
 

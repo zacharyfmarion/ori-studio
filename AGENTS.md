@@ -171,10 +171,11 @@ New and changed components are styled with a **CSS module beside them**
   module, as a local custom property if it repeats. A toolbar's padding belongs
   to the toolbar, however many screens use one.
 - Tests find elements by role, name or data attribute, never by a module class.
-- One radius, `--radius` (8px), for every control and floating surface. A
-  container that hugs controls is concentric with them, `calc(var(--radius) +
-  var(--pad))` with `--pad` its own; a row inside a surface is the surface's
-  radius less its padding. Bars, menus, tab strips and canvas readouts already
+- One radius, `--radius` (8px), for every control, card and floating surface;
+  a small detail inside a card (a swatch, a thumbnail, a badge) is
+  `--radius-sm`. A container that hugs controls is concentric with them,
+  `calc(var(--radius) + var(--pad))` with `--pad` its own; a row inside a
+  surface is the surface's radius less its padding. Bars, menus, tab strips and canvas readouts already
   exist in `components/ui/` (`Toolbar`, `Menu`, `WorkspaceTabStrip`,
   `CanvasContextBar`, `ViewportStatusReadout`): compose those rather than
   copying their class lists.

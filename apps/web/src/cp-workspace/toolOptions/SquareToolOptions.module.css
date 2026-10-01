@@ -19,13 +19,13 @@
   background: var(--bg-secondary);
 }
 
-/* Concentric with the picker's corner: its radius less its padding and border. */
+/* Concentric with the picker's corner: its radius less its padding. */
 .cell {
   aspect-ratio: 1;
   min-width: 0;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: calc(var(--radius) - var(--pad) - 1px);
+  border-radius: calc(var(--radius) - var(--pad));
   background: var(--bg-tertiary);
   cursor: pointer;
 }

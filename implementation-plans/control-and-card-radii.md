@@ -32,7 +32,9 @@ decision 1 left inputs, number fields and modal internals for later, so today:
    - A segmented pill: 8px less 3px.
    - The BP sheet menu's segment buttons: 8px less 2px.
    - The measure value's "copied" overlay: 8px less 1px.
-   - The square tool's anchor cells: 8px less the 2px padding and 1px border.
+   - The square tool's anchor cells: 8px less the 2px padding, 6px. (Phase 2
+     subtracted the border too, 5px; phase 5 put them on the padding rule
+     menus and the segmented control already follow.)
 4. **Unchanged:**
    - Rows inside a surface, which follow the concentric rule rather than this one.
    - Pills (switches, chips, counters), checkboxes and focus rings.
@@ -74,7 +76,7 @@ of an existing rule, never a new one.
 | `BpOptimizerModal` | count input 4 → 8 |
 | `ExploriQueryBar` | count input, symmetry group 6 → 8 |
 | `CreaseAngleField`, `CreaseAnglePopover` | input and caret, popover input 4 → 8 |
-| `SquareToolOptions` | anchor picker 4 → 8, cells 2 → 5 |
+| `SquareToolOptions` | anchor picker 4 → 8, cells 2 → 6 |
 | `CpViewControlsPanel` | grid reset button 4 → 8 |
 | `BpPackingPanel` | d-pad buttons 6 → 8 |
 | Settings theme card (`SettingsModal`'s `ThemeCard`) | card 6 → 8; swatches stay 4 |
@@ -155,5 +157,12 @@ after. The restyle follows as the phase's last commit.
 
 ### Phase 5 — Close out
 
-- [ ] `docs/styling.md` › "Radius": control, card, detail, row, pill
-- [ ] Browser: one pass over every surface above, in a dark and a light theme
+- [x] `docs/styling.md` › "Radius": control, surface, detail, pill, and the
+      concentric parts; `AGENTS.md`'s one-line rule says cards and details
+- [x] Browser: an audit of the computed radius of every visible control and
+      bordered box in Design (and its Conditions, Diagnostics and Inspector
+      tabs), every Settings tab, and Edit's View pane with six tool cards. The
+      only values off 8px were the rule's own: a split button's joined half,
+      the toolbars' concentric 12px, rows, details and the anchor's cells.
+      Radii do not change with the theme. The screenshot pass in a light theme
+      did not happen: the Browser pane stayed hidden
