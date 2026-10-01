@@ -86,6 +86,13 @@
   --text-tertiary: #78858e;
   --text-muted: #5e6a72;
   --text-inverse: #0d1114;
+  /* Text on a solid fill of the accent or of danger: a highlighted menu row, a
+     destructive one. Not --text-inverse, which is the inverse of the *ground*
+     (white in a dark theme) and reads at under 4.5:1 on the accent of 22 of the
+     23 presets. `applyTheme` derives both per theme (themes/textOnFill.ts);
+     these defaults are the same rule against the default ground above. */
+  --text-on-accent: #101417;
+  --text-on-danger: #101417;
 
   --border-default: #303b45;
   --border-subtle: rgba(232, 237, 240, 0.08);
@@ -103,6 +110,13 @@
      the app's danger hue is too muted to read as a conflict at 60% opacity. */
   --bp-junction: #ff0000;
   --status-info: #7db7e8;
+
+  /* A highlighted row in any menu or list popover — Menu, Select, the menu bar,
+     the dash menu — is one fill and one text colour, so the next change to how
+     a menu highlights is these two lines rather than four modules. A
+     destructive row fills --status-danger with --text-on-danger instead. */
+  --menu-highlight: var(--accent-primary);
+  --menu-highlight-text: var(--text-on-accent);
 
   /*
    * Settings ▸ Paper. A ground the palette has no name for, stated against

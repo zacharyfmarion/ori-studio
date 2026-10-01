@@ -116,9 +116,9 @@ One description of a menu, which every implementation follows:
 
 ## Affected Areas
 
-- **Tokens**: `apps/web/src/themes/applyTheme.ts`, a new
-  `themes/onAccentText.ts` with tests, `styles/theme.css` (the defaults and the
-  menu tokens), a new `themes/menuHighlightContrast.test.ts`
+- **Tokens**: `apps/web/src/themes/applyTheme.ts`, a new `themes/textOnFill.ts`
+  and its test (the rule, every preset at AA, and the `theme.css` defaults),
+  `styles/theme.css` (the defaults and the menu tokens)
 - **Menus**: `components/ui/Menu.module.css`, `components/ui/Select.tsx` and its
   module, `components/MenuBar.module.css`, `components/settings/PaperDashMenu.tsx`
   and its module
@@ -131,11 +131,11 @@ One description of a menu, which every implementation follows:
 
 ### Phase 1 — Tokens
 
-- [ ] `--text-on-accent` and `--text-on-danger` derived per theme, with a
+- [x] `--text-on-accent` and `--text-on-danger` derived per theme, with a
       default in `theme.css` for first paint
-- [ ] `--menu-highlight` and `--menu-highlight-text` in `theme.css`
-- [ ] A test: every preset's menu highlight text reaches 4.5:1 on its fill
-- [ ] Validate; commit
+- [x] `--menu-highlight` and `--menu-highlight-text` in `theme.css`
+- [x] A test: every preset's menu highlight text reaches 4.5:1 on its fill
+- [x] Validate; commit
 
 ### Phase 2 — `Menu` and `Select`
 
