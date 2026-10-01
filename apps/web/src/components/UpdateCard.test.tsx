@@ -64,7 +64,7 @@ afterEach(() => {
 describe('UpdateCard', () => {
   it('renders nothing when no update is offered', () => {
     mount();
-    expect(container?.querySelector('.update-card')).toBeNull();
+    expect(container?.querySelector('[role="status"]')).toBeNull();
   });
 
   it('offers to relaunch once the update is installable', () => {
@@ -78,7 +78,7 @@ describe('UpdateCard', () => {
     // Progress for something the user did not request is a nag.
     seed({ status: 'downloading', version: '0.3.0', downloadWasRequested: false });
     mount();
-    expect(container?.querySelector('.update-card')).toBeNull();
+    expect(container?.querySelector('[role="status"]')).toBeNull();
   });
 
   it('shows progress for a download the user started', () => {
@@ -101,7 +101,7 @@ describe('UpdateCard', () => {
     // and it is labelled, because the control is icon-only.
     seed({ status: 'ready', version: '0.3.0', readyAt: 1 });
     mount();
-    const dismiss = container?.querySelector<HTMLButtonElement>('.update-card__dismiss');
+    const dismiss = container?.querySelector<HTMLButtonElement>('[data-update-part="dismiss"]');
     expect(dismiss).not.toBeNull();
     expect(dismiss?.getAttribute('aria-label')).toBe('Dismiss');
   });
@@ -111,20 +111,20 @@ describe('UpdateCard', () => {
     // dismissing would silently trigger the relaunch instead.
     seed({ status: 'ready', version: '0.3.0', readyAt: 1 });
     mount();
-    const main = container?.querySelector('.update-card__main');
-    expect(main?.querySelector('.update-card__dismiss')).toBeNull();
+    const main = container?.querySelector('[data-update-part="main"]');
+    expect(main?.querySelector('[data-update-part="dismiss"]')).toBeNull();
   });
 
   it('hides itself once the version is skipped', () => {
     seed({ status: 'ready', version: '0.3.0', skippedVersion: '0.3.0', readyAt: 1 });
     mount();
-    expect(container?.querySelector('.update-card')).toBeNull();
+    expect(container?.querySelector('[role="status"]')).toBeNull();
   });
 
   it('disables the button while installing so it cannot be double-fired', () => {
     seed({ status: 'installing', version: '0.3.0', readyAt: 1 });
     mount();
-    const button = container?.querySelector<HTMLButtonElement>('.update-card__main');
+    const button = container?.querySelector<HTMLButtonElement>('[data-update-part="main"]');
     expect(button?.disabled).toBe(true);
   });
 });

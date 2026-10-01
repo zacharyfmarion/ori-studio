@@ -19,11 +19,12 @@
  * thing in the pane — and the HUD sits beside it while there is room and drops
  * to the row below when there is not.
  *
- * "When there is one": under a coarse pointer the readout is hidden outright,
- * so it measures as a zero box and the caller below returns `null`, leaving the
- * HUD at its own inset. That is the correct answer rather than a special case —
- * there is nothing in the top row to clear — and it is why this reads the box
- * instead of assuming the readout is present.
+ * "When there is one": on a phone the readout is not rendered at all
+ * (`ViewportStatusReadout`'s `hideOnPhone`), so there is no box and the rule
+ * below returns `null`, leaving the HUD at its own inset. That is the correct
+ * answer rather than a special case — there is nothing in the top row to clear
+ * — and it is why this reads the box instead of assuming the readout is
+ * present.
  *
  * The rule returns `null` for the beside case rather than the HUD's own inset.
  * The stylesheet already states that inset (`--space-4`), and a second copy of it

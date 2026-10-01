@@ -3722,163 +3722,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 0 6px;
 }
 
-/* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
-   painting the (large) SVG DOM. visibility:hidden keeps its layout box so the
-   camera can still seed from its fit. */
-
-.cp-diagnostic-hud {
-  position: absolute;
-  z-index: 12;
-  top: var(--space-4);
-  right: var(--space-4);
-  display: grid;
-  /* One number for both states: the cap a collapsed badge may grow to, and the
-     width an expanded panel takes. Sharing it is what stops the badge from
-     being able to come out wider closed than open.
-
-     The gutter is the inset doubled — one on each side — written in terms of the
-     inset above so the two cannot drift apart. It said `var(--space-8)` until
-     the list was windowed; that token does not exist (the scale stops at
-     `--space-6`), so the declaration was invalid at computed-value time and
-     dropped, leaving `max-width: none`. Nothing revealed it while the rows were
-     still in normal flow. */
-  --cp-diagnostic-hud-width: min(360px, calc(100% - var(--space-4) * 2));
-
-  /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
-     absolutely positioned box shrinks to fit. The cap still applies, so a long
-     headline wraps inside the width instead of running off the canvas. */
-  max-width: var(--cp-diagnostic-hud-width);
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
-  box-shadow: var(--shadow-soft);
-  color: var(--text-primary);
-  font-weight: 760;
-  line-height: 1.2;
-  text-align: right;
-}
-
-/* Expanded, the width has to be stated. The rows are windowed and therefore out
-   of flow, so they contribute no intrinsic width — left to shrink to fit, the
-   panel would size itself to the headline and wrap every message to two lines. */
-.cp-diagnostic-hud[data-expanded] {
-  width: var(--cp-diagnostic-hud-width);
-}
-
-.cp-diagnostic-hud__summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 8px 10px 8px 11px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: right;
-}
-
-.cp-diagnostic-hud__summary:hover {
-  background: color-mix(in srgb, currentColor 8%, transparent);
-}
-
-.cp-diagnostic-hud__copy {
-  display: grid;
-  min-width: 0;
-  justify-items: end;
-}
-
-.cp-diagnostic-hud__copy small {
-  max-width: 100%;
-  margin-top: 3px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cp-diagnostic-hud__list {
-  max-height: min(320px, calc(100vh - 170px));
-  overflow: auto;
-  border-top: 1px solid var(--border-subtle);
-  text-align: left;
-  /* The list is windowed: only the rows near the viewport are in the DOM, so
-     scroll position comes from a spacer of the full height rather than from the
-     rows themselves. See CpDiagnosticHud.tsx.
-
-     `layout paint` only — NOT `strict`/`size`, which would compute this box as
-     if it had no contents and collapse the scroll container to nothing. */
-  contain: layout paint;
-}
-
-/* Full-height spacer; rows are positioned into it by the virtualizer. */
-.cp-diagnostic-hud__spacer {
-  position: relative;
-  width: 100%;
-}
-
-.cp-diagnostic-hud__row {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: grid;
-  /* The marker glyph, then the message. The kind column is gone: the HUD header
-     already names the check, and the glyph carries which rule failed — see
-     cp-workspace/diagnostics/CpDiagnosticGlyph.tsx. */
-  grid-template-columns: 12px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 7px 10px;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.72rem;
-  line-height: 1.25;
-  text-align: left;
-}
-
-/* A border on the row itself, not `.row + .row` and not `:first-child`. Windowed
-   rows are absolutely positioned and only the ones near the viewport exist, so
-   neither sibling order nor "is it the first child" tracks position in the list.
-   The entry's own index does.
-
-   Transparent rather than absent on the first row so every row measures the same
-   height — the virtualizer caches what it measures, and a 1px-shorter row 0
-   would put a permanent 1px skew in the total. */
-.cp-diagnostic-hud__row {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.cp-diagnostic-hud__row[data-index='0'] {
-  border-top-color: transparent;
-}
-
-.cp-diagnostic-hud__row:hover,
-.cp-diagnostic-hud__row[data-active='true'] {
-  background: color-mix(in srgb, var(--status-danger) 11%, transparent);
-}
-
-.cp-diagnostic-hud__row[data-severity='warning']:hover,
-.cp-diagnostic-hud__row[data-severity='warning'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
-}
-
-.cp-diagnostic-hud__row[data-severity='info']:hover,
-.cp-diagnostic-hud__row[data-severity='info'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-success) 12%, transparent);
-}
-
-.cp-diagnostic-hud__row span {
-  color: var(--text-primary);
-}
-
 /* The issue-list twin of the WebGL diagnostic markers. Shape and tone are chosen
    by cpDiagnosticMarkerStyle — the same call the canvas makes — and the tone
    resolves to the same theme tokens resolveCpDiagnosticToneColors reads, so the
@@ -3931,30 +3774,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .cp-diagnostic-glyph[data-shape='self-intersection'],
 .cp-diagnostic-glyph[data-shape='generic'] {
   stroke-linecap: round;
-}
-
-.cp-diagnostic-hud[data-tone='error'] {
-  border-color: color-mix(in srgb, var(--status-danger) 70%, transparent);
-  color: var(--status-danger);
-}
-
-.cp-diagnostic-hud[data-tone='warn'] {
-  border-color: color-mix(in srgb, var(--status-warning) 72%, transparent);
-  color: var(--status-warning);
-}
-
-.cp-diagnostic-hud[data-tone='ok'] {
-  border-color: color-mix(in srgb, var(--status-success) 72%, transparent);
-  color: var(--status-success);
-}
-
-/* The fourth tone: the check has not finished with this document. Deliberately
-   not amber — a pattern mid-design is majority undecided, so a warning colour
-   would be a permanent false alarm — and deliberately not green, which is the
-   claim never-report-silence.md exists to stop the app making. */
-.cp-diagnostic-hud[data-tone='info'] {
-  border-color: color-mix(in srgb, var(--status-info) 60%, transparent);
-  color: var(--status-info);
 }
 
 .design-canvas {
@@ -5272,46 +5091,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   align-items: center;
   gap: 5px;
   white-space: nowrap;
-}
-
-.design-status-readout,
-.viewport-status-readout {
-  position: absolute;
-  top: var(--space-3);
-  left: var(--space-3);
-  z-index: 12;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 24px;
-  padding: 3px 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  color: var(--text-secondary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-}
-
-/* Narrow panes. The cap stops the strip at the viewport's edge instead of letting
-   it run past and be clipped by `.app-layout`'s `overflow: hidden`, and wrapping
-   at the gaps moves whole fields to a second line rather than breaking the prompt
-   mid-sentence. That second line is the height the diagnostic HUD stacks below —
-   see cp-workspace/diagnostics/hudPlacement.ts.
-
-   This is **not** inert for a mouse, which an earlier version of this comment
-   claimed. Measured at fine pointer: one line from 1440 down to 720, two lines at
-   700 and below. So a desktop user with a narrow pane sees a two-line readout
-   where they used to see one — but what they used to see was a *clipped* one,
-   with the tail of the step prompt cut off against the pane edge and no way to
-   read it. Left unscoped deliberately: the old behaviour was worse, and the HUD
-   measures the box rather than assuming its height, so it follows. */
-.viewport-status-readout {
-  flex-wrap: wrap;
-  max-width: calc(100% - var(--space-3) * 2);
 }
 
 /* Quiet full-width attribution bar pinned to the bottom of a design pane. As a
@@ -7055,93 +6834,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /*
- * Bottom-left, not top-left: the contextual toolbars (flap editor, stretch
- * navigator) are centred at the top and grow with their content, so a top-left
- * stack collided with them on a narrow pane and covered the controls the
- * warning is telling you to use. The bottom-left corner is clear — the zoom
- * toolbar is centred and the d-pad is bottom-right — and the offset lifts the
- * stack over the zoom toolbar's row.
- */
-.bp-packing-alerts {
-  position: absolute;
-  bottom: calc(var(--space-3) + 52px);
-  left: var(--space-3);
-  z-index: 13;
-  display: grid;
-  gap: 6px;
-  width: min(420px, calc(100% - var(--space-6)));
-  pointer-events: none;
-}
-
-.bp-packing-alert {
-  display: grid;
-  grid-template-columns: 16px minmax(0, 1fr);
-  align-items: start;
-  gap: 7px;
-  max-width: 100%;
-  padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--status-warning) 42%, var(--border-subtle));
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  color: var(--text-secondary);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  font: inherit;
-  pointer-events: auto;
-  text-align: left;
-}
-
-.bp-packing-alert[data-severity='error'] {
-  border-color: color-mix(in srgb, var(--status-danger) 50%, var(--border-subtle));
-}
-
-.bp-packing-alert svg {
-  margin-top: 1px;
-  color: var(--status-warning);
-}
-
-.bp-packing-alert[data-severity='error'] svg {
-  color: var(--status-danger);
-}
-
-.bp-packing-alert strong,
-.bp-packing-alert small {
-  display: block;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.bp-packing-alert strong {
-  color: var(--text-primary);
-  font-size: 0.74rem;
-  font-weight: 750;
-}
-
-.bp-packing-alert small {
-  margin-top: 2px;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  line-height: 1.35;
-}
-
-button.bp-packing-alert {
-  cursor: pointer;
-}
-
-button.bp-packing-alert:hover,
-button.bp-packing-alert:focus-visible {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-  outline: none;
-}
-
-.bp-packing-alert--more {
-  grid-template-columns: minmax(0, 1fr);
-  border-color: var(--border-subtle);
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-}
-
-/*
  * Flaps whose overlap has no crease pattern. Warning-coloured and dashed so it
  * reads as "unresolved" next to the solid red conflict fill, which means
  * something stronger: an overlap that is invalid outright.
@@ -8676,20 +8368,6 @@ button.bp-packing-alert:focus-visible {
   }
 
   /*
-   * The diagnostic HUD owns the same corner of the crease-pattern viewport, so it
-   * moves down out of the lane.
-   *
-   * `margin-top` and not `top`: `useCpDiagnosticHudLane` writes an inline `top`
-   * whenever the HUD would collide with the viewport status readout, and an
-   * inline style beats any stylesheet rule. A margin composes with whichever
-   * `top` is in force instead of racing it. The subtraction is the HUD's own
-   * inset, which already counts toward the lane.
-   */
-  .cp-diagnostic-hud {
-    margin-top: calc(var(--view-drawer-lane) - var(--space-4));
-  }
-
-  /*
    * The sheet. `position: fixed`, so unlike the trigger it is *not* inside
    * `.app-layout` for layout purposes and does not inherit the safe-area padding
    * that element applies once for the whole app — it has to inset itself.
@@ -9072,17 +8750,15 @@ button.bp-packing-alert:focus-visible {
  */
 @media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
   /*
-   * Two diagnostic readouts, hidden.
+   * The simulator's diagnostic readout, hidden, for the reason the crease
+   * pattern's goes (`ViewportStatusReadout`'s `hideOnPhone`).
    *
-   * Both are pure output — no control lives in either — so nothing becomes
-   * unreachable, and both say things a phone user can already see elsewhere:
-   * the zoom percent is in the viewport toolbar, the active tool is the Tools
-   * pill's own glyph, and a tool's instructions are what the hint window is for.
-   * What they cost is a box over the corner of a canvas that, on a phone, is
-   * the scarcest thing on the screen.
+   * It is pure output — no control lives in it — so nothing becomes
+   * unreachable, and it says things a phone user can already see elsewhere.
+   * What it costs is a box over the corner of a canvas that, on a phone, is the
+   * scarcest thing on the screen.
    *
-   * Phone-only, not every coarse pointer. A tablet has room for both and keeps
-   * the ambient step prompt, which is the part with no equivalent anywhere else.
+   * Phone-only, not every coarse pointer. A tablet has room for it.
    *
    * The simulator's block is hidden **only in its `ready` state**, because
    * `statusLabel` is doing two jobs: the vertex and triangle count when things
@@ -9092,7 +8768,6 @@ button.bp-packing-alert:focus-visible {
    * regardless, and `:not(:first-child)` is exactly that set because the status
    * span leads.
    */
-  .viewport-status-readout,
   .simulator-readout[data-state='ready'] {
     display: none;
   }

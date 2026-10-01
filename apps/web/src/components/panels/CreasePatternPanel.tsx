@@ -227,6 +227,7 @@ import {
   writeCpMeasurePreferences,
 } from '../../cp-workspace/measurePreferences';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
+import { ViewportStatusReadout } from '../ui/ViewportStatusReadout';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { CpToolRail } from './CpToolRail';
 import { withShiftLatch } from '../../cp-workspace/touchModifiers/shiftLatch';
@@ -3409,7 +3410,7 @@ export function CreasePatternPanel() {
                   onCancelInput={cpInputPending ? cancelActiveCpInput : undefined}
                 />
               )}
-              <div className="viewport-status-readout">
+              <ViewportStatusReadout hideOnPhone>
                 <span>{formatZoom(zoomPercent / 100)}</span>
                 {editableCp && <span>{activeCpToolPrompt}</span>}
                 {editableCp && <span>{cpLineTypeStatusLabel(effectiveCpLineColor, t)}</span>}
@@ -3419,7 +3420,7 @@ export function CreasePatternPanel() {
                 {editableCp && editableSelectionSize > 0 && (
                   <span>{t('panels:creasePattern.selectedCount', '{{count}} selected', { count: editableSelectionSize })}</span>
                 )}
-              </div>
+              </ViewportStatusReadout>
             </div>
           </>
         ) : (

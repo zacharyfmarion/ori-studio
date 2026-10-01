@@ -1,0 +1,196 @@
+/*
+ * The crease pattern's diagnostic HUD (CpDiagnosticHud.tsx): a badge in the
+ * viewport's top-right corner naming what the checks found, which expands into
+ * the list of every entry. Its rows' glyphs are CpDiagnosticGlyph's.
+ */
+.hud {
+  position: absolute;
+  z-index: 12;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: grid;
+  /* One number for both states: the cap a collapsed badge may grow to, and the
+     width an expanded panel takes. Sharing it is what stops the badge from
+     being able to come out wider closed than open.
+
+     The gutter is the inset doubled — one on each side — written in terms of the
+     inset above so the two cannot drift apart. It said `var(--space-8)` until
+     the list was windowed; that token does not exist (the scale stops at
+     `--space-6`), so the declaration was invalid at computed-value time and
+     dropped, leaving `max-width: none`. Nothing revealed it while the rows were
+     still in normal flow. */
+  --cp-diagnostic-hud-width: min(360px, calc(100% - var(--space-4) * 2));
+
+  /* Collapsed, the badge is exactly as wide as its headline — no `width`, so an
+     absolutely positioned box shrinks to fit. The cap still applies, so a long
+     headline wraps inside the width instead of running off the canvas. */
+  max-width: var(--cp-diagnostic-hud-width);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+  color: var(--text-primary);
+  font-weight: 760;
+  line-height: 1.2;
+  text-align: right;
+}
+
+/* Expanded, the width has to be stated. The rows are windowed and therefore out
+   of flow, so they contribute no intrinsic width — left to shrink to fit, the
+   panel would size itself to the headline and wrap every message to two lines. */
+.hud[data-expanded] {
+  width: var(--cp-diagnostic-hud-width);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 10px 8px 11px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: right;
+}
+
+.summary:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.copy {
+  display: grid;
+  min-width: 0;
+  justify-items: end;
+}
+
+.copy small {
+  max-width: 100%;
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list {
+  max-height: min(320px, calc(100vh - 170px));
+  overflow: auto;
+  border-top: 1px solid var(--border-subtle);
+  text-align: left;
+  /* The list is windowed: only the rows near the viewport are in the DOM, so
+     scroll position comes from a spacer of the full height rather than from the
+     rows themselves. See CpDiagnosticHud.tsx.
+
+     `layout paint` only — NOT `strict`/`size`, which would compute this box as
+     if it had no contents and collapse the scroll container to nothing. */
+  contain: layout paint;
+}
+
+/* Full-height spacer; rows are positioned into it by the virtualizer. */
+.spacer {
+  position: relative;
+  width: 100%;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  /* The marker glyph, then the message. The kind column is gone: the HUD header
+     already names the check, and the glyph carries which rule failed — see
+     cp-workspace/diagnostics/CpDiagnosticGlyph.tsx. */
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-align: left;
+}
+
+/* A border on the row itself, not `.row + .row` and not `:first-child`. Windowed
+   rows are absolutely positioned and only the ones near the viewport exist, so
+   neither sibling order nor "is it the first child" tracks position in the list.
+   The entry's own index does.
+
+   Transparent rather than absent on the first row so every row measures the same
+   height — the virtualizer caches what it measures, and a 1px-shorter row 0
+   would put a permanent 1px skew in the total. */
+.row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.row[data-index='0'] {
+  border-top-color: transparent;
+}
+
+.row:hover,
+.row[data-active='true'] {
+  background: color-mix(in srgb, var(--status-danger) 11%, transparent);
+}
+
+.row[data-severity='warning']:hover,
+.row[data-severity='warning'][data-active='true'] {
+  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
+}
+
+.row[data-severity='info']:hover,
+.row[data-severity='info'][data-active='true'] {
+  background: color-mix(in srgb, var(--status-success) 12%, transparent);
+}
+
+.row span {
+  color: var(--text-primary);
+}
+
+.hud[data-tone='error'] {
+  border-color: color-mix(in srgb, var(--status-danger) 70%, transparent);
+  color: var(--status-danger);
+}
+
+.hud[data-tone='warn'] {
+  border-color: color-mix(in srgb, var(--status-warning) 72%, transparent);
+  color: var(--status-warning);
+}
+
+.hud[data-tone='ok'] {
+  border-color: color-mix(in srgb, var(--status-success) 72%, transparent);
+  color: var(--status-success);
+}
+
+/* The fourth tone: the check has not finished with this document. Deliberately
+   not amber — a pattern mid-design is majority undecided, so a warning colour
+   would be a permanent false alarm — and deliberately not green, which is the
+   claim never-report-silence.md exists to stop the app making. */
+.hud[data-tone='info'] {
+  border-color: color-mix(in srgb, var(--status-info) 60%, transparent);
+  color: var(--status-info);
+}
+
+@media (pointer: coarse) {
+  /*
+   * On touch the View drawer's trigger owns the canvas's top-right corner, so
+   * the HUD moves down out of its lane (`--view-drawer-lane`, theme.css).
+   *
+   * `margin-top` and not `top`: `useCpDiagnosticHudLane` writes an inline `top`
+   * whenever the HUD would collide with the viewport status readout, and an
+   * inline style beats any stylesheet rule. A margin composes with whichever
+   * `top` is in force instead of racing it. The subtraction is the HUD's own
+   * inset, which already counts toward the lane.
+   */
+  .hud {
+    margin-top: calc(var(--view-drawer-lane) - var(--space-4));
+  }
+}

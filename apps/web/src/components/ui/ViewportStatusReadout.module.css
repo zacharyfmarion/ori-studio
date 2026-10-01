@@ -1,0 +1,38 @@
+/*
+ * The status strip in a canvas's top-left corner (ViewportStatusReadout.tsx):
+ * zoom, and whatever the surface reports beside it.
+ */
+.readout {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 12;
+  display: inline-flex;
+  /* Narrow panes. The cap stops the strip at the viewport's edge instead of
+     letting it run past and be clipped by `.app-layout`'s `overflow: hidden`,
+     and wrapping at the gaps moves whole fields to a second line rather than
+     breaking a step prompt mid-sentence. That second line is the height the
+     diagnostic HUD stacks below — see cp-workspace/diagnostics/hudPlacement.ts.
+
+     This is **not** inert for a mouse. Measured at fine pointer in Edit: one
+     line from 1440 down to 720, two lines at 700 and below. So a desktop user
+     with a narrow pane sees a two-line readout where they used to see one — but
+     what they used to see was a *clipped* one, with the tail of the step prompt
+     cut off against the pane edge and no way to read it. The HUD measures the
+     box rather than assuming its height, so it follows. */
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - var(--space-3) * 2);
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--domain-overlay-bg);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}

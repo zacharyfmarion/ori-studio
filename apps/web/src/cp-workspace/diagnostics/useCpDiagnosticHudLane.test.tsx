@@ -68,7 +68,7 @@ function renderLane(widths: { viewport: number; readoutRight: number; readoutBot
   viewport = document.createElement('div');
   viewport.className = 'cp-panel__viewport';
   const readout = document.createElement('div');
-  readout.className = 'viewport-status-readout';
+  readout.dataset.viewportStatusReadout = '';
   const mount = document.createElement('div');
   viewport.append(readout, mount);
   document.body.append(viewport);
@@ -78,7 +78,7 @@ function renderLane(widths: { viewport: number; readoutRight: number; readoutBot
     root?.render(<CpDiagnosticHud />);
   });
 
-  const hud = viewport.querySelector<HTMLElement>('.cp-diagnostic-hud');
+  const hud = viewport.querySelector<HTMLElement>('[data-diagnostic-hud]');
   if (!hud) throw new Error('the HUD did not render');
 
   stubRect(viewport, { left: 0, right: widths.viewport, bottom: 700 });
@@ -109,7 +109,7 @@ describe('the diagnostic HUD in the viewport top lane', () => {
 
   it('writes no top with no readout in the viewport', () => {
     const hud = renderLane({ viewport: 820, readoutRight: 808, readoutBottom: 52 });
-    viewport?.querySelector('.viewport-status-readout')?.remove();
+    viewport?.querySelector('[data-viewport-status-readout]')?.remove();
     act(() => {
       window.dispatchEvent(new Event('resize'));
     });

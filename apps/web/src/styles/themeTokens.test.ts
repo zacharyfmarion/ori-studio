@@ -38,10 +38,10 @@ const RUNTIME_INJECTED = /^--radix-/u;
 
 /**
  * Undefined tokens this check has found but not fixed, with the number of
- * declarations each one silently kills. Every entry is a real bug —
- * `--shadow-soft` alone means several panels render with no shadow — but fixing
- * them means choosing values, which is a design decision rather than a typo
- * correction, and usually one for whoever owns that surface.
+ * declarations each one silently kills. Every entry is a real bug — a border,
+ * a font or a shadow a rule asks for and never gets — but fixing them means
+ * choosing values, which is a design decision rather than a typo correction,
+ * and usually one for whoever owns that surface.
  *
  * The point of listing them is that the number is visible in a diff when it
  * changes. Lower one as it is fixed; delete the entry at zero. It works like
@@ -61,7 +61,9 @@ const KNOWN_MISSING: Record<string, number> = {
   // replacement uses no border and does not miss it.
   '--border-muted': 1,
   '--font-sans': 4,
-  '--shadow-soft': 1,
+  // `--shadow-soft` was here until the diagnostic HUD, its last reader, moved
+  // into a module. It had never had the shadow it asked for; the move kept that
+  // look and dropped the declaration rather than choosing a value for it.
   // `--surface-base` and `--surface-raised` were here until the three private
   // chip styles became one `.ui-chip`. Both were named only by that rule, so
   // consolidating it removed the last reads: a chip's resting background is now

@@ -107,7 +107,7 @@ function renderHud(options: {
  * the list does not exist until the HUD is expanded, and by then the
  * measurement has already happened.
  *
- * The numbers are the stylesheet's: `.cp-diagnostic-hud__list` caps at 320px,
+ * The numbers are the stylesheet's: the list (CpDiagnosticHud.module.css) caps at 320px,
  * and a one-line row is ~29px.
  */
 const LIST_VIEWPORT_PX = 320;
@@ -119,10 +119,10 @@ const realClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 
 const realScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
 
 function heightFor(element: HTMLElement): number {
-  if (element.classList?.contains('cp-diagnostic-hud__list')) return LIST_VIEWPORT_PX;
-  if (element.classList?.contains('cp-diagnostic-hud__row')) return ROW_PX;
+  if (element.dataset?.hudPart === 'list') return LIST_VIEWPORT_PX;
+  if (element.dataset?.hudPart === 'row') return ROW_PX;
   // The spacer's height is the virtualizer's own total, set inline.
-  if (element.classList?.contains('cp-diagnostic-hud__spacer')) {
+  if (element.dataset?.hudPart === 'spacer') {
     return Number.parseFloat(element.style.height || '0');
   }
   return 0;
@@ -130,8 +130,8 @@ function heightFor(element: HTMLElement): number {
 
 /** Content height: for the scroll container, that is its spacer child. */
 function scrollHeightFor(element: HTMLElement): number {
-  if (element.classList?.contains('cp-diagnostic-hud__list')) {
-    const spacer = element.querySelector<HTMLElement>('.cp-diagnostic-hud__spacer');
+  if (element.dataset?.hudPart === 'list') {
+    const spacer = element.querySelector<HTMLElement>('[data-hud-part="spacer"]');
     return spacer ? heightFor(spacer) : 0;
   }
   return heightFor(element);
@@ -194,14 +194,14 @@ afterAll(() => {
 });
 
 function scrollListTo(view: HTMLElement, top: number) {
-  const list = view.querySelector<HTMLElement>('.cp-diagnostic-hud__list');
+  const list = view.querySelector<HTMLElement>('[data-hud-part="list"]');
   if (!list) throw new Error('list not mounted');
   list.scrollTop = top;
   list.dispatchEvent(new Event('scroll'));
 }
 
 function expand(view: HTMLElement) {
-  const summary = view.querySelector<HTMLButtonElement>('.cp-diagnostic-hud__summary');
+  const summary = view.querySelector<HTMLButtonElement>('[data-hud-part="summary"]');
   act(() => {
     summary?.click();
   });
@@ -210,7 +210,7 @@ function expand(view: HTMLElement) {
 // The message span only — the glyph carries a <title> that would otherwise land
 // in the row's textContent.
 function rowIds(view: HTMLElement): string[] {
-  return [...view.querySelectorAll('.cp-diagnostic-hud__row')].map(
+  return [...view.querySelectorAll('[data-hud-part="row"]')].map(
     (row) => row.querySelector('span')?.textContent?.trim() ?? ''
   );
 }
@@ -218,7 +218,7 @@ function rowIds(view: HTMLElement): string[] {
 describe('CpDiagnosticHud', () => {
   it('renders nothing when there is no diagnostic result', () => {
     const view = renderHud({});
-    expect(view.querySelector('.cp-diagnostic-hud')).toBeNull();
+    expect(view.querySelector('[data-diagnostic-hud]')).toBeNull();
   });
 
   it('windows a long list: every entry reachable, few rows mounted', () => {
@@ -227,7 +227,7 @@ describe('CpDiagnosticHud', () => {
     expand(view);
 
     // The cap is gone: the scroll extent covers all 2000, not 12.
-    const spacer = view.querySelector<HTMLElement>('.cp-diagnostic-hud__spacer');
+    const spacer = view.querySelector<HTMLElement>('[data-hud-part="spacer"]');
     const total = Number.parseFloat(spacer?.style.height ?? '0');
     expect(total).toBeGreaterThan(2000 * 20);
 
@@ -235,7 +235,7 @@ describe('CpDiagnosticHud', () => {
     // visible, plus 8 of overscan each way: ~27. The bound is loose enough to
     // survive a row-height tweak and tight enough that dropping the virtualizer
     // (2000 rows) fails it.
-    const mounted = view.querySelectorAll('.cp-diagnostic-hud__row').length;
+    const mounted = view.querySelectorAll('[data-hud-part="row"]').length;
     expect(mounted).toBeGreaterThan(0);
     expect(mounted).toBeLessThan(60);
 
@@ -269,7 +269,7 @@ describe('CpDiagnosticHud', () => {
     );
     const lastCommandResult = result('Check1', ['check1-1']);
     const view = renderHud({ camvResult, lastCommandResult });
-    expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+    expect(view.querySelector('[data-hud-part="copy"] span')?.textContent).toBe(
       '22 Foldability Errors'
     );
   });
@@ -279,7 +279,7 @@ describe('CpDiagnosticHud', () => {
       camvResult: result('CheckCamv', ['camv-1']),
       camvIssuesVisible: false,
     });
-    expect(view.querySelector('.cp-diagnostic-hud')).toBeNull();
+    expect(view.querySelector('[data-diagnostic-hud]')).toBeNull();
   });
 
   it('leaves the scroll position alone when the active entry changes', () => {
@@ -304,7 +304,7 @@ describe('CpDiagnosticHud', () => {
   it('activates the clicked entry', () => {
     const view = renderHud({ camvResult: result('CheckCamv', ['camv-1', 'camv-2']) });
     expand(view);
-    const rows = view.querySelectorAll<HTMLButtonElement>('.cp-diagnostic-hud__row');
+    const rows = view.querySelectorAll<HTMLButtonElement>('[data-hud-part="row"]');
     act(() => {
       rows[1]?.click();
     });
@@ -321,14 +321,14 @@ describe('CpDiagnosticHud', () => {
         camvResult: angleResult('CheckCamv', ['camv-1', 'camv-2', 'camv-3']),
         suppressedCheckClasses: ['kawasaki'],
       });
-      const hud = view.querySelector('.cp-diagnostic-hud');
+      const hud = view.querySelector('[data-diagnostic-hud]');
       expect(hud).not.toBeNull();
       expect(hud?.getAttribute('data-tone')).toBe('info');
-      expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+      expect(view.querySelector('[data-hud-part="copy"] span')?.textContent).toBe(
         '3 findings hidden by a filter'
       );
       // Said once, not twice: with no check naming the headline, the note is it.
-      expect(view.querySelector('.cp-diagnostic-hud__hidden')).toBeNull();
+      expect(view.querySelector('[data-hud-part="hidden"]')).toBeNull();
       expect(rowIds(view)).toEqual([]);
     });
 
@@ -340,10 +340,10 @@ describe('CpDiagnosticHud', () => {
       const view = renderHud({ camvResult, suppressedCheckClasses: ['kawasaki'] });
       // The headline counts what survived the filter, and the note says what did
       // not — an "OK" with no second line is the dishonest version of this.
-      expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+      expect(view.querySelector('[data-hud-part="copy"] span')?.textContent).toBe(
         '1 Foldability Error'
       );
-      expect(view.querySelector('.cp-diagnostic-hud__hidden')?.textContent).toBe(
+      expect(view.querySelector('[data-hud-part="hidden"]')?.textContent).toBe(
         '1 finding hidden by a filter'
       );
       expand(view);
@@ -352,8 +352,8 @@ describe('CpDiagnosticHud', () => {
 
     it('says nothing about hiding when no rule is suppressing anything', () => {
       const view = renderHud({ camvResult: angleResult('CheckCamv', ['camv-1']) });
-      expect(view.querySelector('.cp-diagnostic-hud__hidden')).toBeNull();
-      expect(view.querySelector('.cp-diagnostic-hud__copy span')?.textContent).toBe(
+      expect(view.querySelector('[data-hud-part="hidden"]')).toBeNull();
+      expect(view.querySelector('[data-hud-part="copy"] span')?.textContent).toBe(
         '1 Foldability Error'
       );
     });

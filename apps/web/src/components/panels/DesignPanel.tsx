@@ -82,6 +82,7 @@ import { DesignAttributionFooter } from '../DesignAttributionFooter';
 import { BpTreePanel } from './BpTreePanel';
 import { SurfaceFailure } from '../ui/SurfaceFailure';
 import { SurfaceLoading } from '../ui/SurfaceLoading';
+import { ViewportStatusReadout } from '../ui/ViewportStatusReadout';
 import {
   isViewportInteractiveTarget,
   ViewportToolbar,
@@ -1301,14 +1302,14 @@ function TreeMakerDesignPanel() {
           fitToView={() => fitToView()}
           setZoomLevel={setZoomLevel}
         />
-        <div className="design-status-readout">
+        <ViewportStatusReadout>
           <span>{formatZoom(zoomPercent / 100)}</span>
           {hoverPoint && (
             <span>
               {formatNumber(hoverPoint.x, 3)}, {formatNumber(hoverPoint.y, 3)}
             </span>
           )}
-        </div>
+        </ViewportStatusReadout>
         <div className="design-legend">
           <span><CircleDot size={13} /> {t('panels:design.legendTerminal', 'Terminal')}</span>
           <span><Waypoints size={13} /> {t('panels:design.legendActivePath', 'Active path')}</span>
