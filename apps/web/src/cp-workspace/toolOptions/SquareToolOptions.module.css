@@ -8,22 +8,24 @@
  * rather than nine buttons, so it sits beside the segmented controls above it.
  */
 .anchor {
+  --pad: 2px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
   width: 54px;
-  padding: 2px;
+  padding: var(--pad);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
 }
 
+/* Concentric with the picker's corner: its radius less its padding and border. */
 .cell {
   aspect-ratio: 1;
   min-width: 0;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: calc(var(--radius) - var(--pad) - 1px);
   background: var(--bg-tertiary);
   cursor: pointer;
 }

@@ -18,7 +18,7 @@
   width: 48px;
   padding: 0 1px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-primary);
   /* `font` shorthand for the family (inputs default to the system UI font),
@@ -58,7 +58,7 @@
   width: 16px;
   height: 28px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;

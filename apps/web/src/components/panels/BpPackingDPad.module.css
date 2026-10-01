@@ -25,7 +25,7 @@
   width: 36px;
   height: 36px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--domain-overlay-bg);
   color: var(--text-primary);
   box-shadow: 0 8px 24px var(--shadow-overlay);

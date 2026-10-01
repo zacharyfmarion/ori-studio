@@ -43,7 +43,7 @@
   width: 84px;
   height: 30px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font: inherit;

@@ -128,11 +128,13 @@ after. The restyle follows as the phase's last commit.
 
 ### Phase 2 — One-owner controls
 
-- [ ] Moves: `ConditionsPanel`, `BpOptimizerModal`, `ExploriQueryBar`,
+- [x] Moves: `ConditionsPanel`, `BpOptimizerModal`, `ExploriQueryBar`,
       `CreaseAngleField`, `CreaseAnglePopover`, `SquareToolOptions`,
-      `CpViewControlsPanel`, `BpPackingPanel`'s d-pad; computed styles
-      unchanged; ratchet lowered; commit
-- [ ] Restyle; browser; validate; commit
+      `CpViewControlsPanel`, `BpPackingPanel`'s d-pad (now `BpPackingDPad`);
+      computed styles unchanged (desktop, and touch where a block has touch
+      rules; the popover as a replica in both its frames, since it cannot
+      mount in a hidden pane); ratchet lowered to 6254; commit
+- [x] Restyle; browser; validate; commit
 
 ### Phase 3 — Shared cards, and the toasts
 
