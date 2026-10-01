@@ -45,7 +45,9 @@ override. A primitive could not be trusted to look like itself.
 6. **Tokens stay global, and only tokens do.** A module reads `var(--…)`.
    - **A token** is a value that one of these must agree on:
      - components that do not know about each other (`--touch-target`, the
-       spacing scale)
+       spacing scale, `--workspace-header-height`: Design's tab strip, a
+       panel's toolbar and the dock's tab bar meet in one line because they
+       read one number)
      - third-party markup
      - a theme (`--segmented-track` differs between light and dark)
 

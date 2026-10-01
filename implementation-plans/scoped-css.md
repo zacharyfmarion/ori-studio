@@ -151,11 +151,12 @@ From the 2026-10-01 scan (a class named in a string literal in two or more
 source files), with generic words such as `crease` and `paper` left out. Not
 exhaustive: check before you assume a block has one owner.
 
-Moving in `implementation-plans/styling-refinements.md`:
-`viewport-toolbar` (with the chrome of `symmetry-menu`, `bp-sheet-menu` and
-`design-layer-menu`), `floating-toolbar`, `design-tab` / `design-tab-strip`,
-`cp-tool-rail`, `context-menu`, the chrome of `cp-context-panel`,
-`viewport-status-readout`, `bp-name-editor`, `update-card`.
+Moved by `implementation-plans/styling-refinements.md`: `viewport-toolbar`
+(with the chrome of `symmetry-menu`, `bp-sheet-menu` and `design-layer-menu`),
+`floating-toolbar`, `design-tab` / `design-tab-strip`, `cp-tool-rail`,
+`context-menu` (onto the parts in `components/ui/Menu.tsx`), the chrome of
+`cp-context-panel`, `viewport-status-readout`, `bp-name-editor`, `update-card`,
+and the whole of `MenuBar.css`.
 
 Still shared:
 
@@ -165,6 +166,11 @@ Still shared:
   `field-row`, `settings-section`, `settings-toggle-row`, `settings-checkbox`
 - **Dialogs**: `simple-modal` (9 files), `export-modal` (6),
   `settings-shortcuts`, `settings-paper` (5)
+- **The select trigger**: `select-trigger`. The export dialogs restyle it
+  through `.export-modal__select` (padding, border, ground, radius) and place
+  it from their field rows, so it stayed global when `Select`'s list and
+  options moved. It moves with a `SelectTrigger` prop for that look, in the
+  dialogs' own PR.
 - **The CP tool card's content**: `cp-context-panel` groups and fields
   (`CpContextToolPanel` and the controls it renders)
 - **CP workspace**: `cp-panel` (looked up by the tool card and the HUD lane),

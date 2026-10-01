@@ -108,6 +108,11 @@ Three things that shape the work:
    everywhere. A `tone` prop only if one of the differences turns out to be
    deliberate.
 
+   **Still open.** Nothing in this pass decided it, so every bar kept the look
+   it had: the bottom bar and the floating bars are one `Toolbar` with a
+   `tone` each (`overlay`, `raised`), and the BP canvas bars keep theirs in
+   `CanvasContextBar`. Settling it is a change to those two places.
+
 ## Approach
 
 ### The rule
@@ -425,6 +430,23 @@ concentric).
     `CpFoldedFigureToolbar`, `contextMenuPicker`, `ToolbarDownloadButton`,
     `DesktopDownloadButton`.
 
+**As built:**
+
+- `Select`'s list and options moved; its trigger did not. The export dialogs
+  restyle the trigger through `.export-modal__select`, which would tie with a
+  module rule, so it stays global until they get a prop for that look
+  (`scoped-css.md`, "Known shared blocks").
+- The parts live in `components/ui/Menu.tsx` rather than in `ContextMenu`:
+  every dropdown composes them, `ContextMenu` included. The colour row's
+  swatch and the picker's shield took modules of their own.
+- Every menu now scrolls past Radix's available height instead of clipping,
+  which retired the `⋯` menu's override — a rule in another component's module
+  reaching into the menu's surface.
+- Left as they were, because each is a look to decide rather than a radius:
+  the menu bar's rows run full width rather than as inset 4px pills, and the
+  Paper dash menu's rows are 6px inside 6px of padding, so not concentric with
+  its 8px corner.
+
 ### Phase 8 — Readouts, HUD, alerts, update card
 
 All go to `--radius` (8px):
@@ -440,6 +462,18 @@ All go to `--radius` (8px):
   anyway.
 - **`UpdateCard`** → its own module (12px → 8px, because it is a card:
   decision 2). `App.css` shrinks.
+
+**As built:**
+
+- Edit's readout hid on a phone through a copy of the phone media query in
+  `theme.css`; it now hides through `ViewportStatusReadout`'s `hideOnPhone`
+  (`useIsPhoneLayout()`), so the query keeps its two copies and no third.
+  Design's readout now caps and wraps to its pane, as Edit's did.
+- The HUD's `box-shadow: var(--shadow-soft)` named a token nothing defines, so
+  it never had a shadow. The declaration went rather than moving, which keeps
+  that look and takes the token off `themeTokens.test.ts`'s known-missing list.
+- The update card's main button sits inside the card's 1px border, so it takes
+  `calc(var(--radius) - 1px)`.
 
 ### Not in this pass
 
@@ -515,106 +549,116 @@ No new strings, and no analytics events: nothing here is a new action.
 
 ### Phase 1 — Tokens, and the dead CSS
 
-- [ ] `--radius` with the scale derived from it, `--workspace-header-height`
+- [x] `--radius` with the scale derived from it, `--workspace-header-height`
       and the motion pair in `theme.css`
-- [ ] `.ui-control--rounded` and the segmented control read them
-- [ ] The dead blocks deleted, each confirmed unreferenced; the ceilings
+- [x] `.ui-control--rounded` and the segmented control read them
+- [x] The dead blocks deleted, each confirmed unreferenced; the ceilings
       lowered to what is left
-- [ ] `liveSelectors.test.ts` (third-party prefixes, a runtime-class
+- [x] `liveSelectors.test.ts` (third-party prefixes, a runtime-class
       allowlist with reasons)
-- [ ] Validate; commit
+- [x] Validate; commit
 
 ### Phase 2 — Header height
 
-- [ ] `WorkspaceTabStrip` (standalone, `embedded`, `tone="peers"`, `fill`) and
+- [x] `WorkspaceTabStrip` (standalone, `embedded`, `tone="peers"`, `fill`) and
       its module; Design and References compose it
-- [ ] The shell rules read `--workspace-header-height`; the old strip and
+- [x] The shell rules read `--workspace-header-height`; the old strip and
       References override CSS deleted; the ceiling lowered
-- [ ] Tests on roles and `[data-design-tab]`; the declaration checks read the
+- [x] Tests on roles and `[data-design-tab]`; the declaration checks read the
       module
-- [ ] Browser: Design, References and Simulate headers all 36px; the strip's
-      `+` centred; drag, rename and close still work; References' tabs on a
-      phone; dark and light
-- [ ] Validate; commit
+- [x] Browser: Design, References and Simulate headers all 36px; the strip's
+      `+` centred; add, rename and close still work; References' tabs on a
+      phone; dark and light. (Drag was not exercised: the agent's browser pane
+      was hidden, and takes no pointer input then.)
+- [x] Validate; commit
 
 ### Phase 3 — Bottom toolbar
 
-- [ ] Decision 6 settled (one toolbar look, or a `tone`)
-- [ ] `Toolbar`: its padding and concentric radius in its module,
+- [x] Decision 6 settled for now as a `tone`: each bar kept its look. One
+      look is still open (decision 6)
+- [x] `Toolbar`: its padding and concentric radius in its module,
       `ToolbarGroup`, `ToolbarSeparator`, the decided look
-- [ ] `ViewportToolbar` composes it: 4px vertical padding, 12px bar, 8px inner
+- [x] `ViewportToolbar` composes it: 4px vertical padding, 12px bar, 8px inner
       controls and dropdowns; its module keeps the placement, the controls and
       the menus
-- [ ] `ViewportToolbarMenu` for the panels' menus; `role="toolbar"` and
+- [x] `ViewportToolbarMenu` for the panels' menus; `role="toolbar"` and
       `data-viewport-toolbar`; the tool card's anchor reads the attribute
-- [ ] Tests on roles and attributes; the ceiling lowered
-- [ ] Browser: the bar in Edit, Design tree and packing, and References
+- [x] Tests on roles and attributes; the ceiling lowered
+- [x] Browser: the bar in Edit, Design tree and packing, and References
       (38px, 12px); the tool card clears it; the BP alerts and d-pad clear it;
-      a wrapped bar on a tablet-width coarse pointer
-- [ ] Validate; commit
+      the bar on a touch phone (54px: a touch target and its inset). A wrapped
+      bar was not seen: a phone folds the bar's tail into `⋯`, and a
+      tablet-width coarse pointer cannot be emulated in the agent's pane
+- [x] Validate; commit
 
 ### Phase 4 — Tool rail
 
-- [ ] `CpToolRail.module.css` (with its touch rules), glyph and latch modules;
+- [x] `CpToolRail.module.css` (with its touch rules), glyph and latch modules;
       8px buttons
-- [ ] Tests; the ceiling lowered
-- [ ] Browser: rail hover, active and disabled states; the touch header; the
+- [x] Tests; the ceiling lowered
+- [x] Browser: rail hover, active and disabled states; the touch header; the
       phone picker's glyphs
-- [ ] Validate; commit
+- [x] Validate; commit
 
 ### Phase 5 — Tool card
 
-- [ ] `CpToolHintWindow.module.css`; 8px; the header action slot;
+- [x] `CpToolHintWindow.module.css`; 8px; the header action slot;
       `CpContextToolReset.module.css`
-- [ ] `useAnimatedHeight` (bottom-anchored while resizing, first placement
+- [x] `useAnimatedHeight` (bottom-anchored while resizing, first placement
       jumps, reduced motion, interruption, the max-height case) with tests
-- [ ] Collapse and expand animate; the body stays mounted, `inert`, until
+- [x] Collapse and expand animate; the body stays mounted, `inert`, until
       closed
-- [ ] Browser: Extend Line Active ↔ Same and Divided Line Count ↔ Ratio, with
+- [x] Browser: Extend Line Active ↔ Same and Divided Line Count ↔ Ratio, with
       the pressed control holding still; a tool switch between two cards;
-      collapse and expand; a tool tall enough to scroll; reduced motion
-- [ ] Validate; commit
+      collapse and expand. A tool tall enough to scroll, and reduced motion,
+      are covered by `useAnimatedHeight.test.tsx` rather than the browser
+- [x] Validate; commit
 
 ### Phase 6 — Selection toolbar and canvas pills
 
-- [ ] `FloatingToolbar` on `Toolbar` (12px); `CpToolOptionLayer`,
+- [x] `FloatingToolbar` on `Toolbar` (12px); `CpToolOptionLayer`,
       `CpRegionChipBar`, `CpTextEditor` and `CpFoldedFigureToolbar` onto
       `Toolbar` and `ToolbarSeparator`
-- [ ] `CanvasContextBar` (its own chrome on the radius rule, title and label
+- [x] `CanvasContextBar` (its own chrome on the radius rule, title and label
       parts) for the three BP pills; their fields in their own modules, at
       `--radius`; one 38px height
-- [ ] Tests; the ceiling lowered
-- [ ] Browser: the CP selection toolbar, text editor, crease-angle popover,
-      folded figure toolbar; the BP pills
-- [ ] Validate; commit
+- [x] Tests; the ceiling lowered
+- [x] Browser: the CP selection toolbar, text editor, crease-angle popover;
+      the BP pills. (The folded figure toolbar was not reached: folding needs
+      the pane on screen. Its tests cover the move.)
+- [x] Validate; commit
 
 ### Phase 7 — Menus, popovers, tooltips
 
-- [ ] `Tooltip`, `Select` and `PaperDashMenu` modules at 8px
-- [ ] `MenuBar.module.css` (the whole file); `MenuBar.css` off the allowlist
+- [x] `Tooltip`, `Select` (list and options; the trigger stays shared) and
+      `PaperDashMenu` modules at 8px
+- [x] `MenuBar.module.css` (the whole file); `MenuBar.css` off the allowlist
       and the ratchet list
-- [ ] `ContextMenu` module and parts; the 12 sites moved onto the parts
-- [ ] Tests on roles; the ceilings lowered
-- [ ] Browser: a canvas context menu, a submenu, the menu bar, a select list,
+- [x] `ContextMenu` module and parts; the 12 sites moved onto the parts
+- [x] Tests on roles; the ceilings lowered
+- [x] Browser: a canvas context menu, a submenu, the menu bar, a select list,
       a tooltip, the Paper dash menu; coarse-pointer rows
-- [ ] Validate; commit
+- [x] Validate; commit
 
 ### Phase 8 — Readouts, HUD, alerts, update card
 
-- [ ] `ViewportStatusReadout` (Edit and Design) with the lane hook on a data
+- [x] `ViewportStatusReadout` (Edit and Design) with the lane hook on a data
       attribute; `CpDiagnosticHud`, `BpPackingAlerts` and `UpdateCard` modules
       at 8px
-- [ ] The ceilings lowered
-- [ ] Browser: the readout in both workspaces beside an expanded HUD; BP
+- [x] The ceilings lowered
+- [x] Browser: the readout in both workspaces beside an expanded HUD; BP
       alerts; the update card
-- [ ] Validate; commit
+- [x] Validate; commit
 
 ### Phase 9 — Close out
 
-- [ ] `docs/styling.md`: the radius rule (one radius, concentric containers,
+- [x] `docs/styling.md`: the radius rule (one radius, concentric containers,
       nested rows) and the header token; a line in `AGENTS.md`'s Styling list
-- [ ] No floating surface in this plan declares a literal radius (grep)
-- [ ] `npm run build:web` with the prerender; the landing budget and the
+- [x] No floating surface in this plan declares a literal radius (grep). Two
+      global ones outside it still say `8px` rather than `var(--radius)`:
+      `.cp-tool-option__note` and `.explori-advanced__popover`
+- [x] `npm run build:web` with the prerender; the landing budget and the
       static-paint check pass
-- [ ] Full browser pass, dark and light, desktop and phone width; draft PR
-      against the base branch
+- [x] Full browser pass, dark and light, desktop and phone width, by computed
+      styles (the agent's pane was hidden, so no screenshots)
+- [ ] Draft PR against the base branch — waiting on the go-ahead to push
