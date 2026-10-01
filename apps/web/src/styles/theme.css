@@ -515,149 +515,6 @@
   color: var(--text-secondary);
 }
 
-.context-menu {
-  z-index: var(--z-portaled-popover);
-  min-width: 180px;
-  max-height: var(--radix-dropdown-menu-content-available-height);
-  overflow: hidden;
-  padding: 4px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
-}
-
-.context-menu__item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  cursor: default;
-  font-size: 12px;
-  outline: none;
-  padding: 5px 8px;
-  user-select: none;
-}
-
-.context-menu__item[data-highlighted] {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
-}
-
-/* An item that is genuinely an anchor — a download link, reached through Radix's
-   `asChild`. Two things the item class does not cover: the user-agent's
-   underline for `a` survives it, and an underlined row reads as prose inside a
-   menu; and `cursor: default` above is right for a row that only selects, but
-   wrong for one that goes somewhere. */
-a.context-menu__item {
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.context-menu__item[data-disabled] {
-  color: var(--text-disabled, var(--text-secondary));
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-/* An item that qualifies the one above it — "Only where needed" under
-   "Precrease grid" — sits a step in, so the pair reads as one setting. */
-.context-menu__item--nested {
-  padding-left: 24px;
-}
-
-.context-menu__item[data-danger] {
-  color: var(--status-danger);
-}
-
-.context-menu__item[data-danger][data-highlighted] {
-  background: color-mix(in srgb, var(--status-danger) 16%, var(--bg-elevated));
-}
-
-.context-menu__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  color: currentcolor;
-}
-
-.context-menu__label {
-  flex: 1;
-}
-
-.context-menu__shortcut {
-  color: var(--text-secondary);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-}
-
-.context-menu__separator {
-  height: 1px;
-  margin: 4px 6px;
-  background: var(--border-default);
-}
-
-/* A `DropdownMenu.Label` heading a group of items — an operating system over its
-   builds, say. Not focusable and not an item, so it takes none of the item
-   padding that would make it look like one. */
-.context-menu__group-label {
-  padding: 6px 8px 2px;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* Trailing chevron on a submenu trigger; the leading slot stays the icon's. */
-.context-menu__subtrigger-arrow {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  color: var(--text-secondary);
-}
-
-.context-menu__item[data-highlighted] .context-menu__subtrigger-arrow {
-  color: currentcolor;
-}
-
-/* A colour row's value, painted, in the leading slot where a sibling's icon
-   sits. The native input lies over it invisibly so the engine's picker anchors
-   beside the swatch rather than at the row's origin, and `pointer-events: none`
-   sends a click to the row instead — whose select opens the picker, so it
-   cannot open twice. */
-.context-menu__swatch {
-  position: relative;
-  display: block;
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-}
-
-.context-menu__color-input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Up while a colour row's picker is open: the press that closes the picker
-   lands here and goes no further. Below the menu, so its rows stay usable, and
-   above everything else — see contextMenuPicker.tsx. */
-.context-menu__picker-shield {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-portaled-popover) - 1);
-}
-
 .panel-shell {
   display: flex;
   flex-direction: column;
@@ -3686,8 +3543,6 @@ a.context-menu__item {
   background: transparent;
 }
 
-/* Floating controls for the selected reference image. */
-
 /* A 3D folded figure's verdict, as a chip at the head of its toolbar.
 
    Rendered as a button when the verdict offers something to do about it and as
@@ -5742,8 +5597,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* Fold-angle quick-pick chips. Keeps typing off the common path: a box is 90
-   everywhere, a prism 60/120. */
 /* Promote the badge layer to its own compositor layer, for the same reason the
    SVG crease-pattern layer above is promoted: a pan only translates it, and
    without this the whole layer re-rasterizes every frame — 300 text nodes'
@@ -5922,21 +5775,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-primary);
   outline: none;
 }
-
-/*
- * The `⋯` menu scrolls where `.context-menu` alone would truncate.
- *
- * That base rule caps itself at Radix's available height and leaves
- * `overflow: hidden`, which is survivable for a menu of a handful of 28px rows
- * and is not for this one: on a coarse pointer every row is `--touch-target`,
- * and the packing pane's menu is fifteen of them plus two seams — around 690px,
- * against roughly 530px of room above the bar on a small tablet in landscape.
- * The remainder had no way to be reached, since the bar sits on the bottom edge
- * and there is nowhere below for Radix to flip into.
- *
- * Only the vertical axis is offered, and the chain stops here so reaching the
- * end of the list does not start moving whatever is behind it.
- */
 
 .cp-view-controls-panel__empty {
   display: flex;
@@ -6204,8 +6042,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* An option that qualifies the one above it — "Only where needed" under
-   "Precrease grid" — sits a step in, so the pair reads as one setting. The
-   menu form of the same idea is `.context-menu__item--nested`. */
+   "Precrease grid" — sits a step in, so the pair reads as one setting. */
 .control-row--nested {
   padding-left: 24px;
 }
@@ -8514,8 +8351,8 @@ button.bp-packing-alert:focus-visible {
   }
 
   /* Rows in a portalled menu. Nothing sits beside them, so height is free.
-     The menu bar's rows take the same target, in its own module. */
-  .context-menu__item,
+     The other menus' rows (the menu bar, `Menu`) take the same target in their
+     own modules. */
   .symmetry-menu__item {
     min-height: var(--touch-target);
   }

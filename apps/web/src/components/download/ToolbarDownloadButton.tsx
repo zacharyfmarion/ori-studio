@@ -1,4 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MenuContent } from '../ui/Menu';
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
@@ -55,22 +56,19 @@ function DownloadMenu() {
         tooltipSide="bottom"
         icon={<Download size={15} />}
       />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="context-menu"
-          side="bottom"
-          align="end"
-          sideOffset={6}
-          collisionPadding={8}
-          loop
-        >
-          <DesktopDownloadMenuItems
-            builds={builds}
-            fallbackUrl={fallbackUrl}
-            surface="toolbar"
-          />
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      <MenuContent
+        side="bottom"
+        align="end"
+        sideOffset={6}
+        collisionPadding={8}
+        loop
+      >
+        <DesktopDownloadMenuItems
+          builds={builds}
+          fallbackUrl={fallbackUrl}
+          surface="toolbar"
+        />
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }

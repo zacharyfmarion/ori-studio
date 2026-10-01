@@ -318,7 +318,7 @@ describe('SuppressionRegionChip', () => {
       openImageMenu();
 
       const item = (label: string) =>
-        [...document.querySelectorAll<HTMLElement>('.context-menu__item')].find((candidate) =>
+        [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')].find((candidate) =>
           candidate.textContent?.includes(label)
         );
       act(() => item('Show reference image')?.click());

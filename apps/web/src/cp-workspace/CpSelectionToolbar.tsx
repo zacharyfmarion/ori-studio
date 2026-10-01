@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MenuContent, MenuItem, MenuItemLabel } from '../components/ui/Menu';
 import {
   Compass,
   FileDown,
@@ -61,26 +62,19 @@ function ExportMenu({
   return (
     <DropdownMenu.Root>
       <MenuIconButton label={label} icon={<FileDown size={14} />} />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="context-menu"
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={8}
-          loop
-        >
-          {SEGMENT_EXPORT_FORMATS.map((meta) => (
-            <DropdownMenu.Item
-              key={meta.format}
-              className="context-menu__item"
-              onSelect={() => onExport(meta.format)}
-            >
-              <span className="context-menu__label">{exportFormatLabel(meta.format, t)}</span>
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      <MenuContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={8}
+        loop
+      >
+        {SEGMENT_EXPORT_FORMATS.map((meta) => (
+          <MenuItem key={meta.format} onSelect={() => onExport(meta.format)}>
+            <MenuItemLabel>{exportFormatLabel(meta.format, t)}</MenuItemLabel>
+          </MenuItem>
+        ))}
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }

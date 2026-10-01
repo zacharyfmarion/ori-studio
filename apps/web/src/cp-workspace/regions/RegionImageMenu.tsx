@@ -39,6 +39,15 @@
  */
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import {
+  MenuCheckboxItem,
+  MenuContent,
+  MenuControlRow,
+  MenuItem,
+  MenuItemIcon,
+  MenuItemLabel,
+  MenuSeparator,
+} from '../../components/ui/Menu';
 import { Check, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { MenuIconButton } from '../../components/ui/MenuIconButton';
 import { GestureSlider } from '../../components/ui/GestureSlider';
@@ -74,65 +83,57 @@ export function RegionImageMenu({
         icon={<ImageIcon size={14} />}
         isActive={shown}
       />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="context-menu"
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={8}
-          loop
+      <MenuContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={8}
+        loop
+      >
+        <MenuCheckboxItem
+          checked={shown}
+          onSelect={(event) => {
+            // Kept open across the toggle, as the checks menu is: showing and
+            // fading are usually adjusted together, and the slider below is in
+            // this same menu.
+            event.preventDefault();
+            onToggleImageHidden();
+          }}
         >
-          <DropdownMenu.CheckboxItem
-            className="context-menu__item"
-            checked={shown}
-            onSelect={(event) => {
-              // Kept open across the toggle, as the checks menu is: showing and
-              // fading are usually adjusted together, and the slider below is in
-              // this same menu.
-              event.preventDefault();
-              onToggleImageHidden();
-            }}
-          >
-            <span className="context-menu__icon">{shown && <Check size={12} />}</span>
-            <span className="context-menu__label">
-              {t('panels:cpRegion.imageShow', 'Show reference image')}
-            </span>
-          </DropdownMenu.CheckboxItem>
-          {/*
-            A label rather than a menu item: a `DropdownMenu.Item` owns arrow keys
-            and Enter, which are exactly the keys a range input needs, so wrapping
-            the slider in one would make it unusable from the keyboard.
-            `onKeyDown` stops Radix's typeahead and roving focus seeing the keys
-            at all, which is what leaves the native slider behaviour intact.
-          */}
-          <label className="context-menu__item" onKeyDown={(event) => event.stopPropagation()}>
-            <span className="context-menu__icon" aria-hidden="true" />
-            <span className="context-menu__label">
-              {t('panels:cpRegion.imageOpacity', 'Opacity')}
-            </span>
-            <GestureSlider
-              min={0}
-              max={100}
-              value={Math.round(image.opacity * 100)}
-              onChange={(percent) => onImageOpacity(percent / 100)}
-              onGestureStart={onGestureStart}
-              onGestureCommit={onGestureCommit}
-              commitLabel={t('panels:cpRegion.imageAdjustOpacity', 'Adjust reference image')}
-              aria-label={t('panels:cpRegion.imageOpacity', 'Opacity')}
-            />
-          </label>
-          <DropdownMenu.Separator className="context-menu__separator" />
-          <DropdownMenu.Item className="context-menu__item" onSelect={onDeleteImage}>
-            <span className="context-menu__icon">
-              <Trash2 size={12} />
-            </span>
-            <span className="context-menu__label">
-              {t('panels:cpRegion.imageDelete', 'Remove reference image')}
-            </span>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+          <MenuItemIcon>{shown && <Check size={12} />}</MenuItemIcon>
+          <MenuItemLabel>{t('panels:cpRegion.imageShow', 'Show reference image')}</MenuItemLabel>
+        </MenuCheckboxItem>
+        {/*
+          A label rather than a menu item: a `DropdownMenu.Item` owns arrow keys
+          and Enter, which are exactly the keys a range input needs, so wrapping
+          the slider in one would make it unusable from the keyboard.
+          `onKeyDown` stops Radix's typeahead and roving focus seeing the keys
+          at all, which is what leaves the native slider behaviour intact.
+        */}
+        <MenuControlRow onKeyDown={(event) => event.stopPropagation()}>
+          <MenuItemIcon aria-hidden="true" />
+          <MenuItemLabel>{t('panels:cpRegion.imageOpacity', 'Opacity')}</MenuItemLabel>
+          <GestureSlider
+            min={0}
+            max={100}
+            value={Math.round(image.opacity * 100)}
+            onChange={(percent) => onImageOpacity(percent / 100)}
+            onGestureStart={onGestureStart}
+            onGestureCommit={onGestureCommit}
+            commitLabel={t('panels:cpRegion.imageAdjustOpacity', 'Adjust reference image')}
+            aria-label={t('panels:cpRegion.imageOpacity', 'Opacity')}
+          />
+        </MenuControlRow>
+        <MenuSeparator />
+        <MenuItem onSelect={onDeleteImage}>
+          <MenuItemIcon>
+            <Trash2 size={12} />
+          </MenuItemIcon>
+          <MenuItemLabel>
+            {t('panels:cpRegion.imageDelete', 'Remove reference image')}
+          </MenuItemLabel>
+        </MenuItem>
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }

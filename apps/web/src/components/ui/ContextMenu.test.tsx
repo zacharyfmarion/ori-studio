@@ -146,8 +146,8 @@ describe('ContextMenu', () => {
     ]);
     const [paper, wire] = menuItems();
     // The check lives in the leading icon slot; only the current option fills it.
-    expect(paper?.querySelector('.context-menu__icon')?.childElementCount).toBe(1);
-    expect(wire?.querySelector('.context-menu__icon')?.childElementCount).toBe(0);
+    expect(paper?.querySelector('[data-menu-icon]')?.childElementCount).toBe(1);
+    expect(wire?.querySelector('[data-menu-icon]')?.childElementCount).toBe(0);
   });
 
   it('invokes onSelect for a radio item', () => {
@@ -205,10 +205,10 @@ describe('ContextMenu', () => {
       },
     ]);
     const [withIcon, without, sub] = menuItems();
-    expect(withIcon?.querySelector('.context-menu__icon')).not.toBeNull();
-    expect(without?.querySelector('.context-menu__icon')).not.toBeNull();
-    expect(without?.querySelector('.context-menu__icon')?.childElementCount).toBe(0);
-    expect(sub?.querySelector('.context-menu__icon')).not.toBeNull();
+    expect(withIcon?.querySelector('[data-menu-icon]')).not.toBeNull();
+    expect(without?.querySelector('[data-menu-icon]')).not.toBeNull();
+    expect(without?.querySelector('[data-menu-icon]')?.childElementCount).toBe(0);
+    expect(sub?.querySelector('[data-menu-icon]')).not.toBeNull();
   });
 
   it('keeps labels at the edge in a list where nothing draws a leading slot', () => {
@@ -216,7 +216,7 @@ describe('ContextMenu', () => {
       { kind: 'action', id: 'a', label: 'One', onSelect: () => {} },
       { kind: 'action', id: 'b', label: 'Two', onSelect: () => {} },
     ]);
-    for (const row of menuItems()) expect(row.querySelector('.context-menu__icon')).toBeNull();
+    for (const row of menuItems()) expect(row.querySelector('[data-menu-icon]')).toBeNull();
   });
 
   it('gives a disabled submenu trigger its hint as a tooltip', () => {
@@ -246,8 +246,8 @@ describe('ContextMenu', () => {
       ]);
       const [shadow, alias] = checkboxes();
       expect(shadow?.getAttribute('aria-checked')).toBe('true');
-      expect(shadow?.querySelector('.context-menu__icon')?.childElementCount).toBe(1);
-      expect(alias?.querySelector('.context-menu__icon')?.childElementCount).toBe(0);
+      expect(shadow?.querySelector('[data-menu-icon]')?.childElementCount).toBe(1);
+      expect(alias?.querySelector('[data-menu-icon]')?.childElementCount).toBe(0);
     });
 
     it('toggles and closes, unless asked to stay open', () => {
@@ -348,7 +348,7 @@ describe('ContextMenu', () => {
       expect(row?.textContent).toContain('Front colour');
       // In the leading slot, where a sibling's icon or check sits, so the
       // label starts in the same column as every other row's.
-      const swatch = row?.querySelector<HTMLElement>('.context-menu__icon .context-menu__swatch');
+      const swatch = row?.querySelector<HTMLElement>('[data-menu-icon] [data-menu-swatch]');
       expect(swatch?.style.background).toBe('rgb(255, 255, 50)');
       expect(colorInput().value).toBe('#ffff32');
     });
@@ -384,7 +384,7 @@ describe('ContextMenu', () => {
       expect(item.onChange.mock.calls).toEqual([['#ff0000'], ['#00ff00']]);
       // The swatch follows the picker even though the row's descriptor has
       // not been rebuilt — a context menu's rows never are while it is open.
-      const swatch = menuItems()[0]?.querySelector<HTMLElement>('.context-menu__swatch');
+      const swatch = menuItems()[0]?.querySelector<HTMLElement>('[data-menu-swatch]');
       expect(swatch?.style.background).toBe('rgb(0, 255, 0)');
       expect(item.onCommit).not.toHaveBeenCalled();
       act(() => {
@@ -407,7 +407,7 @@ describe('ContextMenu', () => {
     });
 
     function shield(): HTMLElement | null {
-      return document.querySelector<HTMLElement>('.context-menu__picker-shield');
+      return document.querySelector<HTMLElement>('[data-menu-picker-shield]');
     }
 
     // The engine closes an open picker on any press outside it, and that press
@@ -620,7 +620,7 @@ describe('ContextMenu', () => {
           new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
         );
       });
-      const row = document.querySelector<HTMLElement>('[role="menuitem"] .context-menu__swatch')?.closest<HTMLElement>('[role="menuitem"]');
+      const row = document.querySelector<HTMLElement>('[role="menuitem"] [data-menu-swatch]')?.closest<HTMLElement>('[role="menuitem"]');
       if (!row) throw new Error('submenu did not open');
       act(() => {
         row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));

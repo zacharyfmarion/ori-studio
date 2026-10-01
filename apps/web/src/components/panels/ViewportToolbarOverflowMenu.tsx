@@ -1,6 +1,14 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import {
+  MenuCheckboxItem,
+  MenuContent,
+  MenuItem,
+  MenuItemIcon,
+  MenuItemLabel,
+  MenuSeparator,
+} from '../ui/Menu';
 import { Check, MoreHorizontal } from 'lucide-react';
 import { MenuIconButton } from '../ui/MenuIconButton';
 import {
@@ -22,12 +30,11 @@ function OverflowItem({
   // The leading slot is the action's own icon, swapped for a tick while the mode
   // is on — the shape `ContextMenu` already uses for a checked item, so a row
   // here is the same width as a row anywhere else in the app.
-  const leading = <span className="context-menu__icon">{action.checked ? <Check size={12} /> : action.icon}</span>;
+  const leading = <MenuItemIcon>{action.checked ? <Check size={12} /> : action.icon}</MenuItemIcon>;
 
   if (action.checked === undefined) {
     return (
-      <DropdownMenu.Item
-        className="context-menu__item"
+      <MenuItem
         disabled={action.disabled}
         onSelect={() => {
           if (action.opensDialog) onOpenDialog();
@@ -35,14 +42,13 @@ function OverflowItem({
         }}
       >
         {leading}
-        <span className="context-menu__label">{action.label}</span>
-      </DropdownMenu.Item>
+        <MenuItemLabel>{action.label}</MenuItemLabel>
+      </MenuItem>
     );
   }
 
   return (
-    <DropdownMenu.CheckboxItem
-      className="context-menu__item"
+    <MenuCheckboxItem
       checked={action.checked}
       disabled={action.disabled}
       // A verb closes the menu; a mode does not. Radix closes on select unless
@@ -55,8 +61,8 @@ function OverflowItem({
       }}
     >
       {leading}
-      <span className="context-menu__label">{action.label}</span>
-    </DropdownMenu.CheckboxItem>
+      <MenuItemLabel>{action.label}</MenuItemLabel>
+    </MenuCheckboxItem>
   );
 }
 
@@ -106,68 +112,66 @@ export function ViewportToolbarOverflowMenu({
         // from its default.
         isActive={open || hasUnseenActiveControl(groups)}
       />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className={`context-menu ${styles.menu}`}
-          // Upward, like every other menu on this bar — the bar sits on the
-          // bottom edge of the canvas, so there is nowhere below to open into.
-          side="top"
-          align="end"
-          sideOffset={8}
-          collisionPadding={8}
-          loop
-          /*
-            Swallow the contact that dismissed the menu, on touch.
-            `DropdownMenu.Root` is modal, so Radix puts `pointer-events: none` on
-            the body while the menu is open. The `pointerdown` therefore lands on
-            `<html>`, the menu unmounts, and the *click* then hit-tests fresh
-            against a toolbar whose pointer events are back — so the tap that
-            dismissed the menu also presses whatever it landed on. Measured: a
-            backdrop tap over Zoom In took the canvas from 68% to 92% on a tablet
-            and 47% to 63% on a phone, and the same strip covers Fit, Fold and
-            Insert image.
-            This is the hazard the View drawer and the tool sheet each fixed by
-            dismissing on `click` rather than `pointerdown`; a Radix layer cannot
-            be moved that way, so the original event is neutered instead while
-            Radix's own dismissal proceeds. Coarse-pointer only, because a mouse
-            is already handled — the modal layer blocks its click — and because
-            an outside click that both dismisses and acts is long-standing
-            desktop behaviour that is not this change's to alter.
-          */
-          onPointerDownOutside={(event) => {
-            if (event.detail.originalEvent.pointerType === 'mouse') return;
-            event.detail.originalEvent.preventDefault();
-            event.detail.originalEvent.stopPropagation();
-          }}
-          /*
-            Radix hands focus back to the trigger as this unmounts, which is
-            right for Escape and for a tap outside and wrong for the one item
-            that opened a dialog: that restore lands *after* the dialog's own
-            mount effect, so the dialog opens with focus on the toolbar button
-            behind it — inaudible with `aria-modal` in force. Prevented only for
-            that case, so every other exit keeps the behaviour it had.
-          */
-          onCloseAutoFocus={(event) => {
-            if (openedDialogRef.current) event.preventDefault();
-          }}
-        >
-          {viewportToolbarSlots(groups).map((slot) =>
-            slot.kind === 'separator' ? (
-              <DropdownMenu.Separator key={slot.id} className="context-menu__separator" />
-            ) : (
-              slot.group.items.map((action) => (
-                <OverflowItem
-                  key={action.id}
-                  action={action}
-                  onOpenDialog={() => {
-                    openedDialogRef.current = true;
-                  }}
-                />
-              ))
-            )
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      <MenuContent
+        className={styles.menu}
+        // Upward, like every other menu on this bar — the bar sits on the
+        // bottom edge of the canvas, so there is nowhere below to open into.
+        side="top"
+        align="end"
+        sideOffset={8}
+        collisionPadding={8}
+        loop
+        /*
+          Swallow the contact that dismissed the menu, on touch.
+          `DropdownMenu.Root` is modal, so Radix puts `pointer-events: none` on
+          the body while the menu is open. The `pointerdown` therefore lands on
+          `<html>`, the menu unmounts, and the *click* then hit-tests fresh
+          against a toolbar whose pointer events are back — so the tap that
+          dismissed the menu also presses whatever it landed on. Measured: a
+          backdrop tap over Zoom In took the canvas from 68% to 92% on a tablet
+          and 47% to 63% on a phone, and the same strip covers Fit, Fold and
+          Insert image.
+          This is the hazard the View drawer and the tool sheet each fixed by
+          dismissing on `click` rather than `pointerdown`; a Radix layer cannot
+          be moved that way, so the original event is neutered instead while
+          Radix's own dismissal proceeds. Coarse-pointer only, because a mouse
+          is already handled — the modal layer blocks its click — and because
+          an outside click that both dismisses and acts is long-standing
+          desktop behaviour that is not this change's to alter.
+        */
+        onPointerDownOutside={(event) => {
+          if (event.detail.originalEvent.pointerType === 'mouse') return;
+          event.detail.originalEvent.preventDefault();
+          event.detail.originalEvent.stopPropagation();
+        }}
+        /*
+          Radix hands focus back to the trigger as this unmounts, which is
+          right for Escape and for a tap outside and wrong for the one item
+          that opened a dialog: that restore lands *after* the dialog's own
+          mount effect, so the dialog opens with focus on the toolbar button
+          behind it — inaudible with `aria-modal` in force. Prevented only for
+          that case, so every other exit keeps the behaviour it had.
+        */
+        onCloseAutoFocus={(event) => {
+          if (openedDialogRef.current) event.preventDefault();
+        }}
+      >
+        {viewportToolbarSlots(groups).map((slot) =>
+          slot.kind === 'separator' ? (
+            <MenuSeparator key={slot.id} />
+          ) : (
+            slot.group.items.map((action) => (
+              <OverflowItem
+                key={action.id}
+                action={action}
+                onOpenDialog={() => {
+                  openedDialogRef.current = true;
+                }}
+              />
+            ))
+          )
+        )}
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }

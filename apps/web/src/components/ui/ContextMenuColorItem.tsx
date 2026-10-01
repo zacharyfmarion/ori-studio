@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { hoverFocusProps, useMenuPicker } from './contextMenuPicker';
 import type { ContextMenuItem } from './contextMenuTypes';
+import { MenuItem, MenuItemIcon, MenuItemLabel } from './Menu';
+import styles from './ContextMenuColorItem.module.css';
 
 type ColorItem = Extract<ContextMenuItem, { kind: 'color' }>;
 
@@ -70,8 +71,7 @@ export function ContextMenuColorItem({ item }: { item: ColorItem }) {
   }, [release]);
 
   return (
-    <DropdownMenu.Item
-      className="context-menu__item"
+    <MenuItem
       disabled={item.disabled}
       {...hoverFocusProps(picker)}
       onSelect={(event) => {
@@ -83,11 +83,11 @@ export function ContextMenuColorItem({ item }: { item: ColorItem }) {
     >
       {/* The swatch takes the leading slot, where a sibling row's icon or
           check sits, so every label in the menu starts at the same column. */}
-      <span className="context-menu__icon">
-        <span className="context-menu__swatch" style={{ background: shown }}>
+      <MenuItemIcon>
+        <span className={styles.swatch} data-menu-swatch="" style={{ background: shown }}>
           <input
             ref={inputRef}
-            className="context-menu__color-input"
+            className={styles.colorInput}
             type="color"
             // Reached through the row, never by Tab — see the component note.
             tabIndex={-1}
@@ -107,8 +107,8 @@ export function ContextMenuColorItem({ item }: { item: ColorItem }) {
             onClick={(event) => event.stopPropagation()}
           />
         </span>
-      </span>
-      <span className="context-menu__label">{item.label}</span>
-    </DropdownMenu.Item>
+      </MenuItemIcon>
+      <MenuItemLabel>{item.label}</MenuItemLabel>
+    </MenuItem>
   );
 }

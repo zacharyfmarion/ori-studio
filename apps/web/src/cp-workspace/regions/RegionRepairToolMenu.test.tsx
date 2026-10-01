@@ -45,7 +45,7 @@ function open(): void {
 
 /** Menu content portals to `body`, so read the rows from there. */
 function rows(): HTMLElement[] {
-  return [...document.querySelectorAll<HTMLElement>('.context-menu__item')];
+  return [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
 }
 
 beforeEach(() => {
@@ -71,7 +71,7 @@ describe('the solve chip repair-tool menu', () => {
     open();
     for (const row of rows()) {
       expect(
-        row.querySelector('.context-menu__icon svg'),
+        row.querySelector('[data-menu-icon] svg'),
         `${row.textContent ?? ''} has no glyph`
       ).not.toBeNull();
     }

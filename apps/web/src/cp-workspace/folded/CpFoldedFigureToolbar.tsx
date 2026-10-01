@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { MenuContent } from '../../components/ui/Menu';
 import { FloatingToolbar } from '../../components/ui/FloatingToolbar';
 import { resolveCpViewportCanvas } from '../cpViewportCanvas';
 import { IconButton } from '../../components/ui/IconButton';
@@ -97,18 +98,15 @@ function ToolbarMenu({
   return (
     <DropdownMenu.Root modal={false}>
       <MenuIconButton label={label} icon={icon} disabled={disabled} />
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="context-menu"
-          side="bottom"
-          align="start"
-          sideOffset={6}
-          collisionPadding={8}
-          loop
-        >
-          <ContextMenuItems items={items} />
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+      <MenuContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={8}
+        loop
+      >
+        <ContextMenuItems items={items} />
+      </MenuContent>
     </DropdownMenu.Root>
   );
 }
