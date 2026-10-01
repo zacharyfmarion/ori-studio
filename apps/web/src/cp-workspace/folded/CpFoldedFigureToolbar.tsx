@@ -18,6 +18,7 @@ import {
 import { foldedFigureActionIconNode } from './foldedFigureActionIcons';
 import { choiceMenuItems, styleMenuItems } from './foldedFigureMenuItems';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
+import { ToolbarSeparator } from '../../components/ui/Toolbar';
 
 function CommandButton({ action }: { action: FoldedFigureCommand }) {
   return (
@@ -162,7 +163,7 @@ export function CpFoldedFigureToolbar({
       {actions.map((action) => {
         switch (action.kind) {
           case 'separator':
-            return <span key={action.id} className="floating-toolbar__separator" />;
+            return <ToolbarSeparator key={action.id} />;
           case 'choice':
             return (
               <ToolbarMenu

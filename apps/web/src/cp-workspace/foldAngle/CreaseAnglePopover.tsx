@@ -271,6 +271,7 @@ export function CreaseAnglePopover({
       boundary={placement.boundary}
       ariaLabel={title}
       className="crease-angle-popover__floating"
+      inset={0}
     >
       {body as ReactNode}
     </FloatingToolbar>

@@ -190,7 +190,7 @@ describe('CpFoldedFigureToolbar', () => {
 
   it('separates the action groups', () => {
     render(makeFigure());
-    expect(toolbar()?.querySelectorAll('.floating-toolbar__separator')).toHaveLength(2);
+    expect(toolbar()?.querySelectorAll('[role="separator"]')).toHaveLength(2);
   });
 
   it('invokes the bound action when a button is clicked', () => {
@@ -224,7 +224,7 @@ describe('CpFoldedFigureToolbar', () => {
       'Duplicate',
       'Delete',
     ]);
-    expect(toolbar()?.querySelectorAll('.floating-toolbar__separator')).toHaveLength(3);
+    expect(toolbar()?.querySelectorAll('[role="separator"]')).toHaveLength(3);
   });
 
   it('exports with one button that opens no menu and hands the figure to the dialog', () => {

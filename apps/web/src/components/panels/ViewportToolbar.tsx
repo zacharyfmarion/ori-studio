@@ -722,21 +722,13 @@ export function ViewportChoiceMenu<Value extends string | number>({
 }
 
 /**
- * An icon button on the bar: the shared `IconButton` at the bar's size, spaced
- * the way the bar spaces its icons. For an owner putting its own control on the
- * bar — a menu trigger, say — so it sits like the bar's own.
+ * An icon button on the bar: the shared `IconButton` at the bar's size and in
+ * its variant. For an owner putting its own control on the bar — a menu
+ * trigger, say — so it matches the bar's own.
  */
 export const ViewportToolbarButton = forwardRef<HTMLButtonElement, IconButtonProps>(
-  function ViewportToolbarButton({ className, size = 'sm', variant = 'toolbar', ...props }, ref) {
-    return (
-      <IconButton
-        ref={ref}
-        size={size}
-        variant={variant}
-        className={className ? `${styles.iconButton} ${className}` : styles.iconButton}
-        {...props}
-      />
-    );
+  function ViewportToolbarButton({ size = 'sm', variant = 'toolbar', ...props }, ref) {
+    return <IconButton ref={ref} size={size} variant={variant} {...props} />;
   }
 );
 

@@ -19,8 +19,3 @@
   overflow: hidden auto;
   overscroll-behavior: contain;
 }
-
-/* The trigger is one of the bar's icon buttons, spaced like them. */
-.trigger {
-  margin-inline: 1px;
-}

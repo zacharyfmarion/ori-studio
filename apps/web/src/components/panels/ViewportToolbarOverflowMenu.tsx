@@ -101,7 +101,6 @@ export function ViewportToolbarOverflowMenu({
       <MenuIconButton
         label={t('tools:viewport.more', 'More view controls')}
         icon={<MoreHorizontal size={14} />}
-        className={styles.trigger}
         // Pressed while open, and while something it hides is in a state with
         // nothing else on screen to say so — a mode switched on, or a value away
         // from its default.

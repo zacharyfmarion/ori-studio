@@ -58,7 +58,7 @@ function pane(rect: DOMRect): HTMLDivElement {
 
 function toolbar(): HTMLElement | null {
   // Body-portaled, so it is not inside the host.
-  return document.querySelector('.floating-toolbar');
+  return document.querySelector('[role="toolbar"]');
 }
 
 /** Dispatch a trackpad pinch at the toolbar; the browser reports one as ctrl+wheel. */

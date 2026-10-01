@@ -14,11 +14,6 @@
   transform: translateX(-50%);
 }
 
-/* An icon button on the bar keeps a pixel either side of the bar's gap. */
-.iconButton {
-  margin-inline: 1px;
-}
-
 .menuAnchor {
   position: relative;
   display: inline-flex;

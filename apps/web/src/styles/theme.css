@@ -3903,36 +3903,6 @@ a.context-menu__item {
 }
 
 /* Floating controls for the selected reference image. */
-/* Generic floating toolbar pill. Position/transform are set inline by
-   @floating-ui (fixed strategy, body-portaled), so this only styles the pill. */
-.floating-toolbar {
-  display: flex;
-  align-items: center;
-  /* Wraps rather than overflows. `FloatingToolbar`'s `size` middleware caps the
-     pill's width to the space its boundary leaves, and a pill that cannot fit —
-     the inline-simulation inspector on a narrow pane — has to become two rows,
-     because the alternative is controls hanging outside the very pane the
-     boundary exists to keep it inside. */
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 4px 8px;
-  background: var(--bg-elevated, var(--bg-secondary));
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
-  /* Pane-owned chrome, not a popover: it is persistent, so it must not cover a
-     menu or modal the user just opened. The menus it opens itself portal at
-     `--z-portaled-popover` and so still land on top of it. */
-  z-index: var(--z-canvas-overlay);
-  pointer-events: auto;
-}
-
-.floating-toolbar__separator {
-  align-self: stretch;
-  width: 1px;
-  margin: 2px 2px;
-  background: var(--border-default);
-}
 
 /* A 3D folded figure's verdict, as a chip at the head of its toolbar.
 
@@ -8170,9 +8140,9 @@ button.bp-packing-alert:focus-visible {
   background: transparent;
 }
 
-/* Wears `.floating-toolbar` for its colour, border, radius and shadow, so it
-   matches every other floating control over the canvas by construction rather
-   than by copied values. Everything here is about *attachment*: it shares the
+/* A `Toolbar` (raised, attached at the bottom) for its colour, border, radius
+   and shadow, so it matches every other floating control over the canvas by
+   construction rather than by copied values. Everything here is about *attachment*: it shares the
    frame's top edge and is pinned to its right, `min-width` spanning a wide frame
    and `max-content` outgrowing a narrow one leftward — either way its right edge
    is the frame's, which is what says which region these controls belong to. */

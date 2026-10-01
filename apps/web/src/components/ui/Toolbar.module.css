@@ -4,22 +4,47 @@
  * sits is its owner's business, through a class on the root.
  */
 .bar {
-  /* The inset around the controls. The radius is concentric with theirs: the
-     controls' `--radius` plus this, so the gap around a corner control is as
-     even as the gap along an edge (docs/styling.md, "Radius"). */
+  /* The inset around the controls, set from the `inset` prop. The radius is
+     concentric with theirs: the controls' `--radius` plus this, so the gap
+     around a corner control is as even as the gap along an edge
+     (docs/styling.md, "Radius"). A bar with no inset is a plain 8px panel. */
   --pad: 4px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  /* A row of 28px controls, so a bar of anything shorter stands as tall. */
-  min-height: calc(28px + 2 * var(--pad) + 2px);
-  padding: var(--pad) 6px;
+  gap: 6px;
+  padding: var(--pad) calc(2 * var(--pad));
   border: 1px solid var(--border-default);
   border-radius: calc(var(--radius) + var(--pad));
+}
+
+/* Over a canvas, see-through: the bottom bar of view controls. */
+.bar[data-tone='overlay'] {
   background: var(--domain-overlay-bg);
   box-shadow: 0 8px 24px var(--shadow-overlay);
   color: var(--text-secondary);
+}
+
+/* Beside what it acts on, solid: the selection toolbar and its kin. */
+.bar[data-tone='raised'] {
+  background: var(--bg-elevated, var(--bg-secondary));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+}
+
+/* One line on a pointer device; on touch, wrapping between groups (below). */
+.bar[data-wrap='touch'] {
   white-space: nowrap;
+}
+
+/* Wraps wherever it has to: a floating bar is capped to the room its boundary
+   leaves, and the alternative is controls hanging outside the pane. */
+.bar[data-wrap='always'] {
+  flex-wrap: wrap;
+}
+
+/* Sits on top of a frame, so the edge it shares is square. */
+.bar[data-attach='bottom'] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /*
@@ -42,6 +67,13 @@
   background: var(--border-default);
 }
 
+/* A raised bar is denser: its hairline runs the bar's height. */
+[data-tone='raised'] .separator {
+  align-self: stretch;
+  height: auto;
+  margin: 2px;
+}
+
 @media (pointer: coarse) {
   /*
    * Bigger targets make a bar wider than a portrait canvas column. Wrapping is
@@ -49,7 +81,7 @@
    * not do is wrap *raggedly*: the break can only fall on a seam the owner chose,
    * between groups.
    */
-  .bar {
+  .bar[data-wrap='touch'] {
     flex-wrap: wrap;
     justify-content: center;
     /* Row seam, then group seam. The group seam replaces the hairline below,
@@ -60,15 +92,14 @@
   .group {
     display: flex;
     align-items: center;
-    /* The spacing the bar itself used before the groups existed, so a run looks
-       the same as it always did. */
-    gap: 4px;
+    /* The bar's own gap, so a run looks the same as it does on one line. */
+    gap: 6px;
     /* Belt and braces: a group is an atomic flex item, and nothing inside it
        may break to the next line. */
     flex-wrap: nowrap;
   }
 
-  .separator {
+  [data-wrap='touch'] .separator {
     display: none;
   }
 }

@@ -52,6 +52,7 @@ import { resolveCpViewportCanvas } from './cpViewportCanvas';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { IconButton } from '../components/ui/IconButton';
+import { ToolbarSeparator } from '../components/ui/Toolbar';
 
 const LEXICAL_THEME = {
   paragraph: 'cp-text-view__block',
@@ -263,7 +264,7 @@ function TextToolbar({
             ))}
           </SelectContent>
         </Select>
-        <span className="floating-toolbar__separator" />
+        <ToolbarSeparator />
         <IconButton
           size="sm"
           variant="toolbar"
@@ -291,7 +292,7 @@ function TextToolbar({
         >
           <Underline size={14} />
         </IconButton>
-        <span className="floating-toolbar__separator" />
+        <ToolbarSeparator />
         {TEXT_ALIGNS.map((align) => {
           const Icon = ALIGN_ICONS[align];
           return (
@@ -307,7 +308,7 @@ function TextToolbar({
             </IconButton>
           );
         })}
-        <span className="floating-toolbar__separator" />
+        <ToolbarSeparator />
         {/* Radix reserves `''` for "nothing chosen", so the default colour
             travels as `'default'` — the pane's select spells it the same way —
             and a colour outside the six shows as nothing chosen. */}
@@ -334,7 +335,7 @@ function TextToolbar({
             ))}
           </SelectContent>
         </Select>
-        <span className="floating-toolbar__separator" />
+        <ToolbarSeparator />
         <IconButton
           size="sm"
           variant="toolbar"
