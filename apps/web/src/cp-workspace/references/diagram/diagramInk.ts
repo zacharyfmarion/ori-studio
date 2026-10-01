@@ -332,30 +332,32 @@ export const DIAGRAM_MARKS: DiagramMarks = {
 };
 
 /**
- * The References view's floors, in ink at the reader's line width: no line or
- * mark there is drawn smaller than it was before the marks were tuned against
- * a printed step and the lines became the paper style's pens.
+ * The References view's floors, in ink at the reader's line width: no part of
+ * a step's instruction there is drawn smaller than it was before the marks were
+ * tuned against a printed step and the lines became the paper style's pens.
  *
  * The view is an interactive full-screen picture, not a page. The paper
  * style's pens are print sizes — a 0.825 pt diagram crease is 1.1 px — and the
  * marks are a 50 mm page's; at fit on a large screen the sheet is several
- * times that page, and both read as too small for it. So each line and mark
- * there is the paper's size or its floor, whichever is larger: a pen heavier
- * than its floor draws as heavy as the style says, and the colours, dashes and
- * caps are always the style's. Fixed on screen, as the paper's own sizes are
- * there, so zooming moves the drawing and never resizes it.
+ * times that page, and the instruction reads as too small for it. So each of
+ * its lines and marks is the paper's size or its floor, whichever is larger: a
+ * pen heavier than its floor draws as heavy as the style says, and the
+ * colours, dashes and caps are always the style's. Fixed on screen, as the
+ * paper's own sizes are there, so zooming moves the drawing and never resizes
+ * it.
+ *
+ * Only the instruction — what a step asks: its fold, its accents, its arrows,
+ * rings and letters. The paper and the pattern on it (the edge, the creases
+ * already made, the aux lines, the pattern's folds) are the style's own sizes,
+ * so the Find tab's crease pattern and the finished card draw as the style
+ * says, and a step's instruction stands out against them as a diagram's does.
  */
 export const REFERENCES_VIEW_FLOORS = {
   marks: { ringRadius: 3.84, labelSize: 10.8, arrowheadLength: 10.56 },
   lines: {
-    edge: 1.2,
-    crease: 0.75,
-    aux: 0.75,
     highlight: 2,
     mountain: 1.6,
     valley: 1.6,
-    'fold-mountain': 1.6,
-    'fold-valley': 1.6,
     arrow: 1.4,
   },
 } as const satisfies {

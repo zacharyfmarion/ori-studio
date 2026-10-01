@@ -555,19 +555,40 @@ describe('referencesCanvasPens', () => {
     expect(pens.arrow.width * ink).toBeCloseTo(3 * PT_TO_CSS_PX, 9);
   });
 
-  // The view is a screen, not a page: a print-weight pen is raised to the floor
-  // main drew at, measured at the reader's line width.
-  it('raises a pen thinner than the view floor to it, keeping its pattern', () => {
+  // The view is a screen, not a page: a step's instruction in a print-weight
+  // pen is raised to the floor main drew it at, measured at the reader's line
+  // width.
+  it('raises an instruction pen thinner than the view floor to it, keeping its pattern', () => {
     const { lineWidth, pens } = referencesCanvasPens(DEFAULT_PAPER_STYLE, 1);
-    expect(lineWidth).toBe(1);
-    const ink = canvasDiagramInk(1);
-    expect(pens.valley.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.valley * ink, 9);
-    expect(pens.mountain.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.mountain * ink, 9);
-    expect(pens.highlight.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.highlight * ink, 9);
-    expect(pens.edge.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.edge * ink, 9);
+    const ink = canvasDiagramInk(lineWidth);
+    const floorInk = canvasDiagramInk(1);
+    for (const role of ['valley', 'mountain', 'highlight'] as const) {
+      expect(pens[role].width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines[role] * floorInk, 9);
+    }
     expect(pens.valley.dash!.map((run) => run / pens.valley.width)).toEqual(
       DEFAULT_PAPER_STYLE.valleyDiagramCreases.dash
     );
+  });
+
+  // The Find tab's pattern and the finished card are the pattern, not an
+  // instruction: they draw exactly as the style says.
+  it('leaves the paper and the pattern at the style’s own widths', () => {
+    const { lineWidth, pens } = referencesCanvasPens(DEFAULT_PAPER_STYLE, 1);
+    const edgeCss = DEFAULT_PAPER_STYLE.edges.width * PT_TO_CSS_PX;
+    expect(CP_CREASE_WIDTH_FACTOR * lineWidth).toBeCloseTo(edgeCss, 9);
+    const ink = canvasDiagramInk(lineWidth);
+    expect(pens.edge.width * ink).toBeCloseTo(edgeCss, 9);
+    expect(pens['fold-mountain'].width * ink).toBeCloseTo(
+      DEFAULT_PAPER_STYLE.mountainFolds.width * PT_TO_CSS_PX,
+      9
+    );
+    expect(pens['fold-valley'].width * ink).toBeCloseTo(
+      DEFAULT_PAPER_STYLE.valleyFolds.width * PT_TO_CSS_PX,
+      9
+    );
+    const auxCss = DEFAULT_PAPER_STYLE.auxCreases.pen.width * PT_TO_CSS_PX;
+    expect(pens.aux.width * ink).toBeCloseTo(auxCss, 9);
+    expect(pens.crease.width * ink).toBeCloseTo(auxCss, 9);
   });
 
   it('measures the floors at the reader\'s line width, not a heavy edge pen\'s', () => {

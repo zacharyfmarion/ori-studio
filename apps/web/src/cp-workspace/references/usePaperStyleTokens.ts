@@ -173,13 +173,10 @@ export function referencesPaperInks(
 }
 
 /**
- * The big view's pens for `style`, through the References policy, none
- * thinner than the view's floor for it at the reader's line width
- * (`REFERENCES_VIEW_FLOORS`).
- *
- * The pattern's creases follow the style's edge pen or the reader's line width,
- * whichever is heavier — the same floor, for the lines the crease pattern
- * renderer draws rather than the diagram.
+ * The big view's pens for `style`, through the References policy: the paper
+ * and the pattern in the style's own pens, measured from its edge pen, and a
+ * step's instruction no thinner than the view's floor for it at the reader's
+ * line width (`REFERENCES_VIEW_FLOORS`).
  */
 export function referencesCanvasPens(
   style: PaperStyle,
@@ -188,7 +185,7 @@ export function referencesCanvasPens(
   const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
   const css = (pen: Pen) => ({ pen, css: pen.width * PT_TO_CSS_PX });
   const edge = css(seen.edges);
-  const lineWidth = Math.max(edge.css / CP_CREASE_WIDTH_FACTOR, readerLineWidth);
+  const lineWidth = edge.css / CP_CREASE_WIDTH_FACTOR;
   const pens = canvasDiagramPens(lineWidth, seen.arrows.width * PT_TO_CSS_PX, css(seen.auxCreases.pen), {
     edge,
     mountainFolds: css(seen.mountainFolds),
