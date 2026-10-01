@@ -5742,88 +5742,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-decoration: underline;
 }
 
-/* The tool hint window: a floating window over the bottom right of the Edit
-   workspace, overhanging the seam between the crease-pattern viewport and the
-   View pane.
-
-   `left`, `bottom` and `width` come from `cpToolHintPlacement` as inline style —
-   they are a function of a measured rect, so they cannot live here. Everything
-   else does. It is body-portaled, which is what `fixed` needs to mean the
-   browser window rather than the nearest Dockview panel. */
-.cp-context-panel {
-  position: fixed;
-  z-index: var(--z-canvas-overlay);
-  --cp-context-reset-gutter: 58px;
-  display: grid;
-  /* `minmax(0, …)` on the body row is what lets it shrink below its content and
-     therefore scroll; without it the row takes its full intrinsic height and the
-     max-height below just clips the bottom off. */
-  grid-template-rows: auto minmax(0, 1fr);
-  /* Never taller than the viewport it floats over. The body scrolls; the header
-     stays put, so the tool is always named even mid-scroll. */
-  max-height: min(60vh, 520px);
-  overflow: hidden;
-  /* `--border-default`, not `--border-strong`. Strong maps to the theme preset's
-     *active* border (a saturated blue), so a window wearing it looks permanently
-     focused — the emphasis here has to come from the shadow and the fill. */
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-}
-
-/* Collapsed the window is only its header, so a max-height meant for the open
-   state would leave it able to grow. */
-.cp-context-panel[data-collapsed] {
-  max-height: none;
-}
-
-.cp-context-panel__header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 30px;
-  padding: 5px 8px;
-  border: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
-  color: var(--text-primary);
-  font: inherit;
-  cursor: pointer;
-}
-
-.cp-context-panel__header:focus-visible {
-  outline: 1px solid var(--accent-primary);
-  outline-offset: -1px;
-}
-
-.cp-context-panel__title {
-  overflow: hidden;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cp-context-panel__meta {
-  color: var(--text-tertiary);
-  font-size: 0.62rem;
-  font-weight: 700;
-}
-
-.cp-context-panel__body {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  /* Was `visible`, from when this sat in a scrolling pane that took the overflow.
-     Floating, it has to take its own. Nothing here escapes the box that needs to
-     — the selects are native and the menus are portaled. */
-  overflow-y: auto;
-  padding: 8px;
-}
-
 .cp-context-panel__group {
   display: grid;
   gap: 6px;
@@ -6145,37 +6063,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-secondary);
   font-size: 0.68rem;
   line-height: 1.35;
-}
-
-/* Appears only when a setting in this panel is off its default — so it is both
-   the way back and the only hint that something here was remembered from a
-   previous session. Sits in the header, out of the way of the controls. */
-/* The header is a full-width button and cannot nest one, so the reset is
-   positioned over it — and this gutter is what stops it landing on the setting
-   count, which shares that corner. */
-.cp-context-panel:has(.cp-context-panel__reset) .cp-context-panel__header {
-  padding-right: calc(8px + var(--cp-context-reset-gutter));
-}
-
-.cp-context-panel__reset {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 5px;
-  border: 1px solid var(--border-default);
-  border-radius: 3px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.62rem;
-  cursor: pointer;
-}
-
-.cp-context-panel__reset:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
 }
 
 /* The tool overrode the active line type because the maths forced it. Accented

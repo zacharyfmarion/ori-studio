@@ -27,6 +27,7 @@ import {
   type OristudioCpToolOptions,
   type OristudioCpToolSettingGroup,
 } from '../../lib/oristudioCpToolSettings';
+import styles from './CpContextToolReset.module.css';
 
 export function CpContextToolReset({
   options,
@@ -44,7 +45,8 @@ export function CpContextToolReset({
 
   return (
     <button
-      className="cp-context-panel__reset"
+      className={styles.reset}
+      data-tool-reset=""
       type="button"
       onClick={() => setOptions((current) => resetCpToolOptions(current, keys))}
       title={t(

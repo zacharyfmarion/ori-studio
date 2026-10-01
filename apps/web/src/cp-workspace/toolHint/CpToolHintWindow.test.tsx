@@ -39,7 +39,7 @@ describe('CpToolHintWindow', () => {
       )
     );
 
-  const windowEl = () => document.querySelector<HTMLElement>('.cp-context-panel');
+  const windowEl = () => document.querySelector<HTMLElement>('section[aria-label]');
 
   beforeEach(() => {
     localStorage.clear();
@@ -87,7 +87,7 @@ describe('CpToolHintWindow', () => {
     render();
     expect(document.querySelector('.probe-body')).not.toBeNull();
 
-    const header = windowEl()?.querySelector<HTMLButtonElement>('.cp-context-panel__header');
+    const header = windowEl()?.querySelector<HTMLButtonElement>('button[aria-expanded]');
     act(() => header?.click());
 
     expect(document.querySelector('.probe-body')).toBeNull();
@@ -103,13 +103,13 @@ describe('CpToolHintWindow', () => {
     render();
     expect(document.querySelector('.probe-body')).toBeNull();
 
-    act(() => windowEl()?.querySelector<HTMLButtonElement>('.cp-context-panel__header')?.click());
+    act(() => windowEl()?.querySelector<HTMLButtonElement>('button[aria-expanded]')?.click());
     expect(document.querySelector('.probe-body')).not.toBeNull();
   });
 
   it('stays collapsed across the unmount every tool switch causes', () => {
     render();
-    act(() => windowEl()?.querySelector<HTMLButtonElement>('.cp-context-panel__header')?.click());
+    act(() => windowEl()?.querySelector<HTMLButtonElement>('button[aria-expanded]')?.click());
     expect(document.querySelector('.probe-body')).toBeNull();
 
     act(() => root.unmount());
@@ -136,6 +136,9 @@ describe('CpToolHintWindow', () => {
     );
     const reset = windowEl()?.querySelector('.probe-reset');
     expect(reset).not.toBeNull();
-    expect(reset?.previousElementSibling?.className).toContain('cp-context-panel__header');
+    // Beside the header, never inside it: the header is a button, and cannot
+    // nest one.
+    expect(reset?.closest('button[aria-expanded]')).toBeNull();
+    expect(windowEl()?.contains(reset ?? null)).toBe(true);
   });
 });

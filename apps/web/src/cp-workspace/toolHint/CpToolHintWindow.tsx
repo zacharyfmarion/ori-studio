@@ -31,6 +31,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCpToolHintAnchor } from './useCpToolHintAnchor';
 import { useCpToolHintCollapsed } from './useCpToolHintCollapsed';
+import styles from './CpToolHintWindow.module.css';
 
 export function CpToolHintWindow({
   container,
@@ -67,7 +68,7 @@ export function CpToolHintWindow({
 
   return createPortal(
     <section
-      className="cp-context-panel"
+      className={styles.window}
       data-collapsed={collapsed || undefined}
       style={{ left: placement.left, bottom: placement.bottom, width: placement.width }}
       aria-label={ariaLabel}
@@ -78,17 +79,21 @@ export function CpToolHintWindow({
       onClick={(event) => event.stopPropagation()}
     >
       <button
-        className="cp-context-panel__header"
+        className={styles.header}
         type="button"
         aria-expanded={!collapsed}
         onClick={() => setCollapsed(!collapsed)}
       >
         {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-        <span className="cp-context-panel__title">{title}</span>
-        <span className="cp-context-panel__meta">{meta}</span>
+        <span className={styles.title}>{title}</span>
+        <span className={styles.meta}>{meta}</span>
       </button>
-      {headerAction}
-      {!collapsed && <div className="cp-context-panel__body">{children}</div>}
+      {/* Always mounted, so the header reserves its gutter only while the
+          action actually renders something (`:has()` in the module). */}
+      <div className={styles.action} data-header-action="">
+        {headerAction}
+      </div>
+      {!collapsed && <div className={styles.body}>{children}</div>}
     </section>,
     document.body
   );
