@@ -4,6 +4,14 @@
  * and size, a stretch's pattern navigation.
  */
 .bar {
+  /* The inset around the fields, as a toolbar's: that much above and below,
+     twice it either side. The radius is concentric with the controls inside,
+     their `--radius` plus this (docs/styling.md, "Radius"). */
+  --pad: 4px;
+  /* A row of controls: a small icon button's height. A bar holding only text
+     is still that tall, so its corners stay concentric instead of closing into
+     a capsule, and it keeps one height as its fields come and go. */
+  --row: 28px;
   position: absolute;
   top: var(--space-3);
   left: 50%;
@@ -15,9 +23,11 @@
   /* Bounded by the pane: a name is user text of any length, and a centred bar
      that outgrows the pane runs past both of its edges. */
   max-width: calc(100% - var(--space-6));
-  padding: 6px 10px;
+  /* The row, the inset and the 1px border either side. */
+  min-height: calc(var(--row) + 2 * var(--pad) + 2px);
+  padding: var(--pad) calc(2 * var(--pad));
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: calc(var(--radius) + var(--pad));
   background: var(--bg-elevated);
   box-shadow: var(--shadow-context-menu);
   color: var(--text-primary);

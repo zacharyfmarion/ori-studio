@@ -379,9 +379,19 @@ about crease patterns), does the work:
 - **Canvas pills**: the BP tree edge length editor, name/flap editor and
   stretch navigator are three copies of one top-centre pill (same padding,
   border, ground and shadow).
-  - They become one `CanvasContextBar`: a `Toolbar` placed at the top centre.
-  - They take the toolbar's padding (6px 10px → 4px) and radius
+  - They become one `CanvasContextBar`, with the title and labels they all
+    repeat as its parts (`CanvasContextBarTitle`, `CanvasContextBarLabel`).
+    Each pill's own fields move into its own module.
+  - It is not a `Toolbar`. Its look (`--border-strong`, the context-menu
+    shadow) is Decision 6's to settle, and its 12px gap and 12px type are a
+    bar of labelled fields', not a run of buttons'. It shares the radius rule
+    rather than the component.
+  - They take the toolbar's padding (6px 10px → 4px 8px) and radius
     (10px → 12px).
+  - A bar holding only text (a stretch with one pattern) would come out 24px
+    tall, and at 12px its corners would close into a capsule. So the bar is at
+    least one row of controls tall (a 28px icon button): every pill is 38px,
+    the bottom toolbar's height, whatever it holds.
   - Their inputs take `--radius` (6px → 8px), because a control inside a
     toolbar is `--radius`.
 - **Tests**: `FloatingToolbar.test.tsx`, `CpFoldedFigureToolbar.test.tsx`,
@@ -570,8 +580,9 @@ No new strings, and no analytics events: nothing here is a new action.
 - [ ] `FloatingToolbar` on `Toolbar` (12px); `CpToolOptionLayer`,
       `CpRegionChipBar`, `CpTextEditor` and `CpFoldedFigureToolbar` onto
       `Toolbar` and `ToolbarSeparator`
-- [ ] `CanvasContextBar` (a `Toolbar` at the top centre) for the three BP pills;
-      their inputs at `--radius`
+- [ ] `CanvasContextBar` (its own chrome on the radius rule, title and label
+      parts) for the three BP pills; their fields in their own modules, at
+      `--radius`; one 38px height
 - [ ] Tests; the ceiling lowered
 - [ ] Browser: the CP selection toolbar, text editor, crease-angle popover,
       folded figure toolbar; the BP pills
