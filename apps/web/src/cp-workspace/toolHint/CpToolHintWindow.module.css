@@ -27,11 +27,14 @@
      *active* border (a saturated blue), so a window wearing it looks permanently
      focused — the emphasis here has to come from the shadow and the fill. */
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-primary));
   box-shadow: 0 8px 24px var(--shadow-overlay);
   color: var(--text-secondary);
   font-size: 0.68rem;
+  /* The height follows the content (useAnimatedHeight), at the pace of the
+     segmented pill whose choice usually changed it. */
+  transition: height var(--motion-duration) var(--motion-ease);
 }
 
 /* Collapsed the window is only its header, so a max-height meant for the open
@@ -76,11 +79,37 @@
 .body {
   display: grid;
   align-content: start;
-  gap: 8px;
   /* Floating, the window takes its own overflow. Nothing here escapes the box
      that needs to — the selects are native and the menus are portaled. */
   overflow-y: auto;
   padding: 8px;
+}
+
+/* Always its natural height, however tall the window is mid-resize: this is
+   what is measured. */
+.content {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * The window is pinned by its bottom edge, so it grows and shrinks at the top.
+ * While it moves, the content sits on that bottom edge too: everything below a
+ * change stays where it was and only the header travels. Left at the top, the
+ * control just pressed — Extend Line's Active / Same, at the bottom — would drop
+ * away from the pointer on every press and slide back.
+ */
+.window[data-resizing] .body {
+  overflow: hidden;
+  align-content: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window {
+    transition: none;
+  }
 }
 
 /*
