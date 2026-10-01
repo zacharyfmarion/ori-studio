@@ -230,7 +230,7 @@ describe('CpToolPickerSheet catalogue', () => {
     const closed = vi.fn();
     const sheet = renderSheet(() => {}, closed);
 
-    const latch = sheet.querySelector('.cp-tool-rail__latch');
+    const latch = sheet.querySelector('[data-shift-latch]');
     if (!(latch instanceof HTMLElement)) throw new Error('no latch in the sheet');
     act(() => {
       latch.click();
@@ -467,12 +467,12 @@ describe('CpShiftLatchToggle', () => {
   }
 
   it('is absent on a fine pointer, which has the key', () => {
-    expect(renderToggle(false).querySelector('.cp-tool-rail__latch')).toBeNull();
+    expect(renderToggle(false).querySelector('[data-shift-latch]')).toBeNull();
   });
 
   it('latches and unlatches, and says which it is', () => {
     const host = renderToggle(true);
-    const button = host.querySelector('.cp-tool-rail__latch');
+    const button = host.querySelector('[data-shift-latch]');
     if (!(button instanceof HTMLElement)) throw new Error('no latch');
 
     expect(button.getAttribute('aria-pressed')).toBe('false');

@@ -1,0 +1,30 @@
+/*
+ * The Shift latch (CpShiftLatchToggle.tsx): a touch stand-in for holding Shift,
+ * in the tool rail's touch header and the phone's tool sheet. It only renders
+ * under a coarse pointer, and its rules say so too.
+ *
+ * `button.latch`, not `.latch`: these override the shared `Button`'s global
+ * classes on the same element, and must win wherever the two stylesheets land
+ * in the cascade (docs/styling.md, "Moving a block into a module").
+ */
+@media (pointer: coarse) {
+  button.latch {
+    justify-content: flex-start;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--touch-target);
+    padding-inline: var(--space-2);
+    text-align: left;
+  }
+
+  /*
+   * The latch is a mode, and a mode that is on with nothing on screen saying so
+   * is how a user ends up adding to a selection they meant to replace. `ghost`
+   * gives `[data-active]` no fill of its own, so it gets one here.
+   */
+  button.latch[data-active] {
+    border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    color: var(--text-primary);
+  }
+}

@@ -29,6 +29,7 @@ import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip';
 import { useTouchLabel } from '../ui/useTouchLabel';
+import styles from './CpToolRail.module.css';
 
 const RAIL_GROUPS_STORAGE_KEY = storageKey(STORAGE_KEYS.cpToolRailGroups);
 
@@ -75,7 +76,7 @@ export const CpToolRail = memo(function CpToolRail({
   const shortcutResolution = useShortcutResolution();
 
   return (
-    <aside className="cp-tool-rail" aria-label={t('tools:cpRail.ariaLabel', 'Crease pattern tools')}>
+    <aside className={styles.rail} aria-label={t('tools:cpRail.ariaLabel', 'Crease pattern tools')}>
       {/*
         One full-width row for the Shift latch: the rail's constraint is
         horizontal, so its button grid keeps every pixel it has today and what
@@ -88,15 +89,15 @@ export const CpToolRail = memo(function CpToolRail({
         surface, where there is no rail at all (see `CpToolsTrigger`).
 
         Gated here as well as inside the child, which is not belt and braces.
-        `.cp-tool-rail` is a grid with one explicit row, so an *empty* header div
+        The rail is a grid with one explicit row, so an *empty* header div
         would still open a second implicit one and move the desktop rail.
       */}
       {coarsePointer && !phoneLayout && (
-        <div className="cp-tool-rail__touch-header">
+        <div className={styles.touchHeader} data-rail-part="touch-header">
           <CpShiftLatchToggle />
         </div>
       )}
-      <div className="cp-tool-rail__groups">
+      <div className={styles.groups} data-rail-part="groups">
         {cpRailGroups().map(({ group, actions }) => (
           <CpToolRailGroup
             key={group.id}
@@ -148,22 +149,22 @@ function CpToolRailGroup({
 
   return (
     <section
-      className="cp-tool-rail__group"
+      className={styles.group}
       aria-label={cpGroupLabel(t, group)}
       data-open={open || undefined}
     >
       <button
         type="button"
-        className="cp-tool-rail__group-toggle"
+        className={styles.groupToggle}
         aria-expanded={open}
         aria-controls={buttonsId}
         onClick={toggle}
       >
-        <span className="cp-tool-rail__group-label">{cpGroupRailLabel(t, group)}</span>
-        <ChevronDown className="cp-tool-rail__group-chevron" size={10} aria-hidden="true" />
+        <span className={styles.groupLabel}>{cpGroupRailLabel(t, group)}</span>
+        <ChevronDown className={styles.groupChevron} size={10} aria-hidden="true" />
       </button>
       {open && (
-        <div className="cp-tool-rail__buttons" id={buttonsId} data-group={group.id}>
+        <div className={styles.buttons} id={buttonsId} data-group={group.id}>
           {group.id === 'line-type' ? (
             // One control with one answer, so the line types are a segmented
             // control rather than five loose tool buttons.
@@ -226,7 +227,7 @@ const CpToolButton = memo(function CpToolButton({
   const button = (
     <button
       type="button"
-      className="cp-tool-rail__button"
+      className={styles.button}
       aria-label={label}
       aria-disabled={!available}
       data-active={isActive || undefined}

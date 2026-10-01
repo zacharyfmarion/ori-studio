@@ -94,6 +94,7 @@ import { cpActionRailLabel } from '../../i18n/cpVocab';
 import { ProtractorIcon } from '../../components/ui/ProtractorIcon';
 import { PropagateFoldAnglesIcon } from '../../components/ui/PropagateFoldAnglesIcon';
 import { SolveFoldAnglesIcon } from '../../components/ui/SolveFoldAnglesIcon';
+import styles from './CpToolGlyph.module.css';
 
 /** A tool icon: any lucide icon, or a local component with the same props. */
 export type CpToolIcon =
@@ -353,6 +354,7 @@ export function CpToolGlyph({
   action,
   glyphOperationId,
   size = CP_TOOL_ICON_SIZE,
+  compact = false,
 }: {
   action: OristudioCpActionDefinition;
   /**
@@ -363,6 +365,8 @@ export function CpToolGlyph({
    */
   glyphOperationId?: OristudioCpOperationId | null;
   size?: number;
+  /** Beside text in a button, at the text's scale, rather than filling a rail cell. */
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   // Localized, not `action.railLabel`: `M V E A` are initials of Mountain,
@@ -371,7 +375,7 @@ export function CpToolGlyph({
   const railLabel = cpActionRailLabel(t, action);
   if (railLabel) {
     return (
-      <span className="cp-tool-rail__button-label" aria-hidden="true">
+      <span className={styles.label} aria-hidden="true">
         {railLabel}
       </span>
     );
@@ -380,7 +384,11 @@ export function CpToolGlyph({
   const glyph = cpToolOrieditaGlyph(action, glyphOperationId ?? null);
   if (glyph) {
     return (
-      <span className="cp-tool-rail__oriedita-icon" aria-hidden="true">
+      <span
+        className={styles.orieditaIcon}
+        data-compact={compact || undefined}
+        aria-hidden="true"
+      >
         {glyph}
       </span>
     );

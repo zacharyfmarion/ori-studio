@@ -3,6 +3,7 @@ import { CopyPlus } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { setShiftLatched, useShiftLatched } from './shiftLatch';
+import styles from './CpShiftLatchToggle.module.css';
 
 /**
  * The on-screen half of {@link shiftLatch}.
@@ -33,7 +34,8 @@ export function CpShiftLatchToggle() {
     <Button
       size="md"
       variant="ghost"
-      className="cp-tool-rail__latch"
+      className={styles.latch}
+      data-shift-latch=""
       aria-pressed={latched}
       isActive={latched}
       onClick={() => setShiftLatched(!latched)}
