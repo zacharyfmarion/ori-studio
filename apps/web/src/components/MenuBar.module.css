@@ -64,7 +64,7 @@
   min-width: 218px;
   padding: 4px 0;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   box-shadow: 0 12px 32px var(--shadow-overlay);
 }

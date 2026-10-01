@@ -73,7 +73,7 @@
   gap: 2px;
   padding: 6px;
   border: 1px solid var(--border-default);
-  border-radius: 9px;
+  border-radius: var(--radius);
   /* The surface every menu in the app is drawn on. */
   background: var(--bg-elevated);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);

@@ -4,7 +4,7 @@
   max-width: 220px;
   padding: 6px 8px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-elevated);
   color: var(--text-primary);
   box-shadow: 0 8px 24px var(--shadow-overlay);

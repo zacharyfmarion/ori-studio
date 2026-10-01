@@ -18,7 +18,7 @@
   overscroll-behavior: contain;
   padding: 4px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-elevated);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
 }

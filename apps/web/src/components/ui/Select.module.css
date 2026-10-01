@@ -9,7 +9,7 @@
   min-width: var(--radix-select-trigger-width);
   max-height: min(var(--radix-select-content-available-height), 220px);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-elevated);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
 }
