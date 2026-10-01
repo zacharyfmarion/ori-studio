@@ -27,7 +27,7 @@
   max-width: 100%;
   padding: 7px 9px;
   border: 1px solid color-mix(in srgb, var(--status-warning) 42%, var(--border-subtle));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--domain-overlay-bg);
   color: var(--text-secondary);
   box-shadow: 0 8px 24px var(--shadow-overlay);

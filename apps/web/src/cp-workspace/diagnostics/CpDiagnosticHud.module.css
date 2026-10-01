@@ -27,7 +27,7 @@
   max-width: var(--cp-diagnostic-hud-width);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--border-strong) 68%, transparent);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
   color: var(--text-primary);
   font-weight: 760;

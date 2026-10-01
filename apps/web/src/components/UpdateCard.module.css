@@ -25,7 +25,7 @@
   display: flex;
   align-items: stretch;
   border: 1px solid var(--accent-primary);
-  border-radius: 12px;
+  border-radius: var(--radius);
   /* Opaque, and tinted toward the accent. An earlier revision asked for
      `--surface-raised`, which this stylesheet does not define — the declaration
      was dropped and the card rendered with no background at all, which is
@@ -48,7 +48,9 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: none;
-  border-radius: 12px;
+  /* Inside the card's 1px border, so its corner is the card's less that, and
+     the hover fill meets the border evenly all the way round. */
+  border-radius: calc(var(--radius) - 1px);
   background: none;
   color: var(--text-primary);
   cursor: pointer;
