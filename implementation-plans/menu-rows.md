@@ -163,9 +163,11 @@ One description of a menu, which every implementation follows:
 
 ### Phase 4 — Paper dash menu
 
-- [ ] 4px padding and 4px rows; the highlight; the current dash's check
-- [ ] Browser: the dash menu, by pointer and by keyboard
-- [ ] Validate; commit
+- [x] 4px padding and 4px rows; the highlight; the current dash's check
+- [x] The pointer takes focus with it, so a row lit by the keyboard and one
+      under the pointer can never both be filled (Radix's menus already do this)
+- [x] Browser: the dash menu, by pointer and by keyboard, and the two mixed
+- [x] Validate; commit
 
 ### Phase 5 — Bottom toolbar popovers on `Menu`
 

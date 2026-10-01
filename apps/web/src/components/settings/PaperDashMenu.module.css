@@ -71,7 +71,7 @@
   z-index: 3;
   display: grid;
   gap: 2px;
-  padding: 6px;
+  padding: 4px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius);
   /* The surface every menu in the app is drawn on. */
@@ -96,7 +96,6 @@
  */
 .options {
   display: grid;
-  gap: 2px;
   min-width: 0;
 }
 
@@ -108,7 +107,8 @@
   min-width: 0;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  /* Concentric with the menu's corner: its radius less the 4px padding. */
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
   font-size: 0.72rem;
@@ -116,16 +116,24 @@
   cursor: pointer;
 }
 
+/* The highlight every menu shares (theme.css: --menu-highlight). The preview
+   line is drawn in `currentColor`, so it follows the text. */
 .option:hover,
 .option:focus-visible {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+  background: var(--menu-highlight);
+  color: var(--menu-highlight-text);
   outline: none;
 }
 
-/* The dash the pen is drawn with, named in the accent it is previewed in. */
-.option[data-current] {
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-elevated));
-  color: var(--accent-primary);
+/* The dash the pen is drawn with: a check in a leading column every option
+   keeps, as a menu's radio rows have, so the previews still line up. The
+   highlight follows the pointer, so this is what says which dash is current. */
+.check {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
 }
 
 .custom {

@@ -25,9 +25,10 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { dashPresetLabel } from '../../i18n/enumLabels';
 import { isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
 import {
@@ -178,6 +179,15 @@ export function PaperDashMenu({
     if (formatDashText(parsed) !== formatDashText(pen.dash)) onCommit(parsed);
   };
 
+  // A row highlights under the pointer and on keyboard focus, so the pointer
+  // takes focus with it, as a native menu's does: the two can then never light
+  // different rows, and the arrow keys carry on from where the pointer is.
+  const followPointer = (event: ReactPointerEvent<HTMLElement>) => {
+    if (document.activeElement !== event.currentTarget) {
+      event.currentTarget.focus({ preventScroll: true });
+    }
+  };
+
   const onMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -265,11 +275,15 @@ export function PaperDashMenu({
                   data-dash-item=""
                   data-current={current || undefined}
                   tabIndex={-1}
+                  onPointerMove={followPointer}
                   onClick={() => {
                     onCommit(dashPresetRuns(preset.id));
                     close(true);
                   }}
                 >
+                  <span className={styles.check} aria-hidden="true">
+                    {current && <Check size={12} />}
+                  </span>
                   <DashPreview dash={preset.dash} width={OPTION_PREVIEW_WIDTH} />
                   <span>{dashPresetLabel(t, preset.id)}</span>
                 </button>
