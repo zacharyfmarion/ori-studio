@@ -139,14 +139,16 @@ One description of a menu, which every implementation follows:
 
 ### Phase 2 — `Menu` and `Select`
 
-- [ ] Highlight through the tokens; shortcut, icon and chevron follow it;
+- [x] Highlight through the tokens; shortcut, icon and chevron follow it;
       destructive rows fill red
-- [ ] `Select`: row padding to the spec; the current-value check
-- [ ] Browser: a canvas context menu with a submenu, a colour row and a
-      destructive row; the download, split-button and selection-export
-      dropdowns; the Solutions and Language selects; keyboard highlight matches
-      the pointer's
-- [ ] Validate; commit
+- [x] An open submenu's trigger stays highlighted, so the path stays lit (the
+      solid fill made its loss visible; native menus keep it)
+- [x] `Select`: row padding to the spec; the current-value check
+- [x] Browser: a canvas context menu with a submenu, and a destructive row (the
+      BP tree's Delete); the Solutions and Language selects; keyboard highlight
+      matches the pointer's. The dropdowns are the same `MenuItem`; the colour
+      row (only on a folded figure's Style menu) was not opened
+- [x] Validate; commit
 
 ### Phase 3 — Menu bar
 

@@ -1,6 +1,6 @@
 import * as RadixSelect from '@radix-ui/react-select';
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { CONTROL_RADIUS_CLASS } from './controlStyles';
 import styles from './Select.module.css';
 
@@ -49,6 +49,11 @@ export const SelectItem = forwardRef<
   Omit<ComponentPropsWithoutRef<typeof RadixSelect.Item>, 'className'>
 >(({ children, ...props }, ref) => (
   <RadixSelect.Item ref={ref} className={styles.item} {...props}>
+    <span className={styles.indicator} aria-hidden>
+      <RadixSelect.ItemIndicator>
+        <Check size={12} />
+      </RadixSelect.ItemIndicator>
+    </span>
     <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
   </RadixSelect.Item>
 ));

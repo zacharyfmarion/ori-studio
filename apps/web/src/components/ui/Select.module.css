@@ -19,9 +19,11 @@
 }
 
 .item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-height: 28px;
-  padding: 5px 7px;
+  padding: 5px 8px;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: default;
@@ -30,8 +32,21 @@
   user-select: none;
 }
 
+/* The highlight every menu shares (theme.css: --menu-highlight). */
 .item[data-highlighted] {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+  background: var(--menu-highlight);
+  color: var(--menu-highlight-text);
+}
+
+/* The current value's check, in a column every option keeps so the labels line
+   up, as a menu's radio rows do. The highlight follows the pointer, so this is
+   what still says which value is chosen. */
+.indicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
 }
 
 @media (pointer: coarse) {

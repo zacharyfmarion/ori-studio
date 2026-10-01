@@ -37,8 +37,17 @@
   user-select: none;
 }
 
-.item[data-highlighted] {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+/* The highlight every menu shares (theme.css: --menu-highlight). Everything in
+   the row takes the text's colour with it: icon, check, shortcut, chevron.
+
+   A submenu's trigger keeps it while its submenu is open (Radix marks it
+   `data-state="open"` once focus moves in), so the path to the row under the
+   pointer stays lit, as a native menu's does. Only a sub-trigger is ever
+   `open`; a checkbox row's states are `checked` and `unchecked`. */
+.item[data-highlighted],
+.item[data-state='open'] {
+  background: var(--menu-highlight);
+  color: var(--menu-highlight-text);
 }
 
 /* An item that is genuinely an anchor — a download link, reached through Radix's
@@ -61,8 +70,11 @@ a.item {
   color: var(--status-danger);
 }
 
+/* A destructive row fills red, so the warning stays under the pointer rather
+   than only showing at rest. */
 .item[data-danger][data-highlighted] {
-  background: color-mix(in srgb, var(--status-danger) 16%, var(--bg-elevated));
+  background: var(--status-danger);
+  color: var(--text-on-danger);
 }
 
 .icon {
@@ -109,7 +121,9 @@ a.item {
   color: var(--text-secondary);
 }
 
-.item[data-highlighted] .subtriggerArrow {
+.item[data-highlighted] .shortcut,
+.item[data-highlighted] .subtriggerArrow,
+.item[data-state='open'] .subtriggerArrow {
   color: currentcolor;
 }
 
