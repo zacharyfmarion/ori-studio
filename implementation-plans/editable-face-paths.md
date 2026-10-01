@@ -100,4 +100,4 @@ Out of scope, each its own change:
       dialog's own path — 18 `<path>` faces, each filled and stroked in the
       0.9 pt edge pen, no `<polygon>`, no `<line>`. Inkscape 1.4.4 reads the
       file as 18 path objects and renders it as the app does.
-- [ ] Draft PR
+- [x] Draft PR: zacharyfmarion/ori-studio#422
