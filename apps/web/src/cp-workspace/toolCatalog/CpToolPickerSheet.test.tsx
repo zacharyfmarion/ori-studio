@@ -172,7 +172,7 @@ describe('CpToolPickerSheet catalogue', () => {
     act(() => {
       vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
     });
-    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Valley');
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Valley');
 
     act(() => {
       valley.dispatchEvent(touch('pointerup'));

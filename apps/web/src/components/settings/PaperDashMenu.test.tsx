@@ -37,12 +37,12 @@ function render(initial: Pen = DEFAULT_PAPER_STYLE.edges): HTMLDivElement {
   return container;
 }
 
-const trigger = () => container!.querySelector<HTMLButtonElement>('.settings-paper-dash__trigger')!;
+const trigger = () => container!.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
 const menu = () => container!.querySelector<HTMLElement>('[role="menu"]');
 const options = () =>
   Array.from(container!.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
 const customField = () =>
-  container!.querySelector<HTMLInputElement>('.settings-paper-dash__custom-field')!;
+  container!.querySelector<HTMLInputElement>('input[aria-label="Custom dash"]')!;
 
 const open = () => act(() => trigger().click());
 

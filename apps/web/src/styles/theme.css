@@ -515,37 +515,6 @@
   color: var(--text-secondary);
 }
 
-.select-content {
-  z-index: var(--z-portaled-popover);
-  overflow: hidden;
-  min-width: var(--radix-select-trigger-width);
-  max-height: min(var(--radix-select-content-available-height), 220px);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
-}
-
-.select-content__viewport {
-  padding: 4px;
-}
-
-.select-item {
-  display: block;
-  min-height: 28px;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  cursor: default;
-  font-size: 12px;
-  outline: none;
-  padding: 5px 7px;
-  user-select: none;
-}
-
-.select-item[data-highlighted] {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
-}
-
 .context-menu {
   z-index: var(--z-portaled-popover);
   min-width: 180px;
@@ -936,18 +905,6 @@ a.context-menu__item {
   to {
     transform: translateX(250%);
   }
-}
-
-.tooltip-content {
-  z-index: var(--z-portaled-popover);
-  max-width: 220px;
-  padding: 6px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  font-size: 0.72rem;
 }
 
 .toggle-switch {
@@ -3092,179 +3049,6 @@ a.context-menu__item {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   text-align: center;
-}
-
-/*
- * The dash, picked by name from a menu that draws each option. Its own menu
- * rather than a `Select`: the custom field lives inside it — see
- * `PaperDashMenu.tsx`.
- */
-.settings-paper-dash {
-  position: relative;
-  display: grid;
-  min-width: 0;
-}
-
-.settings-paper-dash__trigger {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 30px;
-  min-width: 0;
-  padding: 0 9px;
-  border: 1px solid var(--border-default);
-  border-radius: 7px;
-  background: var(--settings-well);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-.settings-paper-dash__trigger:hover:not(:disabled),
-.settings-paper-dash__trigger[data-open] {
-  border-color: var(--border-strong);
-}
-
-.settings-paper-dash__trigger[data-open] {
-  border-color: var(--accent-primary);
-}
-
-.settings-paper-dash__trigger:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-.settings-paper-dash__trigger:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.settings-paper-dash__preview {
-  flex: 0 0 auto;
-}
-
-.settings-paper-dash__label {
-  overflow: hidden;
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-paper-dash__chevron {
-  flex: 0 0 auto;
-  color: var(--text-tertiary);
-}
-
-.settings-paper-dash__menu {
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Above the cards that follow it; both are inside the tab's own flow. */
-  z-index: 3;
-  display: grid;
-  gap: 2px;
-  padding: 6px;
-  border: 1px solid var(--border-default);
-  border-radius: 9px;
-  /* The surface every menu in the app is drawn on. */
-  background: var(--bg-elevated);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
-}
-
-/* Opened downward, unless it would reach past the bottom of the scrolling tab. */
-.settings-paper-dash__menu[data-placement='bottom'] {
-  top: calc(100% + 6px);
-}
-
-.settings-paper-dash__menu[data-placement='top'] {
-  bottom: calc(100% + 6px);
-}
-
-/*
- * The named dashes, which are the menu proper. The custom field is a sibling
- * rather than a child: a textbox is not something `role="menu"` may own, and
- * an assistive technology that switches to menu navigation inside one reaches
- * the field either not at all or with its keys already spoken for.
- */
-.settings-paper-dash__options {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.settings-paper-dash__option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 28px;
-  min-width: 0;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.settings-paper-dash__option:hover,
-.settings-paper-dash__option:focus-visible {
-  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
-  outline: none;
-}
-
-/* The dash the pen is drawn with, named in the accent it is previewed in. */
-.settings-paper-dash__option[data-current] {
-  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-elevated));
-  color: var(--accent-primary);
-}
-
-.settings-paper-dash__custom {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  /* A grid item is at least its content wide unless told otherwise, and the
-     field's own intrinsic width would push the unit out of the menu. */
-  min-width: 0;
-  margin-top: 3px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.settings-paper-dash__custom-name {
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.settings-paper-dash__custom-field {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--settings-well);
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-}
-
-.settings-paper-dash__custom-field:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.settings-paper-dash__custom-unit {
-  color: var(--text-muted);
-  font-size: 0.66rem;
-  white-space: nowrap;
 }
 
 /* A row of verbs — the preset's Apply / Export / Delete, or the list's Save / Import. */
@@ -8738,7 +8522,6 @@ button.bp-packing-alert:focus-visible {
      only way to reach a large part of the app, and on an iPad it had the one
      kind of row a finger could not reliably hit. Same predicate as its
      siblings now, in the same place. */
-  .select-item,
   .context-menu__item,
   .symmetry-menu__item,
   .menu-dropdown__item {

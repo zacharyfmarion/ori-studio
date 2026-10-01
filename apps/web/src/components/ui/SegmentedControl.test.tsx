@@ -192,7 +192,7 @@ describe('SegmentedControl option extras', () => {
     act(() => {
       vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
     });
-    expect(document.querySelector('.tooltip-content')?.textContent).toContain(
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
       'The side facing away'
     );
 

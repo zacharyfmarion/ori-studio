@@ -243,7 +243,7 @@ describe('CpToolRail touch affordances', () => {
     act(() => {
       vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
     });
-    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Eraser');
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Eraser');
 
     act(() => {
       button.dispatchEvent(touchPointer('pointerup'));
@@ -319,7 +319,7 @@ describe('CpToolRail line types', () => {
     act(() => {
       vi.advanceTimersByTime(TOUCH_LABEL_HOLD_MS);
     });
-    expect(document.querySelector('.tooltip-content')?.textContent).toContain('Valley');
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Valley');
 
     act(() => {
       button.dispatchEvent(touchPointer('pointerup'));
