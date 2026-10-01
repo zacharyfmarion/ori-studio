@@ -152,13 +152,14 @@ One description of a menu, which every implementation follows:
 
 ### Phase 3 — Menu bar
 
-- [ ] The spec's surface (`--bg-elevated`, the short shadow), 4px padding,
+- [x] The spec's surface (`--bg-elevated`, the short shadow), 4px padding,
       inset 4px rows with 8px sides, the shared shortcut and separator; the
       square corner under the trigger stays
-- [ ] Fly-outs and the phone's expanded groups follow
-- [ ] Browser: File, View and Export's fly-out on desktop; a group expanded on
-      a phone
-- [ ] Validate; commit
+- [x] Fly-outs and the phone's expanded groups follow; a fly-out's trigger
+      stays highlighted while it is open, as `Menu`'s sub-triggers now do
+- [x] Browser: File and Export's fly-out on desktop (its first row level with
+      Export, overlapping by the same 5px); a group expanded on a phone
+- [x] Validate; commit
 
 ### Phase 4 — Paper dash menu
 
