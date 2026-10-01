@@ -56,23 +56,28 @@
   box-shadow: inset 0 0 0 2px var(--accent-primary);
 }
 
+/* Hangs straight off its trigger, with the corner it hangs from square, so the
+   two read as one piece rather than a menu floating near a button. */
 .dropdown {
   position: absolute;
-  top: calc(100% + 2px);
+  top: 100%;
   left: 0;
   z-index: 9999;
   min-width: 218px;
   padding: 4px 0;
   border: 1px solid var(--border-default);
   border-radius: var(--radius);
+  border-top-left-radius: 0;
   background: var(--bg-primary);
   box-shadow: 0 12px 32px var(--shadow-overlay);
 }
 
+/* A fly-out hangs off a row, not the bar, so it keeps all four corners. */
 .dropdown[data-flyout] {
   top: -5px;
   left: calc(100% - 4px);
   display: none;
+  border-top-left-radius: var(--radius);
 }
 
 .item {
