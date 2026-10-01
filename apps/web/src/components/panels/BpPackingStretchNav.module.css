@@ -1,0 +1,26 @@
+/* The parts of a stretch's pattern bar (BpPackingStretchNav.tsx) that are its
+   own; the bar, its title and its labels are CanvasContextBar's. */
+.stepper {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.count {
+  min-width: 30px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.warning {
+  flex-shrink: 0;
+  color: var(--status-danger);
+  font-weight: 600;
+}
+
+/* "Only one pattern": a fact about the stretch, not a problem with it. */
+.note {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}

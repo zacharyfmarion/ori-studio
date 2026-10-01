@@ -1,0 +1,40 @@
+/*
+ * A bar of fields floating at the top centre of a design canvas
+ * (CanvasContextBar.tsx): the box-pleating tree's edge length, a flap's name
+ * and size, a stretch's pattern navigation.
+ */
+.bar {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  /* Bounded by the pane: a name is user text of any length, and a centred bar
+     that outgrows the pane runs past both of its edges. */
+  max-width: calc(100% - var(--space-6));
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-context-menu);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+/* The title is the only part that gives way: the fields and steppers are
+   fixed-size and are what the bar is for. */
+.title {
+  min-width: 3ch;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label {
+  color: var(--text-secondary);
+}

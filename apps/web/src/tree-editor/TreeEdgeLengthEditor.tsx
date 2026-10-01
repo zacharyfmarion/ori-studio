@@ -3,6 +3,12 @@ import { Minus, Plus } from 'lucide-react';
 import { IconButton } from '../components/ui/IconButton';
 import { clampLength, nudgeLength, type TreeLengthRule } from './lengths';
 import type { EditableTreeEdge } from './model';
+import {
+  CanvasContextBar,
+  CanvasContextBarLabel,
+  CanvasContextBarTitle,
+} from '../components/ui/CanvasContextBar';
+import styles from './TreeEdgeLengthEditor.module.css';
 
 /**
  * Contextual editor for a selected edge's length.
@@ -58,9 +64,9 @@ export function TreeEdgeLengthEditor({
   };
 
   return (
-    <div className="bp-tree-edge-editor" role="group" aria-label={groupLabel}>
-      <span className="bp-tree-edge-editor__title">{title}</span>
-      <span className="bp-tree-edge-editor__label">{label}</span>
+    <CanvasContextBar aria-label={groupLabel}>
+      <CanvasContextBarTitle>{title}</CanvasContextBarTitle>
+      <CanvasContextBarLabel>{label}</CanvasContextBarLabel>
       <IconButton
         size="sm"
         variant="toolbar"
@@ -71,7 +77,7 @@ export function TreeEdgeLengthEditor({
         <Minus size={14} />
       </IconButton>
       <input
-        className="bp-tree-edge-editor__input"
+        className={styles.input}
         type="number"
         min={rule.min}
         max={max ?? undefined}
@@ -99,6 +105,6 @@ export function TreeEdgeLengthEditor({
       >
         <Plus size={14} />
       </IconButton>
-    </div>
+    </CanvasContextBar>
   );
 }

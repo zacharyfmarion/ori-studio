@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CanvasContextBar, CanvasContextBarLabel, CanvasContextBarTitle } from '../ui/CanvasContextBar';
+import styles from './BpNameEditor.module.css';
 
 /**
  * Contextual name field for a selected BP flap or tree vertex. A flap's name
@@ -54,11 +56,11 @@ export function BpNameEditor({
   };
 
   return (
-    <div className="bp-name-editor" role="group" aria-label={ariaLabel}>
-      {title && <span className="bp-name-editor__title">{title}</span>}
-      <span className="bp-name-editor__label">{t('panels:bpNameEditor.label', 'Name')}</span>
+    <CanvasContextBar aria-label={ariaLabel}>
+      {title && <CanvasContextBarTitle>{title}</CanvasContextBarTitle>}
+      <CanvasContextBarLabel>{t('panels:bpNameEditor.label', 'Name')}</CanvasContextBarLabel>
       <input
-        className="bp-name-editor__input"
+        className={styles.input}
         type="text"
         value={draft}
         placeholder={placeholder}
@@ -76,6 +78,6 @@ export function BpNameEditor({
         }}
       />
       {children}
-    </div>
+    </CanvasContextBar>
   );
 }

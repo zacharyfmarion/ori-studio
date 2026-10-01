@@ -621,7 +621,7 @@ describe('BP tree pane — Escape', () => {
 
   it('clears the selection from the flap name field, in one press', () => {
     render(1);
-    const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
+    const input = container?.querySelector<HTMLInputElement>('[role="group"][aria-label^="Name of flap"] input');
     expect(input).toBeTruthy();
     act(() => {
       input?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }));
@@ -633,7 +633,7 @@ describe('BP tree pane — Escape', () => {
 describe('BP tree pane — the name field never steals focus', () => {
   it('shows the name field on selection without focusing it', () => {
     render(1);
-    const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
+    const input = container?.querySelector<HTMLInputElement>('[role="group"][aria-label^="Name of flap"] input');
     // While the field holds focus it owns the keyboard: Delete edits the name
     // instead of deleting the node, and undo undoes the field's text.
     expect(input).toBeTruthy();
@@ -650,7 +650,7 @@ describe('BP tree pane — the name field never steals focus', () => {
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 2 } 
       }),});
     });
-    const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
+    const input = container?.querySelector<HTMLInputElement>('[role="group"][aria-label^="Name of flap"] input');
     expect(input).toBeTruthy();
     expect(window.document.activeElement).not.toBe(input);
   });
@@ -664,7 +664,7 @@ describe('BP tree pane — the name field never steals focus', () => {
       ...patchBoxPleatDesign(useWorkspaceStore.getState(), { selection: { kind: 'bp-vertex', id: 2 } 
       }),});
     });
-    const input = container?.querySelector<HTMLInputElement>('.bp-name-editor__input');
+    const input = container?.querySelector<HTMLInputElement>('[role="group"][aria-label^="Name of flap"] input');
     expect(input).toBeTruthy();
     expect(window.document.activeElement).not.toBe(input);
   });
