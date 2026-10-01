@@ -14,11 +14,24 @@ import styles from './Menu.module.css';
 type Unstyled<T> = Omit<T, 'className'>;
 type SpanProps = Unstyled<HTMLAttributes<HTMLSpanElement>>;
 
-/** A menu's surface, portalled to the body so no container clips or transforms it. */
-export function MenuContent(props: Unstyled<ComponentProps<typeof DropdownMenu.Content>>) {
+/**
+ * A menu's surface, portalled to the body so no container clips or transforms it.
+ *
+ * `fitTrigger` sizes it from its trigger, as a select list is, rather than at
+ * the width a menu of commands gets: for a short list of values, such as the
+ * zoom presets under a percentage readout.
+ */
+export function MenuContent({
+  fitTrigger,
+  ...props
+}: Unstyled<ComponentProps<typeof DropdownMenu.Content>> & { fitTrigger?: boolean }) {
   return (
     <DropdownMenu.Portal>
-      <DropdownMenu.Content className={styles.content} {...props} />
+      <DropdownMenu.Content
+        className={styles.content}
+        data-fit-trigger={fitTrigger || undefined}
+        {...props}
+      />
     </DropdownMenu.Portal>
   );
 }

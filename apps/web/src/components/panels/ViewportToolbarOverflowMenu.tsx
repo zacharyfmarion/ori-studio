@@ -1,80 +1,27 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import {
-  MenuCheckboxItem,
-  MenuContent,
-  MenuItem,
-  MenuItemIcon,
-  MenuItemLabel,
-  MenuSeparator,
-} from '../ui/Menu';
-import { Check, MoreHorizontal } from 'lucide-react';
+import { MenuContent, MenuSeparator } from '../ui/Menu';
+import { MoreHorizontal } from 'lucide-react';
 import { MenuIconButton } from '../ui/MenuIconButton';
 import {
   hasUnseenActiveControl,
   viewportToolbarSlots,
-  type ViewportToolbarAction,
   type ViewportToolbarOverflowGroup,
 } from './viewportToolbarLayout';
-
-function OverflowItem({
-  action,
-  onOpenDialog,
-}: {
-  action: ViewportToolbarAction;
-  /** Told before the select runs, so the close that follows keeps its hands off focus. */
-  onOpenDialog: () => void;
-}) {
-  // The leading slot is the action's own icon, swapped for a tick while the mode
-  // is on — the shape `ContextMenu` already uses for a checked item, so a row
-  // here is the same width as a row anywhere else in the app.
-  const leading = <MenuItemIcon>{action.checked ? <Check size={12} /> : action.icon}</MenuItemIcon>;
-
-  if (action.checked === undefined) {
-    return (
-      <MenuItem
-        disabled={action.disabled}
-        onSelect={() => {
-          if (action.opensDialog) onOpenDialog();
-          action.onSelect();
-        }}
-      >
-        {leading}
-        <MenuItemLabel>{action.label}</MenuItemLabel>
-      </MenuItem>
-    );
-  }
-
-  return (
-    <MenuCheckboxItem
-      checked={action.checked}
-      disabled={action.disabled}
-      // A verb closes the menu; a mode does not. Radix closes on select unless
-      // the event is canceled, and the modes here arrive in runs — the packing
-      // pane collapses twelve layer toggles into this menu, and closing after
-      // each one would cost twelve reopenings to set three of them.
-      onSelect={(event) => {
-        event.preventDefault();
-        action.onSelect();
-      }}
-    >
-      {leading}
-      <MenuItemLabel>{action.label}</MenuItemLabel>
-    </MenuCheckboxItem>
-  );
-}
+import { ViewportToolbarMenuRow } from './ViewportToolbarMenuRow';
 
 /**
  * The `⋯` end of the viewport toolbar on a touch device, and everything the bar
  * gave up to fit on one line.
  *
- * A **portalled** Radix menu, which is the point: the bar's own popovers are
- * `position: absolute` children of it opening upward out of its box, so the
- * obvious way to make a too-wide row fit — `overflow-x: auto` — would compute
- * `overflow-y` to `auto` as well and trap every one of them in a scroll box.
- * Nothing here introduces an overflow context, so all of them keep working
- * untouched; this menu escapes the bar entirely by rendering into `body`.
+ * A **portalled** Radix menu, which is the point: the bar's form popovers (the
+ * symmetry and sheet menus) are `position: absolute` children of it opening
+ * upward out of its box, so the obvious way to make a too-wide row fit —
+ * `overflow-x: auto` — would compute `overflow-y` to `auto` as well and trap
+ * every one of them in a scroll box. Nothing here introduces an overflow
+ * context, so all of them keep working untouched; this menu escapes the bar
+ * entirely by rendering into `body`.
  *
  * `role="menu"` comes from Radix, which matters beyond a11y:
  * `isViewportInteractiveTarget` claims it, so space-to-pan does not fire while
@@ -159,7 +106,7 @@ export function ViewportToolbarOverflowMenu({
             <MenuSeparator key={slot.id} />
           ) : (
             slot.group.items.map((action) => (
-              <OverflowItem
+              <ViewportToolbarMenuRow
                 key={action.id}
                 action={action}
                 onOpenDialog={() => {

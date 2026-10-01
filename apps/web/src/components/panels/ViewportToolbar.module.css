@@ -20,19 +20,8 @@
   align-items: center;
 }
 
-.zoomButton,
-.presetItem {
-  border: 0;
-  /* A row inside a popover; the readout, a control on the bar, takes the bar's
-     controls' radius below. */
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.72rem;
-}
-
+/* The zoom percent: a control on the bar, at its controls' radius, that opens
+   the preset menu. */
 .zoomButton {
   display: inline-flex;
   align-items: center;
@@ -40,12 +29,16 @@
   height: 28px;
   min-width: 52px;
   padding: 0 8px;
+  border: 0;
   border-radius: var(--radius);
+  background: transparent;
   color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
 }
 
-.zoomButton:hover,
-.presetItem:hover {
+.zoomButton:hover {
   background: var(--bg-surface);
   color: var(--text-primary);
 }
@@ -105,54 +98,6 @@
   right: 0;
 }
 
-/* The zoom presets. */
-.presets {
-  display: grid;
-  min-width: 76px;
-  padding: 4px;
-}
-
-.presetItem {
-  min-height: 26px;
-  padding: 0 10px;
-  text-align: center;
-}
-
-/* A layer or choice list: a checkbox or radio per row. */
-.options {
-  display: grid;
-  min-width: 150px;
-  padding: 6px;
-  gap: 1px;
-}
-
-.option {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
-  min-height: 28px;
-  padding: 0 7px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.74rem;
-}
-
-.option:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.option input {
-  accent-color: var(--accent-primary);
-}
-
-.optionIcon {
-  display: inline-flex;
-  color: var(--text-tertiary);
-}
-
 /* Mirror draw, named rather than abbreviated — see `ViewportSymmetryToggle`.
    Shared by all three tree canvases; the box-pleating editor's own mirror
    button is icon-only on purpose and is not this. */
@@ -207,8 +152,7 @@
   }
 
   .zoomButton,
-  .symmetryButton,
-  .presetItem {
+  .symmetryButton {
     min-height: var(--touch-target);
   }
 

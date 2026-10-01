@@ -1,13 +1,12 @@
 import {
   forwardRef,
   Fragment,
-  useEffect,
-  useRef,
   useState,
   type HTMLAttributes,
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   FlipHorizontal2,
   Hand,
@@ -20,14 +19,18 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { IconButton, type IconButtonProps } from '../ui/IconButton';
+import { MenuContent, MenuItem, MenuItemLabel } from '../ui/Menu';
+import { MenuIconButton } from '../ui/MenuIconButton';
 import { Toolbar, ToolbarGroup, ToolbarSeparator } from '../ui/Toolbar';
 import { primaryModifierLabel } from '../../lib/platform';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
+import { ViewportToolbarMenuRow } from './ViewportToolbarMenuRow';
 import { ViewportToolbarOverflowMenu } from './ViewportToolbarOverflowMenu';
 import {
   planViewportToolbar,
   viewportToolbarSlots,
+  type ViewportToolbarAction,
   type ViewportToolbarEntry,
   type ViewportToolbarGroupSpec,
   type ViewportToolbarItem,
@@ -37,37 +40,6 @@ import styles from './ViewportToolbar.module.css';
 export type { ViewportToolbarEntry, ViewportToolbarGroupSpec } from './viewportToolbarLayout';
 
 const ZOOM_PRESETS = [25, 50, 100, 200, 400];
-
-/**
- * Close an open popover when the press lands outside its anchor.
- *
- * `pointerdown` and not `mousedown`, which is what the bar's three popovers used
- * and what made them undismissable on an iPad. The compatibility mouse events a
- * touch produces are suppressed entirely when `pointerdown` is canceled, and the
- * crease-pattern canvas cancels it on essentially every press (see
- * `CreasePatternWebglCanvas`'s `onPointerDown`) — so tapping the paper to put a
- * menu away fired no `mousedown`, and the menu stayed up over the canvas.
- *
- * Dismissing this early cannot mis-route the rest of the tap the way the View
- * drawer's did: these popovers cover only their own box, so whatever the press
- * landed on was already its target.
- */
-function useToolbarPopover() {
-  const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: PointerEvent) => {
-      if (anchorRef.current?.contains(event.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
-
-  return { open, setOpen, anchorRef };
-}
 
 /** `Label (Chord)` when the action has a chord bound, plain label otherwise. */
 function withShortcut(label: string, shortcut: string | undefined): string {
@@ -99,7 +71,14 @@ export function isViewportInteractiveTarget(target: EventTarget | null): boolean
   );
 }
 
-/** The zoom percentage, and the preset list behind it. */
+/**
+ * The zoom percentage, and the preset list behind it: a menu like any other,
+ * opening upward out of the bar.
+ *
+ * Not modal: a press elsewhere puts it away *and* does what it would have done,
+ * as the bar's popovers always have — a modal menu would swallow that press, and
+ * a press on the canvas is how a selection is dropped.
+ */
 function ZoomReadout({
   zoomPercent,
   setZoomLevel,
@@ -107,38 +86,28 @@ function ZoomReadout({
   zoomPercent: number;
   setZoomLevel: (scale: number) => void;
 }) {
-  const { open, setOpen, anchorRef } = useToolbarPopover();
-
   return (
-    <div className={styles.menuAnchor} ref={anchorRef}>
-      <button
-        type="button"
-        className={styles.zoomButton}
-        data-viewport-zoom=""
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger asChild>
+        <button type="button" className={styles.zoomButton} data-viewport-zoom="">
+          {zoomPercent}%
+        </button>
+      </DropdownMenu.Trigger>
+      <MenuContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        collisionPadding={8}
+        loop
+        fitTrigger
       >
-        {zoomPercent}%
-      </button>
-      {open && (
-        <ViewportToolbarPopover align="center" className={styles.presets} role="menu">
-          {ZOOM_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              className={styles.presetItem}
-              onClick={() => {
-                setZoomLevel(preset / 100);
-                setOpen(false);
-              }}
-            >
-              {preset}%
-            </button>
-          ))}
-        </ViewportToolbarPopover>
-      )}
-    </div>
+        {ZOOM_PRESETS.map((preset) => (
+          <MenuItem key={preset} onSelect={() => setZoomLevel(preset / 100)}>
+            <MenuItemLabel>{preset}%</MenuItemLabel>
+          </MenuItem>
+        ))}
+      </MenuContent>
+    </DropdownMenu.Root>
   );
 }
 
@@ -577,12 +546,13 @@ export interface ViewportLayerOption<Key extends string> {
 }
 
 /**
- * The layer popover as toolbar items: the popover on a pointer device, one
- * checkable menu row per layer on touch.
+ * The layers as toolbar items: the layer menu on a pointer device, and on touch
+ * one checkable row per layer in the `⋯` menu, which spends the trigger's 46px
+ * on the rows instead.
  *
- * The popover survives the move intact because it is already a data-driven
- * option list; what it gains is a 44px row per layer in place of a 24px native
- * checkbox, and the trigger's 46px back for the row.
+ * Both are the same rows, built from the same action ({@link layerAction}) by
+ * the same component ({@link ViewportToolbarMenuRow}), so a layer toggle looks
+ * and behaves the same wherever it lands.
  */
 export function viewportLayerItems<Key extends string>({
   title,
@@ -605,22 +575,34 @@ export function viewportLayerItems<Key extends string>({
       ),
     },
     ...options.map(
-      (option): ViewportToolbarEntry => ({
-        kind: 'action',
-        id: `layer-${option.key}`,
-        only: 'coarse',
-        label: option.label,
-        icon: option.icon,
-        checked: visible[option.key],
-        onSelect: () => onChange(option.key, !visible[option.key]),
-      })
+      (option): ViewportToolbarEntry => ({ ...layerAction(option, visible, onChange), only: 'coarse' })
     ),
   ];
 }
 
+/** A layer as a toolbar action: a mode, on while the layer shows. */
+function layerAction<Key extends string>(
+  option: ViewportLayerOption<Key>,
+  visible: Record<Key, boolean>,
+  onChange: (key: Key, next: boolean) => void
+): ViewportToolbarAction {
+  return {
+    kind: 'action',
+    id: `layer-${option.key}`,
+    label: option.label,
+    icon: option.icon,
+    checked: visible[option.key],
+    onSelect: () => onChange(option.key, !visible[option.key]),
+  };
+}
+
 /**
- * The toolbar's layer-visibility popover: a toggle button and a checkbox list
- * that closes on an outside click.
+ * The toolbar's layer-visibility menu: one checkable row per layer, and the
+ * same rows the touch `⋯` menu shows when these collapse into it
+ * ({@link ViewportToolbarMenuRow}), so a layer toggle is one thing on either.
+ *
+ * Toggling leaves it open, since layers are set in runs. Not modal, for the
+ * reason {@link ZoomReadout} gives.
  *
  * Both BP panes carried their own copy of this, including the outside-click
  * effect. Only the option table and its labels differ, so those are the props;
@@ -637,87 +619,20 @@ export function ViewportLayerMenu<Key extends string>({
   visible: Record<Key, boolean>;
   onChange: (key: Key, next: boolean) => void;
 }) {
-  const { open, setOpen, anchorRef } = useToolbarPopover();
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className={styles.menuAnchor} ref={anchorRef}>
-      <ViewportToolbarButton
-        title={title}
-        isActive={open}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
-      >
-        <Layers size={14} />
-      </ViewportToolbarButton>
-      {open && (
-        <ViewportToolbarPopover align="end" className={styles.options} role="menu">
-          {options.map((option) => (
-            <label key={option.key} className={styles.option}>
-              <input
-                type="checkbox"
-                checked={visible[option.key]}
-                onChange={(event) => onChange(option.key, event.target.checked)}
-              />
-              <span className={styles.optionIcon}>{option.icon}</span>
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </ViewportToolbarPopover>
-      )}
-    </div>
-  );
-}
-
-export interface ViewportChoiceOption<Value extends string | number> {
-  value: Value;
-  label: string;
-}
-
-/**
- * Single-select sibling of {@link ViewportLayerMenu}, for a toolbar control with
- * a handful of mutually exclusive choices.
- */
-export function ViewportChoiceMenu<Value extends string | number>({
-  title,
-  icon,
-  options,
-  value,
-  onChange,
-}: {
-  title: string;
-  icon: ReactNode;
-  options: readonly ViewportChoiceOption<Value>[];
-  value: Value;
-  onChange: (value: Value) => void;
-}) {
-  const { open, setOpen, anchorRef } = useToolbarPopover();
-
-  return (
-    <div className={styles.menuAnchor} ref={anchorRef}>
-      <ViewportToolbarButton
-        title={title}
-        isActive={open}
-        onClick={() => setOpen((wasOpen) => !wasOpen)}
-      >
-        {icon}
-      </ViewportToolbarButton>
-      {open && (
-        <ViewportToolbarPopover align="end" className={styles.options} role="menu">
-          {options.map((option) => (
-            <label key={String(option.value)} className={styles.option}>
-              <input
-                type="radio"
-                checked={option.value === value}
-                onChange={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </ViewportToolbarPopover>
-      )}
-    </div>
+    <DropdownMenu.Root modal={false} open={open} onOpenChange={setOpen}>
+      <MenuIconButton label={title} icon={<Layers size={14} />} isActive={open} />
+      <MenuContent side="top" align="end" sideOffset={8} collisionPadding={8} loop>
+        {options.map((option) => (
+          <ViewportToolbarMenuRow
+            key={option.key}
+            action={layerAction(option, visible, onChange)}
+          />
+        ))}
+      </MenuContent>
+    </DropdownMenu.Root>
   );
 }
 

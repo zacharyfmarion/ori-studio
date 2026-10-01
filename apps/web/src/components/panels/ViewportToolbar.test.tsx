@@ -226,16 +226,35 @@ describe('ViewportToolbar on a fine pointer', () => {
    * popover listening for `mousedown` could not be put away by tapping the
    * paper.
    */
-  it('dismisses the zoom presets on a press outside the readout', () => {
+  it('toggles a layer from its menu, and stays open for the next', () => {
+    // The same rows the touch `⋯` menu shows: a layer is a checkable row, and
+    // layers are set in runs, so a toggle does not close the menu.
+    render();
+    press(toolbar()?.querySelector('button[aria-label="Layers"]'));
+    const row = menuItems().find((item) => item.textContent === 'Labels');
+    expect(row?.getAttribute('role')).toBe('menuitemcheckbox');
+    expect(row?.getAttribute('aria-checked')).toBe('true');
+    press(row);
+    expect(camera.onLayerChange).toHaveBeenCalledWith('labels', false);
+    expect(document.querySelector('[role="menu"]')).toBeTruthy();
+  });
+
+  it('dismisses the zoom presets on a press outside the readout', async () => {
     render();
     press(toolbar()?.querySelector('[data-viewport-zoom]'));
-    expect(toolbar()?.querySelector('[role="menu"]')).toBeTruthy();
+    // A menu, portalled to the body like every other.
+    expect(document.querySelector('[role="menu"]')).toBeTruthy();
+    // Radix starts listening for the outside press a tick after opening, so
+    // the press that opened the menu cannot also close it.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     act(() => {
       document.body.dispatchEvent(
         new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 })
       );
     });
-    expect(toolbar()?.querySelector('[role="menu"]')).toBeFalsy();
+    expect(document.querySelector('[role="menu"]')).toBeFalsy();
   });
 
   it('draws a hairline between groups and never at an end', () => {

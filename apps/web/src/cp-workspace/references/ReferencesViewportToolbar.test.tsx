@@ -214,7 +214,8 @@ describe('ReferencesViewportToolbar', () => {
     render();
 
     press(toolbar()?.querySelector('[data-viewport-zoom]'));
-    const preset = [...(toolbar()?.querySelectorAll('[role="menu"] button') ?? [])].find(
+    // A menu, portalled to the body like every other.
+    const preset = [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find(
       (item) => item.textContent === '50%'
     );
     press(preset);

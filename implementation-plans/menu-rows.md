@@ -171,11 +171,15 @@ One description of a menu, which every implementation follows:
 
 ### Phase 5 — Bottom toolbar popovers on `Menu`
 
-- [ ] Zoom presets and view options on `Menu` parts, sharing the touch `⋯`
-      menu's rows; tests on roles
-- [ ] Browser: presets, layer toggles (staying open across toggles), and the
-      `⋯` menu on touch
-- [ ] Validate; commit
+- [x] Zoom presets and view options on `Menu` parts, sharing the touch `⋯`
+      menu's rows (`ViewportToolbarMenuRow`); tests on roles. The presets are
+      sized from their trigger (`MenuContent`'s `fitTrigger`), as a select list
+      is, rather than at a command menu's 180px. The popover hook and the
+      `ViewportChoiceMenu` it served, unused since the layers moved, are gone
+- [x] Browser: presets, layer toggles (staying open across toggles), and the
+      `⋯` menu on touch. Both menus stay non-modal, so a press on the canvas
+      puts one away and still selects what it landed on
+- [x] Validate; commit
 
 ### Phase 6 — Close out
 

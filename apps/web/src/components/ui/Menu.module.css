@@ -23,6 +23,11 @@
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
 }
 
+/* A short list of values, as wide as its trigger at least, like a select list. */
+.content[data-fit-trigger] {
+  min-width: var(--radix-dropdown-menu-trigger-width);
+}
+
 .item {
   display: flex;
   align-items: center;
