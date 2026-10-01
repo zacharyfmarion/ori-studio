@@ -183,6 +183,10 @@ One description of a menu, which every implementation follows:
 
 ### Phase 6 — Close out
 
-- [ ] `docs/styling.md` "Menus"; the follow-up for the buttons noted
-- [ ] Browser: every menu above in One Dark, GitHub Light, Solarized Light and
-      Cobalt2 (the contrast edge cases), and on a touch phone
+- [x] `docs/styling.md` "Menus"; the follow-up for the buttons noted
+- [x] Browser: every menu above in One Dark, GitHub Light, Solarized Light and
+      Cobalt2 (the contrast edge cases), and on a touch phone. Highlighted
+      rows measured 5.19:1 (GitHub Light) to 8.09:1 (Cobalt2) in the menu bar,
+      a `Menu`, the select list and the dash menu alike; destructive rows
+      4.63:1 (Solarized Light) to 6.57:1 (One Dark). On the phone, in
+      Solarized Light: the menu bar's expanded group and the `⋯` menu

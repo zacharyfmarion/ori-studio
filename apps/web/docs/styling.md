@@ -83,6 +83,47 @@ less its padding.
 - An 8px menu with 4px padding has 4px rows.
 - The segmented control's 8px track with 3px padding has 5px pills.
 
+## Menus
+
+Every menu draws its rows one way: inset in its surface, rounded, and filled
+solid under the pointer or the keyboard.
+
+**Build a new menu from `components/ui/Menu.tsx`, and a value picker from
+`Select.tsx`.** Both are Radix underneath, so focus, roving, type-ahead and
+dismissal come with them. Two menus are hand-built and draw the same rows
+through their own modules: the menu bar, whose phone layout expands submenus in
+place and whose menus switch on hover, and the paper dash menu, whose custom
+field Radix's type-ahead would swallow (`PaperDashMenu.tsx` has the detail).
+
+- **Surface**: `--bg-elevated`, a 1px `--border-default` border, `--radius`,
+  4px padding, and a short shadow.
+- **Row**: 28px tall (`--touch-target` on a coarse pointer), padding `5px 8px`,
+  `--radius-sm` (the surface's radius less its padding), 12px text. A shortcut
+  is 11px `--text-secondary`. A separator is inset 6px either side.
+- **Highlight**: a `--menu-highlight` fill with `--menu-highlight-text` on it,
+  for the pointer and the keyboard alike. Everything in the row takes the
+  text's colour: icon, check, shortcut, chevron. A submenu's trigger stays lit
+  while its submenu is open. A disabled row never highlights.
+- **A destructive row** (`data-danger`) fills `--status-danger` with
+  `--text-on-danger` on it.
+- **The current value** is a check in the row's leading slot, never a tint. The
+  fill follows the pointer, so it cannot also say which row is current.
+- **Width**: a menu of commands is at least 180px. A short list of values is
+  at least as wide as its trigger, as a select list is (`MenuContent`'s
+  `fitTrigger`).
+
+**Text on a solid fill is a derived token.** `themes/applyTheme.ts` sets
+`--text-on-accent` and `--text-on-danger` per theme (`themes/textOnFill.ts`):
+the theme's ground where it reads at 4.5:1 on the fill, otherwise black or
+white, whichever reads better. `textOnFill.test.ts` holds every preset to it.
+`--text-inverse` is not the same thing. It is the inverse of the ground, white
+in a dark theme, and on a dark theme's light accent it falls below 4.5:1 in 22
+of the 23 presets.
+
+The primary and danger buttons still set `--text-inverse` on the accent and on
+danger: 2.36:1 and 3.2:1 in One Dark. Moving them to these tokens changes every
+button in the app, so it is a decision of its own, not made yet.
+
 ## What holds it
 
 - **ESLint** (`no-restricted-imports`) rejects importing a plain `.css` file.
