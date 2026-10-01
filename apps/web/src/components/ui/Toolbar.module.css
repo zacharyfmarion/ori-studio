@@ -4,13 +4,18 @@
  * sits is its owner's business, through a class on the root.
  */
 .bar {
+  /* The inset around the controls. The radius is concentric with theirs: the
+     controls' `--radius` plus this, so the gap around a corner control is as
+     even as the gap along an edge (docs/styling.md, "Radius"). */
+  --pad: 4px;
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 32px;
-  padding: 2px 6px;
+  /* A row of 28px controls, so a bar of anything shorter stands as tall. */
+  min-height: calc(28px + 2 * var(--pad) + 2px);
+  padding: var(--pad) 6px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: calc(var(--radius) + var(--pad));
   background: var(--domain-overlay-bg);
   box-shadow: 0 8px 24px var(--shadow-overlay);
   color: var(--text-secondary);
