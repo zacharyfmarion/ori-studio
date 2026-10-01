@@ -1,0 +1,152 @@
+# Controls and cards on the one radius
+
+## Goal
+
+Every control and every card wears `--radius` (8px). The first styling pass
+(`styling-refinements.md`) applied the rule to floating chrome only. Its
+decision 1 left inputs, number fields and modal internals for later, so today:
+
+- In the same View-pane row, a number field and its −/+ buttons are 4px
+  beside an 8px select.
+- The Settings theme cards are 6px under an 8px select.
+
+## Approach
+
+### The rule, extended (decisions settled 2026-10-01)
+
+1. **Scope: controls and cards.**
+   - **A control → `--radius`**: anything you type into, pick from or press, at
+     any size. That covers inputs, number fields and their steppers, selects,
+     buttons, the outer edge of a joined group, and segmented controls.
+   - **A card → `--radius`**: a bordered box that groups content. That covers
+     cards and tiles, option cards, notices, metric boxes, tables and preview
+     wells.
+   - **A floating surface the first pass missed** gets it too: the toasts, and
+     the BP packing d-pad's canvas buttons.
+2. **A small detail inside a card keeps `--radius-sm` (4px):** swatches,
+   thumbnails, samples, badges and index chips. Two details are 6px today and
+   come down to 4px: Paper's erode picture and pen sample.
+3. **Inner parts are concentric** with the control they sit in: the control's
+   radius less the inset.
+   - A colour input's swatch: 8px less its 1px border.
+   - A segmented pill: 8px less 3px.
+   - The BP sheet menu's segment buttons: 8px less 2px.
+   - The measure value's "copied" overlay: 8px less 1px.
+   - The square tool's anchor cells: 8px less the 2px padding and 1px border.
+4. **Unchanged:**
+   - Rows inside a surface, which follow the concentric rule rather than this one.
+   - Pills (switches, chips, counters), checkboxes and focus rings.
+   - Canvas labels and badges, the 3D view cube, and scrollbars.
+
+### Inventory (sweep of every stylesheet, 2026-10-01)
+
+**Shared blocks, edited in place.** They are listed in `scoped-css.md`, or
+another component restyles or looks them up. The rules allow an in-place edit
+of an existing rule, never a new one.
+
+| Area | Rules | Today → after |
+| --- | --- | --- |
+| Rows and fields | `.control-row__input`, `.control-row__reset`, `.field-row input`, `.collapsible-section__action` | 4 → 8 |
+| Number field | `.number-field__step` (Paper restyles `NumberField`, so it is shared) | 4 → 8 |
+| Colour field | `.color-field__input` (its swatch 3 → 7), `.color-field__clear`; Paper's override 6 → 8 | 4 → 8 |
+| Export dialogs | `.export-modal__input`, `__select` 4 → 8; `__pattern-card`, `__preview` 6 → 8 | |
+| Settings › Paper | `__card`, `__banner`, `-preset__apply` 9 → 8; the pen width group 7 → 8; erode picture and pen sample 6 → 4 | |
+| Settings › Shortcuts | search, filter, key capture 4 → 8; the table 6 → 8 | |
+| Tool card (`cp-context-panel`) | fields, preset, apply, secondary, measure value, the unavailable notice 4 → 8; copied overlay 4 → 7 | |
+| BP sheet and symmetry popovers | inputs, preset and flip buttons 4 → 8; segment and transform tracks 4 → 8, their buttons 3 → 6 | |
+| Cards | `.sheet-card`, `.references-card` 6 → 8; `.cp-panel__unopened-reason` 6 → 8; `.error-fallback__report-text` 6 → 8 | |
+| Toasts (`sonner.css`, third-party) | toast 6 → 8, its button 4 → 8 | |
+
+**Module-owned, edited directly:**
+
+- `SegmentedControl`: the `sm` track 7 → 8 and its pills 4 → 5; the `lg` pills 6 → 5.
+- `WorkspaceTabStrip`: close button and rename field 4 → 8.
+- `CpContextToolReset`: 3 → 8.
+- `PaperDashMenu`: trigger 7 → 8, custom field 6 → 8.
+
+**One owner: moved into a module first, then restyled:**
+
+| Component | What changes |
+| --- | --- |
+| `ConditionsPanel` | number inputs, action buttons, condition items 4 → 8 |
+| `BpOptimizerModal` | count input 4 → 8 |
+| `ExploriQueryBar` | count input, symmetry group 6 → 8 |
+| `CreaseAngleField`, `CreaseAnglePopover` | input and caret, popover input 4 → 8 |
+| `SquareToolOptions` | anchor picker 4 → 8, cells 2 → 5 |
+| `CpViewControlsPanel` | grid reset button 4 → 8 |
+| `BpPackingPanel` | d-pad buttons 6 → 8 |
+| Settings theme card (`SettingsModal`'s `ThemeCard`) | card 6 → 8; swatches stay 4 |
+| `DesignMethodChooser` (`App.css`) | card 10 → 8, icon tile 9 → 8 |
+| `CommandDialogModal` | choice options 6 → 8 |
+| `ShareLinkModal` | field and URL 6 → 8 |
+| `HelpModal` | icon tile, About's acknowledgement cards 6 → 8 |
+| `DiagnosticsPanel` | metric cards 6 → 8 |
+| `ExploriResultsPanel` | result cards 6 → 8 |
+
+### Not in this pass
+
+- **The CP detection dialog** (`CpDetectImportModal.css`). Its notices and image
+  frames are 6px, but the whole 500-line stylesheet is one block, so moving it
+  is a change of its own. The radius goes with that move.
+- **The share dialog's embed preview** (10px). It is a picture of a chat app's
+  link preview, not one of our cards.
+- **Rows:** `.control-row--button`, `.design-pane-sheet__item`,
+  `.references-finding`, `.cp-tool-picker__row`, the measure rows.
+- **Settings' phone tab strip**, which uses underline tabs.
+- **Landing and site pages**, which change only under the prerender rules.
+- **Canvas labels and badges**, the folded-figure toolbar's notice (it has no
+  ground or border, so its radius never shows), and the file drop overlay.
+
+### Phases
+
+Each move is a commit of its own in which nothing on screen changes. Proof is
+the moved elements' computed styles, snapshotted in the browser before and
+after. The restyle follows as the phase's last commit.
+
+## Affected Areas
+
+- `apps/web/src/styles/theme.css`, `App.css` and `styles/sonner.css` (in-place
+  edits, and the rules each move deletes)
+- New modules beside the moved components, plus `ThemeCard.tsx` extracted from
+  `SettingsModal.tsx`
+- `components/ui/SegmentedControl.module.css`,
+  `WorkspaceTabStrip.module.css`, `panels/CpContextToolReset.module.css`,
+  `settings/PaperDashMenu.module.css`
+- Tests that query the moved classes (they move to roles, names or data
+  attributes), and `src/styles/globalStylesheets.test.ts` (the ratchet)
+- `apps/web/docs/styling.md` › "Radius": the categories
+
+## Checklist
+
+### Phase 1 — Shared and module-owned controls
+
+- [ ] The in-place control rules above, and the four modules
+- [ ] Browser: the View pane's rows, the tool card, Settings › Paper and
+      Shortcuts, the export dialog, the BP sheet and symmetry popovers
+- [ ] Validate; commit
+
+### Phase 2 — One-owner controls
+
+- [ ] Moves: `ConditionsPanel`, `BpOptimizerModal`, `ExploriQueryBar`,
+      `CreaseAngleField`, `CreaseAnglePopover`, `SquareToolOptions`,
+      `CpViewControlsPanel`, `BpPackingPanel`'s d-pad; computed styles
+      unchanged; ratchet lowered; commit
+- [ ] Restyle; browser; validate; commit
+
+### Phase 3 — Shared cards, and the toasts
+
+- [ ] The in-place card rules above, the details at 4px, the toasts
+- [ ] Browser; validate; commit
+
+### Phase 4 — One-owner cards
+
+- [ ] Moves: theme cards (into `ThemeCard`), `DesignMethodChooser`,
+      `CommandDialogModal`, `ShareLinkModal`, `HelpModal`,
+      `DiagnosticsPanel`, `ExploriResultsPanel`; computed styles unchanged;
+      ratchet lowered; commit
+- [ ] Restyle; browser; validate; commit
+
+### Phase 5 — Close out
+
+- [ ] `docs/styling.md` › "Radius": control, card, detail, row, pill
+- [ ] Browser: one pass over every surface above, in a dark and a light theme
