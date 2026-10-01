@@ -1,0 +1,256 @@
+/*
+ * A workspace's row of tabs (WorkspaceTabStrip.tsx). Standalone it is the
+ * header — the Design workspace's strip across the canvas, above every dock
+ * panel — so it has the header's height, ground and bottom border.
+ */
+.strip {
+  display: flex;
+  align-items: stretch;
+  min-height: 32px;
+  padding-right: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+}
+
+.root {
+  display: flex;
+  min-width: 0;
+  /* Shrinks, never grows. Growing to fill the strip parked the add button
+     against the far edge of the workspace, an inch of empty bar away from the
+     last tab; browsers put it immediately after, and so does this. Shrinking is
+     what keeps it reachable once the tabs overflow — the row scrolls under it
+     rather than pushing it off-screen. */
+  flex: 0 1 auto;
+}
+
+.list {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.list::-webkit-scrollbar {
+  display: none;
+}
+
+.add {
+  align-self: center;
+  flex: none;
+  margin-left: var(--space-1);
+}
+
+.tab {
+  /* One gutter, both ends. The label's left padding and the close button's
+     right offset are the two sides of the same inset; written as independent
+     literals they drifted, and a tab read 12px in on the left and 4px on the
+     right. */
+  --tab-pad-x: var(--space-3);
+  --close-size: 18px;
+  /* Mirrors the `<X size={12} />` the close button renders. */
+  --close-icon-size: 12px;
+  /* The gutter is measured to the *glyph*, not to the button around it: the
+     button is wider than its icon, so insetting its box by the full gutter
+     would sit the X further from the tab's edge than the label is from the
+     opposite one. */
+  --close-inset: calc(
+    var(--tab-pad-x) - (var(--close-size) - var(--close-icon-size)) / 2
+  );
+  /* Containing block for the close button, which floats above the trigger
+     rather than sitting beside it — see `.close`. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  max-width: 220px;
+  border-right: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  background: transparent;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+/* The active tab reads as continuous with the surface below it: same
+   background, and the strip's bottom border interrupted under it. */
+.tab:has(.trigger[data-state='active']) {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  box-shadow: inset 0 2px 0 var(--accent-primary);
+}
+
+.tab[data-dragging] {
+  opacity: 0.6;
+}
+
+/* The trigger *is* the tab: it takes the full height and width of its wrapper so
+   that every point of the tab activates it. Sized to its content it left dead
+   strips above, below, and beside the label where a click hit the wrapper and
+   did nothing. */
+.trigger {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 0 var(--tab-pad-x);
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* The close button overlaps the trigger, so the label stops short of it. */
+.tab:has(.close) .trigger {
+  padding-right: calc(
+    var(--close-inset) + var(--close-size) + var(--space-2)
+  );
+}
+
+.trigger:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Lifted out of the row and floated over the trigger's reserved padding. As a
+   flex sibling it was an 18px box in a 32px tab, so the strips directly above
+   and below it fell through to the wrapper and swallowed the click; the trigger
+   now runs the full height underneath it. */
+.close {
+  position: absolute;
+  top: 50%;
+  right: var(--close-inset);
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: var(--close-size);
+  height: var(--close-size);
+  /* Not redundant: a button carries `padding: 1px 6px` from the UA sheet, which
+     under `border-box` leaves this 18px box a 6px content box. The 12px icon
+     then overflows it, and Chrome resolves that overflow to one side only — so
+     `place-items: center` still rendered the X flush against the right edge.
+     Every shared icon button (`.ui-icon-control--*`) zeroes it for this reason. */
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.close:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  outline-offset: -1px;
+}
+
+.nameInput {
+  min-width: 0;
+  width: 140px;
+  margin: 0 var(--space-2);
+  padding: 2px var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+/*
+ * Embedded in a header that already has the height, ground and bottom border —
+ * References' panel toolbar — the strip brings none of its own and stretches to
+ * that header's height, its tabs running flush from the header's left edge.
+ */
+.strip[data-embedded] {
+  align-self: stretch;
+  min-height: 0;
+  padding-right: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+[data-embedded] .root,
+[data-embedded] .list,
+[data-embedded] .tab {
+  align-self: stretch;
+}
+
+/*
+ * Two tabs that are peers, not a row of documents one of which dominates: the
+ * documents tone dims an inactive tab to the tertiary colour, which with two
+ * tabs read as disabled and hid the second job. Here the inactive one keeps
+ * the secondary colour with its icon at full strength, gains a ground on
+ * hover, and the active one keeps the accent line and the lighter ground.
+ *
+ * The attribute alone, not `.strip[data-tone]`: these have to stay below the
+ * active tab's rule in specificity, or an active peer would take the inactive
+ * colour.
+ */
+[data-tone='peers'] .tab {
+  color: var(--text-secondary);
+}
+
+[data-tone='peers'] .trigger > svg {
+  color: var(--text-primary);
+}
+
+[data-tone='peers'] .tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+/* The tabs share the strip's width, each a thumb-sized target (a phone). */
+.strip[data-fill] .root,
+.strip[data-fill] .list {
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+.strip[data-fill] .tab {
+  flex: 1 1 0;
+  max-width: none;
+  min-height: var(--touch-target);
+}
+
+.strip[data-fill] .tab:last-child {
+  border-right: 0;
+}
+
+.strip[data-fill] .trigger {
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+/*
+ * Safari zooms the whole page in whenever a field below 16px takes focus, and
+ * there is no scroll gesture to get back; see the coarse-pointer block at the
+ * end of theme.css.
+ */
+@media (pointer: coarse) {
+  .nameInput {
+    font-size: 16px;
+  }
+}

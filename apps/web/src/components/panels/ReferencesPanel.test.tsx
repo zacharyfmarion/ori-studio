@@ -231,7 +231,7 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
       (button) => `${button.getAttribute('role')}:${button.textContent}`
     )
   ).toEqual(['tab:Find a reference', 'tab:Precreasing sequence']);
-  expect(header?.querySelector('.design-tab-strip [role="tablist"]')).not.toBeNull();
+  expect(header?.querySelector('[role="tablist"]')).not.toBeNull();
   const bar = query('.references-panel__body .viewport-toolbar');
   expect(
     [...(bar?.querySelectorAll('button') ?? [])].map(

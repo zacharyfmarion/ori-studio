@@ -958,7 +958,7 @@
   min-height: 0;
 }
 
-.design-tab-strip {
+.workspace-shell__tabs {
   grid-row: 1;
 }
 

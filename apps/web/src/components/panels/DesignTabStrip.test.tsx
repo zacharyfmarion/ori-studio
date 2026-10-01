@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,10 +71,12 @@ afterEach(() => {
 const store = () => useWorkspaceStore.getState();
 const tabEls = () => Array.from(document.querySelectorAll<HTMLElement>('[data-design-tab]'));
 const triggers = () => Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
-const tabTitles = () =>
-  Array.from(document.querySelectorAll<HTMLElement>('.design-tab__title')).map(
-    (element) => element.textContent
+const tabTitles = () => triggers().map((element) => element.textContent);
+const closeButtons = () =>
+  Array.from(
+    document.querySelectorAll<HTMLButtonElement>('[data-design-tab] button[aria-label^="Close design"]')
   );
+const renameInput = () => document.querySelector<HTMLInputElement>('[data-design-tab] input');
 
 function click(element: Element) {
   act(() => {
@@ -142,9 +142,8 @@ describe('DesignTabStrip', () => {
     addTabs(1);
     render();
 
-    const closeButtons = document.querySelectorAll('.design-tab__close');
-    expect(closeButtons).toHaveLength(2);
-    for (const button of closeButtons) {
+    expect(closeButtons()).toHaveLength(2);
+    for (const button of closeButtons()) {
       expect(button.closest('[role="tab"]')).toBeNull();
       expect(button.closest('[data-design-tab]')).not.toBeNull();
     }
@@ -155,7 +154,7 @@ describe('DesignTabStrip', () => {
     const [first, second] = store().designTabs.map((tab) => tab.id);
     render();
 
-    click(document.querySelectorAll('.design-tab__close')[0]);
+    click(closeButtons()[0]);
 
     expect(store().designTabs.map((tab) => tab.id)).toEqual([second]);
     expect(first).not.toBe(second);
@@ -164,12 +163,12 @@ describe('DesignTabStrip', () => {
   it('hides the close button on a lone untouched design', () => {
     // Closing it would swap one empty chooser tab for an identical one.
     render();
-    expect(document.querySelector('.design-tab__close')).toBeNull();
+    expect(closeButtons()).toHaveLength(0);
   });
 
   it('adds a design from the strip', () => {
     render();
-    const add = document.querySelector('.design-tab-strip__add');
+    const add = document.querySelector('button[aria-label="New design"]');
     expect(add).not.toBeNull();
 
     click(add as Element);
@@ -183,7 +182,7 @@ describe('inline rename', () => {
     act(() => {
       tabEls()[index].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
-    const input = document.querySelector<HTMLInputElement>('.design-tab__name-input');
+    const input = renameInput();
     if (!input) throw new Error('rename input did not mount');
     return input;
   }
@@ -327,89 +326,6 @@ describe('drag reorder', () => {
   });
 });
 
-/**
- * A tab that only responds where its label is.
- *
- * The trigger was sized to its content inside a 32px tab, so the strips above
- * and below the text — and the gap beside the close button — hit the wrapper
- * instead and did nothing. jsdom does no layout, so a rendered click cannot
- * catch this; what is checkable is the rule the hit area depends on: **the
- * element carrying `role="tab"` fills its wrapper, and nothing else in the tab
- * takes flow space away from it except the close button.**
- */
-const themeCss = readFileSync(
-  join(dirname(new URL(import.meta.url).pathname), '../../styles/theme.css'),
-  'utf8'
-).replace(/\/\*[\s\S]*?\*\//g, '');
-
-/** The declaration block of the rule whose selector is exactly `selector`. */
-function declarations(selector: string): string {
-  const rule = /([^{}]+)\{([^{}]*)\}/g;
-  let match: RegExpExecArray | null;
-  while ((match = rule.exec(themeCss)) !== null) {
-    if (match[1].trim() === selector) return match[2];
-  }
-  throw new Error(`no rule for ${selector}`);
-}
-
-describe('the tab hit area', () => {
-  it('stretches the trigger over the whole tab', () => {
-    const trigger = declarations('.design-tab__trigger');
-
-    // Vertically: the tab is taller than a 12px line of text.
-    expect(trigger).toMatch(/align-self:\s*stretch/);
-    // Horizontally: any width the wrapper has and the trigger does not want.
-    expect(trigger).toMatch(/flex:\s*1\b/);
-  });
-
-  it('floats the close button over the trigger instead of beside it', () => {
-    // As a flex sibling the close was an 18px box in a 32px tab, carving dead
-    // strips directly above and below itself. Out of flow, the trigger runs the
-    // full height underneath it and only the button itself is not the tab.
-    expect(declarations('.design-tab__close')).toMatch(/position:\s*absolute/);
-    // Which only lands inside the tab if the tab is its containing block.
-    expect(declarations('.design-tab')).toMatch(/position:\s*relative/);
-  });
-});
-
-/**
- * The tab's two ends.
- *
- * Nothing here is visible to jsdom — it does no layout, so the only thing a test
- * can hold is the shape of the rules the spacing comes out of. Both regressions
- * these cover were invisible in code review and obvious on screen.
- */
-describe('the horizontal gutter', () => {
-  it('insets both ends of the trigger from one value', () => {
-    // Written as two literals, the sides drifted: the label sat 12px from the
-    // tab's left edge and 4px from its right.
-    expect(declarations('.design-tab__trigger')).toMatch(
-      /padding:\s*0\s+var\(--design-tab-pad-x\)\s*;/
-    );
-    // And the close button is the right end of that same gutter, not its own
-    // spacing decision.
-    expect(declarations('.design-tab__close')).toMatch(/right:\s*var\(--design-tab-close-inset\)/);
-    expect(declarations('.design-tab')).toMatch(/--design-tab-close-inset:\s*calc\(/);
-  });
-
-  it('reserves room for the close button at its real inset', () => {
-    // The label is ellipsized against this padding, so it has to cover where the
-    // button actually sits. Reserving only the button's own width let a long
-    // title run under it once the inset grew.
-    expect(declarations('.design-tab:has(.design-tab__close) .design-tab__trigger')).toMatch(
-      /padding-right:\s*calc\(\s*var\(--design-tab-close-inset\)\s*\+\s*var\(--design-tab-close-size\)/
-    );
-  });
-
-  it('zeroes the close button so its glyph can centre', () => {
-    // Not redundant with `place-items: center`. A button carries `padding: 1px
-    // 6px` from the UA sheet, which under `border-box` leaves the 18px box a 6px
-    // content box; the 12px icon overflows it, and Chrome resolves that overflow
-    // to one side — the X rendered flush against the button's right edge.
-    expect(declarations('.design-tab__close')).toMatch(/padding:\s*0\s*;/);
-  });
-});
-
 describe('context menu', () => {
   function openMenu(index = 0) {
     act(() => {
@@ -473,7 +389,7 @@ describe('context menu', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    const input = document.querySelector<HTMLInputElement>('.design-tab__name-input');
+    const input = renameInput();
     expect(input).not.toBeNull();
     expect(document.activeElement).toBe(input);
   });

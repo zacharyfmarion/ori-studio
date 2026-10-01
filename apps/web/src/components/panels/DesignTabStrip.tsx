@@ -1,5 +1,4 @@
-import * as Tabs from '@radix-ui/react-tabs';
-import { Copy, Pencil, Plus, X } from 'lucide-react';
+import { Copy, Pencil, X } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -13,15 +12,20 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DesignTab } from '../../store/workspaceStore/designTabs';
 import { ContextMenu } from '../ui/ContextMenu';
 import type { ContextMenuItem } from '../ui/contextMenuTypes';
-import { IconButton } from '../ui/IconButton';
+import {
+  WorkspaceTab,
+  WorkspaceTabClose,
+  WorkspaceTabInput,
+  WorkspaceTabStrip,
+} from '../ui/WorkspaceTabStrip';
 
 /**
  * The Design workspace's tab strip.
  *
- * Radix `Tabs` supplies the parts that are tedious to get right by hand —
- * `tablist`/`tab` roles, `aria-selected`, roving tabindex, arrow-key navigation.
- * Everything Radix does not cover is composed on top: close buttons, inline
- * rename, drag-reorder, and a context menu.
+ * `WorkspaceTabStrip` draws it, on Radix `Tabs` — the `tablist`/`tab` roles,
+ * `aria-selected`, roving tabindex and arrow keys. Everything Radix does not
+ * cover is composed on top here: close buttons, inline rename, drag-reorder,
+ * and a context menu.
  *
  * The design surface itself is rendered by `DesignPanel`, **not** by
  * `Tabs.Content`. Radix unmounts inactive content, and under lazy hydrate only
@@ -29,7 +33,7 @@ import { IconButton } from '../ui/IconButton';
  * surface, keyed by the active tab, rather than N mounted surfaces competing for
  * the same canvas.
  */
-export function DesignTabStrip() {
+export function DesignTabStrip({ className }: { className?: string } = {}) {
   const { t } = useTranslation();
   const designTabs = useWorkspaceStore((state) => state.designTabs);
   const activeDesignId = useWorkspaceStore((state) => state.activeDesignId);
@@ -126,22 +130,21 @@ export function DesignTabStrip() {
   );
 
   return (
-    <div className="design-tab-strip" data-testid="design-tab-strip">
-      <Tabs.Root
-        className="design-tab-strip__root"
+    <>
+      <WorkspaceTabStrip
+        className={className}
+        data-testid="design-tab-strip"
         value={activeDesignId}
         onValueChange={activateDesignTab}
         // Manual: activating a tab parks the outgoing design's engine handle and
         // may hydrate the incoming one. That is far too much work to fire while
         // someone arrows past a tab on the way to another.
         activationMode="manual"
-        orientation="horizontal"
+        label={t('panels:designTabs.label', 'Open designs')}
+        onAdd={addDesignTab}
+        addLabel={addLabel}
       >
-        <Tabs.List
-          className="design-tab-strip__list"
-          aria-label={t('panels:designTabs.label', 'Open designs')}
-        >
-          {designTabs.map((tab) => (
+        {designTabs.map((tab) => (
             <DesignTabItem
               key={tab.id}
               tab={tab}
@@ -165,17 +168,8 @@ export function DesignTabStrip() {
               onDropAt={(toIndex) => reorderDesignTab(tab.id, toIndex)}
             />
           ))}
-        </Tabs.List>
-      </Tabs.Root>
-      <IconButton
-        size="sm"
-        className="design-tab-strip__add"
-        title={addLabel}
-        aria-label={addLabel}
-        onClick={addDesignTab}
-      >
-        <Plus size={14} />
-      </IconButton>
+      </WorkspaceTabStrip>
+      {/* Portaled, so it adds nothing to the shell grid the strip sits in. */}
       {menuTarget ? (
         <ContextMenu
           open
@@ -195,7 +189,7 @@ export function DesignTabStrip() {
           }}
         />
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -269,8 +263,11 @@ function DesignTabItem({
   };
 
   return (
-    <div
-      className={`design-tab${dragging ? ' design-tab--dragging' : ''}`}
+    <WorkspaceTab
+      value={tab.id}
+      title={tab.title}
+      icon={Icon ? <Icon size={13} /> : null}
+      dragging={dragging}
       data-design-tab={tab.id}
       data-design-kind={tab.kind ?? 'none'}
       onPointerDown={handlePointerDown}
@@ -281,34 +278,20 @@ function DesignTabItem({
         event.preventDefault();
         onContextMenu(event.clientX, event.clientY);
       }}
-    >
-      {renaming ? (
-        // The input *replaces* the trigger rather than nesting inside it. A
-        // focusable control inside `role="tab"` is invalid, and a disabled
-        // trigger would swallow the input's pointer events entirely.
-        <DesignTabNameInput title={tab.title} onDone={onRenameEnd} />
-      ) : (
-        <Tabs.Trigger value={tab.id} className="design-tab__trigger">
-          {Icon ? <Icon size={13} /> : null}
-          <span className="design-tab__title">{tab.title}</span>
-        </Tabs.Trigger>
-      )}
-      {closable && !renaming ? (
-        // A sibling of the trigger, never a child — see above.
-        <button
-          type="button"
-          className="design-tab__close"
-          aria-label={`${closeLabel}: ${tab.title}`}
-          title={closeLabel}
-          onClick={onClose}
-          // Keeps the close out of the tab's drag and rename gestures.
-          onPointerDown={(event) => event.stopPropagation()}
-          onDoubleClick={(event) => event.stopPropagation()}
-        >
-          <X size={12} />
-        </button>
-      ) : null}
-    </div>
+      editor={renaming ? <DesignTabNameInput title={tab.title} onDone={onRenameEnd} /> : undefined}
+      close={
+        closable && !renaming ? (
+          <WorkspaceTabClose
+            aria-label={`${closeLabel}: ${tab.title}`}
+            title={closeLabel}
+            onClick={onClose}
+            // Keeps the close out of the tab's drag and rename gestures.
+            onPointerDown={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+          />
+        ) : null
+      }
+    />
   );
 }
 
@@ -348,9 +331,8 @@ function DesignTabNameInput({
   };
 
   return (
-    <input
+    <WorkspaceTabInput
       ref={ref}
-      className="design-tab__name-input"
       aria-label={title}
       value={value}
       onChange={(event) => setValue(event.target.value)}
