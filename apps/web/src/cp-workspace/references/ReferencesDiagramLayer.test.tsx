@@ -129,11 +129,6 @@ describe('ReferencesDiagramLayer', () => {
     expect(shapes()).toBe(3);
   });
 
-  // The arrow is the paper style's pen, in CSS px, whatever the crease width,
-  // and never lighter than the table's (1.75 px at a line width of 1); the
-  // mark's ring beside it stays on the crease pen like every other mark.
-  // The ring round the point the arrow leaves is drawn in the same pen, so the
-  // two are one weight.
   // The full-screen view, not a page: its rings and letters are never smaller
   // than the view's floors at the reader's line width, while a card and a page
   // keep the sizes tuned against a printed step.
@@ -162,7 +157,11 @@ describe('ReferencesDiagramLayer', () => {
     expect(REFERENCES_VIEW_MARKS.labelSize).toBeGreaterThan(DIAGRAM_MARKS.labelSize);
   });
 
-  it('draws the fold arrow, and the ring it leaves, at the paper style’s arrow pen', () => {
+  // The arrow is the paper style's pen, in CSS px, whatever the crease width,
+  // and never lighter than the table's (1.75 px at a line width of 1). The
+  // ring round the point the arrow leaves is half that pen, as a printed
+  // diagram draws the circle that pins a point.
+  it('draws the fold arrow at the paper style’s arrow pen, and the ring it leaves at half', () => {
     const arrow: StepDiagramModel = {
       sheet: MODEL.sheet,
       primitives: [
@@ -193,7 +192,7 @@ describe('ReferencesDiagramLayer', () => {
     );
     // The arrow's two strokes, each drawn twice: on the paper and off it.
     expect(strokeWidths()).toEqual([1.75, 1.75, 1.75, 1.75]);
-    expect(ringWidth()).toBe(1.75);
+    expect(ringWidth()).toBe(0.875);
     act(() =>
       root?.render(
         <ReferencesDiagramLayer
@@ -207,7 +206,7 @@ describe('ReferencesDiagramLayer', () => {
       )
     );
     expect(strokeWidths()).toEqual([4, 4, 4, 4]);
-    expect(ringWidth()).toBe(4);
+    expect(ringWidth()).toBe(2);
   });
 });
 

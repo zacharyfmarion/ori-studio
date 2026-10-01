@@ -26,7 +26,7 @@
  */
 import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
 import type { DiagramProjector, DiagramSheet, SvgPoint } from '../stepDiagramGeometry';
-import { DIAGRAM_LABEL_INK, labelWidth } from './diagramInk';
+import { DIAGRAM_LABEL_INK, DIAGRAM_MARK_INK, labelWidth } from './diagramInk';
 
 export interface Rect {
   x: number;
@@ -126,9 +126,9 @@ export function diagramMarks(
   return marks;
 }
 
-/** A ring's stroke, in the projector's units: the arrow's pen, which a ring and its arrow share. */
+/** A ring's stroke, in the projector's units: half the arrow's pen (`DIAGRAM_MARK_INK`). */
 export function markRingWidth(project: DiagramProjector): number {
-  return project.pens.arrow.width * project.ink;
+  return DIAGRAM_MARK_INK.ofArrow * project.pens.arrow.width * project.ink;
 }
 
 /** A ring's outer edge: its radius plus half its stroke, in the projector's units. */

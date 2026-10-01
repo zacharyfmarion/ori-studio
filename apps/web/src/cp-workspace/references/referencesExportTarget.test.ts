@@ -295,7 +295,7 @@ describe('a step’s marks on the page', () => {
         expect(Number(arrow['stroke-width']) * scale, `${mm} mm`).toBeCloseTo(STYLE.arrows.width, 6);
       }
       // A letter and its halo, and a ring, are what they are on screen; the
-      // ring's stroke is the arrow's pen, which it shares with its arrow.
+      // ring's stroke is half the arrow's pen.
       const letters = elements(markup, 'text');
       expect(letters.length, `${mm} mm`).toBeGreaterThan(0);
       for (const letter of letters) {
@@ -306,7 +306,10 @@ describe('a step’s marks on the page', () => {
       expect(rings.length, `${mm} mm`).toBeGreaterThan(0);
       for (const ring of rings) {
         expect(Number(ring.r) * scale).toBeCloseTo(DIAGRAM_MARK_INK.radius * ink, 6);
-        expect(Number(ring['stroke-width']) * scale).toBeCloseTo(STYLE.arrows.width, 6);
+        expect(Number(ring['stroke-width']) * scale).toBeCloseTo(
+          DIAGRAM_MARK_INK.ofArrow * STYLE.arrows.width,
+          6
+        );
       }
     }
   });

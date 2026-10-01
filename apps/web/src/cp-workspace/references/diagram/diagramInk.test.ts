@@ -90,8 +90,9 @@ describe('the diagram’s pen', () => {
       unfolded: { width: 1, cap: 'round', opacity: 0.28 },
     });
     expect(DIAGRAM_SHEET_INK).toEqual({ width: 1, opacity: 0.55 });
-    // Four fifths of the reference diagrams' 4% of the card's paper.
-    expect(DIAGRAM_MARK_INK).toEqual({ radius: 3.07 });
+    // Four fifths of the reference diagrams' 4% of the card's paper, its
+    // stroke half the arrow's.
+    expect(DIAGRAM_MARK_INK).toEqual({ radius: 3.07, ofArrow: 0.5 });
     expect(DIAGRAM_MARK_INK.radius / 3.84).toBeCloseTo(0.8, 2);
   });
 

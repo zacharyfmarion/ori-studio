@@ -472,11 +472,13 @@ describe('the markup', () => {
  * concave shape and came to sit on their strokes' ends — the return stops at
  * the head's notch, and the glyph's stroke at its own — and again when the
  * rings shrank to four fifths and took the arrow's pen: the outgoing stroke
- * starts and stops on the smaller rim, and the return is built from there.
+ * starts and stops on the smaller rim, and the return is built from there. And
+ * again when a ring's stroke became half the arrow's, as a printed diagram
+ * draws it.
  */
 const BEFORE_TWO_INKS = [
-  '<circle cx="34" cy="50" r="2.558333333333333" stroke-width="1.4" fill="none" stroke="#000000"></circle>',
-  '<circle cx="94" cy="50" r="2.558333333333333" stroke-width="1.4" fill="none" stroke="#000000"></circle>',
+  '<circle cx="34" cy="50" r="2.558333333333333" stroke-width="0.7" fill="none" stroke="#000000"></circle>',
+  '<circle cx="94" cy="50" r="2.558333333333333" stroke-width="0.7" fill="none" stroke="#000000"></circle>',
   '<g>',
   '<path d="M 36.242 48.768 A 60 60 0 0 1 91.758 48.768" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',
   '<path d="M 91.758 48.768 A 41.321 41.321 0 0 0 38.65 37.996" stroke-width="1.4" stroke-linecap="round" fill="none" stroke="#000000"></path>',

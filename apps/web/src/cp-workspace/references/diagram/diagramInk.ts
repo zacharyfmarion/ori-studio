@@ -97,8 +97,14 @@ export const DIAGRAM_LINE_INK: DiagramPens = {
 export const DIAGRAM_SHEET_INK = { width: 1, opacity: 0.55 } as const;
 
 /**
- * The ring round a reference mark: its radius. Its stroke is the arrow's pen
- * (`markRingWidth`), so a ring and the arrow that leaves it are one weight.
+ * The ring round a reference mark: its radius, and its stroke as a share of
+ * the arrow's pen (`markRingWidth`).
+ *
+ * Half the arrow, because that is how a printed diagram draws it: the circle
+ * that pins a point exactly is about the weight of the diagram's thin lines,
+ * well under the arrow's, so it reads as a precise mark rather than a second
+ * arrow. A share rather than a pen of its own, so the two stay in proportion
+ * when the arrow pen changes. It was the arrow's whole width.
  *
  * `3.07` is four fifths of the `3.84` the reference diagrams draw — 4% of the
  * paper on a card, `0.04 × 96` — which set beside a printed diagram on a
@@ -107,7 +113,7 @@ export const DIAGRAM_SHEET_INK = { width: 1, opacity: 0.55 } as const;
  * crease pattern, where the "paper" is whatever the camera is showing and a
  * share of it is a ring that inflates as you zoom in.
  */
-export const DIAGRAM_MARK_INK = { radius: 3.07 } as const;
+export const DIAGRAM_MARK_INK = { radius: 3.07, ofArrow: 0.5 } as const;
 
 /**
  * An arrowhead: its length, tip to barbs, and the cap for a short arrow as a
