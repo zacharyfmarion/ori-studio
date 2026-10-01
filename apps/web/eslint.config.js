@@ -35,7 +35,6 @@ const noDirectStorageProperties = [
 const GLOBAL_STYLESHEET_IMPORTERS = [
   'src/main.tsx',
   'src/App.tsx',
-  'src/components/MenuBar.tsx',
   'src/components/WorkspaceShell.tsx',
   'src/components/CpDetectImportModal.tsx',
   'src/components/landing/WelcomeLanding.tsx',

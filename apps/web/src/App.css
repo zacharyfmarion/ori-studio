@@ -1163,30 +1163,6 @@
   }
 
   /*
-   * The menu bar shrinks by truncating its widest trigger rather than by
-   * scrolling. A scroll container would clip the dropdown — it is an absolutely
-   * positioned child of the trigger's wrapper — and the File menu is the only way
-   * to reach New/Open/Save at any width, so clipping it is the one failure this
-   * must not have. Truncation happens on the button's own text, which the
-   * dropdown is a sibling of.
-   *
-   * Flexbox shrinks in proportion to base size, so "Crease Pattern" gives way
-   * first and File stays whole. In English at 375px nothing truncates at all;
-   * this is for Russian, for a 320px SE, and for the Design workspace's wider
-   * actions column.
-   */
-  .toolbar__brand .menubar__menu-wrapper {
-    min-width: 0;
-  }
-
-  .toolbar__brand .menubar__trigger {
-    min-width: 0;
-    min-height: var(--touch-target);
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /*
    * Bottom tabs, the way a phone app has them: the rail stops being column 1 and
    * becomes row 2, full width, under the canvas.
    *

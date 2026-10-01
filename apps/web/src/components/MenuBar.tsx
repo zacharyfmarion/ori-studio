@@ -9,7 +9,7 @@ import { useIsCoarsePointerSurface } from '../platform/pointerSurface';
 import { useShortcutStore } from '../store/shortcutStore';
 import { useWorkspaceCapabilities } from '../store/workspaceStore/useWorkspaceCapabilities';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
-import './MenuBar.css';
+import styles from './MenuBar.module.css';
 
 /**
  * Where an open phone dropdown has to stop.
@@ -80,16 +80,19 @@ function usePhoneMenuMaxHeight(enabled: boolean): (node: HTMLDivElement | null) 
 }
 
 /**
- * A phone renders a submenu as an indented group inside the dropdown, so the
- * classes that make one a sideways fly-out are never emitted there at all —
- * `.menu-dropdown--submenu` and the `:hover` / `:focus-within` rules that reveal
- * it simply cannot match. That is what lets the root scroll: an overflow of any
- * kind would clip a box that opens *out of* its parent, and the box in question
- * is Export.
+ * A phone renders a submenu as an indented group inside the dropdown, so what
+ * makes one a sideways fly-out is never emitted there at all — `data-flyout`,
+ * and the `:hover` / `:focus-within` rules that reveal it, simply cannot match.
+ * That is what lets the root scroll: an overflow of any kind would clip a box
+ * that opens *out of* its parent, and the box in question is Export.
  */
-function dropdownClassName(nested: boolean, phone: boolean): string {
-  if (nested) return phone ? 'menu-dropdown__group' : 'menu-dropdown menu-dropdown--submenu';
-  return phone ? 'menu-dropdown menu-dropdown--phone' : 'menu-dropdown';
+function dropdownProps(nested: boolean, phone: boolean) {
+  if (nested && phone) return { className: styles.group };
+  return {
+    className: styles.dropdown,
+    'data-flyout': (nested && !phone) || undefined,
+    'data-phone': (!nested && phone) || undefined,
+  };
 }
 
 function MenuDropdown({
@@ -115,10 +118,10 @@ function MenuDropdown({
   const setMenuNode = usePhoneMenuMaxHeight(phone && !nested);
 
   return (
-    <div className={dropdownClassName(nested, phone)} role="menu" ref={setMenuNode}>
+    <div {...dropdownProps(nested, phone)} role="menu" ref={setMenuNode}>
       {visibleItems.map((item, index) => {
         if (item.type === 'separator') {
-          return <div key={`separator-${index}`} className="menu-dropdown__separator" />;
+          return <div key={`separator-${index}`} className={styles.separator} />;
         }
 
         if (item.type === 'command') {
@@ -126,7 +129,7 @@ function MenuDropdown({
             <button
               key={`command-${index}-${item.actionId}`}
               type="button"
-              className="menu-dropdown__item"
+              className={styles.item}
               role="menuitem"
               disabled={item.disabled}
               onClick={() => {
@@ -135,7 +138,7 @@ function MenuDropdown({
                 onClose();
               }}
             >
-              <span className="menu-dropdown__item-label">{item.label}</span>
+              <span className={styles.itemLabel}>{item.label}</span>
             </button>
           );
         }
@@ -146,12 +149,10 @@ function MenuDropdown({
           const expanded = phone && expandedLabel === item.label;
 
           return (
-            <div key={item.label} className="menu-dropdown__submenu" role="none">
+            <div key={item.label} className={styles.submenu} role="none">
               <button
                 type="button"
-                className={`menu-dropdown__item menu-dropdown__item--submenu ${
-                  expanded ? 'menu-dropdown__item--expanded' : ''
-                }`.trim()}
+                className={styles.item}
                 role="menuitem"
                 aria-haspopup="menu"
                 // Stated only where React knows it. On a mouse the open state
@@ -172,8 +173,8 @@ function MenuDropdown({
                     : (event) => event.preventDefault()
                 }
               >
-                <span className="menu-dropdown__item-label">{item.label}</span>
-                <span className="menu-dropdown__submenu-arrow" aria-hidden="true">
+                <span className={styles.itemLabel}>{item.label}</span>
+                <span className={styles.submenuArrow} aria-hidden="true">
                   <ChevronRight size={13} />
                 </span>
               </button>
@@ -201,7 +202,7 @@ function MenuDropdown({
           <button
             key={item.id}
             type="button"
-            className="menu-dropdown__item"
+            className={styles.item}
             role="menuitem"
             disabled={capability ? !capability.enabled : false}
             title={capability?.reason}
@@ -211,9 +212,9 @@ function MenuDropdown({
               onClose();
             }}
           >
-            <span className="menu-dropdown__item-label">{capability?.label ?? item.label}</span>
+            <span className={styles.itemLabel}>{capability?.label ?? item.label}</span>
             {item.shortcut && (
-              <span className="menu-dropdown__item-shortcut">{item.shortcut}</span>
+              <span className={styles.itemShortcut}>{item.shortcut}</span>
             )}
           </button>
         );
@@ -313,15 +314,14 @@ export function MenuBar() {
   }, [openMenu, coarsePointer]);
 
   return (
-    <div className="menubar" ref={menuRef}>
-      <div className="menubar__menus">
+    <div className={styles.root} data-phone={phone || undefined} ref={menuRef}>
+      <div className={styles.menus}>
         {visibleMenus.map((menu, index) => (
-          <div key={menu.label} className="menubar__menu-wrapper">
+          <div key={menu.label} className={styles.menuWrapper}>
             <button
               type="button"
-              className={`menubar__trigger ${
-                openMenu === index ? 'menubar__trigger--active' : ''
-              }`}
+              className={styles.trigger}
+              data-active={openMenu === index || undefined}
               aria-haspopup="menu"
               aria-expanded={openMenu === index}
               onClick={() => setOpenMenu(openMenu === index ? null : index)}

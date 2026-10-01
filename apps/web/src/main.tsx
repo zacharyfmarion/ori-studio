@@ -6,7 +6,6 @@ import './polyfills';
 import './components/CpDetectImportModal.css';
 import './styles/sonner.css';
 import 'dockview/dist/styles/dockview.css';
-import './components/MenuBar.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router-dom';
