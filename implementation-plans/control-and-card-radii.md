@@ -138,8 +138,10 @@ after. The restyle follows as the phase's last commit.
 
 ### Phase 3 — Shared cards, and the toasts
 
-- [ ] The in-place card rules above, the details at 4px, the toasts
-- [ ] Browser; validate; commit
+- [x] The in-place card rules above, the details at 4px, the toasts
+- [x] Browser: Settings › Paper (cards, preset cards, the pen sample and
+      erode picture at 4px) and Shortcuts (the table), a toast and its
+      action; validate; commit
 
 ### Phase 4 — One-owner cards
 

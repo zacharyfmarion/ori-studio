@@ -1525,7 +1525,7 @@
   gap: 4px;
   padding: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-secondary);
   cursor: pointer;
@@ -1564,7 +1564,7 @@
   min-height: 280px;
   overflow: hidden;
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
 }
 
@@ -2255,7 +2255,7 @@
   min-width: 0;
   padding: 11px 12px;
   border: 1px solid var(--border-default);
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--bg-surface);
 }
 
@@ -2337,7 +2337,7 @@
   min-width: 0;
   padding: 11px 12px;
   border: 1px solid var(--border-default);
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--bg-surface);
 }
 
@@ -2380,7 +2380,7 @@
   padding: 0;
   gap: 0;
   border: 1px solid var(--border-default);
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--bg-surface);
   overflow: hidden;
   cursor: pointer;
@@ -2589,7 +2589,7 @@
 .settings-paper-erode__picture {
   display: block;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
 }
 
@@ -2747,7 +2747,7 @@
   height: 32px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .settings-paper-pen__row {
@@ -2971,7 +2971,7 @@
   gap: 1px;
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--border-default);
 }
 
@@ -4275,7 +4275,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 100%;
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--radius);
   background: var(--bg-canvas, #0c0f12);
   color: var(--text-secondary);
   cursor: pointer;
@@ -4432,7 +4432,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   max-width: 52ch;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--status-danger) 8%, transparent);
   color: var(--text-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -5117,7 +5117,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin: 0 0 6px;
   padding: 5px 7px;
   border: 1px solid var(--border-subtle);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 0.68rem;
@@ -8422,7 +8422,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: var(--references-card-size);
   padding: var(--space-1);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--radius);
   background: var(--bg-canvas, #0c0f12);
   color: var(--text-secondary);
   cursor: pointer;
