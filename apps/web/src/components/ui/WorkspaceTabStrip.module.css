@@ -6,7 +6,7 @@
 .strip {
   display: flex;
   align-items: stretch;
-  min-height: 32px;
+  min-height: var(--workspace-header-height);
   padding-right: var(--space-1);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);

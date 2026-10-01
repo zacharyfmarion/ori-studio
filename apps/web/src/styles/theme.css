@@ -26,6 +26,11 @@
   --motion-duration: 160ms;
   --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
+  /* A workspace's header row: Design's tab strip, a panel's toolbar, and the
+     dock's tab bar beside it. One value, so the rows meet in a line wherever
+     they sit side by side, and every workspace's header is the same height. */
+  --workspace-header-height: 36px;
+
   /* Apple's minimum pick target, 44pt. Read only from the coarse-pointer layer at
      the end of this file — a mouse hits a 26px control fine, and sizing the
      desktop UI to a fingertip would cost the density the inspectors depend on. */
@@ -696,7 +701,7 @@ a.context-menu__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
+  min-height: var(--workspace-header-height);
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);
@@ -5080,7 +5085,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 36px;
+  min-height: var(--workspace-header-height);
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);
