@@ -56,6 +56,8 @@ of an existing rule, never a new one.
 | BP sheet and symmetry popovers | inputs, preset and flip buttons 4 → 8; segment and transform tracks 4 → 8, their buttons 3 → 6 | |
 | Cards | `.sheet-card`, `.references-card` 6 → 8; `.cp-panel__unopened-reason` 6 → 8; `.error-fallback__report-text` 6 → 8 | |
 | Toasts (`sonner.css`, third-party) | toast 6 → 8, its button 4 → 8 | |
+| Share dialog (`share-link-modal`) | field and URL 6 → 8. Shared: its root and footer wear `simple-modal`'s classes and its rules override them, so it moves with `simple-modal` | |
+| Help and About (`help-modal`, `about-modal`) | icon tile, acknowledgement cards 6 → 8. Shared: its root is in the safe-area rule `safeAreaOverlays.test.ts` pins | |
 
 **Module-owned, edited directly:**
 
@@ -78,8 +80,6 @@ of an existing rule, never a new one.
 | Settings theme card (`SettingsModal`'s `ThemeCard`) | card 6 → 8; swatches stay 4 |
 | `DesignMethodChooser` (`App.css`) | card 10 → 8, icon tile 9 → 8 |
 | `CommandDialogModal` | choice options 6 → 8 |
-| `ShareLinkModal` | field and URL 6 → 8 |
-| `HelpModal` | icon tile, About's acknowledgement cards 6 → 8 |
 | `DiagnosticsPanel` | metric cards 6 → 8 |
 | `ExploriResultsPanel` | result cards 6 → 8 |
 
@@ -88,8 +88,9 @@ of an existing rule, never a new one.
 - **The CP detection dialog** (`CpDetectImportModal.css`). Its notices and image
   frames are 6px, but the whole 500-line stylesheet is one block, so moving it
   is a change of its own. The radius goes with that move.
-- **The share dialog's embed preview** (10px). It is a picture of a chat app's
-  link preview, not one of our cards.
+- **The share dialog's embed preview**, a picture of a chat app's link
+  preview rather than one of our cards. It already resolves to 8px:
+  `var(--radius-lg, 10px)`, and `--radius-lg` is `--radius`.
 - **Rows:** `.control-row--button`, `.design-pane-sheet__item`,
   `.references-finding`, `.cp-tool-picker__row`, the measure rows.
 - **Settings' phone tab strip**, which uses underline tabs.
@@ -145,11 +146,12 @@ after. The restyle follows as the phase's last commit.
 
 ### Phase 4 — One-owner cards
 
-- [ ] Moves: theme cards (into `ThemeCard`), `DesignMethodChooser`,
-      `CommandDialogModal`, `ShareLinkModal`, `HelpModal`,
-      `DiagnosticsPanel`, `ExploriResultsPanel`; computed styles unchanged;
-      ratchet lowered; commit
-- [ ] Restyle; browser; validate; commit
+- [x] Moves: theme cards (into `ThemeCard`), `DesignMethodChooser`,
+      `CommandDialogModal`, `DiagnosticsPanel`, `ExploriResultsPanel`;
+      computed styles unchanged (ExplOri with five results and a detail open);
+      ratchets App.css 780, theme.css 5919; commit. `ShareLinkModal` and
+      `HelpModal` turned out to be shared (above) and are edited in place
+- [x] Restyle; browser; validate; commit
 
 ### Phase 5 — Close out
 

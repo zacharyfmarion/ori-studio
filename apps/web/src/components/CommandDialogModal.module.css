@@ -12,7 +12,7 @@
   gap: 2px;
   padding: var(--space-3);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
   color: inherit;
   cursor: pointer;

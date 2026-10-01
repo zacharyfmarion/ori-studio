@@ -48,7 +48,7 @@ section.root {
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--status-danger);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
@@ -91,7 +91,7 @@ section.root {
   align-content: start;
   padding: var(--space-4);
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent);
   color: inherit;
@@ -132,7 +132,7 @@ section.root {
   height: 42px;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, var(--border-subtle));
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-primary));
 }

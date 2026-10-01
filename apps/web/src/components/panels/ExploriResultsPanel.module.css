@@ -53,7 +53,7 @@
   place-items: center;
   margin-bottom: var(--space-1);
   border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, var(--border-subtle));
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
   color: color-mix(in srgb, var(--accent-primary) 78%, var(--text-secondary));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 7%, transparent);
@@ -117,7 +117,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--bg-canvas);
   transition:
@@ -295,7 +295,7 @@
 
 .detailFigure {
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--bg-canvas);
   padding: 4px;
 }

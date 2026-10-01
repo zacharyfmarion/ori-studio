@@ -9,7 +9,7 @@
   min-height: 70px;
   padding: var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   cursor: pointer;
