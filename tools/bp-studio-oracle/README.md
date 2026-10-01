@@ -79,6 +79,23 @@ Run both over one file to localize a packing-pane divergence to a tag — a flap
 the two disagree harmlessly in two places: contour rings may start at a
 different vertex of the same cycle, and the oracle emits an empty `root` entry.
 
+## Trace-contour oracle
+
+`trace-contours.ts` prints the trace contours the Core builds for every node —
+the hinge paths that pattern contours are traced along — which the layout
+graphics never show:
+
+```sh
+bun tools/bp-studio-oracle/trace-contours.ts <design.json>
+```
+
+Diff it when a river disagrees but its inputs look right. A raw-mode trace
+contour can differ from upstream's while the drawn graphics still agree, until
+a pattern contour lands on the differing hinge; two such divergences surfaced
+only once v0.7.16 moved where tracing starts. `support::trace_contours` in
+`crates/oristudio-bp/tests` is the Rust side, and
+`crates/oristudio-bp/tests/raw_trace_contour.rs` the tests built on it.
+
 ## Stretch file-form oracle
 
 `stretch-file-form.ts` applies the same edit vocabulary and then emits the

@@ -6,9 +6,14 @@
 
 use oristudio_bp::io::bps;
 use oristudio_bp::io::cp::{LayoutGraphicsSnapshot, project_graphics_snapshot};
-use oristudio_bp::model::{Point, Project};
+use oristudio_bp::layout::contours::{
+    TraceContour, build_rough_contours, build_trace_contours, covered_junction_map,
+};
+use oristudio_bp::layout::{active_layout_repositories, create_valid_junctions};
+use oristudio_bp::model::{NodeId, Point, Project};
+use oristudio_bp::tree::BpTree;
 use serde_json::json;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// A project in upstream's test notation (`test/utils/tree.ts#parseTree`):
 /// edges as `(n1,n2,length)`, flaps as `(id,x,y,width,height)`.
@@ -53,6 +58,26 @@ pub fn parse_tree(edges: &str, flaps: &str) -> Project {
 
 pub fn graphics(project: &Project) -> LayoutGraphicsSnapshot {
     project_graphics_snapshot(project).expect("graphics snapshot")
+}
+
+/// Every node's trace contours, built the way `project_graphics_snapshot`
+/// builds them — the counterpart of `tools/bp-studio-oracle/trace-contours.ts`.
+pub fn trace_contours(project: &Project) -> BTreeMap<NodeId, Vec<TraceContour>> {
+    let tree = BpTree::new(&project.design.tree.edges, &project.design.layout.flaps).expect("tree");
+    let mut repositories =
+        active_layout_repositories(&tree, &project.design.layout.stretches).expect("repos");
+    for repo in &mut repositories {
+        if repo.configuration().is_none() {
+            repo.init_with_tree(&tree).expect("repo init");
+        }
+        repo.initialize_selected_pattern_with_tree(&tree)
+            .expect("pattern");
+    }
+    let repos = repositories.iter().collect::<Vec<_>>();
+    let junctions = create_valid_junctions(&tree).expect("junctions");
+    let covered = covered_junction_map(&tree, &junctions).expect("covered junctions");
+    let rough = build_rough_contours(&tree).expect("rough contours");
+    build_trace_contours(&tree, &rough, &repos, &covered).expect("trace contours")
 }
 
 /// The outer path of the one contour a graphics tag (`re90,94`, `f31`, …) has.

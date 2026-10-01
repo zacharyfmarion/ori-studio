@@ -399,7 +399,7 @@ pub const PORT_DESCRIPTORS: &[PortDescriptor] = &[
     },
     PortDescriptor {
         upstream: "src/core/design/tasks/traceContour.ts",
-        target: "layout::contours::{build_trace_contours, critical_corners_for_node, create_trace_contour, create_raw_contour}",
+        target: "layout::contours::{build_trace_contours, covered_junction_map, critical_corners_for_node, create_trace_contour, create_raw_contour}",
         area: PortArea::Layout,
         status: PortStatus::Porting,
     },
