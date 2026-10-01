@@ -1,0 +1,40 @@
+/* "Looks like a crease pattern — Detect creases?" on a reference image
+   (CpDetectSuggestionPill.tsx). Floating-toolbar chrome, so it is one of the
+   canvas's own controls and not a notification; only the fade-in and the label
+   are its own. */
+.pill {
+  animation: appear 150ms ease-out;
+}
+
+.body {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon {
+  flex: 0 0 auto;
+  color: var(--accent-primary);
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill {
+    animation: none;
+  }
+}
