@@ -2,11 +2,20 @@
  * A menu's surface and its rows (Menu.tsx): every dropdown and context menu in
  * the app.
  */
+/* Capped at the room Radix has on the side it opens, and scrolls past it
+   rather than truncating. A handful of 28px rows never reach the cap, but on a
+   coarse pointer every row is `--touch-target`: the packing pane's `⋯` menu is
+   fifteen of them plus two seams, around 690px, against roughly 530px of room
+   above its bar on a small tablet in landscape. Vertically only, and the scroll
+   chain stops here, so reaching the end of a list does not start moving
+   whatever is behind it. A submenu is a portal of its own, so the scroller
+   never clips one. */
 .content {
   z-index: var(--z-portaled-popover);
   min-width: 180px;
   max-height: var(--radix-dropdown-menu-content-available-height);
-  overflow: hidden;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
   padding: 4px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);

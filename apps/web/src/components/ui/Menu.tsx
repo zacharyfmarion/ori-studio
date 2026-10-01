@@ -14,17 +14,11 @@ import styles from './Menu.module.css';
 type Unstyled<T> = Omit<T, 'className'>;
 type SpanProps = Unstyled<HTMLAttributes<HTMLSpanElement>>;
 
-/**
- * A menu's surface, portalled to the body so no container clips or transforms
- * it. Its `className` lands on the surface, for placement only.
- */
-export function MenuContent({ className, ...props }: ComponentProps<typeof DropdownMenu.Content>) {
+/** A menu's surface, portalled to the body so no container clips or transforms it. */
+export function MenuContent(props: Unstyled<ComponentProps<typeof DropdownMenu.Content>>) {
   return (
     <DropdownMenu.Portal>
-      <DropdownMenu.Content
-        className={className ? `${styles.content} ${className}` : styles.content}
-        {...props}
-      />
+      <DropdownMenu.Content className={styles.content} {...props} />
     </DropdownMenu.Portal>
   );
 }

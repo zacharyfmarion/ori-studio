@@ -17,7 +17,6 @@ import {
   type ViewportToolbarAction,
   type ViewportToolbarOverflowGroup,
 } from './viewportToolbarLayout';
-import styles from './ViewportToolbarOverflowMenu.module.css';
 
 function OverflowItem({
   action,
@@ -113,7 +112,6 @@ export function ViewportToolbarOverflowMenu({
         isActive={open || hasUnseenActiveControl(groups)}
       />
       <MenuContent
-        className={styles.menu}
         // Upward, like every other menu on this bar — the bar sits on the
         // bottom edge of the canvas, so there is nowhere below to open into.
         side="top"
