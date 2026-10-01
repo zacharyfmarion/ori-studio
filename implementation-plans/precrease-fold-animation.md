@@ -489,4 +489,9 @@ Enums only; no step numbers, no geometry.
       under the arrow keys has the switch. A turn-over plays on arrival
       whatever the setting says — it has no crease to read and nothing to
       line up, and left flat it is a symbol on an unchanged sheet.
+- [x] Auto-play defaults to **off** again (Zach, 2026-09-21), restoring D1's
+      default and superseding the 2026-09-16 call above: the paper moves when
+      asked, and a reader who wants it moving on arrival has the switch. The
+      key's absent-means-default semantics carry the change to everyone who
+      never touched the switch; a stored choice either way stays.
 - [ ] *Later, not this plan:* pleats.
