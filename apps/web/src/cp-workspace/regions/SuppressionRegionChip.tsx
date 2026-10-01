@@ -111,6 +111,9 @@ const HIDDEN_STYLE: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 3,
+  // Text at the bar's edge brings its own inset: the bar's is sized for the
+  // buttons at its ends, whose corners nest in its own.
+  paddingInlineStart: 4,
   flex: '1 1 auto',
   minWidth: 0,
   overflow: 'hidden',

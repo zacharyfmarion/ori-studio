@@ -7,12 +7,14 @@
   /* The inset around the controls, set from the `inset` prop. The radius is
      concentric with theirs: the controls' `--radius` plus this, so the gap
      around a corner control is as even as the gap along an edge
-     (docs/styling.md, "Radius"). A bar with no inset is a plain 8px panel. */
+     (docs/styling.md, "Radius"). That only holds if the inset is the same on
+     every side: wider at the ends, the end controls' corners sit off-centre in
+     the bar's. A bar with no inset is a plain 8px panel. */
   --pad: 4px;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: var(--pad) calc(2 * var(--pad));
+  padding: var(--pad);
   border: 1px solid var(--border-default);
   border-radius: calc(var(--radius) + var(--pad));
 }

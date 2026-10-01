@@ -15,9 +15,10 @@ export interface ToolbarProps extends HTMLAttributes<HTMLDivElement> {
   /** Sits on top of a frame: the edge it shares with it is square. */
   attach?: 'bottom';
   /**
-   * The inset around the controls, in px: that much above and below, twice it
-   * either side. The corner radius follows it, concentric with the controls
-   * inside; 0 makes the bar a plain panel at the shared radius.
+   * The inset around the controls, in px, the same on every side. The corner
+   * radius follows it, concentric with the controls at the bar's ends; 0 makes
+   * the bar a plain panel at the shared radius. Text at an end brings its own
+   * inset, since the bar's is sized for buttons.
    */
   inset?: number;
 }

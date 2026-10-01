@@ -10,6 +10,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  /* The leading icon is a glyph, not a button, so it brings its own inset: the
+     bar's is sized for the buttons at its ends, whose corners nest in its own. */
+  padding-inline-start: 4px;
 }
 
 .icon {

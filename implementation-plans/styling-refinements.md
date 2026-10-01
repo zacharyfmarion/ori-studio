@@ -273,6 +273,12 @@ References (`ReferencesViewportToolbar`), all through `ViewportToolbar`.
 - **Tests**: `ViewportToolbar.test.tsx`, `DesignPanel.test.tsx`,
   `ReferencesPanel.test.tsx` and `ReferencesViewportToolbar.test.tsx` move from
   `.viewport-toolbar*` to roles, names and data attributes.
+- **After review**: the inset is the same on every side, `padding: var(--pad)`.
+  At 4px 8px the end buttons sat 8px from the bar's ends and 4px from its top,
+  so their corners sat off-centre in the bar's 12px ones. Text at a bar's end
+  brings its own 4px instead: the region chip's hidden-findings count and the
+  detect pill's icon. The BP canvas bars (`CanvasContextBar`) lead with text,
+  and keep 4px 8px for now.
 
 ### Phase 4 — Tool rail
 
