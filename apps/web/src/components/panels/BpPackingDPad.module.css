@@ -1,0 +1,70 @@
+/*
+ * The packing canvas's nudge pad (BpPackingDPad.tsx): four buttons floating
+ * over the canvas's bottom-right corner, above the viewport toolbar.
+ */
+.root {
+  position: absolute;
+  right: var(--space-3);
+  bottom: calc(var(--space-3) + 52px);
+  z-index: 14;
+  display: none;
+  grid-template-columns: 36px 36px 36px;
+  grid-template-rows: 36px 36px 36px;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.root[data-enabled='true'] {
+  pointer-events: auto;
+}
+
+.root button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--domain-overlay-bg);
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px var(--shadow-overlay);
+  touch-action: none;
+}
+
+.root button:active {
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--domain-overlay-bg));
+  color: var(--accent-primary);
+}
+
+.up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.down {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+/* A keyboard nudges with the arrow keys; the pad is for a finger. */
+@media (pointer: coarse) {
+  .root[data-enabled='true'] {
+    display: grid;
+  }
+
+  .root button {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}

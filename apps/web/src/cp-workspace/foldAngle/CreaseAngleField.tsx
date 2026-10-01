@@ -23,6 +23,7 @@ import {
   isClassicCreaseAngle,
   parseCreaseAngle,
 } from './activeCreaseAngle';
+import styles from './CreaseAngleField.module.css';
 
 export interface CreaseAngleFieldProps {
   degrees: number;
@@ -66,7 +67,7 @@ export function CreaseAngleField({
 
   return (
     <div
-      className="crease-angle-field"
+      className={styles.root}
       ref={anchorRef}
       // Says at a glance whether the pen is doing anything, which the number
       // alone does not — 180 and "off" are the same state.
@@ -75,7 +76,7 @@ export function CreaseAngleField({
       <input
         type="text"
         inputMode="decimal"
-        className="crease-angle-field__input"
+        className={styles.input}
         aria-label={t('tools:creaseAngle.degrees', 'Crease angle in degrees')}
         title={t(
           'tools:creaseAngle.fieldTitle',
@@ -108,7 +109,7 @@ export function CreaseAngleField({
       />
       <button
         type="button"
-        className="crease-angle-field__caret"
+        className={styles.caret}
         aria-haspopup="dialog"
         aria-label={openLabel}
         title={openLabel}

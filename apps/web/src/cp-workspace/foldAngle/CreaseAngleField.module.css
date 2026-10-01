@@ -1,0 +1,70 @@
+/*
+ * The active crease angle (CreaseAngleField.tsx): an editable readout plus a
+ * caret that opens the popover.
+ */
+/* The active crease angle: an editable readout plus a caret that opens the
+   popover. Sized and styled off `__rotation-input` beside it, because the two
+   are the same kind of control and reading as a pair is the point. */
+.root {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.input {
+  height: 28px;
+  /* Sized to the widest reachable value: `-` is impossible here (a magnitude is
+     unsigned), so `180°` plus two decimals is the ceiling. */
+  width: 48px;
+  padding: 0 1px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  /* `font` shorthand for the family (inputs default to the system UI font),
+     then the toolbar's control size. */
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.input:hover {
+  border-color: var(--border-default);
+}
+
+.input:focus,
+.input:focus-visible {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+/* A pen off 180 changes what every stroke does, so it is not allowed to look
+   like an idle readout. The accent is on the number rather than a badge beside
+   it: the value *is* the state. */
+.root[data-angled] .input {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Explicit, because the UA button padding would otherwise defeat centering
+     on a bespoke icon button this small. */
+  padding: 0;
+  width: 16px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.caret:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}

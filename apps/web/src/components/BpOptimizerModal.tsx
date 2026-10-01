@@ -22,6 +22,7 @@ import type {
   OristudioBpOptimizerProgress,
   OristudioBpOptimizerStage,
 } from '../engine/oristudioBpTypes';
+import styles from './BpOptimizerModal.module.css';
 
 /**
  * Box Pleating Studio's own stage wording (`plugin.optimizer` in its locale
@@ -68,19 +69,20 @@ function ProgressRow({ progress }: { progress: OristudioBpOptimizerProgress | nu
     : 0;
 
   return (
-    <div className="bp-optimizer__progress">
-      <div className="bp-optimizer__progress-label">
+    <div className={styles.progress}>
+      <div className={styles.progressLabel}>
         {progress ? stageLabel(t, progress.stage) : t('dialogs:bpOptimizer.stage.start', 'Processing problem...')}
       </div>
       <div
-        className="bp-optimizer__progress-track"
+        className={styles.progressTrack}
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={determinate ? progress.total! : undefined}
         aria-valuenow={determinate ? progress.current! : undefined}
       >
         <div
-          className={`bp-optimizer__progress-fill${determinate ? '' : ' bp-optimizer__progress-fill--indeterminate'}`}
+          className={styles.progressFill}
+          data-indeterminate={determinate ? undefined : ''}
           style={determinate ? { width: `${ratio * 100}%` } : undefined}
         />
       </div>
@@ -202,11 +204,11 @@ export function BpOptimizerModal() {
             <ProgressRow progress={progress} />
           ) : (
             <>
-              <div className="bp-optimizer__row">
-                <span className="bp-optimizer__row-label">
+              <div className={styles.row}>
+                <span className={styles.rowLabel}>
                   {t('dialogs:bpOptimizer.options', 'Options')}
                 </span>
-                <label className="bp-optimizer__check">
+                <label className={styles.check}>
                   <Toggle
                     checked={options.useDimension}
                     onChange={(checked) => setOptions({ useDimension: checked })}
@@ -217,11 +219,11 @@ export function BpOptimizerModal() {
                 </label>
               </div>
 
-              <div className="bp-optimizer__row">
-                <span className="bp-optimizer__row-label">
+              <div className={styles.row}>
+                <span className={styles.rowLabel}>
                   {t('dialogs:bpOptimizer.layoutMethod', 'Layout method')}
                 </span>
-                <div className="bp-optimizer__control">
+                <div className={styles.control}>
                   <Select
                     value={options.layoutMode}
                     onValueChange={(value) =>
@@ -241,7 +243,7 @@ export function BpOptimizerModal() {
                   </Select>
 
                   {options.layoutMode === 'view' ? (
-                    <label className="bp-optimizer__check">
+                    <label className={styles.check}>
                       <Toggle
                         checked={options.useBasinHopping}
                         onChange={(checked) => setOptions({ useBasinHopping: checked })}
@@ -254,7 +256,7 @@ export function BpOptimizerModal() {
                       </span>
                     </label>
                   ) : (
-                    <label className="bp-optimizer__count">
+                    <label className={styles.count}>
                       <span>
                         {t('dialogs:bpOptimizer.toTry', 'Number of layouts to try:')}
                       </span>
@@ -273,14 +275,14 @@ export function BpOptimizerModal() {
                 </div>
               </div>
 
-              <div className="bp-optimizer__row">
-                <span className="bp-optimizer__row-label">
+              <div className={styles.row}>
+                <span className={styles.rowLabel}>
                   {t('dialogs:bpOptimizer.symmetry', 'Symmetry')}
                 </span>
-                <div className="bp-optimizer__control">
+                <div className={styles.control}>
                   {symmetry.mode !== 'off' && (
                     <>
-                      <label className="bp-optimizer__check">
+                      <label className={styles.check}>
                         <Toggle
                           checked={options.respectSymmetry && symmetry.mode === 'ready'}
                           disabled={symmetry.mode !== 'ready'}
@@ -294,7 +296,7 @@ export function BpOptimizerModal() {
                         * Editor's symmetry menu writes, so a change here moves that
                         * pane's mirror line too.
                         */}
-                      <span className="bp-optimizer__field-label">
+                      <span className={styles.fieldLabel}>
                         {t('dialogs:bpOptimizer.designFold', 'Fold (saved with the design)')}
                       </span>
                       <Select
@@ -317,12 +319,12 @@ export function BpOptimizerModal() {
                         </SelectContent>
                       </Select>
                       {symmetry.mode === 'unusable' && (
-                        <p className="bp-optimizer__hint bp-optimizer__hint--warn">
+                        <p className={styles.hint} data-tone="warn">
                           {symmetry.reason}
                         </p>
                       )}
                       {symmetry.mode === 'ready' && symmetry.inconsistent > 0 && (
-                        <p className="bp-optimizer__hint bp-optimizer__hint--warn">
+                        <p className={styles.hint} data-tone="warn">
                           {t(
                             'dialogs:bpOptimizer.symmetryInconsistent',
                             'Some paired flaps are not interchangeable in the tree, so mirroring them will use more paper.'
@@ -334,7 +336,7 @@ export function BpOptimizerModal() {
                 </div>
               </div>
 
-              {error && <div className="bp-optimizer__error">{error}</div>}
+              {error && <div className={styles.error}>{error}</div>}
             </>
           )}
 

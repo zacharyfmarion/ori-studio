@@ -39,6 +39,7 @@ import { FloatingToolbar, type FloatingAnchorRect } from '../../components/ui/Fl
 import { FOLD_ANGLE_PRESETS } from './foldAngleActions';
 import { formatCreaseAngleValue, parseCreaseAngle } from './activeCreaseAngle';
 import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
+import styles from './CreaseAnglePopover.module.css';
 
 export interface CreaseAnglePopoverProps {
   /** The live pen, in degrees (a magnitude). */
@@ -174,7 +175,7 @@ export function CreaseAnglePopover({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="crease-angle-popover"
+      className={styles.body}
       onKeyDown={(event) => {
         // Handled here rather than on `window` because the input inside owns
         // its own keystrokes: `isShortcutEditingTarget`, the guard the other
@@ -186,7 +187,7 @@ export function CreaseAnglePopover({
         onClose();
       }}
     >
-      <div className="crease-angle-popover__header">
+      <div className={styles.header}>
         <span>{title}</span>
         <IconButton
           size="sm"
@@ -200,7 +201,7 @@ export function CreaseAnglePopover({
         ref={focusOnAttach}
         type="text"
         inputMode="decimal"
-        className="crease-angle-popover__input"
+        className={styles.input}
         aria-label={t('tools:creaseAngle.degrees', 'Crease angle in degrees')}
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
@@ -210,7 +211,7 @@ export function CreaseAnglePopover({
           commitDraft();
         }}
       />
-      <div className="crease-angle-popover__chips">
+      <div className={styles.chips}>
         {FOLD_ANGLE_PRESETS.map((preset) => (
           <Chip
             key={preset.id}
@@ -255,7 +256,7 @@ export function CreaseAnglePopover({
         onClick={onClose}
       >
         <div
-          className="simple-modal__document crease-angle-popover__modal"
+          className="simple-modal__document"
           onClick={(event) => event.stopPropagation()}
         >
           {body}
@@ -270,7 +271,7 @@ export function CreaseAnglePopover({
       placement="top"
       boundary={placement.boundary}
       ariaLabel={title}
-      className="crease-angle-popover__floating"
+      className={styles.floating}
       inset={0}
     >
       {body as ReactNode}

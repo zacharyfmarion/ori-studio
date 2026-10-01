@@ -1391,112 +1391,6 @@
   padding: var(--space-4);
 }
 
-.simple-modal__document--bp-optimizer .bp-optimizer__row {
-  align-items: center;
-}
-
-.bp-optimizer__row {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-3);
-}
-
-.bp-optimizer__row-label {
-  padding-top: 5px;
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.bp-optimizer__control {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.bp-optimizer__check {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-
-.bp-optimizer__count {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-}
-
-.bp-optimizer__count input {
-  width: 84px;
-  height: 30px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.78rem;
-  padding: 0 var(--space-2);
-}
-
-.bp-optimizer__error {
-  color: var(--text-danger, #f87171);
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.bp-optimizer__progress {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.bp-optimizer__progress-label {
-  color: var(--text-primary);
-  font-size: 0.8rem;
-}
-
-.bp-optimizer__progress-track {
-  overflow: hidden;
-  width: 100%;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--bg-primary);
-}
-
-.bp-optimizer__progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent-primary, #3b82f6);
-  transition: width 120ms linear;
-}
-
-.bp-optimizer__progress-fill--indeterminate {
-  width: 40%;
-  animation: bp-optimizer-progress-slide 1.15s ease-in-out infinite;
-}
-
-@keyframes bp-optimizer-progress-slide {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(250%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bp-optimizer__progress-fill--indeterminate {
-    animation: none;
-    width: 100%;
-    opacity: 0.5;
-  }
-}
-
 .simple-modal__meta {
   color: var(--text-tertiary);
   font-size: 0.72rem;
@@ -4860,161 +4754,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   background: var(--bg-surface);
 }
 
-.conditions-panel__body {
-  display: grid;
-  align-content: start;
-  gap: var(--space-4);
-  padding: var(--space-3);
-  box-sizing: border-box;
-}
-
-.condition-section {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-section__title {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.condition-toggle,
-.condition-number {
-  display: grid;
-  grid-template-columns: minmax(88px, 1fr) minmax(0, 1.2fr);
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.condition-toggle {
-  grid-template-columns: auto 1fr;
-}
-
-.condition-number input {
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font: inherit;
-  padding: 5px 7px;
-}
-
-.condition-advanced__body {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-actions,
-.condition-path-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.condition-action,
-.toolbar-text-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  min-height: 30px;
-  padding: 6px 8px;
-}
-
-.condition-action-tooltip-trigger {
-  display: block;
-  min-width: 0;
-}
-
-.condition-action-tooltip-trigger .condition-action {
-  width: 100%;
-  height: 100%;
-}
-
-.condition-action-tooltip-trigger[data-disabled] {
-  cursor: not-allowed;
-}
-
-.condition-action-tooltip-trigger .condition-action:disabled {
-  pointer-events: none;
-}
-
-.toolbar-text-button {
-  min-height: 24px;
-  padding: 3px 8px;
-}
-
-.condition-action:hover,
-.toolbar-text-button:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-surface);
-}
-
-.condition-action:disabled,
-.toolbar-text-button:disabled {
-  color: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.condition-list {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: var(--space-2);
-  text-align: left;
-}
-
-.condition-item[data-active] {
-  border-color: var(--accent-primary);
-}
-
-.condition-item:not([data-feasible]) {
-  border-color: var(--domain-danger-border);
-}
-
-.condition-item strong,
-.condition-item small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.condition-item strong {
-  font-size: 12px;
-}
-
-.condition-item small {
-  color: var(--text-secondary);
-  font-size: 11px;
-  margin-top: 2px;
-}
-
 .empty-note {
   color: var(--text-tertiary);
   font-size: 12px;
@@ -5303,46 +5042,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   align-items: start;
 }
 
-/*
- * Square tool anchor picker: a 3x3 transform-origin grid naming where on the
- * square's bounding box the click lands. Sized to read as one small control
- * rather than nine buttons, so it sits beside the segmented controls above it.
- */
-.cp-square-anchor {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  width: 54px;
-  padding: 2px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-}
-
-.cp-square-anchor__cell {
-  aspect-ratio: 1;
-  min-width: 0;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  background: var(--bg-tertiary);
-  cursor: pointer;
-}
-
-.cp-square-anchor__cell:hover {
-  border-color: var(--border-default);
-}
-
-.cp-square-anchor__cell[data-active] {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-}
-
-.cp-square-anchor__cell:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
 .cp-context-panel__readout {
   color: var(--text-secondary);
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -5529,17 +5228,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   outline: none;
 }
 
-.cp-view-controls-panel__empty {
-  display: flex;
-  align-items: flex-start;
-  padding: var(--space-3);
-}
-
-.cp-view-controls-panel__body {
-  display: flex;
-  flex-direction: column;
-}
-
 /* The Properties pane's one-line empty state sits where a sheet's first row
    would, at the same inset the View pane's empty state uses. */
 .cp-properties-panel__body {
@@ -5608,10 +5296,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .property-sheet__section:last-child {
   border-bottom: 0;
-}
-
-.cp-view-controls-panel__view-options {
-  flex: 0 0 auto;
 }
 
 .control-row__value--toggle {
@@ -5830,188 +5514,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   flex: 1 1 auto;
   justify-content: center;
   gap: var(--space-1);
-}
-
-/* A text action inside a section body, rather than the icon-only affordance in a
-   section header. Sized to the pane's other controls so a row of them lines up
-   with the selects and toggles above. */
-
-.grid-scale-row {
-  display: grid;
-  grid-template-columns: minmax(56px, auto) 1fr;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.grid-scale-row__label {
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-}
-
-.grid-scale-row__formula {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 5px;
-}
-
-.grid-scale-row__op {
-  color: var(--text-tertiary);
-  font-size: 0.78rem;
-}
-
-.grid-scale-row__input.control-row__input {
-  width: 48px;
-  min-width: 0;
-  padding: 0 5px;
-  text-align: center;
-}
-
-.grid-settings__reset {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 30px;
-  margin: 8px var(--space-3) 2px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.grid-settings__reset:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-/* The active crease angle: an editable readout plus a caret that opens the
-   popover. Sized and styled off `__rotation-input` beside it, because the two
-   are the same kind of control and reading as a pair is the point. */
-.crease-angle-field {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-}
-
-.crease-angle-field__input {
-  height: 28px;
-  /* Sized to the widest reachable value: `-` is impossible here (a magnitude is
-     unsigned), so `180°` plus two decimals is the ceiling. */
-  width: 48px;
-  padding: 0 1px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  /* `font` shorthand for the family (inputs default to the system UI font),
-     then the toolbar's control size. */
-  font: inherit;
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.crease-angle-field__input:hover {
-  border-color: var(--border-default);
-}
-
-.crease-angle-field__input:focus,
-.crease-angle-field__input:focus-visible {
-  border-color: var(--accent-primary);
-  background: var(--bg-surface);
-  outline: none;
-}
-
-/* A pen off 180 changes what every stroke does, so it is not allowed to look
-   like an idle readout. The accent is on the number rather than a badge beside
-   it: the value *is* the state. */
-.crease-angle-field[data-angled] .crease-angle-field__input {
-  color: var(--accent-primary);
-  font-weight: 600;
-}
-
-.crease-angle-field__caret {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Explicit, because the UA button padding would otherwise defeat centering
-     on a bespoke icon button this small. */
-  padding: 0;
-  width: 16px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.crease-angle-field__caret:hover {
-  border-color: var(--border-default);
-  color: var(--text-primary);
-}
-
-/* Fills whichever frame it is in. The width belongs to the *frame*, not the
-   body: anchored, the pill sizes itself (below); as a modal, the document is
-   already `min(360px, 100vw - 24px)` and a body with a width of its own left the
-   form huddled in the corner of it. */
-.crease-angle-popover {
-  display: grid;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-3);
-}
-
-/* The floating frame is a `FloatingToolbar` pill, which is laid out for a row of
-   icon buttons; this body is a small form, so it takes the padding back and
-   states the width the pill has no content-based reason to pick. */
-.crease-angle-popover__floating {
-  width: 232px;
-  padding: 0;
-}
-
-.crease-angle-popover__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.crease-angle-popover__input {
-  width: 100%;
-  height: 28px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.crease-angle-popover__input:focus,
-.crease-angle-popover__input:focus-visible {
-  border-color: var(--accent-primary);
-  outline: none;
-}
-
-.crease-angle-popover__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
 }
 
 /* The sheet popover's content (`ViewportToolbarPopover` is only its frame). */
@@ -6839,67 +6341,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   opacity: 1;
 }
 
-.bp-packing-dpad {
-  position: absolute;
-  right: var(--space-3);
-  bottom: calc(var(--space-3) + 52px);
-  z-index: 14;
-  display: none;
-  grid-template-columns: 36px 36px 36px;
-  grid-template-rows: 36px 36px 36px;
-  gap: 5px;
-  pointer-events: none;
-}
-
-.bp-packing-dpad[data-enabled='true'] {
-  pointer-events: auto;
-}
-
-.bp-packing-dpad button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--domain-overlay-bg);
-  color: var(--text-primary);
-  box-shadow: 0 8px 24px var(--shadow-overlay);
-  touch-action: none;
-}
-
-.bp-packing-dpad button:active {
-  background: color-mix(in srgb, var(--accent-primary) 18%, var(--domain-overlay-bg));
-  color: var(--accent-primary);
-}
-
-.bp-packing-dpad__up {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.bp-packing-dpad__left {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.bp-packing-dpad__right {
-  grid-column: 3;
-  grid-row: 2;
-}
-
-.bp-packing-dpad__down {
-  grid-column: 2;
-  grid-row: 3;
-}
-
-@media (pointer: coarse) {
-  .bp-packing-dpad[data-enabled='true'] {
-      display: grid;
-    }
-}
-
 .bp-tree-panel,
 .bp-tree-panel .design-panel__body {
   height: 100%;
@@ -7213,27 +6654,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   border-bottom: 0;
 }
 
-.bp-optimizer__hint {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.5;
-  text-wrap: pretty;
-}
-
-/* Separates the design-level fold from the per-run toggle above it. */
-.bp-optimizer__field-label {
-  margin-top: 2px;
-  font-size: 0.64rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-tertiary);
-}
-
-.bp-optimizer__hint--warn {
-  color: var(--text-warning, var(--text-secondary));
-}
-
 
 /* The active tool's option window: a transparent frame around the geometry the
    chosen answer would change, with its header attached to the top edge. The
@@ -7350,163 +6770,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-/*
- * The surface's primary action, sized like one.
- *
- * It began as a thin strip of small grey controls that read as a status bar and
- * was missed accordingly. Now it is a command strip: captioned fields, a real
- * button, and enough room around them to be the obvious next thing to do after
- * drawing a tree.
- */
-.explori-query-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px 16px 14px;
-  border-top: 1px solid var(--border-default);
-  background: var(--bg-secondary);
-}
-
-.explori-query-bar__row {
-  display: flex;
-  align-items: flex-end;
-  gap: 18px;
-  flex-wrap: wrap;
-}
-
-.explori-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.explori-field__label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.explori-field__control {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.explori-query-bar__spacer {
-  flex: 1;
-  min-width: 12px;
-}
-
-.explori-query-bar__search {
-  min-width: 132px;
-  height: 34px;
-}
-
-.explori-query-bar__hint {
-  margin: 0;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.explori-query-bar__count {
-  width: 62px;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* One segmented control, so the three read as a set rather than three buttons. */
-.explori-symmetry-group {
-  display: inline-flex;
-  height: 30px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.explori-symmetry-toggle {
-  padding: 0 14px;
-  border: none;
-  border-right: 1px solid var(--border-default);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.explori-symmetry-toggle:last-child {
-  border-right: none;
-}
-
-.explori-symmetry-toggle:hover {
-  color: var(--text-primary);
-}
-
-.explori-symmetry-toggle[aria-pressed='true'] {
-  background: var(--accent-primary);
-  color: var(--bg-primary);
-}
-
-/* Anchors the popover to the gear that opens it. */
-.explori-advanced {
-  position: relative;
-  display: inline-flex;
-}
-
-/*
- * Floated over the canvas rather than inserted into the bar. As a row it pushed
- * every control — and the drawing above them — up and down each time it opened.
- */
-.explori-advanced__popover {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  /* Above the canvas's own viewport toolbar (17), which it opens across. */
-  z-index: 20;
-  padding: 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
-}
-
-/*
- * The per-size grid: twelve checkboxes are legible with one set of column
- * headers and unreadable without them, which is the whole reason this is a
- * table and not the inline row it started as.
- */
-.explori-db-table {
-  border-collapse: collapse;
-  font-size: 11px;
-  color: var(--text-secondary);
-  align-self: flex-start;
-}
-
-.explori-db-table th,
-.explori-db-table td {
-  padding: 3px 10px;
-  border: 1px solid var(--border-default);
-  text-align: center;
-  font-weight: 500;
-}
-
-.explori-db-table thead th,
-.explori-db-table tbody th {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-.explori-db-table input {
-  cursor: pointer;
 }
 
 .explori-results-panel {
@@ -7974,7 +7237,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   .ui-icon-control--md,
   .ui-icon-control--lg,
   .select-trigger,
-  .bp-packing-dpad button,
   .number-field__step {
     min-height: var(--touch-target);
   }
@@ -7985,7 +7247,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   .ui-icon-control--sm,
   .ui-icon-control--md,
   .ui-icon-control--lg,
-  .bp-packing-dpad button,
   .number-field__step {
     min-width: var(--touch-target);
   }
@@ -8073,12 +7334,10 @@ button.cp-folded-figure-toolbar__notice:hover {
 
   .control-row__input,
   .share-link-modal__field input,
-  .bp-optimizer__count input,
   .export-modal__input,
   .export-modal__select,
   .field-row input,
   .settings-shortcuts__toolbar input[type='search'],
-  .condition-number input,
   .cp-context-panel__field input:not(.number-field__input),
   .cp-context-panel__field select,
   .cp-context-panel__field textarea,

@@ -18,10 +18,6 @@ import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
   Blend,
   Circle,
   CircleDot,
@@ -141,6 +137,7 @@ import type {
 import { BpPackingEmptySpaceLayer } from './BpPackingEmptySpaceLayer';
 import { BpPackingRiverBandLayer } from './BpPackingRiverBandLayer';
 import { BpFlapEditor } from './BpFlapEditor';
+import { BpPackingDPad } from './BpPackingDPad';
 import { BpFlapResizeHandles } from './BpFlapResizeHandles';
 import { BpRiverEditor } from './BpRiverEditor';
 import {
@@ -211,9 +208,6 @@ interface BpPackingDragState {
   moved: boolean;
 }
 
-
-const BP_DPAD_INITIAL_REPEAT_MS = 750;
-const BP_DPAD_REPEAT_MS = 150;
 
 const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
   { key: 'grid', icon: <Grid2X2 size={13} /> },
@@ -567,130 +561,6 @@ function BpPackingViewportToolbar({
       setZoomLevel={setZoomLevel}
       groups={groups}
     />
-  );
-}
-
-function BpPackingDPad({
-  enabled,
-  onNudge,
-}: {
-  enabled: boolean;
-  onNudge: (direction: BpPackingNudgeDirection) => boolean;
-}) {
-  const { t } = useTranslation();
-  const repeatTimerRef = useRef<number | null>(null);
-  const clearRepeat = useCallback(() => {
-    if (repeatTimerRef.current !== null) {
-      window.clearTimeout(repeatTimerRef.current);
-      repeatTimerRef.current = null;
-    }
-  }, []);
-  const startNudge = useCallback(
-    (direction: BpPackingNudgeDirection) => {
-      if (!enabled) return;
-      clearRepeat();
-      onNudge(direction);
-      const repeat = () => {
-        onNudge(direction);
-        repeatTimerRef.current = window.setTimeout(repeat, BP_DPAD_REPEAT_MS);
-      };
-      repeatTimerRef.current = window.setTimeout(repeat, BP_DPAD_INITIAL_REPEAT_MS);
-    },
-    [clearRepeat, enabled, onNudge]
-  );
-
-  useEffect(() => clearRepeat, [clearRepeat]);
-  useEffect(() => {
-    window.addEventListener('blur', clearRepeat);
-    return () => window.removeEventListener('blur', clearRepeat);
-  }, [clearRepeat]);
-
-  return (
-    <div className="bp-packing-dpad" data-enabled={enabled || undefined} aria-hidden={!enabled}>
-      <DPadButton
-        className="bp-packing-dpad__up"
-        direction="up"
-        label={t('panels:bpPacking.nudgeUp', 'Nudge BP selection up')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowUp size={15} />
-      </DPadButton>
-      <DPadButton
-        className="bp-packing-dpad__left"
-        direction="left"
-        label={t('panels:bpPacking.nudgeLeft', 'Nudge BP selection left')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowLeft size={15} />
-      </DPadButton>
-      <DPadButton
-        className="bp-packing-dpad__right"
-        direction="right"
-        label={t('panels:bpPacking.nudgeRight', 'Nudge BP selection right')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowRight size={15} />
-      </DPadButton>
-      <DPadButton
-        className="bp-packing-dpad__down"
-        direction="down"
-        label={t('panels:bpPacking.nudgeDown', 'Nudge BP selection down')}
-        disabled={!enabled}
-        onStart={startNudge}
-        onStop={clearRepeat}
-      >
-        <ArrowDown size={15} />
-      </DPadButton>
-    </div>
-  );
-}
-
-function DPadButton({
-  className,
-  direction,
-  label,
-  disabled,
-  onStart,
-  onStop,
-  children,
-}: {
-  className: string;
-  direction: BpPackingNudgeDirection;
-  label: string;
-  disabled: boolean;
-  onStart: (direction: BpPackingNudgeDirection) => void;
-  onStop: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      className={className}
-      type="button"
-      aria-label={label}
-      title={label}
-      disabled={disabled}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        event.currentTarget.setPointerCapture(event.pointerId);
-        onStart(direction);
-      }}
-      onPointerUp={(event) => {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        onStop();
-      }}
-      onPointerCancel={onStop}
-      onPointerLeave={onStop}
-    >
-      {children}
-    </button>
   );
 }
 

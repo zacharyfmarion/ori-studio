@@ -1,0 +1,164 @@
+/*
+ * The TreeMaker conditions panel (ConditionsPanel.tsx): the paper, the
+ * condition editors and the list of conditions.
+ */
+.body {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  box-sizing: border-box;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.toggle,
+.number {
+  display: grid;
+  grid-template-columns: minmax(88px, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.toggle {
+  grid-template-columns: auto 1fr;
+}
+
+.number input {
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  padding: 5px 7px;
+}
+
+.advancedBody {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.actions,
+.pathControls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.action,
+.toolbarButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  min-height: 30px;
+  padding: 6px 8px;
+}
+
+.actionTooltipTrigger {
+  display: block;
+  min-width: 0;
+}
+
+.actionTooltipTrigger .action {
+  width: 100%;
+  height: 100%;
+}
+
+.actionTooltipTrigger[data-disabled] {
+  cursor: not-allowed;
+}
+
+.actionTooltipTrigger .action:disabled {
+  pointer-events: none;
+}
+
+.toolbarButton {
+  min-height: 24px;
+  padding: 3px 8px;
+}
+
+.action:hover,
+.toolbarButton:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
+}
+
+.action:disabled,
+.toolbarButton:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: var(--space-2);
+  text-align: left;
+}
+
+.item[data-active] {
+  border-color: var(--accent-primary);
+}
+
+.item:not([data-feasible]) {
+  border-color: var(--domain-danger-border);
+}
+
+.item strong,
+.item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item strong {
+  font-size: 12px;
+}
+
+.item small {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+@media (pointer: coarse) {
+  .number input {
+    font-size: 16px;
+  }
+}

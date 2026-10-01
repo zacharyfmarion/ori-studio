@@ -25,6 +25,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { NumberField } from '../ui/NumberField';
 import { NumberRow, SelectRow, ToggleRow } from '../ui/fieldRows';
+import styles from './CpViewControlsPanel.module.css';
 
 export function CpViewControlsPanel() {
   const { t } = useTranslation();
@@ -36,8 +37,8 @@ export function CpViewControlsPanel() {
 
   if (!editableCp) {
     return (
-      <section className="panel-shell cp-view-controls-panel">
-        <div className="panel-body cp-view-controls-panel__empty">
+      <section className="panel-shell">
+        <div className={`panel-body ${styles.empty}`}>
           <span className="empty-note">{t('panels:cpViewControls.emptyNote', 'Open an editable crease pattern to adjust view options.')}</span>
         </div>
       </section>
@@ -52,9 +53,9 @@ export function CpViewControlsPanel() {
     viewport.snapToGrid || viewport.snapToVertices || viewport.snapToLines;
 
   return (
-    <section className="panel-shell cp-view-controls-panel">
-      <div className="panel-body cp-view-controls-panel__body">
-        <div className="cp-view-controls-panel__view-options">
+    <section className="panel-shell">
+      <div className={`panel-body ${styles.body}`}>
+        <div className={styles.viewOptions}>
           <ToggleRow
             label={t('panels:cpViewControls.grid', 'Grid')}
             checked={viewport.gridVisible}
@@ -215,7 +216,7 @@ function GridSettingsSection({
       />
       <button
         type="button"
-        className="grid-settings__reset"
+        className={styles.reset}
         onClick={() =>
           update(
             {
@@ -387,36 +388,36 @@ function GridScaleRow({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="grid-scale-row">
-      <span className="grid-scale-row__label">{label}</span>
+    <div className={styles.scaleRow}>
+      <span className={styles.scaleLabel}>{label}</span>
       {/* Three fields and two operators on one line — no room for step buttons,
           so these stay type-and-commit fields. */}
-      <div className="grid-scale-row__formula">
+      <div className={styles.scaleFormula}>
         <NumberField
           label={t('panels:cpViewControls.gridConstantTerm', '{{label}} constant term', { label })}
-          className="grid-scale-row__input"
+          className={styles.scaleInput}
           value={a}
           step={0.1}
           steppers={false}
           onCommit={(next) => onChange(next, b, c)}
         />
-        <span className="grid-scale-row__op" aria-hidden="true">
+        <span className={styles.scaleOp} aria-hidden="true">
           +
         </span>
         <NumberField
           label={t('panels:cpViewControls.gridRootCoefficient', '{{label}} root coefficient', { label })}
-          className="grid-scale-row__input"
+          className={styles.scaleInput}
           value={b}
           step={0.1}
           steppers={false}
           onCommit={(next) => onChange(a, next, c)}
         />
-        <span className="grid-scale-row__op" aria-hidden="true">
+        <span className={styles.scaleOp} aria-hidden="true">
           √
         </span>
         <NumberField
           label={t('panels:cpViewControls.gridRadicand', '{{label}} radicand', { label })}
-          className="grid-scale-row__input"
+          className={styles.scaleInput}
           value={c}
           min={0}
           step={0.1}

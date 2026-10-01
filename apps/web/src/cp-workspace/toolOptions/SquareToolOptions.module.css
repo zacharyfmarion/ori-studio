@@ -1,0 +1,43 @@
+/*
+ * The square tool's options (SquareToolOptions.tsx): the anchor picker, a 3×3
+ * grid of the points a square can grow from.
+ */
+/*
+ * Square tool anchor picker: a 3x3 transform-origin grid naming where on the
+ * square's bounding box the click lands. Sized to read as one small control
+ * rather than nine buttons, so it sits beside the segmented controls above it.
+ */
+.anchor {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  width: 54px;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+}
+
+.cell:hover {
+  border-color: var(--border-default);
+}
+
+.cell[data-active] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+}
+
+.cell:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}

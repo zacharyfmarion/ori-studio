@@ -19,6 +19,7 @@ import {
 import { convertSquareSize } from '../tools/squareTool';
 import { SegmentedToolOption } from './SegmentedToolOption';
 import { useCpGridWidth } from './useCpGridWidth';
+import styles from './SquareToolOptions.module.css';
 
 export function SquareToolOptions({
   options,
@@ -203,7 +204,7 @@ function SquareAnchorPicker({
     <div className="cp-context-panel__field cp-context-panel__field--anchor">
       <span>{t('tools:cpContext.squareAnchor', 'Anchor')}</span>
       <div
-        className="cp-square-anchor"
+        className={styles.anchor}
         role="radiogroup"
         aria-label={t('tools:cpContext.squareAnchorAria', 'Square anchor')}
       >
@@ -216,7 +217,7 @@ function SquareAnchorPicker({
             aria-label={squareAnchorLabel(t, anchor)}
             title={squareAnchorLabel(t, anchor)}
             data-active={anchor === value || undefined}
-            className="cp-square-anchor__cell"
+            className={styles.cell}
             onClick={() => onChange(anchor)}
           />
         ))}

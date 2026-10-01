@@ -1,0 +1,132 @@
+/*
+ * The Box-Pleat layout optimizer dialog's content (BpOptimizerModal.tsx). Its
+ * frame is the shared `simple-modal`.
+ */
+.row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.rowLabel {
+  padding-top: 5px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.control {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.count input {
+  width: 84px;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0 var(--space-2);
+}
+
+.error {
+  color: var(--text-danger, #f87171);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.progress {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.progressLabel {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.progressTrack {
+  overflow: hidden;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-primary, #3b82f6);
+  transition: width 120ms linear;
+}
+
+.progressFill[data-indeterminate] {
+  width: 40%;
+  animation: progressSlide 1.15s ease-in-out infinite;
+}
+
+@keyframes progressSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* Separates the design-level fold from the per-run toggle above it. */
+.fieldLabel {
+  margin-top: 2px;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.hint[data-tone='warn'] {
+  color: var(--text-warning, var(--text-secondary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill[data-indeterminate] {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+@media (pointer: coarse) {
+  .count input {
+    font-size: 16px;
+  }
+}
