@@ -107,13 +107,14 @@ describe('theme.css custom properties', () => {
 });
 
 /**
- * A CSS module reads the global tokens and defines none of its own
- * (`docs/styling.md`), so every `var()` in one has to name a property
- * `theme.css` defines — the same silent drop as above, one file away from where
- * the token lives.
+ * A CSS module reads the global tokens, and defines properties of its own only
+ * for values that belong to its component (`docs/styling.md`, rule 6) — a
+ * toolbar's padding, and the radius derived from it. So every `var()` in one has
+ * to name a property `theme.css` or the module itself defines: the same silent
+ * drop as above, one file away from where the value lives.
  */
 describe('CSS module custom properties', () => {
-  it('reads only properties theme.css defines', () => {
+  it('reads only properties theme.css or the module defines', () => {
     const defined = new Set<string>();
     const theme = readFileSync(THEME_CSS, 'utf8').replace(/\/\*[\s\S]*?\*\//gu, '');
     for (const match of theme.matchAll(DEFINITION)) {
@@ -128,17 +129,23 @@ describe('CSS module custom properties', () => {
     const missing: string[] = [];
     for (const path of modules) {
       const css = readFileSync(resolve(SRC, path), 'utf8').replace(/\/\*[\s\S]*?\*\//gu, '');
+      const local = new Set<string>();
+      for (const match of css.matchAll(DEFINITION)) {
+        if (match[1]) local.add(match[1]);
+      }
       for (const match of css.matchAll(REFERENCE)) {
         const name = match[1];
-        if (!name || match[2] === ',' || defined.has(name) || RUNTIME_INJECTED.test(name)) continue;
+        if (!name || match[2] === ',' || RUNTIME_INJECTED.test(name)) continue;
+        if (defined.has(name) || local.has(name)) continue;
         missing.push(`${path}: ${name}`);
       }
     }
 
     expect(
       missing,
-      'a CSS module reads a property theme.css never defines, so the browser drops the ' +
-        'declaration — declare the token in theme.css, in both themes'
+      'a CSS module reads a property neither theme.css nor the module defines, so the ' +
+        'browser drops the declaration — declare it in theme.css (in both themes) if other ' +
+        'components or a theme must agree on it, or in the module if it is the component’s own'
     ).toEqual([]);
   });
 });

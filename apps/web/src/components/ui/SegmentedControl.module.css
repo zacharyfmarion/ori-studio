@@ -59,9 +59,9 @@
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    height 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform var(--motion-duration) var(--motion-ease),
+    width var(--motion-duration) var(--motion-ease),
+    height var(--motion-duration) var(--motion-ease);
 }
 
 .indicator[data-shown] {

@@ -10,10 +10,21 @@
      `var(--font-mono)` reads resolve instead of being dropped. */
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* The radius: the icon buttons' 8px, which every control and every floating
+     surface wears. The rest of the scale derives from it, so this is the one
+     number to change. Concentric radii are derived in the module that owns the
+     padding (docs/styling.md, "Radius"); they are not tokens. */
+  --radius: 8px;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
   --radius-full: 999px;
+
+  /* One motion for a control changing state: the segmented control's sliding
+     pill, and the tool card's height following what the pill chose. Shared so
+     the two move as one. */
+  --motion-duration: 160ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Apple's minimum pick target, 44pt. Read only from the coarse-pointer layer at
      the end of this file — a mouse hits a 26px control fine, and sizing the
@@ -242,7 +253,7 @@
 }
 
 .ui-control--rounded {
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
 }
 
 .ui-control--sm {

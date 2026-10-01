@@ -56,6 +56,31 @@ override. A primitive could not be trusted to look like itself.
      global for it would be a selector by another name: something any file can
      reach.
 
+## Radius
+
+**One number: `--radius`**, the icon buttons' 8px. Every control wears it, and
+so does every floating surface: cards, menus, popovers, tooltips and readouts.
+The rest of `theme.css`'s scale derives from it.
+
+**A container that hugs controls is concentric with them.** Its radius is
+theirs plus its padding, so the gap around a corner control is as even as the
+gap along an edge. That radius belongs to the container, so it is computed in
+the container's module from its own padding, not read from a token:
+
+```css
+.bar {
+  --pad: 4px;
+  padding: var(--pad);
+  border-radius: calc(var(--radius) + var(--pad));
+}
+```
+
+**A row inside a surface is concentric the other way**: the surface's radius
+less its padding.
+
+- An 8px menu with 4px padding has 4px rows.
+- The segmented control's 8px track with 3px padding has 5px pills.
+
 ## What holds it
 
 - **ESLint** (`no-restricted-imports`) rejects importing a plain `.css` file.
