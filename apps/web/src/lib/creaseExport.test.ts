@@ -1164,6 +1164,10 @@ describe('folded figure placement', () => {
     };
   }
 
+  /** The painter's faces, each one `<path>`, back to front. */
+  const faceFills = (svg: string) =>
+    [...svg.matchAll(/<path [^>]*fill="(#[0-9a-f]{6})"/g)].map((match) => match[1]);
+  /** The snapshot serializer's fills, which stay polygons. */
   const polygonFills = (svg: string) =>
     [...svg.matchAll(/<polygon [^>]*fill="(#[0-9a-f]{6})"/g)].map((match) => match[1]);
 
@@ -1215,8 +1219,10 @@ describe('folded figure placement', () => {
     // Every layer, back to front — the buried face 1 (front up) under face 0
     // (turned over) — in the dialog's colours over the export style, not the
     // snapshot's single white fill.
-    expect(polygonFills(artwork.folded!)).toEqual(['#123456', '#654321']);
+    expect(faceFills(artwork.folded!)).toEqual(['#123456', '#654321']);
     expect(artwork.folded).not.toContain('#ffffff');
+    // Each face strokes its own outline, so no line repeats an edge of one.
+    expect(artwork.folded).not.toContain('<line');
     // The edge pen in the page's px: 1.5 pt at 4/3 CSS px per pt, at the
     // export's scale over the on-screen view.
     const [, width] = /stroke="#0000ff" stroke-width="([\d.]+)"/.exec(artwork.folded!)!;
@@ -1252,7 +1258,7 @@ describe('folded figure placement', () => {
       }
     );
 
-    expect(polygonFills(artwork.folded!)).toHaveLength(2);
+    expect(faceFills(artwork.folded!)).toHaveLength(2);
   });
 
   it('keeps the snapshot path for a fold with no scene, and when the figure is left out', () => {

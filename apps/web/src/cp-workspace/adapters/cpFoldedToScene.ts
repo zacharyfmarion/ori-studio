@@ -1,5 +1,10 @@
 import earcut from 'earcut';
-import type { PaperLineRole, PaperScene, ScenePoint } from '@treemaker/origami-simulator';
+import type {
+  PaperLineItem,
+  PaperLineRole,
+  PaperScene,
+  ScenePoint,
+} from '@treemaker/origami-simulator';
 import {
   CP_PAPER_RECT,
   cpModelToSvg,
@@ -10,7 +15,7 @@ import {
   hexToUnitRgb,
   surfacePaperStyle,
 } from '../../lib/paper/paperStyleResolve';
-import { erodeLine, paperFaceFill, penForRole } from '../../lib/paper/paperSvg';
+import { erodeLine, faceOutlineLines, paperFaceFill, penForRole } from '../../lib/paper/paperSvg';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type {
@@ -621,10 +626,10 @@ export function foldedFigureLocalGeometry(
  *
  * A scene is already in the figure's local user space and already in painter's
  * order, so this is only ink: each face filled with the colour its side and
- * shade call for under `style`, each line stroked with its role's pen, both
- * through the very functions the SVG painter uses — so the canvas and the file
- * cannot disagree about what a style means. Erode is applied here too, for the
- * same reason.
+ * shade call for under `style`, each line stroked with its role's pen, and a
+ * face's own outline stroked as the lines it stands for — all through the very
+ * functions the SVG painter uses, so the canvas and the file cannot disagree
+ * about what a style means. Erode is applied here too, for the same reason.
  *
  * Buried pieces are left out. The canvas shows what the window shows, and a
  * deep figure's hidden layers are thousands of triangles redrawn on every frame
@@ -663,6 +668,13 @@ export function foldedSceneLocalGeometry(
   const builder = new FoldedBuilder();
   const erodePx = style.erode * scene.sheet;
   const steps = scene.items.length + 1;
+  const stroke = (line: PaperLineItem): void => {
+    const pen = penForRole(style, line.role);
+    if (!pen) return;
+    const eroded = erodeLine(line, erodePx);
+    if (!eroded) return;
+    builder.addStrokePolyline(eroded.map(scenePoint), rgbaOf(pen.color, 1), pen.width);
+  };
   let lastFill = -1;
   for (const [index, item] of scene.items.entries()) {
     if (item.hidden && opaque) continue;
@@ -673,14 +685,11 @@ export function foldedSceneLocalGeometry(
         item.rings.map((ring) => ring.map(scenePoint)),
         rgbaOf(paperFaceFill(style, item.side, item.shade), faceAlpha)
       );
-      continue;
+      // At the face's own depth, which the depth test passes over its fill.
+      faceOutlineLines(item).forEach(stroke);
+    } else if (item.kind === 'line') {
+      stroke(item);
     }
-    if (item.kind !== 'line') continue;
-    const pen = penForRole(style, item.role);
-    if (!pen) continue;
-    const eroded = erodeLine(item, erodePx);
-    if (!eroded) continue;
-    builder.addStrokePolyline(eroded.map(scenePoint), rgbaOf(pen.color, 1), pen.width);
   }
 
   const geometry = builder.buildLocal((lastFill + 1.5) / steps);

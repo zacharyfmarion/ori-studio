@@ -46,7 +46,8 @@ export function mmToCssPx(mm: number): number {
  * SVG renderers antialias adjacent polygon edges independently, which leaves a
  * visible seam grid across a dense mesh where the two coverages do not sum to
  * one. Stroking each face in its own colour closes the seam without changing
- * the colour. Every face the painter draws is opaque, so every face gets one.
+ * the colour. Every face the painter draws is opaque, so every face gets one,
+ * unless it strokes its own outline: that pen lies where the seam would.
  */
 export const SEAM_STROKE_WIDTH_PT = 0.4;
 
@@ -163,8 +164,8 @@ export function paperSceneToSvg(
     `<svg xmlns="http://www.w3.org/2000/svg" ` +
       `width="${num(widthPt)}pt" height="${num(heightPt)}pt" ` +
       `viewBox="0 0 ${num(widthPt)} ${num(heightPt)}" role="img" aria-label="Folded paper">`,
-    // Round joins so the seam hairline cannot spike at a sliver's corner; each
-    // line carries its own cap.
+    // Round joins so neither the seam hairline nor a face's outline can spike
+    // at a sliver's corner; each line carries its own cap.
     '  <g stroke-linejoin="round">',
     ...elements,
     '  </g>',
@@ -191,7 +192,8 @@ export interface PaperSvgBodyOptions {
  * sheet and places it by its own layout. The same pens, seam and erode rules
  * as {@link paperSceneToSvg}, at the caller's projection; the caller wraps the
  * result in whatever group it places the picture with, and gives that group
- * round joins as the page does, or the seam hairline can spike at a corner.
+ * round joins as the page does, or the seam hairline and a face's outline can
+ * spike at a corner.
  *
  * A markup item's coordinates are scene px, and the painter carries it onto
  * the page by a transform rather than by projecting its points, so a body
@@ -220,7 +222,7 @@ function sceneElements(
     if (item.hidden && !keepHiddenFaces) continue;
     const element =
       item.kind === 'face'
-        ? faceElement(item, style, project, unitsPerPt)
+        ? faceElement(item, style, erodePx, project, unitsPerPt)
         : item.kind === 'line'
           ? lineElement(item, style, erodePx, project, unitsPerPt)
           : markupElement(item, project);
@@ -308,27 +310,67 @@ export function penForRole(style: PaperStyle, role: PaperLineRole): Pen | null {
   }
 }
 
+/**
+ * A face as one `<path>` — never a polygon, since a drawing editor's node tool
+ * reshapes only paths — stroked with its outline's pen when it draws one, so
+ * the fill and the outline move together. A dashed pen draws a line per edge
+ * after the fill instead, each dash centred on its edge as an outline drawn in
+ * lines is.
+ */
 function faceElement(
   face: PaperFaceItem,
   style: PaperStyle,
+  erodePx: number,
   place: (point: ScenePoint) => ScenePoint,
   unitsPerPt: number
 ): string | null {
   const rings = face.rings.filter((ring) => ring.length >= 3);
   if (rings.length === 0) return null;
   const fill = paperFaceFill(style, face.side, face.shade);
-  const seam = num(SEAM_STROKE_WIDTH_PT * unitsPerPt);
-  const ink = `fill="${fill}" stroke="${fill}" stroke-width="${seam}"`;
-  if (rings.length === 1) {
-    const points = rings[0]!.map((point) => pointText(place(point))).join(' ');
-    return `  <polygon points="${points}" ${ink}/>`;
-  }
-  // A region with holes is one path: the rings are wound against each other,
-  // and even-odd makes the inner ones holes whichever way they turn.
+  // Several rings are one even-odd set: the inner ones are holes whichever
+  // way they turn.
   const d = rings
     .map((ring) => `M${ring.map((point) => pointText(place(point))).join('L')}Z`)
     .join('');
-  return `  <path d="${d}" fill-rule="evenodd" ${ink}/>`;
+  const shape = `d="${d}"${rings.length > 1 ? ' fill-rule="evenodd"' : ''} fill="${fill}"`;
+  const pen = face.outline ? penForRole(style, face.outline) : null;
+  if (pen && !pen.dash) {
+    return `  <path ${shape} stroke="${pen.color}" stroke-width="${num(pen.width * unitsPerPt)}"/>`;
+  }
+  const seam = num(SEAM_STROKE_WIDTH_PT * unitsPerPt);
+  const element = `  <path ${shape} stroke="${fill}" stroke-width="${seam}"/>`;
+  if (!pen) return element;
+  const lines = faceOutlineLines(face).map((line) =>
+    lineElement(line, style, erodePx, place, unitsPerPt)
+  );
+  return [element, ...lines.filter((line) => line !== null)].join('\n');
+}
+
+/**
+ * The lines a face's outline stands for: one per edge of every ring it fills,
+ * in the outline's role, on the face and hidden with it. Empty when the face
+ * draws no outline. For a drawer that draws an outline as lines — the canvas,
+ * and the painter's dashed pen — so each draws the lines the producer would
+ * otherwise have emitted after the face.
+ */
+export function faceOutlineLines(face: PaperFaceItem): PaperLineItem[] {
+  const role = face.outline;
+  if (!role) return [];
+  return face.rings
+    .filter((ring) => ring.length >= 3)
+    .flatMap((ring) =>
+      ring.map(
+        (a, i): PaperLineItem => ({
+          kind: 'line',
+          role,
+          a,
+          b: ring[(i + 1) % ring.length]!,
+          onBoundary: [false, false],
+          face: face.face,
+          hidden: face.hidden,
+        })
+      )
+    );
 }
 
 function lineElement(

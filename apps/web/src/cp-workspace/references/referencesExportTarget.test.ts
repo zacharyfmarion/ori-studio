@@ -45,7 +45,9 @@ import { decodePlanModel, planModelPoints, planStepScene } from './referencesPla
  * Then the letters shrank by a ninth, the accent over a step's lines took the
  * edge pen's weight — later the arrow's — and the sheet's border moved over
  * the step's lines. The defaults page opens at 50 mm, the size every export
- * opens at, where it was a 41 mm diagram step.
+ * opens at, where it was a 41 mm diagram step. The sheet became a `<path>`
+ * where it was a `<polygon>`, so an editor's node tool reshapes it, and
+ * nothing else changed (`implementation-plans/editable-face-paths.md`).
  * The defaults page is a printed diagram's step, the size the dialog opens a
  * step at.
  */
@@ -214,8 +216,9 @@ describe('referencesExportTarget', () => {
     const set = paperScenesOnOneCrop(scenes as PaperScene[]).map((scene) =>
       paintPaperExport(exported, scene, DEFAULT_PAPER_STYLE, page)
     );
+    // The sheet is the page's first path: its corners, in any order.
     const sheetCorners = (svg: string) =>
-      svg.match(/<polygon points="([^"]+)"/)![1]!.split(' ').sort();
+      svg.match(/<path d="M([^"Z]+)Z"/)![1]!.split('L').sort();
     for (const each of set) {
       expect(each.widthPt).toBeCloseTo(alone.widthPt, 6);
       expect(sheetCorners(each.svg)).toEqual(sheetCorners(alone.svg));
@@ -274,8 +277,8 @@ describe('a step’s marks on the page', () => {
     for (const mm of [41, 120]) {
       const { page, markup, scale } = await pageAt(mm);
       // The paper alone takes the sheet size.
-      const [sheet] = elements(page, 'polygon');
-      const corners = sheet!.points!.split(' ').map((pair) => pair.split(',').map(Number));
+      const [sheet] = elements(page, 'path');
+      const corners = sheet!.d!.replace(/^M|Z$/g, '').split('L').map((pair) => pair.split(',').map(Number));
       const xs = corners.map(([x]) => x!);
       const ys = corners.map(([, y]) => y!);
       expect(Math.max(...xs) - Math.min(...xs), `${mm} mm`).toBeCloseTo(mm * PT_PER_MM, 1);

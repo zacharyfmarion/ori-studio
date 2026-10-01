@@ -691,6 +691,20 @@ describe('native project file', () => {
     );
   });
 
+  it('keeps the outline a face draws itself, and drops one it cannot read', () => {
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    const [outlined] = stored.scene.items;
+    stored.scene.items.push({ ...outlined, outline: 'creased' });
+    outlined.outline = 'edge';
+
+    const [entry] = reparse(serialized);
+    expect(entry.scene?.items[0]).toMatchObject({ kind: 'face', outline: 'edge' });
+    // Still a face, drawing no outline of its own, rather than dropped.
+    expect(entry.scene?.items[2]).toMatchObject({ kind: 'face', face: 2 });
+    expect(entry.scene?.items[2]).not.toHaveProperty('outline');
+  });
+
   it('refuses a stored picture with no bounds rather than drawing at the origin', () => {
     const { serialized } = roundTripCp([folded3dFigure()]);
     delete serialized.workspace.creasePattern.viewState.foldedFigures[0].scene.bounds;

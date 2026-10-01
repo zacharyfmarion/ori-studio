@@ -17,7 +17,9 @@
  * its whole outline, and painter's order reproduces the drawer's picture:
  * wherever two faces overlap the nearer one is drawn later. That is one
  * object per face — no sliver per subface, no seam grid (D2) — and a buried
- * layer is a face an editor can delete to reveal the one beneath.
+ * layer is a face an editor can delete to reveal the one beneath. A whole face
+ * draws its outline itself (`PaperFaceItem.outline`), so reshaping it in an
+ * editor moves the fill and the outline together.
  *
  * # Woven flaps
  *
@@ -293,16 +295,34 @@ interface EmitContext {
   epsilon: number;
 }
 
-/** A face once, as its outline, followed by its lines. */
+/**
+ * A face once, as its outline, followed by its lines. An outline whose edges
+ * all take one role is drawn by the face itself, so the fill and its outline
+ * reach a drawing editor as one object; a mixed one is a line per edge.
+ */
 function emitWholeFace(items: PaperItem[], context: EmitContext, face: number): void {
   const { kernel, options } = context;
   const source = kernel.faces[face]!;
   const hidden = options.markHidden && !context.top.has(face);
-  items.push(faceItem(face, source, [source.outline.map(options.toScenePx)], hidden));
-  source.edges.forEach(({ from, to }, edge) => {
-    items.push(outlineLine(context, face, edge, from, to, hidden));
-  });
+  const outline = outlineRole(source);
+  items.push(faceItem(face, source, [source.outline.map(options.toScenePx)], hidden, outline));
+  if (!outline) {
+    source.edges.forEach(({ from, to }, edge) => {
+      items.push(outlineLine(context, face, edge, from, to, hidden));
+    });
+  }
   emitAuxLines(items, context, face, hidden);
+}
+
+/**
+ * The role every edge of a face's outline takes, or undefined when they
+ * differ. A loop of one role never erodes — an aux end retreats only where a
+ * border or fold of the same outline meets it ({@link outlineLine}) — so the
+ * face's own stroke draws exactly the lines it replaces.
+ */
+function outlineRole(source: OristudioCpFoldedPaperFace): PaperLineRole | undefined {
+  const roles = new Set(source.edges.map((edge) => roleOf(edge.kind)));
+  return roles.size === 1 ? [...roles][0] : undefined;
 }
 
 /**
@@ -538,10 +558,11 @@ function faceItem(
   face: number,
   source: OristudioCpFoldedPaperFace,
   rings: ScenePoint[][],
-  hidden: boolean
+  hidden: boolean,
+  outline?: PaperLineRole
 ): PaperFaceItem {
   const side: PaperSide = source.front_up ? 'front' : 'back';
-  return { kind: 'face', face, side, rings, shade: 1, hidden };
+  return { kind: 'face', face, side, rings, ...(outline ? { outline } : {}), shade: 1, hidden };
 }
 
 /**

@@ -44,13 +44,14 @@ import {
 import type { Point } from '../../lib/geometry';
 import type {
   PaperFaceItem,
+  PaperItem,
   PaperLineItem,
   PaperScene,
   ScenePoint,
 } from '../../lib/paper/paperScene';
 import { foldedSceneLocalGeometry } from '../adapters/cpFoldedToScene';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
-import { erodeLine } from '../../lib/paper/paperSvg';
+import { erodeLine, faceOutlineLines } from '../../lib/paper/paperSvg';
 import { faceComponents, foldedFlatPaperScene } from './foldedFlatScene';
 
 const FIXTURES = resolve(process.cwd(), '../../tests/fixtures');
@@ -215,6 +216,16 @@ const faceItems = (scene: PaperScene): PaperFaceItem[] =>
 const lineItems = (scene: PaperScene): PaperLineItem[] =>
   scene.items.filter((item): item is PaperLineItem => item.kind === 'line');
 
+/**
+ * The scene's items as they are drawn: a face that draws its own outline is
+ * followed by the lines that outline stands for, as the painter strokes them
+ * over its fill.
+ */
+const drawn = (items: readonly PaperItem[]): PaperItem[] =>
+  items.flatMap<PaperItem>((item) =>
+    item.kind === 'face' ? [item, ...faceOutlineLines(item)] : [item]
+  );
+
 /** The lines that follow each face item, up to the next face item. */
 function linesAfterEachFace(scene: PaperScene): Map<number, PaperLineItem[]> {
   const after = new Map<number, PaperLineItem[]>();
@@ -314,7 +325,7 @@ function insideRings(rings: ReadonlyArray<ReadonlyArray<ScenePoint>>, [x, y]: Sc
  * With `dropHidden`, the page that leaves buried items out.
  */
 function halfCoveredLines(scene: PaperScene, dropHidden = false): string[] {
-  const items = dropHidden ? scene.items.filter((item) => !item.hidden) : scene.items;
+  const items = drawn(dropHidden ? scene.items.filter((item) => !item.hidden) : scene.items);
   const boxes = items.map((item) => {
     if (item.kind !== 'face') return null;
     const points = item.rings.flat();
@@ -482,34 +493,35 @@ describe('an acyclic stacking', () => {
     }
   });
 
-  it('draws every face once, whole, with its lines right after it', () => {
+  it('draws every face once, whole, its outline drawn by the face itself', () => {
     for (const { name, scene: kernel } of real()) {
       const scene = sceneOf(kernel);
       const faces = faceItems(scene);
       expect(faces.map((f) => f.face).sort((a, b) => a - b), name).toEqual(
         kernel.faces.map((_, i) => i)
       );
-      const after = linesAfterEachFace(scene);
-      scene.items.forEach((item, index) => {
-        if (item.kind !== 'face') return;
+      for (const item of faces) {
         const source = kernel.faces[item.face]!;
         expect(item.rings, `${name} face ${item.face}`).toEqual([ring(source.outline)]);
         expect(item.side).toBe(source.front_up ? 'front' : 'back');
         expect(item.shade).toBe(1);
-        const lines = after.get(index)!;
+        // Border and fold alike are the paper's edge, so the face strokes
+        // its whole outline in that pen, and no line repeats an edge of it.
+        expect(item.outline, `${name} face ${item.face}`).toBe('edge');
+        const lines = faceOutlineLines(item);
         expect(lines.length, `${name} face ${item.face} lines`).toBe(source.edges.length);
         lines.forEach((line, i) => {
           const edge = source.edges[i]!;
+          expect(edge.kind).not.toBe('flat');
           expect(line.a).toEqual(identity(edge.from));
           expect(line.b).toEqual(identity(edge.to));
-          expect(line.role).toBe(edge.kind === 'flat' ? 'aux' : 'edge');
           expect(line.face).toBe(item.face);
           expect(line.hidden).toBe(item.hidden);
           // A paper edge or a fold is the outline and never retreats.
           expect(line.onBoundary).toEqual([false, false]);
         });
-      });
-      expect(lineItems(scene).length).toBe(faces.reduce((n, f) => n + kernel.faces[f.face]!.edges.length, 0));
+      }
+      expect(lineItems(scene).filter((line) => line.role !== 'aux'), name).toEqual([]);
     }
   });
 
@@ -586,6 +598,8 @@ describe('a woven stacking', () => {
     expect(piecesOf(E)[0]!.rings).toEqual([ring(kernel.faces[E]!.outline)]);
     expect(piecesOf(E)[0]!.hidden).toBe(true);
     expect(piecesOf(F)[0]!.hidden).toBe(false);
+    expect(piecesOf(E)[0]!.outline).toBe('edge');
+    expect(piecesOf(F)[0]!.outline).toBe('edge');
     // The weave: a piece for each subface the face lies under something in,
     // that subface's polygon, and one item for every subface it is on top of,
     // their polygons its rings.
@@ -606,6 +620,8 @@ describe('a woven stacking', () => {
       }
       for (const piece of pieces) {
         expect(piece.side).toBe(kernel.faces[face]!.front_up ? 'front' : 'back');
+        // A piece's rings are cut where its face is not: its outline is lines.
+        expect(piece.outline).toBeUndefined();
       }
     }
     // A piece is hidden when it is not the top of its subface.
@@ -777,11 +793,12 @@ describe('a woven stacking', () => {
     expect(at(right!)).toBeGreaterThan(lastWovenFill);
   });
 
-  it('keeps a whole face’s lines after the face and a flat outline edge as aux', () => {
+  it('keeps a line per edge after a whole face whose outline mixes roles, a flat edge as aux', () => {
     const kernel = wovenScene();
     kernel.faces[F]!.edges[2]!.kind = 'flat';
     const scene = sceneOf(kernel);
     const fIndex = scene.items.findIndex((item) => item.kind === 'face' && item.face === F);
+    expect(scene.items[fIndex]).not.toHaveProperty('outline');
     const lines = linesAfterEachFace(scene).get(fIndex)!;
     expect(lines.map((l) => l.role)).toEqual(['edge', 'edge', 'aux', 'edge']);
     // The flat edge meets a border at both ends, so both retreat under erode.
@@ -843,7 +860,8 @@ describe('a real cyclic stacking', () => {
   it('leaves no line on top half-covered, whether or not buried items are kept', () => {
     for (const { name, scene: kernel } of cyclic()) {
       const scene = sceneOf(kernel);
-      expect(lineItems(scene).some((l) => !l.hidden), name).toBe(true);
+      // Not vacuous: lines show, whether a piece's or a whole face's outline.
+      expect(drawn(scene.items).some((item) => item.kind === 'line' && !item.hidden), name).toBe(true);
       expect(halfCoveredLines(scene), name).toEqual([]);
       expect(halfCoveredLines(scene, true), name).toEqual([]);
     }

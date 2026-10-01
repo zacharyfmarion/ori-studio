@@ -621,7 +621,9 @@ describe('a whole step', () => {
     expect(valley[0]).toMatchObject({ 'stroke-width': '0.70', 'stroke-dasharray': '2.80 1.40' });
     expect(drawn.some((l) => l.stroke === '#fedcba')).toBe(false);
     expect(drawn.some((l) => l.stroke === '#abcdef' && l['stroke-width'] === '0.30')).toBe(true);
-    expect(elements(page.svg, 'polygon')[0]!.fill).toBe(style.paper.front);
+    // The sheet is the page's first path, ahead of the markup's own.
+    expect(elements(page.svg, 'path')[0]!.fill).toBe(style.paper.front);
+    expect(page.svg).not.toContain('<polygon');
     // The step's own arrow and letters are in the page, in the page's group.
     expect(page.svg).toContain('<g transform="translate(');
     expect(page.svg).toContain('</text>');
