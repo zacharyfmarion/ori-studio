@@ -23,6 +23,7 @@ import type {
 } from './paperScene';
 import { hexToUnitRgb, unitRgbToHex } from './paperStyleResolve';
 import { PT_TO_CSS_PX, type Hex, type PaperStyle, type Pen } from './paperStyle';
+import { escapeXml } from '../xmlEscape';
 
 /** Points per CSS px: the screen, at 96 px per inch. */
 export const PT_PER_CSS_PX = 0.75;
@@ -218,6 +219,7 @@ function sceneElements(
   // projection, so a page scale does not change it.
   const erodePx = style.erode * scene.sheet;
   const elements: string[] = [];
+  let group: string | undefined;
   for (const item of scene.items) {
     if (item.hidden && !keepHiddenFaces) continue;
     const element =
@@ -226,8 +228,16 @@ function sceneElements(
         : item.kind === 'line'
           ? lineElement(item, style, erodePx, project, unitsPerPt)
           : markupElement(item, project);
-    if (element) elements.push(element);
+    if (!element) continue;
+    const next = item.kind === 'markup' ? undefined : item.group;
+    if (next !== group) {
+      if (group !== undefined) elements.push('  </g>');
+      if (next !== undefined) elements.push(`  <g id="${escapeXml(next)}">`);
+      group = next;
+    }
+    elements.push(element);
   }
+  if (group !== undefined) elements.push('  </g>');
   return elements;
 }
 

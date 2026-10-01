@@ -345,6 +345,45 @@ describe('faces', () => {
   });
 });
 
+describe('groups', () => {
+  it('writes items that share a group, one after another, as one <g> with its id', () => {
+    const scene = sceneOf([
+      face([SQUARE]),
+      face([SQUARE], { group: 'patches-1' }),
+      line('edge', [0, 0], [100, 0], { group: 'patches-1' }),
+      face([SQUARE]),
+      line('edge', [0, 50], [100, 50], { group: 'patches-2' }),
+    ]);
+    const { svg } = paint(scene);
+    expect(svg.match(/<g id="[^"]*">/g)).toEqual(['<g id="patches-1">', '<g id="patches-2">']);
+    const opened = svg.indexOf('<g id="patches-1">');
+    const inside = svg.slice(opened, svg.indexOf('</g>', opened));
+    expect(inside.match(/<(path|line) /g)).toEqual(['<path ', '<line ']);
+    // The page's own group and these two, each closed.
+    expect(svg.match(/<g\b/g)).toHaveLength(3);
+    expect(svg.match(/<\/g>/g)).toHaveLength(3);
+  });
+
+  it('opens no group for items the page leaves out, and escapes the id it writes', () => {
+    const scene = sceneOf([
+      face([SQUARE], { group: 'buried', hidden: true }),
+      face([SQUARE], { group: 'a&b' }),
+    ]);
+    const { svg } = paint(scene, DEFAULT_PAPER_STYLE, { ...TIGHT, keepHiddenFaces: false });
+    expect(svg.match(/<g id="[^"]*">/g)).toEqual(['<g id="a&amp;b">']);
+  });
+
+  it('closes a group in a body for another writer’s page', () => {
+    const body = paperSceneSvgBody(sceneOf([face([SQUARE], { group: 'patches-1' })]), DEFAULT_PAPER_STYLE, {
+      project: ([x, y]) => [x, y],
+      unitsPerPt: 1,
+      keepHiddenFaces: true,
+    });
+    expect(body.startsWith('  <g id="patches-1">')).toBe(true);
+    expect(body.endsWith('</g>')).toBe(true);
+  });
+});
+
 describe('faceOutlineLines', () => {
   it('is a line per edge of every ring, in the outline’s role, on the face and hidden with it', () => {
     const triangle: ScenePoint[] = [

@@ -81,6 +81,8 @@ export interface PaperFaceItem {
   shade: number;
   /** No pixel of the page shows this piece — see {@link MeshToPaperSceneOptions.markHidden}. */
   hidden: boolean;
+  /** See {@link PaperLineItem.group}. */
+  group?: string;
 }
 
 export interface PaperLineItem {
@@ -118,6 +120,12 @@ export interface PaperLineItem {
   /** The face the line is drawn on, when one is known. */
   face?: number;
   hidden: boolean;
+  /**
+   * Items that follow one another with the same group are written as one
+   * `<g>` with this id, so a drawing editor treats them as one object. A
+   * producer makes it unique in its scene, and an XML name.
+   */
+  group?: string;
 }
 
 /** A cut line's whole crease: see {@link PaperLineItem.whole}. */

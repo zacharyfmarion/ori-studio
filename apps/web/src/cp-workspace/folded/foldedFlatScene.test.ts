@@ -7,18 +7,21 @@
  * subfaces and stacks for the Oriedita solution sample and the kabuto, front
  * and back. Both stack acyclically. Oriedita's own `glitch.cp` test pattern
  * does not: seen from the back, a cycle of thirty-odd faces is on top of
- * nearly every subface, so most of what shows is drawn in pieces. The woven
- * case is hand-built in the kernel's shape as well, small enough to name every
- * piece: four strips each over the next and the last over the first, beside
- * two faces that stack plainly.
+ * nearly every subface, so most of what shows is woven. The woven case is
+ * hand-built in the kernel's shape as well, small enough to name every patch:
+ * four strips each over the next and the last over the first, beside two
+ * faces that stack plainly.
  *
  * The parity gate is the one the 3D scene's tests use: paint the scene in
  * painter's order with nothing else, and read back, inside every subface, the
  * face that came out on top. It must be the face the oracle-checked drawer
  * paints there — the kernel's `faces_top_to_bottom[0]` — whether the face was
- * drawn whole or in pieces. And no line on top of its subface may be left
+ * drawn whole or patched. No line on top of its subface may be left
  * half-covered: a later fill along it, with nothing after that drawing the
- * line again, paints over the outer half of its stroke.
+ * line again, paints over the outer half of its stroke. And no ink may show
+ * that the drawer's picture does not have: a buried edge's stroke, or a
+ * buried corner's rounded join, left uncovered by an order that draws a woven
+ * face whole after the face that covers it.
  */
 
 import { readFileSync } from 'node:fs';
@@ -49,10 +52,8 @@ import type {
   PaperScene,
   ScenePoint,
 } from '../../lib/paper/paperScene';
-import { foldedSceneLocalGeometry } from '../adapters/cpFoldedToScene';
-import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { erodeLine, faceOutlineLines } from '../../lib/paper/paperSvg';
-import { faceComponents, foldedFlatPaperScene } from './foldedFlatScene';
+import { faceComponents, foldedFlatPaperScene, wovenDrawOrder } from './foldedFlatScene';
 
 const FIXTURES = resolve(process.cwd(), '../../tests/fixtures');
 const ORIEDITA_TEST_RESOURCES = resolve(
@@ -377,6 +378,130 @@ function halfCoveredLines(scene: PaperScene, dropHidden = false): string[] {
   return found;
 }
 
+/**
+ * In every subface, the last fill that covers it is its top face's: the face
+ * drawn whole after every other face of the stack, or a patch of it, cut to
+ * the subface, after them.
+ */
+function expectTopsDrawnLast(kernel: OristudioCpFoldedPaperScene, scene: PaperScene): void {
+  kernel.subfaces.forEach(({ polygon, faces_top_to_bottom: stack }, subface) => {
+    let last: number | undefined;
+    for (const item of scene.items) {
+      if (item.kind !== 'face' || !stack.includes(item.face)) continue;
+      const patch = item.group !== undefined;
+      if (!patch || JSON.stringify(item.rings[0]) === JSON.stringify(ring(polygon))) last = item.face;
+    }
+    expect(last, `subface ${subface}`).toBe(stack[0]);
+  });
+}
+
+/* --------------------------------------------------------------------------
+ * Ink that shows where the drawer's picture has none
+ * ----------------------------------------------------------------------- */
+
+/** The subface a point lies in, or -1 off the figure. */
+function subfaceAt(kernel: OristudioCpFoldedPaperScene, point: ScenePoint): number {
+  return kernel.subfaces.findIndex(({ polygon }) => insideRings([ring(polygon)], point));
+}
+
+/** Whether a face has an edge through a point. */
+function edgeThrough(kernel: OristudioCpFoldedPaperScene, face: number, [x, y]: ScenePoint): boolean {
+  return kernel.faces[face]!.edges.some(({ from, to }) => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    const t = ((x - from.x) * dx + (y - from.y) * dy) / (length * length);
+    return t >= -ALONG && t <= 1 + ALONG && Math.abs(dx * (y - from.y) - dy * (x - from.x)) / length <= ALONG;
+  });
+}
+
+/**
+ * Where ink shows that the drawer's picture has none, or a line it has is
+ * gone. Along every edge line drawn — a face's outline as the lines it stands
+ * for, and every line item — a hair to either side: where the top face on
+ * either side runs along it, the line is on the page and must be painted over
+ * on neither side; where not, it is buried and must be painted over on both,
+ * by fills drawn after the last line through that point. And at every corner
+ * of a face drawn whole where no line is on the page: the directions behind
+ * both of its edges, which its rounded join inks, must be painted over by a
+ * fill drawn after it. Aux lines are left out; their own tests place them.
+ */
+function inkThatShows(kernel: OristudioCpFoldedPaperScene, scene: PaperScene): string[] {
+  const items = drawn(scene.items);
+  const hair = 1e-5 * Math.max(1, scene.sheet);
+  const coveredAfter = (index: number, point: ScenePoint): boolean =>
+    items.some((item, k) => k > index && item.kind === 'face' && insideRings(item.rings, point));
+  const topAt = (point: ScenePoint): number | undefined => {
+    const subface = subfaceAt(kernel, point);
+    return subface < 0 ? undefined : kernel.subfaces[subface]!.faces_top_to_bottom[0];
+  };
+  const found: string[] = [];
+  items.forEach((line, i) => {
+    if (line.kind !== 'line' || line.role !== 'edge') return;
+    const [ax, ay] = line.a;
+    const [bx, by] = line.b;
+    const length = Math.hypot(bx - ax, by - ay);
+    if (!(length > ALONG)) return;
+    const nx = (-(by - ay) / length) * hair;
+    const ny = ((bx - ax) / length) * hair;
+    for (let sample = 0; sample < 16; sample += 1) {
+      const t = (sample + 0.5 + 0.0417) / 16.1;
+      const at: ScenePoint = [ax + (bx - ax) * t, ay + (by - ay) * t];
+      let last = i;
+      for (let k = i + 1; k < items.length; k += 1) {
+        const later = items[k]!;
+        if (later.kind !== 'line') continue;
+        const through = alongSpan(line.a, line.b, later.a, later.b);
+        if (through !== null && through[0] <= t && t <= through[1]) last = k;
+      }
+      const sides: ScenePoint[] = [[at[0] + nx, at[1] + ny], [at[0] - nx, at[1] - ny]];
+      const onPage = sides.some((side) => {
+        const top = topAt(side);
+        return top !== undefined && edgeThrough(kernel, top, at);
+      });
+      const covered = sides.map((side) => coveredAfter(last, side));
+      if (onPage && covered.some(Boolean)) {
+        found.push(`line ${line.a}→${line.b} of face ${line.face} is painted over at t ${t}`);
+        return;
+      }
+      if (!onPage && !covered.every(Boolean)) {
+        found.push(`buried line ${line.a}→${line.b} of face ${line.face} shows at t ${t}`);
+        return;
+      }
+    }
+  });
+  const reach = 20 * hair;
+  items.forEach((item, i) => {
+    if (item.kind !== 'face' || !item.outline) return;
+    const outline = item.rings[0]!;
+    outline.forEach((v, c) => {
+      const around = Array.from({ length: 12 }, (_, k): ScenePoint => [
+        v[0] + reach * Math.cos((k * Math.PI) / 6 + 0.1),
+        v[1] + reach * Math.sin((k * Math.PI) / 6 + 0.1),
+      ]);
+      const tops = new Set(around.map(topAt));
+      const lineAtVertex =
+        tops.size > 1 || [...tops].some((top) => top !== undefined && edgeThrough(kernel, top, v));
+      if (lineAtVertex) return;
+      const unit = ([x, y]: ScenePoint): ScenePoint => {
+        const length = Math.hypot(x - v[0], y - v[1]);
+        return [(x - v[0]) / length, (y - v[1]) / length];
+      };
+      const back = unit(outline[(c + outline.length - 1) % outline.length]!);
+      const ahead = unit(outline[(c + 1) % outline.length]!);
+      for (const [dx, dy] of around.map(unit)) {
+        if (dx * back[0] + dy * back[1] >= 0 || dx * ahead[0] + dy * ahead[1] >= 0) continue;
+        const behind: ScenePoint = [v[0] + dx * reach, v[1] + dy * reach];
+        if (!coveredAfter(i, behind)) {
+          found.push(`corner ${v} of face ${item.face} shows behind its edges`);
+          return;
+        }
+      }
+    });
+  });
+  return found;
+}
+
 /* --------------------------------------------------------------------------
  * The rasterised gate
  * ----------------------------------------------------------------------- */
@@ -539,6 +664,14 @@ describe('an acyclic stacking', () => {
     }
   });
 
+  it('leaves no buried ink showing and no line missing, with no patch', () => {
+    for (const { name, scene: kernel } of real()) {
+      const scene = sceneOf(kernel);
+      expect(inkThatShows(kernel, scene), name).toEqual([]);
+      expect(scene.items.some((item) => item.kind !== 'markup' && item.group !== undefined), name).toBe(false);
+    }
+  });
+
   it('marks hidden exactly the faces on top of no subface, and keeps them', () => {
     for (const { name, scene: kernel } of real()) {
       const visible = visibleFaces(kernel);
@@ -587,115 +720,113 @@ describe('a woven stacking', () => {
     expect(components.length).toBe(3);
   });
 
-  it('splits only the cycle’s faces, into their subface pieces', () => {
+  it('draws every face once, whole, the cycle’s too, each drawing its own outline', () => {
     const kernel = wovenScene();
-    const scene = sceneOf(kernel);
-    const faces = faceItems(scene);
-    const piecesOf = (face: number) => faces.filter((f) => f.face === face);
-    // The plain pair: whole, and in order.
-    expect(piecesOf(E)).toHaveLength(1);
-    expect(piecesOf(F)).toHaveLength(1);
-    expect(piecesOf(E)[0]!.rings).toEqual([ring(kernel.faces[E]!.outline)]);
-    expect(piecesOf(E)[0]!.hidden).toBe(true);
-    expect(piecesOf(F)[0]!.hidden).toBe(false);
-    expect(piecesOf(E)[0]!.outline).toBe('edge');
-    expect(piecesOf(F)[0]!.outline).toBe('edge');
-    // The weave: a piece for each subface the face lies under something in,
-    // that subface's polygon, and one item for every subface it is on top of,
-    // their polygons its rings.
-    for (const face of WOVEN) {
-      const pieces = piecesOf(face);
-      const buried = kernel.subfaces.filter((s) => s.faces_top_to_bottom.indexOf(face) > 0);
-      const topped = kernel.subfaces.filter((s) => s.faces_top_to_bottom[0] === face);
-      expect(topped.length, `face ${face}`).toBeGreaterThan(1);
-      expect(pieces, `face ${face}`).toHaveLength(buried.length + 1);
-      const [top, ...rest] = [...pieces].sort((a, b) => Number(a.hidden) - Number(b.hidden));
-      expect(top!.hidden).toBe(false);
-      expect(top!.rings).toHaveLength(topped.length);
-      expect(top!.rings).toEqual(expect.arrayContaining(topped.map((s) => ring(s.polygon))));
-      for (const piece of rest) {
-        expect(piece.hidden).toBe(true);
-        expect(piece.rings).toHaveLength(1);
-        expect(buried.map((s) => ring(s.polygon))).toContainEqual(piece.rings[0]);
-      }
-      for (const piece of pieces) {
-        expect(piece.side).toBe(kernel.faces[face]!.front_up ? 'front' : 'back');
-        // A piece's rings are cut where its face is not: its outline is lines.
-        expect(piece.outline).toBeUndefined();
-      }
-    }
-    // A piece is hidden when it is not the top of its subface.
-    const hiddenPieces = faces.filter((f) => WOVEN.includes(f.face) && f.hidden);
-    expect(hiddenPieces.map((f) => f.rings[0])).toEqual(
-      expect.arrayContaining([ring(kernel.subfaces[1]!.polygon), ring(kernel.subfaces[3]!.polygon)])
-    );
-    expect(hiddenPieces).toHaveLength(4);
-    expectStacksInPainterOrder(kernel, scene);
-  });
-
-  it('gives each piece the outline portions that bound it, and loses none', () => {
-    const kernel = wovenScene();
-    const scene = sceneOf(kernel);
-    const after = linesAfterEachFace(scene);
-    // H1's piece under V2 (subface 3) carries the two H1 edge portions along
-    // that piece's top and bottom, hidden with it; V2's piece over it carries
-    // V2's portions there, visible.
-    const h1UnderV2 = scene.items.findIndex(
-      (item) => item.kind === 'face' && item.face === H1 && item.rings[0]![0]![0] === 3
-    );
-    const h1Lines = after.get(h1UnderV2)!;
-    expect(h1Lines).toHaveLength(2);
-    expect(h1Lines.every((l) => l.hidden && l.face === H1 && l.role === 'edge')).toBe(true);
-    expect(h1Lines.map((l) => [l.a, l.b].sort())).toEqual(
-      expect.arrayContaining([
-        [[3, 1], [4, 1]],
-        [[3, 2], [4, 2]],
-      ])
-    );
-    // Every portion of every woven outline is somewhere, and hidden or not
-    // as its piece is: the sum of the portions' lengths is the outline's.
-    for (const face of WOVEN) {
-      const total = lineItems(scene)
-        .filter((l) => l.face === face)
-        .reduce((n, l) => n + Math.hypot(l.b[0] - l.a[0], l.b[1] - l.a[1]), 0);
-      expect(total, `face ${face}`).toBeCloseTo(12, 9);
-    }
-    // Lines of a piece are drawn before the piece over it: V2 on top of
-    // subface 3 comes after H1's lines there. V2's portions along that
-    // piece's two sides are visible, and wait for the last fill of the cycle.
-    const v2OverH1 = scene.items.findIndex(
-      (item) => item.kind === 'face' && item.face === V2 && !item.hidden
-    );
-    expect(v2OverH1).toBeGreaterThan(h1UnderV2 + 2);
-    let lastWovenFill = -1;
-    scene.items.forEach((item, index) => {
-      if (item.kind === 'face' && WOVEN.includes(item.face)) lastWovenFill = index;
-    });
-    const sideOf = (a: ScenePoint, b: ScenePoint) =>
-      scene.items.findIndex(
-        (item) =>
-          item.kind === 'line' &&
-          item.face === V2 &&
-          JSON.stringify([item.a, item.b].sort()) === JSON.stringify([a, b])
-      );
-    for (const side of [sideOf([3, 1], [3, 2]), sideOf([4, 1], [4, 2])]) {
-      expect(side).toBeGreaterThan(lastWovenFill);
-      expect((scene.items[side] as PaperLineItem).hidden).toBe(false);
+    const whole = faceItems(sceneOf(kernel)).filter((face) => face.group === undefined);
+    expect(whole.map((face) => face.face).sort((a, b) => a - b)).toEqual([H1, V1, H2, V2, E, F]);
+    for (const face of whole) {
+      expect(face.rings, `face ${face.face}`).toEqual([ring(kernel.faces[face.face]!.outline)]);
+      expect(face.outline).toBe('edge');
     }
   });
 
-  it('draws every line on top after the last piece of the cycle', () => {
+  it('breaks the cycle once and patches what that leaves wrong, right after the last face it covers', () => {
     const kernel = wovenScene();
     const scene = sceneOf(kernel);
-    let lastWovenFill = -1;
-    scene.items.forEach((item, index) => {
-      if (item.kind === 'face' && WOVEN.includes(item.face)) lastWovenFill = index;
-    });
-    scene.items.forEach((item, index) => {
-      if (item.kind !== 'line' || item.face === undefined || !WOVEN.includes(item.face)) return;
-      if (item.hidden) expect(index, 'a buried line stays with its piece').toBeLessThan(lastWovenFill);
-      else expect(index, 'a line on top waits for the cycle').toBeGreaterThan(lastWovenFill);
-    });
+    // Drawn bottom to top as V2, H2, V1, H1: each over the one before, except
+    // that H1 now covers V2 where V2 should be on top.
+    const whole = faceItems(scene).filter((face) => face.group === undefined);
+    expect(whole.slice(0, 4).map((face) => face.face)).toEqual([V2, H2, V1, H1]);
+    // So V2 goes in again over that crossing (subface 3), and over the strips
+    // of it either side (13 and 14), where H1's outline, drawn whole, would
+    // show its half across V2.
+    const patches = faceItems(scene).filter((face) => face.group !== undefined);
+    expect(patches.map((patch) => [patch.face, patch.rings])).toEqual(
+      [3, 13, 14].map((subface) => [V2, [ring(kernel.subfaces[subface]!.polygon)]])
+    );
+    for (const patch of patches) {
+      expect(patch.hidden).toBe(false);
+      expect(patch.outline).toBeUndefined();
+      expect(patch.side).toBe(kernel.faces[V2]!.front_up ? 'front' : 'back');
+    }
+    // Right after H1, the last face they cover, and before E and F.
+    const h1 = scene.items.indexOf(whole[3]!);
+    expect(scene.items.indexOf(patches[0]!)).toBe(h1 + 1);
+    expect(scene.items.indexOf(whole[4]!)).toBeGreaterThan(scene.items.indexOf(patches[2]!));
+  });
+
+  it('carries the lines its patches cover that no face drawn later draws again', () => {
+    const scene = sceneOf(wovenScene());
+    const carried = lineItems(scene).filter((line) => line.group !== undefined);
+    const span = (line: PaperLineItem) => JSON.stringify([line.a, line.b].sort());
+    // V2's sides along the patches and its end at the top, and the stretches
+    // of H1's and H2's edges that end at a patch's corner — each line the
+    // patches' paint reaches that shows on the page. H1's own edges across V2
+    // are buried there, and are not.
+    const expected: Array<[ScenePoint, ScenePoint, number]> = [
+      [[3, 0], [3, 1], V2], [[3, 1], [3, 2], V2], [[3, 2], [3, 3], V2],
+      [[4, 0], [4, 1], V2], [[4, 1], [4, 2], V2], [[4, 2], [4, 3], V2],
+      [[3, 0], [4, 0], V2],
+      [[2, 1], [3, 1], H1], [[4, 1], [5, 1], H1], [[2, 2], [3, 2], H1], [[4, 2], [5, 2], H1],
+      [[2, 3], [3, 3], H2], [[3, 3], [4, 3], H2], [[4, 3], [5, 3], H2],
+    ];
+    expect(carried.map((line) => [span(line), line.face]).sort()).toEqual(
+      expected.map(([a, b, face]) => [JSON.stringify([a, b].sort()), face]).sort()
+    );
+    for (const line of carried) {
+      expect(line.role).toBe('edge');
+      expect(line.hidden).toBe(false);
+      // Round at both ends, so the stretches meet whole round a patch's corner.
+      expect(line.joined).toEqual([true, true]);
+    }
+    // After every patch of the batch.
+    const lastPatch = Math.max(
+      ...faceItems(scene).filter((face) => face.group !== undefined).map((face) => scene.items.indexOf(face))
+    );
+    expect(Math.min(...carried.map((line) => scene.items.indexOf(line)))).toBeGreaterThan(lastPatch);
+  });
+
+  it('writes a batch of patches, and what it carries, as one group', () => {
+    const scene = sceneOf(wovenScene());
+    const grouped = scene.items.flatMap((item, index) =>
+      item.kind !== 'markup' && item.group !== undefined ? [[index, item.group] as const] : []
+    );
+    expect(grouped.length).toBeGreaterThan(3);
+    expect(new Set(grouped.map(([, group]) => group))).toEqual(new Set(['patches-1']));
+    // One run, so the painter writes one <g>.
+    grouped.forEach(([index], k) => expect(index).toBe(grouped[0]![0] + k));
+  });
+
+  it('carries the patched face’s aux line inside its patches, under their edges, eroded on the whole crease', () => {
+    const kernel = wovenScene();
+    // Down the middle of V2, end to end: drawn with V2, then covered by H1
+    // and its outline from y = 0 to y = 3.
+    kernel.aux_lines.push({ from: point(3.5, 0), to: point(3.5, 5), face: V2 });
+    const scene = sceneOf(kernel);
+    const aux = lineItems(scene).filter((line) => line.role === 'aux');
+    expect(aux.filter((line) => line.group === undefined)).toEqual([
+      expect.objectContaining({ a: [3.5, 0], b: [3.5, 5], face: V2, hidden: false }),
+    ]);
+    // One stretch per patch, in the batch's order: the crossing, then the
+    // strips above and below it.
+    const carried = aux.filter((line) => line.group === 'patches-1');
+    expect(carried.map((line) => [line.a, line.b])).toEqual([
+      [[3.5, 1], [3.5, 2]],
+      [[3.5, 0], [3.5, 1]],
+      [[3.5, 2], [3.5, 3]],
+    ]);
+    for (const stretch of carried) {
+      expect(stretch.hidden).toBe(false);
+      expect(stretch.whole).toEqual({ a: [3.5, 0], b: [3.5, 5], onBoundary: [true, true] });
+    }
+    // The stretch at the crease's own end retreats with it, by the whole
+    // crease's pull; a stretch in the middle keeps its length.
+    expect(erodeLine(carried[1]!, 0.3)).toEqual([[3.5, 0.3], [3.5, 1]]);
+    expect(erodeLine(carried[0]!, 0.3)).toEqual([[3.5, 1], [3.5, 2]]);
+    const firstEdge = scene.items.findIndex(
+      (item) => item.kind === 'line' && item.role === 'edge' && item.group === 'patches-1'
+    );
+    for (const stretch of carried) expect(scene.items.indexOf(stretch)).toBeLessThan(firstEdge);
   });
 
   it('leaves no line on top half-covered, whether or not buried items are kept', () => {
@@ -704,93 +835,13 @@ describe('a woven stacking', () => {
     expect(halfCoveredLines(scene, true)).toEqual([]);
   });
 
-  it('gives an aux line along the cut between two of a face’s pieces to the one on top', () => {
+  it('leaves no buried ink showing and no line missing — and says so when the patches are gone', () => {
     const kernel = wovenScene();
-    // Across H1 at x = 3: the cut between H1 on top (subface 2) and H1 under
-    // V2 (subface 3). Seen from subface 2's side it shows.
-    kernel.aux_lines.push({ from: point(3, 1), to: point(3, 2), face: H1 });
     const scene = sceneOf(kernel);
-    const aux = lineItems(scene).filter((l) => l.role === 'aux');
-    expect(aux).toHaveLength(1);
-    expect(aux[0]!.hidden).toBe(false);
-    let lastWovenFill = -1;
-    scene.items.forEach((item, index) => {
-      if (item.kind === 'face' && WOVEN.includes(item.face)) lastWovenFill = index;
-    });
-    expect(scene.items.indexOf(aux[0]!)).toBeGreaterThan(lastWovenFill);
-    // V2's edge along the same cut is inked over it, as a whole face's edges
-    // are over another face's aux line and the canvas draws every aux line.
-    const v2Edge = scene.items.findIndex(
-      (item) =>
-        item.kind === 'line' &&
-        item.face === V2 &&
-        item.role === 'edge' &&
-        JSON.stringify([item.a, item.b].sort()) === JSON.stringify([[3, 1], [3, 2]])
-    );
-    expect(v2Edge).toBeGreaterThan(scene.items.indexOf(aux[0]!));
-  });
-
-  it('erodes a split face’s aux stretches on the whole crease, as the canvas does', () => {
-    const kernel = wovenScene();
-    // Across H2 from edge to edge: under V1 for x < 2, on top from x = 2.
-    kernel.aux_lines.push({ from: point(1.2, 3), to: point(2.8, 4), face: H2 });
-    const scene = sceneOf(kernel);
-    const aux = lineItems(scene).filter((l) => l.role === 'aux');
-    expect(aux).toHaveLength(2);
-    for (const stretch of aux) {
-      expect(stretch.whole).toEqual({ a: [1.2, 3], b: [2.8, 4], onBoundary: [true, true] });
-    }
-    const erode = 0.7;
-    const whole = erodeLine({ a: [1.2, 3], b: [2.8, 4], onBoundary: [true, true] }, erode)!;
-    const onTop = aux.find((l) => !l.hidden)!;
-    const eroded = erodeLine(onTop, erode)!;
-    // What the pull leaves of the stretch: from the cut to the crease's own
-    // pulled end — not nothing, as eroding the short stretch alone gave.
-    expect(eroded[0]).toEqual([2, 3.5]);
-    expect(eroded[1][0]).toBeCloseTo(whole[1][0], 9);
-    expect(eroded[1][1]).toBeCloseTo(whole[1][1], 9);
-  });
-
-  it('cuts a split face’s aux line at its pieces, each stretch drawn with the piece it crosses', () => {
-    const kernel = wovenScene();
-    // Along the middle of H1, end to end: on top of H1 everywhere but subface 3,
-    // where V2 covers it.
-    kernel.aux_lines.push({ from: point(0, 1.5), to: point(5, 1.5), face: H1 });
-    const scene = sceneOf(kernel);
-    const aux = scene.items
-      .map((item, index) => ({ item, index }))
-      .filter((e): e is { item: PaperLineItem; index: number } => e.item.kind === 'line' && e.item.role === 'aux');
-    const spans = aux.map(({ item }) => [item.a[0], item.b[0]]);
-    expect(spans).toHaveLength(3);
-    expect(aux.every(({ item }) => item.face === H1 && item.a[1] === 1.5 && item.b[1] === 1.5)).toBe(true);
-    const byStart = [...aux].sort((l, r) => l.item.a[0] - r.item.a[0]);
-    const [left, under, right] = byStart.map(({ item }) => item);
-    // The stretches on top join across the pieces they cross, so a dash runs
-    // on; only a real end of the crease retreats under erode.
-    expect([left!.a[0], left!.b[0]]).toEqual([0, expect.closeTo(3, 9)]);
-    expect(left!.onBoundary).toEqual([true, false]);
-    expect(right!.b[0]).toBe(5);
-    expect(right!.a[0]).toBeCloseTo(4, 9);
-    expect(right!.onBoundary).toEqual([false, true]);
-    expect(under!.a[0]).toBeCloseTo(3, 9);
-    expect(under!.b[0]).toBeCloseTo(4, 9);
-    expect(under!.onBoundary).toEqual([false, false]);
-    expect([left!.hidden, under!.hidden, right!.hidden]).toEqual([false, true, false]);
-    // The buried stretch lies between H1's piece under V2 and V2 over it; the
-    // stretches on top wait for the cycle's last fill.
-    const h1UnderV2 = scene.items.findIndex(
-      (item) => item.kind === 'face' && item.face === H1 && item.hidden
-    );
-    const v2 = scene.items.findIndex((item) => item.kind === 'face' && item.face === V2 && !item.hidden);
-    const at = (line: PaperLineItem) => scene.items.indexOf(line);
-    expect(at(under!)).toBeGreaterThan(h1UnderV2);
-    expect(at(under!)).toBeLessThan(v2);
-    let lastWovenFill = -1;
-    scene.items.forEach((item, index) => {
-      if (item.kind === 'face' && WOVEN.includes(item.face)) lastWovenFill = index;
-    });
-    expect(at(left!)).toBeGreaterThan(lastWovenFill);
-    expect(at(right!)).toBeGreaterThan(lastWovenFill);
+    expect(inkThatShows(kernel, scene)).toEqual([]);
+    expectTopsDrawnLast(kernel, scene);
+    const unpatched = { ...scene, items: scene.items.filter((item) => item.kind === 'markup' || item.group === undefined) };
+    expect(inkThatShows(kernel, unpatched).length).toBeGreaterThan(0);
   });
 
   it('keeps a line per edge after a whole face whose outline mixes roles, a flat edge as aux', () => {
@@ -814,7 +865,7 @@ describe('a real cyclic stacking', () => {
       expect(components.some((c) => c.length > 1), name).toBe(true);
     }
     // Not vacuous: from the back the cycle is on top of most subfaces, so most
-    // of the picture is drawn in pieces and their lines.
+    // of the picture is woven.
     const { scene } = back!;
     const inCycle = new Set(
       faceComponents(scene.faces.length, scene.subfaces).filter((c) => c.length > 1).flat()
@@ -823,10 +874,19 @@ describe('a real cyclic stacking', () => {
     expect(toppedByCycle.length).toBeGreaterThan(scene.subfaces.length / 2);
   });
 
-  it('orders every stack bottom to top', () => {
-    for (const { scene: kernel } of cyclic()) {
-      expectStacksInPainterOrder(kernel, sceneOf(kernel));
+  it('draws every face whole, and each subface’s top face last there', () => {
+    for (const { name, scene: kernel } of cyclic()) {
+      const scene = sceneOf(kernel);
+      const whole = faceItems(scene).filter((face) => face.group === undefined);
+      expect(whole.map((face) => face.face).sort((a, b) => a - b), name).toEqual(
+        kernel.faces.map((_, i) => i)
+      );
+      expect(whole.every((face) => face.outline === 'edge'), name).toBe(true);
+      expectTopsDrawnLast(kernel, scene);
     }
+    // Not vacuous: the back is woven enough to need patches, in groups.
+    const back = sceneOf(cyclic()[1]!.scene);
+    expect(faceItems(back).some((face) => face.group !== undefined)).toBe(true);
   });
 
   it('draws in the same order when nothing is marked hidden, as the crease-pattern export asks', () => {
@@ -838,25 +898,6 @@ describe('a real cyclic stacking', () => {
     }
   });
 
-  it('fills a face’s pieces on top on the canvas as the painter does: every ring, none a hole', () => {
-    const { scene: kernel } = cyclic()[1]!;
-    const scene = sceneOf(kernel, false);
-    const merged = faceItems(scene).filter((item) => item.rings.length > 1);
-    expect(merged.length).toBeGreaterThan(0);
-    const ringArea = (r: readonly ScenePoint[]) =>
-      Math.abs(r.reduce((n, [x, y], i) => n + x * r[(i + 1) % r.length]![1] - r[(i + 1) % r.length]![0] * y, 0)) / 2;
-    for (const item of merged) {
-      const expected = item.rings.reduce((n, r) => n + ringArea(r), 0);
-      const { fillPos } = foldedSceneLocalGeometry({ ...scene, items: [item] }, DEFAULT_PAPER_STYLE);
-      let area = 0;
-      for (let v = 0; v + 5 < fillPos.length; v += 6) {
-        const [ax, ay, bx, by, cx, cy] = fillPos.slice(v, v + 6);
-        area += Math.abs((bx! - ax!) * (cy! - ay!) - (cx! - ax!) * (by! - ay!)) / 2;
-      }
-      expect(area / expected, `face ${item.face}`).toBeCloseTo(1, 4);
-    }
-  });
-
   it('leaves no line on top half-covered, whether or not buried items are kept', () => {
     for (const { name, scene: kernel } of cyclic()) {
       const scene = sceneOf(kernel);
@@ -865,6 +906,20 @@ describe('a real cyclic stacking', () => {
       expect(halfCoveredLines(scene), name).toEqual([]);
       expect(halfCoveredLines(scene, true), name).toEqual([]);
     }
+  });
+
+  it('leaves no buried ink showing and no line missing — and says so when the patches are gone', () => {
+    for (const { name, scene: kernel } of cyclic()) {
+      expect(inkThatShows(kernel, sceneOf(kernel)), name).toEqual([]);
+    }
+    // Without its patches, the back shows buried edges and rounded corners
+    // both: the corner rule is not vacuous either.
+    const { scene: back } = cyclic()[1]!;
+    const scene = sceneOf(back);
+    const unpatched = { ...scene, items: scene.items.filter((item) => item.kind === 'markup' || item.group === undefined) };
+    const shows = inkThatShows(back, unpatched);
+    expect(shows.some((what) => what.startsWith('buried line'))).toBe(true);
+    expect(shows.some((what) => what.startsWith('corner'))).toBe(true);
   });
 });
 
@@ -878,7 +933,7 @@ describe('the visible face per subface is the drawer’s', () => {
     }
   });
 
-  it('for glitch.cp, where most of the back is drawn in pieces', () => {
+  it('for glitch.cp, where most of the back is woven', () => {
     for (const { name, scene: kernel } of cyclic()) {
       const { wrong, sampled } = topFaceDisagreements(kernel, sceneOf(kernel));
       expect(wrong, name).toEqual([]);
@@ -886,7 +941,7 @@ describe('the visible face per subface is the drawer’s', () => {
     }
   });
 
-  it('for the weave, where the faces are drawn in pieces', () => {
+  it('for the weave, where one crossing is patched', () => {
     const kernel = wovenScene();
     const { wrong, sampled } = topFaceDisagreements(kernel, sceneOf(kernel));
     expect(wrong).toEqual([]);
@@ -897,5 +952,33 @@ describe('the visible face per subface is the drawer’s', () => {
     for (const { name, scene: kernel } of real()) {
       expect(topFaceDisagreements(kernel, sceneOf(kernel, false)).wrong, name).toEqual([]);
     }
+  });
+});
+
+describe('wovenDrawOrder', () => {
+  /** "Draw u after v", with a weight, as arcs. */
+  const arcs = (entries: Array<[number, number, number]>) => {
+    const after = new Map<number, Map<number, number>>();
+    for (const [u, v, weight] of entries) {
+      const targets = after.get(u) ?? new Map<number, number>();
+      targets.set(v, weight);
+      after.set(u, targets);
+    }
+    return after;
+  };
+
+  it('draws an order with no cycle as it asks, each face after what it must follow', () => {
+    expect(wovenDrawOrder([2, 0, 1], arcs([[2, 1, 1], [1, 0, 1]]))).toEqual([0, 1, 2]);
+  });
+
+  it('breaks a cycle at its lightest arc', () => {
+    // 0 after 1 and 1 after 2 weigh 5; 2 after 0 weighs 1, and gives.
+    expect(wovenDrawOrder([0, 1, 2], arcs([[0, 1, 5], [1, 2, 5], [2, 0, 1]]))).toEqual([2, 1, 0]);
+    expect(wovenDrawOrder([0, 1, 2], arcs([[0, 1, 1], [1, 2, 5], [2, 0, 5]]))).toEqual([0, 2, 1]);
+  });
+
+  it('is a function of the arcs alone: ties go to the lowest face, and other faces are ignored', () => {
+    expect(wovenDrawOrder([2, 0, 1], new Map())).toEqual([0, 1, 2]);
+    expect(wovenDrawOrder([1, 3], arcs([[3, 1, 1], [3, 7, 9], [7, 1, 9]]))).toEqual([1, 3]);
   });
 });
