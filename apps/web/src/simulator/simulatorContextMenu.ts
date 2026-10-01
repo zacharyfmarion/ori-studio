@@ -41,14 +41,13 @@ export interface SimulatorContextMenuDeps {
   /** Whether the fold is currently animating, for the Play/Pause row's wording. */
   playing: boolean;
   /**
-   * Current render settings, so the four toggles render checked. Absent for a
+   * Current render settings, so the three toggles render checked. Absent for a
    * surface with no options pane — an inline simulation window — which drops
-   * those rows rather than showing four toggles that report nothing.
+   * those rows rather than showing three toggles that report nothing.
    */
   settings: {
     showFaces: boolean;
     showEdges: boolean;
-    showHiddenLines: boolean;
     lighting: boolean;
   } | null;
 }
@@ -119,7 +118,6 @@ export function simulatorMenuItems(deps: SimulatorContextMenuDeps): ContextMenuI
         items: [
           settingItem('simulator.toggleFaces', deps.settings.showFaces, deps),
           settingItem('simulator.toggleCreases', deps.settings.showEdges, deps),
-          settingItem('simulator.toggleHiddenLines', deps.settings.showHiddenLines, deps),
           settingItem('simulator.toggleLighting', deps.settings.lighting, deps),
         ].filter((item): item is ContextMenuItem => item !== null),
       }

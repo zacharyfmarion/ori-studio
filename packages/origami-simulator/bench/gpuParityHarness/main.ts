@@ -126,7 +126,9 @@ const RENDER_SETTINGS: RenderSettings = {
   showFaces: true,
   showEdges: true,
   lighting: true,
-  creaseWidthPx: 3,
+  edgeWidthPx: 3,
+  mountainWidthPx: 3,
+  valleyWidthPx: 3,
   faceAlpha: 1,
 };
 

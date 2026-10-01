@@ -1,4 +1,9 @@
-import type { SimulatorSettings } from '../../lib/simulatorSettings';
+import {
+  applyCreaseStyle,
+  DEFAULT_PAPER_STYLE,
+  parseHex,
+  type PaperStyle,
+} from '../../lib/paper/paperStyle';
 import { parseCssRgb } from '../../simulator/simulatorPalette';
 
 /**
@@ -32,17 +37,35 @@ const CREASE_DARKEN = 0.45;
 
 function darken(color: string, factor: number): string {
   const [r, g, b] = parseCssRgb(color, [0, 0, 0]);
+  return toHex([r * factor, g * factor, b * factor]);
+}
+
+function toHex([r, g, b]: readonly [number, number, number]): string {
   const channel = (value: number) =>
-    Math.round(Math.max(0, Math.min(255, value * factor)))
+    Math.round(Math.max(0, Math.min(255, value)))
       .toString(16)
       .padStart(2, '0');
   return `#${channel(r)}${channel(g)}${channel(b)}`;
 }
 
+/** A theme token as `#rrggbb`, or the fallback when the token is unset or unreadable. */
+function tokenHex(styles: CSSStyleDeclaration, token: string, fallback: string): string {
+  const value = styles.getPropertyValue(token).trim();
+  if (value === '') return fallback;
+  return parseHex(value) ?? toHex(parseCssRgb(value, parseCssRgb(fallback, [0, 0, 0])));
+}
+
 /**
- * The colours the figure draws with, or an empty override when the theme has no
- * accent — in which case everything falls back to the simulator's own tokens,
- * which is the honest answer rather than a guess.
+ * The style the figure draws with: the theme's paper tones under one ink, and
+ * — when the theme has an accent — that accent on the paper with a darker cut
+ * of it as the ink. Without an accent everything falls back to the theme's own
+ * paper tokens and text colour, which is the honest answer rather than a guess.
+ *
+ * One ink (`mono`) rather than the editor's mountain/valley red and blue:
+ * colour is the right default in the Simulate workspace, where the direction
+ * of each crease is information, but here the figure is 320px of decoration
+ * beside a heading, and at that size 246 creases in two saturated colours read
+ * as noise over the form — and the form is the whole point.
  *
  * The accent is on the **back** of the paper, not the front. Which side is which
  * is arbitrary here — the figure is a decoration, not a fold anyone is reading —
@@ -50,25 +73,32 @@ function darken(color: string, factor: number): string {
  * tone on the face and belly with the accent behind it, which reads as a
  * subject on a background rather than as a coloured object outlined in white.
  *
- * Both sides are set explicitly. Overriding one and letting the other fall
- * through to `--sim-paper-back` would leave the two tones deciding themselves
- * from different places, so a theme that moved one would tilt the figure's
- * balance without anyone touching this file.
+ * Both sides are set explicitly. Setting one and letting the other take the
+ * style's default would leave the two tones deciding themselves from
+ * different places, so a theme that moved one would tilt the figure's balance
+ * without anyone touching this file.
  *
- * `borderColor` is the crease ink because the figure draws in `mono`, and
- * `resolveRenderSettings` feeds that one colour to mountains, valleys and the
- * paper edge alike — so setting it is setting all three, and setting
- * `mountainColor` / `valleyColor` alongside it would be dead weight.
+ * The edge pen is the crease ink because the figure draws in `mono`, which
+ * writes that one colour to the mountain and valley pens too — so setting it
+ * is setting all three.
  */
-export function startFigurePaperSettings(
-  styles: CSSStyleDeclaration
-): Partial<Pick<SimulatorSettings, 'paperFront' | 'paperBack' | 'borderColor'>> {
+export function startFigurePaperStyle(styles: CSSStyleDeclaration): PaperStyle {
+  const pale = tokenHex(styles, '--sim-paper-back', DEFAULT_PAPER_STYLE.paper.back);
   const accent = styles.getPropertyValue('--accent-primary').trim();
-  if (accent === '') return {};
-  const pale = styles.getPropertyValue('--sim-paper-back').trim();
-  return {
-    paperFront: pale === '' ? null : pale,
-    paperBack: accent,
-    borderColor: darken(accent, CREASE_DARKEN),
+  const ink = tokenHex(styles, '--text-primary', DEFAULT_PAPER_STYLE.edges.color);
+  const style: PaperStyle = {
+    ...DEFAULT_PAPER_STYLE,
+    paper:
+      accent === ''
+        ? {
+            front: tokenHex(styles, '--sim-paper-front', DEFAULT_PAPER_STYLE.paper.front),
+            back: pale,
+          }
+        : { front: pale, back: tokenHex(styles, '--accent-primary', ink) },
+    edges: {
+      ...DEFAULT_PAPER_STYLE.edges,
+      color: accent === '' ? ink : darken(accent, CREASE_DARKEN),
+    },
   };
+  return applyCreaseStyle(style, 'mono');
 }

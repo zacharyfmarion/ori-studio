@@ -47,7 +47,8 @@ const SHEET_ICONS: Record<string, LucideIcon> = {
  * nothing else — not which object the sheet describes, nor where its values
  * live. Every decision that could differ per kind is data on the field:
  * `support` hides (`not-applicable`) or disables with `reason` (`unsupported`),
- * `reset` is the row's trailing affordance, and the protocol says how the row
+ * `reset` is the row's trailing affordance — on a toggle, an "Overridden" note
+ * and a switch back to `inherited` — and the protocol says how the row
  * commits. That is what lets a catalog be tested with identity `t` and
  * `vi.fn` deps, and what keeps a new object kind from needing a new form.
  *
@@ -151,6 +152,7 @@ function FieldView({
         <ToggleRow
           label={field.label}
           checked={field.value}
+          inherited={field.inherited}
           disabled={disabled}
           title={title}
           onChange={(next) => {
@@ -360,6 +362,7 @@ function ColorFieldView({
       label={field.label}
       value={field.value}
       disabled={disabled || field.held}
+      clearDisabled={(disabled && !field.resetWhileUnsupported) || field.held}
       title={title}
       onChange={(next) => {
         if (pick.current === 'refused') return;

@@ -269,6 +269,10 @@
   },
   "references": {
     "categoryLabel": "Referenzen",
+    "exportAllSteps": "Alle Schritte exportieren…",
+    "exportStep": "Schritt exportieren…",
+    "exportStepPng": "Schritt als PNG exportieren…",
+    "exportStepSvg": "Schritt als SVG exportieren…",
     "nextCandidate": "Nächster Kandidat",
     "nextStep": "Nächster Schritt",
     "nextWay": "Nächste Möglichkeit",
@@ -293,7 +297,6 @@
     "resetView": "Simulatoransicht zurücksetzen",
     "toggleCreases": "Falzlinien",
     "toggleFaces": "Flächen",
-    "toggleHiddenLines": "Verdeckte Linien",
     "toggleLighting": "Beleuchtung"
   },
   "viewport": {

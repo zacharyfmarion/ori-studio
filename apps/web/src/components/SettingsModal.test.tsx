@@ -258,6 +258,13 @@ describe('SettingsModal', () => {
     expect(document.documentElement.getAttribute('data-theme-type')).toBe('light');
   });
 
+  it('opens the Paper tab on its own section, with the built-in presets', () => {
+    const rendered = renderModal('paper');
+    expect(rendered.querySelector('.settings-modal__header h2')?.textContent).toBe('Paper');
+    expect(rendered.querySelector('[data-testid="settings-paper"]')).not.toBeNull();
+    expect(rendered.textContent).toContain('Diagram');
+  });
+
   it('opens the requested tab and can reset the layout', async () => {
     const resetLayout = vi.fn();
     useLayoutStore.setState({ resetLayout });

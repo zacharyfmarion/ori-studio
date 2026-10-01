@@ -281,6 +281,9 @@
     },
     "otherPlatforms": "その他のプラットフォーム"
   },
+  "fieldRow": {
+    "overridden": "上書き済み"
+  },
   "fileDrop": {
     "open": "ドロップして開く",
     "openOrImport": "ドロップして開く／インポート"

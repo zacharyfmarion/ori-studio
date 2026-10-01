@@ -1,8 +1,8 @@
 /**
  * The GPU mesh, against real kernel payloads.
  *
- * Every fixture is the kernel's own `Folded3dRenderModel` — the same six the CPU
- * projector is tested against, and nothing here is hand-written.
+ * Every fixture is the kernel's own `Folded3dRenderModel` — the same six the
+ * scene is tested against, and nothing here is hand-written.
  *
  * # Asserting the picture without a canvas
  *
@@ -11,7 +11,7 @@
  * is a total order on view depth, and `projectVertices` is the maintained CPU
  * mirror of the very vertex shader that computes it (`camera.ts` says so, and
  * the SVG exporter already depends on it being exact). `gl_FrontFacing`'s answer
- * is the sign of the screen-space winding, which `svgRenderer.ts` mirrors as
+ * is the sign of the screen-space winding, which `projectedMesh.ts` mirrors as
  * `winding = −screenArea` for the same reason.
  *
  * So both questions this module has to get right — which layer of a stack shows,
@@ -25,6 +25,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   cameraUniforms,
+  edgeBoundaryFlags,
   projectVertices,
   toViewSpace,
   type CameraUniforms,
@@ -43,11 +44,8 @@ import {
   antipodalCamera,
   folded3dEyeDirection,
   folded3dFrameRadius,
-  projectFolded3dModel,
   type FoldedFigureCamera,
-} from './foldedFigure3dProjection';
-import { foldedFigureExportDocument } from './foldedFigureExport';
-import type { Folded3dPaperStyle } from './folded3dStyle';
+} from './folded3dCamera';
 import {
   buildFolded3dInk,
   cellRing,
@@ -65,7 +63,6 @@ import {
   FOLDED_3D_EDGE_CREASE,
   FOLDED_3D_EDGE_UNKNOWN,
   FOLDED_3D_FACE_ATTR_STRIDE,
-  type OristudioCpFold3dTolerances,
   type OristudioCpFolded3dRenderModel,
 } from '../../engine/oristudioCpTypes';
 
@@ -83,26 +80,6 @@ const NAMES = [
 function fixture(name: string): OristudioCpFolded3dRenderModel {
   return JSON.parse(readFileSync(join(FIXTURES, `${name}.rendermodel.json`), 'utf8'));
 }
-
-/** The kernel's shipped `Fold3dTolerances::DEFAULT`. */
-const TOLERANCES: OristudioCpFold3dTolerances = {
-  angle_radians: 1e-7,
-  distance_relative: 1e-6,
-  flat_snap_degrees: 1e-6,
-  overlap_area_relative: 1e-9,
-};
-
-const STYLE: Folded3dPaperStyle = {
-  front: [1, 1, 0.2],
-  back: [1, 1, 1],
-  line: [0, 0, 0],
-  faceAlpha: 1,
-  transparentAlpha: 16 / 255,
-  lineWidth: 1.200000048,
-  antiAlias: true,
-  lighting: true,
-  lightDir: [0, 0, 1],
-};
 
 /**
  * Cameras every orientation-sensitive assertion is repeated at.
@@ -206,6 +183,37 @@ function everyCrease(mesh: Folded3dMesh): number[] {
   return out;
 }
 
+/** The slot whose ring vertices a crease of the translucent run joins. */
+function slotOfCrease(mesh: Folded3dMesh, crease: number): number {
+  const vertex = mesh.topology.edgeIndices[crease * 2]!;
+  for (let slot = 0; slot < mesh.slots.count; slot += 1) {
+    if (vertex >= mesh.slots.vertexStart[slot]! && vertex < mesh.slots.vertexStart[slot + 1]!) {
+      return slot;
+    }
+  }
+  throw new Error(`crease ${crease} belongs to no slot`);
+}
+
+/** The ring segment a crease of a slot was inked from: the one whose edge is `edge`. */
+function segmentOfCrease(
+  model: OristudioCpFolded3dRenderModel,
+  mesh: Folded3dMesh,
+  slot: number,
+  crease: number,
+  edge: number,
+  ink: ReturnType<typeof buildFolded3dInk>
+): number {
+  const cell = mesh.slots.cell[slot]!;
+  const depth = mesh.slots.depth[slot]!;
+  const segments = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 2] ?? 0;
+  const first = mesh.slots.vertexStart[slot]!;
+  const a = mesh.topology.edgeIndices[crease * 2]! - first;
+  for (let segment = 0; segment < segments; segment += 1) {
+    if (segment === a && ink.edgeAt(cell, depth, segment) === edge) return segment;
+  }
+  throw new Error(`crease ${crease} matches no segment of slot ${slot}`);
+}
+
 /** A world point in the mesh's own space: simulator basis, centroid-relative. */
 function simBasisRelative(
   model: OristudioCpFolded3dRenderModel,
@@ -256,22 +264,7 @@ function uniformsFor(mesh: Folded3dMesh, camera: FoldedFigureCamera): CameraUnif
 
 
 /**
- * Which end of a cell's plane faces the eye — the projector's own rule, asked
- * independently. `cell_stack` is top-first with respect to `up`, so `stack[0]` is
- * the near layer exactly while this is true.
- */
-function upTowardEye(
-  model: OristudioCpFolded3dRenderModel,
-  plane: number,
-  camera: FoldedFigureCamera
-): number {
-  const { up } = planeFrame(model, plane);
-  const eye = folded3dEyeDirection(camera);
-  return up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2];
-}
-
-/**
- * The screen winding `gl_FrontFacing` decides on, mirrored from `svgRenderer.ts`:
+ * The screen winding `gl_FrontFacing` decides on, mirrored from `projectedMesh.ts`:
  * the signed area in pixel space, negated because pixel y points down while NDC
  * y points up. Front-facing — and so `u_frontColor` — when this is positive.
  */
@@ -290,7 +283,7 @@ function screenWinding(
   );
 }
 
-/** Kernel world direction into view space — the projector's `directionToView`. */
+/** Kernel world direction into view space, through the mesh's own basis. */
 function viewNormalOf(
   model: OristudioCpFolded3dRenderModel,
   face: number,
@@ -478,46 +471,17 @@ describe('folded3dMesh', () => {
         }
       }
     });
-
-    it.each(NAMES)('%s shows the same layer the CPU projector draws', (name) => {
-      const model = fixture(name);
-      // The window and the export must not disagree about which sheet of paper
-      // you are looking at. The projector picks the last of `cellFarToNear`; the
-      // mesh picks the end of `cell_stack` its selected skin holds.
-      for (const [label, camera] of CAMERAS) {
-        const eye = folded3dEyeDirection(camera);
-        const projection = projectFolded3dModel(model, {
-          camera,
-          displayStyle: 'Paper5',
-          style: STYLE,
-          tolerances: TOLERANCES,
-        });
-        const drawnByProjector = new Map<number, number>();
-        projection.snapshot.primitives.forEach((primitive, index) => {
-          if (primitive.kind !== 'fill_path') return;
-          drawnByProjector.set(projection.cells[index]!, projection.faces[index]!);
-        });
-        for (const [cell, face] of drawnByProjector) {
-          const plane = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0;
-          const up = planeFrame(model, plane).up;
-          const towardEye = up[0] * eye[0] + up[1] * eye[1] + up[2] * eye[2] >= 0;
-          const stack = cellStack(model, cell);
-          const mine = towardEye ? stack[0]! : stack[stack.length - 1]!;
-          expect(mine, `${name} @ ${label}, cell ${cell}`).toBe(face);
-        }
-      }
-    });
   });
 
   describe('winding', () => {
     /**
      * The one fact that is easy to invert. The mesh renderer's view transform has
      * determinant −1, so a triangle whose right-hand normal points toward the eye
-     * is drawn *back*-facing — while the CPU projector calls exactly that face
-     * front. Get the sign backwards and the figure is a clean picture of the
-     * wrong side of the paper.
+     * is drawn *back*-facing — while the paper's own front normal calls exactly
+     * that face front. Get the sign backwards and the figure is a clean picture
+     * of the wrong side of the paper.
      */
-    it.each(NAMES)('%s colours every triangle the side the projector does', (name) => {
+    it.each(NAMES)('%s colours every triangle the side the paper’s normal does', (name) => {
       const model = fixture(name);
       const mesh = meshOf(model);
       let checked = 0;
@@ -530,7 +494,7 @@ describe('folded3dMesh', () => {
         for (let slot = 0; slot < mesh.slots.count; slot += 1) {
           const face = mesh.slots.face[slot]!;
           const normal = viewNormalOf(model, face, uniforms);
-          const projectorSaysFront = normal[2] >= 0;
+          const paperSaysFront = normal[2] >= 0;
           for (let i = mesh.slots.indexStart[slot]!; i < mesh.slots.indexStart[slot + 1]!; i += 3) {
             opportunities += 1;
             const winding = screenWinding(
@@ -546,7 +510,7 @@ describe('folded3dMesh', () => {
               continue;
             }
             expect(winding >= 0, `${name} @ ${label}, slot ${slot}, face ${face}`).toBe(
-              projectorSaysFront
+              paperSaysFront
             );
             checked += 1;
           }
@@ -647,9 +611,10 @@ describe('folded3dMesh', () => {
       // negative degrees is a mountain.
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, -180)).toBe(1);
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, 90)).toBe(2);
-      // A zero-angle crease becomes a border, not a facet: code 3 is skipped by
-      // `buildEdgeQuads`, and the CPU projector draws that edge today.
-      expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, 0)).toBe(0);
+      // Re-pinned: a zero-angle crease is an auxiliary crease (code 3), which
+      // the edge pass draws in the aux pen since Phase 5. It was a border
+      // while `buildEdgeQuads` skipped code 3.
+      expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_CREASE, 0)).toBe(3);
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_BORDER, 0)).toBe(0);
       expect(folded3dEdgeAssignment(FOLDED_3D_EDGE_UNKNOWN, -45)).toBe(0);
     });
@@ -666,9 +631,11 @@ describe('folded3dMesh', () => {
       for (let nth = 0; nth < sources.length; nth += 1) {
         const edge = sources[nth]!;
         const code = mesh.topology.edgeAssignments[creases[nth]!]!;
-        // Never 3: that is the one code `buildEdgeQuads` skips, and every edge
-        // the payload carries is drawn today.
-        expect(code).toBeLessThanOrEqual(2);
+        // Never 4: the facet code is the one `buildEdgeQuads` skips, and every
+        // edge the payload carries is a line someone drew. (No fixture has a
+        // 0° crease, so 3 never appears here either; `folded3dEdgeAssignment`
+        // pins it above.)
+        expect(code).toBeLessThanOrEqual(3);
         // And it is the code of the model edge this crease was drawn from, not
         // of whatever happened to sit at the same array position.
         const kind = model.edge_attr[edge * FOLDED_3D_EDGE_ATTR_STRIDE + 3] ?? 0;
@@ -682,6 +649,90 @@ describe('folded3dMesh', () => {
       expect(mountains + valleys).toBeGreaterThan(0);
       // And no model edge silently vanished: each is drawn by at least one slot.
       expect(new Set(sources).size).toBe(model.edge_count);
+    });
+
+    it.each(NAMES)('%s states each hinge’s condition per crease, as its skins group them', (name) => {
+      // The skins carry a hinge's condition as a group; the translucent run,
+      // which the vector export reads every layer from, carries the same
+      // creases with no groups at all. The per-crease table has to say the
+      // same thing in both places, or the export admits a bend the window
+      // hides.
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      const { partnerPlane, requiredSide } = mesh.hinges;
+      expect(partnerPlane.length).toBe(mesh.topology.edgeAssignments.length);
+      expect(requiredSide.length).toBe(mesh.topology.edgeAssignments.length);
+      for (let crease = 0; crease < mesh.fallbackEdgeCount; crease += 1) {
+        expect(partnerPlane[crease]).toBe(-1);
+      }
+      for (const skin of mesh.skins) {
+        for (let crease = skin.edgeStart; crease < skin.edgeStart + skin.edgeCount; crease += 1) {
+          expect(partnerPlane[crease], `${name} skin ${skin.plane}/${skin.side}`).toBe(-1);
+        }
+        for (const group of skin.hingeGroups) {
+          for (let crease = group.edgeStart; crease < group.edgeStart + group.edgeCount; crease += 1) {
+            expect(partnerPlane[crease]).toBe(group.partnerPlane);
+            expect(requiredSide[crease]).toBe(group.requiredSide);
+          }
+        }
+      }
+      // In the translucent run every kind appears, keyed the same way: the
+      // buried-both-sides hinges the skins leave out entirely are the ones
+      // with a partner and no side that admits them.
+      const ink = buildFolded3dInk(model);
+      let buried = 0;
+      let conditional = 0;
+      const start = mesh.translucent.edgeStart;
+      const end = mesh.undetermined.edgeStart + mesh.undetermined.edgeCount;
+      const sources = creaseSources(model, mesh);
+      const creases = everyCrease(mesh);
+      for (let nth = 0; nth < creases.length; nth += 1) {
+        const crease = creases[nth]!;
+        if (crease < start || crease >= end) continue;
+        const slot = slotOfCrease(mesh, crease);
+        const cell = mesh.slots.cell[slot]!;
+        const segment = segmentOfCrease(model, mesh, slot, crease, sources[nth]!, ink);
+        const hinge = ink.hingeAt(cell, mesh.slots.depth[slot]!, segment);
+        if (!hinge || (hinge.exposedOnPlus && hinge.exposedOnMinus)) {
+          expect(partnerPlane[crease]).toBe(-1);
+        } else if (hinge.exposedOnPlus || hinge.exposedOnMinus) {
+          conditional += 1;
+          expect(partnerPlane[crease]).toBe(hinge.partnerPlane);
+          expect(requiredSide[crease]).toBe(hinge.exposedOnPlus ? 1 : -1);
+        } else {
+          buried += 1;
+          expect(partnerPlane[crease]).toBe(hinge.partnerPlane);
+          expect(requiredSide[crease]).toBe(0);
+        }
+      }
+      if (name === 'spikes_small') {
+        expect(conditional).toBeGreaterThan(0);
+        expect(buried).toBeGreaterThan(0);
+      }
+    });
+
+    it.each(NAMES)('%s erodes the same crease ends on screen as the export does', (name) => {
+      // The window's edge pass reads `edgeBoundaryFlags` over the whole
+      // buffer, where a crease appears in every run that inks it — a skin, a
+      // hinge group, the translucent run — on the same two vertices; the
+      // export reads it from the translucent and undetermined runs, once, with
+      // the aux ends the mesh states carried along. Erode is the aux pen's
+      // alone, and these figures have no aux creases, so neither retreats an
+      // end of anything here.
+      const model = fixture(name);
+      const mesh = meshOf(model);
+      const start = mesh.translucent.edgeStart;
+      const end = mesh.undetermined.edgeStart + mesh.undetermined.edgeCount;
+      const window = edgeBoundaryFlags(mesh.topology);
+      const once = edgeBoundaryFlags({
+        edgeIndices: mesh.topology.edgeIndices.subarray(start * 2, end * 2),
+        edgeAssignments: mesh.topology.edgeAssignments.subarray(start, end),
+        auxEnds: mesh.topology.auxEnds?.subarray(start, end),
+      });
+      for (let crease = start; crease < end; crease += 1) {
+        expect(window[crease], `${name} crease ${crease}`).toBe(once[crease - start]);
+        expect(window[crease], `${name} crease ${crease}`).toBe(0);
+      }
     });
 
     it.each(NAMES)('%s places a crease on its fold line, at its layer', (name) => {
@@ -754,86 +805,3 @@ describe('folded3dMesh', () => {
     });
   });
 });
-
-/**
- * R7 — the file a user exports and the window they are looking at draw the same
- * figure.
- *
- * The two are made by different machinery on purpose. The window's picture comes
- * from this mesh through a **depth buffer**, which is why the layers are pushed
- * apart by an epsilon. The file's comes from `foldedFigure3dProjection.ts`
- * through a BSP with the kernel's exact `cell_stack` fed in, which is what a
- * vector drawing needs and what an `.osf`, a crease-pattern export and a figure
- * with no GPU all read. Both are derived from one render model, and R7 is that
- * they drift.
- *
- * The statement below is the export end of the one already made above against
- * the raw projection: this runs the projector at the settings the store actually
- * writes onto a figure — culled and merged, which is a different code path — and
- * carries it all the way through the serializer, so a layer lost to hidden-piece
- * culling, to a coplanar merge, or to the SVG writer is caught here rather than
- * by somebody opening a file.
- */
-describe('the exported drawing and the mesh agree', () => {
-  it.each(NAMES)('%s exports the layer its window shows', (name) => {
-    const model = fixture(name);
-    // The mesh is built to prove it can be — the comparison below is against the
-    // rule its skins encode, which is `cell_stack` read from the eye's end.
-    meshOf(model);
-    let compared = 0;
-
-    for (const [label, camera] of CAMERAS) {
-      // No `cullHidden` and no `mergeCoplanar`: the defaults, which is what
-      // `project3dRenderSnapshot` passes and therefore what every exported
-      // figure is drawn with.
-      const projection = projectFolded3dModel(model, {
-        camera,
-        displayStyle: 'Paper5',
-        style: STYLE,
-        tolerances: TOLERANCES,
-      });
-      const page = foldedFigureExportDocument(projection.snapshot);
-      expect(page, `${name} @ ${label}`).not.toBeNull();
-      // Nothing is lost between the projection and the file. The stacking order
-      // travels *inside* the primitive stream — the serializer has no depth test
-      // and no sort — so one dropped primitive is one wrong face on top.
-      expect(page!.svg.split('<path').length - 1).toBe(projection.snapshot.primitives.length);
-
-      const filledByCell = new Map<number, Set<number>>();
-      projection.snapshot.primitives.forEach((primitive, index) => {
-        if (!primitive.kind.startsWith('fill_')) return;
-        const cell = projection.cells[index]!;
-        const face = projection.faces[index]!;
-        // `-1` is a crease or a cell annotation, which draws no layer.
-        if (cell < 0 || face < 0) return;
-        const set = filledByCell.get(cell) ?? new Set<number>();
-        set.add(face);
-        filledByCell.set(cell, set);
-      });
-
-      for (const [cell, faces] of filledByCell) {
-        // A cell the tree cut into pieces at two depths has no single answer to
-        // compare against; the raw-projection test above covers those.
-        if (faces.size !== 1) continue;
-        const plane = model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE] ?? 0;
-        if (Math.abs(upTowardEye(model, plane, camera)) < EDGE_ON) continue;
-        // The window's answer is the end of `cell_stack` its selected skin
-        // holds — no depth comparison, because there is nothing coplanar left to
-        // compare. The export's is the last of `cellFarToNear`. They are the
-        // same rule reached from two directions, which is the point.
-        expect([...faces], `${name} @ ${label}, cell ${cell}`).toEqual([
-          cellFarToNear(model, cell, camera).at(-1),
-        ]);
-        compared += 1;
-      }
-    }
-    expect(compared).toBeGreaterThan(0);
-  });
-});
-
-
-
-
-
-
-

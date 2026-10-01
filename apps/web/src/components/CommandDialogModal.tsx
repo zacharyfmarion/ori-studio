@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isOpenLayerTarget } from '../keyboard/shortcutDispatcher';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, Ruler, X } from 'lucide-react';
 import {
@@ -35,10 +36,11 @@ export function CommandDialogModal() {
     if (!dialog) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        cancelCommandDialog(dialog.id);
-      }
+      if (event.key !== 'Escape') return;
+      // An open Select or menu in the dialog closes itself first.
+      if (isOpenLayerTarget(event.target)) return;
+      event.preventDefault();
+      cancelCommandDialog(dialog.id);
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);

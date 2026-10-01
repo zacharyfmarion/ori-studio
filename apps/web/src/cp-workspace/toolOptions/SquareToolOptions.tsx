@@ -8,7 +8,6 @@
 import { useId, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumberField } from '../../components/ui/NumberField';
-import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import {
   ORISTUDIO_CP_SQUARE_ANCHORS,
   type OristudioCpSquareAnchor,
@@ -18,6 +17,7 @@ import {
   type OristudioCpToolOptions,
 } from '../../lib/oristudioCpToolSettings';
 import { convertSquareSize } from '../tools/squareTool';
+import { SegmentedToolOption } from './SegmentedToolOption';
 import { useCpGridWidth } from './useCpGridWidth';
 
 export function SquareToolOptions({
@@ -176,40 +176,6 @@ function NumberToolOption({
         step={step}
         onCommit={onCommit}
       />
-    </div>
-  );
-}
-
-/**
- * A segmented control on the same label-left / control-right row as
- * {@link NumberToolOption}.
- *
- * A bare full-width toggle reads as a mode switch for the whole group rather
- * than as one param among several — with three of them stacked, nothing said
- * which was which. Sharing the field grid puts every param on one column and
- * makes the answer to "what does this choose?" the text beside it.
- *
- * A `div` rather than the `label` element the numeric field uses: a label points
- * at a single control, and this names a group of buttons. The group carries its
- * own `aria-label`, so the accessible name does not depend on the visible text.
- */
-function SegmentedToolOption<T extends string>({
-  label,
-  ariaLabel,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  ariaLabel: string;
-  value: T;
-  options: { value: T; label: string; title?: string }[];
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="cp-context-panel__field">
-      <span>{label}</span>
-      <SegmentedControl aria-label={ariaLabel} value={value} options={options} onChange={onChange} />
     </div>
   );
 }

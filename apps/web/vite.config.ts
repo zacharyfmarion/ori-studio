@@ -7,6 +7,7 @@ import { build as bundle, type Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import type { ServiceWorkerManifest } from './src/pwa/swRoutes';
+import { generateScopedName } from './scripts/cssModuleNames.mjs';
 import { exploriMock, exploriMockEnabled } from './vite/exploriMock';
 
 const DIST_PLACEHOLDER = 'apps/web/dist/.gitkeep';
@@ -528,6 +529,12 @@ export default defineConfig({
   preview: {
     headers: crossOriginIsolationHeaders,
   },
+  /**
+   * A component's styles are a CSS module beside it (`docs/styling.md`), its
+   * class names hashed so nothing else can select them. The names come from a
+   * file the landing prerender shares, since it does not read this config.
+   */
+  css: { modules: { generateScopedName } },
   build: {
     // `'hidden'` emits the maps but no `//# sourceMappingURL` comment: the
     // plugin matches them to the bundle by injected debug ID, not by that

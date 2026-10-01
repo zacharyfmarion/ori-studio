@@ -7,7 +7,6 @@ import type {
   RenderSettings,
   SimulatorDiagnostics,
   SimulatorOptions,
-  SvgRenderResult,
 } from '@treemaker/origami-simulator';
 import {
   releaseSimulatorClient,
@@ -22,7 +21,9 @@ import {
   recordSimulatorProbe,
 } from './simulatorPerfProbe';
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
-import type { SimulatorExportBackground } from '../lib/simulatorSettings';
+import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
+import type { PaperScene } from '../lib/paper/paperScene';
+import type { SimulatorExportSceneOptions } from './simulatorSession';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -43,6 +44,15 @@ interface SimulatorCameraRequest {
   view: OrbitView;
   width: number;
   height: number;
+}
+
+/**
+ * The view frozen for the export dialog, and the scenes built from it. The
+ * worker holds the frame; `release` lets it go when the dialog closes.
+ */
+export interface SimulatorExportSnapshot {
+  scene: (options: SimulatorExportSceneOptions) => Promise<PaperScene | null>;
+  release: () => void;
 }
 
 export interface SimulatorFrameView {
@@ -160,20 +170,27 @@ export interface SimulatorRuntime {
    * so the only way back to a drawable surface is a new one.
    */
   canvasGeneration: number;
-  /** Push a new orbit camera to the worker (GPU mode); no-op in CPU mode. */
+  /**
+   * Push a new orbit camera to the worker (GPU mode). In CPU mode it is only
+   * remembered, for the next session to open on and for {@link beginExport}.
+   */
   setCamera: (view: OrbitView, width: number, height: number) => void;
-  /** Push render settings to the worker (GPU mode); no-op in CPU mode. */
+  /** Push render settings to the worker (GPU mode); remembered in CPU mode. */
   setRenderSettings: (settings: RenderSettings) => void;
   /**
-   * The current view as a standalone SVG document, or null when there is nothing
-   * to draw or this runtime holds no model.
+   * Freeze the current view for the export dialog, or null when this runtime
+   * holds no model.
    *
-   * The worker builds it: that is where the complete render state lives, so this
-   * is one message rather than an exporter reaching for positions, a camera and a
-   * palette from three different owners. Keeps the session token private, like
-   * every other call here.
+   * The worker keeps the frame: that is where the complete render state
+   * lives, so a scene of it is one message rather than an exporter reaching
+   * for positions, a camera and a palette from three different owners, and a
+   * solver still settling changes nothing the dialog shows. Keeps the session
+   * token private, like every other call here. The camera and settings last
+   * handed to `setCamera` and `setRenderSettings` travel with the request,
+   * which is what makes the file the view on screen on the canvas-2D path,
+   * where the worker was never sent them.
    */
-  exportSvg: (background?: SimulatorExportBackground) => Promise<SvgRenderResult | null>;
+  beginExport: () => Promise<SimulatorExportSnapshot | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -220,6 +237,9 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   // this is true and nothing is playing, so a converged simulator costs nothing
   // while still restarting the instant a new target arrives.
   const convergedRef = useRef(true);
+  // Whether the worker's camera has arrived at the shape as it is. The model
+  // can settle before its camera does, and the camera only moves on a frame.
+  const framedRef = useRef(true);
   const playingRef = useRef(false);
   const recycledRef = useRef<ArrayBuffer | undefined>(undefined);
   const generationRef = useRef(0);
@@ -310,6 +330,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       maxStrain: payload.maxStrain,
     });
     convergedRef.current = payload.converged;
+    framedRef.current = payload.framed;
     lastScalarsRef.current = {
       positions: null,
       step: payload.step,
@@ -503,8 +524,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       // Frozen: the caller wants this model held where it is. It still renders
       // on demand, it just does not advance.
       if (pausedRef.current) return;
-      // Idle: nothing to solve and nothing playing.
-      if (convergedRef.current && !playingRef.current) return;
+      // Idle: nothing to solve, nothing playing, and the camera where it is going.
+      if (convergedRef.current && framedRef.current && !playingRef.current) return;
 
       inFlightRef.current = true;
       const recycled = recycledRef.current;
@@ -675,8 +696,10 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const setCamera = useCallback(
     (view: OrbitView, width: number, height: number) => {
       const payload = { view, width, height };
-      // Remembered before the gate: it is the consumer's view either way, and
-      // the next session opens on it.
+      // Remembered before the gate: it is the consumer's view either way, the
+      // next session opens on it, and an export is taken from it. On the
+      // canvas-2D path this is all that happens — the frame is drawn on the main
+      // thread, so an orbit costs no worker message.
       lastCameraRef.current = payload;
       if (!gpuActiveRef.current) return;
       if (cameraBusyRef.current) {
@@ -699,10 +722,29 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       .catch(() => undefined);
   }, []);
 
-  const exportSvg = useCallback(async (background?: SimulatorExportBackground) => {
+  const beginExport = useCallback(async (): Promise<SimulatorExportSnapshot | null> => {
     const client = clientRef.current;
     if (!client || tokenRef.current === undefined) return null;
-    return client.exportSvg({ token: tokenRef.current, background });
+    // The worker holds the frame in device pixels; the ratio the viewport sized
+    // it by is what takes the page back to CSS pixels.
+    //
+    // The view goes with the request. On the GPU path the worker already has
+    // it, bar a camera still queued behind an in-flight one (`pendingCameraRef`),
+    // and this is the newest. On the canvas-2D path the worker was never sent
+    // either, so without them the file would be the worker's defaults at the
+    // opening camera rather than what is on screen.
+    const snapshot = await client.beginExportSnapshot({
+      token: tokenRef.current,
+      devicePixelRatio: simulatorDevicePixelRatio(),
+      camera: lastCameraRef.current ?? undefined,
+      settings: lastRenderSettingsRef.current ?? undefined,
+    });
+    if (snapshot === null) return null;
+    return {
+      scene: (options) => client.exportScene(snapshot, options),
+      // A worker that has gone takes its snapshots with it.
+      release: () => void client.endExportSnapshot(snapshot).catch(() => undefined),
+    };
   }, []);
 
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
@@ -726,6 +768,6 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     canvasGeneration,
     setCamera,
     setRenderSettings,
-    exportSvg,
+    beginExport,
   };
 }

@@ -261,6 +261,10 @@
   },
   "references": {
     "categoryLabel": "リファレンス",
+    "exportAllSteps": "すべてのステップを書き出す…",
+    "exportStep": "ステップを書き出す…",
+    "exportStepPng": "ステップを PNG で書き出す…",
+    "exportStepSvg": "ステップを SVG で書き出す…",
     "nextCandidate": "次の候補",
     "nextStep": "次のステップ",
     "nextWay": "次の折り方",
@@ -285,7 +289,6 @@
     "resetView": "シミュレーターの視点をリセット",
     "toggleCreases": "折り線",
     "toggleFaces": "面",
-    "toggleHiddenLines": "隠れ線",
     "toggleLighting": "ライティング"
   },
   "viewport": {

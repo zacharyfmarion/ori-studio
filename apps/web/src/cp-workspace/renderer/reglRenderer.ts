@@ -435,9 +435,9 @@ export function createReglRenderer(
       // Folded figures are placed objects in user space, so they occlude the whole
       // crease pattern they sit over — vertices included. A vertex punching through
       // an opaque folded face read as the figure being translucent rather than on
-      // top of the paper. Fills first, then their edges; fold stroke widths are in
-      // user px (non-scaling): base = 1 css px (dpr device px) scaled per-segment
-      // by the width multiplier.
+      // top of the paper. Fills first, then their edges; fold stroke widths are
+      // non-scaling: the frame's base unit (device px per pt on the crease
+      // pattern) times each segment's own multiplier (its pen width in pt).
       foldedFills.draw({ view: frame.userView, viewport });
       foldedShadows.draw({ view: frame.userView, viewport });
       foldedStrokes.draw({

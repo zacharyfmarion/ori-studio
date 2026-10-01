@@ -102,6 +102,13 @@ export interface PrecreaseComponent {
   border_segment_indices: number[];
   segment_indices: number[];
   unit_segments: [number, number, number, number][];
+  /**
+   * The pattern's auxiliary lines on the sheet: drawn on the paper, never
+   * folded, so in no merged line, probe or plan. Only a framed sheet has any.
+   */
+  aux_segment_indices: number[];
+  /** Those lines in the unit frame, parallel to `aux_segment_indices`. */
+  aux_unit_segments: [number, number, number, number][];
   merged_lines: PrecreaseMergedLine[];
   exactness: PrecreaseExactness | null;
   refused: PrecreaseRefusal | null;
@@ -149,9 +156,11 @@ export interface PrecreaseInput {
  * The compact transport's crease segments, laid out for the bridge.
  *
  * `segEndpoints` already is `[x1, y1, x2, y2] * n`, so it is passed through as
- * is; the colour codes are gathered out of the five-slot `segAttr`. Aux lines
- * (`auxEndpoints`) are deliberately not included: they are the editor's
- * scaffolding, not creases of the pattern.
+ * is; the colour codes are gathered out of the five-slot `segAttr`. The
+ * auxiliary (Cyan3) segments among them go too, so every index stays the
+ * transport's: the analysis leaves them out of every sheet, and so out of the
+ * plan. The separate aux layer (`auxEndpoints`) is not included at all — it is
+ * the editor's scaffolding, not part of the pattern.
  */
 export function precreaseInputFromTransport(geometry: CpGeometryTransport): PrecreaseInput {
   const count = geometry.segEndpoints.length / 4;

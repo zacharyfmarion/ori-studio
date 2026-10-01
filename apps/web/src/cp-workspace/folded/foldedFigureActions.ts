@@ -5,11 +5,11 @@ import type {
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
 import { FOLDED_FIGURE_SIDES } from '../../lib/foldedFigureSides';
-import { hexToRgbColor, rgbColorToHex } from '../../lib/rgbColor';
-import type { FoldedFigureExportFormat } from './foldedFigureExport';
+import type { Hex, PaperStyle, PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES, policyApplies } from '../../lib/paper/paperStyleResolve';
 import { flipFoldedState, foldedFigureCycling, foldedFigureModel } from './foldedFigureState';
 import { foldedFigureCapabilities, isFolded3dFigure } from './foldedFigureCapabilities';
-import { foldedAppearanceEnabled } from './foldedFigureAppearance';
+import { foldedAppearanceEnabled, foldedAppearanceVisible } from './foldedFigureAppearance';
 import {
   FOLDED_COLOR_FIELDS,
   foldedColorLabel,
@@ -17,6 +17,7 @@ import {
   type FoldedColorKey,
 } from './foldedFigureControlOptions';
 import { foldedFigureNotice, type FoldedFigureNotice } from './foldedFigureNotice';
+import { edgeInkEdits } from '../paper/paperStyleFields';
 
 /**
  * The verbs a folded figure offers, in the order both surfaces present them.
@@ -56,6 +57,7 @@ export interface FoldedFigureCommand {
     | 'set-upright'
     | 'another'
     | 'refold'
+    | 'export'
     | 'duplicate'
     | 'delete';
   label: string;
@@ -83,7 +85,7 @@ export interface FoldedFigureChoiceOption {
  */
 export interface FoldedFigureChoice {
   kind: 'choice';
-  id: 'display-style' | 'side' | 'export';
+  id: 'display-style' | 'side';
   label: string;
   icon: FoldedFigureActionIcon;
   disabled: boolean;
@@ -111,11 +113,13 @@ export interface FoldedFigureSeparator {
 /**
  * One of the figure's paper colours, as a row that opens a colour picker.
  *
- * Carries hex rather than the kernel's `{ red, green, blue }` because both
- * renderers hand it straight to a native colour input, and converting here
- * means neither converts. A drag streams `set` per pointer move under one
- * gesture, and `commit` closes that gesture as one undo entry — from whichever
- * of blur and unmount fires first; the second is a no-op.
+ * The value is the figure's *effective* paper style — the app's display
+ * style with the figure's own pins on top — and a change pins that field on
+ * the figure, so it stops following the app style for that field alone. Hex,
+ * because both renderers hand it straight to a native colour input. A drag
+ * streams `set` per pointer move under one gesture, and `commit` closes that
+ * gesture as one undo entry — from whichever of blur and unmount fires first;
+ * the second is a no-op.
  */
 export interface FoldedFigureColorOption {
   kind: 'color';
@@ -131,7 +135,7 @@ export interface FoldedFigureColorOption {
 /** An on/off setting, rendered as a check row that leaves the menu open. */
 export interface FoldedFigureToggleOption {
   kind: 'toggle';
-  id: 'shadow';
+  id: 'shadow' | 'light' | 'aux';
   label: string;
   checked: boolean;
   disabled: boolean;
@@ -192,16 +196,21 @@ export type FoldedFigureAction =
  * each verb lands as exactly one undo entry.
  */
 /**
- * One control's run of continuous model changes — a colour drag — named so the
+ * One control's run of continuous changes — a colour drag — named so the
  * first change opens the layer's undo bracket under `scope` and
  * `endModelGesture(scope)` closes it as one entry under `label`.
  */
 export interface FoldedModelGesture {
-  /** Names one control's run of changes, e.g. `folded-color:<figure>:front_color`. */
+  /** Names one control's run of changes, e.g. `folded-color:<figure>:paper.front`. */
   scope: string;
   /** The history label the run lands under, stated when it opens. */
   label: string;
 }
+
+/** One field to pin on a figure, or to clear with `undefined`. */
+export type FoldedAppearanceEdit = {
+  [F in PaperStyleField]: { field: F; value: PaperStyleValue<F> | undefined };
+}[PaperStyleField];
 
 export interface FoldedFigureActionDeps {
   t: TFunction;
@@ -232,15 +241,32 @@ export interface FoldedFigureActionDeps {
    * Write part of the figure's model. Without `gesture` the change records an
    * undo entry immediately; with one, it joins the run named by
    * `gesture.scope` — opened by the first change, closed by
-   * {@link endModelGesture} — so a colour drag lands as one entry.
+   * {@link endModelGesture} — so a continuous control lands as one entry.
    */
   updateModel: (
     figure: OristudioCpFoldedFigureEntry,
     update: Partial<OristudioCpFoldedFigureModel>,
     gesture?: FoldedModelGesture
   ) => void;
-  /** Close a run opened through {@link updateModel}. A no-op if it is not open. */
+  /**
+   * Close a run opened through {@link updateModel} or {@link setAppearance}.
+   * A no-op if it is not open.
+   */
   endModelGesture: (scope: string) => void;
+  /** The figure's effective paper style: the app's display style with its pins on top. */
+  paperStyle: (figure: OristudioCpFoldedFigureEntry) => PaperStyle;
+  /** The app's display style: what a figure shows for a field it does not pin. */
+  inheritedPaperStyle: PaperStyle;
+  /**
+   * Pin one paper-style field on the figure, or clear it with `undefined` so
+   * the figure follows the app style for it again. The same gesture protocol
+   * as {@link updateModel}: one entry without a gesture, one run with.
+   */
+  setAppearance: (
+    figure: OristudioCpFoldedFigureEntry,
+    edit: FoldedAppearanceEdit,
+    gesture?: FoldedModelGesture
+  ) => void;
   foldAnother: (figure: OristudioCpFoldedFigureEntry) => void;
   duplicate: (figure: OristudioCpFoldedFigureEntry) => void;
   remove: (figure: OristudioCpFoldedFigureEntry) => void;
@@ -252,11 +278,8 @@ export interface FoldedFigureActionDeps {
   refold?: (figure: OristudioCpFoldedFigureEntry) => void;
   /** Whether the figure's source creases have changed since it was folded. */
   isStale?: (figure: OristudioCpFoldedFigureEntry) => boolean;
-  /** Save the figure on its own as an image. Omitted drops the export menu. */
-  exportAs?: (
-    figure: OristudioCpFoldedFigureEntry,
-    format: FoldedFigureExportFormat
-  ) => void;
+  /** Open the export dialog on the figure on its own. Omitted drops the verb. */
+  exportFigure?: (figure: OristudioCpFoldedFigureEntry) => void;
   /**
    * Act on a 3D figure's verdict: reveal the CAMV issues, select the creases a
    * crossing names, or simulate a figure whose layers could not be ordered.
@@ -284,21 +307,6 @@ export function isFoldedFigureReady(figure: OristudioCpFoldedFigureEntry): boole
   );
 }
 
-/** A folded figure is geometry on a page, so it exports as an image only. */
-export const FOLDED_FIGURE_EXPORT_FORMATS: readonly FoldedFigureExportFormat[] = [
-  'svg',
-  'png',
-];
-
-export function foldedExportFormatLabel(t: TFunction, value: FoldedFigureExportFormat): string {
-  // Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
-  switch (value) {
-    case 'svg':
-      return t('panels:foldedFigureActions.exportSvg', 'SVG image');
-    case 'png':
-      return t('panels:foldedFigureActions.exportPng', 'PNG image');
-  }
-}
 
 export function foldedDisplayStyleChoiceLabel(
   t: TFunction,
@@ -335,14 +343,60 @@ function foldedColorOptionId(key: FoldedColorKey): FoldedFigureColorOption['id']
 }
 
 /**
- * The figure's Style group: render style, side, the three colours, shadow.
+ * The paper-style pins each colour row edits. The front and back are the
+ * paper's two sides; the line colour is the edge pen's, pinned whole, and
+ * under a mono style the fold pens a 3D figure draws follow it
+ * (`edgeInkEdits`).
+ */
+function foldedColorEdits(
+  key: FoldedColorKey,
+  style: PaperStyle,
+  hex: Hex,
+  foldPens: boolean
+): FoldedAppearanceEdit[] {
+  switch (key) {
+    case 'front_color':
+      return [{ field: 'paper.front', value: hex }];
+    case 'back_color':
+      return [{ field: 'paper.back', value: hex }];
+    case 'line_color':
+      return edgeInkEdits(style, hex, foldPens);
+  }
+}
+
+function foldedColorValue(key: FoldedColorKey, style: PaperStyle): string {
+  switch (key) {
+    case 'front_color':
+      return style.paper.front;
+    case 'back_color':
+      return style.paper.back;
+    case 'line_color':
+      return style.edges.color;
+  }
+}
+
+/**
+ * The figure's Style group: render style, side, the three colours, then the
+ * flat figure's shadow or the 3D figure's light, and the existing-crease
+ * toggle.
+ *
+ * The colours are the figure's effective paper style and a change pins that
+ * field on the figure; the shadow is the flat figure's own Oriedita model
+ * field, and the light and the existing-crease toggle are the style's,
+ * offered where the surface's policy applies them (`PAPER_STYLE_POLICIES`).
+ * Switching either back to the app style's value clears the figure's pin
+ * rather than pinning a copy of it, as the Properties sheet's switches do
+ * (`ToggleRow`): a pin that only agrees with the app would leave that row
+ * "Overridden" with no one-click way back. The aux pen and erode are numbers
+ * a menu has no row for; the Properties sheet has them.
  *
  * Gated in two layers. The whole group waits on `ready`, like every other
  * kernel-backed verb; the model rows additionally ask `foldedAppearanceEnabled`
  * whether their option does anything on this kind of figure, and a row it
  * declines stays visible, disabled, with the reason as its hint — a control
  * that vanished between figure kinds would read as a bug, and one that is
- * enabled and inert is worse.
+ * enabled and inert is worse. An option that is not a control on the kind at
+ * all (`not-applicable`) is not offered.
  */
 export function foldedFigureStyleGroup(
   figure: OristudioCpFoldedFigureEntry,
@@ -358,6 +412,9 @@ export function foldedFigureStyleGroup(
   const sideEnabled = enabled('side');
   const shadowEnabled = enabled('shadow');
   const colorLabel = t('panels:creasePattern.changeFoldedColor', 'Change folded model color');
+  const style = deps.paperStyle(figure);
+  const inherited = deps.inheritedPaperStyle;
+  const policy = PAPER_STYLE_POLICIES[isFolded3dFigure(figure) ? 'folded-3d' : 'folded-flat'];
 
   return {
     kind: 'group',
@@ -409,28 +466,70 @@ export function foldedFigureStyleGroup(
           kind: 'color',
           id: foldedColorOptionId(field.key),
           label: foldedColorLabel(t, field.key),
-          value: rgbColorToHex(model?.[field.key] ?? field.fallback),
+          value: foldedColorValue(field.key, style),
           disabled: !modelReady,
-          set: (hex) =>
-            deps.updateModel(figure, { [field.key]: hexToRgbColor(hex) }, { scope, label: colorLabel }),
+          set: (hex) => {
+            const foldPens = policyApplies(policy, 'mountainFolds');
+            for (const edit of foldedColorEdits(field.key, style, hex, foldPens)) {
+              deps.setAppearance(figure, edit, { scope, label: colorLabel });
+            }
+          },
           commit: () => deps.endModelGesture(scope),
         };
       }),
-      { kind: 'separator', id: 'before-shadow' },
-      {
-        kind: 'toggle',
-        id: 'shadow',
-        label: t('panels:creasePattern.shadow', 'Shadow'),
-        checked: model?.display_shadows ?? false,
-        disabled: !shadowEnabled,
-        hint: shadowEnabled
-          ? undefined
-          : t(
-              'panels:creasePattern.shadowUnsupported3d',
-              'Shadows are not drawn for a 3D folded model yet'
-            ),
-        toggle: () => deps.updateModel(figure, { display_shadows: !(model?.display_shadows ?? false) }),
-      },
+      ...(foldedAppearanceVisible(figure, 'shadow')
+        ? [
+            { kind: 'separator', id: 'before-shadow' } as const,
+            {
+              kind: 'toggle',
+              id: 'shadow',
+              label: t('panels:creasePattern.shadow', 'Shadow'),
+              checked: model?.display_shadows ?? false,
+              disabled: !shadowEnabled,
+              toggle: () =>
+                deps.updateModel(figure, { display_shadows: !(model?.display_shadows ?? false) }),
+            } as const,
+          ]
+        : []),
+      ...(policyApplies(policy, 'light')
+        ? [
+            { kind: 'separator', id: 'before-light' } as const,
+            {
+              kind: 'toggle',
+              id: 'light',
+              label: t('panels:simulatorViewControls.lighting', 'Lighting'),
+              checked: style.light.enabled,
+              disabled: !modelReady,
+              toggle: () => {
+                const on = !style.light.enabled;
+                deps.setAppearance(figure, {
+                  field: 'light',
+                  value:
+                    on === inherited.light.enabled ? undefined : { ...style.light, enabled: on },
+                });
+              },
+            } as const,
+          ]
+        : []),
+      ...(policyApplies(policy, 'auxCreases.visible')
+        ? [
+            { kind: 'separator', id: 'before-aux' } as const,
+            {
+              kind: 'toggle',
+              id: 'aux',
+              label: t('panels:cpProperties.paperStyle.auxVisible', 'Auxiliary creases'),
+              checked: style.auxCreases.visible,
+              disabled: !modelReady,
+              toggle: () => {
+                const on = !style.auxCreases.visible;
+                deps.setAppearance(figure, {
+                  field: 'auxCreases.visible',
+                  value: on === inherited.auxCreases.visible ? undefined : on,
+                });
+              },
+            } as const,
+          ]
+        : []),
     ],
   };
 }
@@ -552,26 +651,21 @@ export function buildFoldedFigureActions(
     });
   }
 
-  if (deps.exportAs) {
-    const exportAs = deps.exportAs;
+  if (deps.exportFigure) {
+    const exportFigure = deps.exportFigure;
     actions.push(
       { kind: 'separator', id: 'before-export' },
       {
-        kind: 'choice',
+        kind: 'command',
         id: 'export',
+        // One verb: the dialog it opens chooses the format, with the page in view.
         label: t('panels:foldedFigureActions.export', 'Export…'),
         icon: 'export',
-        // Exported from the render snapshot, so anything on screen can be saved
-        // — including a figure whose creases have since moved.
-        disabled: figure.renderSnapshot === null,
-        // One-shot actions, not a mode: no current format to check.
-        exclusive: false,
-        options: FOLDED_FIGURE_EXPORT_FORMATS.map((value) => ({
-          id: `export-${value}`,
-          label: foldedExportFormatLabel(t, value),
-          checked: false,
-          run: () => exportAs(figure, value),
-        })),
+        // Exported from the figure's own picture — a 3D figure's scene, a flat
+        // figure's render snapshot — so anything on screen can be saved,
+        // including a figure whose creases have since moved.
+        disabled: figure.renderSnapshot === null && (figure.scene ?? null) === null,
+        run: () => exportFigure(figure),
       }
     );
   }

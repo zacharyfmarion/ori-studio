@@ -2,7 +2,15 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldDocument, RenderSettings } from '@treemaker/origami-simulator';
-import type { SimulatorBackendId, SimulatorFramePayload } from './simulatorSession';
+import type { PaperScene } from '../lib/paper/paperScene';
+import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
+import type {
+  SimulatorBackendId,
+  SimulatorExportSceneOptions,
+  SimulatorExportSnapshotOptions,
+  SimulatorFramePayload,
+} from './simulatorSession';
+import type { SimulatorExportSnapshot } from './useSimulatorRuntime';
 
 /**
  * The worker, as far as the hook can tell. `load` resolves only when the test
@@ -37,6 +45,7 @@ function liveFrame(): SimulatorFramePayload | null {
     // Not converged: a converged frame idles the loop, and these tests want it
     // running so an eviction has something to be noticed by.
     converged: false,
+    framed: true,
     maxVelocity: 0,
     foldPercent: 0,
     maxStrain: 0,
@@ -70,6 +79,9 @@ async function defaultLoad() {
   };
 }
 
+/** The id the worker hands out for a frozen frame; not a session token. */
+const EXPORT_SNAPSHOT_ID = 41;
+
 const client = {
   load: vi.fn(defaultLoad),
   release: vi.fn(async (token: number) => {
@@ -93,6 +105,15 @@ const client = {
   setRenderSettings: vi.fn(async () => undefined),
   setFoldPercent: vi.fn(async () => undefined),
   reset: vi.fn(async () => undefined),
+  // Typed for the same reason as `setCamera`: the export tests assert what view
+  // travelled with the request, and which frozen frame a scene was asked of.
+  beginExportSnapshot: vi.fn(
+    async (_options: SimulatorExportSnapshotOptions): Promise<number | null> => EXPORT_SNAPSHOT_ID
+  ),
+  exportScene: vi.fn(
+    async (_id: number, _options: SimulatorExportSceneOptions): Promise<PaperScene | null> => null
+  ),
+  endExportSnapshot: vi.fn(async (_id: number): Promise<void> => undefined),
 };
 
 vi.mock('../store/workspaceStore/simulatorRuntime', () => ({
@@ -582,7 +603,9 @@ describe('a replacement session opens on the view in use', () => {
     showFaces: true,
     showEdges: true,
     lighting: true,
-    creaseWidthPx: 3,
+    edgeWidthPx: 3,
+    mountainWidthPx: 3,
+    valleyWidthPx: 3,
     faceAlpha: 1,
   };
 
@@ -681,5 +704,188 @@ describe('a replacement session opens on the view in use', () => {
     await act(async () => root?.render(<ViewProbe fold={null} />));
     expect(live?.status).toBe('idle');
     expect(live?.error).toBeNull();
+  });
+});
+
+/**
+ * On the canvas-2D path the main thread draws, so the runtime forwards neither
+ * camera nor settings to the worker — a message per orbit frame would buy
+ * nothing. But the worker still freezes the frame an export is built from, and
+ * with nothing forwarded it froze its own defaults at the opening camera: blue
+ * paper, 3 px creases, a view nobody was looking at. The runtime remembers both
+ * and sends them with the request instead.
+ */
+describe('beginExport', () => {
+  let live: ReturnType<typeof useSimulatorRuntime> | null = null;
+
+  const SETTINGS: RenderSettings = {
+    frontColor: [1, 1, 0.2],
+    backColor: [0.95, 0.94, 0.9],
+    mountainColor: [0.86, 0.12, 0.14],
+    valleyColor: [0.11, 0.36, 0.85],
+    borderColor: [0.16, 0.18, 0.2],
+    lightDir: [-0.45, 0.58, 0.68],
+    background: [0.05, 0.06, 0.07],
+    showFaces: true,
+    showEdges: true,
+    lighting: true,
+    edgeWidthPx: 3,
+    mountainWidthPx: 3,
+    valleyWidthPx: 3,
+    faceAlpha: 1,
+  };
+
+  beforeEach(() => {
+    live = null;
+    client.setCamera.mockClear();
+    client.setRenderSettings.mockClear();
+    client.beginExportSnapshot.mockReset();
+    client.beginExportSnapshot.mockImplementation(async () => EXPORT_SNAPSHOT_ID);
+    client.exportScene.mockReset();
+    client.exportScene.mockImplementation(async () => null);
+    client.endExportSnapshot.mockReset();
+    client.endExportSnapshot.mockImplementation(async () => undefined);
+  });
+
+  function CpuProbe({ fold }: { fold: FoldDocument | null }) {
+    // No canvas and no bitmap output: nothing to render into, so the runtime
+    // never asks for the GPU path and `defaultLoad` answers with the CPU solver.
+    const runtime = useSimulatorRuntime({
+      fold,
+      solverOptions: {},
+      triangulate: false,
+      canvas: null,
+      bitmapOutput: null,
+      paused: true,
+    });
+    useEffect(() => {
+      live = runtime;
+    });
+    return null;
+  }
+
+  async function mountLoaded() {
+    await act(async () => root?.render(<CpuProbe fold={FOLD} />));
+    await settleLoads();
+  }
+
+  async function beginExport(): Promise<SimulatorExportSnapshot | null | undefined> {
+    let snapshot: SimulatorExportSnapshot | null | undefined;
+    await act(async () => {
+      snapshot = await live?.beginExport();
+    });
+    return snapshot;
+  }
+
+  it('remembers the camera and settings without sending them, and freezes the view with both', async () => {
+    await mountLoaded();
+    expect(live?.status).toBe('ready');
+    expect(live?.gpuActive).toBe(false);
+
+    await act(async () => {
+      live?.setCamera({ yaw: 0.7, pitch: -0.2, zoom: 1.5 }, 300, 200);
+      live?.setRenderSettings(SETTINGS);
+    });
+    // Recorded on the main thread only: the worker is not drawing this view.
+    expect(client.setCamera).not.toHaveBeenCalled();
+    expect(client.setRenderSettings).not.toHaveBeenCalled();
+
+    await beginExport();
+    expect(client.beginExportSnapshot).toHaveBeenCalledTimes(1);
+    expect(client.beginExportSnapshot.mock.calls[0]?.[0]).toEqual({
+      token: 1,
+      devicePixelRatio: 1,
+      camera: { view: { yaw: 0.7, pitch: -0.2, zoom: 1.5 }, width: 300, height: 200 },
+      settings: SETTINGS,
+    });
+  });
+
+  it('freezes the newest camera, not the one last drawn', async () => {
+    await mountLoaded();
+    await act(async () => {
+      live?.setCamera({ yaw: 0.1, pitch: 0, zoom: 1 }, 300, 200);
+      live?.setCamera({ yaw: 0.9, pitch: 0, zoom: 1 }, 300, 200);
+    });
+    await beginExport();
+    expect(client.beginExportSnapshot.mock.calls[0]?.[0]).toMatchObject({
+      camera: { view: { yaw: 0.9, pitch: 0, zoom: 1 } },
+    });
+  });
+
+  it('sends nothing it was never told', async () => {
+    await mountLoaded();
+    await beginExport();
+    // The worker's own view stands: an `undefined` here is "no opinion", not a
+    // reset to defaults.
+    expect(client.beginExportSnapshot.mock.calls[0]?.[0]).toMatchObject({
+      camera: undefined,
+      settings: undefined,
+    });
+  });
+
+  it('measures the frame at the device pixel ratio the viewport draws at', async () => {
+    vi.stubGlobal('devicePixelRatio', 2);
+    try {
+      await mountLoaded();
+      await beginExport();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(client.beginExportSnapshot.mock.calls[0]?.[0]).toMatchObject({ devicePixelRatio: 2 });
+  });
+
+  it('answers null, asking the worker nothing, while it holds no model', async () => {
+    await act(async () => root?.render(<CpuProbe fold={null} />));
+    await expect(beginExport()).resolves.toBeNull();
+
+    // A load in flight has no session to quote yet.
+    await act(async () => root?.render(<CpuProbe fold={FOLD} />));
+    expect(live?.status).toBe('loading');
+    await expect(beginExport()).resolves.toBeNull();
+    expect(client.beginExportSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('answers null when the worker has no frame to freeze', async () => {
+    await mountLoaded();
+    client.beginExportSnapshot.mockResolvedValueOnce(null);
+    await expect(beginExport()).resolves.toBeNull();
+  });
+
+  it('asks for scenes of the frozen frame, and lets it go, by the id the worker gave it', async () => {
+    await mountLoaded();
+    const snapshot = await beginExport();
+    const scene = { bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, sheet: 1, items: [] };
+    client.exportScene.mockResolvedValueOnce(scene);
+    const options = { style: DEFAULT_PAPER_STYLE, markHidden: true };
+    await expect(snapshot?.scene(options)).resolves.toBe(scene);
+    expect(client.exportScene).toHaveBeenCalledWith(EXPORT_SNAPSHOT_ID, options);
+
+    expect(client.endExportSnapshot).not.toHaveBeenCalled();
+    snapshot?.release();
+    expect(client.endExportSnapshot).toHaveBeenCalledWith(EXPORT_SNAPSHOT_ID);
+  });
+
+  it('lets a frame go quietly when the worker holding it is gone', async () => {
+    await mountLoaded();
+    const snapshot = await beginExport();
+    // A plain function, not the mock: a vi.fn handles every promise it returns
+    // itself, so a rejection from it could never go unhandled.
+    const mocked = client.endExportSnapshot;
+    const ended: number[] = [];
+    client.endExportSnapshot = ((id: number) => {
+      ended.push(id);
+      return Promise.reject(new Error('worker terminated'));
+    }) as unknown as typeof mocked;
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      expect(() => snapshot?.release()).not.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      process.off('unhandledRejection', unhandled);
+      client.endExportSnapshot = mocked;
+    }
+    expect(ended).toEqual([EXPORT_SNAPSHOT_ID]);
+    expect(unhandled).not.toHaveBeenCalled();
   });
 });

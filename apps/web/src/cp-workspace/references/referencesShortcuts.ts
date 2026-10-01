@@ -15,6 +15,10 @@ export const REFERENCES_SHORTCUT_IDS: readonly ReferencesShortcutId[] = [
   'references.zoomOut',
   'references.clearTarget',
   'references.playFold',
+  'references.exportStep',
+  'references.exportAllSteps',
+  'references.exportStepSvg',
+  'references.exportStepPng',
 ];
 
 /**
@@ -38,6 +42,14 @@ export interface ReferencesShortcutActions {
   clearTarget: () => void;
   /** Play the step's fold, pause it, or play it back (`Space`). */
   playFold: () => void;
+  /**
+   * Open the export dialog on the step the big view shows: on the format last
+   * saved in, or on SVG / PNG. Unbound by default.
+   */
+  exportStep: () => void;
+  exportAllSteps: () => void;
+  exportStepSvg: () => void;
+  exportStepPng: () => void;
 }
 
 /**
@@ -91,6 +103,18 @@ export function runReferencesShortcut(
       return;
     case 'references.playFold':
       actions.playFold();
+      return;
+    case 'references.exportStep':
+      actions.exportStep();
+      return;
+    case 'references.exportAllSteps':
+      actions.exportAllSteps();
+      return;
+    case 'references.exportStepSvg':
+      actions.exportStepSvg();
+      return;
+    case 'references.exportStepPng':
+      actions.exportStepPng();
       return;
   }
 }

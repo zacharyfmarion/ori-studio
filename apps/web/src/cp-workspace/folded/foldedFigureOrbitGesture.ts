@@ -41,7 +41,7 @@ import {
   type SimulatorOrbitDrag,
   type SimulatorOrbitPoint,
 } from '../../lib/simulatorOrbit';
-import type { FoldedFigureCamera } from './foldedFigure3dProjection';
+import type { FoldedFigureCamera } from './folded3dCamera';
 
 /**
  * Whether a press at `point` should orbit `figureId` rather than reach the tool

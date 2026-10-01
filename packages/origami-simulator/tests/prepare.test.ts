@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  EDGES_FACET_KEY,
+  EDGE_CODE,
   OrigamiModel,
   ReferenceSolver,
   createOrigamiSimulator,
   detectWebGlSupport,
+  meshTopologyFor,
   prepareFoldModel,
 } from '../src/index.js';
 import { makeBookFoldFixture, maxPositionDelta } from '../src/testing.js';
@@ -172,6 +175,119 @@ describe('prepareFoldModel', () => {
     expect(prepared.edgesVertices).toHaveLength(5);
     expect(prepared.edgesAssignment[4]).toBe('F');
     expect(prepared.edgesFoldAngle[4]).toBe(0);
+    // The diagonal is marked as one; the sides, which the document drew, are not.
+    expect(prepared.edgesFacet).toEqual([false, false, false, false, true]);
+  });
+
+  it('tells a source F edge from a triangulation diagonal in the render topology', () => {
+    // Two quads sharing an auxiliary crease down the middle: both `F` in the
+    // document's terms, but the crease is drawn and the diagonals never are.
+    const prepared = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [2, 1],
+        [1, 1],
+        [0, 1],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 5],
+        [5, 0],
+        [1, 4],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'F'],
+      edges_foldAngle: [null, null, null, null, null, null, 0],
+      faces_vertices: [
+        [0, 1, 4, 5],
+        [1, 2, 3, 4],
+      ],
+    });
+    const topology = meshTopologyFor(prepared);
+    expect(topology.edgeAssignments[6]).toBe(EDGE_CODE.aux);
+    expect(prepared.edgesVertices).toHaveLength(9);
+    expect(topology.edgeAssignments[7]).toBe(EDGE_CODE.facet);
+    expect(topology.edgeAssignments[8]).toBe(EDGE_CODE.facet);
+    // Borders are still borders.
+    expect(topology.edgeAssignments[0]).toBe(EDGE_CODE.border);
+  });
+
+  it('keeps its diagonals as facets through a second preparation', () => {
+    // The app's simulation path prepares once to triangulate, re-orients the
+    // faces, and prepares the result again without triangulating. The second
+    // pass invents nothing, so the flags have to ride on the document: without
+    // them every diagonal of the first pass came back as an aux crease and drew.
+    const once = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+        [2, 1],
+        [1, 1],
+        [0, 1],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 5],
+        [5, 0],
+        [1, 4],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B', 'B', 'F'],
+      edges_foldAngle: [null, null, null, null, null, null, 0],
+      faces_vertices: [
+        [0, 1, 4, 5],
+        [1, 2, 3, 4],
+      ],
+    });
+    expect(once.fold[EDGES_FACET_KEY]).toEqual(once.edgesFacet);
+    const twice = prepareFoldModel(once.fold, { triangulate: false });
+    expect(twice.edgesFacet).toEqual(once.edgesFacet);
+    const topology = meshTopologyFor(twice);
+    expect(Array.from(topology.edgeAssignments).filter((code) => code === EDGE_CODE.aux)).toHaveLength(1);
+    expect(Array.from(topology.edgeAssignments).filter((code) => code === EDGE_CODE.facet)).toHaveLength(2);
+    // A document that never carried the key is prepared as before.
+    const { [EDGES_FACET_KEY]: _dropped, ...bare } = once.fold;
+    expect(prepareFoldModel(bare, { triangulate: false }).edgesFacet.every((flag) => !flag)).toBe(true);
+  });
+
+  it('keeps the facet marks aligned when the degenerate pass renumbers edges', () => {
+    // A zero-length edge (vertices 4 and 5 coincide) is dropped after
+    // triangulation, so every edge after it moves down one. The diagonal has
+    // to stay marked by what it is, not by where it sat.
+    const prepared = prepareFoldModel({
+      vertices_coords: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [0, 0.5],
+        [0, 0.5],
+      ],
+      edges_vertices: [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [4, 5],
+      ],
+      edges_assignment: ['B', 'B', 'B', 'B', 'B'],
+      edges_foldAngle: [null, null, null, null, null],
+      faces_vertices: [[0, 1, 2, 3]],
+    });
+    expect(prepared.edgesVertices).toHaveLength(5);
+    const diagonal = prepared.edgesVertices.findIndex(
+      ([a, b]) => (a === 0 && b === 2) || (a === 1 && b === 3)
+    );
+    expect(diagonal).toBeGreaterThanOrEqual(0);
+    expect(prepared.edgesFacet[diagonal]).toBe(true);
+    expect(prepared.edgesFacet.filter(Boolean)).toHaveLength(1);
   });
 });
 

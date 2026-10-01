@@ -246,9 +246,20 @@
       "title": "Imagen"
     },
     "inlineSimulation": {
+      "followsNote": "Sigue el estilo de papel salvo que se anule",
+      "paper": "Papel",
       "settings": "Ajustes del simulador",
       "sharedNote": "Compartidos con el espacio de trabajo Simular y con todas las ventanas",
       "title": "Ventana de simulación"
+    },
+    "paperStyle": {
+      "auxColor": "Color del pliegue auxiliar",
+      "auxVisible": "Pliegues auxiliares",
+      "auxWidth": "Grosor del pliegue auxiliar (pt)",
+      "changeAction": "Cambiar estilo de papel",
+      "erode": "Retraer (% del papel)",
+      "foldsAsEdgesReason": "Todos los pliegues se dibujan como bordes",
+      "resetAction": "Restablecer estilo de papel"
     },
     "region": {
       "hidden": "Oculta",
@@ -577,7 +588,6 @@
     "sendTextToBack": "Enviar texto al fondo",
     "setFoldedModelUpright": "Definir la vertical del modelo plegado",
     "shadow": "Sombra",
-    "shadowUnsupported3d": "Todavía no se dibujan sombras para un modelo plegado en 3D",
     "stale": "Obsoleto",
     "viewFoldedModelOtherSide": "Ver desde el otro lado",
     "viewportControls": "Controles de la vista del patrón de pliegues",
@@ -788,8 +798,6 @@
     "delete": "Eliminar",
     "duplicate": "Duplicar",
     "export": "Exportar…",
-    "exportPng": "Imagen PNG",
-    "exportSvg": "Imagen SVG",
     "firstSolution": "Volver a la primera solución",
     "flip": "Voltear",
     "label": "Acciones del modelo plegado",
@@ -865,6 +873,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "No se muestra ningún paso",
       "noFoldHint": "No hay nada que plegar en esta tarjeta",
       "noTargetHint": "Elige primero un vértice o un pliegue",
       "oneWayHint": "Este paso solo se pliega de una forma",
@@ -1059,6 +1068,8 @@
       "mergeSymmetricHelp": "Dos pliegues que son imagen especular uno del otro — la esquina izquierda al centro y la derecha al centro, por ejemplo — se muestran como un solo paso con una flecha para cada uno, como los pliega un diagrama. Desactivado, cada pliegue es un paso propio.",
       "precreaseGrid": "Preplegar la cuadrícula",
       "sequence": "Secuencia de prepliegues",
+      "showAuxCreases": "Mostrar los pliegues auxiliares",
+      "showAuxCreasesHelp": "Las líneas auxiliares del patrón de pliegues, dibujadas en el papel en cada paso con el estilo de los pliegues auxiliares y nunca plegadas. Sigue Configuración ▸ Papel hasta que lo cambies aquí.",
       "solutions": "Soluciones"
     },
     "sheets": {
@@ -1155,9 +1166,7 @@
     }
   },
   "simulatorExport": {
-    "png": "Imagen PNG",
-    "svg": "Imagen SVG",
-    "trigger": "Exportar vista"
+    "trigger": "Exportar vista…"
   },
   "simulatorSegments": {
     "creasePatterns": "Patrones de pliegues",
@@ -1168,10 +1177,6 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Estiramiento",
-    "background": "Fondo",
-    "backgroundTheme": "Según el tema",
-    "backgroundTransparent": "Transparente",
-    "backgroundWhite": "Blanco",
     "borderEdge": "Borde",
     "colorMode": "Color",
     "colorPaper": "Papel",
@@ -1179,17 +1184,11 @@
     "creaseLines": "Líneas de pliegue",
     "creases": "Pliegues",
     "creaseStiffness": "Pliegue",
-    "creaseStyle": "Estilo",
-    "creaseStyleColor": "Monte / valle",
-    "creaseStyleMono": "Una tinta",
-    "creaseStyleMonoDashed": "Una tinta, discontinua",
-    "creaseWidth": "Grosor",
     "damping": "Amortiguación",
-    "export": "Exportar",
-    "exportHint": "Fondo de página de la imagen exportada.",
     "faces": "Caras",
     "faceStiffness": "Cara",
-    "hiddenLines": "Líneas ocultas",
+    "foldsAsEdges": "Dibujar todos los pliegues como bordes",
+    "foldsAsEdgesHelp": "Un pliegue ya hecho es un borde del papel: todos los pliegues se dibujan con el color y el trazo del borde del papel, con la anchura media de los pliegues de monte y de valle. Desactivado, se dibujan según su dirección.",
     "lighting": "Iluminación",
     "material": "Material",
     "materialHint": "Cuánto resiste el papel al estiramiento y al plegado.",

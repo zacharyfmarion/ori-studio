@@ -91,7 +91,15 @@ describe('createFoldSurface', () => {
     expect(surface.place(0, (Math.PI * r) / 2).nz).toBeCloseTo(0);
     expect(end.nz).toBeCloseTo(-1);
     // Short of the hinge the paper lies flat, for the overlap a flap draws.
-    expect(surface.place(0, -0.2)).toEqual({ s: 0, v: -0.2, z: 0, nz: 1 });
+    expect(surface.place(0, -0.2)).toEqual({ s: 0, v: -0.2, z: 0, nz: 1, face: 1 });
+    // At a half turn a real bend has come all the way over itself, so from
+    // above it shows the other face from the hinge on — although this one,
+    // sheared, still faces the reader for its first quarter.
+    expect(surface.place(0, 0).face).toBe(1);
+    expect(surface.place(0, 1e-6).face).toBe(-1);
+    expect(surface.place(0, (Math.PI * r) / 4).nz).toBeGreaterThan(0);
+    expect(surface.place(0, (Math.PI * r) / 4).face).toBe(-1);
+    expect(end.face).toBe(-1);
     let last = 1;
     for (const u of [0.1, 0.4, 0.8, 1.2, 1.5]) {
       const p = surface.place(0, u);
@@ -358,5 +366,45 @@ describe('strokeCuts', () => {
     expect(cuts[0]).toBe(0);
     expect(cuts[cuts.length - 1]).toBe(1);
     expect(cuts[1]! * 4).toBeCloseTo((Math.PI / 2) / 12);
+  });
+});
+
+describe('which face a bend shows', () => {
+  // A real bend past a quarter turn overhangs itself: from above, everything
+  // from π − θ into it is covered by the part that has turned over.
+  const r = 0.1;
+  const bent = (angle: number) =>
+    createFoldSurface({ radius: r, angle, press: 0, creased: [], ramp: 0 });
+
+  it('shows the reader’s face through the whole bend until a quarter turn', () => {
+    const surface = bent(Math.PI / 3);
+    for (const u of [0, 0.02, 0.05, (Math.PI / 3) * r]) expect(surface.place(0, u).face).toBe(1);
+    expect(surface.place(0, 1).face).toBe(1);
+  });
+
+  it('shows the other face from π − θ into the bend once past it', () => {
+    const angle = (3 * Math.PI) / 4;
+    const surface = bent(angle);
+    const edge = (Math.PI - angle) * r;
+    expect(surface.place(0, edge * 0.9).face).toBe(1);
+    expect(surface.place(0, edge * 1.1).face).toBe(-1);
+    // Still facing the reader there by its own normal — the part a real bend covers.
+    expect(surface.place(0, edge * 1.1).nz).toBeGreaterThan(0);
+    // And the flap past the bend, face down.
+    expect(surface.place(0, 1).face).toBe(-1);
+  });
+
+  it('meshes each triangle as one face, never a blend of the two', () => {
+    const surface = bent((3 * Math.PI) / 4);
+    const polygon = [
+      { s: 0, u: 0 },
+      { s: 1, u: 0 },
+      { s: 1, u: 1 },
+      { s: 0, u: 1 },
+    ];
+    const mesh = tessellateFlap(polygon, surface, 0.25);
+    expect(mesh.faces).toHaveLength(mesh.vertices.length / 3);
+    expect(mesh.faces).toContain(1);
+    expect(mesh.faces).toContain(-1);
   });
 });

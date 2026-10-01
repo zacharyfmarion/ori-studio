@@ -54,6 +54,7 @@
     "comlink": "^4.4.2",
     "dockview": "^4.13.1",
     "earcut": "^3.2.3",
+    "fflate": "^0.8.3",
     "i18next": "^25.10.10",
     "i18next-http-backend": "^3.0.6",
     "lexical": "^0.48.0",

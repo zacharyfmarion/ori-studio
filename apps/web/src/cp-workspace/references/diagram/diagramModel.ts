@@ -15,11 +15,17 @@ import type { DiagramLineStyleName } from '../referenceFinderDiagramToPrimitives
 import type { StepDiagramPrimitive } from '../referenceFinderDiagramToPrimitives';
 import type { PrecreaseDirection } from '../precreaseSequence';
 
+/**
+ * Each pair swaps within itself: an instruction stays an instruction and a
+ * line of the finished pattern stays one, whichever face it is named from.
+ */
 const OTHER_FACE: Partial<Record<DiagramLineStyleName, DiagramLineStyleName>> = {
   mountain: 'valley',
   valley: 'mountain',
   'pinch-mountain': 'pinch-valley',
   'pinch-valley': 'pinch-mountain',
+  'fold-mountain': 'fold-valley',
+  'fold-valley': 'fold-mountain',
 };
 
 /** The same crease, named from the other face. */

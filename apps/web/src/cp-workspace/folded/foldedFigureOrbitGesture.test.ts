@@ -6,7 +6,7 @@ import {
   foldedFigureOrbitChanged,
   foldedFigureOrbitClaimsPress,
 } from './foldedFigureOrbitGesture';
-import { DEFAULT_FOLDED_3D_CAMERA } from './foldedFigure3dProjection';
+import { DEFAULT_FOLDED_3D_CAMERA } from './folded3dCamera';
 import {
   SIMULATOR_ORBIT_SENSITIVITY,
   nextSimulatorOrbitView,

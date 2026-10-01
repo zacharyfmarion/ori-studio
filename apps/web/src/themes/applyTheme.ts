@@ -1,7 +1,7 @@
 import { mixHexColors } from '../lib/rgbColor';
 import { applyThemeVariables } from './applyThemeVariables';
 import { paperBackFor } from './paperBack';
-import { FOLD_UNASSIGNED, referencesCreaseAlpha, referencesDimAlpha } from './referencesInk';
+import { FOLD_UNASSIGNED, referencesCreaseAlpha } from './referencesInk';
 import type { ThemeTokens, TreeMakerTheme } from './types';
 import { tokenToCssVar } from './types';
 
@@ -69,7 +69,7 @@ const MOUNTAIN_VALLEY_COLORS = {
  * `selectionColor.test.ts` holds selections to. Light variants are the same
  * hues darkened to read on a light canvas.
  */
-const REFERENCE_COLORS = {
+export const REFERENCE_COLORS = {
   dark: { input: '#f25ab8', new: '#a3e635' },
   light: { input: '#c91d87', new: '#4d7c0f' },
 } as const;
@@ -111,19 +111,12 @@ function applyTreeMakerDerivedTokens(theme: TreeMakerTheme, setVar: (name: strin
   setVar('--fold-flat', MOUNTAIN_VALLEY_COLORS[theme.type].aux);
   setVar('--fold-unassigned', FOLD_UNASSIGNED);
   // What the References workspace draws its context at — an earlier crease's
-  // grey, and the pattern's creases made by earlier steps — held to the light
-  // theme's step off the ground rather than to one alpha. See `referencesInk.ts`.
+  // grey — held to the light theme's step off the ground rather than to one
+  // alpha. See `referencesInk.ts`. Against the ground here, because `:root`
+  // has no paper; the workspace re-sets it against the paper style's sheet
+  // (`usePaperStyleTokens`).
   const ground = colors['bg.primary'];
-  setVar('--references-crease-alpha', referencesCreaseAlpha(ground).toFixed(3));
-  setVar(
-    '--references-dim-alpha',
-    referencesDimAlpha(
-      ground,
-      MOUNTAIN_VALLEY_COLORS[theme.type].mountain,
-      MOUNTAIN_VALLEY_COLORS[theme.type].valley,
-      theme.type
-    ).toFixed(3)
-  );
+  setVar('--references-crease-alpha', referencesCreaseAlpha(ground, FOLD_UNASSIGNED).toFixed(3));
   setVar('--fold-border', colors['text.primary']);
   // The theme's own accent, unless that accent is confusable with a fold colour —
   // red is mountain, blue is valley, and a selected crease is painted this outright,

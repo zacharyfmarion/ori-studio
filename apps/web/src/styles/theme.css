@@ -88,6 +88,22 @@
   --bp-junction: #ff0000;
   --status-info: #7db7e8;
 
+  /*
+   * Settings ▸ Paper. A ground the palette has no name for, stated against
+   * the card the paper tab draws its fields on (`--bg-surface`).
+   *
+   * The well is a field's own ground: the width stepper's frame, the dash
+   * trigger, the dash menu's custom field. `--bg-canvas` is whatever the theme
+   * calls its furthest-back surface, so the well recedes from the card on a
+   * dark theme (one-dark: #1b1f27 inside a #2d323b card) and comes forward as
+   * white paper on a light one (github-light: #ffffff inside an #eaeef2 card).
+   * Either way it reads as "a field, not the card", which a fixed near-black —
+   * right only for the one dark palette a design is drawn in — would not.
+   */
+  --settings-well: var(--bg-canvas);
+  /* The segmented control's track: a well, for the same reason. */
+  --segmented-track: var(--bg-canvas);
+
   --shadow-overlay: rgba(0, 0, 0, 0.35);
   --shadow-context-menu: 0 4px 12px rgba(0, 0, 0, 0.35);
   --overlay-dim: rgba(0, 0, 0, 0.52);
@@ -122,6 +138,19 @@
   --fold-flat: #64c8c8;
   --fold-border: #111417;
   --fold-unassigned: #9aa4ad;
+  /* The theme's own fold inks, under names the References workspace does not
+     re-set. The workspace re-sets the `--fold-*` names from the paper style
+     (usePaperStyleTokens), so inside it those are the style's; a custom
+     property is resolved where it is declared, so these carry the theme's
+     values into it untouched. */
+  --theme-fold-mountain: var(--fold-mountain);
+  --theme-fold-valley: var(--fold-valley);
+  --theme-fold-border: var(--fold-border);
+  --theme-fold-unassigned: var(--fold-unassigned);
+  /* What a References mark — an arrow, the turn-over glyph, a ring — draws in
+     where it has left the paper: the theme's edge ink, which reads on the
+     theme's ground, as every mark did before the sheet took the style's paper. */
+  --references-ground-ink: var(--theme-fold-border);
   /* Selected creases and points: the theme's accent, unless that accent is
      confusable with a fold colour -- red is mountain, blue is valley. One-dark's
      accent is blue, so it overrides to its gold; see themes/applyTheme. */
@@ -154,6 +183,15 @@
   --fold-hinge: #4d88e8;
   --fold-pseudohinge: #3fbec4;
   --fold-gusset: #737f88;
+  /* The pattern rails' inks (`.sheet-card__stroke--*`): the theme's, wherever
+     a rail sits. The References workspace re-sets the `--fold-*` names to the
+     paper style's on its own root (`usePaperStyleTokens`), and its rail is
+     inside that root. A custom property resolves its `var()` where it is
+     declared, so these carry the root's values in, untouched by the re-set. */
+  --sheet-thumb-border: var(--text-tertiary);
+  --sheet-thumb-mountain: var(--fold-mountain);
+  --sheet-thumb-valley: var(--fold-valley);
+  --sheet-thumb-unassigned: var(--fold-unassigned);
   --domain-overlay-bg: rgba(16, 20, 23, 0.82);
   --domain-danger-border: rgba(224, 108, 117, 0.6);
   --leaf-radius-fill: rgba(143, 167, 255, 0.11);
@@ -1317,42 +1355,6 @@ a.context-menu__item {
   font-size: 0.72rem;
 }
 
-.segmented {
-  display: inline-flex;
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-  background: var(--bg-elevated);
-}
-
-.segmented__option {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-width: 0;
-  height: 26px;
-  padding: 0 8px;
-  border: 0;
-  border-left: 1px solid var(--border-default);
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0;
-  cursor: pointer;
-}
-
-.segmented__option:first-child {
-  border-left: 0;
-}
-
-.segmented__option:hover,
-.segmented__option[data-active] {
-  background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
-  color: var(--text-primary);
-}
-
 .toggle-switch {
   position: relative;
   display: inline-flex;
@@ -2451,17 +2453,6 @@ a.context-menu__item {
   box-shadow: 0 0 0 2px var(--accent-primary);
 }
 
-.export-modal .segmented {
-  display: flex;
-  width: 100%;
-}
-
-.export-modal .segmented__option {
-  flex: 1 1 0;
-  height: 36px;
-  font-size: 0.78rem;
-}
-
 .export-modal__toggle-row {
   display: flex;
   align-items: center;
@@ -2487,6 +2478,148 @@ a.context-menu__item {
 
 .export-modal .simple-modal__footer {
   grid-column: 1 / -1;
+}
+
+/*
+ * The paper export dialog (`PaperExportModal`): the export frame, with the page
+ * drawn at fit and its size stated under it.
+ *
+ * The page is a box of the page's own aspect, sized to the pane through
+ * container units, rather than an image `object-fit` into the pane: a fitted
+ * image's box is the whole pane, so a transparent page's checkerboard would
+ * fill the letterbox too, and the margin would stop reading as page.
+ */
+.paper-export__preview-column {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+}
+
+.paper-export__preview {
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.paper-export__sheet {
+  --page-inset: var(--space-3);
+
+  width: min(
+    calc(100cqw - 2 * var(--page-inset)),
+    calc((100cqh - 2 * var(--page-inset)) * var(--page-aspect, 1))
+  );
+  aspect-ratio: var(--page-aspect, 1);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+/* The export frame's own preview rule positions a bare image; this one is sized by its sheet. */
+.paper-export__sheet img {
+  position: static;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+}
+
+.paper-export__sheet--transparent {
+  background: repeating-conic-gradient(#dcdcdc 0% 25%, #ffffff 0% 50%) 0 0 / 12px 12px;
+}
+
+.paper-export__sheet--stale {
+  opacity: 0.55;
+}
+
+.paper-export__state {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.paper-export__state--error {
+  color: var(--status-danger);
+}
+
+.paper-export__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-export__caption {
+  min-height: 1.2em;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-export__caption--error {
+  color: var(--status-danger);
+}
+
+.paper-export .simple-modal__footer {
+  justify-content: flex-end;
+}
+
+.paper-export__save-error {
+  margin-right: auto;
+  color: var(--status-danger);
+  font-size: 0.72rem;
+}
+
+/*
+ * A label on the left and one control on the right: Size, Margin, Resolution.
+ * Every control takes the same width rather than whatever its label leaves, so
+ * the steppers and the menu under one another line up on both edges.
+ */
+.export-modal__field-row {
+  --export-modal-field-width: 136px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The label gives way before the control does: truncated, it can still be read. */
+.export-modal__field-row > .export-modal__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The auto margin keeps a row with no label of its own (the custom dpi under
+   Resolution) on the right. `min-content` is the floor should the row's width
+   ever be less than a stepper needs: the row then widens out of line rather
+   than cutting the number off. */
+.export-modal__field-row > .number-field,
+.export-modal__field-row > .select-trigger {
+  flex: none;
+  width: var(--export-modal-field-width);
+  min-width: min-content;
+  margin-inline-start: auto;
+}
+
+/* Every value these fields take is at most four characters (1000 mm, 99.5 mm,
+   1200 dpi), so the input's floor is four digits plus its padding and border.
+   Written in `ch`, it follows the 16px a touch screen gives the input, where
+   the number field's own 44px floor holds only three. */
+.export-modal__field-row .number-field__input {
+  min-width: calc(4ch + 16px);
 }
 
 .field-row {
@@ -2617,6 +2750,15 @@ a.context-menu__item {
   align-items: start;
 }
 
+/* A switch the user cannot set right now: the row stops offering the click. */
+.settings-toggle-row[data-disabled] {
+  cursor: default;
+}
+
+.settings-toggle-row[data-disabled] .settings-toggle-row__label {
+  color: var(--text-tertiary);
+}
+
 .settings-toggle-row__field {
   flex: 0 0 auto;
   width: 132px;
@@ -2731,6 +2873,849 @@ a.context-menu__item {
 
 .settings-full-width {
   width: 100%;
+}
+
+/*
+ * Settings ▸ Paper: the tab's own furniture.
+ *
+ * Scoped to this tab rather than folded into `.settings-section*`, which every
+ * other tab shares. The paper tab boxes each group of fields into a card under
+ * an uppercase eyebrow; the flat, unboxed sections the rest of Settings uses
+ * are right for the rest of Settings, and nothing here should reach them.
+ */
+.settings-paper {
+  display: grid;
+  /*
+   * Tighter than the 22px between groups: the slot header, the banner under it
+   * and the groups they govern are one block, and the design sets them 14–16px
+   * apart so the eye reads them together. The groups' own rhythm is
+   * `.settings-paper__groups`.
+   */
+  gap: 16px;
+  min-width: 0;
+}
+
+.settings-paper__groups {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* The slot's own fields — everything the slot switch governs. */
+.settings-paper__style {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
+.settings-paper__style[inert] {
+  opacity: 0.38;
+}
+
+.settings-paper__section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+/*
+ * The eyebrow and, where a group has one, the line naming the surfaces it
+ * covers. Baseline-aligned rather than centred: the hint is sentence case
+ * beside an uppercase micro-heading, and centring leaves it sitting low.
+ */
+.settings-paper__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  min-width: 0;
+}
+
+.settings-paper__eyebrow {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* The optional hint beside an eyebrow — which surfaces the group's pens reach. */
+.settings-paper__hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The surface a group of fields sits on. */
+.settings-paper__card {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--bg-surface);
+}
+
+/*
+ * Which style is being edited, and where it came from: the slot switch, the
+ * preset chip, and the line naming the surfaces the slot reaches.
+ */
+.settings-paper__slot {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.settings-paper__slot-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.settings-paper__slot-hint {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/*
+ * The preset the slot is showing. Not a control — pressing it would do
+ * nothing — so a span, with the verb that acts on it (Revert) beside it as its
+ * own chip.
+ */
+.settings-paper__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0 9px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings-paper__chip-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  /* A style that is nobody's preset: the dot is there, and says nothing. */
+  background: var(--text-muted);
+}
+
+.settings-paper__chip[data-state='preset'] .settings-paper__chip-dot {
+  background: var(--accent-primary);
+}
+
+.settings-paper__chip[data-state='modified'] .settings-paper__chip-dot {
+  background: var(--status-warning);
+}
+
+.settings-paper__slot-action {
+  height: 24px;
+  padding: 0 9px;
+  border-color: var(--border-default);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Whether exports are still the display style, and the press that changes it. */
+.settings-paper__banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--bg-surface);
+}
+
+.settings-paper__banner-icon {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.settings-paper__banner[data-linked] .settings-paper__banner-icon {
+  color: var(--accent-primary);
+}
+
+.settings-paper__banner-copy {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/*
+ * The presets, four across. Each is a picture of the style over its name, with
+ * its own verbs in the corner: a card is what tells two presets apart at a
+ * glance, which a list of names cannot.
+ */
+.settings-paper-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.settings-paper-preset {
+  position: relative;
+  min-width: 0;
+}
+
+.settings-paper-preset__apply {
+  display: grid;
+  width: 100%;
+  padding: 0;
+  gap: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--bg-surface);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-paper-preset__apply:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.settings-paper-preset__apply:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.settings-paper-preset__apply:disabled {
+  cursor: default;
+}
+
+.settings-paper-preset[data-applied] .settings-paper-preset__apply {
+  border-color: var(--accent-primary);
+}
+
+/* The drawing sits on the app's furthest-back surface, whatever the paper is. */
+.settings-paper-preset__thumb {
+  display: block;
+  width: 100%;
+  height: 74px;
+  background: var(--settings-well);
+}
+
+.settings-paper-preset__copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 8px 9px 9px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.settings-paper-preset__name {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-paper-preset__sub {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+
+.settings-paper-preset__badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  pointer-events: none;
+}
+
+/*
+ * Export and delete. Out of the way until the card is reached for, because the
+ * card's job is to be picked; they stay in the DOM and in the tab order, so
+ * `:focus-within` is what brings them back for a keyboard.
+ */
+.settings-paper-preset__verbs {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.settings-paper-preset:hover .settings-paper-preset__verbs,
+.settings-paper-preset:focus-within .settings-paper-preset__verbs {
+  opacity: 1;
+}
+
+.settings-paper-preset__verbs .ui-button {
+  background: var(--bg-surface);
+}
+
+/* The two paper colours, and the pens, sit two across on cards of their own. */
+.settings-paper-swatches,
+.settings-paper-pens {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+/* A colour is one line, so its card is shallower than a card of fields. */
+.settings-paper__card--color {
+  padding: 10px 12px;
+}
+
+/* The folded-paper card carries three fields and the rules between them. */
+.settings-paper__card--folded {
+  gap: 10px;
+  padding: 13px 14px;
+}
+
+/*
+ * A switch row on a card is one of that card's fields, so it is named the way
+ * the fields around it are rather than the way a row in the General tab is.
+ * The card's own gap is the spacing, too — the row's vertical padding is for a
+ * run of unboxed rows and here it only pushes the rules apart.
+ */
+.settings-paper__card .settings-toggle-row {
+  padding: 0;
+}
+
+.settings-paper__card .settings-toggle-row__label {
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.settings-paper__card .settings-toggle-row__desc {
+  font-size: 0.69rem;
+  line-height: 1.4;
+}
+
+/* The hairline between two answers on one card. */
+.settings-paper__rule {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--border-subtle);
+}
+
+/*
+ * A field that is a slider rather than a row: its name and its value on one
+ * line, the slider under them, and the line that says what it does last.
+ */
+.settings-paper-folded__field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.settings-paper-folded__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.settings-paper-folded__name {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+/* What the slider is on, stated where a number field would have shown it. */
+.settings-paper-folded__value {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.settings-paper-folded__desc {
+  color: var(--text-tertiary);
+  font-size: 0.69rem;
+  line-height: 1.4;
+}
+
+/*
+ * Erode's field carries its close-up beside the slider: the name, the slider
+ * and the line that says what it does in the first column, the picture of it
+ * in the second, beside all three.
+ */
+.settings-paper-folded__field--erode {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+}
+
+.settings-paper-folded__field--erode > * {
+  grid-column: 1;
+}
+
+.settings-paper-folded__field--erode > .settings-paper-erode {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+}
+
+.settings-paper-erode {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
+/* The ground the paper's corner lies on, framed like the light's disc. */
+.settings-paper-erode__picture {
+  display: block;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.settings-paper-erode__caption {
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * The light, aimed on a disc: a picture of the hemisphere it comes from, with
+ * the angles beside it for a figure that has to match a diagram.
+ */
+.settings-paper-light {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.settings-paper-light__disc {
+  position: relative;
+  flex: 0 0 auto;
+  width: 104px;
+  height: 104px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  /*
+   * A picture of lit paper rather than a piece of chrome, so the ramp is the
+   * same in every theme — as the mountain and valley inks are. Its centre is
+   * where the light is, which is the whole point of the control.
+   */
+  background: radial-gradient(
+    circle at var(--settings-paper-light-x, 50%) var(--settings-paper-light-y, 50%),
+    #fbfbf7 0%,
+    #c9cdc8 26%,
+    #6f7a83 62%,
+    #2b343c 100%
+  );
+  cursor: grab;
+  touch-action: none;
+}
+
+.settings-paper-light__disc:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.settings-paper-light__disc:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.settings-paper-light__handle {
+  position: absolute;
+  left: var(--settings-paper-light-x, 50%);
+  top: var(--settings-paper-light-y, 50%);
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid #0d1114;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 50%);
+}
+
+.settings-paper-light__readouts {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.settings-paper-light__readout {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.settings-paper-light__readout-name {
+  width: 64px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.settings-paper-light__readout-value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+/*
+ * Both card families that carry a colour — the paper's Front / Back and the
+ * pens — name it as the card's own heading rather than as the secondary label
+ * an inline `ColorField` gives it, because the two sit a section apart and the
+ * design draws them identically.
+ *
+ * Scoped through `.settings-paper` for the weight: `.color-field--inline` sets
+ * this label's colour and size, and the swatch's box, further down this file,
+ * so a two-class selector here is an *earlier* rule at equal specificity and
+ * silently loses every property the two share.
+ */
+.settings-paper .settings-paper__card--color .control-row__label,
+.settings-paper .settings-paper-pen__head .control-row__label {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+/* The hex is the quietest thing on the card: it repeats the swatch. */
+.settings-paper__card .color-field__hex {
+  color: var(--text-muted);
+}
+
+.settings-paper .settings-paper__card--color .color-field__input {
+  width: 30px;
+  height: 24px;
+  border-color: var(--border-strong);
+  border-radius: 6px;
+}
+
+.settings-paper__card--color .color-field__hex {
+  font-size: 0.69rem;
+}
+
+/*
+ * One pen: its colour, a line drawn with it, and the three things that shape
+ * that line. Every label inside is a micro-heading — the pen's own name is the
+ * card's heading, and is what each control carries in its accessible name.
+ */
+.settings-paper .settings-paper-pen__head .color-field__input {
+  width: 26px;
+  height: 21px;
+  border-color: var(--border-strong);
+}
+
+.settings-paper-pen__head .color-field__hex {
+  font-size: 0.66rem;
+}
+
+/*
+ * The live sample. On the style's own paper rather than a neutral field: the
+ * pens that most need showing are black, and a black pen on the app's darkest
+ * surface is a pen you cannot see. The paper's two sides are rects inside the
+ * SVG, and an SVG's content is trimmed to its rounded inner border only while
+ * its overflow is clipped, so the clip is set here rather than left to the UA
+ * sheet.
+ */
+.settings-paper-pen__sample {
+  display: block;
+  width: 100%;
+  height: 32px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+
+.settings-paper-pen__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-paper-pen__field {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-paper-pen__field-label {
+  color: var(--text-muted);
+  font-size: 0.59rem;
+  font-weight: 600;
+  /* Room for the descender in "(pt)", which a tighter line box clips. */
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-paper-pen__field .number-field {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+}
+
+/*
+ * The stepper is one field, not three boxes with gaps between them: the frame
+ * and the well move up to the `.number-field`, and the − , the number and the
+ * + give up their own borders and grounds inside it.
+ */
+.settings-paper-pen__field .number-field {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--settings-well);
+}
+
+.settings-paper-pen__field .number-field__step {
+  width: 24px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Narrow enough for two cards a line, so the number takes the room the
+   control-row padding would otherwise spend on either side of it. */
+.settings-paper-pen__field .number-field__input {
+  min-width: 0;
+  height: 100%;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  /* A width is a measurement, and the digits stay put as it is stepped. */
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+/*
+ * The dash, picked by name from a menu that draws each option. Its own menu
+ * rather than a `Select`: the custom field lives inside it — see
+ * `PaperDashMenu.tsx`.
+ */
+.settings-paper-dash {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.settings-paper-dash__trigger {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 30px;
+  min-width: 0;
+  padding: 0 9px;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--settings-well);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.settings-paper-dash__trigger:hover:not(:disabled),
+.settings-paper-dash__trigger[data-open] {
+  border-color: var(--border-strong);
+}
+
+.settings-paper-dash__trigger[data-open] {
+  border-color: var(--accent-primary);
+}
+
+.settings-paper-dash__trigger:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.settings-paper-dash__trigger:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.settings-paper-dash__preview {
+  flex: 0 0 auto;
+}
+
+.settings-paper-dash__label {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-paper-dash__chevron {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
+.settings-paper-dash__menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Above the cards that follow it; both are inside the tab's own flow. */
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  /* The surface every menu in the app is drawn on. */
+  background: var(--bg-elevated);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-overlay) 28%, transparent);
+}
+
+/* Opened downward, unless it would reach past the bottom of the scrolling tab. */
+.settings-paper-dash__menu[data-placement='bottom'] {
+  top: calc(100% + 6px);
+}
+
+.settings-paper-dash__menu[data-placement='top'] {
+  bottom: calc(100% + 6px);
+}
+
+/*
+ * The named dashes, which are the menu proper. The custom field is a sibling
+ * rather than a child: a textbox is not something `role="menu"` may own, and
+ * an assistive technology that switches to menu navigation inside one reaches
+ * the field either not at all or with its keys already spoken for.
+ */
+.settings-paper-dash__options {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-paper-dash__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-paper-dash__option:hover,
+.settings-paper-dash__option:focus-visible {
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-elevated));
+  outline: none;
+}
+
+/* The dash the pen is drawn with, named in the accent it is previewed in. */
+.settings-paper-dash__option[data-current] {
+  background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-elevated));
+  color: var(--accent-primary);
+}
+
+.settings-paper-dash__custom {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  /* A grid item is at least its content wide unless told otherwise, and the
+     field's own intrinsic width would push the unit out of the menu. */
+  min-width: 0;
+  margin-top: 3px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.settings-paper-dash__custom-name {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings-paper-dash__custom-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--settings-well);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.settings-paper-dash__custom-field:focus-visible {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.settings-paper-dash__custom-unit {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+/* A row of verbs — the preset's Apply / Export / Delete, or the list's Save / Import. */
+.settings-paper-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The in-place name field: label, input and the two buttons on one line. */
+.settings-paper-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-paper-name .control-row__input {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+/* Why the name field opened when a picked preset is waiting on it. */
+.settings-paper-name__why {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .settings-shortcuts {
@@ -2965,6 +3950,11 @@ a.context-menu__item {
     min-height: 210px;
   }
 
+  /* The page on top at up to 40% of the screen, the options scrolling under it, the footer pinned. */
+  .paper-export {
+    grid-template-rows: minmax(210px, 40vh) minmax(0, 1fr) auto;
+  }
+
   .settings-modal__document {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
@@ -3005,6 +3995,17 @@ a.context-menu__item {
   }
 
   .settings-shortcuts__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Narrow: two presets across, and the verbs stay put in the smaller card. */
+  .settings-paper-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Narrow: one pen card, and one colour card, to a line. */
+  .settings-paper-swatches,
+  .settings-paper-pens {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -4188,28 +5189,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-muted);
 }
 
-.cp-tool-rail__button[data-action-kind='line-type'] {
-  font-size: 0.8rem;
-  font-weight: 780;
-}
-
-.cp-tool-rail__button[data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-tool-rail__button[data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-/* No `Black0` rule on purpose. `--fold-border` is #111417 and the rail sits on
-   #171d22, so colouring the E chip with it made the letter invisible — about a
-   1.05:1 ratio. The chip is a label rather than a crease, and edge has no hue
-   worth spending legibility on, so it inherits the button's own text colour. */
-
-.cp-tool-rail__button[data-line-color='Cyan3'] {
-  color: var(--fold-flat);
-}
-
 .cp-tool-rail__button[data-active] {
   border-color: transparent;
   box-shadow: inset 0 0 0 1px
@@ -4220,19 +5199,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
   background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
   color: var(--text-primary);
-}
-
-.cp-tool-rail__button[data-active][data-line-color='Red1'] {
-  color: var(--fold-mountain);
-}
-
-.cp-tool-rail__button[data-active][data-line-color='Blue2'] {
-  color: var(--fold-valley);
-}
-
-
-.cp-tool-rail__button[data-active][data-line-color='Cyan3'] {
-  color: var(--fold-flat);
 }
 
 .cp-tool-rail__button-label {
@@ -5121,11 +6087,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   flex-wrap: wrap;
 }
 
-.simulator-view-settings .segmented__option {
-  height: 24px;
-  padding: 0 7px;
-}
-
 .simulator-panel__empty {
   position: absolute;
   inset: 0;
@@ -5282,28 +6243,33 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 /* Hairlines whatever the card's size: the strokes are in the thumbnail's own
    100-unit box, and a width that scaled with the card drew a phone's cards in
-   3px crayon. The crease tokens, so a card reads like the canvas. */
+   3px crayon. Solid, in the theme's crease inks (the `--sheet-thumb-*`
+   aliases on `:root`), so a card reads like the canvas — never the paper
+   style's dashes, which at this size are a field of dots. An aux line has no
+   ink of its own here; like any crease with no direction it is the
+   unassigned grey. */
 .sheet-card__stroke {
   fill: none;
   stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
 }
 
-.sheet-card__stroke--border {
-  stroke: var(--text-tertiary);
+.sheet-card__stroke--edge {
+  stroke: var(--sheet-thumb-border);
   stroke-width: 1.6;
 }
 
 .sheet-card__stroke--mountain {
-  stroke: var(--fold-mountain);
+  stroke: var(--sheet-thumb-mountain);
 }
 
 .sheet-card__stroke--valley {
-  stroke: var(--fold-valley);
+  stroke: var(--sheet-thumb-valley);
 }
 
-.sheet-card__stroke--other {
-  stroke: var(--fold-unassigned);
+.sheet-card__stroke--unassigned,
+.sheet-card__stroke--aux {
+  stroke: var(--sheet-thumb-unassigned);
 }
 
 .sheet-card__meta {
@@ -6162,20 +7128,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-width: 0;
 }
 
-/* A settings group is a full-width column, so the grid stretches a segmented
-   control rather than letting it hug its labels — and its options, sized to
-   their text, then leave the rest of the track empty. Sharing the width evenly
-   is what a stretched segmented control is supposed to look like. Every other
-   `.segmented` in the app sits in a row that lets it hug, so this is scoped
-   here rather than changing the control. */
-.cp-context-panel__group .segmented {
-  display: flex;
-}
-
-.cp-context-panel__group .segmented__option {
-  flex: 1 1 0;
-}
-
 .cp-context-panel__instructions {
   display: grid;
   gap: 7px;
@@ -6700,12 +7652,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin-inline: 1px;
 }
 
-.cp-line-type-toolbar__button {
-  min-width: 28px;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
 .cp-view-controls-panel__empty {
   display: flex;
   align-items: flex-start;
@@ -6859,7 +7805,29 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-align: right;
 }
 
+/* A toggle's "Overridden", in the place its reset button would have taken: on
+   a second grid line under the label, so the line the switch sits on — and the
+   switch with it — stays exactly where it was. The line is one fixed height,
+   empty or not and never wrapped, so a toggle that can be overridden is one
+   height whichever it is (`FieldRow.overridable`). */
+.control-row--noted {
+  row-gap: 1px;
+}
+
+.control-row__note {
+  grid-column: 1;
+  min-width: 0;
+  height: 1.2em;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .control-row[data-disabled] .control-row__label,
+.control-row[data-disabled] .control-row__note,
 .control-row[data-disabled] .control-row__readout {
   opacity: 0.5;
 }
@@ -6968,6 +7936,24 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   align-items: flex-start;
   padding: var(--space-3);
+}
+
+/* The actions a rail leads with, above its sections and outside the scroll; see
+   ViewControlsActions.tsx. Inset like a section's rows. Two buttons share a line
+   while it has room for both, and each takes a line of its own when not. */
+.view-controls-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.view-controls-actions__button {
+  flex: 1 1 auto;
+  justify-content: center;
+  gap: var(--space-1);
 }
 
 /* A text action inside a section body, rather than the icon-only affordance in a
@@ -7251,49 +8237,10 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 
-/* Line-type chips share a single row: they are glyphs, not icons, so they do
-   not need the tool button's footprint. Flex rather than a fixed column count
-   so the row stays correct as chips are shown or hidden. */
+/* The line types are one segmented control (`CpToolRail`), which fills the
+   column the tool grid spans rather than taking one of its cells. */
 .cp-tool-rail__buttons[data-group='line-type'] {
-  display: flex;
-  /* One control with one answer, so the line types read as a segmented group
-     rather than five loose buttons: one border round the set, hairline dividers
-     between, no gaps. It is also what makes room for the fifth — unassigned was
-     hidden from the rail until now, and a fifth loose button in a four-column
-     grid either orphans onto a second row or squeezes the rest. */
-  gap: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.cp-tool-rail__buttons[data-group='line-type'] > * {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button {
-  border: 0;
-  border-radius: 0;
-}
-
-.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button + .cp-tool-rail__button {
-  border-left: 1px solid var(--border-default);
-}
-
-/* Inset rather than a border, so lighting a segment cannot nudge its
-   neighbours by the pixel a border would add. */
-.cp-tool-rail__buttons[data-group='line-type'] .cp-tool-rail__button[data-active] {
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-}
-
-.cp-tool-rail__button[data-line-color='None'] {
-  color: var(--fold-unassigned);
-}
-
-.cp-tool-rail__button[data-active][data-line-color='None'] {
-  color: var(--fold-unassigned);
+  display: block;
 }
 
 .viewport-toolbar__dropdown-item {
@@ -9815,7 +10762,6 @@ button.bp-packing-alert:focus-visible {
   .ui-icon-control--md,
   .ui-icon-control--lg,
   .select-trigger,
-  .segmented__option,
   .viewport-toolbar__zoom-button,
   .viewport-toolbar__symmetry-button,
   .cp-selection-transform__menu button,
@@ -9852,6 +10798,14 @@ button.bp-packing-alert:focus-visible {
   .control-row__label {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* The export dialog's rows, for the same steppers. Two 44px buttons, three
+     4px gaps and the unit take about 120px, and four digits at the input's
+     16px take another 56px with its padding — so about 176px, and 184px leaves
+     the number some room. One width for every row keeps them lined up. */
+  .export-modal__field-row {
+    --export-modal-field-width: 184px;
   }
 
   .cp-tool-rail__button {
@@ -10565,56 +11519,9 @@ button.bp-packing-alert:focus-visible {
     line-height: 1.35;
   }
 
-  /* The line types, as the same segmented group the rail draws — see
-     `.cp-tool-rail__buttons[data-group='line-type']`. Not shared markup: this
-     one is sized for a thumb rather than a cursor, and the sheet's buttons
-     close it on select where the rail's do not. */
+  /* Places the line types' segmented control under its heading. */
   .cp-tool-picker__types {
-    display: flex;
     margin: 0 var(--space-3) var(--space-2);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-
-  .cp-tool-picker__type {
-    flex: 1 1 0;
-    min-width: 0;
-    /* The rail's chips are 38px, which is under the 44px a thumb wants. */
-    min-height: 44px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    font-weight: 780;
-    cursor: pointer;
-  }
-
-  .cp-tool-picker__type + .cp-tool-picker__type {
-    border-left: 1px solid var(--border-default);
-  }
-
-  .cp-tool-picker__type[data-active] {
-    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
-    box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  }
-
-  .cp-tool-picker__type[data-line-color='Red1'] {
-    color: var(--fold-mountain);
-  }
-
-  .cp-tool-picker__type[data-line-color='Blue2'] {
-    color: var(--fold-valley);
-  }
-
-  .cp-tool-picker__type[data-line-color='Cyan3'] {
-    color: var(--fold-flat);
-  }
-
-  .cp-tool-picker__type[data-line-color='None'] {
-    color: var(--fold-unassigned);
   }
 
   /*
@@ -11656,7 +12563,10 @@ button.bp-packing-alert:focus-visible {
  * style code the core emits (`RefDgmr::LineStyle` / `PointStyle`) is a class
  * here, and every colour is a token — the `--fold-*` inks the crease pattern
  * itself draws with, plus the two References highlight colours — so the
- * thumbnails follow the theme like the view they sit beside.
+ * thumbnails follow the view they sit beside. Inside `.references-workspace`
+ * the `--fold-*` names are re-set from the paper style
+ * (`cp-workspace/references/usePaperStyleTokens.ts`); elsewhere they are the
+ * theme's.
  */
 /* `visible` was safe while every diagram sat alone in a row. Side by side in
    the filmstrip, an arc or a label that leaves the sheet would paint over the
@@ -11697,24 +12607,22 @@ button.bp-packing-alert:focus-visible {
 */
 
 /*
-  The sheet is drawn on the *canvas's* ground, not on `--bg-paper`.
-
-  `--bg-paper` is one of two near-whites — `applyTheme` branches on theme type
-  and picks between #fffdf7 and #f2f0e7 — while `--fold-border` is the theme's
-  own `text.primary`. In a dark theme that pairing is light ink on a near-white
-  square: 1.07:1 in dracula and monokai, 1.87:1 in the default one-dark. The
-  filmstrip sits directly above the crease pattern, and a card that does not
-  look like the pattern below it reads as a different drawing rather than the
-  same one at another moment.
+  The sheet is the paper style's paper (D13), set on the workspace root by
+  `usePaperStyleTokens` with the inks it is drawn in — so a black edge pen has
+  a sheet to sit on whatever the theme's ground, and the card draws what the
+  simulator beside it draws. The big view fills the same colour under the
+  pattern, so a card still looks like the pattern below it. Outside the
+  workspace the tokens are unset and the card falls back to the theme's ground,
+  as it drew before the style reached it.
 */
 .step-diagram__sheet {
-  fill: var(--bg-primary);
+  fill: var(--references-paper-front, var(--bg-primary));
   stroke: var(--fold-border);
 }
 
-/* The paper seen from its other face — see `--paper-back`. */
+/* The paper seen from its other face. */
 .step-diagram__sheet--back {
-  fill: var(--paper-back);
+  fill: var(--references-paper-back, var(--paper-back));
 }
 
 /* The band a grid step works in: a wash of the highlight ink, so it reads as
@@ -11740,8 +12648,10 @@ button.bp-packing-alert:focus-visible {
 
 /* An already-made crease is context, not an instruction. How far back it sits
    is the theme's call (`themes/referencesInk.ts`): the same grey at one alpha
-   stands twice as far off a dark ground as off a light one. */
-.step-diagram__line--crease {
+   stands twice as far off a dark ground as off a light one. The pattern's own
+   aux lines are drawn in the same pen. */
+.step-diagram__line--crease,
+.step-diagram__line--aux {
   stroke: var(--fold-unassigned);
   stroke-opacity: var(--references-crease-alpha, 0.75);
 }
@@ -11754,19 +12664,32 @@ button.bp-packing-alert:focus-visible {
   stroke: var(--cp-reference-input);
 }
 
+/* A step's own fold is an instruction, in the paper style's diagram-crease
+   inks, which the workspace sets; outside it the theme's fold inks. */
 .step-diagram__line--valley {
-  stroke: var(--fold-valley);
+  stroke: var(--diagram-valley, var(--fold-valley));
 }
 
 .step-diagram__line--mountain {
+  stroke: var(--diagram-mountain, var(--fold-mountain));
+}
+
+/* A line of the finished pattern: the fold inks a crease pattern is drawn in. */
+.step-diagram__line--fold-valley {
+  stroke: var(--fold-valley);
+}
+
+.step-diagram__line--fold-mountain {
   stroke: var(--fold-mountain);
 }
 
 /* Arrows are ink, not colour. A printed diagram draws the motion in the same
    black as the paper's edge; giving it a hue makes it compete with the two
-   hues that carry meaning here, mountain and valley. */
+   hues that carry meaning here, mountain and valley. The ink is the paper
+   style's arrow pen, which the workspace sets as `--references-arrow`; outside
+   it the edge's. */
 .step-diagram__line--arrow {
-  stroke: var(--fold-border);
+  stroke: var(--references-arrow, var(--fold-border));
 }
 
 .step-diagram__line--dotted {
@@ -11779,11 +12702,11 @@ button.bp-packing-alert:focus-visible {
 }
 
 .step-diagram__line--pinch-mountain {
-  stroke: var(--fold-mountain);
+  stroke: var(--diagram-mountain, var(--fold-mountain));
 }
 
 .step-diagram__line--pinch-valley {
-  stroke: var(--fold-valley);
+  stroke: var(--diagram-valley, var(--fold-valley));
 }
 
 /* The rest of a fold, which is not creased: the same line, barely there. */
@@ -11792,7 +12715,7 @@ button.bp-packing-alert:focus-visible {
 }
 
 .step-diagram__arrowhead {
-  fill: var(--fold-border);
+  fill: var(--references-arrow, var(--fold-border));
 }
 
 /*
@@ -11809,12 +12732,38 @@ button.bp-packing-alert:focus-visible {
 }
 
 /*
-  The halo is the ground the label sits on. `placeLabels` pushes a label off
-  the sheet into the padding band on purpose, so a halo painted in `--bg-paper`
-  was a near-white ring floating on the dark card — which is what it looked like.
+  The same marks where they have left the paper. The style's inks are chosen
+  for the style's paper, and a black arrow arcing off the sheet onto a dark
+  theme's ground is no arrow at all. So each mark is drawn twice, clipped to the
+  paper and to everything else (`DiagramPrimitives.tsx`), and the second copy
+  sits in this group and takes the theme's ink — the one it drew in before the
+  sheet took the style's paper. Letters have their own rule: their halo.
+*/
+.step-diagram__ground .step-diagram__line--arrow {
+  stroke: var(--references-ground-ink);
+}
+
+.step-diagram__ground .step-diagram__arrowhead {
+  fill: var(--references-ground-ink);
+}
+
+.step-diagram__ground .step-diagram__point {
+  stroke: var(--references-ground-ink);
+}
+
+/*
+  Every letter is in the reference colour: a letter is an annotation, not part
+  of the picture, and it has to read on the paper and on the dark ground round
+  it alike — the paper's own ink is black, which vanishes off the sheet.
+
+  The halo is what the letter stands on, so it knocks out the lines behind the
+  letter without drawing a ring of its own: the paper, on the face the picture
+  shows, for a letter on the sheet; the ground for one `placeLabels` pushed off
+  it into the padding band. One halo for both was a dark ring round every
+  letter on the paper, and round a black one it read as a smudge.
 */
 .step-diagram__label {
-  fill: var(--text-primary);
+  fill: var(--cp-reference-input);
   font-family: inherit;
   font-weight: 700;
   paint-order: stroke;
@@ -11822,11 +12771,11 @@ button.bp-packing-alert:focus-visible {
   stroke-linejoin: round;
 }
 
-.step-diagram__label--highlight {
-  fill: var(--cp-reference-input);
+.step-diagram__label--on-paper {
+  stroke: var(--references-paper-front, var(--bg-primary));
 }
 
-.step-diagram__label--action {
-  fill: var(--fold-border);
+.step-diagram__label--on-back {
+  stroke: var(--references-paper-back, var(--paper-back));
 }
 

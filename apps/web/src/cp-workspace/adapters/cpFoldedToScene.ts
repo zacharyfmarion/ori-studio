@@ -1,8 +1,16 @@
 import earcut from 'earcut';
+import type { PaperLineRole, PaperScene, ScenePoint } from '@treemaker/origami-simulator';
 import {
   CP_PAPER_RECT,
   cpModelToSvg,
 } from '../../lib/creasePatternViewport';
+import { DEFAULT_PAPER_STYLE, type Hex, type PaperStyle } from '../../lib/paper/paperStyle';
+import {
+  PAPER_STYLE_POLICIES,
+  hexToUnitRgb,
+  surfacePaperStyle,
+} from '../../lib/paper/paperStyleResolve';
+import { erodeLine, paperFaceFill, penForRole } from '../../lib/paper/paperSvg';
 import { IDENTITY_FOLDED_PLACEMENT } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
 import type {
@@ -13,7 +21,6 @@ import type {
   OristudioCpFoldedRenderPathCommand,
   OristudioCpFoldedRenderPrimitive,
   OristudioCpFoldedRenderSnapshot,
-  OristudioCpFoldedRenderStroke,
   OristudioCpRgbaColor,
 } from '../../engine/oristudioCpTypes';
 import {
@@ -31,20 +38,29 @@ import {
   type BesideAnchor,
 } from '../canvasObjects/placeBesideCp';
 import type { FillGeometry, FoldedGeometry, Rgba, ShadowGeometry } from '../renderer/types';
+import { folded3dFrameHalfSide } from '../folded/folded3dFrame';
+import { folded3dStylePlan } from '../folded/folded3dStyle';
+import type { FoldedFlatAuxSegment } from '../folded/foldedFlatAux';
 
 /** Steps used to flatten quadratic/cubic path curves into polylines. */
 const CURVE_STEPS = 12;
 /** Points used to tessellate an ellipse. */
 const ELLIPSE_STEPS = 48;
-/** Default stroke width (user px) when a primitive has no basic stroke. */
-const DEFAULT_STROKE_WIDTH = 1;
+/**
+ * Every folded stroke's width multiplier, before the per-figure pen.
+ *
+ * The kernel stamps Oriedita's Java2D `BasicStroke` width on each stroke —
+ * 1.2 with anti-alias, 1.0 without — which upstream is a screen pixel and
+ * not a pen. The folded channel draws with the paper style's edge pen
+ * instead: the frame's `foldedStrokeWidthPx` is device px *per pt* and
+ * {@link cpFoldedToScene} multiplies in each figure's effective pen width in
+ * pt, so the kernel's number is not read at all (D6, D10 in
+ * `implementation-plans/unified-paper-style-and-export.md`).
+ */
+const KERNEL_STROKE_WIDTH_MUL = 1;
 
 function normColor(c: OristudioCpRgbaColor): Rgba {
   return [c.red / 255, c.green / 255, c.blue / 255, c.alpha / 255];
-}
-
-function strokeWidth(stroke: OristudioCpFoldedRenderStroke): number {
-  return stroke.kind === 'basic' ? stroke.width : DEFAULT_STROKE_WIDTH;
 }
 
 function flattenQuad(from: Point, control: Point, to: Point, out: Point[]): void {
@@ -232,6 +248,58 @@ function segmentDistance(px: number, py: number, e: ShadowEdge): number {
 }
 
 /** Accumulates GPU-ready fill triangles and edge strokes across all figures. */
+/**
+ * Whether `inner` lies inside `outer`, rings of one even-odd set, which never
+ * cross: read at a vertex of `inner` off `outer`'s boundary, since a ring
+ * that only shares edges with another has vertices on it. A ring with no such
+ * vertex traces `outer` itself and is not inside it.
+ */
+function ringInside(inner: readonly Point[], outer: readonly Point[]): boolean {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of outer) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const tolerance = 1e-9 * Math.max(maxX - minX, maxY - minY, 1);
+  for (const point of inner) {
+    if (onRing(outer, point, tolerance)) continue;
+    return pointInRing(outer, point);
+  }
+  return false;
+}
+
+function onRing(ring: readonly Point[], point: Point, tolerance: number): boolean {
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const a = ring[j]!;
+    const b = ring[i]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const length2 = dx * dx + dy * dy;
+    const t = length2 > 0 ? ((point.x - a.x) * dx + (point.y - a.y) * dy) / length2 : 0;
+    const clamped = Math.min(1, Math.max(0, t));
+    if (Math.hypot(point.x - (a.x + dx * clamped), point.y - (a.y + dy * clamped)) <= tolerance) return true;
+  }
+  return false;
+}
+
+/** Even-odd containment of `point` in `ring`. */
+function pointInRing(ring: readonly Point[], point: Point): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const a = ring[i]!;
+    const b = ring[j]!;
+    if (a.y > point.y !== b.y > point.y && point.x < a.x + ((point.y - a.y) / (b.y - a.y)) * (b.x - a.x)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 class FoldedBuilder {
   fillPos: number[] = [];
   fillColor: number[] = [];
@@ -268,6 +336,40 @@ class FoldedBuilder {
       this.fillColor.push(color[0], color[1], color[2], color[3]);
       this.fillDepth.push(this.depth);
     }
+  }
+
+  /**
+   * A face's region: its rings as one even-odd set — the shape
+   * {@link PaperFaceItem.rings} carries and the painter writes as a single
+   * `fill-rule="evenodd"` path, so disjoint pieces and holes alike. A ring
+   * inside an even number of the others outlines a piece, triangulated with
+   * the rings directly inside it cut out as holes.
+   */
+  addFillRegion(rings: readonly (readonly Point[])[], color: Rgba): void {
+    const usable = rings.filter((ring) => ring.length >= 3);
+    if (usable.length === 0) return;
+    if (usable.length === 1) {
+      this.addFillRing([...usable[0]!], color);
+      return;
+    }
+    const within = (inner: number, outer: number): boolean =>
+      inner !== outer && ringInside(usable[inner]!, usable[outer]!);
+    const depth = usable.map((_, i) => usable.filter((__, j) => within(i, j)).length);
+    usable.forEach((outline, i) => {
+      if (depth[i]! % 2 !== 0) return;
+      const holes = usable.filter((_, j) => depth[j] === depth[i]! + 1 && within(j, i));
+      const flat: number[] = [];
+      const starts: number[] = [];
+      for (const [index, ring] of [outline, ...holes].entries()) {
+        if (index > 0) starts.push(flat.length / 2);
+        for (const p of ring) flat.push(p.x, p.y);
+      }
+      for (const v of earcut(flat, starts)) {
+        this.fillPos.push(flat[v * 2]!, flat[v * 2 + 1]!);
+        this.fillColor.push(color[0], color[1], color[2], color[3]);
+        this.fillDepth.push(this.depth);
+      }
+    });
   }
 
   addStrokePolyline(points: Point[], color: Rgba, width: number): void {
@@ -325,7 +427,7 @@ class FoldedBuilder {
   }
 
   /** Freeze into the cacheable local form, measuring the bbox over every vertex. */
-  buildLocal(): FoldedFigureLocalGeometry {
+  buildLocal(auxDepth: number): FoldedFigureLocalGeometry {
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -351,6 +453,7 @@ class FoldedBuilder {
       strokeWidthMul: new Float32Array(this.strokeWidthMul),
       fillDepth: new Float32Array(this.fillDepth),
       strokeDepth: new Float32Array(this.strokeDepth),
+      auxDepth,
       shadowPos: new Float32Array(this.shadowPos),
       shadowDepth: new Float32Array(this.shadowDepth),
       shadowEdgeRange: new Float32Array(this.shadowEdgeRange),
@@ -392,6 +495,12 @@ export interface FoldedFigureLocalGeometry {
   fillDepth: Float32Array;
   strokeDepth: Float32Array;
   /**
+   * Where the figure's aux creases go in that order: just above its last fill
+   * and below whatever the drawer painted next, so a crease lies on its face
+   * and the face's own edges are drawn over its ends.
+   */
+  auxDepth: number;
+  /**
    * Layer shadows, laid out as {@link ShadowGeometry} but in local user coords,
    * with edge runs indexing this figure's own `shadowEdges`. The shadow covers
    * the same polygons as the fills, so it adds nothing to `bounds`.
@@ -406,6 +515,35 @@ export interface FoldedFigureLocalGeometry {
   bounds: Aabb | null;
   /** Centre of {@link bounds} — the pivot placement scales and rotates about. */
   center: Point;
+}
+
+/**
+ * Everything it takes to draw a folded figure and say where it sits: the two
+ * pictures a figure can carry, the placement that moves whichever it has, and
+ * the display style, which is the one thing a stored scene does not carry —
+ * a scene has no alpha, so X-ray is applied as the picture is inked.
+ *
+ * Narrower than the entry because that is the honest dependency — the box, the
+ * pivot and the geometry do not read a figure's title, its handle or its
+ * provenance, and a producer that has not finished building an entry can still
+ * ask where its picture would go.
+ */
+export type FoldedFigureDrawing = Pick<
+  OristudioCpFoldedFigureEntry,
+  'renderSnapshot' | 'scene' | 'placement' | 'frameRadius' | 'displayStyle'
+>;
+
+/** A figure's aux creases as the folded channel strokes them. */
+export interface FoldedFigureAuxStrokes {
+  /** The pieces, in the render snapshot's coordinates (`foldedFlatAuxSegments`). */
+  segments: readonly FoldedFlatAuxSegment[];
+  /** The aux pen's colour, 0..1 channels. */
+  color: Rgba;
+  /**
+   * The aux pen's width as a multiplier over the frame's `foldedStrokeWidthPx`
+   * — device px per pt — so it is the pen's width in pt.
+   */
+  widthMul: number;
 }
 
 /**
@@ -439,6 +577,7 @@ export function foldedFigureLocalGeometry(
     (l, r) => l.sequence - r.sequence
   );
 
+  let lastFill = -1;
   for (const [index, primitive] of primitives.entries()) {
     // The whole point of the depth attribute: the primitives are already in
     // painter order here, and the canvas is about to lose that by batching every
@@ -461,7 +600,8 @@ export function foldedFigureLocalGeometry(
     if (paint.kind !== 'color') continue;
     const color = normColor(paint.color);
     const isFill = primitive.kind.startsWith('fill_');
-    const width = isFill ? 0 : strokeWidth(primitive.style.stroke);
+    if (isFill) lastFill = index;
+    const width = isFill ? 0 : KERNEL_STROKE_WIDTH_MUL;
 
     for (const local of geometrySubpaths(primitive.geometry)) {
       const ring = local.map(toUser);
@@ -470,9 +610,157 @@ export function foldedFigureLocalGeometry(
     }
   }
 
-  const local = builder.buildLocal();
+  // Half a step past the last fill: between it and the next primitive.
+  const local = builder.buildLocal((lastFill + 1.5) / (primitives.length + 1));
   localGeometryCache.set(snapshot, local);
   return local;
+}
+
+/**
+ * The same, for a 3D figure's stored {@link PaperScene}.
+ *
+ * A scene is already in the figure's local user space and already in painter's
+ * order, so this is only ink: each face filled with the colour its side and
+ * shade call for under `style`, each line stroked with its role's pen, both
+ * through the very functions the SVG painter uses — so the canvas and the file
+ * cannot disagree about what a style means. Erode is applied here too, for the
+ * same reason.
+ *
+ * Buried pieces are left out. The canvas shows what the window shows, and a
+ * deep figure's hidden layers are thousands of triangles redrawn on every frame
+ * of a pan without a pixel to show for it; the scene keeps them marked so an
+ * export that wants them still has them.
+ *
+ * Unless `faceAlpha` is under 1, which is X-ray: paper the eye can see through
+ * shows the layers behind it, so the hidden test is exactly what must not be
+ * applied and every marked piece is drawn in place. That is the one thing that
+ * makes "Show another solution" visible — under `Paper5` and `Wire2` a figure's
+ * solutions hash alike (`foldedFigureCapabilities.ts`) — and the window draws
+ * it that way (`folded3dWindowRenderSettings` passes the same alpha), so the
+ * canvas has to as well or a figure would change appearance the moment it lost
+ * its window. The *export* stays opaque with every layer kept, which is §11's
+ * reading and the painter's: a translucent style has no scene form.
+ *
+ * Dashes are not drawn: the folded channel strokes segments in one batch with a
+ * colour and a width and no pattern, exactly as it always has. A dashed pen on
+ * a folded figure therefore reads solid on the canvas and dashed in the file.
+ *
+ * `style` is the figure's effective style; the `folded-3d` policy is applied
+ * here, where the painter applies it for the same scene, so the canvas and the
+ * file cannot draw one crease at two widths.
+ */
+export function foldedSceneLocalGeometry(
+  scene: PaperScene,
+  effective: PaperStyle,
+  faceAlpha = 1
+): FoldedFigureLocalGeometry {
+  const style = surfacePaperStyle(effective, PAPER_STYLE_POLICIES['folded-3d']);
+  const ink = `${sceneInkKey(style)}|${faceAlpha}`;
+  const cached = sceneGeometryCache.get(scene);
+  if (cached && cached.ink === ink) return cached.geometry;
+
+  const opaque = faceAlpha >= 1;
+  const builder = new FoldedBuilder();
+  const erodePx = style.erode * scene.sheet;
+  const steps = scene.items.length + 1;
+  let lastFill = -1;
+  for (const [index, item] of scene.items.entries()) {
+    if (item.hidden && opaque) continue;
+    builder.depth = (index + 1) / steps;
+    if (item.kind === 'face') {
+      lastFill = index;
+      builder.addFillRegion(
+        item.rings.map((ring) => ring.map(scenePoint)),
+        rgbaOf(paperFaceFill(style, item.side, item.shade), faceAlpha)
+      );
+      continue;
+    }
+    if (item.kind !== 'line') continue;
+    const pen = penForRole(style, item.role);
+    if (!pen) continue;
+    const eroded = erodeLine(item, erodePx);
+    if (!eroded) continue;
+    builder.addStrokePolyline(eroded.map(scenePoint), rgbaOf(pen.color, 1), pen.width);
+  }
+
+  const geometry = builder.buildLocal((lastFill + 1.5) / steps);
+  sceneGeometryCache.set(scene, { ink, geometry });
+  return geometry;
+}
+
+/**
+ * Keyed on the scene, and holding the ink it was drawn with — the style's key
+ * and the display style's face alpha, which decides which pieces are drawn at
+ * all: a scene is replaced whenever the picture changes, and a style change
+ * re-inks the same geometry. One entry per scene, because a figure follows one
+ * style at a time.
+ */
+const sceneGeometryCache = new WeakMap<
+  PaperScene,
+  { ink: string; geometry: FoldedFigureLocalGeometry }
+>();
+
+/**
+ * Everything about a style that moves a vertex or a colour here, as one string.
+ *
+ * By value and not by identity, because the effective style is a fresh object
+ * on every read — `effectivePaperStyle` merges — so an identity check would
+ * miss on every frame and re-triangulate a whole figure at pointer rate. What
+ * is left out is left out on purpose: a pen's dash and cap are not drawn by
+ * the folded channel, and the light is already baked into each face's shade.
+ */
+function sceneInkKey(style: PaperStyle): string {
+  const pens = PAPER_LINE_ROLES.map((role) => {
+    const pen = penForRole(style, role);
+    return pen ? `${role}${pen.color}${pen.width}` : role;
+  });
+  return `${style.paper.front}${style.paper.back}|${style.erode}|${pens.join('|')}`;
+}
+
+const PAPER_LINE_ROLES = [
+  'edge',
+  'mountain',
+  'valley',
+  'diagram-mountain',
+  'diagram-valley',
+  'aux',
+] as const satisfies readonly PaperLineRole[];
+
+function scenePoint([x, y]: ScenePoint): Point {
+  return { x, y };
+}
+
+function rgbaOf(hex: Hex, alpha: number): Rgba {
+  const [r, g, b] = hexToUnitRgb(hex);
+  return [r, g, b, alpha];
+}
+
+/**
+ * What a figure draws: its stored scene when it has one, its render snapshot
+ * otherwise. Null when it draws nothing at all.
+ *
+ * The one place the two pictures are chosen between. A 3D figure folded or
+ * turned by a build that stores scenes has a scene; one reopened from a file
+ * written before that has a snapshot, and both draw — which is what lets the
+ * field arrive without a schema bump.
+ */
+export function foldedFigurePicture(
+  figure: FoldedFigureDrawing,
+  style: PaperStyle
+): FoldedFigureLocalGeometry | null {
+  const scene = figure.scene;
+  if (scene) {
+    if (scene.items.length === 0) return null;
+    // The alpha is the display style's, not the scene's: a scene is geometry
+    // and roles, and X-ray is ink. The flat figure's stream bakes its own.
+    return foldedSceneLocalGeometry(
+      scene,
+      style,
+      folded3dStylePlan(figure.displayStyle).faceAlpha
+    );
+  }
+  const snapshot = figure.renderSnapshot;
+  return snapshot?.primitives.length ? foldedFigureLocalGeometry(snapshot) : null;
 }
 
 /**
@@ -494,12 +782,37 @@ export function foldedFigureLocalGeometry(
  * so switching a figure from one to the other does not move it — only what its
  * rotation and scale turn about.
  */
-function foldedFigurePivot(
-  figure: OristudioCpFoldedFigureEntry,
-  local: { center: Point }
-): Point {
+function foldedFigurePivot(figure: FoldedFigureDrawing): Point {
   const frameRadius = figure.frameRadius ?? null;
-  return frameRadius !== null && frameRadius > 0 ? FRAMED_PIVOT : local.center;
+  if (frameRadius !== null && frameRadius > 0) return FRAMED_PIVOT;
+  return foldedFigureLocalBounds(figure)?.center ?? FRAMED_PIVOT;
+}
+
+/**
+ * A figure's local extent and centre, without an ink to draw it in.
+ *
+ * The box and the pivot are questions about *where* a figure is, and a style
+ * cannot move it — so they are answered from the picture's own extent rather
+ * than from inked geometry, and a figure whose aux creases were switched off
+ * keeps the box it had. A scene states its bounds; a snapshot's come from the
+ * geometry cache, which is where they have always come from.
+ */
+function foldedFigureLocalBounds(
+  figure: FoldedFigureDrawing
+): { bounds: Aabb; center: Point } | null {
+  const scene = figure.scene;
+  if (scene) {
+    if (scene.items.length === 0) return null;
+    const { minX, minY, maxX, maxY } = scene.bounds;
+    return {
+      bounds: { minX, minY, maxX, maxY },
+      center: { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+    };
+  }
+  const snapshot = figure.renderSnapshot;
+  if (!snapshot?.primitives.length) return null;
+  const local = foldedFigureLocalGeometry(snapshot);
+  return local.bounds ? { bounds: local.bounds, center: local.center } : null;
 }
 
 /**
@@ -519,6 +832,36 @@ function foldedFigurePivot(
 const FRAMED_PIVOT: Point = cpModelToSvg({ x: 0, y: 0 });
 const USER_UNITS_PER_MODEL_UNIT: number =
   cpModelToSvg({ x: 1, y: 0 }).x - cpModelToSvg({ x: 0, y: 0 }).x;
+
+/**
+ * Where a framed 3D figure's model centroid sits in **local user space**, and
+ * so where its stored scene is centred. Exported because the producer of that
+ * scene has to put the picture here for the placement below to move it.
+ */
+export const FOLDED_3D_LOCAL_CENTER: Point = FRAMED_PIVOT;
+
+/**
+ * The side of a framed 3D figure's square frame in local user units — before
+ * any placement, which is the whole point: a stored picture is built once and
+ * then scaled by {@link FoldedFigurePlacement.scale} every time it is drawn,
+ * so the size it is built at must not already carry that scale or a resize
+ * would square it.
+ */
+export function folded3dLocalFrameSide(frameRadius: number): number {
+  return 2 * folded3dFrameHalfSide(frameRadius) * USER_UNITS_PER_MODEL_UNIT;
+}
+
+/**
+ * User units per kernel model unit of a placed figure: the paper affine's fixed
+ * scale times the placement's. A flat figure's picture is this many user units
+ * per unit of its render snapshot before the camera, so its export reads it to
+ * make the page the figure's on-screen size.
+ */
+export function foldedFigureUserPerModelUnit(
+  figure: Pick<OristudioCpFoldedFigureEntry, 'placement'>
+): number {
+  return USER_UNITS_PER_MODEL_UNIT * figure.placement.scale;
+}
 
 /**
  * The affine a placement applies to local user coordinates:
@@ -568,7 +911,32 @@ export function cpFoldedToScene(
    * snapshot, so a figure changing opacity would otherwise keep serving its
    * previous vertices.
    */
-  figureOpacity?: (figure: OristudioCpFoldedFigureEntry) => number
+  figureOpacity?: (figure: OristudioCpFoldedFigureEntry) => number,
+  /**
+   * Per-figure stroke width, as a multiplier over the frame's
+   * `foldedStrokeWidthPx` — the effective edge pen's width in pt, with the
+   * frame supplying device px per pt. Defaults to 1. Applied while copying,
+   * like the opacity, so a figure pinning its own pen does not invalidate the
+   * cached local geometry.
+   */
+  figureStrokeWidth?: (figure: OristudioCpFoldedFigureEntry) => number,
+  /**
+   * Per-figure aux creases to draw over its fills, or null for none — the
+   * flat figure's overlay (`useFoldedFlatAux`). The pieces are in the render
+   * snapshot's coordinates and go through the same map and placement as the
+   * snapshot's own primitives; they are stroked in their own colour and width,
+   * at the figure's opacity, at {@link FoldedFigureLocalGeometry.auxDepth}.
+   */
+  figureAux?: (figure: OristudioCpFoldedFigureEntry) => FoldedFigureAuxStrokes | null,
+  /**
+   * Per-figure effective paper style — the app slot with the figure's pins on
+   * top. Read only by a figure drawing a stored {@link PaperScene}, which
+   * carries geometry and roles and no ink: its faces take the style's paper
+   * under each piece's shade and its lines their role's pen, through the same
+   * two functions the SVG painter uses. Defaults to the app default, so a test
+   * or a surface with no style still draws a scene.
+   */
+  figurePaperStyle?: (figure: OristudioCpFoldedFigureEntry) => PaperStyle
 ): FoldedGeometry {
   const fillPos: number[] = [];
   const fillColor: number[] = [];
@@ -592,15 +960,21 @@ export function cpFoldedToScene(
   let bandIndex = -1;
 
   for (const figure of figures) {
-    const snapshot = figure.renderSnapshot;
-    if (!snapshot?.primitives.length) continue;
+    const local = foldedFigurePicture(
+      figure,
+      figurePaperStyle?.(figure) ?? DEFAULT_PAPER_STYLE
+    );
+    if (!local) continue;
     bandIndex += 1;
     // Later figures are nearer, so their band sits closer to 1.
     const bandBase = bandIndex / bands;
     const bandSpan = 1 / bands;
-    const local = foldedFigureLocalGeometry(snapshot);
     const opacity = figureOpacity?.(figure) ?? 1;
-    const { a, b, tx, ty } = placementAffine(figure.placement, foldedFigurePivot(figure, local));
+    // A scene's lines already carry their role's pen, in pt, because the style
+    // is what inked them; only the kernel's stream needs the figure's edge pen
+    // multiplied in on the way past.
+    const strokeWidth = figure.scene ? 1 : (figureStrokeWidth?.(figure) ?? 1);
+    const { a, b, tx, ty } = placementAffine(figure.placement, foldedFigurePivot(figure));
 
     for (let i = 0; i < local.fillPos.length; i += 2) {
       const x = local.fillPos[i];
@@ -626,7 +1000,7 @@ export function cpFoldedToScene(
       strokeColor.push(i % 4 === 3 ? local.strokeColor[i] * opacity : local.strokeColor[i]);
     }
     for (let i = 0; i < local.strokeWidthMul.length; i++) {
-      strokeWidthMul.push(local.strokeWidthMul[i]);
+      strokeWidthMul.push(local.strokeWidthMul[i] * strokeWidth);
     }
     for (let i = 0; i < local.strokeDepth.length; i++) {
       strokeDepth.push(bandBase + local.strokeDepth[i] * bandSpan);
@@ -660,6 +1034,22 @@ export function cpFoldedToScene(
         local.shadowFalloff[i] * figure.placement.scale,
         local.shadowFalloff[i + 1] * opacity
       );
+    }
+
+    const aux = figureAux?.(figure);
+    if (!aux || aux.segments.length === 0) continue;
+    const [r, g, bl, alpha] = aux.color;
+    const auxDepth = bandBase + local.auxDepth * bandSpan;
+    for (const segment of aux.segments) {
+      // The snapshot's coordinates to local user space, as the primitives went,
+      // then the placement — one affine for both ends.
+      const pa = cpModelToSvg(segment.a);
+      const pb = cpModelToSvg(segment.b);
+      strokeA.push(a * pa.x - b * pa.y + tx, b * pa.x + a * pa.y + ty);
+      strokeB.push(a * pb.x - b * pb.y + tx, b * pb.x + a * pb.y + ty);
+      strokeColor.push(r, g, bl, alpha * opacity);
+      strokeWidthMul.push(aux.widthMul);
+      strokeDepth.push(auxDepth);
     }
   }
 
@@ -713,9 +1103,9 @@ export function foldedGeometryFromShapes(
  * Translucent red (Oriedita `(255,0,0,75)`) used to fill the two faces a fold
  * could not consistently stack — the flat-CP half of `drawSelfIntersectingSubFaces`.
  *
- * Exported because the 3D projector annotates an undecided arrangement cell with
- * the same red. The two say the same thing about the same kind of failure, so
- * they share one definition rather than two copies that can drift.
+ * Exported because it is the ink of a *failure*, not of paper, so it belongs to
+ * neither a style nor a surface: whatever draws a fold that could not be
+ * ordered says so in this one red rather than in a copy that can drift.
  */
 export const CONTRADICTION_FILL: Rgba = [1, 0, 0, 75 / 255];
 
@@ -765,30 +1155,28 @@ export interface FoldedFigureBounds {
  * and `center`/`rotation` describe where that box sits, matching the shape the
  * canvas-object overlay draws chrome for. Null when the figure draws nothing.
  */
-export function foldedFigureBox(figure: OristudioCpFoldedFigureEntry): {
+export function foldedFigureBox(figure: FoldedFigureDrawing): {
   center: Point;
   width: number;
   height: number;
   rotation: number;
 } | null {
-  const snapshot = figure.renderSnapshot;
-  if (!snapshot?.primitives.length) return null;
-
   // A 3D figure is a window onto the model, so its frame is fixed and square:
-  // sized once at fold time from the bounding sphere, which images to the same
-  // circle at every orientation. Deriving it from the projection instead is what
+  // sized once at fold time from the bounding sphere, whose perspective
+  // silhouette is the same circle at every orientation
+  // (`folded3dFrameHalfSide`). Deriving it from the projection instead is what
   // made the chrome resize and jump on every orbit.
   //
   // The centre is the placement offset alone, because the projection anchors the
   // model centroid at local (0, 0) — so the model stays put inside its frame
   // while it turns, rather than sliding as its bounds change.
-  const local = foldedFigureLocalGeometry(snapshot);
-  if (!local.bounds) return null;
+  const local = foldedFigureLocalBounds(figure);
+  if (!local) return null;
 
   const frameRadius = figure.frameRadius ?? null;
   if (frameRadius !== null && frameRadius > 0) {
-    const pivot = foldedFigurePivot(figure, local);
-    const side = 2 * frameRadius * USER_UNITS_PER_MODEL_UNIT * figure.placement.scale;
+    const pivot = foldedFigurePivot(figure);
+    const side = folded3dLocalFrameSide(frameRadius) * figure.placement.scale;
     return {
       // The pivot, not the drawing's bounds — the same point `cpFoldedToScene`
       // pivots about, so the click polygon lands exactly on the figure.

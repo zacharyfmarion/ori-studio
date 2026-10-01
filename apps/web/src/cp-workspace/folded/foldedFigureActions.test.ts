@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
+import type { PaperScene } from '@treemaker/origami-simulator';
+import { DEFAULT_PAPER_STYLE, applyCreaseStyle } from '../../lib/paper/paperStyle';
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureStatus,
@@ -48,6 +50,13 @@ function makeFigure(
   } as unknown as OristudioCpFoldedFigureEntry;
 }
 
+/** A 3D figure's picture. Only its presence is read here. */
+const SCENE: PaperScene = {
+  bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+  sheet: 1,
+  items: [],
+};
+
 const IDENTITY_ORIENT = [1, 0, 0, 0, 1, 0, 0, 0, 1] as const;
 
 /** A 3D figure, optionally carrying a model up the user has set. */
@@ -67,6 +76,9 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     setDisplayStyle: vi.fn(),
     updateModel: vi.fn(),
     endModelGesture: vi.fn(),
+    paperStyle: () => DEFAULT_PAPER_STYLE,
+    inheritedPaperStyle: DEFAULT_PAPER_STYLE,
+    setAppearance: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
@@ -92,7 +104,7 @@ function command(
   return found;
 }
 
-/** A choice by id, whether it sits at the top level (export) or inside Style. */
+/** A choice by id, whether it sits at the top level or inside Style. */
 function choice(
   figure: OristudioCpFoldedFigureEntry,
   deps: FoldedFigureActionDeps,
@@ -260,49 +272,46 @@ describe('buildFoldedFigureActions', () => {
 
   describe('export', () => {
     it('is absent when the caller supplies no export support', () => {
-      expect(choiceIds(makeFigure(), makeDeps())).toEqual([]);
+      expect(commandIds(makeFigure(), makeDeps())).not.toContain('export');
     });
 
-    it('sits between the solution group and the manage group', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      const ids = buildFoldedFigureActions(makeFigure(), deps)
-        .filter((action) => action.kind !== 'separator')
-        .map((action) => action.id);
-      expect(ids).toEqual(['flip', 'style', 'another', 'export', 'duplicate', 'delete']);
+    it('sits after a separator of its own, between the solution group and the manage group', () => {
+      const actions = buildFoldedFigureActions(makeFigure(), makeDeps({ exportFigure: vi.fn() }));
+      expect(
+        actions.filter((action) => action.kind !== 'separator').map((action) => action.id)
+      ).toEqual(['flip', 'style', 'another', 'export', 'duplicate', 'delete']);
+      const at = actions.findIndex((action) => action.id === 'export');
+      expect(actions[at - 1]).toEqual({ kind: 'separator', id: 'before-export' });
     });
 
-    it('offers image formats only — a folded figure is geometry on a page', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      expect(choice(makeFigure(), deps, 'export').options.map((option) => option.id)).toEqual([
-        'export-svg',
-        'export-png',
-      ]);
-    });
-
-    // Not an exclusive set, so renderers must not reserve a check column for it:
-    // an always-empty column reads as a stray indent beside the labels.
-    it('is a list of actions, not a current mode', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      const group = choice(makeFigure(), deps, 'export');
-      expect(group.exclusive).toBe(false);
-      expect(group.options.every((option) => !option.checked)).toBe(true);
-    });
-
-    it('routes each format to the export dependency', () => {
-      const exportAs = vi.fn();
-      const deps = makeDeps({ exportAs });
+    // The dialog it opens chooses the format, so there is no list of formats to pick from.
+    it('is one command, Export…, that hands the figure to the dialog once', () => {
+      const exportFigure = vi.fn();
+      const deps = makeDeps({ exportFigure });
       const figure = makeFigure();
-      choice(figure, deps, 'export').options.forEach((option) => option.run());
-      expect(exportAs).toHaveBeenNthCalledWith(1, figure, 'svg');
-      expect(exportAs).toHaveBeenNthCalledWith(2, figure, 'png');
+      const action = command(figure, deps, 'export');
+      expect(action).toMatchObject({ label: 'Export…', icon: 'export', disabled: false });
+      expect(choiceIds(figure, deps)).toEqual([]);
+
+      action.run();
+      expect(exportFigure).toHaveBeenCalledTimes(1);
+      expect(exportFigure).toHaveBeenCalledWith(figure);
     });
 
-    // Exported from the render snapshot, so a figure whose creases have since
-    // moved can still be saved — but one that has never drawn cannot.
-    it('is disabled only when the figure has no render snapshot', () => {
-      const deps = makeDeps({ exportAs: vi.fn() });
-      expect(choice(makeFigure({ status: 'stale' }), deps, 'export').disabled).toBe(false);
-      expect(choice(makeFigure({ renderSnapshot: null }), deps, 'export').disabled).toBe(true);
+    // Exported from the figure's own picture, so a figure whose creases have
+    // since moved can still be saved — but one that has never drawn cannot.
+    // Either picture counts: a 3D figure keeps a scene and no snapshot.
+    it('is disabled only when the figure has neither picture', () => {
+      const deps = makeDeps({ exportFigure: vi.fn() });
+      expect(command(makeFigure({ status: 'stale' }), deps, 'export').disabled).toBe(false);
+      expect(
+        command(makeFigure({ status: 'loading', snapshot: null, handle: null }), deps, 'export')
+          .disabled
+      ).toBe(false);
+      expect(command(makeFigure({ renderSnapshot: null }), deps, 'export').disabled).toBe(true);
+      expect(
+        command(makeFigure({ renderSnapshot: null, scene: SCENE }), deps, 'export').disabled
+      ).toBe(false);
     });
   });
 
@@ -500,13 +509,15 @@ describe('foldedFigureStyleGroup', () => {
 
   function shadow(figure: OristudioCpFoldedFigureEntry, deps: FoldedFigureActionDeps) {
     const found = foldedFigureStyleGroup(figure, deps).items.find(
-      (item): item is FoldedFigureToggleOption => item.kind === 'toggle'
+      (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'shadow'
     );
     if (!found) throw new Error('no shadow toggle');
     return found;
   }
 
-  it('lays out render style, side, the three colours and shadow, in that order', () => {
+  it('lays out render style, side, the three colours, shadow and auxiliary creases, in that order', () => {
+    // Re-pinned for Phase 5: the existing-crease toggle is the last row on
+    // every kind, after the flat figure's shadow or the 3D figure's light.
     const group = foldedFigureStyleGroup(flat(), makeDeps());
     expect(group).toMatchObject({ kind: 'group', id: 'style', icon: 'style', disabled: false });
     expect(group.items.map((item) => `${item.kind}:${item.id}`)).toEqual([
@@ -518,6 +529,8 @@ describe('foldedFigureStyleGroup', () => {
       'color:line-color',
       'separator:before-shadow',
       'toggle:shadow',
+      'separator:before-aux',
+      'toggle:aux',
     ]);
   });
 
@@ -560,7 +573,10 @@ describe('foldedFigureStyleGroup', () => {
     expect(side.options.some((option) => option.checked)).toBe(false);
   });
 
-  it('shows each colour as hex and streams a change under its own gesture', () => {
+  it('shows each colour of the effective style as hex and pins a change under its own gesture', () => {
+    // Re-pinned for the paper style (Phase 1): the rows read the figure's
+    // effective paper style and a change pins that field on the figure; the
+    // kernel model follows through the mirror rather than being written here.
     const deps = makeDeps();
     const figure = flat();
     const rows = colors(figure, deps);
@@ -570,23 +586,47 @@ describe('foldedFigureStyleGroup', () => {
       ['Line color', '#000000'],
     ]);
     rows[0]?.set('#ff0000');
-    expect(deps.updateModel).toHaveBeenCalledWith(
+    expect(deps.setAppearance).toHaveBeenCalledWith(
       figure,
-      { front_color: { red: 255, green: 0, blue: 0 } },
+      { field: 'paper.front', value: '#ff0000' },
       { scope: 'folded-color:folded-1:front_color', label: 'Change folded model color' }
     );
     rows[0]?.commit();
     expect(deps.endModelGesture).toHaveBeenCalledWith('folded-color:folded-1:front_color');
+    // The line colour is the edge pen's, and a pen is pinned whole.
+    rows[2]?.set('#0000ff');
+    expect(deps.setAppearance).toHaveBeenLastCalledWith(
+      figure,
+      { field: 'edges', value: { ...DEFAULT_PAPER_STYLE.edges, color: '#0000ff' } },
+      { scope: 'folded-color:folded-1:line_color', label: 'Change folded model color' }
+    );
   });
 
-  it('falls back to the model defaults for a figure whose model is not loaded', () => {
-    const rows = colors(flat({ state: 'Front0' }), makeDeps());
-    expect(rows.map((row) => row.value)).toEqual(['#ffff32', '#e9e9e9', '#000000']);
+  it('pins the edge pen alone with a new line ink, on either figure', () => {
+    // Re-pinned for Phase 9: the 3D figure drew M/V in the fold pens, so under
+    // mono its line ink carried onto them. Both folded figures now draw every
+    // fold as an edge, so the line ink is the edge pen and nothing more.
+    const mono = applyCreaseStyle(DEFAULT_PAPER_STYLE, 'mono');
+    const gesture = { scope: 'folded-color:folded-1:line_color', label: 'Change folded model color' };
+    for (const figure of [spatial(), flat()]) {
+      const deps = makeDeps({ paperStyle: () => mono });
+      colors(figure, deps)[2]?.set('#333333');
+      expect(deps.setAppearance).toHaveBeenCalledTimes(1);
+      expect(deps.setAppearance).toHaveBeenCalledWith(
+        figure,
+        { field: 'edges', value: { ...mono.edges, color: '#333333' } },
+        gesture
+      );
+    }
   });
 
-  it('reads the colours of a 3D figure from folded3d, and lets them be edited', () => {
-    const rows = colors(spatial({ ...FULL_MODEL, front_color: { red: 1, green: 2, blue: 3 } }), makeDeps());
+  it('reads the colours from the effective style, whichever kind of figure', () => {
+    const style = { ...DEFAULT_PAPER_STYLE, paper: { front: '#010203', back: '#e9e9e9' } };
+    const rows = colors(spatial(), makeDeps({ paperStyle: () => style }));
     expect(rows[0]).toMatchObject({ value: '#010203', disabled: false });
+    expect(colors(flat({ state: 'Front0' }), makeDeps({ paperStyle: () => style }))[0]?.value).toBe(
+      '#010203'
+    );
   });
 
   it('toggles shadow as a discrete model change', () => {
@@ -598,10 +638,76 @@ describe('foldedFigureStyleGroup', () => {
     expect(deps.updateModel).toHaveBeenCalledWith(figure, { display_shadows: false });
   });
 
-  it('offers shadow on a 3D figure disabled, with the reason as its hint', () => {
-    const row = shadow(spatial(), makeDeps());
-    expect(row.disabled).toBe(true);
-    expect(row.hint).toBe('Shadows are not drawn for a 3D folded model yet');
+  it('offers a 3D figure the light in place of the shadow, as a pin', () => {
+    // Re-pinned for D7: the shadow used to be offered disabled on a 3D figure.
+    // It is the flat figure's own option; a 3D figure is lit from the paper
+    // style's light, whose switch pins the figure's `light`.
+    const deps = makeDeps();
+    const figure = spatial();
+    const items = foldedFigureStyleGroup(figure, deps).items;
+    expect(items.map((item) => `${item.kind}:${item.id}`)).toEqual([
+      'choice:display-style',
+      'choice:side',
+      'separator:before-colors',
+      'color:front-color',
+      'color:back-color',
+      'color:line-color',
+      'separator:before-light',
+      'toggle:light',
+      'separator:before-aux',
+      'toggle:aux',
+    ]);
+    const light = items.find(
+      (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'light'
+    );
+    expect(light).toMatchObject({ checked: true, disabled: false });
+    light?.toggle();
+    expect(deps.setAppearance).toHaveBeenCalledWith(figure, {
+      field: 'light',
+      value: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
+    });
+    expect(deps.updateModel).not.toHaveBeenCalled();
+  });
+
+  it('offers the existing-crease toggle on both kinds, as a pin', () => {
+    // Every surface's policy applies `auxCreases.visible` since Phase 5. The
+    // pen and erode are numbers and belong to the Properties sheet.
+    for (const figure of [flat(), spatial()]) {
+      const deps = makeDeps();
+      const aux = foldedFigureStyleGroup(figure, deps).items.find(
+        (item): item is FoldedFigureToggleOption => item.kind === 'toggle' && item.id === 'aux'
+      );
+      expect(aux).toMatchObject({ label: 'Auxiliary creases', checked: true, disabled: false });
+      aux?.toggle();
+      expect(deps.setAppearance).toHaveBeenCalledWith(figure, {
+        field: 'auxCreases.visible',
+        value: false,
+      });
+    }
+  });
+
+  // The Properties sheet's switch clears a pin by flipping back to what it
+  // inherits (`ToggleRow`). A menu that pinned the app's own value instead
+  // left that row "Overridden" and showing the inherited value, which only a
+  // flip away and back again could clear.
+  it('clears the pin rather than copying the app style when a switch goes back to it', () => {
+    const figure = spatial();
+    const pinned = {
+      ...DEFAULT_PAPER_STYLE,
+      light: { ...DEFAULT_PAPER_STYLE.light, enabled: false },
+      auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+    };
+    const deps = makeDeps({ paperStyle: () => pinned, inheritedPaperStyle: DEFAULT_PAPER_STYLE });
+    const toggles = foldedFigureStyleGroup(figure, deps).items.filter(
+      (item): item is FoldedFigureToggleOption => item.kind === 'toggle'
+    );
+    for (const toggle of toggles) toggle.toggle();
+    expect(deps.setAppearance).toHaveBeenCalledTimes(2);
+    expect(deps.setAppearance).toHaveBeenCalledWith(figure, { field: 'light', value: undefined });
+    expect(deps.setAppearance).toHaveBeenCalledWith(figure, {
+      field: 'auxCreases.visible',
+      value: undefined,
+    });
   });
 
   it('disables the whole group, and every row in it, until the figure is ready', () => {

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { dashSlotUniforms, dashTableUniforms } from './strokeProgram';
 import { MAX_DASH_SLOTS } from '../types';
@@ -101,5 +103,36 @@ describe('dashTableUniforms', () => {
       // majority of creases is no ink at all (see `alternateDashRuns`).
       expect(hint.on[0]).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('the slots the program reads', () => {
+  // Six: the References workspace draws a step's fold, the pattern under it,
+  // a dotted line and an earlier crease under one table while a fold plays
+  // (`references/diagram/diagramInk`), and a slot the shader has no branch
+  // for draws its pattern solid without a word.
+  it('is six, each with its uniforms and a branch in the vertex stage', () => {
+    expect(MAX_DASH_SLOTS).toBe(6);
+    const source = readFileSync(resolve(__dirname, 'strokeProgram.ts'), 'utf8');
+    for (let slot = 1; slot <= MAX_DASH_SLOTS; slot += 1) {
+      expect(source, `slot ${slot}`).toContain(`uniform vec3 u_dashOn${slot};`);
+      expect(source, `slot ${slot}`).toContain(`uniform vec3 u_dashOff${slot};`);
+      expect(source, `slot ${slot}`).toContain(`aDashSlot > ${slot - 0.5}`);
+      expect(source, `slot ${slot}`).toContain(`dashOn${slot}: slot${slot}.on,`);
+      expect(source, `slot ${slot}`).toContain(`dashOff${slot}: slot${slot}.off,`);
+      // And each uniform fed from its own slot's props, not a neighbour's.
+      expect(source, `slot ${slot}`).toContain(`u_dashOn${slot}: (_ctx, props) => props.dashOn${slot},`);
+      expect(source, `slot ${slot}`).toContain(`u_dashOff${slot}: (_ctx, props) => props.dashOff${slot},`);
+      expect(source, `slot ${slot}`).toContain(`vDashOn = u_dashOn${slot};`);
+    }
+    expect(source).not.toContain(`u_dashOn${MAX_DASH_SLOTS + 1}`);
+  });
+
+  it('carries a pattern in the last slot to the last lane', () => {
+    const patterns = Array.from({ length: MAX_DASH_SLOTS }, (_, i) => (i === MAX_DASH_SLOTS - 1 ? [5, 1] : []));
+    const slots = dashTableUniforms(patterns, 1);
+    expect(slots).toHaveLength(MAX_DASH_SLOTS);
+    expect(period(slots[MAX_DASH_SLOTS - 1]!)).toBe(6);
+    for (const slot of slots.slice(0, -1)) expect(period(slot)).toBe(0);
   });
 });

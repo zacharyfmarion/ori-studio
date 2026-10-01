@@ -6,8 +6,18 @@ import {
   CP_MAX_SNAP_RADIUS,
   CP_MIN_SNAP_RADIUS,
 } from '../lib/cpSnapRadiusSetting';
-import { STORAGE_KEYS, storageKey } from '../lib/storage';
+import { builtInPaperPreset } from '../lib/paper/paperPresets';
+import { DEFAULT_PAPER_SIZE_MM, PAPER_SHEET_MM_RANGE } from '../lib/paper/paperPage';
+import { PAPER_PNG_DPI_RANGE } from '../lib/paper/paperPng';
+import { DEFAULT_PAPER_STYLE } from '../lib/paper/paperStyle';
+import {
+  DEFAULT_PAPER_EXPORT_SETTINGS,
+  PAPER_EXPORT_STYLE_SLOT,
+  paperExportMemoryOf,
+} from '../lib/paperExportSettings';
+import { readJson, STORAGE_KEYS, storageKey } from '../lib/storage';
 import { useSettingsStore } from './settingsStore';
+import type { WorkspaceState } from './workspaceStore/types';
 
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
 
@@ -115,6 +125,18 @@ describe('settingsStore', () => {
     useSettingsStore.getState().setReferencesAutoPlayFolds(true);
     expect(localStorage.getItem(key)).toBe('true');
     expect((await freshSettingsStore()).getState().referencesAutoPlayFolds).toBe(true);
+  });
+
+  it('leaves References aux creases to the paper style until set, and a reset forgets the choice', async () => {
+    const key = storageKey(STORAGE_KEYS.referencesShowAuxCreases);
+    localStorage.removeItem(key);
+    expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBeNull();
+    useSettingsStore.getState().setReferencesShowAuxCreases(false);
+    expect(localStorage.getItem(key)).toBe('false');
+    expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBe(false);
+    useSettingsStore.getState().setReferencesShowAuxCreases(null);
+    expect(localStorage.getItem(key)).toBeNull();
+    expect((await freshSettingsStore()).getState().referencesShowAuxCreases).toBeNull();
   });
 
   it('defaults the crease-pattern canvas to scroll-zooms and persists a change', () => {
@@ -229,5 +251,349 @@ describe('cpDetectSuggestions', () => {
     useSettingsStore.getState().setCpDetectSuggestions(false);
     expect(useSettingsStore.getState().cpDetectSuggestions).toBe(false);
     expect(localStorage.getItem('oristudio:cp-detect-suggestions')).toBe('false');
+  });
+});
+
+describe('paperStyle', () => {
+  const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
+  const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
+
+  it('starts from the default style with export following display and no presets', async () => {
+    const { paperStyle } = (await freshSettingsStore()).getState();
+    expect(paperStyle).toEqual({
+      display: DEFAULT_PAPER_STYLE,
+      export: null,
+      presets: [],
+      appliedPreset: { display: null, export: null },
+    });
+    // With nothing to migrate, nothing is persisted until the user edits.
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('seeds the display style from the simulator settings when there is no style yet', async () => {
+    localStorage.setItem(
+      SIMULATOR_SETTINGS_KEY,
+      JSON.stringify({ paperFront: '#ff8800', borderColor: '#112233', creaseStyle: 'mono', lighting: false })
+    );
+    const { display, export: exported } = (await freshSettingsStore()).getState().paperStyle;
+    expect(display.paper.front).toBe('#ff8800');
+    expect(display.mountainFolds.color).toBe('#112233');
+    expect(display.light.enabled).toBe(false);
+    expect(exported).toBeNull();
+  });
+
+  it('keeps a seeded style once the simulator settings are rewritten without it', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ paperFront: '#ff8800' }));
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.front).toBe('#ff8800');
+    // The simulator slice persists its normalised settings, which no longer
+    // carry the retired style keys, on any edit.
+    const { createSimulatorSlice } = await import('./workspaceStore/slices/simulatorSlice');
+    const state = {} as WorkspaceState;
+    Object.assign(
+      state,
+      createSimulatorSlice((partial) => Object.assign(state, partial), () => state, {} as never)
+    );
+    state.setSimulatorSetting('showViewCube', false);
+    expect(JSON.parse(localStorage.getItem(SIMULATOR_SETTINGS_KEY) ?? '{}')).not.toHaveProperty(
+      'paperFront'
+    );
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.front).toBe('#ff8800');
+  });
+
+  it('writes nothing for a seed that amounts to the defaults', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ showViewCube: false }));
+    await freshSettingsStore();
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('writes nothing for retired keys that only restate the defaults', async () => {
+    // What every old build's persist wrote for a user who never touched the
+    // look: all eight retired keys, at their defaults. Pinning that would stop
+    // them following a later change to the defaults for no gain.
+    localStorage.setItem(
+      SIMULATOR_SETTINGS_KEY,
+      JSON.stringify({
+        paperFront: null,
+        paperBack: null,
+        mountainColor: null,
+        valleyColor: null,
+        borderColor: null,
+        creaseWidth: 1.1,
+        creaseStyle: 'color',
+        lighting: true,
+      })
+    );
+    expect((await freshSettingsStore()).getState().paperStyle.display).toEqual(DEFAULT_PAPER_STYLE);
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('prefers a persisted style over the simulator settings beside it', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ paperFront: '#ff8800' }));
+    localStorage.setItem(
+      PAPER_STYLE_KEY,
+      JSON.stringify({ version: 1, display: { paper: { front: '#123456' } }, export: null, presets: [] })
+    );
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.front).toBe('#123456');
+  });
+
+  it('writes a field and reads it back on the next start', async () => {
+    useSettingsStore.getState().setPaperStyleField('display', 'paper.back', '#abcdef');
+    expect(useSettingsStore.getState().paperStyle.display.paper.back).toBe('#abcdef');
+    const stored = JSON.parse(localStorage.getItem(PAPER_STYLE_KEY) ?? 'null');
+    expect(stored.version).toBe(1);
+    expect(stored.export).toBeNull();
+    expect((await freshSettingsStore()).getState().paperStyle.display.paper.back).toBe('#abcdef');
+  });
+
+  it('writes several fields as one update, and persists once', () => {
+    const updates = vi.fn();
+    const unsubscribe = useSettingsStore.subscribe(updates);
+    useSettingsStore
+      .getState()
+      .setPaperStyleFields('display', { 'paper.front': '#101010', erode: 0.1 });
+    unsubscribe();
+    expect(updates).toHaveBeenCalledTimes(1);
+    const { display } = useSettingsStore.getState().paperStyle;
+    expect(display).toEqual({
+      ...DEFAULT_PAPER_STYLE,
+      paper: { ...DEFAULT_PAPER_STYLE.paper, front: '#101010' },
+      erode: 0.1,
+    });
+    const stored = JSON.parse(localStorage.getItem(PAPER_STYLE_KEY) ?? 'null');
+    expect(stored.display.paper.front).toBe('#101010');
+  });
+
+  it('detaches the export style from display the moment it is edited', () => {
+    useSettingsStore.getState().setPaperStyleField('display', 'paper.front', '#101010');
+    useSettingsStore.getState().setPaperStyleField('export', 'erode', 0.1);
+    const { display, export: exported } = useSettingsStore.getState().paperStyle;
+    // Starts as a copy of display, so the one edit is the only difference.
+    expect(exported).toEqual({ ...display, erode: 0.1 });
+    // And display is no longer what export reads from.
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.2);
+    expect(useSettingsStore.getState().paperStyle.export?.erode).toBe(0.1);
+  });
+
+  it('makes export follow display again, and pins it as a copy when told not to', () => {
+    const store = useSettingsStore.getState();
+    store.setExportPaperStyleFollowsDisplay(false);
+    expect(useSettingsStore.getState().paperStyle.export).toEqual(DEFAULT_PAPER_STYLE);
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(true);
+    expect(useSettingsStore.getState().paperStyle.export).toBeNull();
+    // Idempotent: asking for what is already the case writes nothing.
+    localStorage.removeItem(PAPER_STYLE_KEY);
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(true);
+    expect(localStorage.getItem(PAPER_STYLE_KEY)).toBeNull();
+  });
+
+  it('applies a preset to one slot only, and remembers which it was', () => {
+    useSettingsStore.getState().applyPaperPreset('export', builtInPaperPreset('diagram'));
+    const { display, export: exported, appliedPreset } = useSettingsStore.getState().paperStyle;
+    expect(exported).toEqual(builtInPaperPreset('diagram').style);
+    expect(display).toEqual(DEFAULT_PAPER_STYLE);
+    expect(appliedPreset).toEqual({ display: null, export: 'builtin:diagram' });
+  });
+
+  it('carries the display slot’s preset over when the export slot is detached, and drops it when it follows again', () => {
+    const store = useSettingsStore.getState();
+    store.applyPaperPreset('display', builtInPaperPreset('diagram'));
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(false);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset).toEqual({
+      display: 'builtin:diagram',
+      export: 'builtin:diagram',
+    });
+    useSettingsStore.getState().setExportPaperStyleFollowsDisplay(true);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.export).toBeNull();
+  });
+
+  it('forks the display slot’s preset when an edit is what detaches the export slot', () => {
+    useSettingsStore.getState().applyPaperPreset('display', builtInPaperPreset('diagram'));
+    useSettingsStore.getState().setPaperStyleField('export', 'erode', 0.1);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset).toEqual({
+      display: 'builtin:diagram',
+      export: 'builtin:diagram',
+    });
+  });
+
+  it('remembers a saved preset as the slot’s own, and forgets it when it is deleted', () => {
+    useSettingsStore.getState().savePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.display).toBe('user:Mine');
+    // An ordinary field edit is not a change of preset.
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.02);
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.display).toBe('user:Mine');
+    useSettingsStore.getState().removePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.appliedPreset.display).toBeNull();
+    // The style the preset held is left where it is.
+    expect(useSettingsStore.getState().paperStyle.display.erode).toBe(0.02);
+  });
+
+  it('saves, replaces, removes and imports presets by name', async () => {
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.05);
+    useSettingsStore.getState().savePaperPreset('  Mine ');
+    expect(useSettingsStore.getState().paperStyle.presets).toEqual([
+      { version: 1, name: 'Mine', style: { ...DEFAULT_PAPER_STYLE, erode: 0.05 } },
+    ]);
+    // A blank name is not a preset.
+    useSettingsStore.getState().savePaperPreset('   ');
+    expect(useSettingsStore.getState().paperStyle.presets).toHaveLength(1);
+
+    // Same name replaces in place rather than adding a twin.
+    useSettingsStore.getState().setPaperStyleField('display', 'erode', 0.1);
+    useSettingsStore.getState().savePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.presets).toHaveLength(1);
+    expect(useSettingsStore.getState().paperStyle.presets[0]?.style.erode).toBe(0.1);
+
+    const imported = useSettingsStore
+      .getState()
+      .importPaperPreset(JSON.stringify({ name: 'Theirs', style: { erode: 0.2 } }));
+    expect(imported.ok).toBe(true);
+    expect(useSettingsStore.getState().importPaperPreset('{')).toEqual({
+      ok: false,
+      reason: 'invalid-json',
+    });
+    expect(useSettingsStore.getState().paperStyle.presets.map((preset) => preset.name)).toEqual([
+      'Mine',
+      'Theirs',
+    ]);
+
+    useSettingsStore.getState().removePaperPreset('Mine');
+    expect(useSettingsStore.getState().paperStyle.presets.map((preset) => preset.name)).toEqual([
+      'Theirs',
+    ]);
+    // Everything above survives a restart.
+    expect((await freshSettingsStore()).getState().paperStyle.presets).toEqual([
+      { version: 1, name: 'Theirs', style: { ...DEFAULT_PAPER_STYLE, erode: 0.2 } },
+    ]);
+  });
+});
+
+describe('paperExport', () => {
+  const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
+  const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
+  const WHITE_PAGE = { ...DEFAULT_PAPER_EXPORT_SETTINGS, background: '#ffffff' };
+
+  it('starts every kind from its first-run options and writes nothing until the user exports', async () => {
+    const { paperExport } = (await freshSettingsStore()).getState();
+    expect(paperExport).toEqual(paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS));
+    // Every kind opens at one size in mm: a step's sheet, a figure across its
+    // longer side.
+    for (const kind of ['folded-figure', 'step', 'simulation'] as const) {
+      expect(paperExport[kind].sheet).toEqual({ mm: DEFAULT_PAPER_SIZE_MM });
+    }
+    expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
+  });
+
+  it('seeds every kind with a white page from the simulator settings’ retired export background, once', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
+    expect((await freshSettingsStore()).getState().paperExport).toEqual(
+      paperExportMemoryOf(WHITE_PAGE)
+    );
+    // Written at once: the simulator slice drops the retired key on its next
+    // edit, so the seed would otherwise be lost to the second read.
+    expect(readJson(PAPER_EXPORT_KEY, null)).toEqual({
+      version: 2,
+      kinds: paperExportMemoryOf(WHITE_PAGE),
+    });
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ showViewCube: false }));
+    expect((await freshSettingsStore()).getState().paperExport).toEqual(
+      paperExportMemoryOf(WHITE_PAGE)
+    );
+  });
+
+  it('reads a transparent or theme export background as a transparent page, and writes nothing', async () => {
+    for (const exportBackground of ['transparent', 'theme']) {
+      localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground }));
+      expect((await freshSettingsStore()).getState().paperExport).toEqual(
+        paperExportMemoryOf(DEFAULT_PAPER_EXPORT_SETTINGS)
+      );
+      expect(localStorage.getItem(PAPER_EXPORT_KEY)).toBeNull();
+    }
+  });
+
+  it('reads a page stored before the split as every kind’s, over the simulator settings beside it', async () => {
+    localStorage.setItem(SIMULATOR_SETTINGS_KEY, JSON.stringify({ exportBackground: 'white' }));
+    localStorage.setItem(
+      PAPER_EXPORT_KEY,
+      JSON.stringify({ background: null, pngDpi: 300, format: 'png', style: 'builtin:diagram' })
+    );
+    const { paperExport } = (await freshSettingsStore()).getState();
+    expect(paperExport).toEqual(
+      paperExportMemoryOf({ ...DEFAULT_PAPER_EXPORT_SETTINGS, background: null, pngDpi: 300 })
+    );
+  });
+
+  it('remembers one kind’s options, held to their range, and leaves the other kinds as they were', async () => {
+    const simulation = { ...WHITE_PAGE, pngDpi: 600, format: 'png' as const };
+    const foldedFigure = { ...DEFAULT_PAPER_EXPORT_SETTINGS, style: 'builtin:diagram' };
+    localStorage.setItem(
+      PAPER_EXPORT_KEY,
+      JSON.stringify({
+        version: 2,
+        kinds: { simulation, 'folded-figure': foldedFigure, step: DEFAULT_PAPER_EXPORT_SETTINGS },
+      })
+    );
+    const store = await freshSettingsStore();
+    store.getState().rememberPaperExportOptions('step', {
+      ...DEFAULT_PAPER_EXPORT_SETTINGS,
+      sheet: { mm: 5 },
+      keepHiddenFaces: false,
+      pngDpi: 5000,
+      format: 'png',
+      style: 'user:Mine',
+      marks: { letters: false, highlights: true },
+    });
+    const step = {
+      ...DEFAULT_PAPER_EXPORT_SETTINGS,
+      sheet: { mm: PAPER_SHEET_MM_RANGE.min },
+      keepHiddenFaces: false,
+      pngDpi: PAPER_PNG_DPI_RANGE.max,
+      format: 'png',
+      style: 'user:Mine',
+      marks: { letters: false, highlights: true },
+    };
+    const expected = { simulation, 'folded-figure': foldedFigure, step };
+    expect(store.getState().paperExport).toEqual(expected);
+    expect(readJson(PAPER_EXPORT_KEY, null)).toEqual({ version: 2, kinds: expected });
+    expect((await freshSettingsStore()).getState().paperExport).toEqual(expected);
+  });
+});
+
+describe('creasePatternFoldedFigureStyle', () => {
+  const FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
+
+  it('starts on the export slot with nothing stored', async () => {
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe(
+      PAPER_EXPORT_STYLE_SLOT
+    );
+  });
+
+  it('reads a stored pick back, even one naming no preset, for the pickers to resolve', async () => {
+    localStorage.setItem(FOLDED_FIGURE_KEY, JSON.stringify({ style: 'builtin:diagram' }));
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('builtin:diagram');
+    localStorage.setItem(FOLDED_FIGURE_KEY, JSON.stringify({ style: 'user:Gone' }));
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('user:Gone');
+  });
+
+  it('reads anything else stored as the export slot', async () => {
+    for (const junk of ['not json', '"builtin:diagram"', 'null', '{}', '{"style":3}', '{"style":""}']) {
+      localStorage.setItem(FOLDED_FIGURE_KEY, junk);
+      expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe(
+        PAPER_EXPORT_STYLE_SLOT
+      );
+    }
+  });
+
+  it('remembers a pick in the store and on disk, and reads it back on the next start', async () => {
+    useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('user:Mine');
+    expect(useSettingsStore.getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
+    expect(readJson(FOLDED_FIGURE_KEY, null)).toEqual({ style: 'user:Mine' });
+    expect((await freshSettingsStore()).getState().creasePatternFoldedFigureStyle).toBe('user:Mine');
+  });
+
+  it('leaves every paper export kind’s own style alone', () => {
+    useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle('builtin:diagram');
+    for (const options of Object.values(useSettingsStore.getState().paperExport)) {
+      expect(options.style).toBe(PAPER_EXPORT_STYLE_SLOT);
+    }
   });
 });

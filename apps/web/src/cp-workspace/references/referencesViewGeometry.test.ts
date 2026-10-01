@@ -5,9 +5,18 @@ import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { LineHitIndex } from '../picking/lineHitIndex';
 import type { Rgba, StrokeGeometry } from '../renderer/types';
 import {
+  canvasDiagramInk,
+  canvasDiagramPens,
+  DIAGRAM_LINE_INK,
+  diagramDashPatterns,
+  diagramDashSlot,
+} from './diagram/diagramInk';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import {
   applyCreaseVisibility,
   concatStrokes,
   ghostSegmentsToStrokes,
+  highlightedVerticesToOverlayPoints,
   hoveredCreaseToPreviewStroke,
   hoveredVertexToOverlayPoint,
   HOVER_FILL_ALPHA,
@@ -16,6 +25,8 @@ import {
   isClick,
   markersToOverlayPoints,
   modelBoundsToUser,
+  paperSideOf,
+  referencesCreasePens,
   resolveReferencesPick,
   sheetFillGeometry,
   transportUserBounds,
@@ -233,10 +244,149 @@ describe('applyCreaseVisibility', () => {
     expect(alphaOf(out)).toEqual([1, 0.25, 0, 0, 0]);
   });
 
+  // Thin lines — creases an earlier step made, the pattern's own aux lines —
+  // take the aux pen's ink, width and dash, and never a direction.
+  it('draws thin lines in the aux pen', () => {
+    const inkCss = 1.25;
+    const pen = { width: 0.25, color: '#231f20', dash: [4, 2], cap: 'butt' as const };
+    const css = 0.5;
+    const ink: Rgba = [0.1, 0.2, 0.3, 0.6];
+    const out = applyCreaseVisibility(
+      strokes(),
+      4,
+      {
+        visible: new Set([1, 2, 3]),
+        dimmed: new Set([1]),
+        dimAlpha: 0.25,
+        directions: new Map([[3, 'valley' as const]]),
+        ink: { mountain: [1, 0, 0, 1], valley: [0, 0, 1, 1], aux: ink },
+        thin: new Set([2, 3]),
+        thinPen: { pen, css },
+      },
+      inkCss
+    );
+    expect(Array.from(out.color.slice(4, 8))).toEqual(Array.from(Float32Array.from(ink)));
+    // Its own ink even where a step's direction would have recoloured it.
+    expect(Array.from(out.color.slice(8, 12))).toEqual(Array.from(Float32Array.from(ink)));
+    expect(alphaOf(out)[0]).toBe(0.25);
+    // The pen in CSS px, as a multiple of the edge weight one unit of width is.
+    expect(out.widthMul[1]).toBeCloseTo(css / inkCss / DIAGRAM_LINE_INK.edge.width, 6);
+    const slot = diagramDashSlot('aux');
+    expect(out.dashSlot?.[1]).toBe(slot);
+    expect(out.dashPatterns?.[slot - 1]?.map((run) => run / css)).toEqual([4, 2]);
+  });
+
   it('does not mutate the buffer it was given', () => {
     const input = strokes();
     applyCreaseVisibility(input, 4, { visible: new Set([1]), dimmed: null, dimAlpha: 0.5 }, 1.25);
     expect(alphaOf(input)).toEqual([1, 1, 1, 1, 1]);
+  });
+
+  // Each crease's pen is already on it (`referencesCreasePens`); what the plan
+  // settles replaces it with that direction's fold pen, dash and width both —
+  // the finished card is the pattern, never a step's instruction.
+  it('keeps each crease’s own dash, and draws a settled direction in its fold pen', () => {
+    const pens = canvasDiagramPens(1, 1.4, undefined, {
+      edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
+      mountainFolds: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 1.2, dash: null }, css: 1.6 },
+      valleyFolds: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [4, 2] }, css: 1.1 },
+      // The instruction's pens, apart in width and dash, which no crease here takes.
+      mountainDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: [5, 1, 1, 1] }, css: 2.4 },
+      valleyDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: null }, css: 2.2 },
+    });
+    const input = strokes();
+    input.dashSlot![1] = diagramDashSlot('fold-valley');
+    const out = applyCreaseVisibility(
+      input,
+      4,
+      {
+        visible: new Set([1, 2, 3]),
+        dimmed: null,
+        dimAlpha: 1,
+        directions: new Map([[3, 'mountain' as const]]),
+        ink: { mountain: [1, 0, 0, 1], valley: [0, 0, 1, 1] },
+      },
+      canvasDiagramInk(1),
+      pens
+    );
+    expect(out.dashSlot?.[1]).toBe(diagramDashSlot('fold-valley'));
+    expect(out.dashSlot?.[2]).toBe(diagramDashSlot('fold-mountain'));
+    expect(out.widthMul[2]).toBeCloseTo(1.6 / 1.5, 6);
+    // The slots are the style's: a solid fold mountain, the fold valley's own runs.
+    expect(out.dashPatterns?.[diagramDashSlot('fold-mountain') - 1]).toEqual([]);
+    expect(out.dashPatterns?.[diagramDashSlot('fold-valley') - 1]?.length).toBe(2);
+    // The table is the one the diagram channel uploads too, instruction slots and all.
+    expect(out.dashPatterns).toEqual(diagramDashPatterns(canvasDiagramInk(1), pens));
+    expect(out.dashPatterns?.[diagramDashSlot('mountain') - 1]?.length).toBe(4);
+  });
+});
+
+describe('referencesCreasePens', () => {
+  // The document's creases by what each is on the paper: black the edge, red a
+  // mountain, blue a valley, cyan an aux line, no colour an unassigned crease.
+  // A crease pattern's lines, so a direction is in the fold pens.
+  const COLORS = [0, 1, 2, 3, -1];
+  const segAttr = Int32Array.from(COLORS.flatMap((color) => [color, 0, 0, 0, 0]));
+  const packed = (): StrokeGeometry =>
+    ({
+      a: new Float32Array(10),
+      b: new Float32Array(10),
+      color: new Float32Array(20).fill(1),
+      widthMul: Float32Array.from([1, 1, 2.6, 1, 1]),
+      dashSlot: new Float32Array(5),
+      count: 5,
+    }) as unknown as StrokeGeometry;
+  const pens = canvasDiagramPens(1, 1.4, { pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, dash: [1, 2] }, css: 0.5 }, {
+    edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1.5 },
+    mountainFolds: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: [8, 2, 1, 2] }, css: 1.2 },
+    valleyFolds: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: null }, css: 1.2 },
+    // The instruction's pens, apart in width and dash: a pattern's crease never takes them.
+    mountainDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: null }, css: 2.4 },
+    valleyDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: [6, 3] }, css: 2.4 },
+  });
+  const ink = {
+    edge: [0, 0, 0, 1] as Rgba,
+    'fold-mountain': [1, 0, 0, 1] as Rgba,
+    'fold-valley': [0, 0, 1, 1] as Rgba,
+    aux: [0.5, 0.5, 0.5, 0.6] as Rgba,
+  };
+  const out = referencesCreasePens(packed(), segAttr, 5, {
+    pens,
+    inkCss: canvasDiagramInk(1),
+    ink,
+    picked: new Set([3]),
+  });
+  const rgbaAt = (i: number) => Array.from(out.color.slice(i * 4, i * 4 + 4));
+
+  it('gives each its role’s colour, dash and width against the edge pen', () => {
+    expect(rgbaAt(0)).toEqual(Array.from(Float32Array.from(ink.edge)));
+    expect(rgbaAt(1)).toEqual(Array.from(Float32Array.from(ink['fold-mountain'])));
+    expect(rgbaAt(3)).toEqual(Array.from(Float32Array.from(ink.aux)));
+    // A crease with no direction takes the aux pen.
+    expect(rgbaAt(4)).toEqual(Array.from(Float32Array.from(ink.aux)));
+    expect(out.widthMul[0]).toBeCloseTo(1, 6);
+    expect(out.widthMul[1]).toBeCloseTo(1.2 / 1.5, 6);
+    expect(out.widthMul[4]).toBeCloseTo(0.5 / 1.5, 6);
+    expect(Array.from(out.dashSlot!)).toEqual([
+      0,
+      diagramDashSlot('fold-mountain'),
+      diagramDashSlot('fold-valley'),
+      diagramDashSlot('aux'),
+      diagramDashSlot('aux'),
+    ]);
+    // The slots carry the fold pens' runs: the mountain dashed, the valley solid.
+    expect(out.dashPatterns?.[diagramDashSlot('fold-mountain') - 1]?.length).toBe(4);
+    expect(out.dashPatterns?.[diagramDashSlot('fold-valley') - 1]).toEqual([]);
+    // One table for both channels: the diagram's instruction slots ride along.
+    expect(out.dashPatterns).toEqual(diagramDashPatterns(canvasDiagramInk(1), pens));
+  });
+
+  it('leaves the picked crease its accent, and its highlight on top of its pen', () => {
+    // Crease 3 (index 2) is picked: its colour stays the packer's, its width the
+    // highlight times the fold valley pen, and its dash that pen's.
+    expect(rgbaAt(2)).toEqual([1, 1, 1, 1]);
+    expect(out.widthMul[2]).toBeCloseTo(2.6 * (1.2 / 1.5), 6);
+    expect(out.dashSlot![2]).toBe(diagramDashSlot('fold-valley'));
   });
 });
 
@@ -452,6 +602,76 @@ describe('the hover marks', () => {
     expect(ring.radius[0] / HOVER_RING_SCALE).toBeLessThan(ring.radius[0]);
     expect(ring.fill[3]).toBeCloseTo(HOVER_FILL_ALPHA);
     expect([...ring.stroke]).toEqual(accent);
+  });
+});
+
+describe('a vertex’s dot, by the ground under it', () => {
+  // X11: the style's ink is for the style's paper, and a black dot off it is
+  // no dot on a dark theme's ground. The overlay channel cannot clip a disc,
+  // so the ink goes by where the vertex lies. Oriedita's sheet, wound as the
+  // hull winds it and the other way.
+  const SHEET = [
+    { x: -200, y: -200 },
+    { x: 200, y: -200 },
+    { x: 200, y: 200 },
+    { x: -200, y: 200 },
+  ];
+  const PAPER: Rgba = [0, 0, 0, 1];
+  const GROUND: Rgba = [0.875, 0.875, 0.875, 1];
+
+  it('finds a point on the paper, on its edge or off it, either winding', () => {
+    for (const outline of [SHEET, [...SHEET].reverse()]) {
+      expect(paperSideOf({ x: 0, y: 0 }, outline)).toBe('paper');
+      expect(paperSideOf({ x: 199.9, y: 0 }, outline)).toBe('paper');
+      expect(paperSideOf({ x: 200, y: 50 }, outline)).toBe('edge');
+      expect(paperSideOf({ x: -200, y: -200 }, outline)).toBe('edge');
+      // An intersection on the side, a rounding error either way of it.
+      expect(paperSideOf({ x: 200 + 1e-9, y: 50 }, outline)).toBe('edge');
+      expect(paperSideOf({ x: 200 - 1e-9, y: 50 }, outline)).toBe('edge');
+      expect(paperSideOf({ x: 210, y: 0 }, outline)).toBe('ground');
+      // Past a corner along one side's line: on that line, off the paper.
+      expect(paperSideOf({ x: 250, y: 200 }, outline)).toBe('ground');
+    }
+  });
+
+  it('is all ground with no paper', () => {
+    expect(paperSideOf({ x: 0, y: 0 }, [])).toBe('ground');
+    expect(paperSideOf({ x: 0, y: 0 }, SHEET.slice(0, 2))).toBe('ground');
+  });
+
+  it('inks a dot on the paper in the style’s ink, off it in the theme’s, and on the edge in both', () => {
+    const dots = highlightedVerticesToOverlayPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 200, y: 0 },
+        { x: 260, y: 0 },
+      ],
+      { paper: PAPER, ground: GROUND },
+      2,
+      SHEET
+    )!;
+    const at = (buffer: Float32Array, i: number) => [...buffer.slice(i * 4, i * 4 + 4)];
+    expect(dots.count).toBe(3);
+    // On the paper: the style's, fill and rim alike, as before.
+    expect(at(dots.fill, 0)).toEqual(PAPER);
+    expect(at(dots.stroke, 0)).toEqual(PAPER);
+    // On the edge: filled for the paper, ringed for the ground.
+    expect(at(dots.fill, 1)).toEqual(PAPER);
+    expect(at(dots.stroke, 1)).toEqual(GROUND);
+    // Off it: the theme's.
+    expect(at(dots.fill, 2)).toEqual(GROUND);
+    expect(at(dots.stroke, 2)).toEqual(GROUND);
+  });
+
+  it('draws every dot on the ground before there is a sheet', () => {
+    const dot = highlightedVerticesToOverlayPoints(
+      [{ x: 0, y: 0 }],
+      { paper: PAPER, ground: GROUND },
+      2,
+      []
+    );
+    expect([...dot!.fill]).toEqual(GROUND);
+    expect([...dot!.stroke]).toEqual(GROUND);
   });
 });
 

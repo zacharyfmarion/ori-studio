@@ -281,6 +281,9 @@
     },
     "otherPlatforms": "다른 플랫폼"
   },
+  "fieldRow": {
+    "overridden": "재정의됨"
+  },
   "fileDrop": {
     "open": "놓아서 열기",
     "openOrImport": "놓아서 열거나 가져오기"

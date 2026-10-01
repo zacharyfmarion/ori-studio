@@ -20,6 +20,24 @@ describe('reading a window back out of a file', () => {
     expect(validateInlineSimulation(valid)).toEqual(valid);
   });
 
+  it('round-trips the pinned style fields and drops what it cannot read', () => {
+    const appearance = {
+      'paper.front': '#ff0000',
+      edges: { width: 1, color: '#000000', dash: [2, 1], cap: 'round' },
+    };
+    expect(validateInlineSimulation({ ...valid, appearance })?.appearance).toEqual(appearance);
+    // A malformed value goes, not the window; an unknown key goes too.
+    expect(
+      validateInlineSimulation({
+        ...valid,
+        appearance: { 'paper.front': 'red', erode: 0.1, later: true },
+      })?.appearance
+    ).toEqual({ erode: 0.1 });
+    // Nothing pinned is nothing stored: the window follows the app style.
+    expect('appearance' in validateInlineSimulation({ ...valid, appearance: {} })!).toBe(false);
+    expect('appearance' in validateInlineSimulation(valid)!).toBe(false);
+  });
+
   it('drops a window with no box, which has nowhere to be drawn', () => {
     expect(validateInlineSimulation({ ...valid, box: undefined })).toBeNull();
     expect(validateInlineSimulation({ ...valid, box: { ...valid.box, width: 0 } })).toBeNull();

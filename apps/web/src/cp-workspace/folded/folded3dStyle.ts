@@ -1,47 +1,23 @@
 /**
- * How a 3D folded figure looks, independent of how it is drawn.
+ * What a 3D folded figure's *display style* means, independent of how it is
+ * drawn.
  *
- * Extracted from `foldedFigure3dProjection.ts` for the same reason
- * `folded3dModelReader.ts` was: two renderers now draw one figure — the CPU
- * projector (which becomes the vector-export path) and the GPU mesh in its
- * window — and a figure's colours and its display style have to mean the *same
- * thing* in both or the same figure looks different depending on which path drew
- * it. One module rather than two copies.
+ * Extracted from the CPU projector for the same reason `folded3dModelReader.ts`
+ * was: two renderers drew one figure, and a display style has to mean the same
+ * thing in both or the same figure looks different depending on which path drew
+ * it. The projector has retired (D5) and the window and the scene are now built
+ * from one mesh, but the split still earns its keep — the window submits draw
+ * passes and the scene orders items, so "wireframe draws no paper" is stated
+ * once, here, rather than in each.
  *
- * Bodies are verbatim from the projector; the only change is that `stylePlan` is
- * exported under a qualified name.
+ * Colour is **not** here. Every surface resolves the figure's effective
+ * `PaperStyle` through `resolvePaperStyle` — the window in
+ * `folded3dWindowRenderSettings`, the scene and the painter through the
+ * `folded-3d` policy — so there is one ink vocabulary and this module carries
+ * only the two alphas the kernel's own semantics fix.
  */
 
-import type {
-  OristudioCpFoldedFigureDisplayStyle,
-  OristudioCpFoldedFigureModel,
-} from '../../engine/oristudioCpTypes';
-
-/** Colour and lighting, in the projector's units. `[r, g, b]` in `0..1`. */
-export interface Folded3dPaperStyle {
-  front: readonly [number, number, number];
-  back: readonly [number, number, number];
-  line: readonly [number, number, number];
-  /** Fill opacity, `0..1`. Below 1 disables hidden-piece culling. */
-  faceAlpha: number;
-  /**
-   * Face opacity for the X-ray style, `0..1` — the model's own
-   * `transparent_transparency` rather than a constant of ours.
-   *
-   * Oriedita uses that field directly as the fill alpha and defaults it to
-   * `16/255`, which is faint on purpose: a single layer is barely there and the
-   * picture is built from where layers *stack*. Substituting a value that reads
-   * well for one layer would throw that away, so the number comes from the
-   * model.
-   */
-  transparentAlpha: number;
-  /** Java2D stroke width, in the same convention the flat kernel emits. */
-  lineWidth: number;
-  antiAlias: boolean;
-  lighting: boolean;
-  /** Light direction in **view** space, as the simulator's shader takes it. */
-  lightDir: readonly [number, number, number];
-}
+import type { OristudioCpFoldedFigureDisplayStyle } from '../../engine/oristudioCpTypes';
 
 /** Alpha a cell's fills drop to when the solver could not order it. */
 export const UNDETERMINED_FACE_ALPHA = 0.45;
@@ -64,28 +40,11 @@ export const UNDETERMINED_FACE_ALPHA = 0.45;
  */
 export const TRANSPARENT_FACE_ALPHA = 0.45;
 
-/** Paper style from a kernel figure model, so a 3D figure honours its colours. */
-export function folded3dPaperStyle(model: OristudioCpFoldedFigureModel): Folded3dPaperStyle {
-  return {
-    front: [model.front_color.red / 255, model.front_color.green / 255, model.front_color.blue / 255],
-    back: [model.back_color.red / 255, model.back_color.green / 255, model.back_color.blue / 255],
-    line: [model.line_color.red / 255, model.line_color.green / 255, model.line_color.blue / 255],
-    faceAlpha: 1,
-    transparentAlpha: TRANSPARENT_FACE_ALPHA,
-    lineWidth: model.anti_alias ? 1.200000048 : 1.0,
-    antiAlias: model.anti_alias,
-    lighting: true,
-    lightDir: [0, 0, 1],
-  };
-}
-
 export interface StylePlan {
   fills: boolean;
   strokes: boolean;
   /** Multiplied into every fill's alpha. */
   faceAlpha: number;
-  /** Whether an undecided cell also gets its red annotation. */
-  annotateUndetermined: boolean;
 }
 
 /**
@@ -106,27 +65,23 @@ export function folded3dStylePlan(
   /**
    * The X-ray alpha, when the caller has a model to take it from.
    *
-   * Defaulted so `folded3dBspItems` — which only wants to know *whether* fills
-   * and strokes are drawn — does not have to carry a style it never reads.
+   * Defaulted so a caller that only wants to know *whether* fills and strokes
+   * are drawn — the scene producer — does not have to carry an alpha it never
+   * reads.
    */
   transparentAlpha: number = TRANSPARENT_FACE_ALPHA
 ): StylePlan {
   switch (style) {
     case 'None0':
-      return { fills: false, strokes: false, faceAlpha: 1, annotateUndetermined: false };
+      return { fills: false, strokes: false, faceAlpha: 1 };
     case 'Wire2':
     case 'Development1':
     case 'Development4':
-      return { fills: false, strokes: true, faceAlpha: 1, annotateUndetermined: false };
+      return { fills: false, strokes: true, faceAlpha: 1 };
     case 'Transparent3':
-      return {
-        fills: true,
-        strokes: true,
-        faceAlpha: transparentAlpha,
-        annotateUndetermined: false,
-      };
+      return { fills: true, strokes: true, faceAlpha: transparentAlpha };
     case 'Paper5':
     default:
-      return { fills: true, strokes: true, faceAlpha: 1, annotateUndetermined: true };
+      return { fills: true, strokes: true, faceAlpha: 1 };
   }
 }

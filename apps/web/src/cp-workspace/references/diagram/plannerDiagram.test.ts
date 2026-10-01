@@ -821,12 +821,48 @@ describe('the cards that are not folds', () => {
     const finished = directed('valley', 'mountain', 'valley');
     const diagram = plannerFinishedDiagram(finished, unitFrame(finished));
     const styles = diagram.primitives.flatMap((p) => (p.kind === 'line' ? [p.style] : []));
-    expect(styles).toContain('mountain');
-    expect(styles).toContain('valley');
+    // The card is the pattern, so its lines are a crease pattern's — the fold
+    // pens' styles — and never a step's instruction.
+    expect(styles).toContain('fold-mountain');
+    expect(styles).toContain('fold-valley');
     expect(styles).toContain('crease');
+    for (const instruction of ['mountain', 'valley', 'pinch-mountain', 'pinch-valley'] as const) {
+      expect(styles).not.toContain(instruction);
+    }
     const auxStyles = plannerFinishedDiagram(finished, unitFrame(finished))
       .primitives.filter((p) => p.kind === 'line' && p.style === 'pinch-valley');
     expect(auxStyles).toHaveLength(0);
+  });
+});
+
+describe('the pattern’s own aux lines', () => {
+  const sequence = plannerSequenceFixture();
+  const GUIDE = [
+    [
+      { x: 0, y: 0.25 },
+      { x: 1, y: 0.25 },
+    ],
+  ] as const;
+  const auxOf = (primitives: readonly StepDiagramPrimitive[]) =>
+    primitives.filter((p) => p.kind === 'line' && p.style === 'aux');
+
+  // On the paper from the start, so under everything the steps draw: the
+  // first thing after the sheet, on every kind of card.
+  it('are drawn on every card, straight after the sheet', () => {
+    const frame = unitFrame(sequence);
+    for (const diagram of [
+      plannerStepDiagram(sequence, frame, 0, { aux: GUIDE })!,
+      plannerStepDiagram(sequence, frame, 2, { aux: GUIDE })!,
+      plannerTurnOverDiagram(sequence, frame, 1, { aux: GUIDE }),
+      plannerFinishedDiagram(sequence, frame, { aux: GUIDE }),
+    ]) {
+      expect(auxOf(diagram.primitives)).toHaveLength(1);
+      expect(diagram.primitives[1]).toMatchObject({ kind: 'line', style: 'aux', from: [0, 0.25] });
+    }
+  });
+
+  it('are not drawn unless handed over', () => {
+    expect(auxOf(plannerStepDiagram(sequence, unitFrame(sequence), 2)!.primitives)).toHaveLength(0);
   });
 });
 
@@ -1796,17 +1832,18 @@ describe('a grid step', () => {
   it('finishes with in-pattern grid lines by pleat direction and the rest as crease', () => {
     const drawn = lines(plannerFinishedDiagram(sequence, unit).primitives);
     const styleOf = (a: number[], b: number[]) => drawn.find((l) => isSeg(l, a, b))?.style;
-    expect(styleOf([0.25, 0], [0.25, 1])).toBe('mountain');
-    expect(styleOf([0.5, 0], [0.5, 1])).toBe('valley');
+    // In the fold pens' styles: the finished card is the pattern.
+    expect(styleOf([0.25, 0], [0.25, 1])).toBe('fold-mountain');
+    expect(styleOf([0.5, 0], [0.5, 1])).toBe('fold-valley');
     expect(styleOf([0.75, 0], [0.75, 1])).toBe('crease');
     // y = ½ is pleated as a valley and the pattern wants a mountain: the
     // pleat's direction is the one the folder made.
     expect(sequence.steps[1]!.grid!.lines[1]!.pattern_direction).toBe('mountain');
-    expect(styleOf([0, 0.5], [1, 0.5])).toBe('valley');
+    expect(styleOf([0, 0.5], [1, 0.5])).toBe('fold-valley');
     expect(styleOf([0, 0.25], [1, 0.25])).toBe('crease');
     expect(styleOf([0, 0.75], [1, 0.75])).toBe('crease');
     // And the fold after the grid, in its own direction.
-    expect(styleOf([0, 0.5], [0.5, 1])).toBe('valley');
+    expect(styleOf([0, 0.5], [0.5, 1])).toBe('fold-valley');
   });
 
   // A grid step that is not a pleat makes one level's lines in bands, and
@@ -2027,6 +2064,18 @@ describe('a grid step', () => {
     // the paper's size from the model's origin.
     expect(finished.sheet.centre?.map(round)).toEqual(image([0.5, 0.5]).map(round));
     expect(finished.sheet.width).toBeCloseTo(400, 6);
+    // And which way the paper lies there, for erode to find its edge: the
+    // images of the unit square's x and y, as unit vectors.
+    const axis = (from: [number, number], to: [number, number]) => {
+      const [ax, ay] = image(from);
+      const [bx, by] = image(to);
+      const length = Math.hypot(bx - ax, by - ay);
+      return [(bx - ax) / length, (by - ay) / length].map(round);
+    };
+    expect(finished.sheet.axes?.x.map(round)).toEqual(axis([0, 0], [1, 0]));
+    expect(finished.sheet.axes?.y.map(round)).toEqual(axis([0, 0], [0, 1]));
+    // The card's own sheet is upright and says nothing about axes.
+    expect(plannerFinishedDiagram(sequence, unit).sheet.axes).toBeUndefined();
   });
 });
 

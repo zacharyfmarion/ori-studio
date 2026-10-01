@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand';
+import type { PaperExportStyleChoice } from '../../lib/paperExportSettings';
 import type {
   ConditionKind,
   FoldArtifacts,
@@ -7,6 +8,7 @@ import type {
   WasmErrorEnvelope,
 } from '../../engine/types';
 import type { Point } from '../../lib/geometry';
+import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
@@ -41,8 +43,7 @@ import type {
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
-import type { FoldedFigureExportFormat } from '../../cp-workspace/folded/foldedFigureExport';
-import type { FoldedFigureCamera } from '../../cp-workspace/folded/foldedFigure3dProjection';
+import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type {
   OristudioCpCommandPayload,
@@ -424,6 +425,11 @@ export interface ProjectSliceActions {
     title: string;
     author: string | null;
     renderCard: () => Promise<Uint8Array | null>;
+    /**
+     * The style the card's folded figure is drawn in, remembered for the next
+     * share and crease-pattern export; null when the card shows no figure.
+     */
+    foldedFigureStyle?: PaperExportStyleChoice | null;
   }) => Promise<boolean>;
   /**
    * Fold the drafted share's pattern for its card preview. Injected through the store
@@ -437,15 +443,6 @@ export interface ProjectSliceActions {
   dismissOristudioCpShare: () => void;
   /** Record a share payload for the Edit surface to open. Set by `/s` only. */
   setPendingSharedCp: (pending: PendingSharedCp) => void;
-  /**
-   * Save one folded figure as a standalone image, serialized from the snapshot
-   * already on screen rather than re-folded. See `lib/foldedFigureExport.ts`.
-   */
-  exportOristudioCpFoldedFigure: (
-    format: FoldedFigureExportFormat,
-    figureId: string,
-    fileService?: FileService
-  ) => Promise<boolean>;
   /**
    * Load a bundled example. False when nothing was established — an unknown id, a
    * declined discard prompt, or a load that failed — so the caller can tell an
@@ -684,6 +681,12 @@ export interface ClipboardSliceActions {
 
 export type ClipboardSlice = ClipboardSliceState & ClipboardSliceActions;
 
+/** See `updateOristudioCpFoldedFigureModel`. */
+export interface FoldedModelWriteOptions {
+  /** The write mirrors the figure's effective paper style: no selection, no dirty. */
+  mirror?: boolean;
+}
+
 /**
  * Which verb started a fold. One value per wrapped call site, so the indicator
  * and the analytics can tell a first fold from a refold without carrying
@@ -856,6 +859,19 @@ export interface CreasePatternSliceActions {
     patch: Partial<Pick<InlineSimulation, 'box' | 'view' | 'z'>>
   ) => void;
   removeOristudioCpInlineSimulation: (id: string) => void;
+  /**
+   * Pin one paper-style field on a window, or clear it with `undefined` so the
+   * window follows the app style again. A document edit — sets `dirty` — with
+   * no history push of its own, like {@link updateOristudioCpInlineSimulation}:
+   * the undo entry is the caller's bracket, one per discrete edit or per drag
+   * (`cp-workspace/paper/objectPaperStyle.ts`). `false` when there is no such
+   * window.
+   */
+  setOristudioCpInlineSimulationAppearance: <F extends PaperStyleField>(
+    id: string,
+    field: F,
+    value: PaperStyleValue<F> | undefined
+  ) => boolean;
   /** Hand the solver to a window, or to none. */
   focusOristudioCpInlineSimulation: (id: string | null) => void;
   /**
@@ -964,9 +980,18 @@ export interface CreasePatternSliceActions {
    * Rejects a flat figure: there is no viewpoint to move.
    */
   setOristudioCpFolded3dCamera: (id: string, camera: FoldedFigureCamera) => Promise<boolean>;
+  /**
+   * Write part of a figure's kernel model. A document edit with no history
+   * push of its own: the undo entry is the caller's bracket. Selects the
+   * figure and marks the project dirty — unless `mirror` is set, which is the
+   * store carrying a figure's *effective paper style* into the model it
+   * already draws with (`foldedFigurePaperMirror`): derived state, not a user
+   * edit, so it selects nothing and dirties nothing.
+   */
   updateOristudioCpFoldedFigureModel: (
     id: string,
-    update: Partial<OristudioCpFoldedFigureModel>
+    update: Partial<OristudioCpFoldedFigureModel>,
+    options?: FoldedModelWriteOptions
   ) => Promise<boolean>;
   /**
    * Make every in-flight live model write stale, for an undo taken mid-drag.
@@ -1023,6 +1048,30 @@ export interface CreasePatternSliceActions {
     id: string,
     patch: Partial<FoldedFigurePlacement>
   ) => void;
+  /**
+   * Pin one paper-style field on a figure, or clear it with `undefined` so the
+   * figure follows the app style again. Selects the figure, as editing its
+   * model does. A document edit with no history push of its own, on the same
+   * terms as {@link setOristudioCpFoldedFigurePlacement}: the undo entry is
+   * the caller's bracket (`cp-workspace/paper/objectPaperStyle.ts`). `false`
+   * when there is no such figure.
+   */
+  setOristudioCpFoldedFigureAppearance: <F extends PaperStyleField>(
+    id: string,
+    field: F,
+    value: PaperStyleValue<F> | undefined
+  ) => boolean;
+  /**
+   * Rebuild every 3D figure's stored picture at the style it now follows.
+   *
+   * For the fields the picture *bakes* — the light, which every face carries as
+   * a `shade`, and the widest pen, which the hidden test measures with — where
+   * re-inking the scene that is there cannot show the change
+   * (`folded3dSceneStyleKey`). Derived state and not a user edit, like the
+   * colour mirror it is installed beside: it selects nothing, dirties nothing,
+   * and a figure with no kernel to rebuild from keeps the picture it has.
+   */
+  refreshOristudioCpFolded3dScenes: () => void;
   /**
    * Open an inline simulation of the region these creases enclose, falling back
    * to the Simulate panel when they are not one whole region.
@@ -1385,8 +1434,6 @@ export interface SimulatorSliceActions {
   setSimulatorSetting: <K extends SimulatorSettingKey>(key: K, value: SimulatorSettings[K]) => void;
   /** Restore the paper's material properties (stiffness, damping) to defaults. */
   resetSimulatorMaterial: () => void;
-  /** Paper and crease appearance back to the theme / origami-convention defaults. */
-  resetSimulatorStyle: () => void;
 }
 
 export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;

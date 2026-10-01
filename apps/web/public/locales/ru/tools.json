@@ -285,6 +285,10 @@
   },
   "references": {
     "categoryLabel": "Референсы",
+    "exportAllSteps": "Экспортировать все шаги…",
+    "exportStep": "Экспортировать шаг…",
+    "exportStepPng": "Экспортировать шаг в PNG…",
+    "exportStepSvg": "Экспортировать шаг в SVG…",
     "nextCandidate": "Следующий вариант",
     "nextStep": "Следующий шаг",
     "nextWay": "Следующий способ",
@@ -309,7 +313,6 @@
     "resetView": "Сбросить вид симулятора",
     "toggleCreases": "Линии сгиба",
     "toggleFaces": "Грани",
-    "toggleHiddenLines": "Скрытые линии",
     "toggleLighting": "Освещение"
   },
   "viewport": {

@@ -27,6 +27,8 @@ import {
   transformCpLineSegments,
 } from '../../../lib/creasePatternClipboard';
 import { DEFAULT_CREASE_COLOR_MODE } from '../../../lib/sampleProject';
+import { withPaperStyleOverride } from '../../../lib/paper/paperStyle';
+import { legacyPaperStyleOverrides } from '../../../lib/paper/paperStyleMigration';
 import {
   buildSegmentSimulationFold,
   resolveCpSegments,
@@ -173,12 +175,13 @@ import {
 import {
   defaultFolded3dCamera,
   folded3dFrameRadius,
-} from '../../../cp-workspace/folded/foldedFigure3dProjection';
+} from '../../../cp-workspace/folded/folded3dCamera';
 import { setFolded3dRenderModel } from '../../../cp-workspace/folded/folded3dRenderModels';
 import {
-  project3dRenderSnapshot,
-  reproject3dFigure,
-  reproject3dFigureAt,
+  folded3dStoredSceneStyleChanged,
+  project3dScene,
+  reproject3dScene,
+  reproject3dSceneAt,
 } from '../../../cp-workspace/folded/folded3dReproject';
 import {
   cpLinesByIds,
@@ -1738,6 +1741,21 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
     },
 
+    setOristudioCpInlineSimulationAppearance: (id, field, value) => {
+      const simulations = get().oristudioCpInlineSimulations;
+      const simulation = simulations.find((candidate) => candidate.id === id);
+      if (!simulation) return false;
+      const appearance = withPaperStyleOverride(simulation.appearance, field, value);
+      if (appearance === simulation.appearance) return true;
+      set({
+        oristudioCpInlineSimulations: simulations.map((candidate) =>
+          candidate.id === id ? { ...candidate, appearance } : candidate
+        ),
+        dirty: true,
+      });
+      return true;
+    },
+
     removeOristudioCpInlineSimulation: (id) => {
       const previous = get().oristudioCpInlineSimulations;
       if (!previous.some((simulation) => simulation.id === id)) return;
@@ -1986,6 +2004,47 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       });
     },
 
+    setOristudioCpFoldedFigureAppearance: (id, field, value) => {
+      const figures = get().oristudioCpFoldedFigures;
+      const figure = figures.find((candidate) => candidate.id === id);
+      if (!figure) return false;
+      const appearance = withPaperStyleOverride(figure.appearance, field, value);
+      if (appearance === figure.appearance) return true;
+      // A colour pin re-inks the picture that is already there, but the light
+      // is baked into every face's shade, so pinning one is a rebuild — and
+      // without it the Lighting row would write an override that changed
+      // nothing until the figure was next turned.
+      const scene =
+        (figure.folded3d ?? null) !== null &&
+        folded3dStoredSceneStyleChanged(figure.appearance, appearance)
+          ? reproject3dScene({ ...figure, appearance }, figure.displayStyle)
+          : null;
+      // Editing a figure's appearance selects it, as editing its model does.
+      takeCanvasSelection('folded-figure', {
+        oristudioCpFoldedFigures: figures.map((candidate) =>
+          candidate.id === id
+            ? { ...candidate, appearance, scene: scene ?? candidate.scene }
+            : candidate
+        ),
+        oristudioCpActiveFoldedFigureId: id,
+        dirty: true,
+      });
+      return true;
+    },
+
+    refreshOristudioCpFolded3dScenes: () => {
+      const figures = get().oristudioCpFoldedFigures;
+      let changed = false;
+      const next = figures.map((figure) => {
+        if ((figure.folded3d ?? null) === null || figure.handle == null) return figure;
+        const scene = reproject3dScene(figure, figure.displayStyle);
+        if (!scene) return figure;
+        changed = true;
+        return { ...figure, scene };
+      });
+      if (changed) set({ oristudioCpFoldedFigures: next });
+    },
+
     simulateOristudioCpCreaseRegion: async (lineIds) => {
       const oristudioCpDocument = get().oristudioCpDocument;
       if (!oristudioCpDocument || lineIds.length === 0) return;
@@ -2228,12 +2287,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           const figureIndex = get().oristudioCpFoldedFigures.length + 1;
           const camera = defaultFolded3dCamera(result.render, result.snapshot.model.state);
           const displayStyle: OristudioCpFoldedFigureDisplayStyle = 'Paper5';
-          const renderSnapshot = project3dRenderSnapshot(
-            result.render,
-            result.snapshot,
-            displayStyle,
-            camera
-          );
+          const scene = project3dScene(result.render, result.snapshot, displayStyle, camera);
           retainFoldedFigureHandle(result.handle);
           // The geometry lives beside the handle, not on the entry: it is up to
           // ~235 KB of packed arrays and the `.osf` writer pretty-prints. It is
@@ -2263,13 +2317,20 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             // the whole UI branches on.
             snapshot: null,
             folded3d: result.snapshot,
-            renderSnapshot,
+            // A 3D figure's picture is a scene; `renderSnapshot` keeps its
+            // meaning for the flat figure alone. See `folded3dStoredScene.ts`.
+            renderSnapshot: null,
+            scene,
             camera,
             // Recorded once, here, because it must not follow the projection:
             // the frame is a window onto the model and a window does not change
             // shape when you turn what is inside it. See `folded3dFrameRadius`.
             frameRadius: folded3dFrameRadius(result.render),
             placement: IDENTITY_FOLDED_PLACEMENT,
+            // A seeded model's non-default colours become pins (D1), so the
+            // paper-style mirror keeps them rather than writing the display
+            // style over them.
+            appearance: legacyPaperStyleOverrides(options.model),
             error: null,
             contradiction: null,
             ...foldedSourceProvenance(
@@ -2438,6 +2499,10 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           displayStyle,
           snapshot: result.snapshot,
           renderSnapshot,
+          // The model an Oriedita file saved is the figure's own appearance:
+          // its non-default colours become pins (D1), so the paper-style
+          // mirror keeps them rather than writing the display style over them.
+          appearance: legacyPaperStyleOverrides(model),
           error: null,
           contradiction,
           // Provenance, so the figure can later be told apart from the creases
@@ -2599,11 +2664,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           setFolded3dRenderModel(handle, step.render);
           const camera =
             figure.camera ?? defaultFolded3dCamera(step.render, step.snapshot.model.state);
-          const renderSnapshot = project3dRenderSnapshot(
+          const scene = project3dScene(
             step.render,
             step.snapshot,
             figure.displayStyle,
-            camera
+            camera,
+            figure
           );
           takeCanvasSelection('folded-figure', {
             oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
@@ -2612,7 +2678,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     ...candidate,
                     status: 'ready',
                     folded3d: step.snapshot,
-                    renderSnapshot,
+                    scene: scene ?? candidate.scene,
                     camera,
                     error: null,
                   }
@@ -2769,24 +2835,22 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // persisted), and blanking it would be worse than showing the saved view
       // until the next refold, which does honour the stored camera.
       //
-      // Only the *orientation* is re-projected, because only the orientation
-      // reaches the picture: zoom is a window setting the projection deliberately
-      // ignores (see `FoldedFigureCamera.zoom`), so re-projecting for one would
-      // be `earcut` plus a BSP build to arrive at the picture already on the
-      // entry.
+      // Only the *orientation* is rebuilt, because only the orientation reaches
+      // the picture: zoom is a window setting the scene camera deliberately
+      // ignores (see `FoldedFigureCamera.zoom`), so rebuilding for one would be
+      // a BSP build and a hidden-piece pass to arrive at the picture already on
+      // the entry.
       const before = figure.camera ?? null;
       const sameView =
         before !== null && before.yaw === camera.yaw && before.pitch === camera.pitch;
-      const renderSnapshot = sameView
-        ? null
-        : reproject3dFigureAt(figure, figure.displayStyle, camera);
+      const scene = sameView ? null : reproject3dSceneAt(figure, figure.displayStyle, camera);
       takeCanvasSelection('folded-figure', {
         oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
           candidate.id === figure.id
             ? {
                 ...candidate,
                 camera,
-                renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
+                scene: scene ?? candidate.scene,
               }
             : candidate
         ),
@@ -2823,7 +2887,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
 
       if ((figure.folded3d ?? null) !== null) {
-        const renderSnapshot = reproject3dFigure(figure, displayStyle);
+        const scene = reproject3dScene(figure, displayStyle);
         // A figure reopened from a file has no render model: keep the stored
         // picture rather than blanking it, and still record the chosen style so
         // a refold shows it.
@@ -2833,7 +2897,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               ? {
                   ...candidate,
                   displayStyle,
-                  renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
+                  scene: scene ?? candidate.scene,
                 }
               : candidate
           ),
@@ -2873,39 +2937,39 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       }
     },
 
-    updateOristudioCpFoldedFigureModel: async (id, update) => {
+    updateOristudioCpFoldedFigureModel: async (id, update, options) => {
       const figure = get().oristudioCpFoldedFigures.find((candidate) => candidate.id === id);
+      // A mirror write is the store keeping the model in step with the figure's
+      // effective paper style: derived, not an edit, so it neither selects the
+      // figure nor dirties the project. Every user edit does both.
+      const edit = !options?.mirror;
 
-      // A 3D figure keeps its model on `folded3d`, not in the kernel, and the
-      // projector is a pure function of (render model, model, camera) — so this
-      // is a re-projection rather than a round trip. No request sequencing
-      // either: there is nothing in flight to land out of order.
+      // A 3D figure keeps its model on `folded3d`, not in the kernel, so this
+      // writes the entry and reaches nothing. No request sequencing either:
+      // there is nothing in flight to land out of order.
+      //
+      // And no rebuild of the picture. The model's colours are a derived mirror
+      // of the figure's effective style (D6), and a 3D figure's picture is a
+      // `PaperScene` — geometry and roles, no ink — so nothing in this update
+      // can move a vertex. The canvas and the painter re-ink the same scene from
+      // the style; the model is kept because the `.ori` round trip reads it.
       const spatial = figure?.folded3d ?? null;
       if (figure && spatial) {
         const model: OristudioCpFoldedFigureModel = { ...spatial.model, ...update };
         const next = { ...spatial, model };
-        const renderSnapshot = reproject3dFigureAt(
-          { ...figure, folded3d: next },
-          figure.displayStyle,
-          figure.camera ?? null
+        const figures = get().oristudioCpFoldedFigures.map((candidate) =>
+          candidate.id === figure.id ? { ...candidate, folded3d: next } : candidate
         );
-        takeCanvasSelection('folded-figure', {
-          oristudioCpFoldedFigures: get().oristudioCpFoldedFigures.map((candidate) =>
-            candidate.id === figure.id
-              ? {
-                  ...candidate,
-                  folded3d: next,
-                  // A figure reopened from a file has no render model, so it
-                  // cannot be re-projected; keep the stored picture rather than
-                  // blanking it, exactly as the camera setter does.
-                  renderSnapshot: renderSnapshot ?? candidate.renderSnapshot,
-                }
-              : candidate
-          ),
-          oristudioCpActiveFoldedFigureId: figure.id,
-          oristudioCpError: null,
-          dirty: true,
-        });
+        if (edit) {
+          takeCanvasSelection('folded-figure', {
+            oristudioCpFoldedFigures: figures,
+            oristudioCpActiveFoldedFigureId: figure.id,
+            oristudioCpError: null,
+            dirty: true,
+          });
+        } else {
+          set({ oristudioCpFoldedFigures: figures, oristudioCpError: null });
+        }
         return true;
       }
 
@@ -2923,7 +2987,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       // kernel answers would yank the selection back from whatever the user
       // clicked in the meantime, and clear that crease selection in the kernel
       // with it.
-      if (get().oristudioCpActiveFoldedFigureId !== figure.id) {
+      if (edit && get().oristudioCpActiveFoldedFigureId !== figure.id) {
         takeCanvasSelection('folded-figure', { oristudioCpActiveFoldedFigureId: figure.id });
       }
       // Merge onto the newest *issued* model while writes are in flight, not
@@ -2959,7 +3023,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
               : candidate
           ),
           oristudioCpError: null,
-          dirty: true,
+          ...(edit ? { dirty: true } : {}),
         });
         return true;
       } catch (error) {
@@ -3093,11 +3157,14 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
             );
           }
           const camera = defaultFolded3dCamera(result.render, result.snapshot.model.state);
-          const renderSnapshot = project3dRenderSnapshot(
+          const scene = project3dScene(
             result.render,
             result.snapshot,
             figure.displayStyle,
-            camera
+            camera,
+            // The frame is resized to the refolded geometry below, so the
+            // picture is built at that frame and not at the one being replaced.
+            { appearance: figure.appearance, frameRadius: folded3dFrameRadius(result.render) }
           );
           if (!(await adoptFolded3dHandle(figure.id, refoldEpoch, result.handle, result.render))) {
             return false;
@@ -3111,7 +3178,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     status: 'ready',
                     snapshot: null,
                     folded3d: result.snapshot,
-                    renderSnapshot,
+                    renderSnapshot: null,
+                    scene,
                     camera,
                     // Refolded geometry is different geometry, so the frame is
                     // resized to it. Carrying the old one over would leave a
@@ -3417,6 +3485,9 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
         snapshot: null,
         renderSnapshot: null,
         placement: source.placement,
+        // A copy keeps its original's pins on the paper style; the kernel
+        // clones the model beneath them.
+        appearance: source.appearance,
         // A copy is folded from the same creases, so it inherits the provenance
         // and goes stale with its original.
         sourceBounds: source.sourceBounds ?? null,
@@ -3450,11 +3521,12 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
           }
           const camera =
             source.camera ?? defaultFolded3dCamera(result.render, result.snapshot.model.state);
-          const renderSnapshot = project3dRenderSnapshot(
+          const scene = project3dScene(
             result.render,
             result.snapshot,
             source.displayStyle,
-            camera
+            camera,
+            { appearance: source.appearance, frameRadius: folded3dFrameRadius(result.render) }
           );
           if (
             !(await adoptFolded3dHandle(figureId, duplicateEpoch, result.handle, result.render))
@@ -3470,7 +3542,8 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
                     status: 'ready',
                     snapshot: null,
                     folded3d: result.snapshot,
-                    renderSnapshot,
+                    renderSnapshot: null,
+                    scene,
                     camera,
                     frameRadius: folded3dFrameRadius(result.render),
                     error: null,

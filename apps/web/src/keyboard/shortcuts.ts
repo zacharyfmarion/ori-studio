@@ -50,8 +50,9 @@ export type SimulatorShortcutId =
   | 'simulator.zoomOut'
   | 'simulator.toggleFaces'
   | 'simulator.toggleCreases'
-  | 'simulator.toggleHiddenLines'
-  | 'simulator.toggleLighting';
+  | 'simulator.toggleLighting'
+  | 'simulator.exportView'
+  | 'simulator.setUpright';
 export type ReferencesShortcutId =
   | 'references.nextStep'
   | 'references.previousStep'
@@ -65,7 +66,11 @@ export type ReferencesShortcutId =
   | 'references.zoomIn'
   | 'references.zoomOut'
   | 'references.clearTarget'
-  | 'references.playFold';
+  | 'references.playFold'
+  | 'references.exportStep'
+  | 'references.exportAllSteps'
+  | 'references.exportStepSvg'
+  | 'references.exportStepPng';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
@@ -319,7 +324,7 @@ const MENU_SHORTCUTS: ShortcutDefinition[] = [
 function simulatorShortcut(
   id: SimulatorShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[]
+  defaultChord: KeyChord | KeyChord[] | null
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -358,14 +363,19 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   simulatorShortcut('simulator.zoomOut', 'Zoom Out Simulator', [{ key: '-' }, { key: '_' }]),
   simulatorShortcut('simulator.toggleFaces', 'Toggle Faces', { key: 'f' }),
   simulatorShortcut('simulator.toggleCreases', 'Toggle Crease Lines', { key: 'c' }),
-  simulatorShortcut('simulator.toggleHiddenLines', 'Toggle Hidden Lines', { key: 'h' }),
   simulatorShortcut('simulator.toggleLighting', 'Toggle Lighting', { key: 'l' }),
+  // Unbound, as References' exports are: these are the Simulate rail's buttons,
+  // not keys one reaches for while turning a model. Registered all the same so
+  // the rail reaches the view through its executor (`runSimulatorCommand`), and
+  // a chord the user binds is the same verb as the button.
+  simulatorShortcut('simulator.exportView', 'Export view…', null),
+  simulatorShortcut('simulator.setUpright', 'Set upright', null),
 ];
 
 function referencesShortcut(
   id: ReferencesShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[]
+  defaultChord: KeyChord | KeyChord[] | null
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
@@ -424,6 +434,15 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   // stack together, and space-to-pan belongs to the crease-pattern scope
   // beneath this one.
   referencesShortcut('references.playFold', 'Play Fold', { key: ' ' }),
+  // Unbound: an export is a menu row and a toolbar button, not a key one
+  // reaches for while reading. Registered all the same so the row, the button
+  // and a chord the user binds are one verb through the panel's executor.
+  // The dialog opens on the format last used; the two below open it on theirs,
+  // and stay for anyone who bound them before there was a dialog to choose in.
+  referencesShortcut('references.exportStep', 'Export step…', null),
+  referencesShortcut('references.exportAllSteps', 'Export all steps…', null),
+  referencesShortcut('references.exportStepSvg', 'Export step as SVG…', null),
+  referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
 ];
 
 /**

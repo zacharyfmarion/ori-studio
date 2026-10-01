@@ -241,9 +241,20 @@
       "title": "Bild"
     },
     "inlineSimulation": {
+      "followsNote": "Folgt dem Papierstil, sofern nicht überschrieben",
+      "paper": "Papier",
       "settings": "Simulator-Einstellungen",
       "sharedNote": "Gemeinsam mit dem Simulieren-Arbeitsbereich und allen Fenstern",
       "title": "Simulationsfenster"
+    },
+    "paperStyle": {
+      "auxColor": "Hilfsfaltenfarbe",
+      "auxVisible": "Hilfsfalten",
+      "auxWidth": "Hilfsfaltenbreite (pt)",
+      "changeAction": "Papierstil ändern",
+      "erode": "Einrücken (% des Papiers)",
+      "foldsAsEdgesReason": "Alle Falten werden als Kanten gezeichnet",
+      "resetAction": "Papierstil zurücksetzen"
     },
     "region": {
       "hidden": "Ausgeblendet",
@@ -550,7 +561,6 @@
     "sendTextToBack": "Text in den Hintergrund senden",
     "setFoldedModelUpright": "Oben-Richtung des gefalteten Modells festlegen",
     "shadow": "Schatten",
-    "shadowUnsupported3d": "Für ein gefaltetes 3D-Modell werden noch keine Schatten gezeichnet",
     "stale": "Veraltet",
     "viewFoldedModelOtherSide": "Von der anderen Seite ansehen",
     "viewportControls": "Ansichtssteuerung des Faltmusters",
@@ -755,8 +765,6 @@
     "delete": "Löschen",
     "duplicate": "Duplizieren",
     "export": "Exportieren…",
-    "exportPng": "PNG-Bild",
-    "exportSvg": "SVG-Bild",
     "firstSolution": "Zurück zur ersten Lösung",
     "flip": "Umdrehen",
     "label": "Aktionen für gefaltetes Modell",
@@ -832,6 +840,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "Es wird kein Schritt angezeigt",
       "noFoldHint": "Auf dieser Karte gibt es nichts zu falten",
       "noTargetHint": "Wähle zuerst einen Scheitelpunkt oder eine Falte",
       "oneWayHint": "Dieser Schritt lässt sich nur auf eine Weise falten",
@@ -1021,6 +1030,8 @@
       "mergeSymmetricHelp": "Zwei Faltungen, die sich spiegeln — etwa die linke Ecke zur Mitte und die rechte Ecke zur Mitte — werden als ein Schritt mit je einem Pfeil gezeigt, so wie ein Diagramm sie faltet. Aus: jede Faltung ist ein eigener Schritt.",
       "precreaseGrid": "Raster vorfalten",
       "sequence": "Vorfaltfolge",
+      "showAuxCreases": "Hilfsfalten anzeigen",
+      "showAuxCreasesHelp": "Die Hilfslinien des Faltmusters, bei jedem Schritt im Stil der Hilfsfalten auf das Papier gezeichnet und nie gefaltet. Folgt Einstellungen ▸ Papier, bis du es hier änderst.",
       "solutions": "Lösungen"
     },
     "sheets": {
@@ -1116,9 +1127,7 @@
     }
   },
   "simulatorExport": {
-    "png": "PNG-Bild",
-    "svg": "SVG-Bild",
-    "trigger": "Ansicht exportieren"
+    "trigger": "Ansicht exportieren…"
   },
   "simulatorSegments": {
     "creasePatterns": "Faltmuster",
@@ -1128,10 +1137,6 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Dehnung",
-    "background": "Hintergrund",
-    "backgroundTheme": "Wie Design",
-    "backgroundTransparent": "Transparent",
-    "backgroundWhite": "Weiß",
     "borderEdge": "Kante",
     "colorMode": "Farbe",
     "colorPaper": "Papier",
@@ -1139,17 +1144,11 @@
     "creaseLines": "Falzlinien",
     "creases": "Falten",
     "creaseStiffness": "Falz",
-    "creaseStyle": "Stil",
-    "creaseStyleColor": "Berg / Tal",
-    "creaseStyleMono": "Eine Farbe",
-    "creaseStyleMonoDashed": "Eine Farbe, gestrichelt",
-    "creaseWidth": "Stärke",
     "damping": "Dämpfung",
-    "export": "Export",
-    "exportHint": "Seitenhintergrund des exportierten Bildes.",
     "faces": "Flächen",
     "faceStiffness": "Fläche",
-    "hiddenLines": "Verdeckte Linien",
+    "foldsAsEdges": "Alle Falten als Kanten zeichnen",
+    "foldsAsEdgesHelp": "Eine gefaltete Falte ist eine Kante des Papiers: Jede Falte wird in Farbe und Strichmuster der Papierkante gezeichnet, in der mittleren Breite von Berg- und Talfalten. Aus: Falten werden nach Richtung gezeichnet.",
     "lighting": "Beleuchtung",
     "material": "Material",
     "materialHint": "Wie stark das Papier Dehnung und Faltung widersteht.",

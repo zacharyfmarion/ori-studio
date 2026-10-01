@@ -15,6 +15,7 @@ import {
   plannerFinishedDiagram,
   plannerStepDiagram,
   plannerTurnOverDiagram,
+  type PlannerStepDiagramOptions,
 } from './diagram/plannerDiagram';
 import { unitFrame } from './diagram/diagramFrames';
 import type { Diagram } from './referenceFinder/solution';
@@ -29,7 +30,8 @@ import {
 import type { PrecreasePlanStopReason } from './precreasePlan';
 import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesCandidateResult, ReferencesPlanVariant } from './referencesResults';
-import type { ReferencesViewStep } from './referencesSequenceView';
+import type { ReferencesSheetAux } from './referencesAuxCreases';
+import { foldCardNumbers, type ReferencesViewStep } from './referencesSequenceView';
 import { describePlannerStep } from './referencesStepSentences';
 import { cardWays, type ReferencesCardWays } from './referencesWays';
 
@@ -196,24 +198,30 @@ export function planEndingCard(
  * step (and twin) over the creases made before it, and a way the reader
  * chooses changes only what its own step presents — the steps it leaves
  * alone keep their identity (`presentedSequence`) — so a switch redraws one
- * card, not the strip.
+ * card, not the strip. The sheet's aux lines are drawn on every card, so a
+ * change to them, or to whether they show, redraws each one.
  */
 const cardPictures = new WeakMap<
   PrecreaseStep,
-  { twin: PrecreaseStep | undefined; model: StepDiagramModel | null }
+  {
+    twin: PrecreaseStep | undefined;
+    aux: PlannerStepDiagramOptions['aux'];
+    model: StepDiagramModel | null;
+  }
 >();
 
 function cardPicture(
   sequence: PrecreaseSequence,
   index: number,
-  twin: number | undefined
+  twin: number | undefined,
+  aux: PlannerStepDiagramOptions['aux']
 ): StepDiagramModel | null {
   const step = sequence.steps[index];
   const twinStep = twin === undefined ? undefined : sequence.steps[twin];
   const cached = step ? cardPictures.get(step) : undefined;
-  if (cached && cached.twin === twinStep) return cached.model;
-  const model = plannerStepDiagram(sequence, unitFrame(sequence), index, { twin });
-  if (step) cardPictures.set(step, { twin: twinStep, model });
+  if (cached && cached.twin === twinStep && cached.aux === aux) return cached.model;
+  const model = plannerStepDiagram(sequence, unitFrame(sequence), index, { twin, aux });
+  if (step) cardPictures.set(step, { twin: twinStep, aux, model });
   return model;
 }
 
@@ -232,16 +240,18 @@ export function planFilmstrip(
   t: TFunction,
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
-  stopReasons: readonly PrecreasePlanStopReason[]
+  stopReasons: readonly PrecreasePlanStopReason[],
+  /** The selected sheet's aux lines, drawn on every card of its plan. */
+  sheetAux: ReferencesSheetAux | null = null
 ): ReferencesFilmstripStep[] {
-  let folds = 0;
+  const numbers = foldCardNumbers(viewSteps);
   return viewSteps.flatMap((view, viewIndex): ReferencesFilmstripStep[] => {
     const variant = variants[view.component];
     if (!variant) return [];
     const sequence = variant.sequence;
+    const aux = sheetAux?.component === view.component ? sheetAux.unit : undefined;
     switch (view.kind) {
       case 'fold': {
-        folds += 1;
         // A step that is not exact — folded by the closest construction there
         // was, or sighted from one — wears it on the card, not only in the
         // sentence: the folder reads the strip before the sentence. A grid
@@ -259,9 +269,9 @@ export function planFilmstrip(
             key: `plan-${view.component}-${view.step}`,
             kind: 'fold',
             badge,
-            number: folds,
+            number: numbers[viewIndex] ?? null,
             diagram: null,
-            primitives: cardPicture(sequence, view.step, view.twin),
+            primitives: cardPicture(sequence, view.step, view.twin, aux),
             mirrored: view.side === 'back',
             sentence: describePlannerStep(t, sequence, view.step, view.twin),
             ways: cardWays(step),
@@ -278,7 +288,7 @@ export function planFilmstrip(
             badge: t('panels:references.flip.turnOverBadge', 'Turn over'),
             number: null,
             diagram: null,
-            primitives: plannerTurnOverDiagram(sequence, unitFrame(sequence), view.after),
+            primitives: plannerTurnOverDiagram(sequence, unitFrame(sequence), view.after, { aux }),
             mirrored: view.side === 'back',
             sentence: t('panels:references.flip.turnOver', 'Turn the paper over, left to right.'),
             ways: null,
@@ -293,7 +303,7 @@ export function planFilmstrip(
             badge: ending.badge,
             number: null,
             diagram: null,
-            primitives: plannerFinishedDiagram(sequence, unitFrame(sequence)),
+            primitives: plannerFinishedDiagram(sequence, unitFrame(sequence), { aux }),
             mirrored: false,
             sentence: ending.sentence,
             ways: null,

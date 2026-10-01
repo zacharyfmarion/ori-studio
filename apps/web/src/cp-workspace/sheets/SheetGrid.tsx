@@ -18,6 +18,15 @@ import type { SheetThumbnail } from './sheetThumbnail';
  * `.sheet-grid`), because a second card component would be a second thing to
  * keep in step.
  *
+ * Each card draws its pattern as main's rails did, not as the paper style
+ * draws paper: solid lines in the theme's crease inks at main's widths, classed
+ * by role for the stylesheet (`.sheet-card__stroke--*`) — the edge in
+ * `--text-tertiary`, aux and unassigned lines in the unassigned grey. A card
+ * is read, not admired, and at this size a dashed fold is a field of dots. The
+ * References rail sits inside the workspace where the style re-sets the fold
+ * inks, so the stylesheet reaches the theme's through aliases declared on
+ * `:root`.
+ *
  * Presentation only: which sheets, which one is active, and a press reports
  * back. What a press *means* is the caller's — on the desktop it changes the
  * selection beside the canvas, on a phone it also opens the detail screen.
@@ -44,11 +53,21 @@ export interface SheetGridItem {
 
 export interface SheetGridProps {
   sheets: readonly SheetGridItem[];
+  /**
+   * Whether the aux lines are drawn: each rail's own answer — References
+   * follows its view's option, Simulate always draws them.
+   */
+  showAux: boolean;
   selected: number | null;
   onSelect: (id: number) => void;
 }
 
-export const SheetGrid = memo(function SheetGrid({ sheets, selected, onSelect }: SheetGridProps) {
+export const SheetGrid = memo(function SheetGrid({
+  sheets,
+  showAux,
+  selected,
+  onSelect,
+}: SheetGridProps) {
   const { t } = useTranslation();
   // A plain container, not a list: a `listbox` may own only `option` and
   // `group`, and wrapping each option in an `li` puts something between them.
@@ -63,6 +82,7 @@ export const SheetGrid = memo(function SheetGrid({ sheets, selected, onSelect }:
           key={sheet.id}
           sheet={sheet}
           index={index}
+          showAux={showAux}
           selected={sheet.id === selected}
           onSelect={() => onSelect(sheet.id)}
         />
@@ -74,11 +94,12 @@ export const SheetGrid = memo(function SheetGrid({ sheets, selected, onSelect }:
 interface SheetCardProps {
   sheet: SheetGridItem;
   index: number;
+  showAux: boolean;
   selected: boolean;
   onSelect: () => void;
 }
 
-function SheetCard({ sheet, index, selected, onSelect }: SheetCardProps) {
+function SheetCard({ sheet, index, showAux, selected, onSelect }: SheetCardProps) {
   const { t } = useTranslation();
   const { thumbnail } = sheet;
   return (
@@ -98,16 +119,18 @@ function SheetCard({ sheet, index, selected, onSelect }: SheetCardProps) {
       <span className="sheet-card__thumb">
         {thumbnail && (
           <svg viewBox={thumbnail.viewBox} aria-hidden="true" className="sheet-card__svg">
-            {thumbnail.strokes.map((stroke, i) => (
-              <line
-                key={i}
-                className={`sheet-card__stroke sheet-card__stroke--${stroke.kind}`}
-                x1={stroke.x1}
-                y1={stroke.y1}
-                x2={stroke.x2}
-                y2={stroke.y2}
-              />
-            ))}
+            {thumbnail.strokes.map((stroke, i) =>
+              stroke.role === 'aux' && !showAux ? null : (
+                <line
+                  key={i}
+                  className={`sheet-card__stroke sheet-card__stroke--${stroke.role}`}
+                  x1={stroke.x1}
+                  y1={stroke.y1}
+                  x2={stroke.x2}
+                  y2={stroke.y2}
+                />
+              )
+            )}
           </svg>
         )}
       </span>

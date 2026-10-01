@@ -281,6 +281,9 @@
     },
     "otherPlatforms": "Otras plataformas"
   },
+  "fieldRow": {
+    "overridden": "Sobrescrito"
+  },
   "fileDrop": {
     "open": "Suelta para abrir",
     "openOrImport": "Suelta para abrir o importar"

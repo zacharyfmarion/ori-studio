@@ -28,6 +28,25 @@ import { useFoldedFigures } from './useFoldedFigures';
 
 const FIGURE_ID = 'folded-1';
 
+/**
+ * A complete default model, so the paper-style mirror — which runs on every
+ * change to the figures list and compares the model's colours with the
+ * figure's effective style — finds them equal and queues nothing of its own.
+ */
+const DEFAULT_MODEL: OristudioCpFoldedFigureModel = {
+  front_color: { red: 255, green: 255, blue: 50 },
+  back_color: { red: 233, green: 233, blue: 233 },
+  line_color: { red: 0, green: 0, blue: 0 },
+  scale: 1,
+  rotation: 0,
+  anti_alias: true,
+  display_shadows: false,
+  state: 'Front0',
+  folded_cases: 1,
+  transparent_transparency: 16,
+  transparency_color: false,
+};
+
 function figure(title = 'Folded model 1'): OristudioCpFoldedFigureEntry {
   return {
     id: FIGURE_ID,
@@ -38,7 +57,7 @@ function figure(title = 'Folded model 1'): OristudioCpFoldedFigureEntry {
     startingFaceId: 1,
     displayStyle: 'Paper5',
     status: 'ready',
-    snapshot: null,
+    snapshot: { model: DEFAULT_MODEL },
     renderSnapshot: null,
     placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
     error: null,
@@ -183,13 +202,18 @@ describe('the folded-figure gesture bracket', () => {
 });
 
 describe('a continuous model edit on a flat figure', () => {
+  // Re-pinned for the paper style (Phase 1): the ticks write a model field the
+  // paper-style mirror does not own. A colour written to the model alone is
+  // mirrored straight back from the figure's effective style, and a colour
+  // drag now pins the figure's `appearance` instead — the bracket and the
+  // drain under test are the same for any field.
   it('records exactly one entry, after the write has landed', async () => {
-    // One colour change whose round trip outlives the gesture: the picker
-    // blurs at 50 ms, the kernel answers at 250 ms. The entry must be one, and
-    // it must be recorded once the store holds what the kernel drew.
+    // One change whose round trip outlives the gesture: the control blurs at
+    // 50 ms, the kernel answers at 250 ms. The entry must be one, and it must
+    // be recorded once the store holds what the kernel drew.
     const kernel = stubKernel();
     const past = () => useWorkspaceStore.getState().oristudioCpHistoryPast;
-    paneTick({ front_color: { red: 9, green: 9, blue: 9 } });
+    paneTick({ transparent_transparency: 9 });
     expect(kernel.update).toHaveBeenCalledTimes(1);
 
     paneEnd('Change folded model color');
@@ -223,7 +247,7 @@ describe('a continuous model edit on a flat figure', () => {
   it('coalesces a burst and commits after the last write lands', async () => {
     const kernel = stubKernel();
     for (let tick = 0; tick < 10; tick += 1) {
-      paneTick({ front_color: { red: tick, green: 0, blue: 0 } });
+      paneTick({ transparent_transparency: tick });
     }
     expect(kernel.update).toHaveBeenCalledTimes(1);
     paneEnd('Change folded model color');
@@ -236,6 +260,6 @@ describe('a continuous model edit on a flat figure', () => {
     await kernel.land();
     expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toHaveLength(1);
     const model = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model;
-    expect(model?.front_color).toEqual({ red: 9, green: 0, blue: 0 });
+    expect(model?.transparent_transparency).toBe(9);
   });
 });

@@ -15,17 +15,17 @@
  * store write per drag, on release, where the single undo entry already lands.
  * The store remains exactly what would be written to disk.
  *
- * A frame carries the projected picture beside the camera because a figure that
- * cannot be windowed is still drawn through the CPU projector, and re-projecting
- * in a render pass would put `earcut` plus a BSP build inside React's commit. A
- * **windowed** figure publishes no snapshot at all — its mesh is drawn from the
- * camera alone — which is what takes the projector off the live path.
+ * A frame carries the picture beside the camera because a figure that cannot be
+ * windowed is still drawn from a built scene, and rebuilding one in a render
+ * pass would put a BSP build and a hidden-piece pass inside React's commit. A
+ * **windowed** figure publishes no scene at all — its mesh is drawn from the
+ * camera alone — which is what takes the picture builder off the live path.
  *
  * There are therefore two ways out of here, and they are different on purpose:
  *
  * - {@link subscribeFolded3dOrbit} + {@link folded3dSceneOrbitFrames} for the
- *   crease-pattern canvas, which needs a *picture*. Its snapshot only changes
- *   when a snapshot does, so turning a windowed figure does not re-render it.
+ *   crease-pattern canvas, which needs a *picture*. Its scene only changes when
+ *   a scene does, so turning a windowed figure does not re-render it.
  * - {@link subscribeFolded3dOrbitCamera} for a window, which needs a *camera*
  *   and nothing else. It is imperative — no `useSyncExternalStore`, no props —
  *   because a camera frame arriving as React state re-renders every window in
@@ -38,20 +38,20 @@
  * here survives a document replace ({@link clearAllFolded3dOrbits}).
  */
 
-import type { OristudioCpFoldedRenderSnapshot } from '../../engine/oristudioCpTypes';
-import type { FoldedFigureCamera } from './foldedFigure3dProjection';
+import type { PaperScene } from '@treemaker/origami-simulator';
+import type { FoldedFigureCamera } from './folded3dCamera';
 
 /** One figure's live orbit state: where the eye is, and the picture from there. */
 export interface Folded3dOrbitFrame {
   camera: FoldedFigureCamera;
   /**
-   * The projection at {@link camera}, or `null` when the figure cannot be
-   * re-projected at all — a figure reopened from a file has no render model, so
-   * it keeps the picture it was saved with. The same answer
-   * `reproject3dFigureAt` gives, and callers treat it the same way: keep what
-   * you have rather than blanking the figure.
+   * The picture at {@link camera}, or `null` when the figure cannot be rebuilt
+   * at all — a figure reopened from a file has no render model, so it keeps the
+   * picture it was saved with. The same answer `reproject3dSceneAt` gives, and
+   * callers treat it the same way: keep what you have rather than blanking the
+   * figure.
    */
-  snapshot: OristudioCpFoldedRenderSnapshot | null;
+  scene: PaperScene | null;
 }
 
 /**
@@ -66,9 +66,9 @@ let frames: ReadonlyMap<string, Folded3dOrbitFrame> = new Map();
  * The subset of {@link frames} that carries a picture, held apart so its
  * identity survives a frame that carries none.
  *
- * A windowed figure publishes `snapshot: null` on every move of a turn, and the
+ * A windowed figure publishes `scene: null` on every move of a turn, and the
  * crease-pattern canvas subscribes with `useSyncExternalStore` — which re-renders
- * whenever the snapshot object changes identity. Handing it the whole map made
+ * whenever the scene object changes identity. Handing it the whole map made
  * turning a windowed figure re-render the canvas sixty times a second to deliver
  * a picture it had already decided not to draw.
  */
@@ -89,7 +89,7 @@ function sceneFramesOf(
 ): ReadonlyMap<string, Folded3dOrbitFrame> {
   const scene = new Map<string, Folded3dOrbitFrame>();
   for (const [id, frame] of next) {
-    if (frame.snapshot !== null) scene.set(id, frame);
+    if (frame.scene !== null) scene.set(id, frame);
   }
   if (scene.size !== previous.size) return scene;
   for (const [id, frame] of scene) {

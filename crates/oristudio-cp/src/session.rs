@@ -18,10 +18,12 @@ use crate::fold_graph::FoldGraphError;
 use crate::folding::{
     AdditionalEstimationError, DisplayStyle, EstimationOrder, EstimationStep, FoldSetupError,
     FoldedFigureModel, FoldedFigureRenderOptions, FoldedFigureRenderSnapshot, FoldedFigureSnapshot,
-    FoldedRenderInputs, FoldingEstimateError, FoldingEstimateSession, InitialHierarchyError,
-    WorkerOverlapSearchError, fold_another, folded_figure_render_snapshot_from_session,
+    FoldedPaperScene, FoldedRenderInputs, FoldingEstimateError, FoldingEstimateSession,
+    InitialHierarchyError, WorkerOverlapSearchError, fold_another,
+    folded_figure_paper_scene_from_session, folded_figure_render_snapshot_from_session,
     folded_figure_snapshot_with_inputs, folding_estimate_to_case,
 };
+use crate::folding3d::aux_lines::Folded3dAuxLines;
 use crate::folding3d::model::Folded3dRenderModel;
 use crate::folding3d::order::Advance;
 use crate::folding3d::session::{Fold3dSession, Fold3dSessionError};
@@ -74,6 +76,7 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "folded_figure_fold_selected",
     "folded_figure_snapshot",
     "folded_figure_render_snapshot",
+    "folded_figure_paper_scene",
     "folded_figure_set_model",
     "folded_figure_duplicate",
     "folded_figure_fold_another",
@@ -81,6 +84,7 @@ pub const CP_ENGINE_COMMANDS: &[&str] = &[
     "folded_figure_fold_3d",
     "folded_figure_3d_fold_another",
     "folded_figure_3d_duplicate",
+    "folded_figure_3d_aux_lines",
     "free_folded_figure",
 ];
 
@@ -344,6 +348,14 @@ pub struct FlatFoldedFigure {
     /// snapshot and render of the figure borrows them. `None` when the fold
     /// traced no faces, and those calls answer as they always have for one.
     render_inputs: Option<FoldedRenderInputs>,
+    /// The document's auxiliary (`Cyan3`) lines as they stood when the figure
+    /// was folded. The fold takes only folding-colour creases, so the session
+    /// never sees them; the paper scene folds them through the faces
+    /// (`FoldedPaperScene::aux_lines`). What the scene folds when its caller
+    /// names no document: one that does gets the document's aux lines as they
+    /// stand now, since an aux line is drawn on the paper and not folded, and
+    /// adding one should not need a refold to show.
+    aux_segments: Vec<LineSegment>,
 }
 
 impl FlatFoldedFigure {
@@ -910,7 +922,8 @@ impl CpSession {
             .crease_pattern
             .line_segments
             .clone();
-        self.fold_segments(&segments, starting_face_id, order, model)
+        let aux_segments = aux_segments(&segments);
+        self.fold_segments(&segments, aux_segments, starting_face_id, order, model)
     }
 
     pub fn folded_figure_fold_selected(
@@ -928,12 +941,18 @@ impl CpSession {
         } else {
             selected
         };
-        self.fold_segments(&segments, starting_face_id, order, model)
+        // Every aux line of the document, not only the selection's: the paper
+        // scene clips them to the faces the fold traced, so one outside the
+        // folded region contributes nothing, and a selection is by foldable
+        // crease and never names an aux line anyway.
+        let aux_segments = aux_segments(all_segments);
+        self.fold_segments(&segments, aux_segments, starting_face_id, order, model)
     }
 
     fn fold_segments(
         &mut self,
         segments: &[LineSegment],
+        aux_segments: Vec<LineSegment>,
         starting_face_id: i32,
         order: EstimationOrder,
         model: FoldedFigureModel,
@@ -984,6 +1003,7 @@ impl CpSession {
             session,
             model,
             render_inputs,
+            aux_segments,
         };
         let snapshot = figure.snapshot();
         let handle = self.store_folded(FoldedFigure::Flat(Box::new(figure)));
@@ -1011,6 +1031,46 @@ impl CpSession {
             display_style,
             folded.model.clone(),
             options,
+        )?)
+    }
+
+    /// The figure's [`FoldedPaperScene`] for its current model: the same
+    /// inputs and ordering `folded_figure_render_snapshot` draws `Paper5`
+    /// from, so the two agree face for face. `None` when the fold traced no
+    /// faces, has no subfaces, or has no solved layer ordering — the cases in
+    /// which the `Paper5` drawer would emit nothing — whatever the figure's
+    /// display style. Unlike the render snapshot, which draws `Wire2` and
+    /// `Transparent3` without an ordering and searches one for a `Paper5`
+    /// request, this never searches: a fold that concluded with no solutions
+    /// or a contradiction answers `None` at once.
+    ///
+    /// The scene's `aux_lines` are `document_handle`'s `Cyan3` lines as they
+    /// stand now, folded face by face through the faces the fold traced — an
+    /// aux line drawn after the fold shows without one — or, with no document,
+    /// the ones the document held when the figure was folded. The creases are
+    /// the fold's either way.
+    pub fn folded_figure_paper_scene(
+        &self,
+        handle: u32,
+        document_handle: Option<u32>,
+    ) -> Result<Option<FoldedPaperScene>, EngineError> {
+        let folded = self.flat(handle)?;
+        let Some(inputs) = folded.render_inputs.as_ref() else {
+            return Ok(None);
+        };
+        let live;
+        let aux = match document_handle {
+            Some(document) => {
+                live = aux_segments(&self.document(document)?.crease_pattern.line_segments);
+                &live
+            }
+            None => &folded.aux_segments,
+        };
+        Ok(folded_figure_paper_scene_from_session(
+            &folded.session,
+            inputs,
+            aux,
+            &folded.model,
         )?)
     }
 
@@ -1106,6 +1166,21 @@ impl CpSession {
             }
             Err(error) => Err(EngineError::new("fold_3d_failed", error.to_string())),
         }
+    }
+
+    /// `document_handle`'s auxiliary (`Cyan3`) lines as they stand now, carried
+    /// onto the 3D figure `handle`: one piece per face each crosses, placed by
+    /// that face's transform (`crate::folding3d::aux_lines`). The fold never
+    /// sees an aux line, so this is asked again whenever they change, and an
+    /// aux line drawn after the fold shows without a refold — as the flat
+    /// figure's paper scene does.
+    pub fn folded_figure_3d_aux_lines(
+        &self,
+        handle: u32,
+        document_handle: u32,
+    ) -> Result<Folded3dAuxLines, EngineError> {
+        let segments = &self.document(document_handle)?.crease_pattern.line_segments;
+        Ok(self.spatial(handle)?.aux_lines(&aux_segments(segments)))
     }
 
     /// Step a 3D figure to its next layer order, wrapping when exhausted.
@@ -1244,6 +1319,15 @@ fn flat_fold_error(error: FoldingEstimateError, segments: &[LineSegment]) -> Eng
             first.segment, first.point.x, first.point.y
         ),
     )
+}
+
+/// The document's auxiliary lines — what `FoldedPaperScene::aux_lines` folds.
+fn aux_segments(segments: &[LineSegment]) -> Vec<LineSegment> {
+    segments
+        .iter()
+        .filter(|segment| segment.color == LineColor::Cyan3)
+        .cloned()
+        .collect()
 }
 
 fn selected_folding_segments(

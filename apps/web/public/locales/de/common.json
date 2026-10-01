@@ -281,6 +281,9 @@
     },
     "otherPlatforms": "Andere Plattformen"
   },
+  "fieldRow": {
+    "overridden": "Überschrieben"
+  },
   "fileDrop": {
     "open": "Zum Öffnen ablegen",
     "openOrImport": "Zum Öffnen oder Importieren ablegen"

@@ -39,8 +39,32 @@ export const STORAGE_KEYS = {
   cpToolHintCollapsed: 'cp-tool-hint-collapsed',
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
+  /**
+   * The app-wide paper style: display and export slots plus the user's presets.
+   * Absent on first read, when it is seeded from `simulatorSettings`, which
+   * held the colours before there was a style; see `lib/paperStyleSettings.ts`.
+   */
+  paperStyle: 'paper-style',
+  /**
+   * The page every paper export is painted onto — sheet size, margin,
+   * background, whether buried faces are kept — and the PNG density. Absent
+   * on first read, when its background is seeded from the simulator settings'
+   * retired `exportBackground`; see `lib/paperExportSettings.ts`.
+   */
+  paperExport: 'paper-export',
+  /**
+   * The style the folded figure beside a crease pattern is drawn in, picked in
+   * the crease-pattern export dialog or the share card and remembered for
+   * both — apart from the folded figure's own export (X12).
+   */
+  creasePatternFoldedFigure: 'crease-pattern-folded-figure',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
+  /**
+   * Whether the References workspace draws the pattern's auxiliary lines;
+   * absent while it follows the paper style's own switch.
+   */
+  referencesShowAuxCreases: 'references-show-aux-creases',
   /** Whether product analytics is enabled (opt-out preference; default true). */
   cpDetectSuggestions: 'cp-detect-suggestions',
   analyticsEnabled: 'analytics-enabled',
@@ -150,6 +174,21 @@ export function readBoolean(key: string, fallback: boolean): boolean {
 
 export function writeBoolean(key: string, value: boolean): void {
   writeString(key, value ? 'true' : 'false');
+}
+
+/**
+ * A boolean that may be unset, as {@link writeOptionalBoolean} stores it:
+ * `null` when the key is absent or holds anything but the two words.
+ */
+export function readOptionalBoolean(key: string): boolean | null {
+  const raw = readString(key);
+  return raw === 'true' ? true : raw === 'false' ? false : null;
+}
+
+/** Store a boolean, or remove the key for `null`. */
+export function writeOptionalBoolean(key: string, value: boolean | null): void {
+  if (value === null) removeKey(key);
+  else writeBoolean(key, value);
 }
 
 /**

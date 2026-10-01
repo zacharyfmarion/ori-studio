@@ -23,6 +23,10 @@
     "ignoredFile": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 1개는 무시되었습니다.",
     "ignoredFiles": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 {{others}}개는 무시되었습니다."
   },
+  "foldedFigureExport": {
+    "empty": "이 접힌 모델에는 아직 내보낼 것이 없습니다",
+    "failed": "이 접힌 모델을 내보낼 수 없습니다"
+  },
   "global": {
     "error": "Ori Studio 오류",
     "folding": "접는 중…",
@@ -37,6 +41,14 @@
     "solving": "푸는 중…",
     "solvingLong": "아직 푸는 중입니다 — 시간이 걸릴 수 있습니다"
   },
+  "paperExport": {
+    "saved": "{{name}} 내보냄"
+  },
+  "paperPreset": {
+    "exported": "{{name}} 내보냄",
+    "invalidJson": "해당 파일은 JSON이 아닙니다",
+    "notAPreset": "해당 파일은 종이 스타일이 아닙니다. 이름과 스타일이 필요합니다"
+  },
   "references": {
     "searching": "기준점을 찾는 중…",
     "searchingLong": "아직 기준점을 찾는 중 — 첫 검색은 테이블을 만듭니다",
@@ -44,10 +56,12 @@
     "stopped": "검색이 취소되었습니다",
     "stopping": "취소 중…"
   },
+  "referencesExport": {
+    "empty": "아직 내보낼 단계가 없습니다",
+    "noSteps": "아직 내보낼 단계가 없습니다"
+  },
   "simulatorExport": {
-    "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다",
-    "failed": "이 보기를 내보낼 수 없습니다",
-    "saved": "{{name}} 내보냄"
+    "empty": "이 시뮬레이션에는 아직 내보낼 것이 없습니다"
   },
   "update": {
     "available": "버전 {{version}}을(를) 사용할 수 있습니다",

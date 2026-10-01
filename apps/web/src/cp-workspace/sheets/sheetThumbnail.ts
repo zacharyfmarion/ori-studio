@@ -4,17 +4,27 @@
  * The one thumbnail both pickers of the document's patterns draw — the
  * References rail and the Simulate rail — so the two lists read as the same
  * list. What differs is where the lines come from: References reads a precrease
- * component out of `CpGeometryTransport`, Simulate a segment's faces out of a
- * FOLD document. Each of those collects its lines in model space and hands them
- * here; this module knows nothing about either source and only fits.
+ * component out of `CpGeometryTransport`, Simulate a segment's edges out of a
+ * FOLD document. Each of those collects its lines in model space, says which
+ * role each plays, and hands them here; this module knows nothing about either
+ * source and only fits.
+ *
+ * Roles rather than colours: the card's stylesheet inks each role
+ * (`.sheet-card__stroke--*` in `theme.css`), so both rails read one pattern's
+ * lines the same way and draw them alike.
  *
  * Model space is y-down and so is SVG, so the strokes go through unflipped; the
  * only transform is the uniform fit, which keeps the pattern's aspect ratio — a
  * squashed thumbnail is a different crease pattern.
  */
 
-/** Which class a stroke takes; `border` is the paper's own edge. */
-export type SheetStrokeKind = 'border' | 'mountain' | 'valley' | 'other';
+/**
+ * What a line is on the paper, which decides its ink: the paper's edge (its
+ * border, or a cut), a mountain or valley fold, a crease with no direction
+ * yet, or an aux line — the kernel's `F`, drawn only where the rail shows aux
+ * lines.
+ */
+export type SheetStrokeRole = 'edge' | 'mountain' | 'valley' | 'unassigned' | 'aux';
 
 /** A line of the pattern, in the pattern's own coordinates. */
 export interface SheetStroke {
@@ -22,14 +32,23 @@ export interface SheetStroke {
   y1: number;
   x2: number;
   y2: number;
-  kind: SheetStrokeKind;
+  role: SheetStrokeRole;
 }
 
 export interface SheetThumbnail {
   viewBox: string;
-  /** Fitted into the box, border last so the paper's edge draws over the creases that end on it. */
+  /** Fitted, in drawing order: aux and unassigned lines under the folds, the paper's edge over all. */
   strokes: SheetStroke[];
 }
+
+/** Which draws over which; ties keep the rail's order. */
+const ROLE_LAYER: Record<SheetStrokeRole, number> = {
+  aux: 0,
+  unassigned: 1,
+  mountain: 2,
+  valley: 2,
+  edge: 3,
+};
 
 /**
  * The strokes fitted into a `size`-unit square, centred on the shorter axis.
@@ -59,8 +78,8 @@ export function fitSheetThumbnail(strokes: readonly SheetStroke[], size = 100): 
     y1: (stroke.y1 - minY) * scale + offsetY,
     x2: (stroke.x2 - minX) * scale + offsetX,
     y2: (stroke.y2 - minY) * scale + offsetY,
-    kind: stroke.kind,
+    role: stroke.role,
   }));
-  fitted.sort((a, b) => Number(a.kind === 'border') - Number(b.kind === 'border'));
+  fitted.sort((a, b) => ROLE_LAYER[a.role] - ROLE_LAYER[b.role]);
   return { viewBox: `0 0 ${size} ${size}`, strokes: fitted };
 }

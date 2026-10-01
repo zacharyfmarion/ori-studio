@@ -8,6 +8,7 @@ use super::orita_calc::{
 };
 use super::point::Point;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 
 /// Oriedita polygon carrier.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -276,6 +277,71 @@ impl Polygon {
         result
     }
 
+    /// The parts of `segment` that run through this polygon's interior, in
+    /// order along it and keeping its direction and colour.
+    ///
+    /// **Ori Studio native — no Oriedita counterpart.** The segment is split
+    /// at every proper crossing of a polygon edge, and a piece is kept when
+    /// its midpoint is [`PolygonIntersection::Inside`] by [`Self::inside`].
+    /// A piece that runs along an edge (its midpoint on the border) is not
+    /// interior and is dropped, and so is a piece shorter than
+    /// [`Epsilon::POINT`] — the merge radius below which the engine cannot
+    /// tell two points apart. Endpoints on the border are kept as they are:
+    /// a piece may start or end on an edge, but never lie on one.
+    pub fn clip_segment(&self, segment: &LineSegment) -> Vec<LineSegment> {
+        if self.vertices.len() < 3 {
+            return Vec::new();
+        }
+        // A non-finite length compares to nothing, and such a segment is
+        // dropped rather than cut nowhere and kept.
+        let length = segment.a.distance(segment.b);
+        if length.partial_cmp(&Epsilon::POINT) != Some(Ordering::Greater) {
+            return Vec::new();
+        }
+        let dx = segment.b.x - segment.a.x;
+        let dy = segment.b.y - segment.a.y;
+        // Where along the segment the crossings fall, as fractions of it.
+        let mut cuts = vec![0.0, 1.0];
+        for edge in self.line_segments() {
+            let ex = edge.b.x - edge.a.x;
+            let ey = edge.b.y - edge.a.y;
+            let edge_length = edge.a.distance(edge.b);
+            if edge_length.partial_cmp(&Epsilon::POINT) != Some(Ordering::Greater) {
+                continue;
+            }
+            let denominator = dx * ey - dy * ex;
+            // Parallel to the edge: no proper crossing. A collinear overlap is
+            // decided by the midpoint test below, which reads it as a border.
+            if Epsilon::HIGH.eq0(denominator / (length * edge_length)) {
+                continue;
+            }
+            let ax = edge.a.x - segment.a.x;
+            let ay = edge.a.y - segment.a.y;
+            let t = (ax * ey - ay * ex) / denominator;
+            let u = (ax * dy - ay * dx) / denominator;
+            let t_slack = Epsilon::POINT / length;
+            let u_slack = Epsilon::POINT / edge_length;
+            if (-t_slack..=1.0 + t_slack).contains(&t) && (-u_slack..=1.0 + u_slack).contains(&u) {
+                cuts.push(t.clamp(0.0, 1.0));
+            }
+        }
+        cuts.sort_by(f64::total_cmp);
+
+        let at = |t: f64| Point::new(segment.a.x + dx * t, segment.a.y + dy * t);
+        let mut pieces = Vec::new();
+        for pair in cuts.windows(2) {
+            let (from, to) = (pair[0], pair[1]);
+            if (to - from) * length < Epsilon::POINT {
+                continue;
+            }
+            if self.inside(at((from + to) / 2.0)) != PolygonIntersection::Inside {
+                continue;
+            }
+            pieces.push(LineSegment::with_color(at(from), at(to), segment.color));
+        }
+        pieces
+    }
+
     pub fn x_min(&self) -> Option<f64> {
         self.vertices
             .iter()
@@ -327,5 +393,92 @@ impl PolygonIntersection {
             (true, false, true) => None,
             (false, false, false) => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::LineColor;
+
+    fn unit_square() -> Polygon {
+        Polygon::new(vec![
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+            Point::new(1.0, 1.0),
+            Point::new(0.0, 1.0),
+        ])
+    }
+
+    fn cyan(a: (f64, f64), b: (f64, f64)) -> LineSegment {
+        LineSegment::with_color(Point::new(a.0, a.1), Point::new(b.0, b.1), LineColor::Cyan3)
+    }
+
+    fn close(p: Point, x: f64, y: f64) -> bool {
+        (p.x - x).abs() < 1e-9 && (p.y - y).abs() < 1e-9
+    }
+
+    #[test]
+    fn a_segment_inside_comes_back_whole_with_its_colour() {
+        let pieces = unit_square().clip_segment(&cyan((0.2, 0.3), (0.8, 0.6)));
+        assert_eq!(pieces.len(), 1);
+        assert!(close(pieces[0].a, 0.2, 0.3) && close(pieces[0].b, 0.8, 0.6));
+        assert_eq!(pieces[0].color, LineColor::Cyan3);
+    }
+
+    #[test]
+    fn a_segment_through_the_polygon_is_cut_at_both_edges() {
+        let pieces = unit_square().clip_segment(&cyan((-1.0, 0.5), (2.0, 0.5)));
+        assert_eq!(pieces.len(), 1);
+        assert!(close(pieces[0].a, 0.0, 0.5) && close(pieces[0].b, 1.0, 0.5));
+    }
+
+    #[test]
+    fn a_segment_outside_or_along_an_edge_yields_nothing() {
+        let square = unit_square();
+        assert!(
+            square
+                .clip_segment(&cyan((2.0, 0.0), (2.0, 1.0)))
+                .is_empty()
+        );
+        assert!(
+            square
+                .clip_segment(&cyan((-0.5, 0.0), (1.5, 0.0)))
+                .is_empty(),
+            "a run along an edge is not interior"
+        );
+        assert!(
+            square
+                .clip_segment(&cyan((0.5, 0.5), (0.5, 0.5)))
+                .is_empty(),
+            "a degenerate segment has no length to keep"
+        );
+    }
+
+    #[test]
+    fn a_concave_polygon_drops_the_span_outside_it() {
+        // A U: the notch between x = 0.4 and x = 0.6 is open from the top.
+        let u = Polygon::new(vec![
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+            Point::new(1.0, 1.0),
+            Point::new(0.6, 1.0),
+            Point::new(0.6, 0.5),
+            Point::new(0.4, 0.5),
+            Point::new(0.4, 1.0),
+            Point::new(0.0, 1.0),
+        ]);
+        let pieces = u.clip_segment(&cyan((0.0, 0.75), (1.0, 0.75)));
+        assert_eq!(pieces.len(), 2);
+        assert!(close(pieces[0].a, 0.0, 0.75) && close(pieces[0].b, 0.4, 0.75));
+        assert!(close(pieces[1].a, 0.6, 0.75) && close(pieces[1].b, 1.0, 0.75));
+    }
+
+    #[test]
+    fn a_segment_through_a_vertex_keeps_one_piece_per_side() {
+        // The diagonal of the square passes through two of its corners.
+        let pieces = unit_square().clip_segment(&cyan((-0.5, -0.5), (1.5, 1.5)));
+        assert_eq!(pieces.len(), 1);
+        assert!(close(pieces[0].a, 0.0, 0.0) && close(pieces[0].b, 1.0, 1.0));
     }
 }

@@ -87,7 +87,7 @@ export class StartFigureMesh {
         height: textureDim,
         data: null,
       });
-      const mesh = new MeshRenderer(core, topology);
+      const mesh = new MeshRenderer(core, topology, { sheet: built.mesh.sheet });
       return new StartFigureMesh(
         core,
         mesh,

@@ -246,9 +246,20 @@
       "title": "Image"
     },
     "inlineSimulation": {
+      "followsNote": "Suit le style de papier, sauf remplacement",
+      "paper": "Papier",
       "settings": "Réglages du simulateur",
       "sharedNote": "Partagés avec l'espace de travail Simuler et toutes les fenêtres",
       "title": "Fenêtre de simulation"
+    },
+    "paperStyle": {
+      "auxColor": "Couleur des plis auxiliaires",
+      "auxVisible": "Plis auxiliaires",
+      "auxWidth": "Épaisseur des plis auxiliaires (pt)",
+      "changeAction": "Changer le style de papier",
+      "erode": "Retrait (% du papier)",
+      "foldsAsEdgesReason": "Tous les plis sont dessinés comme des bords",
+      "resetAction": "Réinitialiser le style de papier"
     },
     "region": {
       "hidden": "Masquée",
@@ -577,7 +588,6 @@
     "sendTextToBack": "Mettre le texte à l'arrière-plan",
     "setFoldedModelUpright": "Définir la verticale du modèle plié",
     "shadow": "Ombre",
-    "shadowUnsupported3d": "Les ombres ne sont pas encore dessinées pour un modèle plié en 3D",
     "stale": "Obsolète",
     "viewFoldedModelOtherSide": "Voir de l’autre côté",
     "viewportControls": "Commandes d'affichage du patron de plis",
@@ -788,8 +798,6 @@
     "delete": "Supprimer",
     "duplicate": "Dupliquer",
     "export": "Exporter…",
-    "exportPng": "Image PNG",
-    "exportSvg": "Image SVG",
     "firstSolution": "Revenir à la première solution",
     "flip": "Retourner",
     "label": "Actions du modèle plié",
@@ -865,6 +873,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "Aucune étape affichée",
       "noFoldHint": "Rien à plier sur cette carte",
       "noTargetHint": "Choisissez d’abord un sommet ou un pli",
       "oneWayHint": "Cette étape ne se plie que d’une façon",
@@ -940,7 +949,7 @@
       "refused": "Cette feuille n’a pas pu être planifiée ; les notes sous les cartes expliquent pourquoi.",
       "stopped": "Arrêté ici à votre demande, avec {{made}} plis sur {{total}} faits. Recalculer reprend le plan depuis le début.",
       "stoppedBadge": "Arrêté",
-      "tooManyApproximations": "La planification s’est arrêtée avec {{made}} plis sur {{total}} faits : les autres n’ont pas de construction exacte, et les plier par références demanderait plus de plis de référence qu’une séquence ne peut en porter.",
+      "tooManyApproximations": "La planification s’est arrêtée avec {{made}} plis sur {{total}} faits\u00a0: les autres n’ont pas de construction exacte, et les plier par références demanderait plus de plis de référence qu’une séquence ne peut en porter.",
       "turnOver": "Retournez le papier, de gauche à droite.",
       "turnOverBadge": "Retourner",
       "unsolved": "{{made}} plis sur {{total}} sont faits. Pour les autres, le planificateur n’a trouvé aucune construction ; ils sont listés sous les cartes."
@@ -1061,6 +1070,8 @@
       "mergeSymmetricHelp": "Deux plis qui se reflètent — le coin gauche vers le centre et le coin droit vers le centre, par exemple — sont montrés en une seule étape avec une flèche pour chacun, comme un diagramme les plie. Désactivé, chaque pli est une étape à part.",
       "precreaseGrid": "Préplier la grille",
       "sequence": "Séquence de prépliage",
+      "showAuxCreases": "Afficher les plis auxiliaires",
+      "showAuxCreasesHelp": "Les lignes auxiliaires du patron de plis, dessinées sur le papier à chaque étape dans le style des plis auxiliaires et jamais pliées. Suit Paramètres ▸ Papier jusqu’à ce que vous le changiez ici.",
       "solutions": "Solutions"
     },
     "sheets": {
@@ -1072,7 +1083,7 @@
     },
     "sidebar": {
       "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
-      "nonePlanned": "Aucune feuille n’a pu être planifiée ; les notes sous les cartes expliquent pourquoi."
+      "nonePlanned": "Aucune feuille n’a pu être planifiée\u00a0; les notes sous les cartes expliquent pourquoi."
     },
     "step": {
       "axiom1": "Pliez {{x}} en passant par {{p0}} et {{p1}}.",
@@ -1157,9 +1168,7 @@
     }
   },
   "simulatorExport": {
-    "png": "Image PNG",
-    "svg": "Image SVG",
-    "trigger": "Exporter la vue"
+    "trigger": "Exporter la vue…"
   },
   "simulatorSegments": {
     "creasePatterns": "Patrons de plis",
@@ -1170,10 +1179,6 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Étirement",
-    "background": "Arrière-plan",
-    "backgroundTheme": "Selon le thème",
-    "backgroundTransparent": "Transparent",
-    "backgroundWhite": "Blanc",
     "borderEdge": "Bord",
     "colorMode": "Couleur",
     "colorPaper": "Papier",
@@ -1181,17 +1186,11 @@
     "creaseLines": "Lignes de pli",
     "creases": "Plis",
     "creaseStiffness": "Pli",
-    "creaseStyle": "Style",
-    "creaseStyleColor": "Montagne / vallée",
-    "creaseStyleMono": "Une encre",
-    "creaseStyleMonoDashed": "Une encre, pointillés",
-    "creaseWidth": "Épaisseur",
     "damping": "Amortissement",
-    "export": "Exportation",
-    "exportHint": "Arrière-plan de l'image exportée.",
     "faces": "Faces",
     "faceStiffness": "Face",
-    "hiddenLines": "Lignes cachées",
+    "foldsAsEdges": "Dessiner tous les plis comme des bords",
+    "foldsAsEdgesHelp": "Un pli déjà fait est un bord du papier : tous les plis sont dessinés dans la couleur et les pointillés du bord du papier, à la largeur moyenne des plis montagne et vallée. Désactivé, les plis sont dessinés selon leur sens.",
     "lighting": "Éclairage",
     "material": "Matériau",
     "materialHint": "Résistance du papier à l'étirement et au pliage.",

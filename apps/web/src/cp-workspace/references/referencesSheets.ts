@@ -17,13 +17,14 @@
  * each pattern is drawn on — `../sheets` fits both readings into the same
  * thumbnail, so the two rails list the same patterns the same way.
  */
-import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import {
   fitSheetThumbnail,
   type SheetStroke,
-  type SheetStrokeKind,
+  type SheetStrokeRole,
   type SheetThumbnail,
 } from '../sheets/sheetThumbnail';
+import { creaseRoleAt } from './creaseRole';
 import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
 
 /** One row of the sheet picker. */
@@ -88,30 +89,10 @@ export function sheetBorderLineIds(component: PrecreaseComponent): Set<number> {
   return new Set(component.border_segment_indices.map((index) => index + 1));
 }
 
-/** `Red1` and `Blue2` from `LINE_COLOR_BY_NUMBER` — Oriedita's own codes. */
-const CP_MOUNTAIN = 1;
-const CP_VALLEY = 2;
-
-/**
- * Which way a thumbnail's stroke folds.
- *
- * Read from the raw colour number rather than through `lineColorName`, which
- * throws on a code outside its table: a thumbnail that cannot read a colour
- * should draw a plain line, not take the sidebar down. The planner's own steps
- * do not come through here — the crate settles their direction and `Step`
- * carries it (plan D24). This is the picker's own reading of a raw pattern,
- * which has no plan yet.
- */
-function strokeKind(colorNumber: number, isBorder: boolean): SheetStrokeKind {
-  if (isBorder) return 'border';
-  if (colorNumber === CP_MOUNTAIN) return 'mountain';
-  if (colorNumber === CP_VALLEY) return 'valley';
-  return 'other';
-}
-
 /**
  * A sheet drawn to fit `size`, in its own coordinates: the component's lines
- * read out of the transport, then the shared fit (`fitSheetThumbnail`).
+ * read out of the transport — its border, its creases and its aux lines — then
+ * the shared fit (`fitSheetThumbnail`).
  */
 export function sheetThumbnail(
   geometry: CpGeometryTransport,
@@ -120,18 +101,20 @@ export function sheetThumbnail(
 ): SheetThumbnail | null {
   const endpoints = geometry.segEndpoints;
   const attr = geometry.segAttr;
-  const border = new Set(component.border_segment_indices);
   const strokes: SheetStroke[] = [];
-  for (const index of [...component.border_segment_indices, ...component.segment_indices]) {
+  const add = (index: number, role: SheetStrokeRole) => {
     const base = index * 4;
-    if (base + 3 >= endpoints.length) continue;
+    if (base + 3 >= endpoints.length) return;
     strokes.push({
       x1: endpoints[base],
       y1: endpoints[base + 1],
       x2: endpoints[base + 2],
       y2: endpoints[base + 3],
-      kind: strokeKind(attr[index * SEG_ATTR_STRIDE] ?? 0, border.has(index)),
+      role,
     });
-  }
+  };
+  for (const index of component.border_segment_indices) add(index, 'edge');
+  for (const index of component.segment_indices) add(index, creaseRoleAt(attr, index));
+  for (const index of component.aux_segment_indices) add(index, 'aux');
   return fitSheetThumbnail(strokes, size);
 }

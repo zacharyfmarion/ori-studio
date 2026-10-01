@@ -132,10 +132,17 @@ function polygonSpans(
     const y = row + 0.5;
     crossings.length = 0;
     for (let i = 0; i < points.length; i += 1) {
-      const [x1, y1] = points[i]!;
-      const [x2, y2] = points[(i + 1) % points.length]!;
+      const from = points[i]!;
+      const to = points[(i + 1) % points.length]!;
       // Half-open in y, so a vertex shared by two edges is counted once.
-      if (y1 <= y === y2 <= y) continue;
+      if (from[1] <= y === to[1] <= y) continue;
+      // Computed from the lower endpoint whichever way the edge is walked, so
+      // two pieces that share an edge in opposite directions find the same
+      // crossing to the bit. Otherwise a sample centre lying exactly on the
+      // shared edge — a square's diagonal on the grid — can round outside
+      // both, and a buried piece beneath the crack is reported as showing.
+      const [x1, y1] = from[1] < to[1] ? from : to;
+      const [x2, y2] = from[1] < to[1] ? to : from;
       crossings.push(x1 + ((y - y1) / (y2 - y1)) * (x2 - x1));
     }
     if (crossings.length < 2) continue;

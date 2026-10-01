@@ -38,6 +38,12 @@ import type { ReferencesBreakdownController } from './useReferencesBreakdown';
  * things at once. With nothing to note, the rail is the cards alone, as the
  * simulator's is.
  *
+ * The cards draw the pattern in main's rail look, not in the paper style:
+ * solid lines in the theme's crease inks (`SheetGrid`), because a card is for
+ * picking, and the style belongs to the steps. The pattern's aux
+ * lines are the exception that follows the view — they show on the cards
+ * while the canvas beside them shows them (`showAux`).
+ *
  * Presentation only: what to show and which row is active are props, and a
  * press reports back.
  */
@@ -45,6 +51,11 @@ export interface ReferencesSheetsSidebarProps {
   sheets: readonly ReferencesSheet[];
   components: readonly PrecreaseComponent[];
   geometry: CpGeometryTransport | null;
+  /**
+   * Whether the pattern's aux lines are drawn, as the canvas resolves it: the
+   * References option, or the style's switch.
+   */
+  showAux: boolean;
   selected: number | null;
   onSelect: (component: number) => void;
   /** Whole-pattern mode's controller, for the findings and the active one. */
@@ -59,6 +70,7 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
   sheets,
   components,
   geometry,
+  showAux,
   selected,
   onSelect,
   breakdown,
@@ -101,7 +113,9 @@ export const ReferencesSheetsSidebar = memo(function ReferencesSheetsSidebar({
         {sheets.length > 0 && <span className="references-sidebar__count">{sheets.length}</span>}
       </div>
 
-      {items.length > 0 && <SheetGrid sheets={items} selected={selected} onSelect={onSelect} />}
+      {items.length > 0 && (
+        <SheetGrid sheets={items} showAux={showAux} selected={selected} onSelect={onSelect} />
+      )}
 
       {/* No "work it out" button here: the sequence is planned the moment the
           workspace is switched to it (`useReferencesAutoPlan`), and the lead

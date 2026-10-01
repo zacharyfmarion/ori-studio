@@ -236,9 +236,20 @@
       "title": "图像"
     },
     "inlineSimulation": {
+      "followsNote": "除非被覆盖，否则跟随纸张样式",
+      "paper": "纸张",
       "settings": "模拟器设置",
       "sharedNote": "与模拟工作区和所有窗口共享",
       "title": "模拟窗口"
+    },
+    "paperStyle": {
+      "auxColor": "辅助折痕颜色",
+      "auxVisible": "辅助折痕",
+      "auxWidth": "辅助折痕宽度 (pt)",
+      "changeAction": "更改纸张样式",
+      "erode": "内缩 (纸张的 %)",
+      "foldsAsEdgesReason": "所有折痕都绘制为边",
+      "resetAction": "重置纸张样式"
     },
     "region": {
       "hidden": "隐藏",
@@ -523,7 +534,6 @@
     "sendTextToBack": "将文本置于底层",
     "setFoldedModelUpright": "设置折叠模型的向上方向",
     "shadow": "阴影",
-    "shadowUnsupported3d": "尚不支持为 3D 折叠模型绘制阴影",
     "stale": "已过期",
     "viewFoldedModelOtherSide": "从另一侧查看",
     "viewportControls": "折痕图视口控件",
@@ -726,8 +736,6 @@
     "delete": "删除",
     "duplicate": "复制",
     "export": "导出…",
-    "exportPng": "PNG 图像",
-    "exportSvg": "SVG 图像",
     "firstSolution": "返回第一个解",
     "flip": "翻转",
     "label": "折叠模型操作",
@@ -803,6 +811,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "当前未显示任何步骤",
       "noFoldHint": "这张卡片上没有可折叠的内容",
       "noTargetHint": "请先选择一个顶点或折痕",
       "oneWayHint": "这一步只有一种折法",
@@ -987,6 +996,8 @@
       "mergeSymmetricHelp": "两个互为镜像的折叠 — 例如左角折向中心和右角折向中心 — 会像折图那样显示为一个步骤，各带一个箭头。关闭后，每个折叠都是单独的步骤。",
       "precreaseGrid": "预折网格",
       "sequence": "预折顺序",
+      "showAuxCreases": "显示辅助折痕",
+      "showAuxCreasesHelp": "折痕图中的辅助线，在每一步中以辅助折痕的样式绘制在纸上，从不折叠。在此处更改之前，跟随“设置 ▸ 纸张”。",
       "solutions": "解的数量"
     },
     "sheets": {
@@ -1081,9 +1092,7 @@
     }
   },
   "simulatorExport": {
-    "png": "PNG 图像",
-    "svg": "SVG 图像",
-    "trigger": "导出视图"
+    "trigger": "导出视图…"
   },
   "simulatorSegments": {
     "creasePatterns": "折痕图",
@@ -1092,10 +1101,6 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "拉伸",
-    "background": "背景",
-    "backgroundTheme": "匹配主题",
-    "backgroundTransparent": "透明",
-    "backgroundWhite": "白色",
     "borderEdge": "边缘",
     "colorMode": "着色",
     "colorPaper": "纸张",
@@ -1103,17 +1108,11 @@
     "creaseLines": "折痕线",
     "creases": "折痕",
     "creaseStiffness": "折痕",
-    "creaseStyle": "样式",
-    "creaseStyleColor": "山折 / 谷折",
-    "creaseStyleMono": "单色",
-    "creaseStyleMonoDashed": "单色虚线",
-    "creaseWidth": "粗细",
     "damping": "阻尼",
-    "export": "导出",
-    "exportHint": "导出图像的页面背景。",
     "faces": "面",
     "faceStiffness": "面",
-    "hiddenLines": "隐藏线",
+    "foldsAsEdges": "将所有折痕绘制为边",
+    "foldsAsEdgesHelp": "已经折过的折痕就是纸的一条边：所有折痕都以纸边的颜色和虚线绘制，宽度取山折与谷折宽度的平均值。关闭时按方向绘制。",
     "lighting": "光照",
     "material": "材质",
     "materialHint": "纸张抵抗拉伸和折叠的程度。",

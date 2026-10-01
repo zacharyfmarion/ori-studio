@@ -13,6 +13,7 @@ import init, {
   export_share_link,
   load_share_link,
   export_ori,
+  folded_figure_3d_aux_lines,
   folded_figure_3d_duplicate,
   folded_figure_3d_fold_another,
   folded_figure_duplicate,
@@ -21,6 +22,7 @@ import init, {
   folded_figure_fold_selected,
   folded_figure_fold_another,
   folded_figure_fold_to_case,
+  folded_figure_paper_scene,
   folded_figure_render_snapshot,
   folded_figure_set_model,
   folded_figure_snapshot,
@@ -52,10 +54,12 @@ import type {
   OristudioCpEstimationOrder,
   OristudioCpFold3dFoldResult,
   OristudioCpFold3dStepResult,
+  OristudioCpFolded3dAuxLines,
   OristudioCpFoldedFigureBatchResult,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpFoldedFigureSnapshot,
   OristudioCpLineSegment,
@@ -274,6 +278,20 @@ const api = {
         ) as OristudioCpFoldedRenderSnapshot | null
     );
   },
+  /**
+   * The flat figure's paper scene. With `documentHandle`, its aux lines are
+   * that document's as they stand now; without, the ones captured at the fold.
+   */
+  async foldedFigurePaperScene(
+    handle: number,
+    documentHandle?: number | null
+  ): Promise<OristudioCpFoldedPaperScene | null> {
+    return call(
+      () =>
+        folded_figure_paper_scene(handle, documentHandle ?? undefined) as
+          OristudioCpFoldedPaperScene | null
+    );
+  },
   async setFoldedFigureModel(
     handle: number,
     model: OristudioCpFoldedFigureModel
@@ -336,6 +354,15 @@ const api = {
   },
   async duplicateFolded3dFigure(handle: number): Promise<OristudioCpFold3dFoldResult> {
     return call(() => folded_figure_3d_duplicate(handle) as OristudioCpFold3dFoldResult);
+  },
+  /** The document's aux lines as they stand now, carried onto the 3D figure. */
+  async folded3dAuxLines(
+    handle: number,
+    documentHandle: number
+  ): Promise<OristudioCpFolded3dAuxLines> {
+    return call(
+      () => folded_figure_3d_aux_lines(handle, documentHandle) as OristudioCpFolded3dAuxLines
+    );
   },
   async freeFoldedFigure(handle: number): Promise<void> {
     return call(() => free_folded_figure(handle));

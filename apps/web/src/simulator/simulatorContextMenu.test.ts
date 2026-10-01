@@ -8,7 +8,6 @@ const t = ((_key: string, defaultValue?: string) => defaultValue ?? _key) as unk
 const SETTINGS = {
   showFaces: true,
   showEdges: false,
-  showHiddenLines: false,
   lighting: true,
 };
 
@@ -62,7 +61,7 @@ describe('simulatorMenuItems', () => {
   });
 
   it('drops the view submenu for a surface with no settings to report', () => {
-    // An inline simulation window has no options pane, so four toggles that
+    // An inline simulation window has no options pane, so three toggles that
     // report nothing would be worse than none.
     const items = simulatorMenuItems(deps({ settings: null }));
 

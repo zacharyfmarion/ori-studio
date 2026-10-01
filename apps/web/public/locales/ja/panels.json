@@ -236,9 +236,20 @@
       "title": "画像"
     },
     "inlineSimulation": {
+      "followsNote": "上書きしない限り用紙スタイルに従います",
+      "paper": "用紙",
       "settings": "シミュレーター設定",
       "sharedNote": "シミュレートワークスペースとすべてのウィンドウで共有",
       "title": "シミュレーションウィンドウ"
+    },
+    "paperStyle": {
+      "auxColor": "補助折り線の色",
+      "auxVisible": "補助折り線",
+      "auxWidth": "補助折り線の幅 (pt)",
+      "changeAction": "用紙スタイルを変更",
+      "erode": "エロード (用紙の %)",
+      "foldsAsEdgesReason": "すべての折り線を辺として描いています",
+      "resetAction": "用紙スタイルをリセット"
     },
     "region": {
       "hidden": "非表示",
@@ -523,7 +534,6 @@
     "sendTextToBack": "テキストを最背面へ",
     "setFoldedModelUpright": "折り上がりモデルの上方向を設定",
     "shadow": "影",
-    "shadowUnsupported3d": "3D の折り上がりモデルにはまだ影を描画できません",
     "stale": "要再折り",
     "viewFoldedModelOtherSide": "反対側から見る",
     "viewportControls": "展開図のビューポート操作",
@@ -726,8 +736,6 @@
     "delete": "削除",
     "duplicate": "複製",
     "export": "エクスポート…",
-    "exportPng": "PNG 画像",
-    "exportSvg": "SVG 画像",
     "firstSolution": "最初の解に戻る",
     "flip": "裏返す",
     "label": "折り上がり図の操作",
@@ -803,6 +811,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "表示中のステップがありません",
       "noFoldHint": "このカードには折るものがありません",
       "noTargetHint": "先に頂点または折り線を選んでください",
       "oneWayHint": "このステップの折り方は1つだけです",
@@ -987,6 +996,8 @@
       "mergeSymmetricHelp": "鏡映しになる2つの折り — 左の角を中心へ、右の角を中心へ、など — を、折り図のようにそれぞれ矢印付きの1つの手順として示します。オフにすると、折りごとに1手順になります。",
       "precreaseGrid": "グリッドを先に折る",
       "sequence": "下折りの手順",
+      "showAuxCreases": "補助折り線を表示",
+      "showAuxCreasesHelp": "展開図の補助線。すべての手順で補助折り線のスタイルで用紙に描かれ、折られることはありません。ここで変更するまでは「設定 ▸ 用紙」に従います。",
       "solutions": "解の数"
     },
     "sheets": {
@@ -1081,9 +1092,7 @@
     }
   },
   "simulatorExport": {
-    "png": "PNG 画像",
-    "svg": "SVG 画像",
-    "trigger": "ビューを書き出す"
+    "trigger": "ビューを書き出す…"
   },
   "simulatorSegments": {
     "creasePatterns": "展開図",
@@ -1092,10 +1101,6 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "伸び",
-    "background": "背景",
-    "backgroundTheme": "テーマに合わせる",
-    "backgroundTransparent": "透明",
-    "backgroundWhite": "白",
     "borderEdge": "端",
     "colorMode": "配色",
     "colorPaper": "紙",
@@ -1103,17 +1108,11 @@
     "creaseLines": "折り線",
     "creases": "折り線",
     "creaseStiffness": "折り目",
-    "creaseStyle": "スタイル",
-    "creaseStyleColor": "山 / 谷",
-    "creaseStyleMono": "単色",
-    "creaseStyleMonoDashed": "単色・破線",
-    "creaseWidth": "太さ",
     "damping": "減衰",
-    "export": "書き出し",
-    "exportHint": "書き出す画像の背景です。",
     "faces": "面",
     "faceStiffness": "面",
-    "hiddenLines": "隠線",
+    "foldsAsEdges": "すべての折り線を辺として描画",
+    "foldsAsEdgesHelp": "折り終えた線は紙の辺です。すべての折り線を紙の辺の色と破線で、山折り線と谷折り線の幅の平均で描きます。オフにすると、山折り・谷折りの向きで描き分けます。",
     "lighting": "照明",
     "material": "材質",
     "materialHint": "紙が伸びや折れにどれだけ抵抗するか。",

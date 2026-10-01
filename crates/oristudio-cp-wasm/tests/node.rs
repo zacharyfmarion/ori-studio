@@ -259,6 +259,24 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
             .any(|primitive| primitive["kind"] == "fill_polygon")
     );
 
+    let scene = oristudio_cp_wasm::folded_figure_paper_scene(folded_handle, None)
+        .expect("paper scene should serialize");
+    let scene: serde_json::Value =
+        serde_wasm_bindgen::from_value(scene).expect("paper scene deserializes");
+    assert_eq!(scene["schema_version"], 1);
+    assert_eq!(scene["flipped"], false);
+    assert_eq!(scene["faces"].as_array().expect("scene faces").len(), 2);
+    assert!(
+        scene["subfaces"]
+            .as_array()
+            .expect("scene subfaces")
+            .iter()
+            .all(|subface| !subface["faces_top_to_bottom"]
+                .as_array()
+                .expect("stack")
+                .is_empty())
+    );
+
     let updated_model = oristudio_cp::folding::FoldedFigureModel {
         state: oristudio_cp::folding::FoldedFigureState::Back1,
         display_shadows: true,
@@ -286,6 +304,11 @@ fn folded_figure_session_exports_fold_and_followup_commands() {
     let back_render: serde_json::Value =
         serde_wasm_bindgen::from_value(back_render).expect("back render snapshot deserializes");
     assert_eq!(back_render["pass"], "paper-back-full");
+    let back_scene = oristudio_cp_wasm::folded_figure_paper_scene(folded_handle, None)
+        .expect("back paper scene should serialize");
+    let back_scene: serde_json::Value =
+        serde_wasm_bindgen::from_value(back_scene).expect("back paper scene deserializes");
+    assert_eq!(back_scene["flipped"], true);
 
     let duplicate = oristudio_cp_wasm::folded_figure_duplicate(folded_handle)
         .expect("folded figure should duplicate");

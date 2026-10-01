@@ -26,6 +26,7 @@ import { createServer } from 'vite';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateScopedName } from './cssModuleNames.mjs';
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = resolve(webRoot, 'dist');
@@ -58,6 +59,10 @@ async function withVite(fn) {
   const vite = await createServer({
     root: webRoot,
     configFile: false,
+    // The one piece of the app's config a render does need: the markup written here
+    // has to carry the class names the client bundle ships, or the painted page is
+    // unstyled.
+    css: { modules: { generateScopedName } },
     appType: 'custom',
     server: { middlewareMode: true },
     logLevel: 'warn',

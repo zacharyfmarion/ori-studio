@@ -17,17 +17,20 @@
  *   pattern at a time (plan D12); another sheet's creases are not context, they
  *   are a different problem.
  * - **Reading a plan builds up, and stops one step short.** At step *k* the
- *   sheet's border plus the creases of steps 0…*k*−1, dimmed. Step *k*'s own
- *   crease is deliberately absent: it has not been folded yet, and the pattern
- *   is what the paper already has on it. The step draws that crease itself, as
- *   the dashed fold line it is — so it is drawn once, by the thing that is
- *   asking for it, and the dimmed build-up is what it stands out from. The
- *   same set is what can be pointed at — a tap on a crease made so far jumps
- *   to the step that made it — and a crease a later step makes, or a vertex
- *   it will make, is not on the paper for the pointer to find. (Drawing the
- *   creases still to come as ghosts was tried and undone: Zach wants the
- *   sequence to show only what has actually been creased; the whole pattern
- *   is the *Find* mode's, where every crease can be pointed at.)
+ *   sheet's border plus the creases of steps 0…*k*−1, drawn thin in the aux
+ *   pen as the cards draw them: each was folded and opened flat again, so it
+ *   is a crease on the paper now, not an instruction (a crease is drawn by
+ *   what has happened to it — Phase 9). Step *k*'s own crease is deliberately
+ *   absent: it has not been folded yet, and the pattern is what the paper
+ *   already has on it. The step draws that crease itself, as the mountain or
+ *   valley line it is — so it is drawn once, by the thing that is asking for
+ *   it, and the thin build-up is what it stands out from. The same set is
+ *   what can be pointed at — a tap on a crease made so far jumps to the step
+ *   that made it — and a crease a later step makes, or a vertex it will make,
+ *   is not on the paper for the pointer to find. (Drawing the creases still
+ *   to come as ghosts was tried and undone: Zach wants the sequence to show
+ *   only what has actually been creased; the whole pattern is the *Find*
+ *   mode's, where every crease can be pointed at.)
  * - **Reading one reference shows the paper and the crease, and nothing else.**
  *   ReferenceFinder's steps are folds on a blank sheet and have no relation to
  *   the pattern's creases, so there is no "so far" to build up. The pattern
@@ -40,31 +43,34 @@
  *   either: a click on blank paper clears the pick, and the whole sheet is
  *   back — that is how the reader moves on, not by hitting a crease they
  *   cannot see.
- * - **A turn-over shows the paper's outline, and its diagram draws the rest.**
- *   Turning the paper over happens between folds, not only at the end, so it
- *   holds back the creases that are not made yet exactly as a fold card does
- *   — but the fold it comes after *is* made, so its crease is on the paper.
- *   Its card shows that build-up greyed out under the turn-over symbol, and
- *   the canvas shows exactly the card (`referencesPlanGeometry.planTurnOverScene`
- *   draws the creases, in the card's grey), so in this channel only the
- *   outline is drawn. The creases stay pickable: a tap on one still jumps to
- *   the step that made it. The finished card shows the build-up itself — the
- *   whole sheet, at full strength, which is the point of it — and dims
- *   nothing: dimming is what a fold's own line stands out from, and a card
- *   with no line of its own has nothing to stand out.
+ * - **A turn-over shows the build-up as it stands.** Turning the paper over
+ *   happens between folds, not only at the end, so it holds back the creases
+ *   that are not made yet exactly as a fold card does — but the fold it comes
+ *   after *is* made, so its crease is on the paper, thin like the rest. The
+ *   creases stay pickable: a tap on one still jumps to the step that made it.
+ * - **The finished card is the pattern.** Every crease in the direction it
+ *   was made, at full strength, in the fold pens a crease pattern is drawn
+ *   in — not the diagram-crease pens of an instruction, and not thin like the
+ *   paper's history: what the sequence has put on the paper is the pattern
+ *   the folder collapses.
  *
  * The border is always visible, and never dimmed. A sheet with no edges is not
  * a sheet; the paper's outline is the thing the folds are drawn on rather than
  * one of them, and a diagram that fades it out reads as an empty page.
+ *
+ * The pattern's auxiliary lines, when they are shown (`referencesAuxCreases`),
+ * are on the paper from the start: drawn at every step of a plan and on the
+ * whole sheet, thin in the aux pen, and never pickable — nothing folds them,
+ * so there is no step to jump to. Reading one reference leaves them out with
+ * everything else: its construction is on blank paper.
  */
+import type { Pen } from '../../lib/paper/paperStyle';
 import { flipDirection } from './diagram/diagramModel';
 import type { PrecreaseDirection, PrecreaseStep } from './precreaseSequence';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesCreaseVisibility } from './referencesViewGeometry';
 
-/** How much of its colour a crease keeps once an earlier step made it. */
-export const REFERENCES_DIM_ALPHA = 0.26;
 /**
  * How much wider the picked crease draws while one reference is being read.
  *
@@ -94,22 +100,52 @@ export interface ReferencesVisibilityInput {
   borderLineIds: ReadonlySet<number> | null;
   /** The creases the active step is about — the picked crease, or the step's. */
   activeLineIds: ReadonlySet<number>;
+  /**
+   * The paper style's aux pen, and its width in CSS px: what the creases
+   * already on the paper, and the pattern's aux lines, are drawn in.
+   */
+  auxPen?: { pen: Pen; css: number } | null;
+  /** The sheet's aux lines, when they are shown. */
+  auxLineIds?: ReadonlySet<number> | null;
+}
+
+/** `ids` with the shown aux lines added: what is drawn, of which only `ids` can be picked. */
+function withAux(
+  ids: ReadonlySet<number>,
+  auxLineIds: ReadonlySet<number> | null
+): ReadonlySet<number> {
+  if (!auxLineIds || auxLineIds.size === 0) return ids;
+  return new Set([...ids, ...auxLineIds]);
 }
 
 /**
  * The sheet as it is, at full strength: no plan yet and nothing picked, so
- * there is no step to be at.
+ * there is no step to be at. On its paper, as every step is (D13): the border
+ * is what the canvas fills.
  */
 export function unreadVisibility(input: ReferencesVisibilityInput): ReferencesCreaseVisibility {
-  const { sheetLineIds } = input;
+  const { sheetLineIds, borderLineIds, auxLineIds = null, auxPen = null } = input;
   if (!sheetLineIds) return REFERENCES_ALL_CREASES;
-  return { visible: sheetLineIds, dimmed: null, dimAlpha: 1 };
+  if (!auxLineIds || auxLineIds.size === 0) {
+    return { visible: sheetLineIds, dimmed: null, dimAlpha: 1, borderLineIds };
+  }
+  return {
+    visible: withAux(sheetLineIds, auxLineIds),
+    pickable: sheetLineIds,
+    dimmed: null,
+    dimAlpha: 1,
+    borderLineIds,
+    thin: auxLineIds,
+    thinPen: auxPen,
+  };
 }
 
 /**
  * The paper's outline and `activeLineIds`, at full strength; every other crease
  * of the sheet is hidden. A picked vertex has no line of its own, so its sheet
- * is blank paper with the vertex marked on it.
+ * is blank paper with the vertex marked on it. On its paper, as a step of the
+ * sequence is (D13): the border is what the canvas fills, and without it the
+ * construction's ink lands on the workspace's dark ground.
  */
 export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCreaseVisibility {
   const { sheetLineIds, borderLineIds, activeLineIds } = input;
@@ -127,6 +163,7 @@ export function targetVisibility(input: ReferencesVisibilityInput): ReferencesCr
     pickable: visible,
     dimmed: null,
     dimAlpha: 1,
+    borderLineIds,
     emphasis: activeLineIds,
     emphasisWidth: REFERENCES_EMPHASIS_WIDTH,
   };
@@ -146,7 +183,7 @@ export function planVisibility(
   activeStep: number,
   input: ReferencesVisibilityInput
 ): ReferencesCreaseVisibility {
-  const { sheetLineIds, borderLineIds, mirrored = false } = input;
+  const { sheetLineIds, borderLineIds, mirrored = false, auxLineIds = null, auxPen = null } = input;
   const target = viewSteps[activeStep];
   // No step to be at: the sheet as it is, whole.
   if (!target) return unreadVisibility(input);
@@ -157,6 +194,8 @@ export function planVisibility(
   const { component } = target;
 
   const visible = new Set<number>(borderLineIds ?? []);
+  /** The creases made so far, the border apart. */
+  const creased = new Set<number>();
   const directions = new Map<number, 'mountain' | 'valley'>();
   // A fold card stops one short of itself: its crease is the instruction, not
   // the paper, and the step's own diagram is what draws it. Any other card is
@@ -173,6 +212,7 @@ export function planVisibility(
       for (const id of made.cpLineIds) {
         if (sheetLineIds && !sheetLineIds.has(id)) continue;
         visible.add(id);
+        if (!borderLineIds?.has(id)) creased.add(id);
         if (made.direction !== 'unassigned') {
           // Named from the face the reader is on, like everything else in the
           // picture — see `diagram/diagramModel.flipDirection`.
@@ -182,30 +222,34 @@ export function planVisibility(
     }
     }
   }
-  // A turn-over and the finished card both show the build-up whole, in its
-  // directions. The turn-over used to hold the pattern's creases back and let
-  // its picture draw them greyed, as its card does; now that the sheet turns
-  // over on the canvas, the creases go with it in their own ink, and the
-  // face that comes up shows them mirrored with the assignment reversed —
-  // the same rendering a fold card's flap gets (Zach, 2026-09-16).
-  if (target.kind !== 'fold') {
-    return { visible, pickable: visible, dimmed: null, dimAlpha: 1, directions, borderLineIds };
+  // The finished card is the pattern: each crease in the direction it was
+  // made, at full strength, in the fold pens (`applyCreaseVisibility`).
+  if (target.kind === 'done') {
+    return {
+      visible: withAux(visible, auxLineIds),
+      pickable: visible,
+      dimmed: null,
+      dimAlpha: 1,
+      directions,
+      borderLineIds,
+      thin: auxLineIds,
+      thinPen: auxPen,
+      };
   }
-  const dimmed = new Set<number>();
-  for (const id of visible) {
-    if (borderLineIds?.has(id)) continue;
-    dimmed.add(id);
-  }
+  // A fold or a turn-over: the creases made so far were folded and opened
+  // flat again, so they are the paper's now — thin, in the aux pen, as the
+  // cards draw them — and the step's own fold is the one line with a
+  // direction.
+  const thin = new Set<number>(creased);
+  for (const id of auxLineIds ?? []) thin.add(id);
   return {
-    visible,
+    visible: withAux(visible, auxLineIds),
     pickable: visible,
-    dimmed,
-    dimAlpha: REFERENCES_DIM_ALPHA,
+    dimmed: null,
+    dimAlpha: 1,
     borderLineIds,
-    // One step, one direction (plan D20), and it stays that way afterwards —
-    // a line whose creases disagree would otherwise go back to reading red
-    // here and blue there the moment its step stopped being active.
-    directions,
+    thin,
+    thinPen: auxPen,
   };
 }
 

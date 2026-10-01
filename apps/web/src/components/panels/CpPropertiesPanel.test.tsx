@@ -153,6 +153,8 @@ describe('CpPropertiesPanel', () => {
     mount({ oristudioCpActiveFoldedFigureId: FIGURE.id });
     expect(text('.property-sheet__title')).toBe(FIGURE.title);
     expect(text('.property-sheet__subtitle')).toBe('Folding…');
+    // Re-pinned for Phase 5: the flat figure's policy applies the aux crease
+    // toggle, its pen and erode, and the sheet offers a row for each.
     expect(labels()).toEqual([
       'Render as',
       'Side',
@@ -160,6 +162,10 @@ describe('CpPropertiesPanel', () => {
       'Back color',
       'Line color',
       'Shadow',
+      'Auxiliary creases',
+      'Aux crease color',
+      'Aux crease width (pt)',
+      'Erode (% of sheet)',
       'Scale',
       'Rotation',
     ]);

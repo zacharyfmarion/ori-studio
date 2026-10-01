@@ -107,6 +107,10 @@ import {
 } from './adapters/cpFoldedToScene';
 import type { OristudioCpFoldedFigureEntry } from '../engine/oristudioCpTypes';
 import { useFolded3dOrbitFigures } from './folded/useFolded3dOrbitFigures';
+import { cpAuxLinesKey } from './folded/foldedAuxSource';
+import { useFoldedFlatAux } from './folded/useFoldedFlatAux';
+import { useObjectEdgePenWidth, useObjectPaperStyleOf } from './paper/objectPaperStyle';
+import { ptToDevicePx } from '../lib/paper/paperStyle';
 import type { CpContextMenuRequest } from './contextMenuTarget';
 import { cpHasSelection, cpRightClickOutcome } from './contextMenu/cpRightClick';
 import {
@@ -389,6 +393,11 @@ export interface CreasePatternWebglCanvasProps {
    * fallback when it is absent, and for hit-testing / id lookups either way.
    */
   geometry?: CpGeometryTransport | null;
+  /**
+   * The editable document's kernel handle. Its folded figures draw its aux
+   * lines as they stand now (`folded/foldedAuxSource.ts`), asked of it here.
+   */
+  cpDocumentHandle?: number | null;
   /** Model → user-coordinate mapping (the intermediate space the surface renders in). */
   modelToSvg: (point: ModelPoint) => ModelPoint;
   /** User → model mapping (inverse of {@link modelToSvg}) for hit-testing. */
@@ -843,6 +852,7 @@ export function CreasePatternWebglCanvas({
   className,
   lineSegments,
   geometry,
+  cpDocumentHandle,
   images,
   regions,
   overlayBoxes,
@@ -1591,12 +1601,31 @@ export function CreasePatternWebglCanvas({
     [foldedFigures, windowedFoldedFigureIds]
   );
   const drawnFoldedFigures = useFolded3dOrbitFigures(sceneFoldedFigures);
+  // A figure's edges draw in its effective edge pen: the render call below
+  // supplies device px per pt, and this supplies each figure's pt.
+  const foldedPenWidth = useObjectEdgePenWidth();
+  // A 3D figure's stored scene carries geometry and roles and no ink; this is
+  // the style that inks it, per figure, exactly as the painter would.
+  const foldedPaperStyle = useObjectPaperStyleOf();
+  // A flat figure's aux creases, in its aux pen, over its fills — fetched from
+  // the kernel while the figure's style shows them, and again when the
+  // document's aux lines change.
+  const foldedAuxKey = cpAuxLinesKey(geometry);
+  const foldedAuxSource = useMemo(
+    () => ({ documentHandle: cpDocumentHandle ?? null, auxKey: foldedAuxKey }),
+    [cpDocumentHandle, foldedAuxKey]
+  );
+  const foldedAux = useFoldedFlatAux(sceneFoldedFigures, foldedAuxSource);
   const foldedGeometry = useMemo(
     () =>
-      cpFoldedToScene(drawnFoldedFigures, (figure) =>
-        staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1
+      cpFoldedToScene(
+        drawnFoldedFigures,
+        (figure) => (staleFoldedFigureIds?.has(figure.id) ? STALE_FOLDED_FIGURE_OPACITY : 1),
+        foldedPenWidth,
+        foldedAux,
+        foldedPaperStyle
       ),
-    [drawnFoldedFigures, staleFoldedFigureIds]
+    [drawnFoldedFigures, staleFoldedFigureIds, foldedPenWidth, foldedAux, foldedPaperStyle]
   );
 
   // Red fill for the two faces of any folded figure whose fold hit a global
@@ -1846,6 +1875,10 @@ export function CreasePatternWebglCanvas({
         // Constant screen size (CSS px * dpr) times the gentle zoom boost. Circle
         // radii still scale fully with zoom via userScalePx — real geometry.
         strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+        // Device px per pt; each figure's stroke multiplier is its edge pen's
+        // width in pt (`cpFoldedToScene`), so a folded edge is its pen at every
+        // zoom — 0.9 pt is the 1.2 CSS px the kernel's Java2D stroke used to be.
+        foldedStrokeWidthPx: ptToDevicePx(1, ratio),
         userScalePx: cam.zoom,
         markerScalePx,
         pointScalePx,

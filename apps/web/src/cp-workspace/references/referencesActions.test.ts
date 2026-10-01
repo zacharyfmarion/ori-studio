@@ -21,6 +21,7 @@ function state(overrides: Partial<ReferencesActionState> = {}): ReferencesAction
     activeWay: 1,
     canRecompute: true,
     hasView: true,
+    hasDiagram: true,
     fold: { available: true, playing: false, folded: false, pleat: false },
     ...overrides,
   };
@@ -46,7 +47,7 @@ describe('buildReferencesActions', () => {
     expect(command(state(), 'next-way').label).toBe('Next Way');
   });
 
-  it('orders the verbs steps, ways, candidates, recompute, then the camera', () => {
+  it('orders the verbs steps, ways, candidates, recompute, the camera, then export', () => {
     const ids = referencesCommands(buildReferencesActions(state(), { t })).map(
       (action) => action.id
     );
@@ -62,6 +63,8 @@ describe('buildReferencesActions', () => {
       'reset-view',
       'zoom-in',
       'zoom-out',
+      'export-step',
+      'export-all-steps',
     ]);
   });
 
@@ -85,7 +88,38 @@ describe('buildReferencesActions', () => {
       'references.resetView',
       'references.zoomIn',
       'references.zoomOut',
+      'references.exportStep',
+      'references.exportAllSteps',
     ]);
+  });
+
+  it('offers one export verb while a diagram is showing, and says why not otherwise', () => {
+    const exportStep = command(state(), 'export-step');
+    expect(exportStep.label).toBe('Export step…');
+    expect(exportStep.disabled).toBe(false);
+    expect(exportStep.hint).toBeUndefined();
+    // A finished card, an empty strip, a finding: nothing to paint.
+    const blank = command(state({ hasDiagram: false }), 'export-step');
+    expect(blank.disabled).toBe(true);
+    expect(blank.hint).toBe('No step is showing');
+  });
+
+  it('offers every step while the strip has cards, whichever is showing', () => {
+    // The finished card has no diagram of its own, but the steps before it do.
+    const finished = command(state({ hasDiagram: false }), 'export-all-steps');
+    expect(finished.label).toBe('Export all steps…');
+    expect(finished.disabled).toBe(false);
+    const empty = command(state({ stepCount: 0, activeStep: 0 }), 'export-all-steps');
+    expect(empty.disabled).toBe(true);
+    expect(empty.hint).toBe('Pick a vertex or crease first');
+  });
+
+  it('separates export from the camera verbs in the menu', () => {
+    const actions = buildReferencesActions(state(), { t });
+    const before = actions.findIndex(
+      (action) => action.kind === 'command' && action.id === 'export-step'
+    );
+    expect(actions[before - 1]).toEqual({ kind: 'separator', id: 'before-export' });
   });
 
   it('disables stepping at either end', () => {

@@ -281,6 +281,9 @@
     },
     "otherPlatforms": "其他平台"
   },
+  "fieldRow": {
+    "overridden": "已覆盖"
+  },
   "fileDrop": {
     "open": "拖放以打开",
     "openOrImport": "拖放以打开或导入"

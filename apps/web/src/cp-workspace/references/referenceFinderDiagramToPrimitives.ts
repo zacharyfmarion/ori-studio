@@ -14,14 +14,34 @@
  */
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { Diagram, RawSolution } from './referenceFinder/solution';
-import type { DiagramArc } from './stepDiagramGeometry';
+import type { DiagramArc, DiagramSheet } from './stepDiagramGeometry';
 
 export type DiagramLineStyleName =
+  /** A crease an earlier step made: the paper as it stands. */
   | 'crease'
+  /**
+   * One of the pattern's own auxiliary lines — ours, never on the RF wire. The
+   * same pen and ink as `crease`; its own name because whether it is drawn is
+   * the References "Show auxiliary creases" option's, while the creases an
+   * earlier step made are always on the paper.
+   */
+  | 'aux'
   | 'edge'
   | 'highlight'
+  /**
+   * The step's own fold, as an instruction: fold here, this way. Drawn in the
+   * paper style's diagram-crease pens, as are the pinches in a direction.
+   */
   | 'valley'
   | 'mountain'
+  /**
+   * A line of the finished crease pattern — ours, never on the RF wire. The
+   * finished card is the pattern rather than a step, so its creases take the
+   * fold pens a crease pattern is drawn in, not the diagram-crease pens of an
+   * instruction.
+   */
+  | 'fold-valley'
+  | 'fold-mountain'
   | 'arrow'
   | 'dotted'
   | 'pinch'
@@ -64,10 +84,10 @@ export type StepDiagramPrimitive =
    * The path the paper takes over a crease and back.
    *
    * Only the outgoing arc: the return that makes it a round trip is the *same*
-   * arc bulged further and stopped beside the mark, and how far beside is an
-   * arrowhead's length — which a card measures against the paper and a camera
-   * view against the pen. So it is derived where the picture is drawn, and this
-   * stays the one thing both surfaces agree on.
+   * arc bulged further and stopped beside the mark, and how far beside is a
+   * length of the drawing's (`foldReturnOffset`) — which a card measures
+   * against the paper and a camera view against the pen. So it is derived where
+   * the picture is drawn, and this stays the one thing both surfaces agree on.
    */
   | { kind: 'fold-arrow'; out: DiagramArc }
   /**
@@ -87,8 +107,8 @@ export type StepDiagramPrimitive =
   | { kind: 'label'; at: readonly [number, number]; text: string; style: DiagramPointStyleName };
 
 export interface StepDiagramModel {
-  /** The paper's size, and — off the unit frame — where its middle is. */
-  sheet: { width: number; height: number; centre?: readonly [number, number] };
+  /** The paper's size, and — off the unit frame — where its middle is and which way it lies. */
+  sheet: DiagramSheet;
   /** In drawing order, the sheet first. */
   primitives: StepDiagramPrimitive[];
 }

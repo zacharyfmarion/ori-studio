@@ -49,10 +49,14 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:simulator.toggleFaces', 'Faces');
     case 'simulator.toggleCreases':
       return t('tools:simulator.toggleCreases', 'Crease lines');
-    case 'simulator.toggleHiddenLines':
-      return t('tools:simulator.toggleHiddenLines', 'Hidden lines');
     case 'simulator.toggleLighting':
       return t('tools:simulator.toggleLighting', 'Lighting');
+    // The rail's own buttons' wording, so the shortcut list names the verb the
+    // button does.
+    case 'simulator.exportView':
+      return t('panels:simulatorExport.trigger', 'Export view…');
+    case 'simulator.setUpright':
+      return t('panels:simulator.setUpright', 'Set upright');
     case 'references.nextStep':
       return t('tools:references.nextStep', 'Next Step');
     case 'references.previousStep':
@@ -77,6 +81,14 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:references.zoomOut', 'Zoom Out References');
     case 'references.playFold':
       return t('tools:references.playFold', 'Play Fold');
+    case 'references.exportStep':
+      return t('tools:references.exportStep', 'Export step…');
+    case 'references.exportAllSteps':
+      return t('tools:references.exportAllSteps', 'Export all steps…');
+    case 'references.exportStepSvg':
+      return t('tools:references.exportStepSvg', 'Export step as SVG…');
+    case 'references.exportStepPng':
+      return t('tools:references.exportStepPng', 'Export step as PNG…');
     default:
       return definition.label;
   }

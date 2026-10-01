@@ -1,4 +1,6 @@
+import type { PaperScene } from '@treemaker/origami-simulator';
 import type { Point } from '../lib/geometry';
+import type { PaperStyleOverrides } from '../lib/paper/paperStyle';
 import type { CpGeometryTransport } from './oristudioCpGeometry';
 import type {
   OristudioCpOperationId,
@@ -515,6 +517,65 @@ export interface OristudioCpFoldedRenderSnapshot {
 }
 
 /**
+ * The flat folded figure as geometry with roles — `folded_figure_paper_scene`
+ * (kernel `FoldedPaperScene`). Built beside the oracle-checked `Paper5`
+ * drawer from the same inputs, ordering and render camera, so every
+ * coordinate is one the render snapshot carries for the figure's current
+ * `state`: the scene overlays the picture the canvas draws. Index 0 of every
+ * subface's stack is the face the drawer paints there; the layers under it
+ * are what a whole-face export gets to keep (D4, D6 in
+ * `implementation-plans/unified-paper-style-and-export.md`).
+ */
+export interface OristudioCpFoldedPaperScene {
+  schema_version: number;
+  /** The rear pass (`Back1`): mirrored, stacks read bottom-up. */
+  flipped: boolean;
+  /** The unfolded paper's longest extent, in the scene's units (model scale applied). */
+  sheet: number;
+  /** Kernel face index order. */
+  faces: OristudioCpFoldedPaperFace[];
+  /** The subfaces the drawer paints, in its order. */
+  subfaces: OristudioCpFoldedPaperSubface[];
+  /**
+   * The document's aux (`Cyan3`) lines carried through the fold: each clipped
+   * to the faces it crosses and placed by its face's own reflections, so a
+   * piece lies inside its face's folded outline. In the same coordinates as
+   * the faces.
+   */
+  aux_lines: OristudioCpFoldedPaperAuxLine[];
+}
+
+export interface OristudioCpFoldedPaperFace {
+  outline: Point[];
+  /** The face shows its front side in this pass. */
+  front_up: boolean;
+  /** One per consecutive outline pair, the last closing to the first. */
+  edges: OristudioCpFoldedPaperFaceEdge[];
+}
+
+export interface OristudioCpFoldedPaperFaceEdge {
+  from: Point;
+  to: Point;
+  kind: OristudioCpFoldedPaperEdgeKind;
+}
+
+/** A paper edge, a ±180° crease, or a 0° line (never produced today). */
+export type OristudioCpFoldedPaperEdgeKind = 'border' | 'fold' | 'flat';
+
+export interface OristudioCpFoldedPaperSubface {
+  /** The planar overlap region — the ring the drawer's `fill_path` traces. */
+  polygon: Point[];
+  /** Faces stacked on this region as seen; `[0]` is the face the drawer paints. */
+  faces_top_to_bottom: number[];
+}
+
+export interface OristudioCpFoldedPaperAuxLine {
+  from: Point;
+  to: Point;
+  face: number;
+}
+
+/**
  * The two faces the layer-ordering estimate could not consistently stack
  * (Oriedita's `errorPos`). Both are 0-based indices into the folded
  * `wireframe.faces` list — index directly, no offset. Present only when the
@@ -892,6 +953,21 @@ export interface OristudioCpFolded3dRenderModel {
 }
 
 /**
+ * A document's auxiliary (`Cyan3`) lines carried onto a 3D figure —
+ * `folded_figure_3d_aux_lines(handle, document_handle)`: one piece per face
+ * each line crosses, placed by that face's transform, in the render model's
+ * coordinates. Nothing folds an aux line, so it is asked for again whenever
+ * the document's aux lines change; which layer shows a piece is the mesh's
+ * (`folded3dMesh`), by the face's slot in each cell's stack.
+ */
+export interface OristudioCpFolded3dAuxLines {
+  /** The render model's face each piece lies on. */
+  faces: number[];
+  /** `ax, ay, az, bx, by, bz` per piece. */
+  points: number[];
+}
+
+/**
  * What a 3D fold returned.
  *
  * A refusal is a **result**, not a thrown error: it must not reach the store's
@@ -1046,6 +1122,24 @@ export interface OristudioCpFoldedFigureEntry {
    */
   folded3d?: OristudioCpFolded3dSnapshot | null;
   renderSnapshot: OristudioCpFoldedRenderSnapshot | null;
+  /**
+   * A **3D** figure's stored picture: the scene its window shows, built by
+   * `folded3dPaperScene` at the figure's own camera and frame, in the figure's
+   * *local user space* — the coordinates {@link placement} transforms, the
+   * same ones a flat figure's `renderSnapshot` reaches after `cpModelToSvg`.
+   * See `cp-workspace/folded/folded3dStoredScene.ts`.
+   *
+   * It replaces `renderSnapshot` for a 3D figure (which keeps its meaning for
+   * the flat one, the kernel's own stream): a scene carries geometry and roles
+   * and no pens, so the canvas, the export and a file all paint it with
+   * whatever style the figure is following, rather than re-deriving a picture
+   * whose ink was baked when it was made.
+   *
+   * Optional, like every other 3D-only sibling here: absent means the same as
+   * null, and a figure written by a build before this — or a flat figure, which
+   * never has one — simply has none and draws its `renderSnapshot`.
+   */
+  scene?: PaperScene | null;
   /** Display placement on the canvas. See {@link FoldedFigurePlacement}. */
   placement: FoldedFigurePlacement;
   /**
@@ -1055,13 +1149,13 @@ export interface OristudioCpFoldedFigureEntry {
    *
    * A sibling of {@link placement} rather than part of it: placement moves the
    * finished picture around the canvas and costs nothing, while changing this
-   * re-projects the figure from its render model — which a reopened `.osf`
-   * does not have. It is persisted anyway, because it says which view the stored
-   * picture was taken at.
+   * rebuilds the figure's picture from its render model — which a reopened
+   * `.osf` does not have. It is persisted anyway, because it says which view
+   * the stored picture was taken at.
    *
-   * The type lives in `cp-workspace/folded/foldedFigure3dProjection.ts`, which
-   * owns its meaning; it is restated structurally here so this module keeps no
-   * dependency on the projector.
+   * The type lives in `cp-workspace/folded/folded3dCamera.ts`, which owns its
+   * meaning; it is restated structurally here so this module keeps no
+   * dependency on the CP workspace.
    */
   camera?: {
     yaw: number;
@@ -1073,7 +1167,7 @@ export interface OristudioCpFoldedFigureEntry {
      * Optional because every figure written before the verb existed has none,
      * and "absent" means identity rather than an error. Spelled out as nine
      * slots rather than `number[]` for the same reason the rest of this record
-     * is restated here: it has to stay assignable to the projector's `Mat3`
+     * is restated here: it has to stay assignable to the simulator's `Mat3`
      * without importing it, and a bare array is not.
      */
     orient?: readonly [
@@ -1095,10 +1189,10 @@ export interface OristudioCpFoldedFigureEntry {
    *
    * Stored rather than derived because the render model it comes from is
    * deliberately not persisted, and because deriving the frame from the current
-   * projection is the bug it exists to fix: those bounds change with every
-   * orbit, so the figure's chrome resized and shifted as you turned it. Null on
-   * every flat figure, and on a 3D one written before frames existed — both fall
-   * back to the projected bounds, which is the old behaviour.
+   * picture is the bug it exists to fix: those bounds change with every orbit,
+   * so the figure's chrome resized and shifted as you turned it. Null on every
+   * flat figure, and on a 3D one written before frames existed — both fall back
+   * to the picture's own bounds, which is the old behaviour.
    */
   frameRadius?: number | null;
   /**
@@ -1146,6 +1240,14 @@ export interface OristudioCpFoldedFigureEntry {
    * re-folded (it lives on the entry, so deletion removes it for free).
    */
   contradiction?: OristudioCpFoldContradiction | null;
+  /**
+   * The paper-style fields the user pinned on this figure; everything not here
+   * follows the app's display style. Absent when nothing is pinned, and left
+   * off the file then. The kernel model's colours are a derived mirror of the
+   * effective values, not a second source — see
+   * `implementation-plans/unified-paper-style-and-export.md` §4.
+   */
+  appearance?: PaperStyleOverrides;
 }
 
 /** Mirrors the kernel's `model::SnapCandidates`. */

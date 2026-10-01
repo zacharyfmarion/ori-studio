@@ -23,6 +23,10 @@
     "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
     "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"
   },
+  "foldedFigureExport": {
+    "empty": "此折叠模型暂无可导出的内容",
+    "failed": "无法导出此折叠模型"
+  },
   "global": {
     "error": "Ori Studio 错误",
     "folding": "正在折叠…",
@@ -37,6 +41,14 @@
     "solving": "正在求解…",
     "solvingLong": "仍在求解 — 这可能需要一段时间"
   },
+  "paperExport": {
+    "saved": "已导出 {{name}}"
+  },
+  "paperPreset": {
+    "exported": "已导出 {{name}}",
+    "invalidJson": "该文件不是 JSON",
+    "notAPreset": "该文件不是纸张样式：需要名称和样式"
+  },
   "references": {
     "searching": "正在查找参考点…",
     "searchingLong": "仍在查找参考点——首次搜索需要构建一张表",
@@ -44,10 +56,12 @@
     "stopped": "搜索已取消",
     "stopping": "正在取消…"
   },
+  "referencesExport": {
+    "empty": "暂无可导出的步骤",
+    "noSteps": "暂无可导出的步骤"
+  },
   "simulatorExport": {
-    "empty": "此模拟暂无可导出的内容",
-    "failed": "无法导出此视图",
-    "saved": "已导出 {{name}}"
+    "empty": "此模拟暂无可导出的内容"
   },
   "update": {
     "available": "版本 {{version}} 可用",

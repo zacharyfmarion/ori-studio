@@ -19,6 +19,13 @@ import type { CpSegment } from '../../lib/creasePatternSegmentation';
  * is what stretches it and grows the cards (`theme.css`, `.segments-sidebar`
  * and `.sheet-grid`).
  *
+ * The cards ink each line as the References rail's cards do — main's look,
+ * solid lines in the theme's crease inks (`SheetGrid`). Aux lines always, as
+ * main's rail drew them: the paper style's switch for them is the
+ * simulation's, and does not reach a flat pattern, so with it off the view
+ * hides them and the card still shows them. Only the References rail can hide
+ * them, and only while its own view does.
+ *
  * Presentation only: the segments, which one is active, and a press reports
  * back. What a press *means* is the panel's — a selection beside the canvas
  * on a desktop, and on a phone the detail screen too.
@@ -68,7 +75,7 @@ export const SimulatorSegmentsSidebar = memo(function SimulatorSegmentsSidebar({
         <span className="panel-title">{t('panels:simulatorSegments.patterns', 'Patterns')}</span>
         <span className="segments-sidebar__count">{segments.length}</span>
       </div>
-      <SheetGrid sheets={items} selected={selected} onSelect={onSelect} />
+      <SheetGrid sheets={items} showAux selected={selected} onSelect={onSelect} />
     </aside>
   );
 });

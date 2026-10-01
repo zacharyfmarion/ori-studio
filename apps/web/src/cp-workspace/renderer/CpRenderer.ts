@@ -131,10 +131,13 @@ export interface CpRenderFrame {
   /** Crease stroke width in device pixels (constant screen size, zoom-independent). */
   strokeWidthPx: number;
   /**
-   * Width unit for the folded channel's strokes, in device pixels. Defaults to
-   * one CSS pixel, the generated folded figure's own rule; a surface that
-   * draws creases on a moving flap passes its crease width so a crease is the
-   * same weight on the flap as beside it.
+   * Width unit for the folded channel's strokes, in device pixels; a segment
+   * draws at this times its own `widthMul`. The crease-pattern canvas passes
+   * device px per pt and gives each figure's segments its edge pen's width in
+   * pt as the multiplier (`cpFoldedToScene`); a surface that draws creases on
+   * a moving flap passes its crease width with multipliers of 1, so a crease
+   * is the same weight on the flap as beside it (`ReferencesCpView`). Defaults
+   * to one CSS pixel.
    */
   foldedStrokeWidthPx?: number;
   /** SVG user unit → device px (scales circle radii with zoom). */

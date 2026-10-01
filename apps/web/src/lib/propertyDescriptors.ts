@@ -89,7 +89,16 @@ export interface PropertyOption {
   label: string;
 }
 
-export type ToggleField = FieldBase & { kind: 'toggle' } & DiscreteCommit<boolean>;
+export type ToggleField = FieldBase & {
+  kind: 'toggle';
+  /**
+   * The value the row shows once `reset` has cleared it — what it follows
+   * while nothing is pinned. A toggle offers no reset button (`FieldRow`), so
+   * while `reset` is offered, switching to this value runs `reset` rather than
+   * pinning a value that merely agrees with it.
+   */
+  inherited?: boolean;
+} & DiscreteCommit<boolean>;
 /** `value: null` is the mixed state — nothing chosen, the placeholder shown. */
 export type SelectField = FieldBase & {
   kind: 'select';
@@ -119,7 +128,17 @@ export type SliderField = FieldBase & {
   format?: (value: number) => string;
 } & ContinuousCommit<number>;
 /** `value` is `#rrggbb`. */
-export type ColorField = FieldBase & { kind: 'color' } & ContinuousCommit<string>;
+export type ColorField = FieldBase & {
+  kind: 'color';
+  /**
+   * Keep `reset` live while the row is 'unsupported'. An unsupported row's
+   * reset is disabled with it, which is right while the whole pin is inert;
+   * this is for a colour that is moot here but pinned as part of a pen whose
+   * other parts still draw — a fold pen while every fold is drawn as an edge,
+   * whose width still sets how heavy those folds are.
+   */
+  resetWhileUnsupported?: boolean;
+} & ContinuousCommit<string>;
 
 export type PropertyField =
   | ToggleField

@@ -40,9 +40,13 @@ export interface Folded3dMeshPayload {
   edgeIndices: ArrayBuffer;
   /** One assignment code per crease, `Uint8`. */
   edgeAssignments: ArrayBuffer;
+  /** Per crease, the aux-cut ends on their layer's outline, `Uint8` — `MeshTopology.auxEnds`. */
+  auxEnds: ArrayBuffer;
   /** Camera fit — the mesh is already centroid-relative, so this is the origin. */
   center: [number, number, number];
   radius: number;
+  /** The unfolded sheet's extent in the mesh's units; see `Folded3dMesh.sheet`. */
+  sheet: number;
   /**
    * The two visible surfaces of each plane, and the ranges that draw them — see
    * `Folded3dSkin`. An opaque figure draws one per plane, chosen by `up · eye`.
@@ -97,12 +101,17 @@ export class FoldedMeshSource {
       });
       core.createTexture('u_lastPosition', { width: dim, height: dim, data: null });
       core.createTexture('u_lastVelocity', { width: dim, height: dim, data: null });
-      const mesh = new MeshRenderer(core, {
-        faceIndices: new Uint32Array(payload.faceIndices),
-        edgeIndices: new Uint32Array(payload.edgeIndices),
-        edgeAssignments: new Uint8Array(payload.edgeAssignments),
-        textureDim: dim,
-      });
+      const mesh = new MeshRenderer(
+        core,
+        {
+          faceIndices: new Uint32Array(payload.faceIndices),
+          edgeIndices: new Uint32Array(payload.edgeIndices),
+          edgeAssignments: new Uint8Array(payload.edgeAssignments),
+          auxEnds: new Uint8Array(payload.auxEnds),
+          textureDim: dim,
+        },
+        { sheet: payload.sheet }
+      );
       return new FoldedMeshSource(
         core,
         mesh,
@@ -140,7 +149,6 @@ export class FoldedMeshSource {
     settings: RenderSettings,
     target: WebGLFramebuffer | null = null
   ): void {
-    const orthographic = withoutPerspective(camera);
     const passes = folded3dDrawPasses(
       {
         skins: this.skins,
@@ -153,7 +161,7 @@ export class FoldedMeshSource {
     );
     for (const pass of passes) {
       this.mesh.render(
-        orthographic,
+        camera,
         { ...settings, showEdges: pass.showEdges, faceAlpha: pass.faceAlpha },
         target,
         {
@@ -169,35 +177,6 @@ export class FoldedMeshSource {
     this.mesh.dispose();
     this.core.dispose();
   }
-}
-
-/**
- * Eye distance as a multiple of `depthRange`, far enough that the shader's
- * `camDist / (camDist − depth)` collapses to 1.
- *
- * `depthRange` is twice the model radius and the model spans ±one radius of
- * view depth, so at this distance the widest point grows by 1 part in 10,000 —
- * invisible, and orthographic for every purpose that matters.
- */
-const ORTHOGRAPHIC_EYE_DISTANCE = 5_000;
-
-/**
- * Drop the mesh renderer's one-point perspective for a folded figure.
- *
- * A simulation is a viewport, where converging parallels read as depth. A folded
- * figure is a **window** onto a model, and its window is sized from the model's
- * bounding *sphere* — which images to a circle of the same radius at every
- * orientation *only under an orthographic projection*. Under perspective a point
- * near the eye grows by up to 45%, so the model would escape its own frame at
- * some angles and the frame would have to grow, which is the resizing chrome
- * `frameRadius` exists to stop. It also keeps the 3D figure projecting the way
- * the flat figure beside it does.
- *
- * Applied here rather than in `cameraUniforms`, so the simulation path — which
- * wants the perspective — is untouched.
- */
-function withoutPerspective(camera: CameraUniforms): CameraUniforms {
-  return { ...camera, camDist: camera.depthRange * ORTHOGRAPHIC_EYE_DISTANCE };
 }
 
 /** One `MeshRenderer.render` call of a folded figure's frame. */
@@ -220,9 +199,12 @@ export interface Folded3dDrawPass {
  * rather than by transforming a point, because this is a direction: it has no
  * centre and no translation.
  *
- * A single sign for the whole plane, and that is exact rather than approximate:
- * a folded figure is drawn orthographically ({@link withoutPerspective}), so
- * every ray shares one direction.
+ * A single sign for the whole plane. Exact under an orthographic projection,
+ * where every ray shares one direction; under the mesh renderer's perspective
+ * (D7: a folded figure draws exactly as a simulation does, eye at
+ * `3.2 · radius`) a plane seen nearly edge-on can show both sides at once,
+ * and this picks the side its centre shows — the same approximation the
+ * planes' far-to-near draw order already makes.
  */
 function skinFacesEye(skin: Folded3dSkin, camera: CameraUniforms): boolean {
   const [ax, ay, az] = viewDepthAxis(camera.rotation);

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Pause, Play, RefreshCw, Rewind } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Pause, Play, RefreshCw, Rewind } from 'lucide-react';
 import {
   ViewportToolbar,
   type ViewportToolbarGroupSpec,
@@ -46,6 +46,10 @@ export interface ReferencesViewportToolbarProps {
  * either side of the cards left room for barely one card, so there the strip
  * is the cards alone and the stepping lives here, at the right-hand end where
  * a thumb is anyway.
+ *
+ * Export is one button: it opens the export dialog, where the format is chosen
+ * with the page in view. Pinned, so it never folds into the `⋯` on a narrow
+ * bar — it was a node for that reason when it held a menu of formats.
  *
  * Every press dispatches the verb's registry id through the panel's executor,
  * as the header buttons did before the bar: the chord, the context-menu row
@@ -105,6 +109,8 @@ export function ReferencesViewportToolbar({
     );
   const recompute = command('recompute');
   const recomputeChord = shortcutLabelForAction('references.recompute', shortcuts);
+  const exportStep = command('export-step');
+  const exportChord = exportStep ? shortcutLabelForAction(exportStep.shortcutId, shortcuts) : null;
   const groups: ViewportToolbarGroupSpec[] = [
     ...(play
       ? [
@@ -139,6 +145,25 @@ export function ReferencesViewportToolbar({
                 disabled: recompute.disabled,
                 pinned: true,
                 onSelect: dispatch('recompute'),
+              },
+            ],
+          },
+        ]
+      : []),
+    ...(exportStep
+      ? [
+          {
+            id: 'export',
+            items: [
+              {
+                kind: 'action' as const,
+                id: 'export-step',
+                label: exportStep.label,
+                title: exportChord ? `${exportStep.label} (${exportChord})` : exportStep.label,
+                icon: <Download size={14} />,
+                disabled: exportStep.disabled,
+                pinned: true,
+                onSelect: dispatch('export-step'),
               },
             ],
           },

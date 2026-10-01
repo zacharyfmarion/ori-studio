@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
+import type { ColorField, PropertyField, PropertySheet } from '../../lib/propertyDescriptors';
 import { PropertySheetView } from './PropertySheetView';
 
 /**
@@ -176,7 +176,7 @@ describe('PropertySheetView', () => {
     act(() => container?.querySelector<HTMLButtonElement>('[role="switch"]')?.click());
     expect(toggle).toHaveBeenCalledWith(true);
 
-    const options = [...container!.querySelectorAll<HTMLButtonElement>('.segmented__option')];
+    const options = [...container!.querySelectorAll<HTMLButtonElement>('[role="group"] button')];
     act(() => options.find((option) => option.textContent === 'Front')?.click());
     expect(segmented).not.toHaveBeenCalled();
     act(() => options.find((option) => option.textContent === 'Back')?.click());
@@ -424,5 +424,76 @@ describe('PropertySheetView', () => {
     act(() => button?.click());
     expect(reset).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith('yaw');
+  });
+
+  // A toggle's reset is the switch itself: no button beside it to move it,
+  // a note under the label while pinned, and a switch back to the inherited
+  // value clears the pin instead of pinning a value that agrees with it.
+  it('marks a pinned toggle "Overridden" and resets it when switched back to what it inherits', () => {
+    const toggle = (value: boolean, pinned: boolean) => ({
+      id: 'lighting',
+      kind: 'toggle' as const,
+      label: 'Lighting',
+      support: 'supported' as const,
+      protocol: 'discrete' as const,
+      value,
+      inherited: true,
+      commit: vi.fn(),
+      reset: pinned ? vi.fn() : undefined,
+    });
+    const switchOf = () => container?.querySelector<HTMLButtonElement>('button[role="switch"]');
+    const note = () => container?.querySelector('.control-row__note');
+
+    const following = toggle(true, false);
+    let onCommit = render(sheetOf(following));
+    expect(note()?.textContent).toBe('');
+    act(() => switchOf()?.click());
+    expect(following.commit).toHaveBeenCalledWith(false);
+    expect(onCommit).toHaveBeenCalledWith('lighting');
+
+    const pinned = toggle(false, true);
+    onCommit = render(sheetOf(pinned));
+    expect(container?.querySelector('.control-row__reset')).toBeNull();
+    expect(container?.querySelector('button[aria-label="Reset Lighting to default"]')).toBeNull();
+    expect(note()?.textContent).toBe('Overridden');
+    act(() => switchOf()?.click());
+    expect(pinned.reset).toHaveBeenCalledTimes(1);
+    expect(pinned.commit).not.toHaveBeenCalled();
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith('lighting');
+  });
+
+  it('disables an unsupported colour’s reset with it, unless its pin outlives the control', () => {
+    const colour = (id: string, extra: Partial<ColorField>): ColorField => ({
+      id,
+      kind: 'color',
+      label: id,
+      support: 'unsupported',
+      reason: 'Moot here',
+      protocol: 'continuous',
+      value: '#123456',
+      begin: vi.fn(() => true),
+      update: vi.fn(),
+      end: vi.fn(),
+      held: false,
+      reset: vi.fn(),
+      ...extra,
+    });
+    const inert = colour('inert', {});
+    const moot = colour('moot', { resetWhileUnsupported: true });
+    const onCommit = render(sheetOf(inert, moot));
+    const resetOf = (label: string) =>
+      container?.querySelector<HTMLButtonElement>(`button[aria-label="Reset ${label} to default"]`);
+    expect(input('inert').disabled).toBe(true);
+    expect(input('moot').disabled).toBe(true);
+    expect(resetOf('inert')?.disabled).toBe(true);
+    expect(resetOf('moot')?.disabled).toBe(false);
+    act(() => resetOf('moot')?.click());
+    expect(moot.reset).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith('moot');
+
+    // Another surface holding the bracket still disables it.
+    render(sheetOf(colour('moot', { resetWhileUnsupported: true, held: true })));
+    expect(resetOf('moot')?.disabled).toBe(true);
   });
 });

@@ -16,7 +16,6 @@ import {
   cpLengthenColorModeTitle,
 } from '../../i18n/enumLabels';
 import { cpPaletteStatusLabel } from '../../i18n/paletteLabels';
-import { SegmentedControl } from '../ui/SegmentedControl';
 import type {
   OristudioCpCustomLineType,
   OristudioCpLineColor,
@@ -48,6 +47,7 @@ import { cpLineAssignmentLabel, type OristudioCpSelection } from '../../lib/crea
 import { isSelectionCircleApplyOperation } from '../../cp-workspace/tools/predicates';
 import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailable';
 import { CpContextToolReset } from './CpContextToolReset';
+import { SegmentedToolOption } from '../../cp-workspace/toolOptions/SegmentedToolOption';
 import { SquareToolOptions } from '../../cp-workspace/toolOptions/SquareToolOptions';
 import { CpToolHintWindow } from '../../cp-workspace/toolHint/CpToolHintWindow';
 import { isRestingCpTool } from '../../cp-workspace/toolHint/restingTool';
@@ -1248,7 +1248,8 @@ function TextToolOption({
 /**
  * The mode switch for a tool that is one rail button over several kernel
  * operations — Extend Line's colour, Divided Line's count-vs-ratio. Which
- * operation the tool runs is a tool option like any other, so it renders as one.
+ * operation the tool runs is a tool option like any other, so it renders as one:
+ * a row of its own, named by its label rather than by a group title above it.
  */
 function ModeToolOption<T extends string>({
   title,
@@ -1267,9 +1268,9 @@ function ModeToolOption<T extends string>({
 }) {
   return (
     <div className="cp-context-panel__group">
-      <div className="cp-context-panel__group-title">{title}</div>
-      <SegmentedControl
-        aria-label={title}
+      <SegmentedToolOption
+        label={title}
+        ariaLabel={title}
         value={value}
         options={modes.map((mode) => ({ value: mode, label: label(mode), title: describe(mode) }))}
         onChange={onChange}

@@ -1,21 +1,39 @@
-import { fitExtent, viewRotationFor } from "@treemaker/origami-simulator";
+import {
+  EDGE_BOUNDARY_A,
+  EDGE_BOUNDARY_B,
+  EDGE_CODE,
+  creaseFrameScale,
+  creaseWidthsPx,
+  erodePx,
+  fitExtent,
+  shadeColor,
+  shadeFor,
+  viewRotationFor,
+} from "@treemaker/origami-simulator";
 import type {
   CreaseDash,
   FoldDocument as SimulatorFoldDocument,
+  Vec3Like,
 } from "@treemaker/origami-simulator";
+import { erodeSegment } from "../lib/paper/paperSvg";
+import {
+  createFramingFollow,
+  followFraming,
+  framingOf,
+  type FramingFollow,
+} from "./framingFollow";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
 import type { SimulatorRenderModel } from "./renderModel";
 import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
 import {
-  PAPER_LIGHT_DIRECTION,
-  renderColorToCss,
   renderColorToRgb,
+  renderColorToCss,
   type Rgb,
   type SimulatorPaint,
   type SimulatorSurfaceOptions,
 } from "./simulatorPalette";
 
-export { PAPER_LIGHT_DIRECTION, type SimulatorSurfaceOptions };
+export { type SimulatorSurfaceOptions };
 
 /**
  * The canvas-2D software rasterizer: the simulator's no-WebGL2 fallback.
@@ -73,17 +91,18 @@ export function foldNeedsTriangulation(fold: SimulatorFoldDocument): boolean {
 
 /**
  * Per-canvas cache for the things `drawFrame` needs but that do not change per
- * frame: drawing-buffer size (layout), palette (computed style), and the
- * framing radius used by the auto-fit.
+ * frame: drawing-buffer size (layout), and the camera's framing of the model.
  *
- * Invalidated by the panel on resize and on theme change. This is deliberately
- * keyed off the canvas element so it survives re-renders and dies with it.
+ * Invalidated by the panel on resize, on theme change and on a new model. This
+ * is deliberately keyed off the canvas element so it survives re-renders and
+ * dies with it.
  */
 interface SimulatorSurface {
   width: number;
   height: number;
   dpr: number;
-  framingRadius: (positions: Float32Array) => number;
+  /** The shape as it is, eased — the same follow the GPU path's camera makes. */
+  framing: FramingFollow;
 }
 
 const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
@@ -100,23 +119,22 @@ function surfaceFor(canvas: HTMLCanvasElement): SimulatorSurface {
 
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  let radius: number | null = null;
 
   const surface: SimulatorSurface = {
     width: Math.max(360, Math.floor((rect.width || 720) * dpr)),
     height: Math.max(360, Math.floor((rect.height || 720) * dpr)),
     dpr,
-    framingRadius: (positions) => {
-      // Measured from the first frame after a (re)fit and held, so the folded
-      // form shrinks on screen as it actually shrinks.
-      radius ??= boundsRadius(positions);
-      return radius;
-    },
+    framing: createFramingFollow(),
   };
   surfaceCache.set(canvas, surface);
   return surface;
 }
 
+/**
+ * Draw one frame, and say whether the camera has arrived at the shape as it is
+ * (`framingFollow`). A caller that stops drawing when the model settles has to
+ * keep drawing until it has, or the camera stops partway.
+ */
 export function drawFrame(
   canvas: HTMLCanvasElement,
   model: SimulatorRenderModel,
@@ -124,7 +142,7 @@ export function drawFrame(
   view: SimulatorView,
   paint: SimulatorPaint,
   highlights: SimulatorHighlights,
-): void {
+): boolean {
   // Canvas size is cached rather than read per frame: getBoundingClientRect
   // forces layout, and a 60fps loop was paying for a full flush per frame purely
   // to learn something that only changes on resize. Colours are no longer cached
@@ -138,9 +156,9 @@ export function drawFrame(
   }
 
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return true;
   const render = paint.render;
-  const palette = paletteFrom(paint);
+  const palette = paletteFrom(paint, width, height);
 
   // clearRect alone already leaves the frame transparent; the fill is what makes
   // it a backdrop, so a transparent surface simply skips it.
@@ -153,21 +171,26 @@ export function drawFrame(
   // Only the canvas-2D path calls this, and only with a frame that carries
   // positions (GPU-render frames are null and drawn by the worker).
   const positions = frame.positions;
-  if (!positions) return;
+  if (!positions) return true;
 
-  const projected = projectPositions(positions, view);
+  // The shape as it is, eased, as the GPU path's camera follows it.
+  const { framing, arrived } = followFraming(
+    surface.framing,
+    performance.now(),
+    () => framingOf(positions),
+    frame.converged,
+  );
+  const projected = projectPositions(positions, view, framing.center);
   // Shared with the GPU renderer so the two frame a model identically.
   const availableSize = fitExtent(width, height);
-  // Framing radius is measured once per model rather than per frame. Refitting
-  // every frame made the model visibly "breathe" as it folded -- the sheet gets
-  // smaller as it closes, so the auto-fit zoomed in to compensate -- and cost
-  // three extra full walks of the position array per draw.
-  const scale =
-    (availableSize / (2 * surface.framingRadius(positions))) * view.zoom;
+  const scale = (availableSize / (2 * framing.radius)) * view.zoom;
   const map = (point: ProjectedPoint) => ({
     x: width / 2 + point.x * scale,
     y: height / 2 - point.y * scale,
   });
+  // The erode distance in this frame's pixels — the same sum the GPU pass
+  // makes per draw, from the same sheet extent.
+  palette.erodePx = erodePx(render, model.sheet, { scale });
 
   const triangles = triangleOrder(model.indices, projected);
   const xray = render.faceAlpha < 1;
@@ -175,17 +198,6 @@ export function drawFrame(
   const surfaceEdgeAlpha = xray ? 0.5 : 0.92;
 
   if (!xray && render.showFaces) {
-    if (render.lighting) {
-      drawProjectedPaperShadow(
-        ctx,
-        triangles,
-        projected,
-        map,
-        width,
-        height,
-        dpr,
-      );
-    }
     const depthSurface = drawPaperFacesWithDepth(
       ctx,
       model,
@@ -212,26 +224,8 @@ export function drawFrame(
           highlights,
           depthSurface,
         );
-        if (paint.showHiddenLines) {
-          drawAllEdges(
-            ctx,
-            model,
-            projected,
-            map,
-            dpr,
-            0.26,
-            // Hidden lines and crease kinds must not both speak through dashes.
-            // On a folded form a dashed line conventionally means "behind a
-            // layer", so when the crease style is already dashing for
-            // mountain/valley, this pass distinguishes itself by weight and
-            // opacity alone.
-            !palette.dash,
-            palette,
-            highlights,
-          );
-        }
       }
-      return;
+      return arrived;
     }
   }
 
@@ -285,19 +279,10 @@ export function drawFrame(
     }
   }
 
-  if (render.showEdges && (!render.showFaces || paint.showHiddenLines)) {
-    drawAllEdges(
-      ctx,
-      model,
-      projected,
-      map,
-      dpr,
-      render.showFaces ? 0.34 : 0.95,
-      render.showFaces && !xray,
-      palette,
-      highlights,
-    );
+  if (render.showEdges && !render.showFaces) {
+    drawAllEdges(ctx, model, projected, map, dpr, 0.95, palette, highlights);
   }
+  return arrived;
 }
 
 export function normalizeVector(vector: { x: number; y: number; z: number }): {
@@ -317,8 +302,8 @@ export function normalizeVector(vector: { x: number; y: number; z: number }): {
 function projectPositions(
   positions: Float32Array,
   view: SimulatorView,
+  center: readonly [number, number, number],
 ): ProjectedPoint[] {
-  const center = boundsCenter(positions);
   const points: ProjectedPoint[] = [];
   // The same matrix the GPU path is handed, rather than a sixth transcription of
   // the yaw/pitch products — a machine without WebGL2 draws through here, and
@@ -326,9 +311,9 @@ function projectPositions(
   const m = viewRotationFor(view);
 
   for (let index = 0; index < positions.length; index += 3) {
-    const dx = (positions[index] ?? 0) - center.x;
-    const dy = (positions[index + 1] ?? 0) - center.y;
-    const dz = (positions[index + 2] ?? 0) - center.z;
+    const dx = (positions[index] ?? 0) - center[0];
+    const dy = (positions[index + 1] ?? 0) - center[1];
+    const dz = (positions[index + 2] ?? 0) - center[2];
     points.push({
       x: m[0] * dx + m[1] * dy + m[2] * dz,
       y: m[3] * dx + m[4] * dy + m[5] * dz,
@@ -336,45 +321,6 @@ function projectPositions(
     });
   }
   return points;
-}
-
-// Centroid (mean of vertex positions) rather than the bounding-box midpoint, so
-// the orbit pivot and framing sit on the object's visual center. For an
-// asymmetric folded shape the bbox midpoint is offset from the mass center,
-// which makes the model swing around an off-center point while orbiting.
-function boundsCenter(positions: Float32Array): {
-  x: number;
-  y: number;
-  z: number;
-} {
-  let sumX = 0;
-  let sumY = 0;
-  let sumZ = 0;
-  let count = 0;
-  for (let index = 0; index < positions.length; index += 3) {
-    sumX += positions[index] ?? 0;
-    sumY += positions[index + 1] ?? 0;
-    sumZ += positions[index + 2] ?? 0;
-    count += 1;
-  }
-  if (count === 0) return { x: 0, y: 0, z: 0 };
-  return { x: sumX / count, y: sumY / count, z: sumZ / count };
-}
-
-function boundsRadius(positions: Float32Array): number {
-  const center = boundsCenter(positions);
-  let radius = 0;
-  for (let index = 0; index < positions.length; index += 3) {
-    radius = Math.max(
-      radius,
-      Math.hypot(
-        (positions[index] ?? 0) - center.x,
-        (positions[index + 1] ?? 0) - center.y,
-        (positions[index + 2] ?? 0) - center.z,
-      ),
-    );
-  }
-  return Math.max(0.001, radius);
 }
 
 interface OrderedTriangle {
@@ -391,12 +337,24 @@ interface SimulatorPalette {
   highlight: string;
   highlightFace: string;
   highlightFaceRgb: Rgb;
-  paperFrontRgb: Rgb;
-  paperBackRgb: Rgb;
-  /** Device-pixel crease weight, so every path draws the chosen width. */
-  creaseWidthPx: number;
+  /** The two sides of the paper as 0..1 channels, the form the shade band multiplies. */
+  paperFront: Vec3Like;
+  paperBack: Vec3Like;
+  /** Where the light comes from, in view space; the same vector the GPU and SVG paths shade with. */
+  lightDir: Vec3Like;
+  /**
+   * Device-pixel width by crease kind in this frame, indexed by assignment
+   * code — the widths the shader gets, shrunk as it shrinks them, so every
+   * path draws each pen at its own width.
+   */
+  widthsPx: readonly [number, number, number, number];
   /** Dash runs by crease kind, or null for solid. Same values the shader gets. */
   dash: CreaseDash | undefined;
+  /** The auxiliary crease pen, drawn only when {@link showAux}. */
+  aux: string;
+  showAux: boolean;
+  /** How far a flagged crease end retreats, in device px; 0 draws to the ends. */
+  erodePx: number;
 }
 
 /**
@@ -409,8 +367,16 @@ interface SimulatorPalette {
  * forces this path even on a machine with WebGL2, so that was what every segment
  * and sequence-step simulation actually drew.
  */
-function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
+function paletteFrom(
+  paint: SimulatorPaint,
+  width: number,
+  height: number,
+): SimulatorPalette {
   const { render, chrome } = paint;
+  // An inline window's frame shrink, as the GPU pass applies it: every kind
+  // of line thinner alike below the window's reference edge.
+  const shrink = creaseFrameScale(render, width, height);
+  const [edge, mountain, valley, aux] = creaseWidthsPx(render);
   return {
     canvas: chrome.canvas,
     mountain: renderColorToCss(render.mountainColor),
@@ -420,11 +386,71 @@ function paletteFrom(paint: SimulatorPaint): SimulatorPalette {
     highlight: chrome.highlight,
     highlightFace: "rgb(240 198 116 / 0.3)",
     highlightFaceRgb: chrome.highlightFaceRgb,
-    paperFrontRgb: renderColorToRgb(render.frontColor),
-    paperBackRgb: renderColorToRgb(render.backColor),
-    creaseWidthPx: render.creaseWidthPx,
+    paperFront: render.frontColor,
+    paperBack: render.backColor,
+    lightDir: render.lightDir,
+    widthsPx: [edge * shrink, mountain * shrink, valley * shrink, aux * shrink],
     dash: render.creaseDash,
+    aux: renderColorToCss(render.auxColor ?? render.borderColor),
+    showAux: render.showAux ?? false,
+    // Set per frame, once the camera's scale is known.
+    erodePx: 0,
   };
+}
+
+/**
+ * The pen an edge draws with at `widthScale` of its declared width, or null
+ * for an edge this pass leaves out: a facet edge, which nothing drew, and an
+ * auxiliary crease the style hides. As the GPU edge pass reads the codes.
+ */
+function edgeInk(
+  code: number,
+  assignment: string | undefined,
+  palette: SimulatorPalette,
+  widthScale: number,
+): { color: string; width: number; dash: readonly number[] | null } | null {
+  if (code === EDGE_CODE.facet) return null;
+  if (code === EDGE_CODE.aux) {
+    if (!palette.showAux) return null;
+    return {
+      color: palette.aux,
+      width: Math.max(0.5, palette.widthsPx[EDGE_CODE.aux] * widthScale),
+      dash: palette.dash?.aux ?? null,
+    };
+  }
+  // Border, mountain or valley: each code is its own pen's width, as the GPU
+  // edge pass indexes it.
+  const widthPx = palette.widthsPx[code] ?? palette.widthsPx[EDGE_CODE.border];
+  return {
+    color: edgeColor(assignment, palette),
+    width: Math.max(0.5, widthPx * widthScale),
+    dash: edgeDash(assignment, palette),
+  };
+}
+
+/**
+ * Erode (D8) as the painter and the GPU pass apply it: the flagged ends of an
+ * edge retreat by the frame's erode distance, in device px, or the edge is
+ * dropped when the pull would reach its midpoint. Applied to the whole edge
+ * before it is cut into visible pieces — a cut end is nobody's boundary.
+ */
+function erodeEdge(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  flags: number,
+  distance: number,
+): [{ x: number; y: number }, { x: number; y: number }] | null {
+  const eroded = erodeSegment(
+    [a.x, a.y],
+    [b.x, b.y],
+    [(flags & EDGE_BOUNDARY_A) !== 0, (flags & EDGE_BOUNDARY_B) !== 0],
+    distance,
+  );
+  if (!eroded) return null;
+  return [
+    { x: eroded[0][0], y: eroded[0][1] },
+    { x: eroded[1][0], y: eroded[1][1] },
+  ];
 }
 
 function triangleOrder(
@@ -445,40 +471,6 @@ function triangleOrder(
   return triangles.sort(
     (a, b) => averageDepth(a, projected) - averageDepth(b, projected),
   );
-}
-
-function drawProjectedPaperShadow(
-  ctx: CanvasRenderingContext2D,
-  triangles: OrderedTriangle[],
-  projected: ProjectedPoint[],
-  map: (point: ProjectedPoint) => { x: number; y: number },
-  width: number,
-  height: number,
-  dpr: number,
-): void {
-  const size = Math.min(width, height);
-  const shadowOffset = Math.max(5 * dpr, size * 0.018);
-  const shadowBlur = Math.max(10 * dpr, size * 0.03);
-  ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
-  ctx.shadowBlur = shadowBlur;
-  ctx.shadowOffsetX = shadowOffset;
-  ctx.shadowOffsetY = shadowOffset * 1.15;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-  ctx.beginPath();
-
-  for (const triangle of triangles) {
-    const a = map(projected[triangle.vertices[0]] ?? { x: 0, y: 0, depth: 0 });
-    const b = map(projected[triangle.vertices[1]] ?? { x: 0, y: 0, depth: 0 });
-    const c = map(projected[triangle.vertices[2]] ?? { x: 0, y: 0, depth: 0 });
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.lineTo(c.x, c.y);
-    ctx.closePath();
-  }
-
-  ctx.fill();
-  ctx.restore();
 }
 
 function averageDepth(
@@ -600,19 +592,38 @@ function edgeFunction(
 // Flip this if the flat sheet renders white instead of colored.
 const PAPER_FRONT_WINDING: 1 | -1 = 1;
 
-function triangleFaceRgb(
+function triangleFaceColor(
   triangle: number[],
   projected: ProjectedPoint[],
   palette: SimulatorPalette,
-): [number, number, number] {
+): Vec3Like {
   const a = projected[triangle[0]];
   const b = projected[triangle[1]];
   const c = projected[triangle[2]];
-  if (!a || !b || !c) return palette.paperFrontRgb;
+  if (!a || !b || !c) return palette.paperFront;
   const winding = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
   return winding * PAPER_FRONT_WINDING >= 0
-    ? palette.paperFrontRgb
-    : palette.paperBackRgb;
+    ? palette.paperFront
+    : palette.paperBack;
+}
+
+/**
+ * A face's paper colour under the light, as 0..255 channels. The shade band is
+ * the one the GPU and SVG renderers use (`shadeFor`), applied the way the
+ * framebuffer applies it — multiplied and clamped, so a face square to the
+ * light saturates rather than washing toward white.
+ */
+function triangleShadedRgb(
+  triangle: number[],
+  projected: ProjectedPoint[],
+  palette: SimulatorPalette,
+  lighting: boolean,
+): Rgb {
+  const base = triangleFaceColor(triangle, projected, palette);
+  const shade = lighting
+    ? shadeFor(triangleNormal(triangle, projected), palette.lightDir)
+    : 1;
+  return renderColorToRgb(shadeColor(base, shade));
 }
 
 function triangleColor(
@@ -622,13 +633,9 @@ function triangleColor(
   projected?: ProjectedPoint[],
   lighting = false,
 ): string {
-  const base = projected
-    ? triangleFaceRgb(triangle, projected, palette)
-    : palette.paperFrontRgb;
-  const [r, g, b] =
-    lighting && projected
-      ? shadeRgb(base, triangleLightIntensity(triangle, projected))
-      : base;
+  const [r, g, b] = projected
+    ? triangleShadedRgb(triangle, projected, palette, lighting)
+    : renderColorToRgb(palette.paperFront);
   return alpha >= 1 ? `rgb(${r} ${g} ${b})` : `rgb(${r} ${g} ${b} / ${alpha})`;
 }
 
@@ -639,82 +646,32 @@ function triangleRasterColor(
   projected: ProjectedPoint[],
   lighting: boolean,
 ): [number, number, number, number] {
-  const base = triangleFaceRgb(triangle, projected, palette);
-  const shaded = lighting
-    ? shadeRgb(base, triangleLightIntensity(triangle, projected))
-    : base;
+  const shaded = triangleShadedRgb(triangle, projected, palette, lighting);
   const rgb = highlighted
     ? blendRgb(shaded, palette.highlightFaceRgb, 0.3)
     : shaded;
   return [rgb[0], rgb[1], rgb[2], 255];
 }
 
-function triangleLightIntensity(
+/**
+ * The view-space normal of a projected triangle, unnormalised — `shadeFor`
+ * normalises, and treats a sliver's near-zero cross product as unlit.
+ */
+function triangleNormal(
   triangle: number[],
   projected: ProjectedPoint[],
-): number {
+): Vec3Like {
   const a = projected[triangle[0]];
   const b = projected[triangle[1]];
   const c = projected[triangle[2]];
-  if (!a || !b || !c) return 1;
-  const normal = triangleNormal(a, b, c);
-  if (!normal) return 1;
-  const oriented =
-    normal.z < 0 ? { x: -normal.x, y: -normal.y, z: -normal.z } : normal;
-  const [lx, ly, lz] = PAPER_LIGHT_DIRECTION;
-  const diffuse = Math.max(0, dotVector(oriented, { x: lx, y: ly, z: lz }));
-  return clamp(0.74 + diffuse * 0.3 + oriented.z * 0.04, 0.68, 1.08);
-}
-
-function triangleNormal(
-  a: ProjectedPoint,
-  b: ProjectedPoint,
-  c: ProjectedPoint,
-): { x: number; y: number; z: number } | null {
+  if (!a || !b || !c) return [0, 0, 0];
   const ux = b.x - a.x;
   const uy = b.y - a.y;
   const uz = b.depth - a.depth;
   const vx = c.x - a.x;
   const vy = c.y - a.y;
   const vz = c.depth - a.depth;
-  const normal = {
-    x: uy * vz - uz * vy,
-    y: uz * vx - ux * vz,
-    z: ux * vy - uy * vx,
-  };
-  const length = Math.hypot(normal.x, normal.y, normal.z);
-  if (length < 0.0001) return null;
-  return {
-    x: normal.x / length,
-    y: normal.y / length,
-    z: normal.z / length,
-  };
-}
-
-function dotVector(
-  a: { x: number; y: number; z: number },
-  b: { x: number; y: number; z: number },
-): number {
-  return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-function shadeRgb(
-  color: [number, number, number],
-  intensity: number,
-): [number, number, number] {
-  if (intensity <= 1) {
-    return [
-      Math.round(color[0] * intensity),
-      Math.round(color[1] * intensity),
-      Math.round(color[2] * intensity),
-    ];
-  }
-  const lift = Math.min(0.16, intensity - 1);
-  return [
-    Math.round(color[0] + (255 - color[0]) * lift),
-    Math.round(color[1] + (255 - color[1]) * lift),
-    Math.round(color[2] + (255 - color[2]) * lift),
-  ];
+  return [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
 }
 
 function blendRgb(
@@ -747,7 +704,6 @@ function drawTriangleEdges(
     [triangle.vertices[2], triangle.vertices[0]],
   ];
   ctx.setLineDash([]);
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx * 0.85);
   pairs.forEach(([from, to], side) => {
     drawEdgeSegment(
       ctx,
@@ -761,10 +717,12 @@ function drawTriangleEdges(
       palette,
       highlights,
       dpr,
+      0.85,
     );
   });
 }
 
+/** Every edge, front and back alike: the wireframe drawn when faces are off. */
 function drawAllEdges(
   ctx: CanvasRenderingContext2D,
   model: SimulatorRenderModel,
@@ -772,16 +730,13 @@ function drawAllEdges(
   map: (point: ProjectedPoint) => { x: number; y: number },
   dpr: number,
   alpha: number,
-  dashed: boolean,
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
 ): void {
-  ctx.setLineDash(dashed ? [Math.max(3, dpr * 3), Math.max(3, dpr * 3)] : []);
-  // With dash unavailable as a signal (the crease style is already using it),
-  // weight carries the distinction instead: a hidden line is thinner than the
-  // visible pass as well as fainter. `drawEdgeSegment` then applies each crease
-  // kind's own pattern per edge, which is only ever set in this branch.
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx * (dashed ? 1 : 0.7));
+  ctx.setLineDash([]);
+  // Thinner than the visible-edge pass over faces, which keeps a wireframe of
+  // every layer from reading as one solid mass. `drawEdgeSegment` applies each
+  // crease kind's own pen and dash pattern per edge.
   model.edgesVertices.forEach((edge, index) => {
     drawEdgeSegment(
       ctx,
@@ -795,6 +750,7 @@ function drawAllEdges(
       palette,
       highlights,
       dpr,
+      0.7,
     );
   });
   ctx.setLineDash([]);
@@ -812,7 +768,6 @@ function drawVisibleEdges(
   depthSurface: DepthSurface,
 ): void {
   ctx.setLineDash([]);
-  ctx.lineWidth = Math.max(0.5, palette.creaseWidthPx);
   model.edgesVertices.forEach((edge, index) => {
     drawVisibleEdgeSegment(
       ctx,
@@ -843,19 +798,27 @@ function drawEdgeSegment(
   palette: SimulatorPalette,
   highlights: SimulatorHighlights,
   dpr: number,
+  widthScale: number,
 ): void {
-  const a = map(projected[from] ?? { x: 0, y: 0, depth: 0 });
-  const b = map(projected[to] ?? { x: 0, y: 0, depth: 0 });
   const assignment = model.edgesAssignment[edgeIndex];
+  const ink = edgeInk(model.edgeCodes[edgeIndex] ?? EDGE_CODE.border, assignment, palette, widthScale);
+  if (!ink) return;
+  const ends = erodeEdge(
+    map(projected[from] ?? { x: 0, y: 0, depth: 0 }),
+    map(projected[to] ?? { x: 0, y: 0, depth: 0 }),
+    model.edgeBoundary[edgeIndex] ?? 0,
+    palette.erodePx,
+  );
+  if (!ends) return;
+  const [a, b] = ends;
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
-  if (!highlighted) applyEdgeDash(ctx, assignment, palette);
+  ctx.lineWidth = ink.width;
+  if (!highlighted) applyEdgeDash(ctx, ink.dash);
   ctx.beginPath();
   ctx.moveTo(a.x, a.y);
   ctx.lineTo(b.x, b.y);
-  ctx.strokeStyle = highlighted
-    ? palette.highlight
-    : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted ? palette.highlight : ink.color;
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
   ctx.stroke();
@@ -877,21 +840,38 @@ function drawVisibleEdgeSegment(
   dpr: number,
   depthSurface: DepthSurface,
 ): void {
+  const assignment = model.edgesAssignment[edgeIndex];
+  const ink = edgeInk(model.edgeCodes[edgeIndex] ?? EDGE_CODE.border, assignment, palette, 1);
+  if (!ink) return;
   const fromProjected = projected[from] ?? { x: 0, y: 0, depth: 0 };
   const toProjected = projected[to] ?? { x: 0, y: 0, depth: 0 };
-  const a = map(fromProjected);
-  const b = map(toProjected);
-  const assignment = model.edgesAssignment[edgeIndex];
+  // The whole edge retreats first; the pieces are then cut from what is left,
+  // so a cut end never erodes and the erosion is the painter's.
+  const ends = erodeEdge(
+    map(fromProjected),
+    map(toProjected),
+    model.edgeBoundary[edgeIndex] ?? 0,
+    palette.erodePx,
+  );
+  if (!ends) return;
+  const [a, b] = ends;
+  const fullA = map(fromProjected);
+  const fullB = map(toProjected);
+  const fullLength = Math.hypot(fullB.x - fullA.x, fullB.y - fullA.y);
+  // Where each eroded end sits along the uneroded edge, for its depth.
+  const along = (point: { x: number; y: number }) =>
+    fullLength > 0 ? Math.hypot(point.x - fullA.x, point.y - fullA.y) / fullLength : 0;
+  const depthA = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(a);
+  const depthB = fromProjected.depth + (toProjected.depth - fromProjected.depth) * along(b);
   const highlighted = highlights.creases.has(edgeIndex);
   const previousLineWidth = ctx.lineWidth;
-  if (!highlighted) applyEdgeDash(ctx, assignment, palette);
+  ctx.lineWidth = ink.width;
+  if (!highlighted) applyEdgeDash(ctx, ink.dash);
   const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y)));
   let segmentStart: { x: number; y: number } | null = null;
   let previousVisible: { x: number; y: number } | null = null;
 
-  ctx.strokeStyle = highlighted
-    ? palette.highlight
-    : edgeColor(assignment, palette);
+  ctx.strokeStyle = highlighted ? palette.highlight : ink.color;
   ctx.globalAlpha = highlighted ? 1 : edgeAlpha(assignment, alpha);
   if (highlighted) ctx.lineWidth = Math.max(ctx.lineWidth, dpr * 3);
 
@@ -908,8 +888,7 @@ function drawVisibleEdgeSegment(
     const point = {
       x: a.x + (b.x - a.x) * t,
       y: a.y + (b.y - a.y) * t,
-      depth:
-        fromProjected.depth + (toProjected.depth - fromProjected.depth) * t,
+      depth: depthA + (depthB - depthA) * t,
     };
     if (edgePointIsVisible(point, depthSurface)) {
       segmentStart ??= point;
@@ -947,21 +926,26 @@ function findEdge(edges: [number, number][], from: number, to: number): number {
   );
 }
 
+/** The crease kind's dash pattern, or null for solid. */
+function edgeDash(
+  assignment: string | undefined,
+  palette: SimulatorPalette,
+): readonly number[] | null {
+  const dash = palette.dash;
+  if (!dash) return null;
+  return assignment === "M" ? dash.mountain : assignment === "V" ? dash.valley : dash.border;
+}
+
 /**
- * Apply the crease kind's dash pattern.
+ * Apply an edge's dash pattern.
  *
  * A highlighted crease stays solid: the sequence highlight is a different
  * signal, and dashing it would make it read as a hidden line instead.
  */
 function applyEdgeDash(
   ctx: CanvasRenderingContext2D,
-  assignment: string | undefined,
-  palette: SimulatorPalette,
+  pattern: readonly number[] | null,
 ): void {
-  const dash = palette.dash;
-  if (!dash) return;
-  const pattern =
-    assignment === "M" ? dash.mountain : assignment === "V" ? dash.valley : dash.border;
   ctx.setLineDash(pattern ? [...pattern] : []);
 }
 
@@ -976,7 +960,8 @@ function edgeColor(
 }
 
 function edgeAlpha(assignment: string | undefined, alpha: number): number {
-  if (assignment === "F") return alpha * 0.55;
+  // An auxiliary crease used to be dimmed here; it draws in its own pen now,
+  // at the pass's alpha, as the GPU pass draws it.
   if (!assignment) return alpha * 0.32;
   return alpha;
 }

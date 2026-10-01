@@ -126,9 +126,14 @@ export function diagramMarks(
   return marks;
 }
 
+/** A ring's stroke, in the projector's units: three quarters of the arrow's pen (`DIAGRAM_MARK_INK`). */
+export function markRingWidth(project: DiagramProjector): number {
+  return DIAGRAM_MARK_INK.ofArrow * project.pens.arrow.width * project.ink;
+}
+
 /** A ring's outer edge: its radius plus half its stroke, in the projector's units. */
 export function markOuterRadius(project: DiagramProjector): number {
-  return (DIAGRAM_MARK_INK.radius + DIAGRAM_MARK_INK.width / 2) * project.ink;
+  return project.marks.ringRadius * project.ink + markRingWidth(project) / 2;
 }
 
 /**
@@ -278,7 +283,7 @@ export function placeLabels(
   options: LabelLayoutOptions = {}
 ): Map<number, LabelPlacement> {
   const placed = new Map<number, LabelPlacement>();
-  const size = DIAGRAM_LABEL_INK.size * project.ink;
+  const size = project.marks.labelSize * project.ink;
   const height = DIAGRAM_LABEL_INK.glyph.height * size;
   const ringRadius = markOuterRadius(project);
   const reach = ringRadius + DIAGRAM_LABEL_INK.standoff * project.ink;

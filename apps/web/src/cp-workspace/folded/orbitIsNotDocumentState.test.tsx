@@ -11,8 +11,8 @@ import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureModel,
 } from '../../engine/oristudioCpTypes';
-import { defaultFolded3dCamera, folded3dFrameRadius } from './foldedFigure3dProjection';
-import { project3dRenderSnapshot } from './folded3dReproject';
+import { defaultFolded3dCamera, folded3dFrameRadius } from './folded3dCamera';
+import { project3dScene } from './folded3dReproject';
 import { setFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
 import {
   clearAllFolded3dOrbits,
@@ -78,7 +78,8 @@ function figure(): OristudioCpFoldedFigureEntry {
     status: 'ready',
     snapshot: null,
     folded3d: FOLDED_3D,
-    renderSnapshot: project3dRenderSnapshot(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
+    renderSnapshot: null,
+    scene: project3dScene(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
     placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
     camera: CAMERA,
     frameRadius: folded3dFrameRadius(RENDER_MODEL),
@@ -181,7 +182,7 @@ describe('an orbit frame is not a document edit', () => {
     const { renders } = mountFolded();
     const api = renders.at(-1);
     if (!api) throw new Error('expected a render');
-    const storedSnapshot = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.renderSnapshot;
+    const storedScene = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.scene;
 
     act(() => {
       api.orbit.begin({ x: 100, y: 100 });
@@ -191,13 +192,13 @@ describe('an orbit frame is not a document edit', () => {
     const first = getFolded3dOrbit(FIGURE_ID);
     expect(first?.camera.yaw).toBeCloseTo(CAMERA.yaw - 30 * 0.01, 12);
     expect(first?.camera.pitch).toBeCloseTo(CAMERA.pitch + 20 * 0.01, 12);
-    expect(first?.snapshot).not.toBeNull();
-    expect(first?.snapshot).not.toEqual(storedSnapshot);
+    expect(first?.scene).not.toBeNull();
+    expect(first?.scene).not.toEqual(storedScene);
 
     act(() => api.orbit.advance({ x: 160, y: 140 }));
     const second = getFolded3dOrbit(FIGURE_ID);
     expect(second?.camera.yaw).not.toBe(first?.camera.yaw);
-    expect(second?.snapshot).not.toEqual(first?.snapshot);
+    expect(second?.scene).not.toEqual(first?.scene);
   });
 
   it('writes the store once, on release, and drops the live frame', () => {
@@ -218,7 +219,7 @@ describe('an orbit frame is not a document edit', () => {
     const figuresAfter = useWorkspaceStore.getState().oristudioCpFoldedFigures;
     expect(figuresAfter).not.toBe(figuresBefore);
     expect(figuresAfter[0]?.camera).toEqual(live?.camera);
-    expect(figuresAfter[0]?.renderSnapshot).toEqual(live?.snapshot);
+    expect(figuresAfter[0]?.scene).toEqual(live?.scene);
     expect(folded3dOrbitCount()).toBe(0);
   });
 
@@ -281,7 +282,7 @@ describe('the drawing path sees the live frame', () => {
     const latest = drawn.at(-1);
     expect(latest).not.toBe(figures);
     expect(latest?.[0]?.camera).toEqual(getFolded3dOrbit(FIGURE_ID)?.camera);
-    expect(latest?.[0]?.renderSnapshot).toBe(getFolded3dOrbit(FIGURE_ID)?.snapshot);
+    expect(latest?.[0]?.scene).toBe(getFolded3dOrbit(FIGURE_ID)?.scene);
     // The figure nobody is turning is passed through by identity.
     expect(latest?.[1]).toBe(other);
   });
@@ -303,7 +304,7 @@ describe('the drawing path sees the live frame', () => {
       for (let step = 1; step <= 10; step += 1) {
         publishFolded3dOrbit(FIGURE_ID, {
           camera: { ...CAMERA, yaw: CAMERA.yaw + step * 0.01 },
-          snapshot: null,
+          scene: null,
         });
       }
     });
@@ -313,7 +314,7 @@ describe('the drawing path sees the live frame', () => {
 
     // Non-vacuous: one frame that *does* carry a picture goes through.
     act(() => {
-      publishFolded3dOrbit(FIGURE_ID, { camera: CAMERA, snapshot: figure().renderSnapshot });
+      publishFolded3dOrbit(FIGURE_ID, { camera: CAMERA, scene: figure().scene ?? null });
     });
     expect(drawn.length).toBeGreaterThan(renders);
     expect(drawn.at(-1)).not.toBe(figures);

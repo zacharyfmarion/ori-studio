@@ -11,7 +11,8 @@
  *
  * A folded model's layers are **exactly coplanar**. A depth buffer cannot order
  * them — same z, so they z-fight — which is why ORIPA keeps an overlap matrix
- * and why the CPU projector beside this file resolves order with a BSP.
+ * and why the vector path beside this file (`folded3dScene.ts`, through the
+ * simulator's BSP) resolves order with a tree instead.
  *
  * The obvious escape is to displace each layer by a hair and let the z-buffer
  * reproduce an order we already know. That was tried and it does not work, for a
@@ -25,8 +26,7 @@
  * scheme collapses anyway, because the displacement projects to no depth
  * separation at all.
  *
- * So the order is used the way the projector uses it: to decide **what to
- * draw**, not to nudge where. A plane's visible surface is the top face of each
+ * So the order is used to decide **what to draw**, not to nudge where. A plane's visible surface is the top face of each
  * of its cells; the opposite side's is the bottom face of each. Those two
  * {@link Folded3dSkin}s are built once, and the eye picks one per plane. Inside
  * a skin there is one face per cell and cells are area-disjoint, so nothing
@@ -55,38 +55,63 @@
  * bounds is the one you can see.
  *
  * Which ring segments are a layer's paper edges, rather than arrangement cuts it
- * runs across, is `buildFolded3dInk` in `folded3dModelReader.ts` — shared with
- * the CPU projector, because the window and the export disagreeing about which
- * creases exist is the failure this whole change is repairing.
+ * runs across, is `buildFolded3dInk` in `folded3dModelReader.ts` — the one
+ * reader, because the window and the export disagreeing about which creases
+ * exist is the failure this whole change is repairing.
+ *
+ * # The document's aux lines ride the same layers
+ *
+ * An aux line of the crease pattern is on the paper and folded by nothing, so
+ * it is not in the render model: the kernel carries the document's current
+ * ones onto the faces separately (`folded_figure_3d_aux_lines`), and they are
+ * cut to the `(cell, slot)`s that show their face (`folded3dAuxPieces.ts`).
+ * Each cut is a crease of that slot, coded {@link EDGE_CODE.aux} like a
+ * zero-degree crease, on two vertices of the slot's own after its ring — so
+ * the edge pass draws it in the aux pen, hides it with the style's aux switch,
+ * a skin shows it exactly when its layer is the one you can see, and the
+ * vector scene, which finds a crease's layer by its vertices, finds this one's.
+ * Vertices of its own share nothing with the ring, though, so the erode rule
+ * cannot see where a cut meets its layer's outline: the mesh states it
+ * (`topology.auxEnds`) — an end on a ring segment this layer inks as paper
+ * edge or fold is on the outline, as a crease's end is where such an edge
+ * meets it.
  *
  * # Winding, which is easy to invert and was not guessed
  *
  * `MeshRenderer`'s view transform has determinant **−1** (yaw about Y, then a
  * y/z swap — `camera.ts`'s `toViewSpace`), so `sign(screen winding) =
  * −sign(n · eyeDir)`: a triangle whose right-hand normal points *toward* the eye
- * is drawn with `u_backColor`. The CPU projector calls that same face
- * **front** (`viewNormal[2] >= 0 ? style.front : style.back`). So to make the
- * GPU agree with the flat/3D figure the user already has, every triangle is
- * wound CCW about **`−paperFrontNormal`**.
+ * is drawn with `u_backColor`. The paper's own front normal calls that same face
+ * **front** (`viewNormal[2] >= 0`). So to make the GPU agree with the flat/3D
+ * figure the user already has, every triangle is wound CCW about
+ * **`−paperFrontNormal`**.
  *
- * Note this puts a 3D folded figure's two tones *opposite* an inline
- * simulation's on the same physical surface: the simulator lifts FOLD faces with
- * `[x, 0, y]`, another determinant −1 map, so its right-hand normals end up on
- * the paper's FOLD-front. Parity with the folded figure beside it is the
- * non-negotiable, so the folded figure's convention wins and the disagreement is
- * recorded here rather than discovered later.
+ * An inline simulation of the same FOLD agrees: it cancels the same reflection
+ * with its 2D lift `[x, y] → [x, 0, −y]` (`normalizePoint` in
+ * `packages/origami-simulator/src/geometry.ts`; PR #325 negated the y), so the
+ * two surfaces paint one physical side one colour. Change either cancellation
+ * and check the other — they are only correct together.
  */
 
 import earcut from 'earcut';
-import { textureSizeFor, type MeshTopology, type Vec3 } from '@treemaker/origami-simulator';
+import {
+  EDGE_BOUNDARY_A,
+  EDGE_BOUNDARY_B,
+  EDGE_CODE,
+  textureSizeFor,
+  type MeshTopology,
+  type Vec3,
+} from '@treemaker/origami-simulator';
 import {
   FOLDED_3D_CELL_ATTR_STRIDE,
   FOLDED_3D_CELL_UNDETERMINED,
   FOLDED_3D_EDGE_ATTR_STRIDE,
   FOLDED_3D_EDGE_CREASE,
   FOLDED_3D_FACE_ATTR_STRIDE,
+  type OristudioCpFolded3dAuxLines,
   type OristudioCpFolded3dRenderModel,
 } from '../../engine/oristudioCpTypes';
+import { folded3dAuxSlots } from './folded3dAuxPieces';
 import {
   buildFolded3dInk,
   cellRing,
@@ -103,13 +128,23 @@ import {
  * A memory bound, not a texture one: `textureSizeFor(1_048_576)` is 1024, well
  * inside any `MAX_TEXTURE_SIZE`, while dim 4096 would make the position array
  * alone 268 MB. 1M vertices is roughly 50× the largest admitted corpus model, so
- * this is expected never to fire — the same shape of guard, and the same
- * justification, as the projector's `BSP_ITEM_BUDGET`.
+ * this is expected never to fire: it degrades a model nobody can draw into a
+ * refusal rather than a hung tab.
  */
 export const FOLDED_3D_MESH_VERTEX_BUDGET = 1_048_576;
 
 /** Triangles smaller than this fraction of `radius²` are dropped. */
 const MIN_TRIANGLE_AREA_RELATIVE = 1e-12;
+
+/**
+ * The doubled-area floor a triangle of a model of this `radius` must clear, in
+ * the units {@link signedArea2} reports: a plane's own `(u, v)`, which is
+ * orthonormal, so model length². The mesh is the only builder now, so this is
+ * the one floor the exported drawing and the window both drop dust at.
+ */
+export function folded3dMinTriangleArea2(radius: number): number {
+  return MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
+}
 
 /**
  * One emitted (cell, stack slot) pair.
@@ -144,7 +179,8 @@ export interface Folded3dMeshSlots {
   /**
    * The vertex half of the same record: slot `i` owns vertices
    * `[vertexStart[i], vertexStart[i + 1])` of {@link Folded3dMesh.positions},
-   * one per point of its cell's ring, in ring order. Also `count + 1` long.
+   * one per point of its cell's ring, in ring order, then two per aux cut the
+   * slot shows. Also `count + 1` long.
    *
    * A slot keeps its own copy of the ring even though every slot of a cell now
    * sits at the same place: it is what lets one layer be addressed on its own,
@@ -163,11 +199,12 @@ export interface Folded3dMeshSlots {
  * model rather than about the camera: built once, selected at draw time by a
  * single bit, `up · eye`.
  *
- * That selection is *exact* rather than approximate because a folded figure is
- * drawn orthographically (`withoutPerspective`, `foldedMeshSource.ts`). Every
- * ray shares one direction, so `up · eye` has one sign across the whole plane;
- * under perspective a near eye could see both sides of one sheet and the bit
- * would have to be per pixel.
+ * That selection is exact under an orthographic projection, where every ray
+ * shares one direction and `up · eye` has one sign across the whole plane. The
+ * window draws with the mesh renderer's perspective since D7 (eye at
+ * `3.2 · radius`, `foldedMeshSource.ts`), under which a plane seen nearly
+ * edge-on can show both sides at once; the bit is then the side the plane's
+ * centre shows, the same approximation as the planes' far-to-near draw order.
  *
  * Within a skin there is one face per cell and cells are area-disjoint, so
  * **nothing here is coplanar with anything else here**. That is the property the
@@ -249,7 +286,7 @@ export interface Folded3dMesh {
    *
    * Tight rather than the texture's RGBA layout because this exact array is what
    * `projectVertices` takes (the shader's maintained CPU mirror, and so what the
-   * tests below check against) and what `renderMeshToSvg` takes (the vector
+   * tests below check against) and what `meshToPaperScene` takes (the vector
    * export path). {@link packFolded3dPositionTexture} produces the texture form
    * from it.
    *
@@ -269,6 +306,12 @@ export interface Folded3dMesh {
    * now that nothing perturbs the geometry.
    */
   radius: number;
+  /**
+   * The unfolded sheet's extent in the mesh's units — the kernel's `span`, the
+   * longer side of the unfolded bounding box. What the style's erode is a
+   * fraction of, for the window's edge pass and the vector scene alike.
+   */
+  sheet: number;
   /** Deepest `cell_stack` in this model. Reported, not used for placement. */
   maxStackDepth: number;
   slots: Folded3dMeshSlots;
@@ -304,6 +347,20 @@ export interface Folded3dMesh {
    * looking at.
    */
   fallbackEdgeCount: number;
+  /**
+   * Per crease of `topology.edgeIndices`, the condition a hinge is drawn
+   * under: `partnerPlane` is the plane on the far side of the bend, or `-1`
+   * for a crease drawn whenever its layer is, and `requiredSide` the side of
+   * that plane that must be facing the eye — `0` for a hinge buried on both
+   * of its partner's sides, which no camera admits.
+   *
+   * What `folded3dDrawPasses` decides per skin from {@link Folded3dSkin.hingeGroups},
+   * stated per crease: the translucent run carries every layer's creases
+   * unconditioned, and a consumer drawing a buried layer from it (the vector
+   * export, which keeps buried paper) has to apply the same rule to that
+   * layer's hinges or draw a bend the window hides.
+   */
+  hinges: { partnerPlane: Int32Array; requiredSide: Int8Array };
 }
 
 /**
@@ -311,8 +368,8 @@ export interface Folded3dMesh {
  *
  * A result rather than a throw, for the same reason a 3D fold refusal is: a
  * figure that cannot be meshed must still draw, and the caller already has the
- * path for that — the stored `renderSnapshot`, which is what a figure that has
- * not been rehydrated shows anyway.
+ * path for that — the stored `PaperScene`, which is what a figure that has not
+ * been rehydrated shows anyway.
  */
 export type Folded3dMeshResult =
   | { kind: 'mesh'; mesh: Folded3dMesh }
@@ -320,16 +377,16 @@ export type Folded3dMeshResult =
 
 /**
  * Kernel world axes to the renderer's, so the mesh shader's hard-coded
- * yaw-about-Y means what the projector's `yaw` means: the paper's normal becomes
- * the renderer's vertical.
+ * yaw-about-Y means what a {@link FoldedFigureCamera}'s `yaw` means: the
+ * paper's normal becomes the renderer's vertical.
  *
  * `(x, z, −y)` and not `(x, z, y)` — the second is a *reflection*, which draws a
  * mirrored figure with front and back swapped and looks entirely plausible. This
- * one is a proper rotation, so it leaves every winding alone. Identical to the
- * projector's `toSimBasis`, deliberately: the two paths must place the same
- * model at the same camera in the same place.
+ * one is a proper rotation, so it leaves every winding alone. `folded3dCamera`'s
+ * `folded3dEyeDirection` carries an eye back through the same map, which is what
+ * keeps "which side of this plane is the viewer on" one answer.
  */
-function toSimBasis(p: Vec3): Vec3 {
+export function toSimBasis(p: Vec3): Vec3 {
   return [p[0], p[2], -p[1]];
 }
 
@@ -339,20 +396,21 @@ function toSimBasis(p: Vec3): Vec3 {
  * The sign convention is the kernel's own, not one invented here: its FOLD
  * exporter reads a negative fold angle as Mountain, matching the FOLD spec.
  *
- * A zero-degree crease maps to 0 (border) rather than to the exporter's Flat,
- * because code 3 is *skipped* by `buildEdgeQuads` while the CPU projector draws
- * those edges today — mapping them to F would silently delete linework. Nothing
- * here ever emits 3.
+ * A zero-degree crease is the exporter's Flat — an auxiliary crease lying in
+ * its face, {@link EDGE_CODE.aux} — which the edge pass draws in the aux pen
+ * when the style shows aux creases and leaves out otherwise, as the simulator
+ * treats a source `F` edge. It used to map to 0 (border) while the edge pass
+ * skipped code 3, which drew every aux crease as a paper edge.
  */
 export function folded3dEdgeAssignment(kind: number, foldDegrees: number): number {
-  if (kind !== FOLDED_3D_EDGE_CREASE) return 0;
-  if (foldDegrees < 0) return 1;
-  if (foldDegrees > 0) return 2;
-  return 0;
+  if (kind !== FOLDED_3D_EDGE_CREASE) return EDGE_CODE.border;
+  if (foldDegrees < 0) return EDGE_CODE.mountain;
+  if (foldDegrees > 0) return EDGE_CODE.valley;
+  return EDGE_CODE.aux;
 }
 
 /** Signed area of a triangle in a plane's `(u, v)`, doubled. */
-function signedArea2(
+export function signedArea2(
   ax: number,
   ay: number,
   bx: number,
@@ -415,18 +473,38 @@ interface SlotCrease {
    * stack, and skipped by every skin.
    */
   buried: boolean;
+  /**
+   * The plane on the far side of the bend for any hinge, buried or not, or
+   * `-1` for a crease that is not one — what {@link Folded3dMesh.hinges}
+   * reports. `partnerPlane` above is `-1` for a hinge exposed on both sides,
+   * which the skins draw unconditionally.
+   */
+  hingePlane: number;
+  /**
+   * {@link EDGE_BOUNDARY_A} / {@link EDGE_BOUNDARY_B} for the ends of an aux
+   * cut that lie on its layer's outline; `0` for a ring crease, whose ends
+   * the erode rule reads off the vertices it shares.
+   */
+  auxEnds: number;
 }
 
-export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMeshResult {
+export function folded3dMesh(
+  model: OristudioCpFolded3dRenderModel,
+  /** The document's aux lines on this figure, as the kernel carried them; none when absent. */
+  aux?: OristudioCpFolded3dAuxLines | null
+): Folded3dMeshResult {
   const centre = toSimBasis(modelCentroid(model));
   const radius = modelRadius(model);
 
-  const { vertexCount, slotVertexCount, maxStackDepth } = folded3dMeshExtent(model);
+  const extent = folded3dMeshExtent(model);
+  const { slotVertexCount, maxStackDepth } = extent;
+  const auxSlots = folded3dAuxSlots(model, aux);
+  const vertexCount = extent.vertexCount + auxSlots.count * 2;
   if (vertexCount > FOLDED_3D_MESH_VERTEX_BUDGET) {
     return { kind: 'too-large', vertexCount, limit: FOLDED_3D_MESH_VERTEX_BUDGET };
   }
 
-  const minArea2 = MIN_TRIANGLE_AREA_RELATIVE * Math.max(radius * radius, Number.MIN_VALUE);
+  const minArea2 = folded3dMinTriangleArea2(radius);
   const ink = buildFolded3dInk(model);
   const assignmentOf = new Uint8Array(model.edge_count);
   for (let edge = 0; edge < model.edge_count; edge += 1) {
@@ -436,7 +514,9 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     );
   }
 
-  const positions = new Float32Array((slotVertexCount + ink.orphanEdges.length * 2) * 3);
+  const positions = new Float32Array(
+    (slotVertexCount + ink.orphanEdges.length * 2 + auxSlots.count * 2) * 3
+  );
   let vertex = 0;
 
   // --- every layer, once, as geometry -------------------------------------
@@ -546,16 +626,52 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         // A hinge exposed on both of its partner's sides is unconditional — the
         // partner cell has one layer, so nothing over there can bury the bend.
         const conditional = hinge != null && hinge.exposedOnPlus !== hinge.exposedOnMinus;
+        const buried = hinge != null && !hinge.exposedOnPlus && !hinge.exposedOnMinus;
         creases.push({
           a: first + segment,
           b: first + ((segment + 1) % ring.length),
           assignment: assignmentOf[edge] ?? 0,
           partnerPlane: conditional ? hinge.partnerPlane : -1,
           requiredSide: conditional ? (hinge.exposedOnPlus ? 1 : -1) : 0,
-          buried: hinge != null && !hinge.exposedOnPlus && !hinge.exposedOnMinus,
+          buried,
+          hingePlane: conditional || buried ? hinge.partnerPlane : -1,
+          auxEnds: 0,
         });
       }
 
+      // An aux cut's end is on this layer's outline where it lies on a ring
+      // segment the layer inks as a paper edge or a fold — not an arrangement
+      // cut it runs on across, nor a zero-degree crease inside the layer.
+      const onOutline = (segments: readonly number[]): boolean =>
+        segments.some((segment) => {
+          const edge = ink.edgeAt(cell, slot, segment);
+          return edge >= 0 && (assignmentOf[edge] ?? EDGE_CODE.aux) <= EDGE_CODE.valley;
+        });
+
+      // The document's aux lines this layer shows, each on two vertices of
+      // the slot's own past its ring: unconditional, never a hinge.
+      for (const cut of auxSlots.bySlot.get(cell)?.get(slot) ?? []) {
+        const start = vertex;
+        for (const point of cut.ends) {
+          const sim = toSimBasis(point);
+          positions[vertex * 3] = sim[0] - centre[0];
+          positions[vertex * 3 + 1] = sim[1] - centre[1];
+          positions[vertex * 3 + 2] = sim[2] - centre[2];
+          vertex += 1;
+        }
+        creases.push({
+          a: start,
+          b: start + 1,
+          assignment: EDGE_CODE.aux,
+          partnerPlane: -1,
+          requiredSide: 0,
+          buried: false,
+          hingePlane: -1,
+          auxEnds:
+            (onOutline(cut.onRing[0]) ? EDGE_BOUNDARY_A : 0) |
+            (onOutline(cut.onRing[1]) ? EDGE_BOUNDARY_B : 0),
+        });
+      }
       slotsOfCell[cell]!.push(slotCell.length);
       slotCell.push(cell);
       slotFace.push(face);
@@ -571,7 +687,18 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const faceIndices: number[] = [];
   const edgeIndices: number[] = [];
   const edgeAssignments: number[] = [];
+  const auxEnds: number[] = [];
+  const hingePartner: number[] = [];
+  const hingeSide: number[] = [];
   const slotIndexStart: number[] = new Array<number>(slotCell.length).fill(0);
+
+  const appendCrease = (crease: SlotCrease): void => {
+    edgeIndices.push(crease.a, crease.b);
+    edgeAssignments.push(crease.assignment);
+    auxEnds.push(crease.auxEnds);
+    hingePartner.push(crease.hingePlane);
+    hingeSide.push(crease.buried ? 0 : crease.requiredSide);
+  };
 
   /**
    * Everything of a slot, in one run — the translucent and undetermined paths,
@@ -580,10 +707,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
   const appendSlot = (slot: number, record = false): void => {
     if (record) slotIndexStart[slot] = faceIndices.length;
     for (const index of slotTriangles[slot]!) faceIndices.push(index);
-    for (const crease of slotCreases[slot]!) {
-      edgeIndices.push(crease.a, crease.b);
-      edgeAssignments.push(crease.assignment);
-    }
+    for (const crease of slotCreases[slot]!) appendCrease(crease);
   };
 
   const appendSlotFaces = (slot: number): void => {
@@ -595,9 +719,7 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     accept: (crease: SlotCrease) => boolean
   ): void => {
     for (const crease of slotCreases[slot]!) {
-      if (!accept(crease)) continue;
-      edgeIndices.push(crease.a, crease.b);
-      edgeAssignments.push(crease.assignment);
+      if (accept(crease)) appendCrease(crease);
     }
   };
 
@@ -615,8 +737,12 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
     }
     edgeIndices.push(vertex - 2, vertex - 1);
     edgeAssignments.push(assignmentOf[edge] ?? 0);
+    auxEnds.push(0);
+    hingePartner.push(-1);
+    hingeSide.push(0);
   }
   const fallbackEdgeCount = edgeAssignments.length;
+
 
   const determined = (cell: number): boolean =>
     (model.cell_attr[cell * FOLDED_3D_CELL_ATTR_STRIDE + 5] ?? 0) !== FOLDED_3D_CELL_UNDETERMINED;
@@ -725,10 +851,12 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         faceIndices: Uint32Array.from(faceIndices),
         edgeIndices: Uint32Array.from(edgeIndices),
         edgeAssignments: Uint8Array.from(edgeAssignments),
+        auxEnds: Uint8Array.from(auxEnds),
         textureDim: textureSizeFor(Math.floor(positions.length / 3)),
       },
       center: [0, 0, 0],
       radius,
+      sheet: model.span,
       maxStackDepth,
       slots: {
         count: slotCell.length,
@@ -752,6 +880,10 @@ export function folded3dMesh(model: OristudioCpFolded3dRenderModel): Folded3dMes
         edgeCount: edgeAssignments.length - undeterminedEdgeStart,
       },
       fallbackEdgeCount,
+      hinges: {
+        partnerPlane: Int32Array.from(hingePartner),
+        requiredSide: Int8Array.from(hingeSide),
+      },
     },
   };
 }

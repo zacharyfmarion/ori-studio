@@ -1,4 +1,4 @@
-export { prepareFoldModel } from './prepare.js';
+export { prepareFoldModel, EDGES_FACET_KEY } from './prepare.js';
 export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';
@@ -17,12 +17,16 @@ export {
   MeshRenderer,
   meshTopologyFor,
   DEFAULT_CREASE_DEPTH_BIAS,
+  DASH_KINDS,
   MAX_DASH_RUNS,
   packCreaseDash,
   creaseFrameScale,
+  creaseWidthsPx,
+  erodePx,
   rasterCreaseInk,
   type CreaseDash,
   type MeshDrawOptions,
+  type MeshRendererOptions,
   type MeshTopology,
   type RenderSettings,
 } from './webgl/meshRenderer.js';
@@ -33,11 +37,43 @@ export {
   type BuildBspOptions,
   type Vec3,
 } from './bsp.js';
+export { type SvgMeshTopology } from './projectedMesh.js';
 export {
-  renderMeshToSvg,
-  type RenderMeshToSvgOptions,
-  type SvgRenderResult,
-} from './svgRenderer.js';
+  meshToPaperScene,
+  type MeshToPaperSceneOptions,
+  type PaperFaceItem,
+  type PaperItem,
+  type PaperLineItem,
+  type PaperLineRole,
+  type PaperLineWhole,
+  type PaperMarkupItem,
+  type PaperScene,
+  type PaperSide,
+  type SceneBounds,
+  type ScenePoint,
+} from './paperScene.js';
+export { EDGE_CODE, type EdgeCode } from './edgeCodes.js';
+export {
+  AUX_END_ON_OUTLINE_RELATIVE,
+  EDGE_BOUNDARY_A,
+  EDGE_BOUNDARY_B,
+  auxEndsOnOutline,
+  edgeBoundaryFlags,
+  endpointOnBoundary,
+  outlineVertexCounts,
+  type EdgeBoundaryTopology,
+} from './edgeBoundary.js';
+export {
+  SHADE_AMBIENT,
+  SHADE_DIFFUSE,
+  SHADE_FACING,
+  SHADE_GLSL,
+  SHADE_MAX,
+  SHADE_MIN,
+  shadeColor,
+  shadeFor,
+  type Vec3Like,
+} from './shading.js';
 export {
   findVisiblePieces,
   type DrawnPiece,
@@ -54,6 +90,7 @@ export {
   cameraUniforms,
   centroid,
   boundingRadius,
+  sheetExtent,
   fitExtent,
   projectVertices,
   projectViewPoint,

@@ -25,6 +25,10 @@
     "ignoredFile": "{{name}} utilisé ; 1 autre fichier déposé a été ignoré.",
     "ignoredFiles": "{{name}} utilisé ; {{others}} autres fichiers déposés ont été ignorés."
   },
+  "foldedFigureExport": {
+    "empty": "Ce modèle plié n'a encore rien à exporter",
+    "failed": "Impossible d'exporter ce modèle plié"
+  },
   "global": {
     "error": "Erreur Ori Studio",
     "folding": "Pliage…",
@@ -39,6 +43,14 @@
     "solving": "Résolution…",
     "solvingLong": "Résolution toujours en cours — cela peut prendre du temps"
   },
+  "paperExport": {
+    "saved": "{{name}} exporté"
+  },
+  "paperPreset": {
+    "exported": "{{name}} exporté",
+    "invalidJson": "Ce fichier n'est pas du JSON",
+    "notAPreset": "Ce fichier n'est pas un style de papier : il lui faut un nom et un style"
+  },
   "references": {
     "searching": "Recherche des références…",
     "searchingLong": "Recherche toujours en cours — la première construit une table",
@@ -46,10 +58,12 @@
     "stopped": "Recherche annulée",
     "stopping": "Annulation…"
   },
+  "referencesExport": {
+    "empty": "Il n'y a pas encore d'étape à exporter",
+    "noSteps": "Il n'y a pas encore d'étapes à exporter"
+  },
   "simulatorExport": {
-    "empty": "Cette simulation n'a encore rien à exporter",
-    "failed": "Impossible d'exporter cette vue",
-    "saved": "{{name}} exporté"
+    "empty": "Cette simulation n'a encore rien à exporter"
   },
   "update": {
     "available": "La version {{version}} est disponible",

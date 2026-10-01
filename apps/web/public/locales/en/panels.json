@@ -241,9 +241,20 @@
       "title": "Image"
     },
     "inlineSimulation": {
+      "followsNote": "Follows the paper style unless overridden",
+      "paper": "Paper",
       "settings": "Simulator settings",
       "sharedNote": "Shared with the Simulate workspace and every window",
       "title": "Simulation window"
+    },
+    "paperStyle": {
+      "auxColor": "Aux crease color",
+      "auxVisible": "Auxiliary creases",
+      "auxWidth": "Aux crease width (pt)",
+      "changeAction": "Change paper style",
+      "erode": "Erode (% of sheet)",
+      "foldsAsEdgesReason": "Every fold is drawn as an edge",
+      "resetAction": "Reset paper style"
     },
     "region": {
       "hidden": "Hidden",
@@ -550,7 +561,6 @@
     "sendTextToBack": "Send text to back",
     "setFoldedModelUpright": "Set folded model upright",
     "shadow": "Shadow",
-    "shadowUnsupported3d": "Shadows are not drawn for a 3D folded model yet",
     "stale": "Stale",
     "viewFoldedModelOtherSide": "View from the other side",
     "viewportControls": "Crease pattern viewport controls",
@@ -755,8 +765,6 @@
     "delete": "Delete",
     "duplicate": "Duplicate",
     "export": "Export…",
-    "exportPng": "PNG image",
-    "exportSvg": "SVG image",
     "firstSolution": "Back to first solution",
     "flip": "Flip",
     "label": "Folded figure actions",
@@ -832,6 +840,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "No step is showing",
       "noFoldHint": "Nothing to fold on this card",
       "noTargetHint": "Pick a vertex or crease first",
       "oneWayHint": "This step folds only one way",
@@ -1027,6 +1036,8 @@
       "mergeSymmetricHelp": "Two folds that mirror each other — the left corner to the centre and the right corner to the centre, say — are shown as one step with an arrow for each, the way a diagram folds them. Off, every fold is a step of its own.",
       "precreaseGrid": "Precrease grid",
       "sequence": "Precreasing sequence",
+      "showAuxCreases": "Show auxiliary creases",
+      "showAuxCreasesHelp": "The crease pattern’s auxiliary lines, drawn on the paper at every step in the auxiliary crease style and never folded. Follows Settings ▸ Paper until you change it here.",
       "solutions": "Solutions"
     },
     "sheets": {
@@ -1122,9 +1133,7 @@
     }
   },
   "simulatorExport": {
-    "png": "PNG image",
-    "svg": "SVG image",
-    "trigger": "Export view"
+    "trigger": "Export view…"
   },
   "simulatorSegments": {
     "creasePatterns": "Crease patterns",
@@ -1134,10 +1143,6 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Stretch",
-    "background": "Background",
-    "backgroundTheme": "Match theme",
-    "backgroundTransparent": "Transparent",
-    "backgroundWhite": "White",
     "borderEdge": "Edge",
     "colorMode": "Color",
     "colorPaper": "Paper",
@@ -1145,17 +1150,11 @@
     "creaseLines": "Crease lines",
     "creases": "Creases",
     "creaseStiffness": "Crease",
-    "creaseStyle": "Style",
-    "creaseStyleColor": "Mountain / valley",
-    "creaseStyleMono": "One ink",
-    "creaseStyleMonoDashed": "One ink, dashed",
-    "creaseWidth": "Weight",
     "damping": "Damping",
-    "export": "Export",
-    "exportHint": "Page background of an exported image.",
     "faces": "Faces",
     "faceStiffness": "Face",
-    "hiddenLines": "Hidden lines",
+    "foldsAsEdges": "Render all creases as edges",
+    "foldsAsEdgesHelp": "A fold that has happened is an edge of the paper: every fold is drawn in the paper edge’s color and dash, at the average of the mountain and valley widths. Off, folds are drawn by direction.",
     "lighting": "Lighting",
     "material": "Material",
     "materialHint": "How the paper resists stretching and folding.",

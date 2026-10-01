@@ -1,6 +1,7 @@
 import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { ReferencesSettings } from '../../store/workspaceStore/types';
+import { referencesShowsAux } from './referencesAuxCreases';
 
 /**
  * What the References View pane shows and writes, read from the stores in one
@@ -21,6 +22,17 @@ export interface ReferencesSettingsState {
    */
   autoPlayFolds: boolean;
   setAutoPlayFolds: (value: boolean) => void;
+  /**
+   * Draw the pattern's auxiliary lines (`referencesAuxCreases`): the option
+   * when it is set, the display style's own switch otherwise.
+   */
+  showAuxCreases: boolean;
+  /** Set here, so it no longer follows the paper style until it is reset. */
+  showAuxCreasesSet: boolean;
+  /** What the display style's own switch says: the value a reset hands back. */
+  showAuxCreasesInherited: boolean;
+  setShowAuxCreases: (value: boolean) => void;
+  resetShowAuxCreases: () => void;
 }
 
 export function useReferencesSettings(): ReferencesSettingsState {
@@ -31,6 +43,9 @@ export function useReferencesSettings(): ReferencesSettingsState {
   const document = useWorkspaceStore((state) => state.oristudioCpDocument);
   const autoPlayFolds = useSettingsStore((state) => state.referencesAutoPlayFolds);
   const setAutoPlayFolds = useSettingsStore((state) => state.setReferencesAutoPlayFolds);
+  const display = useSettingsStore((state) => state.paperStyle.display);
+  const auxOption = useSettingsStore((state) => state.referencesShowAuxCreases);
+  const setAuxOption = useSettingsStore((state) => state.setReferencesShowAuxCreases);
 
   return {
     settings,
@@ -40,5 +55,10 @@ export function useReferencesSettings(): ReferencesSettingsState {
     hasDocument: document !== null,
     autoPlayFolds,
     setAutoPlayFolds,
+    showAuxCreases: referencesShowsAux(display, auxOption),
+    showAuxCreasesSet: auxOption !== null,
+    showAuxCreasesInherited: referencesShowsAux(display, null),
+    setShowAuxCreases: setAuxOption,
+    resetShowAuxCreases: () => setAuxOption(null),
   };
 }

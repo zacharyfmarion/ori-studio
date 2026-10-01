@@ -277,6 +277,10 @@
   },
   "references": {
     "categoryLabel": "Referências",
+    "exportAllSteps": "Exportar todos os passos…",
+    "exportStep": "Exportar passo…",
+    "exportStepPng": "Exportar passo como PNG…",
+    "exportStepSvg": "Exportar passo como SVG…",
     "nextCandidate": "Próxima candidata",
     "nextStep": "Próximo passo",
     "nextWay": "Próxima forma",
@@ -301,7 +305,6 @@
     "resetView": "Redefinir vista do simulador",
     "toggleCreases": "Linhas de vinco",
     "toggleFaces": "Faces",
-    "toggleHiddenLines": "Linhas ocultas",
     "toggleLighting": "Iluminação"
   },
   "viewport": {

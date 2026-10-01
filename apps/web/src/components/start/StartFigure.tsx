@@ -6,7 +6,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { resolveRenderSettings } from '../../simulator/simulatorPalette';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
 import { START_FIGURE, loadStartFigureAsset, type StartFigureAsset } from './startFigureAsset';
-import { startFigurePaperSettings } from './startFigurePaper';
+import { startFigurePaperStyle } from './startFigurePaper';
 import {
   advanceStartFigureOrbit,
   beginStartFigureDrag,
@@ -67,19 +67,6 @@ const IDLE_TIMEOUT_MS = 1_500;
  */
 const CREASE_WIDTH_REFERENCE_EDGE = 640;
 
-/**
- * One ink for every crease, rather than the editor's mountain/valley red and
- * blue.
- *
- * Colour is the right default in the Simulate workspace, where the reader is
- * studying a fold and the direction of each crease is information. Here the
- * figure is 320px of decoration beside a heading: at that size 246 creases in
- * two saturated colours read as noise over the form, and the form is the whole
- * point. Mono takes its ink from `--text-primary`, so it also stays legible in
- * both themes without a second decision.
- */
-const FIGURE_CREASE_STYLE = 'mono' as const;
-
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -107,11 +94,8 @@ export function StartFigure() {
     const styles = getComputedStyle(canvas);
     settingsRef.current = resolveRenderSettings(
       styles,
-      {
-        ...DEFAULT_SIMULATOR_SETTINGS,
-        creaseStyle: FIGURE_CREASE_STYLE,
-        ...startFigurePaperSettings(styles),
-      },
+      DEFAULT_SIMULATOR_SETTINGS,
+      startFigurePaperStyle(styles),
       {
         // The start screen owns the backdrop; the figure composites onto it.
         transparentBackground: true,

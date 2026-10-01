@@ -72,6 +72,7 @@ function commandsFor(overrides: Partial<ReferencesActionState> = {}) {
         activeWay: 0,
         canRecompute: true,
         hasView: true,
+        hasDiagram: true,
         fold: { available: true, playing: false, folded: false, pleat: false },
         ...overrides,
       },
@@ -134,7 +135,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const BAR = ['Zoom Out', '100%', 'Zoom In', 'Fit', 'Play Fold', 'Recompute References'];
+const BAR = [
+  'Zoom Out',
+  '100%',
+  'Zoom In',
+  'Fit',
+  'Play Fold',
+  'Recompute References',
+  'Export step…',
+];
 
 describe('ReferencesViewportToolbar', () => {
   it('holds the zoom cluster, Fit and Recompute, and nothing to overflow', () => {
@@ -174,6 +183,22 @@ describe('ReferencesViewportToolbar', () => {
     act(() => root?.unmount());
     render({ fold: { available: false, playing: false, folded: false, pleat: true } });
     expect(button('Play Fold')?.disabled).toBe(true);
+  });
+
+  it('exports through one button, dispatched by registry id', () => {
+    // The dialog it opens chooses the format; the button is the catalog's
+    // command, so the chord, the context-menu row and the button are one path.
+    render();
+
+    press(button('Export step…'));
+
+    expect(run).toHaveBeenLastCalledWith('references.exportStep');
+  });
+
+  it('disables Export when nothing is showing', () => {
+    render({ hasDiagram: false });
+
+    expect(button('Export step…')?.disabled).toBe(true);
   });
 
   it("takes Recompute's gating from the catalog", () => {

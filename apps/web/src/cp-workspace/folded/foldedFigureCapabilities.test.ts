@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 import {
   FOLDED_FIGURE_STYLE_CHOICES,
@@ -59,6 +60,9 @@ function deps(): FoldedFigureActionDeps {
     setDisplayStyle: () => {},
     updateModel: () => {},
     endModelGesture: () => {},
+    paperStyle: () => DEFAULT_PAPER_STYLE,
+    inheritedPaperStyle: DEFAULT_PAPER_STYLE,
+    setAppearance: () => {},
     foldAnother: () => {},
     duplicate: () => {},
     remove: () => {},

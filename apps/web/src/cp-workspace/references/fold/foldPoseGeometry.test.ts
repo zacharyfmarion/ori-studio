@@ -3,24 +3,43 @@ import type { Rgba } from '../../renderer/types';
 import {
   DEFAULT_SURFACE_SHARES,
   foldPoseGeometry,
+  foldPoseOutline,
+  foldPosePaper,
+  PAPER_TILT_SHADE,
   type FoldPaint,
   type FoldSurfaceShares,
 } from './foldPoseGeometry';
 import type { FoldScene } from './foldScene';
 import type { FlapStrokes } from './foldSplit';
+import { DEFAULT_PAPER_STYLE } from '../../../lib/paper/paperStyle';
+import { cardDiagramPens, diagramDashPatterns, diagramDashSlot } from '../diagram/diagramInk';
 
 const UP: Rgba = [1, 1, 1, 1];
 const OTHER: Rgba = [0.2, 0.2, 0.2, 1];
+/** The diagram-crease inks: a step's own fold. */
 const MOUNTAIN: Rgba = [1, 0, 0, 1];
 const VALLEY: Rgba = [0, 0, 1, 1];
+/** The fold inks: the pattern's creases under it, apart from the diagram's. */
+const FOLD_MOUNTAIN: Rgba = [0.5, 0.25, 0, 1];
+const FOLD_VALLEY: Rgba = [0, 0.5, 0.25, 1];
 
 const paint: FoldPaint = {
   up: UP,
   other: OTHER,
-  mountain: MOUNTAIN,
-  valley: VALLEY,
-  mountainSlot: 2,
-  valleySlot: 1,
+  directions: [
+    {
+      mountain: MOUNTAIN,
+      valley: VALLEY,
+      mountainSlot: diagramDashSlot('mountain'),
+      valleySlot: diagramDashSlot('valley'),
+    },
+    {
+      mountain: FOLD_MOUNTAIN,
+      valley: FOLD_VALLEY,
+      mountainSlot: diagramDashSlot('fold-mountain'),
+      valleySlot: diagramDashSlot('fold-valley'),
+    },
+  ],
   shade: [0, 0, 0, 0.5],
   modelToUser: (p) => ({ x: p.x * 2, y: -p.y * 2 }),
 };
@@ -150,15 +169,16 @@ describe('foldPoseGeometry, rigid', () => {
     const shares: FoldSurfaceShares = { ...RIGID, hingeOverlap: 0.05 };
     const { fills } = foldPoseGeometry(scene, pose(Math.PI), [], paint, shares);
     // The right half lands on the left, showing its other face; the overlap
-    // is the strip of base from the hinge at 0.5 back to 0.45. Its outer
-    // row is face up and on the paper, under the landed flap — in user
-    // units twice that; the hinge row itself already shows the other face.
+    // is the strip of base from the hinge at 0.5 back to 0.45 — in user units
+    // twice that — face up and on the paper, under the landed flap. The strip
+    // is one face, hinge row included: no triangle blends the two.
     const up = [...Array(fills.count).keys()].filter(
       (i) => Math.abs(rgba(fills.color, i * 4)[0]! - UP[0]) < 1e-3
     );
     expect(up.length).toBeGreaterThan(0);
     for (const i of up) {
-      expect(fills.position[i * 2]).toBeCloseTo(2 * 0.45, 6);
+      expect(fills.position[i * 2]).toBeGreaterThanOrEqual(2 * 0.45 - 1e-6);
+      expect(fills.position[i * 2]).toBeLessThanOrEqual(2 * 0.5 + 1e-6);
       expect(fills.depth![i]).toBeCloseTo(0.05);
     }
     // Without it, nothing face up is drawn at all.
@@ -174,6 +194,80 @@ describe('foldPoseGeometry, rigid', () => {
   });
 });
 
+/**
+ * A flap carries two kinds of mountain and valley: the step's own fold from
+ * the diagram channel, in the diagram-crease pens, and the pattern's creases
+ * from the crease channel, in the fold pens. The pose draws both under one
+ * dash table — the first channel's — so the two channels share one slot
+ * assignment and one table, and each kind swaps within its own pair.
+ */
+describe('foldPoseGeometry, the two channels under one table', () => {
+  // The two pairs apart in dash, so a line drawn in the other pair's slot shows.
+  const pens = cardDiagramPens({
+    ...DEFAULT_PAPER_STYLE,
+    mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: [5, 1, 1, 1] },
+    valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: [6, 3] },
+    mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null },
+    valleyFolds: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [2, 1] },
+  });
+  // What `referencesCreasePens` / `applyCreaseVisibility` and `diagramToScene`
+  // each upload: the same table, built from the same pens.
+  const table = diagramDashPatterns(1, pens);
+  const one = (x: number, color: Rgba, slot: number): FlapStrokes => ({
+    a: Float32Array.from([x, 0.2]),
+    b: Float32Array.from([x, 0.8]),
+    color: Float32Array.from(color),
+    widthMul: Float32Array.from([1]),
+    dashSlot: Float32Array.from([slot]),
+    dashPhase: Float32Array.from([0]),
+    flap: Uint8Array.from([0]),
+    count: 1,
+    dashPatterns: table,
+  });
+  /** The pattern's crease on the flap: a fold-pen mountain. */
+  const pattern = () => one(0.6, FOLD_MOUNTAIN, diagramDashSlot('fold-mountain'));
+  /** The step's own fold on the flap: a diagram-crease mountain. */
+  const step = () => one(0.9, MOUNTAIN, diagramDashSlot('mountain'));
+  const runsOf = (strokes: ReturnType<typeof foldPoseGeometry>['strokes'], i: number) =>
+    strokes.dashPatterns![strokes.dashSlot![i]! - 1]!;
+
+  it('keeps the step’s fold in its diagram-crease dash while it rides the crease channel’s table', () => {
+    // The crease channel comes first, so its table is the one the pose keeps.
+    const { strokes } = foldPoseGeometry(scene, pose(0), [pattern(), step()], paint, RIGID);
+    expect(strokes.count).toBe(2);
+    expect(strokes.dashPatterns).toBe(table);
+    expect(runsOf(strokes, 1)).toEqual(pens.mountain.dash);
+    expect(runsOf(strokes, 1)).not.toEqual(pens['fold-mountain'].dash ?? []);
+    expect(rgba(strokes.color, 4)).toEqual(MOUNTAIN);
+    // And the pattern's crease in its fold pen's: solid.
+    expect(runsOf(strokes, 0)).toEqual([]);
+    expect(rgba(strokes.color, 0)).toEqual(FOLD_MOUNTAIN);
+  });
+
+  it('names each from the other face within its own pair once over', () => {
+    const { strokes } = foldPoseGeometry(scene, pose(Math.PI), [pattern(), step()], paint, RIGID);
+    // The pattern's mountain becomes the fold pens' valley, ink and dash.
+    expect(rgba(strokes.color, 0)).toEqual(FOLD_VALLEY);
+    expect(strokes.dashSlot![0]).toBe(diagramDashSlot('fold-valley'));
+    expect(runsOf(strokes, 0)).toEqual(pens['fold-valley'].dash);
+    // The step's mountain becomes the diagram-crease valley, ink and dash.
+    expect(rgba(strokes.color, 4)).toEqual(VALLEY);
+    expect(strokes.dashSlot![1]).toBe(diagramDashSlot('valley'));
+    expect(runsOf(strokes, 1)).toEqual(pens.valley.dash);
+  });
+
+  it('swaps a solid pinch by its ink, and leaves a picked crease’s accent alone', () => {
+    const pinch = one(0.7, MOUNTAIN, 0);
+    const ACCENT: Rgba = [0.9, 0.2, 0.7, 1];
+    const picked = one(0.8, ACCENT, diagramDashSlot('fold-valley'));
+    const { strokes } = foldPoseGeometry(scene, pose(Math.PI), [pinch, picked], paint, RIGID);
+    expect(rgba(strokes.color, 0)).toEqual(VALLEY);
+    expect(strokes.dashSlot![0]).toBe(0);
+    expect(rgba(strokes.color, 4)).toEqual(ACCENT);
+    expect(strokes.dashSlot![1]).toBe(diagramDashSlot('fold-mountain'));
+  });
+});
+
 describe('foldPoseGeometry, curled', () => {
   const r = DEFAULT_SURFACE_SHARES.radius;
 
@@ -181,6 +275,33 @@ describe('foldPoseGeometry, curled', () => {
     const { fills } = foldPoseGeometry(scene, pose(0), [], paint);
     expect(fillArea(fills.position)).toBeCloseTo(2);
     for (let i = 0; i < fills.count; i += 1) expect(rgba(fills.color, i * 4)).toEqual(UP);
+  });
+
+  // The bend reads as rounded in the paper's own colour: darker where the
+  // paper tilts from the reader, the same hue all the way round, and never
+  // darker than the shade's strength allows.
+  it('shades a tilted face in its own colour, whatever the paper', () => {
+    for (const up of [
+      [1, 1, 1, 1],
+      [1, 1, 0.196, 1],
+    ] as Rgba[]) {
+      const own = { ...paint, up, other: up, shade: PAPER_TILT_SHADE };
+      const { fills } = foldPoseGeometry(scene, pose(Math.PI / 2), [], own);
+      // Raw, not through `rgba`, whose rounding is coarser than the check.
+      const shaded = [...Array(fills.count).keys()]
+        .map((i) => Array.from(fills.color.slice(i * 4, i * 4 + 4)))
+        .filter((color) => color[0]! < up[0] - 1e-6);
+      expect(shaded.length).toBeGreaterThan(0);
+      for (const color of shaded) {
+        const k = 1 - color[0]! / up[0];
+        expect(k).toBeLessThanOrEqual(PAPER_TILT_SHADE[3] + 1e-6);
+        // The same share off every channel: a darker version of the paper
+        // (to what a float32 colour carries).
+        expect(color[1]).toBeCloseTo(up[1] * (1 - k), 5);
+        expect(color[2]).toBeCloseTo(up[2] * (1 - k), 5);
+        expect(color[3]).toBe(1);
+      }
+    }
   });
 
   it('lands exactly on the other half, hovering, with the bend shaded', () => {
@@ -301,11 +422,126 @@ describe('foldPoseGeometry, turning the sheet over', () => {
     const landing = 1 / (1 + Math.PI * roll);
     const { fills } = foldPoseGeometry(turning, pose(Math.PI * landing), [], paint);
     // The whole footprint again: the taken edge on the right, and the far
-    // edge on the left, face up, about to go round the bend.
+    // edge on the left, about to go round the bend.
     expect(Math.min(...xs(fills.position))).toBeCloseTo(0, 3);
     expect(Math.max(...xs(fills.position))).toBeCloseTo(2, 3);
+    // All of it the other face: what is left of the reader's face is under
+    // the roll, as it is under a real one. A sheared roll does not overhang
+    // itself, and coloured by its own normal it showed the reader's face as
+    // a band along its leading edge.
     const faces = [...Array(fills.count).keys()].map((i) => rgba(fills.color, i * 4)[0]);
-    expect(faces.some((red) => Math.abs(red - UP[0]) < 1e-3)).toBe(true);
+    expect(faces.every((red) => Math.abs(red - UP[0]) >= 1e-3)).toBe(true);
     expect(faces.some((red) => Math.abs(red - OTHER[0]) < 1e-3)).toBe(true);
+  });
+});
+
+describe('the paper at a pose', () => {
+  // X11: a mark over the canvas takes the style's ink on the paper and the
+  // theme's off it, and while a fold plays the moving flap is paper wherever
+  // it has swung — so the marks need its outline as the canvas draws it.
+  const flat: FoldPaint = { ...paint, modelToUser: (p) => p };
+  const box = (points: readonly { x: number; y: number }[]) => ({
+    minX: Math.min(...points.map((p) => p.x)),
+    maxX: Math.max(...points.map((p) => p.x)),
+    minY: Math.min(...points.map((p) => p.y)),
+    maxY: Math.max(...points.map((p) => p.y)),
+  });
+  // Five places: the mesh arrives as float32.
+  const near = (value: ReturnType<typeof box>) =>
+    Object.fromEntries(Object.entries(value).map(([key, v]) => [key, Number(v.toFixed(5))]));
+  /** Every fill vertex, as points. */
+  const vertices = (position: Float32Array) =>
+    Array.from({ length: position.length / 2 }, (_, i) => ({ x: position[i * 2]!, y: position[i * 2 + 1]! }));
+  /** Inside a counter-clockwise convex ring, within a hair. */
+  const inside = (ring: readonly { x: number; y: number }[], p: { x: number; y: number }) =>
+    ring.every((a, i) => {
+      const b = ring[(i + 1) % ring.length]!;
+      return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) >= -1e-6;
+    });
+
+  it('is the flap where it lies at the start of the swing, and its mirror once over', () => {
+    expect(near(box(foldPoseOutline(scene, pose(0), RIGID)))).toEqual({
+      minX: 0.5,
+      maxX: 1,
+      minY: 0,
+      maxY: 1,
+    });
+    expect(near(box(foldPoseOutline(scene, pose(Math.PI, 1), RIGID)))).toEqual({
+      minX: 0,
+      maxX: 0.5,
+      minY: 0,
+      maxY: 1,
+    });
+    // Edge-on, a rigid flap covers nothing but its hinge.
+    const edgeOn = box(foldPoseOutline(scene, pose(Math.PI / 2), RIGID));
+    expect(edgeOn.maxX - edgeOn.minX).toBeCloseTo(0, 9);
+  });
+
+  it('holds the mesh the canvas draws, curl and all, through the whole swing', () => {
+    for (const angle of [0.3, Math.PI / 2, 2, 2.9, Math.PI]) {
+      const outline = foldPoseOutline(scene, pose(angle, angle === Math.PI ? 0.5 : 0));
+      const { fills } = foldPoseGeometry(
+        scene,
+        pose(angle, angle === Math.PI ? 0.5 : 0),
+        [],
+        flat
+      );
+      const mesh = vertices(fills.position);
+      for (const vertex of mesh) expect(inside(outline, vertex), `${angle}`).toBe(true);
+      // And no more than it: the outline's extent is the mesh's.
+      expect(near(box(outline)), `${angle}`).toEqual(near(box(mesh)));
+    }
+  });
+
+  it('is the sheet on the resting side of the line and the flap as it stands, while a fold plays', () => {
+    const sheet = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+    ];
+    // At rest, the outline alone, with an empty second ring.
+    expect(foldPosePaper(sheet, scene, null)).toEqual([sheet, []]);
+    expect(foldPosePaper(sheet, null, pose(1))).toEqual([sheet, []]);
+    const [resting, flap] = foldPosePaper(sheet, scene, pose(Math.PI, 1));
+    // The paper the flap left is ground now.
+    expect(near(box(resting))).toEqual({ minX: 0, maxX: 0.5, minY: 0, maxY: 1 });
+    expect(near(box(flap))).toEqual(near(box(foldPoseOutline(scene, pose(Math.PI, 1)))));
+    // A pose on a flap the card does not have is no pose.
+    expect(foldPosePaper(sheet, scene, pose(1, 0, 3))).toEqual([sheet, []]);
+  });
+
+  it('is only the rolling sheet while the whole sheet turns over', () => {
+    const turning: FoldScene = {
+      kind: 'turn-over',
+      flaps: [
+        {
+          chord: CHORD,
+          side: 1,
+          polygon: [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 1, y: 1 },
+            { x: 0, y: 1 },
+          ],
+          creased: [],
+          whole: true,
+        },
+      ],
+      sheetShortSide: 1,
+      reach: 0.5,
+    };
+    const sheet = turning.flaps[0]!.polygon;
+    const [resting, rolling] = foldPosePaper(sheet, turning, pose(Math.PI / 2));
+    expect(resting).toEqual([]);
+    const { fills } = foldPoseGeometry(turning, pose(Math.PI / 2), [], flat);
+    expect(near(box(rolling))).toEqual(near(box(vertices(fills.position))));
+    // Once over, the sheet's own footprint again.
+    expect(near(box(foldPoseOutline(turning, pose(Math.PI))))).toEqual({
+      minX: 0,
+      maxX: 1,
+      minY: 0,
+      maxY: 1,
+    });
   });
 });

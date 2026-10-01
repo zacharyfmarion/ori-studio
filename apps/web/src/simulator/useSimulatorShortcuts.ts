@@ -1,5 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { registerSimulatorShortcutExecutor } from '../keyboard/shortcutRuntime';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import {
+  hasSimulatorExecutor,
+  registerSimulatorShortcutExecutor,
+  subscribeSimulatorExecutor,
+} from '../keyboard/shortcutRuntime';
 import type { SimulatorShortcutId } from '../keyboard/shortcuts';
 
 /**
@@ -30,7 +34,15 @@ export interface SimulatorShortcutHandlers {
   resetView: () => void;
   zoomBy: (factor: number) => void;
   /** Toggle a render setting. Optional: an inline window has no options pane. */
-  toggleSetting?: (key: 'showFaces' | 'showEdges' | 'showHiddenLines' | 'lighting') => void;
+  toggleSetting?: (key: 'showFaces' | 'showEdges' | 'lighting') => void;
+  /**
+   * Open the export dialog on the view, and take the direction now pointing up
+   * as the model's up. Optional, and only the Simulate workspace answers them:
+   * they are its rail's buttons, and an inline window keeps its own on its
+   * toolbar.
+   */
+  exportView?: () => void;
+  setUpright?: () => void;
 }
 
 /** Zoom step, matching the wheel's feel. */
@@ -86,11 +98,14 @@ export function runSimulatorShortcut(
     case 'simulator.toggleCreases':
       handlers.toggleSetting?.('showEdges');
       return;
-    case 'simulator.toggleHiddenLines':
-      handlers.toggleSetting?.('showHiddenLines');
-      return;
     case 'simulator.toggleLighting':
       handlers.toggleSetting?.('lighting');
+      return;
+    case 'simulator.exportView':
+      handlers.exportView?.();
+      return;
+    case 'simulator.setUpright':
+      handlers.setUpright?.();
       return;
   }
 }
@@ -120,4 +135,12 @@ export function useSimulatorShortcuts(options: {
       runSimulatorShortcut(id, handlersRef.current, stepRef.current)
     );
   }, [active]);
+}
+
+/**
+ * Whether a simulation is in hand — ready, and holding the keyboard — so a
+ * control outside its view, the Simulate rail, knows its verbs will land.
+ */
+export function useSimulationInHand(): boolean {
+  return useSyncExternalStore(subscribeSimulatorExecutor, hasSimulatorExecutor);
 }

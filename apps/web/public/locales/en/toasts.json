@@ -24,6 +24,10 @@
     "ignoredFile": "Used {{name}}; ignored 1 other dropped file.",
     "ignoredFiles": "Used {{name}}; ignored {{others}} other dropped files."
   },
+  "foldedFigureExport": {
+    "empty": "This folded model has nothing to export yet",
+    "failed": "Could not export this folded model"
+  },
   "global": {
     "error": "Ori Studio error",
     "folding": "Folding…",
@@ -38,6 +42,14 @@
     "solving": "Solving…",
     "solvingLong": "Still solving — this can take a while"
   },
+  "paperExport": {
+    "saved": "Exported {{name}}"
+  },
+  "paperPreset": {
+    "exported": "Exported {{name}}",
+    "invalidJson": "That file is not JSON",
+    "notAPreset": "That file is not a paper style: it needs a name and a style"
+  },
   "references": {
     "searching": "Finding references…",
     "searchingLong": "Still finding references — the first search builds a table",
@@ -45,10 +57,12 @@
     "stopped": "Search cancelled",
     "stopping": "Cancelling…"
   },
+  "referencesExport": {
+    "empty": "There is no step to export yet",
+    "noSteps": "There are no steps to export yet"
+  },
   "simulatorExport": {
-    "empty": "This simulation has nothing to export yet",
-    "failed": "Could not export this view",
-    "saved": "Exported {{name}}"
+    "empty": "This simulation has nothing to export yet"
   },
   "update": {
     "available": "Version {{version}} is available",

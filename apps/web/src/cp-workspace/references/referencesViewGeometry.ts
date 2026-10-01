@@ -5,7 +5,7 @@
  * than hoped for.
  */
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import type { Point } from '../../lib/geometry';
+import { convexHull, type Point } from '../../lib/geometry';
 import { clipPolygonToSide } from './diagram/plannerDiagram';
 import { cpModelToSvg, cpVertexId } from '../../lib/creasePatternViewport';
 import type { UserBounds } from '../renderer/camera';
@@ -20,7 +20,17 @@ import { VERTEX_RADIUS_FACTOR } from '../adapters/cpPointsToScene';
 import { previewGroupsToStrokes, type PreviewStrokeGroup } from '../renderer/previewStrokes';
 import type { LineHitIndex } from '../picking/lineHitIndex';
 import { dashRulerAlong } from './stepDiagramGeometry';
-import { diagramDashPatterns, diagramDashSlot } from './diagram/diagramInk';
+import {
+  DIAGRAM_LINE_INK,
+  diagramDashPatterns,
+  diagramDashSlot,
+  penInk,
+  type DiagramPens,
+} from './diagram/diagramInk';
+import type { DiagramLineStyleName } from './referenceFinderDiagramToPrimitives';
+import type { Pen } from '../../lib/paper/paperStyle';
+import type { SheetStrokeRole } from '../sheets/sheetThumbnail';
+import { creaseRoleAt } from './creaseRole';
 import type {
   ModelBounds,
   ReferencesGhostKind,
@@ -207,19 +217,75 @@ export function markersToOverlayPoints(
 }
 
 /**
+ * How near the paper's edge a point counts as on it, as a share of the
+ * paper's size: a vertex on the sheet's side is an intersection worked out in
+ * floating point, and lands a rounding error to one side or the other.
+ */
+const ON_EDGE_SHARE = 1e-7;
+
+/**
+ * Where a point lies against the paper: on it, on its edge, or off it on the
+ * ground. `outline` is the paper as the canvas fills it — convex, wound either
+ * way (`sheetOutline`) — and no outline is no paper, so everything is ground.
+ */
+export function paperSideOf(point: Point, outline: readonly Point[]): 'paper' | 'edge' | 'ground' {
+  const n = outline.length;
+  if (n < 3) return 'ground';
+  let area = 0;
+  let size = 0;
+  for (let i = 0; i < n; i += 1) {
+    const a = outline[i]!;
+    const b = outline[(i + 1) % n]!;
+    area += a.x * b.y - b.x * a.y;
+    size = Math.max(size, Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+  }
+  const orientation = Math.sign(area);
+  if (orientation === 0) return 'ground';
+  // The nearest edge line, signed inward: for a convex outline, the distance
+  // in from the edge when inside, and negative when outside any of them.
+  let inset = Infinity;
+  for (let i = 0; i < n; i += 1) {
+    const a = outline[i]!;
+    const b = outline[(i + 1) % n]!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length === 0) continue;
+    const cross = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
+    inset = Math.min(inset, (orientation * cross) / length);
+  }
+  const tolerance = ON_EDGE_SHARE * size;
+  if (inset > tolerance) return 'paper';
+  return inset < -tolerance ? 'ground' : 'edge';
+}
+
+/** What a vertex's dot is drawn in: the style's ink on the paper, the theme's off it. */
+export interface VertexDotInks {
+  /** The paper style's edge ink, which the paper is drawn for. */
+  paper: Rgba;
+  /** The theme's own ink, which reads on its ground (`--references-ground-ink`). */
+  ground: Rgba;
+}
+
+/**
  * The picked vertex, and the vertices a step names, as overlay points.
  *
- * They ride the overlay channel rather than the crease-point layer because that
- * layer carries a whole-layer `pointOpacity` — the vertex crowding ramp — and on
- * a dense pattern it fades to zero. Picking a vertex is this workspace's primary
- * interaction, so the mark for the one that *was* picked has to survive the fade
- * that makes the pattern readable. Same CSS radius as an ordinary vertex dot, so
- * nothing changes on a sparse pattern where the layer is at full opacity.
+ * The view draws no vertex of its own — the creases say where they meet — so
+ * these, and the hover ring, are the only vertex marks. On the overlay channel,
+ * which is never faded, at the editor's vertex radius.
+ *
+ * A dot is a mark in the drawing's ink, and the style's ink is chosen for the
+ * style's paper: a black dot off it vanishes into a dark theme's ground (X11 of
+ * the paper export plan). The channel cannot clip a disc the way the symbol
+ * layer clips a ring, so the ink goes by where the vertex lies against
+ * `outline`: on the paper, the style's; off it, the theme's; on its edge —
+ * where a reference often is, on a side or a corner of the sheet — the dot
+ * straddles both, so it is filled in the style's ink and ringed in the
+ * theme's, and the half on the ground reads by its ring.
  */
 export function highlightedVerticesToOverlayPoints(
   points: readonly Point[],
-  color: Rgba,
-  pointSize: number
+  inks: VertexDotInks,
+  pointSize: number,
+  outline: readonly Point[]
 ): PointGeometry | null {
   const count = points.length;
   if (count === 0) return null;
@@ -231,17 +297,17 @@ export function highlightedVerticesToOverlayPoints(
   points.forEach((point, i) => {
     center[i * 2] = point.x;
     center[i * 2 + 1] = point.y;
-    fill.set(color, i * 4);
-    stroke.set(color, i * 4);
+    const side = paperSideOf(point, outline);
+    fill.set(side === 'ground' ? inks.ground : inks.paper, i * 4);
+    stroke.set(side === 'paper' ? inks.paper : inks.ground, i * 4);
   });
   return { center, radius, screenSpace, fill, stroke, count };
 }
 
 /**
- * How much wider than an ordinary vertex dot the hover ring is drawn, and how
- * much of the accent its fill keeps. A ring rather than a dot: the dot
- * underneath stays visible inside it, so the mark reads as "this one, if you
- * click" rather than as a vertex that has changed.
+ * How much wider than a picked vertex's mark the hover ring is drawn, and how
+ * much of the accent its fill keeps. A ring rather than a dot, so the mark
+ * reads as "this one, if you click" rather than as a vertex already picked.
  */
 export const HOVER_RING_SCALE = 1.9;
 export const HOVER_FILL_ALPHA = 0.28;
@@ -249,12 +315,9 @@ export const HOVER_FILL_ALPHA = 0.28;
 export const HOVER_STROKE_ALPHA = 0.55;
 
 /**
- * The vertex under the pointer, as an overlay ring in the pick accent.
- *
- * On the overlay channel for the same reason the picked vertex is
- * ({@link highlightedVerticesToOverlayPoints}): the dot layer fades to nothing
- * on a dense pattern, and the affordance has to survive the fade — that is the
- * pattern on which a vertex is hardest to tell from a crease crossing.
+ * The vertex under the pointer, as an overlay ring in the pick accent — the
+ * one sign a vertex can be picked, since none is drawn until it is
+ * ({@link highlightedVerticesToOverlayPoints}).
  */
 export function hoveredVertexToOverlayPoint(
   point: Point,
@@ -397,14 +460,28 @@ export interface ReferencesCreaseVisibility {
    */
   directions?: ReadonlyMap<number, 'mountain' | 'valley'> | null;
   /**
-   * The ink a folded crease takes, by direction, overriding the crease's own.
+   * The ink a folded crease takes, by direction, overriding the crease's own:
+   * the fold pens' inks, since the pattern's creases are a crease pattern's
+   * lines even where a step made them.
    *
    * Resolved by the view from {@link ReferencesCreaseVisibility.directions}.
    */
   ink?: {
     mountain: readonly [number, number, number, number];
     valley: readonly [number, number, number, number];
+    /** The aux pen's colour on this canvas, for {@link ReferencesCreaseVisibility.thin}. */
+    aux?: readonly [number, number, number, number];
   } | null;
+  /**
+   * Lines drawn thin, in the paper style's aux pen ({@link thinPen}), the way
+   * a card draws what is already on the paper: the creases an earlier step
+   * made — folded, and opened flat again — and the pattern's own aux lines
+   * when they are shown (`referencesAuxCreases`). Never dimmed and never given
+   * a direction. Their ids are in `visible` too, since they are drawn.
+   */
+  thin?: ReadonlySet<number> | null;
+  /** The aux pen {@link thin} is drawn in, and its width in CSS px. */
+  thinPen?: { pen: Pen; css: number } | null;
   /**
    * The 1-based ids drawn at all. `null` means every crease — the sheet is not
    * being read step by step, so nothing is held back.
@@ -420,13 +497,7 @@ export interface ReferencesCreaseVisibility {
   pickable?: ReadonlySet<number> | null;
   /** Ids drawn faintly: made by an earlier step, or simply not this step's. */
   dimmed: ReadonlySet<number> | null;
-  /**
-   * The sheet's border creases, which are always drawn.
-   *
-   * Carried so the point layer can tell them apart: the outline is the paper
-   * rather than one of the folds, and a dot at every place a crease will one
-   * day meet it is a giveaway and a crowd.
-   */
+  /** The sheet's border creases, which are always drawn: the outline the paper is filled inside. */
   borderLineIds?: ReadonlySet<number> | null;
   /** Multiplier on a dimmed crease's alpha. */
   dimAlpha: number;
@@ -456,7 +527,9 @@ export function applyCreaseVisibility(
   segmentCount: number,
   visibility: ReferencesCreaseVisibility,
   /** The diagram's pen, for the dash runs — see `diagram/diagramInk`. */
-  inkCss: number
+  inkCss: number,
+  /** The pens those runs are in, and a directed crease's width (`referencesCreasePens`). */
+  pens: DiagramPens = DIAGRAM_LINE_INK
 ): StrokeGeometry {
   const {
     visible,
@@ -466,15 +539,23 @@ export function applyCreaseVisibility(
     emphasisWidth = 1,
     directions = null,
     ink = null,
+    thin = null,
+    thinPen = null,
   } = visibility;
   const filters =
     visible !== null ||
     (dimmed !== null && dimmed.size > 0) ||
     (emphasis !== null && emphasis.size > 0) ||
-    (directions !== null && directions.size > 0 && ink !== null);
+    (directions !== null && directions.size > 0 && ink !== null) ||
+    (thin !== null && thin.size > 0);
   if (!filters) return strokes;
+  // The aux pen in the diagram's ink, which is what a crease's width is a
+  // multiple of here: one unit of `widthMul` is the edge pen's weight.
+  const auxPen = thinPen ? penInk(thinPen.pen, thinPen.css / inkCss) : null;
   const color = new Float32Array(strokes.color);
   const widthMul = new Float32Array(strokes.widthMul);
+  // One unit of `widthMul` is the edge pen's weight.
+  const unit = Math.max(pens.edge.width, Number.EPSILON);
   // A crease is split into a segment per crossing, and each one restarts its
   // dash — so a dashed line reads as a row of unrelated dashes with a reset at
   // every vertex. Giving collinear segments a shared parameterisation makes
@@ -483,11 +564,11 @@ export function applyCreaseVisibility(
   const a = new Float32Array(strokes.a);
   const b = new Float32Array(strokes.b);
   const dashPhase = new Float32Array(strokes.count);
-  // A diagram says mountain and valley with a *pattern*, not only a colour —
-  // which is the half that still reads when the paper is turned over and the
-  // two colours swap meaning. The crease pattern's own table only dashes under
-  // Oriedita's shape-coded line style, so this surface brings its own.
-  const dashSlot = new Float32Array(strokes.count);
+  // Each crease's dash is its pen's, already in the diagram's slots
+  // (`referencesCreasePens`); a direction the plan settles below replaces it.
+  const dashSlot = strokes.dashSlot
+    ? new Float32Array(strokes.dashSlot)
+    : new Float32Array(strokes.count);
   for (let i = 0; i < strokes.count; i += 1) {
     if (i >= segmentCount) {
       color[i * 4 + 3] = 0;
@@ -498,11 +579,21 @@ export function applyCreaseVisibility(
       color[i * 4 + 3] = 0;
       continue;
     }
+    if (auxPen && thin?.has(id)) {
+      if (ink?.aux) color.set(ink.aux, i * 4);
+      widthMul[i] = auxPen.width / unit;
+      dashSlot[i] = diagramDashSlot('aux');
+      continue;
+    }
     // The direction the fold was made in, for every crease a step has made —
-    // not only the active one. Alpha is left alone: it carries the build-up.
+    // not only the active one — in that direction's fold pen: the pattern's
+    // lines, on the finished card, not a step's instruction. Alpha is left
+    // alone: it carries the build-up.
     const folded = directions?.get(id);
     if (folded) {
-      dashSlot[i] = diagramDashSlot(folded);
+      const pen = FOLD_PEN[folded];
+      dashSlot[i] = diagramDashSlot(pen);
+      widthMul[i] = pens[pen].width / unit;
       if (ink) {
         const rgba = folded === 'mountain' ? ink.mountain : ink.valley;
         color[i * 4] = rgba[0];
@@ -560,7 +651,68 @@ export function applyCreaseVisibility(
     widthMul,
     dashPhase,
     dashSlot,
-    dashPatterns: diagramDashPatterns(inkCss),
+    dashPatterns: diagramDashPatterns(inkCss, auxPen ? { ...pens, crease: auxPen, aux: auxPen } : pens),
+  };
+}
+
+/** A direction's fold pen: a line of a crease pattern, which is what this channel draws. */
+const FOLD_PEN = { mountain: 'fold-mountain', valley: 'fold-valley' } as const;
+
+/**
+ * The pen a crease takes for what it is on the paper: a mountain or a valley
+ * is a crease pattern's line, in the fold pens — never the diagram-crease
+ * pens a step's instruction is drawn in over it. A crease with no direction
+ * takes the aux pen.
+ */
+const ROLE_PEN = {
+  edge: 'edge',
+  mountain: FOLD_PEN.mountain,
+  valley: FOLD_PEN.valley,
+  unassigned: 'aux',
+  aux: 'aux',
+} as const satisfies Record<SheetStrokeRole, DiagramLineStyleName>;
+
+type CreasePen = (typeof ROLE_PEN)[SheetStrokeRole];
+
+/**
+ * The document's creases in the paper style's pens: each takes the pen of what
+ * it is on the paper (`creaseRoleAt`, {@link ROLE_PEN}; a direction's is its
+ * fold pen) — its colour, its width as a multiple of the edge pen (the
+ * stroke's unit), and its dash, in the diagram's dash slots over `pens` so
+ * {@link applyCreaseVisibility} carries them on. A picked crease keeps the
+ * accent the stroke packer gave it, and its highlight width, over its pen's.
+ */
+export function referencesCreasePens(
+  strokes: StrokeGeometry,
+  segAttr: Int32Array,
+  segmentCount: number,
+  options: {
+    pens: DiagramPens;
+    /** The pens' ink, CSS px per unit — see `diagram/diagramInk`. */
+    inkCss: number;
+    /** Each pen's colour on this canvas: the fold pens' inks for a direction. */
+    ink: Readonly<Record<CreasePen, Rgba>>;
+    /** 1-based ids of the picked creases, which keep their accent. */
+    picked: ReadonlySet<number>;
+  }
+): StrokeGeometry {
+  const { pens, inkCss, ink, picked } = options;
+  const unit = Math.max(pens.edge.width, Number.EPSILON);
+  const color = new Float32Array(strokes.color);
+  const widthMul = new Float32Array(strokes.widthMul);
+  const dashSlot = new Float32Array(strokes.count);
+  for (let i = 0; i < Math.min(segmentCount, strokes.count); i += 1) {
+    const pen = ROLE_PEN[creaseRoleAt(segAttr, i)];
+    widthMul[i] *= pens[pen].width / unit;
+    dashSlot[i] = pen === 'edge' ? 0 : diagramDashSlot(pen);
+    if (!picked.has(i + 1)) color.set(ink[pen], i * 4);
+  }
+  return {
+    ...strokes,
+    color,
+    widthMul,
+    dashSlot,
+    dashPatterns: diagramDashPatterns(inkCss, pens),
   };
 }
 
@@ -612,7 +764,7 @@ export function verticesOfLines(
   // A vertex where one straight line simply continues is not a landmark. The
   // pattern splits a crease wherever its assignment changes, and the plan folds
   // the whole line one way (plan D20) — so those splits are invisible in the
-  // fold and a dot there marks nothing the folder can use.
+  // fold and picking one names nothing the folder can use.
   //
   // For the paper as it stands — what is drawn, and what can be picked while a
   // sequence is read. The set that scopes a sheet keeps it: it is still a real
@@ -641,12 +793,33 @@ function collinear(a: { x: number; y: number }, b: { x: number; y: number }): bo
 const COLLINEAR_SINE = 1e-6;
 
 /**
- * The paper as a filled shape: the sheet's outline, triangulated.
+ * The sheet's outline: the convex hull of its border creases' endpoints,
+ * counter-clockwise; empty without a border.
  *
- * Taken as the convex hull of the border creases' endpoints rather than by
- * walking the loop — a rectangle's hull *is* its outline, whichever order the
- * document happens to store its edges in, and the planner refuses anything that
- * is not a rectangle. Returns null when there is no border to fill.
+ * Taken as the hull rather than by walking the loop — a rectangle's hull *is*
+ * its outline, whichever order the document happens to store its edges in, and
+ * the planner refuses anything that is not a rectangle. The one reading of
+ * where the paper is, which the canvas fills.
+ */
+export function sheetOutline(
+  geometry: CpGeometryTransport,
+  borderLineIds: ReadonlySet<number> | null
+): Point[] {
+  if (!borderLineIds || borderLineIds.size === 0) return [];
+  const endpoints = geometry.segEndpoints;
+  const corners: Point[] = [];
+  for (const id of borderLineIds) {
+    const base = (id - 1) * 4;
+    if (base < 0 || base + 3 >= endpoints.length) continue;
+    corners.push({ x: endpoints[base], y: endpoints[base + 1] });
+    corners.push({ x: endpoints[base + 2], y: endpoints[base + 3] });
+  }
+  return convexHull(corners);
+}
+
+/**
+ * The paper as a filled shape: the sheet's outline ({@link sheetOutline}),
+ * triangulated. Returns null when there is no border to fill.
  */
 export function sheetFillGeometry(
   geometry: CpGeometryTransport,
@@ -661,16 +834,7 @@ export function sheetFillGeometry(
 ): FillGeometry | null {
   // The whole sheet in the air leaves no paper on the table.
   if (without.some((flap) => flap.whole)) return null;
-  if (!borderLineIds || borderLineIds.size === 0) return null;
-  const endpoints = geometry.segEndpoints;
-  const corners: Point[] = [];
-  for (const id of borderLineIds) {
-    const base = (id - 1) * 4;
-    if (base < 0 || base + 3 >= endpoints.length) continue;
-    corners.push({ x: endpoints[base], y: endpoints[base + 1] });
-    corners.push({ x: endpoints[base + 2], y: endpoints[base + 3] });
-  }
-  let hull = convexHull(corners);
+  let hull = sheetOutline(geometry, borderLineIds);
   for (const flap of without) hull = clipPolygonToSide(hull, flap.chord, -flap.side);
   if (hull.length < 3) return null;
 
@@ -687,25 +851,6 @@ export function sheetFillGeometry(
     });
   }
   return { position, color: colors, count: triangles * 3 };
-}
-
-/** Andrew's monotone chain, counter-clockwise. */
-function convexHull(points: readonly Point[]): Point[] {
-  if (points.length < 3) return [...points];
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-  const cross = (o: Point, a: Point, b: Point) =>
-    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  const half = (source: readonly Point[]) => {
-    const out: Point[] = [];
-    for (const p of source) {
-      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
-      out.push(p);
-    }
-    return out;
-  };
-  const lower = half(sorted);
-  const upper = half([...sorted].reverse());
-  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
 
 /** `color` with its alpha scaled — for the uncreased part of a fold. */

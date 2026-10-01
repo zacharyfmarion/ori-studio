@@ -23,6 +23,10 @@
     "ignoredFile": "{{name}} を使用しました。ドロップされた他の 1 件は無視されました。",
     "ignoredFiles": "{{name}} を使用しました。ドロップされた他の {{others}} 件は無視されました。"
   },
+  "foldedFigureExport": {
+    "empty": "この折り図にはまだ書き出せるものがありません",
+    "failed": "この折り図を書き出せませんでした"
+  },
   "global": {
     "error": "Ori Studio エラー",
     "folding": "折り上げ中…",
@@ -37,6 +41,14 @@
     "solving": "解いています…",
     "solvingLong": "まだ解いています — しばらく時間がかかる場合があります"
   },
+  "paperExport": {
+    "saved": "{{name}} を書き出しました"
+  },
+  "paperPreset": {
+    "exported": "{{name}} を書き出しました",
+    "invalidJson": "このファイルは JSON ではありません",
+    "notAPreset": "このファイルは用紙スタイルではありません: 名前とスタイルが必要です"
+  },
   "references": {
     "searching": "基準点を探しています…",
     "searchingLong": "まだ基準点を探しています — 初回の検索ではテーブルを構築します",
@@ -44,10 +56,12 @@
     "stopped": "検索をキャンセルしました",
     "stopping": "キャンセル中…"
   },
+  "referencesExport": {
+    "empty": "書き出せるステップがまだありません",
+    "noSteps": "書き出せるステップがまだありません"
+  },
   "simulatorExport": {
-    "empty": "このシミュレーションには書き出せるものがまだありません",
-    "failed": "このビューを書き出せませんでした",
-    "saved": "{{name}} を書き出しました"
+    "empty": "このシミュレーションには書き出せるものがまだありません"
   },
   "update": {
     "available": "バージョン {{version}} が利用可能です",

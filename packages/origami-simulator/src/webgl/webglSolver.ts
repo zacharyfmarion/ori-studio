@@ -43,7 +43,7 @@ import {
   type MeshTopology,
   type RenderSettings,
 } from './meshRenderer.js';
-import type { CameraUniforms } from './camera.js';
+import { sheetExtent, type CameraUniforms } from './camera.js';
 import {
   packModel,
   packBeamMeta,
@@ -306,7 +306,11 @@ export class WebglSolver implements SolverBackend {
    * runs on.
    */
   render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null = null): void {
-    this.meshRenderer ??= new MeshRenderer(this.gl, this.topology);
+    // The sheet's extent is what the style's erode is a fraction of; the
+    // rest positions are the unfolded sheet.
+    this.meshRenderer ??= new MeshRenderer(this.gl, this.topology, {
+      sheet: sheetExtent(this.originalPositions),
+    });
     this.meshRenderer.render(camera, settings, target);
   }
 

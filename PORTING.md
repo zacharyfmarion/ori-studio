@@ -67,6 +67,50 @@ are unchanged:
   no parity surface for this pass: the render oracle diffs the paper passes
   with shadows off, and `parse_oriedita_render_primitives` still reads
   upstream's gradient paints so the oracle's own output stays parseable.
+- **A read-only paper scene beside the drawer.** `folded_figure_paper_scene`
+  (`FoldedPaperScene` in `folding.rs`, `CpSession::folded_figure_paper_scene`,
+  wasm and native commands of the same name) answers what the `Paper5` drawer
+  never emits: every subface's full face stack, every face's folded outline
+  with the crease each edge came from, and the sheet's extent — so an export
+  can draw whole faces and keep buried layers (D4/D6 in
+  `implementation-plans/unified-paper-style-and-export.md`). It is additive:
+  it reads the same `FoldedRenderInputs` and the same `HierarchyTable` through
+  the same `OrieditaRenderCamera` for the model's state, calls the drawer's own
+  `subface_top_stack` / `visible_subface_face` parity, and changes nothing in
+  `push_paper_render_pass_primitives` or anything under it. The one shared
+  edit is `paper_hierarchy_table`, a mechanical extraction of the ordering
+  lookup `render_snapshot_impl` already did, with the same control flow.
+  `every_subface_stack_starts_with_the_face_the_drawer_paints` (in-crate) and
+  `paper_scene_subfaces_are_the_drawers_fills_with_their_visible_face_on_top`
+  (`tests/folding.rs`) hold each subface's top face and polygon to the drawer's
+  on both sides of the figure; the render oracle is untouched. `aux_lines`
+  carries the document's `Cyan3` lines through the fold, which Oriedita never
+  does: the fold takes only folding-colour creases
+  (`LineColor::is_folding_line`, Oriedita's `getForSelectFolding`), so the
+  wireframe has no folded position for one. `CpSession` captures the
+  document's `Cyan3` lines with the fold (`FlatFoldedFigure::aux_segments`,
+  the whole document's whatever the selection, since a selection names
+  foldable creases and the clip below keeps only what lies on a folded face),
+  and `paper_scene_aux_lines` clips each to every face of the unfolded sheet
+  (`Polygon::clip_segment`, Ori Studio native: split at every proper edge
+  crossing, keep a piece whose midpoint is `Inside`, so a run along a crease
+  or a paper edge and any piece under `Epsilon::POINT` are dropped) and places
+  each piece by `FoldGraph::fold_point` — the reflection chain
+  `fold_movement` walks for the face's own vertices, exact for a rigid flat
+  fold — then through the pass's camera. `FoldGraph::folded_points` and its
+  averaging are unchanged; `fold_movement` now delegates to `fold_point`.
+  `aux_lines_are_split_at_the_fold_and_carried_by_their_face` (in-crate) and
+  `paper_scene_aux_lines_lie_inside_their_faces_one_piece_per_face_crossed`
+  (`tests/folding.rs`, every paper-scene fixture) hold each piece inside its
+  face's folded outline with one piece per face the line crosses. The session accessor declines
+  where the drawer would have searched: it answers `None` unless the session
+  holds a solved ordering (`FoldOutcome::Solved`), whatever the display style.
+  A fold the kernel rewound to `Transparent3` — no solutions, or a
+  contradiction concluded the way Oriedita concludes it — has no `Paper5`
+  picture, and repeating its search on read would re-run exhausted work or
+  re-raise the contradiction for a figure the snapshot draws fine
+  (`session_paper_scene_declines_a_fold_with_no_layer_ordering`). Only the
+  from-segments path, which has no session to ask, still searches.
 
 - **Kernel-side snapping states its candidates.** `SnapCandidates` (grid state
   plus a vertices flag) is threaded into
@@ -627,7 +671,7 @@ differently:
   - `transparent_transparency` is honoured in 3D, using upstream's own reading of
     it — the value *is* the fill alpha, default `16/255`.
   - `transparency_color` is not. It selects a Java2D *render pass*
-    (`transparent_render_pass_name`), which a projector compositing its own alpha
+    (`transparent_render_pass_name`), which a renderer compositing its own alpha
     has no reading for. The field stays on the type so files round-trip.
   - `scale` / `rotation` are not wired to any control on either kind of figure.
     Ori Studio transforms a figure through `FoldedFigurePlacement`, driven by the
@@ -636,8 +680,9 @@ differently:
     figure works — through the handles.
   - Shadows are **not** drawn in 3D. Upstream's shadow is an offset band along a
     subface boundary, derived from the subface arrangement and the layer
-    hierarchy; the 3D path keeps that machinery in the kernel and the projector
-    never sees it. The control is shown disabled rather than hidden.
+    hierarchy; the 3D path keeps that machinery in the kernel and nothing that
+    draws a 3D figure sees it. The control is shown disabled rather than
+    hidden.
 - **Two faces meeting across a segment that is not a crease is refused.** The
   flat path mirrors across one — `find_adjacent_line` applies no colour filter,
   so an unassigned crease or an interior cut folds the paper 180° — and that
@@ -675,20 +720,30 @@ differently:
   primitive stream, drawn in the crease-pattern scene exactly as before; a 3D
   figure is a GPU mesh in a window of its own, sharing the simulator worker's one
   WebGL context. Three consequences a future porting session should know:
-  - **The layers are separated by an epsilon along the plane's normal.** A depth
-    buffer cannot draw a flat stack — the layers are exactly coplanar and
-    z-fight, which is why ORIPA keeps an overlap matrix. We do not need one,
-    because the kernel already computed the order: displacing each slot by
-    `stack index × ε` makes the z-buffer reproduce it. No global order is
-    constructed anywhere, so a cyclic panel order works by construction rather
-    than by exception.
-  - **`foldedFigure3dProjection.ts` is the vector path, not a second renderer.**
-    It makes the drawing that goes into an `.osf`, a crease-pattern export, a
-    standalone SVG/PNG, and the fallback picture for a figure with no GPU or no
-    render model. It is off the per-frame path and stays off it
-    (`projectorIsExportOnly.test.tsx`). Both paths derive from one render model
-    and a test asserts they show the same layer
-    (`folded3dMesh.test.ts`).
+  - **Nothing coplanar is ever submitted together.** A depth buffer cannot draw
+    a flat stack — the layers are exactly coplanar and z-fight, which is why
+    ORIPA keeps an overlap matrix. We do not need one, because the kernel
+    already computed the order: the renderer submits one *skin* per plane per
+    side — the end of each cell's stack the eye is on — so within a submission
+    the cells are area-disjoint and the depth buffer only ever decides plane
+    against plane. (Displacing each slot along the normal instead was tried and
+    does not work: a face is the top layer of one cell and buried in the next,
+    creases lie on cell boundaries by construction, and no epsilon survives
+    that. `folded3dMesh.ts` records it.) No global order is constructed
+    anywhere, so a cyclic panel order works by construction rather than by
+    exception.
+  - **The vector drawing is the same mesh, not a second renderer.**
+    `folded3dScene.ts` hands the window's own buffers to the simulator's scene
+    producer at the camera the window shows, and the resulting `PaperScene` is
+    what goes into an `.osf`, a crease-pattern export, a standalone SVG/PNG,
+    and the fallback picture for a figure with no GPU or no render model. So
+    the file and the window agree by construction rather than by comparison;
+    what a test still has to assert is the *ordering*
+    (`folded3dSceneSkinParity.test.ts`) and the *rate* — building a scene is a
+    BSP, a hidden-piece pass and a merge, and never happens per pointermove
+    (`sceneIsExportOnly.test.tsx`). A separate CPU projector made this drawing
+    until 2026-09; it was a second builder of the same geometry and was
+    retired.
   - **A 3D figure and an inline simulation disagree about which tone is
     "front".** The simulator lifts FOLD faces with `[x, 0, y]`, a determinant −1
     map that puts its right-hand normals on the paper's FOLD-front; a folded

@@ -20,13 +20,17 @@ const initialState = useWorkspaceStore.getInitialState();
 /** A kernel that answers when told to, recording every write it was handed. */
 function stubKernel() {
   const writes: Array<Partial<OristudioCpFoldedFigureModel>> = [];
+  const options: Array<{ mirror?: boolean } | undefined> = [];
   const pending: Array<() => void> = [];
-  const update = vi.fn((_id: string, patch: Partial<OristudioCpFoldedFigureModel>) => {
-    writes.push(patch);
-    return new Promise<boolean>((resolve) => {
-      pending.push(() => resolve(true));
-    });
-  });
+  const update = vi.fn(
+    (_id: string, patch: Partial<OristudioCpFoldedFigureModel>, opts?: { mirror?: boolean }) => {
+      writes.push(patch);
+      options.push(opts);
+      return new Promise<boolean>((resolve) => {
+        pending.push(() => resolve(true));
+      });
+    }
+  );
   const supersede = vi.fn();
   useWorkspaceStore.setState({
     updateOristudioCpFoldedFigureModel: update as never,
@@ -39,7 +43,7 @@ function stubKernel() {
     await Promise.resolve();
     await Promise.resolve();
   };
-  return { writes, land, update, supersede };
+  return { writes, options, land, update, supersede };
 }
 
 beforeEach(() => {
@@ -81,6 +85,23 @@ describe('foldedModelWriteQueue', () => {
       back_color: { red: 4, green: 5, blue: 6 },
       display_shadows: true,
     });
+  });
+
+  it('issues a write as a mirror only while every patch folded into it is one', async () => {
+    // The store's mirror of a figure's effective paper style selects nothing
+    // and dirties nothing; a user's edit that lands in the same coalesced
+    // write must still do both, so the merged write is the user's.
+    const kernel = stubKernel();
+    queueFoldedModelWrite('figure-1', { front_color: { red: 1, green: 2, blue: 3 } }, { mirror: true });
+    expect(kernel.options[0]).toEqual({ mirror: true });
+    queueFoldedModelWrite('figure-1', { back_color: { red: 4, green: 5, blue: 6 } }, { mirror: true });
+    queueFoldedModelWrite('figure-1', { display_shadows: true });
+    await kernel.land();
+    expect(kernel.options[1]).toEqual({ mirror: false });
+    await kernel.land();
+
+    queueFoldedModelWrite('figure-2', { display_shadows: true });
+    expect(kernel.options[2]).toEqual({ mirror: false });
   });
 
   it('keeps figures independent', async () => {

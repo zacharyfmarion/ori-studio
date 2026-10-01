@@ -16,11 +16,13 @@ import type {
   OristudioCpEstimationOrder,
   OristudioCpFold3dFoldResult,
   OristudioCpFold3dStepResult,
+  OristudioCpFolded3dAuxLines,
   OristudioCpFoldedFigureBatchResult,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedFigureRenderOptions,
   OristudioCpFoldedFigureResult,
   OristudioCpFoldedFigureSnapshot,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
   OristudioCpLineSegment,
   OristudioCpOperationDescriptor,
@@ -332,6 +334,15 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
         options: options ?? null,
       });
     },
+    async foldedFigurePaperScene(
+      handle: number,
+      documentHandle?: number | null
+    ): Promise<OristudioCpFoldedPaperScene | null> {
+      return call('cp_folded_figure_paper_scene', {
+        handle,
+        documentHandle: documentHandle ?? null,
+      });
+    },
     async setFoldedFigureModel(
       handle: number,
       model: OristudioCpFoldedFigureModel
@@ -375,6 +386,12 @@ export function createOristudioCpNativeClient(): OristudioCpWorkerApi {
     },
     async duplicateFolded3dFigure(handle: number): Promise<OristudioCpFold3dFoldResult> {
       return call('cp_folded_figure_3d_duplicate', { handle });
+    },
+    async folded3dAuxLines(
+      handle: number,
+      documentHandle: number
+    ): Promise<OristudioCpFolded3dAuxLines> {
+      return call('cp_folded_figure_3d_aux_lines', { handle, documentHandle });
     },
     async freeFoldedFigure(handle: number): Promise<void> {
       return call('cp_free_folded_figure', { handle });

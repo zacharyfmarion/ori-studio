@@ -261,6 +261,10 @@
   },
   "references": {
     "categoryLabel": "참조",
+    "exportAllSteps": "모든 단계 내보내기…",
+    "exportStep": "단계 내보내기…",
+    "exportStepPng": "단계를 PNG로 내보내기…",
+    "exportStepSvg": "단계를 SVG로 내보내기…",
     "nextCandidate": "다음 후보",
     "nextStep": "다음 단계",
     "nextWay": "다음 방법",
@@ -285,7 +289,6 @@
     "resetView": "시뮬레이터 보기 초기화",
     "toggleCreases": "접는 선",
     "toggleFaces": "면",
-    "toggleHiddenLines": "숨은 선",
     "toggleLighting": "조명"
   },
   "viewport": {

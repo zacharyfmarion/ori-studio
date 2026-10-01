@@ -64,7 +64,7 @@ import {
   foldedFigureUserBounds,
 } from '../../cp-workspace/adapters/cpFoldedToScene';
 import { isFoldedFigureStale } from '../../cp-workspace/folded/foldedFigureStaleness';
-import { foldedFigureOtherSideCamera } from '../../cp-workspace/folded/foldedFigure3dProjection';
+import { foldedFigureOtherSideCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   resetFoldedFigureHandles,
   retainFoldedFigureHandle,
@@ -1152,12 +1152,12 @@ function foldedFigureSnapshot(): OristudioCpFoldedFigureSnapshot {
 }
 
 /**
- * The smallest render model the projector can draw: one triangular face, one
- * plane, one cell whose stack is that face, no edges.
+ * The smallest render model that draws: one triangular face, one plane, one
+ * cell whose stack is that face, no edges.
  *
- * Real enough to project — the store calls `projectFolded3dModel` for real, with
- * no mock in between, so a route that reached it would produce a genuinely empty
- * picture if this were fabricated badly.
+ * Real enough to build a picture from — the store runs the scene producer for
+ * real, with no mock in between, so a route that reached it would produce a
+ * genuinely empty picture if this were fabricated badly.
  */
 function folded3dRenderModelFixture(): OristudioCpFolded3dRenderModel {
   const triangle = [0, 0, 0, 100, 0, 0, 0, 100, 0];
@@ -3214,9 +3214,11 @@ describe('workspace store slices', () => {
       expect(figure?.folded3d).not.toBeNull();
       expect(figure?.snapshot).toBeNull();
       expect(figure?.status).toBe('ready');
-      // Projected here, not fetched from the kernel: the 3D door has no render
-      // command, and asking the flat one is a kind mismatch.
-      expect(figure?.renderSnapshot?.primitives.length).toBeGreaterThan(0);
+      // Built here, not fetched from the kernel: the 3D door has no render
+      // command, and asking the flat one is a kind mismatch. A scene, not a
+      // render snapshot — that field is the flat figure's now.
+      expect(figure?.scene?.items.length).toBeGreaterThan(0);
+      expect(figure?.renderSnapshot).toBeNull();
       expect(figure?.camera).toBeTruthy();
     });
 
@@ -3684,7 +3686,7 @@ describe('workspace store slices', () => {
       // A 3D figure's picture is made in the frontend, so nothing is asked of
       // the kernel — the flat command would reject a spatial handle anyway.
       expect(oristudioCpMocks.getOristudioCpFoldedFigureRenderSnapshot).not.toHaveBeenCalled();
-      expect(turned?.renderSnapshot).not.toEqual(figure.renderSnapshot);
+      expect(turned?.scene).not.toEqual(figure.scene);
       expect(turned?.status).toBe('ready');
     });
 
@@ -5157,6 +5159,106 @@ describe('workspace store slices', () => {
     });
   });
 
+  it('pins a paper-style field on a folded figure, and clears it, as an overlay edit', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+    });
+    const figure: OristudioCpFoldedFigureEntry = {
+      id: 'generated-1',
+      title: 'Folded model 1',
+      handle: null,
+      sourceKind: 'generated-from-current-cp',
+      sourceCpRevision: 0,
+      startingFaceId: 1,
+      displayStyle: 'Paper5',
+      status: 'ready',
+      placement: IDENTITY_FOLDED_PLACEMENT,
+      snapshot: foldedFigureSnapshot(),
+      renderSnapshot: foldedRenderSnapshot(),
+      error: null,
+    };
+    useWorkspaceStore.setState({
+      oristudioCpFoldedFigures: [figure],
+      oristudioCpActiveFoldedFigureId: null,
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+      dirty: false,
+    });
+    const store = useWorkspaceStore.getState();
+
+    expect(store.setOristudioCpFoldedFigureAppearance('missing', 'erode', 0.1)).toBe(false);
+
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    expect(store.setOristudioCpFoldedFigureAppearance(figure.id, 'paper.front', '#ff0000')).toBe(
+      true
+    );
+    // A document edit, and one that selects the figure, as editing its model does.
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].appearance).toEqual({
+      'paper.front': '#ff0000',
+    });
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBe(figure.id);
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+    // No history push of its own: that is the caller's bracket.
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toEqual([]);
+    useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change paper style', null);
+
+    // Re-pinning the same value changes nothing.
+    const pinned = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    store.setOristudioCpFoldedFigureAppearance(figure.id, 'paper.front', '#ff0000');
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toBe(pinned);
+
+    await useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].appearance).toBeUndefined();
+    expect(useWorkspaceStore.getState().oristudioCpActiveFoldedFigureId).toBeNull();
+    // Overlay-only: the wasm document is never reloaded to restore a pin.
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
+
+    await useWorkspaceStore.getState().redo();
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].appearance).toEqual({
+      'paper.front': '#ff0000',
+    });
+
+    // Clearing the last pin drops the record altogether.
+    store.setOristudioCpFoldedFigureAppearance(figure.id, 'paper.front', undefined);
+    expect(useWorkspaceStore.getState().oristudioCpFoldedFigures[0].appearance).toBeUndefined();
+  });
+
+  it('pins a paper-style field on an inline simulation window, undoably', async () => {
+    resetStores(seedSnapshot());
+    useWorkspaceStore.setState({
+      activePanelId: 'crease-pattern',
+      oristudioCpDocument: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]),
+      oristudioCpInlineSimulations: [inlineSimulationFixture()],
+      oristudioCpHistoryPast: [],
+      oristudioCpHistoryFuture: [],
+      dirty: false,
+    });
+    setInlineSimulationSource('inline-sim-1', { fold: {} as never, modelKey: 'k' });
+    const store = useWorkspaceStore.getState();
+
+    expect(store.setOristudioCpInlineSimulationAppearance('missing', 'erode', 0.1)).toBe(false);
+
+    const before = useWorkspaceStore.getState().oristudioCpInlineSimulations;
+    expect(store.setOristudioCpInlineSimulationAppearance('inline-sim-1', 'erode', 0.1)).toBe(true);
+    expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].appearance).toEqual({
+      erode: 0.1,
+    });
+    expect(useWorkspaceStore.getState().dirty).toBe(true);
+    expect(useWorkspaceStore.getState().oristudioCpHistoryPast).toEqual([]);
+    useWorkspaceStore.getState().recordInlineSimulationHistory([...before], 'Change paper style');
+
+    await useWorkspaceStore.getState().undo();
+    expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].appearance).toBeUndefined();
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
+
+    await useWorkspaceStore.getState().redo();
+    expect(useWorkspaceStore.getState().oristudioCpInlineSimulations[0].appearance).toEqual({
+      erode: 0.1,
+    });
+  });
+
   // --- Kernel/cache reconciliation on overlay undo -------------------------
   //
   // A figure's appearance lives in the kernel behind its handle, and every
@@ -5208,8 +5310,13 @@ describe('workspace store slices', () => {
     );
   }
 
-  const RED = { red: 255, green: 0, blue: 0 };
-  const BLUE = { red: 0, green: 0, blue: 255 };
+  // Re-pinned for the paper style (Phase 1): the observable is a model field
+  // the paper-style mirror does not own. A figure's model colours follow its
+  // effective paper style since then, so a colour written to the model alone
+  // is written straight back — `transparent_transparency` is not.
+  const RED = 10;
+  const BLUE = 20;
+  const GREEN = 30;
 
   it('pushes the restored model back into the kernel after an overlay undo', async () => {
     const figure = seedFoldedFigureForModelTests();
@@ -5224,7 +5331,7 @@ describe('workspace store slices', () => {
     const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
     await useWorkspaceStore
       .getState()
-      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: RED });
     useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
 
     oristudioCpMocks.setOristudioCpFoldedFigureModel.mockClear();
@@ -5233,9 +5340,12 @@ describe('workspace store slices', () => {
 
     // The web state reverted, and the kernel was told about it.
     expect(
-      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model.front_color
-    ).toEqual(original.front_color);
-    expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color);
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0].snapshot?.model
+        .transparent_transparency
+    ).toEqual(original.transparent_transparency);
+    expect(kernelModelWrites().at(-1)?.transparent_transparency).toEqual(
+      original.transparent_transparency
+    );
   });
 
   it('leaves undo synchronous, so a burst is never dropped by historyBusy', async () => {
@@ -5249,7 +5359,7 @@ describe('workspace store slices', () => {
     );
 
     // Three recorded model steps.
-    for (const color of [RED, BLUE, { red: 0, green: 255, blue: 0 }]) {
+    for (const alpha of [RED, BLUE, GREEN]) {
       const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
       useWorkspaceStore.setState({
         oristudioCpFoldedFigures: [
@@ -5257,7 +5367,7 @@ describe('workspace store slices', () => {
             ...useWorkspaceStore.getState().oristudioCpFoldedFigures[0],
             snapshot: {
               ...figure.snapshot!,
-              model: { ...figure.snapshot!.model, front_color: color },
+              model: { ...figure.snapshot!.model, transparent_transparency: alpha },
             },
           },
         ],
@@ -5296,7 +5406,7 @@ describe('workspace store slices', () => {
       }
     );
 
-    for (const color of [RED, BLUE]) {
+    for (const alpha of [RED, BLUE]) {
       const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
       useWorkspaceStore.setState({
         oristudioCpFoldedFigures: [
@@ -5304,7 +5414,7 @@ describe('workspace store slices', () => {
             ...useWorkspaceStore.getState().oristudioCpFoldedFigures[0],
             snapshot: {
               ...figure.snapshot!,
-              model: { ...figure.snapshot!.model, front_color: color },
+              model: { ...figure.snapshot!.model, transparent_transparency: alpha },
             },
           },
         ],
@@ -5320,9 +5430,11 @@ describe('workspace store slices', () => {
     // Whatever order the round-trips completed in, the kernel ends on the state
     // the burst settled on — never on the intermediate it passed through.
     await vi.waitFor(() =>
-      expect(kernelModelWrites().at(-1)?.front_color).toEqual(original.front_color)
+      expect(kernelModelWrites().at(-1)?.transparent_transparency).toEqual(
+        original.transparent_transparency
+      )
     );
-    expect(kernelModelWrites().some((m) => m.front_color.blue === 255)).toBe(false);
+    expect(kernelModelWrites().some((m) => m.transparent_transparency === BLUE)).toBe(false);
   });
 
   it('skips a reconcile that would not change the kernel', async () => {
@@ -5333,10 +5445,10 @@ describe('workspace store slices', () => {
         model,
       })
     );
-    // Colour first, so the kernel holds RED...
+    // The alpha first, so the kernel holds it...
     await useWorkspaceStore
       .getState()
-      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: RED });
     // ...then a placement-only step on top of it. Undoing that step restores a
     // model identical to what the kernel already has.
     const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
@@ -5368,7 +5480,7 @@ describe('workspace store slices', () => {
     const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
     await useWorkspaceStore
       .getState()
-      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: RED });
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: RED });
     useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
 
     oristudioCpMocks.setOristudioCpFoldedFigureModel.mockRejectedValue(new Error('kernel gone'));
@@ -8720,8 +8832,8 @@ describe('changing a 3D folded model appearance', () => {
    * The folded-model menu was greyed out on a 3D figure. `editModel` was false
    * because the write path did not exist: a flat figure's model lives in the
    * kernel, a 3D one's on `folded3d`, and only the first had a setter. The
-   * projector is a pure function of (render model, model, camera), so the 3D
-   * write is a re-projection rather than a round trip.
+   * picture is a pure function of (render model, model, camera), so the 3D
+   * write rebuilds it locally rather than making a round trip.
    */
   async function seedSpatialFigure() {
     resetStores(seedSnapshot());
@@ -8741,35 +8853,44 @@ describe('changing a 3D folded model appearance', () => {
     return figure;
   }
 
-  it('accepts a colour change and keeps it on the 3D snapshot', async () => {
+  it('accepts a model change and keeps it on the 3D snapshot', async () => {
+    // Re-pinned for the paper style (Phase 1): a colour written to the model
+    // alone is mirrored straight back from the figure's effective style, so
+    // the direct write is exercised with a field the mirror does not own.
     const figure = await seedSpatialFigure();
     await expect(
       useWorkspaceStore
         .getState()
-        .updateOristudioCpFoldedFigureModel(figure.id, {
-          front_color: { red: 10, green: 20, blue: 30 },
-        })
+        .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: 40 })
     ).resolves.toBe(true);
 
     const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
-    expect(after.folded3d?.model.front_color).toEqual({ red: 10, green: 20, blue: 30 });
-    // The flat snapshot stays null: changing colours must not make a figure look
-    // like both kinds at once.
+    expect(after.folded3d?.model.transparent_transparency).toBe(40);
+    // The flat snapshot stays null: changing the model must not make a figure
+    // look like both kinds at once.
     expect(after.snapshot).toBeNull();
   });
 
-  it('re-projects, so the change reaches what is drawn', async () => {
+  it('carries a colour pin into the 3D model, and leaves the picture alone', async () => {
+    // The paper-style mirror (D6): the figure's `appearance` is the source and
+    // the model's colour follows it, through the same write a colour pick makes.
+    //
+    // The *picture* does not follow it, and that is the point of a scene: it
+    // carries geometry and roles and no ink, so the canvas and the painter
+    // re-ink the one that is already there rather than a new one being built
+    // for every drag of a colour picker.
     const figure = await seedSpatialFigure();
-    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.renderSnapshot;
-    await expect(
+    const before = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.scene;
+    expect(
       useWorkspaceStore
         .getState()
-        .updateOristudioCpFoldedFigureModel(figure.id, {
-          front_color: { red: 1, green: 2, blue: 3 },
-        })
-    ).resolves.toBe(true);
-    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!.renderSnapshot;
-    expect(after).not.toEqual(before);
+        .setOristudioCpFoldedFigureAppearance(figure.id, 'paper.front', '#0a141e')
+    ).toBe(true);
+    await flushMicrotasks();
+    const after = useWorkspaceStore.getState().oristudioCpFoldedFigures[0]!;
+    expect(after.folded3d?.model.front_color).toEqual({ red: 10, green: 20, blue: 30 });
+    expect(after.scene).toBe(before);
+    expect(after.snapshot).toBeNull();
   });
 
   it('still refuses a figure that has neither model', async () => {
@@ -9205,9 +9326,10 @@ describe('live folded model writes', () => {
     const original = figure.snapshot!.model;
     const writes = deferredKernelWrites();
     const before = useWorkspaceStore.getState().oristudioCpFoldedFigures;
+    // A field the paper-style mirror does not own (see the reconcile tests).
     const write = useWorkspaceStore
       .getState()
-      .updateOristudioCpFoldedFigureModel(figure.id, { front_color: { red: 255, green: 0, blue: 0 } });
+      .updateOristudioCpFoldedFigureModel(figure.id, { transparent_transparency: 40 });
     // The gesture records what it has; the undo lands while the kernel has not
     // answered — the mid-drag case.
     useWorkspaceStore.getState().recordFoldedFigureHistory([...before], 'Change folded model');
@@ -9221,10 +9343,15 @@ describe('live folded model writes', () => {
     // The store shows the restored model, and so does the kernel's last write:
     // the stale tick reached the kernel and the deferred reconcile put it back.
     expect(
-      useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model.front_color
-    ).toEqual(original.front_color);
+      useWorkspaceStore.getState().oristudioCpFoldedFigures[0]?.snapshot?.model
+        .transparent_transparency
+    ).toEqual(original.transparent_transparency);
     await writes.resolveNext();
     await flushMicrotasks();
-    await vi.waitFor(() => expect(kernelModels().at(-1)?.front_color).toEqual(original.front_color));
+    await vi.waitFor(() =>
+      expect(kernelModels().at(-1)?.transparent_transparency).toEqual(
+        original.transparent_transparency
+      )
+    );
   });
 });

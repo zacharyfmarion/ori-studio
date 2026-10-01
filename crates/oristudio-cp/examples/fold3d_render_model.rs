@@ -1,12 +1,13 @@
-//! Emit a [`Folded3dRenderModel`] as JSON, so the frontend projector can be
-//! tested against the kernel's real output rather than against a hand-written
-//! stand-in.
+//! Emit a [`Folded3dRenderModel`] as JSON, so the frontend's 3D folded-figure
+//! code can be tested against the kernel's real output rather than against a
+//! hand-written stand-in.
 //!
-//! The projector (`apps/web/src/cp-workspace/folded/foldedFigure3dProjection.ts`)
-//! is a pure function of this payload, so its tests want the payload and nothing
-//! else — no wasm, no store, no canvas. A fixture nobody can regenerate is a
-//! fixture that rots, so this is the one command that produces them and the
-//! README beside them quotes it.
+//! Everything that draws a 3D figure (`apps/web/src/cp-workspace/folded/` —
+//! the window's mesh, the scene the canvas and every export share) is a pure
+//! function of this payload, so its tests want the payload and nothing else —
+//! no wasm, no store, no canvas. A fixture nobody can regenerate is a fixture
+//! that rots, so this is the one command that produces them and the README
+//! beside them quotes it.
 //!
 //! ```bash
 //! cargo run -p oristudio-cp --release --example fold3d_render_model -- \

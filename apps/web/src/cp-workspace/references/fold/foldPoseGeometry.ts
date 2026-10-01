@@ -23,8 +23,9 @@
  * both taken out (2026-09-16): from straight above they read as grey slabs
  * beside the paper, not as height.
  */
-import type { Point } from '../../../lib/geometry';
+import { convexHull, type Point } from '../../../lib/geometry';
 import type { FoldedGeometry, Rgba, StrokeGeometry } from '../../renderer/types';
+import { clipPolygonToSide } from '../diagram/plannerDiagram';
 import type { FoldPose } from './foldPlayback';
 import { chordFrame, fromChordFrame, inChordFrame, type FoldScene } from './foldScene';
 import type { FlapStrokes } from './foldSplit';
@@ -41,16 +42,32 @@ import {
   type PlacedPoint,
 } from './foldSurface';
 
+/**
+ * A mountain and a valley of one kind of line: the ink and the dash slot each
+ * is drawn with. On the other face each becomes the other of its own pair.
+ */
+export interface FoldDirectionPens {
+  mountain: Rgba;
+  valley: Rgba;
+  mountainSlot: number;
+  valleySlot: number;
+}
+
 export interface FoldPaint {
   /** The paper colour of the face the reader is on, and of the other face. */
   up: Rgba;
   other: Rgba;
-  /** The inks that name a direction; each becomes the other on the other face. */
-  mountain: Rgba;
-  valley: Rgba;
-  /** The dash slots that name a direction, swapped the same way. */
-  mountainSlot: number;
-  valleySlot: number;
+  /**
+   * The pairs that name a direction. The flap carries two kinds of mountain
+   * and valley at once — the step's own fold from the diagram, in the
+   * diagram-crease pens, and the pattern's creases under it, in the fold
+   * pens — and each swaps within its pair, never into the other kind. A
+   * stroke's dash slot says which pair it is drawn in, since no two pairs
+   * share a slot; a stroke in no pair's slot — a solid pinch, but also an
+   * edge, a dotted line or an earlier crease — is looked up by its ink, so
+   * one whose ink happens to equal a pair's is swapped as that pair's.
+   */
+  directions: readonly FoldDirectionPens[];
   /**
    * What a tilted face is shaded toward, its alpha the strength at edge-on.
    * Exactly nothing when the paper is flat, so the flap at rest is the sheet.
@@ -59,6 +76,18 @@ export interface FoldPaint {
   /** Model space to the folded channel's user space: the view's own map, mirror included. */
   modelToUser: (p: Point) => Point;
 }
+
+/**
+ * How a tilted face is shaded on screen: its own colour darkened toward black,
+ * by up to a quarter where the paper is edge-on — less light reaches paper
+ * turned away from the reader, so a bend reads as rounded in whatever colour
+ * the paper is: a grey curl in white paper, a darker yellow in yellow.
+ *
+ * Black rather than a theme ink. The flap was once the theme's dark ground,
+ * shaded toward its light text; the paper is the style's now, and the dark
+ * theme's near-white text over light paper shaded nothing at all.
+ */
+export const PAPER_TILT_SHADE: Rgba = [0, 0, 0, 0.25];
 
 /** The surface's sizes, as shares of the sheet's short side. */
 export interface FoldSurfaceShares {
@@ -107,53 +136,80 @@ const sameInk = (a: Rgba, color: ArrayLike<number>, at: number): boolean =>
   Math.abs(a[1] - color[at + 1]!) < 1e-3 &&
   Math.abs(a[2] - color[at + 2]!) < 1e-3;
 
-/** The same crease named from the other face: mountain ink for valley ink, and back. */
-function otherFaceInk(paint: FoldPaint, color: ArrayLike<number>, at: number): Rgba {
-  const other = sameInk(paint.mountain, color, at)
-    ? paint.valley
-    : sameInk(paint.valley, color, at)
-      ? paint.mountain
+/**
+ * The pair a stroke is drawn in: the one whose slot it takes, or for a stroke
+ * in no pair's slot the one whose ink it is in; null for a line that names no
+ * direction.
+ */
+function directionPair(
+  paint: FoldPaint,
+  color: ArrayLike<number>,
+  at: number,
+  slot: number
+): FoldDirectionPens | null {
+  const bySlot = paint.directions.find(
+    (pair) => slot !== 0 && (slot === pair.mountainSlot || slot === pair.valleySlot)
+  );
+  if (bySlot) return bySlot;
+  return (
+    paint.directions.find(
+      (pair) => sameInk(pair.mountain, color, at) || sameInk(pair.valley, color, at)
+    ) ?? null
+  );
+}
+
+/**
+ * The same crease named from the other face, within its pair: mountain ink
+ * for valley ink and back, and the same for the dash slot. A stroke in its
+ * pair's slot but not its ink — the picked crease, in the accent — keeps the
+ * ink.
+ */
+function otherFace(
+  paint: FoldPaint,
+  color: ArrayLike<number>,
+  at: number,
+  slot: number
+): { ink: Rgba; slot: number } {
+  const own: Rgba = [color[at]!, color[at + 1]!, color[at + 2]!, color[at + 3]!];
+  const pair = directionPair(paint, color, at, slot);
+  if (!pair) return { ink: own, slot };
+  const ink = sameInk(pair.mountain, color, at)
+    ? pair.valley
+    : sameInk(pair.valley, color, at)
+      ? pair.mountain
       : null;
-  return other
-    ? [other[0], other[1], other[2], color[at + 3]!]
-    : [color[at]!, color[at + 1]!, color[at + 2]!, color[at + 3]!];
+  return {
+    ink: ink ? [ink[0], ink[1], ink[2], own[3]] : own,
+    slot:
+      slot === pair.mountainSlot ? pair.valleySlot : slot === pair.valleySlot ? pair.mountainSlot : slot,
+  };
 }
 
-function swapSlot(paint: FoldPaint, slot: number): number {
-  if (slot === paint.mountainSlot) return paint.valleySlot;
-  if (slot === paint.valleySlot) return paint.mountainSlot;
-  return slot;
-}
-
-/** The face's paper colour at a point, darkened by how far it tilts from the reader. */
-function shadedFace(paint: FoldPaint, nz: number): Rgba {
-  const face = nz >= 0 ? paint.up : paint.other;
+/**
+ * A face's paper colour at a point, darkened by how far the paper tilts from
+ * the reader there. Which face is the surface's to say (`PlacedPoint.face`),
+ * not the tilt's.
+ */
+function shadedFace(paint: FoldPaint, face: 1 | -1, nz: number): Rgba {
+  const paper = face > 0 ? paint.up : paint.other;
   const k = paint.shade[3] * (1 - Math.min(1, Math.abs(nz)));
-  if (k <= 0) return face;
+  if (k <= 0) return paper;
   return [
-    face[0] * (1 - k) + paint.shade[0] * k,
-    face[1] * (1 - k) + paint.shade[1] * k,
-    face[2] * (1 - k) + paint.shade[2] * k,
-    face[3],
+    paper[0] * (1 - k) + paint.shade[0] * k,
+    paper[1] * (1 - k) + paint.shade[1] * k,
+    paper[2] * (1 - k) + paint.shade[2] * k,
+    paper[3],
   ];
 }
 
 /**
- * The flap the pose names, at that pose. Every stroke list rides it; the
- * card's other flaps lie flat and are not drawn here at all.
+ * The moving flap in its own frame, on its surface at the pose: what the mesh,
+ * the strokes riding it and its outline are all placed through. Null when the
+ * pose names no flap of the scene.
  */
-export function foldPoseGeometry(
-  scene: FoldScene,
-  pose: FoldPose,
-  strokes: readonly (FlapStrokes | null | undefined)[],
-  paint: FoldPaint,
-  shares: FoldSurfaceShares = DEFAULT_SURFACE_SHARES
-): FoldedGeometry {
+function posedFlap(scene: FoldScene, pose: FoldPose, shares: FoldSurfaceShares) {
   const flap = scene.flaps[pose.flap];
-  if (!flap) return EMPTY_FOLDED;
-  const reach = scene.reach > 0 ? scene.reach : 1;
-  const depthOf = (z: number): number =>
-    DEPTH_FLOOR + DEPTH_SPAN * Math.max(0, Math.min(1, z / reach));
+  if (!flap) return null;
   const short = scene.sheetShortSide > 0 ? scene.sheetShortSide : 1;
   const frame = chordFrame(flap.chord, flap.side);
   const overlap = flap.whole ? 0 : Math.max(0, shares.hingeOverlap);
@@ -181,6 +237,83 @@ export function foldPoseGeometry(
         creased: flap.creased,
         ramp: shares.ramp * short,
       });
+  return { short, frame, polygon, uMin, uMax, surface };
+}
+
+/**
+ * The paper the moving flap covers at a pose, as seen from above: the convex
+ * outline of its mesh, in model space — the flap is paper wherever it has
+ * swung to, and the sheet's own fill has left the place it lifted from
+ * (`sheetFillGeometry`). For the marks drawn over the canvas, which take the
+ * style's ink on paper and the theme's off it (X11 of the paper export plan).
+ *
+ * Its edges are placed at every row through the bend and every column the
+ * surface breaks at — the only places it is not straight — and the hull taken,
+ * which is the mesh's outline wherever the flap is convex and a hair more
+ * where a bend bulges it. Empty when the pose names no flap.
+ */
+export function foldPoseOutline(
+  scene: FoldScene,
+  pose: FoldPose,
+  shares: FoldSurfaceShares = DEFAULT_SURFACE_SHARES
+): Point[] {
+  const posed = posedFlap(scene, pose, shares);
+  if (!posed || posed.polygon.length < 3) return [];
+  const { frame, polygon, uMin, uMax, surface } = posed;
+  const rows = surface.rows(uMin, uMax);
+  const columns = surface.breakpoints();
+  const placed: Point[] = [];
+  polygon.forEach((from, index) => {
+    const to = polygon[(index + 1) % polygon.length]!;
+    const cuts = new Set<number>([0]);
+    const du = to.u - from.u;
+    const ds = to.s - from.s;
+    if (du !== 0) for (const u of rows) cuts.add((u - from.u) / du);
+    if (ds !== 0) for (const s of columns) cuts.add((s - from.s) / ds);
+    for (const t of cuts) {
+      if (t < 0 || t >= 1) continue;
+      const at = surface.place(from.s + ds * t, from.u + du * t);
+      placed.push(fromChordFrame(frame, at.s, at.v));
+    }
+  });
+  return convexHull(placed);
+}
+
+/**
+ * The paper at a pose, as the canvas fills it: the sheet's `outline` on the
+ * resting side of the moving flap's line (none of it while the whole sheet
+ * turns over), and the flap wherever it has swung to ({@link foldPoseOutline}).
+ * At rest, the outline alone. Always two rings, the second empty at rest, so a
+ * clip drawn from them keeps its shape from one frame to the next.
+ */
+export function foldPosePaper(
+  outline: readonly Point[],
+  scene: FoldScene | null,
+  pose: FoldPose | null
+): [Point[], Point[]] {
+  const moving = pose && scene ? scene.flaps[pose.flap] : undefined;
+  if (!pose || !scene || !moving) return [[...outline], []];
+  const resting = moving.whole ? [] : clipPolygonToSide(outline, moving.chord, -moving.side);
+  return [resting, foldPoseOutline(scene, pose)];
+}
+
+/**
+ * The flap the pose names, at that pose. Every stroke list rides it; the
+ * card's other flaps lie flat and are not drawn here at all.
+ */
+export function foldPoseGeometry(
+  scene: FoldScene,
+  pose: FoldPose,
+  strokes: readonly (FlapStrokes | null | undefined)[],
+  paint: FoldPaint,
+  shares: FoldSurfaceShares = DEFAULT_SURFACE_SHARES
+): FoldedGeometry {
+  const posed = posedFlap(scene, pose, shares);
+  if (!posed) return EMPTY_FOLDED;
+  const { short, frame, polygon, surface } = posed;
+  const reach = scene.reach > 0 ? scene.reach : 1;
+  const depthOf = (z: number): number =>
+    DEPTH_FLOOR + DEPTH_SPAN * Math.max(0, Math.min(1, z / reach));
   const breakpoints = surface.breakpoints();
 
   // Fills: the paper meshed on its surface.
@@ -188,12 +321,14 @@ export function foldPoseGeometry(
   const color: number[] = [];
   const depth: number[] = [];
   const mesh = tessellateFlap(polygon, surface, shares.column * short);
-  for (const placed of mesh.vertices) {
+  mesh.vertices.forEach((placed, index) => {
     const at = paint.modelToUser(fromChordFrame(frame, placed.s, placed.v));
     position.push(at.x, at.y);
-    color.push(...shadedFace(paint, placed.nz));
+    // The triangle's face, so no triangle blends the two across the line
+    // where the shown face changes.
+    color.push(...shadedFace(paint, mesh.faces[Math.floor(index / 3)] ?? placed.face, placed.nz));
     depth.push(depthOf(placed.z));
-  }
+  });
 
   // Strokes: each cut where the surface bends under it, every piece placed.
   // Most of a dense pattern's creases lie past the bend and cross no ramp,
@@ -231,14 +366,14 @@ export function foldPoseGeometry(
         const ub = paint.modelToUser(fromChordFrame(frame, end.s, end.v));
         a.push(ua.x, ua.y);
         b.push(ub.x, ub.y);
-        const otherFace = start.nz + end.nz < 0;
-        strokeColor.push(
-          ...(otherFace
-            ? otherFaceInk(paint, list.color, i * 4)
-            : [list.color[i * 4]!, list.color[i * 4 + 1]!, list.color[i * 4 + 2]!, list.color[i * 4 + 3]!])
-        );
+        // Named by the face its middle shows, as the paper under it is.
+        const seen =
+          at((cuts[k - 1]! + cuts[k]!) / 2).face < 0
+            ? otherFace(paint, list.color, i * 4, list.dashSlot[i]!)
+            : { ink: list.color.subarray(i * 4, i * 4 + 4), slot: list.dashSlot[i]! };
+        strokeColor.push(...seen.ink);
         widthMul.push(list.widthMul[i]!);
-        dashSlot.push(otherFace ? swapSlot(paint, list.dashSlot[i]!) : list.dashSlot[i]!);
+        dashSlot.push(seen.slot);
         // The phase is in the drawn piece's own units, so it scales with the
         // piece: a foreshortened one dashes continuously with its neighbours.
         const flatPiece = flat * (cuts[k]! - cuts[k - 1]!);

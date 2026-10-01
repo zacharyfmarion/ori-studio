@@ -21,6 +21,10 @@ function mockActions(): ReferencesShortcutActions {
     zoomOut: vi.fn(),
     clearTarget: vi.fn(),
     playFold: vi.fn(),
+    exportStep: vi.fn(),
+    exportAllSteps: vi.fn(),
+    exportStepSvg: vi.fn(),
+    exportStepPng: vi.fn(),
   };
 }
 
@@ -39,6 +43,9 @@ describe('runReferencesShortcut', () => {
     ['references.zoomOut', 'zoomOut'],
     ['references.clearTarget', 'clearTarget'],
     ['references.playFold', 'playFold'],
+    ['references.exportStep', 'exportStep'],
+    ['references.exportStepSvg', 'exportStepSvg'],
+    ['references.exportStepPng', 'exportStepPng'],
   ] as const)('routes %s to exactly %s', (id, verb) => {
     const actions = mockActions();
     runReferencesShortcut(id, actions);
@@ -55,6 +62,18 @@ describe('runReferencesShortcut', () => {
     );
     expect([...REFERENCES_SHORTCUT_IDS].sort()).toEqual([...registered].sort());
     expect(new Set(REFERENCES_SHORTCUT_IDS).size).toBe(REFERENCES_SHORTCUT_IDS.length);
+  });
+
+  it('ships the export verbs unbound: a row and a button, never a key by default', () => {
+    for (const id of [
+      'references.exportStep',
+      'references.exportStepSvg',
+      'references.exportStepPng',
+    ] as const) {
+      const definition = SHORTCUT_DEFINITIONS.find((d) => d.id === id);
+      expect(definition?.defaultChord).toBeNull();
+      expect(definition?.defaultChords).toEqual([]);
+    }
   });
 
   it('registers each binding under the references scope and target', () => {

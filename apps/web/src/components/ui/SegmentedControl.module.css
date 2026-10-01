@@ -1,0 +1,170 @@
+/*
+ * A padded track with separate pills inside it — the look the Paper settings
+ * tab gave the control before it was the control's own.
+ *
+ * The track's outer height is the shared control scale (`CONTROL_SIZE_CLASSES`:
+ * 28 / 32 / 36px), so a segmented control lines up with a button, an input or a
+ * select beside it; the pills are that height less the track's padding and
+ * border, 20 / 24 / 28px.
+ */
+/* `fit-content`, so it hugs its options even where its container would stretch
+   it, as a grid or a flex column does; `fill` is the one way to stretch it. */
+.track {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  gap: 3px;
+  box-sizing: border-box;
+  width: fit-content;
+  height: 32px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--segmented-track);
+}
+
+.track[data-size='sm'] {
+  height: 28px;
+  border-radius: 7px;
+}
+
+.track[data-size='lg'] {
+  height: 36px;
+}
+
+/* Stretched to its container, each option takes its label's width and an equal
+   share of the room left over: sized to their labels alone, they would leave the
+   rest of the track empty, and split into equal widths, a longer label is cut
+   while a shorter one has room to spare. */
+.track[data-fill] {
+  display: flex;
+  width: 100%;
+}
+
+/*
+ * The chosen pill's background: one element under the options rather than each
+ * option's own, so that a new choice slides it across rather than switching one
+ * pill off and another on. The component places it over the chosen option
+ * (`useActiveIndicator`) and shows it only while something is chosen and laid
+ * out — not for a mixed value, and not inside a container still hidden.
+ */
+.indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.indicator[data-shown] {
+  opacity: 1;
+}
+
+/* A control that refuses its choice dims the chosen pill with the options. */
+.track[data-refused] .indicator[data-shown] {
+  opacity: 0.5;
+}
+
+.track[data-size='sm'] .indicator {
+  border-radius: 4px;
+}
+
+.track[data-size='lg'] .indicator {
+  border-radius: 6px;
+}
+
+/* An option gives way only when the labels cannot all fit: see the ellipsis
+   below. Positioned, so it paints over the indicator that comes before it. */
+.option {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.track[data-size='sm'] .option {
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.track[data-size='lg'] .option {
+  border-radius: 6px;
+}
+
+.track[data-fill] .option {
+  flex: 1 1 auto;
+}
+
+/* A label too long for the room there is gives way rather than overflowing. */
+.option > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Fainter than the chosen pill, so hovering one never reads as choosing it. */
+.option:hover:not(:disabled, [aria-disabled='true']) {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  color: var(--text-primary);
+}
+
+/* The chosen option's background is the indicator under it. */
+.option[data-active],
+.option[data-active]:hover {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+/* `aria-disabled` is one option refusing a choice while it stays focusable, so
+   its tooltip can still say why. */
+.option:disabled,
+.option[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* A finger needs the room a cursor does not: the track grows to hold a pill of
+   the touch target's height. */
+@media (pointer: coarse) {
+  .track,
+  .track[data-size='sm'],
+  .track[data-size='lg'] {
+    height: auto;
+  }
+
+  .option {
+    min-height: var(--touch-target);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator,
+  .option {
+    transition: none;
+  }
+}

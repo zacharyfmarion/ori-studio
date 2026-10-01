@@ -1,30 +1,42 @@
 import type { ReactNode } from 'react';
-import type { DiagramProjector, DiagramSheet, SvgPoint } from '../stepDiagramGeometry';
+import type {
+  DiagramProjector,
+  DiagramSheet,
+  SheetPoint,
+  SvgPoint,
+} from '../stepDiagramGeometry';
 import {
   TURN_OVER_BOX,
-  TURN_OVER_HEAD,
+  TURN_OVER_HEAD_PATH,
   TURN_OVER_PATH,
-  arcEndDirection,
+  arcArrowhead,
   arcPathData,
-  arrowheadPoints,
+  arrowheadPath,
   arrowheadSize,
+  erodeCreaseOnSheet,
   foldAndUnfoldFromArc,
   foldArrowLanding,
   foldArrowTrim,
+  foldReturnOffset,
+  offPaperPathData,
+  paperRingPoints,
+  sheetCorners,
 } from '../stepDiagramGeometry';
 import type {
   DiagramLineStyleName,
   StepDiagramPrimitive,
 } from '../referenceFinderDiagramToPrimitives';
+import type { DiagramInlineInk, DiagramInlineStroke } from './diagramColors';
 import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
-  DIAGRAM_MARK_INK,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
+  type DiagramPens,
 } from './diagramInk';
 import {
   diagramMarks,
+  markRingWidth,
   placeLabels,
   type LabelLayoutOptions,
   type LabelPlacement,
@@ -34,10 +46,23 @@ import {
  * One primitive as SVG, in whatever space the projector maps into.
  *
  * The card fits the paper into a box of its own; the layer over the crease
- * pattern projects through the live camera. Same shapes, same classes, same
- * pen — only the projector differs, which is the whole reason a step is
- * described as primitives rather than drawn twice.
+ * pattern projects through the live camera; a step's export paints the same
+ * shapes into a file. Same shapes, same pen — only the projector differs,
+ * which is the whole reason a step is described as primitives rather than
+ * drawn twice. On screen a shape carries a class and `theme.css` colours it;
+ * in a file there is no stylesheet, so the context carries the colours
+ * instead (`DiagramRenderContext.inline`) and the shape writes them as
+ * attributes with no class at all.
+ *
+ * A mark that can leave the paper — an arrow, the turn-over glyph, a ring —
+ * is drawn twice, through a clip of the paper and a clip of everything else,
+ * so it is in the style's ink on the sheet and in one that reads on the
+ * ground off it ({@link canLeavePaper}). A drawing is put in its document
+ * by {@link diagramShapes}, which carries the clip pair with the shapes.
  */
+
+/** The font a letter is set in when the picture leaves the app: the app's own stack, named. */
+const INLINE_LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 
 /** Four decimals is under a device pixel at any size this is drawn at. */
 const round = (value: number) => Number(value.toFixed(4));
@@ -49,10 +74,16 @@ const round = (value: number) => Number(value.toFixed(4));
  * stylesheet because a stylesheet cannot know how big the drawing is, and that
  * is exactly what these numbers depend on. `dashScale` is the projector's
  * (`DiagramProjector.dashScale`), and shortens the runs alone: the width is
- * the line's weight and stays the pen's.
+ * the line's weight and stays the pen's. `pens` is the projector's table too
+ * (`DiagramProjector.pens`); the card's is the one in `diagramInk.ts`.
  */
-export function strokeAttributes(style: DiagramLineStyleName, ink: number, dashScale = 1) {
-  const pen = DIAGRAM_LINE_INK[style];
+export function strokeAttributes(
+  style: DiagramLineStyleName,
+  ink: number,
+  dashScale = 1,
+  pens: DiagramPens = DIAGRAM_LINE_INK
+) {
+  const pen = pens[style];
   return {
     strokeWidth: pen.width * ink,
     strokeDasharray: pen.dash?.map((run) => run * ink * dashScale).join(' '),
@@ -82,7 +113,93 @@ export interface DiagramRenderContext {
   marks: readonly SvgPoint[];
   /** Where each letter goes, by its primitive's index in the list drawn. */
   labels: ReadonlyMap<number, LabelPlacement>;
+  /** The paper the primitives were measured against; where erode finds its edge. */
+  sheet: DiagramSheet;
+  /**
+   * The outline the paper is filled with, in the projector's units: what a
+   * letter's halo is painted to match when the letter stands on it, and what
+   * a mark that can leave the paper is clipped to (X11 of the paper export
+   * plan). The card's sheet rectangle; the big view's hull of the border
+   * creases, which the canvas fills.
+   */
+  paper: readonly SvgPoint[];
+  /**
+   * The ids of the clip pair that a mark which can leave the paper is drawn
+   * through — the paper, and everything else — or null when there is no
+   * paper to clip to, and every mark is on the ground.
+   */
+  clip: DiagramPaperClip | null;
+  /**
+   * The picture is of the paper's back: which face the sheet is filled with,
+   * and the halo of a letter that stands on it. Not the projector's
+   * `mirrored`, which is a handedness for an arc's sweep and agrees with the
+   * face only through a card's fit (`DiagramRenderOptions.back`).
+   */
+  back: boolean;
+  /**
+   * What the paper style says about the lines drawn in its aux pen — the
+   * creases an earlier step made (`crease`) and the pattern's own aux lines
+   * (`aux`): whether the aux lines are drawn, and how far either is pulled
+   * back from the sheet's edge as a fraction of the sheet (D8).
+   */
+  creases: DiagramCreaseOptions;
+  /**
+   * The colours as attributes, for a picture no stylesheet reaches. Null on
+   * screen, where every shape carries its class and `theme.css` colours it.
+   */
+  inline: DiagramInlineInk | null;
 }
+
+/** The `id`s of the two clip paths a drawing's marks are drawn through. */
+export interface DiagramPaperClip {
+  /** The paper. */
+  inside: string;
+  /** Everything but the paper. */
+  outside: string;
+}
+
+/** What else a drawing is made with, beyond its primitives, its sheet and its projector. */
+export interface DiagramRenderOptions {
+  /** Where the letters may go: the box they are held in and the corners kept clear. */
+  layout?: LabelLayoutOptions;
+  creases?: DiagramCreaseOptions;
+  /** The colours as attributes, for a file; absent or null on screen. */
+  inline?: DiagramInlineInk | null;
+  /**
+   * The outline the paper is filled with, in the primitives' own space.
+   * Absent, the sheet's rectangle (`sheetCorners`) — what a card fills. The big
+   * view passes the hull the canvas fills (`sheetOutline`), so a letter's halo
+   * and a mark's ink agree with the paper the reader sees.
+   */
+  outline?: readonly SheetPoint[];
+  /**
+   * What the clip pair's ids are made from. On screen, a React id: every card
+   * and the big view share one document, and a `url(#…)` finds the first
+   * element of its id there. Absent, one read off the paper's outline, so two
+   * drawings that happen to share an id share its geometry too.
+   */
+  id?: string;
+  /**
+   * The picture is of the paper's back. Absent, read off the projector, which
+   * is right for a card's fit (`createDiagramProjector` flips y, so its
+   * handedness is the face). A projector onto the canvas's model space is not:
+   * that frame is left-handed already (`frame.rs`), so its `mirrored` is true
+   * on the front — the big view and a step's export say which face instead.
+   */
+  back?: boolean;
+}
+
+export interface DiagramCreaseOptions {
+  /**
+   * Whether the pattern's aux lines are drawn (`referencesAuxCreases`). The
+   * creases an earlier step made are the paper as it stands, and always are.
+   */
+  showAux: boolean;
+  erode: number;
+}
+
+/** Drawn, at the edge: the diagrams before there was a style. */
+export const DEFAULT_DIAGRAM_CREASES: DiagramCreaseOptions = { showAux: true, erode: 0 };
 
 /**
  * The context for drawing `primitives` through `project`. The list handed in
@@ -94,22 +211,251 @@ export function createDiagramRenderContext(
   primitives: readonly StepDiagramPrimitive[],
   sheet: DiagramSheet,
   project: DiagramProjector,
-  layout: LabelLayoutOptions = {}
+  options: DiagramRenderOptions = {}
 ): DiagramRenderContext {
+  const paper = (options.outline ?? sheetCorners(sheet)).map((corner) => project(corner));
+  const id = safeId(options.id ?? `step-diagram-${outlineHash(paper)}`);
   return {
     project,
     marks: diagramMarks(primitives, project),
-    labels: placeLabels(primitives, sheet, project, layout),
+    labels: placeLabels(primitives, sheet, project, options.layout ?? {}),
+    sheet,
+    paper,
+    clip: paper.length >= 3 ? { inside: `${id}-paper`, outside: `${id}-ground` } : null,
+    back: options.back ?? project.mirrored,
+    creases: options.creases ?? DEFAULT_DIAGRAM_CREASES,
+    inline: options.inline ?? null,
   };
 }
 
-export function diagramPrimitiveShape(
+/** An id as `url(#…)` takes it anywhere: React's own carry characters a selector does not. */
+function safeId(id: string): string {
+  return id.replace(/[^\w-]/g, '');
+}
+
+/** A short name for an outline, the same for the same outline (FNV-1a over its points). */
+function outlineHash(paper: readonly SvgPoint[]): string {
+  let hash = 0x811c9dc5;
+  for (const char of paperRingPoints(paper)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/**
+ * Whether a primitive is a mark that can leave the paper: a fold arrow, a
+ * line or arc in the arrow's pen, the turn-over glyph, a ring. These draw in
+ * the style's ink on the paper and in the ground's off it (X11 of the paper
+ * export plan). Letters have their own rule (their halo, {@link labelOnPaper});
+ * creases and edges lie on the paper by definition.
+ */
+export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
+  switch (primitive.kind) {
+    case 'fold-arrow':
+    case 'turn-over':
+    case 'point':
+      return true;
+    case 'line':
+    case 'arc':
+      return primitive.style === 'arrow';
+    default:
+      return false;
+  }
+}
+
+/**
+ * The inline ink a mark draws in off the paper: the arrow's and the ring's
+ * ground inks in place of the paper's.
+ */
+function offPaperInk(ink: DiagramInlineInk): DiagramInlineInk {
+  return {
+    ...ink,
+    lines: { ...ink.lines, arrow: { ...ink.lines.arrow, color: ink.ground.arrow } },
+    arrowhead: ink.ground.arrow,
+    mark: ink.ground.mark,
+  };
+}
+
+/** A file whose ground takes every mark's own ink: one copy of each is the whole picture. */
+function oneInk(ink: DiagramInlineInk): boolean {
+  return ink.ground.arrow === ink.arrowhead && ink.ground.mark === ink.mark;
+}
+
+/** How much of a drawing a caller draws, and how ({@link diagramShapes}). */
+export interface DiagramShapesOptions {
+  /**
+   * Which primitives to draw, in this order: indices into the list the
+   * context was built from, which is what its letters are keyed by. All of
+   * them when absent.
+   */
+  indices?: readonly number[];
+  /**
+   * The paper as rings, when it is more than the context's outline: the layer
+   * over the canvas adds the flap a fold has lifted ({@link diagramPaperClipDefs}).
+   */
+  rings?: readonly (readonly SvgPoint[])[];
+  /** A shape inside a group of the caller's: the layer tags each with the flap it rides. */
+  wrap?: (shape: ReactNode, index: number) => ReactNode;
+}
+
+/**
+ * A drawing's shapes, after the clip pair their marks are drawn through.
+ *
+ * The one way to draw them. A mark that can leave the paper names its clips
+ * by `url(#…)`, and a reference to a clip the document does not hold is not
+ * an error anywhere: a browser draws both copies unclipped, one over the
+ * other. So the clips and the shapes that name them are put in the document
+ * together, here, by the card, the layer over the canvas and a step's export
+ * alike.
+ */
+export function diagramShapes(
+  primitives: readonly StepDiagramPrimitive[],
+  context: DiagramRenderContext,
+  { indices, rings, wrap }: DiagramShapesOptions = {}
+): ReactNode {
+  const drawn = indices ?? primitives.map((_, index) => index);
+  const defs = diagramPaperClipDefs(
+    drawn.map((index) => primitives[index]!),
+    context,
+    rings
+  );
+  const shapes = drawn.map((index) => {
+    const shape = diagramPrimitiveShape(primitives[index]!, index, context);
+    return wrap ? wrap(shape, index) : shape;
+  });
+  return (
+    <>
+      {defs}
+      {shapes}
+    </>
+  );
+}
+
+/**
+ * The clip pair a drawing's marks are drawn through, as `<defs>`: the paper,
+ * and everything else. Null when none of `primitives` needs it — no mark, no
+ * paper, or a file whose ground takes the marks' own inks.
+ *
+ * `rings` is the paper when it is more than the context's outline: the layer
+ * over the canvas adds the flap a fold has lifted, which is paper wherever it
+ * goes. Each ring is a polygon in the clip, so the paper is their union; the
+ * rest is one evenodd path, whose double-counted overlap the paper's copy of
+ * each mark, drawn on top, covers ({@link offPaperPathData}).
+ */
+function diagramPaperClipDefs(
+  primitives: readonly StepDiagramPrimitive[],
+  context: DiagramRenderContext,
+  rings: readonly (readonly SvgPoint[])[] = [context.paper]
+): ReactNode {
+  const { clip, inline } = context;
+  if (!clip || (inline && oneInk(inline)) || !primitives.some(canLeavePaper)) return null;
+  return (
+    <defs>
+      <clipPath id={clip.inside}>
+        {rings.map((ring, index) => (
+          <polygon key={index} points={paperRingPoints(ring)} />
+        ))}
+      </clipPath>
+      <clipPath id={clip.outside}>
+        <path d={offPaperPathData(rings)} clipRule="evenodd" />
+      </clipPath>
+    </defs>
+  );
+}
+
+/**
+ * A mark that can leave the paper, drawn in both its inks: once through
+ * everything but the paper, in the ground's ink, and once over it through the
+ * paper, in its own. On screen the first copy's group carries the class that
+ * gives it the theme's ink; in a file its attributes carry the ground's.
+ *
+ * With no paper to clip to, the mark is all ground. In a file whose ground
+ * takes the mark's own ink, one copy is the whole of it, and the markup is
+ * what it was before there were two.
+ */
+function onAndOffPaper(
+  context: DiagramRenderContext,
+  index: number,
+  draw: (context: DiagramRenderContext) => ReactNode
+): ReactNode {
+  const { clip, inline } = context;
+  if (inline && oneInk(inline)) return draw(context);
+  const off = inline ? { ...context, inline: offPaperInk(inline) } : context;
+  const ground = inked(context, 'step-diagram__ground', () => ({}));
+  if (!clip) {
+    return (
+      <g key={index} {...ground}>
+        {draw(off)}
+      </g>
+    );
+  }
+  return (
+    <g key={index}>
+      <g {...ground} clipPath={`url(#${clip.outside})`}>
+        {draw(off)}
+      </g>
+      <g clipPath={`url(#${clip.inside})`}>{draw(context)}</g>
+    </g>
+  );
+}
+
+/**
+ * Whether a letter stands on the paper: its box's middle inside the paper's
+ * outline. The outline is convex, so the middle is inside when it is on the
+ * same side of every edge, whichever way round the projector winds it.
+ */
+export function labelOnPaper(box: LabelPlacement['box'], paper: readonly SvgPoint[]): boolean {
+  if (paper.length < 3) return false;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  let sign = 0;
+  for (let i = 0; i < paper.length; i += 1) {
+    const a = paper[i]!;
+    const b = paper[(i + 1) % paper.length]!;
+    const cross = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+    if (cross === 0) continue;
+    if (sign === 0) sign = Math.sign(cross);
+    else if (Math.sign(cross) !== sign) return false;
+  }
+  return true;
+}
+
+/**
+ * A shape's class on screen, or its colours in a file: the one place the two
+ * part, so every shape below says which class it would carry and which
+ * attributes the class would have given it.
+ */
+function inked(
+  context: DiagramRenderContext,
+  className: string,
+  attributes: (ink: DiagramInlineInk) => Record<string, string | number | undefined>
+): Record<string, string | number | undefined> {
+  return context.inline ? attributes(context.inline) : { className };
+}
+
+/** A stroke's colour and opacity as attributes, the pen's own opacity folded in. */
+function strokeInk(stroke: DiagramInlineStroke, penOpacity: number | undefined) {
+  const opacity = (stroke.opacity ?? 1) * (penOpacity ?? 1);
+  return {
+    fill: 'none',
+    stroke: stroke.color,
+    strokeOpacity: opacity === 1 ? undefined : opacity,
+  };
+}
+
+/**
+ * One primitive's shape. Drawn through {@link diagramShapes}, which puts the
+ * clips it names beside it.
+ */
+function diagramPrimitiveShape(
   primitive: StepDiagramPrimitive,
   index: number,
   context: DiagramRenderContext
 ): ReactNode {
-  const { project } = context;
-  const mirrored = project.mirrored;
+  // The face, which the sheet is filled with and a letter on it is haloed
+  // in — not the projector's handedness (`DiagramRenderContext.back`).
+  const { project, back } = context;
   switch (primitive.kind) {
     case 'sheet': {
       // Two opposite corners, not a top-left and a size: a mirrored
@@ -120,9 +466,11 @@ export function diagramPrimitiveShape(
       return (
         <rect
           key={index}
-          className={
-            mirrored ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet'
-          }
+          {...inked(
+            context,
+            back ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet',
+            (ink) => ({ fill: back ? ink.sheet.back : ink.sheet.front, stroke: ink.sheet.stroke })
+          )}
           x={Math.min(a.x, b.x)}
           y={Math.min(a.y, b.y)}
           width={Math.abs(b.x - a.x)}
@@ -133,8 +481,20 @@ export function diagramPrimitiveShape(
       );
     }
     case 'line': {
-      const from = project(primitive.from);
-      const to = project(primitive.to);
+      // A line in the aux pen is pulled back from the paper's edge, and the
+      // pattern's own aux lines are the reader's to show or hide; every other
+      // line is the step's own.
+      let ends: [readonly [number, number], readonly [number, number]] | null = [
+        primitive.from,
+        primitive.to,
+      ];
+      if (primitive.style === 'crease' || primitive.style === 'aux') {
+        if (primitive.style === 'aux' && !context.creases.showAux) return null;
+        ends = erodeCreaseOnSheet(primitive.from, primitive.to, context.sheet, context.creases.erode);
+        if (!ends) return null;
+      }
+      const from = project(ends[0]);
+      const to = project(ends[1]);
       // Positive. `stroke-dashoffset` is "start this far *into* the
       // pattern", which is exactly what the phase says — how much of the
       // line has already gone by. Negating it lands at `period - phase`
@@ -148,71 +508,78 @@ export function diagramPrimitiveShape(
       // touch it: a phase is a distance along the line, whatever pattern
       // is laid along it, and every span of one line shares that ruler.
       const dashOffset = primitive.dashPhase ? primitive.dashPhase * project.scale : undefined;
-      return (
+      const stroke = strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens);
+      const draw = (inks: DiagramRenderContext) => (
         <line
           key={index}
-          className={`step-diagram__line step-diagram__line--${primitive.style}`}
           x1={from.x}
           y1={from.y}
           x2={to.x}
           y2={to.y}
           strokeDashoffset={dashOffset}
-          {...strokeAttributes(primitive.style, project.ink, project.dashScale)}
+          {...stroke}
+          {...inked(inks, `step-diagram__line step-diagram__line--${primitive.style}`, (ink) =>
+            strokeInk(ink.lines[primitive.style], stroke.strokeOpacity)
+          )}
         />
       );
+      return canLeavePaper(primitive) ? onAndOffPaper(context, index, draw) : draw(context);
     }
     case 'arc': {
-      return (
+      const stroke = strokeAttributes(primitive.style, project.ink, project.dashScale, project.pens);
+      const draw = (inks: DiagramRenderContext) => (
         <path
           key={index}
-          className={`step-diagram__arc step-diagram__line--${primitive.style}`}
           d={arcPathData(primitive, project)}
-          {...strokeAttributes(primitive.style, project.ink, project.dashScale)}
+          {...stroke}
+          {...inked(inks, `step-diagram__arc step-diagram__line--${primitive.style}`, (ink) =>
+            strokeInk(ink.lines[primitive.style], stroke.strokeOpacity)
+          )}
         />
       );
+      return canLeavePaper(primitive) ? onAndOffPaper(context, index, draw) : draw(context);
     }
     case 'fold-arrow': {
       // Sized by the pen, not by the paper — see `arrowheadSize`. The trim is
       // done on radii in the same projected units, and the angles it returns
       // then apply to the sheet-unit arcs unchanged.
       const head = arrowheadSize(primitive.out, project);
-      const rim = DIAGRAM_MARK_INK.radius * project.ink;
+      const rim = project.marks.ringRadius * project.ink;
       // Stopped at the far mark's rim, if it lands on one, before the return
       // is derived — the return starts where the outgoing stroke stops.
       const out = foldArrowLanding(primitive.out, context.marks, rim, project);
       // The return, derived here rather than carried: how far to the side it
-      // ends is an arrowhead's length, and that is the drawing's business —
-      // see the primitive's own note.
-      const arrow = foldAndUnfoldFromArc(out, head / project.scale);
+      // ends is the drawing's business — see the primitive's own note.
+      const offset = foldReturnOffset(primitive.out, project);
+      const arrow = foldAndUnfoldFromArc(out, offset / project.scale);
       if (!arrow) return null;
       const scaled = {
         out: { ...arrow.out, radius: arrow.out.radius * project.scale },
         back: { ...arrow.back, radius: arrow.back.radius * project.scale },
       };
       const trimmed = foldArrowTrim(scaled, head, rim);
-      const tipArc = { ...arrow.back, to: trimmed.tip };
-      const tip = project([
-        arrow.back.center[0] + arrow.back.radius * Math.cos(trimmed.tip),
-        arrow.back.center[1] + arrow.back.radius * Math.sin(trimmed.tip),
-      ]);
-      return (
-        <g key={index} className="step-diagram__arrow">
-          <path
-            className="step-diagram__arc step-diagram__line--arrow"
-            d={arcPathData({ ...arrow.out, from: trimmed.out.from }, project)}
-            {...strokeAttributes('arrow', project.ink, project.dashScale)}
-          />
-          <path
-            className="step-diagram__arc step-diagram__line--arrow"
-            d={arcPathData({ ...arrow.back, to: trimmed.back.to }, project)}
-            {...strokeAttributes('arrow', project.ink, project.dashScale)}
-          />
-          <polygon
-            className="step-diagram__arrowhead"
-            points={arrowheadPoints(tip, arcEndDirection(tipArc, project), head)}
-          />
-        </g>
-      );
+      const shaft = { ...arrow.back, to: trimmed.back.to };
+      const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
+      const outPath = arcPathData({ ...arrow.out, from: trimmed.out.from }, project);
+      const backPath = arcPathData(shaft, project);
+      // On the return's end and along it, so the stroke runs into the notch
+      // and its cap is buried in the head.
+      const headPath = arrowheadPath(arcArrowhead(shaft, project, head));
+      return onAndOffPaper(context, index, (inks) => {
+        const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+          strokeInk(ink.lines.arrow, stroke.strokeOpacity)
+        );
+        return (
+          <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
+            <path d={outPath} {...stroke} {...arrowInk} />
+            <path d={backPath} {...stroke} {...arrowInk} />
+            <path
+              d={headPath}
+              {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
+            />
+          </g>
+        );
+      });
     }
     case 'region': {
       // Under the lines, over the paper: a fill, no stroke, so the band reads
@@ -221,7 +588,17 @@ export function diagramPrimitiveShape(
         .map((corner) => project(corner))
         .map((p) => `${round(p.x)},${round(p.y)}`)
         .join(' ');
-      return <polygon key={index} className="step-diagram__region" points={points} />;
+      return (
+        <polygon
+          key={index}
+          points={points}
+          {...inked(context, 'step-diagram__region', (ink) => ({
+            fill: ink.region.fill,
+            fillOpacity: ink.region.opacity,
+            stroke: 'none',
+          }))}
+        />
+      );
     }
     case 'turn-over': {
       const at = project(primitive.at);
@@ -230,40 +607,44 @@ export function diagramPrimitiveShape(
       // symbol for what the folder does, not part of the pattern.
       const x = at.x - (TURN_OVER_BOX.width / 2) * scale;
       const y = at.y - (TURN_OVER_BOX.height / 2) * scale;
-      return (
+      const stroke = strokeAttributes('arrow', project.ink / scale, 1, project.pens);
+      // The clip is outside the glyph's own transform, in the drawing's units
+      // like the paper's outline, so the glyph's group sits inside each copy.
+      return onAndOffPaper(context, index, (inks) => (
         <g
           key={index}
-          className="step-diagram__turn-over"
+          {...inked(inks, 'step-diagram__turn-over', () => ({}))}
           transform={`translate(${round(x)} ${round(y)}) scale(${round(scale)})`}
         >
           <path
-            className="step-diagram__arc step-diagram__line--arrow"
             d={TURN_OVER_PATH}
-            {...strokeAttributes('arrow', project.ink / scale)}
-          />
-          <polygon
-            className="step-diagram__arrowhead"
-            points={arrowheadPoints(
-              { x: TURN_OVER_HEAD.at[0], y: TURN_OVER_HEAD.at[1] },
-              { x: Math.cos(TURN_OVER_HEAD.angle), y: Math.sin(TURN_OVER_HEAD.angle) },
-              TURN_OVER_HEAD.size
+            {...stroke}
+            {...inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+              strokeInk(ink.lines.arrow, stroke.strokeOpacity)
             )}
           />
+          <path
+            d={TURN_OVER_HEAD_PATH}
+            {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
+          />
         </g>
-      );
+      ));
     }
     case 'point': {
       const at = project(primitive.at);
-      return (
+      return onAndOffPaper(context, index, (inks) => (
         <circle
           key={index}
-          className={`step-diagram__point step-diagram__point--${primitive.style}`}
           cx={at.x}
           cy={at.y}
-          r={DIAGRAM_MARK_INK.radius * project.ink}
-          strokeWidth={DIAGRAM_MARK_INK.width * project.ink}
+          r={project.marks.ringRadius * project.ink}
+          strokeWidth={markRingWidth(project)}
+          {...inked(inks, `step-diagram__point step-diagram__point--${primitive.style}`, (ink) => ({
+            fill: 'none',
+            stroke: ink.mark,
+          }))}
         />
-      );
+      ));
     }
     case 'label': {
       // Placed against the whole picture, not this primitive alone. Absent
@@ -272,15 +653,31 @@ export function diagramPrimitiveShape(
       // drawn somewhere wrong.
       const placement = context.labels.get(index);
       if (!placement) return null;
+      // The halo is what the letter stands on: the paper, on the face the
+      // picture shows, or the ground round it where a letter was pushed off
+      // the sheet — so it reads as a knock-out, never as a ring.
+      const onPaper = labelOnPaper(placement.box, context.paper);
+      const ground = onPaper
+        ? back
+          ? ' step-diagram__label--on-back'
+          : ' step-diagram__label--on-paper'
+        : '';
       return (
         <text
           key={index}
-          className={`step-diagram__label step-diagram__label--${primitive.style}`}
           x={placement.x}
           y={placement.y}
           textAnchor={placement.anchor}
-          fontSize={DIAGRAM_LABEL_INK.size * project.ink}
+          fontSize={project.marks.labelSize * project.ink}
           strokeWidth={DIAGRAM_LABEL_INK.halo * project.ink}
+          {...inked(context, `step-diagram__label step-diagram__label--${primitive.style}${ground}`, (ink) => ({
+            fill: ink.label.fill[primitive.style],
+            stroke: onPaper ? (back ? ink.sheet.back : ink.sheet.front) : ink.label.halo,
+            strokeLinejoin: 'round',
+            paintOrder: 'stroke',
+            fontFamily: INLINE_LABEL_FONT,
+            fontWeight: 700,
+          }))}
         >
           {primitive.text}
         </text>

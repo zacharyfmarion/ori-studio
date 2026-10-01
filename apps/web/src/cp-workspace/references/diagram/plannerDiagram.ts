@@ -846,6 +846,14 @@ export interface PlannerStepDiagramOptions {
    */
   earlier?: 'all' | 'unpatterned';
   /**
+   * The pattern's own auxiliary lines on the sheet, in the frame's space
+   * (`referencesAuxCreases`): on the paper from the start, drawn under the
+   * step as `aux` lines. For a picture with nothing under it — a card, a
+   * page; the canvas draws the document's own. Whether they show is the
+   * surface's to decide, like a made crease's erode.
+   */
+  aux?: readonly DiagramSegment[];
+  /**
    * The planner step made at once with this one — its mirror image about a
    * symmetry of the sheet (`PrecreaseStep.twin`) — drawn on the same card:
    * its crease, its references with the letters carrying on, its arrow.
@@ -973,6 +981,17 @@ function styleOf(direction: PrecreaseDirection, made: boolean): DiagramLineStyle
   return 'crease';
 }
 
+/**
+ * A line of the finished pattern in `direction`: the fold pens a crease
+ * pattern is drawn in, not the diagram-crease pens of a step's instruction
+ * (`styleOf`). An auxiliary line is the aux pen's, as on a step.
+ */
+function patternStyleOf(direction: PrecreaseDirection): DiagramLineStyleName {
+  if (direction === 'mountain') return 'fold-mountain';
+  if (direction === 'valley') return 'fold-valley';
+  return 'crease';
+}
+
 export function plannerStepDiagram(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
@@ -1016,6 +1035,7 @@ export function plannerStepDiagram(
     primitives.push({ kind: 'region', corners: [xy(a[0]), xy(a[1]), xy(z[1]), xy(z[0])] });
   });
 
+  primitives.push(...auxLines(options.aux));
   // The sheet as it stands: everything folded so far, over the paper and under
   // this step's own references.
   const patterned = (options.earlier ?? 'all') === 'all';
@@ -1371,13 +1391,14 @@ export function plannerTurnOverDiagram(
   sequence: PrecreaseSequence,
   frame: DiagramFrame,
   after: number | null,
-  options: Pick<PlannerStepDiagramOptions, 'earlier'> = {}
+  options: Pick<PlannerStepDiagramOptions, 'earlier' | 'aux'> = {}
 ): StepDiagramModel {
   const sheet = frame.sheet;
   const primitives: StepDiagramPrimitive[] = [];
   if (frame.outline) {
     primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
   }
+  primitives.push(...auxLines(options.aux));
   // The build-up so far: all of it on a card; on the canvas, which has the
   // pattern's own creases beneath in their own ink, only what the pattern
   // does not hold — the pinches and the auxiliary folds.
@@ -1394,12 +1415,24 @@ export function plannerTurnOverDiagram(
 }
 
 /**
- * The sheet a picture is of: its size, and where its middle is in the space
- * the primitives are drawn in — which on the canvas is wherever the document
- * put the paper, not half its size from the origin.
+ * The sheet a picture is of: its size, where its middle is in the space the
+ * primitives are drawn in — which on the canvas is wherever the document put
+ * the paper, not half its size from the origin — and which way it is turned
+ * there, for erode to find its edge.
  */
 function sheetOf(sheet: { width: number; height: number }, frame: DiagramFrame): DiagramSheet {
-  return { width: sheet.width, height: sheet.height, centre: [frame.centre.x, frame.centre.y] };
+  const { axes } = frame;
+  return {
+    width: sheet.width,
+    height: sheet.height,
+    centre: [frame.centre.x, frame.centre.y],
+    ...(axes ? { axes: { x: [axes.x.x, axes.x.y], y: [axes.y.x, axes.y.y] } } : {}),
+  };
+}
+
+/** The pattern's own aux lines, each drawn whole. */
+function auxLines(aux: readonly DiagramSegment[] | undefined): StepDiagramPrimitive[] {
+  return (aux ?? []).map((segment) => spanLine(segment, 'aux'));
 }
 
 /**
@@ -1420,16 +1453,22 @@ function turnOverSymbol(frame: DiagramFrame): StepDiagramPrimitive[] {
  * Which is not, on a mixed line, the direction the pattern ends up assigning
  * every one of its creases — a precrease sequence puts the crease in the right
  * place, and the collapse settles the rest (plan D26).
+ *
+ * The card is the pattern, not an instruction, so its lines are drawn in the
+ * fold pens (`patternStyleOf`) — the crease pattern's convention, as the big
+ * view draws the same card's creases.
  */
 export function plannerFinishedDiagram(
   sequence: PrecreaseSequence,
-  frame: DiagramFrame
+  frame: DiagramFrame,
+  options: Pick<PlannerStepDiagramOptions, 'aux'> = {}
 ): StepDiagramModel {
   const sheet = frame.sheet;
   const primitives: StepDiagramPrimitive[] = [];
   if (frame.outline) {
     primitives.push({ kind: 'sheet', width: sheet.width, height: sheet.height });
   }
+  primitives.push(...auxLines(options.aux));
   for (const step of sequence.steps) {
     // The pattern's own lines in the pattern's directions. An auxiliary fold
     // was made in a direction too, but the finished pattern assigns it none,
@@ -1438,7 +1477,7 @@ export function plannerFinishedDiagram(
     // auxiliary like any other.
     if (step.grid) {
       for (const line of frame.gridLines(step)) {
-        const style = styleOf(line.inPattern ? line.direction : 'unassigned', true);
+        const style = patternStyleOf(line.inPattern ? line.direction : 'unassigned');
         const zero = dashZeroOf(line.spans);
         for (const span of line.spans) {
           primitives.push(spanLine(span, style, zero));
@@ -1446,7 +1485,7 @@ export function plannerFinishedDiagram(
       }
       continue;
     }
-    const style = styleOf(step.kind === 'aux' ? 'unassigned' : step.direction, true);
+    const style = patternStyleOf(step.kind === 'aux' ? 'unassigned' : step.direction);
     const spans = creasedSpans(frame, step);
     const zero = dashZeroOf(spans);
     for (const span of spans) {

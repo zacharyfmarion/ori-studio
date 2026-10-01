@@ -26,8 +26,9 @@ import {
   describeDirectionHintAffected,
   directionHintOptions,
   isDirectionHintActive,
+  type DirectionHintChange,
 } from './directionHintActions';
-import { Chip } from '../../components/ui/Chip';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { useDirectionHintSelection } from './useDirectionHintSelection';
 
 export function DirectionHintControl() {
@@ -36,26 +37,27 @@ export function DirectionHintControl() {
 
   if (!enabled) return null;
 
+  const options = directionHintOptions(t);
+  const title = t('tools:cpContext.foldDirection', 'Fold direction');
   return (
     <div className="cp-context-panel__group">
-      <div className="cp-context-panel__group-title">
-        {t('tools:cpContext.foldDirection', 'Fold direction')}
-      </div>
-      <div className="cp-context-panel__chips">
-        {directionHintOptions(t).map((option) => (
-          <Chip
-            key={option.id}
-            aria-label={option.description}
-            // Nothing is pressed on a mixed selection — the same convention the
-            // fold-angle group uses when its creases disagree, rather than
-            // picking a winner to highlight.
-            aria-pressed={isDirectionHintActive(summary, option.change)}
-            onClick={() => void setHint(option.change)}
-          >
-            {option.label}
-          </Chip>
-        ))}
-      </div>
+      <div className="cp-context-panel__group-title">{title}</div>
+      {/* One answer among three, so one segmented control. Nothing is pressed
+          on a mixed selection — the convention the fold-angle group uses when
+          its creases disagree, rather than picking a winner to highlight. */}
+      <SegmentedControl<DirectionHintChange>
+        fill
+        aria-label={title}
+        value={
+          options.find((option) => isDirectionHintActive(summary, option.change))?.change ?? null
+        }
+        options={options.map((option) => ({
+          value: option.change,
+          label: option.label,
+          title: option.description,
+        }))}
+        onChange={(change) => void setHint(change)}
+      />
       {/* The count stays visible when mixed rather than being replaced by it:
           "how many creases will this reach" is the question the readout is
           there to answer, and it is no less relevant because they disagree. */}

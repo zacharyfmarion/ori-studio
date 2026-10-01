@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   ArrowLeft,
-  Axis3d,
   Pause,
   Play,
   RotateCcw,
@@ -44,12 +43,12 @@ import { ContextMenu } from "../ui/ContextMenu";
 import { useContextMenuController } from "../../menus/context/useContextMenuController";
 import { useShortcutStore } from "../../store/shortcutStore";
 import { FoldPlayhead } from "../../simulator/foldPlayhead";
-import { SimulatorExportMenu } from "../../simulator/SimulatorExportMenu";
-import { useSimulatorViewExport } from "../../simulator/useSimulatorViewExport";
+import { useSimulatorExport } from "../../simulator/useSimulatorExport";
 import { useSimulatorPhoneFlow } from "../../simulator/useSimulatorPhoneFlow";
 import { foldNeedsTriangulation } from "../../simulator/canvas2dFrame";
 import { simulatorMaterialOptions } from "../../lib/simulatorSettings";
 import { useLayoutStore } from "../../store/layoutStore";
+import { useSimulatorPaperStyle } from "../../simulator/useSimulatorPaperStyle";
 import { useWorkspaceStore } from "../../store/workspaceStore";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
@@ -124,6 +123,10 @@ export function SimulatorPanel() {
   // Render/material/solver settings live in the store: the options pane is a
   // sibling panel, so this panel applies them but does not own them.
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
+  // How the paper is drawn is the app-wide style, not a simulator setting;
+  // the same binding the options pane edits it through.
+  const paper = useSimulatorPaperStyle();
+  const paperStyle = paper.style;
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const runConfig = simulatorRunConfig();
@@ -219,7 +222,7 @@ export function SimulatorPanel() {
     setMaterial: pushMaterial,
   } = runtime;
 
-  const exportView = useSimulatorViewExport(runtime.exportSvg);
+  const exportView = useSimulatorExport(runtime.beginExport, { surface: "simulator" });
 
   // Apply material/stability edits to the live solver. The load effect ignores
   // solverOptions on purpose -- reloading the model would throw away the current
@@ -450,9 +453,18 @@ export function SimulatorPanel() {
     resetView,
     zoomBy,
     toggleSetting: (key) => {
-      // Hidden lines only mean anything while crease lines are drawn.
-      if (key === "showHiddenLines" && !viewSettings.showEdges) return;
+      if (key === 'lighting') {
+        paper.setLighting(!paperStyle.light.enabled);
+        return;
+      }
       setSimulatorSetting(key, !viewSettings[key]);
+    },
+    // The options rail's two buttons. The rail is a sibling panel, so it runs
+    // these through the executor rather than holding the viewport itself.
+    exportView: () => void exportView(),
+    setUpright: () => {
+      viewportRef.current?.setUpright();
+      announceUprightSet(t);
     },
   };
 
@@ -478,7 +490,7 @@ export function SimulatorPanel() {
           run: (id) =>
             runSimulatorShortcut(id, simulatorHandlers, runConfig.foldStepPercent),
           playing,
-          settings: viewSettings,
+          settings: { ...viewSettings, lighting: paperStyle.light.enabled },
         }),
     });
   };
@@ -542,44 +554,11 @@ export function SimulatorPanel() {
             </div>
             <div className="panel-toolbar__group">
               {/*
-                Which way the model is up. Here rather than in the view pane because
-                it is something you reach for *while* positioning a model — it acts
-                on the thing beside it, and the options pane is for settings you
-                configure once.
-
-                No matching "clear": the way back is the view reset (0 / Home, or
-                double-click the canvas), which drops the orientation with the
-                angles. See `SimulatorViewport.resetView`.
-              */}
-              {/*
-                `toolbar` to match the export control beside it. Omitting the
-                variant gives the ghost look, which sat next to the export button's
-                filled one and read as two different kinds of control rather than
-                two actions. `SimulatorExportMenu` defaults to `toolbar` and this
-                panel does not override it, so that is the look this header has.
-              */}
-              <IconButton
-                size="sm"
-                variant="toolbar"
-                title={t("panels:simulator.setUpright", "Set upright")}
-                disabled={loadState !== "ready"}
-                onClick={() => {
-                  viewportRef.current?.setUpright();
-                  announceUprightSet(t);
-                }}
-              >
-                <Axis3d size={14} />
-              </IconButton>
-              <SimulatorExportMenu
-                onExport={exportView}
-                disabled={loadState !== "ready"}
-              />
-              {/*
                 Where the touch layer's Settings pill goes: the right end of the
-                toolbar, beside Export. Seated here rather than floated over the
-                canvas so the phone's list screen, which has no simulator for the
-                settings to be about, carries no pill (`WorkspaceViewDrawer`).
-                Empty under a fine pointer, where the settings are the docked pane.
+                toolbar. Seated here rather than floated over the canvas so the
+                phone's list screen, which has no simulator for the settings to
+                be about, carries no pill (`WorkspaceViewDrawer`). Empty under a
+                fine pointer, where the settings are the docked pane.
               */}
               <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
             </div>
@@ -595,6 +574,7 @@ export function SimulatorPanel() {
               interactive={loadState === "ready"}
               gpuActive={gpuActive}
               viewSettings={viewSettings}
+              paperStyle={paperStyle}
               // This is the surface with room for one. `.simulator-panel__body` is
               // the positioned container it anchors to; see the prop.
               viewCube={viewSettings.showViewCube}

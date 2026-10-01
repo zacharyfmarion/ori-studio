@@ -13,7 +13,7 @@
  * drawn by the diagram anyway.
  */
 import type { Point } from '../../../lib/geometry';
-import type { PointGeometry, StrokeGeometry } from '../../renderer/types';
+import type { StrokeGeometry } from '../../renderer/types';
 import { sideOf } from '../diagram/plannerDiagram';
 import type { FoldFlapScene } from './foldScene';
 
@@ -173,39 +173,4 @@ function pack(
     dashPhase,
     ...(source.dashPatterns ? { dashPatterns: source.dashPatterns } : {}),
   };
-}
-
-/**
- * The point layer without the marks on a flap: a dot left at a vertex's
- * resting place under a lifted flap gives the fold away, and the point
- * program has no depth to lift it with.
- */
-export function dropPointsOnFlaps(points: PointGeometry, flaps: readonly Flap[]): PointGeometry {
-  const keep: number[] = [];
-  for (let i = 0; i < points.count; i += 1) {
-    const p = { x: points.center[i * 2]!, y: points.center[i * 2 + 1]! };
-    const moves = flaps.some((flap) => flap.whole || sideOf(flap.chord, p) === flap.side);
-    if (!moves) keep.push(i);
-  }
-  if (keep.length === points.count) return points;
-  const count = keep.length;
-  const out: PointGeometry = {
-    center: new Float32Array(count * 2),
-    radius: new Float32Array(count),
-    screenSpace: new Float32Array(count),
-    fill: new Float32Array(count * 4),
-    stroke: new Float32Array(count * 4),
-    count,
-  };
-  keep.forEach((s, i) => {
-    out.center[i * 2] = points.center[s * 2]!;
-    out.center[i * 2 + 1] = points.center[s * 2 + 1]!;
-    out.radius[i] = points.radius[s]!;
-    out.screenSpace[i] = points.screenSpace[s]!;
-    for (let k = 0; k < 4; k += 1) {
-      out.fill[i * 4 + k] = points.fill[s * 4 + k]!;
-      out.stroke[i * 4 + k] = points.stroke[s * 4 + k]!;
-    }
-  });
-  return out;
 }

@@ -5,9 +5,11 @@ import { InlineSimulationLayer } from './InlineSimulationLayer';
 import { cpOverlayViewStore } from './cpOverlayViewStore';
 import { CP_VIEWPORT_CANVAS_CLASS } from './cpViewportCanvas';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
+import { exportInlineSimulation } from './inlineSimulation/inlineSimulationRuntime';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../lib/simulatorSettings';
 import { claimWheelBurst, endWheelBurst, forwardWheel } from '../lib/wheelBurst';
-import type { SimulatorStatus } from '../simulator/useSimulatorRuntime';
+import { usePaperExportUiStore } from '../store/paperExportUiStore';
+import type { SimulatorExportSnapshot, SimulatorStatus } from '../simulator/useSimulatorRuntime';
 
 /**
  * Wheel handling for an inline simulation window.
@@ -26,6 +28,10 @@ import type { SimulatorStatus } from '../simulator/useSimulatorRuntime';
 const status = vi.hoisted(() => ({ current: 'ready' as SimulatorStatus }));
 /** Cameras the window pushed to its worker — one per zoom of its own fold. */
 const cameras = vi.hoisted(() => [] as { zoom: number }[]);
+/** The frame the window's worker freezes for the export dialog; null for an empty view. */
+const beginExport = vi.hoisted(() =>
+  vi.fn(async (): Promise<SimulatorExportSnapshot | null> => null)
+);
 
 // The worker runtime is stubbed: what is under test is which element the wheel
 // reaches, and a real solver session would only sit between the two.
@@ -49,7 +55,7 @@ vi.mock('../simulator/useSimulatorRuntime', () => ({
       cameras.push(view);
     },
     setRenderSettings: () => {},
-    exportSvg: async () => null,
+    beginExport,
   }),
 }));
 
@@ -82,11 +88,15 @@ let container: HTMLDivElement | null = null;
 let cpCanvas: HTMLCanvasElement | null = null;
 let forwarded: WheelEvent[] = [];
 
-function renderLayer(options: { focused: boolean; overlayInteractive: boolean }): void {
+function renderLayer(options: {
+  focused: boolean;
+  overlayInteractive: boolean;
+  simulation?: InlineSimulation;
+}): void {
   act(() => {
     root?.render(
       <InlineSimulationLayer
-        simulations={[SIMULATION]}
+        simulations={[options.simulation ?? SIMULATION]}
         focusedId={options.focused ? SIMULATION.id : null}
         staleIds={new Set()}
         viewSettings={DEFAULT_SIMULATOR_SETTINGS}
@@ -126,6 +136,8 @@ function scroll(): WheelEvent {
 
 beforeEach(() => {
   status.current = 'ready';
+  beginExport.mockReset();
+  beginExport.mockResolvedValue(null);
   endWheelBurst();
   container = document.createElement('div');
   document.body.appendChild(container);
@@ -141,6 +153,7 @@ beforeEach(() => {
 
 afterEach(() => {
   endWheelBurst();
+  usePaperExportUiStore.getState().close();
   act(() => root?.unmount());
   container?.remove();
   cpCanvas?.remove();
@@ -216,5 +229,63 @@ describe('InlineSimulationLayer wheel', () => {
 
     expect(cameras).toHaveLength(2);
     expect(forwarded).toHaveLength(0);
+  });
+});
+
+describe('InlineSimulationLayer export', () => {
+  const snapshot = (): SimulatorExportSnapshot => ({
+    scene: vi.fn(async () => null),
+    release: vi.fn(),
+  });
+
+  async function settle(): Promise<void> {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+
+  it("offers an unfocused window's view to its toolbar while it is mounted", async () => {
+    // An unfocused window keeps its model loaded, so its view is still there.
+    beginExport.mockResolvedValue(snapshot());
+    renderLayer({ focused: false, overlayInteractive: true });
+
+    expect(exportInlineSimulation(SIMULATION.id)).toBe(true);
+    await settle();
+
+    expect(beginExport).toHaveBeenCalledTimes(1);
+    const target = usePaperExportUiStore.getState().request?.target;
+    expect(target?.surface).toBe('inline-simulation');
+    expect(target?.pins).toBeNull();
+
+    act(() => root?.unmount());
+    root = null;
+    expect(exportInlineSimulation(SIMULATION.id)).toBe(false);
+  });
+
+  it("opens the dialog with the window's own pins", async () => {
+    const appearance = { 'paper.front': '#ff0000' } as const;
+    beginExport.mockResolvedValue(snapshot());
+    renderLayer({
+      focused: true,
+      overlayInteractive: true,
+      simulation: { ...SIMULATION, appearance },
+    });
+
+    exportInlineSimulation(SIMULATION.id);
+    await settle();
+
+    const target = usePaperExportUiStore.getState().request?.target;
+    expect(target?.pins).toEqual(appearance);
+    expect(target?.exportStyle.paper.front).toBe('#ff0000');
+  });
+
+  it('opens nothing for a window with nothing to export yet', async () => {
+    renderLayer({ focused: true, overlayInteractive: true });
+
+    exportInlineSimulation(SIMULATION.id);
+    await settle();
+
+    expect(beginExport).toHaveBeenCalledTimes(1);
+    expect(usePaperExportUiStore.getState().request).toBeNull();
   });
 });

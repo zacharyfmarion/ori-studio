@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   REFERENCES_ALL_CREASES,
-  REFERENCES_DIM_ALPHA,
   REFERENCES_EMPHASIS_WIDTH,
   planVisibility,
   targetVisibility,
@@ -11,6 +10,10 @@ import type { ReferencesViewStep } from './referencesSequenceView';
 import type { ReferencesPlanVariant } from './referencesResults';
 import type { PrecreaseSequence, PrecreaseStep } from './precreaseSequence';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import type { StrokeGeometry } from '../renderer/types';
+import { canvasDiagramInk, canvasDiagramPens, diagramDashSlot } from './diagram/diagramInk';
+import { applyCreaseVisibility } from './referencesViewGeometry';
 
 function step(id: number, cpLineIds: number[]): PrecreaseStep {
   return {
@@ -97,13 +100,17 @@ describe('planVisibility', () => {
     expect(planVisibility(variants, views, 3, input).pickable?.has(12)).toBe(true);
   });
 
-  it('dims the creases earlier steps made, and never the paper', () => {
+  // A crease is drawn by what has happened to it (Phase 9): an earlier step's
+  // was folded and opened flat again, so it is on the paper, not an
+  // instruction — thin, as the card draws it, and without a direction.
+  it('draws the creases earlier steps made thin, and never the paper', () => {
     const at = planVisibility(variants, flat, 1, input);
-    expect(at.dimmed?.has(10)).toBe(true);
-    // The border is the paper the folds are drawn on, not one of them.
-    expect(at.dimmed?.has(1)).toBe(false);
+    expect([...(at.thin ?? [])]).toEqual([10]);
+    // The border is the paper the folds are drawn on, not a crease on it.
     expect(at.visible?.has(1)).toBe(true);
-    expect(at.dimAlpha).toBe(REFERENCES_DIM_ALPHA);
+    expect(at.thin?.has(1)).toBe(false);
+    expect(at.dimmed).toBeNull();
+    expect(at.directions ?? null).toBeNull();
   });
 
   it('shows the finished pattern on the card that follows the last fold', () => {
@@ -155,6 +162,17 @@ describe('targetVisibility', () => {
     expect(at.pickable).toBe(at.visible);
   });
 
+  it('lies on the paper, as a step of the sequence does', () => {
+    // The border is what the canvas fills with the style's paper. Without it
+    // the construction drew its dark ink straight onto the dark ground.
+    const at = targetVisibility({
+      sheetLineIds: SHEET,
+      borderLineIds: BORDER,
+      activeLineIds: new Set([11]),
+    });
+    expect(at.borderLineIds).toBe(BORDER);
+  });
+
   it('shows blank paper for a picked vertex, which has no crease of its own', () => {
     const at = targetVisibility({
       sheetLineIds: SHEET,
@@ -181,12 +199,68 @@ describe('unreadVisibility', () => {
     expect(at.visible).toBe(SHEET);
     expect(at.dimmed).toBeNull();
     expect(at.dimAlpha).toBe(1);
+    // On its paper, as every step is: the border is what the canvas fills.
+    expect(at.borderLineIds).toBe(BORDER);
   });
 
   it('draws the whole document when no sheet is resolved', () => {
     expect(
       unreadVisibility({ sheetLineIds: null, borderLineIds: null, activeLineIds: new Set() })
     ).toBe(REFERENCES_ALL_CREASES);
+  });
+});
+
+describe('the pattern’s auxiliary lines', () => {
+  // Guide lines the pattern draws on the paper: never planned, so on the paper
+  // from the first step, in the aux pen, and nothing to point at.
+  const PEN = {
+    pen: { width: 0.25, color: '#231f20', dash: null, cap: 'butt' as const },
+    css: 1 / 3,
+  };
+  const AUX = new Set([20, 21]);
+  const variants = [variant([step(1, [10]), step(2, [11])])];
+  const flat: ReferencesViewStep[] = [fold(0), fold(1), { kind: 'done', side: 'front', component: 0 }];
+  const input = {
+    sheetLineIds: SHEET,
+    borderLineIds: BORDER,
+    activeLineIds: new Set<number>(),
+    auxPen: PEN,
+    auxLineIds: AUX,
+  };
+
+  it('are drawn thin from the first step, and never pickable', () => {
+    for (const at of [0, 1, 2].map((index) => planVisibility(variants, flat, index, input))) {
+      expect(at.visible?.has(20)).toBe(true);
+      expect(at.visible?.has(21)).toBe(true);
+      expect(at.thin?.has(20)).toBe(true);
+      expect(at.pickable?.has(20)).toBe(false);
+      expect(at.thinPen).toBe(PEN);
+    }
+    // The creases made so far are still there to point at.
+    expect(planVisibility(variants, flat, 1, input).pickable?.has(10)).toBe(true);
+  });
+
+  it('are on the whole sheet in Find, where only the pattern can be picked', () => {
+    const at = unreadVisibility(input);
+    expect(at.visible?.has(20)).toBe(true);
+    expect(at.pickable).toBe(SHEET);
+    expect(at.thin).toBe(AUX);
+  });
+
+  it('are not there when they are not shown', () => {
+    const hidden = { ...input, auxLineIds: null };
+    const at = planVisibility(variants, flat, 1, hidden);
+    expect(at.visible?.has(20)).toBe(false);
+    // The creases made so far are thin whether the aux lines show or not.
+    expect([...(at.thin ?? [])]).toEqual([10]);
+    expect(unreadVisibility(hidden).visible).toBe(SHEET);
+  });
+
+  // A reference's construction is on blank paper, the pattern's guides included.
+  it('are left out while one reference is read', () => {
+    const at = targetVisibility({ ...input, activeLineIds: new Set([10]) });
+    expect(at.visible?.has(20)).toBe(false);
+    expect(at.thin ?? null).toBeNull();
   });
 });
 
@@ -221,10 +295,9 @@ describe('a card that is not a fold', () => {
   const variants = [variant([step(1, [10]), step(2, [11]), step(3, [12])])];
   const input = { sheetLineIds: SHEET, borderLineIds: BORDER, activeLineIds: new Set<number>() };
 
-  // Dimming is what makes one crease stand out. A turn-over and the finished
-  // pattern have no crease of their own, so a dimmed build-up would just be a
-  // faded picture with nothing picked out of it.
-  it('shows the finished pattern at full strength', () => {
+  // The finished card is the pattern: each crease in the direction it was
+  // made, at full strength, in the fold pens a crease pattern is drawn in.
+  it('shows the finished pattern at full strength, by direction', () => {
     const views: ReferencesViewStep[] = [
       fold(0),
       fold(1),
@@ -236,12 +309,49 @@ describe('a card that is not a fold', () => {
     expect(done.dimAlpha).toBe(1);
     expect(done.dimmed).toBeNull();
     expect([...(done.visible ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11, 12]);
+    expect(done.directions?.size).toBe(3);
+    expect(done.thin ?? null).toBeNull();
   });
 
-  // The turn-over card shows the build-up whole, in the pattern's own ink
-  // and directions, so the sheet turning over on the canvas carries the
-  // creases with it and shows them reversed on the face that comes up.
-  it('shows the build-up on a turn-over, whole and in its directions', () => {
+  // Not the diagram-crease pens a step's instruction is drawn in: the two
+  // pairs are apart here, so a direction drawn in the wrong one shows.
+  it('draws the finished pattern’s directions in the fold pens', () => {
+    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2), { kind: 'done', side: 'front', component: 0 }];
+    const done = planVisibility(variants, views, 3, input);
+    const pens = canvasDiagramPens(1, 1.4, undefined, {
+      edge: { pen: DEFAULT_PAPER_STYLE.edges, css: 1 },
+      mountainFolds: { pen: { ...DEFAULT_PAPER_STYLE.mountainFolds, dash: null }, css: 0.5 },
+      valleyFolds: { pen: { ...DEFAULT_PAPER_STYLE.valleyFolds, dash: [2, 1] }, css: 0.6 },
+      mountainDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, dash: [5, 1, 1, 1] }, css: 1.6 },
+      valleyDiagramCreases: { pen: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, dash: [6, 3] }, css: 2 },
+    });
+    // Creases 10-12, one segment each, the rest of the sheet after them.
+    const count = 13;
+    const strokes = {
+      a: new Float32Array(count * 2),
+      b: Float32Array.from({ length: count * 2 }, (_, i) => (i % 2 === 0 ? 1 : 0)),
+      color: new Float32Array(count * 4).fill(1),
+      widthMul: new Float32Array(count).fill(1),
+      count,
+    } as unknown as StrokeGeometry;
+    const out = applyCreaseVisibility(
+      strokes,
+      count,
+      { ...done, ink: { mountain: [1, 0, 0, 1], valley: [0, 0, 1, 1] } },
+      canvasDiagramInk(1),
+      pens
+    );
+    // Every step here is a valley: each of its creases in the fold valley pen.
+    for (const id of [10, 11, 12]) {
+      expect(out.dashSlot![id - 1]).toBe(diagramDashSlot('fold-valley'));
+      expect(out.widthMul[id - 1]).toBeCloseTo(pens['fold-valley'].width / pens.edge.width, 6);
+    }
+  });
+
+  // The turn-over card shows the build-up whole — thin, as the card draws it,
+  // since every one of those creases was folded and opened flat again — and
+  // the sheet turning over on the canvas carries it with the paper.
+  it('shows the build-up on a turn-over, whole and thin', () => {
     const views: ReferencesViewStep[] = [
       fold(0),
       fold(1),
@@ -255,19 +365,19 @@ describe('a card that is not a fold', () => {
     expect([...(turn.pickable ?? [])].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 10, 11]);
     expect(turn.dimmed).toBeNull();
     expect(turn.dimAlpha).toBe(1);
-    expect(turn.directions?.size).toBe(2);
+    expect([...(turn.thin ?? [])].sort((a, b) => a - b)).toEqual([10, 11]);
+    expect(turn.directions ?? null).toBeNull();
   });
 
-  it('still dims behind a fold', () => {
+  it('draws thin behind a fold, and leaves the fold itself to the step', () => {
     const views: ReferencesViewStep[] = [fold(0), fold(1)];
     const at = planVisibility(variants, views, 1, input);
-    expect(at.dimAlpha).toBe(REFERENCES_DIM_ALPHA);
-    expect([...(at.dimmed ?? [])]).toEqual([10]);
+    expect([...(at.thin ?? [])]).toEqual([10]);
     expect(at.visible?.has(11)).toBe(false);
   });
 });
 
-describe('the direction a crease keeps', () => {
+describe('the direction a crease keeps on the finished card', () => {
   const withDirection = (id: number, ids: number[], direction: 'mountain' | 'valley') => ({
     ...step(id, ids),
     direction,
@@ -277,7 +387,9 @@ describe('the direction a crease keeps', () => {
   // A step folds one line one way (plan D20). Left to the pattern's own
   // assignment, a line whose creases disagree goes back to reading red here and
   // blue there the moment its step stops being active.
-  it('is the one its step folded, for every step so far and not just the active one', () => {
+  const DONE: ReferencesViewStep = { kind: 'done', side: 'front', component: 0 };
+
+  it('is the one its step folded, for every step', () => {
     const variants = [
       variant([
         withDirection(1, [10], 'mountain'),
@@ -285,20 +397,21 @@ describe('the direction a crease keeps', () => {
         withDirection(3, [12], 'mountain'),
       ]),
     ];
-    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2)];
-    const at = planVisibility(variants, views, 2, input);
+    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2), DONE];
+    const at = planVisibility(variants, views, 3, input);
     expect([...(at.directions ?? [])]).toEqual([
       [10, 'mountain'],
       [11, 'valley'],
+      [12, 'mountain'],
     ]);
-    // Step 3's line is the one being folded, so the pattern is not drawing it
-    // at all — its own diagram is, in the direction the step names.
-    expect(at.directions?.has(12)).toBe(false);
+    // On a fold card no crease on the paper has a direction; the step's own
+    // diagram draws the one it is about.
+    expect(planVisibility(variants, views, 2, input).directions ?? null).toBeNull();
   });
 
   it('says nothing about an auxiliary line, which the pattern does not assign', () => {
     const variants = [variant([{ ...step(1, [10]), direction: 'unassigned' as const }])];
-    const at = planVisibility(variants, [fold(0)], 0, input);
+    const at = planVisibility(variants, [fold(0), DONE], 1, input);
     expect(at.directions?.size).toBe(0);
   });
 
@@ -309,21 +422,22 @@ describe('the direction a crease keeps', () => {
   it('is the pleat direction of each grid line, not the step-level unassigned', () => {
     const sequence = plannerSequenceWithGridFixture();
     const variants = [variant(sequence.steps)];
-    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2)];
-    const at = planVisibility(variants, views, 2, {
+    const views: ReferencesViewStep[] = [fold(0), fold(1), fold(2), DONE];
+    const at = planVisibility(variants, views, 3, {
       ...input,
       sheetLineIds: new Set([1, 2, 3, 4, 5]),
       borderLineIds: new Set<number>(),
     });
-    expect([...at.visible ?? []].sort()).toEqual([1, 2, 3, 4]);
+    expect([...at.visible ?? []].sort()).toEqual([1, 2, 3, 4, 5]);
     expect([...(at.directions ?? [])]).toEqual([
       [1, 'mountain'],
       [2, 'valley'],
       [3, 'valley'],
       // Pleated valley though the pattern says mountain: it stays as made.
       [4, 'valley'],
+      [5, 'valley'],
     ]);
-    const back = planVisibility(variants, views, 2, {
+    const back = planVisibility(variants, views, 3, {
       ...input,
       mirrored: true,
       sheetLineIds: new Set([1, 2, 3, 4, 5]),

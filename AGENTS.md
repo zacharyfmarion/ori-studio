@@ -152,6 +152,24 @@ or crease-pattern behavior.
 - Use existing UI primitives, theme tokens, Zustand store slices, and command
   patterns before adding new ones.
 
+### Styling
+
+New and changed components are styled with a **CSS module beside them**
+(`Name.module.css`); `apps/web/docs/styling.md` has the rules and why. In short:
+
+- Variation is a prop on the component (`size`, `fill`, a variant), styled
+  through data attributes inside its module — never a selector another screen
+  writes against its classes.
+- A parent places a child (margin, grid cell, width); it never styles the
+  child's insides.
+- Global CSS is for tokens, resets, typography, the app shell and third-party
+  markup. ESLint rejects new plain-stylesheet imports, and a ratchet test keeps
+  the global stylesheets from growing.
+- Tests find elements by role, name or data attribute, never by a module class.
+
+Most of today's CSS is still global (`src/styles/theme.css`); it moves into
+modules block by block. Do not add to it.
+
 ### Panel components
 
 Panels under `apps/web/src/components/panels/` are **composition sites**: they

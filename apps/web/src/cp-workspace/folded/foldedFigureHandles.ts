@@ -44,8 +44,10 @@
  * refused by the admission gate before a session is ever allocated.
  */
 
+import { dropFolded3dAuxLines, resetFolded3dAuxLines } from './folded3dAuxLines';
 import { dropFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
 import { clearAllFolded3dOrbits } from './folded3dRuntime';
+import { dropFoldedFlatScene, resetFoldedFlatScenes } from './foldedFlatScenes';
 
 /** Live reference count per handle. Entries reaching 0 are freed and dropped. */
 const counts = new Map<number, number>();
@@ -107,8 +109,11 @@ export function releaseFoldedFigureHandle(handle: number | null | undefined): vo
   counts.delete(handle);
   // A 3D figure's geometry is reachable only through its handle, so it goes at
   // the same moment. Keeping it alive past the session it describes would leak
-  // a quarter of a megabyte per figure that scrolled off the undo stack.
+  // a quarter of a megabyte per figure that scrolled off the undo stack. The
+  // flat figure's paper scene is the same kind of thing for the same reason.
   dropFolded3dRenderModel(handle);
+  dropFolded3dAuxLines(handle);
+  dropFoldedFlatScene(handle);
   void freeHandle(handle);
 }
 
@@ -150,10 +155,14 @@ export function resetFoldedFigureHandles(): Promise<void> {
   const freed: (Promise<void> | void)[] = [];
   for (const handle of counts.keys()) {
     dropFolded3dRenderModel(handle);
+    dropFolded3dAuxLines(handle);
+    dropFoldedFlatScene(handle);
     freed.push(freeHandle(handle));
   }
   counts.clear();
   resetFolded3dRenderModels();
+  resetFolded3dAuxLines();
+  resetFoldedFlatScenes();
   // The other 3D side table, torn down at the same point and for the same
   // reason: a live orbit frame outliving its document would draw a figure at a
   // camera no entry in the store has.

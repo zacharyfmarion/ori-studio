@@ -25,7 +25,9 @@ export type ReferencesActionIcon =
   | 'recompute'
   | 'reset-view'
   | 'zoom-in'
-  | 'zoom-out';
+  | 'zoom-out'
+  | 'export-step'
+  | 'export-all-steps';
 
 /**
  * What a command draws: its own id, or, for the one verb whose picture
@@ -70,6 +72,8 @@ export interface ReferencesActionState {
   canRecompute: boolean;
   /** The view has a pattern to look at. */
   hasView: boolean;
+  /** The view is showing a step or candidate diagram — the thing an export paints. */
+  hasDiagram: boolean;
   /** The active card's fold, as the transport has it. */
   fold: {
     /** The card has a fold to play. */
@@ -99,6 +103,7 @@ export function buildReferencesActions(
   const hasSteps = state.stepCount > 0;
   const hasCandidates = state.candidateCount > 0;
   const noTarget = t('panels:references.actions.noTargetHint', 'Pick a vertex or crease first');
+  const noDiagram = t('panels:references.actions.noDiagramHint', 'No step is showing');
   const oneWay = t('panels:references.actions.oneWayHint', 'This step folds only one way');
   const command = (
     id: ReferencesActionIcon,
@@ -194,6 +199,21 @@ export function buildReferencesActions(
     command('reset-view', 'references.resetView', 'Reset References View', !state.hasView),
     command('zoom-in', 'references.zoomIn', 'Zoom In References', !state.hasView),
     command('zoom-out', 'references.zoomOut', 'Zoom Out References', !state.hasView),
+    { kind: 'separator', id: 'before-export' },
+    // The step at rest, as the big view shows it. A finished card has no
+    // diagram of its own — the pattern itself is that picture — and an empty
+    // strip has none at all. One verb: the dialog it opens chooses the format,
+    // with the page in view.
+    command('export-step', 'references.exportStep', 'Export step…', !state.hasDiagram, noDiagram),
+    // Every card with a picture, as one ZIP: open as long as the strip has
+    // cards, whichever of them is on show.
+    command(
+      'export-all-steps',
+      'references.exportAllSteps',
+      'Export all steps…',
+      !hasSteps,
+      hasSteps ? undefined : noTarget
+    ),
   ];
 }
 

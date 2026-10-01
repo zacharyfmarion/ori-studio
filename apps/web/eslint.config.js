@@ -26,6 +26,38 @@ const noDirectStorageProperties = [
 ];
 
 /*
+ * A component's styles are a CSS module beside it (docs/styling.md), whose class
+ * names are hashed so nothing else can select them. A plain stylesheet is global:
+ * any rule in it can reach any component, which is how one control came to have
+ * seven looks. Importing one is reserved for the files below, which already did.
+ * Moving a stylesheet into modules deletes its line here; do not add to the list.
+ */
+const GLOBAL_STYLESHEET_IMPORTERS = [
+  'src/main.tsx',
+  'src/App.tsx',
+  'src/components/MenuBar.tsx',
+  'src/components/WorkspaceShell.tsx',
+  'src/components/CpDetectImportModal.tsx',
+  'src/components/landing/WelcomeLanding.tsx',
+  'src/site/SiteFooter.tsx',
+  'src/site/SiteLayout.tsx',
+  'src/site/SiteNav.tsx',
+];
+
+const noGlobalStylesheets = [
+  'error',
+  {
+    patterns: [
+      {
+        group: ['*.css', '!*.module.css'],
+        message:
+          'Style a component with a CSS module beside it (Name.module.css), not a global stylesheet. See apps/web/docs/styling.md.',
+      },
+    ],
+  },
+];
+
+/*
  * Panels are composition sites, not where behavior accumulates.
  *
  * `max-lines` has no custom-message option, so if it is what sent you here: this
@@ -429,7 +461,13 @@ export default tseslint.config(
       ],
       'no-restricted-globals': noDirectStorageGlobals,
       'no-restricted-properties': noDirectStorageProperties,
+      'no-restricted-imports': noGlobalStylesheets,
     },
+  },
+  {
+    // The global entry points that already imported a plain stylesheet.
+    files: GLOBAL_STYLESHEET_IMPORTERS,
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     // The storage layer itself is the single sanctioned localStorage caller.

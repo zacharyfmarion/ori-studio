@@ -6,7 +6,6 @@ import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import type { CanvasObjectBoxUpdate } from '../CanvasObjectOverlay';
 import { inlineSimulationAsTransformable, isInlineSimulationStale } from './inlineSimulation';
 import { exportInlineSimulation, requestInlineSimulationFold } from './inlineSimulationRuntime';
-import type { SimulatorViewExportFormat } from '../../simulator/simulatorViewExport';
 import { simulatorView } from '../../simulator/simulatorViewRegistry';
 import { announceUprightSet } from '../../lib/uprightFeedback';
 import type { GestureToken } from '../canvasObjects/gestureBracket';
@@ -200,19 +199,16 @@ export function useInlineSimulations({ cpDocument }: UseInlineSimulationsOptions
   }, []);
 
   /**
-   * Save the focused window's current view as an image.
+   * Open the export dialog on the focused window's current view.
    *
    * Goes through the runtime side table for the same reason scrubbing does: the
    * solver — and so the view — lives in the layer, not in the descriptor. Scoped
    * to the focused window like {@link replay}, so the panel passes this straight
    * to the toolbar rather than closing over an id at the call site.
    */
-  const exportView = useCallback(
-    (format: SimulatorViewExportFormat) => {
-      if (focusedId) void exportInlineSimulation(focusedId, format);
-    },
-    [focusedId]
-  );
+  const exportView = useCallback(() => {
+    if (focusedId) exportInlineSimulation(focusedId);
+  }, [focusedId]);
 
   /**
    * Take the direction now pointing up on screen as the focused window's up.

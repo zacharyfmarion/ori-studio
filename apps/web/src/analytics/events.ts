@@ -150,7 +150,8 @@ export type ExportFormat =
   | 'ori'
   | 'orh'
   | 'svg'
-  | 'png';
+  | 'png'
+  | 'zip';
 
 /** Formats the folded-form (simulator) export offers. */
 export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
@@ -238,6 +239,84 @@ export type FoldedFigureStyleOption =
   | 'back_color'
   | 'line_color'
   | 'shadow';
+
+/**
+ * Which slot of the app-wide paper style an edit went to: what is drawn on
+ * screen, or what an export draws when the user has set it apart.
+ */
+export type PaperStyleSlot = 'display' | 'export';
+
+/**
+ * The style field an edit touched, by its path. A fixed list — never a value:
+ * a colour, a pen width or a light angle is the user's work. The question is
+ * which fields anyone reaches for, and whether the export slot ever gets set
+ * apart from display.
+ *
+ * Written out here rather than derived from the style's own field list, so the
+ * taxonomy stays a leaf with no app imports; a test pins the two lists equal,
+ * so a field added to the style cannot go uncounted.
+ */
+export const PAPER_STYLE_FIELD_NAMES = [
+  'paper.front',
+  'paper.back',
+  'edges',
+  'mountainFolds',
+  'valleyFolds',
+  'mountainDiagramCreases',
+  'valleyDiagramCreases',
+  'foldsAsEdges',
+  'auxCreases.visible',
+  'auxCreases.pen',
+  'arrows',
+  'erode',
+  'light',
+] as const;
+
+export type PaperStyleFieldName = (typeof PAPER_STYLE_FIELD_NAMES)[number];
+
+/**
+ * Which preset was applied: a built-in by id, or `custom` for any preset the
+ * user saved or imported — never its name, which is theirs.
+ */
+export type PaperPresetName = 'default' | 'diagram' | 'custom';
+
+/** What the user did with unsaved edits a preset would have replaced. */
+export type PaperPresetUnsavedChoice = 'save' | 'update' | 'discard' | 'cancel';
+
+/** The surfaces a document object can pin a paper-style field on. */
+export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
+
+/** The surfaces that export a paper picture through the shared painter. */
+export type PaperExportSurface =
+  | 'simulator'
+  | 'inline-simulation'
+  | 'folded-3d'
+  | 'folded-flat'
+  | 'references';
+
+/** A paper export's image format — the file's kind only, never its name. */
+export type PaperExportFormat = 'svg' | 'png';
+
+/** Whether an export kept the faces no pixel of the page shows (D4 in the plan). */
+export type PaperExportHiddenFaces = 'kept' | 'dropped';
+
+/** Which style a paper export was painted with: the Settings export slot, or a preset by kind. */
+export type PaperExportStyleName = 'export-style' | PaperPresetName;
+
+/** A paper export's page background: none, or a colour — never which colour. */
+export type PaperExportBackground = 'transparent' | 'colour';
+
+/** A PNG's density as the export dialog's picker names it; `none` for an SVG. */
+export type PaperExportResolution = '1x' | '2x' | '3x' | '4x' | '300' | '600' | 'custom' | 'none';
+
+/** The folded figure beside a crease pattern: the style it was drawn in, or none. */
+export type CreasePatternFoldedFigure = 'none' | PaperExportStyleName;
+
+/** Which of a surface's pages an export wrote: the one on show, or every one as a ZIP. */
+export type PaperExportScope = 'this' | 'all';
+
+/** Whether a page carried one of a diagram's optional marks — a References step's letters or line highlights. */
+export type PaperExportMarkShown = 'shown' | 'hidden';
 
 /** Where a foldability check was run from. */
 export type FoldabilityCheckSource = 'pre-fold';
@@ -595,6 +674,11 @@ export const ANALYTICS_EVENTS = {
   /** The "Auto-play folds" preference was switched; `enabled` is `on` / `off`. */
   referencesFoldAutoplayChanged: 'references fold autoplay changed',
   /**
+   * The References "Show auxiliary creases" option was set; `shown` is `on` /
+   * `off`, or `style` when it was reset to follow the paper style.
+   */
+  referencesAuxCreasesChanged: 'references aux creases changed',
+  /**
    * The modal that warns that a precreasing sequence contains approximated
    * folds was shown — once per plan whose steps are not all exact, or that
    * stopped rather than approximate more lines than a sequence can carry.
@@ -723,6 +807,61 @@ export const ANALYTICS_EVENTS = {
   foldCompleted: 'fold completed',
   foldSolutionCycled: 'fold solution cycled',
   foldedFigureStyled: 'folded figure styled',
+  /**
+   * A field of the app-wide paper style was edited — from Settings ▸ Paper, the
+   * Simulate pane's Paper and Creases rows, or a window's sheet. `slot` is
+   * `display` or `export`, `field` the field's path. Once per adjustment: a
+   * colour drag counts when it starts, never per pointer move, and never with
+   * the value. The question is which fields earn their rows and whether the
+   * export slot is ever set apart from display.
+   */
+  paperStyleChanged: 'paper style changed',
+  /**
+   * A whole preset was applied to a slot. `preset` is a built-in's id or
+   * `custom` for a saved or imported one — never its name. Whether the
+   * built-ins cover what people want is what a high `custom` share answers.
+   */
+  paperPresetApplied: 'paper preset applied',
+  /**
+   * A preset was picked while the slot held unsaved edits, and the user was
+   * asked what to do with them. `choice` is `save` (kept as a preset of their
+   * own first), `update` (written into the saved preset they were made to),
+   * `discard` or `cancel`. How often edits are thrown away versus kept is what
+   * says whether the prompt earns its interruption.
+   */
+  paperPresetUnsavedChanges: 'paper preset unsaved changes',
+  /**
+   * A saved preset was overwritten with the slot's edits to it — from the Update
+   * beside Revert, or the unsaved-changes prompt's Update. Only ever a preset
+   * the user saved or imported: a built-in cannot be. The question is whether
+   * people keep a preset of their own and refine it, or save a new one each
+   * time.
+   */
+  paperPresetUpdated: 'paper preset updated',
+  /**
+   * A document object had a paper-style field pinned, or the pin cleared
+   * (`reset: true`), from its Properties sheet or the folded Style menu.
+   * `surface` says which kind of object, `field` which row. Per-object pins
+   * are the case D1 in the plan was designed around; this is how often it
+   * happens at all.
+   */
+  paperStyleOverridden: 'paper style overridden',
+  /**
+   * A paper surface's view went out through the shared painter as an SVG or
+   * PNG. `surface` says which, `format` which file, `hidden_faces` whether the
+   * buried faces were kept — the default, and the setting D4 exists for;
+   * `letters` and `highlights`, for References alone, whether the step's
+   * letters and line highlights were on the page. The file service's
+   * `file exported` fires too; this one carries what that chokepoint cannot
+   * see.
+   */
+  paperExported: 'paper exported',
+  /**
+   * The export dialog opened on a paper surface's picture — the first step of
+   * the funnel whose last is `paper exported`. Its triggers are toolbar and
+   * context-menu verbs the menu chokepoint does not see.
+   */
+  paperExportOpened: 'paper export opened',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —
@@ -760,6 +899,14 @@ export const ANALYTICS_EVENTS = {
   simulatorPatternOpened: 'simulator pattern opened',
   foldedFigureRehydrated: 'folded figure rehydrated',
   creasePatternShared: 'crease pattern shared',
+  /**
+   * A crease pattern was saved as an SVG or PNG image from its export dialog.
+   * `folded_figure` is the style the folded figure beside it was drawn in —
+   * the export slot or a preset by kind — or `none` without one: whether the
+   * figure is used, and whether its picker earns its place. The menu
+   * chokepoint sees only the command, not what the dialog made of it.
+   */
+  creasePatternExported: 'crease pattern exported',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',
   exploriSearch: 'explori search',
@@ -928,6 +1075,9 @@ export function bucketCount(value: number, thresholds: readonly number[]): strin
   const last = thresholds[thresholds.length - 1];
   return `>${last}`;
 }
+
+/** Threshold ladder for how many pages an export of every step wrote. */
+export const PAPER_EXPORT_PAGE_COUNT_BUCKETS = [5, 10, 25] as const;
 
 /** Default threshold ladder for element counts (nodes, lines, etc.). */
 export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;

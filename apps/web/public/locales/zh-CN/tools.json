@@ -261,6 +261,10 @@
   },
   "references": {
     "categoryLabel": "参考",
+    "exportAllSteps": "导出全部步骤…",
+    "exportStep": "导出步骤…",
+    "exportStepPng": "将步骤导出为 PNG…",
+    "exportStepSvg": "将步骤导出为 SVG…",
     "nextCandidate": "下一个候选",
     "nextStep": "下一步",
     "nextWay": "下一种折法",
@@ -285,7 +289,6 @@
     "resetView": "重置模拟器视图",
     "toggleCreases": "折线",
     "toggleFaces": "面",
-    "toggleHiddenLines": "隐藏线",
     "toggleLighting": "光照"
   },
   "viewport": {

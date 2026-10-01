@@ -1,7 +1,10 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { registerSimulatorShortcutExecutor } from '../../keyboard/shortcutRuntime';
+import { applyCreaseStyle, DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
@@ -21,7 +24,16 @@ afterEach(() => {
   root = null;
   container = null;
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  useSettingsStore.setState(useSettingsStore.getInitialState(), true);
 });
+
+/** Write the mountain and valley pens of the display style for a mode, as a preset would. */
+function setCreaseStyle(mode: 'color' | 'mono' | 'mono-dashed'): void {
+  const { paperStyle, setPaperStyleField } = useSettingsStore.getState();
+  const next = applyCreaseStyle(paperStyle.display, mode);
+  setPaperStyleField('display', 'mountainFolds', next.mountainFolds);
+  setPaperStyleField('display', 'valleyFolds', next.valleyFolds);
+}
 
 function render(): HTMLDivElement {
   container = document.createElement('div');
@@ -99,19 +111,12 @@ describe('SimulatorViewControlsPanel', () => {
     expect(useWorkspaceStore.getState().simulatorSettings.showFaces).toBe(false);
   });
 
-  it('disables hidden lines while crease lines are off', () => {
+  it('offers no hidden-lines toggle', () => {
+    // Re-pinned: the row used to disable while crease lines were off. It is
+    // gone outright — the GPU renderer never honoured it, so on every WebGL2
+    // machine the switch did nothing.
     const rendered = render();
-    expect(
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled
-    ).toBe(false);
-
-    act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('showEdges', false);
-    });
-
-    expect(
-      rendered.querySelector<HTMLButtonElement>('[aria-label="Hidden lines"]')?.disabled
-    ).toBe(true);
+    expect(rendered.querySelector('[aria-label="Hidden lines"]')).toBeNull();
   });
 
   it('commits a material slider to the store', () => {
@@ -138,9 +143,9 @@ describe('SimulatorViewControlsPanel', () => {
     // resets, so the section has to be open to reach it.
     toggle(rendered, 'Material');
     act(() => {
-      const store = useWorkspaceStore.getState();
-      store.setSimulatorSetting('creaseStiffness', 3);
-      store.setSimulatorSetting('lighting', false);
+      useWorkspaceStore.getState().setSimulatorSetting('creaseStiffness', 3);
+      const { paperStyle, setPaperStyleField } = useSettingsStore.getState();
+      setPaperStyleField('display', 'light', { ...paperStyle.display.light, enabled: false });
     });
 
     act(() => {
@@ -150,7 +155,29 @@ describe('SimulatorViewControlsPanel', () => {
     const settings = useWorkspaceStore.getState().simulatorSettings;
     expect(settings.creaseStiffness).toBe(DEFAULT_SIMULATOR_SETTINGS.creaseStiffness);
     // Render options are not material, so the reset leaves them alone.
-    expect(settings.lighting).toBe(false);
+    expect(useSettingsStore.getState().paperStyle.display.light.enabled).toBe(false);
+  });
+
+  // Re-pinned: the reset used to apply the whole Default preset, which also
+  // wiped fields this pane never shows.
+  it('resets the style rows it shows to the Default preset, and nothing else', () => {
+    const rendered = render();
+    toggle(rendered, 'Paper');
+    const arrows = { ...DEFAULT_PAPER_STYLE.arrows, color: '#ff00ff' };
+    act(() => {
+      useWorkspaceStore.getState().setSimulatorSetting('creaseStiffness', 3);
+      useSettingsStore.getState().setPaperStyleField('display', 'paper.front', '#ff8800');
+      useSettingsStore.getState().setPaperStyleField('display', 'arrows', arrows);
+    });
+
+    act(() => {
+      rendered.querySelector<HTMLButtonElement>('[aria-label="Reset style"]')?.click();
+    });
+
+    const display = useSettingsStore.getState().paperStyle.display;
+    expect(display.paper).toEqual(DEFAULT_PAPER_STYLE.paper);
+    expect(display.arrows).toEqual(arrows);
+    expect(useWorkspaceStore.getState().simulatorSettings.creaseStiffness).toBe(3);
   });
 
   it('reveals the strain clip only in strain colour mode', () => {
@@ -192,7 +219,7 @@ describe('collapsible sections', () => {
     // by default it pushed the rest below the fold. Follows GridSettingsSection
     // in the Edit workspace's view pane.
     const rendered = render();
-    for (const title of ['Paper', 'Creases', 'Export', 'Material', 'Solver']) {
+    for (const title of ['Paper', 'Creases', 'Material', 'Solver']) {
       const element = section(rendered, title);
       expect(element.hasAttribute('data-open')).toBe(false);
       expect(element.querySelectorAll('.control-row')).toHaveLength(0);
@@ -222,36 +249,95 @@ describe('collapsible sections', () => {
     expect(section(rendered, 'Creases').hasAttribute('data-open')).toBe(false);
   });
 
-  it('offers a colour reset only once the colour is overridden', () => {
-    // Absence of the affordance is the signal that the value still follows the
-    // theme, so it must not be there by default.
+  it('shows the display style’s paper, and writes a picked colour back to it', () => {
+    // Re-pinned: the swatches used to show a theme token until overridden and
+    // offer a clear back to it. The paper style is self-contained — every
+    // colour is a hex — so a swatch always shows the paper on screen and there
+    // is nothing to clear to.
     const rendered = render();
     toggle(rendered, 'Paper');
+    const front = () => rendered.querySelector<HTMLInputElement>('[aria-label="Front"]');
+    expect(front()?.value).toBe(DEFAULT_PAPER_STYLE.paper.front);
     expect(rendered.querySelector('.color-field__clear')).toBeNull();
 
     act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('paperFront', '#ff8800');
+      useSettingsStore.getState().setPaperStyleField('display', 'paper.front', '#ff8800');
     });
-    expect(rendered.querySelector('.color-field__clear')).not.toBeNull();
-    expect(
-      rendered.querySelector<HTMLInputElement>('[aria-label="Front"]')?.value
-    ).toBe('#ff8800');
+    expect(front()?.value).toBe('#ff8800');
+
+    act(() => {
+      const input = front();
+      if (!input) throw new Error('no front swatch');
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(input, '#123456');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(useSettingsStore.getState().paperStyle.display.paper.front).toBe('#123456');
   });
 
-  it('disables the per-kind swatches under a mono crease style', () => {
-    // They no longer affect anything there, and a live control that does nothing
-    // promises an effect it cannot deliver.
+  it('offers no line weight: each line is drawn at its own pen’s width', () => {
+    // Re-pinned for X14: the section had a "Fold line weight (pt)" slider
+    // that wrote one width into both fold pens, the one width a simulation
+    // drew every line at. Widths are the pen cards' in Settings ▸ Paper now.
     const rendered = render();
     toggle(rendered, 'Creases');
+    expect(rendered.querySelector('input[aria-label="Weight"]')).toBeNull();
+    expect(rendered.querySelector('input[aria-label="Fold line weight (pt)"]')).toBeNull();
+    expect(section(rendered, 'Creases').querySelector('input[type="range"]')).toBeNull();
+  });
+
+  // How the folds are dashed and inked is the paper preset's (Settings ▸
+  // Paper); the Creases section offers no style switch of its own.
+  it('offers no crease style switch, and keeps the fold inks live under a one-ink preset', () => {
+    act(() => useSettingsStore.getState().setPaperStyleField('display', 'foldsAsEdges', false));
+    const rendered = render();
+    toggle(rendered, 'Creases');
+    expect(section(rendered, 'Creases').querySelector('button[aria-label="Style"]')).toBeNull();
     const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
+    act(() => {
+      setCreaseStyle('mono');
+    });
+    expect(mountain()?.disabled).toBe(false);
+    expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
+  });
+
+  // Simulations draw their folds by direction by default, in the fold pens'
+  // solid inks; switched on, every fold is an edge and the fold inks that
+  // makes moot are disabled.
+  it('draws creases by direction by default, and disables what edges make moot', () => {
+    const rendered = render();
+    toggle(rendered, 'Creases');
+    const asEdges = () =>
+      rendered.querySelector<HTMLButtonElement>(
+        'button[role="switch"][aria-label="Render all creases as edges"]'
+      )!;
+    const mountain = () => rendered.querySelector<HTMLInputElement>('[aria-label="Mountain"]');
+    expect(asEdges().getAttribute('aria-checked')).toBe('false');
     expect(mountain()?.disabled).toBe(false);
 
     act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('creaseStyle', 'mono');
+      asEdges().dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
+    expect(useSettingsStore.getState().paperStyle.display.foldsAsEdges).toBe(true);
+    expect(asEdges().getAttribute('aria-checked')).toBe('true');
     expect(mountain()?.disabled).toBe(true);
-    // The edge ink is what mono paints with, so it stays editable.
     expect(rendered.querySelector<HTMLInputElement>('[aria-label="Edge"]')?.disabled).toBe(false);
+  });
+
+  // Re-pinned for X7: the pane had an Export group bound to the one page every
+  // export went out on. A simulation's export options are its own kind's now,
+  // and the export dialog is the only place that edits them.
+  it('offers no Export group, which is the export dialog’s to edit', () => {
+    const rendered = render();
+    const titles = [...rendered.querySelectorAll('.collapsible-section__title')].map(
+      (title) => title.textContent
+    );
+    expect(titles).toEqual(['Render', 'Paper', 'Creases', 'Material', 'Solver']);
+    // A collapsed section mounts no body: open them all, so no row can hide in one.
+    for (const title of titles.slice(1)) toggle(rendered, title!);
+    expect(rendered.querySelector('[aria-label="Keep hidden faces"]')).toBeNull();
+    expect(rendered.querySelector('[aria-label="Sheet (mm)"]')).toBeNull();
+    expect(rendered.textContent).not.toContain('The page an exported image is drawn on.');
   });
 
   it('labels each swatch to its own input', () => {
@@ -262,5 +348,62 @@ describe('collapsible sections', () => {
     const input = field?.querySelector('input');
     expect(label?.htmlFor).toBeTruthy();
     expect(label?.htmlFor).toBe(input?.id);
+  });
+});
+
+describe('SimulatorViewControlsPanel actions', () => {
+  let unregister: (() => void) | null = null;
+
+  afterEach(() => {
+    unregister?.();
+    unregister = null;
+  });
+
+  function actions(rendered: HTMLDivElement): HTMLButtonElement[] {
+    return [
+      ...rendered.querySelectorAll<HTMLButtonElement>('.view-controls-actions button'),
+    ];
+  }
+
+  it('leads the rail with Export view and Set upright', () => {
+    const rendered = render();
+
+    const body = rendered.querySelector('.simulator-view-controls-panel')!;
+    expect(body.firstElementChild?.classList.contains('view-controls-actions')).toBe(true);
+    expect(actions(rendered).map((button) => button.textContent?.trim())).toEqual([
+      'Export view…',
+      'Set upright',
+    ]);
+  });
+
+  it('disables both while no simulation is ready', () => {
+    const rendered = render();
+
+    expect(actions(rendered).every((button) => button.disabled)).toBe(true);
+  });
+
+  it('runs the simulation’s own verbs once one is in hand', () => {
+    const rendered = render();
+    const simulator = vi.fn();
+    // Registered after the first render, as a simulation that finishes loading
+    // would: the rail must follow it without a render of its own.
+    act(() => {
+      unregister = registerSimulatorShortcutExecutor(simulator);
+    });
+    const [exportView, setUpright] = actions(rendered);
+    expect(exportView?.disabled).toBe(false);
+    expect(setUpright?.disabled).toBe(false);
+
+    act(() => exportView?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    act(() => setUpright?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+    expect(simulator.mock.calls).toEqual([['simulator.exportView'], ['simulator.setUpright']]);
+
+    // And back off when the simulation goes.
+    act(() => {
+      unregister?.();
+      unregister = null;
+    });
+    expect(actions(rendered).every((button) => button.disabled)).toBe(true);
   });
 });

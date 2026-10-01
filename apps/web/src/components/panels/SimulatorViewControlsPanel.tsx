@@ -1,77 +1,88 @@
-import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { RotateCcw } from 'lucide-react';
+import { Axis3d, Download, RotateCcw } from 'lucide-react';
+import { runSimulatorCommand } from '../../keyboard/shortcutRuntime';
 import {
-  SIMULATOR_CREASE_STYLES,
   SIMULATOR_SETTING_RANGES,
-  type SimulatorColorSettingKey,
-  type SimulatorCreaseStyle,
-  type SimulatorExportBackground,
   type SimulatorNumericSettingKey,
   type SimulatorSettings,
 } from '../../lib/simulatorSettings';
-import { simulatorColorModeLabel, simulatorCreaseStyleLabel } from '../../i18n/enumLabels';
-import { simulatorStyleDefaults } from '../../simulator/simulatorPalette';
+import { simulatorColorModeLabel } from '../../i18n/enumLabels';
+import {
+  useSimulatorPaperStyle,
+  type SimulatorPenField,
+} from '../../simulator/useSimulatorPaperStyle';
+import { useSimulationInHand } from '../../simulator/useSimulatorShortcuts';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { useThemeStore } from '../../store/themeStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
 import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
-
-// Literal keys so the i18n extractor can see them (see apps/web/CLAUDE.md).
-function exportBackgroundLabel(value: SimulatorExportBackground, t: TFunction): string {
-  switch (value) {
-    case 'transparent':
-      return t('panels:simulatorViewControls.backgroundTransparent', 'Transparent');
-    case 'white':
-      return t('panels:simulatorViewControls.backgroundWhite', 'White');
-    case 'theme':
-      return t('panels:simulatorViewControls.backgroundTheme', 'Match theme');
-  }
-}
+import { ViewControlsAction, ViewControlsActions } from './ViewControlsActions';
 
 /**
  * Options pane for the Simulate workspace, mirroring the Edit workspace's view
  * pane. Render options are applied by the simulator panel; material and solver
  * options go to the engine live (both backends recompute their timestep on a
  * material change), so nothing here reloads the model.
+ *
+ * It leads with the two things done *to* the view rather than configured for
+ * it — export it, and set which way is up. Both act on the viewport, which is
+ * the simulator panel's, so each runs that panel's own verb
+ * (`simulator.exportView`, `simulator.setUpright`) through its executor. The
+ * panel registers one only while its simulation is ready, so whether one is
+ * registered is also what enables them.
  */
 export function SimulatorViewControlsPanel() {
   const { t } = useTranslation();
   const settings = useWorkspaceStore((state) => state.simulatorSettings);
   const setSetting = useWorkspaceStore((state) => state.setSimulatorSetting);
   const resetMaterial = useWorkspaceStore((state) => state.resetSimulatorMaterial);
-  const resetStyle = useWorkspaceStore((state) => state.resetSimulatorStyle);
-  // What an unset colour actually resolves to, so a swatch shows the paper the
-  // user is looking at rather than a hardcoded guess. Keyed on the theme because
-  // that is what moves them.
-  const theme = useThemeStore((state) => state.currentTheme);
-  const styleDefaults = useMemo(
-    () =>
-      simulatorStyleDefaults(
-        typeof document === 'undefined' ? null : getComputedStyle(document.documentElement)
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [theme]
-  );
-  // A mono style paints every crease in the edge ink, so the per-kind swatches
-  // stop doing anything; showing them live would promise an effect they no
-  // longer have.
-  const monoCreases = settings.creaseStyle !== 'color';
-  const colorRow = (key: SimulatorColorSettingKey, label: string, disabled = false) => (
+  const ready = useSimulationInHand();
+  // How the paper is drawn is the app-wide paper style, not a simulator
+  // setting; these rows are its simulator-facing subset.
+  const paper = useSimulatorPaperStyle();
+  // The page an export is painted onto is the export dialog's alone (X7).
+  // Folds drawn as edges take the paper edge's colour, so the per-kind
+  // swatches stop doing anything; showing them live would promise an effect
+  // they no longer have.
+  const asEdges = paper.style.foldsAsEdges;
+  const penRow = (pen: SimulatorPenField, label: string, disabled = false) => (
     <ColorField
       label={label}
       layout="row"
-      value={settings[key] ?? styleDefaults[key]}
+      value={paper.style[pen].color}
       disabled={disabled}
-      onChange={(value) => setSetting(key, value)}
-      onClear={settings[key] === null ? undefined : () => setSetting(key, null)}
+      onChange={(value) => paper.setPenColor(pen, value)}
+      onCommit={paper.endAdjustment}
     />
   );
 
   return (
     <section className="panel-shell simulator-view-controls-panel">
+      <ViewControlsActions>
+        <ViewControlsAction
+          icon={<Download size={14} aria-hidden="true" />}
+          label={t('panels:simulatorExport.trigger', 'Export view…')}
+          disabled={!ready}
+          onClick={() => runSimulatorCommand('simulator.exportView')}
+        />
+        {/*
+          Which way the model is up. The orbit is a turntable about the paper's
+          *normal*, which is up for a flat sheet and is not for a model that
+          stands — so a standing figure tumbles rather than turning, and dragging
+          cannot fix it because yaw and pitch only move the eye on a sphere whose
+          pole is fixed. This picks the pole.
+
+          No matching "clear": the way back is the view reset (0 / Home, or
+          double-click the canvas), which drops the orientation with the angles.
+          See `SimulatorViewport.resetView`.
+        */}
+        <ViewControlsAction
+          icon={<Axis3d size={14} aria-hidden="true" />}
+          label={t('panels:simulator.setUpright', 'Set upright')}
+          disabled={!ready}
+          onClick={() => runSimulatorCommand('simulator.setUpright')}
+        />
+      </ViewControlsActions>
       <div className="panel-body simulator-view-controls-panel__body">
         <CollapsibleSection title={t('panels:simulatorViewControls.render', 'Render')}>
           <SelectRow
@@ -111,15 +122,9 @@ export function SimulatorViewControlsPanel() {
             onChange={(checked) => setSetting('showEdges', checked)}
           />
           <ToggleRow
-            label={t('panels:simulatorViewControls.hiddenLines', 'Hidden lines')}
-            checked={settings.showHiddenLines}
-            disabled={!settings.showEdges}
-            onChange={(checked) => setSetting('showHiddenLines', checked)}
-          />
-          <ToggleRow
             label={t('panels:simulatorViewControls.lighting', 'Lighting')}
-            checked={settings.lighting}
-            onChange={(checked) => setSetting('lighting', checked)}
+            checked={paper.style.light.enabled}
+            onChange={paper.setLighting}
           />
           <ToggleRow
             label={t('panels:simulatorViewControls.viewCube', 'View cube')}
@@ -128,19 +133,6 @@ export function SimulatorViewControlsPanel() {
           />
         </CollapsibleSection>
 
-        {/*
-          Which way the model is up. The orbit is a turntable about the paper's
-          *normal*, which is up for a flat sheet and is not for a model that
-          stands — so a standing figure tumbles rather than turning, and dragging
-          cannot fix it because yaw and pitch only move the eye on a sphere whose
-          pole is fixed. These two verbs pick the pole.
-
-          Both are offered unconditionally. Whether an upright is set lives in
-          the viewport's own ref (it is session-only for a simulation), so this
-          store-driven pane has nothing to gate on — and clearing when none is
-          set is simply a reset, which is harmless. The folded figure's copy of
-          this verb *can* gate, because its upright is document state.
-        */}
         <CollapsibleSection
           title={t('panels:simulatorViewControls.paper', 'Paper')}
           collapsible
@@ -150,66 +142,45 @@ export function SimulatorViewControlsPanel() {
               className="collapsible-section__action"
               title={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
               aria-label={t('panels:simulatorViewControls.resetStyle', 'Reset style')}
-              onClick={resetStyle}
+              onClick={paper.reset}
             >
               <RotateCcw size={12} />
             </button>
           }
         >
           <div className="simulator-view-controls-panel__colors">
-            {colorRow('paperFront', t('panels:simulatorViewControls.paperFront', 'Front'))}
-            {colorRow('paperBack', t('panels:simulatorViewControls.paperBack', 'Back'))}
+            <ColorField
+              label={t('panels:simulatorViewControls.paperFront', 'Front')}
+              layout="row"
+              value={paper.style.paper.front}
+              onChange={(value) => paper.setPaperColor('paper.front', value)}
+              onCommit={paper.endAdjustment}
+            />
+            <ColorField
+              label={t('panels:simulatorViewControls.paperBack', 'Back')}
+              layout="row"
+              value={paper.style.paper.back}
+              onChange={(value) => paper.setPaperColor('paper.back', value)}
+              onCommit={paper.endAdjustment}
+            />
           </div>
         </CollapsibleSection>
 
         <CollapsibleSection title={t('panels:simulatorViewControls.creases', 'Creases')} collapsible>
-          <SelectRow
-            label={t('panels:simulatorViewControls.creaseStyle', 'Style')}
-            value={settings.creaseStyle}
-            options={SIMULATOR_CREASE_STYLES.map((value) => ({
-              id: value,
-              label: simulatorCreaseStyleLabel(t, value),
-            }))}
-            onChange={(value) => setSetting('creaseStyle', value as SimulatorCreaseStyle)}
+          <ToggleRow
+            label={t('panels:simulatorViewControls.foldsAsEdges', 'Render all creases as edges')}
+            help={t(
+              'panels:simulatorViewControls.foldsAsEdgesHelp',
+              'A fold that has happened is an edge of the paper: every fold is drawn in the paper edge’s color and dash, at the average of the mountain and valley widths. Off, folds are drawn by direction.'
+            )}
+            checked={asEdges}
+            onChange={paper.setFoldsAsEdges}
           />
           <div className="simulator-view-controls-panel__colors">
-            {colorRow(
-              'mountainColor',
-              t('panels:simulatorViewControls.mountain', 'Mountain'),
-              monoCreases
-            )}
-            {colorRow(
-              'valleyColor',
-              t('panels:simulatorViewControls.valley', 'Valley'),
-              monoCreases
-            )}
-            {colorRow('borderColor', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
+            {penRow('mountainFolds', t('panels:simulatorViewControls.mountain', 'Mountain'), asEdges)}
+            {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), asEdges)}
+            {penRow('edges', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
           </div>
-          <SettingSliderRow
-            settingKey="creaseWidth"
-            label={t('panels:simulatorViewControls.creaseWidth', 'Weight')}
-            settings={settings}
-            setSetting={setSetting}
-          />
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          title={t('panels:simulatorViewControls.export', 'Export')}
-          collapsible
-          description={t(
-            'panels:simulatorViewControls.exportHint',
-            'Page background of an exported image.'
-          )}
-        >
-          <SelectRow
-            label={t('panels:simulatorViewControls.background', 'Background')}
-            value={settings.exportBackground}
-            options={(['transparent', 'white', 'theme'] as const).map((value) => ({
-              id: value,
-              label: exportBackgroundLabel(value, t),
-            }))}
-            onChange={(value) => setSetting('exportBackground', value as SimulatorExportBackground)}
-          />
         </CollapsibleSection>
 
         <CollapsibleSection

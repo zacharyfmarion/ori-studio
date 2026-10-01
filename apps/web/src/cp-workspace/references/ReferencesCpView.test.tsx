@@ -22,6 +22,7 @@ const uploads = vi.hoisted(() => ({
   setOverlayPoints: vi.fn(),
   setPoints: vi.fn(),
   setFolded: vi.fn(),
+  setSheetFill: vi.fn(),
   render: vi.fn(),
 }));
 vi.mock('../renderer/reglRenderer', () => ({
@@ -100,6 +101,7 @@ afterEach(() => {
   uploads.setOverlayPoints.mockClear();
   uploads.setPoints.mockClear();
   uploads.setFolded.mockClear();
+  uploads.setSheetFill.mockClear();
   uploads.render.mockClear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -108,7 +110,6 @@ afterEach(() => {
 function props(overrides: Partial<ReferencesCpViewProps> = {}): ReferencesCpViewProps {
   return {
     geometry: GEOMETRY,
-    lineStyle: 'color',
     mode: 'mvf',
     lineWidth: 1,
     pointSize: 1,
@@ -225,7 +226,7 @@ describe('ReferencesCpView picking', () => {
     const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
     expect(overlay?.count).toBe(1);
     expect([overlay.center[0], overlay.center[1]]).toEqual([100, 50]);
-    // A ring: a wider mark than the dot, filled faintly, outlined in full.
+    // A ring: a wider mark than a picked vertex's, filled faintly, outlined in full.
     expect(overlay.radius[0]).toBeGreaterThan(1);
     expect(overlay.fill[3]).toBeLessThan(overlay.stroke[3]);
 
@@ -371,7 +372,7 @@ describe('ReferencesCpView picking', () => {
 /**
  * A dense pattern: 200 short creases spread over the same extent as `GEOMETRY`,
  * so the fit camera puts neighbouring vertices a couple of CSS px apart — the
- * shape of a real 9k-segment CP, where the editor fades its vertex dots out.
+ * shape of a real 9k-segment CP.
  */
 const DENSE_GEOMETRY = (() => {
   const endpoints: number[] = [];
@@ -385,38 +386,64 @@ const DENSE_GEOMETRY = (() => {
   } as unknown as CpGeometryTransport;
 })();
 
-describe('ReferencesCpView vertex crowding', () => {
+describe('ReferencesCpView vertices', () => {
   beforeEach(stubWebgl);
 
-  it('keeps every vertex dot on a sparse pattern', () => {
+  it('draws no vertex of its own, sparse or dense', () => {
+    // The creases say where they meet; a dot at every crossing crowded them.
     mount();
-    expect(uploads.render.mock.calls.at(-1)?.[0].pointOpacity).toBe(1);
-  });
-
-  it('fades the vertex layer out on a dense one, as the editor does', () => {
     mount({ geometry: DENSE_GEOMETRY });
-    const frame = uploads.render.mock.calls.at(-1)?.[0];
-    expect(frame.pointOpacity).toBeLessThan(1);
-    expect(frame.pointOpacity).toBe(0);
-    // The outline ring collapses first, so it is gone too.
-    expect(frame.pointOutlinePx).toBe(0);
+    expect(uploads.setPoints).not.toHaveBeenCalled();
+    expect(uploads.setOverlayPoints.mock.calls.at(-1)?.[0] ?? null).toBeNull();
   });
 
-  it('still marks the picked vertex when the layer under it has faded', () => {
-    // The whole point of the workspace: picking a vertex must leave a visible
-    // mark on exactly the patterns where the dots had to be faded away.
+  it('marks the picked vertex', () => {
     mount({ geometry: DENSE_GEOMETRY, selected: { kind: 'vertex', idx: 0 } });
-    expect(uploads.render.mock.calls.at(-1)?.[0].pointOpacity).toBe(0);
     const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
     expect(overlay?.count).toBe(1);
     expect([overlay.center[0], overlay.center[1]]).toEqual([0, 0]);
-    // Drawn opaque: the overlay channel carries no per-instance alpha ramp.
     expect(overlay.fill[3]).toBeGreaterThan(0);
   });
 
-  it('marks the step-highlighted vertices there too', () => {
+  it('marks the step-highlighted vertices', () => {
     mount({ geometry: DENSE_GEOMETRY, highlightVertexIdx: new Set([0, 1]) });
     expect(uploads.setOverlayPoints.mock.calls.at(-1)?.[0]?.count).toBe(2);
+  });
+
+  // X11: `--fold-border` is the style's edge ink inside the workspace, black
+  // on a dark theme's ground. A dot on the sheet's side is half off the paper,
+  // so it keeps the style's fill and takes the theme's ink for its ring.
+  it('inks the picked vertex by the ground under it', () => {
+    const square = {
+      segEndpoints: Float64Array.from([
+        ...[0, 0, 100, 0],
+        ...[100, 0, 100, 100],
+        ...[100, 100, 0, 100],
+        ...[0, 100, 0, 0],
+        ...[0, 0, 50, 50],
+        ...[50, 50, 100, 100],
+      ]),
+      segAttr: new Int32Array(6 * 5),
+    } as unknown as CpGeometryTransport;
+    const creaseVisibility = {
+      visible: null,
+      dimmed: null,
+      dimAlpha: 1,
+      borderLineIds: new Set([1, 2, 3, 4]),
+    };
+    container?.style.setProperty('--fold-border', '#000000');
+    container?.style.setProperty('--references-ground-ink', '#e0e0e0');
+    const vertices = vertexPointsFromTransport(square);
+    const hex = (rgba: Float32Array) =>
+      `#${[...rgba.slice(0, 3)].map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('')}`;
+    const dot = (x: number, y: number) => {
+      const idx = vertices.findIndex((p) => p.x === x && p.y === y);
+      mount({ geometry: square, creaseVisibility, selected: { kind: 'vertex', idx } });
+      const overlay = uploads.setOverlayPoints.mock.calls.at(-1)?.[0];
+      return { fill: hex(overlay.fill), stroke: hex(overlay.stroke) };
+    };
+    expect(dot(50, 50)).toEqual({ fill: '#000000', stroke: '#000000' });
+    expect(dot(100, 0)).toEqual({ fill: '#000000', stroke: '#e0e0e0' });
   });
 });
 
@@ -550,6 +577,36 @@ describe('ReferencesCpView overlays', () => {
     act(() => ref.current?.setFoldPose(null));
     expect(uploads.setStrokes.mock.calls.at(-1)?.[0]).toBe(whole);
     expect(uploads.setFolded.mock.calls.at(-1)?.[0].fills.count).toBe(0);
+  });
+
+  // D13: the sheet is the paper style's paper, carried by the workspace root as
+  // `--references-paper-front` / `--references-paper-back`, not the theme's ground.
+  describe('the sheet under the pattern', () => {
+    const face = (): number[] =>
+      [...uploads.setSheetFill.mock.calls.at(-1)![0].color.slice(0, 4)].map((c: number) =>
+        Math.round(c * 255)
+      );
+    const border = { visible: null, dimmed: null, dimAlpha: 1, borderLineIds: new Set([1, 2]) };
+
+    it('is filled with the paper front the workspace carries, and the back when mirrored', () => {
+      container?.style.setProperty('--references-paper-front', '#ff0000');
+      container?.style.setProperty('--references-paper-back', '#0000ff');
+      mount({ creaseVisibility: border });
+      expect(face()).toEqual([255, 0, 0, 255]);
+      mount({ creaseVisibility: border, mirrored: true });
+      expect(face()).toEqual([0, 0, 255, 255]);
+    });
+
+    it('falls back to the style’s default paper outside a workspace', () => {
+      mount({ creaseVisibility: border });
+      // Oriedita's paper front: #ffff32.
+      expect(face()).toEqual([255, 255, 50, 255]);
+    });
+
+    it('is not drawn without a border to fill', () => {
+      mount();
+      expect(uploads.setSheetFill.mock.calls.at(-1)?.[0]).toBeNull();
+    });
   });
 
   it('exposes zoom, fit and framing on its handle', () => {

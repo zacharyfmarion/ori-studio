@@ -1,8 +1,12 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearReferencesResults } from '../../cp-workspace/references/referencesResults';
+import { registerReferencesShortcutExecutor } from '../../keyboard/shortcutRuntime';
 import { DEFAULT_REFERENCES_SETTINGS } from '../../store/workspaceStore/slices/referencesSlice';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import { usePaperExportUiStore } from '../../store/paperExportUiStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { ReferencesViewControlsPanel } from './ReferencesViewControlsPanel';
@@ -50,6 +54,14 @@ function press(element: Element) {
   });
 }
 
+function buttonNamed(rendered: HTMLDivElement, name: string): HTMLButtonElement {
+  const found = [...rendered.querySelectorAll<HTMLButtonElement>('button')].find(
+    (element) => element.textContent?.trim() === name
+  );
+  if (!found) throw new Error(`no button named ${name}`);
+  return found;
+}
+
 const settings = () => useWorkspaceStore.getState().referencesSettings;
 
 beforeEach(() => {
@@ -58,6 +70,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  useSettingsStore.getState().setReferencesShowAuxCreases(null);
+  useSettingsStore.getState().setPaperStyleFields('display', {
+    'auxCreases.visible': DEFAULT_PAPER_STYLE.auxCreases.visible,
+  });
   if (root) act(() => root?.unmount());
   container?.remove();
   root = null;
@@ -84,6 +100,7 @@ describe('ReferencesViewControlsPanel', () => {
       'Allow dangling folds',
       'Merge symmetric steps',
       'Auto-play folds',
+      'Show auxiliary creases',
     ]);
     // The candidate count is the one setting that is not a switch.
     expect(rendered.querySelector('button[aria-label="Solutions"]')?.textContent).toContain(
@@ -158,7 +175,7 @@ describe('ReferencesViewControlsPanel', () => {
     // hover as well.
     expect(help?.getAttribute('aria-label')).toContain('A dangling fold is a crease');
     // Only the rows whose names do not say what they do carry one.
-    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(3);
+    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(4);
 
     expect(settings().allowDanglingFolds).toBe(true);
     press(toggle(rendered, 'Allow dangling folds'));
@@ -176,5 +193,95 @@ describe('ReferencesViewControlsPanel', () => {
     expect(settings().mergeSymmetricSteps).toBe(true);
     press(toggle(rendered, 'Merge symmetric steps'));
     expect(settings().mergeSymmetricSteps).toBe(false);
+  });
+
+  // A view option like a folded figure's in Properties: the paper style's own
+  // switch until it is set here. Re-pinned: a reset button used to trail the
+  // switch while set, and moved it each time it appeared; the row now says
+  // "Overridden" under its label, and switching back to the style's value is
+  // the reset.
+  it('shows auxiliary creases as the paper style says until set, and switching back resets to it', () => {
+    const style = (visible: boolean) =>
+      act(() =>
+        useSettingsStore.getState().setPaperStyleFields('display', { 'auxCreases.visible': visible })
+      );
+    style(true);
+    const rendered = render();
+    const aux = () => toggle(rendered, 'Show auxiliary creases');
+    const note = () => aux().closest('.control-row')?.querySelector('.control-row__note');
+    expect(aux().getAttribute('aria-checked')).toBe('true');
+    expect(note()?.textContent).toBe('');
+
+    style(false);
+    expect(aux().getAttribute('aria-checked')).toBe('false');
+
+    press(aux());
+    expect(useSettingsStore.getState().referencesShowAuxCreases).toBe(true);
+    expect(aux().getAttribute('aria-checked')).toBe('true');
+    expect(note()?.textContent).toBe('Overridden');
+    expect(
+      rendered.querySelector('button[aria-label="Reset Show auxiliary creases to default"]')
+    ).toBeNull();
+    // Set here, it holds whatever the style says.
+    style(true);
+    style(false);
+    expect(aux().getAttribute('aria-checked')).toBe('true');
+
+    press(aux());
+    expect(useSettingsStore.getState().referencesShowAuxCreases).toBeNull();
+    expect(aux().getAttribute('aria-checked')).toBe('false');
+    expect(note()?.textContent).toBe('');
+    // Following again: it moves with the style.
+    style(true);
+    expect(aux().getAttribute('aria-checked')).toBe('true');
+  });
+});
+
+describe('ReferencesViewControlsPanel export action', () => {
+  let unregister: (() => void) | null = null;
+
+  afterEach(() => {
+    unregister?.();
+    unregister = null;
+  });
+
+  it('leads the rail with it, above the first section', () => {
+    const rendered = render();
+
+    const rail = rendered.querySelector('.references-view-controls-panel')!;
+    const lead = rail.firstElementChild;
+    expect(lead?.classList.contains('view-controls-actions')).toBe(true);
+    expect(lead?.textContent?.trim()).toBe('Export all steps…');
+    // The section that used to hold it is gone.
+    expect(
+      [...rendered.querySelectorAll('.collapsible-section__title')].map((title) => title.textContent)
+    ).not.toContain('Export');
+  });
+
+  it('runs the References view’s export-all-steps command', () => {
+    const references = vi.fn();
+    unregister = registerReferencesShortcutExecutor(references);
+    const rendered = render();
+
+    press(buttonNamed(rendered, 'Export all steps…'));
+
+    expect(references).toHaveBeenCalledTimes(1);
+    expect(references).toHaveBeenCalledWith('references.exportAllSteps');
+  });
+
+  it('does nothing while no References view is mounted', () => {
+    const rendered = render();
+    const exportAll = buttonNamed(rendered, 'Export all steps…');
+
+    expect(() => press(exportAll)).not.toThrow();
+    expect(usePaperExportUiStore.getState().request).toBeNull();
+  });
+
+  it('offers no export before a crease pattern is open', () => {
+    useWorkspaceStore.setState({ oristudioCpDocument: null } as never);
+
+    const rendered = render();
+
+    expect(rendered.textContent).not.toContain('Export all steps…');
   });
 });

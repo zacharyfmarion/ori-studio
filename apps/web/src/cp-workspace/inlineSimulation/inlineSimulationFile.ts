@@ -1,4 +1,5 @@
 import type { Point } from '../../lib/geometry';
+import { hasPaperStyleOverrides, normalizePaperStyleOverrides } from '../../lib/paper/paperStyle';
 import type { FoldedSourceBounds } from '../folded/foldedFigureStaleness';
 import type { InlineSimulation } from './inlineSimulation';
 
@@ -89,6 +90,10 @@ export function validateInlineSimulation(value: unknown): InlineSimulation | nul
   const rings = boundary(value.sourceBoundary);
   if (!rings || rings.length === 0) return null;
 
+  // Read field by field — unknown keys and malformed values dropped — and left
+  // off when nothing is pinned, so the window follows the app style.
+  const appearance = normalizePaperStyleOverrides(value.appearance);
+
   return {
     id: value.id,
     box: {
@@ -104,6 +109,7 @@ export function validateInlineSimulation(value: unknown): InlineSimulation | nul
     sourceFingerprint:
       typeof value.sourceFingerprint === 'string' ? value.sourceFingerprint : null,
     segmentIdHint: finiteNumber(value.segmentIdHint),
+    ...(hasPaperStyleOverrides(appearance) ? { appearance } : {}),
   };
 }
 

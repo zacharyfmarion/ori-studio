@@ -21,18 +21,59 @@ import {
   type BpTreeViewLayers,
 } from '../lib/oristudioBpViewportSettings';
 import {
+  normalizePaperStylePreset,
+  paperPresetKey,
+  parsePaperStylePreset,
+  userPaperPresetKey,
+  type PaperPresetParseResult,
+  type PaperStylePreset,
+} from '../lib/paper/paperPresets';
+import {
+  DEFAULT_PAPER_STYLE,
+  effectivePaperStyle,
+  paperStyleEquals,
+  setPaperStyleField as withPaperStyleField,
+  type PaperStyle,
+  type PaperStyleField,
+  type PaperStyleOverrides,
+  type PaperStyleValue,
+} from '../lib/paper/paperStyle';
+import {
+  normalizePaperExportMemory,
+  normalizePaperExportSettings,
+  PAPER_EXPORT_STYLE_SLOT,
+  paperExportFromSimulatorSettings,
+  paperExportMemoryOf,
+  persistedPaperExport,
+  type PaperExportKind,
+  type PaperExportMemory,
+  type PaperExportSettings,
+  type PaperExportStyleChoice,
+} from '../lib/paperExportSettings';
+import {
+  normalizePaperStyleSettings,
+  paperStyleFromSimulatorSettings,
+  persistedPaperStyleSettings,
+  type PaperStyleSettings,
+  type PaperStyleSlot,
+} from '../lib/paperStyleSettings';
+import {
   readBoolean,
+  readJson,
   readNumber,
+  readOptionalBoolean,
   readString,
   storageKey,
   STORAGE_KEYS,
   writeBoolean,
+  writeJson,
   writeNumber,
+  writeOptionalBoolean,
   writeString,
 } from '../lib/storage';
 import type { WheelGesturePreference } from '../lib/wheelGesture';
 
-export type SettingsTab = 'general' | 'appearance' | 'shortcuts' | 'workspace';
+export type SettingsTab = 'general' | 'appearance' | 'paper' | 'shortcuts' | 'workspace';
 
 const SHOW_WELCOME_ON_STARTUP_KEY = storageKey(STORAGE_KEYS.showWelcomeOnStartup);
 const CP_DETECT_SUGGESTIONS_KEY = storageKey(STORAGE_KEYS.cpDetectSuggestions);
@@ -41,6 +82,11 @@ const ANALYTICS_ENABLED_KEY = storageKey(STORAGE_KEYS.analyticsEnabled);
 const CP_WHEEL_GESTURE_KEY = storageKey(STORAGE_KEYS.cpWheelGesture);
 const CP_SNAP_RADIUS_KEY = storageKey(STORAGE_KEYS.cpSnapRadius);
 const REFERENCES_AUTO_PLAY_FOLDS_KEY = storageKey(STORAGE_KEYS.referencesAutoPlayFolds);
+const REFERENCES_SHOW_AUX_CREASES_KEY = storageKey(STORAGE_KEYS.referencesShowAuxCreases);
+const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
+const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
+const CP_FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
+const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
  * Anything unrecognised — absent, stale, hand-edited — reads as the default.
@@ -70,6 +116,106 @@ function storedCpSnapRadius(): number | null {
 /** A choice if there is one; otherwise the default this pointer deserves. */
 function readCpSnapRadius(): number {
   return resolveCpSnapRadius(storedCpSnapRadius(), hasCoarsePointer());
+}
+
+function persistPaperStyle(settings: PaperStyleSettings): void {
+  writeJson(PAPER_STYLE_KEY, persistedPaperStyleSettings(settings));
+}
+
+/**
+ * The persisted style, or — on the one read where there is none — a display
+ * style seeded from the simulator settings that held the colours before there
+ * was a style.
+ *
+ * A seed that carries the user's colours is written at once: the simulator
+ * slice rewrites its own key without those retired fields on its next edit, so
+ * the source does not survive to a second read. A seed that amounts to the
+ * defaults is not written, so a user who never touched them keeps following
+ * any later change to the defaults, the way an absent preference does
+ * elsewhere here.
+ */
+function readPaperStyleSettings(): PaperStyleSettings {
+  const stored = readJson<unknown>(PAPER_STYLE_KEY, null);
+  if (stored !== null) return normalizePaperStyleSettings(stored);
+  const seeded: PaperStyleSettings = {
+    ...normalizePaperStyleSettings(null),
+    display: paperStyleFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null)),
+  };
+  if (!paperStyleEquals(seeded.display, DEFAULT_PAPER_STYLE)) persistPaperStyle(seeded);
+  return seeded;
+}
+
+/**
+ * Every kind's remembered export options (`normalizePaperExportMemory`: a
+ * single object from before the split seeds every kind), or — on the one read
+ * where there is nothing — every kind's first-run options
+ * (`paperExportMemoryOf`) seeded from the simulator settings' retired
+ * `exportBackground`.
+ *
+ * Written at once when the seed differs from the defaults, for the same reason
+ * the style's seed is: the simulator slice rewrites its own key without the
+ * retired field on its next edit, so the source does not survive to a second
+ * read. A seed that is the defaults is not written.
+ */
+function readPaperExportMemory(): PaperExportMemory {
+  const stored = readJson<unknown>(PAPER_EXPORT_KEY, null);
+  if (stored !== null) return normalizePaperExportMemory(stored);
+  const seeded = paperExportFromSimulatorSettings(readJson<unknown>(SIMULATOR_SETTINGS_KEY, null));
+  const memory = paperExportMemoryOf(seeded);
+  if (seeded.background !== null) writeJson(PAPER_EXPORT_KEY, persistedPaperExport(memory));
+  return memory;
+}
+
+/** The remembered style of the folded figure beside a crease pattern; the export slot until one is saved. */
+function readCreasePatternFoldedFigureStyle(): PaperExportStyleChoice {
+  const stored = readJson<unknown>(CP_FOLDED_FIGURE_KEY, null);
+  const style = stored && typeof stored === 'object' ? (stored as { style?: unknown }).style : null;
+  return typeof style === 'string' && style.length > 0 ? style : PAPER_EXPORT_STYLE_SLOT;
+}
+
+/** The style a slot edits: export starts from display the moment it stops following. */
+function slotStyle(settings: PaperStyleSettings, slot: PaperStyleSlot): PaperStyle {
+  return slot === 'export' ? (settings.export ?? settings.display) : settings.display;
+}
+
+function withSlotStyle(
+  settings: PaperStyleSettings,
+  slot: PaperStyleSlot,
+  style: PaperStyle
+): PaperStyleSettings {
+  return slot === 'export' ? { ...settings, export: style } : { ...settings, display: style };
+}
+
+/** The settings with one slot's remembered preset replaced. */
+function withAppliedPreset(
+  settings: PaperStyleSettings,
+  slot: PaperStyleSlot,
+  key: string | null
+): PaperStyleSettings {
+  return { ...settings, appliedPreset: { ...settings.appliedPreset, [slot]: key } };
+}
+
+/**
+ * A field write to one slot. Editing the export slot while it still follows
+ * display forks it, so the preset display was showing forks with it: the copy
+ * came from that preset and is about to differ from it, which is exactly what
+ * "modified" means.
+ */
+function withSlotEdit(
+  settings: PaperStyleSettings,
+  slot: PaperStyleSlot,
+  style: PaperStyle
+): PaperStyleSettings {
+  const next = withSlotStyle(settings, slot, style);
+  if (slot !== 'export' || settings.export !== null) return next;
+  return withAppliedPreset(next, 'export', settings.appliedPreset.display);
+}
+
+/** Presets are keyed by name: saving under a taken name replaces that preset in place. */
+function withPreset(presets: PaperStylePreset[], preset: PaperStylePreset): PaperStylePreset[] {
+  const index = presets.findIndex((existing) => existing.name === preset.name);
+  if (index === -1) return [...presets, preset];
+  return presets.map((existing, i) => (i === index ? preset : existing));
 }
 
 interface SettingsState {
@@ -120,6 +266,33 @@ interface SettingsState {
    * on arrival either way — see `FoldTransport.setScene`.
    */
   referencesAutoPlayFolds: boolean;
+  /**
+   * Whether the References workspace draws the pattern's auxiliary lines, or
+   * `null` while it follows the paper style's own switch
+   * (`auxCreases.visible`). A view option in the way a folded figure's
+   * Properties are: set, it holds whatever the style says; reset, it follows
+   * the style again. See `cp-workspace/references/referencesAuxCreases.ts`.
+   */
+  referencesShowAuxCreases: boolean | null;
+  /**
+   * The app-wide paper style every surface that draws paper reads: a display
+   * style, an export style that is `null` while it follows display, and the
+   * user's saved presets. Per-object overrides live on the document objects,
+   * not here. See `implementation-plans/unified-paper-style-and-export.md`.
+   */
+  paperStyle: PaperStyleSettings;
+  /**
+   * What each kind of paper export was last saved with (X6): format, style,
+   * page and PNG density. Export options rather than style: the same picture
+   * goes out on any page. The export dialog is their only editor.
+   */
+  paperExport: PaperExportMemory;
+  /**
+   * Which style the folded figure beside a crease pattern is drawn in: the
+   * export slot or a preset. Shared by the crease-pattern export and the share
+   * card, and apart from the folded figure's own export (X12).
+   */
+  creasePatternFoldedFigureStyle: PaperExportStyleChoice;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -131,11 +304,52 @@ interface SettingsState {
   setCpWheelGesture: (value: WheelGesturePreference) => void;
   setCpSnapRadius: (value: number) => void;
   setReferencesAutoPlayFolds: (value: boolean) => void;
+  /** `null` hands the choice back to the paper style. */
+  setReferencesShowAuxCreases: (value: boolean | null) => void;
+  /** Write one field of a slot's style. Editing export while it follows display detaches it. */
+  setPaperStyleField: <F extends PaperStyleField>(
+    slot: PaperStyleSlot,
+    field: F,
+    value: PaperStyleValue<F>
+  ) => void;
+  /**
+   * Write several fields of a slot's style as one update — one store change,
+   * one persist — for an edit that touches a set of fields together, such as
+   * a reset. Fields left out keep their values.
+   */
+  setPaperStyleFields: (slot: PaperStyleSlot, fields: PaperStyleOverrides) => void;
+  /** Replace a slot's whole style with a preset's (a built-in or a saved one). */
+  applyPaperPreset: (slot: PaperStyleSlot, preset: PaperStylePreset) => void;
+  /**
+   * `true` makes the export style the display style again (the export slot is
+   * cleared); `false` pins the export style as a copy of display, to edit apart.
+   */
+  setExportPaperStyleFollowsDisplay: (follows: boolean) => void;
+  /**
+   * Save a slot's current style as a named preset, replacing one of the same
+   * name. Display unless told otherwise. A blank name saves nothing.
+   */
+  savePaperPreset: (name: string, slot?: PaperStyleSlot) => void;
+  removePaperPreset: (name: string) => void;
+  /**
+   * Add a preset from a `.json` file's text, replacing one of the same name.
+   * The parse result comes back so the caller can put words to a refusal.
+   */
+  importPaperPreset: (json: string) => PaperPresetParseResult;
+  /**
+   * Keep the options an export of `kind` was just saved with, for the next
+   * time the export dialog opens on that kind. Written once per saved file,
+   * not per change: the dialog edits a draft, so a dialog cancelled changes
+   * nothing.
+   */
+  rememberPaperExportOptions: (kind: PaperExportKind, options: PaperExportSettings) => void;
+  /** Keep the folded figure's style a crease-pattern file was saved, or a share published, with. */
+  rememberCreasePatternFoldedFigureStyle: (style: PaperExportStyleChoice) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       isSettingsOpen: false,
       settingsInitialTab: null,
       bpTreeLayers: DEFAULT_BP_TREE_VIEW_LAYERS,
@@ -147,6 +361,10 @@ export const useSettingsStore = create<SettingsState>()(
       cpWheelGesture: readCpWheelGesture(),
       cpSnapRadius: readCpSnapRadius(),
       referencesAutoPlayFolds: readBoolean(REFERENCES_AUTO_PLAY_FOLDS_KEY, false),
+      referencesShowAuxCreases: readOptionalBoolean(REFERENCES_SHOW_AUX_CREASES_KEY),
+      paperStyle: readPaperStyleSettings(),
+      paperExport: readPaperExportMemory(),
+      creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -199,6 +417,119 @@ export const useSettingsStore = create<SettingsState>()(
         // Hand-placed like the two above: no chokepoint sees a preference
         // change, and on/off is the whole question.
         track(ANALYTICS_EVENTS.referencesFoldAutoplayChanged, { enabled: value ? 'on' : 'off' });
+      },
+      setReferencesShowAuxCreases: (value) => {
+        if (get().referencesShowAuxCreases === value) return;
+        writeOptionalBoolean(REFERENCES_SHOW_AUX_CREASES_KEY, value);
+        set({ referencesShowAuxCreases: value });
+        // Hand-placed like the one above. `style` is a reset: whether readers
+        // who set it come back to the style's own answer.
+        track(ANALYTICS_EVENTS.referencesAuxCreasesChanged, {
+          shown: value === null ? 'style' : value ? 'on' : 'off',
+        });
+      },
+      setPaperStyleField: (slot, field, value) => {
+        const current = get().paperStyle;
+        const next = withSlotEdit(
+          current,
+          slot,
+          withPaperStyleField(slotStyle(current, slot), field, value)
+        );
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      setPaperStyleFields: (slot, fields) => {
+        const current = get().paperStyle;
+        const next = withSlotEdit(
+          current,
+          slot,
+          effectivePaperStyle(slotStyle(current, slot), fields)
+        );
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      applyPaperPreset: (slot, preset) => {
+        const current = get().paperStyle;
+        const next = withAppliedPreset(
+          withSlotStyle(current, slot, preset.style),
+          slot,
+          paperPresetKey(preset)
+        );
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      setExportPaperStyleFollowsDisplay: (follows) => {
+        const current = get().paperStyle;
+        if (follows === (current.export === null)) return;
+        const next: PaperStyleSettings = {
+          ...current,
+          export: follows ? null : current.display,
+          // Detaching copies display, preset and all; following again leaves
+          // the export slot showing nobody's preset, because it shows display's.
+          appliedPreset: {
+            ...current.appliedPreset,
+            export: follows ? null : current.appliedPreset.display,
+          },
+        };
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      savePaperPreset: (name, slot = 'display') => {
+        const current = get().paperStyle;
+        // The one validator: the same trim and length cap a file's name gets.
+        const preset = normalizePaperStylePreset({
+          version: 1,
+          name,
+          style: slotStyle(current, slot),
+        });
+        if (!preset) return;
+        // The slot is now showing the preset it was just saved as, and is by
+        // construction unmodified against it.
+        const next = withAppliedPreset(
+          { ...current, presets: withPreset(current.presets, preset) },
+          slot,
+          paperPresetKey(preset)
+        );
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      removePaperPreset: (name) => {
+        const current = get().paperStyle;
+        if (!current.presets.some((preset) => preset.name === name)) return;
+        // A slot that was showing it is showing nobody's preset now; the style
+        // it is holding does not change.
+        const gone = userPaperPresetKey(name);
+        const next: PaperStyleSettings = {
+          ...current,
+          presets: current.presets.filter((preset) => preset.name !== name),
+          appliedPreset: {
+            display: current.appliedPreset.display === gone ? null : current.appliedPreset.display,
+            export: current.appliedPreset.export === gone ? null : current.appliedPreset.export,
+          },
+        };
+        persistPaperStyle(next);
+        set({ paperStyle: next });
+      },
+      importPaperPreset: (json) => {
+        const result = parsePaperStylePreset(json);
+        if (result.ok) {
+          const current = get().paperStyle;
+          const next = { ...current, presets: withPreset(current.presets, result.preset) };
+          persistPaperStyle(next);
+          set({ paperStyle: next });
+        }
+        return result;
+      },
+      rememberPaperExportOptions: (kind, options) => {
+        // Through the normaliser, so a density past the range or a sheet size
+        // below the minimum is held to it before it is stored.
+        const next = { ...get().paperExport, [kind]: normalizePaperExportSettings(options) };
+        writeJson(PAPER_EXPORT_KEY, persistedPaperExport(next));
+        set({ paperExport: next });
+      },
+      rememberCreasePatternFoldedFigureStyle: (style) => {
+        writeJson(CP_FOLDED_FIGURE_KEY, { style });
+        set({ creasePatternFoldedFigureStyle: style });
       },
     }),
     { name: 'SettingsStore' }

@@ -16,6 +16,7 @@ import {
 } from './canvasObjects/canvasWindowPlacement';
 import { useSettledScale } from './canvasObjects/useSettledScale';
 import { foldedFigureBox } from './adapters/cpFoldedToScene';
+import { useFolded3dAuxLines } from './folded/folded3dAuxLines';
 import { folded3dMesh } from './folded/folded3dMesh';
 import {
   folded3dFigureModel,
@@ -23,8 +24,8 @@ import {
   folded3dWindowRenderSettings,
   folded3dWindowView,
 } from './folded/folded3dWindow';
-import { folded3dPaperStyle } from './folded/folded3dStyle';
 import { subscribeFolded3dOrbitCamera } from './folded/folded3dRuntime';
+import { useObjectPaperStyle } from './paper/objectPaperStyle';
 import { useFolded3dMeshRuntime } from './folded/useFolded3dMeshRuntime';
 import {
   SimulatorViewport,
@@ -189,11 +190,14 @@ function Folded3dWindow({
   // figure it belongs to never reaches this layer — `canWindowFolded3dFigure`
   // checks the same budget from an integer pass.
   const model = folded3dFigureModel(figure);
+  // The document's aux lines on the figure: asked for again whenever they
+  // change (`folded3dAuxLinesSync`), so the mesh is rebuilt when they land.
+  const aux = useFolded3dAuxLines(figure.handle);
   const mesh = useMemo(() => {
     if (!model) return null;
-    const result = folded3dMesh(model);
+    const result = folded3dMesh(model, aux);
     return result.kind === 'mesh' ? result.mesh : null;
-  }, [model]);
+  }, [model, aux]);
 
   const presentFrame = useCallback((bitmap: ImageBitmap) => {
     viewportRef.current?.presentBitmap(bitmap);
@@ -203,17 +207,21 @@ function Folded3dWindow({
     onFrame: presentFrame,
   });
 
+  // The figure's effective paper style: the app's display style with the
+  // figure's own pins on top. The kernel model's colours are a mirror of the
+  // same values, kept for `.ori` round-trips; the window reads the source.
+  const paperStyle = useObjectPaperStyle(figure);
   const renderSettings = useMemo(
     () =>
       figure.folded3d
         ? folded3dWindowRenderSettings({
-            style: folded3dPaperStyle(figure.folded3d.model),
+            style: paperStyle,
             displayStyle: figure.displayStyle,
             devicePixelRatio:
               typeof window === 'undefined' ? 1 : (window.devicePixelRatio ?? 1),
           })
         : undefined,
-    [figure.folded3d, figure.displayStyle]
+    [figure.folded3d, figure.displayStyle, paperStyle]
   );
 
   /**
@@ -291,9 +299,10 @@ function Folded3dWindow({
         creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
         creaseWidthShrinkExponent={CREASE_SHRINK_EXPONENT}
         // Unused: `renderSettings` below replaces the palette outright, so the
-        // app-wide simulator settings never reach this surface. A figure's
-        // colours are its own document state.
+        // app-wide simulator settings never reach this surface; the figure's
+        // effective style is resolved through the `folded-3d` policy above.
         viewSettings={DEFAULT_SIMULATOR_SETTINGS}
+        paperStyle={paperStyle}
         renderSettings={renderSettings}
         initialView={figureView}
         pushCamera={pushCamera}

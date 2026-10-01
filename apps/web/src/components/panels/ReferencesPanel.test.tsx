@@ -69,6 +69,7 @@ const { TooltipProvider } = await import('../ui/Tooltip');
 const { PHONE_MEDIA_QUERY } = await import('../../platform/phoneLayout');
 const { useWorkspaceStore } = await import('../../store/workspaceStore');
 const { useLayoutStore } = await import('../../store/layoutStore');
+const { useSettingsStore } = await import('../../store/settingsStore');
 const { clearReferencesResults, setReferencesFrames } = await import(
   '../../cp-workspace/references/referencesResults'
 );
@@ -114,6 +115,8 @@ const ANALYSIS = {
       border_segment_indices: [],
       segment_indices: [0, 1],
       unit_segments: [],
+      aux_segment_indices: [],
+      aux_unit_segments: [],
       merged_lines: [],
       exactness: null,
       refused: null,
@@ -234,7 +237,15 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
     [...(bar?.querySelectorAll('button') ?? [])].map(
       (button) => button.getAttribute('aria-label') ?? button.textContent
     )
-  ).toEqual(['Zoom Out', '100%', 'Zoom In', 'Fit', 'Play Fold', 'Recompute References']);
+  ).toEqual([
+    'Zoom Out',
+    '100%',
+    'Zoom In',
+    'Fit',
+    'Play Fold',
+    'Recompute References',
+    'Export step…',
+  ]);
 });
 
 it('lands in Find with the lead where the filmstrip goes, and plans only when the sequence is asked for', () => {
@@ -313,6 +324,61 @@ it('says a sheet with no creases has nothing to find, and disables the switch', 
   expect(query('.references-lead')).toBeNull();
   expect(query('.references-mode [role="tab"]')?.hasAttribute('disabled')).toBe(true);
   expect(useWorkspaceStore.getState().referencesRun.status).toBe('idle');
+});
+
+it('draws the pattern’s aux lines on the rail’s card while the view shows them', () => {
+  // The rail follows the References option, resolved as the canvas resolves
+  // it (the style's switch until the reader sets it), so a card and the
+  // canvas beside it agree on whether the aux lines are there.
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <ReferencesPanel />
+      </TooltipProvider>
+    )
+  );
+  const document1 = cpDocument(1);
+  act(() => {
+    setReferencesFrames({
+      revision: referencesRevisionKey(document1 as never),
+      analysis: {
+        ...ANALYSIS,
+        components: [{ ...ANALYSIS.components[0], segment_indices: [0], aux_segment_indices: [1] }],
+      } as never,
+    });
+    useWorkspaceStore.setState({ oristudioCpDocument: document1 } as never);
+  });
+  const auxOnCard = () =>
+    container?.querySelectorAll('.references-sidebar .sheet-card__stroke--aux').length;
+  const paperStyle = useSettingsStore.getState().paperStyle;
+  const styleShowsAux = (visible: boolean) =>
+    useSettingsStore.setState({
+      referencesShowAuxCreases: null,
+      paperStyle: {
+        ...paperStyle,
+        display: {
+          ...paperStyle.display,
+          auxCreases: { ...paperStyle.display.auxCreases, visible },
+        },
+      },
+    });
+  try {
+    // Unset, the option is the display style's switch.
+    act(() => styleShowsAux(false));
+    expect(auxOnCard()).toBe(0);
+    act(() => styleShowsAux(true));
+    expect(auxOnCard()).toBe(1);
+    // Set, it wins over the switch either way.
+    act(() => useSettingsStore.setState({ referencesShowAuxCreases: false }));
+    expect(auxOnCard()).toBe(0);
+    // The card's other line stays.
+    expect(container?.querySelectorAll('.references-sidebar .sheet-card__stroke')).toHaveLength(1);
+    act(() => styleShowsAux(false));
+    act(() => useSettingsStore.setState({ referencesShowAuxCreases: true }));
+    expect(auxOnCard()).toBe(1);
+  } finally {
+    act(() => useSettingsStore.setState({ referencesShowAuxCreases: null, paperStyle }));
+  }
 });
 
 it('offers the touch drawer a seat at the right end of its header', () => {

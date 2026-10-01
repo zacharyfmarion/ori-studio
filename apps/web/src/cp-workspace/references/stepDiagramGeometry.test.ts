@@ -1,28 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import { DIAGRAM_MARK_INK } from './diagram/diagramInk';
+import {
+  DIAGRAM_LINE_INK,
+  DIAGRAM_MARK_INK,
+  DIAGRAM_MARKS,
+  REFERENCES_VIEW_MARKS,
+} from './diagram/diagramInk';
 import {
   ARROWHEAD_ASPECT,
+  ARROWHEAD_MIN_STROKES,
+  ARROWHEAD_NOTCH,
   DIAGRAM_CARD_DASH_SCALE,
+  OFF_PAPER_REACH,
+  TURN_OVER_HEAD,
+  TURN_OVER_HEAD_PATH,
+  TURN_OVER_PATH,
+  arcArrowhead,
   arcEndDirection,
   arcEndPoint,
   arcExtent,
   arcStartDirection,
-  arrowheadBase,
   arcPathData,
-  arrowheadPoints,
+  arrowheadAt,
+  arrowheadPath,
+  arrowheadReach,
   arrowheadSize,
   createDiagramProjector,
   createOverlayProjector,
   dashRulerAlong,
   dashZeroOf,
+  erodeCreaseOnSheet,
   foldAndUnfoldArrow,
   foldAndUnfoldFromArc,
+  arcPolyline,
   arcSamplePoints,
   arcThroughPoints,
   foldArrowArc,
   foldArrowLanding,
   foldArrowTrim,
+  foldReturnOffset,
+  offPaperPathData,
+  onSheetBoundary,
+  paperRingPoints,
+  paperSpan,
+  sheetCorners,
+  withPens,
   type DiagramArc,
+  type SvgPoint,
 } from './stepDiagramGeometry';
 
 const UNIT = { width: 1, height: 1 };
@@ -128,39 +151,138 @@ describe('arcEndDirection', () => {
   });
 });
 
-describe('arrowheadPoints', () => {
-  it('puts the tip first and the base behind it, symmetric about the direction', () => {
-    const points = arrowheadPoints({ x: 10, y: 10 }, { x: 1, y: 0 }, 6);
-    expect(points).toBe('10,10 4,12.4 4,7.6');
+/** Measures a point against the line through `from` along `direction`: how far along it, and how far across. */
+function frame(from: SvgPoint, direction: SvgPoint) {
+  const norm = Math.hypot(direction.x, direction.y);
+  const u = { x: direction.x / norm, y: direction.y / norm };
+  return (p: SvgPoint) => ({
+    along: (p.x - from.x) * u.x + (p.y - from.y) * u.y,
+    across: (p.y - from.y) * u.x - (p.x - from.x) * u.y,
+  });
+}
+
+/** The pieces of an arrowhead's path: `M tip L barb Q control barb Z`. */
+function headPieces(d: string) {
+  const match = /^M (\S+) (\S+) L (\S+) (\S+) Q (\S+) (\S+) (\S+) (\S+) Z$/.exec(d);
+  if (!match) throw new Error(`not an arrowhead: ${d}`);
+  const n = match.slice(1).map(Number);
+  const point = (i: number) => ({ x: n[i]!, y: n[i + 1]! });
+  return { tip: point(0), a: point(2), control: point(4), b: point(6) };
+}
+
+/** A point on the back's quadratic, from one barb (0) to the other (1). */
+function onBack({ a, control, b }: ReturnType<typeof headPieces>, t: number): SvgPoint {
+  const s = 1 - t;
+  return {
+    x: s * s * a.x + 2 * s * t * control.x + t * t * b.x,
+    y: s * s * a.y + 2 * s * t * control.y + t * t * b.y,
+  };
+}
+
+describe('arrowheadAt', () => {
+  it('stands the tip a reach in front of the notch, and the barbs either side behind it', () => {
+    const head = arrowheadAt({ x: 10, y: 10 }, { x: 1, y: 0 }, 10);
+    expect(head.notch).toEqual({ x: 10, y: 10 });
+    expect(head.tip.x).toBeCloseTo(10 + 10 * (1 - ARROWHEAD_NOTCH), 12);
+    expect(head.tip.y).toBeCloseTo(10, 12);
+    const [a, b] = head.barbs;
+    // Both on the line through the barbs, a notch's depth behind the notch.
+    expect(a.x).toBeCloseTo(10 - 10 * ARROWHEAD_NOTCH, 12);
+    expect(b.x).toBeCloseTo(a.x, 12);
+    expect(a.y - 10).toBeCloseTo(-(b.y - 10), 12);
+    expect(Math.abs(a.y - b.y)).toBeCloseTo((2 * 10) / ARROWHEAD_ASPECT, 12);
   });
 
   it('normalises the direction', () => {
-    expect(arrowheadPoints({ x: 0, y: 0 }, { x: 0, y: 3 }, 6)).toBe('0,0 -2.4,-6 2.4,-6');
+    const long = arrowheadAt({ x: 0, y: 0 }, { x: 0, y: 3 }, 6);
+    const unit = arrowheadAt({ x: 0, y: 0 }, { x: 0, y: 1 }, 6);
+    expect(long).toEqual(unit);
+    expect(long.tip.y).toBeCloseTo(arrowheadReach(6), 12);
   });
 
-  // `images/arrow_head.svg` is 5.7005 long on a half-base of 2.2805 — exactly
-  // 2.5 : 1. Drawn at 3 : 1 it reads as a dart rather than an arrowhead.
-  it('is the reference head, 2.5 to 1', () => {
-    const size = 10;
-    const points = arrowheadPoints({ x: 0, y: 0 }, { x: 1, y: 0 }, size)
-      .split(' ')
-      .map((p) => p.split(',').map(Number));
-    const [tip, left, right] = points;
-    const half = Math.abs(left[1] - right[1]) / 2;
-    expect(Math.abs(tip[0] - left[0]) / half).toBeCloseTo(ARROWHEAD_ASPECT, 12);
-    expect(ARROWHEAD_ASPECT).toBeCloseTo(5.7005 / 2.2805, 3);
+  // A printed diagram's head is slim — a little over half as wide as it is
+  // long — with a back that curves in toward the tip. The template's
+  // straight-backed 2.5 : 1 triangle read as a blunt wedge beside one, and
+  // twice as long as wide (4 : 1) as a little too narrow.
+  it('is a little over half as wide as it is long, its back curving in by about a fifth of it', () => {
+    expect(ARROWHEAD_ASPECT).toBe(3.4);
+    expect(ARROWHEAD_NOTCH).toBeGreaterThanOrEqual(0.18);
+    expect(ARROWHEAD_NOTCH).toBeLessThanOrEqual(0.22);
+    const length = 10;
+    const head = arrowheadAt({ x: 3, y: -2 }, { x: 0.6, y: 0.8 }, length);
+    const [a, b] = head.barbs;
+    const base = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const width = Math.hypot(a.x - b.x, a.y - b.y);
+    expect(Math.hypot(head.tip.x - base.x, head.tip.y - base.y)).toBeCloseTo(length, 12);
+    expect(length / width).toBeCloseTo(ARROWHEAD_ASPECT / 2, 12);
+    expect(Math.hypot(head.notch.x - base.x, head.notch.y - base.y)).toBeCloseTo(
+      ARROWHEAD_NOTCH * length,
+      12
+    );
+  });
+});
+
+describe('arrowheadPath', () => {
+  const head = arrowheadAt({ x: 20, y: 30 }, { x: 3, y: -4 }, 12);
+  const pieces = headPieces(arrowheadPath(head));
+  const at = frame(head.notch, { x: 3, y: -4 });
+
+  it('runs tip, barb, back, barb, and closes', () => {
+    expect(pieces.tip.x).toBeCloseTo(head.tip.x, 3);
+    expect(pieces.tip.y).toBeCloseTo(head.tip.y, 3);
+    expect(pieces.a.x).toBeCloseTo(head.barbs[0].x, 3);
+    expect(pieces.b.y).toBeCloseTo(head.barbs[1].y, 3);
   });
 
-  // A stroke that stops at the base meets a perpendicular edge; one that runs
-  // to the tip crosses the head and reads skewed.
-  it('reports a base the stroke can stop at, square to the direction', () => {
-    const tip = { x: 10, y: 4 };
-    const dir = { x: 3, y: 4 };
-    const base = arrowheadBase(tip, dir, 5);
-    expect(Math.hypot(tip.x - base.x, tip.y - base.y)).toBeCloseTo(5, 12);
-    // Base → tip is parallel to the direction, so the base edge is square to it.
-    const along = (tip.x - base.x) * dir.y - (tip.y - base.y) * dir.x;
-    expect(along).toBeCloseTo(0, 12);
+  // The shaft ends at the notch, so the back's middle has to be exactly there
+  // — anywhere else leaves a gap between the stroke and the head, or a lump.
+  it('bends its back through the notch, on the axis', () => {
+    const middle = onBack(pieces, 0.5);
+    expect(middle.x).toBeCloseTo(head.notch.x, 3);
+    expect(middle.y).toBeCloseTo(head.notch.y, 3);
+    expect(at(head.notch).across).toBeCloseTo(0, 12);
+  });
+
+  it('is concave: every point of the back lies between the barbs’ line and the notch', () => {
+    const barbs = at(head.barbs[0]).along;
+    const tip = at(head.tip).along;
+    // The notch is strictly between the barbs' line and the tip.
+    expect(barbs).toBeLessThan(0);
+    expect(tip).toBeGreaterThan(0);
+    for (let t = 0.05; t < 1; t += 0.05) {
+      const along = at(onBack(pieces, t)).along;
+      expect(along).toBeGreaterThan(barbs + 2e-3);
+      expect(along).toBeLessThanOrEqual(2e-3);
+    }
+  });
+});
+
+describe('arcArrowhead', () => {
+  // A quarter circle, turning left as it goes: tight enough that the
+  // tangent at the end and a reach before it differ by a lot.
+  const arc: DiagramArc = { center: [0.5, 0.5], radius: 0.1, from: 0, to: Math.PI / 2, ccw: true };
+  const length = 8;
+  const head = arcArrowhead(arc, CARD, length);
+
+  it('puts its notch where the stroke ends', () => {
+    const end = CARD(arcEndPoint(arc));
+    expect(head.notch.x).toBeCloseTo(end.x, 12);
+    expect(head.notch.y).toBeCloseTo(end.y, 12);
+  });
+
+  // "Centred along the tangent line of the end of the line": the axis is the
+  // stroke's own direction where it stops, not the direction some way further
+  // round the circle, where the tip happens to land.
+  it('lays its axis along the stroke’s direction where it stops', () => {
+    const axis = { x: head.tip.x - head.notch.x, y: head.tip.y - head.notch.y };
+    const norm = Math.hypot(axis.x, axis.y);
+    const tangent = arcEndDirection(arc, CARD);
+    expect(axis.x / norm).toBeCloseTo(tangent.x, 12);
+    expect(axis.y / norm).toBeCloseTo(tangent.y, 12);
+    // …which on a curve is not the direction further on.
+    const further = { ...arc, to: arc.to + arrowheadReach(length) / (arc.radius * CARD.scale) };
+    const there = arcEndDirection(further, CARD);
+    expect(Math.abs(axis.x / norm - there.x) + Math.abs(axis.y / norm - there.y)).toBeGreaterThan(0.1);
   });
 });
 
@@ -227,18 +349,62 @@ describe('arrowheadSize', () => {
   it('is a fixed number of the drawing’s own units for a long arrow', () => {
     const arc = foldArrowArc([0, 0], [1, 1], CENTRE);
     if (!arc) throw new Error('no arc');
-    expect(arrowheadSize(arc, CARD)).toBeCloseTo(10.56 * CARD.ink, 9);
-    // …and the card's ink is a share of its paper, so this reproduces exactly
-    // what a share of the paper used to give: 0.11 of the sheet.
-    expect(arrowheadSize(arc, CARD)).toBeCloseTo(0.11 * CARD.scale, 9);
+    expect(arrowheadSize(arc, CARD)).toBeCloseTo(8.5 * CARD.ink, 9);
   });
 
   // The reason a small arc does not end up mostly arrowhead. The cap is a share
   // of the chord because it is about that arrow, not about the pen.
   it('caps at a share of the chord for a short one', () => {
+    const arc = foldArrowArc([0.35, 0.5], [0.65, 0.5], CENTRE);
+    if (!arc) throw new Error('no arc');
+    const capped = 0.26 * 0.3 * CARD.scale;
+    expect(capped).toBeLessThan(8.5 * CARD.ink);
+    expect(capped).toBeGreaterThan(ARROWHEAD_MIN_STROKES * stroke(CARD));
+    expect(arrowheadSize(arc, CARD)).toBeCloseTo(capped, 9);
+  });
+
+  // Capped any shorter, the head is no wider than the stroke it ends, and the
+  // stroke's cap shows through its sides — at a heavy pen, even on a long arc.
+  it('is never shorter than four of the arrow’s own strokes', () => {
+    const tiny = foldArrowArc([0.5, 0.5], [0.52, 0.5], CENTRE);
+    if (!tiny) throw new Error('no arc');
+    expect(0.26 * 0.02 * CARD.scale).toBeLessThan(ARROWHEAD_MIN_STROKES * stroke(CARD));
+    expect(arrowheadSize(tiny, CARD)).toBeCloseTo(ARROWHEAD_MIN_STROKES * stroke(CARD), 9);
+    const heavy = withPens(CARD, { ...DIAGRAM_LINE_INK, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 4 } });
+    const long = foldArrowArc([0, 0], [1, 1], CENTRE);
+    if (!long) throw new Error('no arc');
+    expect(arrowheadSize(long, heavy)).toBeCloseTo(ARROWHEAD_MIN_STROKES * 4 * CARD.ink, 9);
+    // Its sides then stand clear of the stroke's round cap at the notch.
+    const head = arcArrowhead(long, heavy, arrowheadSize(long, heavy));
+    const [barb] = head.barbs;
+    const side = { x: head.tip.x - barb.x, y: head.tip.y - barb.y };
+    const toNotch = { x: head.notch.x - barb.x, y: head.notch.y - barb.y };
+    const clearance = Math.abs(side.x * toNotch.y - side.y * toNotch.x) / Math.hypot(side.x, side.y);
+    expect(clearance).toBeGreaterThan((4 * CARD.ink) / 2);
+  });
+});
+
+/** The arrow's stroke width in a projector's own units. */
+function stroke(project: typeof CARD): number {
+  return project.pens.arrow.width * project.ink;
+}
+
+describe('foldReturnOffset', () => {
+  // The loop opens by what the head's length was before the head was made
+  // smaller: a smaller head is no reason for the two strokes to crowd each
+  // other. So this is exactly the old head, cap and all.
+  it('is the old head’s length for a long arrow: 0.11 of the sheet on a card', () => {
+    const arc = foldArrowArc([0, 0], [1, 1], CENTRE);
+    if (!arc) throw new Error('no arc');
+    expect(foldReturnOffset(arc, CARD)).toBeCloseTo(10.56 * CARD.ink, 9);
+    expect(foldReturnOffset(arc, CARD)).toBeCloseTo(0.11 * CARD.scale, 9);
+    expect(foldReturnOffset(arc, CARD)).toBeGreaterThan(arrowheadSize(arc, CARD));
+  });
+
+  it('caps at the same share of the chord as the head did', () => {
     const arc = foldArrowArc([0.5, 0.5], [0.6, 0.5], CENTRE);
     if (!arc) throw new Error('no arc');
-    expect(arrowheadSize(arc, CARD)).toBeCloseTo(0.26 * 0.1 * CARD.scale, 9);
+    expect(foldReturnOffset(arc, CARD)).toBeCloseTo(0.26 * 0.1 * CARD.scale, 9);
   });
 });
 
@@ -293,36 +459,59 @@ describe('foldArrowTrim', () => {
     arc.center[1] + arc.radius * Math.sin(angle),
   ];
 
+  /** A fold across the card, its strokes trimmed as the card trims them, in sheet units. */
+  function trimmedArrow() {
+    const out = foldArrowArc([1, 0.5], [0, 0.5], CENTRE);
+    if (!out) throw new Error('no arc');
+    const head = arrowheadSize(out, CARD) / CARD.scale;
+    const offset = foldReturnOffset(out, CARD) / CARD.scale;
+    const arrow = foldAndUnfoldFromArc(out, offset);
+    if (!arrow) throw new Error('no arrow');
+    const rim = (DIAGRAM_MARK_INK.radius * CARD.ink) / CARD.scale;
+    return { arrow, head, offset, rim, trimmed: foldArrowTrim(arrow, head, rim) };
+  }
+
   // Two rules, and both were wrong in turn. A shaft that begins inside the ring
   // hides the mark under its own line; a head that carries on round the circle
   // ends up past the mark and across the shaft that starts there, which reads
   // as a tangle rather than a journey.
   it('starts the shaft on the ring and leaves the head beside the mark', () => {
-    const out = foldArrowArc([1, 0.5], [0, 0.5], CENTRE);
-    if (!out) throw new Error('no arc');
-    const head = arrowheadSize(out, CARD) / CARD.scale;
-    const arrow = foldAndUnfoldFromArc(out, head);
-    if (!arrow) throw new Error('no arrow');
-    const rim = (DIAGRAM_MARK_INK.radius * CARD.ink) / CARD.scale;
-    const trimmed = foldArrowTrim(arrow, head, rim);
-
+    const { arrow, head, offset, rim, trimmed } = trimmedArrow();
     const mark = at(arrow.out, arrow.out.from);
     const image = at(arrow.out, arrow.out.to);
     const start = at(trimmed.out, trimmed.out.from);
-    const tip = at(arrow.back, trimmed.tip);
+    const tip = arcArrowhead(trimmed.back, CARD, head * CARD.scale).tip;
 
     // On the rim, not at the centre.
     expect(Math.hypot(start[0] - mark[0], start[1] - mark[1])).toBeCloseTo(rim, 3);
 
     // Beside the mark: the head is offset across the fold's travel, and level
-    // with the mark along it rather than beyond it.
-    const span = Math.hypot(image[0] - mark[0], image[1] - mark[1]);
-    const along = [(image[0] - mark[0]) / span, (image[1] - mark[1]) / span];
-    const off = [tip[0] - mark[0], tip[1] - mark[1]];
-    const beyond = off[0] * along[0] + off[1] * along[1];
-    const aside = Math.abs(off[0] * along[1] - off[1] * along[0]);
-    expect(aside).toBeGreaterThan(Math.abs(beyond) * 4);
-    expect(aside).toBeCloseTo(head, 3);
+    // with the mark along it rather than beyond it — by the return's offset,
+    // give or take the hair the tip lands off the circle by.
+    const from = CARD(mark);
+    const to = CARD(image);
+    const toward = frame(from, { x: to.x - from.x, y: to.y - from.y });
+    const { along: beyond, across } = toward(tip);
+    expect(Math.abs(across)).toBeGreaterThan(Math.abs(beyond) * 4);
+    expect(Math.abs(Math.abs(across) - offset * CARD.scale)).toBeLessThan(0.05 * head * CARD.scale);
+  });
+
+  // The head sits on the shaft: its notch is where the return now stops, and
+  // it reaches from there along the stroke to within a hair of where the
+  // return used to end — the arc's bend over the reach, `reach² / 2r`.
+  it('stops the return a head’s reach short, so the head’s tip lands where the return ended', () => {
+    const { arrow, head, trimmed } = trimmedArrow();
+    const length = (arc: DiagramArc) => arc.radius * arcExtent(arc);
+    const reach = arrowheadReach(head);
+    expect(length(trimmed.back)).toBeCloseTo(length(arrow.back) - reach, 12);
+    expect(trimmed.back.from).toBe(arrow.back.from);
+
+    const tip = arcArrowhead(trimmed.back, CARD, head * CARD.scale).tip;
+    const ended = CARD(arcEndPoint(arrow.back));
+    const radius = arrow.back.radius * CARD.scale;
+    const hair = (reach * CARD.scale) ** 2 / (2 * radius);
+    expect(Math.hypot(tip.x - ended.x, tip.y - ended.y)).toBeLessThan(hair * 1.05);
+    expect(hair).toBeLessThan(0.05 * head * CARD.scale);
   });
 
   // "Back" should read as the same journey returned, not a longer one.
@@ -339,6 +528,40 @@ describe('foldArrowTrim', () => {
       expect(ratio).toBeGreaterThan(0.85);
       expect(ratio).toBeLessThan(1.2);
     }
+  });
+});
+
+describe('the turn-over glyph', () => {
+  /** The stroke's opening: where it starts, and its first control point. */
+  const [x0, y0, x1, y1] = /^M (\S+) (\S+) C (\S+) (\S+) /.exec(TURN_OVER_PATH)!.slice(1).map(Number);
+
+  // The glyph's stroke is the house's, verbatim, except for the stretch the
+  // head covers: it stops at the notch as a fold arrow's shaft does.
+  it('starts its stroke at the head’s notch, and draws the rest as transcribed', () => {
+    expect(x0).toBeCloseTo(TURN_OVER_HEAD.notch.x, 3);
+    expect(y0).toBeCloseTo(TURN_OVER_HEAD.notch.y, 3);
+    expect(TURN_OVER_PATH).toContain(
+      '13.926 1.855 C 8.533 2.887 8.711 7.191 8.711 7.191 C 8.698 9.071 9.698 10.738 11.328 11.674 ' +
+        'C 12.958 12.610 14.966 12.596 16.583 11.638 C 18.200 10.679 19.176 8.925 19.138 7.046 ' +
+        'C 19.138 7.046 19.318 2.887 13.925 1.855 C 13.925 1.855 5.675 0.094 1.496 5.066'
+    );
+  });
+
+  // The stroke is written from the head end, so the head points back against
+  // its opening direction — the tangent where it now starts, not where it was
+  // transcribed to start, twenty degrees round the curve.
+  it('lays the head along the stroke where the stroke meets it', () => {
+    const axis = frame(TURN_OVER_HEAD.notch, { x: x0 - x1, y: y0 - y1 });
+    expect(axis(TURN_OVER_HEAD.tip).across).toBeCloseTo(0, 2);
+    expect(axis(TURN_OVER_HEAD.tip).along).toBeCloseTo(arrowheadReach(4.1), 2);
+  });
+
+  it('keeps its length, and puts its tip within two thirds of a unit of the transcribed end', () => {
+    const [a, b] = TURN_OVER_HEAD.barbs;
+    const base = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    expect(Math.hypot(TURN_OVER_HEAD.tip.x - base.x, TURN_OVER_HEAD.tip.y - base.y)).toBeCloseTo(4.1, 9);
+    expect(Math.hypot(TURN_OVER_HEAD.tip.x - 25.282, TURN_OVER_HEAD.tip.y - 4.923)).toBeLessThan(2 / 3);
+    expect(TURN_OVER_HEAD_PATH).toBe(arrowheadPath(TURN_OVER_HEAD));
   });
 });
 
@@ -490,5 +713,273 @@ describe('the dash ruler on a line that is only nearly axis-aligned', () => {
     // Without a zero the ruler is the origin's, as before.
     expect(dashRulerAlong(0.552, 0.979, 0.537, 0.963).phase).not.toBeCloseTo(0, 3);
     expect(dashZeroOf([])).toBeUndefined();
+  });
+});
+
+describe('erodeCreaseOnSheet', () => {
+  // D8, on a step's sheet: an end on the paper's edge retreats by the share of
+  // the longer side, an end inside stays, a crease the pull would invert is
+  // dropped. Sheet units, before projection.
+  it('pulls an end on the edge in and leaves one inside alone', () => {
+    expect(erodeCreaseOnSheet([0, 0.5], [1, 0.5], UNIT, 0.1)).toEqual([
+      [0.1, 0.5],
+      [0.9, 0.5],
+    ]);
+    expect(erodeCreaseOnSheet([0, 0.5], [0.6, 0.5], UNIT, 0.1)).toEqual([
+      [0.1, 0.5],
+      [0.6, 0.5],
+    ]);
+    expect(erodeCreaseOnSheet([0.2, 0.2], [0.7, 0.7], UNIT, 0.1)).toEqual([
+      [0.2, 0.2],
+      [0.7, 0.7],
+    ]);
+  });
+
+  it('measures the share against the longer side, and finds the edge round the centre', () => {
+    // A 2 × 1 sheet: 0.1 of it is 0.2.
+    const wide = { width: 2, height: 1 };
+    expect(erodeCreaseOnSheet([0, 0.5], [2, 0.5], wide, 0.1)).toEqual([
+      [0.2, 0.5],
+      [1.8, 0.5],
+    ]);
+    // On the canvas the paper sits where the document put it.
+    const placed = { width: 2, height: 1, centre: [10, 10] as const };
+    expect(erodeCreaseOnSheet([9, 10], [11, 10], placed, 0.1)).toEqual([
+      [9.2, 10],
+      [10.8, 10],
+    ]);
+    // A point on the edge's line but off the paper is not on its edge.
+    expect(erodeCreaseOnSheet([-1, 0.5], [0.5, 0.5], UNIT, 0.1)).toEqual([
+      [-1, 0.5],
+      [0.5, 0.5],
+    ]);
+  });
+
+  it('finds the edge of a turned sheet along its own axes', () => {
+    // A square of side 2 turned 45° about (10, 10): its corners are 2/√2 out
+    // along the diagonals, and its edges run along (1, 1)/√2 and (−1, 1)/√2.
+    // A book fold from one edge's middle to the opposite one runs along the
+    // y axis of the space from (10, 9) to (10, 11) — strictly inside the
+    // upright 2 × 2 box, and on the paper's edge at both ends.
+    const r = Math.SQRT1_2;
+    const turned = {
+      width: 2,
+      height: 2,
+      centre: [10, 10] as const,
+      axes: { x: [r, r] as const, y: [-r, r] as const },
+    };
+    const fold = erodeCreaseOnSheet([10, 10 - 2 * r], [10, 10 + 2 * r], turned, 0.1)!;
+    expect(fold[0].map((v) => Number(v.toFixed(6)))).toEqual([10, Number((10 - 2 * r + 0.2).toFixed(6))]);
+    expect(fold[1].map((v) => Number(v.toFixed(6)))).toEqual([10, Number((10 + 2 * r - 0.2).toFixed(6))]);
+    // An end on the upright box's edge is inside the turned paper and stays.
+    expect(erodeCreaseOnSheet([11, 10], [10, 10], turned, 0.1)).toEqual([
+      [11, 10],
+      [10, 10],
+    ]);
+    // A corner is on the edge; the middle is not.
+    expect(erodeCreaseOnSheet([10 + 2 * r, 10], [10, 10], turned, 0.1)!.map((p) => p.map((v) => Number(v.toFixed(6))))).toEqual([
+      [Number((10 + 2 * r - 0.2).toFixed(6)), 10],
+      [10, 10],
+    ]);
+  });
+
+  it('drops a crease the pull would invert, and is the identity at zero', () => {
+    expect(erodeCreaseOnSheet([0, 0.5], [1, 0.5], UNIT, 0.5)).toBeNull();
+    expect(erodeCreaseOnSheet([0, 0.5], [1, 0.5], UNIT, 0)).toEqual([
+      [0, 0.5],
+      [1, 0.5],
+    ]);
+  });
+});
+
+describe('the sheet’s edge', () => {
+  const r = Math.SQRT1_2;
+  const turned = {
+    width: 2,
+    height: 2,
+    centre: [10, 10] as const,
+    axes: { x: [r, r] as const, y: [-r, r] as const },
+  };
+  const round = (p: readonly number[]) => p.map((v) => Number(v.toFixed(6)));
+
+  it('is the rule erode reads an endpoint by', () => {
+    expect(onSheetBoundary([0, 0.5], UNIT)).toBe(true);
+    expect(onSheetBoundary([0.5, 1], UNIT)).toBe(true);
+    expect(onSheetBoundary([0.5, 0.5], UNIT)).toBe(false);
+    // On the edge's line but off the paper: not on its edge.
+    expect(onSheetBoundary([-1, 0.5], UNIT)).toBe(false);
+    // Found round the centre, along the paper's own axes.
+    expect(onSheetBoundary([10, 10 - 2 * r], turned)).toBe(true);
+    expect(onSheetBoundary([11, 10], turned)).toBe(false);
+    expect(onSheetBoundary([0.5, 0.5], { width: 0, height: 0 })).toBe(false);
+  });
+
+  it('runs through the four corners, which are all on it', () => {
+    expect(sheetCorners(UNIT)).toEqual([
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ]);
+    expect(sheetCorners({ width: 2, height: 1, centre: [10, 10] })).toEqual([
+      [9, 9.5],
+      [11, 9.5],
+      [11, 10.5],
+      [9, 10.5],
+    ]);
+    const corners = sheetCorners(turned);
+    expect(corners.map(round)).toEqual([
+      round([10, 10 - 2 * r]),
+      round([10 + 2 * r, 10]),
+      round([10, 10 + 2 * r]),
+      round([10 - 2 * r, 10]),
+    ]);
+    for (const corner of corners) expect(onSheetBoundary(corner, turned)).toBe(true);
+  });
+});
+
+describe('arcPolyline', () => {
+  it('runs from the start to the end in the direction of travel, on the circle', () => {
+    const arc: DiagramArc = { center: [0, 0], radius: 2, from: 0, to: Math.PI / 2, ccw: true };
+    const points = arcPolyline(arc);
+    expect(points.length).toBeGreaterThanOrEqual(3);
+    expect(points[0]!.map((v) => Number(v.toFixed(9)))).toEqual([2, 0]);
+    expect(points[points.length - 1]!.map((v) => Number(v.toFixed(9)))).toEqual([0, 2]);
+    for (const [x, y] of points) expect(Math.hypot(x, y)).toBeCloseTo(2, 9);
+    // The same ends the other way round go the long way, clockwise.
+    const long = arcPolyline({ ...arc, ccw: false });
+    expect(long.length).toBeGreaterThan(points.length);
+    expect(long[Math.floor(long.length / 2)]![0]).toBeLessThan(0);
+  });
+
+  it('spaces its vertices under a pen: a chord of 5° at most', () => {
+    const arc: DiagramArc = { center: [0, 0], radius: 1, from: 0, to: Math.PI, ccw: true };
+    const points = arcPolyline(arc);
+    expect(points.length).toBe(37);
+    for (let i = 1; i < points.length; i += 1) {
+      const [ax, ay] = points[i - 1]!;
+      const [bx, by] = points[i]!;
+      expect(Math.hypot(bx - ax, by - ay)).toBeLessThanOrEqual(2 * Math.sin(Math.PI / 72) + 1e-9);
+    }
+  });
+});
+
+describe('withPens', () => {
+  it('is the same projection with the pens swapped', () => {
+    const pens = { ...DIAGRAM_LINE_INK, arrow: { ...DIAGRAM_LINE_INK.arrow, width: 9 } };
+    const copy = withPens(CARD, pens);
+    expect(copy([0.25, 0.75])).toEqual(CARD([0.25, 0.75]));
+    expect(copy.pens).toBe(pens);
+    expect(CARD.pens).toBe(DIAGRAM_LINE_INK);
+    for (const key of ['scale', 'ex', 'ey', 'ink', 'dashScale', 'viewBox', 'size', 'mirrored'] as const) {
+      expect(copy[key]).toEqual(CARD[key]);
+    }
+  });
+});
+
+describe('paperSpan', () => {
+  const square: readonly (readonly [number, number])[] = sheetCorners(UNIT);
+  const span = (
+    from: readonly [number, number],
+    to: readonly [number, number],
+    outline: readonly (readonly [number, number])[] = square
+  ) => {
+    const found = paperSpan(from, to, outline);
+    return found && found.map((t) => Number(t.toFixed(9)));
+  };
+
+  it('is the whole of a segment on the paper, and none of one off it', () => {
+    expect(span([0.2, 0.2], [0.8, 0.6])).toEqual([0, 1]);
+    expect(span([1.2, 0.2], [1.5, 0.9])).toBeNull();
+    // Beside the paper and parallel to an edge: off it all the way along.
+    expect(span([-0.2, 0.1], [-0.2, 0.9])).toBeNull();
+  });
+
+  it('is the stretch between where the segment crosses the outline', () => {
+    // In from the left, out through the right.
+    expect(span([-0.5, 0.5], [1.5, 0.5])).toEqual([0.25, 0.75]);
+    // Leaving through one edge only.
+    expect(span([0.5, 0.5], [0.5, 2])).toEqual([0, 1 / 3].map((t) => Number(t.toFixed(9))));
+    // Through a corner's neighbourhood diagonally.
+    expect(span([-1, -1], [2, 2])).toEqual([1 / 3, 2 / 3].map((t) => Number(t.toFixed(9))));
+  });
+
+  it('counts a segment along an edge, or just touching a corner from inside, as on the paper', () => {
+    expect(span([0, 0.2], [0, 0.8])).toEqual([0, 1]);
+    expect(span([0.5, 0.5], [1, 1])).toEqual([0, 1]);
+    // Touching the paper at one point is not a stretch of it.
+    expect(span([1, 1], [2, 1.5])).toBeNull();
+  });
+
+  it('reads the outline wound either way, and turned', () => {
+    expect(span([-0.5, 0.5], [1.5, 0.5], [...square].reverse())).toEqual([0.25, 0.75]);
+    // A diamond: the unit square turned 45° about its middle.
+    const r = Math.SQRT1_2;
+    const diamond = [
+      [0.5, 0.5 - r],
+      [0.5 + r, 0.5],
+      [0.5, 0.5 + r],
+      [0.5 - r, 0.5],
+    ] as const;
+    const [t0, t1] = paperSpan([-1, 0.5], [2, 0.5], diamond)!;
+    expect(t0).toBeCloseTo((1.5 - r) / 3, 9);
+    expect(t1).toBeCloseTo((1.5 + r) / 3, 9);
+  });
+
+  it('is none without a paper to lie on', () => {
+    expect(span([0, 0], [1, 1], [])).toBeNull();
+    expect(span([0, 0], [1, 1], [[0, 0], [1, 1], [2, 2]])).toBeNull();
+  });
+});
+
+describe('offPaperPathData', () => {
+  const ring = [
+    { x: 10, y: 10 },
+    { x: 90, y: 10 },
+    { x: 90, y: 90 },
+    { x: 10, y: 90 },
+  ];
+
+  it('cuts the paper out of a box that reaches well past it', () => {
+    const reach = OFF_PAPER_REACH * 80;
+    expect(offPaperPathData([ring])).toBe(
+      `M ${10 - reach} ${10 - reach} H ${90 + reach} V ${90 + reach} H ${10 - reach} Z ` +
+        'M 10 10 L 90 10 L 90 90 L 10 90 Z'
+    );
+    expect(paperRingPoints(ring)).toBe('10,10 90,10 90,90 10,90');
+  });
+
+  it('cuts every ring, skips an empty one, and is empty with no paper at all', () => {
+    const flap = [
+      { x: 90, y: 10 },
+      { x: 130, y: 10 },
+      { x: 130, y: 90 },
+    ];
+    const path = offPaperPathData([ring, [], flap]);
+    expect(path.match(/M /g)).toHaveLength(3);
+    // The box spans both rings.
+    const reach = OFF_PAPER_REACH * 120;
+    expect(path.startsWith(`M ${10 - reach} ${10 - reach} H ${130 + reach} `)).toBe(true);
+    expect(offPaperPathData([[], []])).toBe('');
+  });
+});
+
+describe('a projector’s marks', () => {
+  const view = { origin: [0, 0], ex: [400, 0], ey: [0, -400] } as const;
+  /** A long arc, whose chord does not cap its head. */
+  const arc = { center: [0.5, 0.5], radius: 0.4, from: 0, to: Math.PI / 2, ccw: true } as const;
+
+  it('are the print sizes on a page and a card, and carried by a copy', () => {
+    expect(createOverlayProjector(view, 1).marks).toEqual(DIAGRAM_MARKS);
+    expect(createDiagramProjector({ width: 1, height: 1 }, 100).marks).toEqual(DIAGRAM_MARKS);
+    const screen = createOverlayProjector(view, 1, DIAGRAM_LINE_INK, REFERENCES_VIEW_MARKS);
+    expect(withPens(screen, DIAGRAM_LINE_INK).marks).toBe(REFERENCES_VIEW_MARKS);
+  });
+
+  it('size an arrowhead, so the References view draws a larger one than a page', () => {
+    const page = createOverlayProjector(view, 1);
+    const screen = createOverlayProjector(view, 1, DIAGRAM_LINE_INK, REFERENCES_VIEW_MARKS);
+    expect(arrowheadSize(arc, page)).toBeCloseTo(DIAGRAM_MARKS.arrowheadLength, 9);
+    expect(arrowheadSize(arc, screen)).toBeCloseTo(REFERENCES_VIEW_MARKS.arrowheadLength, 9);
   });
 });

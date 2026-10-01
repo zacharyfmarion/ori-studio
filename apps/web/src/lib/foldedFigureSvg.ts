@@ -28,8 +28,19 @@ import { escapeXml } from './xmlEscape';
 export interface FoldedFigureSvgOptions {
   /** Model point → page coordinates. */
   project: (point: Point) => Point;
-  /** Page units per model unit, for stroke widths and ellipse radii. */
+  /** Page units per model unit, for ellipse radii and text. */
   scale: number;
+  /**
+   * Page units per kernel stroke-width unit (default 1).
+   *
+   * The kernel's stroke width is a *screen-pixel* width — Oriedita's Java2D
+   * `BasicStroke(1.2)` — not a model length. The canvas honours that: it draws
+   * folded strokes at `width × dpr` device px, 1.2 CSS px at every zoom
+   * (`reglRenderer` / `strokeProgram`). The export must read it the same way,
+   * so the width is never multiplied by `scale`; a caller whose page is drawn
+   * at some multiple of the on-screen size passes that multiple here.
+   */
+  strokeScale?: number;
   /** Prefix for generated def ids, to keep two figures from colliding. */
   idPrefix?: string;
 }
@@ -43,10 +54,24 @@ export interface FoldedFigureBounds {
 
 /** Steps used to flatten quadratic/cubic path curves when measuring bounds. */
 const CURVE_STEPS = 12;
-/** Stroke width (model units) for a primitive with no basic stroke. */
+/** Stroke width (screen px) for a primitive with no basic stroke. */
 const DEFAULT_STROKE_WIDTH = 1;
+/** Thinnest exported stroke, so a hairline survives rasterisation. */
+const MIN_STROKE_WIDTH = 0.4;
 /** Font size (page units at scale 1) for the kernel's text primitives. */
 const TEXT_FONT_SIZE = 12;
+/**
+ * Hairline stroke on each opaque fill, in its own fill colour.
+ *
+ * SVG renderers antialias adjacent polygon edges independently, so every subface
+ * boundary shows as a crack where the two coverages do not sum to one. Stroking
+ * the fill in its own colour closes the crack without changing the colour. The
+ * same rule as the paper painter's `SEAM_STROKE_WIDTH_PT`
+ * (`lib/paper/paperSvg.ts`). Skipped for a translucent
+ * colour, where the doubled stroke would darken every shared edge, and for a
+ * gradient, which has no single colour to stroke in.
+ */
+const SEAM_STROKE_WIDTH = 0.5;
 
 function colorAttr(color: OristudioCpRgbaColor): { value: string; opacity: number } {
   const hex = (channel: number) => Math.max(0, Math.min(255, Math.round(channel)))
@@ -177,6 +202,7 @@ export function foldedFigureSvgBody(
   options: FoldedFigureSvgOptions
 ): string {
   const { project, scale } = options;
+  const strokeScale = options.strokeScale ?? 1;
   const prefix = options.idPrefix ?? 'folded';
   const defs: string[] = [];
   const elements: string[] = [];
@@ -200,14 +226,27 @@ export function foldedFigureSvgBody(
     if (!paint) return;
     const isFill = primitive.kind.startsWith('fill_');
     const style = isFill
-      ? `fill="${paint.value}"${paint.opacity < 1 ? ` fill-opacity="${num(paint.opacity)}"` : ''} stroke="none"`
-      : `fill="none" stroke="${paint.value}"${paint.opacity < 1 ? ` stroke-opacity="${num(paint.opacity)}"` : ''} stroke-width="${num(Math.max(0.4, strokeWidth(primitive.style.stroke) * scale))}" stroke-linecap="round" stroke-linejoin="round"`;
+      ? `fill="${paint.value}"${paint.opacity < 1 ? ` fill-opacity="${num(paint.opacity)}"` : ''} ${seamStrokeAttr(primitive.style.paint, paint)}`
+      : `fill="none" stroke="${paint.value}"${paint.opacity < 1 ? ` stroke-opacity="${num(paint.opacity)}"` : ''} stroke-width="${num(Math.max(MIN_STROKE_WIDTH, strokeWidth(primitive.style.stroke) * strokeScale))}" stroke-linecap="round" stroke-linejoin="round"`;
     const element = geometryElement(primitive.geometry, style, project, scale);
     if (element) elements.push(element);
   });
 
   const body = elements.join('\n');
   return defs.length > 0 ? `  <defs>\n${defs.join('\n')}\n  </defs>\n${body}` : body;
+}
+
+/**
+ * A fill's stroke: the seam hairline in its own colour when the paint is an
+ * opaque colour, otherwise none (see {@link SEAM_STROKE_WIDTH}).
+ */
+function seamStrokeAttr(
+  paint: OristudioCpFoldedRenderPaint,
+  resolved: { value: string; opacity: number }
+): string {
+  return paint.kind === 'color' && resolved.opacity >= 1
+    ? `stroke="${resolved.value}" stroke-width="${num(SEAM_STROKE_WIDTH)}"`
+    : 'stroke="none"';
 }
 
 function paintAttr(

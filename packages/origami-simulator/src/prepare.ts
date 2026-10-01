@@ -28,7 +28,7 @@ export function prepareFoldModel(
     throw new Error(diagnostics.errors.join('; '));
   }
 
-  const fold = normalizeFold(source, options, diagnostics);
+  const { fold, facetKeys } = normalizeFold(source, options, diagnostics);
   // The dynamic solver assumes clean geometry, exactly as upstream Origami
   // Simulator does: its `normalize(cross(...))` face-normal pass NaNs on a
   // zero-area triangle, and its axial pass divides by a beam's rest length, so a
@@ -55,9 +55,12 @@ export function prepareFoldModel(
   const facesEdges = buildFacesEdges(fold, diagnostics);
   const edgesFaces = buildEdgesFaces(fold, facesEdges, diagnostics);
   const creaseParams = buildCreaseParams(fold, edgesFaces);
+  // Looked up by vertex pair rather than by position, because the degenerate
+  // pass above renumbers the edges it keeps.
+  const edgesFacet = fold.edges_vertices.map(([a, b]) => facetKeys.has(edgeKey(a, b)));
 
   return {
-    fold: { ...fold, faces_edges: facesEdges, edges_faces: edgesFaces },
+    fold: { ...fold, faces_edges: facesEdges, edges_faces: edgesFaces, [EDGES_FACET_KEY]: edgesFacet },
     vertexCount,
     edgeCount: fold.edges_vertices.length,
     faceCount: fold.faces_vertices.length,
@@ -67,6 +70,7 @@ export function prepareFoldModel(
     indices,
     edgesVertices: fold.edges_vertices,
     edgesAssignment: fold.edges_assignment ?? [],
+    edgesFacet,
     edgesFoldAngle: fold.edges_foldAngle ?? [],
     facesVertices: fold.faces_vertices,
     facesEdges,
@@ -96,12 +100,49 @@ function validateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics): vo
   });
 }
 
+/**
+ * Per-edge extension key the prepared document carries its facet flags under,
+ * so a document that has been through `prepareFoldModel` once can go through
+ * it again without its diagonals turning into auxiliary creases.
+ *
+ * The app's simulation path does exactly that — triangulate, re-orient the
+ * faces, prepare again with `triangulate: false` — and the second pass has no
+ * triangulation of its own to remember, so without this every diagonal of the
+ * first pass came back as a drawable `F` edge. A namespaced `:edges_` key is
+ * what the app's per-edge array helpers remap on an edge-list rebuild, which
+ * is why the flags ride on the document rather than beside it.
+ */
+export const EDGES_FACET_KEY = 'oristudio:edges_facet';
+
+/**
+ * The facet flags a document arrived with, keyed by vertex pair. Read before
+ * anything renumbers, and matched by pair afterwards, so an edge that survives
+ * the canonicalisation keeps its flag and one that does not simply has none —
+ * erring toward drawing a line rather than hiding one.
+ */
+function inheritedFacetKeys(fold: FoldDocument): Set<number> {
+  const flags = fold[EDGES_FACET_KEY];
+  const keys = new Set<number>();
+  if (!Array.isArray(flags) || flags.length !== fold.edges_vertices.length) return keys;
+  fold.edges_vertices.forEach(([a, b], index) => {
+    if (flags[index] === true) keys.add(edgeKey(a, b));
+  });
+  return keys;
+}
+
+/**
+ * The normalised, triangulated document, and the vertex-pair keys of the edges
+ * triangulation invented — see {@link PreparedOrigamiModel.edgesFacet}. A
+ * document prepared before carries its earlier diagonals under
+ * {@link EDGES_FACET_KEY}, and those count too.
+ */
 function normalizeFold(
   source: FoldDocument,
   options: PrepareFoldOptions,
   diagnostics: SimulatorDiagnostics
-): FoldDocument {
+): { fold: FoldDocument; facetKeys: Set<number> } {
   const fold = cloneFold(source);
+  const facetKeys = inheritedFacetKeys(fold);
   fold.vertices_coords = fold.vertices_coords.map((coord) => normalizePoint(coord));
   fold.edges_assignment = fold.edges_vertices.map((_, index) =>
     normalizeAssignment(fold.edges_assignment?.[index])
@@ -121,10 +162,10 @@ function normalizeFold(
   removeRedundantVertices(fold, REDUNDANT_VERTEX_EPSILON, diagnostics);
 
   if (options.triangulate ?? true) {
-    triangulateFold(fold, diagnostics);
+    for (const key of triangulateFold(fold, diagnostics)) facetKeys.add(key);
   }
 
-  return fold;
+  return { fold, facetKeys };
 }
 
 /**
@@ -458,10 +499,14 @@ function removeDegenerateGeometry(fold: FoldDocument, diagnostics: SimulatorDiag
   }
 }
 
-function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics): void {
+/** Returns the vertex-pair keys of the diagonals it appended. */
+function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics): Set<number> {
   // One O(edges) index, kept in sync as triangulation appends diagonal edges, so
   // every dedup below is O(1) instead of a linear `findEdge` scan.
   const edgeIndex = buildEdgeIndex(fold.edges_vertices);
+  // A diagonal that coincides with a source edge is that source edge, and stays
+  // whatever it was; only an edge that did not exist before is a facet.
+  const sourceEdgeCount = fold.edges_vertices.length;
   // Hoisted out of the face loop: the threshold is derived from the bounding
   // diagonal, and triangulation only ever appends edges and splits faces, never
   // moves or adds a vertex. Recomputing it per quad made this pass O(faces x
@@ -516,6 +561,12 @@ function triangulateFold(fold: FoldDocument, diagnostics: SimulatorDiagnostics):
       appendEdgeIfMissing(fold, edgeIndex, a, b);
     }
   }
+  const facetKeys = new Set<number>();
+  for (let edge = sourceEdgeCount; edge < fold.edges_vertices.length; edge += 1) {
+    const [a, b] = fold.edges_vertices[edge]!;
+    facetKeys.add(edgeKey(a, b));
+  }
+  return facetKeys;
 }
 
 type Triangle = [number, number, number];

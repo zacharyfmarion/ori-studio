@@ -46,6 +46,7 @@
 //! alarms testable on the models the gate refuses, which is where they fire.
 
 pub mod admit;
+pub mod aux_lines;
 pub mod cells;
 pub mod census;
 pub mod constraints;

@@ -5,12 +5,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FoldDocument } from '../../engine/types';
 import { createSampleProject } from '../../lib/sampleProject';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { SimulatorPanel } from './SimulatorPanel';
 import { createSimulatorSession } from '../../simulator/simulatorSession';
-import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
+import {
+  handleShortcutRuntimeKeyDown,
+  runSimulatorCommand,
+} from '../../keyboard/shortcutRuntime';
+import { announceUprightSet } from '../../lib/uprightFeedback';
+import { setUprightView } from '../../lib/simulatorOrbit';
 import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
 import { useLayoutStore } from '../../store/layoutStore';
+import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -31,6 +38,14 @@ function asPromiseClient<T extends object>(session: T): T {
     },
   });
 }
+
+// The toast and the analytics event are the verb's outward sign — the picture
+// does not move on the press — and the orbit it takes is what it changes.
+vi.mock('../../lib/uprightFeedback', () => ({ announceUprightSet: vi.fn() }));
+vi.mock('../../lib/simulatorOrbit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/simulatorOrbit')>();
+  return { ...actual, setUprightView: vi.fn(actual.setUprightView) };
+});
 
 vi.mock('../../store/workspaceStore/simulatorRuntime', () => ({
   retainSimulatorClient: () => asPromiseClient(createSimulatorSession()),
@@ -82,7 +97,9 @@ afterEach(() => {
   root = null;
   container = null;
   vi.restoreAllMocks();
+  usePaperExportUiStore.getState().close();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+  useSettingsStore.setState(useSettingsStore.getInitialState(), true);
 });
 
 describe('SimulatorPanel', () => {
@@ -95,24 +112,75 @@ describe('SimulatorPanel', () => {
       'true'
     );
     expect(putImageDataMock).toHaveBeenCalled();
-    expect(fillMock).toHaveBeenCalledTimes(putImageDataMock.mock.calls.length);
+    // Re-pinned: one `fill` per frame was the lit frame's drop shadow, which
+    // neither the GPU renderer nor the export drew. The paper itself goes
+    // through the depth rasterizer, so a lit frame fills no path at all now.
+    expect(fillMock).not.toHaveBeenCalled();
 
     // The render toggles now live in the options pane (a sibling panel), so the
     // canvas follows the shared store setting rather than a local button.
     act(() => {
-      useWorkspaceStore.getState().setSimulatorSetting('lighting', false);
+      const { paperStyle, setPaperStyleField } = useSettingsStore.getState();
+      setPaperStyleField('display', 'light', { ...paperStyle.display.light, enabled: false });
     });
 
     expect(rendered.querySelector('.simulator-canvas')?.getAttribute('data-lighting')).toBeNull();
   });
 
-  it('offers the current view for export once a model is loaded', async () => {
+  it('leaves Export and Set upright to the options rail', async () => {
     const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
     await flushSimulator();
 
-    const trigger = rendered.querySelector<HTMLButtonElement>('[aria-label="Export view"]');
-    expect(trigger).not.toBeNull();
-    expect(trigger?.disabled).toBe(false);
+    const toolbar = rendered.querySelector('.simulator-panel .panel-toolbar');
+    expect(toolbar).not.toBeNull();
+    expect(toolbar?.querySelector('button[aria-label="Export view…"]')).toBeNull();
+    expect(toolbar?.querySelector('button[aria-label="Set upright"]')).toBeNull();
+    // The touch layer's Settings pill keeps its seat.
+    expect(toolbar?.querySelector('.panel-toolbar__pills')).not.toBeNull();
+  });
+
+  it('opens the export dialog on the frame the worker froze', async () => {
+    renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+    act(() => useWorkspaceStore.setState({ workspaceTitle: 'Crane base' }));
+    expect(usePaperExportUiStore.getState().request).toBeNull();
+
+    // The rail's button, which reaches the view through its executor.
+    let ran = false;
+    act(() => {
+      ran = runSimulatorCommand('simulator.exportView');
+    });
+    expect(ran).toBe(true);
+    await flushSimulator();
+
+    const request = usePaperExportUiStore.getState().request;
+    if (!request) throw new Error('the export dialog did not open');
+    expect(request.format).toBeNull();
+    expect(request.scope).toBe('this');
+    const { target } = request;
+    expect(target.surface).toBe('simulator');
+    expect(target.title).toBe('Export view');
+    expect(target.fileStem).toBe('Crane base');
+    expect(target.pages).toBeNull();
+    expect(target.pins).toBeNull();
+    expect(target.buriesFaces).toBe(true);
+
+    // The target reaches the in-process session: a scene of the loaded model.
+    const input = {
+      page: 0,
+      style: target.exportStyle,
+      markHidden: false,
+      background: null,
+      sheet: { mm: 60 },
+    };
+    const scene = await target.buildScene(input);
+    expect(scene?.items.length).toBeGreaterThan(0);
+
+    // Closing the dialog lets the worker drop the frame, so a late rebuild
+    // finds nothing to draw.
+    act(() => usePaperExportUiStore.getState().close());
+    await flushSimulator();
+    await expect(target.buildScene(input)).resolves.toBeNull();
   });
 
   it('offers a view cube, turned to the camera before its first paint', async () => {
@@ -150,13 +218,32 @@ describe('SimulatorPanel', () => {
     expect(Array.from(spots).every((spot) => spot.disabled)).toBe(true);
   });
 
-  it('does not offer an export with nothing to draw', () => {
-    // Rendered with no fold artifacts, so the panel never reaches "ready". An
-    // enabled control here would open a dialog and then fail.
-    const rendered = renderPanel({});
+  it('sets the model upright through the view’s own verb', async () => {
+    renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+    vi.mocked(announceUprightSet).mockClear();
+    vi.mocked(setUprightView).mockClear();
 
-    const trigger = rendered.querySelector<HTMLButtonElement>('[aria-label="Export view"]');
-    expect(trigger?.disabled).toBe(true);
+    let ran = false;
+    act(() => {
+      ran = runSimulatorCommand('simulator.setUpright');
+    });
+
+    expect(ran).toBe(true);
+    expect(setUprightView).toHaveBeenCalledTimes(1);
+    expect(announceUprightSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes no verbs with nothing to draw', () => {
+    // Rendered with no fold artifacts, so the panel never reaches "ready" and
+    // never registers an executor: the rail's buttons, which follow that, are
+    // disabled, and a run finds nothing. An export here would open a dialog
+    // and then fail.
+    renderPanel({});
+
+    expect(runSimulatorCommand('simulator.exportView')).toBe(false);
+    expect(runSimulatorCommand('simulator.setUpright')).toBe(false);
+    expect(usePaperExportUiStore.getState().request).toBeNull();
   });
 
   it('triangulates polygonal fold faces before rendering', async () => {

@@ -9,19 +9,17 @@ import {
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { vertexPointsFromTransport } from '../../engine/oristudioCpGeometry';
 import type { Point } from '../../lib/geometry';
-import { cpModelToSvg, type OristudioCpLineStyle } from '../../lib/creasePatternViewport';
+import { cpModelToSvg } from '../../lib/creasePatternViewport';
 import { cpLineStyleDashPatterns } from '../../lib/oristudioCpLineStyle';
 import { CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
 import { resolveWheelGesture, type WheelGesturePreference } from '../../lib/wheelGesture';
 import { reportError } from '../../monitoring';
 import { cpGeometryStrokesToScene } from '../adapters/cpGeometryToScene';
 import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
-import { cpPointsToScene } from '../adapters/cpPointsToScene';
-import { resolveCpPointStyle } from '../adapters/cpPointStyle';
 import { CpRendererUnavailable, type CpRendererStatus } from '../CpRendererUnavailable';
 import { cpCanvasCursor } from '../cpCanvasCursor';
 import { cpDpr } from '../cpDpr';
-import { cpSizingScales, cpVertexCrowding, cpVertexSpacingModel } from '../cpSizingScales';
+import { cpSizingScales } from '../cpSizingScales';
 import { applyPinchToCamera } from '../gestures/pinchCamera';
 import { contactCentroid, pinchTransform, type GesturePoint } from '../gestures/pinchTransform';
 import { LineHitIndex, type IndexedSegment } from '../picking/lineHitIndex';
@@ -39,7 +37,13 @@ import {
 } from '../renderer/camera';
 import type { CpRenderer } from '../renderer/CpRenderer';
 import { readCssVarColor, readCssVarNumber } from '../renderer/cssColor';
-import { canvasDiagramInk, diagramDashSlot } from './diagram/diagramInk';
+import {
+  canvasDiagramInk,
+  CP_CREASE_WIDTH_FACTOR,
+  DIAGRAM_LINE_INK,
+  type DiagramPens,
+} from './diagram/diagramInk';
+import { diagramGroundInk } from './diagram/diagramColors';
 import type { FoldPose } from './fold/foldPlayback';
 import {
   DEFAULT_SURFACE_SHARES,
@@ -48,9 +52,20 @@ import {
   type FoldPaint,
 } from './fold/foldPoseGeometry';
 import type { FoldScene } from './fold/foldScene';
-import { dropPointsOnFlaps, splitStrokesAtFolds, type SplitStrokes } from './fold/foldSplit';
+import {
+  INK_COLOR_VAR,
+  INK_FALLBACK,
+  INPUT_COLOR_VAR,
+  INPUT_FALLBACK,
+  referencesFoldPaint,
+  referencesOverlayColors,
+  referencesPaperFaces,
+  withAlpha,
+  type ReadTokenColor,
+} from './referencesCanvasInks';
+import { splitStrokesAtFolds, type SplitStrokes } from './fold/foldSplit';
 import { createReglRenderer } from '../renderer/reglRenderer';
-import type { PointGeometry, Rgba, StrokeGeometry, Viewport } from '../renderer/types';
+import type { Rgba, StrokeGeometry, Viewport } from '../renderer/types';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import {
   awaitContextRestore,
@@ -77,13 +92,14 @@ import {
   hoveredVertexToOverlayPoint,
   isClick,
   highlightedVerticesToOverlayPoints,
+  referencesCreasePens,
   modelBoundsToUser,
   resolveReferencesPick,
   transportUserBounds,
   sheetFillGeometry,
+  sheetOutline,
   verticesOfLines,
   type ReferencesCreaseVisibility,
-  type ReferencesOverlayColors,
   type ReferencesHitIndexes,
   type ReferencesPick,
 } from './referencesViewGeometry';
@@ -110,7 +126,7 @@ import {
  * take. Everything else it draws beyond the document arrives as props: which
  * creases to highlight, which vertices, the step's ghost lines and marks.
  * Colours are read from the theme on the canvas element and re-read when
- * `themeKey` changes.
+ * `inkKey` changes.
  */
 
 export interface ReferencesCpViewHandle {
@@ -146,9 +162,17 @@ export type ReferencesSelection = { kind: 'line'; id: number } | { kind: 'vertex
 
 export interface ReferencesCpViewProps {
   geometry: CpGeometryTransport;
-  lineStyle: OristudioCpLineStyle;
   mode: 'mvf' | 'agrh';
+  /**
+   * The References line width: the paper style's edge pen, which every pen
+   * here is measured from (`referencesCanvasPens`).
+   */
   lineWidth: number;
+  /**
+   * The pens the creases are drawn in, by what each is on the paper, in the
+   * ink `lineWidth` makes (`referencesCanvasPens`). The diagram table without.
+   */
+  pens?: DiagramPens;
   pointSize: number;
   wheelGesture: WheelGesturePreference;
   /** The user's snap radius, model units; sets the click radii at the live zoom. */
@@ -223,36 +247,14 @@ export interface ReferencesCpViewProps {
   onZoomPercentChange?: (percent: number) => void;
   /** The camera refits when this changes (a new document), never on an edit. */
   framingKey: string;
-  /** Theme-resolved colours are re-read when this changes. */
-  themeKey?: string;
+  /** DOM-resolved colours — the theme's and the paper style's — are re-read when this changes. */
+  inkKey?: string;
   ariaLabel: string;
   className?: string;
 }
 
 const CANVAS_BG_VAR = '--bg-primary';
-/**
- * The paper's other face, filled as a shape under the creases.
- *
- * The clear colour is the ground the sheet lies on, not the sheet — tinting the
- * whole canvas to say "you are looking at the back" claims the table turned
- * over too. Same token the step cards use, so the strip and the view agree
- * about which face is up.
- */
-const PAPER_BACK_VAR = '--paper-back';
-/**
- * What a tilted flap is shaded toward. `--paper-shadow` is the folded figure's
- * own shadow ink and would be the token to use, but the theme emits it as a
- * `color-mix()` the renderer's colour reader cannot parse, so the same
- * derivation is made here: the text colour, at the shares `applyTheme` gives
- * the shadow on a light and on a dark ground.
- */
-const TEXT_COLOR_VAR = '--text-primary';
-const TEXT_FALLBACK: Rgba = [0.91, 0.929, 0.941, 1];
-const PAPER_SHADE_LIGHT_ALPHA = 0.18;
-const PAPER_SHADE_DARK_ALPHA = 0.28;
 const FALLBACK_CLEAR: Rgba = [0.157, 0.172, 0.204, 1];
-/** Matches the editor's crease width law so the pattern looks the same here. */
-const CREASE_WIDTH_FACTOR = 1.5;
 const POINT_OUTLINE_CSS = 1.4;
 /** Highlighted creases draw this much wider than their neighbours. */
 const HIGHLIGHT_WIDTH_MUL = 2.6;
@@ -264,26 +266,9 @@ const HIGHLIGHT_WIDTH_MUL = 2.6;
 const HINGE_OVERLAP_CSS = 0.75;
 const ZOOM_STEP = 1.25;
 
-const MOUNTAIN_COLOR_VAR = '--fold-mountain';
-const MOUNTAIN_FALLBACK: Rgba = [1, 0.302, 0.365, 1];
-const VALLEY_COLOR_VAR = '--fold-valley';
-const VALLEY_FALLBACK: Rgba = [0.376, 0.647, 0.98, 1];
-const INK_COLOR_VAR = '--fold-border';
-const INK_FALLBACK: Rgba = [0.067, 0.078, 0.09, 1];
-const INPUT_COLOR_VAR = '--cp-reference-input';
-const INPUT_FALLBACK: Rgba = [0.949, 0.353, 0.722, 1];
-const FOLDED_COLOR_VAR = '--fold-unassigned';
-const FOLDED_FALLBACK: Rgba = [0.604, 0.643, 0.678, 1];
-/** Ghosted "folded so far" lines sit back from the pattern. */
-const FOLDED_ALPHA = 0.55;
-/**
- * How faint a pattern crease made by an earlier step draws: the theme's, held
- * to the light theme's step off the ground (`themes/referencesInk.ts`). The
- * fallback is that tuning itself.
- */
-const DIM_ALPHA_VAR = '--references-dim-alpha';
-/** The part of a fold that is not creased: present, but barely. */
-const UNFOLDED_ALPHA = 0.22;
+/** How far back a crease an earlier step made sits, which the aux lines share (`diagramColors.ts`). */
+const CREASE_ALPHA_VAR = '--references-crease-alpha';
+const CREASE_ALPHA_FALLBACK = 0.75;
 
 const EMPTY_IDS: ReadonlySet<number> = new Set();
 /** No step filter: the whole document, at full strength. */
@@ -323,8 +308,9 @@ function sheetCentreX(
   return Number.isFinite(min) && Number.isFinite(max) ? (min + max) / 2 : null;
 }
 
-function withAlpha(color: Rgba, alpha: number): Rgba {
-  return [color[0], color[1], color[2], color[3] * alpha];
+/** The workspace's tokens as the canvas resolves them. */
+function tokenColorsOf(canvas: HTMLCanvasElement): ReadTokenColor {
+  return (name, fallback) => readCssVarColor(canvas, name, fallback);
 }
 
 /** The same thing under the pointer as a frame ago, by identity rather than position. */
@@ -334,32 +320,11 @@ function samePick(a: ReferencesPick | null, b: ReferencesPick | null): boolean {
   return b.kind === 'vertex' && a.idx === b.idx;
 }
 
-/**
- * The overlay's inks, resolved from the canvas's own theme.
- *
- * A crease is drawn in the colour that says which way it folds — the one thing
- * the reader is looking for — so the overlay has no "new crease" hue of its
- * own. Marks and arrows take the ink the paper's edge is drawn in, the way a
- * printed diagram does.
- */
-function overlayColors(canvas: HTMLCanvasElement): ReferencesOverlayColors {
-  return {
-    folded: withAlpha(readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK), FOLDED_ALPHA),
-    input: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
-    mark: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
-    mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
-    valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
-    unassigned: readCssVarColor(canvas, FOLDED_COLOR_VAR, FOLDED_FALLBACK),
-    unfoldedAlpha: UNFOLDED_ALPHA,
-  };
-}
-
 /** What the upload effects last computed, before any fold was applied. */
 interface FoldUploads {
   strokes: StrokeGeometry | null;
-  points: PointGeometry | null;
   preview: StrokeGeometry | null;
-  /** The paper's other face, when the view is on its back; null on the front. */
+  /** The paper, in the colour of the face the reader is on; null when there is no geometry yet. */
   sheet: { geometry: CpGeometryTransport; border: ReadonlySet<number> | null; color: Rgba } | null;
 }
 
@@ -374,47 +339,16 @@ interface FoldRig {
   flap: number;
   strokes: { source: StrokeGeometry; split: SplitStrokes } | null;
   preview: { source: StrokeGeometry; split: SplitStrokes } | null;
-  points: { source: PointGeometry; base: PointGeometry } | null;
   paint: Omit<FoldPaint, 'modelToUser'>;
-}
-
-/**
- * The flap's inks, from the canvas's theme. The face the reader is on is the
- * ground the sheet is drawn as — the back when the view is mirrored — and
- * the other face the paper's other colour; the direction inks are the ones
- * `applyCreaseVisibility` gave the creases, so a swap on the other face
- * finds them.
- */
-function foldPaint(canvas: HTMLCanvasElement, mirrored: boolean): Omit<FoldPaint, 'modelToUser'> {
-  const ground = readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR);
-  const back = readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR);
-  return {
-    up: mirrored ? back : ground,
-    other: mirrored ? ground : back,
-    mountain: readCssVarColor(canvas, MOUNTAIN_COLOR_VAR, MOUNTAIN_FALLBACK),
-    valley: readCssVarColor(canvas, VALLEY_COLOR_VAR, VALLEY_FALLBACK),
-    mountainSlot: diagramDashSlot('mountain'),
-    valleySlot: diagramDashSlot('valley'),
-    shade: paperShade(canvas, ground),
-  };
-}
-
-/** The text colour at the shadow's share for the ground's lightness. */
-function paperShade(canvas: HTMLCanvasElement, ground: Rgba): Rgba {
-  const text = readCssVarColor(canvas, TEXT_COLOR_VAR, TEXT_FALLBACK);
-  const luminance = 0.2126 * ground[0] + 0.7152 * ground[1] + 0.0722 * ground[2];
-  const alpha = luminance > 0.5 ? PAPER_SHADE_LIGHT_ALPHA : PAPER_SHADE_DARK_ALPHA;
-  return [text[0], text[1], text[2], alpha];
 }
 
 /** Everything the imperative handlers read, refreshed every render without re-binding them. */
 interface LiveProps {
   /** Model → SVG, mirrored about the sheet when the paper is on its back. */
   modelToSvg: (point: Point) => Point;
-  /** The paper is on its back, so the ground takes the colour side's tint. */
+  /** The paper is on its back, so the sheet is filled with its other face. */
   mirrored: boolean;
   lineWidth: number;
-  pointSize: number;
   wheelGesture: WheelGesturePreference;
   snapRadius: number;
   /** The hit floors, in CSS px: fingertip-sized under a coarse pointer. */
@@ -425,8 +359,6 @@ interface LiveProps {
   onZoomPercentChange?: (percent: number) => void;
   contentBounds: UserBounds | null;
   vertices: readonly Point[];
-  /** Median crease length, for the vertex crowding ramp. */
-  vertexSpacingModel: number;
   hitIndexes: ReferencesHitIndexes;
   fold: FoldScene | null;
 }
@@ -435,9 +367,9 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
   function ReferencesCpView(props, ref) {
     const {
       geometry,
-      lineStyle,
       mode,
       lineWidth,
+      pens = DIAGRAM_LINE_INK,
       pointSize,
       wheelGesture,
       snapRadius = CP_DEFAULT_SNAP_RADIUS,
@@ -452,7 +384,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       fold = null,
       onPick,
       framingKey,
-      themeKey,
+      inkKey,
       ariaLabel,
       className,
     } = props;
@@ -495,46 +427,18 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       () => (sheetLineIds ? verticesOfLines(geometry, vertices, sheetLineIds) : null),
       [geometry, vertices, sheetLineIds]
     );
-    const sheetVertices = useMemo(
-      () => (sheetVertexIdx ? vertices.filter((_, i) => sheetVertexIdx.has(i)) : vertices),
-      [vertices, sheetVertexIdx]
-    );
-    /**
-     * The vertices the *step* has made, which is not the same set.
-     *
-     * A vertex is where creases cross, so one whose creases are all still to be
-     * folded does not exist yet on the paper — drawing it gave away where later
-     * folds land and made the sheet look finished from step one.
-     */
-    const drawnVertices = useMemo(() => {
-      const visible = creaseVisibility.visible;
-      if (!visible) return sheetVertices;
-      // The border is always drawn, but its own vertices are not landmarks
-      // until something reaches them: on a blank sheet the outline carries a
-      // dot at every place a crease will *later* arrive, which is both a
-      // giveaway and a lot of dots. So the point layer follows the creases,
-      // and the border rides along only where one of them lands.
-      const creases = new Set<number>();
-      for (const id of visible) {
-        if (!creaseVisibility.borderLineIds?.has(id)) creases.add(id);
-      }
-      const kept = verticesOfLines(geometry, vertices, creases, { dropCollinear: true });
-      return vertices.filter((_, i) => kept.has(i));
-    }, [geometry, vertices, sheetVertices, creaseVisibility]);
-    // What the vertex crowding ramp measures against — the same strided median
-    // the editor uses, so the two surfaces fade at the same point.
-    const vertexSpacingModel = useMemo(() => {
-      const endpoints = geometry.segEndpoints;
-      return cpVertexSpacingModel(
-        (i) => Math.hypot(endpoints[i * 4 + 2] - endpoints[i * 4], endpoints[i * 4 + 3] - endpoints[i * 4 + 1]),
-        endpoints.length / 4
-      );
-    }, [geometry]);
     // The sheet in scope is what the camera fits and what `frameModelBounds`
     // clamps against; another pattern's extent is not this pattern's context.
     const contentBounds = useMemo(
       () => transportUserBounds(geometry, sheetLineIds),
       [geometry, sheetLineIds]
+    );
+    // The paper as the sheet fill draws it, for the marks that take a
+    // different ink off it.
+    const borderLineIds = creaseVisibility.borderLineIds ?? null;
+    const paperOutline = useMemo(
+      () => sheetOutline(geometry, borderLineIds),
+      [geometry, borderLineIds]
     );
     /**
      * Model → SVG, reflected about the sheet's own vertical centre when the
@@ -560,9 +464,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
      * among them — and the vertices those creases make: where they cross,
      * where they meet the border, and the sheet's corners, which are there
      * from the start. A point where one line merely changes colour is not a
-     * landmark and is left out, as it is from the dots. A crease that is not
-     * drawn is not there to point at, so hovering it marks nothing and a click
-     * there is a click on blank paper. Otherwise the whole sheet in scope.
+     * landmark and is left out. A crease that is not drawn is not there to
+     * point at, so hovering it marks nothing and a click there is a click on
+     * blank paper. Otherwise the whole sheet in scope.
+     *
+     * No vertex is drawn until it is hovered, picked or named by a step: the
+     * creases say where they meet, and a dot at every crossing crowded them.
      */
     const pickableLineIds = creaseVisibility.pickable ?? sheetLineIds;
     const pickableVertexIdx = useMemo<Set<number> | null>(
@@ -592,7 +499,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       modelToSvg,
       mirrored,
       lineWidth,
-      pointSize,
       wheelGesture,
       snapRadius,
       pointFloorCss,
@@ -602,14 +508,13 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       onZoomPercentChange,
       contentBounds,
       vertices,
-      vertexSpacingModel,
       hitIndexes,
       fold,
     });
     // The fold's pose, and what the channels held before it was applied, so
     // the paper can be laid flat again from exactly what was uploaded.
     const poseRef = useRef<FoldPose | null>(null);
-    const fullRef = useRef<FoldUploads>({ strokes: null, points: null, preview: null, sheet: null });
+    const fullRef = useRef<FoldUploads>({ strokes: null, preview: null, sheet: null });
     const rigRef = useRef<FoldRig | null>(null);
     const applyFoldRef = useRef<() => void>(() => undefined);
     const lastViewRef = useRef<ReferencesDiagramView | null>(null);
@@ -621,7 +526,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         modelToSvg,
         mirrored,
         lineWidth,
-        pointSize,
         wheelGesture,
         snapRadius,
         pointFloorCss,
@@ -631,7 +535,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         onZoomPercentChange,
         contentBounds,
         vertices,
-        vertexSpacingModel,
         hitIndexes,
         fold,
       };
@@ -744,17 +647,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           fitZoom,
           ratio,
         });
-        // The editor's vertex fade, ported rather than re-decided: on a dense
-        // pattern (a 9.4k-segment CP has a ~5 CSS px vertex pitch) a field of
-        // full-opacity dots buries the creases the user is trying to pick.
-        // The picked and step-highlighted vertices ride the overlay channel
-        // instead, which is never faded — see the overlay upload below.
-        const { pointOpacity, pointRingScale } = cpVertexCrowding({
-          vertexSpacingModel: liveRef.current.vertexSpacingModel,
-          pointSize: liveRef.current.pointSize,
-          modelPxPerUnit: Math.hypot(view.ex[0], view.ex[1]),
-          ratio,
-        });
         // The layer over this canvas draws through the same camera, in CSS
         // pixels rather than device ones.
         reportView({
@@ -767,16 +659,20 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           clearColor: readCssVarColor(canvas, CANVAS_BG_VAR, FALLBACK_CLEAR),
           view,
           userView,
-          strokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+          // The edge pen is the unit width; each crease's own pen is its multiple.
+          strokeWidthPx: CP_CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
           // A crease on the flap is the same crease: the same pen.
-          foldedStrokeWidthPx: CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
+          foldedStrokeWidthPx:
+            CP_CREASE_WIDTH_FACTOR * liveRef.current.lineWidth * ratio * widthBoost,
           userScalePx: cam.zoom,
           markerScalePx,
           pointScalePx,
           constantOutlinePx: POINT_OUTLINE_CSS * ratio,
           markerOutlinePx: POINT_OUTLINE_CSS * markerScalePx,
-          pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx * pointRingScale,
-          pointOpacity,
+          // No point layer is uploaded: the vertices this view marks ride
+          // the overlay channel (see the overlay upload below).
+          pointOutlinePx: POINT_OUTLINE_CSS * pointScalePx,
+          pointOpacity: 1,
         });
       };
       renderNowRef.current = renderNow;
@@ -800,7 +696,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         if (!pose || !scene || !moving) {
           rigRef.current = null;
           if (full.strokes) renderer.setStrokes(full.strokes);
-          if (full.points) renderer.setPoints(full.points);
           renderer.setPreview(full.preview);
           renderer.setSheetFill(sheetFill([]));
           renderer.setFolded(EMPTY_FOLDED);
@@ -814,8 +709,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
             flap: pose.flap,
             strokes: null,
             preview: null,
-            points: null,
-            paint: foldPaint(canvas, liveRef.current.mirrored),
+            paint: referencesFoldPaint(tokenColorsOf(canvas), liveRef.current.mirrored),
           };
           rigRef.current = rig;
           // The paper the flap has left is the ground now, not sheet.
@@ -831,10 +725,6 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
         } else if (!full.preview && rig.preview) {
           rig.preview = null;
           renderer.setPreview(null);
-        }
-        if (full.points && rig.points?.source !== full.points) {
-          rig.points = { source: full.points, base: dropPointsOnFlaps(full.points, flaps) };
-          renderer.setPoints(rig.points.base);
         }
         // The overlap is a screen-space hairline, so it is measured against
         // the camera each time the flap is posed: model units per CSS pixel.
@@ -1097,7 +987,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
 
     // --- Scene uploads -------------------------------------------------------
     // Creases, with the highlighted ones in the "new crease" colour. Theme
-    // colours are DOM-resolved, so `themeKey` is a dependency on purpose.
+    // colours are DOM-resolved, so `inkKey` is a dependency on purpose.
     useEffect(() => {
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
@@ -1107,10 +997,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       // one direction the step folds — see
       // `ReferencesCreaseVisibility.emphasisColor`.
       const picked = selected?.kind === 'line' ? new Set([selected.id]) : EMPTY_IDS;
-      const { strokes } = cpGeometryStrokesToScene(
+      // Colour by the crease's own colour; the paper style's pens replace the
+      // editor's line style below, so its View ▸ Line style has no say here.
+      const { strokes: packed } = cpGeometryStrokesToScene(
         geometry,
-        createCpLineAppearanceResolver(lineStyle, mode, canvas),
-        cpLineStyleDashPatterns(lineStyle),
+        createCpLineAppearanceResolver('color', mode, canvas),
+        cpLineStyleDashPatterns('color'),
         {
           selected: picked,
           color: readCssVarColor(canvas, INPUT_COLOR_VAR, INPUT_FALLBACK),
@@ -1119,71 +1011,61 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       );
       // The directions the crate settled, in this canvas's ink. Resolved here
       // because this is the one place that owns the palette; the rule that says
-      // *which* direction lives in `referencesCreaseVisibility`.
-      const palette = overlayColors(canvas);
-      // How far back the earlier steps' creases sit is the theme's call too:
-      // one alpha reads twice as strong over a dark ground as over a light.
-      const dimAlpha =
-        creaseVisibility.dimAlpha < 1
-          ? readCssVarNumber(canvas, DIM_ALPHA_VAR, creaseVisibility.dimAlpha)
-          : creaseVisibility.dimAlpha;
+      // *which* direction lives in `referencesCreaseVisibility`. A crease of
+      // the pattern is a crease pattern's line, so its direction is in the fold
+      // inks, never the diagram-crease inks a step's instruction is drawn in.
+      const palette = referencesOverlayColors(tokenColorsOf(canvas));
+      // Thin lines — the creases an earlier step made, and the pattern's aux
+      // lines — in the aux pen's ink, held back as far as the card holds them.
+      const aux = withAlpha(
+        palette.unassigned,
+        readCssVarNumber(canvas, CREASE_ALPHA_VAR, CREASE_ALPHA_FALLBACK)
+      );
+      const segmentCount = geometry.segEndpoints.length / 4;
+      const inkCss = canvasDiagramInk(lineWidth);
+      // Every crease in its pen: the paper style's, by what it is on the paper.
+      const strokes = referencesCreasePens(packed, geometry.segAttr, segmentCount, {
+        pens,
+        inkCss,
+        ink: {
+          edge: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
+          'fold-mountain': palette.mountain,
+          'fold-valley': palette.valley,
+          aux,
+        },
+        picked,
+      });
       fullRef.current.strokes = applyCreaseVisibility(
         strokes,
-        geometry.segEndpoints.length / 4,
+        segmentCount,
         {
           ...creaseVisibility,
-          dimAlpha,
-          ink: { mountain: palette.mountain, valley: palette.valley },
+          ink: { mountain: palette.mountain, valley: palette.valley, aux },
         },
-        canvasDiagramInk(lineWidth)
+        inkCss,
+        pens
       );
       applyFoldRef.current();
-      // Only when the paper is on its back: the front face is the same colour
-      // as the ground it lies on, so filling it would draw nothing and cost a
-      // buffer upload per theme change.
-      fullRef.current.sheet = mirrored
-        ? {
-            geometry,
-            border: creaseVisibility.borderLineIds ?? null,
-            color: readCssVarColor(canvas, PAPER_BACK_VAR, FALLBACK_CLEAR),
-          }
-        : null;
+      // The sheet, in the paper style's colour for the face the reader is on:
+      // the style's paper is not the theme's ground, so it is drawn on both.
+      fullRef.current.sheet = {
+        geometry,
+        border: creaseVisibility.borderLineIds ?? null,
+        color: referencesPaperFaces(tokenColorsOf(canvas), mirrored).up,
+      };
       applyFoldRef.current();
       renderNowRef.current();
     }, [
       lineWidth,
+      pens,
       geometry,
-      lineStyle,
       mode,
       selected,
       creaseVisibility,
       mirrored,
-      themeKey,
+      inkKey,
       rendererGeneration,
     ]);
-
-    // Vertex dots. Deliberately *without* the highlighted ones: this layer rides
-    // the crowding ramp (`renderNow`) and fades to nothing on a dense pattern,
-    // so the picked vertex is drawn on the overlay channel below instead.
-    useEffect(() => {
-      const renderer = rendererRef.current;
-      const canvas = canvasRef.current;
-      if (!renderer || !canvas) return;
-      fullRef.current.points = cpPointsToScene(
-        [],
-        drawnVertices,
-        [],
-        resolveCpPointStyle(canvas, pointSize),
-        {
-          pointIdx: new Set(),
-          circleIdx: new Set(),
-          vertexIdx: new Set(),
-          color: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
-        }
-      );
-      applyFoldRef.current();
-      renderNowRef.current();
-    }, [drawnVertices, pointSize, themeKey, rendererGeneration]);
 
     // The step's lines that the pattern does not contain, over the creases —
     // and the crease under the pointer, in the accent it would be picked in.
@@ -1206,7 +1088,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       fullRef.current.preview = concatStrokes(diagramStrokes, hoverStroke);
       applyFoldRef.current();
       renderNowRef.current();
-    }, [diagramStrokes, hovered, selected, geometry, themeKey, rendererGeneration]);
+    }, [diagramStrokes, hovered, selected, geometry, inkKey, rendererGeneration]);
 
     // A different fold under the same uploads: the split is for the old one.
     useEffect(() => {
@@ -1222,7 +1104,12 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       const renderer = rendererRef.current;
       const canvas = canvasRef.current;
       if (!renderer || !canvas) return;
-      const newColor = readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK);
+      // The style's ink on the paper, the theme's off it: a dot on the sheet's
+      // edge is half on the ground (`highlightedVerticesToOverlayPoints`).
+      const dotInks = {
+        paper: readCssVarColor(canvas, INK_COLOR_VAR, INK_FALLBACK),
+        ground: diagramGroundInk(canvas),
+      };
       const highlighted = new Set(highlightVertexIdx);
       if (selected?.kind === 'vertex') highlighted.add(selected.idx);
       const picked = [...highlighted]
@@ -1238,7 +1125,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           : null;
       renderer.setOverlayPoints(
         concatOverlayPoints(
-          highlightedVerticesToOverlayPoints(picked, newColor, pointSize),
+          highlightedVerticesToOverlayPoints(picked, dotInks, pointSize, paperOutline),
           hoverRing
         )
       );
@@ -1249,14 +1136,15 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       hovered,
       vertices,
       pointSize,
-      themeKey,
+      paperOutline,
+      inkKey,
       rendererGeneration,
     ]);
 
     // Width is a per-frame parameter; a change only needs a redraw.
     useEffect(() => {
       renderNowRef.current();
-    }, [lineWidth, themeKey]);
+    }, [lineWidth, inkKey]);
 
     // --- Imperative handle -----------------------------------------------------
     useImperativeHandle(

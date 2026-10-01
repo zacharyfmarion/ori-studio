@@ -809,3 +809,15 @@ describe('the Oriedita layout covers the drawing surface only', () => {
     }
   });
 });
+
+describe('the Simulate rail’s verbs', () => {
+  it('registers Export view and Set upright as simulator verbs with no default chord', () => {
+    for (const id of ['simulator.exportView', 'simulator.setUpright'] as const) {
+      const definition = SHORTCUT_DEFINITIONS.find((entry) => entry.id === id);
+      expect(definition, id).toBeDefined();
+      expect(definition?.scope).toBe('simulator');
+      expect(getDefaultShortcutChords(id, 'ori-studio')).toEqual([]);
+      expect(getDefaultShortcutChords(id, 'oriedita')).toEqual([]);
+    }
+  });
+});

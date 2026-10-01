@@ -27,6 +27,8 @@ import type {
   OristudioCpFoldedFigureEntry,
 } from '../../engine/oristudioCpTypes';
 import type { Folded3dMeshPayload } from '../../simulator/foldedMeshSource';
+import type { PaperStyle } from '../../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES, resolvePaperStyle } from '../../lib/paper/paperStyleResolve';
 import { clampSimulatorZoom } from '../../lib/simulatorOrbit';
 import { isFolded3dFigure } from './foldedFigureCapabilities';
 import { folded3dRenderModel } from './folded3dRenderModels';
@@ -36,18 +38,15 @@ import {
   packFolded3dPositionTexture,
   type Folded3dMesh,
 } from './folded3dMesh';
-import {
-  UNDETERMINED_FACE_ALPHA,
-  folded3dStylePlan,
-  type Folded3dPaperStyle,
-} from './folded3dStyle';
-import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './foldedFigure3dProjection';
+import { FOLDED_3D_SILHOUETTE_FACTOR } from './folded3dFrame';
+import { UNDETERMINED_FACE_ALPHA, folded3dStylePlan } from './folded3dStyle';
+import { DEFAULT_FOLDED_3D_CAMERA, type FoldedFigureCamera } from './folded3dCamera';
 
 /**
  * Whether this figure can be drawn as a live window right now.
  *
  * Four conditions, each of which sends the figure back to exactly the path it is
- * on today — its stored `renderSnapshot`, drawn in the crease-pattern scene:
+ * on today — its stored `PaperScene`, drawn in the crease-pattern scene:
  *
  * - **It is a 3D figure.** The flat figure does not change, in any respect.
  * - **The GPU path is available.** Without WebGL2 there is nothing to draw a
@@ -96,10 +95,16 @@ export function folded3dWindowIds(
  *
  * `cameraUniforms` fits a model to `fitExtent`, which is the short edge less 8%
  * on each side — right for a resizable viewport, wrong for a window whose size
- * *is* the model's frame. A figure's frame is `2 · modelRadius` and the window is
- * sized from it, so the bounding circle already touches the edge; leaving the
- * padding in would draw every existing 3D figure about 16% smaller inside the
- * same box, which is a visible change nobody asked for.
+ * *is* the model's frame. A figure's frame is `2 · folded3dFrameHalfSide` and
+ * the window is sized from it, so the bounding circle's perspective
+ * silhouette already touches the edge; leaving the padding in would draw
+ * every existing 3D figure about 16% smaller inside the same box, which is a
+ * visible change nobody asked for.
+ *
+ * The silhouette factor divides out for the same reason: `cameraUniforms`
+ * fits the sphere's *radius* to the extent, and the frame is the silhouette,
+ * so fitting the radius to the whole short edge would draw the model 5%
+ * larger than its frame's units say and let its silhouette leave the box.
  *
  * The figure's own zoom multiplies this rather than replacing it, so zoom 1
  * means "fills the window" at any window size.
@@ -110,7 +115,7 @@ export function folded3dWindowIds(
 export function folded3dFrameFillZoom(width: number, height: number): number {
   const shortEdge = Math.min(width, height);
   const extent = fitExtent(width, height);
-  return extent > 0 ? shortEdge / extent : 1;
+  return extent > 0 ? shortEdge / extent / FOLDED_3D_SILHOUETTE_FACTOR : 1;
 }
 
 /**
@@ -139,17 +144,6 @@ export function folded3dWindowView(camera: FoldedFigureCamera | null | undefined
 }
 
 /**
- * Crease weight in a window, in device pixels before the frame shrink.
- *
- * Calibration, not physics — the same kind of number as the inline simulation's
- * crease reference edge, and expected to be tuned on sight. The projector draws
- * its lines in user units scaled by the figure's placement, which has no exact
- * device-pixel equivalent, so this picks a weight that reads as linework at a
- * normal window size and shrinks with the window from there.
- */
-export const FOLDED_3D_WINDOW_CREASE_WIDTH_PX = 1.5;
-
-/**
  * How far toward the viewer a crease is pushed, in NDC z.
  *
  * A tie-break and nothing more. A crease is drawn from its own layer's ring, and
@@ -173,45 +167,39 @@ export const FOLDED_3D_CREASE_DEPTH_BIAS = 1e-5;
 /**
  * How a 3D figure's paper is drawn, as the settings every renderer takes.
  *
- * Built from the figure's **own** model colours rather than from the app-wide
- * simulator settings, because they are document state: the same numbers the flat
- * figure beside it draws with, and the same ones `folded3dPaperStyle` gives the
- * projector. A figure whose colours followed the Simulate workspace's would both
- * ignore what the user set on it and change what those settings mean.
+ * Built from the figure's **effective paper style** — the app's display style
+ * with the figure's own pins on top (`effectiveObjectPaperStyle`) — through
+ * the `folded-3d` policy: paper colours, the edge and aux pens, erode and the
+ * light. A 3D figure draws every fold as an edge (D6): its borders and its
+ * folds in the edge pen, width included, and a 0° fold in the aux pen when the
+ * style shows aux creases (`surfacePaperStyle`).
  *
- * All three crease colours are the figure's one line colour, which reproduces
- * today's single-ink linework exactly. The mesh does carry mountain/valley
- * codes, so telling them apart is a colour change away — but that is a new
- * appearance, not this phase.
+ * The pens' widths reach the GPU in device pixels through the resolver
+ * (`ptToDevicePx`), and the frame shrink below the reference edge is the
+ * viewport's to apply (`creaseWidthReferenceEdge`, see `Folded3dWindowLayer`).
+ * The light direction is data from the style, shared with the simulator, so
+ * the two surfaces are lit from the same place.
  */
 export function folded3dWindowRenderSettings(options: {
-  style: Folded3dPaperStyle;
+  style: PaperStyle;
   displayStyle: OristudioCpFoldedFigureDisplayStyle;
   devicePixelRatio: number;
 }): RenderSettings {
-  const { style, displayStyle } = options;
-  const plan = folded3dStylePlan(displayStyle, style.transparentAlpha);
-  const line: [number, number, number] = [style.line[0], style.line[1], style.line[2]];
+  const plan = folded3dStylePlan(options.displayStyle);
   return {
-    frontColor: [style.front[0], style.front[1], style.front[2]],
-    backColor: [style.back[0], style.back[1], style.back[2]],
-    mountainColor: line,
-    valleyColor: line,
-    borderColor: line,
-    lightDir: [style.lightDir[0], style.lightDir[1], style.lightDir[2]],
-    // Never painted: the window sits on the crease pattern, and an opaque
-    // backdrop reads as a hole punched in the drawing rather than a view onto
-    // it. The viewport re-asserts this from `transparentBackground` anyway.
-    background: [0, 0, 0],
-    backgroundAlpha: 0,
-    showFaces: plan.fills,
-    showEdges: plan.strokes,
-    lighting: style.lighting,
-    creaseWidthPx: Math.max(
-      0.5,
-      FOLDED_3D_WINDOW_CREASE_WIDTH_PX * Math.max(1, options.devicePixelRatio)
-    ),
-    faceAlpha: plan.faceAlpha * style.faceAlpha,
+    ...resolvePaperStyle(options.style, PAPER_STYLE_POLICIES['folded-3d'], {
+      dpr: options.devicePixelRatio,
+      // Never painted: the window sits on the crease pattern, and an opaque
+      // backdrop reads as a hole punched in the drawing rather than a view onto
+      // it. The viewport re-asserts this from `transparentBackground` anyway.
+      background: [0, 0, 0],
+      backgroundAlpha: 0,
+      faceAlpha: plan.faceAlpha,
+      colorMode: 'paper',
+      strainClip: 0,
+      showFaces: plan.fills,
+      showEdges: plan.strokes,
+    }),
     creaseDepthBias: FOLDED_3D_CREASE_DEPTH_BIAS,
     // A nearer plane's paper has to be able to cover a farther plane's creases
     // where the two meet along a fold line — see `RenderSettings`.
@@ -234,6 +222,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
   const faceIndices = mesh.topology.faceIndices.slice();
   const edgeIndices = mesh.topology.edgeIndices.slice();
   const edgeAssignments = mesh.topology.edgeAssignments.slice();
+  const auxEnds = mesh.topology.auxEnds?.slice() ?? new Uint8Array(edgeAssignments.length);
   const payload: Folded3dMeshPayload = {
     positions: positions.buffer as ArrayBuffer,
     textureDim: mesh.topology.textureDim,
@@ -241,8 +230,10 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
     faceIndices: faceIndices.buffer as ArrayBuffer,
     edgeIndices: edgeIndices.buffer as ArrayBuffer,
     edgeAssignments: edgeAssignments.buffer as ArrayBuffer,
+    auxEnds: auxEnds.buffer as ArrayBuffer,
     center: mesh.center,
     radius: mesh.radius,
+    sheet: mesh.sheet,
     skins: mesh.skins,
     translucent: mesh.translucent,
     undetermined: mesh.undetermined,
@@ -255,6 +246,7 @@ export function folded3dMeshPayload(mesh: Folded3dMesh): {
       payload.faceIndices,
       payload.edgeIndices,
       payload.edgeAssignments,
+      payload.auxEnds,
     ],
   };
 }

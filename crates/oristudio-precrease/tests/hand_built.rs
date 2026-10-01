@@ -240,6 +240,44 @@ fn disjoint_sheets_are_split_and_strays_are_unassigned() {
 }
 
 #[test]
+fn an_auxiliary_line_is_no_crease_of_the_sheet() {
+    let mut cp = Cp::new();
+    cp.polygon_border(&[[0.0, 0.0], [400.0, 0.0], [400.0, 400.0], [0.0, 400.0]]);
+    let diagonal = cp.seg(1, [0.0, 0.0], [400.0, 400.0]);
+    // A guide line off every lattice the diagonal lives on, one lying along
+    // the diagonal itself, and one off the paper altogether.
+    let guide = cp.seg(3, [0.0, 123.0], [400.0, 171.0]);
+    let along = cp.seg(3, [100.0, 100.0], [300.0, 300.0]);
+    cp.seg(3, [500.0, 0.0], [600.0, 100.0]);
+    let after = cp.seg(2, [0.0, 400.0], [400.0, 0.0]);
+    let analysis = analyze(&cp.segments, &cp.colors, None).expect("analysis");
+    let c = &analysis.components[0];
+    // The caller's numbering survives the lines that are left out.
+    assert_eq!(c.segment_indices, vec![diagonal, after]);
+    // The sheet still knows which guide lines are on it, and where they are
+    // in its unit frame (y-up: model y = 123 is unit y = 0.6925).
+    assert_eq!(c.aux_segment_indices, vec![guide, along]);
+    let [x0, y0, x1, y1] = c.aux_unit_segments[0];
+    assert!(close([x0, y0], [0.0, 0.6925], 1e-12), "{x0} {y0}");
+    assert!(close([x1, y1], [1.0, 0.5725], 1e-12), "{x1} {y1}");
+    assert_eq!(c.merged_lines.len(), 2);
+    assert_eq!(c.merged_lines[0].segment_indices, vec![diagonal]);
+    assert!(c.merged_lines.iter().all(|line| {
+        !line
+            .kinds
+            .contains(&oristudio_precrease::merge::LineKind::Auxiliary)
+    }));
+    // An off-lattice guide line would otherwise make the sheet off-lattice.
+    assert_eq!(
+        c.exactness.as_ref().expect("exactness").class,
+        ExactnessClass::Exact
+    );
+    assert!(analysis.unassigned_segments.is_empty());
+    assert!(analysis.warnings.is_empty(), "{:?}", analysis.warnings);
+    assert_eq!(analysis.segment_count, 9);
+}
+
+#[test]
 fn a_crease_along_the_border_is_flagged_on_outline() {
     let mut cp = Cp::new();
     cp.polygon_border(&[[0.0, 0.0], [400.0, 0.0], [400.0, 400.0], [0.0, 400.0]]);

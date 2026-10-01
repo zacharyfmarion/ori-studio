@@ -40,8 +40,26 @@ export interface PlacedPoint {
   s: number;
   v: number;
   z: number;
-  /** The surface normal's component toward the reader: positive, the reader's face shows. */
+  /** The surface normal's component toward the reader: how far the paper tilts, for its shading. */
   nz: number;
+  /**
+   * Which face the reader sees here: 1 the face the reader is on, -1 the other.
+   *
+   * Not the sign of {@link nz} through a bend. A real bend past a quarter turn
+   * overhangs itself: from above, the part of it that has turned over covers
+   * the part still rising — everything from `π − θ` into the bend onward shows
+   * the other face. The bend here is sheared so the flap lands exactly on its
+   * mirror, and a sheared bend does not overhang, so its still-rising part is
+   * never covered; coloured by its own normal it showed the reader's face as a
+   * strip along the crease, and as a band the width of a turn-over's roll.
+   * This is what a real bend shows there instead.
+   */
+  face: 1 | -1;
+}
+
+/** The face a point shows by the side its normal faces: the reader's at edge-on and before. */
+function faceOf(nz: number): 1 | -1 {
+  return nz >= 0 ? 1 : -1;
 }
 
 /** How a flap's paper is placed at a pose: the map from its flat `(s, u)` to space. */
@@ -53,7 +71,7 @@ export interface FoldPlacement {
 export function rigidHinge(angle: number): FoldPlacement {
   const c = Math.cos(angle);
   const sn = Math.sin(angle);
-  return { place: (s, u) => ({ s, v: u * c, z: u * sn, nz: c }) };
+  return { place: (s, u) => ({ s, v: u * c, z: u * sn, nz: c, face: faceOf(c) }) };
 }
 
 export interface FoldSurfaceParams {
@@ -141,7 +159,7 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
     place(s, u) {
       // Paper short of the hinge lies on the table: the hairline a flap
       // overlaps its base by, so the two meet with no seam between them.
-      if (u < 0) return { s, v: u, z: 0, nz: 1 };
+      if (u < 0) return { s, v: u, z: 0, nz: 1, face: 1 };
       const r = radiusAt(s);
       const bend = r * angle;
       // The hinge itself (u = 0) is the bend's start, on the paper — not the
@@ -156,6 +174,9 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
           v: r * Math.sin(phi) + u * cosT,
           z: r * (1 - Math.cos(phi)) + u * sinT,
           nz: Math.cos(phi),
+          // What a real bend shows here: covered from `π − θ` on by the part
+          // that has turned over (see `PlacedPoint.face`).
+          face: phi <= Math.PI - angle ? 1 : -1,
         };
       }
       const past = Math.max(0, u);
@@ -164,6 +185,7 @@ export function createFoldSurface(params: FoldSurfaceParams): FoldSurface {
         v: r * sinT + past * cosT,
         z: r * (1 - cosT) + past * sinT,
         nz: cosT,
+        face: faceOf(cosT),
       };
     },
     breakpoints() {
@@ -224,9 +246,15 @@ export function createRollOverSurface(
       const x = u + halfWidth;
       // The hinge row belongs to the bend once anything has come over; before
       // that the taken edge is simply the last of the paper on the table.
-      if (x < hinge || p <= 0) return { s, v: x + slide - halfWidth, z: 0, nz: 1 };
+      if (x < hinge || p <= 0) return { s, v: x + slide - halfWidth, z: 0, nz: 1, face: 1 };
       const over = bend.place(s, x - hinge);
-      return { s, v: hinge + slide + over.v - halfWidth, z: over.z, nz: over.nz };
+      return {
+        s,
+        v: hinge + slide + over.v - halfWidth,
+        z: over.z,
+        nz: over.nz,
+        face: over.face,
+      };
     },
     breakpoints: () => [],
     rows: (uMin, uMax) => rowsThrough(uMin, uMax, [[hingeU, hingeU + reach]], [hingeU]),
@@ -357,6 +385,12 @@ export function rowsThrough(
 export interface FlapMesh {
   /** Placed vertices, three per triangle. */
   vertices: PlacedPoint[];
+  /**
+   * Which face each triangle shows, taken at its centre: a triangle is one
+   * face or the other, never a blend of the two across the line where the
+   * shown face changes.
+   */
+  faces: Array<1 | -1>;
 }
 
 /**
@@ -371,7 +405,8 @@ export function tessellateFlap(
   columnSpacing: number
 ): FlapMesh {
   const vertices: PlacedPoint[] = [];
-  if (polygon.length < 3) return { vertices };
+  const faces: Array<1 | -1> = [];
+  if (polygon.length < 3) return { vertices, faces };
   let sMin = Infinity;
   let sMax = -Infinity;
   let uMin = 0;
@@ -397,10 +432,14 @@ export function tessellateFlap(
       const placed = piece.map((p) => surface.place(p.s, p.u));
       for (let k = 1; k + 1 < placed.length; k += 1) {
         vertices.push(placed[0]!, placed[k]!, placed[k + 1]!);
+        const a = piece[0]!;
+        const b = piece[k]!;
+        const c = piece[k + 1]!;
+        faces.push(surface.place((a.s + b.s + c.s) / 3, (a.u + b.u + c.u) / 3).face);
       }
     }
   }
-  return { vertices };
+  return { vertices, faces };
 }
 
 /**

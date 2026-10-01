@@ -10,8 +10,7 @@ import {
   getInlineSimulationFoldPercent,
   subscribeInlineSimulationFold,
 } from './inlineSimulation/inlineSimulationRuntime';
-import { SimulatorExportMenu } from '../simulator/SimulatorExportMenu';
-import type { SimulatorViewExportFormat } from '../simulator/simulatorViewExport';
+import { SimulatorExportButton } from '../simulator/SimulatorExportButton';
 import type { InlineSimulation } from './inlineSimulation/inlineSimulation';
 
 /**
@@ -53,8 +52,8 @@ export function InlineSimulationInspector({
   onSetUpright: () => void;
   /** Return the fold to flat, as the Simulate workspace's Reset does. */
   onReplay: () => void;
-  /** Save the window's current camera view as an image. */
-  onExport: (format: SimulatorViewExportFormat) => void;
+  /** Open the export dialog on the window's current camera view. */
+  onExport: () => void;
   onRefresh: () => void;
   onDelete: () => void;
 }) {
@@ -103,7 +102,7 @@ export function InlineSimulationInspector({
       <span className="cp-inline-simulation-inspector__readout">
         {Math.round(foldPercent)}%
       </span>
-      <SimulatorExportMenu onExport={onExport} />
+      <SimulatorExportButton onExport={onExport} />
       {/*
         Which way the model is up. The orbit is a turntable about the paper's
         *normal*, which is up for a flat sheet and is not for a model that stands

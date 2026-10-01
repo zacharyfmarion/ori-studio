@@ -16,17 +16,26 @@ import { useTranslation } from 'react-i18next';
  */
 export function ColorField({
   label,
+  inputLabel,
   value,
   onChange,
   onCommit,
   onClear,
   disabled = false,
+  clearDisabled = disabled,
   title,
   layout = 'stacked',
   showValue = false,
   className,
 }: {
   label: string;
+  /**
+   * Accessible name for the swatch, where the visible label is not enough on
+   * its own: a pen card's heading reads "Mountain folds", but the control
+   * under it is that pen's *colour*, among its width, cap and dash. Defaults
+   * to {@link label}, which is right wherever the swatch is the whole row.
+   */
+  inputLabel?: string;
   /** The colour to show. A resolved default is fine when the setting is unset. */
   value: string;
   onChange: (value: string) => void;
@@ -41,6 +50,11 @@ export function ColorField({
   /** Offered as a reset affordance when the value can fall back to a default. */
   onClear?: () => void;
   disabled?: boolean;
+  /**
+   * Whether the reset is disabled; it follows {@link disabled} unless a caller
+   * says otherwise, for a swatch that is moot while its pin still counts.
+   */
+  clearDisabled?: boolean;
   /** Why the field is disabled, shown on hover over the whole row. */
   title?: string;
   /**
@@ -70,7 +84,7 @@ export function ColorField({
       className="color-field__clear"
       title={t('common:colorField.reset', 'Reset to default')}
       aria-label={t('common:colorField.resetNamed', 'Reset {{label}} to default', { label })}
-      disabled={disabled}
+      disabled={clearDisabled}
       onClick={onClear}
     >
       <RotateCcw size={11} />
@@ -81,11 +95,17 @@ export function ColorField({
       id={inputId}
       className="color-field__input"
       type="color"
-      aria-label={label}
+      aria-label={inputLabel ?? label}
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.currentTarget.value)}
       onBlur={onCommit}
+      // A swatch has nothing for Escape to undo, but as an input it holds the
+      // key away from the dialog around it; letting go of focus hands it back,
+      // as NumberField does after its revert.
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') event.currentTarget.blur();
+      }}
     />
   );
 

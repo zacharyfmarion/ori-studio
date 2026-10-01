@@ -6,13 +6,14 @@ import {
   type Point,
   type RunPiece,
 } from '../src/coplanarRuns.js';
+import { EDGE_CODE } from '../src/edgeCodes.js';
 
 /** A square as two triangles sharing the diagonal 0-2. */
 const SQUARE_AS_TRIANGLES = {
   faceIndices: new Uint32Array([0, 1, 2, 0, 2, 3]),
   // The diagonal is the facet edge; the four sides are mountains.
   edgeIndices: new Uint32Array([0, 1, 1, 2, 2, 3, 3, 0, 0, 2]),
-  edgeAssignments: new Uint8Array([1, 1, 1, 1, 3]),
+  edgeAssignments: new Uint8Array([1, 1, 1, 1, EDGE_CODE.facet]),
 };
 
 function piece(group: number, points: Point[], fill = '#aabbcc'): RunPiece {
@@ -36,12 +37,23 @@ describe('recovering the source face', () => {
     expect(groups[0]).not.toBe(groups[1]);
   });
 
+  it('leaves triangles that share an auxiliary crease apart', () => {
+    // An auxiliary crease is drawn between two faces the way a fold is; only a
+    // triangulation diagonal, which nobody drew, joins them. Code 3 used to be
+    // the facet code, so this is what tells the two flat kinds apart.
+    const groups = sourceFaceGroups({
+      ...SQUARE_AS_TRIANGLES,
+      edgeAssignments: new Uint8Array([1, 1, 1, 1, EDGE_CODE.aux]),
+    });
+    expect(groups[0]).not.toBe(groups[1]);
+  });
+
   it('joins a fan of more than two', () => {
     // A pentagon fanned from vertex 0 gives three triangles and two diagonals.
     const groups = sourceFaceGroups({
       faceIndices: new Uint32Array([0, 1, 2, 0, 2, 3, 0, 3, 4]),
       edgeIndices: new Uint32Array([0, 2, 0, 3]),
-      edgeAssignments: new Uint8Array([3, 3]),
+      edgeAssignments: new Uint8Array([EDGE_CODE.facet, EDGE_CODE.facet]),
     });
     expect(new Set([groups[0], groups[1], groups[2]]).size).toBe(1);
   });
@@ -100,12 +112,15 @@ describe('choosing runs to merge', () => {
 });
 
 describe('outlining a merged run', () => {
+  // Re-pinned: `outlineOf` now returns the rings of the region rather than one
+  // loop, so a simple region is a one-element list.
   it('drops the shared edge of two triangles', () => {
-    const outline = outlineOf([
+    const rings = outlineOf([
       [[0, 0], [10, 0], [10, 10]],
       [[0, 0], [10, 10], [0, 10]],
     ]);
-    expect(outline).not.toBeNull();
+    expect(rings).toHaveLength(1);
+    const [outline] = rings!;
     // The square's four corners, and not the diagonal.
     expect(outline).toHaveLength(4);
     expect(new Set(outline!.map(([x, y]) => `${x},${y}`))).toEqual(
@@ -116,16 +131,18 @@ describe('outlining a merged run', () => {
   it('drops a vertex left on a straight edge by a cut', () => {
     // A square cut down the middle: the two halves meet along x = 5, and the
     // points at (5,0) and (5,10) are on the outline but not corners of it.
-    const outline = outlineOf([
+    const rings = outlineOf([
       [[0, 0], [5, 0], [5, 10], [0, 10]],
       [[5, 0], [10, 0], [10, 10], [5, 10]],
     ]);
-    expect(outline).toHaveLength(4);
+    expect(rings).toHaveLength(1);
+    expect(rings![0]).toHaveLength(4);
   });
 
-  it('refuses a region with a hole', () => {
-    // Four pieces around a gap. There are two boundary loops and no way to write
-    // that as one polygon, so the caller keeps the pieces.
+  it('still refuses a hole whose pieces meet at T-junctions', () => {
+    // Four bands around a gap, the side bands ending on the middle of the top
+    // and bottom bands' edges. Nothing cancels along a half-edge, so this is a
+    // T-junction and not a hole the cancellation can see.
     const ring: Point[][] = [
       [[0, 0], [30, 0], [30, 10], [0, 10]],
       [[0, 20], [30, 20], [30, 30], [0, 30]],
@@ -133,6 +150,27 @@ describe('outlining a merged run', () => {
       [[20, 10], [30, 10], [30, 20], [20, 20]],
     ];
     expect(outlineOf(ring)).toBeNull();
+  });
+
+  it('returns a region with a hole as two rings', () => {
+    // Four trapezoids around a gap, meeting along whole diagonals. Two boundary
+    // loops: the outer square, and the hole wound against it, which a painter
+    // draws as one even-odd path. This used to be null, and the caller kept
+    // the pieces.
+    const ring: Point[][] = [
+      [[0, 0], [30, 0], [20, 10], [10, 10]],
+      [[30, 0], [30, 30], [20, 20], [20, 10]],
+      [[30, 30], [0, 30], [10, 20], [20, 20]],
+      [[0, 30], [0, 0], [10, 10], [10, 20]],
+    ];
+    const rings = outlineOf(ring)!;
+    expect(rings).toHaveLength(2);
+    const corners = (loop: readonly Point[]) => new Set(loop.map(([x, y]) => `${x},${y}`));
+    const found = rings.map(corners);
+    expect(found).toContainEqual(new Set(['0,0', '30,0', '30,30', '0,30']));
+    expect(found).toContainEqual(new Set(['10,10', '20,10', '20,20', '10,20']));
+    // Wound against each other, so the even-odd and the nonzero rule agree.
+    expect(Math.sign(signedArea(rings[0]!))).toBe(-Math.sign(signedArea(rings[1]!)));
   });
 
   it('refuses pieces that meet at a T-junction', () => {
@@ -171,6 +209,16 @@ describe('outlining a merged run', () => {
       return Math.abs(sum) / 2;
     };
     const before = pieces.reduce((sum, p) => sum + area(p), 0);
-    expect(area(outlineOf(pieces)!)).toBeCloseTo(before, 6);
+    expect(area(outlineOf(pieces)![0]!)).toBeCloseTo(before, 6);
   });
 });
+
+function signedArea(points: readonly Point[]): number {
+  let sum = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const [x1, y1] = points[i]!;
+    const [x2, y2] = points[(i + 1) % points.length]!;
+    sum += x1 * y2 - x2 * y1;
+  }
+  return sum / 2;
+}

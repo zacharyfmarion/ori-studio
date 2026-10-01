@@ -23,6 +23,7 @@ export type {
   ContextMenuSurface,
   ContextMenuTargetKind,
   CpFavoriteSurface,
+  CreasePatternFoldedFigure,
   DesignMethod,
   DesignTabSource,
   DesignVariant,
@@ -41,6 +42,17 @@ export type {
   SitePageViewedId,
   LandingSurface,
   OptimizerKind,
+  PaperExportBackground,
+  PaperExportFormat,
+  PaperExportHiddenFaces,
+  PaperExportResolution,
+  PaperExportScope,
+  PaperExportStyleName,
+  PaperExportSurface,
+  PaperOverrideSurface,
+  PaperPresetName,
+  PaperPresetUnsavedChoice,
+  PaperStyleFieldName,
   ProjectOpenSource,
   ReferenceExactnessClass,
   ReferenceQueryOutcome,
@@ -71,6 +83,12 @@ export {
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export { trackDesktopDownload } from './trackDesktopDownload';
+export { trackCreasePatternExported } from './trackCreasePatternExport';
+export {
+  trackPaperExported,
+  trackPaperExportOpened,
+  type PaperExportedEvent,
+} from './trackPaperExport';
 export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';

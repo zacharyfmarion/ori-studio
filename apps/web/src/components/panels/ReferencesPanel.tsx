@@ -39,6 +39,11 @@ import {
   type ReferencesDiagramLayerHandle,
 } from '../../cp-workspace/references/ReferencesDiagramLayer';
 import { useReferencesDiagramScene } from '../../cp-workspace/references/useReferencesDiagramScene';
+import { usePaperStyleTokens } from '../../cp-workspace/references/usePaperStyleTokens';
+import {
+  shownSheetAux,
+  useReferencesSheetAux,
+} from '../../cp-workspace/references/referencesAuxCreases';
 import { ReferencesSheetsSidebar } from '../../cp-workspace/references/ReferencesSheetsSidebar';
 import { ReferencesStepFilmstrip } from '../../cp-workspace/references/ReferencesStepFilmstrip';
 import { ReferencesTargetControls } from '../../cp-workspace/references/ReferencesTargetControls';
@@ -66,6 +71,7 @@ import {
   sheetLineIds,
 } from '../../cp-workspace/references/referencesSheets';
 import { sideAt } from '../../cp-workspace/references/referencesSequenceView';
+import { referencesSequenceSubject } from '../../cp-workspace/references/referencesStepExport';
 import {
   runReferencesShortcut,
   type ReferencesShortcutActions,
@@ -78,6 +84,8 @@ import { useReferencesBreakdown } from '../../cp-workspace/references/useReferen
 import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
 import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/references/useReferencesRun';
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
+import type { ReferencesStepsSource } from '../../cp-workspace/references/referencesExportSteps';
+import { useReferencesStepExport } from '../../cp-workspace/references/useReferencesStepExport';
 import { useReferencesTarget } from '../../cp-workspace/references/useReferencesTarget';
 import { useReferencesWays } from '../../cp-workspace/references/useReferencesWays';
 import {
@@ -156,6 +164,8 @@ export function ReferencesPanel() {
     controller.frames?.components.find((entry) => entry.id === selectedSheet) ?? null;
   const sheetIds = useMemo(() => (component ? sheetLineIds(component) : null), [component]);
   const borderIds = useMemo(() => (component ? sheetBorderLineIds(component) : null), [component]);
+  // The pattern's own aux lines on the sheet: never planned, drawn on every step.
+  const sheetAux = useReferencesSheetAux(component, view.geometry);
 
   const targeted = controller.target !== null && controller.target.kind !== 'whole';
   const breakdown = useReferencesBreakdown(
@@ -206,22 +216,27 @@ export function ReferencesPanel() {
     readingPlan ? breakdown.variants : [],
     viewSteps,
     breakdown.activeStep,
-    breakdown.activeFinding
+    breakdown.activeFinding,
+    sheetAux
   );
   const highlights = targeted ? targetHighlights : planHighlights;
   // Which face the reader is on. Everything the picture says about direction is
   // said from it — a mountain seen from the front is a valley seen from the
   // back — so it reaches the card, the overlay and the pattern's own creases.
   const mirrored = readingPlan && sideAt(viewSteps, breakdown.activeStep) === 'back';
+  // The paper style's inks, set on the workspace root so everything inside —
+  // cards, the canvas, the layer over it — draws in them and nothing outside does.
+  // The pattern rail is inside too, and reads the theme's inks through the
+  // `--sheet-thumb-*` aliases on `:root` instead (X10).
+  const { setRoot: setWorkspaceRoot, ...paper } = usePaperStyleTokens(view.lineWidth);
   // The step's picture, once: straight lines packed for the GPU, symbols for the
-  // layer over it. Both off the same primitives the filmstrip card draws.
+  // layer over it. Both off the same primitives the filmstrip card draws, and
+  // both told where the paper is, since a mark off it takes the theme's ink.
   const [diagramCamera, setDiagramCamera] = useState<ReferencesDiagramView | null>(null);
-  const scene = useReferencesDiagramScene(
-    highlights.diagram,
-    view.lineWidth,
-    mirrored,
-    view.themeKey
-  );
+  const scene = useReferencesDiagramScene(highlights.diagram, mirrored, paper, {
+    geometry: view.geometry,
+    border: borderIds,
+  });
 
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const indicator = useReferencesRun();
@@ -321,15 +336,27 @@ export function ReferencesPanel() {
       targeted
         ? candidateFilmstrip(t, active, rfSheet)
         : readingPlan
-          ? planFilmstrip(t, breakdown.variants, viewSteps, breakdown.stopReasons)
+          ? planFilmstrip(t, breakdown.variants, viewSteps, breakdown.stopReasons, sheetAux)
           : [],
-    [targeted, readingPlan, t, active, rfSheet, breakdown.variants, viewSteps, breakdown.stopReasons]
+    [
+      targeted,
+      readingPlan,
+      t,
+      active,
+      rfSheet,
+      breakdown.variants,
+      viewSteps,
+      breakdown.stopReasons,
+      sheetAux,
+    ]
   );
 
   // The sheet as it stands — see `referencesCreaseVisibility`: whole in Find
   // and before a plan, the outline and the picked crease for a target, the
   // build-up so far while the plan is read.
   const { canvas } = surfaces;
+  const auxShown = useMemo(() => shownSheetAux(sheetAux, paper.inks), [sheetAux, paper.inks]);
+  const auxPen = paper.inks.aux;
   const creaseVisibility = useMemo(() => {
     if (!sheetIds) return REFERENCES_ALL_CREASES;
     const input = {
@@ -337,6 +364,8 @@ export function ReferencesPanel() {
       borderLineIds: borderIds,
       activeLineIds: highlights.highlightLineIds,
       mirrored,
+      auxPen,
+      auxLineIds: auxShown,
     };
     if (canvas === 'target') return targetVisibility(input);
     if (canvas === 'plan') {
@@ -352,6 +381,8 @@ export function ReferencesPanel() {
     breakdown.variants,
     viewSteps,
     breakdown.activeStep,
+    auxShown,
+    auxPen,
   ]);
 
   // A tap on the sheet while the plan is read is navigation: to the step that
@@ -399,6 +430,54 @@ export function ReferencesPanel() {
   // The lead's second sentence: to the sequence, which plans on arrival there.
   const planSequenceFromLead = useCallback(() => setMode('sequence', 'lead'), [setMode]);
 
+  // The step the big view shows, as a page: named after the card the strip
+  // has active — a candidate's step names the candidate too, and a sequence
+  // card takes the number the strip prints on it rather than its place in the
+  // view's steps, which counts the turn-overs.
+  const exportSubject = useMemo(
+    () =>
+      targeted
+        ? { kind: 'reference' as const, candidate: controller.activeCandidate, step: activeStep }
+        : referencesSequenceSubject(viewSteps, activeStep),
+    [targeted, controller.activeCandidate, activeStep, viewSteps]
+  );
+  // What the strip holds, for an export of every step: a Find candidate's
+  // steps while its answer is current, or the sequence while it is read.
+  const exportSource = useMemo<ReferencesStepsSource>(
+    () =>
+      targeted
+        ? {
+            kind: 'find',
+            results: controller.stale ? null : controller.results,
+            candidate: controller.activeCandidate,
+            activeStep,
+          }
+        : readingPlan
+          ? { kind: 'sequence', variants: breakdown.variants, viewSteps, sheetAux, activeStep }
+          : { kind: 'none' },
+    [
+      targeted,
+      readingPlan,
+      controller.stale,
+      controller.results,
+      controller.activeCandidate,
+      breakdown.variants,
+      viewSteps,
+      sheetAux,
+      activeStep,
+    ]
+  );
+  const exportVerbs = useReferencesStepExport({
+    // The page's diagram, not the canvas's: a file has nothing under it, so
+    // it carries the creases made so far itself.
+    diagram: highlights.pageDiagram,
+    mirrored,
+    // The letters and arrows the size they are on screen.
+    lineWidth: view.lineWidth,
+    subject: exportSubject,
+    source: exportSource,
+  });
+
   /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {
     if (targeted) {
@@ -428,6 +507,7 @@ export function ReferencesPanel() {
     zoomOut,
     clearTarget: controller.clear,
     playFold: fold.toggle,
+    ...exportVerbs,
   };
   useReferencesShortcuts(shortcutActions, view.hasDocument);
   // Read through a ref refreshed after each commit rather than closed over, so
@@ -454,6 +534,7 @@ export function ReferencesPanel() {
       activeWay: ways.active?.index ?? 0,
       canRecompute,
       hasView: view.geometry !== null,
+      hasDiagram: highlights.diagram !== null,
       fold: {
         available: fold.available,
         playing: fold.playing,
@@ -508,13 +589,14 @@ export function ReferencesPanel() {
           : 'ready';
 
   return (
-    <div className="references-workspace">
+    <div className="references-workspace" ref={setWorkspaceRoot} style={paper.style}>
       <ReferencesApproximationWarningDialog {...approximationWarning} />
       {flow.screen !== 'detail' && (
         <ReferencesSheetsSidebar
           sheets={sheets}
           components={controller.frames?.components ?? []}
           geometry={view.geometry}
+          showAux={paper.inks.showAux}
           selected={selectedSheet}
           onSelect={flow.openSheet}
           breakdown={breakdown}
@@ -607,9 +689,9 @@ export function ReferencesPanel() {
               <ReferencesCpView
                 ref={viewRef}
                 geometry={view.geometry}
-                lineStyle={view.lineStyle}
                 mode={view.mode}
-                lineWidth={view.lineWidth}
+                lineWidth={paper.canvasPens.lineWidth}
+                pens={paper.canvasPens.pens}
                 pointSize={view.pointSize}
                 wheelGesture={view.wheelGesture}
                 snapRadius={view.snapRadius}
@@ -624,7 +706,7 @@ export function ReferencesPanel() {
                 fold={foldScene}
                 onPick={onPick}
                 framingKey={`${view.framingKey}-sheet-${selectedSheet ?? 'none'}`}
-                themeKey={view.themeKey}
+                inkKey={paper.inkKey}
                 ariaLabel={t(
                   'panels:references.canvasAriaLabel',
                   'Crease pattern. Click a vertex or crease to find its references; drag to pan, scroll to zoom.'
@@ -634,8 +716,14 @@ export function ReferencesPanel() {
             <ReferencesDiagramLayer
               ref={symbolsRef}
               model={scene.symbols}
+              outline={scene.outline}
+              mirrored={mirrored}
               camera={diagramCamera}
+              // Letters, rings and arrows are sized from the reader's line
+              // width, not the paper's edge pen: a hairline edge must not
+              // shrink the lettering to nothing.
               lineWidth={view.lineWidth}
+              arrowWidth={paper.arrowWidth}
               fold={foldScene}
             />
             {view.geometry && (

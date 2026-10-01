@@ -41,11 +41,13 @@ import {
   type SimulatorViewDirection,
 } from "../lib/simulatorOrbit";
 import type { SimulatorSettings as SimulatorViewSettings } from "../lib/simulatorSettings";
+import type { PaperStyle } from "../lib/paper/paperStyle";
 import {
   SimulatorViewCube,
   type SimulatorViewCubeHandle,
 } from "./viewCube/SimulatorViewCube";
 import { viewCubeSnapAt, viewCubeSnapDurationMs } from "./viewCube/viewCubeTween";
+import { simulatorDevicePixelRatio } from "./simulatorDevicePixelRatio";
 
 /**
  * The simulator's drawing surface: a canvas, an orbit camera, and whatever it
@@ -199,6 +201,13 @@ export interface SimulatorViewportProps {
   creaseWidthShrinkExponent?: number;
   viewSettings: SimulatorViewSettings;
   /**
+   * How the paper is drawn — colours, pens, light. The app's display style for
+   * the Simulate workspace, an object's effective style for a window on the
+   * Edit canvas. Ignored when {@link renderSettings} is given, which already
+   * carries a resolved style.
+   */
+  paperStyle: PaperStyle;
+  /**
    * Offer a view cube in the bottom-left corner.
    *
    * Off by default, and deliberately not on for every surface that has a camera.
@@ -240,9 +249,12 @@ export interface SimulatorViewportProps {
   renderSettings?: RenderSettings;
   /** Creases/faces a sequence step is emphasising. CPU path only. */
   highlights?: SimulatorHighlights;
-  /** Forward the orbit camera to the worker (GPU mode). */
+  /**
+   * Hand the orbit camera to the runtime, which forwards it to the worker in
+   * GPU mode and only remembers it in CPU mode.
+   */
   pushCamera: (view: SimulatorView, width: number, height: number) => void;
-  /** Forward render settings to the worker (GPU mode). */
+  /** Hand render settings to the runtime, on the same terms as {@link pushCamera}. */
   pushRenderSettings: (settings: RenderSettings) => void;
   className?: string;
   ariaLabel: string;
@@ -273,6 +285,7 @@ export function SimulatorViewport({
   creaseWidthReferenceEdge,
   creaseWidthShrinkExponent,
   viewSettings,
+  paperStyle,
   viewCube = false,
   initialView,
   renderSettings,
@@ -295,6 +308,9 @@ export function SimulatorViewport({
   const viewCubeRef = useRef<SimulatorViewCubeHandle | null>(null);
   // The rAF of a view cube snap in flight, or null. See `applyView`.
   const snapRef = useRef<number | null>(null);
+  // The rAF of a canvas-2D redraw while the camera is still arriving, or null.
+  // See `drawCurrentFrame`.
+  const framingRef = useRef<number | null>(null);
   // Which pointer the canvas is following. The angles it drags from live on the
   // gesture below, which the view cube drives too.
   const dragRef = useRef<{ pointerId: number } | null>(null);
@@ -306,6 +322,7 @@ export function SimulatorViewport({
   // stale closure mid-gesture.
   const gpuActiveRef = useRef(gpuActive);
   const viewSettingsRef = useRef(viewSettings);
+  const paperStyleRef = useRef(paperStyle);
   const highlightsRef = useRef(highlights);
   const interactiveRef = useRef(interactive);
   const claimsWheelRef = useRef(claimsWheel);
@@ -354,23 +371,43 @@ export function SimulatorViewport({
   }, []);
 
   // In GPU mode the worker owns the canvas and draws; this no-ops. In CPU mode
-  // it rasterises the latest frame on this thread.
+  // it rasterises the latest frame on this thread — and again on the next
+  // animation frame while the camera is still easing to the shape, because the
+  // frames stop coming once the model settles and the camera may not have.
   const drawCurrentFrame = useCallback(() => {
-    if (gpuActiveRef.current) return;
-    const canvas = canvasRef.current;
-    const model = modelRef.current;
-    const frame = frameRef.current;
-    const paint = paintRef.current;
-    if (!canvas || !model || !frame || !frame.positions || !paint) return;
-    drawFrame(canvas, model, frame, viewRef.current, paint, highlightsRef.current);
+    if (framingRef.current !== null) window.cancelAnimationFrame(framingRef.current);
+    framingRef.current = null;
+    function draw() {
+      framingRef.current = null;
+      if (gpuActiveRef.current) return;
+      const canvas = canvasRef.current;
+      const model = modelRef.current;
+      const frame = frameRef.current;
+      const paint = paintRef.current;
+      if (!canvas || !model || !frame || !frame.positions || !paint) return;
+      const arrived = drawFrame(canvas, model, frame, viewRef.current, paint, highlightsRef.current);
+      if (!arrived) framingRef.current = window.requestAnimationFrame(draw);
+    }
+    draw();
   }, []);
+
+  useEffect(
+    () => () => {
+      if (framingRef.current !== null) window.cancelAnimationFrame(framingRef.current);
+      framingRef.current = null;
+    },
+    []
+  );
 
   /**
    * Re-resolve the palette and push it wherever it is needed.
    *
    * Called on a settings change and on a theme change — the two things that can
-   * move a colour. The GPU path forwards `paint.render` to the worker; the
-   * canvas-2D path redraws from the same bundle.
+   * move a colour. `paint.render` is handed to the runtime on both paths: the
+   * GPU path forwards it to the worker and redraws there; the canvas-2D path
+   * redraws here from the same bundle, and the runtime only records it — so an
+   * export, which the worker builds, draws the palette on screen rather than
+   * the worker's defaults.
    */
   const refreshPaint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -386,11 +423,12 @@ export function SimulatorViewport({
     const paint = resolveSimulatorPaint(
       getComputedStyle(canvas),
       viewSettingsRef.current,
+      paperStyleRef.current,
       surfaceOptionsRef.current
     );
     paintRef.current = paint;
-    if (gpuActiveRef.current) pushRenderSettings(paint.render);
-    else drawCurrentFrame();
+    pushRenderSettings(paint.render);
+    if (!gpuActiveRef.current) drawCurrentFrame();
   }, [drawCurrentFrame, pushRenderSettings]);
 
   /**
@@ -406,7 +444,7 @@ export function SimulatorViewport({
     const measureStarted = performance.now();
     const rect = canvas?.getBoundingClientRect();
     recordSimulatorProbe('measure', performance.now() - measureStarted);
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const dpr = simulatorDevicePixelRatio();
     return {
       width: Math.max(minDeviceSize, Math.floor((rect?.width || 720) * dpr)),
       height: Math.max(minDeviceSize, Math.floor((rect?.height || 720) * dpr)),
@@ -417,17 +455,19 @@ export function SimulatorViewport({
    * Apply the current orbit view: forward it to the worker (GPU) or redraw here
    * (CPU). This is what makes orbit cheap in GPU mode — one small message and a
    * texture-fed redraw, with no solver work at any model size.
+   *
+   * The camera is handed to the runtime on both paths. On the canvas-2D path
+   * the runtime records it without a worker message — the frame is drawn here
+   * — so that an export, which the worker builds, is taken from the view on
+   * screen rather than from the opening one.
    */
   const pushView = useCallback(() => {
     // Before the frame, and by a style write rather than a layout read: the
     // measure below is already the one forced layout an orbit frame is allowed.
     viewCubeRef.current?.setView(viewRef.current);
-    if (gpuActiveRef.current) {
-      const { width, height } = deviceSize();
-      pushCamera(viewRef.current, width, height);
-    } else {
-      drawCurrentFrame();
-    }
+    const { width, height } = deviceSize();
+    pushCamera(viewRef.current, width, height);
+    if (!gpuActiveRef.current) drawCurrentFrame();
   }, [deviceSize, drawCurrentFrame, pushCamera]);
 
   /**
@@ -546,6 +586,7 @@ export function SimulatorViewport({
   // either has to be pushed the same way.
   useEffect(() => {
     viewSettingsRef.current = viewSettings;
+    paperStyleRef.current = paperStyle;
     renderSettingsRef.current = renderSettings;
     surfaceOptionsRef.current = {
       transparentBackground,
@@ -556,6 +597,7 @@ export function SimulatorViewport({
   }, [
     refreshPaint,
     viewSettings,
+    paperStyle,
     renderSettings,
     transparentBackground,
     creaseWidthReferenceEdge,
@@ -789,7 +831,7 @@ export function SimulatorViewport({
         key={canvasKey}
         ref={setCanvas}
         className={className}
-        data-lighting={viewSettings.lighting || undefined}
+        data-lighting={paperStyle.light.enabled || undefined}
         aria-label={ariaLabel}
         title={title}
         onPointerDown={handlePointerDown}

@@ -25,8 +25,7 @@
 // repaint over it. Consecutive pieces have nothing between them by definition,
 // so the merge is exactly equivalent — see `outlineOf` for the geometric half.
 
-/** Edge assignment code for a triangulation diagonal, as `MeshTopology` stores it. */
-const FACET = 3;
+import { EDGE_CODE } from './edgeCodes.js';
 
 export type Point = readonly [number, number];
 
@@ -39,6 +38,11 @@ interface Topology {
 /**
  * Which source face each triangle came from, as a group id per triangle of
  * `faceIndices`. Triangles joined by a facet edge share an id.
+ *
+ * A facet edge only: an auxiliary crease (`EDGE_CODE.aux`) separates two source
+ * faces the way a fold does, and the two stay two shapes so the crease has an
+ * edge to lie on. A caller who wants them as one hands `meshToPaperScene` its
+ * own `faceGroups`.
  *
  * Ids are arbitrary and dense only by accident; all a caller may do is compare
  * them.
@@ -58,7 +62,7 @@ export function sourceFaceGroups(topology: Topology): Int32Array {
 
   const facet = new Set<string>();
   for (let edge = 0; edge < topology.edgeAssignments.length; edge += 1) {
-    if (topology.edgeAssignments[edge] !== FACET) continue;
+    if (topology.edgeAssignments[edge] !== EDGE_CODE.facet) continue;
     facet.add(vertexKey(topology.edgeIndices[edge * 2]!, topology.edgeIndices[edge * 2 + 1]!));
   }
   if (facet.size === 0) return parent;
@@ -140,17 +144,19 @@ export function coplanarRuns(pieces: readonly RunPiece[]): Array<[number, number
 }
 
 /**
- * The outline of pieces that tile a region without overlapping, or null when
- * they do not resolve to one simple loop.
+ * The outline of pieces that tile a region without overlapping, as one or more
+ * closed rings, or null when they do not resolve to simple loops.
  *
  * Works by cancellation: the pieces are wound consistently, so an edge two of
  * them share appears once in each direction and drops out, leaving only the
- * boundary. Null is the honest answer for a region with a hole, one that pinches
- * to a point, or one whose pieces meet at a T-junction — a cut that split a
+ * boundary. A region with a hole leaves two loops — the outer boundary and the
+ * hole's, wound against it — and comes back as two rings, which a painter draws
+ * as one even-odd path. Null is the honest answer for a region that pinches to a
+ * point, or one whose pieces meet at a T-junction — a cut that split a
  * neighbour's edge but not this one leaves half an edge with nothing to cancel
  * against. The caller emits the pieces unmerged in that case.
  */
-export function outlineOf(pieces: ReadonlyArray<readonly Point[]>): Point[] | null {
+export function outlineOf(pieces: ReadonlyArray<readonly Point[]>): Point[][] | null {
   const directed = new Map<string, Point[]>();
   for (const points of pieces) {
     for (let i = 0; i < points.length; i += 1) {
@@ -172,21 +178,34 @@ export function outlineOf(pieces: ReadonlyArray<readonly Point[]>): Point[] | nu
     next.set(key, edge);
   }
 
-  const first = directed.values().next().value as Point[];
-  const loop: Point[] = [first[0]!];
-  let cursor = first;
-  for (let step = 0; step < directed.size; step += 1) {
-    const to = cursor[1]!;
-    if (pointKey(to) === pointKey(first[0]!)) {
-      // Closed. Every boundary edge must be in it, or this is one loop of several.
-      return loop.length === directed.size ? dropCollinear(loop) : null;
+  // Every boundary edge lies on exactly one loop, so walking from any unvisited
+  // edge until the walk returns to its start, and repeating until none is
+  // left, reads the loops off in some order. A walk that runs out of road, or
+  // one that closes onto a vertex other than its start, is a boundary the
+  // cancellation did not resolve.
+  const rings: Point[][] = [];
+  const visited = new Set<string>();
+  for (const [startKey, first] of directed) {
+    if (visited.has(startKey)) continue;
+    const loop: Point[] = [first[0]!];
+    let cursor = first;
+    let closed = false;
+    for (let step = 0; step < directed.size && !closed; step += 1) {
+      visited.add(`${pointKey(cursor[0]!)}>${pointKey(cursor[1]!)}`);
+      const to = cursor[1]!;
+      if (pointKey(to) === pointKey(first[0]!)) {
+        closed = true;
+        break;
+      }
+      loop.push(to);
+      const onward = next.get(pointKey(to));
+      if (!onward) return null;
+      cursor = onward;
     }
-    loop.push(to);
-    const onward = next.get(pointKey(to));
-    if (!onward) return null;
-    cursor = onward;
+    if (!closed || loop.length < 3) return null;
+    rings.push(dropCollinear(loop));
   }
-  return null;
+  return rings.length > 0 ? rings : null;
 }
 
 /**

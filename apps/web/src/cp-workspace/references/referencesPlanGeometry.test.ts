@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { modelFrame } from './diagram/diagramFrames';
-import { plannerTurnOverDiagram } from './diagram/plannerDiagram';
+import { plannerStepDiagram, plannerTurnOverDiagram } from './diagram/plannerDiagram';
 import {
   plannerSequenceFixture,
   plannerSequenceWithGridFixture,
@@ -149,7 +149,29 @@ describe('planStepScene', () => {
   it('is empty for a step index that names nothing', () => {
     const scene = planStepScene(sequence, model, 99);
     expect(scene.diagram).toBeNull();
+    expect(scene.pageDiagram).toBeNull();
     expect(scene.highlightLineIds).toEqual([]);
+  });
+
+  // The canvas draws the pattern's own creases under the overlay; a page has
+  // nothing under it, so the step exported from a card has to carry the
+  // build-up itself or it comes out as this fold alone on bare paper.
+  it('carries the whole build-up on the page diagram, which the canvas’s leaves out', () => {
+    // The gridded fixture's earlier steps leave creases in the pattern, which
+    // is what `unpatterned` drops and a file has nothing to supply.
+    const gridded = plannerSequenceWithGridFixture();
+    const griddedModel = decodePlanModel(gridded, mapToModel(planModelPoints(gridded)));
+    const scene = planStepScene(gridded, griddedModel, 2);
+    const creases = (diagram: typeof scene.diagram) =>
+      (diagram?.primitives ?? []).filter((p) => p.kind === 'line' && p.style === 'crease').length;
+    expect(creases(scene.pageDiagram)).toBeGreaterThan(creases(scene.diagram));
+    const frame = modelFrame(gridded, griddedModel);
+    expect(scene.pageDiagram?.primitives).toEqual(
+      plannerStepDiagram(gridded, frame, 2, { earlier: 'all' })?.primitives
+    );
+    expect(scene.diagram?.primitives).toEqual(
+      plannerStepDiagram(gridded, frame, 2, { earlier: 'unpatterned' })?.primitives
+    );
   });
 });
 
@@ -182,6 +204,19 @@ describe('planTurnOverScene', () => {
     const primitives = planTurnOverScene(sequence, model, null).diagram?.primitives ?? [];
     expect(primitives.filter((p) => p.kind === 'line')).toHaveLength(0);
     expect(primitives.filter((p) => p.kind === 'turn-over')).toHaveLength(1);
+  });
+
+  it('carries the build-up on its page diagram, as the card does', () => {
+    const gridded = plannerSequenceWithGridFixture();
+    const griddedModel = decodePlanModel(gridded, mapToModel(planModelPoints(gridded)));
+    const scene = planTurnOverScene(gridded, griddedModel, 2);
+    expect(scene.pageDiagram?.primitives).toEqual(
+      plannerTurnOverDiagram(gridded, modelFrame(gridded, griddedModel), 2, { earlier: 'all' })
+        .primitives
+    );
+    const creases = (diagram: typeof scene.diagram) =>
+      (diagram?.primitives ?? []).filter((p) => p.kind === 'line').length;
+    expect(creases(scene.pageDiagram)).toBeGreaterThan(creases(scene.diagram));
   });
 
   it('frames a grid step by its whole family, not its first line', () => {

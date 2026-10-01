@@ -1,13 +1,14 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import type { Diagram } from './referenceFinder/solution';
 import {
   referenceFinderDiagramToPrimitives,
   type StepDiagramModel,
 } from './referenceFinderDiagramToPrimitives';
-import { createDiagramRenderContext, diagramPrimitiveShape } from './diagram/DiagramPrimitives';
+import { createDiagramRenderContext, diagramShapes } from './diagram/DiagramPrimitives';
 import { seenFromTheBack } from './diagram/diagramModel';
 import type { Rect } from './diagram/labelLayout';
 import { createDiagramProjector } from './stepDiagramGeometry';
+import { useReferencesCardInks } from './usePaperStyleTokens';
 
 /**
  * The corners of a card that its own chrome covers, as shares of the viewBox
@@ -122,9 +123,13 @@ export function StepDiagram({
       return null;
     }
   }, [diagram, primitives]);
+  // The aux pen is the paper style's — the creases an earlier step made and
+  // the pattern's own aux lines — with how far they stop short of the paper's
+  // edge, and whether the aux lines show at all.
+  const { pens, creases } = useReferencesCardInks();
   const project = useMemo(
-    () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size, mirrored),
-    [model, size, mirrored]
+    () => createDiagramProjector(model?.sheet ?? { width: 1, height: 1 }, size, mirrored, pens),
+    [model, size, mirrored, pens]
   );
   // The list drawn is the list the context is built from: the letters in it
   // are keyed by position.
@@ -136,15 +141,23 @@ export function StepDiagram({
   // object per render, and a layout keyed on it would be redone every time.
   const number = chrome?.number ?? null;
   const badge = chrome?.badge ?? '';
+  // The clip pair a mark off the paper is drawn through: one per card, since
+  // every card on the strip shares the document.
+  const id = useId();
   const context = useMemo(
     () =>
       model && drawn
         ? createDiagramRenderContext(drawn, model.sheet, project, {
-            bounds: { x: 0, y: 0, width: size, height: size },
-            reserved: cardChromeRects(size, { number, badge }),
+            layout: {
+              bounds: { x: 0, y: 0, width: size, height: size },
+              reserved: cardChromeRects(size, { number, badge }),
+            },
+            creases,
+            id: `step-diagram-${id}`,
+            back: mirrored,
           })
         : null,
-    [model, drawn, project, size, number, badge]
+    [model, drawn, project, size, number, badge, creases, id, mirrored]
   );
 
   if (!model || !drawn || !context) {
@@ -167,7 +180,7 @@ export function StepDiagram({
       aria-label={label}
       aria-hidden={label ? undefined : true}
     >
-      {drawn.map((primitive, index) => diagramPrimitiveShape(primitive, index, context))}
+      {diagramShapes(drawn, context)}
     </svg>
   );
 }

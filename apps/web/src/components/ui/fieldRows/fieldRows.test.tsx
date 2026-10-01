@@ -59,6 +59,115 @@ describe('ToggleRow', () => {
     expect(row?.getAttribute('data-disabled')).toBe('true');
     expect(row?.getAttribute('title')).toBe('Not on a 3D figure');
   });
+
+  // A reset button beside a switch came and went as the switch was flipped,
+  // moving the switch under the pointer; the second of two quick clicks hit
+  // the reset. An overridden toggle says so under its label instead.
+  it('says "Overridden" under the label instead of offering a reset button', () => {
+    const view = render(
+      <ToggleRow label="Lighting" checked inherited={false} onChange={() => {}} />
+    );
+    const switchOf = () => view.querySelector<HTMLButtonElement>('button[role="switch"]');
+    expect(view.querySelector('.control-row__note')?.textContent).toBe('');
+    expect(switchOf()?.hasAttribute('aria-describedby')).toBe(false);
+
+    rerender(
+      <ToggleRow label="Lighting" checked inherited={false} onChange={() => {}} onReset={() => {}} />
+    );
+    expect(view.querySelector('.control-row__reset')).toBeNull();
+    expect(view.querySelector('button[aria-label="Reset Lighting to default"]')).toBeNull();
+    const note = view.querySelector('.control-row__note');
+    expect(note?.textContent).toBe('Overridden');
+    // Read with the switch, not only seen beside it.
+    expect(note?.id).toBeTruthy();
+    expect(switchOf()?.getAttribute('aria-describedby')).toBe(note?.id);
+  });
+
+  it('keeps the switch where it was: the note takes a line of its own, never the value column', () => {
+    const view = render(<ToggleRow label="Lighting" checked onChange={() => {}} />);
+    const row = view.querySelector('.control-row')!;
+    const value = view.querySelector('.control-row__value')!;
+    const before = value.className;
+    expect(row.classList.contains('control-row--noted')).toBe(false);
+
+    rerender(<ToggleRow label="Lighting" checked onChange={() => {}} onReset={() => {}} />);
+    // The same value box holding the switch alone, so the column is as wide
+    // as it was; the note follows it in the row, which puts it on the grid's
+    // second line under the label.
+    expect(value.className).toBe(before);
+    expect([...value.children].map((child) => child.getAttribute('role'))).toEqual(['switch']);
+    expect([...row.children].map((child) => child.className)).toEqual([
+      'control-row__label',
+      before,
+      'control-row__note',
+    ]);
+    expect(row.classList.contains('control-row--noted')).toBe(true);
+  });
+
+  // A row that shrank when its override was cleared moved the switch anyway,
+  // whenever its pane was scrolled to the end: the scroller clamps and takes
+  // the lost height back from the top. So a toggle that can be overridden is
+  // laid out the same whether it is or not, and only the note's text changes.
+  it('lays out an overridable toggle the same with and without its override', () => {
+    const layout = (row: Element) => ({
+      row: row.className,
+      children: [...row.children].map((child) => child.className),
+      value: [...row.querySelector('.control-row__value')!.children].map((child) =>
+        child.getAttribute('role')
+      ),
+    });
+    const view = render(<ToggleRow label="Aux" checked inherited onChange={() => {}} />);
+    const row = view.querySelector('.control-row')!;
+    const following = layout(row);
+    expect(view.querySelector('.control-row__note')?.textContent).toBe('');
+
+    rerender(
+      <ToggleRow label="Aux" checked={false} inherited onChange={() => {}} onReset={() => {}} />
+    );
+    expect(layout(row)).toEqual(following);
+    expect(view.querySelector('.control-row__note')?.textContent).toBe('Overridden');
+    expect(following).toEqual({
+      row: 'control-row control-row--noted',
+      children: [
+        'control-row__label',
+        'control-row__value control-row__value--toggle',
+        'control-row__note',
+      ],
+      value: ['switch'],
+    });
+
+    // A toggle that inherits nothing has no note to make room for.
+    rerender(<ToggleRow label="Aux" checked onChange={() => {}} />);
+    expect(view.querySelector('.control-row__note')).toBeNull();
+    expect(row.classList.contains('control-row--noted')).toBe(false);
+  });
+
+  it('resets rather than pins when an override is switched back to the value it inherits', () => {
+    const onChange = vi.fn();
+    const onReset = vi.fn();
+    const view = render(
+      <ToggleRow label="Aux" checked inherited={false} onChange={onChange} onReset={onReset} />
+    );
+    const button = view.querySelector<HTMLButtonElement>('button[role="switch"]');
+    act(() => button?.click());
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalled();
+
+    // A pin that happens to agree with what it inherits: switching away from
+    // it is an edit like any other.
+    rerender(
+      <ToggleRow label="Aux" checked={false} inherited={false} onChange={onChange} onReset={onReset} />
+    );
+    act(() => button?.click());
+    expect(onChange).toHaveBeenCalledWith(true);
+    expect(onReset).toHaveBeenCalledTimes(1);
+
+    // Nothing overridden, nothing to reset: the inherited value is just a value.
+    rerender(<ToggleRow label="Aux" checked inherited={false} onChange={onChange} />);
+    act(() => button?.click());
+    expect(onChange).toHaveBeenLastCalledWith(false);
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('NumberRow', () => {
@@ -71,6 +180,19 @@ describe('NumberRow', () => {
     expect(input?.value).toBe('1');
     rerender(<NumberRow label="Line width" value={3} onCommit={onCommit} />);
     expect(input?.value).toBe('3');
+  });
+
+  it('keeps its trailing reset button, and no note, unlike a toggle', () => {
+    const onReset = vi.fn();
+    const view = render(
+      <NumberRow label="Line width" value={2} onCommit={() => {}} onReset={onReset} />
+    );
+    const reset = view.querySelector<HTMLButtonElement>('.control-row__reset');
+    expect(reset?.getAttribute('aria-label')).toBe('Reset Line width to default');
+    expect(reset?.closest('.control-row__value')?.classList).toContain('control-row__value--reset');
+    expect(view.querySelector('.control-row__note')).toBeNull();
+    act(() => reset?.click());
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -97,7 +219,7 @@ describe('SelectRow and SegmentedRow', () => {
       </>
     );
     expect(view.querySelector('.select-trigger')?.textContent).toContain('Mixed');
-    const pressed = [...view.querySelectorAll<HTMLButtonElement>('.segmented__option')].map(
+    const pressed = [...view.querySelectorAll<HTMLButtonElement>('[role="group"] button')].map(
       (button) => button.getAttribute('aria-pressed')
     );
     expect(pressed).toEqual(['false', 'false']);
@@ -116,7 +238,7 @@ describe('SelectRow and SegmentedRow', () => {
         onChange={onChange}
       />
     );
-    const buttons = view.querySelectorAll<HTMLButtonElement>('.segmented__option');
+    const buttons = view.querySelectorAll<HTMLButtonElement>('[role="group"][aria-label="Align"] button');
     act(() => buttons[1]?.click());
     expect(onChange).toHaveBeenCalledWith('right');
   });

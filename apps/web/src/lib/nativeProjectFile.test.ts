@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { PaperLineRole, PaperScene } from '@treemaker/origami-simulator';
 import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureEntry,
@@ -17,6 +18,7 @@ import {
 import { ProjectFileFormatError } from './projectFileError';
 import { DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS, emptyOristudioCpSelection } from './creasePatternViewport';
 import { importedCpLineage } from './oristudioCpLineage';
+import { DEFAULT_PAPER_STYLE } from './paper/paperStyle';
 
 const now = new Date('2026-05-26T12:00:00.000Z');
 
@@ -115,9 +117,53 @@ function foldedFigure(): OristudioCpFoldedFigureEntry {
 }
 
 /**
+ * A 3D figure's stored picture: one lit face with a hole, one crease on it.
+ *
+ * Small and hand-written, because the reader is what is under test — every
+ * field of every item is validated, unlike the kernel stream beside it.
+ */
+function folded3dScene(): PaperScene {
+  return {
+    bounds: { minX: -4, minY: -4, maxX: 12, maxY: 9 },
+    sheet: 16,
+    items: [
+      {
+        kind: 'face',
+        face: 2,
+        side: 'back',
+        rings: [
+          [
+            [0, 0],
+            [10, 0],
+            [10, 8],
+          ],
+          [
+            [2, 2],
+            [6, 2],
+            [6, 5],
+          ],
+        ],
+        shade: 0.82,
+        hidden: false,
+      },
+      {
+        kind: 'line',
+        role: 'mountain',
+        a: [0, 0],
+        b: [10, 8],
+        onBoundary: [true, false],
+        whole: { a: [-1, -1], b: [11, 9], onBoundary: [true, true] },
+        face: 2,
+        hidden: true,
+      },
+    ],
+  };
+}
+
+/**
  * A **3D** folded figure, which is a different shape: `snapshot` is null,
- * `folded3d` is the witness, and it carries the viewpoint its stored picture was
- * projected from.
+ * `folded3d` is the witness, it carries the viewpoint its stored picture was
+ * built at, and its picture is a `PaperScene` rather than the kernel's stream.
  *
  * The `folded3d` payload is deliberately partial and cast — this file tests the
  * reader, and what the reader promises about that field is that it survives, not
@@ -130,6 +176,8 @@ function folded3dFigure(): OristudioCpFoldedFigureEntry {
     id: 'generated-3d-1',
     sourceKind: 'generated-3d',
     snapshot: null,
+    renderSnapshot: null,
+    scene: folded3dScene(),
     folded3d: {
       schema_version: 1,
       discovered_fold_cases: 8,
@@ -587,9 +635,79 @@ describe('native project file', () => {
     // deliberately not persisted — but it is what a refold restores, so losing
     // it would move the figure the first time it was refolded.
     expect(entry.camera).toEqual({ yaw: 0.5, pitch: -0.35, zoom: 1.25 });
-    // Persisted, so a reopened figure draws immediately with `handle: null`.
-    expect(entry.renderSnapshot).not.toBeNull();
+    // Persisted, so a reopened figure draws immediately with `handle: null` —
+    // a scene now, item by item, and no kernel stream.
+    expect(entry.scene).toEqual(folded3dScene());
+    expect(entry.renderSnapshot).toBeNull();
     expect(entry.handle).toBeNull();
+  });
+
+  it('drops the items of a stored picture it cannot read, and keeps the rest', () => {
+    // The scene is drawn by our own code rather than parsed by a kernel, so a
+    // malformed item would reach `earcut` and the GPU. Dropping one leaves a
+    // picture, which is what a figure keeps until its first turn rebuilds it.
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    stored.scene.items.push(
+      { kind: 'face', face: 3, side: 'sideways', rings: [], shade: 1, hidden: false },
+      { kind: 'line', role: 'creased', a: [0, 0], b: [1, 1], onBoundary: [], hidden: false },
+      { kind: 'line', role: 'edge', a: [0, Number.NaN], b: [1, 1], hidden: false },
+      { kind: 'sticker', a: [0, 0] }
+    );
+    stored.scene.items[0].rings[0][0].push(99);
+    stored.scene.items[1].face = 'two';
+
+    const [entry] = reparse(serialized);
+    expect(entry.scene?.items).toHaveLength(2);
+    // Unknown keys go with them: a face whose ring lost a malformed point keeps
+    // its other ring, and a line whose `face` did not read is a line without one.
+    expect(entry.scene?.items[0]).toMatchObject({ kind: 'face', rings: [[[2, 2], [6, 2], [6, 5]]] });
+    expect(entry.scene?.items[1]).not.toHaveProperty('face');
+  });
+
+  it('reads every line role a scene can carry, a step’s instruction included', () => {
+    // A role the reader does not list drops its line as malformed, silently.
+    const roles: PaperLineRole[] = [
+      'edge',
+      'mountain',
+      'valley',
+      'diagram-mountain',
+      'diagram-valley',
+      'aux',
+    ];
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    stored.scene.items = roles.map((role) => ({
+      kind: 'line',
+      role,
+      a: [0, 0],
+      b: [1, 1],
+      onBoundary: [false, false],
+      hidden: false,
+    }));
+    const [entry] = reparse(serialized);
+    expect(entry.scene?.items.map((item) => (item.kind === 'line' ? item.role : item.kind))).toEqual(
+      roles
+    );
+  });
+
+  it('refuses a stored picture with no bounds rather than drawing at the origin', () => {
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    delete serialized.workspace.creasePattern.viewState.foldedFigures[0].scene.bounds;
+    expect(reparse(serialized)[0].scene).toBeNull();
+  });
+
+  it('still reads a 3D figure written before pictures were scenes', () => {
+    // D1's additive rule: the schema version does not move, so a file carrying
+    // the kernel stream on a 3D figure opens and draws exactly as it did.
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    delete stored.scene;
+    stored.renderSnapshot = { schema_version: 1, pass: 'opaque', primitives: [] };
+
+    const [entry] = reparse(serialized);
+    expect(entry.scene).toBeNull();
+    expect(entry.renderSnapshot).toMatchObject({ pass: 'opaque' });
   });
 
   it('keeps the schema version where it is, so a 3D file still opens in the build before this one', () => {
@@ -650,6 +768,89 @@ describe('native project file', () => {
     const contradiction = { upper_face: 3, lower_face: 7 };
     const [entry] = reparse(roundTripCp([{ ...foldedFigure(), contradiction }]).serialized);
     expect(entry.contradiction).toEqual(contradiction);
+  });
+
+  it('carries the pinned style fields back, reading each one on its own terms', () => {
+    const appearance = {
+      'paper.front': '#ff0000',
+      edges: { width: 1, color: '#000000', dash: [2, 1], cap: 'round' as const },
+      erode: 0.1,
+    };
+    const [entry] = reparse(roundTripCp([{ ...foldedFigure(), appearance }]).serialized);
+    expect(entry.appearance).toEqual(appearance);
+
+    // A malformed value goes, not the figure; an unknown key goes too.
+    const { serialized } = roundTripCp([{ ...foldedFigure(), appearance }]);
+    serialized.workspace.creasePattern.viewState.foldedFigures[0].appearance = {
+      'paper.front': 'red',
+      erode: 0.1,
+      later: true,
+    };
+    expect(reparse(serialized)[0].appearance).toEqual({ erode: 0.1 });
+  });
+
+  it('writes the appearance key even when nothing is pinned, so a following figure keeps following', () => {
+    // The model colours are a mirror of the effective style, so a figure with
+    // nothing pinned under a non-default display style carries non-default
+    // colours. Only the key's presence tells the reader not to migrate those
+    // colours back into pins.
+    const figure = foldedFigure();
+    const recoloured = {
+      ...figure,
+      snapshot: {
+        ...figure.snapshot!,
+        model: { ...figure.snapshot!.model, front_color: { red: 255, green: 255, blue: 255 } },
+      },
+    };
+    const { serialized } = roundTripCp([recoloured]);
+    expect(serialized.workspace.creasePattern.viewState.foldedFigures[0].appearance).toEqual({});
+    const [entry] = reparse(serialized);
+    expect(entry.appearance).toBeUndefined();
+  });
+
+  it('reads a figure from before the style as pinned to whatever colours were not Oriedita’s', () => {
+    const figure = foldedFigure();
+    const { serialized } = roundTripCp([
+      {
+        ...figure,
+        snapshot: {
+          ...figure.snapshot!,
+          model: {
+            ...figure.snapshot!.model,
+            back_color: { red: 0, green: 128, blue: 255 },
+            line_color: { red: 255, green: 0, blue: 0 },
+          },
+        },
+      },
+    ]);
+    delete serialized.workspace.creasePattern.viewState.foldedFigures[0].appearance;
+
+    const [entry] = reparse(serialized);
+    // Front is Oriedita's default and follows; the other two were recoloured
+    // on purpose and stay put. A line colour pins the whole edge pen.
+    expect(entry.appearance).toEqual({
+      'paper.back': '#0080ff',
+      edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#ff0000' },
+    });
+  });
+
+  it('migrates a 3D figure from before the style from the model under folded3d', () => {
+    const figure = folded3dFigure();
+    const { serialized } = roundTripCp([figure]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    delete stored.appearance;
+    stored.folded3d.model = {
+      ...foldedFigure().snapshot!.model,
+      front_color: { red: 1, green: 2, blue: 3 },
+    };
+    expect(reparse(serialized)[0].appearance).toEqual({ 'paper.front': '#010203' });
+
+    // Oriedita's own colours read as following, and so does a figure whose
+    // model never made it to the file.
+    stored.folded3d.model = foldedFigure().snapshot!.model;
+    expect(reparse(serialized)[0].appearance).toBeUndefined();
+    delete stored.folded3d.model;
+    expect(reparse(serialized)[0].appearance).toBeUndefined();
   });
 
   it('loads a figure written before any of the 3D fields existed', () => {

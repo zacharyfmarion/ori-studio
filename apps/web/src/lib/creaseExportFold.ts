@@ -2,6 +2,7 @@ import type {
   OristudioCpDocumentSnapshot,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureModel,
+  OristudioCpFoldedPaperScene,
   OristudioCpFoldedRenderSnapshot,
 } from '../engine/oristudioCpTypes';
 import type { FoldDocument } from '../engine/types';
@@ -37,6 +38,11 @@ export interface CreaseExportFoldRuntime {
     handle: number,
     displayStyle: OristudioCpFoldedFigureDisplayStyle
   ) => Promise<OristudioCpFoldedRenderSnapshot | null>;
+  /**
+   * The kernel's paper scene for the figure — every face's folded outline and
+   * every subface's stack — or null when it has no paper picture to give.
+   */
+  paperScene: (handle: number) => Promise<OristudioCpFoldedPaperScene | null>;
   free: (handle: number) => Promise<void>;
 }
 
@@ -55,6 +61,13 @@ export interface FoldedFigureState {
 
 export interface CreaseExportFoldResult {
   snapshot: OristudioCpFoldedRenderSnapshot;
+  /**
+   * The same fold as the kernel's paper scene, which the export paints through
+   * the shared painter with every layer in it; null when the fold did not
+   * reach `Paper5` or the kernel has no paper picture for it, and the export
+   * draws `snapshot` as it did before there was a scene.
+   */
+  scene: OristudioCpFoldedPaperScene | null;
   /** How many layer-ordering solutions the kernel has found so far. */
   discoveredCases: number;
   /** Places the figure's kernel coordinates in the exported fold's space. */
@@ -273,7 +286,8 @@ export function foldableLineIdsForSegment(
 }
 
 /**
- * Fold one crease pattern and return its drawing primitives.
+ * Fold one crease pattern and return its drawing primitives and its paper
+ * scene.
  *
  * Deliberately ephemeral: the figure never becomes a canvas entry, so exporting
  * adds nothing to the document, the undo stack, or the dirty flag — and the
@@ -305,7 +319,11 @@ export async function foldSegmentForExport(
     if (!snapshot?.primitives.length) {
       throw new Error('The folded figure produced nothing to draw');
     }
-    return { snapshot, discoveredCases: Math.max(1, discoveredCases), transform };
+    // The scene is the `Paper5` picture, so only a fold that reached it has
+    // one. A fold the kernel downgraded has no layer ordering, and its
+    // transparent development is the snapshot just drawn.
+    const scene = displayStyle === 'Paper5' ? await runtime.paperScene(handle) : null;
+    return { snapshot, scene, discoveredCases: Math.max(1, discoveredCases), transform };
   } finally {
     await runtime.free(handle);
   }

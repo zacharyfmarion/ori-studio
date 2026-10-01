@@ -9,7 +9,6 @@ import {
 } from '../../lib/creasePatternViewport';
 import type { WheelGesturePreference } from '../../lib/wheelGesture';
 import { useSettingsStore } from '../../store/settingsStore';
-import { useThemeStore } from '../../store/themeStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { creaseFingerprint } from '../cpSegmentationArtifacts';
@@ -21,12 +20,14 @@ import type {
   ReferencesTargetRecord,
 } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
+import type { ReferencesSheetAux } from './referencesAuxCreases';
 import { findingBounds, planStepScene, planTurnOverScene } from './referencesPlanGeometry';
 import { candidateFoldScene, planFoldScene, type FoldScene } from './fold/foldScene';
 import {
   candidateViewSteps,
   clampCandidateStep,
   diagonalStepDiagram,
+  type ReferencesCandidateStep,
 } from './referencesCandidateSteps';
 import {
   diagramInModel,
@@ -71,8 +72,6 @@ export interface ReferencesViewState {
   pointSize: number;
   wheelGesture: WheelGesturePreference;
   snapRadius: number;
-  /** Theme name; the view re-reads its CSS colours when it changes. */
-  themeKey: string;
 }
 
 /**
@@ -91,7 +90,6 @@ export function useReferencesView(): ReferencesViewState {
   const viewport = useWorkspaceStore((state) => state.oristudioCpViewport);
   const wheelGesture = useSettingsStore((state) => state.cpWheelGesture);
   const snapRadius = useSettingsStore((state) => state.cpSnapRadius);
-  const themeKey = useThemeStore((state) => state.currentTheme.name);
 
   const loadSerial = document?.loadSerial ?? -1;
   return {
@@ -107,7 +105,6 @@ export function useReferencesView(): ReferencesViewState {
     pointSize: viewport.pointSize ?? DEFAULT_ORISTUDIO_CP_POINT_SIZE,
     wheelGesture,
     snapRadius,
-    themeKey,
   };
 }
 
@@ -124,6 +121,14 @@ export interface ReferencesHighlights {
    * contains. Split into GPU lines and DOM symbols by `diagramToScene`.
    */
   diagram: StepDiagramModel | null;
+  /**
+   * The same step as a page carries it, for the export: the big view has the
+   * document's own creases under the overlay and a file has nothing under it,
+   * so a plan step's page diagram holds the build-up itself
+   * (`ReferencesPlanScene.pageDiagram`). A candidate's step draws on blank
+   * paper either way, so there the two are one model.
+   */
+  pageDiagram: StepDiagramModel | null;
   /** The active step's references, for framing. */
   stepBounds: ModelBounds | null;
   /**
@@ -212,16 +217,10 @@ export function useReferencesHighlights(
   // of an RF step is kept for the framing bounds alone; a diagonal frames
   // itself.
   const step = steps[at] ?? null;
-  const diagram = useMemo(() => {
-    if (!candidate || !results || !step) return null;
-    if (step.kind === 'diagonal') {
-      return diagramInModel(
-        diagonalStepDiagram(step.diagonal, rfSheetOfFrame(results.frame)),
-        results.frame
-      );
-    }
-    return referenceFinderStepInModel(candidate.raw, step, results.frame);
-  }, [candidate, results, step]);
+  const diagram = useMemo(
+    () => (candidate && results && step ? candidateStepDiagram(candidate, results, step) : null),
+    [candidate, results, step]
+  );
   const stepBounds = useMemo<ModelBounds | null>(() => {
     if (!candidate || !results || !step) return null;
     if (step.kind === 'diagonal') {
@@ -269,9 +268,29 @@ export function useReferencesHighlights(
     highlightVertexIdx,
     selected,
     diagram,
+    pageDiagram: diagram,
     stepBounds,
     fold,
   };
+}
+
+/**
+ * What a candidate's step card draws, on the pattern: a diagonal step's own
+ * primitives, or ReferenceFinder's diagram of its step. The view and the export
+ * of every step read a step through this one function.
+ */
+export function candidateStepDiagram(
+  candidate: ReferencesCandidateResult,
+  results: ReferencesResults,
+  step: ReferencesCandidateStep
+): StepDiagramModel | null {
+  if (step.kind === 'diagonal') {
+    return diagramInModel(
+      diagonalStepDiagram(step.diagonal, rfSheetOfFrame(results.frame)),
+      results.frame
+    );
+  }
+  return referenceFinderStepInModel(candidate.raw, step, results.frame);
 }
 
 const NO_HIGHLIGHTS: ReferencesHighlights = {
@@ -279,6 +298,7 @@ const NO_HIGHLIGHTS: ReferencesHighlights = {
   highlightVertexIdx: EMPTY_IDS,
   selected: null,
   diagram: null,
+  pageDiagram: null,
   stepBounds: null,
   fold: null,
 };
@@ -288,11 +308,12 @@ const NO_HIGHLIGHTS: ReferencesHighlights = {
  * the React compiler can keep: a memo whose body branches and returns early
  * cannot be preserved, and the branching is what this does.
  */
-function planHighlights(
+export function planHighlights(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
-  activeFinding: number | null
+  activeFinding: number | null,
+  sheetAux: ReferencesSheetAux | null
 ): ReferencesHighlights {
   if (variants.length === 0) return NO_HIGHLIGHTS;
   if (activeFinding !== null) {
@@ -318,17 +339,20 @@ function planHighlights(
   // over a sheet the visibility rule has emptied for it. The finished card
   // has no picture of its own; the pattern itself is that one.
   const fold = planFoldScene(variants, viewSteps, activeStep);
+  // The page carries the sheet's aux lines; the canvas draws the document's.
+  const aux = sheetAux?.component === target.component ? sheetAux.model : undefined;
   if (target.kind === 'turn-over') {
-    const scene = planTurnOverScene(entry.sequence, entry.model, target.after);
-    return { ...NO_HIGHLIGHTS, diagram: scene.diagram, fold };
+    const scene = planTurnOverScene(entry.sequence, entry.model, target.after, aux);
+    return { ...NO_HIGHLIGHTS, diagram: scene.diagram, pageDiagram: scene.pageDiagram, fold };
   }
   if (target.kind !== 'fold') return NO_HIGHLIGHTS;
-  const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin);
+  const overlay = planStepScene(entry.sequence, entry.model, target.step, target.twin, aux);
   return {
     highlightLineIds: new Set(overlay.highlightLineIds),
     highlightVertexIdx: EMPTY_IDS,
     selected: null,
     diagram: overlay.diagram,
+    pageDiagram: overlay.pageDiagram,
     stepBounds: overlay.bounds,
     fold,
   };
@@ -347,10 +371,12 @@ export function useReferencesPlanHighlights(
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
-  activeFinding: number | null
+  activeFinding: number | null,
+  /** The selected sheet's aux lines, for a step's page (`referencesAuxCreases`). */
+  sheetAux: ReferencesSheetAux | null = null
 ): ReferencesHighlights {
   return useMemo(
-    () => planHighlights(variants, viewSteps, activeStep, activeFinding),
-    [variants, viewSteps, activeStep, activeFinding]
+    () => planHighlights(variants, viewSteps, activeStep, activeFinding, sheetAux),
+    [variants, viewSteps, activeStep, activeFinding, sheetAux]
   );
 }

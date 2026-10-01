@@ -13,9 +13,9 @@ import type {
 } from '../../engine/oristudioCpTypes';
 import { SIMULATOR_MAX_ZOOM, SIMULATOR_MIN_ZOOM } from '../../lib/simulatorOrbit';
 import { foldedFigureBox } from '../adapters/cpFoldedToScene';
-import { defaultFolded3dCamera, folded3dFrameRadius } from './foldedFigure3dProjection';
+import { defaultFolded3dCamera, folded3dFrameRadius } from './folded3dCamera';
 import { folded3dWindowView } from './folded3dWindow';
-import { project3dRenderSnapshot } from './folded3dReproject';
+import { project3dScene } from './folded3dReproject';
 import { setFolded3dRenderModel, resetFolded3dRenderModels } from './folded3dRenderModels';
 import {
   clearAllFolded3dOrbits,
@@ -96,7 +96,8 @@ function figure(): OristudioCpFoldedFigureEntry {
     status: 'ready',
     snapshot: null,
     folded3d: FOLDED_3D,
-    renderSnapshot: project3dRenderSnapshot(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
+    renderSnapshot: null,
+    scene: project3dScene(RENDER_MODEL, FOLDED_3D, 'Paper5', CAMERA),
     placement: { offset: { x: 0, y: 0 }, scale: 1, rotation: 0 },
     camera: CAMERA,
     frameRadius: folded3dFrameRadius(RENDER_MODEL),
@@ -208,7 +209,7 @@ describe('a zoom burst is not a document edit', () => {
     expect(getFolded3dOrbit(FIGURE_ID)?.camera.zoom).toBeGreaterThan(CAMERA.zoom);
     // No picture: only a windowed figure can be zoomed, and a window draws from
     // the camera alone.
-    expect(getFolded3dOrbit(FIGURE_ID)?.snapshot).toBeNull();
+    expect(getFolded3dOrbit(FIGURE_ID)?.scene).toBeNull();
     expect(useWorkspaceStore.getState().oristudioCpFoldedFigures).toBe(figuresBefore);
     expect(renders.length).toBe(rendersBefore);
   });

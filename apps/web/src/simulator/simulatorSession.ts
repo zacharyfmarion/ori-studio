@@ -1,6 +1,9 @@
 import { transfer } from 'comlink';
+import type { PaperStyle } from '../lib/paper/paperStyle';
+import { PAPER_STYLE_POLICIES, lightVector, surfacePaperStyle } from '../lib/paper/paperStyleResolve';
+import type { PaperScene } from '../lib/paper/paperScene';
+import { widestPenCssPx } from '../lib/paper/paperSvg';
 import { PreparedModelCache } from '../lib/preparedModelCache';
-import type { SimulatorExportBackground } from '../lib/simulatorSettings';
 import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_FOLDED_MESHES } from './simulatorLimits';
 import {
   FOLDED_3D_REQUIRED_DEPTH_BITS,
@@ -8,19 +11,24 @@ import {
   type Folded3dMeshPayload,
 } from './foldedMeshSource';
 import {
+  createFramingFollow,
+  followFraming,
+  framingOf,
+  type FramingFollow,
+} from './framingFollow';
+import {
   GlCore,
   OrigamiModel,
   ReferenceSolver,
   SimulationClock,
   WebglSolver,
   cameraUniforms,
-  centroid,
-  boundingRadius,
   glContextAttributeOverrides,
   meshTopologyFor,
+  meshToPaperScene,
   prepareFoldModel,
-  renderMeshToSvg,
   setGlContextAttributeOverrides,
+  sheetExtent,
   type CameraUniforms,
   type GlContextAttributeOverrides,
   type FoldDocument,
@@ -31,7 +39,6 @@ import {
   type SimulatorDiagnostics,
   type SimulatorOptions,
   type SolverBackend,
-  type SvgRenderResult,
 } from '@treemaker/origami-simulator';
 
 // The simulator's solver, off the main thread.
@@ -123,8 +130,23 @@ export interface SimulatorModelInfo {
   edgesVertices: ArrayBuffer;
   /** One {@link EDGE_ASSIGNMENT_CODES} index per edge. */
   edgesAssignment: ArrayBuffer;
+  /**
+   * One `EDGE_CODE` per edge — the render topology's codes, which tell a
+   * source `F` crease (aux) from a triangulation diagonal (facet) where the
+   * FOLD letter cannot. What the canvas-2D fallback draws aux creases and the
+   * erode from, as the GPU edge pass does.
+   */
+  edgeCodes: ArrayBuffer;
+  /**
+   * Per edge, the ends of an aux crease laid over the faces that lie on the
+   * paper's edge or a fold (`MeshTopology.auxEnds`), `Uint8` — so the fallback
+   * erodes what the GPU pass and the export erode.
+   */
+  auxEnds: ArrayBuffer;
   /** 3 edge indices per (triangulated) face; -1 where an edge was not found. */
   facesEdges: ArrayBuffer;
+  /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
+  sheet: number;
   diagnostics: SimulatorDiagnostics;
   /** Which solver actually got selected, for the UI's backend indicator. */
   backend: SimulatorBackendId;
@@ -156,6 +178,12 @@ export interface SimulatorFramePayload {
   stepsThisTick: number;
   elapsedMs: number;
   converged: boolean;
+  /**
+   * Whether the camera has arrived at the shape as it is (`framingFollow`). A
+   * model can settle before its camera does, so the frame loop keeps asking for
+   * frames until both have.
+   */
+  framed: boolean;
   maxVelocity: number;
   foldPercent: number;
   /**
@@ -221,10 +249,15 @@ interface SessionView {
   width: number;
   height: number;
   settings: RenderSettings;
-  /** Camera fit, computed once from the settled model. */
+  /** The camera's fit: the shape as it is, eased — see {@link framing}. */
   center: [number, number, number];
   radius: number;
   fitted: boolean;
+  /**
+   * How the fit follows the shape as it folds (`framingFollow`); absent for a
+   * folded figure, whose shape is final and whose fit is known at load.
+   */
+  framing?: FramingFollow;
   /**
    * When this view last actually drew, so the shared buffer can be sized from
    * the windows in use rather than from every window that exists.
@@ -246,9 +279,59 @@ const DEFAULT_RENDER_SETTINGS: RenderSettings = {
   showFaces: true,
   showEdges: true,
   lighting: true,
-  creaseWidthPx: 3,
+  edgeWidthPx: 3,
+  mountainWidthPx: 3,
+  valleyWidthPx: 3,
   faceAlpha: 1,
 };
+
+export interface SimulatorExportSnapshotOptions {
+  token?: SimulatorSessionToken;
+  /**
+   * Device pixels per CSS pixel of the frame being exported. The view is held
+   * in device pixels — the drawing buffer's size — and the scene is measured in
+   * CSS pixels, so the same frame exports at the same size from every display.
+   * Defaults to 1, which reads the buffer as CSS pixels.
+   */
+  devicePixelRatio?: number;
+  /**
+   * The view to export, when the caller knows it better than this session
+   * does. Applied as {@link SimulatorWorkerApi.setCamera} and
+   * {@link SimulatorWorkerApi.setRenderSettings} would be, minus the redraw.
+   * The canvas-2D path never sends either — the main thread draws, so a message
+   * per orbit frame would buy nothing — and without them the file was the
+   * defaults at the opening camera. On the GPU path they are what was already
+   * pushed, or a camera still queued behind an in-flight one, and either way
+   * the newest. Of the settings only `showFaces` / `showEdges` reach the page:
+   * the look comes from the style each scene is built with.
+   */
+  camera?: SimulatorCamera;
+  settings?: RenderSettings;
+}
+
+/** What a scene of a frozen frame is built with. */
+export interface SimulatorExportSceneOptions {
+  /**
+   * The style the page will be painted with — the app's export style or a
+   * preset, with the object's overrides applied, resolved on the main thread
+   * where the settings live. The scene takes its light and its widest pen.
+   */
+  style: PaperStyle;
+  /** Mark the pieces no pixel shows: asked for only when the page drops them. */
+  markHidden: boolean;
+}
+
+/** A frame frozen for an export dialog: everything a scene of it is built from. */
+interface ExportSnapshot {
+  session: Session;
+  positions: Float32Array;
+  topology: ReturnType<typeof meshTopologyFor>;
+  camera: CameraUniforms;
+  sheet: ReturnType<typeof sheetExtent>;
+  perspective: boolean;
+  showFaces: boolean;
+  showEdges: boolean;
+}
 
 /**
  * Identifies one loaded model, handed back by `load` and quoted by every later
@@ -281,6 +364,9 @@ export type SimulatorSessionToken = number;
  * camera moves them, which is the whole point.
  */
 const sessions = new Map<SimulatorSessionToken, Session>();
+/** Frames frozen for open export dialogs, by the id `beginExportSnapshot` handed out. */
+const exportSnapshots = new Map<number, ExportSnapshot>();
+let exportSnapshotId = 0;
 let sessionToken: SimulatorSessionToken = 0;
 /** Ticks on every session access, so eviction can order by use. */
 let useCounter = 0;
@@ -380,6 +466,9 @@ function disposeSession(token: SimulatorSessionToken): void {
   if (!existing) return;
   existing.backend.dispose();
   sessions.delete(token);
+  for (const [id, snapshot] of exportSnapshots) {
+    if (snapshot.session === existing) exportSnapshots.delete(id);
+  }
 }
 
 /**
@@ -1038,6 +1127,7 @@ const api = {
         center: [0, 0, 0],
         radius: 1,
         fitted: false,
+        framing: createFramingFollow(),
         lastRenderedAt: -Infinity,
       },
       // A fresh load counts as the most recent use, so a window that has just
@@ -1063,6 +1153,10 @@ const api = {
       edgesAssignment[index] = code < 0 ? EDGE_ASSIGNMENT_CODES.indexOf('U') : code;
     });
 
+    const topology = meshTopologyFor(prepared);
+    const edgeCodes = topology.edgeAssignments;
+    const auxEnds = topology.auxEnds ?? new Uint8Array(edgeCodes.length);
+
     const facesEdges = new Int32Array(prepared.faceCount * 3);
     facesEdges.fill(-1);
     prepared.facesEdges.forEach((face, faceIndex) => {
@@ -1080,7 +1174,10 @@ const api = {
         indices: indices.buffer as ArrayBuffer,
         edgesVertices: edgesVertices.buffer as ArrayBuffer,
         edgesAssignment: edgesAssignment.buffer as ArrayBuffer,
+        edgeCodes: edgeCodes.buffer as ArrayBuffer,
+        auxEnds: auxEnds.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
+        sheet: sheetExtent(model.originalPositions),
         diagnostics: backend.readDiagnostics(),
         backend: backendId,
         token: sessionToken,
@@ -1089,6 +1186,8 @@ const api = {
         indices.buffer as ArrayBuffer,
         edgesVertices.buffer as ArrayBuffer,
         edgesAssignment.buffer as ArrayBuffer,
+        edgeCodes.buffer as ArrayBuffer,
+        auxEnds.buffer as ArrayBuffer,
         facesEdges.buffer as ArrayBuffer,
       ]
     );
@@ -1199,68 +1298,95 @@ const api = {
   },
 
   /**
-   * The current view as a standalone SVG document, or null when there is
-   * nothing to draw.
+   * Freeze the current view for an export dialog, and answer the id its
+   * scenes are asked for by; null for a session that is not there.
    *
    * Here rather than on the main thread because this is where the complete
    * render state already lives: positions in the solver, the camera and
-   * appearance on {@link SessionView}. It is the vector sibling of
-   * {@link renderGpu} — same positions, same topology, same camera, same
-   * settings — which is what makes the file the view the user is looking at
-   * rather than a second interpretation of it.
+   * framing on {@link SessionView}. The positions are copied, so the solver
+   * moving on — a fold still settling — changes nothing the dialog shows or
+   * saves (E4 in `implementation-plans/paper-export-dialog.md`): every scene
+   * of the snapshot is the frame the user opened the dialog on, the vector
+   * sibling of {@link renderGpu} — same positions, same topology, same camera.
    *
    * Distinct from {@link exportGeometry}, which serves STL/OBJ and wants raw
    * geometry with no camera at all.
    */
-  exportSvg(
-    options: {
-      token?: SimulatorSessionToken;
-      /**
-       * Page background. Defaults to transparent, which is not what is on
-       * screen: the panel's backdrop is the app's canvas colour, and a file
-       * carrying that would arrive in a document with the app's dark chrome
-       * baked in. Transparent composites into anything.
-       */
-      background?: SimulatorExportBackground;
-    } = {}
-  ): SvgRenderResult | null {
+  beginExportSnapshot(options: SimulatorExportSnapshotOptions = {}): number | null {
     const active = sessionFor(options.token);
     if (!active) return null;
+    if (options.camera) {
+      active.view.view = options.camera.view;
+      active.view.width = options.camera.width;
+      active.view.height = options.camera.height;
+    }
+    if (options.settings) active.view.settings = options.settings;
     const prepared = active.model.prepared;
     const positions = new Float32Array(prepared.vertexCount * 3);
     active.backend.readPositions(positions);
-    // The GPU path fits on its first settled frame; the canvas-2D path has never
-    // had reason to, so fit here from the same positions being exported.
-    if (!active.view.fitted) fitTo(positions, active.view);
+    // The GPU path's fit is the one on screen, following the shape. The
+    // canvas-2D path frames on the main thread, where the worker cannot see
+    // it, and frames the shape as it is — so fit here from the same positions
+    // being exported.
+    if (!active.gpuRender || !active.view.fitted) fitTo(positions, active.view);
 
-    let strain: Float32Array | null = null;
-    if (active.view.settings.colorMode === 'strain') {
-      strain = new Float32Array(prepared.vertexCount);
-      active.backend.readStrain(strain);
-    }
-
-    const camera = cameraUniforms(
-      active.view.view,
-      active.view.center,
-      active.view.radius,
-      active.view.width,
-      active.view.height
-    );
-    const mode = options.background ?? 'transparent';
-    const settings: RenderSettings =
-      mode === 'white'
-        ? { ...active.view.settings, background: [1, 1, 1], backgroundAlpha: 1 }
-        : { ...active.view.settings, backgroundAlpha: 1 };
-
-    // The page size comes back with the document because a rasterizer needs it,
-    // and re-deriving it from a string we just produced would be worse.
-    return renderMeshToSvg(positions, meshTopologyFor(prepared), camera, settings, {
+    // The camera in CSS px: the view is held in device pixels — the drawing
+    // buffer's size — and the scene is measured in CSS px, so the same frame
+    // exports at the same size from every display.
+    const dpr = Math.max(1, options.devicePixelRatio ?? 1);
+    exportSnapshotId += 1;
+    exportSnapshots.set(exportSnapshotId, {
+      session: active,
+      positions,
+      topology: meshTopologyFor(prepared),
+      camera: cameraUniforms(
+        active.view.view,
+        active.view.center,
+        active.view.radius,
+        active.view.width / dpr,
+        active.view.height / dpr
+      ),
+      sheet: sheetExtent(active.model.originalPositions),
       // The canvas-2D fallback is orthographic, so a machine drawing through it
       // must export the way its own screen looks.
       perspective: Boolean(active.gpuRender),
-      strain,
-      background: mode !== 'transparent',
+      showFaces: active.view.settings.showFaces,
+      showEdges: active.view.settings.showEdges,
     });
+    return exportSnapshotId;
+  },
+
+  /**
+   * A scene of a frozen frame, built with a style's light and widest pen, or
+   * null when there is nothing to draw or the snapshot has gone. It crosses to
+   * the main thread and is painted there, so a page option is a repaint with
+   * no round trip.
+   */
+  exportScene(snapshotId: number, { style, markHidden }: SimulatorExportSceneOptions): PaperScene | null {
+    const snapshot = exportSnapshots.get(snapshotId);
+    if (!snapshot) return null;
+    // As the simulator draws the style: the fields its policy applies, the
+    // rest at their defaults. The inline-simulation policy applies the same
+    // fields, so one policy serves both surfaces here.
+    const drawn = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
+    const scene = meshToPaperScene(snapshot.positions, snapshot.topology, snapshot.camera, {
+      sheet: snapshot.sheet,
+      perspective: snapshot.perspective,
+      // A page that keeps buried faces has no use for the hidden test, which
+      // is the expensive half of building the scene.
+      markHidden,
+      lighting: drawn.light.enabled,
+      lightDir: lightVector(drawn.light.azimuth, drawn.light.elevation),
+      lineWidth: widestPenCssPx(drawn),
+      showFaces: snapshot.showFaces,
+      showEdges: snapshot.showEdges,
+    });
+    return scene.items.length === 0 ? null : scene;
+  },
+
+  /** Let a frozen frame go: its dialog closed. Snapshots also go with their session. */
+  endExportSnapshot(snapshotId: number): void {
+    exportSnapshots.delete(snapshotId);
   },
 
   diagnostics(): SimulatorDiagnostics {
@@ -1459,13 +1585,14 @@ async function readFrame(
   // GPU-render mode: the worker draws straight to the transferred canvas. No
   // positions cross to the main thread at all -- the whole point of this path.
   if (active.gpuRender) {
-    refitOnce(active.gpuRender, active.view);
+    const framed = followFit(active.gpuRender, active.view, tick.converged);
     const bitmap = await renderGpu(active.gpuRender, active.view);
     const payload = {
       positions: null,
       colors: null,
       renderedInWorker: true,
       bitmap,
+      framed,
       ...scalars,
     };
     return bitmap ? transfer(payload, [bitmap]) : payload;
@@ -1491,6 +1618,9 @@ async function readFrame(
       colors: colors ? (colors.buffer as ArrayBuffer) : null,
       renderedInWorker: false,
       bitmap: null,
+      // The canvas-2D path frames on the main thread, and redraws there until
+      // its own camera arrives.
+      framed: true,
       ...scalars,
     },
     transferables
@@ -1836,27 +1966,46 @@ async function renderGpu(
 }
 
 /**
- * Fit the camera once, from the first settled frame. Matches the canvas-2D
- * renderer, which also fits once (a folded model shrinks, and refitting every
- * frame makes it visibly "breathe"). A readback of positions here is a one-off
- * on load, not a per-frame cost.
+ * Frame the shape as it is, eased (`framingFollow`), and say whether the
+ * camera has arrived. The positions are read back only when a measure is due —
+ * a few times a second while the model moves, and once when it settles — so the
+ * render path stays free of readbacks in between.
  */
-function refitOnce(solver: WebglSolver, state: SessionView): void {
-  if (state.fitted) return;
-  const positions = new Float32Array(solver.vertexCount * 3);
-  solver.readPositions(positions);
-  fitTo(positions, state);
+function followFit(solver: WebglSolver, state: SessionView, settled: boolean): boolean {
+  state.framing ??= createFramingFollow();
+  const { framing, arrived } = followFraming(
+    state.framing,
+    nowMs(),
+    () => {
+      const positions = new Float32Array(solver.vertexCount * 3);
+      solver.readPositions(positions);
+      return framingOf(positions);
+    },
+    settled
+  );
+  state.center = [framing.center[0], framing.center[1], framing.center[2]];
+  state.radius = framing.radius;
+  state.fitted = true;
+  return arrived;
 }
 
 /** Frame a set of positions, which is what makes the camera's scale meaningful. */
 function fitTo(positions: Float32Array, state: SessionView): void {
-  const center = centroid(positions);
+  const { center, radius } = framingOf(positions);
   state.center = center;
-  state.radius = boundingRadius(positions, center);
+  state.radius = radius;
   state.fitted = true;
 }
 
 export type SimulatorWorkerApi = typeof api;
+
+/**
+ * Re-exported for the tests that pinned them here. `sheetExtent` lives in the
+ * simulator package now, beside the renderer that erodes by it; the pen width
+ * with the painter.
+ */
+export { sheetExtent };
+export { widestPenCssPx } from '../lib/paper/paperSvg';
 
 /**
  * The worker API as a plain object, usable without a Worker.

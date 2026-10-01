@@ -22,6 +22,9 @@ describe('the paper’s other side', () => {
       { kind: 'line', from: [0, 1], to: [1, 1], style: 'valley' },
       { kind: 'line', from: [0, 2], to: [1, 2], style: 'pinch-mountain' },
       { kind: 'line', from: [0, 3], to: [1, 3], style: 'pinch-valley' },
+      // A line of the finished pattern stays one: each pair swaps within itself.
+      { kind: 'line', from: [0, 6], to: [1, 6], style: 'fold-mountain' },
+      { kind: 'line', from: [0, 7], to: [1, 7], style: 'fold-valley' },
       // Not directions: context, a reference, the paper's own edge.
       { kind: 'line', from: [0, 4], to: [1, 4], style: 'crease' },
       { kind: 'line', from: [0, 5], to: [1, 5], style: 'highlight' },
@@ -33,6 +36,8 @@ describe('the paper’s other side', () => {
       'mountain',
       'pinch-valley',
       'pinch-mountain',
+      'fold-valley',
+      'fold-mountain',
       'crease',
       'highlight',
       'point',
@@ -52,6 +57,7 @@ describe('the paper’s other side', () => {
     const primitives: StepDiagramPrimitive[] = [
       { kind: 'line', from: [0, 0], to: [1, 0], style: 'mountain' },
       { kind: 'line', from: [0, 1], to: [1, 1], style: 'pinch-valley' },
+      { kind: 'line', from: [0, 2], to: [1, 2], style: 'fold-mountain' },
     ];
     expect(seenFromTheBack(seenFromTheBack(primitives))).toEqual(primitives);
   });

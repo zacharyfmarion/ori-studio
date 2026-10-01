@@ -19,6 +19,7 @@ import { isFoldedFigureStale } from './foldedFigureStaleness';
 import {
   foldedFigureFlipState,
   isFoldedFigureReady,
+  type FoldedAppearanceEdit,
   type FoldedFigureActionDeps,
   type FoldedModelGesture,
 } from './foldedFigureActions';
@@ -30,7 +31,7 @@ import {
   DEFAULT_FOLDED_3D_CAMERA,
   foldedFigureOtherSideCamera,
   type FoldedFigureCamera,
-} from './foldedFigure3dProjection';
+} from './folded3dCamera';
 import {
   advanceFoldedFigureOrbit,
   beginFoldedFigureOrbit,
@@ -42,7 +43,7 @@ import {
   getFolded3dOrbit,
   publishFolded3dOrbit,
 } from './folded3dRuntime';
-import { reproject3dFigureAt } from './folded3dReproject';
+import { reproject3dSceneAt } from './folded3dReproject';
 import {
   beginOrbitGesture,
   endOrbitGesture,
@@ -73,6 +74,9 @@ import { foldedFigureGesture } from './foldedFigureGesture';
 import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
 import { queueFoldedModelWrite } from './foldedModelWriteQueue';
 import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
+import { openFoldedFigureExport } from './openFoldedFigureExport';
+import { useSettingsStore } from '../../store/settingsStore';
+import { effectiveObjectPaperStyle, setFoldedFigureAppearance } from '../paper/objectPaperStyle';
 
 /**
  * The face folding holds fixed. Oriedita lets this be chosen and the kernel still
@@ -168,9 +172,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
   );
   const refoldOristudioCpFoldedFigure = useWorkspaceStore(
     (state) => state.refoldOristudioCpFoldedFigure
-  );
-  const exportOristudioCpFoldedFigure = useWorkspaceStore(
-    (state) => state.exportOristudioCpFoldedFigure
   );
   const setOristudioCpViewportOption = useWorkspaceStore(
     (state) => state.setOristudioCpViewportOption
@@ -500,23 +501,23 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         // record it, so stop here rather than move the figure un-undoably.
         if (!session.token) return;
       }
-      // A windowed figure is drawn by its mesh at the camera alone, so the CPU
-      // projection would be built and then thrown away — `earcut` over every cell
-      // ring plus a BSP build, per pointer move, for a picture nobody draws.
+      // A windowed figure is drawn by its mesh at the camera alone, so the
+      // scene would be built and then thrown away — a BSP build and a
+      // hidden-piece pass, per pointer move, for a picture nobody draws.
       //
-      // Otherwise projected here rather than in a render pass, because React's
+      // Otherwise built here rather than in a render pass, because React's
       // commit is the wrong place for that work. Null when the figure has no
       // render model (reopened from a file), which the side table carries through
       // as "keep the picture you have".
-      let snapshot = null;
+      let scene = null;
       if (!session.windowed) {
         // Timed: this is the whole cost of turning an unwindowed figure, it runs
         // on this thread once per pointermove, and no worker counter can see it.
         const started = performance.now();
-        snapshot = reproject3dFigureAt(figure, figure.displayStyle, next);
+        scene = reproject3dSceneAt(figure, figure.displayStyle, next);
         recordOrbitReproject(performance.now() - started);
       }
-      publishFolded3dOrbit(session.id, { camera: next, snapshot });
+      publishFolded3dOrbit(session.id, { camera: next, scene });
     },
     [figureById]
   );
@@ -676,9 +677,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
         timer: window.setTimeout(() => commitZoomRef.current(), FOLDED_3D_ZOOM_SETTLE_MS),
         token,
       };
-      // No snapshot: only a windowed figure can be zoomed, and a window draws
+      // No scene: only a windowed figure can be zoomed, and a window draws
       // from the camera alone.
-      publishFolded3dOrbit(id, { camera: { ...before, zoom }, snapshot: null });
+      publishFolded3dOrbit(id, { camera: { ...before, zoom }, scene: null });
     },
     [figureById, oristudioCpFocusedFoldedFigureId]
   );
@@ -815,6 +816,58 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
     [endOpenMenuGesture]
   );
 
+  /**
+   * Pin a paper-style field on a figure from the Style menu, under the same
+   * gesture protocol as {@link updateFoldedModel}: one entry through the
+   * override verb without a gesture, one run per control with. The kernel
+   * model follows through the paper-style mirror, so a colour drag is still a
+   * queued round trip per coalesced tick and the bracket's commit still waits
+   * for the kernel's answer. Counted once per run, never per pointer move.
+   */
+  const setFoldedAppearance = useCallback(
+    (
+      figure: OristudioCpFoldedFigureEntry,
+      edit: FoldedAppearanceEdit,
+      gesture?: FoldedModelGesture
+    ) => {
+      const surface = isFolded3dFigure(figure) ? 'folded-3d' : 'folded-flat';
+      if (!gesture) {
+        track(ANALYTICS_EVENTS.paperStyleOverridden, {
+          surface,
+          field: edit.field,
+          reset: edit.value === undefined,
+        });
+        void setFoldedFigureAppearance(figure.id, edit.field, edit.value);
+        return;
+      }
+      const open = menuGestureRef.current;
+      if (
+        !open ||
+        open.gesture.scope !== gesture.scope ||
+        !foldedFigureGesture.isOpen(open.token)
+      ) {
+        endOpenMenuGesture();
+        const token = foldedFigureGesture.begin(gesture.scope);
+        if (!token) return;
+        menuGestureRef.current = { gesture, token };
+        track(ANALYTICS_EVENTS.paperStyleOverridden, { surface, field: edit.field, reset: false });
+      }
+      useWorkspaceStore
+        .getState()
+        .setOristudioCpFoldedFigureAppearance(figure.id, edit.field, edit.value);
+    },
+    [endOpenMenuGesture]
+  );
+
+  // The display style, so a figure's effective style can be resolved for the
+  // Style menu's colour rows and its switches know what clearing a pin hands
+  // back; the rows re-render when it moves.
+  const displayPaperStyle = useSettingsStore((state) => state.paperStyle.display);
+  const foldedPaperStyle = useCallback(
+    (figure: OristudioCpFoldedFigureEntry) => effectiveObjectPaperStyle(figure, displayPaperStyle),
+    [displayPaperStyle]
+  );
+
   const handleDuplicateFoldedFigure = useCallback(() => {
     if (!activeFoldedFigure) return;
     const id = activeFoldedFigure.id;
@@ -892,6 +945,9 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       },
       updateModel: updateFoldedModel,
       endModelGesture: endFoldedModelGesture,
+      paperStyle: foldedPaperStyle,
+      inheritedPaperStyle: displayPaperStyle,
+      setAppearance: setFoldedAppearance,
       foldAnother: (figure) =>
         runFoldedFigureAction(
           t('panels:creasePattern.anotherSolutionAction', 'Show another solution'),
@@ -915,8 +971,8 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       isStale: (figure) => staleFoldedFigureIds.has(figure.id),
       // Not wrapped in runFoldedFigureAction: saving a file changes nothing
       // about the document, so it is not an undo step.
-      exportAs: (figure, format) => {
-        void exportOristudioCpFoldedFigure(format, figure.id);
+      exportFigure: (figure) => {
+        void openFoldedFigureExport(figure.id, t);
       },
       // What a 3D verdict offers to do about itself. None of the three is an
       // undo step: two only change what is shown, and the third opens a
@@ -962,12 +1018,14 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       updateOristudioCpFoldedFigureModel,
       updateFoldedModel,
       endFoldedModelGesture,
+      foldedPaperStyle,
+      displayPaperStyle,
+      setFoldedAppearance,
       trackStyled,
       setOristudioCpFolded3dCamera,
       foldAnotherOristudioCpFigure,
       duplicateOristudioCpFoldedFigure,
       refoldOristudioCpFoldedFigure,
-      exportOristudioCpFoldedFigure,
       runFoldedFigureAction,
       setOristudioCpViewportOption,
       requestOristudioCpAction,

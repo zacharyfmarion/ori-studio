@@ -123,6 +123,8 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
       width: model.sheet.width * longer,
       height: model.sheet.height * longer,
       centre: map([model.sheet.width / 2, model.sheet.height / 2]),
+      // The frame may turn the paper; its edge is found along its own axes.
+      axes: { x: frame.x_axis, y: frame.y_axis },
     },
     primitives,
   };

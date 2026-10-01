@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TFunction } from 'i18next';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import type {
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedFigureStatus,
@@ -45,6 +46,9 @@ function makeDeps(overrides: Partial<FoldedFigureActionDeps> = {}): FoldedFigure
     setDisplayStyle: vi.fn(),
     updateModel: vi.fn(),
     endModelGesture: vi.fn(),
+    paperStyle: () => DEFAULT_PAPER_STYLE,
+    inheritedPaperStyle: DEFAULT_PAPER_STYLE,
+    setAppearance: vi.fn(),
     foldAnother: vi.fn(),
     duplicate: vi.fn(),
     remove: vi.fn(),
@@ -67,7 +71,8 @@ describe('foldedFigureMenuItems', () => {
     return found;
   }
 
-  it('nests the Style group as one submenu: two picks, three colours, one switch', () => {
+  it('nests the Style group as one submenu: two picks, three colours, two switches', () => {
+    // Re-pinned for Phase 5: the existing-crease switch follows the shadow.
     const items = styleMenu(foldedFigureMenuItems(makeFigure(), makeDeps())).items;
     expect(items.map((item) => (item.kind === 'separator' ? '—' : `${item.kind}:${item.id}`))).toEqual([
       'submenu:display-style',
@@ -78,6 +83,8 @@ describe('foldedFigureMenuItems', () => {
       'color:line-color',
       '—',
       'checkbox:shadow',
+      '—',
+      'checkbox:aux',
     ]);
   });
 
@@ -96,17 +103,13 @@ describe('foldedFigureMenuItems', () => {
   // on showing the state it was built with. Its picks close it, as a context
   // menu's picks do everywhere; the toolbar asks for the opposite explicitly.
   it('closes on a pick in the context menu, and stays open only where asked', () => {
-    const items = foldedFigureMenuItems(makeFigure(), makeDeps({ exportAs: vi.fn() }));
-    const style = styleMenu(items).items;
+    const style = styleMenu(foldedFigureMenuItems(makeFigure(), makeDeps())).items;
     for (const item of style) {
       if (item.kind === 'submenu') {
         expect(item.items.every((row) => row.kind === 'radio' && !row.keepOpen)).toBe(true);
       }
       if (item.kind === 'checkbox') expect(item.keepOpen).toBeFalsy();
     }
-    const exportMenu = items.find((item) => item.kind === 'submenu' && item.id === 'export');
-    if (exportMenu?.kind !== 'submenu') throw new Error('no export submenu');
-    expect(exportMenu.items.every((row) => row.kind === 'action')).toBe(true);
 
     const group = buildFoldedFigureActions(makeFigure(), makeDeps()).find(
       (action) => action.kind === 'group'
@@ -121,7 +124,9 @@ describe('foldedFigureMenuItems', () => {
     }
   });
 
-  it('routes a colour row and the shadow row to the model bindings', () => {
+  it('routes a colour row to the paper-style pin and the shadow row to the model', () => {
+    // Re-pinned for the paper style (Phase 1): a colour row pins the figure's
+    // own style field under its gesture; the shadow stays a model field.
     const deps = makeDeps();
     const figure = makeFigure({
       snapshot: {
@@ -138,14 +143,27 @@ describe('foldedFigureMenuItems', () => {
     front.onCommit();
     shadow.onToggle();
 
-    expect(deps.updateModel).toHaveBeenNthCalledWith(
-      1,
+    expect(deps.setAppearance).toHaveBeenCalledWith(
       figure,
-      { front_color: { red: 1, green: 2, blue: 3 } },
+      { field: 'paper.front', value: '#010203' },
       { scope: 'folded-color:folded-1:front_color', label: 'Change folded model color' }
     );
     expect(deps.endModelGesture).toHaveBeenCalledWith('folded-color:folded-1:front_color');
-    expect(deps.updateModel).toHaveBeenNthCalledWith(2, figure, { display_shadows: true });
+    expect(deps.updateModel).toHaveBeenCalledWith(figure, { display_shadows: true });
+  });
+
+  it('offers export as one item, not a submenu of formats, that hands the figure to the dialog', () => {
+    const exportFigure = vi.fn();
+    const figure = makeFigure();
+    const items = foldedFigureMenuItems(figure, makeDeps({ exportFigure }));
+    expect(items.flatMap((item) => (item.kind === 'submenu' ? [item.id] : []))).toEqual(['style']);
+    const exported = items.find((item) => item.kind === 'action' && item.id === 'export');
+    if (exported?.kind !== 'action') throw new Error('no export item');
+    expect(exported).toMatchObject({ label: 'Export…', disabled: false });
+
+    exported.onSelect();
+    expect(exportFigure).toHaveBeenCalledTimes(1);
+    expect(exportFigure).toHaveBeenCalledWith(figure);
   });
 
   it('invokes the bound verb when an item is selected', () => {

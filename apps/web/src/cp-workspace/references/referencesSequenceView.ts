@@ -144,6 +144,20 @@ export function sideAt(steps: readonly ReferencesViewStep[], index: number): Ref
   return steps[index]?.side ?? 'front';
 }
 
+/**
+ * The number the strip prints on each card, in `steps` order: folds counted
+ * 1-up, and null for a card that is not one — a turn-over and the finished
+ * pattern are cards of the reading, not numbered folds.
+ *
+ * The one rule for it: the strip prints these and a file exported from a card
+ * is named by them, and the two disagreeing is how a "step 4" file came out of
+ * the card numbered 3.
+ */
+export function foldCardNumbers(steps: readonly ReferencesViewStep[]): (number | null)[] {
+  let folds = 0;
+  return steps.map((step) => (step.kind === 'fold' ? (folds += 1) : null));
+}
+
 /** How many times the folder turns the paper over to read this sequence. */
 export function turnOverCount(steps: readonly ReferencesViewStep[]): number {
   return steps.filter((step) => step.kind === 'turn-over').length;

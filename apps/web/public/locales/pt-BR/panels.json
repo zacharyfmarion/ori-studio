@@ -246,9 +246,20 @@
       "title": "Imagem"
     },
     "inlineSimulation": {
+      "followsNote": "Segue o estilo de papel, a menos que seja substituído",
+      "paper": "Papel",
       "settings": "Configurações do simulador",
       "sharedNote": "Compartilhadas com o espaço de trabalho Simular e todas as janelas",
       "title": "Janela de simulação"
+    },
+    "paperStyle": {
+      "auxColor": "Cor do vinco auxiliar",
+      "auxVisible": "Vincos auxiliares",
+      "auxWidth": "Largura do vinco auxiliar (pt)",
+      "changeAction": "Alterar estilo de papel",
+      "erode": "Recuo (% do papel)",
+      "foldsAsEdgesReason": "Todas as dobras são desenhadas como bordas",
+      "resetAction": "Redefinir estilo de papel"
     },
     "region": {
       "hidden": "Oculta",
@@ -577,7 +588,6 @@
     "sendTextToBack": "Enviar texto para trás",
     "setFoldedModelUpright": "Definir a vertical do modelo dobrado",
     "shadow": "Sombra",
-    "shadowUnsupported3d": "As sombras ainda não são desenhadas para um modelo dobrado em 3D",
     "stale": "Desatualizado",
     "viewFoldedModelOtherSide": "Ver pelo outro lado",
     "viewportControls": "Controles da viewport do padrão de vincos",
@@ -788,8 +798,6 @@
     "delete": "Excluir",
     "duplicate": "Duplicar",
     "export": "Exportar…",
-    "exportPng": "Imagem PNG",
-    "exportSvg": "Imagem SVG",
     "firstSolution": "Voltar à primeira solução",
     "flip": "Virar",
     "label": "Ações do modelo dobrado",
@@ -865,6 +873,7 @@
   },
   "references": {
     "actions": {
+      "noDiagramHint": "Nenhum passo está sendo mostrado",
       "noFoldHint": "Não há nada para dobrar neste cartão",
       "noTargetHint": "Escolha primeiro um vértice ou uma dobra",
       "oneWayHint": "Este passo só se dobra de uma forma",
@@ -1059,6 +1068,8 @@
       "mergeSymmetricHelp": "Duas dobras que se espelham — o canto esquerdo ao centro e o canto direito ao centro, por exemplo — aparecem como um só passo com uma seta para cada uma, como um diagrama as dobra. Desligado, cada dobra é um passo próprio.",
       "precreaseGrid": "Pré-vincar a grade",
       "sequence": "Sequência de pré-dobras",
+      "showAuxCreases": "Mostrar vincos auxiliares",
+      "showAuxCreasesHelp": "As linhas auxiliares do padrão de vincos, desenhadas no papel em cada passo no estilo dos vincos auxiliares e nunca dobradas. Segue Configurações ▸ Papel até que você altere aqui.",
       "solutions": "Soluções"
     },
     "sheets": {
@@ -1155,9 +1166,7 @@
     }
   },
   "simulatorExport": {
-    "png": "Imagem PNG",
-    "svg": "Imagem SVG",
-    "trigger": "Exportar visualização"
+    "trigger": "Exportar visualização…"
   },
   "simulatorSegments": {
     "creasePatterns": "Padrões de vincos",
@@ -1168,10 +1177,6 @@
   },
   "simulatorViewControls": {
     "axialStiffness": "Estiramento",
-    "background": "Fundo",
-    "backgroundTheme": "Conforme o tema",
-    "backgroundTransparent": "Transparente",
-    "backgroundWhite": "Branco",
     "borderEdge": "Borda",
     "colorMode": "Cor",
     "colorPaper": "Papel",
@@ -1179,17 +1184,11 @@
     "creaseLines": "Linhas de dobra",
     "creases": "Dobras",
     "creaseStiffness": "Dobra",
-    "creaseStyle": "Estilo",
-    "creaseStyleColor": "Monte / vale",
-    "creaseStyleMono": "Uma tinta",
-    "creaseStyleMonoDashed": "Uma tinta, tracejada",
-    "creaseWidth": "Espessura",
     "damping": "Amortecimento",
-    "export": "Exportar",
-    "exportHint": "Fundo da página da imagem exportada.",
     "faces": "Faces",
     "faceStiffness": "Face",
-    "hiddenLines": "Linhas ocultas",
+    "foldsAsEdges": "Desenhar todos os vincos como bordas",
+    "foldsAsEdgesHelp": "Uma dobra já feita é uma borda do papel: todas as dobras são desenhadas com a cor e o tracejado da borda do papel, na largura média das dobras de monte e de vale. Desligado, as dobras são desenhadas pela direção.",
     "lighting": "Iluminação",
     "material": "Material",
     "materialHint": "Quanto o papel resiste a esticar e dobrar.",

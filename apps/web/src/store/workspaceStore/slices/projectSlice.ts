@@ -59,8 +59,13 @@ import {
   COUNT_BUCKETS,
   DESIGN_TAB_COUNT_BUCKETS,
   track,
+  trackCreasePatternExported,
+  type CreasePatternFoldedFigure,
   type DesignTabSource,
 } from '../../../analytics';
+import type { PaperExportStyleChoice } from '../../../lib/paperExportSettings';
+import { paperPresetRows, paperStyleChoiceName } from '../../../lib/paperPresetRows';
+import { useSettingsStore } from '../../settingsStore';
 import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
 import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
@@ -75,11 +80,6 @@ import {
   rememberAuthor,
   uploadCpShareThumbnail,
 } from '../../../cp-workspace/share/cpShareService';
-import {
-  renderFoldedFigurePng,
-  serializeFoldedFigureSvg,
-  type FoldedFigureExportFormat,
-} from '../../../cp-workspace/folded/foldedFigureExport';
 import { ensureCpSegmentationArtifacts } from '../../../cp-workspace/cpSegmentationArtifacts';
 import {
   importedCreasePatternFormat,
@@ -214,6 +214,7 @@ import {
   foldOristudioCpDocument,
   foldOristudioCpFigureToCase,
   freeOristudioCpFoldedFigure,
+  getOristudioCpFoldedFigurePaperScene,
   getOristudioCpFoldedFigureRenderSnapshot,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
@@ -245,9 +246,26 @@ import type {
   OristudioCpGridMetadata,
 } from '../../../engine/oristudioCpTypes';
 
+/** The folded figure beside a crease pattern, as the analytics name it: its style, or none. */
+function creasePatternFoldedFigureName(style: PaperExportStyleChoice | null): CreasePatternFoldedFigure {
+  if (style === null) return 'none';
+  return paperStyleChoiceName(style, paperPresetRows(useSettingsStore.getState().paperStyle.presets));
+}
+
+/**
+ * A crease pattern saved as an image: remember the style its folded figure
+ * took, for the next export and share (X12), and say which it was.
+ */
+function recordCreasePatternImageExport(format: 'svg' | 'png', options: CreaseExportOptions): void {
+  const style = options.includeFoldedFigure ? options.foldedFigureStyle : null;
+  if (style !== null) useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(style);
+  trackCreasePatternExported({ format, foldedFigure: creasePatternFoldedFigureName(style) });
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
+
 
 
 function cpHistoryEntry(
@@ -588,6 +606,7 @@ async function foldExportSegment(
             display_mark: false,
             selected: false,
           }),
+        paperScene: (handle) => getOristudioCpFoldedFigurePaperScene(handle),
         free: (handle) => freeOristudioCpFoldedFigure(handle),
       },
       documentState.document,
@@ -2809,6 +2828,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           extensions: ['svg'],
         });
         if (!result) return false;
+        recordCreasePatternImageExport('svg', resolved.options);
         set({ projectMessage: `Exported ${result.name}` });
         return true;
       } catch (error) {
@@ -2839,6 +2859,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           mimeType: 'image/png',
         });
         if (!result) return false;
+        recordCreasePatternImageExport('png', resolved.options);
         set({ projectMessage: `Exported ${result.name}` });
         return true;
       } catch (error) {
@@ -2956,7 +2977,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
      * must degrade to the generic card rather than to a failed share. The Worker
      * serves a default when R2 has nothing, so there is no broken-image state.
      */
-    publishOristudioCpShare: async ({ title, author, renderCard }) => {
+    publishOristudioCpShare: async ({ title, author, renderCard, foldedFigureStyle = null }) => {
       const draft = get().oristudioCpShareDraft;
       if (!draft) return false;
       try {
@@ -2971,12 +2992,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           set({ oristudioCpShareDraft: { ...draft, url: created.url } });
         }
         if (author) rememberAuthor(author);
+        if (foldedFigureStyle !== null) {
+          useSettingsStore.getState().rememberCreasePatternFoldedFigureStyle(foldedFigureStyle);
+        }
         // The published link and its geometry are never sent — only that a share
-        // was created, a bucketed size, and whether it was titled/attributed.
+        // was created, a bucketed size, whether it was titled/attributed, and
+        // which style its folded figure took, if it had one.
         track('crease pattern shared', {
           crease_count_bucket: bucketCount(draft.fold.edges_vertices?.length ?? 0, COUNT_BUCKETS),
           had_title: Boolean(title),
           had_author: Boolean(author),
+          folded_figure: creasePatternFoldedFigureName(foldedFigureStyle),
         });
 
         void (async () => {
@@ -3067,6 +3093,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               extensions: ['svg'],
             });
             if (!result) return false;
+            recordCreasePatternImageExport('svg', resolved.options);
             set({ projectMessage: `Exported ${result.name}` });
             return true;
           }
@@ -3080,6 +3107,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
             mimeType: 'image/png',
           });
           if (!result) return false;
+          recordCreasePatternImageExport('png', resolved.options);
           set({ projectMessage: `Exported ${result.name}` });
           return true;
         }
@@ -3094,62 +3122,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           suggestedName: defaultFilename(patternTitle, format),
           path: null,
           extensions: [format],
-        });
-        if (!result) return false;
-        set({ projectMessage: `Exported ${result.name}` });
-        return true;
-      } catch (error) {
-        set({ status: 'error', error: engineError(error) });
-        return false;
-      }
-    },
-
-    exportOristudioCpFoldedFigure: async (
-      format: FoldedFigureExportFormat,
-      figureId: string,
-      fileService = getFileService()
-    ) => {
-      try {
-        const figure = get().oristudioCpFoldedFigures.find(
-          (candidate) => candidate.id === figureId
-        );
-        // Serialized straight from the snapshot the canvas is drawing, so the
-        // file is the figure the user is looking at — no second fold.
-        const snapshot = figure?.renderSnapshot;
-        if (!snapshot) {
-          const message = 'This folded model has nothing to export yet';
-          set({
-            oristudioCpError: message,
-            error: { code: 'invalid_operation', message },
-          });
-          return false;
-        }
-        const name = `${get().workspaceTitle} ${figure.title}`;
-
-        if (format === 'svg') {
-          const contents = serializeFoldedFigureSvg(snapshot);
-          if (!contents) return false;
-          const result = await fileService.saveTextFile({
-            title: 'Export Folded Figure SVG',
-            contents,
-            suggestedName: defaultFilename(name, 'svg'),
-            path: null,
-            extensions: ['svg'],
-          });
-          if (!result) return false;
-          set({ projectMessage: `Exported ${result.name}` });
-          return true;
-        }
-
-        const bytes = await renderFoldedFigurePng(snapshot);
-        if (!bytes) return false;
-        const result = await fileService.saveBinaryFile({
-          title: 'Export Folded Figure PNG',
-          bytes,
-          suggestedName: defaultFilename(name, 'png'),
-          path: null,
-          extensions: ['png'],
-          mimeType: 'image/png',
         });
         if (!result) return false;
         set({ projectMessage: `Exported ${result.name}` });
