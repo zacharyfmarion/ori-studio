@@ -14,6 +14,8 @@ import {
   DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_INK_PER_SHEET,
   DIAGRAM_LINE_INK,
+  DIAGRAM_MARKS,
+  type DiagramMarks,
   type DiagramPens,
 } from './diagram/diagramInk';
 
@@ -73,6 +75,11 @@ export interface DiagramProjector {
    */
   pens: DiagramPens;
   /**
+   * The rings, letters and arrowheads, in ink: the print sizes on a card or a
+   * page, the References view's own over its canvas (`REFERENCES_VIEW_MARKS`).
+   */
+  marks: DiagramMarks;
+  /**
    * How much shorter this drawing's dash runs are than the pen says.
    *
    * The pen's runs suit the canvas, where a dash is measured against creases.
@@ -115,7 +122,8 @@ function mirrors(ex: SvgPoint, ey: SvgPoint): boolean {
 export function createOverlayProjector(
   view: { origin: readonly [number, number]; ex: readonly [number, number]; ey: readonly [number, number] },
   ink: number,
-  pens: DiagramPens = DIAGRAM_LINE_INK
+  pens: DiagramPens = DIAGRAM_LINE_INK,
+  marks: DiagramMarks = DIAGRAM_MARKS
 ): DiagramProjector {
   const ex = { x: view.ex[0], y: view.ex[1] };
   const ey = { x: view.ey[0], y: view.ey[1] };
@@ -129,6 +137,7 @@ export function createOverlayProjector(
   project.ey = ey;
   project.ink = ink;
   project.pens = pens;
+  project.marks = marks;
   // The pen's own runs: on the canvas a dash is read against the creases.
   project.dashScale = 1;
   project.viewBox = '';
@@ -150,6 +159,7 @@ export function withPens(project: DiagramProjector, pens: DiagramPens): DiagramP
   copy.ey = project.ey;
   copy.ink = project.ink;
   copy.pens = pens;
+  copy.marks = project.marks;
   copy.dashScale = project.dashScale;
   copy.viewBox = project.viewBox;
   copy.size = project.size;
@@ -201,6 +211,7 @@ export function createDiagramProjector(
   project.ey = { x: 0, y: -scale };
   project.ink = longer * scale * DIAGRAM_INK_PER_SHEET;
   project.pens = pens;
+  project.marks = DIAGRAM_MARKS;
   project.dashScale = DIAGRAM_CARD_DASH_SCALE;
   project.viewBox = `0 0 ${size} ${size}`;
   project.size = size;
@@ -699,7 +710,7 @@ function inkUpToChord(
  * its sides.
  */
 export function arrowheadSize(arc: DiagramArc, project: DiagramProjector): number {
-  const sized = inkUpToChord(arc, project, DIAGRAM_ARROWHEAD_INK.length, DIAGRAM_ARROWHEAD_INK.ofChord);
+  const sized = inkUpToChord(arc, project, project.marks.arrowheadLength, DIAGRAM_ARROWHEAD_INK.ofChord);
   return Math.max(sized, ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink);
 }
 

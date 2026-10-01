@@ -10,7 +10,12 @@ import { useThemeStore } from '../../store/themeStore';
 import { applyTheme, DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from '../../themes';
 import { referencesCreaseAlpha } from '../../themes/referencesInk';
 import { createCpLineAppearanceResolver } from '../adapters/cpLineStyle';
-import { canvasDiagramInk, CP_CREASE_WIDTH_FACTOR, DIAGRAM_LINE_INK } from './diagram/diagramInk';
+import {
+  canvasDiagramInk,
+  CP_CREASE_WIDTH_FACTOR,
+  DIAGRAM_LINE_INK,
+  REFERENCES_VIEW_FLOORS,
+} from './diagram/diagramInk';
 import { useReferencesDiagramScene } from './useReferencesDiagramScene';
 import {
   REFERENCES_PAPER_TOKENS,
@@ -524,25 +529,64 @@ describe('useReferencesDiagramScene', () => {
 });
 
 describe('referencesCanvasPens', () => {
-  // The References line width is the edge pen: every References ink is
-  // measured from it, in place of the editor's View ▸ Line width.
-  it('measures the big view from the edge pen, and draws each pen at its own width', () => {
+  // A pen heavier than the view's floor draws at its own width, and the
+  // pattern's line width is the edge pen's when that is heavier than the reader's.
+  it('draws each pen at its own width where it is heavier than the view floor', () => {
     const style = {
       ...DEFAULT_PAPER_STYLE,
-      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 0.9 },
-      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 0.75 },
-      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, width: 1.4 },
+      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 2 },
+      mountainFolds: { ...DEFAULT_PAPER_STYLE.mountainFolds, width: 2.5 },
+      mountainDiagramCreases: { ...DEFAULT_PAPER_STYLE.mountainDiagramCreases, width: 3 },
+      auxCreases: {
+        ...DEFAULT_PAPER_STYLE.auxCreases,
+        pen: { ...DEFAULT_PAPER_STYLE.auxCreases.pen, width: 2 },
+      },
+      arrows: { ...DEFAULT_PAPER_STYLE.arrows, width: 3 },
     };
-    const { lineWidth, pens } = referencesCanvasPens(style);
-    const edgeCss = 0.9 * PT_TO_CSS_PX;
+    const { lineWidth, pens } = referencesCanvasPens(style, 1);
+    const edgeCss = 2 * PT_TO_CSS_PX;
     expect(CP_CREASE_WIDTH_FACTOR * lineWidth).toBeCloseTo(edgeCss, 9);
     const ink = canvasDiagramInk(lineWidth);
     expect(pens.edge.width * ink).toBeCloseTo(edgeCss, 9);
     // A step's fold in the diagram-crease pen, the pattern's in the fold pen.
-    expect(pens.mountain.width * ink).toBeCloseTo(1.4 * PT_TO_CSS_PX, 9);
-    expect(pens['fold-mountain'].width * ink).toBeCloseTo(0.75 * PT_TO_CSS_PX, 9);
-    expect(pens.aux.width * ink).toBeCloseTo(DEFAULT_PAPER_STYLE.auxCreases.pen.width * PT_TO_CSS_PX, 9);
-    expect(pens.arrow.width * ink).toBeCloseTo(DEFAULT_PAPER_STYLE.arrows.width * PT_TO_CSS_PX, 9);
+    expect(pens.mountain.width * ink).toBeCloseTo(3 * PT_TO_CSS_PX, 9);
+    expect(pens['fold-mountain'].width * ink).toBeCloseTo(2.5 * PT_TO_CSS_PX, 9);
+    expect(pens.aux.width * ink).toBeCloseTo(2 * PT_TO_CSS_PX, 9);
+    expect(pens.arrow.width * ink).toBeCloseTo(3 * PT_TO_CSS_PX, 9);
+  });
+
+  // The view is a screen, not a page: a print-weight pen is raised to the floor
+  // main drew at, measured at the reader's line width.
+  it('raises a pen thinner than the view floor to it, keeping its pattern', () => {
+    const { lineWidth, pens } = referencesCanvasPens(DEFAULT_PAPER_STYLE, 1);
+    expect(lineWidth).toBe(1);
+    const ink = canvasDiagramInk(1);
+    expect(pens.valley.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.valley * ink, 9);
+    expect(pens.mountain.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.mountain * ink, 9);
+    expect(pens.highlight.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.highlight * ink, 9);
+    expect(pens.edge.width * ink).toBeCloseTo(REFERENCES_VIEW_FLOORS.lines.edge * ink, 9);
+    expect(pens.valley.dash!.map((run) => run / pens.valley.width)).toEqual(
+      DEFAULT_PAPER_STYLE.valleyDiagramCreases.dash
+    );
+  });
+
+  it('measures the floors at the reader\'s line width, not a heavy edge pen\'s', () => {
+    const style = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { ...DEFAULT_PAPER_STYLE.edges, width: 3 },
+      valleyDiagramCreases: { ...DEFAULT_PAPER_STYLE.valleyDiagramCreases, width: 0.5 },
+    };
+    const { lineWidth, pens } = referencesCanvasPens(style, 1);
+    expect(pens.valley.width * canvasDiagramInk(lineWidth)).toBeCloseTo(
+      REFERENCES_VIEW_FLOORS.lines.valley * canvasDiagramInk(1),
+      9
+    );
+    // And the reader's line width moves them.
+    const wide = referencesCanvasPens(style, 2.5);
+    expect(wide.pens.valley.width * canvasDiagramInk(wide.lineWidth)).toBeCloseTo(
+      REFERENCES_VIEW_FLOORS.lines.valley * canvasDiagramInk(2.5),
+      9
+    );
   });
 
   it('dashes each line as its own pen does: solid when solid', () => {

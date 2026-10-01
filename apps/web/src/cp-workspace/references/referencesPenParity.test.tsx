@@ -30,7 +30,8 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import { diagramInkColors } from './diagram/diagramColors';
 import { unitFrame } from './diagram/diagramFrames';
-import { canvasDiagramInk } from './diagram/diagramInk';
+import { DEFAULT_ORISTUDIO_CP_LINE_WIDTH } from '../../lib/creasePatternViewport';
+import { canvasDiagramInk, REFERENCES_VIEW_FLOORS } from './diagram/diagramInk';
 import { plannerFinishedDiagram } from './diagram/plannerDiagram';
 import type {
   DiagramLineStyleName,
@@ -223,14 +224,17 @@ describe('a step’s fold, on the card and on the page', () => {
     expect(colors).not.toContain(APART.mountainFolds.color);
   });
 
-  // The big view draws the same line again, in CSS px at the pen's own width.
+  // The big view draws the same line again, in CSS px: at the pen's own width,
+  // or at the view's floor where the pen is thinner (`REFERENCES_VIEW_FLOORS`).
   it.each([
     ['valley', APART.valleyDiagramCreases],
     ['mountain', APART.mountainDiagramCreases],
   ] as const)('draws a %s on the big view in the same pen', (style, pen) => {
     const { lineWidth, pens } = referencesCanvasPens(APART);
     const ink = canvasDiagramInk(lineWidth);
-    expect(pens[style].width * ink).toBeCloseTo(pen.width * PT_TO_CSS_PX, 9);
+    const floor =
+      REFERENCES_VIEW_FLOORS.lines[style] * canvasDiagramInk(DEFAULT_ORISTUDIO_CP_LINE_WIDTH);
+    expect(pens[style].width * ink).toBeCloseTo(Math.max(pen.width * PT_TO_CSS_PX, floor), 9);
     expect(multiples(pens[style].dash ?? [], pens[style].width)).toEqual(pen.dash ?? []);
     expect(pens[style].cap).toBe(pen.cap);
     const [r, g, b] = diagramInkColors(document.documentElement, tokens)[style];

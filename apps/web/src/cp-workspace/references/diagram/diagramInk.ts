@@ -310,6 +310,96 @@ export const DIAGRAM_LABEL_INK = {
 } as const;
 
 /**
+ * The marks a diagram draws beside its lines, in ink: a point's ring, a
+ * letter, an arrow's head. A projector carries one set
+ * (`DiagramProjector.marks`), because two kinds of surface want two sizes:
+ * the step cards and every export draw these, tuned against a printed step,
+ * and the References view draws {@link REFERENCES_VIEW_MARKS}.
+ */
+export interface DiagramMarks {
+  /** A point's ring, centre to the middle of its stroke. */
+  ringRadius: number;
+  /** A letter's size: its em. */
+  labelSize: number;
+  /** An arrowhead, tip to barbs, before a short arrow's chord cap. */
+  arrowheadLength: number;
+}
+
+export const DIAGRAM_MARKS: DiagramMarks = {
+  ringRadius: DIAGRAM_MARK_INK.radius,
+  labelSize: DIAGRAM_LABEL_INK.size,
+  arrowheadLength: DIAGRAM_ARROWHEAD_INK.length,
+};
+
+/**
+ * The References view's floors, in ink at the reader's line width: no line or
+ * mark there is drawn smaller than it was before the marks were tuned against
+ * a printed step and the lines became the paper style's pens.
+ *
+ * The view is an interactive full-screen picture, not a page. The paper
+ * style's pens are print sizes — a 0.825 pt diagram crease is 1.1 px — and the
+ * marks are a 50 mm page's; at fit on a large screen the sheet is several
+ * times that page, and both read as too small for it. So each line and mark
+ * there is the paper's size or its floor, whichever is larger: a pen heavier
+ * than its floor draws as heavy as the style says, and the colours, dashes and
+ * caps are always the style's. Fixed on screen, as the paper's own sizes are
+ * there, so zooming moves the drawing and never resizes it.
+ */
+export const REFERENCES_VIEW_FLOORS = {
+  marks: { ringRadius: 3.84, labelSize: 10.8, arrowheadLength: 10.56 },
+  lines: {
+    edge: 1.2,
+    crease: 0.75,
+    aux: 0.75,
+    highlight: 2,
+    mountain: 1.6,
+    valley: 1.6,
+    'fold-mountain': 1.6,
+    'fold-valley': 1.6,
+    arrow: 1.4,
+  },
+} as const satisfies {
+  marks: DiagramMarks;
+  lines: Partial<Record<DiagramLineStyleName, number>>;
+};
+
+/** The References view's marks: the print sizes, raised to the view's floors. */
+export const REFERENCES_VIEW_MARKS: DiagramMarks = {
+  ringRadius: Math.max(DIAGRAM_MARKS.ringRadius, REFERENCES_VIEW_FLOORS.marks.ringRadius),
+  labelSize: Math.max(DIAGRAM_MARKS.labelSize, REFERENCES_VIEW_FLOORS.marks.labelSize),
+  arrowheadLength: Math.max(
+    DIAGRAM_MARKS.arrowheadLength,
+    REFERENCES_VIEW_FLOORS.marks.arrowheadLength
+  ),
+};
+
+/**
+ * `pens` with each width raised to the References view's floor for it. A dash
+ * is the pen's own pattern in multiples of its width, so a raised pen's runs
+ * grow with it and the line keeps its pattern.
+ *
+ * The floors are in ink at the reader's line width; `scale` is that ink over
+ * the ink `pens` are measured in, for pens measured from a heavier line width,
+ * so a heavy edge pen does not raise every other line's floor with it.
+ */
+export function withReferencesViewFloors(pens: DiagramPens, scale = 1): DiagramPens {
+  const floored: Record<DiagramLineStyleName, DiagramStrokeInk> = { ...pens };
+  const floors = Object.entries(REFERENCES_VIEW_FLOORS.lines) as [DiagramLineStyleName, number][];
+  for (const [name, inReaderInk] of floors) {
+    const floor = inReaderInk * scale;
+    const pen = floored[name];
+    if (pen.width >= floor) continue;
+    const grow = pen.width > 0 ? floor / pen.width : 1;
+    floored[name] = {
+      ...pen,
+      width: floor,
+      ...(pen.dash ? { dash: pen.dash.map((run) => run * grow) } : {}),
+    };
+  }
+  return floored;
+}
+
+/**
  * How wide each capital is at the label's weight, in ems: Inter Bold's
  * advances, measured in the browser. The letters differ by half again — a Q
  * is 0.75, a P 0.62 — and a box sized by the average let a Q at the right

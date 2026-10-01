@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DIAGRAM_LINE_INK, DIAGRAM_MARK_INK } from './diagram/diagramInk';
+import {
+  DIAGRAM_LINE_INK,
+  DIAGRAM_MARK_INK,
+  DIAGRAM_MARKS,
+  REFERENCES_VIEW_MARKS,
+} from './diagram/diagramInk';
 import {
   ARROWHEAD_ASPECT,
   ARROWHEAD_MIN_STROKES,
@@ -956,5 +961,25 @@ describe('offPaperPathData', () => {
     const reach = OFF_PAPER_REACH * 120;
     expect(path.startsWith(`M ${10 - reach} ${10 - reach} H ${130 + reach} `)).toBe(true);
     expect(offPaperPathData([[], []])).toBe('');
+  });
+});
+
+describe('a projector’s marks', () => {
+  const view = { origin: [0, 0], ex: [400, 0], ey: [0, -400] } as const;
+  /** A long arc, whose chord does not cap its head. */
+  const arc = { center: [0.5, 0.5], radius: 0.4, from: 0, to: Math.PI / 2, ccw: true } as const;
+
+  it('are the print sizes on a page and a card, and carried by a copy', () => {
+    expect(createOverlayProjector(view, 1).marks).toEqual(DIAGRAM_MARKS);
+    expect(createDiagramProjector({ width: 1, height: 1 }, 100).marks).toEqual(DIAGRAM_MARKS);
+    const screen = createOverlayProjector(view, 1, DIAGRAM_LINE_INK, REFERENCES_VIEW_MARKS);
+    expect(withPens(screen, DIAGRAM_LINE_INK).marks).toBe(REFERENCES_VIEW_MARKS);
+  });
+
+  it('size an arrowhead, so the References view draws a larger one than a page', () => {
+    const page = createOverlayProjector(view, 1);
+    const screen = createOverlayProjector(view, 1, DIAGRAM_LINE_INK, REFERENCES_VIEW_MARKS);
+    expect(arrowheadSize(arc, page)).toBeCloseTo(DIAGRAM_MARKS.arrowheadLength, 9);
+    expect(arrowheadSize(arc, screen)).toBeCloseTo(REFERENCES_VIEW_MARKS.arrowheadLength, 9);
   });
 });

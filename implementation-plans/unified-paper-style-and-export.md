@@ -1969,6 +1969,19 @@ show along the bend.
       centre so no triangle blends the two, and a crease on the bend is named
       by the same rule.
 
+> **Follow-up (2026-09-30): the big view has floors.** Drawing the style at
+> print size made the big view thin and small: a 0.825 pt diagram crease is
+> 1.1 px, and the marks had since been tuned against a 50 mm step page. The
+> view is an interactive full-screen picture, not a page, so each of its lines
+> and marks is now the paper's size or a floor — what the view drew before the
+> paper style reached it, at the reader's line width — whichever is larger
+> (`REFERENCES_VIEW_FLOORS`). The creases follow the edge pen or the reader's
+> line width, whichever is heavier; a pen heavier than its floor draws as the
+> style says; colours, dashes and caps are always the style's; sizes stay fixed
+> on screen at every zoom. The rings, letters and arrowheads travel on the
+> projector (`DiagramProjector.marks`), so the cards and every export keep the
+> print sizes.
+
 ### Phase 12 — Simulation linework
 
 Asked for after Phase 10: with "Render all creases as edges", a simulation

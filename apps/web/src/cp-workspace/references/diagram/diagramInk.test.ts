@@ -34,8 +34,11 @@ import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
   DIAGRAM_MARK_INK,
+  DIAGRAM_MARKS,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
+  REFERENCES_VIEW_FLOORS,
+  REFERENCES_VIEW_MARKS,
   canvasDiagramInk,
   canvasDiagramPens,
   cardDiagramPens,
@@ -43,6 +46,8 @@ import {
   diagramDashSlot,
   labelWidth,
   penInk,
+  withReferencesViewFloors,
+  type DiagramPens,
 } from './diagramInk';
 
 /**
@@ -348,5 +353,42 @@ describe('the existing crease as the paper style’s aux pen', () => {
     expect(diagramDashPatterns(2, pens)[3]!.map((run) => run / width)).toEqual([4, 2]);
     expect(diagramDashPatterns(2, pens).slice(0, 3)).toEqual(diagramDashPatterns(2).slice(0, 3));
     expect(diagramDashPatterns(2, pens).slice(4)).toEqual(diagramDashPatterns(2).slice(4));
+  });
+});
+
+/**
+ * The References view is a full-screen picture, not a page: its marks and
+ * lines are never smaller than its floors, and a card's and a page's are the
+ * print sizes.
+ */
+describe('the References view floors', () => {
+  it('raise the print marks to the view’s, and leave a page’s alone', () => {
+    for (const mark of ['ringRadius', 'labelSize', 'arrowheadLength'] as const) {
+      expect(REFERENCES_VIEW_MARKS[mark]).toBe(
+        Math.max(DIAGRAM_MARKS[mark], REFERENCES_VIEW_FLOORS.marks[mark])
+      );
+    }
+    expect(DIAGRAM_MARKS).toEqual({
+      ringRadius: DIAGRAM_MARK_INK.radius,
+      labelSize: DIAGRAM_LABEL_INK.size,
+      arrowheadLength: DIAGRAM_ARROWHEAD_INK.length,
+    });
+  });
+
+  it('leave a pen at or over its floor alone, and raise one under it with its pattern', () => {
+    const pens: DiagramPens = {
+      ...DIAGRAM_LINE_INK,
+      valley: { width: 0.5, dash: [2, 1], cap: 'butt' },
+      mountain: { width: 3, cap: 'butt' },
+    };
+    const floored = withReferencesViewFloors(pens);
+    expect(floored.mountain).toBe(pens.mountain);
+    expect(floored.valley.width).toBe(REFERENCES_VIEW_FLOORS.lines.valley);
+    expect(floored.valley.dash!.map((run) => run / floored.valley.width)).toEqual([4, 2]);
+    expect(floored.valley.cap).toBe('butt');
+    // Floors in another ink: the reader's over the pens'.
+    expect(withReferencesViewFloors(pens, 0.5).valley.width).toBe(
+      REFERENCES_VIEW_FLOORS.lines.valley * 0.5
+    );
   });
 });

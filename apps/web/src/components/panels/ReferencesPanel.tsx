@@ -228,7 +228,7 @@ export function ReferencesPanel() {
   // cards, the canvas, the layer over it — draws in them and nothing outside does.
   // The pattern rail is inside too, and reads the theme's inks through the
   // `--sheet-thumb-*` aliases on `:root` instead (X10).
-  const { setRoot: setWorkspaceRoot, ...paper } = usePaperStyleTokens();
+  const { setRoot: setWorkspaceRoot, ...paper } = usePaperStyleTokens(view.lineWidth);
   // The step's picture, once: straight lines packed for the GPU, symbols for the
   // layer over it. Both off the same primitives the filmstrip card draws, and
   // both told where the paper is, since a mark off it takes the theme's ink.

@@ -14,7 +14,12 @@ import {
   diagramShapes,
   type DiagramRenderContext,
 } from './diagram/DiagramPrimitives';
-import { canvasDiagramInk, canvasDiagramPens } from './diagram/diagramInk';
+import {
+  canvasDiagramInk,
+  canvasDiagramPens,
+  REFERENCES_VIEW_MARKS,
+  withReferencesViewFloors,
+} from './diagram/diagramInk';
 import type { FoldPose } from './fold/foldPlayback';
 import { foldPosePaper } from './fold/foldPoseGeometry';
 import type { FoldScene } from './fold/foldScene';
@@ -106,7 +111,9 @@ export const ReferencesDiagramLayer = forwardRef<
         ? createOverlayProjector(
             camera.view,
             canvasDiagramInk(lineWidth),
-            canvasDiagramPens(lineWidth, arrowWidth)
+            // The full-screen view, not a page: its own floors under the paper's sizes.
+            withReferencesViewFloors(canvasDiagramPens(lineWidth, arrowWidth)),
+            REFERENCES_VIEW_MARKS
           )
         : null,
     [camera, lineWidth, arrowWidth]

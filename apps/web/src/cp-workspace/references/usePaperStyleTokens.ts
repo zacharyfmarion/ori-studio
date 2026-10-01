@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react';
+import { DEFAULT_ORISTUDIO_CP_LINE_WIDTH } from '../../lib/creasePatternViewport';
 import { PT_TO_CSS_PX, type PaperStyle, type Pen } from '../../lib/paper/paperStyle';
 import { applyPaperStylePolicy, PAPER_STYLE_POLICIES } from '../../lib/paper/paperStyleResolve';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -6,9 +7,11 @@ import { useThemeStore } from '../../store/themeStore';
 import { referencesCreaseAlpha } from '../../themes/referencesInk';
 import type { DiagramCreaseOptions } from './diagram/DiagramPrimitives';
 import {
+  canvasDiagramInk,
   canvasDiagramPens,
   cardDiagramPens,
   CP_CREASE_WIDTH_FACTOR,
+  withReferencesViewFloors,
   type DiagramPens,
 } from './diagram/diagramInk';
 import { referencesShowsAux } from './referencesAuxCreases';
@@ -169,21 +172,36 @@ export function referencesPaperInks(
   };
 }
 
-/** The big view's pens for `style`, through the References policy. */
-export function referencesCanvasPens(style: PaperStyle): ReferencesCanvasPens {
+/**
+ * The big view's pens for `style`, through the References policy, none
+ * thinner than the view's floor for it at the reader's line width
+ * (`REFERENCES_VIEW_FLOORS`).
+ *
+ * The pattern's creases follow the style's edge pen or the reader's line width,
+ * whichever is heavier — the same floor, for the lines the crease pattern
+ * renderer draws rather than the diagram.
+ */
+export function referencesCanvasPens(
+  style: PaperStyle,
+  readerLineWidth = DEFAULT_ORISTUDIO_CP_LINE_WIDTH
+): ReferencesCanvasPens {
   const seen = applyPaperStylePolicy(style, PAPER_STYLE_POLICIES.references);
   const css = (pen: Pen) => ({ pen, css: pen.width * PT_TO_CSS_PX });
   const edge = css(seen.edges);
-  const lineWidth = edge.css / CP_CREASE_WIDTH_FACTOR;
+  const lineWidth = Math.max(edge.css / CP_CREASE_WIDTH_FACTOR, readerLineWidth);
+  const pens = canvasDiagramPens(lineWidth, seen.arrows.width * PT_TO_CSS_PX, css(seen.auxCreases.pen), {
+    edge,
+    mountainFolds: css(seen.mountainFolds),
+    valleyFolds: css(seen.valleyFolds),
+    mountainDiagramCreases: css(seen.mountainDiagramCreases),
+    valleyDiagramCreases: css(seen.valleyDiagramCreases),
+  });
   return {
     lineWidth,
-    pens: canvasDiagramPens(lineWidth, seen.arrows.width * PT_TO_CSS_PX, css(seen.auxCreases.pen), {
-      edge,
-      mountainFolds: css(seen.mountainFolds),
-      valleyFolds: css(seen.valleyFolds),
-      mountainDiagramCreases: css(seen.mountainDiagramCreases),
-      valleyDiagramCreases: css(seen.valleyDiagramCreases),
-    }),
+    pens: withReferencesViewFloors(
+      pens,
+      canvasDiagramInk(readerLineWidth) / canvasDiagramInk(lineWidth)
+    ),
   };
 }
 
@@ -223,7 +241,10 @@ function cssVars(vars: ReferencesPaperTokens): CSSProperties {
  * `const { setRoot, ...paper } = usePaperStyleTokens()` — or the compiler
  * reads the whole object as a ref and refuses it in render.
  */
-export function usePaperStyleTokens(): ReferencesPaperStyle & {
+export function usePaperStyleTokens(
+  /** The reader's line width, which the big view's floors are measured at. */
+  readerLineWidth = DEFAULT_ORISTUDIO_CP_LINE_WIDTH
+): ReferencesPaperStyle & {
   setRoot: (element: HTMLElement | null) => void;
 } {
   const display = useSettingsStore((state) => state.paperStyle.display);
@@ -241,8 +262,8 @@ export function usePaperStyleTokens(): ReferencesPaperStyle & {
       tokens,
       arrowWidth: display.arrows.width * PT_TO_CSS_PX,
       inks: referencesPaperInks(display, showAux),
-      canvasPens: referencesCanvasPens(display),
+      canvasPens: referencesCanvasPens(display, readerLineWidth),
       inkKey: [theme.name, ...REFERENCES_PAPER_TOKENS.map((token) => tokens[token])].join('|'),
     };
-  }, [display, showAux, theme, root]);
+  }, [display, showAux, theme, root, readerLineWidth]);
 }

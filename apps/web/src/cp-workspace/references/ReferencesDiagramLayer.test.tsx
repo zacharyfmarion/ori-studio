@@ -1,6 +1,11 @@
 import { act, createRef, type Ref } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import {
+  canvasDiagramInk,
+  DIAGRAM_MARKS,
+  REFERENCES_VIEW_MARKS,
+} from './diagram/diagramInk';
 import type { FoldScene } from './fold/foldScene';
 import type { StepDiagramModel } from './referenceFinderDiagramToPrimitives';
 import { ReferencesDiagramLayer, type ReferencesDiagramLayerHandle } from './ReferencesDiagramLayer';
@@ -129,6 +134,34 @@ describe('ReferencesDiagramLayer', () => {
   // mark's ring beside it stays on the crease pen like every other mark.
   // The ring round the point the arrow leaves is drawn in the same pen, so the
   // two are one weight.
+  // The full-screen view, not a page: its rings and letters are never smaller
+  // than the view's floors at the reader's line width, while a card and a page
+  // keep the sizes tuned against a printed step.
+  it('draws its rings and letters at the view’s own sizes, larger than a page’s', () => {
+    act(() =>
+      root?.render(
+        <ReferencesDiagramLayer
+          model={MODEL}
+          outline={SHEET}
+          mirrored={false}
+          camera={camera(100)}
+          lineWidth={1}
+          arrowWidth={1.4}
+        />
+      )
+    );
+    const ink = canvasDiagramInk(1);
+    const ring = container?.querySelector('.step-diagram__point');
+    expect(Number(ring?.getAttribute('r'))).toBeCloseTo(REFERENCES_VIEW_MARKS.ringRadius * ink, 9);
+    const letter = container?.querySelector('text');
+    expect(Number(letter?.getAttribute('font-size'))).toBeCloseTo(
+      REFERENCES_VIEW_MARKS.labelSize * ink,
+      9
+    );
+    expect(REFERENCES_VIEW_MARKS.ringRadius).toBeGreaterThan(DIAGRAM_MARKS.ringRadius);
+    expect(REFERENCES_VIEW_MARKS.labelSize).toBeGreaterThan(DIAGRAM_MARKS.labelSize);
+  });
+
   it('draws the fold arrow, and the ring it leaves, at the paper style’s arrow pen', () => {
     const arrow: StepDiagramModel = {
       sheet: MODEL.sheet,

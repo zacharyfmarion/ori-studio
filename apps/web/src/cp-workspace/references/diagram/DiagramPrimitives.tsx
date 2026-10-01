@@ -30,7 +30,6 @@ import type { DiagramInlineInk, DiagramInlineStroke } from './diagramColors';
 import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
-  DIAGRAM_MARK_INK,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
   type DiagramPens,
@@ -545,7 +544,7 @@ function diagramPrimitiveShape(
       // done on radii in the same projected units, and the angles it returns
       // then apply to the sheet-unit arcs unchanged.
       const head = arrowheadSize(primitive.out, project);
-      const rim = DIAGRAM_MARK_INK.radius * project.ink;
+      const rim = project.marks.ringRadius * project.ink;
       // Stopped at the far mark's rim, if it lands on one, before the return
       // is derived — the return starts where the outgoing stroke stops.
       const out = foldArrowLanding(primitive.out, context.marks, rim, project);
@@ -638,7 +637,7 @@ function diagramPrimitiveShape(
           key={index}
           cx={at.x}
           cy={at.y}
-          r={DIAGRAM_MARK_INK.radius * project.ink}
+          r={project.marks.ringRadius * project.ink}
           strokeWidth={markRingWidth(project)}
           {...inked(inks, `step-diagram__point step-diagram__point--${primitive.style}`, (ink) => ({
             fill: 'none',
@@ -669,7 +668,7 @@ function diagramPrimitiveShape(
           x={placement.x}
           y={placement.y}
           textAnchor={placement.anchor}
-          fontSize={DIAGRAM_LABEL_INK.size * project.ink}
+          fontSize={project.marks.labelSize * project.ink}
           strokeWidth={DIAGRAM_LABEL_INK.halo * project.ink}
           {...inked(context, `step-diagram__label step-diagram__label--${primitive.style}${ground}`, (ink) => ({
             fill: ink.label.fill[primitive.style],
