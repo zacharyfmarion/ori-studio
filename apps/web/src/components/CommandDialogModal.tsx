@@ -11,6 +11,7 @@ import {
 import { CreaseExportDialog } from './CreaseExportDialog';
 import { Button } from './ui/Button';
 import { IconButton } from './ui/IconButton';
+import styles from './CommandDialogModal.module.css';
 
 export function CommandDialogModal() {
   const { t } = useTranslation();
@@ -167,18 +168,18 @@ export function CommandDialogModal() {
           </header>
           <div className="simple-modal__body">
             <p className="simple-modal__message">{dialog.message}</p>
-            <div className="choice-dialog__options">
+            <div className={styles.options}>
               {dialog.options.map((option) => (
                 <button
                   key={option.id}
                   type="button"
-                  className="choice-dialog__option"
+                  className={styles.option}
                   data-tone={option.tone === 'danger' ? 'danger' : undefined}
                   onClick={() => resolveCommandDialog(dialog.id, option.id)}
                 >
-                  <span className="choice-dialog__option-label">{option.label}</span>
+                  <span className={styles.optionLabel}>{option.label}</span>
                   {option.description && (
-                    <span className="choice-dialog__option-description">{option.description}</span>
+                    <span className={styles.optionDescription}>{option.description}</span>
                   )}
                 </button>
               ))}

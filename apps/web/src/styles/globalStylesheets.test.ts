@@ -28,13 +28,13 @@ const SRC = resolve(process.cwd(), 'src');
 
 /** The code lines each global stylesheet may hold, by its path under `src/`. */
 const CEILINGS: Record<string, number> = {
-  'App.css': 905,
+  'App.css': 780,
   'components/CpDetectImportModal.css': 395,
   'components/landing/WelcomeLanding.css': 602,
   'index.css': 62,
   'site/site.css': 306,
   'styles/sonner.css': 55,
-  'styles/theme.css': 6254,
+  'styles/theme.css': 5919,
 };
 
 /** How far under its ceiling a stylesheet may sit before the ceiling follows it down. */

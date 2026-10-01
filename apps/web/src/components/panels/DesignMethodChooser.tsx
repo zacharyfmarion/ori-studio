@@ -7,6 +7,7 @@ import type { DesignKindDescriptor, DesignKindId } from '../../designKinds';
 import { resetEngine } from '../../engines/engineHost';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { Button } from '../ui/Button';
+import styles from './DesignMethodChooser.module.css';
 
 /**
  * Design workspace NUX. When no design method has been chosen yet, the Design
@@ -71,19 +72,19 @@ export function DesignMethodChooser() {
   };
 
   return (
-    <section className="panel-shell design-panel design-method-chooser">
-      <div className="design-method-chooser__body">
-        <div className="design-method-chooser__intro">
-          <h2 className="design-method-chooser__title">
+    <section className={`panel-shell design-panel ${styles.root}`}>
+      <div className={styles.body}>
+        <div className={styles.intro}>
+          <h2 className={styles.title}>
             {t('panels:design.methodChooser.title', 'Start a new design')}
           </h2>
-          <p className="design-method-chooser__subtitle">
+          <p className={styles.subtitle}>
             {t('panels:design.methodChooser.subtitle', 'Choose how you want to author this model.')}
           </p>
         </div>
         {failed && <ChooserFailure kind={failed} onRetry={() => retry(failed)} />}
         <div
-          className="design-method-chooser__options"
+          className={styles.options}
           role="group"
           aria-label={t('panels:design.methodChooser.groupLabel', 'Design method')}
         >
@@ -126,9 +127,9 @@ function ChooserFailure({ kind, onRetry }: { kind: DesignKindId; onRetry: () => 
   const title = designKind(kind)?.chooser.copy(t).title ?? kind;
 
   return (
-    <div className="design-method-chooser__failure" role="alert">
+    <div className={styles.failure} role="alert">
       <AlertTriangle size={16} aria-hidden="true" />
-      <div className="design-method-chooser__failure-copy">
+      <div className={styles.failureCopy}>
         <strong>
           {t('panels:design.methodChooser.failedTitle', 'Could not start a {{method}} design', {
             method: title,
@@ -168,20 +169,20 @@ interface MethodCardProps {
 function MethodCard({ kind, disabled, pending, onSelect }: MethodCardProps) {
   const { t } = useTranslation();
   const { title, description } = kind.chooser.copy(t);
-  const icon: ReactNode = pending ? <Loader2 size={22} className="design-method-card__spinner" /> : <kind.chooser.Icon size={22} />;
+  const icon: ReactNode = pending ? <Loader2 size={22} className={styles.spinner} /> : <kind.chooser.Icon size={22} />;
   return (
     <button
       type="button"
-      className="design-method-card"
+      className={styles.card}
       data-method={kind.id}
       data-pending={pending || undefined}
       disabled={disabled}
       aria-busy={pending}
       onClick={onSelect}
     >
-      <span className="design-method-card__icon">{icon}</span>
-      <span className="design-method-card__title">{title}</span>
-      <span className="design-method-card__description">
+      <span className={styles.icon}>{icon}</span>
+      <span className={styles.cardTitle}>{title}</span>
+      <span className={styles.description}>
         {pending
           ? t('panels:design.methodChooser.creating', 'Preparing the editor…')
           : description}

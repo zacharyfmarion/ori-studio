@@ -66,9 +66,9 @@ describe('ExploriResultsPanel', () => {
 
   it('shows a busy state while a query is in flight', () => {
     const view = renderResultsPanel({ searching: true });
-    const status = view.querySelector('.explori-results__state');
+    const status = view.querySelector('[role="status"]');
     expect(status?.getAttribute('aria-busy')).toBe('true');
-    expect(view.querySelector('.explori-results__spinner')).not.toBeNull();
+    expect(view.querySelector('[role="status"] svg')).not.toBeNull();
     expect(view.textContent).toContain('Searching the archive');
   });
 });

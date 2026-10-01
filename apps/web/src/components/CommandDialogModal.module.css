@@ -1,0 +1,48 @@
+/*
+ * A command dialog's choices (CommandDialogModal.tsx): one option card per
+ * answer, inside the shared `simple-modal` frame.
+ */
+.options {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.option {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.option:hover,
+.option:focus-visible {
+  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
+}
+
+.option[data-tone='danger']:hover,
+.option[data-tone='danger']:focus-visible {
+  border-color: color-mix(in srgb, var(--status-danger) 44%, var(--border-default));
+  background: color-mix(in srgb, var(--status-danger) 6%, var(--bg-elevated));
+}
+
+.optionLabel {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.option[data-tone='danger'] .optionLabel {
+  color: var(--status-danger);
+}
+
+.optionDescription {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}

@@ -53,7 +53,8 @@ function themeNamesForSection(rendered: HTMLElement, label: string): string[] {
     element.querySelector('.settings-section__title')?.textContent?.includes(label)
   );
   expect(section).toBeDefined();
-  return Array.from(section?.querySelectorAll('.settings-theme-card__name') ?? []).map(
+  // A theme card is a toggle button whose only text is the theme's name.
+  return Array.from(section?.querySelectorAll('button[aria-pressed]') ?? []).map(
     (element) => element.textContent ?? ''
   );
 }

@@ -1,0 +1,31 @@
+/*
+ * The diagnostics panel's headline numbers (DiagnosticsPanel.tsx), two to a
+ * row above its status rows.
+ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.metric {
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.label {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+}
+
+.value {
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}

@@ -336,7 +336,7 @@ describe('the chooser while a design is being created', () => {
       status: 'ready',
       chooseDesignMethod: choose,
     });
-    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.design-method-card'));
+    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('button[data-method]'));
 
     act(() => {
       cards()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -377,7 +377,7 @@ describe('the chooser while a design is being created', () => {
       chooseDesignMethod: choose,
       oristudioBpError: 'failed to fetch',
     });
-    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.design-method-card'));
+    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('button[data-method]'));
 
     act(() => {
       cards()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -388,7 +388,7 @@ describe('the chooser while a design is being created', () => {
 
     expect(cards().every((card) => card.disabled)).toBe(false);
     expect(cards()[0].getAttribute('aria-busy')).toBe('false');
-    const failure = host.querySelector('.design-method-chooser__failure');
+    const failure = host.querySelector('[role="alert"]');
     expect(failure).not.toBeNull();
     expect(failure?.textContent).toContain('failed to fetch');
     expect(failure?.querySelector('button')).not.toBeNull();
@@ -404,7 +404,7 @@ describe('the chooser while a design is being created', () => {
       status: 'ready',
       chooseDesignMethod: choose,
     });
-    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('.design-method-card'));
+    const cards = () => Array.from(host.querySelectorAll<HTMLButtonElement>('button[data-method]'));
 
     await act(async () => {
       cards()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));

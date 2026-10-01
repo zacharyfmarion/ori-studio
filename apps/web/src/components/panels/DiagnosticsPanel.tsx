@@ -2,6 +2,7 @@ import { selectLastOptimization, selectProject } from '../../store/workspaceStor
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, CircleDashed } from 'lucide-react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import styles from './DiagnosticsPanel.module.css';
 
 export function DiagnosticsPanel() {
   const { t } = useTranslation();
@@ -32,7 +33,7 @@ export function DiagnosticsPanel() {
   return (
     <section className="panel-shell">
       <div className="panel-body">
-        <div className="metric-grid">
+        <div className={styles.grid}>
           <Metric label={t('panels:diagnostics.nodes', 'Nodes')} value={project.nodes.length} />
           <Metric label={t('panels:diagnostics.edges', 'Edges')} value={project.edges.length} />
           <Metric label={t('panels:diagnostics.paths', 'Paths')} value={project.paths.length} />
@@ -118,9 +119,9 @@ export function DiagnosticsPanel() {
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="metric">
-      <div className="metric__label">{label}</div>
-      <div className="metric__value">{value}</div>
+    <div className={styles.metric}>
+      <div className={styles.label}>{label}</div>
+      <div className={styles.value}>{value}</div>
     </div>
   );
 }

@@ -25,6 +25,7 @@ import { exploriResultUrl, exploriTilingLabel, type ExploriResult } from '../../
 import { useDesignPaneSwitcher } from '../../hooks/useDesignPaneSwitcher';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectExploriDesignOrEmpty } from '../../store/workspaceStore/designTabs';
+import styles from './ExploriResultsPanel.module.css';
 
 /**
  * The results half of an ExplOri design: a grid of matches, and a detail view
@@ -99,7 +100,7 @@ function CardFigure({
 }) {
   if (mode !== 'pair') return <ResultFigure result={result} mode={mode} size={THUMB_SIZE} query={query} />;
   return (
-    <div className="explori-result-card__pair">
+    <div className={styles.cardPair}>
       <ResultFigure result={result} mode="tree" size={THUMB_SIZE} query={query} />
       <ResultFigure result={result} mode="cp" size={THUMB_SIZE} query={query} />
     </div>
@@ -129,16 +130,16 @@ function ExploriResultsStatus({
 }) {
   return (
     <div
-      className="explori-results__state"
+      className={styles.state}
       role="status"
       aria-live="polite"
       aria-busy={busy || undefined}
     >
-      <div className="explori-results__state-icon" aria-hidden="true">
+      <div className={styles.stateIcon} aria-hidden="true">
         {icon}
       </div>
-      <p className="explori-results__state-title">{title}</p>
-      <p className="explori-results__state-detail">{detail}</p>
+      <p className={styles.stateTitle}>{title}</p>
+      <p className={styles.stateDetail}>{detail}</p>
     </div>
   );
 }
@@ -156,11 +157,11 @@ function ExploriDetailFigure({
   query: Query;
 }) {
   return (
-    <figure className="explori-detail__pane">
-      <div className="explori-detail__figure">
+    <figure className={styles.detailPane}>
+      <div className={styles.detailFigure}>
         <ResultFigure result={result} mode={mode} size={DETAIL_SIZE} query={query} />
       </div>
-      <figcaption className="explori-detail__caption">{label}</figcaption>
+      <figcaption className={styles.detailCaption}>{label}</figcaption>
     </figure>
   );
 }
@@ -190,7 +191,7 @@ function BackToSearch() {
     <Button
       size="sm"
       variant="secondary"
-      className="explori-results__back"
+      className={styles.back}
       onClick={() => show('explori-tree', 'switcher')}
     >
       <ArrowLeft size={14} aria-hidden="true" />
@@ -221,7 +222,7 @@ export function ExploriResultsPanel() {
   useEffect(() => {
     if (detail) backRef.current?.focus();
     else if (document.activeElement === document.body) {
-      gridRef.current?.querySelector<HTMLButtonElement>('.explori-result-card__open')?.focus();
+      gridRef.current?.querySelector<HTMLButtonElement>('[data-result-open]')?.focus();
     }
   }, [detail]);
 
@@ -239,11 +240,11 @@ export function ExploriResultsPanel() {
 
   if (searching) {
     return (
-      <section className="panel-shell explori-results-panel">
+      <section className={`panel-shell ${styles.panel}`}>
         <BackToSearch />
         <ExploriResultsStatus
           busy
-          icon={<Loader2 size={24} className="explori-results__spinner" />}
+          icon={<Loader2 size={24} className={styles.spinner} />}
           title={t('panels:explori.searchingStatus', 'Searching the archive…')}
           detail={t(
             'panels:explori.searchingDetail',
@@ -263,12 +264,12 @@ export function ExploriResultsPanel() {
       void selectResult(results[next] ?? null, next);
     };
     return (
-      <section className="panel-shell explori-results-panel explori-results-panel--detail">
+      <section className={`panel-shell ${styles.panel}`} data-view="detail">
         {/* The query bar lives in the *tree* pane, so a search can fail while a
             detail is open — and this branch returns before the grid's error
             line, which left the failure completely invisible. */}
-        {error && <p className="explori-results__error">{error}</p>}
-        <header className="explori-detail__header">
+        {error && <p className={styles.error}>{error}</p>}
+        <header className={styles.detailHeader}>
           <IconButton
             ref={backRef}
             size="sm"
@@ -278,12 +279,12 @@ export function ExploriResultsPanel() {
           >
             <ArrowLeft size={14} />
           </IconButton>
-          <span className={`explori-quality explori-quality--${quality}`}>
+          <span className={styles.quality} data-quality={quality}>
             {exploriMatchQualityLabel(t, quality)}
           </span>
           {/* Stepping through results sits with the other controls rather than
               floating over the figures, which is what it used to do. */}
-          <div className="explori-detail__steps">
+          <div className={styles.detailSteps}>
             <IconButton
               size="sm"
               variant="toolbar"
@@ -293,7 +294,7 @@ export function ExploriResultsPanel() {
             >
               <ChevronLeft size={16} />
             </IconButton>
-            <span className="explori-detail__position">
+            <span className={styles.detailPosition}>
               {t('panels:explori.resultPosition', '{{index}} of {{total}}', {
                 index: (detailIndex ?? 0) + 1,
                 total: results.length,
@@ -328,7 +329,7 @@ export function ExploriResultsPanel() {
         {/* All four at once. Two of them used to be chosen by a radio group,
             which was a control standing in for the thing it selected — and there
             are only four, so they fit. */}
-        <div className="explori-detail__panes">
+        <div className={styles.detailPanes}>
           <ExploriDetailFigure
             result={detail}
             query={design.document}
@@ -359,9 +360,9 @@ export function ExploriResultsPanel() {
   }
 
   return (
-    <section className="panel-shell explori-results-panel">
+    <section className={`panel-shell ${styles.panel}`}>
       <BackToSearch />
-      {error && <p className="explori-results__error">{error}</p>}
+      {error && <p className={styles.error}>{error}</p>}
       {results.length === 0 ? (
         /* "Nothing here" is two states, and they ask for different things: one
            wants you to press Search, the other wants you to change the tree or
@@ -387,7 +388,7 @@ export function ExploriResultsPanel() {
         )
       ) : (
         <>
-          <header className="explori-results__header">
+          <header className={styles.header}>
             <span>
               {results.length === 1
                 ? t('panels:explori.resultCountOne', '{{count}} result', { count: results.length })
@@ -400,7 +401,7 @@ export function ExploriResultsPanel() {
               onValueChange={(value) => setCardMode(value as ExploriCardMode)}
             >
               <SelectTrigger
-                className="explori-results__mode"
+                className={styles.mode}
                 aria-label={t('panels:explori.thumbnailMode', 'Thumbnail view')}
               >
                 <SelectValue />
@@ -416,14 +417,15 @@ export function ExploriResultsPanel() {
               </SelectContent>
             </Select>
           </header>
-          <div className="explori-results__grid" data-mode={cardMode} ref={gridRef}>
+          <div className={styles.grid} data-mode={cardMode} ref={gridRef}>
             {results.map((result, index) => {
               const quality = exploriMatchQuality(result.distance);
               return (
-                <article key={`${exploriTilingLabel(result)}:${index}`} className="explori-result-card">
+                <article key={`${exploriTilingLabel(result)}:${index}`} className={styles.card}>
                   <button
                     type="button"
-                    className="explori-result-card__open"
+                    className={styles.cardOpen}
+                    data-result-open=""
                     onClick={() => void selectResult(result, index)}
                     aria-label={t('panels:explori.openResult', 'Open result {{id}}', {
                       id: exploriTilingLabel(result),
@@ -431,8 +433,8 @@ export function ExploriResultsPanel() {
                   >
                     <CardFigure result={result} mode={cardMode} query={design.document} />
                   </button>
-                  <div className="explori-result-card__meta">
-                    <span className={`explori-quality explori-quality--${quality}`}>
+                  <div className={styles.cardMeta}>
+                    <span className={styles.quality} data-quality={quality}>
                       {exploriMatchQualityLabel(t, quality)}
                     </span>
                     <IconButton

@@ -8,7 +8,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  Check,
   Download,
   Keyboard,
   LayoutDashboard,
@@ -23,6 +22,7 @@ import { SettingsToggleRow } from './settings/SettingsToggleRow';
 import { UpdatesSection } from './settings/UpdatesSection';
 import { ModelsSection } from './settings/ModelsSection';
 import { PaperSettings } from './settings/PaperSettings';
+import { ThemeCard } from './settings/ThemeCard';
 import {
   SettingsNestedDialogContext,
   useSettingsNestedDialog,
@@ -113,39 +113,6 @@ function tabLabel(t: TFunction, key: SettingsTab): string {
 function resolveInitialTab(initialTab: SettingsTab | null): SettingsTab {
   const [first] = TABS;
   return initialTab && TABS.some((tab) => tab.key === initialTab) ? initialTab : first.key;
-}
-
-function ThemeCard({
-  theme,
-  selected,
-  onSelect,
-}: {
-  theme: TreeMakerTheme;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="settings-theme-card"
-      data-selected={selected || undefined}
-      aria-pressed={selected}
-      onClick={onSelect}
-    >
-      <span className="settings-theme-card__header">
-        <span className="settings-theme-card__name">{theme.name}</span>
-        {selected && <Check size={14} aria-hidden="true" />}
-      </span>
-      <span className="settings-theme-card__swatches" aria-hidden="true">
-        <span style={{ background: theme.colors['bg.primary'] }} />
-        <span style={{ background: theme.colors['bg.secondary'] }} />
-        <span style={{ background: theme.colors['accent.primary'] }} />
-        <span style={{ background: theme.colors['text.primary'] }} />
-        <span style={{ background: theme.colors['status.danger'] }} />
-        <span style={{ background: theme.colors['status.success'] }} />
-      </span>
-    </button>
-  );
 }
 
 function LanguageSection() {
