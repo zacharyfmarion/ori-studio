@@ -17,7 +17,7 @@
   min-width: 0;
   padding: 0 9px;
   border: 1px solid var(--border-default);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--settings-well);
   color: var(--text-primary);
   cursor: pointer;
@@ -161,7 +161,7 @@
   height: 26px;
   padding: 0 8px;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--settings-well);
   color: var(--text-primary);
   font-family: var(--font-mono);

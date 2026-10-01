@@ -120,10 +120,11 @@ after. The restyle follows as the phase's last commit.
 
 ### Phase 1 — Shared and module-owned controls
 
-- [ ] The in-place control rules above, and the four modules
-- [ ] Browser: the View pane's rows, the tool card, Settings › Paper and
-      Shortcuts, the export dialog, the BP sheet and symmetry popovers
-- [ ] Validate; commit
+- [x] The in-place control rules above, and the four modules
+- [x] Browser: the View pane's rows, the tool card (its fields, ratio presets
+      and Reset), Settings › Paper and Shortcuts, the export dialog, the BP
+      sheet and mirror popovers, the tab strip's close button
+- [x] Validate; commit
 
 ### Phase 2 — One-owner controls
 

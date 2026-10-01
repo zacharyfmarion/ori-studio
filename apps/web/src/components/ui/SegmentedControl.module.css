@@ -6,10 +6,14 @@
  * 28 / 32 / 36px), so a segmented control lines up with a button, an input or a
  * select beside it; the pills are that height less the track's padding and
  * border, 20 / 24 / 28px.
+ *
+ * Every size wears the controls' radius, and the pills its radius less the
+ * padding, so they sit concentric in the track: 8px and 5px.
  */
 /* `fit-content`, so it hugs its options even where its container would stretch
    it, as a grid or a flex column does; `fill` is the one way to stretch it. */
 .track {
+  --pad: 3px;
   position: relative;
   display: inline-flex;
   align-items: stretch;
@@ -19,15 +23,14 @@
   height: 32px;
   min-width: 0;
   max-width: 100%;
-  padding: 3px;
+  padding: var(--pad);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--segmented-track);
 }
 
 .track[data-size='sm'] {
   height: 28px;
-  border-radius: 7px;
 }
 
 .track[data-size='lg'] {
@@ -54,7 +57,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 5px;
+  border-radius: calc(var(--radius) - var(--pad));
   background: color-mix(in srgb, var(--accent-primary) 17%, var(--bg-elevated));
   opacity: 0;
   pointer-events: none;
@@ -73,14 +76,6 @@
   opacity: 0.5;
 }
 
-.track[data-size='sm'] .indicator {
-  border-radius: 4px;
-}
-
-.track[data-size='lg'] .indicator {
-  border-radius: 6px;
-}
-
 /* An option gives way only when the labels cannot all fit: see the ellipsis
    below. Positioned, so it paints over the indicator that comes before it. */
 .option {
@@ -93,7 +88,7 @@
   min-width: 0;
   padding: 0 8px;
   border: 0;
-  border-radius: 5px;
+  border-radius: calc(var(--radius) - var(--pad));
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
@@ -109,11 +104,6 @@
 
 .track[data-size='sm'] .option {
   padding: 0 6px;
-  border-radius: 4px;
-}
-
-.track[data-size='lg'] .option {
-  border-radius: 6px;
 }
 
 .track[data-fill] .option {

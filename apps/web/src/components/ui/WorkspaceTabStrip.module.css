@@ -145,7 +145,7 @@
      Every shared icon button (`.ui-icon-control--*`) zeroes it for this reason. */
   padding: 0;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   color: var(--text-muted);
   background: transparent;
   cursor: pointer;
@@ -167,7 +167,7 @@
   margin: 0 var(--space-2);
   padding: 2px var(--space-1);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   font: inherit;
   font-size: 12px;
   color: var(--text-primary);

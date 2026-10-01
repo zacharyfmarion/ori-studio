@@ -640,7 +640,7 @@
   height: 26px;
   padding: 0 7px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font: inherit;
@@ -691,7 +691,7 @@
   height: 26px;
   padding: 0;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   cursor: pointer;
@@ -1770,7 +1770,7 @@
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: inherit;
@@ -1803,7 +1803,7 @@
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.78rem;
@@ -2042,7 +2042,7 @@
   min-width: 0;
   height: 30px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font: inherit;
@@ -2817,7 +2817,7 @@
   width: 30px;
   height: 24px;
   border-color: var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .settings-paper__card--color .color-field__hex {
@@ -2895,7 +2895,7 @@
   gap: 0;
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: var(--settings-well);
 }
 
@@ -2981,7 +2981,7 @@
   min-width: 6rem;
   height: 32px;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font: inherit;
@@ -3004,7 +3004,7 @@
   height: 32px;
   padding: 0 var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-secondary);
   font-size: 0.74rem;
@@ -3120,7 +3120,7 @@
   height: 28px;
   padding: 0 var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   cursor: pointer;
@@ -5181,7 +5181,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   height: 22px;
   min-width: 0;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font: inherit;
@@ -5232,7 +5232,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 2px 4px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font: inherit;
@@ -5446,7 +5446,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   width: 100%;
   padding: 6px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -5487,7 +5487,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-height: 26px;
   padding: 3px 9px;
   border: 1px solid color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-tertiary));
   color: var(--text-primary);
   font: inherit;
@@ -5514,7 +5514,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-height: 24px;
   padding: 3px 8px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font: inherit;
@@ -5783,7 +5783,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   justify-content: center;
   padding: 2px;
   border: 0;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -6036,7 +6036,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
 }
 
@@ -6045,7 +6045,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   border: none;
   background: transparent;
   padding: 4px 6px;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 2px);
   color: var(--text-secondary);
   font-size: 0.72rem;
   cursor: pointer;
@@ -6064,7 +6064,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 .bp-sheet-menu__input {
   width: 100%;
   padding: 4px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   border: 1px solid var(--border-strong);
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -6145,7 +6145,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 5px 6px;
   appearance: none;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 0.72rem;
@@ -6168,7 +6168,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 6px 8px;
   appearance: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
   font-size: 0.72rem;
@@ -6227,7 +6227,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;
   padding: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
 }
 
@@ -6239,7 +6239,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   align-items: center;
   justify-content: center;
   padding: 4px 0;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 2px);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -6269,7 +6269,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   min-width: 0;
   padding: 4px 6px;
   appearance: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   border: 1px solid var(--border-default);
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -7033,7 +7033,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  border-radius: calc(var(--radius) - 1px);
   background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-secondary));
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -7065,7 +7065,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--bg-primary);
   cursor: pointer;
 }
@@ -7079,12 +7079,12 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .color-field__input::-webkit-color-swatch {
   border: 0;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 1px);
 }
 
 .color-field__input::-moz-color-swatch {
   border: 0;
-  border-radius: calc(var(--radius-sm) - 1px);
+  border-radius: calc(var(--radius) - 1px);
 }
 
 .color-field__input:focus-visible {
@@ -7160,7 +7160,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   height: 22px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -7193,7 +7193,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   margin-left: 4px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
