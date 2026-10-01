@@ -67,32 +67,32 @@ One description of a menu, which every implementation follows:
   text colour: icon, check, chevron, shortcut, and the dash menu's preview line.
   A disabled row never highlights.
 - **Tokens**: `--menu-highlight: var(--accent-primary)` and
-  `--menu-highlight-text: var(--text-on-accent)` in `theme.css`. These are
+  `--menu-highlight-text: var(--text-on-accent)` in `theme.css`, and their
+  destructive pair, `--status-danger` and `--text-on-danger`. These are
   tokens by the styling rules' own test, values that components which do not
   know about each other must agree on. They exist so that the next change to
   the menu highlight is one line rather than five modules.
 
-### Decisions for you
+### Decisions (settled 2026-10-01)
 
-1. **Highlight text**: dark text on the accent, via `--text-on-accent`
-   (recommended: it passes AA in every theme), or keep white and accept 2.36:1
-   in One Dark and under 1.6:1 in three themes.
-2. **Destructive rows** (Delete, Remove): a solid `--status-danger` fill with
-   `--text-on-danger` text, derived the same way, which reaches AA in every
-   theme, worst 4.6:1 in Solarized Dark (recommended: the warning stays
-   visible under the pointer), or the same accent fill as every other row, with
-   the red text only at rest.
-3. **Current-value marks**: with a solid highlight following the pointer, a
-   list needs its own mark for what is current. The select list gets a check in
-   a leading column, as `Menu`'s radio rows already have (recommended: today it
-   shows nothing once the highlight moves). The dash menu's current row drops
-   its tint for the same check.
-4. **The bottom toolbar's popovers**: rebuild the zoom presets and view options
-   on `Menu` parts (recommended). The touch `⋯` menu already renders those same
-   toggles as `Menu` checkbox rows, so this makes desktop and touch one list,
-   with real menu keyboarding. The alternative restyles them in place, but the
-   view options' rows are labels around native checkboxes. A checked box is
-   drawn in the accent, so it disappears into an accent fill, and they would have
+1. **Highlight text is dark**, through `--text-on-accent`: the menu bar's accent
+   fill, with text that passes AA in every theme. White was 2.36:1 in One Dark
+   and under 1.6:1 in three themes.
+2. **Destructive rows** (Delete, Remove) **fill solid red**: `--status-danger`
+   with `--text-on-danger` text, derived the same way, which reaches AA in every
+   theme (worst 4.6:1, Solarized Dark). The warning stays visible under the
+   pointer rather than only at rest.
+3. **Current values get a check.** With a solid highlight following the
+   pointer, a list needs its own mark for what is current. The select list gets
+   a check in a leading column, as `Menu`'s radio rows already have (today it
+   shows nothing once the highlight moves), and the dash menu's current row
+   swaps its tint for the same check.
+4. **The bottom toolbar's popovers are rebuilt on `Menu` parts**: zoom presets
+   and view options. The touch `⋯` menu already renders those toggles as `Menu`
+   checkbox rows, so desktop and touch become one list, with real menu
+   keyboarding. Restyling them in place was the alternative, but the view
+   options' rows are labels around native checkboxes; a checked box is drawn in
+   the accent, so it would vanish into an accent fill, and they would have had
    to keep a neutral hover: a fifth look.
 
 ### Not in this pass
@@ -122,7 +122,7 @@ One description of a menu, which every implementation follows:
 - **Menus**: `components/ui/Menu.module.css`, `components/ui/Select.tsx` and its
   module, `components/MenuBar.module.css`, `components/settings/PaperDashMenu.tsx`
   and its module
-- **Toolbar popovers** (decision 4): `components/panels/ViewportToolbar.tsx` and
+- **Toolbar popovers**: `components/panels/ViewportToolbar.tsx` and
   its module and tests, sharing with `ViewportToolbarOverflowMenu.tsx`
 - **Docs**: `apps/web/docs/styling.md` (a "Menus" section: the spec, the tokens,
   and "build a new menu from `Menu`, a value picker from `Select`")
@@ -131,8 +131,8 @@ One description of a menu, which every implementation follows:
 
 ### Phase 1 — Tokens
 
-- [ ] `--text-on-accent` (and `--text-on-danger`, if decision 2 goes that way)
-      derived per theme, with a default in `theme.css` for first paint
+- [ ] `--text-on-accent` and `--text-on-danger` derived per theme, with a
+      default in `theme.css` for first paint
 - [ ] `--menu-highlight` and `--menu-highlight-text` in `theme.css`
 - [ ] A test: every preset's menu highlight text reaches 4.5:1 on its fill
 - [ ] Validate; commit
@@ -140,8 +140,8 @@ One description of a menu, which every implementation follows:
 ### Phase 2 — `Menu` and `Select`
 
 - [ ] Highlight through the tokens; shortcut, icon and chevron follow it;
-      destructive rows per decision 2
-- [ ] `Select`: row padding to the spec; the current-value check (decision 3)
+      destructive rows fill red
+- [ ] `Select`: row padding to the spec; the current-value check
 - [ ] Browser: a canvas context menu with a submenu, a colour row and a
       destructive row; the download, split-button and selection-export
       dropdowns; the Solutions and Language selects; keyboard highlight matches
@@ -164,7 +164,7 @@ One description of a menu, which every implementation follows:
 - [ ] Browser: the dash menu, by pointer and by keyboard
 - [ ] Validate; commit
 
-### Phase 5 — Bottom toolbar popovers (decision 4)
+### Phase 5 — Bottom toolbar popovers on `Menu`
 
 - [ ] Zoom presets and view options on `Menu` parts, sharing the touch `⋯`
       menu's rows; tests on roles
