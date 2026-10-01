@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-10-01
+
+One paper style and one export dialog for every folded surface, other ways to fold a precreasing step, and update checks that work behind a proxy.
+
+### Added
+
+- Fold a precreasing step another way. Beside the planner's pick, each card in the References workspace offers the best construction of each other kind the paper allows at that step — corner to corner, a corner bisected, through two marks, a swing onto a crease — up to four in all. Dots along the card's foot show how many there are; "Way 2 of 3" under the sentence, ↑/↓, the context menu, or a vertical swipe on a phone switches between them, and the card, the diagram and the fold animation all follow the choice. Switching a way never re-plans the rest of the sequence.
+- Add one **paper style** for every surface that draws paper — the simulator, the 3D and flat folded figures, and the References steps — under Settings ▸ Paper: paper colours, lighting, and a pen each for edges, folds, diagram creases, auxiliary creases and arrows. It has a Display slot and an Export slot, Default and Diagram presets alongside saved and imported ones, and per-object overrides in the Properties pane that are saved with the `.osf` file.
+- Export every paper surface through one dialog, with a live preview of the exact file: SVG or PNG, the style, a size in millimetres, margin, background, PNG resolution and whether to keep hidden faces. SVG exports keep each face as a whole object in view order, with buried layers kept and marked. In References, **Export all steps…** saves the whole sequence as one ZIP.
+
+### Improved
+
+- Draw a folded figure's **Shadow** as a soft contact shadow cast by each layer onto the paper beneath it: continuous along an edge, rounded at corners, kept on the paper it falls on, and deeper where the ledge is more sheets tall. The old per-edge bands spilled over flap tips, notched at corners and darkened where they overlapped. SVG and PNG exports draw the same shadow.
+- Draw ExplOri result trees as their mirror image: pairs of flaps as exact reflections on either side of a dashed mirror line, turned to agree with the crease pattern beside them. A pattern with no mirror is drawn without a line.
+- Give every menu one row style — inset, rounded, filled solid under the pointer or the keyboard — with a check mark on the current value and a red fill on destructive rows. Highlighted text now meets WCAG AA contrast in every theme; the old white-on-accent text fell short in 22 of 23.
+- Round every control, card and floating surface to one radius, so a number field and its stepper buttons match the select beside them. Design's tab strip is the same height as the References and Simulate headers, and the Edit workspace's tool card animates its height instead of jumping.
+- Leave the References fold animation off until asked. **Auto-play folds** now defaults to off, so a fold plays on Play, Space or the menu; turn the setting on to have each fold play on arrival. A choice already made either way is kept.
+
+### Fixed
+
+- Check for updates behind a proxy. The desktop app's update check ignored the operating system's proxy settings, so on a machine with one configured every check failed while the rest of the app worked. A check now also gives up after 30 seconds instead of hanging, and a failure is reported by its cause.
+- Close an open menu-bar menu when clicking on the crease pattern canvas. The click landed but the menu stayed open.
+
 ## [0.5.1] - 2026-09-21
 
 Two desktop fixes — a folded figure's colour picker, and ExplOri search — with faster precreasing sequences and a detector solve that reads the image's own ink.
