@@ -732,17 +732,6 @@ a.context-menu__item {
   box-shadow: none;
 }
 
-.panel-toolbar__meta {
-  overflow: hidden;
-  max-width: 150px;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .panel-body {
   flex: 1;
   min-height: 0;
@@ -923,357 +912,6 @@ a.context-menu__item {
   color: var(--status-danger);
 }
 
-.sequence-panel__body {
-  display: flex;
-  flex-direction: column;
-}
-
-.sequence-panel__toolbar-summary {
-  max-width: 190px;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sequence-panel__toolbar-summary[data-tone='good'] {
-  color: var(--status-success);
-}
-
-.sequence-panel__toolbar-summary[data-tone='warn'] {
-  color: var(--status-warning);
-}
-
-.sequence-panel__toolbar-summary[data-tone='bad'] {
-  color: var(--status-danger);
-}
-
-.sequence-panel__details {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.sequence-panel__details summary {
-  display: flex;
-  min-height: 30px;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  font-weight: 750;
-  cursor: pointer;
-  list-style: none;
-}
-
-.sequence-panel__details summary::-webkit-details-marker {
-  display: none;
-}
-
-.sequence-panel__details summary::before {
-  content: '>';
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-}
-
-.sequence-panel__details[open] summary::before {
-  content: 'v';
-}
-
-.sequence-panel__details summary span:first-child {
-  margin-right: auto;
-}
-
-.sequence-panel__details summary span:last-child {
-  max-width: 68%;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sequence-panel__metrics {
-  padding-top: 0;
-}
-
-.sequence-planning-card {
-  display: grid;
-  gap: var(--space-2);
-  margin: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--status-warning) 30%, var(--border-subtle));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--status-warning) 8%, var(--bg-primary));
-}
-
-.sequence-planning-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 760;
-}
-
-.sequence-planning-card__header span:last-child {
-  color: var(--status-warning);
-  font-variant-numeric: tabular-nums;
-}
-
-.sequence-planning-progress {
-  position: relative;
-  height: 6px;
-  overflow: hidden;
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--text-primary) 9%, transparent);
-}
-
-.sequence-planning-progress span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 42%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, transparent, var(--status-warning), transparent);
-  animation: sequence-progress-slide 1.15s ease-in-out infinite;
-}
-
-.sequence-planning-card p {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-  font-weight: 620;
-  line-height: 1.4;
-}
-
-.sequence-panel__preview {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-}
-
-.sequence-panel__preview-title {
-  display: flex;
-  min-height: 28px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-weight: 750;
-}
-
-.sequence-panel__preview-title span:nth-child(2) {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sequence-panel__preview-title span:last-child {
-  margin-left: auto;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.sequence-panel__preview-empty {
-  display: grid;
-  min-height: 108px;
-  place-items: center;
-  padding: var(--space-3);
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 650;
-}
-
-.sequence-preview-canvas {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1;
-}
-
-.sequence-preview-plane {
-  fill: color-mix(in srgb, var(--text-primary) 4%, transparent);
-  stroke: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  stroke-width: 1;
-}
-
-.sequence-preview-face {
-  fill: color-mix(in srgb, var(--bg-paper) 28%, transparent);
-  stroke: color-mix(in srgb, var(--bg-primary) 72%, transparent);
-  stroke-width: 1.1;
-}
-
-.sequence-preview-face--highlight {
-  fill: color-mix(in srgb, var(--accent-tertiary) 46%, var(--bg-paper));
-  stroke: color-mix(in srgb, var(--accent-tertiary) 92%, transparent);
-}
-
-.sequence-preview-crease {
-  stroke-width: 2.2;
-  stroke-linecap: round;
-}
-
-.sequence-preview-crease--b {
-  stroke: var(--fold-border);
-}
-
-.sequence-preview-crease--m {
-  stroke: var(--fold-mountain);
-}
-
-.sequence-preview-crease--v {
-  stroke: var(--fold-valley);
-}
-
-.sequence-preview-crease--f,
-.sequence-preview-crease--u,
-.sequence-preview-crease--c,
-.sequence-preview-crease--j {
-  stroke: var(--fold-flat);
-}
-
-.sequence-preview-crease--highlight {
-  stroke: var(--status-warning);
-  stroke-width: 5;
-}
-
-.sequence-panel__steps {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin: 0;
-  padding: var(--space-3);
-  list-style: none;
-}
-
-.sequence-panel__empty-step {
-  display: grid;
-  min-height: 120px;
-  place-items: center;
-  color: var(--text-tertiary);
-  font-size: 0.74rem;
-  font-weight: 650;
-}
-
-.sequence-diagram-step {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-  align-items: stretch;
-  min-width: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-}
-
-.sequence-diagram-step__copy {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: var(--space-2);
-  padding-top: var(--space-1);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.sequence-diagram-step__header {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  font-weight: 760;
-  text-transform: uppercase;
-}
-
-.sequence-diagram-step__header-main {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.sequence-diagram-step__header strong {
-  min-width: 0;
-  overflow: hidden;
-  padding: 2px 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.66rem;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.sequence-diagram-step__header-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.sequence-diagram-step__simulate {
-  height: 28px;
-  padding: 0 9px;
-  font-size: 0.68rem;
-  text-transform: none;
-}
-
-.sequence-diagram-step__label {
-  min-width: 0;
-  color: var(--text-primary);
-  font-size: 0.86rem;
-  font-weight: 760;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-.sequence-diagram-step__meta {
-  color: var(--text-tertiary);
-  font-size: 0.7rem;
-  font-weight: 650;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.sequence-diagram-step__visuals {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: center;
-  min-width: 0;
-}
-
-.sequence-diagram-step__arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary);
-}
-
-.sequence-diagram-step__visuals .sequence-panel__preview {
-  align-self: stretch;
-}
-
-.sequence-diagram-step__visuals .sequence-panel__preview-title {
-  min-height: 24px;
-}
-
-.sequence-diagram-step__visuals .sequence-preview-canvas {
-  min-height: 120px;
-}
-
 @keyframes sequence-progress-slide {
   from {
     transform: translateX(-110%);
@@ -1282,65 +920,6 @@ a.context-menu__item {
   to {
     transform: translateX(250%);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sequence-planning-progress span {
-    width: 100%;
-    opacity: 0.55;
-    animation: none;
-  }
-}
-
-.diagnostic-list {
-  display: grid;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.diagnostic-list__item {
-  border: 0;
-  background: transparent;
-  display: grid;
-  grid-template-columns: minmax(56px, max-content) 1fr;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 7px var(--space-3);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.72rem;
-  text-align: left;
-}
-
-.diagnostic-list__item:hover,
-.diagnostic-list__item[data-active='true'] {
-  background: color-mix(in srgb, var(--status-danger) 11%, transparent);
-}
-
-.diagnostic-list__item[data-severity='warning']:hover,
-.diagnostic-list__item[data-severity='warning'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
-}
-
-.diagnostic-list__item[data-severity='info']:hover,
-.diagnostic-list__item[data-severity='info'][data-active='true'] {
-  background: color-mix(in srgb, var(--status-success) 12%, transparent);
-}
-
-.diagnostic-list__item + .diagnostic-list__item {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.diagnostic-list__item span:first-child {
-  color: var(--status-danger);
-  font-weight: 750;
-}
-
-.diagnostic-list__item[data-severity='warning'] span:first-child {
-  color: var(--status-warning);
-}
-
-.diagnostic-list__item[data-severity='info'] span:first-child {
-  color: var(--status-success);
 }
 
 .tooltip-content {
@@ -2328,24 +1907,6 @@ a.context-menu__item {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
-}
-
-.export-modal__color {
-  display: grid;
-  gap: 4px;
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.export-modal__color input[type='color'] {
-  width: 100%;
-  height: 28px;
-  padding: 2px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-primary);
-  cursor: pointer;
 }
 
 .export-modal__hint {
@@ -4131,8 +3692,7 @@ a.context-menu__item {
 }
 
 .about-modal__intro p,
-.about-modal__ack p,
-.about-modal__facts dd {
+.about-modal__ack p {
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.82rem;
@@ -4208,8 +3768,7 @@ a.context-menu__item {
   outline: none;
 }
 
-.about-modal__ack strong,
-.about-modal__facts dt {
+.about-modal__ack strong {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4223,18 +3782,6 @@ a.context-menu__item {
 .about-modal__ack strong svg {
   flex: 0 0 auto;
   color: var(--text-tertiary);
-}
-
-.about-modal__facts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.about-modal__facts div {
-  display: grid;
-  grid-template-columns: 128px minmax(0, 1fr);
-  gap: var(--space-3);
 }
 
 @media (max-width: 680px) {
@@ -4261,8 +3808,7 @@ a.context-menu__item {
     flex-direction: column;
   }
 
-  .about-modal__intro,
-  .about-modal__facts div {
+  .about-modal__intro {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -4512,84 +4058,6 @@ a.context-menu__item {
   background: transparent;
 }
 
-/* Text-annotation labels over the WebGL surface: a DOM overlay (low glyph count,
-   CSS-styled) that scales with zoom. Container is click-through; each label opts back
-   into pointer events only when the active tool allows entity selection. */
-.cp-text-overlay {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 7;
-}
-
-.cp-text-label {
-  position: absolute;
-  /* The model point is the SVG text baseline-start; nudge so the label sits there. */
-  transform: translateY(-0.85em);
-  white-space: nowrap;
-  line-height: 1;
-  font-weight: 600;
-  font-family: Inter, system-ui, sans-serif;
-  color: var(--text-primary);
-  /* Halo so text reads over creases (mirrors the SVG's stroke paint-order). */
-  text-shadow:
-    0 0 3px var(--bg-primary),
-    0 0 3px var(--bg-primary),
-    0 0 3px var(--bg-primary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.cp-text-label--selected {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-primary) 80%, transparent));
-}
-
-/* Inline editor for the Text tool. Anchored at the same model point as a label
-   (baseline-start), it stands in for the label while editing. Pointer-enabled so
-   it captures typing; the rest of the overlay stays click-through. */
-.cp-text-editor {
-  position: absolute;
-  transform: translateY(-0.85em);
-  margin: 0;
-  padding: 0 2px;
-  min-width: 3ch;
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-family: Inter, system-ui, sans-serif;
-  line-height: 1;
-  white-space: pre;
-  overflow: hidden;
-  resize: none;
-  pointer-events: auto;
-  z-index: 8;
-}
-
-.cp-text-editor:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 35%, transparent);
-}
-
-/* Transparent click-catcher shown only while the inline editor is open. It sits
-   above the canvas but below the labels/editor (earlier in the DOM), so clicking
-   empty space dismisses the editor instead of creating a new text box. */
-.cp-text-editor-backdrop {
-  position: absolute;
-  inset: 0;
-  pointer-events: auto;
-}
-
-/* Reference-image editing overlay (selection outline + handles). Above the
-   text overlay so image handles are clickable while the Images tool is on. */
-.cp-image-overlay {
-  z-index: 8;
-}
-
 /* Floating controls for the selected reference image. */
 /* Generic floating toolbar pill. Position/transform are set inline by
    @floating-ui (fixed strategy, body-portaled), so this only styles the pill. */
@@ -4663,19 +4131,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   max-width: 16ch;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.floating-toolbar__opacity {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.floating-toolbar__opacity input {
-  width: 90px;
 }
 
 /* "Looks like a crease pattern — Detect creases?" on a reference image.
@@ -4817,9 +4272,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 /* In WebGL mode the SVG is covered by the canvas; hide it so the browser stops
    painting the (large) SVG DOM. visibility:hidden keeps its layout box so the
    camera can still seed from its fit. */
-.cp-canvas[data-webgl-hidden='true'] {
-  visibility: hidden;
-}
 
 .cp-diagnostic-hud {
   position: absolute;
@@ -5062,18 +4514,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
 }
 
-.cp-tool-rail__header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 30px;
-  border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-tertiary);
-  font-size: 0.62rem;
-  font-weight: 750;
-  letter-spacing: 0;
-}
-
 .cp-tool-rail__groups {
   display: grid;
   align-content: start;
@@ -5230,8 +4670,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   pointer-events: none;
 }
 
-.design-canvas,
-.cp-canvas {
+.design-canvas {
   display: block;
   min-width: 0;
   min-height: 0;
@@ -5248,22 +4687,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   vector-effect: non-scaling-stroke;
 }
 
-.cp-point--selected,
-.cp-vertex--selected,
-.cp-circle--selected,
-.cp-text--selected {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent-primary) 80%, transparent));
-}
-
-.cp-line-hit-target {
-  stroke: transparent;
-  stroke-width: 13;
-  stroke-linecap: round;
-  cursor: pointer;
-  pointer-events: stroke;
-  vector-effect: non-scaling-stroke;
-}
-
 .cp-vertex {
   fill: var(--bg-paper);
   stroke: color-mix(in srgb, var(--text-secondary) 72%, transparent);
@@ -5273,26 +4696,10 @@ button.cp-folded-figure-toolbar__notice:hover {
   vector-effect: non-scaling-stroke;
 }
 
-.cp-vertex-hit-target {
-  fill: transparent;
-  stroke: transparent;
-  cursor: pointer;
-  pointer-events: all;
-}
-
-.cp-vertex:hover,
-.cp-vertex--selected {
+.cp-vertex:hover {
   fill: var(--accent-primary);
   stroke: var(--bg-primary);
   opacity: 1;
-}
-
-.cp-circle {
-  fill: transparent;
-  stroke: var(--accent-secondary);
-  stroke-width: 1.4;
-  cursor: pointer;
-  vector-effect: non-scaling-stroke;
 }
 
 .cp-text {
@@ -5303,46 +4710,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-width: 3px;
   cursor: pointer;
   user-select: none;
-}
-
-.cp-folded-form-layer {
-  pointer-events: none;
-}
-
-.cp-generated-folded-figure {
-  cursor: grab;
-  pointer-events: all;
-}
-
-.cp-generated-folded-figure-primitive {
-  pointer-events: all;
-}
-
-.cp-generated-folded-figure-hit-target {
-  fill: transparent;
-  pointer-events: all;
-  stroke: none;
-}
-
-.cp-generated-folded-figure[data-folded-figure-active='true'] {
-  filter: drop-shadow(0 0 5px rgb(37 99 235 / 0.45));
-}
-
-.cp-generated-folded-figure-face {
-  fill-opacity: 0.7;
-  stroke: none;
-}
-
-.cp-generated-folded-figure-edge {
-  stroke-width: 1.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.92;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-generated-folded-figure--stale {
-  opacity: 0.42;
 }
 
 /* Inline simulation windows: a live fold placed on the crease pattern. */
@@ -5494,25 +4861,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke: none;
 }
 
-.cp-folded-form-edge {
-  stroke: color-mix(in srgb, var(--text-primary) 84%, #111111);
-  stroke-width: 1.15;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.86;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-snap-target {
-  fill: transparent;
-  stroke: var(--accent-primary);
-  stroke-width: 1.4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-command-preview,
-.cp-command-box-preview,
 .cp-operation-frame {
   fill: none;
   stroke: var(--accent-primary);
@@ -5520,251 +4868,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-dasharray: 6 4;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
-}
-
-.cp-command-preview {
-  opacity: 0.82;
-}
-
-.cp-command-box-preview {
-  fill: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  opacity: 0.9;
-}
-
-.cp-command-candidate {
-  opacity: 0.7;
-  stroke-dasharray: 5 4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-selection-transform {
-  pointer-events: none;
-}
-
-.cp-selection-transform__box {
-  fill: color-mix(in srgb, var(--accent-primary) 8%, transparent);
-  stroke: color-mix(in srgb, var(--accent-primary) 86%, var(--text-primary));
-  stroke-width: 1.2;
-  stroke-dasharray: 4 4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-selection-transform__move-hit-area {
-  fill: transparent;
-  cursor: move;
-  pointer-events: all;
-}
-
-.cp-selection-transform__menu-foreign {
-  overflow: visible;
-  pointer-events: all;
-}
-
-.cp-selection-transform__menu {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px;
-  border: 1px solid color-mix(in srgb, var(--border-default) 88%, transparent);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
-  box-shadow: 0 8px 22px var(--shadow-overlay);
-  pointer-events: all;
-}
-
-.cp-selection-transform__menu button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 25px;
-  height: 25px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--text-secondary);
-  background: transparent;
-  cursor: pointer;
-}
-
-.cp-selection-transform__menu button:hover {
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
-
-.cp-selection-transform__menu button:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-.cp-selection-transform__menu button > svg {
-  pointer-events: none;
-}
-
-.cp-selection-transform__separator {
-  width: 1px;
-  height: 18px;
-  background: var(--border-subtle);
-}
-
-.cp-selection-transform__rotate-hit-area {
-  fill: transparent;
-  pointer-events: all;
-  cursor:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M17 5v5h-5' fill='none' stroke='%230d1114' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M17 10a6.5 6.5 0 1 0 1.6 4.3' fill='none' stroke='%230d1114' stroke-width='2.3' stroke-linecap='round'/%3E%3C/svg%3E")
-      12 12,
-    grab;
-}
-
-.cp-selection-transform__resize-handle {
-  fill: var(--bg-paper);
-  stroke: var(--accent-primary);
-  stroke-width: 1.5;
-  pointer-events: all;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='ew'] {
-  cursor: ew-resize;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='ns'] {
-  cursor: ns-resize;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='nwse'] {
-  cursor: nwse-resize;
-}
-
-.cp-selection-transform__resize-handle[data-cp-resize-cursor='nesw'] {
-  cursor: nesw-resize;
-}
-
-.cp-selection-transform-preview {
-  opacity: 0.66;
-  stroke-dasharray: 7 4;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-command-candidate-point {
-  fill: var(--accent-primary);
-  stroke: var(--bg-primary);
-  stroke-width: 1.3;
-  opacity: 0.86;
-  pointer-events: none;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-segment {
-  stroke: var(--status-danger);
-  stroke-width: 3.2;
-  stroke-linecap: round;
-  opacity: 0.78;
-  cursor: pointer;
-  pointer-events: stroke;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-segment--active {
-  stroke-width: 5.2;
-  opacity: 0.95;
-}
-
-.cp-diagnostic-segment[data-diagnostic-color='Cyan3'] {
-  stroke: var(--status-success);
-}
-
-.cp-diagnostic-segment[data-diagnostic-color='Magenta5'] {
-  stroke: var(--status-danger);
-}
-
-.cp-diagnostic-segment[data-diagnostic-color='Yellow7'] {
-  stroke: var(--status-warning);
-}
-
-.cp-diagnostic-point {
-  --cp-diagnostic-color: var(--status-danger);
-  --cp-diagnostic-fill-opacity: 0.16;
-  --cp-diagnostic-blb-fill-opacity: 0.2;
-  --cp-diagnostic-stroke-opacity: 0.46;
-  cursor: pointer;
-  pointer-events: all;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='mountain'] {
-  --cp-diagnostic-color: var(--fold-mountain);
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='valley'] {
-  --cp-diagnostic-color: var(--fold-valley);
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='neutral'] {
-  --cp-diagnostic-color: var(--fold-unassigned);
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='unknown'] {
-  --cp-diagnostic-color: #ff0093;
-}
-
-.cp-diagnostic-point[data-diagnostic-tone='warning'] {
-  --cp-diagnostic-color: var(--status-warning);
-}
-
-.cp-diagnostic-point__halo {
-  fill: color-mix(in srgb, var(--cp-diagnostic-color) 16%, transparent);
-  stroke: var(--cp-diagnostic-color);
-  stroke-width: 2.4;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point__core {
-  fill: var(--cp-diagnostic-color);
-  stroke: var(--bg-paper);
-  stroke-width: 1.4;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point__cross {
-  stroke: var(--cp-diagnostic-color);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point__oriedita-shape,
-.cp-diagnostic-blb-sector {
-  fill: var(--cp-diagnostic-color);
-  fill-opacity: var(--cp-diagnostic-fill-opacity);
-  stroke: var(--cp-diagnostic-color);
-  stroke-opacity: var(--cp-diagnostic-stroke-opacity);
-  stroke-width: 1.8;
-  stroke-linejoin: bevel;
-  vector-effect: non-scaling-stroke;
-}
-
-.cp-diagnostic-point[data-marker-shape='ring'] .cp-diagnostic-point__oriedita-shape {
-  fill: transparent;
-}
-
-.cp-diagnostic-blb-sector {
-  fill: transparent;
-  fill-opacity: 0;
-}
-
-.cp-diagnostic-blb-sector[data-violating='true'] {
-  fill: var(--cp-diagnostic-color);
-  fill-opacity: var(--cp-diagnostic-blb-fill-opacity);
-}
-
-.cp-diagnostic-point--active {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--cp-diagnostic-color) 55%, transparent));
-}
-
-.cp-diagnostic-point--active .cp-diagnostic-point__halo {
-  stroke-width: 3.2;
 }
 
 .cp-operation-frame {
@@ -6079,12 +5182,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   .simulator-view-cube__spot {
     transition: none;
   }
-}
-
-.simulator-view-settings {
-  flex: 1 1 auto;
-  justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .simulator-panel__empty {
@@ -6420,19 +5517,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   text-wrap: balance;
 }
 
-.document-mode-empty__filename {
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-}
-
-.document-mode-empty__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-}
-
 .simulator-controls {
   display: grid;
   grid-template-columns: auto minmax(220px, 1fr) auto;
@@ -6498,17 +5582,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   fill: var(--bg-paper);
   stroke: var(--paper-stroke);
   stroke-width: 2;
-}
-
-.cp-canvas[data-canvas-mode='editable'] .paper--editable-cp-guide {
-  fill: transparent;
-  stroke: color-mix(in srgb, var(--border-strong) 66%, transparent);
-  stroke-width: 1.25;
-  pointer-events: all;
-}
-
-.paper-border {
-  display: none;
 }
 
 .paper-hit-area {
@@ -6682,13 +5755,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-width: 4;
 }
 
-.tree-node--pending-edge {
-  stroke: var(--status-warning);
-  stroke-width: 4;
-}
-
 .design-panel__body[data-space-pan] .design-canvas,
-.cp-panel__body[data-space-pan] .cp-canvas,
 .design-panel__body[data-space-pan] .paper-hit-area,
 .design-panel__body[data-space-pan] .tree-edge,
 .design-panel__body[data-space-pan] .tree-node,
@@ -6756,49 +5823,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   color: var(--text-primary);
   font: inherit;
   padding: 5px 7px;
-}
-
-.condition-advanced {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.condition-disclosure {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0;
-  padding: 2px 0;
-  text-transform: none;
-}
-
-.condition-disclosure:hover {
-  color: var(--text-primary);
-}
-
-.condition-disclosure svg {
-  flex: 0 0 auto;
-  transition: transform 0.15s ease;
-}
-
-.condition-disclosure[data-open] svg {
-  transform: rotate(90deg);
-}
-
-.condition-disclosure span {
-  min-width: 0;
-  overflow: hidden;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .condition-advanced__body {
@@ -7213,11 +6237,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   resize: vertical;
 }
 
-.cp-context-panel__field--textarea {
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: start;
-}
-
 .cp-context-panel__field input:disabled {
   opacity: 0.55;
 }
@@ -7493,10 +6512,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-.cp-context-panel__measure-kinds {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 /* The measured value is the answer the tool exists to give: largest type in the
@@ -7959,22 +6974,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 /* A text action inside a section body, rather than the icon-only affordance in a
    section header. Sized to the pane's other controls so a row of them lines up
    with the selects and toggles above. */
-.simulator-view-controls-panel__action {
-  flex: 1;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--border-subtle, rgb(255 255 255 / 10%));
-  border-radius: var(--radius-sm, 4px);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.simulator-view-controls-panel__action:hover {
-  background: var(--surface-hover, rgb(255 255 255 / 8%));
-  color: var(--text-primary);
-}
 
 .grid-scale-row {
   display: grid;
@@ -8591,10 +7590,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   .design-legend {
     display: none;
   }
-
-  .cp-tool-rail__header {
-    display: none;
-  }
 }
 
 /*
@@ -8637,23 +7632,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: pointer;
 }
 
-.facet--white {
-  fill: color-mix(in srgb, var(--status-info) 18%, transparent);
-}
-
-.facet--color {
-  fill: color-mix(in srgb, var(--accent-secondary) 18%, transparent);
-}
-
-.facet--unset {
-  fill: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-}
-
-.facet--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 3;
-}
-
 .crease {
   stroke-linecap: round;
   cursor: pointer;
@@ -8663,59 +7641,9 @@ button.cp-folded-figure-toolbar__notice:hover {
   filter: brightness(1.35);
 }
 
-/* Oriedita line styles for the editable crease pattern. The base crease color
-   classes provide the default COLOR style; --cp-line-width sets a uniform width
-   and data-cp-line-style layers Oriedita's black/white and chain-line dashes.
-   Selected creases keep their highlight treatment. */
-.cp-canvas[data-canvas-mode='editable'] .crease {
-  stroke-dasharray: none;
-}
-
-.cp-canvas[data-canvas-mode='editable'] .crease:not(.crease--selected) {
-  stroke-width: calc(var(--cp-line-width, 1) * 1.5px);
-}
-
-/* Mountain: one-dot chain (color+shape / black one-dot), two-dot chain (black two-dot). */
-.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='mountain']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
-  stroke-dasharray: 10 3 3 3;
-}
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
-  stroke-dasharray: 10 3 3 3 3 3;
-}
-
-/* Valley: dashed for every shape/black style. */
-.cp-canvas[data-cp-line-style='color-and-shape'] .crease[data-cp-line-color='valley']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
-  stroke-dasharray: 8 8;
-}
-
-/* Black chain-line styles draw every crease black. */
-.cp-canvas[data-cp-line-style='black-one-dot'] .crease:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-two-dot'] .crease:not(.crease--selected) {
-  stroke: #000;
-}
-
-/* Black & white: edge + mountain black, valley grey. */
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='edge']:not(.crease--selected),
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='mountain']:not(.crease--selected) {
-  stroke: #000;
-}
-.cp-canvas[data-cp-line-style='black-white'] .crease[data-cp-line-color='valley']:not(.crease--selected) {
-  stroke: #a2a2a2;
-}
-
 /* Point size for the editable crease pattern (Oriedita pointSize): scales the
    vertex markers drawn at every line endpoint plus explicit CP points. A size of
    0 hides them, matching Oriedita. */
-.cp-canvas[data-canvas-mode='editable'] .cp-vertex {
-  r: calc(var(--cp-point-size, 1) * 1.6px);
-}
-
-.cp-canvas[data-canvas-mode='editable'] .cp-point {
-  r: calc(var(--cp-point-size, 1) * 2px);
-}
 
 .crease--fold-mountain {
   stroke: var(--fold-mountain);
@@ -8800,32 +7728,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   stroke-width: 3;
 }
 
-.crease--kind-gusset {
-  stroke: var(--fold-gusset);
-  stroke-width: 2;
-}
-
-.crease--kind-ridge {
-  stroke: var(--fold-ridge);
-  stroke-width: 2.5;
-}
-
-.crease--kind-hinge {
-  stroke: var(--fold-hinge);
-  stroke-width: 2.5;
-}
-
-.crease--kind-pseudohinge {
-  stroke: var(--fold-pseudohinge);
-  stroke-width: 2;
-}
-
-.crease.crease--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 5;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent-primary) 45%, transparent));
-}
-
 .inspector-heading {
   display: flex;
   align-items: center;
@@ -8837,56 +7739,8 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 750;
 }
 
-/* ===== Box Pleating surfaces: app semantic tokens (no --bp-* palette) ===== */
-
-.bp-tree-grid {
-  pointer-events: none;
-}
-
-.bp-tree-grid-line {
-  stroke: var(--bg-canvas-grid);
-  stroke-width: 1;
-}
-
-.bp-tree-grid-line--major {
-  stroke: var(--bg-canvas-grid);
-  stroke-width: 1.5;
-}
-
-.bp-tree-grid-line--diagonal {
-  stroke: var(--bg-canvas-grid);
-  stroke-dasharray: 4 5;
-  opacity: 0.72;
-}
-
-/*
- * Every tree edge is the same line, as in Box Pleating Studio itself — which has
- * one `edge` style and no river/flap distinction. Rivers used to be drawn in
- * `--border-strong`, the theme's *active* colour and a near-match for the accent
- * a selected edge wears, so a tree of rivers read as a tree of selected edges.
- * Which edge is which stays legible from the length label, carried by flap edges
- * only.
- */
-.bp-tree-edge--river,
-.bp-tree-edge--leaf {
-  stroke: var(--tree-edge);
-}
-
-/*
- * A selected edge is just the edge, drawn in the accent colour and a little
- * heavier — no ring, no halo. Scoped to the BP canvas so the TreeMaker design
- * pane keeps its own selection weight.
- */
-.bp-tree-edge.tree-edge--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 7;
-}
-
 /* The root marker is identity, not state — same opt-out as `[data-leaf]` above, so
  * selecting the root still reads as selected. */
-.bp-tree-node--root:not(:hover, .tree-node--selected) {
-  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
-}
 
 .bp-packing-sheet {
   fill: var(--bg-primary);
@@ -9609,67 +8463,6 @@ button.bp-packing-alert:focus-visible {
     }
 }
 
-.bp-design-empty {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  padding: var(--space-6);
-}
-
-.bp-design-empty__body {
-  display: grid;
-  gap: var(--space-4);
-  width: min(100%, 520px);
-  text-align: center;
-}
-
-.bp-design-empty__title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 1.1rem;
-  font-weight: 760;
-}
-
-.bp-design-empty__subtitle {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
-.bp-design-empty__examples {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.bp-design-empty__example {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-primary));
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.bp-design-empty__example:hover,
-.bp-design-empty__example:focus-visible {
-  border-color: color-mix(in srgb, var(--accent-primary) 44%, var(--border-default));
-  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-elevated));
-}
-
-.bp-design-empty__example-title {
-  color: var(--text-primary);
-  font-size: 0.92rem;
-  font-weight: 720;
-}
-
-.bp-design-empty__example-desc {
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-}
-
 .bp-tree-panel,
 .bp-tree-panel .design-panel__body {
   height: 100%;
@@ -10115,28 +8908,10 @@ button.bp-packing-alert:focus-visible {
  * stay shared, and a surface can restyle its own tree without reaching into
  * another's.
  */
-.explori-tree-edge--river,
-.explori-tree-edge--leaf {
-  stroke: var(--tree-edge);
-}
-
-.explori-tree-edge.tree-edge--selected {
-  stroke: var(--accent-primary);
-  stroke-width: 7;
-}
-
-.explori-tree-node--root:not(:hover, .tree-node--selected) {
-  fill: color-mix(in srgb, var(--accent-secondary) 45%, var(--bg-canvas));
-}
 
 .explori-tree-panel {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-}
-
-.explori-tree-panel .explori-tree-panel__body {
-  flex: 1;
   min-height: 0;
 }
 
@@ -10764,7 +9539,6 @@ button.bp-packing-alert:focus-visible {
   .select-trigger,
   .viewport-toolbar__zoom-button,
   .viewport-toolbar__symmetry-button,
-  .cp-selection-transform__menu button,
   .bp-packing-dpad button,
   .number-field__step {
     min-height: var(--touch-target);
@@ -10776,7 +9550,6 @@ button.bp-packing-alert:focus-visible {
   .ui-icon-control--sm,
   .ui-icon-control--md,
   .ui-icon-control--lg,
-  .cp-selection-transform__menu button,
   .bp-packing-dpad button,
   .number-field__step {
     min-width: var(--touch-target);
