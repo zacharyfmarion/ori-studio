@@ -1,8 +1,22 @@
 // Global Vitest setup: initialize i18next once so `t('ns:key', 'English default')` resolves
 // to the inline English default in every test (matching runtime before locale JSON loads),
 // rather than returning the raw key. Importing the app's i18n module triggers its init side
-// effect; the http backend's fetches are harmless no-ops under jsdom.
-import '../i18n';
+// effect.
+import type HttpBackend from 'i18next-http-backend';
+import i18n from '../i18n';
+
+/**
+ * Every catalog loads empty, and never through `fetch`.
+ *
+ * The HTTP backend calls whatever the global `fetch` is when a request goes out, and
+ * i18next retries a failed load for about eleven seconds, so catalog loads landed in the
+ * `fetch` stubs tests install for their own requests — and failed a spy that must never be
+ * called ("the desktop app asks for no release") under full-suite load. `setup.test.ts`
+ * pins this.
+ */
+const { backend } = i18n.services.backendConnector as { backend: HttpBackend };
+backend.options.request = (_options, _url, _payload, callback) =>
+  callback(null, { status: 200, data: '{}' });
 
 /**
  * No unit test reaches the network.
