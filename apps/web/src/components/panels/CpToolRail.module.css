@@ -101,7 +101,8 @@
   min-width: 0;
   height: 38px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  /* The icon buttons' radius: a tool is a control like any other. */
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
