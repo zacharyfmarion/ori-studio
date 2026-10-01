@@ -126,7 +126,7 @@ export function diagramMarks(
   return marks;
 }
 
-/** A ring's stroke, in the projector's units: half the arrow's pen (`DIAGRAM_MARK_INK`). */
+/** A ring's stroke, in the projector's units: three quarters of the arrow's pen (`DIAGRAM_MARK_INK`). */
 export function markRingWidth(project: DiagramProjector): number {
   return DIAGRAM_MARK_INK.ofArrow * project.pens.arrow.width * project.ink;
 }

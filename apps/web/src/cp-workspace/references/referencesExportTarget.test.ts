@@ -295,7 +295,7 @@ describe('a step’s marks on the page', () => {
         expect(Number(arrow['stroke-width']) * scale, `${mm} mm`).toBeCloseTo(STYLE.arrows.width, 6);
       }
       // A letter and its halo, and a ring, are what they are on screen; the
-      // ring's stroke is half the arrow's pen.
+      // ring's stroke is three quarters of the arrow's pen.
       const letters = elements(markup, 'text');
       expect(letters.length, `${mm} mm`).toBeGreaterThan(0);
       for (const letter of letters) {
