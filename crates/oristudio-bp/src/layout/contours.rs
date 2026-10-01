@@ -1,5 +1,5 @@
 use crate::error::BpResult;
-use crate::layout::trace::{RepoTrace, create_hinge_segments};
+use crate::layout::trace::{RepoTrace, StartEnd, create_hinge_segments};
 use crate::layout::{LayoutRepository, NodeSet, Quadrant, ValidJunction, get_factors};
 use crate::math::geometry::{
     EPSILON, Line, PathPoint, Point, deduplicate, fix_zero, map_directions,
@@ -96,7 +96,7 @@ impl From<GraphicalContour> for Contour {
     }
 }
 
-pub type StartEndMap = [Option<[Point; 2]>; QUADRANT_NUMBER];
+pub type StartEndMap = [Option<StartEnd>; QUADRANT_NUMBER];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LeafSet {
@@ -407,11 +407,14 @@ pub fn combine_graphical_contours(
     Ok(contours)
 }
 
+/// `junctions` is every valid junction of the design, which the node-specific
+/// starting point consults (see [`Quadrant::start_point_for`]).
 pub fn process_pattern_contours(
     trace_contours: &[TraceContour],
     covered_quadrants: &[Quadrant],
     trace: &RepoTrace,
     repo: &LayoutRepository,
+    junctions: &[ValidJunction],
     tree: &BpTree,
 ) -> BpResult<Vec<PatternContour>> {
     let multi_contour = trace_contours.len() > 1;
@@ -442,16 +445,19 @@ pub fn process_pattern_contours(
                 .filter(|quadrant| !multi_contour || leaves.contains(&quadrant.flap))
                 .cloned()
                 .collect::<Vec<_>>();
-            let map = create_start_end_map(&quadrants, trace, repo, tree)?;
+            let map =
+                create_start_end_map(&quadrants, trace, repo, junctions, &trace_leaves, tree)?;
             for hinge_segment in create_hinge_segments(&outer.points, repo.direction()) {
-                let Some([start, end]) = &map[hinge_segment.q as usize] else {
+                let Some(start_end) = &map[hinge_segment.q as usize] else {
                     continue;
                 };
-                if let Some(points) =
-                    trace
-                        .trace()
-                        .generate(&hinge_segment.points, start, end, trace_contour.raw)?
-                {
+                if let Some(points) = trace.trace().generate(
+                    &hinge_segment.points,
+                    &start_end.start,
+                    &start_end.end,
+                    trace_contour.raw,
+                    Some(&start_end.node_start),
+                )? {
                     result.push(PatternContour {
                         points,
                         ids: repo.node_set.nodes.clone(),
@@ -466,10 +472,13 @@ pub fn process_pattern_contours(
     Ok(result)
 }
 
+/// `junctions` is every valid junction of the design (`create_valid_junctions`),
+/// covered ones included — not just the repositories'.
 pub fn build_pattern_contours(
     tree: &BpTree,
     trace_contours: &BTreeMap<NodeId, Vec<TraceContour>>,
     repos: &[&LayoutRepository],
+    junctions: &[ValidJunction],
 ) -> BpResult<BTreeMap<NodeId, Vec<PatternContour>>> {
     let mut result = BTreeMap::<NodeId, Vec<PatternContour>>::new();
     for repo in repos {
@@ -495,6 +504,7 @@ pub fn build_pattern_contours(
                 &covered_quadrants,
                 &trace,
                 repo,
+                junctions,
                 tree,
             )?;
             if !contours.is_empty() {
@@ -505,10 +515,14 @@ pub fn build_pattern_contours(
     Ok(result)
 }
 
+/// `leaves` are the leaves of the trace contour being traced, which decide
+/// the node-specific starting point of each direction.
 pub fn create_start_end_map(
     quadrants: &[Quadrant],
     trace: &RepoTrace,
     repo: &LayoutRepository,
+    junctions: &[ValidJunction],
+    leaves: &BTreeSet<NodeId>,
     tree: &BpTree,
 ) -> BpResult<StartEndMap> {
     let mut result: StartEndMap = std::array::from_fn(|_| None);
@@ -529,7 +543,7 @@ pub fn create_start_end_map(
                 })
             })
             .collect::<BpResult<Vec<_>>>()?;
-        *slot = Some(trace.resolve_start_end(&filtered, &all, tree)?);
+        *slot = Some(trace.resolve_start_end(&filtered, &all, junctions, leaves, tree)?);
     }
     Ok(result)
 }

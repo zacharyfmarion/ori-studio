@@ -195,11 +195,13 @@ pub fn project_graphics_snapshot(project: &Project) -> BpResult<LayoutGraphicsSn
     let pattern_not_found = stretches.iter().any(|stretch| !stretch.pattern_found);
 
     let repo_refs = repositories.iter().collect::<Vec<_>>();
-    let covered_junctions = covered_junction_map(&tree)?;
+    let valid_junctions = create_valid_junctions(&tree)?;
+    let covered_junctions = covered_junction_map(&tree, &valid_junctions)?;
     let rough_contours = build_rough_contours(&tree)?;
     let trace_contours =
         build_trace_contours(&tree, &rough_contours, &repo_refs, &covered_junctions)?;
-    let pattern_contours = build_pattern_contours(&tree, &trace_contours, &repo_refs)?;
+    let pattern_contours =
+        build_pattern_contours(&tree, &trace_contours, &repo_refs, &valid_junctions)?;
     let free_corners = collect_free_corners(&repo_refs)?;
     let patterned_quadrants = patterned_quadrants(&repositories);
     let mut node_entries = Vec::new();
@@ -330,7 +332,8 @@ pub fn project_line_components(
     }
     let tree = BpTree::new(&project.design.tree.edges, &project.design.layout.flaps)?;
     let mut repositories = active_layout_repositories(&tree, &project.design.layout.stretches)?;
-    let covered_junctions = covered_junction_map(&tree)?;
+    let valid_junctions = create_valid_junctions(&tree)?;
+    let covered_junctions = covered_junction_map(&tree, &valid_junctions)?;
     for repo in &mut repositories {
         if repo.configuration().is_none() {
             repo.init_with_tree(&tree)?;
@@ -346,7 +349,8 @@ pub fn project_line_components(
     let rough_contours = build_rough_contours(&tree)?;
     let trace_contours =
         build_trace_contours(&tree, &rough_contours, &repo_refs, &covered_junctions)?;
-    let pattern_contours = build_pattern_contours(&tree, &trace_contours, &repo_refs)?;
+    let pattern_contours =
+        build_pattern_contours(&tree, &trace_contours, &repo_refs, &valid_junctions)?;
     let free_corners = collect_free_corners(&repo_refs)?;
     let patterned_quadrants = patterned_quadrants(&repositories);
     let mut components = CpLineComponents {
@@ -611,10 +615,12 @@ fn graphical_to_river_contour(contour: GraphicalContour) -> RiverContour {
     }
 }
 
-fn covered_junction_map(tree: &BpTree) -> BpResult<BTreeMap<u32, Vec<ValidJunction>>> {
+fn covered_junction_map(
+    tree: &BpTree,
+    valid_junctions: &[ValidJunction],
+) -> BpResult<BTreeMap<u32, Vec<ValidJunction>>> {
     let mut result = BTreeMap::<u32, Vec<ValidJunction>>::new();
-    let valid_junctions = create_valid_junctions(tree)?;
-    for team in group_junctions(&valid_junctions)? {
+    for team in group_junctions(valid_junctions)? {
         let mut team_junctions = team
             .junctions
             .iter()

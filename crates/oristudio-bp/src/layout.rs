@@ -1525,15 +1525,151 @@ impl Quadrant {
     }
 
     pub fn start_end_points(&self, tree: &BpTree) -> BpResult<[Point; 2]> {
+        self.start_end_points_at(self.o, tree)
+    }
+
+    /// The starting point of tracing for the contour of a specific node (given
+    /// by its leaves).
+    ///
+    /// The junctions with flaps inside the node do not show up on the contour
+    /// of the node. Instead, the regions of those flaps (their own rough
+    /// contours) fill up the region next to the hinge starting from the tracing
+    /// starting point, and the pattern actually emerges from where the filling
+    /// ends (which is at most where the first junction with a flap outside the
+    /// node starts). The covered junctions, which are not in the repository,
+    /// count here too, so `junctions` must be every valid junction of the
+    /// design (upstream reads `State.$junctions`), not just the repository's.
+    ///
+    /// Returns the shifted starting point, along with the region filled (if
+    /// any).
+    pub fn start_point_for(
+        &self,
+        junctions: &[ValidJunction],
+        leaves: &BTreeSet<NodeId>,
+        tree: &BpTree,
+    ) -> BpResult<NodeStart> {
+        let [start, _] = self.start_end_points(tree)?;
+        let unshifted = || NodeStart::at(start);
+        let (regions, outside) = self.collect_regions(junctions, leaves, tree)?;
+        if regions.is_empty() || outside.is_empty() {
+            return unshifted();
+        }
+
+        // The farthest that the starting point could be shifted to
+        let outside_o = Point {
+            x: outside
+                .iter()
+                .map(|junction| junction.o.x)
+                .fold(f64::NEG_INFINITY, f64::max),
+            y: outside
+                .iter()
+                .map(|junction| junction.o.y)
+                .fold(f64::NEG_INFINITY, f64::max),
+        };
+        let [limit, _] = self.start_end_points_at(outside_o, tree)?;
+
+        // Work in the 1D coordinates along the hinge (a) and into the flap (d)
+        let reversed = self.q as u8 % 2 != SlashDirection::Fw as u8;
+        let (a, d) = if reversed {
+            (Axis::X, Axis::Y)
+        } else {
+            (Axis::Y, Axis::X)
+        };
+        let sign = a.of(self.f); // Towards the corner along the hinge
+        let into = -d.of(self.f); // Into the flap
+        let at = |value: f64| a.with(start, value);
+
+        // Walk along the hinge towards the corner, as long as the current point
+        // is covered by some region
+        let mut cursor = a.of(start);
+        let mut depth = 0.0_f64;
+        while cursor != a.of(limit) {
+            // Among the covering regions, take the one reaching the farthest
+            // along the hinge
+            let here = at(cursor);
+            let mut far: Option<f64> = None;
+            for rect in &regions {
+                if !rect.contains(here.x, here.y) {
+                    continue;
+                }
+                let edge = rect.edge(a, sign);
+                if far.is_none_or(|far| sign * (edge - far) > 0.0) {
+                    far = Some(edge);
+                }
+                depth = depth.max(into * (rect.edge(d, into) - d.of(start)));
+            }
+            let Some(far) = far.filter(|far| sign * (far - cursor) > 0.0) else {
+                break;
+            };
+            cursor = if sign * (far - a.of(limit)) > 0.0 {
+                a.of(limit)
+            } else {
+                far
+            };
+        }
+        if cursor == a.of(start) {
+            return unshifted();
+        }
+
+        let point = at(cursor);
+        let inner = d.with(point, d.of(start) + into * depth);
+        Ok(NodeStart {
+            point: ExactPoint::from_numbers(point.x, point.y)?,
+            filled: Some(Rect::spanning(start, inner)),
+        })
+    }
+
+    /// The regions (i.e. the rough contours) of the flaps inside the node
+    /// (given by its leaves) having junctions with this flap in this quadrant,
+    /// and the junctions with flaps outside the node.
+    fn collect_regions<'a>(
+        &self,
+        junctions: &'a [ValidJunction],
+        leaves: &BTreeSet<NodeId>,
+        tree: &BpTree,
+    ) -> BpResult<(Vec<Rect>, Vec<&'a ValidJunction>)> {
+        let mut regions = Vec::new();
+        let mut outside = Vec::new();
+        for junction in junctions {
+            if !junction.involves(self.flap) {
+                continue;
+            }
+            let code = if junction.a == self.flap {
+                junction.q1
+            } else {
+                junction.q2
+            };
+            if get_quadrant(code) != self.q {
+                continue;
+            }
+            let id = self.opposite_id(junction);
+            if !leaves.contains(&id) {
+                outside.push(junction);
+                continue;
+            }
+            let inside = tree_node(tree, id)?;
+            let [top, right, bottom, left] = inside.aabb.to_values();
+            let e = inside.length;
+            regions.push(Rect {
+                x1: left - e,
+                y1: bottom - e,
+                x2: right + e,
+                y2: top + e,
+            });
+        }
+        Ok((regions, outside))
+    }
+
+    fn start_end_points_at(&self, o: Point, tree: &BpTree) -> BpResult<[Point; 2]> {
         let radius = tree_node(tree, self.flap)?.length;
         let point = self.point(tree)?;
         let mut result = [
             Point {
                 x: point.x + self.f.x * radius,
-                y: point.y + self.f.y * (radius - self.o.y),
+                y: point.y + self.f.y * (radius - o.y),
             },
             Point {
-                x: point.x + self.f.x * (radius - self.o.x),
+                x: point.x + self.f.x * (radius - o.x),
                 y: point.y + self.f.y * radius,
             },
         ];
@@ -1929,6 +2065,113 @@ pub fn start_end_points(quadrants: &[Quadrant], tree: &BpTree) -> BpResult<[Poin
         }
     }
     Ok([start, end])
+}
+
+/// Find the starting point of tracing for the contour of a specific node (see
+/// [`Quadrant::start_point_for`]) for a given set of quadrants (assumed to be
+/// of the same [`QuadrantDirection`]).
+pub fn start_point_for(
+    quadrants: &[Quadrant],
+    junctions: &[ValidJunction],
+    leaves: &BTreeSet<NodeId>,
+    tree: &BpTree,
+) -> BpResult<NodeStart> {
+    let Some(first) = quadrants.first() else {
+        return Err(BpError::InvalidInput(
+            "cannot compute the node start point without quadrants".to_string(),
+        ));
+    };
+    let mut start = first.start_point_for(junctions, leaves, tree)?;
+    let f = first.f;
+    for quadrant in quadrants.iter().skip(1) {
+        let new_start = quadrant.start_point_for(junctions, leaves, tree)?;
+        if point_weight(new_start.point_value(), f) < point_weight(start.point_value(), f) {
+            start = new_start;
+        }
+    }
+    Ok(start)
+}
+
+/// An axis-aligned rectangle, with `x1 <= x2` and `y1 <= y2`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rect {
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
+}
+
+impl Rect {
+    fn spanning(p: Point, q: Point) -> Self {
+        Self {
+            x1: p.x.min(q.x),
+            y1: p.y.min(q.y),
+            x2: p.x.max(q.x),
+            y2: p.y.max(q.y),
+        }
+    }
+
+    pub fn contains(&self, x: f64, y: f64) -> bool {
+        self.x1 <= x && x <= self.x2 && self.y1 <= y && y <= self.y2
+    }
+
+    /// The edge of the rectangle on the given axis, in the given direction
+    /// (sign).
+    fn edge(&self, axis: Axis, sign: f64) -> f64 {
+        match (axis, sign > 0.0) {
+            (Axis::X, true) => self.x2,
+            (Axis::X, false) => self.x1,
+            (Axis::Y, true) => self.y2,
+            (Axis::Y, false) => self.y1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Axis {
+    X,
+    Y,
+}
+
+impl Axis {
+    fn of(self, point: Point) -> f64 {
+        match self {
+            Self::X => point.x,
+            Self::Y => point.y,
+        }
+    }
+
+    /// `point` with its coordinate on this axis replaced by `value`.
+    fn with(self, point: Point, value: f64) -> Point {
+        match self {
+            Self::X => Point { x: value, ..point },
+            Self::Y => Point { y: value, ..point },
+        }
+    }
+}
+
+/// The result of [`Quadrant::start_point_for`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct NodeStart {
+    /// The starting point of tracing.
+    pub point: ExactPoint,
+    /// The region filled by the flaps inside the node, if the starting point
+    /// is shifted.
+    pub filled: Option<Rect>,
+}
+
+impl NodeStart {
+    fn at(point: Point) -> BpResult<Self> {
+        Ok(Self {
+            point: ExactPoint::from_numbers(point.x, point.y)?,
+            filled: None,
+        })
+    }
+
+    fn point_value(&self) -> Point {
+        let (x, y) = self.point.value();
+        Point { x, y }
+    }
 }
 
 pub fn one_is_contained_in_another(o1: Point, o2: Point) -> bool {

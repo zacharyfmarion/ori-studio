@@ -297,7 +297,7 @@ pub const PORT_DESCRIPTORS: &[PortDescriptor] = &[
     },
     PortDescriptor {
         upstream: "src/core/design/layout/pattern/quadrant.ts",
-        target: "layout::Quadrant::{start_end_points, overlap_corner}",
+        target: "layout::Quadrant::{start_end_points, start_point_for, overlap_corner}",
         area: PortArea::Layout,
         status: PortStatus::Porting,
     },

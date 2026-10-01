@@ -4,6 +4,7 @@ use oristudio_bp::math::geometry::{PathPoint, Point, parse_line};
 use oristudio_bp::model::{Edge, Flap, Point as LayoutPoint};
 use oristudio_bp::shared::{QuadrantDirection, SlashDirection};
 use oristudio_bp::tree::BpTree;
+use std::collections::BTreeSet;
 
 #[test]
 fn hinge_segments_split_counter_clockwise_square_by_forward_slash_direction() {
@@ -102,6 +103,7 @@ fn trace_generate_includes_intersection_ridge_at_end_like_upstream_fixture() {
             &Point::from_integers(37, 49),
             &Point::from_integers(25, 32),
             false,
+            None,
         )
         .unwrap()
         .unwrap();
@@ -138,15 +140,20 @@ fn repo_trace_resolves_start_and_end_from_adjacent_intersection_ridges() {
         [all[0].flap, all[1].flap],
     );
 
-    let [start, _] = repo_trace
-        .resolve_start_end(&[all[1].clone()], &all, &tree)
+    let leaves = BTreeSet::from([all[0].flap, all[1].flap]);
+    let resolved = repo_trace
+        .resolve_start_end(&[all[1].clone()], &all, &junctions, &leaves, &tree)
         .unwrap();
-    assert!(start.equals(&Point::from_integers(100, 100)));
+    assert!(resolved.start.equals(&Point::from_integers(100, 100)));
+    assert!(
+        resolved.node_start.point.equals(&resolved.start) && resolved.node_start.filled.is_none(),
+        "a start taken from the intersection ridge is also the node-specific start"
+    );
 
-    let [_, end] = repo_trace
-        .resolve_start_end(&[all[0].clone()], &all, &tree)
+    let resolved = repo_trace
+        .resolve_start_end(&[all[0].clone()], &all, &junctions, &leaves, &tree)
         .unwrap();
-    assert!(end.equals(&Point::from_integers(100, 100)));
+    assert!(resolved.end.equals(&Point::from_integers(100, 100)));
 }
 
 fn square() -> Vec<PathPoint> {
