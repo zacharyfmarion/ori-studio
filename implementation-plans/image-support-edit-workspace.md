@@ -104,7 +104,12 @@ source of truth for both the GPU texture and `.osf`:
    writes it onto the root in pixels with the longer side at the cap, and loads
    it into an `<img>` from a `data:` URL. It is drawn at the cap whatever size it
    declares, since a vector has no resolution of its own; the markup is never
-   inserted into the document or kept.
+   inserted into the document or kept. Three engine facts shape that step: the
+   bytes are decoded by BOM / XML declaration, not as UTF-8 regardless; the
+   size also goes on the root as important inline style, because WebKit lets
+   the root's own CSS override the attributes; and an SVG that embeds `data:`
+   images is watched until they draw, because WebKit 17 fires `load` before
+   they have loaded and nothing signals when they do.
 2. If the longest edge exceeds `IMAGE_MAX_DIMENSION` (**2048 px**, a named
    constant), draw to an offscreen canvas at the capped size with high-quality
    smoothing. Otherwise pass through.
