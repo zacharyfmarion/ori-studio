@@ -152,6 +152,36 @@ describe('prepareSvgForRaster', () => {
     expect(rootOf(prepared.markup).getAttribute('viewBox')).toBe('0 0 96 48');
   });
 
+  // WebKit lets the root's CSS override its width/height attributes, so the
+  // size must also win the cascade; Mermaid writes `max-width` on the root.
+  it('pins the size against CSS on the root', () => {
+    const prepared = prepareSvgForRaster(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 400 300" style="max-width: 400px;"><style>svg { width: 10px }</style></svg>',
+      2048
+    );
+    const style = rootOf(prepared.markup).getAttribute('style') ?? '';
+    // The file's own declarations are kept, and come first so they lose.
+    expect(style.startsWith('max-width: 400px;')).toBe(true);
+    for (const declaration of [
+      'width:2048px !important',
+      'height:1536px !important',
+      'max-width:none !important',
+      'max-height:none !important',
+      'min-width:0 !important',
+      'min-height:0 !important',
+    ]) {
+      expect(style).toContain(declaration);
+    }
+  });
+
+  it('adds the sizing style to a root that has none', () => {
+    const prepared = prepareSvgForRaster(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>',
+      2048
+    );
+    expect(rootOf(prepared.markup).getAttribute('style')).toMatch(/^width:2048px !important;/);
+  });
+
   it('rejects text that is not an SVG document', () => {
     expect(() => prepareSvgForRaster('not xml at all', 2048)).toThrow();
     expect(() => prepareSvgForRaster('<svg xmlns="http://www.w3.org/2000/svg"><g></svg>', 2048)).toThrow();

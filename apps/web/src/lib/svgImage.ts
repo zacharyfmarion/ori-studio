@@ -120,6 +120,11 @@ export interface PreparedSvg extends SvgSize {
  * The root always leaves with a viewBox. Without one, user units are CSS pixels
  * and a larger `width`/`height` would only widen the canvas around a drawing of
  * the same size; the viewBox it would have had makes the drawing scale with it.
+ *
+ * The size is stated twice, as attributes and as important inline style. WebKit
+ * lets the root's CSS override the attributes — a `max-width` as Mermaid writes
+ * it, a `width` in a `<style>` rule — and would then draw into a corner of the
+ * canvas; an important inline declaration outranks all of them.
  */
 export function prepareSvgForRaster(text: string, maxDimension: number): PreparedSvg {
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
@@ -142,7 +147,22 @@ export function prepareSvgForRaster(text: string, maxDimension: number): Prepare
   root.setAttribute('viewBox', `${box.x} ${box.y} ${box.width} ${box.height}`);
   root.setAttribute('width', String(raster.width));
   root.setAttribute('height', String(raster.height));
+  const style = root.getAttribute('style');
+  root.setAttribute('style', `${style ? `${style};` : ''}${rootSizeStyle(raster)}`);
   return { markup: new XMLSerializer().serializeToString(doc), ...raster };
+}
+
+function rootSizeStyle({ width, height }: SvgSize): string {
+  return [
+    `width:${width}px`,
+    `height:${height}px`,
+    'min-width:0',
+    'min-height:0',
+    'max-width:none',
+    'max-height:none',
+  ]
+    .map((declaration) => `${declaration} !important`)
+    .join(';');
 }
 
 export interface LoadedSvgImage extends SvgSize {
