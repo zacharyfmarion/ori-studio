@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   decodeSvgText,
+  loadSvgImage,
   parseSvgLength,
   parseSvgViewBox,
   prepareSvgForRaster,
@@ -279,5 +280,56 @@ describe('prepareSvgForRaster', () => {
     ).toThrow();
     // An `svg` root outside the SVG namespace is not one an engine would draw.
     expect(() => prepareSvgForRaster('<svg viewBox="0 0 1 1"/>', 2048)).toThrow();
+  });
+});
+
+describe('loadSvgImage', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  // jsdom never loads an image, so the `src` setter stands in for the engine.
+  function settleImages(outcome: 'load' | 'error') {
+    const sources: string[] = [];
+    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (
+      this: HTMLImageElement,
+      value: string
+    ) {
+      sources.push(value);
+      queueMicrotask(() => (outcome === 'load' ? this.onload : this.onerror)?.(new Event(outcome)));
+    });
+    return sources;
+  }
+
+  it('loads the sized markup from a UTF-8 data: URL', async () => {
+    const sources = settleImages('load');
+    const file = new File(
+      ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 3"/>'],
+      'pattern.svg',
+      { type: 'image/svg+xml' }
+    );
+
+    const loaded = await loadSvgImage(file, 2048);
+
+    expect(loaded).toMatchObject({ width: 2048, height: 1536 });
+    expect(sources).toHaveLength(1);
+    const prefix = 'data:image/svg+xml;charset=utf-8;base64,';
+    expect(sources[0].startsWith(prefix)).toBe(true);
+    const markup = new TextDecoder().decode(
+      Uint8Array.from(atob(sources[0].slice(prefix.length)), (character) => character.charCodeAt(0))
+    );
+    expect(rootOf(markup).getAttribute('width')).toBe('2048');
+  });
+
+  it('rejects when the engine cannot render the SVG', async () => {
+    settleImages('error');
+    const file = new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], 'broken.svg');
+    await expect(loadSvgImage(file, 2048)).rejects.toThrow('The SVG could not be rendered');
+  });
+
+  it('rejects a file that is not an SVG before loading anything', async () => {
+    const sources = settleImages('load');
+    await expect(loadSvgImage(new File(['hello'], 'hello.svg'), 2048)).rejects.toThrow(
+      'not an SVG document'
+    );
+    expect(sources).toHaveLength(0);
   });
 });

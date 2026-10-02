@@ -220,8 +220,7 @@ export interface LoadedSvgImage extends SvgSize {
 export async function loadSvgImage(file: Blob, maxDimension: number): Promise<LoadedSvgImage> {
   const text = decodeSvgText(new Uint8Array(await file.arrayBuffer()));
   const prepared = prepareSvgForRaster(text, maxDimension);
-  const image = new Image(prepared.width, prepared.height);
-  image.decoding = 'async';
+  const image = new Image();
   const loaded = new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
     image.onerror = () => reject(new Error('The SVG could not be rendered'));
