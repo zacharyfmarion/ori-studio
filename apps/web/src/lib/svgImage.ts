@@ -29,6 +29,9 @@ const PX_PER_UNIT: Readonly<Record<string, number>> = {
 
 const LENGTH = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(px|in|cm|mm|q|pt|pc)?$/i;
 
+/** An XML declaration's `encoding`, which is ASCII whatever encoding it names. */
+const DECLARED_ENCODING = /^<\?xml\s[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']/;
+
 /** The size an `<img>` gives an SVG that states nothing about its own. */
 const DEFAULT_OBJECT_SIZE = { width: 300, height: 150 } as const;
 
@@ -40,6 +43,34 @@ export interface SvgSize {
 export interface SvgViewBox extends SvgSize {
   x: number;
   y: number;
+}
+
+/**
+ * The encoding an XML parser would read an SVG file's bytes in: a byte-order
+ * mark, then the XML declaration, then UTF-8. `Blob.text()` asks none of them
+ * and reads every file as UTF-8.
+ */
+export function svgTextEncoding(bytes: Uint8Array): string {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return 'utf-16le';
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return 'utf-16be';
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return 'utf-8';
+  const head = new TextDecoder('windows-1252').decode(bytes.subarray(0, 1024));
+  const label = DECLARED_ENCODING.exec(head)?.[1];
+  if (!label) return 'utf-8';
+  let encoding: string;
+  try {
+    encoding = new TextDecoder(label).encoding;
+  } catch {
+    return 'utf-8';
+  }
+  // Bytes with no BOM that a declaration could be read from are not UTF-16,
+  // whatever the declaration claims; a parser ignores the claim too.
+  return encoding.startsWith('utf-16') ? 'utf-8' : encoding;
+}
+
+/** An SVG file's bytes as text, in the encoding {@link svgTextEncoding} finds. */
+export function decodeSvgText(bytes: Uint8Array): string {
+  return new TextDecoder(svgTextEncoding(bytes)).decode(bytes);
 }
 
 /**
@@ -109,7 +140,11 @@ export function svgRasterSize(size: SvgSize, maxDimension: number): SvgSize {
 }
 
 export interface PreparedSvg extends SvgSize {
-  /** The document, re-serialized with its root sized to `width`×`height` pixels. */
+  /**
+   * The root element, re-serialized and sized to `width`×`height` pixels. The
+   * root alone: the XML declaration would name the file's encoding, and this
+   * text is encoded as UTF-8; internal entities were expanded by the parse.
+   */
   markup: string;
 }
 
@@ -149,7 +184,7 @@ export function prepareSvgForRaster(text: string, maxDimension: number): Prepare
   root.setAttribute('height', String(raster.height));
   const style = root.getAttribute('style');
   root.setAttribute('style', `${style ? `${style};` : ''}${rootSizeStyle(raster)}`);
-  return { markup: new XMLSerializer().serializeToString(doc), ...raster };
+  return { markup: new XMLSerializer().serializeToString(root), ...raster };
 }
 
 function rootSizeStyle({ width, height }: SvgSize): string {
@@ -177,14 +212,15 @@ export interface LoadedSvgImage extends SvgSize {
  * From a `data:` URL rather than a `blob:` one, which leaves nothing to revoke.
  */
 export async function loadSvgImage(file: Blob, maxDimension: number): Promise<LoadedSvgImage> {
-  const prepared = prepareSvgForRaster(await file.text(), maxDimension);
+  const text = decodeSvgText(new Uint8Array(await file.arrayBuffer()));
+  const prepared = prepareSvgForRaster(text, maxDimension);
   const image = new Image(prepared.width, prepared.height);
   image.decoding = 'async';
   const loaded = new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
     image.onerror = () => reject(new Error('The SVG could not be rendered'));
   });
-  image.src = await dataUrl(new Blob([prepared.markup], { type: 'image/svg+xml' }));
+  image.src = await dataUrl(new Blob([prepared.markup], { type: 'image/svg+xml;charset=utf-8' }));
   await loaded;
   return { image, width: prepared.width, height: prepared.height };
 }
