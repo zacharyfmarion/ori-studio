@@ -18,9 +18,11 @@
   flex: 0 0 auto;
 }
 
+/* `minmax(0, 1fr)` because a bare `1fr` never goes below the formula's own
+   width, so a narrow pane clipped the row instead of shrinking its fields. */
 .scaleRow {
   display: grid;
-  grid-template-columns: minmax(56px, auto) 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
   padding: 7px var(--space-3);
@@ -46,7 +48,8 @@
 
 /* The fields also wear the shared `.control-row__input` (NumberField); two
    classes outrank its one rather than tying with it, which a module's load
-   order could settle either way. */
+   order could settle either way. `min-width: 0` lifts its 72px floor, so the
+   three shrink together when the pane is narrower than the formula. */
 .scaleFormula .scaleInput {
   width: 48px;
   min-width: 0;
