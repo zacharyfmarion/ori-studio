@@ -15,7 +15,11 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** CSS pixels per unit, for the absolute units an SVG length may carry. */
+/**
+ * CSS pixels per unit, for the units an SVG length may carry that an image can
+ * resolve: the absolute ones, and `em`/`rem` at the 16 px default font size an
+ * SVG document starts from.
+ */
 const PX_PER_UNIT: Readonly<Record<string, number>> = {
   '': 1,
   px: 1,
@@ -25,9 +29,11 @@ const PX_PER_UNIT: Readonly<Record<string, number>> = {
   q: 96 / 101.6,
   pt: 96 / 72,
   pc: 16,
+  em: 16,
+  rem: 16,
 };
 
-const LENGTH = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(px|in|cm|mm|q|pt|pc)?$/i;
+const LENGTH = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(px|in|cm|mm|q|pt|pc|r?em)?$/i;
 
 /** An XML declaration's `encoding`, which is ASCII whatever encoding it names. */
 const DECLARED_ENCODING = /^<\?xml\s[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']/;
@@ -75,9 +81,9 @@ export function decodeSvgText(bytes: Uint8Array): string {
 
 /**
  * An SVG `width`/`height` attribute in CSS pixels, or null when it gives no
- * usable absolute size. Percentages and font-relative units resolve against a
- * container an image does not have, so they count as absent and the viewBox
- * decides instead.
+ * usable size. Percentages resolve against a container an image does not have,
+ * so they count as absent and the viewBox decides instead, as do the font units
+ * that depend on a font's own metrics (`ex`, `ch`).
  */
 export function parseSvgLength(value: string | null): number | null {
   if (value === null) return null;

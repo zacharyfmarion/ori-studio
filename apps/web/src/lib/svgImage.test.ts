@@ -82,11 +82,18 @@ describe('parseSvgLength', () => {
     expect(parseSvgLength('10MM')).toBeCloseTo((10 * 96) / 25.4, 9);
   });
 
+  // What an SVG document's default font size makes them in an `<img>`.
+  it('reads em and rem at the 16 px default font size', () => {
+    expect(parseSvgLength('10em')).toBe(160);
+    expect(parseSvgLength('1.5rem')).toBe(24);
+  });
+
   it('treats sizes an image cannot resolve as absent', () => {
     expect(parseSvgLength(null)).toBeNull();
     expect(parseSvgLength('')).toBeNull();
     expect(parseSvgLength('100%')).toBeNull();
-    expect(parseSvgLength('2em')).toBeNull();
+    expect(parseSvgLength('2ex')).toBeNull();
+    expect(parseSvgLength('2ch')).toBeNull();
     expect(parseSvgLength('auto')).toBeNull();
     expect(parseSvgLength('0')).toBeNull();
     expect(parseSvgLength('-5')).toBeNull();
