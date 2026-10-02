@@ -14,6 +14,7 @@
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
 
 /**
  * CSS pixels per unit, for the units an SVG length may carry that an image can
@@ -152,6 +153,12 @@ export interface PreparedSvg extends SvgSize {
    * text is encoded as UTF-8; internal entities were expanded by the parse.
    */
   markup: string;
+  /**
+   * The same markup without the raster images it embeds as `data:` URLs, or
+   * null when it embeds none: what WebKit 17 draws until they have loaded (see
+   * {@link loadSvgImage}).
+   */
+  markupWithoutEmbeddedImages: string | null;
 }
 
 /**
@@ -190,7 +197,14 @@ export function prepareSvgForRaster(text: string, maxDimension: number): Prepare
   root.setAttribute('height', String(raster.height));
   const style = root.getAttribute('style');
   root.setAttribute('style', `${style ? `${style};` : ''}${rootSizeStyle(raster)}`);
-  return { markup: new XMLSerializer().serializeToString(root), ...raster };
+  const serializer = new XMLSerializer();
+  const markup = serializer.serializeToString(root);
+  const embedded = Array.from(root.getElementsByTagNameNS(SVG_NS, 'image')).filter((image) =>
+    (image.getAttribute('href') ?? image.getAttributeNS(XLINK_NS, 'href') ?? '').startsWith('data:')
+  );
+  for (const image of embedded) image.remove();
+  const markupWithoutEmbeddedImages = embedded.length > 0 ? serializer.serializeToString(root) : null;
+  return { markup, markupWithoutEmbeddedImages, ...raster };
 }
 
 function rootSizeStyle({ width, height }: SvgSize): string {
@@ -215,19 +229,99 @@ export interface LoadedSvgImage extends SvgSize {
  * Load an SVG file as an image, its longer side `maxDimension` pixels. Rejects
  * when the file is not an SVG or the engine cannot render it.
  *
- * From a `data:` URL rather than a `blob:` one, which leaves nothing to revoke.
+ * An SVG that embeds raster images is not ready at `load` everywhere: WebKit 17
+ * (macOS 14's WKWebView) fires it, and resolves `decode()`, before those images
+ * are in — a large one can take 100 ms more — and draws them blank until they
+ * are, with nothing to say when. So for such a file the drawing itself is
+ * watched until they show; see {@link embeddedImagesDrawn}.
  */
 export async function loadSvgImage(file: Blob, maxDimension: number): Promise<LoadedSvgImage> {
   const text = decodeSvgText(new Uint8Array(await file.arrayBuffer()));
   const prepared = prepareSvgForRaster(text, maxDimension);
-  const image = new Image();
-  const loaded = new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error('The SVG could not be rendered'));
-  });
-  image.src = await dataUrl(new Blob([prepared.markup], { type: 'image/svg+xml;charset=utf-8' }));
-  await loaded;
+  const image = await loadMarkup(prepared.markup);
+  if (prepared.markupWithoutEmbeddedImages !== null) {
+    const bare = await loadMarkup(prepared.markupWithoutEmbeddedImages).catch(() => null);
+    if (bare) await embeddedImagesDrawn(image, bare, prepared);
+  }
   return { image, width: prepared.width, height: prepared.height };
+}
+
+/** From a `data:` URL rather than a `blob:` one, which leaves nothing to revoke. */
+async function loadMarkup(markup: string): Promise<HTMLImageElement> {
+  const image = new Image();
+  image.src = await dataUrl(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    await image.decode();
+  } catch {
+    throw new Error('The SVG could not be rendered');
+  }
+  return image;
+}
+
+/** Longer side of the copy {@link embeddedImagesDrawn} compares. */
+const PROBE_DIMENSION = 256;
+const PROBE_INTERVAL_MS = 50;
+/** How long to wait for embedded images before drawing whatever has arrived. */
+const EMBEDDED_IMAGE_WAIT_MS = 3000;
+
+/**
+ * Resolve once `image` draws the raster images its SVG embeds, or after
+ * {@link EMBEDDED_IMAGE_WAIT_MS}. First until a small copy of it differs from
+ * one of `bare`, the same SVG without them; then until it stops changing, as
+ * the rest arrive. An engine that has them at `load` passes both at once, and
+ * one that never draws them costs the wait and no more.
+ */
+async function embeddedImagesDrawn(
+  image: HTMLImageElement,
+  bare: HTMLImageElement,
+  size: SvgSize
+): Promise<void> {
+  const draw = probe(size);
+  const without = draw(bare);
+  let current = draw(image);
+  if (!without || !current) return;
+  const deadline = performance.now() + EMBEDDED_IMAGE_WAIT_MS;
+  while (samePixels(current, without)) {
+    if (performance.now() >= deadline) return;
+    await delay(PROBE_INTERVAL_MS);
+    current = draw(image);
+    if (!current) return;
+  }
+  while (performance.now() < deadline) {
+    await delay(PROBE_INTERVAL_MS);
+    const next = draw(image);
+    if (!next || samePixels(next, current)) return;
+    current = next;
+  }
+}
+
+/** Draws an image into one reused small canvas and reads it back, or null if it cannot. */
+function probe(size: SvgSize): (image: HTMLImageElement) => Uint8ClampedArray | null {
+  const { width, height } = svgRasterSize(size, PROBE_DIMENSION);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  return (image) => {
+    if (!ctx) return null;
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(image, 0, 0, width, height);
+    try {
+      return ctx.getImageData(0, 0, width, height).data;
+    } catch {
+      return null;
+    }
+  };
+}
+
+function samePixels(a: Uint8ClampedArray, b: Uint8ClampedArray): boolean {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) if (a[index] !== b[index]) return false;
+  return true;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function dataUrl(blob: Blob): Promise<string> {

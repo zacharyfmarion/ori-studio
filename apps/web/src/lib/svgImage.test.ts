@@ -271,6 +271,35 @@ describe('prepareSvgForRaster', () => {
     expect(root.querySelector('rect')?.getAttribute('style')).toBe('fill:#2a6;');
   });
 
+  it('has no image-less copy for a file that embeds no images', () => {
+    const prepared = prepareSvgForRaster(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><image href="linked.png"/></svg>',
+      2048
+    );
+    expect(prepared.markupWithoutEmbeddedImages).toBeNull();
+  });
+
+  // What WebKit 17 draws until the embedded images load: the baseline the
+  // loader waits for the drawing to leave.
+  it('strips the images it embeds, and only those, from the image-less copy', () => {
+    const prepared = prepareSvgForRaster(
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1 1">
+        <image id="a" href="data:image/png;base64,AAAA"/>
+        <image id="b" xlink:href="data:image/jpeg;base64,AAAA"/>
+        <image id="c" href="linked.png"/>
+        <rect id="d" width="1" height="1"/>
+      </svg>`,
+      2048
+    );
+    const ids = (markup: string) =>
+      Array.from(rootOf(markup).querySelectorAll('[id]'), (element) => element.id);
+    expect(ids(prepared.markup)).toEqual(['a', 'b', 'c', 'd']);
+    expect(prepared.markupWithoutEmbeddedImages).not.toBeNull();
+    expect(ids(prepared.markupWithoutEmbeddedImages ?? '')).toEqual(['c', 'd']);
+    // Sized like the real thing, so the two draw the same everywhere else.
+    expect(rootOf(prepared.markupWithoutEmbeddedImages ?? '').getAttribute('width')).toBe('2048');
+  });
+
   it('rejects text that is not an SVG document', () => {
     expect(() => prepareSvgForRaster('not xml at all', 2048)).toThrow();
     expect(() => prepareSvgForRaster('<svg xmlns="http://www.w3.org/2000/svg"><g></svg>', 2048)).toThrow();
@@ -284,17 +313,24 @@ describe('prepareSvgForRaster', () => {
 });
 
 describe('loadSvgImage', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Reflect.deleteProperty(HTMLImageElement.prototype, 'decode');
+  });
 
-  // jsdom never loads an image, so the `src` setter stands in for the engine.
+  // jsdom never loads an image and has no `decode()`, so both stand in for the
+  // engine: the `src` setter records what was loaded, `decode()` settles it.
   function settleImages(outcome: 'load' | 'error') {
     const sources: string[] = [];
-    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation(function (
-      this: HTMLImageElement,
-      value: string
-    ) {
+    vi.spyOn(HTMLImageElement.prototype, 'src', 'set').mockImplementation((value: string) => {
       sources.push(value);
-      queueMicrotask(() => (outcome === 'load' ? this.onload : this.onerror)?.(new Event(outcome)));
+    });
+    Object.defineProperty(HTMLImageElement.prototype, 'decode', {
+      configurable: true,
+      value: () =>
+        outcome === 'load'
+          ? Promise.resolve()
+          : Promise.reject(new DOMException('The source image cannot be decoded.', 'EncodingError')),
     });
     return sources;
   }
@@ -317,6 +353,21 @@ describe('loadSvgImage', () => {
       Uint8Array.from(atob(sources[0].slice(prefix.length)), (character) => character.charCodeAt(0))
     );
     expect(rootOf(markup).getAttribute('width')).toBe('2048');
+  });
+
+  // jsdom has no 2D context, so the wait itself cannot run here; what is
+  // checked is that the image-less copy is loaded alongside and nothing hangs.
+  it('loads the image-less copy too when the SVG embeds images', async () => {
+    const sources = settleImages('load');
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    const file = new File(
+      [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1"><image href="data:image/png;base64,AAAA"/></svg>',
+      ],
+      'traced.svg'
+    );
+    await expect(loadSvgImage(file, 2048)).resolves.toMatchObject({ width: 2048, height: 1024 });
+    expect(sources).toHaveLength(2);
   });
 
   it('rejects when the engine cannot render the SVG', async () => {
