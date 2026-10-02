@@ -3,7 +3,7 @@ import {
   NATIVE_PROJECT_EXTENSION,
   type ImportedCreasePatternFormat,
 } from './fileFormats';
-import { isDecodableImageType } from './imageFormats';
+import { isDecodableImageType, isSvgImage } from './imageFormats';
 
 export { OPENABLE_FILE_EXTENSIONS } from './fileFormats';
 
@@ -48,8 +48,11 @@ export function classifyDroppedFile(file: File): DroppedFileKind {
   }
   // Then MIME, which is all there is to go on for an image: a photo can carry
   // any extension, or none. It must name a format that can actually be decoded —
-  // see `isDecodableImageType`.
-  if (isDecodableImageType(file.type)) return { kind: 'image' };
+  // see `isDecodableImageType`. SVG alone is also known by its extension, as it
+  // is in the picker, so the two doors agree on a file the platform left untyped.
+  if (isDecodableImageType(file.type) || isSvgImage(file.type, file.name)) {
+    return { kind: 'image' };
+  }
   // Covers dropped folders too: they arrive as a zero-byte entry with an empty
   // type and no extension, and are refused here before anything tries to read
   // them.

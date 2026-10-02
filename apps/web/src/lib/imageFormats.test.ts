@@ -65,6 +65,14 @@ describe('isSvgImage', () => {
     expect(isSvgImage('', 'diagram.svgz')).toBe(false);
     expect(isSvgImage('', 'svg')).toBe(false);
   });
+
+  // The bitmap decoder sniffs content and reads a misnamed PNG; the SVG parser
+  // could only reject it.
+  it('lets a type naming another image format win over the name', () => {
+    expect(isSvgImage('image/png', 'diagram.svg')).toBe(false);
+    expect(isSvgImage('image/jpeg', 'photo.SVG')).toBe(false);
+    expect(isSvgImage('application/octet-stream', 'diagram.svg')).toBe(true);
+  });
 });
 
 describe('DECODABLE_IMAGE_EXTENSIONS', () => {

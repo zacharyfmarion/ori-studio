@@ -76,12 +76,14 @@ export function isDecodableImageType(type: string): boolean {
 
 /**
  * True for an SVG, which has to be drawn rather than decoded. The extension
- * counts as well as the type: the file picker hands over whatever its `accept`
- * list let through, and a platform without `.svg` in its extension table
- * reports an empty type.
+ * counts when the type says nothing — a platform without `.svg` in its extension
+ * table reports an empty type — but never over a type naming another image
+ * format: a PNG saved as `.svg` is still a PNG, and the bitmap decoder reads it.
  */
 export function isSvgImage(type: string, filename: string): boolean {
-  return mimeEssence(type) === 'image/svg+xml' || /\.svg$/i.test(filename);
+  const essence = mimeEssence(type);
+  if (essence === 'image/svg+xml') return true;
+  return !DECODABLE_IMAGE_MIME_TYPES.has(essence) && /\.svg$/i.test(filename);
 }
 
 function mimeEssence(type: string): string {
