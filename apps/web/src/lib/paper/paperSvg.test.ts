@@ -1,7 +1,7 @@
 import { shadeColor } from '@treemaker/origami-simulator';
 import { describe, expect, it } from 'vitest';
 import type { PaperPage } from './paperPage';
-import type { PaperLineWhole } from './paperScene';
+import type { PaperLineWhole, ScenePoint } from './paperScene';
 import {
   FIXTURE_PAGE,
   FIXTURE_SHEET_PX,
@@ -23,6 +23,7 @@ import {
   centredDashOffset,
   erodeLine,
   erodeSegment,
+  faceOutlineLines,
   markupTransform,
   mmToCssPx,
   pageMarginPt,
@@ -48,7 +49,7 @@ const paint = (scene = sheetWithCrease(), style = DEFAULT_PAPER_STYLE, page = TI
 /** Every `<tag …/>` element in the page, as its attribute map. */
 function elements(
   svg: string,
-  tag: 'line' | 'polygon' | 'path' | 'rect' | 'circle'
+  tag: 'line' | 'path' | 'rect' | 'circle'
 ): Record<string, string>[] {
   const found: Record<string, string>[] = [];
   for (const match of svg.matchAll(new RegExp(`<${tag}\\s([^>]*)/>`, 'g'))) {
@@ -60,7 +61,10 @@ function elements(
 }
 
 const lines = (svg: string) => elements(svg, 'line');
-const polygons = (svg: string) => elements(svg, 'polygon');
+/** The faces: every one is a `<path>` (none of these scenes carries markup). */
+const faces = (svg: string) => elements(svg, 'path');
+/** A one-ring face path's corners, as `x,y` text. */
+const corners = (d: string) => d.replace(/^M/, '').replace(/Z$/, '').split('L');
 
 function withPen(field: 'edges' | 'mountainFolds' | 'valleyFolds', pen: Partial<Pen>): PaperStyle {
   return { ...DEFAULT_PAPER_STYLE, [field]: { ...DEFAULT_PAPER_STYLE[field], ...pen } };
@@ -75,8 +79,8 @@ describe('the page', () => {
     expect(svg).toContain(`width="${widthPt.toFixed(2)}pt" height="${heightPt.toFixed(2)}pt"`);
     expect(svg).toContain(`viewBox="0 0 ${widthPt.toFixed(2)} ${heightPt.toFixed(2)}"`);
     // The artwork sits inside the margin.
-    const [sheet] = polygons(svg);
-    expect(sheet!.points.split(' ')[0]).toBe(`${padding.toFixed(2)},${padding.toFixed(2)}`);
+    const [sheet] = faces(svg);
+    expect(corners(sheet!.d!)[0]).toBe(`${padding.toFixed(2)},${padding.toFixed(2)}`);
   });
 
   it('scales the artwork to a sheet size in mm and leaves the pens alone', () => {
@@ -130,8 +134,8 @@ describe('the page', () => {
     const kept = paint(scene, DEFAULT_PAPER_STYLE, TIGHT);
     const dropped = paint(scene, DEFAULT_PAPER_STYLE, { ...TIGHT, keepHiddenFaces: false });
     expect(dropped.widthPt).toBe(kept.widthPt);
-    expect(polygons(kept.svg)).toHaveLength(2);
-    expect(polygons(dropped.svg)).toHaveLength(1);
+    expect(faces(kept.svg)).toHaveLength(2);
+    expect(faces(dropped.svg)).toHaveLength(1);
   });
 
   it('paints a background only when the page has one', () => {
@@ -142,13 +146,13 @@ describe('the page', () => {
     });
     const [ground] = elements(svg, 'rect');
     expect(ground).toMatchObject({ x: '0', y: '0', width: widthPt.toFixed(2), fill: '#ffffff' });
-    expect(svg.indexOf('<rect')).toBeLessThan(svg.indexOf('<polygon'));
+    expect(svg.indexOf('<rect')).toBeLessThan(svg.indexOf('<path'));
   });
 
   it('writes an empty scene as a margin-sized page', () => {
     const { svg, widthPt } = paint(sceneOf([]), DEFAULT_PAPER_STYLE, FIXTURE_PAGE);
     expect(widthPt).toBeCloseTo(10 * PT_PER_MM, 6);
-    expect(polygons(svg)).toHaveLength(0);
+    expect(faces(svg)).toHaveLength(0);
     expect(lines(svg)).toHaveLength(0);
   });
 
@@ -172,8 +176,8 @@ describe('the page', () => {
     expect(widestPenPt({ ...diagram, valleyDiagramCreases: { ...diagram.valleyDiagramCreases, width: 6 } })).toBe(6);
     const { svg, widthPt } = paint(sheetWithCrease(), wide, TIGHT);
     expect(widthPt).toBeCloseTo(FIXTURE_SHEET_PX * PT_PER_CSS_PX + 3, 6);
-    const [sheet] = polygons(svg);
-    expect(sheet!.points.split(' ')[0]).toBe('1.50,1.50');
+    const [sheet] = faces(svg);
+    expect(corners(sheet!.d!)[0]).toBe('1.50,1.50');
   });
 
   it('measures a surface by the pens it draws with, not by the diagram creases it never draws', () => {
@@ -217,7 +221,7 @@ describe('faces', () => {
   it('fills a face with its side of the paper under its shade, seamed in the same ink', () => {
     const shade = 0.8;
     const scene = sceneOf([face([SQUARE], { side: 'back', shade })]);
-    const [sheet] = polygons(paint(scene).svg);
+    const [sheet] = faces(paint(scene).svg);
     const want = paperFaceFill(DEFAULT_PAPER_STYLE, 'back', shade);
     const [r, g, b] = shadeColor(hexToUnitRgb(DEFAULT_PAPER_STYLE.paper.back), shade);
     const channel = (v: number) => Math.round(v * 255).toString(16).padStart(2, '0');
@@ -242,8 +246,8 @@ describe('faces', () => {
       [75, 25],
     ];
     const { svg } = paint(sceneOf([face([SQUARE, hole])]));
-    expect(polygons(svg)).toHaveLength(0);
-    const [path] = elements(svg, 'path');
+    expect(faces(svg)).toHaveLength(1);
+    const [path] = faces(svg);
     expect(path!['fill-rule']).toBe('evenodd');
     const at = (px: number) => (px * PT_PER_CSS_PX + ROOM).toFixed(2);
     expect(path!.d).toBe(
@@ -261,18 +265,146 @@ describe('faces', () => {
       line('mountain', [0, 50], [100, 50]),
     ]);
     const kept = paint(scene).svg;
-    expect(polygons(kept)).toHaveLength(2);
+    expect(faces(kept)).toHaveLength(2);
     expect(lines(kept).map((item) => item.stroke)).toEqual([
       DEFAULT_PAPER_STYLE.valleyFolds.color,
       DEFAULT_PAPER_STYLE.mountainFolds.color,
     ]);
     // In place: the buried face precedes the one that covers it.
-    expect(kept.indexOf('<polygon')).toBeLessThan(kept.indexOf('<line'));
+    expect(kept.indexOf('<path')).toBeLessThan(kept.indexOf('<line'));
     const dropped = paint(scene, DEFAULT_PAPER_STYLE, { ...TIGHT, keepHiddenFaces: false }).svg;
-    expect(polygons(dropped)).toHaveLength(1);
+    expect(faces(dropped)).toHaveLength(1);
     expect(lines(dropped).map((item) => item.stroke)).toEqual([
       DEFAULT_PAPER_STYLE.mountainFolds.color,
     ]);
+  });
+
+  it('writes every face as a path, the one shape a drawing editor’s node tool reshapes', () => {
+    const { svg } = paint(sceneOf([face([SQUARE])]));
+    expect(svg).not.toContain('<polygon');
+    const [sheet] = faces(svg);
+    const at = (px: number) => (px * PT_PER_CSS_PX + ROOM).toFixed(2);
+    expect(sheet!.d).toBe(`M${at(0)},${at(0)}L${at(100)},${at(0)}L${at(100)},${at(100)}L${at(0)},${at(100)}Z`);
+    expect(sheet!['fill-rule']).toBeUndefined();
+  });
+
+  describe('that draws its own outline', () => {
+    const hole: ScenePoint[] = [
+      [25, 25],
+      [25, 75],
+      [75, 75],
+      [75, 25],
+    ];
+
+    it('is one path, filled with its paper and stroked with its role’s pen', () => {
+      const { svg } = paint(sceneOf([face([SQUARE], { outline: 'edge' })]));
+      expect(faces(svg)).toHaveLength(1);
+      expect(faces(svg)[0]).toMatchObject({
+        fill: DEFAULT_PAPER_STYLE.paper.front,
+        stroke: DEFAULT_PAPER_STYLE.edges.color,
+        'stroke-width': DEFAULT_PAPER_STYLE.edges.width.toFixed(2),
+      });
+      // Nothing else draws the outline.
+      expect(lines(svg)).toHaveLength(0);
+    });
+
+    it('strokes every ring of a region with holes', () => {
+      const { svg } = paint(sceneOf([face([SQUARE, hole], { outline: 'edge' })]));
+      const [path] = faces(svg);
+      expect(path).toMatchObject({ 'fill-rule': 'evenodd', stroke: DEFAULT_PAPER_STYLE.edges.color });
+      expect(path!.d!.match(/M/g)).toHaveLength(2);
+    });
+
+    it('draws a dashed pen as a line per edge after the seamed fill, each dash centred on its edge', () => {
+      const style = withPen('edges', { dash: [4, 2] });
+      const { svg } = paint(sceneOf([face([SQUARE], { outline: 'edge' })]), style);
+      const [sheet] = faces(svg);
+      expect(sheet).toMatchObject({ stroke: sheet!.fill, 'stroke-width': SEAM_STROKE_WIDTH_PT.toFixed(2) });
+      const edges = lines(svg);
+      expect(edges).toHaveLength(4);
+      const runs = [4, 2].map((run) => run * style.edges.width);
+      const offset = centredDashOffset(runs, FIXTURE_SHEET_PX * PT_PER_CSS_PX).toFixed(2);
+      for (const edge of edges) {
+        expect(edge).toMatchObject({ stroke: style.edges.color, 'stroke-dashoffset': offset });
+      }
+      expect(svg.indexOf('<path')).toBeLessThan(svg.indexOf('<line'));
+    });
+
+    it('draws only the fill and its seam when the style leaves the role out', () => {
+      const style: PaperStyle = {
+        ...DEFAULT_PAPER_STYLE,
+        auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false },
+      };
+      const { svg } = paint(sceneOf([face([SQUARE], { outline: 'aux' })]), style);
+      expect(faces(svg)[0]).toMatchObject({
+        stroke: style.paper.front,
+        'stroke-width': SEAM_STROKE_WIDTH_PT.toFixed(2),
+      });
+      expect(lines(svg)).toHaveLength(0);
+    });
+  });
+});
+
+describe('groups', () => {
+  it('writes items that share a group, one after another, as one <g> with its id', () => {
+    const scene = sceneOf([
+      face([SQUARE]),
+      face([SQUARE], { group: 'patches-1' }),
+      line('edge', [0, 0], [100, 0], { group: 'patches-1' }),
+      face([SQUARE]),
+      line('edge', [0, 50], [100, 50], { group: 'patches-2' }),
+    ]);
+    const { svg } = paint(scene);
+    expect(svg.match(/<g id="[^"]*">/g)).toEqual(['<g id="patches-1">', '<g id="patches-2">']);
+    const opened = svg.indexOf('<g id="patches-1">');
+    const inside = svg.slice(opened, svg.indexOf('</g>', opened));
+    expect(inside.match(/<(path|line) /g)).toEqual(['<path ', '<line ']);
+    // The page's own group and these two, each closed.
+    expect(svg.match(/<g\b/g)).toHaveLength(3);
+    expect(svg.match(/<\/g>/g)).toHaveLength(3);
+  });
+
+  it('opens no group for items the page leaves out, and escapes the id it writes', () => {
+    const scene = sceneOf([
+      face([SQUARE], { group: 'buried', hidden: true }),
+      face([SQUARE], { group: 'a&b' }),
+    ]);
+    const { svg } = paint(scene, DEFAULT_PAPER_STYLE, { ...TIGHT, keepHiddenFaces: false });
+    expect(svg.match(/<g id="[^"]*">/g)).toEqual(['<g id="a&amp;b">']);
+  });
+
+  it('closes a group in a body for another writer’s page', () => {
+    const body = paperSceneSvgBody(sceneOf([face([SQUARE], { group: 'patches-1' })]), DEFAULT_PAPER_STYLE, {
+      project: ([x, y]) => [x, y],
+      unitsPerPt: 1,
+      keepHiddenFaces: true,
+    });
+    expect(body.startsWith('  <g id="patches-1">')).toBe(true);
+    expect(body.endsWith('</g>')).toBe(true);
+  });
+});
+
+describe('faceOutlineLines', () => {
+  it('is a line per edge of every ring, in the outline’s role, on the face and hidden with it', () => {
+    const triangle: ScenePoint[] = [
+      [0, 0],
+      [10, 0],
+      [0, 10],
+    ];
+    const outlined = face([SQUARE, triangle], { face: 7, outline: 'edge', hidden: true });
+    const found = faceOutlineLines(outlined);
+    expect(found).toHaveLength(7);
+    expect(found[3]).toEqual(line('edge', [0, 100], [0, 0], { face: 7, hidden: true }));
+    expect(found[6]).toEqual(line('edge', [0, 10], [0, 0], { face: 7, hidden: true }));
+  });
+
+  it('is nothing for a face with no outline, and nothing for a ring too short to fill', () => {
+    expect(faceOutlineLines(face([SQUARE]))).toEqual([]);
+    const degenerate: ScenePoint[] = [
+      [0, 0],
+      [1, 1],
+    ];
+    expect(faceOutlineLines(face([SQUARE, degenerate], { outline: 'aux' }))).toHaveLength(4);
   });
 });
 
@@ -662,9 +794,9 @@ describe('paperSceneSvgBody', () => {
     expect(svg).not.toContain('<svg');
     expect(svg).not.toContain('<g');
     expect(svg).not.toContain('<rect');
-    const [sheet] = polygons(svg);
-    expect(sheet!.points.split(' ')[0]).toBe('300.00,0.00');
-    expect(sheet!.points.split(' ')[2]).toBe('500.00,200.00');
+    const [sheet] = faces(svg);
+    expect(corners(sheet!.d!)[0]).toBe('300.00,0.00');
+    expect(corners(sheet!.d!)[2]).toBe('500.00,200.00');
     const [crease] = lines(svg);
     expect(crease).toMatchObject({ x1: '300.00', y1: '100.00', x2: '500.00', y2: '100.00' });
   });
@@ -672,13 +804,18 @@ describe('paperSceneSvgBody', () => {
   it('draws each pen and the seam at the page’s units per pt, dashes included', () => {
     const style = withPen('mountainFolds', { width: 0.75, dash: [8, 2, 1, 2] });
     const svg = body(sheetWithCrease(), style);
-    expect(polygons(svg)[0]!['stroke-width']).toBe(((SEAM_STROKE_WIDTH_PT * 4) / 3).toFixed(2));
+    expect(faces(svg)[0]!['stroke-width']).toBe(((SEAM_STROKE_WIDTH_PT * 4) / 3).toFixed(2));
     const [crease] = lines(svg);
     expect(crease!['stroke-width']).toBe('1.00');
     expect(crease!['stroke-dasharray']).toBe('8.00 2.00 1.00 2.00');
     // The page painter is the same elements at one unit per pt.
     const page = paperSceneToSvg(sheetWithCrease(), style, TIGHT).svg;
     expect(lines(page)[0]!['stroke-width']).toBe('0.75');
+  });
+
+  it('strokes a face’s own outline at the page’s units per pt', () => {
+    const [sheet] = faces(body(sceneOf([face([SQUARE], { outline: 'edge' })])));
+    expect(sheet!['stroke-width']).toBe(((DEFAULT_PAPER_STYLE.edges.width * 4) / 3).toFixed(2));
   });
 
   it('erodes in scene px before the projection, and keeps or drops hidden pieces as asked', () => {
@@ -691,7 +828,7 @@ describe('paperSceneSvgBody', () => {
     const [crease] = lines(body(scene, style));
     // 5 scene px in, then doubled and shifted by the projection.
     expect(crease).toMatchObject({ x1: '310.00', x2: '490.00' });
-    expect(polygons(body(scene, style))).toHaveLength(2);
-    expect(polygons(body(scene, style, false))).toHaveLength(1);
+    expect(faces(body(scene, style))).toHaveLength(2);
+    expect(faces(body(scene, style, false))).toHaveLength(1);
   });
 });

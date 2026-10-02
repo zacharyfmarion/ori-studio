@@ -168,10 +168,16 @@ describe('the flat figure’s export page', () => {
     const page = (await paint())!;
     expect(page).not.toBeNull();
     expect(page.svg).toMatch(/^<\?xml[^]*<svg [^>]*width="[\d.]+pt"/);
-    // One polygon per face: the sample stacks acyclically, so no face is split.
-    expect(page.svg.match(/<polygon /g)).toHaveLength(kernel.faces.length);
+    // One path per face, stroked with its own outline: the sample stacks
+    // acyclically, so no face is split and no line repeats an edge of one.
+    const faces = page.svg.match(/<path [^>]*\/>/g)!;
+    expect(faces).toHaveLength(kernel.faces.length);
+    for (const face of faces) {
+      expect(face).toContain(`stroke="${DEFAULT_PAPER_STYLE.edges.color}"`);
+    }
+    expect(page.svg).not.toContain('<polygon');
+    expect(page.svg).not.toContain('<line');
     expect(page.svg).toContain(`fill="${DEFAULT_PAPER_STYLE.paper.front}"`);
-    expect(page.svg).toContain(`stroke="${DEFAULT_PAPER_STYLE.edges.color}"`);
   });
 
   it('builds the figure at its on-screen size: kernel units through the paper affine and the placement', async () => {
@@ -203,9 +209,9 @@ describe('the flat figure’s export page', () => {
   });
 
   it('keeps or drops the buried layers as the page says', async () => {
-    const kept = (await paint())!.svg.match(/<polygon /g)!.length;
+    const kept = (await paint())!.svg.match(/<path /g)!.length;
     const dropped = (await paint(figure(), { ...TIGHT, keepHiddenFaces: false }))!.svg.match(
-      /<polygon /g
+      /<path /g
     )!.length;
     const visible = new Set(kernel.subfaces.map((subface) => subface.faces_top_to_bottom[0])).size;
     expect(kept).toBe(kernel.faces.length);

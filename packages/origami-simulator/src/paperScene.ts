@@ -70,10 +70,19 @@ export interface PaperFaceItem {
    * others is a hole. Every ring is closed, its last point joining its first.
    */
   rings: ScenePoint[][];
+  /**
+   * The role of the line along every edge of every ring, when the face draws
+   * its outline itself: no separate line is emitted for any of those edges, so
+   * a drawing editor gets the fill and its outline as one object. Absent, the
+   * face draws no outline, and whatever lines bound it are items of their own.
+   */
+  outline?: PaperLineRole;
   /** The face shader's flat lighting factor; 1 is unlit. */
   shade: number;
   /** No pixel of the page shows this piece — see {@link MeshToPaperSceneOptions.markHidden}. */
   hidden: boolean;
+  /** See {@link PaperLineItem.group}. */
+  group?: string;
 }
 
 export interface PaperLineItem {
@@ -111,6 +120,12 @@ export interface PaperLineItem {
   /** The face the line is drawn on, when one is known. */
   face?: number;
   hidden: boolean;
+  /**
+   * Items that follow one another with the same group are written as one
+   * `<g>` with this id, so a drawing editor treats them as one object. A
+   * producer makes it unique in its scene, and an XML name.
+   */
+  group?: string;
 }
 
 /** A cut line's whole crease: see {@link PaperLineItem.whole}. */

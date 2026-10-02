@@ -406,6 +406,10 @@ faces cover them — that is what makes hidden layers deletable and what makes
   segments with their face. The web builds the face DAG from the stacks; if
   acyclic, a topological order gives whole faces; a strongly-connected
   component (woven flaps) is split at its subface boundaries, and only that.
+  > **Superseded in part** by `implementation-plans/editable-face-paths.md`
+  > (2026-10-01): a woven component's faces are drawn whole too, each with
+  > its own outline, and only what that order gets wrong is patched — the
+  > buried layers inside a woven region give up their exact order for it.
 - **Precrease step**: `diagramToPaperScene(primitives, frame)` from the
   existing `StepDiagramModel`; sheet → face, styled lines → lines with roles,
   arrows/turn-over/labels → `arrow`/`symbol`. Mid-fold frames (real z) go

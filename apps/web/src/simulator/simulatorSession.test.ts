@@ -523,7 +523,7 @@ describe('exporting the current view as SVG', () => {
     const page = exportView(session);
     expect(page).not.toBeNull();
     expect(page!.svg).toContain('<svg');
-    expect(page!.svg).toContain('<polygon');
+    expect(page!.svg).toContain('<path');
     expect(page!.svg).not.toMatch(/NaN|Infinity/u);
     // The page size travels with the document because the PNG path needs it.
     expect(page!.widthPt).toBeGreaterThan(0);
@@ -563,7 +563,7 @@ describe('exporting the current view as SVG', () => {
     await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, mountainColor: [0, 0, 0] }, info.token);
 
     const svg = exportView(session, { token: info.token })!.svg;
-    expect(svg).toContain('<polygon');
+    expect(svg).toContain('<path');
     expect(svg).toContain('<line');
     expect(svg).toContain('stroke="#ffff00"');
     expect(svg).toContain('stroke="#00ffff"');
@@ -660,12 +660,12 @@ describe('exporting the current view as SVG', () => {
 
     await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, showEdges: false }, info.token);
     const facesOnly = exportView(session, { token: info.token })!.svg;
-    expect(facesOnly).toContain('<polygon');
+    expect(facesOnly).toContain('<path');
     expect(facesOnly).not.toContain('<line');
 
     await session.setRenderSettings({ ...DEFAULT_EXPORT_SETTINGS, showFaces: false }, info.token);
     const linesOnly = exportView(session, { token: info.token })!.svg;
-    expect(linesOnly).not.toContain('<polygon');
+    expect(linesOnly).not.toContain('<path');
     expect(linesOnly).toContain('<line');
 
     // Neither is a scene with nothing in it, which the dialog reads as nothing
@@ -717,8 +717,8 @@ describe('exporting the current view as SVG', () => {
       expect(inked(whole, color).length, color).toBeGreaterThan(0);
       expect(inked(eroded, color), color).toEqual(inked(whole, color));
     }
-    const polygonCount = (svg: string) => svg.split('<polygon ').length - 1;
-    expect(polygonCount(eroded)).toBe(polygonCount(whole));
+    const faceCount = (svg: string) => svg.split('<path ').length - 1;
+    expect(faceCount(eroded)).toBe(faceCount(whole));
     session.dispose();
   }, 30_000);
 
@@ -805,10 +805,10 @@ describe('exporting the current view as SVG', () => {
       token: info.token,
       page: { ...DEFAULT_PAPER_PAGE, keepHiddenFaces: false },
     })!.svg;
-    const polygons = (svg: string) => (svg.match(/<polygon/gu) ?? []).length;
+    const faces = (svg: string) => (svg.match(/<path/gu) ?? []).length;
     // A nearly flat-folded Miura buries most of its faces.
-    expect(polygons(dropped)).toBeLessThan(polygons(kept));
-    expect(polygons(dropped)).toBeGreaterThan(0);
+    expect(faces(dropped)).toBeLessThan(faces(kept));
+    expect(faces(dropped)).toBeGreaterThan(0);
     session.dispose();
   }, 30_000);
 
@@ -1076,7 +1076,9 @@ describe('the export dialog’s page of a simulation', () => {
     // became a size in mm: it is 50 mm across. Only the scale moved. Both were
     // repainted again when a crease's pieces came to join where they meet:
     // a solid fold's links are drawn round, and a sliver shorter than its own
-    // width, which round would make a blob, is left to its neighbours.
+    // width, which round would make a blob, is left to its neighbours. And
+    // again when every face became a `<path>` rather than a `<polygon>`, so an
+    // editor's node tool reshapes it; nothing else changed.
     const session = createSimulatorSession();
     const info = session.load(miura(6, 6), {});
     session.setFoldPercent(60);

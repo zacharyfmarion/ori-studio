@@ -305,9 +305,9 @@ async function sceneWidthPx(target: PaperExportTarget): Promise<number> {
   return scene.bounds.maxX - scene.bounds.minX;
 }
 
-/** Every `<polygon>` fill in the page, back to front. */
-function polygonFills(svg: string): string[] {
-  return [...svg.matchAll(/<polygon\s[^>]*?fill="([^"]*)"[^>]*\/>/g)].map((match) => match[1]!);
+/** Every face's fill in the page, back to front: each face is one `<path>`. */
+function faceFills(svg: string): string[] {
+  return [...svg.matchAll(/<path\s[^>]*?fill="([^"]*)"[^>]*\/>/g)].map((match) => match[1]!);
 }
 
 beforeEach(() => {
@@ -569,7 +569,7 @@ describe('opening the export of a flat folded figure', () => {
     expect(svg).not.toContain('aria-label="Folded figure"');
     // Back to front: the buried face 1 (front up) under face 0 (turned over,
     // so the back of the paper).
-    expect(polygonFills(svg)).toEqual(['#123456', '#654321']);
+    expect(faceFills(svg)).toEqual(['#123456', '#654321']);
     expect(svg).toContain('stroke="#0000ff"');
   });
 
@@ -581,15 +581,15 @@ describe('opening the export of a flat folded figure', () => {
     const target = await openTarget('flat-1');
 
     expect(target.pins).toEqual(appearance);
-    expect(polygonFills(await paint(target))).toEqual(['#123456', '#ff00ff']);
+    expect(faceFills(await paint(target))).toEqual(['#123456', '#ff00ff']);
   });
 
   it('drops the buried layer only when the page does', async () => {
     const target = await openTarget('flat-1');
 
-    expect(polygonFills(await paint(target))).toHaveLength(2);
+    expect(faceFills(await paint(target))).toHaveLength(2);
     const dropping = { ...DEFAULT_PAPER_EXPORT_SETTINGS, keepHiddenFaces: false };
-    expect(polygonFills(await paint(target, PAPER_EXPORT_STYLE_SLOT, dropping))).toHaveLength(1);
+    expect(faceFills(await paint(target, PAPER_EXPORT_STYLE_SLOT, dropping))).toHaveLength(1);
   });
 
   it('builds the scene at the figure’s on-screen size: its placement at the mounted canvas', async () => {

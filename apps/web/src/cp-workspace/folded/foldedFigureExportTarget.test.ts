@@ -58,7 +58,11 @@ import { foldedFlatFigureExportsScene } from './foldedFlatFigureExport';
  * mm: they are 50 mm across. Only the scale moved on either; everything drawn
  * is still the direct export's. The 3D pages were repainted again when a
  * mesh's line pieces came to join where they meet — drawn round at a link
- * rather than butt-ended — and that is all that changed on them.
+ * rather than butt-ended — and that is all that changed on them. Every live
+ * page was repainted when a face became a `<path>` rather than a `<polygon>`,
+ * and a flat figure's whole face came to stroke its own outline: its polygon
+ * and the lines along its edges are one path in the edge pen, and nothing
+ * else moved (`implementation-plans/editable-face-paths.md`).
  */
 
 type Entry = OristudioCpFoldedFigureEntry;

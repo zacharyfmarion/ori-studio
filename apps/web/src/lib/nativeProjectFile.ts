@@ -833,7 +833,16 @@ function scenePaperItem(value: unknown): PaperItem | null {
       if (points && points.length >= 3) rings.push(points);
     }
     if (rings.length === 0) return null;
-    return { kind: 'face', face, side: value.side, rings, shade, hidden };
+    const outline = sceneLineRole(value.outline);
+    return {
+      kind: 'face',
+      face,
+      side: value.side,
+      rings,
+      ...(outline ? { outline } : {}),
+      shade,
+      hidden,
+    };
   }
   if (value.kind === 'line') {
     const role = sceneLineRole(value.role);

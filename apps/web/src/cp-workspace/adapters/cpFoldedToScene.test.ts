@@ -1267,6 +1267,30 @@ describe('a stored PaperScene', () => {
     }
   });
 
+  it('strokes a face’s own outline over its fill, as the lines it stands for', () => {
+    const outlined: PaperFaceItem = { ...FRONT_TRIANGLE, outline: 'edge' };
+    const custom = style({ edges: { ...DEFAULT_PAPER_STYLE.edges, color: '#00ff00', width: 3 } });
+    const drawn = cpFoldedToScene([sceneFigure([outlined])], undefined, undefined, undefined, () => custom);
+    expect(drawn.fills.count).toBe(3);
+    expect(drawn.strokes.count).toBe(3);
+    for (let i = 0; i < 3; i += 1) {
+      expect([...drawn.strokes.color.slice(i * 4, i * 4 + 3)]).toEqual([0, 1, 0]);
+      expect(drawn.strokes.widthMul[i]).toBe(3);
+      // At the face's own depth, which the depth test passes over its fill.
+      expect(drawn.strokes.depth![i]).toBe(drawn.fills.depth![0]);
+    }
+
+    const unseen = cpFoldedToScene(
+      [sceneFigure([{ ...outlined, outline: 'aux' }])],
+      undefined,
+      undefined,
+      undefined,
+      () => style({ auxCreases: { ...DEFAULT_PAPER_STYLE.auxCreases, visible: false } })
+    );
+    expect(unseen.fills.count).toBe(3);
+    expect(unseen.strokes.count).toBe(0);
+  });
+
   it('shades a face rather than painting its side flat', () => {
     const lit: PaperFaceItem = { ...FRONT_TRIANGLE, shade: 0.5 };
     const drawn = cpFoldedToScene([sceneFigure([lit])], undefined, undefined, undefined, () =>
