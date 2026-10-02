@@ -27,6 +27,8 @@ const DECODABLE_IMAGE_MIME_TYPES: ReadonlySet<string> = new Set([
   // Non-standard, but some platforms still emit it for `.jpg`.
   'image/jpg',
   'image/png',
+  // Not decoded by `createImageBitmap` in any engine; the importer draws it
+  // through an `<img>` instead (`lib/svgImage.ts`).
   'image/svg+xml',
   'image/tiff',
   'image/vnd.microsoft.icon',
@@ -69,6 +71,19 @@ export const DECODABLE_IMAGE_ACCEPT = DECODABLE_IMAGE_EXTENSIONS.map(
  * both are normalized away rather than assumed absent.
  */
 export function isDecodableImageType(type: string): boolean {
-  const essence = type.split(';', 1)[0].trim().toLowerCase();
-  return DECODABLE_IMAGE_MIME_TYPES.has(essence);
+  return DECODABLE_IMAGE_MIME_TYPES.has(mimeEssence(type));
+}
+
+/**
+ * True for an SVG, which has to be drawn rather than decoded. The extension
+ * counts as well as the type: the file picker hands over whatever its `accept`
+ * list let through, and a platform without `.svg` in its extension table
+ * reports an empty type.
+ */
+export function isSvgImage(type: string, filename: string): boolean {
+  return mimeEssence(type) === 'image/svg+xml' || /\.svg$/i.test(filename);
+}
+
+function mimeEssence(type: string): string {
+  return type.split(';', 1)[0].trim().toLowerCase();
 }

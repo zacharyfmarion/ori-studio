@@ -98,14 +98,20 @@ live — there is no full-res export path. So we do **not** keep the original
 bytes. On add, we downscale + re-encode **once**, and the result is the single
 source of truth for both the GPU texture and `.osf`:
 
-1. `createImageBitmap(file)` — off-main-thread decode.
+1. `createImageBitmap(file)` — off-main-thread decode. SVG is the exception:
+   no engine decodes an SVG `Blob` that way, so `lib/svgImage.ts` reads its
+   size from `width`/`height`/`viewBox` (via `DOMParser`, which runs no script),
+   writes it onto the root in pixels with the longer side at the cap, and loads
+   it into an `<img>` from a `data:` URL. It is drawn at the cap whatever size it
+   declares, since a vector has no resolution of its own; the markup is never
+   inserted into the document or kept.
 2. If the longest edge exceeds `IMAGE_MAX_DIMENSION` (**2048 px**, a named
    constant), draw to an offscreen canvas at the capped size with high-quality
    smoothing. Otherwise pass through.
 3. **Re-encode deliberately by content:** JPEG at quality ~0.85 for opaque
    sources, PNG only when the source can carry transparency (source type is
-   PNG/WebP/GIF). Photographic references are 3–5× smaller as JPEG than as PNG —
-   this is the main `.osf`-size lever.
+   PNG/WebP/GIF/SVG). Photographic references are 3–5× smaller as JPEG than as
+   PNG — this is the main `.osf`-size lever.
 4. The re-encoded blob → data URL becomes `src`; `naturalWidth/Height` are the
    *capped* dimensions.
 
