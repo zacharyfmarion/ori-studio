@@ -9469,9 +9469,35 @@ describe('the project diagram', () => {
 
     state().installDiagram({ document, readOnly: false, raw: {} });
 
-    expect(state().setDiagramStepText(first, 'Late', loadId)).toBe(false);
+    expect(state().setDiagramStepText(first, 'Late', { loadId })).toBe(false);
     expect(state().diagram?.steps[0].text).toBe('Fold in half.');
-    expect(state().setDiagramStepText(first, 'On time', state().diagramLoadId)).toBe(true);
+    expect(
+      state().setDiagramStepText(first, 'On time', { loadId: state().diagramLoadId })
+    ).toBe(true);
+  });
+
+  it('makes one sitting at an instruction one undo step, until something else is recorded', () => {
+    const { first, second } = authorTwoSteps();
+    const past = state().diagramHistory.past.length;
+
+    state().setDiagramStepText(first, 'Fold', { session: 7 });
+    state().setDiagramStepText(first, 'Fold in', { session: 7 });
+    state().setDiagramStepText(first, 'Fold in thirds.', { session: 7 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+
+    state().undoDiagram();
+    expect(state().diagram?.steps[0].text).toBe('Fold in half.');
+
+    // After an undo the same session starts a new entry rather than extending
+    // the one that was undone.
+    state().setDiagramStepText(first, 'Again', { session: 7 });
+    expect(state().diagramHistory.past).toHaveLength(past + 1);
+    // Another edit in between ends the run; so does another step or session.
+    state().moveDiagramStep(second, 0);
+    state().setDiagramStepText(first, 'Again.', { session: 7 });
+    state().setDiagramStepText(second, 'Other', { session: 7 });
+    state().setDiagramStepText(second, 'Other.', { session: 8 });
+    expect(state().diagramHistory.past).toHaveLength(past + 5);
   });
 
   it('refuses every edit to a diagram from a newer build, and writes it back as it came', async () => {

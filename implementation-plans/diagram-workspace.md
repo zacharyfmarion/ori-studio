@@ -1735,7 +1735,9 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - Store tests for each.
   - Pulled forward from 1d: the `hasDiagram` capability input, because `saveProject` opens by rejecting a disabled `file.save`, and a diagram-only project could not be saved without it.
   - Found by the keep-tests: the design-method chooser (`createNewProject` and `createOristudioBpProject` with `preserveEditCanvas`) set `dirty: false`, which marked unsaved work clean. This was true of an unsaved crease pattern before the diagram existed. Both now keep the project's `dirty`.
-- [ ] **1c.** `ui/fieldRows/TextAreaRow` with its module and tests. It registers its pending edit with `registerCanvasSessionEnder` (the `'session'` phase), and commits it on both `'history'` and `'document-replaced'`.
+- [x] **1c.** `ui/fieldRows/TextAreaRow` with its module and tests. It registers its pending edit with `registerCanvasSessionEnder` (the `'session'` phase), and commits it on both `'history'` and `'document-replaced'`.
+  - A pending edit commits through the `onCommit` that was current when its run of typing began, so a draft lands where it was typed even if the row is re-pointed.
+  - Each commit carries a session (one per focus, numbered across rows). `setDiagramStepText` folds a session's commits into one undo entry until anything else is recorded, undone or installed.
 - [ ] **1d.** Registration and panels. Everything keyed to the `'diagram'` context lands here.
   - Undo arms and `historyCountForContext` through both capability builders.
   - The `hasDeletableDiagramSelection` input (`hasDiagram` landed in 1b), the `edit.delete` diagram arm and the reason strings.

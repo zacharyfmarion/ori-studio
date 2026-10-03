@@ -1817,11 +1817,19 @@ export interface DiagramSliceActions {
   /** Duplicate a step right after itself and select the copy. */
   duplicateDiagramStep: (stepId: string) => string | null;
   /**
-   * Set a step's instruction. `loadId` is the diagram the edit was started
-   * against: an edit that outlives its diagram is dropped, not written into the
-   * one that replaced it.
+   * Set a step's instruction.
+   *
+   * `loadId` is the diagram the edit was started against: an edit that
+   * outlives its diagram is dropped, not written into the one that replaced it.
+   * `session` names one sitting at the field (`TextAreaRow` passes one per
+   * focus): successive commits of a session are one undo step, as long as
+   * nothing else was recorded in between.
    */
-  setDiagramStepText: (stepId: string, text: string, loadId?: number) => boolean;
+  setDiagramStepText: (
+    stepId: string,
+    text: string,
+    options?: { loadId?: number; session?: number }
+  ) => boolean;
   setDiagramTitle: (title: string) => boolean;
   setDiagramPage: (patch: Partial<DiagramPageSetup>) => boolean;
   selectDiagramStep: (stepId: string | null) => void;

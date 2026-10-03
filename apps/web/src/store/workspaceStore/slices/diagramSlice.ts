@@ -43,12 +43,21 @@ function authorLocale(): string | null {
  */
 export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get) => {
   /**
+   * The instruction edit session whose undo entry is the newest one, if any.
+   * Every other recorded edit, undo, redo and install clears it, so a session
+   * only ever extends the entry it made itself.
+   */
+  let openTextSession: { session: number; stepId: string; loadId: number } | null = null;
+
+  /**
    * Apply one edit. Returns the new diagram, or `null` when nothing changed or
-   * the diagram is read-only.
+   * the diagram is read-only. `extend` folds the edit into the newest undo
+   * entry instead of recording one.
    */
   const commit = (
     label: string,
-    edit: (document: DiagramDocument) => DiagramDocument
+    edit: (document: DiagramDocument) => DiagramDocument,
+    extend = false
   ): DiagramDocument | null => {
     const state = get();
     if (state.diagramReadOnly) return null;
@@ -58,12 +67,15 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     // An edit that changed nothing records nothing — and does not bring a
     // diagram into being just to leave it empty.
     if (next === base) return null;
+    if (!extend) openTextSession = null;
     set({
       diagram: next,
-      diagramHistory: trimDiagramHistory(
-        recordSnapshot(state.diagramHistory, snapshotEntry(before, label)),
-        next
-      ),
+      diagramHistory: extend
+        ? state.diagramHistory
+        : trimDiagramHistory(
+            recordSnapshot(state.diagramHistory, snapshotEntry(before, label)),
+            next
+          ),
       dirty: true,
     });
     return next;
@@ -79,6 +91,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
   const travel = (direction: 'undo' | 'redo'): boolean => {
     const state = get();
     if (state.diagramReadOnly) return false;
+    openTextSession = null;
     const current = snapshotEntry(state.diagram, direction);
     const result =
       direction === 'undo'
@@ -107,6 +120,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     ...discardDiagramState(),
 
     installDiagram: (read) => {
+      openTextSession = null;
       set({
         ...discardDiagramState(),
         diagram: read?.document ?? null,
@@ -160,9 +174,23 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       return copyId;
     },
 
-    setDiagramStepText: (stepId, text, loadId) => {
-      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
-      return commit('Edit instruction', (document) => setStepText(document, stepId, text)) !== null;
+    setDiagramStepText: (stepId, text, { loadId, session } = {}) => {
+      const currentLoadId = get().diagramLoadId;
+      if (loadId !== undefined && loadId !== currentLoadId) return false;
+      const extend =
+        session !== undefined &&
+        openTextSession !== null &&
+        openTextSession.session === session &&
+        openTextSession.stepId === stepId &&
+        openTextSession.loadId === currentLoadId;
+      const next = commit(
+        'Edit instruction',
+        (document) => setStepText(document, stepId, text),
+        extend
+      );
+      if (!next) return false;
+      if (session !== undefined) openTextSession = { session, stepId, loadId: currentLoadId };
+      return true;
     },
 
     setDiagramTitle: (title) =>
