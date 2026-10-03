@@ -732,7 +732,10 @@
       "uploadPicture": "Enviar imagem…"
     },
     "card": {
+      "badgeCreasePattern": "Padrão de vincos",
       "badgeEmpty": "Vazio",
+      "badgeFolded": "Dobrado",
+      "badgeFolded3d": "Dobrado · 3D",
       "badgeImage": "Imagem",
       "badgeNewer": "Mais recente",
       "badgeSvg": "SVG",

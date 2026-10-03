@@ -674,7 +674,10 @@
       "uploadPicture": "그림 업로드…"
     },
     "card": {
+      "badgeCreasePattern": "전개도",
       "badgeEmpty": "비어 있음",
+      "badgeFolded": "접힌 모양",
+      "badgeFolded3d": "접힌 모양 · 3D",
       "badgeImage": "이미지",
       "badgeNewer": "최신",
       "badgeSvg": "SVG",

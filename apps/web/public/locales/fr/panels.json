@@ -732,7 +732,10 @@
       "uploadPicture": "Importer une image…"
     },
     "card": {
+      "badgeCreasePattern": "Patron de plis",
       "badgeEmpty": "Vide",
+      "badgeFolded": "Plié",
+      "badgeFolded3d": "Plié · 3D",
       "badgeImage": "Image",
       "badgeNewer": "Plus récent",
       "badgeSvg": "SVG",

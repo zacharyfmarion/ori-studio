@@ -3462,7 +3462,10 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6927,7 +6930,10 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -10394,7 +10400,10 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -13796,7 +13805,10 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -17198,7 +17210,10 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -20663,7 +20678,10 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -24128,7 +24146,10 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -27530,6 +27551,9 @@
     "panels:diagram.stepPane.pose": "f27f13d02192",
     "tools:diagram.openStep": "fb6345dbe9a4",
     "toasts:diagram.dropReadOnly": "c0e7d4e2b7b9",
-    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3"
+    "dialogs:diagram.uploadPictureTitle": "0aa62f7898f3",
+    "panels:diagram.card.badgeCreasePattern": "14084ca5d4ac",
+    "panels:diagram.card.badgeFolded": "92905b60f9aa",
+    "panels:diagram.card.badgeFolded3d": "b994640b6a1b"
   }
 }

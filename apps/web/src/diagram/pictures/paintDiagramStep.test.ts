@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramStep, KnownDiagramAsset, QuarterTurns } from '../document/diagramDocument';
-import { createStep } from '../document/diagramDocument';
-import { paintAsset, paintStepPicture, poseTransform } from './paintDiagramStep';
+import { createStep, DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
+import { cpStep, fixedPicture } from '../document/diagramSteps.fixtures';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import {
+  paintAsset,
+  paintStepPicture,
+  poseTransform,
+  stepPictureSource,
+} from './paintDiagramStep';
+import { stepPictureUrl } from './useStepPictureUrl';
 import {
   cachedPictureUrl,
   clearStepPictureCacheForTests,
@@ -114,10 +122,60 @@ describe('paintStepPicture', () => {
       source: { kind: 'upload', assetId: 'asset-a', rotationQuarterTurns: 2, mirrored: false },
       picture: { kind: 'asset', assetId: 'asset-a', paperScale: null, key: 'asset:asset-a' },
     });
-    expect(paintStepPicture(upload, assets)?.svg).toContain('rotate(180)');
-    expect(paintStepPicture(step({}), assets)).toBeNull();
-    expect(paintStepPicture(upload, {})).toBeNull();
-    expect(paintStepPicture({ ...upload, unknown: { id: 'step-1' } }, assets)).toBeNull();
+    const style = DEFAULT_DIAGRAM_STYLE;
+    expect(paintStepPicture(upload, assets, style)?.svg).toContain('rotate(180)');
+    expect(paintStepPicture(step({}), assets, style)).toBeNull();
+    expect(paintStepPicture(upload, {}, style)).toBeNull();
+    expect(paintStepPicture({ ...upload, unknown: { id: 'step-1' } }, assets, style)).toBeNull();
+  });
+
+  it('paints a captured scene in the diagram’s pens', () => {
+    const painted = paintStepPicture(cpStep('step-1'), {}, DEFAULT_DIAGRAM_STYLE)!;
+    const document = new DOMParser().parseFromString(painted.svg, 'image/svg+xml');
+    expect(document.querySelector('parsererror')).toBeNull();
+    // The paper and its one crease, and no page behind them.
+    expect(document.querySelectorAll('path, line, polygon').length).toBeGreaterThanOrEqual(2);
+    expect(painted.svg).not.toContain('<rect');
+    expect(painted.widthPx).toBeGreaterThan(0);
+    // Another style, other ink.
+    const plain = paintStepPicture(cpStep('step-1'), {}, { style: { ...DEFAULT_PAPER_STYLE } })!;
+    expect(plain.svg).not.toBe(painted.svg);
+  });
+
+  it('measures a crease pattern by its sheet, and a folded model by the figure', () => {
+    const flat = cpStep('step-1', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 });
+    expect(stepPictureSource(cpStep('step-1'), {})).toMatchObject({ kind: 'scene', measure: 'sheet' });
+    expect(stepPictureSource(flat, {})).toMatchObject({ kind: 'scene', measure: 'figure' });
+  });
+
+  it('draws a fixed picture as it is stored', () => {
+    const fixed = cpStep('step-1', undefined, fixedPicture());
+    expect(paintStepPicture(fixed, {}, DEFAULT_DIAGRAM_STYLE)).toEqual({
+      svg: fixedPicture().svg,
+      widthPx: 20,
+      heightPx: 10,
+    });
+  });
+
+  it('paints nothing for a linked step not yet posed, or a scene that does not read', () => {
+    expect(paintStepPicture(cpStep('step-1', undefined, null), {}, DEFAULT_DIAGRAM_STYLE)).toBeNull();
+    const broken = cpStep('step-1');
+    const picture = { ...(broken.picture as { sceneJson: string }), sceneJson: '{' };
+    expect(paintStepPicture({ ...broken, picture } as DiagramStep, {}, DEFAULT_DIAGRAM_STYLE)).toBeNull();
+  });
+});
+
+describe('stepPictureUrl', () => {
+  it('paints a scene once per picture and style, and again for another style', () => {
+    clearStepPictureCacheForTests();
+    const step = cpStep('step-1');
+    const source = stepPictureSource(step, {})!;
+    const first = stepPictureUrl(source, DEFAULT_DIAGRAM_STYLE);
+    const bytes = stepPictureCacheBytesForTests();
+    expect(first).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(stepPictureUrl(stepPictureSource({ ...step, text: 'edited' }, {})!, DEFAULT_DIAGRAM_STYLE)).toBe(first);
+    expect(stepPictureCacheBytesForTests()).toBe(bytes);
+    expect(stepPictureUrl(source, { style: { ...DEFAULT_PAPER_STYLE } })).not.toBe(first);
   });
 });
 

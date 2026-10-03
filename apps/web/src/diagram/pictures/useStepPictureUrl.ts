@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
-import type { DiagramAsset, DiagramStep, KnownDiagramAsset } from '../document/diagramDocument';
-import { paintAsset, stepPictureSource, type PicturePose } from './paintDiagramStep';
+import type {
+  DiagramAsset,
+  DiagramStep,
+  DiagramStyle,
+  KnownDiagramAsset,
+} from '../document/diagramDocument';
+import { diagramStyleKey } from './diagramPaperStyle';
+import {
+  paintAsset,
+  paintScene,
+  stepPictureSource,
+  type PicturePose,
+  type StepPictureSource,
+} from './paintDiagramStep';
 import { cachedPictureUrl, objectSerial, svgDataUrl } from './stepPictureCache';
 
 /** How far outside the view a card starts painting, so a scroll lands on pictures. */
@@ -11,25 +23,45 @@ const PAINT_AHEAD = '400px';
  * has not come near the view yet.
  *
  * Painting waits until the card is within {@link PAINT_AHEAD} of being seen
- * (IntersectionObserver), and is cached by the asset object and the pose, so a
- * long diagram costs only the cards looked at, and a remount costs nothing.
- * An upright bitmap is shown from its own data URL: wrapping it would only
- * encode it a second time.
+ * (IntersectionObserver), and is cached ({@link stepPictureUrl}), so a long
+ * diagram costs only the cards looked at, and a remount costs nothing.
  */
 export function useStepPictureUrl(
   element: RefObject<Element | null>,
   step: DiagramStep,
-  assets: Readonly<Record<string, DiagramAsset>>
+  assets: Readonly<Record<string, DiagramAsset>>,
+  style: DiagramStyle
 ): string | null {
   const seen = useSeen(element);
-  const source = stepPictureSource(step, assets);
-  const asset = source?.asset ?? null;
-  const turns = source?.pose.rotationQuarterTurns ?? 0;
-  const mirrored = source?.pose.mirrored ?? false;
-  return useMemo(
-    () => (seen && asset ? posedAssetUrl(asset, { rotationQuarterTurns: turns, mirrored }) : null),
-    [seen, asset, turns, mirrored]
-  );
+  const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
+  return useMemo(() => (seen && source ? stepPictureUrl(source, style) : null), [seen, source, style]);
+}
+
+/**
+ * A step's picture as a URL an `<img>` can show, through the cache: keyed by
+ * the picture object — two opens of one project are two objects, and a file
+ * edited between them must not show the first one's picture — and by what
+ * else the painting reads: the pose, and for a scene the diagram's pens.
+ * `null` only for a scene that does not read.
+ */
+export function stepPictureUrl(source: StepPictureSource, style: DiagramStyle): string | null {
+  switch (source.kind) {
+    case 'asset':
+      return posedAssetUrl(source.asset, source.pose);
+    case 'scene': {
+      const { picture, measure } = source;
+      const key = `scene|${objectSerial(picture)}|${measure}|${diagramStyleKey(style)}`;
+      return cachedPictureUrl(key, () => {
+        const painted = paintScene(picture, measure, style);
+        return painted ? svgDataUrl(painted.svg) : null;
+      });
+    }
+    case 'fixed': {
+      const { picture } = source;
+      const paint = () => svgDataUrl(picture.svg);
+      return cachedPictureUrl(`fixed|${objectSerial(picture)}`, paint) ?? paint();
+    }
+  }
 }
 
 /**

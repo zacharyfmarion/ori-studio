@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DiagramAsset, DiagramStep } from '../../diagram/document/diagramDocument';
+import type {
+  DiagramAsset,
+  DiagramStep,
+  DiagramStyle,
+} from '../../diagram/document/diagramDocument';
 import { GRID_DROP_TARGET } from '../../diagram/upload/useStepPictureDrop';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import { DiagramStepCard } from './DiagramStepCard';
@@ -24,6 +28,7 @@ import styles from './DiagramStepsGrid.module.css';
 export function DiagramStepsGrid({
   steps,
   assets,
+  style,
   selectedStepId,
   dropTarget,
   readOnly,
@@ -33,6 +38,8 @@ export function DiagramStepsGrid({
 }: {
   steps: readonly DiagramStep[];
   assets: Readonly<Record<string, DiagramAsset>>;
+  /** The pens a captured picture is painted in. */
+  style: DiagramStyle;
   selectedStepId: string | null;
   /** Where a picture being dragged in would land: a step's id, the grid, or nowhere. */
   dropTarget: string | null;
@@ -85,6 +92,7 @@ export function DiagramStepsGrid({
           }}
           step={step}
           assets={assets}
+          style={style}
           number={index + 1}
           selected={step.id === selectedStepId}
           tabStop={step.id === tabStop}

@@ -3,9 +3,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createStep,
+  DEFAULT_DIAGRAM_STYLE,
   type DiagramAsset,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
+import { cpStep, fixedPicture } from '../../diagram/document/diagramSteps.fixtures';
 import { DiagramStepsGrid } from './DiagramStepsGrid';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -47,6 +49,7 @@ function render(
       <DiagramStepsGrid
         steps={options.steps ?? steps}
         assets={options.assets ?? {}}
+        style={DEFAULT_DIAGRAM_STYLE}
         selectedStepId={selectedStepId}
         dropTarget={options.dropTarget ?? null}
         readOnly={false}
@@ -138,6 +141,21 @@ describe('DiagramStepsGrid', () => {
     expect(pictures[1].getAttribute('src')).toBe('data:image/png;base64,AAAA');
     expect(options().map((option) => option.textContent?.slice(0, 9))).toEqual(['Step 1SVG', 'Step 2Ima']);
     // Each on the paper it prints on, not the theme's well.
+    expect(host?.querySelectorAll('[data-picture]')).toHaveLength(2);
+  });
+
+  it('shows a linked step’s picture, and names how it is shown', () => {
+    render(null, vi.fn(), {
+      steps: [
+        cpStep('step-cp'),
+        cpStep('step-flat', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 }, fixedPicture()),
+        cpStep('step-3d', { mode: 'folded-3d', camera: { yaw: 0, pitch: 0, zoom: 1 }, side: 'front' }, null),
+      ],
+    });
+    const badges = options().map((option) => option.querySelector('[id$="-kind"]')?.textContent);
+    expect(badges).toEqual(['Crease pattern', 'Folded', 'Folded · 3D']);
+    // The two with pictures show them; the one not yet posed has none to show.
+    expect(host?.querySelectorAll('img')).toHaveLength(2);
     expect(host?.querySelectorAll('[data-picture]')).toHaveLength(2);
   });
 

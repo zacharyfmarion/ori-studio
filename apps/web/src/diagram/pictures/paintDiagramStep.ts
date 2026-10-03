@@ -3,21 +3,33 @@
  * Paint contract): what a card shows, what Export picture writes, and — from
  * Phase 5 — what a page cell is composed from.
  *
- * Phase 2 paints uploads: the asset, in the source's pose. The pose is applied
- * here, around the shared asset, which is never rewritten (D5). An SVG asset
- * is nested as itself — its root already carries its size and viewBox, and its
- * ids are prefixed with its own id — so it stays vector wherever it is drawn.
+ * Three kinds of picture are painted:
+ * - an asset (an upload, or a capture too detailed to keep as vector), in the
+ *   upload's pose. The pose is applied here, around the shared asset, which is
+ *   never rewritten (D5). An SVG asset is nested as itself — its root already
+ *   carries its size and viewBox, and its ids are prefixed with its own id — so
+ *   it stays vector wherever it is drawn;
+ * - a captured scene, in the diagram's pens (D9): a crease pattern measured by
+ *   its sheet, a folded model by the figure itself;
+ * - a fixed picture, our own SVG for a fold with no layer order, as stored.
  *
  * Pure: no DOM, no store.
  */
+import { DEFAULT_PAPER_SIZE_MM, type PaperPage, type PaperSizeMeasure } from '../../lib/paper/paperPage';
+import { PT_PER_CSS_PX, paperSceneToSvg } from '../../lib/paper/paperSvg';
+import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import {
   isLockedStep,
   type DiagramAsset,
+  type DiagramFixedPicture,
+  type DiagramScenePicture,
   type DiagramStep,
+  type DiagramStyle,
   type KnownDiagramAsset,
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { SVG_NS } from '../upload/svgSanitize';
+import { diagramSurfaceStyle } from './diagramPaperStyle';
 
 export interface PaintedPicture {
   svg: string;
@@ -88,24 +100,106 @@ export function paintAsset(asset: KnownDiagramAsset, pose: PicturePose = UPRIGHT
  * What a step's picture is drawn from, or `null` when it has none this build
  * can draw: an empty step, a newer build's, or one whose asset is missing.
  */
+export type StepPictureSource =
+  | { kind: 'asset'; asset: KnownDiagramAsset; pose: PicturePose }
+  | { kind: 'scene'; picture: DiagramScenePicture; measure: PaperSizeMeasure }
+  | { kind: 'fixed'; picture: DiagramFixedPicture };
+
 export function stepPictureSource(
   step: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>
-): { asset: KnownDiagramAsset; pose: PicturePose } | null {
-  if (isLockedStep(step) || step.picture?.kind !== 'asset') return null;
-  const asset = Object.hasOwn(assets, step.picture.assetId) ? assets[step.picture.assetId] : undefined;
-  if (!asset || 'unknown' in asset) return null;
-  const pose = step.source?.kind === 'upload' ? step.source : UPRIGHT;
-  return { asset, pose: { rotationQuarterTurns: pose.rotationQuarterTurns, mirrored: pose.mirrored } };
+): StepPictureSource | null {
+  const { picture, source } = step;
+  if (isLockedStep(step) || !picture) return null;
+  switch (picture.kind) {
+    case 'asset': {
+      const asset = Object.hasOwn(assets, picture.assetId) ? assets[picture.assetId] : undefined;
+      if (!asset || 'unknown' in asset) return null;
+      // A capture kept as a bitmap is drawn as it was captured.
+      const pose = source?.kind === 'upload' ? source : UPRIGHT;
+      return {
+        kind: 'asset',
+        asset,
+        pose: { rotationQuarterTurns: pose.rotationQuarterTurns, mirrored: pose.mirrored },
+      };
+    }
+    case 'scene':
+      return {
+        kind: 'scene',
+        picture,
+        // A crease pattern shows its sheet; a folded model's sheet is nowhere in it.
+        measure: source?.kind === 'cp' && source.render.mode !== 'crease-pattern' ? 'figure' : 'sheet',
+      };
+    case 'fixed':
+      return { kind: 'fixed', picture };
+  }
+}
+
+/**
+ * The page a step's scene is painted on: the size every picture opens at, no
+ * page colour, and nothing buried — a capture has already dropped it.
+ * `paddingMm` is the caller's: a card frames the picture itself, a file wants
+ * the room an editor's export leaves.
+ */
+export function stepScenePage(paddingMm: number): PaperPage {
+  return { sheet: { mm: DEFAULT_PAPER_SIZE_MM }, paddingMm, background: null, keepHiddenFaces: false };
+}
+
+/** The margin a card or the step detail gives a scene: the pens' own room, near enough. */
+export const STEP_CARD_PADDING_MM = 1;
+
+/**
+ * A captured scene in the diagram's pens. `null` for a scene that does not
+ * read: the file's validator has already checked it, so this is a guard, not
+ * a path.
+ */
+export function paintScene(
+  picture: DiagramScenePicture,
+  measure: PaperSizeMeasure,
+  style: DiagramStyle,
+  paddingMm: number = STEP_CARD_PADDING_MM
+): PaintedPicture | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(picture.sceneJson);
+  } catch {
+    return null;
+  }
+  const scene = readPaperScene(raw);
+  if (!scene) return null;
+  const painted = paperSceneToSvg(scene, diagramSurfaceStyle(style), stepScenePage(paddingMm), measure);
+  return {
+    svg: painted.svg,
+    widthPx: painted.widthPt / PT_PER_CSS_PX,
+    heightPx: painted.heightPt / PT_PER_CSS_PX,
+  };
+}
+
+/** A source's picture as a standalone SVG document. */
+export function paintSource(
+  source: StepPictureSource,
+  style: DiagramStyle,
+  paddingMm?: number
+): PaintedPicture | null {
+  switch (source.kind) {
+    case 'asset':
+      return paintAsset(source.asset, source.pose);
+    case 'scene':
+      return paintScene(source.picture, source.measure, style, paddingMm);
+    case 'fixed':
+      return { svg: source.picture.svg, widthPx: source.picture.widthPx, heightPx: source.picture.heightPx };
+  }
 }
 
 /** A step's picture alone — no number, instruction or annotations — or `null`. */
 export function paintStepPicture(
   step: DiagramStep,
-  assets: Readonly<Record<string, DiagramAsset>>
+  assets: Readonly<Record<string, DiagramAsset>>,
+  style: DiagramStyle,
+  paddingMm?: number
 ): PaintedPicture | null {
   const source = stepPictureSource(step, assets);
-  return source ? paintAsset(source.asset, source.pose) : null;
+  return source ? paintSource(source, style, paddingMm) : null;
 }
 
 /** A number as SVG writes it: short, and never `1e-7`. */

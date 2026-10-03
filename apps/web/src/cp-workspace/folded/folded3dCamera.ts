@@ -219,3 +219,46 @@ export function folded3dEyeDirection(camera: FoldedFigureCamera): Vec3 {
   const [a, b, c] = viewDepthAxis(viewRotationFor(camera));
   return [a, -c, b];
 }
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * A stored 3D viewpoint, read leniently: `null` for anything that is not one.
+ * Shared by every file that keeps a camera — a folded figure in the `.osf`, a
+ * Diagram step's 3D pose — so they agree on what a valid one is.
+ */
+export function readFoldedFigureCamera(value: unknown): FoldedFigureCamera | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const yaw = finiteNumber(record.yaw);
+  const pitch = finiteNumber(record.pitch);
+  const zoom = finiteNumber(record.zoom);
+  if (yaw === null || pitch === null || zoom === null || zoom <= 0) return null;
+  const orient = readOrient(record.orient);
+  return orient ? { yaw, pitch, zoom, orient } : { yaw, pitch, zoom };
+}
+
+/**
+ * A figure's model orientation — which way it was told is up.
+ *
+ * Absent on every file written before the verb existed, and absent on any figure
+ * nobody has set an upright on, so "missing" has to mean identity rather than
+ * an error. That is what lets this ride in without a schema bump: an old `.osf`
+ * opens at exactly the camera it always did.
+ *
+ * Dropped whole on anything malformed, like the canvas camera beside it. A
+ * partly-read rotation is not a rotation, and half a basis would draw a sheared
+ * figure that looks like a kernel bug.
+ */
+function readOrient(value: unknown): Mat3 | null {
+  if (!Array.isArray(value) || value.length !== 9) return null;
+  const out: number[] = [];
+  for (const entry of value) {
+    const n = finiteNumber(entry);
+    if (n === null) return null;
+    out.push(n);
+  }
+  return out as unknown as Mat3;
+}

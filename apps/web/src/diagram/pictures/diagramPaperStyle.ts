@@ -27,6 +27,14 @@ export function diagramSurfaceStyle(style: DiagramStyle): PaperStyle {
  * preset and the same style stored whole share their cached pictures.
  */
 export function diagramStyleKey(style: DiagramStyle): string {
-  const drawn = diagramSurfaceStyle(style);
-  return digest(JSON.stringify(PAPER_STYLE_FIELDS.map((field) => getPaperStyleField(drawn, field))));
+  let key = styleKeys.get(style);
+  if (key === undefined) {
+    const drawn = diagramSurfaceStyle(style);
+    key = digest(JSON.stringify(PAPER_STYLE_FIELDS.map((field) => getPaperStyleField(drawn, field))));
+    styleKeys.set(style, key);
+  }
+  return key;
 }
+
+/** Keys by style object: a diagram's style is replaced, never edited, and every card asks. */
+const styleKeys = new WeakMap<DiagramStyle, string>();

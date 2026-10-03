@@ -674,7 +674,10 @@
       "uploadPicture": "図をアップロード…"
     },
     "card": {
+      "badgeCreasePattern": "展開図",
       "badgeEmpty": "空",
+      "badgeFolded": "折り上がり",
+      "badgeFolded3d": "折り上がり · 3D",
       "badgeImage": "画像",
       "badgeNewer": "新しい版",
       "badgeSvg": "SVG",

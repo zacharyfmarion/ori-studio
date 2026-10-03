@@ -1,12 +1,14 @@
 import { forwardRef, useCallback, useId, useRef, type ForwardedRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ImagePlus, Lock, Upload } from 'lucide-react';
+import type { TFunction } from 'i18next';
 import {
   isLockedStep,
   type DiagramAsset,
   type DiagramStep,
+  type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
-import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
+import { stepPictureSource, type StepPictureSource } from '../../diagram/pictures/paintDiagramStep';
 import { useStepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -33,6 +35,8 @@ export const DiagramStepCard = forwardRef<
   {
     step: DiagramStep;
     assets: Readonly<Record<string, DiagramAsset>>;
+    /** The pens a captured picture is painted in. */
+    style: DiagramStyle;
     /** 1-based, as the page will print it. */
     number: number;
     selected: boolean;
@@ -48,7 +52,7 @@ export const DiagramStepCard = forwardRef<
     onUpload: (stepId: string) => void;
   }
 >(function DiagramStepCard(
-  { step, assets, number, selected, tabStop, dropTarget, readOnly, onSelect, onOpen, onUpload },
+  { step, assets, style, number, selected, tabStop, dropTarget, readOnly, onSelect, onOpen, onUpload },
   forwarded
 ) {
   const { t } = useTranslation();
@@ -64,7 +68,7 @@ export const DiagramStepCard = forwardRef<
   const locked = isLockedStep(step);
   const text = step.text.trim();
   const picture = stepPictureSource(step, assets);
-  const url = useStepPictureUrl(own, step, assets);
+  const url = useStepPictureUrl(own, step, assets, style);
 
   return (
     <div
@@ -86,13 +90,7 @@ export const DiagramStepCard = forwardRef<
         </span>
         <span id={`${labelId}-kind`}>
           <Badge tone="neutral">
-            {locked
-              ? t('panels:diagram.card.badgeNewer', 'Newer')
-              : picture?.asset.kind === 'svg'
-                ? t('panels:diagram.card.badgeSvg', 'SVG')
-                : picture?.asset.kind === 'raster'
-                  ? t('panels:diagram.card.badgeImage', 'Image')
-                  : t('panels:diagram.card.badgeEmpty', 'Empty')}
+            {locked ? t('panels:diagram.card.badgeNewer', 'Newer') : stepKindLabel(step, picture, t)}
           </Badge>
         </span>
       </div>
@@ -131,6 +129,29 @@ export const DiagramStepCard = forwardRef<
     </div>
   );
 });
+
+/**
+ * What the step is, for its badge: where a linked step comes from and how it
+ * is shown, or what an upload is.
+ */
+function stepKindLabel(step: DiagramStep, picture: StepPictureSource | null, t: TFunction): string {
+  if (step.source?.kind === 'cp') {
+    switch (step.source.render.mode) {
+      case 'crease-pattern':
+        return t('panels:diagram.card.badgeCreasePattern', 'Crease pattern');
+      case 'folded-flat':
+        return t('panels:diagram.card.badgeFolded', 'Folded');
+      case 'folded-3d':
+        return t('panels:diagram.card.badgeFolded3d', 'Folded · 3D');
+    }
+  }
+  if (picture?.kind === 'asset') {
+    return picture.asset.kind === 'svg'
+      ? t('panels:diagram.card.badgeSvg', 'SVG')
+      : t('panels:diagram.card.badgeImage', 'Image');
+  }
+  return t('panels:diagram.card.badgeEmpty', 'Empty');
+}
 
 function assignRef<T>(ref: ForwardedRef<T>, value: T | null): void {
   if (typeof ref === 'function') ref(value);

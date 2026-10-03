@@ -83,3 +83,45 @@ export function fitSheetThumbnail(strokes: readonly SheetStroke[], size = 100): 
   fitted.sort((a, b) => ROLE_LAYER[a.role] - ROLE_LAYER[b.role]);
   return { viewBox: `0 0 ${size} ${size}`, strokes: fitted };
 }
+
+const STROKE_ROLES: ReadonlySet<string> = new Set<SheetStrokeRole>([
+  'edge',
+  'mountain',
+  'valley',
+  'unassigned',
+  'aux',
+]);
+
+/** The most strokes a stored thumbnail may hold: a dense box-pleat sheet, with room. */
+const MAX_STORED_STROKES = 20_000;
+
+/**
+ * A thumbnail as a file holds it (a Diagram step keeps the one it was linked
+ * with), or null: a numeric viewBox and finite strokes of known roles, every
+ * one — a thumbnail missing lines is a different pattern.
+ */
+export function readSheetThumbnail(value: unknown): SheetThumbnail | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const viewBox = record.viewBox;
+  if (typeof viewBox !== 'string') return null;
+  const box = viewBox.trim().split(/\s+/).map(Number);
+  if (box.length !== 4 || box.some((n) => !Number.isFinite(n)) || box[2] <= 0 || box[3] <= 0) return null;
+  if (!Array.isArray(record.strokes) || record.strokes.length > MAX_STORED_STROKES) return null;
+  const strokes: SheetStroke[] = [];
+  for (const entry of record.strokes) {
+    if (entry === null || typeof entry !== 'object') return null;
+    const { x1, y1, x2, y2, role } = entry as Record<string, unknown>;
+    const coords = [x1, y1, x2, y2];
+    if (coords.some((n) => typeof n !== 'number' || !Number.isFinite(n))) return null;
+    if (typeof role !== 'string' || !STROKE_ROLES.has(role)) return null;
+    strokes.push({
+      x1: x1 as number,
+      y1: y1 as number,
+      x2: x2 as number,
+      y2: y2 as number,
+      role: role as SheetStrokeRole,
+    });
+  }
+  return { viewBox: box.join(' '), strokes };
+}

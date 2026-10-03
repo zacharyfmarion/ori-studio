@@ -26,7 +26,11 @@
  * `SanitizeEnv`, and only when the diagram holds an SVG.
  */
 
+import { readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import { readFoldedSourceBounds, readRegionReference } from '../../cp-workspace/regions/regionReference';
+import { readSheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
+import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
@@ -47,15 +51,19 @@ import {
   withReferencedAssets,
   type DiagramAnnotation,
   type DiagramAsset,
-  type DiagramAssetPicture,
+  type DiagramCpRender,
+  type DiagramCpScope,
+  type DiagramCpSource,
   type DiagramDocument,
+  type DiagramFixedPicture,
+  type DiagramPicture,
   type DiagramHanStyle,
   type DiagramIdFactory,
   type DiagramRasterAsset,
   type DiagramStep,
+  type DiagramStepSource,
   type DiagramStyle,
   type DiagramSvgAsset,
-  type DiagramUploadSource,
   type QuarterTurns,
 } from './diagramDocument';
 
@@ -86,11 +94,14 @@ export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): R
   if (!isRecord(value)) return null;
   const newId = options.newId ?? randomDiagramId;
   const formatVersion = typeof value.formatVersion === 'number' ? value.formatVersion : 1;
-  const assets = readAssets(value.assets, options.sanitizeEnv);
+  // Made only when the diagram holds an SVG, so reading one without needs no DOM.
+  let sanitizeEnv = options.sanitizeEnv;
+  const env = () => (sanitizeEnv ??= browserSanitizeEnv());
+  const assets = readAssets(value.assets, env);
   const steps: DiagramStep[] = [];
   const seen = new Set<string>();
   for (const entry of Array.isArray(value.steps) ? value.steps : []) {
-    const step = readStep(entry, assets);
+    const step = readStep(entry, assets, env);
     // Two steps with one id would make every edit by id ambiguous; the first
     // one wins and the copy is malformed.
     if (step && !seen.has(step.id)) {
@@ -245,19 +256,30 @@ function writeAsset(asset: DiagramAsset): Record<string, unknown> {
 }
 
 /** The source kinds this build reads. Any other is a newer build's. */
-const SOURCE_KINDS = new Set(['upload']);
+const SOURCE_KINDS = new Set(['upload', 'cp']);
 /** The picture kinds this build reads. */
-const PICTURE_KINDS = new Set(['asset']);
+const PICTURE_KINDS = new Set(['asset', 'scene', 'fixed']);
+/** Within a crease-pattern source: the scopes and render modes this build reads. */
+const CP_SCOPE_KINDS = new Set(['segment', 'figure-bounds']);
+const CP_RENDER_MODES = new Set(['crease-pattern', 'folded-flat', 'folded-3d']);
+
+/** The most a stored scene may be, as JSON: D2's per-step budget, with room. */
+const SCENE_JSON_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
- * One step. A source or picture of a kind this build does not know makes the
- * step a newer build's, carried whole and locked — and so does one of a known
- * kind that names an asset of a kind this build does not know, which only that
+ * One step. A source or picture of a kind this build does not know — at any
+ * depth: a crease-pattern source's scope or render mode too — makes the step a
+ * newer build's, carried whole and locked; and so does one of a known kind
+ * that names an asset of a kind this build does not know, which only that
  * newer build can draw. One of a known kind that does not read — or that names
  * an asset the file does not hold, or one dropped on the way in — is left out,
  * and the step keeps its words.
  */
-function readStep(value: unknown, assets: Record<string, DiagramAsset>): DiagramStep | null {
+function readStep(
+  value: unknown,
+  assets: Record<string, DiagramAsset>,
+  env: () => SanitizeEnv
+): DiagramStep | null {
   if (!isRecord(value)) return null;
   const id = value.id;
   if (typeof id !== 'string' || id.length === 0) return null;
@@ -275,17 +297,39 @@ function readStep(value: unknown, assets: Record<string, DiagramAsset>): Diagram
   if (
     isNewerKind(value.source, SOURCE_KINDS) ||
     isNewerKind(value.picture, PICTURE_KINDS) ||
+    isNewerCpSource(value.source) ||
     namesUnknownAsset(value.source, assets) ||
     namesUnknownAsset(value.picture, assets)
   ) {
     return { ...base, unknown: value };
   }
   const source = readSource(value.source, assets);
-  const picture = readPicture(value.picture, assets);
-  // An upload is its asset: a source and a picture that disagree about which
-  // one, or a picture whose source is gone, are not a picture to show.
-  if (source && picture && source.assetId === picture.assetId) return { ...base, source, picture };
+  const picture = readPicture(value.picture, assets, env);
+  if (source?.kind === 'upload') {
+    // An upload is its asset: a source and a picture that disagree about which
+    // one are not a picture to show.
+    return picture?.kind === 'asset' && picture.assetId === source.assetId
+      ? { ...base, source, picture }
+      : base;
+  }
+  if (source?.kind === 'cp') {
+    // A linked step may have no picture yet ("Pose to capture"); its picture is
+    // a scene, a fixed picture, or a capture too detailed to keep as vector,
+    // kept as a bitmap asset.
+    return { ...base, source, picture };
+  }
+  // A picture with no source to say what it is of is left out.
   return base;
+}
+
+/** A crease-pattern source with a scope or render mode this build does not read. */
+function isNewerCpSource(value: unknown): boolean {
+  if (!isRecord(value) || value.kind !== 'cp') return false;
+  return isNewerKind(value.scope, CP_SCOPE_KINDS) || isNewerMode(value.render);
+}
+
+function isNewerMode(value: unknown): boolean {
+  return isRecord(value) && typeof value.mode === 'string' && !CP_RENDER_MODES.has(value.mode);
 }
 
 /** A source or picture naming an asset the table carries but this build cannot read. */
@@ -300,11 +344,10 @@ function isNewerKind(value: unknown, known: ReadonlySet<string>): boolean {
   return isRecord(value) && typeof value.kind === 'string' && !known.has(value.kind);
 }
 
-function readSource(
-  value: unknown,
-  assets: Record<string, DiagramAsset>
-): DiagramUploadSource | null {
-  if (!isRecord(value) || value.kind !== 'upload') return null;
+function readSource(value: unknown, assets: Record<string, DiagramAsset>): DiagramStepSource | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === 'cp') return readCpSource(value);
+  if (value.kind !== 'upload') return null;
   const assetId = value.assetId;
   if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
   const turns = value.rotationQuarterTurns;
@@ -317,20 +360,134 @@ function readSource(
   };
 }
 
+/** A crease-pattern source, every field checked; null when any does not read. */
+function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
+  const scope = readCpScope(value.scope);
+  const render = readCpRender(value.render);
+  const thumbnail = readSheetThumbnail(value.thumbnail);
+  const fingerprint = value.fingerprint;
+  if (!scope || !render || !thumbnail) return null;
+  if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
+  return { kind: 'cp', scope, fingerprint, thumbnail, render };
+}
+
+function readCpScope(value: unknown): DiagramCpScope | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === 'segment') {
+    const region = readRegionReference(value.region);
+    return region ? { kind: 'segment', region } : null;
+  }
+  if (value.kind === 'figure-bounds') {
+    const bounds = readFoldedSourceBounds(value.bounds);
+    return bounds ? { kind: 'figure-bounds', bounds } : null;
+  }
+  return null;
+}
+
+function readCpRender(value: unknown): DiagramCpRender | null {
+  if (!isRecord(value)) return null;
+  const side = value.side === 'front' || value.side === 'back' ? value.side : null;
+  const rotationDeg = finiteNumber(value.rotationDeg);
+  switch (value.mode) {
+    case 'crease-pattern':
+      return rotationDeg === null ? null : { mode: 'crease-pattern', rotationDeg: normalizeDegrees(rotationDeg) };
+    case 'folded-flat': {
+      const foldCase = wholeNumber(value.foldCase);
+      if (!side || rotationDeg === null || foldCase === null || foldCase < 1) return null;
+      return { mode: 'folded-flat', side, rotationDeg: normalizeDegrees(rotationDeg), foldCase };
+    }
+    case 'folded-3d': {
+      const camera = readFoldedFigureCamera(value.camera);
+      return side && camera ? { mode: 'folded-3d', camera, side } : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/** An angle in [0, 360), so one rotation is written one way. */
+function normalizeDegrees(degrees: number): number {
+  const turned = degrees % 360;
+  return turned < 0 ? turned + 360 : turned;
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function readPicture(
   value: unknown,
-  assets: Record<string, DiagramAsset>
-): DiagramAssetPicture | null {
-  if (!isRecord(value) || value.kind !== 'asset') return null;
-  const { assetId, key, paperScale } = value;
-  if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
+  assets: Record<string, DiagramAsset>,
+  env: () => SanitizeEnv
+): DiagramPicture | null {
+  if (!isRecord(value)) return null;
+  const key = value.key;
   if (typeof key !== 'string' || key.length === 0) return null;
-  return {
-    kind: 'asset',
-    assetId,
-    paperScale: typeof paperScale === 'number' && Number.isFinite(paperScale) && paperScale > 0 ? paperScale : null,
-    key,
-  };
+  const paperScale = positiveOrNull(value.paperScale);
+  switch (value.kind) {
+    case 'asset': {
+      const assetId = value.assetId;
+      if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
+      return { kind: 'asset', assetId, paperScale, key };
+    }
+    case 'scene': {
+      const sceneJson = readSceneJson(value.sceneJson);
+      if (sceneJson === null) return null;
+      const styleKey = typeof value.styleKey === 'string' ? value.styleKey : null;
+      return { kind: 'scene', sceneJson, paperScale, styleKey, key };
+    }
+    case 'fixed':
+      return readFixedPicture(value, key, env());
+    default:
+      return null;
+  }
+}
+
+function positiveOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * A stored scene, validated as any scene from a file is (`readPaperScene`,
+ * which drops markup), and written back in the validated form, so what is kept
+ * is only what was checked.
+ */
+function readSceneJson(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > SCENE_JSON_MAX_BYTES) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  return storedSceneJson(parsed);
+}
+
+/**
+ * A scene as a step stores it: through the file's own validator, so what a
+ * capture writes is byte for byte what a load reads back, and only what was
+ * checked is kept. Null for a scene the validator refuses.
+ */
+export function storedSceneJson(scene: unknown): string | null {
+  const read = readPaperScene(scene);
+  return read ? JSON.stringify(read) : null;
+}
+
+/**
+ * A no-layer-order picture: our own SVG, sanitized again as an upload is
+ * (D7), with its key as its ids' prefix — the key is the picture's, so a copy
+ * in a duplicated step loads to the same bytes.
+ */
+function readFixedPicture(
+  value: Record<string, unknown>,
+  key: string,
+  env: SanitizeEnv
+): DiagramFixedPicture | null {
+  if (typeof value.svg !== 'string' || value.svg.length > SVG_STORED_MAX_BYTES) return null;
+  // A key that cannot prefix an id is refused by the sanitizer.
+  const result = sanitizeSvg(value.svg, { idPrefix: key, mode: 'load', env });
+  if (!result.ok) return null;
+  return { kind: 'fixed', svg: result.svg, widthPx: result.widthPx, heightPx: result.heightPx, key };
 }
 
 function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolean {
@@ -355,15 +512,13 @@ function readAnnotations(value: unknown): DiagramAnnotation[] {
  * header-checked, and one that fails is dropped (the steps that showed it
  * become empty); a kind this build does not know is carried verbatim.
  */
-function readAssets(value: unknown, env: SanitizeEnv | undefined): Record<string, DiagramAsset> {
+function readAssets(value: unknown, env: () => SanitizeEnv): Record<string, DiagramAsset> {
   if (!isRecord(value)) return {};
   const out: Record<string, DiagramAsset> = {};
-  let sanitizeEnv = env;
   for (const [id, entry] of Object.entries(value)) {
     if (!isRecord(entry)) continue;
     if (entry.kind === 'svg') {
-      sanitizeEnv ??= browserSanitizeEnv();
-      const asset = readSvgAsset(id, entry, sanitizeEnv);
+      const asset = readSvgAsset(id, entry, env());
       if (asset) out[id] = asset;
     } else if (entry.kind === 'raster') {
       const asset = readRasterAsset(id, entry);

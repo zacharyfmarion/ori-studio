@@ -732,7 +732,10 @@
       "uploadPicture": "Subir imagen…"
     },
     "card": {
+      "badgeCreasePattern": "Patrón de pliegues",
       "badgeEmpty": "Vacío",
+      "badgeFolded": "Plegado",
+      "badgeFolded3d": "Plegado · 3D",
       "badgeImage": "Imagen",
       "badgeNewer": "Más reciente",
       "badgeSvg": "SVG",

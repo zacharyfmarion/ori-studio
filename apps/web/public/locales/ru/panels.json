@@ -761,7 +761,10 @@
       "uploadPicture": "Загрузить изображение…"
     },
     "card": {
+      "badgeCreasePattern": "Паттерн складок",
       "badgeEmpty": "Пусто",
+      "badgeFolded": "Сложено",
+      "badgeFolded3d": "Сложено · 3D",
       "badgeImage": "Изображение",
       "badgeNewer": "Новее",
       "badgeSvg": "SVG",

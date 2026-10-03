@@ -3,7 +3,8 @@ import { exportFilename } from '../../platform/exportFilename';
 import { getFileService, type FileService } from '../../platform/fileService';
 import type { DiagramDocument } from '../document/diagramDocument';
 import { stepIndex } from '../document/diagramDocument';
-import { paintAsset, stepPictureSource } from './paintDiagramStep';
+import { DEFAULT_PAPER_PAGE } from '../../lib/paper/paperPage';
+import { paintSource, stepPictureSource } from './paintDiagramStep';
 
 /**
  * Export picture… (D7's round trip for hand edits): the step's picture alone,
@@ -13,6 +14,8 @@ import { paintAsset, stepPictureSource } from './paintDiagramStep';
  * in Inkscape as the user's own drawing, ready to edit and bring back with
  * Replace picture…. An upright bitmap is written as the bitmap it is stored
  * as; a posed one as an SVG that draws it posed, rather than re-encoding it.
+ * A captured picture is written in the diagram's pens, with the margin a
+ * picture exported from Edit gets.
  * Resolves the kind of file written, or null when nothing was.
  */
 export async function exportStepPicture(
@@ -26,9 +29,13 @@ export async function exportStepPicture(
   const t = i18n.t;
   const title = t('dialogs:diagram.exportPictureTitle', 'Export picture');
   const stem = `${document.title.trim() || 'Diagram'} step ${index + 1}`;
-  const { asset, pose } = source;
-  const upright = pose.rotationQuarterTurns === 0 && !pose.mirrored;
-  if (asset.kind === 'raster' && upright) {
+  if (
+    source.kind === 'asset' &&
+    source.asset.kind === 'raster' &&
+    source.pose.rotationQuarterTurns === 0 &&
+    !source.pose.mirrored
+  ) {
+    const { asset } = source;
     const match = /^data:(image\/(png|jpeg));base64,(.*)$/.exec(asset.src);
     if (!match) return null;
     const extension = match[2] === 'jpeg' ? 'jpg' : 'png';
@@ -42,9 +49,11 @@ export async function exportStepPicture(
     });
     return saved === null ? null : match[2] === 'jpeg' ? 'jpeg' : 'png';
   }
+  const painted = paintSource(source, document.style, DEFAULT_PAPER_PAGE.paddingMm);
+  if (!painted) return null;
   const saved = await fileService.saveTextFile({
     title,
-    contents: paintAsset(asset, pose).svg,
+    contents: painted.svg,
     suggestedName: exportFilename(stem, 'svg'),
     extensions: ['svg'],
   });

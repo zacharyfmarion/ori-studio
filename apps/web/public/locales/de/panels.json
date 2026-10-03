@@ -703,7 +703,10 @@
       "uploadPicture": "Bild hochladen…"
     },
     "card": {
+      "badgeCreasePattern": "Faltmuster",
       "badgeEmpty": "Leer",
+      "badgeFolded": "Gefaltet",
+      "badgeFolded3d": "Gefaltet · 3D",
       "badgeImage": "Bild",
       "badgeNewer": "Neuer",
       "badgeSvg": "SVG",

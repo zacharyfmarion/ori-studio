@@ -13,6 +13,8 @@ import {
 import { readDiagram, writeDiagram } from './diagramFile';
 import { sanitizeSvg } from '../upload/svgSanitize';
 import { insertPictureSteps, setStepText as setText, type KnownDiagramAsset } from './diagramDocument';
+import { cpStep, fixedPicture, FIXED_SVG, scenePicture } from './diagramSteps.fixtures';
+import { markup, sceneOf, sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 
 function sequentialIds(): DiagramIdFactory {
   let next = 0;
@@ -307,5 +309,142 @@ describe('uploaded pictures in the file', () => {
     const { document, stepIds } = uploadDiagram();
     const trimmed = { ...document, steps: document.steps.filter((step) => step.id !== stepIds[1]) };
     expect(Object.keys(throughJson(writeDiagram(trimmed)).assets)).toEqual(['asset-a']);
+  });
+});
+
+/** A linked step's source as `throughJson` gives it back: any shape, for damaging. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a file read back, damaged on purpose
+type WrittenSource = Record<string, any>;
+
+/** A linked step of each render mode, with each kind of captured picture. */
+function linkedDiagram() {
+  const ids = sequentialIds();
+  const stored = sanitizeSvg(FIXED_SVG, { idPrefix: 'fixed-1', mode: 'import' });
+  if (!stored.ok) throw new Error(stored.error);
+  const steps = [
+    cpStep('step-cp', { mode: 'crease-pattern', rotationDeg: 45 }),
+    cpStep('step-flat', { mode: 'folded-flat', side: 'back', rotationDeg: 90, foldCase: 2 }),
+    cpStep(
+      'step-3d',
+      { mode: 'folded-3d', camera: { yaw: 0.5, pitch: -0.4, zoom: 1.2 }, side: 'front' },
+      { ...scenePicture('scene-3d'), styleKey: 'light-1' }
+    ),
+    cpStep('step-fixed', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 }, {
+      ...fixedPicture('fixed-1', stored.svg),
+      widthPx: stored.widthPx,
+      heightPx: stored.heightPx,
+    }),
+    cpStep('step-unposed', undefined, null),
+  ];
+  const diagram = createDiagram({ title: 'Crane', newId: ids });
+  return insertSteps(diagram, steps, 0);
+}
+
+describe('linked steps in the file', () => {
+  it('round-trips every render mode and captured picture unchanged', () => {
+    const document = linkedDiagram();
+    const read = readDiagram(throughJson(writeDiagram(document)))!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document).toEqual(document);
+    expect(throughJson(writeDiagram(read.document))).toEqual(throughJson(writeDiagram(document)));
+  });
+
+  it('keeps a stored scene as one string, so the file is not a line per coordinate', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    expect(typeof written.steps[0].picture.sceneJson).toBe('string');
+  });
+
+  it('takes the markup out of a stored scene, and keeps the rest', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    const withMarkup = sceneOf([...sheetWithCrease().items, markup('<script>alert(1)</script>')]);
+    written.steps[0].picture.sceneJson = JSON.stringify(withMarkup);
+    const picture = readDiagram(written)!.document.steps[0].picture;
+    expect(picture?.kind).toBe('scene');
+    const scene = JSON.parse((picture as { sceneJson: string }).sceneJson);
+    expect(scene.items.map((item: { kind: string }) => item.kind)).toEqual(['face', 'line']);
+  });
+
+  it('sanitizes a fixed picture again on the way in', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[3].picture.svg = written.steps[3].picture.svg.replace(
+      '</svg>',
+      '<script>alert(1)</script><a href="javascript:alert(2)"><rect width="5" height="5"/></a></svg>'
+    );
+    const picture = readDiagram(written)!.document.steps[3].picture as { kind: string; svg: string };
+    expect(picture.kind).toBe('fixed');
+    expect(picture.svg).not.toContain('script');
+    expect(picture.svg).not.toContain('javascript');
+    expect(picture.svg).toContain('<rect');
+  });
+
+  it.each([
+    ['a scene that is not JSON', 0, { sceneJson: '{nope' }],
+    ['a scene that is not a scene', 0, { sceneJson: '{"items":3}' }],
+    ['a fixed picture that is not an SVG', 3, { svg: '<html/>' }],
+    ['a fixed picture whose key cannot prefix an id', 3, { key: '1 bad' }],
+    ['a picture with no key', 0, { key: '' }],
+  ])('drops %s, and the step keeps its link and words', (_label, index, patch) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[index].text = 'Fold it.';
+    Object.assign(written.steps[index].picture, patch);
+    const step = readDiagram(written)!.document.steps[index];
+    expect(step.picture).toBeNull();
+    expect(step.source?.kind).toBe('cp');
+    expect(step.text).toBe('Fold it.');
+    expect(step.unknown).toBeUndefined();
+  });
+
+  it.each([
+    ['a scope with no rim', (source: WrittenSource) => (source.scope.region.boundary = [])],
+    ['no fingerprint', (source: WrittenSource) => (source.fingerprint = '')],
+    ['a thumbnail of an unknown role', (source: WrittenSource) => (source.thumbnail.strokes[0].role = 'cut')],
+    ['a fold case of zero', (source: WrittenSource) => (source.render.foldCase = 0)],
+    ['no side', (source: WrittenSource) => delete source.render.side],
+  ])('drops a link with %s, and the picture with it; the words stay', (_label, damage) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[1].text = 'Fold it.';
+    damage(written.steps[1].source);
+    const step = readDiagram(written)!.document.steps[1];
+    expect(step).toMatchObject({ source: null, picture: null, text: 'Fold it.' });
+    expect(step.unknown).toBeUndefined();
+  });
+
+  it('drops a 3D camera that is not one, and the link with it', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[2].source.render.camera.zoom = -1;
+    expect(readDiagram(written)!.document.steps[2].source).toBeNull();
+  });
+
+  it('writes a rotation one way: within a turn, never negative', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[0].source.render.rotationDeg = -45;
+    written.steps[1].source.render.rotationDeg = 810;
+    const steps = readDiagram(written)!.document.steps;
+    expect(steps[0].source).toMatchObject({ render: { rotationDeg: 315 } });
+    expect(steps[1].source).toMatchObject({ render: { rotationDeg: 90 } });
+  });
+
+  it.each([
+    ['a scope it does not know', (source: WrittenSource) => (source.scope = { kind: 'lasso', path: [1] })],
+    ['a render mode it does not know', (source: WrittenSource) => (source.render = { mode: 'simulated', percent: 40 })],
+  ])('carries, locked and verbatim, a linked step with %s', (_label, newer) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    newer(written.steps[1].source);
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document.steps[1].unknown).toEqual(written.steps[1]);
+    expect(throughJson(writeDiagram(read.document)).steps[1]).toEqual(written.steps[1]);
+  });
+
+  it('keeps a capture held as a bitmap, and drops a scene with no link to say what it is', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    const raster = rasterAsset('asset-r', 64, 48);
+    written.assets = { 'asset-r': raster };
+    written.steps[0].picture = { kind: 'asset', assetId: 'asset-r', paperScale: 3, key: 'raster-1' };
+    written.steps[1].source = null;
+    const read = readDiagram(written)!.document;
+    expect(read.steps[0].picture).toEqual({ kind: 'asset', assetId: 'asset-r', paperScale: 3, key: 'raster-1' });
+    expect(read.assets['asset-r']).toEqual(raster);
+    expect(read.steps[1].picture).toBeNull();
   });
 });

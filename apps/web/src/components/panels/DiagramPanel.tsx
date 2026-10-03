@@ -1,6 +1,10 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DiagramAsset, DiagramStep } from '../../diagram/document/diagramDocument';
+import {
+  DEFAULT_DIAGRAM_STYLE,
+  type DiagramAsset,
+  type DiagramStep,
+} from '../../diagram/document/diagramDocument';
 import { pickStepPictures } from '../../diagram/upload/addStepPictures';
 import { useStepPictureDrop } from '../../diagram/upload/useStepPictureDrop';
 import {
@@ -50,6 +54,7 @@ export function DiagramPanel() {
   const title = useWorkspaceStore((state) => state.diagram?.title ?? '');
   const steps = useWorkspaceStore((state) => state.diagram?.steps ?? NO_STEPS);
   const assets = useWorkspaceStore((state) => state.diagram?.assets ?? NO_ASSETS);
+  const style = useWorkspaceStore((state) => state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const selectedStepId = useWorkspaceStore((state) => state.diagramSelectedStepId);
   const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
@@ -82,6 +87,7 @@ export function DiagramPanel() {
           key={step.id}
           step={step}
           assets={assets}
+          style={style}
           number={detailIndex + 1}
           count={steps.length}
           readOnly={readOnly}
@@ -138,6 +144,7 @@ export function DiagramPanel() {
           <DiagramStepsGrid
             steps={steps}
             assets={assets}
+            style={style}
             selectedStepId={selectedStepId}
             dropTarget={dropTarget}
             readOnly={readOnly}

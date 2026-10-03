@@ -703,7 +703,10 @@
       "uploadPicture": "Upload Picture…"
     },
     "card": {
+      "badgeCreasePattern": "Crease pattern",
       "badgeEmpty": "Empty",
+      "badgeFolded": "Folded",
+      "badgeFolded3d": "Folded · 3D",
       "badgeImage": "Image",
       "badgeNewer": "Newer",
       "badgeSvg": "SVG",

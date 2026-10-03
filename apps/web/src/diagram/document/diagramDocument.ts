@@ -13,6 +13,10 @@
  * React-free, store-free and DOM-free.
  */
 
+import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import type { FoldedSourceBounds } from '../../cp-workspace/folded/foldedFigureStaleness';
+import type { RegionReference } from '../../cp-workspace/regions/regionReference';
+import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
@@ -79,11 +83,49 @@ export interface DiagramUploadSource {
 }
 
 /**
+ * How a crease-pattern step chooses its creases (D3): a region of the pattern,
+ * picked in the Diagram and found again by its rim; or the box a folded figure
+ * in Edit was folded from, its creases re-chosen by overlap as Edit refolds.
+ */
+export type DiagramCpScope =
+  | { kind: 'segment'; region: RegionReference }
+  | { kind: 'figure-bounds'; bounds: FoldedSourceBounds };
+
+/**
+ * What a crease-pattern step shows of its creases (D5): the pattern itself, the
+ * flat folded model, or the folded model in 3D. Each keeps its own pose.
+ */
+export type DiagramCpRender =
+  | { mode: 'crease-pattern'; rotationDeg: number }
+  | {
+      mode: 'folded-flat';
+      side: 'front' | 'back';
+      rotationDeg: number;
+      /** Which layer-ordering solution, 1-based. */
+      foldCase: number;
+    }
+  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' };
+
+/** A step drawn from the open crease pattern, and linked to it (D3). */
+export interface DiagramCpSource {
+  kind: 'cp';
+  scope: DiagramCpScope;
+  /**
+   * `foldedSourceFingerprint` over the creases the scope chose, from the same
+   * document snapshot the capture used: what link status compares against.
+   */
+  fingerprint: string;
+  /** The pattern as it was linked, for the picker and a step whose pattern is gone. */
+  thumbnail: SheetThumbnail;
+  render: DiagramCpRender;
+}
+
+/**
  * Where a step's picture comes from. The variants arrive with the phases that
  * build them, and a source this build does not know makes the step an
  * unknown, locked one (see {@link DiagramStep.unknown}).
  */
-export type DiagramStepSource = DiagramUploadSource;
+export type DiagramStepSource = DiagramUploadSource | DiagramCpSource;
 
 /**
  * A picture held in the assets table: an upload, or (from Phase 3) a capture
@@ -98,8 +140,36 @@ export interface DiagramAssetPicture {
   key: string;
 }
 
+/**
+ * A captured picture as a paper scene (D2): a crease pattern, a flat folded
+ * model or a 3D one, drawn in the diagram's pens when it is painted. Stored as
+ * one compact string, hidden items already dropped.
+ */
+export interface DiagramScenePicture {
+  kind: 'scene';
+  /** The `PaperScene`, as JSON: inert, validated on load (markup dropped). */
+  sceneJson: string;
+  /** Scene px per crease-pattern unit, for one shared scale across a page (D10); null when unknown. */
+  paperScale: number | null;
+  /** For a 3D capture, the style its light was baked under (`folded3dSceneStyleKey`); null otherwise. */
+  styleKey: string | null;
+  key: string;
+}
+
+/**
+ * A fold with no layer order (D4): the kernel's transparent development, which
+ * has no paper scene, as our own SVG — sanitized at capture and on load.
+ */
+export interface DiagramFixedPicture {
+  kind: 'fixed';
+  svg: string;
+  widthPx: number;
+  heightPx: number;
+  key: string;
+}
+
 /** A step's captured picture. Variants arrive with their phases, as sources do. */
-export type DiagramPicture = DiagramAssetPicture;
+export type DiagramPicture = DiagramAssetPicture | DiagramScenePicture | DiagramFixedPicture;
 
 /**
  * An annotation this build cannot read, kept verbatim so a newer build's work

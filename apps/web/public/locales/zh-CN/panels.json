@@ -674,7 +674,10 @@
       "uploadPicture": "上传图片…"
     },
     "card": {
+      "badgeCreasePattern": "折痕图",
       "badgeEmpty": "空",
+      "badgeFolded": "折叠形态",
+      "badgeFolded3d": "折叠形态 · 3D",
       "badgeImage": "图片",
       "badgeNewer": "较新",
       "badgeSvg": "SVG",

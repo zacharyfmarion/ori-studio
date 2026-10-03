@@ -21,9 +21,10 @@ import {
   isLockedStep,
   type DiagramAsset,
   type DiagramStep,
+  type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
-import { posedAssetUrl } from '../../diagram/pictures/useStepPictureUrl';
+import { stepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Toolbar } from '../ui/Toolbar';
@@ -53,6 +54,7 @@ const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
 export function DiagramStepDetail({
   step,
   assets,
+  style,
   number,
   count,
   readOnly,
@@ -65,6 +67,8 @@ export function DiagramStepDetail({
 }: {
   step: DiagramStep;
   assets: Readonly<Record<string, DiagramAsset>>;
+  /** The pens a captured picture is painted in. */
+  style: DiagramStyle;
   /** 1-based. */
   number: number;
   count: number;
@@ -91,14 +95,8 @@ export function DiagramStepDetail({
   }, []);
 
   const locked = isLockedStep(step);
-  const source = stepPictureSource(step, assets);
-  const asset = source?.asset ?? null;
-  const turns = source?.pose.rotationQuarterTurns ?? 0;
-  const mirrored = source?.pose.mirrored ?? false;
-  const url = useMemo(
-    () => (asset ? posedAssetUrl(asset, { rotationQuarterTurns: turns, mirrored }) : null),
-    [asset, turns, mirrored]
-  );
+  const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
+  const url = useMemo(() => (source ? stepPictureUrl(source, style) : null), [source, style]);
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
 
   return (
