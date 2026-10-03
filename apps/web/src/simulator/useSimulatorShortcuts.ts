@@ -5,6 +5,7 @@ import {
   subscribeSimulatorExecutor,
 } from '../keyboard/shortcutRuntime';
 import type { SimulatorShortcutId } from '../keyboard/shortcuts';
+import type { SimulatorToolId } from './tools/types';
 
 /**
  * Bind the simulator keymap while a simulation owns the keyboard.
@@ -43,70 +44,115 @@ export interface SimulatorShortcutHandlers {
    */
   exportView?: () => void;
   setUpright?: () => void;
+  /**
+   * The tool verbs. Optional, and only the Simulate workspace answers them: an
+   * inline window on the Edit canvas has no tools, and declines their chords so
+   * that O, P and Escape reach the canvas beneath it.
+   */
+  tools?: SimulatorToolShortcutHandlers;
+}
+
+/** Where a verb was asked for, for the analytics of the verbs that report it. */
+export type SimulatorVerbSource = 'shortcut' | 'context_menu';
+
+export interface SimulatorToolShortcutHandlers {
+  selectTool: (tool: SimulatorToolId, source: SimulatorVerbSource) => void;
+  /**
+   * Escape: cancel a gesture in flight, else leave the tool for Orbit. Answers
+   * whether it did either; `false` hands Escape on to the next scope.
+   */
+  exitTool: () => boolean;
+  clearPins: (source: SimulatorVerbSource) => void;
+  togglePinThroughLayers: (source: SimulatorVerbSource) => void;
 }
 
 /** Zoom step, matching the wheel's feel. */
 const ZOOM_STEP = 1.1;
 
 /**
- * Run one simulator verb.
+ * Run one simulator verb, and say whether this surface took it.
  *
  * Extracted from the executor below so the context menu can dispatch through the
  * *same* switch rather than re-deriving which handler each id means. Two copies
  * of this mapping is how a menu row and its own key binding end up doing
  * different things — and the ids are the only names these verbs have, so there
  * would be nothing to catch it.
+ *
+ * `false` declines the chord, and the dispatcher hands it to the next scope.
+ * Only the tool verbs ever decline. The rest claim even on a surface that has
+ * no handler for them — F on an inline window toggles nothing, and still must
+ * not reach the Fold tool beneath it — which is how they behaved before there
+ * was a way to decline.
  */
 export function runSimulatorShortcut(
   id: SimulatorShortcutId,
   handlers: SimulatorShortcutHandlers,
-  foldStepPercent: number
-): void {
+  foldStepPercent: number,
+  source: SimulatorVerbSource = 'shortcut'
+): boolean {
   switch (id) {
     case 'simulator.playPause':
       handlers.playPause();
-      return;
+      return true;
     case 'simulator.foldForward':
       handlers.nudgeFold(foldStepPercent);
-      return;
+      return true;
     case 'simulator.foldBackward':
       handlers.nudgeFold(-foldStepPercent);
-      return;
+      return true;
     case 'simulator.foldEnd':
       handlers.setFoldPercent(100);
-      return;
+      return true;
     case 'simulator.foldStart':
       // A rewind rather than a settle to 0: "the beginning" is flat paper at
       // rest, not wherever relaxing back from the current fold happens to stop.
       handlers.rewind();
-      return;
+      return true;
     case 'simulator.replay':
       handlers.restart();
-      return;
+      return true;
     case 'simulator.resetView':
       handlers.resetView();
-      return;
+      return true;
     case 'simulator.zoomIn':
       handlers.zoomBy(ZOOM_STEP);
-      return;
+      return true;
     case 'simulator.zoomOut':
       handlers.zoomBy(1 / ZOOM_STEP);
-      return;
+      return true;
     case 'simulator.toggleFaces':
       handlers.toggleSetting?.('showFaces');
-      return;
+      return true;
     case 'simulator.toggleCreases':
       handlers.toggleSetting?.('showEdges');
-      return;
+      return true;
     case 'simulator.toggleLighting':
       handlers.toggleSetting?.('lighting');
-      return;
+      return true;
     case 'simulator.exportView':
       handlers.exportView?.();
-      return;
+      return true;
     case 'simulator.setUpright':
       handlers.setUpright?.();
-      return;
+      return true;
+    case 'simulator.tool.orbit':
+      if (!handlers.tools) return false;
+      handlers.tools.selectTool('orbit', source);
+      return true;
+    case 'simulator.tool.pin':
+      if (!handlers.tools) return false;
+      handlers.tools.selectTool('pin', source);
+      return true;
+    case 'simulator.tool.exit':
+      return handlers.tools?.exitTool() ?? false;
+    case 'simulator.pins.clear':
+      if (!handlers.tools) return false;
+      handlers.tools.clearPins(source);
+      return true;
+    case 'simulator.pins.throughLayers':
+      if (!handlers.tools) return false;
+      handlers.tools.togglePinThroughLayers(source);
+      return true;
   }
 }
 

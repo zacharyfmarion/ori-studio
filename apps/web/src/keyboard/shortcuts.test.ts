@@ -59,7 +59,10 @@ function dispatched(
       executors: {
         menu: claim,
         cpAction: claim,
-        simulator: claim,
+        simulator: (id) => {
+          claim(id);
+          return true;
+        },
         viewport: (id) => {
           claim(id);
           return true;

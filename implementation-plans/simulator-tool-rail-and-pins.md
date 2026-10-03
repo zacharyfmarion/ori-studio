@@ -584,9 +584,17 @@ every CP-specific piece where it is.
   today (`shortcutDispatcher.ts:194-197`), and inline windows register it too.
   An Escape bound in the simulator scope would then swallow `viewport.cancel` on
   the Edit canvas whenever an inline window held the keyboard.
-  - Add a `DECLINING_SIMULATOR_SHORTCUTS` set and a boolean return, the way the
-    viewport executor already works (`shortcuts.ts:484`).
-  - Surfaces without tools decline the tool verbs.
+  - A boolean return, the way the viewport executor already works; only an
+    explicit `true` claims.
+  - Surfaces without tools decline the tool verbs. Escape also declines when
+    there is no gesture to cancel and no tool to leave. Every other verb claims,
+    handler or not, as before.
+  - **No `DECLINING_SIMULATOR_SHORTCUTS` set** (changed while building). That
+    set feeds the conflict rules, and the `simulator` scope is conditional, which
+    they already treat as transparent to every other scope. Within its own scope
+    membership would be wrong: a declined chord moves to the next *scope*, never
+    to a sibling, and the capture check reads membership as licence to stack a
+    second binding on a chord only the first can answer.
   - This is its own commit, with tests, before any tool chord lands.
 
 ### Error handling
@@ -748,8 +756,8 @@ Each step is its own commit; the moves change nothing on screen.
 
   Proof: Edit's window, pill and sheet show identical computed styles and
   screenshots before and after, at desktop and phone widths, in both themes.
-- [ ] **Move:** the touch arbiter → `src/lib/gestures/`.
-- [ ] **Keyboard:** the simulator executor can decline, with tests (an inline
+- [x] **Move:** the touch arbiter → `src/lib/gestures/`.
+- [x] **Keyboard:** the simulator executor can decline, with tests (an inline
       window passes Escape through).
 - [ ] **Tool core:** types, catalog, actions, `pressRoute` (total over input
       modes), engines, intents, `pinSet`, cursor. All pure; all unit-tested.

@@ -172,7 +172,7 @@ describe('simulator scope', () => {
     ['l', 'simulator.toggleLighting'],
     [' ', 'simulator.playPause'],
   ])('routes %s to the simulation while it is focused', (key, expected) => {
-    const simulator = vi.fn();
+    const simulator = vi.fn(() => true);
     const cpAction = vi.fn();
 
     expect(
@@ -225,6 +225,69 @@ describe('simulator scope', () => {
     });
 
     expect(cpAction).toHaveBeenCalledWith(cpActionFor('f'));
+  });
+
+  // The simulator's tool verbs share Escape with `viewport.cancel`, and an inline
+  // window on the Edit canvas has no tools to exit.
+  describe('decline', () => {
+    it('hands a declined chord to the next scope', () => {
+      const simulator = vi.fn(() => false);
+      const viewport = vi.fn(() => true);
+      const event = press('Escape');
+
+      expect(
+        handleShortcutKeyDown(event, {
+          scopeStack: [...scopedStack],
+          executors: { simulator, viewport },
+        })
+      ).toBe(true);
+
+      expect(simulator).toHaveBeenCalledWith('simulator.tool.exit');
+      expect(viewport).toHaveBeenCalledWith('viewport.cancel');
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('keeps a claimed chord from the scopes beneath', () => {
+      const simulator = vi.fn(() => true);
+      const viewport = vi.fn(() => true);
+
+      handleShortcutKeyDown(press('Escape'), {
+        scopeStack: [...scopedStack],
+        executors: { simulator, viewport },
+      });
+
+      expect(viewport).not.toHaveBeenCalled();
+    });
+
+    it('treats anything but an explicit claim as a decline', () => {
+      // The executor contract is a boolean; an untyped one returning nothing
+      // must fail to handle a chord rather than silently eat it.
+      const simulator = vi.fn(() => undefined as unknown as boolean);
+      const viewport = vi.fn(() => true);
+
+      handleShortcutKeyDown(press('Escape'), {
+        scopeStack: [...scopedStack],
+        executors: { simulator, viewport },
+      });
+
+      expect(viewport).toHaveBeenCalledWith('viewport.cancel');
+    });
+
+    it('leaves an unclaimed tool letter unhandled, so the page keeps it', () => {
+      // Nothing beneath the simulator binds O or P, so a decline is a no-op that
+      // must not preventDefault a key no one used.
+      const simulator = vi.fn(() => false);
+      const event = press('p');
+
+      expect(
+        handleShortcutKeyDown(event, {
+          scopeStack: [...scopedStack],
+          executors: { simulator },
+        })
+      ).toBe(false);
+      expect(simulator).toHaveBeenCalledWith('simulator.tool.pin');
+      expect(event.defaultPrevented).toBe(false);
+    });
   });
 });
 
