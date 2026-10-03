@@ -26,11 +26,13 @@
     "capture": {
       "failed": "Não foi possível capturar a imagem",
       "missing": "Esse padrão não está mais no padrão de vincos.",
+      "needsPose": "Um passo dobrado em parte no simulador é capturado em Pose: abra-o com Ajustar pose.",
       "noLayerOrder": "Não foi possível ordenar as camadas, então o passo mostra o papel dobrado em transparência.",
       "noPattern": "Primeiro abra um padrão de vincos em Editar.",
       "readOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura.",
       "refused": "Este padrão não dobra",
       "tooDetailed": "Detalhado demais para manter como desenho, então o passo o guarda como imagem.",
+      "unavailable": "Este padrão não pode ser simulado.",
       "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes."
     },
     "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",

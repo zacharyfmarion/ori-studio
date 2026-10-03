@@ -17,7 +17,14 @@ import type {
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 
-type ShowMode = 'crease-pattern' | 'folded';
+type ShowMode = 'crease-pattern' | 'folded' | 'simulated';
+
+/** The ways to show the pattern, by the verb that shows it each way. */
+const SHOW_MODES: readonly (readonly [ShowMode, DiagramLinkedPoseActionId])[] = [
+  ['crease-pattern', 'show-crease-pattern'],
+  ['folded', 'show-folded'],
+  ['simulated', 'show-simulated'],
+];
 
 /** A linked pose verb's icon, wherever it is offered: here and in the Step pane. */
 export const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
@@ -46,23 +53,29 @@ export function DiagramLinkedPoseControls({
   keep: (run: () => void) => void;
 }) {
   const { t } = useTranslation();
-  const crease = actions.find((action) => action.id === 'show-crease-pattern');
-  const folded = actions.find((action) => action.id === 'show-folded');
+  const modes = SHOW_MODES.map(([mode, id]) => ({ mode, action: actions.find((action) => action.id === id) })).filter(
+    (entry): entry is { mode: ShowMode; action: DiagramLinkedPoseAction } => entry.action !== undefined
+  );
   const verbs = actions.filter((action) => LINKED_POSE_ICONS[action.id]);
   return (
     <>
-      {crease && folded && (
+      {modes.length > 0 && (
         <SegmentedControl<ShowMode>
           size="sm"
           aria-label={t('panels:diagram.pose.show', 'Show')}
-          value={folded.pressed ? 'folded' : 'crease-pattern'}
-          disabled={crease.disabled}
-          options={[
+          value={modes.find(({ action }) => action.pressed)?.mode ?? null}
+          disabled={modes[0]!.action.disabled}
+          options={modes.map(({ mode, action }) => ({
+            value: mode,
+            label: action.label,
+            title: action.hint,
             // Waiting, an option refuses but keeps the focus (`aria-disabled`).
-            { value: 'crease-pattern', label: crease.label, title: crease.hint, disabled: crease.waiting },
-            { value: 'folded', label: folded.label, title: folded.hint, disabled: folded.waiting },
-          ]}
-          onChange={(mode) => keep(mode === 'folded' ? folded.run : crease.run)}
+            disabled: action.waiting,
+          }))}
+          onChange={(mode) => {
+            const chosen = modes.find((entry) => entry.mode === mode);
+            if (chosen) keep(chosen.action.run);
+          }}
         />
       )}
       {verbs.map((action) => {

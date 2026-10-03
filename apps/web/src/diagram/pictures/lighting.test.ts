@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
 import { createStep, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
-import { scenePicture } from '../document/diagramSteps.fixtures';
+import { cpSource, scenePicture } from '../document/diagramSteps.fixtures';
+import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import { diagramPaperStyle, diagramStyleKey } from './diagramPaperStyle';
 import { capturedStyleChange, lightingChanged } from './lighting';
 
@@ -20,6 +21,15 @@ describe('capturedStyleChange', () => {
     expect(lightingChanged(lit, RELIT)).toBe(true);
     // A flat scene keeps no light, and is re-inked whatever the style.
     expect(capturedStyleChange(step(scenePicture()), RELIT)).toBeNull();
+  });
+
+  it('compares a simulated scene with the simulator’s light, not the folded figure’s', () => {
+    const simulated: DiagramStep = {
+      ...step({ ...scenePicture(), styleKey: simulatorSceneStyleKey(style) }),
+      source: cpSource({ mode: 'simulated', foldPercent: 0, view: { yaw: 0, pitch: 0, zoom: 1 } }),
+    };
+    expect(capturedStyleChange(simulated, DIAGRAM)).toBeNull();
+    expect(capturedStyleChange(simulated, RELIT)).toBe('light');
   });
 
   it('says a capture kept as a bitmap was drawn in another style, pens and all', () => {

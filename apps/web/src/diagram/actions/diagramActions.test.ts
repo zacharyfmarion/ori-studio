@@ -188,6 +188,7 @@ describe('the diagram step verbs', () => {
     expect(showAs.options.map((option) => [option.label, option.checked])).toEqual([
       ['Crease Pattern', true],
       ['Folded', false],
+      ['Simulated', false],
     ]);
     showAs.options[1]!.run();
     expect(bound.showAs).toHaveBeenCalledWith('folded');

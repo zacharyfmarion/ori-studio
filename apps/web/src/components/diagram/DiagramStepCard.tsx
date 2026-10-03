@@ -353,6 +353,10 @@ function stepKindLabel(step: DiagramStep, picture: StepPictureSource | null, t: 
         return t('panels:diagram.card.badgeFolded', 'Folded');
       case 'folded-3d':
         return t('panels:diagram.card.badgeFolded3d', 'Folded · 3D');
+      case 'simulated':
+        return t('panels:diagram.card.badgeSimulated', 'Simulated · {{percent}}%', {
+          percent: Math.round(step.source.render.foldPercent),
+        });
     }
   }
   if (picture?.kind === 'asset') {

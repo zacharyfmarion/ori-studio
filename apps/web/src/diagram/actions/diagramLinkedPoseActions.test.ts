@@ -27,10 +27,10 @@ const ids = (state: Partial<DiagramLinkedPoseState>) => build(state).map((action
 
 describe('the linked pose verbs', () => {
   it('offers what each way of showing the pattern can do', () => {
-    expect(ids({})).toEqual(['show-crease-pattern', 'show-folded', 'rotate-left', 'rotate-right', 'reset']);
+    const modes = ['show-crease-pattern', 'show-folded', 'show-simulated'];
+    expect(ids({})).toEqual([...modes, 'rotate-left', 'rotate-right', 'reset']);
     expect(ids({ render: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 } })).toEqual([
-      'show-crease-pattern',
-      'show-folded',
+      ...modes,
       'turn-over',
       'rotate-left',
       'rotate-right',
@@ -39,7 +39,12 @@ describe('the linked pose verbs', () => {
     ]);
     expect(
       ids({ render: { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' } })
-    ).toEqual(['show-crease-pattern', 'show-folded', 'turn-over', 'view-top', 'view-front', 'view-iso', 'reset']);
+    ).toEqual([...modes, 'turn-over', 'view-top', 'view-front', 'view-iso', 'reset']);
+    // A simulation is posed in its own viewport (Pose's transport); here, only how it is shown.
+    expect(ids({ render: { mode: 'simulated', foldPercent: 0, view: { yaw: 0, pitch: 0, zoom: 1 } } })).toEqual([
+      ...modes,
+      'reset',
+    ]);
   });
 
   it('marks how the pattern is shown, and runs each verb by its id', () => {

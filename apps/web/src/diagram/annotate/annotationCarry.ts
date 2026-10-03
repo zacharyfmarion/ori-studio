@@ -126,8 +126,11 @@ function pictureMove(
     JSON.stringify(from.scope) === JSON.stringify(to.scope)
   ) {
     const [was, is] = [from.render, to.render];
-    // Turned, and nothing else: the same mode, and a flat model's same side and layer order.
-    if (was.mode === 'folded-3d' || is.mode === 'folded-3d' || was.mode !== is.mode) return null;
+    // Turned, and nothing else: the same mode, and a flat model's same side and
+    // layer order. A camera moved (3D, a simulation) is a new picture.
+    if (was.mode !== is.mode) return null;
+    if (was.mode !== 'crease-pattern' && was.mode !== 'folded-flat') return null;
+    if (is.mode !== 'crease-pattern' && is.mode !== 'folded-flat') return null;
     if (was.mode === 'folded-flat' && is.mode === 'folded-flat' && (was.side !== is.side || was.foldCase !== is.foldCase)) {
       return null;
     }

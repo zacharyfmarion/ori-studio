@@ -439,6 +439,7 @@ function linkedDiagram() {
       heightPx: stored.heightPx,
     }),
     cpStep('step-unposed', undefined, null),
+    cpStep('step-simulated', { mode: 'simulated', foldPercent: 0, view: { yaw: 0.8, pitch: -0.9, zoom: 1.4 } }),
   ];
   const diagram = createDiagram({ title: 'Crane', newId: ids });
   return insertSteps(diagram, steps, 0);
@@ -556,7 +557,7 @@ describe('linked steps in the file', () => {
 
   it.each([
     ['a scope it does not know', (source: WrittenSource) => (source.scope = { kind: 'lasso', path: [1] })],
-    ['a render mode it does not know', (source: WrittenSource) => (source.render = { mode: 'simulated', percent: 40 })],
+    ['a render mode it does not know', (source: WrittenSource) => (source.render = { mode: 'animated', percent: 40 })],
   ])('carries, locked and verbatim, a linked step with %s', (_label, newer) => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     newer(written.steps[1].source);

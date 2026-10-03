@@ -201,6 +201,12 @@ function describeLinked(source: DiagramCpSource, posed: boolean, t: TFunction): 
         : t('panels:diagram.picture.linkedFolded', 'Folded');
     case 'folded-3d':
       return t('panels:diagram.picture.linkedFolded3d', 'Folded, in 3D');
+    case 'simulated':
+      return render.foldPercent === 0
+        ? t('panels:diagram.picture.linkedSimulatedFlat', 'Simulated, flat: Adjust Pose to fold it')
+        : t('panels:diagram.picture.linkedSimulated', 'Simulated, {{percent}}% folded', {
+            percent: Math.round(render.foldPercent),
+          });
   }
 }
 

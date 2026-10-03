@@ -93,7 +93,8 @@ export type DiagramPoseAction =
   | 'view_front'
   | 'view_iso'
   | 'orbit'
-  | 'rotate_to';
+  | 'rotate_to'
+  | 'show_simulated';
 
 /**
  * What a step's picture is: an upload, by what it is stored as, or a capture
@@ -102,7 +103,7 @@ export type DiagramPoseAction =
 export type DiagramPictureKind = 'svg' | 'raster' | 'references' | DiagramCaptureKind;
 
 /** How a captured picture shows its pattern. */
-export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d';
+export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d' | 'simulated';
 
 /**
  * What became of a capture: kept (`rasterized` when too detailed to keep as
@@ -124,7 +125,7 @@ export type DiagramCaptureOutcome =
 export type DiagramCaptureVia = 'link' | 'relink' | 'refresh' | 'refresh_all' | 'show_as' | 'duplicate_as';
 
 /** A way a linked step shows its pattern (D19), in the event's own spelling. */
-export type DiagramShowAsName = 'crease_pattern' | 'folded';
+export type DiagramShowAsName = 'crease_pattern' | 'folded' | 'simulated';
 
 /**
  * Where a linked step was shown another way: the Step pane's Show as row, the

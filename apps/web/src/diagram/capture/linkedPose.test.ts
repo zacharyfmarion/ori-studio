@@ -3,7 +3,7 @@ import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { antipodalCamera, DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
-import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpSource } from '../document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, DEFAULT_SIMULATED_VIEW, type DiagramCpRender, type DiagramCpSource } from '../document/diagramDocument';
 import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
 import type { CpCaptureRuntime } from './captureFolded';
@@ -113,6 +113,40 @@ describe('showing it another way (D19)', () => {
       'crease-pattern': { mode: 'crease-pattern', rotationDeg: 90 },
     });
     expect(pattern).toMatchObject({ render: { mode: 'crease-pattern', rotationDeg: 90 } });
+  });
+});
+
+describe('showing it simulated (D19)', () => {
+  it('shows the simulator’s flat sheet at the camera it last had, and turns back to the other ways from there', async () => {
+    const { session, runtime } = sessionWith();
+    const document = cpDocument();
+    const simulateFlat = vi.fn(async () => sheetWithCrease());
+    const asSimulated = (render: DiagramCpRender, request: LinkedPoseRequest, remembered?: DiagramCpSource['remembered']) =>
+      poseLinkedStep(
+        session,
+        { document, creases: creasesOf(document), render, remembered, style: DEFAULT_DIAGRAM_STYLE, simulateFlat },
+        request
+      );
+    const view = { yaw: 1, pitch: -0.5, zoom: 2 };
+    const shown = await asSimulated(CP, { verb: 'show-simulated' }, { simulated: { mode: 'simulated', foldPercent: 40, view } });
+    // Back at 0% — the one fold % taken outside the live simulator — from the camera it had.
+    expect(shown).toMatchObject({ status: 'posed', render: { mode: 'simulated', foldPercent: 0, view } });
+    expect(runtime.fold).not.toHaveBeenCalled();
+    const simulated: DiagramCpRender = { mode: 'simulated', foldPercent: 0, view };
+    expect(await asSimulated(simulated, { verb: 'reset' })).toMatchObject({ render: { view: DEFAULT_SIMULATED_VIEW } });
+    expect(await asSimulated(simulated, { verb: 'show-crease-pattern' })).toMatchObject({ render: { mode: 'crease-pattern' } });
+    expect(await asSimulated(simulated, { verb: 'show-folded' })).toMatchObject({ render: { mode: 'folded-flat' } });
+  });
+
+  it('says the region cannot be simulated', async () => {
+    const { session } = sessionWith();
+    const document = cpDocument();
+    const result = await poseLinkedStep(
+      session,
+      { document, creases: creasesOf(document), render: CP, style: DEFAULT_DIAGRAM_STYLE, simulateFlat: async () => null },
+      { verb: 'show-simulated' }
+    );
+    expect(result).toEqual({ status: 'unavailable' });
   });
 });
 

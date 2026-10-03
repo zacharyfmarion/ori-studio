@@ -3773,7 +3773,13 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7549,7 +7555,13 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11327,7 +11339,13 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15032,7 +15050,13 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18737,7 +18761,13 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22513,7 +22543,13 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26289,7 +26325,13 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -29994,6 +30036,12 @@
     "panels:diagram.pagePane.marginMm": "abe47dd52eea",
     "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
     "panels:diagram.actions.showAs": "2b1c848ba4dd",
-    "panels:diagram.picture.showAs": "e6565cb811a7"
+    "panels:diagram.picture.showAs": "e6565cb811a7",
+    "panels:diagram.card.badgeSimulated": "2469fc9e24d8",
+    "panels:diagram.picture.linkedSimulated": "1e84396ebc74",
+    "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
+    "panels:diagram.pose.showSimulated": "31fe293b1b90",
+    "toasts:diagram.capture.needsPose": "913cc8b35966",
+    "toasts:diagram.capture.unavailable": "5d9509f855c6"
   }
 }

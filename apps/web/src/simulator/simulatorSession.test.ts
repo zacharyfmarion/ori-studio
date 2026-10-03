@@ -513,6 +513,26 @@ function exportViewScene(
  * — the worker exports the view on screen, at the camera and framing it was
  * last told, from any session by token, in the style it is handed.
  */
+describe('the flat sheet without a session (flatScene)', () => {
+  it('is the scene a session at 0% exports from the same camera, in a square', () => {
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+    const info = session.load(fold, {});
+    const id = session.beginExportSnapshot({
+      token: info.token,
+      camera: { view, width: 512, height: 512 },
+      perspective: true,
+    })!;
+    const exported = session.exportScene(id, { style: EXPORT_STYLE, markHidden: true });
+    session.endExportSnapshot(id);
+    const flat = session.flatScene(fold, { view, size: 512, style: EXPORT_STYLE, markHidden: true });
+    expect(flat).not.toBeNull();
+    expect(flat).toEqual(exported);
+    session.dispose();
+  }, 30_000);
+});
+
 describe('exporting the current view as SVG', () => {
   it('draws the folded model, not the flat sheet', async () => {
     const session = createSimulatorSession();

@@ -25,11 +25,13 @@
     "capture": {
       "failed": "Das Bild konnte nicht erfasst werden",
       "missing": "Dieses Muster ist nicht mehr im Faltmuster.",
+      "needsPose": "Ein im Simulator teilweise gefalteter Schritt wird in „Pose“ aufgenommen: öffne ihn mit „Pose anpassen“.",
       "noLayerOrder": "Seine Lagen ließen sich nicht ordnen, daher zeigt der Schritt das gefaltete Papier durchsichtig.",
       "noPattern": "Öffne zuerst ein Faltmuster in Bearbeiten.",
       "readOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet.",
       "refused": "Dieses Muster lässt sich nicht falten",
       "tooDetailed": "Zu detailliert, um es als Zeichnung zu behalten, daher behält der Schritt es als Bild.",
+      "unavailable": "Dieses Muster lässt sich nicht simulieren.",
       "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
     },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",

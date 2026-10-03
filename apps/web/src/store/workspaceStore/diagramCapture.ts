@@ -13,6 +13,7 @@ import {
   captureStep,
   type CapturedPicture,
   type CpCaptureRuntime,
+  type SimulateFlat,
 } from '../../diagram/capture/captureFolded';
 import { abandonOnEngineLoss } from '../../diagram/capture/engineLoss';
 import {
@@ -41,7 +42,9 @@ import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import { paperPngSize, paperSvgToPng } from '../../lib/paper/paperPng';
 import type { PaperPage } from '../../lib/paper/paperPage';
 import { pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
+import { buildSegmentSimulationFold } from '../../lib/creasePatternSegmentation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
+import { releaseSimulatorClient, retainSimulatorClient } from './simulatorRuntime';
 import { stopFoldRun, withFoldInFlight } from './foldRuns';
 import { isFoldCancellation, oristudioCpError } from './oristudioCpRuntime';
 import type { WorkspaceState } from './types';
@@ -78,6 +81,10 @@ export type DiagramCaptureOutcome =
   | { status: 'missing' }
   | { status: 'unknown' }
   | { status: 'refused'; refusal: OristudioCpFold3dRefusal }
+  /** Shown as Simulated above 0%: captured only in Pose (D19). */
+  | { status: 'needs-pose' }
+  /** Shown as Simulated, and the region has no model to simulate. */
+  | { status: 'unavailable' }
   | { status: 'stopped' }
   | { status: 'discarded' }
   | { status: 'busy' }
@@ -236,10 +243,11 @@ export async function runDiagramCapture(
         scope: request.scope,
         render: request.render,
         style: start.style,
+        simulateFlat: storeSimulateFlat(store),
       });
     const result =
-      request.render.mode === 'crease-pattern'
-        ? // Nothing is folded: there is no run to show or stop.
+      request.render.mode === 'crease-pattern' || request.render.mode === 'simulated'
+        ? // The kernel folds nothing: there is no run to show or stop.
           await capture(stepCaptureRuntime(start))
         : await runStepFold(store, start, request.kind, capture);
     if (result.status !== 'captured') return result;
@@ -265,6 +273,30 @@ export async function runDiagramCapture(
     endStepCapture(store, stepId);
   }
 }
+
+/**
+ * The simulator's flat sheet for a region (D19), bound to the store: the
+ * simulator's own artifacts (the triangulated mesh the region is modelled
+ * on, as an inline simulation's is) and its worker, held only for the call.
+ * Null when the region has no faces in that mesh.
+ */
+export function storeSimulateFlat(store: DiagramCaptureStore): SimulateFlat {
+  return async (segment, view, style) => {
+    const artifacts = store.get().foldArtifacts ?? (await store.get().ensureFoldArtifacts());
+    if (!artifacts) return null;
+    const fold = buildSegmentSimulationFold(artifacts, segment);
+    if ((fold.faces_vertices?.length ?? 0) === 0) return null;
+    const client = retainSimulatorClient();
+    try {
+      return await client.flatScene(fold, { view, size: SIMULATED_FRAME_PX, style, markHidden: true });
+    } finally {
+      releaseSimulatorClient();
+    }
+  };
+}
+
+/** The square a 0% simulated picture is framed in, CSS px: a size, not a scale (it carries no paper scale). */
+const SIMULATED_FRAME_PX = 512;
 
 /** Stop a step's capture, if it is folding. */
 export function stopDiagramCapture(store: DiagramCaptureStore, stepId: string): boolean {

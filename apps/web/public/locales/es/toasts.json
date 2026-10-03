@@ -26,11 +26,13 @@
     "capture": {
       "failed": "No se pudo capturar la imagen",
       "missing": "Ese patrón ya no está en el patrón de pliegues.",
+      "needsPose": "Un paso plegado a medias en el simulador se captura en Pose: ábrelo con Ajustar pose.",
       "noLayerOrder": "No se pudieron ordenar sus capas, así que el paso muestra el papel plegado en transparencia.",
       "noPattern": "Primero abre un patrón de pliegues en Editar.",
       "readOnly": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en modo de solo lectura.",
       "refused": "Este patrón no se puede plegar",
       "tooDetailed": "Es demasiado detallado para conservarlo como dibujo, así que el paso lo guarda como imagen.",
+      "unavailable": "Este patrón no se puede simular.",
       "unknown": "El patrón de pliegues aún no está listo. Inténtalo de nuevo en un momento."
     },
     "dropReadOnly": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en solo lectura, así que no se le pueden añadir imágenes.",

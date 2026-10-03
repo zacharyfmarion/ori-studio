@@ -121,19 +121,19 @@ export function DiagramStepPose({
   const { render } = source;
   const linked = linkedPose.actions;
   const posing = linked
-    .filter((action) => action.id !== 'show-crease-pattern' && action.id !== 'show-folded')
+    .filter((action) => !action.id.startsWith('show-'))
     .map((action): PoseVerb => ({ ...action, icon: LINKED_POSE_ICONS[action.id]! }));
-  const turnable = render.mode !== 'folded-3d';
+  const turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : null;
   const turnHeld = linked.find((action: DiagramLinkedPoseAction) => action.id === 'rotate-left')?.disabled ?? true;
   const waiting = linked.some((action) => action.waiting);
   return section(
     <>
-      {turnable && (
+      {turn !== null && (
         <NumberRow
           // A new field for each turn the step lands on: a draft never outlives it.
-          key={render.rotationDeg}
+          key={turn}
           label={t('panels:diagram.pose.rotation', 'Rotation')}
-          value={render.rotationDeg}
+          value={turn}
           min={0}
           max={359}
           step={15}

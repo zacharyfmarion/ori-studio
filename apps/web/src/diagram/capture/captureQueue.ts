@@ -140,10 +140,17 @@ export function outOfDate(
   return steps
     .filter((step) => {
       if (step.unknown || step.source?.kind !== 'cp') return false;
+      // Folded part way in the simulator: only Pose can capture it again (D19).
+      if (needsPose(step)) return false;
       const status = linkStatus(step.source, document, segmentation);
       return status === 'stale' || (status === 'current' && lightingChanged(step, style));
     })
     .map((step) => step.id);
+}
+
+/** A step shown as Simulated above 0%: captured again only in Pose (D19). */
+export function needsPose(step: DiagramStep): boolean {
+  return step.source?.kind === 'cp' && step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0;
 }
 
 /** Let the page breathe between steps. */

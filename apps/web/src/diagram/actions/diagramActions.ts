@@ -444,9 +444,14 @@ function refreshHint(
 
 /** A way of showing a linked pattern, by name, as every surface says it (D19). */
 export function showAsName(way: DiagramShowAs, t: TFunction): string {
-  return way === 'folded'
-    ? t('panels:diagram.pose.showFolded', 'Folded')
-    : t('panels:diagram.pose.showCreasePattern', 'Crease Pattern');
+  switch (way) {
+    case 'crease-pattern':
+      return t('panels:diagram.pose.showCreasePattern', 'Crease Pattern');
+    case 'folded':
+      return t('panels:diagram.pose.showFolded', 'Folded');
+    case 'simulated':
+      return t('panels:diagram.pose.showSimulated', 'Simulated');
+  }
 }
 
 /** The choice with this id, for a surface that places it on its own. */

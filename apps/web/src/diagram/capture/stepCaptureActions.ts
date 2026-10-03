@@ -144,11 +144,18 @@ export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs):
 
 /** The undo step a Show as makes. */
 function showAsLabel(way: DiagramShowAs): string {
-  return way === 'folded' ? 'Show as Folded' : 'Show as Crease Pattern';
+  switch (way) {
+    case 'crease-pattern':
+      return 'Show as Crease Pattern';
+    case 'folded':
+      return 'Show as Folded';
+    case 'simulated':
+      return 'Show as Simulated';
+  }
 }
 
 function trackedShowAs(way: DiagramShowAs): DiagramShowAsName {
-  return way === 'folded' ? 'folded' : 'crease_pattern';
+  return way === 'crease-pattern' ? 'crease_pattern' : way;
 }
 
 /** Capture a linked step's picture again, from its pattern as it is now. Whether it was. */
@@ -187,6 +194,8 @@ export function captureKind(render: DiagramCpRender): DiagramCaptureKind {
       return 'flat';
     case 'folded-3d':
       return '3d';
+    case 'simulated':
+      return 'simulated';
   }
 }
 
@@ -249,6 +258,17 @@ export function sayCaptureOutcome(outcome: DiagramCaptureOutcome): void {
     case 'missing':
       toast.error(
         t('toasts:diagram.capture.missing', 'That pattern isn’t in the crease pattern any more.')
+      );
+      return;
+    case 'unavailable':
+      toast.error(t('toasts:diagram.capture.unavailable', 'This pattern can’t be simulated.'));
+      return;
+    case 'needs-pose':
+      toast.message(
+        t(
+          'toasts:diagram.capture.needsPose',
+          'A step folded part way in the simulator is captured in Pose: open it with Adjust Pose.'
+        )
       );
       return;
     case 'unknown':

@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import { defaultCaptureCamera } from '../capture/captureFolded';
-import type { DiagramCpRender } from '../document/diagramDocument';
+import { DEFAULT_SIMULATED_VIEW, type DiagramCpRender } from '../document/diagramDocument';
 
 /**
  * The verbs that pose a linked step (D5), for the step detail's toolbar: how
@@ -16,6 +16,7 @@ import type { DiagramCpRender } from '../document/diagramDocument';
 export type DiagramLinkedPoseActionId =
   | 'show-crease-pattern'
   | 'show-folded'
+  | 'show-simulated'
   | 'rotate-left'
   | 'rotate-right'
   | 'turn-over'
@@ -86,12 +87,16 @@ export function buildDiagramLinkedPoseActions(
     };
   };
 
-  const folded = render.mode !== 'crease-pattern';
   const modes = [
     action('show-crease-pattern', t('panels:diagram.pose.showCreasePattern', 'Crease Pattern'), {
-      pressed: !folded,
+      pressed: render.mode === 'crease-pattern',
     }),
-    action('show-folded', t('panels:diagram.pose.showFolded', 'Folded'), { pressed: folded }),
+    action('show-folded', t('panels:diagram.pose.showFolded', 'Folded'), {
+      pressed: render.mode === 'folded-flat' || render.mode === 'folded-3d',
+    }),
+    action('show-simulated', t('panels:diagram.pose.showSimulated', 'Simulated'), {
+      pressed: render.mode === 'simulated',
+    }),
   ];
   const turn = [
     action('rotate-left', t('panels:diagram.pose.rotateLeft', 'Rotate Left')),
@@ -131,6 +136,8 @@ export function buildDiagramLinkedPoseActions(
         action('view-iso', t('panels:diagram.pose.viewIso', 'View From the Corner')),
         reset,
       ];
+    case 'simulated':
+      return [...modes, reset];
   }
 }
 
@@ -150,6 +157,15 @@ export function isDefaultRender(render: DiagramCpRender): boolean {
         Math.abs(camera.yaw - start.yaw) < 1e-9 &&
         Math.abs(camera.pitch - start.pitch) < 1e-9 &&
         Math.abs(camera.zoom - start.zoom) < 1e-9
+      );
+    }
+    case 'simulated': {
+      const { view } = render;
+      return (
+        render.foldPercent === 0 &&
+        Math.abs(view.yaw - DEFAULT_SIMULATED_VIEW.yaw) < 1e-9 &&
+        Math.abs(view.pitch - DEFAULT_SIMULATED_VIEW.pitch) < 1e-9 &&
+        Math.abs(view.zoom - DEFAULT_SIMULATED_VIEW.zoom) < 1e-9
       );
     }
   }

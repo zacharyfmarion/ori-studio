@@ -20,6 +20,7 @@ import {
   endStepCapture,
   runStepFold,
   stepCaptureRuntime,
+  storeSimulateFlat,
   type DiagramCaptureOutcome,
   type StepCaptureStart,
 } from '../../store/workspaceStore/diagramCapture';
@@ -38,6 +39,7 @@ export const ORBIT_SETTLE_MS = 450;
 const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   'show-crease-pattern': 'show_crease_pattern',
   'show-folded': 'show_folded',
+  'show-simulated': 'show_simulated',
   'rotate-left': 'rotate_left',
   'rotate-right': 'rotate_right',
   'turn-over': 'turn_over',
@@ -156,11 +158,12 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
             render: linked.render,
             remembered: linked.remembered,
             style: begun.style,
+            simulateFlat: storeSimulateFlat({ get: useWorkspaceStore.getState, set: useWorkspaceStore.setState }),
           },
           request
         )
       );
-      if (result.status === 'refused') return result;
+      if (result.status === 'refused' || result.status === 'unavailable') return result;
       const source = linkedSource(linked, choice.creases, document, segmentation, result.render);
       const committed = await useWorkspaceStore
         .getState()

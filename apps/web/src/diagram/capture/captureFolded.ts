@@ -46,10 +46,14 @@ import type {
   DiagramCpSource,
   DiagramFixedPicture,
   DiagramScenePicture,
+  DiagramSimulatedView,
   DiagramStyle,
 } from '../document/diagramDocument';
 import { storedCpSource, storedSceneJson } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
+import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
+import type { PaperStyle } from '../../lib/paper/paperStyle';
+import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import { digest } from '../pictures/pictureKey';
 import { sanitizeSvg, SVG_STORED_MAX_BYTES, type SanitizeEnv } from '../upload/svgSanitize';
 import { chooseStepCreases, creasesFingerprint, type StepCreases } from './captureCreases';
@@ -117,6 +121,23 @@ export function storeScene(
     kind: 'picture',
     picture: { kind: 'scene', sceneJson, paperScale, styleKey, key: `scene-${digest(sceneJson)}` },
   };
+}
+
+/**
+ * A step shown as Simulated at 0%: the simulator's flat sheet from the step's
+ * camera, as a stored scene that records the simulator's light (D19). Null
+ * when there is no simulator to ask or the region has no model.
+ */
+export async function captureSimulatedFlat(
+  simulateFlat: SimulateFlat | undefined,
+  creases: StepCreases,
+  view: DiagramSimulatedView,
+  style: DiagramStyle
+): Promise<CapturedPicture | null> {
+  if (!simulateFlat) return null;
+  const drawn = diagramPaperStyle(style);
+  const scene = await simulateFlat(creases.segment, view, drawn);
+  return scene ? storeScene(scene, null, simulatorSceneStyleKey(drawn)) : null;
 }
 
 /** A crease-pattern picture, from the document alone: no fold. */
@@ -198,7 +219,7 @@ export function capture3dPicture(
 
 /** The 3D render a flat request turns into when its creases fold in 3D, and back. */
 function renderForRoute(render: DiagramCpRender, route: 'flat' | 'spatial'): DiagramCpRender {
-  if (render.mode === 'crease-pattern') return render;
+  if (render.mode === 'crease-pattern' || render.mode === 'simulated') return render;
   if (route === 'flat') {
     return render.mode === 'folded-flat'
       ? render
@@ -213,6 +234,17 @@ export function defaultCaptureCamera(side: 'front' | 'back'): FoldedFigureCamera
   return defaultFolded3dCamera(undefined, sideState(side));
 }
 
+/**
+ * The simulator's flat sheet for a region, from a camera, in a style's light
+ * (`SimulatorWorkerApi.flatScene`), bound to the store's simulator artifacts
+ * and worker; null when the region has no model to simulate (D19).
+ */
+export type SimulateFlat = (
+  segment: CpSegment,
+  view: DiagramSimulatedView,
+  style: PaperStyle
+) => Promise<PaperScene | null>;
+
 export interface CaptureStepRequest {
   /** The document snapshot the capture starts from, and is fingerprinted against. */
   document: OristudioCpDocumentSnapshot;
@@ -221,6 +253,8 @@ export interface CaptureStepRequest {
   scope: DiagramCpScope;
   render: DiagramCpRender;
   style: DiagramStyle;
+  /** The simulator, for a step shown as Simulated; absent, it cannot be captured. */
+  simulateFlat?: SimulateFlat;
   env?: SanitizeEnv;
 }
 
@@ -235,7 +269,11 @@ export type CaptureStepResult =
     }
   | { status: 'missing' }
   | { status: 'unknown' }
-  | { status: 'refused'; refusal: OristudioCpFold3dRefusal };
+  | { status: 'refused'; refusal: OristudioCpFold3dRefusal }
+  /** Shown as Simulated above 0%: settled by the solver Pose holds, never headless. */
+  | { status: 'needs-pose' }
+  /** Shown as Simulated, and the region has no model the simulator can fold. */
+  | { status: 'unavailable' };
 
 /**
  * Capture a step's picture once, start to finish: choose its creases, fold
@@ -271,6 +309,15 @@ export async function captureStep(
   if (request.render.mode === 'crease-pattern') {
     const captured = captureCreasePattern(document, creases, request.render.rotationDeg);
     return { status: 'captured', source: source(request.render), captured, noLayerOrder: false };
+  }
+
+  if (request.render.mode === 'simulated') {
+    // A fold % above 0 is a solver's settling, which only a Pose holds (D19).
+    if (request.render.foldPercent > 0) return { status: 'needs-pose' };
+    const captured = await captureSimulatedFlat(request.simulateFlat, creases, request.render.view, style);
+    return captured
+      ? { status: 'captured', source: source(request.render), captured, noLayerOrder: false }
+      : { status: 'unavailable' };
   }
 
   const route = resolveFoldRoute(document, creases.foldLineIds);

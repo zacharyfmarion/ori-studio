@@ -16,6 +16,7 @@ import {
 import { readDiagram, writeDiagram } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { paintScene } from '../pictures/paintDiagramStep';
+import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
 import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
 import { captureStep, SCENE_BUDGET_BYTES, storeScene, type CaptureStepRequest } from './captureFolded';
 import { CAPTURE_PX_PER_UNIT } from './captureGeometry';
@@ -75,6 +76,41 @@ describe('captureStep, a crease pattern', () => {
       await captureStep(runtime, request(FLAT, { segmentation: twoSquaresSegmentation({ wall: false }) }))
     ).toEqual({ status: 'missing' });
     expect(runtime.fold).not.toHaveBeenCalled();
+  });
+});
+
+describe('captureStep, simulated (D19)', () => {
+  const VIEW = { yaw: 0.5, pitch: -0.7, zoom: 1.4 };
+  const SIMULATED: DiagramCpRender = { mode: 'simulated', foldPercent: 0, view: VIEW };
+
+  it('takes the simulator’s flat sheet for the region at its camera, folding nothing, in the simulator’s light', async () => {
+    const runtime = fakeCaptureRuntime();
+    const simulateFlat = vi.fn(async () => sheetWithCrease());
+    const result = await captureStep(runtime, request(SIMULATED, { simulateFlat }));
+    expect(runtime.fold).not.toHaveBeenCalled();
+    expect(simulateFlat).toHaveBeenCalledOnce();
+    const [segment, view, style] = simulateFlat.mock.calls[0]! as unknown as [{ id: number }, unknown, unknown];
+    expect(segment.id).toBe(left!.id);
+    expect(view).toEqual(VIEW);
+    expect(style).toEqual(diagramPaperStyle(DEFAULT_DIAGRAM_STYLE));
+    if (result.status !== 'captured' || result.captured.kind !== 'picture') throw new Error('captured');
+    expect(result.source.render).toEqual(SIMULATED);
+    expect(result.captured.picture).toMatchObject({
+      kind: 'scene',
+      paperScale: null,
+      styleKey: simulatorSceneStyleKey(diagramPaperStyle(DEFAULT_DIAGRAM_STYLE)),
+    });
+  });
+
+  it('leaves a fold above 0% to Pose, and says when the region cannot be simulated', async () => {
+    const runtime = fakeCaptureRuntime();
+    const simulateFlat = vi.fn(async () => sheetWithCrease());
+    expect(await captureStep(runtime, request({ ...SIMULATED, foldPercent: 40 } as DiagramCpRender, { simulateFlat }))).toEqual({
+      status: 'needs-pose',
+    });
+    expect(simulateFlat).not.toHaveBeenCalled();
+    expect(await captureStep(runtime, request(SIMULATED, { simulateFlat: async () => null }))).toEqual({ status: 'unavailable' });
+    expect(await captureStep(runtime, request(SIMULATED))).toEqual({ status: 'unavailable' });
   });
 });
 

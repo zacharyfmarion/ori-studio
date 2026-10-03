@@ -2577,10 +2577,36 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
       showed it Folded; turned over in Pose, shown as its pattern and back, it
       came back turned over; Duplicate As › Crease Pattern made step 4 and one
       undo took it away; a new step linked as Folded straight from the picker.
-- [ ] **8c. Simulated at 0%.** The worker's stateless 0% builder (the export
+- [x] **8c. Simulated at 0%.** The worker's stateless 0% builder (the export
   body factored into one function with Pose's), `perspective` passed by both;
   Simulated in Show as; the badge and the Step pane's "Fold 0%"; Refresh and
   Refresh all for 0% steps; light compared per kind.
+  - As built:
+    - `SimulatorWorkerApi.flatScene(fold, {view, size, style, markHidden})`:
+      the prepared model's original positions (a model at rest is its flat
+      sheet), framed in a square, through `sceneOfFrame` — the one body
+      `exportScene` now uses too. Its test loads the same fold in a session,
+      exports it at 0% from the same camera with `perspective: true` (the
+      snapshot's new option, which 8d's Pose will pass), and finds the two
+      scenes equal.
+    - `DiagramCpRender` gains `simulated {foldPercent, view}`; Show as gains
+      Simulated everywhere (the Step pane's row, the picker, the card menus,
+      Pose's switch, which grew a `show-simulated` verb).
+    - `captureStep` takes a `SimulateFlat`, bound in the store
+      (`storeSimulateFlat`): the simulator's artifacts, the region's fold as
+      an inline simulation builds it, the shared worker held for the call. A
+      simulated capture folds nothing in the kernel, so it runs no fold run.
+      Above 0% it answers `needs-pose`; a region with no model,
+      `unavailable` (each with its own toast).
+    - The picture records `simulatorSceneStyleKey`, and `lighting.ts`
+      compares each kind with its own key. Refresh all skips a step folded
+      above 0% (`needsPose`). Annotations are not carried across a camera.
+    - Deviation from D19: switching back to Simulated shows 0% at the camera
+      it had, without a "Was 40%" note — the 40% is not kept anywhere a note
+      could read it, and undo restores the 40% picture.
+    - Browser (`artifacts/diagram-parity/simulated.mjs`, crane step 5): Show
+      as › Simulated from the Step pane gave "Simulated · 0%" in 1.2 s with
+      no Pose opened; Folded and back kept the camera.
 - [ ] **8d. Simulated in Pose.** `useDiagramSimulatedCapture`:
   `useSimulatorRuntime` over `buildSegmentSimulationFold(foldArtifacts,
   segment)`, the region matched through `cpModelToFoldTransform`; refused for

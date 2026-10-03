@@ -76,10 +76,17 @@ describe('the step card menu', () => {
       items: [
         { kind: 'radio', label: 'Crease Pattern', checked: false },
         { kind: 'radio', label: 'Folded', checked: true },
+        { kind: 'radio', label: 'Simulated', checked: false },
       ],
     });
     const duplicateAs = items.find((item) => item.kind === 'submenu' && item.id === 'duplicate-as');
-    expect(duplicateAs).toMatchObject({ items: [{ kind: 'action', label: 'Crease Pattern' }, { kind: 'action', label: 'Folded' }] });
+    expect(duplicateAs).toMatchObject({
+      items: [
+        { kind: 'action', label: 'Crease Pattern' },
+        { kind: 'action', label: 'Folded' },
+        { kind: 'action', label: 'Simulated' },
+      ],
+    });
   });
 
   it('offers a new page at the step as a check, and not on the first step', () => {

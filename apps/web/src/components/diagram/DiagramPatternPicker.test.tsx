@@ -78,6 +78,7 @@ describe('DiagramPatternPicker', () => {
     expect(ways.map((way) => [way.textContent, way.getAttribute('aria-pressed')])).toEqual([
       ['Crease Pattern', 'false'],
       ['Folded', 'true'],
+      ['Simulated', 'false'],
     ]);
     act(() => ways[0]!.click());
     expect(onShowAs).toHaveBeenCalledWith('crease-pattern');

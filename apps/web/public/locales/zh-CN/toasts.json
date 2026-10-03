@@ -24,11 +24,13 @@
     "capture": {
       "failed": "无法捕获图片",
       "missing": "该图样已不在折痕图中。",
+      "needsPose": "在模拟器中折到一半的步骤需在姿态中捕获：用“调整姿态”打开它。",
       "noLayerOrder": "无法确定其层序，因此此步骤以透视方式显示折叠后的纸。",
       "noPattern": "请先在编辑中打开折痕图。",
       "readOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开。",
       "refused": "此图样无法折叠",
       "tooDetailed": "过于精细，无法保留为矢量图，因此此步骤将其保留为图像。",
+      "unavailable": "无法模拟此图样。",
       "unknown": "折痕图尚未就绪。请稍后再试。"
     },
     "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",

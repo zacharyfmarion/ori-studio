@@ -307,6 +307,13 @@ export interface SimulatorExportSnapshotOptions {
    */
   camera?: SimulatorCamera;
   settings?: RenderSettings;
+  /**
+   * Draw with perspective or without, whichever path drew the view. Unset, the
+   * frame is drawn as this session's own screen draws it — orthographic on the
+   * canvas-2D fallback. A Diagram step passes true, so its picture is the same
+   * on every machine and its 0% picture (`flatScene`) agrees with it.
+   */
+  perspective?: boolean;
 }
 
 /** What a scene of a frozen frame is built with. */
@@ -321,9 +328,8 @@ export interface SimulatorExportSceneOptions {
   markHidden: boolean;
 }
 
-/** A frame frozen for an export dialog: everything a scene of it is built from. */
-interface ExportSnapshot {
-  session: Session;
+/** Everything a scene of a frame is built from. */
+interface SceneFrame {
   positions: Float32Array;
   topology: ReturnType<typeof meshTopologyFor>;
   camera: CameraUniforms;
@@ -331,6 +337,46 @@ interface ExportSnapshot {
   perspective: boolean;
   showFaces: boolean;
   showEdges: boolean;
+}
+
+/** A frame frozen for an export dialog, with the session it came from. */
+interface ExportSnapshot extends SceneFrame {
+  session: Session;
+}
+
+/** A model's flat sheet from a camera, with no session (`SimulatorWorkerApi.flatScene`). */
+export interface SimulatorFlatSceneOptions extends SimulatorExportSceneOptions {
+  /** The camera, as a viewport's orbit holds it. */
+  view: OrbitView;
+  /** The square the scene is framed in, CSS px. */
+  size: number;
+  /** A key the prepared model is cached under, as `load`'s is. */
+  modelKey?: string;
+}
+
+/**
+ * A frame as a paper scene, in a style's light and with its widest pen; null
+ * when it draws nothing. One body for an export dialog's frozen frame and a
+ * session-free flat one, so the two cannot drift.
+ */
+function sceneOfFrame(frame: SceneFrame, { style, markHidden }: SimulatorExportSceneOptions): PaperScene | null {
+  // As the simulator draws the style: the fields its policy applies, the
+  // rest at their defaults. The inline-simulation policy applies the same
+  // fields, so one policy serves both surfaces here.
+  const drawn = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
+  const scene = meshToPaperScene(frame.positions, frame.topology, frame.camera, {
+    sheet: frame.sheet,
+    perspective: frame.perspective,
+    // A page that keeps buried faces has no use for the hidden test, which
+    // is the expensive half of building the scene.
+    markHidden,
+    lighting: drawn.light.enabled,
+    lightDir: lightVector(drawn.light.azimuth, drawn.light.elevation),
+    lineWidth: widestPenCssPx(drawn),
+    showFaces: frame.showFaces,
+    showEdges: frame.showEdges,
+  });
+  return scene.items.length === 0 ? null : scene;
 }
 
 /**
@@ -1348,8 +1394,8 @@ const api = {
       ),
       sheet: sheetExtent(active.model.originalPositions),
       // The canvas-2D fallback is orthographic, so a machine drawing through it
-      // must export the way its own screen looks.
-      perspective: Boolean(active.gpuRender),
+      // exports the way its own screen looks, unless the caller says otherwise.
+      perspective: options.perspective ?? Boolean(active.gpuRender),
       showFaces: active.view.settings.showFaces,
       showEdges: active.view.settings.showEdges,
     });
@@ -1362,26 +1408,36 @@ const api = {
    * the main thread and is painted there, so a page option is a repaint with
    * no round trip.
    */
-  exportScene(snapshotId: number, { style, markHidden }: SimulatorExportSceneOptions): PaperScene | null {
+  exportScene(snapshotId: number, options: SimulatorExportSceneOptions): PaperScene | null {
     const snapshot = exportSnapshots.get(snapshotId);
-    if (!snapshot) return null;
-    // As the simulator draws the style: the fields its policy applies, the
-    // rest at their defaults. The inline-simulation policy applies the same
-    // fields, so one policy serves both surfaces here.
-    const drawn = surfacePaperStyle(style, PAPER_STYLE_POLICIES.simulator);
-    const scene = meshToPaperScene(snapshot.positions, snapshot.topology, snapshot.camera, {
-      sheet: snapshot.sheet,
-      perspective: snapshot.perspective,
-      // A page that keeps buried faces has no use for the hidden test, which
-      // is the expensive half of building the scene.
-      markHidden,
-      lighting: drawn.light.enabled,
-      lightDir: lightVector(drawn.light.azimuth, drawn.light.elevation),
-      lineWidth: widestPenCssPx(drawn),
-      showFaces: snapshot.showFaces,
-      showEdges: snapshot.showEdges,
-    });
-    return scene.items.length === 0 ? null : scene;
+    return snapshot ? sceneOfFrame(snapshot, options) : null;
+  },
+
+  /**
+   * A model's scene before it folds — the flat sheet — from a camera, with no
+   * session and no solver: what a Diagram step shown as Simulated shows at 0%
+   * (D19). The scene a session at 0% exports from that camera, framed in a
+   * `size` square with perspective, as the GPU path draws it.
+   */
+  flatScene(fold: FoldDocument, options: SimulatorFlatSceneOptions): PaperScene | null {
+    const prepare = () => prepareFoldModel(foldScaledForSolver(fold), { triangulate: true });
+    const prepared = options.modelKey ? preparedModels.get(options.modelKey, prepare) : prepare();
+    // At rest the model is its original positions: the flat sheet.
+    const { originalPositions } = new OrigamiModel(prepared);
+    const { center, radius } = framingOf(originalPositions);
+    const size = Math.max(1, options.size);
+    return sceneOfFrame(
+      {
+        positions: originalPositions,
+        topology: meshTopologyFor(prepared),
+        camera: cameraUniforms(options.view, center, radius, size, size),
+        sheet: sheetExtent(originalPositions),
+        perspective: true,
+        showFaces: true,
+        showEdges: true,
+      },
+      options
+    );
   },
 
   /** Let a frozen frame go: its dialog closed. Snapshots also go with their session. */

@@ -77,6 +77,7 @@ import {
   type DiagramIdFactory,
   type DiagramRasterAsset,
   type DiagramShowAs,
+  type DiagramSimulatedView,
   type DiagramStep,
   type DiagramStepSource,
   type DiagramStyle,
@@ -291,7 +292,7 @@ const SOURCE_KINDS = new Set(['upload', 'cp', 'references-step']);
 const PICTURE_KINDS = new Set(['asset', 'scene', 'fixed', 'step-diagram']);
 /** Within a crease-pattern source: the scopes and render modes this build reads. */
 const CP_SCOPE_KINDS = new Set(['segment']);
-const CP_RENDER_MODES = new Set(['crease-pattern', 'folded-flat', 'folded-3d']);
+const CP_RENDER_MODES = new Set(['crease-pattern', 'folded-flat', 'folded-3d', 'simulated']);
 
 /** The most a stored scene may be, as JSON: D2's per-step budget, with room. */
 const SCENE_JSON_MAX_BYTES = 4 * 1024 * 1024;
@@ -532,9 +533,25 @@ function readCpRender(value: unknown): DiagramCpRender | null {
       const camera = readFoldedFigureCamera(value.camera);
       return side && camera ? { mode: 'folded-3d', camera, side } : null;
     }
+    case 'simulated': {
+      const foldPercent = finiteNumber(value.foldPercent);
+      const view = readSimulatedView(value.view);
+      if (foldPercent === null || foldPercent < 0 || foldPercent > 100 || !view) return null;
+      return { mode: 'simulated', foldPercent, view };
+    }
     default:
       return null;
   }
+}
+
+/** A simulated step's camera: a finite yaw and pitch, and a zoom above 0. */
+function readSimulatedView(value: unknown): DiagramSimulatedView | null {
+  if (!isRecord(value)) return null;
+  const yaw = finiteNumber(value.yaw);
+  const pitch = finiteNumber(value.pitch);
+  const zoom = finiteNumber(value.zoom);
+  if (yaw === null || pitch === null || zoom === null || !(zoom > 0)) return null;
+  return { yaw, pitch, zoom };
 }
 
 /** An angle in [0, 360), so one rotation is written one way. */

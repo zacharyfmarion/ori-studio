@@ -18,12 +18,21 @@ import {
   POSE_ROTATION_STEP_DEG,
   type DiagramLinkedPoseActionId,
 } from '../actions/diagramLinkedPoseActions';
-import { renderToShowAs, type DiagramCpRender, type DiagramCpSource, type DiagramStyle } from '../document/diagramDocument';
+import {
+  DEFAULT_SIMULATED_VIEW,
+  renderToShowAs,
+  type DiagramCpRender,
+  type DiagramCpSource,
+  type DiagramSimulatedView,
+  type DiagramStyle,
+} from '../document/diagramDocument';
 import type { StepCreases } from './captureCreases';
 import {
   captureCreasePattern,
+  captureSimulatedFlat,
   defaultCaptureCamera,
   type CapturedPicture,
+  type SimulateFlat,
 } from './captureFolded';
 import type { CaptureSession, SpatialHold } from './captureSession';
 
@@ -47,7 +56,9 @@ export type LinkedPoseResult =
       /** For a 3D fold: what the live view draws. */
       spatial?: SpatialHold;
     }
-  | { status: 'refused'; refusal: OristudioCpFold3dRefusal };
+  | { status: 'refused'; refusal: OristudioCpFold3dRefusal }
+  /** Shown as Simulated, and the region has no model the simulator can fold. */
+  | { status: 'unavailable' };
 
 export interface LinkedPoseInput {
   document: OristudioCpDocumentSnapshot;
@@ -56,6 +67,8 @@ export interface LinkedPoseInput {
   /** The poses the step remembers for its other ways of showing (D19). */
   remembered?: DiagramCpSource['remembered'];
   style: DiagramStyle;
+  /** The simulator, for showing the pattern Simulated (D19). */
+  simulateFlat?: SimulateFlat;
 }
 
 /** Straight down at the paper. */
@@ -65,7 +78,7 @@ const VIEW_FRONT: FoldedFigureCamera = { yaw: 0, pitch: -Math.PI / 2, zoom: 1 };
 
 export async function poseLinkedStep(
   session: CaptureSession,
-  { document, creases, render, remembered, style }: LinkedPoseInput,
+  { document, creases, render, remembered, style, simulateFlat }: LinkedPoseInput,
   request: LinkedPoseRequest
 ): Promise<LinkedPoseResult> {
   const spatialRoute = resolveFoldRoute(document, creases.foldLineIds).kind === 'spatial';
@@ -126,12 +139,38 @@ export async function poseLinkedStep(
     return folded(target.mode === 'folded-flat' ? target.rotationDeg : 0);
   };
 
+  /**
+   * The simulator's model, flat: the one fold % a picture is taken at outside
+   * the live simulator Pose shows above 0% (D19), from the pose's camera.
+   */
+  const simulated = async (view: DiagramSimulatedView): Promise<LinkedPoseResult> => {
+    const picture = await captureSimulatedFlat(simulateFlat, creases, view, style);
+    if (!picture) return { status: 'unavailable' };
+    return { status: 'posed', render: { mode: 'simulated', foldPercent: 0, view }, picture, noLayerOrder: false };
+  };
+
   const { verb } = request;
+  if (verb === 'show-simulated') {
+    // Nothing folded to keep: the simulator has its own model.
+    session.dispose();
+    const target = renderToShowAs({ render, remembered }, 'simulated');
+    return simulated(target.mode === 'simulated' ? target.view : DEFAULT_SIMULATED_VIEW);
+  }
   if (verb === 'show-crease-pattern') {
     // Nothing folded to keep: let the kernel have its memory back.
     session.dispose();
     const target = renderToShowAs({ render, remembered }, 'crease-pattern');
     return creasePattern(target.mode === 'crease-pattern' ? target.rotationDeg : 0);
+  }
+  if (render.mode === 'simulated') {
+    switch (verb) {
+      case 'show-folded':
+        return foldedAsRemembered();
+      case 'reset':
+        return simulated(DEFAULT_SIMULATED_VIEW);
+      default:
+        return simulated(render.view);
+    }
   }
   if (render.mode === 'crease-pattern') {
     switch (verb) {

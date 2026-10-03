@@ -34,6 +34,7 @@ import {
   insertReferencesSteps,
   setReferencesSide,
   stepDiagramKey,
+  DEFAULT_SIMULATED_VIEW,
   renderToShowAs,
   setLinkedPicture,
   showAsOf,
@@ -528,6 +529,23 @@ describe('the ways a linked pattern is shown (D19)', () => {
     const threeD = { mode: 'folded-3d' as const, camera: { yaw: 1, pitch: 0, zoom: 1 }, side: 'front' as const };
     expect(renderToShowAs({ render: threeD }, 'crease-pattern')).toEqual({ mode: 'crease-pattern', rotationDeg: 0 });
     expect(showAsOf(threeD)).toBe('folded');
+  });
+
+  it('shows Simulated at 0%, from the camera it last had or Simulate’s own default', () => {
+    const view = { yaw: 1, pitch: -0.4, zoom: 2 };
+    expect(renderToShowAs({ render: pattern }, 'simulated')).toEqual({
+      mode: 'simulated',
+      foldPercent: 0,
+      view: DEFAULT_SIMULATED_VIEW,
+    });
+    expect(
+      renderToShowAs({ render: pattern, remembered: { simulated: { mode: 'simulated', foldPercent: 40, view } } }, 'simulated')
+    ).toEqual({ mode: 'simulated', foldPercent: 0, view });
+    // From a simulation, the pattern is upright.
+    expect(renderToShowAs({ render: { mode: 'simulated', foldPercent: 40, view } }, 'crease-pattern')).toEqual({
+      mode: 'crease-pattern',
+      rotationDeg: 0,
+    });
   });
 
   it('keeps what a step remembers through a new capture, and records nothing for one that changes nothing', () => {

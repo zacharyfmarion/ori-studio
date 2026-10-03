@@ -105,20 +105,44 @@ export type DiagramCpRender =
       /** Which layer-ordering solution, 1-based. */
       foldCase: number;
     }
-  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' };
+  | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' }
+  | {
+      /** The simulator's model at a fold %, from a camera (D19). */
+      mode: 'simulated';
+      /** 0 to 100: 0 is the flat sheet, captured without Pose. */
+      foldPercent: number;
+      view: DiagramSimulatedView;
+    };
+
+/** A simulated step's camera: the simulator viewport's orbit, without roll. */
+export interface DiagramSimulatedView {
+  yaw: number;
+  pitch: number;
+  zoom: number;
+}
+
+/** The camera a simulated step opens at: Simulate's own default view (`DEFAULT_SIMULATOR_VIEW`). */
+export const DEFAULT_SIMULATED_VIEW: DiagramSimulatedView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
 
 /**
- * A way a linked pattern is shown (D19): its crease pattern, or its folded
- * form, flat or in 3D as its creases fold.
+ * A way a linked pattern is shown (D19): its crease pattern, its folded form
+ * (flat or in 3D as its creases fold), or the simulator's model of it.
  */
-export type DiagramShowAs = 'crease-pattern' | 'folded';
+export type DiagramShowAs = 'crease-pattern' | 'folded' | 'simulated';
 
 /** The ways, in the order every surface offers them. */
-export const DIAGRAM_SHOW_AS: readonly DiagramShowAs[] = ['crease-pattern', 'folded'];
+export const DIAGRAM_SHOW_AS: readonly DiagramShowAs[] = ['crease-pattern', 'folded', 'simulated'];
 
 /** How a render shows its pattern. */
 export function showAsOf(render: DiagramCpRender): DiagramShowAs {
-  return render.mode === 'crease-pattern' ? 'crease-pattern' : 'folded';
+  switch (render.mode) {
+    case 'crease-pattern':
+      return 'crease-pattern';
+    case 'simulated':
+      return 'simulated';
+    default:
+      return 'folded';
+  }
 }
 
 /** A step drawn from the open crease pattern, and linked to it (D3). */
@@ -155,8 +179,13 @@ export function renderToShowAs(
   const { render } = source;
   if (showAsOf(render) === way) return render;
   const kept = source.remembered?.[way];
-  if (kept && showAsOf(kept) === way) return kept;
-  const turn = render.mode === 'folded-3d' ? 0 : render.rotationDeg;
+  if (kept && showAsOf(kept) === way && kept.mode !== 'simulated') return kept;
+  // Back to Simulated from another way: its camera is kept, its picture rebuilt
+  // at 0%, the one fold % a picture can be taken at without Pose.
+  if (way === 'simulated') {
+    return { mode: 'simulated', foldPercent: 0, view: kept?.mode === 'simulated' ? kept.view : DEFAULT_SIMULATED_VIEW };
+  }
+  const turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : 0;
   return way === 'crease-pattern'
     ? { mode: 'crease-pattern', rotationDeg: turn }
     : { mode: 'folded-flat', side: 'front', rotationDeg: turn, foldCase: 1 };
