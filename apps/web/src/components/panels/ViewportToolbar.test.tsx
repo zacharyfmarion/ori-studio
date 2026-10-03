@@ -97,8 +97,11 @@ function cpGroups(): ViewportToolbarGroupSpec[] {
       id: 'layers',
       items: viewportLayerItems({
         title: 'Layers',
-        options: [{ key: 'labels' as const, icon: null, label: 'Labels' }],
-        visible: { labels: true },
+        options: [
+          { key: 'labels' as const, label: 'Labels' },
+          { key: 'grid' as const, label: 'Grid' },
+        ],
+        visible: { labels: true, grid: false },
         onChange: camera.onLayerChange,
       }),
     },
@@ -145,6 +148,13 @@ function inlineLabels(): string[] {
 
 function menuItems(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>('[role="menu"] [role^="menuitem"]')];
+}
+
+/** What a menu row draws in its leading slot: a tick, nothing, or its own icon. */
+function leadingMark(row: Element | undefined): 'tick' | 'none' | 'icon' {
+  const svg = row?.querySelector('[data-menu-icon] svg');
+  if (!svg) return 'none';
+  return svg.classList.contains('lucide-check') ? 'tick' : 'icon';
 }
 
 function press(element: Element | null | undefined) {
@@ -239,6 +249,16 @@ describe('ViewportToolbar on a fine pointer', () => {
     expect(document.querySelector('[role="menu"]')).toBeTruthy();
   });
 
+  it('ticks a shown layer and leaves a hidden one blank', () => {
+    // A hidden layer once showed its own icon where the tick goes, which read
+    // as a mark of its own: a menu of ticks with one glyph among them.
+    render();
+    press(toolbar()?.querySelector('button[aria-label="Layers"]'));
+    const row = (label: string) => menuItems().find((item) => item.textContent === label);
+    expect(leadingMark(row('Labels'))).toBe('tick');
+    expect(leadingMark(row('Grid'))).toBe('none');
+  });
+
   it('dismisses the zoom presets on a press outside the readout', async () => {
     render();
     press(toolbar()?.querySelector('[data-viewport-zoom]'));
@@ -294,6 +314,7 @@ describe('ViewportToolbar on a coarse pointer', () => {
       'Insert image...',
       'Symmetry',
       'Labels',
+      'Grid',
     ]);
   });
 
@@ -307,6 +328,17 @@ describe('ViewportToolbar on a coarse pointer', () => {
     expect(roles['Labels']).toBe('menuitemcheckbox');
     expect(roles['Rotate view left']).toBe('menuitem');
     expect(roles['Insert image...']).toBe('menuitem');
+  });
+
+  it('draws a verb with its icon and a mode with a tick or nothing', () => {
+    render();
+    press(overflowTrigger());
+    const row = (label: string) => menuItems().find((item) => item.textContent === label);
+    expect(leadingMark(row('Insert image...'))).toBe('icon');
+    expect(leadingMark(row('Labels'))).toBe('tick');
+    // Off, so blank — Pan's hand belongs to the inline button, not the row.
+    expect(leadingMark(row('Pan'))).toBe('none');
+    expect(leadingMark(row('Grid'))).toBe('none');
   });
 
   it('runs the action the menu item stands for', () => {

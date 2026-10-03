@@ -86,8 +86,9 @@ interface ViewportToolbarActionBase {
  *
  * A **mode** or a **verb**, and never both. The two arms are mutually exclusive
  * on purpose rather than as tidiness: `checked` makes the overflow row a
- * `CheckboxItem`, which shows a tick in place of the icon and cancels its own
- * select so a run of layer toggles does not close the menu after each one.
+ * `CheckboxItem`, which shows a tick or nothing in place of the icon and
+ * cancels its own select so a run of layer toggles does not close the menu
+ * after each one.
  * `opensDialog` only means anything *when* the menu closes — it suppresses the
  * focus restore that would otherwise land behind the dialog. So an action
  * declaring both is asking for a row that never closes to be careful about how
