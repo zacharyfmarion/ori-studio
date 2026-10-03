@@ -1,13 +1,5 @@
 import { designKindRegistry } from '../designKinds';
-import type {
-  Mat3,
-  PaperItem,
-  PaperLineRole,
-  PaperLineWhole,
-  PaperScene,
-  SceneBounds,
-  ScenePoint,
-} from '@treemaker/origami-simulator';
+import type { Mat3 } from '@treemaker/origami-simulator';
 import type { FoldArtifacts, FoldDocument } from '../engine/types';
 import {
   CREASE_PATTERN_DOCUMENT_ID,
@@ -21,6 +13,7 @@ import {
   type PaperStyleOverrides,
 } from './paper/paperStyle';
 import { legacyPaperStyleOverrides } from './paper/paperStyleMigration';
+import { readPaperScene } from './paper/paperSceneValidate';
 import type {
   FoldedFigurePlacement,
   FoldedSourceBounds,
@@ -756,7 +749,10 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
     renderSnapshot: isRecord(entry.renderSnapshot)
       ? (entry.renderSnapshot as unknown as OristudioCpFoldedFigureEntry['renderSnapshot'])
       : null,
-    scene: foldedFigureScene(entry.scene),
+    // A 3D figure's stored picture. Absent on a flat figure and on every file
+    // written before scenes existed — those draw from `renderSnapshot` instead
+    // (D1's additive rule: the schema version does not move).
+    scene: readPaperScene(entry.scene),
     placement: foldedFigurePlacement(entry),
     // The viewpoint the stored picture was taken at. It cannot be *applied* on
     // load — re-projecting needs the render model, which is deliberately not
@@ -788,138 +784,6 @@ function validateFoldedFigure(value: unknown, index: number): OristudioCpFoldedF
       : null,
     appearance: foldedFigureAppearance(entry, folded3d?.model ?? snapshot?.model),
   };
-}
-
-/**
- * A 3D figure's stored picture, read back item by item.
- *
- * Unlike `renderSnapshot` beside it — an opaque kernel stream cast straight
- * through — a scene is drawn by *our* code from *our* fields, so a malformed
- * one would reach `earcut` and the GPU rather than a parser. Every number is
- * checked, unknown keys are dropped, and an item that does not read is dropped
- * with them: a picture missing a face is a picture, and the figure rehydrates
- * to a fresh one at the first turn.
- *
- * `null` for anything that is not a scene at all, including the absent key on
- * a flat figure and on every file written before scenes existed — those carry a
- * `renderSnapshot` instead and draw from it (D1's additive rule: the schema
- * version does not move).
- */
-function foldedFigureScene(value: unknown): PaperScene | null {
-  if (!isRecord(value)) return null;
-  const bounds = sceneBoundsField(value.bounds);
-  const sheet = finiteNumber(value.sheet);
-  if (!bounds || sheet === null || !Array.isArray(value.items)) return null;
-  const items: PaperItem[] = [];
-  for (const item of value.items) {
-    const read = scenePaperItem(item);
-    if (read) items.push(read);
-  }
-  return { bounds, sheet, items };
-}
-
-function scenePaperItem(value: unknown): PaperItem | null {
-  if (!isRecord(value)) return null;
-  const hidden = value.hidden === true;
-  if (value.kind === 'face') {
-    const face = finiteNumber(value.face);
-    const shade = finiteNumber(value.shade);
-    if (face === null || shade === null) return null;
-    if (value.side !== 'front' && value.side !== 'back') return null;
-    if (!Array.isArray(value.rings)) return null;
-    const rings: ScenePoint[][] = [];
-    for (const ring of value.rings) {
-      const points = scenePointList(ring);
-      if (points && points.length >= 3) rings.push(points);
-    }
-    if (rings.length === 0) return null;
-    const outline = sceneLineRole(value.outline);
-    return {
-      kind: 'face',
-      face,
-      side: value.side,
-      rings,
-      ...(outline ? { outline } : {}),
-      shade,
-      hidden,
-    };
-  }
-  if (value.kind === 'line') {
-    const role = sceneLineRole(value.role);
-    const a = scenePointField(value.a);
-    const b = scenePointField(value.b);
-    if (!role || !a || !b) return null;
-    const face = finiteNumber(value.face);
-    const whole = sceneLineWhole(value.whole);
-    return {
-      kind: 'line',
-      role,
-      a,
-      b,
-      onBoundary: sceneBoundaryFlags(value.onBoundary),
-      ...(whole ? { whole } : {}),
-      ...(face === null ? {} : { face }),
-      hidden,
-    };
-  }
-  if (value.kind === 'markup') {
-    const bounds = sceneBoundsField(value.bounds);
-    if (typeof value.svg !== 'string' || !bounds) return null;
-    return { kind: 'markup', svg: value.svg, bounds, hidden: false };
-  }
-  return null;
-}
-
-function sceneLineRole(value: unknown): PaperLineRole | null {
-  return value === 'edge' ||
-    value === 'mountain' ||
-    value === 'valley' ||
-    value === 'diagram-mountain' ||
-    value === 'diagram-valley' ||
-    value === 'aux'
-    ? value
-    : null;
-}
-
-function sceneLineWhole(value: unknown): PaperLineWhole | null {
-  if (!isRecord(value)) return null;
-  const a = scenePointField(value.a);
-  const b = scenePointField(value.b);
-  if (!a || !b) return null;
-  return { a, b, onBoundary: sceneBoundaryFlags(value.onBoundary) };
-}
-
-/** A missing or malformed pair reads as "neither end retreats", which is inert. */
-function sceneBoundaryFlags(value: unknown): [boolean, boolean] {
-  return Array.isArray(value) ? [value[0] === true, value[1] === true] : [false, false];
-}
-
-function scenePointField(value: unknown): ScenePoint | null {
-  if (!Array.isArray(value) || value.length !== 2) return null;
-  const x = finiteNumber(value[0]);
-  const y = finiteNumber(value[1]);
-  return x === null || y === null ? null : [x, y];
-}
-
-function scenePointList(value: unknown): ScenePoint[] | null {
-  if (!Array.isArray(value)) return null;
-  const points: ScenePoint[] = [];
-  for (const point of value) {
-    const read = scenePointField(point);
-    if (!read) return null;
-    points.push(read);
-  }
-  return points;
-}
-
-function sceneBoundsField(value: unknown): SceneBounds | null {
-  if (!isRecord(value)) return null;
-  const minX = finiteNumber(value.minX);
-  const minY = finiteNumber(value.minY);
-  const maxX = finiteNumber(value.maxX);
-  const maxY = finiteNumber(value.maxY);
-  if (minX === null || minY === null || maxX === null || maxY === null) return null;
-  return { minX, minY, maxX, maxY };
 }
 
 /**
