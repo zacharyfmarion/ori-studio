@@ -2695,7 +2695,32 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
     behind the one in flight; and the fold readout followed the solver's
     frames, which a slow device sends seldom, so it sat at 0% while playing —
     it follows the playhead.
-- [ ] **Review** (every finding put to a skeptic), and its fixes committed.
+- [x] **Review** (every finding put to a skeptic), and its fixes committed.
+  - 5 dimensions, 29 findings, 27 confirmed (16 distinct), all fixed with a
+    test that fails without the fix where one could be written:
+    - Pose's simulator: a rest's scene read late with nothing holding the
+      worker (a step stuck "capturing" for good, or a queued rest reading
+      nothing); leaving Pose mid-move stored a model still on its way (now
+      settled in the worker first); an undo overridden by a queued rest; the
+      view snapping back when an earlier rest's capture landed; the first
+      rest — Pose again — never for a model that does not settle, and
+      cancelled as it mounted; Pose Again doing nothing on an open step; no
+      reason shown with no pattern open or the region gone.
+    - Show as: re-pressing Simulated flattening a step to 0%; relinking a
+      step above 0% always failing; the picker keeping an old way;
+      `diagram step shown as` sent from the pane as `card`, sent when nothing
+      changed, and Duplicate As leaving a copy on failure.
+    - Refresh all's count including Pose-again steps (one rule now,
+      `refreshKind`).
+    - An unused import failing `lint:web`; a thumbnail path and `flatScene`'s
+      `modelKey` left dead.
+  - Refuted: a rest relying on convergence reported before a retarget; the
+    plan's Contracts still naming the figure-box scope (they record history).
+- **After the review, Zach's pass on the Step pane in Pose:** Show as leads
+  the pane; Side is a Front | Back choice; the pose verbs are the toolbar's
+  alone; the picture's verbs are one list (`ui/ActionList`); the header's
+  arrows go to the step before and after rather than moving it. And the gap
+  between two cards adds a step there (a "+" on hover).
 
 ### Phase 9: References pulled through a browser (D20)
 
