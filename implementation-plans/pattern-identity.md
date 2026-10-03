@@ -135,7 +135,10 @@ windows, the References plan cache key (`referencesPlanCache.ts`).
     until it is captured again (Show as, Relink, or Refresh once edited). Only
     Diagram files saved in this branch hold one.
 - [ ] Review, and its fixes committed.
-- [ ] Follow-ups written up for `main`: Edit folded figures and simulation
-  windows (their figure follows its pattern — Zach to confirm), and the
-  References plan cache key (unit-frame sheet key, crease numbers re-mapped on
-  restore).
+- [x] Follow-ups written up for `main`, as task chips with self-contained
+  briefs: Edit folded figures and simulation windows (their figure follows its
+  pattern, and Refold folds it where it is — Zach to confirm both first, a
+  documented deviation from Oriedita's box re-select; the figures' stored line
+  numbers re-derived), and the References plan cache key (frame size and a
+  relative crease fingerprint, `ps2:`; the plans' crease numbers re-mapped by
+  geometry on restore; plans mapped through the live frame everywhere).
