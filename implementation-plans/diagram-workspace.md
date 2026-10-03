@@ -1094,7 +1094,8 @@ peers: switching between them is a choice of view, never a new link.
     pose** — on the card or in the Step pane — opens Pose on the simulator: fold
     %, play / step / restart, orbit and the named views; Done captures.
   - **The 0% picture is built in the simulator's worker, stateless**: the
-    region's fold prepared (the worker's prepared-model cache), its flat
+    region's fold prepared (afresh: the worker's prepared-model cache is the
+    live windows', and a capture must not evict one of theirs), its flat
     positions, the default view fitted in a fixed square, and
     `meshToPaperScene` with perspective on. The export body is factored so this
     builder and Pose's Done are one function and cannot drift. (Research: the

@@ -301,11 +301,13 @@ export async function captureStep(
   runtime: CpCaptureRuntime,
   request: CaptureStepRequest
 ): Promise<CaptureStepResult> {
-  const { document, scope, style, env } = request;
-  const choice = chooseStepCreases(document, scope, request.segmentation);
+  const { document, scope, style, env, segmentation } = request;
+  // A region cannot be looked for before the segmentation is ready.
+  if (!segmentation) return { status: 'unknown' };
+  const choice = chooseStepCreases(document, scope, segmentation);
   if (choice.status !== 'found') return choice;
   const { creases } = choice;
-  const thumbnail = creasesThumbnail(document, creases, request.segmentation);
+  const thumbnail = creasesThumbnail(creases, segmentation);
   const source = (render: DiagramCpRender): DiagramCpSource => {
     const stored = storedCpSource({
       kind: 'cp',

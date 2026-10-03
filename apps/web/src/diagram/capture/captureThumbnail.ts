@@ -6,56 +6,23 @@
  * Pure.
  */
 import type { FoldArtifacts } from '../../engine/types';
-import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import { segmentSheetThumbnail } from '../../cp-workspace/sheets/segmentSheet';
 import {
   MAX_STORED_STROKES,
-  fitSheetThumbnail,
   type SheetStroke,
-  type SheetStrokeRole,
   type SheetThumbnail,
 } from '../../cp-workspace/sheets/sheetThumbnail';
 import type { StepCreases } from './captureCreases';
 
 const EMPTY_THUMBNAIL: SheetThumbnail = { viewBox: '0 0 100 100', strokes: [] };
 
-/** What a kernel line is on a thumbnail, by its colour: the roles the pickers ink. */
-function strokeRole(color: string): SheetStrokeRole {
-  switch (color) {
-    case 'Black0':
-      return 'edge';
-    case 'Red1':
-      return 'mountain';
-    case 'Blue2':
-      return 'valley';
-    case 'Cyan3':
-      return 'aux';
-    default:
-      return 'unassigned';
-  }
-}
-
 /**
- * The region's thumbnail, as the Simulate rail draws it; drawn from the lines
- * it chose while the segmentation is not to hand.
+ * The region's thumbnail, as the Simulate rail draws it, from the
+ * segmentation its creases were chosen in — every capture has one, since a
+ * region is found by its rim in it.
  */
-export function creasesThumbnail(
-  document: OristudioCpDocumentSnapshot,
-  creases: StepCreases,
-  segmentation: FoldArtifacts | null
-): SheetThumbnail {
-  let thumbnail: SheetThumbnail | null;
-  if (segmentation) {
-    thumbnail = segmentSheetThumbnail(segmentation.fold, creases.segment);
-  } else {
-    const strokes: SheetStroke[] = [];
-    for (const id of creases.scopedLineIds) {
-      const line = document.crease_pattern.line_segments[id - 1];
-      if (!line) continue;
-      strokes.push({ x1: line.a.x, y1: line.a.y, x2: line.b.x, y2: line.b.y, role: strokeRole(line.color) });
-    }
-    thumbnail = fitSheetThumbnail(strokes);
-  }
+export function creasesThumbnail(creases: StepCreases, segmentation: FoldArtifacts): SheetThumbnail {
+  const thumbnail = segmentSheetThumbnail(segmentation.fold, creases.segment);
   if (!thumbnail) return EMPTY_THUMBNAIL;
   // To a tenth of the 100-unit box: plenty for a corner, and short in the file.
   const snap = (value: number) => Math.round(value * 10) / 10 + 0;

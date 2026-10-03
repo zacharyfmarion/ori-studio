@@ -12,6 +12,7 @@ import {
   releaseFoldedFigureHandle,
   retainFoldedFigureHandle,
 } from '../../cp-workspace/folded/foldedFigureHandles';
+import type { FoldArtifacts } from '../../engine/types';
 import type {
   OristudioCpFolded3dAuxLines,
   OristudioCpFolded3dRenderModel,
@@ -170,6 +171,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       if (request.verb === 'simulate' && linked.render.mode !== 'simulated') return { status: 'discarded' };
       const { document, segmentation, choice } = await creasesFor(begun, linked);
       if (choice.status !== 'found') return choice;
+      if (!segmentation) return { status: 'unknown' };
       const result = await abandonOnEngineLoss(
         poseLinkedStep(
           session,
@@ -185,7 +187,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         )
       );
       if (result.status === 'refused' || result.status === 'unavailable') return result;
-      const source = linkedSource(linked, choice.creases, document, segmentation, result.render);
+      const source = linkedSource(linked, choice.creases, segmentation, result.render);
       const committed = await useWorkspaceStore
         .getState()
         .commitDiagramCapture(begun, { source, picture: result.picture }, 'Adjust pose');
@@ -333,15 +335,14 @@ function needsRecapture(stepId: string, linked: DiagramCpSource): boolean {
 function linkedSource(
   previous: DiagramCpSource,
   creases: StepCreases,
-  document: Parameters<typeof creasesThumbnail>[0],
-  segmentation: Parameters<typeof creasesThumbnail>[2],
+  segmentation: FoldArtifacts,
   render: DiagramCpSource['render']
 ): DiagramCpSource {
   const stored = storedCpSource({
     kind: 'cp',
     scope: previous.scope,
     fingerprint: creasesFingerprint(creases, render),
-    thumbnail: creasesThumbnail(document, creases, segmentation),
+    thumbnail: creasesThumbnail(creases, segmentation),
     render,
   });
   if (!stored) throw new Error('The pose made a link the file cannot read');

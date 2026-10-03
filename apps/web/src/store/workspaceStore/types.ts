@@ -54,7 +54,6 @@ import type {
   DiagramAnnotationKind,
   DiagramPageSetup,
   KnownDiagramAnnotation,
-  DiagramPicture,
   DiagramStyle,
   KnownDiagramAsset,
   UploadPose,

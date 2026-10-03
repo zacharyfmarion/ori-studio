@@ -4,10 +4,11 @@ import {
   readSheetThumbnail,
   type SheetStroke,
 } from '../../cp-workspace/sheets/sheetThumbnail';
+import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
+import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { storedCpSource } from '../document/diagramFile';
-import { cpDocument, type FixtureLine } from './capture.fixtures';
-import type { CpSegment } from '../../lib/creasePatternSegmentation';
-import type { StepCreases } from './captureCreases';
+import { cpDocument, twoSquaresSegmentation } from './capture.fixtures';
+import { chooseStepCreases } from './captureCreases';
 import { creasesThumbnail, withinStoredBudget } from './captureThumbnail';
 
 const stroke = (x1: number, y1: number, x2: number, y2: number, role: SheetStroke['role'] = 'mountain') => ({
@@ -19,55 +20,26 @@ const stroke = (x1: number, y1: number, x2: number, y2: number, role: SheetStrok
 });
 
 describe('creasesThumbnail', () => {
-  // A link the file cannot read back is no link: Link, Refresh and every Pose
-  // verb failed on a pattern dense enough to pass the reader's stroke cap.
-  it('keeps a dense pattern’s thumbnail within what the file reads back', () => {
-    const border: FixtureLine[] = [
-      [0, 0, 400, 0, 'Black0'],
-      [400, 0, 400, 400, 'Black0'],
-      [400, 400, 0, 400, 'Black0'],
-      [0, 400, 0, 0, 'Black0'],
-    ];
-    // 20,100 creases, more than the cap: a grid of short ones and a few long ones.
-    const dense: FixtureLine[] = Array.from({ length: 20_100 }, (_, index) => {
-      const x = 1 + (index % 140) * 2.8;
-      const y = 1 + Math.floor(index / 140) * 2.7;
-      return index < 5 ? [0, index * 50 + 10, 400, index * 50 + 10, 'Red1'] : [x, y, x + 1, y + 1, 'Blue2'];
-    });
-    const document = cpDocument([...border, ...dense]);
-    const rim = [
-      [
-        { x: 0, y: 0 },
-        { x: 400, y: 0 },
-        { x: 400, y: 400 },
-        { x: 0, y: 400 },
-      ],
-    ];
-    const scope = {
-      kind: 'segment' as const,
-      region: { boundary: rim, bounds: { minX: 0, minY: 0, maxX: 400, maxY: 400 }, segmentIdHint: 0 },
-    };
-    // Drawn from its lines, as it is while the segmentation is not to hand.
-    const lineIds = document.crease_pattern.line_segments.map((_, index) => index + 1);
-    const creases: StepCreases = {
-      scopedLineIds: lineIds,
-      foldLineIds: lineIds,
-      fingerprint: 'fp',
-      drawnFingerprint: 'fp',
-      paper: rim,
-      segment: { id: 0, boundary: rim } as unknown as CpSegment,
-    };
-    const thumbnail = creasesThumbnail(document, creases, null);
-    expect(thumbnail.strokes.length).toBeLessThanOrEqual(MAX_STORED_STROKES);
+  it('draws the region from the segmentation it was found in, snapped, and the file reads it back', () => {
+    const segmentation = twoSquaresSegmentation();
+    const [left] = resolveCpSegments(segmentation);
+    const scope = { kind: 'segment' as const, region: regionReferenceFor(left!) };
+    const choice = chooseStepCreases(cpDocument(), scope, segmentation);
+    if (choice.status !== 'found') throw new Error('the left square is a region');
+    const thumbnail = creasesThumbnail(choice.creases, segmentation);
+    expect(thumbnail.strokes.length).toBeGreaterThan(0);
+    // To a tenth of the box, so the file stays short.
+    for (const entry of thumbnail.strokes) {
+      for (const value of [entry.x1, entry.y1, entry.x2, entry.y2]) {
+        expect(Math.round(value * 10) / 10).toBe(value);
+      }
+    }
     expect(readSheetThumbnail(thumbnail)).not.toBeNull();
-    // The sheet's edge and the long folds are what it keeps.
-    expect(thumbnail.strokes.filter((entry) => entry.role === 'edge')).toHaveLength(4);
-    expect(thumbnail.strokes.filter((entry) => entry.role === 'mountain')).toHaveLength(5);
     expect(
       storedCpSource({
         kind: 'cp',
         scope,
-        fingerprint: creases.fingerprint,
+        fingerprint: choice.creases.fingerprint,
         thumbnail,
         render: { mode: 'crease-pattern', rotationDeg: 0 },
       })

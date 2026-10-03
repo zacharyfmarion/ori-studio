@@ -337,18 +337,12 @@ interface ExportSnapshot extends SceneFrame {
   session: Session;
 }
 
-/** A model from a camera, framed in a square: a Diagram step's picture (`stillFrame`). */
+/** A model from a camera, framed in a square: a Diagram step's picture (`stillFrame`, `flatScene`). */
 export interface SimulatorStillSceneOptions extends SimulatorExportSceneOptions {
   /** The camera, as a viewport's orbit holds it. */
   view: OrbitView;
   /** The square the scene is framed in, CSS px. */
   size: number;
-}
-
-/** A model's flat sheet from a camera, with no session (`SimulatorWorkerApi.flatScene`). */
-export interface SimulatorFlatSceneOptions extends SimulatorStillSceneOptions {
-  /** A key the prepared model is cached under, as `load`'s is. */
-  modelKey?: string;
 }
 
 /** A live session's model where it is now (`SimulatorWorkerApi.sessionScene`). */
@@ -1441,9 +1435,10 @@ const api = {
    * session and no solver: what a Diagram step shown as Simulated shows at 0%
    * (D19). At rest a model is its original positions.
    */
-  flatScene(fold: FoldDocument, options: SimulatorFlatSceneOptions): PaperScene | null {
-    const prepare = () => prepareFoldModel(foldScaledForSolver(fold), { triangulate: true });
-    const prepared = options.modelKey ? preparedModels.get(options.modelKey, prepare) : prepare();
+  flatScene(fold: FoldDocument, options: SimulatorStillSceneOptions): PaperScene | null {
+    // Prepared afresh, not through `preparedModels`: that small cache is the
+    // live windows', and a step's capture must not evict one of theirs.
+    const prepared = prepareFoldModel(foldScaledForSolver(fold), { triangulate: true });
     const { originalPositions } = new OrigamiModel(prepared);
     return sceneOfFrame(stillFrame(originalPositions, prepared, originalPositions, options.view, options.size), options);
   },

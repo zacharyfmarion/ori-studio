@@ -96,7 +96,7 @@ async function sendCards(send: ReferencesSend): Promise<ReferencesSendOutcome> {
   const region = segment ? regionReferenceFor(segment) : outline;
   const choice = segment ? chooseStepCreases(document, { kind: 'segment', region }, segmentation) : null;
   const creases = choice?.status === 'found' ? choice.creases : null;
-  const thumbnail = creases ? creasesThumbnail(document, creases, segmentation) : outlineThumbnail(send.outline);
+  const thumbnail = creases ? creasesThumbnail(creases, segmentation) : outlineThumbnail(send.outline);
 
   const sent: SentReferencesStep[] = [];
   for (const card of send.cards) {
