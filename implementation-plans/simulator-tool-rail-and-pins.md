@@ -726,7 +726,7 @@ Each step is its own commit; the moves change nothing on screen.
   - golden traces are unchanged with no pins;
   - the GPU parity bench runs with a mask;
   - the stability sweep runs with an over-constrained set.
-- [ ] **Clock.** Stagnation rule; `invalidate` on pin change; the guard action
+- [x] **Clock.** Stagnation rule; `invalidate` on pin change; the guard action
       reported on the tick. Tests: a constant-velocity fake backend settles, and
       a decaying one does not settle early.
 - [ ] **Picking.** The three pure functions, plus `cssRectToBuffer`. Tests on a

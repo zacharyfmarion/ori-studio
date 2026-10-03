@@ -2,7 +2,7 @@ export { prepareFoldModel, EDGES_FACET_KEY } from './prepare.js';
 export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';
-export type { SimulationClockOptions, SimulationTick } from './simulationClock.js';
+export type { SimulationClockOptions, SimulationRecovery, SimulationTick } from './simulationClock.js';
 export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
 export { InvalidFixedNodeMaskError } from './solverBackend.js';
 export { WebglSolver } from './webgl/webglSolver.js';
