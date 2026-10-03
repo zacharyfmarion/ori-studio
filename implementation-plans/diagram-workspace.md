@@ -2849,11 +2849,34 @@ insert steps at a chosen place without the latch.
 
 ### Phase 10: phone, touch and finish
 
-- [ ] Phone list and detail through `usePhoneListDetail`.
+- [x] Phone list and detail through `usePhoneListDetail`.
   - Pages is a read-only pager.
   - Annotate shows its "larger screen" note.
   - The References browser is a list of patterns, then their cards.
-- [ ] iPad: annotate with pointer and pencil, and the drawer inspector.
+  - As built: the steps already are a list and a detail on every layout —
+    the detail is the store's `diagramDetail`, with ← Steps — so they needed
+    no phone flow of their own; on a phone the list is one column, and the
+    insert gap's "+" (which sat half off the screen, in the grid's padding)
+    now sits in the row gap under each card (a container query on the grid's
+    width, so a narrow desktop pane gets it too). Pages: ‹ Page n of N › on
+    every layout, each turn framing the page whole at Fit's scale; on a phone
+    the bar is the pager alone, a pinch zooming and Fit in its menu. The
+    References browser takes `usePhoneListDetail`
+    (`useReferencesBrowserPhoneFlow`): its planned patterns as a full-width
+    list, a pattern's cards with ← Patterns; one pattern, or Find, opens
+    straight on the cards, and Replace on its own pattern's. Annotate's note
+    was Phase 7's. Browser (`artifacts/diagram-phase10/`, 390 × 844, touch):
+    `survey.mjs`, `insert-gap.mjs`, `pager.mjs` (‹ › walked 1 → 3 → 2 of 6;
+    the desktop zoom held at 60%), `browser-phone.mjs` on two sheets planned
+    and saved by `plan-two.mjs` (list → Pattern 2's cards → a card selected →
+    Back to the list). Nothing scrolls sideways on any screen.
+- [x] iPad: annotate with pointer and pencil, and the drawer inspector.
+  - Browser (`ipad-annotate.mjs`, 1024 × 1366, touch, real touch and pen
+    input through CDP): a Valley Fold Arrow drawn with a finger (1 annotation)
+    and one with a pen (2); a two-finger pinch drew nothing (still 2); the
+    Step pane opened as the drawer, listing both arrows with Flip Arc and
+    Delete. Nothing needed changing: the canvas already tells a finger, a
+    second finger and a pen apart (Phase 7).
 - [x] **The header** (Zach, 2026-10-03): Steps | Pages left-aligned, straight
   after the title and count, rather than centred; the verbs keep the right end.
   On a phone the verbs' row wraps within the screen (undo, redo, Add step,
