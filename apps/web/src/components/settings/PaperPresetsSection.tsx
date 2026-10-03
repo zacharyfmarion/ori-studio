@@ -8,13 +8,14 @@
  * (`PaperSettingsBinding.choosePreset`). Keeping them opens the same name
  * field, with the picked preset waiting: it is applied once they are saved.
  */
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { paperPresetRowLabel, type PaperPresetRow } from '../../lib/paperPresetRows';
 import { PaperPresetCard } from './PaperPresetCard';
 import { PaperSection } from './PaperSection';
+import styles from './PaperPresetsSection.module.css';
 import type { PaperPresetChoice, PaperSettingsBinding } from './usePaperSettings';
 
 export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) {
@@ -24,6 +25,7 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
   // The preset to apply once the edits it would have replaced are saved.
   const [waiting, setWaiting] = useState<PaperPresetRow | null>(null);
   const trimmed = name.trim();
+  const whyId = useId();
 
   const startNaming = (then: PaperPresetRow | null) => {
     setWaiting(then);
@@ -58,7 +60,7 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
       title={t('dialogs:settings.paper.presets.title', 'Presets')}
       testId="settings-paper-presets"
     >
-      <div className="settings-paper-presets">
+      <div className={styles.presets}>
         {paper.presets.map((row) => (
           <PaperPresetCard
             key={row.key}
@@ -72,7 +74,7 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
         ))}
       </div>
       {naming && waiting && (
-        <p className="settings-paper-name__why">
+        <p id={whyId} className={styles.why}>
           {t(
             'dialogs:settings.paper.presets.saveThenApply',
             'Name a preset for your changes. {{preset}} is applied once it is saved.',
@@ -82,7 +84,7 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
       )}
       {naming ? (
         <form
-          className="settings-paper-name"
+          className={styles.name}
           onSubmit={(event) => {
             event.preventDefault();
             save();
@@ -94,10 +96,11 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
             say what the row is for.
           */}
           <input
-            className="control-row__input"
+            className={`control-row__input ${styles.input}`}
             type="text"
             aria-label={t('dialogs:settings.paper.presets.name', 'Preset name')}
             placeholder={t('dialogs:settings.paper.presets.name', 'Preset name')}
+            aria-describedby={waiting ? whyId : undefined}
             value={name}
             autoFocus
             onChange={(event) => setName(event.currentTarget.value)}
@@ -111,7 +114,7 @@ export function PaperPresetsSection({ paper }: { paper: PaperSettingsBinding }) 
           </Button>
         </form>
       ) : (
-        <div className="settings-paper-actions">
+        <div className={styles.actions}>
           <Button size="sm" variant="secondary" onClick={() => startNaming(null)}>
             <Plus size={13} aria-hidden="true" />
             {t('dialogs:settings.paper.presets.saveAs', 'Save current as…')}

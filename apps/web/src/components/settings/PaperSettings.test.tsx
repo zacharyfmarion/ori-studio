@@ -85,6 +85,14 @@ const presetRow = (key: string) =>
 const presetCard = (key: string) =>
   presetRow(key).querySelector('.settings-paper-preset__apply') as HTMLButtonElement;
 const chip = () => container?.querySelector('.settings-paper__chip') as HTMLElement;
+/** The in-place name field, while it is open. */
+const nameField = () =>
+  container?.querySelector<HTMLInputElement>('input[aria-label="Preset name"]') ?? null;
+/** The line saying why the name field is asking: the field's own description. */
+const nameHint = () => {
+  const id = nameField()?.getAttribute('aria-describedby');
+  return id ? document.getElementById(id) : null;
+};
 /** A pen's dash is a menu, not a field: the trigger says which dash it is on. */
 const dashTrigger = (label: string) =>
   container?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`) as HTMLButtonElement;
@@ -467,7 +475,7 @@ describe('PaperSettings', () => {
   });
 
   it('asks before a preset replaces unsaved edits, and keeps them as a preset first on request', async () => {
-    const rendered = render();
+    render();
     typeInto(input('Erode'), '2.5');
     const edited = display();
     requestChoice.mockResolvedValueOnce('save');
@@ -479,17 +487,17 @@ describe('PaperSettings', () => {
     expect(nestedDialog.mock.calls).toEqual([[true], [false]]);
     // Nothing is applied yet: the edits are asked a name first.
     expect(display()).toBe(edited);
-    expect(rendered.querySelector('.settings-paper-name__why')?.textContent).toBe(
+    expect(nameHint()?.textContent).toBe(
       'Name a preset for your changes. Diagram is applied once it is saved.'
     );
-    typeInto(rendered.querySelector<HTMLInputElement>('.settings-paper-name input')!, 'Mine');
+    typeInto(input('Preset name'), 'Mine');
     act(() => findButton('Save').click());
     expect(useSettingsStore.getState().paperStyle.presets).toEqual([
       { version: 1, name: 'Mine', style: edited },
     ]);
     expect(display()).toEqual(builtInPaperPreset('diagram').style);
     expect(chip().textContent).toBe('Diagram');
-    expect(rendered.querySelector('.settings-paper-name')).toBeNull();
+    expect(nameField()).toBeNull();
     expect(tracked).toContainEqual({
       event: 'paperPresetUnsavedChanges',
       properties: { slot: 'display', choice: 'save' },
@@ -503,7 +511,7 @@ describe('PaperSettings', () => {
     requestChoice.mockResolvedValueOnce(null);
     await act(async () => presetCard('builtin:diagram').click());
     expect(display()).toBe(edited);
-    expect(container!.querySelector('.settings-paper-name')).toBeNull();
+    expect(nameField()).toBeNull();
 
     requestChoice.mockResolvedValueOnce('discard');
     await act(async () => presetCard('builtin:diagram').click());
@@ -521,13 +529,13 @@ describe('PaperSettings', () => {
     typeInto(input('Erode'), '2.5');
     requestChoice.mockResolvedValueOnce('save');
     await act(async () => presetCard('builtin:diagram').click());
-    expect(container!.querySelector('.settings-paper-name')).not.toBeNull();
+    expect(nameField()).not.toBeNull();
 
     requestChoice.mockResolvedValueOnce('discard');
     await act(async () => presetCard('builtin:default').click());
     expect(display()).toEqual(builtInPaperPreset('default').style);
-    expect(container!.querySelector('.settings-paper-name')).toBeNull();
-    expect(container!.querySelector('.settings-paper-name__why')).toBeNull();
+    expect(nameField()).toBeNull();
+    expect(container!.textContent).not.toContain('Name a preset for your changes');
   });
 
   it('applies a preset without asking when nothing would be lost', () => {
@@ -542,7 +550,7 @@ describe('PaperSettings', () => {
     const rendered = render();
     act(() => findButton('Save current as…').click());
     expect(findButton('Save').disabled).toBe(true);
-    typeInto(rendered.querySelector<HTMLInputElement>('.settings-paper-name input')!, '  Mine ');
+    typeInto(input('Preset name'), '  Mine ');
     act(() => findButton('Save').click());
     expect(useSettingsStore.getState().paperStyle.presets.map((preset) => preset.name)).toEqual([
       'Mine',

@@ -1,0 +1,50 @@
+/*
+ * The presets, four across. Each is a picture of the style over its name, with
+ * its own verbs in the corner: a card is what tells two presets apart at a
+ * glance, which a list of names cannot.
+ */
+.presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Narrow: two presets across, and the verbs stay put in the smaller card. */
+@media (max-width: 620px) {
+  .presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The list's own verbs, under the cards. */
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The in-place name field: the input and its two buttons on one line. */
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/*
+ * Through the form, so it outranks the shared input look's own width instead
+ * of tying with it: which of two equal rules wins would be load order.
+ */
+.name .input {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+/* Why the name field opened when a picked preset is waiting on it. */
+.why {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
