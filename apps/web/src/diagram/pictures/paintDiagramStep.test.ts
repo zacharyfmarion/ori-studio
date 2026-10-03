@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramStep, KnownDiagramAsset, QuarterTurns } from '../document/diagramDocument';
 import { createStep, DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
-import { cpStep, fixedPicture, referencesStep } from '../document/diagramSteps.fixtures';
+import { storedSceneJson } from '../document/diagramFile';
+import { cpStep, fixedPicture, referencesStep, scenePicture } from '../document/diagramSteps.fixtures';
+import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
   paintAsset,
+  paintScene,
   paintStepPicture,
   poseTransform,
+  sceneMeasure,
   stepPictureSource,
 } from './paintDiagramStep';
 import { stepPictureUrl } from './useStepPictureUrl';
@@ -148,10 +152,21 @@ describe('paintStepPicture', () => {
     expect(plain.svg).not.toBe(painted.svg);
   });
 
-  it('measures a crease pattern by its sheet, and a folded model by the figure', () => {
+  it('tells a crease pattern, measured by its sheet, from a folded model, measured by the figure', () => {
     const flat = cpStep('step-1', { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 });
-    expect(stepPictureSource(cpStep('step-1'), {})).toMatchObject({ kind: 'scene', measure: 'sheet' });
-    expect(stepPictureSource(flat, {})).toMatchObject({ kind: 'scene', measure: 'figure' });
+    expect(stepPictureSource(cpStep('step-1'), {})).toMatchObject({ kind: 'scene', pattern: true });
+    expect(stepPictureSource(flat, {})).toMatchObject({ kind: 'scene', pattern: false });
+    expect(sceneMeasure(true)).toBe('sheet');
+    expect(sceneMeasure(false)).toBe('figure');
+  });
+
+  it('draws a crease pattern’s aux lines, the paper’s existing creases, whatever the style’s switch says', () => {
+    const picture = { ...scenePicture(), sceneJson: storedSceneJson(sheetWithCrease('aux'))! };
+    const auxPen = { width: 0.25, color: '#00ff00' as const, dash: null, cap: 'butt' as const };
+    const hidden = { style: { ...DEFAULT_PAPER_STYLE, auxCreases: { visible: false, pen: auxPen } } };
+    expect(paintScene({ kind: 'scene', picture, pattern: true }, hidden)!.svg).toContain('#00ff00');
+    // A folded model's are the style's to show or hide.
+    expect(paintScene({ kind: 'scene', picture, pattern: false }, hidden)!.svg).not.toContain('#00ff00');
   });
 
   it('draws a fixed picture as it is stored', () => {

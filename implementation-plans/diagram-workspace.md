@@ -1868,7 +1868,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - `openFold` / `readFoldedPicture`, and `CpFoldRuntime` (adds `setModel` and `foldAnother`); `createCpFoldRuntime(runId)` lives in `cpFoldRuntimeBindings.ts`.
     - `cp-workspace/regions/regionReference.ts` has `RegionReference`, `regionReferenceFor`, `resolveRegion` and `readRegionReference`. The ring matching and its tests move there with it.
     - `store/workspaceStore/foldRuns.ts` takes the store's `get` and `set`, and the CP slice wraps it. The Diagram's run kinds arrive with 3b.
-  - **Correction from the code map:** D5's "Crease pattern" row names `buildCreaseExportArtwork`, which yields SVG fragments, not a `PaperScene`. A crease-pattern step is instead built straight from the kernel's lines into a scene: the segment's paper as one face, and its lines with fold, edge and aux roles. The diagram style's fold pens are the crease-pattern pens.
+  - **Correction from the code map:** D5's "Crease pattern" row names `buildCreaseExportArtwork`, which yields SVG fragments, not a `PaperScene`. A crease-pattern step is instead built straight from the kernel's lines into a scene: the segment's paper as one face, and its lines with fold, edge and aux roles. The diagram style's fold pens are the crease-pattern pens. *(Superseded 2026-10-03, see "After Phase 7": a crease-pattern step is an instruction, its M/V in the diagram-crease pens and its aux lines the paper's existing creases.)*
   - **Correction from the code map:** the session ender's *phases* are `'session'` and `'bracket'`. `'history'` and `'document-replaced'` are the *reasons* a session is ended. The capture session registers as `'session'` and acts on the reason.
 - [x] **3b.** Capture and status.
   - `captureFolded.ts`: crease-pattern, flat and 3D captures through the session runtime, with:
@@ -2324,6 +2324,14 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - The analytics mapping was a cast; it is an exhaustive map, and the canvas's commit path — draw, click, pinch, cancel, move, an edit landing mid-drag, a finger's drift, read-only, focus — is tested (`DiagramAnnotateCanvas.test.tsx`; three mutants each fail one test).
   - **i18n.** The French and Russian tool names now use each locale's own mountain and valley terms.
   - Browser (Chromium, `artifacts/diagram-phase7/canvas-fixes.mjs`): a press moved focus to the canvas; a press on a fold-and-unfold arrow's head selected it; the middle button and Space panned, Space drawing nothing; a two-finger pinch zoomed with the Valley Line tool in hand and drew nothing; one finger drew. `annotate.mjs` replays unchanged.
+
+### After Phase 7: Zach's design pass (2026-10-03)
+
+- [x] **Crease-pattern steps draw as instructions.** On a page a crease pattern is the step's instruction, so it is drawn as References draws one: mountains and valleys in the diagram-crease pens (dash-dot and dashed, 0.75 pt in the Diagram style), aux lines in the aux pen as the creases already in the paper, the border in the edge pen. They were in the fold pens, which the Diagram style draws as the aux pen's 0.25 pt solid ink, so a mountain, a valley and an aux line looked alike.
+  - The roles are the capture's (`creasePatternScene`): the scene's producer says which pen a line takes (`penForRole`). A step captured before this keeps its fold pens until it is refreshed; the branch is unreleased, so no file in the wild has one.
+  - A crease pattern's aux lines are drawn whatever the style's aux switch says, as References draws the creases earlier steps made; a folded model's stay the switch's. One helper, `diagramScenePaintStyle`, for the card, the page cell and the over-budget raster. `StepPictureSource`'s scene now says `pattern` rather than `measure`, which follows from it (`sceneMeasure`).
+  - Before/after: `artifacts/diagram-cp-pens/cards-before-after.png` (crane steps 3 and 5, both re-captured, so the same pattern on both sides).
+  - Where several folds meet at a vertex each one's dash starts there, which reads as a small knot at the centre of a star of creases. Printed diagrams do the same; left as it is.
 
 ### Phase 8: simulated steps
 

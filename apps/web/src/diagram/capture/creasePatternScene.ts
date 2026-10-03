@@ -1,8 +1,10 @@
 /**
  * A crease-pattern step's picture (D5): the scope's paper as one face, and its
- * lines over it, each with the role that picks its pen — the border in the edge
- * pen, the folds in the fold pens, aux lines in the aux pen. Built straight
- * from the kernel's lines, with no fold.
+ * lines over it, each with the role that picks its pen. On a diagram a crease
+ * pattern is an instruction, drawn as References draws a step: its mountains
+ * and valleys in the diagram-crease pens — the folds to make — its aux lines
+ * in the aux pen, as the creases already in the paper, and its border in the
+ * edge pen. Built straight from the kernel's lines, with no fold.
  *
  * Pure: no store, no kernel.
  */
@@ -25,9 +27,9 @@ function lineRole(color: string): PaperLineRole {
     case 'Black0':
       return 'edge';
     case 'Red1':
-      return 'mountain';
+      return 'diagram-mountain';
     case 'Blue2':
-      return 'valley';
+      return 'diagram-valley';
     default:
       // Cyan3, and any other colour a construction line can carry.
       return 'aux';
@@ -35,7 +37,12 @@ function lineRole(color: string): PaperLineRole {
 }
 
 /** Which draws over which: aux lines under the folds, the paper's edge over all. */
-const ROLE_LAYER: Partial<Record<PaperLineRole, number>> = { aux: 0, mountain: 1, valley: 1, edge: 2 };
+const ROLE_LAYER: Partial<Record<PaperLineRole, number>> = {
+  aux: 0,
+  'diagram-mountain': 1,
+  'diagram-valley': 1,
+  edge: 2,
+};
 
 /**
  * The scope's creases as a scene, turned clockwise by `rotationDeg` about the

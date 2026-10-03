@@ -32,7 +32,7 @@ import {
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { SVG_NS } from '../upload/svgSanitize';
-import { diagramSurfaceStyle } from './diagramPaperStyle';
+import { diagramScenePaintStyle } from './diagramPaperStyle';
 import { paintStepDiagram } from './paintStepDiagram';
 
 /** A box in a painted picture, in its CSS px. */
@@ -112,12 +112,28 @@ export function paintAsset(asset: KnownDiagramAsset, pose: PicturePose = UPRIGHT
 }
 
 /**
+ * A captured scene, and whether it is a crease pattern — measured by its
+ * sheet, its aux lines the paper's existing creases — or a folded model,
+ * measured by the figure itself, its sheet nowhere in it.
+ */
+export interface SceneSource {
+  kind: 'scene';
+  picture: DiagramScenePicture;
+  pattern: boolean;
+}
+
+/** What a scene's page size measures: a crease pattern's sheet, a folded model's figure. */
+export function sceneMeasure(pattern: boolean): PaperSizeMeasure {
+  return pattern ? 'sheet' : 'figure';
+}
+
+/**
  * What a step's picture is drawn from, or `null` when it has none this build
  * can draw: an empty step, a newer build's, or one whose asset is missing.
  */
 export type StepPictureSource =
   | { kind: 'asset'; asset: KnownDiagramAsset; pose: PicturePose }
-  | { kind: 'scene'; picture: DiagramScenePicture; measure: PaperSizeMeasure }
+  | SceneSource
   | { kind: 'fixed'; picture: DiagramFixedPicture }
   | { kind: 'step-diagram'; picture: DiagramStepDiagramPicture };
 
@@ -140,12 +156,7 @@ export function stepPictureSource(
       };
     }
     case 'scene':
-      return {
-        kind: 'scene',
-        picture,
-        // A crease pattern shows its sheet; a folded model's sheet is nowhere in it.
-        measure: source?.kind === 'cp' && source.render.mode !== 'crease-pattern' ? 'figure' : 'sheet',
-      };
+      return { kind: 'scene', picture, pattern: !(source?.kind === 'cp' && source.render.mode !== 'crease-pattern') };
     case 'fixed':
       return { kind: 'fixed', picture };
     case 'step-diagram':
@@ -172,11 +183,11 @@ export const STEP_CARD_PADDING_MM = 1;
  * a path.
  */
 export function paintScene(
-  picture: DiagramScenePicture,
-  measure: PaperSizeMeasure,
+  { picture, pattern }: SceneSource,
   style: DiagramStyle,
   paddingMm: number = STEP_CARD_PADDING_MM
 ): PaintedPicture | null {
+  const measure = sceneMeasure(pattern);
   let raw: unknown;
   try {
     raw = JSON.parse(picture.sceneJson);
@@ -185,7 +196,7 @@ export function paintScene(
   }
   const scene = readPaperScene(raw);
   if (!scene) return null;
-  const surface = diagramSurfaceStyle(style);
+  const surface = diagramScenePaintStyle(style, pattern);
   const page = stepScenePage(paddingMm);
   const painted = paperSceneToSvg(scene, surface, page, measure);
   // The frame is the scene's bounds, which the painter puts at the margin.
@@ -215,7 +226,7 @@ export function paintSource(
     case 'asset':
       return paintAsset(source.asset, source.pose);
     case 'scene':
-      return paintScene(source.picture, source.measure, style, paddingMm);
+      return paintScene(source, style, paddingMm);
     case 'fixed': {
       const { svg, widthPx, heightPx } = source.picture;
       return { svg, widthPx, heightPx, frame: { x: 0, y: 0, width: widthPx, height: heightPx } };

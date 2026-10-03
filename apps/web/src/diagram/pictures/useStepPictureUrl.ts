@@ -70,7 +70,7 @@ function sourceKey(source: StepPictureSource): string {
     case 'asset':
       return `asset|${objectSerial(source.asset)}|${source.pose.rotationQuarterTurns}|${source.pose.mirrored ? 'm' : ''}`;
     case 'scene':
-      return `scene|${objectSerial(source.picture)}|${source.measure}`;
+      return `scene|${objectSerial(source.picture)}|${source.pattern ? 'pattern' : 'figure'}`;
     case 'fixed':
       return `fixed|${objectSerial(source.picture)}`;
     case 'step-diagram':
@@ -90,10 +90,9 @@ export function stepPictureUrl(source: StepPictureSource, style: DiagramStyle): 
     case 'asset':
       return posedAssetUrl(source.asset, source.pose);
     case 'scene': {
-      const { picture, measure } = source;
-      const key = `scene|${objectSerial(picture)}|${measure}|${diagramStyleKey(style)}`;
+      const key = `${sourceKey(source)}|${diagramStyleKey(style)}`;
       return cachedPictureUrl(key, () => {
-        const painted = paintScene(picture, measure, style);
+        const painted = paintScene(source, style);
         return painted ? svgDataUrl(painted.svg) : null;
       });
     }

@@ -29,7 +29,7 @@ import type {
   DiagramStepDiagramPicture,
   DiagramStyle,
 } from '../document/diagramDocument';
-import { diagramStyleKey, diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
+import { diagramScenePaintStyle, diagramStyleKey } from '../pictures/diagramPaperStyle';
 import { paintSource, poseTransform, stepPictureSource, type StepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
 import { hasDrawnAnnotations, paintAnnotations } from '../annotate/paintAnnotations';
@@ -288,7 +288,7 @@ function draw(
       const span = longerSide(scene.bounds);
       const ptPerPx =
         mmPerUnit !== null && scale ? (mmPerUnit * PT_PER_MM) / scale : span > 0 ? box.size / span : PT_PER_CSS_PX;
-      const placed = placedScene(scene, diagramSurfaceStyle(style), box, ptPerPx);
+      const placed = placedScene(scene, diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
       // A scene's frame is its bounds.
       return { ...placed, framePt: placed.boundsPt, text: [], fitted: !(mmPerUnit !== null && scale) };
     }

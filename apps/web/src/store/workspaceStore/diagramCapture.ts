@@ -28,7 +28,8 @@ import {
   type DiagramStyle,
   type KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
-import { diagramStyleKey, diagramSurfaceStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { diagramScenePaintStyle, diagramStyleKey } from '../../diagram/pictures/diagramPaperStyle';
+import { sceneMeasure } from '../../diagram/pictures/paintDiagramStep';
 import { digest } from '../../diagram/pictures/pictureKey';
 import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 import { cpAuxLinesKey, NO_AUX_LINES_KEY } from '../../cp-workspace/folded/foldedAuxSource';
@@ -357,8 +358,9 @@ export async function keptPicture(
     background: null,
     keepHiddenFaces: false,
   };
-  const measure = render.mode === 'crease-pattern' ? 'sheet' : 'figure';
-  const page = paperSceneToSvg(captured.scene, diagramSurfaceStyle(style), pagePaper, measure);
+  const pattern = render.mode === 'crease-pattern';
+  const measure = sceneMeasure(pattern);
+  const page = paperSceneToSvg(captured.scene, diagramScenePaintStyle(style, pattern), pagePaper, measure);
   const png = await paperSvgToPng(page, CAPTURE_RASTER_DPI);
   const { width, height } = paperPngSize(page, CAPTURE_RASTER_DPI);
   const src = `data:image/png;base64,${bytesToBase64(png)}`;

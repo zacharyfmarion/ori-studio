@@ -9,17 +9,19 @@ import { CAPTURE_PX_PER_UNIT, storableScene } from './captureGeometry';
 import { clipToBox, creasePatternScene } from './creasePatternScene';
 
 const segmentation = twoSquaresSegmentation();
-const [left] = resolveCpSegments(segmentation);
+const [left, right] = resolveCpSegments(segmentation);
 
-function leftCreases(): StepCreases {
+function regionCreases(segment: typeof left): StepCreases {
   const choice = chooseStepCreases(
     cpDocument(),
-    { kind: 'segment', region: regionReferenceFor(left!) },
+    { kind: 'segment', region: regionReferenceFor(segment!) },
     segmentation
   );
-  if (choice.status !== 'found') throw new Error('the left region should be found');
+  if (choice.status !== 'found') throw new Error('the region should be found');
   return choice.creases;
 }
+
+const leftCreases = () => regionCreases(left);
 
 const lines = (scene: PaperScene) => scene.items.filter((item): item is PaperLineItem => item.kind === 'line');
 
@@ -27,10 +29,15 @@ describe('creasePatternScene', () => {
   it('fills the region with paper and draws its lines over it, each in its role', () => {
     const scene = creasePatternScene(cpDocument(), leftCreases(), 0);
     expect(scene.items[0]).toMatchObject({ kind: 'face', side: 'front', shade: 1, hidden: false });
-    expect(lines(scene).map((item) => item.role)).toEqual(['aux', 'mountain', 'edge', 'edge', 'edge', 'edge']);
+    expect(lines(scene).map((item) => item.role)).toEqual(['aux', 'diagram-mountain', 'edge', 'edge', 'edge', 'edge']);
     // At Edit's 100%: the 100-unit square is that many px across.
     expect(scene.sheet).toBeCloseTo(100 * CAPTURE_PX_PER_UNIT);
     expect(scene.bounds.maxX - scene.bounds.minX).toBeCloseTo(100 * CAPTURE_PX_PER_UNIT);
+  });
+
+  it('draws its folds as the diagram creases to make: a valley in the valley pen', () => {
+    const scene = creasePatternScene(cpDocument(), regionCreases(right), 0);
+    expect(lines(scene).map((item) => item.role)).toEqual(['diagram-valley', 'edge', 'edge', 'edge', 'edge']);
   });
 
   it('pulls an aux line back where it meets the paper’s edge or a fold, and nowhere else', () => {
@@ -56,7 +63,7 @@ describe('creasePatternScene', () => {
     // A square turned an eighth is √2 across.
     expect(turned.bounds.maxX - turned.bounds.minX).toBeCloseTo(upright.sheet * Math.SQRT2);
     // Clockwise on a y-down page: the mountain diagonal, top-left to bottom-right, turns upright.
-    const diagonal = lines(turned).find((item) => item.role === 'mountain')!;
+    const diagonal = lines(turned).find((item) => item.role === 'diagram-mountain')!;
     expect(diagonal.a[0]).toBeCloseTo(diagonal.b[0]);
   });
 

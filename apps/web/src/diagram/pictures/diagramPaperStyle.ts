@@ -22,6 +22,18 @@ export function diagramSurfaceStyle(style: DiagramStyle): PaperStyle {
 }
 
 /**
+ * The style a captured scene is painted with: {@link diagramSurfaceStyle},
+ * and for a crease pattern its aux switch on. A crease pattern's aux lines are
+ * the creases already in the paper — drawn whatever the switch says, as
+ * References draws the creases earlier steps made — where a folded model's
+ * are the style's to show or hide.
+ */
+export function diagramScenePaintStyle(style: DiagramStyle, pattern: boolean): PaperStyle {
+  const painted = diagramSurfaceStyle(style);
+  return pattern ? { ...painted, auxCreases: { ...painted.auxCreases, visible: true } } : painted;
+}
+
+/**
  * A key that changes exactly when the drawn style does, for the picture
  * cache. Taken over the resolved style rather than the stored form, so a
  * preset and the same style stored whole share their cached pictures.
