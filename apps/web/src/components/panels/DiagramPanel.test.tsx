@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readDiagram } from '../../diagram/document/diagramFile';
+import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramPanel } from './DiagramPanel';
@@ -45,6 +46,28 @@ const buttonNamed = (name: string) =>
 const options = () => [...(host?.querySelectorAll('[role="option"]') ?? [])] as HTMLElement[];
 const titleField = () => host?.querySelector('input[aria-label="Diagram title"]') as HTMLInputElement;
 const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+
+/** A key as the app's one keydown listener hands it to the shortcut runtime. */
+function press(init: KeyboardEventInit, target: EventTarget = document.body) {
+  const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+  Object.defineProperty(event, 'target', { value: target });
+  let claimed = false;
+  act(() => {
+    claimed = handleShortcutRuntimeKeyDown(event, {
+      context: { activeEditingContext: 'diagram' },
+      menu: () => undefined,
+    });
+  });
+  return claimed;
+}
+
+const menuItems = () =>
+  [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].map((item) => item.textContent);
+
+function addSteps(count: number) {
+  for (let index = 0; index < count; index++) act(() => buttonNamed('Add step')?.click());
+  return state().diagram!.steps.map((step) => step.id);
+}
 
 function type(input: HTMLInputElement, value: string) {
   act(() => {
@@ -108,5 +131,86 @@ describe('DiagramPanel', () => {
     expect(host?.textContent).toContain('opens read-only');
     expect(buttonNamed('Add step')?.disabled).toBe(true);
     expect(titleField().disabled).toBe(true);
+  });
+
+  describe('keys', () => {
+    it('walks the steps with the arrows, moves one with Alt, and lets Escape deselect', () => {
+      const [first, second, third] = addSteps(3);
+      act(() => state().selectDiagramStep(first));
+
+      expect(press({ key: 'ArrowRight' })).toBe(true);
+      expect(state().diagramSelectedStepId).toBe(second);
+      expect(press({ key: 'ArrowRight', altKey: true })).toBe(true);
+      expect(state().diagram?.steps.map((step) => step.id)).toEqual([first, third, second]);
+
+      expect(press({ key: 'Escape' })).toBe(true);
+      expect(state().diagramSelectedStepId).toBeNull();
+      // Nothing left to cancel: Escape goes on to whatever is beneath.
+      expect(press({ key: 'Escape' })).toBe(false);
+    });
+
+    it('leaves the arrows to a control that uses them', () => {
+      const [first] = addSteps(2);
+      act(() => state().selectDiagramStep(first));
+      const strip = document.createElement('div');
+      strip.setAttribute('role', 'tablist');
+      const tab = document.createElement('button');
+      strip.append(tab);
+      document.body.append(strip);
+      try {
+        act(() => tab.focus());
+        expect(press({ key: 'ArrowRight' }, tab)).toBe(false);
+        expect(state().diagramSelectedStepId).toBe(first);
+      } finally {
+        strip.remove();
+      }
+    });
+
+    it('opens the selected step’s menu from the keyboard', () => {
+      addSteps(2);
+      // jsdom lays nothing out, so give the card a box to anchor the menu to.
+      const card = host?.querySelector<HTMLElement>('[aria-selected="true"]');
+      card!.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+      expect(press({ key: 'F10', shiftKey: true })).toBe(true);
+      expect(menuItems().some((row) => row?.startsWith('Delete Step'))).toBe(true);
+    });
+  });
+
+  describe('the card menu', () => {
+    it('selects the card it opens on and offers that step’s verbs', () => {
+      const [first, second] = addSteps(2);
+      act(() => {
+        options()[0].dispatchEvent(
+          new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })
+        );
+      });
+      expect(state().diagramSelectedStepId).toBe(first);
+      // Each row is its label, then the key that runs it where there is one.
+      const rows = menuItems();
+      expect(rows).toHaveLength(6);
+      [
+        'Insert Step Before',
+        'Insert Step After',
+        'Duplicate Step',
+        'Move Earlier',
+        'Move Later',
+        'Delete Step',
+      ].forEach((label, index) => expect(rows[index]).toMatch(new RegExp(`^${label}`)));
+      const moveLater = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+        (item) => item.textContent?.startsWith('Move Later')
+      );
+      act(() => moveLater?.click());
+      expect(state().diagram?.steps.map((step) => step.id)).toEqual([second, first]);
+    });
+
+    it('offers Add Step on the space between cards', () => {
+      addSteps(1);
+      act(() => {
+        (host?.querySelector('[role="listbox"]') as HTMLElement).dispatchEvent(
+          new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 })
+        );
+      });
+      expect(menuItems()).toEqual(['Add Step']);
+    });
   });
 });

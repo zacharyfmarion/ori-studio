@@ -210,6 +210,14 @@
     "menuRow": "折痕角度：{{angle}}",
     "title": "折痕角度"
   },
+  "diagram": {
+    "categoryLabel": "图解",
+    "moveStepEarlier": "前移步骤",
+    "moveStepLater": "后移步骤",
+    "nextStep": "下一步",
+    "previousStep": "上一步",
+    "scopeLabel": "图解"
+  },
   "divideMode": {
     "count": "数量",
     "countTitle": "将线等分",

@@ -684,6 +684,7 @@
   },
   "diagram": {
     "actions": {
+      "addStep": "Schritt hinzufügen",
       "delete": "Schritt löschen",
       "duplicate": "Schritt duplizieren",
       "firstHint": "Bereits der erste Schritt",

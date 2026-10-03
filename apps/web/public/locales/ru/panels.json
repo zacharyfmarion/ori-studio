@@ -742,6 +742,7 @@
   },
   "diagram": {
     "actions": {
+      "addStep": "Добавить шаг",
       "delete": "Удалить шаг",
       "duplicate": "Дублировать шаг",
       "firstHint": "Это уже первый шаг",

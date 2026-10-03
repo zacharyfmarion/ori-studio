@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   handleShortcutRuntimeKeyDown,
   registerCpActionShortcutExecutor,
+  registerDiagramShortcutExecutor,
   hasSimulatorExecutor,
+  releaseShortcutViewportSurface,
+  setActiveShortcutViewportSurface,
   registerReferencesShortcutExecutor,
   registerSimulatorShortcutExecutor,
   registerViewportShortcutExecutor,
@@ -186,6 +189,93 @@ describe('shortcut runtime', () => {
 
     expect(cpAction).toHaveBeenCalledWith('cp.action.inward');
     expect(menu).not.toHaveBeenCalled();
+  });
+
+  describe('the Diagram', () => {
+    const key = (init: KeyboardEventInit) =>
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+
+    it('pushes its scope only in its own context, while its panel holds an executor', () => {
+      expect(shortcutScopeStackForContext({ activeEditingContext: 'diagram' })).toEqual([
+        'viewport',
+        'global',
+      ]);
+      cleanupWith(registerDiagramShortcutExecutor(() => true));
+      expect(shortcutScopeStackForContext({ activeEditingContext: 'diagram' })).toEqual([
+        'diagram',
+        'viewport',
+        'global',
+      ]);
+      // Never beside the crease-pattern scope, even with the executor left behind.
+      expect(shortcutScopeStackForContext({ activeEditingContext: 'crease-pattern' })).toEqual([
+        'viewport',
+        'crease-pattern',
+        'global',
+      ]);
+    });
+
+    it('sends the arrows to its executor, and on to the next scope when it declines', () => {
+      const diagram = vi.fn(() => true);
+      cleanupWith(registerDiagramShortcutExecutor(diagram));
+      const viewport = vi.fn(() => false);
+      cleanupWith(registerViewportShortcutExecutor('diagram', viewport));
+      const context = { activeEditingContext: 'diagram' as const, activeViewportSurface: null };
+
+      const claimed = key({ key: 'ArrowRight' });
+      expect(handleShortcutRuntimeKeyDown(claimed, { context, menu: vi.fn() })).toBe(true);
+      expect(diagram).toHaveBeenLastCalledWith('diagram.nextStep');
+      expect(claimed.defaultPrevented).toBe(true);
+
+      expect(
+        handleShortcutRuntimeKeyDown(key({ key: 'ArrowLeft', altKey: true }), {
+          context,
+          menu: vi.fn(),
+        })
+      ).toBe(true);
+      expect(diagram).toHaveBeenLastCalledWith('diagram.moveStepEarlier');
+
+      diagram.mockReturnValue(false);
+      const declined = key({ key: 'ArrowRight' });
+      expect(handleShortcutRuntimeKeyDown(declined, { context, menu: vi.fn() })).toBe(false);
+      expect(declined.defaultPrevented).toBe(false);
+    });
+
+    it('gives Escape to the diagram viewport surface in its context', () => {
+      const viewport = vi.fn(() => true);
+      cleanupWith(registerViewportShortcutExecutor('diagram', viewport));
+      expect(
+        handleShortcutRuntimeKeyDown(key({ key: 'Escape' }), {
+          context: { activeEditingContext: 'diagram', activeViewportSurface: null },
+          menu: vi.fn(),
+        })
+      ).toBe(true);
+      expect(viewport).toHaveBeenCalledWith('viewport.cancel');
+    });
+
+    it('lets go of its viewport claim, so the next workspace’s keys reach their own surface', () => {
+      const cp = vi.fn(() => true);
+      cleanupWith(registerViewportShortcutExecutor('crease-pattern', cp));
+      setActiveShortcutViewportSurface('diagram');
+      releaseShortcutViewportSurface('diagram');
+      expect(
+        handleShortcutRuntimeKeyDown(key({ key: 'Escape' }), {
+          context: { activeEditingContext: 'crease-pattern' },
+          menu: vi.fn(),
+        })
+      ).toBe(true);
+      expect(cp).toHaveBeenCalledWith('viewport.cancel');
+
+      // And never another surface's claim.
+      setActiveShortcutViewportSurface('tree');
+      releaseShortcutViewportSurface('diagram');
+      cp.mockClear();
+      handleShortcutRuntimeKeyDown(key({ key: 'Escape' }), {
+        context: { activeEditingContext: 'crease-pattern' },
+        menu: vi.fn(),
+      });
+      expect(cp).not.toHaveBeenCalled();
+      releaseShortcutViewportSurface('tree');
+    });
   });
 
   it('routes viewport shortcuts to the active surface executor', () => {

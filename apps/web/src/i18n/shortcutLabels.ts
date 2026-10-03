@@ -89,6 +89,14 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:references.exportStepSvg', 'Export step as SVG…');
     case 'references.exportStepPng':
       return t('tools:references.exportStepPng', 'Export step as PNG…');
+    case 'diagram.previousStep':
+      return t('tools:diagram.previousStep', 'Previous Step');
+    case 'diagram.nextStep':
+      return t('tools:diagram.nextStep', 'Next Step');
+    case 'diagram.moveStepEarlier':
+      return t('tools:diagram.moveStepEarlier', 'Move Step Earlier');
+    case 'diagram.moveStepLater':
+      return t('tools:diagram.moveStepLater', 'Move Step Later');
     default:
       return definition.label;
   }
@@ -104,6 +112,8 @@ export function shortcutScopeLabel(t: TFunction, scope: ShortcutScope): string {
       return t('dialogs:settings.shortcuts.scopeViewport', 'viewport');
     case 'references':
       return t('tools:references.scopeLabel', 'references');
+    case 'diagram':
+      return t('tools:diagram.scopeLabel', 'diagram');
     default:
       return scope;
   }
@@ -148,6 +158,8 @@ export function shortcutCategoryLabel(t: TFunction, category: string): string {
       return t('dialogs:settings.shortcuts.categoryFold', 'Fold');
     case 'References':
       return t('tools:references.categoryLabel', 'References');
+    case 'Diagram':
+      return t('tools:diagram.categoryLabel', 'Diagram');
     default:
       return category;
   }

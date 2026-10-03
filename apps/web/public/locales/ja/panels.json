@@ -655,6 +655,7 @@
   },
   "diagram": {
     "actions": {
+      "addStep": "ステップを追加",
       "delete": "ステップを削除",
       "duplicate": "ステップを複製",
       "firstHint": "すでに最初のステップです",

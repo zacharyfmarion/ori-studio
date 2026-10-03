@@ -234,6 +234,14 @@
     "menuRow": "Угол складки: {{angle}}",
     "title": "Угол складки"
   },
+  "diagram": {
+    "categoryLabel": "Схема",
+    "moveStepEarlier": "Переместить шаг раньше",
+    "moveStepLater": "Переместить шаг позже",
+    "nextStep": "Следующий шаг",
+    "previousStep": "Предыдущий шаг",
+    "scopeLabel": "схема"
+  },
   "divideMode": {
     "count": "Количество",
     "countTitle": "Разделить линию на равные части",

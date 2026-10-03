@@ -713,6 +713,7 @@
   },
   "diagram": {
     "actions": {
+      "addStep": "Añadir paso",
       "delete": "Eliminar paso",
       "duplicate": "Duplicar paso",
       "firstHint": "Ya es el primer paso",

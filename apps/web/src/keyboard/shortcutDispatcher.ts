@@ -1,4 +1,5 @@
 import {
+  type DiagramShortcutId,
   getResolvedShortcuts,
   keyChordEquals,
   keyChordFromKeyboardEvent,
@@ -35,8 +36,8 @@ export interface ShortcutExecutors {
    * so Delete died on the BP and design canvases with nothing to show for it.
    * A required boolean makes that a compile error rather than a dead key.
    *
-   * Only viewport executors can decline, because only they are synchronous. A
-   * menu action returns a promise, so whether it handled the chord is not known
+   * Only viewport executors (and the Diagram's, below) can decline, because only
+   * they are synchronous. A menu action returns a promise, so whether it handled the chord is not known
    * until well after the keydown has to be preventDefault'd or not.
    */
   viewport?: (id: ViewportShortcutId) => boolean;
@@ -52,6 +53,12 @@ export interface ShortcutExecutors {
    * `references` scope resolves nothing and the chord falls through.
    */
   references?: (id: ReferencesShortcutId) => unknown;
+  /**
+   * Registered only while the Diagram owns the keyboard. The one scope executor
+   * besides a viewport's that may decline — synchronous for the same reason —
+   * so its arrows give way to a focused button or tab strip.
+   */
+  diagram?: (id: DiagramShortcutId) => boolean;
 }
 
 export interface ShortcutDispatchOptions {
@@ -195,5 +202,9 @@ function executeShortcut(
       if (!executors.references) return false;
       void executors.references(id as ReferencesShortcutId);
       return true;
+    case 'diagram':
+      if (!executors.diagram) return false;
+      // As for a viewport: only an explicit claim counts.
+      return executors.diagram(id as DiagramShortcutId) === true;
   }
 }

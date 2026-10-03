@@ -226,6 +226,14 @@
     "menuRow": "Angle de pli : {{angle}}",
     "title": "Angle de pli"
   },
+  "diagram": {
+    "categoryLabel": "Diagramme",
+    "moveStepEarlier": "Avancer l’étape",
+    "moveStepLater": "Reculer l’étape",
+    "nextStep": "Étape suivante",
+    "previousStep": "Étape précédente",
+    "scopeLabel": "diagramme"
+  },
   "divideMode": {
     "count": "Nombre",
     "countTitle": "Diviser la ligne en parts égales",

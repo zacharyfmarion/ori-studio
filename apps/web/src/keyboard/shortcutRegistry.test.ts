@@ -3,6 +3,7 @@ import {
   SHORTCUT_DEFINITIONS,
   classifyReservedKey,
   getShortcutRegistryDiagnostics,
+  isConditionalShortcutScope,
   keyChordId,
   shortcutMayDecline,
   type ShortcutActionId,
@@ -167,11 +168,11 @@ describe('adopted single-key layout', () => {
   // chord reaches the fold then and the CP tool the rest of the time. Asserting
   // global chord uniqueness would forbid exactly what the scope stack exists to
   // allow. The arbitration itself is covered in shortcutDispatcher.test.ts.
-  // `references` is the same kind of scope -- present only while its panel is
-  // mounted -- and shares the simulator's arrows and zoom keys.
+  // `references` and `diagram` are the same kind of scope -- present only while
+  // their panel is mounted -- and share the simulator's arrows.
   const byChord = new Map<string, string[]>();
   for (const definition of SHORTCUT_DEFINITIONS) {
-    if (definition.scope === 'simulator' || definition.scope === 'references') continue;
+    if (isConditionalShortcutScope(definition.scope)) continue;
     for (const chord of definition.defaultChords) {
       const id = keyChordId(chord);
       byChord.set(id, [...(byChord.get(id) ?? []), definition.id]);
@@ -210,8 +211,7 @@ describe('adopted single-key layout', () => {
     const alwaysPresent = new Set(
       SHORTCUT_DEFINITIONS.filter(
         (d) =>
-          d.scope !== 'simulator' &&
-          d.scope !== 'references' &&
+          !isConditionalShortcutScope(d.scope) &&
           d.scope !== 'viewport' &&
           !shortcutMayDecline(d.id)
       ).flatMap((d) => d.defaultChords.map(keyChordId))
@@ -228,6 +228,30 @@ describe('adopted single-key layout', () => {
     // the key here spares the reader a surprise rather than costing one. An
     // allow-list, so a second collision still fails.
     expect(collisions).toEqual(['references.playFold=space']);
+  });
+
+  it('keeps the diagram scope off every always-present chord, with no Escape or Enter', () => {
+    // The Diagram is a workspace of its own, like References, so it has no
+    // reason to take a key that a `global` or `crease-pattern` binding always
+    // claims. Its arrows coincide only with conditional and declining bindings
+    // (References' steps, the fold-angle solutions), which are never live where
+    // the Diagram is. Escape and Enter stay off it: Escape is `viewport.cancel`
+    // and its ladder, and Enter will open a step through the viewport surface,
+    // where a focused button can keep it.
+    const alwaysPresent = new Set(
+      SHORTCUT_DEFINITIONS.filter(
+        (d) =>
+          !isConditionalShortcutScope(d.scope) &&
+          d.scope !== 'viewport' &&
+          !shortcutMayDecline(d.id)
+      ).flatMap((d) => d.defaultChords.map(keyChordId))
+    );
+    const diagramChords = SHORTCUT_DEFINITIONS.filter((d) => d.scope === 'diagram').flatMap((d) =>
+      d.defaultChords.map(keyChordId)
+    );
+    expect(diagramChords.filter((chord) => alwaysPresent.has(chord))).toEqual([]);
+    expect(diagramChords).not.toContain('escape');
+    expect(diagramChords).not.toContain('enter');
   });
 
   it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {

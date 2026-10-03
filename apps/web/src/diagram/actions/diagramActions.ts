@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import type { ShortcutActionId } from '../../keyboard/shortcuts';
 
 /**
  * The verbs a diagram step offers, in the order every surface presents them:
@@ -27,6 +28,12 @@ export interface DiagramStepCommand {
   /** Why it is disabled, for a tooltip or a menu row's hint. */
   hint?: string;
   danger?: boolean;
+  /**
+   * The key that runs the same verb, for a surface that shows chords (a menu
+   * row). Its own path: the key goes through the shortcut runtime, the row
+   * through `run`; both end at the same store action.
+   */
+  shortcutId?: ShortcutActionId;
   run: () => void;
 }
 
@@ -60,6 +67,13 @@ export interface DiagramStepActionDeps {
   remove: () => void;
 }
 
+/** The verbs that have a key of their own. */
+const STEP_ACTION_SHORTCUTS: Partial<Record<DiagramStepActionId, ShortcutActionId>> = {
+  'move-earlier': 'diagram.moveStepEarlier',
+  'move-later': 'diagram.moveStepLater',
+  delete: 'edit.delete',
+};
+
 export function buildDiagramStepActions(
   state: DiagramStepActionState,
   deps: DiagramStepActionDeps
@@ -78,6 +92,7 @@ export function buildDiagramStepActions(
     danger?: boolean
   ): DiagramStepCommand => {
     const disabled = state.readOnly || blocked;
+    const shortcutId = STEP_ACTION_SHORTCUTS[id];
     return {
       kind: 'command',
       id,
@@ -85,6 +100,7 @@ export function buildDiagramStepActions(
       disabled,
       hint: state.readOnly ? readOnlyHint : blocked ? hint : undefined,
       ...(danger ? { danger } : {}),
+      ...(shortcutId ? { shortcutId } : {}),
       run,
     };
   };

@@ -218,6 +218,14 @@
     "menuRow": "Crease angle: {{angle}}",
     "title": "Crease angle"
   },
+  "diagram": {
+    "categoryLabel": "Diagram",
+    "moveStepEarlier": "Move Step Earlier",
+    "moveStepLater": "Move Step Later",
+    "nextStep": "Next Step",
+    "previousStep": "Previous Step",
+    "scopeLabel": "diagram"
+  },
   "divideMode": {
     "count": "Count",
     "countTitle": "Divide the line into equal parts",

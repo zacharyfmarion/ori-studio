@@ -1764,19 +1764,27 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - Delete asks first through one slice action, `confirmDeleteDiagramSteps`, which the key, the pane and the menu all use, and which refuses to delete into a diagram that replaced the one asked about.
     - New shared primitive: `components/ui/Notice`.
     - Found on the way and filed separately: `BpNameEditor`'s Escape commits the typed name instead of reverting it (a stale blur closure).
-- [ ] **1e.** Keys and the context menu.
+- [x] **1e.** Keys and the context menu.
   - `diagramActions.ts`, `diagramShortcuts.ts` and `useDiagramShortcuts.ts`.
   - The `'diagram'` viewport surface and executor: ← / →, Alt+← / →, and the Escape ladder (Enter arrives with step detail in 2c).
   - The conditional scope, with no bindings in Phase 1, added to `CONDITIONAL_SCOPES`, `SHORTCUT_SCOPE_PRECEDENCE` and `shortcutScopeStackForContext`.
   - `viewportSurfaceForContext`, and the single-owner executor rule (D12).
   - The registry test changes; `shortcutLabels` cases.
   - The card context menu with `ContextMenuSurface 'diagram'`.
-- [ ] **Browser:**
+  - As built — a change to D12's keyboard design, for a reason found in the dispatcher:
+    - The dispatcher runs only the *first* definition in a scope that matches a chord, and a decline moves on to the next scope, not the next definition. So `viewport.diagramPrev` on ← could never be reached behind `viewport.solveAnglesPrevious` on the same chord. The Settings capture rules and the Oriedita import both encode that first-match rule, so changing the dispatcher would have reached into both.
+    - Instead the conditional `'diagram'` scope's executor may decline, as a viewport's may (`ShortcutExecutors.diagram` returns a boolean). With that, the reason D12 kept arrows out of the scope is gone: ← / → and Alt+← / → live there as `diagram.previousStep` / `nextStep` / `moveStepEarlier` / `moveStepLater`. Conditional scopes are already deferrals to every conflict rule, so nothing else had to learn about them.
+    - The arrows decline only while a control that uses arrows has focus (tab strip, radio group, toolbar, menu, slider, field). Declining for every interactive target, as D12 proposed, would make ← dead after a press on Add step, where a button's arrows do nothing. Enter (2c) will decline for any interactive target, as D12 says.
+    - Escape stays `viewport.cancel` on the `'diagram'` surface, with Phase 1's one rung (deselect). Shift+F10 (`viewport.contextMenu`) opens the selected step's menu at its card.
+    - The panel claims the `'diagram'` viewport surface on mount and on press, and releases it on unmount (`releaseShortcutViewportSurface`), so the next workspace's viewport keys reach their own surface rather than one that is gone.
+    - The registry test asserts the scope takes no always-present chord, Escape or Enter; arrows are allowed.
+- [x] **Browser:**
   - a cold deep link to `/diagram`;
   - add, insert, duplicate, move (keys and position field) and delete steps, then undo each;
-  - Enter on a focused button still clicks it;
-  - save, reopen and land, including a diagram-only project and a diagram-only file opened over a CP project;
+  - Enter on a focused button still clicks it (nothing binds Enter in Phase 1; the rule is tested for 2c);
+  - save, reopen and land, including a diagram-only project and a diagram-only file opened over a CP project (opened by a real drop through the file-drop controller; saved through the real save path with an in-page file service, since the pane cannot drive a native save dialog);
   - switch workspaces and back; the view state survives.
+  - Found and fixed on the way: the title field was sized to its placeholder, and focus fell to the page when the focused card was deleted.
 
 ### Phase 2: uploaded pictures, painting and the step detail
 

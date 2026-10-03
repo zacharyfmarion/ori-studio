@@ -218,6 +218,14 @@
     "menuRow": "Faltwinkel: {{angle}}",
     "title": "Faltwinkel"
   },
+  "diagram": {
+    "categoryLabel": "Diagramm",
+    "moveStepEarlier": "Schritt nach vorne",
+    "moveStepLater": "Schritt nach hinten",
+    "nextStep": "Nächster Schritt",
+    "previousStep": "Vorheriger Schritt",
+    "scopeLabel": "Diagramm"
+  },
   "divideMode": {
     "count": "Anzahl",
     "countTitle": "Die Linie in gleiche Teile teilen",

@@ -655,6 +655,7 @@
   },
   "diagram": {
     "actions": {
+      "addStep": "添加步骤",
       "delete": "删除步骤",
       "duplicate": "复制步骤",
       "firstHint": "已经是第一步",

@@ -19,9 +19,17 @@ import { isDesktopRuntime, isWindowsPlatform } from '../platform/runtime';
  * keys, and Space is already space-to-pan on the Edit canvas. `references` is
  * the same arrangement for the References workspace: pushed only while its
  * panel has registered an executor, so its arrows and zoom keys never reach the
- * Edit canvas.
+ * Edit canvas. `diagram` is the same again for the Diagram workspace, with one
+ * difference: its executor may decline, as a viewport's does, so its arrows
+ * stand down for a focused button or tab strip instead of taking their keys.
  */
-export type ShortcutScope = 'global' | 'crease-pattern' | 'viewport' | 'simulator' | 'references';
+export type ShortcutScope =
+  | 'global'
+  | 'crease-pattern'
+  | 'viewport'
+  | 'simulator'
+  | 'references'
+  | 'diagram';
 export type ViewportShortcutId =
   | 'viewport.zoomIn'
   | 'viewport.zoomOut'
@@ -71,13 +79,25 @@ export type ReferencesShortcutId =
   | 'references.exportAllSteps'
   | 'references.exportStepSvg'
   | 'references.exportStepPng';
+export type DiagramShortcutId =
+  | 'diagram.previousStep'
+  | 'diagram.nextStep'
+  | 'diagram.moveStepEarlier'
+  | 'diagram.moveStepLater';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
   | ViewportShortcutId
   | SimulatorShortcutId
-  | ReferencesShortcutId;
-export type ShortcutTarget = 'menu' | 'cp-action' | 'viewport' | 'simulator' | 'references';
+  | ReferencesShortcutId
+  | DiagramShortcutId;
+export type ShortcutTarget =
+  | 'menu'
+  | 'cp-action'
+  | 'viewport'
+  | 'simulator'
+  | 'references'
+  | 'diagram';
 export type ReservedKeyClassification = 'allowed' | 'soft-reserved' | 'hard-reserved';
 
 export interface KeyChord {
@@ -445,6 +465,42 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
 ];
 
+function diagramShortcut(
+  id: DiagramShortcutId,
+  label: string,
+  defaultChord: KeyChord | KeyChord[] | null
+): ShortcutDefinition {
+  const defaultChords = normalizeDefaultChords(defaultChord);
+  return {
+    id,
+    label,
+    category: 'Diagram',
+    scope: 'diagram',
+    target: 'diagram',
+    defaultChord: defaultChords[0] ?? null,
+    defaultChords,
+  };
+}
+
+/**
+ * Diagram-workspace bindings. The References arrangement — the scope is pushed
+ * only while the Diagram holds an executor — so the arrows are free to mean
+ * "the step before / after" there and the fold-angle solutions on the Edit
+ * canvas, without either knowing about the other.
+ *
+ * Its executor declines while a control has focus (`isViewportInteractiveTarget`):
+ * a scope executor that always claimed would take the arrows from a tab strip
+ * and Enter from a focused button. That decline is why these may be arrows at
+ * all. Escape is not here: it is `viewport.cancel`, and the Diagram's viewport
+ * executor runs one cancel ladder for every view the workspace has.
+ */
+const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
+  diagramShortcut('diagram.previousStep', 'Previous Step', { key: 'arrowleft' }),
+  diagramShortcut('diagram.nextStep', 'Next Step', { key: 'arrowright' }),
+  diagramShortcut('diagram.moveStepEarlier', 'Move Step Earlier', { alt: true, key: 'arrowleft' }),
+  diagramShortcut('diagram.moveStepLater', 'Move Step Later', { alt: true, key: 'arrowright' }),
+];
+
 /**
  * The viewport verbs whose executor can answer `false` and let the chord fall
  * through to the next scope.
@@ -574,6 +630,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   ...buildCpShortcutDefinitions(),
   ...SIMULATOR_SHORTCUTS,
   ...REFERENCES_SHORTCUTS,
+  ...DIAGRAM_SHORTCUTS,
   ...VIEWPORT_SHORTCUTS,
 ];
 
@@ -1070,9 +1127,10 @@ export interface ShortcutShadowing {
 const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
   simulator: 0,
   references: 1,
-  viewport: 2,
-  'crease-pattern': 3,
-  global: 4,
+  diagram: 2,
+  viewport: 3,
+  'crease-pattern': 4,
+  global: 5,
 };
 
 /**
@@ -1080,7 +1138,11 @@ const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
  * registered an executor. A claim from one of these is a deferral rather than a
  * death for anything beneath it — see {@link ShortcutShadowing.kind}.
  */
-const CONDITIONAL_SCOPES: ReadonlySet<ShortcutScope> = new Set(['simulator', 'references']);
+const CONDITIONAL_SCOPES: ReadonlySet<ShortcutScope> = new Set([
+  'simulator',
+  'references',
+  'diagram',
+]);
 
 /**
  * Whether bindings in `scope` are dispatched only while their surface owns the

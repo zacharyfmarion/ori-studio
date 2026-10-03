@@ -3394,7 +3394,14 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6791,7 +6798,14 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -10190,7 +10204,14 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -13527,7 +13548,14 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -16864,7 +16892,14 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -20261,7 +20296,14 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -23658,7 +23700,14 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -26995,6 +27044,13 @@
     "dialogs:diagram.deleteStepMessage": "e8a722f2e993",
     "dialogs:diagram.deleteStepsMessage": "b5d815c3b4c4",
     "dialogs:diagram.deleteStepsTitle": "d1d8f3ef8b82",
-    "dialogs:diagram.deleteStepTitle": "d3446f465e11"
+    "dialogs:diagram.deleteStepTitle": "d3446f465e11",
+    "panels:diagram.actions.addStep": "c127df231873",
+    "tools:diagram.categoryLabel": "913c5e96ccce",
+    "tools:diagram.moveStepEarlier": "1a8e3cf2da9b",
+    "tools:diagram.moveStepLater": "3026442f1a40",
+    "tools:diagram.nextStep": "226366c3301a",
+    "tools:diagram.previousStep": "f1fe8694fccd",
+    "tools:diagram.scopeLabel": "2c20a6b064ee"
   }
 }

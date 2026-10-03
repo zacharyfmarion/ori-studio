@@ -226,6 +226,14 @@
     "menuRow": "Ángulo de pliegue: {{angle}}",
     "title": "Ángulo de pliegue"
   },
+  "diagram": {
+    "categoryLabel": "Diagrama",
+    "moveStepEarlier": "Mover paso antes",
+    "moveStepLater": "Mover paso después",
+    "nextStep": "Paso siguiente",
+    "previousStep": "Paso anterior",
+    "scopeLabel": "diagrama"
+  },
   "divideMode": {
     "count": "Cantidad",
     "countTitle": "Dividir la línea en partes iguales",

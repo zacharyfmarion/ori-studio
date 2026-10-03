@@ -210,6 +210,14 @@
     "menuRow": "접는 선 각도: {{angle}}",
     "title": "접는 선 각도"
   },
+  "diagram": {
+    "categoryLabel": "도해",
+    "moveStepEarlier": "단계를 앞으로 이동",
+    "moveStepLater": "단계를 뒤로 이동",
+    "nextStep": "다음 단계",
+    "previousStep": "이전 단계",
+    "scopeLabel": "도해"
+  },
   "divideMode": {
     "count": "개수",
     "countTitle": "선을 같은 크기로 분할합니다",

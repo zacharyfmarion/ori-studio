@@ -655,6 +655,7 @@
   },
   "diagram": {
     "actions": {
+      "addStep": "단계 추가",
       "delete": "단계 삭제",
       "duplicate": "단계 복제",
       "firstHint": "이미 첫 번째 단계입니다",

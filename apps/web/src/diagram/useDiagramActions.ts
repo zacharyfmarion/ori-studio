@@ -1,8 +1,13 @@
 import { useCallback, useMemo } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { trackDiagramStepAdded } from '../analytics';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { buildDiagramStepActions, type DiagramStepAction } from './actions/diagramActions';
+import {
+  buildDiagramStepActions,
+  type DiagramStepAction,
+  type DiagramStepActionState,
+} from './actions/diagramActions';
 import { isLockedStep, stepIndex } from './document/diagramDocument';
 
 /**
@@ -10,21 +15,74 @@ import { isLockedStep, stepIndex } from './document/diagramDocument';
  * Diagram's own Add step, wherever it is offered. Reports the new step's id, or
  * null when the diagram is read-only.
  */
+export function addDiagramStep(): string | null {
+  const stepId = useWorkspaceStore.getState().addDiagramStep();
+  if (stepId) trackDiagramStepAdded('empty', 'grid');
+  return stepId;
+}
+
+/** {@link addDiagramStep}, as a stable callback. */
 export function useAddDiagramStep(): () => string | null {
-  return useCallback(() => {
-    const stepId = useWorkspaceStore.getState().addDiagramStep();
-    if (stepId) trackDiagramStepAdded('empty', 'grid');
-    return stepId;
-  }, []);
+  return useCallback(() => addDiagramStep(), []);
 }
 
 /**
- * The step verbs for one step, bound to the store — or none when the step is
- * not in the diagram.
+ * The step verbs for one step as it is in the store right now, bound to it — or
+ * none when the step is not in the diagram. For a surface that builds its list
+ * at the moment it needs it (a context menu opening).
  *
  * Every callback reads the store when it runs rather than closing over this
- * render's diagram, so a verb on a list built a moment ago still acts on the
- * step where it is now.
+ * call's diagram, so a verb on a list built a moment ago still acts on the step
+ * where it is now.
+ */
+export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAction[] {
+  const { diagram, diagramReadOnly } = useWorkspaceStore.getState();
+  const index = diagram ? stepIndex(diagram, stepId) : -1;
+  if (!diagram || index < 0) return [];
+  return bindStepActions(
+    stepId,
+    {
+      index,
+      count: diagram.steps.length,
+      locked: isLockedStep(diagram.steps[index]),
+      readOnly: diagramReadOnly,
+    },
+    t
+  );
+}
+
+function bindStepActions(
+  stepId: string,
+  gate: DiagramStepActionState,
+  t: TFunction
+): DiagramStepAction[] {
+  const store = useWorkspaceStore.getState;
+  return buildDiagramStepActions(
+    gate,
+    {
+      t,
+      insert: (where) => {
+        if (store().insertDiagramStep(stepId, where)) trackDiagramStepAdded('empty', 'grid');
+      },
+      duplicate: () => {
+        store().duplicateDiagramStep(stepId);
+      },
+      move: (direction) => {
+        const current = store().diagram;
+        const from = current ? stepIndex(current, stepId) : -1;
+        if (from < 0) return;
+        store().moveDiagramStep(stepId, direction === 'earlier' ? from - 1 : from + 1);
+      },
+      remove: () => {
+        void store().confirmDeleteDiagramSteps([stepId]);
+      },
+    }
+  );
+}
+
+/**
+ * {@link diagramStepActions} for a surface that shows them all the time (the
+ * Step pane), rebuilt whenever what they are gated on changes.
  */
 export function useDiagramStepActions(stepId: string | null): DiagramStepAction[] {
   const { t } = useTranslation();
@@ -38,29 +96,11 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
   });
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
 
-  return useMemo(() => {
-    if (stepId === null || index < 0) return [];
-    const store = useWorkspaceStore.getState;
-    return buildDiagramStepActions(
-      { index, count, locked, readOnly },
-      {
-        t,
-        insert: (where) => {
-          if (store().insertDiagramStep(stepId, where)) trackDiagramStepAdded('empty', 'grid');
-        },
-        duplicate: () => {
-          store().duplicateDiagramStep(stepId);
-        },
-        move: (direction) => {
-          const diagram = store().diagram;
-          const from = diagram ? stepIndex(diagram, stepId) : -1;
-          if (from < 0) return;
-          store().moveDiagramStep(stepId, direction === 'earlier' ? from - 1 : from + 1);
-        },
-        remove: () => {
-          void store().confirmDeleteDiagramSteps([stepId]);
-        },
-      }
-    );
-  }, [stepId, index, count, locked, readOnly, t]);
+  return useMemo(
+    () =>
+      stepId === null || index < 0
+        ? []
+        : bindStepActions(stepId, { index, count, locked, readOnly }, t),
+    [stepId, index, count, locked, readOnly, t]
+  );
 }

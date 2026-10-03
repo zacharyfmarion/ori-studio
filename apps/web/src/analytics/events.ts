@@ -501,7 +501,8 @@ export type ContextMenuSurface =
   | 'tree'
   | 'design-tree'
   | 'simulator'
-  | 'references';
+  | 'references'
+  | 'diagram';
 
 /**
  * What the menu was raised *on*, coarsely.
@@ -515,6 +516,7 @@ export type ContextMenuSurface =
 export type ContextMenuTargetKind =
   | 'empty'
   | 'selection'
+  | 'step'
   | 'crease'
   | 'point'
   | 'circle'
