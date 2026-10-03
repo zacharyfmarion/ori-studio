@@ -1950,7 +1950,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - Verified in headless Chromium on the crane: a pattern and two reopened figures added, Open in Edit framing the step's sheet, an edited crease making its step out of date, and Refresh all bringing it back as one undo step.
 - [x] **3f.** Analytics: `diagram picture captured` and `diagram step added` (`crease_pattern`, `cp_folded`, `cp_3d`).
   - `diagram picture captured` landed with 3c. Pose verbs are counted by `diagram picture posed`, whose `action` and `kind` now cover linked steps. Add to diagram counts `diagram step added` (`crease_pattern` via `edit_toolbar`; `cp_folded` / `cp_3d` via `folded_figure`).
-- [ ] **Browser** (CP wasm rebuilt first):
+- [x] **Browser** (CP wasm rebuilt first):
   - link all eleven crane states;
   - turn over, rotate, Next solution, Revert;
   - a fold with no layer order;
@@ -1962,6 +1962,15 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - leave Pose by every exit;
   - the fold never adds a figure to the Edit canvas, and undo stays in the diagram;
   - a 50-step diagram opens without a long task over 200 ms.
+  - Results (Chromium, dev server; scripts in the ignored `artifacts/diagram-phase3/`):
+    - **Crane, all eleven states** link as crease patterns and fold flat: 0.3–1.2 KB each, a byte-identical save and load, one paper scale between a pattern and its folds. Turn over and rotate work; each crane state has one layer order. Revert is Undo or Reset Pose, since verbs commit.
+    - **No layer order.** Three crane bases with one crease flipped fold to sanitized see-through developments, saved byte-identically. The Picture section now says why.
+    - **The 3D box** is live in Pose; one orbit is one undo step.
+    - **Status.** A flipped crease makes its step Out of date, and Refresh brings it back. A sheet moved 600 units makes its step Pattern missing, and Relink brings it back.
+    - **Partial selection: not browser-checked.** The crane has no foldable partial region; a half-square selection does not trace as a sheet. It takes the same figure-box path as a whole figure, which unit tests cover with clipping.
+    - **Stop.** On the iguana's 850-face sheet, the card's Stop and the global Stop (`stopOristudioCpFolds`, what the toast's Cancel calls) each end the fold as stopped, leaving the step as it was. The toast only shows after its delay, which this fold barely outlasts.
+    - **Edit untouched.** Its eleven figures are unchanged by Diagram folds, and the diagram's history holds only diagram entries.
+    - **50 steps.** Opening the crane with a 50-step diagram (1.5 MB) costs what opening it bare does: long tasks of 128 + 195 ms against 110 + 217 ms, which is the crease pattern loading. Switching to the Diagram costs 145 + 60 ms. Scrolling paints the remaining 34 cards with no long task.
 
 ### Phase 4: References steps
 
