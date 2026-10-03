@@ -11,6 +11,7 @@ import {
   createNativeProjectFile,
   createNativeTreeProjectFile,
   isNativeProjectFilename,
+  NATIVE_PROJECT_READER_VERSION,
   NATIVE_PROJECT_SCHEMA_VERSION,
   parseNativeProjectFile,
   serializeNativeProjectFile,
@@ -1489,7 +1490,7 @@ describe('native project file', () => {
         JSON.stringify({
           format: 'oristudio.project',
           schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION + 1,
-          minimumReaderSchemaVersion: NATIVE_PROJECT_SCHEMA_VERSION + 1,
+          minimumReaderSchemaVersion: NATIVE_PROJECT_READER_VERSION + 1,
         })
       )
     ).toThrow(/requires reader schema/i);
@@ -1506,7 +1507,7 @@ describe('native project file', () => {
       // Ours, from the future — updating fixes it.
       ['{"format":"oristudio.project","schemaVersion":99}', 'project_file_too_new'],
       [
-        `{"format":"oristudio.project","schemaVersion":1,"minimumReaderSchemaVersion":${NATIVE_PROJECT_SCHEMA_VERSION + 1}}`,
+        `{"format":"oristudio.project","schemaVersion":1,"minimumReaderSchemaVersion":${NATIVE_PROJECT_READER_VERSION + 1}}`,
         'project_file_too_new',
       ],
       // Ours, but unreadable.
@@ -1889,5 +1890,80 @@ describe('a crease-pattern-only save', () => {
       cpInput({ fileExtensions: { futureThing: { a: 1 } } })
     );
     expect(file.extensions).toEqual({ futureThing: { a: 1 } });
+  });
+
+  it('writes the diagram and asks for reader 9 when there is one', () => {
+    const diagram = { formatVersion: 1, id: 'diagram-1', steps: [] };
+    const file = createNativeCreasePatternProjectFile(cpInput({ diagram }));
+    expect(file.workspace.diagram).toEqual(diagram);
+    expect(file.schemaVersion).toBe(8);
+    expect(file.minimumReaderSchemaVersion).toBe(9);
+    expect(createNativeCreasePatternProjectFile(cpInput()).workspace.diagram).toBeNull();
+  });
+});
+
+describe('a project holding a diagram', () => {
+  const diagram = {
+    formatVersion: 1,
+    id: 'diagram-1',
+    title: 'Crane',
+    steps: [{ id: 'step-1', text: 'Fold in half' }],
+    futureField: { kept: true },
+  };
+
+  const designOnly = (extra: Record<string, unknown> = {}) =>
+    createNativeProjectFile({
+      workspaceTitle: 'Crane',
+      filename: 'crane.osf',
+      path: null,
+      designs: [],
+      appVersion: '0.0.0',
+      now,
+      ...extra,
+    });
+
+  it('round-trips the diagram verbatim through the design writer and the reader', () => {
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(designOnly({ diagram })));
+    expect(parsed.workspace.diagram).toEqual(diagram);
+    expect(parsed.minimumReaderSchemaVersion).toBe(9);
+  });
+
+  it('keeps reader 1 for a file without a diagram', () => {
+    const parsed = parseNativeProjectFile(serializeNativeProjectFile(designOnly()));
+    expect(parsed.workspace.diagram).toBeNull();
+    expect(parsed.minimumReaderSchemaVersion).toBe(1);
+  });
+
+  it('reads a diagram that is not an object as no diagram', () => {
+    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagram })));
+    file.workspace.diagram = ['not', 'a', 'diagram'];
+    expect(parseNativeProjectFile(JSON.stringify(file)).workspace.diagram).toBeNull();
+  });
+
+  it('is refused by a reader older than 9, with a reason the user can act on', () => {
+    // What an older build does with this file: the reader bar is above it.
+    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagram })));
+    file.minimumReaderSchemaVersion = NATIVE_PROJECT_READER_VERSION + 1;
+    let thrown: unknown;
+    try {
+      parseNativeProjectFile(JSON.stringify(file));
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(ProjectFileFormatError);
+    expect((thrown as ProjectFileFormatError).code).toBe('project_file_too_new');
+  });
+
+  it('reads a legacy file as having no diagram', () => {
+    const tree = createNativeTreeProjectFile({
+      title: 'Tree',
+      filename: 'tree.osf',
+      path: null,
+      tmd5Text: 'tmd5',
+      appVersion: '0.0.0',
+      now,
+    });
+    const legacy = asLegacyFile(JSON.parse(serializeNativeProjectFile(tree)), 7);
+    expect(parseNativeProjectFile(JSON.stringify(legacy)).workspace.diagram).toBeNull();
   });
 });

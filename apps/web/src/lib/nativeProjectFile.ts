@@ -57,6 +57,15 @@ export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export { NATIVE_PROJECT_EXTENSION } from './fileFormats';
 export const NATIVE_PROJECT_MIME_TYPE = 'application/vnd.oristudio.project+json';
 export const NATIVE_PROJECT_SCHEMA_VERSION = 8;
+/**
+ * The newest `minimumReaderSchemaVersion` this build can honour. A step ahead of
+ * the schema version on purpose: a file holding a diagram is still written as
+ * schema 8 — nothing else about the format moved — but asks for reader 9, so an
+ * older build refuses it ("update Ori Studio") instead of opening it and
+ * deleting the diagram on its next save. Files without a diagram stay readable
+ * by every build that read them before.
+ */
+export const NATIVE_PROJECT_READER_VERSION = 9;
 
 export type NativeProjectDocumentKind =
   | 'treemaker-tree'
@@ -197,11 +206,12 @@ export interface NativeProjectFileV1 {
    * The oldest reader that can open this file without losing data.
    *
    * `1` for anything a v1–v7 build could read losslessly; `8` once the file
-   * holds more than the old format could express. Declarative only in practice —
+   * holds more than the old format could express; `9` when it holds a diagram
+   * (see {@link NATIVE_PROJECT_READER_VERSION}). Declarative only in practice —
    * a v7 build already rejects `schemaVersion: 8` because 8 is not in its
    * enumerated list — but it is what makes the refusal say *why*.
    */
-  minimumReaderSchemaVersion: 1 | 8;
+  minimumReaderSchemaVersion: 1 | 8 | 9;
   createdBy: NativeProjectActor;
   modifiedBy: NativeProjectActor;
   workspace: {
@@ -233,6 +243,12 @@ export interface NativeProjectFileV1 {
      * not silently destroy the rest on the next save.
      */
     unknownDesigns: unknown[];
+    /**
+     * The Diagram workspace's document, as `diagram/document/diagramFile.ts`
+     * writes it, or `null`. Read leniently there; here it is only carried, and
+     * its presence raises `minimumReaderSchemaVersion` to 9.
+     */
+    diagram: Record<string, unknown> | null;
     viewState: Record<string, unknown>;
   };
   artifacts: {
@@ -312,6 +328,12 @@ export interface NativeCreasePatternProjectInput {
   unknownDesigns?: unknown[];
   /** File-level extension bag, carried forward for the same reason. */
   fileExtensions?: Record<string, unknown>;
+  /**
+   * The diagram, written by `writeDiagram`. File-level like the two fields
+   * above: only {@link createNativeCreasePatternProjectFile} reads it, never a
+   * companion. Defaults to `null`.
+   */
+  diagram?: Record<string, unknown> | null;
   appVersion: string;
   now?: Date;
 }
@@ -379,6 +401,8 @@ export interface NativeProjectDocumentsInput {
    * {@link NativeCreasePatternProjectInput.extensions}). Defaults to `{}`.
    */
   extensions?: Record<string, unknown>;
+  /** The diagram, written by `writeDiagram`. Defaults to `null`. */
+  diagram?: Record<string, unknown> | null;
   appVersion: string;
   now?: Date;
 }
@@ -465,11 +489,11 @@ export function migrateNativeProjectFile(value: unknown): NativeProjectFile {
   const minimumReaderSchemaVersion = numberField(value.minimumReaderSchemaVersion);
   if (
     minimumReaderSchemaVersion !== null &&
-    minimumReaderSchemaVersion > NATIVE_PROJECT_SCHEMA_VERSION
+    minimumReaderSchemaVersion > NATIVE_PROJECT_READER_VERSION
   ) {
     throw new ProjectFileFormatError(
       'project_file_too_new',
-      `Ori Studio project requires reader schema ${minimumReaderSchemaVersion}, but this app supports ${NATIVE_PROJECT_SCHEMA_VERSION}`
+      `Ori Studio project requires reader schema ${minimumReaderSchemaVersion}, but this app supports ${NATIVE_PROJECT_READER_VERSION}`
     );
   }
 
@@ -539,11 +563,12 @@ export function createNativeProjectFile(
 
   const legacyReadable =
     designs.length <= 1 && (input.unknownDesigns?.length ?? 0) === 0;
+  const diagram = input.diagram ?? null;
 
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
-    minimumReaderSchemaVersion: legacyReadable ? 1 : 8,
+    minimumReaderSchemaVersion: diagram ? 9 : legacyReadable ? 1 : 8,
     createdBy: actor,
     modifiedBy: actor,
     workspace: {
@@ -555,6 +580,7 @@ export function createNativeProjectFile(
       // Re-emitted verbatim so a design kind this build does not know survives a
       // round trip through it.
       unknownDesigns: input.unknownDesigns ?? [],
+      diagram,
       viewState: {},
     },
     artifacts: {},
@@ -617,8 +643,12 @@ export function createNativeCreasePatternProjectFile(
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
     // An unreadable design is exactly the case an older build must refuse, for
     // the same reason the design writer raises the bar: it cannot round-trip
-    // what it cannot parse.
-    minimumReaderSchemaVersion: (input.unknownDesigns?.length ?? 0) > 0 ? 8 : 1,
+    // what it cannot parse. A diagram raises it further, for the same reason.
+    minimumReaderSchemaVersion: input.diagram
+      ? 9
+      : (input.unknownDesigns?.length ?? 0) > 0
+        ? 8
+        : 1,
     createdBy: actor,
     modifiedBy: actor,
     workspace: {
@@ -631,6 +661,7 @@ export function createNativeCreasePatternProjectFile(
       designs: [],
       creasePattern: createNativeCreasePatternDocument(input, CREASE_PATTERN_DOCUMENT_ID),
       unknownDesigns: input.unknownDesigns ?? [],
+      diagram: input.diagram ?? null,
       viewState: {},
     },
     artifacts:
@@ -1088,11 +1119,19 @@ function validateV8(value: Record<string, unknown>): NativeProjectFileV8 {
       : (validateDocumentV1(workspace.creasePattern) as NativeCreasePatternDocumentV1);
 
   const activeDocumentId = stringField(workspace.activeDocumentId, 'workspace.activeDocumentId');
+  // Carried, not interpreted: `diagram/document/diagramFile.ts` reads it
+  // leniently when the project is installed. Anything but an object is no
+  // diagram.
+  const diagram = isRecord(workspace.diagram) ? workspace.diagram : null;
 
   return {
     format: NATIVE_PROJECT_FORMAT,
     schemaVersion: NATIVE_PROJECT_SCHEMA_VERSION,
-    minimumReaderSchemaVersion: designs.length > 1 || unknownDesigns.length > 0 ? 8 : 1,
+    minimumReaderSchemaVersion: diagram
+      ? 9
+      : designs.length > 1 || unknownDesigns.length > 0
+        ? 8
+        : 1,
     createdBy: validateActor(recordField(value.createdBy, 'createdBy')),
     modifiedBy: validateActor(recordField(value.modifiedBy, 'modifiedBy')),
     workspace: {
@@ -1107,6 +1146,7 @@ function validateV8(value: Record<string, unknown>): NativeProjectFileV8 {
       designs,
       creasePattern,
       unknownDesigns,
+      diagram,
       viewState: isRecord(workspace.viewState) ? workspace.viewState : {},
     },
     artifacts: validateArtifacts(value.artifacts),
@@ -1171,6 +1211,7 @@ function migrateLegacyToV8(value: Record<string, unknown>): NativeProjectFileV8 
       designs,
       creasePattern,
       unknownDesigns: [],
+      diagram: null,
       viewState: legacy.workspace.viewState,
     },
   };
