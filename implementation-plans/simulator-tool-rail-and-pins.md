@@ -729,7 +729,7 @@ Each step is its own commit; the moves change nothing on screen.
 - [x] **Clock.** Stagnation rule; `invalidate` on pin change; the guard action
       reported on the tick. Tests: a constant-velocity fake backend settles, and
       a decaying one does not settle early.
-- [ ] **Picking.** The three pure functions, plus `cssRectToBuffer`. Tests on a
+- [x] **Picking.** The three pure functions, plus `cssRectToBuffer` (shipped as `scaleRect`). Tests on a
       hand-built two-layer fixture: the centre rule includes the hidden face, the
       visible rule excludes it, and a click hits the front.
 - [ ] **Overlay.** GPU overlay pass and canvas-2D highlights; exports verified

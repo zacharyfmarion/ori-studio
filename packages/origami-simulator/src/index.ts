@@ -113,6 +113,16 @@ export {
 // builds fixtures that must agree with it. Two transcriptions of a sign is one
 // too many.
 export { normalizePoint } from './geometry.js';
+export {
+  facesVisibleIn,
+  facesWithCentreIn,
+  frontmostFaceAt,
+  scaleRect,
+  type PickOptions,
+  type PickTopology,
+  type ScreenPoint,
+  type ScreenRect,
+} from './picking.js';
 export { GpuMath, detectWebGlSupport } from './gpuMath.js';
 export { OrigamiModel } from './model.js';
 export { ORIGAMI_SIMULATOR_UPSTREAM } from './provenance.js';
