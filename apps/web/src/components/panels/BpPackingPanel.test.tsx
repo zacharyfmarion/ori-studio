@@ -10,6 +10,7 @@ import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { DEFAULT_BP_PACKING_VIEW_LAYERS } from '../../lib/oristudioBpViewportSettings';
+import { bpPackingPaperRect, bpPackingUnitToSvg } from '../../lib/bpPackingViewport';
 import { bpFlapSelection } from '../../lib/oristudioBpSelection';
 import { TooltipProvider } from '../ui/Tooltip';
 import { BpPackingPanel } from './BpPackingPanel';
@@ -23,6 +24,9 @@ import { BpPackingPanel } from './BpPackingPanel';
  * drag. Selection here is by pointer; the pane's keyboard actions (nudge) live
  * on the container, which is focusable via tabIndex={-1} without drawing a ring.
  */
+
+/** The zoom the mocked camera reports on mount; a test may set it before rendering. */
+const mockCamera = vi.hoisted(() => ({ scale: 1 }));
 
 vi.mock('react-zoom-pan-pinch', async () => {
   const React = await import('react');
@@ -43,7 +47,7 @@ vi.mock('react-zoom-pan-pinch', async () => {
         if (didInit.current) return;
         didInit.current = true;
         onInit?.(api);
-        onTransformed?.(api, { scale: 1 });
+        onTransformed?.(api, { scale: mockCamera.scale });
       }, [onInit, onTransformed]);
       return React.createElement('div', null, children);
     }),
@@ -300,6 +304,7 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  mockCamera.scale = 1;
   vi.unstubAllGlobals();
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
 });
@@ -348,12 +353,7 @@ describe('BP packing pane — the sheet crops what hangs over its edge', () => {
    * Studio addition, since upstream offers no way to look past the edge — lifts
    * it.
    */
-  /**
-   * Whether the element is inside a clipping group. Asked per element rather
-   * than by counting clips on the canvas: the conflict layer carries a second,
-   * unrelated clip — to the flap circles, so a conflict stroke cannot paint
-   * outside the flap it belongs to — which the sheet crop must leave alone.
-   */
+  /** Whether the element is inside a clipping group. */
   const isCropped = (root: HTMLElement, selector: string) => {
     const node = root.querySelector(selector);
     expect(node, selector).not.toBeNull();
@@ -434,21 +434,34 @@ describe('BP packing pane — empty space', () => {
   });
 });
 
-describe('BP packing pane — conflict fills sit behind the geometry', () => {
-  it('paints conflicts before the rivers, flaps and creases', () => {
+describe('BP packing pane — conflicts paint over the geometry, like Layer.junction', () => {
+  it('paints conflicts after the flaps and their shades', () => {
+    // Box Pleating Studio's junction layer sits above shade, hinge, ridge and
+    // axis-parallels. A hairline lens's two edges are the two flap outlines, so
+    // painted underneath them (9c4ff55b2) it had nothing left to show.
     const host = renderPacking();
     const canvas = host.querySelector('.bp-packing-canvas');
     expect(canvas).not.toBeNull();
     const order = [...canvas!.children].map((child) => child.getAttribute('class') ?? '');
     const conflicts = order.findIndex((c) => c.includes('bp-packing-conflicts'));
     expect(conflicts).toBeGreaterThanOrEqual(0);
-    // SVG paints in document order, so "behind" means "earlier". Compare against
+    // SVG paints in document order, so "over" means "later". Compare against
     // whichever geometry layers this fixture actually renders.
     const geometry = ['bp-packing-flaps', 'bp-packing-flap-shades']
       .map((name) => order.findIndex((c) => c.includes(name)))
       .filter((index) => index >= 0);
     expect(geometry.length).toBeGreaterThan(0);
-    for (const index of geometry) expect(conflicts).toBeLessThan(index);
+    for (const index of geometry) expect(conflicts).toBeGreaterThan(index);
+  });
+
+  it('keeps the hit targets under the flap shades, so a flap stays selectable there', () => {
+    const host = renderPacking();
+    const canvas = host.querySelector('.bp-packing-canvas');
+    const order = [...canvas!.children].map((child) => child.getAttribute('class') ?? '');
+    const hits = order.findIndex((c) => c.includes('bp-packing-conflict-hits'));
+    const shades = order.findIndex((c) => c.includes('bp-packing-flap-shades'));
+    expect(hits).toBeGreaterThanOrEqual(0);
+    expect(shades).toBeGreaterThan(hits);
   });
 
   it('fades the conflict layer once, so overlaps cannot compound to opaque', () => {
@@ -463,55 +476,100 @@ describe('BP packing pane — conflict fills sit behind the geometry', () => {
   });
 });
 
-describe('BP packing pane — conflicts never paint outside a flap', () => {
-  it('clips the conflict layer to the flaps own shapes', () => {
+describe('BP packing pane — conflicts are drawn as Box Pleating Studio draws them', () => {
+  it('clips the conflict layer to the sheet and nothing else', () => {
+    // `Layer.junction` is `clipped: true` — masked to the sheet like every
+    // geometry layer — and that is its only clip. The outline stroke is centred
+    // on the region's edge, which *is* the flap circle, so part of it paints
+    // past the flap; clipping that away (2f34f1676) is what left a hairline
+    // overlap with nothing visible, since the widening is the whole point.
     const host = renderPacking();
     const layer = host.querySelector('.bp-packing-conflicts');
     expect(layer).not.toBeNull();
-
-    // The conflict outline stroke is centred on the region's edge, and that edge
-    // *is* the flap circle — so without a clip half the stroke renders outside
-    // the flap and reads as the conflict being somewhere it isn't.
-    const inner = layer!.querySelector('g[clip-path]');
-    expect(inner).not.toBeNull();
-    const id = /url\(#([^)]+)\)/.exec(inner!.getAttribute('clip-path') ?? '')?.[1];
-    expect(id).toBeTruthy();
-
-    const clip = [...(host.querySelector('defs')?.children ?? [])].find(
-      (node) => node.getAttribute('id') === id
-    );
-    expect(clip).toBeDefined();
-    // One shape per flap, matching what the clearance circles draw.
-    const shapes = [...clip!.children];
-    expect(shapes).toHaveLength(2); // one per flap in the fixture
-    for (const shape of shapes) {
-      expect(Number(shape.getAttribute('width'))).toBeGreaterThan(0);
-      expect(Number(shape.getAttribute('rx'))).toBeGreaterThan(0);
-    }
+    expect(layer!.getAttribute('clip-path')).toMatch(/^url\(#/);
+    expect(layer!.querySelector('[clip-path]')).toBeNull();
   });
 
-  it('leaves a legible conflict unstroked, so its tips stay sharp', () => {
+  it('strokes a narrow lens 2 / narrowness screen pixels, as Box Pleating Studio does', () => {
     const host = renderPacking();
     const paths = [...host.querySelectorAll('.bp-packing-conflict')];
     expect(paths.length).toBeGreaterThan(0);
-    // This region renders ~6.6px thick — plainly visible. A stroke would be
-    // centred on its outline, and clipping that to the flap truncates the
-    // region's tips, blunting points that should be sharp.
+    // Both lenses in the fixture have narrowness 0.385, just under upstream's
+    // 0.4 threshold: `Junction.$draw` gives them a 2 / 0.385 ≈ 5.2px outline.
     for (const path of paths) {
       const width = Number(path.getAttribute('stroke-width') ?? '0');
-      expect(width).toBe(0);
+      expect(width).toBeGreaterThan(5.1);
+      expect(width).toBeLessThan(5.3);
     }
+  });
+
+  it('writes the stroke in SVG units, so it stays the same size on screen as you zoom', () => {
+    // The camera is a CSS transform outside the <svg>. `non-scaling-stroke`
+    // does not counter that, so a width meant as screen pixels has to be
+    // divided by the zoom before it goes on the attribute.
+    mockCamera.scale = 2;
+    const host = renderPacking();
+    const paths = [...host.querySelectorAll('.bp-packing-conflict')];
+    expect(paths.length).toBeGreaterThan(0);
+    for (const path of paths) {
+      const width = Number(path.getAttribute('stroke-width') ?? '0');
+      expect(width).toBeGreaterThan(2.55);
+      expect(width).toBeLessThan(2.65);
+    }
+  });
+
+  /**
+   * stretched-flap-hairline-overlap.sample.json: a lens 0.056 units thick,
+   * narrowness ≈ 0.112, which upstream strokes 2 / 0.112 ≈ 18px — capped at
+   * ProjectService.scale, one grid unit on screen. Invisible without it.
+   */
+  const hairline = (document_: OristudioBpDocumentState) => {
+    document_.snapshot.packing.invalidJunctions = [
+      {
+        id: '5,7',
+        flapIds: [5, 7],
+        riverIds: [],
+        paths: [
+          [
+            { x: 8.77220486043289, y: 6.3305902791342215, arc: { x: 8.50561797752809, y: 6.752808988764045 }, r: 5 },
+            { x: 8.32779513956711, y: 7.219409720865778, arc: { x: 8.605633802816902, y: 6.802816901408451 }, r: 4 },
+          ],
+        ],
+        overlap: 0.0557,
+        message: 'Flaps 5 and 7 overlap by 0.056',
+      },
+    ];
+  };
+  const conflictStrokeWidth = (host: HTMLElement) => {
+    const path = host.querySelector('.bp-packing-conflict');
+    expect(path).not.toBeNull();
+    return Number(path!.getAttribute('stroke-width') ?? '0');
+  };
+
+  it('turns a hairline overlap into an ~18px bar', () => {
+    const width = conflictStrokeWidth(renderPacking(hairline));
+    expect(width).toBeGreaterThan(17.5);
+    expect(width).toBeLessThan(18);
+  });
+
+  it('caps that bar at one grid cell on screen when zoomed out', () => {
+    // A cell of this 16-unit sheet is 38.25 SVG units; at a quarter zoom that
+    // is 9.6px on screen, under the 18px the rule asks for, so the cap binds —
+    // and written in SVG units, a one-cell stroke is one cell whatever the zoom.
+    mockCamera.scale = 0.25;
+    const cell = bpPackingUnitToSvg(sheet, bpPackingPaperRect(sheet));
+    expect(cell * mockCamera.scale).toBeLessThan(17.5);
+    expect(conflictStrokeWidth(renderPacking(hairline))).toBeCloseTo(cell, 6);
   });
 
   it('paints a conflict path that stays on its flap circle', () => {
     const host = renderPacking();
     const paths = [...host.querySelectorAll('.bp-packing-conflict')];
     expect(paths.length).toBeGreaterThan(0);
-    // Every conflict vertex sits on a flap circle: that is what makes clipping
-    // to the flaps lossless for the fill, and lossy only for the stray stroke.
-    const defs = host.querySelector('defs');
-    const circles = [...(defs?.children ?? [])]
-      .flatMap((clip) => [...clip.children])
+    // Every conflict vertex sits on a flap circle — the region is the
+    // intersection of the two clearance shapes, so only the stroke ever paints
+    // past one. The clearance rects are those circles.
+    const circles = [...host.querySelectorAll('.bp-packing-flap-clearance')]
       .filter((el) => Number(el.getAttribute('rx')) > 0)
       .map((el) => {
         const x = Number(el.getAttribute('x'));
@@ -520,7 +578,6 @@ describe('BP packing pane — conflicts never paint outside a flap', () => {
         const h = Number(el.getAttribute('height'));
         return { cx: x + w / 2, cy: y + h / 2, r: Number(el.getAttribute('rx')) };
       });
-    expect(defs).not.toBeNull();
     expect(circles.length).toBeGreaterThan(0);
     for (const path of paths) {
       const move = /M([\d.]+),([\d.]+)/.exec(path.getAttribute('d') ?? '');
