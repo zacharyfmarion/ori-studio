@@ -141,5 +141,13 @@ describe.skipIf(!available)('a diagram as one PDF', () => {
     );
     expect(input.missing).toEqual(['𠀀']);
     await expect(write(input.pages, input.fonts, input.options)).rejects.toMatchObject({ code: 'text' });
+    // And a text of nothing but such characters, which draws only boxes.
+    const alone = diagramPdfInput(
+      { ...document, steps: [{ ...document.steps[0]!, text: '𠀀' }] },
+      FONTS,
+      subsetter,
+      'home'
+    );
+    await expect(write(alone.pages, alone.fonts, alone.options)).rejects.toMatchObject({ code: 'text' });
   });
 });

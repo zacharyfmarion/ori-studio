@@ -2167,7 +2167,8 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 - [x] **6a.** The PDF writer, and an upload's text in the diagram's fonts (commit "Diagram 6a").
   - **`crates/oristudio-pdf`** prints the composed page SVGs with krilla 0.8.2 and krilla-svg 0.8.1 through usvg 0.47 (pinned: Phase 0 measured exactly these), against only the fonts it is handed.
     - A family it lacks, a weight it lacks, or a glyph a face does not have fails the document (`PdfError::Text`): the composer measured every line in the faces it names.
-    - The glyph check reads the glyphs usvg lays out, not its fallback calls. usvg shapes a run of text in each of its spans' faces and keeps each span's own glyphs, so a span's face is asked for its neighbours' characters too; an upload's mixed-script run tripped the first version. Text usvg could not lay out at all (spans shaping to different glyph counts) also fails.
+    - The glyph check reads the glyphs usvg lays out, not its fallback calls. usvg shapes a run of text in each of its spans' faces and keeps each span's own glyphs, so a span's face is asked for its neighbours' characters too; an upload's mixed-script run tripped the first version.
+    - Every font must draw something for its missing-glyph box (glyph 0), or the writer refuses it: usvg drops a text that draws nothing before any check sees it (see the review). One case stays out of reach: usvg also drops a run whose spans shape to different numbers of glyphs. The composer sets one span a run, and an upload's spans are cut from subsets holding only their own characters, so the counts agree.
     - **Print shop:** the media box is the trim plus 3 mm bleed and 5 mm slug a side, with BleedBox and TrimBox, and 0.25 pt crop marks from the bleed to the media edge in the registration colour (`/Separation/All`). Art past the bleed is clipped.
     - No XMP, a fixed producer and the title: the same diagram writes the same bytes, natively and in wasm.
     - Images are data URLs only; nothing reads the file system or the network.
@@ -2205,14 +2206,36 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - `.github/actions/build-diagram-fonts` restores them from a cache keyed on `scripts/diagram-fonts/**`, or builds them with the pinned toolchain (`requirements.txt`: fonttools 4.65.0, brotli 1.2.0; actions pinned by SHA, since it runs in the signed release). `check_fonts.py` then checks every file against the manifest (size, sha256, name, every script and weight in both tiers, and each OFL.txt).
   - It runs in deploy-web, the PR previews and the release's web bundle. The release then deletes the full files: the desktop app ships the manifest, the common files and the licences (about 6 MB), and reads a full file from the site (`diagramFontUrl`; `_headers` allows it across origins).
   - **Bundle.** The PDF writer's worker and wasm are left out of the service worker's warm set (`UNWARMED_PATTERNS` in `vite.config.ts`), which every installed app downloads, and cached on the first export instead. Built and checked: neither is in `sw.js`'s `workers` or `kernels`.
-  - **`LICENSING.md`.** The PDF crates (original, `MIT OR Apache-2.0`) in the crate table, and the 71 crates krilla, krilla-svg and usvg bring in the inventory: all permissive, none Apache-2.0 alone. The fonts section says where the OFL texts travel.
+  - **`LICENSING.md`.** The PDF crates (original, `MIT OR Apache-2.0`) in the crate table, and the 73 crates krilla, krilla-svg and usvg bring in on every target in the inventory: all permissive, none Apache-2.0 alone. The fonts section says where the OFL texts travel.
 - [x] **Browser and files** (Chromium, `artifacts/diagram-phase6/export.mjs`, on the 50-step linked crane with an upload of mixed-script text and a Chinese instruction):
   - **The upload's text.** "Squash → 压平" in bold Helvetica was stored as two runs, Noto Sans and Noto Sans SC Bold. "Fold & unfold" in italic Times came out upright Noto Sans, with the notice.
   - **PDF at home.** 6 A4 pages, written and saved in 120–190 ms. `pdffonts`: Noto Sans Regular and Bold and Noto Sans SC Regular and Bold, each embedded once as a subset. The pages match the Pages view.
   - **Print shop.** MediaBox 640.63 × 887.24 pt, BleedBox inset 5 mm, TrimBox inset 8 mm, and crop marks at the four corners.
   - **Step files.** 51 SVGs; 51 PNGs at 600 dpi cropped (step 1 at 1,238 × 1,617 px), each drawn with its embedded fonts, Han and arrow included. The options were remembered between exports.
   - Not yet run: Preview and Acrobat, and the desktop build, whose WKWebView and CSP (`font-src 'self'`; fonts embedded as `data:` inside an `<img>`'s SVG) are listed for Zach's desktop pass.
-- [ ] **Review**, then fixes.
+- [x] **Review.** A workflow of four reviewers (the PDF writer, upload text, the export UI, deploys and the repo's rules), each finding put to a skeptic. All 18 findings were confirmed and fixed.
+  - **PDF writer.**
+    - A text made only of characters its face lacked was printed missing, with no error. HarfBuzz empties the missing-glyph box by default, usvg drops a text that draws nothing, and the glyph check never saw it; the branch meant to catch "text that could not be laid out" could never run. The subsetter now keeps the box's outline (`HB_SUBSET_FLAGS_NOTDEF_OUTLINE`, about 40 bytes a subset), the writer refuses any font without one (`PdfError::MissingGlyphOutline`), and the dead branch is gone. Crate tests use real hb-subset cuts (`tests/fixtures`), and the wasm test prints a step whose whole instruction is '𠀀'.
+    - On a page with no margin the title tab and rule stopped at the trim, so a print shop's cut could show paper. They now run 10 mm past the paper's edge, as the flow band does (Pages view and PDF alike).
+  - **Upload text.**
+    - A run of only spaces made by the split was a `<tspan>` the second pass stripped, so the sanitizer was not idempotent (`<tspan>折る</tspan> fold`). It is now a plain text node, like every other space.
+    - A `font` attribute was read, though renderers ignore it, so text grew and went bold. It is now dropped unread.
+    - Text alternating scripts could add a `<tspan>` a character: 4 s and 150 MB of output for a 2 MB file, thrown away afterwards. The split now refuses past the runs a stored picture could ever hold.
+    - Small caps, feature settings, size adjustment and widths were dropped without the notice. They now raise it, inherited ones too.
+    - Weights 501–599 were set in Regular; a browser picks Bold above 500.
+    - A tab made the loader fetch a CJK font nothing used. The loader and the setter now share one "needs no glyph" rule (`needsNoGlyph`).
+  - **Export dialog.**
+    - "Edit page setup" did nothing outside the Diagram or on touch: it used the automatic reveal. It now shows the Page tab as an explicit request (`showDiagramPane`), switching workspace and opening the drawer.
+    - A request outlived its diagram: Undo back to none, or a project opened from the desktop's menu bar, closed the dialog but left the request, which came back on the next diagram. A request now carries its diagram's `diagramLoadId` and is closed when that diagram goes.
+    - A CJK font that failed to download was reported as characters the fonts lack ("change the text"). The Notice now says the font could not be downloaded, with Try again, which reloads the fonts; a failed load at all offers it too.
+    - A cropped step file too large for a PNG was thrown, and sent to Sentry with the title in its message. It is now a message naming the step, reported nowhere.
+    - Russian's "one" covers 21, 31 and 101, so a list of 21 steps got the singular sentence. The one-step and several-step sentences are now separate keys, chosen by length.
+    - The abort test could not fail (its writer never settled), and a step-file test named a case it did not exercise. Both now can; a mutant without the abort guard fails.
+  - **Deploys.**
+    - fontTools stamps the build time into every font, so each rebuild renamed all 16 files. The build pins it (`SOURCE_DATE_EPOCH`), `check_fonts.py` checks the stamp, and two builds were compared byte for byte. The CI build also needed skia-pathops (overlap removal), now pinned.
+    - Installed desktop apps read full files by their build's names. Names now change only with the sources, the toolchain or a charset; the production deploy warns when a build would drop a full file the site serves (`--warn-renames-against`), RELEASE.md says to ship a desktop release after such a change, and a font answered with the site's HTML page fails as a download rather than a checksum.
+    - The inventory missed fontconfig-parser and roxmltree 0.20, which fontdb uses on Linux; the regeneration command now covers every target.
+  - Browser (Chromium, `artifacts/diagram-phase6/review-fixes.mjs`): Edit page setup from Edit switched to the Diagram with the Page tab forward; with the font files blocked the Notice offered Try again and refused the PDF, and after unblocking Try again cleared it; a margin-less print-shop PDF's tab runs from the trim to the bleed edge.
 
 ### Phase 7: annotate
 

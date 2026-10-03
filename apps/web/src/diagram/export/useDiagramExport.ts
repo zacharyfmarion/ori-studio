@@ -72,6 +72,13 @@ export interface DiagramExportBinding {
   cut: number[];
   /** Characters no font has: the PDF refuses them; a file draws them as boxes. */
   missing: string[];
+  /**
+   * A CJK face the text needs could not be downloaded (offline, say), so some
+   * of `missing` may only be missing until it can be.
+   */
+  unavailable: boolean;
+  /** Load the fonts again: after a download failed, or the fonts could not be had at all. */
+  retry: () => void;
   /** A step file's PNG size at the density, for the file on show. */
   pngSize: { width: number; height: number } | null;
   pngTooLarge: boolean;
@@ -151,6 +158,11 @@ export function useDiagramExport(
   );
 
   const [loaded, setLoaded] = useState<Loaded | 'failed' | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setLoaded(null);
+    setAttempt((count) => count + 1);
+  }, []);
   useEffect(() => {
     let live = true;
     dependencies
@@ -165,7 +177,7 @@ export function useDiagramExport(
     return () => {
       live = false;
     };
-  }, [document, dependencies]);
+  }, [document, dependencies, attempt]);
   const ready = loaded !== null && loaded !== 'failed' ? loaded : null;
 
   const pdf = draft.kind === 'pdf';
@@ -262,16 +274,19 @@ export function useDiagramExport(
       } else if (files) {
         const written = files.files.map((file, at) => ({ page: files.compose(at), fileStem: file.fileStem }));
         if (png) {
-          const tooLarge = written.find(({ page }) => !pngFitsCanvas(paperPngSize(page, draft.dpi), limit));
-          if (tooLarge) {
-            const size = paperPngSize(tooLarge.page, draft.dpi);
-            throw new Error(
-              t('dialogs:diagramExport.pngFileTooLarge', '{{name}} would be {{width}} × {{height}} px, too large for a PNG here.', {
-                name: tooLarge.fileStem,
-                width: size.width,
-                height: size.height,
-              })
+          // A cropped file can be larger than the one on show. A refusal the
+          // reader can act on, not a failure: nothing is reported.
+          const at = written.findIndex(({ page }) => !pngFitsCanvas(paperPngSize(page, draft.dpi), limit));
+          if (at >= 0) {
+            const size = paperPngSize(written[at]!.page, draft.dpi);
+            setSaveError(
+              t(
+                'dialogs:diagramExport.pngFileTooLarge',
+                'Step {{number}} would be {{width}} × {{height}} px, too large for a PNG. Lower the resolution or the size.',
+                { number: files.files[at]!.number, width: size.width, height: size.height }
+              )
             );
+            return;
           }
         }
         setProgress({ done: 0, total: written.length });
@@ -341,6 +356,8 @@ export function useDiagramExport(
     empty,
     cut,
     missing,
+    unavailable: (ready?.fonts.unavailable.length ?? 0) > 0,
+    retry,
     pngSize,
     pngTooLarge,
     minHeightMm: Math.ceil(stepFileMinHeightMm(draft)),

@@ -24,7 +24,7 @@ import {
   type DiagramFontWeight,
 } from './diagramFontFaces';
 import { readFontMetrics, type FontMetrics } from './fontMetrics';
-import { textCjkKey } from './fontScripts';
+import { needsNoGlyph, textCjkKey } from './fontScripts';
 
 /** Where font bytes come from: the app's bundle and origin, or a test's files. */
 export interface DiagramFontSource {
@@ -140,17 +140,12 @@ export async function loadDiagramFonts(
   };
 }
 
-// Joiners and variation selectors: drawn as nothing, needing no glyph.
-const IGNORABLE = /\p{Default_Ignorable_Code_Point}/u;
-
-/** The code points of `text` that Noto Sans lacks, joiners aside. */
+/** The code points of `text` that Noto Sans lacks, leaving out what needs no glyph. */
 function codePointsLacking(text: string, latin: FontMetrics): number[] {
   const lacking: number[] = [];
   for (const character of text) {
     const codePoint = character.codePointAt(0)!;
-    if (!latin.has(codePoint) && !IGNORABLE.test(character) && character !== '\n' && character !== '\r') {
-      lacking.push(codePoint);
-    }
+    if (!latin.has(codePoint) && !needsNoGlyph(character)) lacking.push(codePoint);
   }
   return lacking;
 }

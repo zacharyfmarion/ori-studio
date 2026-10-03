@@ -90,9 +90,10 @@ const ASSET_PREFIX = '/assets/';
  * `scripts/diagram-fonts/build_fonts.py`). Each file is named for its content,
  * so it is kept like an asset, and a diagram with Japanese text lays out
  * offline once it has laid out online. The manifest that names them is not,
- * and is revalidated. They change only with the pinned font sources, so the
- * copies an older build named are left to the browser's storage limits rather
- * than pruned.
+ * and is revalidated. The build is reproducible, so a name changes only with
+ * the pinned sources, the toolchain or (a common file) a charset, and the
+ * copies an older build named are left to the browser's storage limits
+ * rather than pruned.
  */
 const DIAGRAM_FONTS = '/fonts/diagram/';
 const DIAGRAM_FONT_FILE = /^NotoSans(SC|TC|JP|KR)-(Regular|Bold)\.(common|full)\.[0-9a-f]{12}\.ttf$/;

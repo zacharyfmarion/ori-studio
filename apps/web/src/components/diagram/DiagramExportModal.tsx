@@ -9,7 +9,7 @@ import {
   type DiagramExportBinding,
   type DiagramExportDependencies,
 } from '../../diagram/export/useDiagramExport';
-import { DIAGRAM_PAGE_PANE_ID, revealDiagramPane } from '../../diagram/useDiagramPaneReveal';
+import { DIAGRAM_PAGE_PANE_ID, showDiagramPane } from '../../diagram/useDiagramPaneReveal';
 import { useDiagramExportUiStore, type DiagramExportRequest } from '../../store/diagramExportUiStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { ExportModalFrame } from '../paperExport/ExportModalFrame';
@@ -28,8 +28,16 @@ import styles from './DiagramExportModal.module.css';
  */
 export function DiagramExportModal() {
   const request = useDiagramExportUiStore((state) => state.request);
+  const closeRequest = useDiagramExportUiStore((state) => state.closeRequest);
   const diagram = useWorkspaceStore((state) => state.diagram);
-  if (!request || !diagram) return null;
+  const loadId = useWorkspaceStore((state) => state.diagramLoadId);
+  const current = request !== null && diagram !== null && request.loadId === loadId;
+  // A request whose diagram has gone, or been replaced, is closed, never left
+  // to come back on whatever diagram turns up next.
+  useEffect(() => {
+    if (request && !current) closeRequest(request.id);
+  }, [request, current, closeRequest]);
+  if (!request || !diagram || !current) return null;
   return <DiagramExportDialog key={request.id} request={request} diagram={diagram} />;
 }
 
@@ -76,7 +84,7 @@ export function DiagramExportDialog({
           binding={binding}
           onEditPageSetup={() => {
             close();
-            revealDiagramPane(DIAGRAM_PAGE_PANE_ID);
+            showDiagramPane(DIAGRAM_PAGE_PANE_ID);
           }}
         />
       }
@@ -180,6 +188,11 @@ function DiagramExportPreview({ binding }: { binding: DiagramExportBinding }) {
         {state && (
           <span className={styles.state} data-tone={binding.status === 'failed' ? 'error' : undefined}>
             {state}
+            {binding.status === 'failed' && (
+              <Button size="sm" variant="secondary" onClick={binding.retry}>
+                {t('dialogs:diagramExport.retry', 'Try again')}
+              </Button>
+            )}
           </span>
         )}
       </div>

@@ -19,6 +19,17 @@
 //! composer has already measured every line in the fonts it names, so a
 //! substitute would not fit what was set.
 //!
+//! A character a face lacks is drawn as its missing-glyph box, glyph 0, which
+//! the check finds. So every font must have an outline there: usvg drops a
+//! text that draws nothing at all before any check can see it, and a text set
+//! only in empty boxes would vanish from the page rather than fail it. A font
+//! without one is refused (`PdfError::MissingGlyphOutline`); the app's
+//! subsetter keeps the outline. One case stays out of reach: usvg also drops
+//! a run whose spans shape to different numbers of glyphs. The composer sets
+//! one span a run, and an upload's spans are cut from subsets holding only
+//! their own characters, so a span's face meets its neighbours' characters as
+//! one box each and the counts agree.
+//!
 //! Links, scripts and external images never reach the file: an `<image>` that
 //! is not a `data:` URL is refused by the parser, and nothing here writes an
 //! action, an annotation or an attachment.
@@ -73,6 +84,10 @@ pub enum PdfError {
     Options(String),
     #[error("a font could not be read")]
     Font,
+    /// A font whose missing-glyph box draws nothing: a character it lacked
+    /// would vanish instead of failing the document.
+    #[error("a font's missing-glyph box has no outline")]
+    MissingGlyphOutline,
     #[error("page {page}: {message}")]
     Page { page: usize, message: String },
     /// Text that would print other than as set: a family nothing matched, or a
@@ -107,6 +122,9 @@ pub fn pages_to_pdf(
 
     let mut database = fontdb::Database::new();
     for font in fonts {
+        if !missing_glyph_has_outline(font) {
+            return Err(PdfError::MissingGlyphOutline);
+        }
         if database
             .load_font_source(fontdb::Source::Binary(Arc::new(font.to_vec())))
             .is_empty()
@@ -365,9 +383,8 @@ fn strict_resolver(loss: TextLoss, default_family: String) -> usvg::FontResolver
 }
 
 /// Every glyph a face lacks that a page would draw, as its missing-glyph box,
-/// and any text that could not be laid out at all — usvg drops a run whose
-/// spans' faces shape it to different numbers of glyphs — in the page's
-/// groups and in everything they draw from: clip paths, masks, patterns.
+/// in the page's groups and in everything they draw from: clip paths, masks,
+/// patterns.
 fn note_unprinted_text(group: &usvg::Group, loss: &TextLoss) {
     for node in group.children() {
         match node {
@@ -385,16 +402,28 @@ fn note_unprinted_text(group: &usvg::Group, loss: &TextLoss) {
                         .collect();
                     loss.note(format!("no glyph for {}", code_points.join(" ")));
                 }
-                let drawn = text
-                    .chunks()
-                    .iter()
-                    .any(|chunk| chunk.text().chars().any(|c| !c.is_whitespace()));
-                if drawn && text.layouted().is_empty() {
-                    loss.note("a text could not be laid out in its fonts".into());
-                }
             }
             _ => {}
         }
         node.subroots(|root| note_unprinted_text(root, loss));
+    }
+}
+
+/// Whether a font's glyph 0, its missing-glyph box, draws anything. A font
+/// that cannot be read is left to fontdb, which refuses it.
+fn missing_glyph_has_outline(font: &[u8]) -> bool {
+    struct Nothing;
+    impl ttf_parser::OutlineBuilder for Nothing {
+        fn move_to(&mut self, _: f32, _: f32) {}
+        fn line_to(&mut self, _: f32, _: f32) {}
+        fn quad_to(&mut self, _: f32, _: f32, _: f32, _: f32) {}
+        fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {}
+        fn close(&mut self) {}
+    }
+    match ttf_parser::Face::parse(font, 0) {
+        Ok(face) => face
+            .outline_glyph(ttf_parser::GlyphId(0), &mut Nothing)
+            .is_some(),
+        Err(_) => true,
     }
 }

@@ -30,6 +30,9 @@ export function diagramFontUrl(
 async function bytes(url: string): Promise<ArrayBuffer> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  // The site answers a path it does not have with the app's page, status 200:
+  // a font it no longer serves is a failed download, not a font.
+  if (response.headers.get('content-type')?.includes('text/html')) throw new Error(`${url}: not a font`);
   return response.arrayBuffer();
 }
 

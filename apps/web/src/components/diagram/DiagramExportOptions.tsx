@@ -169,10 +169,23 @@ export function DiagramExportOptions({
         </section>
       )}
 
-      {(binding.empty.length > 0 || binding.cut.length > 0 || binding.missing.length > 0) && (
-        <Notice tone={pdf && binding.missing.length > 0 ? 'warning' : 'info'}>
+      {(binding.empty.length > 0 || binding.cut.length > 0 || binding.missing.length > 0 || binding.unavailable) && (
+        <Notice tone={(pdf && binding.missing.length > 0) || binding.unavailable ? 'warning' : 'info'}>
           <ul className={styles.notes}>
-            {binding.missing.length > 0 && (
+            {binding.unavailable && (
+              <li className={styles.retry}>
+                <span>
+                  {t(
+                    'dialogs:diagramExport.fontsUnavailable',
+                    'Some of the diagram’s fonts couldn’t be downloaded, so some of its characters can’t be set. Check your connection, then try again.'
+                  )}
+                </span>
+                <Button size="sm" variant="secondary" onClick={binding.retry}>
+                  {t('dialogs:diagramExport.retry', 'Try again')}
+                </Button>
+              </li>
+            )}
+            {binding.missing.length > 0 && !binding.unavailable && (
               <li>
                 {pdf
                   ? t(
@@ -187,21 +200,7 @@ export function DiagramExportOptions({
                     )}
               </li>
             )}
-            {binding.empty.length > 0 && (
-              <li>
-                {pdf
-                  ? t('dialogs:diagramExport.emptyPdf', 'Steps {{steps}} have no picture and will print as blank space.', {
-                      steps: steps(binding.empty),
-                      count: binding.empty.length,
-                      defaultValue_one: 'Step {{steps}} has no picture and will print as blank space.',
-                    })
-                  : t('dialogs:diagramExport.emptyFiles', 'Steps {{steps}} have no picture and will be skipped.', {
-                      steps: steps(binding.empty),
-                      count: binding.empty.length,
-                      defaultValue_one: 'Step {{steps}} has no picture and will be skipped.',
-                    })}
-              </li>
-            )}
+            {binding.empty.length > 0 && <li>{emptySentence(t, pdf, steps(binding.empty), binding.empty.length)}</li>}
             {binding.cut.length > 0 && (
               <li>{cutSentence(t, steps(binding.cut), binding.cut.length)}</li>
             )}
@@ -212,10 +211,27 @@ export function DiagramExportOptions({
   );
 }
 
+/**
+ * The sentence about the steps with no picture: about one step, or about
+ * several, chosen by how many — not by the plural form of the count, which in
+ * Russian is "one" for 21 and 101 too.
+ */
+function emptySentence(t: TFunction, pdf: boolean, steps: string, count: number): string {
+  if (pdf) {
+    return count === 1
+      ? t('dialogs:diagramExport.emptyPdfStep', 'Step {{steps}} has no picture and will print as blank space.', { steps })
+      : t('dialogs:diagramExport.emptyPdfSteps', 'Steps {{steps}} have no picture and will print as blank space.', {
+          steps,
+        });
+  }
+  return count === 1
+    ? t('dialogs:diagramExport.emptyFilesStep', 'Step {{steps}} has no picture and will be skipped.', { steps })
+    : t('dialogs:diagramExport.emptyFilesSteps', 'Steps {{steps}} have no picture and will be skipped.', { steps });
+}
+
+/** The sentence about the instructions cut, chosen as {@link emptySentence}'s is. */
 function cutSentence(t: TFunction, steps: string, count: number): string {
-  return t('dialogs:diagramExport.cut', 'The instructions of steps {{steps}} don’t fit and are cut.', {
-    steps,
-    count,
-    defaultValue_one: 'The instruction of step {{steps}} doesn’t fit and is cut.',
-  });
+  return count === 1
+    ? t('dialogs:diagramExport.cutStep', 'The instruction of step {{steps}} doesn’t fit and is cut.', { steps })
+    : t('dialogs:diagramExport.cutSteps', 'The instructions of steps {{steps}} don’t fit and are cut.', { steps });
 }

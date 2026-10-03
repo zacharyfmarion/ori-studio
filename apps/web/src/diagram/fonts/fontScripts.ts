@@ -38,6 +38,19 @@ export function textCjkKey(text: string, hanStyle: DiagramHanStyle): CjkFontKey 
   return hanStyle;
 }
 
+// Joiners and variation selectors draw as nothing; a tab or a line break, as
+// a space or nothing (a page's text and an upload's alike).
+const NO_GLYPH = /^[\t\n\r]$|\p{Default_Ignorable_Code_Point}/u;
+
+/**
+ * Whether a character needs no glyph of its own: the one answer the font
+ * loader and the setter both give, so a text never fetches a face for a
+ * character nothing draws.
+ */
+export function needsNoGlyph(character: string): boolean {
+  return NO_GLYPH.test(character);
+}
+
 export interface FontAssignment {
   /** Each grapheme's font. */
   fonts: DiagramFontKey[];

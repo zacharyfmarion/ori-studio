@@ -12,11 +12,28 @@ import type { FontSubsetter } from '../../diagram/fonts/fontSubset';
 import type { FileService } from '../../platform/fileService';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
-import { DiagramExportDialog } from './DiagramExportModal';
+import { useDiagramExportUiStore } from '../../store/diagramExportUiStore';
+import { useLayoutStore } from '../../store/layoutStore';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DiagramExportDialog, DiagramExportModal } from './DiagramExportModal';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { track, toastSuccess } = vi.hoisted(() => ({ track: vi.fn(), toastSuccess: vi.fn() }));
+const { track, toastSuccess, reportError, appleMobile } = vi.hoisted(() => ({
+  track: vi.fn(),
+  toastSuccess: vi.fn(),
+  reportError: vi.fn(),
+  appleMobile: { value: false },
+}));
+vi.mock('../../monitoring', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../monitoring')>()),
+  reportError,
+}));
+// An iPad's canvas: 4,096² px in all.
+vi.mock('../../platform/runtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../platform/runtime')>()),
+  isAppleMobilePlatform: () => appleMobile.value,
+}));
 vi.mock('../../analytics/runtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics/runtime')>()),
   track,
@@ -61,6 +78,8 @@ beforeEach(() => {
   };
   track.mockClear();
   toastSuccess.mockClear();
+  reportError.mockClear();
+  appleMobile.value = false;
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
@@ -76,7 +95,11 @@ async function open(document: DiagramDocument = diagram()) {
   act(() =>
     root.render(
       <TooltipProvider>
-        <DiagramExportDialog request={{ id: 1, returnFocus: null }} diagram={document} dependencies={dependencies} />
+        <DiagramExportDialog
+          request={{ id: 1, returnFocus: null, loadId: 0 }}
+          diagram={document}
+          dependencies={dependencies}
+        />
       </TooltipProvider>
     )
   );
@@ -169,19 +192,107 @@ describe('DiagramExportDialog', () => {
     expect(exportButton().disabled).toBe(false);
   });
 
+  it('says when a font could not be downloaded, rather than blame the text, and tries again when asked', async () => {
+    let failing = true;
+    dependencies.load = async () => ({
+      fonts: { ...FIXTURE_FONTS, unavailable: failing ? [{ key: 'sc', weight: 400 }] : [] },
+      subsetter,
+    });
+    await open(diagram('Fold 𠀀'));
+    expect(notice()).toContain('couldn’t be downloaded');
+    expect(notice()).not.toContain('Change the text');
+    expect(exportButton().disabled).toBe(true);
+    failing = false;
+    await click(button('Try again'));
+    await act(async () => {});
+    expect(notice()).not.toContain('couldn’t be downloaded');
+    expect(notice()).toContain('Change the text');
+  });
+
+  it('refuses a step file too large for a PNG here by saying which, and reports nothing', async () => {
+    appleMobile.value = true;
+    const document = diagram();
+    const long = { ...document.steps[2]!, text: 'Fold the corner up to the edge, then unfold. '.repeat(300) };
+    await open({ ...document, steps: [document.steps[0]!, document.steps[1]!, long] });
+    await click(radio('Step files (ZIP)'));
+    await click(button('PNG'));
+    await click(button('600 dpi'));
+    await click(host.querySelector<HTMLButtonElement>('[role="switch"][aria-label="Same size for every step"]')!);
+    // The file on show fits; the long instruction's does not.
+    expect(exportButton().disabled).toBe(false);
+    await click(exportButton());
+    expect(host.querySelector('[role="alert"]')?.textContent).toMatch(/Step 3 would be [\d,]+ × [\d,]+ px/);
+    expect(saveBinaryFile).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('shows the Page tab for Edit page setup, from whichever workspace the dialog was opened in', async () => {
+    const activatePanel = vi.spyOn(useLayoutStore.getState(), 'activatePanel').mockImplementation(() => {});
+    try {
+      await open();
+      await click(button('Edit page setup'));
+      await act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      });
+      expect(activatePanel).toHaveBeenCalledWith('diagram-page');
+    } finally {
+      activatePanel.mockRestore();
+    }
+  });
+
   it('stops a PDF being written when the dialog closes, and saves nothing', async () => {
     let signal: AbortSignal | undefined;
+    let finish: (bytes: Uint8Array) => void = () => {};
     writePdf.mockImplementation((_pages, _fonts, _options, given) => {
       signal = given;
-      return new Promise(() => {});
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
     });
     await open();
+    // An option changed, so remembering it would show.
+    await click(radio('Print shop'));
     await click(exportButton());
     expect(exportButton().textContent).toBe('Writing PDF…');
     expect(button('Stop')).toBeTruthy();
     act(() => root.unmount());
     root = createRoot(host);
     expect(signal?.aborted).toBe(true);
+    // The writer answers anyway: nothing is offered to a save dialog, announced or remembered.
+    await act(async () => {
+      finish(new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+    });
+    await act(async () => {});
     expect(saveBinaryFile).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(track).not.toHaveBeenCalledWith('diagram exported', expect.anything());
+    expect(useSettingsStore.getState().diagramExport.pdf).toBe('home');
+  });
+});
+
+describe('DiagramExportModal', () => {
+  afterEach(() => {
+    act(() => useWorkspaceStore.setState({ diagram: null }));
+  });
+
+  it('closes a request whose diagram goes away or is replaced, rather than reopening it on another', () => {
+    const dialog = () => host.querySelector('[role="dialog"]');
+    act(() => useWorkspaceStore.setState({ diagram: diagram(), diagramLoadId: 7 }));
+    act(() => useDiagramExportUiStore.getState().open(null, 7));
+    act(() => root.render(<TooltipProvider><DiagramExportModal /></TooltipProvider>));
+    expect(dialog()).not.toBeNull();
+
+    // Undone back to no diagram: closed, and a diagram made later does not bring it back.
+    act(() => useWorkspaceStore.setState({ diagram: null }));
+    expect(useDiagramExportUiStore.getState().request).toBeNull();
+    act(() => useWorkspaceStore.setState({ diagram: diagram() }));
+    expect(dialog()).toBeNull();
+
+    // Another project's diagram in its place: closed too.
+    act(() => useDiagramExportUiStore.getState().open(null, 7));
+    expect(dialog()).not.toBeNull();
+    act(() => useWorkspaceStore.setState({ diagram: diagram(), diagramLoadId: 8 }));
+    expect(useDiagramExportUiStore.getState().request).toBeNull();
+    expect(dialog()).toBeNull();
   });
 });

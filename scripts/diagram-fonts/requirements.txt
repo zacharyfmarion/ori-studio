@@ -2,3 +2,5 @@
 # another fonttools could rename every one of them on the next deploy.
 fonttools==4.65.0
 brotli==1.2.0
+# Removing the variable fonts' overlaps (instancer.OverlapMode.REMOVE) imports it.
+skia-pathops==0.9.2

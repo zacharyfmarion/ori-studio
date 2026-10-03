@@ -55,6 +55,8 @@ jobs:
       # The Diagram's CJK fonts are served from public/ and never committed.
       - name: Build the Diagram's fonts
         uses: ./.github/actions/build-diagram-fonts
+        with:
+          warn-renames-against: https://oristudio.dev/fonts/diagram/manifest.json
 
       - name: Build web app
         run: npm run build:web

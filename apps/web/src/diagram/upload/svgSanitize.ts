@@ -1543,9 +1543,28 @@ const FONT_PROPERTIES = [
   'font-variant-numeric',
   'font-variant-east-asian',
 ];
-/** What decides a text's font, in cascade order: the shorthand, then the longhands. */
+/**
+ * What decides a text's font, in cascade order: the `font` shorthand (in a
+ * style only: as an attribute, renderers ignore it), then the longhands.
+ */
 const FONT_DECLARATIONS = ['font', 'font-family', 'font-weight', 'font-style', 'font-size'];
+/**
+ * What the diagram's fonts cannot draw and the copy drops, so the text looks
+ * different: small caps and the other variants, features, size adjustment and
+ * width. (Kerning and ligatures are off on every page anyway.)
+ */
+const LOOK_PROPERTIES = [
+  'font-variant',
+  'font-variant-caps',
+  'font-variant-numeric',
+  'font-variant-east-asian',
+  'font-feature-settings',
+  'font-size-adjust',
+  'font-stretch',
+];
+const NEUTRAL_LOOK = /^(normal|none|initial|100%)$/i;
 const TEXT_CONTENT = new Set(['text', 'tspan', 'textPath']);
+const XML_WHITESPACE = /^[ \t\r\n]*$/;
 
 /** The font a text asked for. */
 interface AskedFont {
@@ -1553,18 +1572,33 @@ interface AskedFont {
   family: string;
   weight: number;
   italic: boolean;
+  /** The look properties it inherits that are not their default, by name. */
+  look: Readonly<Record<string, string>>;
 }
 
-const NO_FONT: AskedFont = { family: '', weight: 400, italic: false };
+const NO_FONT: AskedFont = { family: '', weight: 400, italic: false, look: {} };
+
+/**
+ * The most `<tspan>`s a split may add: past it the copy is over the stored
+ * cap however it ends (each is at least this long serialized), so the work is
+ * refused before it is done rather than thrown away after.
+ */
+const SHORTEST_RUN = `<tspan font-family="${uploadTextFamily('latin')}" font-weight="400">x</tspan>`;
+const MAX_ADDED_RUNS = Math.floor(SVG_STORED_MAX_BYTES / SHORTEST_RUN.length);
+
+/** The face a weight is drawn in, of Regular and Bold: CSS picks Bold for anything over 500. */
+function faceWeight(weight: number): 400 | 700 {
+  return weight > 500 ? 700 : 400;
+}
 
 /**
  * Every text in the diagram's fonts: each text node's characters split into
  * runs by script (`fontScripts.ts`, a text's Han in {@link UPLOAD_HAN_KEY}),
- * and each run's element given the family and the weight, Regular below 600
- * and Bold from it, as a browser picks between the two. A text node that is
- * its element's only child and one run is the run; otherwise each run is a
- * new `<tspan>`. Spaces between runs are left to the `<text>`, which is set
- * in Noto Sans when it is not itself a run.
+ * and each run's element given the family and the weight ({@link faceWeight}).
+ * A text node that is its element's only child and one run is the run;
+ * otherwise each run is a new `<tspan>`. Spaces between runs, and a run that
+ * is only spaces, are left to the `<text>`, which is set in Noto Sans when it
+ * is not itself a run.
  *
  * Idempotent: on its own output every run is already its element's only
  * child, in the font it asks for. Returns the `<tspan>`s it added.
@@ -1591,18 +1625,27 @@ function setTextFonts(root: Element, report: Report): number {
     nodes.forEach((node, index) => {
       const own = keys.slice(at, at + graphemes[index].length);
       at += graphemes[index].length;
-      if (/^[ \t\r\n]*$/.test(node.data)) return;
+      if (XML_WHITESPACE.test(node.data)) return;
       const parent = node.parentNode as Element;
       const font = asked.get(parent) ?? NO_FONT;
       const runs = runsOf(graphemes[index], own);
       noteMappedFont(font, runs, report);
-      const weight = font.weight >= 600 ? 700 : 400;
+      const weight = faceWeight(font.weight);
       if (runs.length === 1 && parent.childNodes.length === 1) {
         setRunFont(parent, runs[0].key, weight);
         return;
       }
+      if (added + runs.length > MAX_ADDED_RUNS) {
+        throw new Error(`text split into more than ${MAX_ADDED_RUNS} runs`);
+      }
       const document = parent.ownerDocument;
       for (const run of runs) {
+        // Only spaces: a text node, as every other space in the text is, so a
+        // second pass finds the same tree (it never gives one a run).
+        if (XML_WHITESPACE.test(run.text)) {
+          parent.insertBefore(document.createTextNode(run.text), node);
+          continue;
+        }
         const span = document.createElementNS(SVG_NS, 'tspan');
         setRunFont(span, run.key, weight);
         span.appendChild(document.createTextNode(run.text));
@@ -1612,7 +1655,7 @@ function setTextFonts(root: Element, report: Report): number {
       parent.removeChild(node);
     });
     if (!text.hasAttribute('font-family')) {
-      setRunFont(text, 'latin', (asked.get(text) ?? NO_FONT).weight >= 600 ? 700 : 400);
+      setRunFont(text, 'latin', faceWeight((asked.get(text) ?? NO_FONT).weight));
     }
   }
   return added;
@@ -1670,6 +1713,7 @@ function noteMappedFont(font: AskedFont, runs: readonly { key: DiagramFontKey }[
   }
   if (font.weight !== 400 && font.weight !== 700) report.add('font-mapped:weight', 'visual', String(font.weight));
   if (font.italic) report.add('font-mapped:italic', 'visual');
+  for (const property of Object.keys(font.look)) report.add('font-mapped:look', 'visual', property);
 }
 
 /**
@@ -1691,13 +1735,15 @@ function clearFont(element: Element, inherited: AskedFont): AskedFont {
     const parts = parseFontShorthand(value);
     if (parts) for (const [name, part] of Object.entries(parts)) declared.set(name, { value: part, shorthand: true });
   };
-  // The attributes, then the style, which overrides them.
-  for (const property of FONT_DECLARATIONS) {
-    const value = element.getAttribute(property);
+  // The attributes (not `font`, which renderers ignore there), then the style, which overrides them.
+  for (const property of [...FONT_DECLARATIONS, ...LOOK_PROPERTIES]) {
+    const value = property === 'font' ? null : element.getAttribute(property);
     if (value !== null) declare(property, value);
   }
   const style = styleMap(element);
-  for (const [property, value] of style) if (FONT_DECLARATIONS.includes(property)) declare(property, value);
+  for (const [property, value] of style) {
+    if (FONT_DECLARATIONS.includes(property) || LOOK_PROPERTIES.includes(property)) declare(property, value);
+  }
 
   let restyled = false;
   for (const property of FONT_PROPERTIES) {
@@ -1715,6 +1761,13 @@ function clearFont(element: Element, inherited: AskedFont): AskedFont {
   const family = declared.get('font-family')?.value.trim();
   const weight = declared.get('font-weight')?.value.trim().toLowerCase();
   const fontStyle = declared.get('font-style')?.value.trim().toLowerCase();
+  const look: Record<string, string> = { ...inherited.look };
+  for (const property of LOOK_PROPERTIES) {
+    const value = declared.get(property)?.value.trim();
+    if (value === undefined || INHERITED.test(value)) continue;
+    if (NEUTRAL_LOOK.test(value)) delete look[property];
+    else look[property] = value;
+  }
   return {
     family: family === undefined || INHERITED.test(family) ? inherited.family : firstFamily(family),
     weight: weight === undefined ? inherited.weight : weightValue(weight, inherited.weight),
@@ -1722,6 +1775,7 @@ function clearFont(element: Element, inherited: AskedFont): AskedFont {
       fontStyle === undefined || INHERITED.test(fontStyle)
         ? inherited.italic
         : fontStyle === 'italic' || fontStyle.startsWith('oblique'),
+    look,
   };
 }
 
@@ -1747,17 +1801,33 @@ function weightValue(value: string, inherited: number): number {
 const FONT_SIZE =
   /^(?:\+?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?(?:px|pt|pc|mm|cm|in|q|em|ex|rem|ch|vw|vh|vmin|vmax|%)|0|xx-small|x-small|small|medium|large|x-large|xx-large|xxx-large|larger|smaller)$/i;
 
-type FontLonghands = Record<'font-style' | 'font-weight' | 'font-size' | 'font-family', string>;
+type FontLonghands = Record<
+  'font-style' | 'font-variant' | 'font-weight' | 'font-stretch' | 'font-size' | 'font-family',
+  string
+>;
+
+const FONT_WIDTHS = new Set([
+  'ultra-condensed',
+  'extra-condensed',
+  'condensed',
+  'semi-condensed',
+  'semi-expanded',
+  'expanded',
+  'extra-expanded',
+  'ultra-expanded',
+]);
 
 /**
- * The `font` shorthand as the longhands it sets, the style and weight reset
- * to `normal` when it leaves them out; null for one that does not read (a
- * system font, or no size or family).
+ * The `font` shorthand as the longhands it sets, the style, variant, weight
+ * and width reset to `normal` when it leaves them out; null for one that does
+ * not read (a system font, or no size or family).
  */
 function parseFontShorthand(value: string): FontLonghands | null {
   const tokens = value.trim().split(/\s+/);
   let fontStyle = 'normal';
+  let variant = 'normal';
   let weight = 'normal';
+  let stretch = 'normal';
   for (let index = 0; index < tokens.length; index++) {
     const [size, lineHeight] = tokens[index].split('/');
     if (FONT_SIZE.test(size)) {
@@ -1768,14 +1838,23 @@ function parseFontShorthand(value: string): FontLonghands | null {
       const family = tokens.slice(rest).join(' ');
       return family === ''
         ? null
-        : { 'font-style': fontStyle, 'font-weight': weight, 'font-size': size, 'font-family': family };
+        : {
+            'font-style': fontStyle,
+            'font-variant': variant,
+            'font-weight': weight,
+            'font-stretch': stretch,
+            'font-size': size,
+            'font-family': family,
+          };
     }
     const token = tokens[index].toLowerCase();
     if (token === 'italic' || token === 'oblique') fontStyle = token;
+    else if (token === 'small-caps') variant = token;
+    else if (FONT_WIDTHS.has(token)) stretch = token;
     else if (token === 'bold' || token === 'bolder' || token === 'lighter' || /^\d+(\.\d+)?$/.test(token)) {
       weight = token;
     }
-    // `normal`, `small-caps`, the widths and an oblique's angle set nothing kept here.
+    // `normal` and an oblique's angle set nothing kept here.
   }
   return null;
 }

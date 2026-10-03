@@ -2,9 +2,10 @@
 
     python scripts/diagram-fonts/build_fonts.py [--cache DIR] [--out DIR]
 
-Needs `fonttools` and `brotli` (pip install fonttools brotli). Every source in
-sources.json is downloaded (once, into --cache) and checked against its
-sha256, then:
+Needs the pinned toolchain in requirements.txt (pip install -r
+scripts/diagram-fonts/requirements.txt): fonttools, brotli, and skia-pathops,
+which removing the variable fonts' overlaps uses. Every source in sources.json
+is downloaded (once, into --cache) and checked against its sha256, then:
 
 - **Static instances.** Regular (wght 400) and Bold (wght 700) of each
   variable font, as TrueType, named "Noto Sans …" with the usual name, OS/2
@@ -23,6 +24,12 @@ sha256, then:
   is named for its content (`NotoSansSC-Bold.full.<sha256:12>.ttf`), so the
   app's service worker may keep a copy for good (`pwa/swRoutes.ts`), and the
   files of an earlier build are cleared from --out first.
+- **Reproducible.** fontTools stamps each font's `head.modified` with the
+  time it is saved; the build pins it (`BUILD_TIMESTAMP`), so the same sources
+  and toolchain always write the same bytes, and the same names. A name then
+  changes only with the sources, the toolchain, or (for a common file) a
+  charset — which matters, because an installed desktop app reads the full
+  files by name from the site (`check_fonts.py` checks the stamp).
 - **Manifest** (--out/manifest.json): every CJK file's family, weight, tier,
   bytes and sha256, which the app checks each download against, and each
   script's full coverage (compact code-point runs), so the app fetches a full
@@ -43,6 +50,10 @@ import urllib.request
 from fontTools import subset
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
+
+# Every font's head.modified (fontTools reads SOURCE_DATE_EPOCH): 2026-01-01T00:00:00Z.
+BUILD_TIMESTAMP = 1767225600
+os.environ['SOURCE_DATE_EPOCH'] = str(BUILD_TIMESTAMP)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))

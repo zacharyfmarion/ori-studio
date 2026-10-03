@@ -36,7 +36,7 @@ pub fn pages_to_pdf(
     oristudio_pdf::pages_to_pdf(&page_refs, &font_refs, &options).map_err(|failure| {
         let code = match failure {
             PdfError::Options(_) => "options",
-            PdfError::Font => "font",
+            PdfError::Font | PdfError::MissingGlyphOutline => "font",
             PdfError::Page { .. } => "page",
             PdfError::Text { .. } => "text",
             PdfError::Write(_) => "write",

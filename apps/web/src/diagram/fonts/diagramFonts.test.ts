@@ -77,6 +77,12 @@ describe('loadDiagramFonts', () => {
     expect(files.fetched).toEqual([]);
   });
 
+  it('fetches nothing for a tab or a line break, which draw as a space or nothing', async () => {
+    const files = source();
+    await loadDiagramFonts([{ text: '\n\tFold\r\n', weight: 400 }], 'sc', files);
+    expect(files.fetched).toEqual([]);
+  });
+
   it('takes a face’s common file when it has every character, the full file when it does not', async () => {
     const files = source();
     const common = await loadDiagramFonts([{ text: '鶴', weight: 400 }], 'sc', files);

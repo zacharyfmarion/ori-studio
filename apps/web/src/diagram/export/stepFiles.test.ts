@@ -21,13 +21,18 @@ const SAME: StepFileOptions = {
 };
 const LONG = 'Fold the corner up to the top edge and crease it firmly. '.repeat(8);
 
-/** Twelve steps: a one-unit sheet, the same sheet measured as two units, a References card and empties. */
+/**
+ * Twelve steps: a one-unit sheet, an empty step, the same sheet measured as
+ * two units, a References card, and more empties.
+ */
 function diagram(): DiagramDocument {
+  const empty = (index: number) => ({ ...createStep(() => `step-empty-${index}`), text: 'Nothing yet.' });
   const steps = [
     { ...cpStep('step-one'), text: 'Fold in half, then unfold.' },
+    empty(0),
     { ...cpStep('step-two', undefined, { ...scenePicture('scene-2'), paperScale: 50 }), text: LONG },
     referencesStep('step-sent'),
-    ...Array.from({ length: 9 }, (_, index) => ({ ...createStep(() => `step-empty-${index}`), text: 'Nothing yet.' })),
+    ...Array.from({ length: 8 }, (_, index) => empty(index + 1)),
   ];
   return insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
 }
@@ -48,12 +53,13 @@ function sheetWidth(svg: string): number {
 describe('prepareStepFiles', () => {
   it('makes a file for each step with a picture, named by its number, and lists the rest', () => {
     const files = prepareStepFiles(diagram(), FIXTURE_FONTS, subsetter, SAME);
+    // A skipped step keeps its number: the file after it is step 3's.
     expect(files.files.map((file) => [file.number, file.fileStem])).toEqual([
       [1, 'Crane-step-01'],
-      [2, 'Crane-step-02'],
       [3, 'Crane-step-03'],
+      [4, 'Crane-step-04'],
     ]);
-    expect(files.skipped).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    expect(files.skipped).toEqual([2, 5, 6, 7, 8, 9, 10, 11, 12]);
     expect(files.missing).toEqual([]);
   });
 
@@ -70,10 +76,10 @@ describe('prepareStepFiles', () => {
 
   it('prints the number and the instruction when asked, the instruction cut to its slot', () => {
     const files = prepareStepFiles(diagram(), FIXTURE_FONTS, subsetter, SAME);
-    expect(files.cut).toEqual([2]);
+    expect(files.cut).toEqual([3]);
     const document = parse(files.compose(1).svg);
     const texts = [...document.querySelectorAll('text')];
-    expect(texts[0]!.textContent).toBe('2');
+    expect(texts[0]!.textContent).toBe('3');
     expect(texts[1]!.querySelectorAll('tspan').length).toBeGreaterThanOrEqual(STEP_FILE_TEXT_LINES);
     expect(texts[1]!.textContent!.endsWith('…')).toBe(true);
     // Its fonts embedded, so it opens anywhere as it looks here.
@@ -109,7 +115,7 @@ describe('prepareStepFiles', () => {
   it('pads the number to the step count, and keeps a skipped step’s number for the next', () => {
     const document = diagram();
     const files = prepareStepFiles({ ...document, steps: document.steps.slice(0, 9) }, FIXTURE_FONTS, subsetter, SAME);
-    expect(files.files.map((file) => file.fileStem)).toEqual(['Crane-step-1', 'Crane-step-2', 'Crane-step-3']);
+    expect(files.files.map((file) => file.fileStem)).toEqual(['Crane-step-1', 'Crane-step-3', 'Crane-step-4']);
   });
 
   it('says how tall a canvas must be to leave a picture between the number and the text', () => {

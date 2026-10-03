@@ -535,7 +535,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
         return true;
       case 'file.exportDiagram':
-        useDiagramExportUiStore.getState().open(focusedElement());
+        useDiagramExportUiStore.getState().open(focusedElement(), useWorkspaceStore.getState().diagramLoadId);
         return true;
       case 'file.settings':
         deps.settings?.();

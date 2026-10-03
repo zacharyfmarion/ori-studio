@@ -18,7 +18,7 @@ import {
   type DiagramFontWeight,
 } from '../fonts/diagramFontFaces';
 import type { FontMetrics } from '../fonts/fontMetrics';
-import { assignFonts, coverFonts, textCjkKey } from '../fonts/fontScripts';
+import { assignFonts, coverFonts, needsNoGlyph, textCjkKey } from '../fonts/fontScripts';
 import type { SetLine, TextSetter } from './diagramPageLayout';
 import { ELLIPSIS, setTextLines, type TextFaces } from './setText';
 
@@ -30,10 +30,6 @@ export interface FontTextSetter extends TextSetter {
   readonly missing: ReadonlySet<string>;
 }
 
-// Joiners and variation selectors: drawn as nothing, so needing no glyph.
-const IGNORABLE = /\p{Default_Ignorable_Code_Point}/u;
-// An upload's line breaks and tabs, which its text draws as spaces or nothing.
-const XML_SPACE = /^[\t\n\r]+$/;
 
 export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): FontTextSetter {
   const missing = new Set<string>();
@@ -42,7 +38,7 @@ export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): Fo
     const metrics = fonts(key, weight);
     if (!metrics) return false;
     for (const character of grapheme) {
-      if (!IGNORABLE.test(character) && !metrics.has(character.codePointAt(0)!)) return false;
+      if (!needsNoGlyph(character) && !metrics.has(character.codePointAt(0)!)) return false;
     }
     return true;
   };
@@ -54,7 +50,7 @@ export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): Fo
     let units = 0;
     for (const character of grapheme) {
       const codePoint = character.codePointAt(0)!;
-      if (IGNORABLE.test(character) && !metrics.has(codePoint)) continue;
+      if (needsNoGlyph(character) && !metrics.has(codePoint)) continue;
       units += metrics.advance(codePoint);
     }
     return (units * sizeMm) / metrics.unitsPerEm;
@@ -90,12 +86,7 @@ export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): Fo
     },
     runs(text, { key, weight }) {
       const graphemes = graphemesOf(text);
-      const coverage = covers(weight);
-      const assigned = coverFonts(
-        graphemes,
-        graphemes.map(() => key),
-        (font, grapheme) => XML_SPACE.test(grapheme) || coverage(font, grapheme)
-      );
+      const assigned = coverFonts(graphemes, graphemes.map(() => key), covers(weight));
       for (const grapheme of assigned.missing) missing.add(grapheme);
       const runs: { face: DiagramFontFace; text: string }[] = [];
       graphemes.forEach((grapheme, index) => {

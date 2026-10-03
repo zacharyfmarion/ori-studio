@@ -437,6 +437,49 @@ describe('text, set in the diagram’s fonts', () => {
     );
   });
 
+  it('sets a weight over 500 in Bold and one up to 500 in Regular, as a browser picks between the two', () => {
+    expect(ok(load(svgOf('<text font-weight="550">A</text>'))).svg).toContain(`${NOTO} font-weight="700"`);
+    expect(ok(load(svgOf('<text font-weight="500">A</text>'))).svg).toContain(`${NOTO} font-weight="400"`);
+  });
+
+  it('ignores a font attribute, as renderers do, and drops it', () => {
+    const once = ok(load(svgOf('<text id="t" font="bold 40px serif">A</text>'))).svg;
+    expect(once).toContain(`<text id="a1-t" ${NOTO} font-weight="400">A</text>`);
+    expect(ok(load(once)).svg).toBe(once);
+  });
+
+  it('says the look changed when small caps, features, size adjustment or a width are dropped', () => {
+    const notices = (body: string) => sanitizeNotices(ok(load(svgOf(body))).report);
+    expect(notices('<g font-variant="small-caps"><text font-family="Noto Sans">Fold</text></g>')).toEqual(['text-font']);
+    expect(notices(`<text style="font: small-caps 12px 'Noto Sans'">Fold</text>`)).toEqual(['text-font']);
+    expect(notices(`<text font-family="Noto Sans" style="font-feature-settings:'smcp'">Fold</text>`)).toEqual([
+      'text-font',
+    ]);
+    expect(notices('<text font-family="Noto Sans" font-stretch="condensed">Fold</text>')).toEqual(['text-font']);
+    // Their defaults change nothing; neither does a variant set back to normal under one.
+    expect(notices('<text font-family="Noto Sans" font-variant="normal" font-size-adjust="none">Fold</text>')).toEqual([]);
+    expect(
+      notices('<g font-variant="small-caps"><text font-family="Noto Sans" font-variant="normal">Fold</text></g>')
+    ).toEqual([]);
+  });
+
+  it('refuses text split into more runs than a stored picture could hold, before building them', () => {
+    const result = load(svgOf(`<text>${'a中'.repeat(16_000)}</text>`));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/runs/);
+  });
+
+  it('leaves a run of only spaces to the text, so a second pass finds the same tree', () => {
+    for (const body of [
+      '<text x="10" y="20"><tspan>折る</tspan> fold</text>',
+      '<text><tspan>Valley fold</tspan><tspan font-weight="bold"> 谷折り</tspan></text>',
+    ]) {
+      const once = ok(load(svgOf(body))).svg;
+      expect(once, body).not.toMatch(/<tspan[^>]*> <\/tspan>/);
+      expect(ok(load(once)).svg, body).toBe(once);
+    }
+  });
+
   it('writes the same bytes a second time', () => {
     const once = ok(
       load(

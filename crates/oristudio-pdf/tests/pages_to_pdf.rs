@@ -3,6 +3,12 @@ use oristudio_pdf::{PT_PER_MM, PdfError, PdfOptions, PrintShop, pages_to_pdf};
 const REGULAR: &[u8] = include_bytes!("../../../apps/web/src/diagram/fonts/NotoSans-Regular.ttf");
 const BOLD: &[u8] = include_bytes!("../../../apps/web/src/diagram/fonts/NotoSans-Bold.ttf");
 
+/// Noto Sans Bold cut by hb-subset to "Crane 1", as the app cuts a page's
+/// fonts: with its missing-glyph box's outline, and (as hb-subset leaves it by
+/// default) without.
+const CRANE_SUBSET: &[u8] = include_bytes!("fixtures/NotoSans-Bold.crane.ttf");
+const CRANE_SUBSET_EMPTY_BOX: &[u8] = include_bytes!("fixtures/NotoSans-Bold.crane.no-notdef.ttf");
+
 const SC_BOLD: &[u8] =
     include_bytes!("../../../apps/web/src/diagram/fonts/fixtures/NotoSansSC-Bold.fixture.ttf");
 
@@ -196,6 +202,37 @@ fn refuses_a_span_whose_own_face_lacks_a_character() {
         matches!(&error, PdfError::Text { message, .. } if message.contains("U+6298")),
         "{error:?}"
     );
+}
+
+#[test]
+fn refuses_a_text_made_only_of_characters_its_subset_lacks() {
+    // Nothing of the second text is in the subset: it would draw only boxes.
+    let body = r#"<text font-size="10" font-weight="700"><tspan x="40" y="80" font-family="'Noto Sans', sans-serif">Crane</tspan></text>
+<text font-size="10" font-weight="700"><tspan x="40" y="120" font-family="'Noto Sans', sans-serif">鶴</tspan></text>"#;
+    let error = pages_to_pdf(&[&a4_page(body, 0.0)], &[CRANE_SUBSET], &a4(None, 0.0)).unwrap_err();
+    assert!(
+        matches!(&error, PdfError::Text { message, .. } if message.contains("U+9DB4")),
+        "{error:?}"
+    );
+    pages_to_pdf(
+        &[&page("Crane", "Noto Sans", 0.0)],
+        &[CRANE_SUBSET],
+        &a4(None, 0.0),
+    )
+    .expect("what the subset holds prints");
+}
+
+#[test]
+fn refuses_a_font_whose_missing_glyph_box_draws_nothing() {
+    // usvg drops a text that draws nothing, so a box with no outline would
+    // let a text of missing characters vanish instead of failing.
+    let error = pages_to_pdf(
+        &[&page("Crane", "Noto Sans", 0.0)],
+        &[CRANE_SUBSET_EMPTY_BOX],
+        &a4(None, 0.0),
+    )
+    .unwrap_err();
+    assert_eq!(error, PdfError::MissingGlyphOutline);
 }
 
 #[test]

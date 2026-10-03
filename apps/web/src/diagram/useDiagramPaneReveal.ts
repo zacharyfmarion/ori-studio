@@ -27,6 +27,16 @@ export function revealDiagramPane(id: DiagramPaneId): void {
 }
 
 /**
+ * Bring the Step or Page tab forward because the reader asked for it (Edit
+ * page setup): from any workspace, which switches to the Diagram, and on
+ * touch in the drawer, which a reveal never opens. After the gesture that
+ * asked, as a reveal is.
+ */
+export function showDiagramPane(id: DiagramPaneId): void {
+  runAfterPointerGesture(() => useLayoutStore.getState().activatePanel(id));
+}
+
+/**
  * The reveal rules, on transitions only, so a tab the user picks stays until
  * the next one: switching to Pages brings Page forward and back to Steps
  * brings Step; selecting a different step brings Step. Mounted by the Diagram

@@ -21,6 +21,23 @@ The Cloudflare Pages project name is `oristudio`; the production URL is
 `https://oristudio.pages.dev/`. Pull request previews are deployed from
 non-fork PRs to `https://pr-<number>.oristudio.pages.dev/`.
 
+## Diagram fonts
+
+The Diagram's CJK fonts are built in CI from pinned sources
+(`scripts/diagram-fonts/`, through `.github/actions/build-diagram-fonts`) and
+named for their content. The build is reproducible: the same sources and
+toolchain give the same bytes and the same names, and `check_fonts.py` fails a
+directory that would not.
+
+The desktop app ships the common files and reads a full file from the site by
+the name its own build gave it. So a change to `sources.json`,
+`requirements.txt`, or how `build_fonts.py` cuts a font renames the full files,
+and every installed desktop version before the next release then loses the
+rare characters (they are reported as fonts that could not be downloaded)
+until it updates. The production deploy warns when this happens ("Diagram
+fonts renamed"). Ship a desktop release soon after such a change. A charset
+change renames only the common files, which the desktop carries itself.
+
 ## Detector models
 
 The crease-pattern detector's models are not in the build: Cloudflare

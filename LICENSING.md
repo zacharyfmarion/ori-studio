@@ -308,7 +308,8 @@ generated from `cargo metadata` against the checked-in `Cargo.lock`.
 
 The Diagram's PDF writer (`oristudio-pdf`, `oristudio-pdf-wasm`) added krilla,
 krilla-svg, usvg and their closure, regenerated with
-`cargo tree -p oristudio-pdf -p oristudio-pdf-wasm --edges normal --prefix none --format '{p} {l}'`:
+`cargo tree -p oristudio-pdf -p oristudio-pdf-wasm --target all --edges normal --prefix none --format '{p} {l}'`
+(every target: fontdb reads fontconfig's files on Linux):
 all permissive (MIT, Apache-2.0 OR MIT, BSD-2/3-Clause, Zlib, Unicode-3.0),
 none Apache-2.0 alone, which GPLv2 could not take.
 
@@ -360,6 +361,7 @@ none Apache-2.0 alone, which GPLv2 could not take.
 | `fnv` | `1.0.7` | `Apache-2.0 / MIT` |
 | `foldhash` | `0.1.5` | `Zlib` |
 | `font-types` | `0.11.3` | `MIT OR Apache-2.0` |
+| `fontconfig-parser` | `0.5.8` | `MIT` |
 | `fontdb` | `0.23.0` | `MIT` |
 | `futures-core` | `0.3.32` | `MIT OR Apache-2.0` |
 | `futures-task` | `0.3.32` | `MIT OR Apache-2.0` |
@@ -417,6 +419,7 @@ none Apache-2.0 alone, which GPLv2 could not take.
 | `regex-syntax` | `0.8.10` | `MIT OR Apache-2.0` |
 | `resvg` | `0.47.0` | `Apache-2.0 OR MIT` |
 | `rgb` | `0.8.53` | `MIT` |
+| `roxmltree` | `0.20.0` | `MIT OR Apache-2.0` |
 | `roxmltree` | `0.21.1` | `MIT OR Apache-2.0` |
 | `rustc-hash` | `2.1.2` | `Apache-2.0 OR MIT` |
 | `rustix` | `1.1.4` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |

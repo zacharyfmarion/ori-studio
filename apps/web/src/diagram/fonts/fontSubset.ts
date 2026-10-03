@@ -30,12 +30,21 @@ interface HbSubsetExports {
   hb_subset_input_create_or_fail: () => number;
   hb_subset_input_destroy: (input: number) => void;
   hb_subset_input_set: (input: number, kind: number) => number;
+  hb_subset_input_set_flags: (input: number, flags: number) => void;
   hb_subset_input_unicode_set: (input: number) => number;
   hb_subset_or_fail: (face: number, input: number) => number;
 }
 
 const HB_MEMORY_MODE_WRITABLE = 2;
 const HB_SUBSET_SETS_LAYOUT_FEATURE_TAG = 6;
+/**
+ * Keep the missing-glyph box's outline, which HarfBuzz otherwise empties. The
+ * PDF writer refuses a page that would print one (`crates/oristudio-pdf`), but
+ * a text drawn only in empty boxes has no outline at all, and usvg drops it
+ * before anything can see it. About 40 bytes a subset; a browser never shows
+ * the box, since it falls back for a character the font lacks.
+ */
+const HB_SUBSET_FLAGS_NOTDEF_OUTLINE = 0x40;
 
 export class FontSubsetError extends Error {
   constructor(message: string) {
@@ -83,6 +92,7 @@ export async function createFontSubsetter(wasm: ArrayBuffer | Uint8Array): Promi
       try {
         // No layout features: no renderer may kern, ligate or substitute.
         hb.hb_set_clear(hb.hb_subset_input_set(input, HB_SUBSET_SETS_LAYOUT_FEATURE_TAG));
+        hb.hb_subset_input_set_flags(input, HB_SUBSET_FLAGS_NOTDEF_OUTLINE);
         const unicodes = hb.hb_subset_input_unicode_set(input);
         for (const character of text) hb.hb_set_add(unicodes, character.codePointAt(0)!);
         const subset = hb.hb_subset_or_fail(face, input);

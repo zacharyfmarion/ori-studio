@@ -54,6 +54,12 @@ const TITLE_BASELINE_MM = 4.9;
 const TITLE_RULE_Y_MM = 6.8;
 export const PAGE_NUMBER_SIZE_MM = 3.4;
 const PAGE_NUMBER_RAISE_MM = 1.5;
+/**
+ * How far art that reaches the paper's edge runs on past it: the flow band
+ * where the sequence goes on, and the title tab and rule on a page with no
+ * margin. Past any bleed a print shop asks for, so the cut never shows paper.
+ */
+const OFF_PAGE_MM = 10;
 /** Flow: every other cell of a row steps down by this share of the cell, and the text gives up as much. */
 const FLOW_STEP = 0.06;
 
@@ -294,11 +300,13 @@ export function layoutDiagramPages(
     // Cut to the page: the tab never runs past the margin, nor the title past the tab.
     const line = setter.line(title.trim(), TITLE_SIZE_MM, 700, W - 2 * m - 2 * TAB_PADDING_MM);
     const tabW = line.widthMm + 2 * TAB_PADDING_MM;
+    // With no margin the tab and the rule reach the paper's edge: they run on past it.
+    const reach = m > 0 ? 0 : OFF_PAGE_MM;
     titleLayout = {
-      tab: { x: m, y: m, w: tabW, h: TAB_HEIGHT_MM },
+      tab: { x: m - reach, y: m - reach, w: tabW + reach, h: TAB_HEIGHT_MM + reach },
       textAt: { x: m + TAB_PADDING_MM, y: m + TITLE_BASELINE_MM },
       line,
-      rule: { x1: m + tabW, x2: W - m, y: m + TITLE_RULE_Y_MM },
+      rule: { x1: m + tabW, x2: W - m + reach, y: m + TITLE_RULE_Y_MM },
     };
   }
 
@@ -330,13 +338,15 @@ function flowBand(
     row: Math.round((cell.cellMm.y - cells[0]!.cellMm.y) / cell.cellMm.h),
   }));
   const points: { x: number; y: number }[] = [];
-  if (pageIndex > 0) points.push({ x: -10, y: centres[0]!.y });
+  if (pageIndex > 0) points.push({ x: -OFF_PAGE_MM, y: centres[0]!.y });
   centres.forEach((a, n) => {
     points.push({ x: a.x, y: a.y });
     const b = centres[n + 1];
     if (b && b.row !== a.row) points.push({ x: a.x + (a.row % 2 ? -1 : 1) * cellW * 0.46, y: (a.y + b.y) / 2 });
   });
   const last = centres.at(-1)!;
-  if (pageIndex < pageCount - 1) points.push({ x: last.row % 2 ? -10 : pageWidth + 10, y: last.y });
+  if (pageIndex < pageCount - 1) {
+    points.push({ x: last.row % 2 ? -OFF_PAGE_MM : pageWidth + OFF_PAGE_MM, y: last.y });
+  }
   return points;
 }

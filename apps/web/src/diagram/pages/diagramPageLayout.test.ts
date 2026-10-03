@@ -182,6 +182,22 @@ describe('layoutDiagramPages', () => {
     expect(layout(steps(1), { showTitle: false }).pages[0]!.cells[0]!.cellMm.y).toBe(DEFAULT_PAGE_SETUP.marginMm);
   });
 
+  it('runs the title tab and rule on past the paper’s edge on a page with no margin, for a print shop’s bleed', () => {
+    const edge = layout(steps(1), { marginMm: 0 }, 'Crane');
+    const { tab, textAt, rule } = edge.title!;
+    expect(tab.x).toBeLessThan(-3);
+    expect(tab.y).toBeLessThan(-3);
+    // The tab's inner edges and its text stay where the paper puts them.
+    expect(tab.x + tab.w).toBeCloseTo(edge.title!.line.widthMm + 8, 9);
+    expect(tab.y + tab.h).toBeCloseTo(7, 9);
+    expect(textAt.x).toBe(4);
+    expect(rule.x2).toBeGreaterThan(edge.paper.widthMm + 3);
+    // With a margin, nothing reaches the edge, and nothing runs past it.
+    const kept = layout(steps(1), {}, 'Crane').title!;
+    expect(kept.tab.x).toBe(DEFAULT_PAGE_SETUP.marginMm);
+    expect(kept.rule.x2).toBe(layout(steps(1)).paper.widthMm - DEFAULT_PAGE_SETUP.marginMm);
+  });
+
   it('lays out an empty diagram as one empty page', () => {
     const result = layout([]);
     expect(result.pages).toHaveLength(1);

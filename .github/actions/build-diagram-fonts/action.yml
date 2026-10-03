@@ -5,6 +5,14 @@ description: >-
   charsets, its pinned sources and its pinned toolchain, and checked against their
   manifest either way.
 
+inputs:
+  warn-renames-against:
+    description: >-
+      The live site's font manifest. When set, the check warns if this build no longer has
+      a full file the site serves, which installed desktop apps read by name.
+    required: false
+    default: ''
+
 runs:
   using: composite
   steps:
@@ -35,4 +43,11 @@ runs:
 
     - name: Check the fonts against their manifest
       shell: bash
-      run: python3 scripts/diagram-fonts/check_fonts.py
+      env:
+        WARN_RENAMES_AGAINST: ${{ inputs.warn-renames-against }}
+      run: |
+        if [ -n "${WARN_RENAMES_AGAINST}" ]; then
+          python3 scripts/diagram-fonts/check_fonts.py --warn-renames-against "${WARN_RENAMES_AGAINST}"
+        else
+          python3 scripts/diagram-fonts/check_fonts.py
+        fi

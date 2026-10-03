@@ -3439,6 +3439,7 @@ dependencies = [
  "krilla",
  "krilla-svg",
  "thiserror 2.0.18",
+ "ttf-parser",
  "usvg",
 ]
 
