@@ -2106,6 +2106,159 @@ describe('workspace store slices', () => {
   });
 
   /**
+   * Save writes the workspace, not the pane in focus, so a crease-pattern-only
+   * project stays savable after the user leaves Edit. It used to be refused from
+   * References, Simulate and the Design chooser — "Editable crease-pattern kernel
+   * is unavailable" — and came back only on returning to Edit.
+   */
+  it('saves a crease-pattern-only project from every workspace, not just Edit', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    // Opening a crease pattern lands on Edit, which is why Save worked there.
+    expect(useWorkspaceStore.getState().activeEditingContext).toBe('crease-pattern');
+
+    for (const [workspace, context] of [
+      ['references', 'references'],
+      ['simulate', 'simulate'],
+      ['design', 'design-nux'],
+      ['edit', 'crease-pattern'],
+    ] as const) {
+      useLayoutStore.getState().activateWorkspace(workspace);
+      expect(useWorkspaceStore.getState().activeEditingContext).toBe(context);
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().saveProject(fileService), workspace).resolves.toBe(
+        true
+      );
+      await expect(useWorkspaceStore.getState().saveProjectAs(fileService), workspace).resolves.toBe(
+        true
+      );
+      expect(fileService.saveTextFile, workspace).toHaveBeenCalledTimes(2);
+      expect(fileService.saveTextFile, workspace).toHaveBeenLastCalledWith(
+        expect.objectContaining({ title: 'Save Ori Studio Project As', extensions: ['osf'] })
+      );
+      expect(useWorkspaceStore.getState().error, workspace).toBeNull();
+      // The crease pattern is what was written, whichever workspace saved it.
+      const saved = parseNativeProjectFile(
+        (fileService.saveTextFile.mock.lastCall?.[0] as SaveTextFileOptions).contents
+      );
+      expect(saved.workspace.designs, workspace).toEqual([]);
+      expect(saved.workspace.creasePattern, workspace).not.toBeNull();
+    }
+  });
+
+  /**
+   * Save writes over the file that was opened, whichever workspace it is pressed
+   * in — never a new file. A null `path` is what makes the file service ask where
+   * to put it, so that is the thing to pin.
+   */
+  describe('saves over the opened file from every workspace', () => {
+    const workspaces = [
+      ['edit', 'crease-pattern'],
+      ['references', 'references'],
+      ['simulate', 'simulate'],
+      ['design', 'design-nux'],
+    ] as const;
+
+    it('for a native .osf', async () => {
+      resetStores(seedSnapshot());
+      loadSnapshotIntoStore(seedSnapshot());
+      const fileService = createFileService({
+        text: serializeNativeProjectFile(
+          createNativeCreasePatternProjectFile({
+            title: 'Existing',
+            filename: 'existing.osf',
+            path: '/tmp/existing.osf',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: { format: 'osf', filename: 'existing.osf', path: '/tmp/existing.osf' },
+            foldProjection: JSON.parse(editableCpFoldText),
+            sourceFold: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+            appVersion: '0.5.2',
+          })
+        ),
+        name: 'existing.osf',
+        path: '/tmp/existing.osf',
+      });
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      for (const [workspace, context] of workspaces) {
+        useLayoutStore.getState().activateWorkspace(workspace);
+        expect(useWorkspaceStore.getState().activeEditingContext).toBe(context);
+        useWorkspaceStore.setState({ dirty: true });
+
+        await expect(useWorkspaceStore.getState().saveProject(fileService), workspace).resolves.toBe(
+          true
+        );
+        expect(fileService.saveTextFile, workspace).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            title: 'Save Ori Studio Project',
+            suggestedName: 'existing.osf',
+            path: '/tmp/existing.osf',
+            extensions: ['osf'],
+          })
+        );
+        expect(useWorkspaceStore.getState(), workspace).toMatchObject({
+          currentFileName: 'existing.osf',
+          currentFilePath: '/tmp/existing.osf',
+          dirty: false,
+        });
+      }
+    });
+
+    it('for an Oriedita .ori, which saves back as .ori', async () => {
+      resetStores(seedSnapshot());
+      loadSnapshotIntoStore(seedSnapshot());
+      const fileService = createFileService({
+        text: '{"@version":"v1.1","title":"existing","lineSegments":[]}',
+        name: 'existing.ori',
+        path: '/tmp/existing.ori',
+      });
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      for (const [workspace, context] of workspaces) {
+        useLayoutStore.getState().activateWorkspace(workspace);
+        expect(useWorkspaceStore.getState().activeEditingContext).toBe(context);
+        useWorkspaceStore.setState({ dirty: true });
+
+        await expect(useWorkspaceStore.getState().saveProject(fileService), workspace).resolves.toBe(
+          true
+        );
+        expect(fileService.saveTextFile, workspace).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            title: 'Save Oriedita ORI Document',
+            suggestedName: 'existing.ori',
+            path: '/tmp/existing.ori',
+            extensions: ['ori'],
+          })
+        );
+        expect(useWorkspaceStore.getState(), workspace).toMatchObject({
+          currentFileName: 'existing.ori',
+          currentFilePath: '/tmp/existing.ori',
+          dirty: false,
+        });
+      }
+    });
+  });
+
+  /**
    * A save through the File System Access API writes the file and shows the user
    * nothing — no dialog on the repeat, no download for the browser to announce.
    * The toast is the only confirmation, so the store has to raise one.
