@@ -8,12 +8,15 @@
  * The frame's border is drawn by `::after`, over the parts rather than around
  * them, so the field is exactly as tall as they are: 26px, or under a coarse
  * pointer 44px, the touch target theme.css gives every input.
+ *
+ * It is as wide as its number: a short one leaves no room to spare, and a long
+ * one widens it. A caller that wants a fixed width sets one on the root.
  */
 .field {
   position: relative;
   display: flex;
   align-items: stretch;
-  width: 100%;
+  width: fit-content;
   height: 26px;
   overflow: hidden;
   border-radius: var(--radius);
@@ -94,19 +97,37 @@
 
 /*
  * The number and its unit, between the lines. A label, so a click on the unit
- * or beside the number lands in the input. The floor holds four digits; with
- * `minChars` the input's own floor (`--min-chars`, set by the component) holds
- * that many characters, in `ch` so it follows the 16px a touch screen gives
- * the input.
+ * or beside the number lands in the input. Where the field is given more room
+ * than they need, they sit at its end, as a column of numbers would.
  */
 .value {
   display: flex;
   flex: 1 1 auto;
-  align-items: center;
+  align-items: stretch;
+  justify-content: flex-end;
   gap: 3px;
-  min-width: 44px;
   padding: 0 7px;
   cursor: text;
+}
+
+/*
+ * As wide as the number. A number input's own width ignores its value (it
+ * follows `max`), so an invisible copy of the draft, padded with zeros to
+ * `minChars` digits, sets the width, and the input lies over it.
+ */
+.number {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+/* The same face as the input, so the copy measures what the input shows. A
+   pixel either side is room for the caret at the end of the number. */
+.sizer {
+  padding: 0 1px;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  visibility: hidden;
 }
 
 /* The bare field (`steppers={false}`, no unit) is this input alone, in the
@@ -121,13 +142,14 @@
   margin: 0;
 }
 
-/* `width: 0`, because a number input's own width follows its `max`: the field
-   decides how wide the number is, not the input. */
-.value > .input {
-  flex: 1 1 auto;
-  width: 0;
-  min-width: calc(var(--min-chars, 0) * 1ch);
+/* A number shorter than `minChars` is centred in the room it leaves, or with
+   a unit, set against the unit. */
+.number > .input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
+  min-width: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -137,38 +159,44 @@
   font: inherit;
   font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.field[data-unit] .number > .input {
   text-align: right;
 }
 
 .suffix {
   flex: 0 0 auto;
+  align-self: center;
   color: var(--text-tertiary);
   font-size: 0.72rem;
   user-select: none;
 }
 
 /*
- * `variant="card"`, Settings ▸ Paper's pen cards: on the settings well, the
- * height of the Cap control beside it, and the number centred in the mono
- * face. Narrow enough for two cards a line, so the number takes the room the
- * padding would otherwise spend on either side of it.
+ * `variant="card"`, Settings ▸ Paper's pen cards: the width of its column, on
+ * the settings well, the height of the Cap control beside it, and the number
+ * centred in the mono face. Narrow enough for two cards a line, so the number
+ * takes the room the padding would otherwise spend on either side of it.
  */
 .field[data-variant='card'] {
+  width: 100%;
   min-width: 0;
   height: 28px;
   background: var(--settings-well);
 }
 
 .field[data-variant='card'] > .value {
-  min-width: 0;
+  justify-content: center;
   padding: 0 2px;
 }
 
 /* A width is a measurement, and the digits stay put as it is stepped. */
+.field[data-variant='card'] .sizer,
 .field[data-variant='card'] .input {
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  text-align: center;
 }
 
 /* A finger needs a 44px target: the buttons, and the number too. The parts
@@ -184,7 +212,15 @@
     min-height: var(--touch-target);
   }
 
-  .value {
-    min-width: var(--touch-target);
+  /* The number's target is the whole space between the lines. */
+  .number {
+    min-width: calc(var(--touch-target) - 14px);
+  }
+
+  /* theme.css gives every input 16px here, so iOS does not zoom into it; the
+     copy that sizes the number follows. */
+  .sizer,
+  .field[data-variant='card'] .sizer {
+    font-size: 16px;
   }
 }

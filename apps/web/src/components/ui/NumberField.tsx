@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Minus, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -38,7 +38,7 @@ export function NumberField({
   disabled = false,
   normalize,
   variant,
-  minChars,
+  minChars = 2,
   className,
   onCommit,
 }: {
@@ -63,8 +63,9 @@ export function NumberField({
    */
   variant?: 'card';
   /**
-   * The most characters a value takes, for a field that must never cut one
-   * short: the input's floor holds that many, at whatever size the font is.
+   * The fewest digits the number makes room for (2). A shorter number is
+   * centred in that room, and a longer one widens the field. A caller whose
+   * values run longer passes their length, so the field keeps one width.
    */
   minChars?: number;
   /** Placement only — a width, a margin, a grid cell. Lands on the root. */
@@ -156,7 +157,6 @@ export function NumberField({
           : styles.input
       }
       data-number-field=""
-      style={minChars === undefined ? undefined : ({ '--min-chars': minChars } as CSSProperties)}
       aria-label={label}
       aria-describedby={suffix ? suffixId : undefined}
       type="number"
@@ -196,6 +196,7 @@ export function NumberField({
     <span
       className={[styles.field, className].filter(Boolean).join(' ')}
       data-variant={variant}
+      data-unit={suffix ? true : undefined}
       data-disabled={disabled || undefined}
     >
       {steppers && stepButton(-1)}
@@ -203,7 +204,13 @@ export function NumberField({
           input. No caller puts the field inside a label of its own: a click on
           a step button would reach the input through it. */}
       <label className={styles.value}>
-        {input}
+        <span className={styles.number}>
+          {/* Sets the number's width: see `.number` in the module. */}
+          <span className={styles.sizer} aria-hidden="true">
+            {draft.padStart(minChars, '0')}
+          </span>
+          {input}
+        </span>
         {suffix ? (
           <span id={suffixId} className={styles.suffix}>
             {suffix}

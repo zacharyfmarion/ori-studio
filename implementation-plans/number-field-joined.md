@@ -73,6 +73,28 @@ what you touch"). This is that PR, in two commits.
    - The bare variant (`steppers={false}`, no unit; only the grid-scale
      formula uses it) stays a plain input in `.control-row__input`.
 
+3. **The field is as wide as its number** (asked for on review, 2026-10-03:
+   a one-digit Grid size sat in 46px of input). The frame hugs its content,
+   `width: fit-content`, and grows a digit at a time for a longer number.
+   - A number input's own width follows `max`, not its value. An invisible
+     copy of the draft sets the width, padded with zeros to `minChars`
+     digits (default 2), and the input lies over it, absolutely positioned.
+     This is exact in any font, and needs no `field-sizing: content`, which
+     the WKWebView of older macOS lacks.
+   - A number shorter than `minChars` is centred in its room; with a unit it
+     sits against the unit instead (`data-unit`).
+   - Under a coarse pointer the copy follows theme.css's 16px for inputs,
+     and the number's room is still a 44px target.
+   - A caller that wants a fixed width sets it on the root. The export
+     dialog does, with `minChars={4}`, so its rows keep one width; the pen
+     card's `variant="card"` fills its column.
+   - The pane rows' stepper cell and Settings ▸ Workspace's field wrapper had
+     fixed widths (112px floor, 132px) for the old three boxes. Both go (in
+     place), so the field sits at the end of its row at its own width.
+   - Pane rows: 83px for one or two digits (was 112), 91px for `90 °`, plus
+     7.5px a digit. Phone: 132px for up to three digits, inside the 140px
+     column; a longer number widens it.
+
 ## Affected Areas
 
 - `apps/web/src/components/ui/NumberField.tsx`, `NumberField.module.css`
@@ -106,3 +128,10 @@ what you touch"). This is that PR, in two commits.
       stepping
 - [x] Lint, typecheck, unit tests (full suite: 8,820 pass; one 3D fold
       parity test timed out under load and passes alone); draft PR
+- [x] Commit 3: the field hugs its number (sizer, `minChars` default 2,
+      `data-unit`), the fixed widths in the pane rows and Settings go; tests
+      for the sizer and the unit flag
+- [x] Commit 3: in the browser, widths measured at 1–7 digits on desktop and
+      phone; real clicks on the unit, the padding and the digits focus the
+      input; typing grows the field without scrolling the number; Escape
+      reverts; every surface recaptured in both themes

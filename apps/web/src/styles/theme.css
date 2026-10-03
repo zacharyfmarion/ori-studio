@@ -1916,7 +1916,6 @@
 
 .settings-toggle-row__field {
   flex: 0 0 auto;
-  width: 132px;
 }
 
 /*
@@ -4996,22 +4995,12 @@ button.cp-folded-figure-toolbar__notice:hover {
   justify-content: flex-end;
 }
 
-/* One width for every stepper row, so the fields down the pane line up. A
-   floor rather than a width: the field is one frame that clips what it cannot
-   hold, so where it needs more (three 44px targets under a coarse pointer) the
-   cell takes the room its column gives it, instead of the field spilling out
-   over the label. */
+/* The stepper sits at the end of the row, as wide as its number, and a reset
+   trails it the way a colour field's clear does. */
 .control-row__value--input {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 112px;
-}
-
-/* The stepper keeps its width and the reset trails it, the way a colour
-   field's clear does; inside the fixed box the two overlapped. */
-.control-row__value--input.control-row__value--reset {
-  min-width: calc(112px + 22px);
 }
 
 .control-row__value--select {
@@ -6645,7 +6634,7 @@ button.cp-folded-figure-toolbar__notice:hover {
      each claim a floor of 80px — so on a narrow panel the field was handed
      ~112px and the `+` clipped against the panel's edge. Measured on a base
      iPad in portrait: the increment button was cut in half by the screen edge.
-     140px leaves the number room for four digits.
+     140px holds a three-digit number; a longer one widens the column.
 
      The label is what should give way. It can truncate and still be read; a
      control the finger cannot reach is simply gone. */
@@ -6660,7 +6649,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 
   /* The export dialog's rows, for the same steppers. Two 44px buttons take
      88px, and four digits at the input's 16px with the unit and the padding
-     about 72px — so about 160px, and 184px leaves the number some room. One
+     about 75px — so about 163px, and 184px leaves the number some room. One
      width for every row keeps them lined up. */
   .export-modal__field-row {
     --export-modal-field-width: 184px;

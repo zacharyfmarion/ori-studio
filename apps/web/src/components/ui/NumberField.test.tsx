@@ -202,19 +202,37 @@ describe('NumberField', () => {
     expect(field(stepped).input.hasAttribute('data-number-field')).toBe(true);
   });
 
-  it('gives the input a floor of minChars characters', () => {
-    const view = render(<Harness initial={2} minChars={4} />);
-    expect(field(view).input.style.getPropertyValue('--min-chars')).toBe('4');
+  // A number input's own width ignores its value, so a hidden copy of the
+  // draft sizes the number: the field is as wide as what it shows.
+  it('sizes the number to its draft, and to two digits at least', () => {
+    const view = render(<Harness initial={2} min={undefined} max={undefined} normalize={undefined} />);
+    const { input } = field(view);
+    const sizer = () => input.parentElement?.querySelector('[aria-hidden="true"]');
+    expect(sizer()?.textContent).toBe('02');
+
+    type(input, '4096');
+    expect(sizer()?.textContent).toBe('4096');
+  });
+
+  it('makes room for minChars digits when asked', () => {
+    const view = render(<Harness initial={5} minChars={4} />);
+    const sizer = field(view).input.parentElement?.querySelector('[aria-hidden="true"]');
+    expect(sizer?.textContent).toBe('0005');
   });
 
   it('shows the unit inside the field, after the number', () => {
     const view = render(<Harness initial={90} min={1} max={179} suffix="°" />);
     const { input, up } = field(view);
-    const unit = input.nextElementSibling;
+    const unit = input.parentElement?.nextElementSibling;
     expect(unit?.textContent).toBe('°');
     expect(unit?.nextElementSibling).toBeNull();
     // Between the lines, with the number: the increase button follows them both.
-    expect(input.parentElement?.nextElementSibling).toBe(up);
+    expect(unit?.parentElement?.nextElementSibling).toBe(up);
+    // So the number sits against it rather than centred in its room.
+    expect(view.firstElementChild?.hasAttribute('data-unit')).toBe(true);
+    expect(render(<Harness initial={2} />).firstElementChild?.hasAttribute('data-unit')).toBe(
+      false
+    );
   });
 
   it('reads the unit after the value', () => {
@@ -231,7 +249,8 @@ describe('NumberField', () => {
   it('labels the input with the region the unit is in, so a click on the unit lands in it', () => {
     const view = render(<Harness initial={10} suffix="mm" />);
     const { input } = field(view);
-    const unit = input.nextElementSibling;
+    const unit = input.parentElement?.nextElementSibling ?? null;
+    expect(unit?.textContent).toBe('mm');
     expect([...(input.labels ?? [])].some((label) => label.contains(unit))).toBe(true);
     // The steps stay outside it: a click on one must not also reach the input.
     for (const button of view.querySelectorAll('button')) {
