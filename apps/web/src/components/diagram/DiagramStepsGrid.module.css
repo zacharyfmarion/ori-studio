@@ -7,6 +7,8 @@
   /* The space between cards: where a step can be added between two. */
   --gap: var(--space-4);
 
+  /* Its width says how many columns there are: one, and the insert gaps go between rows. */
+  container: steps / inline-size;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   align-content: start;
@@ -113,6 +115,59 @@
   .insertButton {
     opacity: 0.55;
     transform: translate(-50%, -50%);
+  }
+}
+
+/*
+ * One column (a phone, or a narrow pane): the next card is below, not beside,
+ * and the gap after a card is the row gap under it — across, not down, with
+ * the line along it. Beside the card it would sit in the grid's padding, its
+ * "+" off the edge of a phone. Two columns need two 220px cards and a gap of
+ * content width, so the threshold follows the gap the media query below sets.
+ */
+@media (min-width: 721px) {
+  @container steps (max-width: 455.98px) {
+    .insert {
+      top: 100%;
+      right: 0;
+      bottom: auto;
+      left: 0;
+      width: auto;
+      height: var(--gap);
+    }
+
+    .insert::before {
+      top: 50%;
+      right: var(--space-2);
+      bottom: auto;
+      left: var(--space-2);
+      width: auto;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  @container steps (max-width: 451.98px) {
+    .insert {
+      top: 100%;
+      right: 0;
+      bottom: auto;
+      left: 0;
+      width: auto;
+      height: var(--gap);
+    }
+
+    .insert::before {
+      top: 50%;
+      right: var(--space-2);
+      bottom: auto;
+      left: var(--space-2);
+      width: auto;
+      height: 2px;
+      transform: translateY(-50%);
+    }
   }
 }
 
