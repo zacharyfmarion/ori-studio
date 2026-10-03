@@ -1,26 +1,28 @@
 /*
  * What the Diagram header (DiagramHeader.tsx) adds to the shared toolbar frame.
  *
- * Steps | Pages sits in the middle, as in the mockup: the title's side and the
- * verbs' side share the row equally around it. The verbs' side never goes
- * below its own width and the title's below 12rem; with less room than that
- * the row wraps, the verbs right-aligned under the title. On a desktop the
- * row never wraps, so the frame's one-row height holds.
+ * The title, then Steps | Pages straight after it, left-aligned; the verbs'
+ * side takes the rest of the row, its verbs at the right end. The verbs' side
+ * never goes below its own width and the title's below 12rem; with less room
+ * than that the row wraps, the verbs right-aligned under the title and tabs.
+ * On a desktop the row never wraps, so the frame's one-row height holds.
  */
 .header {
   flex-wrap: wrap;
   column-gap: var(--space-2);
 }
 
-/* Each side of the switch: an equal share of the row. */
+/* The title's side: as wide as the title. */
 .side {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 1 auto;
   align-items: center;
   min-width: 12rem;
 }
 
+/* The verbs' side: the rest of the row. */
 .side[data-side='end'] {
+  flex: 1 1 auto;
   justify-content: flex-end;
   min-width: max-content;
 }
@@ -33,8 +35,15 @@
   flex: 0 0 auto;
 }
 
+/*
+ * Straight after the title. The frame spreads its items with space-between,
+ * so on a row the title and tabs share once it wraps, the tabs would go to its
+ * far end: the margin takes that room instead.
+ */
 .views {
   flex: 0 0 auto;
+  margin-right: auto;
+  margin-left: var(--space-2);
 }
 
 /* On a phone the two views share a row of their own, under the title and
@@ -42,6 +51,7 @@
 @media (max-width: 720px) {
   .views {
     flex: 1 1 100%;
+    margin-left: 0;
   }
 }
 
@@ -49,6 +59,23 @@
 @media (max-width: 720px) {
   .side {
     padding-block: var(--space-1);
+  }
+
+  /*
+   * The verbs take the last row, and wrap within it rather than run off a
+   * phone's edge: undo and redo, Add step, Export and the Step pane's pill
+   * are wider together than 375 px.
+   */
+  .side[data-side='end'] {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .actions {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: var(--space-1);
   }
 }
 

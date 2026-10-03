@@ -2826,6 +2826,13 @@ insert steps at a chosen place without the latch.
   - Annotate shows its "larger screen" note.
   - The References browser is a list of patterns, then their cards.
 - [ ] iPad: annotate with pointer and pencil, and the drawer inspector.
+- [x] **The header** (Zach, 2026-10-03): Steps | Pages left-aligned, straight
+  after the title and count, rather than centred; the verbs keep the right end.
+  On a phone the verbs' row wraps within the screen (undo, redo, Add step,
+  Export and the Step pane's pill were 418 px on a 390 px screen). An auto
+  margin on the tabs takes the frame's `space-between` room, so the module
+  never overrides the shared frame's rule. Before/after:
+  `artifacts/diagram-parity/header-left-{before,after}-{1440,1000,phone}.png`.
 - [ ] Sync with `main`, re-take the ratchet numbers, run the full validation set, then open the one PR to `main`; a CHANGELOG entry; one line in the README's feature list.
 
 ### Later (written up, not built)
