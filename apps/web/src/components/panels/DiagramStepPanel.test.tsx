@@ -341,4 +341,3 @@ describe('DiagramStepPanel in Annotate', () => {
     expect(host?.textContent).not.toContain('The picture changed');
   });
 });
-

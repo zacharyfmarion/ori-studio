@@ -374,4 +374,3 @@ export async function keptPicture(
     asset: { id, kind: 'raster', src, widthPx: width, heightPx: height, bytes: src.length },
   };
 }
-
