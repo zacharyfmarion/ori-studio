@@ -1837,12 +1837,19 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - **Opening.** A double-click on a card opens it, as Enter does.
 - [x] **2d.** Analytics: `diagram step added` (`svg`, `raster`; `via`) and `diagram picture uploaded`.
   - As built, with 2b: `via` is `grid` for one picked file, `batch` for several, `drop` for a drop. A picture that fills an empty step adds no step and is counted only as uploaded. `diagram picture uploaded` has `outcome` `ok | flattened | too_large | rejected | unsupported | unreadable` (the plan's `not_svg` became `unsupported`, a file that is no picture at all). `format` is `svg | png | jpeg | webp | other`. `size_bucket` is in KB, `unknown` for a desktop pick that failed before it was read.
-- [ ] **Browser:**
+- [x] **Browser:**
   - upload each Phase 0 SVG singly and as a batch;
   - check the flatten Notice;
   - light and dark themes;
   - reload, then Export picture → edit in Inkscape → Replace picture;
-  - repeat on the desktop build.
+  - repeat on the desktop build. **Not done:** this session cannot drive the desktop app's native window. The one desktop-only change, `read_binary_file` with `max_bytes` returning raw bytes, is covered by its cargo test, and the renderer reads both the new and the old reply shape. It stays on the list for the final verification before merge.
+  - As run:
+    - **Real corpus.** All 44 real Phase 0 files (Inkscape 0.92–1.4.4, Illustrator 10/16/25, Affinity, Figma) were dropped as one batch: 44 steps in 208 ms, one undo step, no failures. Six carry notices (four flowed text, one linked image, one unsupported part). Cards paint as they near the view.
+    - **Fixtures and toast.** The committed fixtures were dropped in natural order, with a `.txt` among them, which got the one-line failure toast.
+    - **Round trip.** Save and reopen through the real writer and reader: the replaced asset is pruned, and every kept asset comes back byte-identical.
+    - **Inkscape.** Export picture, then an Inkscape 1.4.4 CLI edit (recolour every stroke, rotate 15°, saved as Inkscape SVG), then Replace picture: the edit is kept and the editor namespaces are gone.
+    - **Detail.** Enter, `]`, Escape and the pose toolbar with real keys, including from a focused toolbar button. Phone layout at 375 px.
+    - **Found and fixed.** A picture with no background of its own vanished into the dark theme's well (now paper white). The pose toolbar wrapped on a phone. A toolbar button took ← / → and `[` / `]` from the Diagram.
 
 ### Phase 3: crease-pattern and folded steps from the Edit canvas
 
