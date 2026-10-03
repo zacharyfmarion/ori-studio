@@ -70,8 +70,8 @@ export function refreshKind(
 
 /**
  * A step's sheet is found by what it is, not where it sits
- * (`chooseStepCreases`): moved, it is still current; changed, stale; moved
- * and changed among other sheets of its shape, missing.
+ * (`chooseStepCreases`): moved, it is still current; changed in place,
+ * stale; moved and changed, missing — it cannot be told from a deleted one.
  */
 export function linkStatus(
   source: (Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> & { kind?: 'cp' }) | DiagramReferencesSource,

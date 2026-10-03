@@ -11,12 +11,14 @@ import {
   setLinkedPicture,
   type DiagramCpRender,
   type DiagramCpScope,
+  type DiagramCpSource,
   type DiagramDocument,
   type DiagramScenePicture,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import { storedScene } from '../pictures/pictureFrame';
-import { cpDocument, fakeCaptureRuntime, twoSquaresSegmentation } from './capture.fixtures';
+import { cpDocument, fakeCaptureRuntime, movedLines, TWO_SQUARES, twoSquaresSegmentation } from './capture.fixtures';
+import { knownCreasesOf } from './captureCreases';
 import { captureStep } from './captureFolded';
 
 /**
@@ -128,5 +130,30 @@ describe('annotations on a linked flat model, turned', () => {
       expect(step.annotations).toBe(document.steps[0]!.annotations);
       expect(annotationsOutOfStep(step)).toBe(true);
     }
+  });
+});
+
+// The pattern dragged, then the step turned in Pose: the capture finds the
+// moved sheet and follows it, and the turn is still a turn of the same picture.
+describe('annotations on a linked crease pattern, after its pattern moved', () => {
+  it('stay on their crease when the moved sheet is turned, as the link follows it', async () => {
+    const document = await annotatedAt({ mode: 'crease-pattern', rotationDeg: 0 });
+    const source = document.steps[0]!.source as DiagramCpSource;
+    const [dx, dy] = [312.7, -88.1];
+    const result = await captureStep(fakeCaptureRuntime(), {
+      document: cpDocument(movedLines(TWO_SQUARES, dx, dy)),
+      segmentation: twoSquaresSegmentation({ dx, dy }),
+      scope: source.scope,
+      known: knownCreasesOf(source),
+      render: { mode: 'crease-pattern', rotationDeg: 30 },
+      style: DEFAULT_DIAGRAM_STYLE,
+    });
+    if (result.status !== 'captured' || result.captured.kind !== 'picture') throw new Error('no picture');
+    expect(result.source.scope).not.toEqual(source.scope);
+    const turned = setLinkedPicture(document, 'step-1', {
+      source: result.source,
+      picture: result.captured.picture as DiagramScenePicture,
+    });
+    expectOnMark(turned);
   });
 });

@@ -90,10 +90,12 @@ describe('captureStep, a crease pattern', () => {
     if (after.status !== 'captured') throw new Error('captured after the move');
     expect(after.source.fingerprint).toBe(before.source.fingerprint);
     expect(after.source.scope.region).toEqual(regionReferenceFor(resolveCpSegments(moved)[0]!));
-    // In its place, the scope it was asked with stands.
-    const again = await captureStep(fakeCaptureRuntime(), request(CP, { known }));
+    // In its place, the scope it was asked with stands — a stale id hint and
+    // all, which a re-anchor to the segment would have replaced.
+    const asked: DiagramCpScope = { kind: 'segment', region: { ...regionReferenceFor(left!), segmentIdHint: 99 } };
+    const again = await captureStep(fakeCaptureRuntime(), request(CP, { scope: asked, known }));
     if (again.status !== 'captured') throw new Error('captured in place');
-    expect(again.source.scope).toEqual(scope);
+    expect(again.source.scope).toEqual(asked);
   });
 
   it('says why when there is nothing to capture', async () => {

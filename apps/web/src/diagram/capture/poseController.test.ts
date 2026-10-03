@@ -10,7 +10,7 @@ import {
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
-import { cpDocument, fakeCaptureRuntime, twoSquaresSegmentation } from './capture.fixtures';
+import { cpDocument, fakeCaptureRuntime, movedLines, TWO_SQUARES, twoSquaresSegmentation } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
 import { createPoseController, linkedFoldKey } from './poseController';
 
@@ -19,10 +19,12 @@ vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOrigina
   ...(await importOriginal<typeof import('../../store/workspaceStore/cpFoldRuntimeBindings')>()),
   createCpCaptureRuntime: () => bindings.runtime,
 }));
+/** The pattern's segmentation once it has moved; the fixture's until then. */
+const pattern = vi.hoisted(() => ({ moved: null as unknown }));
 vi.mock('../../cp-workspace/cpSegmentationArtifacts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../cp-workspace/cpSegmentationArtifacts')>()),
-  ensureCpSegmentationArtifacts: vi.fn(async () => segmentation),
-  peekCpSegmentationArtifacts: vi.fn(() => segmentation),
+  ensureCpSegmentationArtifacts: vi.fn(async () => pattern.moved ?? segmentation),
+  peekCpSegmentationArtifacts: vi.fn(() => pattern.moved ?? segmentation),
 }));
 const engines = vi.hoisted(() => ({ listeners: new Set<(loss: { engine: string }) => void>() }));
 vi.mock('../../engines/engineHost', async (importOriginal) => ({
@@ -58,6 +60,7 @@ const render = (stepId: string) => state().diagram!.steps.find((step) => step.id
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  pattern.moved = null;
   // The registry frees through the kernel; here there is none.
   setFoldedFigureHandleFree(() => {});
   await resetFoldedFigureHandles();
@@ -90,6 +93,32 @@ describe('the Pose controller', () => {
     expect(render(stepId)).toMatchObject({ render: { side: 'back', rotationDeg: 0 } });
     controller.dispose();
     expect(foldedFigureHandleRefCount(7)).toBe(0);
+  });
+
+  // The whole pattern dragged since the step was linked: a Pose verb finds its
+  // sheet by its creases, and the link follows it there.
+  it('poses a step whose pattern moved: the same creases, the link following its sheet', async () => {
+    const stepId = await linkedStep();
+    const before = render(stepId);
+    if (before?.kind !== 'cp') throw new Error('linked');
+    const [dx, dy] = [431.3, -0.7000000000000001];
+    const moved = twoSquaresSegmentation({ dx, dy });
+    pattern.moved = moved;
+    useWorkspaceStore.setState({
+      oristudioCpDocument: {
+        handle: 1,
+        document: cpDocument(movedLines(TWO_SQUARES, dx, dy)),
+        geometry: null,
+      } as unknown as OristudioCpDocumentState,
+    });
+    const controller = createPoseController(stepId, listener());
+    await controller.run({ verb: 'rotate-right' });
+    const after = render(stepId);
+    if (after?.kind !== 'cp') throw new Error('linked');
+    expect(after.render).toMatchObject({ mode: 'crease-pattern', rotationDeg: 15 });
+    expect(after.fingerprint).toBe(before.fingerprint);
+    expect(after.scope.region).toEqual(regionReferenceFor(resolveCpSegments(moved)[0]!));
+    controller.dispose();
   });
 
   // A Relink or an undo moves the step to other creases while its detail is

@@ -8,11 +8,13 @@
  *
  * Pure: no DOM, no store.
  */
+import { boundariesMatchMoved, isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import { turnClockwise } from '../../lib/geometry';
 import type { SceneBounds } from '../../lib/paper/paperScene';
 import {
   isKnownAnnotation,
   type DiagramAsset,
+  type DiagramCpSource,
   type DiagramStep,
   type KnownDiagramAnnotation,
   type QuarterTurns,
@@ -93,6 +95,24 @@ export function sceneTurnMove(
   };
 }
 
+/**
+ * Whether two captures are of one region: the same scope, or — for a crease
+ * pattern, drawn about its paper's centre wherever the paper is — the region
+ * where it moved to, its outline the same shape (its creases are the same: the
+ * fingerprints are compared beside this). A capture that finds a moved sheet
+ * follows it (`followedScope`), and its first turn is still a turn. A folded
+ * picture sits where its sheet sits, so it keeps the strict test.
+ */
+function sameRegion(from: DiagramCpSource, to: DiagramCpSource): boolean {
+  if (JSON.stringify(from.scope) === JSON.stringify(to.scope)) return true;
+  return (
+    from.render.mode === 'crease-pattern' &&
+    to.render.mode === 'crease-pattern' &&
+    isRelativeFingerprint(from.fingerprint) &&
+    boundariesMatchMoved(from.scope.region.boundary, to.scope.region.boundary)
+  );
+}
+
 /** How the step's picture moved between `before` and `after`, when the app moved it; else null. */
 function pictureMove(
   before: DiagramStep,
@@ -123,7 +143,7 @@ function pictureMove(
     after.picture?.kind === 'scene' &&
     before.picture.paperScale === after.picture.paperScale &&
     from.fingerprint === to.fingerprint &&
-    JSON.stringify(from.scope) === JSON.stringify(to.scope)
+    sameRegion(from, to)
   ) {
     const [was, is] = [from.render, to.render];
     // Turned, and nothing else: the same mode, and a flat model's same side and

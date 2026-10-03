@@ -32,33 +32,36 @@ Two questions, answered separately.
 
 **Did the creases change?** A **relative fingerprint** (`rc1:`) over a set of
 lines: each endpoint taken relative to the set's own lower-left corner (the
-minimum x and y over its endpoints), rounded to a millionth of the set's size,
-the two endpoints of a line in a canonical order, plus each line's colour,
-custom colour and fold magnitude. Sorted and digested with `keyDigest`, as
-`cs1:` is. A translation changes none of it — the rounding absorbs the
-floating-point noise a drag leaves (a millionth of the size is the order of
-the kernel's own point tolerance, and orders of magnitude above a drag's
-last-bit error) — while any crease that moves relative to the others, any
-recolour and any change of angle does. Being taken from the lines alone, not
-from the segmentation's traced rim, it does not depend on how the rim was
+minimum x and y over its endpoints), rounded to 2^-20 of the set's size, the
+two endpoints of a line in a canonical order, plus each line's colour, custom
+colour and fold magnitude. Sorted and digested with `keyDigest`, as `cs1:` is.
+A translation changes none of it — the rounding absorbs the floating-point
+noise a drag leaves — while any crease that moves relative to the others, any
+recolour and any change of angle does. The step is a power of two, not 1e-6:
+a pattern's coordinates are dyadic fractions of its size, and a decimal step
+put the odd multiples of 1/128 exactly on a rounding boundary, where a drag's
+noise picked the side (found in review: a quarter of all drags of a
+128-division grid changed the fingerprint). Being taken from the lines alone,
+not from the segmentation's traced rim, it does not depend on how the rim was
 traced.
 
 **Which sheet is it?** In order:
 
-1. The sheets whose outline has the same **shape** as the remembered one, up
-   to a translation (the existing ring comparison — corners, any start, either
-   winding — after taking each ring relative to its own lower-left corner).
-2. Among those, the ones whose creases have the remembered relative
-   fingerprint: **unchanged**, wherever they are. Several (identical sheets):
-   the one nearest to where it was. They are indistinguishable, so the picture
-   is the same either way.
-3. Otherwise, the sheet still at its **old position** (today's absolute rim
-   match): edited in place, so out of date.
-4. Otherwise, the **only** sheet of that shape: moved and edited, and still
-   unambiguous.
-5. Otherwise **missing**. It never guesses between sheets that differ —
+1. The sheet still at its **old position** (the existing absolute rim match):
+   unchanged, or edited there and so out of date. Its own place wins over an
+   identical copy elsewhere — a sheet edited beside an untouched duplicate of
+   it is out of date, not silently the duplicate.
+2. Otherwise a sheet of the same outline **shape** (the existing ring
+   comparison — corners, any start, either winding — after taking each ring
+   relative to its own lower-left corner) whose creases have the remembered
+   relative fingerprint: **moved, unchanged**. Several (identical sheets): the
+   one nearest to where it was; they draw the same picture.
+3. Otherwise **missing**. A sheet that moved *and* changed cannot be told from
+   one deleted beside another of its shape, so it is not guessed at:
    regionReference's rule that a link never silently re-points at another
-   pattern stands.
+   pattern stands. Relink picks it again. (A first version also took "the only
+   sheet of that shape"; review showed it re-pointed a step whose sheet was
+   deleted at an unrelated one, so it went.)
 
 A rotation or a flip changes the outline's shape (a rectangle) or the creases
 relative to it (a square), so it reads out of date, or missing; it is never
@@ -117,7 +120,7 @@ windows, the References plan cache key (`referencesPlanCache.ts`).
   whole pattern moved (current), moved and edited beside a square of its shape
   (missing), edited in place (stale), an absolute fingerprint compared the old
   way; Open in Edit and Open in References after a move.
-- [x] Browser (`artifacts/pattern-identity/move.mjs`, `crane-50.osf`: 50 steps
+- [x] Browser, before the review's fixes (`artifacts/pattern-identity/move.mjs`, `crane-50.osf`: 50 steps
   on 11 identical 400 × 400 sheets, every step re-captured first), the same
   script before and after:
 
@@ -134,7 +137,30 @@ windows, the References plan cache key (`referencesPlanCache.ts`).
     recognise a moved sheet: moved among sheets of its shape it reads missing
     until it is captured again (Show as, Relink, or Refresh once edited). Only
     Diagram files saved in this branch hold one.
-- [ ] Review, and its fixes committed.
+- [x] Review, and its fixes committed. Four reviewers (the module, the
+  Diagram's use of it, compatibility, the tests), each finding put to a
+  skeptic: 15 confirmed, 9 distinct; 1 refuted. Fixed:
+  - The rounding step: 2^-20, not 1e-6 (above). A test over a 128-division
+    grid off the origin, with deltas that really perturb the relative
+    coordinates (asserted), fails on the old step and passes on the new.
+  - "The only sheet of its shape" went: it re-pointed a step whose sheet was
+    deleted at another of that shape. And the in-place sheet now wins over an
+    unchanged identical copy elsewhere.
+  - A Pose turn of a moved crease-pattern step carried no annotations: the
+    capture re-anchors the scope, which the carry compared as JSON. A crease
+    pattern is drawn about its paper's centre, so a moved outline of the same
+    shape is the same picture (`sameRegion` in `annotationCarry.ts`); a folded
+    picture sits where its sheet sits and keeps the strict test.
+  - A step that keeps a `cs1:` fingerprint: Pose keys its live 3D view by it
+    while it matches (the view never showed), and a Pose capture keeps it while
+    it matches over the same lines, so a turn carries its annotations; Show
+    as, Refresh and Relink write `rc1:`.
+  - Replace from References… falls back to the step's stored rim when the
+    segmentation is not worked out yet.
+  - Tests that could not fail: the in-place scope test (now a stale id hint a
+    re-anchor would replace), the nearest-of-identical test (nearest listed
+    first, middle and last); a Pose verb on a moved step, the carry test, a
+    deleted-sheet test and the Replace sheet fallback added.
 - [x] Follow-ups written up for `main`, as task chips with self-contained
   briefs: Edit folded figures and simulation windows (their figure follows its
   pattern, and Refold folds it where it is — Zach to confirm both first, a

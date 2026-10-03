@@ -5,10 +5,10 @@
  * made from.
  *
  * A step finds its sheet by what it is, not where it sits
- * (implementation-plans/pattern-identity.md): a sheet of the same outline
- * whose creases are the ones it remembers, wherever it is now; else the one
- * still in its place; else the only one of that shape (`resolveMovedRegion`,
- * in the kernel-space segmentation the selection toolbar uses). It is made of
+ * (implementation-plans/pattern-identity.md): the one still in its place,
+ * unchanged or edited there; else a sheet of the same outline whose creases
+ * are the ones it remembers, wherever it is now (`resolveMovedRegion`, in the
+ * kernel-space segmentation the selection toolbar uses). It is made of
  * every crease inside it. What is folded — and what {@link StepCreases.fingerprint}
  * is taken over — is the region's foldable lines, in kernel order.
  *

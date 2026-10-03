@@ -56,6 +56,10 @@ describe('the ways into the References browser', () => {
       pattern: 'plan-a',
       shown: { plan: 'plan-a', card: 3, line: { n: [0, 1], d: 0.25 } },
     });
+    // No pattern open to find its sheet in: it opens on the sheet where it was.
+    const step = state().diagram!.steps[0]!;
+    if (step.source?.kind !== 'references-step') throw new Error('a References step');
+    expect(state().diagramReferencesBrowser?.sheet).toEqual(step.source.region.boundary);
     expect(analytics.trackDiagramReferencesBrowserOpened).toHaveBeenCalledWith('replace');
     // Only a References step has a card to replace.
     state().closeDiagramReferencesBrowser();

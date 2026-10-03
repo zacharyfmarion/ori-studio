@@ -11,9 +11,9 @@
  *   translation — and the floating-point noise a drag leaves — changes
  *   nothing, while a crease moved relative to the others, a recolour or a new
  *   angle does.
- * - **Which region is it?** {@link resolveMovedRegion}: a region of the same
- *   outline shape whose creases are unchanged, wherever it is; else the one
- *   still in its old place; else the only one of that shape; else none.
+ * - **Which region is it?** {@link resolveMovedRegion}: the one in its old
+ *   place, unchanged or edited there; else a region of the same outline shape
+ *   whose creases are unchanged, wherever it is; else none.
  *
  * Shared, with no owner's types: the Diagram uses it today, and Edit's folded
  * figures and the References plan cache can adopt it.
@@ -31,12 +31,19 @@ import { outerRing, resolveRegion, ringCorners, ringsMatch, type RegionReference
 export const RELATIVE_FINGERPRINT_PREFIX = 'rc1:';
 
 /**
- * The rounding of a relative coordinate, as a fraction of the lines' size.
- * The order of the kernel's own point tolerance on a sheet of ordinary size,
- * and a million times a drag's last-bit error, so a move never lands on the
- * other side of a rounding step except by a vanishing chance.
+ * The rounding of a relative coordinate, as a fraction of the lines' size:
+ * about a millionth, the order of the kernel's own point tolerance on a sheet
+ * of ordinary size, and a million times a drag's last-bit error.
+ *
+ * A power of two, not 1e-6. A pattern's coordinates are dyadic fractions of
+ * its size — a grid of 2^n divisions, a reference at 1/128 — and a decimal
+ * step puts the odd multiples of 1/128 exactly on a rounding boundary
+ * (1e6 / 128 = 7812.5), where a drag's last-bit noise picks the side: on a
+ * 128-division grid a quarter of all drags changed the fingerprint. With
+ * 2^-20 every dyadic fraction down to 1/2^20 lands on a step's centre, and the
+ * scaling by it is exact in floating point.
  */
-const RELATIVE_QUANTUM = 1e-6;
+const RELATIVE_QUANTUM = 2 ** -20;
 
 /** Whether a stored fingerprint is a relative one: the kind a moved region can be recognised by. */
 export function isRelativeFingerprint(fingerprint: string | null): fingerprint is string {
@@ -143,26 +150,26 @@ export interface RegionIdentity {
 /**
  * How a region was found:
  * - `unchanged`: its creases are the ones remembered, wherever it is now;
- * - `in-place`: its rim is where it was, and its creases may have changed;
- * - `only-shape`: it moved and changed, and is the only region of its shape.
+ * - `in-place`: its rim is where it was, and its creases may have changed.
  */
-export type RegionFound = 'unchanged' | 'in-place' | 'only-shape';
+export type RegionFound = 'unchanged' | 'in-place';
 
 /**
  * The region a reference names, wherever it is now, or null:
  *
- * 1. a region of the same outline shape whose creases are unchanged — of
- *    several identical ones, the nearest to where it was, which is the one in
- *    place when nothing moved;
- * 2. else the region still at its old position (edited in place);
- * 3. else the only region of that shape (moved and edited);
- * 4. else none. It never guesses between regions that differ: a link that
- *    silently re-points at another pattern is the failure this exists to
- *    prevent (`resolveRegion`).
+ * 1. the region still at its old position — unchanged, or edited there. Its
+ *    own place wins over an identical copy elsewhere: a sheet edited beside an
+ *    untouched duplicate of it is out of date, not silently the duplicate;
+ * 2. else a region of the same outline shape whose creases are unchanged,
+ *    wherever it is — of several identical ones, the nearest to where it was
+ *    (they draw the same picture);
+ * 3. else none. A region that moved *and* changed cannot be told from a
+ *    deleted one beside another of its shape, so it is not guessed at: a link
+ *    that silently re-points at another pattern is the failure this exists
+ *    to prevent (`resolveRegion`). Relink picks it again.
  *
- * Only a relative fingerprint can take part in 1; an absolute one (`cs1:`)
- * goes straight to 2 and 3. Nothing moved, the answer comes from the region
- * in place without looking at any other.
+ * Only a relative fingerprint can take part in 2; an absolute one (`cs1:`)
+ * finds its region only in place.
  */
 export function resolveMovedRegion(
   reference: Pick<RegionReference, 'boundary' | 'segmentIdHint'>,
@@ -172,21 +179,17 @@ export function resolveMovedRegion(
   const { boundary } = reference;
   if (boundary.length === 0) return null;
   const inPlace = resolveRegion(reference, segments);
-  const relative = isRelativeFingerprint(identity.fingerprint);
-  if (inPlace && relative && identity.fingerprintOf(inPlace) === identity.fingerprint) {
-    return { segment: inPlace, found: 'unchanged' };
+  if (inPlace) {
+    const unchanged = isRelativeFingerprint(identity.fingerprint) && identity.fingerprintOf(inPlace) === identity.fingerprint;
+    return { segment: inPlace, found: unchanged ? 'unchanged' : 'in-place' };
   }
-  const shaped = segments.filter((segment) => boundariesMatchMoved(boundary, segment.boundary));
-  if (relative) {
-    const same = shaped.filter((segment) => segment !== inPlace && identity.fingerprintOf(segment) === identity.fingerprint);
-    if (same.length > 0) {
-      const nearest = same.reduce((best, segment) =>
-        boundaryDistance(boundary, segment.boundary) < boundaryDistance(boundary, best.boundary) ? segment : best
-      );
-      return { segment: nearest, found: 'unchanged' };
-    }
-  }
-  if (inPlace) return { segment: inPlace, found: 'in-place' };
-  if (shaped.length === 1) return { segment: shaped[0]!, found: 'only-shape' };
-  return null;
+  if (!isRelativeFingerprint(identity.fingerprint)) return null;
+  const same = segments.filter(
+    (segment) => boundariesMatchMoved(boundary, segment.boundary) && identity.fingerprintOf(segment) === identity.fingerprint
+  );
+  if (same.length === 0) return null;
+  const nearest = same.reduce((best, segment) =>
+    boundaryDistance(boundary, segment.boundary) < boundaryDistance(boundary, best.boundary) ? segment : best
+  );
+  return { segment: nearest, found: 'unchanged' };
 }

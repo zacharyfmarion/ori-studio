@@ -63,6 +63,38 @@ describe('the relative crease fingerprint', () => {
     }
   });
 
+  // A sheet off the origin, as Oriedita's default is (-200..200), with creases
+  // at odd multiples of 1/128 of its size: with a decimal rounding step those
+  // sat exactly on a rounding boundary, and a drag's noise moved them across.
+  it('is unchanged by a move of a dyadic grid, whose coordinates sit where a decimal step would round either way', () => {
+    const grid: OristudioCpLineSegment[] = [
+      line(-200, -200, 200, -200, 'Black0'),
+      line(200, -200, 200, 200, 'Black0'),
+      line(200, 200, -200, 200, 'Black0'),
+      line(-200, 200, -200, -200, 'Black0'),
+    ];
+    for (let k = 1; k < 128; k += 2) {
+      const at = -200 + (400 * k) / 128;
+      grid.push(line(at, -200, at, 200, k % 4 === 1 ? 'Red1' : 'Blue2'), line(-200, at, 200, at, 'Blue2'));
+    }
+    const before = relativeCreaseFingerprint(grid);
+    let perturbed = 0;
+    for (const [dx, dy] of [
+      [69.3, 0],
+      [70.372, -12.9],
+      [0.1, 0.7],
+      [137.3, -42.1],
+      [-503.7, 0.30000000000000004],
+      [1234.1, 4321.123456789],
+    ] as const) {
+      const shifted = moved(grid, dx, dy);
+      // The move really is noisy: some relative coordinate is no longer exact.
+      if (shifted.some((entry, i) => entry.a.x - shifted[0]!.a.x !== grid[i]!.a.x - grid[0]!.a.x)) perturbed += 1;
+      expect(relativeCreaseFingerprint(shifted)).toBe(before);
+    }
+    expect(perturbed).toBeGreaterThan(0);
+  });
+
   it('does not care about the order of the lines, or which end of one is first', () => {
     const reordered = [...SHEET].reverse().map((entry, index) => (index % 2 ? { ...entry, a: entry.b, b: entry.a } : entry));
     expect(relativeCreaseFingerprint(reordered)).toBe(relativeCreaseFingerprint(SHEET));
@@ -147,6 +179,15 @@ describe('finding a region again', () => {
   // The step remembers the square at the origin, and its creases as `rc1:A`.
   const reference = { boundary: [ring(SQUARE)], segmentIdHint: 0 };
 
+  it('finds it in its place first, edited there, though an unchanged copy of it is elsewhere', () => {
+    const here = segment(0, SQUARE, 0, 0);
+    const copy = segment(1, SQUARE, 900, 0);
+    expect(resolveMovedRegion(reference, [copy, here], identity('rc1:A', { 0: 'rc1:C', 1: 'rc1:A' }))).toEqual({
+      segment: here,
+      found: 'in-place',
+    });
+  });
+
   it('finds it in place when nothing moved, looking at no other region', () => {
     const here = segment(0, SQUARE, 0, 0);
     const elsewhere = segment(1, SQUARE, 1000, 0);
@@ -163,34 +204,35 @@ describe('finding a region again', () => {
   });
 
   it('finds it moved, by its unchanged creases, among regions of the same shape', () => {
-    const other = segment(0, SQUARE, 0, 0);
+    const other = segment(0, SQUARE, 1600, 0);
     const movedHere = segment(1, SQUARE, 800.25, -300.1);
-    // Another sheet now sits where it was; its creases are not the step's.
     expect(resolveMovedRegion(reference, [other, movedHere], identity('rc1:A', { 0: 'rc1:B', 1: 'rc1:A' }))).toEqual({
       segment: movedHere,
       found: 'unchanged',
     });
   });
 
-  it('takes the nearest of several identical regions: they draw the same picture', () => {
+  it('takes the nearest of several identical regions, wherever it is listed: they draw the same picture', () => {
     const far = segment(0, SQUARE, 5000, 0);
     const near = segment(1, SQUARE, 600, 0);
-    expect(resolveMovedRegion(reference, [far, near], identity('rc1:A', { 0: 'rc1:A', 1: 'rc1:A' }))?.segment).toBe(near);
+    const farther = segment(2, SQUARE, 9000, 0);
+    const all = identity('rc1:A', { 0: 'rc1:A', 1: 'rc1:A', 2: 'rc1:A' });
+    expect(resolveMovedRegion(reference, [far, near, farther], all)?.segment).toBe(near);
+    expect(resolveMovedRegion(reference, [near, far, farther], all)?.segment).toBe(near);
   });
 
-  it('finds it edited in place, and moved and edited when it is the only region of its shape', () => {
+  it('finds it edited in place', () => {
     expect(resolveMovedRegion(reference, [segment(0, SQUARE, 0, 0)], identity('rc1:A', { 0: 'rc1:C' }))).toMatchObject({
       found: 'in-place',
     });
-    const movedEdited = segment(3, SQUARE, 900, 900);
-    const wide = segment(4, WIDE, 0, 2000);
-    expect(resolveMovedRegion(reference, [movedEdited, wide], identity('rc1:A', { 3: 'rc1:C', 4: 'rc1:A' }))).toEqual({
-      segment: movedEdited,
-      found: 'only-shape',
-    });
   });
 
-  it('never guesses between regions that differ: moved and edited among others of its shape is gone', () => {
+  it('never guesses: moved and edited, it cannot be told from a sheet deleted beside another of its shape', () => {
+    // Deleted, with one other square left whose creases differ: not that square.
+    expect(resolveMovedRegion(reference, [segment(5, SQUARE, 900, 0)], identity('rc1:A', { 5: 'rc1:B' }))).toBeNull();
+    // Moved and edited, alone of its shape or among others: the same answer.
+    const wide = segment(4, WIDE, 0, 2000);
+    expect(resolveMovedRegion(reference, [segment(3, SQUARE, 900, 900), wide], identity('rc1:A', { 3: 'rc1:C', 4: 'rc1:A' }))).toBeNull();
     const candidates = [segment(0, SQUARE, 900, 0), segment(1, SQUARE, 1800, 0)];
     expect(resolveMovedRegion(reference, candidates, identity('rc1:A', { 0: 'rc1:C', 1: 'rc1:D' }))).toBeNull();
   });
@@ -200,15 +242,12 @@ describe('finding a region again', () => {
     expect(resolveMovedRegion({ boundary: [], segmentIdHint: null }, [segment(0, SQUARE, 0, 0)], identity('rc1:A', {}))).toBeNull();
   });
 
-  it('recognises a moved region only by a relative fingerprint: an absolute one finds it in place, or as the only one of its shape', () => {
+  it('recognises a moved region only by a relative fingerprint: an absolute one finds it only in place', () => {
     const absolute = foldedSourceFingerprint(SHEET);
-    const movedAway = segment(0, SQUARE, 700, 0);
-    expect(resolveMovedRegion(reference, [movedAway], identity(absolute, { 0: absolute }))).toEqual({
-      segment: movedAway,
-      found: 'only-shape',
+    expect(resolveMovedRegion(reference, [segment(0, SQUARE, 700, 0)], identity(absolute, { 0: absolute }))).toBeNull();
+    expect(resolveMovedRegion(reference, [segment(0, SQUARE, 0, 0)], identity(absolute, { 0: absolute }))).toMatchObject({
+      found: 'in-place',
     });
-    const two = [segment(0, SQUARE, 700, 0), segment(1, SQUARE, 1400, 0)];
-    expect(resolveMovedRegion(reference, two, identity(absolute, { 0: absolute, 1: absolute }))).toBeNull();
     expect(resolveMovedRegion(reference, [segment(0, SQUARE, 0, 0)], identity(null, {}))).toMatchObject({ found: 'in-place' });
   });
 });

@@ -30,9 +30,11 @@ import {
 } from '../../store/workspaceStore/diagramCapture';
 import { stepIndex, type DiagramCpSource } from '../document/diagramDocument';
 import { storedCpSource } from '../document/diagramFile';
+import { isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import {
   chooseStepCreases,
   creasesFingerprint,
+  creasesMatch,
   followedScope,
   knownCreasesOf,
   type StepCreases,
@@ -293,7 +295,11 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
             { model: held.fold.render, aux: held.aux },
             linkedFoldKey(stepId, {
               scope: linked.scope,
-              fingerprint: creasesFingerprint(choice.creases, linked.render),
+              // The step's own fingerprint while its creases match it (a `cs1:`
+              // one included): the key the live view is looked for by.
+              fingerprint: creasesMatch(choice.creases, knownCreasesOf(linked))
+                ? linked.fingerprint
+                : creasesFingerprint(choice.creases, linked.render),
             })
           );
         }
@@ -367,7 +373,11 @@ function needsRecapture(stepId: string, linked: DiagramCpSource): boolean {
 
 /**
  * The step's source after a pose: the same scope — or its sheet where it moved
- * to — its creases fingerprinted as the new render shows them.
+ * to — its creases fingerprinted as the new render shows them. A pose of a
+ * step that keeps a fingerprint from before (`cs1:`) keeps it while its
+ * creases still match it and the render takes it over the same lines: a turn
+ * is not a new picture, and its annotations carry. Show as, Refresh and
+ * Relink write the relative one.
  */
 function linkedSource(
   previous: DiagramCpSource,
@@ -375,10 +385,12 @@ function linkedSource(
   segmentation: FoldArtifacts,
   render: DiagramCpSource['render']
 ): DiagramCpSource {
+  const sameLines = (previous.render.mode === 'crease-pattern') === (render.mode === 'crease-pattern');
+  const keep = !isRelativeFingerprint(previous.fingerprint) && sameLines && creasesMatch(creases, knownCreasesOf(previous));
   const stored = storedCpSource({
     kind: 'cp',
     scope: followedScope(previous.scope, creases),
-    fingerprint: creasesFingerprint(creases, render),
+    fingerprint: keep ? previous.fingerprint : creasesFingerprint(creases, render),
     thumbnail: creasesThumbnail(creases, segmentation),
     render,
   });

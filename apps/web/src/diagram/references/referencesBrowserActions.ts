@@ -49,7 +49,7 @@ export function replaceStepFromReferences(stepId: string): void {
       pattern: plan ?? null,
       shown: { plan: plan ?? null, card, line: line ? { n: [line.n[0], line.n[1]], d: line.d } : null },
       // Its plan may have been made again since: then it opens on its sheet's.
-      sheet: stepSheetNow(step.source)?.boundary ?? null,
+      sheet: stepSheetNow(step.source)?.boundary ?? step.source.region.boundary,
     }
   );
 }
