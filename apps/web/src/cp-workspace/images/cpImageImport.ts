@@ -1,3 +1,5 @@
+import { isSvgImage } from '../../lib/imageFormats';
+import { loadSvgImage } from '../../lib/svgImage';
 import { IMAGE_JPEG_QUALITY, IMAGE_MAX_DIMENSION } from './cpImage';
 
 /**
@@ -7,8 +9,11 @@ import { IMAGE_JPEG_QUALITY, IMAGE_MAX_DIMENSION } from './cpImage';
  * texture and the `.osf` file; the original bytes are not retained.
  *
  * Re-encode by content: PNG for sources that can carry transparency
- * (PNG/WebP/GIF), JPEG otherwise (photographs are far smaller as JPEG). This is
- * the main lever on `.osf` size.
+ * (PNG/WebP/GIF/SVG), JPEG otherwise (photographs are far smaller as JPEG). This
+ * is the main lever on `.osf` size.
+ *
+ * An SVG is rasterised here, once, like any other source is re-encoded: what
+ * the canvas and the `.osf` keep is pixels, never the file's markup.
  */
 
 export interface ImportedImageSource {
@@ -44,13 +49,38 @@ function cappedDimensions(width: number, height: number): { width: number; heigh
   };
 }
 
+/** A decoded source, sized, ready to draw; `release` frees what it holds. */
+interface DecodedImage {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  keepAlpha: boolean;
+  release: () => void;
+}
+
+async function decodeImageFile(file: File): Promise<DecodedImage> {
+  if (isSvgImage(file.type, file.name)) {
+    // Drawn at the cap rather than at the size it declares — see `svgRasterSize`.
+    const { image, width, height } = await loadSvgImage(file, IMAGE_MAX_DIMENSION);
+    return { source: image, width, height, keepAlpha: true, release: () => {} };
+  }
+  const bitmap = await createImageBitmap(file);
+  return {
+    source: bitmap,
+    width: bitmap.width,
+    height: bitmap.height,
+    keepAlpha: TRANSPARENT_SOURCE_TYPES.has(file.type),
+    release: () => bitmap.close(),
+  };
+}
+
 /**
  * Decode + cap + re-encode. Throws if the file cannot be decoded as an image.
  */
 export async function importImageFile(file: File): Promise<ImportedImageSource> {
-  const bitmap = await createImageBitmap(file);
+  const decoded = await decodeImageFile(file);
   try {
-    const { width, height } = cappedDimensions(bitmap.width, bitmap.height);
+    const { width, height } = cappedDimensions(decoded.width, decoded.height);
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -58,22 +88,21 @@ export async function importImageFile(file: File): Promise<ImportedImageSource> 
     if (!ctx) throw new Error('Could not get a 2D canvas context to import the image');
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(bitmap, 0, 0, width, height);
-    const keepAlpha = TRANSPARENT_SOURCE_TYPES.has(file.type);
-    const src = keepAlpha
+    ctx.drawImage(decoded.source, 0, 0, width, height);
+    const src = decoded.keepAlpha
       ? canvas.toDataURL('image/png')
       : canvas.toDataURL('image/jpeg', IMAGE_JPEG_QUALITY);
-    return { src, naturalWidth: width, naturalHeight: height, preview: previewImageData(bitmap) };
+    return { src, naturalWidth: width, naturalHeight: height, preview: previewImageData(decoded) };
   } finally {
-    bitmap.close();
+    decoded.release();
   }
 }
 
-function previewImageData(bitmap: ImageBitmap): ImageData | null {
-  const longest = Math.max(bitmap.width, bitmap.height);
+function previewImageData(decoded: DecodedImage): ImageData | null {
+  const longest = Math.max(decoded.width, decoded.height);
   const scale = Math.min(1, IMAGE_PREVIEW_MAX_DIMENSION / longest);
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const width = Math.max(1, Math.round(decoded.width * scale));
+  const height = Math.max(1, Math.round(decoded.height * scale));
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -81,7 +110,7 @@ function previewImageData(bitmap: ImageBitmap): ImageData | null {
   if (!ctx) return null;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(bitmap, 0, 0, width, height);
+  ctx.drawImage(decoded.source, 0, 0, width, height);
   try {
     return ctx.getImageData(0, 0, width, height);
   } catch {

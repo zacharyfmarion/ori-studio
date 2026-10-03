@@ -3,6 +3,7 @@ import {
   DECODABLE_IMAGE_ACCEPT,
   DECODABLE_IMAGE_EXTENSIONS,
   isDecodableImageType,
+  isSvgImage,
 } from './imageFormats';
 import { OPENABLE_FILE_EXTENSIONS } from './fileDrop';
 
@@ -43,6 +44,34 @@ describe('isDecodableImageType', () => {
     expect(isDecodableImageType('IMAGE/PNG')).toBe(true);
     expect(isDecodableImageType('image/svg+xml; charset=utf-8')).toBe(true);
     expect(isDecodableImageType(' image/jpeg ')).toBe(true);
+  });
+});
+
+describe('isSvgImage', () => {
+  it('recognizes the SVG type, with or without parameters', () => {
+    expect(isSvgImage('image/svg+xml', 'drawing')).toBe(true);
+    expect(isSvgImage('Image/SVG+XML; charset=utf-8', 'drawing')).toBe(true);
+  });
+
+  // The picker passes on whatever `accept` let through, so a platform that
+  // types `.svg` as nothing must still reach the SVG path.
+  it('recognizes the extension when the type is missing', () => {
+    expect(isSvgImage('', 'crease pattern.svg')).toBe(true);
+    expect(isSvgImage('', 'PATTERN.SVG')).toBe(true);
+  });
+
+  it('leaves raster images and look-alike names alone', () => {
+    expect(isSvgImage('image/png', 'diagram.png')).toBe(false);
+    expect(isSvgImage('', 'diagram.svgz')).toBe(false);
+    expect(isSvgImage('', 'svg')).toBe(false);
+  });
+
+  // The bitmap decoder sniffs content and reads a misnamed PNG; the SVG parser
+  // could only reject it.
+  it('lets a type naming another image format win over the name', () => {
+    expect(isSvgImage('image/png', 'diagram.svg')).toBe(false);
+    expect(isSvgImage('image/jpeg', 'photo.SVG')).toBe(false);
+    expect(isSvgImage('application/octet-stream', 'diagram.svg')).toBe(true);
   });
 });
 

@@ -61,6 +61,13 @@ describe('classifyDroppedFile', () => {
     expect(classifyDroppedFile(file('photo.bin', 'image/webp'))).toEqual({ kind: 'image' });
   });
 
+  // The picker takes an untyped `.svg` by its name, so a drop must as well.
+  it('classifies an untyped SVG by its extension, as the picker does', () => {
+    expect(classifyDroppedFile(file('pattern.svg'))).toEqual({ kind: 'image' });
+    expect(classifyDroppedFile(file('pattern.svg', 'image/svg+xml'))).toEqual({ kind: 'image' });
+    expect(classifyDroppedFile(file('pattern.svgz'))).toEqual({ kind: 'unsupported' });
+  });
+
   // The reported bug: macOS maps `.ori` to the UTI `com.olympus.raw-image`, so
   // the browser reports an Oriedita crease pattern as an Olympus raw photo. An
   // extension this app owns has to outrank whatever the platform says.
