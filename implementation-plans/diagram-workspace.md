@@ -516,7 +516,9 @@ established:
     move where the worker has no WebGL2;
   - `useSimulatorRuntime` + `FoldPlayhead` for the transport.
 - **Choosing a mode in Pose.** Pose's switch is Crease pattern | Folded form |
-  Simulated (Simulated from Phase 8), for any pattern source.
+  Simulated (Simulated from Phase 8), for any pattern source. *(D19, added
+  2026-10-03, makes this choice first-class: it is also in the Step pane, the
+  pattern picker and the card, and each way of showing remembers its pose.)*
   - **Folded form** opens the capture session: a visible `'diagram-capture'`
     run, routed by `resolveFoldRoute`.
   - **Crease pattern** recaptures through `buildCreaseExportArtwork`, with no
@@ -1035,6 +1037,84 @@ values or fold percentages.
   - `diagram annotation added` with `{tool}`;
   - `diagram exported` with `{format: pdf|zip, preset: home|print_shop}` or, for a ZIP, `{file_type, resolution, number, text, size: same|cropped, background}`, and `file_count_bucket`, `step_count_bucket`, `empty_step_bucket` (as built in Phase 6: print shop has no bleed or crop toggles);
   - `references step sent to diagram` with `{scope: one|all, mode: sequence|find}`.
+
+**D19. A linked step's pattern is its source; how it is shown is a choice.**
+*(Added 2026-10-03 from Zach's review. It sharpens D5, which put the choice
+only inside Pose, where it was easy to miss.)*
+
+A linked step has one source, a region of the open crease pattern (D3). It is
+shown in one of three ways, and the reader picks which wherever the step is
+shown or edited. The three are peers: switching between them is a choice of
+view, never a new link.
+
+| Show as | What the picture is | Pose | Captured |
+| --- | --- | --- | --- |
+| **Crease pattern** | the region's creases as an instruction: M/V in the diagram-crease pens, aux lines as existing creases (see "After Phase 7") | rotate | headless, at once |
+| **Folded** | the folded result, flat or 3D as `resolveFoldRoute` decides — one choice for the reader, two routes inside | turn over, rotate, next solution; or orbit and Top / Front / Iso | headless, a visible fold run with Stop |
+| **Simulated** | the simulator's model at a fold %, from a camera | fold %, play / step / restart, orbit, Top / Front / Iso | only inside a mounted Pose (D4) |
+
+- **The model.** `DiagramCpRender` gains `{ mode: 'simulated'; foldPercent:
+  number; view: { yaw: number; pitch: number; zoom: number } }`. The existing
+  `crease-pattern`, `folded-flat` and `folded-3d` stay; "Folded" in the UI
+  is the latter two. `DiagramCpSource` gains `remembered?: Partial<Record<
+  'crease-pattern' | 'folded' | 'simulated', DiagramCpRender>>`: each way of
+  showing keeps the pose it last had, so Crease pattern → Folded → Crease
+  pattern brings the folded side, turn and solution back, and a simulated
+  step's fold % and camera are not lost to a look at its pattern. Switching
+  is one undo step ("Show as Folded"). The reader drops a `remembered` entry
+  it cannot read rather than the step.
+- **Where the choice is.**
+  1. **The Step pane**, first: a `SegmentedRow` **Show as** — Crease pattern |
+     Folded | Simulated — in the Picture section under the Pattern row, for a
+     linked step. It replaces the read-only Source sentence's job of saying
+     what the picture is ("Folded, from the back" moves into the row's
+     description). Crease pattern and Folded capture at once, with the card's
+     progress row and Stop; Simulated opens Pose (below).
+  2. **The pattern picker.** Its header carries the same **Show as** choice,
+     defaulting to the last one used in the session. Picking a sheet links and
+     shows it that way in one move: "link, then fold it" is one gesture, not
+     two. Simulated opens Pose after the link.
+  3. **The card.** Its badge already says how (Crease pattern, Folded,
+     Folded · 3D, Simulated 40%). The context menu gains **Show as ▸** with the
+     three, and the hover verbs the mockup has — **Adjust pose** and
+     **Annotate** — land here too (D17: each also has a non-hover path).
+  4. **Pose.** The context bar's switch becomes Crease pattern | Folded |
+     Simulated (it is Crease pattern | Folded today).
+  5. **Edit and References** are unchanged: Add to diagram from a folded figure
+     still makes a Folded step, Send to diagram a References step.
+- **Duplicate as.** The context menu's Duplicate gains **Duplicate as ▸**
+  Crease pattern / Folded / Simulated: a copy after this step, linked to the
+  same region and shown the other way. A diagram's common pair — the pattern,
+  then what it folds into — is two presses.
+- **Simulated, specifically** (what the code constrains; see Phase 8):
+  - **Segment-sourced steps only.** A step made from a figure box has no region
+    to simulate; Simulated is disabled there with a tooltip that says so.
+  - **Captured only inside a mounted Pose.** The simulator lives in a worker
+    session that a viewport owns. Choosing Simulated anywhere opens Pose on
+    it, settles from flat to the remembered fold % (100% the first time) at
+    the remembered camera (`DEFAULT_SIMULATOR_VIEW` the first time), and Done
+    captures. Escape or Revert returns the step to how it was shown before.
+  - **Refresh** on a simulated step opens Pose, settles again, and captures
+    once the solver is still; Refresh all skips it and says how many it
+    skipped. A Lighting-changed simulated step says "Pose again".
+  - **One more simulation window.** Pose's session is a window like an inline
+    simulation's, so Simulated is refused at the inline-simulation cap with the
+    existing copy, and the worker's residency is sized so Pose never evicts a
+    window that is open in Edit or Simulate.
+  - **Keys.** While the simulator is shown, its scope owns Space, ← / →, Home,
+    R, F, C and L, as it does in Simulate. Pose's own keys — `[` / `]`,
+    Escape, Enter, Undo — are not among them.
+  - **Light.** A simulated picture records the simulator's style key
+    (`simulatorSceneStyleKey`), and `lighting.ts` compares each picture
+    against the key of its own kind.
+  - **Scale.** The simulator's scene is in viewport px under perspective, with
+    no paper scale, so on a "One scale" page a simulated step is fitted, as a
+    3D one is.
+- **Annotations** follow D8: a new way of showing is a new picture, so the
+  step's annotations stay where they were and Annotate says the picture
+  changed. Switching back to the way they were drawn on brings them back in
+  step only if the picture comes back identical.
+- **Analytics.** `diagram step shown as` with `{show_as: crease_pattern|folded|simulated, via: pane|picker|card|pose|duplicate}`; `diagram picture captured` gains `kind: simulated` (already in D18's enum).
 
 ### Contracts
 
@@ -2334,22 +2414,58 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - Where several folds meet at a vertex each one's dash starts there, which reads as a small knot at the centre of a star of creases. Printed diagrams do the same; left as it is.
 - [x] **The trailing Add step tile.** The mockup's dashed card after the last step is back: a press adds an empty step at the end, whichever step is selected (`appendDiagramStep`), selects it, and the new card takes focus. A listbox holds only its options, so the tile is for a pointer alone — `aria-hidden`, never focused — and the header's Add step stays the way there from the keyboard and for assistive tech. Not on a read-only diagram. Browser (`artifacts/diagram-add-tile/tile.mjs`, light and dark): with step 2 of 3 selected, a press made step 4 and focused its card; the tile stretches to its row's height.
 
-### Phase 8: simulated steps
+### Phase 8: a linked pattern, shown three ways (D19)
 
-- [ ] **8a.** `useDiagramSimulatedCapture`.
-  - Pose's Simulated mode drives `useSimulatorRuntime` with `buildSegmentSimulationFold(foldArtifacts, segment)`, the region matched through `cpModelToFoldTransform`.
-  - `setCamera` with the stored view; Done goes `beginExport()` → `snapshot.scene({style: diagramStyle, markHidden: true})` → frozen scene.
-  - The session is released on every exit.
-  - Disabled at the inline-simulation cap, and when `buildSegmentSimulationFold` returns an empty `faces_vertices` (the "unavailable" copy `addOristudioCpInlineSimulation` uses).
-- [ ] **8b.** The transport (`Toolbar`, `GestureSlider`, `FoldPlayhead`).
-  - The `simulator` scope owns Space and the arrows while it is shown.
-  - Refresh opens Pose and settles again from flat.
-  - Figure-sourced steps cannot be simulated.
-- [ ] **8c.** Analytics: `kind simulated`.
+*(Rewritten 2026-10-03: Phase 8 was "simulated steps", Pose-only. D19 makes
+how a linked step is shown a first-class choice, of which Simulated is the
+third. Proposed; waiting on Zach's go-ahead.)*
+
+- [ ] **8a. Show as, for the two ways that exist.**
+  - `remembered` on `DiagramCpSource`: written, read, validated, and carried by
+    every edit that changes `render` (`setLinkedPicture`, Pose's verbs). A
+    `showLinkedStepAs(stepId, way, via)` action in the capture layer: take the
+    remembered pose for `way` (or its default), capture headless, commit as
+    one undo step.
+  - The Step pane's **Show as** row; the pattern picker's **Show as** header;
+    the card's **Show as ▸** and **Duplicate as ▸** in the context menu (from
+    the action catalog, so the menu bar and the shortcut registry see them);
+    Pose's switch through the same action.
+  - The card's hover verbs **Adjust pose** and **Annotate**.
+  - Tests: the remembered pose round-trips and survives a relink; switching
+    and switching back restores the pose; one undo step per switch; a figure
+    step's Simulated is disabled with its reason.
+- [ ] **8b. Simulated in Pose.** `useDiagramSimulatedCapture`:
+  - `useSimulatorRuntime` over `buildSegmentSimulationFold(foldArtifacts,
+    segment)`, the region matched through `cpModelToFoldTransform`; refused
+    for an empty `faces_vertices` with `addOristudioCpInlineSimulation`'s
+    "unavailable" copy, and at the cap with its "too many simulations" copy.
+  - Settle to the remembered fold %; `setCamera` with the remembered view;
+    Done → `beginExport()` → `scene({style: diagramStyle, markHidden: true})`
+    → a stored scene, `styleKey = simulatorSceneStyleKey(style)`,
+    `paperScale: null`. The session is released on every exit (D4's list).
+  - The transport: `Toolbar` with Restart, Play/Pause, Step and a
+    `GestureSlider` for fold %, over `FoldPlayhead`; Top / Front / Iso chips
+    and the yaw/pitch readout. The simulator scope's keys while it is shown.
+  - Escape and Revert return the step to the way it was shown before.
+- [ ] **8c. Simulated everywhere else.**
+  - Link status, the badge ("Simulated 40%"), the Step pane's row.
+  - Refresh opens Pose and captures once still; Refresh all skips simulated
+    steps and its toast counts them; "Lighting changed — Pose again" from
+    `lighting.ts` comparing per kind.
+  - Pages fit a simulated step on a "One scale" page; Export paints its stored
+    scene like any other.
+  - Worker residency sized for Pose's window, with a test that 20 inline
+    simulations, Simulate's view and Pose evict nobody.
+- [ ] **8d.** Analytics (`diagram step shown as`, `kind: simulated`), i18n in
+  all eight locales, `docs/analytics.md` rows.
 - [ ] **Browser:**
-  - crane states at 40% and 100% in iso, captured, reloaded and exported;
-  - the no-WebGL2 CPU fallback;
-  - a test that the worker never exceeds `MAX_LIVE_SESSIONS`.
+  - link a crane region as Folded straight from the picker; Show as Crease
+    pattern and back, the turn-over kept;
+  - Simulated at 40% and 100% in iso: captured, reloaded, refreshed, exported;
+  - Duplicate as Folded after a crease-pattern step;
+  - the no-WebGL2 CPU fallback; keys in Pose with the simulator shown.
+- [ ] **Review** (the Phase 7 workflow: every finding put to a skeptic), and
+  its fixes committed.
 
 ### Phase 9: phone, touch and finish
 
