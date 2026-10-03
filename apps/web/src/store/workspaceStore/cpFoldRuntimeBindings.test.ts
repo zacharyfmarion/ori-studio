@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const kernel = vi.hoisted(() => {
-  const snapshot = { discovered_fold_cases: 2, display_style: 'Paper5', outcome: 'Solved' };
+  const snapshot = {
+    discovered_fold_cases: 2,
+    current_fold_case: 1,
+    find_another_overlap_valid: true,
+    display_style: 'Paper5',
+    outcome: 'Solved',
+  };
   return {
     foldOristudioCpDocument: vi.fn(async () => ({ handle: 9, snapshot })),
     foldOristudioCpFigureToCase: vi.fn(async () => ({ snapshot })),
@@ -27,15 +33,26 @@ describe('createCpFoldRuntime', () => {
     expect(kernel.foldOristudioCpFigureAnother).toHaveBeenCalledWith(9, 42);
   });
 
-  it('reports what each fold left the figure in, outcome included', async () => {
+  it('reports what each fold left the figure in: outcome, the case shown, and whether another can be found', async () => {
     const runtime = createCpFoldRuntime(0);
     expect(await runtime.fold(1, 'Order5', undefined, [3])).toEqual({
       handle: 9,
       discoveredCases: 2,
       displayStyle: 'Paper5',
       outcome: 'Solved',
+      currentCase: 1,
+      hasNext: true,
     });
     expect((await runtime.foldAnother(9)).outcome).toBe('NoSolutions');
     expect(await runtime.setModel(9, {} as never)).toMatchObject({ displayStyle: 'Paper5' });
+  });
+
+  it('reads the case shown as the discovered count for a figure that predates backwards navigation', async () => {
+    kernel.foldOristudioCpFigureAnother.mockResolvedValueOnce({
+      discovered_fold_cases: 3,
+      display_style: 'Paper5',
+      find_another_overlap_valid: false,
+    } as never);
+    expect(await createCpFoldRuntime(0).foldAnother(9)).toMatchObject({ currentCase: 3, hasNext: false });
   });
 });

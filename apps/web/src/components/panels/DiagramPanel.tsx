@@ -7,6 +7,7 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { openDiagramPatternPicker } from '../../diagram/capture/stepCaptureActions';
 import { useDiagramCardLinks } from '../../diagram/capture/useCardLinks';
+import { useDiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
 import { pickStepPictures } from '../../diagram/upload/addStepPictures';
 import { useStepPictureDrop } from '../../diagram/upload/useStepPictureDrop';
 import {
@@ -82,6 +83,8 @@ export function DiagramPanel() {
     detail !== null && selectedStepId !== null
       ? steps.findIndex((step) => step.id === selectedStepId)
       : -1;
+  // Held for as long as the detail is open on a linked step: its fold, between verbs.
+  const linkedPose = useDiagramLinkedPose(detailIndex >= 0 ? steps[detailIndex] : null);
   if (detailIndex >= 0) {
     const step = steps[detailIndex];
     return (
@@ -102,6 +105,7 @@ export function DiagramPanel() {
           count={steps.length}
           readOnly={readOnly}
           poseActions={poseActions}
+          linkedPose={linkedPose}
           onBack={closeStep}
           onStep={(direction) => {
             const next = steps[detailIndex + direction];

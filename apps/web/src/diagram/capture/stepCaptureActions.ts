@@ -81,12 +81,21 @@ export function captureKind(render: DiagramCpRender): DiagramCaptureKind {
 
 /** Count what a capture came to, and say what the user needs told. */
 function report(outcome: DiagramCaptureOutcome, asked: DiagramCpRender, via: DiagramCaptureVia): void {
-  const t = i18n.t;
   const tracked = trackedOutcome(outcome);
   if (tracked) {
     const render = outcome.status === 'captured' ? outcome.render : asked;
     trackDiagramPictureCaptured(captureKind(render), tracked, via);
   }
+  sayCaptureOutcome(outcome);
+}
+
+/**
+ * Tell the user what a capture came to, when there is something to tell: a
+ * picture kept see-through or as a bitmap, or one that could not be taken and
+ * why. A Stop, or a capture the user moved on from, says nothing.
+ */
+export function sayCaptureOutcome(outcome: DiagramCaptureOutcome): void {
+  const t = i18n.t;
   switch (outcome.status) {
     case 'captured':
       if (outcome.noLayerOrder) {

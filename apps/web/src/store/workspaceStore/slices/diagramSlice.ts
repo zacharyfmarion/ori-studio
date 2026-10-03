@@ -23,7 +23,7 @@ import {
 } from '../../../diagram/document/diagramDocument';
 import i18n from '../../../i18n';
 import { requestConfirmation } from '../../commandDialogStore';
-import { runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
+import { commitStepCapture, runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
 import { discardDiagramState, trimDiagramHistory } from '../diagramState';
 import {
   emptySnapshotHistory,
@@ -343,6 +343,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       runDiagramCapture({ get, set }, (label, edit) => commit(label, edit), stepId, request),
 
     stopDiagramCapture: (stepId) => stopDiagramCapture({ get, set }, stepId),
+
+    commitDiagramCapture: (start, captured, label) =>
+      commitStepCapture({ get, set }, (name, edit) => commit(name, edit), start, captured, label),
 
     undoDiagram: () => travel('undo'),
     redoDiagram: () => travel('redo'),

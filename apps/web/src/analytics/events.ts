@@ -61,8 +61,24 @@ export type DiagramPictureUploadOutcome =
 /** How a step was opened in detail. */
 export type DiagramStepOpenedVia = 'keyboard' | 'double_click';
 
-/** A pose verb on an uploaded picture. */
-export type DiagramPoseAction = 'rotate_left' | 'rotate_right' | 'flip' | 'reset';
+/**
+ * A pose verb: on an uploaded picture (rotate, flip, reset), or on a linked one
+ * (show it as its crease pattern or folded, turn it over, step to another layer
+ * order, look from a named side, or orbit the 3D view).
+ */
+export type DiagramPoseAction =
+  | 'rotate_left'
+  | 'rotate_right'
+  | 'flip'
+  | 'reset'
+  | 'show_crease_pattern'
+  | 'show_folded'
+  | 'turn_over'
+  | 'next_solution'
+  | 'view_top'
+  | 'view_front'
+  | 'view_iso'
+  | 'orbit';
 
 /**
  * What a step's picture is: an upload, by what it is stored as, or a capture
@@ -86,7 +102,7 @@ export type DiagramCaptureOutcome =
   | 'stopped'
   | 'failed';
 
-/** Which flow captured a picture: linking a step, relinking it, or Refresh. */
+/** Which flow captured a picture: linking a step, relinking it, or Refresh. A Pose verb is `diagram picture posed`. */
 export type DiagramCaptureVia = 'link' | 'relink' | 'refresh';
 
 /** The file Export picture… wrote. */

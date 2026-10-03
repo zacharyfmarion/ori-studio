@@ -25,11 +25,14 @@ import {
 } from '../../diagram/document/diagramDocument';
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
 import { stepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
+import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Toolbar } from '../ui/Toolbar';
 import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
+import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
+import { DiagramPose3dView } from './DiagramPose3dView';
 import styles from './DiagramStepDetail.module.css';
 
 const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
@@ -59,6 +62,7 @@ export function DiagramStepDetail({
   count,
   readOnly,
   poseActions,
+  linkedPose,
   onBack,
   onStep,
   onUpload,
@@ -74,6 +78,8 @@ export function DiagramStepDetail({
   count: number;
   readOnly: boolean;
   poseActions: readonly DiagramPoseAction[];
+  /** A linked step's Pose: its verbs, and its live 3D view once folded. Null for any other step. */
+  linkedPose: DiagramLinkedPose | null;
   onBack: () => void;
   /** Open the step before (-1) or after (1) this one. */
   onStep: (direction: -1 | 1) => void;
@@ -97,6 +103,8 @@ export function DiagramStepDetail({
   const locked = isLockedStep(step);
   const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
   const url = useMemo(() => (source ? stepPictureUrl(source, style) : null), [source, style]);
+  const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
+  const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
 
   return (
@@ -148,29 +156,52 @@ export function DiagramStepDetail({
               )}
             </p>
           </div>
-        ) : url ? (
+        ) : url || linkedPose ? (
           <>
-            <img className={styles.picture} src={url} alt="" draggable={false} />
+            {linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
+              <DiagramPose3dView
+                view={linkedPose.spatial}
+                camera={linked.render.camera}
+                style={style}
+                onCamera={linkedPose.onCamera}
+                fallback={url && picture}
+              />
+            ) : url ? (
+              picture
+            ) : (
+              <div className={styles.message}>
+                <p>
+                  {t(
+                    'panels:diagram.detail.notCaptured',
+                    'Not captured yet: choose how to show its pattern below.'
+                  )}
+                </p>
+              </div>
+            )}
             <Toolbar
               ref={poseRef}
               className={styles.pose}
               aria-label={t('panels:diagram.detail.pose', 'Pose')}
             >
-              {poseActions.map((action) => {
-                const Icon = POSE_ICONS[action.id];
-                return (
-                  <IconButton
-                    key={action.id}
-                    size="sm"
-                    title={action.disabled && action.hint ? action.hint : action.label}
-                    aria-label={action.label}
-                    disabled={action.disabled}
-                    onClick={() => keepPoseFocus(action.run)}
-                  >
-                    <Icon size={15} />
-                  </IconButton>
-                );
-              })}
+              {linkedPose ? (
+                <DiagramLinkedPoseControls actions={linkedPose.actions} keep={keepPoseFocus} />
+              ) : (
+                poseActions.map((action) => {
+                  const Icon = POSE_ICONS[action.id];
+                  return (
+                    <IconButton
+                      key={action.id}
+                      size="sm"
+                      title={action.disabled && action.hint ? action.hint : action.label}
+                      aria-label={action.label}
+                      disabled={action.disabled}
+                      onClick={() => keepPoseFocus(action.run)}
+                    >
+                      <Icon size={15} />
+                    </IconButton>
+                  );
+                })
+              )}
             </Toolbar>
           </>
         ) : (

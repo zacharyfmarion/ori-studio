@@ -47,6 +47,7 @@ import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamer
 import type { FoldArtifactStatus } from './foldArtifactResource';
 import type { SnapshotHistory } from './snapshotHistory';
 import type {
+  DiagramCpSource,
   DiagramDocument,
   DiagramPageSetup,
   KnownDiagramAsset,
@@ -58,7 +59,9 @@ import type {
   DiagramCaptureOutcome,
   DiagramCaptureRequest,
   DiagramCaptureRun,
+  StepCaptureStart,
 } from './diagramCapture';
+import type { CapturedPicture } from '../../diagram/capture/captureFolded';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
@@ -1914,6 +1917,17 @@ export interface DiagramSliceActions {
   captureDiagramStep: (stepId: string, request: DiagramCaptureRequest) => Promise<DiagramCaptureOutcome>;
   /** Stop a step's capture, if it is folding. */
   stopDiagramCapture: (stepId: string) => boolean;
+  /**
+   * Commit a picture captured for a step outside `captureDiagramStep` — a
+   * Pose verb — as one undo step, under the same guard: dropped (null) when the
+   * diagram was replaced, or the step is gone or its source changed, since the
+   * capture began (`beginStepCapture`).
+   */
+  commitDiagramCapture: (
+    start: StepCaptureStart,
+    captured: { source: DiagramCpSource; picture: CapturedPicture },
+    label: string
+  ) => Promise<{ changed: boolean; tooDetailed: boolean } | null>;
   /**
    * Choose a step's pattern: select it and show the pattern picker for it.
    * False for a step that is not there, or cannot be changed.

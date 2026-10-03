@@ -20,6 +20,10 @@ function stateOf(snapshot: OristudioCpFoldedFigureSnapshot) {
     discoveredCases: snapshot.discovered_fold_cases,
     displayStyle: snapshot.display_style,
     outcome: snapshot.outcome,
+    // Absent from figures that predate backwards navigation, where the
+    // discovered count is the case shown (`foldedFigureCycling`).
+    currentCase: snapshot.current_fold_case ?? snapshot.discovered_fold_cases,
+    hasNext: snapshot.find_another_overlap_valid,
   };
 }
 

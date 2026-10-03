@@ -1,0 +1,18 @@
+/*
+ * A step folded in 3D, live in Pose (DiagramPose3dView.tsx): the stage above
+ * the toolbar floating over its foot. Positioned, so the viewport's view cube
+ * anchors to it.
+ */
+.view {
+  position: absolute;
+  inset: 0 0 56px;
+}
+
+/* The drag is the view's own: no page scroll, no text selection under it. */
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  user-select: none;
+}

@@ -79,6 +79,10 @@ export interface FoldedFigureState {
    * predates it.
    */
   outcome?: OristudioCpFoldOutcome;
+  /** The 1-based solution being shown, when the runtime reports it. */
+  currentCase?: number;
+  /** Whether another solution can be searched for without starting over. */
+  hasNext?: boolean;
 }
 
 /** A fold's picture as the kernel draws it: its primitives, and its paper scene when it has one. */

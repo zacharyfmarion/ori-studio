@@ -1908,7 +1908,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - **Status** comes from `useDiagramLinkStatuses`, which asks for the segmentation only when a region-linked step needs it. The card shows Out of date or Pattern missing over the picture, Capturing… with Stop while a capture runs, and the pattern's thumbnail beside its kind. The Step pane says how the link stands, and offers Stop.
     - **Analytics:** `diagram picture captured` (`kind`, `outcome`, `via`: link, relink, refresh), and `diagram picture removed` takes the captured kinds.
     - Verified in the browser on the crane (link from the empty state, out of date after an edit, Refresh, Relink), in both themes.
-- [ ] **3d.** Pose for folded steps inside the step detail.
+- [x] **3d.** Pose for folded steps inside the step detail.
   - `useDiagramCaptureSession.ts`:
     - retain and release;
     - epoch and engine-lost handling;
@@ -1917,6 +1917,18 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - The Crease pattern | Folded form switch (D5).
   - Flat: turn over through `setModel`, rotate, Next solution through `foldAnother`.
   - 3D: `useFolded3dMeshRuntime` + `SimulatorViewport` with presets and the CPU fallback, captured through `folded3dFigureScene` with the diagram style and its `styleKey`.
+  - As built:
+    - **Each verb commits** ("Adjust pose", one undo step), as the upload pose's verbs do. This departs from D4's capture-on-exit. With nothing waiting to be captured, every way out of the detail is the same (let the fold go), Revert is Undo and Reset Pose, and undo during Pose undoes one verb. The exit table and its races with step navigation go away.
+    - **The session** (`captureSession.ts`) holds one fold between verbs: flat (turn over by `setModel`, next solution by `foldAnother`, rotation re-read from the held kernel scene) or 3D (its render model, never registered with `setFolded3dRenderModel`). It owns its handle through `retain` / `release` and the epoch. It folds again when the document snapshot or the chosen lines change, or after an engine reset.
+    - **The controller** (`poseController.ts`, one per open step, through `useDiagramLinkedPose`) runs each verb under `beginStepCapture`. Folds are `'diagram-capture'` runs the card can stop; kernel work is abandoned if the engine is lost (`abandonOnEngineLoss`, also used by Refresh). Every commit goes through the step's revision guard. On `'history'` it stops the step's fold; on `'document-replaced'` it lets the fold go; on engine loss it forgets it.
+    - **The verbs** (`diagramLinkedPoseActions.ts`, `linkedPose.ts`):
+      - a crease pattern turns in 15° steps;
+      - a flat fold turns over, turns, and steps to the next layer order;
+      - a 3D fold looks from the other side, above, the front or the corner;
+      - every mode has Reset Pose.
+      - When the creases now fold the other way (a partial fold added or removed), a folded verb re-folds by the route.
+    - **3D** is live in the stage (`DiagramPose3dView`): Edit's mesh runtime with an interactive viewport and the view cube. An orbit is captured once the view rests (450 ms), as one undo step. Where the worker cannot draw, the captured picture stands in and the named views still work. No per-move CPU rebuild.
+    - Verified in headless Chromium on the crane (crease pattern → folded → turn over → rotate) and the 90° box (live 3D, an orbit).
 - [ ] **3e.** Entry points and queues.
   - **Add to diagram** on `CpSelectionToolbar` (one pattern) and in `foldedFigureActions.ts`.
     - It records the figure's provenance and pose: side, foldCase, `rotationDeg` (the figure model's rotation) and the 3D camera.
@@ -1927,7 +1939,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - The `oristudioCpRegionFocusRequest` for **Open in Edit** (latched, consumed on CP panel mount, framed through `cpCamera()`).
   - **Refresh all** (`captureQueue.ts`).
 - [ ] **3f.** Analytics: `diagram picture captured` and `diagram step added` (`crease_pattern`, `cp_folded`, `cp_3d`).
-  - `diagram picture captured` landed with 3c; Pose (3d) adds `via: pose`, and 3e's Add to diagram adds the step events.
+  - `diagram picture captured` landed with 3c. Pose verbs are counted by `diagram picture posed`, whose `action` and `kind` now cover linked steps. 3e's Add to diagram adds the step events.
 - [ ] **Browser** (CP wasm rebuilt first):
   - link all eleven crane states;
   - turn over, rotate, Next solution, Revert;
