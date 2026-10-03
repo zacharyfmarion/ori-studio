@@ -134,6 +134,7 @@ import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/
 import { discardCpDocumentState } from '../cpDocumentState';
 import { diagramDataBytes, discardDiagramState, pickDiagramState } from '../diagramState';
 import { readDiagram, writeDiagram } from '../../../diagram/document/diagramFile';
+import { createCpFoldRuntime } from '../cpFoldRuntimeBindings';
 import {
   withReferencedAssets,
   type DiagramDocument,
@@ -218,11 +219,6 @@ import {
   shareFoldFrameAsLink,
   clearOristudioCpKernelTexts,
   createBlankOristudioCpDocument,
-  foldOristudioCpDocument,
-  foldOristudioCpFigureToCase,
-  freeOristudioCpFoldedFigure,
-  getOristudioCpFoldedFigurePaperScene,
-  getOristudioCpFoldedFigureRenderSnapshot,
   getOristudioCpOperationDescriptors,
   loadOristudioCpDocumentFromText,
   importAddOristudioCpDocumentFromText,
@@ -581,47 +577,9 @@ async function foldExportSegment(
   if (!documentState) throw new Error('No editable crease-pattern document is loaded');
   try {
     return await foldSegmentForExport(
-      {
-        // `FOLD_RUN_NONE` on both: an export-preview fold is not something the
-        // user can see or point at, so it must not be addressable by a Stop
-        // aimed at the fold on the canvas. It runs to completion or fails —
-        // and unbound rather than `BACKGROUND`, because the kernel skips its
-        // rollback snapshot only when nothing at all is bound.
-        fold: async (startingFaceId, order, model, lineIds) => {
-          const result = await foldOristudioCpDocument(
-            startingFaceId,
-            order,
-            model,
-            lineIds,
-            FOLD_RUN_NONE
-          );
-          return {
-            handle: result.handle,
-            discoveredCases: result.snapshot.discovered_fold_cases,
-            displayStyle: result.snapshot.display_style,
-          };
-        },
-        foldToCase: async (handle, objective) => {
-          const result = await foldOristudioCpFigureToCase(
-            handle,
-            objective,
-            'Order5',
-            FOLD_RUN_NONE
-          );
-          return {
-            discoveredCases: result.snapshot.discovered_fold_cases,
-            displayStyle: result.snapshot.display_style,
-          };
-        },
-        // Render at the style the estimate reached, exactly as the canvas does.
-        renderSnapshot: (handle, displayStyle) =>
-          getOristudioCpFoldedFigureRenderSnapshot(handle, displayStyle, {
-            display_mark: false,
-            selected: false,
-          }),
-        paperScene: (handle) => getOristudioCpFoldedFigurePaperScene(handle),
-        free: (handle) => freeOristudioCpFoldedFigure(handle),
-      },
+      // An export-preview fold is not something the user can see or point at,
+      // so it is not addressable by a Stop aimed at the fold on the canvas.
+      createCpFoldRuntime(FOLD_RUN_NONE),
       documentState.document,
       segment,
       exportFoldedFigureModel(documentState, settings),

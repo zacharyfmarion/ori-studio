@@ -1,5 +1,6 @@
 import type {
   OristudioCpDocumentSnapshot,
+  OristudioCpFoldOutcome,
   OristudioCpFoldedFigureDisplayStyle,
   OristudioCpFoldedFigureModel,
   OristudioCpFoldedPaperScene,
@@ -46,6 +47,21 @@ export interface CreaseExportFoldRuntime {
   free: (handle: number) => Promise<void>;
 }
 
+/**
+ * A fold the caller holds on to and works with, rather than one read and freed
+ * at once: the Diagram's capture session turns it over and steps through its
+ * solutions on the same handle (D4).
+ */
+export interface CpFoldRuntime extends CreaseExportFoldRuntime {
+  /** Put the figure in a new model (a side, a colour) without folding it again. */
+  setModel: (
+    handle: number,
+    model: OristudioCpFoldedFigureModel
+  ) => Promise<Omit<FoldedFigureState, 'handle'>>;
+  /** The next layer-ordering solution, on the same handle. */
+  foldAnother: (handle: number) => Promise<Omit<FoldedFigureState, 'handle'>>;
+}
+
 /** What a fold (or a jump to another case) leaves the figure in. */
 export interface FoldedFigureState {
   handle: number;
@@ -57,6 +73,19 @@ export interface FoldedFigureState {
    * is how a real crease pattern ended up reported as "nothing to draw".
    */
   displayStyle: OristudioCpFoldedFigureDisplayStyle;
+  /**
+   * Whether the layers were ordered (`Solved`), shown to have no order
+   * (`NoSolutions`, `Contradiction`), or not tried. Absent from a kernel that
+   * predates it.
+   */
+  outcome?: OristudioCpFoldOutcome;
+}
+
+/** A fold's picture as the kernel draws it: its primitives, and its paper scene when it has one. */
+export interface FoldedPicture {
+  snapshot: OristudioCpFoldedRenderSnapshot;
+  /** The `Paper5` paper scene; null for a fold that did not reach it. */
+  scene: OristudioCpFoldedPaperScene | null;
 }
 
 export interface CreaseExportFoldResult {
@@ -286,8 +315,42 @@ export function foldableLineIdsForSegment(
 }
 
 /**
+ * Fold a set of crease-pattern lines, and hand the figure to the caller, who
+ * owns its handle from here and frees it (`runtime.free`).
+ */
+export async function openFold(
+  runtime: CreaseExportFoldRuntime,
+  lineIds: number[],
+  model?: OristudioCpFoldedFigureModel
+): Promise<FoldedFigureState> {
+  if (lineIds.length === 0) {
+    throw new Error('This crease pattern has no foldable creases');
+  }
+  return runtime.fold(1, 'Order5', model, lineIds);
+}
+
+/**
+ * Read a held figure's picture at the style its fold reached: the drawing
+ * primitives, and the paper scene when it is a `Paper5` figure. A fold the
+ * kernel downgraded has no layer ordering, and its transparent development is
+ * the snapshot alone.
+ */
+export async function readFoldedPicture(
+  runtime: CreaseExportFoldRuntime,
+  handle: number,
+  displayStyle: OristudioCpFoldedFigureDisplayStyle
+): Promise<FoldedPicture> {
+  const snapshot = await runtime.renderSnapshot(handle, displayStyle);
+  if (!snapshot?.primitives.length) {
+    throw new Error('The folded figure produced nothing to draw');
+  }
+  const scene = displayStyle === 'Paper5' ? await runtime.paperScene(handle) : null;
+  return { snapshot, scene };
+}
+
+/**
  * Fold one crease pattern and return its drawing primitives and its paper
- * scene.
+ * scene: {@link openFold}, then {@link readFoldedPicture}, then free.
  *
  * Deliberately ephemeral: the figure never becomes a canvas entry, so exporting
  * adds nothing to the document, the undo stack, or the dirty flag — and the
@@ -301,12 +364,7 @@ export async function foldSegmentForExport(
   foldCase = 1,
   transform: CpModelToFoldTransform = IDENTITY_CP_MODEL_TO_FOLD
 ): Promise<CreaseExportFoldResult> {
-  const lineIds = foldableLineIdsForSegment(document, segment, transform);
-  if (lineIds.length === 0) {
-    throw new Error('This crease pattern has no foldable creases');
-  }
-
-  const folded = await runtime.fold(1, 'Order5', model, lineIds);
+  const folded = await openFold(runtime, foldableLineIdsForSegment(document, segment, transform), model);
   const handle = folded.handle;
   try {
     // Case 1 is what the fold already produced; later cases are reached by
@@ -315,14 +373,7 @@ export async function foldSegmentForExport(
     if (foldCase > 1) {
       ({ discoveredCases, displayStyle } = await runtime.foldToCase(handle, foldCase));
     }
-    const snapshot = await runtime.renderSnapshot(handle, displayStyle);
-    if (!snapshot?.primitives.length) {
-      throw new Error('The folded figure produced nothing to draw');
-    }
-    // The scene is the `Paper5` picture, so only a fold that reached it has
-    // one. A fold the kernel downgraded has no layer ordering, and its
-    // transparent development is the snapshot just drawn.
-    const scene = displayStyle === 'Paper5' ? await runtime.paperScene(handle) : null;
+    const { snapshot, scene } = await readFoldedPicture(runtime, handle, displayStyle);
     return { snapshot, scene, discoveredCases: Math.max(1, discoveredCases), transform };
   } finally {
     await runtime.free(handle);
