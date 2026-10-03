@@ -122,6 +122,21 @@ const ARROW_OWNERS = [
   '[role="spinbutton"]',
 ].join(', ');
 
+/** Marks the steps grid, the one surface where Enter means "open the step". */
+export const DIAGRAM_STEPS_ATTRIBUTE = 'data-diagram-steps';
+
+/**
+ * Whether Enter at this focus opens the selected step: focus on nothing, on
+ * the steps grid, or on one of its cards. Anything else that holds focus — a
+ * link, a tab, a button, a dock tab — keeps its own Enter.
+ */
+export function focusLeavesEnterToSteps(element: Element | null): boolean {
+  if (element === null || element === element.ownerDocument.body) return true;
+  return element.matches(
+    `[${DIAGRAM_STEPS_ATTRIBUTE}], [${DIAGRAM_STEPS_ATTRIBUTE}] [role="option"]`
+  );
+}
+
 /** Whether the focused element keeps the arrow keys for itself. */
 export function focusOwnsArrowKeys(element: Element | null): boolean {
   return element !== null && element.closest(ARROW_OWNERS) !== null;

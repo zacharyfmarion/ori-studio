@@ -141,6 +141,25 @@ describe('DiagramStepsGrid', () => {
     expect(host?.querySelectorAll('[data-picture]')).toHaveLength(2);
   });
 
+  it('names each card from its number, kind and instruction, not from its pointer shortcut', () => {
+    render(null);
+    const name = (option: HTMLElement) =>
+      option
+        .getAttribute('aria-labelledby')!
+        .split(' ')
+        .map((id) => document.getElementById(id)?.textContent)
+        .join(' ');
+    expect(options().map(name)).toEqual([
+      'Step 1 Empty No instruction',
+      'Step 2 Empty Fold the corner\nto the centre.',
+      'Step 3 Newer No instruction',
+    ]);
+    // The shortcut is the pointer's: the menu and the Step pane carry the verb.
+    for (const button of host?.querySelectorAll('button') ?? []) {
+      expect(button.getAttribute('aria-hidden')).toBe('true');
+    }
+  });
+
   it('offers an empty card’s Upload… for that step', () => {
     const onUpload = vi.fn();
     render(null, vi.fn(), { onUpload });

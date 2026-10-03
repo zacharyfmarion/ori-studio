@@ -128,7 +128,8 @@
     "deleteStepTitle": "Supprimer l’étape {{number}}\u00a0?",
     "exportPictureTitle": "Exporter l’image",
     "replacePictureTitle": "Remplacer l’image",
-    "uploadPicturesTitle": "Importer des images"
+    "uploadPicturesTitle": "Importer des images",
+    "uploadPictureTitle": "Importer une image"
   },
   "export": {
     "allPatterns": "Tous les patrons",

@@ -450,6 +450,21 @@ describe('DiagramPanel', () => {
       expect(state().diagramSelectedStepId).toBeNull();
     });
 
+    it('leaves Enter to a focused link, and anything else that is not the steps', () => {
+      const [first] = addSteps(1);
+      act(() => state().selectDiagramStep(first));
+      const link = document.createElement('a');
+      link.href = 'https://example.com';
+      document.body.append(link);
+      onTestFinished(() => link.remove());
+      act(() => link.focus());
+      expect(press({ key: 'Enter' }, link)).toBe(false);
+      expect(state().diagramDetail).toBeNull();
+      // On the steps themselves, Enter opens the step.
+      act(() => options()[0].focus());
+      expect(press({ key: 'Enter' }, options()[0])).toBe(true);
+    });
+
     it('leaves Enter to a focused button', () => {
       const [first] = addSteps(1);
       act(() => state().selectDiagramStep(first));
@@ -487,8 +502,11 @@ describe('DiagramPanel', () => {
       expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 1, mirrored: false });
       act(() => namedButton('Flip Horizontally')?.click());
       expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 3, mirrored: true });
+      act(() => namedButton('Reset Pose')?.focus());
       act(() => namedButton('Reset Pose')?.click());
       expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 0, mirrored: false });
+      // Reset turned itself off; focus stays among the pose verbs.
+      expect(document.activeElement?.closest('[role="toolbar"]')).not.toBeNull();
     });
   });
 });

@@ -130,7 +130,8 @@
     "deleteStepTitle": "Удалить шаг {{number}}?",
     "exportPictureTitle": "Экспорт изображения",
     "replacePictureTitle": "Замена изображения",
-    "uploadPicturesTitle": "Загрузка изображений"
+    "uploadPicturesTitle": "Загрузка изображений",
+    "uploadPictureTitle": "Загрузка изображения"
   },
   "export": {
     "allPatterns": "Все паттерны",

@@ -124,7 +124,8 @@
     "deleteStepTitle": "ステップ {{number}} を削除しますか？",
     "exportPictureTitle": "図を書き出し",
     "replacePictureTitle": "図を差し替え",
-    "uploadPicturesTitle": "図をアップロード"
+    "uploadPicturesTitle": "図をアップロード",
+    "uploadPictureTitle": "図をアップロード"
   },
   "export": {
     "allPatterns": "すべてのパターン",

@@ -124,7 +124,8 @@
     "deleteStepTitle": "{{number}}단계를 삭제할까요?",
     "exportPictureTitle": "그림 내보내기",
     "replacePictureTitle": "그림 바꾸기",
-    "uploadPicturesTitle": "그림 업로드"
+    "uploadPicturesTitle": "그림 업로드",
+    "uploadPictureTitle": "그림 업로드"
   },
   "export": {
     "allPatterns": "모든 패턴",

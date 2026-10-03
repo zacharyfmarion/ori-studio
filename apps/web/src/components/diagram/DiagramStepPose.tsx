@@ -5,6 +5,7 @@ import type {
   DiagramPoseActionId,
 } from '../../diagram/actions/diagramPoseActions';
 import type { UploadPose } from '../../diagram/document/diagramDocument';
+import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { Button } from '../ui/Button';
 import { FieldRow } from '../ui/fieldRows';
 import styles from './DiagramStepPose.module.css';
@@ -29,6 +30,7 @@ export function DiagramStepPose({
   actions: readonly DiagramPoseAction[];
 }) {
   const { t } = useTranslation();
+  const [verbsRef, keepFocus] = useKeepFocusWithin<HTMLDivElement>();
   return (
     <div className={styles.pose}>
       <FieldRow label={t('panels:diagram.pose.rotation', 'Rotation')} kind="text">
@@ -39,7 +41,7 @@ export function DiagramStepPose({
       <FieldRow label={t('panels:diagram.pose.flipped', 'Flipped')} kind="text">
         {pose.mirrored ? t('panels:diagram.pose.yes', 'Yes') : t('panels:diagram.pose.no', 'No')}
       </FieldRow>
-      <div className={styles.verbs}>
+      <div ref={verbsRef} className={styles.verbs}>
         {actions.map((action) => {
           const Icon = ICONS[action.id];
           return (
@@ -49,7 +51,7 @@ export function DiagramStepPose({
               variant="ghost"
               disabled={action.disabled}
               title={action.hint}
-              onClick={action.run}
+              onClick={() => keepFocus(action.run)}
             >
               <Icon size={14} aria-hidden="true" />
               {action.label}

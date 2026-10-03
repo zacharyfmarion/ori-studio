@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiagramAsset, DiagramStep } from '../../diagram/document/diagramDocument';
 import { GRID_DROP_TARGET } from '../../diagram/upload/useStepPictureDrop';
+import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import { DiagramStepCard } from './DiagramStepCard';
 import styles from './DiagramStepsGrid.module.css';
 
@@ -67,6 +68,7 @@ export function DiagramStepsGrid({
       aria-label={t('panels:diagram.grid.label', 'Steps')}
       tabIndex={-1}
       className={styles.grid}
+      {...{ [DIAGRAM_STEPS_ATTRIBUTE]: '' }}
       data-drop-target={dropTarget === GRID_DROP_TARGET || undefined}
       onClick={(event) => {
         // A press between or below the cards drops the selection, as a press on

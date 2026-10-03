@@ -126,7 +126,8 @@
     "deleteStepTitle": "Schritt {{number}} löschen?",
     "exportPictureTitle": "Bild exportieren",
     "replacePictureTitle": "Bild ersetzen",
-    "uploadPicturesTitle": "Bilder hochladen"
+    "uploadPicturesTitle": "Bilder hochladen",
+    "uploadPictureTitle": "Bild hochladen"
   },
   "export": {
     "allPatterns": "Alle Muster",

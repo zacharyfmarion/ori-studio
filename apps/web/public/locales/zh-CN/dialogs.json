@@ -124,7 +124,8 @@
     "deleteStepTitle": "删除第 {{number}} 步？",
     "exportPictureTitle": "导出图片",
     "replacePictureTitle": "替换图片",
-    "uploadPicturesTitle": "上传图片"
+    "uploadPicturesTitle": "上传图片",
+    "uploadPictureTitle": "上传图片"
   },
   "export": {
     "allPatterns": "所有折痕图",

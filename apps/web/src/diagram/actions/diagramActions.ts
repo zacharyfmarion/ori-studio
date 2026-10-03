@@ -76,6 +76,9 @@ export interface DiagramStepActionDeps {
   remove: () => void;
 }
 
+/** The verbs that change nothing, offered on a read-only diagram too. */
+const READ_ONLY_VERBS: ReadonlySet<DiagramStepActionId> = new Set(['export-picture']);
+
 /** The verbs that have a key of their own. */
 const STEP_ACTION_SHORTCUTS: Partial<Record<DiagramStepActionId, ShortcutActionId>> = {
   'move-earlier': 'diagram.moveStepEarlier',
@@ -100,14 +103,16 @@ export function buildDiagramStepActions(
     hint?: string,
     danger?: boolean
   ): DiagramStepCommand => {
-    const disabled = state.readOnly || blocked;
+    // A verb that only reads the diagram is not held back by its being read-only.
+    const gated = state.readOnly && !READ_ONLY_VERBS.has(id);
+    const disabled = gated || blocked;
     const shortcutId = STEP_ACTION_SHORTCUTS[id];
     return {
       kind: 'command',
       id,
       label,
       disabled,
-      hint: state.readOnly ? readOnlyHint : blocked ? hint : undefined,
+      hint: gated ? readOnlyHint : blocked ? hint : undefined,
       ...(danger ? { danger } : {}),
       ...(shortcutId ? { shortcutId } : {}),
       run,

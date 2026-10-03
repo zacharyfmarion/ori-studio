@@ -126,7 +126,8 @@
     "deleteStepTitle": "Delete step {{number}}?",
     "exportPictureTitle": "Export picture",
     "replacePictureTitle": "Replace picture",
-    "uploadPicturesTitle": "Upload pictures"
+    "uploadPicturesTitle": "Upload pictures",
+    "uploadPictureTitle": "Upload picture"
   },
   "export": {
     "allPatterns": "All patterns",

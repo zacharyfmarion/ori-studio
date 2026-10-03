@@ -27,6 +27,7 @@ import { posedAssetUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { Toolbar } from '../ui/Toolbar';
+import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import styles from './DiagramStepDetail.module.css';
 
@@ -84,6 +85,7 @@ export function DiagramStepDetail({
 }) {
   const { t } = useTranslation();
   const root = useRef<HTMLDivElement | null>(null);
+  const [poseRef, keepPoseFocus] = useKeepFocusWithin<HTMLDivElement>();
   useEffect(() => {
     root.current?.focus({ preventScroll: true });
   }, []);
@@ -151,7 +153,11 @@ export function DiagramStepDetail({
         ) : url ? (
           <>
             <img className={styles.picture} src={url} alt="" draggable={false} />
-            <Toolbar className={styles.pose} aria-label={t('panels:diagram.detail.pose', 'Pose')}>
+            <Toolbar
+              ref={poseRef}
+              className={styles.pose}
+              aria-label={t('panels:diagram.detail.pose', 'Pose')}
+            >
               {poseActions.map((action) => {
                 const Icon = POSE_ICONS[action.id];
                 return (
@@ -161,7 +167,7 @@ export function DiagramStepDetail({
                     title={action.disabled && action.hint ? action.hint : action.label}
                     aria-label={action.label}
                     disabled={action.disabled}
-                    onClick={action.run}
+                    onClick={() => keepPoseFocus(action.run)}
                   >
                     <Icon size={15} />
                   </IconButton>

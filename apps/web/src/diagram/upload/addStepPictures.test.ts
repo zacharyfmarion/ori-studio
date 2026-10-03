@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PickedFile } from '../../platform/fileService';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { stepAsset } from '../document/diagramDocument';
-import { addStepPictures } from './addStepPictures';
+import * as fileServiceModule from '../../platform/fileService';
+import { addStepPictures, pickStepPictures } from './addStepPictures';
 import { browserSanitizeEnv } from './svgSanitize';
 
 const analytics = vi.hoisted(() => ({
@@ -153,5 +154,19 @@ describe('addStepPictures', () => {
     await addStepPictures([flowed], { via: 'pick', dependencies: dependencies(), newId: sequentialIds() });
     expect(state().diagramPictureNotices).toEqual({ 'asset-1': ['flowed-text'] });
     expect(analytics.trackDiagramPictureUploaded).toHaveBeenCalledWith('svg', 'flattened', expect.any(Number), 1);
+  });
+
+  it('titles the picker for what it does to the step', async () => {
+    const titles: string[] = [];
+    vi.spyOn(fileServiceModule, 'getFileService').mockReturnValue({
+      openBinaryFiles: async (options: { title: string }) => {
+        titles.push(options.title);
+        return null;
+      },
+    } as unknown as ReturnType<typeof fileServiceModule.getFileService>);
+    const empty = state().addDiagramStep()!;
+    await pickStepPictures({ replaceStepId: empty });
+    await pickStepPictures();
+    expect(titles).toEqual(['Upload picture', 'Upload pictures']);
   });
 });

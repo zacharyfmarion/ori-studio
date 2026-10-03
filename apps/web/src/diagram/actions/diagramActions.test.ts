@@ -91,13 +91,19 @@ describe('the diagram step verbs', () => {
     expect(diagramStepCommand(actions, 'delete')?.disabled).toBe(false);
   });
 
-  it('disables everything on a read-only diagram, with the reason', () => {
-    const actions = build({ readOnly: true });
+  it('disables every edit on a read-only diagram, with the reason, but not an export', () => {
+    const actions = build({ readOnly: true, hasPicture: true });
     for (const action of actions) {
-      if (action.kind !== 'command') continue;
+      if (action.kind !== 'command' || action.id === 'export-picture') continue;
       expect(action.disabled, action.id).toBe(true);
       expect(action.hint, action.id).toContain('read-only');
     }
+    // An export changes nothing, so it is offered wherever there is a picture.
+    expect(diagramStepCommand(actions, 'export-picture')).toMatchObject({ disabled: false });
+    expect(diagramStepCommand(build({ readOnly: true }), 'export-picture')).toMatchObject({
+      disabled: true,
+      hint: 'This step has no picture yet',
+    });
   });
 
   it('uploads a first picture, or replaces one, and exports or removes only one there is', () => {

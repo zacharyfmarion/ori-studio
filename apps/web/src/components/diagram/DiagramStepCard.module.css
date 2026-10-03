@@ -103,26 +103,6 @@
   text-align: center;
 }
 
-/* An empty card's Upload…: quiet until pointed at, like a link in the well. */
-.upload {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  padding: 3px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  font: inherit;
-  cursor: pointer;
-}
-
-.upload:hover {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
-
 .instruction {
   display: -webkit-box;
   margin: 0;

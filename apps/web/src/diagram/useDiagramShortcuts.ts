@@ -6,10 +6,10 @@ import {
   setActiveShortcutViewportSurface,
 } from '../keyboard/shortcutRuntime';
 import type { DiagramShortcutId, ViewportShortcutId } from '../keyboard/shortcuts';
-import { isViewportInteractiveTarget } from '../components/panels/ViewportToolbar';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import {
+  focusLeavesEnterToSteps,
   focusOwnsArrowKeys,
   runDiagramCancel,
   runDiagramShortcut,
@@ -74,11 +74,11 @@ export function useDiagramShortcuts(handlers: {
   useEffect(() => {
     setActiveShortcutViewportSurface('diagram');
     const offScope = registerDiagramShortcutExecutor((id: DiagramShortcutId) => {
-      // Enter belongs to any focused control (a button clicks on it); the
-      // arrows only to the controls that use them.
+      // Enter belongs to whatever else has focus (a button clicks on it, a
+      // link follows); the arrows only to the controls that use them.
       const declines =
         id === 'diagram.openStep'
-          ? isViewportInteractiveTarget(document.activeElement)
+          ? !focusLeavesEnterToSteps(document.activeElement)
           : focusOwnsArrowKeys(document.activeElement);
       if (declines) return false;
       const state = useWorkspaceStore.getState();

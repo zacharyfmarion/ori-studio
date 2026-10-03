@@ -8,6 +8,7 @@ import {
 import i18n from '../../i18n';
 import { getFileService, type PickedFile } from '../../platform/fileService';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { stepPictureSource } from '../pictures/paintDiagramStep';
 import {
   randomDiagramId,
   type DiagramIdFactory,
@@ -131,15 +132,18 @@ export async function pickStepPictures(
   options: Omit<StepPictureUploadOptions, 'via'> = {}
 ): Promise<StepPictureUploadResult | null> {
   const t = i18n.t;
+  const { diagram, diagramSelectedStepId } = useWorkspaceStore.getState();
   const anchorStepId =
-    options.anchorStepId !== undefined
-      ? options.anchorStepId
-      : useWorkspaceStore.getState().diagramSelectedStepId;
+    options.anchorStepId !== undefined ? options.anchorStepId : diagramSelectedStepId;
+  const target = diagram?.steps.find((step) => step.id === options.replaceStepId);
+  const replacing = diagram !== null && target !== undefined && stepPictureSource(target, diagram.assets) !== null;
   const files = await getFileService().openBinaryFiles({
     title:
       options.replaceStepId === undefined
         ? t('dialogs:diagram.uploadPicturesTitle', 'Upload pictures')
-        : t('dialogs:diagram.replacePictureTitle', 'Replace picture'),
+        : replacing
+          ? t('dialogs:diagram.replacePictureTitle', 'Replace picture')
+          : t('dialogs:diagram.uploadPictureTitle', 'Upload picture'),
     extensions: STEP_PICTURE_EXTENSIONS,
     mimeTypes: STEP_PICTURE_MIME_TYPES,
     multiple: options.replaceStepId === undefined,

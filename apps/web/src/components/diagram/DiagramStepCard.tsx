@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useRef, type ForwardedRef } from 'react';
+import { forwardRef, useCallback, useId, useRef, type ForwardedRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ImagePlus, Lock, Upload } from 'lucide-react';
 import {
@@ -9,6 +9,7 @@ import {
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
 import { useStepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 import styles from './DiagramStepCard.module.css';
 
 /**
@@ -21,10 +22,11 @@ import styles from './DiagramStepCard.module.css';
  * focus between cards as the selection moves (a roving tab stop), which is
  * what lets a screen reader follow it.
  *
- * An empty card's Upload… is a pointer's shortcut and out of the tab order:
- * an option's contents are presentational to assistive technology, and the
- * same verb is in the card's menu and the Step pane, where a keyboard reaches
- * it.
+ * An empty card's Upload… is a pointer's shortcut, hidden from assistive
+ * technology and out of the tab order: the same verb is in the card's menu and
+ * the Step pane, where a keyboard and a screen reader reach it. The card names
+ * itself from its number, kind and instruction, so the shortcut's label is not
+ * read as part of it.
  */
 export const DiagramStepCard = forwardRef<
   HTMLDivElement,
@@ -50,6 +52,7 @@ export const DiagramStepCard = forwardRef<
   forwarded
 ) {
   const { t } = useTranslation();
+  const labelId = useId();
   const own = useRef<HTMLDivElement | null>(null);
   const ref = useCallback(
     (element: HTMLDivElement | null) => {
@@ -69,6 +72,7 @@ export const DiagramStepCard = forwardRef<
       role="option"
       aria-selected={selected}
       tabIndex={tabStop ? 0 : -1}
+      aria-labelledby={`${labelId}-number ${labelId}-kind ${labelId}-text`}
       className={styles.card}
       data-selected={selected || undefined}
       data-drop-target={dropTarget || undefined}
@@ -77,18 +81,20 @@ export const DiagramStepCard = forwardRef<
       onDoubleClick={() => onOpen(step.id)}
     >
       <div className={styles.header}>
-        <span className={styles.number}>
+        <span id={`${labelId}-number`} className={styles.number}>
           {t('panels:diagram.card.number', 'Step {{number}}', { number })}
         </span>
-        <Badge tone="neutral">
-          {locked
-            ? t('panels:diagram.card.badgeNewer', 'Newer')
-            : picture?.asset.kind === 'svg'
-              ? t('panels:diagram.card.badgeSvg', 'SVG')
-              : picture?.asset.kind === 'raster'
-                ? t('panels:diagram.card.badgeImage', 'Image')
-                : t('panels:diagram.card.badgeEmpty', 'Empty')}
-        </Badge>
+        <span id={`${labelId}-kind`}>
+          <Badge tone="neutral">
+            {locked
+              ? t('panels:diagram.card.badgeNewer', 'Newer')
+              : picture?.asset.kind === 'svg'
+                ? t('panels:diagram.card.badgeSvg', 'SVG')
+                : picture?.asset.kind === 'raster'
+                  ? t('panels:diagram.card.badgeImage', 'Image')
+                  : t('panels:diagram.card.badgeEmpty', 'Empty')}
+          </Badge>
+        </span>
       </div>
       <div className={styles.well} data-picture={(picture !== null && !locked) || undefined}>
         {locked ? (
@@ -103,20 +109,23 @@ export const DiagramStepCard = forwardRef<
             <ImagePlus size={18} aria-hidden="true" />
             {t('panels:diagram.card.noPicture', 'No picture yet')}
             {!readOnly && (
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="secondary"
                 tabIndex={-1}
-                className={styles.upload}
+                aria-hidden="true"
+                // A press must not take focus from the card's keys.
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => onUpload(step.id)}
               >
                 <Upload size={13} aria-hidden="true" />
                 {t('panels:diagram.card.upload', 'Upload…')}
-              </button>
+              </Button>
             )}
           </span>
         )}
       </div>
-      <p className={styles.instruction} data-empty={text === '' || undefined}>
+      <p id={`${labelId}-text`} className={styles.instruction} data-empty={text === '' || undefined}>
         {text === '' ? t('panels:diagram.card.noInstruction', 'No instruction') : text}
       </p>
     </div>

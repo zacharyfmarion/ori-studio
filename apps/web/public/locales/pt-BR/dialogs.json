@@ -128,7 +128,8 @@
     "deleteStepTitle": "Excluir o passo {{number}}?",
     "exportPictureTitle": "Exportar imagem",
     "replacePictureTitle": "Substituir imagem",
-    "uploadPicturesTitle": "Enviar imagens"
+    "uploadPicturesTitle": "Enviar imagens",
+    "uploadPictureTitle": "Enviar imagem"
   },
   "export": {
     "allPatterns": "Todos os padrões",
