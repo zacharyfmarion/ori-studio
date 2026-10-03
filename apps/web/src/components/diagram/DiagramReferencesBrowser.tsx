@@ -6,6 +6,7 @@ import { sheetThumbnail } from '../../cp-workspace/references/referencesSheets';
 import type { DiagramStyle, ReferencesPlanSettings } from '../../diagram/document/diagramDocument';
 import type { BrowserPattern } from '../../diagram/references/referencesBrowserPlans';
 import { useReferencesBrowser, type ReferencesBrowser } from '../../diagram/references/useReferencesBrowser';
+import { useReferencesBrowserPhoneFlow } from '../../diagram/references/useReferencesBrowserPhoneFlow';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import { registerDiagramBrowserKeys } from '../../diagram/useDiagramShortcuts';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -68,19 +69,35 @@ export function DiagramReferencesBrowser({
     []
   );
   const title = browserTitle(browser, t);
+  // On a phone, the patterns, then a pattern's cards, a screen each.
+  const phone = useReferencesBrowserPhoneFlow(browser);
   // The patterns down the left, once there are some to list: until then, and
   // in Find, the list's message has the room.
   const railShown =
     state.mode === 'sequence' && browser.patterns.status === 'ready' && browser.patterns.patterns.length > 0;
 
   return (
-    <div ref={root} className={styles.browser} role="region" aria-label={title} tabIndex={-1}>
+    <div
+      ref={root}
+      className={styles.browser}
+      role="region"
+      aria-label={title}
+      tabIndex={-1}
+      data-screen={phone.screen ?? undefined}
+    >
       <div className={`panel-toolbar ${styles.bar}`}>
         <div className="panel-toolbar__group">
-          <Button size="sm" variant="ghost" onClick={browser.close}>
-            <ArrowLeft size={14} aria-hidden="true" />
-            {t('panels:diagram.detail.back', 'Steps')}
-          </Button>
+          {phone.back ? (
+            <Button size="sm" variant="ghost" onClick={phone.back}>
+              <ArrowLeft size={14} aria-hidden="true" />
+              {t('panels:diagram.references.patterns', 'Patterns')}
+            </Button>
+          ) : (
+            <Button size="sm" variant="ghost" onClick={browser.close}>
+              <ArrowLeft size={14} aria-hidden="true" />
+              {t('panels:diagram.detail.back', 'Steps')}
+            </Button>
+          )}
           <span className={styles.title}>{title}</span>
         </div>
         <SegmentedControl<'sequence' | 'find'>
@@ -102,7 +119,7 @@ export function DiagramReferencesBrowser({
         </div>
       </div>
       <div className={styles.body} data-rail={railShown || undefined}>
-        {railShown && <PatternRail browser={browser} />}
+        {railShown && <PatternRail browser={browser} onOpen={phone.openPattern} />}
         <div className={styles.main}>
           {state.mode === 'sequence' && browser.cards.status === 'ready' && browser.cards.settings && (
             <PlannedWith settings={browser.cards.settings} />
@@ -118,7 +135,7 @@ export function DiagramReferencesBrowser({
 const NO_PATTERNS: readonly BrowserPattern[] = [];
 
 /** The patterns with a plan, and the way to plan more. */
-function PatternRail({ browser }: { browser: ReferencesBrowser }) {
+function PatternRail({ browser, onOpen }: { browser: ReferencesBrowser; onOpen: (id: string) => void }) {
   const { t } = useTranslation();
   const geometry = useWorkspaceStore((store) => store.oristudioCpDocument?.geometry ?? null);
   const { patterns, pattern: shown } = browser;
@@ -138,7 +155,7 @@ function PatternRail({ browser }: { browser: ReferencesBrowser }) {
             type="button"
             className={styles.pattern}
             aria-current={entry.id === shown?.id || undefined}
-            onClick={() => browser.choosePattern(entry.id)}
+            onClick={() => onOpen(entry.id)}
           >
             <span className={styles.patternThumb}>{thumbnail && <DiagramSheetThumbnail thumbnail={thumbnail} />}</span>
             <span className={styles.patternText}>

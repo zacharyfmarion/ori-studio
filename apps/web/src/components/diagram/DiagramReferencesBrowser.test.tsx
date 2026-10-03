@@ -25,6 +25,12 @@ vi.mock('../../diagram/useDiagramShortcuts', () => ({
   },
 }));
 
+const layout = vi.hoisted(() => ({ phone: false }));
+vi.mock('../../platform/phoneLayout', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../platform/phoneLayout')>()),
+  useIsPhoneLayout: () => layout.phone,
+}));
+
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 
@@ -108,6 +114,7 @@ const pulled = (count: number) => Array.from({ length: count }, () => ({}) as Re
 
 beforeEach(() => {
   keys.current = null;
+  layout.phone = false;
 });
 
 describe('the References browser', () => {
@@ -208,5 +215,48 @@ describe('the References browser', () => {
     render(current);
     act(() => button('Steps')!.click());
     expect(current.close).toHaveBeenCalled();
+  });
+});
+
+describe('the References browser on a phone', () => {
+  const second = { id: 'plan-b', number: 2, component: {}, listing: {} } as unknown as NonNullable<ReferencesBrowser['pattern']>;
+  const screen = () => host!.querySelector<HTMLElement>('[role="region"]')!.dataset.screen;
+
+  it('lists the patterns first, then a pattern’s cards with Back to the list', () => {
+    layout.phone = true;
+    const current = browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } });
+    render(current);
+    expect(screen()).toBe('list');
+    expect(button('Steps')).toBeTruthy();
+    const pattern2 = [...host!.querySelectorAll<HTMLButtonElement>('nav button')].find((b) => b.textContent?.includes('Pattern 2'))!;
+    act(() => pattern2.click());
+    expect(current.choosePattern).toHaveBeenCalledWith('plan-b');
+    expect(screen()).toBe('detail');
+    act(() => button('Patterns')!.click());
+    expect(screen()).toBe('list');
+  });
+
+  it('opens straight on the cards of a single pattern, and in Find', () => {
+    layout.phone = true;
+    render(browser());
+    expect(screen()).toBe('detail');
+    expect(button('Patterns')).toBeUndefined();
+    expect(button('Steps')).toBeTruthy();
+  });
+
+  it('opens Replace on the cards of its own pattern', () => {
+    layout.phone = true;
+    const current = browser(
+      { patterns: { status: 'ready', patterns: [PATTERN!, second] }, pattern: second },
+      { kind: 'replace', stepId: 's' }
+    );
+    current.state.pattern = 'plan-b';
+    render(current);
+    expect(screen()).toBe('detail');
+  });
+
+  it('shows both side by side on any other layout', () => {
+    render(browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } }));
+    expect(screen()).toBeUndefined();
   });
 });

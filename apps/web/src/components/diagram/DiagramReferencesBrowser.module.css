@@ -250,3 +250,43 @@
     grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
   }
 }
+
+/*
+ * A phone (D17): the patterns, then a pattern's cards, a screen each — the
+ * list full width, row by row, with nothing to add from it yet; the cards
+ * with the list put away.
+ */
+.browser[data-screen='list'] .body,
+.browser[data-screen='detail'] .body {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.browser[data-screen='list'] .main,
+.browser[data-screen='list'] .footer,
+.browser[data-screen='detail'] .rail {
+  display: none;
+}
+
+.browser[data-screen='list'] .rail {
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+}
+
+.browser[data-screen='list'] .pattern {
+  grid-template-columns: 56px minmax(0, 1fr);
+  width: auto;
+  padding: var(--space-2);
+}
+
+.browser[data-screen='list'] .patternThumb {
+  width: 56px;
+  height: 56px;
+}
+
+.browser[data-screen='list'] .planMore {
+  margin-top: var(--space-2);
+}
