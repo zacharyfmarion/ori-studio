@@ -31,7 +31,6 @@ import type {
   ReferenceFinderClient,
   ReferenceFinderLineRequest,
 } from './referenceFinder/client';
-import type { ReferenceFinderQuerySettings } from './referenceFinder/protocol';
 import type { RfPoint } from './referenceFinder/solution';
 import {
   decodeLines,
@@ -252,24 +251,6 @@ export interface PrecreasePlanResult {
   durationMs: number;
   landmarksFirst: boolean;
 }
-
-/**
- * How the workspace runs the loop, beside the loop itself: the questions it
- * puts to ReferenceFinder and the time it allows. Here rather than in the hook
- * that starts a run because they decide what a plan contains as much as the
- * loop does, and the plan cache names a planner by the source of this file and
- * the crate (`plannerSourceDigest`, vite.config.ts) — a change to either is a
- * different planner, whose saved plans are planned again.
- */
-export const PLANNER_REFERENCE_FINDER_QUERIES = {
-  /** The stuck fallback's exact queries. */
-  exact: { goodEnoughError: 1e-9, count: 5, worstCase: 1 },
-  /** The closest construction of a line nothing exact reaches. */
-  approximate: { goodEnoughError: 0.005, count: 1, worstCase: 1 },
-} as const satisfies Record<string, ReferenceFinderQuerySettings>;
-
-/** `0` is "no ceiling" to both the loop and the crate's `Deadline::after`. */
-export const NO_TIME_CEILING_MS = 0;
 
 const DEFAULTS = {
   totalBudgetMs: 0,

@@ -13,8 +13,6 @@
  *
  * Pure, apart from loading `fflate` on demand: no React, no store.
  */
-import { APP_VERSION } from '../../constants/release';
-import { plannerSourceDigest } from '../../lib/appBuildInfo';
 import { keyDigest } from '../../lib/keyDigest';
 import { segmentOverlapsBounds } from '../folded/foldedFigureStaleness';
 import type { PrecreasePlanResult } from './precreasePlan';
@@ -31,31 +29,32 @@ import type { PrecreaseFrame, PrecreaseInput } from './sheetFrames';
 export type { ReferencesPlanSettings } from './referencesSettingsFields';
 
 /**
- * A version for the cache's whole contents, bumped by hand: to throw away
- * every plan saved so far for a reason the planner digest cannot see.
- * Ordinarily it never moves — a change to the planner, to the loop that drives
- * it, to ReferenceFinder or to this file's envelope already changes
- * {@link REFERENCES_PLANNER_BUILD} through the digest.
- */
-export const REFERENCES_PLAN_WIRE_VERSION = 1;
-
-/**
- * Which planner made a plan: the version, a digest of every source that
- * decides a plan (`plannerSourceDigest`: the precrease crate and bridge, the
- * loop and its ReferenceFinder queries, ReferenceFinder, the wire types and
- * this file — `PLANNER_SOURCES` in vite.config.ts), and the hand-bumped
- * version above.
+ * The version of what a saved plan means. A saved plan is shown only by a
+ * build with the same number; any other build plans the sheet again, and the
+ * reader's own state (`referencesReaderState`) still comes back.
  *
- * The digest is what does the work. The web app deploys on every merge to
- * main, the version moves only at release, and changes that alter what a plan
- * *means* have landed between releases — which creases a plan folds, how a
- * rotated sheet is framed, when a run stops — so a key on the version alone
- * would have shown plans those changes made wrong, or fed a renderer a shape
- * it no longer reads. Keyed on the sources, a saved plan is shown only by a
- * build that would have made it; any other build replans, and the reader's
- * own state (`referencesReaderState`) still comes back.
+ * **Bump it when a plan saved before would now be read wrong**:
+ *
+ * - a field of `PrecreaseSequence`, `PrecreaseStep` or `PrecreasePlanResult`
+ *   renamed, removed, or changed in meaning (units, frame, sign, 0- vs
+ *   1-based ids);
+ * - a convention the plan's numbers rely on: the RF/unit frame, how lines are
+ *   normalised, which segments the planner reads as the sheet's;
+ * - what a plan is *for* — which creases it folds, what counts as a step — so
+ *   that an old plan would now tell the reader something untrue;
+ * - this file's envelope (`ReferencesCachedPlan`, the trimming).
+ *
+ * **Not** for a refactor, a speed-up, or a better plan: an older plan of the
+ * same creases is still a true plan of them, and keeping it is the point of
+ * the cache. And a missed bump is not a crash waiting to happen: a plan this
+ * build cannot read or draw is caught before it is shown (`decodeCachedPlan`,
+ * and the restore's rehearsal in `useReferencesBreakdown`), dropped from the
+ * cache, and planned again.
  */
-export const REFERENCES_PLANNER_BUILD = `oristudio-precrease@${APP_VERSION}+src.${plannerSourceDigest()}+wire${REFERENCES_PLAN_WIRE_VERSION}`;
+export const REFERENCES_PLAN_VERSION = 1;
+
+/** The `planner` a key carries: which version of plans it holds. */
+export const REFERENCES_PLANNER_BUILD = `oristudio-precrease/plan${REFERENCES_PLAN_VERSION}`;
 
 /** The sheet a plan is for, and the creases it was made from. */
 export interface ReferencesPlanSheetKey {

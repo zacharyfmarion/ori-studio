@@ -7,6 +7,7 @@ import {
   comparePlanCacheKeys,
   decodeCachedPlan,
   encodeCachedPlan,
+  REFERENCES_PLAN_VERSION,
   REFERENCES_PLANNER_BUILD,
   referencesPlanCacheKey,
   referencesPlanCacheKeyId,
@@ -110,8 +111,8 @@ describe('the cache key', () => {
   const input = inputOf(TWO_SHEETS);
   const left = { bounds: LEFT, frame: FRAME };
 
-  it('names the planner by its source, not only its version', () => {
-    expect(REFERENCES_PLANNER_BUILD).toMatch(/^oristudio-precrease@[^+]+\+src\.[^+]+\+wire\d+$/);
+  it('names the version of plans it holds, and nothing that moves with every build', () => {
+    expect(REFERENCES_PLANNER_BUILD).toBe(`oristudio-precrease/plan${REFERENCES_PLAN_VERSION}`);
   });
 
   it('says which part of it no longer matches', () => {

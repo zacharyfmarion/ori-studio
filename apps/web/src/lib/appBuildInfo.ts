@@ -21,17 +21,6 @@ export function appCommit(): string {
   return typeof __APP_COMMIT__ === 'string' && __APP_COMMIT__ !== '' ? __APP_COMMIT__ : UNKNOWN;
 }
 
-/**
- * A digest of every source that decides a References plan, stamped in by
- * vite.config.ts: which planner this build carries, for the plan cache.
- * `'unknown'` where nothing stamped it in.
- */
-export function plannerSourceDigest(): string {
-  return typeof __PLANNER_SOURCE_DIGEST__ === 'string' && __PLANNER_SOURCE_DIGEST__ !== ''
-    ? __PLANNER_SOURCE_DIGEST__
-    : UNKNOWN;
-}
-
 export function appBuildInfo(): AppBuildInfo {
   return { version: APP_VERSION, commit: appCommit() };
 }

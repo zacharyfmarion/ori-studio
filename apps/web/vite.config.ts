@@ -1,15 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
-import { dirname, relative, resolve, sep } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
 import { build as bundle, type Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -369,70 +361,6 @@ function appCommit(): string {
   }
 }
 
-/**
- * Every source that decides what a References plan contains: the precrease
- * crate and its bridge, the loop that drives it and the questions it puts to
- * ReferenceFinder (`precreasePlan.ts`, the `referenceFinder/` client),
- * ReferenceFinder itself and how it is built, the wire types, and the plan
- * cache's own envelope. Paths from the repository root.
- */
-const PLANNER_SOURCES: readonly { path: string; include: RegExp }[] = [
-  { path: 'crates/oristudio-precrease/src', include: /\.rs$/ },
-  { path: 'crates/oristudio-precrease-wasm/src', include: /\.rs$/ },
-  { path: 'third_party/reference-finder/src/core', include: /\.(cpp|h|hpp)$/ },
-  { path: 'scripts/build-reference-finder.mjs', include: /./ },
-  { path: 'scripts/reference-finder-emsdk.json', include: /./ },
-  { path: 'apps/web/src/cp-workspace/references/referenceFinder', include: /^(?!.*__fixtures__)(?!.*\.test\.ts$).*\.ts$/ },
-  { path: 'apps/web/src/cp-workspace/references/precreasePlan.ts', include: /./ },
-  { path: 'apps/web/src/cp-workspace/references/precreaseSequence.ts', include: /./ },
-  { path: 'apps/web/src/cp-workspace/references/referencesPlanCache.ts', include: /./ },
-];
-
-/**
- * Which planner this bundle carries: a digest of {@link PLANNER_SOURCES}, so
- * the References plan cache can tell a plan made by this planner from one made
- * by any other (`referencesPlanCache.ts`).
- *
- * Sources rather than the version or the commit. The web app deploys on every
- * merge to main while the version moves only at release, and changes that
- * alter what a plan *means* have landed between releases — which creases a
- * plan folds, how a rotated sheet is framed, when a run stops — so a key on the
- * version would show plans those changes made wrong. The commit would move on
- * every merge and throw every saved plan away for changes that never touched
- * the planner. A desktop and a web build of the same commit agree: paths are
- * hashed with `/`, in that order, and text with `\n` line endings.
- *
- * Computed when the config loads, so a dev server keeps the digest it started
- * with: restart it (`scripts/dev-server.sh restart`) after rebuilding the
- * planner, as the rebuilt bridge needs anyway. Degrades to `'unknown'` without
- * the sources, like the commit — no shipped build lacks them, since every one
- * compiles the crate first.
- */
-function plannerSourceDigest(): string {
-  const repo = resolve(__dirname, '../..');
-  try {
-    const files = PLANNER_SOURCES.flatMap(({ path, include }) => {
-      const at = resolve(repo, path);
-      const found = statSync(at).isDirectory()
-        ? (readdirSync(at, { recursive: true }) as string[]).map((entry) => resolve(at, entry))
-        : [at];
-      return found
-        .map((file) => ({ file, name: relative(repo, file).split(sep).join('/') }))
-        .filter(({ file, name }) => include.test(name) && statSync(file).isFile());
-    }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-    const hash = createHash('sha256');
-    for (const { file, name } of files) {
-      hash.update(name);
-      hash.update('\0');
-      hash.update(readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
-      hash.update('\0');
-    }
-    return files.length > 0 ? hash.digest('hex').slice(0, 12) : 'unknown';
-  } catch {
-    return 'unknown';
-  }
-}
-
 // `PROFILE=1 vite build` produces a production build that keeps function names
 // and emits sourcemaps, so a CPU profile in production shows readable frames
 // instead of minified `a`/`b`. Everything else is a normal prod build (React in
@@ -507,7 +435,6 @@ export default defineConfig({
   define: {
     __APP_COMMIT__: JSON.stringify(appCommit()),
     __SENTRY_RELEASE__: JSON.stringify(sentryRelease()),
-    __PLANNER_SOURCE_DIGEST__: JSON.stringify(plannerSourceDigest()),
   },
   /**
    * Pre-bundle ONNX Runtime at dev-server start instead of the first time the

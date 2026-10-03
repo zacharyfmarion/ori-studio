@@ -91,7 +91,7 @@ interface ReferencesPlanCacheV1 {
 }
 
 interface ReferencesPlanCacheKey {
-  planner: string; // `oristudio-precrease@<version>+src.<planner source digest>+wire<N>`
+  planner: string; // `oristudio-precrease/plan<REFERENCES_PLAN_VERSION>`
   settings: { precreaseGrid; gridWhereNeeded; allowDanglingFolds; mergeSymmetricSteps };
   sheet: { bounds: SheetBounds; frame: PrecreaseFrame; fingerprint: string }; // `ps1:<64-bit>`
 }
@@ -127,16 +127,24 @@ interface ReferencesPlanCacheKey {
 - **A document whose sheets overlap is never cached.** Which sheet owns a
   crease in the overlap follows the numbering of creases anywhere in the
   document, so no one sheet's fingerprint can vouch for its plan.
-- **`planner` names the planner by its source.** `vite.config.ts` stamps in a
-  digest of `crates/oristudio-precrease{,-wasm}/src` (path separators and line
-  endings normalised, so a Windows desktop build of a commit agrees with the
-  web build of it). Not the version alone: the web deploys on every merge,
-  the version moves only at release, and planner changes that alter what a
-  plan *means* landed between releases (`f516cd226`, which creases a plan
-  folds; `714f1f5ac`, how a rotated sheet is framed). Not the commit either,
-  which would discard every saved plan on merges that never touched the
-  planner. `REFERENCES_PLAN_WIRE_VERSION` remains only for this cache's own
-  envelope.
+- **`planner` is a plan version, bumped by hand** (`REFERENCES_PLAN_VERSION`),
+  when a plan saved before would now be read wrong: a field renamed, removed
+  or changed in meaning; a convention its numbers rely on (frames, line
+  normalisation, which segments are the sheet's); what a plan is *for*, such
+  that an old one would now tell the reader something untrue; this cache's
+  envelope. Not for a refactor, a speed-up or a better plan — an older plan of
+  the same creases is still a true plan of them. A missed bump fails safe for
+  anything that would break: the payload check and the restore's rehearsal
+  catch a plan this build cannot read or draw, drop it, and replan.
+
+  Considered and rejected: a build-time digest of the planner's source files
+  (briefly in this PR). It moved on every edit to those files — a comment, a
+  refactor — discarding saved plans for nothing, and it depended on a list of
+  paths that a moved folder would silently break. The app version: every
+  release would discard every saved plan. A golden test that fails when the
+  planner's output on the fixtures changes, prompting a bump: kept in reserve
+  if missed bumps turn out to matter; every output-changing planner PR would
+  pay for it.
 - **Every setting is classified once** (`referencesSettingsFields.ts`, checked
   against `ReferencesSettings` field for field): a new setting does not
   compile until it says whether it changes the plan, and from then on it is
@@ -194,9 +202,9 @@ What happens when a file saved by one build is opened by another:
 
 | What changed | What the reader sees |
 | --- | --- |
-| The planner's code (any edit under `crates/oristudio-precrease{,-wasm}/src`) | `planner` differs: the sheet replans. Settings, mode, sheet and card (by its line) come back; chosen ways do not, since they named the old plan's ids. |
-| The cache envelope (`ReferencesCachedPlan`, trimming, key fields) | Bump `REFERENCES_PLAN_WIRE_VERSION`: as above. |
-| A payload damaged, edited, or unreadable despite a matching key | `decodeCachedPlan` checks every step field the panel reads without a fallback, and the restore rehearses the strip and the open card before installing; either failing forgets the entry and replans, and nothing is written back. |
+| A change that makes old plans read wrong (see the bump rule) | Bump `REFERENCES_PLAN_VERSION`: the sheet replans. Settings, mode, sheet and card (by its line) come back; chosen ways do not, since they named the old plan's ids. |
+| A refactor, a speed-up, a better planner | Nothing: saved plans keep showing as they were saved. |
+| A payload damaged, edited, or unreadable despite a matching key | `decodeCachedPlan` checks every step field the panel reads without a fallback, and the restore rehearses the strip and every card before installing; either failing forgets the entry and replans, and nothing is written back. |
 | A new plan-affecting setting | Does not compile until classified; once it is, old entries lack it and fail validation (replan). |
 | The reader-state record | Additive fields are optional; a `v: 2` must keep reading `v: 1` — it is the user's, never dropped for being old. |
 | The kernel's numbering, colours or endpoints | The fingerprint misses: replan. It cannot falsely match, since it covers the planner's whole input over a padded box. |
@@ -265,8 +273,10 @@ what changed:
 - **High:** the key moved only with the release, so a planner change merged
   between releases (it has happened) was a hit; a stale shape could crash the
   panel on every visit, and `referencesReaderStateFor` could make every
-  `.osf` save throw. → planner source digest; deep payload check; restore
-  rehearsal; forget on failure; save guarded.
+  `.osf` save throw. → a documented bump rule for the plan version; deep
+  payload check; restore rehearsal of every card; forget on failure; save
+  guarded. (A source digest was tried first and withdrawn: see `planner`
+  above.)
 - **Medium:** the fingerprint's 1e-6 slack missed creases the planner counts
   as the sheet's (reproduced with the real planner); identical-box sheets
   shared a slot; overlap ownership; a restored card crossing into another
@@ -276,7 +286,7 @@ what changed:
 - **Low:** LRU order, `±(n, d)` lines, a looser box for the reader's sheet,
   other builds' entries kept.
 
-- [x] Planner source digest in the key (`vite.config.ts`, `appBuildInfo.ts`)
+- [x] Plan version in the key, with its bump rule
 - [x] Fingerprint over the planner input, padded, through `keyDigest`
 - [x] Frame in the key; overlapping documents uncached
 - [x] Deep payload validation, checked against real planner output

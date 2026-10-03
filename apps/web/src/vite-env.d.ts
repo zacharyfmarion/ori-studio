@@ -9,11 +9,6 @@
 declare const __APP_COMMIT__: string;
 /** `ori-studio@<version>+<commit>` — the key Sentry symbolication joins on. */
 declare const __SENTRY_RELEASE__: string;
-/**
- * A digest of every source that decides a References plan (vite.config.ts,
- * `PLANNER_SOURCES`). Read it through `lib/appBuildInfo.ts`.
- */
-declare const __PLANNER_SOURCE_DIGEST__: string;
 
 /**
  * Build-time PostHog config, inlined by Vite from the CI env (see

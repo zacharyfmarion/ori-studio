@@ -24,8 +24,6 @@ import { createReferenceFinderCache, type ReferenceFinderCache } from './referen
 import { DEFAULT_DATABASE_SETTINGS, databaseKey } from './referenceFinder/protocol';
 import {
   createWorkerPlannerHandle,
-  NO_TIME_CEILING_MS,
-  PLANNER_REFERENCE_FINDER_QUERIES,
   runPrecreasePlan,
   type PrecreasePlanProgress,
   type PrecreasePlanResult,
@@ -181,16 +179,19 @@ function plannerClients(rect: PrecreaseRfRect) {
   return {
     exact: createWorkerReferenceFinderClient('planner', {
       database,
-      query: PLANNER_REFERENCE_FINDER_QUERIES.exact,
+      query: { goodEnoughError: 1e-9, count: 5, worstCase: 1 },
       cache,
     }),
     approximate: createWorkerReferenceFinderClient('planner', {
       database,
-      query: PLANNER_REFERENCE_FINDER_QUERIES.approximate,
+      query: { goodEnoughError: 0.005, count: 1, worstCase: 1 },
       cache,
     }),
   };
 }
+
+/** `0` is "no ceiling" to both the loop and the crate's `Deadline::after`. */
+const NO_TIME_CEILING_MS = 0;
 
 /** A sheet's cached plan that is the plan wanted, and what it was looked up for. */
 interface CachedSheetPlan {
@@ -600,9 +601,9 @@ export function useReferencesBreakdown(
    * opens on — the first, or, the first time a plan lands after a project was
    * reopened, the card the reader had open, found by its line.
    *
-   * With `rehearse`, also every reading the panel makes of the plan on arrival
-   * — the strip's cards, the open card's picture — for a plan that came out of
-   * a file rather than out of this planner. One this build cannot read throws
+   * With `rehearse`, also every reading the panel makes of the plan — the
+   * strip's cards, and each card's picture and fold — for a plan that came out
+   * of a file rather than out of this planner. One this build cannot read throws
    * here, where the caller replans, rather than in the panel, where it would
    * send the workspace to its error boundary on every visit.
    */
@@ -619,9 +620,14 @@ export function useReferencesBreakdown(
         });
         if (card) activeStep = locateCard(strip.variants, strip.viewSteps, card);
         if (rehearse) {
+          // Every card, not only the open one: the reader may step to any of
+          // them, and a plan that breaks on the twentieth must be caught here.
+          // About a millisecond for thirty cards.
           const stopReasons = record.components.map((entry) => entry.result.stopReason);
           planFilmstrip(t, strip.variants, strip.viewSteps, stopReasons);
-          planHighlights(strip.variants, strip.viewSteps, activeStep, null, null);
+          strip.viewSteps.forEach((_, index) =>
+            planHighlights(strip.variants, strip.viewSteps, index, null, null)
+          );
         }
       }
       return { summary: summaryOf(record), activeStep, restoredCard: card !== null };
