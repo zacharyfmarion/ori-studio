@@ -26,7 +26,7 @@ const FORCE_SHADER_SAMPLERS = [
   'u_nominalTriangles',
 ] as const;
 
-import type { SolverBackend } from '../solverBackend.js';
+import { copyFixedNodeMask, type SolverBackend } from '../solverBackend.js';
 import { GlCore } from './glCore.js';
 import {
   NORMAL_CALC,
@@ -212,6 +212,17 @@ export class WebglSolver implements SolverBackend {
     this.gl.updateTexture('u_lastVelocity', zeros);
     this.gl.updateTexture('u_theta', this.packed.thetaInit);
     this.gl.updateTexture('u_lastTheta', this.packed.thetaInit);
+  }
+
+  setFixedNodes(mask: Uint8Array | null): void {
+    const fixed = copyFixedNodeMask(mask, this.nodeCount);
+    // Upstream's `updateFixed`: the flag rides in `u_mass.y`, which every
+    // integrating pass already reads. Padding texels are never fixed — no pass
+    // reads them as nodes.
+    for (let i = 0; i < this.nodeCount; i += 1) {
+      this.packed.mass[i * 4 + 1] = fixed?.[i] ? 1 : 0;
+    }
+    this.gl.updateTexture('u_mass', this.packed.mass);
   }
 
   arrestDynamics(): void {

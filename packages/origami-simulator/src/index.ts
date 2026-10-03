@@ -4,6 +4,7 @@ export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';
 export type { SimulationClockOptions, SimulationTick } from './simulationClock.js';
 export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
+export { InvalidFixedNodeMaskError } from './solverBackend.js';
 export { WebglSolver } from './webgl/webglSolver.js';
 export {
   GlCore,

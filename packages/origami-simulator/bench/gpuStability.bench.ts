@@ -42,8 +42,12 @@ interface StabilityRow {
   firstBadTexture?: string;
   firstBadTextureStep?: number;
   maxAbsPositionAtFailure?: number;
+  pinned?: boolean;
   error?: string;
 }
+
+/** Where the pinned run fixes its two far-apart triangles: half way up the ramp. */
+const PIN_AT_FRACTION = 0.5;
 
 describe('solver long-run stability', () => {
   it('reports where each backend destabilizes under a ramping fold', async () => {
@@ -113,12 +117,44 @@ describe('solver long-run stability', () => {
       allRows.push(...rows);
       }
       }
+      // Pins that contradict the fold, on the shipping settings: a user can make
+      // this by pinning both ends of a model and folding on.
+      const pinnedRows = (await page.evaluate(
+        ([folds, totalSteps, chunk, strainLimit, pinAt]) =>
+          (
+            window as unknown as {
+              runStabilitySweep: (
+                f: string[],
+                t: number,
+                c: number,
+                s: number,
+                x: Record<string, unknown>,
+                ts: number,
+                ff: number,
+                it: 'euler' | 'verlet',
+                pin: number
+              ) => StabilityRow[];
+            }
+          ).runStabilitySweep(
+            [],
+            totalSteps as number,
+            chunk as number,
+            strainLimit as number,
+            folds as Record<string, unknown>,
+            0.35,
+            Number.POSITIVE_INFINITY,
+            'euler',
+            pinAt as number
+          ),
+        [extraFolds, TOTAL_STEPS, CHUNK, STRAIN_LIMIT, PIN_AT_FRACTION] as const
+      )) as StabilityRow[];
+      allRows.push(...pinnedRows);
       const rows = allRows;
 
       const lines = rows.map((row) =>
         row.error
           ? `${row.fixture.padEnd(14)} ${row.backend.padEnd(10)} ERROR: ${row.error}`
-          : `${row.fixture.padEnd(16)} ${row.backend.padEnd(10)} ${(row.integrator ?? '').padEnd(6)} ts=${String(row.timeStepScale).padEnd(5)} | ` +
+          : `${row.fixture.padEnd(16)} ${row.backend.padEnd(10)} ${(row.integrator ?? '').padEnd(6)} ts=${String(row.timeStepScale).padEnd(5)}${row.pinned ? ' pinned' : '       '} | ` +
             (row.firstBadStep === null
               ? `stable through ${row.steps} steps (max strain ${row.maxStrainSeen.toExponential(2)})`
               : `UNSTABLE at step ${row.firstBadStep} (fold ${row.firstBadFoldPercent?.toFixed(1)}%, ` +

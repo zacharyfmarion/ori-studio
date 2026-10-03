@@ -29,6 +29,21 @@ export interface SolverBackend {
   reset(): void;
 
   /**
+   * Hold nodes where they are: a fixed node keeps its current position and has
+   * zero velocity, while the nodes around it still feel it. This is upstream
+   * Origami Simulator's `Node.setFixed`, the flag its solver keeps in
+   * `u_mass.y`. `mask[i] !== 0` fixes node `i`; `null` releases every node.
+   *
+   * A fix holds the node at its position *now*, not at a stored target, and the
+   * mask survives {@link reset} — so after a reset a fixed node holds the flat
+   * sheet, like everything else.
+   *
+   * @throws {InvalidFixedNodeMaskError} when the mask's length is not the
+   *   vertex count.
+   */
+  setFixedNodes(mask: Uint8Array | null): void;
+
+  /**
    * Zero the dynamic velocities while keeping the current (folded) positions.
    * A backstop for the explicit integrator going unstable mid-fold: crease
    * (bending) stiffness is not in the axial-only stable-timestep bound, so a
@@ -74,6 +89,27 @@ export interface SolverBackend {
   readonly stepCount: number;
 
   dispose(): void;
+}
+
+/** A fixed-node mask that does not describe this model's nodes. */
+export class InvalidFixedNodeMaskError extends Error {
+  constructor(
+    readonly expected: number,
+    readonly received: number
+  ) {
+    super(`Fixed-node mask has ${received} entries; the model has ${expected} nodes`);
+    this.name = 'InvalidFixedNodeMaskError';
+  }
+}
+
+/**
+ * The mask a backend keeps: a private copy, so a caller reusing its buffer
+ * cannot change what is fixed between calls. `null` when nothing is fixed.
+ */
+export function copyFixedNodeMask(mask: Uint8Array | null, nodeCount: number): Uint8Array | null {
+  if (mask === null) return null;
+  if (mask.length !== nodeCount) throw new InvalidFixedNodeMaskError(nodeCount, mask.length);
+  return mask.some((value) => value !== 0) ? mask.slice() : null;
 }
 
 /** What a backend needs to describe itself to the scheduler and the UI. */

@@ -29,6 +29,7 @@ function fakeBackend(options: {
     setFoldPercent() {},
     setFoldProfile() {},
     setMaterial() {},
+    setFixedNodes() {},
     reset() {
       step = 0;
       resets += 1;

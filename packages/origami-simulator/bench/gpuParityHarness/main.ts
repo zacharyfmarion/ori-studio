@@ -14,6 +14,10 @@ import type { FoldDocument } from '../../src/types.js';
 interface GpuParityRow {
   fixture: string;
   integrator: 'euler' | 'verlet';
+  /** Run with fixed nodes, pinned mid-fold after {@link PIN_AFTER_STEPS}. */
+  pinned: boolean;
+  /** Pinned rows only: how far the GPU moved a node it was told to hold. */
+  heldDrift?: number;
   steps: number;
   vertices: number;
   maxAbs: number;
@@ -52,6 +56,32 @@ function compare(a: Float32Array, b: Float32Array): { maxAbs: number; meanAbs: n
   return { maxAbs, meanAbs: n ? total / n : 0 };
 }
 
+/**
+ * Pinned rows fix nodes part-way through the fold, not on the flat sheet: a
+ * node fixed at rest would hide an integrator that snaps fixed nodes back to
+ * rest, which is exactly the bug Verlet's fixed branch used to have.
+ */
+const PIN_AFTER_STEPS = 20;
+
+/** The first triangle's nodes and every seventh node: a held face plus scattered pins. */
+function pinMask(vertexCount: number, indices: Uint32Array): Uint8Array {
+  const mask = new Uint8Array(vertexCount);
+  for (let corner = 0; corner < 3; corner += 1) mask[indices[corner]!] = 1;
+  for (let node = 0; node < vertexCount; node += 7) mask[node] = 1;
+  return mask;
+}
+
+function maxDriftOf(mask: Uint8Array, before: Float32Array, after: Float32Array): number {
+  let max = 0;
+  for (let node = 0; node < mask.length; node += 1) {
+    if (!mask[node]) continue;
+    for (let axis = 0; axis < 3; axis += 1) {
+      max = Math.max(max, Math.abs(after[node * 3 + axis]! - before[node * 3 + axis]!));
+    }
+  }
+  return max;
+}
+
 window.runGpuParity = (foldPercent, stepCounts) => {
   const rows: GpuParityRow[] = [];
   // Both integrators are compared: they share the force shader but apply it
@@ -62,11 +92,17 @@ window.runGpuParity = (foldPercent, stepCounts) => {
     if (fixture.degenerate) continue;
 
     for (const integrationType of integrators) {
+      for (const pinned of [false, true]) {
       for (const steps of stepCounts) {
         const fold = fixture.build();
 
         const referenceModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
         const reference = new ReferenceSolver(referenceModel, { foldPercent, integrationType });
+        const mask = pinned ? pinMask(referenceModel.prepared.vertexCount, referenceModel.prepared.indices) : null;
+        if (mask) {
+          reference.step(PIN_AFTER_STEPS);
+          reference.setFixedNodes(mask);
+        }
         reference.step(steps);
         const referencePositions = referenceModel.positions.slice(0, referenceModel.prepared.vertexCount * 3);
 
@@ -77,6 +113,7 @@ window.runGpuParity = (foldPercent, stepCounts) => {
         let row: GpuParityRow = {
           fixture: fixture.name,
           integrator: integrationType,
+          pinned,
           steps,
           vertices: referenceModel.prepared.vertexCount,
           maxAbs: 0,
@@ -91,16 +128,25 @@ window.runGpuParity = (foldPercent, stepCounts) => {
           }
           const gpuModel = new OrigamiModel(prepareFoldModel(structuredClone(fold), { triangulate: true }));
           const gpu = new WebglSolver(canvas, gpuModel, { foldPercent, integrationType });
-          gpu.step(steps);
           const gpuPositions = new Float32Array(gpuModel.prepared.vertexCount * 3);
+          let held: Float32Array | null = null;
+          if (mask) {
+            gpu.step(PIN_AFTER_STEPS);
+            gpu.setFixedNodes(mask);
+            held = new Float32Array(gpuPositions.length);
+            gpu.readPositions(held);
+          }
+          gpu.step(steps);
           gpu.readPositions(gpuPositions);
           gpu.dispose();
 
           row = { ...row, ...compare(referencePositions, gpuPositions) };
+          if (mask && held) row.heldDrift = maxDriftOf(mask, held, gpuPositions);
         } catch (cause) {
           row = { ...row, error: cause instanceof Error ? cause.message : String(cause) };
         }
         rows.push(row);
+      }
       }
     }
   }
@@ -238,6 +284,8 @@ interface StabilityRow {
   firstBadTexture?: string;
   firstBadTextureStep?: number;
   maxAbsPositionAtFailure?: number;
+  /** Run with the two farthest-apart triangles fixed part-way through the ramp. */
+  pinned?: boolean;
   error?: string;
 }
 
@@ -251,12 +299,41 @@ declare global {
       extraFolds?: Record<string, FoldDocument>,
       timeStepScale?: number,
       fineFrom?: number,
-      integrationType?: 'euler' | 'verlet'
+      integrationType?: 'euler' | 'verlet',
+      pinAtFraction?: number
     ) => StabilityRow[];
   }
 }
 
-window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY, integrationType = 'euler') => {
+/**
+ * The nodes of the two triangles whose flat centroids are farthest apart.
+ * Fixed mid-fold and then folded further, they hold a relative pose the rest of
+ * the fold contradicts — the over-constrained pin set a user can make by
+ * pinning both ends of a model.
+ */
+function farthestTrianglePairMask(model: OrigamiModel): Uint8Array {
+  const { indices, vertexCount } = model.prepared;
+  const rest = model.originalPositions;
+  const triangles = indices.length / 3;
+  const centre = (t: number, axis: number) =>
+    (rest[indices[t * 3]! * 3 + axis]! + rest[indices[t * 3 + 1]! * 3 + axis]! + rest[indices[t * 3 + 2]! * 3 + axis]!) / 3;
+  let best: [number, number] = [0, 0];
+  let bestDistance = -1;
+  for (let a = 0; a < triangles; a += 1) {
+    for (let b = a + 1; b < triangles; b += 1) {
+      const d = Math.hypot(centre(a, 0) - centre(b, 0), centre(a, 1) - centre(b, 1), centre(a, 2) - centre(b, 2));
+      if (d > bestDistance) {
+        bestDistance = d;
+        best = [a, b];
+      }
+    }
+  }
+  const mask = new Uint8Array(vertexCount);
+  for (const t of best) for (let corner = 0; corner < 3; corner += 1) mask[indices[t * 3 + corner]!] = 1;
+  return mask;
+}
+
+window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraFolds = {}, timeStepScale = 1, fineFrom = Number.POSITIVE_INFINITY, integrationType = 'euler', pinAtFraction = Number.POSITIVE_INFINITY) => {
   const rows: StabilityRow[] = [];
   const builders: Array<{ name: string; build: () => FoldDocument }> = [
     ...fixtureNames.flatMap((name) => {
@@ -287,7 +364,10 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
         maxStrainSeen: 0,
         timeStepScale,
         integrator: integrationType,
+        pinned: Number.isFinite(pinAtFraction),
       };
+      const pinMaskForRun = Number.isFinite(pinAtFraction) ? farthestTrianglePairMask(model) : null;
+      let pinnedYet = false;
 
       try {
         let solver: WebglSolver | ReferenceSolver;
@@ -308,6 +388,10 @@ window.runStabilitySweep = (fixtureNames, totalSteps, chunk, strainLimit, extraF
           const thisChunk = done >= fineFrom ? 1 : chunk;
           // Ramp the fold target across the run, the way playback does.
           const foldPercent = Math.min(100, (done / totalSteps) * 100);
+          if (pinMaskForRun && !pinnedYet && done >= totalSteps * pinAtFraction) {
+            solver.setFixedNodes(pinMaskForRun);
+            pinnedYet = true;
+          }
           solver.setFoldPercent(foldPercent);
           solver.step(thisChunk);
           done += thisChunk;
