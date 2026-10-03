@@ -14,6 +14,7 @@ import type {
   DiagramStep,
   KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
+import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useReturnFocusOnClose } from '../../hooks/useReturnFocusOnClose';
 import { Button } from '../ui/Button';
@@ -90,6 +91,11 @@ export function DiagramStepPicture({
             ? describeAsset(asset, t)
             : t('panels:diagram.picture.none', 'No picture yet')}
       </FieldRow>
+      {source?.kind === 'cp' && source.render.mode === 'folded-3d' && step.picture !== null && (
+        <FieldRow label={t('panels:diagram.picture.view', 'View')} kind="text">
+          {t('panels:diagram.pose.cameraReadout', 'Yaw {{yaw}}° · Pitch {{pitch}}°', { ...cameraDegrees(source.render.camera) })}
+        </FieldRow>
+      )}
       {source && (
         <FieldRow label={t('panels:diagram.picture.pattern', 'Pattern')} kind="text">
           <span className={styles.pattern}>

@@ -21,12 +21,14 @@ import type {
   DiagramPoseActionId,
 } from '../../diagram/actions/diagramPoseActions';
 import {
+  annotationsOutOfStep,
   isLockedStep,
   type DiagramAsset,
   type DiagramStep,
   type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
+import { storedScene } from '../../diagram/pictures/pictureFrame';
 import { annotatedStepUrl } from '../../diagram/pictures/useStepPictureUrl';
 import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 import type { DiagramDetailMode } from '../../store/workspaceStore/types';
@@ -39,7 +41,7 @@ import { Toolbar } from '../ui/Toolbar';
 import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
-import { DiagramPose3dView } from './DiagramPose3dView';
+import { DiagramPose3dView, type DiagramPose3dGhost } from './DiagramPose3dView';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 import styles from './DiagramStepDetail.module.css';
@@ -146,6 +148,12 @@ export function DiagramStepDetail({
   );
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
+  // Over a live 3D view, the annotations drawn on its capture, while they are.
+  const ghost = useMemo((): DiagramPose3dGhost | null => {
+    if (step.picture?.kind !== 'scene' || annotations.length === 0 || annotationsOutOfStep(step)) return null;
+    const scene = storedScene(step.picture);
+    return scene ? { annotations, bounds: scene.bounds } : null;
+  }, [step, annotations]);
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
@@ -244,6 +252,7 @@ export function DiagramStepDetail({
                 camera={linked.render.camera}
                 style={style}
                 onCamera={linkedPose.onCamera}
+                ghost={ghost}
                 fallback={url && picture}
               />
             ) : url ? (

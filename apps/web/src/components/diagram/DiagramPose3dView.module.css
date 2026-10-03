@@ -16,3 +16,34 @@
   touch-action: none;
   user-select: none;
 }
+
+/* The step's annotations, ghosted over the view in its own device px (D8). */
+.ghost {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* How to turn it, in the corner the view cube leaves free; a mouse's only. */
+.hint {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-2);
+  margin: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--domain-overlay-bg);
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  pointer-events: none;
+}
+
+@media (pointer: coarse), (max-width: 720px) {
+  .hint {
+    display: none;
+  }
+}

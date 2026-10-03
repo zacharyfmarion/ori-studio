@@ -905,10 +905,12 @@
       "textFont": "其中的文字会改用图解的字体排版，看起来可能略有不同。",
       "unknown": "未检查：折痕图未打开",
       "unsupported": "其中部分内容不受支持，已被略去。",
+      "view": "视角",
       "waitingReferences": "等待参考：下一个发送到图解的步骤将填入此处。"
     },
     "pose": {
       "annotationsHint": "其注释由更新版本的 Ori Studio 创建，无法随图片一起旋转",
+      "cameraReadout": "偏航 {{yaw}}° · 俯仰 {{pitch}}°",
       "degrees": "顺时针 {{degrees}}°",
       "flip": "水平翻转",
       "flipped": "已翻转",
@@ -916,6 +918,7 @@
       "no": "否",
       "noUploadHint": "只有上传的图片可以在这里旋转",
       "onlySolution": "此折叠只有一种层序",
+      "orbitHint": "拖动以旋转 · 双击以重置",
       "otherSide": "从另一面查看",
       "reset": "重置姿态",
       "resetHint": "已处于初始姿态",

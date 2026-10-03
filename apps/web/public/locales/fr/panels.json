@@ -973,10 +973,12 @@
       "textFont": "Son texte est composé dans la police du diagramme ; il peut donc paraître un peu différent.",
       "unknown": "Non vérifié\u00a0: le patron de plis n’est pas ouvert",
       "unsupported": "Certaines de ses parties ne sont pas prises en charge et ont été omises.",
+      "view": "Vue",
       "waitingReferences": "En attente de Références\u00a0: la prochaine étape envoyée au diagramme remplira celle-ci."
     },
     "pose": {
       "annotationsHint": "Ses annotations ont été créées avec une version plus récente d’Ori Studio et ne pourraient pas tourner avec elle",
+      "cameraReadout": "Lacet {{yaw}}° · Tangage {{pitch}}°",
       "degrees": "{{degrees}}\u00a0° dans le sens horaire",
       "flip": "Retourner horizontalement",
       "flipped": "Retournée",
@@ -984,6 +986,7 @@
       "no": "Non",
       "noUploadHint": "Seule une image importée peut être tournée ici",
       "onlySolution": "Ce pliage n’a qu’un ordre de couches",
+      "orbitHint": "Faites glisser pour tourner · Double-cliquez pour réinitialiser",
       "otherSide": "Voir de l’autre côté",
       "reset": "Réinitialiser la pose",
       "resetHint": "Déjà dans sa pose de départ",

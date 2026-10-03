@@ -3762,7 +3762,10 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7527,7 +7530,10 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11294,7 +11300,10 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -14988,7 +14997,10 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18682,7 +18694,10 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22447,7 +22462,10 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26212,7 +26230,10 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -29906,6 +29927,9 @@
     "panels:diagram.actions.adjustPose": "1f3e1c599e49",
     "panels:diagram.actions.poseNeedsPicture": "946c802281e9",
     "panels:diagram.card.goToEdit": "6a218c5f7329",
-    "panels:diagram.empty.goToEdit": "6a218c5f7329"
+    "panels:diagram.empty.goToEdit": "6a218c5f7329",
+    "panels:diagram.picture.view": "dcc839a4015c",
+    "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
   }
 }

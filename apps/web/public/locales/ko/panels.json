@@ -905,10 +905,12 @@
       "textFont": "텍스트는 도해의 글꼴로 조판되므로 조금 다르게 보일 수 있습니다.",
       "unknown": "확인 안 됨: 전개도가 열려 있지 않습니다",
       "unsupported": "일부 요소가 지원되지 않아 생략되었습니다.",
+      "view": "보기",
       "waitingReferences": "참조를 기다리는 중: 도해로 보내는 다음 단계가 이 자리에 들어갑니다."
     },
     "pose": {
       "annotationsHint": "주석이 최신 Ori Studio에서 만들어져 그림과 함께 회전할 수 없습니다",
+      "cameraReadout": "요 {{yaw}}° · 피치 {{pitch}}°",
       "degrees": "시계 방향 {{degrees}}°",
       "flip": "좌우 반전",
       "flipped": "반전됨",
@@ -916,6 +918,7 @@
       "no": "아니요",
       "noUploadHint": "여기에서는 업로드한 그림만 회전할 수 있습니다",
       "onlySolution": "이 접기에는 층 순서가 하나뿐입니다",
+      "orbitHint": "드래그해서 돌리기 · 두 번 클릭해서 초기화",
       "otherSide": "반대쪽에서 보기",
       "reset": "포즈 초기화",
       "resetHint": "이미 처음 자세입니다",

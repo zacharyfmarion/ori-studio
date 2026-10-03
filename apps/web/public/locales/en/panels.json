@@ -939,10 +939,12 @@
       "textFont": "Its text is set in the diagram’s font, so it may look a little different.",
       "unknown": "Not checked: the crease pattern isn’t open",
       "unsupported": "Some of its parts aren’t supported and were left out.",
+      "view": "View",
       "waitingReferences": "Waiting for References: the next step sent to the diagram fills this one."
     },
     "pose": {
       "annotationsHint": "Its annotations were made with a newer Ori Studio, which could not turn with it",
+      "cameraReadout": "Yaw {{yaw}}° · Pitch {{pitch}}°",
       "degrees": "{{degrees}}° clockwise",
       "flip": "Flip Horizontally",
       "flipped": "Flipped",
@@ -950,6 +952,7 @@
       "no": "No",
       "noUploadHint": "Only an uploaded picture can be turned here",
       "onlySolution": "This fold has one layer order",
+      "orbitHint": "Drag to turn · Double-click to reset",
       "otherSide": "View From the Other Side",
       "reset": "Reset Pose",
       "resetHint": "Already in its starting pose",

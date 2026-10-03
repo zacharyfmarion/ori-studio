@@ -973,10 +973,12 @@
       "textFont": "Su texto se compone con la fuente del diagrama, así que puede verse un poco distinto.",
       "unknown": "Sin comprobar: el patrón de pliegues no está abierto",
       "unsupported": "Algunas de sus partes no son compatibles y se omitieron.",
+      "view": "Vista",
       "waitingReferences": "Esperando a Referencias: el próximo paso enviado al diagrama ocupará este."
     },
     "pose": {
       "annotationsHint": "Sus anotaciones se crearon con una versión más reciente de Ori Studio y no podrían girar con ella",
+      "cameraReadout": "Guiñada {{yaw}}° · Cabeceo {{pitch}}°",
       "degrees": "{{degrees}}° en sentido horario",
       "flip": "Voltear horizontalmente",
       "flipped": "Volteada",
@@ -984,6 +986,7 @@
       "no": "No",
       "noUploadHint": "Aquí solo se puede girar una imagen subida",
       "onlySolution": "Este pliegue tiene un solo orden de capas",
+      "orbitHint": "Arrastra para girar · Doble clic para restablecer",
       "otherSide": "Ver desde el otro lado",
       "reset": "Restablecer pose",
       "resetHint": "Ya está en su pose inicial",

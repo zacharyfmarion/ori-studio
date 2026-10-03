@@ -905,10 +905,12 @@
       "textFont": "文字は折り図のフォントで組まれるため、見た目が少し変わることがあります。",
       "unknown": "未確認：展開図が開いていません",
       "unsupported": "対応していない部分があったため省かれました。",
+      "view": "視点",
       "waitingReferences": "リファレンスを待機中：次に折り図へ送られたステップがここに入ります。"
     },
     "pose": {
       "annotationsHint": "このステップの注釈は新しい Ori Studio で作成されたため、図と一緒に回転できません",
+      "cameraReadout": "ヨー {{yaw}}° · ピッチ {{pitch}}°",
       "degrees": "時計回りに {{degrees}}°",
       "flip": "左右反転",
       "flipped": "反転",
@@ -916,6 +918,7 @@
       "no": "いいえ",
       "noUploadHint": "ここで回転できるのはアップロードした図だけです",
       "onlySolution": "この折りの重なり順は1つだけです",
+      "orbitHint": "ドラッグで回転 · ダブルクリックでリセット",
       "otherSide": "反対側から見る",
       "reset": "ポーズをリセット",
       "resetHint": "すでに最初のポーズです",

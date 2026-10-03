@@ -939,10 +939,12 @@
       "textFont": "Sein Text wird in der Schrift des Diagramms gesetzt und kann daher etwas anders aussehen.",
       "unknown": "Nicht geprüft: das Faltmuster ist nicht geöffnet",
       "unsupported": "Einige Teile werden nicht unterstützt und wurden weggelassen.",
+      "view": "Ansicht",
       "waitingReferences": "Wartet auf Referenzen: Der nächste an das Diagramm gesendete Schritt füllt diesen."
     },
     "pose": {
       "annotationsHint": "Seine Anmerkungen wurden mit einem neueren Ori Studio erstellt und könnten sich nicht mitdrehen",
+      "cameraReadout": "Gieren {{yaw}}° · Nicken {{pitch}}°",
       "degrees": "{{degrees}}° im Uhrzeigersinn",
       "flip": "Horizontal spiegeln",
       "flipped": "Gespiegelt",
@@ -950,6 +952,7 @@
       "no": "Nein",
       "noUploadHint": "Nur ein hochgeladenes Bild lässt sich hier drehen",
       "onlySolution": "Diese Faltung hat nur eine Lagenfolge",
+      "orbitHint": "Zum Drehen ziehen · Doppelklick zum Zurücksetzen",
       "otherSide": "Von der anderen Seite ansehen",
       "reset": "Pose zurücksetzen",
       "resetHint": "Schon in der Ausgangslage",

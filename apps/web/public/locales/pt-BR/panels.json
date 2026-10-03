@@ -973,10 +973,12 @@
       "textFont": "O texto dela é composto na fonte do diagrama, então pode parecer um pouco diferente.",
       "unknown": "Não verificado: o padrão de vincos não está aberto",
       "unsupported": "Algumas partes não são suportadas e foram omitidas.",
+      "view": "Vista",
       "waitingReferences": "Aguardando Referências: o próximo passo enviado ao diagrama preenche este."
     },
     "pose": {
       "annotationsHint": "Suas anotações foram criadas com uma versão mais recente do Ori Studio e não poderiam girar com ela",
+      "cameraReadout": "Guinada {{yaw}}° · Arfagem {{pitch}}°",
       "degrees": "{{degrees}}° no sentido horário",
       "flip": "Espelhar horizontalmente",
       "flipped": "Espelhada",
@@ -984,6 +986,7 @@
       "no": "Não",
       "noUploadHint": "Só uma imagem enviada pode ser girada aqui",
       "onlySolution": "Esta dobra tem só uma ordem de camadas",
+      "orbitHint": "Arraste para girar · Clique duas vezes para redefinir",
       "otherSide": "Ver do outro lado",
       "reset": "Redefinir pose",
       "resetHint": "Já está na pose inicial",

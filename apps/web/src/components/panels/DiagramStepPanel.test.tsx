@@ -2,6 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpDocument } from '../../diagram/capture/capture.fixtures';
+import { createDiagram } from '../../diagram/document/diagramDocument';
+import { cpStep } from '../../diagram/document/diagramSteps.fixtures';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -165,6 +167,15 @@ describe('DiagramStepPanel', () => {
       act(() => cancel.click());
       expect(state().diagramReferencesTarget).toBeNull();
       expect(document.activeElement).toBe(textButton('From References…'));
+    });
+
+    it('says which way a 3D step looks at its model', () => {
+      act(() => {
+        const step = cpStep('step-3d', { mode: 'folded-3d', camera: { yaw: Math.PI / 4, pitch: -0.955, zoom: 1 }, side: 'front' });
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [step] } });
+        state().selectDiagramStep('step-3d');
+      });
+      expect(host?.textContent).toContain('ViewYaw 45° · Pitch -55°');
     });
 
     it('says what the picture is, what sanitizing changed, and removes it', () => {
