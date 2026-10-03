@@ -213,13 +213,24 @@
   "diagram": {
     "categoryLabel": "도해",
     "firstStep": "첫 단계",
+    "flipArc": "호 뒤집기",
     "lastStep": "마지막 단계",
     "moveStepEarlier": "단계를 앞으로 이동",
     "moveStepLater": "단계를 뒤로 이동",
     "nextStep": "다음 단계",
     "openStep": "단계 열기",
     "previousStep": "이전 단계",
-    "scopeLabel": "도해"
+    "scopeLabel": "도해",
+    "toolFoldUnfoldArrow": "접었다 펴기 화살표",
+    "toolHiddenLine": "숨은선",
+    "toolLabel": "레이블",
+    "toolMountainArrow": "산접기 화살표",
+    "toolMountainLine": "산접기 선",
+    "toolPushArrow": "누르기 화살표",
+    "toolRotate": "회전",
+    "toolTurnOver": "뒤집기",
+    "toolValleyArrow": "골접기 화살표",
+    "toolValleyLine": "골접기 선"
   },
   "divideMode": {
     "count": "개수",

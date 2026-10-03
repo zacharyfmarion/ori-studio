@@ -108,6 +108,68 @@ describe('the Diagram’s Escape ladder', () => {
   });
 });
 
+describe('Annotate’s keys', () => {
+  const annotate = (tool: string | null = null, selectedIsArrow = false) => ({
+    annotate: { tool: tool as never, selectedAnnotationId: selectedIsArrow ? 'a' : null, selectedIsArrow },
+  });
+  const press = (id: Parameters<typeof runDiagramShortcut>[0], state: Partial<DiagramKeyState>) => {
+    const actions = { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn(), setTool: vi.fn(), flipArc: vi.fn() };
+    const claimed = runDiagramShortcut(id, { stepIds: steps, selectedStepId: 'a', readOnly: false, ...state }, actions);
+    return { claimed, ...actions };
+  };
+
+  it('picks a tool by its letter, and puts it down with the same letter', () => {
+    expect(press('diagram.toolValleyArrow', annotate()).setTool).toHaveBeenCalledWith('valley-arrow');
+    expect(press('diagram.toolValleyLine', annotate()).setTool).toHaveBeenCalledWith('valley-line');
+    expect(press('diagram.toolValleyArrow', annotate('valley-arrow')).setTool).toHaveBeenCalledWith(null);
+  });
+
+  it('flips only a selected fold arrow', () => {
+    expect(press('diagram.flipArc', annotate(null, true))).toMatchObject({ claimed: true });
+    expect(press('diagram.flipArc', annotate(null, false))).toMatchObject({ claimed: false });
+  });
+
+  it('declines outside Annotate, and on a diagram that cannot change, so a crease-pattern letter is left alone', () => {
+    const outside = press('diagram.toolRotate', { annotate: null });
+    expect(outside.claimed).toBe(false);
+    expect(outside.setTool).not.toHaveBeenCalled();
+    expect(press('diagram.toolRotate', { ...annotate(), readOnly: true }).claimed).toBe(false);
+    // Even with no steps at all, the letters are Annotate's question, not the steps'.
+    expect(press('diagram.toolRotate', { ...annotate(), stepIds: [] }).setTool).toHaveBeenCalledWith('rotate');
+  });
+});
+
+describe('Annotate’s Escape rungs', () => {
+  it('drops a drag, then the annotation, then the tool, then leaves the detail', () => {
+    const actions = {
+      select: vi.fn(),
+      close: vi.fn(),
+      cancelGesture: vi.fn(() => true),
+      selectAnnotation: vi.fn(),
+      setTool: vi.fn(),
+    };
+    const state = {
+      selectedStepId: 'a',
+      detailOpen: true,
+      annotate: { tool: 'label' as const, selectedAnnotationId: 'x', selectedIsArrow: false },
+    };
+    expect(runDiagramCancel(state, actions)).toBe(true);
+    expect(actions.cancelGesture).toHaveBeenCalledOnce();
+    expect(actions.selectAnnotation).not.toHaveBeenCalled();
+
+    actions.cancelGesture.mockReturnValue(false);
+    runDiagramCancel(state, actions);
+    expect(actions.selectAnnotation).toHaveBeenCalledWith(null);
+
+    runDiagramCancel({ ...state, annotate: { ...state.annotate, selectedAnnotationId: null } }, actions);
+    expect(actions.setTool).toHaveBeenCalledWith(null);
+    expect(actions.close).not.toHaveBeenCalled();
+
+    runDiagramCancel({ ...state, annotate: { tool: null, selectedAnnotationId: null, selectedIsArrow: false } }, actions);
+    expect(actions.close).toHaveBeenCalledOnce();
+  });
+});
+
 describe('focusOwnsArrowKeys', () => {
   function inside(markup: string, selector: string) {
     const host = document.createElement('div');

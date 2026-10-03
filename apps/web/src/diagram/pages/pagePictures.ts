@@ -19,20 +19,21 @@
  * Pure: no DOM, no store.
  */
 import type { PaperScene } from '@treemaker/origami-simulator';
-import { readPaperScene } from '../../lib/paper/paperSceneValidate';
+import { INLINE_LABEL_FONT } from '../../cp-workspace/references/diagram/DiagramPrimitives';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_CSS_PX, PT_PER_MM, paperSceneSvgBody } from '../../lib/paper/paperSvg';
 import type {
   DiagramAsset,
   DiagramHanStyle,
-  DiagramScenePicture,
   DiagramStep,
   DiagramStepDiagramPicture,
   DiagramStyle,
 } from '../document/diagramDocument';
 import { diagramStyleKey, diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import { paintSource, poseTransform, stepPictureSource, type StepPictureSource } from '../pictures/paintDiagramStep';
-import { stepDiagramPaintStyle, stepDiagramScene } from '../pictures/paintStepDiagram';
+import { stepDiagramPaintStyle, stepDiagramScene, stepDiagramSheetBox } from '../pictures/paintStepDiagram';
+import { paintAnnotations } from '../annotate/paintAnnotations';
+import { storedScene } from '../pictures/pictureFrame';
 import { fontFaceId } from '../fonts/diagramFontFaces';
 import { setUploadText } from '../upload/uploadText';
 import type { LayoutCell, LayoutStep, TextSetter } from './diagramPageLayout';
@@ -40,8 +41,6 @@ import type { LayoutCell, LayoutStep, TextSetter } from './diagramPageLayout';
 /** The size a References step's picture is measured at for its shape: any size does. */
 const MEASURE_SHEET_MM = 50;
 
-/** The family References' letters name on screen, which a page sets in its own font. */
-const LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 
 /** A picture drawn into its cell, and the text it sets: References' letters, an upload's text. */
 export interface CellPicture {
@@ -52,24 +51,15 @@ export interface CellPicture {
   text: { face: string; characters: string }[];
 }
 
+/** A picture drawn, and where its frame (D8) landed, in pt. */
+interface DrawnPicture extends CellPicture {
+  framePt: { x: number; y: number; width: number; height: number };
+}
+
 /** How a picture's own text is set: an upload's runs, its Han in the diagram's style. */
 export interface PictureText {
   hanStyle: DiagramHanStyle;
   runs: TextSetter['runs'];
-}
-
-const scenes = new WeakMap<DiagramScenePicture, PaperScene | null>();
-
-function sceneOf(picture: DiagramScenePicture): PaperScene | null {
-  if (scenes.has(picture)) return scenes.get(picture)!;
-  let scene: PaperScene | null;
-  try {
-    scene = readPaperScene(JSON.parse(picture.sceneJson));
-  } catch {
-    scene = null;
-  }
-  scenes.set(picture, scene);
-  return scene;
 }
 
 function longerSide({ minX, minY, maxX, maxY }: { minX: number; minY: number; maxX: number; maxY: number }) {
@@ -124,7 +114,7 @@ export function layoutPicture(
     units !== null && units > 0 && Number.isFinite(units) ? { kind: 'paper', extentUnits: units } : { kind: 'fit' };
   switch (source.kind) {
     case 'scene': {
-      const scene = sceneOf(source.picture);
+      const scene = storedScene(source.picture);
       const scale = source.picture.paperScale;
       return paper(scene && scale ? longerSide(scene.bounds) / scale : null);
     }
@@ -166,7 +156,32 @@ export function cellPicture(
   };
   const drawn = draw(source, step, style, box, cell.mmPerUnit, text);
   if (!drawn) return null;
-  return { ...drawn, markup: prefixIds(drawn.markup, idPrefix) };
+  const { framePt, ...picture } = drawn;
+  const marks = paintAnnotations(step.annotations, framePt, Math.max(framePt.width, framePt.height) / PT_PER_CSS_PX, style);
+  if (!marks) return { ...picture, markup: prefixIds(picture.markup, idPrefix) };
+  // A label is set as an upload's text is, its Han in the diagram's style.
+  const usage = new Map(picture.text.map(({ face, characters }) => [face, characters]));
+  const markup = setUploadText(marks.markup, text.hanStyle, text.runs, (face, characters) =>
+    usage.set(face, (usage.get(face) ?? '') + characters)
+  );
+  return {
+    markup: prefixIds(`${picture.markup}\n${markup}`, idPrefix),
+    boundsPt: union(picture.boundsPt, marks.bounds),
+    text: [...usage].map(([face, characters]) => ({ face, characters })),
+  };
+}
+
+type Rect = { x: number; y: number; width: number; height: number };
+
+function union(a: Rect, b: Rect): Rect {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
 }
 
 type Box = { x: number; y: number; size: number };
@@ -178,16 +193,18 @@ function draw(
   box: Box,
   mmPerUnit: number | null,
   text: PictureText
-): CellPicture | null {
+): DrawnPicture | null {
   switch (source.kind) {
     case 'scene': {
-      const scene = sceneOf(source.picture);
+      const scene = storedScene(source.picture);
       if (!scene) return null;
       const scale = source.picture.paperScale;
       const span = longerSide(scene.bounds);
       const ptPerPx =
         mmPerUnit !== null && scale ? (mmPerUnit * PT_PER_MM) / scale : span > 0 ? box.size / span : PT_PER_CSS_PX;
-      return { ...placedScene(scene, diagramSurfaceStyle(style), box, ptPerPx), text: [] };
+      const placed = placedScene(scene, diagramSurfaceStyle(style), box, ptPerPx);
+      // A scene's frame is its bounds.
+      return { ...placed, framePt: placed.boundsPt, text: [] };
     }
     case 'step-diagram': {
       const units = sentSheetUnits(step);
@@ -198,13 +215,22 @@ function draw(
         return boxMm / drawingRatio(source.picture, style, first);
       };
       const sheetMm = mmPerUnit !== null && units !== null ? units * mmPerUnit : fitted();
-      const scene = stepDiagramScene(source.picture.model, source.picture.mirrored, style, sheetMm);
+      const { model, mirrored } = source.picture;
+      const scene = stepDiagramScene(model, mirrored, style, sheetMm);
       // Built at its size on the page: one scene px is one CSS px of it.
       const placed = placedScene(scene, stepDiagramPaintStyle(style), box, PT_PER_CSS_PX);
       const letters = labelsOf(source.picture);
+      // Its frame is its sheet, wherever its letters reach.
+      const sheet = stepDiagramSheetBox(model, mirrored, sheetMm);
       return {
-        markup: placed.markup.replaceAll(`font-family="${LABEL_FONT}"`, `font-family="'Noto Sans', sans-serif"`),
+        markup: placed.markup.replaceAll(`font-family="${INLINE_LABEL_FONT}"`, `font-family="'Noto Sans', sans-serif"`),
         boundsPt: placed.boundsPt,
+        framePt: {
+          x: placed.boundsPt.x + (sheet.x - scene.bounds.minX) * PT_PER_CSS_PX,
+          y: placed.boundsPt.y + (sheet.y - scene.bounds.minY) * PT_PER_CSS_PX,
+          width: sheet.width * PT_PER_CSS_PX,
+          height: sheet.height * PT_PER_CSS_PX,
+        },
         text: letters === '' ? [] : [{ face: fontFaceId({ key: 'latin', weight: 700 }), characters: letters }],
       };
     }
@@ -234,6 +260,7 @@ function draw(
           `<svg x="${num(x)}" y="${num(y)}" width="${num(width)}" height="${num(height)}" ` +
           `viewBox="0 0 ${num(painted.widthPx)} ${num(painted.heightPx)}" overflow="visible">${body}</svg>`,
         boundsPt: { x, y, width, height },
+        framePt: { x, y, width, height },
         text: [...usage].map(([face, characters]) => ({ face, characters })),
       };
     }

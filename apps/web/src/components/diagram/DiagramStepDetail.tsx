@@ -24,15 +24,21 @@ import {
   type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
 import { stepPictureSource } from '../../diagram/pictures/paintDiagramStep';
-import { stepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
+import { annotatedStepUrl } from '../../diagram/pictures/useStepPictureUrl';
+import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
+import type { DiagramDetailMode } from '../../store/workspaceStore/types';
+import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { Toolbar } from '../ui/Toolbar';
 import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
 import { DiagramPose3dView } from './DiagramPose3dView';
+import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
+import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 import styles from './DiagramStepDetail.module.css';
 
 const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
@@ -43,13 +49,18 @@ const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
   reset: Undo2,
 };
 
+/** How much of an annotation shows in Pose: a ghost of where it is (D8). */
+const POSE_ANNOTATION_OPACITY = 0.3;
+
 /**
- * One step, large: the step detail (Pose, for an upload).
+ * One step, large: the step detail, in Pose or Annotate.
  *
- * The top bar leads back to the list and walks the steps; the picture fills
- * what is left, posed by the toolbar under it. A step with no picture says so
- * and offers the ways to give it one; a newer build's step says it cannot be
- * shown here.
+ * The top bar leads back to the list, walks the steps and switches between
+ * Pose and Annotate. In Pose the picture fills what is left, its annotations
+ * ghosted, posed by the toolbar under it; in Annotate it is the canvas,
+ * Annotate's tools down its left (on a phone, a note to use a larger
+ * screen). A step with no picture says so and offers the ways to give it
+ * one; a newer build's step says it cannot be shown here.
  *
  * Takes focus when it opens, so the keys that follow — Escape back to the
  * list, the arrows and `[` / `]` to the next step — have somewhere to start,
@@ -62,6 +73,10 @@ export function DiagramStepDetail({
   number,
   count,
   readOnly,
+  mode,
+  onMode,
+  annotateTool,
+  onAnnotateTool,
   poseActions,
   linkedPose,
   onBack,
@@ -78,6 +93,11 @@ export function DiagramStepDetail({
   number: number;
   count: number;
   readOnly: boolean;
+  /** Pose or Annotate. */
+  mode: DiagramDetailMode;
+  onMode: (mode: DiagramDetailMode) => void;
+  annotateTool: AnnotateTool;
+  onAnnotateTool: (tool: AnnotateTool) => void;
   poseActions: readonly DiagramPoseAction[];
   /** A linked step's Pose: its verbs, and its live 3D view once folded. Null for any other step. */
   linkedPose: DiagramLinkedPose | null;
@@ -101,9 +121,16 @@ export function DiagramStepDetail({
     root.current?.focus({ preventScroll: true });
   }, []);
 
+  const phone = useIsPhoneLayout();
   const locked = isLockedStep(step);
   const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
-  const url = useMemo(() => (source ? stepPictureUrl(source, style) : null), [source, style]);
+  const { annotations } = step;
+  const url = useMemo(
+    () => (source ? annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY) : null),
+    [source, annotations, style]
+  );
+  // Annotate needs a picture to draw on.
+  const annotating = mode === 'annotate' && source !== null && !locked;
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
@@ -134,6 +161,24 @@ export function DiagramStepDetail({
             <ChevronRight size={15} />
           </IconButton>
         </div>
+        <SegmentedControl<DiagramDetailMode>
+          size="sm"
+          aria-label={t('panels:diagram.detail.mode', 'Mode')}
+          value={annotating ? 'annotate' : 'pose'}
+          options={[
+            { value: 'pose', label: t('panels:diagram.detail.pose', 'Pose') },
+            {
+              value: 'annotate',
+              label: t('panels:diagram.detail.annotate', 'Annotate'),
+              disabled: source === null || locked,
+              tooltip:
+                source === null || locked
+                  ? t('panels:diagram.detail.annotateNeedsPicture', 'Give the step a picture to annotate')
+                  : undefined,
+            },
+          ]}
+          onChange={onMode}
+        />
         <div className="panel-toolbar__group">
           <DiagramHistoryButtons />
           <Button size="sm" variant="primary" onClick={onBack}>
@@ -142,6 +187,20 @@ export function DiagramStepDetail({
           <div className="panel-toolbar__pills" ref={drawerSlot} />
         </div>
       </div>
+      {annotating ? (
+        phone ? (
+          <div className={styles.stage}>
+            <div className={styles.message}>
+              <p>{t('panels:diagram.annotate.largerScreen', 'Annotate on a larger screen: a tablet or a computer.')}</p>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.annotate}>
+            <DiagramAnnotateRail tool={annotateTool} readOnly={readOnly} onTool={onAnnotateTool} />
+            <DiagramAnnotateCanvas step={step} assets={assets} style={style} readOnly={readOnly} />
+          </div>
+        )
+      ) : (
       <div
         className={styles.stage}
         data-picture={(url !== null && !locked) || undefined}
@@ -216,6 +275,7 @@ export function DiagramStepDetail({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

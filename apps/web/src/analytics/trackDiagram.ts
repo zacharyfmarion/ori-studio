@@ -8,6 +8,7 @@ import {
   bucketCount,
 } from './events';
 import type {
+  DiagramAnnotationTool,
   DiagramCaptureKind,
   DiagramCaptureOutcome,
   DiagramCaptureVia,
@@ -63,6 +64,15 @@ export function trackDiagramPictureUploaded(
 /** A step opened in detail. */
 export function trackDiagramStepOpened(via: DiagramStepOpenedVia): void {
   track(ANALYTICS_EVENTS.diagramStepOpened, { via });
+}
+
+/**
+ * An annotation drawn on a step's picture, by its tool. Which marks a diagram
+ * is drawn with, and whether Annotate is used at all. Never where it is, nor
+ * a label's words.
+ */
+export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool });
 }
 
 /** A pose verb on an uploaded picture, and what the picture is. */

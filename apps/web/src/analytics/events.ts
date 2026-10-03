@@ -61,6 +61,19 @@ export type DiagramPictureUploadOutcome =
 /** How a step was opened in detail. */
 export type DiagramStepOpenedVia = 'keyboard' | 'double_click';
 
+/** The tool an annotation was drawn with: its kind, in the event's own spelling. */
+export type DiagramAnnotationTool =
+  | 'valley_arrow'
+  | 'mountain_arrow'
+  | 'fold_unfold_arrow'
+  | 'push_arrow'
+  | 'turn_over'
+  | 'rotate'
+  | 'valley_line'
+  | 'mountain_line'
+  | 'hidden_line'
+  | 'label';
+
 /**
  * A pose verb: on an uploaded picture (rotate, flip, reset), or on a linked one
  * (show it as its crease pattern or folded, turn it over, step to another layer
@@ -1061,6 +1074,8 @@ export const ANALYTICS_EVENTS = {
   diagramStepOpened: 'diagram step opened',
   /** An uploaded picture turned or flipped from the step detail or the Step pane. */
   diagramPicturePosed: 'diagram picture posed',
+  /** An annotation drawn on a step's picture, by the tool that drew it. */
+  diagramAnnotationAdded: 'diagram annotation added',
   /** A step's picture taken away (Remove picture). */
   diagramPictureRemoved: 'diagram picture removed',
   /**

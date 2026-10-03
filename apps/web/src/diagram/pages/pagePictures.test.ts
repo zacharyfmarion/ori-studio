@@ -75,6 +75,71 @@ describe('cellPicture', () => {
     expect(picture.text).toEqual([{ face: 'latin-700', characters: 'A' }]);
   });
 
+  describe('annotations', () => {
+    const annotated = (step: DiagramStep): DiagramStep => ({
+      ...step,
+      annotations: [
+        { id: 'a-1', kind: 'valley-line', from: [0, 0.5], to: [1, 0.5] },
+        { id: 'a-2', kind: 'push-arrow', from: [-0.4, 0.5], to: [0.1, 0.5] },
+        { id: 'a-3', kind: 'label', from: [0.5, 0.1], to: [0.5, 0.1], text: 'B 折' },
+        { id: 'a-4', kind: 'rotate', from: [0.8, 0.8], to: [0.8, 0.8], rotate: { amount: 'half', direction: 'cw' } },
+      ],
+    });
+
+    it('draws them on the picture’s frame, at the cell’s size', () => {
+      const plain = cellPicture(bitmapStep(null), assets, style, cell, 'c0-', TEXT)!;
+      const picture = cellPicture(annotated(bitmapStep(null)), assets, style, cell, 'c0-', TEXT)!;
+      expect(picture.markup.startsWith(plain.markup)).toBe(true);
+      // The valley line runs across the frame, which is the fitted bitmap's box.
+      const [, x1, , x2] = /<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)"/.exec(picture.markup)!.map(Number);
+      expect(x1).toBeCloseTo(plain.boundsPt.x, 1);
+      expect(x2).toBeCloseTo(plain.boundsPt.x + plain.boundsPt.width, 1);
+    });
+
+    it('says what their text sets, its Han in the diagram’s style', () => {
+      const picture = cellPicture(annotated(bitmapStep(null)), assets, style, cell, 'c0-', { ...TEXT, hanStyle: 'jp' })!;
+      expect(picture.markup).toContain(`font-family="'Noto Sans JP', sans-serif"`);
+      const faces = Object.fromEntries(picture.text.map(({ face, characters }) => [face, characters]));
+      expect(faces['jp-400']).toBe('折');
+      expect(faces['latin-400']).toContain('B');
+      // A text's spaces are set in Noto Sans at its weight, as an upload's are.
+      expect(faces['latin-700']).toBe(' 1/2');
+    });
+
+    it('crops a step’s file to reach the arrow that starts off the picture', () => {
+      const plain = cellPicture(bitmapStep(null), assets, style, cell, 'c0-', TEXT)!;
+      const picture = cellPicture(annotated(bitmapStep(null)), assets, style, cell, 'c0-', TEXT)!;
+      expect(picture.boundsPt.x).toBeLessThan(plain.boundsPt.x - 0.3 * plain.boundsPt.width);
+    });
+
+    it('draws an arrow as References draws its own on the same page: one pen, one head', () => {
+      // The References card's fold arrow, and an annotation of the same arrow beside it.
+      const step = {
+        ...referencesStep('step-sent'),
+        annotations: [{ id: 'a', kind: 'fold-unfold-arrow' as const, from: [0.2, 0.2] as [number, number], to: [0.8, 0.2] as [number, number], bend: 0.134 }],
+      };
+      const picture = cellPicture(step, {}, style, { ...cell, mmPerUnit: 20 }, 'c1-', TEXT)!;
+      const scales = [...picture.markup.matchAll(/<g transform="translate\([^)]*\) scale\(([\d.]+)\)">/g)].map((match) => Number(match[1]));
+      // Both are placed at the page's own scale, a CSS px a CSS px.
+      expect(new Set(scales)).toEqual(new Set([0.75]));
+      const widths = [...picture.markup.matchAll(/<path d="M [^"]*A [^"]*"[^>]*stroke-width="([\d.]+)"/g)].map((match) => Number(match[1]));
+      // Two strokes from the card's arrow, two from the annotation's: one pen.
+      expect(widths.length).toBeGreaterThanOrEqual(4);
+      expect(new Set(widths).size).toBe(1);
+    });
+
+    it('measures a References step’s from its sheet, not its letters', () => {
+      const step = { ...referencesStep('step-sent'), annotations: [{ id: 'a', kind: 'valley-line' as const, from: [0, 0] as [number, number], to: [1, 1] as [number, number] }] };
+      const picture = cellPicture(step, {}, style, { ...cell, mmPerUnit: 20 }, 'c1-', TEXT)!;
+      const [, x1, y1, x2, y2] = /<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)" y2="([\d.]+)"[^>]*stroke-dasharray/
+        .exec(picture.markup.slice(picture.markup.lastIndexOf('stroke-linejoin')))!
+        .map(Number);
+      // One sheet unit at 20 mm: the diagonal spans the sheet.
+      expect(x2! - x1!).toBeCloseTo(20 * PT_PER_MM, 1);
+      expect(y2! - y1!).toBeCloseTo(20 * PT_PER_MM, 1);
+    });
+  });
+
   describe('an upload’s text', () => {
     const upload = (body: string): KnownDiagramAsset => {
       const result = sanitizeSvg(`<svg xmlns="${SVG_NS}" viewBox="0 0 100 50">${body}</svg>`, {

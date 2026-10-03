@@ -24,7 +24,11 @@ import type { OristudioCpSelection } from '../lib/creasePatternViewport';
 import type { CpSelectionTransform } from '../lib/creasePatternClipboard';
 import type { Point } from '../lib/geometry';
 import type { OristudioCpOperationId } from '../lib/oristudioCpCommands';
-import type { OristudioCpSurfaceRequestKind } from '../store/workspaceStore/types';
+import type {
+  DiagramDetailMode,
+  OristudioCpSurfaceRequestKind,
+  WorkspaceState,
+} from '../store/workspaceStore/types';
 import type { EditingContext } from '../workspaces/editingContext';
 import type {
 } from '../engine/oristudioBpTypes';
@@ -215,7 +219,10 @@ export interface WorkspaceCommands {
   ): Promise<boolean>;
   transformOristudioCpSelection(transform: CpSelectionTransform): Promise<boolean>;
   diagramSelectedStepId: string | null;
+  diagramDetail: DiagramDetailMode | null;
+  diagramSelectedAnnotationId: string | null;
   confirmDeleteDiagramSteps(stepIds: readonly string[]): Promise<boolean>;
+  editDiagramAnnotations: WorkspaceState['editDiagramAnnotations'];
 }
 
 function selectedCpDeletePoints(
@@ -567,6 +574,18 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         if (deps.workspace.activeEditingContext === 'diagram') {
           const stepId = deps.workspace.diagramSelectedStepId;
           if (stepId === null) return false;
+          // Annotate deletes the selected annotation, and only that: the step
+          // it is drawn on is not what the key was pressed at.
+          if (deps.workspace.diagramDetail === 'annotate') {
+            const annotationId = deps.workspace.diagramSelectedAnnotationId;
+            if (annotationId === null) return false;
+            return deps.workspace.editDiagramAnnotations(
+              stepId,
+              'Delete annotation',
+              (annotations) => annotations.filter((annotation) => annotation.id !== annotationId),
+              { select: null }
+            );
+          }
           return deps.workspace.confirmDeleteDiagramSteps([stepId]);
         }
         // *What* to delete is the design kind's answer, asked once. *How* stays

@@ -1,4 +1,5 @@
-import type { DiagramShortcutId } from '../../keyboard/shortcuts';
+import type { DiagramAnnotateShortcutId, DiagramShortcutId } from '../../keyboard/shortcuts';
+import { toolForShortcut, type AnnotateTool } from '../annotate/annotateTools';
 
 /** What the Diagram's keys act on: the steps in order, and which is selected. */
 export interface DiagramKeyState {
@@ -13,6 +14,8 @@ export interface DiagramKeyState {
   readOnly: boolean;
   /** The step detail is open on the selected step. */
   detailOpen?: boolean;
+  /** The detail is in Annotate: its tool, its selected annotation, and whether that is a fold arrow. */
+  annotate?: { tool: AnnotateTool; selectedAnnotationId: string | null; selectedIsArrow: boolean } | null;
 }
 
 export interface DiagramKeyActions {
@@ -23,6 +26,12 @@ export interface DiagramKeyActions {
   open: (stepId: string) => void;
   /** Leave the detail for the list. */
   close: () => void;
+  /** Annotate's verbs. */
+  setTool?: (tool: AnnotateTool) => void;
+  selectAnnotation?: (annotationId: string | null) => void;
+  flipArc?: () => void;
+  /** Drop the drag the canvas has in hand, if it has one; whether it had. */
+  cancelGesture?: () => boolean;
 }
 
 /**
@@ -46,6 +55,7 @@ export function runDiagramShortcut(
   actions: DiagramKeyActions
 ): boolean {
   const { stepIds, selectedStepId } = state;
+  if (isAnnotateShortcut(id)) return runDiagramAnnotateShortcut(id, state, actions);
   if (stepIds.length === 0) return false;
   const anchor = selectedStepId ?? state.focusedStepId ?? null;
   const index = anchor === null ? -1 : stepIds.indexOf(anchor);
@@ -82,16 +92,69 @@ export function runDiagramShortcut(
   }
 }
 
+const ANNOTATE_SHORTCUTS: ReadonlySet<string> = new Set<DiagramAnnotateShortcutId>([
+  'diagram.toolValleyArrow',
+  'diagram.toolMountainArrow',
+  'diagram.toolFoldUnfoldArrow',
+  'diagram.toolPushArrow',
+  'diagram.toolTurnOver',
+  'diagram.toolRotate',
+  'diagram.toolValleyLine',
+  'diagram.toolMountainLine',
+  'diagram.toolHiddenLine',
+  'diagram.toolLabel',
+  'diagram.flipArc',
+]);
+
+export function isAnnotateShortcut(id: DiagramShortcutId): id is DiagramAnnotateShortcutId {
+  return ANNOTATE_SHORTCUTS.has(id);
+}
+
 /**
- * Escape in the Diagram: one ladder, each press undoing the innermost thing —
- * leave the step detail, then deselect the step — and then it declines, so
- * Escape reaches whatever is beneath. Annotate adds the rungs above these:
- * cancel a drag, deselect an annotation, put the tool down.
+ * Annotate's keys: a tool's letter picks it — pressed again, back to Select —
+ * and F flips the selected fold arrow. Outside Annotate, and on a diagram
+ * that cannot change, they decline: the letters are a crease-pattern tool's
+ * too, and nothing here should eat them.
+ */
+export function runDiagramAnnotateShortcut(
+  id: DiagramAnnotateShortcutId,
+  state: Pick<DiagramKeyState, 'annotate' | 'readOnly'>,
+  actions: Pick<DiagramKeyActions, 'setTool' | 'flipArc'>
+): boolean {
+  const annotate = state.annotate;
+  if (!annotate || state.readOnly) return false;
+  if (id === 'diagram.flipArc') {
+    if (!annotate.selectedIsArrow || !actions.flipArc) return false;
+    actions.flipArc();
+    return true;
+  }
+  const tool = toolForShortcut(id);
+  if (tool === undefined || !actions.setTool) return false;
+  actions.setTool(annotate.tool === tool ? null : tool);
+  return true;
+}
+
+/**
+ * Escape in the Diagram: one ladder, each press undoing the innermost thing
+ * (D12) — drop the drag in progress, deselect the annotation, put the tool
+ * down, leave the step detail, deselect the step — and then it declines, so
+ * Escape reaches whatever is beneath.
  */
 export function runDiagramCancel(
-  state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen'>,
-  actions: Pick<DiagramKeyActions, 'select' | 'close'>
+  state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen' | 'annotate'>,
+  actions: Pick<DiagramKeyActions, 'select' | 'close' | 'cancelGesture' | 'selectAnnotation' | 'setTool'>
 ): boolean {
+  if (state.annotate) {
+    if (actions.cancelGesture?.()) return true;
+    if (state.annotate.selectedAnnotationId !== null && actions.selectAnnotation) {
+      actions.selectAnnotation(null);
+      return true;
+    }
+    if (state.annotate.tool !== null && actions.setTool) {
+      actions.setTool(null);
+      return true;
+    }
+  }
   if (state.detailOpen) {
     actions.close();
     return true;

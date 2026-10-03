@@ -23,6 +23,7 @@ function deps(): DiagramStepActionDeps {
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
     fromReferences: vi.fn(),
+    annotate: vi.fn(),
     exportPicture: vi.fn(),
     removePicture: vi.fn(),
     remove: vi.fn(),
@@ -65,6 +66,7 @@ describe('the diagram step verbs', () => {
       'upload-picture',
       'link-pattern',
       'from-references',
+      'annotate',
       'export-picture',
       'remove-picture',
       'after-picture',
@@ -160,6 +162,17 @@ describe('the diagram step verbs', () => {
     expect(diagramStepCommand(pictured, 'remove-picture')?.disabled).toBe(false);
     // A newer build's step is only carried: it gets no picture from this one.
     expect(diagramStepCommand(build({ locked: true }), 'upload-picture')?.disabled).toBe(true);
+  });
+
+  it('annotates only a step with a picture this build can change', () => {
+    const bound = deps();
+    expect(diagramStepCommand(build({}), 'annotate')).toMatchObject({
+      disabled: true,
+      hint: 'Give the step a picture to annotate',
+    });
+    diagramStepCommand(build({ hasPicture: true, hasSource: true }, bound), 'annotate')?.run();
+    expect(bound.annotate).toHaveBeenCalledOnce();
+    expect(diagramStepCommand(build({ locked: true, hasPicture: true }), 'annotate')?.disabled).toBe(true);
   });
 
   it('links a step to a pattern, or relinks one, only with a pattern open', () => {

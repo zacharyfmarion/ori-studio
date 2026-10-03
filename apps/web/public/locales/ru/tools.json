@@ -237,13 +237,24 @@
   "diagram": {
     "categoryLabel": "Схема",
     "firstStep": "Первый шаг",
+    "flipArc": "Перевернуть дугу",
     "lastStep": "Последний шаг",
     "moveStepEarlier": "Переместить шаг раньше",
     "moveStepLater": "Переместить шаг позже",
     "nextStep": "Следующий шаг",
     "openStep": "Открыть шаг",
     "previousStep": "Предыдущий шаг",
-    "scopeLabel": "схема"
+    "scopeLabel": "схема",
+    "toolFoldUnfoldArrow": "Стрелка «сложить и разложить»",
+    "toolHiddenLine": "Скрытая линия",
+    "toolLabel": "Подпись",
+    "toolMountainArrow": "Стрелка горы",
+    "toolMountainLine": "Линия горы",
+    "toolPushArrow": "Стрелка нажатия",
+    "toolRotate": "Повернуть",
+    "toolTurnOver": "Перевернуть",
+    "toolValleyArrow": "Стрелка долины",
+    "toolValleyLine": "Линия долины"
   },
   "divideMode": {
     "count": "Количество",

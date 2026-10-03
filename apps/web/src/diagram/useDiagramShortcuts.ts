@@ -9,9 +9,12 @@ import type { DiagramShortcutId, ViewportShortcutId } from '../keyboard/shortcut
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
+import { flipAnnotationArc, isArrowKind } from './annotate/annotationModel';
+import { isKnownAnnotation, stepIndex, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
   focusLeavesEnterToSteps,
   focusOwnsArrowKeys,
+  isAnnotateShortcut,
   runDiagramCancel,
   runDiagramShortcut,
   type DiagramKeyActions,
@@ -25,7 +28,27 @@ function keyState(state: WorkspaceState): DiagramKeyState {
     focusedStepId: focusedStepId(),
     readOnly: state.diagramReadOnly,
     detailOpen: state.diagramDetail !== null,
+    annotate:
+      state.diagramDetail === 'annotate'
+        ? {
+            tool: state.diagramAnnotateTool,
+            selectedAnnotationId: state.diagramSelectedAnnotationId,
+            selectedIsArrow: isArrowAnnotation(selectedAnnotation(state)),
+          }
+        : null,
   };
+}
+
+function isArrowAnnotation(annotation: KnownDiagramAnnotation | null): boolean {
+  return annotation !== null && isArrowKind(annotation.kind);
+}
+
+/** The selected annotation, when it is one this build reads. */
+function selectedAnnotation(state: WorkspaceState): KnownDiagramAnnotation | null {
+  const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: id } = state;
+  if (!diagram || stepId === null || id === null) return null;
+  const annotation = diagram.steps[stepIndex(diagram, stepId)]?.annotations.find((candidate) => candidate.id === id);
+  return annotation && isKnownAnnotation(annotation) ? annotation : null;
 }
 
 /** The step whose card has focus, if one does. */
@@ -43,6 +66,28 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
       openDiagramStep(stepId, 'keyboard');
     },
     close: state.closeDiagramStep,
+    setTool: state.setDiagramAnnotateTool,
+    selectAnnotation: state.selectDiagramAnnotation,
+    flipArc: () => {
+      const stepId = state.diagramSelectedStepId;
+      const id = state.diagramSelectedAnnotationId;
+      if (stepId === null || id === null) return;
+      state.editDiagramAnnotations(stepId, 'Flip arc', (annotations) =>
+        annotations.map((annotation) => (annotation.id === id ? flipAnnotationArc(annotation) : annotation))
+      );
+    },
+    cancelGesture: () => gestureCancel?.() ?? false,
+  };
+}
+
+/** The Annotate canvas's drag, which Escape's first rung drops. */
+let gestureCancel: (() => boolean) | null = null;
+
+/** Hand Escape the canvas's drag: `cancel` drops it and says whether there was one. Returns its release. */
+export function registerDiagramGestureCancel(cancel: () => boolean): () => void {
+  gestureCancel = cancel;
+  return () => {
+    if (gestureCancel === cancel) gestureCancel = null;
   };
 }
 
@@ -92,10 +137,12 @@ export function useDiagramShortcuts(handlers: {
     const offScope = registerDiagramShortcutExecutor((id: DiagramShortcutId) => {
       // Enter belongs to whatever else has focus (a button clicks on it, a
       // link follows); the arrows only to the controls that use them.
+      // Annotate's letters belong to no control that is not a field, and the
+      // dispatcher stands down for fields before this runs.
       const declines =
         id === 'diagram.openStep'
           ? !focusLeavesEnterToSteps(document.activeElement)
-          : focusOwnsArrowKeys(document.activeElement);
+          : !isAnnotateShortcut(id) && focusOwnsArrowKeys(document.activeElement);
       if (declines) return false;
       const state = useWorkspaceStore.getState();
       return runDiagramShortcut(id, keyState(state), keyActions(state));

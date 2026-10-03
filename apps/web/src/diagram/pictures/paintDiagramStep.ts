@@ -18,7 +18,7 @@
  * Pure: no DOM, no store.
  */
 import { DEFAULT_PAPER_SIZE_MM, type PaperPage, type PaperSizeMeasure } from '../../lib/paper/paperPage';
-import { PT_PER_CSS_PX, paperSceneToSvg } from '../../lib/paper/paperSvg';
+import { PT_PER_CSS_PX, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import {
   isLockedStep,
@@ -35,10 +35,20 @@ import { SVG_NS } from '../upload/svgSanitize';
 import { diagramSurfaceStyle } from './diagramPaperStyle';
 import { paintStepDiagram } from './paintStepDiagram';
 
+/** A box in a painted picture, in its CSS px. */
+export interface PictureBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface PaintedPicture {
   svg: string;
   widthPx: number;
   heightPx: number;
+  /** The picture's frame (D8) on it: where its annotations are measured from. */
+  frame: PictureBox;
 }
 
 export interface PicturePose {
@@ -89,15 +99,16 @@ function assetMarkup(asset: KnownDiagramAsset): string {
 /** An asset in a pose, as a standalone SVG document. The asset itself when upright. */
 export function paintAsset(asset: KnownDiagramAsset, pose: PicturePose = UPRIGHT): PaintedPicture {
   const posed = poseTransform(asset.widthPx, asset.heightPx, pose);
+  const frame = { x: 0, y: 0, width: posed.widthPx, height: posed.heightPx };
   if (asset.kind === 'svg' && posed.transform === '') {
-    return { svg: asset.svg, widthPx: asset.widthPx, heightPx: asset.heightPx };
+    return { svg: asset.svg, widthPx: asset.widthPx, heightPx: asset.heightPx, frame };
   }
   const body = assetMarkup(asset);
   const inner = posed.transform === '' ? body : `<g transform="${posed.transform}">${body}</g>`;
   const svg =
     `<svg xmlns="${SVG_NS}" width="${num(posed.widthPx)}" height="${num(posed.heightPx)}" ` +
     `viewBox="0 0 ${num(posed.widthPx)} ${num(posed.heightPx)}">${inner}</svg>`;
-  return { svg, widthPx: posed.widthPx, heightPx: posed.heightPx };
+  return { svg, widthPx: posed.widthPx, heightPx: posed.heightPx, frame };
 }
 
 /**
@@ -174,11 +185,23 @@ export function paintScene(
   }
   const scene = readPaperScene(raw);
   if (!scene) return null;
-  const painted = paperSceneToSvg(scene, diagramSurfaceStyle(style), stepScenePage(paddingMm), measure);
+  const surface = diagramSurfaceStyle(style);
+  const page = stepScenePage(paddingMm);
+  const painted = paperSceneToSvg(scene, surface, page, measure);
+  // The frame is the scene's bounds, which the painter puts at the margin.
+  const ptPerPx = pagePtPerPx(scene, page, measure);
+  const marginPx = pageMarginPt(surface, page) / PT_PER_CSS_PX;
+  const { bounds } = scene;
   return {
     svg: painted.svg,
     widthPx: painted.widthPt / PT_PER_CSS_PX,
     heightPx: painted.heightPt / PT_PER_CSS_PX,
+    frame: {
+      x: marginPx,
+      y: marginPx,
+      width: ((bounds.maxX - bounds.minX) * ptPerPx) / PT_PER_CSS_PX,
+      height: ((bounds.maxY - bounds.minY) * ptPerPx) / PT_PER_CSS_PX,
+    },
   };
 }
 
@@ -193,8 +216,10 @@ export function paintSource(
       return paintAsset(source.asset, source.pose);
     case 'scene':
       return paintScene(source.picture, source.measure, style, paddingMm);
-    case 'fixed':
-      return { svg: source.picture.svg, widthPx: source.picture.widthPx, heightPx: source.picture.heightPx };
+    case 'fixed': {
+      const { svg, widthPx, heightPx } = source.picture;
+      return { svg, widthPx, heightPx, frame: { x: 0, y: 0, width: widthPx, height: heightPx } };
+    }
     case 'step-diagram':
       // On the page every picture opens at, as a scene is: built at its size.
       return paintStepDiagram(

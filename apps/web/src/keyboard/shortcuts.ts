@@ -88,7 +88,22 @@ export type DiagramShortcutId =
   | 'diagram.lastStep'
   | 'diagram.openStep'
   | 'diagram.moveStepEarlier'
-  | 'diagram.moveStepLater';
+  | 'diagram.moveStepLater'
+  | DiagramAnnotateShortcutId;
+
+/** Annotate's tools and Flip arc: live only while a step is open in Annotate. */
+export type DiagramAnnotateShortcutId =
+  | 'diagram.toolValleyArrow'
+  | 'diagram.toolMountainArrow'
+  | 'diagram.toolFoldUnfoldArrow'
+  | 'diagram.toolPushArrow'
+  | 'diagram.toolTurnOver'
+  | 'diagram.toolRotate'
+  | 'diagram.toolValleyLine'
+  | 'diagram.toolMountainLine'
+  | 'diagram.toolHiddenLine'
+  | 'diagram.toolLabel'
+  | 'diagram.flipArc';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
@@ -529,6 +544,20 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
     { alt: true, key: 'arrowright' },
     { alt: true, key: 'arrowdown' },
   ]),
+  // Annotate's tools (D8). Letters a crease-pattern tool also has: the
+  // diagram scope is pushed only in the Diagram, never with `crease-pattern`,
+  // and its executor declines outside Annotate.
+  diagramShortcut('diagram.toolValleyArrow', 'Valley Fold Arrow', { key: 'v' }),
+  diagramShortcut('diagram.toolMountainArrow', 'Mountain Fold Arrow', { key: 'm' }),
+  diagramShortcut('diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow', { key: 'u' }),
+  diagramShortcut('diagram.toolPushArrow', 'Push Arrow', { key: 'p' }),
+  diagramShortcut('diagram.toolTurnOver', 'Turn Over', { key: 't' }),
+  diagramShortcut('diagram.toolRotate', 'Rotate', { key: 'r' }),
+  diagramShortcut('diagram.toolValleyLine', 'Valley Line', { shift: true, key: 'v' }),
+  diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
+  diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
+  diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
+  diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
 ];
 
 /**

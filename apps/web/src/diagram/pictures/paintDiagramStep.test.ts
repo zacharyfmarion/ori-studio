@@ -95,7 +95,13 @@ const raster: KnownDiagramAsset = {
 
 describe('paintAsset', () => {
   it('is an upright SVG itself', () => {
-    expect(paintAsset(svg)).toEqual({ svg: svg.svg, widthPx: 40, heightPx: 10 });
+    // Its frame is the whole of it.
+    expect(paintAsset(svg)).toEqual({
+      svg: svg.svg,
+      widthPx: 40,
+      heightPx: 10,
+      frame: { x: 0, y: 0, width: 40, height: 10 },
+    });
   });
 
   it('nests a posed SVG whole, so it stays vector', () => {
@@ -154,6 +160,7 @@ describe('paintStepPicture', () => {
       svg: fixedPicture().svg,
       widthPx: 20,
       heightPx: 10,
+      frame: { x: 0, y: 0, width: 20, height: 10 },
     });
   });
 

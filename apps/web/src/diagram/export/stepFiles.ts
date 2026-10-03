@@ -32,7 +32,7 @@ import {
   type LayoutStep,
   type SetLine,
 } from '../pages/diagramPageLayout';
-import { diagramLayoutSteps, diagramUploadTexts } from '../pages/diagramPages';
+import { diagramLabelTexts, diagramLayoutSteps, diagramUploadTexts } from '../pages/diagramPages';
 import { fontTextSetter } from '../pages/fontTextSetter';
 import { cellPicture } from '../pages/pagePictures';
 import {
@@ -133,7 +133,9 @@ export function prepareStepFiles(
     });
   });
   // An upload's text is set as its file is composed; what no font has is known now.
-  for (const { face, text } of diagramUploadTexts(document)) setter.runs(text, face);
+  for (const { face, text } of [...diagramUploadTexts(document), ...diagramLabelTexts(document)]) {
+    setter.runs(text, face);
+  }
   if (options.number) for (const { number } of files) setter.line(String(number), STEP_NUMBER_SIZE_MM, 700);
 
   return {

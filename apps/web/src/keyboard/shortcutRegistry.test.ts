@@ -232,19 +232,25 @@ describe('adopted single-key layout', () => {
 
   it('keeps the diagram scope off every always-present chord, and off Escape', () => {
     // The Diagram is a workspace of its own, like References, so it has no
-    // reason to take a key that a `global` or `crease-pattern` binding always
-    // claims. Its arrows and Enter coincide only with conditional and declining
-    // bindings (References' steps, the fold-angle solutions), which are never
-    // live where the Diagram is. Enter is here rather than on the viewport
-    // surface because `viewport.solveAnglesApply` holds it there, and the
-    // dispatcher runs only a scope's first match; its executor declines for a
-    // focused control, so a focused button keeps it. Escape stays off it: it is
+    // reason to take a key that a `global` binding always claims. Its arrows
+    // and Enter coincide only with conditional and declining bindings
+    // (References' steps, the fold-angle solutions), which are never live
+    // where the Diagram is. Enter is here rather than on the viewport surface
+    // because `viewport.solveAnglesApply` holds it there, and the dispatcher
+    // runs only a scope's first match; its executor declines for a focused
+    // control, so a focused button keeps it. Escape stays off it: it is
     // `viewport.cancel` and its ladder.
+    //
+    // `crease-pattern` is left out, and that is a claim about the stack: the
+    // diagram scope is pushed only in the Diagram's own context, where the
+    // crease-pattern scope never is (`shortcutRuntime.test.ts`), so Annotate's tool
+    // letters may be a crease-pattern tool's too.
     const alwaysPresent = new Set(
       SHORTCUT_DEFINITIONS.filter(
         (d) =>
           !isConditionalShortcutScope(d.scope) &&
           d.scope !== 'viewport' &&
+          d.scope !== 'crease-pattern' &&
           !shortcutMayDecline(d.id)
       ).flatMap((d) => d.defaultChords.map(keyChordId))
     );

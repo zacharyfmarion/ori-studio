@@ -107,6 +107,28 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.moveStepEarlier', 'Move Step Earlier');
     case 'diagram.moveStepLater':
       return t('tools:diagram.moveStepLater', 'Move Step Later');
+    case 'diagram.toolValleyArrow':
+      return t('tools:diagram.toolValleyArrow', 'Valley Fold Arrow');
+    case 'diagram.toolMountainArrow':
+      return t('tools:diagram.toolMountainArrow', 'Mountain Fold Arrow');
+    case 'diagram.toolFoldUnfoldArrow':
+      return t('tools:diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow');
+    case 'diagram.toolPushArrow':
+      return t('tools:diagram.toolPushArrow', 'Push Arrow');
+    case 'diagram.toolTurnOver':
+      return t('tools:diagram.toolTurnOver', 'Turn Over');
+    case 'diagram.toolRotate':
+      return t('tools:diagram.toolRotate', 'Rotate');
+    case 'diagram.toolValleyLine':
+      return t('tools:diagram.toolValleyLine', 'Valley Line');
+    case 'diagram.toolMountainLine':
+      return t('tools:diagram.toolMountainLine', 'Mountain Line');
+    case 'diagram.toolHiddenLine':
+      return t('tools:diagram.toolHiddenLine', 'Hidden Line');
+    case 'diagram.toolLabel':
+      return t('tools:diagram.toolLabel', 'Label');
+    case 'diagram.flipArc':
+      return t('tools:diagram.flipArc', 'Flip Arc');
     default:
       return definition.label;
   }

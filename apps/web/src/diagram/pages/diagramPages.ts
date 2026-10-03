@@ -17,6 +17,7 @@ import { layoutDiagramPages, type DiagramPagesLayout, type LayoutStep, type Text
 import { fontTextSetter } from './fontTextSetter';
 import { uploadTextRuns, type UploadTextRun } from '../upload/uploadText';
 import { layoutPicture } from './pagePictures';
+import { annotationTextRuns } from '../annotate/annotationPrimitives';
 
 export interface DiagramPagesDependencies {
   fontSource: DiagramFontSource;
@@ -59,17 +60,22 @@ export function layoutDiagram(document: DiagramDocument, setter: TextSetter): Di
 
 /**
  * Every text a diagram's pages set, at its weight: the title, the
- * instructions and the digits, and the runs of its uploads' text, each in the
- * CJK face it was given.
+ * instructions and the digits, and the runs of its uploads' text and its
+ * annotations' labels, each in the CJK face it was given.
  */
 export function diagramFontTexts(document: DiagramDocument): DiagramFontText[] {
   return [
     { text: document.title, weight: 700 },
     ...document.steps.map((step) => ({ text: step.text, weight: 400 as const })),
-    ...diagramUploadTexts(document).map(({ face, text }) =>
+    ...[...diagramUploadTexts(document), ...diagramLabelTexts(document)].map(({ face, text }) =>
       face.key === 'latin' ? { text, weight: face.weight } : { text, weight: face.weight, cjk: face.key }
     ),
   ];
+}
+
+/** The runs of text the diagram's steps' labels set. */
+export function diagramLabelTexts(document: DiagramDocument): UploadTextRun[] {
+  return document.steps.flatMap((step) => annotationTextRuns(step.annotations, document.hanStyle));
 }
 
 /** The runs of text in the uploads the diagram's steps show, each upload once. */
@@ -105,7 +111,9 @@ export function preparedPages(
   const setter = fontTextSetter((key, weight) => fonts.font(key, weight)?.metrics ?? null, document.hanStyle);
   const layout = layoutDiagram(document, setter);
   // An upload's text is set as its page is composed; what no font has is known now.
-  for (const { face, text } of diagramUploadTexts(document)) setter.runs(text, face);
+  for (const { face, text } of [...diagramUploadTexts(document), ...diagramLabelTexts(document)]) {
+    setter.runs(text, face);
+  }
   const steps = new Map(document.steps.map((step) => [step.id, step]));
   return {
     layout,

@@ -657,6 +657,7 @@
   "diagram": {
     "actions": {
       "addStep": "단계 추가",
+      "annotate": "주석",
       "capturingHint": "그림을 캡처하는 중입니다",
       "currentHint": "이미 패턴의 현재 모습을 보여 줍니다",
       "delete": "단계 삭제",
@@ -689,6 +690,43 @@
       "startPage": "여기서 새 페이지 시작",
       "uploadPicture": "그림 업로드…"
     },
+    "annotate": {
+      "arrowHelp": "종이가 움직이기 시작하는 곳에서 닿는 곳까지 드래그하세요.",
+      "canvasLabel": "단계 그림의 주석",
+      "controls": "주석 보기 컨트롤",
+      "foldUnfoldHelp": "종이가 움직이기 시작하는 곳에서 닿는 곳까지 드래그하세요. 접었다가 다시 펼칩니다.",
+      "glyphHelp": "기호를 놓을 곳을 클릭하세요.",
+      "groupArrows": "화살표",
+      "groupLines": "선",
+      "groupSelect": "선택",
+      "groupText": "텍스트",
+      "labelHelp": "레이블을 놓을 곳을 클릭한 다음 여기에 입력하세요.",
+      "largerScreen": "주석은 태블릿이나 컴퓨터처럼 더 큰 화면에서 달 수 있습니다.",
+      "lineHelp": "접힘선을 따라 드래그하세요.",
+      "pushHelp": "누를 곳을 향해 드래그하세요.",
+      "select": "선택",
+      "selectHelp": "주석을 클릭해 선택하세요. 주석이나 양 끝의 점을 드래그해 옮길 수 있습니다.",
+      "toolsLabel": "주석 도구"
+    },
+    "annotations": {
+      "annotate": "주석",
+      "axis": "뒤집는 방향",
+      "clockwise": "시계 방향",
+      "count_other": "주석 {{count}}개",
+      "counterclockwise": "시계 반대 방향",
+      "delete": "삭제",
+      "direction": "방향",
+      "empty": "아직 그린 것이 없습니다.",
+      "keep": "그대로 두기",
+      "list": "주석",
+      "newer": "이 단계의 주석 일부는 더 새로운 Ori Studio에서 만들어졌습니다. 보존되지만 여기에는 표시되지 않습니다.",
+      "none": "주석 없음",
+      "pictureChanged": "이 주석을 그린 뒤 그림이 바뀌었습니다.",
+      "sideToSide": "좌우",
+      "text": "텍스트",
+      "topToBottom": "위아래",
+      "turn": "회전량"
+    },
     "card": {
       "badgeCreasePattern": "전개도",
       "badgeEmpty": "비어 있음",
@@ -718,9 +756,12 @@
       "waitingReferences": "참조를 기다리는 중"
     },
     "detail": {
+      "annotate": "주석",
+      "annotateNeedsPicture": "주석을 달려면 단계에 그림을 넣으세요",
       "back": "단계 목록",
       "done": "완료",
       "locked": "이 단계는 최신 Ori Studio에서 만들어져 여기에서 표시할 수 없습니다.",
+      "mode": "모드",
       "next": "다음 단계",
       "noPicture": "이 단계에는 아직 그림이 없습니다.",
       "notCaptured": "아직 캡처되지 않음: 아래에서 패턴을 보여 줄 방법을 고르세요.",
@@ -888,6 +929,8 @@
     },
     "readOnlyNotice": "이 도해는 최신 Ori Studio에서 만들어져 여기서는 읽기 전용으로 열립니다. 저장해도 원래 내용이 그대로 유지됩니다.",
     "stepPane": {
+      "annotate": "주석",
+      "annotations": "주석",
       "instruction": "설명",
       "instructionLabel": "설명",
       "instructionPlaceholder": "이 단계를 설명하세요…",

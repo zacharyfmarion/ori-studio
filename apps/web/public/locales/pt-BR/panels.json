@@ -715,6 +715,7 @@
   "diagram": {
     "actions": {
       "addStep": "Adicionar passo",
+      "annotate": "Anotar",
       "capturingHint": "Sua imagem está sendo capturada",
       "currentHint": "Já mostra o padrão como ele está",
       "delete": "Excluir passo",
@@ -747,6 +748,45 @@
       "startPage": "Começar uma nova página aqui",
       "uploadPicture": "Enviar imagem…"
     },
+    "annotate": {
+      "arrowHelp": "Arraste de onde o papel começa até onde ele chega.",
+      "canvasLabel": "Anotações na imagem do passo",
+      "controls": "Controles da visualização Anotar",
+      "foldUnfoldHelp": "Arraste de onde o papel começa até onde ele chega: ele dobra e depois volta.",
+      "glyphHelp": "Clique onde o sinal deve ficar.",
+      "groupArrows": "Setas",
+      "groupLines": "Linhas",
+      "groupSelect": "Selecionar",
+      "groupText": "Texto",
+      "labelHelp": "Clique onde o rótulo deve ficar e digite-o aqui.",
+      "largerScreen": "Anote em uma tela maior: um tablet ou um computador.",
+      "lineHelp": "Arraste ao longo do vinco.",
+      "pushHelp": "Arraste em direção ao lugar a empurrar.",
+      "select": "Selecionar",
+      "selectHelp": "Clique em uma anotação para selecioná-la. Arraste-a, ou o ponto em qualquer uma das pontas, para movê-la.",
+      "toolsLabel": "Ferramentas de anotação"
+    },
+    "annotations": {
+      "annotate": "Anotar",
+      "axis": "Vira",
+      "clockwise": "Sentido horário",
+      "count_one": "{{count}} anotação",
+      "count_many": "{{count}} anotações",
+      "count_other": "{{count}} anotações",
+      "counterclockwise": "Sentido anti-horário",
+      "delete": "Excluir",
+      "direction": "Sentido",
+      "empty": "Nada desenhado ainda.",
+      "keep": "Manter aqui",
+      "list": "Anotações",
+      "newer": "Algumas anotações deste passo foram feitas com um Ori Studio mais novo. Elas são mantidas, mas não aparecem aqui.",
+      "none": "Nenhuma anotação",
+      "pictureChanged": "A imagem mudou desde que estas anotações foram desenhadas.",
+      "sideToSide": "De lado a lado",
+      "text": "Texto",
+      "topToBottom": "De cima para baixo",
+      "turn": "Giro"
+    },
     "card": {
       "badgeCreasePattern": "Padrão de vincos",
       "badgeEmpty": "Vazio",
@@ -776,9 +816,12 @@
       "waitingReferences": "Aguardando Referências"
     },
     "detail": {
+      "annotate": "Anotar",
+      "annotateNeedsPicture": "Dê uma imagem ao passo para anotá-lo",
       "back": "Passos",
       "done": "Concluído",
       "locked": "Este passo foi criado com uma versão mais recente do Ori Studio e não pode ser exibido aqui.",
+      "mode": "Modo",
       "next": "Próximo passo",
       "noPicture": "Este passo ainda não tem imagem.",
       "notCaptured": "Ainda não capturado: escolha abaixo como mostrar o padrão.",
@@ -954,6 +997,8 @@
     },
     "readOnlyNotice": "Este diagrama foi criado com uma versão mais recente do Ori Studio, por isso abre aqui somente para leitura. Ao salvar, ele é mantido exatamente como veio.",
     "stepPane": {
+      "annotate": "Anotar",
+      "annotations": "Anotações",
       "instruction": "Instrução",
       "instructionLabel": "Instrução",
       "instructionPlaceholder": "Descreva este passo…",

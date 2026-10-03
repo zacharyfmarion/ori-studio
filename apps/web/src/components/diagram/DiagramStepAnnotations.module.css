@@ -1,0 +1,117 @@
+/* The Step pane's annotations (DiagramStepAnnotations.tsx). */
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.annotations {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.tool {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-1) var(--space-3) 0;
+}
+
+.toolName {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.help {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.notice {
+  padding: 0 var(--space-3);
+}
+
+.noticeText {
+  margin: 0 0 var(--space-1);
+}
+
+.empty {
+  margin: 0;
+  padding: 0 var(--space-3);
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+}
+
+.list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 28px;
+  padding: 2px var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.76rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.row[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+  color: var(--text-primary);
+}
+
+.rowName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .row {
+    min-height: var(--touch-target);
+  }
+}
+
+.selected {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.verbs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}

@@ -221,13 +221,24 @@
   "diagram": {
     "categoryLabel": "Diagramm",
     "firstStep": "Erster Schritt",
+    "flipArc": "Bogen umkehren",
     "lastStep": "Letzter Schritt",
     "moveStepEarlier": "Schritt nach vorne",
     "moveStepLater": "Schritt nach hinten",
     "nextStep": "Nächster Schritt",
     "openStep": "Schritt öffnen",
     "previousStep": "Vorheriger Schritt",
-    "scopeLabel": "Diagramm"
+    "scopeLabel": "Diagramm",
+    "toolFoldUnfoldArrow": "Falten-und-Öffnen-Pfeil",
+    "toolHiddenLine": "Verdeckte Linie",
+    "toolLabel": "Beschriftung",
+    "toolMountainArrow": "Bergfaltpfeil",
+    "toolMountainLine": "Bergfaltlinie",
+    "toolPushArrow": "Eindrückpfeil",
+    "toolRotate": "Drehen",
+    "toolTurnOver": "Umdrehen",
+    "toolValleyArrow": "Talfaltpfeil",
+    "toolValleyLine": "Talfaltlinie"
   },
   "divideMode": {
     "count": "Anzahl",

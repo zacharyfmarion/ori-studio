@@ -42,8 +42,10 @@ import { DIAGRAM_SCOPED_KEYS, discardDiagramState } from './diagramState';
 import { registerPendingEditFlush, resetPendingEditsForTests } from '../../lib/pendingEdits';
 import { readDiagram } from '../../diagram/document/diagramFile';
 import {
+  annotationsOutOfStep,
   stepAsset,
   stepIndex,
+  type KnownDiagramAnnotation,
   type KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
 import { sanitizeSvg } from '../../diagram/upload/svgSanitize';
@@ -246,7 +248,7 @@ vi.mock('./oristudioCpRuntime', async (importOriginal) => {
 });
 
 import type { EngineClient } from './engineRuntime';
-import { selectWorkspaceCapabilities } from './capabilities';
+import { hasDeletableDiagramSelection, selectWorkspaceCapabilities } from './capabilities';
 import { useWorkspaceStore } from './store';
 
 type SnapshotOptions = Partial<
@@ -10124,4 +10126,121 @@ describe('the project diagram', () => {
     });
   });
 
+
+  describe('annotating a step', () => {
+    const ARROW: KnownDiagramAnnotation = { id: 'a-1', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.5, 0.2], bend: 0.1 };
+    const LABEL: KnownDiagramAnnotation = { id: 'a-2', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' };
+
+    function pictured(): string {
+      const result = sanitizeSvg(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"><rect width="20" height="10"/></svg>',
+        { idPrefix: 'asset-pic', mode: 'import' }
+      );
+      if (!result.ok) throw new Error(result.error);
+      state().addDiagramPictures([
+        { id: 'asset-pic', kind: 'svg', svg: result.svg, widthPx: 40, heightPx: 30, bytes: result.svg.length },
+      ]);
+      const stepId = state().diagramSelectedStepId!;
+      state().openDiagramStep(stepId, 'annotate');
+      return stepId;
+    }
+    const step = (stepId: string) => state().diagram!.steps[stepIndex(state().diagram!, stepId)]!;
+    const add = (stepId: string, annotation: KnownDiagramAnnotation) =>
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [...list, annotation], { select: annotation.id });
+
+    it('adds one as one undo step, selected, drawn on the picture the step has', () => {
+      const stepId = pictured();
+      const past = state().diagramHistory.past.length;
+      expect(add(stepId, ARROW)).toBe(true);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      expect(state().diagramSelectedAnnotationId).toBe('a-1');
+      expect(step(stepId).annotatedPictureKey).toBe(step(stepId).picture!.key);
+      // An edit that changes nothing records nothing.
+      expect(state().editDiagramAnnotations(stepId, 'Nothing', (list) => list)).toBe(false);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+    });
+
+    it('makes a sitting at a label’s field one undo step, and nothing else extends it', () => {
+      const stepId = pictured();
+      add(stepId, LABEL);
+      const past = state().diagramHistory.past.length;
+      const text = (value: string, session: number) =>
+        state().editDiagramAnnotations(stepId, 'Edit label', (list) => list.map((a) => ({ ...a, text: value })), { session });
+      text('B', 7);
+      text('BC', 7);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      // An instruction's session is another field's, whatever its number.
+      state().setDiagramStepText(stepId, 'Fold.', { session: 7 });
+      text('BCD', 7);
+      expect(state().diagramHistory.past).toHaveLength(past + 3);
+      state().undoDiagram();
+      expect((step(stepId).annotations[0] as KnownDiagramAnnotation).text).toBe('BC');
+    });
+
+    it('lets go of the selected annotation with its step, the detail, or an undo that removes it', () => {
+      const stepId = pictured();
+      add(stepId, ARROW);
+      state().undoDiagram();
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+      state().redoDiagram();
+      state().selectDiagramAnnotation('a-1');
+      expect(state().diagramSelectedAnnotationId).toBe('a-1');
+      state().closeDiagramStep();
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+      state().openDiagramStep(stepId, 'annotate');
+      state().selectDiagramAnnotation('a-1');
+      state().selectDiagramStep(state().addDiagramStep());
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+      // One that is not on the selected step cannot be selected.
+      state().selectDiagramAnnotation('a-1');
+      expect(state().diagramSelectedAnnotationId).toBeNull();
+    });
+
+    it('keeps the tool and the selection out of history and unsaved work', () => {
+      const stepId = pictured();
+      add(stepId, ARROW);
+      useWorkspaceStore.setState({ dirty: false });
+      const past = state().diagramHistory.past.length;
+      state().setDiagramAnnotateTool('rotate');
+      state().selectDiagramAnnotation(null);
+      expect(state().diagramAnnotateTool).toBe('rotate');
+      expect(state().dirty).toBe(false);
+      expect(state().diagramHistory.past).toHaveLength(past);
+    });
+
+    it('says when the picture changed under them, until they are kept or touched', () => {
+      const stepId = pictured();
+      add(stepId, ARROW);
+      const result = sanitizeSvg(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"/>',
+        { idPrefix: 'asset-new', mode: 'import' }
+      );
+      if (!result.ok) throw new Error(result.error);
+      state().setDiagramStepPicture(stepId, { id: 'asset-new', kind: 'svg', svg: result.svg, widthPx: 10, heightPx: 10, bytes: 1 });
+      expect(annotationsOutOfStep(step(stepId))).toBe(true);
+      expect(state().keepDiagramAnnotations(stepId)).toBe(true);
+      expect(annotationsOutOfStep(step(stepId))).toBe(false);
+      expect(state().keepDiagramAnnotations(stepId)).toBe(false);
+    });
+
+    it('offers Delete for the selected annotation in Annotate, and for the step anywhere else', () => {
+      const stepId = pictured();
+      state().setActivePanelId('diagram');
+      expect(hasDeletableDiagramSelection(state())).toBe(false);
+      add(stepId, ARROW);
+      expect(hasDeletableDiagramSelection(state())).toBe(true);
+      state().selectDiagramAnnotation(null);
+      expect(hasDeletableDiagramSelection(state())).toBe(false);
+      state().openDiagramStep(stepId, 'pose');
+      expect(hasDeletableDiagramSelection(state())).toBe(true);
+    });
+
+    it('takes none on a step with no picture, or a diagram it cannot change', () => {
+      const stepId = state().addDiagramStep()!;
+      expect(add(stepId, ARROW)).toBe(false);
+      const pic = pictured();
+      useWorkspaceStore.setState({ diagramReadOnly: true });
+      expect(add(pic, ARROW)).toBe(false);
+    });
+  });
 });

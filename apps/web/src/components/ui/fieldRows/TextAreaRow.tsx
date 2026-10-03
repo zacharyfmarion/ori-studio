@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type Ref } from 'react';
 import { registerCanvasSessionEnder } from '../../../cp-workspace/canvasObjects/canvasSessions';
 import { registerPendingEditFlush } from '../../../lib/pendingEdits';
 import { isComposingKey } from './isComposingKey';
@@ -44,6 +44,8 @@ export function TextAreaRow({
   rows = 3,
   maxLength,
   idleMs = 600,
+  singleLine = false,
+  fieldRef,
   onCommit,
 }: {
   label: string;
@@ -61,6 +63,13 @@ export function TextAreaRow({
   maxLength?: number;
   /** How long typing must pause before the draft commits. */
   idleMs?: number;
+  /**
+   * One line of text, wrapped where it does not fit: Enter leaves the field
+   * as Escape does, and a line break pasted in is a space.
+   */
+  singleLine?: boolean;
+  /** The field itself, for a caller that puts the focus in it. */
+  fieldRef?: Ref<HTMLTextAreaElement>;
   onCommit: (value: string, session: number) => void;
 }) {
   const fieldId = useId();
@@ -106,6 +115,7 @@ export function TextAreaRow({
         {label}
       </label>
       <textarea
+        ref={fieldRef}
         id={fieldId}
         className={styles.field}
         value={draft ?? value}
@@ -115,7 +125,7 @@ export function TextAreaRow({
         maxLength={maxLength}
         onFocus={beginSession}
         onChange={(event) => {
-          const text = event.target.value;
+          const text = singleLine ? event.target.value.replace(/[\r\n]+/g, ' ') : event.target.value;
           // A change can arrive without a focus event (a test, an assistive
           // tool setting the value); it still needs a session of its own.
           if (session.current === 0) beginSession();
@@ -135,7 +145,10 @@ export function TextAreaRow({
         onKeyDown={(event) => {
           // An input method's Enter and Escape accept or cancel a conversion.
           if (isComposingKey(event)) return;
-          if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
+          if (
+            event.key === 'Escape' ||
+            (event.key === 'Enter' && (singleLine || event.metaKey || event.ctrlKey))
+          ) {
             event.preventDefault();
             event.currentTarget.blur();
           }

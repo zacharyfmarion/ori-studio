@@ -184,3 +184,79 @@ describe('DiagramStepPanel', () => {
   });
 });
 
+describe('DiagramStepPanel in Annotate', () => {
+  /** A step with a picture, open in Annotate, carrying a label and an arrow. */
+  function annotatedStep() {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30" viewBox="0 0 40 30"/>';
+    act(() => {
+      state().addDiagramPictures([{ id: 'asset-1', kind: 'svg', svg, widthPx: 40, heightPx: 30, bytes: svg.length }]);
+    });
+    const stepId = state().diagramSelectedStepId!;
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [
+        { id: 'a-1', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.5, 0.2], bend: 0.1 },
+        { id: 'a-2', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'B' },
+        { id: 'a-3', kind: 'rotate', from: [0.8, 0.8], to: [0.8, 0.8], rotate: { amount: 'quarter', direction: 'cw' } },
+      ]);
+    });
+    return stepId;
+  }
+  const annotations = () => state().diagram!.steps[0]!.annotations as { id: string; bend?: number; text?: string; rotate?: unknown }[];
+  const row = (name: string) =>
+    [...(host?.querySelectorAll<HTMLButtonElement>('ul button') ?? [])].find((candidate) => candidate.textContent === name)!;
+  const buttonNamed = (name: string) =>
+    [...(host?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find((candidate) => candidate.textContent?.trim() === name)!;
+
+  it('counts them out of Annotate, and leads in', () => {
+    const stepId = annotatedStep();
+    expect(host?.textContent).toContain('3 annotations');
+    act(() => buttonNamed('Annotate').click());
+    expect(state().diagramDetail).toBe('annotate');
+    expect(state().diagramSelectedStepId).toBe(stepId);
+  });
+
+  it('lists them, selects one with a press, and offers its own controls', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    expect(host?.textContent).toContain('Select');
+    act(() => row('Valley Fold Arrow').click());
+    expect(state().diagramSelectedAnnotationId).toBe('a-1');
+    expect(row('Valley Fold Arrow').getAttribute('aria-pressed')).toBe('true');
+    act(() => buttonNamed('Flip Arc').click());
+    expect(annotations()[0]!.bend).toBe(-0.1);
+    act(() => row('Rotate').click());
+    act(() => buttonNamed('1/2').click());
+    expect(annotations()[2]!.rotate).toEqual({ amount: 'half', direction: 'cw' });
+    act(() => buttonNamed('Delete').click());
+    expect(annotations().map((annotation) => annotation.id)).toEqual(['a-1', 'a-2']);
+    expect(state().diagramSelectedAnnotationId).toBeNull();
+  });
+
+  it('edits a label’s text in one line, and focuses it for a label just put down', async () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    const { requestLabelFocus } = await import('../../diagram/annotate/labelFocus');
+    act(() => {
+      requestLabelFocus('a-2');
+      state().selectDiagramAnnotation('a-2');
+    });
+    const field = host?.querySelector('textarea[maxlength="80"]') as HTMLTextAreaElement;
+    expect(document.activeElement).toBe(field);
+    setField(field, 'C\nD');
+    act(() => field.blur());
+    expect(annotations()[1]!.text).toBe('C D');
+  });
+
+  it('says when the picture changed under them, and keeps them on a press', () => {
+    const stepId = annotatedStep();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"/>';
+    act(() => {
+      state().setDiagramStepPicture(stepId, { id: 'asset-2', kind: 'svg', svg, widthPx: 10, heightPx: 10, bytes: 1 });
+    });
+    expect(host?.textContent).toContain('The picture changed since these annotations were drawn.');
+    act(() => buttonNamed('Keep Them Here').click());
+    expect(host?.textContent).not.toContain('The picture changed');
+  });
+});
+

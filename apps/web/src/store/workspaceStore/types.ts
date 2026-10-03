@@ -51,7 +51,9 @@ import type {
   SentReferencesStep,
   DiagramDocument,
   DiagramHanStyle,
+  DiagramAnnotationKind,
   DiagramPageSetup,
+  KnownDiagramAnnotation,
   DiagramPicture,
   DiagramStyle,
   KnownDiagramAsset,
@@ -1809,11 +1811,8 @@ export interface ExploriSlice {
 
 /** Which of the Diagram workspace's two views is showing. */
 export type DiagramViewMode = 'steps' | 'pages';
-/**
- * What the step detail is doing with the selected step: posing its picture
- * (Annotate arrives in Phase 7).
- */
-export type DiagramDetailMode = 'pose';
+/** What the step detail is doing with the selected step: posing its picture, or annotating it. */
+export type DiagramDetailMode = 'pose' | 'annotate';
 
 export interface DiagramSliceState {
   /**
@@ -1841,6 +1840,16 @@ export interface DiagramSliceState {
    * open without a selection: whatever clears the selection closes it.
    */
   diagramDetail: DiagramDetailMode | null;
+  /**
+   * What Annotate draws with the next drag or click: a kind, or null for
+   * Select. Kept across steps, and across a visit to another workspace (D14).
+   */
+  diagramAnnotateTool: DiagramAnnotationKind | null;
+  /**
+   * The annotation selected on the selected step, if any: what Delete, Flip
+   * arc and the Step pane's fields act on. Cleared with the step's selection.
+   */
+  diagramSelectedAnnotationId: string | null;
   /**
    * What sanitizing changed in the look of each upload this session, by asset:
    * the Step pane says so under the picture. Not saved, and gone with the
@@ -1939,6 +1948,27 @@ export interface DiagramSliceActions {
   openDiagramStep: (stepId: string, mode?: DiagramDetailMode) => boolean;
   /** Back to the list, keeping the step selected. */
   closeDiagramStep: () => void;
+  /** Keep a step's annotations where they are on the picture it has now (`keepStepAnnotations`). */
+  keepDiagramAnnotations: (stepId: string) => boolean;
+  /** Choose what Annotate draws next: a kind, or null for Select. */
+  setDiagramAnnotateTool: (tool: DiagramAnnotationKind | null) => void;
+  /** Select one of the selected step's annotations, or none. */
+  selectDiagramAnnotation: (annotationId: string | null) => void;
+  /**
+   * Edit a step's annotations as one undo step called `label`: `edit` gets
+   * the ones this build reads and returns them as they should be
+   * (`editStepAnnotations`). `select` selects one afterwards (null: none;
+   * absent: the selection stays, while its annotation does). `session` names
+   * one sitting at a label's field: its commits are one undo step, as an
+   * instruction's are. `loadId` drops an edit that outlived its diagram.
+   * Whether anything changed.
+   */
+  editDiagramAnnotations: (
+    stepId: string,
+    label: string,
+    edit: (annotations: readonly KnownDiagramAnnotation[]) => readonly KnownDiagramAnnotation[],
+    options?: { select?: string | null; session?: number; loadId?: number }
+  ) => boolean;
   /** Turn or flip an upload's picture; refused for a step `poseBlocker` names. */
   setDiagramStepPose: (stepId: string, pose: UploadPose) => boolean;
   setDiagramView: (view: DiagramViewMode) => void;

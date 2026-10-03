@@ -34,6 +34,14 @@ import { readPaperScene } from '../../lib/paper/paperSceneValidate';
 import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
+  ANNOTATION_REACH,
+  ARROW_BEND,
+  DEFAULT_ROTATION,
+  LABEL_MAX_LENGTH,
+  MAX_BEND,
+  isPointKind,
+} from '../annotate/annotationModel';
+import {
   EMBEDDED_RASTER_MAX_SIDE,
   SVG_STORED_MAX_BYTES,
   browserSanitizeEnv,
@@ -49,7 +57,11 @@ import {
   normalizePageSetup,
   randomDiagramId,
   withReferencedAssets,
+  isKnownAnnotation,
   type DiagramAnnotation,
+  type DiagramAnnotationKind,
+  type DiagramRotation,
+  type KnownDiagramAnnotation,
   type DiagramAsset,
   type DiagramCpRender,
   type DiagramCpScope,
@@ -234,7 +246,18 @@ function writeStep(step: DiagramStep): Record<string, unknown> {
 }
 
 function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown> {
-  return annotation.unknown;
+  if (!isKnownAnnotation(annotation)) return annotation.unknown;
+  const { id, kind, from, to, bend, text, rotate, axis } = annotation;
+  return {
+    id,
+    kind,
+    from,
+    to,
+    ...(bend !== undefined ? { bend } : {}),
+    ...(text !== undefined ? { text } : {}),
+    ...(rotate !== undefined ? { rotate } : {}),
+    ...(axis !== undefined ? { axis } : {}),
+  };
 }
 
 function writeAsset(asset: DiagramAsset): Record<string, unknown> {
@@ -596,16 +619,112 @@ function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolea
   return asset !== undefined && isKnownAsset(asset);
 }
 
-/** No annotation kind is readable yet: each one with an id is carried verbatim. */
+/** The most annotations a step keeps: a guard against a file that was never a diagram's. */
+export const MAX_STEP_ANNOTATIONS = 500;
+
+/** The fields each kind is written with; any other makes the annotation a newer build's. */
+const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<string>>> = (() => {
+  const base = ['id', 'kind', 'from', 'to'];
+  const fields = (...more: string[]) => new Set([...base, ...more]);
+  return {
+    'valley-arrow': fields('bend'),
+    'mountain-arrow': fields('bend'),
+    'fold-unfold-arrow': fields('bend'),
+    'push-arrow': fields(),
+    'turn-over': fields('axis'),
+    rotate: fields('rotate'),
+    'valley-line': fields(),
+    'mountain-line': fields(),
+    'hidden-line': fields(),
+    label: fields('text'),
+  };
+})();
+
+/** A newer build's value: well formed, but past what this build reads. */
+const NEWER = Symbol('newer');
+
+/**
+ * A step's annotations (D8), by the file's three rules: one that does not read
+ * is dropped; one of a kind, a field or an enumerated value this build does
+ * not know — or a well-formed value past the ranges it reads — is a newer
+ * build's, and is carried verbatim. A second annotation with an id already
+ * read is dropped.
+ */
 function readAnnotations(value: unknown): DiagramAnnotation[] {
   if (!Array.isArray(value)) return [];
   const out: DiagramAnnotation[] = [];
+  const ids = new Set<string>();
   for (const entry of value) {
-    if (isRecord(entry) && typeof entry.id === 'string' && entry.id.length > 0) {
-      out.push({ id: entry.id, unknown: entry });
-    }
+    if (out.length >= MAX_STEP_ANNOTATIONS) break;
+    if (!isRecord(entry) || typeof entry.id !== 'string' || entry.id.length === 0 || ids.has(entry.id)) continue;
+    const annotation = readAnnotation(entry.id, entry);
+    if (annotation === NEWER) out.push({ id: entry.id, unknown: entry });
+    else if (annotation) out.push(annotation);
+    else continue;
+    ids.add(entry.id);
   }
   return out;
+}
+
+function readAnnotation(
+  id: string,
+  entry: Record<string, unknown>
+): KnownDiagramAnnotation | typeof NEWER | null {
+  if (typeof entry.kind !== 'string') return null;
+  if (!Object.hasOwn(ANNOTATION_FIELDS, entry.kind)) return NEWER;
+  const kind = entry.kind as DiagramAnnotationKind;
+  const fields = ANNOTATION_FIELDS[kind];
+  if (Object.keys(entry).some((key) => !fields.has(key))) return NEWER;
+  const from = readAnnotationPoint(entry.from);
+  const to = isPointKind(kind) ? from : readAnnotationPoint(entry.to);
+  if (from === null || to === null) return null;
+  if (from === NEWER || to === NEWER) return NEWER;
+  const annotation: KnownDiagramAnnotation = { id, kind, from, to: [to[0], to[1]] };
+  switch (kind) {
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow': {
+      if (entry.bend === undefined) return { ...annotation, bend: ARROW_BEND };
+      if (typeof entry.bend !== 'number' || !Number.isFinite(entry.bend) || entry.bend === 0) return null;
+      return Math.abs(entry.bend) > MAX_BEND ? NEWER : { ...annotation, bend: entry.bend };
+    }
+    case 'label': {
+      if (typeof entry.text !== 'string') return null;
+      const text = xmlText(entry.text);
+      return text.length > LABEL_MAX_LENGTH ? NEWER : { ...annotation, text };
+    }
+    case 'rotate': {
+      if (entry.rotate === undefined) return { ...annotation, rotate: DEFAULT_ROTATION };
+      const rotate = entry.rotate;
+      if (!isRecord(rotate) || typeof rotate.amount !== 'string' || typeof rotate.direction !== 'string') return null;
+      if (Object.keys(rotate).some((key) => key !== 'amount' && key !== 'direction')) return NEWER;
+      if (!['eighth', 'quarter', 'half'].includes(rotate.amount) || !['cw', 'ccw'].includes(rotate.direction)) {
+        return NEWER;
+      }
+      return {
+        ...annotation,
+        rotate: {
+          amount: rotate.amount as DiagramRotation['amount'],
+          direction: rotate.direction as DiagramRotation['direction'],
+        },
+      };
+    }
+    case 'turn-over': {
+      if (entry.axis === undefined) return { ...annotation, axis: 'vertical' };
+      if (typeof entry.axis !== 'string') return null;
+      return entry.axis === 'vertical' || entry.axis === 'horizontal' ? { ...annotation, axis: entry.axis } : NEWER;
+    }
+    default:
+      return annotation;
+  }
+}
+
+/** A point in picture units; a newer build's when it reaches past where this build lets one go. */
+function readAnnotationPoint(value: unknown): [number, number] | typeof NEWER | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [x, y] = value;
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return Math.abs(x) > ANNOTATION_REACH || Math.abs(y) > ANNOTATION_REACH ? NEWER : [x, y];
 }
 
 /**

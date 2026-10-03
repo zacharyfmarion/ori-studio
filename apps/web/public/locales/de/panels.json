@@ -686,6 +686,7 @@
   "diagram": {
     "actions": {
       "addStep": "Schritt hinzufügen",
+      "annotate": "Annotieren",
       "capturingHint": "Sein Bild wird gerade erfasst",
       "currentHint": "Zeigt sein Muster bereits so, wie es ist",
       "delete": "Schritt löschen",
@@ -718,6 +719,44 @@
       "startPage": "Hier eine neue Seite beginnen",
       "uploadPicture": "Bild hochladen…"
     },
+    "annotate": {
+      "arrowHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es landet.",
+      "canvasLabel": "Annotationen auf dem Bild des Schritts",
+      "controls": "Steuerung der Ansicht Annotieren",
+      "foldUnfoldHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es landet: Es wird gefaltet und wieder zurückgeklappt.",
+      "glyphHelp": "Klicke dort, wo das Zeichen hin soll.",
+      "groupArrows": "Pfeile",
+      "groupLines": "Linien",
+      "groupSelect": "Auswählen",
+      "groupText": "Text",
+      "labelHelp": "Klicke dort, wo die Beschriftung hin soll, und tippe sie hier ein.",
+      "largerScreen": "Annotiere auf einem größeren Bildschirm: einem Tablet oder Computer.",
+      "lineHelp": "Ziehe entlang der Falte.",
+      "pushHelp": "Ziehe zu der Stelle, die eingedrückt werden soll.",
+      "select": "Auswählen",
+      "selectHelp": "Klicke auf eine Annotation, um sie auszuwählen. Ziehe sie oder den Punkt an einem ihrer Enden, um sie zu verschieben.",
+      "toolsLabel": "Annotationswerkzeuge"
+    },
+    "annotations": {
+      "annotate": "Annotieren",
+      "axis": "Wendet",
+      "clockwise": "Im Uhrzeigersinn",
+      "count_one": "{{count}} Annotation",
+      "count_other": "{{count}} Annotationen",
+      "counterclockwise": "Gegen den Uhrzeigersinn",
+      "delete": "Löschen",
+      "direction": "Richtung",
+      "empty": "Noch nichts gezeichnet.",
+      "keep": "Hier lassen",
+      "list": "Annotationen",
+      "newer": "Einige Annotationen dieses Schritts wurden mit einem neueren Ori Studio erstellt. Sie bleiben erhalten, werden hier aber nicht angezeigt.",
+      "none": "Keine Annotationen",
+      "pictureChanged": "Das Bild hat sich geändert, seit diese Annotationen gezeichnet wurden.",
+      "sideToSide": "Seitlich",
+      "text": "Text",
+      "topToBottom": "Von oben nach unten",
+      "turn": "Drehung"
+    },
     "card": {
       "badgeCreasePattern": "Faltmuster",
       "badgeEmpty": "Leer",
@@ -747,9 +786,12 @@
       "waitingReferences": "Wartet auf Referenzen"
     },
     "detail": {
+      "annotate": "Annotieren",
+      "annotateNeedsPicture": "Gib dem Schritt ein Bild, um ihn zu annotieren",
       "back": "Schritte",
       "done": "Fertig",
       "locked": "Dieser Schritt wurde mit einem neueren Ori Studio erstellt und kann hier nicht angezeigt werden.",
+      "mode": "Modus",
       "next": "Nächster Schritt",
       "noPicture": "Dieser Schritt hat noch kein Bild.",
       "notCaptured": "Noch nicht erfasst: wähle unten, wie sein Muster gezeigt wird.",
@@ -921,6 +963,8 @@
     },
     "readOnlyNotice": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird hier deshalb schreibgeschützt geöffnet. Beim Speichern bleibt es genau so, wie es war.",
     "stepPane": {
+      "annotate": "Annotieren",
+      "annotations": "Annotationen",
       "instruction": "Anleitung",
       "instructionLabel": "Anleitung",
       "instructionPlaceholder": "Beschreiben Sie diesen Schritt…",

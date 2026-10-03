@@ -229,13 +229,24 @@
   "diagram": {
     "categoryLabel": "Diagrama",
     "firstStep": "Primeiro passo",
+    "flipArc": "Inverter arco",
     "lastStep": "Último passo",
     "moveStepEarlier": "Mover passo para antes",
     "moveStepLater": "Mover passo para depois",
     "nextStep": "Próximo passo",
     "openStep": "Abrir passo",
     "previousStep": "Passo anterior",
-    "scopeLabel": "diagrama"
+    "scopeLabel": "diagrama",
+    "toolFoldUnfoldArrow": "Seta de dobrar e desdobrar",
+    "toolHiddenLine": "Linha oculta",
+    "toolLabel": "Rótulo",
+    "toolMountainArrow": "Seta de monte",
+    "toolMountainLine": "Linha de monte",
+    "toolPushArrow": "Seta de empurrar",
+    "toolRotate": "Girar",
+    "toolTurnOver": "Virar",
+    "toolValleyArrow": "Seta de vale",
+    "toolValleyLine": "Linha de vale"
   },
   "divideMode": {
     "count": "Quantidade",

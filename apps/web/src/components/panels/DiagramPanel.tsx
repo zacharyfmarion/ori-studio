@@ -102,6 +102,9 @@ export function DiagramPanel() {
   const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
   const detail = useWorkspaceStore((state) => state.diagramDetail);
   const closeStep = useWorkspaceStore((state) => state.closeDiagramStep);
+  const openStepIn = useWorkspaceStore((state) => state.openDiagramStep);
+  const annotateTool = useWorkspaceStore((state) => state.diagramAnnotateTool);
+  const setAnnotateTool = useWorkspaceStore((state) => state.setDiagramAnnotateTool);
   const poseActions = useDiagramPoseActions(detail !== null ? selectedStepId : null);
   const setTitle = useWorkspaceStore((state) => state.setDiagramTitle);
   const addStep = useAddDiagramStep();
@@ -150,6 +153,10 @@ export function DiagramPanel() {
           number={detailIndex + 1}
           count={steps.length}
           readOnly={readOnly}
+          mode={detail ?? 'pose'}
+          onMode={(mode) => openStepIn(step.id, mode)}
+          annotateTool={annotateTool}
+          onAnnotateTool={setAnnotateTool}
           poseActions={poseActions}
           linkedPose={linkedPose}
           onBack={closeStep}

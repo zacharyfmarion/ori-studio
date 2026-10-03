@@ -26,6 +26,7 @@ export type DiagramStepActionId =
   | 'refresh-picture'
   | 'open-in-edit'
   | 'open-in-references'
+  | 'annotate'
   | 'export-picture'
   | 'remove-picture'
   | 'delete';
@@ -110,6 +111,8 @@ export interface DiagramStepActionDeps {
   openInReferences: () => void;
   /** Ask References for this step's picture: its next Send to diagram fills the step. */
   fromReferences: () => void;
+  /** Open the step in Annotate (D8). */
+  annotate: () => void;
   exportPicture: () => void;
   removePicture: () => void;
   remove: () => void;
@@ -290,6 +293,13 @@ export function buildDiagramStepActions(
             t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
           ),
         ]),
+    command(
+      'annotate',
+      t('panels:diagram.actions.annotate', 'Annotate'),
+      deps.annotate,
+      state.locked || !state.hasPicture,
+      state.locked ? lockedEditHint : t('panels:diagram.detail.annotateNeedsPicture', 'Give the step a picture to annotate')
+    ),
     command(
       'export-picture',
       t('panels:diagram.actions.exportPicture', 'Export Picture…'),

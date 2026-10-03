@@ -21,12 +21,12 @@
 import { canvasDiagramInk, canvasDiagramPens } from '../../cp-workspace/references/diagram/diagramInk';
 import { diagramToPaperScene } from '../../cp-workspace/references/diagramToPaperScene';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import { createOverlayProjector, sheetFrame } from '../../cp-workspace/references/stepDiagramGeometry';
+import { createOverlayProjector, sheetCorners, sheetFrame } from '../../cp-workspace/references/stepDiagramGeometry';
 import { DEFAULT_ORISTUDIO_CP_LINE_WIDTH } from '../../lib/creasePatternViewport';
 import type { PaperPage } from '../../lib/paper/paperPage';
 import type { PaperScene } from '../../lib/paper/paperScene';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
-import { PT_PER_CSS_PX, mmToCssPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
+import { PT_PER_CSS_PX, mmToCssPx, pageMarginPt, pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
 import type { DiagramStyle } from '../document/diagramDocument';
 import { diagramPaperStyle, diagramSurfaceStyle } from './diagramPaperStyle';
 
@@ -35,7 +35,41 @@ import { diagramPaperStyle, diagramSurfaceStyle } from './diagramPaperStyle';
  * width References opens at. Fixed rather than the reader's own setting, so a
  * diagram's steps do not change weight with whoever sent them.
  */
-const STEP_DIAGRAM_LINE_WIDTH = DEFAULT_ORISTUDIO_CP_LINE_WIDTH;
+export const STEP_DIAGRAM_LINE_WIDTH = DEFAULT_ORISTUDIO_CP_LINE_WIDTH;
+
+/** The sheet's units to scene px, the sheet's longer side `sheetMm` across: y down, x reflected on the back. */
+function sheetToScene(model: StepDiagramModel, mirrored: boolean, sheetMm: number) {
+  const longer = Math.max(model.sheet.width, model.sheet.height, Number.EPSILON);
+  const scale = mmToCssPx(sheetMm) / longer;
+  const [middleX, middleY] = sheetFrame(model.sheet).centre;
+  return {
+    // y up to y down about the sheet's middle; x reflected about it on the back.
+    origin: [mirrored ? 2 * scale * middleX : 0, 2 * scale * middleY] as [number, number],
+    ex: [mirrored ? -scale : scale, 0] as [number, number],
+    ey: [0, -scale] as [number, number],
+  };
+}
+
+/**
+ * Where the sheet is in the step's scene ({@link stepDiagramScene}), in scene
+ * px: the picture's frame (D8), whatever its letters reach past it.
+ */
+export function stepDiagramSheetBox(
+  model: StepDiagramModel,
+  mirrored: boolean,
+  sheetMm: number
+): { x: number; y: number; width: number; height: number } {
+  const { origin, ex, ey } = sheetToScene(model, mirrored, sheetMm);
+  const corners = sheetCorners(model.sheet).map(([u, v]) => [
+    origin[0] + u * ex[0] + v * ey[0],
+    origin[1] + u * ex[1] + v * ey[1],
+  ]);
+  const xs = corners.map(([x]) => x!);
+  const ys = corners.map(([, y]) => y!);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+}
 
 /**
  * The step as a scene whose sheet's longer side is `sheetMm` on paper: the
@@ -48,16 +82,8 @@ export function stepDiagramScene(
   sheetMm: number
 ): PaperScene {
   const drawn = diagramPaperStyle(style);
-  const longer = Math.max(model.sheet.width, model.sheet.height, Number.EPSILON);
-  const scale = mmToCssPx(sheetMm) / longer;
-  const [middleX, middleY] = sheetFrame(model.sheet).centre;
   const project = createOverlayProjector(
-    {
-      // y up to y down about the sheet's middle; x reflected about it on the back.
-      origin: [mirrored ? 2 * scale * middleX : 0, 2 * scale * middleY],
-      ex: [mirrored ? -scale : scale, 0],
-      ey: [0, -scale],
-    },
+    sheetToScene(model, mirrored, sheetMm),
     canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH),
     canvasDiagramPens(STEP_DIAGRAM_LINE_WIDTH, drawn.arrows.width * PT_TO_CSS_PX)
   );
@@ -78,20 +104,33 @@ export function stepDiagramPaintStyle(style: DiagramStyle): PaperStyle {
 }
 
 /**
- * The step painted on `page`, its sheet's longer side `page.sheet.mm` across.
- * Sizes in CSS px, as every painted picture reports them.
+ * The step painted on `page`, its sheet's longer side `page.sheet.mm` across,
+ * and where its sheet is on it. Sizes in CSS px, as every painted picture
+ * reports them.
  */
 export function paintStepDiagram(
   model: StepDiagramModel,
   mirrored: boolean,
   style: DiagramStyle,
   page: PaperPage
-): { svg: string; widthPx: number; heightPx: number } {
+): { svg: string; widthPx: number; heightPx: number; frame: { x: number; y: number; width: number; height: number } } {
   const scene = stepDiagramScene(model, mirrored, style, page.sheet.mm);
-  const painted = paperSceneToSvg(scene, stepDiagramPaintStyle(style), page, 'sheet');
+  const paintStyle = stepDiagramPaintStyle(style);
+  const painted = paperSceneToSvg(scene, paintStyle, page, 'sheet');
+  // Where the painter put the sheet: its box, shifted to the margin with the scene's bounds.
+  const ptPerPx = pagePtPerPx(scene, page, 'sheet');
+  const marginPt = pageMarginPt(paintStyle, page);
+  const sheet = stepDiagramSheetBox(model, mirrored, page.sheet.mm);
+  const toPx = (pt: number) => pt / PT_PER_CSS_PX;
   return {
     svg: painted.svg,
-    widthPx: painted.widthPt / PT_PER_CSS_PX,
-    heightPx: painted.heightPt / PT_PER_CSS_PX,
+    widthPx: toPx(painted.widthPt),
+    heightPx: toPx(painted.heightPt),
+    frame: {
+      x: toPx(marginPt + (sheet.x - scene.bounds.minX) * ptPerPx),
+      y: toPx(marginPt + (sheet.y - scene.bounds.minY) * ptPerPx),
+      width: toPx(sheet.width * ptPerPx),
+      height: toPx(sheet.height * ptPerPx),
+    },
   };
 }

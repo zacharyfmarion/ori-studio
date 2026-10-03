@@ -715,6 +715,7 @@
   "diagram": {
     "actions": {
       "addStep": "Ajouter une étape",
+      "annotate": "Annoter",
       "capturingHint": "Son image est en cours de capture",
       "currentHint": "Montre déjà son patron tel qu’il est",
       "delete": "Supprimer l’étape",
@@ -747,6 +748,45 @@
       "startPage": "Commencer une nouvelle page ici",
       "uploadPicture": "Importer une image…"
     },
+    "annotate": {
+      "arrowHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il arrive.",
+      "canvasLabel": "Annotations sur l’image de l’étape",
+      "controls": "Commandes de la vue Annoter",
+      "foldUnfoldHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il arrive : il se plie, puis revient.",
+      "glyphHelp": "Cliquez là où va le signe.",
+      "groupArrows": "Flèches",
+      "groupLines": "Lignes",
+      "groupSelect": "Sélection",
+      "groupText": "Texte",
+      "labelHelp": "Cliquez là où va l’étiquette, puis saisissez-la ici.",
+      "largerScreen": "Annotez sur un écran plus grand : une tablette ou un ordinateur.",
+      "lineHelp": "Faites glisser le long du pli.",
+      "pushHelp": "Faites glisser vers l’endroit à pousser.",
+      "select": "Sélectionner",
+      "selectHelp": "Cliquez sur une annotation pour la sélectionner. Faites-la glisser, ou le point à l’une de ses extrémités, pour la déplacer.",
+      "toolsLabel": "Outils d’annotation"
+    },
+    "annotations": {
+      "annotate": "Annoter",
+      "axis": "Retourne",
+      "clockwise": "Sens horaire",
+      "count_one": "{{count}} annotation",
+      "count_many": "{{count}} annotations",
+      "count_other": "{{count}} annotations",
+      "counterclockwise": "Sens antihoraire",
+      "delete": "Supprimer",
+      "direction": "Sens",
+      "empty": "Rien n’est encore dessiné.",
+      "keep": "Les garder ici",
+      "list": "Annotations",
+      "newer": "Certaines annotations de cette étape ont été créées avec une version plus récente d’Ori Studio. Elles sont conservées, mais ne s’affichent pas ici.",
+      "none": "Aucune annotation",
+      "pictureChanged": "L’image a changé depuis que ces annotations ont été dessinées.",
+      "sideToSide": "De gauche à droite",
+      "text": "Texte",
+      "topToBottom": "De haut en bas",
+      "turn": "Rotation"
+    },
     "card": {
       "badgeCreasePattern": "Patron de plis",
       "badgeEmpty": "Vide",
@@ -776,9 +816,12 @@
       "waitingReferences": "En attente de Références"
     },
     "detail": {
+      "annotate": "Annoter",
+      "annotateNeedsPicture": "Ajoutez une image à l’étape pour l’annoter",
       "back": "Étapes",
       "done": "Terminé",
       "locked": "Cette étape a été créée avec une version plus récente d’Ori Studio et ne peut pas être affichée ici.",
+      "mode": "Mode",
       "next": "Étape suivante",
       "noPicture": "Cette étape n’a pas encore d’image.",
       "notCaptured": "Pas encore capturé\u00a0: choisissez ci-dessous comment montrer son patron.",
@@ -954,6 +997,8 @@
     },
     "readOnlyNotice": "Ce diagramme a été créé avec une version plus récente d’Ori Studio\u00a0: il s’ouvre donc ici en lecture seule. L’enregistrer le conserve exactement tel quel.",
     "stepPane": {
+      "annotate": "Annoter",
+      "annotations": "Annotations",
       "instruction": "Instruction",
       "instructionLabel": "Instruction",
       "instructionPlaceholder": "Décrivez cette étape…",

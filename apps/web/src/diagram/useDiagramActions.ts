@@ -167,6 +167,9 @@ function bindStepActions(
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),
       fromReferences: () => askReferencesForStep(stepId),
+      annotate: () => {
+        store().openDiagramStep(stepId, 'annotate');
+      },
       exportPicture: () => {
         const diagram = store().diagram;
         if (!diagram) return;

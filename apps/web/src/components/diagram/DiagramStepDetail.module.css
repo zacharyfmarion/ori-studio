@@ -88,3 +88,33 @@
 .message p {
   margin: 0;
 }
+
+/*
+ * Annotate: its tools down the left, as Edit's are, and the canvas filling
+ * the rest. The rail's column is Edit's (`.cp-panel__body--with-tools`), so
+ * the two rails are one width at every size.
+ */
+.annotate {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 184px minmax(0, 1fr);
+  min-height: 0;
+}
+
+@media (max-width: 720px) and (pointer: fine) {
+  .annotate {
+    grid-template-columns: 156px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) and (pointer: coarse) {
+  .annotate {
+    grid-template-columns: 152px minmax(0, 1fr);
+  }
+}
+
+@media (pointer: coarse) and (min-width: 721px) {
+  .annotate {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+}

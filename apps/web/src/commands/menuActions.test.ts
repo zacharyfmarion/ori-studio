@@ -103,7 +103,10 @@ function createDeps() {
       executeOristudioCpCommand: vi.fn().mockResolvedValue(true),
       transformOristudioCpSelection: vi.fn().mockResolvedValue(true),
       diagramSelectedStepId: null as string | null,
+      diagramDetail: null as 'pose' | 'annotate' | null,
+      diagramSelectedAnnotationId: null as string | null,
       confirmDeleteDiagramSteps: vi.fn().mockResolvedValue(true),
+      editDiagramAnnotations: vi.fn().mockReturnValue(true),
     },
     layout: {
       activatePanel: vi.fn(),
@@ -509,6 +512,27 @@ describe('menu actions', () => {
     expect(deps.workspace.deleteSelection).not.toHaveBeenCalled();
     expect(deps.workspace.executeOristudioCpCommand).not.toHaveBeenCalled();
     expect(deps.workspace.deleteOristudioBpTreeNode).not.toHaveBeenCalled();
+  });
+
+  it('routes Delete in Annotate to the selected annotation, never to its step', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'diagram';
+    deps.workspace.diagramSelectedStepId = 'step-2';
+    deps.workspace.diagramDetail = 'annotate';
+    const handle = createMenuActionHandler(deps);
+
+    deps.workspace.diagramSelectedAnnotationId = null;
+    await expect(handle('edit.delete')).resolves.toBe(false);
+    expect(deps.workspace.editDiagramAnnotations).not.toHaveBeenCalled();
+
+    deps.workspace.diagramSelectedAnnotationId = 'annotation-b';
+    await expect(handle('edit.delete')).resolves.toBe(true);
+    const [stepId, , edit, options] = deps.workspace.editDiagramAnnotations.mock.calls[0]!;
+    expect(stepId).toBe('step-2');
+    expect(options).toEqual({ select: null });
+    const kept = edit([{ id: 'annotation-a' }, { id: 'annotation-b' }]);
+    expect(kept).toEqual([{ id: 'annotation-a' }]);
+    expect(deps.workspace.confirmDeleteDiagramSteps).not.toHaveBeenCalled();
   });
 
   it('routes Delete to selected editable CP points', async () => {

@@ -5,6 +5,7 @@ import { isLockedStep, stepAsset, stepIndex } from '../../diagram/document/diagr
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DiagramPatternPicker } from '../diagram/DiagramPatternPicker';
+import { DiagramStepAnnotations } from '../diagram/DiagramStepAnnotations';
 import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
 import { DiagramStepPose } from '../diagram/DiagramStepPose';
@@ -27,9 +28,10 @@ const NO_NOTICES: readonly SanitizeNotice[] = [];
  *
  * A composition site (AGENTS.md › Panel components): the verbs come from the
  * action catalog through `useDiagramStepActions`, and the rows are the shared
- * field rows. Later phases add the Render and Annotations sections between
- * the picture and the instruction as their features arrive, not as empty
- * stubs.
+ * field rows. In Annotate, Annotate's own section leads (D13): the tool in
+ * hand, the list, and the selected annotation's controls; elsewhere the
+ * Annotations section between the picture and the instruction counts them
+ * and leads in.
  */
 export function DiagramStepPanel() {
   const { t } = useTranslation();
@@ -55,6 +57,7 @@ export function DiagramStepPanel() {
   );
   const actions = useDiagramStepActions(stepId);
   const detailOpen = useWorkspaceStore((state) => state.diagramDetail !== null);
+  const annotating = useWorkspaceStore((state) => state.diagramDetail === 'annotate');
   const poseActions = useDiagramPoseActions(detailOpen ? stepId : null);
   const { link, patternOpen, capture, picker, waiting } = useDiagramStepLink(step);
 
@@ -93,7 +96,12 @@ export function DiagramStepPanel() {
             </Notice>
           </div>
         )}
-        {detailOpen && step.source?.kind === 'upload' && (
+        {annotating && !locked && (
+          <CollapsibleSection title={t('panels:diagram.stepPane.annotate', 'Annotate')}>
+            <DiagramStepAnnotations step={step} />
+          </CollapsibleSection>
+        )}
+        {detailOpen && !annotating && step.source?.kind === 'upload' && (
           <CollapsibleSection title={t('panels:diagram.stepPane.pose', 'Pose')}>
             <DiagramStepPose pose={step.source} actions={poseActions} />
           </CollapsibleSection>
@@ -121,6 +129,11 @@ export function DiagramStepPanel() {
                 )
               }
             />
+          </CollapsibleSection>
+        )}
+        {!annotating && !locked && (step.picture !== null || step.annotations.length > 0) && (
+          <CollapsibleSection title={t('panels:diagram.stepPane.annotations', 'Annotations')}>
+            <DiagramStepAnnotations step={step} />
           </CollapsibleSection>
         )}
         <CollapsibleSection title={t('panels:diagram.stepPane.instruction', 'Instruction')}>

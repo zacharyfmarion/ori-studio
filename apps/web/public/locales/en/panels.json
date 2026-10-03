@@ -686,6 +686,7 @@
   "diagram": {
     "actions": {
       "addStep": "Add Step",
+      "annotate": "Annotate",
       "capturingHint": "Its picture is being captured",
       "currentHint": "Already shows its pattern as it is",
       "delete": "Delete Step",
@@ -718,6 +719,44 @@
       "startPage": "Start a New Page Here",
       "uploadPicture": "Upload Picture…"
     },
+    "annotate": {
+      "arrowHelp": "Drag from where the paper starts to where it lands.",
+      "canvasLabel": "Annotations on the step’s picture",
+      "controls": "Annotate view controls",
+      "foldUnfoldHelp": "Drag from where the paper starts to where it lands: it folds over, then back.",
+      "glyphHelp": "Click where the sign goes.",
+      "groupArrows": "Arrows",
+      "groupLines": "Lines",
+      "groupSelect": "Select",
+      "groupText": "Text",
+      "labelHelp": "Click where the label goes, then type it here.",
+      "largerScreen": "Annotate on a larger screen: a tablet or a computer.",
+      "lineHelp": "Drag along the crease.",
+      "pushHelp": "Drag toward the place to push.",
+      "select": "Select",
+      "selectHelp": "Click an annotation to select it. Drag it, or the dot at either end, to move it.",
+      "toolsLabel": "Annotate tools"
+    },
+    "annotations": {
+      "annotate": "Annotate",
+      "axis": "Turns",
+      "clockwise": "Clockwise",
+      "count_one": "{{count}} annotation",
+      "count_other": "{{count}} annotations",
+      "counterclockwise": "Counterclockwise",
+      "delete": "Delete",
+      "direction": "Direction",
+      "empty": "Nothing drawn yet.",
+      "keep": "Keep Them Here",
+      "list": "Annotations",
+      "newer": "Some of this step’s annotations were made with a newer Ori Studio. They are kept, but not shown here.",
+      "none": "No annotations",
+      "pictureChanged": "The picture changed since these annotations were drawn.",
+      "sideToSide": "Side to Side",
+      "text": "Text",
+      "topToBottom": "Top to Bottom",
+      "turn": "Turn"
+    },
     "card": {
       "badgeCreasePattern": "Crease pattern",
       "badgeEmpty": "Empty",
@@ -747,9 +786,12 @@
       "waitingReferences": "Waiting for References"
     },
     "detail": {
+      "annotate": "Annotate",
+      "annotateNeedsPicture": "Give the step a picture to annotate",
       "back": "Steps",
       "done": "Done",
       "locked": "This step was made with a newer Ori Studio and cannot be shown here.",
+      "mode": "Mode",
       "next": "Next Step",
       "noPicture": "This step has no picture yet.",
       "notCaptured": "Not captured yet: choose how to show its pattern below.",
@@ -921,6 +963,8 @@
     },
     "readOnlyNotice": "This diagram was made with a newer Ori Studio, so it opens read-only here. Saving keeps it exactly as it came.",
     "stepPane": {
+      "annotate": "Annotate",
+      "annotations": "Annotations",
       "instruction": "Instruction",
       "instructionLabel": "Instruction",
       "instructionPlaceholder": "Describe this step…",

@@ -720,13 +720,15 @@ describe('findShortcutShadowing', () => {
     // The mirror image of the case above, and the one that used to come back
     // `hard`. `simulator` is the *top* of the scope stack, so nothing outside it
     // can take a chord away from a simulator binding: put `simulator.replay` on
-    // M and it answers M whenever a simulation is focused, while Mirror Line
-    // keeps answering M the rest of the time — the coexistence F, C, R and L
-    // already ship. Reading it as hard made the capture UI offer to unbind a
-    // Mirror Line that was never in the way.
-    const chord = { key: 'm' };
+    // G and it answers G whenever a simulation is focused, while Folding
+    // Estimate keeps answering G the rest of the time — the coexistence F, C, R
+    // and L already ship. Reading it as hard made the capture UI offer to
+    // unbind a tool that was never in the way. (G, which only the crease
+    // pattern holds: M is Annotate's too, and the report names the claimant
+    // nearest the top.)
+    const chord = { key: 'g' };
     const shadowing = findShortcutShadowing('simulator.replay', chord);
-    expect(shadowing?.definition.id).toBe('cp.action.symmetric-draw');
+    expect(shadowing?.definition.id).toBe('cp.action.folding-estimate');
     expect(shadowing?.winnerId).toBe('simulator.replay');
     expect(shadowing?.kind).toBe('conditional');
 
@@ -738,7 +740,7 @@ describe('findShortcutShadowing', () => {
       'simulator.replay'
     );
     expect(dispatched(chord, ['viewport', 'crease-pattern', 'global'], overrides)).toBe(
-      'cp.action.symmetric-draw'
+      'cp.action.folding-estimate'
     );
   });
 

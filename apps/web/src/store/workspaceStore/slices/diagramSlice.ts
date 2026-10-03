@@ -3,6 +3,8 @@ import {
   createStep,
   defaultHanStyle,
   duplicateStep,
+  editStepAnnotations,
+  keepStepAnnotations,
   insertLinkedStep,
   insertPictureSteps,
   awaitingReferencesStep,
@@ -50,6 +52,13 @@ function authorLocale(): string | null {
   return typeof document === 'undefined' ? null : document.documentElement.lang || null;
 }
 
+/** Whether the step has the annotation. */
+function hasAnnotation(document: DiagramDocument | null, stepId: string | null, annotationId: string): boolean {
+  if (!document || stepId === null) return false;
+  const step = document.steps[stepIndex(document, stepId)];
+  return step?.annotations.some((annotation) => annotation.id === annotationId) ?? false;
+}
+
 /**
  * The Diagram workspace's document and view state.
  *
@@ -61,11 +70,24 @@ function authorLocale(): string | null {
  */
 export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get) => {
   /**
-   * The instruction edit session whose undo entry is the newest one, if any.
-   * Every other recorded edit, undo, redo and install clears it, so a session
-   * only ever extends the entry it made itself.
+   * The edit session whose undo entry is the newest one, if any: a sitting at
+   * an instruction's field, or a label's. `key` names the field. Every other
+   * recorded edit, undo, redo and install clears it, so a session only ever
+   * extends the entry it made itself.
    */
-  let openTextSession: { session: number; stepId: string; loadId: number } | null = null;
+  let openSession: { key: string; session: number; loadId: number } | null = null;
+
+  /** Whether an edit in `session` at `key` extends the newest entry, and the session to remember after it. */
+  const sessionFor = (key: string, session: number | undefined) => {
+    const loadId = get().diagramLoadId;
+    const extend =
+      session !== undefined &&
+      openSession !== null &&
+      openSession.key === key &&
+      openSession.session === session &&
+      openSession.loadId === loadId;
+    return { extend, remember: () => (openSession = session === undefined ? null : { key, session, loadId }) };
+  };
 
   /**
    * Apply one edit. Returns the new diagram, or `null` when nothing changed or
@@ -90,7 +112,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     // replace took away; and with the current diagram no longer holding it,
     // the history byte cap (`trimDiagramHistory`) sees what only history keeps.
     const next = withReferencedAssets(edited);
-    if (!extend) openTextSession = null;
+    if (!extend) openSession = null;
     set({
       diagram: next,
       ...stillAwaiting(next),
@@ -111,6 +133,8 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
    */
   const selection = (stepId: string | null) => ({
     diagramSelectedStepId: stepId,
+    // An annotation is selected on its step: another step, or none, selects none.
+    ...(stepId !== get().diagramSelectedStepId ? { diagramSelectedAnnotationId: null } : {}),
     // A detail is open on the selected step, and a picker chooses for one:
     // nothing selected closes the detail, and another step the picker.
     ...(stepId === null ? { diagramDetail: null } : {}),
@@ -137,7 +161,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
   const travel = (direction: 'undo' | 'redo'): boolean => {
     const state = get();
     if (state.diagramReadOnly) return false;
-    openTextSession = null;
+    openSession = null;
     const current = snapshotEntry(state.diagram, direction);
     const result =
       direction === 'undo'
@@ -145,13 +169,19 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
         : redoSnapshot(state.diagramHistory, current);
     if (!result) return false;
     const restored = result.restore.snapshot;
+    const stepId = reconciledSelection(restored);
     set({
       diagram: restored,
       diagramHistory: result.history,
-      ...selection(reconciledSelection(restored)),
+      ...selection(stepId),
       ...stillAwaiting(restored),
       dirty: true,
     });
+    // The selected annotation, while it is still on the selected step.
+    const annotationId = get().diagramSelectedAnnotationId;
+    if (annotationId !== null && !hasAnnotation(restored, stepId, annotationId)) {
+      set({ diagramSelectedAnnotationId: null });
+    }
     return true;
   };
 
@@ -167,7 +197,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     ...discardDiagramState(),
 
     installDiagram: (read) => {
-      openTextSession = null;
+      openSession = null;
       set({
         ...discardDiagramState(),
         diagram: read?.document ?? null,
@@ -258,22 +288,39 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     },
 
     setDiagramStepText: (stepId, text, { loadId, session } = {}) => {
-      const currentLoadId = get().diagramLoadId;
-      if (loadId !== undefined && loadId !== currentLoadId) return false;
-      const extend =
-        session !== undefined &&
-        openTextSession !== null &&
-        openTextSession.session === session &&
-        openTextSession.stepId === stepId &&
-        openTextSession.loadId === currentLoadId;
-      const next = commit(
-        'Edit instruction',
-        (document) => setStepText(document, stepId, text),
-        extend
-      );
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
+      const { extend, remember } = sessionFor(`text:${stepId}`, session);
+      const next = commit('Edit instruction', (document) => setStepText(document, stepId, text), extend);
       if (!next) return false;
-      if (session !== undefined) openTextSession = { session, stepId, loadId: currentLoadId };
+      remember();
       return true;
+    },
+
+    editDiagramAnnotations: (stepId, label, edit, { select, session, loadId } = {}) => {
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
+      const { extend, remember } = sessionFor(`annotations:${stepId}`, session);
+      const next = commit(label, (document) => editStepAnnotations(document, stepId, edit), extend);
+      if (!next) return false;
+      remember();
+      const selected = select !== undefined ? select : get().diagramSelectedAnnotationId;
+      set({
+        diagramSelectedAnnotationId:
+          selected !== null && hasAnnotation(next, get().diagramSelectedStepId, selected) ? selected : null,
+      });
+      return true;
+    },
+
+    keepDiagramAnnotations: (stepId) =>
+      commit('Keep annotations', (document) => keepStepAnnotations(document, stepId)) !== null,
+
+    setDiagramAnnotateTool: (tool) => {
+      if (tool !== get().diagramAnnotateTool) set({ diagramAnnotateTool: tool });
+    },
+
+    selectDiagramAnnotation: (annotationId) => {
+      const { diagram, diagramSelectedStepId } = get();
+      const next = annotationId !== null && hasAnnotation(diagram, diagramSelectedStepId, annotationId) ? annotationId : null;
+      if (next !== get().diagramSelectedAnnotationId) set({ diagramSelectedAnnotationId: next });
     },
 
     addDiagramPictures: (assets, { loadId, anchorStepId } = {}) => {
@@ -393,7 +440,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     },
 
     closeDiagramStep: () => {
-      if (get().diagramDetail !== null) set({ diagramDetail: null });
+      if (get().diagramDetail !== null) set({ diagramDetail: null, diagramSelectedAnnotationId: null });
     },
 
     setDiagramStepPose: (stepId, pose) =>

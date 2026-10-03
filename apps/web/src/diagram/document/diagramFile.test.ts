@@ -212,6 +212,86 @@ function uploadDiagram() {
   return { document: setText(document, stepIds[0], 'Valley fold.'), stepIds };
 }
 
+describe('annotations in the file', () => {
+  const every = [
+    { id: 'a-1', kind: 'valley-arrow', from: [0.1, 0.2], to: [0.5, 0.2], bend: 0.134 },
+    { id: 'a-2', kind: 'mountain-arrow', from: [0.1, 0.3], to: [0.5, 0.3], bend: -0.2 },
+    { id: 'a-3', kind: 'fold-unfold-arrow', from: [0.1, 0.4], to: [0.5, 0.4], bend: 0.5 },
+    { id: 'a-4', kind: 'push-arrow', from: [0.9, 0.9], to: [0.7, 0.7] },
+    { id: 'a-5', kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: 'horizontal' },
+    { id: 'a-6', kind: 'rotate', from: [0.2, 0.8], to: [0.2, 0.8], rotate: { amount: 'eighth', direction: 'ccw' } },
+    { id: 'a-7', kind: 'valley-line', from: [-0.2, 0.5], to: [1.2, 0.5] },
+    { id: 'a-8', kind: 'mountain-line', from: [0, 0], to: [1, 1] },
+    { id: 'a-9', kind: 'hidden-line', from: [0, 1], to: [1, 0] },
+    { id: 'a-10', kind: 'label', from: [0.3, 0.3], to: [0.3, 0.3], text: 'A 谷折り' },
+  ];
+
+  function withAnnotations(annotations: unknown[]) {
+    const written = throughJson(writeDiagram(sampleDiagram()));
+    written.steps[0].annotations = annotations;
+    return readDiagram(written)!.document.steps[0]!.annotations;
+  }
+
+  it('round-trips every kind it draws, field for field', () => {
+    const read = withAnnotations(every);
+    expect(read).toEqual(every);
+    const document = { ...sampleDiagram() };
+    document.steps = [{ ...document.steps[0]!, annotations: read }, document.steps[1]!];
+    expect(throughJson(writeDiagram(document)).steps[0].annotations).toEqual(every);
+  });
+
+  it('carries what a newer build might write: a kind, a field, a value or a range it does not know', () => {
+    const newer = [
+      { id: 'n-1', kind: 'spiral-arrow', from: [0, 0], to: [1, 1] },
+      { id: 'n-2', kind: 'valley-arrow', from: [0, 0], to: [1, 1], bend: 0.1, colour: 'red' },
+      { id: 'n-3', kind: 'rotate', from: [0, 0], to: [0, 0], rotate: { amount: 'third', direction: 'cw' } },
+      { id: 'n-4', kind: 'turn-over', from: [0, 0], to: [0, 0], axis: 'diagonal' },
+      { id: 'n-5', kind: 'valley-arrow', from: [0, 0], to: [1, 1], bend: 0.9 },
+      { id: 'n-6', kind: 'push-arrow', from: [0, 0], to: [9, 1] },
+      { id: 'n-7', kind: 'label', from: [0, 0], to: [0, 0], text: 'x'.repeat(200) },
+    ];
+    expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
+  });
+
+  it('drops one that does not read, and a second with an id already read', () => {
+    const read = withAnnotations([
+      { id: 'd-1', kind: 'valley-line', from: [0, 0] },
+      { id: 'd-2', kind: 'label', from: [0, 0], to: [0, 0], text: 7 },
+      { id: 'd-3', kind: 'valley-arrow', from: [0, 0], to: [1, 1], bend: 0 },
+      { id: 'd-4', kind: 7 },
+      { id: 'd-5', kind: 'hidden-line', from: [0, 0], to: [1, Number.NaN] },
+      { id: 'd-6', kind: 'hidden-line', from: [0, 0], to: [1, 1] },
+      { id: 'd-6', kind: 'valley-line', from: [0, 0], to: [1, 1] },
+    ]);
+    expect(read).toEqual([{ id: 'd-6', kind: 'hidden-line', from: [0, 0], to: [1, 1] }]);
+  });
+
+  it('fills what a kind may leave out, puts a sign where it is, and cleans a label', () => {
+    const read = withAnnotations([
+      { id: 'f-1', kind: 'valley-arrow', from: [0, 0], to: [1, 0] },
+      { id: 'f-2', kind: 'turn-over', from: [0.5, 0.5], to: [0.9, 0.9] },
+      { id: 'f-3', kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5] },
+      { id: 'f-4', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A\u0000B' },
+    ]);
+    expect(read).toEqual([
+      { id: 'f-1', kind: 'valley-arrow', from: [0, 0], to: [1, 0], bend: 1 - Math.cos(Math.PI / 6) },
+      { id: 'f-2', kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: 'vertical' },
+      { id: 'f-3', kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5], rotate: { amount: 'quarter', direction: 'cw' } },
+      { id: 'f-4', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'AB' },
+    ]);
+  });
+
+  it('keeps at most a step’s worth', () => {
+    const many = Array.from({ length: 600 }, (_, index) => ({
+      id: `m-${index}`,
+      kind: 'valley-line',
+      from: [0, 0],
+      to: [1, 1],
+    }));
+    expect(withAnnotations(many)).toHaveLength(500);
+  });
+});
+
 describe('uploaded pictures in the file', () => {
   it('round-trips upload steps and their assets unchanged', () => {
     const { document } = uploadDiagram();

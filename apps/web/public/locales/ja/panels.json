@@ -657,6 +657,7 @@
   "diagram": {
     "actions": {
       "addStep": "ステップを追加",
+      "annotate": "注記",
       "capturingHint": "図をキャプチャ中です",
       "currentHint": "パターンの現在の状態をすでに表示しています",
       "delete": "ステップを削除",
@@ -689,6 +690,43 @@
       "startPage": "ここで新しいページを始める",
       "uploadPicture": "図をアップロード…"
     },
+    "annotate": {
+      "arrowHelp": "紙が動き始める位置から、着く位置までドラッグします。",
+      "canvasLabel": "ステップの図の注記",
+      "controls": "注記ビューの操作",
+      "foldUnfoldHelp": "紙が動き始める位置から着く位置までドラッグします。折ってから元に戻します。",
+      "glyphHelp": "記号を置く位置をクリックします。",
+      "groupArrows": "矢印",
+      "groupLines": "線",
+      "groupSelect": "選択",
+      "groupText": "文字",
+      "labelHelp": "ラベルを置く位置をクリックし、ここに入力します。",
+      "largerScreen": "注記はタブレットやコンピューターなど、大きな画面で行えます。",
+      "lineHelp": "折り線に沿ってドラッグします。",
+      "pushHelp": "押す位置に向かってドラッグします。",
+      "select": "選択",
+      "selectHelp": "注記をクリックして選択します。注記そのもの、または両端の点をドラッグして動かせます。",
+      "toolsLabel": "注記ツール"
+    },
+    "annotations": {
+      "annotate": "注記",
+      "axis": "裏返す向き",
+      "clockwise": "時計回り",
+      "count_other": "注記 {{count}} 件",
+      "counterclockwise": "反時計回り",
+      "delete": "削除",
+      "direction": "向き",
+      "empty": "まだ何も描かれていません。",
+      "keep": "このままにする",
+      "list": "注記",
+      "newer": "このステップの注記の一部は、新しい Ori Studio で作られています。保持されますが、ここには表示されません。",
+      "none": "注記なし",
+      "pictureChanged": "これらの注記を描いた後に、図が変わりました。",
+      "sideToSide": "左右",
+      "text": "文字",
+      "topToBottom": "上下",
+      "turn": "回転量"
+    },
     "card": {
       "badgeCreasePattern": "展開図",
       "badgeEmpty": "空",
@@ -718,9 +756,12 @@
       "waitingReferences": "リファレンスを待機中"
     },
     "detail": {
+      "annotate": "注記",
+      "annotateNeedsPicture": "注記するには、ステップに図を入れてください",
       "back": "ステップ一覧",
       "done": "完了",
       "locked": "このステップは新しい Ori Studio で作成されたため、ここでは表示できません。",
+      "mode": "モード",
       "next": "次のステップ",
       "noPicture": "このステップにはまだ図がありません。",
       "notCaptured": "まだキャプチャされていません：下でパターンの見せ方を選んでください。",
@@ -888,6 +929,8 @@
     },
     "readOnlyNotice": "この折り図は新しい Ori Studio で作成されたため、ここでは読み取り専用で開かれます。保存しても元の内容がそのまま保たれます。",
     "stepPane": {
+      "annotate": "注記",
+      "annotations": "注記",
       "instruction": "説明文",
       "instructionLabel": "説明文",
       "instructionPlaceholder": "このステップの説明を入力…",

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 import type {
+  DiagramAnnotation,
   DiagramAsset,
   DiagramStep,
   DiagramStyle,
   KnownDiagramAsset,
 } from '../document/diagramDocument';
+import { annotatedPicture, hasDrawnAnnotations } from '../annotate/paintAnnotations';
 import { diagramStyleKey } from './diagramPaperStyle';
 import {
   paintAsset,
@@ -35,7 +37,45 @@ export function useStepPictureUrl(
 ): string | null {
   const seen = useSeen(element);
   const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
-  return useMemo(() => (seen && source ? stepPictureUrl(source, style) : null), [seen, source, style]);
+  const { annotations } = step;
+  return useMemo(
+    () => (seen && source ? annotatedStepUrl(source, annotations, style) : null),
+    [seen, source, annotations, style]
+  );
+}
+
+/**
+ * A step's picture with its annotations drawn on it (D8), through the cache:
+ * the picture's own URL when none draws. `opacity` ghosts them, as Pose
+ * shows them. Keyed by the picture as {@link stepPictureUrl} is, and by the
+ * annotations' list, which an edit replaces rather than changes.
+ */
+export function annotatedStepUrl(
+  source: StepPictureSource,
+  annotations: readonly DiagramAnnotation[],
+  style: DiagramStyle,
+  opacity = 1
+): string | null {
+  if (!hasDrawnAnnotations(annotations)) return stepPictureUrl(source, style);
+  const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}`;
+  return cachedPictureUrl(key, () => {
+    const painted = paintSource(source, style);
+    return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity)) : null;
+  });
+}
+
+/** What a source's picture is, for a key: the object it is drawn from, and how. */
+function sourceKey(source: StepPictureSource): string {
+  switch (source.kind) {
+    case 'asset':
+      return `asset|${objectSerial(source.asset)}|${source.pose.rotationQuarterTurns}|${source.pose.mirrored ? 'm' : ''}`;
+    case 'scene':
+      return `scene|${objectSerial(source.picture)}|${source.measure}`;
+    case 'fixed':
+      return `fixed|${objectSerial(source.picture)}`;
+    case 'step-diagram':
+      return `step-diagram|${objectSerial(source.picture)}`;
+  }
 }
 
 /**

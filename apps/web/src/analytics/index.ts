@@ -104,6 +104,7 @@ export {
   trackDiagramPictureCaptured,
   trackDiagramExported,
   trackDiagramPictureExported,
+  trackDiagramAnnotationAdded,
   trackDiagramPicturePosed,
   trackDiagramPictureRemoved,
   trackDiagramSourceOpened,

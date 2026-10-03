@@ -77,19 +77,19 @@ function anyDesignIsSavable(state: WorkspaceState): boolean {
 }
 
 /**
- * Whether Delete has a diagram step to act on: in the Diagram, with a step
- * selected, on a diagram this build may change. One predicate for both
- * capability builders.
+ * Whether Delete has something in the Diagram to act on, on a diagram this
+ * build may change: in Annotate, the selected annotation; anywhere else, the
+ * selected step. One predicate for both capability builders.
  */
 export function hasDeletableDiagramSelection(state: WorkspaceState): boolean {
   const { diagram, diagramSelectedStepId } = state;
-  return (
-    state.activeEditingContext === 'diagram' &&
-    !state.diagramReadOnly &&
-    diagram !== null &&
-    diagramSelectedStepId !== null &&
-    stepIndex(diagram, diagramSelectedStepId) >= 0
-  );
+  if (state.activeEditingContext !== 'diagram' || state.diagramReadOnly || diagram === null) return false;
+  if (diagramSelectedStepId === null) return false;
+  const step = diagram.steps[stepIndex(diagram, diagramSelectedStepId)];
+  if (!step) return false;
+  if (state.diagramDetail !== 'annotate') return true;
+  const annotationId = state.diagramSelectedAnnotationId;
+  return annotationId !== null && step.annotations.some((annotation) => annotation.id === annotationId);
 }
 
 /**

@@ -2258,7 +2258,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - `CpToolRail.module.css` moved whole to `ToolRail.module.css`. Two rules changed shape and not effect: a control group is `[data-control]` rather than `[data-group='line-type']`, and the two-row grid is keyed on the rail having a header (`[data-header]`) rather than on a coarse pointer, which is the condition it stood for. The unused `data-ui-status` attribute went.
   - **Proof.** `artifacts/diagram-phase7/rail-styles.mjs` dumps every computed property of every element in the Edit rail, in Chromium at 1440 and 700 wide under a fine pointer and at 1180 and 700 under touch, plus a hovered tool and group toggle: before and after are identical (238 and 245 elements, zero differences), with the after run confirmed on the new module's classes.
 - [x] **7c.** ~~The `createGestureBracket` option to ignore CP `'document-replaced'`.~~ **Not needed (deviation).** The gesture bracket brackets the CP overlay layers' writes, and the Diagram does not use it. An Annotate drag previews in the canvas and commits once on release, which is one undo entry and leaves nothing to abort on Escape; a label's text extends its newest entry through the slice's edit session, as an instruction does.
-- [ ] **7d.** Annotate.
+- [x] **7d.** Annotate.
   - `annotationModel.ts`, `annotationPrimitives.ts` (compiled at the target scale; M/V/hidden as lines) and `annotationHit.ts`.
   - `DiagramAnnotateCanvas`:
     - draw on drag past the threshold;
@@ -2270,13 +2270,27 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - Tool keys in the scope; the Escape ladder's rungs; Delete through `edit.delete`.
   - Annotations ghosted in Pose and composed into cards, pages and files.
   - The Annotate segment shown.
-- [ ] **7e.** Analytics: `diagram annotation added`.
-- [ ] **Browser:**
-  - every tool, light and dark;
-  - undo and redo of draw, move, flip, delete and label edit;
-  - annotations survive a rotate;
-  - export to PDF;
-  - the arrows match References'.
+  - **As built.**
+    - **Model and file.** `KnownDiagramAnnotation` is D8's shape, in picture units; `bend` is the arc's sagitta as a share of its chord, positive to the left of travel as the page shows it, ±`1 − cos 30°` for References' 60° arc. The reader (`diagramFile.ts`) drops what does not read — a wrong type, a zero bend, a second annotation with an id already read — and carries verbatim, as a newer build's, a kind, a field, an enumerated value or a well-formed value past this build's ranges (a bend over 0.5, a point more than four frames out, a label over 80 characters). A step keeps at most 500. A sign or a label is put where `from` is, whatever `to` says.
+    - **Frames.** Every painted picture reports its frame (`PaintedPicture.frame`): an upload's posed box, a scene's bounds, a fixed picture whole, a References step's sheet (`stepDiagramSheetBox`); a page cell finds the same box (`DrawnPicture.framePt`). `pictures/pictureFrame.ts` gives the frame in picture units without painting, for the carry, and holds the one parsed-scene cache (`storedScene`), which `pagePictures` now shares.
+    - **Carry (`annotationCarry.ts`).** `withCarriedAnnotations(before, after, assets)` runs at the end of `setUploadPose`, `setReferencesSide` and `setLinkedPicture`. It carries an upload's re-pose exactly (asset coordinates through both poses), a References step's turn-over as a mirror about its sheet, and a linked picture's turn — crease pattern, or flat with the same side and layer order, the same scope and fingerprint, both pictures scenes — as a rotation about the scene's origin, where both captures turn their pattern. A mirror turns a bend and a rotation's sense over; an odd number of quarter turns turns a turn-over's axis. Anything else, or a step carrying an annotation this build cannot read, leaves them where they were, out of step with the picture.
+    - **Drawing (`annotationPrimitives.tsx`, `paintAnnotations.ts`).** Compiled per paint in CSS px with the frame's top-left at the origin, through References' own projector, ink and pens (`STEP_DIAGRAM_LINE_WIDTH`, the style's arrow pen through the References policy), in a y-up primitive space as References' unit frame is, so every arc and head is References' code path. Marks have one ink on and off the paper (no clip pair). A card draws them as if the frame were the size every picture opens at (`CARD_FRAME_PX`, 50 mm); a page and a step file at the size the frame prints. A label is a `<text>` of runs in the upload-text format (`labelRuns`), so a page sets and counts it with `setUploadText`, its Han in the diagram's style; the rotate glyph's fraction is set in Noto Sans Bold the same way. A step file is cropped to reach an arrow that starts off the picture (`annotationReach`).
+    - **Surfaces.** Cards and the detail show `annotatedStepUrl` (the picture with its annotations, cached by the picture and the annotations' list); Pose ghosts them at 30%. The Annotate canvas (`useAnnotateCanvas`) shows the picture alone, its frame 1000 world px with a quarter-frame margin, the annotations live over it as React (`DiagramAnnotationLayer`, the painter's pens), a drag previewed and committed once on release; Space, the middle button or two fingers pan (the overlay is excluded from the camera's left-drag by its tag: the library matches each entry as a tag or a class, so an attribute selector throws). A press reaches 8 px (18 on touch).
+    - **Store.** `diagramAnnotateTool`, `diagramSelectedAnnotationId` (scoped, never history), `editDiagramAnnotations` (one undo entry, or a label field's session extending it; the slice's text session generalised to a keyed one), `keepDiagramAnnotations`. The selected annotation goes with its step, the detail, or an undo that removes it.
+    - **Keys.** The tool letters and F are in the `diagram` scope and decline outside Annotate; a letter pressed again puts its tool down. The registry test's diagram rule now leaves `crease-pattern` out (the diagram scope never stacks with it), and the shadowing test that used M moved to G, which only the crease pattern holds. Escape's rungs: drop the drag (`registerDiagramGestureCancel`), deselect, put the tool down, then the detail's. Delete in Annotate deletes the selected annotation and never the step (`hasDeletableDiagramSelection` follows).
+    - **Step pane.** `DiagramStepAnnotations`: out of Annotate, a count and an Annotate button; in Annotate, its section leads — the tool's name and help, the "picture changed" notice with **Keep Them Here**, a notice for annotations a newer build made, the list, and the selected annotation's controls (a label's text as a single-line `TextAreaRow` with a session per sitting, Flip arc, a rotation's turn and sense, a turn-over's axis, Delete). `TextAreaRow` gained `singleLine` and `fieldRef`. A label just put down asks for its field through `labelFocus.ts`.
+    - **Detail.** A `SegmentedControl` Pose | Annotate in the top bar; Annotate is disabled without a picture, and on a phone shows "Annotate on a larger screen". The rail is `ToolRail` (`DiagramAnnotateRail`) in Edit's rail column widths.
+  - **Deviations.**
+    - The cards have no hover verbs (as built since Phase 2), so Annotate is a step verb (`'annotate'` in `diagramActions.ts`): the card's context menu and the Step pane's button.
+    - In Annotate the Step pane leads with Annotate's section but keeps the Picture and Instruction sections under it, rather than replacing the summary.
+    - Added: **Keep Them Here** on the "picture changed" notice, so annotations that are right as they stand need not be touched to say so; a rotation's and a turn-over's own controls; a new label reads "A", selected in its field to type over.
+- [x] **7e.** Analytics: `diagram annotation added` with `{tool}`, from the canvas when an annotation lands (`trackDiagramAnnotationAdded`), with its `docs/analytics.md` row.
+- [x] **Browser** (Chromium; probes in `artifacts/diagram-phase7/`):
+  - every tool, light and dark (`annotate.mjs`, `surfaces.mjs`): drawn with the keys and the mouse, a label typed in the Step pane after its click took the focus there;
+  - undo and redo of draw, move, flip, delete and label edit, through Cmd+Z and Delete;
+  - annotations survive a rotate (`rotate.mjs`): an upload turned right and flipped from the detail's toolbar, the arrow staying on its mark and the label upright, then both undone;
+  - export to PDF (`export.mjs`): the annotations print, a label in Japanese embeds Noto Sans JP and the fraction Noto Sans Bold;
+  - the arrows match References': the same pen and scale on one page (`pagePictures.test.ts`), and the glyphs' goldens (7a).
 
 ### Phase 8: simulated steps
 

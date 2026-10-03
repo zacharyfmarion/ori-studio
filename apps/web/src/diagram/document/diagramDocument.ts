@@ -21,6 +21,7 @@ import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
+import { withCarriedAnnotations } from '../annotate/annotationCarry';
 
 /** The version of this document's own shape, inside the project file. */
 export const DIAGRAM_FORMAT_VERSION = 1;
@@ -239,15 +240,72 @@ export type DiagramPicture =
   | DiagramStepDiagramPicture;
 
 /**
+ * What an annotation draws (D8): a fold arrow — kept (valley, mountain) or
+ * made and unfolded — a push, the turn-over and rotate glyphs, a crease line
+ * in the diagram's pens, and a label.
+ */
+export type DiagramAnnotationKind =
+  | 'valley-arrow'
+  | 'mountain-arrow'
+  | 'fold-unfold-arrow'
+  | 'push-arrow'
+  | 'turn-over'
+  | 'rotate'
+  | 'valley-line'
+  | 'mountain-line'
+  | 'hidden-line'
+  | 'label';
+
+/** How far, and which way, a rotate glyph turns the model. */
+export interface DiagramRotation {
+  amount: 'eighth' | 'quarter' | 'half';
+  direction: 'cw' | 'ccw';
+}
+
+/**
+ * A mark drawn on a step's picture (D8), in **picture units**: the origin at
+ * the top-left of the picture's frame, y down, one unit the frame's longer
+ * side. The frame is the posed picture's bounds — a References step's, its
+ * sheet — so a mark stays on what it points at whatever size the picture is
+ * drawn. It is compiled into the step-diagram vocabulary each time it is
+ * painted (`annotate/annotationPrimitives.ts`), at the size it is painted at.
+ */
+export interface KnownDiagramAnnotation {
+  /** `annotation-<uuid>`. */
+  id: string;
+  kind: DiagramAnnotationKind;
+  /** Where it starts: an arrow's tail, a line's end, a glyph's or a label's centre. */
+  from: [number, number];
+  /** Where it ends: an arrow's tip; `from` again for a glyph or a label. */
+  to: [number, number];
+  /**
+   * A fold arrow's arc: its sagitta as a share of its chord, positive bulging
+   * to the left of its travel as the page shows it. Flip arc negates it.
+   */
+  bend?: number;
+  /** A label's text. */
+  text?: string;
+  rotate?: DiagramRotation;
+  /** The axis a turn-over turns the model about. */
+  axis?: 'vertical' | 'horizontal';
+  unknown?: undefined;
+}
+
+/**
  * An annotation this build cannot read, kept verbatim so a newer build's work
- * survives a round trip through this one. Readable kinds arrive with Annotate.
+ * survives a round trip through this one: a kind, or a value of one of its
+ * enums, this build does not know, or a field it has no name for.
  */
 export interface UnknownDiagramAnnotation {
   id: string;
   unknown: Record<string, unknown>;
 }
 
-export type DiagramAnnotation = UnknownDiagramAnnotation;
+export type DiagramAnnotation = KnownDiagramAnnotation | UnknownDiagramAnnotation;
+
+export function isKnownAnnotation(annotation: DiagramAnnotation): annotation is KnownDiagramAnnotation {
+  return annotation.unknown === undefined;
+}
 
 /** Uploaded vector art, sanitized (D7): only ever shown as an image. */
 export interface DiagramSvgAsset {
@@ -583,12 +641,14 @@ export function setLinkedPicture(
   ) {
     return document;
   }
-  return updateStep(withAssets(document, link.asset ? [link.asset] : []), stepId, (current) => ({
-    ...current,
-    source: link.source,
-    picture: link.picture,
-    revision: current.revision + 1,
-  }));
+  const withAsset = withAssets(document, link.asset ? [link.asset] : []);
+  return updateStep(withAsset, stepId, (current) =>
+    withCarriedAnnotations(
+      current,
+      { ...current, source: link.source, picture: link.picture, revision: current.revision + 1 },
+      withAsset.assets
+    )
+  );
 }
 
 /**
@@ -686,18 +746,19 @@ const BACK_SUFFIX = '-back';
 
 /**
  * Show a References step from one side or the other (D5: its pose is Turn
- * over). The picture is re-keyed — annotations drawn on one side are not on
- * the other — and the source keeps the side the card was sent from.
+ * over). The picture is re-keyed, and its annotations are flipped with it
+ * (D8); the source keeps the side the card was sent from.
  */
 export function setReferencesSide(document: DiagramDocument, stepId: string, mirrored: boolean): DiagramDocument {
   return updateStep(document, stepId, (step) => {
     if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
     if (step.picture.mirrored === mirrored) return step;
-    return {
+    const turned: DiagramStep = {
       ...step,
       picture: { ...step.picture, mirrored, key: stepDiagramKey(step.picture.key, mirrored) },
       revision: step.revision + 1,
     };
+    return withCarriedAnnotations(step, turned, document.assets);
   });
 }
 
@@ -737,7 +798,7 @@ export function poseBlocker(step: DiagramStep): 'not-upload' | 'unknown-annotati
   return null;
 }
 
-/** Set an upload's pose. A no-op for a step {@link poseBlocker} refuses. */
+/** Set an upload's pose, its annotations turned with it (D8). A no-op for a step {@link poseBlocker} refuses. */
 export function setUploadPose(
   document: DiagramDocument,
   stepId: string,
@@ -747,12 +808,78 @@ export function setUploadPose(
     if (poseBlocker(step) !== null || step.source?.kind !== 'upload') return step;
     const { rotationQuarterTurns, mirrored } = step.source;
     if (rotationQuarterTurns === pose.rotationQuarterTurns && mirrored === pose.mirrored) return step;
-    return {
+    const posed: DiagramStep = {
       ...step,
       source: { ...step.source, rotationQuarterTurns: pose.rotationQuarterTurns, mirrored: pose.mirrored },
       revision: step.revision + 1,
     };
+    return withCarriedAnnotations(step, posed, document.assets);
   });
+}
+
+/**
+ * A step's annotations edited: `edit` gets the readable ones and returns them
+ * as they should be; one this build cannot read keeps its place. Touching
+ * them marks them drawn on the picture the step has now (D8: "until they are
+ * touched"). A step with no picture takes none.
+ */
+export function editStepAnnotations(
+  document: DiagramDocument,
+  stepId: string,
+  edit: (annotations: readonly KnownDiagramAnnotation[]) => readonly KnownDiagramAnnotation[]
+): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    if (step.picture === null) return step;
+    const known = step.annotations.filter(isKnownAnnotation);
+    const edited = edit(known);
+    if (edited === known || sameAnnotations(edited, known)) return step;
+    return { ...step, annotations: mergeAnnotations(step.annotations, edited), annotatedPictureKey: step.picture.key };
+  });
+}
+
+/**
+ * A step's annotations kept where they are on the picture it has now: what
+ * the "picture changed" notice offers when they are right as they stand. A
+ * no-op when they are already in step with it.
+ */
+export function keepStepAnnotations(document: DiagramDocument, stepId: string): DiagramDocument {
+  return updateStep(document, stepId, (step) =>
+    step.picture === null || step.annotations.length === 0 || step.annotatedPictureKey === step.picture.key
+      ? step
+      : { ...step, annotatedPictureKey: step.picture.key }
+  );
+}
+
+/** Whether a step's annotations were drawn on a picture other than the one it has (D8). */
+export function annotationsOutOfStep(step: DiagramStep): boolean {
+  return step.annotations.length > 0 && step.annotatedPictureKey !== (step.picture?.key ?? null);
+}
+
+/**
+ * The step's annotations with the readable ones replaced by `edited`: each one
+ * kept in its place, one taken out gone, a new one last — so one this build
+ * cannot read keeps its place among them, and a newer build draws them in the
+ * order it did.
+ */
+function mergeAnnotations(
+  annotations: readonly DiagramAnnotation[],
+  edited: readonly KnownDiagramAnnotation[]
+): DiagramAnnotation[] {
+  if (annotations.every(isKnownAnnotation)) return [...edited];
+  const byId = new Map(edited.map((annotation) => [annotation.id, annotation]));
+  const merged: DiagramAnnotation[] = [];
+  for (const annotation of annotations) {
+    if (!isKnownAnnotation(annotation)) merged.push(annotation);
+    else if (byId.has(annotation.id)) {
+      merged.push(byId.get(annotation.id)!);
+      byId.delete(annotation.id);
+    }
+  }
+  return [...merged, ...byId.values()];
+}
+
+function sameAnnotations(a: readonly KnownDiagramAnnotation[], b: readonly KnownDiagramAnnotation[]): boolean {
+  return a.length === b.length && a.every((annotation, index) => annotation === b[index]);
 }
 
 /** Take a step's picture away, and its source with it. Its words and annotations stay. */

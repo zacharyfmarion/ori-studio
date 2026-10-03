@@ -657,6 +657,7 @@
   "diagram": {
     "actions": {
       "addStep": "添加步骤",
+      "annotate": "标注",
       "capturingHint": "正在捕获其图片",
       "currentHint": "已显示其图样的当前状态",
       "delete": "删除步骤",
@@ -689,6 +690,43 @@
       "startPage": "从这里开始新的一页",
       "uploadPicture": "上传图片…"
     },
+    "annotate": {
+      "arrowHelp": "从纸开始移动的位置拖到它落下的位置。",
+      "canvasLabel": "步骤图上的标注",
+      "controls": "标注视图控件",
+      "foldUnfoldHelp": "从纸开始移动的位置拖到它落下的位置：先折过去，再展开回来。",
+      "glyphHelp": "在要放置符号的位置单击。",
+      "groupArrows": "箭头",
+      "groupLines": "线",
+      "groupSelect": "选择",
+      "groupText": "文字",
+      "labelHelp": "在要放置标签的位置单击，然后在这里输入。",
+      "largerScreen": "请在平板或电脑等更大的屏幕上标注。",
+      "lineHelp": "沿折痕拖动。",
+      "pushHelp": "朝要按压的位置拖动。",
+      "select": "选择",
+      "selectHelp": "单击标注将其选中。拖动标注本身或任一端的圆点即可移动。",
+      "toolsLabel": "标注工具"
+    },
+    "annotations": {
+      "annotate": "标注",
+      "axis": "翻面方向",
+      "clockwise": "顺时针",
+      "count_other": "{{count}} 个标注",
+      "counterclockwise": "逆时针",
+      "delete": "删除",
+      "direction": "方向",
+      "empty": "还没有画任何标注。",
+      "keep": "保留在此",
+      "list": "标注",
+      "newer": "此步骤的部分标注由更新版本的 Ori Studio 创建。它们会被保留，但不在这里显示。",
+      "none": "没有标注",
+      "pictureChanged": "绘制这些标注之后，图已经改变。",
+      "sideToSide": "左右",
+      "text": "文字",
+      "topToBottom": "上下",
+      "turn": "旋转量"
+    },
     "card": {
       "badgeCreasePattern": "折痕图",
       "badgeEmpty": "空",
@@ -718,9 +756,12 @@
       "waitingReferences": "等待参考"
     },
     "detail": {
+      "annotate": "标注",
+      "annotateNeedsPicture": "先为这一步添加图，才能标注",
       "back": "步骤",
       "done": "完成",
       "locked": "此步骤由更新版本的 Ori Studio 创建，无法在此显示。",
+      "mode": "模式",
       "next": "下一步",
       "noPicture": "此步骤还没有图片。",
       "notCaptured": "尚未捕获：请在下方选择如何显示其图样。",
@@ -888,6 +929,8 @@
     },
     "readOnlyNotice": "此图解由更新版本的 Ori Studio 创建，因此在这里以只读方式打开。保存时会原样保留。",
     "stepPane": {
+      "annotate": "标注",
+      "annotations": "标注",
       "instruction": "说明",
       "instructionLabel": "说明",
       "instructionPlaceholder": "描述这一步…",

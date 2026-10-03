@@ -71,7 +71,7 @@ import {
  */
 
 /** The font a letter is set in when the picture leaves the app: the app's own stack, named. */
-const INLINE_LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
+export const INLINE_LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 
 /** The rotate glyph's heads, as a share of a fold arrow's. */
 const ROTATE_HEAD_OF_ARROWHEAD = 0.75;

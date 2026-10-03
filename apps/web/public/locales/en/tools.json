@@ -221,13 +221,24 @@
   "diagram": {
     "categoryLabel": "Diagram",
     "firstStep": "First Step",
+    "flipArc": "Flip Arc",
     "lastStep": "Last Step",
     "moveStepEarlier": "Move Step Earlier",
     "moveStepLater": "Move Step Later",
     "nextStep": "Next Step",
     "openStep": "Open Step",
     "previousStep": "Previous Step",
-    "scopeLabel": "diagram"
+    "scopeLabel": "diagram",
+    "toolFoldUnfoldArrow": "Fold and Unfold Arrow",
+    "toolHiddenLine": "Hidden Line",
+    "toolLabel": "Label",
+    "toolMountainArrow": "Mountain Fold Arrow",
+    "toolMountainLine": "Mountain Line",
+    "toolPushArrow": "Push Arrow",
+    "toolRotate": "Rotate",
+    "toolTurnOver": "Turn Over",
+    "toolValleyArrow": "Valley Fold Arrow",
+    "toolValleyLine": "Valley Line"
   },
   "divideMode": {
     "count": "Count",

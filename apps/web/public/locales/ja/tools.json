@@ -213,13 +213,24 @@
   "diagram": {
     "categoryLabel": "折り図",
     "firstStep": "最初のステップ",
+    "flipArc": "弧を反転",
     "lastStep": "最後のステップ",
     "moveStepEarlier": "ステップを前へ移動",
     "moveStepLater": "ステップを後ろへ移動",
     "nextStep": "次のステップ",
     "openStep": "ステップを開く",
     "previousStep": "前のステップ",
-    "scopeLabel": "折り図"
+    "scopeLabel": "折り図",
+    "toolFoldUnfoldArrow": "折り筋をつける矢印",
+    "toolHiddenLine": "かくれ線",
+    "toolLabel": "ラベル",
+    "toolMountainArrow": "山折りの矢印",
+    "toolMountainLine": "山折り線",
+    "toolPushArrow": "押す矢印",
+    "toolRotate": "回転",
+    "toolTurnOver": "裏返す",
+    "toolValleyArrow": "谷折りの矢印",
+    "toolValleyLine": "谷折り線"
   },
   "divideMode": {
     "count": "個数",

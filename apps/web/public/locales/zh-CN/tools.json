@@ -213,13 +213,24 @@
   "diagram": {
     "categoryLabel": "图解",
     "firstStep": "第一步",
+    "flipArc": "翻转弧线",
     "lastStep": "最后一步",
     "moveStepEarlier": "前移步骤",
     "moveStepLater": "后移步骤",
     "nextStep": "下一步",
     "openStep": "打开步骤",
     "previousStep": "上一步",
-    "scopeLabel": "图解"
+    "scopeLabel": "图解",
+    "toolFoldUnfoldArrow": "折后展开箭头",
+    "toolHiddenLine": "隐藏线",
+    "toolLabel": "标签",
+    "toolMountainArrow": "山折箭头",
+    "toolMountainLine": "山折线",
+    "toolPushArrow": "按压箭头",
+    "toolRotate": "旋转",
+    "toolTurnOver": "翻面",
+    "toolValleyArrow": "谷折箭头",
+    "toolValleyLine": "谷折线"
   },
   "divideMode": {
     "count": "数量",
