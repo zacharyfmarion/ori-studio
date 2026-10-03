@@ -931,8 +931,10 @@
       "failed": "Não foi possível diagramar as páginas. Verifique a conexão e tente de novo.",
       "label": "Passos nas páginas",
       "loading": "Diagramando as páginas…",
+      "nextPage": "Próxima página",
       "noPicture": "Ainda sem imagem",
       "pageOf": "Página {{number}} de {{total}}",
+      "previousPage": "Página anterior",
       "step": "Passo {{number}}",
       "stepCut": "Passo {{number}}, o texto não cabe",
       "textCut": "O texto não cabe"

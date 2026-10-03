@@ -94,6 +94,10 @@ describe('DiagramPagesView', () => {
     expect(page.getAttribute('aria-label')).toBe('Page 1');
     expect(page.querySelector('img')?.src.startsWith('data:image/svg+xml;base64,')).toBe(true);
     expect(host.textContent).toContain('Page 1 of 1');
+    // The pager: one page, so neither way goes anywhere.
+    const turn = (name: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+    expect(turn('Previous Page')?.disabled).toBe(true);
+    expect(turn('Next Page')?.disabled).toBe(true);
   });
 
   it('lays the steps over the page as one listbox, the selected one marked and the tab stop', () => {

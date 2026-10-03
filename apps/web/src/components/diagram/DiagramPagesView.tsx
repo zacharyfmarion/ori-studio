@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewportSurface';
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
@@ -67,6 +68,7 @@ export function DiagramPagesView({
     pressWasPan,
     current,
     count,
+    goToPage,
     pageW,
     pageH,
     pitch,
@@ -245,12 +247,23 @@ export function DiagramPagesView({
         zoomOut={zoomOut}
         fitToView={fitToView}
         setZoomLevel={setZoomLevel}
+        // On a phone the bar is a pager: a pinch zooms, and Fit is in its menu.
+        phoneViewControls="collapsed"
         groups={
           pages
             ? [
                 {
                   id: 'page-of',
                   items: [
+                    {
+                      kind: 'action',
+                      id: 'previous-page',
+                      label: t('panels:diagram.pages.previousPage', 'Previous Page'),
+                      icon: <ChevronLeft size={15} />,
+                      disabled: current <= 0,
+                      pinned: true,
+                      onSelect: () => goToPage(current - 1),
+                    },
                     {
                       kind: 'node',
                       id: 'page-of',
@@ -262,6 +275,15 @@ export function DiagramPagesView({
                           })}
                         </span>
                       ),
+                    },
+                    {
+                      kind: 'action',
+                      id: 'next-page',
+                      label: t('panels:diagram.pages.nextPage', 'Next Page'),
+                      icon: <ChevronRight size={15} />,
+                      disabled: current >= count - 1,
+                      pinned: true,
+                      onSelect: () => goToPage(current + 1),
                     },
                   ],
                 },

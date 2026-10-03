@@ -896,8 +896,10 @@
       "failed": "Die Seiten konnten nicht gesetzt werden. Prüfe die Verbindung und versuche es erneut.",
       "label": "Schritte auf den Seiten",
       "loading": "Seiten werden gesetzt…",
+      "nextPage": "Nächste Seite",
       "noPicture": "Noch kein Bild",
       "pageOf": "Seite {{number}} von {{total}}",
+      "previousPage": "Vorherige Seite",
       "step": "Schritt {{number}}",
       "stepCut": "Schritt {{number}}, Text passt nicht",
       "textCut": "Text passt nicht"

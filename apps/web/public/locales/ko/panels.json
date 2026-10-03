@@ -861,8 +861,10 @@
       "failed": "페이지를 배치하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
       "label": "페이지의 단계",
       "loading": "페이지를 배치하는 중…",
+      "nextPage": "다음 페이지",
       "noPicture": "아직 그림이 없습니다",
       "pageOf": "{{total}}페이지 중 {{number}}페이지",
+      "previousPage": "이전 페이지",
       "step": "{{number}}단계",
       "stepCut": "{{number}}단계, 텍스트가 들어가지 않습니다",
       "textCut": "텍스트가 들어가지 않습니다"

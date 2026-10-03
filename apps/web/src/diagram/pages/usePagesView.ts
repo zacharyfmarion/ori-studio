@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { useViewportSurface } from '../../hooks/useViewportSurface';
+import { getViewportFitScale } from '../../lib/designViewport';
 import type { PlotRect } from '../../lib/geometry';
+import { viewportSizeFromElement } from '../../lib/treeViewportPrimitives';
 import { registerDiagramViewCamera } from '../useDiagramShortcuts';
 import type { PreparedDiagramPages } from './diagramPages';
 
@@ -14,6 +16,7 @@ export const PAGES_CAPTION = 24;
 /** How far a press may travel and still be a press, not a pan, in CSS px. */
 const PAN_SLOP = 4;
 const REVEAL_MS = 160;
+const PAGE_TURN_MS = 220;
 
 const OBSERVES = typeof IntersectionObserver !== 'undefined';
 
@@ -68,6 +71,33 @@ export function usePagesView({
       setCurrent(Math.min(Math.max(0, Math.floor((middle - PAGES_PAD) / pitch)), Math.max(0, count - 1)));
     },
     [cameraTransformed, containerRef, pitch, count]
+  );
+
+  /**
+   * Turn to a page: frame it whole, its caption and the column's margin
+   * included, as the view first frames page one — the Pages view as a pager,
+   * which on a phone is how it is read.
+   */
+  const goToPage = useCallback(
+    (index: number) => {
+      const api = transformRef.current;
+      const view = containerRef.current;
+      if (!api || !view || count === 0) return;
+      const viewport = viewportSizeFromElement(view);
+      if (!viewport) return;
+      const target = Math.min(Math.max(0, index), count - 1);
+      const width = pageW + 2 * PAGES_PAD;
+      const height = pageH + PAGES_CAPTION + 2 * PAGES_PAD;
+      // The fit's own scale (`useViewportSurface`): a page turned to is framed as Fit frames page one.
+      const scale = getViewportFitScale(viewport, { width, height });
+      api.setTransform(
+        (viewport.width - width * scale) / 2,
+        (viewport.height - height * scale) / 2 - target * pitch * scale,
+        scale,
+        PAGE_TURN_MS
+      );
+    },
+    [transformRef, containerRef, count, pageW, pageH, pitch]
   );
 
   // Pages are composed once they come within a view's height of the screen.
@@ -176,6 +206,7 @@ export function usePagesView({
     pressWasPan,
     current,
     count,
+    goToPage,
     pageW,
     pageH,
     pitch,

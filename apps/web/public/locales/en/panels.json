@@ -896,8 +896,10 @@
       "failed": "The pages couldn’t be laid out. Check your connection and try again.",
       "label": "Steps on the pages",
       "loading": "Laying out the pages…",
+      "nextPage": "Next Page",
       "noPicture": "No picture yet",
       "pageOf": "Page {{number}} of {{total}}",
+      "previousPage": "Previous Page",
       "step": "Step {{number}}",
       "stepCut": "Step {{number}}, text doesn’t fit",
       "textCut": "Text doesn’t fit"

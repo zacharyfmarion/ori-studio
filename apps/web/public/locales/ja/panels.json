@@ -861,8 +861,10 @@
       "failed": "ページをレイアウトできませんでした。接続を確認して、もう一度お試しください。",
       "label": "ページ上のステップ",
       "loading": "ページをレイアウトしています…",
+      "nextPage": "次のページ",
       "noPicture": "まだ図がありません",
       "pageOf": "{{number}} / {{total}} ページ",
+      "previousPage": "前のページ",
       "step": "ステップ {{number}}",
       "stepCut": "ステップ {{number}}、文章が収まりません",
       "textCut": "文章が収まりません"

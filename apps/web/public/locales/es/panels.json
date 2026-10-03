@@ -931,8 +931,10 @@
       "failed": "No se pudieron maquetar las páginas. Revisa la conexión e inténtalo de nuevo.",
       "label": "Pasos en las páginas",
       "loading": "Maquetando las páginas…",
+      "nextPage": "Página siguiente",
       "noPicture": "Aún sin imagen",
       "pageOf": "Página {{number}} de {{total}}",
+      "previousPage": "Página anterior",
       "step": "Paso {{number}}",
       "stepCut": "Paso {{number}}, el texto no cabe",
       "textCut": "El texto no cabe"
