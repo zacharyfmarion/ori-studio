@@ -103,6 +103,8 @@ function recorder(): Recorder {
     bufferData: () => {},
     createVertexArray: object,
     bindVertexArray: () => {},
+    deleteBuffer: () => {},
+    deleteVertexArray: () => {},
     getAttribLocation: () => 0,
     enableVertexAttribArray: () => {},
     vertexAttribPointer: () => {},
@@ -498,5 +500,59 @@ describe('drawing the aux pass and the erode', () => {
       null
     );
     expect(floats.get('u_erodePx')).toBe(0);
+  });
+});
+
+describe('highlighted triangles', () => {
+  it('redraws them tinted when the frame asks for the highlight', () => {
+    const { core, draws, floats } = recorder();
+    const renderer = new MeshRenderer(core, topology());
+    renderer.setHighlightTriangles([1, 3]);
+    renderer.render(CAMERA, { ...SETTINGS, highlightMix: 0.3 }, null, { highlight: true });
+
+    // The whole mesh, then two triangles from a buffer of their own.
+    expect(draws).toEqual([
+      { count: 18, offset: 0 },
+      { count: 6, offset: 0 },
+    ]);
+    expect(floats.get('u_tintMix')).toBe(0.3);
+  });
+
+  it('never draws them in a frame that does not ask — an export, say', () => {
+    const { core, draws, floats } = recorder();
+    const renderer = new MeshRenderer(core, topology());
+    renderer.setHighlightTriangles([1, 3]);
+    renderer.render(CAMERA, SETTINGS, null);
+
+    expect(draws).toEqual([{ count: 18, offset: 0 }]);
+    expect(floats.get('u_tintMix')).toBe(0);
+  });
+
+  it('draws nothing extra once the highlight is cleared', () => {
+    const { core, draws } = recorder();
+    const renderer = new MeshRenderer(core, topology());
+    renderer.setHighlightTriangles([1, 3]);
+    renderer.setHighlightTriangles(null);
+    renderer.render(CAMERA, SETTINGS, null, { highlight: true });
+
+    expect(draws).toEqual([{ count: 18, offset: 0 }]);
+  });
+
+  it('ignores triangles the mesh does not have', () => {
+    const { core, draws } = recorder();
+    const renderer = new MeshRenderer(core, topology());
+    renderer.setHighlightTriangles([2, 6, -1, 1.5]);
+    renderer.render(CAMERA, SETTINGS, null, { highlight: true });
+
+    expect(draws[1]).toEqual({ count: 3, offset: 0 });
+  });
+
+  it('skips the highlight with the faces hidden, as it skips the faces', () => {
+    const { core, draws } = recorder();
+    const renderer = new MeshRenderer(core, topology());
+    renderer.setHighlightTriangles([1]);
+    renderer.render(CAMERA, { ...SETTINGS, showFaces: false }, null, { highlight: true });
+
+    expect(draws).toEqual([]);
   });
 });

@@ -34,6 +34,10 @@ interface RenderCheckRow {
   ok: boolean;
   /** Strain colour mode produced a different image than paper mode. */
   strainDiffers?: boolean;
+  /** A frame drawn with the highlight tinted the highlighted triangles. */
+  highlightDiffers?: boolean;
+  /** A frame drawn without asking (an export) shows no highlight at all. */
+  highlightAbsentUnasked?: boolean;
   error?: string;
 }
 
@@ -232,6 +236,20 @@ window.runRenderCheck = () => {
         }
       }
 
+      // Pinned faces are drawn tinted, and only in a frame that asks: the
+      // highlight pass must compile and change the picture, and must not leak
+      // into a frame drawn without it, which is what an export is.
+      const triangleCount = model.prepared.indices.length / 3;
+      solver.setHighlightTriangles(Array.from({ length: Math.ceil(triangleCount / 2) }, (_, t) => t));
+      const highlighted = solver.renderToImage(camera, facesOnly, RENDER_SIZE, RENDER_SIZE, { highlight: true });
+      const unasked = solver.renderToImage(camera, facesOnly, RENDER_SIZE, RENDER_SIZE);
+      let highlightDiffers = false;
+      let highlightAbsentUnasked = true;
+      for (let i = 0; i < paperFaces.length; i += 1) {
+        if (highlighted[i] !== paperFaces[i]) highlightDiffers = true;
+        if (unasked[i] !== paperFaces[i]) highlightAbsentUnasked = false;
+      }
+
       const bg = [Math.round(0.05 * 255), Math.round(0.06 * 255), Math.round(0.07 * 255)];
       let covered = 0;
       const colors = new Set<number>();
@@ -255,6 +273,8 @@ window.runRenderCheck = () => {
         distinctColors: colors.size,
         ok: coverage > 0.02 && coverage < 0.99 && colors.size > 1,
         strainDiffers,
+        highlightDiffers,
+        highlightAbsentUnasked,
       };
     } catch (cause) {
       row = { ...row, error: cause instanceof Error ? cause.message : String(cause) };

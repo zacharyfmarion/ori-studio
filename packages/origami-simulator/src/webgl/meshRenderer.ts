@@ -221,6 +221,14 @@ export interface RenderSettings {
    */
   strainClip?: number;
   /**
+   * The tint highlighted triangles are mixed toward, in a frame drawn with
+   * `MeshDrawOptions.highlight` — a theme colour, so it travels with the rest of
+   * the palette. Defaults to {@link DEFAULT_HIGHLIGHT_COLOR}.
+   */
+  highlightColor?: readonly [number, number, number];
+  /** How far toward the tint, 0..1. Defaults to {@link DEFAULT_HIGHLIGHT_MIX}. */
+  highlightMix?: number;
+  /**
    * How far toward the viewer a crease is pushed, in NDC z, so it draws over the
    * face it lies on instead of z-fighting with it. Defaults to
    * {@link DEFAULT_CREASE_DEPTH_BIAS}.
@@ -578,6 +586,9 @@ uniform float u_lighting;
 uniform float u_alpha;
 uniform float u_strainMode;
 uniform float u_strainClip;
+// A highlight pass redraws chosen triangles mixed toward a tint; 0 elsewhere.
+uniform vec3 u_tintColor;
+uniform float u_tintMix;
 out vec4 fragColor;
 
 // Upstream colours strain with THREE.Color.setHSL(hue, 1, 0.5), so match that
@@ -595,17 +606,18 @@ ${SHADE_GLSL}
 void main(){
   vec3 normal = normalize(cross(dFdx(v_view), dFdy(v_view)));
   vec3 base = gl_FrontFacing ? u_frontColor : u_backColor;
+  vec3 color;
   if (u_strainMode > 0.5){
     // Percent strain, clipped, mapped hue 0.7 (blue, relaxed) -> 0 (red, at the
     // clip). Upstream: scaledVal = (1 - e/clip) * 0.7.
     float e = min(v_strain*100.0, u_strainClip);
-    base = hueToRgb(clamp((1.0 - e/max(u_strainClip, 0.0001)) * 0.7, 0.0, 1.0));
     // Flat-shade strain: lighting would read as strain that is not there.
-    fragColor = vec4(base, u_alpha);
-    return;
+    color = hueToRgb(clamp((1.0 - e/max(u_strainClip, 0.0001)) * 0.7, 0.0, 1.0));
+  } else {
+    float shade = u_lighting > 0.5 ? shadeFor(normal, u_lightDir) : 1.0;
+    color = base*shade;
   }
-  float shade = u_lighting > 0.5 ? shadeFor(normal, u_lightDir) : 1.0;
-  fragColor = vec4(base*shade, u_alpha);
+  fragColor = vec4(mix(color, u_tintColor, u_tintMix), u_alpha);
 }`;
 
 // Creases are drawn as screen-space quads, not GL LINES: native line width is
@@ -829,6 +841,13 @@ export interface MeshDrawOptions {
    * mapping is therefore not `6 · index`.
    */
   edgeRange?: { start: number; count: number };
+  /**
+   * Redraw the triangles set by {@link MeshRenderer.setHighlightTriangles}, mixed
+   * toward {@link RenderSettings.highlightColor}. Interactive frames ask for it;
+   * an export never does, so the highlight is chrome on the screen and never
+   * ink in a file.
+   */
+  highlight?: boolean;
 }
 
 /**
@@ -852,6 +871,11 @@ function clampRange(value: number, limit: number): number {
   if (!Number.isFinite(value) || value <= 0) return 0;
   return Math.min(Math.floor(value), Math.max(0, limit));
 }
+
+/** A highlight with no colour of its own: the app's default accent blue. */
+export const DEFAULT_HIGHLIGHT_COLOR: readonly [number, number, number] = [0.38, 0.69, 0.94];
+/** How far a highlighted face is mixed toward its tint. */
+export const DEFAULT_HIGHLIGHT_MIX = 0.45;
 
 export interface MeshRendererOptions {
   /**
@@ -879,6 +903,12 @@ export class MeshRenderer {
   private readonly sheet: number;
   private readonly faceUniforms: Map<string, WebGLUniformLocation | null> = new Map();
   private readonly edgeUniforms: Map<string, WebGLUniformLocation | null> = new Map();
+  /** The mesh's triangles, kept to cut highlight subsets from. */
+  private readonly faceIndices: Uint32Array;
+  private highlightElements: WebGLBuffer | null = null;
+  private highlightVao: WebGLVertexArrayObject | null = null;
+  /** Indices (three per triangle) in the highlight buffer. */
+  private highlightCount = 0;
 
   constructor(
     private readonly core: GlCore,
@@ -890,6 +920,7 @@ export class MeshRenderer {
     this.textureDim = topology.textureDim;
     this.sheet = Math.max(0, options.sheet ?? 0);
     this.faceCount = topology.faceIndices.length;
+    this.faceIndices = topology.faceIndices;
 
     this.faceProgram = compile(gl, FACE_VERT, FACE_FRAG);
     this.edgeProgram = compile(gl, EDGE_VERT, EDGE_FRAG);
@@ -921,6 +952,38 @@ export class MeshRenderer {
     }
 
     gl.bindVertexArray(null);
+  }
+
+  /**
+   * The triangles a frame drawn with `highlight` redraws tinted — a pinned
+   * face, say. Triangle indices into the mesh; any outside it are ignored, and
+   * null or an empty list highlights nothing.
+   */
+  setHighlightTriangles(triangles: ArrayLike<number> | null): void {
+    const gl = this.gl;
+    if (this.highlightElements) gl.deleteBuffer(this.highlightElements);
+    if (this.highlightVao) gl.deleteVertexArray(this.highlightVao);
+    this.highlightElements = null;
+    this.highlightVao = null;
+    this.highlightCount = 0;
+    const triangleCount = this.faceCount / 3;
+    const subset: number[] = [];
+    for (let i = 0; i < (triangles?.length ?? 0); i += 1) {
+      const triangle = triangles![i]!;
+      if (!Number.isInteger(triangle) || triangle < 0 || triangle >= triangleCount) continue;
+      subset.push(
+        this.faceIndices[triangle * 3]!,
+        this.faceIndices[triangle * 3 + 1]!,
+        this.faceIndices[triangle * 3 + 2]!
+      );
+    }
+    if (subset.length === 0) return;
+    this.highlightVao = createVao(gl);
+    gl.bindVertexArray(this.highlightVao);
+    this.highlightElements = uploadElements(gl, Uint32Array.from(subset));
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.highlightElements);
+    gl.bindVertexArray(null);
+    this.highlightCount = subset.length;
   }
 
   render(
@@ -1008,6 +1071,7 @@ export class MeshRenderer {
         'u_strainClip',
         settings.strainClip ?? 5
       );
+      this.setFloat(this.faceProgram, this.faceUniforms, 'u_tintMix', 0);
       const first = clampRange(options.faceRange?.start ?? 0, this.faceCount);
       const count = clampRange(
         options.faceRange?.count ?? this.faceCount - first,
@@ -1015,6 +1079,26 @@ export class MeshRenderer {
       );
       // UNSIGNED_INT indices, so the byte offset is four per index.
       if (count > 0) gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_INT, first * 4);
+
+      // The same triangles through the same shader, so they land at the same
+      // depth and LEQUAL lets them over: a highlighted face that is hidden stays
+      // hidden. Before the creases, which draw on top of the tint.
+      if (options.highlight && this.highlightVao && this.highlightCount > 0) {
+        gl.bindVertexArray(this.highlightVao);
+        this.setVec3(
+          this.faceProgram,
+          this.faceUniforms,
+          'u_tintColor',
+          settings.highlightColor ?? DEFAULT_HIGHLIGHT_COLOR
+        );
+        this.setFloat(
+          this.faceProgram,
+          this.faceUniforms,
+          'u_tintMix',
+          settings.highlightMix ?? DEFAULT_HIGHLIGHT_MIX
+        );
+        gl.drawElements(gl.TRIANGLES, this.highlightCount, gl.UNSIGNED_INT, 0);
+      }
     }
 
     if (settings.showEdges && this.edgeVertexCount > 0) {
@@ -1106,6 +1190,8 @@ export class MeshRenderer {
     gl.deleteBuffer(this.edgeBuffer);
     gl.deleteVertexArray(this.faceVao);
     gl.deleteVertexArray(this.edgeVao);
+    if (this.highlightElements) gl.deleteBuffer(this.highlightElements);
+    if (this.highlightVao) gl.deleteVertexArray(this.highlightVao);
   }
 
   private bindCommon(
@@ -1172,7 +1258,7 @@ export class MeshRenderer {
     p: WebGLProgram,
     c: Map<string, WebGLUniformLocation | null>,
     n: string,
-    v: [number, number, number]
+    v: readonly [number, number, number]
   ): void {
     this.gl.uniform3f(this.location(p, c, n), v[0], v[1], v[2]);
   }

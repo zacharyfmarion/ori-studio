@@ -1,4 +1,6 @@
 import {
+  DEFAULT_HIGHLIGHT_COLOR,
+  DEFAULT_HIGHLIGHT_MIX,
   EDGE_BOUNDARY_A,
   EDGE_BOUNDARY_B,
   EDGE_CODE,
@@ -50,15 +52,21 @@ export { type SimulatorSurfaceOptions };
  * triangle rasterisation.
  */
 
-/** Which creases and faces a sequence step is highlighting, if any. */
+/**
+ * What a frame emphasises: the creases and faces a sequence step is
+ * highlighting, and the pinned faces, by triangle index.
+ */
 export interface SimulatorHighlights {
-  creases: Set<number>;
-  faces: Set<number>;
+  creases: ReadonlySet<number>;
+  faces: ReadonlySet<number>;
+  /** Tinted the way the GPU's highlight pass tints them. */
+  pinned: ReadonlySet<number>;
 }
 
 export const EMPTY_HIGHLIGHTS: SimulatorHighlights = {
   creases: new Set(),
   faces: new Set(),
+  pinned: new Set(),
 };
 
 interface ProjectedPoint {
@@ -254,6 +262,11 @@ export function drawFrame(
         render.lighting,
       );
       ctx.fill();
+      if (highlights.pinned.has(triangle.faceIndex)) {
+        const [r, g, b] = palette.pinnedRgb;
+        ctx.fillStyle = `rgb(${r} ${g} ${b} / ${palette.pinnedMix * faceAlpha})`;
+        ctx.fill();
+      }
       if (highlighted) {
         ctx.fillStyle = palette.highlightFace;
         ctx.fill();
@@ -337,6 +350,9 @@ interface SimulatorPalette {
   highlight: string;
   highlightFace: string;
   highlightFaceRgb: Rgb;
+  /** The pinned faces' tint and how far toward it, from the render settings the GPU uses. */
+  pinnedRgb: Rgb;
+  pinnedMix: number;
   /** The two sides of the paper as 0..1 channels, the form the shade band multiplies. */
   paperFront: Vec3Like;
   paperBack: Vec3Like;
@@ -386,6 +402,8 @@ function paletteFrom(
     highlight: chrome.highlight,
     highlightFace: "rgb(240 198 116 / 0.3)",
     highlightFaceRgb: chrome.highlightFaceRgb,
+    pinnedRgb: renderColorToRgb(render.highlightColor ?? DEFAULT_HIGHLIGHT_COLOR),
+    pinnedMix: render.highlightMix ?? DEFAULT_HIGHLIGHT_MIX,
     paperFront: render.frontColor,
     paperBack: render.backColor,
     lightDir: render.lightDir,
@@ -521,6 +539,7 @@ function drawPaperFacesWithDepth(
     const color = triangleRasterColor(
       triangle.vertices,
       highlights.faces.has(triangle.faceIndex),
+      highlights.pinned.has(triangle.faceIndex),
       palette,
       projected,
       lighting,
@@ -642,14 +661,16 @@ function triangleColor(
 function triangleRasterColor(
   triangle: number[],
   highlighted: boolean,
+  pinned: boolean,
   palette: SimulatorPalette,
   projected: ProjectedPoint[],
   lighting: boolean,
 ): [number, number, number, number] {
   const shaded = triangleShadedRgb(triangle, projected, palette, lighting);
+  const tinted = pinned ? blendRgb(shaded, palette.pinnedRgb, palette.pinnedMix) : shaded;
   const rgb = highlighted
-    ? blendRgb(shaded, palette.highlightFaceRgb, 0.3)
-    : shaded;
+    ? blendRgb(tinted, palette.highlightFaceRgb, 0.3)
+    : tinted;
   return [rgb[0], rgb[1], rgb[2], 255];
 }
 

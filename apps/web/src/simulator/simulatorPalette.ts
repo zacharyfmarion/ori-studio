@@ -41,6 +41,7 @@ const FALLBACK = {
   canvas: '#0c0f12',
   flat: '#aeb9bf',
   highlight: '#f0c674',
+  accent: '#61afef',
 } as const;
 
 /**
@@ -121,7 +122,7 @@ export function resolveRenderSettings(
   surface: SimulatorSurfaceOptions = {}
 ): RenderSettings {
   const dpr = typeof window === 'undefined' ? 1 : Math.max(1, window.devicePixelRatio || 1);
-  return resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, {
+  const paint = resolvePaperStyle(style, PAPER_STYLE_POLICIES.simulator, {
     dpr,
     background: unit(themeGround(styles)),
     backgroundAlpha: surface.transparentBackground ? 0 : 1,
@@ -133,6 +134,14 @@ export function resolveRenderSettings(
     creaseWidthReferenceEdge: surface.creaseWidthReferenceEdge,
     creaseWidthShrinkExponent: surface.creaseWidthShrinkExponent,
   });
+  // Pinned faces are the Pin tool's selection, so they wear the selection
+  // accent, on the GPU and canvas-2D paths alike.
+  return {
+    ...paint,
+    highlightColor: unit(
+      parseCssRgb(cssVar(styles, '--accent-primary', FALLBACK.accent), parseCssRgb(FALLBACK.accent, [0, 0, 0]))
+    ),
+  };
 }
 
 /**

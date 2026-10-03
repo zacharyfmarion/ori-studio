@@ -732,7 +732,7 @@ Each step is its own commit; the moves change nothing on screen.
 - [x] **Picking.** The three pure functions, plus `cssRectToBuffer` (shipped as `scaleRect`). Tests on a
       hand-built two-layer fixture: the centre rule includes the hidden face, the
       visible rule excludes it, and a click hits the front.
-- [ ] **Overlay.** GPU overlay pass and canvas-2D highlights; exports verified
+- [x] **Overlay.** GPU overlay pass and canvas-2D highlights; exports verified
       free of the tint.
 - [ ] **Worker and runtime.** `pickFaces` and `setPinnedFaces` (validation,
       `modelKey`); last-drawn camera; framing anchor; serial queue; re-send after

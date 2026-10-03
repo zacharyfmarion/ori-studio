@@ -18,6 +18,8 @@ export {
   MeshRenderer,
   meshTopologyFor,
   DEFAULT_CREASE_DEPTH_BIAS,
+  DEFAULT_HIGHLIGHT_COLOR,
+  DEFAULT_HIGHLIGHT_MIX,
   DASH_KINDS,
   MAX_DASH_RUNS,
   packCreaseDash,

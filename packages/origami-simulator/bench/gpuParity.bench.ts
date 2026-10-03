@@ -42,6 +42,8 @@ interface RenderCheckRow {
   distinctColors: number;
   ok: boolean;
   strainDiffers?: boolean;
+  highlightDiffers?: boolean;
+  highlightAbsentUnasked?: boolean;
   error?: string;
 }
 
@@ -119,7 +121,9 @@ describe('GPU solver parity', () => {
           (row.error
             ? `ERROR: ${row.error}`
             : `coverage ${(row.coverage * 100).toFixed(1)}%  colors ${row.distinctColors}  ` +
-              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ${row.ok ? 'ok' : 'FAIL'}`)
+              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ` +
+              `highlight ${row.highlightDiffers ? 'tints' : 'NONE'}/${row.highlightAbsentUnasked ? 'clean' : 'LEAKS'}  ` +
+              `${row.ok ? 'ok' : 'FAIL'}`)
       );
       process.stdout.write(`render check:\n${renderLines.join('\n')}\n\n`);
 
@@ -129,6 +133,8 @@ describe('GPU solver parity', () => {
         expect(row.ok, `${row.fixture} rendered an implausible frame (coverage ${row.coverage}, colors ${row.distinctColors})`).toBe(true);
         // Strain visualization must actually change the image; it used to be a stub.
         expect(row.strainDiffers, `${row.fixture} strain colour mode changed nothing`).toBe(true);
+        expect(row.highlightDiffers, `${row.fixture} highlight pass tinted nothing`).toBe(true);
+        expect(row.highlightAbsentUnasked, `${row.fixture} highlight leaked into an unasked frame`).toBe(true);
       }
     } finally {
       await browser?.close();

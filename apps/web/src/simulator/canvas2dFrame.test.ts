@@ -238,6 +238,16 @@ describe('drawFrame', () => {
     expect(centrePixel()).toEqual([128, 128, 128]);
   });
 
+  it('tints a pinned face toward the highlight colour, by the mix the GPU pass uses', () => {
+    const tint = paintWith({ lighting: false, highlightColor: [0, 0, 1], highlightMix: 0.5 });
+    drawFrame(canvas, MODEL, FACING_SHEET, VIEW, tint, { ...EMPTY_HIGHLIGHTS, pinned: new Set([0]) });
+    // Half way from the 128 grey to pure blue.
+    expect(centrePixel()).toEqual([64, 64, 192]);
+
+    drawFrame(canvas, MODEL, FACING_SHEET, VIEW, tint, EMPTY_HIGHLIGHTS);
+    expect(centrePixel()).toEqual([128, 128, 128]);
+  });
+
   it('casts no drop shadow', () => {
     // Re-pinned: a lit frame used to draw the silhouette a second time with a
     // canvas shadow behind the paper — a depth cue neither the GPU renderer nor
