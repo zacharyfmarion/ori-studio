@@ -3,7 +3,8 @@ import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diag
 import { arrowApex } from './annotationModel';
 import { arrowPolyline, hitAnnotation } from './annotationHit';
 
-const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05 };
+/** About the canvas's: an ink is about 0.0066 of the frame. */
+const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066 };
 
 const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.1, 0.5], to: [0.9, 0.5] };
 const arrow: KnownDiagramAnnotation = { id: 'arrow', kind: 'valley-arrow', from: [0.2, 0.3], to: [0.6, 0.3], bend: 0.2 };
@@ -36,6 +37,30 @@ describe('hitAnnotation', () => {
   it('takes the topmost as drawn: a label over a line, whatever their order', () => {
     expect(hitAnnotation([label, line], [0.5, 0.5], SIZES, null)?.annotationId).toBe('label');
     expect(hitAnnotation([line, label], [0.5, 0.5], SIZES, null)?.annotationId).toBe('label');
+  });
+
+  it('takes a fold-and-unfold arrow by its return and its head, beside the outgoing arc', () => {
+    const fold: KnownDiagramAnnotation = { id: 'fold', kind: 'fold-unfold-arrow', from: [0.2, 0.5], to: [0.7, 0.5], bend: 0.134 };
+    // The head ends the return a little beside where the paper started: about 0.07 above it.
+    const tight = { ...SIZES, tolerance: 0.005 };
+    expect(hitAnnotation([fold], [0.199, 0.432], tight, null)?.annotationId).toBe('fold');
+    expect(hitAnnotation([fold], [0.2, 0.36], tight, null)).toBeNull();
+  });
+
+  it('takes a hollow push anywhere on or in its outline, not only on its spine', () => {
+    const push: KnownDiagramAnnotation = { id: 'push', kind: 'push-arrow', from: [0.2, 0.5], to: [0.6, 0.5] };
+    const tight = { ...SIZES, tolerance: 0.005 };
+    // The shaft's outline is about 0.021 off its spine, the head's barbs 0.05.
+    expect(hitAnnotation([push], [0.4, 0.521], tight, null)?.annotationId).toBe('push');
+    expect(hitAnnotation([push], [0.53, 0.545], tight, null)?.annotationId).toBe('push');
+    expect(hitAnnotation([push], [0.4, 0.56], tight, null)).toBeNull();
+  });
+
+  it('takes a wide label by its ends', () => {
+    const wide: KnownDiagramAnnotation = { id: 'wide', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: '谷折りして山折り' };
+    const latin: KnownDiagramAnnotation = { ...wide, id: 'latin', text: 'fold here' };
+    expect(hitAnnotation([wide], [0.69, 0.5], SIZES, null)?.annotationId).toBe('wide');
+    expect(hitAnnotation([latin], [0.69, 0.5], SIZES, null)).toBeNull();
   });
 
   it('ignores one this build cannot read', () => {

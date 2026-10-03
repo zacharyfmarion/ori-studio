@@ -171,8 +171,13 @@ export function DiagramStepDetail({
               value: 'annotate',
               label: t('panels:diagram.detail.annotate', 'Annotate'),
               disabled: source === null || locked,
-              tooltip:
-                source === null || locked
+              // Why, as the step's own verb says it: a newer build's step is not changed here.
+              tooltip: locked
+                ? t(
+                    'panels:diagram.actions.lockedEditHint',
+                    'Made with a newer Ori Studio: it can be moved or deleted, not changed'
+                  )
+                : source === null
                   ? t('panels:diagram.detail.annotateNeedsPicture', 'Give the step a picture to annotate')
                   : undefined,
             },

@@ -19,6 +19,16 @@ export function takeLabelFocus(annotationId: string): boolean {
   return true;
 }
 
+/** The label a request waits for, if one does. */
+export function pendingLabelFocus(): string | null {
+  return pending;
+}
+
+/** Drop a waiting request: its label is no longer the one selected, or Annotate closed. */
+export function cancelLabelFocus(): void {
+  pending = null;
+}
+
 /** Hear every request; returns the unsubscribe. */
 export function onLabelFocusRequest(listener: (annotationId: string) => void): () => void {
   listeners.add(listener);

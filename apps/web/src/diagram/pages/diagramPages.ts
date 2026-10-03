@@ -18,6 +18,7 @@ import { fontTextSetter } from './fontTextSetter';
 import { uploadTextRuns, type UploadTextRun } from '../upload/uploadText';
 import { layoutPicture } from './pagePictures';
 import { annotationTextRuns } from '../annotate/annotationPrimitives';
+import { hasDrawnAnnotations } from '../annotate/paintAnnotations';
 
 export interface DiagramPagesDependencies {
   fontSource: DiagramFontSource;
@@ -47,14 +48,17 @@ export function diagramLayoutSteps(document: DiagramDocument, mmPerUnit: number 
 }
 
 /**
- * The pages, laid out twice when a References step shares the paper scale: its
- * letters and arrowheads keep their pt size, so how far they reach past its
- * sheet is only known at the scale the first layout finds.
+ * The pages, laid out twice when a References step or an annotated one shares
+ * the paper scale: its letters, arrowheads and marks keep their pt size, so
+ * how far they reach past its picture is only known at the scale the first
+ * layout finds.
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
   const first = layoutDiagramPages(diagramLayoutSteps(document), document.page, document.title, setter);
-  const sent = document.steps.some((step) => step.picture?.kind === 'step-diagram');
-  if (first.mmPerUnit === null || !sent) return first;
+  const reaching = document.steps.some(
+    (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
+  );
+  if (first.mmPerUnit === null || !reaching) return first;
   return layoutDiagramPages(diagramLayoutSteps(document, first.mmPerUnit), document.page, document.title, setter);
 }
 

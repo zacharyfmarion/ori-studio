@@ -22,6 +22,7 @@ import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
+import { cleanAnnotation, MAX_STEP_ANNOTATIONS } from '../annotate/annotationModel';
 
 /** The version of this document's own shape, inside the project file. */
 export const DIAGRAM_FORMAT_VERSION = 1;
@@ -831,8 +832,11 @@ export function editStepAnnotations(
   return updateStep(document, stepId, (step) => {
     if (step.picture === null) return step;
     const known = step.annotations.filter(isKnownAnnotation);
-    const edited = edit(known);
-    if (edited === known || sameAnnotations(edited, known)) return step;
+    // As this build writes them, whoever made them: within reach, a label's text clean.
+    const edited = edit(known).map(cleanAnnotation);
+    if (sameAnnotations(edited, known)) return step;
+    // A step holds no more than a file keeps.
+    if (edited.length + (step.annotations.length - known.length) > MAX_STEP_ANNOTATIONS) return step;
     return { ...step, annotations: mergeAnnotations(step.annotations, edited), annotatedPictureKey: step.picture.key };
   });
 }
@@ -878,8 +882,15 @@ function mergeAnnotations(
   return [...merged, ...byId.values()];
 }
 
+/**
+ * Whether two lists say the same, field for field: a control pressed on the
+ * value it already shows builds a new annotation, and must not cost an undo step.
+ */
 function sameAnnotations(a: readonly KnownDiagramAnnotation[], b: readonly KnownDiagramAnnotation[]): boolean {
-  return a.length === b.length && a.every((annotation, index) => annotation === b[index]);
+  return (
+    a.length === b.length &&
+    a.every((annotation, index) => annotation === b[index] || JSON.stringify(annotation) === JSON.stringify(b[index]))
+  );
 }
 
 /** Take a step's picture away, and its source with it. Its words and annotations stay. */
@@ -904,7 +915,7 @@ export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDi
  * The store prunes as every edit lands, since each undo snapshot keeps its own
  * table, and the writer prunes again for a document from anywhere else (one
  * read from a hand-edited file). Three things keep an asset: a step's source or picture naming it; its id anywhere in a
- * newer build's step, which this build cannot read but must not break; and
+ * newer build's step, annotation or asset, which this build cannot read but must not break; and
  * being of a kind this build does not know, since only that newer build knows
  * what refers to it. The same document comes back when nothing is dropped.
  */
@@ -918,6 +929,13 @@ export function withReferencedAssets(document: DiagramDocument): DiagramDocument
     }
     if (step.source?.kind === 'upload') kept.add(step.source.assetId);
     if (step.picture?.kind === 'asset') kept.add(step.picture.assetId);
+    // A newer build's annotation may name an asset, as its step may.
+    for (const annotation of step.annotations) {
+      if (!isKnownAnnotation(annotation)) carried.push(JSON.stringify(annotation.unknown));
+    }
+  }
+  for (const asset of Object.values(document.assets)) {
+    if (!isKnownAsset(asset)) carried.push(JSON.stringify(asset.unknown));
   }
   const unknownSteps = carried.join('\n');
   let dropped = false;

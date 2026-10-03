@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { isDiagramAnnotating } from '../../store/workspaceStore/diagramState';
 import {
   annotationsOutOfStep,
   isKnownAnnotation,
@@ -18,7 +19,7 @@ const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
  * text, its arc, its turn, its axis — each one undo step through the store.
  */
 export function useStepAnnotations(step: DiagramStep | null) {
-  const annotating = useWorkspaceStore((state) => state.diagramDetail === 'annotate');
+  const annotating = useWorkspaceStore(isDiagramAnnotating);
   const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);

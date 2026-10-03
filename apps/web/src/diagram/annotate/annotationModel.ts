@@ -9,6 +9,8 @@
  *
  * Pure: no DOM, no store, no React.
  */
+import { graphemesOf } from '../../lib/paper/textWrap';
+import { xmlText } from '../../lib/xmlEscape';
 import {
   randomDiagramId,
   type DiagramAnnotationKind,
@@ -75,6 +77,70 @@ export const DEFAULT_ROTATION: DiagramRotation = { amount: 'quarter', direction:
 /** How far past the frame an annotation may reach, in frame lengths: an arrow may start off the picture. */
 export const ANNOTATION_REACH = 4;
 
+/** The most annotations a step holds: a guard against a file that was never a diagram's. */
+export const MAX_STEP_ANNOTATIONS = 500;
+
+const clampReach = (value: number) => Math.min(ANNOTATION_REACH, Math.max(-ANNOTATION_REACH, value));
+
+/** A point kept within {@link ANNOTATION_REACH}, where the file reader takes it as this build's. */
+export function withinReach([x, y]: PicturePoint): PicturePoint {
+  return [clampReach(x), clampReach(y)];
+}
+
+/**
+ * An annotation as this build writes it: its points within reach, a sign or
+ * a label at one point, a label's text clean for XML and no longer than a
+ * label may be, an arrow's bulge within a half circle. The same object when
+ * it already is.
+ */
+export function cleanAnnotation(annotation: KnownDiagramAnnotation): KnownDiagramAnnotation {
+  const from = withinReach(annotation.from);
+  const to = isPointKind(annotation.kind) ? from : withinReach(annotation.to);
+  const text = annotation.text === undefined ? undefined : cleanLabelText(annotation.text);
+  const bend = cleanBend(annotation.bend);
+  if (samePoint(from, annotation.from) && samePoint(to, annotation.to) && text === annotation.text && bend === annotation.bend) {
+    return annotation;
+  }
+  return {
+    ...annotation,
+    from,
+    to: [to[0], to[1]],
+    ...(text !== undefined ? { text } : {}),
+    ...(bend !== undefined ? { bend } : {}),
+  };
+}
+
+function cleanBend(bend: number | undefined): number | undefined {
+  if (bend === undefined) return undefined;
+  if (bend === 0 || !Number.isFinite(bend)) return ARROW_BEND;
+  return Math.sign(bend) * Math.min(MAX_BEND, Math.abs(bend));
+}
+
+/** A label's text as stored: what XML can hold, on one line, at most {@link LABEL_MAX_LENGTH} characters. */
+export function cleanLabelText(text: string): string {
+  const clean = xmlText(text).replace(/[\r\n]+/g, ' ');
+  return clean.length <= LABEL_MAX_LENGTH ? clean : clean.slice(0, LABEL_MAX_LENGTH);
+}
+
+function samePoint(a: PicturePoint, b: PicturePoint): boolean {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+/** A wide grapheme: Han, kana, Hangul, and the full-width forms and CJK punctuation. */
+const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\u3000-\u303f\uff00-\uffef]/u;
+
+/**
+ * Half a label's width, in picture units, as it is drawn centred on its
+ * point: about half an em for each Latin letter, a whole em for a wide one.
+ * An estimate — the canvas cannot measure the text it draws — that the hit
+ * test, the selection and a file's crop all share.
+ */
+export function labelHalfWidth(text: string): number {
+  let ems = 0;
+  for (const grapheme of graphemesOf(text)) ems += WIDE.test(grapheme) ? 1 : 0.6;
+  return LABEL_SIZE * (Math.max(ems, 0.6) / 2 + 0.2);
+}
+
 export function isArrowKind(kind: DiagramAnnotationKind): boolean {
   return ARROW_KINDS.has(kind);
 }
@@ -100,12 +166,14 @@ export function defaultBend(from: PicturePoint, to: PicturePoint, frame: Picture
 /** A new annotation of `kind`, from a drag (`from` → `to`) or a click (`to` ignored for a point kind). */
 export function createAnnotation(
   kind: DiagramAnnotationKind,
-  from: PicturePoint,
-  to: PicturePoint,
+  start: PicturePoint,
+  end: PicturePoint,
   frame: PictureFrame,
   newId: DiagramIdFactory = randomDiagramId
 ): KnownDiagramAnnotation {
   const id = newId('annotation');
+  const from = withinReach(start);
+  const to = withinReach(end);
   if (isPointKind(kind)) {
     const at: PicturePoint = [from[0], from[1]];
     const base: KnownDiagramAnnotation = { id, kind, from: at, to: [at[0], at[1]] };
@@ -117,11 +185,19 @@ export function createAnnotation(
   return isArrowKind(kind) ? { ...annotation, bend: defaultBend(from, to, frame) } : annotation;
 }
 
-/** The whole annotation moved by `delta`. */
+/** The whole annotation moved by `delta`, no further than keeps it within reach: its shape kept. */
 export function moveAnnotation(annotation: KnownDiagramAnnotation, delta: PicturePoint): KnownDiagramAnnotation {
-  if (delta[0] === 0 && delta[1] === 0) return annotation;
-  const shift = (point: PicturePoint): PicturePoint => [point[0] + delta[0], point[1] + delta[1]];
-  return { ...annotation, from: shift(annotation.from), to: shift(annotation.to) };
+  const { from, to } = annotation;
+  const limit = (axis: 0 | 1) =>
+    Math.min(
+      ANNOTATION_REACH - Math.max(from[axis], to[axis]),
+      Math.max(-ANNOTATION_REACH - Math.min(from[axis], to[axis]), delta[axis])
+    );
+  const dx = limit(0);
+  const dy = limit(1);
+  if (dx === 0 && dy === 0) return annotation;
+  const shift = (point: PicturePoint): PicturePoint => [point[0] + dx, point[1] + dy];
+  return { ...annotation, from: shift(from), to: shift(to) };
 }
 
 /** One end put at `point`. A point kind has one place, so both move. */
@@ -130,7 +206,7 @@ export function moveAnnotationEnd(
   end: 'from' | 'to',
   point: PicturePoint
 ): KnownDiagramAnnotation {
-  const at: PicturePoint = [point[0], point[1]];
+  const at = withinReach(point);
   if (isPointKind(annotation.kind)) return { ...annotation, from: at, to: [at[0], at[1]] };
   return end === 'from' ? { ...annotation, from: at } : { ...annotation, to: at };
 }
@@ -177,6 +253,12 @@ export interface PictureMove {
   mirrors: boolean;
   /** Clockwise degrees: a quarter turn is 90. */
   turnDeg: number;
+  /**
+   * How many quarter turns the move counts as, for a turn-over's axis: from
+   * the two poses' own, not the move's, so a turn made in 15° presses and
+   * turned back in one says the same thing. Absent, the move's own, rounded.
+   */
+  quarterTurns?: number;
 }
 
 /**
@@ -185,16 +267,17 @@ export interface PictureMove {
  * (or three) turns a turn-over's axis. A label's text stays upright.
  */
 export function carryAnnotation(annotation: KnownDiagramAnnotation, move: PictureMove): KnownDiagramAnnotation {
+  // Kept within reach: a carried point that would leave it was three frames off the picture already.
   const carried: KnownDiagramAnnotation = {
     ...annotation,
-    from: move.point(annotation.from),
-    to: move.point(annotation.to),
+    from: withinReach(move.point(annotation.from)),
+    to: withinReach(move.point(annotation.to)),
   };
   if (move.mirrors && annotation.bend !== undefined) carried.bend = -annotation.bend;
   if (move.mirrors && annotation.rotate) {
     carried.rotate = { ...annotation.rotate, direction: annotation.rotate.direction === 'cw' ? 'ccw' : 'cw' };
   }
-  const quarters = Math.round(move.turnDeg / 90);
+  const quarters = move.quarterTurns ?? Math.round(move.turnDeg / 90);
   if (annotation.axis && Math.abs(quarters) % 2 === 1) {
     carried.axis = annotation.axis === 'vertical' ? 'horizontal' : 'vertical';
   }

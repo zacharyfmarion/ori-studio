@@ -1,4 +1,5 @@
-import type { DiagramDocument } from '../../diagram/document/diagramDocument';
+import { stepIndex, type DiagramDocument } from '../../diagram/document/diagramDocument';
+import { stepCanBeAnnotated } from '../../diagram/pictures/pictureFrame';
 import { emptySnapshotHistory, type SnapshotHistory } from './snapshotHistory';
 import type { WorkspaceState } from './types';
 
@@ -41,6 +42,21 @@ export const DIAGRAM_SCOPED_KEYS = [
 export type DiagramScopedState = {
   [K in (typeof DIAGRAM_SCOPED_KEYS)[number]]: WorkspaceState[K];
 };
+
+/**
+ * Whether the step detail is annotating: open in Annotate on a step that can
+ * be annotated. Annotate is kept as the detail's mode across the steps it
+ * walks, and a step with no picture to draw on shows Pose — so this, not the
+ * stored mode, is what the keys, Delete, the menus and the Step pane ask.
+ */
+export function isDiagramAnnotating(
+  state: Pick<WorkspaceState, 'diagram' | 'diagramDetail' | 'diagramSelectedStepId'>
+): boolean {
+  const { diagram, diagramDetail, diagramSelectedStepId } = state;
+  if (diagramDetail !== 'annotate' || !diagram || diagramSelectedStepId === null) return false;
+  const step = diagram.steps[stepIndex(diagram, diagramSelectedStepId)];
+  return step !== undefined && stepCanBeAnnotated(step, diagram.assets);
+}
 
 /**
  * The history holds whole diagrams. `null` is a real entry: the first edit

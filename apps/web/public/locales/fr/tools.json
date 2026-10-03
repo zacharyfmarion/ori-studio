@@ -240,13 +240,13 @@
     "toolFoldUnfoldArrow": "Flèche plier-déplier",
     "toolHiddenLine": "Ligne cachée",
     "toolLabel": "Étiquette",
-    "toolMountainArrow": "Flèche de montagne",
-    "toolMountainLine": "Ligne de montagne",
+    "toolMountainArrow": "Flèche de pli montagne",
+    "toolMountainLine": "Ligne montagne",
     "toolPushArrow": "Flèche de poussée",
     "toolRotate": "Tourner",
     "toolTurnOver": "Retourner",
-    "toolValleyArrow": "Flèche de vallée",
-    "toolValleyLine": "Ligne de vallée"
+    "toolValleyArrow": "Flèche de pli vallée",
+    "toolValleyLine": "Ligne vallée"
   },
   "divideMode": {
     "count": "Nombre",

@@ -38,7 +38,7 @@ import {
   setInlineSimulationSource,
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
-import { DIAGRAM_SCOPED_KEYS, discardDiagramState } from './diagramState';
+import { DIAGRAM_SCOPED_KEYS, discardDiagramState, isDiagramAnnotating } from './diagramState';
 import { registerPendingEditFlush, resetPendingEditsForTests } from '../../lib/pendingEdits';
 import { readDiagram } from '../../diagram/document/diagramFile';
 import {
@@ -10233,6 +10233,23 @@ describe('the project diagram', () => {
       expect(hasDeletableDiagramSelection(state())).toBe(false);
       state().openDiagramStep(stepId, 'pose');
       expect(hasDeletableDiagramSelection(state())).toBe(true);
+    });
+
+    it('acts as Pose on a step with nothing to annotate, and Annotate again on one with a picture', () => {
+      const stepId = pictured();
+      state().setActivePanelId('diagram');
+      add(stepId, ARROW);
+      const empty = state().addDiagramStep()!;
+      // Walked onto in Annotate: the detail shows Pose, so Delete is the step's.
+      expect(state().diagramDetail).toBe('annotate');
+      expect(isDiagramAnnotating(state())).toBe(false);
+      expect(hasDeletableDiagramSelection(state())).toBe(true);
+      state().selectDiagramStep(stepId);
+      expect(isDiagramAnnotating(state())).toBe(true);
+      // Its picture taken away: Pose again.
+      state().removeDiagramStepPicture(stepId);
+      expect(isDiagramAnnotating(state())).toBe(false);
+      expect(empty).not.toBe(stepId);
     });
 
     it('takes none on a step with no picture, or a diagram it cannot change', () => {

@@ -281,14 +281,23 @@ describe('annotations in the file', () => {
     ]);
   });
 
-  it('keeps at most a step’s worth', () => {
+  it('carries a step with more than a step holds, locked and whole, rather than cutting it short', () => {
     const many = Array.from({ length: 600 }, (_, index) => ({
       id: `m-${index}`,
       kind: 'valley-line',
       from: [0, 0],
       to: [1, 1],
     }));
-    expect(withAnnotations(many)).toHaveLength(500);
+    const written = throughJson(writeDiagram(sampleDiagram()));
+    written.steps[0].annotations = many;
+    const read = readDiagram(written)!.document;
+    expect(read.steps[0]!.unknown).toBeDefined();
+    expect(throughJson(writeDiagram(read)).steps[0].annotations).toHaveLength(600);
+  });
+
+  it('carries a rotation of a shape it does not know, even one it would call incomplete', () => {
+    const newer = { id: 'n-8', kind: 'rotate', from: [0, 0], to: [0, 0], rotate: { degrees: 30, direction: 'cw' } };
+    expect(withAnnotations([newer])).toEqual([{ id: 'n-8', unknown: newer }]);
   });
 });
 

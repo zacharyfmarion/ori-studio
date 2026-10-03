@@ -95,8 +95,14 @@ describe('a References step turned over', () => {
     const step = { ...referencesStep('step-1'), annotations: [ARROW], annotatedPictureKey: 'another-picture' };
     const document = { ...insertSteps(createDiagram(), [step], 0) };
     const back = setReferencesSide(document, 'step-1', true).steps[0]!;
+    // Drawn on another picture, never placed on this one: not moved, and still out of step.
+    expect(back.annotations).toEqual([ARROW]);
     expect(back.annotatedPictureKey).toBe('another-picture');
     expect(annotationsOutOfStep(back)).toBe(true);
+    // Turned back, the picture is the one they are out of step with still.
+    const again = setReferencesSide({ ...document, steps: [back] }, 'step-1', false).steps[0]!;
+    expect(again.annotations).toEqual([ARROW]);
+    expect(annotationsOutOfStep(again)).toBe(true);
   });
 });
 
@@ -143,6 +149,17 @@ describe('a linked picture turned about its middle', () => {
       (scenePoint.y - is.minY) / span(is),
     ]);
     expect(moved.annotatedPictureKey).toBe('scene-turned');
+  });
+
+  it('leaves them where they were on a picture kept as a bitmap, which knows no turn (a deviation from D8)', () => {
+    const raster = (key: string) => ({ kind: 'asset' as const, assetId: ASSET.id, paperScale: 100, key });
+    const document = annotated({ ...cpStep('step-1'), picture: raster('raster-0') });
+    const turnedRaster = setLinkedPicture(document, 'step-1', {
+      source: cpSource({ mode: 'crease-pattern', rotationDeg: 15 }),
+      picture: raster('raster-15'),
+    }).steps[0]!;
+    expect(turnedRaster.annotations).toEqual([ARROW]);
+    expect(annotationsOutOfStep(turnedRaster)).toBe(true);
   });
 
   it('leaves them where they were for anything else: a refold, a new picture, one it cannot read', () => {

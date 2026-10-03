@@ -35,15 +35,17 @@ import {
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
-import { requestLabelFocus } from './labelFocus';
+import { cancelLabelFocus, pendingLabelFocus, requestLabelFocus } from './labelFocus';
+import { isViewportInteractiveTarget } from '../../components/panels/ViewportToolbar';
+import type { DiagramAnnotationTool } from '../../analytics/events';
 import { CARD_FRAME_PX } from './paintAnnotations';
 
 /** The frame's longer side in the canvas's world, CSS px: big enough that the picture is sharp at fit. */
 export const ANNOTATE_FRAME_PX = 1000;
 /** The room round the picture, as a share of its frame: an arrow may start off the paper. */
 const WORLD_MARGIN = 0.25;
-/** How far a press may travel and still be a click, in screen px. */
-const DRAG_SLOP = 4;
+/** How far a press may travel and still be a click, in screen px: a finger drifts further than a mouse or a pen. */
+const DRAG_SLOP_PX = { fine: 4, touch: 10 } as const;
 /** How near a press must be to take hold of something, in screen px: a mouse's, a finger's. */
 const REACH_PX = { fine: 8, coarse: 18 } as const;
 /** The shortest arrow or line, as a share of the frame: anything shorter was a slip. */
@@ -59,17 +61,22 @@ export const GLYPH_REACH =
   Math.max(DIAGRAM_TURN_OVER_INK / 2, DIAGRAM_ROTATE_INK.radius + DIAGRAM_ARROWHEAD_INK.length / 2) *
   (canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX);
 
+/** One ink in picture units, as the canvas draws: what an arrow's head and a push's width are measured in. */
+const INK_UNITS = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX;
+
+/** What every press carries: its pointer, where it began on screen, its slop, the diagram it began on. */
+interface Press {
+  pointerId: number;
+  client: [number, number];
+  slop: number;
+  loadId: number;
+  moved: boolean;
+}
+
 /** A press in progress: a new annotation being drawn, or one being moved. */
 type Gesture =
-  | { mode: 'draw'; kind: DiagramAnnotationKind; start: PicturePoint; client: [number, number]; moved: boolean }
-  | {
-      mode: 'move';
-      grip: AnnotationGrip;
-      original: KnownDiagramAnnotation;
-      start: PicturePoint;
-      client: [number, number];
-      moved: boolean;
-    };
+  | (Press & { mode: 'draw'; kind: DiagramAnnotationKind; start: PicturePoint })
+  | (Press & { mode: 'move'; grip: AnnotationGrip; original: KnownDiagramAnnotation; start: PicturePoint });
 
 /** Where the picture and its frame sit in the canvas's world, in world px. */
 export interface AnnotateLayout {
@@ -111,7 +118,8 @@ function layoutFor(painted: { widthPx: number; heightPx: number; frame: PictureB
  * camera, and every press — draw with a tool, or take hold of an annotation
  * or one of its ends and move it. A drag previews here and is committed once
  * when it lands, so it is one undo step, and Escape drops it with nothing to
- * take back.
+ * take back. One finger or pen draws; a second one makes it a pinch, which
+ * the camera takes, and the stroke in hand is dropped.
  */
 export function useAnnotateCanvas({
   step,
@@ -127,7 +135,14 @@ export function useAnnotateCanvas({
   const coarse = useIsCoarsePointerSurface();
   const tool = useWorkspaceStore((state) => state.diagramAnnotateTool);
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
-  const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
+  // The picture, from what it is made of: a text or an annotation edit keeps
+  // these, so it is neither repainted nor taken for another picture.
+  const { picture, source: pictureSource, unknown } = step;
+  const source = useMemo(
+    () => stepPictureSource({ ...step, picture, source: pictureSource, unknown }, assets),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the picture's inputs
+    [picture, pictureSource, unknown, assets]
+  );
   const painted = useMemo(() => (source ? paintSource(source, style) : null), [source, style]);
   const url = useMemo(() => (source ? stepPictureUrl(source, style) : null), [source, style]);
   const layout = useMemo(() => (painted ? layoutFor(painted) : null), [painted]);
@@ -140,11 +155,14 @@ export function useAnnotateCanvas({
     fitKey: `${step.id}:${layout ? 'laid-out' : 'waiting'}`,
     maxFitScale: 4,
   });
-  const { handleViewportShortcut } = camera;
+  const { handleViewportShortcut, containerRef, spacePressed } = camera;
   useEffect(() => registerDiagramViewCamera(handleViewportShortcut), [handleViewportShortcut]);
 
   const overlay = useRef<SVGSVGElement | null>(null);
   const gesture = useRef<Gesture | null>(null);
+  /** The pointers down on the overlay; more than one is a pinch, the camera's. */
+  const pointers = useRef(new Set<number>());
+  const pinching = useRef(false);
   const [draft, setDraft] = useState<KnownDiagramAnnotation | null>(null);
 
   const cancel = useCallback(() => {
@@ -159,8 +177,25 @@ export function useAnnotateCanvas({
     () => () => {
       cancel();
     },
-    [cancel, step.id, tool, layout]
+    [cancel, step.id, tool, source]
   );
+  // A label's field asks for the focus only while that label is the one selected.
+  useEffect(() => {
+    if (selectedId === null || selectedId !== pendingLabelFocus()) cancelLabelFocus();
+  }, [selectedId]);
+  useEffect(() => cancelLabelFocus, []);
+
+  // One finger is the pen's: the camera never sees it start, and pans with
+  // two (its pinch). Listened to natively, ahead of the camera's own.
+  useEffect(() => {
+    const svg = overlay.current;
+    if (!svg) return undefined;
+    const keepOneFinger = (event: TouchEvent) => {
+      if (event.touches.length < 2) event.stopPropagation();
+    };
+    svg.addEventListener('touchstart', keepOneFinger, { passive: true });
+    return () => svg.removeEventListener('touchstart', keepOneFinger);
+  }, [layout]);
 
   /** The annotations as the canvas shows them: the one in hand where it is now. */
   const shown = useMemo<readonly DiagramAnnotation[]>(() => {
@@ -185,70 +220,104 @@ export function useAnnotateCanvas({
   const hitSizes = useCallback((): HitSizes => {
     const screenPerWorld = overlay.current?.getScreenCTM()?.a ?? 1;
     const reach = (coarse ? REACH_PX.coarse : REACH_PX.fine) / (screenPerWorld * (layout?.unit ?? 1));
-    return { tolerance: reach, glyph: GLYPH_REACH, label: LABEL_SIZE };
+    return { tolerance: reach, glyph: GLYPH_REACH, label: LABEL_SIZE, ink: INK_UNITS };
   }, [coarse, layout]);
 
   const known = useCallback(
-    (id: string) => step.annotations.find((annotation): annotation is KnownDiagramAnnotation =>
-      annotation.id === id && isKnownAnnotation(annotation)
-    ),
+    (id: string) =>
+      step.annotations.find(
+        (annotation): annotation is KnownDiagramAnnotation => annotation.id === id && isKnownAnnotation(annotation)
+      ),
     [step.annotations]
+  );
+
+  /** A press anywhere on the canvas takes the keyboard there, as Edit's does: Space pans, letters pick tools. */
+  const onPointerDownCapture = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (!isViewportInteractiveTarget(event.target)) containerRef.current?.focus({ preventScroll: true });
+    },
+    [containerRef]
   );
 
   const onPointerDown = useCallback(
     (event: ReactPointerEvent<SVGSVGElement>) => {
-      if (event.button !== 0 || camera.spacePressed || readOnly || !layout) return;
+      pointers.current.add(event.pointerId);
+      if (pointers.current.size > 1) {
+        // A second finger: a pinch, not a stroke. Nothing in hand lands.
+        pinching.current = true;
+        cancel();
+        return;
+      }
+      if (pinching.current || event.button !== 0 || spacePressed || !layout) return;
       const at = toPicture(event.clientX, event.clientY);
       if (!at) return;
       const store = useWorkspaceStore.getState();
-      const client: [number, number] = [event.clientX, event.clientY];
+      const press = {
+        pointerId: event.pointerId,
+        client: [event.clientX, event.clientY] as [number, number],
+        // A finger drifts as it lifts; a mouse or a pen does not.
+        slop: event.pointerType === 'touch' ? DRAG_SLOP_PX.touch : DRAG_SLOP_PX.fine,
+        loadId: store.diagramLoadId,
+        moved: false,
+      };
       if (tool !== null) {
-        gesture.current = { mode: 'draw', kind: tool, start: at, client, moved: false };
+        if (readOnly) return;
+        gesture.current = { mode: 'draw', kind: tool, start: at, ...press };
       } else {
+        // Selecting is not an edit: a diagram that cannot change still selects.
         const grip = hitAnnotation(step.annotations, at, hitSizes(), selectedId);
         const original = grip ? known(grip.annotationId) : undefined;
         store.selectDiagramAnnotation(grip?.annotationId ?? null);
-        if (!grip || !original) return;
-        gesture.current = { mode: 'move', grip, original, start: at, client, moved: false };
+        if (readOnly || !grip || !original) return;
+        gesture.current = { mode: 'move', grip, original, start: at, ...press };
       }
       event.currentTarget.setPointerCapture(event.pointerId);
       event.preventDefault();
     },
-    [camera.spacePressed, readOnly, layout, toPicture, tool, step.annotations, hitSizes, selectedId, known]
+    [cancel, spacePressed, readOnly, layout, toPicture, tool, step.annotations, hitSizes, selectedId, known]
   );
+
+  /** The annotation a move makes of `annotation`, the press at `at`. */
+  const moved = (current: Extract<Gesture, { mode: 'move' }>, annotation: KnownDiagramAnnotation, at: PicturePoint) =>
+    current.grip.part === 'body'
+      ? moveAnnotation(annotation, [at[0] - current.start[0], at[1] - current.start[1]])
+      : moveAnnotationEnd(annotation, current.grip.part, at);
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<SVGSVGElement>) => {
       const current = gesture.current;
-      if (!current || !layout) return;
-      if (!current.moved && Math.hypot(event.clientX - current.client[0], event.clientY - current.client[1]) < DRAG_SLOP) {
+      if (!current || current.pointerId !== event.pointerId || !layout) return;
+      if (!current.moved && Math.hypot(event.clientX - current.client[0], event.clientY - current.client[1]) < current.slop) {
         return;
       }
       const at = toPicture(event.clientX, event.clientY);
       if (!at) return;
       current.moved = true;
-      if (current.mode === 'draw') {
-        setDraft(createAnnotation(current.kind, isPointKind(current.kind) ? at : current.start, at, layout.pictureFrame, () => DRAFT_ID));
-      } else {
-        const { original, grip, start } = current;
-        setDraft(
-          grip.part === 'body'
-            ? moveAnnotation(original, [at[0] - start[0], at[1] - start[1]])
-            : moveAnnotationEnd(original, grip.part, at)
-        );
-      }
+      setDraft(
+        current.mode === 'draw'
+          ? createAnnotation(current.kind, isPointKind(current.kind) ? at : current.start, at, layout.pictureFrame, () => DRAFT_ID)
+          : moved(current, current.original, at)
+      );
     },
     [layout, toPicture]
   );
 
+  /** A pointer gone: the pinch ends with the last of them, never turning back into a stroke. */
+  const release = useCallback((pointerId: number) => {
+    pointers.current.delete(pointerId);
+    if (pointers.current.size === 0) pinching.current = false;
+  }, []);
+
   const onPointerUp = useCallback(
     (event: ReactPointerEvent<SVGSVGElement>) => {
+      release(event.pointerId);
       const current = gesture.current;
+      if (!current || current.pointerId !== event.pointerId) return;
       gesture.current = null;
       setDraft(null);
-      if (!current || !layout) return;
+      if (!layout) return;
       const store = useWorkspaceStore.getState();
-      const loadId = store.diagramLoadId;
+      const { loadId } = current;
       if (current.mode === 'draw') {
         const at = toPicture(event.clientX, event.clientY) ?? current.start;
         const point = isPointKind(current.kind);
@@ -261,27 +330,36 @@ export function useAnnotateCanvas({
           loadId,
         });
         if (!added) return;
-        trackDiagramAnnotationAdded(annotationTool(annotation.kind));
+        trackDiagramAnnotationAdded(ANNOTATION_TOOL[annotation.kind]);
         if (annotation.kind === 'label') requestLabelFocus(annotation.id);
         return;
       }
       if (!current.moved) return;
       const at = toPicture(event.clientX, event.clientY);
       if (!at) return;
-      const { original, grip, start } = current;
-      const moved =
-        grip.part === 'body'
-          ? moveAnnotation(original, [at[0] - start[0], at[1] - start[1]])
-          : moveAnnotationEnd(original, grip.part, at);
-      if (grip.part !== 'body' && isDegenerate(moved, MIN_LENGTH)) return;
+      // Applied to the annotation as it is now: an edit that landed during the
+      // drag — its text, its arc — is kept, not overwritten by the press's copy.
       store.editDiagramAnnotations(
         step.id,
         'Move annotation',
-        (list) => list.map((annotation) => (annotation.id === moved.id ? moved : annotation)),
+        (list) =>
+          list.map((annotation) => {
+            if (annotation.id !== current.original.id) return annotation;
+            const next = moved(current, annotation, at);
+            return current.grip.part !== 'body' && isDegenerate(next, MIN_LENGTH) ? annotation : next;
+          }),
         { loadId }
       );
     },
-    [layout, toPicture, step.id]
+    [layout, toPicture, step.id, release]
+  );
+
+  const onPointerGone = useCallback(
+    (event: ReactPointerEvent<SVGSVGElement>) => {
+      release(event.pointerId);
+      if (gesture.current?.pointerId === event.pointerId) cancel();
+    },
+    [cancel, release]
   );
 
   return {
@@ -292,17 +370,27 @@ export function useAnnotateCanvas({
     shown,
     tool,
     selectedId: draft?.id === DRAFT_ID ? null : selectedId,
+    onPointerDownCapture,
     handlers: {
       onPointerDown,
       onPointerMove,
       onPointerUp,
-      onPointerCancel: () => void cancel(),
-      onLostPointerCapture: () => void cancel(),
+      onPointerCancel: onPointerGone,
+      onLostPointerCapture: onPointerGone,
     },
   };
 }
 
-/** A kind in the analytics event's spelling. */
-function annotationTool(kind: DiagramAnnotationKind) {
-  return kind.replaceAll('-', '_') as Parameters<typeof trackDiagramAnnotationAdded>[0];
-}
+/** Each kind in the analytics event's spelling: a new kind is a type error until it has one. */
+const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationTool>> = {
+  'valley-arrow': 'valley_arrow',
+  'mountain-arrow': 'mountain_arrow',
+  'fold-unfold-arrow': 'fold_unfold_arrow',
+  'push-arrow': 'push_arrow',
+  'turn-over': 'turn_over',
+  rotate: 'rotate',
+  'valley-line': 'valley_line',
+  'mountain-line': 'mountain_line',
+  'hidden-line': 'hidden_line',
+  label: 'label',
+};

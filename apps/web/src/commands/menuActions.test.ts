@@ -1,3 +1,4 @@
+import { createDiagram, insertPictureSteps, type DiagramDocument } from '../diagram/document/diagramDocument';
 import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
 import { useDiagramExportUiStore } from '../store/diagramExportUiStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -102,6 +103,7 @@ function createDeps() {
       requestOristudioCpSurface: vi.fn(),
       executeOristudioCpCommand: vi.fn().mockResolvedValue(true),
       transformOristudioCpSelection: vi.fn().mockResolvedValue(true),
+      diagram: null as DiagramDocument | null,
       diagramSelectedStepId: null as string | null,
       diagramDetail: null as 'pose' | 'annotate' | null,
       diagramSelectedAnnotationId: null as string | null,
@@ -517,6 +519,15 @@ describe('menu actions', () => {
   it('routes Delete in Annotate to the selected annotation, never to its step', async () => {
     const deps = createDeps();
     deps.workspace.activeEditingContext = 'diagram';
+    // A step with a picture to annotate.
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"/>';
+    const { document } = insertPictureSteps(
+      createDiagram(),
+      [{ id: 'asset-1', kind: 'svg', svg, widthPx: 4, heightPx: 4, bytes: svg.length }],
+      0,
+      (prefix) => (prefix === 'step' ? 'step-2' : `${prefix}-1`)
+    );
+    deps.workspace.diagram = document;
     deps.workspace.diagramSelectedStepId = 'step-2';
     deps.workspace.diagramDetail = 'annotate';
     const handle = createMenuActionHandler(deps);
@@ -533,6 +544,11 @@ describe('menu actions', () => {
     const kept = edit([{ id: 'annotation-a' }, { id: 'annotation-b' }]);
     expect(kept).toEqual([{ id: 'annotation-a' }]);
     expect(deps.workspace.confirmDeleteDiagramSteps).not.toHaveBeenCalled();
+
+    // A step with nothing to annotate shows Pose, and Delete is the step's again.
+    deps.workspace.diagram = { ...document, steps: [{ ...document.steps[0]!, source: null, picture: null }] };
+    await expect(handle('edit.delete')).resolves.toBe(true);
+    expect(deps.workspace.confirmDeleteDiagramSteps).toHaveBeenCalledWith(['step-2']);
   });
 
   it('routes Delete to selected editable CP points', async () => {
@@ -829,6 +845,7 @@ describe('menu actions', () => {
         hasDiagram: false,
         diagramStepCount: 0,
         hasDeletableDiagramSelection: false,
+        diagramDeleteTarget: 'step',
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,

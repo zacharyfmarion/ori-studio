@@ -9,6 +9,7 @@ import {
   flipAnnotationArc,
   frameOf,
   isDegenerate,
+  labelHalfWidth,
   mirrorMove,
   moveAnnotation,
   moveAnnotationEnd,
@@ -109,5 +110,29 @@ describe('carrying one through its picture’s move', () => {
     expect(carryAnnotation(turnOver, quarter).axis).toBe('horizontal');
     expect(carryAnnotation(turnOver, { ...quarter, turnDeg: 180 }).axis).toBe('vertical');
     expect(carryAnnotation(turnOver, { ...quarter, turnDeg: 15 }).axis).toBe('vertical');
+  });
+});
+
+describe('keeping within reach', () => {
+  it('stops an end, a new annotation and a carried point at the reach the file reads', () => {
+    const line: KnownDiagramAnnotation = { id: 'l', kind: 'valley-line', from: [0.1, 0.5], to: [0.9, 0.5] };
+    expect(moveAnnotationEnd(line, 'from', [-6, 0.5]).from).toEqual([-4, 0.5]);
+    expect(createAnnotation('push-arrow', [-9, 0], [0, 9], SQUARE, id)).toMatchObject({ from: [-4, 0], to: [0, 4] });
+    const mirror = mirrorMove({ width: 1, height: 1 });
+    expect(carryAnnotation({ ...line, from: [-3.5, 0.5] }, mirror).from).toEqual([4, 0.5]);
+  });
+
+  it('moves a body only as far as keeps it whole', () => {
+    const line: KnownDiagramAnnotation = { id: 'l', kind: 'valley-line', from: [0.1, 0.5], to: [0.9, 0.5] };
+    const moved = moveAnnotation(line, [-9, 0]);
+    expect(moved.from[0]).toBeCloseTo(-4, 9);
+    expect(moved.to[0] - moved.from[0]).toBeCloseTo(0.8, 9);
+  });
+});
+
+describe('a label’s width', () => {
+  it('counts a wide character as an em and a Latin one as a little over half', () => {
+    expect(labelHalfWidth('漢字漢字')).toBeGreaterThan(labelHalfWidth('ABCD') * 1.5);
+    expect(labelHalfWidth('')).toBeGreaterThan(0);
   });
 });

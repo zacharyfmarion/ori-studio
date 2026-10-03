@@ -72,7 +72,12 @@ export function poseMove(width: number, height: number, before: Pose, after: Pos
  * capture turns its pattern or flat model (`creasePatternScene`,
  * `readFlatPicture`) — from one frame to the other.
  */
-export function sceneTurnMove(before: SceneBounds, after: SceneBounds, turnDeg: number): PictureMove | null {
+export function sceneTurnMove(
+  before: SceneBounds,
+  after: SceneBounds,
+  turnDeg: number,
+  quarterTurns?: number
+): PictureMove | null {
   const longerBefore = Math.max(before.maxX - before.minX, before.maxY - before.minY);
   const longerAfter = Math.max(after.maxX - after.minX, after.maxY - after.minY);
   if (!(longerBefore > 0) || !(longerAfter > 0)) return null;
@@ -84,6 +89,7 @@ export function sceneTurnMove(before: SceneBounds, after: SceneBounds, turnDeg: 
     },
     mirrors: false,
     turnDeg,
+    ...(quarterTurns !== undefined ? { quarterTurns } : {}),
   };
 }
 
@@ -129,17 +135,22 @@ function pictureMove(
     if (delta === 0) return null;
     const [sceneBefore, sceneAfter] = [storedScene(before.picture), storedScene(after.picture)];
     if (!sceneBefore || !sceneAfter) return null;
-    return sceneTurnMove(sceneBefore.bounds, sceneAfter.bounds, delta);
+    // The axis a turn-over turns about follows the poses' own quarter turns, so
+    // six 15° presses and a reset bring it back as they bring the picture back.
+    const quarters = Math.round(is.rotationDeg / 90) - Math.round(was.rotationDeg / 90);
+    return sceneTurnMove(sceneBefore.bounds, sceneAfter.bounds, delta, quarters);
   }
   return null;
 }
 
 /**
  * The step `after` became, its annotations carried along when the app moved
- * its picture: `after` itself when there is nothing to carry or the change
- * was not a move. An annotation this build cannot read cannot be moved, so a
- * step carrying one keeps all of them where they were, and says the picture
- * changed. A step whose annotations were in step with its picture stays so.
+ * the picture they were drawn on: `after` itself when there is nothing to
+ * carry or the change was not a move. Only annotations in step with the
+ * picture are carried — ones drawn on another picture were never placed on
+ * this one, and stay where they are, still out of step. An annotation this
+ * build cannot read cannot be moved, so a step carrying one keeps all of them
+ * where they were, and says the picture changed.
  */
 export function withCarriedAnnotations(
   before: DiagramStep,
@@ -148,12 +159,13 @@ export function withCarriedAnnotations(
 ): DiagramStep {
   if (after.annotations.length === 0 || after.annotations !== before.annotations) return after;
   if (!before.annotations.every(isKnownAnnotation)) return after;
+  const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
+  if (!inStep) return after;
   const move = pictureMove(before, after, assets);
   if (!move) return after;
-  const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
   return {
     ...after,
     annotations: (before.annotations as KnownDiagramAnnotation[]).map((annotation) => carryAnnotation(annotation, move)),
-    annotatedPictureKey: inStep ? (after.picture?.key ?? null) : before.annotatedPictureKey,
+    annotatedPictureKey: after.picture?.key ?? null,
   };
 }

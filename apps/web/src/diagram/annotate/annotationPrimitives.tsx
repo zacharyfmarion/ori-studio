@@ -41,7 +41,13 @@ import {
   penInk,
 } from '../../cp-workspace/references/diagram/diagramInk';
 import type { StepDiagramPrimitive } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import { arcPolyline, arcThroughPoints, createOverlayProjector } from '../../cp-workspace/references/stepDiagramGeometry';
+import {
+  arcPolyline,
+  arcThroughPoints,
+  createOverlayProjector,
+  foldReturnOffset,
+  returnStroke,
+} from '../../cp-workspace/references/stepDiagramGeometry';
 import { referencesPaperTokens } from '../../cp-workspace/references/usePaperStyleTokens';
 import type { PaperItem, PaperLineItem, PaperLineRole, PaperScene } from '../../lib/paper/paperScene';
 import { PT_TO_CSS_PX, type PaperStyle } from '../../lib/paper/paperStyle';
@@ -61,7 +67,7 @@ import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { UPLOAD_HAN_KEY, uploadTextFamily, type UploadTextRun } from '../upload/uploadText';
 import type { DiagramFontKey } from '../fonts/diagramFontFaces';
-import { arrowApex, ARROW_BEND, LABEL_SIZE, type PictureFrame, type PicturePoint } from './annotationModel';
+import { arrowApex, ARROW_BEND, LABEL_SIZE, labelHalfWidth, type PictureFrame, type PicturePoint } from './annotationModel';
 
 /** The line kinds, and the pen role each is drawn in. */
 export const ANNOTATION_LINE_ROLES: Partial<Record<DiagramAnnotationKind, PaperLineRole>> = {
@@ -109,18 +115,26 @@ function seenStyle(style: DiagramStyle): PaperStyle {
   return applyPaperStylePolicy(diagramPaperStyle(style), PAPER_STYLE_POLICIES.references);
 }
 
+/** The page an annotation is printed on: a hollow push is this inside. */
+const PAGE_GROUND = '#ffffff';
+
 /**
- * The marks' colours as attributes: the style's arrow ink, and the paper's
- * face inside a hollow push. One ink on and off the paper, so nothing is
- * clipped (`oneInk`).
+ * The marks' colours as attributes: the style's arrow ink, one ink on and off
+ * the paper, so nothing is clipped (`oneInk`). A hollow push is the page's
+ * white inside, not the paper's face: there is no paper under an annotation
+ * to match, and it may lie on a photo, on either face, or off the picture.
  */
 function annotationInk(seen: PaperStyle): DiagramInlineInk {
   const ink = diagramInlineInk({
     ...referencesPaperTokens(seen),
     '--cp-reference-input': REFERENCE_COLORS.light.input,
-    '--bg-primary': '#ffffff',
+    '--bg-primary': PAGE_GROUND,
   });
-  return { ...ink, ground: { arrow: ink.arrowhead, mark: ink.mark } };
+  return {
+    ...ink,
+    sheet: { ...ink.sheet, front: PAGE_GROUND, back: PAGE_GROUND },
+    ground: { arrow: ink.arrowhead, mark: ink.mark },
+  };
 }
 
 /** Picture units to the primitives' y-up space, as References' unit frame is. */
@@ -271,12 +285,20 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
   for (const primitive of drawing.primitives) {
     switch (primitive.kind) {
       case 'fold-arrow':
-      case 'one-way-arrow':
-        for (const point of arcPolyline(primitive.out)) {
-          const { x, y } = project(point);
-          take(x, y, arrowPad);
+      case 'one-way-arrow': {
+        // A fold-and-unfold arrow's return bulges further out than its outgoing arc.
+        const back =
+          primitive.kind === 'fold-arrow'
+            ? returnStroke(primitive.out, foldReturnOffset(primitive.out, project) / project.scale)
+            : null;
+        for (const arc of back ? [primitive.out, back] : [primitive.out]) {
+          for (const point of arcPolyline(arc)) {
+            const { x, y } = project(point);
+            take(x, y, arrowPad);
+          }
         }
         break;
+      }
       case 'push-arrow':
         for (const point of [primitive.from, primitive.to]) {
           const { x, y } = project(point);
@@ -298,8 +320,7 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     }
   }
   for (const label of drawing.labels) {
-    const characters = label.runs.reduce((count, run) => count + run.text.length, 0);
-    const half = label.size * (0.6 * characters + 0.4);
+    const half = (labelHalfWidth(label.runs.map((run) => run.text).join('')) / LABEL_SIZE) * label.size;
     minX = Math.min(minX, label.x - half);
     maxX = Math.max(maxX, label.x + half);
     minY = Math.min(minY, label.y - label.size);

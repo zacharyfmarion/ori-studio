@@ -69,8 +69,10 @@ export function paintAnnotations(
 }
 
 /**
- * A painted picture with its annotations drawn over it, as one SVG document
- * the size the picture is, or the picture itself when they draw nothing.
+ * A painted picture with its annotations drawn over it, as one SVG document,
+ * or the picture itself when they draw nothing. The document grows to hold
+ * whatever reaches past the picture — an arrow that starts off it — as a
+ * page and a step's file do: an `<img>` cannot paint outside its own box.
  * `opacity` ghosts them, as Pose shows them (D8).
  */
 export function annotatedPicture(
@@ -81,12 +83,18 @@ export function annotatedPicture(
 ): string {
   const drawn = paintAnnotations(annotations, painted.frame, CARD_FRAME_PX, style);
   if (!drawn) return painted.svg;
-  const { widthPx: width, heightPx: height } = painted;
-  const picture = painted.svg.replace(/^\s*<\?xml[^>]*\?>\s*/, '');
+  const { widthPx, heightPx, svg } = painted;
+  const { bounds } = drawn;
+  const x = Math.min(0, bounds.x);
+  const y = Math.min(0, bounds.y);
+  const width = Math.max(widthPx, bounds.x + bounds.width) - x;
+  const height = Math.max(heightPx, bounds.y + bounds.height) - y;
+  // Nested whole, at the origin, its own size: the box grows round it.
+  const picture = svg.replace(/^\s*<\?xml[^>]*\?>\s*/, '');
   const marks = opacity < 1 ? `<g opacity="${opacity}">${drawn.markup}</g>` : drawn.markup;
   return (
     `<svg xmlns="${SVG_NS}" width="${num(width)}" height="${num(height)}" ` +
-    `viewBox="0 0 ${num(width)} ${num(height)}">${picture}${marks}</svg>`
+    `viewBox="${num(x)} ${num(y)} ${num(width)} ${num(height)}">${picture}${marks}</svg>`
   );
 }
 

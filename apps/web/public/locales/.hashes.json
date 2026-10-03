@@ -3755,7 +3755,9 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7513,7 +7515,9 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11273,7 +11277,9 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -14960,7 +14966,9 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18647,7 +18655,9 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22405,7 +22415,9 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26163,7 +26175,9 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -29850,6 +29864,8 @@
     "tools:diagram.toolRotate": "c3613b1704f5",
     "tools:diagram.toolTurnOver": "d88e02c80be6",
     "tools:diagram.toolValleyArrow": "57d4f6257ab3",
-    "tools:diagram.toolValleyLine": "99be74e5644f"
+    "tools:diagram.toolValleyLine": "99be74e5644f",
+    "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
+    "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61"
   }
 }

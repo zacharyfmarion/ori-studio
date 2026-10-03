@@ -77,12 +77,41 @@ describe('annotatedPicture', () => {
   });
 });
 
+describe('annotatedPicture past the frame', () => {
+  it('grows the card to hold an arrow that starts off the picture, the picture where it was', () => {
+    const painted = paintAsset(ASSET);
+    const push = a('p', 'push-arrow', { from: [-0.2, 0.3], to: [0.3, 0.3] });
+    const svg = annotatedPicture(painted, [push], DEFAULT_DIAGRAM_STYLE);
+    const root = new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement;
+    const [x, y, width, height] = root.getAttribute('viewBox')!.split(' ').map(Number);
+    const reach = paintAnnotations([push], painted.frame, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE)!.bounds;
+    expect(x).toBeCloseTo(reach.x, 2);
+    expect(x! + width!).toBeGreaterThanOrEqual(400);
+    expect([y, height]).toEqual([0, 300]);
+    expect(Number(root.getAttribute('width'))).toBe(width);
+    // The picture itself, at the origin and its own size.
+    expect(root.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 400 300');
+  });
+
+  it('fills a hollow push with the page’s white, whatever the paper’s face', () => {
+    const svg = annotatedPicture(paintAsset(ASSET), [a('p', 'push-arrow')], { preset: 'default' });
+    expect(svg).toContain('fill="#ffffff"');
+  });
+});
+
 describe('paintAnnotations', () => {
   it('reaches past the frame for an arrow that starts off it', () => {
     const box = { x: 10, y: 20, width: 100, height: 75 };
     const painted = paintAnnotations([a('p', 'push-arrow', { from: [-0.5, 0.3] })], box, 100, DEFAULT_DIAGRAM_STYLE)!;
     expect(painted.bounds.x).toBeLessThan(box.x - 40);
     expect(painted.bounds.y).toBeLessThanOrEqual(box.y);
+  });
+
+  it('reaches as far as a fold-and-unfold arrow’s return, which bulges past its outgoing arc', () => {
+    const fold = a('f', 'fold-unfold-arrow', { from: [0.1, 0.02], to: [0.9, 0.02], bend: 0.03 });
+    const painted = paintAnnotations([fold], { x: 0, y: 0, width: 453, height: 340 }, 453, DEFAULT_DIAGRAM_STYLE)!;
+    // The return's sagitta: well above the top edge, where the outgoing arc barely leaves it.
+    expect(painted.bounds.y).toBeLessThan(-0.15 * 0.8 * 453);
   });
 
   it('sets the rotate glyph’s fraction in the diagram’s font, as a run a page counts', () => {

@@ -173,6 +173,7 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     hasDiagram: false,
     diagramStepCount: 0,
     hasDeletableDiagramSelection: false,
+    diagramDeleteTarget: 'step',
     historyPastCount: 0,
     historyFutureCount: 0,
     clipboard: null,

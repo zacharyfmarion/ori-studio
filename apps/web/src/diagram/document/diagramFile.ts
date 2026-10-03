@@ -39,6 +39,7 @@ import {
   DEFAULT_ROTATION,
   LABEL_MAX_LENGTH,
   MAX_BEND,
+  MAX_STEP_ANNOTATIONS,
   isPointKind,
 } from '../annotate/annotationModel';
 import {
@@ -314,7 +315,8 @@ function readStep(
     revision: wholeNumber(value.revision) ?? 0,
     source: null,
     picture: null,
-    annotations: readAnnotations(value.annotations),
+    // More than a step holds is a newer build's step (below), carried whole and never parsed.
+    annotations: tooManyAnnotations(value.annotations) ? [] : readAnnotations(value.annotations),
     annotatedPictureKey:
       typeof value.annotatedPictureKey === 'string' ? value.annotatedPictureKey : null,
     text: typeof value.text === 'string' ? xmlText(value.text) : '',
@@ -326,7 +328,8 @@ function readStep(
     isNewerCpSource(value.source) ||
     isNewerStepDiagram(value.picture) ||
     namesUnknownAsset(value.source, assets) ||
-    namesUnknownAsset(value.picture, assets)
+    namesUnknownAsset(value.picture, assets) ||
+    tooManyAnnotations(value.annotations)
   ) {
     return { ...base, unknown: value };
   }
@@ -619,9 +622,6 @@ function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolea
   return asset !== undefined && isKnownAsset(asset);
 }
 
-/** The most annotations a step keeps: a guard against a file that was never a diagram's. */
-export const MAX_STEP_ANNOTATIONS = 500;
-
 /** The fields each kind is written with; any other makes the annotation a newer build's. */
 const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<string>>> = (() => {
   const base = ['id', 'kind', 'from', 'to'];
@@ -643,6 +643,11 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
 /** A newer build's value: well formed, but past what this build reads. */
 const NEWER = Symbol('newer');
 
+/** More annotations than a step of this build holds: a newer build's step, not one to cut short. */
+function tooManyAnnotations(value: unknown): boolean {
+  return Array.isArray(value) && value.length > MAX_STEP_ANNOTATIONS;
+}
+
 /**
  * A step's annotations (D8), by the file's three rules: one that does not read
  * is dropped; one of a kind, a field or an enumerated value this build does
@@ -655,7 +660,6 @@ function readAnnotations(value: unknown): DiagramAnnotation[] {
   const out: DiagramAnnotation[] = [];
   const ids = new Set<string>();
   for (const entry of value) {
-    if (out.length >= MAX_STEP_ANNOTATIONS) break;
     if (!isRecord(entry) || typeof entry.id !== 'string' || entry.id.length === 0 || ids.has(entry.id)) continue;
     const annotation = readAnnotation(entry.id, entry);
     if (annotation === NEWER) out.push({ id: entry.id, unknown: entry });
@@ -696,8 +700,10 @@ function readAnnotation(
     case 'rotate': {
       if (entry.rotate === undefined) return { ...annotation, rotate: DEFAULT_ROTATION };
       const rotate = entry.rotate;
-      if (!isRecord(rotate) || typeof rotate.amount !== 'string' || typeof rotate.direction !== 'string') return null;
+      if (!isRecord(rotate)) return null;
+      // A field it has no name for is news before a missing one is damage, as at the top.
       if (Object.keys(rotate).some((key) => key !== 'amount' && key !== 'direction')) return NEWER;
+      if (typeof rotate.amount !== 'string' || typeof rotate.direction !== 'string') return null;
       if (!['eighth', 'quarter', 'half'].includes(rotate.amount) || !['cw', 'ccw'].includes(rotate.direction)) {
         return NEWER;
       }

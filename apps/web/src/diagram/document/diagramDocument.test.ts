@@ -25,6 +25,7 @@ import {
   stepAsset,
   stepHasPicture,
   withReferencedAssets,
+  editStepAnnotations,
   uploadPictureKey,
   mirrorPose,
   poseBlocker,
@@ -325,6 +326,24 @@ describe('withReferencedAssets', () => {
     expect(Object.keys(withReferencedAssets(carried).assets).sort()).toEqual(['future', 'named', 'used']);
   });
 
+  it('keeps what a newer build’s annotation or asset names', () => {
+    const { diagram, ids } = diagramWith(0);
+    const { document } = insertPictureSteps(diagram, [svgAsset('used')], 0, ids);
+    const step = document.steps[0]!;
+    const carried = {
+      ...document,
+      steps: [{ ...step, annotations: [{ id: 'n-1', unknown: { id: 'n-1', kind: 'inset', assetId: 'inset' } }] }],
+      assets: {
+        ...document.assets,
+        inset: svgAsset('inset'),
+        poster: svgAsset('poster'),
+        future: { id: 'future', unknown: { kind: 'video', poster: 'poster' } },
+        orphan: svgAsset('orphan'),
+      },
+    };
+    expect(Object.keys(withReferencedAssets(carried).assets).sort()).toEqual(['future', 'inset', 'poster', 'used']);
+  });
+
   it('returns the same document when nothing is dropped', () => {
     const { diagram, ids } = diagramWith(0);
     const { document } = insertPictureSteps(diagram, [svgAsset('a')], 0, ids);
@@ -435,5 +454,41 @@ describe('steps sent from References', () => {
     expect(stepDiagramKey('steps-x', true)).toBe('steps-x-back');
     expect(stepDiagramKey('steps-x-back', true)).toBe('steps-x-back');
     expect(stepDiagramKey('steps-x-back', false)).toBe('steps-x');
+  });
+});
+
+describe('editStepAnnotations', () => {
+  function pictured() {
+    const { diagram, ids } = diagramWith(0);
+    const { document } = insertPictureSteps(diagram, [svgAsset('pic')], 0, ids);
+    return { document, stepId: document.steps[0]!.id };
+  }
+  const label = { id: 'l', kind: 'label' as const, from: [0.5, 0.5] as [number, number], to: [0.5, 0.5] as [number, number], text: 'A' };
+
+  it('writes them as this build reads them: within reach, a label’s text clean and on one line', () => {
+    const { document, stepId } = pictured();
+    const edited = editStepAnnotations(document, stepId, () => [
+      { ...label, text: 'A\u000bB\nC', to: [9, 9] },
+      { id: 'v', kind: 'valley-line', from: [-7, 0], to: [1, 9] },
+    ]);
+    expect(edited.steps[0]!.annotations).toEqual([
+      { ...label, text: 'AB C' },
+      { id: 'v', kind: 'valley-line', from: [-4, 0], to: [1, 4] },
+    ]);
+  });
+
+  it('records nothing for an edit that says what is there already', () => {
+    const { document, stepId } = pictured();
+    const once = editStepAnnotations(document, stepId, () => [label]);
+    expect(editStepAnnotations(once, stepId, (list) => list.map((annotation) => ({ ...annotation })))).toBe(once);
+  });
+
+  it('takes no more than a step holds', () => {
+    const { document, stepId } = pictured();
+    const full = editStepAnnotations(document, stepId, () =>
+      Array.from({ length: 500 }, (_, index) => ({ ...label, id: `l-${index}` }))
+    );
+    expect(full.steps[0]!.annotations).toHaveLength(500);
+    expect(editStepAnnotations(full, stepId, (list) => [...list, { ...label, id: 'one-more' }])).toBe(full);
   });
 });

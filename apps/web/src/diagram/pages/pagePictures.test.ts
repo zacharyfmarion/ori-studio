@@ -87,13 +87,17 @@ describe('cellPicture', () => {
     });
 
     it('draws them on the picture’s frame, at the cell’s size', () => {
+      const inside: DiagramStep = {
+        ...bitmapStep(null),
+        annotations: [{ id: 'a-1', kind: 'valley-line', from: [0.1, 0.3], to: [0.9, 0.3] }],
+      };
       const plain = cellPicture(bitmapStep(null), assets, style, cell, 'c0-', TEXT)!;
-      const picture = cellPicture(annotated(bitmapStep(null)), assets, style, cell, 'c0-', TEXT)!;
+      const picture = cellPicture(inside, assets, style, cell, 'c0-', TEXT)!;
+      // Kept to the picture: the picture where it was, the line across its frame.
       expect(picture.markup.startsWith(plain.markup)).toBe(true);
-      // The valley line runs across the frame, which is the fitted bitmap's box.
       const [, x1, , x2] = /<line x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)"/.exec(picture.markup)!.map(Number);
-      expect(x1).toBeCloseTo(plain.boundsPt.x, 1);
-      expect(x2).toBeCloseTo(plain.boundsPt.x + plain.boundsPt.width, 1);
+      expect(x1).toBeCloseTo(plain.boundsPt.x + 0.1 * plain.boundsPt.width, 1);
+      expect(x2).toBeCloseTo(plain.boundsPt.x + 0.9 * plain.boundsPt.width, 1);
     });
 
     it('says what their text sets, its Han in the diagram’s style', () => {
@@ -106,10 +110,29 @@ describe('cellPicture', () => {
       expect(faces['latin-700']).toBe(' 1/2');
     });
 
-    it('crops a step’s file to reach the arrow that starts off the picture', () => {
+    it('makes room in the cell for what reaches past the picture, and crops a file to it', () => {
       const plain = cellPicture(bitmapStep(null), assets, style, cell, 'c0-', TEXT)!;
       const picture = cellPicture(annotated(bitmapStep(null)), assets, style, cell, 'c0-', TEXT)!;
-      expect(picture.boundsPt.x).toBeLessThan(plain.boundsPt.x - 0.3 * plain.boundsPt.width);
+      const box = { x: 10 * PT_PER_MM, y: 20 * PT_PER_MM, size: 40 * PT_PER_MM };
+      // The picture and its annotations together, inside the box the layout gave the picture.
+      expect(picture.boundsPt.x).toBeGreaterThanOrEqual(box.x - 0.01);
+      expect(picture.boundsPt.x + picture.boundsPt.width).toBeLessThanOrEqual(box.x + box.size + 0.01);
+      expect(picture.boundsPt.y).toBeGreaterThanOrEqual(box.y - 0.01);
+      expect(picture.boundsPt.y + picture.boundsPt.height).toBeLessThanOrEqual(box.y + box.size + 0.01);
+      // The picture itself drawn smaller to make that room: its width in the nested svg.
+      const width = (markup: string) => Number(/<svg x="[\d.-]+" y="[\d.-]+" width="([\d.]+)"/.exec(markup)![1]);
+      expect(width(picture.markup)).toBeLessThan(width(plain.markup) * 0.85);
+    });
+
+    it('leaves a picture at the shared scale at it, and the layout leaves it room', () => {
+      const step = annotated(bitmapStep(100));
+      const reach = layoutPicture(step, assets, style, 5);
+      const bare = layoutPicture(bitmapStep(100), assets, style, 5);
+      expect(reach?.kind === 'paper' && bare?.kind === 'paper' && reach.extentUnits > bare.extentUnits * 1.3).toBe(true);
+      const plain = cellPicture(bitmapStep(100), assets, style, { ...cell, mmPerUnit: 5 }, 'c0-', TEXT)!;
+      const picture = cellPicture(step, assets, style, { ...cell, mmPerUnit: 5 }, 'c0-', TEXT)!;
+      const width = (markup: string) => Number(/ width="([\d.]+)"/.exec(markup)![1]);
+      expect(width(picture.markup)).toBeCloseTo(width(plain.markup), 2);
     });
 
     it('draws an arrow as References draws its own on the same page: one pen, one head', () => {

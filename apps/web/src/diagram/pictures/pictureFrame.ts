@@ -30,6 +30,14 @@ export function storedScene(picture: DiagramScenePicture): PaperScene | null {
   return scene;
 }
 
+/**
+ * Whether a step can be annotated: made by this build, with a picture this
+ * build draws — what Annotate draws on. The detail shows Pose for any other.
+ */
+export function stepCanBeAnnotated(step: DiagramStep, assets: Readonly<Record<string, DiagramAsset>>): boolean {
+  return stepPictureSource(step, assets) !== null;
+}
+
 /** The step's picture frame, its longer side one unit; null for a step with no picture to draw. */
 export function stepPictureFrame(
   step: DiagramStep,

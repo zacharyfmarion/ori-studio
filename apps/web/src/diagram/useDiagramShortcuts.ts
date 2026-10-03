@@ -9,6 +9,7 @@ import type { DiagramShortcutId, ViewportShortcutId } from '../keyboard/shortcut
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
+import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
 import { flipAnnotationArc, isArrowKind } from './annotate/annotationModel';
 import { isKnownAnnotation, stepIndex, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
@@ -29,7 +30,7 @@ function keyState(state: WorkspaceState): DiagramKeyState {
     readOnly: state.diagramReadOnly,
     detailOpen: state.diagramDetail !== null,
     annotate:
-      state.diagramDetail === 'annotate'
+      isDiagramAnnotating(state)
         ? {
             tool: state.diagramAnnotateTool,
             selectedAnnotationId: state.diagramSelectedAnnotationId,

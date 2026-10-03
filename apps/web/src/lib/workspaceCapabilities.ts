@@ -183,10 +183,13 @@ export interface WorkspaceCapabilityInput {
   /** How many steps the diagram has: one is enough to export it. */
   diagramStepCount: number;
   /**
-   * Whether the Diagram has a step selected that Delete would remove: the
-   * diagram context, a selected step, and a diagram that is not read-only.
+   * Whether the Diagram has something selected that Delete would remove, on a
+   * diagram that is not read-only: in Annotate the selected annotation, else
+   * the selected step ({@link diagramDeleteTarget}).
    */
   hasDeletableDiagramSelection: boolean;
+  /** What Delete removes in the Diagram: the selected annotation while annotating, else the step. */
+  diagramDeleteTarget: 'step' | 'annotation';
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -509,9 +512,13 @@ export function getWorkspaceCapabilities(
           (hasSelectedCpLines || hasSelectedCpPoints || hasSelectedCpCircles)),
       t('common:capability.deleteSelected', 'Delete Selected'),
       diagramMode
-        ? input.hasDeletableDiagramSelection
-          ? t('common:capability.deleteSelectedDiagramStep', 'Delete the selected step')
-          : t('common:capability.selectDiagramStepFirst', 'Select a step first')
+        ? input.diagramDeleteTarget === 'annotation'
+          ? input.hasDeletableDiagramSelection
+            ? t('common:capability.deleteSelectedDiagramAnnotation', 'Delete the selected annotation')
+            : t('common:capability.selectDiagramAnnotationFirst', 'Select an annotation first')
+          : input.hasDeletableDiagramSelection
+            ? t('common:capability.deleteSelectedDiagramStep', 'Delete the selected step')
+            : t('common:capability.selectDiagramStepFirst', 'Select a step first')
         : treeMode && !activeCpSurface
           ? t('common:capability.deleteSelectedTreeParts', 'Delete selected tree parts')
           : canEditCp

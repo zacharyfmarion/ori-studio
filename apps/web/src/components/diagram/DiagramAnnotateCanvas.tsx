@@ -5,7 +5,7 @@ import { arrowPolyline } from '../../diagram/annotate/annotationHit';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { GLYPH_REACH, useAnnotateCanvas, type AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
-import { isArrowKind, isPointKind, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
+import { isArrowKind, isPointKind, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
 import {
   isKnownAnnotation,
   type DiagramAsset,
@@ -18,12 +18,6 @@ import { ViewportToolbar } from '../panels/ViewportToolbar';
 import { DiagramAnnotationLayer } from './DiagramAnnotationLayer';
 import styles from './DiagramAnnotateCanvas.module.css';
 
-/**
- * What the camera's panning leaves alone, so a press on it draws: the
- * overlay, by its tag. The library matches each entry as a tag and as a
- * class, so an attribute selector is not one it can take.
- */
-const OVERLAY_TAG = 'svg';
 /** An end's dot, in screen px. */
 const HANDLE_PX = 5;
 
@@ -46,7 +40,7 @@ export function DiagramAnnotateCanvas({
   readOnly: boolean;
 }) {
   const { t } = useTranslation();
-  const { camera, overlay, url, layout, shown, tool, selectedId, handlers } = useAnnotateCanvas({
+  const { camera, overlay, url, layout, shown, tool, selectedId, onPointerDownCapture, handlers } = useAnnotateCanvas({
     step,
     assets,
     style,
@@ -69,6 +63,7 @@ export function DiagramAnnotateCanvas({
       className={styles.view}
       data-space-pan={spacePressed || undefined}
       tabIndex={-1}
+      onPointerDownCapture={onPointerDownCapture}
     >
       <TransformWrapper
         ref={transformRef}
@@ -81,9 +76,9 @@ export function DiagramAnnotateCanvas({
           velocityDisabled: true,
           wheelPanning: true,
           allowMiddleClickPan: true,
-          // A drag draws; the picture moves with Space held, the middle button or two fingers.
+          // A drag draws; the picture moves with Space held, the middle button or
+          // two fingers (one finger never reaches the camera: `useAnnotateCanvas`).
           allowLeftClickPan: spacePressed,
-          excluded: spacePressed ? [] : [OVERLAY_TAG],
         }}
         pinch={VIEWPORT_PINCH_ZOOM}
         doubleClick={{ disabled: true }}
@@ -118,7 +113,7 @@ export function DiagramAnnotateCanvas({
                     <DiagramAnnotationLayer drawing={drawing} style={style} />
                   </g>
                 )}
-                {selected && <Selection annotation={selected} layout={layout} zoom={zoom} />}
+                {selected && <Selection annotation={selected} layout={layout} zoom={zoom} movable={!readOnly} />}
               </svg>
             </div>
           )}
@@ -150,26 +145,26 @@ function Selection({
   annotation,
   layout,
   zoom,
+  movable,
 }: {
   annotation: KnownDiagramAnnotation;
   layout: AnnotateLayout;
   zoom: number;
+  /** Whether its ends can be taken hold of: not on a diagram that cannot change. */
+  movable: boolean;
 }) {
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit];
   const handle = HANDLE_PX / zoom;
   if (isPointKind(annotation.kind)) {
     const [x, y] = at(annotation.from);
-    const reach =
-      annotation.kind === 'label'
-        ? LABEL_SIZE * layout.unit * (0.3 * Math.max(1, [...(annotation.text ?? '')].length) + 0.4)
-        : GLYPH_REACH * layout.unit;
+    const reach = (annotation.kind === 'label' ? labelHalfWidth(annotation.text ?? '') + 0.1 * LABEL_SIZE : GLYPH_REACH) * layout.unit;
     return <circle className={styles.selection} cx={x} cy={y} r={reach} data-selection="" />;
   }
   const points = (isArrowKind(annotation.kind) ? arrowPolyline(annotation) : [annotation.from, annotation.to]).map(at);
   return (
     <g data-selection="">
       <polyline className={styles.selection} points={points.map((point) => point.join(',')).join(' ')} />
-      {(['from', 'to'] as const).map((end) => {
+      {movable && (['from', 'to'] as const).map((end) => {
         const [x, y] = at(annotation[end]);
         return <circle key={end} className={styles.handle} cx={x} cy={y} r={handle} data-handle={end} />;
       })}

@@ -248,13 +248,13 @@
     "toolFoldUnfoldArrow": "Стрелка «сложить и разложить»",
     "toolHiddenLine": "Скрытая линия",
     "toolLabel": "Подпись",
-    "toolMountainArrow": "Стрелка горы",
-    "toolMountainLine": "Линия горы",
+    "toolMountainArrow": "Стрелка горного сгиба",
+    "toolMountainLine": "Горная линия",
     "toolPushArrow": "Стрелка нажатия",
     "toolRotate": "Повернуть",
     "toolTurnOver": "Перевернуть",
-    "toolValleyArrow": "Стрелка долины",
-    "toolValleyLine": "Линия долины"
+    "toolValleyArrow": "Стрелка долинного сгиба",
+    "toolValleyLine": "Долинная линия"
   },
   "divideMode": {
     "count": "Количество",

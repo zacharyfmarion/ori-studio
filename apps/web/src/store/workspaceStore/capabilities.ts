@@ -1,3 +1,4 @@
+import { isDiagramAnnotating } from './diagramState';
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import {
   activeDesignTab,
@@ -87,7 +88,7 @@ export function hasDeletableDiagramSelection(state: WorkspaceState): boolean {
   if (diagramSelectedStepId === null) return false;
   const step = diagram.steps[stepIndex(diagram, diagramSelectedStepId)];
   if (!step) return false;
-  if (state.diagramDetail !== 'annotate') return true;
+  if (!isDiagramAnnotating(state)) return true;
   const annotationId = state.diagramSelectedAnnotationId;
   return annotationId !== null && step.annotations.some((annotation) => annotation.id === annotationId);
 }
@@ -165,6 +166,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     hasDiagram: state.diagram !== null,
     diagramStepCount: state.diagram?.steps.length ?? 0,
     hasDeletableDiagramSelection: hasDeletableDiagramSelection(state),
+    diagramDeleteTarget: isDiagramAnnotating(state) ? 'annotation' : 'step',
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

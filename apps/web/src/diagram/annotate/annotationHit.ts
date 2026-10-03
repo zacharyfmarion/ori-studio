@@ -6,7 +6,26 @@
  * Pure: no DOM, no store.
  */
 import { isKnownAnnotation, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
-import { ARROW_BEND, LINE_KINDS, arrowApex, isArrowKind, isPointKind, type PicturePoint } from './annotationModel';
+import {
+  DIAGRAM_ARROWHEAD_INK,
+  DIAGRAM_FOLD_RETURN_INK,
+  DIAGRAM_PUSH_INK,
+} from '../../cp-workspace/references/diagram/diagramInk';
+import {
+  arcPolyline,
+  arcThroughPoints,
+  pushArrowOutline,
+  returnStroke,
+} from '../../cp-workspace/references/stepDiagramGeometry';
+import {
+  ARROW_BEND,
+  LINE_KINDS,
+  arrowApex,
+  isArrowKind,
+  isPointKind,
+  labelHalfWidth,
+  type PicturePoint,
+} from './annotationModel';
 
 /** What a press took hold of: the annotation, and its body or one end. */
 export interface AnnotationGrip {
@@ -22,6 +41,8 @@ export interface HitSizes {
   glyph: number;
   /** A label's letters' size. */
   label: number;
+  /** One ink, as the canvas draws it: what a head's length and a push's width are measured in. */
+  ink: number;
 }
 
 /** The points along an arrow's arc, from its tail to its tip. */
@@ -69,11 +90,74 @@ function distanceToPolyline(point: PicturePoint, line: readonly PicturePoint[]):
   return best;
 }
 
-/** How far a press is from an annotation's body; 0 inside a glyph or a label. */
+/** The y-up space References' arcs are built in, and back: picture units, y flipped. */
+const up = ([u, v]: PicturePoint): [number, number] => [u, -v];
+const down = ([x, y]: readonly [number, number]): PicturePoint => [x, -y];
+
+/** A head's length: the drawing's, but never more than a share of the arrow's chord (`inkUpToChord`). */
+function headLength(chord: number, ink: number): number {
+  return Math.min(DIAGRAM_ARROWHEAD_INK.length * ink, DIAGRAM_ARROWHEAD_INK.ofChord * chord);
+}
+
+/**
+ * How far a press is from a fold arrow as it is drawn: its arc, a
+ * fold-and-unfold arrow's return stroke beside it, and the head at the end of
+ * whichever carries it.
+ */
+function arrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const { from, to } = annotation;
+  const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
+  const outgoing = arrowPolyline(annotation);
+  let distance = distanceToPolyline(point, outgoing);
+  let tip = to;
+  if (annotation.kind === 'fold-unfold-arrow') {
+    const out = arcThroughPoints(up(from), up(arrowApex(from, to, annotation.bend ?? ARROW_BEND)), up(to));
+    const offset = Math.min(DIAGRAM_FOLD_RETURN_INK.offset * ink, DIAGRAM_FOLD_RETURN_INK.ofChord * chord);
+    const back = out ? returnStroke(out, offset) : null;
+    if (back) {
+      const returning = arcPolyline(back).map(down);
+      distance = Math.min(distance, distanceToPolyline(point, returning));
+      tip = returning[returning.length - 1]!;
+    }
+  }
+  // The head's barbs stand off its spine by under half its length.
+  const head = headLength(chord, ink);
+  return Math.min(distance, Math.hypot(point[0] - tip[0], point[1] - tip[1]) - head * 0.5);
+}
+
+/** How far a press is from a push arrow's hollow outline: 0 inside it. */
+function pushDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, ink: number): number {
+  const outline = pushArrowOutline(
+    { x: annotation.from[0], y: annotation.from[1] },
+    { x: annotation.to[0], y: annotation.to[1] },
+    {
+      head: DIAGRAM_PUSH_INK.head * ink,
+      headHalf: DIAGRAM_PUSH_INK.headHalf * ink,
+      shaftHalf: DIAGRAM_PUSH_INK.shaftHalf * ink,
+      cleft: DIAGRAM_PUSH_INK.cleft * ink,
+    }
+  );
+  if (!outline) return distanceToSegment(point, annotation.from, annotation.to);
+  const ring = outline.map(({ x, y }): PicturePoint => [x, y]);
+  if (insidePolygon(point, ring)) return 0;
+  return distanceToPolyline(point, [...ring, ring[0]!]);
+}
+
+/** Whether a point is inside a simple polygon (even–odd). */
+function insidePolygon([x, y]: PicturePoint, ring: readonly PicturePoint[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** How far a press is from an annotation's body, as it is drawn; 0 inside a glyph, a label or a push. */
 function bodyDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, sizes: HitSizes): number {
   if (annotation.kind === 'label') {
-    const characters = Math.max(1, [...(annotation.text ?? '')].length);
-    const halfWidth = sizes.label * (0.3 * characters + 0.2);
+    const halfWidth = labelHalfWidth(annotation.text ?? '');
     const halfHeight = sizes.label * 0.6;
     const dx = Math.max(0, Math.abs(point[0] - annotation.from[0]) - halfWidth);
     const dy = Math.max(0, Math.abs(point[1] - annotation.from[1]) - halfHeight);
@@ -82,7 +166,8 @@ function bodyDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, s
   if (isPointKind(annotation.kind)) {
     return Math.max(0, Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - sizes.glyph);
   }
-  if (isArrowKind(annotation.kind)) return distanceToPolyline(point, arrowPolyline(annotation));
+  if (isArrowKind(annotation.kind)) return arrowDistance(annotation, point, sizes.ink);
+  if (annotation.kind === 'push-arrow') return pushDistance(annotation, point, sizes.ink);
   return distanceToSegment(point, annotation.from, annotation.to);
 }
 

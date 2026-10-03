@@ -12,6 +12,7 @@ import { useSelectionUiStore } from '../store/selectionUiStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectWorkspaceCapabilities } from '../store/workspaceStore/capabilities';
+import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import { requestPositiveNumber, type NumberDialogOptions } from '../store/commandDialogStore';
 import { showActiveWorkspace } from '../routing/workspaceUrlSync';
@@ -218,6 +219,7 @@ export interface WorkspaceCommands {
     payload?: OristudioCpCommandPayload
   ): Promise<boolean>;
   transformOristudioCpSelection(transform: CpSelectionTransform): Promise<boolean>;
+  diagram: WorkspaceState['diagram'];
   diagramSelectedStepId: string | null;
   diagramDetail: DiagramDetailMode | null;
   diagramSelectedAnnotationId: string | null;
@@ -576,7 +578,7 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           if (stepId === null) return false;
           // Annotate deletes the selected annotation, and only that: the step
           // it is drawn on is not what the key was pressed at.
-          if (deps.workspace.diagramDetail === 'annotate') {
+          if (isDiagramAnnotating(deps.workspace)) {
             const annotationId = deps.workspace.diagramSelectedAnnotationId;
             if (annotationId === null) return false;
             return deps.workspace.editDiagramAnnotations(
