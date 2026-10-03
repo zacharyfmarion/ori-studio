@@ -1,7 +1,15 @@
 import { useCallback, useMemo } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { trackDiagramStepAdded } from '../analytics';
+import {
+  trackDiagramPictureExported,
+  trackDiagramPicturePosed,
+  trackDiagramPictureRemoved,
+  trackDiagramStepAdded,
+  trackDiagramStepOpened,
+  type DiagramPoseAction as TrackedPoseAction,
+  type DiagramStepOpenedVia,
+} from '../analytics';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import {
   buildDiagramStepActions,
@@ -11,10 +19,12 @@ import {
 import {
   buildDiagramPoseActions,
   type DiagramPoseAction,
+  type DiagramPoseActionId,
 } from './actions/diagramPoseActions';
 import {
   isLockedStep,
   poseBlocker,
+  stepAsset,
   stepIndex,
   type DiagramStep,
   type UploadPose,
@@ -38,6 +48,20 @@ export function addDiagramStep(): string | null {
 export function useAddDiagramStep(): () => string | null {
   return useCallback(() => addDiagramStep(), []);
 }
+
+/** Open a step in detail, counting how it was opened. Whether it opened. */
+export function openDiagramStep(stepId: string, via: DiagramStepOpenedVia): boolean {
+  const opened = useWorkspaceStore.getState().openDiagramStep(stepId);
+  if (opened) trackDiagramStepOpened(via);
+  return opened;
+}
+
+const TRACKED_POSE_ACTIONS: Record<DiagramPoseActionId, TrackedPoseAction> = {
+  'rotate-left': 'rotate_left',
+  'rotate-right': 'rotate_right',
+  flip: 'flip',
+  reset: 'reset',
+};
 
 /**
  * The step verbs for one step as it is in the store right now, bound to it — or
@@ -98,10 +122,16 @@ function bindStepActions(
       },
       exportPicture: () => {
         const diagram = store().diagram;
-        if (diagram) void exportStepPicture(diagram, stepId);
+        if (!diagram) return;
+        void exportStepPicture(diagram, stepId).then((format) => {
+          if (format) trackDiagramPictureExported(format);
+        });
       },
       removePicture: () => {
-        store().removeDiagramStepPicture(stepId);
+        const diagram = store().diagram;
+        const step = diagram?.steps.find((candidate) => candidate.id === stepId);
+        const kind = diagram && step ? stepAsset(diagram, step)?.kind : undefined;
+        if (store().removeDiagramStepPicture(stepId) && kind) trackDiagramPictureRemoved(kind);
       },
       remove: () => {
         void store().confirmDeleteDiagramSteps([stepId]);
@@ -165,8 +195,12 @@ export function useDiagramPoseActions(stepId: string | null): DiagramPoseAction[
       },
       {
         t,
-        setPose: (next) => {
-          useWorkspaceStore.getState().setDiagramStepPose(step.id, next);
+        setPose: (next, verb) => {
+          const store = useWorkspaceStore.getState();
+          const kind = store.diagram ? stepAsset(store.diagram, step)?.kind : undefined;
+          if (store.setDiagramStepPose(step.id, next) && kind) {
+            trackDiagramPicturePosed(TRACKED_POSE_ACTIONS[verb], kind);
+          }
         },
       }
     );

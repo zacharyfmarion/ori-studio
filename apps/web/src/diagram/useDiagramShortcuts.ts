@@ -7,6 +7,7 @@ import {
 } from '../keyboard/shortcutRuntime';
 import type { DiagramShortcutId, ViewportShortcutId } from '../keyboard/shortcuts';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import {
   focusLeavesEnterToSteps,
@@ -39,7 +40,7 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
     select: state.selectDiagramStep,
     move: state.moveDiagramStep,
     open: (stepId) => {
-      state.openDiagramStep(stepId);
+      openDiagramStep(stepId, 'keyboard');
     },
     close: state.closeDiagramStep,
   };

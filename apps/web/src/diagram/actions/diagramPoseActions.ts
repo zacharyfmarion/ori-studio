@@ -32,7 +32,7 @@ const UPRIGHT: UploadPose = { rotationQuarterTurns: 0, mirrored: false };
 
 export function buildDiagramPoseActions(
   state: DiagramPoseActionState,
-  deps: { t: TFunction; setPose: (pose: UploadPose) => void }
+  deps: { t: TFunction; setPose: (pose: UploadPose, verb: DiagramPoseActionId) => void }
 ): DiagramPoseAction[] {
   const { t } = deps;
   const pose = state.pose;
@@ -61,7 +61,7 @@ export function buildDiagramPoseActions(
     disabled: blocked || alsoDisabled,
     hint,
     run: () => {
-      if (pose) deps.setPose(next(pose));
+      if (pose) deps.setPose(next(pose), id);
     },
   });
   const upright = pose !== null && pose.rotationQuarterTurns === 0 && !pose.mirrored;

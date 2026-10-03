@@ -29,8 +29,12 @@ export type {
   DesignVariant,
   DesktopDownloadBuild,
   DesktopDownloadSurface,
+  DiagramPictureExportFormat,
   DiagramPictureFormat,
+  DiagramPictureKind,
   DiagramPictureUploadOutcome,
+  DiagramPoseAction,
+  DiagramStepOpenedVia,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   ExportFormat,
@@ -86,7 +90,14 @@ export {
 } from './trackCpToolFavorites';
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
-export { trackDiagramPictureUploaded, trackDiagramStepAdded } from './trackDiagram';
+export {
+  trackDiagramPictureExported,
+  trackDiagramPicturePosed,
+  trackDiagramPictureRemoved,
+  trackDiagramPictureUploaded,
+  trackDiagramStepAdded,
+  trackDiagramStepOpened,
+} from './trackDiagram';
 export { trackDesktopDownload } from './trackDesktopDownload';
 export { trackCreasePatternExported } from './trackCreasePatternExport';
 export {

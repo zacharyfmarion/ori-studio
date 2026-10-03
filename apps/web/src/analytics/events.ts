@@ -58,6 +58,18 @@ export type DiagramPictureUploadOutcome =
   | 'unsupported'
   | 'unreadable';
 
+/** How a step was opened in detail. */
+export type DiagramStepOpenedVia = 'keyboard' | 'double_click';
+
+/** A pose verb on an uploaded picture. */
+export type DiagramPoseAction = 'rotate_left' | 'rotate_right' | 'flip' | 'reset';
+
+/** What an uploaded picture is stored as. */
+export type DiagramPictureKind = 'svg' | 'raster';
+
+/** The file Export picture… wrote. */
+export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
+
 /** The five top-level workspaces, plus the share screen. */
 export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'share';
 /**
@@ -963,6 +975,17 @@ export const ANALYTICS_EVENTS = {
    * people's own drawings survive the sanitizer, and how big they are.
    */
   diagramPictureUploaded: 'diagram picture uploaded',
+  /** A step opened in detail, by Enter or a double-click: whether the detail is used. */
+  diagramStepOpened: 'diagram step opened',
+  /** An uploaded picture turned or flipped from the step detail or the Step pane. */
+  diagramPicturePosed: 'diagram picture posed',
+  /** A step's picture taken away (Remove picture). */
+  diagramPictureRemoved: 'diagram picture removed',
+  /**
+   * A step's picture written to a file (Export picture…): the first half of the
+   * export, edit and replace round trip D7 is built for.
+   */
+  diagramPictureExported: 'diagram picture exported',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',

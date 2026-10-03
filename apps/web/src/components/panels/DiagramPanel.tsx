@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { DiagramAsset, DiagramStep } from '../../diagram/document/diagramDocument';
 import { pickStepPictures } from '../../diagram/upload/addStepPictures';
 import { useStepPictureDrop } from '../../diagram/upload/useStepPictureDrop';
-import { useAddDiagramStep, useDiagramPoseActions } from '../../diagram/useDiagramActions';
+import {
+  openDiagramStep,
+  useAddDiagramStep,
+  useDiagramPoseActions,
+} from '../../diagram/useDiagramActions';
 import { useDiagramShortcuts } from '../../diagram/useDiagramShortcuts';
 import { useDiagramStepMenu } from '../../diagram/useDiagramStepMenu';
 import { useLayoutStore } from '../../store/layoutStore';
@@ -18,6 +22,8 @@ import styles from './DiagramPanel.module.css';
 
 const NO_STEPS: readonly DiagramStep[] = [];
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
+
+const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'double_click');
 
 // Straight from the click, so the browser opens its picker (a user gesture).
 const uploadPictures = () => void pickStepPictures();
@@ -48,7 +54,6 @@ export function DiagramPanel() {
   const selectedStepId = useWorkspaceStore((state) => state.diagramSelectedStepId);
   const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
   const detail = useWorkspaceStore((state) => state.diagramDetail);
-  const openStep = useWorkspaceStore((state) => state.openDiagramStep);
   const closeStep = useWorkspaceStore((state) => state.closeDiagramStep);
   const poseActions = useDiagramPoseActions(detail !== null ? selectedStepId : null);
   const setTitle = useWorkspaceStore((state) => state.setDiagramTitle);
@@ -137,7 +142,7 @@ export function DiagramPanel() {
             dropTarget={dropTarget}
             readOnly={readOnly}
             onSelect={selectStep}
-            onOpen={openStep}
+            onOpen={openOnDoubleClick}
             onUpload={uploadPictureFor}
           />
         )}

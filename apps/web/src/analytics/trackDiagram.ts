@@ -5,10 +5,14 @@ import {
   bucketCount,
 } from './events';
 import type {
+  DiagramPictureExportFormat,
   DiagramPictureFormat,
+  DiagramPictureKind,
   DiagramPictureUploadOutcome,
+  DiagramPoseAction,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
+  DiagramStepOpenedVia,
 } from './events';
 import { track } from './runtime';
 
@@ -40,4 +44,24 @@ export function trackDiagramPictureUploaded(
     size_bucket: sizeBytes === null ? 'unknown' : bucketCount(sizeBytes / 1024, DIAGRAM_UPLOAD_KB_BUCKETS),
     count_bucket: bucketCount(count, DIAGRAM_UPLOAD_COUNT_BUCKETS),
   });
+}
+
+/** A step opened in detail. */
+export function trackDiagramStepOpened(via: DiagramStepOpenedVia): void {
+  track(ANALYTICS_EVENTS.diagramStepOpened, { via });
+}
+
+/** A pose verb on an uploaded picture, and what the picture is. */
+export function trackDiagramPicturePosed(action: DiagramPoseAction, kind: DiagramPictureKind): void {
+  track(ANALYTICS_EVENTS.diagramPicturePosed, { action, kind });
+}
+
+/** A step's picture removed, and what it was. */
+export function trackDiagramPictureRemoved(kind: DiagramPictureKind): void {
+  track(ANALYTICS_EVENTS.diagramPictureRemoved, { kind });
+}
+
+/** A step's picture exported, by the file's kind: never its name. */
+export function trackDiagramPictureExported(format: DiagramPictureExportFormat): void {
+  track(ANALYTICS_EVENTS.diagramPictureExported, { format });
 }
