@@ -2159,6 +2159,106 @@ describe('workspace store slices', () => {
   });
 
   /**
+   * Save writes over the file that was opened, whichever workspace it is pressed
+   * in — never a new file. A null `path` is what makes the file service ask where
+   * to put it, so that is the thing to pin.
+   */
+  describe('saves over the opened file from every workspace', () => {
+    const workspaces = [
+      ['edit', 'crease-pattern'],
+      ['references', 'references'],
+      ['simulate', 'simulate'],
+      ['design', 'design-nux'],
+    ] as const;
+
+    it('for a native .osf', async () => {
+      resetStores(seedSnapshot());
+      loadSnapshotIntoStore(seedSnapshot());
+      const fileService = createFileService({
+        text: serializeNativeProjectFile(
+          createNativeCreasePatternProjectFile({
+            title: 'Existing',
+            filename: 'existing.osf',
+            path: '/tmp/existing.osf',
+            document: editableCpState([cpLine({ x: 0, y: 0 }, { x: 1, y: 0 })]).document,
+            source: { format: 'osf', filename: 'existing.osf', path: '/tmp/existing.osf' },
+            foldProjection: JSON.parse(editableCpFoldText),
+            sourceFold: null,
+            foldArtifacts: null,
+            creaseColorMode: 'mvf',
+            selection: emptyOristudioCpSelection(),
+            viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+            foldedFigures: [],
+            activeFoldedFigureId: null,
+            lineage: importedCpLineage(),
+            appVersion: '0.5.2',
+          })
+        ),
+        name: 'existing.osf',
+        path: '/tmp/existing.osf',
+      });
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      for (const [workspace, context] of workspaces) {
+        useLayoutStore.getState().activateWorkspace(workspace);
+        expect(useWorkspaceStore.getState().activeEditingContext).toBe(context);
+        useWorkspaceStore.setState({ dirty: true });
+
+        await expect(useWorkspaceStore.getState().saveProject(fileService), workspace).resolves.toBe(
+          true
+        );
+        expect(fileService.saveTextFile, workspace).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            title: 'Save Ori Studio Project',
+            suggestedName: 'existing.osf',
+            path: '/tmp/existing.osf',
+            extensions: ['osf'],
+          })
+        );
+        expect(useWorkspaceStore.getState(), workspace).toMatchObject({
+          currentFileName: 'existing.osf',
+          currentFilePath: '/tmp/existing.osf',
+          dirty: false,
+        });
+      }
+    });
+
+    it('for an Oriedita .ori, which saves back as .ori', async () => {
+      resetStores(seedSnapshot());
+      loadSnapshotIntoStore(seedSnapshot());
+      const fileService = createFileService({
+        text: '{"@version":"v1.1","title":"existing","lineSegments":[]}',
+        name: 'existing.ori',
+        path: '/tmp/existing.ori',
+      });
+      await expect(useWorkspaceStore.getState().openProject(fileService)).resolves.toBe(true);
+
+      for (const [workspace, context] of workspaces) {
+        useLayoutStore.getState().activateWorkspace(workspace);
+        expect(useWorkspaceStore.getState().activeEditingContext).toBe(context);
+        useWorkspaceStore.setState({ dirty: true });
+
+        await expect(useWorkspaceStore.getState().saveProject(fileService), workspace).resolves.toBe(
+          true
+        );
+        expect(fileService.saveTextFile, workspace).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            title: 'Save Oriedita ORI Document',
+            suggestedName: 'existing.ori',
+            path: '/tmp/existing.ori',
+            extensions: ['ori'],
+          })
+        );
+        expect(useWorkspaceStore.getState(), workspace).toMatchObject({
+          currentFileName: 'existing.ori',
+          currentFilePath: '/tmp/existing.ori',
+          dirty: false,
+        });
+      }
+    });
+  });
+
+  /**
    * A save through the File System Access API writes the file and shows the user
    * nothing — no dialog on the repeat, no download for the browser to announce.
    * The toast is the only confirmation, so the store has to raise one.
