@@ -25,6 +25,7 @@ import {
   type SheetThumbnail,
 } from '../sheets/sheetThumbnail';
 import { creaseRoleAt } from './creaseRole';
+import type { ModelBounds } from './referencesStepGeometry';
 import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
 
 /** One row of the sheet picker. */
@@ -74,6 +75,45 @@ export function resolveSelectedSheet(
 ): number | null {
   if (stored !== null && sheets.some((sheet) => sheet.id === stored)) return stored;
   return sheets.find((sheet) => sheet.plannable)?.id ?? sheets[0]?.id ?? null;
+}
+
+/**
+ * Where a sheet is, in model space: the box around its outline.
+ *
+ * How a sheet is named when it has to outlive the analysis that numbered it —
+ * in a saved file, or in the plan cache — since a component id is an index
+ * into one run of the frames analysis and another run may number the sheets
+ * differently. Null for a component with no outline.
+ */
+export function sheetBounds(component: PrecreaseComponent): ModelBounds | null {
+  if (component.outline.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of component.outline) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/**
+ * Whether two sheet boxes name the same sheet. Both come from the same
+ * analysis of the same creases, so they agree to the last bit unless the
+ * sheet moved; the slack only absorbs a JSON round trip of the numbers.
+ */
+export function sameSheetBounds(a: ModelBounds, b: ModelBounds): boolean {
+  const scale = Math.max(1, Math.abs(a.maxX - a.minX), Math.abs(a.maxY - a.minY));
+  const slack = scale * 1e-9;
+  return (
+    Math.abs(a.minX - b.minX) <= slack &&
+    Math.abs(a.minY - b.minY) <= slack &&
+    Math.abs(a.maxX - b.maxX) <= slack &&
+    Math.abs(a.maxY - b.maxY) <= slack
+  );
 }
 
 /** The 1-based crease ids belonging to a sheet, border included. */

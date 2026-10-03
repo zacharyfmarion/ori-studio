@@ -610,6 +610,17 @@ export const ANALYTICS_EVENTS = {
   foldingStepsCancelled: 'folding steps cancelled',
   foldingStepsRefused: 'folding steps refused',
   /**
+   * The References workspace looked in the plan cache — the plans saved with
+   * a project, and the sheets planned this session — for the sheet it is about
+   * to show, and found an entry for it. `outcome` is `hit` when the entry was
+   * the plan wanted and was shown without planning, or which part of its key
+   * said no: `planner_changed` (a release since), `settings_changed`, or
+   * `sheet_changed` (the sheet's creases, or their numbering, moved). Whether
+   * the cache earns its bytes in the file, and why it misses. Nothing about the
+   * plan or the sheet.
+   */
+  referencesPlanRestored: 'references plan restored',
+  /**
    * A CP-wide analysis finished. `unreachable_bucket` is how many of the
    * pattern's distinct lines the closure could not reach and ReferenceFinder
    * was asked about — the number that says whether the closure-first ordering

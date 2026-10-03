@@ -298,6 +298,17 @@ it('lands in Find with the lead where the filmstrip goes, and plans only when th
   // A new document lands in Find again.
   act(() => useWorkspaceStore.setState({ oristudioCpDocument: cpDocument(2) } as never));
   expect(useWorkspaceStore.getState().referencesView.mode).toBe('find');
+
+  // …unless it is a saved project that says the reader was in the sequence:
+  // the open restored that, and it is theirs.
+  act(() =>
+    useWorkspaceStore.setState({
+      oristudioCpDocument: cpDocument(3),
+      referencesView: { ...useWorkspaceStore.getState().referencesView, mode: 'sequence' },
+      referencesRestore: { loadSerial: 3, sheet: null, card: null },
+    } as never)
+  );
+  expect(useWorkspaceStore.getState().referencesView.mode).toBe('sequence');
 });
 
 it('says a sheet with no creases has nothing to find, and disables the switch', () => {

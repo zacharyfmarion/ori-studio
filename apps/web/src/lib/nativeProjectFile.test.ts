@@ -1294,6 +1294,137 @@ describe('native project file', () => {
     });
   });
 
+  describe('References state and plan cache', () => {
+    const readerState = {
+      v: 1 as const,
+      settings: {
+        candidateCount: 3,
+        includeApproximate: true,
+        precreaseGrid: false,
+        gridWhereNeeded: true,
+        allowDanglingFolds: false,
+        mergeSymmetricSteps: false,
+      },
+      mode: 'sequence' as const,
+      sheet: { bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 } },
+      landmarksFirst: true,
+      activeCard: { index: 4, line: { n: [1, 0] as [number, number], d: 0.25 } },
+    };
+    const planCache = {
+      v: 1 as const,
+      entries: [
+        {
+          key: {
+            planner: 'oristudio-precrease@0.5.2+wire1',
+            settings: {
+              precreaseGrid: false,
+              gridWhereNeeded: true,
+              allowDanglingFolds: false,
+              mergeSymmetricSteps: false,
+            },
+            sheet: { bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 }, fingerprint: '12:1f' },
+          },
+          ways: { '17': 'O2:c0,p4:0' },
+          payload: 'H4sIAAAAAAAAA6uuBQBDv6ajAgAAAA==',
+        },
+      ],
+    };
+
+    const cpInput = (extra: Record<string, unknown> = {}) => ({
+      title: 'Crane',
+      filename: 'crane.osf',
+      path: null,
+      document: cpDocument(),
+      source: null,
+      foldProjection: null,
+      foldArtifacts: null,
+      creaseColorMode: 'mvf' as const,
+      selection: emptyOristudioCpSelection(),
+      viewport: DEFAULT_ORISTUDIO_CP_VIEWPORT_OPTIONS,
+      foldedFigures: [],
+      activeFoldedFigureId: null,
+      lineage: importedCpLineage(),
+      ...extra,
+    });
+
+    const reopen = (file: unknown) =>
+      parseNativeProjectFile(
+        typeof file === 'string' ? file : serializeNativeProjectFile(file as never)
+      );
+
+    it('round-trips both through a crease-pattern save', () => {
+      const parsed = reopen(
+        createNativeCreasePatternProjectFile({
+          ...cpInput({ referencesReaderState: readerState, referencesPlanCache: planCache }),
+          appVersion: '0.5.2',
+          now,
+        })
+      );
+      expect(parsed.workspace.creasePattern?.viewState.references).toEqual(readerState);
+      expect(parsed.artifacts.references).toEqual({ documentId: 'crease-pattern', value: planCache });
+    });
+
+    // The bundled writer used to write `artifacts: {}` whatever it was given:
+    // a plan saved beside a design would have been lost on the first save.
+    it('round-trips both through a save that bundles the crease pattern with a design', () => {
+      const parsed = reopen(
+        createNativeProjectFile({
+          workspaceTitle: 'Crane',
+          filename: 'crane.osf',
+          path: null,
+          designs: [{ id: 'tree', title: 'Tree', kind: 'treemaker', text: 'tmd5', format: 'tmd5' }],
+          creasePattern: cpInput({ referencesReaderState: readerState, referencesPlanCache: planCache }),
+          appVersion: '0.5.2',
+          now,
+        })
+      );
+      expect(parsed.workspace.creasePattern?.viewState.references).toEqual(readerState);
+      expect(parsed.artifacts.references?.value).toEqual(planCache);
+    });
+
+    it('writes neither when there is nothing to say, and reads a file without them as none', () => {
+      const raw = JSON.parse(
+        serializeNativeProjectFile(
+          createNativeCreasePatternProjectFile({ ...cpInput(), appVersion: '0.5.2', now })
+        )
+      );
+      expect(raw.workspace.creasePattern.viewState.references).toBeNull();
+      expect(raw.artifacts).toEqual({});
+      delete raw.workspace.creasePattern.viewState.references;
+      expect(reopen(JSON.stringify(raw)).workspace.creasePattern?.viewState.references).toBeNull();
+    });
+
+    it('drops what it cannot read rather than refusing the file', () => {
+      const raw = JSON.parse(
+        serializeNativeProjectFile(
+          createNativeCreasePatternProjectFile({
+            ...cpInput({ referencesReaderState: readerState, referencesPlanCache: planCache }),
+            appVersion: '0.5.2',
+            now,
+          })
+        )
+      );
+      raw.workspace.creasePattern.viewState.references.settings.precreaseGrid = 'yes';
+      raw.workspace.creasePattern.viewState.references.sheet = { bounds: { minX: 'a' } };
+      raw.artifacts.references.value.entries.push({ key: { planner: 3 }, payload: 'x' });
+      const parsed = reopen(JSON.stringify(raw));
+      const references = parsed.workspace.creasePattern?.viewState.references;
+      expect(references?.settings).not.toHaveProperty('precreaseGrid');
+      expect(references?.settings.mergeSymmetricSteps).toBe(false);
+      expect(references?.sheet).toBeNull();
+      expect(parsed.artifacts.references?.value.entries).toEqual(planCache.entries);
+
+      for (const junk of [null, 42, 'cache', { v: 2, entries: [] }, { v: 1, entries: 'no' }]) {
+        raw.artifacts.references.value = junk;
+        expect(reopen(JSON.stringify(raw)).artifacts.references).toBeUndefined();
+      }
+      for (const junk of [null, 42, 'state', [], { v: 2, mode: 'sequence' }]) {
+        raw.workspace.creasePattern.viewState.references = junk;
+        expect(reopen(JSON.stringify(raw)).workspace.creasePattern?.viewState.references).toBeNull();
+      }
+    });
+  });
+
   describe('box-pleat symmetry (schema v6)', () => {
     // These cases are about the *legacy* symmetry field, which lived at the top
     // of a v1–v7 box-pleat document; v8 carries it in the design's view state.

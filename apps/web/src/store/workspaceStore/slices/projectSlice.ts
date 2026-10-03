@@ -26,7 +26,17 @@ import type { DesignKindId } from '../../../designKinds';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 import type { NativeDesignDocumentV8 } from '../../../lib/nativeProjectDesigns';
-import type { NativeCreasePatternDocumentV1 as NativeCreasePatternDocument } from '../../../lib/nativeProjectFile';
+import type {
+  NativeCreasePatternDocumentV1 as NativeCreasePatternDocument,
+  NativeProjectFile,
+} from '../../../lib/nativeProjectFile';
+import {
+  installReferencesPlanCache,
+  referencesPlanCacheForSave,
+} from '../../../cp-workspace/references/referencesPlanCacheStore';
+import { referencesReaderStateFor } from '../../../cp-workspace/references/referencesReaderState';
+import { referencesResultsSnapshot } from '../../../cp-workspace/references/referencesResults';
+import { DEFAULT_REFERENCES_SETTINGS, restoredReferencesState } from './referencesSlice';
 import { ProjectFileFormatError } from '../../../lib/projectFileError';
 import { createBoxPleatDesignState,
   createExploriDesignState, createTreemakerDesignState } from '../designContent';
@@ -1160,7 +1170,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   const nativeCpEditorState = (
     nativeDocument: NativeCreasePatternDocument,
     documentState: OristudioCpDocumentState,
-    camvResult: OristudioCpCommandResult | null
+    camvResult: OristudioCpCommandResult | null,
+    artifacts: NativeProjectFile['artifacts']
   ): Partial<WorkspaceState> => {
     // A file is the one place window ids arrive from outside this session, so it
     // is the one place the allocator has to be told about them. Without it the
@@ -1170,6 +1181,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // Here rather than at each call site: it is inseparable from installing
     // `oristudioCpInlineSimulations` below, and this is the only place that does.
     noteInlineSimulationIds(nativeDocument.creasePattern.inlineSimulations);
+    // The References plans saved with this crease pattern, for this load of it
+    // alone: the side table answers to the load serial, so no other document
+    // can be shown them. Here for the same reason as the line above.
+    const planCache = artifacts.references;
+    installReferencesPlanCache(
+      planCache?.documentId === nativeDocument.id ? planCache.value : null,
+      documentState.loadSerial
+    );
     const restoredSelection = nativeDocument.viewState.selection ?? emptyOristudioCpSelection();
     return {
     // Overridden field-by-field below; spread for the fold side table,
@@ -1224,12 +1243,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // This document becomes the simulator's source, so whatever the previous
     // load left behind must not be simulated in its place.
     ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+    // References as the reader left it, when the file says how.
+    ...restoredReferencesState(
+      nativeDocument.viewState.references,
+      documentState.loadSerial,
+      get().referencesSettings
+    ),
     };
   };
 
   const loadNativeCreasePattern = async (
     nativeDocument: NativeCreasePatternDocument,
-    source: { filename: string; path?: string | null }
+    source: { filename: string; path?: string | null },
+    artifacts: NativeProjectFile['artifacts']
   ) => {
     set({
       status: 'loading_engine',
@@ -1270,7 +1296,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       ? { ...result.document, source: originalSource }
       : result.document;
     set({
-      ...nativeCpEditorState(nativeDocument, documentState, checked.camvResult),
+      ...nativeCpEditorState(nativeDocument, documentState, checked.camvResult, artifacts),
       // Everything below is the "this crease pattern is the whole project" part,
       // which the companion path must not apply — it would unclaim the design.
       workspaceTitle: nativeDocument.title || result.project.title,
@@ -1293,7 +1319,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
   const restoreNativeCreasePatternCompanion = async (
     nativeDocument: NativeCreasePatternDocument,
-    source: { filename: string; path?: string | null }
+    source: { filename: string; path?: string | null },
+    artifacts: NativeProjectFile['artifacts']
   ) => {
     const nativeSource = {
       format: 'osf' as const,
@@ -1307,7 +1334,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const checked = await refreshAlwaysOnCamvDiagnostics(restoredDocument);
     // Only the Edit-canvas fields: the design has already claimed `project`,
     // the design tab's kind, and `status`.
-    set(nativeCpEditorState(nativeDocument, checked.documentState, checked.camvResult));
+    set(nativeCpEditorState(nativeDocument, checked.documentState, checked.camvResult, artifacts));
     void get().hydrateOristudioCpInlineSimulations();
   };
 
@@ -1354,7 +1381,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               'Ori Studio project contains neither a design nor a crease pattern'
             );
           })(),
-        source
+        source,
+        nativeProject.artifacts
       );
       return;
     }
@@ -1363,7 +1391,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     await installLoadedDesignTabs(tabs, active, nativeProject, source, preserveEditCanvas);
 
     if (creasePattern) {
-      await restoreNativeCreasePatternCompanion(creasePattern, source);
+      await restoreNativeCreasePatternCompanion(creasePattern, source, nativeProject.artifacts);
     }
   };
 
@@ -1681,6 +1709,21 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       camera: get().oristudioCpCamera,
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
+      referencesReaderState: referencesReaderStateFor({
+        settings: get().referencesSettings,
+        defaults: DEFAULT_REFERENCES_SETTINGS,
+        view: get().referencesView,
+        selectedSheet: get().referencesSelectedSheet,
+        target: get().referencesTarget,
+        restore: get().referencesRestore,
+        loadSerial: documentState.loadSerial,
+        frames: referencesResultsSnapshot().frames,
+        plan: referencesResultsSnapshot().plan,
+      }),
+      referencesPlanCache: await referencesPlanCacheForSave(
+        documentState.loadSerial,
+        documentState.geometry
+      ),
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),
