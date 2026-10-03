@@ -120,6 +120,9 @@ const store = { get: useWorkspaceStore.getState, set: useWorkspaceStore.setState
 export function createPoseController(stepId: string, listener: PoseControllerListener): PoseController {
   let start: StepCaptureStart | null = null;
   let orbitTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The simulator's rests: the one being captured, and the newest waiting for it. */
+  let simulating: Promise<void> | null = null;
+  let nextRest: SimulatedRest | null = null;
   const session: CaptureSession = createCaptureSession({
     search: (work) => {
       if (!start) throw new Error('A pose fold ran outside a capture');
@@ -222,11 +225,29 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       }, ORBIT_SETTLE_MS);
     },
 
-    async simulate(rest) {
-      const linked = currentLinkedSource(stepId);
-      if (linked?.render.mode !== 'simulated') return;
-      if (sameSimulatedPose(linked.render, rest) && !needsRecapture(stepId, linked)) return;
-      await run({ verb: 'simulate', ...rest });
+    simulate(rest) {
+      // One rest at a time, the newest waiting: a rest that came after the
+      // one being captured is what the view shows, so it must not be refused
+      // as busy and lose to it.
+      nextRest = rest;
+      simulating ??= (async () => {
+        // Held before the first rest is looked at, so a rest that needs no
+        // capture cannot finish — and let `simulating` go — before it is set.
+        await null;
+        try {
+          while (nextRest) {
+            const next = nextRest;
+            nextRest = null;
+            const linked = currentLinkedSource(stepId);
+            if (linked?.render.mode !== 'simulated') continue;
+            if (sameSimulatedPose(linked.render, next) && !needsRecapture(stepId, linked)) continue;
+            await run({ verb: 'simulate', ...next });
+          }
+        } finally {
+          simulating = null;
+        }
+      })();
+      return simulating;
     },
 
     async prepareSpatial() {

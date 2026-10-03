@@ -195,6 +195,36 @@ describe('the Pose controller', () => {
     controller.dispose();
   });
 
+  it('captures the newest rest that came while one was captured, not refused as busy', async () => {
+    const stepId = await linkedStep();
+    const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
+    useWorkspaceStore.setState({
+      diagram: {
+        ...state().diagram!,
+        steps: state().diagram!.steps.map((step) =>
+          step.id === stepId && step.source?.kind === 'cp'
+            ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent: 0, view } } }
+            : step
+        ),
+      },
+    });
+    const controller = createPoseController(stepId, listener());
+    let release = () => {};
+    const slow = vi.fn(() => new Promise<ReturnType<typeof sheetWithCrease>>((resolve) => (release = () => resolve(sheetWithCrease()))));
+    const still = vi.fn(async () => sheetWithCrease());
+    const first = controller.simulate({ foldPercent: 20, view, still: slow });
+    await vi.waitFor(() => expect(slow).toHaveBeenCalled());
+    // Two more while the first is captured: only the newest is.
+    void controller.simulate({ foldPercent: 30, view, still });
+    const last = controller.simulate({ foldPercent: 40, view, still });
+    release();
+    await first;
+    await last;
+    expect(still).toHaveBeenCalledOnce();
+    expect(render(stepId)).toMatchObject({ render: { foldPercent: 40 } });
+    controller.dispose();
+  });
+
   // Done, or Next step, while a verb folded: the fold landed into a session
   // nothing referenced and was held for the life of the document.
   it('stops its own fold when the detail closes, frees what lands, and says nothing', async () => {

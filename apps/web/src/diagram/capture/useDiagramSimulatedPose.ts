@@ -31,7 +31,7 @@ import { useCpSegmentation } from './useLinkStatus';
 /** Fold % per arrow press and per Step: Simulate's and an inline window's. */
 const FOLD_STEP_PERCENT = 5;
 
-/** How often the fold readout follows the solver while it moves. */
+/** How often the fold readout follows the playhead while it plays. */
 const READOUT_INTERVAL_MS = 66;
 
 /**
@@ -238,11 +238,6 @@ export function useDiagramSimulatedPose({
       const wasConverged = convergedRef.current;
       convergedRef.current = frame.converged;
       if (frame.converged !== wasConverged) setSettled(frame.converged);
-      const now = performance.now();
-      if (frame.converged || now - lastPublishedRef.current > READOUT_INTERVAL_MS) {
-        lastPublishedRef.current = now;
-        setFoldPercentShown(playheadRef.current.value);
-      }
       // Settled for the first time: a step out of date is captured again now.
       if (frame.converged && !wasConverged && lastInputRef.current === 0) arm();
     },
@@ -364,6 +359,12 @@ export function useDiagramSimulatedPose({
       previous = time;
       const next = playhead.advance(elapsedSeconds, percentPerSecond);
       setFoldPercent(next);
+      // The readout follows the playhead, which is this loop's: a solver's
+      // frames come as fast as its device draws, which can be seldom.
+      if (time - lastPublishedRef.current > READOUT_INTERVAL_MS || next >= 100) {
+        lastPublishedRef.current = time;
+        setFoldPercentShown(next);
+      }
       if (next >= 100) {
         playingRef.current = false;
         setPlaying(false);
@@ -376,6 +377,7 @@ export function useDiagramSimulatedPose({
     return () => {
       window.cancelAnimationFrame(raf);
       playhead.end();
+      setFoldPercentShown(playhead.value);
     };
   }, [playing, runtimeStatus, setFoldPercent, reset, moved, percentPerSecond]);
 

@@ -2677,11 +2677,23 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
 - [x] **8e.** Analytics (`diagram picture posed` gains `simulate`, `diagram
   step opened` gains `pose_again`; `kind: simulated` and `diagram step shown
   as` came with 8c), i18n in all eight locales, `docs/analytics.md`.
-- [ ] **Browser:** link a crane region and show it as each of the three from
+- [x] **Browser:** link a crane region and show it as each of the three from
   the Step pane and from the picker; Folded's turn-over survives a trip to
   Crease pattern and back; Simulated at 0%, then 40% in Pose, captured,
   reloaded and exported; Duplicate as Folded; the no-WebGL2 path; keys in Pose
   with the simulator shown; Edit has no Add to diagram left.
+  - `artifacts/diagram-parity/phase8.mjs`: a new step linked as Simulated
+    straight from the picker; in Pose, Space played and paused the fold; the
+    slider to 40% and Done captured 40%; saved and reopened, the step was
+    the same; the PDF has it shaded (`phase8-p-6.png`). `show-as.mjs`,
+    `simulated.mjs`, `simulated-pose.mjs`, `simulated-nogpu.mjs` and
+    `edit-no-add.mjs` cover the rest, run again after 8d.
+  - Fixed from this pass: a rest that came while an earlier one was still
+    being captured was refused as busy, so Done after a pause kept the
+    pause's fold — `PoseController.simulate` now queues the newest rest
+    behind the one in flight; and the fold readout followed the solver's
+    frames, which a slow device sends seldom, so it sat at 0% while playing —
+    it follows the playhead.
 - [ ] **Review** (every finding put to a skeptic), and its fixes committed.
 
 ### Phase 9: References pulled through a browser (D20)
