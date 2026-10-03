@@ -2817,7 +2817,35 @@ insert steps at a chosen place without the latch.
     browser crashed opening with nothing being replaced (`shownCardIn`), a
     card's sentence painted a fourth line under its clamp, and the step being
     filled was not selected.
-- [ ] **Review**, and its fixes committed.
+- [x] **Review**, and its fixes committed. Four reviewers (browser state,
+  document and store, the retirement, UI rules), every finding put to a
+  skeptic: 24 confirmed, 14 distinct; 2 refuted. Fixed:
+  - Replace kept an unedited instruction under the new card whenever the old
+    card was not on screen (every Find step, a switched pattern). A pulled
+    step now records its card's sentence (`DiagramReferencesSource.sentence`,
+    read leniently by the file); the words follow the new card while they
+    still equal it. The replace anchor no longer carries a sentence.
+  - "Shown now" was pre-selected only on the first open at a revision: the
+    selection now starts from no list at all.
+  - In Find, the cards and an enabled Add showed before the sheets were
+    found, and Add did nothing: Find shows "Finding the patterns…" /
+    "couldn't be found" too, and nothing is pullable without a sheet.
+  - A pull that finished after its browser closed still added its cards and
+    closed a newer browser: each opening has a token, and a pull from a
+    closed one adds nothing.
+  - The header's From References… now fills a selected empty step (D2).
+  - `into` and the undo label say where the cards went, not where the
+    browser was opened for.
+  - Keyboard: Shift with the walk extends a range and Space toggles a card
+    (five new `diagram` scope verbs, declined by the steps grid); Alt+arrows
+    are claimed in the browser so the web browser's Back never takes them.
+    `BrowserSelection` gains `focus`, the Tab stop; a range leaves out cards
+    it cannot add.
+  - "Plan more patterns in References" is the rail's own row, not a Button
+    restyled from outside; a stray comment and two stale doc comments; the
+    dropped `linkStatus` "unknown" assertion restored.
+  - Held for the pattern-identity work (`implementation-plans/pattern-identity.md`):
+    Replace opening on another sheet once the step's plan id has changed.
 
 ### Phase 10: phone, touch and finish
 

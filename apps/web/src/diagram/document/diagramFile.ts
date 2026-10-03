@@ -473,6 +473,7 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
   // plan and way, and a step that cannot say is still the step.
   const plan = typeof value.plan === 'string' && value.plan.length > 0 ? value.plan : undefined;
   const way = typeof value.way === 'string' && value.way.length > 0 ? value.way : undefined;
+  const sentence = typeof value.sentence === 'string' ? xmlText(value.sentence) : undefined;
   return {
     kind: 'references-step',
     region,
@@ -485,6 +486,7 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
     side: value.side,
     ...(plan !== undefined ? { plan } : {}),
     ...(way !== undefined ? { way } : {}),
+    ...(sentence !== undefined ? { sentence } : {}),
   };
 }
 

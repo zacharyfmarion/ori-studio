@@ -1,21 +1,29 @@
 /**
  * The ways into the References browser (D20), each fixing where what it adds
- * goes: From References… on the header or an empty diagram (after the
- * selected step, or at the end), on an empty step (fills it), and Replace
- * from References… on a References step (its card, the one it shows now
- * marked).
+ * goes: From References… on the header or an empty diagram (into the
+ * selected step when it is empty, else after it, or at the end), on an empty
+ * step (fills it), and Replace from References… on a References step (its
+ * card, the one it shows now marked).
  */
 import { trackDiagramReferencesBrowserOpened } from '../../analytics';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
-import { stepIndex, type DiagramPullAnchor } from '../document/diagramDocument';
+import { anchorTakesCard, stepIndex, type DiagramPullAnchor } from '../document/diagramDocument';
 
-/** From References… for the diagram: the cards go after the selected step, or at the end. */
+/**
+ * From References… for the diagram, by the insertion rule (D2): an empty
+ * selected step takes the first card, the rest after it; any other selected
+ * step has the cards after it; with none selected they go at the end.
+ */
 export function openReferencesBrowser(): void {
   const store = useWorkspaceStore.getState();
   const selected = store.diagramSelectedStepId;
-  const known = selected !== null && store.diagram !== null && stepIndex(store.diagram, selected) >= 0;
-  open(known ? { kind: 'after', stepId: selected } : { kind: 'end' });
+  if (selected === null || !store.diagram || stepIndex(store.diagram, selected) < 0) {
+    open({ kind: 'end' });
+    return;
+  }
+  const fill: DiagramPullAnchor = { kind: 'fill', stepId: selected };
+  open(anchorTakesCard(store.diagram, fill) ? fill : { kind: 'after', stepId: selected });
 }
 
 /** From References… on an empty step: the first card fills it, the rest follow it. */
@@ -34,8 +42,7 @@ export function replaceStepFromReferences(stepId: string): void {
   if (!step || step.unknown || step.source?.kind !== 'references-step') return;
   const { plan, card, line, mode } = step.source;
   open(
-    // The card's sentence is the shown card's, read as the cards are drawn (`useReferencesBrowser`).
-    { kind: 'replace', stepId, sentence: null },
+    { kind: 'replace', stepId },
     {
       mode,
       pattern: plan ?? null,
@@ -44,7 +51,10 @@ export function replaceStepFromReferences(stepId: string): void {
   );
 }
 
-function open(anchor: DiagramPullAnchor, options?: Partial<Omit<DiagramReferencesBrowserState, 'anchor'>>): void {
+function open(
+  anchor: DiagramPullAnchor,
+  options?: Partial<Omit<DiagramReferencesBrowserState, 'anchor' | 'opening'>>
+): void {
   if (useWorkspaceStore.getState().openDiagramReferencesBrowser(anchor, options)) {
     trackDiagramReferencesBrowserOpened(anchor.kind);
   }

@@ -103,6 +103,16 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.moveStepEarlier', 'Move Step Earlier');
     case 'diagram.moveStepLater':
       return t('tools:diagram.moveStepLater', 'Move Step Later');
+    case 'diagram.extendSelectionBack':
+      return t('tools:diagram.extendSelectionBack', 'Extend Selection Back');
+    case 'diagram.extendSelectionForward':
+      return t('tools:diagram.extendSelectionForward', 'Extend Selection Forward');
+    case 'diagram.extendSelectionToFirst':
+      return t('tools:diagram.extendSelectionToFirst', 'Extend Selection to First');
+    case 'diagram.extendSelectionToLast':
+      return t('tools:diagram.extendSelectionToLast', 'Extend Selection to Last');
+    case 'diagram.toggleSelection':
+      return t('tools:diagram.toggleSelection', 'Toggle Selection');
     case 'diagram.toolValleyArrow':
       return t('tools:diagram.toolValleyArrow', 'Valley Fold Arrow');
     case 'diagram.toolMountainArrow':

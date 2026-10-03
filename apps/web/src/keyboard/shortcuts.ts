@@ -87,6 +87,11 @@ export type DiagramShortcutId =
   | 'diagram.openStep'
   | 'diagram.moveStepEarlier'
   | 'diagram.moveStepLater'
+  | 'diagram.extendSelectionBack'
+  | 'diagram.extendSelectionForward'
+  | 'diagram.extendSelectionToFirst'
+  | 'diagram.extendSelectionToLast'
+  | 'diagram.toggleSelection'
   | DiagramAnnotateShortcutId;
 
 /** Annotate's tools and Flip arc: live only while a step is open in Annotate. */
@@ -493,7 +498,6 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   referencesShortcut('references.exportAllSteps', 'Export all steps…', null),
   referencesShortcut('references.exportStepSvg', 'Export step as SVG…', null),
   referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
-  // Unbound for the same reason: a card sent to the diagram is a menu row.
 ];
 
 function diagramShortcut(
@@ -552,6 +556,21 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
     { alt: true, key: 'arrowright' },
     { alt: true, key: 'arrowdown' },
   ]),
+  // A list that selects several (the References browser's cards): Shift with
+  // the walk extends the range to the card it lands on, Space adds or takes
+  // away the card the keyboard is on. The steps grid selects one step, and
+  // its executor declines them.
+  diagramShortcut('diagram.extendSelectionBack', 'Extend Selection Back', [
+    { shift: true, key: 'arrowleft' },
+    { shift: true, key: 'arrowup' },
+  ]),
+  diagramShortcut('diagram.extendSelectionForward', 'Extend Selection Forward', [
+    { shift: true, key: 'arrowright' },
+    { shift: true, key: 'arrowdown' },
+  ]),
+  diagramShortcut('diagram.extendSelectionToFirst', 'Extend Selection to First', { shift: true, key: 'home' }),
+  diagramShortcut('diagram.extendSelectionToLast', 'Extend Selection to Last', { shift: true, key: 'end' }),
+  diagramShortcut('diagram.toggleSelection', 'Toggle Selection', { key: ' ' }),
   // Annotate's tools (D8). Letters a crease-pattern tool also has: the
   // diagram scope is pushed only in the Diagram, never with `crease-pattern`,
   // and its executor declines outside Annotate.

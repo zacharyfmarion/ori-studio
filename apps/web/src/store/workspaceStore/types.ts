@@ -1904,6 +1904,11 @@ export interface DiagramSliceState {
 export interface DiagramReferencesBrowserState {
   /** Where the cards it adds go: fixed as it opens. */
   anchor: DiagramPullAnchor;
+  /**
+   * Which opening of the browser this is: a pull pressed in one that has
+   * closed since adds nothing, and cannot close the one open now.
+   */
+  opening: number;
   /** The planned patterns' sequences, or the Find answer References has on screen. */
   mode: 'sequence' | 'find';
   /** The pattern shown, by its plan's cache key id; null for the first one listed. */
@@ -2051,21 +2056,23 @@ export interface DiagramSliceActions {
    */
   openDiagramReferencesBrowser: (
     anchor: DiagramPullAnchor,
-    options?: Partial<Omit<DiagramReferencesBrowserState, 'anchor'>>
+    options?: Partial<Omit<DiagramReferencesBrowserState, 'anchor' | 'opening'>>
   ) => boolean;
   /** Change what the open browser shows. */
-  setDiagramReferencesBrowser: (patch: Partial<Omit<DiagramReferencesBrowserState, 'anchor'>>) => void;
+  setDiagramReferencesBrowser: (patch: Partial<Omit<DiagramReferencesBrowserState, 'anchor' | 'opening'>>) => void;
   closeDiagramReferencesBrowser: () => void;
   /**
    * Add cards pulled from the References browser as one undo step, placed by
    * `anchor` (`pullReferencesSteps`), and close the browser, the last of them
    * selected. `loadId` is the diagram the pull began against: one that
-   * outlives it is dropped. The steps the cards became, or null.
+   * outlives it is dropped. `opening`, for a pull pressed in the browser, is
+   * that browser's: once it has closed the pull adds nothing. The steps the
+   * cards became, or null.
    */
   pullReferencesDiagramSteps: (
     sent: readonly SentReferencesStep[],
     anchor: DiagramPullAnchor,
-    options: { loadId: number; label: string }
+    options: { loadId: number; label: string; opening?: number }
   ) => string[] | null;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;

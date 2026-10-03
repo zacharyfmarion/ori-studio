@@ -114,11 +114,30 @@
   font-size: 0.7rem;
 }
 
+/* The way to plan more, as the rail's last row: words that wrap, never a button's fixed height. */
 .planMore {
-  justify-content: flex-start;
   margin-top: var(--space-1);
-  white-space: normal;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.35;
   text-align: left;
+  cursor: pointer;
+}
+
+.planMore:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.planMore:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
 }
 
 .main {

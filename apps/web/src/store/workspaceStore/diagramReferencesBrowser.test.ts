@@ -49,6 +49,21 @@ describe('the References browser', () => {
     expect(state().diagram!.steps.map((step) => step.id)).toEqual([first, last]);
   });
 
+  it('drops a pull pressed in a browser that has closed since: nothing added, the open one left open', () => {
+    const stepId = state().addDiagramStep()!;
+    state().openDiagramReferencesBrowser({ kind: 'after', stepId });
+    const first = state().diagramReferencesBrowser!.opening;
+    state().closeDiagramReferencesBrowser();
+    state().openDiagramReferencesBrowser({ kind: 'after', stepId });
+    const label = 'Add step from References';
+    expect(state().pullReferencesDiagramSteps([card(1)], { kind: 'after', stepId }, { loadId: state().diagramLoadId, label, opening: first })).toBeNull();
+    expect(state().diagram!.steps).toHaveLength(1);
+    expect(state().diagramReferencesBrowser).not.toBeNull();
+    // Pressed in the one open now, it lands.
+    const now = state().diagramReferencesBrowser!.opening;
+    expect(state().pullReferencesDiagramSteps([card(1)], { kind: 'after', stepId }, { loadId: state().diagramLoadId, label, opening: now })).toHaveLength(1);
+  });
+
   it('drops a pull begun against a diagram that has since been replaced, and refuses on a read-only one', () => {
     state().addDiagramStep();
     const loadId = state().diagramLoadId;

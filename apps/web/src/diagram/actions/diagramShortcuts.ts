@@ -44,9 +44,13 @@ export interface DiagramKeyActions {
   cancelGesture?: () => boolean;
 }
 
-/** What the step keys do in the References browser: walk its cards, and add the selection. */
+/** What the step keys do in the References browser: walk its cards, select them, and add the selection. */
 export interface DiagramBrowserKeys {
   move: (to: 'previous' | 'next' | 'first' | 'last') => void;
+  /** Extend the range to the card the walk lands on (Shift with the walk). */
+  extend: (to: 'previous' | 'next' | 'first' | 'last') => void;
+  /** Add or take away the card the keyboard is on (Space). */
+  toggle: () => void;
   add: () => void;
 }
 
@@ -107,18 +111,46 @@ export function runDiagramShortcut(
       if (to >= 0 && to <= last) actions.move(stepIds[selected], to);
       return true;
     }
+    // The steps grid selects one step: a range or a toggle is the browser's.
+    case 'diagram.extendSelectionBack':
+    case 'diagram.extendSelectionForward':
+    case 'diagram.extendSelectionToFirst':
+    case 'diagram.extendSelectionToLast':
+    case 'diagram.toggleSelection':
+      return false;
   }
 }
 
 /**
  * The step keys in the References browser, as the steps grid has them: the
  * arrows walk its cards one at a time, selecting each, Home and End go to the
- * ends, and Enter adds the selection. Moving and annotating steps decline —
- * there are none on screen — and so does all of it with no list to walk.
+ * ends, and Enter adds the selection; Shift with any of them extends the
+ * range, and Space adds or takes away one card. Moving a step is claimed and
+ * does nothing — there are none on screen, and Alt+← must not reach the
+ * browser's Back — and annotating declines. All of it declines with no list
+ * to walk.
  */
 function runBrowserShortcut(id: DiagramShortcutId, keys: DiagramBrowserKeys | null): boolean {
   if (!keys) return false;
   switch (id) {
+    case 'diagram.extendSelectionBack':
+      keys.extend('previous');
+      return true;
+    case 'diagram.extendSelectionForward':
+      keys.extend('next');
+      return true;
+    case 'diagram.extendSelectionToFirst':
+      keys.extend('first');
+      return true;
+    case 'diagram.extendSelectionToLast':
+      keys.extend('last');
+      return true;
+    case 'diagram.toggleSelection':
+      keys.toggle();
+      return true;
+    case 'diagram.moveStepEarlier':
+    case 'diagram.moveStepLater':
+      return true;
     case 'diagram.previousStep':
       keys.move('previous');
       return true;

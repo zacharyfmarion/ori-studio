@@ -136,6 +136,9 @@ describe('pulling cards from References', () => {
     expect(source).toMatchObject({ fingerprint: null, region: { segmentIdHint: null } });
     expect(source.thumbnail.strokes).toHaveLength(4);
     expect(linkStatus(source, cpDocument(), segmentation)).toBe('missing');
+    // Nor does it say it changed if a region comes to match it: it kept no creases to compare.
+    const matched = { ...source, region: { ...source.region, boundary: [LEFT_OUTLINE.map(([x, y]) => ({ x, y }))] } };
+    expect(linkStatus(matched, cpDocument(), segmentation)).toBe('unknown');
   });
 
   it('adds nothing while the pattern’s regions cannot be worked out, and says to try again', async () => {
@@ -179,11 +182,26 @@ describe('pulling cards from References', () => {
     expect(analytics.trackDiagramStepsPulledFromReferences).toHaveBeenCalledWith('sequence', 'fill', 2);
   });
 
+  it('counts and names where the cards went: after a step that could no longer be filled, or at the end once it is gone', async () => {
+    const pictured = state().addDiagramStep()!;
+    await pull({ anchor: { kind: 'fill', stepId: pictured } });
+    // Filled now: a second fill of it puts the card after it.
+    const outcome = await pull({ cards: [card(2)], anchor: { kind: 'fill', stepId: pictured } });
+    expect(outcome).toMatchObject({ status: 'pulled', into: 'after' });
+    expect(analytics.trackDiagramStepsPulledFromReferences).toHaveBeenLastCalledWith('sequence', 'after', 1);
+    expect(state().diagramHistory.past.at(-1)?.label).toBe('Add step from References');
+    expect(toasts.success).toHaveBeenLastCalledWith('Added as step 2');
+    // An anchor step that is gone: at the end.
+    expect(await pull({ anchor: { kind: 'after', stepId: 'step-gone' } })).toMatchObject({ into: 'end' });
+  });
+
   it('says the step it filled or replaced, when that is all it did', async () => {
     const empty = state().addDiagramStep()!;
     await pull({ anchor: { kind: 'fill', stepId: empty } });
     expect(toasts.success).toHaveBeenLastCalledWith('Filled step 1');
-    await pull({ cards: [card(3)], anchor: { kind: 'replace', stepId: empty, sentence: 'Fold 1.' } });
+    // The filled step recorded Card 1's sentence, and its words are still that.
+    expect(steps()[0]?.source).toMatchObject({ sentence: 'Fold 1.' });
+    await pull({ cards: [card(3)], anchor: { kind: 'replace', stepId: empty } });
     expect(toasts.success).toHaveBeenLastCalledWith('Replaced step 1’s card');
     expect(steps()).toHaveLength(1);
     expect(steps()[0]).toMatchObject({ text: 'Fold 3.', source: { card: 3 } });

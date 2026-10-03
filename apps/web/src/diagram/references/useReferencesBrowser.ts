@@ -22,7 +22,7 @@ import {
   retainPrecreaseClient,
 } from '../../store/workspaceStore/precreaseRuntime';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
-import { anchorTakesCard, stepIndex, type DiagramDocument, type DiagramPullAnchor } from '../document/diagramDocument';
+import { anchorTakesCard, stepIndex, type DiagramDocument } from '../document/diagramDocument';
 import {
   browserFindCards,
   browserPlanCards,
@@ -38,6 +38,7 @@ import {
   sameLine,
   shownCardIn,
   type BrowserSelection,
+  type BrowserStep,
 } from './referencesBrowserSelection';
 
 /** Where the browser's patterns stand. */
@@ -89,11 +90,15 @@ export interface ReferencesBrowser {
   /** A press on a card: alone, with Shift a range from the last one pressed, with Cmd/Ctrl added or taken away. */
   press: (index: number, modifiers: { range: boolean; toggle: boolean }) => void;
   /**
-   * The keyboard's walk: select the card before or after the last one
-   * pressed, or the first or last, skipping any that cannot be added. The
-   * card selected, or null with none to select.
+   * The keyboard's walk: select the card before or after the one the
+   * keyboard is on, or the first or last, skipping any that cannot be added.
+   * The card it lands on, or null with none to land on.
    */
-  move: (to: 'previous' | 'next' | 'first' | 'last') => number | null;
+  move: (to: BrowserStep) => number | null;
+  /** The walk with Shift: extend the range to the card it lands on, which it returns. */
+  extend: (to: BrowserStep) => number | null;
+  /** Space: add or take away the card the keyboard is on. */
+  toggle: () => void;
   selectAll: () => void;
   clear: () => void;
   /** Add the selection where the browser was opened for. */
@@ -220,32 +225,32 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     [state.mode, state.shown, pattern, shownList]
   );
 
-  // The selection, for the list on screen: another pattern or mode starts afresh.
+  // The selection, for the list on screen: another pattern or mode starts
+  // afresh. Until the first press in a list it is what the list opens with —
+  // the replaced step's card, once the plan is read — however soon the list
+  // itself was known.
   const listKey = `${state.mode}|${state.mode === 'sequence' ? (pattern?.id ?? '') : (findResults?.revision ?? '')}`;
-  const [picked, setPicked] = useState<{ list: string; selection: BrowserSelection }>({
-    list: listKey,
+  const [picked, setPicked] = useState<{ list: string | null; selection: BrowserSelection }>({
+    list: null,
     selection: browserSelection.empty(),
   });
   const selection = picked.list === listKey ? picked.selection : browserSelection.initial(shownCard);
   const select = (next: BrowserSelection) => setPicked({ list: listKey, selection: next });
   const [withTurnOver, setWithTurnOver] = useState(true);
 
-  const finished = cards.status === 'ready' && cards.finished;
-  const { pullable, turnOverBefore } = useMemo(
-    () => pullableCards(shownList, selection.indices, { finished, withTurnOver }),
-    [shownList, selection.indices, finished, withTurnOver]
-  );
-
   const outline = useMemo(
     () => sheetOutline(state.mode === 'sequence' ? (pattern?.component ?? null) : findComponent(analysis, findResults)),
     [state.mode, pattern, analysis, findResults]
   );
-  // A replaced step's words are the reader's unless they are still its card's (`pullReferencesSteps`).
-  const shownSentence = shownCard !== null ? (shownList[shownCard]?.sentence ?? null) : null;
-  const anchor = useMemo(
-    (): DiagramPullAnchor =>
-      state.anchor.kind === 'replace' ? { ...state.anchor, sentence: shownSentence } : state.anchor,
-    [state.anchor, shownSentence]
+  // Nothing is added without the sheet it goes on: a Find answer before the
+  // patterns are found, or when they could not be.
+  const finished = cards.status === 'ready' && cards.finished;
+  const { pullable, turnOverBefore } = useMemo(
+    () =>
+      outline
+        ? pullableCards(shownList, selection.indices, { finished, withTurnOver })
+        : { pullable: [], turnOverBefore: null },
+    [outline, shownList, selection.indices, finished, withTurnOver]
   );
   // A pull finds its sheet in the segmentation first: held meanwhile, so a
   // second press cannot add the cards twice.
@@ -260,10 +265,11 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
         mode: state.mode,
         settings: state.mode === 'sequence' && cards.status === 'ready' ? cards.settings : null,
         plan: state.mode === 'sequence' ? (pattern?.id ?? null) : null,
-        anchor,
+        anchor: state.anchor,
+        opening: state.opening,
       }).finally(() => setPulling(false));
     },
-    [outline, pulling, state.mode, anchor, cards, pattern]
+    [outline, pulling, state.mode, state.anchor, state.opening, cards, pattern]
   );
 
   const store = useWorkspaceStore.getState;
@@ -289,11 +295,23 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     anchorTakesFirst,
     choosePattern: (id) => store().setDiagramReferencesBrowser({ pattern: id }),
     setMode: (mode) => store().setDiagramReferencesBrowser({ mode }),
-    press: (index, modifiers) => select(browserSelection.press(selection, index, modifiers)),
+    press: (index, modifiers) => select(browserSelection.press(selection, shownList, index, modifiers)),
     move: (to) => {
-      const next = browserSelection.step(shownList, selection.pivot, to);
-      if (next !== null) select(browserSelection.press(selection, next, { range: false, toggle: false }));
+      const next = browserSelection.step(shownList, selection.focus, to);
+      if (next !== null) select(browserSelection.press(selection, shownList, next, { range: false, toggle: false }));
       return next;
+    },
+    extend: (to) => {
+      const next = browserSelection.step(shownList, selection.focus, to);
+      if (next === null) return null;
+      // From nothing, a range starts where the keyboard lands.
+      const from = selection.pivot === null ? { ...selection, pivot: next } : selection;
+      select(browserSelection.press(from, shownList, next, { range: true, toggle: false }));
+      return next;
+    },
+    toggle: () => {
+      const at = selection.focus ?? browserSelection.step(shownList, null, 'next');
+      if (at !== null) select(browserSelection.press(selection, shownList, at, { range: false, toggle: true }));
     },
     selectAll: () => select(browserSelection.all(shownList)),
     clear: () => select(browserSelection.empty()),

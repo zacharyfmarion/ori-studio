@@ -156,7 +156,7 @@ export function useDiagramShortcuts(handlers: {
       // Annotate's letters belong to no control that is not a field, and the
       // dispatcher stands down for fields before this runs.
       const declines =
-        id === 'diagram.openStep'
+        id === 'diagram.openStep' || id === 'diagram.toggleSelection'
           ? !focusLeavesEnterToSteps(document.activeElement)
           : !isAnnotateShortcut(id) && focusOwnsArrowKeys(document.activeElement);
       if (declines) return false;

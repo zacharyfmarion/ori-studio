@@ -50,7 +50,7 @@ function card(index: number, kind: BrowserCard['kind'] = 'fold'): BrowserCard {
 const PATTERN = { id: 'plan-a', number: 1, component: {}, listing: {} } as unknown as ReferencesBrowser['pattern'];
 
 function browser(patch: Partial<ReferencesBrowser> = {}, anchor: DiagramPullAnchor = { kind: 'end' }): ReferencesBrowser {
-  const state: DiagramReferencesBrowserState = { anchor, mode: 'sequence', pattern: null, shown: null };
+  const state: DiagramReferencesBrowserState = { anchor, opening: 1, mode: 'sequence', pattern: null, shown: null };
   return {
     state,
     patterns: { status: 'ready', patterns: [PATTERN!] },
@@ -76,6 +76,8 @@ function browser(patch: Partial<ReferencesBrowser> = {}, anchor: DiagramPullAnch
     setMode: vi.fn(),
     press: vi.fn(),
     move: vi.fn(() => 2),
+    extend: vi.fn(() => 1),
+    toggle: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
     add: vi.fn(),
@@ -134,7 +136,7 @@ describe('the References browser', () => {
     expect(button('Add 3 steps after step 2')).toBeTruthy();
     render(browser({ pullable: pulled(3), anchorNumber: 2, anchorTakesFirst: true }, { kind: 'fill', stepId: 's' }));
     expect(button('Fill step 2 and add 2 after it')).toBeTruthy();
-    render(browser({ pullable: pulled(1), anchorNumber: 4, anchorTakesFirst: true }, { kind: 'replace', stepId: 's', sentence: null }));
+    render(browser({ pullable: pulled(1), anchorNumber: 4, anchorTakesFirst: true }, { kind: 'replace', stepId: 's' }));
     expect(text()).toContain('Replace step 4’s card');
     expect(button('Replace step 4’s card')).toBeTruthy();
     // A step that can no longer take a card (it got a picture another way): the cards go after it.
@@ -178,6 +180,12 @@ describe('the References browser', () => {
     expect(document.activeElement).toBe(options()[2]);
     act(() => void run('diagram.openStep'));
     expect(current.add).toHaveBeenCalledOnce();
+    // Shift with the walk extends the range, the card it reaches taking focus; Space toggles.
+    act(() => void run('diagram.extendSelectionBack'));
+    expect(current.extend).toHaveBeenCalledWith('previous');
+    expect(document.activeElement).toBe(options()[1]);
+    act(() => void run('diagram.toggleSelection'));
+    expect(current.toggle).toHaveBeenCalledOnce();
     // One Tab stop: the first card, with nothing pressed yet.
     expect(options().map((option) => option.tabIndex)).toEqual([0, -1, -1]);
   });

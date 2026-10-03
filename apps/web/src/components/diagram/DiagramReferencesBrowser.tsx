@@ -53,14 +53,16 @@ export function DiagramReferencesBrowser({
   useEffect(() => {
     latest.current = browser;
   });
+  const focusCard = (index: number | null) => {
+    if (index === null) return;
+    root.current?.querySelector<HTMLElement>(`[role="option"][data-card-index="${index}"]`)?.focus();
+  };
   useEffect(
     () =>
       registerDiagramBrowserKeys({
-        move: (to) => {
-          const index = latest.current.move(to);
-          if (index === null) return;
-          root.current?.querySelector<HTMLElement>(`[role="option"][data-card-index="${index}"]`)?.focus();
-        },
+        move: (to) => focusCard(latest.current.move(to)),
+        extend: (to) => focusCard(latest.current.extend(to)),
+        toggle: () => latest.current.toggle(),
         add: () => latest.current.add(),
       }),
     []
@@ -152,9 +154,9 @@ function PatternRail({ browser }: { browser: ReferencesBrowser }) {
           </button>
         );
       })}
-      <Button size="sm" variant="ghost" className={styles.planMore} onClick={browser.openReferences}>
+      <button type="button" className={styles.planMore} onClick={browser.openReferences}>
         {t('panels:diagram.references.planMore', 'Plan more patterns in References')}
-      </Button>
+      </button>
     </nav>
   );
 }
@@ -205,11 +207,12 @@ function BrowserCards({ browser, style }: { browser: ReferencesBrowser; style: D
   if (patterns.status === 'no-pattern') {
     return message(t('panels:diagram.references.noPattern', 'Open a crease pattern in Edit to take steps from References.'));
   }
+  // Find needs the patterns too: an answer is added on the sheet it is for.
+  if (patterns.status === 'finding') return message(t('panels:diagram.references.finding', 'Finding the patterns…'));
+  if (patterns.status === 'failed') {
+    return message(t('panels:diagram.references.failed', 'The patterns couldn’t be found. Try again in a moment.'));
+  }
   if (state.mode === 'sequence') {
-    if (patterns.status === 'finding') return message(t('panels:diagram.references.finding', 'Finding the patterns…'));
-    if (patterns.status === 'failed') {
-      return message(t('panels:diagram.references.failed', 'The patterns couldn’t be found. Try again in a moment.'));
-    }
     if (patterns.patterns.length === 0) {
       return message(
         t(
@@ -244,8 +247,8 @@ function BrowserCards({ browser, style }: { browser: ReferencesBrowser; style: D
       break;
   }
   const offered = browser.withTurnOver ? browser.turnOverBefore : null;
-  // One Tab stop: the card last pressed, or the first that can be.
-  const tabStop = browser.selection.pivot ?? cards.cards.find((card) => card.step)?.index ?? null;
+  // One Tab stop: where the keyboard is, or the first card that can be selected.
+  const tabStop = browser.selection.focus ?? cards.cards.find((card) => card.step)?.index ?? null;
   return (
     <div
       className={styles.grid}

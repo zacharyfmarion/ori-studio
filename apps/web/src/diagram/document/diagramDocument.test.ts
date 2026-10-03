@@ -437,26 +437,27 @@ describe('steps pulled from References (D20)', () => {
   });
 
   it('replaces a References step’s card, its words only while they are still the old card’s', () => {
-    const own = { ...referencesStep('step-r'), text: 'Fold the old way.' };
+    // The card's own sentence is recorded on the step as it is pulled.
+    const own = { ...referencesStep('step-r', { sentence: 'Fold the old way.' }), text: 'Fold the old way.' };
     const document = withSteps(own, createStep(() => 'step-b'));
-    const replaced = pullReferencesSteps(
-      document,
-      [card(7)],
-      { kind: 'replace', stepId: 'step-r', sentence: 'Fold the old way.' },
-      { newId: sequentialIds() }
-    );
+    const replaced = pullReferencesSteps(document, [card(7)], { kind: 'replace', stepId: 'step-r' }, { newId: sequentialIds() });
     expect(replaced.stepIds).toEqual(['step-r']);
     expect(replaced.document.steps[0]).toMatchObject({ source: { card: 7 }, text: 'Fold 7.' });
-    const edited = pullReferencesSteps(
-      document,
-      [card(7)],
-      { kind: 'replace', stepId: 'step-r', sentence: 'Something else.' },
-      { newId: sequentialIds() }
-    );
-    expect(edited.document.steps[0]).toMatchObject({ source: { card: 7 }, text: 'Fold the old way.' });
+    // Edited since: the reader's words stay.
+    const edited = withSteps({ ...own, text: 'Something else.' });
+    expect(
+      pullReferencesSteps(edited, [card(7)], { kind: 'replace', stepId: 'step-r' }, { newId: sequentialIds() }).document
+        .steps[0]
+    ).toMatchObject({ source: { card: 7 }, text: 'Something else.' });
+    // A step that never recorded its card's sentence: its words cannot be told from the reader's, so they stay.
+    const unknown = withSteps({ ...referencesStep('step-r'), text: 'Fold the old way.' });
+    expect(
+      pullReferencesSteps(unknown, [card(7)], { kind: 'replace', stepId: 'step-r' }, { newId: sequentialIds() }).document
+        .steps[0]?.text
+    ).toBe('Fold the old way.');
     // Not a References step: nothing replaced, the card goes after it.
     const plain = withSteps(createStep(() => 'step-p'));
-    const after = pullReferencesSteps(plain, [card(7)], { kind: 'replace', stepId: 'step-p', sentence: null }, { newId: sequentialIds() });
+    const after = pullReferencesSteps(plain, [card(7)], { kind: 'replace', stepId: 'step-p' }, { newId: sequentialIds() });
     expect(ids(after.document)).toEqual(['step-p', after.stepIds[0]]);
   });
 });

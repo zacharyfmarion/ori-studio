@@ -5,7 +5,7 @@
  * Diagram link is made in (D3), and the plan and way it was drawn from.
  */
 import { toast } from 'sonner';
-import { trackDiagramStepAdded, trackDiagramStepsPulledFromReferences } from '../../analytics';
+import { trackDiagramStepAdded, trackDiagramStepsPulledFromReferences, type DiagramPulledInto } from '../../analytics';
 import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 import type { ReferencesDiagramCard } from '../../cp-workspace/references/referencesDiagramCards';
 import { regionReferenceFor, resolveRegion, type RegionReference } from '../../cp-workspace/regions/regionReference';
@@ -14,8 +14,10 @@ import i18n from '../../i18n';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
+  anchorTakesCard,
   stepDiagramKey,
   stepIndex,
+  type DiagramDocument,
   type DiagramPullAnchor,
   type DiagramStepDiagramPicture,
   type ReferencesPlanSettings,
@@ -57,11 +59,14 @@ export interface ReferencesPull {
   /** The plan's cache key id, for a sequence; null in Find. */
   plan: string | null;
   anchor: DiagramPullAnchor;
+  /** The browser's opening the pull was pressed in (`DiagramReferencesBrowserState.opening`). */
+  opening?: number;
 }
 
 /** What became of a pull. */
 export type ReferencesPullOutcome =
-  | { status: 'pulled'; stepIds: string[] }
+  /** Added; `into` says where the cards went, which the anchor may not have been able to take. */
+  | { status: 'pulled'; stepIds: string[]; into: DiagramPulledInto }
   | { status: 'no-pattern' }
   | { status: 'read-only' }
   /** A card too large for the file to read back: nothing was added. */
@@ -113,22 +118,37 @@ async function pullCards(pull: ReferencesPull): Promise<ReferencesPullOutcome> {
       side: card.mirrored ? 'back' : 'front',
       ...(pull.plan !== null ? { plan: pull.plan } : {}),
       ...(way !== null ? { way } : {}),
+      sentence: card.sentence,
     });
     if (!source) return { status: 'too-large' };
     sent.push({ source, picture, text: card.sentence });
   }
 
+  // Named by what it will do: an anchor that can no longer take a card has them all after it.
+  const takes = anchorTakesCard(useWorkspaceStore.getState().diagram, pull.anchor);
   const label =
-    pull.anchor.kind === 'fill'
+    takes && pull.anchor.kind === 'fill'
       ? 'Fill step from References'
-      : pull.anchor.kind === 'replace'
+      : takes && pull.anchor.kind === 'replace'
         ? 'Replace card from References'
         : sent.length === 1
           ? 'Add step from References'
           : 'Add steps from References';
-  const stepIds = useWorkspaceStore.getState().pullReferencesDiagramSteps(sent, pull.anchor, { loadId, label });
+  const stepIds = useWorkspaceStore
+    .getState()
+    .pullReferencesDiagramSteps(sent, pull.anchor, { loadId, label, opening: pull.opening });
   if (!stepIds) return useWorkspaceStore.getState().diagramReadOnly ? { status: 'read-only' } : { status: 'discarded' };
-  return { status: 'pulled', stepIds };
+  return { status: 'pulled', stepIds, into: landedInto(pull.anchor, stepIds, useWorkspaceStore.getState().diagram) };
+}
+
+/**
+ * Where pulled cards went: into the anchor's own step (filled or replaced),
+ * after it, or — its step gone — at the end.
+ */
+function landedInto(anchor: DiagramPullAnchor, stepIds: readonly string[], diagram: DiagramDocument | null): DiagramPulledInto {
+  if (anchor.kind === 'end') return 'end';
+  if (anchor.kind !== 'after' && stepIds[0] === anchor.stepId) return anchor.kind;
+  return diagram && stepIndex(diagram, anchor.stepId) >= 0 ? 'after' : 'end';
 }
 
 /** Count the pull, and say where it went. */
@@ -136,9 +156,9 @@ function say(outcome: ReferencesPullOutcome, pull: ReferencesPull): void {
   const t = i18n.t;
   switch (outcome.status) {
     case 'pulled': {
-      trackDiagramStepsPulledFromReferences(pull.mode, pull.anchor.kind, outcome.stepIds.length);
+      trackDiagramStepsPulledFromReferences(pull.mode, outcome.into, outcome.stepIds.length);
       // A step filled or replaced was there already: only the new ones are added.
-      const kept = pull.anchor.kind === 'fill' || pull.anchor.kind === 'replace' ? anchorKept(pull.anchor, outcome) : 0;
+      const kept = outcome.into === 'fill' || outcome.into === 'replace' ? 1 : 0;
       for (let index = kept; index < outcome.stepIds.length; index += 1) {
         trackDiagramStepAdded('references', 'references');
       }
@@ -151,7 +171,7 @@ function say(outcome: ReferencesPullOutcome, pull: ReferencesPull): void {
           ? t('toasts:diagram.references.addedSteps', 'Added as steps {{first}}–{{last}}', { first, last })
           : kept === 0
             ? t('toasts:diagram.addedAsStep', 'Added as step {{number}}', { number: first })
-            : pull.anchor.kind === 'fill'
+            : outcome.into === 'fill'
               ? t('toasts:diagram.references.filledStep', 'Filled step {{number}}', { number: first })
               : t('toasts:diagram.references.replacedStep', 'Replaced step {{number}}’s card', { number: first })
       );
@@ -174,14 +194,6 @@ function say(outcome: ReferencesPullOutcome, pull: ReferencesPull): void {
     case 'discarded':
       return;
   }
-}
-
-/** Whether the anchor's own step took the first card (1) or the cards all went after it (0). */
-function anchorKept(
-  anchor: Extract<DiagramPullAnchor, { stepId: string }>,
-  outcome: Extract<ReferencesPullOutcome, { status: 'pulled' }>
-): number {
-  return outcome.stepIds[0] === anchor.stepId ? 1 : 0;
 }
 
 function boundsOf(points: readonly (readonly [number, number])[]) {

@@ -600,7 +600,7 @@ function sentDiagram() {
     referencesStep('step-seq'),
     referencesStep('step-find', { mode: 'find', settings: null, line: null, card: 1, side: 'back' }),
     referencesStep('step-turn', { card: null, line: null, fingerprint: null }),
-    referencesStep('step-pulled', { plan: '{"planner":"p"}', way: 'O1:c0,c1:0' }),
+    referencesStep('step-pulled', { plan: '{"planner":"p"}', way: 'O1:c0,c1:0', sentence: 'Fold P onto Q &amp; R.' }),
   ];
   return insertSteps(createDiagram({ title: 'Crane', newId: sequentialIds() }), steps, 0);
 }
@@ -617,10 +617,18 @@ describe('steps sent from References in the file', () => {
     const written = throughJson(writeDiagram(sentDiagram()));
     written.steps[3].source.plan = 7;
     written.steps[3].source.way = '';
+    written.steps[3].source.sentence = 3;
     const step = readDiagram(written)!.document.steps[3];
     expect(step.source).toMatchObject({ kind: 'references-step', card: 2 });
     expect(step.source).not.toHaveProperty('plan');
     expect(step.source).not.toHaveProperty('way');
+    expect(step.source).not.toHaveProperty('sentence');
+  });
+
+  it('reads a card’s recorded sentence as a step’s text is read: XML-clean', () => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    written.steps[3].source.sentence = 'Fold\u0000 P';
+    expect(readDiagram(written)!.document.steps[3]!.source).toMatchObject({ sentence: 'Fold P' });
   });
 
   it('keeps a card drawn with a primitive this build does not draw, locked and verbatim', () => {

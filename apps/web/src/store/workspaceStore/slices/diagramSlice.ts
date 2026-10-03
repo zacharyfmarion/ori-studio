@@ -75,6 +75,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
    */
   let openSession: { key: string; session: number; loadId: number } | null = null;
 
+  /** The References browser's openings, counted: what a pull names its browser by. */
+  let browserOpenings = 0;
+
   /** Whether an edit in `session` at `key` extends the newest entry, and the session to remember after it. */
   const sessionFor = (key: string, session: number | undefined) => {
     const loadId = get().diagramLoadId;
@@ -393,7 +396,14 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       set({
         // The step it was opened for is the one the Step pane shows meanwhile.
         ...(anchor.kind !== 'end' && diagram && stepIndex(diagram, anchor.stepId) >= 0 ? selection(anchor.stepId) : {}),
-        diagramReferencesBrowser: { mode: 'sequence', pattern: null, shown: null, ...options, anchor },
+        diagramReferencesBrowser: {
+          mode: 'sequence',
+          pattern: null,
+          shown: null,
+          ...options,
+          anchor,
+          opening: (browserOpenings += 1),
+        },
         // The centre shows one thing: the browser, not a step's detail.
         diagramDetail: null,
         diagramSelectedAnnotationId: null,
@@ -411,8 +421,10 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (get().diagramReferencesBrowser !== null) set({ diagramReferencesBrowser: null });
     },
 
-    pullReferencesDiagramSteps: (sent, anchor, { loadId, label }) => {
+    pullReferencesDiagramSteps: (sent, anchor, { loadId, label, opening }) => {
       if (loadId !== get().diagramLoadId || sent.length === 0) return null;
+      // Pressed in a browser that has closed since: it adds nothing, and closes nothing.
+      if (opening !== undefined && get().diagramReferencesBrowser?.opening !== opening) return null;
       let stepIds: string[] = [];
       const next = commit(label, (document) => {
         const result = pullReferencesSteps(document, sent, anchor);

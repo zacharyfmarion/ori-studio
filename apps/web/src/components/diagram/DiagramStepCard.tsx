@@ -35,10 +35,9 @@ import { capturedStyleChange } from '../../diagram/pictures/lighting';
  * its link stands and its instruction, so a shortcut's label is not read as
  * part of it.
  *
- * A linked step — to a pattern, or to the sheet it was sent from in
- * References — shows its pattern's thumbnail beside its kind, and says over
- * its picture when the pattern has changed or gone, or that it waits for a
- * picture from References, with a Cancel.
+ * A linked step — to a pattern, or to a sheet's card pulled from References —
+ * shows its pattern's thumbnail beside its kind, and says over its picture
+ * when the pattern has changed or gone.
  */
 export const DiagramStepCard = forwardRef<
   HTMLDivElement,

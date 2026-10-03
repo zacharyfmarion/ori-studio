@@ -228,6 +228,10 @@
   },
   "diagram": {
     "categoryLabel": "Diagrama",
+    "extendSelectionBack": "Estender seleção para trás",
+    "extendSelectionForward": "Estender seleção para frente",
+    "extendSelectionToFirst": "Estender seleção até o primeiro",
+    "extendSelectionToLast": "Estender seleção até o último",
     "firstStep": "Primeiro passo",
     "flipArc": "Inverter arco",
     "lastStep": "Último passo",
@@ -237,6 +241,7 @@
     "openStep": "Abrir passo",
     "previousStep": "Passo anterior",
     "scopeLabel": "diagrama",
+    "toggleSelection": "Alternar seleção",
     "toolFoldUnfoldArrow": "Seta de dobrar e desdobrar",
     "toolHiddenLine": "Linha oculta",
     "toolLabel": "Rótulo",

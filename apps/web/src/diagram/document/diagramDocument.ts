@@ -256,6 +256,13 @@ export interface DiagramReferencesSource {
    * way (`waySignature`): which of them the step shows.
    */
   way?: string;
+  /**
+   * The card's own sentence as it was pulled (XML-clean, as a step's text is
+   * kept). While the step's instruction still equals it the words are the
+   * card's, and a card replacing it brings its own; edited, they are the
+   * reader's. Absent on a step sent before the browser.
+   */
+  sentence?: string;
 }
 
 /**
@@ -764,15 +771,14 @@ export interface SentReferencesStep {
  * Where the References browser puts the cards it pulls (D20), as it was
  * opened: after a step, at the end, into an empty step (filled by the first
  * card, the rest after it), or in place of a References step's picture
- * (Replace). `sentence` is the card the replaced step was made from, when the
- * browser found it: the step's instruction is replaced only while it is still
- * that card's own words.
+ * (Replace). A replaced step's instruction follows the new card only while it
+ * is still the old card's own sentence (`DiagramReferencesSource.sentence`).
  */
 export type DiagramPullAnchor =
   | { kind: 'after'; stepId: string }
   | { kind: 'end' }
   | { kind: 'fill'; stepId: string }
-  | { kind: 'replace'; stepId: string; sentence: string | null };
+  | { kind: 'replace'; stepId: string };
 
 /**
  * Cards pulled from References as steps, placed by `anchor`, in order. An
@@ -807,8 +813,8 @@ export function pullReferencesSteps(
   const words = (step: DiagramStep): string => {
     if (anchor.kind === 'fill') return step.text.trim() === '' ? xmlText(first!.text) : step.text;
     // Replaced: still the old card's words, they become the new card's; edited, they are the reader's.
-    const ownWords = anchor.sentence !== null && step.text === xmlText(anchor.sentence);
-    return ownWords ? xmlText(first!.text) : step.text;
+    const own = step.source?.kind === 'references-step' ? step.source.sentence : undefined;
+    return own !== undefined && step.text === own ? xmlText(first!.text) : step.text;
   };
   const taken = updateStep(document, target.id, (step) => ({
     ...step,

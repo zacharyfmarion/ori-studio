@@ -22,14 +22,23 @@ const indices = (pulled: ReturnType<typeof pullableCards>['pullable']) =>
 
 describe('the browser’s selection', () => {
   it('selects one card, extends with Shift from the last pressed, adds or takes away with Cmd', () => {
-    let selection = browserSelection.press(browserSelection.empty(), 1, { range: false, toggle: false });
+    const cards = strip();
+    let selection = browserSelection.press(browserSelection.empty(), cards, 1, { range: false, toggle: false });
     expect([...selection.indices]).toEqual([1]);
-    selection = browserSelection.press(selection, 3, { range: true, toggle: false });
+    selection = browserSelection.press(selection, cards, 3, { range: true, toggle: false });
     expect([...selection.indices].sort()).toEqual([1, 2, 3]);
-    selection = browserSelection.press(selection, 2, { range: false, toggle: true });
+    // The range's anchor stays; the keyboard is on the card pressed.
+    expect(selection).toMatchObject({ pivot: 1, focus: 3 });
+    selection = browserSelection.press(selection, cards, 2, { range: false, toggle: true });
     expect([...selection.indices].sort()).toEqual([1, 3]);
-    selection = browserSelection.press(selection, 0, { range: false, toggle: false });
+    selection = browserSelection.press(selection, cards, 0, { range: false, toggle: false });
     expect([...selection.indices]).toEqual([0]);
+  });
+
+  it('leaves out of a range the cards it cannot add: one that does not read, and the ending', () => {
+    const cards = strip();
+    const from = browserSelection.press(browserSelection.empty(), cards, 3, { range: false, toggle: false });
+    expect([...browserSelection.press(from, cards, 5, { range: true, toggle: false }).indices]).toEqual([3]);
   });
 
   it('opens on the card a replaced step was made from', () => {
