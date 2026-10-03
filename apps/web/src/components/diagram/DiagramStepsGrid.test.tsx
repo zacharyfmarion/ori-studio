@@ -7,7 +7,7 @@ import {
   type DiagramAsset,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
-import { cpStep, fixedPicture } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, fixedPicture, scenePicture } from '../../diagram/document/diagramSteps.fixtures';
 import type { DiagramCardLinks } from '../../diagram/capture/useCardLinks';
 import { DiagramStepsGrid } from './DiagramStepsGrid';
 
@@ -41,6 +41,7 @@ function render(
     links?: Partial<DiagramCardLinks>;
     patternOpen?: boolean;
     onLink?: (stepId: string) => void;
+    textCut?: ReadonlySet<string>;
   } = {}
 ) {
   if (!host) {
@@ -70,6 +71,7 @@ function render(
           cancelAwaiting: vi.fn(),
           ...options.links,
         }}
+        textCut={options.textCut ?? new Set()}
         patternOpen={options.patternOpen ?? false}
         onLink={options.onLink ?? vi.fn()}
       />
@@ -209,6 +211,20 @@ describe('DiagramStepsGrid', () => {
     const stopButton = [...cards[3]!.querySelectorAll('button')].find((button) => button.textContent === 'Stop');
     act(() => stopButton?.click());
     expect(stop).toHaveBeenCalledWith('step-d');
+  });
+
+  it('says a 3D step was lit by another style, and that the pages cut a step’s text', () => {
+    const lit = cpStep('step-3d', { mode: 'folded-3d', side: 'front', camera: { yaw: 0, pitch: 0, zoom: 1 } } as never, {
+      ...scenePicture(),
+      styleKey: 'another light',
+    });
+    render(null, vi.fn(), {
+      steps: [lit, { ...cpStep('step-cut'), text: 'A long one.' }],
+      links: { statuses: new Map([['step-3d', 'current'], ['step-cut', 'current']]) },
+      textCut: new Set(['step-cut']),
+    });
+    const chips = options().map((card) => card.querySelector('[data-tone]')?.textContent ?? null);
+    expect(chips).toEqual(['Lighting changed', 'Text doesn’t fit']);
   });
 
   it('offers an empty card a pattern to link only with one open', () => {

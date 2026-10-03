@@ -663,6 +663,7 @@
       "duplicate": "단계 복제",
       "exportPicture": "그림 내보내기…",
       "firstHint": "이미 첫 번째 단계입니다",
+      "firstPageHint": "첫 단계는 항상 새 페이지에서 시작합니다",
       "fromReferences": "참조에서…",
       "insertAfter": "뒤에 단계 삽입",
       "insertBefore": "앞에 단계 삽입",
@@ -685,6 +686,7 @@
       "relinkPattern": "패턴 다시 연결…",
       "removePicture": "그림 제거",
       "replacePicture": "그림 바꾸기…",
+      "startPage": "여기서 새 페이지 시작",
       "uploadPicture": "그림 업로드…"
     },
     "card": {
@@ -699,6 +701,7 @@
       "cancelWaiting": "취소",
       "capturing": "캡처 중…",
       "fromReferences": "참조…",
+      "lightingChanged": "조명이 바뀌었습니다",
       "link": "연결…",
       "locked": "최신 Ori Studio에서 만듦",
       "missing": "패턴 없음",
@@ -709,6 +712,7 @@
       "patternChanged": "패턴 변경됨",
       "stale": "오래됨",
       "stop": "중지",
+      "textCut": "텍스트가 들어가지 않습니다",
       "upload": "업로드…",
       "waitingReferences": "참조를 기다리는 중"
     },
@@ -740,6 +744,7 @@
       "linkPattern": "패턴 연결…",
       "moreAdd": "단계를 추가하는 다른 방법",
       "nothingToRefresh": "오래된 연결 단계가 없습니다. 참조에서 보낸 단계는 새로 고쳐지지 않습니다.",
+      "pageCount_other": "{{count}}페이지",
       "refreshAll": "오래된 단계 새로 고침",
       "stepCount_other": "{{count}}단계",
       "stopRefreshing": "새로 고침 중지 ({{done}}/{{total}})",
@@ -748,6 +753,66 @@
       "uploadPictures": "그림 업로드…"
     },
     "label": "도해",
+    "pagePane": {
+      "columns": "열",
+      "exportStyle": "설정의 내보내기 스타일",
+      "firstPage": "첫 번호",
+      "flow": "흐름",
+      "flowHint": "각 줄이 끝에서 방향을 바꿉니다.",
+      "grid": "격자",
+      "gridHint": "각 줄을 왼쪽에서 오른쪽으로 읽습니다.",
+      "han": {
+        "jp": "일본어",
+        "kr": "한국어",
+        "sc": "중국어 간체",
+        "tc": "중국어 번체"
+      },
+      "hanStyle": "한자",
+      "hanStyleHint": "텍스트에 언어를 알려 줄 가나나 한글이 없을 때 한자를 어떤 글꼴 모양으로 그릴지 정합니다.",
+      "headerFooter": "머리글과 바닥글",
+      "keptStyle": "이 도해 고유의 스타일",
+      "label": "페이지 설정",
+      "landscape": "가로",
+      "layout": "배치",
+      "margin": "여백",
+      "mm": "mm",
+      "orientation": "방향",
+      "pageCount_other": "{{count}}페이지",
+      "pageNumbers": "페이지 번호",
+      "paper": "용지",
+      "perPage_other": "페이지당 {{count}}단계",
+      "perRow": "줄당 단계 수",
+      "portrait": "세로",
+      "rows": "줄",
+      "scale": "배율",
+      "scaleFit": "각각 맞춤",
+      "scaleHint": "같은 배율은 책처럼 모든 패턴을 용지 단위당 같은 크기로 그립니다. 각각 맞춤은 각 패턴을 칸에 꽉 차게 그립니다.",
+      "scalePaper": "같은 배율",
+      "showPath": "경로 표시",
+      "size": "크기",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5 (JIS)",
+        "letter": "US 레터"
+      },
+      "style": "스타일",
+      "styleHint": "잉크와 펜은 모든 단계에 한꺼번에 바뀝니다. 3D 단계는 새로 고치면 새 조명을 받습니다.",
+      "styleSection": "스타일",
+      "title": "제목",
+      "titleHelp": "도해의 제목을 각 페이지 위쪽 탭에 표시합니다."
+    },
+    "pages": {
+      "caption": "{{number}}페이지",
+      "controls": "페이지 보기 컨트롤",
+      "failed": "페이지를 배치하지 못했습니다. 연결을 확인하고 다시 시도하세요.",
+      "loading": "페이지를 배치하는 중…",
+      "noPicture": "아직 그림이 없습니다",
+      "pageAlt": "{{number}}페이지",
+      "pageOf": "{{total}}페이지 중 {{number}}페이지",
+      "step": "{{number}}단계",
+      "textCut": "텍스트가 들어가지 않습니다"
+    },
     "picker": {
       "cancel": "취소",
       "failed": "전개도의 패턴을 찾지 못했습니다.",
@@ -829,6 +894,13 @@
       "pose": "포즈",
       "positionLabel": "단계 위치",
       "step": "단계"
+    },
+    "view": {
+      "label": "보기",
+      "pages": "페이지",
+      "pagesHint": "인쇄될 모습 그대로의 페이지",
+      "steps": "단계",
+      "stepsHint": "모든 단계를 카드로 보며 정렬하고 편집"
     }
   },
   "explori": {
@@ -1227,6 +1299,7 @@
     "label": "접힘선 패턴"
   },
   "sidePane": {
+    "page": "페이지",
     "properties": "속성",
     "settings": "설정",
     "step": "단계",

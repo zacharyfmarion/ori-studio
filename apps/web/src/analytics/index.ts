@@ -37,8 +37,11 @@ export type {
   DiagramPictureKind,
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
+  DiagramPageSetting,
   DiagramSourceWorkspace,
   DiagramStepOpenedVia,
+  DiagramStyleChoiceName,
+  DiagramView,
   ReferencesSentToDiagramInto,
   ReferencesSentToDiagramMode,
   ReferencesSentToDiagramVia,
@@ -107,6 +110,8 @@ export {
   trackDiagramPictureUploaded,
   trackDiagramStepAdded,
   trackDiagramStepOpened,
+  trackDiagramPageSetupChanged,
+  trackDiagramViewSwitched,
 } from './trackDiagram';
 export { trackDesktopDownload } from './trackDesktopDownload';
 export { trackCreasePatternExported } from './trackCreasePatternExport';

@@ -16,6 +16,7 @@ function deps(): DiagramStepActionDeps {
     insert: vi.fn(),
     duplicate: vi.fn(),
     move: vi.fn(),
+    toggleBreak: vi.fn(),
     uploadPicture: vi.fn(),
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
@@ -40,6 +41,8 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       link: null,
       // A link, unless a test says otherwise, is to a pattern.
       linkKind: state.link ? 'cp' : null,
+      breakBefore: false,
+      lightingChanged: false,
       capturing: false,
       patternOpen: true,
       ...state,
@@ -57,6 +60,7 @@ describe('the diagram step verbs', () => {
       'after-add',
       'move-earlier',
       'move-later',
+      'start-page',
       'after-move',
       'upload-picture',
       'link-pattern',
@@ -185,6 +189,9 @@ describe('the diagram step verbs', () => {
     });
     expect(refresh({ link: 'unknown' })?.disabled).toBe(false);
     expect(refresh({ link: 'unknown', patternOpen: false })?.disabled).toBe(true);
+    // A 3D picture lit by an old style relights, even when its pattern is as it was.
+    expect(refresh({ link: 'current', lightingChanged: true })?.disabled).toBe(false);
+    expect(refresh({ link: 'missing', lightingChanged: true })?.disabled).toBe(true);
     // Not on a step that is not linked.
     expect(refresh({ link: null })).toBeNull();
   });

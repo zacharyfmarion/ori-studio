@@ -12,12 +12,15 @@ import type {
   DiagramPictureExportFormat,
   DiagramPictureFormat,
   DiagramPictureKind,
+  DiagramPageSetting,
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
   DiagramSourceWorkspace,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   DiagramStepOpenedVia,
+  DiagramStyleChoiceName,
+  DiagramView,
   ReferencesSentToDiagramMode,
   ReferencesSentToDiagramVia,
 } from './events';
@@ -103,4 +106,20 @@ export function trackReferencesStepSentToDiagram(
     count_bucket: bucketCount(count, COUNT_BUCKETS),
     into: filled ? 'waiting_step' : 'new_steps',
   });
+}
+
+/** The Diagram's view switched, by the tabs or a verb that shows the pages. */
+export function trackDiagramViewSwitched(view: DiagramView): void {
+  track(ANALYTICS_EVENTS.diagramViewSwitched, { view });
+}
+
+/**
+ * A page setting changed. Which one, never its value — except the style,
+ * named as a built-in, the export style or `custom`, never a preset's name.
+ */
+export function trackDiagramPageSetupChanged(
+  setting: DiagramPageSetting,
+  style?: DiagramStyleChoiceName
+): void {
+  track(ANALYTICS_EVENTS.diagramPageSetupChanged, style ? { setting, style } : { setting });
 }

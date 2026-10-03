@@ -37,6 +37,7 @@ export function DiagramStepsGrid({
   onOpen,
   onUpload,
   links,
+  textCut,
   patternOpen,
   onLink,
 }: {
@@ -55,6 +56,8 @@ export function DiagramStepsGrid({
   onUpload: (stepId: string) => void;
   /** Each card's link: how it stands, its capture, and a Stop. */
   links: DiagramCardLinks;
+  /** The steps whose instruction the pages cut with "…". */
+  textCut: ReadonlySet<string>;
   /** A crease pattern is open to link an empty step to. */
   patternOpen: boolean;
   /** Choose a pattern for a step, from a click on its card. */
@@ -112,6 +115,7 @@ export function DiagramStepsGrid({
           onOpen={onOpen}
           onUpload={onUpload}
           link={links.statuses.get(step.id) ?? null}
+          textCut={textCut.has(step.id)}
           capture={links.captures[step.id] ?? null}
           patternOpen={patternOpen}
           onLink={onLink}

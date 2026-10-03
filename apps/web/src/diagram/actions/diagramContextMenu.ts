@@ -20,6 +20,18 @@ export function diagramStepMenuItems(
       items.push({ kind: 'separator' });
       continue;
     }
+    if (action.checked !== undefined) {
+      items.push({
+        kind: 'checkbox',
+        id: action.id,
+        label: action.label,
+        checked: action.checked,
+        disabled: action.disabled,
+        hint: action.hint,
+        onToggle: action.run,
+      });
+      continue;
+    }
     items.push({
       kind: 'action',
       id: action.id,

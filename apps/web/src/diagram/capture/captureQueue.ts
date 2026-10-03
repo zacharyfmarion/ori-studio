@@ -5,7 +5,8 @@ import i18n from '../../i18n';
 import { requestConfirmation } from '../../store/commandDialogStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { stepIndex, type DiagramStep } from '../document/diagramDocument';
+import { stepIndex, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
+import { lightingChanged } from '../pictures/lighting';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
 import { sayCaptureOutcome, trackCapture } from './stepCaptureActions';
@@ -40,7 +41,8 @@ export async function refreshAllDiagramSteps(): Promise<number> {
   const segmentation = await abandonOnEngineLoss(ensureCpSegmentationArtifacts(cp.document)).catch(
     () => null
   );
-  const stale = outOfDate(useWorkspaceStore.getState().diagram?.steps ?? [], segmentation);
+  const current = useWorkspaceStore.getState().diagram;
+  const stale = current ? outOfDate(current.steps, current.style, segmentation) : [];
   if (stale.length === 0) return 0;
   if (useWorkspaceStore.getState().diagramHistory.future.length > 0) {
     const t = i18n.t;
@@ -125,19 +127,22 @@ export function stopRefreshAll(): void {
   if (refreshing !== null) useWorkspaceStore.getState().stopDiagramCapture(refreshing);
 }
 
-/** The linked steps whose pattern changed, in order. */
+/**
+ * The linked steps whose pattern changed, or whose 3D picture was lit by
+ * another style than the diagram's, in order.
+ */
 export function outOfDate(
   steps: readonly DiagramStep[],
+  style: DiagramStyle,
   segmentation: Parameters<typeof linkStatus>[2]
 ): string[] {
   const document = useWorkspaceStore.getState().oristudioCpDocument?.document ?? null;
   return steps
-    .filter(
-      (step) =>
-        !step.unknown &&
-        step.source?.kind === 'cp' &&
-        linkStatus(step.source, document, segmentation) === 'stale'
-    )
+    .filter((step) => {
+      if (step.unknown || step.source?.kind !== 'cp') return false;
+      const status = linkStatus(step.source, document, segmentation);
+      return status === 'stale' || (status === 'current' && lightingChanged(step, style));
+    })
     .map((step) => step.id);
 }
 

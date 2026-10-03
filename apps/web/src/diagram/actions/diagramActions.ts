@@ -19,6 +19,7 @@ export type DiagramStepActionId =
   | 'duplicate'
   | 'move-earlier'
   | 'move-later'
+  | 'start-page'
   | 'upload-picture'
   | 'link-pattern'
   | 'from-references'
@@ -37,6 +38,8 @@ export interface DiagramStepCommand {
   /** Why it is disabled, for a tooltip or a menu row's hint. */
   hint?: string;
   danger?: boolean;
+  /** An on/off verb's state, for a surface that shows it as a check. */
+  checked?: boolean;
   /**
    * The key that runs the same verb, for a surface that shows chords (a menu
    * row). Its own path: the key goes through the shortcut runtime, the row
@@ -78,6 +81,10 @@ export interface DiagramStepActionState {
    * which it never follows (D6). Null for a step that is not linked.
    */
   linkKind: 'cp' | 'references' | null;
+  /** The step starts a new page ("Start a new page here"). */
+  breakBefore: boolean;
+  /** A 3D picture whose light is not the diagram's style's any more: Refresh relights it. */
+  lightingChanged: boolean;
   /** A capture of this step is running. */
   capturing: boolean;
   /** A crease pattern is open to link to. */
@@ -89,6 +96,8 @@ export interface DiagramStepActionDeps {
   insert: (where: 'before' | 'after') => void;
   duplicate: () => void;
   move: (direction: 'earlier' | 'later') => void;
+  /** Start a new page at the step, or stop doing so. */
+  toggleBreak: () => void;
   /** Pick a file for the step's picture: its first, or in place of the one it has. */
   uploadPicture: () => void;
   /** Choose the pattern the step shows: the picker, in the Step pane. */
@@ -196,6 +205,16 @@ export function buildDiagramStepActions(
       state.index >= state.count - 1,
       t('panels:diagram.actions.lastHint', 'Already the last step')
     ),
+    {
+      ...command(
+        'start-page',
+        t('panels:diagram.actions.startPage', 'Start a New Page Here'),
+        deps.toggleBreak,
+        state.locked || state.index <= 0,
+        state.locked ? lockedEditHint : t('panels:diagram.actions.firstPageHint', 'The first step always starts a page')
+      ),
+      checked: state.breakBefore,
+    },
     { kind: 'separator', id: 'after-move' },
     command(
       'upload-picture',
@@ -248,8 +267,8 @@ export function buildDiagramStepActions(
             'refresh-picture',
             t('panels:diagram.actions.refreshPicture', 'Refresh Picture'),
             deps.refreshPicture,
-            state.capturing || !refreshable(state.link, state.patternOpen),
-            state.capturing ? capturingHint : refreshHint(state.link, state.patternOpen, t)
+            state.capturing || !refreshable(state.link, state.lightingChanged, state.patternOpen),
+            state.capturing ? capturingHint : refreshHint(state.link, state.lightingChanged, state.patternOpen, t)
           ),
           command(
             'open-in-edit',
@@ -298,18 +317,24 @@ export function buildDiagramStepActions(
 }
 
 /**
- * Whether Refresh can do anything: the pattern changed, or a pattern is open
- * and the link cannot be checked yet (its segmentation is still coming), where
- * a capture finds out. Not for a link that is current, or whose pattern is gone.
+ * Whether Refresh can do anything: the pattern changed, a 3D picture's light
+ * is not the diagram's, or a pattern is open and the link cannot be checked
+ * yet (its segmentation is still coming), where a capture finds out. Not for a
+ * current link in its light, or one whose pattern is gone.
  */
-function refreshable(link: DiagramLinkStatus, patternOpen: boolean): boolean {
-  return link === 'stale' || (link === 'unknown' && patternOpen);
+function refreshable(link: DiagramLinkStatus, lighting: boolean, patternOpen: boolean): boolean {
+  return link === 'stale' || (link === 'current' && lighting) || (link === 'unknown' && patternOpen);
 }
 
-function refreshHint(link: DiagramLinkStatus, patternOpen: boolean, t: TFunction): string | undefined {
+function refreshHint(
+  link: DiagramLinkStatus,
+  lighting: boolean,
+  patternOpen: boolean,
+  t: TFunction
+): string | undefined {
   switch (link) {
     case 'current':
-      return t('panels:diagram.actions.currentHint', 'Already shows its pattern as it is');
+      return lighting ? undefined : t('panels:diagram.actions.currentHint', 'Already shows its pattern as it is');
     case 'missing':
       return t('panels:diagram.actions.missingHint', 'Its pattern is gone: relink it to another');
     case 'unknown':

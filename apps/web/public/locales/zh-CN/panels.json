@@ -663,6 +663,7 @@
       "duplicate": "复制步骤",
       "exportPicture": "导出图片…",
       "firstHint": "已经是第一步",
+      "firstPageHint": "第一步总是新的一页的开始",
       "fromReferences": "来自参考…",
       "insertAfter": "在后面插入步骤",
       "insertBefore": "在前面插入步骤",
@@ -685,6 +686,7 @@
       "relinkPattern": "重新链接图样…",
       "removePicture": "移除图片",
       "replacePicture": "替换图片…",
+      "startPage": "从这里开始新的一页",
       "uploadPicture": "上传图片…"
     },
     "card": {
@@ -699,6 +701,7 @@
       "cancelWaiting": "取消",
       "capturing": "正在捕获…",
       "fromReferences": "参考…",
+      "lightingChanged": "光照已更改",
       "link": "链接…",
       "locked": "由更新版本的 Ori Studio 创建",
       "missing": "图样缺失",
@@ -709,6 +712,7 @@
       "patternChanged": "图样已更改",
       "stale": "已过期",
       "stop": "停止",
+      "textCut": "文字放不下",
       "upload": "上传…",
       "waitingReferences": "等待参考"
     },
@@ -740,6 +744,7 @@
       "linkPattern": "链接图样…",
       "moreAdd": "更多添加步骤的方式",
       "nothingToRefresh": "没有过时的链接步骤。从参考发送的步骤不会刷新。",
+      "pageCount_other": "{{count}} 页",
       "refreshAll": "刷新已过期的步骤",
       "stepCount_other": "{{count}} 个步骤",
       "stopRefreshing": "停止刷新（{{done}} / {{total}}）",
@@ -748,6 +753,66 @@
       "uploadPictures": "上传图片…"
     },
     "label": "图解",
+    "pagePane": {
+      "columns": "列",
+      "exportStyle": "设置中的导出样式",
+      "firstPage": "起始页码",
+      "flow": "流动",
+      "flowHint": "每行在两端折返。",
+      "grid": "网格",
+      "gridHint": "每行从左往右读。",
+      "han": {
+        "jp": "日语",
+        "kr": "韩语",
+        "sc": "简体中文",
+        "tc": "繁体中文"
+      },
+      "hanStyle": "汉字",
+      "hanStyleHint": "当文字中没有假名或谚文来表明语言时，汉字按哪种字形绘制。",
+      "headerFooter": "页眉和页脚",
+      "keptStyle": "此图解自己的样式",
+      "label": "页面设置",
+      "landscape": "横向",
+      "layout": "布局",
+      "margin": "页边距",
+      "mm": "mm",
+      "orientation": "方向",
+      "pageCount_other": "{{count}} 页",
+      "pageNumbers": "页码",
+      "paper": "纸张",
+      "perPage_other": "每页 {{count}} 步",
+      "perRow": "每行步骤数",
+      "portrait": "纵向",
+      "rows": "行",
+      "scale": "比例",
+      "scaleFit": "各自适应",
+      "scaleHint": "统一比例像书一样，让每个图样按纸张的单位长度画成同样大小。各自适应则让每个图样填满自己的框。",
+      "scalePaper": "统一比例",
+      "showPath": "显示路径",
+      "size": "尺寸",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5（JIS）",
+        "letter": "美国信纸"
+      },
+      "style": "样式",
+      "styleHint": "墨色和笔画会同时改变所有步骤。3D 步骤在刷新后采用新的光照。",
+      "styleSection": "样式",
+      "title": "标题",
+      "titleHelp": "在每页顶部的标签中显示图解标题。"
+    },
+    "pages": {
+      "caption": "第 {{number}} 页",
+      "controls": "页面视图控件",
+      "failed": "无法排版页面。请检查网络连接后重试。",
+      "loading": "正在排版页面…",
+      "noPicture": "还没有图",
+      "pageAlt": "第 {{number}} 页",
+      "pageOf": "第 {{number}} 页，共 {{total}} 页",
+      "step": "第 {{number}} 步",
+      "textCut": "文字放不下"
+    },
     "picker": {
       "cancel": "取消",
       "failed": "未能找到折痕图中的图样。",
@@ -829,6 +894,13 @@
       "pose": "姿态",
       "positionLabel": "步骤位置",
       "step": "步骤"
+    },
+    "view": {
+      "label": "视图",
+      "pages": "页面",
+      "pagesHint": "按打印效果显示的页面",
+      "steps": "步骤",
+      "stepsHint": "以卡片显示所有步骤，便于排列和编辑"
     }
   },
   "explori": {
@@ -1227,6 +1299,7 @@
     "label": "折痕图"
   },
   "sidePane": {
+    "page": "页面",
     "properties": "属性",
     "settings": "设置",
     "step": "步骤",

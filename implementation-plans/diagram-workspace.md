@@ -2081,13 +2081,34 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - Left for Phase 6:
     - text inside an uploaded SVG still names its own fonts. The PDF needs it mapped to the diagram fonts, with its characters embedded (D7 policy).
     - the CJK files still have to be published with the web deploy and the desktop bundle (Decision 2: same origin; the desktop installer carries the common tiers).
-- [ ] **5c.** The Pages UI.
+- [x] **5c.** The Pages UI.
   - The Steps | Pages tabs; `DiagramPagesView` with its overlay, captions and zoom.
   - The `diagram-page` side pane, its reveal rules and `DiagramPagePanel`.
   - `ui/OptionCard`; `DiagramStyleControl`.
   - The style-change chips: 3D steps show "Lighting changed — Refresh", and simulated steps show "Pose again" (D5).
   - "Start a new page here".
-- [ ] **Browser:**
+  - As built:
+    - **Header.** `DiagramViewSwitch` (a peers `WorkspaceTabStrip`, filling a row of its own on a phone), and "N steps · M pages" from `splitIntoPages`, the layout's own split.
+    - **Pages view** (`DiagramPagesView`).
+      - **Pages.** One column under `useViewportSurface`'s camera, with no shortcut registration of its own. The Diagram's viewport executor stays the surface's one owner and asks the view's camera for the zoom and fit keys (`registerDiagramViewCamera`).
+      - **Fit.** A new `fitAnchor: 'fit-rect'` frames the first page rather than the middle of the column. The library's own `centerOnInit` is off.
+      - **Composing.** A page is composed when it comes within a view's height (IntersectionObserver). `useDiagramPages` keeps the last pages on screen until the next lay out, and caches each composed page's `data:` URL per layout.
+      - **Overlay.** Laid over each page, never in the file: the margin guide, an empty step's "No picture yet" box, a "Text doesn't fit" mark, and the cells. Pressing a cell selects it; a double press opens Pose; a press elsewhere on the page brings Page forward. "Page n of m" is read from the camera.
+    - **Page pane** (`DiagramPagePanel` over `useDiagramPageSetup`):
+      - **Paper:** size, orientation, margin.
+      - **Layout:** `OptionCards` for Grid and Flow; columns or steps per row; rows; Show path; one scale or fit each; the steps-per-page and pages readout.
+      - **Header & footer:** title, page numbers and the first number.
+      - **Style:** `DiagramStyleControl` and the Han style.
+
+      Every change is one undo step and one `diagram page setup changed` (by setting, never a value).
+    - **Style choices.** `diagramStyleChoices` offers Diagram, Default, the Settings export style, and each saved preset. Anything from Settings is copied into the diagram when chosen; a style no choice holds any more reads "This diagram's own".
+    - **Reveal rules.** `useDiagramPaneReveal`, on transitions only, never on touch, after the gesture: to Pages brings Page forward, to Steps brings Step, and a newly selected step brings Step.
+    - **Chips.** `lightingChanged` (a 3D capture's baked light key against the diagram's style) gives cards "Lighting changed" and enables Refresh on a current link, and Refresh all and its count include those steps. Cards say "Text doesn't fit" from the same layout the pages use.
+    - **Start a New Page Here.** A checked verb in the card menu (`breakBefore`), off on the first step.
+    - **Analytics.** `diagram view switched` (`view`) and `diagram page setup changed` (`setting`, plus `style` for a style change).
+    - **Fixes on the way.** `useViewportSurface.fitToView` took a toolbar's click event as its animation time, which `setTransform` turns into NaN; it now ignores anything that is not a number. A test that found the selected card by `[aria-selected="true"]` now also matched the new Steps tab, so it asks for `[role="option"]`.
+  - Left for Phase 8: simulated steps' "Pose again" (there are no simulated steps until then).
+- [x] **Browser:**
   - every paper size and orientation;
   - grid and flow, with and without the path;
   - paper vs fit scale, with the crane model visibly shrinking;
@@ -2095,6 +2116,16 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - CJK and long English text wrap inside their cells;
   - overflow is flagged;
   - a style change repaints a 50-step diagram without a long task over 200 ms, and 3D steps show Lighting changed.
+  - Results (Chromium; `artifacts/diagram-phase5/ui.mjs`, `checks.mjs`, `light3d.mjs`):
+    - **The 30 steps of the crane's sequence:** four A4 pages.
+      - The Pages tab brought Page forward and opened framed on page 1 ("Page 1 of 4"), with two pages composed.
+      - A cell press selected step 2 and brought Step forward; Flow, zoom and Fit worked; A5 landscape relaid it as five pages; a double press opened step 3 in Pose.
+    - **Every size and orientation** (A4, A5, B5 JIS, Letter): each page kept its paper's ratio (0.707, 0.705, 0.708, 0.773 portrait), and every cell lay inside its page.
+    - **One scale against fit each,** on the 50-step linked crane: under one scale a small region and the folded models are drawn smaller than the full sheets; under fit each every picture fills its box.
+    - Flow without its path, CJK and long English text (5b), and a cut instruction flagged on the page.
+    - **Style change on 51 steps:** no long task in the Pages view, and one of 112 ms in the Steps view.
+    - **Lighting changed:** a 3D step of `box_90` showed it after a change of light, and Refresh all relit it and cleared it.
+    - 25 of that file's crease-pattern steps read "Out of date". The file was saved before Phase 3's review changed a crease-pattern step's fingerprint to every drawn line, so this is the file's age, not a fault.
 
 ### Phase 6: export
 

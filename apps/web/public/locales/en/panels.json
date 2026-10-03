@@ -692,6 +692,7 @@
       "duplicate": "Duplicate Step",
       "exportPicture": "Export Picture…",
       "firstHint": "Already the first step",
+      "firstPageHint": "The first step always starts a page",
       "fromReferences": "From References…",
       "insertAfter": "Insert Step After",
       "insertBefore": "Insert Step Before",
@@ -714,6 +715,7 @@
       "relinkPattern": "Relink Pattern…",
       "removePicture": "Remove Picture",
       "replacePicture": "Replace Picture…",
+      "startPage": "Start a New Page Here",
       "uploadPicture": "Upload Picture…"
     },
     "card": {
@@ -728,6 +730,7 @@
       "cancelWaiting": "Cancel",
       "capturing": "Capturing…",
       "fromReferences": "References…",
+      "lightingChanged": "Lighting changed",
       "link": "Link…",
       "locked": "Made with a newer Ori Studio",
       "missing": "Pattern missing",
@@ -738,6 +741,7 @@
       "patternChanged": "Pattern changed",
       "stale": "Out of date",
       "stop": "Stop",
+      "textCut": "Text doesn’t fit",
       "upload": "Upload…",
       "waitingReferences": "Waiting for References"
     },
@@ -769,6 +773,8 @@
       "linkPattern": "Link pattern…",
       "moreAdd": "More ways to add steps",
       "nothingToRefresh": "No linked step is out of date. Steps from References aren’t refreshed.",
+      "pageCount_one": "1 page",
+      "pageCount_other": "{{count}} pages",
       "refreshAll": "Refresh out-of-date steps",
       "stepCount_one": "1 step",
       "stepCount_other": "{{count}} steps",
@@ -778,6 +784,68 @@
       "uploadPictures": "Upload pictures…"
     },
     "label": "Diagram",
+    "pagePane": {
+      "columns": "Columns",
+      "exportStyle": "Export style from Settings",
+      "firstPage": "First number",
+      "flow": "Flow",
+      "flowHint": "Rows turn back at each end.",
+      "grid": "Grid",
+      "gridHint": "Rows read left to right.",
+      "han": {
+        "jp": "Japanese",
+        "kr": "Korean",
+        "sc": "Simplified Chinese",
+        "tc": "Traditional Chinese"
+      },
+      "hanStyle": "Han characters",
+      "hanStyleHint": "How Chinese characters are drawn where a text has no kana or Hangul to say which language it is.",
+      "headerFooter": "Header & footer",
+      "keptStyle": "This diagram’s own",
+      "label": "Page setup",
+      "landscape": "Landscape",
+      "layout": "Layout",
+      "margin": "Margin",
+      "mm": "mm",
+      "orientation": "Orientation",
+      "pageCount_one": "1 page",
+      "pageCount_other": "{{count}} pages",
+      "pageNumbers": "Page numbers",
+      "paper": "Paper",
+      "perPage_one": "1 step per page",
+      "perPage_other": "{{count}} steps per page",
+      "perRow": "Steps per row",
+      "portrait": "Portrait",
+      "rows": "Rows",
+      "scale": "Scale",
+      "scaleFit": "Fit each",
+      "scaleHint": "One scale draws every pattern at the same size per unit of paper, as a book does. Fit draws each as large as its box.",
+      "scalePaper": "One scale",
+      "showPath": "Show path",
+      "size": "Size",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5 (JIS)",
+        "letter": "US Letter"
+      },
+      "style": "Style",
+      "styleHint": "Ink and pens change on every step at once. A 3D step takes a new light when it is refreshed.",
+      "styleSection": "Style",
+      "title": "Title",
+      "titleHelp": "The diagram’s title, in a tab at the top of every page."
+    },
+    "pages": {
+      "caption": "Page {{number}}",
+      "controls": "Page view controls",
+      "failed": "The pages couldn’t be laid out. Check your connection and try again.",
+      "loading": "Laying out the pages…",
+      "noPicture": "No picture yet",
+      "pageAlt": "Page {{number}}",
+      "pageOf": "Page {{number}} of {{total}}",
+      "step": "Step {{number}}",
+      "textCut": "Text doesn’t fit"
+    },
     "picker": {
       "cancel": "Cancel",
       "failed": "The crease pattern’s patterns couldn’t be found.",
@@ -859,6 +927,13 @@
       "pose": "Pose",
       "positionLabel": "Step position",
       "step": "Step"
+    },
+    "view": {
+      "label": "View",
+      "pages": "Pages",
+      "pagesHint": "The pages as they will print",
+      "steps": "Steps",
+      "stepsHint": "Every step as a card, to arrange and edit"
     }
   },
   "explori": {
@@ -1269,6 +1344,7 @@
     "label": "Crease patterns"
   },
   "sidePane": {
+    "page": "Page",
     "properties": "Properties",
     "settings": "Settings",
     "step": "Step",

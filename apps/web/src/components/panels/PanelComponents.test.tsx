@@ -23,6 +23,7 @@ describe('panelComponents', () => {
       'design-workspace',
       'diagnostics',
       'diagram',
+      'diagram-page',
       'diagram-step',
     'explori-results',
     'explori-tree',

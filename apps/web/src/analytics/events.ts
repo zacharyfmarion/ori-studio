@@ -123,6 +123,28 @@ export type ReferencesSentToDiagramMode = 'sequence' | 'find';
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
 
+/** The Diagram's two views: the steps as cards, or the printed pages. */
+export type DiagramView = 'steps' | 'pages';
+
+/** Which page setting changed in the Page pane (D10). */
+export type DiagramPageSetting =
+  | 'size'
+  | 'orientation'
+  | 'margin'
+  | 'layout'
+  | 'columns'
+  | 'rows'
+  | 'path'
+  | 'scale'
+  | 'title'
+  | 'page_numbers'
+  | 'first_page'
+  | 'style'
+  | 'han_style';
+
+/** A diagram style as chosen: a built-in by id, the Settings export style, or a saved preset (`custom`). */
+export type DiagramStyleChoiceName = 'default' | 'diagram' | 'export-style' | 'custom';
+
 /** The five top-level workspaces, plus the share screen. */
 export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'share';
 /**
@@ -1047,6 +1069,10 @@ export const ANALYTICS_EVENTS = {
   diagramPictureCaptured: 'diagram picture captured',
   /** A step's Open in Edit or Open in References: whether the way back to a step's source is used. */
   diagramSourceOpened: 'diagram source opened',
+  /** The Diagram switched between its steps and its pages: whether the pages are looked at. */
+  diagramViewSwitched: 'diagram view switched',
+  /** A page setting changed in the Page pane: which ones are used, never their values. */
+  diagramPageSetupChanged: 'diagram page setup changed',
   /**
    * Cards sent from References to the diagram (D6): from the planner's
    * sequence or a Find answer, one card or the strip, how many, and whether

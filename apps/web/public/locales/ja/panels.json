@@ -663,6 +663,7 @@
       "duplicate": "ステップを複製",
       "exportPicture": "図を書き出し…",
       "firstHint": "すでに最初のステップです",
+      "firstPageHint": "最初のステップは常にページの始まりです",
       "fromReferences": "リファレンスから…",
       "insertAfter": "後ろにステップを挿入",
       "insertBefore": "前にステップを挿入",
@@ -685,6 +686,7 @@
       "relinkPattern": "パターンをリンクし直す…",
       "removePicture": "図を削除",
       "replacePicture": "図を差し替え…",
+      "startPage": "ここで新しいページを始める",
       "uploadPicture": "図をアップロード…"
     },
     "card": {
@@ -699,6 +701,7 @@
       "cancelWaiting": "キャンセル",
       "capturing": "キャプチャ中…",
       "fromReferences": "リファレンス…",
+      "lightingChanged": "照明が変わりました",
       "link": "リンク…",
       "locked": "新しい Ori Studio で作成",
       "missing": "パターンなし",
@@ -709,6 +712,7 @@
       "patternChanged": "パターン変更あり",
       "stale": "要更新",
       "stop": "停止",
+      "textCut": "文章が収まりません",
       "upload": "アップロード…",
       "waitingReferences": "リファレンスを待機中"
     },
@@ -740,6 +744,7 @@
       "linkPattern": "パターンをリンク…",
       "moreAdd": "ステップを追加するその他の方法",
       "nothingToRefresh": "古くなったリンク済みステップはありません。リファレンスから送ったステップは更新されません。",
+      "pageCount_other": "{{count}} ページ",
       "refreshAll": "古いステップを更新",
       "stepCount_other": "{{count}} ステップ",
       "stopRefreshing": "更新を停止（{{done}} / {{total}}）",
@@ -748,6 +753,66 @@
       "uploadPictures": "図をアップロード…"
     },
     "label": "折り図",
+    "pagePane": {
+      "columns": "列",
+      "exportStyle": "設定の書き出しスタイル",
+      "firstPage": "最初の番号",
+      "flow": "フロー",
+      "flowHint": "行の端で折り返します。",
+      "grid": "グリッド",
+      "gridHint": "各行を左から右へ読みます。",
+      "han": {
+        "jp": "日本語",
+        "kr": "韓国語",
+        "sc": "簡体字中国語",
+        "tc": "繁体字中国語"
+      },
+      "hanStyle": "漢字",
+      "hanStyleHint": "かなやハングルがなく言語がわからない文章で、漢字をどの字形で描くか。",
+      "headerFooter": "ヘッダーとフッター",
+      "keptStyle": "この折り図独自のもの",
+      "label": "ページ設定",
+      "landscape": "横向き",
+      "layout": "レイアウト",
+      "margin": "余白",
+      "mm": "mm",
+      "orientation": "向き",
+      "pageCount_other": "{{count}} ページ",
+      "pageNumbers": "ページ番号",
+      "paper": "用紙",
+      "perPage_other": "1ページに {{count}} ステップ",
+      "perRow": "1行のステップ数",
+      "portrait": "縦向き",
+      "rows": "行",
+      "scale": "縮尺",
+      "scaleFit": "個別に合わせる",
+      "scaleHint": "同じ縮尺では、本のように、どの展開図も紙の単位あたり同じ大きさで描きます。個別に合わせると、それぞれ枠いっぱいに描きます。",
+      "scalePaper": "同じ縮尺",
+      "showPath": "経路を表示",
+      "size": "サイズ",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5（JIS）",
+        "letter": "USレター"
+      },
+      "style": "スタイル",
+      "styleHint": "インクとペンはすべてのステップに一度に反映されます。3Dのステップは更新すると新しい照明になります。",
+      "styleSection": "スタイル",
+      "title": "タイトル",
+      "titleHelp": "折り図のタイトルを、各ページ上部のタブに表示します。"
+    },
+    "pages": {
+      "caption": "{{number}} ページ",
+      "controls": "ページ表示の操作",
+      "failed": "ページをレイアウトできませんでした。接続を確認して、もう一度お試しください。",
+      "loading": "ページをレイアウトしています…",
+      "noPicture": "まだ図がありません",
+      "pageAlt": "{{number}} ページ",
+      "pageOf": "{{number}} / {{total}} ページ",
+      "step": "ステップ {{number}}",
+      "textCut": "文章が収まりません"
+    },
     "picker": {
       "cancel": "キャンセル",
       "failed": "展開図のパターンが見つかりませんでした。",
@@ -829,6 +894,13 @@
       "pose": "ポーズ",
       "positionLabel": "ステップの位置",
       "step": "ステップ"
+    },
+    "view": {
+      "label": "表示",
+      "pages": "ページ",
+      "pagesHint": "印刷されるとおりのページ",
+      "steps": "ステップ",
+      "stepsHint": "すべてのステップをカードで並べて編集"
     }
   },
   "explori": {
@@ -1227,6 +1299,7 @@
     "label": "折り紙パターン"
   },
   "sidePane": {
+    "page": "ページ",
     "properties": "プロパティ",
     "settings": "設定",
     "step": "ステップ",

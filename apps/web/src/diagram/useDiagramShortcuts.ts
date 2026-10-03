@@ -47,6 +47,20 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
 }
 
 /**
+ * The camera of the view on screen — the Pages view's zoom and fit — which the
+ * Diagram's viewport executor asks for the verbs its own ladder declines.
+ */
+let viewCamera: ((id: ViewportShortcutId) => boolean) | null = null;
+
+/** Hand the Diagram's viewport keys a view's camera; returns its release. */
+export function registerDiagramViewCamera(camera: (id: ViewportShortcutId) => boolean): () => void {
+  viewCamera = camera;
+  return () => {
+    if (viewCamera === camera) viewCamera = null;
+  };
+}
+
+/**
  * Bind the Diagram's keys while its panel is mounted.
  *
  * Two registrations, one per kind of verb, both focus-independent (never a
@@ -55,9 +69,10 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
  *   Alt+arrows to move one, Enter to open one — which declines while a control
  *   that uses the key has focus;
  * - the `'diagram'` viewport surface's executor — Escape's cancel ladder, and
- *   Shift+F10 for the selected step's menu. One owner at a time: later views
- *   that bring a camera (Pages, Annotate) take the surface over, asking this
- *   ladder before their camera verbs.
+ *   Shift+F10 for the selected step's menu. It stays the surface's one owner:
+ *   a view that brings a camera (Pages) registers it here
+ *   ({@link registerDiagramViewCamera}), and the camera answers the zoom and
+ *   fit keys the ladder leaves.
  *
  * The panel claims the viewport surface on mount and on every press inside it
  * (`onPointerDownCapture`, returned here), and releases it on unmount so the
@@ -95,8 +110,9 @@ export function useDiagramShortcuts(handlers: {
           return stepId !== null && handlersRef.current.openStepMenu(stepId);
         }
         default:
-          // No camera in the Steps view: zoom, pan and rotate fall through.
-          return false;
+          // The view's camera, if it has one; the Steps view has none, and
+          // zoom, pan and rotate fall through.
+          return viewCamera?.(id) ?? false;
       }
     });
     return () => {

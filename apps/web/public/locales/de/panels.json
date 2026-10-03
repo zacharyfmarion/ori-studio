@@ -692,6 +692,7 @@
       "duplicate": "Schritt duplizieren",
       "exportPicture": "Bild exportieren…",
       "firstHint": "Bereits der erste Schritt",
+      "firstPageHint": "Der erste Schritt beginnt immer eine Seite",
       "fromReferences": "Aus Referenzen…",
       "insertAfter": "Schritt danach einfügen",
       "insertBefore": "Schritt davor einfügen",
@@ -714,6 +715,7 @@
       "relinkPattern": "Muster neu verknüpfen…",
       "removePicture": "Bild entfernen",
       "replacePicture": "Bild ersetzen…",
+      "startPage": "Hier eine neue Seite beginnen",
       "uploadPicture": "Bild hochladen…"
     },
     "card": {
@@ -728,6 +730,7 @@
       "cancelWaiting": "Abbrechen",
       "capturing": "Wird erfasst…",
       "fromReferences": "Referenzen…",
+      "lightingChanged": "Beleuchtung geändert",
       "link": "Verknüpfen…",
       "locked": "Mit einem neueren Ori Studio erstellt",
       "missing": "Muster fehlt",
@@ -738,6 +741,7 @@
       "patternChanged": "Muster geändert",
       "stale": "Veraltet",
       "stop": "Stopp",
+      "textCut": "Text passt nicht",
       "upload": "Hochladen…",
       "waitingReferences": "Wartet auf Referenzen"
     },
@@ -769,6 +773,8 @@
       "linkPattern": "Muster verknüpfen…",
       "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
       "nothingToRefresh": "Kein verknüpfter Schritt ist veraltet. Schritte aus Referenzen werden nicht aktualisiert.",
+      "pageCount_one": "1 Seite",
+      "pageCount_other": "{{count}} Seiten",
       "refreshAll": "Veraltete Schritte aktualisieren",
       "stepCount_one": "{{count}} Schritt",
       "stepCount_other": "{{count}} Schritte",
@@ -778,6 +784,68 @@
       "uploadPictures": "Bilder hochladen…"
     },
     "label": "Diagramm",
+    "pagePane": {
+      "columns": "Spalten",
+      "exportStyle": "Exportstil aus den Einstellungen",
+      "firstPage": "Erste Nummer",
+      "flow": "Fluss",
+      "flowHint": "Die Reihen wenden an jedem Ende.",
+      "grid": "Raster",
+      "gridHint": "Reihen werden von links nach rechts gelesen.",
+      "han": {
+        "jp": "Japanisch",
+        "kr": "Koreanisch",
+        "sc": "Chinesisch (vereinfacht)",
+        "tc": "Chinesisch (traditionell)"
+      },
+      "hanStyle": "Han-Schriftzeichen",
+      "hanStyleHint": "Wie chinesische Schriftzeichen gezeichnet werden, wenn ein Text keine Kana oder Hangul hat, die seine Sprache verraten.",
+      "headerFooter": "Kopf- und Fußzeile",
+      "keptStyle": "Der eigene Stil dieses Diagramms",
+      "label": "Seite einrichten",
+      "landscape": "Querformat",
+      "layout": "Anordnung",
+      "margin": "Rand",
+      "mm": "mm",
+      "orientation": "Ausrichtung",
+      "pageCount_one": "1 Seite",
+      "pageCount_other": "{{count}} Seiten",
+      "pageNumbers": "Seitenzahlen",
+      "paper": "Papier",
+      "perPage_one": "1 Schritt pro Seite",
+      "perPage_other": "{{count}} Schritte pro Seite",
+      "perRow": "Schritte pro Reihe",
+      "portrait": "Hochformat",
+      "rows": "Reihen",
+      "scale": "Maßstab",
+      "scaleFit": "Jeden einpassen",
+      "scaleHint": "Ein Maßstab zeichnet jedes Muster in derselben Größe je Papiereinheit, wie in einem Buch. Einpassen zeichnet jedes so groß wie sein Feld.",
+      "scalePaper": "Ein Maßstab",
+      "showPath": "Pfad zeigen",
+      "size": "Größe",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5 (JIS)",
+        "letter": "US Letter"
+      },
+      "style": "Stil",
+      "styleHint": "Tinte und Stifte ändern sich bei allen Schritten zugleich. Ein 3D-Schritt erhält die neue Beleuchtung, wenn er aktualisiert wird.",
+      "styleSection": "Stil",
+      "title": "Titel",
+      "titleHelp": "Der Titel des Diagramms, in einem Reiter oben auf jeder Seite."
+    },
+    "pages": {
+      "caption": "Seite {{number}}",
+      "controls": "Steuerung der Seitenansicht",
+      "failed": "Die Seiten konnten nicht gesetzt werden. Prüfe die Verbindung und versuche es erneut.",
+      "loading": "Seiten werden gesetzt…",
+      "noPicture": "Noch kein Bild",
+      "pageAlt": "Seite {{number}}",
+      "pageOf": "Seite {{number}} von {{total}}",
+      "step": "Schritt {{number}}",
+      "textCut": "Text passt nicht"
+    },
     "picker": {
       "cancel": "Abbrechen",
       "failed": "Die Muster des Faltmusters wurden nicht gefunden.",
@@ -859,6 +927,13 @@
       "pose": "Pose",
       "positionLabel": "Position des Schritts",
       "step": "Schritt"
+    },
+    "view": {
+      "label": "Ansicht",
+      "pages": "Seiten",
+      "pagesHint": "Die Seiten, wie sie gedruckt werden",
+      "steps": "Schritte",
+      "stepsHint": "Jeder Schritt als Karte, zum Anordnen und Bearbeiten"
     }
   },
   "explori": {
@@ -1263,6 +1338,7 @@
     "label": "Faltmuster"
   },
   "sidePane": {
+    "page": "Seite",
     "properties": "Eigenschaften",
     "settings": "Einstellungen",
     "step": "Schritt",

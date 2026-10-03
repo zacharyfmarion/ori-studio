@@ -721,6 +721,7 @@
       "duplicate": "Duplicar passo",
       "exportPicture": "Exportar imagem…",
       "firstHint": "Já é o primeiro passo",
+      "firstPageHint": "O primeiro passo sempre começa uma página",
       "fromReferences": "De Referências…",
       "insertAfter": "Inserir passo depois",
       "insertBefore": "Inserir passo antes",
@@ -743,6 +744,7 @@
       "relinkPattern": "Revincular padrão…",
       "removePicture": "Remover imagem",
       "replacePicture": "Substituir imagem…",
+      "startPage": "Começar uma nova página aqui",
       "uploadPicture": "Enviar imagem…"
     },
     "card": {
@@ -757,6 +759,7 @@
       "cancelWaiting": "Cancelar",
       "capturing": "Capturando…",
       "fromReferences": "Referências…",
+      "lightingChanged": "A iluminação mudou",
       "link": "Vincular…",
       "locked": "Criado com uma versão mais recente do Ori Studio",
       "missing": "Padrão ausente",
@@ -767,6 +770,7 @@
       "patternChanged": "Padrão alterado",
       "stale": "Desatualizado",
       "stop": "Parar",
+      "textCut": "O texto não cabe",
       "upload": "Enviar…",
       "waitingReferences": "Aguardando Referências"
     },
@@ -798,6 +802,9 @@
       "linkPattern": "Vincular padrão…",
       "moreAdd": "Mais formas de adicionar passos",
       "nothingToRefresh": "Nenhum passo vinculado está desatualizado. Passos de Referências não são atualizados.",
+      "pageCount_one": "1 página",
+      "pageCount_many": "{{count}} páginas",
+      "pageCount_other": "{{count}} páginas",
       "refreshAll": "Atualizar passos desatualizados",
       "stepCount_one": "{{count}} passo",
       "stepCount_many": "{{count}} passos",
@@ -808,6 +815,70 @@
       "uploadPictures": "Enviar imagens…"
     },
     "label": "Diagrama",
+    "pagePane": {
+      "columns": "Colunas",
+      "exportStyle": "Estilo de exportação das Configurações",
+      "firstPage": "Primeiro número",
+      "flow": "Fluxo",
+      "flowHint": "As linhas fazem a volta em cada ponta.",
+      "grid": "Grade",
+      "gridHint": "As linhas são lidas da esquerda para a direita.",
+      "han": {
+        "jp": "Japonês",
+        "kr": "Coreano",
+        "sc": "Chinês simplificado",
+        "tc": "Chinês tradicional"
+      },
+      "hanStyle": "Caracteres han",
+      "hanStyleHint": "Como os caracteres chineses são desenhados quando um texto não tem kana nem hangul que indiquem o idioma.",
+      "headerFooter": "Cabeçalho e rodapé",
+      "keptStyle": "O estilo próprio deste diagrama",
+      "label": "Configuração da página",
+      "landscape": "Paisagem",
+      "layout": "Disposição",
+      "margin": "Margem",
+      "mm": "mm",
+      "orientation": "Orientação",
+      "pageCount_one": "1 página",
+      "pageCount_many": "{{count}} páginas",
+      "pageCount_other": "{{count}} páginas",
+      "pageNumbers": "Números de página",
+      "paper": "Papel",
+      "perPage_one": "1 passo por página",
+      "perPage_many": "{{count}} passos por página",
+      "perPage_other": "{{count}} passos por página",
+      "perRow": "Passos por linha",
+      "portrait": "Retrato",
+      "rows": "Linhas",
+      "scale": "Escala",
+      "scaleFit": "Ajustar cada um",
+      "scaleHint": "Uma escala desenha cada padrão no mesmo tamanho por unidade de papel, como um livro. Ajustar desenha cada um tão grande quanto seu quadro.",
+      "scalePaper": "Uma escala",
+      "showPath": "Mostrar trajeto",
+      "size": "Tamanho",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5 (JIS)",
+        "letter": "Carta (EUA)"
+      },
+      "style": "Estilo",
+      "styleHint": "A tinta e as canetas mudam em todos os passos de uma vez. Um passo 3D recebe a nova iluminação ao ser atualizado.",
+      "styleSection": "Estilo",
+      "title": "Título",
+      "titleHelp": "O título do diagrama, numa aba no alto de cada página."
+    },
+    "pages": {
+      "caption": "Página {{number}}",
+      "controls": "Controles da visualização de páginas",
+      "failed": "Não foi possível diagramar as páginas. Verifique a conexão e tente de novo.",
+      "loading": "Diagramando as páginas…",
+      "noPicture": "Ainda sem imagem",
+      "pageAlt": "Página {{number}}",
+      "pageOf": "Página {{number}} de {{total}}",
+      "step": "Passo {{number}}",
+      "textCut": "O texto não cabe"
+    },
     "picker": {
       "cancel": "Cancelar",
       "failed": "Não foi possível encontrar os padrões do padrão de vincos.",
@@ -889,6 +960,13 @@
       "pose": "Pose",
       "positionLabel": "Posição do passo",
       "step": "Passo"
+    },
+    "view": {
+      "label": "Visualização",
+      "pages": "Páginas",
+      "pagesHint": "As páginas como serão impressas",
+      "steps": "Passos",
+      "stepsHint": "Cada passo como um cartão, para ordenar e editar"
     }
   },
   "explori": {
@@ -1303,6 +1381,7 @@
     "label": "Padrões de vincos"
   },
   "sidePane": {
+    "page": "Página",
     "properties": "Propriedades",
     "settings": "Configurações",
     "step": "Passo",

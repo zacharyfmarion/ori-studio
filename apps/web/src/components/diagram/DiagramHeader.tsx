@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 import { SplitButton } from '../ui/SplitButton';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
+import type { DiagramViewMode } from '../../store/workspaceStore/types';
 import { DiagramTitleField } from './DiagramTitleField';
+import { DiagramViewSwitch } from './DiagramViewSwitch';
 import styles from './DiagramHeader.module.css';
 
 /**
@@ -16,6 +18,9 @@ import styles from './DiagramHeader.module.css';
 export function DiagramHeader({
   title,
   stepCount,
+  pageCount,
+  view,
+  onViewChange,
   readOnly,
   onRename,
   onAddStep,
@@ -31,6 +36,10 @@ export function DiagramHeader({
 }: {
   title: string;
   stepCount: number;
+  /** How many pages the steps make. */
+  pageCount: number;
+  view: DiagramViewMode;
+  onViewChange: (view: DiagramViewMode) => void;
   readOnly: boolean;
   onRename: (title: string) => void;
   onAddStep: () => void;
@@ -63,9 +72,16 @@ export function DiagramHeader({
               defaultValue_one: '1 step',
               defaultValue_other: '{{count}} steps',
             })}
+            {' · '}
+            {t('panels:diagram.header.pageCount', {
+              count: pageCount,
+              defaultValue_one: '1 page',
+              defaultValue_other: '{{count}} pages',
+            })}
           </span>
         )}
       </div>
+      <DiagramViewSwitch className={styles.views} view={view} onChange={onViewChange} />
       <div className={`panel-toolbar__group ${styles.actions}`}>
         <DiagramHistoryButtons />
         <SplitButton

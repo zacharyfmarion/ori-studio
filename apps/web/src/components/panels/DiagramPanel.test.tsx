@@ -14,6 +14,12 @@ import { DiagramPanel } from './DiagramPanel';
  */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const analytics = vi.hoisted(() => ({ trackDiagramViewSwitched: vi.fn() }));
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  ...analytics,
+}));
+
 const initialState = useWorkspaceStore.getInitialState();
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
@@ -144,6 +150,36 @@ describe('DiagramPanel', () => {
     expect(titleField().disabled).toBe(true);
   });
 
+  describe('the views', () => {
+    it('switches to the pages from the header’s tabs, once, and counts it', async () => {
+      // The page view's toolbar measures itself; jsdom has nothing to measure with.
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        }
+      );
+      onTestFinished(() => {
+        vi.unstubAllGlobals();
+      });
+      addSteps(2);
+      expect(host?.textContent).toContain('2 steps · 1 page');
+      const pages = [...(host?.querySelectorAll<HTMLElement>('[role="tab"]') ?? [])].find(
+        (tab) => tab.textContent === 'Pages'
+      )!;
+      act(() => {
+        pages.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+      });
+      expect(state().diagramView).toBe('pages');
+      expect(analytics.trackDiagramViewSwitched).toHaveBeenCalledExactlyOnceWith('pages');
+      // The cards are gone; the page view says what it is doing.
+      expect(options()).toHaveLength(0);
+      expect(host?.querySelector('[role="status"]')).not.toBeNull();
+    });
+  });
+
   describe('keys', () => {
     it('walks the steps with the arrows, moves one with Alt, and lets Escape deselect', () => {
       const [first, second, third] = addSteps(3);
@@ -213,7 +249,7 @@ describe('DiagramPanel', () => {
     it('opens the selected step’s menu from the keyboard', () => {
       addSteps(2);
       // jsdom lays nothing out, so give the card a box to anchor the menu to.
-      const card = host?.querySelector<HTMLElement>('[aria-selected="true"]');
+      const card = host?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]');
       card!.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
       expect(press({ key: 'F10', shiftKey: true })).toBe(true);
       expect(menuItems().some((row) => row?.startsWith('Delete Step'))).toBe(true);

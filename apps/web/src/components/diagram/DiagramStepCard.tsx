@@ -15,6 +15,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepCard.module.css';
+import { lightingChanged } from '../../diagram/pictures/lighting';
 
 /**
  * One step in the Steps grid: its number and kind, its picture, and its
@@ -60,6 +61,8 @@ export const DiagramStepCard = forwardRef<
     onUpload: (stepId: string) => void;
     /** How the step's link stands; null for a step that is not linked. */
     link: DiagramLinkStatus | null;
+    /** The pages cut the step's instruction with "…". */
+    textCut: boolean;
     /** The step's capture while one runs, and whether its fold can be stopped. */
     capture: { stoppable: boolean } | null;
     /** A crease pattern is open to link an empty step to. */
@@ -88,6 +91,7 @@ export const DiagramStepCard = forwardRef<
     onOpen,
     onUpload,
     link,
+    textCut,
     capture,
     patternOpen,
     onLink,
@@ -125,7 +129,11 @@ export const DiagramStepCard = forwardRef<
           : t('panels:diagram.card.stale', 'Out of date')
         : link === 'missing'
           ? t('panels:diagram.card.missing', 'Pattern missing')
-          : null;
+          : lightingChanged(step, style)
+            ? t('panels:diagram.card.lightingChanged', 'Lighting changed')
+            : textCut
+              ? t('panels:diagram.card.textCut', 'Text doesn’t fit')
+              : null;
   // A press must not take focus from the card's keys.
   const keepFocus = (event: { preventDefault: () => void }) => event.preventDefault();
 

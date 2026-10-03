@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { awaitingReferencesStep, type DiagramStep } from '../document/diagramDocument';
+import { awaitingReferencesStep, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
+import { lightingChanged } from '../pictures/lighting';
 import type { DiagramLinkStatus } from './linkStatus';
 import { askReferencesForStep } from './referencesStepActions';
 import { useDiagramLinkStatuses } from './useLinkStatus';
@@ -12,9 +13,10 @@ export interface DiagramCardLinks {
   captures: Readonly<Record<string, { stoppable: boolean }>>;
   stop: (stepId: string) => void;
   /**
-   * How many linked patterns changed: what Refresh all would capture again. A
-   * step sent from References is not among them, whatever its sheet did — its
-   * picture is a snapshot, never refreshed (D6).
+   * How many linked patterns changed, or 3D pictures were lit by another style:
+   * what Refresh all would capture again. A step sent from References is not
+   * among them, whatever its sheet did — its picture is a snapshot, never
+   * refreshed (D6).
    */
   refreshable: number;
   /** The step From References… waits to fill, if any. */
@@ -30,7 +32,7 @@ export interface DiagramCardLinks {
  * its pattern, which are being captured, and a Stop for a capture's fold; and
  * which step waits for a picture from References, with its way there and back.
  */
-export function useDiagramCardLinks(steps: readonly DiagramStep[]): DiagramCardLinks {
+export function useDiagramCardLinks(steps: readonly DiagramStep[], style: DiagramStyle): DiagramCardLinks {
   const statuses = useDiagramLinkStatuses(steps);
   const runs = useWorkspaceStore((state) => state.diagramCaptures);
   const foldRuns = useWorkspaceStore((state) => state.oristudioCpFoldRuns);
@@ -46,7 +48,9 @@ export function useDiagramCardLinks(steps: readonly DiagramStep[]): DiagramCardL
   );
   let refreshable = 0;
   for (const step of steps) {
-    if (step.source?.kind === 'cp' && statuses.get(step.id) === 'stale') refreshable += 1;
+    if (step.source?.kind !== 'cp') continue;
+    const status = statuses.get(step.id);
+    if (status === 'stale' || (status === 'current' && lightingChanged(step, style))) refreshable += 1;
   }
   return {
     statuses,

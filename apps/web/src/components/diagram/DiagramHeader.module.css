@@ -19,6 +19,18 @@
   margin-left: auto;
 }
 
+.views {
+  flex: 0 0 auto;
+}
+
+/* On a phone the two views share a row of their own, under the title. */
+@media (max-width: 720px) {
+  .views {
+    flex: 1 1 100%;
+    order: 3;
+  }
+}
+
 /* Wrapped, each row gets a little air from the frame's top and bottom rules. */
 @media (max-width: 720px) {
   .title,

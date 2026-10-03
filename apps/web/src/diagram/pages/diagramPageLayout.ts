@@ -141,6 +141,20 @@ export interface DiagramPagesLayout {
   bandWidthMm: number;
 }
 
+/**
+ * Which steps go on which page, as indices: in order, a new page when one is
+ * full or a step starts one. An empty diagram is one empty page.
+ */
+export function splitIntoPages(steps: readonly Pick<LayoutStep, 'breakBefore'>[], perPage: number): number[][] {
+  const pages: number[][] = [];
+  steps.forEach((step, index) => {
+    const current = pages.at(-1);
+    if (!current || current.length >= perPage || (step.breakBefore && current.length > 0)) pages.push([index]);
+    else current.push(index);
+  });
+  return pages.length === 0 ? [[]] : pages;
+}
+
 /** The pages of a diagram's steps, under its page setup. */
 export function layoutDiagramPages(
   steps: readonly LayoutStep[],
@@ -160,18 +174,9 @@ export function layoutDiagramPages(
   const textWidth = cellW * 0.8;
   const perPage = setup.columns * setup.rows;
 
-  // Which steps on which page: in order, a new page when one is full or a
-  // step starts one.
-  const pagesOfSteps: { step: LayoutStep; index: number }[][] = [];
-  steps.forEach((step, index) => {
-    const current = pagesOfSteps.at(-1);
-    if (!current || current.length >= perPage || (step.breakBefore && current.length > 0)) {
-      pagesOfSteps.push([{ step, index }]);
-    } else {
-      current.push({ step, index });
-    }
-  });
-  if (pagesOfSteps.length === 0) pagesOfSteps.push([]);
+  const pagesOfSteps = splitIntoPages(steps, perPage).map((page) =>
+    page.map((index) => ({ step: steps[index]!, index }))
+  );
 
   // Each cell's box and text, before the scale is known.
   interface Placed {

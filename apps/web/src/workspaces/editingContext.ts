@@ -45,6 +45,7 @@ const STATIC_PANEL_CONTEXTS: Record<string, EditingContext> = {
   'references-view-controls': 'references',
   diagram: 'diagram',
   'diagram-step': 'diagram',
+  'diagram-page': 'diagram',
 };
 
 /**

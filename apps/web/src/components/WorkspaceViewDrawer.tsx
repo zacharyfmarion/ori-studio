@@ -12,6 +12,7 @@ import {
 import { ErrorBoundary } from './errors/ErrorBoundary';
 import { CpPropertiesPanel } from './panels/CpPropertiesPanel';
 import { CpViewControlsPanel } from './panels/CpViewControlsPanel';
+import { DiagramPagePanel } from './panels/DiagramPagePanel';
 import { DiagramStepPanel } from './panels/DiagramStepPanel';
 import { ReferencesViewControlsPanel } from './panels/ReferencesViewControlsPanel';
 import { SimulatorViewControlsPanel } from './panels/SimulatorViewControlsPanel';
@@ -33,6 +34,7 @@ const VIEW_DRAWER_BODIES: Record<SidePaneId, ComponentType> = {
   'simulator-view-controls': SimulatorViewControlsPanel,
   'references-view-controls': ReferencesViewControlsPanel,
   'diagram-step': DiagramStepPanel,
+  'diagram-page': DiagramPagePanel,
 };
 
 /**

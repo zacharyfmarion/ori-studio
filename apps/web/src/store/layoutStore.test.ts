@@ -695,6 +695,7 @@ describe('the View pane under a coarse pointer', () => {
       ['simulate', 'simulator-view-controls', 'simulate'],
       ['references', 'references-view-controls', 'references'],
       ['diagram', 'diagram-step', 'diagram'],
+      ['diagram', 'diagram-page', 'diagram'],
     ]);
   });
 

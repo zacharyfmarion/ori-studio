@@ -50,8 +50,10 @@ import type {
   DiagramCpSource,
   SentReferencesStep,
   DiagramDocument,
+  DiagramHanStyle,
   DiagramPageSetup,
   DiagramPicture,
+  DiagramStyle,
   KnownDiagramAsset,
   UploadPose,
 } from '../../diagram/document/diagramDocument';
@@ -1926,6 +1928,12 @@ export interface DiagramSliceActions {
   noteDiagramPictureChanges: (assetId: string, notices: readonly SanitizeNotice[]) => void;
   setDiagramTitle: (title: string) => boolean;
   setDiagramPage: (patch: Partial<DiagramPageSetup>) => boolean;
+  /** Start a new page at the step, or stop doing so ("Start a new page here", D10). */
+  setDiagramStepBreakBefore: (stepId: string, breakBefore: boolean) => boolean;
+  /** The paper style every step is painted in (D9): a built-in by id, or a resolved style. */
+  setDiagramStyle: (style: DiagramStyle) => boolean;
+  /** How Han characters are drawn when nothing else in a text says (Decision 2). */
+  setDiagramHanStyle: (hanStyle: DiagramHanStyle) => boolean;
   selectDiagramStep: (stepId: string | null) => void;
   /** Select a step and open it in detail. False when there is no such step. */
   openDiagramStep: (stepId: string, mode?: DiagramDetailMode) => boolean;

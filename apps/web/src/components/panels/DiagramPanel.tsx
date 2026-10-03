@@ -1,10 +1,16 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { trackDiagramViewSwitched } from '../../analytics';
 import {
   DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_PAGE_SETUP,
   type DiagramAsset,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
+import { splitIntoPages } from '../../diagram/pages/diagramPageLayout';
+import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
+import { useDiagramPages } from '../../diagram/pages/useDiagramPages';
+import { DIAGRAM_PAGE_PANE_ID, revealDiagramPane, useDiagramPaneReveal } from '../../diagram/useDiagramPaneReveal';
 import { refreshAllDiagramSteps, stopRefreshAll } from '../../diagram/capture/captureQueue';
 import { openDiagramPatternPicker } from '../../diagram/capture/stepCaptureActions';
 import { useDiagramCardLinks } from '../../diagram/capture/useCardLinks';
@@ -21,8 +27,10 @@ import { useDiagramShortcuts } from '../../diagram/useDiagramShortcuts';
 import { useDiagramStepMenu } from '../../diagram/useDiagramStepMenu';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import type { DiagramViewMode } from '../../store/workspaceStore/types';
 import { DiagramEmptyState } from '../diagram/DiagramEmptyState';
 import { DiagramHeader } from '../diagram/DiagramHeader';
+import { DiagramPagesView } from '../diagram/DiagramPagesView';
 import { DiagramStepDetail } from '../diagram/DiagramStepDetail';
 import { DiagramStepsGrid } from '../diagram/DiagramStepsGrid';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -30,6 +38,15 @@ import { Notice } from '../ui/Notice';
 import styles from './DiagramPanel.module.css';
 
 const NO_STEPS: readonly DiagramStep[] = [];
+const NONE_CUT: ReadonlySet<string> = new Set();
+
+/** The steps whose instruction the pages cut with "…". */
+function cutStepIds(pages: PreparedDiagramPages | null): ReadonlySet<string> {
+  if (!pages) return NONE_CUT;
+  const cut = new Set<string>();
+  for (const page of pages.layout.pages) for (const cell of page.cells) if (cell.textOverflow) cut.add(cell.stepId);
+  return cut.size > 0 ? cut : NONE_CUT;
+}
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'double_click');
@@ -46,6 +63,16 @@ const linkNewStep = () => {
 
 /** References, whose Send to diagram adds its cards after the selected step. */
 const stepsFromReferences = () => useWorkspaceStore.getState().openReferencesWorkspace();
+
+const switchView = (view: DiagramViewMode) => {
+  const store = useWorkspaceStore.getState();
+  if (store.diagramView === view) return;
+  store.setDiagramView(view);
+  trackDiagramViewSwitched(view);
+};
+
+/** A press on a page outside its steps: a question about the page. */
+const revealPagePane = () => revealDiagramPane(DIAGRAM_PAGE_PANE_ID);
 
 /**
  * The Diagram workspace: the steps of a folding sequence in order, each a
@@ -81,9 +108,21 @@ export function DiagramPanel() {
   const menu = useDiagramStepMenu(rootRef);
   const keys = useDiagramShortcuts({ openStepMenu: menu.openStepMenu });
   const { dropTarget, ...dropHandlers } = useStepPictureDrop();
-  const links = useDiagramCardLinks(steps);
+  const links = useDiagramCardLinks(steps, style);
   const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const refreshing = useWorkspaceStore((state) => state.diagramRefreshAll);
+  const diagram = useWorkspaceStore((state) => state.diagram);
+  const view = useWorkspaceStore((state) => state.diagramView);
+  useDiagramPaneReveal();
+  // Laid out in either view: the pages are the Pages view, and the cards say
+  // whose text the pages cut.
+  const pages = useDiagramPages(steps.length > 0 ? diagram : null);
+  const page = diagram?.page ?? DEFAULT_PAGE_SETUP;
+  const pageCount = useMemo(
+    () => splitIntoPages(steps, page.columns * page.rows).length,
+    [steps, page.columns, page.rows]
+  );
+  const textCut = useMemo(() => cutStepIds(pages.pages), [pages.pages]);
 
   const detailIndex =
     detail !== null && selectedStepId !== null
@@ -136,6 +175,9 @@ export function DiagramPanel() {
       <DiagramHeader
         title={title}
         stepCount={steps.length}
+        pageCount={pageCount}
+        view={view}
+        onViewChange={switchView}
         readOnly={readOnly}
         onRename={setTitle}
         onAddStep={addStep}
@@ -160,7 +202,18 @@ export function DiagramPanel() {
         </div>
       )}
       <div className="panel-body" onContextMenu={steps.length > 0 ? menu.onContextMenu : undefined}>
-        {steps.length === 0 ? (
+        {steps.length > 0 && view === 'pages' ? (
+          <DiagramPagesView
+            pages={pages.pages}
+            failed={pages.failed}
+            steps={steps}
+            selectedStepId={selectedStepId}
+            fitKey={`${diagram?.id ?? ''}:${page.size}:${page.orientation}`}
+            onSelect={selectStep}
+            onOpen={openOnDoubleClick}
+            onPageClick={revealPagePane}
+          />
+        ) : steps.length === 0 ? (
           <DiagramEmptyState
             readOnly={readOnly}
             dropTarget={dropTarget !== null}
@@ -182,6 +235,7 @@ export function DiagramPanel() {
             onOpen={openOnDoubleClick}
             onUpload={uploadPictureFor}
             links={links}
+            textCut={textCut}
             patternOpen={patternOpen}
             onLink={openDiagramPatternPicker}
           />

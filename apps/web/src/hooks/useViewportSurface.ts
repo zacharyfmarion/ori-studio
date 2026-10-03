@@ -48,8 +48,12 @@ const CENTER_ANIMATION_MS = 160;
 const FIT_ANIMATION_MS = 180;
 
 export interface UseViewportSurfaceOptions {
-  /** Which surface owns the viewport keyboard shortcuts while it is focused. */
-  surface: ViewportSurfaceId;
+  /**
+   * Which surface owns the viewport keyboard shortcuts while it is focused;
+   * null for a camera inside a surface that already registers its own, which
+   * hands the camera's verbs on through {@link ViewportSurface.handleViewportShortcut}.
+   */
+  surface: ViewportSurfaceId | null;
   /** The world bounds the camera frames. */
   worldRect: PlotRect;
   /**
@@ -62,6 +66,13 @@ export interface UseViewportSurfaceOptions {
    * worth looking at in it. Defaults to the world.
    */
   fitRect?: PlotRect;
+  /**
+   * Where a fit puts the camera: the world's middle (the default, which the
+   * tree and BP panes frame with), or the middle of {@link fitRect} — for a
+   * world that is a run of things, of which a fit shows the first, as the
+   * Diagram's pages are.
+   */
+  fitAnchor?: 'world' | 'fit-rect';
   /**
    * A surface's own answer to a viewport shortcut, asked before the camera's.
    *
@@ -97,6 +108,8 @@ export interface ViewportSurface {
   fitToView: (animationTime?: number) => void;
   setActualSize: () => void;
   setZoomLevel: (scale: number) => void;
+  /** The camera's answer to a viewport shortcut: true when it took it. */
+  handleViewportShortcut: (id: ViewportShortcutId) => boolean;
   /** Wire to `<TransformWrapper onInit>` and `onTransformed`. */
   onInit: (ref: ReactZoomPanPinchRef) => void;
   onTransformed: (ref: ReactZoomPanPinchRef, state: { scale: number }) => void;
@@ -120,6 +133,7 @@ export function useViewportSurface({
   worldRect,
   fitKey,
   fitRect,
+  fitAnchor = 'world',
   maxFitScale,
   onViewportShortcut,
 }: UseViewportSurfaceOptions): ViewportSurface {
@@ -140,11 +154,33 @@ export function useViewportSurface({
     return getViewportFitScale(viewport, fitRect ?? worldRect, undefined, maxFitScale);
   }, [worldRect, fitRect, maxFitScale]);
 
-  const fitToView = useCallback(
-    (animationTime = FIT_ANIMATION_MS) => {
-      transformRef.current?.centerView(computeFitScale(), animationTime);
+  /** The fit: at its scale, centred on the world or on the fit rect. */
+  const frame = useCallback(
+    (animationTime: number) => {
+      const api = transformRef.current;
+      if (!api) return;
+      const scale = computeFitScale();
+      const viewport = viewportSizeFromElement(containerRef.current);
+      if (fitAnchor === 'world' || !fitRect || !viewport) {
+        api.centerView(scale, animationTime);
+        return;
+      }
+      api.setTransform(
+        (viewport.width - fitRect.width * scale) / 2 - fitRect.x * scale,
+        (viewport.height - fitRect.height * scale) / 2 - fitRect.y * scale,
+        scale,
+        animationTime
+      );
     },
-    [computeFitScale]
+    [computeFitScale, fitAnchor, fitRect]
+  );
+
+  // A control hands its click event in as the first argument; only a number is a duration.
+  const fitToView = useCallback(
+    (animationTime?: unknown) => {
+      frame(typeof animationTime === 'number' ? animationTime : FIT_ANIMATION_MS);
+    },
+    [frame]
   );
 
   const setActualSize = useCallback(() => {
@@ -190,7 +226,7 @@ export function useViewportSurface({
   );
 
   useEffect(
-    () => registerViewportShortcutExecutor(surface, handleViewportShortcut),
+    () => (surface === null ? undefined : registerViewportShortcutExecutor(surface, handleViewportShortcut)),
     [surface, handleViewportShortcut]
   );
 
@@ -217,11 +253,11 @@ export function useViewportSurface({
       ) {
         return false;
       }
-      transformRef.current.centerView(computeFitScale(), animationTime);
+      frame(animationTime);
       lastFittedKeyRef.current = fitKey;
       return true;
     },
-    [computeFitScale, fitKey]
+    [frame, fitKey]
   );
   const fitLoadedDocumentRef = useRef(fitLoadedDocument);
   useEffect(() => {
@@ -358,6 +394,7 @@ export function useViewportSurface({
     fitToView,
     setActualSize,
     setZoomLevel,
+    handleViewportShortcut,
     onInit,
     onTransformed,
   };

@@ -44,6 +44,7 @@ import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
 import { pickStepPictures } from './upload/addStepPictures';
+import { lightingChanged } from './pictures/lighting';
 
 /**
  * Add an empty step after the selected one (or at the end) and select it: the
@@ -101,6 +102,8 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       hasSource: stepHasPicture(step),
       link: linkStatusNow(step),
       linkKind: linkKindOf(step),
+      breakBefore: step.breakBefore,
+      lightingChanged: lightingChanged(step, diagram.style),
       capturing: Object.hasOwn(diagramCaptures, stepId),
       patternOpen: oristudioCpDocument !== null,
     },
@@ -147,6 +150,11 @@ function bindStepActions(
         const from = current ? stepIndex(current, stepId) : -1;
         if (from < 0) return;
         store().moveDiagramStep(stepId, direction === 'earlier' ? from - 1 : from + 1);
+      },
+      toggleBreak: () => {
+        const current = store().diagram;
+        const step = current?.steps[stepIndex(current, stepId)];
+        if (step) store().setDiagramStepBreakBefore(stepId, !step.breakBefore);
       },
       // Straight from the click: a browser opens a picker only inside one.
       uploadPicture: () => {
@@ -207,6 +215,10 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
     stepId === null ? false : Object.hasOwn(state.diagramCaptures, stepId)
   );
   const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
+  const breakBefore = step?.breakBefore ?? false;
+  const relight = useWorkspaceStore((state) =>
+    step && state.diagram ? lightingChanged(step, state.diagram.style) : false
+  );
 
   return useMemo(
     () =>
@@ -214,10 +226,38 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
         ? []
         : bindStepActions(
             stepId,
-            { index, count, locked, readOnly, hasPicture, hasSource, link, linkKind, capturing, patternOpen },
+            {
+              index,
+              count,
+              locked,
+              readOnly,
+              hasPicture,
+              hasSource,
+              link,
+              linkKind,
+              breakBefore,
+              lightingChanged: relight,
+              capturing,
+              patternOpen,
+            },
             t
           ),
-    [stepId, index, count, locked, readOnly, hasPicture, hasSource, link, linkKind, capturing, patternOpen, t]
+    [
+      stepId,
+      index,
+      count,
+      locked,
+      readOnly,
+      hasPicture,
+      hasSource,
+      link,
+      linkKind,
+      breakBefore,
+      relight,
+      capturing,
+      patternOpen,
+      t,
+    ]
   );
 }
 

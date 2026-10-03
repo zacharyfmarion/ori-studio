@@ -14,6 +14,8 @@ const BASE: DiagramStepActionState = {
   hasSource: false,
   link: null,
   linkKind: null,
+  breakBefore: false,
+  lightingChanged: false,
   capturing: false,
   patternOpen: true,
 };
@@ -24,6 +26,7 @@ function actions(state: Partial<DiagramStepActionState> = {}) {
     insert: vi.fn(),
     duplicate: vi.fn(),
     move: vi.fn(),
+    toggleBreak: vi.fn(),
     uploadPicture: vi.fn(),
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
@@ -46,6 +49,7 @@ describe('the step card menu', () => {
       'separator',
       'move-earlier',
       'move-later',
+      'checkbox',
       'separator',
       'upload-picture',
       'link-pattern',
@@ -55,6 +59,14 @@ describe('the step card menu', () => {
       'separator',
       'delete',
     ]);
+  });
+
+  it('offers a new page at the step as a check, and not on the first step', () => {
+    const row = (state: Partial<DiagramStepActionState>) =>
+      diagramStepMenuItems(actions(state)).find((item) => item.kind === 'checkbox');
+    expect(row({})).toMatchObject({ id: 'start-page', label: 'Start a New Page Here', checked: false, disabled: false });
+    expect(row({ breakBefore: true })).toMatchObject({ checked: true });
+    expect(row({ index: 0 })).toMatchObject({ disabled: true, hint: 'The first step always starts a page' });
   });
 
   it('shows the key that runs a verb, as the user has bound it', () => {

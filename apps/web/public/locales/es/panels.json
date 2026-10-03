@@ -721,6 +721,7 @@
       "duplicate": "Duplicar paso",
       "exportPicture": "Exportar imagen…",
       "firstHint": "Ya es el primer paso",
+      "firstPageHint": "El primer paso siempre empieza una página",
       "fromReferences": "Desde Referencias…",
       "insertAfter": "Insertar paso después",
       "insertBefore": "Insertar paso antes",
@@ -743,6 +744,7 @@
       "relinkPattern": "Volver a vincular patrón…",
       "removePicture": "Quitar imagen",
       "replacePicture": "Reemplazar imagen…",
+      "startPage": "Empezar una página nueva aquí",
       "uploadPicture": "Subir imagen…"
     },
     "card": {
@@ -757,6 +759,7 @@
       "cancelWaiting": "Cancelar",
       "capturing": "Capturando…",
       "fromReferences": "Referencias…",
+      "lightingChanged": "Cambió la iluminación",
       "link": "Vincular…",
       "locked": "Creado con una versión más reciente de Ori Studio",
       "missing": "Falta el patrón",
@@ -767,6 +770,7 @@
       "patternChanged": "El patrón cambió",
       "stale": "Desactualizado",
       "stop": "Detener",
+      "textCut": "El texto no cabe",
       "upload": "Subir…",
       "waitingReferences": "Esperando a Referencias"
     },
@@ -798,6 +802,9 @@
       "linkPattern": "Vincular patrón…",
       "moreAdd": "Más formas de añadir pasos",
       "nothingToRefresh": "Ningún paso vinculado está desactualizado. Los pasos de Referencias no se actualizan.",
+      "pageCount_one": "1 página",
+      "pageCount_many": "{{count}} páginas",
+      "pageCount_other": "{{count}} páginas",
       "refreshAll": "Actualizar pasos desactualizados",
       "stepCount_one": "{{count}} paso",
       "stepCount_many": "{{count}} pasos",
@@ -808,6 +815,70 @@
       "uploadPictures": "Subir imágenes…"
     },
     "label": "Diagrama",
+    "pagePane": {
+      "columns": "Columnas",
+      "exportStyle": "Estilo de exportación de Ajustes",
+      "firstPage": "Primer número",
+      "flow": "Flujo",
+      "flowHint": "Las filas giran en cada extremo.",
+      "grid": "Cuadrícula",
+      "gridHint": "Las filas se leen de izquierda a derecha.",
+      "han": {
+        "jp": "Japonés",
+        "kr": "Coreano",
+        "sc": "Chino simplificado",
+        "tc": "Chino tradicional"
+      },
+      "hanStyle": "Caracteres han",
+      "hanStyleHint": "Cómo se dibujan los caracteres chinos cuando un texto no tiene kana ni hangul que indiquen su idioma.",
+      "headerFooter": "Encabezado y pie",
+      "keptStyle": "El propio de este diagrama",
+      "label": "Configuración de página",
+      "landscape": "Horizontal",
+      "layout": "Diseño",
+      "margin": "Margen",
+      "mm": "mm",
+      "orientation": "Orientación",
+      "pageCount_one": "1 página",
+      "pageCount_many": "{{count}} páginas",
+      "pageCount_other": "{{count}} páginas",
+      "pageNumbers": "Números de página",
+      "paper": "Papel",
+      "perPage_one": "1 paso por página",
+      "perPage_many": "{{count}} pasos por página",
+      "perPage_other": "{{count}} pasos por página",
+      "perRow": "Pasos por fila",
+      "portrait": "Vertical",
+      "rows": "Filas",
+      "scale": "Escala",
+      "scaleFit": "Ajustar cada uno",
+      "scaleHint": "Una escala dibuja cada patrón al mismo tamaño por unidad de papel, como un libro. Ajustar dibuja cada uno tan grande como su recuadro.",
+      "scalePaper": "Una escala",
+      "showPath": "Mostrar recorrido",
+      "size": "Tamaño",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5 (JIS)",
+        "letter": "Carta EE. UU."
+      },
+      "style": "Estilo",
+      "styleHint": "La tinta y las plumas cambian en todos los pasos a la vez. Un paso 3D toma la nueva iluminación al actualizarlo.",
+      "styleSection": "Estilo",
+      "title": "Título",
+      "titleHelp": "El título del diagrama, en una pestaña en la parte superior de cada página."
+    },
+    "pages": {
+      "caption": "Página {{number}}",
+      "controls": "Controles de la vista de páginas",
+      "failed": "No se pudieron maquetar las páginas. Revisa la conexión e inténtalo de nuevo.",
+      "loading": "Maquetando las páginas…",
+      "noPicture": "Aún sin imagen",
+      "pageAlt": "Página {{number}}",
+      "pageOf": "Página {{number}} de {{total}}",
+      "step": "Paso {{number}}",
+      "textCut": "El texto no cabe"
+    },
     "picker": {
       "cancel": "Cancelar",
       "failed": "No se encontraron los patrones del patrón de pliegues.",
@@ -889,6 +960,13 @@
       "pose": "Pose",
       "positionLabel": "Posición del paso",
       "step": "Paso"
+    },
+    "view": {
+      "label": "Vista",
+      "pages": "Páginas",
+      "pagesHint": "Las páginas tal como se imprimirán",
+      "steps": "Pasos",
+      "stepsHint": "Cada paso como una tarjeta, para ordenar y editar"
     }
   },
   "explori": {
@@ -1303,6 +1381,7 @@
     "label": "Patrones de pliegues"
   },
   "sidePane": {
+    "page": "Página",
     "properties": "Propiedades",
     "settings": "Ajustes",
     "step": "Paso",

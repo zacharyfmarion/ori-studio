@@ -721,6 +721,7 @@
       "duplicate": "Dupliquer l’étape",
       "exportPicture": "Exporter l’image…",
       "firstHint": "C’est déjà la première étape",
+      "firstPageHint": "La première étape commence toujours une page",
       "fromReferences": "Depuis Références…",
       "insertAfter": "Insérer une étape après",
       "insertBefore": "Insérer une étape avant",
@@ -743,6 +744,7 @@
       "relinkPattern": "Relier à un autre patron…",
       "removePicture": "Retirer l’image",
       "replacePicture": "Remplacer l’image…",
+      "startPage": "Commencer une nouvelle page ici",
       "uploadPicture": "Importer une image…"
     },
     "card": {
@@ -757,6 +759,7 @@
       "cancelWaiting": "Annuler",
       "capturing": "Capture…",
       "fromReferences": "Références…",
+      "lightingChanged": "L’éclairage a changé",
       "link": "Lier…",
       "locked": "Créée avec une version plus récente d’Ori Studio",
       "missing": "Patron introuvable",
@@ -767,6 +770,7 @@
       "patternChanged": "Patron modifié",
       "stale": "Pas à jour",
       "stop": "Arrêter",
+      "textCut": "Le texte ne tient pas",
       "upload": "Importer…",
       "waitingReferences": "En attente de Références"
     },
@@ -798,6 +802,9 @@
       "linkPattern": "Lier un patron…",
       "moreAdd": "Autres façons d’ajouter des étapes",
       "nothingToRefresh": "Aucune étape liée n’est périmée. Les étapes venues de Références ne sont pas actualisées.",
+      "pageCount_one": "{{count}} page",
+      "pageCount_many": "{{count}} pages",
+      "pageCount_other": "{{count}} pages",
       "refreshAll": "Actualiser les étapes pas à jour",
       "stepCount_one": "{{count}} étape",
       "stepCount_many": "{{count}} étapes",
@@ -808,6 +815,70 @@
       "uploadPictures": "Importer des images…"
     },
     "label": "Diagramme",
+    "pagePane": {
+      "columns": "Colonnes",
+      "exportStyle": "Style d’export des Réglages",
+      "firstPage": "Premier numéro",
+      "flow": "Flux",
+      "flowHint": "Les rangées tournent à chaque bout.",
+      "grid": "Grille",
+      "gridHint": "Les rangées se lisent de gauche à droite.",
+      "han": {
+        "jp": "Japonais",
+        "kr": "Coréen",
+        "sc": "Chinois simplifié",
+        "tc": "Chinois traditionnel"
+      },
+      "hanStyle": "Caractères han",
+      "hanStyleHint": "Comment les caractères chinois sont dessinés quand un texte n’a ni kana ni hangul pour dire sa langue.",
+      "headerFooter": "En-tête et pied de page",
+      "keptStyle": "Le style propre à ce diagramme",
+      "label": "Mise en page",
+      "landscape": "Paysage",
+      "layout": "Disposition",
+      "margin": "Marge",
+      "mm": "mm",
+      "orientation": "Orientation",
+      "pageCount_one": "{{count}} page",
+      "pageCount_many": "{{count}} pages",
+      "pageCount_other": "{{count}} pages",
+      "pageNumbers": "Numéros de page",
+      "paper": "Papier",
+      "perPage_one": "{{count}} étape par page",
+      "perPage_many": "{{count}} étapes par page",
+      "perPage_other": "{{count}} étapes par page",
+      "perRow": "Étapes par rangée",
+      "portrait": "Portrait",
+      "rows": "Rangées",
+      "scale": "Échelle",
+      "scaleFit": "Ajuster chacun",
+      "scaleHint": "Une échelle dessine chaque motif à la même taille par unité de papier, comme un livre. Ajuster dessine chacun aussi grand que son cadre.",
+      "scalePaper": "Une échelle",
+      "showPath": "Afficher le chemin",
+      "size": "Format",
+      "sizes": {
+        "a4": "A4",
+        "a5": "A5",
+        "b5Jis": "B5 (JIS)",
+        "letter": "Lettre US"
+      },
+      "style": "Style",
+      "styleHint": "L’encre et les plumes changent sur toutes les étapes à la fois. Une étape 3D prend le nouvel éclairage quand elle est actualisée.",
+      "styleSection": "Style",
+      "title": "Titre",
+      "titleHelp": "Le titre du diagramme, dans un onglet en haut de chaque page."
+    },
+    "pages": {
+      "caption": "Page {{number}}",
+      "controls": "Commandes de la vue des pages",
+      "failed": "Les pages n’ont pas pu être mises en page. Vérifiez la connexion et réessayez.",
+      "loading": "Mise en page des pages…",
+      "noPicture": "Pas encore d’image",
+      "pageAlt": "Page {{number}}",
+      "pageOf": "Page {{number}} sur {{total}}",
+      "step": "Étape {{number}}",
+      "textCut": "Le texte ne tient pas"
+    },
     "picker": {
       "cancel": "Annuler",
       "failed": "Les patrons du patron de plis sont introuvables.",
@@ -889,6 +960,13 @@
       "pose": "Pose",
       "positionLabel": "Position de l’étape",
       "step": "Étape"
+    },
+    "view": {
+      "label": "Vue",
+      "pages": "Pages",
+      "pagesHint": "Les pages telles qu’elles seront imprimées",
+      "steps": "Étapes",
+      "stepsHint": "Chaque étape en carte, pour ordonner et modifier"
     }
   },
   "explori": {
@@ -1305,6 +1383,7 @@
     "label": "Patrons de plis"
   },
   "sidePane": {
+    "page": "Page",
     "properties": "Propriétés",
     "settings": "Réglages",
     "step": "Étape",

@@ -1,0 +1,12 @@
+/* The Page pane (DiagramPagePanel.tsx): the layout's cards, and the readout under them. */
+.cards {
+  padding: 2px var(--space-3) var(--space-2);
+}
+
+.readout {
+  margin: 0;
+  padding: 2px var(--space-3) var(--space-2);
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}

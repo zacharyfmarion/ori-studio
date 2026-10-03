@@ -13,8 +13,11 @@ import {
   moveStep,
   removeStepPicture,
   removeSteps,
+  setDiagramStyle,
   setDiagramTitle,
+  setHanStyle,
   setPageSetup,
+  setStepBreakBefore,
   setReferencesSide,
   setStepPicture,
   setStepText,
@@ -318,6 +321,17 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     setDiagramPage: (patch) =>
       commit('Change page setup', (document) => setPageSetup(document, patch)) !== null,
+
+    setDiagramStepBreakBefore: (stepId, breakBefore) =>
+      commit(breakBefore ? 'Start a new page' : 'Continue the page', (document) =>
+        setStepBreakBefore(document, stepId, breakBefore)
+      ) !== null,
+
+    setDiagramStyle: (style) =>
+      commit('Change diagram style', (document) => setDiagramStyle(document, style)) !== null,
+
+    setDiagramHanStyle: (hanStyle) =>
+      commit('Change Han characters', (document) => setHanStyle(document, hanStyle)) !== null,
 
     selectDiagramStep: (stepId) => {
       const diagram = get().diagram;
