@@ -12,6 +12,7 @@ const pose = (): DiagramLinkedPose => ({
   onCamera: () => {},
   rotateTo: () => {},
   showAs: async () => {},
+  simulate: async () => {},
 });
 
 afterEach(() => publishOpenLinkedPose(null, null));

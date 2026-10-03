@@ -9,7 +9,7 @@ import {
   type SimulatorWorkerApi,
 } from './simulatorSession';
 import { simulatorExportTarget } from './simulatorExportTarget';
-import { MAX_CONCURRENT_SIMULATIONS } from './simulatorLimits';
+import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_SIMULATOR_SESSIONS } from './simulatorLimits';
 import golden from './__fixtures__/simulatorExportGolden.json';
 import { DEFAULT_PAPER_PAGE, type PaperPage } from '../lib/paper/paperPage';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX, type PaperStyle } from '../lib/paper/paperStyle';
@@ -358,9 +358,9 @@ describe('session tokens', () => {
     // The cap matches the window cap, so this should not happen in practice;
     // when it does, the oldest degrades to its last frame instead of the worker
     // holding every model ever loaded.
-    // Two past the cap, read from the constant: hard-coding a count meant the
+    // One past the cap, read from the constant: hard-coding a count meant the
     // test kept passing for the wrong reason the moment the cap moved.
-    const tokens = Array.from({ length: MAX_CONCURRENT_SIMULATIONS + 2 }, () =>
+    const tokens = Array.from({ length: MAX_LIVE_SIMULATOR_SESSIONS + 1 }, () =>
       session.load(miura(4, 4), {}).token
     );
 
@@ -369,22 +369,25 @@ describe('session tokens', () => {
     session.dispose();
   });
 
-  it('has room for every window plus a reload', async () => {
+  it('has room for every window, Simulate’s view and a Diagram Pose, plus a reload', async () => {
     // A runtime replacing its model loads the new session before releasing the
-    // old, so its window is never briefly backed by nothing. A full house
-    // therefore needs one slot more than there are windows; without the spare,
-    // every reload at the cap evicted somebody still on screen.
+    // old, so its view is never briefly backed by nothing. A full house
+    // therefore needs one slot more than there are views; without the spare,
+    // every reload at the cap evicted somebody still on screen. Simulate's
+    // view and a Diagram step's Pose are not refused at the window cap, so
+    // they are counted here instead.
     const session = createSimulatorSession();
     const windows = Array.from({ length: MAX_CONCURRENT_SIMULATIONS }, () =>
       session.load(miura(4, 4), {}).token
     );
-    // The overlap: one window reloads while all the others hold their models.
+    const simulate = session.load(miura(4, 4), {}).token;
+    const pose = session.load(miura(4, 4), {}).token;
+    // The overlap: one view reloads while all the others hold their models.
     const reloaded = session.load(miura(4, 4), {}).token;
 
-    for (const token of windows) {
+    for (const token of [...windows, simulate, pose, reloaded]) {
       expect(await session.tick({ token })).not.toBeNull();
     }
-    expect(await session.tick({ token: reloaded })).not.toBeNull();
     session.dispose();
   });
 
@@ -394,7 +397,7 @@ describe('session tokens', () => {
     // the one being looked at.
     const session = createSimulatorSession();
     const first = session.load(miura(4, 4), {}).token;
-    const rest = Array.from({ length: MAX_CONCURRENT_SIMULATIONS - 1 }, () =>
+    const rest = Array.from({ length: MAX_LIVE_SIMULATOR_SESSIONS - 1 }, () =>
       session.load(miura(4, 4), {}).token
     );
 
@@ -507,32 +510,68 @@ function exportViewScene(
   }
 }
 
+describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
+  const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
+  const still = { view, size: 512, style: EXPORT_STYLE, markHidden: true };
+
+  it('is the same flat sheet with no session and from a session at 0%', async () => {
+    // Pose's capture at 0% and the headless 0% picture must be one picture (D19).
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const info = session.load(fold, {});
+    const flat = session.flatScene(fold, still);
+    expect(flat).not.toBeNull();
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+
+    // Folded and back: a solver at rest at 0% holds the sheet only to float
+    // noise, which can split a face, so 0% is drawn from the flat sheet itself.
+    session.setFoldPercent(50, info.token);
+    await session.settle(2_000, { token: info.token });
+    session.setFoldPercent(0, info.token);
+    await session.settle(2_000, { token: info.token });
+    expect(session.sessionScene({ ...still, token: info.token })).toEqual(flat);
+    session.dispose();
+  }, 30_000);
+
+  it('is the model where the solver holds it, once folded', async () => {
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const info = session.load(fold, {});
+    session.setFoldPercent(60, info.token);
+    await session.settle(2_000, { token: info.token });
+    const folded = session.sessionScene({ ...still, token: info.token });
+    expect(folded).not.toBeNull();
+    expect(folded).not.toEqual(session.flatScene(fold, still));
+    session.dispose();
+  }, 30_000);
+
+  it('is the same picture whatever size it is framed in, scaled', async () => {
+    // Content-bounded: the frame's size is a scale, never a different shape.
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const small = session.flatScene(fold, { ...still, size: 256 })!;
+    const large = session.flatScene(fold, still)!;
+    const aspect = (scene: typeof small) =>
+      (scene.bounds.maxX - scene.bounds.minX) / (scene.bounds.maxY - scene.bounds.minY);
+    expect(aspect(small)).toBeCloseTo(aspect(large), 2);
+    session.dispose();
+  }, 30_000);
+
+  it('answers null for a session that has gone', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    session.release(info.token);
+    expect(session.sessionScene({ ...still, token: info.token })).toBeNull();
+    session.dispose();
+  });
+});
+
 /**
  * Re-pinned from `exportSvg` onto a snapshot, its scenes and the painter the
  * export dialog paints with. What stayed the same is what these tests are for
  * — the worker exports the view on screen, at the camera and framing it was
  * last told, from any session by token, in the style it is handed.
  */
-describe('the flat sheet without a session (flatScene)', () => {
-  it('is the scene a session at 0% exports from the same camera, in a square', () => {
-    const session = createSimulatorSession();
-    const fold = miura(6, 6);
-    const view = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };
-    const info = session.load(fold, {});
-    const id = session.beginExportSnapshot({
-      token: info.token,
-      camera: { view, width: 512, height: 512 },
-      perspective: true,
-    })!;
-    const exported = session.exportScene(id, { style: EXPORT_STYLE, markHidden: true });
-    session.endExportSnapshot(id);
-    const flat = session.flatScene(fold, { view, size: 512, style: EXPORT_STYLE, markHidden: true });
-    expect(flat).not.toBeNull();
-    expect(flat).toEqual(exported);
-    session.dispose();
-  }, 30_000);
-});
-
 describe('exporting the current view as SVG', () => {
   it('draws the folded model, not the flat sheet', async () => {
     const session = createSimulatorSession();
@@ -1013,8 +1052,8 @@ describe('export snapshots', () => {
     const id = session.beginExportSnapshot({ token: first.token })!;
     expect(session.exportScene(id, UNMARKED)).not.toBeNull();
 
-    // Two past the cap in all, as the eviction test above loads, so the snapshotted session goes.
-    for (let i = 0; i < MAX_CONCURRENT_SIMULATIONS + 1; i += 1) session.load(miura(4, 4), {});
+    // One past the cap in all, as the eviction test above loads, so the snapshotted session goes.
+    for (let i = 0; i < MAX_LIVE_SIMULATOR_SESSIONS; i += 1) session.load(miura(4, 4), {});
 
     expect(await session.tick({ token: first.token })).toBeNull();
     expect(session.exportScene(id, UNMARKED)).toBeNull();

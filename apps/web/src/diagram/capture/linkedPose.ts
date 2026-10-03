@@ -29,21 +29,26 @@ import {
 import type { StepCreases } from './captureCreases';
 import {
   captureCreasePattern,
-  captureSimulatedFlat,
+  captureSimulated,
   defaultCaptureCamera,
+  flatStill,
   type CapturedPicture,
   type SimulateFlat,
+  type StillScene,
 } from './captureFolded';
 import type { CaptureSession, SpatialHold } from './captureSession';
 
 /**
- * A verb, an orbit of the 3D view ending at a camera, or a turn typed in
- * degrees (D5's angle field) for a crease pattern or a flat fold.
+ * A verb, an orbit of the 3D view ending at a camera, a turn typed in degrees
+ * (D5's angle field) for a crease pattern or a flat fold, or Pose's simulator
+ * come to rest (D19): its model where the solver holds it, at a fold %, from a
+ * camera.
  */
 export type LinkedPoseRequest =
   | { verb: DiagramLinkedPoseActionId }
   | { verb: 'orbit'; camera: FoldedFigureCamera }
-  | { verb: 'rotate-to'; degrees: number };
+  | { verb: 'rotate-to'; degrees: number }
+  | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene };
 
 export type LinkedPoseResult =
   | {
@@ -140,15 +145,24 @@ export async function poseLinkedStep(
   };
 
   /**
-   * The simulator's model, flat: the one fold % a picture is taken at outside
-   * the live simulator Pose shows above 0% (D19), from the pose's camera.
+   * The simulator's model from a camera: flat, the one fold % a picture is
+   * taken at outside Pose, unless Pose's live solver is handed in (D19).
    */
-  const simulated = async (view: DiagramSimulatedView): Promise<LinkedPoseResult> => {
-    const picture = await captureSimulatedFlat(simulateFlat, creases, view, style);
+  const simulated = async (
+    view: DiagramSimulatedView,
+    foldPercent = 0,
+    still = flatStill(simulateFlat, creases)
+  ): Promise<LinkedPoseResult> => {
+    const picture = await captureSimulated(still, view, style);
     if (!picture) return { status: 'unavailable' };
-    return { status: 'posed', render: { mode: 'simulated', foldPercent: 0, view }, picture, noLayerOrder: false };
+    return { status: 'posed', render: { mode: 'simulated', foldPercent, view }, picture, noLayerOrder: false };
   };
 
+  if (request.verb === 'simulate') {
+    // Nothing folded to keep: the simulator has its own model.
+    session.dispose();
+    return simulated(request.view, request.foldPercent, request.still);
+  }
   const { verb } = request;
   if (verb === 'show-simulated') {
     // Nothing folded to keep: the simulator has its own model.

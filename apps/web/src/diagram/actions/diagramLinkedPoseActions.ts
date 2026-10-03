@@ -1,6 +1,11 @@
 import type { TFunction } from 'i18next';
 import { defaultCaptureCamera } from '../capture/captureFolded';
-import { DEFAULT_SIMULATED_VIEW, type DiagramCpRender } from '../document/diagramDocument';
+import {
+  DEFAULT_SIMULATED_VIEW,
+  showAsOf,
+  type DiagramCpRender,
+  type DiagramShowAs,
+} from '../document/diagramDocument';
 
 /**
  * The verbs that pose a linked step (D5), for the step detail's toolbar: how
@@ -51,6 +56,13 @@ export interface DiagramLinkedPoseState {
   hasNextSolution: boolean | null;
 }
 
+/** The verb that shows a linked step each way (D19): the one map every surface reads. */
+export const SHOW_AS_ACTION = {
+  'crease-pattern': 'show-crease-pattern',
+  folded: 'show-folded',
+  simulated: 'show-simulated',
+} as const satisfies Record<DiagramShowAs, DiagramLinkedPoseActionId>;
+
 /** How far one press turns the picture. */
 export const POSE_ROTATION_STEP_DEG = 15;
 
@@ -87,15 +99,16 @@ export function buildDiagramLinkedPoseActions(
     };
   };
 
+  const shown = showAsOf(render);
   const modes = [
-    action('show-crease-pattern', t('panels:diagram.pose.showCreasePattern', 'Crease Pattern'), {
-      pressed: render.mode === 'crease-pattern',
+    action(SHOW_AS_ACTION['crease-pattern'], t('panels:diagram.pose.showCreasePattern', 'Crease Pattern'), {
+      pressed: shown === 'crease-pattern',
     }),
-    action('show-folded', t('panels:diagram.pose.showFolded', 'Folded'), {
-      pressed: render.mode === 'folded-flat' || render.mode === 'folded-3d',
+    action(SHOW_AS_ACTION.folded, t('panels:diagram.pose.showFolded', 'Folded'), {
+      pressed: shown === 'folded',
     }),
-    action('show-simulated', t('panels:diagram.pose.showSimulated', 'Simulated'), {
-      pressed: render.mode === 'simulated',
+    action(SHOW_AS_ACTION.simulated, t('panels:diagram.pose.showSimulated', 'Simulated'), {
+      pressed: shown === 'simulated',
     }),
   ];
   const turn = [
@@ -163,6 +176,7 @@ export function isDefaultRender(render: DiagramCpRender): boolean {
       const { view } = render;
       return (
         render.foldPercent === 0 &&
+        view.orient === undefined &&
         Math.abs(view.yaw - DEFAULT_SIMULATED_VIEW.yaw) < 1e-9 &&
         Math.abs(view.pitch - DEFAULT_SIMULATED_VIEW.pitch) < 1e-9 &&
         Math.abs(view.zoom - DEFAULT_SIMULATED_VIEW.zoom) < 1e-9

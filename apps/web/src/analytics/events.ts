@@ -57,7 +57,7 @@ export type DiagramPictureUploadOutcome =
  * How a step was opened in detail: Enter, a double-click on its card, one of
  * the card's own buttons, or a step verb (its context menu or the Step pane).
  */
-export type DiagramStepOpenedVia = 'keyboard' | 'double_click' | 'card' | 'command';
+export type DiagramStepOpenedVia = 'keyboard' | 'double_click' | 'card' | 'command' | 'pose_again';
 
 /** Which half of the detail a step opened in. */
 export type DiagramStepOpenedMode = 'pose' | 'annotate';
@@ -77,8 +77,9 @@ export type DiagramAnnotationTool =
 
 /**
  * A pose verb: on an uploaded picture (rotate, flip, reset), or on a linked one
- * (show it as its crease pattern or folded, turn it over, step to another layer
- * order, look from a named side, or orbit the 3D view).
+ * (show it as its crease pattern, folded or simulated, turn it over, step to
+ * another layer order, look from a named side, orbit the 3D view, or bring
+ * Pose's simulator to rest at a fold % and camera).
  */
 export type DiagramPoseAction =
   | 'rotate_left'
@@ -94,7 +95,8 @@ export type DiagramPoseAction =
   | 'view_iso'
   | 'orbit'
   | 'rotate_to'
-  | 'show_simulated';
+  | 'show_simulated'
+  | 'simulate';
 
 /**
  * What a step's picture is: an upload, by what it is stored as, or a capture

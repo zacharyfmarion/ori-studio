@@ -8,6 +8,7 @@ import {
 } from '../../cp-workspace/folded/foldedFigureHandles';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import { cpDocument, fakeCaptureRuntime, twoSquaresSegmentation } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
 import { createPoseController, linkedFoldKey } from './poseController';
@@ -20,6 +21,7 @@ vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOrigina
 vi.mock('../../cp-workspace/cpSegmentationArtifacts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../cp-workspace/cpSegmentationArtifacts')>()),
   ensureCpSegmentationArtifacts: vi.fn(async () => segmentation),
+  peekCpSegmentationArtifacts: vi.fn(() => segmentation),
 }));
 const engines = vi.hoisted(() => ({ listeners: new Set<(loss: { engine: string }) => void>() }));
 vi.mock('../../engines/engineHost', async (importOriginal) => ({
@@ -145,6 +147,52 @@ describe('the Pose controller', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('captures a rest of Pose’s simulator only when it is not the step’s picture already (D19)', async () => {
+    const stepId = await linkedStep();
+    const controller = createPoseController(stepId, listener());
+    const still = vi.fn(async () => sheetWithCrease());
+    const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
+    // Shown as its crease pattern: a rest of a simulator it left is nothing.
+    await controller.simulate({ foldPercent: 40, view, still });
+    expect(still).not.toHaveBeenCalled();
+
+    // Shown Simulated: folded to 40% and captured, one undo step.
+    useWorkspaceStore.setState({
+      diagram: {
+        ...state().diagram!,
+        steps: state().diagram!.steps.map((step) =>
+          step.id === stepId && step.source?.kind === 'cp'
+            ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent: 0, view } } }
+            : step
+        ),
+      },
+    });
+    const past = state().diagramHistory.past.length;
+    await controller.simulate({ foldPercent: 40, view, still });
+    expect(render(stepId)).toMatchObject({ render: { mode: 'simulated', foldPercent: 40, view } });
+    expect(state().diagramHistory.past.length).toBe(past + 1);
+    expect(still).toHaveBeenCalledOnce();
+
+    // Resting where it is captured: nothing, so opening Pose writes nothing.
+    await controller.simulate({ foldPercent: 40.02, view, still });
+    expect(still).toHaveBeenCalledOnce();
+    expect(state().diagramHistory.past.length).toBe(past + 1);
+
+    // Its pattern changed since: the same rest is captured again (Pose again).
+    useWorkspaceStore.setState({
+      diagram: {
+        ...state().diagram!,
+        steps: state().diagram!.steps.map((step) =>
+          step.id === stepId && step.source?.kind === 'cp' ? { ...step, source: { ...step.source, fingerprint: 'before' } } : step
+        ),
+      },
+    });
+    await controller.simulate({ foldPercent: 40, view, still });
+    expect(still).toHaveBeenCalledTimes(2);
+    expect(render(stepId)).toMatchObject({ fingerprint: expect.not.stringMatching(/^before$/) });
+    controller.dispose();
   });
 
   // Done, or Next step, while a verb folded: the fold landed into a session

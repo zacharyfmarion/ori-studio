@@ -3779,7 +3779,19 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7561,7 +7573,19 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11345,7 +11369,19 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15056,7 +15092,19 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18767,7 +18815,19 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22549,7 +22609,19 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26331,7 +26403,19 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -30042,6 +30126,18 @@
     "panels:diagram.picture.linkedSimulatedFlat": "1abf3ea9f4dd",
     "panels:diagram.pose.showSimulated": "31fe293b1b90",
     "toasts:diagram.capture.needsPose": "913cc8b35966",
-    "toasts:diagram.capture.unavailable": "5d9509f855c6"
+    "toasts:diagram.capture.unavailable": "5d9509f855c6",
+    "panels:diagram.actions.poseAgain": "184ab0980433",
+    "panels:diagram.card.stalePoseAgain": "56d562a88ed9",
+    "panels:diagram.pose.backToFlat": "a43f3fe08ac1",
+    "panels:diagram.pose.foldPercent": "aac8cba15a51",
+    "panels:diagram.pose.foldStep": "43916b87e63a",
+    "panels:diagram.pose.pause": "858e4ba7a29f",
+    "panels:diagram.pose.percent": "f67899daf99f",
+    "panels:diagram.pose.play": "436e61016e26",
+    "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
+    "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
+    "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
   }
 }

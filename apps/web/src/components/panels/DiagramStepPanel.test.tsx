@@ -202,7 +202,14 @@ describe('DiagramStepPanel', () => {
           { render, readOnly: false, busy: false, hasNextSolution: true },
           { t: ((_key: string, fallback: string) => fallback) as never, pose }
         );
-        publishOpenLinkedPose('step-f', { actions, spatial: null, onCamera: () => {}, rotateTo, showAs: async () => {} });
+        publishOpenLinkedPose('step-f', {
+          actions,
+          spatial: null,
+          onCamera: () => {},
+          rotateTo,
+          showAs: async () => {},
+          simulate: async () => {},
+        });
       });
       expect(host?.textContent).toContain('SideFrom the back');
       expect(host?.textContent).toContain('Layer order2');

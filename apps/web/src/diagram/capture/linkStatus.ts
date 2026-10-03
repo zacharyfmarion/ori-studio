@@ -41,6 +41,11 @@ export function linkedSourceOf(step: DiagramStep): DiagramLinkedSource | null {
  * fingerprinted on every line in it when it was sent (D6): its picture never
  * follows the pattern, so all its status can say is whether the sheet changed.
  */
+/** A step shown as Simulated above 0%: captured again only in Pose (D19). */
+export function needsPose(step: DiagramStep): boolean {
+  return step.source?.kind === 'cp' && step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0;
+}
+
 export function linkStatus(
   source: Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> | DiagramReferencesSource,
   document: OristudioCpDocumentSnapshot | null,

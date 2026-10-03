@@ -77,7 +77,6 @@ import {
   type DiagramIdFactory,
   type DiagramRasterAsset,
   type DiagramShowAs,
-  type DiagramSimulatedView,
   type DiagramStep,
   type DiagramStepSource,
   type DiagramStyle,
@@ -535,23 +534,13 @@ function readCpRender(value: unknown): DiagramCpRender | null {
     }
     case 'simulated': {
       const foldPercent = finiteNumber(value.foldPercent);
-      const view = readSimulatedView(value.view);
+      const view = readFoldedFigureCamera(value.view);
       if (foldPercent === null || foldPercent < 0 || foldPercent > 100 || !view) return null;
       return { mode: 'simulated', foldPercent, view };
     }
     default:
       return null;
   }
-}
-
-/** A simulated step's camera: a finite yaw and pitch, and a zoom above 0. */
-function readSimulatedView(value: unknown): DiagramSimulatedView | null {
-  if (!isRecord(value)) return null;
-  const yaw = finiteNumber(value.yaw);
-  const pitch = finiteNumber(value.pitch);
-  const zoom = finiteNumber(value.zoom);
-  if (yaw === null || pitch === null || zoom === null || !(zoom > 0)) return null;
-  return { yaw, pitch, zoom };
 }
 
 /** An angle in [0, 360), so one rotation is written one way. */

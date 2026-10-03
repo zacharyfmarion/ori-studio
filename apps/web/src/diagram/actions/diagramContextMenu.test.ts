@@ -19,6 +19,7 @@ const BASE: DiagramStepActionState = {
   capturing: false,
   patternOpen: true,
   showAs: null,
+  poseAgain: false,
 };
 
 function actions(state: Partial<DiagramStepActionState> = {}) {

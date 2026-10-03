@@ -11,29 +11,19 @@ import {
 import { useFolded3dMeshRuntime } from '../../cp-workspace/folded/useFolded3dMeshRuntime';
 import { CARD_FRAME_PX, paintAnnotations } from '../../diagram/annotate/paintAnnotations';
 import type { DiagramPoseSpatialView } from '../../diagram/capture/useDiagramLinkedPose';
-import type { DiagramAnnotation, DiagramStyle } from '../../diagram/document/diagramDocument';
+import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
 import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import { folded3dCaptureFrame } from '../../diagram/pictures/folded3dCaptureFrame';
-import type { SceneBounds } from '../../lib/paper/paperScene';
 import { withRollAbsorbed } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
-import { ViewportStatusReadout } from '../ui/ViewportStatusReadout';
-import styles from './DiagramPose3dView.module.css';
+import { sameCamera } from '../../diagram/capture/poseController';
+import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
 
 /** Frame edge, in device pixels, the crease width is calibrated for: Edit's window's. */
 const CREASE_REFERENCE_EDGE = 512;
 
-/** How much of an annotation shows in Pose: a ghost of where it is (D8). */
-const GHOST_OPACITY = 0.3;
-
-/** The step's annotations, and the frame of the capture they were drawn on. */
-export interface DiagramPose3dGhost {
-  annotations: readonly DiagramAnnotation[];
-  /** The stored scene's bounds: the picture's frame (D8). */
-  bounds: SceneBounds;
-}
 
 /**
  * A step folded in 3D, live, to be turned in Pose (D5): the mesh Edit's 3D
@@ -63,7 +53,7 @@ export function DiagramPose3dView({
   style: DiagramStyle;
   onCamera: (camera: FoldedFigureCamera) => void;
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
-  ghost: DiagramPose3dGhost | null;
+  ghost: DiagramPoseAnnotations | null;
   fallback: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -142,55 +132,35 @@ export function DiagramPose3dView({
 
   if (!mesh || status === 'error') return <>{fallback}</>;
   return (
-    <div className={styles.view} data-status={status}>
-      <SimulatorViewport
-        ref={viewportRef}
-        canvasKey="diagram-pose-3d"
-        onCanvasChange={setCanvas}
-        interactive
-        gpuActive
-        bitmapPresent
-        transparentBackground
-        creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
-        creaseWidthShrinkExponent={1}
-        viewSettings={DEFAULT_SIMULATOR_SETTINGS}
-        paperStyle={paperStyle}
-        renderSettings={renderSettings}
-        viewCube
-        initialView={stored}
-        pushCamera={pushCamera}
-        pushRenderSettings={setRenderSettings}
-        className={styles.canvas}
-        ariaLabel={t('panels:diagram.pose.view3d', 'Folded model in 3D: drag to turn it')}
-        perfSurface="diagram-pose"
-      />
-      {ghostMarkup && atStored && size && (
-        <svg
-          className={styles.ghost}
-          viewBox={`0 0 ${size.width} ${size.height}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          data-annotation-ghost=""
-        >
-          <g opacity={GHOST_OPACITY} dangerouslySetInnerHTML={{ __html: ghostMarkup }} />
-        </svg>
+    <DiagramPoseStage
+      status={status}
+      ghost={ghostMarkup && atStored && size ? { markup: ghostMarkup, ...size } : null}
+      yaw={yaw}
+      pitch={pitch}
+    >
+      {(canvasClassName) => (
+        <SimulatorViewport
+          ref={viewportRef}
+          canvasKey="diagram-pose-3d"
+          onCanvasChange={setCanvas}
+          interactive
+          gpuActive
+          bitmapPresent
+          transparentBackground
+          creaseWidthReferenceEdge={CREASE_REFERENCE_EDGE}
+          creaseWidthShrinkExponent={1}
+          viewSettings={DEFAULT_SIMULATOR_SETTINGS}
+          paperStyle={paperStyle}
+          renderSettings={renderSettings}
+          viewCube
+          initialView={stored}
+          pushCamera={pushCamera}
+          pushRenderSettings={setRenderSettings}
+          className={canvasClassName}
+          ariaLabel={t('panels:diagram.pose.view3d', 'Folded model in 3D: drag to turn it')}
+          perfSurface="diagram-pose"
+        />
       )}
-      <ViewportStatusReadout>
-        <span>
-          {t('panels:diagram.pose.cameraReadout', 'Yaw {{yaw}}° · Pitch {{pitch}}°', { yaw, pitch })}
-        </span>
-      </ViewportStatusReadout>
-      <p className={styles.hint} aria-hidden="true">
-        {t('panels:diagram.pose.orbitHint', 'Drag to turn · Double-click to reset')}
-      </p>
-    </div>
+    </DiagramPoseStage>
   );
-}
-
-/** Whether two cameras are one, to well under what a drag can move. */
-function sameCamera(a: FoldedFigureCamera, b: FoldedFigureCamera): boolean {
-  const near = (x: number, y: number) => Math.abs(x - y) < 1e-6;
-  if (!near(a.yaw, b.yaw) || !near(a.pitch, b.pitch) || !near(a.zoom, b.zoom)) return false;
-  if (!a.orient || !b.orient) return !a.orient && !b.orient;
-  return a.orient.every((value, index) => near(value, b.orient![index]!));
 }

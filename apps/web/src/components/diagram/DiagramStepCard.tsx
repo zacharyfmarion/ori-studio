@@ -8,7 +8,7 @@ import {
   type DiagramStep,
   type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
-import { linkedSourceOf, type DiagramLinkStatus } from '../../diagram/capture/linkStatus';
+import { linkedSourceOf, needsPose, type DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import { stepPictureSource, type StepPictureSource } from '../../diagram/pictures/paintDiagramStep';
 import { useStepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Badge } from '../ui/Badge';
@@ -134,7 +134,10 @@ export const DiagramStepCard = forwardRef<
         ? // A step sent from References is never refreshed: its sheet changed, that is all.
           sent
           ? t('panels:diagram.card.patternChanged', 'Pattern changed')
-          : t('panels:diagram.card.stale', 'Out of date')
+          : needsPose(step)
+            ? // Folded part way in the simulator: only Pose captures it again (D19).
+              t('panels:diagram.card.stalePoseAgain', 'Out of date · Pose again')
+            : t('panels:diagram.card.stale', 'Out of date')
         : link === 'missing'
           ? t('panels:diagram.card.missing', 'Pattern missing')
           : restyled === 'light'

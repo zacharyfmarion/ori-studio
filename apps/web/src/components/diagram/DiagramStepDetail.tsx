@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type Ref } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -41,7 +41,9 @@ import { Toolbar } from '../ui/Toolbar';
 import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
-import { DiagramPose3dView, type DiagramPose3dGhost } from './DiagramPose3dView';
+import { DiagramPose3dView } from './DiagramPose3dView';
+import { DiagramPoseSimulatedView } from './DiagramPoseSimulatedView';
+import type { DiagramPoseAnnotations } from './DiagramPoseStage';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { DiagramAnnotateRail } from './DiagramAnnotateRail';
 import styles from './DiagramStepDetail.module.css';
@@ -148,8 +150,8 @@ export function DiagramStepDetail({
   );
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
-  // Over a live 3D view, the annotations drawn on its capture, while they are.
-  const ghost = useMemo((): DiagramPose3dGhost | null => {
+  // Over a live view (3D or simulated), the annotations drawn on its capture, while they are.
+  const ghost = useMemo((): DiagramPoseAnnotations | null => {
     if (step.picture?.kind !== 'scene' || annotations.length === 0 || annotationsOutOfStep(step)) return null;
     const scene = storedScene(step.picture);
     return scene ? { annotations, bounds: scene.bounds } : null;
@@ -157,6 +159,33 @@ export function DiagramStepDetail({
   const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
   const picture = url && <img className={styles.picture} src={url} alt="" draggable={false} />;
   const title = t('panels:diagram.detail.title', 'Step {{number}} of {{total}}', { number, total: count });
+  // The bar under the picture: a linked step's verbs, with `transport` (the
+  // simulator's) between how it is shown and the rest, or an upload's.
+  const poseToolbar = (transport: ReactNode) => (
+    <Toolbar ref={poseRef} className={styles.pose} aria-label={t('panels:diagram.detail.pose', 'Pose')}>
+      {linkedPose ? (
+        <DiagramLinkedPoseControls actions={linkedPose.actions} keep={keepPoseFocus}>
+          {transport}
+        </DiagramLinkedPoseControls>
+      ) : (
+        poseActions.map((action) => {
+          const Icon = POSE_ICONS[action.id];
+          return (
+            <IconButton
+              key={action.id}
+              size="sm"
+              title={action.disabled && action.hint ? action.hint : action.label}
+              aria-label={action.label}
+              disabled={action.disabled}
+              onClick={() => keepPoseFocus(action.run)}
+            >
+              <Icon size={15} />
+            </IconButton>
+          );
+        })
+      )}
+    </Toolbar>
+  );
 
   return (
     <div ref={root} className={styles.detail} role="region" aria-label={title} tabIndex={-1}>
@@ -244,6 +273,18 @@ export function DiagramStepDetail({
               )}
             </p>
           </div>
+        ) : linked?.render.mode === 'simulated' && linkedPose ? (
+          <DiagramPoseSimulatedView
+            // One simulator per step: another step loads its own.
+            key={step.id}
+            scope={linked.scope}
+            render={linked.render}
+            style={style}
+            annotations={ghost}
+            onRest={linkedPose.simulate}
+            fallback={picture}
+            toolbar={poseToolbar}
+          />
         ) : url || linkedPose ? (
           <>
             {linked?.render.mode === 'folded-3d' && linkedPose?.spatial ? (
@@ -267,31 +308,7 @@ export function DiagramStepDetail({
                 </p>
               </div>
             )}
-            <Toolbar
-              ref={poseRef}
-              className={styles.pose}
-              aria-label={t('panels:diagram.detail.pose', 'Pose')}
-            >
-              {linkedPose ? (
-                <DiagramLinkedPoseControls actions={linkedPose.actions} keep={keepPoseFocus} />
-              ) : (
-                poseActions.map((action) => {
-                  const Icon = POSE_ICONS[action.id];
-                  return (
-                    <IconButton
-                      key={action.id}
-                      size="sm"
-                      title={action.disabled && action.hint ? action.hint : action.label}
-                      aria-label={action.label}
-                      disabled={action.disabled}
-                      onClick={() => keepPoseFocus(action.run)}
-                    >
-                      <Icon size={15} />
-                    </IconButton>
-                  );
-                })
-              )}
-            </Toolbar>
+            {poseToolbar(null)}
           </>
         ) : (
           <div className={styles.message}>

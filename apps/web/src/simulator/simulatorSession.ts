@@ -4,7 +4,7 @@ import { PAPER_STYLE_POLICIES, lightVector, surfacePaperStyle } from '../lib/pap
 import type { PaperScene } from '../lib/paper/paperScene';
 import { widestPenCssPx } from '../lib/paper/paperSvg';
 import { PreparedModelCache } from '../lib/preparedModelCache';
-import { MAX_CONCURRENT_SIMULATIONS, MAX_LIVE_FOLDED_MESHES } from './simulatorLimits';
+import { MAX_LIVE_FOLDED_MESHES, MAX_LIVE_SIMULATOR_SESSIONS } from './simulatorLimits';
 import {
   FOLDED_3D_REQUIRED_DEPTH_BITS,
   FoldedMeshSource,
@@ -307,13 +307,6 @@ export interface SimulatorExportSnapshotOptions {
    */
   camera?: SimulatorCamera;
   settings?: RenderSettings;
-  /**
-   * Draw with perspective or without, whichever path drew the view. Unset, the
-   * frame is drawn as this session's own screen draws it — orthographic on the
-   * canvas-2D fallback. A Diagram step passes true, so its picture is the same
-   * on every machine and its 0% picture (`flatScene`) agrees with it.
-   */
-  perspective?: boolean;
 }
 
 /** What a scene of a frozen frame is built with. */
@@ -344,14 +337,23 @@ interface ExportSnapshot extends SceneFrame {
   session: Session;
 }
 
-/** A model's flat sheet from a camera, with no session (`SimulatorWorkerApi.flatScene`). */
-export interface SimulatorFlatSceneOptions extends SimulatorExportSceneOptions {
+/** A model from a camera, framed in a square: a Diagram step's picture (`stillFrame`). */
+export interface SimulatorStillSceneOptions extends SimulatorExportSceneOptions {
   /** The camera, as a viewport's orbit holds it. */
   view: OrbitView;
   /** The square the scene is framed in, CSS px. */
   size: number;
+}
+
+/** A model's flat sheet from a camera, with no session (`SimulatorWorkerApi.flatScene`). */
+export interface SimulatorFlatSceneOptions extends SimulatorStillSceneOptions {
   /** A key the prepared model is cached under, as `load`'s is. */
   modelKey?: string;
+}
+
+/** A live session's model where it is now (`SimulatorWorkerApi.sessionScene`). */
+export interface SimulatorSessionSceneOptions extends SimulatorStillSceneOptions {
+  token: SimulatorSessionToken;
 }
 
 /**
@@ -377,6 +379,33 @@ function sceneOfFrame(frame: SceneFrame, { style, markHidden }: SimulatorExportS
     showEdges: frame.showEdges,
   });
   return scene.items.length === 0 ? null : scene;
+}
+
+/**
+ * A model's positions from a camera, framed on their own shape in a `size`
+ * square, with perspective whatever the screen draws: a Diagram step's
+ * picture (D19), of the flat sheet (`flatScene`) or of a live session where it
+ * is now (`sessionScene`). One framing for both, so a step captured in Pose at
+ * 0% is the picture its headless 0% is, on every machine.
+ */
+function stillFrame(
+  positions: Float32Array,
+  prepared: Parameters<typeof meshTopologyFor>[0],
+  sheetPositions: Float32Array,
+  view: OrbitView,
+  size: number
+): SceneFrame {
+  const { center, radius } = framingOf(positions);
+  const edge = Math.max(1, size);
+  return {
+    positions,
+    topology: meshTopologyFor(prepared),
+    camera: cameraUniforms(view, center, radius, edge, edge),
+    sheet: sheetExtent(sheetPositions),
+    perspective: true,
+    showFaces: true,
+    showEdges: true,
+  };
 }
 
 /**
@@ -418,20 +447,14 @@ let sessionToken: SimulatorSessionToken = 0;
 let useCounter = 0;
 
 /**
- * How many models stay resident.
- *
- * One per open window, plus one. The `+ 1` is the reload overlap: a runtime
- * replacing its model loads the new session *before* releasing the old, so that
- * its window is never briefly backed by nothing — which means a full house
- * momentarily needs one slot more than there are windows. Without the spare,
- * every reload at the cap evicted somebody, and the victim was a window still on
- * screen.
+ * How many models stay resident: {@link MAX_LIVE_SIMULATOR_SESSIONS}, which
+ * counts every view that can be open at once and the reload overlap.
  *
  * Nothing should be evicted in practice. When something is, the owner reloads on
  * its next tick (see `useSimulatorRuntime`) rather than freezing — but that is a
  * recovery path, and a cap that keeps needing it is a cap that is too small.
  */
-const MAX_LIVE_SESSIONS = MAX_CONCURRENT_SIMULATIONS + 1;
+const MAX_LIVE_SESSIONS = MAX_LIVE_SIMULATOR_SESSIONS;
 
 /**
  * Every 3D folded figure the worker can draw, keyed by its own token.
@@ -1394,8 +1417,8 @@ const api = {
       ),
       sheet: sheetExtent(active.model.originalPositions),
       // The canvas-2D fallback is orthographic, so a machine drawing through it
-      // exports the way its own screen looks, unless the caller says otherwise.
-      perspective: options.perspective ?? Boolean(active.gpuRender),
+      // exports the way its own screen looks.
+      perspective: Boolean(active.gpuRender),
       showFaces: active.view.settings.showFaces,
       showEdges: active.view.settings.showEdges,
     });
@@ -1416,26 +1439,37 @@ const api = {
   /**
    * A model's scene before it folds — the flat sheet — from a camera, with no
    * session and no solver: what a Diagram step shown as Simulated shows at 0%
-   * (D19). The scene a session at 0% exports from that camera, framed in a
-   * `size` square with perspective, as the GPU path draws it.
+   * (D19). At rest a model is its original positions.
    */
   flatScene(fold: FoldDocument, options: SimulatorFlatSceneOptions): PaperScene | null {
     const prepare = () => prepareFoldModel(foldScaledForSolver(fold), { triangulate: true });
     const prepared = options.modelKey ? preparedModels.get(options.modelKey, prepare) : prepare();
-    // At rest the model is its original positions: the flat sheet.
     const { originalPositions } = new OrigamiModel(prepared);
-    const { center, radius } = framingOf(originalPositions);
-    const size = Math.max(1, options.size);
+    return sceneOfFrame(stillFrame(originalPositions, prepared, originalPositions, options.view, options.size), options);
+  },
+
+  /**
+   * A live session's model where the solver holds it now, from a camera,
+   * framed as {@link flatScene} frames the flat sheet: what a Diagram step
+   * shown as Simulated captures in Pose (D19). Null when the session has gone
+   * or the frame draws nothing.
+   */
+  sessionScene(options: SimulatorSessionSceneOptions): PaperScene | null {
+    const active = sessionFor(options.token);
+    if (!active) return null;
+    const prepared = active.model.prepared;
+    const { originalPositions } = active.model;
+    // At 0% the model is its flat sheet, drawn from where it started rather
+    // than from the solver's float noise around it — noise that can split a
+    // face the flat sheet draws whole, so a step posed back to 0% would not be
+    // the picture `flatScene` gives it.
+    let positions = originalPositions;
+    if (active.foldPercent !== 0) {
+      positions = new Float32Array(prepared.vertexCount * 3);
+      active.backend.readPositions(positions);
+    }
     return sceneOfFrame(
-      {
-        positions: originalPositions,
-        topology: meshTopologyFor(prepared),
-        camera: cameraUniforms(options.view, center, radius, size, size),
-        sheet: sheetExtent(originalPositions),
-        perspective: true,
-        showFaces: true,
-        showEdges: true,
-      },
+      stillFrame(positions, prepared, originalPositions, options.view, options.size),
       options
     );
   },

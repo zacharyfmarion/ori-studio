@@ -440,6 +440,12 @@ function linkedDiagram() {
     }),
     cpStep('step-unposed', undefined, null),
     cpStep('step-simulated', { mode: 'simulated', foldPercent: 0, view: { yaw: 0.8, pitch: -0.9, zoom: 1.4 } }),
+    // Folded part way in Pose, stood upright: the orientation is kept with the camera.
+    cpStep('step-simulated-40', {
+      mode: 'simulated',
+      foldPercent: 40.5,
+      view: { yaw: 0.8, pitch: -0.9, zoom: 1.4, orient: [1, 0, 0, 0, 0, -1, 0, 1, 0] },
+    }),
   ];
   const diagram = createDiagram({ title: 'Crane', newId: ids });
   return insertSteps(diagram, steps, 0);

@@ -38,11 +38,12 @@ import type {
   OristudioCpDocumentState,
   OristudioCpFold3dRefusal,
 } from '../../engine/oristudioCpTypes';
+import type { FoldDocument } from '../../engine/types';
 import { FOLD_RUN_NONE } from '../../lib/foldCancellation';
 import { paperPngSize, paperSvgToPng } from '../../lib/paper/paperPng';
 import type { PaperPage } from '../../lib/paper/paperPage';
 import { pagePtPerPx, paperSceneToSvg } from '../../lib/paper/paperSvg';
-import { buildSegmentSimulationFold } from '../../lib/creasePatternSegmentation';
+import { buildSegmentSimulationFold, type CpSegment } from '../../lib/creasePatternSegmentation';
 import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
 import { releaseSimulatorClient, retainSimulatorClient } from './simulatorRuntime';
 import { stopFoldRun, withFoldInFlight } from './foldRuns';
@@ -282,10 +283,8 @@ export async function runDiagramCapture(
  */
 export function storeSimulateFlat(store: DiagramCaptureStore): SimulateFlat {
   return async (segment, view, style) => {
-    const artifacts = store.get().foldArtifacts ?? (await store.get().ensureFoldArtifacts());
-    if (!artifacts) return null;
-    const fold = buildSegmentSimulationFold(artifacts, segment);
-    if ((fold.faces_vertices?.length ?? 0) === 0) return null;
+    const fold = await storeSimulationFold(store, segment);
+    if (!fold) return null;
     const client = retainSimulatorClient();
     try {
       return await client.flatScene(fold, { view, size: SIMULATED_FRAME_PX, style, markHidden: true });
@@ -295,8 +294,28 @@ export function storeSimulateFlat(store: DiagramCaptureStore): SimulateFlat {
   };
 }
 
-/** The square a 0% simulated picture is framed in, CSS px: a size, not a scale (it carries no paper scale). */
-const SIMULATED_FRAME_PX = 512;
+/**
+ * The model the simulator folds for a region, as an inline simulation builds
+ * it from the simulator's own artifacts: what a 0% picture is drawn from and
+ * what Pose's live simulator loads (D19), so the two are one model. Null when
+ * the artifacts cannot be built or the region has no faces in their mesh.
+ */
+export async function storeSimulationFold(
+  store: DiagramCaptureStore,
+  segment: CpSegment
+): Promise<FoldDocument | null> {
+  const artifacts = store.get().foldArtifacts ?? (await store.get().ensureFoldArtifacts());
+  if (!artifacts) return null;
+  const fold = buildSegmentSimulationFold(artifacts, segment);
+  return (fold.faces_vertices?.length ?? 0) === 0 ? null : fold;
+}
+
+/**
+ * The square a simulated picture is framed in, CSS px: a size, not a scale (it
+ * carries no paper scale). Pose's captures use it too, so a step framed at 0%
+ * headless and in Pose is one picture.
+ */
+export const SIMULATED_FRAME_PX = 512;
 
 /** Stop a step's capture, if it is folding. */
 export function stopDiagramCapture(store: DiagramCaptureStore, stepId: string): boolean {

@@ -49,6 +49,7 @@ import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
 import { pickStepPictures } from './upload/addStepPictures';
+import { needsPose } from './capture/linkStatus';
 import { lightingChanged } from './pictures/lighting';
 
 /**
@@ -128,6 +129,7 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       capturing: Object.hasOwn(diagramCaptures, stepId),
       patternOpen: oristudioCpDocument !== null,
       showAs: showAsOfStep(step),
+      poseAgain: needsPose(step),
     },
     t
   );
@@ -189,7 +191,11 @@ function bindStepActions(
       },
       linkPattern: () => openDiagramPatternPicker(stepId),
       refreshPicture: () => {
-        void refreshDiagramStep(stepId);
+        const current = store().diagram;
+        const step = current?.steps[stepIndex(current, stepId)];
+        // Folded part way in the simulator: only Pose captures it again (D19).
+        if (step && needsPose(step)) openDiagramStep(stepId, 'pose_again');
+        else void refreshDiagramStep(stepId);
       },
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),
@@ -279,6 +285,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               capturing,
               patternOpen,
               showAs: showAsOfStep(step),
+              poseAgain: step ? needsPose(step) : false,
             },
             t
           ),

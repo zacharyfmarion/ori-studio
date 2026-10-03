@@ -19,7 +19,8 @@ import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useReturnFocusOnClose } from '../../hooks/useReturnFocusOnClose';
 import { Button } from '../ui/Button';
-import { FieldRow, SegmentedRow } from '../ui/fieldRows';
+import { FieldRow } from '../ui/fieldRows';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { Notice } from '../ui/Notice';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepPicture.module.css';
@@ -95,14 +96,22 @@ export function DiagramStepPicture({
             : t('panels:diagram.picture.none', 'No picture yet')}
       </FieldRow>
       {showAs && (
-        <SegmentedRow
-          label={t('panels:diagram.picture.showAs', 'Show as')}
-          value={showAs.options.find((option) => option.checked)?.id ?? null}
-          disabled={showAs.disabled}
-          title={showAs.hint}
-          options={showAs.options.map((option) => ({ id: option.id, label: option.label }))}
-          onChange={(way) => showAs.options.find((option) => option.id === way)?.run()}
-        />
+        // Its own row under its label: the three ways are too wide to sit
+        // beside it in a pane this narrow, and cut short they say nothing.
+        <div className={styles.showAs} title={showAs.hint}>
+          <span className={styles.showAsLabel} aria-hidden="true">
+            {t('panels:diagram.picture.showAs', 'Show as')}
+          </span>
+          <SegmentedControl
+            size="sm"
+            fill
+            aria-label={t('panels:diagram.picture.showAs', 'Show as')}
+            value={showAs.options.find((option) => option.checked)?.id ?? null}
+            disabled={showAs.disabled}
+            options={showAs.options.map((option) => ({ value: option.id, label: option.label }))}
+            onChange={(way) => showAs.options.find((option) => option.id === way)?.run()}
+          />
+        </div>
       )}
       {source?.kind === 'cp' && source.render.mode === 'folded-3d' && step.picture !== null && (
         <FieldRow label={t('panels:diagram.picture.view', 'View')} kind="text">

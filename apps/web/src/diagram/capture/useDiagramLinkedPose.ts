@@ -6,11 +6,17 @@ import { onEngineLost } from '../../engines/engineHost';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   buildDiagramLinkedPoseActions,
+  SHOW_AS_ACTION,
   type DiagramLinkedPoseAction,
 } from '../actions/diagramLinkedPoseActions';
 import type { DiagramShowAs, DiagramStep } from '../document/diagramDocument';
 import { publishOpenLinkedPose } from './openLinkedPose';
-import { createPoseController, linkedFoldKey, type DiagramPoseSpatialView } from './poseController';
+import {
+  createPoseController,
+  linkedFoldKey,
+  type DiagramPoseSpatialView,
+  type SimulatedRest,
+} from './poseController';
 
 export type { DiagramPoseSpatialView };
 
@@ -24,6 +30,8 @@ export interface DiagramLinkedPose {
   rotateTo: (degrees: number) => void;
   /** Show the pattern another way, in the pose that way last had (D19). */
   showAs: (way: DiagramShowAs) => Promise<void>;
+  /** Pose's simulator came to rest: captured, if it is not the step's picture already (D19). */
+  simulate: (rest: SimulatedRest) => Promise<void>;
 }
 
 /**
@@ -107,14 +115,21 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
 
   const showAs = useCallback(
     async (way: DiagramShowAs) => {
-      if (controller && !readOnly) await controller.run({ verb: way === 'folded' ? 'show-folded' : 'show-crease-pattern' });
+      if (controller && !readOnly) await controller.run({ verb: SHOW_AS_ACTION[way] });
+    },
+    [controller, readOnly]
+  );
+
+  const simulate = useCallback(
+    async (rest: SimulatedRest) => {
+      if (controller && !readOnly) await controller.simulate(rest);
     },
     [controller, readOnly]
   );
 
   const pose = useMemo(
-    () => (source ? { actions, spatial: view, onCamera, rotateTo, showAs } : null),
-    [source, actions, view, onCamera, rotateTo, showAs]
+    () => (source ? { actions, spatial: view, onCamera, rotateTo, showAs, simulate } : null),
+    [source, actions, view, onCamera, rotateTo, showAs, simulate]
   );
   // The Step pane offers these verbs too, through this one controller.
   useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);

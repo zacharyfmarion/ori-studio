@@ -108,6 +108,11 @@ export interface DiagramStepActionState {
   patternOpen: boolean;
   /** How a step linked to the pattern shows it (D19); null for any other step. */
   showAs: DiagramShowAs | null;
+  /**
+   * Shown Simulated above 0%: only Pose captures it again, so Refresh is
+   * "Pose Again" and opens it (D19).
+   */
+  poseAgain: boolean;
 }
 
 export interface DiagramStepActionDeps {
@@ -121,7 +126,10 @@ export interface DiagramStepActionDeps {
   uploadPicture: () => void;
   /** Choose the pattern the step shows: the picker, in the Step pane. */
   linkPattern: () => void;
-  /** Capture a linked step's picture again from its pattern as it is now. */
+  /**
+   * Capture a linked step's picture again from its pattern as it is now — or,
+   * for a step that only Pose captures (`poseAgain`), open it in Pose.
+   */
   refreshPicture: () => void;
   /** Show a linked step's pattern in Edit. */
   openInEdit: () => void;
@@ -334,7 +342,9 @@ export function buildDiagramStepActions(
       : [
           command(
             'refresh-picture',
-            t('panels:diagram.actions.refreshPicture', 'Refresh Picture'),
+            state.poseAgain
+              ? t('panels:diagram.actions.poseAgain', 'Pose Again')
+              : t('panels:diagram.actions.refreshPicture', 'Refresh Picture'),
             deps.refreshPicture,
             state.capturing || !refreshable(state.link, state.lightingChanged, state.patternOpen),
             state.capturing ? capturingHint : refreshHint(state.link, state.lightingChanged, state.patternOpen, t)

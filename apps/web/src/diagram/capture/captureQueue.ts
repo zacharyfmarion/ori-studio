@@ -8,7 +8,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { stepIndex, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
 import { lightingChanged } from '../pictures/lighting';
 import { abandonOnEngineLoss } from './engineLoss';
-import { linkStatus } from './linkStatus';
+import { linkStatus, needsPose } from './linkStatus';
 import { sayCaptureOutcome, trackCapture } from './stepCaptureActions';
 
 /** The label Refresh all's one undo entry carries. */
@@ -146,11 +146,6 @@ export function outOfDate(
       return status === 'stale' || (status === 'current' && lightingChanged(step, style));
     })
     .map((step) => step.id);
-}
-
-/** A step shown as Simulated above 0%: captured again only in Pose (D19). */
-export function needsPose(step: DiagramStep): boolean {
-  return step.source?.kind === 'cp' && step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0;
 }
 
 /** Let the page breathe between steps. */

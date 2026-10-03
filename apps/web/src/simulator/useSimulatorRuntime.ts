@@ -23,7 +23,7 @@ import {
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
 import type { PaperScene } from '../lib/paper/paperScene';
-import type { SimulatorExportSceneOptions } from './simulatorSession';
+import type { SimulatorExportSceneOptions, SimulatorStillSceneOptions } from './simulatorSession';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -191,6 +191,13 @@ export interface SimulatorRuntime {
    * where the worker was never sent them.
    */
   beginExport: () => Promise<SimulatorExportSnapshot | null>;
+  /**
+   * The model where the solver holds it now, from a camera, framed in a
+   * square on its own shape with perspective: a Diagram step's picture (D19),
+   * as `flatScene` gives the same step at 0% with no session. Null when this
+   * runtime holds no model.
+   */
+  stillScene: (options: SimulatorStillSceneOptions) => Promise<PaperScene | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -747,6 +754,13 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     };
   }, []);
 
+  const stillScene = useCallback(async (options: SimulatorStillSceneOptions): Promise<PaperScene | null> => {
+    const client = clientRef.current;
+    const token = tokenRef.current;
+    if (!client || token === undefined) return null;
+    return client.sessionScene({ ...options, token });
+  }, []);
+
   // Opt-in perf logging: set `oristudio:sim-perf` to `1` in localStorage, then
   // reload. Shared with every other simulator surface — see
   // `useSimulatorPerfLog`, which is one poller per page rather than one per
@@ -769,5 +783,6 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     setCamera,
     setRenderSettings,
     beginExport,
+    stillScene,
   };
 }

@@ -4,6 +4,22 @@
   gap: var(--space-2);
 }
 
+/*
+ * Show as: the label over the three ways, the ways filling the row. A row of
+ * the pane's own measure (its padding and rule are the field rows').
+ */
+.showAs {
+  display: grid;
+  gap: 6px;
+  padding: 7px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.showAsLabel {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
 .notice {
   padding: 0 var(--space-3);
 }

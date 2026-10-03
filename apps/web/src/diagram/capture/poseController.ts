@@ -2,7 +2,10 @@ import {
   trackDiagramPicturePosed,
   type DiagramPoseAction as TrackedPoseAction,
 } from '../../analytics';
-import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
+import {
+  ensureCpSegmentationArtifacts,
+  peekCpSegmentationArtifacts,
+} from '../../cp-workspace/cpSegmentationArtifacts';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import {
   foldedFigureHandleEpoch,
@@ -30,6 +33,8 @@ import { chooseStepCreases, creasesFingerprint, type StepCreases } from './captu
 import { CaptureSessionClosedError, createCaptureSession, type CaptureSession } from './captureSession';
 import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
+import { linkStatus } from './linkStatus';
+import { lightingChanged } from '../pictures/lighting';
 import { poseLinkedStep, type LinkedPoseRequest } from './linkedPose';
 import { captureKind, sayCaptureOutcome } from './stepCaptureActions';
 
@@ -50,7 +55,11 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   reset: 'reset',
   orbit: 'orbit',
   'rotate-to': 'rotate_to',
+  simulate: 'simulate',
 };
+
+/** Where Pose's simulator came to rest, and the model there. */
+export type SimulatedRest = Omit<Extract<LinkedPoseRequest, { verb: 'simulate' }>, 'verb'>;
 
 /** The 3D fold the live view draws, held by the session. */
 export interface DiagramPoseSpatialView {
@@ -88,6 +97,13 @@ export interface PoseController {
   run: (request: LinkedPoseRequest) => Promise<void>;
   /** The 3D view moved: capture it once it rests, if it is not where the step already is. */
   orbit: (camera: FoldedFigureCamera, stored: FoldedFigureCamera | null) => void;
+  /**
+   * Pose's simulator came to rest (D19): capture the model where it is, if
+   * that is not the picture the step already has — another fold % or camera,
+   * creases changed since, or another light. Nothing for a step no longer
+   * shown Simulated: the rest was of a view it has left.
+   */
+  simulate: (rest: SimulatedRest) => Promise<void>;
   /** Fold a step shown in 3D for its live view. */
   prepareSpatial: () => Promise<void>;
   /** An undo or redo: stop what is still folding for a source the step no longer has. */
@@ -147,6 +163,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
   const run = async (request: LinkedPoseRequest): Promise<void> => {
     const outcome = await capturing(async (begun, linked): Promise<DiagramCaptureOutcome> => {
+      // Shown another way since the simulator came to rest: an undo, or a verb.
+      if (request.verb === 'simulate' && linked.render.mode !== 'simulated') return { status: 'discarded' };
       const { document, segmentation, choice } = await creasesFor(begun, linked);
       if (choice.status !== 'found') return choice;
       const result = await abandonOnEngineLoss(
@@ -204,6 +222,13 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       }, ORBIT_SETTLE_MS);
     },
 
+    async simulate(rest) {
+      const linked = currentLinkedSource(stepId);
+      if (linked?.render.mode !== 'simulated') return;
+      if (sameSimulatedPose(linked.render, rest) && !needsRecapture(stepId, linked)) return;
+      await run({ verb: 'simulate', ...rest });
+    },
+
     async prepareSpatial() {
       await capturing(async (begun, linked) => {
         const { document, choice } = await creasesFor(begun, linked);
@@ -255,6 +280,32 @@ function currentLinkedSource(stepId: string): DiagramCpSource | null {
   const { diagram } = useWorkspaceStore.getState();
   const step = diagram?.steps[stepIndex(diagram, stepId)];
   return step && !step.unknown && step.source?.kind === 'cp' ? step.source : null;
+}
+
+/** Whether a rest is where the step's simulated picture already is, to well under a slider's step. */
+function sameSimulatedPose(
+  render: Extract<DiagramCpSource['render'], { mode: 'simulated' }>,
+  rest: Pick<SimulatedRest, 'foldPercent' | 'view'>
+): boolean {
+  return Math.abs(render.foldPercent - rest.foldPercent) < SAME_FOLD_PERCENT && sameCamera(render.view, rest.view);
+}
+
+/** Fold % closer than this is one pose: the 0.1 a pose is stored to, halved. */
+const SAME_FOLD_PERCENT = 0.05;
+
+/**
+ * Whether a step's picture is not of its pattern as it is now, or not in the
+ * diagram's light: what Pose again is for (D19). Unknown — the segmentation
+ * not ready — is not out of date: a capture would find out no more.
+ */
+function needsRecapture(stepId: string, linked: DiagramCpSource): boolean {
+  const { diagram, oristudioCpDocument } = useWorkspaceStore.getState();
+  const step = diagram?.steps[stepIndex(diagram, stepId)];
+  if (!diagram || !step) return false;
+  const document = oristudioCpDocument?.document ?? null;
+  const segmentation = document ? peekCpSegmentationArtifacts(document) : null;
+  const status = linkStatus(linked, document, segmentation);
+  return status === 'stale' || (status === 'current' && lightingChanged(step, diagram.style));
 }
 
 /** The step's source after a pose: the same scope, its creases fingerprinted as the new render shows them. */

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowDownToDot,
@@ -10,21 +11,15 @@ import {
   Undo2,
   type LucideIcon,
 } from 'lucide-react';
-import type {
-  DiagramLinkedPoseAction,
-  DiagramLinkedPoseActionId,
+import {
+  SHOW_AS_ACTION,
+  type DiagramLinkedPoseAction,
+  type DiagramLinkedPoseActionId,
 } from '../../diagram/actions/diagramLinkedPoseActions';
+import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../../diagram/document/diagramDocument';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 
-type ShowMode = 'crease-pattern' | 'folded' | 'simulated';
-
-/** The ways to show the pattern, by the verb that shows it each way. */
-const SHOW_MODES: readonly (readonly [ShowMode, DiagramLinkedPoseActionId])[] = [
-  ['crease-pattern', 'show-crease-pattern'],
-  ['folded', 'show-folded'],
-  ['simulated', 'show-simulated'],
-];
 
 /** A linked pose verb's icon, wherever it is offered: here and in the Step pane. */
 export const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
@@ -40,27 +35,33 @@ export const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, Lucide
 
 /**
  * A linked step's Pose verbs, for the step detail's toolbar: how the step
- * shows its pattern — Crease pattern or Folded — then what can be done to
- * that. `keep` runs a verb and keeps focus in the toolbar, as the upload's
- * pose buttons do; while a capture runs the verbs wait rather than disable,
- * so the one pressed keeps the focus through it.
+ * shows its pattern — Crease pattern, Folded or Simulated — then what can be
+ * done to that, with `children` (the simulator's transport) between the two.
+ * `keep` runs a verb and keeps focus in the toolbar, as the upload's pose
+ * buttons do; while a capture runs the verbs wait rather than disable, so the
+ * one pressed keeps the focus through it.
  */
 export function DiagramLinkedPoseControls({
   actions,
   keep,
+  children,
 }: {
   actions: readonly DiagramLinkedPoseAction[];
   keep: (run: () => void) => void;
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
-  const modes = SHOW_MODES.map(([mode, id]) => ({ mode, action: actions.find((action) => action.id === id) })).filter(
-    (entry): entry is { mode: ShowMode; action: DiagramLinkedPoseAction } => entry.action !== undefined
+  const modes = DIAGRAM_SHOW_AS.map((mode) => ({
+    mode,
+    action: actions.find((action) => action.id === SHOW_AS_ACTION[mode]),
+  })).filter(
+    (entry): entry is { mode: DiagramShowAs; action: DiagramLinkedPoseAction } => entry.action !== undefined
   );
   const verbs = actions.filter((action) => LINKED_POSE_ICONS[action.id]);
   return (
     <>
       {modes.length > 0 && (
-        <SegmentedControl<ShowMode>
+        <SegmentedControl<DiagramShowAs>
           size="sm"
           aria-label={t('panels:diagram.pose.show', 'Show')}
           value={modes.find(({ action }) => action.pressed)?.mode ?? null}
@@ -78,6 +79,7 @@ export function DiagramLinkedPoseControls({
           }}
         />
       )}
+      {children}
       {verbs.map((action) => {
         const Icon = LINKED_POSE_ICONS[action.id]!;
         return (

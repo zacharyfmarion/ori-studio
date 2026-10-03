@@ -51,6 +51,7 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       capturing: false,
       patternOpen: true,
       showAs: null,
+      poseAgain: false,
       ...state,
     } as DiagramStepActionState,
     bound
@@ -255,6 +256,13 @@ describe('the diagram step verbs', () => {
     expect(refresh({ link: 'missing', lightingChanged: true })?.disabled).toBe(true);
     // Not on a step that is not linked.
     expect(refresh({ link: null })).toBeNull();
+  });
+
+  it('poses again a step folded part way in the simulator, which only Pose captures', () => {
+    const refresh = (state: Partial<DiagramStepActionState>) =>
+      diagramStepCommand(build({ hasSource: true, poseAgain: true, ...state }), 'refresh-picture');
+    expect(refresh({ link: 'stale' })).toMatchObject({ label: 'Pose Again', disabled: false });
+    expect(refresh({ link: 'current' })).toMatchObject({ label: 'Pose Again', disabled: true });
   });
 
   it('shows a linked step’s pattern in Edit, even on a read-only diagram, while one is open', () => {

@@ -3,7 +3,14 @@ import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { antipodalCamera, DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
-import { DEFAULT_DIAGRAM_STYLE, DEFAULT_SIMULATED_VIEW, type DiagramCpRender, type DiagramCpSource } from '../document/diagramDocument';
+import type { PaperStyle } from '../../lib/paper/paperStyle';
+import {
+  DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_SIMULATED_VIEW,
+  type DiagramCpRender,
+  type DiagramCpSource,
+  type DiagramSimulatedView,
+} from '../document/diagramDocument';
 import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
 import type { CpCaptureRuntime } from './captureFolded';
@@ -136,6 +143,34 @@ describe('showing it simulated (D19)', () => {
     expect(await asSimulated(simulated, { verb: 'reset' })).toMatchObject({ render: { view: DEFAULT_SIMULATED_VIEW } });
     expect(await asSimulated(simulated, { verb: 'show-crease-pattern' })).toMatchObject({ render: { mode: 'crease-pattern' } });
     expect(await asSimulated(simulated, { verb: 'show-folded' })).toMatchObject({ render: { mode: 'folded-flat' } });
+  });
+
+  it('captures Pose’s live simulator where it rests, through the still it is handed, at its fold %', async () => {
+    const { session, runtime } = sessionWith();
+    const document = cpDocument();
+    const simulateFlat = vi.fn(async () => sheetWithCrease());
+    const still = vi.fn(async (_view: DiagramSimulatedView, _style: PaperStyle) => sheetWithCrease());
+    const view = { yaw: 0.4, pitch: -0.7, zoom: 1.6, orient: [1, 0, 0, 0, 0, -1, 0, 1, 0] as const };
+    const result = await poseLinkedStep(
+      session,
+      {
+        document,
+        creases: creasesOf(document),
+        render: { mode: 'simulated', foldPercent: 0, view: DEFAULT_SIMULATED_VIEW },
+        style: DEFAULT_DIAGRAM_STYLE,
+        simulateFlat,
+      },
+      { verb: 'simulate', foldPercent: 40, view: { ...view, orient: [...view.orient] }, still }
+    );
+    expect(result).toMatchObject({ status: 'posed', render: { mode: 'simulated', foldPercent: 40, view } });
+    // The live model, never the flat sheet, and in the simulator's light.
+    expect(still).toHaveBeenCalledOnce();
+    expect(still.mock.calls[0]![0]).toMatchObject(view);
+    expect(simulateFlat).not.toHaveBeenCalled();
+    expect(runtime.fold).not.toHaveBeenCalled();
+    expect(result.status === 'posed' && result.picture.kind === 'picture' && result.picture.picture.kind === 'scene'
+      ? result.picture.picture.styleKey
+      : null).not.toBeNull();
   });
 
   it('says the region cannot be simulated', async () => {

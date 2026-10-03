@@ -114,12 +114,13 @@ export type DiagramCpRender =
       view: DiagramSimulatedView;
     };
 
-/** A simulated step's camera: the simulator viewport's orbit, without roll. */
-export interface DiagramSimulatedView {
-  yaw: number;
-  pitch: number;
-  zoom: number;
-}
+/**
+ * A simulated step's camera: the simulator viewport's orbit, its roll kept in
+ * the orientation (`withRollAbsorbed`), as a folded figure's camera is — so
+ * what Pose captures is what it shows, an upright set or a Shift-drag
+ * included.
+ */
+export type DiagramSimulatedView = FoldedFigureCamera;
 
 /** The camera a simulated step opens at: Simulate's own default view (`DEFAULT_SIMULATOR_VIEW`). */
 export const DEFAULT_SIMULATED_VIEW: DiagramSimulatedView = { yaw: Math.PI / 4, pitch: -0.955, zoom: 1.4 };

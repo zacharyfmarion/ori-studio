@@ -124,19 +124,31 @@ export function storeScene(
 }
 
 /**
- * A step shown as Simulated at 0%: the simulator's flat sheet from the step's
- * camera, as a stored scene that records the simulator's light (D19). Null
- * when there is no simulator to ask or the region has no model.
+ * The simulator's model of a step's region from a camera, in a style's light:
+ * at rest (a {@link SimulateFlat} bound to the region, {@link flatStill}) or
+ * where Pose's solver holds it now. Null when there is no model to draw.
  */
-export async function captureSimulatedFlat(
-  simulateFlat: SimulateFlat | undefined,
-  creases: StepCreases,
+export type StillScene = (view: DiagramSimulatedView, style: PaperStyle) => Promise<PaperScene | null>;
+
+/** The flat sheet of a step's region, as a {@link StillScene}; absent with no simulator to ask. */
+export function flatStill(simulateFlat: SimulateFlat | undefined, creases: StepCreases): StillScene | undefined {
+  return simulateFlat && ((view, style) => simulateFlat(creases.segment, view, style));
+}
+
+/**
+ * A step shown as Simulated: the simulator's model from the step's camera, as
+ * a stored scene that records the simulator's light (D19) — one body for the
+ * headless 0% and Pose's live solver, so the two cannot drift. Null when there
+ * is no simulator to ask or the region has no model.
+ */
+export async function captureSimulated(
+  still: StillScene | undefined,
   view: DiagramSimulatedView,
   style: DiagramStyle
 ): Promise<CapturedPicture | null> {
-  if (!simulateFlat) return null;
+  if (!still) return null;
   const drawn = diagramPaperStyle(style);
-  const scene = await simulateFlat(creases.segment, view, drawn);
+  const scene = await still(view, drawn);
   return scene ? storeScene(scene, null, simulatorSceneStyleKey(drawn)) : null;
 }
 
@@ -314,7 +326,7 @@ export async function captureStep(
   if (request.render.mode === 'simulated') {
     // A fold % above 0 is a solver's settling, which only a Pose holds (D19).
     if (request.render.foldPercent > 0) return { status: 'needs-pose' };
-    const captured = await captureSimulatedFlat(request.simulateFlat, creases, request.render.view, style);
+    const captured = await captureSimulated(flatStill(request.simulateFlat, creases), request.render.view, style);
     return captured
       ? { status: 'captured', source: source(request.render), captured, noLayerOrder: false }
       : { status: 'unavailable' };

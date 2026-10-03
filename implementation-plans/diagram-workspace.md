@@ -2607,7 +2607,7 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
     - Browser (`artifacts/diagram-parity/simulated.mjs`, crane step 5): Show
       as › Simulated from the Step pane gave "Simulated · 0%" in 1.2 s with
       no Pose opened; Folded and back kept the camera.
-- [ ] **8d. Simulated in Pose.** `useDiagramSimulatedCapture`:
+- [x] **8d. Simulated in Pose.** `useDiagramSimulatedCapture`:
   `useSimulatorRuntime` over `buildSegmentSimulationFold(foldArtifacts,
   segment)`, the region matched through `cpModelToFoldTransform`; refused for
   an empty `faces_vertices` and at the cap with the existing copies; settle to
@@ -2618,8 +2618,65 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
   "Out of date · Pose again" above 0%; worker residency sized for Pose's
   window, with a test that 20 inline simulations, Simulate's view and Pose
   evict nobody.
-- [ ] **8e.** Analytics (`diagram step shown as`, `kind: simulated`), i18n in
-  all eight locales, `docs/analytics.md`.
+  - As built:
+    - `useDiagramSimulatedPose` (in `diagram/capture/`) loads the region's
+      model from `storeSimulationFold` — the one `storeSimulateFlat` draws
+      the 0% picture from — at the step's fold % and camera, with the
+      simulator's default settings rather than Simulate's (a picture must not
+      follow a reader's preferences). `DiagramPoseSimulatedView` shows it on
+      `DiagramPoseStage`, the frame the 3D view now shares (its styles moved
+      there unchanged: the five elements' computed styles compared equal in
+      the browser, `artifacts/diagram-parity/stage-styles.mjs`). The view
+      cube gives the named views; the yaw/pitch readout and the ghosted
+      annotations (`simulatedCaptureFrame`, tested against the projection)
+      are the 3D view's.
+    - The transport sits in Pose's bar between the Show switch and Reset
+      (`DiagramLinkedPoseControls` takes it as children): Back to Flat, Play /
+      Pause, Fold a Step (5%), a `Slider` and the readout. While shown, the
+      simulator's scope has Space, ← / →, Home, R and the view keys; `[` /
+      `]`, Escape and Undo stay Pose's.
+    - Captured per rest, as an orbit is (the as-built deviation from D5
+      stands): the fold and camera still for `ORBIT_SETTLE_MS`, the solver
+      converged or given 4 s, then `PoseController.simulate`, which captures
+      only when the rest is not the step's picture already — another fold %
+      or camera, creases changed since, or another light. So opening Pose
+      writes nothing, and opening it on a step out of date captures it again:
+      that is "Pose again". Leaving Pose (Done, Escape, another step) with a
+      move not yet captured captures it then: the scene is asked for before
+      the runtime lets its model go, with the worker held until it answers.
+    - The worker's `sessionScene` frames a live session as `flatScene` frames
+      the flat sheet (`stillFrame`, a square framed on the model's own shape,
+      perspective on). At 0% it draws the original positions: a solver at
+      rest holds the sheet only to float noise, which split a face — tested
+      equal after folding to 50% and back. The snapshot's `perspective`
+      option from 8c went unused and is gone.
+    - `DiagramSimulatedView` keeps an `orient` (a roll absorbed, an upright
+      set), as a 3D camera does.
+    - Residency: `MAX_LIVE_SIMULATOR_SESSIONS` = the window cap + Simulate's
+      view + Pose + one reload, tested. Deviation from D19: Pose is not
+      gated by the inline-simulation cap. Switching workspace clears the
+      dock, so Edit's windows are not alive beside it, and room is made
+      rather than a refusal shown.
+    - Refresh on a step above 0% is **Pose Again** and opens it in Pose
+      (`diagram step opened` via `pose_again`); its card says "Out of date ·
+      Pose again". `needsPose` moved to `linkStatus.ts`, beside the card's
+      other reading of a link.
+    - Without WebGL2 in the simulator's worker the stored picture shows with
+      "Folding it here needs WebGL2", the transport is off, and Show as still
+      works (`artifacts/diagram-parity/simulated-nogpu.mjs`).
+    - Fixed on the way: with Pose open, Show as › Simulated from the Step
+      pane or the card ran Pose's crease-pattern verb (a second way→verb map,
+      now one: `SHOW_AS_ACTION`). The Step pane's Show as row cut its three
+      labels short at the pane's width; it now takes the row under its label.
+    - Browser (`artifacts/diagram-parity/simulated-pose.mjs`, crane step 5,
+      SwiftShader): live in 0.8 s and nothing written; the slider to 40%,
+      one "Adjust pose" step; a drag, one more; → gave 45%; undo brought the
+      view back to 40%; the slider to 60% and Done at once captured 60%.
+    - Known: the simulator's default zoom (1.4) overfills Pose's stage on a
+      folded model, as it does in Simulate; the wheel or the cube fixes it.
+- [x] **8e.** Analytics (`diagram picture posed` gains `simulate`, `diagram
+  step opened` gains `pose_again`; `kind: simulated` and `diagram step shown
+  as` came with 8c), i18n in all eight locales, `docs/analytics.md`.
 - [ ] **Browser:** link a crane region and show it as each of the three from
   the Step pane and from the picker; Folded's turn-over survives a trip to
   Crease pattern and back; Simulated at 0%, then 40% in Pose, captured,
