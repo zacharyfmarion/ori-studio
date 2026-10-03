@@ -62,16 +62,44 @@ export interface DiagramPageSetup {
  */
 export type DiagramStyle = { preset: BuiltInPaperPresetId } | { style: PaperStyle };
 
+/** A quarter-turn count, clockwise. */
+export type QuarterTurns = 0 | 1 | 2 | 3;
+
+/**
+ * A picture the user uploaded. Its pose is the source's own: applied when the
+ * step is painted, around the shared asset, which is never rewritten (D5).
+ */
+export interface DiagramUploadSource {
+  kind: 'upload';
+  assetId: string;
+  /** Clockwise, applied after {@link mirrored}. */
+  rotationQuarterTurns: QuarterTurns;
+  /** Flipped left to right, before the rotation. */
+  mirrored: boolean;
+}
+
 /**
  * Where a step's picture comes from. The variants arrive with the phases that
- * build them; until then a step's source is always `null`, and a source this
- * build does not know makes the step an unknown, locked one (see
- * {@link DiagramStep.unknown}).
+ * build them, and a source this build does not know makes the step an
+ * unknown, locked one (see {@link DiagramStep.unknown}).
  */
-export type DiagramStepSource = never;
+export type DiagramStepSource = DiagramUploadSource;
+
+/**
+ * A picture held in the assets table: an upload, or (from Phase 3) a capture
+ * too large to keep inline. `key` names the picture, for the paint cache and
+ * for telling whether annotations were drawn on it.
+ */
+export interface DiagramAssetPicture {
+  kind: 'asset';
+  assetId: string;
+  /** Millimetres per picture unit, when the picture knows its paper's size; an upload does not. */
+  paperScale: number | null;
+  key: string;
+}
 
 /** A step's captured picture. Variants arrive with their phases, as sources do. */
-export type DiagramPicture = never;
+export type DiagramPicture = DiagramAssetPicture;
 
 /**
  * An annotation this build cannot read, kept verbatim so a newer build's work
@@ -84,13 +112,41 @@ export interface UnknownDiagramAnnotation {
 
 export type DiagramAnnotation = UnknownDiagramAnnotation;
 
+/** Uploaded vector art, sanitized (D7): only ever shown as an image. */
+export interface DiagramSvgAsset {
+  id: string;
+  kind: 'svg';
+  /** Sanitized markup, its ids prefixed with the asset's id. */
+  svg: string;
+  widthPx: number;
+  heightPx: number;
+  /** What it costs in the file. */
+  bytes: number;
+}
+
+/** An uploaded bitmap, re-encoded to a PNG or JPEG data URL at most 2048 px a side. */
+export interface DiagramRasterAsset {
+  id: string;
+  kind: 'raster';
+  src: string;
+  widthPx: number;
+  heightPx: number;
+  bytes: number;
+}
+
+export type KnownDiagramAsset = DiagramSvgAsset | DiagramRasterAsset;
+
 /** An asset this build cannot read, kept verbatim like an unknown annotation. */
 export interface UnknownDiagramAsset {
   id: string;
   unknown: Record<string, unknown>;
 }
 
-export type DiagramAsset = UnknownDiagramAsset;
+export type DiagramAsset = KnownDiagramAsset | UnknownDiagramAsset;
+
+export function isKnownAsset(asset: DiagramAsset): asset is KnownDiagramAsset {
+  return !('unknown' in asset);
+}
 
 export interface DiagramStep {
   /** `step-<uuid>`. */
@@ -207,6 +263,11 @@ export function isLockedStep(step: DiagramStep): boolean {
   return step.unknown !== undefined;
 }
 
+/** Whether a step has a picture, or a source to capture one from. */
+export function stepHasPicture(step: DiagramStep): boolean {
+  return step.source !== null || step.picture !== null;
+}
+
 /**
  * Whether deleting the step would throw work away: an instruction, a picture
  * or its source, annotations, or a step made by a newer build. An empty step
@@ -297,6 +358,108 @@ export function duplicateStep(
     }),
   };
   return { document: insertSteps(document, [copy], index + 1), stepId: copy.id };
+}
+
+/** The key of an upload's picture: the asset's, which never changes once stored. */
+export function uploadPictureKey(assetId: string): string {
+  return `asset:${assetId}`;
+}
+
+function uploadStepParts(asset: KnownDiagramAsset): Pick<DiagramStep, 'source' | 'picture'> {
+  return {
+    source: { kind: 'upload', assetId: asset.id, rotationQuarterTurns: 0, mirrored: false },
+    picture: { kind: 'asset', assetId: asset.id, paperScale: null, key: uploadPictureKey(asset.id) },
+  };
+}
+
+function withAssets(document: DiagramDocument, assets: readonly KnownDiagramAsset[]): DiagramDocument {
+  if (assets.length === 0) return document;
+  const table = { ...document.assets };
+  for (const asset of assets) table[asset.id] = asset;
+  return { ...document, assets: table };
+}
+
+/**
+ * One new step per picture, in the order given, inserted at `index`. The
+ * assets go into the table; each step refers to its own by id.
+ */
+export function insertPictureSteps(
+  document: DiagramDocument,
+  assets: readonly KnownDiagramAsset[],
+  index: number,
+  newId: DiagramIdFactory = randomDiagramId
+): { document: DiagramDocument; stepIds: string[] } {
+  const steps = assets.map((asset) => ({ ...createStep(newId), ...uploadStepParts(asset) }));
+  return {
+    document: insertSteps(withAssets(document, assets), steps, index),
+    stepIds: steps.map((step) => step.id),
+  };
+}
+
+/**
+ * Give a step a picture: it becomes an upload of `asset`, in its upright pose,
+ * and keeps its instruction and annotations. Annotations drawn on another
+ * picture stay where they were, and Annotate says the picture changed.
+ */
+export function setStepPicture(
+  document: DiagramDocument,
+  stepId: string,
+  asset: KnownDiagramAsset
+): DiagramDocument {
+  const index = stepIndex(document, stepId);
+  if (index < 0 || isLockedStep(document.steps[index])) return document;
+  return updateStep(withAssets(document, [asset]), stepId, (step) => ({
+    ...step,
+    ...uploadStepParts(asset),
+    revision: step.revision + 1,
+  }));
+}
+
+/** Take a step's picture away, and its source with it. Its words and annotations stay. */
+export function removeStepPicture(document: DiagramDocument, stepId: string): DiagramDocument {
+  return updateStep(document, stepId, (step) =>
+    stepHasPicture(step)
+      ? { ...step, source: null, picture: null, revision: step.revision + 1 }
+      : step
+  );
+}
+
+/** The asset a step's picture is drawn from, when it is one this build can draw. */
+export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDiagramAsset | null {
+  if (isLockedStep(step) || step.picture?.kind !== 'asset') return null;
+  const asset = document.assets[step.picture.assetId];
+  return asset && isKnownAsset(asset) ? asset : null;
+}
+
+/**
+ * The document as a file holds it: only the assets something still refers to.
+ *
+ * The table keeps every asset while the diagram is open — undo needs the one a
+ * replaced picture had — and a save leaves the orphans behind. Three things
+ * keep an asset: a step's source or picture naming it; its id anywhere in a
+ * newer build's step, which this build cannot read but must not break; and
+ * being of a kind this build does not know, since only that newer build knows
+ * what refers to it. The same document comes back when nothing is dropped.
+ */
+export function withReferencedAssets(document: DiagramDocument): DiagramDocument {
+  const kept = new Set<string>();
+  const carried: string[] = [];
+  for (const step of document.steps) {
+    if (step.unknown) {
+      carried.push(JSON.stringify(step.unknown));
+      continue;
+    }
+    if (step.source?.kind === 'upload') kept.add(step.source.assetId);
+    if (step.picture?.kind === 'asset') kept.add(step.picture.assetId);
+  }
+  const unknownSteps = carried.join('\n');
+  let dropped = false;
+  const assets: Record<string, DiagramAsset> = {};
+  for (const [id, asset] of Object.entries(document.assets)) {
+    if (kept.has(id) || !isKnownAsset(asset) || unknownSteps.includes(id)) assets[id] = asset;
+    else dropped = true;
+  }
+  return dropped ? { ...document, assets } : document;
 }
 
 export function setStepText(document: DiagramDocument, stepId: string, text: string): DiagramDocument {

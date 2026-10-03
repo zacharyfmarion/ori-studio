@@ -40,3 +40,17 @@
   font-size: 0.78rem;
   line-height: 1.5;
 }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* Pictures dragged over it: each will be a step. */
+.state[data-drop-target] {
+  outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  outline-offset: -12px;
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}

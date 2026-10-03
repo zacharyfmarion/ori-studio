@@ -1,0 +1,164 @@
+import { describe, expect, it } from 'vitest';
+import type { DiagramStep, KnownDiagramAsset, QuarterTurns } from '../document/diagramDocument';
+import { createStep } from '../document/diagramDocument';
+import { paintAsset, paintStepPicture, poseTransform } from './paintDiagramStep';
+import {
+  cachedPictureUrl,
+  clearStepPictureCacheForTests,
+  objectSerial,
+  STEP_PICTURE_CACHE_MAX_BYTES,
+  stepPictureCacheBytesForTests,
+  svgDataUrl,
+} from './stepPictureCache';
+
+/** Apply an SVG transform list (translate, rotate in right angles, scale) to a point. */
+function apply(transform: string, [x, y]: [number, number]): [number, number] {
+  const ops = [...transform.matchAll(/(translate|rotate|scale)\(([^)]*)\)/g)].map(
+    ([, name, args]) => [name, args.trim().split(/[\s,]+/).map(Number)] as const
+  );
+  let point: [number, number] = [x, y];
+  for (const [name, args] of ops.reverse()) {
+    const [px, py] = point;
+    if (name === 'translate') point = [px + args[0], py + (args[1] ?? 0)];
+    else if (name === 'scale') point = [px * args[0], py * (args[1] ?? args[0])];
+    else {
+      const turns = Math.round(args[0] / 90) % 4;
+      point = turns === 1 ? [-py, px] : turns === 2 ? [-px, -py] : turns === 3 ? [py, -px] : [px, py];
+    }
+  }
+  return point;
+}
+
+describe('poseTransform', () => {
+  const corners: [number, number][] = [
+    [0, 0],
+    [40, 0],
+    [40, 10],
+    [0, 10],
+  ];
+
+  it.each([0, 1, 2, 3] as QuarterTurns[])('turns %i quarter(s) clockwise into the posed box', (turns) => {
+    for (const mirrored of [false, true]) {
+      const posed = poseTransform(40, 10, { rotationQuarterTurns: turns, mirrored });
+      const moved = corners.map((corner) => apply(posed.transform, corner));
+      // Every corner lands on a corner of the posed box.
+      for (const [x, y] of moved) {
+        expect([0, posed.widthPx]).toContain(Math.round(x));
+        expect([0, posed.heightPx]).toContain(Math.round(y));
+      }
+      expect(posed.widthPx).toBe(turns % 2 ? 10 : 40);
+    }
+  });
+
+  it('turns clockwise: the top-left corner goes to the top-right after one turn', () => {
+    const posed = poseTransform(40, 10, { rotationQuarterTurns: 1, mirrored: false });
+    expect(apply(posed.transform, [0, 0])).toEqual([10, 0]);
+  });
+
+  it('mirrors left to right before turning', () => {
+    const posed = poseTransform(40, 10, { rotationQuarterTurns: 0, mirrored: true });
+    expect(apply(posed.transform, [0, 0])).toEqual([40, 0]);
+    const turned = poseTransform(40, 10, { rotationQuarterTurns: 1, mirrored: true });
+    // Mirrored, the top-left is the top-right (40, 0); a clockwise turn takes it to the bottom-right.
+    expect(apply(turned.transform, [0, 0])).toEqual([10, 40]);
+  });
+
+  it('is nothing at all upright', () => {
+    expect(poseTransform(40, 10, { rotationQuarterTurns: 0, mirrored: false }).transform).toBe('');
+  });
+});
+
+const svg: KnownDiagramAsset = {
+  id: 'asset-a',
+  kind: 'svg',
+  svg: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="10" viewBox="0 0 40 10"><rect width="4" height="4"/></svg>',
+  widthPx: 40,
+  heightPx: 10,
+  bytes: 0,
+};
+const raster: KnownDiagramAsset = {
+  id: 'asset-b',
+  kind: 'raster',
+  src: 'data:image/png;base64,AAAA',
+  widthPx: 8,
+  heightPx: 6,
+  bytes: 0,
+};
+
+describe('paintAsset', () => {
+  it('is an upright SVG itself', () => {
+    expect(paintAsset(svg)).toEqual({ svg: svg.svg, widthPx: 40, heightPx: 10 });
+  });
+
+  it('nests a posed SVG whole, so it stays vector', () => {
+    const painted = paintAsset(svg, { rotationQuarterTurns: 1, mirrored: false });
+    expect(painted).toMatchObject({ widthPx: 10, heightPx: 40 });
+    expect(painted.svg).toContain('viewBox="0 0 10 40"');
+    expect(painted.svg).toContain(svg.svg);
+    expect(new DOMParser().parseFromString(painted.svg, 'image/svg+xml').querySelector('parsererror')).toBeNull();
+  });
+
+  it('draws a bitmap as an image in its own box', () => {
+    const painted = paintAsset(raster);
+    expect(painted.svg).toContain('<image width="8" height="6"');
+    expect(painted.svg).toContain(raster.src);
+  });
+});
+
+describe('paintStepPicture', () => {
+  const step = (patch: Partial<DiagramStep>): DiagramStep => ({ ...createStep(() => 'step-1'), ...patch });
+
+  it('paints an upload in its pose, and nothing for a step without a picture it can draw', () => {
+    const assets = { 'asset-a': svg };
+    const upload = step({
+      source: { kind: 'upload', assetId: 'asset-a', rotationQuarterTurns: 2, mirrored: false },
+      picture: { kind: 'asset', assetId: 'asset-a', paperScale: null, key: 'asset:asset-a' },
+    });
+    expect(paintStepPicture(upload, assets)?.svg).toContain('rotate(180)');
+    expect(paintStepPicture(step({}), assets)).toBeNull();
+    expect(paintStepPicture(upload, {})).toBeNull();
+    expect(paintStepPicture({ ...upload, unknown: { id: 'step-1' } }, assets)).toBeNull();
+  });
+});
+
+describe('the picture cache', () => {
+  it('paints once per key, and drops the least recently used past its byte bound', () => {
+    clearStepPictureCacheForTests();
+    let paints = 0;
+    const big = 'x'.repeat(STEP_PICTURE_CACHE_MAX_BYTES / 3 + 1);
+    const paint = () => {
+      paints += 1;
+      return big;
+    };
+    cachedPictureUrl('a', paint);
+    cachedPictureUrl('b', paint);
+    cachedPictureUrl('a', paint); // a is now the most recent
+    expect(paints).toBe(2);
+    cachedPictureUrl('c', paint); // over the bound: b goes, not a
+    cachedPictureUrl('a', paint);
+    expect(paints).toBe(3);
+    cachedPictureUrl('b', paint);
+    expect(paints).toBe(4);
+    expect(stepPictureCacheBytesForTests()).toBeLessThanOrEqual(STEP_PICTURE_CACHE_MAX_BYTES);
+    clearStepPictureCacheForTests();
+  });
+
+  it('caches nothing for nothing to draw', () => {
+    clearStepPictureCacheForTests();
+    expect(cachedPictureUrl('none', () => null)).toBeNull();
+    expect(stepPictureCacheBytesForTests()).toBe(0);
+  });
+
+  it('encodes markup with any character as a data URL that decodes back to it', () => {
+    const markup = '<svg xmlns="http://www.w3.org/2000/svg"><text>#50% · 千纸鹤</text></svg>';
+    const url = svgDataUrl(markup);
+    expect(url.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    const bytes = Uint8Array.from(atob(url.split(',')[1]), (char) => char.charCodeAt(0));
+    expect(new TextDecoder().decode(bytes)).toBe(markup);
+  });
+
+  it('numbers objects, not ids', () => {
+    expect(objectSerial(svg)).toBe(objectSerial(svg));
+    expect(objectSerial({ ...svg })).not.toBe(objectSerial(svg));
+  });
+});

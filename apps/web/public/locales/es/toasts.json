@@ -21,6 +21,22 @@
     "simulateFailed": "No se pudo simular esa región.",
     "simulateNoRegion": "Selecciona una región cerrada para simular."
   },
+  "diagram": {
+    "uploadFailed_one": "No se pudo añadir una imagen",
+    "uploadFailed_many": "No se pudieron añadir {{count}} imágenes",
+    "uploadFailed_other": "No se pudieron añadir {{count}} imágenes",
+    "uploadFailureLine": "{{name}}: {{reason}}",
+    "uploadFailureMore_one": "y 1 más",
+    "uploadFailureMore_many": "y {{count}} más",
+    "uploadFailureMore_other": "y {{count}} más",
+    "uploadProgress_one": "Añadiendo la imagen…",
+    "uploadProgress_many": "Añadiendo {{count}} imágenes…",
+    "uploadProgress_other": "Añadiendo {{count}} imágenes…",
+    "uploadRejected": "no es un SVG que Ori Studio pueda leer con seguridad",
+    "uploadTooLarge": "es demasiado grande",
+    "uploadUnreadable": "no se pudo leer la imagen",
+    "uploadUnsupported": "no es una imagen"
+  },
   "fileDrop": {
     "ignoredFile": "Se usó {{name}}; se ignoró 1 archivo más de los soltados.",
     "ignoredFiles": "Se usó {{name}}; se ignoraron {{others}} archivos más de los soltados."

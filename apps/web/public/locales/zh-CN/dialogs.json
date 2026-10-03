@@ -121,7 +121,10 @@
     "deleteStepMessage": "它的图片和说明会一并删除。此操作可以撤销。",
     "deleteStepsMessage": "这些步骤的图片和说明会一并删除。此操作可以撤销。",
     "deleteStepsTitle": "删除 {{total}} 个步骤？",
-    "deleteStepTitle": "删除第 {{number}} 步？"
+    "deleteStepTitle": "删除第 {{number}} 步？",
+    "exportPictureTitle": "导出图片",
+    "replacePictureTitle": "替换图片",
+    "uploadPicturesTitle": "上传图片"
   },
   "export": {
     "allPatterns": "所有折痕图",

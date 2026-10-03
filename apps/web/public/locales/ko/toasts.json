@@ -19,6 +19,16 @@
     "simulateFailed": "해당 영역은 시뮬레이션할 수 없습니다.",
     "simulateNoRegion": "시뮬레이션할 닫힌 영역을 선택하세요."
   },
+  "diagram": {
+    "uploadFailed_other": "그림 {{count}}개를 추가하지 못했습니다",
+    "uploadFailureLine": "{{name}}: {{reason}}",
+    "uploadFailureMore_other": "외 {{count}}개",
+    "uploadProgress_other": "그림 {{count}}개를 추가하는 중…",
+    "uploadRejected": "Ori Studio가 안전하게 읽을 수 있는 SVG가 아닙니다",
+    "uploadTooLarge": "파일이 너무 큽니다",
+    "uploadUnreadable": "그림을 읽을 수 없습니다",
+    "uploadUnsupported": "그림 파일이 아닙니다"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 1개는 무시되었습니다.",
     "ignoredFiles": "{{name}}을(를) 사용했습니다. 놓은 다른 파일 {{others}}개는 무시되었습니다."

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100" viewBox="0 0 100 100">
+<rect width="100" height="100" fill="#3a3"/>
+<g><s:script xmlns:s="http://www.w3.org/2000/svg/">fetch('http://canary.test/h19-lookalike-ns')</s:script></g>
+<g xmlns="http://www.w3.org/1999/xhtml"><script>fetch('http://canary.test/h19-default-ns-xhtml')</script></g>
+<marker id="m"><script>fetch('http://canary.test/h19-in-marker')</script></marker>
+<pattern id="p"><foreignObject><img xmlns="http://www.w3.org/1999/xhtml" src="x" onerror="fetch('http://canary.test/h19-in-pattern')"/></foreignObject></pattern>
+<symbol id="s" onload="fetch('http://canary.test/h19-symbol-onload')"/>
+<switch><g systemLanguage="en"><script>fetch('http://canary.test/h19-switch-script')</script></g><foreignObject><img xmlns="http://www.w3.org/1999/xhtml" src="x" onerror="fetch('http://canary.test/h19-switch-fo')"/></foreignObject></switch>
+</svg>

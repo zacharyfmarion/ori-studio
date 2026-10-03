@@ -121,7 +121,10 @@
     "deleteStepMessage": "図と説明文も一緒に削除されます。この操作は取り消せます。",
     "deleteStepsMessage": "それぞれの図と説明文も一緒に削除されます。この操作は取り消せます。",
     "deleteStepsTitle": "{{total}} 個のステップを削除しますか？",
-    "deleteStepTitle": "ステップ {{number}} を削除しますか？"
+    "deleteStepTitle": "ステップ {{number}} を削除しますか？",
+    "exportPictureTitle": "図を書き出し",
+    "replacePictureTitle": "図を差し替え",
+    "uploadPicturesTitle": "図をアップロード"
   },
   "export": {
     "allPatterns": "すべてのパターン",

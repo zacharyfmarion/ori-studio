@@ -125,7 +125,10 @@
     "deleteStepMessage": "Su imagen y su instrucción se eliminan con él. Puedes deshacerlo.",
     "deleteStepsMessage": "Sus imágenes e instrucciones se eliminan con ellos. Puedes deshacerlo.",
     "deleteStepsTitle": "¿Eliminar {{total}} pasos?",
-    "deleteStepTitle": "¿Eliminar el paso {{number}}?"
+    "deleteStepTitle": "¿Eliminar el paso {{number}}?",
+    "exportPictureTitle": "Exportar imagen",
+    "replacePictureTitle": "Reemplazar imagen",
+    "uploadPicturesTitle": "Subir imágenes"
   },
   "export": {
     "allPatterns": "Todos los patrones",

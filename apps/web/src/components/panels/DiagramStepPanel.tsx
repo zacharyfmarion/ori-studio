@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { useDiagramStepActions } from '../../diagram/useDiagramActions';
-import { isLockedStep, stepIndex } from '../../diagram/document/diagramDocument';
+import { isLockedStep, stepAsset, stepIndex } from '../../diagram/document/diagramDocument';
+import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
+import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -15,13 +17,16 @@ import styles from './DiagramStepPanel.module.css';
  */
 const INSTRUCTION_MAX_LENGTH = 1000;
 
+const NO_NOTICES: readonly SanitizeNotice[] = [];
+
 /**
  * The Step pane: the selected step's position, verbs and instruction.
  *
  * A composition site (AGENTS.md › Panel components): the verbs come from the
  * action catalog through `useDiagramStepActions`, and the rows are the shared
- * field rows. Later phases add the Picture, Render and Annotations sections
- * above the instruction as their features arrive, not as empty stubs.
+ * field rows. Later phases add the Render and Annotations sections between
+ * the picture and the instruction as their features arrive, not as empty
+ * stubs.
  */
 export function DiagramStepPanel() {
   const { t } = useTranslation();
@@ -39,6 +44,12 @@ export function DiagramStepPanel() {
   const loadId = useWorkspaceStore((state) => state.diagramLoadId);
   const setStepText = useWorkspaceStore((state) => state.setDiagramStepText);
   const moveStep = useWorkspaceStore((state) => state.moveDiagramStep);
+  const asset = useWorkspaceStore((state) =>
+    state.diagram && step ? stepAsset(state.diagram, step) : null
+  );
+  const notices = useWorkspaceStore((state) =>
+    asset ? (state.diagramPictureNotices[asset.id] ?? NO_NOTICES) : NO_NOTICES
+  );
   const actions = useDiagramStepActions(stepId);
 
   if (!step || index < 0) {
@@ -75,6 +86,11 @@ export function DiagramStepPanel() {
               )}
             </Notice>
           </div>
+        )}
+        {!locked && (
+          <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>
+            <DiagramStepPicture asset={asset} notices={notices} actions={actions} />
+          </CollapsibleSection>
         )}
         <CollapsibleSection title={t('panels:diagram.stepPane.instruction', 'Instruction')}>
           <TextAreaRow

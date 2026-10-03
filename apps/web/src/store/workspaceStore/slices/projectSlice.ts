@@ -134,7 +134,10 @@ import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/
 import { discardCpDocumentState } from '../cpDocumentState';
 import { diagramDataBytes, discardDiagramState, pickDiagramState } from '../diagramState';
 import { readDiagram, writeDiagram } from '../../../diagram/document/diagramFile';
-import type { DiagramDocument } from '../../../diagram/document/diagramDocument';
+import {
+  withReferencedAssets,
+  type DiagramDocument,
+} from '../../../diagram/document/diagramDocument';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   createNativeCreasePatternProjectFile,
@@ -1609,9 +1612,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
    * images and the diagram's pictures. Read before the save dialog opens, so the
    * notice describes what was written rather than what changed while it was up.
    */
-  const embeddedPictureBytes = () =>
-    totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation)) +
-    diagramDataBytes(get().diagram);
+  const embeddedPictureBytes = () => {
+    const diagram = get().diagram;
+    return (
+      totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation)) +
+      // What the file holds: an asset only undo still refers to is not written.
+      diagramDataBytes(diagram && withReferencedAssets(diagram))
+    );
+  };
 
   /**
    * Whether the diagram changed after a save built its file — while the save

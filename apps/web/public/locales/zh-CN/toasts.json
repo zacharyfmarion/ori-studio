@@ -19,6 +19,16 @@
     "simulateFailed": "无法模拟该区域。",
     "simulateNoRegion": "请选择一个闭合区域进行模拟。"
   },
+  "diagram": {
+    "uploadFailed_other": "{{count}} 张图片未能添加",
+    "uploadFailureLine": "{{name}}：{{reason}}",
+    "uploadFailureMore_other": "另有 {{count}} 张",
+    "uploadProgress_other": "正在添加 {{count}} 张图片…",
+    "uploadRejected": "不是 Ori Studio 能安全读取的 SVG",
+    "uploadTooLarge": "文件过大",
+    "uploadUnreadable": "无法读取图片",
+    "uploadUnsupported": "不是图片文件"
+  },
   "fileDrop": {
     "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
     "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"

@@ -49,8 +49,10 @@ import type { SnapshotHistory } from './snapshotHistory';
 import type {
   DiagramDocument,
   DiagramPageSetup,
+  KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
 import type { ReadDiagram } from '../../diagram/document/diagramFile';
+import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
@@ -1797,6 +1799,12 @@ export interface DiagramSliceState {
   /** View state: not history, never dirty, but scoped to this diagram. */
   diagramView: DiagramViewMode;
   diagramSelectedStepId: string | null;
+  /**
+   * What sanitizing changed in the look of each upload this session, by asset:
+   * the Step pane says so under the picture. Not saved, and gone with the
+   * diagram, since only the upload itself knows what it lost.
+   */
+  diagramPictureNotices: Record<string, readonly SanitizeNotice[]>;
 }
 
 export interface DiagramSliceActions {
@@ -1836,6 +1844,28 @@ export interface DiagramSliceActions {
     text: string,
     options?: { loadId?: number; session?: number }
   ) => boolean;
+  /**
+   * Add uploaded pictures, already imported, as one undo step (D2's insertion
+   * rule). One picture onto a selected step with none fills that step;
+   * otherwise each becomes a new step after the selected one (or at the end),
+   * in order, and the last of them is selected. `loadId` is the diagram the
+   * import began against: pictures that outlive it are dropped. The steps that
+   * got pictures, and whether one was filled; null when nothing was added.
+   */
+  addDiagramPictures: (
+    assets: readonly KnownDiagramAsset[],
+    options?: { loadId?: number }
+  ) => { stepIds: string[]; filled: boolean } | null;
+  /** Give a step a picture in place of its own (Replace picture…, a drop on its card). */
+  setDiagramStepPicture: (
+    stepId: string,
+    asset: KnownDiagramAsset,
+    options?: { loadId?: number }
+  ) => boolean;
+  /** Take a step's picture away, keeping its instruction. */
+  removeDiagramStepPicture: (stepId: string) => boolean;
+  /** Record, or with none clear, what sanitizing changed in an upload. */
+  noteDiagramPictureChanges: (assetId: string, notices: readonly SanitizeNotice[]) => void;
   setDiagramTitle: (title: string) => boolean;
   setDiagramPage: (patch: Partial<DiagramPageSetup>) => boolean;
   selectDiagramStep: (stepId: string | null) => void;

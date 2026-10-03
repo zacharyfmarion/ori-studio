@@ -22,6 +22,25 @@
     "simulateFailed": "Не удалось смоделировать эту область.",
     "simulateNoRegion": "Выберите замкнутую область для симуляции."
   },
+  "diagram": {
+    "uploadFailed_one": "Не удалось добавить {{count}} изображение",
+    "uploadFailed_few": "Не удалось добавить {{count}} изображения",
+    "uploadFailed_many": "Не удалось добавить {{count}} изображений",
+    "uploadFailed_other": "Не удалось добавить {{count}} изображения",
+    "uploadFailureLine": "{{name}}: {{reason}}",
+    "uploadFailureMore_one": "и ещё {{count}}",
+    "uploadFailureMore_few": "и ещё {{count}}",
+    "uploadFailureMore_many": "и ещё {{count}}",
+    "uploadFailureMore_other": "и ещё {{count}}",
+    "uploadProgress_one": "Добавление изображений: {{count}}…",
+    "uploadProgress_few": "Добавление изображений: {{count}}…",
+    "uploadProgress_many": "Добавление изображений: {{count}}…",
+    "uploadProgress_other": "Добавление изображений: {{count}}…",
+    "uploadRejected": "это не SVG, который Ori Studio может безопасно прочитать",
+    "uploadTooLarge": "файл слишком большой",
+    "uploadUnreadable": "не удалось прочитать изображение",
+    "uploadUnsupported": "это не изображение"
+  },
   "fileDrop": {
     "ignoredFile": "Использован файл {{name}}; ещё 1 перетащенный файл пропущен.",
     "ignoredFiles": "Использован файл {{name}}; ещё {{others}} перетащенных файлов пропущено."

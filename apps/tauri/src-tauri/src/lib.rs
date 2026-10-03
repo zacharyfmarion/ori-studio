@@ -30,9 +30,36 @@ fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(path).map_err(|error| error.to_string())
 }
 
+/// The error a capped read returns past its cap. The renderer matches on it
+/// (`fileService.ts`), so it is a constant rather than an `io::Error` string.
+const FILE_TOO_LARGE: &str = "FILE_TOO_LARGE";
+
+/// The file's bytes, refused past `max_bytes` when given.
+///
+/// Read through a reader capped one byte past the limit rather than checked
+/// against `metadata().len()` first: a file that grows between the check and
+/// the read is refused all the same, and nothing past the cap is ever held.
+fn read_capped(path: &str, max_bytes: Option<u64>) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    let Some(max) = max_bytes else {
+        return fs::read(path).map_err(|error| error.to_string());
+    };
+    let file = fs::File::open(path).map_err(|error| error.to_string())?;
+    let mut bytes = Vec::new();
+    file.take(max.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    if bytes.len() as u64 > max {
+        return Err(FILE_TOO_LARGE.to_string());
+    }
+    Ok(bytes)
+}
+
+/// Raw bytes rather than a JSON array of numbers, which for a picture of a few
+/// MB is tens of MB of text through the IPC bridge.
 #[tauri::command]
-fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
-    fs::read(path).map_err(|error| error.to_string())
+fn read_binary_file(path: String, max_bytes: Option<u64>) -> Result<tauri::ipc::Response, String> {
+    read_capped(&path, max_bytes).map(tauri::ipc::Response::new)
 }
 
 #[tauri::command]
@@ -350,8 +377,23 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{argv_osf_paths, clamped_to_min, opened_osf_paths};
+    use super::{FILE_TOO_LARGE, argv_osf_paths, clamped_to_min, opened_osf_paths, read_capped};
     use std::path::Path;
+
+    #[test]
+    fn reads_a_file_whole_without_a_cap_and_up_to_one() {
+        let dir = std::env::temp_dir().join(format!("ori-read-capped-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("picture.svg");
+        std::fs::write(&path, b"0123456789").expect("write");
+        let path = path.to_str().expect("utf-8 path");
+
+        assert_eq!(read_capped(path, None).expect("uncapped").len(), 10);
+        assert_eq!(read_capped(path, Some(10)).expect("at the cap").len(), 10);
+        assert_eq!(read_capped(path, Some(9)), Err(FILE_TOO_LARGE.to_string()));
+        assert!(read_capped(&format!("{path}.missing"), Some(9)).is_err());
+        std::fs::remove_dir_all(&dir).ok();
+    }
 
     #[test]
     fn leaves_a_restored_size_at_or_above_the_minimum_alone() {

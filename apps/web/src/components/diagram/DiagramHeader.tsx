@@ -1,7 +1,7 @@
 import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { SplitButton } from '../ui/SplitButton';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramTitleField } from './DiagramTitleField';
 import styles from './DiagramHeader.module.css';
@@ -19,6 +19,7 @@ export function DiagramHeader({
   readOnly,
   onRename,
   onAddStep,
+  onUpload,
   drawerSlot,
 }: {
   title: string;
@@ -26,6 +27,8 @@ export function DiagramHeader({
   readOnly: boolean;
   onRename: (title: string) => void;
   onAddStep: () => void;
+  /** Pick pictures, each a step. Called from the menu row itself. */
+  onUpload: () => void;
   /** Where the touch layer seats the Step pane's pill (`viewDrawerSlot`). */
   drawerSlot: Ref<HTMLDivElement>;
 }) {
@@ -46,10 +49,22 @@ export function DiagramHeader({
       </div>
       <div className={`panel-toolbar__group ${styles.actions}`}>
         <DiagramHistoryButtons />
-        <Button size="sm" variant="secondary" disabled={readOnly} onClick={onAddStep}>
-          <Plus size={14} aria-hidden="true" />
-          {t('panels:diagram.header.addStep', 'Add step')}
-        </Button>
+        <SplitButton
+          size="sm"
+          variant="secondary"
+          icon={<Plus size={14} aria-hidden="true" />}
+          label={t('panels:diagram.header.addStep', 'Add step')}
+          disabled={readOnly}
+          onClick={onAddStep}
+          menuLabel={t('panels:diagram.header.moreAdd', 'More ways to add steps')}
+          actions={[
+            {
+              id: 'upload-pictures',
+              label: t('panels:diagram.header.uploadPictures', 'Upload pictures…'),
+              onSelect: onUpload,
+            },
+          ]}
+        />
         <div className="panel-toolbar__pills" ref={drawerSlot} />
       </div>
     </div>

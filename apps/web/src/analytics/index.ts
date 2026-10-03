@@ -29,6 +29,10 @@ export type {
   DesignVariant,
   DesktopDownloadBuild,
   DesktopDownloadSurface,
+  DiagramPictureFormat,
+  DiagramPictureUploadOutcome,
+  DiagramStepAddedSource,
+  DiagramStepAddedVia,
   ExportFormat,
   FoldabilityCheckSource,
   FoldCycleDirection,
@@ -82,7 +86,7 @@ export {
 } from './trackCpToolFavorites';
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
-export { trackDiagramStepAdded } from './trackDiagram';
+export { trackDiagramPictureUploaded, trackDiagramStepAdded } from './trackDiagram';
 export { trackDesktopDownload } from './trackDesktopDownload';
 export { trackCreasePatternExported } from './trackCreasePatternExport';
 export {

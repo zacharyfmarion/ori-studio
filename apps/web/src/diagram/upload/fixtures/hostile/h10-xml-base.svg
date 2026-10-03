@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100" viewBox="0 0 100 100">
+<rect width="100" height="100" fill="#3a3"/>
+<g xml:base="http://canary.test/h10/"><image href="img.png" width="20" height="20"/><use href="u.svg#a"/></g>
+<a xml:base="javascript:fetch('http://canary.test/h10-js')//" href="x"><rect width="20" height="20" fill="#fff"/></a>
+</svg>

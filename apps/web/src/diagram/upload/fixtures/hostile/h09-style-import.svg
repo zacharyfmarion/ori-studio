@@ -1,0 +1,12 @@
+<?xml-stylesheet href="http://canary.test/h09-pi.css" type="text/css"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+<style>@import url(http://canary.test/h09-import.css);
+@import 'http://canary.test/h09-import2.css';
+@font-face { font-family: X; src: url(http://canary.test/h09-font.woff) }
+rect { fill: url(http://canary.test/h09-rule#g) }
+.a { background: url(http://canary.test/h09-bg) }
+text { font-family: X }</style>
+<style>@\69mport url(http://canary.test/h09-escaped.css);</style>
+<rect width="100" height="100" fill="#3a3"/>
+<text x="10" y="50" class="a">Font</text>
+</svg>

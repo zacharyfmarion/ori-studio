@@ -1799,8 +1799,9 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 
 ### Phase 2: uploaded pictures, painting and the step detail
 
-- [ ] **2a.** The `'diagram-workspace'` paper surface and policy, and `DiagramDocument.style`, set to the default Diagram preset.
-- [ ] **2b.** The upload pipeline.
+- [x] **2a.** The `'diagram-workspace'` paper surface and policy, and `DiagramDocument.style`, set to the default Diagram preset.
+  - As built: the policy applies every field, since a diagram puts every kind of picture on one page. `diagram/pictures/diagramPaperStyle.ts` resolves the stored style and keys it for the picture cache. `PaperExportTarget.surface` excludes the new surface: the Diagram exports through its own dialog (Phase 6), so the shared export dialog's analytics enum is unchanged.
+- [x] **2b.** The upload pipeline.
   - `diagram/upload/svgSanitize.ts` per D7, with its report. The hostile and real-export corpus runs in jsdom and in `scripts/diagram-svg-sanitize-check.mjs` (Chromium and WebKit), as a new web-client CI step.
   - `importStepPicture.ts`: caps, sanitizer and `importImageFile`.
   - `FileService.openBinaryFiles`; `read_binary_file` `max_bytes`; svg MIME.
@@ -1813,13 +1814,21 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - a single drop onto an empty card fills it, and any other drop follows the insertion rule;
     - Export picture… and Remove picture.
   - `ui/Notice`, used for the sanitize report.
+  - As built:
+    - **Model.** `upload` sources and `asset` pictures. A step's picture key is `asset:<id>`. The reader re-sanitizes SVG assets with the asset id as prefix, and drops a bitmap whose header disagrees with its stored size. A step whose asset was dropped keeps its text and loses its picture. An unknown asset kind is carried. A source and picture that name different assets read as no picture. `withReferencedAssets` prunes at write time, and the save notice counts what is written. It keeps assets a newer build's step names anywhere in its raw form, and unknown kinds, since only that build knows what refers to them.
+    - **Drops.** A drop on a card selects it first, so the insertion rule reads "here". A drop with no picture in it bubbles to the workspace, so a project dropped on the Diagram still opens. A drop on the empty state starts the diagram.
+    - **Empty card.** Its Upload… is out of the tab order: an option's contents are presentational, and the card menu and the Step pane carry the same verb.
+    - **Painting.** Cards paint lazily: an IntersectionObserver rooted at the pane's scroller (a viewport root would let the scroller clip the paint-ahead margin), and an LRU of `data:` URLs bounded by bytes and keyed by the asset *object*, so a file edited between two opens never shows the first one's picture. An upright bitmap shows its own data URL rather than being wrapped and encoded twice. Idle-chunk scheduling is left to Phase 3: an upload paints in microseconds, and a scene capture is what will need it.
+    - **CI.** `scripts/diagram-svg-sanitize-check.mjs` runs the committed corpus (hostile, synthetic, own-output) in Chromium, WebKit and jsdom. It checks four things: nothing accepted fires when shown live; two raw controls do fire; every engine's stored output reloads byte-identically in the other engine; and the engines' pre-raster output equals jsdom's. About 20 s. The real Phase 0 corpus passes it too, run locally, with 85 files, 44 of them real.
+    - **Desktop.** `read_binary_file` returns raw bytes (`ipc::Response`) under an optional `max_bytes`, and `openBinaryFiles` takes `multiple`.
 - [ ] **2c.** `DiagramStepDetail`.
   - The top bar, with touch Undo / Redo, and Annotate hidden until Phase 7.
   - Enter (viewport verb) and `[` / `]` (scope).
   - The Escape ladder's "leave detail" rung, and the empty-step body.
   - The upload pose (rotate 90°, mirror; the source's fields, applied at paint time), with annotation carry-over.
   - The Step pane switches to detail controls (D13).
-- [ ] **2d.** Analytics: `diagram step added` (`svg`, `raster`; `via`) and `diagram picture uploaded`.
+- [x] **2d.** Analytics: `diagram step added` (`svg`, `raster`; `via`) and `diagram picture uploaded`.
+  - As built, with 2b: `via` is `grid` for one picked file, `batch` for several, `drop` for a drop. A picture that fills an empty step adds no step and is counted only as uploaded. `diagram picture uploaded` has `outcome` `ok | flattened | too_large | rejected | unsupported | unreadable` (the plan's `not_svg` became `unsupported`, a file that is no picture at all). `format` is `svg | png | jpeg | webp | other`. `size_bucket` is in KB, `unknown` for a desktop pick that failed before it was read.
 - [ ] **Browser:**
   - upload each Phase 0 SVG singly and as a batch;
   - check the flatten Notice;

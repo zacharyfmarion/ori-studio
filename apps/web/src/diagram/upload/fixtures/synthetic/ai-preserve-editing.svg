@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 27.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" [
+	<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">
+	<!ENTITY ns_ai "http://ns.adobe.com/AdobeIllustrator/10.0/">
+	<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">
+	<!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">
+	<!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">
+	<!ENTITY ns_sfw "http://ns.adobe.com/SaveForWeb/1.0/">
+	<!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">
+	<!ENTITY ns_adobe_xpath "http://ns.adobe.com/XPath/1.0/">
+]>
+<svg version="1.1" id="Layer_1" xmlns:x="&ns_extend;" xmlns:i="&ns_ai;" xmlns:graph="&ns_graphs;"
+	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 340.2 340.2"
+	 style="enable-background:new 0 0 340.2 340.2;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#F4EFE6;stroke:#000000;stroke-miterlimit:10;}
+	.st1{fill:none;stroke:#1F4FBF;stroke-miterlimit:10;stroke-dasharray:8.5,4.25;}
+	.st2{fill:none;stroke:#C0392B;stroke-miterlimit:10;stroke-dasharray:11.3,2.8,1.7,2.8;}
+	.st3{font-family:'MyriadPro-Regular';}
+	.st4{font-size:14px;}
+	.st5{clip-path:url(#SVGID_2_);fill:url(#SVGID_3_);}
+	.st6{filter:url(#Adobe_OpacityMaskFilter);}
+	.st7{mask:url(#SVGID_4_);fill:#2255AA;}
+	.st8{fill:url(#SVGID_5_);}
+	.st9{fill:none;stroke:#000000;stroke-width:2;stroke-miterlimit:10;}
+	.st10{fill:url(#New_Pattern_Swatch_1);stroke:#000000;stroke-miterlimit:10;}
+	.st11{fill:#2C7A2C;}
+</style>
+<pattern  x="-10" y="-10" width="10" height="10" patternUnits="userSpaceOnUse" id="New_Pattern_Swatch_1" viewBox="0 -10 10 10" style="overflow:visible;">
+	<g><rect y="-10" style="fill:none;" width="10" height="10"/><rect y="-10" class="st11" width="5" height="5"/></g>
+</pattern>
+<symbol  id="Arrow_1" viewBox="-15 -7.5 30 15">
+	<polygon class="st11" points="15,0 -15,7.5 -15,-7.5 	"/>
+</symbol>
+<metadata>
+	<sfw  xmlns="&ns_sfw;">
+		<slices></slices>
+		<sliceSourceBounds  bottomLeftOrigin="true" height="340.2" width="340.2" x="0" y="0"></sliceSourceBounds>
+	</sfw>
+</metadata>
+<switch>
+	<foreignObject requiredExtensions="&ns_ai;" x="0" y="0" width="1" height="1">
+		<i:aipgfRef  xlink:href="#adobe_illustrator_pgf">
+		</i:aipgfRef>
+	</foreignObject>
+	<g i:extraneous="self">
+		<rect x="28.3" y="28.3" class="st0" width="283.5" height="283.5"/>
+		<line class="st1" x1="28.3" y1="28.3" x2="311.8" y2="311.8"/>
+		<line class="st2" x1="311.8" y1="28.3" x2="28.3" y2="311.8"/>
+		<g>
+			<defs><rect id="SVGID_1_" x="40" y="200" width="80" height="80"/></defs>
+			<clipPath id="SVGID_2_"><use xlink:href="#SVGID_1_"  style="overflow:visible;"/></clipPath>
+			<linearGradient id="SVGID_3_" gradientUnits="userSpaceOnUse" x1="40" y1="240" x2="160" y2="240">
+				<stop  offset="0" style="stop-color:#FF8800"/>
+				<stop  offset="1" style="stop-color:#FF8800;stop-opacity:0"/>
+			</linearGradient>
+			<circle class="st5" cx="100" cy="240" r="50"/>
+		</g>
+		<defs><filter id="Adobe_OpacityMaskFilter" filterUnits="userSpaceOnUse" x="200" y="200" width="100" height="100">
+			<feColorMatrix  type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+		</filter></defs>
+		<mask maskUnits="userSpaceOnUse" x="200" y="200" width="100" height="100" id="SVGID_4_">
+			<g class="st6">
+				<linearGradient id="SVGID_5_" gradientUnits="userSpaceOnUse" x1="200" y1="250" x2="300" y2="250">
+					<stop  offset="0" style="stop-color:#FFFFFF"/>
+					<stop  offset="1" style="stop-color:#000000"/>
+				</linearGradient>
+				<rect x="200" y="200" class="st8" width="100" height="100"/>
+			</g>
+		</mask>
+		<rect x="200" y="200" class="st7" width="100" height="100"/>
+		<rect x="200" y="60" class="st10" width="60" height="60"/>
+		<use xlink:href="#Arrow_1"  width="30" height="15" x="-15" y="-7.5" transform="matrix(1 0 0 -1 160 160)" style="overflow:visible;"/>
+		<image style="overflow:visible;" width="96" height="64" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAACSklEQVR4Ae3BwXUsJxQFwDL3hUcO
+pGZyIBwH48Us/s7SyOoG6XTVX/zzd9AQBA1B0BAEDUHQEAQNQUMQNARBQxA0BEFDEDQEQUMQNARB
+QxA0BEFD0BAEDUHQEAQNQdAQBA1B0BAEDUHQEAQNQdAQNARBQxA0BEFDEDSUeGxU4rFRicdGpTw2
+KvETDF83HazEqYbvMfwxHabEaYbrDC/TIUqcYrjP8DJtVuIEwx4D00Yldhr2G16mDUrsMpxlYLpZ
+KTsMZxqYblTibsOXdO9bvmBgukmJOw1v676ue1neNDDdoMRdhrd036d7Wd4wMF2sxIG6a3QsJylx
+h+FTuut1L8snDEwXKnG14VO6e3UsnzAwXaTEAbo9OpadSrnS8DsMTBcosVm3V8eyS4mrDB/qztCx
+fGBg+mYlHhuV2KQ7S8dytxJXGH6ngekbldigO1PHcqcSj41KeWxU4rFRicdGJR4blXhsVOKxUYnH
+RiUeG5Xy2KjEY6MSj41KbLDQnWe5W4krTAy/z/TNSmyy0J1j2aHEY6MSV5kY/tNCt9/yCdMFStls
+odtn2anElSaGn2+6SIkDLHT3W3YrcbWJ4UML3X2WT5ouVOIOE8OHlpfuOssbpouVONBC9/2W05S4
+y8TwactL9/8tXzDdoMSdJoa3LC/d+5Yvmm5Syt0mhrctN5luVGKHieE8081K7DIxnGPaoMRO08uw
+z7RRiRNMDPebNitxiulluN50iBKnmV6G7zcdpsSppj+Gr5sOVspPMP1SJR4blXhsVOKx0b+PaFKQ
+vU67cQAAAABJRU5ErkJggg==" transform="matrix(0.5 0 0 0.5 270 140)">
+		</image>
+		<text transform="matrix(1 0 0 1 40 22)" class="st3 st4">Valley fold, then unfold</text>
+		<text transform="matrix(1 0 0 1 40 332)"><tspan x="0" y="0" class="st3 st4">Step 3:</tspan><tspan x="50" y="0" class="st3 st4" style="fill:#C0392B;">谷折り</tspan></text>
+	</g>
+</switch>
+<i:aipgf  id="adobe_illustrator_pgf" i:pgfEncoding="zstd/base64" i:pgfVersion="24">
+	<![CDATA[
+	KLUv/QBYlE8BWkaFDC2gkFiRZ0ckNG/I/u+8L0EmA7sPf/9W8PtSRNPDhZ+20u6Xh1TNcUhBgvqiuoHJtX0rDoLvNXg3wb4C5x03AAY0
+	]]>
+	</i:aipgf>
+</svg>

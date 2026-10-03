@@ -658,38 +658,61 @@
       "addStep": "ステップを追加",
       "delete": "ステップを削除",
       "duplicate": "ステップを複製",
+      "exportPicture": "図を書き出し…",
       "firstHint": "すでに最初のステップです",
       "insertAfter": "後ろにステップを挿入",
       "insertBefore": "前にステップを挿入",
       "lastHint": "すでに最後のステップです",
+      "lockedEditHint": "新しい Ori Studio で作成されたステップです。移動と削除はできますが、変更はできません",
       "lockedHint": "新しい Ori Studio で作成されたステップです。移動と削除はできますが、複製はできません",
       "moveEarlier": "前へ移動",
       "moveLater": "後ろへ移動",
-      "readOnlyHint": "この折り図は新しい Ori Studio で作成されたため、読み取り専用で開かれています"
+      "noPictureHint": "このステップにはまだ図がありません",
+      "readOnlyHint": "この折り図は新しい Ori Studio で作成されたため、読み取り専用で開かれています",
+      "removePicture": "図を削除",
+      "replacePicture": "図を差し替え…",
+      "uploadPicture": "図をアップロード…"
     },
     "card": {
       "badgeEmpty": "空",
+      "badgeImage": "画像",
       "badgeNewer": "新しい版",
+      "badgeSvg": "SVG",
       "locked": "新しい Ori Studio で作成",
       "noInstruction": "説明文なし",
       "noPicture": "図はまだありません",
-      "number": "ステップ {{number}}"
+      "number": "ステップ {{number}}",
+      "upload": "アップロード…"
     },
     "empty": {
       "addStep": "ステップを追加",
-      "message": "折り図は、折る手順を一つずつ示すものです。ステップを追加して、図と説明文を付けましょう。",
-      "title": "折り図を始める"
+      "message": "折り図は、折る手順を一つずつ示すものです。ステップを追加して図と説明文を付けるか、描いた図をアップロードして一枚ずつステップにしましょう。",
+      "title": "折り図を始める",
+      "upload": "図をアップロード…"
     },
     "grid": {
       "label": "ステップ"
     },
     "header": {
       "addStep": "ステップを追加",
+      "moreAdd": "ステップを追加するその他の方法",
       "stepCount_other": "{{count}} ステップ",
       "titleLabel": "折り図のタイトル",
-      "titlePlaceholder": "無題の折り図"
+      "titlePlaceholder": "無題の折り図",
+      "uploadPictures": "図をアップロード…"
     },
     "label": "折り図",
+    "picture": {
+      "cssDropped": "一部のスタイルを保持できなかったため、見た目が異なる部分があります。",
+      "flowedText": "フローテキストには対応していないため省かれました。通常のテキストに変換してから、図を差し替えてください。",
+      "linkedImage": "リンクされた画像は保持できません。ファイルに埋め込んでから、図を差し替えてください。",
+      "none": "図はまだありません",
+      "raster": "アップロードした画像、{{width}} × {{height}} px",
+      "simplified": "この図は簡略化されました。",
+      "source": "ソース",
+      "svg": "アップロードした SVG、{{width}} × {{height}} px",
+      "unsupported": "対応していない部分があったため省かれました。"
+    },
     "readOnlyNotice": "この折り図は新しい Ori Studio で作成されたため、ここでは読み取り専用で開かれます。保存しても元の内容がそのまま保たれます。",
     "stepPane": {
       "instruction": "説明文",
@@ -699,6 +722,7 @@
       "noSelection": "編集するステップを選択してください。",
       "noSteps": "ステップを追加すると、ここに説明文を書けます。",
       "ofTotal": "/ {{total}}",
+      "picture": "図",
       "positionLabel": "ステップの位置",
       "step": "ステップ"
     }

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 400 300" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g id="Artboard1" serif:id="Artboard 1" transform="matrix(1,0,0,1,0,0)">
+        <rect x="0" y="0" width="400" height="300" style="fill:none;"/>
+        <clipPath id="_clip1">
+            <rect x="0" y="0" width="400" height="300"/>
+        </clipPath>
+        <g clip-path="url(#_clip1)">
+            <g id="Square" serif:id="Square paper">
+                <rect x="50" y="25" width="250" height="250" style="fill:rgb(244,239,230);stroke:black;stroke-width:1.5px;"/>
+            </g>
+            <g id="Valley" transform="matrix(1,0,0,1,0,0)">
+                <path d="M50,25L300,275" style="fill:none;stroke:rgb(31,79,191);stroke-width:1.5px;stroke-dasharray:6,3,0,0;"/>
+            </g>
+            <path d="M300,25L50,275" style="fill:none;stroke:rgb(192,57,43);stroke-width:1.5px;stroke-dasharray:8,2,1,2;"/>
+            <g transform="matrix(0.625,0,0,0.625,310,30)">
+                <use xlink:href="#_Image2" x="0" y="0" width="96px" height="64px"/>
+            </g>
+            <g transform="matrix(1,0,0,1,-4,0)">
+                <text x="60px" y="18px" style="font-family:'HelveticaNeue', 'Helvetica Neue', sans-serif;font-size:14px;">Valley fold, then unfold</text>
+            </g>
+            <path d="M310,100L370,100L370,160L310,160Z" style="fill:url(#_Linear3);"/>
+            <g filter="url(#_Effect4)">
+                <circle cx="340" cy="220" r="25" style="fill:rgb(221,119,0);"/>
+            </g>
+            <g mask="url(#_mask5)">
+                <rect x="310" y="250" width="70" height="40" style="fill:rgb(34,85,170);"/>
+            </g>
+        </g>
+    </g>
+    <defs>
+        <image id="_Image2" width="96px" height="64px" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAACSklEQVR4Ae3BwXUsJxQFwDL3hUcOpGZyIBwH48Us/s7SyOoG6XTVX/zzd9AQBA1B0BAEDUHQEAQNQUMQNARBQxA0BEFDEDQEQUMQNARBQxA0BEFD0BAEDUHQEAQNQdAQBA1B0BAEDUHQEAQNQdAQNARBQxA0BEFDEDSUeGxU4rFRicdGpTw2KvETDF83HazEqYbvMfwxHabEaYbrDC/TIUqcYrjP8DJtVuIEwx4D00Yldhr2G16mDUrsMpxlYLpZKTsMZxqYblTibsOXdO9bvmBgukmJOw1v676ue1neNDDdoMRdhrd036d7Wd4wMF2sxIG6a3QsJylxh+FTuut1L8snDEwXKnG14VO6e3UsnzAwXaTEAbo9OpadSrnS8DsMTBcosVm3V8eyS4mrDB/qztCxfGBg+mYlHhuV2KQ7S8dytxJXGH6ngekbldigO1PHcqcSj41KeWxU4rFRicdGJR4blXhsVOKxUYnHRiUeG5Xy2KjEY6MSj41KbLDQnWe5W4krTAy/z/TNSmyy0J1j2aHEY6MSV5kY/tNCt9/yCdMFStlsodtn2anElSaGn2+6SIkDLHT3W3YrcbWJ4UML3X2WT5ouVOIOE8OHlpfuOssbpouVONBC9/2W05S4y8TwactL9/8tXzDdoMSdJoa3LC/d+5Yvmm5Syt0mhrctN5luVGKHieE8081K7DIxnGPaoMRO08uwz7RRiRNMDPebNitxiulluN50iBKnmV6G7zcdpsSppj+Gr5sOVspPMP1SJR4blXhsVOKx0b+PaFKQvU67cQAAAABJRU5ErkJggg=="/>
+        <linearGradient id="_Linear3" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(60,60,-60,60,310,100)"><stop offset="0" style="stop-color:rgb(255,136,0);stop-opacity:1"/><stop offset="1" style="stop-color:rgb(34,85,170);stop-opacity:1"/></linearGradient>
+        <filter id="_Effect4" filterUnits="userSpaceOnUse" x="305" y="185" width="70" height="70">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+        </filter>
+        <mask id="_mask5" maskUnits="userSpaceOnUse" x="310" y="250" width="70" height="40">
+            <rect x="310" y="250" width="70" height="40" style="fill:url(#_Linear6);"/>
+        </mask>
+        <linearGradient id="_Linear6" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(70,0,0,70,310,270)"><stop offset="0" style="stop-color:white;stop-opacity:1"/><stop offset="1" style="stop-color:black;stop-opacity:1"/></linearGradient>
+    </defs>
+</svg>

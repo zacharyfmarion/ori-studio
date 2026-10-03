@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">
+<style>
+  rect { stroke: #000; stroke-width: 2 }
+  .a { fill: #c33 }
+  g .b { fill: #3c3 }
+  g > .c { fill: #33c }
+  [data-k="d"] { fill: #cc3 }
+  .e:first-child { fill: #3cc }
+  #f.g { fill: #c3c }
+  @media (min-width: 1px) { .h { fill: #999 } }
+</style>
+<rect class="a" x="5" y="5" width="20" height="20"/>
+<g><rect class="b" x="30" y="5" width="20" height="20"/></g>
+<g><rect class="c" x="55" y="5" width="20" height="20"/></g>
+<rect data-k="d" x="80" y="5" width="20" height="20"/>
+<g><rect class="e" x="105" y="5" width="20" height="20"/></g>
+<rect id="f" class="g" x="130" y="5" width="20" height="20"/>
+<rect class="h" x="155" y="5" width="20" height="20"/>
+</svg>

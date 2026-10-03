@@ -125,7 +125,10 @@
     "deleteStepMessage": "A imagem e a instrução dele são excluídas junto. Você pode desfazer isso.",
     "deleteStepsMessage": "As imagens e as instruções deles são excluídas junto. Você pode desfazer isso.",
     "deleteStepsTitle": "Excluir {{total}} passos?",
-    "deleteStepTitle": "Excluir o passo {{number}}?"
+    "deleteStepTitle": "Excluir o passo {{number}}?",
+    "exportPictureTitle": "Exportar imagem",
+    "replacePictureTitle": "Substituir imagem",
+    "uploadPicturesTitle": "Enviar imagens"
   },
   "export": {
     "allPatterns": "Todos os padrões",

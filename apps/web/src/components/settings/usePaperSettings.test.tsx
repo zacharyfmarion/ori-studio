@@ -44,6 +44,7 @@ const fileService: FileService = {
   supportsNativeDialogs: false,
   openTextFile,
   openBinaryFile: async () => null,
+  openBinaryFiles: vi.fn(async () => null),
   saveTextFile,
   saveBinaryFile: async () => null,
 };

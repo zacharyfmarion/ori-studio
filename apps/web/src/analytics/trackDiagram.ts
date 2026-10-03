@@ -1,5 +1,15 @@
-import { ANALYTICS_EVENTS } from './events';
-import type { DiagramStepAddedSource, DiagramStepAddedVia } from './events';
+import {
+  ANALYTICS_EVENTS,
+  DIAGRAM_UPLOAD_COUNT_BUCKETS,
+  DIAGRAM_UPLOAD_KB_BUCKETS,
+  bucketCount,
+} from './events';
+import type {
+  DiagramPictureFormat,
+  DiagramPictureUploadOutcome,
+  DiagramStepAddedSource,
+  DiagramStepAddedVia,
+} from './events';
 import { track } from './runtime';
 
 /**
@@ -11,4 +21,23 @@ import { track } from './runtime';
  */
 export function trackDiagramStepAdded(source: DiagramStepAddedSource, via: DiagramStepAddedVia): void {
   track(ANALYTICS_EVENTS.diagramStepAdded, { source, via });
+}
+
+/**
+ * One file of an upload, and what became of it. `sizeBytes` is the file's, when
+ * it is known (a desktop pick is sized only by reading it); `count` is how many
+ * files the upload carried. Enums and buckets only: never the file's name.
+ */
+export function trackDiagramPictureUploaded(
+  format: DiagramPictureFormat,
+  outcome: DiagramPictureUploadOutcome,
+  sizeBytes: number | null,
+  count: number
+): void {
+  track(ANALYTICS_EVENTS.diagramPictureUploaded, {
+    format,
+    outcome,
+    size_bucket: sizeBytes === null ? 'unknown' : bucketCount(sizeBytes / 1024, DIAGRAM_UPLOAD_KB_BUCKETS),
+    count_bucket: bucketCount(count, DIAGRAM_UPLOAD_COUNT_BUCKETS),
+  });
 }

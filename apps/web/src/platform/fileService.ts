@@ -41,6 +41,42 @@ export interface OpenBinaryFileResult {
   mimeType: string;
 }
 
+/** A pick of files that are read one by one, under a cap each. */
+export interface OpenBinaryFilesOptions extends OpenBinaryFileOptions {
+  /** Offer a pick of several at once; true unless said otherwise. */
+  multiple?: boolean;
+}
+
+/**
+ * A file picked or dropped but not read yet. Its bytes are read on demand,
+ * under a cap, so a batch of large files is never all in memory at once and a
+ * file past the cap is never read at all.
+ */
+export interface PickedFile {
+  name: string;
+  /** The MIME type the platform reports; often empty, so the name counts too. */
+  type: string;
+  /**
+   * Bytes, when the platform knows before reading (a browser `File`); 0 when
+   * only the read can tell (a desktop path), in which case `read` enforces the
+   * cap itself.
+   */
+  size: number;
+  /** The bytes; rejects with {@link FileTooLargeError} past `maxBytes`. */
+  read(maxBytes: number): Promise<Uint8Array>;
+}
+
+/** What {@link PickedFile.read} rejects with past its cap. */
+export class FileTooLargeError extends Error {
+  constructor() {
+    super('file too large');
+    this.name = 'FileTooLargeError';
+  }
+}
+
+/** The error string `read_binary_file` returns past `max_bytes` (`lib.rs`). */
+const DESKTOP_FILE_TOO_LARGE = 'FILE_TOO_LARGE';
+
 export interface SaveFileResult {
   name: string;
   /**
@@ -87,6 +123,12 @@ export interface FileService {
   supportsNativeDialogs: boolean;
   openTextFile(options: OpenTextFileOptions): Promise<OpenTextFileResult | null>;
   openBinaryFile(options: OpenBinaryFileOptions): Promise<OpenBinaryFileResult | null>;
+  /**
+   * Pick several files, unread. Must run inside the user's click, as a single
+   * pick must: a browser allows a picker only from a gesture. Null when the
+   * pick was dismissed.
+   */
+  openBinaryFiles(options: OpenBinaryFilesOptions): Promise<PickedFile[] | null>;
   saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null>;
   saveBinaryFile(options: SaveBinaryFileOptions): Promise<SaveFileResult | null>;
 }
@@ -427,6 +469,75 @@ function openBrowserTextFileInput(
   });
 }
 
+/** A browser `File` as a {@link PickedFile}: its size is known, so the cap needs no read. */
+export function pickedFileFromFile(file: File): PickedFile {
+  return {
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    read: async (maxBytes) => {
+      if (file.size > maxBytes) throw new FileTooLargeError();
+      return new Uint8Array(await file.arrayBuffer());
+    },
+  };
+}
+
+/** A desktop path as a {@link PickedFile}: the shell enforces the cap as it reads. */
+function pickedFileFromPath(path: string): PickedFile {
+  return {
+    name: filenameFromPath(path),
+    type: mimeTypeFromFilename(path),
+    size: 0,
+    read: (maxBytes) => readDesktopBinaryFile(path, maxBytes),
+  };
+}
+
+async function readDesktopBinaryFile(path: string, maxBytes?: number): Promise<Uint8Array> {
+  try {
+    // Raw bytes since `read_binary_file` returns an `ipc::Response`; a number
+    // array from an older shell reads the same.
+    const bytes = await invoke<ArrayBuffer | number[]>('read_binary_file', {
+      path,
+      ...(maxBytes !== undefined ? { maxBytes } : {}),
+    });
+    return new Uint8Array(bytes);
+  } catch (error) {
+    if (error === DESKTOP_FILE_TOO_LARGE) throw new FileTooLargeError();
+    throw error;
+  }
+}
+
+function openBrowserBinaryFiles(options: OpenBinaryFilesOptions): Promise<PickedFile[] | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = options.multiple ?? true;
+    const extensionAccept = options.extensions.map((extension) => `.${extension}`);
+    input.accept = [...extensionAccept, ...(options.mimeTypes ?? [])].join(',');
+    input.style.display = 'none';
+    document.body.append(input);
+    input.addEventListener(
+      'change',
+      () => {
+        const files = Array.from(input.files ?? []);
+        input.remove();
+        resolve(files.length > 0 ? files.map(pickedFileFromFile) : null);
+      },
+      { once: true }
+    );
+    // As in the single pick: a dismissed picker fires `cancel`, never `change`.
+    input.addEventListener(
+      'cancel',
+      () => {
+        input.remove();
+        resolve(null);
+      },
+      { once: true }
+    );
+    input.click();
+  });
+}
+
 function openBrowserBinaryFile(
   options: OpenBinaryFileOptions
 ): Promise<OpenBinaryFileResult | null> {
@@ -491,6 +602,10 @@ class BrowserFileService implements FileService {
     return openBrowserBinaryFile(options);
   }
 
+  async openBinaryFiles(options: OpenBinaryFilesOptions): Promise<PickedFile[] | null> {
+    return openBrowserBinaryFiles(options);
+  }
+
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
     return saveBrowserTextFile(options);
   }
@@ -530,13 +645,23 @@ class TauriFileService implements FileService {
       filters: [{ name: 'Image', extensions: options.extensions }],
     });
     if (typeof selected !== 'string') return null;
-    const bytes = await invoke<number[]>('read_binary_file', { path: selected });
     return {
-      bytes: new Uint8Array(bytes),
+      bytes: await readDesktopBinaryFile(selected),
       name: filenameFromPath(selected),
       path: selected,
       mimeType: mimeTypeFromFilename(selected),
     };
+  }
+
+  async openBinaryFiles(options: OpenBinaryFilesOptions): Promise<PickedFile[] | null> {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const selected = await open({
+      title: options.title,
+      multiple: options.multiple ?? true,
+      filters: [{ name: 'Image', extensions: options.extensions }],
+    });
+    const paths = Array.isArray(selected) ? selected : typeof selected === 'string' ? [selected] : [];
+    return paths.length > 0 ? paths.map(pickedFileFromPath) : null;
   }
 
   async saveTextFile(options: SaveTextFileOptions): Promise<SaveFileResult | null> {
@@ -576,6 +701,7 @@ function mimeTypeFromFilename(filename: string): string {
   if (/\.png$/i.test(filename)) return 'image/png';
   if (/\.jpe?g$/i.test(filename)) return 'image/jpeg';
   if (/\.webp$/i.test(filename)) return 'image/webp';
+  if (/\.svg$/i.test(filename)) return 'image/svg+xml';
   return 'application/octet-stream';
 }
 
@@ -599,6 +725,7 @@ function withExportTracking(service: FileService): FileService {
     supportsNativeDialogs: service.supportsNativeDialogs,
     openTextFile: (options) => service.openTextFile(options),
     openBinaryFile: (options) => service.openBinaryFile(options),
+    openBinaryFiles: (options) => service.openBinaryFiles(options),
     async saveTextFile(options) {
       const result = await service.saveTextFile(options);
       trackExport(options.extensions, result);
@@ -645,6 +772,7 @@ export function createDroppedFileService(file: File): FileService {
         mimeType: file.type || mimeTypeFromFilename(file.name),
       };
     },
+    openBinaryFiles: async () => [pickedFileFromFile(file)],
     saveTextFile: (options) => base.saveTextFile(options),
     saveBinaryFile: (options) => base.saveBinaryFile(options),
   };
@@ -665,6 +793,7 @@ export function createPickedFileService(picked: Promise<OpenTextFileResult | nul
     supportsNativeDialogs: base.supportsNativeDialogs,
     openTextFile: () => picked,
     openBinaryFile: () => Promise.resolve(null),
+    openBinaryFiles: () => Promise.resolve(null),
     saveTextFile: (options) => base.saveTextFile(options),
     saveBinaryFile: (options) => base.saveBinaryFile(options),
   };
@@ -680,14 +809,14 @@ export function createOpenedPathFileService(path: string): FileService {
       return { text, name: filenameFromPath(path), path };
     },
     async openBinaryFile(): Promise<OpenBinaryFileResult | null> {
-      const bytes = await invoke<number[]>('read_binary_file', { path });
       return {
-        bytes: new Uint8Array(bytes),
+        bytes: await readDesktopBinaryFile(path),
         name: filenameFromPath(path),
         path,
         mimeType: mimeTypeFromFilename(path),
       };
     },
+    openBinaryFiles: async () => [pickedFileFromPath(path)],
     saveTextFile: (options) => desktopService.saveTextFile(options),
     saveBinaryFile: (options) => desktopService.saveBinaryFile(options),
   };

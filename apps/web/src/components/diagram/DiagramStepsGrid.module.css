@@ -17,6 +17,13 @@
   outline: none;
 }
 
+/* Pictures dragged over the space between cards go in after the selected step. */
+.grid[data-drop-target] {
+  outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  outline-offset: -6px;
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
 @media (max-width: 720px) {
   .grid {
     gap: var(--space-3);

@@ -1,23 +1,30 @@
 import { useTranslation } from 'react-i18next';
-import { BookOpen, Plus } from 'lucide-react';
+import { BookOpen, Plus, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
 import styles from './DiagramEmptyState.module.css';
 
 /**
  * A diagram with no steps yet. Useful with no crease pattern at all: a step can
- * be written before it has a picture, so the way in is simply to add one. The
- * diagram itself comes into being with that first step, never on open.
+ * be written before it has a picture, or start from a drawing, so the ways in
+ * are to add one or upload pictures — or drop them here. The diagram itself
+ * comes into being with that first step, never on open.
  */
 export function DiagramEmptyState({
   readOnly,
+  dropTarget,
   onAddStep,
+  onUpload,
 }: {
   readOnly: boolean;
+  /** Pictures are being dragged over it. */
+  dropTarget: boolean;
   onAddStep: () => void;
+  /** Pick pictures, each a step. Called from the click itself. */
+  onUpload: () => void;
 }) {
   const { t } = useTranslation();
   return (
-    <div className={styles.state}>
+    <div className={styles.state} data-drop-target={dropTarget || undefined}>
       <div className={styles.icon} aria-hidden="true">
         <BookOpen size={22} />
       </div>
@@ -25,13 +32,19 @@ export function DiagramEmptyState({
       <p className={styles.message}>
         {t(
           'panels:diagram.empty.message',
-          'A diagram is your folding sequence, one step at a time. Add a step, then give it a picture and an instruction.'
+          'A diagram is your folding sequence, one step at a time. Add a step, then give it a picture and an instruction — or upload your drawings, one step each.'
         )}
       </p>
-      <Button variant="primary" disabled={readOnly} onClick={onAddStep}>
-        <Plus size={15} aria-hidden="true" />
-        {t('panels:diagram.empty.addStep', 'Add step')}
-      </Button>
+      <div className={styles.actions}>
+        <Button variant="primary" disabled={readOnly} onClick={onAddStep}>
+          <Plus size={15} aria-hidden="true" />
+          {t('panels:diagram.empty.addStep', 'Add step')}
+        </Button>
+        <Button variant="secondary" disabled={readOnly} onClick={onUpload}>
+          <Upload size={15} aria-hidden="true" />
+          {t('panels:diagram.empty.upload', 'Upload pictures…')}
+        </Button>
+      </div>
     </div>
   );
 }

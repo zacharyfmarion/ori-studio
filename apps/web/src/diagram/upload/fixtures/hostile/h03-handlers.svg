@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100" viewBox="0 0 100 100" onload="fetch('http://canary.test/h03-onload')">
+<rect width="100" height="100" fill="#3a3" onclick="fetch('http://canary.test/h03-onclick')" onmouseover="fetch('http://canary.test/h03-onmouseover')" ONLOAD="fetch('http://canary.test/h03-ONLOAD')" onLoad="fetch('http://canary.test/h03-onLoad')"/>
+<image href="nope.png" width="10" height="10" onerror="fetch('http://canary.test/h03-onerror')"/>
+<g onfocusin="fetch('http://canary.test/h03-focusin')" tabindex="0"><circle cx="50" cy="50" r="10" fill="#fff" onclick="fetch('http://canary.test/h03-circle')"/></g>
+<animate attributeName="x" dur="0.1s" onbegin="fetch('http://canary.test/h03-onbegin')" onend="fetch('http://canary.test/h03-onend')"/>
+<svg onload="fetch('http://canary.test/h03-inner-onload')" width="1" height="1"/>
+</svg>

@@ -19,9 +19,17 @@ import {
   setStepBreakBefore,
   setStepText,
   stepHasContent,
+  insertPictureSteps,
+  setStepPicture,
+  removeStepPicture,
+  stepAsset,
+  stepHasPicture,
+  withReferencedAssets,
+  uploadPictureKey,
   type DiagramDocument,
   type DiagramIdFactory,
   type DiagramStep,
+  type KnownDiagramAsset,
 } from './diagramDocument';
 
 function sequentialIds(): DiagramIdFactory {
@@ -203,5 +211,106 @@ describe('stepHasContent', () => {
     expect(stepHasContent({ ...empty, breakBefore: true })).toBe(false);
     expect(stepHasContent({ ...empty, text: 'Fold' })).toBe(true);
     expect(stepHasContent({ ...empty, unknown: { id: 'step-1' } })).toBe(true);
+  });
+});
+
+function svgAsset(id: string): KnownDiagramAsset {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20" viewBox="0 0 10 20"/>`;
+  return { id, kind: 'svg', svg, widthPx: 10, heightPx: 20, bytes: svg.length };
+}
+
+describe('pictures', () => {
+  it('adds one step per picture, in order, after the selection, each an upright upload', () => {
+    const { diagram, ids } = diagramWith(2);
+    const at = insertionIndex(diagram, diagram.steps[0].id);
+    const { document, stepIds } = insertPictureSteps(diagram, [svgAsset('a'), svgAsset('b')], at, ids);
+    expect(document.steps.map((step) => step.id)).toEqual([
+      diagram.steps[0].id,
+      ...stepIds,
+      diagram.steps[1].id,
+    ]);
+    expect(document.steps[1]).toMatchObject({
+      source: { kind: 'upload', assetId: 'a', rotationQuarterTurns: 0, mirrored: false },
+      picture: { kind: 'asset', assetId: 'a', paperScale: null, key: uploadPictureKey('a') },
+      text: '',
+    });
+    expect(Object.keys(document.assets)).toEqual(['a', 'b']);
+    expect(stepAsset(document, document.steps[2])?.id).toBe('b');
+    // The original is untouched.
+    expect(diagram.assets).toEqual({});
+  });
+
+  it('replaces a step’s picture, keeping its words, and bumps its revision', () => {
+    const { diagram } = diagramWith(1);
+    const stepId = diagram.steps[0].id;
+    const withText = setStepText(diagram, stepId, 'Fold in half.');
+    const first = setStepPicture(withText, stepId, svgAsset('a'));
+    const second = setStepPicture(first, stepId, svgAsset('b'));
+    expect(second.steps[0]).toMatchObject({ text: 'Fold in half.', revision: 2 });
+    expect(stepAsset(second, second.steps[0])?.id).toBe('b');
+    // The old asset stays in the table, for undo, until a save leaves it out.
+    expect(Object.keys(second.assets)).toEqual(['a', 'b']);
+    expect(Object.keys(withReferencedAssets(second).assets)).toEqual(['b']);
+  });
+
+  it('removes a picture and its source, keeping the words, and is a no-op without one', () => {
+    const { diagram } = diagramWith(1);
+    const stepId = diagram.steps[0].id;
+    expect(removeStepPicture(diagram, stepId)).toBe(diagram);
+    const pictured = setStepText(setStepPicture(diagram, stepId, svgAsset('a')), stepId, 'Turn over.');
+    const removed = removeStepPicture(pictured, stepId);
+    expect(stepHasPicture(removed.steps[0])).toBe(false);
+    expect(removed.steps[0]).toMatchObject({ text: 'Turn over.', revision: 2 });
+  });
+
+  it('never gives a locked step a picture', () => {
+    const { diagram } = diagramWith(1);
+    const locked = {
+      ...diagram,
+      steps: [{ ...diagram.steps[0], unknown: { id: diagram.steps[0].id, source: { kind: 'later' } } }],
+    };
+    expect(setStepPicture(locked, locked.steps[0].id, svgAsset('a'))).toBe(locked);
+    expect(stepAsset(locked, locked.steps[0])).toBeNull();
+  });
+
+  it('shares a duplicated step’s asset rather than copying it', () => {
+    const { diagram, ids } = diagramWith(0);
+    const { document } = insertPictureSteps(diagram, [svgAsset('a')], 0, ids);
+    const copy = duplicateStep(document, document.steps[0].id, ids)!;
+    expect(Object.keys(copy.document.assets)).toEqual(['a']);
+    expect(stepAsset(copy.document, copy.document.steps[1])).toBe(stepAsset(document, document.steps[0]));
+  });
+
+  it('counts a picture as content worth asking about', () => {
+    const { diagram } = diagramWith(1);
+    const stepId = diagram.steps[0].id;
+    expect(stepHasContent(setStepPicture(diagram, stepId, svgAsset('a')).steps[0])).toBe(true);
+  });
+});
+
+describe('withReferencedAssets', () => {
+  it('keeps what steps name, what a newer build’s step names, and kinds it does not know', () => {
+    const { diagram, ids } = diagramWith(0);
+    const { document } = insertPictureSteps(diagram, [svgAsset('used')], 0, ids);
+    const carried = {
+      ...document,
+      steps: [
+        ...document.steps,
+        { ...createStep(ids), unknown: { id: 'later-step', source: { kind: 'later', ref: 'named' } } },
+      ],
+      assets: {
+        ...document.assets,
+        orphan: svgAsset('orphan'),
+        named: svgAsset('named'),
+        future: { id: 'future', unknown: { kind: 'video' } },
+      },
+    };
+    expect(Object.keys(withReferencedAssets(carried).assets).sort()).toEqual(['future', 'named', 'used']);
+  });
+
+  it('returns the same document when nothing is dropped', () => {
+    const { diagram, ids } = diagramWith(0);
+    const { document } = insertPictureSteps(diagram, [svgAsset('a')], 0, ids);
+    expect(withReferencedAssets(document)).toBe(document);
   });
 });

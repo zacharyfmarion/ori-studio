@@ -8,7 +8,10 @@ import {
   type DiagramStepAction,
   type DiagramStepActionState,
 } from './actions/diagramActions';
-import { isLockedStep, stepIndex } from './document/diagramDocument';
+import { isLockedStep, stepIndex, type DiagramStep } from './document/diagramDocument';
+import { stepPictureSource } from './pictures/paintDiagramStep';
+import { exportStepPicture } from './pictures/exportStepPicture';
+import { pickStepPictures } from './upload/addStepPictures';
 
 /**
  * Add an empty step after the selected one (or at the end) and select it: the
@@ -39,16 +42,22 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
   const { diagram, diagramReadOnly } = useWorkspaceStore.getState();
   const index = diagram ? stepIndex(diagram, stepId) : -1;
   if (!diagram || index < 0) return [];
+  const step = diagram.steps[index];
   return bindStepActions(
     stepId,
     {
       index,
       count: diagram.steps.length,
-      locked: isLockedStep(diagram.steps[index]),
+      locked: isLockedStep(step),
       readOnly: diagramReadOnly,
+      hasPicture: hasDrawablePicture(step, diagram.assets),
     },
     t
   );
+}
+
+function hasDrawablePicture(step: DiagramStep, assets: Parameters<typeof stepPictureSource>[1]): boolean {
+  return stepPictureSource(step, assets) !== null;
 }
 
 function bindStepActions(
@@ -73,6 +82,17 @@ function bindStepActions(
         if (from < 0) return;
         store().moveDiagramStep(stepId, direction === 'earlier' ? from - 1 : from + 1);
       },
+      // Straight from the click: a browser opens a picker only inside one.
+      uploadPicture: () => {
+        void pickStepPictures({ replaceStepId: stepId });
+      },
+      exportPicture: () => {
+        const diagram = store().diagram;
+        if (diagram) void exportStepPicture(diagram, stepId);
+      },
+      removePicture: () => {
+        store().removeDiagramStepPicture(stepId);
+      },
       remove: () => {
         void store().confirmDeleteDiagramSteps([stepId]);
       },
@@ -95,12 +115,16 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
     return step ? isLockedStep(step) : false;
   });
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  const hasPicture = useWorkspaceStore((state) => {
+    const step = index >= 0 ? state.diagram?.steps[index] : undefined;
+    return step && state.diagram ? hasDrawablePicture(step, state.diagram.assets) : false;
+  });
 
   return useMemo(
     () =>
       stepId === null || index < 0
         ? []
-        : bindStepActions(stepId, { index, count, locked, readOnly }, t),
-    [stepId, index, count, locked, readOnly, t]
+        : bindStepActions(stepId, { index, count, locked, readOnly, hasPicture }, t),
+    [stepId, index, count, locked, readOnly, hasPicture, t]
   );
 }

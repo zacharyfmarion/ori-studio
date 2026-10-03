@@ -123,7 +123,10 @@
     "deleteStepMessage": "Bild und Anleitung werden mit gelöscht. Sie können das rückgängig machen.",
     "deleteStepsMessage": "Ihre Bilder und Anleitungen werden mit gelöscht. Sie können das rückgängig machen.",
     "deleteStepsTitle": "{{total}} Schritte löschen?",
-    "deleteStepTitle": "Schritt {{number}} löschen?"
+    "deleteStepTitle": "Schritt {{number}} löschen?",
+    "exportPictureTitle": "Bild exportieren",
+    "replacePictureTitle": "Bild ersetzen",
+    "uploadPicturesTitle": "Bilder hochladen"
   },
   "export": {
     "allPatterns": "Alle Muster",

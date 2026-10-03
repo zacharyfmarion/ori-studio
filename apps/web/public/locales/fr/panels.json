@@ -716,40 +716,63 @@
       "addStep": "Ajouter une étape",
       "delete": "Supprimer l’étape",
       "duplicate": "Dupliquer l’étape",
+      "exportPicture": "Exporter l’image…",
       "firstHint": "C’est déjà la première étape",
       "insertAfter": "Insérer une étape après",
       "insertBefore": "Insérer une étape avant",
       "lastHint": "C’est déjà la dernière étape",
+      "lockedEditHint": "Créée avec une version plus récente d’Ori Studio\u00a0: elle peut être déplacée ou supprimée, mais pas modifiée",
       "lockedHint": "Créée avec une version plus récente d’Ori Studio\u00a0: elle peut être déplacée ou supprimée, mais pas copiée",
       "moveEarlier": "Avancer",
       "moveLater": "Reculer",
-      "readOnlyHint": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule"
+      "noPictureHint": "Cette étape n’a pas encore d’image",
+      "readOnlyHint": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule",
+      "removePicture": "Retirer l’image",
+      "replacePicture": "Remplacer l’image…",
+      "uploadPicture": "Importer une image…"
     },
     "card": {
       "badgeEmpty": "Vide",
+      "badgeImage": "Image",
       "badgeNewer": "Plus récent",
+      "badgeSvg": "SVG",
       "locked": "Créée avec une version plus récente d’Ori Studio",
       "noInstruction": "Aucune instruction",
       "noPicture": "Pas encore d’image",
-      "number": "Étape {{number}}"
+      "number": "Étape {{number}}",
+      "upload": "Importer…"
     },
     "empty": {
       "addStep": "Ajouter une étape",
-      "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction.",
-      "title": "Commencer un diagramme"
+      "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction — ou importez vos dessins, une étape chacun.",
+      "title": "Commencer un diagramme",
+      "upload": "Importer des images…"
     },
     "grid": {
       "label": "Étapes"
     },
     "header": {
       "addStep": "Ajouter une étape",
+      "moreAdd": "Autres façons d’ajouter des étapes",
       "stepCount_one": "{{count}} étape",
       "stepCount_many": "{{count}} étapes",
       "stepCount_other": "{{count}} étapes",
       "titleLabel": "Titre du diagramme",
-      "titlePlaceholder": "Diagramme sans titre"
+      "titlePlaceholder": "Diagramme sans titre",
+      "uploadPictures": "Importer des images…"
     },
     "label": "Diagramme",
+    "picture": {
+      "cssDropped": "Une partie de son style n’a pas pu être conservée, certains éléments peuvent donc paraître différents.",
+      "flowedText": "Le texte encadré n’est pas pris en charge et a été omis\u00a0: convertissez-le en texte ordinaire, puis remplacez l’image.",
+      "linkedImage": "Les images liées ne peuvent pas être conservées\u00a0: incorporez-les au fichier, puis remplacez l’image.",
+      "none": "Pas encore d’image",
+      "raster": "Image importée, {{width}} × {{height}} px",
+      "simplified": "Cette image a été simplifiée.",
+      "source": "Source",
+      "svg": "SVG importé, {{width}} × {{height}} px",
+      "unsupported": "Certaines de ses parties ne sont pas prises en charge et ont été omises."
+    },
     "readOnlyNotice": "Ce diagramme a été créé avec une version plus récente d’Ori Studio\u00a0: il s’ouvre donc ici en lecture seule. L’enregistrer le conserve exactement tel quel.",
     "stepPane": {
       "instruction": "Instruction",
@@ -759,6 +782,7 @@
       "noSelection": "Sélectionnez une étape pour la modifier.",
       "noSteps": "Ajoutez une étape pour écrire ici son instruction.",
       "ofTotal": "sur {{total}}",
+      "picture": "Image",
       "positionLabel": "Position de l’étape",
       "step": "Étape"
     }

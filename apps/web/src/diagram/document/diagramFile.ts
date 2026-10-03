@@ -17,27 +17,46 @@
  *   shown is a best-effort reading of it.
  *
  * Every string a user typed passes through `xmlText` on the way in, so what is
- * stored can always be written into an SVG page.
+ * stored can always be written into an SVG page. Every uploaded SVG is
+ * sanitized again on the way in, and every uploaded bitmap's header checked
+ * against its stored size (D7): a file edited by hand is held to the rules an
+ * upload was.
  *
- * React-free, store-free and DOM-free.
+ * React-free and store-free. The DOM is reached only through the injected
+ * `SanitizeEnv`, and only when the diagram holds an SVG.
  */
 
 import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import { normalizePaperStyle } from '../../lib/paper/paperStyle';
 import { xmlText } from '../../lib/xmlEscape';
 import {
+  EMBEDDED_RASTER_MAX_SIDE,
+  SVG_STORED_MAX_BYTES,
+  browserSanitizeEnv,
+  rasterHeaderSize,
+  sanitizeSvg,
+  type SanitizeEnv,
+} from '../upload/svgSanitize';
+import {
   DEFAULT_DIAGRAM_STYLE,
   DIAGRAM_FORMAT_VERSION,
   PAPER_SIZES,
+  isKnownAsset,
   normalizePageSetup,
   randomDiagramId,
+  withReferencedAssets,
   type DiagramAnnotation,
   type DiagramAsset,
+  type DiagramAssetPicture,
   type DiagramDocument,
   type DiagramHanStyle,
   type DiagramIdFactory,
+  type DiagramRasterAsset,
   type DiagramStep,
   type DiagramStyle,
+  type DiagramSvgAsset,
+  type DiagramUploadSource,
+  type QuarterTurns,
 } from './diagramDocument';
 
 /** A diagram read from a file. */
@@ -53,20 +72,25 @@ export interface ReadDiagram {
   raw: Record<string, unknown>;
 }
 
+export interface ReadDiagramOptions {
+  newId?: DiagramIdFactory;
+  /** Parses and serializes the SVG assets sanitized on the way in; the browser's by default. */
+  sanitizeEnv?: SanitizeEnv;
+}
+
 /**
  * Read `workspace.diagram`. `null` for an absent diagram or one that is not an
  * object.
  */
-export function readDiagram(
-  value: unknown,
-  newId: DiagramIdFactory = randomDiagramId
-): ReadDiagram | null {
+export function readDiagram(value: unknown, options: ReadDiagramOptions = {}): ReadDiagram | null {
   if (!isRecord(value)) return null;
+  const newId = options.newId ?? randomDiagramId;
   const formatVersion = typeof value.formatVersion === 'number' ? value.formatVersion : 1;
+  const assets = readAssets(value.assets, options.sanitizeEnv);
   const steps: DiagramStep[] = [];
   const seen = new Set<string>();
   for (const entry of Array.isArray(value.steps) ? value.steps : []) {
-    const step = readStep(entry);
+    const step = readStep(entry, assets);
     // Two steps with one id would make every edit by id ambiguous; the first
     // one wins and the copy is malformed.
     if (step && !seen.has(step.id)) {
@@ -82,7 +106,7 @@ export function readDiagram(
     style: readStyle(value.style),
     page: normalizePageSetup(value.page),
     steps,
-    assets: readAssets(value.assets),
+    assets,
   };
   const newer = formatVersion > DIAGRAM_FORMAT_VERSION || unknownDocumentField(value) !== null;
   return { document, readOnly: newer, raw: value };
@@ -157,14 +181,16 @@ const HAN_STYLES: readonly string[] = ['sc', 'tc', 'jp', 'kr'];
 
 /**
  * The value written to `workspace.diagram`. A read-only diagram is written as
- * it was read; otherwise every field is named here, and a locked step,
- * annotation or asset goes back exactly as it came.
+ * it was read; otherwise every field is named here, a locked step, annotation
+ * or asset goes back exactly as it came, and an asset nothing refers to any
+ * more is left out (`withReferencedAssets`).
  */
 export function writeDiagram(
-  document: DiagramDocument,
+  current: DiagramDocument,
   readOnlyRaw: Record<string, unknown> | null = null
 ): Record<string, unknown> {
   if (readOnlyRaw) return readOnlyRaw;
+  const document = withReferencedAssets(current);
   return {
     formatVersion: DIAGRAM_FORMAT_VERSION,
     id: document.id,
@@ -198,17 +224,41 @@ function writeAnnotation(annotation: DiagramAnnotation): Record<string, unknown>
 }
 
 function writeAsset(asset: DiagramAsset): Record<string, unknown> {
-  return asset.unknown;
+  if (!isKnownAsset(asset)) return asset.unknown;
+  return asset.kind === 'svg'
+    ? {
+        id: asset.id,
+        kind: 'svg',
+        svg: asset.svg,
+        widthPx: asset.widthPx,
+        heightPx: asset.heightPx,
+        bytes: asset.bytes,
+      }
+    : {
+        id: asset.id,
+        kind: 'raster',
+        src: asset.src,
+        widthPx: asset.widthPx,
+        heightPx: asset.heightPx,
+        bytes: asset.bytes,
+      };
 }
 
-function readStep(value: unknown): DiagramStep | null {
+/** The source kinds this build reads. Any other is a newer build's. */
+const SOURCE_KINDS = new Set(['upload']);
+/** The picture kinds this build reads. */
+const PICTURE_KINDS = new Set(['asset']);
+
+/**
+ * One step. A source or picture of a kind this build does not know makes the
+ * step a newer build's, carried whole and locked. One of a known kind that
+ * does not read — or that names an asset the file does not hold, or one
+ * dropped on the way in — is left out, and the step keeps its words.
+ */
+function readStep(value: unknown, assets: Record<string, DiagramAsset>): DiagramStep | null {
   if (!isRecord(value)) return null;
   const id = value.id;
   if (typeof id !== 'string' || id.length === 0) return null;
-  // No source or picture kind is readable yet, so any non-null one is a newer
-  // build's: the whole step is carried, locked.
-  const sourceKnown = value.source === null || value.source === undefined;
-  const pictureKnown = value.picture === null || value.picture === undefined;
   const base: DiagramStep = {
     id,
     revision: wholeNumber(value.revision) ?? 0,
@@ -220,7 +270,58 @@ function readStep(value: unknown): DiagramStep | null {
     text: typeof value.text === 'string' ? xmlText(value.text) : '',
     breakBefore: value.breakBefore === true,
   };
-  return sourceKnown && pictureKnown ? base : { ...base, unknown: value };
+  if (isNewerKind(value.source, SOURCE_KINDS) || isNewerKind(value.picture, PICTURE_KINDS)) {
+    return { ...base, unknown: value };
+  }
+  const source = readSource(value.source, assets);
+  const picture = readPicture(value.picture, assets);
+  // An upload is its asset: a source and a picture that disagree about which
+  // one, or a picture whose source is gone, are not a picture to show.
+  if (source && picture && source.assetId === picture.assetId) return { ...base, source, picture };
+  return base;
+}
+
+/** A value with a `kind` this build does not read. */
+function isNewerKind(value: unknown, known: ReadonlySet<string>): boolean {
+  return isRecord(value) && typeof value.kind === 'string' && !known.has(value.kind);
+}
+
+function readSource(
+  value: unknown,
+  assets: Record<string, DiagramAsset>
+): DiagramUploadSource | null {
+  if (!isRecord(value) || value.kind !== 'upload') return null;
+  const assetId = value.assetId;
+  if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
+  const turns = value.rotationQuarterTurns;
+  return {
+    kind: 'upload',
+    assetId,
+    rotationQuarterTurns:
+      turns === 0 || turns === 1 || turns === 2 || turns === 3 ? (turns as QuarterTurns) : 0,
+    mirrored: value.mirrored === true,
+  };
+}
+
+function readPicture(
+  value: unknown,
+  assets: Record<string, DiagramAsset>
+): DiagramAssetPicture | null {
+  if (!isRecord(value) || value.kind !== 'asset') return null;
+  const { assetId, key, paperScale } = value;
+  if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
+  if (typeof key !== 'string' || key.length === 0) return null;
+  return {
+    kind: 'asset',
+    assetId,
+    paperScale: typeof paperScale === 'number' && Number.isFinite(paperScale) && paperScale > 0 ? paperScale : null,
+    key,
+  };
+}
+
+function hasKnownAsset(assets: Record<string, DiagramAsset>, id: string): boolean {
+  const asset = Object.hasOwn(assets, id) ? assets[id] : undefined;
+  return asset !== undefined && isKnownAsset(asset);
 }
 
 /** No annotation kind is readable yet: each one with an id is carried verbatim. */
@@ -235,14 +336,72 @@ function readAnnotations(value: unknown): DiagramAnnotation[] {
   return out;
 }
 
-/** No asset kind is readable yet: each one is carried verbatim under its id. */
-function readAssets(value: unknown): Record<string, DiagramAsset> {
+/**
+ * The assets table, under its keys. An SVG is sanitized again and a bitmap
+ * header-checked, and one that fails is dropped (the steps that showed it
+ * become empty); a kind this build does not know is carried verbatim.
+ */
+function readAssets(value: unknown, env: SanitizeEnv | undefined): Record<string, DiagramAsset> {
   if (!isRecord(value)) return {};
   const out: Record<string, DiagramAsset> = {};
+  let sanitizeEnv = env;
   for (const [id, entry] of Object.entries(value)) {
-    if (isRecord(entry)) out[id] = { id, unknown: entry };
+    if (!isRecord(entry)) continue;
+    if (entry.kind === 'svg') {
+      sanitizeEnv ??= browserSanitizeEnv();
+      const asset = readSvgAsset(id, entry, sanitizeEnv);
+      if (asset) out[id] = asset;
+    } else if (entry.kind === 'raster') {
+      const asset = readRasterAsset(id, entry);
+      if (asset) out[id] = asset;
+    } else if (typeof entry.kind === 'string') {
+      out[id] = { id, unknown: entry };
+    }
   }
   return out;
+}
+
+function readSvgAsset(
+  id: string,
+  entry: Record<string, unknown>,
+  env: SanitizeEnv
+): DiagramSvgAsset | null {
+  if (typeof entry.svg !== 'string' || entry.svg.length > SVG_STORED_MAX_BYTES) return null;
+  // The asset's id is its ids' prefix, as at import, which is what makes a
+  // load of an untouched file change nothing.
+  const result = sanitizeSvg(entry.svg, { idPrefix: id, mode: 'load', env });
+  if (!result.ok || result.svg.length > SVG_STORED_MAX_BYTES) return null;
+  return {
+    id,
+    kind: 'svg',
+    svg: result.svg,
+    widthPx: result.widthPx,
+    heightPx: result.heightPx,
+    bytes: result.svg.length,
+  };
+}
+
+const RASTER_SRC = /^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/]+={0,2})$/;
+
+/**
+ * A bitmap as an upload stored it: a PNG or JPEG data URL whose header agrees
+ * with the stored size, at most 2048 px a side. Anything else is dropped.
+ */
+function readRasterAsset(id: string, entry: Record<string, unknown>): DiagramRasterAsset | null {
+  const { src, widthPx, heightPx } = entry;
+  if (typeof src !== 'string' || typeof widthPx !== 'number' || typeof heightPx !== 'number') return null;
+  const match = RASTER_SRC.exec(src);
+  if (!match) return null;
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0));
+  } catch {
+    return null;
+  }
+  const size = rasterHeaderSize(bytes, match[1]);
+  if (!size || size.width !== widthPx || size.height !== heightPx) return null;
+  if (Math.max(size.width, size.height) > EMBEDDED_RASTER_MAX_SIDE) return null;
+  return { id, kind: 'raster', src, widthPx, heightPx, bytes: src.length };
 }
 
 function readHanStyle(value: unknown): DiagramHanStyle {

@@ -3,14 +3,19 @@ import {
   createStep,
   defaultHanStyle,
   duplicateStep,
+  insertPictureSteps,
   insertSteps,
   insertionIndex,
+  isLockedStep,
   moveStep,
+  removeStepPicture,
   removeSteps,
   setDiagramTitle,
   setPageSetup,
+  setStepPicture,
   setStepText,
   stepHasContent,
+  stepHasPicture,
   stepIndex,
   type DiagramDocument,
 } from '../../../diagram/document/diagramDocument';
@@ -230,6 +235,46 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (!next) return false;
       if (session !== undefined) openTextSession = { session, stepId, loadId: currentLoadId };
       return true;
+    },
+
+    addDiagramPictures: (assets, { loadId } = {}) => {
+      if (assets.length === 0) return null;
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return null;
+      const selected = get().diagramSelectedStepId;
+      const current = get().diagram;
+      const target = current && selected !== null ? current.steps[stepIndex(current, selected)] : undefined;
+      // One picture onto a selected step that has none fills it (D2).
+      if (assets.length === 1 && target && !isLockedStep(target) && !stepHasPicture(target)) {
+        const filled = commit('Add picture', (document) => setStepPicture(document, target.id, assets[0]));
+        return filled ? { stepIds: [target.id], filled: true } : null;
+      }
+      let stepIds: string[] = [];
+      const next = commit(assets.length === 1 ? 'Add picture' : 'Add pictures', (document) => {
+        const result = insertPictureSteps(document, assets, insertionIndex(document, selected));
+        stepIds = result.stepIds;
+        return result.document;
+      });
+      if (!next) return null;
+      // The last of them, so the next add goes on after the batch.
+      set({ diagramSelectedStepId: stepIds[stepIds.length - 1] });
+      return { stepIds, filled: false };
+    },
+
+    setDiagramStepPicture: (stepId, asset, { loadId } = {}) => {
+      if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
+      return commit('Replace picture', (document) => setStepPicture(document, stepId, asset)) !== null;
+    },
+
+    removeDiagramStepPicture: (stepId) =>
+      commit('Remove picture', (document) => removeStepPicture(document, stepId)) !== null,
+
+    noteDiagramPictureChanges: (assetId, notices) => {
+      const current = get().diagramPictureNotices;
+      if (notices.length === 0 && !(assetId in current)) return;
+      const next = { ...current };
+      if (notices.length === 0) delete next[assetId];
+      else next[assetId] = notices;
+      set({ diagramPictureNotices: next });
     },
 
     setDiagramTitle: (title) =>

@@ -658,38 +658,61 @@
       "addStep": "단계 추가",
       "delete": "단계 삭제",
       "duplicate": "단계 복제",
+      "exportPicture": "그림 내보내기…",
       "firstHint": "이미 첫 번째 단계입니다",
       "insertAfter": "뒤에 단계 삽입",
       "insertBefore": "앞에 단계 삽입",
       "lastHint": "이미 마지막 단계입니다",
+      "lockedEditHint": "최신 Ori Studio에서 만든 단계입니다. 이동하거나 삭제할 수는 있지만 변경할 수는 없습니다",
       "lockedHint": "최신 Ori Studio에서 만든 단계입니다. 이동하거나 삭제할 수는 있지만 복제할 수는 없습니다",
       "moveEarlier": "앞으로 이동",
       "moveLater": "뒤로 이동",
-      "readOnlyHint": "이 도해는 최신 Ori Studio에서 만들어져 읽기 전용으로 열립니다"
+      "noPictureHint": "이 단계에는 아직 그림이 없습니다",
+      "readOnlyHint": "이 도해는 최신 Ori Studio에서 만들어져 읽기 전용으로 열립니다",
+      "removePicture": "그림 제거",
+      "replacePicture": "그림 바꾸기…",
+      "uploadPicture": "그림 업로드…"
     },
     "card": {
       "badgeEmpty": "비어 있음",
+      "badgeImage": "이미지",
       "badgeNewer": "최신",
+      "badgeSvg": "SVG",
       "locked": "최신 Ori Studio에서 만듦",
       "noInstruction": "설명 없음",
       "noPicture": "아직 그림 없음",
-      "number": "{{number}}단계"
+      "number": "{{number}}단계",
+      "upload": "업로드…"
     },
     "empty": {
       "addStep": "단계 추가",
-      "message": "도해는 접는 순서를 한 단계씩 보여 줍니다. 단계를 추가한 다음 그림과 설명을 넣으세요.",
-      "title": "도해 시작하기"
+      "message": "도해는 접는 순서를 한 단계씩 보여 줍니다. 단계를 추가한 다음 그림과 설명을 넣거나, 직접 그린 그림을 업로드해 한 장씩 단계로 만드세요.",
+      "title": "도해 시작하기",
+      "upload": "그림 업로드…"
     },
     "grid": {
       "label": "단계"
     },
     "header": {
       "addStep": "단계 추가",
+      "moreAdd": "단계를 추가하는 다른 방법",
       "stepCount_other": "{{count}}단계",
       "titleLabel": "도해 제목",
-      "titlePlaceholder": "제목 없는 도해"
+      "titlePlaceholder": "제목 없는 도해",
+      "uploadPictures": "그림 업로드…"
     },
     "label": "도해",
+    "picture": {
+      "cssDropped": "일부 스타일을 유지할 수 없어 일부가 다르게 보일 수 있습니다.",
+      "flowedText": "흐름 텍스트는 지원되지 않아 생략되었습니다. 일반 텍스트로 변환한 다음 그림을 바꾸세요.",
+      "linkedImage": "연결된 이미지는 유지할 수 없습니다. 파일에 포함한 다음 그림을 바꾸세요.",
+      "none": "아직 그림 없음",
+      "raster": "업로드한 이미지, {{width}} × {{height}} px",
+      "simplified": "이 그림은 단순화되었습니다.",
+      "source": "출처",
+      "svg": "업로드한 SVG, {{width}} × {{height}} px",
+      "unsupported": "일부 요소가 지원되지 않아 생략되었습니다."
+    },
     "readOnlyNotice": "이 도해는 최신 Ori Studio에서 만들어져 여기서는 읽기 전용으로 열립니다. 저장해도 원래 내용이 그대로 유지됩니다.",
     "stepPane": {
       "instruction": "설명",
@@ -699,6 +722,7 @@
       "noSelection": "편집할 단계를 선택하세요.",
       "noSteps": "단계를 추가하면 여기에 설명을 쓸 수 있습니다.",
       "ofTotal": "/ {{total}}",
+      "picture": "그림",
       "positionLabel": "단계 위치",
       "step": "단계"
     }

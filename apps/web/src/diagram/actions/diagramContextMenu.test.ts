@@ -5,12 +5,15 @@ import { diagramStepMenuItems } from './diagramContextMenu';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 
-function actions(state = { index: 1, count: 3, locked: false, readOnly: false }) {
+function actions(state = { index: 1, count: 3, locked: false, readOnly: false, hasPicture: false }) {
   return buildDiagramStepActions(state, {
     t,
     insert: vi.fn(),
     duplicate: vi.fn(),
     move: vi.fn(),
+    uploadPicture: vi.fn(),
+    exportPicture: vi.fn(),
+    removePicture: vi.fn(),
     remove: vi.fn(),
   });
 }
@@ -25,6 +28,10 @@ describe('the step card menu', () => {
       'separator',
       'move-earlier',
       'move-later',
+      'separator',
+      'upload-picture',
+      'export-picture',
+      'remove-picture',
       'separator',
       'delete',
     ]);
@@ -42,7 +49,9 @@ describe('the step card menu', () => {
   });
 
   it('carries why a row is disabled', () => {
-    const items = diagramStepMenuItems(actions({ index: 0, count: 3, locked: false, readOnly: false }));
+    const items = diagramStepMenuItems(
+      actions({ index: 0, count: 3, locked: false, readOnly: false, hasPicture: false })
+    );
     const earlier = items.find((item) => item.kind === 'action' && item.id === 'move-earlier');
     expect(earlier).toMatchObject({ disabled: true, hint: 'Already the first step' });
   });

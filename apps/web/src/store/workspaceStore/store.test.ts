@@ -41,6 +41,12 @@ import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentSta
 import { DIAGRAM_SCOPED_KEYS, discardDiagramState } from './diagramState';
 import { registerPendingEditFlush, resetPendingEditsForTests } from '../../lib/pendingEdits';
 import { readDiagram } from '../../diagram/document/diagramFile';
+import {
+  stepAsset,
+  stepIndex,
+  type KnownDiagramAsset,
+} from '../../diagram/document/diagramDocument';
+import { sanitizeSvg } from '../../diagram/upload/svgSanitize';
 import { foldCancellationBuffer } from '../../lib/foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
 import { projectFromSnapshot } from '../../engine/snapshotMapper';
@@ -1535,6 +1541,7 @@ function createFileService(
 ): FileService & {
   openTextFile: ReturnType<typeof vi.fn>;
   openBinaryFile: ReturnType<typeof vi.fn>;
+  openBinaryFiles: ReturnType<typeof vi.fn>;
   saveTextFile: ReturnType<typeof vi.fn>;
   saveBinaryFile: ReturnType<typeof vi.fn>;
 } {
@@ -1543,6 +1550,7 @@ function createFileService(
     supportsNativeDialogs: false,
     openTextFile: vi.fn(async () => file),
     openBinaryFile: vi.fn(async () => null),
+    openBinaryFiles: vi.fn(async () => null),
     saveTextFile: vi.fn(async (options: SaveTextFileOptions) => ({
       name: options.suggestedName,
       path: options.path ?? `/tmp/${options.suggestedName}`,
@@ -9883,4 +9891,156 @@ describe('the project diagram', () => {
     expect(state().diagramHistory).toBe(history);
     expect(state().dirty).toBe(true);
   });
+
+  describe('uploaded pictures', () => {
+    function svgAsset(id: string, side = 10): KnownDiagramAsset {
+      const result = sanitizeSvg(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}" viewBox="0 0 ${side} ${side}"><rect width="${side / 2}" height="${side / 2}"/></svg>`,
+        { idPrefix: id, mode: 'import' }
+      );
+      if (!result.ok) throw new Error(result.error);
+      return { id, kind: 'svg', svg: result.svg, widthPx: side, heightPx: side, bytes: result.svg.length };
+    }
+
+    const assetOf = (stepId: string) => {
+      const diagram = state().diagram!;
+      return stepAsset(diagram, diagram.steps[stepIndex(diagram, stepId)])?.id ?? null;
+    };
+
+    it('fills a selected step that has no picture with one picture, as one undo step', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const past = state().diagramHistory.past.length;
+
+      expect(state().addDiagramPictures([svgAsset('asset-a')])).toEqual({ stepIds: [first], filled: true });
+
+      expect(state().diagram?.steps).toHaveLength(2);
+      expect(assetOf(first)).toBe('asset-a');
+      expect(state().diagram?.steps[0].text).toBe('Fold in half.');
+      expect(state().diagramSelectedStepId).toBe(first);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+    });
+
+    it('adds several pictures as steps after the selected one, in order, and selects the last', () => {
+      const { first, second } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const past = state().diagramHistory.past.length;
+
+      const added = state().addDiagramPictures([svgAsset('asset-a'), svgAsset('asset-b')])!;
+
+      expect(added.filled).toBe(false);
+      expect(state().diagram?.steps.map((step) => step.id)).toEqual([first, ...added.stepIds, second]);
+      expect(added.stepIds.map(assetOf)).toEqual(['asset-a', 'asset-b']);
+      expect(state().diagramSelectedStepId).toBe(added.stepIds[1]);
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      expect(state().undoDiagram()).toBe(true);
+      expect(state().diagram?.steps.map((step) => step.id)).toEqual([first, second]);
+    });
+
+    it('adds one picture as a new step when the selected step already has one, or nothing is selected', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      const added = state().addDiagramPictures([svgAsset('asset-b')])!;
+      expect(added.filled).toBe(false);
+      expect(state().diagram?.steps[1].id).toBe(added.stepIds[0]);
+
+      state().selectDiagramStep(null);
+      const atEnd = state().addDiagramPictures([svgAsset('asset-c')])!;
+      expect(state().diagram?.steps.at(-1)?.id).toBe(atEnd.stepIds[0]);
+    });
+
+    it('drops pictures imported for a diagram that has since been replaced', () => {
+      authorTwoSteps();
+      const loadId = state().diagramLoadId;
+      // A file opened while the pictures were being read.
+      state().installDiagram(null);
+      expect(state().addDiagramPictures([svgAsset('asset-a')], { loadId })).toBeNull();
+      expect(state().setDiagramStepPicture('anything', svgAsset('asset-b'), { loadId })).toBe(false);
+      expect(state().diagram).toBeNull();
+    });
+
+    it('replaces and removes a picture, keeping the instruction, and undoes both', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+
+      expect(state().setDiagramStepPicture(first, svgAsset('asset-b'))).toBe(true);
+      expect(assetOf(first)).toBe('asset-b');
+      expect(state().removeDiagramStepPicture(first)).toBe(true);
+      expect(assetOf(first)).toBeNull();
+      expect(state().diagram?.steps[0].text).toBe('Fold in half.');
+      expect(state().removeDiagramStepPicture(first)).toBe(false);
+
+      state().undoDiagram();
+      state().undoDiagram();
+      // The replaced picture's asset is still there for undo to bring back.
+      expect(assetOf(first)).toBe('asset-a');
+    });
+
+    it('keeps what sanitizing changed in an upload for this session only', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      useWorkspaceStore.setState({ dirty: false });
+
+      state().noteDiagramPictureChanges('asset-a', ['flowed-text']);
+      expect(state().diagramPictureNotices).toEqual({ 'asset-a': ['flowed-text'] });
+      expect(state().dirty).toBe(false);
+      state().noteDiagramPictureChanges('asset-a', []);
+      expect(state().diagramPictureNotices).toEqual({});
+
+      state().noteDiagramPictureChanges('asset-a', ['css-dropped']);
+      state().installDiagram(null);
+      expect(state().diagramPictureNotices).toEqual({});
+    });
+
+    it('saves pictures and reopens them, leaving out an asset only undo refers to', async () => {
+      const { first, second } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      state().setDiagramStepPicture(first, svgAsset('asset-b'));
+      state().selectDiagramStep(second);
+      state().addDiagramPictures([svgAsset('asset-c')]);
+      const fileService = createFileService();
+      await state().saveProjectAs(fileService);
+
+      const { options } = writtenFile(fileService);
+      const written = JSON.parse(options.contents).workspace.diagram;
+      expect(Object.keys(written.assets).sort()).toEqual(['asset-b', 'asset-c']);
+
+      resetStores(seedSnapshot());
+      useLayoutStore.setState({ activateWorkspace: vi.fn() });
+      useWorkspaceStore.setState({ engineReady: true, status: 'ready' });
+      await state().openProject(
+        createFileService({ text: options.contents, name: 'crane.osf', path: '/tmp/crane.osf' })
+      );
+      expect(state().diagram?.steps.map((step) => stepAsset(state().diagram!, step)?.id)).toEqual([
+        'asset-b',
+        'asset-c',
+      ]);
+      expect(state().diagram?.steps.map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
+    });
+
+    it('warns about a heavy file by what it holds, not by what undo keeps', async () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const heavy: KnownDiagramAsset = {
+        id: 'asset-heavy',
+        kind: 'raster',
+        src: `data:image/png;base64,${'A'.repeat(26 * 1024 * 1024)}`,
+        widthPx: 1,
+        heightPx: 1,
+        bytes: 26 * 1024 * 1024,
+      };
+      state().addDiagramPictures([heavy]);
+      await state().saveProjectAs(createFileService());
+      expect(state().projectMessage).toMatch(/embeds ~\d+ MB/);
+
+      state().setDiagramStepPicture(first, svgAsset('asset-light'));
+      await state().saveProjectAs(createFileService());
+      expect(state().projectMessage).not.toMatch(/embeds/);
+    });
+  });
+
 });

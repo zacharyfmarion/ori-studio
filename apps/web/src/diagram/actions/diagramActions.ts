@@ -18,6 +18,9 @@ export type DiagramStepActionId =
   | 'duplicate'
   | 'move-earlier'
   | 'move-later'
+  | 'upload-picture'
+  | 'export-picture'
+  | 'remove-picture'
   | 'delete';
 
 export interface DiagramStepCommand {
@@ -57,6 +60,8 @@ export interface DiagramStepActionState {
   locked: boolean;
   /** The whole diagram came from a newer build and nothing may change it. */
   readOnly: boolean;
+  /** The step has a picture this build can draw. */
+  hasPicture: boolean;
 }
 
 export interface DiagramStepActionDeps {
@@ -64,6 +69,10 @@ export interface DiagramStepActionDeps {
   insert: (where: 'before' | 'after') => void;
   duplicate: () => void;
   move: (direction: 'earlier' | 'later') => void;
+  /** Pick a file for the step's picture: its first, or in place of the one it has. */
+  uploadPicture: () => void;
+  exportPicture: () => void;
+  removePicture: () => void;
   remove: () => void;
 }
 
@@ -144,6 +153,30 @@ export function buildDiagramStepActions(
       t('panels:diagram.actions.lastHint', 'Already the last step')
     ),
     { kind: 'separator', id: 'after-move' },
+    command(
+      'upload-picture',
+      state.hasPicture
+        ? t('panels:diagram.actions.replacePicture', 'Replace Picture…')
+        : t('panels:diagram.actions.uploadPicture', 'Upload Picture…'),
+      deps.uploadPicture,
+      state.locked,
+      t('panels:diagram.actions.lockedEditHint', 'Made with a newer Ori Studio: it can be moved or deleted, not changed')
+    ),
+    command(
+      'export-picture',
+      t('panels:diagram.actions.exportPicture', 'Export Picture…'),
+      deps.exportPicture,
+      !state.hasPicture,
+      t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
+    ),
+    command(
+      'remove-picture',
+      t('panels:diagram.actions.removePicture', 'Remove Picture'),
+      deps.removePicture,
+      !state.hasPicture,
+      t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
+    ),
+    { kind: 'separator', id: 'after-picture' },
     command(
       'delete',
       t('panels:diagram.actions.delete', 'Delete Step'),

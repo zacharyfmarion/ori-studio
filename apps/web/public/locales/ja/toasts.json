@@ -19,6 +19,16 @@
     "simulateFailed": "この領域はシミュレーションできませんでした。",
     "simulateNoRegion": "シミュレーションするには閉じた領域を選択してください。"
   },
+  "diagram": {
+    "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
+    "uploadFailureLine": "{{name}}：{{reason}}",
+    "uploadFailureMore_other": "ほか {{count}} 件",
+    "uploadProgress_other": "{{count}} 枚の図を追加しています…",
+    "uploadRejected": "Ori Studio が安全に読み込める SVG ではありません",
+    "uploadTooLarge": "サイズが大きすぎます",
+    "uploadUnreadable": "図を読み込めませんでした",
+    "uploadUnsupported": "図のファイルではありません"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} を使用しました。ドロップされた他の 1 件は無視されました。",
     "ignoredFiles": "{{name}} を使用しました。ドロップされた他の {{others}} 件は無視されました。"

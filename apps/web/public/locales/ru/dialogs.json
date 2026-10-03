@@ -127,7 +127,10 @@
     "deleteStepMessage": "Его изображение и описание будут удалены вместе с ним. Это действие можно отменить.",
     "deleteStepsMessage": "Их изображения и описания будут удалены вместе с ними. Это действие можно отменить.",
     "deleteStepsTitle": "Удалить шаги ({{total}})?",
-    "deleteStepTitle": "Удалить шаг {{number}}?"
+    "deleteStepTitle": "Удалить шаг {{number}}?",
+    "exportPictureTitle": "Экспорт изображения",
+    "replacePictureTitle": "Замена изображения",
+    "uploadPicturesTitle": "Загрузка изображений"
   },
   "export": {
     "allPatterns": "Все паттерны",

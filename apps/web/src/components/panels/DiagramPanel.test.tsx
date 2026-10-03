@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readDiagram } from '../../diagram/document/diagramFile';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -231,13 +231,16 @@ describe('DiagramPanel', () => {
       expect(state().diagramSelectedStepId).toBe(first);
       // Each row is its label, then the key that runs it where there is one.
       const rows = menuItems();
-      expect(rows).toHaveLength(6);
+      expect(rows).toHaveLength(9);
       [
         'Insert Step Before',
         'Insert Step After',
         'Duplicate Step',
         'Move Earlier',
         'Move Later',
+        'Upload Picture…',
+        'Export Picture…',
+        'Remove Picture',
         'Delete Step',
       ].forEach((label, index) => expect(rows[index]).toMatch(new RegExp(`^${label}`)));
       const moveLater = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
@@ -299,4 +302,66 @@ describe('DiagramPanel', () => {
       expect(menuItems()).toEqual(['Add Step']);
     });
   });
+
+  describe('dropped pictures', () => {
+    const svgFile = (name: string) =>
+      new File(['<svg xmlns="http://www.w3.org/2000/svg" width="12" height="9"/>'], name, {
+        type: 'image/svg+xml',
+      });
+
+    /** A drag event as a browser hands one over: `files` is withheld until the drop. */
+    function drag(type: 'dragover' | 'drop', target: Element, files: File[]) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'dataTransfer', {
+        value: {
+          types: ['Files'],
+          items: files.map((file) => ({ kind: 'file', type: file.type })),
+          files: type === 'drop' ? files : [],
+          dropEffect: 'none',
+        },
+      });
+      act(() => {
+        target.dispatchEvent(event);
+      });
+      return event;
+    }
+
+    it('shows the card a picture would land on, and fills that empty card', async () => {
+      const [, second] = addSteps(2);
+      const over = drag('dragover', options()[1], [svgFile('a.svg')]);
+      expect(over.defaultPrevented).toBe(true);
+      expect(options()[1].hasAttribute('data-drop-target')).toBe(true);
+
+      const drop = drag('drop', options()[1], [svgFile('a.svg')]);
+      expect(drop.defaultPrevented).toBe(true);
+      expect(options()[1].hasAttribute('data-drop-target')).toBe(false);
+      await vi.waitFor(() => expect(state().diagram?.steps[1].picture).not.toBeNull());
+      expect(state().diagram?.steps.map((step) => step.id)[1]).toBe(second);
+      expect(state().diagram?.steps).toHaveLength(2);
+      expect(state().diagramSelectedStepId).toBe(second);
+      await vi.waitFor(() => expect(options()[1].querySelector('img')).not.toBeNull());
+    });
+
+    it('adds several dropped pictures as steps after the card they land on', async () => {
+      const [first, second] = addSteps(2);
+      drag('drop', options()[0], [svgFile('step-2.svg'), svgFile('step-1.svg')]);
+      await vi.waitFor(() => expect(state().diagram?.steps).toHaveLength(4));
+      const order = state().diagram!.steps.map((step) => step.id);
+      expect(order[0]).toBe(first);
+      expect(order[3]).toBe(second);
+    });
+
+    it('starts a diagram from pictures dropped on the empty state', async () => {
+      drag('drop', host!.querySelector('h2')!, [svgFile('a.svg')]);
+      await vi.waitFor(() => expect(state().diagram?.steps).toHaveLength(1));
+    });
+
+    it('leaves a drop with no picture in it to the workspace', () => {
+      addSteps(1);
+      const project = new File(['{}'], 'crane.osf', { type: '' });
+      expect(drag('drop', options()[0], [project]).defaultPrevented).toBe(false);
+      expect(drag('dragover', options()[0], [project]).defaultPrevented).toBe(false);
+    });
+  });
 });
+

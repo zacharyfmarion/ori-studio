@@ -41,6 +41,23 @@ export type DiagramStepAddedVia =
   | 'drop'
   | 'batch';
 
+/** An uploaded picture's file type, by its reported type and extension: never its name. */
+export type DiagramPictureFormat = 'svg' | 'png' | 'jpeg' | 'webp' | 'other';
+
+/**
+ * What became of one uploaded file. `flattened` was added, but sanitizing
+ * changed its look (a mask, a filter, flowed text); the rest were not added:
+ * past a size cap, an SVG the sanitizer refused, not a picture at all, or a
+ * bitmap that would not decode.
+ */
+export type DiagramPictureUploadOutcome =
+  | 'ok'
+  | 'flattened'
+  | 'too_large'
+  | 'rejected'
+  | 'unsupported'
+  | 'unreadable';
+
 /** The five top-level workspaces, plus the share screen. */
 export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'share';
 /**
@@ -941,6 +958,11 @@ export const ANALYTICS_EVENTS = {
    * `via` the control that added it: which ways into the Diagram are used.
    */
   diagramStepAdded: 'diagram step added',
+  /**
+   * One file of an upload into the Diagram, and what became of it: whether
+   * people's own drawings survive the sanitizer, and how big they are.
+   */
+  diagramPictureUploaded: 'diagram picture uploaded',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',
@@ -1110,6 +1132,12 @@ export function bucketCount(value: number, thresholds: readonly number[]): strin
 
 /** Threshold ladder for how many pages an export of every step wrote. */
 export const PAPER_EXPORT_PAGE_COUNT_BUCKETS = [5, 10, 25] as const;
+
+/** An uploaded picture's size, in KB: an icon, a drawing, a heavy export, a photo. */
+export const DIAGRAM_UPLOAD_KB_BUCKETS = [50, 200, 1000, 5000] as const;
+
+/** How many files one upload carried: one, a handful, a whole sequence. */
+export const DIAGRAM_UPLOAD_COUNT_BUCKETS = [1, 5, 20, 50] as const;
 
 /** Default threshold ladder for element counts (nodes, lines, etc.). */
 export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;

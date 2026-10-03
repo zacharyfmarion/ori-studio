@@ -11,12 +11,21 @@ import {
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 
 function deps(): DiagramStepActionDeps {
-  return { t, insert: vi.fn(), duplicate: vi.fn(), move: vi.fn(), remove: vi.fn() };
+  return {
+    t,
+    insert: vi.fn(),
+    duplicate: vi.fn(),
+    move: vi.fn(),
+    uploadPicture: vi.fn(),
+    exportPicture: vi.fn(),
+    removePicture: vi.fn(),
+    remove: vi.fn(),
+  };
 }
 
 function build(state: Partial<DiagramStepActionState>, bound = deps()) {
   return buildDiagramStepActions(
-    { index: 1, count: 3, locked: false, readOnly: false, ...state },
+    { index: 1, count: 3, locked: false, readOnly: false, hasPicture: false, ...state },
     bound
   );
 }
@@ -31,6 +40,10 @@ describe('the diagram step verbs', () => {
       'move-earlier',
       'move-later',
       'after-move',
+      'upload-picture',
+      'export-picture',
+      'remove-picture',
+      'after-picture',
       'delete',
     ]);
   });
@@ -43,6 +56,12 @@ describe('the diagram step verbs', () => {
     diagramStepCommand(actions, 'move-later')?.run();
     diagramStepCommand(actions, 'duplicate')?.run();
     diagramStepCommand(actions, 'delete')?.run();
+    diagramStepCommand(build({ hasPicture: true }, bound), 'upload-picture')?.run();
+    diagramStepCommand(build({ hasPicture: true }, bound), 'export-picture')?.run();
+    diagramStepCommand(build({ hasPicture: true }, bound), 'remove-picture')?.run();
+    expect(bound.uploadPicture).toHaveBeenCalledOnce();
+    expect(bound.exportPicture).toHaveBeenCalledOnce();
+    expect(bound.removePicture).toHaveBeenCalledOnce();
     expect(bound.insert).toHaveBeenNthCalledWith(1, 'before');
     expect(bound.insert).toHaveBeenNthCalledWith(2, 'after');
     expect(bound.move).toHaveBeenCalledWith('later');
@@ -79,6 +98,25 @@ describe('the diagram step verbs', () => {
       expect(action.disabled, action.id).toBe(true);
       expect(action.hint, action.id).toContain('read-only');
     }
+  });
+
+  it('uploads a first picture, or replaces one, and exports or removes only one there is', () => {
+    const empty = build({});
+    expect(diagramStepCommand(empty, 'upload-picture')).toMatchObject({
+      label: 'Upload Picture…',
+      disabled: false,
+    });
+    expect(diagramStepCommand(empty, 'export-picture')).toMatchObject({
+      disabled: true,
+      hint: 'This step has no picture yet',
+    });
+    expect(diagramStepCommand(empty, 'remove-picture')?.disabled).toBe(true);
+    const pictured = build({ hasPicture: true });
+    expect(diagramStepCommand(pictured, 'upload-picture')?.label).toBe('Replace Picture…');
+    expect(diagramStepCommand(pictured, 'export-picture')?.disabled).toBe(false);
+    expect(diagramStepCommand(pictured, 'remove-picture')?.disabled).toBe(false);
+    // A newer build's step is only carried: it gets no picture from this one.
+    expect(diagramStepCommand(build({ locked: true }), 'upload-picture')?.disabled).toBe(true);
   });
 
   it('marks Delete as the dangerous one', () => {

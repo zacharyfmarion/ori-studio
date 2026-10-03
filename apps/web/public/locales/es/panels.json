@@ -716,40 +716,63 @@
       "addStep": "Añadir paso",
       "delete": "Eliminar paso",
       "duplicate": "Duplicar paso",
+      "exportPicture": "Exportar imagen…",
       "firstHint": "Ya es el primer paso",
       "insertAfter": "Insertar paso después",
       "insertBefore": "Insertar paso antes",
       "lastHint": "Ya es el último paso",
+      "lockedEditHint": "Creado con una versión más reciente de Ori Studio: se puede mover o eliminar, pero no cambiar",
       "lockedHint": "Creado con una versión más reciente de Ori Studio: se puede mover o eliminar, pero no copiar",
       "moveEarlier": "Mover antes",
       "moveLater": "Mover después",
-      "readOnlyHint": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en modo de solo lectura"
+      "noPictureHint": "Este paso aún no tiene imagen",
+      "readOnlyHint": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en modo de solo lectura",
+      "removePicture": "Quitar imagen",
+      "replacePicture": "Reemplazar imagen…",
+      "uploadPicture": "Subir imagen…"
     },
     "card": {
       "badgeEmpty": "Vacío",
+      "badgeImage": "Imagen",
       "badgeNewer": "Más reciente",
+      "badgeSvg": "SVG",
       "locked": "Creado con una versión más reciente de Ori Studio",
       "noInstruction": "Sin instrucción",
       "noPicture": "Aún sin imagen",
-      "number": "Paso {{number}}"
+      "number": "Paso {{number}}",
+      "upload": "Subir…"
     },
     "empty": {
       "addStep": "Añadir paso",
-      "message": "Un diagrama es tu secuencia de plegado, paso a paso. Añade un paso y luego dale una imagen y una instrucción.",
-      "title": "Empezar un diagrama"
+      "message": "Un diagrama es tu secuencia de plegado, paso a paso. Añade un paso y luego dale una imagen y una instrucción, o sube tus dibujos, uno por paso.",
+      "title": "Empezar un diagrama",
+      "upload": "Subir imágenes…"
     },
     "grid": {
       "label": "Pasos"
     },
     "header": {
       "addStep": "Añadir paso",
+      "moreAdd": "Más formas de añadir pasos",
       "stepCount_one": "{{count}} paso",
       "stepCount_many": "{{count}} pasos",
       "stepCount_other": "{{count}} pasos",
       "titleLabel": "Título del diagrama",
-      "titlePlaceholder": "Diagrama sin título"
+      "titlePlaceholder": "Diagrama sin título",
+      "uploadPictures": "Subir imágenes…"
     },
     "label": "Diagrama",
+    "picture": {
+      "cssDropped": "No se pudo conservar parte de su estilo, así que algunas partes pueden verse distintas.",
+      "flowedText": "El texto fluido no es compatible y se omitió: conviértelo en texto normal y luego reemplaza la imagen.",
+      "linkedImage": "Las imágenes vinculadas no se pueden conservar: incrústalas en el archivo y luego reemplaza la imagen.",
+      "none": "Aún sin imagen",
+      "raster": "Imagen subida, {{width}} × {{height}} px",
+      "simplified": "Esta imagen se simplificó.",
+      "source": "Origen",
+      "svg": "SVG subido, {{width}} × {{height}} px",
+      "unsupported": "Algunas de sus partes no son compatibles y se omitieron."
+    },
     "readOnlyNotice": "Este diagrama se creó con una versión más reciente de Ori Studio, así que aquí se abre en modo de solo lectura. Al guardarlo se conserva exactamente como estaba.",
     "stepPane": {
       "instruction": "Instrucción",
@@ -759,6 +782,7 @@
       "noSelection": "Selecciona un paso para editarlo.",
       "noSteps": "Añade un paso para escribir aquí su instrucción.",
       "ofTotal": "de {{total}}",
+      "picture": "Imagen",
       "positionLabel": "Posición del paso",
       "step": "Paso"
     }

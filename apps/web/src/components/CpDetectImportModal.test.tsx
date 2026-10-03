@@ -117,6 +117,7 @@ vi.mock('./cpDetectModelState', async (importOriginal) => {
 vi.mock('../platform/fileService', () => ({
   getFileService: () => ({
     openBinaryFile: async () => ({
+    openBinaryFiles: vi.fn(async () => null),
       bytes: new Uint8Array([1, 2, 3]),
       name: 'crane.png',
       path: null,

@@ -112,4 +112,39 @@ describe('DiagramStepPanel', () => {
     act(() => button('Delete Step')?.click());
     expect(ids()).toEqual([first, third, second]);
   });
+
+  describe('the picture', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1105.6" height="800" viewBox="0 0 1105.6 800"/>';
+    const asset = { id: 'asset-a', kind: 'svg' as const, svg, widthPx: 1105.6, heightPx: 800, bytes: svg.length };
+    const textButton = (label: string) =>
+      [...(host?.querySelectorAll('button') ?? [])].find((candidate) => candidate.textContent === label);
+
+    it('offers a first picture for a step without one, and nothing to export or remove', () => {
+      act(() => {
+        state().addDiagramStep();
+      });
+      expect(host?.textContent).toContain('No picture yet');
+      expect(textButton('Upload Picture…')?.disabled).toBe(false);
+      expect(textButton('Export Picture…')?.disabled).toBe(true);
+      expect(textButton('Remove Picture')?.disabled).toBe(true);
+    });
+
+    it('says what the picture is, what sanitizing changed, and removes it', () => {
+      act(() => {
+        const stepId = state().addDiagramStep()!;
+        state().setDiagramStepPicture(stepId, asset);
+        state().noteDiagramPictureChanges('asset-a', ['flowed-text', 'css-dropped']);
+      });
+      expect(host?.textContent).toContain('Uploaded SVG, 1106 × 800 px');
+      expect(host?.textContent).toContain('This picture was simplified.');
+      expect(host?.textContent).toContain('Flowed text isn’t supported');
+      expect(textButton('Replace Picture…')).toBeDefined();
+
+      act(() => textButton('Remove Picture')?.click());
+      expect(host?.textContent).toContain('No picture yet');
+      expect(host?.textContent).not.toContain('simplified');
+      expect(state().diagram?.steps[0].text).toBe('');
+    });
+  });
 });
+

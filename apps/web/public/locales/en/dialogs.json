@@ -123,7 +123,10 @@
     "deleteStepMessage": "Its picture and instruction go with it. You can undo this.",
     "deleteStepsMessage": "Their pictures and instructions go with them. You can undo this.",
     "deleteStepsTitle": "Delete {{total}} steps?",
-    "deleteStepTitle": "Delete step {{number}}?"
+    "deleteStepTitle": "Delete step {{number}}?",
+    "exportPictureTitle": "Export picture",
+    "replacePictureTitle": "Replace picture",
+    "uploadPicturesTitle": "Upload pictures"
   },
   "export": {
     "allPatterns": "All patterns",

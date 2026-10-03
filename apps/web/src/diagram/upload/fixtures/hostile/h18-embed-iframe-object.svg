@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100" height="100" viewBox="0 0 100 100">
+<rect width="100" height="100" fill="#3a3"/>
+<iframe src="http://canary.test/h18-svg-iframe"/>
+<object data="http://canary.test/h18-svg-object"/>
+<embed src="http://canary.test/h18-svg-embed"/>
+<h:iframe xmlns:h="http://www.w3.org/1999/xhtml" src="http://canary.test/h18-html-iframe"/>
+<h:embed xmlns:h="http://www.w3.org/1999/xhtml" src="http://canary.test/h18-html-embed"/>
+<handler xmlns:ev="http://www.w3.org/2001/xml-events" ev:event="load" type="application/ecmascript">fetch('http://canary.test/h18-handler')</handler>
+<cursor href="http://canary.test/h18-cursor.png"/>
+<color-profile name="p" href="http://canary.test/h18-icc"/>
+<font-face font-family="F"><font-face-src><font-face-uri href="http://canary.test/h18-fontface.svg#f"/></font-face-src></font-face>
+<text><textPath href="http://canary.test/h18-textpath.svg#p">tp</textPath></text>
+</svg>

@@ -1,0 +1,6 @@
+<svg:svg xmlns:svg="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+<svg:rect width="100" height="100" fill="#3a3"/>
+<svg:script>fetch('http://canary.test/h02-svgscript')</svg:script>
+<h:script xmlns:h="http://www.w3.org/1999/xhtml">fetch('http://canary.test/h02-xhtmlscript')</h:script>
+<svg:g><script xmlns="http://www.w3.org/1999/xhtml">fetch('http://canary.test/h02-xhtml-default')</script></svg:g>
+</svg:svg>

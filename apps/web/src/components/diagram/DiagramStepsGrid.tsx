@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DiagramStep } from '../../diagram/document/diagramDocument';
+import type { DiagramAsset, DiagramStep } from '../../diagram/document/diagramDocument';
+import { GRID_DROP_TARGET } from '../../diagram/upload/useStepPictureDrop';
 import { DiagramStepCard } from './DiagramStepCard';
 import styles from './DiagramStepsGrid.module.css';
 
@@ -21,12 +22,22 @@ import styles from './DiagramStepsGrid.module.css';
  */
 export function DiagramStepsGrid({
   steps,
+  assets,
   selectedStepId,
+  dropTarget,
+  readOnly,
   onSelect,
+  onUpload,
 }: {
   steps: readonly DiagramStep[];
+  assets: Readonly<Record<string, DiagramAsset>>;
   selectedStepId: string | null;
+  /** Where a picture being dragged in would land: a step's id, the grid, or nowhere. */
+  dropTarget: string | null;
+  readOnly: boolean;
   onSelect: (stepId: string | null) => void;
+  /** Pick a picture for a step, from a click on its card. */
+  onUpload: (stepId: string) => void;
 }) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -53,6 +64,7 @@ export function DiagramStepsGrid({
       aria-label={t('panels:diagram.grid.label', 'Steps')}
       tabIndex={-1}
       className={styles.grid}
+      data-drop-target={dropTarget === GRID_DROP_TARGET || undefined}
       onClick={(event) => {
         // A press between or below the cards drops the selection, as a press on
         // empty canvas does elsewhere.
@@ -67,10 +79,14 @@ export function DiagramStepsGrid({
             else cards.current.delete(step.id);
           }}
           step={step}
+          assets={assets}
           number={index + 1}
           selected={step.id === selectedStepId}
           tabStop={step.id === tabStop}
+          dropTarget={step.id === dropTarget}
+          readOnly={readOnly}
           onSelect={onSelect}
+          onUpload={onUpload}
         />
       ))}
     </div>

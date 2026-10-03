@@ -687,39 +687,62 @@
       "addStep": "Schritt hinzufügen",
       "delete": "Schritt löschen",
       "duplicate": "Schritt duplizieren",
+      "exportPicture": "Bild exportieren…",
       "firstHint": "Bereits der erste Schritt",
       "insertAfter": "Schritt danach einfügen",
       "insertBefore": "Schritt davor einfügen",
       "lastHint": "Bereits der letzte Schritt",
+      "lockedEditHint": "Mit einem neueren Ori Studio erstellt: Er lässt sich verschieben oder löschen, aber nicht ändern",
       "lockedHint": "Mit einem neueren Ori Studio erstellt: Er lässt sich verschieben oder löschen, aber nicht kopieren",
       "moveEarlier": "Nach vorne",
       "moveLater": "Nach hinten",
-      "readOnlyHint": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet"
+      "noPictureHint": "Dieser Schritt hat noch kein Bild",
+      "readOnlyHint": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet",
+      "removePicture": "Bild entfernen",
+      "replacePicture": "Bild ersetzen…",
+      "uploadPicture": "Bild hochladen…"
     },
     "card": {
       "badgeEmpty": "Leer",
+      "badgeImage": "Bild",
       "badgeNewer": "Neuer",
+      "badgeSvg": "SVG",
       "locked": "Mit einem neueren Ori Studio erstellt",
       "noInstruction": "Keine Anleitung",
       "noPicture": "Noch kein Bild",
-      "number": "Schritt {{number}}"
+      "number": "Schritt {{number}}",
+      "upload": "Hochladen…"
     },
     "empty": {
       "addStep": "Schritt hinzufügen",
-      "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung.",
-      "title": "Ein Diagramm beginnen"
+      "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung – oder laden Sie Ihre Zeichnungen hoch, je eine pro Schritt.",
+      "title": "Ein Diagramm beginnen",
+      "upload": "Bilder hochladen…"
     },
     "grid": {
       "label": "Schritte"
     },
     "header": {
       "addStep": "Schritt hinzufügen",
+      "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
       "stepCount_one": "{{count}} Schritt",
       "stepCount_other": "{{count}} Schritte",
       "titleLabel": "Titel des Diagramms",
-      "titlePlaceholder": "Unbenanntes Diagramm"
+      "titlePlaceholder": "Unbenanntes Diagramm",
+      "uploadPictures": "Bilder hochladen…"
     },
     "label": "Diagramm",
+    "picture": {
+      "cssDropped": "Ein Teil der Gestaltung ließ sich nicht übernehmen, daher können einige Stellen anders aussehen.",
+      "flowedText": "Fließtext wird nicht unterstützt und wurde weggelassen: Wandeln Sie ihn in normalen Text um und ersetzen Sie dann das Bild.",
+      "linkedImage": "Verknüpfte Bilder lassen sich nicht übernehmen: Betten Sie sie in die Datei ein und ersetzen Sie dann das Bild.",
+      "none": "Noch kein Bild",
+      "raster": "Hochgeladenes Bild, {{width}} × {{height}} px",
+      "simplified": "Dieses Bild wurde vereinfacht.",
+      "source": "Quelle",
+      "svg": "Hochgeladenes SVG, {{width}} × {{height}} px",
+      "unsupported": "Einige Teile werden nicht unterstützt und wurden weggelassen."
+    },
     "readOnlyNotice": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird hier deshalb schreibgeschützt geöffnet. Beim Speichern bleibt es genau so, wie es war.",
     "stepPane": {
       "instruction": "Anleitung",
@@ -729,6 +752,7 @@
       "noSelection": "Wählen Sie einen Schritt aus, um ihn zu bearbeiten.",
       "noSteps": "Fügen Sie einen Schritt hinzu, um hier seine Anleitung zu schreiben.",
       "ofTotal": "von {{total}}",
+      "picture": "Bild",
       "positionLabel": "Position des Schritts",
       "step": "Schritt"
     }

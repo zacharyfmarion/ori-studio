@@ -125,7 +125,10 @@
     "deleteStepMessage": "Son image et son instruction seront supprimées avec elle. Vous pourrez annuler.",
     "deleteStepsMessage": "Leurs images et leurs instructions seront supprimées avec elles. Vous pourrez annuler.",
     "deleteStepsTitle": "Supprimer {{total}} étapes\u00a0?",
-    "deleteStepTitle": "Supprimer l’étape {{number}}\u00a0?"
+    "deleteStepTitle": "Supprimer l’étape {{number}}\u00a0?",
+    "exportPictureTitle": "Exporter l’image",
+    "replacePictureTitle": "Remplacer l’image",
+    "uploadPicturesTitle": "Importer des images"
   },
   "export": {
     "allPatterns": "Tous les patrons",
