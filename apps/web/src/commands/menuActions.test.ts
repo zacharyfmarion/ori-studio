@@ -766,6 +766,7 @@ describe('menu actions', () => {
         oristudioCpSelectedCircleCount: 0,
         hasDeletableDesignSelection: false,
         canSaveDesign: true,
+        hasDiagram: false,
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,

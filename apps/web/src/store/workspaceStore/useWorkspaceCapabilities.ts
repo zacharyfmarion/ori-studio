@@ -54,6 +54,7 @@ export function useWorkspaceCapabilities() {
   const canSaveDesign = useWorkspaceStore((state) =>
     state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
   );
+  const hasDiagram = useWorkspaceStore((state) => state.diagram !== null);
   // Subscribed to the tab itself, which is what carries every design kind's
   // undo stack. An edit replaces the tab object, so this re-renders — the
   // per-kind history subscriptions this replaced were only ever reading the
@@ -97,7 +98,8 @@ export function useWorkspaceCapabilities() {
           oristudioCpSelectedCircleCount,
           oristudioCpSolvablePatternCount,
           hasDeletableDesignSelection,
-      canSaveDesign,
+          canSaveDesign,
+          hasDiagram,
           historyPastCount,
           historyFutureCount,
           clipboard,
@@ -126,6 +128,7 @@ export function useWorkspaceCapabilities() {
       oristudioCpSolvablePatternCount,
       hasDeletableDesignSelection,
       canSaveDesign,
+      hasDiagram,
       historyFutureCount,
       historyPastCount,
       selection,

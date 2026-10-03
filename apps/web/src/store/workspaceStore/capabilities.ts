@@ -128,6 +128,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     hasDeletableDesignSelection:
       activeKind?.deletableTarget?.(activeDesignTab(state)) != null,
     canSaveDesign: anyDesignIsSavable(state),
+    hasDiagram: state.diagram !== null,
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

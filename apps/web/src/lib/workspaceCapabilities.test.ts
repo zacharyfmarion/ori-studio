@@ -26,6 +26,7 @@ function capabilities({
   oristudioCpSolvablePatternCount = 0,
   hasDeletableDesignSelection = false,
   canSaveDesign = activeEditingContext !== 'crease-pattern',
+  hasDiagram = false,
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
@@ -52,6 +53,7 @@ function capabilities({
   oristudioCpSolvablePatternCount?: number;
   hasDeletableDesignSelection?: boolean;
   canSaveDesign?: boolean;
+  hasDiagram?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -79,6 +81,7 @@ function capabilities({
     oristudioCpSolvablePatternCount,
     hasDeletableDesignSelection,
     canSaveDesign,
+    hasDiagram,
     historyPastCount,
     historyFutureCount,
     clipboard,
@@ -185,6 +188,32 @@ describe('workspace capabilities', () => {
     expect(state['file.exportOrh'].enabled).toBe(false);
     expect(state['file.exportSvg'].enabled).toBe(true);
     expect(getNextDocumentAction(state)).toBe(null);
+  });
+
+  it('saves a project that has a diagram from any workspace, whatever else it holds', () => {
+    for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'bp-tree'] as const) {
+      const state = capabilities({ activeEditingContext, canSaveDesign: false, hasDiagram: true });
+      expect(state['file.save'], activeEditingContext).toMatchObject({
+        enabled: true,
+        reason: 'Save Ori Studio project',
+      });
+      expect(state['file.saveAs'].enabled, activeEditingContext).toBe(true);
+    }
+    // Beside an editable crease pattern on its own canvas, the crease pattern
+    // names the save as it always has.
+    expect(
+      capabilities({
+        documentMode: 'crease-pattern',
+        hasEditableCreasePattern: true,
+        canSaveDesign: false,
+        hasDiagram: true,
+      })['file.save'].reason
+    ).toBe('Save editable crease pattern as an Ori Studio project');
+    // And a busy engine still holds it back.
+    expect(
+      capabilities({ status: 'optimizing', canSaveDesign: false, hasDiagram: true })['file.save']
+        .enabled
+    ).toBe(false);
   });
 
   it('enables CP save actions when an editable CP kernel is available', () => {

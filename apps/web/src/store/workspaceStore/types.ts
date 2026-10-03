@@ -45,6 +45,12 @@ import type { CreaseExportFoldResult } from '../../lib/creaseExportFold';
 import type { SegmentExportFormat } from '../../lib/creaseSegmentExport';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { FoldArtifactStatus } from './foldArtifactResource';
+import type { SnapshotHistory } from './snapshotHistory';
+import type {
+  DiagramDocument,
+  DiagramPageSetup,
+} from '../../diagram/document/diagramDocument';
+import type { ReadDiagram } from '../../diagram/document/diagramFile';
 import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
@@ -1767,6 +1773,65 @@ export interface ExploriSlice {
   resetExploriDesign: () => Promise<boolean>;
 }
 
+/** Which of the Diagram workspace's two views is showing. */
+export type DiagramViewMode = 'steps' | 'pages';
+
+export interface DiagramSliceState {
+  /**
+   * The project's diagram (implementation-plans/diagram-workspace.md, D1).
+   * `null` until the first edit creates one; a project-level document beside
+   * the crease pattern and the design tabs, saved in `.osf`.
+   */
+  diagram: DiagramDocument | null;
+  /** Whole-diagram snapshots, its own stack under the `diagram` context. */
+  diagramHistory: SnapshotHistory<DiagramDocument | null>;
+  /** Bumped on every replacement; see `nextDiagramLoadId`. */
+  diagramLoadId: number;
+  /**
+   * The diagram came from a newer build's file. It is shown, never edited, and
+   * {@link diagramRaw} is what is saved.
+   */
+  diagramReadOnly: boolean;
+  /** The diagram as read, kept for writing a read-only one back unchanged. */
+  diagramRaw: Record<string, unknown> | null;
+  /** View state: not history, never dirty, but scoped to this diagram. */
+  diagramView: DiagramViewMode;
+  diagramSelectedStepId: string | null;
+}
+
+export interface DiagramSliceActions {
+  /** Install a diagram read from a file (or none), with an empty history. */
+  installDiagram: (read: ReadDiagram | null) => void;
+  /**
+   * Add an empty step after the selected one (or at the end) and select it.
+   * Creates the diagram on first use. The new step's id, or null when the
+   * diagram is read-only.
+   */
+  addDiagramStep: () => string | null;
+  /** Add an empty step before or after a given one, and select it. */
+  insertDiagramStep: (stepId: string, where: 'before' | 'after') => string | null;
+  /** Delete steps; the selection moves to the step that took the first one's place. */
+  deleteDiagramSteps: (stepIds: readonly string[]) => boolean;
+  /** Move a step so it lands at `toIndex` (0-based, clamped). */
+  moveDiagramStep: (stepId: string, toIndex: number) => boolean;
+  /** Duplicate a step right after itself and select the copy. */
+  duplicateDiagramStep: (stepId: string) => string | null;
+  /**
+   * Set a step's instruction. `loadId` is the diagram the edit was started
+   * against: an edit that outlives its diagram is dropped, not written into the
+   * one that replaced it.
+   */
+  setDiagramStepText: (stepId: string, text: string, loadId?: number) => boolean;
+  setDiagramTitle: (title: string) => boolean;
+  setDiagramPage: (patch: Partial<DiagramPageSetup>) => boolean;
+  selectDiagramStep: (stepId: string | null) => void;
+  setDiagramView: (view: DiagramViewMode) => void;
+  undoDiagram: () => boolean;
+  redoDiagram: () => boolean;
+}
+
+export type DiagramSlice = DiagramSliceState & DiagramSliceActions;
+
 export type WorkspaceState =
   ProjectSlice &
   ExploriSlice &
@@ -1777,7 +1842,8 @@ export type WorkspaceState =
   CreasePatternSlice &
   OristudioBpSlice &
   SimulatorSlice &
-  ReferencesSlice;
+  ReferencesSlice &
+  DiagramSlice;
 
 export type WorkspaceSliceCreator<T> = StateCreator<
   WorkspaceState,

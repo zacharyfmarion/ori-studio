@@ -90,6 +90,7 @@ import type {
   OristudioBpSymmetryState,
   WorkspaceSliceCreator,
 } from '../types';
+import { discardDiagramState } from '../diagramState';
 
 /**
  * A new Box Pleating design is scaffolded like BP Studio's blank project: a root
@@ -236,12 +237,17 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
             // place, the previous file's crease pattern kept simulating under
             // the new project's name.
             ...staleFoldArtifactResourceState(get().foldArtifactRevision),
+            // A replaced project's diagram goes with it. The chooser keeps it,
+            // like the canvas: adding a design adds to the project.
+            ...discardDiagramState(),
           }),
       oristudioBpError: null,
       oristudioBpBusy: false,
       currentFileName: document.source.filename,
       currentFilePath: document.source.path,
-      dirty: document.dirty,
+      // Layered onto a project by the chooser, the design leaves that project's
+      // unsaved work unsaved.
+      dirty: document.dirty || (options.preserveEditCanvas === true && get().dirty),
       projectMessage: message,
       status: 'ready',
       error: null});

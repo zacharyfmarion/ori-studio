@@ -131,6 +131,8 @@ import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotat
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { discardCpDocumentState } from '../cpDocumentState';
+import { diagramDataBytes, discardDiagramState } from '../diagramState';
+import { readDiagram, writeDiagram } from '../../../diagram/document/diagramFile';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   createNativeCreasePatternProjectFile,
@@ -875,7 +877,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({ status: 'loading_engine', error: null, projectMessage: null });
     await releaseEditableCreasePattern();
     // Before the tree is installed, so the install lands on the tab that survives.
-    if (source.replacesProject !== false) set(discardAllDesigns());
+    // A tree opened on its own is a new project, so the diagram goes too.
+    if (source.replacesProject !== false) set({ ...discardAllDesigns(), ...discardDiagramState() });
     const api = await getEngine();
     const snapshot = await loadTreeFromText(api, text);
     const filename = source.filename ?? defaultNativeFilename('Untitled');
@@ -1071,6 +1074,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       // which would leave "no method chosen" sitting beside a live design. Same
       // claim `loadText` makes for a tree: an open replaces the project.
       ...discardAllDesigns(),
+      ...discardDiagramState(),
       importedCreasePattern: result.document,
       oristudioCpDocument,
       oristudioCpLineage: importedCpLineage(),
@@ -1317,12 +1321,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ) => {
     const nativeProject = parseNativeProjectFile(text);
     const { designs, creasePattern, activeDocumentId } = nativeProject.workspace;
+    const diagram = readDiagram(nativeProject.workspace.diagram);
 
     // Retained for a lossless save round-trip: the file-level extension bag, and
-    // any design whose kind this build could not read.
+    // any design whose kind this build could not read. The previous project's
+    // diagram goes here, at the start, so a load that fails part-way can never
+    // leave it beside the new file's documents for the next save to write; the
+    // file's own diagram is installed last, below, once nothing else can reset it.
     set({
       nativeProjectExtensions: nativeProject.extensions,
       nativeUnknownDesigns: nativeProject.workspace.unknownDesigns,
+      ...discardDiagramState(),
     });
 
     // A bundle that carries a crease pattern must not publish an empty Edit
@@ -1344,18 +1353,19 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     });
 
     if (tabs.length === 0) {
-      // A crease-pattern-only project establishes no design; the Design workspace
-      // keeps offering its chooser.
-      await loadNativeCreasePattern(
-        creasePattern ??
-          (() => {
-            throw new ProjectFileFormatError(
-              'project_file_damaged',
-              'Ori Studio project contains neither a design nor a crease pattern'
-            );
-          })(),
-        source
-      );
+      if (creasePattern) {
+        // A crease-pattern-only project establishes no design; the Design
+        // workspace keeps offering its chooser.
+        await loadNativeCreasePattern(creasePattern, source);
+      } else if (diagram) {
+        await loadDiagramOnlyProject(nativeProject.workspace.title, source);
+      } else {
+        throw new ProjectFileFormatError(
+          'project_file_damaged',
+          'Ori Studio project contains neither a design, a crease pattern nor a diagram'
+        );
+      }
+      get().installDiagram(diagram);
       return;
     }
 
@@ -1365,6 +1375,38 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (creasePattern) {
       await restoreNativeCreasePatternCompanion(creasePattern, source);
     }
+    get().installDiagram(diagram);
+  };
+
+  /**
+   * Open a project that holds only a diagram — pictures uploaded by hand, no
+   * crease pattern and no design.
+   *
+   * Every replacing effect of a crease-pattern open lives inside
+   * `loadNativeCreasePattern`, and none of them would run here, so this does
+   * them itself: the previous project's crease pattern, designs, title and file
+   * path all go. Without that the next save would write the old crease pattern
+   * beside the new diagram, over the old file.
+   */
+  const loadDiagramOnlyProject = async (
+    title: string,
+    source: { filename: string; path?: string | null }
+  ) => {
+    await get().clearOristudioCpDocument();
+    set({
+      ...discardAllDesigns(),
+      importedCreasePattern: null,
+      cpLoadFailure: null,
+      projectLoadId: get().projectLoadId + 1,
+      workspaceTitle: title,
+      currentFileName: source.filename,
+      currentFilePath: source.path ?? null,
+      projectMessage: `Loaded ${source.filename}`,
+      status: 'ready',
+      dirty: false,
+      error: null,
+      clipboardPasteCount: 0,
+    });
   };
 
   /**
@@ -1518,8 +1560,33 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
   ): T =>
     source ? ({ ...source, path: filesystemPathOrNull(source.path) } as T) : source;
 
+  /** The diagram as the file stores it, or `null` for a project without one. */
+  const currentDiagramFileValue = () => {
+    const { diagram, diagramReadOnly, diagramRaw } = get();
+    return diagram ? writeDiagram(diagram, diagramReadOnly ? diagramRaw : null) : null;
+  };
+
   /**
-   * Serialize every design tab into one `.osf`, plus the Edit crease pattern.
+   * How much picture data the file being written embeds: the Edit canvas's
+   * images and the diagram's pictures. Read before the save dialog opens, so the
+   * notice describes what was written rather than what changed while it was up.
+   */
+  const embeddedPictureBytes = () =>
+    totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation)) +
+    diagramDataBytes(get().diagram);
+
+  /** "Saved …", with a soft, non-blocking notice when the file embeds a lot. */
+  const savedMessageFor = (name: string, embeddedBytes: number) =>
+    embeddedBytes > IMAGE_TOTAL_BYTES_WARN
+      ? `Saved ${name} — embeds ~${Math.round(
+          embeddedBytes / (1024 * 1024)
+        )} MB of images and may be slow to open or sync.`
+      : `Saved ${name}`;
+
+  /**
+   * Serialize every design tab into one `.osf`, plus the Edit crease pattern
+   * and the diagram. Also the writer for a project that holds only a diagram:
+   * with no design and no crease pattern it writes just that.
    *
    * Every design goes through its kind's codec — the same `serialize` that
    * eviction and undo already use — so a design that is currently parked (its
@@ -1582,6 +1649,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const creasePatternCompanion = get().oristudioCpDocument
       ? await currentEditableCreasePatternProjectInput(get().currentFileName, nativeSourcePath())
       : null;
+    const embeddedBytes = embeddedPictureBytes();
 
     const contents = serializeNativeProjectFile(
       createNativeProjectFile({
@@ -1589,9 +1657,12 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         filename: get().currentFileName,
         path: nativeSourcePath(),
         designs,
-        activeDesignId: get().activeDesignId,
+        // Only a design the file holds: an active chooser tab, or none at all in
+        // a diagram-only project, would name a document that is not there.
+        activeDesignId: designs.some((design) => design.id === activeId) ? activeId : undefined,
         unknownDesigns: get().nativeUnknownDesigns,
         creasePattern: creasePatternCompanion,
+        diagram: currentDiagramFileValue(),
         extensions: get().nativeProjectExtensions,
         appVersion: APP_VERSION,
       })
@@ -1611,19 +1682,11 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // design is in front when it returns would mark a *different* design clean
     // under a name it was never saved as.
     const document = selectOristudioBpDocument(get(), activeId);
-    // Soft, non-blocking notice when the file embeds a lot of image data.
-    const imageBytes = totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation));
-    const savedMessage =
-      imageBytes > IMAGE_TOTAL_BYTES_WARN
-        ? `Saved ${result.name} — embeds ~${Math.round(
-            imageBytes / (1024 * 1024)
-          )} MB of images and may be slow to open or sync.`
-        : `Saved ${result.name}`;
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
       dirty: false,
-      projectMessage: savedMessage,
+      projectMessage: savedMessageFor(result.name, embeddedBytes),
       ...(document
         ? {
             ...patchBoxPleatDesign(
@@ -1692,6 +1755,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       unknownDesigns: get().nativeUnknownDesigns,
       fileExtensions: get().nativeProjectExtensions,
       extensions: get().oristudioCpDocumentExtensions,
+      diagram: currentDiagramFileValue(),
       appVersion: APP_VERSION,
     };
   };
@@ -1862,10 +1926,14 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       });
       return null;
     }
-    if (!forceSaveAs && isOrieditaOriFilename(get().currentFileName)) {
+    // An Oriedita file has nowhere to put a diagram, so a project that has one
+    // is saved as `.osf` instead — through a dialog, because the target is not
+    // a native file (`nativeSaveTarget`), never over the `.ori` it came from.
+    const keepsOriedita = !forceSaveAs && get().diagram === null;
+    if (keepsOriedita && isOrieditaOriFilename(get().currentFileName)) {
       return saveEditableCreasePatternAsOri(fileService);
     }
-    if (!forceSaveAs && isOrieditaOrhFilename(get().currentFileName)) {
+    if (keepsOriedita && isOrieditaOrhFilename(get().currentFileName)) {
       return saveEditableCreasePatternAsOrh(fileService);
     }
 
@@ -1874,6 +1942,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       nativeSourcePath()
     );
     if (!input) return null;
+    const embeddedBytes = embeddedPictureBytes();
     const contents = serializeNativeProjectFile(
       createNativeCreasePatternProjectFile(input)
     );
@@ -1898,7 +1967,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       currentFileName: result.name,
       currentFilePath: result.path,
       dirty: false,
-      projectMessage: `Saved ${result.name}`,
+      projectMessage: savedMessageFor(result.name, embeddedBytes),
       oristudioCpDocument: {
         ...documentState,
         source,
@@ -1977,9 +2046,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     // crease-pattern project and drop every other design in the workspace. A tab
     // that has chosen a kind *is* a design; only a lone untouched chooser is not.
     const hasDesign = get().designTabs.some((tab) => tab.kind !== null);
-    const result = hasDesign
-      ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
-      : await saveEditableCreasePattern(fileService, forceSaveAs);
+    // A diagram with no crease pattern beside it has no Edit document to save
+    // through, so it takes the workspace writer, which writes whatever exists.
+    const diagramOnly = get().oristudioCpDocument === null && get().diagram !== null;
+    const result =
+      hasDesign || diagramOnly
+        ? await saveNativeWorkspaceProject(fileService, forceSaveAs)
+        : await saveEditableCreasePattern(fileService, forceSaveAs);
     // Both branches write the native .osf; a null result means the user
     // cancelled the save dialog. `file exported` deliberately skips osf.
     if (!result) return false;
@@ -2082,7 +2155,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           oristudioCpSelection: emptyOristudioCpSelection(),
           oristudioCpActiveDiagnosticId: null,
           oristudioCpRevision: 0,
-          dirty: false,
+          // The diagram is not the engine's to reset: on a cold `/diagram` the
+          // author can write a step before the engine is up, and that edit is
+          // still unsaved.
+          dirty: get().diagram !== null && get().dirty,
           ...emptyFoldArtifactResourceState()});
       } catch (error) {
         set({ status: 'error', error: engineError(error), engineReady: false });
@@ -2129,6 +2205,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
               creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
               oristudioCpCamera: null,
               ...emptyFoldArtifactResourceState(),
+              ...discardDiagramState(),
             };
         set({
           // Installing a tree replaces the tab's arm outright, so any box-pleat
@@ -2140,7 +2217,9 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           currentFileName: defaultNativeFilename('Untitled'),
           currentFilePath: null,
           projectMessage: null,
-          dirty: false,
+          // The chooser adds a design to the project it is in; work already
+          // unsaved there — a crease pattern, a diagram — is still unsaved.
+          dirty: preserveEditCanvas && get().dirty,
           clipboardPasteCount: 0,
           ...editCanvasState});
         const layout = useLayoutStore.getState();
@@ -2186,6 +2265,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           creaseColorMode: DEFAULT_CREASE_COLOR_MODE,
           oristudioCpCamera: null,
           ...emptyFoldArtifactResourceState(),
+          ...discardDiagramState(),
           dirty: false,
           clipboardPasteCount: 0});
         useLayoutStore.getState().activateWorkspace('design');
@@ -2210,6 +2290,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           // Creating a bare CP establishes no design, so the Design workspace
           // keeps offering the method chooser (Circle-packed vs Box-pleated).
           ...discardAllDesigns(),
+          ...discardDiagramState(),
           importedCreasePattern: null,
           currentFileName: defaultNativeFilename(documentState.summary.title ?? 'Untitled CP'),
           currentFilePath: null,

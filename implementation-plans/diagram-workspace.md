@@ -1715,16 +1715,16 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 
 ### Phase 1: the document, the workspace and the step list
 
-- [ ] **1a-0.** `lib/paper/paperSceneValidate.ts`, its own series, in two commits (also offered to `main` separately as a background task):
+- [x] **1a-0.** `lib/paper/paperSceneValidate.ts`, its own series, in two commits (also offered to `main` separately as a background task):
   - extract it and export the camera validator, with no behaviour change;
   - drop `markup` items, the one behaviour change, with a test that Edit's folded-figure scenes still round-trip.
-- [ ] **1a.** The format and the document. Pure, with no UI.
+- [x] **1a.** The format and the document. Pure, with no UI.
   - `diagram/document/diagramDocument.ts`: types and pure edits, with tests.
   - `diagramFile.ts`: the validator for Phase 1's variants (empty step, text, page, style), `formatVersion`, unknown-kind preservation at every depth, and read-only opening.
   - `lib/xmlEscape.ts` `xmlText()`, which the validator uses to normalize text and title.
   - The `.osf` `workspace.diagram` field in both writers, `validateV8` and `migrateLegacyToV8`, plus Decision 3's reader version, confirmed **before this PR opens**.
   - Round-trip tests; `superset-features.md` updated.
-- [ ] **1b.** The slice. Store only, no UI.
+- [x] **1b.** The slice. Store only, no UI.
   - `diagramSlice` + `diagramState.ts`:
     - `DIAGRAM_SCOPED_KEYS` and `discardDiagramState`;
     - `diagramLoadId`, `diagramReadOnly` and `diagramRaw`;
@@ -1733,10 +1733,12 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - Every reset site in D1, `initEngine`'s guard, and the install in every branch of `loadNativeProject`.
   - The diagram-only open and save branches (D16), `savedMessageFor`, and the `.ori` Save-As rule.
   - Store tests for each.
+  - Pulled forward from 1d: the `hasDiagram` capability input, because `saveProject` opens by rejecting a disabled `file.save`, and a diagram-only project could not be saved without it.
+  - Found by the keep-tests: the design-method chooser (`createNewProject` and `createOristudioBpProject` with `preserveEditCanvas`) set `dirty: false`, which marked unsaved work clean. This was true of an unsaved crease pattern before the diagram existed. Both now keep the project's `dirty`.
 - [ ] **1c.** `ui/fieldRows/TextAreaRow` with its module and tests. It registers its pending edit with `registerCanvasSessionEnder` (the `'session'` phase), and commits it on both `'history'` and `'document-replaced'`.
 - [ ] **1d.** Registration and panels. Everything keyed to the `'diagram'` context lands here.
   - Undo arms and `historyCountForContext` through both capability builders.
-  - The `hasDiagram` / `hasDeletableDiagramSelection` inputs, the `edit.delete` diagram arm and the reason strings.
+  - The `hasDeletableDiagramSelection` input (`hasDiagram` landed in 1b), the `edit.delete` diagram arm and the reason strings.
   - `landingWorkspace`, with the diagram as an input.
   - Every site in D12: `workspaces.ts`, `editingContext.ts`, `WorkspaceShell.tsx` (`BookOpen`, tooltip, tab label), `paths.ts`, `appRouter.tsx`, `layoutStore.ts` (`applyDiagramLayout`, `ALL_LAYOUT_SCOPES`, the `diagram-step` pane only), `PanelComponents.tsx`, `VIEW_DRAWER_BODIES`, `menuActions.ts` (`view.diagram`), `menuDefinition.ts`, `workspaceCapabilities.ts` (capability, `diagram` mask arm), `analytics/events.ts` (`WorkspaceScreen`), and App.css's `:is()`.
   - The silent sites are listed in the PR body.
