@@ -70,6 +70,7 @@ function render(
           captures: {},
           stop: vi.fn(),
           refreshable: 0,
+          poseAgain: 0,
           awaitingReferences: null,
           askReferences: vi.fn(),
           cancelAwaiting: vi.fn(),

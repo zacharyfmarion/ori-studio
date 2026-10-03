@@ -30,6 +30,7 @@ export function DiagramHeader({
   onLink,
   onFromReferences,
   staleCount,
+  poseAgainCount,
   refreshing,
   onRefreshAll,
   onStopRefreshing,
@@ -53,8 +54,10 @@ export function DiagramHeader({
   onLink: () => void;
   /** Go to References, whose Send to diagram adds steps here. */
   onFromReferences: () => void;
-  /** How many linked steps are out of date. */
+  /** How many linked steps are out of date, and Refresh all would capture again. */
   staleCount: number;
+  /** How many more are out of date but folded part way in the simulator: Pose captures those (D19). */
+  poseAgainCount: number;
   /** Refresh all, while it runs: how far it has got. */
   refreshing: { total: number; done: number } | null;
   onRefreshAll: () => void;
@@ -167,12 +170,20 @@ export function DiagramHeader({
                     ),
                     disabled: staleCount === 0,
                     title:
-                      staleCount === 0
-                        ? t(
-                            "panels:diagram.header.nothingToRefresh",
-                            "No linked step is out of date. Steps from References aren’t refreshed.",
-                          )
-                        : undefined,
+                      staleCount > 0
+                        ? undefined
+                        : poseAgainCount > 0
+                          ? t("panels:diagram.header.onlyPoseAgain", {
+                              count: poseAgainCount,
+                              defaultValue_one:
+                                "1 step folded part way in the simulator needs Pose Again.",
+                              defaultValue_other:
+                                "{{count}} steps folded part way in the simulator need Pose Again.",
+                            })
+                          : t(
+                              "panels:diagram.header.nothingToRefresh",
+                              "No linked step is out of date. Steps from References aren’t refreshed.",
+                            ),
                     onSelect: onRefreshAll,
                   },
             ]}

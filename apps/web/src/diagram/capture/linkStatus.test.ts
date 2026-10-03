@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
-import type { DiagramCpRender, DiagramCpScope } from '../document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpScope } from '../document/diagramDocument';
+import { cpStep } from '../document/diagramSteps.fixtures';
 import { cpDocument, TWO_SQUARES, twoSquaresSegmentation, type FixtureLine } from './capture.fixtures';
 import { chooseStepCreases, creasesFingerprint } from './captureCreases';
-import { linkStatus } from './linkStatus';
+import { linkStatus, refreshKind } from './linkStatus';
 
 const segmentation = twoSquaresSegmentation();
 const [left] = resolveCpSegments(segmentation);
@@ -51,5 +52,27 @@ describe('linkStatus', () => {
   it('cannot say with no pattern open, or a region before the segmentation is ready', () => {
     expect(linkStatus(linked(regionScope), null, segmentation)).toBe('unknown');
     expect(linkStatus(linked(regionScope), cpDocument(), null)).toBe('unknown');
+  });
+});
+
+describe('refreshKind', () => {
+  const style = DEFAULT_DIAGRAM_STYLE;
+  const view = { yaw: 0.8, pitch: -0.9, zoom: 1.4 };
+
+  it('sends a step out of date to Refresh, unless it is folded part way in the simulator: that is Pose’s', () => {
+    const flat = cpStep('step-flat', { mode: 'crease-pattern', rotationDeg: 0 });
+    const atZero = cpStep('step-zero', { mode: 'simulated', foldPercent: 0, view });
+    const folded = cpStep('step-folded', { mode: 'simulated', foldPercent: 40, view });
+    expect(refreshKind(flat, 'stale', style)).toBe('refresh');
+    expect(refreshKind(atZero, 'stale', style)).toBe('refresh');
+    expect(refreshKind(folded, 'stale', style)).toBe('pose');
+  });
+
+  it('leaves a step up to date, one whose link cannot be checked, and one not linked to the pattern', () => {
+    const flat = cpStep('step-flat', { mode: 'crease-pattern', rotationDeg: 0 });
+    expect(refreshKind(flat, 'current', style)).toBeNull();
+    expect(refreshKind(flat, 'unknown', style)).toBeNull();
+    expect(refreshKind(flat, 'missing', style)).toBeNull();
+    expect(refreshKind({ ...flat, source: null }, 'stale', style)).toBeNull();
   });
 });

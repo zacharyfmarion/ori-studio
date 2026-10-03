@@ -828,6 +828,8 @@
       "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
       "nothingToExport": "Füge einen Schritt hinzu, um das Diagramm zu exportieren",
       "nothingToRefresh": "Kein verknüpfter Schritt ist veraltet. Schritte aus Referenzen werden nicht aktualisiert.",
+      "onlyPoseAgain_one": "{{count}} in der Simulation teilweise gefalteter Schritt muss erneut posiert werden.",
+      "onlyPoseAgain_other": "{{count}} in der Simulation teilweise gefaltete Schritte müssen erneut posiert werden.",
       "pageCount_one": "1 Seite",
       "pageCount_other": "{{count}} Seiten",
       "refreshAll": "Veraltete Schritte aktualisieren",

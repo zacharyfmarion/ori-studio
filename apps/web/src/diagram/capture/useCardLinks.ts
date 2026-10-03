@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { awaitingReferencesStep, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
-import { lightingChanged } from '../pictures/lighting';
-import type { DiagramLinkStatus } from './linkStatus';
+import { refreshKind, type DiagramLinkStatus } from './linkStatus';
 import { askReferencesForStep } from './referencesStepActions';
 import { useDiagramLinkStatuses } from './useLinkStatus';
 
@@ -19,6 +18,11 @@ export interface DiagramCardLinks {
    * refreshed (D6).
    */
   refreshable: number;
+  /**
+   * How many out-of-date steps are folded part way in the simulator, which
+   * only Pose captures again (D19): Refresh all leaves them, and says so.
+   */
+  poseAgain: number;
   /** The step From References… waits to fill, if any. */
   awaitingReferences: string | null;
   /** Ask References for a step's picture (From References…). */
@@ -47,16 +51,18 @@ export function useDiagramCardLinks(steps: readonly DiagramStep[], style: Diagra
     (state) => awaitingReferencesStep(state.diagram, state.diagramReferencesTarget)?.id ?? null
   );
   let refreshable = 0;
+  let poseAgain = 0;
   for (const step of steps) {
-    if (step.source?.kind !== 'cp') continue;
-    const status = statuses.get(step.id);
-    if (status === 'stale' || (status === 'current' && lightingChanged(step, style))) refreshable += 1;
+    const kind = refreshKind(step, statuses.get(step.id), style);
+    if (kind === 'refresh') refreshable += 1;
+    else if (kind === 'pose') poseAgain += 1;
   }
   return {
     statuses,
     captures,
     stop,
     refreshable,
+    poseAgain,
     awaitingReferences,
     askReferences: askReferencesForStep,
     cancelAwaiting: cancelAwaitingReferences,

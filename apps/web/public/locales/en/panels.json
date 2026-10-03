@@ -828,6 +828,8 @@
       "moreAdd": "More ways to add steps",
       "nothingToExport": "Add a step to export the diagram",
       "nothingToRefresh": "No linked step is out of date. Steps from References aren’t refreshed.",
+      "onlyPoseAgain_one": "1 step folded part way in the simulator needs Pose Again.",
+      "onlyPoseAgain_other": "{{count}} steps folded part way in the simulator need Pose Again.",
       "pageCount_one": "1 page",
       "pageCount_other": "{{count}} pages",
       "refreshAll": "Refresh out-of-date steps",

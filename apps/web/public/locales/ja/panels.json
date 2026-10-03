@@ -798,6 +798,7 @@
       "moreAdd": "ステップを追加するその他の方法",
       "nothingToExport": "折り図を書き出すにはステップを追加してください",
       "nothingToRefresh": "古くなったリンク済みステップはありません。リファレンスから送ったステップは更新されません。",
+      "onlyPoseAgain_other": "シミュレーションで途中まで折った {{count}} 個のステップは「もう一度ポーズ」が必要です。",
       "pageCount_other": "{{count}} ページ",
       "refreshAll": "古いステップを更新",
       "stepCount_other": "{{count}} ステップ",

@@ -205,6 +205,7 @@ export function DiagramPanel() {
         onLink={linkNewStep}
         onFromReferences={stepsFromReferences}
         staleCount={links.refreshable}
+        poseAgainCount={links.poseAgain}
         refreshing={refreshing}
         onRefreshAll={refreshAll}
         onStopRefreshing={stopRefreshAll}

@@ -21,7 +21,9 @@ import {
   type DiagramCpSource,
   type DiagramReferencesSource,
   type DiagramStep,
+  type DiagramStyle,
 } from '../document/diagramDocument';
+import { lightingChanged } from '../pictures/lighting';
 import { chooseStepCreases, creasesFingerprint, type StepCreaseChoice } from './captureCreases';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
@@ -44,6 +46,25 @@ export function linkedSourceOf(step: DiagramStep): DiagramLinkedSource | null {
 /** A step shown as Simulated above 0%: captured again only in Pose (D19). */
 export function needsPose(step: DiagramStep): boolean {
   return step.source?.kind === 'cp' && step.source.render.mode === 'simulated' && step.source.render.foldPercent > 0;
+}
+
+/**
+ * What bringing a linked step up to date takes, when its pattern changed or
+ * its picture was lit by another style: a capture, which Refresh all makes
+ * (`refresh`), or Pose, for a step folded part way in the simulator (`pose`).
+ * Null for a step that is up to date, not linked to the pattern, or whose
+ * link cannot be checked. The one rule for Refresh all and the count it is
+ * offered by.
+ */
+export function refreshKind(
+  step: DiagramStep,
+  status: DiagramLinkStatus | undefined,
+  style: DiagramStyle
+): 'refresh' | 'pose' | null {
+  if (step.unknown || step.source?.kind !== 'cp') return null;
+  const behind = status === 'stale' || (status === 'current' && lightingChanged(step, style));
+  if (!behind) return null;
+  return needsPose(step) ? 'pose' : 'refresh';
 }
 
 export function linkStatus(

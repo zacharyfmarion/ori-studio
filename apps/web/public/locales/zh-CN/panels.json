@@ -798,6 +798,7 @@
       "moreAdd": "更多添加步骤的方式",
       "nothingToExport": "添加一个步骤才能导出图解",
       "nothingToRefresh": "没有过时的链接步骤。从参考发送的步骤不会刷新。",
+      "onlyPoseAgain_other": "{{count}} 个在模拟中折叠到一半的步骤需要“重新调整姿态”。",
       "pageCount_other": "{{count}} 页",
       "refreshAll": "刷新已过期的步骤",
       "stepCount_other": "{{count}} 个步骤",

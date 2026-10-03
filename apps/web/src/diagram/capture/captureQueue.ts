@@ -6,9 +6,8 @@ import { requestConfirmation } from '../../store/commandDialogStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { stepIndex, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
-import { lightingChanged } from '../pictures/lighting';
 import { abandonOnEngineLoss } from './engineLoss';
-import { linkStatus, needsPose } from './linkStatus';
+import { linkStatus, refreshKind } from './linkStatus';
 import { sayCaptureOutcome, trackCapture } from './stepCaptureActions';
 
 /** The label Refresh all's one undo entry carries. */
@@ -138,13 +137,12 @@ export function outOfDate(
 ): string[] {
   const document = useWorkspaceStore.getState().oristudioCpDocument?.document ?? null;
   return steps
-    .filter((step) => {
-      if (step.unknown || step.source?.kind !== 'cp') return false;
-      // Folded part way in the simulator: only Pose can capture it again (D19).
-      if (needsPose(step)) return false;
-      const status = linkStatus(step.source, document, segmentation);
-      return status === 'stale' || (status === 'current' && lightingChanged(step, style));
-    })
+    .filter(
+      (step) =>
+        step.source?.kind === 'cp' &&
+        // Folded part way in the simulator (`pose`): only Pose can capture it again (D19).
+        refreshKind(step, linkStatus(step.source, document, segmentation), style) === 'refresh'
+    )
     .map((step) => step.id);
 }
 
