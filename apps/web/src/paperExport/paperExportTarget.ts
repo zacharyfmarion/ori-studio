@@ -85,8 +85,12 @@ export interface PaperExportFixedPicture {
 export type { PaperExportScope };
 
 export interface PaperExportTarget {
-  /** Which surface this is: the analytics enum, and the style policy (`PAPER_STYLE_POLICIES[surface]`). */
-  surface: PaperSurface;
+  /**
+   * Which surface this is: the analytics enum, and the style policy
+   * (`PAPER_STYLE_POLICIES[surface]`). Not the Diagram, which exports through
+   * a dialog of its own: pages as a PDF, or step files.
+   */
+  surface: Exclude<PaperSurface, 'diagram-workspace'>;
   /** The dialog's title: "Export step 3". */
   title: string;
   /** The suggested file name, before sanitising and without an extension. */

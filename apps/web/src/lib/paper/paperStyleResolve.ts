@@ -13,6 +13,7 @@
 import type { CreaseDash, RenderSettings } from '@treemaker/origami-simulator';
 import {
   DEFAULT_PAPER_STYLE,
+  PAPER_STYLE_FIELDS,
   effectivePaperStyle,
   getPaperStyleField,
   ptToDevicePx,
@@ -30,7 +31,8 @@ export type PaperSurface =
   | 'inline-simulation'
   | 'folded-3d'
   | 'folded-flat'
-  | 'references';
+  | 'references'
+  | 'diagram-workspace';
 
 export interface SurfaceStylePolicy {
   surface: PaperSurface;
@@ -97,6 +99,11 @@ export const PAPER_STYLE_POLICIES: Record<PaperSurface, SurfaceStylePolicy> = {
       'arrows',
     ],
   },
+  // Every field: a diagram puts every kind of picture on one page — a crease
+  // pattern in the fold pens, a References step's instructions and arrows, a
+  // lit folded model, a simulation that may draw its folds as edges. The pens
+  // and the ink apply when a step is painted; the light when it is captured.
+  'diagram-workspace': { surface: 'diagram-workspace', applies: [...PAPER_STYLE_FIELDS] },
 };
 
 export function policyApplies(policy: SurfaceStylePolicy, field: PaperStyleField): boolean {
