@@ -225,6 +225,7 @@
     "moveStepEarlier": "Move Step Earlier",
     "moveStepLater": "Move Step Later",
     "nextStep": "Next Step",
+    "openStep": "Open Step",
     "previousStep": "Previous Step",
     "scopeLabel": "diagram"
   },

@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { useDiagramStepActions } from '../../diagram/useDiagramActions';
+import { useDiagramPoseActions, useDiagramStepActions } from '../../diagram/useDiagramActions';
 import { isLockedStep, stepAsset, stepIndex } from '../../diagram/document/diagramDocument';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
+import { DiagramStepPose } from '../diagram/DiagramStepPose';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -51,6 +52,8 @@ export function DiagramStepPanel() {
     asset ? (state.diagramPictureNotices[asset.id] ?? NO_NOTICES) : NO_NOTICES
   );
   const actions = useDiagramStepActions(stepId);
+  const detailOpen = useWorkspaceStore((state) => state.diagramDetail !== null);
+  const poseActions = useDiagramPoseActions(detailOpen ? stepId : null);
 
   if (!step || index < 0) {
     return (
@@ -86,6 +89,11 @@ export function DiagramStepPanel() {
               )}
             </Notice>
           </div>
+        )}
+        {detailOpen && step.source?.kind === 'upload' && (
+          <CollapsibleSection title={t('panels:diagram.stepPane.pose', 'Pose')}>
+            <DiagramStepPose pose={step.source} actions={poseActions} />
+          </CollapsibleSection>
         )}
         {!locked && (
           <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>

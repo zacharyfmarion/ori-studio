@@ -11,12 +11,18 @@ export interface DiagramKeyState {
    */
   focusedStepId?: string | null;
   readOnly: boolean;
+  /** The step detail is open on the selected step. */
+  detailOpen?: boolean;
 }
 
 export interface DiagramKeyActions {
   select: (stepId: string | null) => void;
   /** Move a step so it lands at a 0-based index. */
   move: (stepId: string, toIndex: number) => void;
+  /** Open a step in detail. */
+  open: (stepId: string) => void;
+  /** Leave the detail for the list. */
+  close: () => void;
 }
 
 /**
@@ -28,7 +34,11 @@ export interface DiagramKeyActions {
  * navigate, and the key belongs to whatever else wants it.
  *
  * They move from the selected step, or the focused one; with neither, ←
- * starts from the last step and → from the first, so either is a way in.
+ * starts from the last step and → from the first, so either is a way in. In
+ * the detail they move it: it is open on the selected step.
+ *
+ * Enter opens the selected (or focused) step in detail, and declines inside
+ * one, where it belongs to whatever control has focus.
  */
 export function runDiagramShortcut(
   id: DiagramShortcutId,
@@ -53,6 +63,10 @@ export function runDiagramShortcut(
     case 'diagram.lastStep':
       actions.select(stepIds[last]);
       return true;
+    case 'diagram.openStep':
+      if (state.detailOpen || index < 0) return false;
+      actions.open(stepIds[index]);
+      return true;
     case 'diagram.moveStepEarlier':
     case 'diagram.moveStepLater': {
       // Claimed even when there is nothing to move: Alt+← is the browser's Back
@@ -69,15 +83,19 @@ export function runDiagramShortcut(
 }
 
 /**
- * Escape in the Diagram: one ladder, each press undoing the innermost thing.
- * Phase 1 has one rung — deselect the step — and then declines, so Escape
- * reaches whatever is beneath. Later phases add the rungs above it: cancel a
- * drag, deselect an annotation, put the tool down, leave the step detail.
+ * Escape in the Diagram: one ladder, each press undoing the innermost thing —
+ * leave the step detail, then deselect the step — and then it declines, so
+ * Escape reaches whatever is beneath. Annotate adds the rungs above these:
+ * cancel a drag, deselect an annotation, put the tool down.
  */
 export function runDiagramCancel(
-  state: Pick<DiagramKeyState, 'selectedStepId'>,
-  actions: Pick<DiagramKeyActions, 'select'>
+  state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen'>,
+  actions: Pick<DiagramKeyActions, 'select' | 'close'>
 ): boolean {
+  if (state.detailOpen) {
+    actions.close();
+    return true;
+  }
   if (state.selectedStepId !== null) {
     actions.select(null);
     return true;
@@ -90,6 +108,8 @@ export function runDiagramCancel(
  * while one of these has focus, so a tab strip, a segmented control or a
  * slider keeps its own navigation. A plain button is not one: its arrows do
  * nothing, and declining there would leave ← dead after a press on Add step.
+ * Nor is a toolbar: none of the app's moves focus with the arrows, and a
+ * slider or segmented control inside one declines through its own role.
  *
  * Fields and open menus are not listed: the dispatcher stands down for them
  * before any executor runs (`isShortcutEditingTarget`, `isOpenLayerTarget`).
@@ -97,7 +117,6 @@ export function runDiagramCancel(
 const ARROW_OWNERS = [
   '[role="tablist"]',
   '[role="radiogroup"]',
-  '[role="toolbar"]',
   '[role="menubar"]',
   '[role="slider"]',
   '[role="spinbutton"]',

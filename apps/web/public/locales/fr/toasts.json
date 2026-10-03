@@ -25,7 +25,7 @@
     "uploadFailed_one": "Une image n’a pas pu être ajoutée",
     "uploadFailed_many": "{{count}} images n’ont pas pu être ajoutées",
     "uploadFailed_other": "{{count}} images n’ont pas pu être ajoutées",
-    "uploadFailureLine": "{{name}} : {{reason}}",
+    "uploadFailureLine": "{{name}}\u00a0: {{reason}}",
     "uploadFailureMore_one": "et 1 autre",
     "uploadFailureMore_many": "et {{count}} autres",
     "uploadFailureMore_other": "et {{count}} autres",

@@ -27,6 +27,7 @@ export function DiagramStepsGrid({
   dropTarget,
   readOnly,
   onSelect,
+  onOpen,
   onUpload,
 }: {
   steps: readonly DiagramStep[];
@@ -36,6 +37,8 @@ export function DiagramStepsGrid({
   dropTarget: string | null;
   readOnly: boolean;
   onSelect: (stepId: string | null) => void;
+  /** Open a step in detail (a double-click on its card). */
+  onOpen: (stepId: string) => void;
   /** Pick a picture for a step, from a click on its card. */
   onUpload: (stepId: string) => void;
 }) {
@@ -86,6 +89,7 @@ export function DiagramStepsGrid({
           dropTarget={step.id === dropTarget}
           readOnly={readOnly}
           onSelect={onSelect}
+          onOpen={onOpen}
           onUpload={onUpload}
         />
       ))}

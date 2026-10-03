@@ -14,6 +14,7 @@ import {
   setPageSetup,
   setStepPicture,
   setStepText,
+  setUploadPose,
   stepHasContent,
   stepHasPicture,
   stepIndex,
@@ -89,6 +90,15 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     return next;
   };
 
+  /**
+   * The selection to set, and the detail with it: a detail is open on the
+   * selected step, so nothing selected closes it.
+   */
+  const selection = (stepId: string | null) =>
+    stepId === null
+      ? { diagramSelectedStepId: null, diagramDetail: null }
+      : { diagramSelectedStepId: stepId };
+
   /** Keep the selection only while the step it names still exists. */
   const reconciledSelection = (document: DiagramDocument | null): string | null => {
     const selected = get().diagramSelectedStepId;
@@ -110,7 +120,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     set({
       diagram: restored,
       diagramHistory: result.history,
-      diagramSelectedStepId: reconciledSelection(restored),
+      ...selection(reconciledSelection(restored)),
       dirty: true,
     });
     return true;
@@ -161,7 +171,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       const selected = get().diagramSelectedStepId;
       if (selected === null || removing.has(selected)) {
         const neighbour = next.steps[Math.min(firstIndex, next.steps.length - 1)];
-        set({ diagramSelectedStepId: neighbour?.id ?? null });
+        set(selection(neighbour?.id ?? null));
       }
       return true;
     },
@@ -286,8 +296,22 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     selectDiagramStep: (stepId) => {
       const diagram = get().diagram;
       const next = stepId !== null && diagram && stepIndex(diagram, stepId) >= 0 ? stepId : null;
-      if (next !== get().diagramSelectedStepId) set({ diagramSelectedStepId: next });
+      if (next !== get().diagramSelectedStepId) set(selection(next));
     },
+
+    openDiagramStep: (stepId, mode = 'pose') => {
+      const diagram = get().diagram;
+      if (!diagram || stepIndex(diagram, stepId) < 0) return false;
+      set({ diagramSelectedStepId: stepId, diagramDetail: mode });
+      return true;
+    },
+
+    closeDiagramStep: () => {
+      if (get().diagramDetail !== null) set({ diagramDetail: null });
+    },
+
+    setDiagramStepPose: (stepId, pose) =>
+      commit('Change pose', (document) => setUploadPose(document, stepId, pose)) !== null,
 
     setDiagramView: (view) => {
       if (view !== get().diagramView) set({ diagramView: view });

@@ -742,6 +742,16 @@
       "number": "Étape {{number}}",
       "upload": "Importer…"
     },
+    "detail": {
+      "back": "Étapes",
+      "done": "Terminé",
+      "locked": "Cette étape a été créée avec une version plus récente d’Ori Studio et ne peut pas être affichée ici.",
+      "next": "Étape suivante",
+      "noPicture": "Cette étape n’a pas encore d’image.",
+      "pose": "Pose",
+      "previous": "Étape précédente",
+      "title": "Étape {{number}} sur {{total}}"
+    },
     "empty": {
       "addStep": "Ajouter une étape",
       "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction — ou importez vos dessins, une étape chacun.",
@@ -773,6 +783,19 @@
       "svg": "SVG importé, {{width}} × {{height}} px",
       "unsupported": "Certaines de ses parties ne sont pas prises en charge et ont été omises."
     },
+    "pose": {
+      "annotationsHint": "Ses annotations ont été créées avec une version plus récente d’Ori Studio et ne pourraient pas tourner avec elle",
+      "degrees": "{{degrees}}\u00a0° dans le sens horaire",
+      "flip": "Retourner horizontalement",
+      "flipped": "Retournée",
+      "no": "Non",
+      "noUploadHint": "Seule une image importée peut être tournée ici",
+      "reset": "Réinitialiser la pose",
+      "rotateLeft": "Tourner à gauche",
+      "rotateRight": "Tourner à droite",
+      "rotation": "Rotation",
+      "yes": "Oui"
+    },
     "readOnlyNotice": "Ce diagramme a été créé avec une version plus récente d’Ori Studio\u00a0: il s’ouvre donc ici en lecture seule. L’enregistrer le conserve exactement tel quel.",
     "stepPane": {
       "instruction": "Instruction",
@@ -783,6 +806,7 @@
       "noSteps": "Ajoutez une étape pour écrire ici son instruction.",
       "ofTotal": "sur {{total}}",
       "picture": "Image",
+      "pose": "Pose",
       "positionLabel": "Position de l’étape",
       "step": "Étape"
     }

@@ -8,7 +8,17 @@ import {
   type DiagramStepAction,
   type DiagramStepActionState,
 } from './actions/diagramActions';
-import { isLockedStep, stepIndex, type DiagramStep } from './document/diagramDocument';
+import {
+  buildDiagramPoseActions,
+  type DiagramPoseAction,
+} from './actions/diagramPoseActions';
+import {
+  isLockedStep,
+  poseBlocker,
+  stepIndex,
+  type DiagramStep,
+  type UploadPose,
+} from './document/diagramDocument';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
 import { pickStepPictures } from './upload/addStepPictures';
@@ -127,4 +137,38 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
         : bindStepActions(stepId, { index, count, locked, readOnly, hasPicture }, t),
     [stepId, index, count, locked, readOnly, hasPicture, t]
   );
+}
+
+/**
+ * The pose verbs for a step's uploaded picture, bound to the store, for the
+ * step detail's toolbar and the Step pane.
+ */
+export function useDiagramPoseActions(stepId: string | null): DiagramPoseAction[] {
+  const { t } = useTranslation();
+  const step = useWorkspaceStore((state) =>
+    state.diagram && stepId !== null
+      ? (state.diagram.steps.find((candidate) => candidate.id === stepId) ?? null)
+      : null
+  );
+  const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  return useMemo(() => {
+    if (!step) return [];
+    const source = step.source?.kind === 'upload' ? step.source : null;
+    const pose: UploadPose | null = source
+      ? { rotationQuarterTurns: source.rotationQuarterTurns, mirrored: source.mirrored }
+      : null;
+    return buildDiagramPoseActions(
+      {
+        pose: poseBlocker(step) === 'not-upload' ? null : pose,
+        carriesUnknownAnnotations: poseBlocker(step) === 'unknown-annotations',
+        readOnly,
+      },
+      {
+        t,
+        setPose: (next) => {
+          useWorkspaceStore.getState().setDiagramStepPose(step.id, next);
+        },
+      }
+    );
+  }, [step, readOnly, t]);
 }

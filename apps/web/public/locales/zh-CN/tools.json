@@ -217,6 +217,7 @@
     "moveStepEarlier": "前移步骤",
     "moveStepLater": "后移步骤",
     "nextStep": "下一步",
+    "openStep": "打开步骤",
     "previousStep": "上一步",
     "scopeLabel": "图解"
   },

@@ -363,5 +363,78 @@ describe('DiagramPanel', () => {
       expect(drag('dragover', options()[0], [project]).defaultPrevented).toBe(false);
     });
   });
+
+  describe('the step detail', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20" viewBox="0 0 40 20"/>';
+    const asset = { id: 'asset-a', kind: 'svg' as const, svg, widthPx: 40, heightPx: 20, bytes: svg.length };
+    const detail = () => host?.querySelector('[role="region"]') as HTMLElement | null;
+    const namedButton = (label: string) =>
+      host?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`) ?? null;
+
+    it('opens on Enter at a card, walks with ] and [, and Escape leaves it, then deselects', () => {
+      const [first, second] = addSteps(2);
+      act(() => state().selectDiagramStep(first));
+      const card = options()[0];
+      act(() => card.focus());
+
+      expect(press({ key: 'Enter' }, card)).toBe(true);
+      expect(state().diagramDetail).toBe('pose');
+      expect(detail()?.getAttribute('aria-label')).toBe('Step 1 of 2');
+      expect(document.activeElement).toBe(detail());
+
+      expect(press({ key: ']' }, detail()!)).toBe(true);
+      expect(state().diagramSelectedStepId).toBe(second);
+      expect(detail()?.getAttribute('aria-label')).toBe('Step 2 of 2');
+      // Enter inside the detail is not "open": it belongs to what has focus.
+      expect(press({ key: 'Enter' }, detail()!)).toBe(false);
+
+      expect(press({ key: 'Escape' }, detail()!)).toBe(true);
+      expect(state()).toMatchObject({ diagramDetail: null, diagramSelectedStepId: second });
+      expect(options()).toHaveLength(2);
+      expect(press({ key: 'Escape' })).toBe(true);
+      expect(state().diagramSelectedStepId).toBeNull();
+    });
+
+    it('leaves Enter to a focused button', () => {
+      const [first] = addSteps(1);
+      act(() => state().selectDiagramStep(first));
+      const add = buttonNamed('Add step')!;
+      act(() => add.focus());
+      expect(press({ key: 'Enter' }, add)).toBe(false);
+      expect(state().diagramDetail).toBeNull();
+    });
+
+    it('opens on a double-click, and closes with Done', () => {
+      addSteps(2);
+      act(() => {
+        options()[1].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      });
+      expect(detail()?.getAttribute('aria-label')).toBe('Step 2 of 2');
+      act(() => buttonNamed('Done')?.click());
+      expect(state().diagramDetail).toBeNull();
+      expect(options()).toHaveLength(2);
+    });
+
+    it('offers an upload for an empty step, and turns an uploaded picture', () => {
+      const [first, second] = addSteps(2);
+      act(() => {
+        state().setDiagramStepPicture(second, asset);
+        state().openDiagramStep(first);
+      });
+      expect(host?.textContent).toContain('This step has no picture yet.');
+      expect(buttonNamed('Upload Picture…')).toBeDefined();
+      expect(namedButton('Previous Step')?.disabled).toBe(true);
+
+      act(() => namedButton('Next Step')?.click());
+      expect(host?.querySelector('img')).not.toBeNull();
+      expect(namedButton('Reset Pose')?.disabled).toBe(true);
+      act(() => namedButton('Rotate Right')?.click());
+      expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 1, mirrored: false });
+      act(() => namedButton('Flip Horizontally')?.click());
+      expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 3, mirrored: true });
+      act(() => namedButton('Reset Pose')?.click());
+      expect(state().diagram?.steps[1].source).toMatchObject({ rotationQuarterTurns: 0, mirrored: false });
+    });
+  });
 });
 

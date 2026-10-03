@@ -84,6 +84,7 @@ export type DiagramShortcutId =
   | 'diagram.nextStep'
   | 'diagram.firstStep'
   | 'diagram.lastStep'
+  | 'diagram.openStep'
   | 'diagram.moveStepEarlier'
   | 'diagram.moveStepLater';
 export type ShortcutActionId =
@@ -494,13 +495,25 @@ function diagramShortcut(
  * strip, a radio group, a toolbar, a slider (`focusOwnsArrowKeys`): a scope
  * executor that always claimed would take their keys. That decline is why
  * these may be arrows at all. The steps read in one sequence, so both axes
- * walk it — the grid wraps, and on a phone it is one column. Escape is not
- * here: it is `viewport.cancel`, and the Diagram's viewport executor runs one
- * cancel ladder for every view the workspace has.
+ * walk it — the grid wraps, and on a phone it is one column; `[` and `]` walk
+ * it too, for the step detail, where a simulation's own scope (ahead of this
+ * one) takes the arrows. Enter opens the selected step, and declines for any
+ * focused control, so a focused button still clicks. Escape is not here: it is
+ * `viewport.cancel`, and the Diagram's viewport executor runs one cancel ladder
+ * for every view the workspace has.
  */
 const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
-  diagramShortcut('diagram.previousStep', 'Previous Step', [{ key: 'arrowleft' }, { key: 'arrowup' }]),
-  diagramShortcut('diagram.nextStep', 'Next Step', [{ key: 'arrowright' }, { key: 'arrowdown' }]),
+  diagramShortcut('diagram.previousStep', 'Previous Step', [
+    { key: 'arrowleft' },
+    { key: 'arrowup' },
+    { key: '[' },
+  ]),
+  diagramShortcut('diagram.nextStep', 'Next Step', [
+    { key: 'arrowright' },
+    { key: 'arrowdown' },
+    { key: ']' },
+  ]),
+  diagramShortcut('diagram.openStep', 'Open Step', { key: 'enter' }),
   diagramShortcut('diagram.firstStep', 'First Step', { key: 'home' }),
   diagramShortcut('diagram.lastStep', 'Last Step', { key: 'end' }),
   diagramShortcut('diagram.moveStepEarlier', 'Move Step Earlier', [

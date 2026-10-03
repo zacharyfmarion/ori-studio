@@ -684,6 +684,16 @@
       "number": "ステップ {{number}}",
       "upload": "アップロード…"
     },
+    "detail": {
+      "back": "ステップ一覧",
+      "done": "完了",
+      "locked": "このステップは新しい Ori Studio で作成されたため、ここでは表示できません。",
+      "next": "次のステップ",
+      "noPicture": "このステップにはまだ図がありません。",
+      "pose": "ポーズ",
+      "previous": "前のステップ",
+      "title": "ステップ {{number}} / {{total}}"
+    },
     "empty": {
       "addStep": "ステップを追加",
       "message": "折り図は、折る手順を一つずつ示すものです。ステップを追加して図と説明文を付けるか、描いた図をアップロードして一枚ずつステップにしましょう。",
@@ -713,6 +723,19 @@
       "svg": "アップロードした SVG、{{width}} × {{height}} px",
       "unsupported": "対応していない部分があったため省かれました。"
     },
+    "pose": {
+      "annotationsHint": "このステップの注釈は新しい Ori Studio で作成されたため、図と一緒に回転できません",
+      "degrees": "時計回りに {{degrees}}°",
+      "flip": "左右反転",
+      "flipped": "反転",
+      "no": "いいえ",
+      "noUploadHint": "ここで回転できるのはアップロードした図だけです",
+      "reset": "ポーズをリセット",
+      "rotateLeft": "左に回転",
+      "rotateRight": "右に回転",
+      "rotation": "回転",
+      "yes": "はい"
+    },
     "readOnlyNotice": "この折り図は新しい Ori Studio で作成されたため、ここでは読み取り専用で開かれます。保存しても元の内容がそのまま保たれます。",
     "stepPane": {
       "instruction": "説明文",
@@ -723,6 +746,7 @@
       "noSteps": "ステップを追加すると、ここに説明文を書けます。",
       "ofTotal": "/ {{total}}",
       "picture": "図",
+      "pose": "ポーズ",
       "positionLabel": "ステップの位置",
       "step": "ステップ"
     }

@@ -40,11 +40,13 @@ export const DiagramStepCard = forwardRef<
     dropTarget: boolean;
     readOnly: boolean;
     onSelect: (stepId: string) => void;
+    /** Open this step in detail. */
+    onOpen: (stepId: string) => void;
     /** Pick a picture for this step. Called from the click itself. */
     onUpload: (stepId: string) => void;
   }
 >(function DiagramStepCard(
-  { step, assets, number, selected, tabStop, dropTarget, readOnly, onSelect, onUpload },
+  { step, assets, number, selected, tabStop, dropTarget, readOnly, onSelect, onOpen, onUpload },
   forwarded
 ) {
   const { t } = useTranslation();
@@ -72,6 +74,7 @@ export const DiagramStepCard = forwardRef<
       data-drop-target={dropTarget || undefined}
       data-step-id={step.id}
       onClick={() => onSelect(step.id)}
+      onDoubleClick={() => onOpen(step.id)}
     >
       <div className={styles.header}>
         <span className={styles.number}>

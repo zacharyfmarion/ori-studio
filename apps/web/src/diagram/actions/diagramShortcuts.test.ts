@@ -9,7 +9,7 @@ import {
 const steps = ['a', 'b', 'c'];
 
 function run(id: Parameters<typeof runDiagramShortcut>[0], state: Partial<DiagramKeyState>) {
-  const actions = { select: vi.fn(), move: vi.fn() };
+  const actions = { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn() };
   const claimed = runDiagramShortcut(
     id,
     { stepIds: steps, selectedStepId: null, readOnly: false, ...state },
@@ -64,13 +64,14 @@ describe('the Diagram’s step keys', () => {
   });
 
   it('declines everything when there are no steps', () => {
-    const actions = { select: vi.fn(), move: vi.fn() };
+    const actions = { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn() };
     const empty = { stepIds: [], selectedStepId: null, readOnly: false };
     for (const id of [
       'diagram.previousStep',
       'diagram.nextStep',
       'diagram.firstStep',
       'diagram.lastStep',
+      'diagram.openStep',
       'diagram.moveStepEarlier',
       'diagram.moveStepLater',
     ] as const) {
@@ -79,12 +80,30 @@ describe('the Diagram’s step keys', () => {
   });
 });
 
+describe('Enter', () => {
+  it('opens the selected step, or the focused one, in detail', () => {
+    expect(run('diagram.openStep', { selectedStepId: 'b' }).open).toHaveBeenCalledWith('b');
+    expect(run('diagram.openStep', { focusedStepId: 'c' }).open).toHaveBeenCalledWith('c');
+  });
+
+  it('declines with nothing to open, and inside the detail', () => {
+    expect(run('diagram.openStep', {}).claimed).toBe(false);
+    const inside = run('diagram.openStep', { selectedStepId: 'b', detailOpen: true });
+    expect(inside.claimed).toBe(false);
+    expect(inside.open).not.toHaveBeenCalled();
+  });
+});
+
 describe('the Diagram’s Escape ladder', () => {
-  it('deselects the step, then declines', () => {
+  it('leaves the detail, then deselects the step, then declines', () => {
     const select = vi.fn();
-    expect(runDiagramCancel({ selectedStepId: 'b' }, { select })).toBe(true);
+    const close = vi.fn();
+    expect(runDiagramCancel({ selectedStepId: 'b', detailOpen: true }, { select, close })).toBe(true);
+    expect(close).toHaveBeenCalledOnce();
+    expect(select).not.toHaveBeenCalled();
+    expect(runDiagramCancel({ selectedStepId: 'b' }, { select, close })).toBe(true);
     expect(select).toHaveBeenCalledWith(null);
-    expect(runDiagramCancel({ selectedStepId: null }, { select })).toBe(false);
+    expect(runDiagramCancel({ selectedStepId: null }, { select, close })).toBe(false);
   });
 });
 
@@ -99,15 +118,17 @@ describe('focusOwnsArrowKeys', () => {
     return owns;
   }
 
-  it('leaves the arrows to tab strips, radio groups, toolbars and sliders', () => {
+  it('leaves the arrows to tab strips, radio groups and sliders, in a toolbar too', () => {
     expect(inside('<div role="tablist"><button id="x">Steps</button></div>', '#x')).toBe(true);
     expect(inside('<div role="radiogroup"><button id="x">A</button></div>', '#x')).toBe(true);
-    expect(inside('<div role="toolbar"><button id="x">A</button></div>', '#x')).toBe(true);
     expect(inside('<span role="slider" id="x"></span>', '#x')).toBe(true);
+    expect(inside('<div role="toolbar"><span role="slider" id="x"></span></div>', '#x')).toBe(true);
   });
 
-  it('takes them from a plain button, a step card, or nothing', () => {
+  it('takes them from a plain button, in a toolbar or not, a step card, or nothing', () => {
     expect(inside('<button id="x">Add step</button>', '#x')).toBe(false);
+    // The pose toolbar's Rotate: the next step must still be a key away.
+    expect(inside('<div role="toolbar"><button id="x">Rotate</button></div>', '#x')).toBe(false);
     expect(inside('<div role="listbox"><div role="option" id="x"></div></div>', '#x')).toBe(false);
     expect(focusOwnsArrowKeys(null)).toBe(false);
   });

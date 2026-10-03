@@ -50,6 +50,7 @@ import type {
   DiagramDocument,
   DiagramPageSetup,
   KnownDiagramAsset,
+  UploadPose,
 } from '../../diagram/document/diagramDocument';
 import type { ReadDiagram } from '../../diagram/document/diagramFile';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
@@ -1777,6 +1778,11 @@ export interface ExploriSlice {
 
 /** Which of the Diagram workspace's two views is showing. */
 export type DiagramViewMode = 'steps' | 'pages';
+/**
+ * What the step detail is doing with the selected step: posing its picture
+ * (Annotate arrives in Phase 7).
+ */
+export type DiagramDetailMode = 'pose';
 
 export interface DiagramSliceState {
   /**
@@ -1799,6 +1805,11 @@ export interface DiagramSliceState {
   /** View state: not history, never dirty, but scoped to this diagram. */
   diagramView: DiagramViewMode;
   diagramSelectedStepId: string | null;
+  /**
+   * The step detail, open on the selected step, or null for the list. Never
+   * open without a selection: whatever clears the selection closes it.
+   */
+  diagramDetail: DiagramDetailMode | null;
   /**
    * What sanitizing changed in the look of each upload this session, by asset:
    * the Step pane says so under the picture. Not saved, and gone with the
@@ -1869,6 +1880,12 @@ export interface DiagramSliceActions {
   setDiagramTitle: (title: string) => boolean;
   setDiagramPage: (patch: Partial<DiagramPageSetup>) => boolean;
   selectDiagramStep: (stepId: string | null) => void;
+  /** Select a step and open it in detail. False when there is no such step. */
+  openDiagramStep: (stepId: string, mode?: DiagramDetailMode) => boolean;
+  /** Back to the list, keeping the step selected. */
+  closeDiagramStep: () => void;
+  /** Turn or flip an upload's picture; refused for a step `poseBlocker` names. */
+  setDiagramStepPose: (stepId: string, pose: UploadPose) => boolean;
   setDiagramView: (view: DiagramViewMode) => void;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;

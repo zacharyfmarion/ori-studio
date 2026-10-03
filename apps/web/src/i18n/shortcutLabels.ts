@@ -97,6 +97,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.firstStep', 'First Step');
     case 'diagram.lastStep':
       return t('tools:diagram.lastStep', 'Last Step');
+    case 'diagram.openStep':
+      return t('tools:diagram.openStep', 'Open Step');
     case 'diagram.moveStepEarlier':
       return t('tools:diagram.moveStepEarlier', 'Move Step Earlier');
     case 'diagram.moveStepLater':

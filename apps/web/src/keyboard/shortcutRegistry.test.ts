@@ -230,14 +230,16 @@ describe('adopted single-key layout', () => {
     expect(collisions).toEqual(['references.playFold=space']);
   });
 
-  it('keeps the diagram scope off every always-present chord, with no Escape or Enter', () => {
+  it('keeps the diagram scope off every always-present chord, and off Escape', () => {
     // The Diagram is a workspace of its own, like References, so it has no
     // reason to take a key that a `global` or `crease-pattern` binding always
-    // claims. Its arrows coincide only with conditional and declining bindings
-    // (References' steps, the fold-angle solutions), which are never live where
-    // the Diagram is. Escape and Enter stay off it: Escape is `viewport.cancel`
-    // and its ladder, and Enter will open a step through the viewport surface,
-    // where a focused button can keep it.
+    // claims. Its arrows and Enter coincide only with conditional and declining
+    // bindings (References' steps, the fold-angle solutions), which are never
+    // live where the Diagram is. Enter is here rather than on the viewport
+    // surface because `viewport.solveAnglesApply` holds it there, and the
+    // dispatcher runs only a scope's first match; its executor declines for a
+    // focused control, so a focused button keeps it. Escape stays off it: it is
+    // `viewport.cancel` and its ladder.
     const alwaysPresent = new Set(
       SHORTCUT_DEFINITIONS.filter(
         (d) =>
@@ -251,7 +253,6 @@ describe('adopted single-key layout', () => {
     );
     expect(diagramChords.filter((chord) => alwaysPresent.has(chord))).toEqual([]);
     expect(diagramChords).not.toContain('escape');
-    expect(diagramChords).not.toContain('enter');
   });
 
   it.each(EXPECTED_SINGLE_KEY_LAYOUT)('binds %s to %s', (chord, actionId) => {

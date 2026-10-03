@@ -713,6 +713,16 @@
       "number": "Schritt {{number}}",
       "upload": "Hochladen…"
     },
+    "detail": {
+      "back": "Schritte",
+      "done": "Fertig",
+      "locked": "Dieser Schritt wurde mit einem neueren Ori Studio erstellt und kann hier nicht angezeigt werden.",
+      "next": "Nächster Schritt",
+      "noPicture": "Dieser Schritt hat noch kein Bild.",
+      "pose": "Pose",
+      "previous": "Vorheriger Schritt",
+      "title": "Schritt {{number}} von {{total}}"
+    },
     "empty": {
       "addStep": "Schritt hinzufügen",
       "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung – oder laden Sie Ihre Zeichnungen hoch, je eine pro Schritt.",
@@ -743,6 +753,19 @@
       "svg": "Hochgeladenes SVG, {{width}} × {{height}} px",
       "unsupported": "Einige Teile werden nicht unterstützt und wurden weggelassen."
     },
+    "pose": {
+      "annotationsHint": "Seine Anmerkungen wurden mit einem neueren Ori Studio erstellt und könnten sich nicht mitdrehen",
+      "degrees": "{{degrees}}° im Uhrzeigersinn",
+      "flip": "Horizontal spiegeln",
+      "flipped": "Gespiegelt",
+      "no": "Nein",
+      "noUploadHint": "Nur ein hochgeladenes Bild lässt sich hier drehen",
+      "reset": "Pose zurücksetzen",
+      "rotateLeft": "Nach links drehen",
+      "rotateRight": "Nach rechts drehen",
+      "rotation": "Drehung",
+      "yes": "Ja"
+    },
     "readOnlyNotice": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird hier deshalb schreibgeschützt geöffnet. Beim Speichern bleibt es genau so, wie es war.",
     "stepPane": {
       "instruction": "Anleitung",
@@ -753,6 +776,7 @@
       "noSteps": "Fügen Sie einen Schritt hinzu, um hier seine Anleitung zu schreiben.",
       "ofTotal": "von {{total}}",
       "picture": "Bild",
+      "pose": "Pose",
       "positionLabel": "Position des Schritts",
       "step": "Schritt"
     }

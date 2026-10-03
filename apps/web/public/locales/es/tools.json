@@ -233,6 +233,7 @@
     "moveStepEarlier": "Mover paso antes",
     "moveStepLater": "Mover paso después",
     "nextStep": "Paso siguiente",
+    "openStep": "Abrir paso",
     "previousStep": "Paso anterior",
     "scopeLabel": "diagrama"
   },

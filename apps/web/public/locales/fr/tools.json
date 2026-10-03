@@ -233,6 +233,7 @@
     "moveStepEarlier": "Avancer l’étape",
     "moveStepLater": "Reculer l’étape",
     "nextStep": "Étape suivante",
+    "openStep": "Ouvrir l’étape",
     "previousStep": "Étape précédente",
     "scopeLabel": "diagramme"
   },

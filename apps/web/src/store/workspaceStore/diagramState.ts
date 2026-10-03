@@ -23,6 +23,7 @@ export const DIAGRAM_SCOPED_KEYS = [
   'diagramRaw',
   'diagramView',
   'diagramSelectedStepId',
+  'diagramDetail',
   'diagramPictureNotices',
 ] as const;
 
@@ -66,6 +67,7 @@ export function discardDiagramState(): DiagramScopedState {
     diagramRaw: null,
     diagramView: 'steps',
     diagramSelectedStepId: null,
+    diagramDetail: null,
     diagramPictureNotices: {},
   };
 }

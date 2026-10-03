@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import type { DiagramAsset, DiagramStep } from '../../diagram/document/diagramDocument';
 import { pickStepPictures } from '../../diagram/upload/addStepPictures';
 import { useStepPictureDrop } from '../../diagram/upload/useStepPictureDrop';
-import { useAddDiagramStep } from '../../diagram/useDiagramActions';
+import { useAddDiagramStep, useDiagramPoseActions } from '../../diagram/useDiagramActions';
 import { useDiagramShortcuts } from '../../diagram/useDiagramShortcuts';
 import { useDiagramStepMenu } from '../../diagram/useDiagramStepMenu';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { DiagramEmptyState } from '../diagram/DiagramEmptyState';
 import { DiagramHeader } from '../diagram/DiagramHeader';
+import { DiagramStepDetail } from '../diagram/DiagramStepDetail';
 import { DiagramStepsGrid } from '../diagram/DiagramStepsGrid';
 import { ContextMenu } from '../ui/ContextMenu';
 import { Notice } from '../ui/Notice';
@@ -46,12 +47,50 @@ export function DiagramPanel() {
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const selectedStepId = useWorkspaceStore((state) => state.diagramSelectedStepId);
   const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
+  const detail = useWorkspaceStore((state) => state.diagramDetail);
+  const openStep = useWorkspaceStore((state) => state.openDiagramStep);
+  const closeStep = useWorkspaceStore((state) => state.closeDiagramStep);
+  const poseActions = useDiagramPoseActions(detail !== null ? selectedStepId : null);
   const setTitle = useWorkspaceStore((state) => state.setDiagramTitle);
   const addStep = useAddDiagramStep();
   const rootRef = useRef<HTMLElement | null>(null);
   const menu = useDiagramStepMenu(rootRef);
   const keys = useDiagramShortcuts({ openStepMenu: menu.openStepMenu });
   const drop = useStepPictureDrop();
+
+  const detailIndex =
+    detail !== null && selectedStepId !== null
+      ? steps.findIndex((step) => step.id === selectedStepId)
+      : -1;
+  if (detailIndex >= 0) {
+    const step = steps[detailIndex];
+    return (
+      <section
+        ref={rootRef}
+        className="panel-shell"
+        aria-label={t('panels:diagram.label', 'Diagram')}
+        onPointerDownCapture={keys.onPointerDownCapture}
+      >
+        <DiagramStepDetail
+          // A new detail per step: it takes focus as it opens, and keeps none of the last.
+          key={step.id}
+          step={step}
+          assets={assets}
+          number={detailIndex + 1}
+          count={steps.length}
+          readOnly={readOnly}
+          poseActions={poseActions}
+          onBack={closeStep}
+          onStep={(direction) => {
+            const next = steps[detailIndex + direction];
+            if (next) selectStep(next.id);
+          }}
+          onUpload={() => uploadPictureFor(step.id)}
+          drawerSlot={setViewDrawerSlot}
+        />
+      </section>
+    );
+  }
 
   return (
     <section
@@ -101,6 +140,7 @@ export function DiagramPanel() {
             dropTarget={drop.dropTarget}
             readOnly={readOnly}
             onSelect={selectStep}
+            onOpen={openStep}
             onUpload={uploadPictureFor}
           />
         )}

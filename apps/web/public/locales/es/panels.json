@@ -742,6 +742,16 @@
       "number": "Paso {{number}}",
       "upload": "Subir…"
     },
+    "detail": {
+      "back": "Pasos",
+      "done": "Listo",
+      "locked": "Este paso se creó con una versión más reciente de Ori Studio y no se puede mostrar aquí.",
+      "next": "Paso siguiente",
+      "noPicture": "Este paso aún no tiene imagen.",
+      "pose": "Pose",
+      "previous": "Paso anterior",
+      "title": "Paso {{number}} de {{total}}"
+    },
     "empty": {
       "addStep": "Añadir paso",
       "message": "Un diagrama es tu secuencia de plegado, paso a paso. Añade un paso y luego dale una imagen y una instrucción, o sube tus dibujos, uno por paso.",
@@ -773,6 +783,19 @@
       "svg": "SVG subido, {{width}} × {{height}} px",
       "unsupported": "Algunas de sus partes no son compatibles y se omitieron."
     },
+    "pose": {
+      "annotationsHint": "Sus anotaciones se crearon con una versión más reciente de Ori Studio y no podrían girar con ella",
+      "degrees": "{{degrees}}° en sentido horario",
+      "flip": "Voltear horizontalmente",
+      "flipped": "Volteada",
+      "no": "No",
+      "noUploadHint": "Aquí solo se puede girar una imagen subida",
+      "reset": "Restablecer pose",
+      "rotateLeft": "Girar a la izquierda",
+      "rotateRight": "Girar a la derecha",
+      "rotation": "Rotación",
+      "yes": "Sí"
+    },
     "readOnlyNotice": "Este diagrama se creó con una versión más reciente de Ori Studio, así que aquí se abre en modo de solo lectura. Al guardarlo se conserva exactamente como estaba.",
     "stepPane": {
       "instruction": "Instrucción",
@@ -783,6 +806,7 @@
       "noSteps": "Añade un paso para escribir aquí su instrucción.",
       "ofTotal": "de {{total}}",
       "picture": "Imagen",
+      "pose": "Pose",
       "positionLabel": "Posición del paso",
       "step": "Paso"
     }

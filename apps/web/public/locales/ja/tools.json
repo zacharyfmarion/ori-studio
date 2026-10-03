@@ -217,6 +217,7 @@
     "moveStepEarlier": "ステップを前へ移動",
     "moveStepLater": "ステップを後ろへ移動",
     "nextStep": "次のステップ",
+    "openStep": "ステップを開く",
     "previousStep": "前のステップ",
     "scopeLabel": "折り図"
   },

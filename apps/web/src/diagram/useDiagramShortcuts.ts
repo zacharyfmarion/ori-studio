@@ -6,6 +6,7 @@ import {
   setActiveShortcutViewportSurface,
 } from '../keyboard/shortcutRuntime';
 import type { DiagramShortcutId, ViewportShortcutId } from '../keyboard/shortcuts';
+import { isViewportInteractiveTarget } from '../components/panels/ViewportToolbar';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import {
@@ -22,6 +23,7 @@ function keyState(state: WorkspaceState): DiagramKeyState {
     selectedStepId: state.diagramSelectedStepId,
     focusedStepId: focusedStepId(),
     readOnly: state.diagramReadOnly,
+    detailOpen: state.diagramDetail !== null,
   };
 }
 
@@ -33,7 +35,14 @@ function focusedStepId(): string | null {
 }
 
 function keyActions(state: WorkspaceState): DiagramKeyActions {
-  return { select: state.selectDiagramStep, move: state.moveDiagramStep };
+  return {
+    select: state.selectDiagramStep,
+    move: state.moveDiagramStep,
+    open: (stepId) => {
+      state.openDiagramStep(stepId);
+    },
+    close: state.closeDiagramStep,
+  };
 }
 
 /**
@@ -42,8 +51,8 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
  * Two registrations, one per kind of verb, both focus-independent (never a
  * `keydown` listener, AGENTS.md › Panel components):
  * - the `diagram` scope's executor — the arrows, Home and End between steps,
- *   Alt+arrows to move one — which declines while a control that uses arrows
- *   has focus;
+ *   Alt+arrows to move one, Enter to open one — which declines while a control
+ *   that uses the key has focus;
  * - the `'diagram'` viewport surface's executor — Escape's cancel ladder, and
  *   Shift+F10 for the selected step's menu. One owner at a time: later views
  *   that bring a camera (Pages, Annotate) take the surface over, asking this
@@ -65,7 +74,13 @@ export function useDiagramShortcuts(handlers: {
   useEffect(() => {
     setActiveShortcutViewportSurface('diagram');
     const offScope = registerDiagramShortcutExecutor((id: DiagramShortcutId) => {
-      if (focusOwnsArrowKeys(document.activeElement)) return false;
+      // Enter belongs to any focused control (a button clicks on it); the
+      // arrows only to the controls that use them.
+      const declines =
+        id === 'diagram.openStep'
+          ? isViewportInteractiveTarget(document.activeElement)
+          : focusOwnsArrowKeys(document.activeElement);
+      if (declines) return false;
       const state = useWorkspaceStore.getState();
       return runDiagramShortcut(id, keyState(state), keyActions(state));
     });

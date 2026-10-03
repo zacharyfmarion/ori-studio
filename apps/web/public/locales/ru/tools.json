@@ -241,6 +241,7 @@
     "moveStepEarlier": "Переместить шаг раньше",
     "moveStepLater": "Переместить шаг позже",
     "nextStep": "Следующий шаг",
+    "openStep": "Открыть шаг",
     "previousStep": "Предыдущий шаг",
     "scopeLabel": "схема"
   },

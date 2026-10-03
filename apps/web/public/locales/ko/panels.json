@@ -684,6 +684,16 @@
       "number": "{{number}}단계",
       "upload": "업로드…"
     },
+    "detail": {
+      "back": "단계 목록",
+      "done": "완료",
+      "locked": "이 단계는 최신 Ori Studio에서 만들어져 여기에서 표시할 수 없습니다.",
+      "next": "다음 단계",
+      "noPicture": "이 단계에는 아직 그림이 없습니다.",
+      "pose": "포즈",
+      "previous": "이전 단계",
+      "title": "{{total}}단계 중 {{number}}단계"
+    },
     "empty": {
       "addStep": "단계 추가",
       "message": "도해는 접는 순서를 한 단계씩 보여 줍니다. 단계를 추가한 다음 그림과 설명을 넣거나, 직접 그린 그림을 업로드해 한 장씩 단계로 만드세요.",
@@ -713,6 +723,19 @@
       "svg": "업로드한 SVG, {{width}} × {{height}} px",
       "unsupported": "일부 요소가 지원되지 않아 생략되었습니다."
     },
+    "pose": {
+      "annotationsHint": "주석이 최신 Ori Studio에서 만들어져 그림과 함께 회전할 수 없습니다",
+      "degrees": "시계 방향 {{degrees}}°",
+      "flip": "좌우 반전",
+      "flipped": "반전됨",
+      "no": "아니요",
+      "noUploadHint": "여기에서는 업로드한 그림만 회전할 수 있습니다",
+      "reset": "포즈 초기화",
+      "rotateLeft": "왼쪽으로 회전",
+      "rotateRight": "오른쪽으로 회전",
+      "rotation": "회전",
+      "yes": "예"
+    },
     "readOnlyNotice": "이 도해는 최신 Ori Studio에서 만들어져 여기서는 읽기 전용으로 열립니다. 저장해도 원래 내용이 그대로 유지됩니다.",
     "stepPane": {
       "instruction": "설명",
@@ -723,6 +746,7 @@
       "noSteps": "단계를 추가하면 여기에 설명을 쓸 수 있습니다.",
       "ofTotal": "/ {{total}}",
       "picture": "그림",
+      "pose": "포즈",
       "positionLabel": "단계 위치",
       "step": "단계"
     }

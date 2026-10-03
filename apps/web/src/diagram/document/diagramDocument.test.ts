@@ -26,6 +26,10 @@ import {
   stepHasPicture,
   withReferencedAssets,
   uploadPictureKey,
+  mirrorPose,
+  poseBlocker,
+  rotatePose,
+  setUploadPose,
   type DiagramDocument,
   type DiagramIdFactory,
   type DiagramStep,
@@ -312,5 +316,45 @@ describe('withReferencedAssets', () => {
     const { diagram, ids } = diagramWith(0);
     const { document } = insertPictureSteps(diagram, [svgAsset('a')], 0, ids);
     expect(withReferencedAssets(document)).toBe(document);
+  });
+});
+
+describe('upload pose', () => {
+  it('turns a quarter either way, wrapping, and flips as shown', () => {
+    const upright = { rotationQuarterTurns: 0 as const, mirrored: false };
+    expect(rotatePose(upright, -1)).toEqual({ rotationQuarterTurns: 3, mirrored: false });
+    expect(rotatePose(rotatePose(upright, 1), 1)).toEqual({ rotationQuarterTurns: 2, mirrored: false });
+    // Flipping twice is no flip, from any turn.
+    for (const turns of [0, 1, 2, 3] as const) {
+      const pose = { rotationQuarterTurns: turns, mirrored: false };
+      expect(mirrorPose(mirrorPose(pose))).toEqual(pose);
+    }
+  });
+
+  it('poses an upload, bumping its revision, and is a no-op for the same pose', () => {
+    const { diagram, ids } = diagramWith(0);
+    const { document, stepIds } = insertPictureSteps(diagram, [svgAsset('a')], 0, ids);
+    const posed = setUploadPose(document, stepIds[0], { rotationQuarterTurns: 1, mirrored: true });
+    expect(posed.steps[0]).toMatchObject({
+      source: { kind: 'upload', assetId: 'a', rotationQuarterTurns: 1, mirrored: true },
+      revision: 1,
+    });
+    expect(setUploadPose(posed, stepIds[0], { rotationQuarterTurns: 1, mirrored: true })).toBe(posed);
+  });
+
+  it('refuses a step that is not an upload, or carries annotations it cannot turn', () => {
+    const { diagram, ids } = diagramWith(1);
+    expect(poseBlocker(diagram.steps[0])).toBe('not-upload');
+    const { document, stepIds } = insertPictureSteps(diagram, [svgAsset('a')], 1, ids);
+    const annotated = {
+      ...document,
+      steps: document.steps.map((step) =>
+        step.id === stepIds[0]
+          ? { ...step, annotations: [{ id: 'annotation-x', unknown: { id: 'annotation-x', kind: 'later' } }] }
+          : step
+      ),
+    };
+    expect(poseBlocker(annotated.steps[1])).toBe('unknown-annotations');
+    expect(setUploadPose(annotated, stepIds[0], { rotationQuarterTurns: 2, mirrored: false })).toBe(annotated);
   });
 });

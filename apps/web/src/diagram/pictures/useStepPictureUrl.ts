@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type RefObject } from 'react';
-import type { DiagramAsset, DiagramStep } from '../document/diagramDocument';
-import { paintAsset, stepPictureSource } from './paintDiagramStep';
+import type { DiagramAsset, DiagramStep, KnownDiagramAsset } from '../document/diagramDocument';
+import { paintAsset, stepPictureSource, type PicturePose } from './paintDiagramStep';
 import { cachedPictureUrl, objectSerial, svgDataUrl } from './stepPictureCache';
 
 /** How far outside the view a card starts painting, so a scroll lands on pictures. */
@@ -26,14 +26,23 @@ export function useStepPictureUrl(
   const asset = source?.asset ?? null;
   const turns = source?.pose.rotationQuarterTurns ?? 0;
   const mirrored = source?.pose.mirrored ?? false;
-  return useMemo(() => {
-    if (!seen || !asset) return null;
-    if (asset.kind === 'raster' && turns === 0 && !mirrored) return asset.src;
-    const key = `${objectSerial(asset)}|${turns}|${mirrored ? 'm' : ''}`;
-    return cachedPictureUrl(key, () =>
-      svgDataUrl(paintAsset(asset, { rotationQuarterTurns: turns, mirrored }).svg)
-    );
-  }, [seen, asset, turns, mirrored]);
+  return useMemo(
+    () => (seen && asset ? posedAssetUrl(asset, { rotationQuarterTurns: turns, mirrored }) : null),
+    [seen, asset, turns, mirrored]
+  );
+}
+
+/**
+ * An asset in a pose as a URL an `<img>` can show, through the cache. An
+ * upright bitmap is its own data URL: wrapping it would only encode it again.
+ */
+export function posedAssetUrl(asset: KnownDiagramAsset, pose: PicturePose): string {
+  const { rotationQuarterTurns: turns, mirrored } = pose;
+  if (asset.kind === 'raster' && turns === 0 && !mirrored) return asset.src;
+  const key = `${objectSerial(asset)}|${turns}|${mirrored ? 'm' : ''}`;
+  const paint = () => svgDataUrl(paintAsset(asset, pose).svg);
+  // Never null: this paint always draws something, and only "nothing" goes uncached.
+  return cachedPictureUrl(key, paint) ?? paint();
 }
 
 /** Whether the element has come near the view; stays true once it has. */

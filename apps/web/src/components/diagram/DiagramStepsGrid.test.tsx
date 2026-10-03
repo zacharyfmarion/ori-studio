@@ -33,6 +33,7 @@ function render(
     steps?: DiagramStep[];
     assets?: Record<string, DiagramAsset>;
     dropTarget?: string | null;
+    onOpen?: (stepId: string) => void;
     onUpload?: (stepId: string) => void;
   } = {}
 ) {
@@ -50,6 +51,7 @@ function render(
         dropTarget={options.dropTarget ?? null}
         readOnly={false}
         onSelect={onSelect}
+        onOpen={options.onOpen ?? vi.fn()}
         onUpload={options.onUpload ?? vi.fn()}
       />
     )

@@ -217,6 +217,7 @@
     "moveStepEarlier": "단계를 앞으로 이동",
     "moveStepLater": "단계를 뒤로 이동",
     "nextStep": "다음 단계",
+    "openStep": "단계 열기",
     "previousStep": "이전 단계",
     "scopeLabel": "도해"
   },

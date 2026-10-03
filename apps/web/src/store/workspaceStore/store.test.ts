@@ -10022,6 +10022,48 @@ describe('the project diagram', () => {
       expect(state().diagram?.steps.map((step) => step.text)).toEqual(['Fold in half.', 'Unfold.']);
     });
 
+    it('opens a step in detail, and closes it with whatever clears the selection', () => {
+      const { first, second } = authorTwoSteps();
+      useWorkspaceStore.setState({ dirty: false });
+      expect(state().openDiagramStep('missing')).toBe(false);
+      expect(state().openDiagramStep(second)).toBe(true);
+      expect(state()).toMatchObject({ diagramSelectedStepId: second, diagramDetail: 'pose', dirty: false });
+
+      // The detail follows the selection from step to step.
+      state().selectDiagramStep(first);
+      expect(state().diagramDetail).toBe('pose');
+      state().closeDiagramStep();
+      expect(state()).toMatchObject({ diagramSelectedStepId: first, diagramDetail: null });
+
+      state().openDiagramStep(first);
+      state().selectDiagramStep(null);
+      expect(state().diagramDetail).toBeNull();
+
+      // Undoing the add that made the open step takes the detail with it.
+      state().openDiagramStep(second);
+      state().deleteDiagramSteps([first, second]);
+      expect(state()).toMatchObject({ diagramSelectedStepId: null, diagramDetail: null });
+      state().undoDiagram();
+      state().openDiagramStep(second);
+      while (state().undoDiagram());
+      expect(state().diagramDetail).toBeNull();
+    });
+
+    it('poses an upload as one undo step, and refuses a step without one', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      state().addDiagramPictures([svgAsset('asset-a')]);
+      const past = state().diagramHistory.past.length;
+
+      expect(state().setDiagramStepPose(first, { rotationQuarterTurns: 3, mirrored: false })).toBe(true);
+      expect(state().diagram?.steps[0].source).toMatchObject({ rotationQuarterTurns: 3 });
+      expect(state().diagramHistory.past).toHaveLength(past + 1);
+      state().undoDiagram();
+      expect(state().diagram?.steps[0].source).toMatchObject({ rotationQuarterTurns: 0 });
+      const plain = state().diagram!.steps[1].id;
+      expect(state().setDiagramStepPose(plain, { rotationQuarterTurns: 1, mirrored: false })).toBe(false);
+    });
+
     it('warns about a heavy file by what it holds, not by what undo keeps', async () => {
       const { first } = authorTwoSteps();
       state().selectDiagramStep(first);

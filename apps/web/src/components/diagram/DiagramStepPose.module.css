@@ -1,0 +1,12 @@
+/* The Step pane's Pose section (DiagramStepPose.tsx). */
+.pose {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.verbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3) var(--space-2);
+}

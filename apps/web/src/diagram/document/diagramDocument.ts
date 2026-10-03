@@ -415,6 +415,60 @@ export function setStepPicture(
   }));
 }
 
+/** An upload's pose: how its shared asset is turned and flipped when the step is painted. */
+export interface UploadPose {
+  rotationQuarterTurns: QuarterTurns;
+  mirrored: boolean;
+}
+
+/** The pose turned a quarter clockwise (1) or anticlockwise (-1), as it is shown. */
+export function rotatePose(pose: UploadPose, quarterTurns: 1 | -1): UploadPose {
+  const turns = (((pose.rotationQuarterTurns + quarterTurns) % 4) + 4) % 4;
+  return { ...pose, rotationQuarterTurns: turns as QuarterTurns };
+}
+
+/**
+ * The pose flipped left to right, as it is shown. The stored pose mirrors
+ * first and turns after, so a flip of a turned picture also reverses its turn.
+ */
+export function mirrorPose(pose: UploadPose): UploadPose {
+  return {
+    rotationQuarterTurns: ((4 - pose.rotationQuarterTurns) % 4) as QuarterTurns,
+    mirrored: !pose.mirrored,
+  };
+}
+
+/**
+ * Why a step's picture cannot be posed, or `null` when it can: it must be an
+ * upload, and carry no annotation this build cannot read. A pose change carries
+ * annotations with the picture (D8), and one that cannot be read cannot be
+ * carried — it would be left pointing at the old pose.
+ */
+export function poseBlocker(step: DiagramStep): 'not-upload' | 'unknown-annotations' | null {
+  if (isLockedStep(step) || step.source?.kind !== 'upload') return 'not-upload';
+  const carried = step.annotations.some((annotation) => annotation.unknown !== undefined);
+  if (carried) return 'unknown-annotations';
+  return null;
+}
+
+/** Set an upload's pose. A no-op for a step {@link poseBlocker} refuses. */
+export function setUploadPose(
+  document: DiagramDocument,
+  stepId: string,
+  pose: UploadPose
+): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    if (poseBlocker(step) !== null || step.source?.kind !== 'upload') return step;
+    const { rotationQuarterTurns, mirrored } = step.source;
+    if (rotationQuarterTurns === pose.rotationQuarterTurns && mirrored === pose.mirrored) return step;
+    return {
+      ...step,
+      source: { ...step.source, rotationQuarterTurns: pose.rotationQuarterTurns, mirrored: pose.mirrored },
+      revision: step.revision + 1,
+    };
+  });
+}
+
 /** Take a step's picture away, and its source with it. Its words and annotations stay. */
 export function removeStepPicture(document: DiagramDocument, stepId: string): DiagramDocument {
   return updateStep(document, stepId, (step) =>

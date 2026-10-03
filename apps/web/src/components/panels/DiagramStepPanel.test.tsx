@@ -129,6 +129,23 @@ describe('DiagramStepPanel', () => {
       expect(textButton('Remove Picture')?.disabled).toBe(true);
     });
 
+    it('shows the pose, and its verbs, only while the step is open in detail', () => {
+      act(() => {
+        const stepId = state().addDiagramStep()!;
+        state().setDiagramStepPicture(stepId, asset);
+        state().setDiagramStepPose(stepId, { rotationQuarterTurns: 1, mirrored: true });
+      });
+      expect(host?.textContent).not.toContain('clockwise');
+      act(() => {
+        state().openDiagramStep(state().diagram!.steps[0].id);
+      });
+      expect(host?.textContent).toContain('90° clockwise');
+      expect(host?.textContent).toContain('FlippedYes');
+      act(() => textButton('Reset Pose')?.click());
+      expect(host?.textContent).toContain('0° clockwise');
+      expect(host?.textContent).toContain('FlippedNo');
+    });
+
     it('says what the picture is, what sanitizing changed, and removes it', () => {
       act(() => {
         const stepId = state().addDiagramStep()!;
