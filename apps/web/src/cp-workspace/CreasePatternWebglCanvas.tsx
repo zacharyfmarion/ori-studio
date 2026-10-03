@@ -39,10 +39,10 @@ import {
   segmentIntersectsConvexQuad,
 } from './picking/convexQuad';
 import { viewAlignedBoxCorners, type BoxCorners } from './tools/viewAlignedBox';
-import { isCoarsePointer } from './gestures/cpTouchArbiter';
+import { isCoarsePointer } from '../lib/gestures/touchArbiter';
 import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
 import { applyPinchToCamera } from './gestures/pinchCamera';
-import type { GesturePoint, PinchTransform } from './gestures/pinchTransform';
+import type { GesturePoint, PinchTransform } from '../lib/gestures/pinchTransform';
 import { previewGroupsToStrokes, previewSegmentsToStrokes } from './renderer/previewStrokes';
 import { candidatePreviewGroups } from './adapters/candidatePreviewGroups';
 import {
@@ -3122,7 +3122,7 @@ export function CreasePatternWebglCanvas({
 
     // --- Multi-touch arbitration ---
     // Which pointer owns this surface, when more than one is on it. The rules
-    // and the state machine are in `gestures/cpTouchArbiter`, unit-tested over
+    // and the state machine are in `lib/gestures/touchArbiter`, unit-tested over
     // whole pointer sequences; what stays here is acting on its verdict, which
     // is the half that has to reach into a dozen pieces of gesture state.
     //

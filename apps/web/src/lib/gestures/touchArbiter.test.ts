@@ -1,52 +1,52 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createCpTouchArbiter,
+  createTouchArbiter,
   isCoarsePointer,
-  type CpGesturePointer,
-  type CpTouchArbiter,
-} from './cpTouchArbiter';
+  type GesturePointer,
+  type TouchArbiter,
+} from './touchArbiter';
 
-const finger = (id: number, x: number, y: number): CpGesturePointer => ({
+const finger = (id: number, x: number, y: number): GesturePointer => ({
   pointerId: id,
   pointerType: 'touch',
   clientX: x,
   clientY: y,
 });
 
-const pen = (id: number, x: number, y: number): CpGesturePointer => ({
+const pen = (id: number, x: number, y: number): GesturePointer => ({
   ...finger(id, x, y),
   pointerType: 'pen',
 });
 
-const mouse = (id: number, x: number, y: number): CpGesturePointer => ({
+const mouse = (id: number, x: number, y: number): GesturePointer => ({
   ...finger(id, x, y),
   pointerType: 'mouse',
 });
 
 /** A `PointerEvent` built by hand (jsdom, synthetic tests) reports no type. */
-const synthetic = (id: number, x: number, y: number): CpGesturePointer => ({
+const synthetic = (id: number, x: number, y: number): GesturePointer => ({
   ...finger(id, x, y),
   pointerType: '',
 });
 
 interface GestureStep {
   kind: 'down' | 'move' | 'up';
-  pointer: CpGesturePointer;
+  pointer: GesturePointer;
 }
 
-const down = (pointer: CpGesturePointer): GestureStep => ({ kind: 'down', pointer });
-const move = (pointer: CpGesturePointer): GestureStep => ({ kind: 'move', pointer });
-const up = (pointer: CpGesturePointer): GestureStep => ({ kind: 'up', pointer });
+const down = (pointer: GesturePointer): GestureStep => ({ kind: 'down', pointer });
+const move = (pointer: GesturePointer): GestureStep => ({ kind: 'move', pointer });
+const up = (pointer: GesturePointer): GestureStep => ({ kind: 'up', pointer });
 
 /** Every action a whole pointer sequence produced, in order. */
-const actionsOf = (arbiter: CpTouchArbiter, steps: readonly GestureStep[]): string[] =>
+const actionsOf = (arbiter: TouchArbiter, steps: readonly GestureStep[]): string[] =>
   steps.map((step) => {
     if (step.kind === 'down') return arbiter.down(step.pointer).action;
     if (step.kind === 'move') return arbiter.move(step.pointer).action;
     return arbiter.up(step.pointer).action;
   });
 
-type PointerMaker = (id: number, x: number, y: number) => CpGesturePointer;
+type PointerMaker = (id: number, x: number, y: number) => GesturePointer;
 
 describe('isCoarsePointer', () => {
   it('is true only for touch', () => {
@@ -69,7 +69,7 @@ describe('single-pointer sequences are untouched', () => {
   ];
 
   it.each(makers)('forwards a whole %s press-drag-release', (_label, make) => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     expect(
       actionsOf(arbiter, [
         down(make(1, 10, 10)),
@@ -82,7 +82,7 @@ describe('single-pointer sequences are untouched', () => {
   });
 
   it('never reports a transform for a lone contact', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 10, 10));
     expect(arbiter.isTransforming()).toBe(false);
     expect(arbiter.move(finger(1, 60, 10)).action).toBe('forward');
@@ -92,7 +92,7 @@ describe('single-pointer sequences are untouched', () => {
     // A right-click while the left is held re-fires `pointerdown` with the same
     // id. That is how the canvas' erase gesture is claimed mid-drag, so it must
     // keep reaching the tool chain and must not abort anything.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(mouse(1, 10, 10));
     const second = arbiter.down(mouse(1, 12, 11));
     expect(second).toEqual({ action: 'forward', abort: [] });
@@ -105,7 +105,7 @@ describe('a second finger lands mid-draw', () => {
   // Line tool's crease start and finger 1's release committed the crease, so a
   // pinch drew geometry and did not zoom.
   it('converts the gesture instead of starting a second one', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     expect(arbiter.down(finger(1, 100, 100)).action).toBe('forward');
     expect(arbiter.move(finger(1, 110, 100)).action).toBe('forward');
 
@@ -117,7 +117,7 @@ describe('a second finger lands mid-draw', () => {
   });
 
   it('never forwards another event from either finger for the rest of the gesture', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     const actions = actionsOf(arbiter, [
       down(finger(1, 100, 100)),
       move(finger(1, 110, 100)),
@@ -144,7 +144,7 @@ describe('a second finger lands mid-draw', () => {
   });
 
   it('aborts only once, however many fingers land', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     expect(arbiter.down(finger(2, 200, 100)).abort).toEqual(['canvas']);
     // A third finger joins a gesture that already owns the surface, so there is
@@ -156,7 +156,7 @@ describe('a second finger lands mid-draw', () => {
   });
 
   it('starts clean once every finger has lifted', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     arbiter.up(finger(1, 100, 100));
@@ -171,7 +171,7 @@ describe('a second finger lands mid-draw', () => {
   it('treats pointercancel as a lift', () => {
     // iOS raises `pointercancel` freely — a system edge gesture, a call
     // arriving — and it arrives through the same `up` path.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     expect(arbiter.up(finger(2, 200, 100)).action).toBe('ignore');
@@ -183,7 +183,7 @@ describe('a second finger lands mid-draw', () => {
   it('forwards a cancel for a contact that never became a camera gesture', () => {
     // The canvas needs this one: only a forwarded release reaches
     // `cpPointerReleaseRoute`, which is where `cancelled` rolls the tool back.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     expect(arbiter.up(finger(1, 100, 100)).action).toBe('forward');
   });
@@ -191,7 +191,7 @@ describe('a second finger lands mid-draw', () => {
 
 describe('camera samples', () => {
   it('reports no movement on the first sample of a new contact set', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     const first = arbiter.move(finger(1, 100, 100));
@@ -203,7 +203,7 @@ describe('camera samples', () => {
   });
 
   it('anchors the zoom at the centroid the sample started from', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     // Both fingers move outward by 50 in one sample each; the anchor each time
@@ -218,7 +218,7 @@ describe('camera samples', () => {
     // A pinch delivers one `pointermove` per finger, so the camera is driven
     // from half-updated pairs. Frame-to-frame differencing makes each of those
     // a valid sample, and the product of the samples is the real ratio.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     arbiter.move(finger(1, 100, 100)); // rebase sample
@@ -231,7 +231,7 @@ describe('camera samples', () => {
   });
 
   it('contributes no jump when a third finger joins mid-pinch', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     arbiter.move(finger(1, 100, 100));
@@ -245,7 +245,7 @@ describe('camera samples', () => {
   });
 
   it('degrades to a pan when one finger of a pinch lifts', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     arbiter.up(finger(1, 100, 100));
@@ -258,7 +258,7 @@ describe('camera samples', () => {
   });
 
   it('silences hover while the camera gesture runs', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     expect(arbiter.move(mouse(9, 10, 10)).action).toBe('ignore');
@@ -271,7 +271,7 @@ describe('events with no press behind them', () => {
   // pressed, so it has no contact — and hover is what drives the snap indicator
   // and every tool preview. Treating "untracked" as "inert" would kill all of it.
   it('forwards a hover move', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     expect(arbiter.move(mouse(1, 10, 10)).action).toBe('forward');
     expect(arbiter.move(pen(2, 10, 10)).action).toBe('forward');
   });
@@ -280,14 +280,14 @@ describe('events with no press behind them', () => {
     // Pressing a text label on the DOM overlay above the canvas and releasing
     // over the canvas: the release routing already handles it through its own
     // flags, and its tail is what clears every stale gesture flag.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     expect(arbiter.up(mouse(1, 10, 10)).action).toBe('forward');
   });
 
   it('forwards hover beside an inert finger', () => {
     // A palm is down and the Pencil is hovering rather than touching: nothing is
     // driving the camera, so the hover preview stays live.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(pen(1, 50, 50));
     arbiter.down(finger(2, 300, 300));
     arbiter.up(pen(1, 50, 50));
@@ -300,7 +300,7 @@ describe('a precision pointer owns the surface', () => {
     // Palm rejection, stated as a rule rather than inferred from geometry: the
     // Pencil is the precision instrument, so nothing a hand does while it is
     // down reaches the tool chain or moves the camera.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     expect(
       actionsOf(arbiter, [
         down(pen(1, 100, 100)),
@@ -325,7 +325,7 @@ describe('a precision pointer owns the surface', () => {
   });
 
   it('preempts a finger that was already drawing, and says so', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     const penDown = arbiter.down(pen(2, 200, 200));
     expect(penDown).toEqual({ action: 'forward', abort: ['canvas'] });
@@ -340,14 +340,14 @@ describe('a precision pointer owns the surface', () => {
     // has exactly as much in flight as a finger's, and skipping the rollback
     // leaves its half-drawn state behind while the Pencil's press re-enters the
     // tool chain — the double entry this module exists to prevent.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(mouse(1, 100, 100));
     expect(arbiter.down(pen(2, 200, 200)).abort).toEqual(['canvas']);
     expect(arbiter.move(mouse(1, 150, 100)).action).toBe('ignore');
   });
 
   it('takes over a pinch without claiming anything was in flight', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     // A camera gesture has touched no document state, so there is nothing to
@@ -367,7 +367,7 @@ describe('the surface is wider than the canvas', () => {
   // grabbed through `CanvasObjectOverlay`, which captures the pointer, so that
   // contact reaches this arbiter tagged `overlay` and never as a canvas press.
   it('counts a finger on the overlay toward the pinch', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     expect(arbiter.down(finger(1, 100, 100), 'overlay').action).toBe('forward');
 
     // Rule 3 applies across layers: this is the second finger on the *surface*,
@@ -380,13 +380,13 @@ describe('the surface is wider than the canvas', () => {
   it('names the overlay as the layer that must roll its drag back', () => {
     // The half a canvas-scoped arbiter could not express: the layer losing a
     // press is not the layer that asked.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100), 'overlay');
     expect(arbiter.down(finger(2, 300, 100), 'canvas').abort).toEqual(['overlay']);
   });
 
   it('names the canvas when the fingers arrive the other way round', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100), 'canvas');
     expect(arbiter.down(finger(2, 300, 100), 'overlay').abort).toEqual(['canvas']);
   });
@@ -395,7 +395,7 @@ describe('the surface is wider than the canvas', () => {
     // The point of tracking the overlay's contact rather than merely refusing
     // it: a contact the arbiter does not hold contributes no spread, so the
     // gesture would pan and never zoom.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100), 'overlay');
     arbiter.down(finger(2, 200, 100), 'canvas');
     arbiter.move(finger(1, 100, 100)); // rebase sample
@@ -406,7 +406,7 @@ describe('the surface is wider than the canvas', () => {
   it('keeps the overlay inert for the rest of the gesture', () => {
     // Same rule as the canvas': if lifting one finger of a pinch resumed the
     // window drag with the other, the bug would just move.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100), 'overlay');
     arbiter.down(finger(2, 300, 100), 'canvas');
     expect(arbiter.up(finger(2, 300, 100)).action).toBe('ignore');
@@ -417,7 +417,7 @@ describe('the surface is wider than the canvas', () => {
   it('leaves a lone press on the overlay forwarding, as it always did', () => {
     // One finger on a window still drags it, start to finish. The fix is about
     // the second finger, and this is what says it cost nothing to the first.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     expect(arbiter.down(finger(1, 100, 100), 'overlay').action).toBe('forward');
     expect(arbiter.move(finger(1, 130, 120)).action).toBe('forward');
     expect(arbiter.up(finger(1, 130, 120)).action).toBe('forward');
@@ -427,7 +427,7 @@ describe('the surface is wider than the canvas', () => {
   it('lets a Pencil preempt a window drag', () => {
     // Rule 1 reaches across layers too: what it takes back is any forwarded
     // press, and the overlay's is as much in flight as the canvas'.
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100), 'overlay');
     expect(arbiter.down(pen(2, 200, 200), 'canvas')).toEqual({
       action: 'forward',
@@ -438,7 +438,7 @@ describe('the surface is wider than the canvas', () => {
 
 describe('reset', () => {
   it('drops every contact so a rebuilt surface starts idle', () => {
-    const arbiter = createCpTouchArbiter();
+    const arbiter = createTouchArbiter();
     arbiter.down(finger(1, 100, 100));
     arbiter.down(finger(2, 200, 100));
     arbiter.reset();

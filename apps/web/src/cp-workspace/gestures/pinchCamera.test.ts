@@ -7,7 +7,7 @@ import {
 } from '../renderer/camera';
 import type { Viewport } from '../renderer/types';
 import { applyPinchToCamera } from './pinchCamera';
-import { contactCentroid, pinchTransform, type GesturePoint } from './pinchTransform';
+import { contactCentroid, pinchTransform, type GesturePoint } from '../../lib/gestures/pinchTransform';
 
 const viewportOf = (ratio: number): Viewport => ({
   width: 800 * ratio,

@@ -1,7 +1,8 @@
 /**
- * Who owns the crease-pattern *surface* when more than one thing is touching it.
+ * Who owns a canvas *surface* when more than one thing is touching it — the
+ * crease pattern's, where it was written, and the simulator viewport's.
  *
- * The canvas' `pointerdown` used to take no `pointerId`, `isPrimary` or
+ * The crease-pattern canvas' `pointerdown` used to take no `pointerId`, `isPrimary` or
  * `pointerType` filter at all, so a second finger re-entered the whole tool
  * branch chain: on a real iPad, a two-finger pinch over the Line tool *drew a
  * second crease* (the second finger relocated the crease start; the first
@@ -31,7 +32,7 @@
  *    would just move.
  *
  * **The surface is not the canvas element**, and the difference is what
- * {@link CpGestureOrigin} is for. Windows and images are grabbed through
+ * {@link GestureOrigin} is for. Windows and images are grabbed through
  * `CanvasObjectOverlay`, a sibling DOM layer that captures the pointer and never
  * lets the press reach the canvas. While this arbiter was scoped to the canvas
  * element, a finger landing there was invisible to it — so a pinch with one
@@ -53,7 +54,7 @@ import {
 } from './pinchTransform';
 
 /** The fields of a `PointerEvent` the arbiter reads; a plain object in tests. */
-export interface CpGesturePointer {
+export interface GesturePointer {
   pointerId: number;
   pointerType: string;
   clientX: number;
@@ -69,22 +70,22 @@ export interface CpGesturePointer {
  * - `ignore` — swallow it. A palm beside a Pencil, or a contact left over from
  *   a camera gesture that has not fully lifted.
  */
-export type CpGestureAction = 'forward' | 'transform' | 'ignore';
+export type GestureAction = 'forward' | 'transform' | 'ignore';
 
 /**
- * Which layer of the crease-pattern surface a contact landed on.
+ * Which layer of the surface a contact landed on.
  *
  * Both take presses, both capture the pointer, and neither sees the other's
  * events — so the only place their contacts meet is here.
  */
-export type CpGestureOrigin =
+export type GestureOrigin =
   /** The WebGL canvas: creases, tools, the camera. */
   | 'canvas'
   /** `CanvasObjectOverlay`: move/resize/rotate for windows, images, text. */
   | 'overlay';
 
-export interface CpGestureDownVerdict {
-  action: CpGestureAction;
+export interface GestureDownVerdict {
+  action: GestureAction;
   /**
    * Layers holding a forwarded press that this event has just taken the surface
    * from, and which must roll it back before anything else happens.
@@ -94,10 +95,10 @@ export interface CpGestureDownVerdict {
    * beside one already dragging a folded figure aborts the *overlay*. Empty for
    * the overwhelmingly common case of nothing being in flight anywhere.
    */
-  abort: readonly CpGestureOrigin[];
+  abort: readonly GestureOrigin[];
 }
 
-export type CpGestureMoveVerdict =
+export type GestureMoveVerdict =
   | { action: 'forward' | 'ignore' }
   | {
       action: 'transform';
@@ -110,7 +111,7 @@ export type CpGestureMoveVerdict =
       anchor: GesturePoint;
     };
 
-export interface CpGestureUpVerdict {
+export interface GestureUpVerdict {
   action: 'forward' | 'ignore';
 }
 
@@ -129,28 +130,28 @@ export function isCoarsePointer(pointerType: string): boolean {
   return pointerType === 'touch';
 }
 
-type ContactRole = CpGestureAction;
+type ContactRole = GestureAction;
 
 interface Contact {
   id: number;
   coarse: boolean;
   role: ContactRole;
-  /** The layer this contact pressed on; see {@link CpGestureOrigin}. */
-  origin: CpGestureOrigin;
+  /** The layer this contact pressed on; see {@link GestureOrigin}. */
+  origin: GestureOrigin;
   x: number;
   y: number;
 }
 
-export interface CpTouchArbiter {
+export interface TouchArbiter {
   /**
    * `origin` defaults to `canvas`, which is every call site that predates the
    * overlay joining: with one layer in play the machine behaves exactly as it
    * did when it was scoped to the canvas element.
    */
-  down(pointer: CpGesturePointer, origin?: CpGestureOrigin): CpGestureDownVerdict;
-  move(pointer: CpGesturePointer): CpGestureMoveVerdict;
+  down(pointer: GesturePointer, origin?: GestureOrigin): GestureDownVerdict;
+  move(pointer: GesturePointer): GestureMoveVerdict;
   /** Handles `pointerup` and `pointercancel` alike — both end a contact. */
-  up(pointer: CpGesturePointer): CpGestureUpVerdict;
+  up(pointer: GesturePointer): GestureUpVerdict;
   /** Drop every contact — the surface is going away (unmount, context loss). */
   reset(): void;
   /** Live contact count, for tests and diagnostics. */
@@ -159,7 +160,7 @@ export interface CpTouchArbiter {
   isTransforming(): boolean;
 }
 
-export function createCpTouchArbiter(): CpTouchArbiter {
+export function createTouchArbiter(): TouchArbiter {
   /** Every live contact, in the order it landed (Map preserves insertion). */
   const contacts = new Map<number, Contact>();
   /**
@@ -187,9 +188,9 @@ export function createCpTouchArbiter(): CpTouchArbiter {
   };
 
   const add = (
-    pointer: CpGesturePointer,
+    pointer: GesturePointer,
     role: ContactRole,
-    origin: CpGestureOrigin
+    origin: GestureOrigin
   ): Contact => {
     const contact: Contact = {
       id: pointer.pointerId,
@@ -204,15 +205,15 @@ export function createCpTouchArbiter(): CpTouchArbiter {
   };
 
   /** The layers among `losing` that have a forwarded press to take back. */
-  const abortList = (losing: readonly Contact[]): CpGestureOrigin[] => [
+  const abortList = (losing: readonly Contact[]): GestureOrigin[] => [
     ...new Set(losing.map((contact) => contact.origin)),
   ];
 
   /** No layer loses anything — the shape of almost every verdict. */
-  const NOTHING_IN_FLIGHT: readonly CpGestureOrigin[] = [];
+  const NOTHING_IN_FLIGHT: readonly GestureOrigin[] = [];
 
   return {
-    down(pointer: CpGesturePointer, origin: CpGestureOrigin = 'canvas'): CpGestureDownVerdict {
+    down(pointer: GesturePointer, origin: GestureOrigin = 'canvas'): GestureDownVerdict {
       const existing = contacts.get(pointer.pointerId);
       if (existing) {
         // A second button on the same physical pointer — a right-click while
@@ -276,7 +277,7 @@ export function createCpTouchArbiter(): CpTouchArbiter {
       return { action: 'forward', abort: NOTHING_IN_FLIGHT };
     },
 
-    move(pointer: CpGesturePointer): CpGestureMoveVerdict {
+    move(pointer: GesturePointer): GestureMoveVerdict {
       const contact = contacts.get(pointer.pointerId);
       // A move with no press behind it is the ordinary hover case, and it is the
       // common one: a mouse or a Pencil moving over the canvas drives the snap
@@ -304,7 +305,7 @@ export function createCpTouchArbiter(): CpTouchArbiter {
       return { action: 'transform', transform, anchor };
     },
 
-    up(pointer: CpGesturePointer): CpGestureUpVerdict {
+    up(pointer: GesturePointer): GestureUpVerdict {
       const contact = contacts.get(pointer.pointerId);
       // Same rule as an unpressed move, for the same reason: a release whose
       // press began on the DOM overlay above the canvas can still land here, and
