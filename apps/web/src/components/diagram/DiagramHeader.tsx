@@ -94,11 +94,14 @@ export function DiagramHeader({
           )}
         </div>
       </div>
-      <DiagramViewSwitch
-        className={styles.views}
-        view={view}
-        onChange={onViewChange}
-      />
+      <div className={styles.views}>
+        <span className={styles.separator} aria-hidden="true" />
+        <DiagramViewSwitch
+          className={styles.viewSwitch}
+          view={view}
+          onChange={onViewChange}
+        />
+      </div>
       <div className={styles.side} data-side="end">
         <div className={`panel-toolbar__group ${styles.actions}`}>
           <DiagramHistoryButtons />

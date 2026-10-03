@@ -45,31 +45,33 @@ export function DiagramTitleField({
   useEffect(() => registerPendingEditFlush(commit), [commit]);
 
   return (
-    <input
-      className={styles.field}
-      type="text"
-      value={draft}
-      disabled={disabled}
-      placeholder={placeholder}
-      aria-label={t('panels:diagram.header.titleLabel', 'Diagram title')}
-      // Wide enough for the title it holds — or the placeholder, when it holds
-      // none — within the header's room.
-      size={Math.min(40, (draft || placeholder).length + 1)}
-      onChange={(event) => {
+    // As wide as the title it holds — or the placeholder, when it holds none:
+    // an invisible copy of the words sizes the cell the field shares with it.
+    <span className={styles.sizer} data-value={draft || placeholder}>
+      <input
+        className={styles.field}
+        type="text"
+        value={draft}
+        disabled={disabled}
+        placeholder={placeholder}
+        aria-label={t('panels:diagram.header.titleLabel', 'Diagram title')}
+        size={1}
+        onChange={(event) => {
         typed.current = event.target.value;
         setDraft(event.target.value);
       }}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (isComposingKey(event)) return;
-        if (event.key === 'Enter') {
-          event.currentTarget.blur();
-        } else if (event.key === 'Escape') {
-          typed.current = null;
-          setDraft(title);
-          event.currentTarget.blur();
-        }
-      }}
-    />
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (isComposingKey(event)) return;
+          if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            typed.current = null;
+            setDraft(title);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </span>
   );
 }

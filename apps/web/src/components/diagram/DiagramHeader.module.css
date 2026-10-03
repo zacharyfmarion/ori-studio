@@ -1,23 +1,22 @@
 /*
  * What the Diagram header (DiagramHeader.tsx) adds to the shared toolbar frame.
  *
- * The title, then Steps | Pages straight after it, left-aligned; the verbs'
- * side takes the rest of the row, its verbs at the right end. The verbs' side
- * never goes below its own width and the title's below 12rem; with less room
- * than that the row wraps, the verbs right-aligned under the title and tabs.
- * On a desktop the row never wraps, so the frame's one-row height holds.
+ * The title, a hairline, then Steps | Pages straight after it; the verbs'
+ * side takes the rest of the row, its verbs at the right end. Each side is as
+ * wide as what it holds, so a row too narrow for all three wraps rather than
+ * squeezing one: the verbs right-aligned under the title and tabs. On a
+ * desktop the row never wraps, so the frame's one-row height holds.
  */
 .header {
   flex-wrap: wrap;
   column-gap: var(--space-2);
 }
 
-/* The title's side: as wide as the title. */
+/* The title's side: as wide as the title, and no wider. */
 .side {
   display: flex;
   flex: 0 1 auto;
   align-items: center;
-  min-width: 12rem;
 }
 
 /* The verbs' side: the rest of the row. */
@@ -36,14 +35,31 @@
 }
 
 /*
- * Straight after the title. The frame spreads its items with space-between,
- * so on a row the title and tabs share once it wraps, the tabs would go to its
- * far end: the margin takes that room instead.
+ * The tabs, straight after the title, with the hairline between them: one
+ * item, so a wrapped row never ends on the hairline. The frame spreads its
+ * items with space-between, so on a row the title and tabs share once it
+ * wraps, the tabs would go to its far end: the margin takes that room instead.
+ * Stretched, so the tabs keep the bar's full height.
  */
 .views {
+  display: flex;
   flex: 0 0 auto;
+  align-self: stretch;
+  align-items: stretch;
+  gap: var(--space-2);
   margin-right: auto;
-  margin-left: var(--space-2);
+}
+
+.separator {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 18px;
+  background: var(--border-default);
+}
+
+.viewSwitch {
+  flex: 0 0 auto;
 }
 
 /* On a phone the two views share a row of their own, under the title and
@@ -51,7 +67,15 @@
 @media (max-width: 720px) {
   .views {
     flex: 1 1 100%;
-    margin-left: 0;
+  }
+
+  .viewSwitch {
+    flex: 1 1 auto;
+  }
+
+  /* The tabs are a row of their own: nothing beside them to separate. */
+  .separator {
+    display: none;
   }
 }
 

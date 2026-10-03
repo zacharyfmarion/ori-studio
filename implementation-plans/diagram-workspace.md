@@ -2861,6 +2861,14 @@ insert steps at a chosen place without the latch.
   margin on the tabs takes the frame's `space-between` room, so the module
   never overrides the shared frame's rule. Before/after:
   `artifacts/diagram-parity/header-left-{before,after}-{1440,1000,phone}.png`.
+  - Then right next to the title, with a hairline between (Zach): the title's
+    side lost its 12rem minimum, which left a 61 px gap after "Untitled
+    diagram", and the title field is as wide as its words — an invisible copy
+    of them sizes the cell it shares (CSS only, as `field-sizing` is not in
+    WebKit), where `size` counted average characters and left bold text a
+    field far wider than itself. The hairline and the tabs are one item, so a
+    wrapped row never ends on the hairline. Title to tabs is now 8 px, the
+    hairline, 8 px (`header-sep-{before,after}-{crane,fresh}-*.png`).
 - [ ] Sync with `main`, re-take the ratchet numbers, run the full validation set, then open the one PR to `main`; a CHANGELOG entry; one line in the README's feature list.
 
 ### Later (written up, not built)
