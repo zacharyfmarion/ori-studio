@@ -88,6 +88,7 @@
     "export": "导出",
     "exportBps": "导出 .bps...",
     "exportCp": "导出 CP...",
+    "exportDiagram": "导出图解...",
     "exportFold": "导出 FOLD...",
     "exportOrh": "导出 ORH...",
     "exportOri": "导出 ORI...",

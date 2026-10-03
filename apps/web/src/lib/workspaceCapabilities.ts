@@ -27,6 +27,7 @@ export type WorkspaceCapabilityId =
   | 'file.exportOrh'
   | 'file.exportSvg'
   | 'file.exportPng'
+  | 'file.exportDiagram'
   | 'file.exportFoldedFold'
   | 'file.exportObj'
   | 'file.exportStl'
@@ -179,6 +180,8 @@ export interface WorkspaceCapabilityInput {
    * from any workspace, so it makes the project savable by itself.
    */
   hasDiagram: boolean;
+  /** How many steps the diagram has: one is enough to export it. */
+  diagramStepCount: number;
   /**
    * Whether the Diagram has a step selected that Delete would remove: the
    * diagram context, a selected step, and a diagram that is not read-only.
@@ -436,6 +439,14 @@ export function getWorkspaceCapabilities(
       hasCreasePattern
         ? busyOr(t('common:capability.exportCreasePatternPng', 'Export crease pattern PNG'), input.status, t)
         : t('common:capability.noCreasePatternToExport', 'No crease pattern to export')
+    ),
+    // From any workspace, and while an engine works: the diagram is its own.
+    'file.exportDiagram': capability(
+      input.diagramStepCount > 0,
+      t('common:capability.exportDiagram', 'Export Diagram...'),
+      input.diagramStepCount > 0
+        ? t('common:capability.exportDiagramHint', 'Export the diagram as a PDF or as a file for each step')
+        : t('common:capability.noDiagramToExport', 'Add a step to the diagram to export it')
     ),
     // The Diagram's history is its own: a TreeMaker build or optimize running
     // in another workspace is no reason to hold its Undo back.

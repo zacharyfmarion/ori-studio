@@ -799,9 +799,11 @@
     },
     "header": {
       "addStep": "Añadir paso",
+      "export": "Exportar…",
       "fromReferences": "Desde Referencias…",
       "linkPattern": "Vincular patrón…",
       "moreAdd": "Más formas de añadir pasos",
+      "nothingToExport": "Añade un paso para exportar el diagrama",
       "nothingToRefresh": "Ningún paso vinculado está desactualizado. Los pasos de Referencias no se actualizan.",
       "pageCount_one": "1 página",
       "pageCount_many": "{{count}} páginas",

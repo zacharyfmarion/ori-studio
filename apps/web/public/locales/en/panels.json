@@ -770,9 +770,11 @@
     },
     "header": {
       "addStep": "Add step",
+      "export": "Export…",
       "fromReferences": "From References…",
       "linkPattern": "Link pattern…",
       "moreAdd": "More ways to add steps",
+      "nothingToExport": "Add a step to export the diagram",
       "nothingToRefresh": "No linked step is out of date. Steps from References aren’t refreshed.",
       "pageCount_one": "1 page",
       "pageCount_other": "{{count}} pages",

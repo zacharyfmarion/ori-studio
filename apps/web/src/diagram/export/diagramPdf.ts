@@ -36,8 +36,16 @@ export interface PdfWriterOptions {
   title?: string;
 }
 
-/** The PDF writer: the wasm bridge's `pages_to_pdf`, however it is reached. */
-export type PdfWriter = (pages: string[], fonts: Uint8Array[], options: PdfWriterOptions) => Promise<Uint8Array>;
+/**
+ * The PDF writer: the wasm bridge's `pages_to_pdf`, however it is reached.
+ * Aborting `signal` stops it, and its promise rejects with an `AbortError`.
+ */
+export type PdfWriter = (
+  pages: string[],
+  fonts: Uint8Array[],
+  options: PdfWriterOptions,
+  signal?: AbortSignal
+) => Promise<Uint8Array>;
 
 export interface DiagramPdfInput {
   pages: string[];

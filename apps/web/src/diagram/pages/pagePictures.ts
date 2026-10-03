@@ -46,6 +46,8 @@ const LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 /** A picture drawn into its cell, and the text it sets: References' letters, an upload's text. */
 export interface CellPicture {
   markup: string;
+  /** What it draws, in pt: the drawing's own box, which a step's file is cropped to. */
+  boundsPt: { x: number; y: number; width: number; height: number };
   /** The characters each face sets in the picture, by face id (`latin-700`). */
   text: { face: string; characters: string }[];
 }
@@ -164,7 +166,7 @@ export function cellPicture(
   };
   const drawn = draw(source, step, style, box, cell.mmPerUnit, text);
   if (!drawn) return null;
-  return { markup: prefixIds(drawn.markup, idPrefix), text: drawn.text };
+  return { ...drawn, markup: prefixIds(drawn.markup, idPrefix) };
 }
 
 type Box = { x: number; y: number; size: number };
@@ -185,7 +187,7 @@ function draw(
       const span = longerSide(scene.bounds);
       const ptPerPx =
         mmPerUnit !== null && scale ? (mmPerUnit * PT_PER_MM) / scale : span > 0 ? box.size / span : PT_PER_CSS_PX;
-      return { markup: placedScene(scene, diagramSurfaceStyle(style), box, ptPerPx), text: [] };
+      return { ...placedScene(scene, diagramSurfaceStyle(style), box, ptPerPx), text: [] };
     }
     case 'step-diagram': {
       const units = sentSheetUnits(step);
@@ -198,10 +200,11 @@ function draw(
       const sheetMm = mmPerUnit !== null && units !== null ? units * mmPerUnit : fitted();
       const scene = stepDiagramScene(source.picture.model, source.picture.mirrored, style, sheetMm);
       // Built at its size on the page: one scene px is one CSS px of it.
-      const markup = placedScene(scene, stepDiagramPaintStyle(style), box, PT_PER_CSS_PX);
+      const placed = placedScene(scene, stepDiagramPaintStyle(style), box, PT_PER_CSS_PX);
       const letters = labelsOf(source.picture);
       return {
-        markup: markup.replaceAll(`font-family="${LABEL_FONT}"`, `font-family="'Noto Sans', sans-serif"`),
+        markup: placed.markup.replaceAll(`font-family="${LABEL_FONT}"`, `font-family="'Noto Sans', sans-serif"`),
+        boundsPt: placed.boundsPt,
         text: letters === '' ? [] : [{ face: fontFaceId({ key: 'latin', weight: 700 }), characters: letters }],
       };
     }
@@ -230,24 +233,30 @@ function draw(
         markup:
           `<svg x="${num(x)}" y="${num(y)}" width="${num(width)}" height="${num(height)}" ` +
           `viewBox="0 0 ${num(painted.widthPx)} ${num(painted.heightPx)}" overflow="visible">${body}</svg>`,
+        boundsPt: { x, y, width, height },
         text: [...usage].map(([face, characters]) => ({ face, characters })),
       };
     }
   }
 }
 
-/** A scene's elements at `ptPerPx`, its drawing centred in the box. */
+/** A scene's elements at `ptPerPx`, its drawing centred in the box, and the box it fills. */
 function placedScene(scene: PaperScene, style: PaperStyle, box: Box, ptPerPx: number) {
   const { bounds } = scene;
-  const offsetX = box.x + (box.size - (bounds.maxX - bounds.minX) * ptPerPx) / 2;
-  const offsetY = box.y + (box.size - (bounds.maxY - bounds.minY) * ptPerPx) / 2;
+  const width = (bounds.maxX - bounds.minX) * ptPerPx;
+  const height = (bounds.maxY - bounds.minY) * ptPerPx;
+  const offsetX = box.x + (box.size - width) / 2;
+  const offsetY = box.y + (box.size - height) / 2;
   const body = paperSceneSvgBody(scene, style, {
     project: ([x, y]) => [(x - bounds.minX) * ptPerPx + offsetX, (y - bounds.minY) * ptPerPx + offsetY],
     unitsPerPt: 1,
     keepHiddenFaces: false,
   });
-  // Round joins, as the painter's own page has them.
-  return `<g stroke-linejoin="round">\n${body}\n</g>`;
+  return {
+    // Round joins, as the painter's own page has them.
+    markup: `<g stroke-linejoin="round">\n${body}\n</g>`,
+    boundsPt: { x: offsetX, y: offsetY, width, height },
+  };
 }
 
 /** Every letter the step's labels set. */

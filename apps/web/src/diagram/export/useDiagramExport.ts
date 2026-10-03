@@ -1,0 +1,364 @@
+/**
+ * The Diagram's export dialog: its options, what they would write, the
+ * preview and the save (D11).
+ *
+ * The dialog edits a draft seeded from the remembered options, so closing it
+ * without saving changes nothing, and a save remembers the draft. It exports
+ * the diagram as it was when it opened.
+ *
+ * - **PDF:** the pages, as the Pages view composes them; the preview is a
+ *   page and the pager walks them. Text a font cannot set refuses the PDF
+ *   before it is tried, since the writer would.
+ * - **Step files:** a file for each step with a picture (`stepFiles.ts`); the
+ *   preview is a file and the pager walks them. A PNG too large for the
+ *   browser to draw is refused before the save, as the paper export's is.
+ *
+ * Writing the PDF or the files can be stopped: closing the dialog stops it,
+ * and nothing is offered to a save dialog. Only the save itself cannot be.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import { trackDiagramExported } from '../../analytics';
+import { reportError } from '../../monitoring';
+import { paperPngSize } from '../../lib/paper/paperPng';
+import { PT_PER_MM, type PaperSvgResult } from '../../lib/paper/paperSvg';
+import {
+  APPLE_MOBILE_PNG_CANVAS_LIMIT,
+  DESKTOP_PNG_CANVAS_LIMIT,
+  pngFitsCanvas,
+} from '../../lib/paper/pngCanvasLimits';
+import { exportFilename } from '../../platform/exportFilename';
+import { getFileService, type FileService } from '../../platform/fileService';
+import { isAppleMobilePlatform } from '../../platform/runtime';
+import { savePaperExportZip } from '../../paperExport/savePaperExport';
+import { useSettingsStore } from '../../store/settingsStore';
+import type { DiagramDocument } from '../document/diagramDocument';
+import { browserFontSource } from '../fonts/browserFontSource';
+import { browserFontSubsetter } from '../fonts/browserFontSubsetter';
+import { loadDiagramFonts, type DiagramFonts } from '../fonts/diagramFonts';
+import type { FontSubsetter } from '../fonts/fontSubset';
+import { diagramFontTexts, preparedPages, type PreparedDiagramPages } from '../pages/diagramPages';
+import { composedPageUrl } from '../pages/useDiagramPages';
+import { stepPictureSource } from '../pictures/paintDiagramStep';
+import { svgDataUrl } from '../pictures/stepPictureCache';
+import { browserPdfWriter, DiagramPdfError } from './browserPdfWriter';
+import {
+  normalizeDiagramExportSettings,
+  type DiagramExportSettings,
+} from './diagramExportSettings';
+import { diagramPdfInput, type PdfWriter } from './diagramPdf';
+import { prepareStepFiles, stepFileMinHeightMm, type PreparedStepFiles } from './stepFiles';
+
+export type DiagramExportStatus = 'loading' | 'ready' | 'failed';
+
+/** Where a save has got: writing (which closing stops), then saving (which it cannot). */
+export type DiagramExportPhase = 'writing' | 'saving';
+
+export interface DiagramExportBinding {
+  draft: DiagramExportSettings;
+  /** Change some options; nothing is remembered until a file is saved. */
+  patch: (next: Partial<DiagramExportSettings>) => void;
+  /** The fonts and the subsetter loading, ready, or not to be had. */
+  status: DiagramExportStatus;
+  /** The PDF's pages, or the step files: how many. */
+  count: number;
+  /** The page or file on show, as an image, with its size. */
+  preview: { url: string; page: Pick<PaperSvgResult, 'widthPt' | 'heightPt'> } | null;
+  pager: { index: number; count: number; label: string; setIndex: (index: number) => void } | null;
+  /** The steps with no picture: blank space in the PDF, no file in the ZIP. */
+  empty: number[];
+  /** The steps whose instruction is cut. */
+  cut: number[];
+  /** Characters no font has: the PDF refuses them; a file draws them as boxes. */
+  missing: string[];
+  /** A step file's PNG size at the density, for the file on show. */
+  pngSize: { width: number; height: number } | null;
+  pngTooLarge: boolean;
+  /** The canvas's least height, for the number and the text it carries. */
+  minHeightMm: number;
+  phase: DiagramExportPhase | null;
+  /** How far the step files have got, while they are written. */
+  progress: { done: number; total: number } | null;
+  /** The save dialog is up: the dialog cannot be closed. */
+  busy: boolean;
+  saveError: string | null;
+  canExport: boolean;
+  exportNow: () => Promise<void>;
+}
+
+interface Loaded {
+  fonts: DiagramFonts;
+  subsetter: FontSubsetter;
+}
+
+/** Where the export's fonts come from, what writes its PDF, and where it saves: the app's, or a test's. */
+export interface DiagramExportDependencies {
+  load: (document: DiagramDocument) => Promise<Loaded>;
+  writePdf: PdfWriter;
+  fileService: () => FileService;
+}
+
+export const BROWSER_DIAGRAM_EXPORT: DiagramExportDependencies = {
+  load: async (document) => {
+    const [fonts, subsetter] = await Promise.all([
+      loadDiagramFonts(diagramFontTexts(document), document.hanStyle, browserFontSource),
+      browserFontSubsetter(),
+    ]);
+    return { fonts, subsetter };
+  },
+  writePdf: browserPdfWriter,
+  fileService: getFileService,
+};
+
+/** A diagram's name for its files: its title, or "Diagram". */
+function fileStemOf(document: DiagramDocument): string {
+  return document.title.trim() || 'Diagram';
+}
+
+const stepFileUrls = new WeakMap<PreparedStepFiles, Map<number, { url: string; page: PaperSvgResult }>>();
+
+/** Step file `index`, composed and as a `data:` URL, once per preparation. */
+function stepFilePreview(files: PreparedStepFiles, index: number) {
+  let byIndex = stepFileUrls.get(files);
+  if (!byIndex) {
+    byIndex = new Map();
+    stepFileUrls.set(files, byIndex);
+  }
+  let shown = byIndex.get(index);
+  if (!shown) {
+    const page = files.compose(index);
+    shown = { url: svgDataUrl(page.svg), page };
+    byIndex.set(index, shown);
+  }
+  return shown;
+}
+
+export function useDiagramExport(
+  document: DiagramDocument,
+  close: () => void,
+  dependencies: DiagramExportDependencies = BROWSER_DIAGRAM_EXPORT
+): DiagramExportBinding {
+  const { t } = useTranslation();
+  const remember = useSettingsStore((state) => state.rememberDiagramExport);
+  const [draft, setDraft] = useState(() => useSettingsStore.getState().diagramExport);
+  // Through the normaliser, so a canvas that the number and the text no
+  // longer fit grows to fit them.
+  const patch = useCallback(
+    (next: Partial<DiagramExportSettings>) =>
+      setDraft((current) => normalizeDiagramExportSettings({ ...current, ...next })),
+    []
+  );
+
+  const [loaded, setLoaded] = useState<Loaded | 'failed' | null>(null);
+  useEffect(() => {
+    let live = true;
+    dependencies
+      .load(document)
+      .then((next) => {
+        if (live) setLoaded(next);
+      })
+      .catch((error: unknown) => {
+        reportError(error, { surface: 'diagram:export' });
+        if (live) setLoaded('failed');
+      });
+    return () => {
+      live = false;
+    };
+  }, [document, dependencies]);
+  const ready = loaded !== null && loaded !== 'failed' ? loaded : null;
+
+  const pdf = draft.kind === 'pdf';
+  const pages = useMemo<PreparedDiagramPages | null>(
+    () => (ready && pdf ? preparedPages(document, ready.fonts, ready.subsetter) : null),
+    [ready, pdf, document]
+  );
+  const { number, text, sameSize, widthMm, heightMm, transparent } = draft;
+  const files = useMemo<PreparedStepFiles | null>(
+    () =>
+      ready && !pdf
+        ? prepareStepFiles(document, ready.fonts, ready.subsetter, {
+            number,
+            text,
+            sameSize,
+            widthMm,
+            heightMm,
+            transparent,
+          })
+        : null,
+    [ready, pdf, document, number, text, sameSize, widthMm, heightMm, transparent]
+  );
+
+  const count = pages ? pages.layout.pages.length : (files?.files.length ?? 0);
+  const [pagerIndex, setPagerIndex] = useState(0);
+  const index = Math.min(pagerIndex, Math.max(0, count - 1));
+  const preview = useMemo(() => {
+    if (pages) {
+      const { paper } = pages.layout;
+      return { url: composedPageUrl(pages, index), page: { widthPt: paper.widthMm * PT_PER_MM, heightPt: paper.heightMm * PT_PER_MM } };
+    }
+    if (files && files.files.length > 0) return stepFilePreview(files, index);
+    return null;
+  }, [pages, files, index]);
+
+  const empty = useMemo(
+    () =>
+      document.steps.flatMap((step, at) => (stepPictureSource(step, document.assets) ? [] : [at + 1])),
+    [document]
+  );
+  const cut = useMemo(
+    () =>
+      pages
+        ? pages.layout.pages.flatMap((page) => page.cells.filter((cell) => cell.textOverflow).map((cell) => cell.number))
+        : (files?.cut ?? []),
+    [pages, files]
+  );
+  const missing = pages?.missing ?? files?.missing ?? [];
+
+  const png = !pdf && draft.format === 'png';
+  const limit = isAppleMobilePlatform() ? APPLE_MOBILE_PNG_CANVAS_LIMIT : DESKTOP_PNG_CANVAS_LIMIT;
+  const pngSize = png && preview ? paperPngSize(preview.page, draft.dpi) : null;
+  const pngTooLarge = pngSize !== null && !pngFitsCanvas(pngSize, limit);
+
+  const [phase, setPhase] = useState<DiagramExportPhase | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const canExport =
+    ready !== null && count > 0 && phase === null && !pngTooLarge && !(pdf && missing.length > 0);
+
+  // Aborted when the dialog goes: a PDF still being written, or files still
+  // being drawn, are then never offered to a save dialog.
+  const aborter = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    aborter.current = controller;
+    return () => controller.abort();
+  }, []);
+
+  const exportNow = useCallback(async () => {
+    const signal = aborter.current?.signal;
+    if (!canExport || !ready || !signal) return;
+    setPhase('writing');
+    setSaveError(null);
+    // A frame for "Exporting…" before the pages are composed.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const stem = fileStemOf(document);
+    try {
+      let name: string | null = null;
+      if (pdf) {
+        const input = diagramPdfInput(document, ready.fonts, ready.subsetter, draft.pdf);
+        const bytes = await dependencies.writePdf(input.pages, input.fonts, input.options, signal);
+        if (signal.aborted) return;
+        setPhase('saving');
+        const saved = await dependencies.fileService().saveBinaryFile({
+          title: 'Export PDF',
+          bytes,
+          suggestedName: exportFilename(stem, 'pdf'),
+          path: null,
+          extensions: ['pdf'],
+          mimeType: 'application/pdf',
+        });
+        name = saved?.name ?? null;
+      } else if (files) {
+        const written = files.files.map((file, at) => ({ page: files.compose(at), fileStem: file.fileStem }));
+        if (png) {
+          const tooLarge = written.find(({ page }) => !pngFitsCanvas(paperPngSize(page, draft.dpi), limit));
+          if (tooLarge) {
+            const size = paperPngSize(tooLarge.page, draft.dpi);
+            throw new Error(
+              t('dialogs:diagramExport.pngFileTooLarge', '{{name}} would be {{width}} × {{height}} px, too large for a PNG here.', {
+                name: tooLarge.fileStem,
+                width: size.width,
+                height: size.height,
+              })
+            );
+          }
+        }
+        setProgress({ done: 0, total: written.length });
+        name = await savePaperExportZip({
+          pages: written,
+          format: draft.format,
+          pngDpi: draft.dpi,
+          zipStem: stem,
+          fileService: dependencies.fileService(),
+          signal,
+          onProgress: (done, total) => {
+            setProgress({ done, total });
+            if (done === total) setPhase('saving');
+          },
+        });
+      }
+      // A dismissed save dialog: the options are still in front of the reader.
+      if (!name) return;
+      remember(draft);
+      trackDiagramExported(
+        pdf ? 'pdf' : 'zip',
+        pdf
+          ? { preset: draft.pdf === 'print-shop' ? 'print_shop' : 'home' }
+          : {
+              fileType: draft.format,
+              dpi: png ? draft.dpi : null,
+              number: draft.number,
+              text: draft.text,
+              sameSize: draft.sameSize,
+              transparent: draft.transparent,
+            },
+        { files: count, steps: document.steps.length, empty: empty.length }
+      );
+      toast.success(t('toasts:diagramExport.saved', 'Exported {{name}}', { name }));
+      close();
+    } catch (cause) {
+      if (signal.aborted || (cause instanceof DOMException && cause.name === 'AbortError')) return;
+      reportError(cause, { surface: 'diagram:export' });
+      setSaveError(saveErrorMessage(cause, t));
+    } finally {
+      if (!signal.aborted) {
+        setPhase(null);
+        setProgress(null);
+      }
+    }
+  }, [canExport, ready, document, pdf, draft, files, png, limit, remember, count, empty, t, close, dependencies]);
+
+  return {
+    draft,
+    patch,
+    status: loaded === null ? 'loading' : loaded === 'failed' ? 'failed' : 'ready',
+    count,
+    preview,
+    pager:
+      count > 1
+        ? {
+            index,
+            count,
+            label: pdf
+              ? t('dialogs:diagramExport.pageLabel', 'Page {{number}}', { number: index + 1 })
+              : t('dialogs:diagramExport.stepLabel', 'Step {{number}}', {
+                  number: files?.files[index]?.number ?? index + 1,
+                }),
+            setIndex: (next) => setPagerIndex(Math.min(count - 1, Math.max(0, next))),
+          }
+        : null,
+    empty,
+    cut,
+    missing,
+    pngSize,
+    pngTooLarge,
+    minHeightMm: Math.ceil(stepFileMinHeightMm(draft)),
+    phase,
+    progress,
+    busy: phase === 'saving',
+    saveError,
+    canExport,
+    exportNow,
+  };
+}
+
+/** What went wrong, for the dialog's footer. */
+function saveErrorMessage(cause: unknown, t: ReturnType<typeof useTranslation>['t']): string {
+  if (cause instanceof DiagramPdfError) {
+    return cause.code === 'text'
+      ? t('dialogs:diagramExport.pdfText', 'Some text can’t be printed in the diagram’s fonts.')
+      : t('dialogs:diagramExport.pdfFailed', 'The PDF couldn’t be written: {{message}}', { message: cause.message });
+  }
+  return cause instanceof Error ? cause.message : String(cause);
+}

@@ -24,7 +24,11 @@ pub fn start() {
 }
 
 #[wasm_bindgen]
-pub fn pages_to_pdf(pages: Vec<String>, fonts: Vec<Uint8Array>, options: JsValue) -> Result<Vec<u8>, JsValue> {
+pub fn pages_to_pdf(
+    pages: Vec<String>,
+    fonts: Vec<Uint8Array>,
+    options: JsValue,
+) -> Result<Vec<u8>, JsValue> {
     let options = read_options(&options).map_err(|message| error("options", &message))?;
     let fonts: Vec<Vec<u8>> = fonts.iter().map(Uint8Array::to_vec).collect();
     let font_refs: Vec<&[u8]> = fonts.iter().map(Vec::as_slice).collect();
@@ -49,15 +53,24 @@ fn read_options(value: &JsValue) -> Result<PdfOptions, String> {
             .map(|value| value as f32)
             .ok_or_else(|| format!("{key} must be a number"))
     };
-    let print_shop = Reflect::get(value, &JsValue::from_str("printShop")).unwrap_or(JsValue::UNDEFINED);
+    let print_shop =
+        Reflect::get(value, &JsValue::from_str("printShop")).unwrap_or(JsValue::UNDEFINED);
     let print_shop = if print_shop.is_undefined() || print_shop.is_null() {
         None
     } else {
-        Some(PrintShop { bleed_mm: number(&print_shop, "bleedMm")?, slug_mm: number(&print_shop, "slugMm")? })
+        Some(PrintShop {
+            bleed_mm: number(&print_shop, "bleedMm")?,
+            slug_mm: number(&print_shop, "slugMm")?,
+        })
     };
-    let title = Reflect::get(value, &JsValue::from_str("title")).ok().and_then(|title| title.as_string());
+    let title = Reflect::get(value, &JsValue::from_str("title"))
+        .ok()
+        .and_then(|title| title.as_string());
     Ok(PdfOptions {
-        trim_mm: (number(value, "trimWidthMm")?, number(value, "trimHeightMm")?),
+        trim_mm: (
+            number(value, "trimWidthMm")?,
+            number(value, "trimHeightMm")?,
+        ),
         art_bleed_mm: number(value, "artBleedMm")?,
         print_shop,
         title,
@@ -67,7 +80,15 @@ fn read_options(value: &JsValue) -> Result<PdfOptions, String> {
 /// The `{ code, message }` envelope the other bridges throw.
 fn error(code: &str, message: &str) -> JsValue {
     let envelope = Object::new();
-    let _ = Reflect::set(&envelope, &JsValue::from_str("code"), &JsValue::from_str(code));
-    let _ = Reflect::set(&envelope, &JsValue::from_str("message"), &JsValue::from_str(message));
+    let _ = Reflect::set(
+        &envelope,
+        &JsValue::from_str("code"),
+        &JsValue::from_str(code),
+    );
+    let _ = Reflect::set(
+        &envelope,
+        &JsValue::from_str("message"),
+        &JsValue::from_str(message),
+    );
     envelope.into()
 }

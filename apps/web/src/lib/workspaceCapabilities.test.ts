@@ -27,6 +27,7 @@ function capabilities({
   hasDeletableDesignSelection = false,
   canSaveDesign = activeEditingContext !== 'crease-pattern',
   hasDiagram = false,
+  diagramStepCount = 0,
   hasDeletableDiagramSelection = false,
   historyPastCount = 0,
   historyFutureCount = 0,
@@ -55,6 +56,7 @@ function capabilities({
   hasDeletableDesignSelection?: boolean;
   canSaveDesign?: boolean;
   hasDiagram?: boolean;
+  diagramStepCount?: number;
   hasDeletableDiagramSelection?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
@@ -84,6 +86,7 @@ function capabilities({
     hasDeletableDesignSelection,
     canSaveDesign,
     hasDiagram,
+    diagramStepCount,
     hasDeletableDiagramSelection,
     historyPastCount,
     historyFutureCount,
@@ -277,6 +280,17 @@ describe('workspace capabilities', () => {
       capabilities({ status: 'optimizing', canSaveDesign: false, hasDiagram: true })['file.save']
         .enabled
     ).toBe(false);
+  });
+
+  it('exports a diagram with a step from any workspace, while an engine works too', () => {
+    expect(capabilities({ hasDiagram: true, diagramStepCount: 0 })['file.exportDiagram']).toMatchObject({
+      enabled: false,
+      reason: 'Add a step to the diagram to export it',
+    });
+    for (const activeEditingContext of ['diagram', 'treemaker-tree', 'crease-pattern'] as const) {
+      const state = capabilities({ activeEditingContext, status: 'optimizing', hasDiagram: true, diagramStepCount: 3 });
+      expect(state['file.exportDiagram'].enabled, activeEditingContext).toBe(true);
+    }
   });
 
   it('enables CP save actions when an editable CP kernel is available', () => {

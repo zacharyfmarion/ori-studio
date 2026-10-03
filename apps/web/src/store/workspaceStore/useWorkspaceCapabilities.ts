@@ -59,6 +59,7 @@ export function useWorkspaceCapabilities() {
     state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
   );
   const hasDiagram = useWorkspaceStore((state) => state.diagram !== null);
+  const diagramStepCount = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
   const hasDeletableDiagramSelection = useWorkspaceStore(selectHasDeletableDiagramSelection);
   const diagramHistoryPastCount = useWorkspaceStore((state) => state.diagramHistory.past.length);
   const diagramHistoryFutureCount = useWorkspaceStore(
@@ -115,6 +116,7 @@ export function useWorkspaceCapabilities() {
           hasDeletableDesignSelection,
           canSaveDesign,
           hasDiagram,
+          diagramStepCount,
           hasDeletableDiagramSelection,
           historyPastCount,
           historyFutureCount,
@@ -145,6 +147,7 @@ export function useWorkspaceCapabilities() {
       hasDeletableDesignSelection,
       canSaveDesign,
       hasDiagram,
+      diagramStepCount,
       hasDeletableDiagramSelection,
       historyFutureCount,
       historyPastCount,

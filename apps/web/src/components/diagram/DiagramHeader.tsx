@@ -1,6 +1,7 @@
 import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
+import { Button } from '../ui/Button';
 import { SplitButton } from '../ui/SplitButton';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import type { DiagramViewMode } from '../../store/workspaceStore/types';
@@ -32,6 +33,7 @@ export function DiagramHeader({
   refreshing,
   onRefreshAll,
   onStopRefreshing,
+  onExport,
   drawerSlot,
 }: {
   title: string;
@@ -57,6 +59,8 @@ export function DiagramHeader({
   refreshing: { total: number; done: number } | null;
   onRefreshAll: () => void;
   onStopRefreshing: () => void;
+  /** Open the export dialog: a PDF of the pages, or a file for each step. */
+  onExport: () => void;
   /** Where the touch layer seats the Step pane's pill (`viewDrawerSlot`). */
   drawerSlot: Ref<HTMLDivElement>;
 }) {
@@ -143,6 +147,16 @@ export function DiagramHeader({
                 },
           ]}
         />
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={stepCount === 0}
+          title={stepCount === 0 ? t('panels:diagram.header.nothingToExport', 'Add a step to export the diagram') : undefined}
+          onClick={onExport}
+        >
+          <Download size={14} aria-hidden="true" />
+          {t('panels:diagram.header.export', 'Export…')}
+        </Button>
         <div className="panel-toolbar__pills" ref={drawerSlot} />
       </div>
     </div>

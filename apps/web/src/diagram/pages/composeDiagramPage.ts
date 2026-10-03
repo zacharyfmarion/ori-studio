@@ -118,21 +118,8 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
       for (const { face, characters } of picture.text) use(face, characters);
     }
     const number = setter.line(String(cell.number), STEP_NUMBER_SIZE_MM, 700);
-    parts.push(textElement([number], cell.numberAt.x, cell.numberAt.y, STEP_NUMBER_SIZE_MM, 0, 700, INK, use));
-    if (cell.text.lines.length > 0) {
-      parts.push(
-        textElement(
-          cell.text.lines,
-          cell.text.x,
-          cell.text.firstBaseline,
-          STEP_TEXT_SIZE_MM,
-          STEP_TEXT_LEADING_MM,
-          400,
-          TEXT_INK,
-          use
-        )
-      );
-    }
+    parts.push(stepNumberElement(number, cell.numberAt.x, cell.numberAt.y, use));
+    if (cell.text.lines.length > 0) parts.push(stepTextElement(cell.text.lines, cell.text.x, cell.text.firstBaseline, use));
     body.push(`<g>\n${parts.join('\n')}\n</g>`);
   });
 
@@ -145,18 +132,55 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
     body.push(textElement([line], left, y, PAGE_NUMBER_SIZE_MM, 0, 700, INK, use));
   }
 
-  const fonts = input.embedFonts(
-    new Map([...usage].map(([face, characters]) => [face, [...characters].join('')]))
-  );
-  const svg = [
+  const svg = svgDocument({
+    widthPt,
+    heightPt,
+    originPt: { x: -bleedPt, y: -bleedPt },
+    fonts: input.embedFonts(new Map([...usage].map(([face, characters]) => [face, [...characters].join('')]))),
+    body,
+  });
+  return { svg, widthPt, heightPt };
+}
+
+/** The characters each face sets, as a page counts them for its fonts. */
+export type FontUse = (face: string, text: string) => void;
+
+/**
+ * A page or a step's file as an SVG document in pt: `widthPt` × `heightPt`
+ * from `originPt`, its fonts' `@font-face` rules and the set-text rules in
+ * its style, then `body`.
+ */
+export function svgDocument({
+  widthPt,
+  heightPt,
+  originPt,
+  fonts,
+  body,
+}: {
+  widthPt: number;
+  heightPt: number;
+  originPt: { x: number; y: number };
+  fonts: string;
+  body: readonly string[];
+}): string {
+  return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<svg xmlns="http://www.w3.org/2000/svg" width="${num(widthPt)}pt" height="${num(heightPt)}pt" ` +
-      `viewBox="${num(-bleedPt)} ${num(-bleedPt)} ${num(widthPt)} ${num(heightPt)}">`,
+      `viewBox="${num(originPt.x)} ${num(originPt.y)} ${num(widthPt)} ${num(heightPt)}">`,
     `<defs><style>${fonts === '' ? '' : `\n${fonts}\n`}${SET_TEXT_CSS}</style></defs>`,
     ...body,
     '</svg>',
   ].join('\n');
-  return { svg, widthPt, heightPt };
+}
+
+/** A step's number as a page and a step's file print it: bold, in the page's ink. */
+export function stepNumberElement(line: SetLine, xMm: number, baselineMm: number, use: FontUse): string {
+  return textElement([line], xMm, baselineMm, STEP_NUMBER_SIZE_MM, 0, 700, INK, use);
+}
+
+/** A step's instruction as a page and a step's file print it. */
+export function stepTextElement(lines: readonly SetLine[], xMm: number, firstBaselineMm: number, use: FontUse): string {
+  return textElement(lines, xMm, firstBaselineMm, STEP_TEXT_SIZE_MM, STEP_TEXT_LEADING_MM, 400, TEXT_INK, use);
 }
 
 /**
@@ -172,7 +196,7 @@ function textElement(
   leadingMm: number,
   weight: 400 | 700,
   fill: string,
-  use: (face: string, text: string) => void
+  use: FontUse
 ): string {
   const spans: string[] = [];
   lines.forEach((line, index) => {

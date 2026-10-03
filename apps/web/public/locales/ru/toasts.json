@@ -64,6 +64,9 @@
     "uploadUnreadable": "не удалось прочитать изображение",
     "uploadUnsupported": "это не изображение"
   },
+  "diagramExport": {
+    "saved": "Экспортировано: {{name}}"
+  },
   "fileDrop": {
     "ignoredFile": "Использован файл {{name}}; ещё 1 перетащенный файл пропущен.",
     "ignoredFiles": "Использован файл {{name}}; ещё {{others}} перетащенных файлов пропущено."

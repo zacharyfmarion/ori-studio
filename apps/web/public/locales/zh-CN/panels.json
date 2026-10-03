@@ -741,9 +741,11 @@
     },
     "header": {
       "addStep": "添加步骤",
+      "export": "导出…",
       "fromReferences": "来自参考…",
       "linkPattern": "链接图样…",
       "moreAdd": "更多添加步骤的方式",
+      "nothingToExport": "添加一个步骤才能导出图解",
       "nothingToRefresh": "没有过时的链接步骤。从参考发送的步骤不会刷新。",
       "pageCount_other": "{{count}} 页",
       "refreshAll": "刷新已过期的步骤",

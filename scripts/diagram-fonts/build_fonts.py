@@ -19,7 +19,10 @@ sha256, then:
 - **CJK tiers** (--out, default apps/web/public/fonts/diagram/, not committed):
   for SC, TC, JP and KR, Regular and Bold, a `common` file cut to
   charsets/common.txt plus the script's set, and the `full` file. The common
-  file is a strict subset of the full one, so glyphs and advances agree.
+  file is a strict subset of the full one, so glyphs and advances agree. Each
+  is named for its content (`NotoSansSC-Bold.full.<sha256:12>.ttf`), so the
+  app's service worker may keep a copy for good (`pwa/swRoutes.ts`), and the
+  files of an earlier build are cleared from --out first.
 - **Manifest** (--out/manifest.json): every CJK file's family, weight, tier,
   bytes and sha256, which the app checks each download against, and each
   script's full coverage (compact code-point runs), so the app fetches a full
@@ -170,25 +173,34 @@ def main():
     parser.add_argument('--out', default=os.path.join(REPO, 'apps', 'web', 'public', 'fonts', 'diagram'))
     parser.add_argument('--latin-out', default=os.path.join(REPO, 'apps', 'web', 'src', 'diagram', 'fonts'))
     parser.add_argument('--skip-cjk', action='store_true', help='build only the bundled Latin fonts')
+    parser.add_argument(
+        '--skip-latin', action='store_true', help='build only the CJK files (CI: the Latin bundle is committed)'
+    )
     args = parser.parse_args()
     sources = json.load(open(os.path.join(HERE, 'sources.json')))
     os.makedirs(args.cache, exist_ok=True)
     os.makedirs(args.out, exist_ok=True)
     os.makedirs(args.latin_out, exist_ok=True)
 
-    latin = charset('latin.txt')
-    path = source(args.cache, sources, 'NotoSans')
-    lacking = [c for c in latin if ord(c) not in TTFont(path).getBestCmap()]
-    if lacking:
-        print(f'note: Noto Sans lacks {len(lacking)} of latin.txt\'s characters (U+{ord(lacking[0]):04X}…)', flush=True)
-    licence(sources, 'NotoSans', args.latin_out)
-    for style in WEIGHTS:
-        data = cut(instance(path, 'Noto Sans', style), latin)
-        out = os.path.join(args.latin_out, f'NotoSans-{style}.ttf')
-        open(out, 'wb').write(data)
-        print(out, len(data), flush=True)
+    if not args.skip_latin:
+        latin = charset('latin.txt')
+        path = source(args.cache, sources, 'NotoSans')
+        lacking = [c for c in latin if ord(c) not in TTFont(path).getBestCmap()]
+        if lacking:
+            print(f'note: Noto Sans lacks {len(lacking)} of latin.txt\'s characters (U+{ord(lacking[0]):04X}…)', flush=True)
+        licence(sources, 'NotoSans', args.latin_out)
+        for style in WEIGHTS:
+            data = cut(instance(path, 'Noto Sans', style), latin)
+            out = os.path.join(args.latin_out, f'NotoSans-{style}.ttf')
+            open(out, 'wb').write(data)
+            print(out, len(data), flush=True)
     if args.skip_cjk:
         return
+
+    # An earlier build's files carry other names; none may linger beside this one's.
+    for old in os.listdir(args.out):
+        if old.startswith('NotoSans') and old.endswith('.ttf'):
+            os.remove(os.path.join(args.out, old))
 
     common = charset('common.txt')
     files = []
@@ -203,7 +215,7 @@ def main():
             static.save(buffer)
             for tier, text in (('common', common + charset(set_name)), ('full', None)):
                 data = cut(TTFont(io.BytesIO(buffer.getvalue())), text)
-                name = f'NotoSans{script}-{style}.{tier}.ttf'
+                name = f'NotoSans{script}-{style}.{tier}.{sha256(data)[:12]}.ttf'
                 open(os.path.join(args.out, name), 'wb').write(data)
                 font = TTFont(io.BytesIO(data))
                 cmap = font.getBestCmap()

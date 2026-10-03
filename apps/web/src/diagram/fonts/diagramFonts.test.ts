@@ -36,15 +36,15 @@ const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('he
  * reach the full file, played by the Chinese fixture.
  */
 const FILES: Record<string, Uint8Array> = {
-  'NotoSansSC-Regular.common.ttf': bytesOf('fixtures/NotoSansJP-Regular.fixture.ttf'),
-  'NotoSansSC-Regular.full.ttf': bytesOf('fixtures/NotoSansSC-Regular.fixture.ttf'),
-  'NotoSansSC-Bold.common.ttf': bytesOf('fixtures/NotoSansSC-Bold.fixture.ttf'),
-  'NotoSansKR-Regular.common.ttf': bytesOf('fixtures/NotoSansKR-Regular.fixture.ttf'),
+  'NotoSansSC-Regular.common.0123456789ab.ttf': bytesOf('fixtures/NotoSansJP-Regular.fixture.ttf'),
+  'NotoSansSC-Regular.full.0123456789ab.ttf': bytesOf('fixtures/NotoSansSC-Regular.fixture.ttf'),
+  'NotoSansSC-Bold.common.0123456789ab.ttf': bytesOf('fixtures/NotoSansSC-Bold.fixture.ttf'),
+  'NotoSansKR-Regular.common.0123456789ab.ttf': bytesOf('fixtures/NotoSansKR-Regular.fixture.ttf'),
 };
 
 function manifest(patch: (files: Record<string, unknown>[]) => void = () => {}) {
   const files = Object.entries(FILES).map(([file, bytes]) => {
-    const [, script, style, tier] = /^NotoSans(\w\w)-(\w+)\.(\w+)\.ttf$/.exec(file)!;
+    const [, script, style, tier] = /^NotoSans(\w\w)-(\w+)\.(\w+)\.\w+\.ttf$/.exec(file)!;
     return { file, script: script!.toLowerCase(), weight: style === 'Bold' ? 700 : 400, tier, bytes: bytes.length, sha256: sha(bytes) };
   });
   patch(files);
@@ -83,17 +83,17 @@ describe('loadDiagramFonts', () => {
     expect(common.font('sc', 400)?.tier).toBe('common');
     const full = await loadDiagramFonts([{ text: 'Crane 千纸鹤', weight: 400 }], 'sc', files);
     expect(full.font('sc', 400)?.tier).toBe('full');
-    expect(files.fetched).toEqual(['NotoSansSC-Regular.common.ttf', 'NotoSansSC-Regular.full.ttf']);
+    expect(files.fetched).toEqual(['NotoSansSC-Regular.common.0123456789ab.ttf', 'NotoSansSC-Regular.full.0123456789ab.ttf']);
   });
 
   it('fetches the full file only for a character it has, as the manifest says', async () => {
     // The Chinese fixture (playing the full file) covers 纸 and 鹤 but not 𠀀.
-    const full = FILES['NotoSansSC-Regular.full.ttf']!;
+    const full = FILES['NotoSansSC-Regular.full.0123456789ab.ttf']!;
     const coverage = { sc: encodeCoverage([...readFontMetricsOf(full).codePoints()]) };
     const files = source({ manifest: async () => ({ ...manifest(), coverage }) });
     const none = await loadDiagramFonts([{ text: '鶴𠀀', weight: 400 }], 'sc', files);
     expect(none.font('sc', 400)?.tier).toBe('common');
-    expect(files.fetched).toEqual(['NotoSansSC-Regular.common.ttf']);
+    expect(files.fetched).toEqual(['NotoSansSC-Regular.common.0123456789ab.ttf']);
     const some = await loadDiagramFonts([{ text: '鶴纸', weight: 400 }], 'sc', files);
     expect(some.font('sc', 400)?.tier).toBe('full');
   });

@@ -58,6 +58,11 @@ export const STORAGE_KEYS = {
    * both — apart from the folded figure's own export (X12).
    */
   creasePatternFoldedFigure: 'crease-pattern-folded-figure',
+  /**
+   * What the Diagram's export last wrote: a PDF of the pages or the steps as
+   * files, and how; see `diagram/export/diagramExportSettings.ts`.
+   */
+  diagramExport: 'diagram-export',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
   /**

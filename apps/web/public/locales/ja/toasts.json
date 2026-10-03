@@ -49,6 +49,9 @@
     "uploadUnreadable": "図を読み込めませんでした",
     "uploadUnsupported": "図のファイルではありません"
   },
+  "diagramExport": {
+    "saved": "{{name}} を書き出しました"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} を使用しました。ドロップされた他の 1 件は無視されました。",
     "ignoredFiles": "{{name}} を使用しました。ドロップされた他の {{others}} 件は無視されました。"

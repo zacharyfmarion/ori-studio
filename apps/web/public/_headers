@@ -34,3 +34,9 @@
 # and a cached one can never go stale. Served with a 4-hour max-age without this.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The Diagram's CJK fonts. The desktop app ships only the common files and reads a full
+# one from here when a text needs it (src/diagram/fonts/browserFontSource.ts), so it must
+# be readable across origins. Every download is checked against the manifest's sha256.
+/fonts/diagram/*
+  Access-Control-Allow-Origin: *

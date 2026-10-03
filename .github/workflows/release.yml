@@ -246,8 +246,18 @@ jobs:
           # accept the upstream-binary development fallback.
           REFERENCE_FINDER_FORCE_SOURCE: '1'
 
+      - name: Build the Diagram's fonts
+        uses: ./.github/actions/build-diagram-fonts
+
       - name: Build web bundle
         run: npm --workspace @treemaker/web run build --ignore-scripts
+
+      # The desktop app ships the Diagram's common CJK files, which hold the
+      # characters almost every text uses, and reads a full one (5 MB each, 40 MB
+      # in all) from the site only when a text needs it
+      # (src/diagram/fonts/browserFontSource.ts). The manifest stays: it names them.
+      - name: Leave the full CJK fonts to the site
+        run: rm apps/web/dist/fonts/diagram/*.full.*.ttf
 
       # A desktop build is the one place a telemetry-blind bundle is
       # unrecoverable: the web app redeploys in five minutes, an installed

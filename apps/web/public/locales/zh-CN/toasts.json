@@ -49,6 +49,9 @@
     "uploadUnreadable": "无法读取图片",
     "uploadUnsupported": "不是图片文件"
   },
+  "diagramExport": {
+    "saved": "已导出 {{name}}"
+  },
   "fileDrop": {
     "ignoredFile": "已使用 {{name}}；忽略了另外 1 个拖放的文件。",
     "ignoredFiles": "已使用 {{name}}；忽略了另外 {{others}} 个拖放的文件。"

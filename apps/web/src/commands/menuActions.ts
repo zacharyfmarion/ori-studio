@@ -6,6 +6,8 @@ import { getFileService, type FileCommand, type FileService } from '../platform/
 import { useHelpStore } from '../store/helpStore';
 import { useLayoutStore } from '../store/layoutStore';
 import { useBpOptimizerUiStore } from '../store/bpOptimizerUiStore';
+import { useDiagramExportUiStore } from '../store/diagramExportUiStore';
+import { focusedElement } from '../store/paperExportUiStore';
 import { useSelectionUiStore } from '../store/selectionUiStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -52,6 +54,7 @@ export const MENU_ACTION_IDS = [
   'file.exportOrh',
   'file.exportSvg',
   'file.exportPng',
+  'file.exportDiagram',
   'edit.undo',
   'edit.redo',
   'edit.cut',
@@ -530,6 +533,9 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         return (deps.showStartScreen ?? requestStartScreen)();
       case 'file.detectCpImage':
         window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+        return true;
+      case 'file.exportDiagram':
+        useDiagramExportUiStore.getState().open(focusedElement());
         return true;
       case 'file.settings':
         deps.settings?.();

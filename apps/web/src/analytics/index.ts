@@ -102,6 +102,7 @@ export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export {
   trackDiagramPictureCaptured,
+  trackDiagramExported,
   trackDiagramPictureExported,
   trackDiagramPicturePosed,
   trackDiagramPictureRemoved,

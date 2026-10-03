@@ -1,6 +1,8 @@
 import {
   ANALYTICS_EVENTS,
   COUNT_BUCKETS,
+  DIAGRAM_EMPTY_STEP_BUCKETS,
+  DIAGRAM_PAGE_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_KB_BUCKETS,
   bucketCount,
@@ -9,6 +11,8 @@ import type {
   DiagramCaptureKind,
   DiagramCaptureOutcome,
   DiagramCaptureVia,
+  DiagramExportFormat,
+  DiagramPdfPreset,
   DiagramPictureExportFormat,
   DiagramPictureFormat,
   DiagramPictureKind,
@@ -122,4 +126,45 @@ export function trackDiagramPageSetupChanged(
   style?: DiagramStyleChoiceName
 ): void {
   track(ANALYTICS_EVENTS.diagramPageSetupChanged, style ? { setting, style } : { setting });
+}
+
+/** How a diagram's steps went out as files, for `diagram exported`. */
+export interface DiagramStepFilesExported {
+  fileType: 'svg' | 'png';
+  /** A PNG's density; none for an SVG. */
+  dpi: number | null;
+  number: boolean;
+  text: boolean;
+  sameSize: boolean;
+  transparent: boolean;
+}
+
+/**
+ * The diagram written out: a PDF for home or a print shop, or a ZIP of its
+ * steps' files and how they were made. `files` is the PDF's pages or the ZIP's
+ * files, `steps` the diagram's steps and `empty` those with no picture, all
+ * bucketed. Enums and buckets only: never the title, a step or a size.
+ */
+export function trackDiagramExported(
+  format: DiagramExportFormat,
+  how: { preset: DiagramPdfPreset } | DiagramStepFilesExported,
+  counts: { files: number; steps: number; empty: number }
+): void {
+  const shown = (value: boolean) => (value ? 'shown' : 'hidden');
+  track(ANALYTICS_EVENTS.diagramExported, {
+    format,
+    ...('preset' in how
+      ? { preset: how.preset }
+      : {
+          file_type: how.fileType,
+          resolution: how.dpi === null ? 'none' : String(how.dpi),
+          number: shown(how.number),
+          text: shown(how.text),
+          size: how.sameSize ? 'same' : 'cropped',
+          background: how.transparent ? 'transparent' : 'white',
+        }),
+    file_count_bucket: bucketCount(counts.files, DIAGRAM_PAGE_COUNT_BUCKETS),
+    step_count_bucket: bucketCount(counts.steps, COUNT_BUCKETS),
+    empty_step_bucket: bucketCount(counts.empty, DIAGRAM_EMPTY_STEP_BUCKETS),
+  });
 }

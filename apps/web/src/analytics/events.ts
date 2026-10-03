@@ -123,6 +123,12 @@ export type ReferencesSentToDiagramMode = 'sequence' | 'find';
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
 
+/** What the Diagram's export wrote: one PDF of the pages, or a ZIP of the steps' own files. */
+export type DiagramExportFormat = 'pdf' | 'zip';
+
+/** Who a diagram's PDF is for: a printer at home, or a print shop (bleed, page boxes and crop marks). */
+export type DiagramPdfPreset = 'home' | 'print_shop';
+
 /** The Diagram's two views: the steps as cards, or the printed pages. */
 export type DiagramView = 'steps' | 'pages';
 
@@ -280,7 +286,8 @@ export type ExportFormat =
   | 'orh'
   | 'svg'
   | 'png'
-  | 'zip';
+  | 'zip'
+  | 'pdf';
 
 /** Formats the folded-form (simulator) export offers. */
 export type FoldedFormExportFormat = 'fold' | 'obj' | 'stl';
@@ -1074,6 +1081,12 @@ export const ANALYTICS_EVENTS = {
   /** A page setting changed in the Page pane: which ones are used, never their values. */
   diagramPageSetupChanged: 'diagram page setup changed',
   /**
+   * The diagram written out from its export dialog (D18): a PDF of its pages
+   * or a ZIP of its steps, how, and how big. Whether diagrams leave the app,
+   * and in which form.
+   */
+  diagramExported: 'diagram exported',
+  /**
    * Cards sent from References to the diagram (D6): from the planner's
    * sequence or a Find answer, one card or the strip, how many, and whether
    * they filled the step From References… asked from. Whether References is
@@ -1255,6 +1268,12 @@ export const DIAGRAM_UPLOAD_KB_BUCKETS = [50, 200, 1000, 5000] as const;
 
 /** How many files one upload carried: one, a handful, a whole sequence. */
 export const DIAGRAM_UPLOAD_COUNT_BUCKETS = [1, 5, 20, 50] as const;
+
+/** A diagram's pages, or its steps' files: a leaflet, a booklet, a book. */
+export const DIAGRAM_PAGE_COUNT_BUCKETS = [1, 2, 5, 10, 25] as const;
+
+/** How many of a diagram's steps had no picture when it was exported: none, one, a few, many. */
+export const DIAGRAM_EMPTY_STEP_BUCKETS = [0, 1, 5, 20] as const;
 
 /** Default threshold ladder for element counts (nodes, lines, etc.). */
 export const COUNT_BUCKETS = [1, 5, 10, 20, 50, 100, 200, 500] as const;

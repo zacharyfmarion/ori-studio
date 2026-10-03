@@ -88,6 +88,7 @@
     "export": "내보내기",
     "exportBps": ".bps 내보내기...",
     "exportCp": "CP 내보내기...",
+    "exportDiagram": "도해 내보내기...",
     "exportFold": "FOLD 내보내기...",
     "exportOrh": "ORH 내보내기...",
     "exportOri": "ORI 내보내기...",

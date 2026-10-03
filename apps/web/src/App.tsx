@@ -13,6 +13,7 @@ import { SelectByIndexModal } from './components/SelectByIndexModal';
 import { ShareLinkModal } from './cp-workspace/share/ShareLinkModal';
 import { SettingsModal } from './components/SettingsModal';
 import { PaperExportModal } from './components/paperExport/PaperExportModal';
+import { DiagramExportModal } from './components/diagram/DiagramExportModal';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
@@ -182,6 +183,9 @@ export default function App() {
           in the document to be on top. */}
       <OverlayErrorBoundary id="paper-export">
         <PaperExportModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="diagram-export">
+        <DiagramExportModal />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="settings">
         <SettingsModal />

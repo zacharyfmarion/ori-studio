@@ -239,7 +239,8 @@ function createLoader(source: DiagramFontSource) {
   };
 }
 
-const MANIFEST_FILE = /^NotoSans(SC|TC|JP|KR)-(Regular|Bold)\.(common|full)\.ttf$/;
+/** A CJK file's name, its content's hash in it (`build_fonts.py`). */
+const MANIFEST_FILE = /^NotoSans(SC|TC|JP|KR)-(Regular|Bold)\.(common|full)\.[0-9a-f]{12}\.ttf$/;
 
 /** The manifest; one that does not read is an error, not an empty list. */
 export function readManifest(value: unknown): Manifest {

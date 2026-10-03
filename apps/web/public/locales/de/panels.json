@@ -770,9 +770,11 @@
     },
     "header": {
       "addStep": "Schritt hinzufügen",
+      "export": "Exportieren …",
       "fromReferences": "Aus Referenzen…",
       "linkPattern": "Muster verknüpfen…",
       "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
+      "nothingToExport": "Füge einen Schritt hinzu, um das Diagramm zu exportieren",
       "nothingToRefresh": "Kein verknüpfter Schritt ist veraltet. Schritte aus Referenzen werden nicht aktualisiert.",
       "pageCount_one": "1 Seite",
       "pageCount_other": "{{count}} Seiten",

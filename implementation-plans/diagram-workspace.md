@@ -1033,7 +1033,7 @@ values or fold percentages.
   - `diagram picture captured` with `{kind: crease_pattern|flat|3d|simulated, outcome: ok|no_layer_order|refused|stopped|failed|rasterized}`;
   - `diagram picture uploaded` with `{format: svg|png|jpeg|webp, outcome: ok|too_large|not_svg|flattened|rejected, size_bucket, count_bucket}`;
   - `diagram annotation added` with `{tool}`;
-  - `diagram exported` with `{format: pdf|zip, preset: home|print_shop, file_type, dpi, bleed, crop, number, text, uniform, page_count_bucket, step_count_bucket, empty_step_bucket}`;
+  - `diagram exported` with `{format: pdf|zip, preset: home|print_shop}` or, for a ZIP, `{file_type, resolution, number, text, size: same|cropped, background}`, and `file_count_bucket`, `step_count_bucket`, `empty_step_bucket` (as built in Phase 6: print shop has no bleed or crop toggles);
   - `references step sent to diagram` with `{scope: one|all, mode: sequence|find}`.
 
 ### Contracts
@@ -1333,8 +1333,8 @@ On a phone the tabs take a row of their own, styled in the panel's module.
 **Export dialog**:
 - the preview with a pager;
 - `OptionCard`s PDF | Step files (ZIP);
-- for PDF: the page setup summary and **Edit page setup**, then At home | Print
-  shop, and for print shop the bleed and crop toggles;
+- for PDF: At home | Print shop, and **Edit page setup** (the print shop
+  always carries bleed and crop marks; see Phase 6);
 - for ZIP: SVG | PNG, 300 / 600 dpi with its px note, number, text and same
   size, and W / H in mm;
 - a `Notice` naming the steps with no picture or overflowing text;
@@ -2164,24 +2164,55 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 
 ### Phase 6: export
 
-- [ ] **6a.** Step files, the dialog and the menu.
-  - `stepFiles.ts`: the shared scale in a fixed box, crop, number and text; PNG through `paperSvgToPng` with limits.
-  - `DiagramExportModal` + `DiagramExportOptions`: preview, pager, Notice, remembered options, progress, abort and toast.
-  - `file.exportDiagram`: the menu action, capability, File › Export row and header button.
-  - Analytics: `diagram exported`, and `'pdf'` added to `ExportFormat`.
-- [ ] **6b.** The PDF writer, per Decision 1.
-  - A guarded lazy load.
-  - Page boxes, bleed, slug and crop marks.
-  - The allowed-API test (A).
-  - `scripts/diagram-pdf-check.mjs` (playwright library), as a CI step.
-  - Bundle stubs and the service-worker exclusion (A), or the crate and its CI step (C).
-  - `LICENSING.md`.
-  - The non-Latin rule per Decision 2.
-- [ ] **6c.** (Only if Decision 2 (a).) The per-script font subsets on R2: publish script, registry with sha256, cache and offline behaviour.
-- [ ] **Browser and files:**
-  - PDF at home and print shop, checked with the CLI tools and opened in Preview and Acrobat;
-  - a ZIP of SVG and of PNG at 600 dpi;
-  - the same exports on the desktop build.
+- [x] **6a.** The PDF writer, and an upload's text in the diagram's fonts (commit "Diagram 6a").
+  - **`crates/oristudio-pdf`** prints the composed page SVGs with krilla 0.8.2 and krilla-svg 0.8.1 through usvg 0.47 (pinned: Phase 0 measured exactly these), against only the fonts it is handed.
+    - A family it lacks, a weight it lacks, or a glyph a face does not have fails the document (`PdfError::Text`): the composer measured every line in the faces it names.
+    - The glyph check reads the glyphs usvg lays out, not its fallback calls. usvg shapes a run of text in each of its spans' faces and keeps each span's own glyphs, so a span's face is asked for its neighbours' characters too; an upload's mixed-script run tripped the first version. Text usvg could not lay out at all (spans shaping to different glyph counts) also fails.
+    - **Print shop:** the media box is the trim plus 3 mm bleed and 5 mm slug a side, with BleedBox and TrimBox, and 0.25 pt crop marks from the bleed to the media edge in the registration colour (`/Separation/All`). Art past the bleed is clipped.
+    - No XMP, a fixed producer and the title: the same diagram writes the same bytes, natively and in wasm.
+    - Images are data URLs only; nothing reads the file system or the network.
+  - **`crates/oristudio-pdf-wasm`**, built by `build:oristudio-pdf-wasm` (part of `build:wasm`): 4.2 MB, 1.5 MB gzipped, run in a one-shot worker (`browserPdfWriter`) that is terminated after the export or when it is stopped.
+  - **`diagramPdfInput`** composes every page with no fonts embedded and cuts one subset per face for the whole document, so a face is embedded once however many pages set it.
+  - **Upload text** (D7's "mapped to the diagram fonts, with a notice"):
+    - The sanitizer takes every font property but the size off every element (expanding the `font` shorthand first) and splits each text node into runs by script, with `fontScripts.ts`'s rule.
+    - Each run's element gets the family and a weight of 400 or 700, as a browser picks between the two.
+    - Han is written as Noto Sans SC, standing for the diagram's Han style, which the upload cannot know. Kana or Hangul in the text, or a `ja` / `ko` language tag, makes it JP or KR.
+    - Italic is set upright. Any of this raises a `text-font` notice: "Its text is set in the diagram's font, so it may look a little different."
+    - The composer reads the runs back from the stored markup, puts the Han style in, moves a character a face lacks to one that has it (`TextSetter.runs`), and counts what each face sets so the page embeds it. The font loader loads the faces upload text needs, each run in the face it was given.
+    - The page's set-text rules (no kerning, ligatures or CJK autospace) now apply to every `<text>`, uploads included, so screen and PDF agree.
+- [x] **6b.** Step files, the dialog and the menu.
+  - **`stepFiles.ts`.** A file for each step with a picture; the others are listed and skipped. Files are named `<title>-step-NN`, padded to the step count's width, and a skipped step keeps its number.
+    - **Same size:** every file is the canvas, W × H mm. The picture's box is the square between the number and a five-line instruction slot. Every paper picture is drawn at D10's shared scale for that box, two passes when a References step is measured. An instruction longer than the slot is cut and listed.
+    - **Cropped:** the same scale, but each file is cut to its drawing, with the number over its corner and the whole instruction under it, at least 50 mm wide.
+    - The page's number and text writers (`stepNumberElement`, `stepTextElement`, `svgDocument`) are shared with the composer. Each file embeds the subsets it sets. A cell picture now reports its drawn bounds.
+    - Transparent, or the page's white.
+    - PNG at 300 or 600 dpi through `paperSvgToPng`. The file on show is checked against `pngCanvasLimits` before export, and every file again at export.
+  - **`DiagramExportModal`** (in `ExportModalFrame`) and **`DiagramExportOptions`**, with their own modules.
+    - **Preview:** the page or file on show, in a box of its own aspect, with a pager and its size ("210 × 297 mm · 6 pages · with 3 mm bleed", "52.4 × 68.5 mm · 1,238 × 1,617 px · 51 files · ZIP").
+    - **Options:** `OptionCards` for PDF | Step files (ZIP), then At home | Print shop with "Edit page setup" (closes the dialog and brings the Page tab forward). For step files: SVG | PNG, 300 | 600 dpi, number, instruction, same size, W / H in mm (H's minimum follows the number and text), and transparent.
+    - **A `Notice`** names the steps with no picture (blank space in the PDF, skipped in the ZIP), the instructions cut, and characters no font has. A PDF with such characters is refused before it is tried; step files draw a box.
+    - **The footer:** Cancel, which reads Stop while the files or the PDF are being written (closing stops them, and nothing is offered to a save dialog), and Export, which shows progress. A sonner toast follows the save.
+    - The options are remembered on save (`settingsStore.diagramExport`, `diagram-export`), normalised.
+    - The I/O (fonts, PDF writer, file service) is injected (`DiagramExportDependencies`), so the dialog is tested end to end in jsdom.
+  - **`file.exportDiagram`:** the menu action, its capability (any workspace, while an engine works, one step or more), File › Export › Export Diagram..., and the header's primary Export… button, which dispatches it so `command invoked` counts it.
+  - **Analytics.** `diagram exported` (`format`, `preset`, or for a ZIP `file_type`, `resolution`, `number`, `text`, `size`, `background`; file, step and empty-step buckets), with its `docs/analytics.md` row. `'pdf'` is added to `ExportFormat` for `file exported`.
+  - **Changed from the plan.**
+    - Print shop has no separate bleed and crop toggles: a print shop wants both, and a file with marks but no bleed is what they reject. The `bleed` and `crop` properties of D18 went with them.
+    - D18's `uniform` is `size: same | cropped`. The ZIP's count is `file_count_bucket`, the PDF's pages share it.
+- [x] **6c. Fonts in deploys** (Decision 2 (a), served same-origin rather than from R2).
+  - The CJK files are named for their content (`NotoSansSC-Bold.full.<sha256:12>.ttf`), and the manifest's reader requires it.
+  - The service worker keeps them for good (`immutable`) and revalidates `manifest.json`. They were `bypass`, so a diagram with Japanese text would not have laid out offline.
+  - `.github/actions/build-diagram-fonts` restores them from a cache keyed on `scripts/diagram-fonts/**`, or builds them with the pinned toolchain (`requirements.txt`: fonttools 4.65.0, brotli 1.2.0; actions pinned by SHA, since it runs in the signed release). `check_fonts.py` then checks every file against the manifest (size, sha256, name, every script and weight in both tiers, and each OFL.txt).
+  - It runs in deploy-web, the PR previews and the release's web bundle. The release then deletes the full files: the desktop app ships the manifest, the common files and the licences (about 6 MB), and reads a full file from the site (`diagramFontUrl`; `_headers` allows it across origins).
+  - **Bundle.** The PDF writer's worker and wasm are left out of the service worker's warm set (`UNWARMED_PATTERNS` in `vite.config.ts`), which every installed app downloads, and cached on the first export instead. Built and checked: neither is in `sw.js`'s `workers` or `kernels`.
+  - **`LICENSING.md`.** The PDF crates (original, `MIT OR Apache-2.0`) in the crate table, and the 71 crates krilla, krilla-svg and usvg bring in the inventory: all permissive, none Apache-2.0 alone. The fonts section says where the OFL texts travel.
+- [x] **Browser and files** (Chromium, `artifacts/diagram-phase6/export.mjs`, on the 50-step linked crane with an upload of mixed-script text and a Chinese instruction):
+  - **The upload's text.** "Squash → 压平" in bold Helvetica was stored as two runs, Noto Sans and Noto Sans SC Bold. "Fold & unfold" in italic Times came out upright Noto Sans, with the notice.
+  - **PDF at home.** 6 A4 pages, written and saved in 120–190 ms. `pdffonts`: Noto Sans Regular and Bold and Noto Sans SC Regular and Bold, each embedded once as a subset. The pages match the Pages view.
+  - **Print shop.** MediaBox 640.63 × 887.24 pt, BleedBox inset 5 mm, TrimBox inset 8 mm, and crop marks at the four corners.
+  - **Step files.** 51 SVGs; 51 PNGs at 600 dpi cropped (step 1 at 1,238 × 1,617 px), each drawn with its embedded fonts, Han and arrow included. The options were remembered between exports.
+  - Not yet run: Preview and Acrobat, and the desktop build, whose WKWebView and CSP (`font-src 'self'`; fonts embedded as `data:` inside an `<img>`'s SVG) are listed for Zach's desktop pass.
+- [ ] **Review**, then fixes.
 
 ### Phase 7: annotate
 

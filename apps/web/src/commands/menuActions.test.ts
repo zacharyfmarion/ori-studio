@@ -1,4 +1,5 @@
 import { singleBoxPleatDesignTab } from '../store/workspaceStore/designTabs';
+import { useDiagramExportUiStore } from '../store/diagramExportUiStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   OristudioBpDocumentState,
@@ -763,6 +764,20 @@ describe('menu actions', () => {
     }
   });
 
+  it('opens the Diagram export dialog from the File menu, to give focus back where it was', async () => {
+    const button = document.createElement('button');
+    document.body.append(button);
+    button.focus();
+    try {
+      await expect(createMenuActionHandler(createDeps())('file.exportDiagram')).resolves.toBe(true);
+      expect(useDiagramExportUiStore.getState().request).toMatchObject({ returnFocus: button });
+    } finally {
+      const request = useDiagramExportUiStore.getState().request;
+      if (request) useDiagramExportUiStore.getState().closeRequest(request.id);
+      button.remove();
+    }
+  });
+
   it('does not dispatch disabled capabilities', async () => {
     const deps = {
       ...createDeps(),
@@ -788,6 +803,7 @@ describe('menu actions', () => {
         hasDeletableDesignSelection: false,
         canSaveDesign: true,
         hasDiagram: false,
+        diagramStepCount: 0,
         hasDeletableDiagramSelection: false,
         historyPastCount: 0,
         historyFutureCount: 0,

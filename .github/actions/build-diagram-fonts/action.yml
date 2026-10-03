@@ -1,0 +1,38 @@
+name: Build the Diagram's fonts
+description: >-
+  Build the CJK font files the Diagram fetches (scripts/diagram-fonts/build_fonts.py)
+  into apps/web/public/fonts/diagram, restored from a cache keyed on the script, its
+  charsets, its pinned sources and its pinned toolchain, and checked against their
+  manifest either way.
+
+runs:
+  using: composite
+  steps:
+    # The build takes a few minutes and downloads the upstream variable fonts; its
+    # output changes only when something under scripts/diagram-fonts/ does.
+    - name: Restore the built fonts
+      id: cache
+      # Pinned, as in install-emsdk: this runs in the release build that signs the app.
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: apps/web/public/fonts/diagram
+        key: diagram-fonts-v1-${{ hashFiles('scripts/diagram-fonts/**') }}
+
+    - name: Set up Python
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      with:
+        python-version: '3.12'
+
+    - name: Build the fonts
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --disable-pip-version-check -r scripts/diagram-fonts/requirements.txt
+        # The Latin bundle is committed; only the CJK files are built here.
+        python scripts/diagram-fonts/build_fonts.py --skip-latin --cache "${RUNNER_TEMP}/diagram-font-sources"
+
+    - name: Check the fonts against their manifest
+      shell: bash
+      run: python3 scripts/diagram-fonts/check_fonts.py

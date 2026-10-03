@@ -147,7 +147,11 @@ font may not use a Reserved Font Name ("Source" for the CJK families).
 - The bundled Latin files are in `apps/web/src/diagram/fonts/` beside
   `OFL-NotoSans.txt`. The CJK files are built by
   `scripts/diagram-fonts/build_fonts.py`, which writes each family's OFL.txt
-  beside them; anything that serves or ships them ships those too.
+  beside them; anything that serves or ships them ships those too. The web
+  deploys build them (`.github/actions/build-diagram-fonts`), and the desktop
+  app ships the common files with every OFL.txt, leaving only the full files
+  to the site; `scripts/diagram-fonts/check_fonts.py` fails a build whose
+  directory lacks a licence.
 - Our files are modified (static instances, subset, features removed) and keep
   the "Noto Sans …" names, which reserve nothing; none is named "Source".
 - Pages and PDFs the app writes embed subsets of them, which the OFL permits:
@@ -183,6 +187,8 @@ still permissive on its own terms; it is the combined binary that is GPL.
 | `oristudio-cp-detect-wasm` | `oristudio-cp-detect`, `oristudio-cp-detect-inspector`, + their closure | MIT OR Apache-2.0 |
 | `oristudio-precrease` | none | MIT OR Apache-2.0 — original precrease planner; consumes ReferenceFinder's output at runtime, links none of its code |
 | `oristudio-precrease-wasm` | `oristudio-precrease` | MIT OR Apache-2.0 |
+| `oristudio-pdf` | none | MIT OR Apache-2.0 — original: the Diagram's pages as one PDF, through krilla |
+| `oristudio-pdf-wasm` | `oristudio-pdf` | MIT OR Apache-2.0 |
 | `oristudio-bp` | none | MIT |
 | `oristudio-bp-wasm` | `oristudio-bp` | MIT |
 | `ori-studio` (`apps/tauri/src-tauri`) | `oristudio-cp`, `treemaker-fold` | `GPL-2.0-or-later` (workspace) |
@@ -199,12 +205,13 @@ because what it *distributes* is the whole product including that wasm. This is
 the one place where the declared license describes the shipped bundle rather than
 the crate's own link graph, and it should stay that way.
 
-Six crates that carry no upstream LICENSE file of their own now declare a
+Eight crates that carry no upstream LICENSE file of their own now declare a
 permissive license: `oristudio-bp-wasm`, `oristudio-cp-wasm`, `oristudio-cp-eval`,
-`oristudio-cp-detect`, `oristudio-cp-detect-inspector`, and
-`oristudio-cp-detect-wasm`. The two wasm wrappers are covered by their kernel's
-LICENSE file, which names the wrapper explicitly; the four detection crates are
-original work with no upstream and no LICENSE file at all. If any of them is ever
+`oristudio-cp-detect`, `oristudio-cp-detect-inspector`,
+`oristudio-cp-detect-wasm`, `oristudio-pdf` and `oristudio-pdf-wasm`. The two
+kernel wasm wrappers are covered by their kernel's LICENSE file, which names the
+wrapper explicitly; the detection and PDF crates are original work with no
+upstream and no LICENSE file at all. If any of them is ever
 published on its own, give it the license text before it goes out.
 
 ## What Is Covered
@@ -299,21 +306,34 @@ Before publishing a repository, CLI binary, wasm package, or npm package:
 The current crates.io dependency graph is GPL-compatible. This list was
 generated from `cargo metadata` against the checked-in `Cargo.lock`.
 
+The Diagram's PDF writer (`oristudio-pdf`, `oristudio-pdf-wasm`) added krilla,
+krilla-svg, usvg and their closure, regenerated with
+`cargo tree -p oristudio-pdf -p oristudio-pdf-wasm --edges normal --prefix none --format '{p} {l}'`:
+all permissive (MIT, Apache-2.0 OR MIT, BSD-2/3-Clause, Zlib, Unicode-3.0),
+none Apache-2.0 alone, which GPLv2 could not take.
+
 | Crate | Version | License |
 | --- | --- | --- |
+| `adler2` | `2.0.1` | `0BSD OR MIT OR Apache-2.0` |
 | `anstream` | `1.0.0` | `MIT OR Apache-2.0` |
 | `anstyle` | `1.0.14` | `MIT OR Apache-2.0` |
 | `anstyle-parse` | `1.0.0` | `MIT OR Apache-2.0` |
 | `anstyle-query` | `1.1.5` | `MIT OR Apache-2.0` |
 | `anstyle-wincon` | `3.0.11` | `MIT OR Apache-2.0` |
 | `anyhow` | `1.0.102` | `MIT OR Apache-2.0` |
+| `arrayref` | `0.3.9` | `BSD-2-Clause` |
+| `arrayvec` | `0.7.8` | `MIT OR Apache-2.0` |
 | `async-trait` | `0.1.89` | `MIT OR Apache-2.0` |
 | `autocfg` | `1.5.0` | `Apache-2.0 OR MIT` |
+| `base64` | `0.22.1` | `MIT OR Apache-2.0` |
 | `bit-set` | `0.8.0` | `Apache-2.0 OR MIT` |
 | `bit-vec` | `0.8.0` | `Apache-2.0 OR MIT` |
 | `bitflags` | `2.11.1` | `MIT OR Apache-2.0` |
 | `block-buffer` | `0.10.4` | `MIT OR Apache-2.0` |
 | `bumpalo` | `3.20.2` | `MIT OR Apache-2.0` |
+| `bytemuck` | `1.25.0` | `Zlib OR Apache-2.0 OR MIT` |
+| `bytemuck_derive` | `1.12.1` | `Zlib OR Apache-2.0 OR MIT` |
+| `byteorder-lite` | `0.1.0` | `Unlicense OR MIT` |
 | `cast` | `0.3.0` | `MIT OR Apache-2.0` |
 | `cc` | `1.2.62` | `MIT OR Apache-2.0` |
 | `cfg-if` | `1.0.4` | `MIT OR Apache-2.0` |
@@ -321,48 +341,71 @@ generated from `cargo metadata` against the checked-in `Cargo.lock`.
 | `clap_builder` | `4.6.0` | `MIT OR Apache-2.0` |
 | `clap_derive` | `4.6.1` | `MIT OR Apache-2.0` |
 | `clap_lex` | `1.1.0` | `MIT OR Apache-2.0` |
+| `color_quant` | `1.1.0` | `MIT` |
 | `colorchoice` | `1.0.5` | `MIT OR Apache-2.0` |
+| `console_error_panic_hook` | `0.1.7` | `Apache-2.0/MIT` |
+| `core_maths` | `0.1.1` | `MIT` |
 | `cpufeatures` | `0.2.17` | `MIT OR Apache-2.0` |
+| `crc32fast` | `1.5.0` | `MIT OR Apache-2.0` |
 | `crypto-common` | `0.1.7` | `MIT OR Apache-2.0` |
+| `data-url` | `0.3.2` | `MIT OR Apache-2.0` |
 | `digest` | `0.10.7` | `MIT OR Apache-2.0` |
 | `equivalent` | `1.0.2` | `Apache-2.0 OR MIT` |
 | `errno` | `0.3.14` | `MIT OR Apache-2.0` |
 | `fastrand` | `2.4.1` | `Apache-2.0 OR MIT` |
+| `fdeflate` | `0.3.7` | `MIT OR Apache-2.0` |
 | `find-msvc-tools` | `0.1.9` | `MIT OR Apache-2.0` |
+| `flate2` | `1.1.9` | `MIT OR Apache-2.0` |
+| `float-cmp` | `0.9.0` | `MIT` |
 | `fnv` | `1.0.7` | `Apache-2.0 / MIT` |
 | `foldhash` | `0.1.5` | `Zlib` |
+| `font-types` | `0.11.3` | `MIT OR Apache-2.0` |
+| `fontdb` | `0.23.0` | `MIT` |
 | `futures-core` | `0.3.32` | `MIT OR Apache-2.0` |
 | `futures-task` | `0.3.32` | `MIT OR Apache-2.0` |
 | `futures-util` | `0.3.32` | `MIT OR Apache-2.0` |
 | `generic-array` | `0.14.7` | `MIT` |
 | `getrandom` | `0.3.4` | `MIT OR Apache-2.0` |
 | `getrandom` | `0.4.2` | `MIT OR Apache-2.0` |
+| `gif` | `0.14.2` | `MIT OR Apache-2.0` |
 | `hashbrown` | `0.15.5` | `MIT OR Apache-2.0` |
 | `hashbrown` | `0.17.1` | `MIT OR Apache-2.0` |
 | `heck` | `0.5.0` | `MIT OR Apache-2.0` |
 | `id-arena` | `2.3.0` | `MIT/Apache-2.0` |
+| `image-webp` | `0.2.4` | `MIT OR Apache-2.0` |
+| `imagesize` | `0.14.0` | `MIT` |
 | `indexmap` | `2.14.0` | `Apache-2.0 OR MIT` |
 | `is_terminal_polyfill` | `1.70.2` | `MIT OR Apache-2.0` |
 | `itoa` | `1.0.18` | `MIT OR Apache-2.0` |
 | `js-sys` | `0.3.98` | `MIT OR Apache-2.0` |
+| `krilla` | `0.8.2` | `MIT OR Apache-2.0` |
+| `krilla-svg` | `0.8.1` | `MIT OR Apache-2.0` |
+| `kurbo` | `0.13.1` | `Apache-2.0 OR MIT` |
 | `leb128fmt` | `0.1.0` | `MIT OR Apache-2.0` |
 | `libc` | `0.2.186` | `MIT OR Apache-2.0` |
 | `libm` | `0.2.16` | `MIT` |
 | `linux-raw-sys` | `0.12.1` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | `log` | `0.4.29` | `MIT OR Apache-2.0` |
 | `memchr` | `2.8.0` | `Unlicense OR MIT` |
+| `memmap2` | `0.9.11` | `MIT OR Apache-2.0` |
 | `minicov` | `0.3.8` | `Apache-2.0/MIT` |
+| `miniz_oxide` | `0.8.9` | `MIT OR Zlib OR Apache-2.0` |
 | `nu-ansi-term` | `0.50.3` | `MIT` |
 | `num-traits` | `0.2.19` | `MIT OR Apache-2.0` |
 | `once_cell` | `1.21.4` | `MIT OR Apache-2.0` |
 | `once_cell_polyfill` | `1.70.2` | `MIT OR Apache-2.0` |
 | `oorandom` | `11.1.5` | `MIT` |
+| `pdf-writer` | `0.15.0` | `MIT OR Apache-2.0` |
+| `pico-args` | `0.5.0` | `MIT` |
 | `pin-project-lite` | `0.2.17` | `Apache-2.0 OR MIT` |
+| `png` | `0.18.1` | `MIT OR Apache-2.0` |
+| `polycool` | `0.4.0` | `MIT OR Apache-2.0` |
 | `ppv-lite86` | `0.2.21` | `MIT OR Apache-2.0` |
 | `prettyplease` | `0.2.37` | `MIT OR Apache-2.0` |
 | `proc-macro2` | `1.0.106` | `MIT OR Apache-2.0` |
 | `proptest` | `1.11.0` | `MIT OR Apache-2.0` |
 | `quick-error` | `1.2.3` | `MIT/Apache-2.0` |
+| `quick-error` | `2.0.1` | `MIT/Apache-2.0` |
 | `quote` | `1.0.45` | `MIT OR Apache-2.0` |
 | `r-efi` | `5.3.0` | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` |
 | `r-efi` | `6.0.0` | `MIT OR Apache-2.0 OR LGPL-2.1-or-later` |
@@ -370,10 +413,17 @@ generated from `cargo metadata` against the checked-in `Cargo.lock`.
 | `rand_chacha` | `0.9.0` | `MIT OR Apache-2.0` |
 | `rand_core` | `0.9.5` | `MIT OR Apache-2.0` |
 | `rand_xorshift` | `0.4.0` | `MIT OR Apache-2.0` |
+| `read-fonts` | `0.39.2` | `MIT OR Apache-2.0` |
 | `regex-syntax` | `0.8.10` | `MIT OR Apache-2.0` |
+| `resvg` | `0.47.0` | `Apache-2.0 OR MIT` |
+| `rgb` | `0.8.53` | `MIT` |
+| `roxmltree` | `0.21.1` | `MIT OR Apache-2.0` |
+| `rustc-hash` | `2.1.2` | `Apache-2.0 OR MIT` |
 | `rustix` | `1.1.4` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | `rustversion` | `1.0.22` | `MIT OR Apache-2.0` |
 | `rusty-fork` | `0.3.1` | `MIT/Apache-2.0` |
+| `rustybuzz` | `0.20.1` | `MIT` |
+| `ryu` | `1.0.23` | `Apache-2.0 OR BSL-1.0` |
 | `same-file` | `1.0.6` | `Unlicense/MIT` |
 | `semver` | `1.0.28` | `MIT OR Apache-2.0` |
 | `serde` | `1.0.228` | `MIT OR Apache-2.0` |
@@ -383,16 +433,40 @@ generated from `cargo metadata` against the checked-in `Cargo.lock`.
 | `serde_json` | `1.0.149` | `MIT OR Apache-2.0` |
 | `sha2` | `0.10.9` | `MIT OR Apache-2.0` |
 | `shlex` | `1.3.0` | `MIT OR Apache-2.0` |
+| `simd-adler32` | `0.3.9` | `MIT` |
+| `simplecss` | `0.2.2` | `Apache-2.0 OR MIT` |
+| `siphasher` | `1.0.3` | `MIT/Apache-2.0` |
+| `skrifa` | `0.42.1` | `MIT OR Apache-2.0` |
 | `slab` | `0.4.12` | `MIT` |
+| `slotmap` | `1.1.1` | `Zlib` |
+| `smallvec` | `1.15.1` | `MIT OR Apache-2.0` |
+| `stable_deref_trait` | `1.2.1` | `MIT OR Apache-2.0` |
+| `strict-num` | `0.1.1` | `MIT` |
 | `strsim` | `0.11.1` | `MIT` |
+| `subsetter` | `0.2.6` | `MIT OR Apache-2.0` |
+| `svgtypes` | `0.16.1` | `Apache-2.0 OR MIT` |
 | `syn` | `2.0.117` | `MIT OR Apache-2.0` |
+| `syn` | `3.0.3` | `MIT OR Apache-2.0` |
+| `synstructure` | `0.13.2` | `MIT` |
 | `tempfile` | `3.27.0` | `MIT OR Apache-2.0` |
 | `thiserror` | `2.0.18` | `MIT OR Apache-2.0` |
 | `thiserror-impl` | `2.0.18` | `MIT OR Apache-2.0` |
+| `tiny-skia` | `0.12.0` | `BSD-3-Clause` |
+| `tiny-skia-path` | `0.12.0` | `BSD-3-Clause` |
+| `tinyvec` | `1.11.0` | `Zlib OR Apache-2.0 OR MIT` |
+| `tinyvec_macros` | `0.1.1` | `MIT OR Apache-2.0 OR Zlib` |
+| `ttf-parser` | `0.25.1` | `MIT OR Apache-2.0` |
 | `typenum` | `1.20.0` | `MIT OR Apache-2.0` |
 | `unarray` | `0.1.4` | `MIT OR Apache-2.0` |
+| `unicode-bidi` | `0.3.18` | `MIT OR Apache-2.0` |
+| `unicode-bidi-mirroring` | `0.4.0` | `MIT/Apache-2.0` |
+| `unicode-ccc` | `0.4.0` | `MIT/Apache-2.0` |
 | `unicode-ident` | `1.0.24` | `(MIT OR Apache-2.0) AND Unicode-3.0` |
+| `unicode-properties` | `0.1.4` | `MIT/Apache-2.0` |
+| `unicode-script` | `0.5.8` | `MIT OR Apache-2.0` |
+| `unicode-vo` | `0.1.0` | `MIT/Apache-2.0` |
 | `unicode-xid` | `0.2.6` | `MIT OR Apache-2.0` |
+| `usvg` | `0.47.0` | `Apache-2.0 OR MIT` |
 | `utf8parse` | `0.2.2` | `Apache-2.0 OR MIT` |
 | `version_check` | `0.9.5` | `MIT/Apache-2.0` |
 | `wait-timeout` | `0.2.1` | `MIT/Apache-2.0` |
@@ -410,6 +484,7 @@ generated from `cargo metadata` against the checked-in `Cargo.lock`.
 | `wasm-encoder` | `0.244.0` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | `wasm-metadata` | `0.244.0` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | `wasmparser` | `0.244.0` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
+| `weezl` | `0.1.12` | `MIT OR Apache-2.0` |
 | `winapi-util` | `0.1.11` | `Unlicense OR MIT` |
 | `windows-link` | `0.2.1` | `MIT OR Apache-2.0` |
 | `windows-sys` | `0.61.2` | `MIT OR Apache-2.0` |
@@ -420,9 +495,18 @@ generated from `cargo metadata` against the checked-in `Cargo.lock`.
 | `wit-bindgen-rust-macro` | `0.51.0` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | `wit-component` | `0.244.0` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | `wit-parser` | `0.244.0` | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
+| `write-fonts` | `0.48.1` | `MIT OR Apache-2.0` |
+| `xmlwriter` | `0.1.0` | `MIT` |
+| `xmp-writer` | `0.3.3` | `MIT OR Apache-2.0` |
+| `yoke` | `0.8.2` | `Unicode-3.0` |
+| `yoke-derive` | `0.8.2` | `Unicode-3.0` |
 | `zerocopy` | `0.8.48` | `BSD-2-Clause OR Apache-2.0 OR MIT` |
 | `zerocopy-derive` | `0.8.48` | `BSD-2-Clause OR Apache-2.0 OR MIT` |
+| `zerofrom` | `0.1.8` | `Unicode-3.0` |
+| `zerofrom-derive` | `0.1.7` | `Unicode-3.0` |
 | `zmij` | `1.0.21` | `MIT` |
+| `zune-core` | `0.5.1` | `MIT OR Apache-2.0 OR Zlib` |
+| `zune-jpeg` | `0.5.15` | `MIT OR Apache-2.0 OR Zlib` |
 
 
 ## npm Dependency License Inventory

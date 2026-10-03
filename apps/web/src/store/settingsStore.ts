@@ -6,6 +6,10 @@ import { devtools } from 'zustand/middleware';
 import { ANALYTICS_EVENTS, bucketCount, CP_SNAP_RADIUS_BUCKETS } from '../analytics/events';
 import { track } from '../analytics/runtime';
 import {
+  normalizeDiagramExportSettings,
+  type DiagramExportSettings,
+} from '../diagram/export/diagramExportSettings';
+import {
   hasCoarsePointer,
   resolveCpSnapRadius,
   subscribeCoarsePointer,
@@ -86,6 +90,7 @@ const REFERENCES_SHOW_AUX_CREASES_KEY = storageKey(STORAGE_KEYS.referencesShowAu
 const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
 const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
 const CP_FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
+const DIAGRAM_EXPORT_KEY = storageKey(STORAGE_KEYS.diagramExport);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -293,6 +298,8 @@ interface SettingsState {
    * card, and apart from the folded figure's own export (X12).
    */
   creasePatternFoldedFigureStyle: PaperExportStyleChoice;
+  /** What the Diagram's export last wrote, and how; the export dialog is its only editor. */
+  diagramExport: DiagramExportSettings;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -345,6 +352,7 @@ interface SettingsState {
   rememberPaperExportOptions: (kind: PaperExportKind, options: PaperExportSettings) => void;
   /** Keep the folded figure's style a crease-pattern file was saved, or a share published, with. */
   rememberCreasePatternFoldedFigureStyle: (style: PaperExportStyleChoice) => void;
+  rememberDiagramExport: (settings: DiagramExportSettings) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -365,6 +373,7 @@ export const useSettingsStore = create<SettingsState>()(
       paperStyle: readPaperStyleSettings(),
       paperExport: readPaperExportMemory(),
       creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
+      diagramExport: normalizeDiagramExportSettings(readJson<unknown>(DIAGRAM_EXPORT_KEY, null)),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -530,6 +539,11 @@ export const useSettingsStore = create<SettingsState>()(
       rememberCreasePatternFoldedFigureStyle: (style) => {
         writeJson(CP_FOLDED_FIGURE_KEY, { style });
         set({ creasePatternFoldedFigureStyle: style });
+      },
+      rememberDiagramExport: (settings) => {
+        const next = normalizeDiagramExportSettings(settings);
+        writeJson(DIAGRAM_EXPORT_KEY, next);
+        set({ diagramExport: next });
       },
     }),
     { name: 'SettingsStore' }

@@ -171,6 +171,7 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     hasDeletableDesignSelection: false,
     canSaveDesign: true,
     hasDiagram: false,
+    diagramStepCount: 0,
     hasDeletableDiagramSelection: false,
     historyPastCount: 0,
     historyFutureCount: 0,

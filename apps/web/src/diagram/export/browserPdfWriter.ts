@@ -1,7 +1,8 @@
 /**
  * The PDF writer in the browser and the desktop webview: the wasm bridge in a
  * worker of its own, started for one export and ended after it, so its memory
- * (the pages, the fonts, the document) goes with it.
+ * (the pages, the fonts, the document) goes with it. Stopping an export ends
+ * the worker where it stands.
  */
 import { wrap } from 'comlink';
 import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
@@ -19,13 +20,23 @@ export class DiagramPdfError extends Error {
   }
 }
 
-export const browserPdfWriter: PdfWriter = (pages, fonts, options) =>
+export const browserPdfWriter: PdfWriter = (pages, fonts, options, signal) =>
   new Promise<Uint8Array>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('The export was stopped.', 'AbortError'));
+      return;
+    }
     const worker = new Worker(new URL('../../workers/diagramPdfWorker.ts', import.meta.url), { type: 'module' });
+    const onAbort = () => {
+      finish();
+      reject(new DOMException('The export was stopped.', 'AbortError'));
+    };
     const finish = () => {
+      signal?.removeEventListener('abort', onAbort);
       detach();
       worker.terminate();
     };
+    signal?.addEventListener('abort', onAbort, { once: true });
     const detach = attachWorkerDiagnostics(worker, 'diagram-pdf', (failure) => {
       finish();
       reject(new DiagramPdfError('crashed', failure.message));

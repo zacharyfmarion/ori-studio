@@ -88,6 +88,7 @@
     "export": "Export",
     "exportBps": "Export .bps...",
     "exportCp": "Export CP...",
+    "exportDiagram": "Export Diagram...",
     "exportFold": "Export FOLD...",
     "exportOrh": "Export ORH...",
     "exportOri": "Export ORI...",

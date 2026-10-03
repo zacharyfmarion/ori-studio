@@ -741,9 +741,11 @@
     },
     "header": {
       "addStep": "단계 추가",
+      "export": "내보내기…",
       "fromReferences": "참조에서…",
       "linkPattern": "패턴 연결…",
       "moreAdd": "단계를 추가하는 다른 방법",
+      "nothingToExport": "도해을 내보내려면 단계를 추가하세요",
       "nothingToRefresh": "오래된 연결 단계가 없습니다. 참조에서 보낸 단계는 새로 고쳐지지 않습니다.",
       "pageCount_other": "{{count}}페이지",
       "refreshAll": "오래된 단계 새로 고침",
@@ -854,7 +856,7 @@
       "stale": "오래됨: 패턴이 바뀌었습니다",
       "stop": "중지",
       "svg": "업로드한 SVG, {{width}} × {{height}} px",
-      "textFont": "텍스트는 다이어그램의 글꼴로 조판되므로 조금 다르게 보일 수 있습니다.",
+      "textFont": "텍스트는 도해의 글꼴로 조판되므로 조금 다르게 보일 수 있습니다.",
       "unknown": "확인 안 됨: 전개도가 열려 있지 않습니다",
       "unsupported": "일부 요소가 지원되지 않아 생략되었습니다.",
       "waitingReferences": "참조를 기다리는 중: 도해로 보내는 다음 단계가 이 자리에 들어갑니다."

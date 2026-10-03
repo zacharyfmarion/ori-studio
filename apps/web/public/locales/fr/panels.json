@@ -799,9 +799,11 @@
     },
     "header": {
       "addStep": "Ajouter une étape",
+      "export": "Exporter…",
       "fromReferences": "Depuis Références…",
       "linkPattern": "Lier un patron…",
       "moreAdd": "Autres façons d’ajouter des étapes",
+      "nothingToExport": "Ajoutez une étape pour exporter le diagramme",
       "nothingToRefresh": "Aucune étape liée n’est périmée. Les étapes venues de Références ne sont pas actualisées.",
       "pageCount_one": "{{count}} page",
       "pageCount_many": "{{count}} pages",

@@ -89,6 +89,8 @@ export function getMenuBarDef(
             { type: 'separator' },
             { type: 'action', id: 'file.exportSvg', label: t('menu:file.exportSvg', 'Export SVG...') },
             { type: 'action', id: 'file.exportPng', label: t('menu:file.exportPng', 'Export PNG...') },
+            { type: 'separator' },
+            { type: 'action', id: 'file.exportDiagram', label: t('menu:file.exportDiagram', 'Export Diagram...') },
           ],
         },
         { type: 'separator' },

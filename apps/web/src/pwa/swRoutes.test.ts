@@ -64,6 +64,14 @@ describe('routeRequest', () => {
     expect(routeRequest(get(detector), ORIGIN, NONE)).toBe('immutable');
   });
 
+  it('keeps the Diagram’s fonts, named for their content, and revalidates the manifest naming them', () => {
+    expect(routeRequest(get('/fonts/diagram/NotoSansJP-Bold.full.0a1b2c3d4e5f.ttf'), ORIGIN, NONE)).toBe('immutable');
+    expect(routeRequest(get('/fonts/diagram/manifest.json'), ORIGIN, NONE)).toBe('revalidate');
+    // A name with no content hash could change in place; the licence is read once, if ever.
+    expect(routeRequest(get('/fonts/diagram/NotoSansJP-Bold.full.ttf'), ORIGIN, NONE)).toBe('bypass');
+    expect(routeRequest(get('/fonts/diagram/OFL-NotoSansJP.txt'), ORIGIN, NONE)).toBe('bypass');
+  });
+
   it('revalidates the unhashed files under public/, which can change in place', () => {
     for (const path of [
       '/locales/ja/common.json',

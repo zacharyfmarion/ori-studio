@@ -59,6 +59,9 @@
     "uploadUnreadable": "l’image n’a pas pu être lue",
     "uploadUnsupported": "ce n’est pas une image"
   },
+  "diagramExport": {
+    "saved": "{{name}} exporté"
+  },
   "fileDrop": {
     "ignoredFile": "{{name}} utilisé ; 1 autre fichier déposé a été ignoré.",
     "ignoredFiles": "{{name}} utilisé ; {{others}} autres fichiers déposés ont été ignorés."

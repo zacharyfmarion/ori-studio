@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { trackDiagramViewSwitched } from '../../analytics';
+import { handleMenuAction } from '../../commands/menuActions';
 import {
   DEFAULT_DIAGRAM_STYLE,
   DEFAULT_PAGE_SETUP,
@@ -189,6 +190,7 @@ export function DiagramPanel() {
         refreshing={refreshing}
         onRefreshAll={refreshAll}
         onStopRefreshing={stopRefreshAll}
+        onExport={() => void handleMenuAction('file.exportDiagram')}
         drawerSlot={setViewDrawerSlot}
       />
       {readOnly && (
