@@ -70,7 +70,8 @@ body so it stacks above the tool window like every other modal.
 
 **Chip sizes.** Nothing uses `md` once the popover is `sm`, so the size goes
 (`CHIP_SIZE_CLASSES`, and the `.ui-chip--md` rule edited out of the shared
-block in place).
+block in place). So does `Toolbar`'s `inset` prop, which existed only so the
+popover could sit its own padded form inside a toolbar pill.
 
 Not in scope: chips have no coarse-pointer size (18px on touch, in Box Select
 as much as here), unlike every other control primitive. That changes Box
@@ -79,23 +80,36 @@ Select's window on touch too, so it is raised in the PR rather than done here.
 ## Affected Areas
 
 - `apps/web/src/components/ui/FloatingPanel.tsx`, `FloatingPanel.module.css` (new)
-- `apps/web/src/components/ui/useAnchoredFloating.ts` (new), `FloatingToolbar.tsx`
+- `apps/web/src/components/ui/useAnchoredFloating.ts` (new), `FloatingToolbar.tsx`,
+  `Toolbar.tsx` (the `inset` prop only the popover used)
 - `apps/web/src/cp-workspace/toolHint/CpToolHintWindow.tsx`, `.module.css`
 - `apps/web/src/cp-workspace/foldAngle/CreaseAnglePopover.tsx`, `.module.css`, test
 - `apps/web/src/components/ui/Chip.tsx`, `controlStyles.ts`, `styles/theme.css`
 - `apps/web/public/locales/*/tools.json` (one new label)
+- `implementation-plans/scoped-css.md` (the popover now wears the tool card's
+  field and chip rows)
 
 ## Checklist
 
-- [ ] `FloatingPanel` primitive; `CpToolHintWindow` composes it with no change
-      on screen (computed styles before/after, both themes, coarse)
-- [ ] `useAnchoredFloating` out of `FloatingToolbar`; toolbar DOM and tests unchanged
-- [ ] Popover on `FloatingPanel`: title bar + close, Degrees row, `sm` chips,
-      tool-window width; keyboard contract unchanged
-- [ ] Phone frame portaled and wearing the panel
-- [ ] Drop the unused `md` chip size
-- [ ] i18n: the "Degrees" label, translated and stamped
-- [ ] Tests: panel primitive, popover (portal, structure), hint window still green
-- [ ] Lint, typecheck, unit tests, i18n check
-- [ ] Browser: desktop dark + light, phone, coarse tablet; before/after images
+- [x] `FloatingPanel` primitive; `CpToolHintWindow` composes it with no change
+      on screen (computed styles before/after in five states: Box Select, a
+      Reset showing, collapsed, coarse, Atom One Light — only the empty action
+      slot's resolved `bottom` differs, its box does not)
+- [x] `useAnchoredFloating` out of `FloatingToolbar`; toolbar DOM and tests
+      unchanged (20 before/after captures pixel-identical after both refactors)
+- [x] Popover on `FloatingPanel`: title bar + close, Degrees row, `sm` chips,
+      tool-window width; keyboard contract unchanged (Tab order, Escape, Enter,
+      focus restore checked in Chromium)
+- [x] Phone frame portaled and wearing the panel; the tool window is now under
+      its backdrop on phone and tablet
+- [x] Drop the unused `md` chip size, and the toolbar `inset` prop that only
+      the popover used
+- [x] i18n: the "Degrees" label, translated (the fold-angle group's wording in
+      every locale) and stamped
+- [x] Tests: panel primitive, popover (portal, label, close, backdrop), hint
+      window still green; the two new popover regression tests fail on the old
+      popover
+- [x] Lint, typecheck, unit tests (8930 passed), i18n check
+- [x] Browser: desktop in One Dark, Catppuccin Mocha and Atom One Light, phone,
+      coarse tablet; before/after images
 - [ ] Draft PR
