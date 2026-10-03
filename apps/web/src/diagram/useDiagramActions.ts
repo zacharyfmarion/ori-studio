@@ -57,6 +57,18 @@ export function addDiagramStep(): string | null {
   return stepId;
 }
 
+/**
+ * Add an empty step at the end and select it: the Steps grid's trailing tile,
+ * which sits after the last card. Null when the diagram is read-only.
+ */
+export function appendDiagramStep(): string | null {
+  const store = useWorkspaceStore.getState();
+  const last = store.diagram?.steps.at(-1);
+  const stepId = last ? store.insertDiagramStep(last.id, 'after') : store.addDiagramStep();
+  if (stepId) trackDiagramStepAdded('empty', 'grid');
+  return stepId;
+}
+
 /** {@link addDiagramStep}, as a stable callback. */
 export function useAddDiagramStep(): () => string | null {
   return useCallback(() => addDiagramStep(), []);

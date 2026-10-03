@@ -6,7 +6,7 @@ import * as fileServiceModule from '../platform/fileService';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { DiagramPoseAction } from './actions/diagramPoseActions';
 import { diagramStepCommand } from './actions/diagramActions';
-import { diagramStepActions, openDiagramStep, useDiagramPoseActions } from './useDiagramActions';
+import { appendDiagramStep, diagramStepActions, openDiagramStep, useDiagramPoseActions } from './useDiagramActions';
 
 /** What the Diagram's bindings report, and when. */
 const analytics = vi.hoisted(() => ({
@@ -14,6 +14,7 @@ const analytics = vi.hoisted(() => ({
   trackDiagramPicturePosed: vi.fn(),
   trackDiagramPictureRemoved: vi.fn(),
   trackDiagramPictureExported: vi.fn(),
+  trackDiagramStepAdded: vi.fn(),
 }));
 vi.mock('../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../analytics')>()),
@@ -42,6 +43,19 @@ function pictureStep(): string {
 beforeEach(() => {
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   vi.clearAllMocks();
+});
+
+describe('appendDiagramStep', () => {
+  it('adds an empty step after the last one, whichever is selected, selects it and counts it', () => {
+    const first = state().addDiagramStep()!;
+    const second = state().addDiagramStep()!;
+    state().selectDiagramStep(first);
+    vi.clearAllMocks();
+    const added = appendDiagramStep()!;
+    expect(state().diagram!.steps.map((step) => step.id)).toEqual([first, second, added]);
+    expect(state().diagramSelectedStepId).toBe(added);
+    expect(analytics.trackDiagramStepAdded).toHaveBeenCalledExactlyOnceWith('empty', 'grid');
+  });
 });
 
 describe('the Diagram’s analytics', () => {

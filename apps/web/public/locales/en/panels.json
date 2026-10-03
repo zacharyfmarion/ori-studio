@@ -808,6 +808,7 @@
       "upload": "Upload pictures…"
     },
     "grid": {
+      "addStep": "Add step",
       "label": "Steps"
     },
     "header": {

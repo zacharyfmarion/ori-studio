@@ -1758,7 +1758,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - i18n for every key.
   - As built:
     - The grid is one `listbox` and each card an `option` with a roving tab stop, not a button: a focused button turns the viewport's arrow keys off. Focus follows the selection while it is in the grid or nowhere (a deleted card hands it on), never out of another control.
-    - The mockup's trailing "Add step" tile was left out: a button cannot sit inside a listbox. The header and the empty state carry Add step.
+    - The mockup's trailing "Add step" tile was left out: a button cannot sit inside a listbox. The header and the empty state carry Add step. *(Reversed 2026-10-03, see "After Phase 7": the tile is back, for a pointer alone.)*
     - The empty state offers Add step only. "Go to Edit" and Upload arrive with the features they lead to (Phases 2 and 3), not before them (D15).
     - `revealDiagramPane` waits for Phase 5: with one pane in its group there is nothing to reveal yet.
     - Delete asks first through one slice action, `confirmDeleteDiagramSteps`, which the key, the pane and the menu all use, and which refuses to delete into a diagram that replaced the one asked about.
@@ -2332,6 +2332,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - A crease pattern's aux lines are drawn whatever the style's aux switch says, as References draws the creases earlier steps made; a folded model's stay the switch's. One helper, `diagramScenePaintStyle`, for the card, the page cell and the over-budget raster. `StepPictureSource`'s scene now says `pattern` rather than `measure`, which follows from it (`sceneMeasure`).
   - Before/after: `artifacts/diagram-cp-pens/cards-before-after.png` (crane steps 3 and 5, both re-captured, so the same pattern on both sides).
   - Where several folds meet at a vertex each one's dash starts there, which reads as a small knot at the centre of a star of creases. Printed diagrams do the same; left as it is.
+- [x] **The trailing Add step tile.** The mockup's dashed card after the last step is back: a press adds an empty step at the end, whichever step is selected (`appendDiagramStep`), selects it, and the new card takes focus. A listbox holds only its options, so the tile is for a pointer alone — `aria-hidden`, never focused — and the header's Add step stays the way there from the keyboard and for assistive tech. Not on a read-only diagram. Browser (`artifacts/diagram-add-tile/tile.mjs`, light and dark): with step 2 of 3 selected, a press made step 4 and focused its card; the tile stretches to its row's height.
 
 ### Phase 8: simulated steps
 

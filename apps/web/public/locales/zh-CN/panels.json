@@ -778,6 +778,7 @@
       "upload": "上传图片…"
     },
     "grid": {
+      "addStep": "添加步骤",
       "label": "步骤"
     },
     "header": {

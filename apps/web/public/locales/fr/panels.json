@@ -838,6 +838,7 @@
       "upload": "Importer des images…"
     },
     "grid": {
+      "addStep": "Ajouter une étape",
       "label": "Étapes"
     },
     "header": {

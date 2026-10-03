@@ -17,6 +17,30 @@
   outline: none;
 }
 
+/* The trailing Add step tile: an empty card's outline. */
+.addTile {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  min-height: 180px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius);
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  font-weight: 650;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.addTile:hover {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
 /* Pictures dragged over the space between cards go in after the selected step. */
 .grid[data-drop-target] {
   outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);

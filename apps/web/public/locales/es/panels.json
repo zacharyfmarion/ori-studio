@@ -838,6 +838,7 @@
       "upload": "Subir imágenes…"
     },
     "grid": {
+      "addStep": "Añadir paso",
       "label": "Pasos"
     },
     "header": {

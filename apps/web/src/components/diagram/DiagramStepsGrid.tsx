@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Plus } from 'lucide-react';
 import type {
   DiagramAsset,
   DiagramStep,
@@ -25,6 +26,12 @@ import styles from './DiagramStepsGrid.module.css';
  * The listbox itself takes focus (not Tab) from a press on the space between
  * cards, so a press there keeps focus in the grid and the next arrow's
  * selection carries it back onto a card.
+ *
+ * After the last card, an empty card's outline adds a step at the end. A
+ * listbox holds only its options, so the tile is for a pointer alone: hidden
+ * from assistive tech and never focused, the header's Add step being the way
+ * there from the keyboard. A press on it lands focus on the listbox, so the
+ * new step's card takes it.
  */
 export function DiagramStepsGrid({
   steps,
@@ -40,6 +47,7 @@ export function DiagramStepsGrid({
   textCut,
   patternOpen,
   onLink,
+  onAppend,
 }: {
   steps: readonly DiagramStep[];
   assets: Readonly<Record<string, DiagramAsset>>;
@@ -62,6 +70,8 @@ export function DiagramStepsGrid({
   patternOpen: boolean;
   /** Choose a pattern for a step, from a click on its card. */
   onLink: (stepId: string) => void;
+  /** Add an empty step at the end, from the trailing tile; absent on a diagram that cannot change. */
+  onAppend?: () => void;
 }) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -125,6 +135,12 @@ export function DiagramStepsGrid({
           onCancelWaiting={links.cancelAwaiting}
         />
       ))}
+      {onAppend && (
+        <div aria-hidden className={styles.addTile} data-add-step-tile="" onClick={onAppend}>
+          <Plus size={18} aria-hidden />
+          {t('panels:diagram.grid.addStep', 'Add step')}
+        </div>
+      )}
     </div>
   );
 }

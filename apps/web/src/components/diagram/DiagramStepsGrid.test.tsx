@@ -42,6 +42,7 @@ function render(
     patternOpen?: boolean;
     onLink?: (stepId: string) => void;
     textCut?: ReadonlySet<string>;
+    onAppend?: () => void;
   } = {}
 ) {
   if (!host) {
@@ -74,6 +75,7 @@ function render(
         textCut={options.textCut ?? new Set()}
         patternOpen={options.patternOpen ?? false}
         onLink={options.onLink ?? vi.fn()}
+        onAppend={options.onAppend}
       />
     )
   );
@@ -84,6 +86,26 @@ const listbox = () => host?.querySelector('[role="listbox"]') as HTMLElement;
 const options = () => [...(host?.querySelectorAll('[role="option"]') ?? [])] as HTMLElement[];
 
 describe('DiagramStepsGrid', () => {
+  it('ends with an Add step tile for a pointer, kept out of the listbox’s options and the tab order', () => {
+    const onAppend = vi.fn();
+    const onSelect = render('step-a', vi.fn(), { onAppend });
+    const tile = host!.querySelector('[data-add-step-tile]') as HTMLElement;
+    expect(tile.textContent).toBe('Add step');
+    expect(listbox().lastElementChild).toBe(tile);
+    expect(tile.getAttribute('aria-hidden')).toBe('true');
+    expect(tile.tabIndex).toBe(-1);
+    expect(options()).toHaveLength(steps.length);
+    act(() => tile.click());
+    expect(onAppend).toHaveBeenCalledOnce();
+    // A press on the tile is not a press on empty space.
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('has no Add step tile on a diagram that cannot change', () => {
+    render(null);
+    expect(host!.querySelector('[data-add-step-tile]')).toBeNull();
+  });
+
   it('is one listbox of the steps, numbered in order', () => {
     render(null);
     expect(listbox().getAttribute('aria-label')).toBe('Steps');

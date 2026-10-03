@@ -778,6 +778,7 @@
       "upload": "그림 업로드…"
     },
     "grid": {
+      "addStep": "단계 추가",
       "label": "단계"
     },
     "header": {
