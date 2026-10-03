@@ -12,6 +12,7 @@ import {
   type DiagramStepOpenedVia,
 } from '../analytics';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import type { DiagramDetailMode } from '../store/workspaceStore/types';
 import {
   buildDiagramStepActions,
   type DiagramStepAction,
@@ -74,10 +75,14 @@ export function useAddDiagramStep(): () => string | null {
   return useCallback(() => addDiagramStep(), []);
 }
 
-/** Open a step in detail, counting how it was opened. Whether it opened. */
-export function openDiagramStep(stepId: string, via: DiagramStepOpenedVia): boolean {
-  const opened = useWorkspaceStore.getState().openDiagramStep(stepId);
-  if (opened) trackDiagramStepOpened(via);
+/** Open a step in detail, in Pose or Annotate, counting how it was opened. Whether it opened. */
+export function openDiagramStep(
+  stepId: string,
+  via: DiagramStepOpenedVia,
+  mode: DiagramDetailMode = 'pose'
+): boolean {
+  const opened = useWorkspaceStore.getState().openDiagramStep(stepId, mode);
+  if (opened) trackDiagramStepOpened(via, mode);
   return opened;
 }
 
@@ -179,8 +184,11 @@ function bindStepActions(
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),
       fromReferences: () => askReferencesForStep(stepId),
+      adjustPose: () => {
+        openDiagramStep(stepId, 'command');
+      },
       annotate: () => {
-        store().openDiagramStep(stepId, 'annotate');
+        openDiagramStep(stepId, 'command', 'annotate');
       },
       exportPicture: () => {
         const diagram = store().diagram;

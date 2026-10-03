@@ -657,6 +657,7 @@
   "diagram": {
     "actions": {
       "addStep": "단계 추가",
+      "adjustPose": "포즈 조정",
       "annotate": "주석",
       "capturingHint": "그림을 캡처하는 중입니다",
       "currentHint": "이미 패턴의 현재 모습을 보여 줍니다",
@@ -682,6 +683,7 @@
       "noPictureHint": "이 단계에는 아직 그림이 없습니다",
       "openInEdit": "편집에서 열기",
       "openInReferences": "참조에서 열기",
+      "poseNeedsPicture": "포즈를 조정하려면 단계에 그림을 넣으세요",
       "readOnlyHint": "이 도해는 최신 Ori Studio에서 만들어져 읽기 전용으로 열립니다",
       "refreshPicture": "그림 새로 고침",
       "relinkPattern": "패턴 다시 연결…",

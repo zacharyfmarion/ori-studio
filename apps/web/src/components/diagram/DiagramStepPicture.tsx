@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Compass, Download, ImageOff, Link2, PenTool, RefreshCw, Upload } from 'lucide-react';
+import { Compass, Download, ImageOff, Link2, PenTool, RefreshCw, Rotate3d, Upload } from 'lucide-react';
 import {
   diagramStepCommand,
   type DiagramStepAction,
@@ -23,6 +23,7 @@ import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepPicture.module.css';
 
 const VERBS: readonly { id: DiagramStepActionId; icon: typeof Upload; variant: 'secondary' | 'ghost' }[] = [
+  { id: 'adjust-pose', icon: Rotate3d, variant: 'secondary' },
   { id: 'refresh-picture', icon: RefreshCw, variant: 'secondary' },
   { id: 'upload-picture', icon: Upload, variant: 'secondary' },
   { id: 'link-pattern', icon: Link2, variant: 'secondary' },
@@ -50,6 +51,7 @@ export function DiagramStepPicture({
   capture,
   waiting,
   picker,
+  detailOpen,
 }: {
   step: DiagramStep;
   /** The upload the step shows, or null for a step without one. */
@@ -67,6 +69,8 @@ export function DiagramStepPicture({
   waiting: { cancel: () => void } | null;
   /** The pattern picker, while the step's pattern is being chosen. */
   picker: ReactNode;
+  /** The step is open in its detail, where Adjust pose would lead nowhere new. */
+  detailOpen: boolean;
 }) {
   const { t } = useTranslation();
   const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
@@ -143,7 +147,7 @@ export function DiagramStepPicture({
       <div className={styles.verbs}>
         {VERBS.map(({ id, icon: Icon, variant }) => {
           const command = diagramStepCommand(actions, id);
-          if (!command) return null;
+          if (!command || (detailOpen && id === 'adjust-pose')) return null;
           return (
             <Button
               key={id}

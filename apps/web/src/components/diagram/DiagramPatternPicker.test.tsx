@@ -97,6 +97,7 @@ describe('the picker in the Picture section', () => {
         notices={[]}
         actions={actions}
         link={null}
+        detailOpen={false}
         patternOpen
         capture={null}
         waiting={null}

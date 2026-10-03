@@ -62,9 +62,23 @@ describe('the Diagram’s analytics', () => {
   it('counts a step opened in detail, by how, and not one that does not open', () => {
     const stepId = pictureStep();
     expect(openDiagramStep(stepId, 'double_click')).toBe(true);
-    expect(analytics.trackDiagramStepOpened).toHaveBeenCalledWith('double_click');
+    expect(analytics.trackDiagramStepOpened).toHaveBeenCalledWith('double_click', 'pose');
     expect(openDiagramStep('missing', 'keyboard')).toBe(false);
     expect(analytics.trackDiagramStepOpened).toHaveBeenCalledOnce();
+  });
+
+  it('counts a step opened from a verb by its half, with Select in hand', () => {
+    const stepId = pictureStep();
+    act(() => state().setDiagramAnnotateTool('valley-arrow'));
+    diagramStepCommand(diagramStepActions(stepId, t), 'annotate')?.run();
+    expect(analytics.trackDiagramStepOpened).toHaveBeenCalledWith('command', 'annotate');
+    expect(state().diagramDetail).toBe('annotate');
+    expect(state().diagramAnnotateTool).toBeNull();
+    // Switching halves while open keeps the tool, as walking the steps does.
+    act(() => state().setDiagramAnnotateTool('valley-arrow'));
+    expect(openDiagramStep(stepId, 'command')).toBe(true);
+    expect(state().diagramDetail).toBe('pose');
+    expect(state().diagramAnnotateTool).toBe('valley-arrow');
   });
 
   it('counts a removed picture by its kind', () => {

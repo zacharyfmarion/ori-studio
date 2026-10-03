@@ -3758,7 +3758,9 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7519,7 +7521,9 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11282,7 +11286,9 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -14972,7 +14978,9 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18662,7 +18670,9 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22423,7 +22433,9 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26184,7 +26196,9 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -29874,6 +29888,8 @@
     "tools:diagram.toolValleyLine": "99be74e5644f",
     "common:capability.deleteSelectedDiagramAnnotation": "5216108c2233",
     "common:capability.selectDiagramAnnotationFirst": "dd2c7383bd61",
-    "panels:diagram.grid.addStep": "839bd5e01e3a"
+    "panels:diagram.grid.addStep": "839bd5e01e3a",
+    "panels:diagram.actions.adjustPose": "1f3e1c599e49",
+    "panels:diagram.actions.poseNeedsPicture": "946c802281e9"
   }
 }

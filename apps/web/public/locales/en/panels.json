@@ -686,6 +686,7 @@
   "diagram": {
     "actions": {
       "addStep": "Add Step",
+      "adjustPose": "Adjust Pose",
       "annotate": "Annotate",
       "capturingHint": "Its picture is being captured",
       "currentHint": "Already shows its pattern as it is",
@@ -711,6 +712,7 @@
       "noPictureHint": "This step has no picture yet",
       "openInEdit": "Open in Edit",
       "openInReferences": "Open in References",
+      "poseNeedsPicture": "Give the step a picture to pose",
       "readOnlyHint": "This diagram was made with a newer Ori Studio and opens read-only",
       "refreshPicture": "Refresh Picture",
       "relinkPattern": "Relink Pattern…",

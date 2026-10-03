@@ -23,6 +23,7 @@ function deps(): DiagramStepActionDeps {
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
     fromReferences: vi.fn(),
+    adjustPose: vi.fn(),
     annotate: vi.fn(),
     exportPicture: vi.fn(),
     removePicture: vi.fn(),
@@ -66,6 +67,7 @@ describe('the diagram step verbs', () => {
       'upload-picture',
       'link-pattern',
       'from-references',
+      'adjust-pose',
       'annotate',
       'export-picture',
       'remove-picture',
@@ -173,6 +175,19 @@ describe('the diagram step verbs', () => {
     diagramStepCommand(build({ hasPicture: true, hasSource: true }, bound), 'annotate')?.run();
     expect(bound.annotate).toHaveBeenCalledOnce();
     expect(diagramStepCommand(build({ locked: true, hasPicture: true }), 'annotate')?.disabled).toBe(true);
+  });
+
+  it('poses a step with a picture or a link, and not an empty or a newer build’s one', () => {
+    const bound = deps();
+    expect(diagramStepCommand(build({}), 'adjust-pose')).toMatchObject({
+      disabled: true,
+      hint: 'Give the step a picture to pose',
+    });
+    // A linked step not captured yet: Pose is where it chooses how to show its pattern.
+    diagramStepCommand(build({ hasSource: true, linkKind: 'cp', link: 'current' }, bound), 'adjust-pose')?.run();
+    expect(bound.adjustPose).toHaveBeenCalledOnce();
+    expect(diagramStepCommand(build({ locked: true, hasSource: true }), 'adjust-pose')?.disabled).toBe(true);
+    expect(diagramStepCommand(build({ readOnly: true, hasSource: true }), 'adjust-pose')?.disabled).toBe(true);
   });
 
   it('links a step to a pattern, or relinks one, only with a pattern open', () => {

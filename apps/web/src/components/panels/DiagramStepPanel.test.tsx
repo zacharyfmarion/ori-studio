@@ -126,6 +126,7 @@ describe('DiagramStepPanel', () => {
         state().addDiagramStep();
       });
       expect(host?.textContent).toContain('No picture yet');
+      expect(textButton('Adjust Pose')?.disabled).toBe(true);
       expect(textButton('Upload Picture…')?.disabled).toBe(false);
       expect(textButton('Export Picture…')?.disabled).toBe(true);
       expect(textButton('Remove Picture')?.disabled).toBe(true);
@@ -138,9 +139,10 @@ describe('DiagramStepPanel', () => {
         state().setDiagramStepPose(stepId, { rotationQuarterTurns: 1, mirrored: true });
       });
       expect(host?.textContent).not.toContain('clockwise');
-      act(() => {
-        state().openDiagramStep(state().diagram!.steps[0].id);
-      });
+      act(() => textButton('Adjust Pose')?.click());
+      expect(state().diagramDetail).toBe('pose');
+      // Open in Pose, the verb leads nowhere new.
+      expect(textButton('Adjust Pose')).toBeUndefined();
       expect(host?.textContent).toContain('90° clockwise');
       expect(host?.textContent).toContain('FlippedYes');
       act(() => textButton('Reset Pose')?.click());
@@ -219,8 +221,11 @@ describe('DiagramStepPanel in Annotate', () => {
     const stepId = annotatedStep();
     act(() => state().openDiagramStep(stepId, 'annotate'));
     expect(host?.textContent).toContain('Select');
+    // A row pressed with a drawing tool in hand puts Select back, to move what it selected.
+    act(() => state().setDiagramAnnotateTool('mountain-line'));
     act(() => row('Valley Fold Arrow').click());
     expect(state().diagramSelectedAnnotationId).toBe('a-1');
+    expect(state().diagramAnnotateTool).toBeNull();
     expect(row('Valley Fold Arrow').getAttribute('aria-pressed')).toBe('true');
     act(() => buttonNamed('Flip Arc').click());
     expect(annotations()[0]!.bend).toBe(-0.1);

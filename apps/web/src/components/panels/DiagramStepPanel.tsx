@@ -118,6 +118,7 @@ export function DiagramStepPanel() {
               patternOpen={patternOpen}
               capture={capture}
               waiting={waiting}
+              detailOpen={detailOpen}
               picker={
                 picker && (
                   <DiagramPatternPicker

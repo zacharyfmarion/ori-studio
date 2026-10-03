@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useId, useRef, type ForwardedRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Compass, ImagePlus, Link2, Lock, Upload } from 'lucide-react';
+import { Compass, ImagePlus, Link2, Lock, PenLine, Rotate3d, Upload } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import {
   isLockedStep,
@@ -27,10 +27,11 @@ import { capturedStyleChange } from '../../diagram/pictures/lighting';
  * focus between cards as the selection moves (a roving tab stop), which is
  * what lets a screen reader follow it.
  *
- * An empty card's Upload… and Link…, and a capture's Stop, are a pointer's
- * shortcuts, hidden from assistive technology and out of the tab order: the
- * same verbs are in the card's menu and the Step pane, where a keyboard and a
- * screen reader reach them. The card names itself from its number, kind, how
+ * An empty card's Upload… and Link…, a capture's Stop, and the Adjust pose
+ * and Annotate buttons over a picture are a pointer's shortcuts, hidden from
+ * assistive technology and out of the tab order: the same verbs are in the
+ * card's menu and the Step pane, where a keyboard and a screen reader reach
+ * them. The card names itself from its number, kind, how
  * its link stands and its instruction, so a shortcut's label is not read as
  * part of it.
  *
@@ -76,6 +77,8 @@ export const DiagramStepCard = forwardRef<
     onFromReferences: (stepId: string) => void;
     /** Stop waiting for one. */
     onCancelWaiting: () => void;
+    /** Open this step in Pose or Annotate, from the buttons over its picture. */
+    onOpenIn: (stepId: string, mode: 'pose' | 'annotate') => void;
   }
 >(function DiagramStepCard(
   {
@@ -99,6 +102,7 @@ export const DiagramStepCard = forwardRef<
     waiting,
     onFromReferences,
     onCancelWaiting,
+    onOpenIn,
   },
   forwarded
 ) {
@@ -233,6 +237,43 @@ export const DiagramStepCard = forwardRef<
                   </Button>
                 )}
               </span>
+            )}
+          </span>
+        )}
+        {!readOnly && !locked && (picture !== null || linked !== null) && (
+          <span className={styles.verbs}>
+            <button
+              type="button"
+              className={styles.verb}
+              title={t('panels:diagram.actions.adjustPose', 'Adjust Pose')}
+              tabIndex={-1}
+              aria-hidden="true"
+              onMouseDown={keepFocus}
+              onClick={(event) => {
+                // It selects the step itself, and a double-click must not open it twice.
+                event.stopPropagation();
+                onOpenIn(step.id, 'pose');
+              }}
+              onDoubleClick={(event) => event.stopPropagation()}
+            >
+              <Rotate3d size={14} />
+            </button>
+            {picture !== null && (
+              <button
+                type="button"
+                className={styles.verb}
+                title={t('panels:diagram.actions.annotate', 'Annotate')}
+                tabIndex={-1}
+                aria-hidden="true"
+                onMouseDown={keepFocus}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenIn(step.id, 'annotate');
+                }}
+                onDoubleClick={(event) => event.stopPropagation()}
+              >
+                <PenLine size={14} />
+              </button>
             )}
           </span>
         )}

@@ -47,6 +47,7 @@ export type {
   ReferencesSentToDiagramVia,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
+  DiagramStepOpenedMode,
   ExportFormat,
   FoldabilityCheckSource,
   FoldCycleDirection,

@@ -2414,6 +2414,16 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - Where several folds meet at a vertex each one's dash starts there, which reads as a small knot at the centre of a star of creases. Printed diagrams do the same; left as it is.
 - [x] **The trailing Add step tile.** The mockup's dashed card after the last step is back: a press adds an empty step at the end, whichever step is selected (`appendDiagramStep`), selects it, and the new card takes focus. A listbox holds only its options, so the tile is for a pointer alone — `aria-hidden`, never focused — and the header's Add step stays the way there from the keyboard and for assistive tech. Not on a read-only diagram. Browser (`artifacts/diagram-add-tile/tile.mjs`, light and dark): with step 2 of 3 selected, a press made step 4 and focused its card; the tile stretches to its row's height.
 
+- **Design parity** (Zach, 2026-10-03: "continue with all the recommended fixes"). The design-vs-built inventory (`artifacts/diagram-inventory/design-vs-built.md`, every element of the prototype classified and put to a second reviewer) found seven gaps no phase schedules, some smaller ones, two unrecorded changes worth undoing, and three defects. All of them:
+  - [x] **Adjust pose without hover.** An `adjust-pose` step verb in the catalog, so the context menu and the Step pane's Picture section have it (the pane hides it while the step is open), beside Annotate. The card's two buttons from the mockup, Adjust pose and Annotate, over the picture's top corner: shown on hover, focus or selection and always under a finger, `aria-hidden` and out of the tab order like the card's other shortcuts. The card's status chip moved to the picture's foot to make room. `diagram step opened` gains `via: card|command` and `mode`.
+  - [x] **Select in hand**, as the mockup has it: a step opened from the list, a label once placed, and a list row pressed each put Select back; switching Pose and Annotate and walking the steps keep the tool.
+  - [ ] **The detail's empty body** offers the three ways to a picture (Upload, Link pattern, From References), and **Go to Edit** stands in for the two that need a pattern when none is open — there, on the card and in the empty diagram (D12's promise).
+  - [ ] **A 3D step in Pose**: the yaw/pitch readout, the "Drag to turn · Double-click to reset" hint, and its annotations ghosted over the live view while it shows the camera they were drawn on. The Step pane's **View** row for a 3D step.
+  - [ ] **The Step pane in Pose** for linked and References steps (D13): the same verbs as the floating toolbar, and D5's **angle field** for a crease pattern's and a flat fold's turn.
+  - [ ] **The header**: Steps | Pages centred, as in the mockup.
+  - [ ] **Export**: the filename in the footer, the step files' notes, Edit page setup switching to Pages, and the page setup summary line.
+  - [ ] **Defects**: the Page pane at its default 280 px width (Portrait and Landscape cut, Margin's + past the edge), and the Pages view's "Text doesn't fit" chip over the instruction.
+
 ### Phase 8: a linked pattern, shown three ways (D19)
 
 *(Rewritten 2026-10-03: Phase 8 was "simulated steps", Pose-only. D19 makes

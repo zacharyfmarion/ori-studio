@@ -151,11 +151,11 @@
   box-shadow: 0 0 0 1px var(--border-subtle);
 }
 
-/* How the link stands, or that it is being captured, over the picture's top. */
+/* How the link stands, or that it is being captured, over the picture's foot. */
 .chip {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  bottom: 6px;
+  left: 6px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -188,4 +188,54 @@
 
 .stop:hover {
   text-decoration: underline;
+}
+
+/*
+ * Adjust pose and Annotate, over the picture's top corner: shown while the
+ * card is pointed at, focused or selected, and always under a finger, which
+ * has no hover. Dark in either theme, as they sit on the white paper.
+ */
+.verbs {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.card:hover .verbs,
+.card:focus-within .verbs,
+.card[data-selected] .verbs {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .verbs {
+    opacity: 1;
+  }
+}
+
+.verb {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: rgb(16 20 23 / 0.72);
+  color: #e8edf0;
+  cursor: pointer;
+}
+
+.verb:hover {
+  background: rgb(16 20 23 / 0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verbs {
+    transition: none;
+  }
 }

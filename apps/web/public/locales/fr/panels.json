@@ -715,6 +715,7 @@
   "diagram": {
     "actions": {
       "addStep": "Ajouter une étape",
+      "adjustPose": "Ajuster la pose",
       "annotate": "Annoter",
       "capturingHint": "Son image est en cours de capture",
       "currentHint": "Montre déjà son patron tel qu’il est",
@@ -740,6 +741,7 @@
       "noPictureHint": "Cette étape n’a pas encore d’image",
       "openInEdit": "Ouvrir dans Édition",
       "openInReferences": "Ouvrir dans Références",
+      "poseNeedsPicture": "Ajoutez une image à l’étape pour ajuster sa pose",
       "readOnlyHint": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule",
       "refreshPicture": "Actualiser l’image",
       "relinkPattern": "Relier à un autre patron…",

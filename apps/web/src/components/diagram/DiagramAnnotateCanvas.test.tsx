@@ -154,6 +154,18 @@ describe('DiagramAnnotateCanvas', () => {
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['turn_over']]);
   });
 
+  it('puts Select back in hand once a label is placed, and keeps a drawing tool after a stroke', () => {
+    mount();
+    tool('valley-line');
+    drag(at(0.2, 0.5), at(0.6, 0.5));
+    expect(state().diagramAnnotateTool).toBe('valley-line');
+    tool('label');
+    pointer('pointerdown', at(0.5, 0.2));
+    pointer('pointerup', at(0.5, 0.2));
+    expect(annotations().map((annotation) => annotation.kind)).toEqual(['valley-line', 'label']);
+    expect(state().diagramAnnotateTool).toBeNull();
+  });
+
   it('drops the stroke in hand for a second finger, a cancel or a lost capture', () => {
     mount();
     tool('valley-line');

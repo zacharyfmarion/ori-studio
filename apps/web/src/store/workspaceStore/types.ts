@@ -1944,7 +1944,10 @@ export interface DiagramSliceActions {
   /** How Han characters are drawn when nothing else in a text says (Decision 2). */
   setDiagramHanStyle: (hanStyle: DiagramHanStyle) => boolean;
   selectDiagramStep: (stepId: string | null) => void;
-  /** Select a step and open it in detail. False when there is no such step. */
+  /**
+   * Select a step and open it in detail, with Select in hand when the detail
+   * was closed. False when there is no such step.
+   */
   openDiagramStep: (stepId: string, mode?: DiagramDetailMode) => boolean;
   /** Back to the list, keeping the step selected. */
   closeDiagramStep: () => void;

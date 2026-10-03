@@ -657,6 +657,7 @@
   "diagram": {
     "actions": {
       "addStep": "ステップを追加",
+      "adjustPose": "ポーズを調整",
       "annotate": "注記",
       "capturingHint": "図をキャプチャ中です",
       "currentHint": "パターンの現在の状態をすでに表示しています",
@@ -682,6 +683,7 @@
       "noPictureHint": "このステップにはまだ図がありません",
       "openInEdit": "編集で開く",
       "openInReferences": "リファレンスで開く",
+      "poseNeedsPicture": "ポーズを調整するには、ステップに図を入れてください",
       "readOnlyHint": "この折り図は新しい Ori Studio で作成されたため、読み取り専用で開かれています",
       "refreshPicture": "図を更新",
       "relinkPattern": "パターンをリンクし直す…",

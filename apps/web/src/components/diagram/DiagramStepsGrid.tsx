@@ -47,6 +47,7 @@ export function DiagramStepsGrid({
   textCut,
   patternOpen,
   onLink,
+  onOpenIn,
   onAppend,
 }: {
   steps: readonly DiagramStep[];
@@ -70,6 +71,8 @@ export function DiagramStepsGrid({
   patternOpen: boolean;
   /** Choose a pattern for a step, from a click on its card. */
   onLink: (stepId: string) => void;
+  /** Open a step in Pose or Annotate, from the buttons over its picture. */
+  onOpenIn: (stepId: string, mode: 'pose' | 'annotate') => void;
   /** Add an empty step at the end, from the trailing tile; absent on a diagram that cannot change. */
   onAppend?: () => void;
 }) {
@@ -133,6 +136,7 @@ export function DiagramStepsGrid({
           waiting={links.awaitingReferences === step.id}
           onFromReferences={links.askReferences}
           onCancelWaiting={links.cancelAwaiting}
+          onOpenIn={onOpenIn}
         />
       ))}
       {onAppend && (

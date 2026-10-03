@@ -44,7 +44,11 @@ export function useStepAnnotations(step: DiagramStep | null) {
       );
     };
     return {
-      select: (id: string | null) => store().selectDiagramAnnotation(id),
+      /** A row of the list, pressed: its annotation selected, with Select in hand to move it. */
+      select: (id: string | null) => {
+        store().selectDiagramAnnotation(id);
+        if (id !== null) store().setDiagramAnnotateTool(null);
+      },
       annotate: () => {
         if (stepId !== null) store().openDiagramStep(stepId, 'annotate');
       },

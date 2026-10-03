@@ -686,6 +686,7 @@
   "diagram": {
     "actions": {
       "addStep": "Schritt hinzufügen",
+      "adjustPose": "Pose anpassen",
       "annotate": "Annotieren",
       "capturingHint": "Sein Bild wird gerade erfasst",
       "currentHint": "Zeigt sein Muster bereits so, wie es ist",
@@ -711,6 +712,7 @@
       "noPictureHint": "Dieser Schritt hat noch kein Bild",
       "openInEdit": "In Bearbeiten öffnen",
       "openInReferences": "In Referenzen öffnen",
+      "poseNeedsPicture": "Gib dem Schritt ein Bild, um seine Pose anzupassen",
       "readOnlyHint": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet",
       "refreshPicture": "Bild aktualisieren",
       "relinkPattern": "Muster neu verknüpfen…",

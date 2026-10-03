@@ -58,8 +58,14 @@ export type DiagramPictureUploadOutcome =
   | 'unsupported'
   | 'unreadable';
 
-/** How a step was opened in detail. */
-export type DiagramStepOpenedVia = 'keyboard' | 'double_click';
+/**
+ * How a step was opened in detail: Enter, a double-click on its card, one of
+ * the card's own buttons, or a step verb (its context menu or the Step pane).
+ */
+export type DiagramStepOpenedVia = 'keyboard' | 'double_click' | 'card' | 'command';
+
+/** Which half of the detail a step opened in. */
+export type DiagramStepOpenedMode = 'pose' | 'annotate';
 
 /** The tool an annotation was drawn with: its kind, in the event's own spelling. */
 export type DiagramAnnotationTool =

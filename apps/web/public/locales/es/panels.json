@@ -715,6 +715,7 @@
   "diagram": {
     "actions": {
       "addStep": "Añadir paso",
+      "adjustPose": "Ajustar pose",
       "annotate": "Anotar",
       "capturingHint": "Se está capturando su imagen",
       "currentHint": "Ya muestra su patrón tal como está",
@@ -740,6 +741,7 @@
       "noPictureHint": "Este paso aún no tiene imagen",
       "openInEdit": "Abrir en Editar",
       "openInReferences": "Abrir en Referencias",
+      "poseNeedsPicture": "Añade una imagen al paso para ajustar su pose",
       "readOnlyHint": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en modo de solo lectura",
       "refreshPicture": "Actualizar imagen",
       "relinkPattern": "Volver a vincular patrón…",

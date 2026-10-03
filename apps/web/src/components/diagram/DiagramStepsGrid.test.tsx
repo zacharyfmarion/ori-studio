@@ -43,6 +43,7 @@ function render(
     onLink?: (stepId: string) => void;
     textCut?: ReadonlySet<string>;
     onAppend?: () => void;
+    onOpenIn?: (stepId: string, mode: 'pose' | 'annotate') => void;
   } = {}
 ) {
   if (!host) {
@@ -76,6 +77,7 @@ function render(
         patternOpen={options.patternOpen ?? false}
         onLink={options.onLink ?? vi.fn()}
         onAppend={options.onAppend}
+        onOpenIn={options.onOpenIn ?? vi.fn()}
       />
     )
   );
@@ -99,6 +101,34 @@ describe('DiagramStepsGrid', () => {
     expect(onAppend).toHaveBeenCalledOnce();
     // A press on the tile is not a press on empty space.
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('puts Adjust pose and Annotate over a picture, for a pointer, and opens the step in each', () => {
+    const onOpenIn = vi.fn();
+    const onSelect = render(null, vi.fn(), {
+      steps: [cpStep('step-p'), cpStep('step-unposed', undefined, null), createStep(() => 'step-empty')],
+      onOpenIn,
+    });
+    const verbs = (stepId: string) =>
+      [...host!.querySelectorAll<HTMLButtonElement>(`[data-step-id="${stepId}"] button[title]`)].filter(
+        (button) => button.title === 'Adjust Pose' || button.title === 'Annotate'
+      );
+    const [pose, annotate] = verbs('step-p');
+    expect([pose?.title, annotate?.title]).toEqual(['Adjust Pose', 'Annotate']);
+    // Out of the listbox's way: the same verbs are in the card's menu and the Step pane.
+    expect(pose!.getAttribute('aria-hidden')).toBe('true');
+    expect(pose!.tabIndex).toBe(-1);
+    act(() => pose!.click());
+    act(() => annotate!.click());
+    expect(onOpenIn.mock.calls).toEqual([
+      ['step-p', 'pose'],
+      ['step-p', 'annotate'],
+    ]);
+    // The open selects the step itself; the card's own press would only repeat it.
+    expect(onSelect).not.toHaveBeenCalled();
+    // A link not captured yet is posed to choose how it shows; there is nothing to annotate.
+    expect(verbs('step-unposed').map((button) => button.title)).toEqual(['Adjust Pose']);
+    expect(verbs('step-empty')).toEqual([]);
   });
 
   it('has no Add step tile on a diagram that cannot change', () => {

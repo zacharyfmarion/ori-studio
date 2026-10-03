@@ -23,6 +23,7 @@ import type {
   DiagramSourceWorkspace,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
+  DiagramStepOpenedMode,
   DiagramStepOpenedVia,
   DiagramStyleChoiceName,
   DiagramView,
@@ -61,9 +62,9 @@ export function trackDiagramPictureUploaded(
   });
 }
 
-/** A step opened in detail. */
-export function trackDiagramStepOpened(via: DiagramStepOpenedVia): void {
-  track(ANALYTICS_EVENTS.diagramStepOpened, { via });
+/** A step opened in detail, and in which half. */
+export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramStepOpenedMode): void {
+  track(ANALYTICS_EVENTS.diagramStepOpened, { via, mode });
 }
 
 /**

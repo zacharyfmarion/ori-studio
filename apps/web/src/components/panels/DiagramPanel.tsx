@@ -52,6 +52,7 @@ function cutStepIds(pages: PreparedDiagramPages | null): ReadonlySet<string> {
 const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'double_click');
+const openFromCard = (stepId: string, mode: 'pose' | 'annotate') => void openDiagramStep(stepId, 'card', mode);
 
 // Straight from the click, so the browser opens its picker (a user gesture).
 const uploadPictures = () => void pickStepPictures();
@@ -249,6 +250,7 @@ export function DiagramPanel() {
             textCut={textCut}
             patternOpen={patternOpen}
             onLink={openDiagramPatternPicker}
+            onOpenIn={openFromCard}
             onAppend={readOnly ? undefined : appendStep}
           />
         )}

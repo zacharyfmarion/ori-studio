@@ -331,7 +331,12 @@ export function useAnnotateCanvas({
         });
         if (!added) return;
         trackDiagramAnnotationAdded(ANNOTATION_TOOL[annotation.kind]);
-        if (annotation.kind === 'label') requestLabelFocus(annotation.id);
+        if (annotation.kind === 'label') {
+          // A label is written, not drawn again: Select comes back to hand,
+          // and its field takes the keys.
+          store.setDiagramAnnotateTool(null);
+          requestLabelFocus(annotation.id);
+        }
         return;
       }
       if (!current.moved) return;

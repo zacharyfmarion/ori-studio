@@ -435,7 +435,10 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     openDiagramStep: (stepId, mode = 'pose') => {
       const diagram = get().diagram;
       if (!diagram || stepIndex(diagram, stepId) < 0) return false;
-      set({ ...selection(stepId), diagramDetail: mode });
+      // A step opened from the list starts with Select in hand; switching
+      // between Pose and Annotate keeps the tool, as walking the steps does.
+      const opening = get().diagramDetail === null;
+      set({ ...selection(stepId), diagramDetail: mode, ...(opening ? { diagramAnnotateTool: null } : {}) });
       return true;
     },
 
