@@ -187,22 +187,21 @@ Dependency rules:
   and middle or Meta → orbit (plus Shift → roll), so no tool can claim them. This
   is the rule Edit enforces for panning (`cmd-drag-always-pans.md`).
 
-**The tool contract** (`simulator/tools/types.ts`):
+**The tool contract** (`simulator/tools/types.ts`), as built:
 
 ```ts
 type SimulatorToolId = 'orbit' | 'pin';
-/** One list of input modes, with a total Record of engines (registry.ts's shape). */
+/** One list of input modes, with a total Record of routes (registry.ts's shape). */
 type SimulatorInputMode = 'orbit' | 'pick-faces';
 
 interface SimulatorToolDefinition {
   id: SimulatorToolId;
   icon: SimulatorToolIcon;          // a string union; the rail maps it to lucide
-  label: SimulatorText;             // { key, fallback } for t()
   shortcut: SimulatorShortcutId;
   input: SimulatorInputMode;
   cursor: 'grab' | 'crosshair';
-  /** What the tool window shows; null means nothing to say. */
-  window(state: SimulatorToolsView): SimulatorToolWindowModel | null;
+  /** The window's sections, without text; null means nothing to say. */
+  window(view: SimulatorToolsView): SimulatorToolWindowSections | null;
 }
 
 /** The CP engine shape (cp-workspace/tools/types.ts), over CSS-pixel input. */
@@ -211,18 +210,26 @@ interface SimulatorGestureEngine<S> {
   reduce(state: S, input: SimulatorPointerInput): {
     state: S;
     preview: { marquee: CssRect } | null;
-    intent: SimulatorIntent | null;
+    gesture: SimulatorGesture | null;   // a box or a click, meaning nothing yet
   };
 }
 
+/** intents.ts gives a gesture its meaning under the tool's options. */
 type SimulatorIntent = {
   kind: 'pick-faces';
-  region: { rect: CssRect } | { point: CssPoint };
-  depth: 'all-layers' | 'visible' | 'front';
-  mode: PinMode;                    // replace | add | toggle | clear-if-empty
-  surface: { cssSize: Size; bufferSize: Size };
+  gesture: 'box' | 'click' | 'tap';
+  region: SimulatorPickRegion;      // CSS px
+  reach: 'all-layers' | 'visible' | 'front';
+  mode: PinMode;                    // replace | add | toggle
+  surface: CssSize;                 // the canvas's CSS size at release
 };
 ```
+
+Labels are not in the catalog. The i18n extractor sees only literal `t()`
+keys, so the definitions carry ids and `actions.ts` resolves every string with a
+literal call, the way `foldedFigureActions.ts` and `shortcutLabels.ts` do. A
+replacing pick that finds nothing empties the set by itself (`replace` with
+`[]`), so no separate "clear if empty" mode is needed.
 
 Edit's tools carry three overlapping mode lists (`ToolInputMode`,
 `ActiveToolMode`, `CpInputModel`). The simulator keeps one.
@@ -759,7 +766,7 @@ Each step is its own commit; the moves change nothing on screen.
 - [x] **Move:** the touch arbiter → `src/lib/gestures/`.
 - [x] **Keyboard:** the simulator executor can decline, with tests (an inline
       window passes Escape through).
-- [ ] **Tool core:** types, catalog, actions, `pressRoute` (total over input
+- [x] **Tool core:** types, catalog, actions, `pressRoute` (total over input
       modes), engines, intents, `pinSet`, cursor. All pure; all unit-tested.
 - [ ] **Bindings:** the `simulatorTools` slice and its persisted options;
       `useSimulatorTools` with its executor and `classifySimulatorCallFailure`.
