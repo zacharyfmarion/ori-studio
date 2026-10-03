@@ -22,15 +22,16 @@ function build(state: Partial<Parameters<typeof buildDiagramPoseActions>[0]> = {
 describe('the pose verbs', () => {
   it('turn the picture as it is shown, and reset it upright', () => {
     const { setPose, run } = build();
+    // Each verb hands on the pose it makes, and its own name (for analytics).
     run('rotate-left');
-    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 0, mirrored: false });
+    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 0, mirrored: false }, 'rotate-left');
     run('rotate-right');
-    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 2, mirrored: false });
+    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 2, mirrored: false }, 'rotate-right');
     // Flipping a quarter-turned picture reverses its turn: the stored pose mirrors first.
     run('flip');
-    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 3, mirrored: true });
+    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 3, mirrored: true }, 'flip');
     run('reset');
-    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 0, mirrored: false });
+    expect(setPose).toHaveBeenLastCalledWith({ rotationQuarterTurns: 0, mirrored: false }, 'reset');
   });
 
   it('offer no reset for an upright picture', () => {
