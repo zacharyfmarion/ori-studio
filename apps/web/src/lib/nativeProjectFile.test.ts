@@ -1898,7 +1898,8 @@ describe('a crease-pattern-only save', () => {
     expect(file.workspace.diagram).toEqual(diagram);
     expect(file.schemaVersion).toBe(8);
     expect(file.minimumReaderSchemaVersion).toBe(9);
-    expect(createNativeCreasePatternProjectFile(cpInput()).workspace.diagram).toBeNull();
+    // Absent rather than null: a file without a diagram is written as before.
+    expect('diagram' in createNativeCreasePatternProjectFile(cpInput()).workspace).toBe(false);
   });
 });
 
@@ -1928,6 +1929,11 @@ describe('a project holding a diagram', () => {
     expect(parsed.minimumReaderSchemaVersion).toBe(9);
   });
 
+  it('writes a project without a diagram exactly as before diagrams existed', () => {
+    expect(serializeNativeProjectFile(designOnly({}))).not.toMatch(/"diagram"/);
+    expect(serializeNativeProjectFile(designOnly({ diagram: null }))).not.toMatch(/"diagram"/);
+  });
+
   it('keeps reader 1 for a file without a diagram', () => {
     const parsed = parseNativeProjectFile(serializeNativeProjectFile(designOnly()));
     expect(parsed.workspace.diagram).toBeNull();
@@ -1940,8 +1946,17 @@ describe('a project holding a diagram', () => {
     expect(parseNativeProjectFile(JSON.stringify(file)).workspace.diagram).toBeNull();
   });
 
-  it('is refused by a reader older than 9, with a reason the user can act on', () => {
-    // What an older build does with this file: the reader bar is above it.
+  it('is stamped past every reader that predates diagrams', () => {
+    // Builds before diagrams read schema 8 and refuse a file whose bar is above
+    // their own; that check is theirs and cannot run here, so this states the
+    // stamp it reads.
+    const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagram })));
+    expect(file.minimumReaderSchemaVersion).toBeGreaterThan(NATIVE_PROJECT_SCHEMA_VERSION);
+  });
+
+  it('is refused, with a reason the user can act on, by a reader below its bar', () => {
+    // The same refusal an older build makes, run against this build's reader by
+    // raising the bar past it.
     const file = JSON.parse(serializeNativeProjectFile(designOnly({ diagram })));
     file.minimumReaderSchemaVersion = NATIVE_PROJECT_READER_VERSION + 1;
     let thrown: unknown;

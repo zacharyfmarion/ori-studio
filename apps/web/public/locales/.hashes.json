@@ -3401,7 +3401,9 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -6805,7 +6807,9 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -10211,7 +10215,9 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -13555,7 +13561,9 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -16899,7 +16907,9 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -20303,7 +20313,9 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -23707,7 +23719,9 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -27051,6 +27065,8 @@
     "tools:diagram.moveStepLater": "3026442f1a40",
     "tools:diagram.nextStep": "226366c3301a",
     "tools:diagram.previousStep": "f1fe8694fccd",
-    "tools:diagram.scopeLabel": "2c20a6b064ee"
+    "tools:diagram.scopeLabel": "2c20a6b064ee",
+    "tools:diagram.firstStep": "4c3966912fb8",
+    "tools:diagram.lastStep": "202401fdc59c"
   }
 }

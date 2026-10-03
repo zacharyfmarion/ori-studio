@@ -1774,7 +1774,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - As built — a change to D12's keyboard design, for a reason found in the dispatcher:
     - The dispatcher runs only the *first* definition in a scope that matches a chord, and a decline moves on to the next scope, not the next definition. So `viewport.diagramPrev` on ← could never be reached behind `viewport.solveAnglesPrevious` on the same chord. The Settings capture rules and the Oriedita import both encode that first-match rule, so changing the dispatcher would have reached into both.
     - Instead the conditional `'diagram'` scope's executor may decline, as a viewport's may (`ShortcutExecutors.diagram` returns a boolean). With that, the reason D12 kept arrows out of the scope is gone: ← / → and Alt+← / → live there as `diagram.previousStep` / `nextStep` / `moveStepEarlier` / `moveStepLater`. Conditional scopes are already deferrals to every conflict rule, so nothing else had to learn about them.
-    - The arrows decline only while a control that uses arrows has focus (tab strip, radio group, toolbar, menu, slider, field). Declining for every interactive target, as D12 proposed, would make ← dead after a press on Add step, where a button's arrows do nothing. Enter (2c) will decline for any interactive target, as D12 says.
+    - The arrows decline only while a control that uses arrows has focus (tab strip, radio group, toolbar, slider; fields and open menus never reach the executor). Declining for every interactive target, as D12 proposed, would make ← dead after a press on Add step, where a button's arrows do nothing. Enter (2c) will decline for any interactive target, as D12 says.
     - Escape stays `viewport.cancel` on the `'diagram'` surface, with Phase 1's one rung (deselect). Shift+F10 (`viewport.contextMenu`) opens the selected step's menu at its card.
     - The panel claims the `'diagram'` viewport surface on mount and on press, and releases it on unmount (`releaseShortcutViewportSurface`), so the next workspace's viewport keys reach their own surface rather than one that is gone.
     - The registry test asserts the scope takes no always-present chord, Escape or Enter; arrows are allowed.
@@ -1785,6 +1785,17 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - save, reopen and land, including a diagram-only project and a diagram-only file opened over a CP project (opened by a real drop through the file-drop controller; saved through the real save path with an in-page file service, since the pane cannot drive a native save dialog);
   - switch workspaces and back; the view state survives.
   - Found and fixed on the way: the title field was sized to its placeholder, and focus fell to the page when the focused card was deleted.
+- [x] **Review.** Three adversarial reviewers (state and persistence, UI and accessibility, repo rules). Fixed:
+  - Saves and discard prompts first commit what is still being typed (`lib/pendingEdits.ts`; the title, step header and instruction fields register). A save whose dialog stayed open while the diagram changed stays dirty.
+  - A failed open no longer leaves the old project half-replaced: `loadNativeProject` puts the diagram and the extensions back unless the new project had already replaced the old one, and the BP opens load their document before clearing the crease pattern.
+  - Duplicating a step gives its carried annotations new ids. A document-level field this build does not know makes the diagram read-only, as a newer `formatVersion` does.
+  - A `.osf` with no diagram has no `diagram` key at all, so it is byte-identical to one written before diagrams.
+  - Confirmations take focus on their safe button and give it back when they close, the workspace's keys stand down behind them (`data-shortcut-barrier`, and the app keyboard while one is open), and fields ignore keys mid-composition (IME).
+  - A context menu now says where focus goes when it closes (`returnFocusTo`), and hands focus to a confirmation one of its rows opened (`focusCommandDialog`). Before, the menu's trap took focus back from the dialog. This is shared, so every surface's menu gets it.
+  - The steps grid: ↑ / ↓ walk the steps as ← / → do, Home and End go to the ends, the arrows go on from a focused card when nothing is selected, and a press on the space between cards keeps focus in the grid.
+  - The header wraps its verbs under the title on a phone, rather than off the edge.
+  - In the Diagram, Undo, Redo and Delete are not held back while TreeMaker is busy, but Save still is.
+  - Left as is, with the reason in the code: a diagram-only save leaves out a read-only imported pattern (the `.osf` has no place for one, and its own file is never overwritten).
 
 ### Phase 2: uploaded pictures, painting and the step detail
 

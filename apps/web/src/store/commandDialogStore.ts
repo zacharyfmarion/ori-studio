@@ -151,6 +151,37 @@ function clearPendingWithFallback() {
   pending = null;
 }
 
+/**
+ * The open dialog's way to take focus late, registered by the host while a
+ * dialog that has a button to land on is up.
+ *
+ * A dialog takes focus as it opens. One opened by a context-menu row opens
+ * while the menu is still up — Radix runs the row synchronously — and the
+ * menu's focus trap takes focus straight back. The menu calls
+ * {@link focusCommandDialog} once it has let go.
+ */
+let focusHandoff: ((returnTo: HTMLElement | null) => void) | null = null;
+
+export function registerCommandDialogFocus(
+  handoff: (returnTo: HTMLElement | null) => void
+): () => void {
+  focusHandoff = handoff;
+  return () => {
+    if (focusHandoff === handoff) focusHandoff = null;
+  };
+}
+
+/**
+ * Give focus to the open dialog, and have it go to `returnTo` when the dialog
+ * closes (when there is one; otherwise to what the dialog found focused when
+ * it opened). Whether a dialog took it.
+ */
+export function focusCommandDialog(returnTo: HTMLElement | null): boolean {
+  if (!focusHandoff || useCommandDialogStore.getState().dialog === null) return false;
+  focusHandoff(returnTo);
+  return true;
+}
+
 export function registerCommandDialogHost(): () => void {
   mountedHostCount += 1;
   return () => {

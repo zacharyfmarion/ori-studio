@@ -236,6 +236,23 @@ describe('workspace capabilities', () => {
     expect(live['view.diagram']).toMatchObject({ visible: true, enabled: true });
   });
 
+  it("keeps the Diagram's own edits while TreeMaker is busy, and saving held until it is done", () => {
+    const busy = capabilities({
+      activeEditingContext: 'diagram',
+      status: 'optimizing',
+      canSaveDesign: false,
+      hasDiagram: true,
+      historyPastCount: 1,
+      historyFutureCount: 1,
+      hasDeletableDiagramSelection: true,
+    });
+    expect(busy['edit.undo'].enabled).toBe(true);
+    expect(busy['edit.redo'].enabled).toBe(true);
+    expect(busy['edit.delete'].enabled).toBe(true);
+    // The save writes every workspace, the one being optimized too.
+    expect(busy['file.save'].enabled).toBe(false);
+  });
+
   it('saves a project that has a diagram from any workspace, whatever else it holds', () => {
     for (const activeEditingContext of ['treemaker-tree', 'crease-pattern', 'bp-tree'] as const) {
       const state = capabilities({ activeEditingContext, canSaveDesign: false, hasDiagram: true });

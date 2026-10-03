@@ -236,6 +236,8 @@
   },
   "diagram": {
     "categoryLabel": "Схема",
+    "firstStep": "Первый шаг",
+    "lastStep": "Последний шаг",
     "moveStepEarlier": "Переместить шаг раньше",
     "moveStepLater": "Переместить шаг позже",
     "nextStep": "Следующий шаг",

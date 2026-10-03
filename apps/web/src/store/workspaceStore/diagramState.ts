@@ -68,6 +68,11 @@ export function discardDiagramState(): DiagramScopedState {
   };
 }
 
+/** The diagram-scoped state as it stands, to put back with one `set`. */
+export function pickDiagramState(state: WorkspaceState): DiagramScopedState {
+  return Object.fromEntries(DIAGRAM_SCOPED_KEYS.map((key) => [key, state[key]])) as DiagramScopedState;
+}
+
 /**
  * The most bytes of picture and asset data the undo history may keep alive,
  * beyond the current diagram itself.

@@ -24,7 +24,9 @@ export function useDiagramStepMenu(root: RefObject<HTMLElement | null>): {
   openStepMenu: (stepId: string) => boolean;
 } {
   const { t } = useTranslation();
-  const controller = useContextMenuController('diagram');
+  const controller = useContextMenuController('diagram', {
+    returnFocusTo: () => gridFocusTarget(root.current),
+  });
   const request = controller.request;
 
   const requestStepMenu = useCallback(
@@ -79,12 +81,7 @@ export function useDiagramStepMenu(root: RefObject<HTMLElement | null>): {
 
   const openStepMenu = useCallback(
     (stepId: string) => {
-      // Compared, not put in a selector: an id read from a file can hold any
-      // character a selector would need escaped.
-      const card = [...(root.current?.querySelectorAll<HTMLElement>('[data-step-id]') ?? [])].find(
-        (element) => element.dataset.stepId === stepId
-      );
-      const anchor = contextMenuKeyboardAnchor(card ?? null);
+      const anchor = contextMenuKeyboardAnchor(stepCard(root.current, stepId));
       if (!anchor) return false;
       requestStepMenu(stepId, anchor, 'keyboard');
       return true;
@@ -93,4 +90,29 @@ export function useDiagramStepMenu(root: RefObject<HTMLElement | null>): {
   );
 
   return { controller, onContextMenu, openStepMenu };
+}
+
+/**
+ * The card for a step, in the Steps view under `root`. Compared, not put in a
+ * selector: an id read from a file can hold any character a selector would
+ * need escaped.
+ */
+function stepCard(root: HTMLElement | null, stepId: string): HTMLElement | null {
+  const cards = root?.querySelectorAll<HTMLElement>('[data-step-id]') ?? [];
+  return [...cards].find((element) => element.dataset.stepId === stepId) ?? null;
+}
+
+/**
+ * Where focus goes back to when the menu closes: the selected card — which a
+ * row may have changed (Duplicate selects the copy) — or the grid itself when
+ * nothing is selected (Delete took the last step). After a confirmation, the
+ * same place, once the dialog closes.
+ */
+function gridFocusTarget(root: HTMLElement | null): HTMLElement | null {
+  const selected = useWorkspaceStore.getState().diagramSelectedStepId;
+  return (
+    (selected !== null ? stepCard(root, selected) : null) ??
+    root?.querySelector<HTMLElement>('[role="listbox"]') ??
+    null
+  );
 }

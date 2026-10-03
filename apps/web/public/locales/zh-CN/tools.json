@@ -212,6 +212,8 @@
   },
   "diagram": {
     "categoryLabel": "图解",
+    "firstStep": "第一步",
+    "lastStep": "最后一步",
     "moveStepEarlier": "前移步骤",
     "moveStepLater": "后移步骤",
     "nextStep": "下一步",

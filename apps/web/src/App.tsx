@@ -31,6 +31,7 @@ import { currentWorkspacePath } from './routing/landing';
 import { startWorkspaceUrlSync } from './routing/workspaceUrlSync';
 import { useWelcomeDiscardGuard } from './routing/useWelcomeDiscardGuard';
 import { sitePageForPath } from './site/sitePages';
+import { useCommandDialogStore } from './store/commandDialogStore';
 import { useShortcutStore } from './store/shortcutStore';
 import { useThemeStore } from './store/themeStore';
 import { useWorkspaceStore } from './store/workspaceStore';
@@ -133,6 +134,7 @@ export default function App() {
           const path = currentPath();
           return path !== null && sitePageForPath(path) !== null;
         },
+        isCommandDialogOpen: () => useCommandDialogStore.getState().dialog !== null,
         getActiveEditingContext: () => useWorkspaceStore.getState().activeEditingContext,
         getSelection: () => selectSelection(useWorkspaceStore.getState()),
         handleMenuAction,

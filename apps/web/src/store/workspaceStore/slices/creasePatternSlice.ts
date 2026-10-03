@@ -1,3 +1,4 @@
+import { flushPendingEdits } from '../../../lib/pendingEdits';
 import { patchTreemakerDesign, selectDesignViewportFitRequestId, selectProject } from '../designTabs';
 import {
   NO_CP_VERTEX_PINS,
@@ -203,8 +204,10 @@ import type { WorkspaceCapabilityId } from '../../../lib/workspaceCapabilities';
  * Opening a shared link over an existing document discards it, so ask first — the same
  * question File > Open asks, for the same reason.
  */
-async function confirmDiscardDirtyProject(dirty: boolean): Promise<boolean> {
-  if (!dirty) return true;
+/** As `projectSlice`'s: pending drafts first, then `dirty` read through the getter. */
+async function confirmDiscardDirtyProject(isDirty: () => boolean): Promise<boolean> {
+  flushPendingEdits();
+  if (!isDirty()) return true;
   return requestConfirmation({
     title: 'Discard unsaved changes?',
     message: 'Opening this shared crease pattern will replace your current work. Continue and discard it?',
@@ -1381,7 +1384,7 @@ export const createCreasePatternSlice: WorkspaceSliceCreator<CreasePatternSlice>
       if (get().oristudioCpDocument) {
         const pending = get().pendingSharedCp;
         if (!pending) return;
-        if (!(await confirmDiscardDirtyProject(get().dirty))) {
+        if (!(await confirmDiscardDirtyProject(() => get().dirty))) {
           set({ pendingSharedCp: null });
           return;
         }

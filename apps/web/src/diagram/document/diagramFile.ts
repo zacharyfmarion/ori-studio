@@ -28,6 +28,7 @@ import { xmlText } from '../../lib/xmlEscape';
 import {
   DEFAULT_DIAGRAM_STYLE,
   DIAGRAM_FORMAT_VERSION,
+  PAPER_SIZES,
   normalizePageSetup,
   randomDiagramId,
   type DiagramAnnotation,
@@ -83,8 +84,76 @@ export function readDiagram(
     steps,
     assets: readAssets(value.assets),
   };
-  return { document, readOnly: formatVersion > DIAGRAM_FORMAT_VERSION, raw: value };
+  const newer = formatVersion > DIAGRAM_FORMAT_VERSION || unknownDocumentField(value) !== null;
+  return { document, readOnly: newer, raw: value };
 }
+
+const DOCUMENT_KEYS = new Set([
+  'formatVersion',
+  'id',
+  'title',
+  'hanStyle',
+  'style',
+  'page',
+  'steps',
+  'assets',
+]);
+const PAGE_KEYS = new Set([
+  'size',
+  'orientation',
+  'marginMm',
+  'layout',
+  'columns',
+  'rows',
+  'showPath',
+  'scale',
+  'showTitle',
+  'pageNumbers',
+]);
+const PAGE_ENUMS: Record<string, readonly string[]> = {
+  size: PAPER_SIZES,
+  orientation: ['portrait', 'landscape'],
+  layout: ['grid', 'flow'],
+  scale: ['paper', 'fit'],
+};
+
+/**
+ * The first document-level field a newer build wrote that this one cannot
+ * keep, or `null`.
+ *
+ * Steps, annotations and assets of an unknown kind are carried one by one and
+ * the rest of the diagram stays editable. A field of the document itself
+ * cannot be carried that way: this build would write its own reading of it —
+ * an unknown page size as A4 — and the next edit would build on that. So a key
+ * it does not know, or a value it does not know for one of its enums, opens
+ * the diagram read-only, as a newer `formatVersion` does, and the file is
+ * written back as it came. A value of the wrong type is damage rather than
+ * news, and is replaced as before.
+ */
+export function unknownDocumentField(value: Record<string, unknown>): string | null {
+  for (const key of Object.keys(value)) if (!DOCUMENT_KEYS.has(key)) return key;
+  if (typeof value.hanStyle === 'string' && !HAN_STYLES.includes(value.hanStyle)) return 'hanStyle';
+  if (isRecord(value.style)) {
+    for (const key of Object.keys(value.style)) if (key !== 'preset' && key !== 'style') return `style.${key}`;
+    if (typeof value.style.preset === 'string' && !isBuiltInPaperPresetId(value.style.preset)) {
+      return 'style.preset';
+    }
+  }
+  if (isRecord(value.page)) {
+    for (const key of Object.keys(value.page)) if (!PAGE_KEYS.has(key)) return `page.${key}`;
+    for (const [key, known] of Object.entries(PAGE_ENUMS)) {
+      const entry = value.page[key];
+      if (typeof entry === 'string' && !known.includes(entry)) return `page.${key}`;
+    }
+    const numbers = value.page.pageNumbers;
+    if (isRecord(numbers)) {
+      for (const key of Object.keys(numbers)) if (key !== 'enabled' && key !== 'first') return `page.pageNumbers.${key}`;
+    }
+  }
+  return null;
+}
+
+const HAN_STYLES: readonly string[] = ['sc', 'tc', 'jp', 'kr'];
 
 /**
  * The value written to `workspace.diagram`. A read-only diagram is written as

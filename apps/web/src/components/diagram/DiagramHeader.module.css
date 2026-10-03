@@ -1,4 +1,32 @@
-/* What the Diagram header (DiagramHeader.tsx) adds to the shared toolbar frame. */
+/*
+ * What the Diagram header (DiagramHeader.tsx) adds to the shared toolbar frame.
+ *
+ * The title takes the room the verbs leave it, down to 12rem; with less than
+ * that the verbs wrap to a row of their own, right-aligned under it. On a
+ * desktop the row never wraps, so the frame's one-row height holds.
+ */
+.header {
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+}
+
+.title {
+  flex: 1 1 12rem;
+}
+
+.actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Wrapped, each row gets a little air from the frame's top and bottom rules. */
+@media (max-width: 720px) {
+  .title,
+  .actions {
+    padding-block: var(--space-1);
+  }
+}
+
 .count {
   flex: 0 0 auto;
   color: var(--text-tertiary);

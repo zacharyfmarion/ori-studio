@@ -10,7 +10,8 @@ import styles from './DiagramHeader.module.css';
  * The Diagram workspace's header: the title and how many steps, then the verbs
  * that act on the whole diagram. It wears the shared `panel-toolbar` frame so
  * it meets the side pane's tab bar at the same height, and adds rules only for
- * what is its own.
+ * what is its own: on a screen too narrow for both, the verbs wrap onto a row
+ * of their own under the title rather than off the edge.
  */
 export function DiagramHeader({
   title,
@@ -30,8 +31,8 @@ export function DiagramHeader({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="panel-toolbar">
-      <div className="panel-toolbar__group">
+    <div className={`panel-toolbar ${styles.header}`}>
+      <div className={`panel-toolbar__group ${styles.title}`}>
         <DiagramTitleField title={title} disabled={readOnly} onRename={onRename} />
         {stepCount > 0 && (
           <span className={styles.count}>
@@ -43,7 +44,7 @@ export function DiagramHeader({
           </span>
         )}
       </div>
-      <div className="panel-toolbar__group">
+      <div className={`panel-toolbar__group ${styles.actions}`}>
         <DiagramHistoryButtons />
         <Button size="sm" variant="secondary" disabled={readOnly} onClick={onAddStep}>
           <Plus size={14} aria-hidden="true" />

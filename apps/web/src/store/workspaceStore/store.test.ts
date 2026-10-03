@@ -39,6 +39,7 @@ import {
 } from '../../cp-workspace/inlineSimulation/inlineSimulationRuntime';
 import { CP_DOCUMENT_SCOPED_KEYS, discardCpDocumentState } from './cpDocumentState';
 import { DIAGRAM_SCOPED_KEYS, discardDiagramState } from './diagramState';
+import { registerPendingEditFlush, resetPendingEditsForTests } from '../../lib/pendingEdits';
 import { readDiagram } from '../../diagram/document/diagramFile';
 import { foldCancellationBuffer } from '../../lib/foldCancellation';
 import { registerCpCamera } from '../../cp-workspace/renderer/cpCameraRegistry';
@@ -9689,6 +9690,100 @@ describe('the project diagram', () => {
     // Never over the `.ori`: a native target is asked for.
     expect(options).toMatchObject({ extensions: ['osf'], path: null });
     expect(file.workspace.diagram?.steps).toHaveLength(2);
+  });
+
+  describe('typing that has not committed yet', () => {
+    afterEach(resetPendingEditsForTests);
+
+    it('is saved, not the text from before it', async () => {
+      const { first } = authorTwoSteps();
+      // A field holding a draft, as the instruction field does between keystrokes.
+      registerPendingEditFlush(() => state().setDiagramStepText(first, 'Typed, not committed.'));
+      const fileService = createFileService();
+
+      await state().saveProject(fileService);
+
+      const steps = writtenFile(fileService).file.workspace.diagram?.steps as { text: string }[];
+      expect(steps[0].text).toBe('Typed, not committed.');
+      expect(state().dirty).toBe(false);
+    });
+
+    it('counts as unsaved work when the project is about to be replaced', async () => {
+      authorTwoSteps();
+      useWorkspaceStore.setState({ dirty: false });
+      const { first } = { first: state().diagram!.steps[0].id };
+      registerPendingEditFlush(() => state().setDiagramStepText(first, 'Still typing'));
+      const unregisterDialogHost = registerCommandDialogHost();
+      try {
+        const replacing = state().createNewCreasePattern();
+        const dialog = useCommandDialogStore.getState().dialog;
+        expect(dialog).toMatchObject({ type: 'confirm', title: 'Discard unsaved changes?' });
+        resolveCommandDialog(dialog!.id, false);
+        await replacing;
+        expect(state().diagram?.steps[0].text).toBe('Still typing');
+      } finally {
+        unregisterDialogHost();
+      }
+    });
+  });
+
+  it('leaves the project unsaved when the diagram changes while the save dialog is up', async () => {
+    const { second } = authorTwoSteps();
+    const fileService = createFileService();
+    fileService.saveTextFile.mockImplementation(async (options: SaveTextFileOptions) => {
+      // An edit that lands while the native dialog is open, as a field's
+      // blur commit does when the window loses focus to it.
+      state().setDiagramStepText(second, 'Edited during the dialog');
+      return { name: options.suggestedName, path: `/tmp/${options.suggestedName}` };
+    });
+
+    await state().saveProjectAs(fileService);
+
+    const steps = writtenFile(fileService).file.workspace.diagram?.steps as { text: string }[];
+    expect(steps[1].text).toBe('Unfold.');
+    expect(state().dirty).toBe(true);
+  });
+
+  it('keeps the old project whole when a crease-pattern project fails to open over it', async () => {
+    // A file holding only a crease pattern, made by the real writer, from Edit.
+    await state().createNewCreasePattern();
+    state().setActivePanelId('crease-pattern');
+    const cpOnly = createFileService();
+    await state().saveProjectAs(cpOnly);
+    const cpOnlyText = writtenFile(cpOnly).options.contents;
+
+    authorTwoSteps();
+    const ours = createFileService();
+    await state().saveProjectAs(ours);
+    const diagram = state().diagram;
+    const path = state().currentFilePath;
+    oristudioCpMocks.restoreOristudioCpDocument.mockRejectedValueOnce(new Error('kernel refused'));
+
+    await expect(
+      state().openProject(createFileService({ text: cpOnlyText, name: 'other.osf', path: '/tmp/other.osf' }))
+    ).resolves.toBe(false);
+
+    expect(state().currentFilePath).toBe(path);
+    expect(state().diagram).toBe(diagram);
+    // So saving again writes the file it came from, diagram and all.
+    const again = createFileService();
+    await state().saveProject(again);
+    expect(writtenFile(again).file.workspace.diagram?.steps).toHaveLength(2);
+  });
+
+  it('keeps the crease pattern when a .bps fails to open over it', async () => {
+    await state().createNewCreasePattern();
+    authorTwoSteps();
+    await state().saveProjectAs(createFileService());
+    const document = state().oristudioCpDocument;
+    bpMocks.loadOristudioBpProjectFromText.mockRejectedValueOnce(new Error('not a .bps'));
+
+    await state().openProject(createFileService({ text: 'garbage', name: 'x.bps', path: '/tmp/x.bps' }));
+
+    expect(state().oristudioCpDocument).toBe(document);
+    const again = createFileService();
+    await state().saveProject(again);
+    expect(writtenFile(again).file.workspace.creasePattern).not.toBeNull();
   });
 
   it('still refuses a project with no design, no crease pattern and no diagram', async () => {

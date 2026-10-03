@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readDiagram } from '../../diagram/document/diagramFile';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { CommandDialogModal } from '../CommandDialogModal';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramPanel } from './DiagramPanel';
 
@@ -26,6 +27,7 @@ beforeEach(() => {
     root?.render(
       <TooltipProvider>
         <DiagramPanel />
+        <CommandDialogModal />
       </TooltipProvider>
     )
   );
@@ -84,7 +86,16 @@ describe('DiagramPanel', () => {
   });
 
   it('adds a step from the empty state, then from the header, each selected and counted', () => {
-    act(() => buttonNamed('Add step')?.click());
+    // The empty state's own button, not the header's that precedes it.
+    const heading = [...(host?.querySelectorAll('h2') ?? [])].find(
+      (element) => element.textContent === 'Start a diagram'
+    );
+    const emptyStateAdd = [...(heading?.parentElement?.querySelectorAll('button') ?? [])].find(
+      (button) => button.textContent === 'Add step'
+    );
+    expect(emptyStateAdd).toBeDefined();
+    expect(emptyStateAdd).not.toBe(buttonNamed('Add step'));
+    act(() => emptyStateAdd?.click());
     expect(state().diagram?.steps).toHaveLength(1);
     expect(options()).toHaveLength(1);
     expect(options()[0].getAttribute('aria-selected')).toBe('true');
@@ -149,6 +160,39 @@ describe('DiagramPanel', () => {
       expect(press({ key: 'Escape' })).toBe(false);
     });
 
+    it('walks with ↑ and ↓ as well, and jumps to the ends with Home and End', () => {
+      const [first, second, third] = addSteps(3);
+      act(() => state().selectDiagramStep(first));
+      expect(press({ key: 'ArrowDown' })).toBe(true);
+      expect(state().diagramSelectedStepId).toBe(second);
+      expect(press({ key: 'ArrowUp' })).toBe(true);
+      expect(state().diagramSelectedStepId).toBe(first);
+      expect(press({ key: 'End' })).toBe(true);
+      expect(state().diagramSelectedStepId).toBe(third);
+      expect(press({ key: 'Home' })).toBe(true);
+      expect(state().diagramSelectedStepId).toBe(first);
+    });
+
+    it('goes on from a focused card when nothing is selected', () => {
+      const [, second, third] = addSteps(3);
+      act(() => state().selectDiagramStep(null));
+      const card = options()[1];
+      act(() => card.focus());
+      expect(press({ key: 'ArrowRight' }, card)).toBe(true);
+      expect(state().diagramSelectedStepId).toBe(third);
+      expect(second).toBe(card.dataset.stepId);
+    });
+
+    it('leaves the arrows, Home and End to the title field', () => {
+      const [first] = addSteps(2);
+      act(() => state().selectDiagramStep(first));
+      act(() => titleField().focus());
+      for (const key of ['ArrowRight', 'ArrowLeft', 'Home', 'End']) {
+        expect(press({ key }, titleField()), key).toBe(false);
+      }
+      expect(state().diagramSelectedStepId).toBe(first);
+    });
+
     it('leaves the arrows to a control that uses them', () => {
       const [first] = addSteps(2);
       act(() => state().selectDiagramStep(first));
@@ -201,6 +245,48 @@ describe('DiagramPanel', () => {
       );
       act(() => moveLater?.click());
       expect(state().diagram?.steps.map((step) => step.id)).toEqual([second, first]);
+    });
+
+    it('gives focus back to the selected card when the menu closes', async () => {
+      const [first] = addSteps(2);
+      act(() => {
+        options()[0].dispatchEvent(
+          new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })
+        );
+      });
+      const duplicate = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((item) =>
+        item.textContent?.startsWith('Duplicate Step')
+      );
+      act(() => duplicate?.click());
+      // The menu hands focus back after it has unmounted, a task later.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      const copy = state().diagramSelectedStepId;
+      expect(copy).not.toBe(first);
+      expect((document.activeElement as HTMLElement | null)?.dataset.stepId).toBe(copy);
+    });
+
+    it('gives a confirmation focus, and the card focus back when it is cancelled', async () => {
+      const [first] = addSteps(2);
+      act(() => state().setDiagramStepText(first, 'Fold in half.'));
+      act(() => {
+        options()[0].dispatchEvent(
+          new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })
+        );
+      });
+      const remove = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((item) =>
+        item.textContent?.startsWith('Delete Step')
+      );
+      act(() => remove?.click());
+      await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+      // The step has an instruction, so Delete asks; the menu's trap must not
+      // keep focus from the dialog, which lands on its safe button.
+      const cancel = document.activeElement as HTMLButtonElement | null;
+      expect(cancel?.textContent).toBe('Cancel');
+      expect(cancel?.closest('[data-shortcut-barrier]')).not.toBeNull();
+
+      act(() => cancel?.click());
+      expect(state().diagram?.steps).toHaveLength(2);
+      expect((document.activeElement as HTMLElement | null)?.dataset.stepId).toBe(first);
     });
 
     it('offers Add Step on the space between cards', () => {

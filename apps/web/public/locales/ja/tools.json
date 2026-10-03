@@ -212,6 +212,8 @@
   },
   "diagram": {
     "categoryLabel": "折り図",
+    "firstStep": "最初のステップ",
+    "lastStep": "最後のステップ",
     "moveStepEarlier": "ステップを前へ移動",
     "moveStepLater": "ステップを後ろへ移動",
     "nextStep": "次のステップ",

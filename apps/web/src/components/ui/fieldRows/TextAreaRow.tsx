@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { registerCanvasSessionEnder } from '../../../cp-workspace/canvasObjects/canvasSessions';
+import { registerPendingEditFlush } from '../../../lib/pendingEdits';
+import { isComposingKey } from './isComposingKey';
 import styles from './TextAreaRow.module.css';
 
 /** Sessions are numbered across every row, so two rows can never share one. */
@@ -22,8 +24,9 @@ interface PendingEdit {
  * A multi-line text field in a row, its label above it.
  *
  * Commits on blur, after `idleMs` without typing, before any undo or redo
- * runs, and when the row goes away — so nothing typed is ever lost, and an
- * undo always has the latest text to undo. Each commit carries the session it
+ * runs, before a save or any question about unsaved work (`pendingEdits`),
+ * and when the row goes away — so nothing typed is ever lost, and an undo
+ * always has the latest text to undo. Each commit carries the session it
  * belongs to (one per focus), so a consumer that records history can make one
  * sitting at the field one entry.
  *
@@ -89,6 +92,7 @@ export function TextAreaRow({
   // replacement commits it too: the callback it was typed against decides
   // whether it still has anywhere to go.
   useEffect(() => registerCanvasSessionEnder(flush, 'session'), [flush]);
+  useEffect(() => registerPendingEditFlush(flush), [flush]);
   useEffect(() => flush, [flush]);
 
   const beginSession = () => {
@@ -129,6 +133,8 @@ export function TextAreaRow({
           session.current = 0;
         }}
         onKeyDown={(event) => {
+          // An input method's Enter and Escape accept or cancel a conversion.
+          if (isComposingKey(event)) return;
           if (event.key === 'Escape' || (event.key === 'Enter' && (event.metaKey || event.ctrlKey))) {
             event.preventDefault();
             event.currentTarget.blur();

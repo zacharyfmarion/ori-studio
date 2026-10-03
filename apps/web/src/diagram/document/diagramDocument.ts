@@ -286,10 +286,15 @@ export function duplicateStep(
     ...original,
     id: newId('step'),
     revision: 0,
-    annotations: original.annotations.map((annotation) => ({
-      ...annotation,
-      id: newId('annotation'),
-    })),
+    annotations: original.annotations.map((annotation) => {
+      const id = newId('annotation');
+      // One carried verbatim from a newer build is written back from its raw
+      // form, so the fresh id has to go there too, or the copy is written out
+      // under the original's.
+      return annotation.unknown
+        ? { ...annotation, id, unknown: { ...annotation.unknown, id } }
+        : { ...annotation, id };
+    }),
   };
   return { document: insertSteps(document, [copy], index + 1), stepId: copy.id };
 }
@@ -353,7 +358,7 @@ function updateStep(
   return { ...document, steps };
 }
 
-const PAPER_SIZES: readonly DiagramPaperSize[] = ['a4', 'a5', 'b5-jis', 'letter'];
+export const PAPER_SIZES: readonly DiagramPaperSize[] = ['a4', 'a5', 'b5-jis', 'letter'];
 
 /**
  * A page setup from anything, every field checked and clamped, each falling

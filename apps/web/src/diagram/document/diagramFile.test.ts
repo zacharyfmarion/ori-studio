@@ -4,6 +4,7 @@ import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
   createDiagram,
   createStep,
+  duplicateStep,
   insertSteps,
   setPageSetup,
   setStepText,
@@ -63,9 +64,11 @@ describe('writeDiagram / readDiagram', () => {
 
   it('falls back field by field for damaged top-level fields', () => {
     const read = readDiagram(
-      { id: 7, title: 9, hanStyle: 'xx', style: { preset: 'nope' }, page: 'big', steps: 'many' },
+      { id: 7, title: 9, hanStyle: 4, style: { preset: 5 }, page: 'big', steps: 'many' },
       sequentialIds()
     )!;
+    // Wrong types are damage, not a newer build's news: still editable.
+    expect(read.readOnly).toBe(false);
     expect(read.document).toMatchObject({
       id: 'diagram-1',
       title: '',
@@ -113,6 +116,34 @@ describe('a newer build’s work', () => {
     const again = throughJson(writeDiagram(read.document));
     expect(again.steps[1].annotations).toEqual([annotation]);
     expect(again.assets).toEqual({ 'asset-1': asset });
+  });
+
+  it.each([
+    ['a document key it does not know', { fonts: { han: 'sc' } }],
+    ['a Han style it does not know', { hanStyle: 'vi' }],
+    ['a preset it does not know', { style: { preset: 'future' } }],
+    ['a page size it does not know', { page: { size: 'a3' } }],
+    ['a page key it does not know', { page: { bleedMm: 3 } }],
+  ])('opens read-only, and writes back unchanged, a diagram with %s', (_label, patch) => {
+    const written = { ...throughJson(writeDiagram(sampleDiagram())), ...patch };
+    if ('page' in patch) written.page = { ...throughJson(writeDiagram(sampleDiagram())).page, ...patch.page };
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(true);
+    expect(writeDiagram(read.document, read.raw)).toBe(written);
+  });
+
+  it('gives a duplicated step’s carried annotations ids of their own in the file', () => {
+    const written = throughJson(writeDiagram(sampleDiagram()));
+    written.steps[0].annotations = [{ id: 'ann-1', kind: 'spiral-arrow' }];
+    const read = readDiagram(written)!;
+    const copied = duplicateStep(read.document, read.document.steps[0].id, sequentialIds())!;
+    const ids = throughJson(writeDiagram(copied.document)).steps.map(
+      (step: { annotations: { id: string }[] }) => step.annotations.map((annotation) => annotation.id)
+    );
+    expect(ids[0]).toEqual(['ann-1']);
+    // The copy's own id, in memory and in the file alike.
+    expect(ids[1]).toEqual([copied.document.steps[1].annotations[0].id]);
+    expect(ids[1]).not.toEqual(['ann-1']);
   });
 
   it('opens a newer format read-only and writes it back unchanged', () => {

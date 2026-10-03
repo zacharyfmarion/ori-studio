@@ -20,8 +20,16 @@ function keyState(state: WorkspaceState): DiagramKeyState {
   return {
     stepIds: state.diagram?.steps.map((step) => step.id) ?? [],
     selectedStepId: state.diagramSelectedStepId,
+    focusedStepId: focusedStepId(),
     readOnly: state.diagramReadOnly,
   };
+}
+
+/** The step whose card has focus, if one does. */
+function focusedStepId(): string | null {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || active.getAttribute('role') !== 'option') return null;
+  return active.dataset.stepId ?? null;
 }
 
 function keyActions(state: WorkspaceState): DiagramKeyActions {
@@ -33,8 +41,9 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
  *
  * Two registrations, one per kind of verb, both focus-independent (never a
  * `keydown` listener, AGENTS.md › Panel components):
- * - the `diagram` scope's executor — ← / → between steps, Alt+← / → to move
- *   one — which declines while a control that uses arrows has focus;
+ * - the `diagram` scope's executor — the arrows, Home and End between steps,
+ *   Alt+arrows to move one — which declines while a control that uses arrows
+ *   has focus;
  * - the `'diagram'` viewport surface's executor — Escape's cancel ladder, and
  *   Shift+F10 for the selected step's menu. One owner at a time: later views
  *   that bring a camera (Pages, Annotate) take the surface over, asking this

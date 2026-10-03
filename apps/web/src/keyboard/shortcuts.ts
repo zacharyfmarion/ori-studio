@@ -82,6 +82,8 @@ export type ReferencesShortcutId =
 export type DiagramShortcutId =
   | 'diagram.previousStep'
   | 'diagram.nextStep'
+  | 'diagram.firstStep'
+  | 'diagram.lastStep'
   | 'diagram.moveStepEarlier'
   | 'diagram.moveStepLater';
 export type ShortcutActionId =
@@ -488,17 +490,27 @@ function diagramShortcut(
  * "the step before / after" there and the fold-angle solutions on the Edit
  * canvas, without either knowing about the other.
  *
- * Its executor declines while a control has focus (`isViewportInteractiveTarget`):
- * a scope executor that always claimed would take the arrows from a tab strip
- * and Enter from a focused button. That decline is why these may be arrows at
- * all. Escape is not here: it is `viewport.cancel`, and the Diagram's viewport
- * executor runs one cancel ladder for every view the workspace has.
+ * Its executor declines while a control that uses arrows has focus — a tab
+ * strip, a radio group, a toolbar, a slider (`focusOwnsArrowKeys`): a scope
+ * executor that always claimed would take their keys. That decline is why
+ * these may be arrows at all. The steps read in one sequence, so both axes
+ * walk it — the grid wraps, and on a phone it is one column. Escape is not
+ * here: it is `viewport.cancel`, and the Diagram's viewport executor runs one
+ * cancel ladder for every view the workspace has.
  */
 const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
-  diagramShortcut('diagram.previousStep', 'Previous Step', { key: 'arrowleft' }),
-  diagramShortcut('diagram.nextStep', 'Next Step', { key: 'arrowright' }),
-  diagramShortcut('diagram.moveStepEarlier', 'Move Step Earlier', { alt: true, key: 'arrowleft' }),
-  diagramShortcut('diagram.moveStepLater', 'Move Step Later', { alt: true, key: 'arrowright' }),
+  diagramShortcut('diagram.previousStep', 'Previous Step', [{ key: 'arrowleft' }, { key: 'arrowup' }]),
+  diagramShortcut('diagram.nextStep', 'Next Step', [{ key: 'arrowright' }, { key: 'arrowdown' }]),
+  diagramShortcut('diagram.firstStep', 'First Step', { key: 'home' }),
+  diagramShortcut('diagram.lastStep', 'Last Step', { key: 'end' }),
+  diagramShortcut('diagram.moveStepEarlier', 'Move Step Earlier', [
+    { alt: true, key: 'arrowleft' },
+    { alt: true, key: 'arrowup' },
+  ]),
+  diagramShortcut('diagram.moveStepLater', 'Move Step Later', [
+    { alt: true, key: 'arrowright' },
+    { alt: true, key: 'arrowdown' },
+  ]),
 ];
 
 /**

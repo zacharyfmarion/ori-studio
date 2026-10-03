@@ -245,10 +245,13 @@ export interface NativeProjectFileV1 {
     unknownDesigns: unknown[];
     /**
      * The Diagram workspace's document, as `diagram/document/diagramFile.ts`
-     * writes it, or `null`. Read leniently there; here it is only carried, and
-     * its presence raises `minimumReaderSchemaVersion` to 9.
+     * writes it. Read leniently there; here it is only carried, and its
+     * presence raises `minimumReaderSchemaVersion` to 9. The reader always
+     * sets it, `null` for none; the writers leave the key out when there is
+     * none, so a project without a diagram is written byte for byte as it
+     * was before diagrams existed.
      */
-    diagram: Record<string, unknown> | null;
+    diagram?: Record<string, unknown> | null;
     viewState: Record<string, unknown>;
   };
   artifacts: {
@@ -580,7 +583,7 @@ export function createNativeProjectFile(
       // Re-emitted verbatim so a design kind this build does not know survives a
       // round trip through it.
       unknownDesigns: input.unknownDesigns ?? [],
-      diagram,
+      ...(diagram ? { diagram } : {}),
       viewState: {},
     },
     artifacts: {},
@@ -661,7 +664,7 @@ export function createNativeCreasePatternProjectFile(
       designs: [],
       creasePattern: createNativeCreasePatternDocument(input, CREASE_PATTERN_DOCUMENT_ID),
       unknownDesigns: input.unknownDesigns ?? [],
-      diagram: input.diagram ?? null,
+      ...(input.diagram ? { diagram: input.diagram } : {}),
       viewState: {},
     },
     artifacts:

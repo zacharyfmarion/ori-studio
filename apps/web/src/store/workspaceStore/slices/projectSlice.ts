@@ -19,6 +19,7 @@ import {
   parkDesign,
   serializeDesign,
 } from '../../../engines/designHandles';
+import { flushPendingEdits } from '../../../lib/pendingEdits';
 import { designPayloadFormat } from '../../../lib/nativeProjectDesigns';
 import type { DesignKindId } from '../../../designKinds';
 
@@ -131,8 +132,9 @@ import type { CanvasAnnotation } from '../../../cp-workspace/annotations/annotat
 import type { InlineSimulation } from '../../../cp-workspace/inlineSimulation/inlineSimulation';
 import { noteInlineSimulationIds } from '../../../cp-workspace/inlineSimulation/inlineSimulationIds';
 import { discardCpDocumentState } from '../cpDocumentState';
-import { diagramDataBytes, discardDiagramState } from '../diagramState';
+import { diagramDataBytes, discardDiagramState, pickDiagramState } from '../diagramState';
 import { readDiagram, writeDiagram } from '../../../diagram/document/diagramFile';
+import type { DiagramDocument } from '../../../diagram/document/diagramDocument';
 import { normalizeOristudioCpCommandPayload } from '../../../lib/oristudioCpCommandPayloads';
 import {
   createNativeCreasePatternProjectFile,
@@ -545,8 +547,14 @@ function defaultNativeFilename(title: string): string {
   return defaultFilename(title, NATIVE_PROJECT_EXTENSION);
 }
 
-async function confirmDiscardDirty(dirty: boolean): Promise<boolean> {
-  if (!dirty) return true;
+/**
+ * Ask before throwing away unsaved work. Reads `dirty` through a getter, after
+ * committing pending drafts (`flushPendingEdits`): a value read by the caller
+ * would predate the draft and say there was nothing to lose.
+ */
+async function confirmDiscardDirty(isDirty: () => boolean): Promise<boolean> {
+  flushPendingEdits();
+  if (!isDirty()) return true;
   return requestConfirmation({
     title: 'Discard unsaved changes?',
     message: 'Your current project has unsaved changes. Continue and discard them?',
@@ -1320,19 +1328,51 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     source: { filename: string; path?: string | null }
   ) => {
     const nativeProject = parseNativeProjectFile(text);
-    const { designs, creasePattern, activeDocumentId } = nativeProject.workspace;
     const diagram = readDiagram(nativeProject.workspace.diagram);
+
+    // What the open clears up front, kept so a failure can give it back.
+    const kept = {
+      nativeProjectExtensions: get().nativeProjectExtensions,
+      nativeUnknownDesigns: get().nativeUnknownDesigns,
+      ...pickDiagramState(get()),
+    };
+    const identity = { name: get().currentFileName, path: get().currentFilePath };
 
     // Retained for a lossless save round-trip: the file-level extension bag, and
     // any design whose kind this build could not read. The previous project's
-    // diagram goes here, at the start, so a load that fails part-way can never
-    // leave it beside the new file's documents for the next save to write; the
-    // file's own diagram is installed last, below, once nothing else can reset it.
+    // diagram goes too; the file's own is installed last, once nothing else can
+    // reset it.
     set({
       nativeProjectExtensions: nativeProject.extensions,
       nativeUnknownDesigns: nativeProject.workspace.unknownDesigns,
       ...discardDiagramState(),
     });
+
+    try {
+      await installNativeProject(nativeProject, diagram, source);
+    } catch (error) {
+      // Which project is current decides what a save after the failure writes.
+      // A load that failed before the new file took over leaves the old project
+      // standing — its crease pattern and its file path — so it gets back what
+      // was cleared for the new one; without that, the next save rewrites the
+      // old file without its diagram. One that failed after leaves the new file
+      // current, so it gets the new file's diagram rather than none.
+      const replaced =
+        get().currentFileName !== identity.name || get().currentFilePath !== identity.path;
+      if (replaced) get().installDiagram(diagram);
+      else set(kept);
+      throw error;
+    }
+    get().installDiagram(diagram);
+  };
+
+  /** Everything {@link loadNativeProject} installs besides the diagram. */
+  const installNativeProject = async (
+    nativeProject: ReturnType<typeof parseNativeProjectFile>,
+    diagram: ReturnType<typeof readDiagram>,
+    source: { filename: string; path?: string | null }
+  ) => {
+    const { designs, creasePattern, activeDocumentId } = nativeProject.workspace;
 
     // A bundle that carries a crease pattern must not publish an empty Edit
     // canvas on the way to installing it — the Edit surface self-provisions into
@@ -1365,7 +1405,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
           'Ori Studio project contains neither a design, a crease pattern nor a diagram'
         );
       }
-      get().installDiagram(diagram);
       return;
     }
 
@@ -1375,7 +1414,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     if (creasePattern) {
       await restoreNativeCreasePatternCompanion(creasePattern, source);
     }
-    get().installDiagram(diagram);
   };
 
   /**
@@ -1575,6 +1613,13 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     totalCpImageBytes(get().oristudioCpAnnotations.filter(isImageAnnotation)) +
     diagramDataBytes(get().diagram);
 
+  /**
+   * Whether the diagram changed after a save built its file — while the save
+   * dialog was up. That edit is not in the file, so the save must not report
+   * the project clean.
+   */
+  const diagramChangedSince = (written: DiagramDocument | null) => get().diagram !== written;
+
   /** "Saved …", with a soft, non-blocking notice when the file embeds a lot. */
   const savedMessageFor = (name: string, embeddedBytes: number) =>
     embeddedBytes > IMAGE_TOTAL_BYTES_WARN
@@ -1650,6 +1695,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       ? await currentEditableCreasePatternProjectInput(get().currentFileName, nativeSourcePath())
       : null;
     const embeddedBytes = embeddedPictureBytes();
+    const diagramWritten = get().diagram;
 
     const contents = serializeNativeProjectFile(
       createNativeProjectFile({
@@ -1685,7 +1731,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
-      dirty: false,
+      dirty: diagramChangedSince(diagramWritten),
       projectMessage: savedMessageFor(result.name, embeddedBytes),
       ...(document
         ? {
@@ -1943,6 +1989,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     );
     if (!input) return null;
     const embeddedBytes = embeddedPictureBytes();
+    const diagramWritten = get().diagram;
     const contents = serializeNativeProjectFile(
       createNativeCreasePatternProjectFile(input)
     );
@@ -1966,7 +2013,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     set({
       currentFileName: result.name,
       currentFilePath: result.path,
-      dirty: false,
+      dirty: diagramChangedSince(diagramWritten),
       projectMessage: savedMessageFor(result.name, embeddedBytes),
       oristudioCpDocument: {
         ...documentState,
@@ -2048,6 +2095,10 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const hasDesign = get().designTabs.some((tab) => tab.kind !== null);
     // A diagram with no crease pattern beside it has no Edit document to save
     // through, so it takes the workspace writer, which writes whatever exists.
+    // A read-only imported pattern (one the editor could not take) is not among
+    // what it writes — nothing in the `.osf` holds one — so it stays in its own
+    // file, which this never overwrites: the target is always a `.osf`
+    // (`nativeSaveTarget`). Nothing the user made is left out; the diagram is.
     const diagramOnly = get().oristudioCpDocument === null && get().diagram !== null;
     const result =
       hasDesign || diagramOnly
@@ -2174,7 +2225,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (rejectDisabled('file.new')) return false;
       // When preserving the Edit canvas (design-method chooser) there is nothing
       // to discard and the CP handle must stay alive, so skip the prompt + release.
-      if (!preserveEditCanvas && !(await confirmDiscardDirty(get().dirty))) return false;
+      if (!preserveEditCanvas && !(await confirmDiscardDirty(() => get().dirty))) return false;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
         if (!preserveEditCanvas) await releaseEditableCreasePattern();
@@ -2238,7 +2289,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadStarterProject: async () => {
-      if (!(await confirmDiscardDirty(get().dirty))) return;
+      if (!(await confirmDiscardDirty(() => get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
         await releaseEditableCreasePattern();
@@ -2276,7 +2327,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     createNewCreasePattern: async () => {
       if (rejectDisabled('file.new')) return;
-      if (!(await confirmDiscardDirty(get().dirty))) return;
+      if (!(await confirmDiscardDirty(() => get().dirty))) return;
       set({ status: 'loading_engine', error: null, projectMessage: null });
       try {
         await releaseEditableCreasePattern();
@@ -2648,7 +2699,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       if (rejectDisabled('file.open')) return false;
       // Same opt-out `createOristudioBpProject` carries: skipped only by a caller
       // whose own prompt already covered the discard.
-      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
+      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(() => get().dirty))) {
         return false;
       }
       let openedSourceLength = 0;
@@ -2679,6 +2730,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     saveProject: async (fileService = getFileService()) => {
       try {
+        // Before the capability check: a draft may be what makes there something to save.
+        flushPendingEdits();
         if (rejectDisabled('file.save')) return false;
         return await saveActiveProject(fileService, false);
       } catch (error) {
@@ -2689,6 +2742,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
 
     saveProjectAs: async (fileService = getFileService()) => {
       try {
+        flushPendingEdits();
         if (rejectDisabled('file.saveAs')) return false;
         return await saveActiveProject(fileService, true);
       } catch (error) {
@@ -3214,7 +3268,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     },
 
     loadExampleProject: async (id) => {
-      if (!(await confirmDiscardDirty(get().dirty))) return false;
+      if (!(await confirmDiscardDirty(() => get().dirty))) return false;
       const example = getExampleProject(id);
       if (!example) return false;
       await get().loadProjectText(example.text, {

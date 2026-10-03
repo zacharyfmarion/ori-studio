@@ -212,6 +212,8 @@
   },
   "diagram": {
     "categoryLabel": "도해",
+    "firstStep": "첫 단계",
+    "lastStep": "마지막 단계",
     "moveStepEarlier": "단계를 앞으로 이동",
     "moveStepLater": "단계를 뒤로 이동",
     "nextStep": "다음 단계",

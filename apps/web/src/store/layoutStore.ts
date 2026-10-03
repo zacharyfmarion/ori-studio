@@ -493,7 +493,11 @@ function applyReferencesLayout(api: DockviewApi, coarsePointer: boolean): void {
   references.api.setActive();
 }
 
-/** References' shape: the steps, and the selected step's pane docked beside them. */
+/**
+ * The steps, headerless, and the selected step's pane docked beside them —
+ * the same shape as References, and like it the side pane stays out of a
+ * coarse-pointer layout.
+ */
 function applyDiagramLayout(api: DockviewApi, coarsePointer: boolean): void {
   const diagram = addHeaderlessPanel(api, {
     id: 'diagram',

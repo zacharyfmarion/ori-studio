@@ -247,6 +247,39 @@ describe('CommandDialogModal', () => {
     await expect(result).resolves.toBe(true);
   });
 
+  it('takes focus on its safe button, and gives it back when it closes', async () => {
+    renderModalHost();
+    const before = document.createElement('button');
+    document.body.append(before);
+    try {
+      act(() => before.focus());
+      let result = Promise.resolve(false);
+      act(() => {
+        result = requestConfirmation({
+          title: 'Delete step 2?',
+          message: 'You can undo this.',
+          confirmLabel: 'Delete',
+          tone: 'danger',
+        });
+      });
+      // Destructive: Cancel, so Enter cannot delete by accident.
+      expect(document.activeElement).toBe(findButton('Cancel'));
+      expect(container?.querySelector('[role="dialog"]')?.hasAttribute('data-shortcut-barrier')).toBe(true);
+      await act(async () => {
+        findButton('Cancel').click();
+        await result;
+      });
+      expect(document.activeElement).toBe(before);
+
+      act(() => {
+        result = requestConfirmation({ title: 'Reset Layout', message: '?', confirmLabel: 'Reset' });
+      });
+      expect(document.activeElement).toBe(findButton('Reset'));
+    } finally {
+      before.remove();
+    }
+  });
+
   it('resolves numeric requests from an in-app modal', async () => {
     const rendered = renderModalHost();
     let result = Promise.resolve<number | null>(null);

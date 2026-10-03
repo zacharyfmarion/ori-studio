@@ -14,6 +14,10 @@ import styles from './DiagramStepsGrid.module.css';
  * but deleting the focused card hands focus on to the card that took its place
  * rather than dropping it on the page. It scrolls the selected card into view,
  * wherever the selection came from.
+ *
+ * The listbox itself takes focus (not Tab) from a press on the space between
+ * cards, so a press there keeps focus in the grid and the next arrow's
+ * selection carries it back onto a card.
  */
 export function DiagramStepsGrid({
   steps,
@@ -47,6 +51,7 @@ export function DiagramStepsGrid({
       ref={listRef}
       role="listbox"
       aria-label={t('panels:diagram.grid.label', 'Steps')}
+      tabIndex={-1}
       className={styles.grid}
       onClick={(event) => {
         // A press between or below the cards drops the selection, as a press on

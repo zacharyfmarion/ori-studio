@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Copy, Trash2, type LucideIcon } from 'lucide-react';
 import {
@@ -6,7 +6,9 @@ import {
   type DiagramStepAction,
   type DiagramStepActionId,
 } from '../../diagram/actions/diagramActions';
+import { registerPendingEditFlush } from '../../lib/pendingEdits';
 import { IconButton } from '../ui/IconButton';
+import { isComposingKey } from '../ui/fieldRows/isComposingKey';
 import styles from './DiagramStepHeader.module.css';
 
 const ICONS: Partial<Record<DiagramStepActionId, LucideIcon>> = {
@@ -42,19 +44,30 @@ export function DiagramStepHeader({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(String(number));
-  const discarding = useRef(false);
+  /** What was typed and not yet committed or discarded, or null; see `DiagramTitleField`. */
+  const typed = useRef<string | null>(null);
+  const latest = useRef({ number, count, onMoveTo });
   useEffect(() => {
+    latest.current = { number, count, onMoveTo };
+  });
+  useEffect(() => {
+    typed.current = null;
     setDraft(String(number));
   }, [number]);
-
-  const commit = () => {
-    const position = Number(draft.trim());
-    if (Number.isInteger(position) && position >= 1 && position <= count && position !== number) {
-      onMoveTo(position);
+  const commit = useCallback(() => {
+    const value = typed.current;
+    typed.current = null;
+    if (value === null) return;
+    const { number: current, count: total, onMoveTo: move } = latest.current;
+    const position = Number(value.trim());
+    if (Number.isInteger(position) && position >= 1 && position <= total && position !== current) {
+      move(position);
     } else {
-      setDraft(String(number));
+      setDraft(String(current));
     }
-  };
+  }, []);
+  // A typed position is a move not yet made: a save makes it first.
+  useEffect(() => registerPendingEditFlush(commit), [commit]);
 
   return (
     <div className={styles.header}>
@@ -68,19 +81,17 @@ export function DiagramStepHeader({
           disabled={readOnly || count < 2}
           aria-label={t('panels:diagram.stepPane.positionLabel', 'Step position')}
           size={Math.max(2, String(count).length + 1)}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={() => {
-            if (discarding.current) {
-              discarding.current = false;
-              return;
-            }
-            commit();
+          onChange={(event) => {
+            typed.current = event.target.value;
+            setDraft(event.target.value);
           }}
+          onBlur={commit}
           onKeyDown={(event) => {
+            if (isComposingKey(event)) return;
             if (event.key === 'Enter') {
               event.currentTarget.blur();
             } else if (event.key === 'Escape') {
-              discarding.current = true;
+              typed.current = null;
               setDraft(String(number));
               event.currentTarget.blur();
             }

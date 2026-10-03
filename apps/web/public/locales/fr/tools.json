@@ -228,6 +228,8 @@
   },
   "diagram": {
     "categoryLabel": "Diagramme",
+    "firstStep": "Première étape",
+    "lastStep": "Dernière étape",
     "moveStepEarlier": "Avancer l’étape",
     "moveStepLater": "Reculer l’étape",
     "nextStep": "Étape suivante",

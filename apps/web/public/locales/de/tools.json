@@ -220,6 +220,8 @@
   },
   "diagram": {
     "categoryLabel": "Diagramm",
+    "firstStep": "Erster Schritt",
+    "lastStep": "Letzter Schritt",
     "moveStepEarlier": "Schritt nach vorne",
     "moveStepLater": "Schritt nach hinten",
     "nextStep": "Nächster Schritt",

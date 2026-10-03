@@ -9,12 +9,11 @@ import styles from './DiagramStepCard.module.css';
  * One step in the Steps grid: its number and kind, its picture, and its
  * instruction.
  *
- * An `option` of the grid's listbox rather than a button. The grid's keys — the
- * arrows, Enter, Escape — are viewport verbs that stand down for a focused
- * button (`isViewportInteractiveTarget`), so a card that was a button would
- * turn them off the moment it was clicked. The grid moves focus between cards
- * as the selection moves (a roving tab stop), which is what lets a screen
- * reader follow it.
+ * An `option` of the grid's listbox rather than a button: the grid is one
+ * control, navigated with the arrows, and a screen reader announces it as a
+ * list to choose from rather than a row of unrelated buttons. The grid moves
+ * focus between cards as the selection moves (a roving tab stop), which is
+ * what lets a screen reader follow it.
  */
 export const DiagramStepCard = forwardRef<
   HTMLDivElement,

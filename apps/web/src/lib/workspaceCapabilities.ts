@@ -437,8 +437,10 @@ export function getWorkspaceCapabilities(
         ? busyOr(t('common:capability.exportCreasePatternPng', 'Export crease pattern PNG'), input.status, t)
         : t('common:capability.noCreasePatternToExport', 'No crease pattern to export')
     ),
+    // The Diagram's history is its own: a TreeMaker build or optimize running
+    // in another workspace is no reason to hold its Undo back.
     'edit.undo': capability(
-      input.historyPastCount > 0 && !isBusy,
+      input.historyPastCount > 0 && (diagramMode || !isBusy),
       t('common:capability.undo', 'Undo'),
       diagramMode
         ? t('common:capability.undoLastDiagramEdit', 'Undo the last diagram edit')
@@ -447,7 +449,7 @@ export function getWorkspaceCapabilities(
           : t('common:capability.undoLastTreeEdit', 'Undo the last tree edit')
     ),
     'edit.redo': capability(
-      input.historyFutureCount > 0 && !isBusy,
+      input.historyFutureCount > 0 && (diagramMode || !isBusy),
       t('common:capability.redo', 'Redo'),
       diagramMode
         ? t('common:capability.redoNextDiagramEdit', 'Redo the next diagram edit')

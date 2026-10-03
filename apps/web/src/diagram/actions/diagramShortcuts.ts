@@ -4,6 +4,12 @@ import type { DiagramShortcutId } from '../../keyboard/shortcuts';
 export interface DiagramKeyState {
   stepIds: readonly string[];
   selectedStepId: string | null;
+  /**
+   * The step whose card has focus, when one does. With nothing selected the
+   * arrows start from it: Tab onto a card, or Escape out of a selection, and
+   * the next arrow moves on from where the user is.
+   */
+  focusedStepId?: string | null;
   readOnly: boolean;
 }
 
@@ -21,8 +27,8 @@ export interface DiagramKeyActions {
  * just been navigating it. With none they decline — there is nothing to
  * navigate, and the key belongs to whatever else wants it.
  *
- * ← with nothing selected starts from the last step and → from the first, so
- * either arrow is a way in.
+ * They move from the selected step, or the focused one; with neither, ←
+ * starts from the last step and → from the first, so either is a way in.
  */
 export function runDiagramShortcut(
   id: DiagramShortcutId,
@@ -31,7 +37,8 @@ export function runDiagramShortcut(
 ): boolean {
   const { stepIds, selectedStepId } = state;
   if (stepIds.length === 0) return false;
-  const index = selectedStepId === null ? -1 : stepIds.indexOf(selectedStepId);
+  const anchor = selectedStepId ?? state.focusedStepId ?? null;
+  const index = anchor === null ? -1 : stepIds.indexOf(anchor);
   const last = stepIds.length - 1;
   switch (id) {
     case 'diagram.previousStep':
@@ -40,14 +47,22 @@ export function runDiagramShortcut(
     case 'diagram.nextStep':
       actions.select(stepIds[index < 0 ? 0 : Math.min(last, index + 1)]);
       return true;
+    case 'diagram.firstStep':
+      actions.select(stepIds[0]);
+      return true;
+    case 'diagram.lastStep':
+      actions.select(stepIds[last]);
+      return true;
     case 'diagram.moveStepEarlier':
     case 'diagram.moveStepLater': {
       // Claimed even when there is nothing to move: Alt+← is the browser's Back
       // on Windows and Linux, and a press meant for a step must not leave the
-      // workspace because the step was already first.
-      if (index < 0 || state.readOnly) return true;
-      const to = id === 'diagram.moveStepEarlier' ? index - 1 : index + 1;
-      if (to >= 0 && to <= last) actions.move(stepIds[index], to);
+      // workspace because the step was already first. Only the *selected* step
+      // moves: a move is an edit, and edits act on the selection.
+      const selected = selectedStepId === null ? -1 : stepIds.indexOf(selectedStepId);
+      if (selected < 0 || state.readOnly) return true;
+      const to = id === 'diagram.moveStepEarlier' ? selected - 1 : selected + 1;
+      if (to >= 0 && to <= last) actions.move(stepIds[selected], to);
       return true;
     }
   }
@@ -72,22 +87,20 @@ export function runDiagramCancel(
 
 /**
  * Controls that use the arrow keys themselves. The Diagram's arrows decline
- * while one of these has focus, so a tab strip, a segmented control or a menu
- * keeps its own navigation. A plain button is not one: its arrows do nothing,
- * and declining there would leave ← dead after a press on Add step.
+ * while one of these has focus, so a tab strip, a segmented control or a
+ * slider keeps its own navigation. A plain button is not one: its arrows do
+ * nothing, and declining there would leave ← dead after a press on Add step.
+ *
+ * Fields and open menus are not listed: the dispatcher stands down for them
+ * before any executor runs (`isShortcutEditingTarget`, `isOpenLayerTarget`).
  */
 const ARROW_OWNERS = [
   '[role="tablist"]',
   '[role="radiogroup"]',
   '[role="toolbar"]',
-  '[role="menu"]',
   '[role="menubar"]',
   '[role="slider"]',
   '[role="spinbutton"]',
-  'input',
-  'select',
-  'textarea',
-  '[contenteditable="true"]',
 ].join(', ');
 
 /** Whether the focused element keeps the arrow keys for itself. */

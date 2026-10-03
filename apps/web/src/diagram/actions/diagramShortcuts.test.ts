@@ -31,6 +31,18 @@ describe('the Diagram’s step keys', () => {
     expect(run('diagram.previousStep', {}).select).toHaveBeenCalledWith('c');
   });
 
+  it('goes on from the focused card when nothing is selected', () => {
+    expect(run('diagram.nextStep', { focusedStepId: 'b' }).select).toHaveBeenCalledWith('c');
+    expect(run('diagram.previousStep', { focusedStepId: 'b' }).select).toHaveBeenCalledWith('a');
+    // The selection wins over focus when there is one.
+    expect(run('diagram.nextStep', { selectedStepId: 'a', focusedStepId: 'c' }).select).toHaveBeenCalledWith('b');
+  });
+
+  it('jumps to the first and last step with Home and End', () => {
+    expect(run('diagram.firstStep', { selectedStepId: 'c' }).select).toHaveBeenCalledWith('a');
+    expect(run('diagram.lastStep', {}).select).toHaveBeenCalledWith('c');
+  });
+
   it('claims at the ends too, so the page does not scroll under the grid', () => {
     expect(run('diagram.nextStep', { selectedStepId: 'c' }).claimed).toBe(true);
   });
@@ -47,6 +59,8 @@ describe('the Diagram’s step keys', () => {
   it('moves nothing on a read-only diagram or with nothing selected', () => {
     expect(run('diagram.moveStepLater', { selectedStepId: 'a', readOnly: true }).move).not.toHaveBeenCalled();
     expect(run('diagram.moveStepLater', {}).move).not.toHaveBeenCalled();
+    // A move is an edit: it acts on the selection, never on a card merely focused.
+    expect(run('diagram.moveStepLater', { focusedStepId: 'a' }).move).not.toHaveBeenCalled();
   });
 
   it('declines everything when there are no steps', () => {
@@ -55,6 +69,8 @@ describe('the Diagram’s step keys', () => {
     for (const id of [
       'diagram.previousStep',
       'diagram.nextStep',
+      'diagram.firstStep',
+      'diagram.lastStep',
       'diagram.moveStepEarlier',
       'diagram.moveStepLater',
     ] as const) {
@@ -83,11 +99,11 @@ describe('focusOwnsArrowKeys', () => {
     return owns;
   }
 
-  it('leaves the arrows to tab strips, radio groups, toolbars, menus and fields', () => {
+  it('leaves the arrows to tab strips, radio groups, toolbars and sliders', () => {
     expect(inside('<div role="tablist"><button id="x">Steps</button></div>', '#x')).toBe(true);
     expect(inside('<div role="radiogroup"><button id="x">A</button></div>', '#x')).toBe(true);
     expect(inside('<div role="toolbar"><button id="x">A</button></div>', '#x')).toBe(true);
-    expect(inside('<input id="x" />', '#x')).toBe(true);
+    expect(inside('<span role="slider" id="x"></span>', '#x')).toBe(true);
   });
 
   it('takes them from a plain button, a step card, or nothing', () => {

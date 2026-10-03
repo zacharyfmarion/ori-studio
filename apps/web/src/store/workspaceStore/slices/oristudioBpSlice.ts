@@ -91,6 +91,7 @@ import type {
   WorkspaceSliceCreator,
 } from '../types';
 import { discardDiagramState } from '../diagramState';
+import { flushPendingEdits } from '../../../lib/pendingEdits';
 
 /**
  * A new Box Pleating design is scaffolded like BP Studio's blank project: a root
@@ -151,8 +152,10 @@ const ensureBpInFlight = new Map<string, Promise<void>>();
 const BP_LEAF_REPOSITION_EPSILON = 1e-6;
 
 export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (set, get) => {
-  const confirmDiscardDirty = async (dirty: boolean): Promise<boolean> => {
-    if (!dirty) return true;
+  /** As `projectSlice`'s: pending drafts first, then `dirty` read through the getter. */
+  const confirmDiscardDirty = async (isDirty: () => boolean): Promise<boolean> => {
+    flushPendingEdits();
+    if (!isDirty()) return true;
     return requestConfirmation({
       title: 'Discard unsaved changes?',
       message: 'Your current project has unsaved changes. Start a new Box Pleat design and discard them?',
@@ -698,19 +701,20 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       // passes the design it captured *before* that await, because by now the
       // active one may be a different design entirely.
       const designId = options.designId ?? get().activeDesignId;
-      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
+      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(() => get().dirty))) {
         return false;
       }
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
-        // The design-method chooser preserves the always-live Edit canvas, so it
-        // must not release the CP handle; other entry points clear it as before.
-        if (!options.preserveEditCanvas) await get().clearOristudioCpDocument();
         const document = await loadOristudioBpProjectFromText(BP_STARTER_PROJECT, {
           filename: 'Untitled.bps',
           format: 'generated',
           dirty: false,
         });
+        // The design-method chooser preserves the always-live Edit canvas, so it
+        // must not release the CP handle; other entry points clear it — once the
+        // new document exists, so a load that fails leaves the project whole.
+        if (!options.preserveEditCanvas) await get().clearOristudioCpDocument();
         setLoadedBpProject(document, 'Created Box Pleat project', {
           preserveEditCanvas: options.preserveEditCanvas,
           designId,
@@ -735,17 +739,18 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const designId = get().activeDesignId;
       const example = getBoxPleatExampleProject(id);
       if (!example) return false;
-      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(get().dirty))) {
+      if (options.confirmDiscard !== false && !(await confirmDiscardDirty(() => get().dirty))) {
         return false;
       }
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
-        await get().clearOristudioCpDocument();
         const document = await loadOristudioBpProjectFromText(example.text, {
             filename: example.filename,
             format: 'generated',
             dirty: false,
           });
+        // After the load, so a failed one leaves the project whole.
+        await get().clearOristudioCpDocument();
         setLoadedBpProject(document, `Loaded ${example.title}`, { designId });
         showBpDesignWorkspace();
         return true;
@@ -765,17 +770,20 @@ export const createOristudioBpSlice: WorkspaceSliceCreator<OristudioBpSlice> = (
       const designId = get().activeDesignId;
       set({ oristudioBpBusy: true, oristudioBpError: null });
       try {
-        // A bare `.bps` carries no crease pattern, so opening one clears the Edit
-        // canvas. Inside a native `.osf` the caller owns the canvas — the bundle
-        // may hold a crease pattern to install right after — so it opts out, and
-        // the load never publishes an empty canvas mid-flight.
-        if (!options.preserveEditCanvas) await get().clearOristudioCpDocument();
         const document = await loadOristudioBpProjectFromText(text, {
             filename: source.filename,
             path: source.path ?? null,
             format: 'bps',
             dirty: false,
           });
+        // A bare `.bps` carries no crease pattern, so opening one clears the Edit
+        // canvas — after the file has loaded: a `.bps` that fails to parse must
+        // leave the project it was opened over whole, or the next save writes
+        // that project's file without its crease pattern. Inside a native `.osf`
+        // the caller owns the canvas — the bundle may hold a crease pattern to
+        // install right after — so it opts out, and the load never publishes an
+        // empty canvas mid-flight.
+        if (!options.preserveEditCanvas) await get().clearOristudioCpDocument();
         setLoadedBpProject(document, `Loaded ${source.filename}`, {
           symmetry: options.symmetry ?? null,
           preserveEditCanvas: options.preserveEditCanvas,
