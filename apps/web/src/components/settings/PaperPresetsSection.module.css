@@ -17,10 +17,15 @@
   }
 }
 
-/* The list's own verbs, under the cards. */
+/*
+ * The list's own verbs, under the cards. They wrap: side by side they are
+ * wider than a phone's column, and a row that cannot wrap holds the section's
+ * column at its own width, pushing the cards past the edge with it.
+ */
 .actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
@@ -41,7 +46,7 @@
   width: auto;
 }
 
-/* Why the name field opened when a picked preset is waiting on it. */
+/* Why the name field is asking: a picked preset waits on it, or an export has no name. */
 .why {
   margin: 0;
   color: var(--text-secondary);

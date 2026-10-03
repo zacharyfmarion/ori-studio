@@ -541,6 +541,9 @@
         "deleteNamed": "Supprimer {{name}}",
         "download": "Télécharger le préréglage",
         "downloadNamed": "Télécharger le préréglage {{name}}",
+        "export": "Exporter…",
+        "exportConfirm": "Exporter",
+        "exportUnsaved": "Ce style n’est pas enregistré comme préréglage. Nommez-le pour le fichier.",
         "import": "Importer…",
         "name": "Nom du préréglage",
         "save": "Enregistrer",
@@ -550,11 +553,11 @@
         "yours": "Enregistrés par vous"
       },
       "slot": {
-        "display": "Affichage",
+        "display": "Style d'affichage",
         "displayHint": "Simulations, figures pliées et étapes, à l'écran.",
-        "export": "Exportation",
+        "export": "Style d'exportation",
         "exportHint": "Utilisé par chaque SVG et PNG écrit par l'application.",
-        "exportLinked": "Exportation · liée",
+        "exportLinked": "Style d'exportation · lié",
         "title": "Style"
       },
       "stepsHint": "Références uniquement",

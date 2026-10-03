@@ -531,6 +531,9 @@
         "deleteNamed": "{{name}} löschen",
         "download": "Voreinstellung herunterladen",
         "downloadNamed": "Voreinstellung {{name}} herunterladen",
+        "export": "Exportieren…",
+        "exportConfirm": "Exportieren",
+        "exportUnsaved": "Dieser Stil ist nicht als Voreinstellung gespeichert. Gib ihm einen Namen für die Datei.",
         "import": "Importieren…",
         "name": "Name der Voreinstellung",
         "save": "Speichern",
@@ -540,11 +543,11 @@
         "yours": "Von dir gespeichert"
       },
       "slot": {
-        "display": "Anzeige",
+        "display": "Anzeigestil",
         "displayHint": "Simulationen, gefaltete Figuren und Schritte, auf dem Bildschirm.",
-        "export": "Export",
+        "export": "Exportstil",
         "exportHint": "Wird für jedes SVG und PNG verwendet, das die App schreibt.",
-        "exportLinked": "Export · verknüpft",
+        "exportLinked": "Exportstil · verknüpft",
         "title": "Stil"
       },
       "stepsHint": "Nur Referenzen",

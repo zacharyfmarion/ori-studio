@@ -541,6 +541,9 @@
         "deleteNamed": "Eliminar {{name}}",
         "download": "Descargar predefinido",
         "downloadNamed": "Descargar el predefinido {{name}}",
+        "export": "Exportar…",
+        "exportConfirm": "Exportar",
+        "exportUnsaved": "Este estilo no está guardado como predefinido. Ponle un nombre para el archivo.",
         "import": "Importar…",
         "name": "Nombre del predefinido",
         "save": "Guardar",
@@ -550,11 +553,11 @@
         "yours": "Guardados por ti"
       },
       "slot": {
-        "display": "Pantalla",
+        "display": "Estilo de pantalla",
         "displayHint": "Simulaciones, figuras plegadas y pasos, en pantalla.",
-        "export": "Exportación",
+        "export": "Estilo de exportación",
         "exportHint": "Se usa en cada SVG y PNG que escribe la aplicación.",
-        "exportLinked": "Exportación · vinculada",
+        "exportLinked": "Estilo de exportación · vinculado",
         "title": "Estilo"
       },
       "stepsHint": "Solo referencias",

@@ -1,8 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { builtInPaperPreset } from '../../lib/paper/paperPresets';
+import { builtInPaperPreset, serializePaperStylePreset } from '../../lib/paper/paperPresets';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import type { FileService } from '../../platform/fileService';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { PaperSettings } from './PaperSettings';
@@ -32,6 +33,16 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 /** What the Settings modal is told about a dialog the tab opened over it. */
 const nestedDialog = vi.fn<(open: boolean) => void>();
+/** Where Export… writes; the platform's dialog is not the test's to open. */
+const saveTextFile = vi.fn<FileService['saveTextFile']>();
+const fileService: FileService = {
+  surface: 'web',
+  supportsNativeDialogs: false,
+  openTextFile: async () => null,
+  openBinaryFile: async () => null,
+  saveTextFile,
+  saveBinaryFile: async () => null,
+};
 
 function render(): HTMLDivElement {
   container = document.createElement('div');
@@ -43,7 +54,7 @@ function render(): HTMLDivElement {
     root?.render(
       <SettingsNestedDialogContext.Provider value={nestedDialog}>
         <TooltipProvider delayDuration={0}>
-          <PaperSettings />
+          <PaperSettings deps={{ fileService }} />
         </TooltipProvider>
       </SettingsNestedDialogContext.Provider>
     )
@@ -106,6 +117,8 @@ beforeEach(() => {
   tracked.length = 0;
   requestChoice.mockReset();
   nestedDialog.mockReset();
+  saveTextFile.mockReset();
+  saveTextFile.mockResolvedValue({ name: 'preset.json', path: null });
   useSettingsStore.setState(initialSettings, true);
 });
 
@@ -121,7 +134,7 @@ describe('PaperSettings', () => {
   it('renders the slot switch, the presets and an editor for every field', () => {
     const rendered = render();
     expect(rendered.querySelector('[aria-label="Style"] [aria-pressed="true"]')?.textContent).toBe(
-      'Display'
+      'Display style'
     );
     expect(
       Array.from(rendered.querySelectorAll('[data-testid^="settings-paper-preset-"]')).map(
@@ -333,9 +346,9 @@ describe('PaperSettings', () => {
    */
   it('takes the export fields out of the page while they are the display style, and detaches on a press', () => {
     const rendered = render();
-    act(() => findButton('Export · linked').click());
+    act(() => findButton('Export style · linked').click());
     expect(rendered.querySelector('[aria-label="Style"] [aria-pressed="true"]')?.textContent).toBe(
-      'Export · linked'
+      'Export style · linked'
     );
     const banner = () => rendered.querySelector('.settings-paper__banner')!;
     expect(banner().textContent).toContain('Exports use the display style');
@@ -361,6 +374,10 @@ describe('PaperSettings', () => {
 
     act(() => findButton('Detach').click());
     expect(exported()).toEqual(DEFAULT_PAPER_STYLE);
+    // Its own style now, and the switch stops saying it is linked.
+    expect(rendered.querySelector('[aria-label="Style"] [aria-pressed="true"]')?.textContent).toBe(
+      'Export style'
+    );
     expect(rendered.querySelector('.settings-paper__style')?.hasAttribute('inert')).toBe(false);
     expect(input('Front').disabled).toBe(false);
     expect(banner().textContent).toContain('no longer follow the display style');
@@ -566,5 +583,69 @@ describe('PaperSettings', () => {
     act(() => iconButton('Delete Mine').click());
     expect(useSettingsStore.getState().paperStyle.presets).toEqual([]);
     expect(rendered.querySelector('[data-testid="settings-paper-preset-user:Mine"]')).toBeNull();
+  });
+
+  it('exports the preset on show in one press, from beside Import…', async () => {
+    render();
+    await act(async () => findButton('Export…').click());
+    expect(saveTextFile).toHaveBeenCalledTimes(1);
+    expect(saveTextFile.mock.calls[0]![0]).toMatchObject({
+      suggestedName: 'Default.json',
+      contents: serializePaperStylePreset(builtInPaperPreset('default')),
+    });
+    // Nothing to name: the preset is the file.
+    expect(nameField()).toBeNull();
+    expect(tracked).toContainEqual({
+      event: 'paperPresetExported',
+      properties: { slot: 'display', source: 'button', preset: 'default', unsaved: false },
+    });
+  });
+
+  it('asks a name for an edited style, suggesting its preset’s, and saves nothing', async () => {
+    render();
+    act(() => presetCard('builtin:diagram').click());
+    typeInto(input('Erode'), '2.5');
+    act(() => findButton('Export…').click());
+    expect(saveTextFile).not.toHaveBeenCalled();
+    expect(nameField()?.value).toBe('Diagram');
+    expect(nameHint()?.textContent).toBe(
+      'This style isn’t saved as a preset. Name it for the file.'
+    );
+    expect(findButton('Export').disabled).toBe(false);
+
+    typeInto(input('Preset name'), 'Diagram, heavier');
+    await act(async () => findButton('Export').click());
+    const { suggestedName, contents } = saveTextFile.mock.calls[0]![0];
+    expect(suggestedName).toBe('Diagram-heavier.json');
+    expect(JSON.parse(contents)).toMatchObject({
+      name: 'Diagram, heavier',
+      style: { erode: 0.025 },
+    });
+    expect(useSettingsStore.getState().paperStyle.presets).toEqual([]);
+    expect(chip().textContent).toBe('Diagram · modified');
+    expect(nameField()).toBeNull();
+  });
+
+  it('asks a name with nothing suggested for a style that is no preset’s', () => {
+    render();
+    typeInto(input('Front'), '#123456');
+    expect(chip().textContent).toBe('Custom');
+    act(() => findButton('Export…').click());
+    expect(nameField()?.value).toBe('');
+    expect(findButton('Export').disabled).toBe(true);
+    act(() => findButton('Cancel').click());
+    expect(nameField()).toBeNull();
+    expect(saveTextFile).not.toHaveBeenCalled();
+  });
+
+  it('stops asking an export name once another preset is applied over the edits', async () => {
+    render();
+    typeInto(input('Erode'), '2.5');
+    act(() => findButton('Export…').click());
+    expect(nameField()).not.toBeNull();
+    requestChoice.mockResolvedValueOnce('discard');
+    await act(async () => presetCard('builtin:diagram').click());
+    expect(display()).toEqual(builtInPaperPreset('diagram').style);
+    expect(nameField()).toBeNull();
   });
 });
