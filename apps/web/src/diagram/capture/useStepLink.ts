@@ -83,10 +83,13 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
   }, []);
 
   const capturing = runId !== undefined;
+  const cpDocument = useWorkspaceStore((state) => state.oristudioCpDocument?.document ?? null);
   const selectedId = useMemo(
     () =>
-      step && sheets.status === 'ready' ? (linkedSheet(step, sheets.sheets)?.segment.id ?? null) : null,
-    [step, sheets]
+      step && sheets.status === 'ready'
+        ? (linkedSheet(step, sheets.sheets, cpDocument, sheets.artifacts)?.segment.id ?? null)
+        : null,
+    [step, sheets, cpDocument]
   );
   return {
     link,

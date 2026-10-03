@@ -27,6 +27,7 @@ import {
   browserFindCards,
   browserPlanCards,
   plannedPatterns,
+  sheetPattern,
   type BrowserCard,
   type BrowserPattern,
   type BrowserPlan,
@@ -175,7 +176,8 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document, geometry, analysis, loadSerial, cacheVersion]);
   const listed = patterns.status === 'ready' ? patterns.patterns : [];
-  const pattern = listed.find((candidate) => candidate.id === state.pattern) ?? listed[0] ?? null;
+  const pattern =
+    listed.find((candidate) => candidate.id === state.pattern) ?? sheetPattern(listed, state.sheet) ?? listed[0] ?? null;
 
   // The shown pattern's plan, unpacked once.
   const [decoded, setDecoded] = useState<{ id: string; plan: ReferencesCachedPlan | null } | null>(null);
@@ -326,6 +328,7 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
 }
 
 const NO_CARDS: readonly BrowserCard[] = [];
+
 
 /**
  * The last analysis of the creases, by their revision: the browser opened

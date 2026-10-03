@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause, Play, RotateCcw, StepForward } from 'lucide-react';
 import { CARD_FRAME_PX, paintAnnotations } from '../../diagram/annotate/paintAnnotations';
+import type { KnownCreases } from '../../diagram/capture/captureCreases';
 import type { SimulatedRest } from '../../diagram/capture/poseController';
 import {
   useDiagramSimulatedPose,
@@ -44,6 +45,7 @@ const ignoreCanvas = () => {};
 export function DiagramPoseSimulatedView({
   stepId,
   scope,
+  known,
   render,
   style,
   annotations,
@@ -54,6 +56,8 @@ export function DiagramPoseSimulatedView({
 }: {
   stepId: string;
   scope: DiagramCpScope;
+  /** What the step remembers of its creases: its sheet is folded wherever it is now. */
+  known: KnownCreases;
   render: { foldPercent: number; view: DiagramSimulatedView };
   style: DiagramStyle;
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
@@ -65,7 +69,7 @@ export function DiagramPoseSimulatedView({
   toolbar: (transport: ReactNode) => ReactNode;
 }) {
   const { t } = useTranslation();
-  const pose = useDiagramSimulatedPose({ stepId, scope, render, onRest, wantsRest });
+  const pose = useDiagramSimulatedPose({ stepId, scope, known, render, onRest, wantsRest });
   const paperStyle = useMemo(() => diagramPaperStyle(style), [style]);
   // The view opens where the step is; later poses come through `setView`.
   const [opening] = useState(render.view);

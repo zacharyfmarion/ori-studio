@@ -31,7 +31,9 @@ import { chosenWitness } from '../../cp-workspace/references/precreaseSequence';
 import { rfSheetOfFrame } from '../../cp-workspace/references/referenceFinderStepInModel';
 import { stepWays, waySignature, wayChoicesOfSheet } from '../../cp-workspace/references/referencesWays';
 import type { PrecreaseComponent, PrecreaseInput, SheetAnalysis } from '../../cp-workspace/references/sheetFrames';
+import { boundariesMatch } from '../../cp-workspace/regions/regionReference';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
+import type { Point } from '../../lib/geometry';
 import type { DiagramStepDiagramPicture, ReferencesPlanSettings } from '../document/diagramDocument';
 import { referencesCardPicture } from './referencesPulledSteps';
 
@@ -155,4 +157,17 @@ function cardOf(context: ReferencesStripContext, index: number, way: string | nu
     ways: row.ways?.count ?? null,
     step: card && picture ? { card, picture, way } : null,
   };
+}
+
+/**
+ * The listed pattern on a sheet, by its rim: where a replaced step's own plan
+ * is no longer listed — planned again since, under another key — its sheet's
+ * current plan, not the first listed.
+ */
+export function sheetPattern<T extends Pick<BrowserPattern, 'component'>>(
+  listed: readonly T[],
+  sheet: Point[][] | null | undefined
+): T | undefined {
+  if (!sheet || sheet.length === 0) return undefined;
+  return listed.find((candidate) => boundariesMatch([candidate.component.outline.map(([x, y]) => ({ x, y }))], sheet));
 }

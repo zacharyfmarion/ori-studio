@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { segmentSheetThumbnail } from '../../cp-workspace/sheets/segmentSheet';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
-import { resolveRegion } from '../../cp-workspace/regions/regionReference';
+import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
+import type { FoldArtifacts } from '../../engine/types';
 import { resolveCpSegments, type CpSegment } from '../../lib/creasePatternSegmentation';
 import type { DiagramStep } from '../document/diagramDocument';
+import { sourceSheet } from './linkStatus';
 import { useCpSegmentationState } from './useLinkStatus';
 
 /** One pattern a step can be linked to: a region of the open crease pattern. */
@@ -16,7 +18,12 @@ export type DiagramPatternSheets =
   | { status: 'no-pattern' }
   | { status: 'pending' }
   | { status: 'failed' }
-  | { status: 'ready'; sheets: readonly DiagramPatternSheet[] };
+  | {
+      status: 'ready';
+      sheets: readonly DiagramPatternSheet[];
+      /** The segmentation the sheets are of: what a linked step's own sheet is found in. */
+      artifacts: FoldArtifacts;
+    };
 
 /**
  * The patterns of the open crease pattern, for the pattern picker: its
@@ -34,19 +41,23 @@ export function useDiagramPatternSheets(wanted: boolean): DiagramPatternSheets {
         segment,
         thumbnail: segmentSheetThumbnail(fold, segment),
       })),
+      artifacts: segmentation.artifacts,
     };
   }, [segmentation]);
 }
 
-/** The pattern a region-linked step shows, among these; null for any other step, or one whose pattern is gone. */
+/**
+ * The pattern a region-linked step shows, among these — found as its status
+ * finds it, wherever its sheet is now (`stepSheet`); null for any other step,
+ * or one whose pattern is gone.
+ */
 export function linkedSheet(
   step: DiagramStep,
-  sheets: readonly DiagramPatternSheet[]
+  sheets: readonly DiagramPatternSheet[],
+  document: OristudioCpDocumentSnapshot | null,
+  artifacts: FoldArtifacts
 ): DiagramPatternSheet | null {
   if (step.source?.kind !== 'cp') return null;
-  const segment = resolveRegion(
-    step.source.scope.region,
-    sheets.map((sheet) => sheet.segment)
-  );
+  const segment = sourceSheet(step.source, document, artifacts);
   return segment ? (sheets.find((sheet) => sheet.segment === segment) ?? null) : null;
 }

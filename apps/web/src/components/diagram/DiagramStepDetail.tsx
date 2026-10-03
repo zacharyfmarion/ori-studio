@@ -33,6 +33,7 @@ import { annotatedStepUrl } from '../../diagram/pictures/useStepPictureUrl';
 import type { AnnotateTool } from '../../diagram/annotate/annotateTools';
 import type { DiagramDetailMode } from '../../store/workspaceStore/types';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
+import { knownCreasesOf } from '../../diagram/capture/captureCreases';
 import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
@@ -279,6 +280,7 @@ export function DiagramStepDetail({
             key={step.id}
             stepId={step.id}
             scope={linked.scope}
+            known={knownCreasesOf(linked)}
             render={linked.render}
             style={style}
             annotations={ghost}

@@ -1918,6 +1918,12 @@ export interface DiagramReferencesBrowserState {
    * is found in the pattern's plan.
    */
   shown: { plan: string | null; card: number | null; line: { n: [number, number]; d: number } | null } | null;
+  /**
+   * For Replace: the step's sheet's rim where it is now, when it can be found.
+   * The browser opens on the pattern of that sheet when the plan the step
+   * came from is no longer listed (planned again since), not on another.
+   */
+  sheet?: Point[][] | null;
 }
 
 export interface DiagramSliceActions {

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { FoldDocument as SimulatorFoldDocument } from '@treemaker/origami-simulator';
-import { resolveRegion } from '../../cp-workspace/regions/regionReference';
-import { resolveCpSegments, type CpSegment } from '../../lib/creasePatternSegmentation';
+import type { CpSegment } from '../../lib/creasePatternSegmentation';
+import type { KnownCreases } from './captureCreases';
+import { stepSheet } from './linkStatus';
 import { withRollAbsorbed, type SimulatorOrbitView } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS, simulatorMaterialOptions } from '../../lib/simulatorSettings';
 import { FoldPlayhead } from '../../simulator/foldPlayhead';
@@ -147,12 +148,15 @@ export interface DiagramSimulatedPose {
 export function useDiagramSimulatedPose({
   stepId,
   scope,
+  known,
   render,
   onRest,
   wantsRest,
 }: {
   stepId: string;
   scope: DiagramCpScope;
+  /** What the step remembers of its creases: its sheet is found wherever it is now. */
+  known: KnownCreases;
   /** The step's simulated pose: what the view opens at, and follows on an undo. */
   render: { foldPercent: number; view: DiagramSimulatedView };
   onRest: (rest: SimulatedRest) => Promise<void>;
@@ -163,9 +167,12 @@ export function useDiagramSimulatedPose({
   // pattern's segmentation is.
   const segmentation = useCpSegmentationState(true);
   const artifacts = segmentation.status === 'ready' ? segmentation.artifacts : null;
+  const document = useWorkspaceStore((state) => state.oristudioCpDocument?.document ?? null);
+  const { fingerprint, drawn } = known;
   const segment = useMemo(
-    () => (artifacts ? resolveRegion(scope.region, resolveCpSegments(artifacts)) : undefined),
-    [artifacts, scope.region]
+    // Undefined while the segmentation is not ready; null when the sheet is gone.
+    () => (artifacts ? stepSheet(scope, { fingerprint, drawn }, document, artifacts) : undefined),
+    [artifacts, scope, fingerprint, drawn, document]
   );
   const [model, setModel] = useState<{ segment: CpSegment; fold: SimulatorFoldDocument | null } | null>(null);
   useEffect(() => {

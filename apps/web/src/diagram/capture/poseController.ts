@@ -30,7 +30,13 @@ import {
 } from '../../store/workspaceStore/diagramCapture';
 import { stepIndex, type DiagramCpSource } from '../document/diagramDocument';
 import { storedCpSource } from '../document/diagramFile';
-import { chooseStepCreases, creasesFingerprint, type StepCreases } from './captureCreases';
+import {
+  chooseStepCreases,
+  creasesFingerprint,
+  followedScope,
+  knownCreasesOf,
+  type StepCreases,
+} from './captureCreases';
 import { CaptureSessionClosedError, createCaptureSession, type CaptureSession } from './captureSession';
 import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
@@ -174,7 +180,11 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   const creasesFor = async (begun: StepCaptureStart, linked: DiagramCpSource) => {
     const document = begun.cp.document;
     const segmentation = await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document));
-    return { document, segmentation, choice: chooseStepCreases(document, linked.scope, segmentation) };
+    return {
+      document,
+      segmentation,
+      choice: chooseStepCreases(document, linked.scope, segmentation, knownCreasesOf(linked)),
+    };
   };
 
   const run = async (request: LinkedPoseRequest, options?: { tracked?: boolean }): Promise<void> => {
@@ -355,7 +365,10 @@ function needsRecapture(stepId: string, linked: DiagramCpSource): boolean {
   return status === 'stale' || (status === 'current' && lightingChanged(step, diagram.style));
 }
 
-/** The step's source after a pose: the same scope, its creases fingerprinted as the new render shows them. */
+/**
+ * The step's source after a pose: the same scope — or its sheet where it moved
+ * to — its creases fingerprinted as the new render shows them.
+ */
 function linkedSource(
   previous: DiagramCpSource,
   creases: StepCreases,
@@ -364,7 +377,7 @@ function linkedSource(
 ): DiagramCpSource {
   const stored = storedCpSource({
     kind: 'cp',
-    scope: previous.scope,
+    scope: followedScope(previous.scope, creases),
     fingerprint: creasesFingerprint(creases, render),
     thumbnail: creasesThumbnail(creases, segmentation),
     render,

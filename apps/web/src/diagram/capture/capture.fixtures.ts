@@ -36,6 +36,11 @@ export const TWO_SQUARES: FixtureLine[] = [
   [0, 50, 50, 50, 'Cyan3'], // 10
 ];
 
+/** {@link TWO_SQUARES}, or any fixture, moved on the canvas by (dx, dy): nothing else changed. */
+export function movedLines(lines: FixtureLine[], dx: number, dy: number): FixtureLine[] {
+  return lines.map(([ax, ay, bx, by, color]) => [ax + dx, ay + dy, bx + dx, by + dy, color]);
+}
+
 /** The left square's lines: its borders, the wall, its diagonal and its aux line. */
 export const LEFT_LINE_IDS = [1, 3, 5, 7, 8, 10];
 export const LEFT_FOLD_LINE_IDS = [1, 3, 5, 7, 8];
@@ -80,18 +85,17 @@ export function cpDocument(
 /**
  * The kernel-space segmentation of {@link TWO_SQUARES}: its faces, as the
  * fold export gives them. The aux line lies on no face. `wall: false` drops
- * the middle wall, merging the squares into one region.
+ * the middle wall, merging the squares into one region; `dx`, `dy` is the
+ * pattern moved as {@link movedLines} moves its lines.
  */
-export function twoSquaresSegmentation({ wall = true }: { wall?: boolean } = {}): FoldArtifacts {
+export function twoSquaresSegmentation({
+  wall = true,
+  dx = 0,
+  dy = 0,
+}: { wall?: boolean; dx?: number; dy?: number } = {}): FoldArtifacts {
+  const at = (x: number, y: number): [number, number] => [x + dx, y + dy];
   const fold: FoldDocument = {
-    vertices_coords: [
-      [0, 0],
-      [100, 0],
-      [200, 0],
-      [0, 100],
-      [100, 100],
-      [200, 100],
-    ],
+    vertices_coords: [at(0, 0), at(100, 0), at(200, 0), at(0, 100), at(100, 100), at(200, 100)],
     edges_vertices: [
       [0, 1],
       [1, 2],

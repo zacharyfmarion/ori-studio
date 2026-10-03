@@ -44,7 +44,7 @@ vi.mock('../../simulator/useSimulatorShortcuts', () => ({ useSimulatorShortcuts:
 vi.mock('./useLinkStatus', () => ({ useCpSegmentationState: () => ({ status: 'ready', artifacts: ARTIFACTS }) }));
 const ARTIFACTS = {};
 const SEGMENT = { id: 0 };
-vi.mock('../../cp-workspace/regions/regionReference', () => ({ resolveRegion: () => SEGMENT }));
+vi.mock('./linkStatus', () => ({ stepSheet: () => SEGMENT }));
 vi.mock('../../lib/creasePatternSegmentation', () => ({ resolveCpSegments: () => [] }));
 vi.mock('../../store/workspaceStore/diagramCapture', () => ({
   SIMULATED_FRAME_PX: 512,
@@ -78,6 +78,7 @@ function mount(props: Partial<Parameters<typeof useDiagramSimulatedPose>[0]> = {
   const all = {
     stepId: 'step-s',
     scope: SCOPE,
+    known: { fingerprint: 'rc1:0000000000000000', drawn: false },
     render: { foldPercent: 40, view: VIEW },
     onRest: vi.fn(async (_rest: SimulatedRest) => {}),
     wantsRest: vi.fn((_pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => true),

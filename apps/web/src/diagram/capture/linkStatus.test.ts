@@ -3,7 +3,8 @@ import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpScope } from '../document/diagramDocument';
 import { cpStep } from '../document/diagramSteps.fixtures';
-import { cpDocument, TWO_SQUARES, twoSquaresSegmentation, type FixtureLine } from './capture.fixtures';
+import { referencesStep } from '../document/diagramSteps.fixtures';
+import { cpDocument, movedLines, TWO_SQUARES, twoSquaresSegmentation, type FixtureLine } from './capture.fixtures';
 import { chooseStepCreases, creasesFingerprint } from './captureCreases';
 import { linkStatus, refreshKind } from './linkStatus';
 
@@ -52,6 +53,46 @@ describe('linkStatus', () => {
   it('cannot say with no pattern open, or a region before the segmentation is ready', () => {
     expect(linkStatus(linked(regionScope), null, segmentation)).toBe('unknown');
     expect(linkStatus(linked(regionScope), cpDocument(), null)).toBe('unknown');
+  });
+});
+
+// The whole pattern selected and dragged: no crease changed (Zach, 2026-10-03:
+// "Pattern missing everywhere" after a move).
+describe('linkStatus after the pattern moved', () => {
+  const dx = -503.7;
+  const dy = 0.1 + 0.2;
+  const movedDocument = (lines = TWO_SQUARES) => cpDocument(movedLines(lines, dx, dy));
+  const movedSegmentation = twoSquaresSegmentation({ dx, dy });
+
+  it('reads a linked step current, shown as its crease pattern or folded', () => {
+    expect(linkStatus(linked(regionScope, cpDocument(), FOLDED), movedDocument(), movedSegmentation)).toBe('current');
+    expect(linkStatus(linked(regionScope, cpDocument(), CREASE_PATTERN), movedDocument(), movedSegmentation)).toBe('current');
+  });
+
+  it('reads a References step current: its sheet moved, and no crease of it changed', () => {
+    const choice = chooseStepCreases(cpDocument(), regionScope, segmentation);
+    if (choice.status !== 'found') throw new Error('found');
+    const step = referencesStep('step-r', { region: regionScope.region, fingerprint: choice.creases.drawnFingerprint });
+    if (step.source?.kind !== 'references-step') throw new Error('a References step');
+    expect(linkStatus(step.source, movedDocument(), movedSegmentation)).toBe('current');
+  });
+
+  it('reads it missing when it moved and changed beside a sheet of its shape, and stale when it changed in place', () => {
+    // Moved, and its diagonal recoloured: two squares of the one shape, so it cannot be told which.
+    const editedMoved = movedDocument(
+      TWO_SQUARES.map((line, i): FixtureLine => (i === 7 ? ([...line.slice(0, 4), 'Blue2'] as FixtureLine) : line))
+    );
+    expect(linkStatus(linked(regionScope), editedMoved, movedSegmentation)).toBe('missing');
+    // Edited where it is: out of date, as before.
+    expect(linkStatus(linked(regionScope), edited(), segmentation)).toBe('stale');
+  });
+
+  it('compares a step that keeps a fingerprint from before the change the old way', () => {
+    const choice = chooseStepCreases(cpDocument(), regionScope, segmentation);
+    if (choice.status !== 'found') throw new Error('found');
+    const old = { scope: regionScope, render: FOLDED, fingerprint: choice.creases.absolute.fingerprint };
+    expect(linkStatus(old, cpDocument(), segmentation)).toBe('current');
+    expect(linkStatus(old, edited(), segmentation)).toBe('stale');
   });
 });
 

@@ -14,6 +14,7 @@
  * Pure.
  */
 import type { FoldArtifacts } from '../../engine/types';
+import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import {
   isLockedStep,
@@ -24,7 +25,7 @@ import {
   type DiagramStyle,
 } from '../document/diagramDocument';
 import { lightingChanged } from '../pictures/lighting';
-import { chooseStepCreases, creasesFingerprint, type StepCreaseChoice } from './captureCreases';
+import { chooseStepCreases, creasesMatch, knownCreasesOf, type KnownCreases, type StepCreaseChoice } from './captureCreases';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
 
@@ -67,24 +68,52 @@ export function refreshKind(
   return needsPose(step) ? 'pose' : 'refresh';
 }
 
+/**
+ * A step's sheet is found by what it is, not where it sits
+ * (`chooseStepCreases`): moved, it is still current; changed, stale; moved
+ * and changed among other sheets of its shape, missing.
+ */
 export function linkStatus(
-  source: Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> | DiagramReferencesSource,
+  source: (Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> & { kind?: 'cp' }) | DiagramReferencesSource,
   document: OristudioCpDocumentSnapshot | null,
   segmentation: FoldArtifacts | null
 ): DiagramLinkStatus {
   if (!document) return 'unknown';
-  if ('kind' in source && source.kind === 'references-step') {
-    const choice = cachedChoice(document, sheetScope(source), segmentation);
-    if (choice.status !== 'found') return choice.status;
-    // Sent while its sheet matched no region: there were no creases to keep,
-    // so nothing to say it changed from.
-    if (source.fingerprint === null) return 'unknown';
-    return choice.creases.drawnFingerprint === source.fingerprint ? 'current' : 'stale';
-  }
-  const linked = source as Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'>;
-  const choice = cachedChoice(document, linked.scope, segmentation);
+  const known = knownCreasesOf(source);
+  const scope = source.kind === 'references-step' ? sheetScope(source) : source.scope;
+  const choice = cachedChoice(document, scope, segmentation, known);
   if (choice.status !== 'found') return choice.status;
-  return creasesFingerprint(choice.creases, linked.render) === linked.fingerprint ? 'current' : 'stale';
+  // Sent while its sheet matched no region: there were no creases to keep,
+  // so nothing to say it changed from.
+  if (known.fingerprint === null) return 'unknown';
+  return creasesMatch(choice.creases, known) ? 'current' : 'stale';
+}
+
+/**
+ * The sheet a step's link names, as the pattern stands now — found as its
+ * status finds it, by what it is rather than where it sits — or null: gone,
+ * or not to be looked for yet. What the pattern picker marks, Simulated Pose
+ * folds, and Open in Edit and Open in References go to.
+ */
+export function stepSheet(
+  scope: DiagramCpScope,
+  known: KnownCreases,
+  document: OristudioCpDocumentSnapshot | null,
+  segmentation: FoldArtifacts | null
+): CpSegment | null {
+  if (!document || !segmentation) return null;
+  const choice = cachedChoice(document, scope, segmentation, known);
+  return choice.status === 'found' ? choice.creases.segment : null;
+}
+
+/** {@link stepSheet} for a linked step's or a References step's source. */
+export function sourceSheet(
+  source: DiagramCpSource | DiagramReferencesSource,
+  document: OristudioCpDocumentSnapshot | null,
+  segmentation: FoldArtifacts | null
+): CpSegment | null {
+  const scope = source.kind === 'references-step' ? sheetScope(source) : source.scope;
+  return stepSheet(scope, knownCreasesOf(source), document, segmentation);
 }
 
 /** A References step's sheet as a scope: one object per source, so the choice cache keeps it. */
@@ -100,22 +129,25 @@ export function sheetScope(source: DiagramReferencesSource): DiagramCpScope {
 const sheetScopes = new WeakMap<DiagramReferencesSource, DiagramCpScope>();
 
 /**
- * Choices by document, then segmentation, then scope object: a card asks on
- * every render, and choosing is a walk over the pattern and a digest. Each
- * key is replaced, never edited — a document snapshot per kernel command, a
- * segmentation per crease geometry, a scope per capture — so identity is the
- * whole question, and a superseded one's entries go with it.
+ * Choices by document, then segmentation, then scope object, then what the
+ * step remembers: a card asks on every render, and choosing is a walk over
+ * the pattern and a digest. Each object key is replaced, never edited — a
+ * document snapshot per kernel command, a segmentation per crease geometry, a
+ * scope per capture — so identity is the whole question, and a superseded
+ * one's entries go with it. The remembered fingerprint is a string: a Refresh
+ * can keep the scope and change it.
  */
 const choices = new WeakMap<
   OristudioCpDocumentSnapshot,
-  WeakMap<FoldArtifacts | typeof NO_SEGMENTATION, WeakMap<DiagramCpScope, StepCreaseChoice>>
+  WeakMap<FoldArtifacts | typeof NO_SEGMENTATION, WeakMap<DiagramCpScope, Map<string, StepCreaseChoice>>>
 >();
 const NO_SEGMENTATION = {};
 
 function cachedChoice(
   document: OristudioCpDocumentSnapshot,
   scope: DiagramCpScope,
-  segmentation: FoldArtifacts | null
+  segmentation: FoldArtifacts | null,
+  known: KnownCreases
 ): StepCreaseChoice {
   let bySegmentation = choices.get(document);
   if (!bySegmentation) {
@@ -128,10 +160,16 @@ function cachedChoice(
     byScope = new WeakMap();
     bySegmentation.set(segmentationKey, byScope);
   }
-  let choice = byScope.get(scope);
+  let byKnown = byScope.get(scope);
+  if (!byKnown) {
+    byKnown = new Map();
+    byScope.set(scope, byKnown);
+  }
+  const knownKey = `${known.drawn ? 'drawn' : 'fold'}|${known.fingerprint ?? ''}`;
+  let choice = byKnown.get(knownKey);
   if (!choice) {
-    choice = chooseStepCreases(document, scope, segmentation);
-    byScope.set(scope, choice);
+    choice = chooseStepCreases(document, scope, segmentation, known);
+    byKnown.set(knownKey, choice);
   }
   return choice;
 }

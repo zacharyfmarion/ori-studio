@@ -15,6 +15,7 @@ import {
   type CpCaptureRuntime,
   type SimulateFlat,
 } from '../../diagram/capture/captureFolded';
+import type { KnownCreases } from '../../diagram/capture/captureCreases';
 import { abandonOnEngineLoss } from '../../diagram/capture/engineLoss';
 import {
   DEFAULT_DIAGRAM_STYLE,
@@ -53,6 +54,11 @@ import { bytesToBase64 } from '../../lib/base64';
 
 export interface DiagramCaptureRequest {
   scope: DiagramCpScope;
+  /**
+   * What the step remembers of its creases (`knownCreasesOf` its source), so a
+   * sheet that moved is still found; absent for a link made now.
+   */
+  known?: KnownCreases | null;
   render: DiagramCpRender;
   /** Which run it is in the fold-run registry: a Pose or a link, or a Refresh. */
   kind: 'diagram-capture' | 'diagram-refresh';
@@ -242,6 +248,7 @@ export async function runDiagramCapture(
         document,
         segmentation,
         scope: request.scope,
+        known: request.known ?? null,
         render: request.render,
         style: start.style,
         simulateFlat: storeSimulateFlat(store),

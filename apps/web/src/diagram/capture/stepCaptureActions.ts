@@ -26,6 +26,8 @@ import {
   type DiagramShowAs,
   type DiagramStep,
 } from '../document/diagramDocument';
+import { knownCreasesOf } from './captureCreases';
+import { stepSheetNow } from './stepSheetNow';
 import { openLinkedPoseOf } from './openLinkedPose';
 
 /** The Step pane, where the pattern picker is. */
@@ -111,6 +113,7 @@ export async function showLinkedStepAs(
   const render = renderToShowAs(step.source, way);
   const outcome = await store.captureDiagramStep(stepId, {
     scope: step.source.scope,
+    known: knownCreasesOf(step.source),
     render,
     kind: 'diagram-capture',
     label: showAsLabel(way),
@@ -141,6 +144,7 @@ export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs):
   const duplicated = useWorkspaceStore.getState().diagramHistory.past.at(-1);
   const outcome = await useWorkspaceStore.getState().captureDiagramStep(copyId, {
     scope: source.scope,
+    known: knownCreasesOf(source),
     render,
     kind: 'diagram-capture',
     label: 'Duplicate step',
@@ -180,6 +184,7 @@ export async function refreshDiagramStep(stepId: string): Promise<boolean> {
   const { scope, render } = step.source;
   const outcome = await store.captureDiagramStep(stepId, {
     scope,
+    known: knownCreasesOf(step.source),
     render,
     kind: 'diagram-refresh',
     label: 'Refresh picture',
@@ -188,13 +193,16 @@ export async function refreshDiagramStep(stepId: string): Promise<boolean> {
   return outcome.status === 'captured';
 }
 
-/** Show a linked step's pattern in Edit: the region it is linked to, framed on Edit's canvas when it next draws. */
+/**
+ * Show a linked step's pattern in Edit: the region it is linked to, framed on
+ * Edit's canvas when it next draws — where it is now, if it moved; where it
+ * was, if it cannot be found.
+ */
 export function openDiagramStepInEdit(stepId: string): void {
   const { diagram } = useWorkspaceStore.getState();
   const step = diagram?.steps[stepIndex(diagram, stepId)];
   if (step?.source?.kind !== 'cp') return;
-  const { scope } = step.source;
-  requestCpRegionFocus(scope.region.bounds);
+  requestCpRegionFocus(stepSheetNow(step.source)?.bounds ?? step.source.scope.region.bounds);
   useLayoutStore.getState().activateWorkspace('edit');
   trackDiagramSourceOpened('edit');
 }

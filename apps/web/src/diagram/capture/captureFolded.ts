@@ -56,7 +56,13 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import { digest } from '../pictures/pictureKey';
 import { sanitizeSvg, SVG_STORED_MAX_BYTES, type SanitizeEnv } from '../upload/svgSanitize';
-import { chooseStepCreases, creasesFingerprint, type StepCreases } from './captureCreases';
+import {
+  chooseStepCreases,
+  creasesFingerprint,
+  followedScope,
+  type KnownCreases,
+  type StepCreases,
+} from './captureCreases';
 import { creasesThumbnail } from './captureThumbnail';
 import { CAPTURE_PX_PER_UNIT, storableScene, turnClockwise } from './captureGeometry';
 import { creasePatternScene } from './creasePatternScene';
@@ -263,6 +269,11 @@ export interface CaptureStepRequest {
   /** Kernel-space segmentation, for a segment scope; null while it is not ready. */
   segmentation: FoldArtifacts | null;
   scope: DiagramCpScope;
+  /**
+   * What the step remembers of its creases, so its sheet is found after a
+   * move; absent for a link made now, to a sheet in its place.
+   */
+  known?: KnownCreases | null;
   render: DiagramCpRender;
   style: DiagramStyle;
   /** The simulator, for a step shown as Simulated; absent, it cannot be captured. */
@@ -301,13 +312,15 @@ export async function captureStep(
   runtime: CpCaptureRuntime,
   request: CaptureStepRequest
 ): Promise<CaptureStepResult> {
-  const { document, scope, style, env, segmentation } = request;
+  const { document, style, env, segmentation } = request;
   // A region cannot be looked for before the segmentation is ready.
   if (!segmentation) return { status: 'unknown' };
-  const choice = chooseStepCreases(document, scope, segmentation);
+  const choice = chooseStepCreases(document, request.scope, segmentation, request.known ?? null);
   if (choice.status !== 'found') return choice;
   const { creases } = choice;
   const thumbnail = creasesThumbnail(creases, segmentation);
+  // Found where it moved to, the link follows it.
+  const scope = followedScope(request.scope, creases);
   const source = (render: DiagramCpRender): DiagramCpSource => {
     const stored = storedCpSource({
       kind: 'cp',

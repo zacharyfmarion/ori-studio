@@ -6,6 +6,7 @@ import { requestConfirmation } from '../../store/commandDialogStore';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { stepIndex, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
+import { knownCreasesOf } from './captureCreases';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus, refreshKind } from './linkStatus';
 import { sayCaptureOutcome, trackCapture } from './stepCaptureActions';
@@ -80,6 +81,7 @@ export async function refreshAllDiagramSteps(): Promise<number> {
       const outcome = await store
         .captureDiagramStep(stepId, {
           scope,
+          known: knownCreasesOf(step.source),
           render,
           kind: 'diagram-refresh',
           label: REFRESH_ALL_LABEL,

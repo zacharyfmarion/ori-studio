@@ -31,13 +31,15 @@ function mount(node: React.ReactNode) {
   act(() => root!.render(node));
 }
 
-const segments = resolveCpSegments(twoSquaresSegmentation());
+const artifacts = twoSquaresSegmentation();
+const segments = resolveCpSegments(artifacts);
 const SHEETS: DiagramPatternSheets = {
   status: 'ready',
   sheets: [...segments, ...segments].map((segment, index) => ({
     segment: { ...segment, id: index },
     thumbnail: null,
   })),
+  artifacts,
 };
 
 const options = () => [...host!.querySelectorAll<HTMLButtonElement>('[role="option"]')];

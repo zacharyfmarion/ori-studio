@@ -17,7 +17,14 @@ import { readDiagram, writeDiagram } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { paintScene } from '../pictures/paintDiagramStep';
 import { simulatorSceneStyleKey } from '../../simulator/simulatorExportTarget';
-import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
+import {
+  cpDocument,
+  fakeCaptureRuntime,
+  LEFT_FOLD_LINE_IDS,
+  movedLines,
+  TWO_SQUARES,
+  twoSquaresSegmentation,
+} from './capture.fixtures';
 import { captureStep, SCENE_BUDGET_BYTES, storeScene, type CaptureStepRequest } from './captureFolded';
 import { CAPTURE_PX_PER_UNIT } from './captureGeometry';
 
@@ -67,6 +74,26 @@ describe('captureStep, a crease pattern', () => {
     const painted = paintScene({ kind: 'scene', picture, pattern: true }, DEFAULT_DIAGRAM_STYLE)!;
     // Round joins at the shared ends, where the diagram's butt-capped pens would notch.
     expect(painted.svg).toMatch(/stroke-linecap="round"/);
+  });
+
+  // Refresh, Show as or a Pose verb on a step whose pattern moved since it was captured.
+  it('captures a moved sheet by what the step remembers, its fingerprint unchanged, and follows it there', async () => {
+    const CP: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 0 };
+    const before = await captureStep(fakeCaptureRuntime(), request(CP));
+    if (before.status !== 'captured') throw new Error('captured');
+    const known = { fingerprint: before.source.fingerprint, drawn: true };
+    const moved = twoSquaresSegmentation({ dx: 750.3, dy: -12.9 });
+    const after = await captureStep(
+      fakeCaptureRuntime(),
+      request(CP, { document: cpDocument(movedLines(TWO_SQUARES, 750.3, -12.9)), segmentation: moved, known })
+    );
+    if (after.status !== 'captured') throw new Error('captured after the move');
+    expect(after.source.fingerprint).toBe(before.source.fingerprint);
+    expect(after.source.scope.region).toEqual(regionReferenceFor(resolveCpSegments(moved)[0]!));
+    // In its place, the scope it was asked with stands.
+    const again = await captureStep(fakeCaptureRuntime(), request(CP, { known }));
+    if (again.status !== 'captured') throw new Error('captured in place');
+    expect(again.source.scope).toEqual(scope);
   });
 
   it('says why when there is nothing to capture', async () => {

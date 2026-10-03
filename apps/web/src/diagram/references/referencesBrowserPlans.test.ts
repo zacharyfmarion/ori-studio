@@ -15,7 +15,7 @@ import {
   type SheetAnalysis,
 } from '../../cp-workspace/references/sheetFrames';
 import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import { browserPlanCards, plannedPatterns } from './referencesBrowserPlans';
+import { browserPlanCards, plannedPatterns, sheetPattern, type BrowserPattern } from './referencesBrowserPlans';
 
 const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
   fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as unknown as TFunction;
@@ -126,5 +126,28 @@ describe('browserPlanCards', () => {
     const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
     const stopped = { ...plan, result: { ...plan.result, stopReason: 'budget' } } as ReferencesCachedPlan;
     expect(browserPlanCards(t, stopped, pattern!, geometry, false, 'rev-1').finished).toBe(false);
+  });
+});
+
+describe('the pattern on a sheet', () => {
+  const square = (dx: number) => [
+    [dx, 0],
+    [dx + 100, 0],
+    [dx + 100, 100],
+    [dx, 100],
+  ] as [number, number][];
+  const listed = [
+    { id: 'plan-a', component: { outline: square(0) } },
+    { id: 'plan-b', component: { outline: square(300) } },
+  ] as unknown as BrowserPattern[];
+
+  it('finds the listed pattern on the sheet by its rim, from any corner', () => {
+    const rim = [[300, 100], [300, 0], [400, 0], [400, 100]].map(([x, y]) => ({ x: x!, y: y! }));
+    expect(sheetPattern(listed, [rim])?.id).toBe('plan-b');
+  });
+
+  it('finds none for no sheet, or one with no pattern listed', () => {
+    expect(sheetPattern(listed, null)).toBeUndefined();
+    expect(sheetPattern(listed, [square(900).map(([x, y]) => ({ x, y }))])).toBeUndefined();
   });
 });
