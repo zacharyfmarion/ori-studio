@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useId, useRef, type ForwardedRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImagePlus, Link2, Lock, Upload } from 'lucide-react';
+import { Compass, ImagePlus, Link2, Lock, Upload } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import {
   isLockedStep,
@@ -8,7 +8,7 @@ import {
   type DiagramStep,
   type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
-import type { DiagramLinkStatus } from '../../diagram/capture/linkStatus';
+import { linkedSourceOf, type DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import { stepPictureSource, type StepPictureSource } from '../../diagram/pictures/paintDiagramStep';
 import { useStepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Badge } from '../ui/Badge';
@@ -33,8 +33,10 @@ import styles from './DiagramStepCard.module.css';
  * its link stands and its instruction, so a shortcut's label is not read as
  * part of it.
  *
- * A linked step shows its pattern's thumbnail beside its kind, and says over
- * its picture when the pattern has changed or gone.
+ * A linked step — to a pattern, or to the sheet it was sent from in
+ * References — shows its pattern's thumbnail beside its kind, and says over
+ * its picture when the pattern has changed or gone, or that it waits for a
+ * picture from References, with a Cancel.
  */
 export const DiagramStepCard = forwardRef<
   HTMLDivElement,
@@ -65,6 +67,12 @@ export const DiagramStepCard = forwardRef<
     /** Choose a pattern for this step. */
     onLink: (stepId: string) => void;
     onStop: (stepId: string) => void;
+    /** References' next Send to diagram fills this step (From References…). */
+    waiting: boolean;
+    /** Ask References for this step's picture. */
+    onFromReferences: (stepId: string) => void;
+    /** Stop waiting for one. */
+    onCancelWaiting: () => void;
   }
 >(function DiagramStepCard(
   {
@@ -84,6 +92,9 @@ export const DiagramStepCard = forwardRef<
     patternOpen,
     onLink,
     onStop,
+    waiting,
+    onFromReferences,
+    onCancelWaiting,
   },
   forwarded
 ) {
@@ -101,14 +112,20 @@ export const DiagramStepCard = forwardRef<
   const text = step.text.trim();
   const picture = stepPictureSource(step, assets);
   const url = useStepPictureUrl(own, step, assets, style);
-  const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
+  const linked = linkedSourceOf(step);
+  const sent = linked?.kind === 'references-step';
   const chip = capture
     ? t('panels:diagram.card.capturing', 'Capturing…')
-    : link === 'stale'
-      ? t('panels:diagram.card.stale', 'Out of date')
-      : link === 'missing'
-        ? t('panels:diagram.card.missing', 'Pattern missing')
-        : null;
+    : waiting
+      ? t('panels:diagram.card.waitingReferences', 'Waiting for References')
+      : link === 'stale'
+        ? // A step sent from References is never refreshed: its sheet changed, that is all.
+          sent
+          ? t('panels:diagram.card.patternChanged', 'Pattern changed')
+          : t('panels:diagram.card.stale', 'Out of date')
+        : link === 'missing'
+          ? t('panels:diagram.card.missing', 'Pattern missing')
+          : null;
   // A press must not take focus from the card's keys.
   const keepFocus = (event: { preventDefault: () => void }) => event.preventDefault();
 
@@ -187,13 +204,45 @@ export const DiagramStepCard = forwardRef<
                     {t('panels:diagram.card.link', 'Link…')}
                   </Button>
                 )}
+                {patternOpen && !waiting && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    onMouseDown={keepFocus}
+                    onClick={(event) => {
+                      // It selects the step itself.
+                      event.stopPropagation();
+                      onFromReferences(step.id);
+                    }}
+                  >
+                    <Compass size={13} aria-hidden="true" />
+                    {t('panels:diagram.card.fromReferences', 'References…')}
+                  </Button>
+                )}
               </span>
             )}
           </span>
         )}
         {chip && (
-          <span className={styles.chip} data-tone={capture ? 'progress' : 'warning'}>
+          <span className={styles.chip} data-tone={capture || waiting ? 'progress' : 'warning'}>
             <span id={`${labelId}-chip`}>{chip}</span>
+            {waiting && !capture && (
+              <button
+                type="button"
+                className={styles.stop}
+                tabIndex={-1}
+                aria-hidden="true"
+                onMouseDown={keepFocus}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCancelWaiting();
+                }}
+              >
+                {t('panels:diagram.card.cancelWaiting', 'Cancel')}
+              </button>
+            )}
             {capture?.stoppable && (
               <button
                 type="button"
@@ -224,6 +273,7 @@ export const DiagramStepCard = forwardRef<
  * is shown, or what an upload is.
  */
 function stepKindLabel(step: DiagramStep, picture: StepPictureSource | null, t: TFunction): string {
+  if (step.source?.kind === 'references-step') return t('panels:diagram.card.badgeReferences', 'References');
   if (step.source?.kind === 'cp') {
     switch (step.source.render.mode) {
       case 'crease-pattern':

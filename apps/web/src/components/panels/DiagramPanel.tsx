@@ -44,6 +44,9 @@ const linkNewStep = () => {
   if (stepId) openDiagramPatternPicker(stepId);
 };
 
+/** References, whose Send to diagram adds its cards after the selected step. */
+const stepsFromReferences = () => useWorkspaceStore.getState().openReferencesWorkspace();
+
 /**
  * The Diagram workspace: the steps of a folding sequence in order, each a
  * picture and an instruction, on their way to printed pages.
@@ -81,8 +84,6 @@ export function DiagramPanel() {
   const links = useDiagramCardLinks(steps);
   const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
   const refreshing = useWorkspaceStore((state) => state.diagramRefreshAll);
-  let staleCount = 0;
-  for (const status of links.statuses.values()) if (status === 'stale') staleCount += 1;
 
   const detailIndex =
     detail !== null && selectedStepId !== null
@@ -141,7 +142,8 @@ export function DiagramPanel() {
         onUpload={uploadPictures}
         patternOpen={patternOpen}
         onLink={linkNewStep}
-        staleCount={staleCount}
+        onFromReferences={stepsFromReferences}
+        staleCount={links.refreshable}
         refreshing={refreshing}
         onRefreshAll={refreshAll}
         onStopRefreshing={stopRefreshAll}
@@ -166,6 +168,7 @@ export function DiagramPanel() {
             onUpload={uploadPictures}
             patternOpen={patternOpen}
             onLink={linkNewStep}
+            onFromReferences={stepsFromReferences}
           />
         ) : (
           <DiagramStepsGrid

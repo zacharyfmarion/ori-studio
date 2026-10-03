@@ -15,21 +15,60 @@
  */
 import type { FoldArtifacts } from '../../engine/types';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
-import type { DiagramCpScope, DiagramCpSource } from '../document/diagramDocument';
+import {
+  isLockedStep,
+  type DiagramCpScope,
+  type DiagramCpSource,
+  type DiagramReferencesSource,
+  type DiagramStep,
+} from '../document/diagramDocument';
 import { chooseStepCreases, creasesFingerprint, type StepCreaseChoice } from './captureCreases';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
 
+/** A source that points back at the crease pattern: a linked pattern, or a step sent from References. */
+export type DiagramLinkedSource = DiagramCpSource | DiagramReferencesSource;
+
+/** A step's link to the crease pattern, when it has one this build can follow. */
+export function linkedSourceOf(step: DiagramStep): DiagramLinkedSource | null {
+  if (isLockedStep(step)) return null;
+  const { source } = step;
+  return source?.kind === 'cp' || source?.kind === 'references-step' ? source : null;
+}
+
+/**
+ * How a link stands. A References step's sheet is a region like any other,
+ * fingerprinted on every line in it when it was sent (D6): its picture never
+ * follows the pattern, so all its status can say is whether the sheet changed.
+ */
 export function linkStatus(
-  source: Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'>,
+  source: Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'> | DiagramReferencesSource,
   document: OristudioCpDocumentSnapshot | null,
   segmentation: FoldArtifacts | null
 ): DiagramLinkStatus {
   if (!document) return 'unknown';
-  const choice = cachedChoice(document, source.scope, segmentation);
+  if ('kind' in source && source.kind === 'references-step') {
+    const choice = cachedChoice(document, sheetScope(source), segmentation);
+    if (choice.status !== 'found') return choice.status;
+    return choice.creases.drawnFingerprint === source.fingerprint ? 'current' : 'stale';
+  }
+  const linked = source as Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'>;
+  const choice = cachedChoice(document, linked.scope, segmentation);
   if (choice.status !== 'found') return choice.status;
-  return creasesFingerprint(choice.creases, source.render) === source.fingerprint ? 'current' : 'stale';
+  return creasesFingerprint(choice.creases, linked.render) === linked.fingerprint ? 'current' : 'stale';
 }
+
+/** A References step's sheet as a scope: one object per source, so the choice cache keeps it. */
+export function sheetScope(source: DiagramReferencesSource): DiagramCpScope {
+  let scope = sheetScopes.get(source);
+  if (!scope) {
+    scope = { kind: 'segment', region: source.region };
+    sheetScopes.set(source, scope);
+  }
+  return scope;
+}
+
+const sheetScopes = new WeakMap<DiagramReferencesSource, DiagramCpScope>();
 
 /**
  * Choices by document, then segmentation, then scope object: a card asks on

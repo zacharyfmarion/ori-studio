@@ -692,6 +692,7 @@
       "duplicate": "Duplicate Step",
       "exportPicture": "Export Picture…",
       "firstHint": "Already the first step",
+      "fromReferences": "From References…",
       "insertAfter": "Insert Step After",
       "insertBefore": "Insert Step Before",
       "lastHint": "Already the last step",
@@ -703,9 +704,11 @@
       "moveLater": "Move Later",
       "noPatternHint": "Open a crease pattern in Edit to link it",
       "noPatternOpenHint": "Its crease pattern isn’t open",
+      "noPatternReferencesHint": "Open a crease pattern in Edit to plan its folds",
       "noPatternRefreshHint": "Open its crease pattern in Edit to refresh it",
       "noPictureHint": "This step has no picture yet",
       "openInEdit": "Open in Edit",
+      "openInReferences": "Open in References",
       "readOnlyHint": "This diagram was made with a newer Ori Studio and opens read-only",
       "refreshPicture": "Refresh Picture",
       "relinkPattern": "Relink Pattern…",
@@ -720,8 +723,11 @@
       "badgeFolded3d": "Folded · 3D",
       "badgeImage": "Image",
       "badgeNewer": "Newer",
+      "badgeReferences": "References",
       "badgeSvg": "SVG",
+      "cancelWaiting": "Cancel",
       "capturing": "Capturing…",
+      "fromReferences": "References…",
       "link": "Link…",
       "locked": "Made with a newer Ori Studio",
       "missing": "Pattern missing",
@@ -729,9 +735,11 @@
       "noPicture": "No picture yet",
       "notCaptured": "Not captured yet",
       "number": "Step {{number}}",
+      "patternChanged": "Pattern changed",
       "stale": "Out of date",
       "stop": "Stop",
-      "upload": "Upload…"
+      "upload": "Upload…",
+      "waitingReferences": "Waiting for References"
     },
     "detail": {
       "back": "Steps",
@@ -746,6 +754,7 @@
     },
     "empty": {
       "addStep": "Add step",
+      "fromReferences": "From References…",
       "link": "Link a pattern…",
       "message": "A diagram is your folding sequence, one step at a time. Add a step, then give it a picture and an instruction — or upload your drawings, one step each.",
       "title": "Start a diagram",
@@ -756,6 +765,7 @@
     },
     "header": {
       "addStep": "Add step",
+      "fromReferences": "From References…",
       "linkPattern": "Link pattern…",
       "moreAdd": "More ways to add steps",
       "nothingStale": "Every linked step shows its pattern as it is",
@@ -779,6 +789,7 @@
       "title": "Choose a pattern"
     },
     "picture": {
+      "cancelWaiting": "Cancel",
       "capturing": "Capturing…",
       "checking": "Checking…",
       "cssDropped": "Some of its styling couldn’t be kept, so parts may look different.",
@@ -795,13 +806,20 @@
       "none": "No picture yet",
       "pattern": "Pattern",
       "raster": "Uploaded image, {{width}} × {{height}} px",
+      "sentBack": "{{card}}, from the back",
+      "sentCard": "A card from References",
+      "sentCurrent": "Unchanged since this step was sent",
+      "sentFind": "Step {{number}} of a reference",
+      "sentSequence": "Step {{number}} of the folding sequence",
+      "sentStale": "Pattern changed since this step was sent",
       "simplified": "This picture was simplified.",
       "source": "Source",
       "stale": "Out of date: the pattern changed",
       "stop": "Stop",
       "svg": "Uploaded SVG, {{width}} × {{height}} px",
       "unknown": "Not checked: the crease pattern isn’t open",
-      "unsupported": "Some of its parts aren’t supported and were left out."
+      "unsupported": "Some of its parts aren’t supported and were left out.",
+      "waitingReferences": "Waiting for References: the next step sent to the diagram fills this one."
     },
     "pose": {
       "annotationsHint": "Its annotations were made with a newer Ori Studio, which could not turn with it",
@@ -1008,6 +1026,8 @@
       "oneWayHint": "This step folds only one way",
       "pauseFold": "Pause Fold",
       "pleatHint": "Pleats aren’t animated yet",
+      "sendToStep": "Send to Diagram Step {{number}}",
+      "staleHint": "This answer is for an earlier pattern: recompute it first",
       "unfold": "Unfold"
     },
     "alreadyOnSheet": "This point is already on the paper — no folds needed.",

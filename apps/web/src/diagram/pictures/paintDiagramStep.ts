@@ -11,7 +11,9 @@
  *   it stays vector wherever it is drawn;
  * - a captured scene, in the diagram's pens (D9): a crease pattern measured by
  *   its sheet, a folded model by the figure itself;
- * - a fixed picture, our own SVG for a fold with no layer order, as stored.
+ * - a fixed picture, our own SVG for a fold with no layer order, as stored;
+ * - a References step, its card's diagram built at the size it is painted at
+ *   (`paintStepDiagram.ts`, D6).
  *
  * Pure: no DOM, no store.
  */
@@ -24,12 +26,14 @@ import {
   type DiagramFixedPicture,
   type DiagramScenePicture,
   type DiagramStep,
+  type DiagramStepDiagramPicture,
   type DiagramStyle,
   type KnownDiagramAsset,
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { SVG_NS } from '../upload/svgSanitize';
 import { diagramSurfaceStyle } from './diagramPaperStyle';
+import { paintStepDiagram } from './paintStepDiagram';
 
 export interface PaintedPicture {
   svg: string;
@@ -103,7 +107,8 @@ export function paintAsset(asset: KnownDiagramAsset, pose: PicturePose = UPRIGHT
 export type StepPictureSource =
   | { kind: 'asset'; asset: KnownDiagramAsset; pose: PicturePose }
   | { kind: 'scene'; picture: DiagramScenePicture; measure: PaperSizeMeasure }
-  | { kind: 'fixed'; picture: DiagramFixedPicture };
+  | { kind: 'fixed'; picture: DiagramFixedPicture }
+  | { kind: 'step-diagram'; picture: DiagramStepDiagramPicture };
 
 export function stepPictureSource(
   step: DiagramStep,
@@ -132,6 +137,8 @@ export function stepPictureSource(
       };
     case 'fixed':
       return { kind: 'fixed', picture };
+    case 'step-diagram':
+      return { kind: 'step-diagram', picture };
   }
 }
 
@@ -188,6 +195,14 @@ export function paintSource(
       return paintScene(source.picture, source.measure, style, paddingMm);
     case 'fixed':
       return { svg: source.picture.svg, widthPx: source.picture.widthPx, heightPx: source.picture.heightPx };
+    case 'step-diagram':
+      // On the page every picture opens at, as a scene is: built at its size.
+      return paintStepDiagram(
+        source.picture.model,
+        source.picture.mirrored,
+        style,
+        stepScenePage(paddingMm ?? STEP_CARD_PADDING_MM)
+      );
   }
 }
 

@@ -721,6 +721,7 @@
       "duplicate": "Dupliquer l’étape",
       "exportPicture": "Exporter l’image…",
       "firstHint": "C’est déjà la première étape",
+      "fromReferences": "Depuis Références…",
       "insertAfter": "Insérer une étape après",
       "insertBefore": "Insérer une étape avant",
       "lastHint": "C’est déjà la dernière étape",
@@ -732,9 +733,11 @@
       "moveLater": "Reculer",
       "noPatternHint": "Ouvrez un patron de plis dans Édition pour le lier",
       "noPatternOpenHint": "Son patron de plis n’est pas ouvert",
+      "noPatternReferencesHint": "Ouvrez un patron de plis dans Édition pour planifier ses plis",
       "noPatternRefreshHint": "Ouvrez son patron de plis dans Édition pour l’actualiser",
       "noPictureHint": "Cette étape n’a pas encore d’image",
       "openInEdit": "Ouvrir dans Édition",
+      "openInReferences": "Ouvrir dans Références",
       "readOnlyHint": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule",
       "refreshPicture": "Actualiser l’image",
       "relinkPattern": "Relier à un autre patron…",
@@ -749,8 +752,11 @@
       "badgeFolded3d": "Plié · 3D",
       "badgeImage": "Image",
       "badgeNewer": "Plus récent",
+      "badgeReferences": "Références",
       "badgeSvg": "SVG",
+      "cancelWaiting": "Annuler",
       "capturing": "Capture…",
+      "fromReferences": "Références…",
       "link": "Lier…",
       "locked": "Créée avec une version plus récente d’Ori Studio",
       "missing": "Patron introuvable",
@@ -758,9 +764,11 @@
       "noPicture": "Pas encore d’image",
       "notCaptured": "Pas encore capturé",
       "number": "Étape {{number}}",
+      "patternChanged": "Patron modifié",
       "stale": "Pas à jour",
       "stop": "Arrêter",
-      "upload": "Importer…"
+      "upload": "Importer…",
+      "waitingReferences": "En attente de Références"
     },
     "detail": {
       "back": "Étapes",
@@ -775,6 +783,7 @@
     },
     "empty": {
       "addStep": "Ajouter une étape",
+      "fromReferences": "Depuis Références…",
       "link": "Lier un patron…",
       "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction — ou importez vos dessins, une étape chacun.",
       "title": "Commencer un diagramme",
@@ -785,6 +794,7 @@
     },
     "header": {
       "addStep": "Ajouter une étape",
+      "fromReferences": "Depuis Références…",
       "linkPattern": "Lier un patron…",
       "moreAdd": "Autres façons d’ajouter des étapes",
       "nothingStale": "Chaque étape liée montre son patron tel qu’il est",
@@ -809,6 +819,7 @@
       "title": "Choisissez un patron"
     },
     "picture": {
+      "cancelWaiting": "Annuler",
       "capturing": "Capture…",
       "checking": "Vérification…",
       "cssDropped": "Une partie de son style n’a pas pu être conservée, certains éléments peuvent donc paraître différents.",
@@ -825,13 +836,20 @@
       "none": "Pas encore d’image",
       "pattern": "Patron",
       "raster": "Image importée, {{width}} × {{height}} px",
+      "sentBack": "{{card}}, vue de dos",
+      "sentCard": "Une carte de Références",
+      "sentCurrent": "Inchangé depuis l’envoi de cette étape",
+      "sentFind": "Étape {{number}} d’une référence",
+      "sentSequence": "Étape {{number}} de la séquence de pliage",
+      "sentStale": "Le patron a changé depuis l’envoi de cette étape",
       "simplified": "Cette image a été simplifiée.",
       "source": "Source",
       "stale": "Pas à jour\u00a0: le patron a changé",
       "stop": "Arrêter",
       "svg": "SVG importé, {{width}} × {{height}} px",
       "unknown": "Non vérifié\u00a0: le patron de plis n’est pas ouvert",
-      "unsupported": "Certaines de ses parties ne sont pas prises en charge et ont été omises."
+      "unsupported": "Certaines de ses parties ne sont pas prises en charge et ont été omises.",
+      "waitingReferences": "En attente de Références\u00a0: la prochaine étape envoyée au diagramme remplira celle-ci."
     },
     "pose": {
       "annotationsHint": "Ses annotations ont été créées avec une version plus récente d’Ori Studio et ne pourraient pas tourner avec elle",
@@ -1042,6 +1060,8 @@
       "oneWayHint": "Cette étape ne se plie que d’une façon",
       "pauseFold": "Mettre le pli en pause",
       "pleatHint": "Les plissés ne sont pas encore animés",
+      "sendToStep": "Envoyer à l’étape {{number}} du diagramme",
+      "staleHint": "Cette réponse porte sur un patron antérieur\u00a0: recalculez-la d’abord",
       "unfold": "Déplier"
     },
     "alreadyOnSheet": "Ce point est déjà sur le papier : aucun pli nécessaire.",

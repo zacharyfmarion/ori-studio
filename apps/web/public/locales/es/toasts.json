@@ -35,6 +35,12 @@
     },
     "dropReadOnly": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en solo lectura, así que no se le pueden añadir imágenes.",
     "openDiagram": "Abrir diagrama",
+    "references": {
+      "addedSteps": "Añadidos como pasos {{first}}–{{last}}",
+      "filledStep": "Enviado al paso {{number}}",
+      "tooLarge": "Este paso es demasiado detallado para guardarlo en el diagrama.",
+      "unreadable": "No se pudo leer la imagen de este paso, así que no se envió nada."
+    },
     "refreshedAll_one": "Se actualizó 1 paso",
     "refreshedAll_many": "Se actualizaron {{count}} pasos",
     "refreshedAll_other": "Se actualizaron {{count}} pasos",
@@ -86,6 +92,7 @@
   "references": {
     "searching": "Buscando referencias…",
     "searchingLong": "Aún buscando referencias: la primera búsqueda construye una tabla",
+    "sheetMissing": "Esa hoja ya no está en el patrón de pliegues.",
     "stop": "Cancelar",
     "stopped": "Búsqueda cancelada",
     "stopping": "Cancelando…"

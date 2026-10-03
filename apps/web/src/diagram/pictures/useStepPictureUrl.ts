@@ -9,6 +9,7 @@ import { diagramStyleKey } from './diagramPaperStyle';
 import {
   paintAsset,
   paintScene,
+  paintSource,
   stepPictureSource,
   type PicturePose,
   type StepPictureSource,
@@ -60,6 +61,11 @@ export function stepPictureUrl(source: StepPictureSource, style: DiagramStyle): 
       const { picture } = source;
       const paint = () => svgDataUrl(picture.svg);
       return cachedPictureUrl(`fixed|${objectSerial(picture)}`, paint) ?? paint();
+    }
+    case 'step-diagram': {
+      const key = `step-diagram|${objectSerial(source.picture)}|${diagramStyleKey(style)}`;
+      const paint = () => svgDataUrl(paintSource(source, style)!.svg);
+      return cachedPictureUrl(key, paint) ?? paint();
     }
   }
 }

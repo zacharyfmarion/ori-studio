@@ -27,7 +27,9 @@ export type ReferencesActionIcon =
   | 'zoom-in'
   | 'zoom-out'
   | 'export-step'
-  | 'export-all-steps';
+  | 'export-all-steps'
+  | 'send-to-diagram'
+  | 'send-all-to-diagram';
 
 /**
  * What a command draws: its own id, or, for the one verb whose picture
@@ -74,6 +76,17 @@ export interface ReferencesActionState {
   hasView: boolean;
   /** The view is showing a step or candidate diagram — the thing an export paints. */
   hasDiagram: boolean;
+  /**
+   * Sending to the diagram (D6): whether the card on show can be sent, and
+   * the strip; why not, when they cannot; and the diagram step From
+   * References… waits to fill, by number, when one does.
+   */
+  diagram: {
+    canSend: boolean;
+    canSendAll: boolean;
+    hint?: string;
+    waitingStep: number | null;
+  };
   /** The active card's fold, as the transport has it. */
   fold: {
     /** The card has a fold to play. */
@@ -213,6 +226,32 @@ export function buildReferencesActions(
       'Export all steps…',
       !hasSteps,
       hasSteps ? undefined : noTarget
+    ),
+    { kind: 'separator', id: 'before-diagram' },
+    // The card as a diagram step: into the step From References… asked from,
+    // when one waits, which the label says.
+    {
+      ...command(
+        'send-to-diagram',
+        'references.sendToDiagram',
+        'Send to diagram',
+        !state.diagram.canSend,
+        state.diagram.hint ?? noDiagram
+      ),
+      ...(state.diagram.waitingStep !== null
+        ? {
+            label: t('panels:references.actions.sendToStep', 'Send to Diagram Step {{number}}', {
+              number: state.diagram.waitingStep,
+            }),
+          }
+        : {}),
+    },
+    command(
+      'send-all-to-diagram',
+      'references.sendAllToDiagram',
+      'Send all to diagram',
+      !state.diagram.canSendAll,
+      state.diagram.hint ?? (hasSteps ? undefined : noTarget)
     ),
   ];
 }

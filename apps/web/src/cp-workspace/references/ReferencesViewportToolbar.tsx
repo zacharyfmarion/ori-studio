@@ -1,6 +1,15 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Download, Pause, Play, RefreshCw, Rewind } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Pause,
+  Play,
+  RefreshCw,
+  Rewind,
+} from 'lucide-react';
 import {
   ViewportToolbar,
   type ViewportToolbarGroupSpec,
@@ -49,7 +58,11 @@ export interface ReferencesViewportToolbarProps {
  *
  * Export is one button: it opens the export dialog, where the format is chosen
  * with the page in view. Pinned, so it never folds into the `⋯` on a narrow
- * bar — it was a node for that reason when it held a menu of formats.
+ * bar — it was a node for that reason when it held a menu of formats. Send to
+ * diagram sits beside it, the card on show as a diagram step, pinned for the
+ * same reason as Recompute: a `⋯` holding one row is a worse control than the
+ * button. Not on the phone, whose bar ends with the stepping and has no room
+ * for it; Send all, and Send there, are the context menu's.
  *
  * Every press dispatches the verb's registry id through the panel's executor,
  * as the header buttons did before the bar: the chord, the context-menu row
@@ -111,6 +124,8 @@ export function ReferencesViewportToolbar({
   const recomputeChord = shortcutLabelForAction('references.recompute', shortcuts);
   const exportStep = command('export-step');
   const exportChord = exportStep ? shortcutLabelForAction(exportStep.shortcutId, shortcuts) : null;
+  const send = command('send-to-diagram');
+  const sendChord = send ? shortcutLabelForAction(send.shortcutId, shortcuts) : null;
   const groups: ViewportToolbarGroupSpec[] = [
     ...(play
       ? [
@@ -165,6 +180,25 @@ export function ReferencesViewportToolbar({
                 pinned: true,
                 onSelect: dispatch('export-step'),
               },
+              ...(send && !phone
+                ? [
+                    {
+                      kind: 'action' as const,
+                      id: 'send-to-diagram',
+                      label: send.label,
+                      title:
+                        send.disabled && send.hint
+                          ? send.hint
+                          : sendChord
+                            ? `${send.label} (${sendChord})`
+                            : send.label,
+                      icon: <BookOpen size={14} />,
+                      disabled: send.disabled,
+                      pinned: true,
+                      onSelect: dispatch('send-to-diagram'),
+                    },
+                  ]
+                : []),
             ],
           },
         ]

@@ -721,6 +721,7 @@
       "duplicate": "Duplicar paso",
       "exportPicture": "Exportar imagen…",
       "firstHint": "Ya es el primer paso",
+      "fromReferences": "Desde Referencias…",
       "insertAfter": "Insertar paso después",
       "insertBefore": "Insertar paso antes",
       "lastHint": "Ya es el último paso",
@@ -732,9 +733,11 @@
       "moveLater": "Mover después",
       "noPatternHint": "Abre un patrón de pliegues en Editar para vincularlo",
       "noPatternOpenHint": "Su patrón de pliegues no está abierto",
+      "noPatternReferencesHint": "Abre un patrón de pliegues en Editar para planificar sus pliegues",
       "noPatternRefreshHint": "Abre su patrón de pliegues en Editar para actualizarlo",
       "noPictureHint": "Este paso aún no tiene imagen",
       "openInEdit": "Abrir en Editar",
+      "openInReferences": "Abrir en Referencias",
       "readOnlyHint": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en modo de solo lectura",
       "refreshPicture": "Actualizar imagen",
       "relinkPattern": "Volver a vincular patrón…",
@@ -749,8 +752,11 @@
       "badgeFolded3d": "Plegado · 3D",
       "badgeImage": "Imagen",
       "badgeNewer": "Más reciente",
+      "badgeReferences": "Referencias",
       "badgeSvg": "SVG",
+      "cancelWaiting": "Cancelar",
       "capturing": "Capturando…",
+      "fromReferences": "Referencias…",
       "link": "Vincular…",
       "locked": "Creado con una versión más reciente de Ori Studio",
       "missing": "Falta el patrón",
@@ -758,9 +764,11 @@
       "noPicture": "Aún sin imagen",
       "notCaptured": "Aún sin capturar",
       "number": "Paso {{number}}",
+      "patternChanged": "El patrón cambió",
       "stale": "Desactualizado",
       "stop": "Detener",
-      "upload": "Subir…"
+      "upload": "Subir…",
+      "waitingReferences": "Esperando a Referencias"
     },
     "detail": {
       "back": "Pasos",
@@ -775,6 +783,7 @@
     },
     "empty": {
       "addStep": "Añadir paso",
+      "fromReferences": "Desde Referencias…",
       "link": "Vincular un patrón…",
       "message": "Un diagrama es tu secuencia de plegado, paso a paso. Añade un paso y luego dale una imagen y una instrucción, o sube tus dibujos, uno por paso.",
       "title": "Empezar un diagrama",
@@ -785,6 +794,7 @@
     },
     "header": {
       "addStep": "Añadir paso",
+      "fromReferences": "Desde Referencias…",
       "linkPattern": "Vincular patrón…",
       "moreAdd": "Más formas de añadir pasos",
       "nothingStale": "Todos los pasos vinculados muestran su patrón tal como está",
@@ -809,6 +819,7 @@
       "title": "Elige un patrón"
     },
     "picture": {
+      "cancelWaiting": "Cancelar",
       "capturing": "Capturando…",
       "checking": "Comprobando…",
       "cssDropped": "No se pudo conservar parte de su estilo, así que algunas partes pueden verse distintas.",
@@ -825,13 +836,20 @@
       "none": "Aún sin imagen",
       "pattern": "Patrón",
       "raster": "Imagen subida, {{width}} × {{height}} px",
+      "sentBack": "{{card}}, desde el reverso",
+      "sentCard": "Una tarjeta de Referencias",
+      "sentCurrent": "Sin cambios desde que se envió este paso",
+      "sentFind": "Paso {{number}} de una referencia",
+      "sentSequence": "Paso {{number}} de la secuencia de plegado",
+      "sentStale": "El patrón cambió desde que se envió este paso",
       "simplified": "Esta imagen se simplificó.",
       "source": "Origen",
       "stale": "Desactualizado: el patrón cambió",
       "stop": "Detener",
       "svg": "SVG subido, {{width}} × {{height}} px",
       "unknown": "Sin comprobar: el patrón de pliegues no está abierto",
-      "unsupported": "Algunas de sus partes no son compatibles y se omitieron."
+      "unsupported": "Algunas de sus partes no son compatibles y se omitieron.",
+      "waitingReferences": "Esperando a Referencias: el próximo paso enviado al diagrama ocupará este."
     },
     "pose": {
       "annotationsHint": "Sus anotaciones se crearon con una versión más reciente de Ori Studio y no podrían girar con ella",
@@ -1042,6 +1060,8 @@
       "oneWayHint": "Este paso solo se pliega de una forma",
       "pauseFold": "Pausar pliegue",
       "pleatHint": "Los plisados aún no se animan",
+      "sendToStep": "Enviar al paso {{number}} del diagrama",
+      "staleHint": "Esta respuesta es de un patrón anterior: recalcúlala primero",
       "unfold": "Desplegar"
     },
     "alreadyOnSheet": "Este punto ya está en el papel: no hace falta doblar.",

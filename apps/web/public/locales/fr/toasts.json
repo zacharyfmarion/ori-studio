@@ -35,6 +35,12 @@
     },
     "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
     "openDiagram": "Ouvrir le diagramme",
+    "references": {
+      "addedSteps": "Ajoutées comme étapes {{first}}–{{last}}",
+      "filledStep": "Envoyée à l’étape {{number}}",
+      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme.",
+      "unreadable": "L’image de cette étape n’a pas pu être lue, rien n’a donc été envoyé."
+    },
     "refreshedAll_one": "{{count}} étape actualisée",
     "refreshedAll_many": "{{count}} étapes actualisées",
     "refreshedAll_other": "{{count}} étapes actualisées",
@@ -86,6 +92,7 @@
   "references": {
     "searching": "Recherche des références…",
     "searchingLong": "Recherche toujours en cours — la première construit une table",
+    "sheetMissing": "Cette feuille n’est plus dans le patron de plis.",
     "stop": "Annuler",
     "stopped": "Recherche annulée",
     "stopping": "Annulation…"

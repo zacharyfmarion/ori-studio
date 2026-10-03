@@ -22,6 +22,7 @@ export function DiagramHeader({
   onUpload,
   patternOpen,
   onLink,
+  onFromReferences,
   staleCount,
   refreshing,
   onRefreshAll,
@@ -39,6 +40,8 @@ export function DiagramHeader({
   patternOpen: boolean;
   /** Add a step and choose its pattern. */
   onLink: () => void;
+  /** Go to References, whose Send to diagram adds steps here. */
+  onFromReferences: () => void;
   /** How many linked steps are out of date. */
   staleCount: number;
   /** Refresh all, while it runs: how far it has got. */
@@ -87,6 +90,18 @@ export function DiagramHeader({
                 ? undefined
                 : t('panels:diagram.actions.noPatternHint', 'Open a crease pattern in Edit to link it'),
               onSelect: onLink,
+            },
+            {
+              id: 'from-references',
+              label: t('panels:diagram.header.fromReferences', 'From References…'),
+              disabled: !patternOpen,
+              title: patternOpen
+                ? undefined
+                : t(
+                    'panels:diagram.actions.noPatternReferencesHint',
+                    'Open a crease pattern in Edit to plan its folds'
+                  ),
+              onSelect: onFromReferences,
             },
             refreshing
               ? {

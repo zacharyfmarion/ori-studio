@@ -294,6 +294,8 @@
     "recompute": "Recompute References",
     "resetView": "Reset References View",
     "scopeLabel": "references",
+    "sendAllToDiagram": "Send all to diagram",
+    "sendToDiagram": "Send to diagram",
     "toggleLandmarksFirst": "Landmarks First",
     "zoomIn": "Zoom In References",
     "zoomOut": "Zoom Out References"

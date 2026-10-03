@@ -14,6 +14,7 @@
  */
 
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
+import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import type { FoldedSourceBounds } from '../../cp-workspace/folded/foldedFigureStaleness';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
@@ -120,12 +121,52 @@ export interface DiagramCpSource {
   render: DiagramCpRender;
 }
 
+/** The planner settings a References plan was made with (D6): what made its steps the ones they are. */
+export interface ReferencesPlanSettings {
+  precreaseGrid: boolean;
+  gridWhereNeeded: boolean;
+  allowDanglingFolds: boolean;
+  mergeSymmetricSteps: boolean;
+}
+
+/**
+ * A step sent from References (D6): one card of its strip, kept as it was
+ * drawn, with where it came from.
+ *
+ * The picture never follows the pattern. Planning a sheet again costs seconds
+ * to minutes and need not give the same step, so the link only says whether
+ * the sheet changed since the step was sent, and leads back to References.
+ */
+export interface DiagramReferencesSource {
+  kind: 'references-step';
+  /** The sheet, by its rim, in the segmentation every link is made in (D3). */
+  region: RegionReference;
+  /**
+   * `foldedSourceFingerprint` over every line inside the sheet when the step
+   * was sent: what link status compares. Null when the sheet was not found in
+   * the segmentation to fingerprint, so its changes cannot be told.
+   */
+  fingerprint: string | null;
+  /** The sheet as it was sent, for the card and the Step pane. */
+  thumbnail: SheetThumbnail;
+  /** A Find answer's step, or a card of the planner's sequence. */
+  mode: 'sequence' | 'find';
+  /** The planner settings a sequence card was planned under; null in Find. */
+  settings: ReferencesPlanSettings | null;
+  /** The number the strip printed on the card; null for a turn-over or the ending. */
+  card: number | null;
+  /** The plan step's line `n · p = d`, in the planner's unit frame; null for a card that folds none. */
+  line: { n: [number, number]; d: number } | null;
+  /** The side of the paper the card showed: what Reset Pose returns to. */
+  side: 'front' | 'back';
+}
+
 /**
  * Where a step's picture comes from. The variants arrive with the phases that
  * build them, and a source this build does not know makes the step an
  * unknown, locked one (see {@link DiagramStep.unknown}).
  */
-export type DiagramStepSource = DiagramUploadSource | DiagramCpSource;
+export type DiagramStepSource = DiagramUploadSource | DiagramCpSource | DiagramReferencesSource;
 
 /**
  * A picture held in the assets table: an upload, or (from Phase 3) a capture
@@ -168,8 +209,24 @@ export interface DiagramFixedPicture {
   key: string;
 }
 
+/**
+ * A References card's picture (D6): its step diagram in the planner's unit
+ * frame, painted afresh at every size so its marks keep their weight.
+ */
+export interface DiagramStepDiagramPicture {
+  kind: 'step-diagram';
+  model: StepDiagramModel;
+  /** Seen from the paper's back: x reflected about the sheet, every fold named from that side. */
+  mirrored: boolean;
+  key: string;
+}
+
 /** A step's captured picture. Variants arrive with their phases, as sources do. */
-export type DiagramPicture = DiagramAssetPicture | DiagramScenePicture | DiagramFixedPicture;
+export type DiagramPicture =
+  | DiagramAssetPicture
+  | DiagramScenePicture
+  | DiagramFixedPicture
+  | DiagramStepDiagramPicture;
 
 /**
  * An annotation this build cannot read, kept verbatim so a newer build's work
@@ -538,6 +595,83 @@ export function insertLinkedStep(
     document: insertSteps(withAssets(document, link.asset ? [link.asset] : []), [step], index),
     stepId: step.id,
   };
+}
+
+/** One References card, as a step is made from it. */
+export interface SentReferencesStep {
+  source: DiagramReferencesSource;
+  picture: DiagramStepDiagramPicture;
+  /** The card's sentence: the step's instruction until it is edited. */
+  text: string;
+}
+
+/**
+ * Cards from References as steps, at `index`, in order. With `fill`, the
+ * first card goes into that step instead — the one From References… was
+ * asked from — when it is still there and still empty; its words are kept if
+ * it has any. The steps the cards became, in order.
+ */
+export function insertReferencesSteps(
+  document: DiagramDocument,
+  sent: readonly SentReferencesStep[],
+  index: number,
+  { fill = null, newId = randomDiagramId }: { fill?: string | null; newId?: DiagramIdFactory } = {}
+): { document: DiagramDocument; stepIds: string[] } {
+  if (sent.length === 0) return { document, stepIds: [] };
+  const fillAt = fill === null ? -1 : stepIndex(document, fill);
+  const target = fillAt >= 0 ? document.steps[fillAt] : undefined;
+  const fills = target !== undefined && !isLockedStep(target) && !stepHasPicture(target);
+  const make = (card: SentReferencesStep): DiagramStep => ({
+    ...createStep(newId),
+    source: card.source,
+    picture: card.picture,
+    text: xmlText(card.text),
+  });
+  if (!fills) {
+    const steps = sent.map(make);
+    return {
+      document: insertSteps(document, steps, target !== undefined ? fillAt + 1 : index),
+      stepIds: steps.map((step) => step.id),
+    };
+  }
+  const [first, ...rest] = sent;
+  const filled = updateStep(document, target.id, (step) => ({
+    ...step,
+    source: first!.source,
+    picture: first!.picture,
+    text: step.text.trim() === '' ? xmlText(first!.text) : step.text,
+    revision: step.revision + 1,
+  }));
+  const steps = rest.map(make);
+  return {
+    document: insertSteps(filled, steps, fillAt + 1),
+    stepIds: [target.id, ...steps.map((step) => step.id)],
+  };
+}
+
+/** A step-diagram picture's key for a side: the model's own key, marked for the back. */
+export function stepDiagramKey(modelKey: string, mirrored: boolean): string {
+  const base = modelKey.endsWith(BACK_SUFFIX) ? modelKey.slice(0, -BACK_SUFFIX.length) : modelKey;
+  return mirrored ? `${base}${BACK_SUFFIX}` : base;
+}
+
+const BACK_SUFFIX = '-back';
+
+/**
+ * Show a References step from one side or the other (D5: its pose is Turn
+ * over). The picture is re-keyed — annotations drawn on one side are not on
+ * the other — and the source keeps the side the card was sent from.
+ */
+export function setReferencesSide(document: DiagramDocument, stepId: string, mirrored: boolean): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
+    if (step.picture.mirrored === mirrored) return step;
+    return {
+      ...step,
+      picture: { ...step.picture, mirrored, key: stepDiagramKey(step.picture.key, mirrored) },
+      revision: step.revision + 1,
+    };
+  });
 }
 
 /** An upload's pose: how its shared asset is turned and flipped when the step is painted. */

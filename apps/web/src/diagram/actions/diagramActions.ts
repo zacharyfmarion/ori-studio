@@ -21,8 +21,10 @@ export type DiagramStepActionId =
   | 'move-later'
   | 'upload-picture'
   | 'link-pattern'
+  | 'from-references'
   | 'refresh-picture'
   | 'open-in-edit'
+  | 'open-in-references'
   | 'export-picture'
   | 'remove-picture'
   | 'delete';
@@ -70,6 +72,12 @@ export interface DiagramStepActionState {
   hasSource: boolean;
   /** How the step's link to the crease pattern stands; null for a step that is not linked. */
   link: DiagramLinkStatus | null;
+  /**
+   * What the step is linked to: a pattern of the crease pattern (`cp`), which
+   * Refresh captures again, or the sheet it was sent from in References,
+   * which it never follows (D6). Null for a step that is not linked.
+   */
+  linkKind: 'cp' | 'references' | null;
   /** A capture of this step is running. */
   capturing: boolean;
   /** A crease pattern is open to link to. */
@@ -89,13 +97,21 @@ export interface DiagramStepActionDeps {
   refreshPicture: () => void;
   /** Show a linked step's pattern in Edit. */
   openInEdit: () => void;
+  /** Show the sheet a References step was sent from, in References. */
+  openInReferences: () => void;
+  /** Ask References for this step's picture: its next Send to diagram fills the step. */
+  fromReferences: () => void;
   exportPicture: () => void;
   removePicture: () => void;
   remove: () => void;
 }
 
 /** The verbs that change nothing, offered on a read-only diagram too. */
-const READ_ONLY_VERBS: ReadonlySet<DiagramStepActionId> = new Set(['export-picture', 'open-in-edit']);
+const READ_ONLY_VERBS: ReadonlySet<DiagramStepActionId> = new Set([
+  'export-picture',
+  'open-in-edit',
+  'open-in-references',
+]);
 
 /** The verbs that have a key of their own. */
 const STEP_ACTION_SHORTCUTS: Partial<Record<DiagramStepActionId, ShortcutActionId>> = {
@@ -192,7 +208,7 @@ export function buildDiagramStepActions(
     ),
     command(
       'link-pattern',
-      state.link === null
+      state.linkKind !== 'cp'
         ? t('panels:diagram.actions.linkPattern', 'Link Pattern…')
         : t('panels:diagram.actions.relinkPattern', 'Relink Pattern…'),
       deps.linkPattern,
@@ -203,8 +219,29 @@ export function buildDiagramStepActions(
           ? t('panels:diagram.actions.noPatternHint', 'Open a crease pattern in Edit to link it')
           : capturingHint
     ),
-    // Only a linked step can be refreshed: on any other the verb is noise.
-    ...(state.link === null
+    // An empty step's way to a picture from References: on a step with one,
+    // a send would add a step after it, which the header's From References…
+    // already says.
+    ...(state.hasSource
+      ? []
+      : [
+          command(
+            'from-references',
+            t('panels:diagram.actions.fromReferences', 'From References…'),
+            deps.fromReferences,
+            state.locked || !state.patternOpen || state.capturing,
+            state.locked
+              ? lockedEditHint
+              : !state.patternOpen
+                ? t(
+                    'panels:diagram.actions.noPatternReferencesHint',
+                    'Open a crease pattern in Edit to plan its folds'
+                  )
+                : capturingHint
+          ),
+        ]),
+    // Only a linked pattern can be refreshed: on any other step the verb is noise.
+    ...(state.linkKind !== 'cp' || state.link === null
       ? []
       : [
           command(
@@ -218,6 +255,18 @@ export function buildDiagramStepActions(
             'open-in-edit',
             t('panels:diagram.actions.openInEdit', 'Open in Edit'),
             deps.openInEdit,
+            !state.patternOpen,
+            t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
+          ),
+        ]),
+    // A References step is never refreshed (D6): it leads back to its sheet.
+    ...(state.linkKind !== 'references'
+      ? []
+      : [
+          command(
+            'open-in-references',
+            t('panels:diagram.actions.openInReferences', 'Open in References'),
+            deps.openInReferences,
             !state.patternOpen,
             t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
           ),

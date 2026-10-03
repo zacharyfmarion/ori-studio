@@ -5,6 +5,7 @@ import {
   duplicateStep,
   insertLinkedStep,
   insertPictureSteps,
+  insertReferencesSteps,
   insertSteps,
   insertionIndex,
   isLockedStep,
@@ -13,6 +14,7 @@ import {
   removeSteps,
   setDiagramTitle,
   setPageSetup,
+  setReferencesSide,
   setStepPicture,
   setStepText,
   setUploadPose,
@@ -321,6 +323,41 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     closeDiagramPatternPicker: () => {
       if (get().diagramPatternPicker !== null) set({ diagramPatternPicker: null });
     },
+
+    requestDiagramStepFromReferences: (stepId) => {
+      const { diagram, diagramReadOnly } = get();
+      const step = diagram?.steps[stepIndex(diagram, stepId)];
+      if (!step || diagramReadOnly || isLockedStep(step)) return false;
+      set({ ...selection(stepId), diagramReferencesTarget: stepId });
+      return true;
+    },
+
+    cancelDiagramReferencesTarget: () => {
+      if (get().diagramReferencesTarget !== null) set({ diagramReferencesTarget: null });
+    },
+
+    addReferencesDiagramSteps: (sent, { loadId, label }) => {
+      if (loadId !== get().diagramLoadId || sent.length === 0) return null;
+      const fill = get().diagramReferencesTarget;
+      let stepIds: string[] = [];
+      const next = commit(label, (document) => {
+        const result = insertReferencesSteps(
+          document,
+          sent,
+          insertionIndex(document, get().diagramSelectedStepId),
+          { fill }
+        );
+        stepIds = result.stepIds;
+        return result.document;
+      });
+      if (!next || stepIds.length === 0) return null;
+      // Answered: the next send adds steps again.
+      set({ ...selection(stepIds[stepIds.length - 1]!), diagramReferencesTarget: null });
+      return stepIds;
+    },
+
+    setDiagramReferencesSide: (stepId, mirrored) =>
+      commit('Adjust pose', (document) => setReferencesSide(document, stepId, mirrored)) !== null,
 
     openDiagramStep: (stepId, mode = 'pose') => {
       const diagram = get().diagram;

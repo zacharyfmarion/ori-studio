@@ -231,7 +231,7 @@ describe('DiagramPanel', () => {
       expect(state().diagramSelectedStepId).toBe(first);
       // Each row is its label, then the key that runs it where there is one.
       const rows = menuItems();
-      expect(rows).toHaveLength(10);
+      expect(rows).toHaveLength(11);
       [
         'Insert Step Before',
         'Insert Step After',
@@ -240,6 +240,7 @@ describe('DiagramPanel', () => {
         'Move Later',
         'Upload Picture…',
         'Link Pattern…',
+        'From References…',
         'Export Picture…',
         'Remove Picture',
         'Delete Step',

@@ -13,7 +13,14 @@ import {
 import { readDiagram, writeDiagram } from './diagramFile';
 import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
 import { insertPictureSteps, setStepText as setText, type KnownDiagramAsset } from './diagramDocument';
-import { cpStep, fixedPicture, FIXED_SVG, scenePicture } from './diagramSteps.fixtures';
+import {
+  cpStep,
+  fixedPicture,
+  FIXED_SVG,
+  referencesStep,
+  scenePicture,
+  stepDiagramPicture,
+} from './diagramSteps.fixtures';
 import { markup, sceneOf, sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 
 function sequentialIds(): DiagramIdFactory {
@@ -381,11 +388,14 @@ describe('linked steps in the file', () => {
   // fits before then would load once, be saved longer, and be dropped by the
   // next load: so the cap is held to what is kept.
   it('drops a fixed picture that sanitizing makes too long to load again', () => {
-    const rects = Array.from({ length: 100_000 }, (_, index) => `<rect id="r${index}"/>`).join('');
+    // A long key prefixes every id with itself: a few thousand ids are enough.
+    const key = `fixed-${'k'.repeat(500)}`;
+    const rects = Array.from({ length: 5_000 }, (_, index) => `<rect id="r${index}"/>`).join('');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">${rects}</svg>`;
     expect(svg.length).toBeLessThan(SVG_STORED_MAX_BYTES);
+    expect(svg.length + 5_000 * key.length).toBeGreaterThan(SVG_STORED_MAX_BYTES);
     const written = throughJson(writeDiagram(linkedDiagram()));
-    written.steps[3].picture.svg = svg;
+    Object.assign(written.steps[3].picture, { svg, key });
     expect(readDiagram(written)!.document.steps[3].picture).toBeNull();
   });
 
@@ -458,5 +468,65 @@ describe('linked steps in the file', () => {
     expect(read.steps[0].picture).toEqual({ kind: 'asset', assetId: 'asset-r', paperScale: 3, key: 'raster-1' });
     expect(read.assets['asset-r']).toEqual(raster);
     expect(read.steps[1].picture).toBeNull();
+  });
+});
+
+/** A sequence card, a Find step of the back, and a card no region matched. */
+function sentDiagram() {
+  const steps = [
+    referencesStep('step-seq'),
+    referencesStep('step-find', { mode: 'find', settings: null, line: null, card: 1, side: 'back' }),
+    referencesStep('step-turn', { card: null, line: null, fingerprint: null }),
+  ];
+  return insertSteps(createDiagram({ title: 'Crane', newId: sequentialIds() }), steps, 0);
+}
+
+describe('steps sent from References in the file', () => {
+  it('round-trips every one unchanged, byte for byte', () => {
+    const document = sentDiagram();
+    const read = readDiagram(throughJson(writeDiagram(document)))!;
+    expect(read.document).toEqual(document);
+    expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(writeDiagram(document)));
+  });
+
+  it('keeps a card drawn with a primitive this build does not draw, locked and verbatim', () => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    written.steps[0].picture.model.primitives.push({ kind: 'hinge', at: [0.5, 0.5] });
+    const read = readDiagram(written)!;
+    expect(read.document.steps[0].unknown).toEqual(written.steps[0]);
+    expect(throughJson(writeDiagram(read.document)).steps[0]).toEqual(written.steps[0]);
+  });
+
+  it('drops a card whose drawing does not read, and keeps the link and the words', () => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    written.steps[0].picture.model.primitives[1].to = [1, 'a'];
+    const step = readDiagram(written)!.document.steps[0];
+    expect(step).toMatchObject({ source: { kind: 'references-step' }, picture: null });
+    expect(step.text).toBe('Fold the bottom edge to the top.');
+  });
+
+  it.each([
+    ['no rim', (source: WrittenSource) => (source.region.boundary = [])],
+    ['an empty fingerprint', (source: WrittenSource) => (source.fingerprint = '')],
+    ['a mode it does not know', (source: WrittenSource) => (source.mode = 'guess')],
+    ['a setting that is not a switch', (source: WrittenSource) => (source.settings.precreaseGrid = 'yes')],
+    ['a card numbered zero', (source: WrittenSource) => (source.card = 0)],
+    ['a line whose normal is not a unit', (source: WrittenSource) => (source.line.n = [3, 4])],
+    ['no side', (source: WrittenSource) => delete source.side],
+  ])('drops a source with %s, and the picture with it; the words stay', (_label, damage) => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    damage(written.steps[0].source);
+    const step = readDiagram(written)!.document.steps[0];
+    expect(step).toMatchObject({ source: null, picture: null, text: 'Fold the bottom edge to the top.' });
+  });
+
+  it('keeps a card only as a References step’s picture, and a step diagram only there', () => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    written.steps[0].picture = scenePicture();
+    written.steps[1].source = throughJson(cpStep('x').source);
+    written.steps[1].picture = stepDiagramPicture();
+    const steps = readDiagram(written)!.document.steps;
+    expect(steps[0].picture).toBeNull();
+    expect(steps[1]).toMatchObject({ source: { kind: 'cp' }, picture: null });
   });
 });

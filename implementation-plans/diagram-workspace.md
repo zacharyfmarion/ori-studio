@@ -1993,19 +1993,40 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 
 ### Phase 4: References steps
 
-- [ ] **4a.** The verbs: `references.sendToDiagram` and `sendAllToDiagram` in the registry, catalog, executor and context menu, through `useReferencesSendToDiagram.ts`.
+- [x] **4a.** The verbs: `references.sendToDiagram` and `sendAllToDiagram` in the registry, catalog, executor and context menu, through `useReferencesSendToDiagram.ts`.
   - Capture from filmstrip rows only; skip `done`; handle `StepDiagramAdapterError`.
   - Per-sheet provenance.
-- [ ] **4b.** Painting at the target scale (D6) plus `validateStepDiagramModel`. Golden: marks keep their pt size at two cell sizes.
-- [ ] **4c.** The References pose (turn over toggles `mirrored`), the staleness copy, and **Open in References** (`openReferencesWorkspace({sheetBoundary})`).
-- [ ] **4d.** **From References…** in Diagram (the latched `diagramReferencesTargetRequest`). The sentence becomes the default instruction.
-- [ ] **4e.** Analytics: `references step sent to diagram`, and `diagram step added` (`references`).
-- [ ] **Browser:**
+  - As built:
+    - `referencesDiagramCards.ts` turns strip rows into cards: the unit-frame model (a ReferenceFinder diagram through the card's own adapter; a refusal is an error toast and nothing is sent), `mirrored`, the sentence, the strip's number, and the plan step's `line` from the view step under the row. Send all skips the ending by kind; Send can still send it on its own.
+    - Unbound verbs (null chord), in the context menu after Export, and Send to diagram on the viewport bar beside Export (pinned, so a touch bar has no `⋯` for one row; not on the phone, whose bar ends with the stepping). While From References… waits, Send's label is "Send to Diagram Step N".
+    - The pipeline (`diagram/capture/sendReferencesSteps.ts`) is loaded on the first send, so References carries none of the Diagram's capture code until then.
+    - **Correction from the code map: provenance.** `openReferencesWorkspace({sheetBoundary})` and `sourceFingerprintFor(document, sheetBounds)` did not fit. References sheets are precrease components, not segments, and a box fingerprint counts an adjacent sheet's creases that touch the shared edge (a false "Pattern changed"). Instead, the component's outline is matched by its rim (`resolveRegion`) to a region of the segmentation every link uses, and the step keeps that region and `drawnFingerprint` over every line in it. On the crane (11 of 11), the box (1 of 1) and iguana_24 (31 of 31) every sheet matched exactly one region. A sheet that matches none is still sent, with `fingerprint: null`, and reads "Pattern missing".
+    - The source also keeps `thumbnail` (for the card and the Step pane, as a linked pattern does) and `side`, the side the card showed, which Reset Pose returns to.
+- [x] **4b.** Painting at the target scale (D6) plus `validateStepDiagramModel`. Golden: marks keep their pt size at two cell sizes.
+  - `paintStepDiagram.ts` builds the scene at the sheet size it is painted at (`createOverlayProjector`, `ey: [0, −scale]`, mirrored about the sheet's middle), inked against Edit's default crease width rather than the sender's, and paints it with the aux switch on, as References' own export does. The golden checks the marks' group scale, ring radius and letter size are equal at 50 and 100 mm while the paper doubles.
+  - `stepDiagramModelFile.ts` checks every kind and style against the unions (an unknown one makes the step unknown and verbatim), every number finite, at most 50,000 primitives and labels of 1–64 characters, and rebuilds the model in one key order; a send runs each model through it (`storedStepDiagramModel`), so nothing is stored that a load would refuse.
+- [x] **4c.** The References pose (turn over toggles `mirrored`), the staleness copy, and **Open in References** (`openReferencesWorkspace({sheetBoundary})`).
+  - Turn Over and Reset Pose (`buildDiagramReferencesPoseActions`) re-key the picture for the side; one undo step each ("Adjust pose").
+  - Staleness: the card says "Pattern changed" (never "Out of date"); the Step pane "Pattern changed since this step was sent" or "Unchanged since this step was sent". A References step is never refreshed and never counted by Refresh all.
+  - Open in References latches `referencesSheetRequest {boundary, mode}`; the panel takes it once its sheets are known (`useReferencesSheetRequest`), selects the sheet whose outline matches, and switches to the step's mode (`references mode changed`, `source: diagram`). A sheet no longer there is said so.
+- [x] **4d.** **From References…** in Diagram (the latched `diagramReferencesTargetRequest`). The sentence becomes the default instruction.
+  - As built: `diagramReferencesTarget`, set from an empty step's card (References…) or the Step pane (only on an empty step: a send to one with a picture would add after it, which the header's From References… already does). The card shows "Waiting for References" with Cancel; the next send fills it (its own words kept, if it has any) and puts the rest after it, as one undo step. The header's Add step menu and the empty diagram have From References…, which only opens References: a send then adds after the selected step.
+- [x] **4e.** Analytics: `references step sent to diagram`, and `diagram step added` (`references`).
+  - `references step sent to diagram` has `mode`, `via` (`one`/`all`), `count_bucket` and `into` (`new_steps`/`waiting_step`). Each new step counts `diagram step added` (`references`, `references`); a filled one does not. Turn Over counts `diagram picture posed` (`kind: references`); Open in References `diagram source opened` (`references`).
+- [x] **Browser:**
   - send one step, then a whole sequence;
   - a Find candidate;
   - a turn-over card and a mirrored back-side card;
   - the M/V direction matches References;
   - edit another sheet: no false "Pattern changed".
+  - Results (Chromium, dev server; scripts in the ignored `artifacts/diagram-phase4/`):
+    - **Send, Send all.** The crane's first sheet: Send added card 1 with its sentence; Send all added its 30 cards (the opening turn-over and 29 folds, all of the back) after it, one undo step.
+    - **Find.** A vertex picked at the crane's middle: its three steps (two diagonals and ReferenceFinder's own diagram) sent.
+    - **Turn-over and back.** The turn-over card and the back cards are drawn mirrored on the diagram's back paper; Turn Over in the detail mirrors a front card, makes its valley a mountain, and keeps the focus on the button.
+    - **M/V.** A back card and a front card beside References' own: the same folds, valleys in both (dashed in the diagram's pen, blue in References').
+    - **Staleness.** A step from one sheet: flipping a crease of another sheet left it as it was; flipping one of its own made it "Pattern changed".
+    - **Open in References**, with another sheet selected and Find on, landed on the step's sheet in Sequence. **From References…** made the bar read "Send to Diagram Step 2", and the send filled step 2.
+    - **Round trip.** A project with seven sent steps saved, reopened and saved again: the diagram byte for byte the same.
 
 ### Phase 5: pages
 

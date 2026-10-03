@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { BookOpen, Link2, Plus, Upload } from 'lucide-react';
+import { BookOpen, Compass, Link2, Plus, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
 import styles from './DiagramEmptyState.module.css';
 
@@ -7,8 +7,9 @@ import styles from './DiagramEmptyState.module.css';
  * A diagram with no steps yet. Useful with no crease pattern at all: a step can
  * be written before it has a picture, or start from a drawing, so the ways in
  * are to add one or upload pictures — or drop them here — and, with a crease
- * pattern open, to link a step to one of its patterns. The diagram itself
- * comes into being with that first step, never on open.
+ * pattern open, to link a step to one of its patterns or send steps from
+ * References. The diagram itself comes into being with that first step, never
+ * on open.
  */
 export function DiagramEmptyState({
   readOnly,
@@ -17,6 +18,7 @@ export function DiagramEmptyState({
   onUpload,
   patternOpen,
   onLink,
+  onFromReferences,
 }: {
   readOnly: boolean;
   /** Pictures are being dragged over it. */
@@ -28,6 +30,8 @@ export function DiagramEmptyState({
   patternOpen: boolean;
   /** Add a step and choose its pattern. */
   onLink: () => void;
+  /** Go to References, whose Send to diagram adds the steps. */
+  onFromReferences: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -55,6 +59,12 @@ export function DiagramEmptyState({
           <Button variant="secondary" disabled={readOnly} onClick={onLink}>
             <Link2 size={15} aria-hidden="true" />
             {t('panels:diagram.empty.link', 'Link a pattern…')}
+          </Button>
+        )}
+        {patternOpen && (
+          <Button variant="secondary" disabled={readOnly} onClick={onFromReferences}>
+            <Compass size={15} aria-hidden="true" />
+            {t('panels:diagram.empty.fromReferences', 'From References…')}
           </Button>
         )}
       </div>

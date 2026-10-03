@@ -28,6 +28,7 @@ export const DIAGRAM_SCOPED_KEYS = [
   'diagramCaptures',
   'diagramPatternPicker',
   'diagramRefreshAll',
+  'diagramReferencesTarget',
 ] as const;
 
 /**
@@ -75,6 +76,7 @@ export function discardDiagramState(): DiagramScopedState {
     diagramCaptures: {},
     diagramPatternPicker: null,
     diagramRefreshAll: null,
+    diagramReferencesTarget: null,
   };
 }
 

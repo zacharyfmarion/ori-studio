@@ -73,6 +73,7 @@ function commandsFor(overrides: Partial<ReferencesActionState> = {}) {
         canRecompute: true,
         hasView: true,
         hasDiagram: true,
+        diagram: { canSend: true, canSendAll: true, waitingStep: null },
         fold: { available: true, playing: false, folded: false, pleat: false },
         ...overrides,
       },
@@ -143,6 +144,7 @@ const BAR = [
   'Play Fold',
   'Recompute References',
   'Export step…',
+  'Send to diagram',
 ];
 
 describe('ReferencesViewportToolbar', () => {
@@ -195,6 +197,15 @@ describe('ReferencesViewportToolbar', () => {
     expect(run).toHaveBeenLastCalledWith('references.exportStep');
   });
 
+  it('sends the card on show to the diagram, by registry id, and says why it cannot', () => {
+    render();
+    press(button('Send to diagram'));
+    expect(run).toHaveBeenLastCalledWith('references.sendToDiagram');
+    act(() => root?.unmount());
+    render({ diagram: { canSend: false, canSendAll: false, hint: 'Recompute first', waitingStep: null } });
+    expect(button('Send to diagram')?.disabled).toBe(true);
+  });
+
   it('disables Export when nothing is showing', () => {
     render({ hasDiagram: false });
 
@@ -245,7 +256,12 @@ describe('ReferencesViewportToolbar', () => {
 
     render({ stepCount: 3, activeStep: 1 });
 
-    expect(inlineLabels()).toEqual([...BAR, 'Previous Step', 'Next Step']);
+    // Send to diagram gives its room to the stepping; the context menu has it.
+    expect(inlineLabels()).toEqual([
+      ...BAR.filter((label) => label !== 'Send to diagram'),
+      'Previous Step',
+      'Next Step',
+    ]);
     expect(button('More view controls')).toBeFalsy();
     press(button('Next Step'));
     expect(run).toHaveBeenLastCalledWith('references.nextStep');

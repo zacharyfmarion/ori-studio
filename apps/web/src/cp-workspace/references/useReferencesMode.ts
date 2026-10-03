@@ -15,8 +15,8 @@ import type { ReferencesMode } from './referencesMode';
  * pattern and survives a switch either way, so coming back to Sequence costs
  * nothing.
  */
-/** What switched the mode: the tab itself, or the lead's line under it. */
-export type ReferencesModeSource = 'tab' | 'lead';
+/** What switched the mode: the tab itself, the lead's line under it, or a diagram step's Open in References. */
+export type ReferencesModeSource = 'tab' | 'lead' | 'diagram';
 
 export interface ReferencesModeController {
   mode: ReferencesMode;

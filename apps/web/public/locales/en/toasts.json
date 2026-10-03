@@ -34,6 +34,12 @@
     },
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
     "openDiagram": "Open diagram",
+    "references": {
+      "addedSteps": "Added as steps {{first}}–{{last}}",
+      "filledStep": "Sent to step {{number}}",
+      "tooLarge": "This step is too detailed to keep in the diagram.",
+      "unreadable": "This step’s picture couldn’t be read, so nothing was sent."
+    },
     "refreshedAll_one": "Refreshed 1 step",
     "refreshedAll_other": "Refreshed {{count}} steps",
     "uploadFailed_one": "A picture couldn’t be added",
@@ -81,6 +87,7 @@
   "references": {
     "searching": "Finding references…",
     "searchingLong": "Still finding references — the first search builds a table",
+    "sheetMissing": "That sheet isn’t in the crease pattern any more.",
     "stop": "Cancel",
     "stopped": "Search cancelled",
     "stopping": "Cancelling…"

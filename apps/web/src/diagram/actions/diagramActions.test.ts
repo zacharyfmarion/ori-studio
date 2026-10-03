@@ -20,6 +20,8 @@ function deps(): DiagramStepActionDeps {
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
     openInEdit: vi.fn(),
+    openInReferences: vi.fn(),
+    fromReferences: vi.fn(),
     exportPicture: vi.fn(),
     removePicture: vi.fn(),
     remove: vi.fn(),
@@ -36,6 +38,8 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       hasPicture: false,
       hasSource: false,
       link: null,
+      // A link, unless a test says otherwise, is to a pattern.
+      linkKind: state.link ? 'cp' : null,
       capturing: false,
       patternOpen: true,
       ...state,
@@ -56,6 +60,7 @@ describe('the diagram step verbs', () => {
       'after-move',
       'upload-picture',
       'link-pattern',
+      'from-references',
       'export-picture',
       'remove-picture',
       'after-picture',
@@ -80,6 +85,10 @@ describe('the diagram step verbs', () => {
     diagramStepCommand(build({ hasPicture: true, hasSource: true }, bound), 'remove-picture')?.run();
     diagramStepCommand(build({}, bound), 'link-pattern')?.run();
     diagramStepCommand(build({ link: 'stale' }, bound), 'refresh-picture')?.run();
+    diagramStepCommand(build({}, bound), 'from-references')?.run();
+    diagramStepCommand(build({ link: 'stale', linkKind: 'references' }, bound), 'open-in-references')?.run();
+    expect(bound.fromReferences).toHaveBeenCalledOnce();
+    expect(bound.openInReferences).toHaveBeenCalledOnce();
     expect(bound.linkPattern).toHaveBeenCalledOnce();
     expect(bound.refreshPicture).toHaveBeenCalledOnce();
     expect(bound.uploadPicture).toHaveBeenCalledOnce();
@@ -190,6 +199,46 @@ describe('the diagram step verbs', () => {
       disabled: true,
       hint: 'Its crease pattern isn’t open',
     });
+  });
+
+  describe('a step sent from References', () => {
+    const sent = (state: Partial<DiagramStepActionState> = {}) =>
+      build({ link: 'stale', linkKind: 'references', hasPicture: true, hasSource: true, ...state });
+
+    it('is never refreshed and never shown in Edit: it leads back to its sheet', () => {
+      const actions = sent();
+      expect(diagramStepCommand(actions, 'refresh-picture')).toBeNull();
+      expect(diagramStepCommand(actions, 'open-in-edit')).toBeNull();
+      expect(diagramStepCommand(actions, 'open-in-references')).toMatchObject({
+        label: 'Open in References',
+        disabled: false,
+      });
+      // Linking one to a pattern is a link, not a relink.
+      expect(diagramStepCommand(actions, 'link-pattern')?.label).toBe('Link Pattern…');
+    });
+
+    it('opens its sheet on a read-only diagram too, while the pattern is open', () => {
+      expect(diagramStepCommand(sent({ readOnly: true }), 'open-in-references')?.disabled).toBe(false);
+      expect(diagramStepCommand(sent({ patternOpen: false }), 'open-in-references')).toMatchObject({
+        disabled: true,
+        hint: 'Its crease pattern isn’t open',
+      });
+    });
+  });
+
+  it('asks References for a picture, while a pattern is open to plan', () => {
+    expect(diagramStepCommand(build({}), 'from-references')).toMatchObject({
+      label: 'From References…',
+      disabled: false,
+    });
+    expect(diagramStepCommand(build({ patternOpen: false }), 'from-references')).toMatchObject({
+      disabled: true,
+      hint: 'Open a crease pattern in Edit to plan its folds',
+    });
+    expect(diagramStepCommand(build({ locked: true }), 'from-references')?.disabled).toBe(true);
+    expect(diagramStepCommand(build({ readOnly: true }), 'from-references')?.disabled).toBe(true);
+    // Only for an empty step: a send to one with a picture adds a step after it.
+    expect(diagramStepCommand(build({ hasSource: true, hasPicture: true }), 'from-references')).toBeNull();
   });
 
   it('holds the picture verbs while a capture runs, and removes a link with no picture yet', () => {

@@ -692,6 +692,7 @@
       "duplicate": "Schritt duplizieren",
       "exportPicture": "Bild exportieren…",
       "firstHint": "Bereits der erste Schritt",
+      "fromReferences": "Aus Referenzen…",
       "insertAfter": "Schritt danach einfügen",
       "insertBefore": "Schritt davor einfügen",
       "lastHint": "Bereits der letzte Schritt",
@@ -703,9 +704,11 @@
       "moveLater": "Nach hinten",
       "noPatternHint": "Öffne ein Faltmuster in Bearbeiten, um es zu verknüpfen",
       "noPatternOpenHint": "Sein Faltmuster ist nicht geöffnet",
+      "noPatternReferencesHint": "Öffne ein Faltmuster in Bearbeiten, um seine Faltungen zu planen",
       "noPatternRefreshHint": "Öffne sein Faltmuster in Bearbeiten, um es zu aktualisieren",
       "noPictureHint": "Dieser Schritt hat noch kein Bild",
       "openInEdit": "In Bearbeiten öffnen",
+      "openInReferences": "In Referenzen öffnen",
       "readOnlyHint": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet",
       "refreshPicture": "Bild aktualisieren",
       "relinkPattern": "Muster neu verknüpfen…",
@@ -720,8 +723,11 @@
       "badgeFolded3d": "Gefaltet · 3D",
       "badgeImage": "Bild",
       "badgeNewer": "Neuer",
+      "badgeReferences": "Referenzen",
       "badgeSvg": "SVG",
+      "cancelWaiting": "Abbrechen",
       "capturing": "Wird erfasst…",
+      "fromReferences": "Referenzen…",
       "link": "Verknüpfen…",
       "locked": "Mit einem neueren Ori Studio erstellt",
       "missing": "Muster fehlt",
@@ -729,9 +735,11 @@
       "noPicture": "Noch kein Bild",
       "notCaptured": "Noch nicht erfasst",
       "number": "Schritt {{number}}",
+      "patternChanged": "Muster geändert",
       "stale": "Veraltet",
       "stop": "Stopp",
-      "upload": "Hochladen…"
+      "upload": "Hochladen…",
+      "waitingReferences": "Wartet auf Referenzen"
     },
     "detail": {
       "back": "Schritte",
@@ -746,6 +754,7 @@
     },
     "empty": {
       "addStep": "Schritt hinzufügen",
+      "fromReferences": "Aus Referenzen…",
       "link": "Muster verknüpfen…",
       "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung – oder laden Sie Ihre Zeichnungen hoch, je eine pro Schritt.",
       "title": "Ein Diagramm beginnen",
@@ -756,6 +765,7 @@
     },
     "header": {
       "addStep": "Schritt hinzufügen",
+      "fromReferences": "Aus Referenzen…",
       "linkPattern": "Muster verknüpfen…",
       "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
       "nothingStale": "Jeder verknüpfte Schritt zeigt sein Muster, wie es ist",
@@ -779,6 +789,7 @@
       "title": "Muster wählen"
     },
     "picture": {
+      "cancelWaiting": "Abbrechen",
       "capturing": "Wird erfasst…",
       "checking": "Wird geprüft…",
       "cssDropped": "Ein Teil der Gestaltung ließ sich nicht übernehmen, daher können einige Stellen anders aussehen.",
@@ -795,13 +806,20 @@
       "none": "Noch kein Bild",
       "pattern": "Muster",
       "raster": "Hochgeladenes Bild, {{width}} × {{height}} px",
+      "sentBack": "{{card}}, von hinten",
+      "sentCard": "Eine Karte aus Referenzen",
+      "sentCurrent": "Unverändert, seit dieser Schritt gesendet wurde",
+      "sentFind": "Schritt {{number}} einer Referenz",
+      "sentSequence": "Schritt {{number}} der Faltfolge",
+      "sentStale": "Das Muster hat sich geändert, seit dieser Schritt gesendet wurde",
       "simplified": "Dieses Bild wurde vereinfacht.",
       "source": "Quelle",
       "stale": "Veraltet: das Muster hat sich geändert",
       "stop": "Stopp",
       "svg": "Hochgeladenes SVG, {{width}} × {{height}} px",
       "unknown": "Nicht geprüft: das Faltmuster ist nicht geöffnet",
-      "unsupported": "Einige Teile werden nicht unterstützt und wurden weggelassen."
+      "unsupported": "Einige Teile werden nicht unterstützt und wurden weggelassen.",
+      "waitingReferences": "Wartet auf Referenzen: Der nächste an das Diagramm gesendete Schritt füllt diesen."
     },
     "pose": {
       "annotationsHint": "Seine Anmerkungen wurden mit einem neueren Ori Studio erstellt und könnten sich nicht mitdrehen",
@@ -1008,6 +1026,8 @@
       "oneWayHint": "Dieser Schritt lässt sich nur auf eine Weise falten",
       "pauseFold": "Faltung pausieren",
       "pleatHint": "Plissees werden noch nicht animiert",
+      "sendToStep": "An Diagrammschritt {{number}} senden",
+      "staleHint": "Diese Antwort gilt für ein früheres Muster: Berechne sie zuerst neu",
       "unfold": "Entfalten"
     },
     "alreadyOnSheet": "Dieser Punkt liegt bereits auf dem Papier – keine Faltung nötig.",

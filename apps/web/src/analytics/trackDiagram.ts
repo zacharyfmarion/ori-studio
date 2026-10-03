@@ -1,5 +1,6 @@
 import {
   ANALYTICS_EVENTS,
+  COUNT_BUCKETS,
   DIAGRAM_UPLOAD_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_KB_BUCKETS,
   bucketCount,
@@ -17,6 +18,8 @@ import type {
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   DiagramStepOpenedVia,
+  ReferencesSentToDiagramMode,
+  ReferencesSentToDiagramVia,
 } from './events';
 import { track } from './runtime';
 
@@ -82,4 +85,22 @@ export function trackDiagramPictureCaptured(
 /** A step's source opened in its own workspace. */
 export function trackDiagramSourceOpened(workspace: DiagramSourceWorkspace): void {
   track(ANALYTICS_EVENTS.diagramSourceOpened, { workspace });
+}
+
+/**
+ * Cards sent from References to the diagram: where from, by which verb, how
+ * many (bucketed), and whether the first filled a waiting step.
+ */
+export function trackReferencesStepSentToDiagram(
+  mode: ReferencesSentToDiagramMode,
+  via: ReferencesSentToDiagramVia,
+  count: number,
+  filled: boolean
+): void {
+  track(ANALYTICS_EVENTS.referencesStepSentToDiagram, {
+    mode,
+    via,
+    count_bucket: bucketCount(count, COUNT_BUCKETS),
+    into: filled ? 'waiting_step' : 'new_steps',
+  });
 }

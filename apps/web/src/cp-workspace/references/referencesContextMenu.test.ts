@@ -18,6 +18,7 @@ function state(overrides: Partial<ReferencesActionState> = {}): ReferencesAction
     canRecompute: true,
     hasView: true,
     hasDiagram: true,
+    diagram: { canSend: true, canSendAll: true, waitingStep: null },
     fold: { available: true, playing: false, folded: false, pleat: false },
     ...overrides,
   };
@@ -55,6 +56,9 @@ describe('referencesMenuItems', () => {
       '—',
       'references.exportStep',
       'references.exportAllSteps',
+      '—',
+      'references.sendToDiagram',
+      'references.sendAllToDiagram',
     ]);
   });
 

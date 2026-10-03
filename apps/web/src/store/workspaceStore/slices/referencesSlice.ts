@@ -48,6 +48,7 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
   referencesRun: { status: 'idle' },
   referencesSettings: DEFAULT_REFERENCES_SETTINGS,
   referencesAnalysisRequest: 0,
+  referencesSheetRequest: null,
 
   setReferencesTarget: (target) => set({ referencesTarget: target }),
   setReferencesPlan: (plan) => set({ referencesPlan: plan }),
@@ -103,9 +104,16 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
     return true;
   },
 
-  openReferencesWorkspace: () => {
+  openReferencesWorkspace: (sheet) => {
+    if (sheet) set({ referencesSheetRequest: sheet });
     // Through the layout store, which resolves and activates the panel's owning
     // workspace — the same route `simulateOristudioCpSegment` takes to Simulate.
     useLayoutStore.getState().activatePanel('references');
+  },
+
+  takeReferencesSheetRequest: () => {
+    const request = get().referencesSheetRequest;
+    if (request) set({ referencesSheetRequest: null });
+    return request;
   },
 });

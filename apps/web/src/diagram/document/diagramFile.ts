@@ -55,6 +55,7 @@ import {
   type DiagramCpScope,
   type DiagramCpSource,
   type DiagramDocument,
+  type DiagramReferencesSource,
   type DiagramFixedPicture,
   type DiagramPicture,
   type DiagramHanStyle,
@@ -65,7 +66,9 @@ import {
   type DiagramStyle,
   type DiagramSvgAsset,
   type QuarterTurns,
+  type ReferencesPlanSettings,
 } from './diagramDocument';
+import { validateStepDiagramModel } from './stepDiagramModelFile';
 
 /** A diagram read from a file. */
 export interface ReadDiagram {
@@ -256,9 +259,9 @@ function writeAsset(asset: DiagramAsset): Record<string, unknown> {
 }
 
 /** The source kinds this build reads. Any other is a newer build's. */
-const SOURCE_KINDS = new Set(['upload', 'cp']);
+const SOURCE_KINDS = new Set(['upload', 'cp', 'references-step']);
 /** The picture kinds this build reads. */
-const PICTURE_KINDS = new Set(['asset', 'scene', 'fixed']);
+const PICTURE_KINDS = new Set(['asset', 'scene', 'fixed', 'step-diagram']);
 /** Within a crease-pattern source: the scopes and render modes this build reads. */
 const CP_SCOPE_KINDS = new Set(['segment', 'figure-bounds']);
 const CP_RENDER_MODES = new Set(['crease-pattern', 'folded-flat', 'folded-3d']);
@@ -298,6 +301,7 @@ function readStep(
     isNewerKind(value.source, SOURCE_KINDS) ||
     isNewerKind(value.picture, PICTURE_KINDS) ||
     isNewerCpSource(value.source) ||
+    isNewerStepDiagram(value.picture) ||
     namesUnknownAsset(value.source, assets) ||
     namesUnknownAsset(value.picture, assets)
   ) {
@@ -316,10 +320,23 @@ function readStep(
     // A linked step may have no picture yet ("Pose to capture"); its picture is
     // a scene, a fixed picture, or a capture too detailed to keep as vector,
     // kept as a bitmap asset.
-    return { ...base, source, picture };
+    return { ...base, source, picture: picture?.kind === 'step-diagram' ? null : picture };
+  }
+  if (source?.kind === 'references-step') {
+    // A References step's picture is its card's diagram, or none.
+    return { ...base, source, picture: picture?.kind === 'step-diagram' ? picture : null };
   }
   // A picture with no source to say what it is of is left out.
   return base;
+}
+
+/** A References card drawn with a primitive kind or style this build does not draw. */
+function isNewerStepDiagram(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    value.kind === 'step-diagram' &&
+    validateStepDiagramModel(value.model).status === 'unknown'
+  );
 }
 
 /** A crease-pattern source with a scope or render mode this build does not read. */
@@ -347,6 +364,7 @@ function isNewerKind(value: unknown, known: ReadonlySet<string>): boolean {
 function readSource(value: unknown, assets: Record<string, DiagramAsset>): DiagramStepSource | null {
   if (!isRecord(value)) return null;
   if (value.kind === 'cp') return readCpSource(value);
+  if (value.kind === 'references-step') return readReferencesSource(value);
   if (value.kind !== 'upload') return null;
   const assetId = value.assetId;
   if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
@@ -378,6 +396,67 @@ function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   if (!scope || !render || !thumbnail) return null;
   if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
   return { kind: 'cp', scope, fingerprint, thumbnail, render };
+}
+
+/**
+ * A References source as a step stores it: through the file's own reader, as
+ * {@link storedCpSource} is. Null for one the reader refuses.
+ */
+export function storedReferencesSource(source: DiagramReferencesSource): DiagramReferencesSource | null {
+  return readReferencesSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
+}
+
+/** A References source, every field checked; null when any does not read. */
+function readReferencesSource(value: Record<string, unknown>): DiagramReferencesSource | null {
+  const region = readRegionReference(value.region);
+  const thumbnail = readSheetThumbnail(value.thumbnail);
+  if (!region || !thumbnail) return null;
+  // Null is a sheet that could not be fingerprinted when it was sent; an empty one is not a fingerprint.
+  const fingerprint = value.fingerprint;
+  if (fingerprint !== null && (typeof fingerprint !== 'string' || fingerprint.length === 0)) return null;
+  if (value.mode !== 'sequence' && value.mode !== 'find') return null;
+  if (value.side !== 'front' && value.side !== 'back') return null;
+  const settings = value.settings === null ? null : readPlanSettings(value.settings);
+  const line = value.line === null ? null : readPlanLine(value.line);
+  const card = value.card === null ? null : wholeNumber(value.card);
+  if (settings === undefined || line === undefined) return null;
+  if (value.card !== null && (card === null || card < 1)) return null;
+  return {
+    kind: 'references-step',
+    region,
+    fingerprint,
+    thumbnail,
+    mode: value.mode,
+    settings,
+    card,
+    line,
+    side: value.side,
+  };
+}
+
+/** The four planner settings, each a boolean; undefined when they do not read. */
+function readPlanSettings(value: unknown): ReferencesPlanSettings | undefined {
+  if (!isRecord(value)) return undefined;
+  const { precreaseGrid, gridWhereNeeded, allowDanglingFolds, mergeSymmetricSteps } = value;
+  const flags = [precreaseGrid, gridWhereNeeded, allowDanglingFolds, mergeSymmetricSteps];
+  if (flags.some((flag) => typeof flag !== 'boolean')) return undefined;
+  return {
+    precreaseGrid: precreaseGrid as boolean,
+    gridWhereNeeded: gridWhereNeeded as boolean,
+    allowDanglingFolds: allowDanglingFolds as boolean,
+    mergeSymmetricSteps: mergeSymmetricSteps as boolean,
+  };
+}
+
+/** A line `n · p = d`, with a unit normal; undefined when it does not read. */
+function readPlanLine(value: unknown): { n: [number, number]; d: number } | undefined {
+  if (!isRecord(value) || !Array.isArray(value.n) || value.n.length !== 2) return undefined;
+  const nx = finiteNumber(value.n[0]);
+  const ny = finiteNumber(value.n[1]);
+  const d = finiteNumber(value.d);
+  if (nx === null || ny === null || d === null) return undefined;
+  if (Math.abs(Math.hypot(nx, ny) - 1) > 1e-6) return undefined;
+  return { n: [nx, ny], d };
 }
 
 function readCpScope(value: unknown): DiagramCpScope | null {
@@ -447,6 +526,12 @@ function readPicture(
     }
     case 'fixed':
       return readFixedPicture(value, key, env());
+    case 'step-diagram': {
+      const read = validateStepDiagramModel(value.model);
+      return read.status === 'ok'
+        ? { kind: 'step-diagram', model: read.model, mirrored: value.mirrored === true, key }
+        : null;
+    }
     default:
       return null;
   }

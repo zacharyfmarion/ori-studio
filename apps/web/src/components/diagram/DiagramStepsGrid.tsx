@@ -116,6 +116,9 @@ export function DiagramStepsGrid({
           patternOpen={patternOpen}
           onLink={onLink}
           onStop={links.stop}
+          waiting={links.awaitingReferences === step.id}
+          onFromReferences={links.askReferences}
+          onCancelWaiting={links.cancelAwaiting}
         />
       ))}
     </div>

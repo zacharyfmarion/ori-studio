@@ -19,6 +19,7 @@ import {
 } from './actions/diagramActions';
 import {
   buildDiagramPoseActions,
+  buildDiagramReferencesPoseActions,
   type DiagramPoseAction,
   type DiagramPoseActionId,
 } from './actions/diagramPoseActions';
@@ -38,6 +39,7 @@ import {
   openDiagramStepInEdit,
   refreshDiagramStep,
 } from './capture/stepCaptureActions';
+import { askReferencesForStep, openDiagramStepInReferences } from './capture/referencesStepActions';
 import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
@@ -70,6 +72,7 @@ const TRACKED_POSE_ACTIONS: Record<DiagramPoseActionId, TrackedPoseAction> = {
   'rotate-left': 'rotate_left',
   'rotate-right': 'rotate_right',
   flip: 'flip',
+  'turn-over': 'turn_over',
   reset: 'reset',
 };
 
@@ -97,11 +100,19 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       hasPicture: hasDrawablePicture(step, diagram.assets),
       hasSource: stepHasPicture(step),
       link: linkStatusNow(step),
+      linkKind: linkKindOf(step),
       capturing: Object.hasOwn(diagramCaptures, stepId),
       patternOpen: oristudioCpDocument !== null,
     },
     t
   );
+}
+
+/** What a step is linked to, for the verbs that follow a link. */
+function linkKindOf(step: DiagramStep | undefined): DiagramStepActionState['linkKind'] {
+  if (!step || isLockedStep(step)) return null;
+  if (step.source?.kind === 'cp') return 'cp';
+  return step.source?.kind === 'references-step' ? 'references' : null;
 }
 
 function hasDrawablePicture(step: DiagramStep, assets: Parameters<typeof stepPictureSource>[1]): boolean {
@@ -111,6 +122,7 @@ function hasDrawablePicture(step: DiagramStep, assets: Parameters<typeof stepPic
 /** What a step's picture is, for analytics: an upload by its asset, a link by how it shows its pattern. */
 function pictureKind(diagram: DiagramDocument, step: DiagramStep): DiagramPictureKind | null {
   if (step.source?.kind === 'cp') return captureKind(step.source.render);
+  if (step.source?.kind === 'references-step') return 'references';
   return stepAsset(diagram, step)?.kind ?? null;
 }
 
@@ -145,6 +157,8 @@ function bindStepActions(
         void refreshDiagramStep(stepId);
       },
       openInEdit: () => openDiagramStepInEdit(stepId),
+      openInReferences: () => openDiagramStepInReferences(stepId),
+      fromReferences: () => askReferencesForStep(stepId),
       exportPicture: () => {
         const diagram = store().diagram;
         if (!diagram) return;
@@ -188,6 +202,7 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
   const hasSource = step ? stepHasPicture(step) : false;
   const statuses = useDiagramLinkStatuses(step ? [step] : NO_STEPS);
   const link = (step && statuses.get(step.id)) ?? null;
+  const linkKind = linkKindOf(step);
   const capturing = useWorkspaceStore((state) =>
     stepId === null ? false : Object.hasOwn(state.diagramCaptures, stepId)
   );
@@ -199,10 +214,10 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
         ? []
         : bindStepActions(
             stepId,
-            { index, count, locked, readOnly, hasPicture, hasSource, link, capturing, patternOpen },
+            { index, count, locked, readOnly, hasPicture, hasSource, link, linkKind, capturing, patternOpen },
             t
           ),
-    [stepId, index, count, locked, readOnly, hasPicture, hasSource, link, capturing, patternOpen, t]
+    [stepId, index, count, locked, readOnly, hasPicture, hasSource, link, linkKind, capturing, patternOpen, t]
   );
 }
 
@@ -222,6 +237,24 @@ export function useDiagramPoseActions(stepId: string | null): DiagramPoseAction[
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   return useMemo(() => {
     if (!step) return [];
+    if (!isLockedStep(step) && step.source?.kind === 'references-step' && step.picture?.kind === 'step-diagram') {
+      return buildDiagramReferencesPoseActions(
+        {
+          mirrored: step.picture.mirrored,
+          sentMirrored: step.source.side === 'back',
+          carriesUnknownAnnotations: step.annotations.some((annotation) => annotation.unknown !== undefined),
+          readOnly,
+        },
+        {
+          t,
+          setSide: (mirrored, verb) => {
+            if (useWorkspaceStore.getState().setDiagramReferencesSide(step.id, mirrored)) {
+              trackDiagramPicturePosed(TRACKED_POSE_ACTIONS[verb], 'references');
+            }
+          },
+        }
+      );
+    }
     const source = step.source?.kind === 'upload' ? step.source : null;
     const pose: UploadPose | null = source
       ? { rotationQuarterTurns: source.rotationQuarterTurns, mirrored: source.mirrored }

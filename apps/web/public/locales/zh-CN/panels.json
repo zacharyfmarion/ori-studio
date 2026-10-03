@@ -663,6 +663,7 @@
       "duplicate": "复制步骤",
       "exportPicture": "导出图片…",
       "firstHint": "已经是第一步",
+      "fromReferences": "来自参考…",
       "insertAfter": "在后面插入步骤",
       "insertBefore": "在前面插入步骤",
       "lastHint": "已经是最后一步",
@@ -674,9 +675,11 @@
       "moveLater": "后移",
       "noPatternHint": "请先在编辑中打开折痕图再链接",
       "noPatternOpenHint": "其折痕图未打开",
+      "noPatternReferencesHint": "在编辑中打开折痕图以规划折叠步骤",
       "noPatternRefreshHint": "请先在编辑中打开其折痕图再刷新",
       "noPictureHint": "此步骤还没有图片",
       "openInEdit": "在编辑中打开",
+      "openInReferences": "在参考中打开",
       "readOnlyHint": "此图解由更新版本的 Ori Studio 创建，以只读方式打开",
       "refreshPicture": "刷新图片",
       "relinkPattern": "重新链接图样…",
@@ -691,8 +694,11 @@
       "badgeFolded3d": "折叠形态 · 3D",
       "badgeImage": "图片",
       "badgeNewer": "较新",
+      "badgeReferences": "参考",
       "badgeSvg": "SVG",
+      "cancelWaiting": "取消",
       "capturing": "正在捕获…",
+      "fromReferences": "参考…",
       "link": "链接…",
       "locked": "由更新版本的 Ori Studio 创建",
       "missing": "图样缺失",
@@ -700,9 +706,11 @@
       "noPicture": "尚无图片",
       "notCaptured": "尚未捕获",
       "number": "第 {{number}} 步",
+      "patternChanged": "图样已更改",
       "stale": "已过期",
       "stop": "停止",
-      "upload": "上传…"
+      "upload": "上传…",
+      "waitingReferences": "等待参考"
     },
     "detail": {
       "back": "步骤",
@@ -717,6 +725,7 @@
     },
     "empty": {
       "addStep": "添加步骤",
+      "fromReferences": "来自参考…",
       "link": "链接图样…",
       "message": "图解就是你的折叠顺序，一次一步。添加一个步骤，再为它配上图片和说明——或上传你的图，每张一个步骤。",
       "title": "开始制作图解",
@@ -727,6 +736,7 @@
     },
     "header": {
       "addStep": "添加步骤",
+      "fromReferences": "来自参考…",
       "linkPattern": "链接图样…",
       "moreAdd": "更多添加步骤的方式",
       "nothingStale": "所有链接的步骤都显示其图样的当前状态",
@@ -749,6 +759,7 @@
       "title": "选择图样"
     },
     "picture": {
+      "cancelWaiting": "取消",
       "capturing": "正在捕获…",
       "checking": "正在检查…",
       "cssDropped": "部分样式无法保留，因此某些地方可能看起来不同。",
@@ -765,13 +776,20 @@
       "none": "尚无图片",
       "pattern": "图样",
       "raster": "上传的图像，{{width}} × {{height}} px",
+      "sentBack": "{{card}}（从背面看）",
+      "sentCard": "来自参考的卡片",
+      "sentCurrent": "发送后未更改",
+      "sentFind": "某个参考的第 {{number}} 步",
+      "sentSequence": "折叠顺序的第 {{number}} 步",
+      "sentStale": "发送此步骤后图样已更改",
       "simplified": "此图片已被简化。",
       "source": "来源",
       "stale": "已过期：图样已更改",
       "stop": "停止",
       "svg": "上传的 SVG，{{width}} × {{height}} px",
       "unknown": "未检查：折痕图未打开",
-      "unsupported": "其中部分内容不受支持，已被略去。"
+      "unsupported": "其中部分内容不受支持，已被略去。",
+      "waitingReferences": "等待参考：下一个发送到图解的步骤将填入此处。"
     },
     "pose": {
       "annotationsHint": "其注释由更新版本的 Ori Studio 创建，无法随图片一起旋转",
@@ -978,6 +996,8 @@
       "oneWayHint": "这一步只有一种折法",
       "pauseFold": "暂停折叠",
       "pleatHint": "百褶折暂不支持动画",
+      "sendToStep": "发送到图解第 {{number}} 步",
+      "staleHint": "此答案对应较早的图样：请先重新计算",
       "unfold": "展开"
     },
     "alreadyOnSheet": "这个点已经在纸上了，无需折叠。",

@@ -1,11 +1,14 @@
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
+import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import {
   createStep,
   type DiagramCpRender,
   type DiagramCpSource,
   type DiagramFixedPicture,
+  type DiagramReferencesSource,
   type DiagramScenePicture,
   type DiagramStep,
+  type DiagramStepDiagramPicture,
 } from './diagramDocument';
 import { storedSceneJson } from './diagramFile';
 
@@ -65,4 +68,47 @@ export function cpStep(
   picture: DiagramStep['picture'] = scenePicture()
 ): DiagramStep {
   return { ...createStep(() => id), source: cpSource(render), picture };
+}
+
+/** A card's picture: a valley across a unit sheet, its arrow and a letter. */
+export const SENT_MODEL: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    { kind: 'fold-arrow', out: { center: [0.5, 0.5], radius: 0.3, from: 0.4, to: 1.4, ccw: true } },
+    { kind: 'label', at: [0, 0.5], text: 'A', style: 'normal' },
+  ],
+};
+
+/** Where a sequence card came from: the unit square's sheet. */
+export function referencesSource(patch: Partial<DiagramReferencesSource> = {}): DiagramReferencesSource {
+  const { scope, thumbnail } = cpSource();
+  if (scope.kind !== 'segment') throw new Error('a region');
+  return {
+    kind: 'references-step',
+    region: scope.region,
+    fingerprint: 'fp-sheet',
+    thumbnail,
+    mode: 'sequence',
+    settings: { precreaseGrid: true, gridWhereNeeded: true, allowDanglingFolds: true, mergeSymmetricSteps: true },
+    card: 2,
+    line: { n: [0, 1], d: 0.5 },
+    side: 'front',
+    ...patch,
+  };
+}
+
+export function stepDiagramPicture(mirrored = false, model = SENT_MODEL): DiagramStepDiagramPicture {
+  return { kind: 'step-diagram', model, mirrored, key: mirrored ? 'steps-1-back' : 'steps-1' };
+}
+
+/** A step sent from References: its card's picture and sentence. */
+export function referencesStep(id: string, patch: Partial<DiagramReferencesSource> = {}): DiagramStep {
+  return {
+    ...createStep(() => id),
+    source: referencesSource(patch),
+    picture: stepDiagramPicture(patch.side === 'back'),
+    text: 'Fold the bottom edge to the top.',
+  };
 }

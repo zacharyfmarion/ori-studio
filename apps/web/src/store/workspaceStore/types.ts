@@ -48,6 +48,7 @@ import type { FoldArtifactStatus } from './foldArtifactResource';
 import type { SnapshotHistory } from './snapshotHistory';
 import type {
   DiagramCpSource,
+  SentReferencesStep,
   DiagramDocument,
   DiagramPageSetup,
   DiagramPicture,
@@ -1703,6 +1704,18 @@ export interface ReferencesSliceState {
    * on it, and asking twice has to be two runs.
    */
   referencesAnalysisRequest: number;
+  /**
+   * A sheet to open on, asked for from outside — a diagram step's Open in
+   * References — and taken by the panel once its sheets are known. Latched
+   * for the same reason as {@link referencesAnalysisRequest}.
+   */
+  referencesSheetRequest: ReferencesSheetRequest | null;
+}
+
+/** Open References on the sheet with this rim, in this mode. */
+export interface ReferencesSheetRequest {
+  boundary: Point[][];
+  mode: ReferencesMode;
 }
 
 export interface ReferencesSliceActions {
@@ -1735,8 +1748,12 @@ export interface ReferencesSliceActions {
    * Switch to the References workspace on the whole pattern. Nothing carries
    * over from the caller — no crease target, no selection — so the entry from
    * the rail, the View menu and the selection toolbar all land in one place.
+   * With a sheet, it opens on that sheet and mode once the panel has found it
+   * (a diagram step's Open in References).
    */
-  openReferencesWorkspace: () => void;
+  openReferencesWorkspace: (sheet?: ReferencesSheetRequest) => void;
+  /** Take the pending sheet request, if there is one: see {@link consumeReferencesAnalysisRequest}. */
+  takeReferencesSheetRequest: () => ReferencesSheetRequest | null;
 }
 
 /**
@@ -1837,6 +1854,11 @@ export interface DiagramSliceState {
   diagramPatternPicker: string | null;
   /** Refresh all out-of-date steps, while it runs: how far it has got. */
   diagramRefreshAll: { total: number; done: number } | null;
+  /**
+   * The step From References… was asked from (D6): the next Send to diagram
+   * fills it, if it is still there and empty, rather than adding a step.
+   */
+  diagramReferencesTarget: string | null;
 }
 
 export interface DiagramSliceActions {
@@ -1947,6 +1969,27 @@ export interface DiagramSliceActions {
    */
   openDiagramPatternPicker: (stepId: string) => boolean;
   closeDiagramPatternPicker: () => void;
+  /**
+   * Ask References for a step's picture (From References…): the next Send to
+   * diagram fills this step. False for a step that is not there or cannot be
+   * changed.
+   */
+  requestDiagramStepFromReferences: (stepId: string) => boolean;
+  /** Stop waiting for a step from References. */
+  cancelDiagramReferencesTarget: () => void;
+  /**
+   * Add cards sent from References as one undo step: into the step From
+   * References… waits for, then after it; or under the insertion rule (D2),
+   * after the selected step or at the end. The last becomes the selected
+   * step. `loadId` is the diagram the send began against: one that outlives
+   * it is dropped. The steps the cards became, or null.
+   */
+  addReferencesDiagramSteps: (
+    sent: readonly SentReferencesStep[],
+    options: { loadId: number; label: string }
+  ) => string[] | null;
+  /** Show a References step from the paper's front or back (its Pose: Turn over). */
+  setDiagramReferencesSide: (stepId: string, mirrored: boolean) => boolean;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
 }

@@ -30,11 +30,16 @@ import {
   poseBlocker,
   rotatePose,
   setUploadPose,
+  insertReferencesSteps,
+  setReferencesSide,
+  stepDiagramKey,
+  type SentReferencesStep,
   type DiagramDocument,
   type DiagramIdFactory,
   type DiagramStep,
   type KnownDiagramAsset,
 } from './diagramDocument';
+import { referencesSource, referencesStep, stepDiagramPicture } from './diagramSteps.fixtures';
 
 function sequentialIds(): DiagramIdFactory {
   let next = 0;
@@ -356,5 +361,71 @@ describe('upload pose', () => {
     };
     expect(poseBlocker(annotated.steps[1])).toBe('unknown-annotations');
     expect(setUploadPose(annotated, stepIds[0], { rotationQuarterTurns: 2, mirrored: false })).toBe(annotated);
+  });
+});
+
+describe('steps sent from References', () => {
+  const card = (n: number): SentReferencesStep => ({
+    source: referencesSource({ card: n }),
+    picture: stepDiagramPicture(),
+    text: `Fold ${n}.\u000B`,
+  });
+
+  function withSteps(...steps: DiagramStep[]): DiagramDocument {
+    return insertSteps(createDiagram({ title: 'T', newId: sequentialIds() }), steps, 0);
+  }
+
+  it('adds each card as a step at the index, its sentence as the instruction', () => {
+    const document = withSteps(createStep(() => 'step-a'), createStep(() => 'step-b'));
+    const { document: next, stepIds } = insertReferencesSteps(document, [card(1), card(2)], 1, {
+      newId: sequentialIds(),
+    });
+    expect(next.steps.map((step) => step.id)).toEqual(['step-a', ...stepIds, 'step-b']);
+    expect(next.steps[1]).toMatchObject({ source: { card: 1 }, picture: { kind: 'step-diagram' }, text: 'Fold 1.' });
+  });
+
+  it('fills the step From References… waits for, keeping its words, and puts the rest after it', () => {
+    const waiting = { ...createStep(() => 'step-w'), text: 'My own words.' };
+    const document = withSteps(createStep(() => 'step-a'), waiting, createStep(() => 'step-b'));
+    const { document: next, stepIds } = insertReferencesSteps(document, [card(1), card(2)], 3, {
+      fill: 'step-w',
+      newId: sequentialIds(),
+    });
+    expect(stepIds[0]).toBe('step-w');
+    expect(next.steps.map((step) => step.id)).toEqual(['step-a', 'step-w', stepIds[1], 'step-b']);
+    expect(next.steps[1]).toMatchObject({ source: { card: 1 }, text: 'My own words.', revision: 1 });
+    // An empty instruction takes the sentence.
+    const blank = withSteps(createStep(() => 'step-w'));
+    expect(insertReferencesSteps(blank, [card(3)], 0, { fill: 'step-w' }).document.steps[0]?.text).toBe('Fold 3.');
+  });
+
+  it('never fills a step that has a picture since, or is gone: it adds after it, or at the index', () => {
+    const pictured = referencesStep('step-w');
+    const document = withSteps(createStep(() => 'step-a'), pictured);
+    const { document: next, stepIds } = insertReferencesSteps(document, [card(1)], 0, {
+      fill: 'step-w',
+      newId: sequentialIds(),
+    });
+    expect(next.steps.map((step) => step.id)).toEqual(['step-a', 'step-w', stepIds[0]]);
+    const gone = insertReferencesSteps(document, [card(1)], 0, { fill: 'step-gone', newId: sequentialIds() });
+    expect(gone.document.steps[0]?.id).toBe(gone.stepIds[0]);
+  });
+
+  it('turns a step over, re-keying its picture, and back', () => {
+    const document = withSteps(referencesStep('step-r'));
+    const turned = setReferencesSide(document, 'step-r', true);
+    expect(turned.steps[0]?.picture).toMatchObject({ mirrored: true, key: 'steps-1-back' });
+    expect(turned.steps[0]?.source).toMatchObject({ side: 'front' });
+    const back = setReferencesSide(turned, 'step-r', false);
+    expect(back.steps[0]?.picture).toMatchObject({ mirrored: false, key: 'steps-1' });
+    // No change is no edit.
+    expect(setReferencesSide(document, 'step-r', false)).toBe(document);
+    expect(setReferencesSide(withSteps(createStep(() => 'step-e')), 'step-e', true).steps[0]?.picture).toBeNull();
+  });
+
+  it('marks a key for the back once, whichever side it starts from', () => {
+    expect(stepDiagramKey('steps-x', true)).toBe('steps-x-back');
+    expect(stepDiagramKey('steps-x-back', true)).toBe('steps-x-back');
+    expect(stepDiagramKey('steps-x-back', false)).toBe('steps-x');
   });
 });

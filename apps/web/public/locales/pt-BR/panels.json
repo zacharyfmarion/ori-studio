@@ -721,6 +721,7 @@
       "duplicate": "Duplicar passo",
       "exportPicture": "Exportar imagem…",
       "firstHint": "Já é o primeiro passo",
+      "fromReferences": "De Referências…",
       "insertAfter": "Inserir passo depois",
       "insertBefore": "Inserir passo antes",
       "lastHint": "Já é o último passo",
@@ -732,9 +733,11 @@
       "moveLater": "Mover para depois",
       "noPatternHint": "Abra um padrão de vincos em Editar para vinculá-lo",
       "noPatternOpenHint": "O padrão de vincos não está aberto",
+      "noPatternReferencesHint": "Abra um padrão de vincos em Editar para planejar suas dobras",
       "noPatternRefreshHint": "Abra o padrão de vincos em Editar para atualizá-lo",
       "noPictureHint": "Este passo ainda não tem imagem",
       "openInEdit": "Abrir em Editar",
+      "openInReferences": "Abrir em Referências",
       "readOnlyHint": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura",
       "refreshPicture": "Atualizar imagem",
       "relinkPattern": "Revincular padrão…",
@@ -749,8 +752,11 @@
       "badgeFolded3d": "Dobrado · 3D",
       "badgeImage": "Imagem",
       "badgeNewer": "Mais recente",
+      "badgeReferences": "Referências",
       "badgeSvg": "SVG",
+      "cancelWaiting": "Cancelar",
       "capturing": "Capturando…",
+      "fromReferences": "Referências…",
       "link": "Vincular…",
       "locked": "Criado com uma versão mais recente do Ori Studio",
       "missing": "Padrão ausente",
@@ -758,9 +764,11 @@
       "noPicture": "Ainda sem imagem",
       "notCaptured": "Ainda não capturado",
       "number": "Passo {{number}}",
+      "patternChanged": "Padrão alterado",
       "stale": "Desatualizado",
       "stop": "Parar",
-      "upload": "Enviar…"
+      "upload": "Enviar…",
+      "waitingReferences": "Aguardando Referências"
     },
     "detail": {
       "back": "Passos",
@@ -775,6 +783,7 @@
     },
     "empty": {
       "addStep": "Adicionar passo",
+      "fromReferences": "De Referências…",
       "link": "Vincular um padrão…",
       "message": "Um diagrama é a sua sequência de dobras, um passo de cada vez. Adicione um passo e depois dê a ele uma imagem e uma instrução — ou envie seus desenhos, um por passo.",
       "title": "Começar um diagrama",
@@ -785,6 +794,7 @@
     },
     "header": {
       "addStep": "Adicionar passo",
+      "fromReferences": "De Referências…",
       "linkPattern": "Vincular padrão…",
       "moreAdd": "Mais formas de adicionar passos",
       "nothingStale": "Todos os passos vinculados mostram o padrão como ele está",
@@ -809,6 +819,7 @@
       "title": "Escolha um padrão"
     },
     "picture": {
+      "cancelWaiting": "Cancelar",
       "capturing": "Capturando…",
       "checking": "Verificando…",
       "cssDropped": "Parte do estilo não pôde ser mantida, então algumas partes podem parecer diferentes.",
@@ -825,13 +836,20 @@
       "none": "Ainda sem imagem",
       "pattern": "Padrão",
       "raster": "Imagem enviada, {{width}} × {{height}} px",
+      "sentBack": "{{card}}, visto do verso",
+      "sentCard": "Um cartão de Referências",
+      "sentCurrent": "Sem alterações desde que este passo foi enviado",
+      "sentFind": "Passo {{number}} de uma referência",
+      "sentSequence": "Passo {{number}} da sequência de dobras",
+      "sentStale": "O padrão mudou desde que este passo foi enviado",
       "simplified": "Esta imagem foi simplificada.",
       "source": "Origem",
       "stale": "Desatualizado: o padrão mudou",
       "stop": "Parar",
       "svg": "SVG enviado, {{width}} × {{height}} px",
       "unknown": "Não verificado: o padrão de vincos não está aberto",
-      "unsupported": "Algumas partes não são suportadas e foram omitidas."
+      "unsupported": "Algumas partes não são suportadas e foram omitidas.",
+      "waitingReferences": "Aguardando Referências: o próximo passo enviado ao diagrama preenche este."
     },
     "pose": {
       "annotationsHint": "Suas anotações foram criadas com uma versão mais recente do Ori Studio e não poderiam girar com ela",
@@ -1042,6 +1060,8 @@
       "oneWayHint": "Este passo só se dobra de uma forma",
       "pauseFold": "Pausar dobra",
       "pleatHint": "Pregas ainda não são animadas",
+      "sendToStep": "Enviar ao passo {{number}} do diagrama",
+      "staleHint": "Esta resposta é de um padrão anterior: recalcule-a primeiro",
       "unfold": "Desdobrar"
     },
     "alreadyOnSheet": "Este ponto já está no papel — nenhuma dobra é necessária.",

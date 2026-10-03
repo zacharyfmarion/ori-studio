@@ -302,6 +302,8 @@
     "recompute": "Recalcular referencias",
     "resetView": "Restablecer vista de referencias",
     "scopeLabel": "referencias",
+    "sendAllToDiagram": "Enviar todo al diagrama",
+    "sendToDiagram": "Enviar al diagrama",
     "toggleLandmarksFirst": "Marcas primero",
     "zoomIn": "Acercar referencias",
     "zoomOut": "Alejar referencias"

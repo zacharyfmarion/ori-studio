@@ -60,7 +60,16 @@ function render(
         onSelect={onSelect}
         onOpen={options.onOpen ?? vi.fn()}
         onUpload={options.onUpload ?? vi.fn()}
-        links={{ statuses: new Map(), captures: {}, stop: vi.fn(), ...options.links }}
+        links={{
+          statuses: new Map(),
+          captures: {},
+          stop: vi.fn(),
+          refreshable: 0,
+          awaitingReferences: null,
+          askReferences: vi.fn(),
+          cancelAwaiting: vi.fn(),
+          ...options.links,
+        }}
         patternOpen={options.patternOpen ?? false}
         onLink={options.onLink ?? vi.fn()}
       />

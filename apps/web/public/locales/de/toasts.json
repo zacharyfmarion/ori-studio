@@ -34,6 +34,12 @@
     },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
     "openDiagram": "Diagramm öffnen",
+    "references": {
+      "addedSteps": "Als Schritte {{first}}–{{last}} hinzugefügt",
+      "filledStep": "An Schritt {{number}} gesendet",
+      "tooLarge": "Dieser Schritt ist zu detailliert, um im Diagramm gespeichert zu werden.",
+      "unreadable": "Das Bild dieses Schritts konnte nicht gelesen werden, daher wurde nichts gesendet."
+    },
     "refreshedAll_one": "1 Schritt aktualisiert",
     "refreshedAll_other": "{{count}} Schritte aktualisiert",
     "uploadFailed_one": "Ein Bild konnte nicht hinzugefügt werden",
@@ -81,6 +87,7 @@
   "references": {
     "searching": "Referenzen werden gesucht…",
     "searchingLong": "Referenzen werden noch gesucht — die erste Suche baut eine Tabelle auf",
+    "sheetMissing": "Dieser Bogen ist nicht mehr im Faltmuster.",
     "stop": "Abbrechen",
     "stopped": "Suche abgebrochen",
     "stopping": "Wird abgebrochen…"

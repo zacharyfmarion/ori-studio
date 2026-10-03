@@ -84,7 +84,7 @@ export type DiagramPoseAction =
  * What a step's picture is: an upload, by what it is stored as, or a capture
  * from the crease pattern, by how it shows it.
  */
-export type DiagramPictureKind = 'svg' | 'raster' | DiagramCaptureKind;
+export type DiagramPictureKind = 'svg' | 'raster' | 'references' | DiagramCaptureKind;
 
 /** How a captured picture shows its pattern. */
 export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d';
@@ -110,6 +110,15 @@ export type DiagramCaptureVia = 'link' | 'relink' | 'refresh' | 'refresh_all';
 
 /** The workspace a diagram step's Open in… went to: its pattern in Edit, or its sheet in References. */
 export type DiagramSourceWorkspace = 'edit' | 'references';
+
+/** Which References verb sent cards to the diagram: Send to diagram (`one`) or Send all (`all`). */
+export type ReferencesSentToDiagramVia = 'one' | 'all';
+
+/** Where sent cards landed: new steps, or the step From References… was waiting to fill. */
+export type ReferencesSentToDiagramInto = 'new_steps' | 'waiting_step';
+
+/** The workspace mode the cards came from. */
+export type ReferencesSentToDiagramMode = 'sequence' | 'find';
 
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
@@ -1038,6 +1047,13 @@ export const ANALYTICS_EVENTS = {
   diagramPictureCaptured: 'diagram picture captured',
   /** A step's Open in Edit or Open in References: whether the way back to a step's source is used. */
   diagramSourceOpened: 'diagram source opened',
+  /**
+   * Cards sent from References to the diagram (D6): from the planner's
+   * sequence or a Find answer, one card or the strip, how many, and whether
+   * they filled the step From References… asked from. Whether References is
+   * how diagrams get their precreasing steps. Never a card, a line or a sentence.
+   */
+  referencesStepSentToDiagram: 'references step sent to diagram',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramStep, KnownDiagramAsset, QuarterTurns } from '../document/diagramDocument';
 import { createStep, DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
-import { cpStep, fixedPicture } from '../document/diagramSteps.fixtures';
+import { cpStep, fixedPicture, referencesStep } from '../document/diagramSteps.fixtures';
 import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
 import {
   paintAsset,
@@ -157,6 +157,18 @@ describe('paintStepPicture', () => {
     });
   });
 
+  it('paints a step sent from References at the size it opens at, and its back mirrored', () => {
+    const front = paintStepPicture(referencesStep('step-1'), {}, DEFAULT_DIAGRAM_STYLE)!;
+    const document = new DOMParser().parseFromString(front.svg, 'image/svg+xml');
+    expect(document.querySelector('parsererror')).toBeNull();
+    // Its letter and arrow, drawn by the card's own marks.
+    expect(front.svg).toContain('>A</text>');
+    expect(stepPictureSource(referencesStep('step-1'), {})).toMatchObject({ kind: 'step-diagram' });
+    const back = paintStepPicture(referencesStep('step-1', { side: 'back' }), {}, DEFAULT_DIAGRAM_STYLE)!;
+    expect(back.svg).not.toBe(front.svg);
+    expect(back.widthPx).toBeCloseTo(front.widthPx, 6);
+  });
+
   it('paints nothing for a linked step not yet posed, or a scene that does not read', () => {
     expect(paintStepPicture(cpStep('step-1', undefined, null), {}, DEFAULT_DIAGRAM_STYLE)).toBeNull();
     const broken = cpStep('step-1');
@@ -174,6 +186,19 @@ describe('stepPictureUrl', () => {
     const bytes = stepPictureCacheBytesForTests();
     expect(first).toMatch(/^data:image\/svg\+xml;base64,/);
     expect(stepPictureUrl(stepPictureSource({ ...step, text: 'edited' }, {})!, DEFAULT_DIAGRAM_STYLE)).toBe(first);
+    expect(stepPictureCacheBytesForTests()).toBe(bytes);
+    expect(stepPictureUrl(source, { style: { ...DEFAULT_PAPER_STYLE } })).not.toBe(first);
+  });
+});
+
+describe('stepPictureUrl of a step sent from References', () => {
+  it('paints it once per picture and style', () => {
+    clearStepPictureCacheForTests();
+    const source = stepPictureSource(referencesStep('step-1'), {})!;
+    const first = stepPictureUrl(source, DEFAULT_DIAGRAM_STYLE);
+    expect(first).toMatch(/^data:image\/svg\+xml;base64,/);
+    const bytes = stepPictureCacheBytesForTests();
+    expect(stepPictureUrl(source, DEFAULT_DIAGRAM_STYLE)).toBe(first);
     expect(stepPictureCacheBytesForTests()).toBe(bytes);
     expect(stepPictureUrl(source, { style: { ...DEFAULT_PAPER_STYLE } })).not.toBe(first);
   });

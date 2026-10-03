@@ -35,6 +35,12 @@
     },
     "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",
     "openDiagram": "Abrir diagrama",
+    "references": {
+      "addedSteps": "Adicionados como passos {{first}}–{{last}}",
+      "filledStep": "Enviado ao passo {{number}}",
+      "tooLarge": "Este passo é detalhado demais para ser mantido no diagrama.",
+      "unreadable": "Não foi possível ler a imagem deste passo, então nada foi enviado."
+    },
     "refreshedAll_one": "1 passo atualizado",
     "refreshedAll_many": "{{count}} passos atualizados",
     "refreshedAll_other": "{{count}} passos atualizados",
@@ -86,6 +92,7 @@
   "references": {
     "searching": "Procurando referências…",
     "searchingLong": "Ainda procurando referências — a primeira busca monta uma tabela",
+    "sheetMissing": "Essa folha não está mais no padrão de vincos.",
     "stop": "Cancelar",
     "stopped": "Busca cancelada",
     "stopping": "Cancelando…"

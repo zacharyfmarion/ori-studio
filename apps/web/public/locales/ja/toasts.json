@@ -33,6 +33,12 @@
     },
     "dropReadOnly": "この折り図は新しい Ori Studio で作成されたため読み取り専用で開いています。図を追加することはできません。",
     "openDiagram": "図を開く",
+    "references": {
+      "addedSteps": "ステップ {{first}}–{{last}} として追加しました",
+      "filledStep": "ステップ {{number}} に送りました",
+      "tooLarge": "このステップは細かすぎて折り図に保持できません。",
+      "unreadable": "このステップの図を読み取れなかったため、何も送られませんでした。"
+    },
     "refreshedAll_other": "{{count}} 個のステップを更新しました",
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
     "uploadFailureLine": "{{name}}：{{reason}}",
@@ -76,6 +82,7 @@
   "references": {
     "searching": "基準点を探しています…",
     "searchingLong": "まだ基準点を探しています — 初回の検索ではテーブルを構築します",
+    "sheetMissing": "その用紙はもう展開図にありません。",
     "stop": "キャンセル",
     "stopped": "検索をキャンセルしました",
     "stopping": "キャンセル中…"

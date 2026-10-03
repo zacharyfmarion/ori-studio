@@ -6,8 +6,8 @@ import {
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import type { FoldArtifacts } from '../../engine/types';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { isLockedStep, type DiagramStep } from '../document/diagramDocument';
-import { linkStatus, type DiagramLinkStatus } from './linkStatus';
+import type { DiagramStep } from '../document/diagramDocument';
+import { linkedSourceOf, linkStatus, type DiagramLinkStatus } from './linkStatus';
 
 const NO_STATUSES: ReadonlyMap<string, DiagramLinkStatus> = new Map();
 
@@ -59,15 +59,16 @@ export function useCpSegmentation(wants: boolean): FoldArtifacts | null {
 
 /** Whether any of these steps is linked to a region, and so needs the segmentation. */
 function wantsSegmentation(steps: readonly DiagramStep[]): boolean {
-  return steps.some(
-    (step) => !isLockedStep(step) && step.source?.kind === 'cp' && step.source.scope.kind === 'segment'
-  );
+  return steps.some((step) => {
+    const source = linkedSourceOf(step);
+    return source?.kind === 'references-step' || (source?.kind === 'cp' && source.scope.kind === 'segment');
+  });
 }
 
 /**
- * Each linked step's link status, by step id (D2, D3): what the cards and the
- * Step pane say, and what Refresh is offered for. A step that is not linked
- * has none. Statuses are memoized per document (`linkStatus`), so this costs a
+ * Each linked step's link status, by step id (D2, D3, D6): what the cards
+ * and the Step pane say, and what Refresh is offered for. A step that is not
+ * linked — to a pattern, or to the sheet it was sent from — has none. Statuses are memoized per document (`linkStatus`), so this costs a
  * lookup per card once the pattern has been looked at.
  */
 export function useDiagramLinkStatuses(
@@ -78,9 +79,10 @@ export function useDiagramLinkStatuses(
   return useMemo(() => {
     let statuses: Map<string, DiagramLinkStatus> | null = null;
     for (const step of steps) {
-      if (isLockedStep(step) || step.source?.kind !== 'cp') continue;
+      const source = linkedSourceOf(step);
+      if (!source) continue;
       statuses ??= new Map();
-      statuses.set(step.id, linkStatus(step.source, document, segmentation));
+      statuses.set(step.id, linkStatus(source, document, segmentation));
     }
     return statuses ?? NO_STATUSES;
   }, [steps, document, segmentation]);
@@ -92,7 +94,8 @@ export function useDiagramLinkStatuses(
  * them (a context menu opening).
  */
 export function linkStatusNow(step: DiagramStep): DiagramLinkStatus | null {
-  if (isLockedStep(step) || step.source?.kind !== 'cp') return null;
+  const source = linkedSourceOf(step);
+  if (!source) return null;
   const document = useWorkspaceStore.getState().oristudioCpDocument?.document ?? null;
-  return linkStatus(step.source, document, document ? peekCpSegmentationArtifacts(document) : null);
+  return linkStatus(source, document, document ? peekCpSegmentationArtifacts(document) : null);
 }

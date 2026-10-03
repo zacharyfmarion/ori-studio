@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Download, ImageOff, Link2, PenTool, RefreshCw, Upload } from 'lucide-react';
+import { Compass, Download, ImageOff, Link2, PenTool, RefreshCw, Upload } from 'lucide-react';
 import {
   diagramStepCommand,
   type DiagramStepAction,
@@ -10,6 +10,7 @@ import {
 import type { DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import type {
   DiagramCpSource,
+  DiagramReferencesSource,
   DiagramStep,
   KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
@@ -25,7 +26,9 @@ const VERBS: readonly { id: DiagramStepActionId; icon: typeof Upload; variant: '
   { id: 'refresh-picture', icon: RefreshCw, variant: 'secondary' },
   { id: 'upload-picture', icon: Upload, variant: 'secondary' },
   { id: 'link-pattern', icon: Link2, variant: 'secondary' },
+  { id: 'from-references', icon: Compass, variant: 'secondary' },
   { id: 'open-in-edit', icon: PenTool, variant: 'ghost' },
+  { id: 'open-in-references', icon: Compass, variant: 'ghost' },
   { id: 'export-picture', icon: Download, variant: 'ghost' },
   { id: 'remove-picture', icon: ImageOff, variant: 'ghost' },
 ];
@@ -45,6 +48,7 @@ export function DiagramStepPicture({
   link,
   patternOpen,
   capture,
+  waiting,
   picker,
 }: {
   step: DiagramStep;
@@ -59,20 +63,24 @@ export function DiagramStepPicture({
   patternOpen: boolean;
   /** The step's capture while one runs, and its Stop when the fold can be stopped. */
   capture: { stop: (() => void) | null } | null;
+  /** References' next Send to diagram fills this step (From References…), and the way to stop waiting. */
+  waiting: { cancel: () => void } | null;
   /** The pattern picker, while the step's pattern is being chosen. */
   picker: ReactNode;
 }) {
   const { t } = useTranslation();
-  const source = step.source?.kind === 'cp' ? step.source : null;
+  const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
   // A pick or Cancel closes the picker under the focus: back to the verb that opened it.
   const section = useRef<HTMLDivElement | null>(null);
   useReturnFocusOnClose(Boolean(picker), section, '[data-verb="link-pattern"]');
   return (
     <div ref={section} className={styles.picture}>
       <FieldRow label={t('panels:diagram.picture.source', 'Source')} kind="text">
-        {source
-          ? describeLinked(source, step.picture !== null, t)
-          : asset
+        {source?.kind === 'references-step'
+          ? describeSent(source, step.picture, t)
+          : source
+            ? describeLinked(source, step.picture !== null, t)
+            : asset
             ? describeAsset(asset, t)
             : t('panels:diagram.picture.none', 'No picture yet')}
       </FieldRow>
@@ -85,7 +93,9 @@ export function DiagramStepPicture({
             <span data-link={capture ? 'capturing' : (link ?? undefined)}>
               {capture
                 ? t('panels:diagram.picture.capturing', 'Capturing…')
-                : linkSentence(link ?? 'unknown', patternOpen, t)}
+                : source.kind === 'references-step'
+                  ? sentSentence(link ?? 'unknown', patternOpen, t)
+                  : linkSentence(link ?? 'unknown', patternOpen, t)}
             </span>
           </span>
         </FieldRow>
@@ -97,6 +107,19 @@ export function DiagramStepPicture({
               'panels:diagram.picture.noLayerOrder',
               'Its layers couldn’t be put in order, so it shows the folded paper see-through.'
             )}
+          </Notice>
+        </div>
+      )}
+      {waiting && (
+        <div className={styles.notice}>
+          <Notice>
+            {t(
+              'panels:diagram.picture.waitingReferences',
+              'Waiting for References: the next step sent to the diagram fills this one.'
+            )}{' '}
+            <Button size="sm" variant="ghost" onClick={waiting.cancel}>
+              {t('panels:diagram.picture.cancelWaiting', 'Cancel')}
+            </Button>
           </Notice>
         </div>
       )}
@@ -153,6 +176,40 @@ function describeLinked(source: DiagramCpSource, posed: boolean, t: TFunction): 
         : t('panels:diagram.picture.linkedFolded', 'Folded');
     case 'folded-3d':
       return t('panels:diagram.picture.linkedFolded3d', 'Folded, in 3D');
+  }
+}
+
+/** What a step sent from References is: which card, and from which side of the paper it is shown. */
+function describeSent(
+  source: DiagramReferencesSource,
+  picture: DiagramStep['picture'],
+  t: TFunction
+): string {
+  const back = picture?.kind === 'step-diagram' && picture.mirrored;
+  const card =
+    source.card === null
+      ? t('panels:diagram.picture.sentCard', 'A card from References')
+      : source.mode === 'find'
+        ? t('panels:diagram.picture.sentFind', 'Step {{number}} of a reference', { number: source.card })
+        : t('panels:diagram.picture.sentSequence', 'Step {{number}} of the folding sequence', {
+            number: source.card,
+          });
+  return back ? t('panels:diagram.picture.sentBack', '{{card}}, from the back', { card }) : card;
+}
+
+/** How the sheet a References step came from stands, in words: it is never refreshed (D6). */
+function sentSentence(link: DiagramLinkStatus, patternOpen: boolean, t: TFunction): string {
+  switch (link) {
+    case 'current':
+      return t('panels:diagram.picture.sentCurrent', 'Unchanged since this step was sent');
+    case 'stale':
+      return t('panels:diagram.picture.sentStale', 'Pattern changed since this step was sent');
+    case 'missing':
+      return t('panels:diagram.picture.missing', 'Pattern missing');
+    case 'unknown':
+      return patternOpen
+        ? t('panels:diagram.picture.checking', 'Checking…')
+        : t('panels:diagram.picture.unknown', 'Not checked: the crease pattern isn’t open');
   }
 }
 

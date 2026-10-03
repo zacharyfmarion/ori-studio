@@ -39,6 +39,7 @@ const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
   'rotate-left': RotateCcw,
   'rotate-right': RotateCw,
   flip: FlipHorizontal2,
+  'turn-over': FlipHorizontal2,
   reset: Undo2,
 };
 
