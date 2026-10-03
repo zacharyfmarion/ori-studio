@@ -3668,7 +3668,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -3769,7 +3768,12 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7440,7 +7444,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -7541,7 +7544,12 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11214,7 +11222,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -11315,7 +11322,12 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -14916,7 +14928,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -15016,7 +15027,12 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18617,7 +18633,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -18717,7 +18732,12 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22388,7 +22408,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -22489,7 +22508,12 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26160,7 +26184,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -26261,7 +26284,12 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -29862,7 +29890,6 @@
     "dialogs:diagramExport.pageCount_other": "7eb43c6f2cb5",
     "dialogs:diagramExport.pageLabel": "7f48928e1c0f",
     "dialogs:diagramExport.pagerLabel": "dd43a4028c36",
-    "dialogs:diagramExport.pageSetupHint": "b8c03c888347",
     "dialogs:diagramExport.pdf": "1d393b0081b6",
     "dialogs:diagramExport.pdfFailed": "aea75aacd627",
     "dialogs:diagramExport.pdfHint": "4f95d13c277f",
@@ -29962,6 +29989,11 @@
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
     "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
+    "dialogs:diagramExport.formatHelp": "a0efad1fa823",
+    "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
+    "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
+    "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
+    "dialogs:diagramExport.textHelp": "39e9dd2de333"
   }
 }

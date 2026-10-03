@@ -90,6 +90,8 @@ export interface DiagramExportBinding {
   /** The save dialog is up: the dialog cannot be closed. */
   busy: boolean;
   saveError: string | null;
+  /** The name the save dialog is offered: the PDF's, or the ZIP's. */
+  filename: string;
   canExport: boolean;
   exportNow: () => Promise<void>;
 }
@@ -365,6 +367,7 @@ export function useDiagramExport(
     progress,
     busy: phase === 'saving',
     saveError,
+    filename: exportFilename(fileStemOf(document), pdf ? 'pdf' : 'zip'),
     canExport,
     exportNow,
   };

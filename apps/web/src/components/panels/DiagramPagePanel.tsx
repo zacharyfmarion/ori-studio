@@ -11,12 +11,15 @@ import {
   type DiagramPaperSize,
   type DiagramPictureScale,
 } from '../../diagram/document/diagramDocument';
+import { layoutLabel, orientationLabel, paperSizeLabel } from '../../diagram/pages/pageSetupLabels';
 import { useDiagramPageSetup } from '../../diagram/pages/useDiagramPageSetup';
 import { DiagramStyleControl } from '../diagram/DiagramStyleControl';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { NumberRow, SegmentedRow, SelectRow, ToggleRow } from '../ui/fieldRows';
 import { OptionCards } from '../ui/OptionCard';
 import styles from './DiagramPagePanel.module.css';
+
+const PAPER_SIZES: readonly DiagramPaperSize[] = ['a4', 'a5', 'b5-jis', 'letter'];
 
 /**
  * The Page pane: the paper, how steps are laid out on it, what the header and
@@ -39,12 +42,7 @@ export function DiagramPagePanel() {
             label={t('panels:diagram.pagePane.size', 'Size')}
             value={page.size}
             disabled={readOnly}
-            options={[
-              { id: 'a4', label: t('panels:diagram.pagePane.sizes.a4', 'A4') },
-              { id: 'a5', label: t('panels:diagram.pagePane.sizes.a5', 'A5') },
-              { id: 'b5-jis', label: t('panels:diagram.pagePane.sizes.b5Jis', 'B5 (JIS)') },
-              { id: 'letter', label: t('panels:diagram.pagePane.sizes.letter', 'US Letter') },
-            ]}
+            options={PAPER_SIZES.map((size) => ({ id: size, label: paperSizeLabel(size, t) }))}
             onChange={(size) => setPage({ size: size as DiagramPaperSize }, 'size')}
           />
           <SegmentedRow
@@ -54,12 +52,12 @@ export function DiagramPagePanel() {
             options={[
               {
                 id: 'portrait',
-                label: t('panels:diagram.pagePane.portrait', 'Portrait'),
+                label: orientationLabel('portrait', t),
                 icon: <RectangleVertical size={14} aria-hidden="true" />,
               },
               {
                 id: 'landscape',
-                label: t('panels:diagram.pagePane.landscape', 'Landscape'),
+                label: orientationLabel('landscape', t),
                 icon: <RectangleHorizontal size={14} aria-hidden="true" />,
               },
             ]}
@@ -87,13 +85,13 @@ export function DiagramPagePanel() {
               options={[
                 {
                   value: 'grid',
-                  label: t('panels:diagram.pagePane.grid', 'Grid'),
+                  label: layoutLabel('grid', t),
                   description: t('panels:diagram.pagePane.gridHint', 'Rows read left to right.'),
                   icon: <LayoutGrid size={16} />,
                 },
                 {
                   value: 'flow',
-                  label: t('panels:diagram.pagePane.flow', 'Flow'),
+                  label: layoutLabel('flow', t),
                   description: t('panels:diagram.pagePane.flowHint', 'Rows turn back at each end.'),
                   icon: <Waypoints size={16} />,
                 },

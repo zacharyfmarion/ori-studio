@@ -131,6 +131,11 @@ describe('DiagramExportDialog', () => {
     expect(notice()).toContain('Step 2 has no picture and will print as blank space.');
     expect(exportButton().textContent).toBe('Export PDF');
     expect(exportButton().disabled).toBe(false);
+    // The setup it lays out, and the name the save is offered.
+    expect(host.textContent).toContain('Page setupA4 Portrait · Grid, 3 × 3');
+    expect(host.textContent).toContain('Crane.pdf');
+    await click(radio('Step files (ZIP)'));
+    expect(host.textContent).toContain('Crane.zip');
   });
 
   it('writes the PDF, saves it under the title, remembers how, and says so', async () => {
@@ -235,6 +240,8 @@ describe('DiagramExportDialog', () => {
         await new Promise((resolve) => requestAnimationFrame(resolve));
       });
       expect(activatePanel).toHaveBeenCalledWith('diagram-page');
+      // The pages the setup lays out, beside it.
+      expect(useWorkspaceStore.getState().diagramView).toBe('pages');
     } finally {
       activatePanel.mockRestore();
     }

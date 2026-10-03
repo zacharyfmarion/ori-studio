@@ -5,6 +5,8 @@ import { STEP_FILE_DPIS, type DiagramExportSettings } from '../../diagram/export
 import { PRINT_SHOP_BLEED_MM } from '../../diagram/export/diagramPdf';
 import { STEP_FILE_MM_RANGE } from '../../diagram/export/stepFiles';
 import type { DiagramExportBinding } from '../../diagram/export/useDiagramExport';
+import type { DiagramPageSetup } from '../../diagram/document/diagramDocument';
+import { pageSetupSummary } from '../../diagram/pages/pageSetupLabels';
 import { Button } from '../ui/Button';
 import { NumberRow, SegmentedRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -33,10 +35,13 @@ export function formatStepNumbers(numbers: readonly number[], language: string, 
  */
 export function DiagramExportOptions({
   binding,
+  page,
   onEditPageSetup,
 }: {
   binding: DiagramExportBinding;
-  /** Close the dialog for the Page tab: the pages' size, layout and style are set there. */
+  /** The pages' setup, summed up beside Edit. */
+  page: DiagramPageSetup;
+  /** Close the dialog for the pages and the Page tab: their size, layout and style are set there. */
   onEditPageSetup: () => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -94,9 +99,10 @@ export function DiagramExportOptions({
             ]}
           />
           <div className={styles.pageSetup}>
-            <small className={styles.hint}>
-              {t('dialogs:diagramExport.pageSetupHint', 'The paper, the layout and the style are set in the Page tab.')}
-            </small>
+            <span className={styles.setup}>
+              <span className={styles.setupLabel}>{t('dialogs:diagramExport.pageSetup', 'Page setup')}</span>
+              <span>{pageSetupSummary(page, t)}</span>
+            </span>
             <Button size="sm" variant="ghost" onClick={onEditPageSetup}>
               {t('dialogs:diagramExport.editPageSetup', 'Edit page setup')}
             </Button>
@@ -106,6 +112,10 @@ export function DiagramExportOptions({
         <section className={styles.section}>
           <SegmentedRow
             label={t('dialogs:diagramExport.format', 'Format')}
+            help={t(
+              'dialogs:diagramExport.formatHelp',
+              'SVG stays sharp at any size and opens in most drawing and layout apps. PNG is a picture at the resolution below.'
+            )}
             value={draft.format}
             onChange={(format) => patch({ format: format === 'png' ? 'png' : 'svg' })}
             options={[
@@ -126,11 +136,13 @@ export function DiagramExportOptions({
           )}
           <ToggleRow
             label={t('dialogs:diagramExport.number', 'Step number')}
+            help={t('dialogs:diagramExport.numberHelp', 'Draws the step’s number into its file.')}
             checked={draft.number}
             onChange={(number) => patch({ number })}
           />
           <ToggleRow
             label={t('dialogs:diagramExport.text', 'Instruction')}
+            help={t('dialogs:diagramExport.textHelp', 'Leave it off to set the text in your own layout app.')}
             checked={draft.text}
             onChange={(text) => patch({ text })}
           />

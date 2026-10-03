@@ -94,6 +94,17 @@
   font-size: 0.72rem;
 }
 
+/* The name the save dialog is offered, where the footer has room for it. */
+.filename {
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 620px) {
   .preview {
     min-height: 210px;

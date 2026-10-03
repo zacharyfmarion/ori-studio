@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { trackDiagramViewSwitched } from '../../analytics';
 import type { TFunction } from 'i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DiagramDocument } from '../../diagram/document/diagramDocument';
@@ -82,17 +83,23 @@ export function DiagramExportDialog({
       options={
         <DiagramExportOptions
           binding={binding}
+          page={document.page}
           onEditPageSetup={() => {
             close();
+            showPages();
             showDiagramPane(DIAGRAM_PAGE_PANE_ID);
           }}
         />
       }
       footer={
         <>
-          {binding.saveError && (
+          {binding.saveError ? (
             <span className={styles.saveError} role="alert">
               {t('dialogs:diagramExport.saveFailed', 'Couldn’t export: {{message}}', { message: binding.saveError })}
+            </span>
+          ) : (
+            <span className={styles.filename} title={binding.filename}>
+              {binding.filename}
             </span>
           )}
           <Button size="sm" variant="ghost" disabled={binding.busy} onClick={close}>
@@ -107,6 +114,14 @@ export function DiagramExportDialog({
       }
     />
   );
+}
+
+/** Edit page setup: the pages the setup lays out, with the Page tab beside them. */
+function showPages(): void {
+  const store = useWorkspaceStore.getState();
+  if (store.diagramView === 'pages') return;
+  store.setDiagramView('pages');
+  trackDiagramViewSwitched('pages');
 }
 
 /** The primary button: what it will write, or how far it has got. */
