@@ -6,11 +6,15 @@ import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewpor
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import { stepHasPicture, type DiagramStep } from '../../diagram/document/diagramDocument';
+import { STEP_TEXT_LEADING_MM, STEP_TEXT_SIZE_MM } from '../../diagram/pages/diagramPageLayout';
 import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
 import { composedPageUrl } from '../../diagram/pages/useDiagramPages';
 import { PAGES_PAD, PAGES_PX_PER_MM, usePagesView } from '../../diagram/pages/usePagesView';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
 import styles from './DiagramPagesView.module.css';
+
+/** How far a cut instruction's outline stands off its text, in mm. */
+const CUT_OUTLINE_MM = 1;
 
 /**
  * The Pages view (D10): each page as it will print, composed into an SVG and
@@ -163,12 +167,25 @@ export function DiagramPagesView({
                             </div>
                           )}
                           {cell.textOverflow && (
+                            // Round the text, never over it: an outline of the
+                            // lines it set, and the word on a tab under its end.
                             <div
                               className={styles.overflow}
                               aria-hidden="true"
-                              style={{ left: mm(cell.text.x), top: mm(cell.text.firstBaseline) + 4 }}
+                              style={{
+                                left: mm(cell.text.x - CUT_OUTLINE_MM),
+                                top: mm(cell.text.firstBaseline - STEP_TEXT_SIZE_MM - CUT_OUTLINE_MM),
+                                width: mm(cell.text.widthMm + 2 * CUT_OUTLINE_MM),
+                                height: mm(
+                                  STEP_TEXT_SIZE_MM +
+                                    (Math.max(1, cell.text.lines.length) - 1) * STEP_TEXT_LEADING_MM +
+                                    2 * CUT_OUTLINE_MM
+                                ),
+                              }}
                             >
-                              {t('panels:diagram.pages.textCut', 'Text doesn’t fit')}
+                              <span className={styles.overflowTab}>
+                                {t('panels:diagram.pages.textCut', 'Text doesn’t fit')}
+                              </span>
                             </div>
                           )}
                           <div

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { LayoutGrid, RectangleHorizontal, RectangleVertical, Waypoints } from 'lucide-react';
+import { LayoutGrid, Waypoints } from 'lucide-react';
 import {
   FIRST_PAGE_NUMBER_RANGE,
   PAGE_COLUMNS_RANGE,
@@ -50,28 +50,23 @@ export function DiagramPagePanel() {
             value={page.orientation}
             disabled={readOnly}
             options={[
-              {
-                id: 'portrait',
-                label: orientationLabel('portrait', t),
-                icon: <RectangleVertical size={14} aria-hidden="true" />,
-              },
-              {
-                id: 'landscape',
-                label: orientationLabel('landscape', t),
-                icon: <RectangleHorizontal size={14} aria-hidden="true" />,
-              },
+              // Words alone: with an icon each, the pair is wider than the
+              // pane's default width leaves it, and both words were cut.
+              { id: 'portrait', label: orientationLabel('portrait', t) },
+              { id: 'landscape', label: orientationLabel('landscape', t) },
             ]}
             onChange={(orientation) =>
               setPage({ orientation: orientation as DiagramPageOrientation }, 'orientation')
             }
           />
           <NumberRow
-            label={t('panels:diagram.pagePane.margin', 'Margin')}
+            // The unit in the label, not after the field: the stepper with a
+            // suffix ran past the pane at its default width.
+            label={t('panels:diagram.pagePane.marginMm', 'Margin (mm)')}
             value={page.marginMm}
             min={PAGE_MARGIN_MM_RANGE.min}
             max={PAGE_MARGIN_MM_RANGE.max}
             step={1}
-            suffix={t('panels:diagram.pagePane.mm', 'mm')}
             disabled={readOnly}
             onCommit={(marginMm) => setPage({ marginMm }, 'margin')}
           />

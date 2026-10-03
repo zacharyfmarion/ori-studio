@@ -87,17 +87,30 @@
   pointer-events: none;
 }
 
-/* The instruction was cut with "…" on the page. */
+/*
+ * The instruction was cut with "…" on the page: an outline round the lines it
+ * set, and the word on a tab hanging from the outline's foot at its end, in
+ * the space under the text, so neither covers a letter or the picture.
+ */
 .overflow {
   position: absolute;
-  padding: 1px 6px;
+  box-sizing: border-box;
+  border: 1px dashed var(--status-warning, #d7a85c);
   border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
+.overflowTab {
+  position: absolute;
+  top: 100%;
+  right: -1px;
+  padding: 1px 6px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   background: var(--status-warning, #d7a85c);
   color: #1d1d1d;
   font-size: 0.62rem;
   font-weight: 600;
   white-space: nowrap;
-  pointer-events: none;
 }
 
 .status {

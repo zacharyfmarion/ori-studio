@@ -2515,7 +2515,10 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - Browser (`artifacts/diagram-parity/pane-pose.mjs`, crane step 4): 30 typed into Rotation, then Turn Over pressed in the pane; each was one capture and one undo step.
   - [x] **The header**: Steps | Pages centred, as in the mockup. The title's side and the verbs' side share the row around it (each in a wrapper the header owns, so no module rule ties with the frame's `.panel-toolbar__group`); the verbs' side never goes below its own width, and with less room the row wraps as it did. Browser (`artifacts/diagram-parity/header.mjs`): the switch's middle was the header's at 1440 and 1100 px; at 800 the verbs wrapped under the title.
   - [x] **Export**: the filename in the footer (the binding's `filename`, from the same `exportFilename` the save is offered), the step files' notes (help marks on Format, Step number and Instruction, as Same size already had), Edit page setup switching to Pages beside the Page tab, and the page setup in a line ("A4 Portrait · Grid, 3 × 3") where the fixed hint was. The setup's words are one set of keys (`pageSetupLabels.ts`) for the Page pane and the summary. Browser (`artifacts/diagram-parity/export.mjs`).
-  - [ ] **Defects**: the Page pane at its default 280 px width (Portrait and Landscape cut, Margin's + past the edge), and the Pages view's "Text doesn't fit" chip over the instruction.
+  - [x] **Defects**: the Page pane at its default 280 px width (Portrait and Landscape cut, Margin's + past the edge), and the Pages view's "Text doesn't fit" chip over the instruction.
+    - The pane: Orientation's options are words alone and Margin carries its unit in its label ("Margin (mm)"), in the pane itself — the row CSS is the shared global `control-row` block, which an unrelated fix does not grow. Measured at 280 px: nothing past the pane, nothing cut (`artifacts/diagram-parity/pagepane-before-after.png`).
+    - The chip: an outline round the cut text and the words on a tab hanging from its foot, so no letter and no picture is covered (`textcut-before-after.png`; a tab above the text covered the shrunk picture's corner).
+    - The 390 px blank Pages view is Phase 10's (phone).
 
 ### Phase 8: a linked pattern, shown three ways (D19, D21)
 
