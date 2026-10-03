@@ -2892,7 +2892,36 @@ insert steps at a chosen place without the latch.
     field far wider than itself. The hairline and the tabs are one item, so a
     wrapped row never ends on the hairline. Title to tabs is now 8 px, the
     hairline, 8 px (`header-sep-{before,after}-{crane,fresh}-*.png`).
-- [ ] Sync with `main`, re-take the ratchet numbers, run the full validation set, then open the one PR to `main`; a CHANGELOG entry; one line in the README's feature list.
+- [x] **Review**, and its fixes committed. Two reviewers (layout, behaviour),
+  each finding put to a skeptic: 8 confirmed (6 distinct), none refuted. Fixed:
+  - Replace on a phone opened on the list when its pattern had been planned
+    again: the browser found it by its sheet, the phone flow compared plan
+    ids. The browser now says whether it shows the pattern its state names
+    (`patternNamed`), and the phone flow reads that; the opening runs in a
+    layout effect, so the list never paints for a frame first.
+  - The step keys reached the hidden cards from the phone's list (↓↓ selected
+    a card of the hidden pattern): they are registered only while cards are on
+    screen. A screen change now moves focus where the press went — the browser
+    on a pattern's cards (it fell to the body), the pattern just left on the
+    list (it stayed on the reused Back button, then reading ← Steps). Before
+    and after in Chromium: `artifacts/diagram-phase10/browser-phone-focus.mjs`.
+  - The header in a narrow pane on a wide window (a 391 px pane at 721 px)
+    wrapped the tabs onto a row that began with the hairline, 18 px tall. The
+    title, hairline and tabs are one item now: the title gives way first, to a
+    5rem floor, then the count; the verbs wrap. Every other width and the
+    phone measure as before (`artifacts/diagram-parity/header-wrap.mjs`,
+    `header-narrow.mjs`, `header-wrap-{before,after}-*.png`).
+  - The test of "opens straight on the cards … and in Find" never rendered
+    Find; it does now.
+- [x] Sync with `main`, re-take the ratchet numbers, run the full validation set, then open the one PR to `main`; a CHANGELOG entry; one line in the README's feature list.
+  - As done: `main` had nothing new (merge base `395851cba`); the global
+    stylesheets did not grow (two shared rules edited in place, none added),
+    so the ratchet stands. Lint, typecheck, i18n check, the full vitest suite,
+    `cargo fmt`/`clippy`/tests for the PDF crates, `build:web`, the landing
+    budget (JS 266.9 of 300 KB, CSS 25.0 of 40 KB), the static first paint
+    (54/54) and `check:desktop` all pass. The CHANGELOG section is written by
+    `scripts/release.sh prepare --notes` at release, so the entry is drafted
+    in the PR body; the README has a paragraph on the Diagram.
 
 ### Later (written up, not built)
 
