@@ -52,6 +52,12 @@ export interface DiagramCaptureRequest {
   kind: 'diagram-capture' | 'diagram-refresh';
   /** The undo step's name. */
   label: string;
+  /**
+   * An undo entry to fold this capture into, when it is still the newest:
+   * Refresh all's one entry for the whole run. Anything recorded since starts
+   * an entry of its own rather than being merged into.
+   */
+  joinEntry?: object;
 }
 
 export type DiagramCaptureOutcome =
@@ -178,15 +184,19 @@ export async function commitStepCapture(
   commit: DiagramCommit,
   start: StepCaptureStart,
   captured: { source: DiagramCpSource; picture: CapturedPicture },
-  label: string
+  label: string,
+  joinEntry?: object
 ): Promise<{ changed: boolean; tooDetailed: boolean } | null> {
   const kept = await keptPicture(captured.picture, captured.source.render, start.style);
   const now = store.get();
   const { stepId, loadId, revision } = start.guard;
   const current = now.diagram?.steps[stepIndex(now.diagram, stepId)];
   if (now.diagramLoadId !== loadId || !current || current.revision !== revision) return null;
-  const next = commit(label, (diagram) =>
-    setLinkedPicture(diagram, stepId, { source: captured.source, ...kept })
+  const join = joinEntry !== undefined && now.diagramHistory.past.at(-1) === joinEntry;
+  const next = commit(
+    label,
+    (diagram) => setLinkedPicture(diagram, stepId, { source: captured.source, ...kept }),
+    join
   );
   return { changed: next !== null, tooDetailed: kept.asset !== undefined };
 }
@@ -200,7 +210,9 @@ export function captureFailure(error: unknown): Extract<DiagramCaptureOutcome, {
 /** The slice's commit: one undo step, the project dirty, nothing for an edit that changes nothing. */
 export type DiagramCommit = (
   label: string,
-  edit: (document: DiagramDocument) => DiagramDocument
+  edit: (document: DiagramDocument) => DiagramDocument,
+  /** Fold the edit into the newest undo entry instead of recording one. */
+  extend?: boolean
 ) => DiagramDocument | null;
 
 /** Capture a step's picture from its pattern as it stands, and commit it. */
@@ -237,7 +249,8 @@ export async function runDiagramCapture(
       commit,
       start,
       { source: result.source, picture: result.captured },
-      request.label
+      request.label,
+      request.joinEntry
     );
     if (!committed) return { status: 'discarded' };
     return {
@@ -251,6 +264,62 @@ export async function runDiagramCapture(
     return captureFailure(error);
   } finally {
     endStepCapture(store, stepId);
+  }
+}
+
+/**
+ * Capture a new linked step and add it (Add to diagram from Edit): the
+ * capture for a step that does not exist yet, inserted with its picture as one
+ * undo step under the insertion rule. A fold is a visible `'diagram-capture'`
+ * run, stoppable from the global toast. The outcome, and the new step's id
+ * when there is one.
+ */
+export async function captureNewLinkedStep(
+  store: DiagramCaptureStore,
+  request: Omit<DiagramCaptureRequest, 'kind'>
+): Promise<{ outcome: DiagramCaptureOutcome; stepId: string | null }> {
+  const state = store.get();
+  if (state.diagramReadOnly) return { outcome: { status: 'read-only' }, stepId: null };
+  const cp = state.oristudioCpDocument;
+  if (!cp) return { outcome: { status: 'no-pattern' }, stepId: null };
+  const loadId = state.diagramLoadId;
+  const style = state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE;
+  const auxHandle = cpAuxLinesKey(cp.geometry) === NO_AUX_LINES_KEY ? null : cp.handle;
+  try {
+    const document = cp.document;
+    const segmentation =
+      request.scope.kind === 'segment'
+        ? await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document))
+        : null;
+    const capture = (runtime: CpCaptureRuntime) =>
+      captureStep(runtime, { document, segmentation, scope: request.scope, render: request.render, style });
+    const result =
+      request.render.mode === 'crease-pattern'
+        ? await capture(createCpCaptureRuntime(FOLD_RUN_NONE, auxHandle))
+        : await abandonOnEngineLoss(
+            withFoldInFlight(store, 'diagram-capture', (runId) =>
+              capture(createCpCaptureRuntime(runId, auxHandle))
+            )
+          );
+    if (result.status !== 'captured') return { outcome: result, stepId: null };
+    const kept = await keptPicture(result.captured, result.source.render, style);
+    const stepId = store.get().addLinkedDiagramStep(
+      { source: result.source, ...kept },
+      { loadId, label: request.label }
+    );
+    if (stepId === null) return { outcome: { status: 'discarded' }, stepId: null };
+    return {
+      outcome: {
+        status: 'captured',
+        changed: true,
+        render: result.source.render,
+        noLayerOrder: result.noLayerOrder,
+        tooDetailed: kept.asset !== undefined,
+      },
+      stepId,
+    };
+  } catch (error) {
+    return { outcome: captureFailure(error), stepId: null };
   }
 }
 
@@ -275,7 +344,7 @@ function clearRun(store: DiagramCaptureStore, stepId: string): void {
  * The picture a step keeps: the capture's own, or — for a scene past the
  * budget — a bitmap of it in the diagram's pens, kept as an asset.
  */
-async function keptPicture(
+export async function keptPicture(
   captured: CapturedPicture,
   render: DiagramCpRender,
   style: DiagramStyle

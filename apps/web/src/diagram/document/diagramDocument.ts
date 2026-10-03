@@ -522,6 +522,24 @@ export function setLinkedPicture(
   }));
 }
 
+/**
+ * A new step linked to the pattern, inserted at `index`: what Add to diagram
+ * makes from Edit. Its picture may be null — a figure with no fold to read is
+ * added to be posed in the Diagram.
+ */
+export function insertLinkedStep(
+  document: DiagramDocument,
+  link: Omit<CapturedLink, 'picture'> & { picture: DiagramPicture | null },
+  index: number,
+  newId: DiagramIdFactory = randomDiagramId
+): { document: DiagramDocument; stepId: string } {
+  const step: DiagramStep = { ...createStep(newId), source: link.source, picture: link.picture };
+  return {
+    document: insertSteps(withAssets(document, link.asset ? [link.asset] : []), [step], index),
+    stepId: step.id,
+  };
+}
+
 /** An upload's pose: how its shared asset is turned and flipped when the step is painted. */
 export interface UploadPose {
   rotationQuarterTurns: QuarterTurns;

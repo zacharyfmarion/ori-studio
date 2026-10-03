@@ -542,6 +542,7 @@
     "selectedCount_one": "{{count}} ausgewählt",
     "selectedCount_other": "{{count}} ausgewählt",
     "selectionToolbar": {
+      "addToDiagram": "Zum Diagramm hinzufügen",
       "export": "Exportieren…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -701,8 +702,10 @@
       "moveEarlier": "Nach vorne",
       "moveLater": "Nach hinten",
       "noPatternHint": "Öffne ein Faltmuster in Bearbeiten, um es zu verknüpfen",
+      "noPatternOpenHint": "Sein Faltmuster ist nicht geöffnet",
       "noPatternRefreshHint": "Öffne sein Faltmuster in Bearbeiten, um es zu aktualisieren",
       "noPictureHint": "Dieser Schritt hat noch kein Bild",
+      "openInEdit": "In Bearbeiten öffnen",
       "readOnlyHint": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet",
       "refreshPicture": "Bild aktualisieren",
       "relinkPattern": "Muster neu verknüpfen…",
@@ -755,8 +758,11 @@
       "addStep": "Schritt hinzufügen",
       "linkPattern": "Muster verknüpfen…",
       "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
+      "nothingStale": "Jeder verknüpfte Schritt zeigt sein Muster, wie es ist",
+      "refreshAll": "Veraltete Schritte aktualisieren",
       "stepCount_one": "{{count}} Schritt",
       "stepCount_other": "{{count}} Schritte",
+      "stopRefreshing": "Aktualisieren stoppen ({{done}} von {{total}})",
       "titleLabel": "Titel des Diagramms",
       "titlePlaceholder": "Unbenanntes Diagramm",
       "uploadPictures": "Bilder hochladen…"
@@ -915,6 +921,7 @@
     "transversalCrossingLabel": "Falte schneidet eine Fläche"
   },
   "foldedFigureActions": {
+    "addToDiagram": "Zum Diagramm hinzufügen",
     "anotherSolution": "Andere Lösung",
     "delete": "Löschen",
     "duplicate": "Duplizieren",

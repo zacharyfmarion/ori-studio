@@ -6,6 +6,7 @@ import {
   type DiagramCaptureVia,
 } from '../../analytics';
 import { fold3dRefusalMessage } from '../../cp-workspace/folded/foldedFigureNotice';
+import { requestCpRegionFocus } from '../../cp-workspace/regions/regionFocusRequest';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import i18n from '../../i18n';
 import type { CpSegment } from '../../lib/creasePatternSegmentation';
@@ -65,6 +66,19 @@ export async function refreshDiagramStep(stepId: string): Promise<boolean> {
   });
   report(outcome, render, 'refresh');
   return outcome.status === 'captured';
+}
+
+/**
+ * Show a linked step's pattern in Edit: the region it is linked to, or the box
+ * its figure was folded from, framed on Edit's canvas when it next draws.
+ */
+export function openDiagramStepInEdit(stepId: string): void {
+  const { diagram } = useWorkspaceStore.getState();
+  const step = diagram?.steps[stepIndex(diagram, stepId)];
+  if (step?.source?.kind !== 'cp') return;
+  const { scope } = step.source;
+  requestCpRegionFocus(scope.kind === 'segment' ? scope.region.bounds : scope.bounds);
+  useLayoutStore.getState().activateWorkspace('edit');
 }
 
 /** How a captured picture shows its pattern, for analytics. */

@@ -569,6 +569,7 @@
     "selectedCount_many": "{{count}} seleccionados",
     "selectedCount_other": "{{count}} seleccionados",
     "selectionToolbar": {
+      "addToDiagram": "Añadir al diagrama",
       "export": "Exportar…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -730,8 +731,10 @@
       "moveEarlier": "Mover antes",
       "moveLater": "Mover después",
       "noPatternHint": "Abre un patrón de pliegues en Editar para vincularlo",
+      "noPatternOpenHint": "Su patrón de pliegues no está abierto",
       "noPatternRefreshHint": "Abre su patrón de pliegues en Editar para actualizarlo",
       "noPictureHint": "Este paso aún no tiene imagen",
+      "openInEdit": "Abrir en Editar",
       "readOnlyHint": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en modo de solo lectura",
       "refreshPicture": "Actualizar imagen",
       "relinkPattern": "Volver a vincular patrón…",
@@ -784,9 +787,12 @@
       "addStep": "Añadir paso",
       "linkPattern": "Vincular patrón…",
       "moreAdd": "Más formas de añadir pasos",
+      "nothingStale": "Todos los pasos vinculados muestran su patrón tal como está",
+      "refreshAll": "Actualizar pasos desactualizados",
       "stepCount_one": "{{count}} paso",
       "stepCount_many": "{{count}} pasos",
       "stepCount_other": "{{count}} pasos",
+      "stopRefreshing": "Detener la actualización ({{done}} de {{total}})",
       "titleLabel": "Título del diagrama",
       "titlePlaceholder": "Diagrama sin título",
       "uploadPictures": "Subir imágenes…"
@@ -949,6 +955,7 @@
     "transversalCrossingLabel": "Un pliegue corta una cara"
   },
   "foldedFigureActions": {
+    "addToDiagram": "Añadir al diagrama",
     "anotherSolution": "Otra solución",
     "delete": "Eliminar",
     "duplicate": "Duplicar",

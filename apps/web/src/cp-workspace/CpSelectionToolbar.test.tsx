@@ -165,8 +165,9 @@ describe('CpSelectionToolbar', () => {
     await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
     expect(toolbar).not.toBeNull();
-    // Fold, Export, Save to image, Simulate inline, Simulate, Create shareable link.
-    expect(toolbar?.querySelectorAll('button').length).toBe(6);
+    // Fold, Export, Save to image, Simulate inline, Simulate, Add to diagram, Create shareable link.
+    expect(toolbar?.querySelectorAll('button').length).toBe(7);
+    expect(document.querySelector('button[aria-label="Add to diagram"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate inline"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate"]')).not.toBeNull();
@@ -201,7 +202,7 @@ describe('CpSelectionToolbar', () => {
     seedStore([1, 3, 5, 7, 8]);
     await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
-    expect(toolbar?.querySelectorAll('button').length).toBe(5);
+    expect(toolbar?.querySelectorAll('button').length).toBe(6);
     expect(document.querySelector('button[aria-label="Create shareable link"]')).toBeNull();
     expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
   });

@@ -5,6 +5,7 @@ import {
   type DiagramAsset,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
+import { refreshAllDiagramSteps, stopRefreshAll } from '../../diagram/capture/captureQueue';
 import { openDiagramPatternPicker } from '../../diagram/capture/stepCaptureActions';
 import { useDiagramCardLinks } from '../../diagram/capture/useCardLinks';
 import { useDiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
@@ -37,6 +38,7 @@ const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'doub
 const uploadPictures = () => void pickStepPictures();
 const uploadPictureFor = (stepId: string) => void pickStepPictures({ replaceStepId: stepId });
 /** Link pattern… from the header or the empty diagram: a new step, and its pattern picker. */
+const refreshAll = () => void refreshAllDiagramSteps();
 const linkNewStep = () => {
   const stepId = addDiagramStep();
   if (stepId) openDiagramPatternPicker(stepId);
@@ -78,6 +80,9 @@ export function DiagramPanel() {
   const { dropTarget, ...dropHandlers } = useStepPictureDrop();
   const links = useDiagramCardLinks(steps);
   const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
+  const refreshing = useWorkspaceStore((state) => state.diagramRefreshAll);
+  let staleCount = 0;
+  for (const status of links.statuses.values()) if (status === 'stale') staleCount += 1;
 
   const detailIndex =
     detail !== null && selectedStepId !== null
@@ -136,6 +141,10 @@ export function DiagramPanel() {
         onUpload={uploadPictures}
         patternOpen={patternOpen}
         onLink={linkNewStep}
+        staleCount={staleCount}
+        refreshing={refreshing}
+        onRefreshAll={refreshAll}
+        onStopRefreshing={stopRefreshAll}
         drawerSlot={setViewDrawerSlot}
       />
       {readOnly && (

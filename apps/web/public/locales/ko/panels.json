@@ -515,6 +515,7 @@
     "rotateSimulationWindow": "시뮬레이션 창 회전",
     "selectedCount_other": "{{count}}개 선택됨",
     "selectionToolbar": {
+      "addToDiagram": "다이어그램에 추가",
       "export": "내보내기…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -672,8 +673,10 @@
       "moveEarlier": "앞으로 이동",
       "moveLater": "뒤로 이동",
       "noPatternHint": "연결하려면 편집에서 전개도를 여세요",
+      "noPatternOpenHint": "해당 전개도가 열려 있지 않습니다",
       "noPatternRefreshHint": "새로 고치려면 편집에서 해당 전개도를 여세요",
       "noPictureHint": "이 단계에는 아직 그림이 없습니다",
+      "openInEdit": "편집에서 열기",
       "readOnlyHint": "이 도해는 최신 Ori Studio에서 만들어져 읽기 전용으로 열립니다",
       "refreshPicture": "그림 새로 고침",
       "relinkPattern": "패턴 다시 연결…",
@@ -726,7 +729,10 @@
       "addStep": "단계 추가",
       "linkPattern": "패턴 연결…",
       "moreAdd": "단계를 추가하는 다른 방법",
+      "nothingStale": "연결된 모든 단계가 패턴의 현재 모습을 보여 줍니다",
+      "refreshAll": "오래된 단계 새로 고침",
       "stepCount_other": "{{count}}단계",
+      "stopRefreshing": "새로 고침 중지 ({{done}}/{{total}})",
       "titleLabel": "도해 제목",
       "titlePlaceholder": "제목 없는 도해",
       "uploadPictures": "그림 업로드…"
@@ -885,6 +891,7 @@
     "transversalCrossingLabel": "접힘선이 면을 가로지름"
   },
   "foldedFigureActions": {
+    "addToDiagram": "다이어그램에 추가",
     "anotherSolution": "다른 해",
     "delete": "삭제",
     "duplicate": "복제",

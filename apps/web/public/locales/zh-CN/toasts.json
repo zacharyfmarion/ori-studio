@@ -20,6 +20,7 @@
     "simulateNoRegion": "请选择一个闭合区域进行模拟。"
   },
   "diagram": {
+    "addedAsStep": "已添加为第 {{number}} 步",
     "capture": {
       "failed": "无法捕获图片",
       "missing": "该图样已不在折痕图中。",
@@ -30,6 +31,8 @@
       "unknown": "折痕图尚未就绪。请稍后再试。"
     },
     "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",
+    "openDiagram": "打开图解",
+    "refreshedAll_other": "已刷新 {{count}} 个步骤",
     "uploadFailed_other": "{{count}} 张图片未能添加",
     "uploadFailureLine": "{{name}}：{{reason}}",
     "uploadFailureMore_other": "另有 {{count}} 张",

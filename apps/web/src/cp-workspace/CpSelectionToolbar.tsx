@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MenuContent, MenuItem, MenuItemLabel } from '../components/ui/Menu';
 import {
+  BookOpen,
   Compass,
   FileDown,
   ImageDown,
@@ -18,6 +19,7 @@ import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import { useSimulateSelection } from './inlineSimulation/useSimulateSelection';
+import { addPatternToDiagram } from '../diagram/capture/addToDiagram';
 import { selectionCoversEntireCp, useOpenReferences } from './references/useOpenReferences';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
@@ -213,6 +215,14 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         onClick={() => runAndDismiss(() => void simulateSegment(segmentId))}
       >
         <Play size={14} />
+      </IconButton>
+      <IconButton
+        size="sm"
+        variant="toolbar"
+        title={t('panels:creasePattern.selectionToolbar.addToDiagram', 'Add to diagram')}
+        onClick={() => runAndDismiss(() => void addPatternToDiagram(match.segment))}
+      >
+        <BookOpen size={14} />
       </IconButton>
       {offerReferences && (
         <IconButton

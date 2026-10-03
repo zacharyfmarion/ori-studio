@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Download, ImageOff, Link2, RefreshCw, Upload } from 'lucide-react';
+import { Download, ImageOff, Link2, PenTool, RefreshCw, Upload } from 'lucide-react';
 import {
   diagramStepCommand,
   type DiagramStepAction,
@@ -24,6 +24,7 @@ const VERBS: readonly { id: DiagramStepActionId; icon: typeof Upload; variant: '
   { id: 'refresh-picture', icon: RefreshCw, variant: 'secondary' },
   { id: 'upload-picture', icon: Upload, variant: 'secondary' },
   { id: 'link-pattern', icon: Link2, variant: 'secondary' },
+  { id: 'open-in-edit', icon: PenTool, variant: 'ghost' },
   { id: 'export-picture', icon: Download, variant: 'ghost' },
   { id: 'remove-picture', icon: ImageOff, variant: 'ghost' },
 ];

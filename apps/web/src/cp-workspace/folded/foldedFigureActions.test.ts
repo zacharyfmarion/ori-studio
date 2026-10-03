@@ -270,6 +270,29 @@ describe('buildFoldedFigureActions', () => {
     expect(danger).toEqual(['delete']);
   });
 
+  describe('add to diagram', () => {
+    const provenance = { sourceBounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, sourceFingerprint: 'cs1:x' };
+
+    it('is absent when the caller supplies no diagram, and sits before the manage group', () => {
+      expect(commandIds(makeFigure(provenance), makeDeps())).not.toContain('add-to-diagram');
+      const actions = buildFoldedFigureActions(makeFigure(provenance), makeDeps({ addToDiagram: vi.fn() }));
+      const at = actions.findIndex((action) => action.id === 'add-to-diagram');
+      expect(actions[at + 1]).toEqual({ kind: 'separator', id: 'before-manage' });
+    });
+
+    it('hands the figure over, and is held for a figure with no box to link to', () => {
+      const addToDiagram = vi.fn();
+      const deps = makeDeps({ addToDiagram });
+      const figure = makeFigure(provenance);
+      const action = command(figure, deps, 'add-to-diagram');
+      expect(action).toMatchObject({ label: 'Add to Diagram', icon: 'add-to-diagram', disabled: false });
+      action.run();
+      expect(addToDiagram).toHaveBeenCalledWith(figure);
+      // Folded before provenance was recorded.
+      expect(command(makeFigure(), deps, 'add-to-diagram').disabled).toBe(true);
+    });
+  });
+
   describe('export', () => {
     it('is absent when the caller supplies no export support', () => {
       expect(commandIds(makeFigure(), makeDeps())).not.toContain('export');

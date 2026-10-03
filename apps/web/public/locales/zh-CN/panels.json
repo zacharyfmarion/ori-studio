@@ -515,6 +515,7 @@
     "rotateSimulationWindow": "旋转模拟窗口",
     "selectedCount_other": "已选择 {{count}} 项",
     "selectionToolbar": {
+      "addToDiagram": "添加到图解",
       "export": "导出…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -672,8 +673,10 @@
       "moveEarlier": "前移",
       "moveLater": "后移",
       "noPatternHint": "请先在编辑中打开折痕图再链接",
+      "noPatternOpenHint": "其折痕图未打开",
       "noPatternRefreshHint": "请先在编辑中打开其折痕图再刷新",
       "noPictureHint": "此步骤还没有图片",
+      "openInEdit": "在编辑中打开",
       "readOnlyHint": "此图解由更新版本的 Ori Studio 创建，以只读方式打开",
       "refreshPicture": "刷新图片",
       "relinkPattern": "重新链接图样…",
@@ -726,7 +729,10 @@
       "addStep": "添加步骤",
       "linkPattern": "链接图样…",
       "moreAdd": "更多添加步骤的方式",
+      "nothingStale": "所有链接的步骤都显示其图样的当前状态",
+      "refreshAll": "刷新已过期的步骤",
       "stepCount_other": "{{count}} 个步骤",
+      "stopRefreshing": "停止刷新（{{done}} / {{total}}）",
       "titleLabel": "图解标题",
       "titlePlaceholder": "未命名图解",
       "uploadPictures": "上传图片…"
@@ -885,6 +891,7 @@
     "transversalCrossingLabel": "折线穿过面"
   },
   "foldedFigureActions": {
+    "addToDiagram": "添加到图解",
     "anotherSolution": "另一个解",
     "delete": "删除",
     "duplicate": "复制",

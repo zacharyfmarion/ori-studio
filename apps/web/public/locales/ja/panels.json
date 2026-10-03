@@ -515,6 +515,7 @@
     "rotateSimulationWindow": "シミュレーションウィンドウを回転",
     "selectedCount_other": "{{count}} 件選択",
     "selectionToolbar": {
+      "addToDiagram": "図に追加",
       "export": "エクスポート…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -672,8 +673,10 @@
       "moveEarlier": "前へ移動",
       "moveLater": "後ろへ移動",
       "noPatternHint": "リンクするには編集で展開図を開いてください",
+      "noPatternOpenHint": "その展開図が開いていません",
       "noPatternRefreshHint": "更新するには編集でその展開図を開いてください",
       "noPictureHint": "このステップにはまだ図がありません",
+      "openInEdit": "編集で開く",
       "readOnlyHint": "この折り図は新しい Ori Studio で作成されたため、読み取り専用で開かれています",
       "refreshPicture": "図を更新",
       "relinkPattern": "パターンをリンクし直す…",
@@ -726,7 +729,10 @@
       "addStep": "ステップを追加",
       "linkPattern": "パターンをリンク…",
       "moreAdd": "ステップを追加するその他の方法",
+      "nothingStale": "リンクしたステップはすべて最新のパターンを表示しています",
+      "refreshAll": "古いステップを更新",
       "stepCount_other": "{{count}} ステップ",
+      "stopRefreshing": "更新を停止（{{done}} / {{total}}）",
       "titleLabel": "折り図のタイトル",
       "titlePlaceholder": "無題の折り図",
       "uploadPictures": "図をアップロード…"
@@ -885,6 +891,7 @@
     "transversalCrossingLabel": "折り線が面を貫通"
   },
   "foldedFigureActions": {
+    "addToDiagram": "図に追加",
     "anotherSolution": "別の解",
     "delete": "削除",
     "duplicate": "複製",

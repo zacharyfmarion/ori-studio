@@ -123,6 +123,9 @@
     "deleteStepsTitle": "{{total}}개 단계를 삭제할까요?",
     "deleteStepTitle": "{{number}}단계를 삭제할까요?",
     "exportPictureTitle": "그림 내보내기",
+    "refreshAllConfirm": "새로 고침",
+    "refreshAllMessage": "새로 고침은 한 번에 실행 취소할 수 있지만, 그 전에 실행 취소한 작업은 더 이상 다시 실행할 수 없습니다.",
+    "refreshAllTitle": "{{total}}개 단계를 새로 고칠까요?",
     "replacePictureTitle": "그림 바꾸기",
     "uploadPicturesTitle": "그림 업로드",
     "uploadPictureTitle": "그림 업로드"

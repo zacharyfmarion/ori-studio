@@ -542,6 +542,7 @@
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
     "selectionToolbar": {
+      "addToDiagram": "Add to diagram",
       "export": "Export…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -701,8 +702,10 @@
       "moveEarlier": "Move Earlier",
       "moveLater": "Move Later",
       "noPatternHint": "Open a crease pattern in Edit to link it",
+      "noPatternOpenHint": "Its crease pattern isn’t open",
       "noPatternRefreshHint": "Open its crease pattern in Edit to refresh it",
       "noPictureHint": "This step has no picture yet",
+      "openInEdit": "Open in Edit",
       "readOnlyHint": "This diagram was made with a newer Ori Studio and opens read-only",
       "refreshPicture": "Refresh Picture",
       "relinkPattern": "Relink Pattern…",
@@ -755,8 +758,11 @@
       "addStep": "Add step",
       "linkPattern": "Link pattern…",
       "moreAdd": "More ways to add steps",
+      "nothingStale": "Every linked step shows its pattern as it is",
+      "refreshAll": "Refresh out-of-date steps",
       "stepCount_one": "1 step",
       "stepCount_other": "{{count}} steps",
+      "stopRefreshing": "Stop refreshing ({{done}} of {{total}})",
       "titleLabel": "Diagram title",
       "titlePlaceholder": "Untitled diagram",
       "uploadPictures": "Upload pictures…"
@@ -915,6 +921,7 @@
     "transversalCrossingLabel": "Crease cuts a face"
   },
   "foldedFigureActions": {
+    "addToDiagram": "Add to Diagram",
     "anotherSolution": "Another solution",
     "delete": "Delete",
     "duplicate": "Duplicate",

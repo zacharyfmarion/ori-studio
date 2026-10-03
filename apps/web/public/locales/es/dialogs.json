@@ -127,6 +127,9 @@
     "deleteStepsTitle": "¿Eliminar {{total}} pasos?",
     "deleteStepTitle": "¿Eliminar el paso {{number}}?",
     "exportPictureTitle": "Exportar imagen",
+    "refreshAllConfirm": "Actualizar",
+    "refreshAllMessage": "Actualizarlos es un cambio que puedes deshacer, pero lo que deshiciste antes ya no se podrá rehacer.",
+    "refreshAllTitle": "¿Actualizar {{total}} pasos?",
     "replacePictureTitle": "Reemplazar imagen",
     "uploadPicturesTitle": "Subir imágenes",
     "uploadPictureTitle": "Subir imagen"

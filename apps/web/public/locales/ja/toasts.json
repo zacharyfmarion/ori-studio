@@ -20,6 +20,7 @@
     "simulateNoRegion": "シミュレーションするには閉じた領域を選択してください。"
   },
   "diagram": {
+    "addedAsStep": "ステップ {{number}} として追加しました",
     "capture": {
       "failed": "図をキャプチャできませんでした",
       "missing": "そのパターンは展開図にもうありません。",
@@ -30,6 +31,8 @@
       "unknown": "展開図の準備がまだできていません。少し待ってからもう一度お試しください。"
     },
     "dropReadOnly": "この折り図は新しい Ori Studio で作成されたため読み取り専用で開いています。図を追加することはできません。",
+    "openDiagram": "図を開く",
+    "refreshedAll_other": "{{count}} 個のステップを更新しました",
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
     "uploadFailureLine": "{{name}}：{{reason}}",
     "uploadFailureMore_other": "ほか {{count}} 件",

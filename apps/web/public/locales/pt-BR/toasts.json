@@ -22,6 +22,7 @@
     "simulateNoRegion": "Selecione uma região fechada para simular."
   },
   "diagram": {
+    "addedAsStep": "Adicionado como passo {{number}}",
     "capture": {
       "failed": "Não foi possível capturar a imagem",
       "missing": "Esse padrão não está mais no padrão de vincos.",
@@ -32,6 +33,10 @@
       "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes."
     },
     "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",
+    "openDiagram": "Abrir diagrama",
+    "refreshedAll_one": "1 passo atualizado",
+    "refreshedAll_many": "{{count}} passos atualizados",
+    "refreshedAll_other": "{{count}} passos atualizados",
     "uploadFailed_one": "Não foi possível adicionar uma imagem",
     "uploadFailed_many": "Não foi possível adicionar {{count}} imagens",
     "uploadFailed_other": "Não foi possível adicionar {{count}} imagens",

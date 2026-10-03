@@ -22,6 +22,10 @@ export function DiagramHeader({
   onUpload,
   patternOpen,
   onLink,
+  staleCount,
+  refreshing,
+  onRefreshAll,
+  onStopRefreshing,
   drawerSlot,
 }: {
   title: string;
@@ -35,6 +39,12 @@ export function DiagramHeader({
   patternOpen: boolean;
   /** Add a step and choose its pattern. */
   onLink: () => void;
+  /** How many linked steps are out of date. */
+  staleCount: number;
+  /** Refresh all, while it runs: how far it has got. */
+  refreshing: { total: number; done: number } | null;
+  onRefreshAll: () => void;
+  onStopRefreshing: () => void;
   /** Where the touch layer seats the Step pane's pill (`viewDrawerSlot`). */
   drawerSlot: Ref<HTMLDivElement>;
 }) {
@@ -78,6 +88,25 @@ export function DiagramHeader({
                 : t('panels:diagram.actions.noPatternHint', 'Open a crease pattern in Edit to link it'),
               onSelect: onLink,
             },
+            refreshing
+              ? {
+                  id: 'stop-refreshing',
+                  label: t('panels:diagram.header.stopRefreshing', 'Stop refreshing ({{done}} of {{total}})', {
+                    done: refreshing.done,
+                    total: refreshing.total,
+                  }),
+                  onSelect: onStopRefreshing,
+                }
+              : {
+                  id: 'refresh-all',
+                  label: t('panels:diagram.header.refreshAll', 'Refresh out-of-date steps'),
+                  disabled: staleCount === 0,
+                  title:
+                    staleCount === 0
+                      ? t('panels:diagram.header.nothingStale', 'Every linked step shows its pattern as it is')
+                      : undefined,
+                  onSelect: onRefreshAll,
+                },
           ]}
         />
         <div className="panel-toolbar__pills" ref={drawerSlot} />

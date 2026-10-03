@@ -129,6 +129,9 @@
     "deleteStepsTitle": "Удалить шаги ({{total}})?",
     "deleteStepTitle": "Удалить шаг {{number}}?",
     "exportPictureTitle": "Экспорт изображения",
+    "refreshAllConfirm": "Обновить",
+    "refreshAllMessage": "Обновление можно отменить одним действием, но то, что вы отменили до него, больше нельзя будет вернуть.",
+    "refreshAllTitle": "Обновить шагов: {{total}}?",
     "replacePictureTitle": "Замена изображения",
     "uploadPicturesTitle": "Загрузка изображений",
     "uploadPictureTitle": "Загрузка изображения"

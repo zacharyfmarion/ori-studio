@@ -3,6 +3,7 @@ import {
   createStep,
   defaultHanStyle,
   duplicateStep,
+  insertLinkedStep,
   insertPictureSteps,
   insertSteps,
   insertionIndex,
@@ -340,12 +341,25 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     },
 
     captureDiagramStep: (stepId, request) =>
-      runDiagramCapture({ get, set }, (label, edit) => commit(label, edit), stepId, request),
+      runDiagramCapture({ get, set }, commit, stepId, request),
 
     stopDiagramCapture: (stepId) => stopDiagramCapture({ get, set }, stepId),
 
+    addLinkedDiagramStep: (link, { loadId, label }) => {
+      if (loadId !== get().diagramLoadId) return null;
+      let stepId: string | null = null;
+      const next = commit(label, (document) => {
+        const result = insertLinkedStep(document, link, insertionIndex(document, get().diagramSelectedStepId));
+        stepId = result.stepId;
+        return result.document;
+      });
+      if (!next || stepId === null) return null;
+      set(selection(stepId));
+      return stepId;
+    },
+
     commitDiagramCapture: (start, captured, label) =>
-      commitStepCapture({ get, set }, (name, edit) => commit(name, edit), start, captured, label),
+      commitStepCapture({ get, set }, commit, start, captured, label),
 
     undoDiagram: () => travel('undo'),
     redoDiagram: () => travel('redo'),

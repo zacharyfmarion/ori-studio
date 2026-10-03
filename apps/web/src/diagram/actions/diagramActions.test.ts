@@ -19,6 +19,7 @@ function deps(): DiagramStepActionDeps {
     uploadPicture: vi.fn(),
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
+    openInEdit: vi.fn(),
     exportPicture: vi.fn(),
     removePicture: vi.fn(),
     remove: vi.fn(),
@@ -60,8 +61,10 @@ describe('the diagram step verbs', () => {
       'after-picture',
       'delete',
     ]);
-    // A linked step can also be refreshed.
-    expect(build({ link: 'stale' }).map((action) => action.id)).toContain('refresh-picture');
+    // A linked step can also be refreshed, and shown in Edit.
+    const linked = build({ link: 'stale' }).map((action) => action.id);
+    expect(linked).toContain('refresh-picture');
+    expect(linked).toContain('open-in-edit');
   });
 
   it('runs each through its bound callback', () => {
@@ -114,7 +117,8 @@ describe('the diagram step verbs', () => {
   it('disables every edit on a read-only diagram, with the reason, but not an export', () => {
     const actions = build({ readOnly: true, hasPicture: true, hasSource: true, link: 'stale' });
     for (const action of actions) {
-      if (action.kind !== 'command' || action.id === 'export-picture') continue;
+      // Exporting and showing the pattern in Edit change nothing in the diagram.
+      if (action.kind !== 'command' || action.id === 'export-picture' || action.id === 'open-in-edit') continue;
       expect(action.disabled, action.id).toBe(true);
       expect(action.hint, action.id).toContain('read-only');
     }
@@ -174,6 +178,18 @@ describe('the diagram step verbs', () => {
     expect(refresh({ link: 'unknown', patternOpen: false })?.disabled).toBe(true);
     // Not on a step that is not linked.
     expect(refresh({ link: null })).toBeNull();
+  });
+
+  it('shows a linked step’s pattern in Edit, even on a read-only diagram, while one is open', () => {
+    const bound = deps();
+    const open = diagramStepCommand(build({ link: 'current', readOnly: true }, bound), 'open-in-edit');
+    expect(open?.disabled).toBe(false);
+    open?.run();
+    expect(bound.openInEdit).toHaveBeenCalledOnce();
+    expect(diagramStepCommand(build({ link: 'current', patternOpen: false }), 'open-in-edit')).toMatchObject({
+      disabled: true,
+      hint: 'Its crease pattern isn’t open',
+    });
   });
 
   it('holds the picture verbs while a capture runs, and removes a link with no picture yet', () => {

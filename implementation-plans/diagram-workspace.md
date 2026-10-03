@@ -1929,7 +1929,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
       - When the creases now fold the other way (a partial fold added or removed), a folded verb re-folds by the route.
     - **3D** is live in the stage (`DiagramPose3dView`): Edit's mesh runtime with an interactive viewport and the view cube. An orbit is captured once the view rests (450 ms), as one undo step. Where the worker cannot draw, the captured picture stands in and the named views still work. No per-move CPU rebuild.
     - Verified in headless Chromium on the crane (crease pattern → folded → turn over → rotate) and the 90° box (live 3D, an orbit).
-- [ ] **3e.** Entry points and queues.
+- [x] **3e.** Entry points and queues.
   - **Add to diagram** on `CpSelectionToolbar` (one pattern) and in `foldedFigureActions.ts`.
     - It records the figure's provenance and pose: side, foldCase, `rotationDeg` (the figure model's rotation) and the 3D camera.
     - It builds the picture through the capture primitives, never by copying Edit's pictures or mutating Edit's figure.
@@ -1938,8 +1938,18 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - A figure with no live handle or render model, flat **or 3D**, is added with provenance and opens nothing. Diagram shows "Pose to capture".
   - The `oristudioCpRegionFocusRequest` for **Open in Edit** (latched, consumed on CP panel mount, framed through `cpCamera()`).
   - **Refresh all** (`captureQueue.ts`).
-- [ ] **3f.** Analytics: `diagram picture captured` and `diagram step added` (`crease_pattern`, `cp_folded`, `cp_3d`).
-  - `diagram picture captured` landed with 3c. Pose verbs are counted by `diagram picture posed`, whose `action` and `kind` now cover linked steps. 3e's Add to diagram adds the step events.
+  - As built:
+    - **Add to diagram** is on the selection toolbar (a crease-pattern step of that pattern) and in the folded figure's verbs (`add-to-diagram`, held for a figure with no recorded box). Either adds one step, in one undo step, after the diagram's selected step (`addLinkedDiagramStep`, `captureNewLinkedStep`). It toasts "Added as step N" with Open diagram, and never switches workspace.
+    - **A figure's picture:**
+      - a live 3D figure is drawn from its render model at its camera, in the diagram's light, with no kernel work, keeping the figure's fingerprint;
+      - every other figure is folded again from its box as a visible, stoppable run, posed as Edit shows it (side, canvas rotation, layer order).
+
+      This departs from the plan's "added with provenance and opens nothing". Every figure in a reopened file has no live handle until Edit refolds it, so that path would have been the common one and left steps blank. A flat figure's live paper scene is not read either. The model rotation and scale an Oriedita file can carry would have to be undone, and a fold is cheap.
+    - **Open in Edit** (Step pane, linked steps; also on a read-only diagram) latches the region (`regionFocusRequest.ts`). The Edit canvas takes it on its next frame and frames every fresh camera for that document with it, so a camera reset while the document settles does not lose it. A canvas that is already mounted is asked to draw.
+    - **Refresh all out-of-date steps** is in the Add step menu, with its progress and a Stop while it runs. It goes one step at a time, yields between steps, and waits while Edit is active. It asks before losing a redo branch, and is one undo step: later captures join the first one's entry while it is still the newest (`joinEntry`). It ends on a Stop, a replaced diagram or a lost engine.
+    - Verified in headless Chromium on the crane: a pattern and two reopened figures added, Open in Edit framing the step's sheet, an edited crease making its step out of date, and Refresh all bringing it back as one undo step.
+- [x] **3f.** Analytics: `diagram picture captured` and `diagram step added` (`crease_pattern`, `cp_folded`, `cp_3d`).
+  - `diagram picture captured` landed with 3c. Pose verbs are counted by `diagram picture posed`, whose `action` and `kind` now cover linked steps. Add to diagram counts `diagram step added` (`crease_pattern` via `edit_toolbar`; `cp_folded` / `cp_3d` via `folded_figure`).
 - [ ] **Browser** (CP wasm rebuilt first):
   - link all eleven crane states;
   - turn over, rotate, Next solution, Revert;

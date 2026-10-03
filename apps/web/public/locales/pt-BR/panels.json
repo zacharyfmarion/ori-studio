@@ -569,6 +569,7 @@
     "selectedCount_many": "{{count}} selecionados",
     "selectedCount_other": "{{count}} selecionados",
     "selectionToolbar": {
+      "addToDiagram": "Adicionar ao diagrama",
       "export": "Exportar…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -730,8 +731,10 @@
       "moveEarlier": "Mover para antes",
       "moveLater": "Mover para depois",
       "noPatternHint": "Abra um padrão de vincos em Editar para vinculá-lo",
+      "noPatternOpenHint": "O padrão de vincos não está aberto",
       "noPatternRefreshHint": "Abra o padrão de vincos em Editar para atualizá-lo",
       "noPictureHint": "Este passo ainda não tem imagem",
+      "openInEdit": "Abrir em Editar",
       "readOnlyHint": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura",
       "refreshPicture": "Atualizar imagem",
       "relinkPattern": "Revincular padrão…",
@@ -784,9 +787,12 @@
       "addStep": "Adicionar passo",
       "linkPattern": "Vincular padrão…",
       "moreAdd": "Mais formas de adicionar passos",
+      "nothingStale": "Todos os passos vinculados mostram o padrão como ele está",
+      "refreshAll": "Atualizar passos desatualizados",
       "stepCount_one": "{{count}} passo",
       "stepCount_many": "{{count}} passos",
       "stepCount_other": "{{count}} passos",
+      "stopRefreshing": "Parar a atualização ({{done}} de {{total}})",
       "titleLabel": "Título do diagrama",
       "titlePlaceholder": "Diagrama sem título",
       "uploadPictures": "Enviar imagens…"
@@ -949,6 +955,7 @@
     "transversalCrossingLabel": "Um vinco corta uma face"
   },
   "foldedFigureActions": {
+    "addToDiagram": "Adicionar ao diagrama",
     "anotherSolution": "Outra solução",
     "delete": "Excluir",
     "duplicate": "Duplicar",

@@ -127,6 +127,9 @@
     "deleteStepsTitle": "Supprimer {{total}} étapes\u00a0?",
     "deleteStepTitle": "Supprimer l’étape {{number}}\u00a0?",
     "exportPictureTitle": "Exporter l’image",
+    "refreshAllConfirm": "Actualiser",
+    "refreshAllMessage": "Les actualiser est une modification que vous pouvez annuler, mais ce que vous avez annulé avant ne pourra plus être rétabli.",
+    "refreshAllTitle": "Actualiser {{total}} étapes\u00a0?",
     "replacePictureTitle": "Remplacer l’image",
     "uploadPicturesTitle": "Importer des images",
     "uploadPictureTitle": "Importer une image"

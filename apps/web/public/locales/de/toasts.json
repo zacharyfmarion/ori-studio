@@ -21,6 +21,7 @@
     "simulateNoRegion": "Wähle einen geschlossenen Bereich zum Simulieren aus."
   },
   "diagram": {
+    "addedAsStep": "Als Schritt {{number}} hinzugefügt",
     "capture": {
       "failed": "Das Bild konnte nicht erfasst werden",
       "missing": "Dieses Muster ist nicht mehr im Faltmuster.",
@@ -31,6 +32,9 @@
       "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
     },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
+    "openDiagram": "Diagramm öffnen",
+    "refreshedAll_one": "1 Schritt aktualisiert",
+    "refreshedAll_other": "{{count}} Schritte aktualisiert",
     "uploadFailed_one": "Ein Bild konnte nicht hinzugefügt werden",
     "uploadFailed_other": "{{count}} Bilder konnten nicht hinzugefügt werden",
     "uploadFailureLine": "{{name}}: {{reason}}",

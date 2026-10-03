@@ -569,6 +569,7 @@
     "selectedCount_many": "{{count}} sélectionnés",
     "selectedCount_other": "{{count}} sélectionnés",
     "selectionToolbar": {
+      "addToDiagram": "Ajouter au diagramme",
       "export": "Exporter…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -730,8 +731,10 @@
       "moveEarlier": "Avancer",
       "moveLater": "Reculer",
       "noPatternHint": "Ouvrez un patron de plis dans Édition pour le lier",
+      "noPatternOpenHint": "Son patron de plis n’est pas ouvert",
       "noPatternRefreshHint": "Ouvrez son patron de plis dans Édition pour l’actualiser",
       "noPictureHint": "Cette étape n’a pas encore d’image",
+      "openInEdit": "Ouvrir dans Édition",
       "readOnlyHint": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule",
       "refreshPicture": "Actualiser l’image",
       "relinkPattern": "Relier à un autre patron…",
@@ -784,9 +787,12 @@
       "addStep": "Ajouter une étape",
       "linkPattern": "Lier un patron…",
       "moreAdd": "Autres façons d’ajouter des étapes",
+      "nothingStale": "Chaque étape liée montre son patron tel qu’il est",
+      "refreshAll": "Actualiser les étapes pas à jour",
       "stepCount_one": "{{count}} étape",
       "stepCount_many": "{{count}} étapes",
       "stepCount_other": "{{count}} étapes",
+      "stopRefreshing": "Arrêter l’actualisation ({{done}} sur {{total}})",
       "titleLabel": "Titre du diagramme",
       "titlePlaceholder": "Diagramme sans titre",
       "uploadPictures": "Importer des images…"
@@ -949,6 +955,7 @@
     "transversalCrossingLabel": "Un pli traverse une face"
   },
   "foldedFigureActions": {
+    "addToDiagram": "Ajouter au diagramme",
     "anotherSolution": "Autre solution",
     "delete": "Supprimer",
     "duplicate": "Dupliquer",

@@ -21,6 +21,7 @@
     "simulateNoRegion": "Select a closed region to simulate."
   },
   "diagram": {
+    "addedAsStep": "Added as step {{number}}",
     "capture": {
       "failed": "The picture couldn’t be captured",
       "missing": "That pattern isn’t in the crease pattern any more.",
@@ -31,6 +32,9 @@
       "unknown": "The crease pattern isn’t ready yet. Try again in a moment."
     },
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
+    "openDiagram": "Open diagram",
+    "refreshedAll_one": "Refreshed 1 step",
+    "refreshedAll_other": "Refreshed {{count}} steps",
     "uploadFailed_one": "A picture couldn’t be added",
     "uploadFailed_other": "{{count}} pictures couldn’t be added",
     "uploadFailureLine": "{{name}}: {{reason}}",

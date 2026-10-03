@@ -22,6 +22,7 @@ export type DiagramStepActionId =
   | 'upload-picture'
   | 'link-pattern'
   | 'refresh-picture'
+  | 'open-in-edit'
   | 'export-picture'
   | 'remove-picture'
   | 'delete';
@@ -86,13 +87,15 @@ export interface DiagramStepActionDeps {
   linkPattern: () => void;
   /** Capture a linked step's picture again from its pattern as it is now. */
   refreshPicture: () => void;
+  /** Show a linked step's pattern in Edit. */
+  openInEdit: () => void;
   exportPicture: () => void;
   removePicture: () => void;
   remove: () => void;
 }
 
 /** The verbs that change nothing, offered on a read-only diagram too. */
-const READ_ONLY_VERBS: ReadonlySet<DiagramStepActionId> = new Set(['export-picture']);
+const READ_ONLY_VERBS: ReadonlySet<DiagramStepActionId> = new Set(['export-picture', 'open-in-edit']);
 
 /** The verbs that have a key of their own. */
 const STEP_ACTION_SHORTCUTS: Partial<Record<DiagramStepActionId, ShortcutActionId>> = {
@@ -210,6 +213,13 @@ export function buildDiagramStepActions(
             deps.refreshPicture,
             state.capturing || !refreshable(state.link, state.patternOpen),
             state.capturing ? capturingHint : refreshHint(state.link, state.patternOpen, t)
+          ),
+          command(
+            'open-in-edit',
+            t('panels:diagram.actions.openInEdit', 'Open in Edit'),
+            deps.openInEdit,
+            !state.patternOpen,
+            t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
           ),
         ]),
     command(

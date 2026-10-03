@@ -22,6 +22,7 @@
     "simulateNoRegion": "Sélectionnez une région fermée à simuler."
   },
   "diagram": {
+    "addedAsStep": "Ajouté comme étape {{number}}",
     "capture": {
       "failed": "L’image n’a pas pu être capturée",
       "missing": "Ce patron ne fait plus partie du patron de plis.",
@@ -32,6 +33,10 @@
       "unknown": "Le patron de plis n’est pas encore prêt. Réessayez dans un instant."
     },
     "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
+    "openDiagram": "Ouvrir le diagramme",
+    "refreshedAll_one": "{{count}} étape actualisée",
+    "refreshedAll_many": "{{count}} étapes actualisées",
+    "refreshedAll_other": "{{count}} étapes actualisées",
     "uploadFailed_one": "Une image n’a pas pu être ajoutée",
     "uploadFailed_many": "{{count}} images n’ont pas pu être ajoutées",
     "uploadFailed_other": "{{count}} images n’ont pas pu être ajoutées",

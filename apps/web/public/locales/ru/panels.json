@@ -596,6 +596,7 @@
     "selectedCount_many": "Выбрано: {{count}}",
     "selectedCount_other": "Выбрано: {{count}}",
     "selectionToolbar": {
+      "addToDiagram": "Добавить в диаграмму",
       "export": "Экспорт…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -759,8 +760,10 @@
       "moveEarlier": "Переместить раньше",
       "moveLater": "Переместить позже",
       "noPatternHint": "Откройте паттерн складок в «Редактировании», чтобы связать его",
+      "noPatternOpenHint": "Его паттерн складок не открыт",
       "noPatternRefreshHint": "Откройте его паттерн складок в «Редактировании», чтобы обновить",
       "noPictureHint": "У этого шага пока нет изображения",
+      "openInEdit": "Открыть в «Редактировании»",
       "readOnlyHint": "Эта схема создана в более новой версии Ori Studio и открыта только для чтения",
       "refreshPicture": "Обновить изображение",
       "relinkPattern": "Связать заново…",
@@ -813,10 +816,13 @@
       "addStep": "Добавить шаг",
       "linkPattern": "Связать с паттерном…",
       "moreAdd": "Другие способы добавить шаги",
+      "nothingStale": "Все связанные шаги показывают свой паттерн в текущем виде",
+      "refreshAll": "Обновить устаревшие шаги",
       "stepCount_one": "{{count}} шаг",
       "stepCount_few": "{{count}} шага",
       "stepCount_many": "{{count}} шагов",
       "stepCount_other": "{{count}} шага",
+      "stopRefreshing": "Остановить обновление ({{done}} из {{total}})",
       "titleLabel": "Название схемы",
       "titlePlaceholder": "Схема без названия",
       "uploadPictures": "Загрузить изображения…"
@@ -983,6 +989,7 @@
     "transversalCrossingLabel": "Складка пересекает грань"
   },
   "foldedFigureActions": {
+    "addToDiagram": "Добавить в диаграмму",
     "anotherSolution": "Другое решение",
     "delete": "Удалить",
     "duplicate": "Дублировать",

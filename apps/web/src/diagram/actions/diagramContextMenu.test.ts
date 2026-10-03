@@ -26,6 +26,7 @@ function actions(state: Partial<DiagramStepActionState> = {}) {
     uploadPicture: vi.fn(),
     linkPattern: vi.fn(),
     refreshPicture: vi.fn(),
+    openInEdit: vi.fn(),
     exportPicture: vi.fn(),
     removePicture: vi.fn(),
     remove: vi.fn(),

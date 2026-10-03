@@ -125,6 +125,9 @@
     "deleteStepsTitle": "Delete {{total}} steps?",
     "deleteStepTitle": "Delete step {{number}}?",
     "exportPictureTitle": "Export picture",
+    "refreshAllConfirm": "Refresh",
+    "refreshAllMessage": "Refreshing them is one change you can undo, but what you undid before it can no longer be redone.",
+    "refreshAllTitle": "Refresh {{total}} steps?",
     "replacePictureTitle": "Replace picture",
     "uploadPicturesTitle": "Upload pictures",
     "uploadPictureTitle": "Upload picture"

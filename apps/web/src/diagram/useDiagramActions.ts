@@ -32,7 +32,12 @@ import {
   type DiagramStep,
   type UploadPose,
 } from './document/diagramDocument';
-import { captureKind, openDiagramPatternPicker, refreshDiagramStep } from './capture/stepCaptureActions';
+import {
+  captureKind,
+  openDiagramPatternPicker,
+  openDiagramStepInEdit,
+  refreshDiagramStep,
+} from './capture/stepCaptureActions';
 import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
@@ -139,6 +144,7 @@ function bindStepActions(
       refreshPicture: () => {
         void refreshDiagramStep(stepId);
       },
+      openInEdit: () => openDiagramStepInEdit(stepId),
       exportPicture: () => {
         const diagram = store().diagram;
         if (!diagram) return;

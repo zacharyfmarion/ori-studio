@@ -44,6 +44,7 @@ export type FoldedFigureActionIcon =
   | 'first-solution'
   | 'refold'
   | 'export'
+  | 'add-to-diagram'
   | 'duplicate'
   | 'delete'
   | 'notice-warn'
@@ -58,6 +59,7 @@ export interface FoldedFigureCommand {
     | 'another'
     | 'refold'
     | 'export'
+    | 'add-to-diagram'
     | 'duplicate'
     | 'delete';
   label: string;
@@ -280,6 +282,11 @@ export interface FoldedFigureActionDeps {
   isStale?: (figure: OristudioCpFoldedFigureEntry) => boolean;
   /** Open the export dialog on the figure on its own. Omitted drops the verb. */
   exportFigure?: (figure: OristudioCpFoldedFigureEntry) => void;
+  /**
+   * Add the figure to the diagram as a step linked to the box it was folded
+   * from. Omitted drops the verb.
+   */
+  addToDiagram?: (figure: OristudioCpFoldedFigureEntry) => void;
   /**
    * Act on a 3D figure's verdict: reveal the CAMV issues, select the creases a
    * crossing names, or simulate a figure whose layers could not be ordered.
@@ -668,6 +675,19 @@ export function buildFoldedFigureActions(
         run: () => exportFigure(figure),
       }
     );
+  }
+
+  if (deps.addToDiagram) {
+    const addToDiagram = deps.addToDiagram;
+    actions.push({
+      kind: 'command',
+      id: 'add-to-diagram',
+      label: t('panels:foldedFigureActions.addToDiagram', 'Add to Diagram'),
+      icon: 'add-to-diagram',
+      // A figure folded before provenance was tracked has no box to link to.
+      disabled: !figure.sourceBounds || !figure.sourceFingerprint,
+      run: () => addToDiagram(figure),
+    });
   }
 
   actions.push(

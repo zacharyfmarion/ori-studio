@@ -123,6 +123,9 @@
     "deleteStepsTitle": "{{total}} 個のステップを削除しますか？",
     "deleteStepTitle": "ステップ {{number}} を削除しますか？",
     "exportPictureTitle": "図を書き出し",
+    "refreshAllConfirm": "更新",
+    "refreshAllMessage": "更新はまとめて1回で元に戻せますが、その前に元に戻した操作はやり直せなくなります。",
+    "refreshAllTitle": "{{total}} 個のステップを更新しますか？",
     "replacePictureTitle": "図を差し替え",
     "uploadPicturesTitle": "図をアップロード",
     "uploadPictureTitle": "図をアップロード"
