@@ -127,7 +127,6 @@ export function handleShortcutKeyDown(
   if (
     event.defaultPrevented ||
     event.isComposing ||
-    isShortcutEditingTarget(event.target) ||
     isOpenLayerTarget(event.target) ||
     isShortcutBarrierTarget(event.target)
   ) {
@@ -136,6 +135,10 @@ export function handleShortcutKeyDown(
 
   const chord = keyChordFromKeyboardEvent(event);
   if (!chord) return false;
+  // A form control keeps its keys, except a chord declared `inFormControls`
+  // and held with ⌘/Ctrl — so a Save rebound to a bare letter still types it.
+  const inFormControl = isShortcutEditingTarget(event.target);
+  if (inFormControl && !chord.primary) return false;
 
   const resolution = {
     overrides: options.overrides,
@@ -145,6 +148,7 @@ export function handleShortcutKeyDown(
   for (const scope of options.scopeStack) {
     const definition = SHORTCUT_DEFINITIONS.find((candidate) => {
       if (candidate.scope !== scope) return false;
+      if (inFormControl && !candidate.inFormControls) return false;
       return getResolvedShortcuts(candidate.id, resolution).some((shortcut) =>
         keyChordEquals(shortcut, chord)
       );

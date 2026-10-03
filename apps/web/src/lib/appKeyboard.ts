@@ -48,13 +48,14 @@ export interface AppKeyboardActions {
 }
 
 export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActions): boolean {
-  // A key typed into an input, or into an open menu, is not a shortcut. The
-  // runtime asks the same of its own callers, but the deselect fallback below
-  // is this function's alone: without the layer check here, Escape aimed at a
-  // context menu would still clear the project selection behind it.
+  // A key aimed into an open menu is not a shortcut. The runtime asks the same
+  // of its own callers, but the deselect fallback below is this function's
+  // alone: without the layer check here, Escape aimed at a context menu would
+  // still clear the project selection behind it. A form control is the
+  // runtime's to sort out (it lets Save through and nothing else), so the
+  // fallback checks for one itself.
   if (
     event.defaultPrevented ||
-    isShortcutEditingTarget(event.target) ||
     isOpenLayerTarget(event.target) ||
     isShortcutBarrierTarget(event.target) ||
     actions.isReadingSitePage?.()
@@ -82,7 +83,9 @@ export function handleAppKeyDown(event: KeyboardEvent, actions: AppKeyboardActio
   }
 
   // Unclaimed: the workspace-wide deselect, for surfaces that have no selection
-  // of their own and whose Escape means "drop the project selection".
+  // of their own and whose Escape means "drop the project selection". Not for
+  // a form control's Escape, which is the control's.
+  if (isShortcutEditingTarget(event.target)) return false;
   if (event.key === 'Escape') {
     if (selectionSize(actions.getSelection()) === 0) return false;
     event.preventDefault();
