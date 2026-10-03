@@ -22,6 +22,11 @@ device; Settings ▸ Models shows what is installed. However, maintaining
 compatibility with existing tools is a priority - you will always be able to
 export to to a `.ori` file, which will just omit the images.
 
+The **Diagram** workspace turns a pattern into printed folding instructions: each
+step links to a sheet of the crease pattern (shown as its crease pattern, folded, or
+in the simulator) or takes a card from References, gets fold arrows and symbols, and
+the steps are laid out on pages and exported as a PDF or a ZIP of pictures.
+
 Try the hosted app at [oristudio.dev](https://oristudio.dev/).
 Signed Apple Silicon DMGs are published from local notarized builds on
 [GitHub Releases](https://github.com/zacharyfmarion/ori-studio/releases) (other platforms
