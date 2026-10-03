@@ -73,6 +73,15 @@
   background: var(--bg-secondary);
 }
 
+/*
+ * A picture is shown on the paper it will be printed on, white in either
+ * theme: a drawing with no background of its own — dark lines on nothing —
+ * would otherwise vanish into a dark theme's well.
+ */
+.well[data-picture] {
+  background: #ffffff;
+}
+
 /* The picture fills the well and keeps its shape; the well's ground shows around it. */
 .picture {
   width: 100%;

@@ -90,7 +90,7 @@ export const DiagramStepCard = forwardRef<
                 : t('panels:diagram.card.badgeEmpty', 'Empty')}
         </Badge>
       </div>
-      <div className={styles.well}>
+      <div className={styles.well} data-picture={(picture !== null && !locked) || undefined}>
         {locked ? (
           <span className={styles.placeholder}>
             <Lock size={18} aria-hidden="true" />

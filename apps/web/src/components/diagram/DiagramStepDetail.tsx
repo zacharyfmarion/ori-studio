@@ -130,7 +130,7 @@ export function DiagramStepDetail({
           <div className="panel-toolbar__pills" ref={drawerSlot} />
         </div>
       </div>
-      <div className={styles.stage}>
+      <div className={styles.stage} data-picture={(url !== null && !locked) || undefined}>
         {locked ? (
           <div className={styles.message}>
             <Lock size={22} aria-hidden="true" />

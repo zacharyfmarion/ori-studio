@@ -137,11 +137,14 @@ describe('DiagramStepsGrid', () => {
     // An upright bitmap is shown from its own data, not wrapped and encoded again.
     expect(pictures[1].getAttribute('src')).toBe('data:image/png;base64,AAAA');
     expect(options().map((option) => option.textContent?.slice(0, 9))).toEqual(['Step 1SVG', 'Step 2Ima']);
+    // Each on the paper it prints on, not the theme's well.
+    expect(host?.querySelectorAll('[data-picture]')).toHaveLength(2);
   });
 
   it('offers an empty card’s Upload… for that step', () => {
     const onUpload = vi.fn();
     render(null, vi.fn(), { onUpload });
+    expect(host?.querySelectorAll('[data-picture]')).toHaveLength(0);
     const upload = options()[1].querySelector('button');
     act(() => upload?.click());
     expect(onUpload).toHaveBeenCalledWith('step-b');

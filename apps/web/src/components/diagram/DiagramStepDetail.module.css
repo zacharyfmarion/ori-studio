@@ -40,6 +40,11 @@
   background: var(--bg-secondary);
 }
 
+/* A picture on the paper it prints on, as on its card (DiagramStepCard.module.css). */
+.stage[data-picture] {
+  background: #ffffff;
+}
+
 /* The picture keeps its shape, inset so the toolbar never sits on its foot. */
 .picture {
   box-sizing: border-box;
