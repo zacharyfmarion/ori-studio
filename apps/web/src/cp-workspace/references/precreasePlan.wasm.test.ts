@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import { runPrecreasePlan, type PrecreasePlannerHandle } from './precreasePlan';
+import { cachedPlanOf, decodeCachedPlan, encodeCachedPlan } from './referencesPlanCache';
 import { describePlannerStep } from './referencesStepSentences';
 import type {
   PrecreaseCloseReport,
@@ -502,4 +503,36 @@ describe.skipIf(!available)('runPrecreasePlan over the real planner bridge', () 
       planner.free();
     }
   }, 60_000);
+
+  // The plan cache refuses a payload missing anything the panel reads without
+  // a fallback. That check is only right if the real planner always writes
+  // those fields: one it skips when empty would make every saved plan unreadable,
+  // and the cache would quietly never hit.
+  it('writes plans the plan cache reads back, with and without the grid', async () => {
+    const wasm = await import('../../generated/oristudio-precrease-wasm/oristudio_precrease_wasm');
+    wasm.initSync({ module: readFileSync(WASM) });
+    for (const [file, options] of [
+      ['grid6.fold', ''],
+      ['grid6.fold', LINE_BY_LINE],
+      ['iguana-c0.fold', ''],
+    ] as const) {
+      const { segments, colors } = loadFold(file);
+      const planner = new wasm.PrecreasePlanner(segments, colors, undefined, 0, options);
+      try {
+        const result = await runPrecreasePlan(handleFor(planner), {
+          computedAtRevision: 'wasm',
+          referenceFinder: null,
+        });
+        const hoisted = planner.sequence(true) as PrecreaseSequence;
+        const plan = cachedPlanOf(result, hoisted, 1);
+        // As JSON reads it back: the one difference a round trip makes is that
+        // -0 comes back 0, which nothing that reads a plan can tell apart.
+        expect(await decodeCachedPlan(await encodeCachedPlan(plan)), `${file} ${options}`).toEqual(
+          JSON.parse(JSON.stringify(plan))
+        );
+      } finally {
+        planner.free();
+      }
+    }
+  }, 180_000);
 });

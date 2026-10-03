@@ -29,6 +29,8 @@ way *replaces* the construction on the card.
 Not in scope: re-planning the sequence around a chosen way (see *Later*),
 saving choices in the document (the workspace never edits it), and choosing
 between two ways of the same kind that differ only in which marks they use.
+(Saving the choices has since landed, beside the plan they name rather than
+in the crease pattern: `references-persistence.md`.)
 
 ## What a way is
 

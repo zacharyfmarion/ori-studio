@@ -2,10 +2,12 @@ import { useCallback, useMemo } from 'react';
 import { useReferencesWaysExploredEvent, type ReferencesWaysVisitCard } from '../../analytics';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { PrecreaseStep } from './precreaseSequence';
-import type { ReferencesPlanVariant } from './referencesResults';
+import { setReferencesPlanWays } from './referencesPlanCacheStore';
+import type { ReferencesPlanRecord, ReferencesPlanVariant } from './referencesResults';
 import type { ReferencesViewStep } from './referencesSequenceView';
 import {
   cardWays,
+  sheetWayChoices,
   stepWays,
   wayKey,
   withWayChoice,
@@ -62,9 +64,13 @@ function visitCard({ view, step, ways }: WayCard): ReferencesWaysVisitCard {
  * card already shows its chosen way; `plan` is the record they came from,
  * whose identity is the plan's. `reading` is false outside the sequence,
  * where no card offers ways.
+ *
+ * A choice is also written through to the plan cache, beside the plan it
+ * names, so it is saved with the file and is there again when the reader
+ * comes back to the sheet.
  */
 export function useReferencesWays(
-  plan: object | null,
+  plan: ReferencesPlanRecord | null,
   variants: readonly ReferencesPlanVariant[],
   viewSteps: readonly ReferencesViewStep[],
   activeStep: number,
@@ -72,6 +78,7 @@ export function useReferencesWays(
 ): ReferencesWaysController {
   const choices = useWorkspaceStore((state) => state.referencesView.planWays);
   const setReferencesView = useWorkspaceStore((state) => state.setReferencesView);
+  const loadSerial = useWorkspaceStore((state) => state.oristudioCpDocument?.loadSerial ?? null);
   const current = reading ? wayCard(variants, viewSteps[activeStep]) : null;
   const view = current?.view;
   const step = current?.step;
@@ -95,8 +102,13 @@ export function useReferencesWays(
       // which never shows it as it stood: the visit starts from here instead.
       if (at !== activeStep) arrive(visitCard(target));
       setReferencesView({ planWays: next });
+      const sheet = target.view.component;
+      const cacheKey = plan?.components[sheet]?.cacheKey;
+      if (cacheKey && loadSerial !== null) {
+        setReferencesPlanWays(loadSerial, cacheKey, sheetWayChoices(next, sheet));
+      }
     },
-    [reading, variants, viewSteps, choices, activeStep, arrive, setReferencesView]
+    [reading, variants, viewSteps, choices, activeStep, arrive, setReferencesView, plan, loadSerial]
   );
   const previousWay = useCallback(() => shiftWay(activeStep, -1), [shiftWay, activeStep]);
   const nextWay = useCallback(() => shiftWay(activeStep, 1), [shiftWay, activeStep]);

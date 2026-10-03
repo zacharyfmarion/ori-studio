@@ -59,6 +59,12 @@ import { validateInlineSimulations } from '../cp-workspace/inlineSimulation/inli
 import type { InlineSimulation } from '../cp-workspace/inlineSimulation/inlineSimulation';
 import { validateUserCamera } from '../cp-workspace/renderer/camera';
 import type { UserCamera } from '../cp-workspace/renderer/camera';
+import {
+  validateReferencesPlanCache,
+  validateReferencesReaderState,
+} from '../cp-workspace/references/referencesFile';
+import type { ReferencesPlanCacheV1 } from '../cp-workspace/references/referencesPlanCache';
+import type { ReferencesReaderStateV1 } from '../cp-workspace/references/referencesReaderState';
 
 export const NATIVE_PROJECT_FORMAT = 'oristudio.project';
 export { NATIVE_PROJECT_EXTENSION } from './fileFormats';
@@ -169,6 +175,19 @@ export interface NativeCreasePatternDocumentV1 extends NativeProjectBaseDocument
     camera: UserCamera | null;
     foldedFigures: OristudioCpFoldedFigureEntry[];
     activeFoldedFigureId: string | null;
+    /**
+     * The References workspace as the reader left it: the six settings, the
+     * mode, the sheet (by its bounds), Landmarks first and the open card (by
+     * its line). Null when there was nothing to say, and in every file written
+     * before it existed — read as "as the session has it", which is what those
+     * files always meant.
+     *
+     * **Additive, with no schema bump**, like `suppressionRegions`: an older
+     * build drops it on read and opens References as it always did. The plan
+     * itself is `artifacts.references`. See
+     * `implementation-plans/references-persistence.md`.
+     */
+    references: ReferencesReaderStateV1 | null;
   };
 }
 
@@ -247,6 +266,19 @@ export interface NativeProjectFileV1 {
       documentId: string;
       value: FoldArtifacts;
     };
+    /**
+     * The References workspace's plans, per sheet, so a reopened project
+     * shows the plan the reader read rather than replanning it — a replan can
+     * come out different (`implementation-plans/references-persistence.md`).
+     *
+     * Derived and disposable: an entry whose key no longer matches its sheet is
+     * thrown away and the sheet replans; nothing is migrated. An older build's
+     * `validateArtifacts` never names it, so it is dropped there harmlessly.
+     */
+    references?: {
+      documentId: string;
+      value: ReferencesPlanCacheV1;
+    };
   };
   extensions: Record<string, unknown>;
 }
@@ -296,6 +328,10 @@ export interface NativeCreasePatternProjectInput {
   textAnnotations?: TextAnnotation[];
   /** Superset feature: inline simulation windows (schema v5). */
   inlineSimulations?: InlineSimulation[];
+  /** The References reader's state; written as `null` when absent. */
+  referencesReaderState?: ReferencesReaderStateV1 | null;
+  /** The References plan cache, written to `artifacts.references` when present. */
+  referencesPlanCache?: ReferencesPlanCacheV1 | null;
   /**
    * Superset feature: check-suppression regions. Optional and additive — see
    * {@link NativeCreasePatternDocumentV1}'s field of the same name for why this
@@ -564,7 +600,7 @@ export function createNativeProjectFile(
       unknownDesigns: input.unknownDesigns ?? [],
       viewState: {},
     },
-    artifacts: {},
+    artifacts: referencesArtifacts(input.creasePattern?.referencesPlanCache),
     extensions: input.extensions ?? {},
   };
 }
@@ -640,17 +676,26 @@ export function createNativeCreasePatternProjectFile(
       unknownDesigns: input.unknownDesigns ?? [],
       viewState: {},
     },
-    artifacts:
-      input.foldArtifacts && input.foldProjection
+    artifacts: {
+      ...(input.foldArtifacts && input.foldProjection
         ? {
             fold: {
               documentId: 'crease-pattern',
               value: input.foldArtifacts,
             },
           }
-        : {},
+        : {}),
+      ...referencesArtifacts(input.referencesPlanCache),
+    },
     extensions: input.fileExtensions ?? {},
   };
+}
+
+/** The References plan cache as the file's artifact, or nothing when there is none. */
+function referencesArtifacts(
+  cache: ReferencesPlanCacheV1 | null | undefined
+): Pick<NativeProjectFileV1['artifacts'], 'references'> {
+  return cache ? { references: { documentId: CREASE_PATTERN_DOCUMENT_ID, value: cache } } : {};
 }
 
 function createNativeCreasePatternDocument(
@@ -685,6 +730,7 @@ function createNativeCreasePatternDocument(
         input.foldedFigures,
         input.activeFoldedFigureId
       ),
+      references: input.referencesReaderState ?? null,
     },
     // Preserve any extension bag carried forward from a loaded file rather than
     // clobbering it with `{}` — keeps forward-compat data written by a newer app
@@ -1457,6 +1503,8 @@ function validateDocumentV1(value: unknown): NativeProjectDocumentV1 {
             ? viewState.activeFoldedFigureId
             : null
         ),
+        // Absent before it existed → null; malformed → null. Never fails the file.
+        references: validateReferencesReaderState(viewState.references),
       },
       extensions,
     };
@@ -1543,13 +1591,29 @@ function validateImportedSource(value: unknown): ImportedCreasePatternSource | n
 function validateArtifacts(value: unknown): NativeProjectFileV1['artifacts'] {
   if (!isRecord(value)) return {};
   const fold = isRecord(value.fold) ? value.fold : null;
-  if (!fold) return {};
   return {
-    fold: {
-      documentId: stringField(fold.documentId, 'artifacts.fold.documentId'),
-      value: recordField(fold.value, 'artifacts.fold.value') as unknown as FoldArtifacts,
-    },
+    ...(fold
+      ? {
+          fold: {
+            documentId: stringField(fold.documentId, 'artifacts.fold.documentId'),
+            value: recordField(fold.value, 'artifacts.fold.value') as unknown as FoldArtifacts,
+          },
+        }
+      : {}),
+    ...validateReferencesArtifact(value.references),
   };
+}
+
+/**
+ * The References plan cache, dropped rather than thrown when malformed: it is
+ * derived data, and the worst a lost one costs is a replan.
+ */
+function validateReferencesArtifact(
+  value: unknown
+): Pick<NativeProjectFileV1['artifacts'], 'references'> {
+  if (!isRecord(value) || typeof value.documentId !== 'string') return {};
+  const cache = validateReferencesPlanCache(value.value);
+  return cache ? { references: { documentId: value.documentId, value: cache } } : {};
 }
 
 function recordField(value: unknown, field: string): Record<string, unknown> {

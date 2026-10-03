@@ -539,7 +539,9 @@ polynomial algorithm is claimed. The summary strip shows "N folds = M creases + 
   to "the crease from step 12" / "the intersection of steps 3 and 12"; `cpLineIds` are the
   editor's 1-based crease ids the step realises, for the view's highlight and for
   "click a step → highlight its creases".
-- **`referencesSlice`** (transient, never persisted): `{ target: { kind: whole | crease |
+- **`referencesSlice`** (transient, never persisted — since revised: the reader's
+  part of it and the plan are saved with the project, `references-persistence.md`):
+  `{ target: { kind: whole | crease |
   vertex, component, lineId?, point? } | null, plan: { steps, groups, totals, findings,
   computedAtRevision } | null, candidates: Solution[] | null, view: { activeStep,
   activeCandidate, landmarksFirst }, run: { status: idle | running | stopping | stale |

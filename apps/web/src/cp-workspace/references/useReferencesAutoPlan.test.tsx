@@ -43,13 +43,21 @@ function state(overrides: Partial<ReferencesAutoPlanState> = {}): ReferencesAuto
  * different type each time, so React would unmount and remount — and the hook's
  * memory of what it has attempted lives in a ref on that instance.
  */
-function Probe({ value, run }: { value: ReferencesAutoPlanState; run: () => void }) {
-  useReferencesAutoPlan(value, run);
+function Probe({
+  value,
+  run,
+  showCached,
+}: {
+  value: ReferencesAutoPlanState;
+  run: () => void;
+  showCached?: () => void;
+}) {
+  useReferencesAutoPlan(value, run, showCached);
   return null;
 }
 
-function render(next: ReferencesAutoPlanState, run: () => void) {
-  act(() => root?.render(<Probe value={next} run={run} />));
+function render(next: ReferencesAutoPlanState, run: () => void, showCached?: () => void) {
+  act(() => root?.render(<Probe value={next} run={run} showCached={showCached} />));
 }
 
 describe('useReferencesAutoPlan', () => {
@@ -69,6 +77,21 @@ describe('useReferencesAutoPlan', () => {
     render(state({ wanted: false }), run);
     render(state({ wanted: true }), run);
     expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  // Back to a sheet planned earlier, whose plan another sheet's has since
+  // replaced on screen: the cache may still hold it, and showing it is not a
+  // second run.
+  it('shows the cached plan of a pair it will not run again', () => {
+    const run = vi.fn();
+    const showCached = vi.fn();
+    render(state({ sheet: 0 }), run, showCached);
+    render(state({ sheet: 1 }), run, showCached);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(showCached).not.toHaveBeenCalled();
+    render(state({ sheet: 0 }), run, showCached);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(showCached).toHaveBeenCalledTimes(1);
   });
 
   it('waits for the frames analysis, then runs once', () => {

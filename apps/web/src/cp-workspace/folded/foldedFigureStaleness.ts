@@ -6,6 +6,7 @@ import {
   type OristudioCpLineSegment,
 } from '../../engine/oristudioCpTypes';
 import { isOrieditaFoldableLineColor } from '../../lib/creasePatternClipboard';
+import { keyDigest } from '../../lib/keyDigest';
 
 /**
  * Whether a folded figure still matches the creases it was folded from — a port
@@ -86,7 +87,7 @@ export function foldedSourceBounds(
  * region counts as one of its source creases, exactly as upstream.
  */
 export function segmentOverlapsBounds(
-  line: OristudioCpLineSegment,
+  line: Pick<OristudioCpLineSegment, 'a' | 'b'>,
   bounds: FoldedSourceBounds
 ): boolean {
   const dx = line.b.x - line.a.x;
@@ -244,33 +245,6 @@ function segmentKey(line: OristudioCpLineSegment): string {
 const FINGERPRINT_PREFIX = 'cs1:';
 
 /**
- * 64 bits over the sorted keys, as two FNV-1a streams with different bases and
- * primes.
- *
- * Two streams rather than one because a single 32-bit word leaves a 2^-32 chance
- * that an edit reads as "unchanged", and the cost of that is a stale model that
- * never says so — a wrong answer with nothing on screen to question. Consumed
- * incrementally rather than over a joined string, so this never materialises the
- * megabyte-scale text the old form did.
- */
-function creaseSetDigest(sortedKeys: readonly string[]): string {
-  let h1 = 0x811c9dc5;
-  let h2 = 0x9dc5811c;
-  const mix = (code: number) => {
-    h1 = Math.imul(h1 ^ code, 0x01000193);
-    h2 = Math.imul(h2 ^ code, 0x85ebca6b);
-  };
-  for (const key of sortedKeys) {
-    for (let i = 0; i < key.length; i += 1) mix(key.charCodeAt(i));
-    // A separator per key, or `["ab", "c"]` and `["a", "bc"]` would be the same
-    // byte stream — different crease sets sharing a fingerprint for free.
-    mix(0x3b);
-  }
-  const hex = (h: number) => (h >>> 0).toString(16).padStart(8, '0');
-  return `${FINGERPRINT_PREFIX}${hex(h1)}${hex(h2)}`;
-}
-
-/**
  * An order-independent fingerprint of a crease set, standing in for
  * `LineSegmentSet.contentEquals`: two sets share a fingerprint when they have
  * the same segments with the same multiplicities.
@@ -295,7 +269,7 @@ function creaseSetDigest(sortedKeys: readonly string[]): string {
  * window of files is the worse trade.
  */
 export function foldedSourceFingerprint(lines: readonly OristudioCpLineSegment[]): string {
-  return creaseSetDigest(lines.map(segmentKey).sort());
+  return keyDigest(lines.map(segmentKey).sort(), FINGERPRINT_PREFIX);
 }
 
 
