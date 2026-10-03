@@ -1851,6 +1851,13 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - **Detail.** Enter, `]`, Escape and the pose toolbar with real keys, including from a focused toolbar button. Phone layout at 375 px.
     - **Found and fixed.** A picture with no background of its own vanished into the dark theme's well (now paper white). The pose toolbar wrapped on a phone. A toolbar button took ← / → and `[` / `]` from the Diagram.
 
+- [x] **Review.** A workflow of four reviewers (security, state, UI and keyboard, repo rules), each finding put to a skeptic. 17 were confirmed and fixed; 3 refuted.
+  - **Sanitizer.** It ran synchronously on every open with no bound on CSS fan-out, marker copies, or several quadratic scans. All are now bounded, or refused past a cap. The DOCTYPE screen missed non-ASCII entity names (WebKit expanded one to 300 MB) and a DOCTYPE hidden in a comment. The JPEG walker misread fill bytes. A raster upload had no header check.
+  - **State.** An upload step naming an unknown asset kind lost its picture on save. Replaced pictures stayed in the live document, so the history byte cap never trimmed. An upload landed where the selection had moved to mid-import.
+  - **Drops.** A mixed drop left the workspace overlay stuck. Drops on the header, the detail or a read-only diagram got the CP canvas's refusal.
+  - **UI.** Enter took a focused link. Reset Pose dropped focus. The empty card's Upload… was part of the option's name. Export was disabled on a read-only diagram. The picker title was wrong for an empty step.
+  - **Analytics.** The detail, the pose verbs, Remove and Export picture had no events.
+
 ### Phase 3: crease-pattern and folded steps from the Edit canvas
 
 - [ ] **3a.** Extractions, each its own series with no behaviour change:
