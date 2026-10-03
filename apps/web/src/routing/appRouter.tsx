@@ -144,6 +144,7 @@ export function createAppRouter(): AppRouter {
             { path: 'edit', element: <WorkspaceRoute workspace="edit" /> },
             { path: 'simulate', element: <WorkspaceRoute workspace="simulate" /> },
             { path: 'references', element: <WorkspaceRoute workspace="references" /> },
+            { path: 'diagram', element: <WorkspaceRoute workspace="diagram" /> },
           ],
         },
         { path: '*', loader: startupRedirect },

@@ -468,6 +468,13 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
       await get().undoExplori();
       return;
     }
+    // The Diagram's own stack. Never the tree's or the crease pattern's: the
+    // diagram is what is on screen, and running theirs would change a document
+    // that is not.
+    if (context === 'diagram') {
+      get().undoDiagram();
+      return;
+    }
     // Neither Simulate nor References has a history stack of its own, and
     // falling through would run the undo against a document that is not on
     // screen.
@@ -630,6 +637,13 @@ export const createHistorySlice: WorkspaceSliceCreator<HistorySlice> = (set, get
     }
     if (context === 'explori-tree' || context === 'explori-results') {
       await get().redoExplori();
+      return;
+    }
+    // The Diagram's own stack. Never the tree's or the crease pattern's: the
+    // diagram is what is on screen, and running theirs would change a document
+    // that is not.
+    if (context === 'diagram') {
+      get().redoDiagram();
       return;
     }
     // Neither Simulate nor References has a history stack of its own, and

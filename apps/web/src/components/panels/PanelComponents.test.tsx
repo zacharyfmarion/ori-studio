@@ -22,6 +22,8 @@ describe('panelComponents', () => {
       // panes *inside* it, mounted by the active tab's own dock.
       'design-workspace',
       'diagnostics',
+      'diagram',
+      'diagram-step',
     'explori-results',
     'explori-tree',
       'inspector',

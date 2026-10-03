@@ -1812,6 +1812,12 @@ export interface DiagramSliceActions {
   insertDiagramStep: (stepId: string, where: 'before' | 'after') => string | null;
   /** Delete steps; the selection moves to the step that took the first one's place. */
   deleteDiagramSteps: (stepIds: readonly string[]) => boolean;
+  /**
+   * Delete steps, asking first when any of them has content
+   * (`stepHasContent`). Resolves whether they were deleted. Every Delete the
+   * user can reach — the key, a button, a menu — comes through here.
+   */
+  confirmDeleteDiagramSteps: (stepIds: readonly string[]) => Promise<boolean>;
   /** Move a step so it lands at `toIndex` (0-based, clamped). */
   moveDiagramStep: (stepId: string, toIndex: number) => boolean;
   /** Duplicate a step right after itself and select the copy. */

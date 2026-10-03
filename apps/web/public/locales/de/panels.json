@@ -682,6 +682,56 @@
     "optimizingScale": "Skalierung wird optimiert",
     "paths": "Pfade"
   },
+  "diagram": {
+    "actions": {
+      "delete": "Schritt löschen",
+      "duplicate": "Schritt duplizieren",
+      "firstHint": "Bereits der erste Schritt",
+      "insertAfter": "Schritt danach einfügen",
+      "insertBefore": "Schritt davor einfügen",
+      "lastHint": "Bereits der letzte Schritt",
+      "lockedHint": "Mit einem neueren Ori Studio erstellt: Er lässt sich verschieben oder löschen, aber nicht kopieren",
+      "moveEarlier": "Nach vorne",
+      "moveLater": "Nach hinten",
+      "readOnlyHint": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet"
+    },
+    "card": {
+      "badgeEmpty": "Leer",
+      "badgeNewer": "Neuer",
+      "locked": "Mit einem neueren Ori Studio erstellt",
+      "noInstruction": "Keine Anleitung",
+      "noPicture": "Noch kein Bild",
+      "number": "Schritt {{number}}"
+    },
+    "empty": {
+      "addStep": "Schritt hinzufügen",
+      "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung.",
+      "title": "Ein Diagramm beginnen"
+    },
+    "grid": {
+      "label": "Schritte"
+    },
+    "header": {
+      "addStep": "Schritt hinzufügen",
+      "stepCount_one": "{{count}} Schritt",
+      "stepCount_other": "{{count}} Schritte",
+      "titleLabel": "Titel des Diagramms",
+      "titlePlaceholder": "Unbenanntes Diagramm"
+    },
+    "label": "Diagramm",
+    "readOnlyNotice": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird hier deshalb schreibgeschützt geöffnet. Beim Speichern bleibt es genau so, wie es war.",
+    "stepPane": {
+      "instruction": "Anleitung",
+      "instructionLabel": "Anleitung",
+      "instructionPlaceholder": "Beschreiben Sie diesen Schritt…",
+      "lockedNotice": "Dieser Schritt wurde mit einem neueren Ori Studio erstellt. Sie können ihn hier verschieben oder löschen, und er wird genau so gespeichert, wie er war.",
+      "noSelection": "Wählen Sie einen Schritt aus, um ihn zu bearbeiten.",
+      "noSteps": "Fügen Sie einen Schritt hinzu, um hier seine Anleitung zu schreiben.",
+      "ofTotal": "von {{total}}",
+      "positionLabel": "Position des Schritts",
+      "step": "Schritt"
+    }
+  },
   "explori": {
     "advancedDatabases": "Topologiegrößen wählen",
     "backToResults": "Zurück zu den Ergebnissen",
@@ -1083,6 +1133,7 @@
   "sidePane": {
     "properties": "Eigenschaften",
     "settings": "Einstellungen",
+    "step": "Schritt",
     "view": "Ansicht"
   },
   "simulator": {

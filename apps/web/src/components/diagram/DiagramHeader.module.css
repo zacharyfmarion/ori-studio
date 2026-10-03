@@ -1,0 +1,7 @@
+/* What the Diagram header (DiagramHeader.tsx) adds to the shared toolbar frame. */
+.count {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}

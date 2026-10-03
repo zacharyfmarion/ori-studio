@@ -118,6 +118,13 @@
       "timeoutPartial_other": "Der Solver hatte {{count}} Knoten an ihre Plätze gerückt, bevor die Zeit ablief; Sie können dieses Teilergebnis statt des rohen Kandidaten hinzufügen."
     }
   },
+  "diagram": {
+    "deleteStepConfirm": "Löschen",
+    "deleteStepMessage": "Bild und Anleitung werden mit gelöscht. Sie können das rückgängig machen.",
+    "deleteStepsMessage": "Ihre Bilder und Anleitungen werden mit gelöscht. Sie können das rückgängig machen.",
+    "deleteStepsTitle": "{{total}} Schritte löschen?",
+    "deleteStepTitle": "Schritt {{number}} löschen?"
+  },
   "export": {
     "allPatterns": "Alle Muster",
     "appearanceSection": "Erscheinungsbild",

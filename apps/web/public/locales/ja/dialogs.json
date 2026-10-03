@@ -116,6 +116,13 @@
       "timeoutPartial_other": "時間切れまでに頂点 {{count}} 個を所定の位置へ動かしており、素の候補の代わりにその途中結果を追加できます。"
     }
   },
+  "diagram": {
+    "deleteStepConfirm": "削除",
+    "deleteStepMessage": "図と説明文も一緒に削除されます。この操作は取り消せます。",
+    "deleteStepsMessage": "それぞれの図と説明文も一緒に削除されます。この操作は取り消せます。",
+    "deleteStepsTitle": "{{total}} 個のステップを削除しますか？",
+    "deleteStepTitle": "ステップ {{number}} を削除しますか？"
+  },
   "export": {
     "allPatterns": "すべてのパターン",
     "appearanceSection": "外観",

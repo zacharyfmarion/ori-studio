@@ -10,9 +10,12 @@ import {
   setDiagramTitle,
   setPageSetup,
   setStepText,
+  stepHasContent,
   stepIndex,
   type DiagramDocument,
 } from '../../../diagram/document/diagramDocument';
+import i18n from '../../../i18n';
+import { requestConfirmation } from '../../commandDialogStore';
 import { discardDiagramState, trimDiagramHistory } from '../diagramState';
 import {
   emptySnapshotHistory,
@@ -156,6 +159,42 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
         set({ diagramSelectedStepId: neighbour?.id ?? null });
       }
       return true;
+    },
+
+    confirmDeleteDiagramSteps: async (stepIds) => {
+      const { diagram, diagramReadOnly, diagramLoadId } = get();
+      if (!diagram || diagramReadOnly) return false;
+      const removing = new Set(stepIds);
+      const steps = diagram.steps.filter((step) => removing.has(step.id));
+      if (steps.length === 0) return false;
+      if (steps.some(stepHasContent)) {
+        const t = i18n.t;
+        const one = steps.length === 1;
+        const confirmed = await requestConfirmation({
+          title: one
+            ? t('dialogs:diagram.deleteStepTitle', 'Delete step {{number}}?', {
+                number: stepIndex(diagram, steps[0].id) + 1,
+              })
+            : t('dialogs:diagram.deleteStepsTitle', 'Delete {{total}} steps?', {
+                total: steps.length,
+              }),
+          message: one
+            ? t(
+                'dialogs:diagram.deleteStepMessage',
+                'Its picture and instruction go with it. You can undo this.'
+              )
+            : t(
+                'dialogs:diagram.deleteStepsMessage',
+                'Their pictures and instructions go with them. You can undo this.'
+              ),
+          confirmLabel: t('dialogs:diagram.deleteStepConfirm', 'Delete'),
+          cancelLabel: t('dialogs:common.cancel', 'Cancel'),
+          tone: 'danger',
+        });
+        // The question can stay up while a file is opened over it.
+        if (!confirmed || get().diagramLoadId !== diagramLoadId) return false;
+      }
+      return get().deleteDiagramSteps(steps.map((step) => step.id));
     },
 
     moveDiagramStep: (stepId, toIndex) =>

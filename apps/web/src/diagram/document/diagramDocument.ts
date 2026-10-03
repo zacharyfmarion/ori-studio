@@ -207,6 +207,21 @@ export function isLockedStep(step: DiagramStep): boolean {
   return step.unknown !== undefined;
 }
 
+/**
+ * Whether deleting the step would throw work away: an instruction, a picture
+ * or its source, annotations, or a step made by a newer build. An empty step
+ * goes without asking.
+ */
+export function stepHasContent(step: DiagramStep): boolean {
+  return (
+    isLockedStep(step) ||
+    step.text.trim() !== '' ||
+    step.source !== null ||
+    step.picture !== null ||
+    step.annotations.length > 0
+  );
+}
+
 export function stepIndex(document: DiagramDocument, stepId: string): number {
   return document.steps.findIndex((step) => step.id === stepId);
 }

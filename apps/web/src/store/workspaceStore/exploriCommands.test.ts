@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createExploriDocument, type ExploriDocument } from '../../explori/document';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
 import { workspaceCapabilityInput } from './capabilities';
+import { discardDiagramState } from './diagramState';
 import { createExploriDesignState } from './designContent';
 import { singleDesignTab, type DesignTab } from './designTabs';
 import type { WorkspaceState } from './types';
@@ -57,6 +58,7 @@ function stateWith(tab: DesignTab): WorkspaceState {
     importedCreasePattern: null,
     foldArtifacts: null,
     clipboard: null,
+    ...discardDiagramState(),
   } as unknown as WorkspaceState;
 }
 

@@ -682,6 +682,56 @@
     "optimizingScale": "Optimizing scale",
     "paths": "Paths"
   },
+  "diagram": {
+    "actions": {
+      "delete": "Delete Step",
+      "duplicate": "Duplicate Step",
+      "firstHint": "Already the first step",
+      "insertAfter": "Insert Step After",
+      "insertBefore": "Insert Step Before",
+      "lastHint": "Already the last step",
+      "lockedHint": "Made with a newer Ori Studio: it can be moved or deleted, not copied",
+      "moveEarlier": "Move Earlier",
+      "moveLater": "Move Later",
+      "readOnlyHint": "This diagram was made with a newer Ori Studio and opens read-only"
+    },
+    "card": {
+      "badgeEmpty": "Empty",
+      "badgeNewer": "Newer",
+      "locked": "Made with a newer Ori Studio",
+      "noInstruction": "No instruction",
+      "noPicture": "No picture yet",
+      "number": "Step {{number}}"
+    },
+    "empty": {
+      "addStep": "Add step",
+      "message": "A diagram is your folding sequence, one step at a time. Add a step, then give it a picture and an instruction.",
+      "title": "Start a diagram"
+    },
+    "grid": {
+      "label": "Steps"
+    },
+    "header": {
+      "addStep": "Add step",
+      "stepCount_one": "1 step",
+      "stepCount_other": "{{count}} steps",
+      "titleLabel": "Diagram title",
+      "titlePlaceholder": "Untitled diagram"
+    },
+    "label": "Diagram",
+    "readOnlyNotice": "This diagram was made with a newer Ori Studio, so it opens read-only here. Saving keeps it exactly as it came.",
+    "stepPane": {
+      "instruction": "Instruction",
+      "instructionLabel": "Instruction",
+      "instructionPlaceholder": "Describe this step…",
+      "lockedNotice": "This step was made with a newer Ori Studio. It can be moved or deleted here, and is saved exactly as it came.",
+      "noSelection": "Select a step to edit it.",
+      "noSteps": "Add a step to write its instruction here.",
+      "ofTotal": "of {{total}}",
+      "positionLabel": "Step position",
+      "step": "Step"
+    }
+  },
   "explori": {
     "advancedDatabases": "Choose topology sizes",
     "backToResults": "Back to results",
@@ -1089,6 +1139,7 @@
   "sidePane": {
     "properties": "Properties",
     "settings": "Settings",
+    "step": "Step",
     "view": "View"
   },
   "simulator": {

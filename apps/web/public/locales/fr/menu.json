@@ -126,6 +126,7 @@
   },
   "view": {
     "design": "Conception",
+    "diagram": "Diagramme",
     "edit": "Édition",
     "properties": "Propriétés",
     "references": "Références",

@@ -37,6 +37,16 @@
   color: var(--text-muted);
 }
 
+/* Named for assistive technology only; the section title shows it. */
+.labelHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .row[data-disabled] .label {
   opacity: 0.5;
 }

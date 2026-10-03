@@ -1738,7 +1738,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 - [x] **1c.** `ui/fieldRows/TextAreaRow` with its module and tests. It registers its pending edit with `registerCanvasSessionEnder` (the `'session'` phase), and commits it on both `'history'` and `'document-replaced'`.
   - A pending edit commits through the `onCommit` that was current when its run of typing began, so a draft lands where it was typed even if the row is re-pointed.
   - Each commit carries a session (one per focus, numbered across rows). `setDiagramStepText` folds a session's commits into one undo entry until anything else is recorded, undone or installed.
-- [ ] **1d.** Registration and panels. Everything keyed to the `'diagram'` context lands here.
+- [x] **1d.** Registration and panels. Everything keyed to the `'diagram'` context lands here.
   - Undo arms and `historyCountForContext` through both capability builders.
   - The `hasDeletableDiagramSelection` input (`hasDiagram` landed in 1b), the `edit.delete` diagram arm and the reason strings.
   - `landingWorkspace`, with the diagram as an input.
@@ -1756,6 +1756,14 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - `CanvasHistoryPills`, `PanelComponents`;
     - `WorkspaceViewDrawer` and `WorkspaceShell` (mock the new pane bodies).
   - i18n for every key.
+  - As built:
+    - The grid is one `listbox` and each card an `option` with a roving tab stop, not a button: a focused button turns the viewport's arrow keys off. Focus follows the selection while it is in the grid or nowhere (a deleted card hands it on), never out of another control.
+    - The mockup's trailing "Add step" tile was left out: a button cannot sit inside a listbox. The header and the empty state carry Add step.
+    - The empty state offers Add step only. "Go to Edit" and Upload arrive with the features they lead to (Phases 2 and 3), not before them (D15).
+    - `revealDiagramPane` waits for Phase 5: with one pane in its group there is nothing to reveal yet.
+    - Delete asks first through one slice action, `confirmDeleteDiagramSteps`, which the key, the pane and the menu all use, and which refuses to delete into a diagram that replaced the one asked about.
+    - New shared primitive: `components/ui/Notice`.
+    - Found on the way and filed separately: `BpNameEditor`'s Escape commits the typed name instead of reverting it (a stale blur closure).
 - [ ] **1e.** Keys and the context menu.
   - `diagramActions.ts`, `diagramShortcuts.ts` and `useDiagramShortcuts.ts`.
   - The `'diagram'` viewport surface and executor: ← / →, Alt+← / →, and the Escape ladder (Enter arrives with step detail in 2c).

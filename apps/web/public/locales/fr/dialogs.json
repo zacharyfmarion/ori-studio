@@ -120,6 +120,13 @@
       "timeoutPartial_other": "Le solveur avait mis {{count}} sommets en place avant l’expiration du délai, et vous pouvez ajouter ce résultat partiel plutôt que le candidat brut."
     }
   },
+  "diagram": {
+    "deleteStepConfirm": "Supprimer",
+    "deleteStepMessage": "Son image et son instruction seront supprimées avec elle. Vous pourrez annuler.",
+    "deleteStepsMessage": "Leurs images et leurs instructions seront supprimées avec elles. Vous pourrez annuler.",
+    "deleteStepsTitle": "Supprimer {{total}} étapes ?",
+    "deleteStepTitle": "Supprimer l’étape {{number}} ?"
+  },
   "export": {
     "allPatterns": "Tous les patrons",
     "appearanceSection": "Apparence",
@@ -213,8 +220,8 @@
   },
   "foldWarning": {
     "dontShowAgain": "Ne plus afficher",
-    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage\u00a0?",
-    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage\u00a0?",
+    "message": "Des erreurs de pliabilité à plat ont été détectées. Continuer le pliage ?",
+    "spatialMessage": "Des erreurs ont été détectées dans la façon dont ces plis se plient. Continuer le pliage ?",
     "title": "Avertissement"
   },
   "help": {
@@ -320,13 +327,13 @@
   "paperExport": {
     "background": "Arrière-plan",
     "confirmZip": "Exporter les {{format}} en ZIP",
-    "empty": "Rien à exporter\u00a0: la vue ne montre aucun papier.",
+    "empty": "Rien à exporter : la vue ne montre aucun papier.",
     "exporting": "Exportation…",
     "exportingPages": "Exportation {{done}} sur {{total}}…",
     "exportStyle": "Style d'exportation · {{style}}",
     "figureMm": "Taille de la figure",
     "figureSizeHint": "La figure mesure cette taille sur son côté le plus long. Les traits gardent leur épaisseur.",
-    "fixedHint": "Ce modèle est exporté tel qu'il a été enregistré\u00a0: son style et sa page sont ceux avec lesquels il a été dessiné. Repliez-le pour l'exporter dans le style, à la taille et sur la page de votre choix.",
+    "fixedHint": "Ce modèle est exporté tel qu'il a été enregistré : son style et sa page sont ceux avec lesquels il a été dessiné. Repliez-le pour l'exporter dans le style, à la taille et sur la page de votre choix.",
     "format": "Format",
     "hiddenFacesDropped_one": "{{count}} face cachée omise",
     "hiddenFacesDropped_many": "{{count}} faces cachées omises",
@@ -361,17 +368,17 @@
       "valleyDiagramCreases": "crayon des plis vallée du diagramme",
       "valleyFolds": "crayon des plis vallée"
     },
-    "pinsHint": "Garde ses propres réglages\u00a0: {{fields}}, quel que soit le style choisi.",
-    "pngTooLarge": "Trop grand pour être exporté en PNG\u00a0: {{width}} × {{height}} px. Réduisez la résolution ou la taille de feuille.",
+    "pinsHint": "Garde ses propres réglages : {{fields}}, quel que soit le style choisi.",
+    "pngTooLarge": "Trop grand pour être exporté en PNG : {{width}} × {{height}} px. Réduisez la résolution ou la taille de feuille.",
     "preparing": "Préparation de l'aperçu…",
-    "previewFailed": "Impossible de dessiner l'aperçu\u00a0: {{message}}",
+    "previewFailed": "Impossible de dessiner l'aperçu : {{message}}",
     "previousPage": "Étape précédente",
     "resolution": "Résolution",
     "resolutionCustom": "Personnalisée",
     "resolutionDpi": "{{dpi}} dpi",
     "resolutionDpiField": "Résolution en dpi",
     "resolutionScale": "{{scale}}× · {{dpi}} dpi",
-    "saveFailed": "Impossible d'exporter\u00a0: {{message}}",
+    "saveFailed": "Impossible d'exporter : {{message}}",
     "scope": "Étapes",
     "scopeAll": "Toutes les étapes",
     "scopeThis": "Cette étape",
@@ -380,7 +387,7 @@
     "size": "Taille",
     "sizeKb": "{{size}} KB",
     "sizeMb": "{{size}} MB",
-    "storedSceneHint": "Ombré comme lors du pliage\u00a0: repliez-le pour l'éclairer dans un autre style.",
+    "storedSceneHint": "Ombré comme lors du pliage : repliez-le pour l'éclairer dans un autre style.",
     "style": "Style",
     "titleAllSteps": "Exporter toutes les étapes",
     "titleFoldedFigure": "Exporter {{title}}",
@@ -490,7 +497,7 @@
       "front": "Recto",
       "importTitle": "Importer un style de papier",
       "light": {
-        "disc": "Direction de la lumière\u00a0: azimut {{azimuth}}, élévation {{elevation}}",
+        "disc": "Direction de la lumière : azimut {{azimuth}}, élévation {{elevation}}",
         "discHint": "Faites glisser le reflet. Le centre pointe droit vers le papier."
       },
       "lightAzimuth": "Azimut",
@@ -670,7 +677,7 @@
       "resetMessage": "Restaurer la disposition par défaut de l'espace de travail actuel ?",
       "resetTitle": "Réinitialiser la disposition de l'espace de travail",
       "snapRadius": "Rayon d'aimantation",
-      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier\u00a0: le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
+      "snapRadiusHint": "À quelle distance le pointeur doit arriver d'un sommet, d'un pli ou d'un point de grille pour s'y aimanter, en unités de papier : le papier fait 400 de large, c'est donc le même nombre que dans Oriedita.",
       "wheelGestureHint": "Le pincement et Cmd/Ctrl+défilement zooment toujours, quel que soit votre choix.",
       "wheelPans": "Le défilement déplace, le pincement zoome",
       "wheelZooms": "Le défilement zoome"

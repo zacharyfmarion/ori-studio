@@ -118,6 +118,13 @@
       "timeoutPartial_other": "It had moved {{count}} vertices into place before the clock ran out, and you can add that partial result instead of the raw candidate."
     }
   },
+  "diagram": {
+    "deleteStepConfirm": "Delete",
+    "deleteStepMessage": "Its picture and instruction go with it. You can undo this.",
+    "deleteStepsMessage": "Their pictures and instructions go with them. You can undo this.",
+    "deleteStepsTitle": "Delete {{total}} steps?",
+    "deleteStepTitle": "Delete step {{number}}?"
+  },
   "export": {
     "allPatterns": "All patterns",
     "appearanceSection": "Appearance",

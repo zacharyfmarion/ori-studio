@@ -13,6 +13,8 @@ import { SimulatorPanel } from './SimulatorPanel';
 import { SimulatorViewControlsPanel } from './SimulatorViewControlsPanel';
 import { ReferencesPanel } from './ReferencesPanel';
 import { ReferencesViewControlsPanel } from './ReferencesViewControlsPanel';
+import { DiagramPanel } from './DiagramPanel';
+import { DiagramStepPanel } from './DiagramStepPanel';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { ConditionsPanel } from './ConditionsPanel';
 import { withPanelErrorBoundary } from '../errors/withPanelErrorBoundary';
@@ -33,6 +35,8 @@ const panels: Record<string, FC<IDockviewPanelProps>> = {
   'simulator-view-controls': SimulatorViewControlsPanel,
   references: ReferencesPanel,
   'references-view-controls': ReferencesViewControlsPanel,
+  diagram: DiagramPanel,
+  'diagram-step': DiagramStepPanel,
   diagnostics: DiagnosticsPanel,
   conditions: ConditionsPanel,
 };

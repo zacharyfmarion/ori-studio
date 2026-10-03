@@ -120,6 +120,13 @@
       "timeoutPartial_other": "Ele havia colocado {{count}} vértices no lugar antes de o tempo acabar, e você pode adicionar esse resultado parcial em vez do candidato bruto."
     }
   },
+  "diagram": {
+    "deleteStepConfirm": "Excluir",
+    "deleteStepMessage": "A imagem e a instrução dele são excluídas junto. Você pode desfazer isso.",
+    "deleteStepsMessage": "As imagens e as instruções deles são excluídas junto. Você pode desfazer isso.",
+    "deleteStepsTitle": "Excluir {{total}} passos?",
+    "deleteStepTitle": "Excluir o passo {{number}}?"
+  },
   "export": {
     "allPatterns": "Todos os padrões",
     "appearanceSection": "Aparência",

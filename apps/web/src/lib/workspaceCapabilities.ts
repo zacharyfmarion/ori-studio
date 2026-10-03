@@ -65,6 +65,7 @@ export type WorkspaceCapabilityId =
   | 'view.simulate'
   | 'view.simulator'
   | 'view.references'
+  | 'view.diagram'
   | 'view.conditions'
   | 'view.properties'
   | 'view.resetLayout'
@@ -178,6 +179,11 @@ export interface WorkspaceCapabilityInput {
    * from any workspace, so it makes the project savable by itself.
    */
   hasDiagram: boolean;
+  /**
+   * Whether the Diagram has a step selected that Delete would remove: the
+   * diagram context, a selected step, and a diagram that is not read-only.
+   */
+  hasDeletableDiagramSelection: boolean;
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -209,6 +215,7 @@ export function getWorkspaceCapabilities(
   // context.
   const treeMode = input.activeEditingContext === 'treemaker-tree';
   const creasePatternMode = input.activeEditingContext === 'crease-pattern';
+  const diagramMode = input.activeEditingContext === 'diagram';
   const activeCpSurface =
     input.activeEditingContext === 'crease-pattern' && input.hasEditableCreasePattern;
   const isBusy = isWorkspaceBusy(input.status);
@@ -433,14 +440,18 @@ export function getWorkspaceCapabilities(
     'edit.undo': capability(
       input.historyPastCount > 0 && !isBusy,
       t('common:capability.undo', 'Undo'),
-      activeCpSurface
+      diagramMode
+        ? t('common:capability.undoLastDiagramEdit', 'Undo the last diagram edit')
+        : activeCpSurface
           ? t('common:capability.undoLastCpEdit', 'Undo the last crease-pattern edit')
           : t('common:capability.undoLastTreeEdit', 'Undo the last tree edit')
     ),
     'edit.redo': capability(
       input.historyFutureCount > 0 && !isBusy,
       t('common:capability.redo', 'Redo'),
-      activeCpSurface
+      diagramMode
+        ? t('common:capability.redoNextDiagramEdit', 'Redo the next diagram edit')
+        : activeCpSurface
           ? t('common:capability.redoNextCpEdit', 'Redo the next crease-pattern edit')
           : t('common:capability.redoNextTreeEdit', 'Redo the next tree edit')
     ),
@@ -477,23 +488,28 @@ export function getWorkspaceCapabilities(
           : t('common:capability.openEditableCpFirst', 'Open an editable crease pattern first')
     ),
     'edit.delete': capability(
-      (input.hasDeletableDesignSelection && !activeCpSurface && !isBusy) ||
+      (diagramMode && input.hasDeletableDiagramSelection) ||
+        (input.hasDeletableDesignSelection && !activeCpSurface && !isBusy) ||
         (treeMode && !activeCpSurface && hasSelection && !isBusy) ||
         (canEditCp &&
           activeCpSurface &&
           (hasSelectedCpLines || hasSelectedCpPoints || hasSelectedCpCircles)),
       t('common:capability.deleteSelected', 'Delete Selected'),
-      treeMode && !activeCpSurface
-        ? t('common:capability.deleteSelectedTreeParts', 'Delete selected tree parts')
-        : canEditCp
-          ? hasSelectedCpLines
-            ? t('common:capability.deleteSelectedCpLines', 'Delete selected crease-pattern lines')
-            : hasSelectedCpPoints
-              ? t('common:capability.deleteSelectedCpPoints', 'Delete selected crease-pattern points')
-              : hasSelectedCpCircles
-                ? t('common:capability.deleteSelectedCpCircles', 'Delete selected crease-pattern circles')
-                : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
-          : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
+      diagramMode
+        ? input.hasDeletableDiagramSelection
+          ? t('common:capability.deleteSelectedDiagramStep', 'Delete the selected step')
+          : t('common:capability.selectDiagramStepFirst', 'Select a step first')
+        : treeMode && !activeCpSurface
+          ? t('common:capability.deleteSelectedTreeParts', 'Delete selected tree parts')
+          : canEditCp
+            ? hasSelectedCpLines
+              ? t('common:capability.deleteSelectedCpLines', 'Delete selected crease-pattern lines')
+              : hasSelectedCpPoints
+                ? t('common:capability.deleteSelectedCpPoints', 'Delete selected crease-pattern points')
+                : hasSelectedCpCircles
+                  ? t('common:capability.deleteSelectedCpCircles', 'Delete selected crease-pattern circles')
+                  : t('common:capability.selectCpLinesOrPointsFirst', 'Select one or more crease-pattern lines or points first')
+            : t('common:capability.importedCpReadOnly', 'Imported crease patterns are read-only')
     ),
     'edit.selectAll': capability(
       true,
@@ -675,6 +691,11 @@ export function getWorkspaceCapabilities(
       true,
       t('common:capability.references', 'References'),
       t('common:capability.showReferencesWorkspace', 'Show the references workspace')
+    ),
+    'view.diagram': capability(
+      true,
+      t('common:capability.diagram', 'Diagram'),
+      t('common:capability.showDiagramWorkspace', 'Show the diagram workspace')
     ),
     'view.conditions': capability(
       true,
@@ -1091,6 +1112,13 @@ const SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit
  */
 const READ_ONLY_CONTEXTS: ReadonlySet<EditingContext> = new Set(['simulate', 'references']);
 
+/**
+ * What stays in the Edit menu while authoring a diagram: its own undo, redo
+ * and Delete. Cut, copy and paste have nothing to act on there yet, and the
+ * rest of `edit.*` authors a tree.
+ */
+const DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo', 'edit.delete']);
+
 export function maskCapabilitiesForContext(
   capabilities: WorkspaceCapabilities,
   context: EditingContext,
@@ -1125,6 +1153,21 @@ export function maskCapabilitiesForContext(
     for (const id of ids) {
       if (id.startsWith('cp.') && id !== 'cp.build') hide(id);
     }
+  }
+
+  if (context === 'diagram') {
+    // The Diagram authors its own document, not the crease pattern or a tree:
+    // only navigation, file operations and its own Edit verbs apply. It is not
+    // a read-only context — undo, redo and Delete act on the diagram.
+    for (const id of ids) {
+      const foreign =
+        id.startsWith('cp.') ||
+        id.startsWith('optimize.') ||
+        id.startsWith('insert.') ||
+        (id.startsWith('edit.') && !DIAGRAM_VISIBLE_EDIT.has(id));
+      if (foreign) hide(id);
+    }
+    return masked;
   }
 
   if (READ_ONLY_CONTEXTS.has(context)) {

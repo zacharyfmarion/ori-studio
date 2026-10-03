@@ -653,6 +653,55 @@
     "optimizingScale": "スケールを最適化中",
     "paths": "パス"
   },
+  "diagram": {
+    "actions": {
+      "delete": "ステップを削除",
+      "duplicate": "ステップを複製",
+      "firstHint": "すでに最初のステップです",
+      "insertAfter": "後ろにステップを挿入",
+      "insertBefore": "前にステップを挿入",
+      "lastHint": "すでに最後のステップです",
+      "lockedHint": "新しい Ori Studio で作成されたステップです。移動と削除はできますが、複製はできません",
+      "moveEarlier": "前へ移動",
+      "moveLater": "後ろへ移動",
+      "readOnlyHint": "この折り図は新しい Ori Studio で作成されたため、読み取り専用で開かれています"
+    },
+    "card": {
+      "badgeEmpty": "空",
+      "badgeNewer": "新しい版",
+      "locked": "新しい Ori Studio で作成",
+      "noInstruction": "説明文なし",
+      "noPicture": "図はまだありません",
+      "number": "ステップ {{number}}"
+    },
+    "empty": {
+      "addStep": "ステップを追加",
+      "message": "折り図は、折る手順を一つずつ示すものです。ステップを追加して、図と説明文を付けましょう。",
+      "title": "折り図を始める"
+    },
+    "grid": {
+      "label": "ステップ"
+    },
+    "header": {
+      "addStep": "ステップを追加",
+      "stepCount_other": "{{count}} ステップ",
+      "titleLabel": "折り図のタイトル",
+      "titlePlaceholder": "無題の折り図"
+    },
+    "label": "折り図",
+    "readOnlyNotice": "この折り図は新しい Ori Studio で作成されたため、ここでは読み取り専用で開かれます。保存しても元の内容がそのまま保たれます。",
+    "stepPane": {
+      "instruction": "説明文",
+      "instructionLabel": "説明文",
+      "instructionPlaceholder": "このステップの説明を入力…",
+      "lockedNotice": "このステップは新しい Ori Studio で作成されました。ここでは移動と削除ができ、保存時には元の内容がそのまま保たれます。",
+      "noSelection": "編集するステップを選択してください。",
+      "noSteps": "ステップを追加すると、ここに説明文を書けます。",
+      "ofTotal": "/ {{total}}",
+      "positionLabel": "ステップの位置",
+      "step": "ステップ"
+    }
+  },
   "explori": {
     "advancedDatabases": "トポロジーサイズを選択",
     "backToResults": "結果に戻る",
@@ -1048,6 +1097,7 @@
   "sidePane": {
     "properties": "プロパティ",
     "settings": "設定",
+    "step": "ステップ",
     "view": "表示"
   },
   "simulator": {

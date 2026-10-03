@@ -653,6 +653,55 @@
     "optimizingScale": "正在优化比例",
     "paths": "路径"
   },
+  "diagram": {
+    "actions": {
+      "delete": "删除步骤",
+      "duplicate": "复制步骤",
+      "firstHint": "已经是第一步",
+      "insertAfter": "在后面插入步骤",
+      "insertBefore": "在前面插入步骤",
+      "lastHint": "已经是最后一步",
+      "lockedHint": "由更新版本的 Ori Studio 创建：可以移动或删除，但不能复制",
+      "moveEarlier": "前移",
+      "moveLater": "后移",
+      "readOnlyHint": "此图解由更新版本的 Ori Studio 创建，以只读方式打开"
+    },
+    "card": {
+      "badgeEmpty": "空",
+      "badgeNewer": "较新",
+      "locked": "由更新版本的 Ori Studio 创建",
+      "noInstruction": "无说明",
+      "noPicture": "尚无图片",
+      "number": "第 {{number}} 步"
+    },
+    "empty": {
+      "addStep": "添加步骤",
+      "message": "图解就是你的折叠顺序，一次一步。添加一个步骤，再为它配上图片和说明。",
+      "title": "开始制作图解"
+    },
+    "grid": {
+      "label": "步骤"
+    },
+    "header": {
+      "addStep": "添加步骤",
+      "stepCount_other": "{{count}} 个步骤",
+      "titleLabel": "图解标题",
+      "titlePlaceholder": "未命名图解"
+    },
+    "label": "图解",
+    "readOnlyNotice": "此图解由更新版本的 Ori Studio 创建，因此在这里以只读方式打开。保存时会原样保留。",
+    "stepPane": {
+      "instruction": "说明",
+      "instructionLabel": "说明",
+      "instructionPlaceholder": "描述这一步…",
+      "lockedNotice": "此步骤由更新版本的 Ori Studio 创建。可以在这里移动或删除它，保存时会原样保留。",
+      "noSelection": "选择一个步骤进行编辑。",
+      "noSteps": "添加步骤后，即可在这里填写说明。",
+      "ofTotal": "/ {{total}}",
+      "positionLabel": "步骤位置",
+      "step": "步骤"
+    }
+  },
   "explori": {
     "advancedDatabases": "选择拓扑尺寸",
     "backToResults": "返回结果",
@@ -1048,6 +1097,7 @@
   "sidePane": {
     "properties": "属性",
     "settings": "设置",
+    "step": "步骤",
     "view": "视图"
   },
   "simulator": {

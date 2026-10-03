@@ -1,0 +1,25 @@
+/*
+ * The Steps grid (DiagramStepsGrid.tsx). As many columns as fit at 220px, one
+ * on a phone. It fills the pane's height so a press anywhere below the cards
+ * lands on it, which is how it tells "empty space" from "a card".
+ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+  align-content: start;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: var(--space-5);
+}
+
+.grid:focus {
+  outline: none;
+}
+
+@media (max-width: 720px) {
+  .grid {
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+}

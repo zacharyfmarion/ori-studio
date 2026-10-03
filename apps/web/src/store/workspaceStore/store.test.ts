@@ -54,6 +54,7 @@ import {
   activeNativeDesign,
   createNativeBoxPleatProjectFile,
   createNativeCreasePatternProjectFile,
+  createNativeProjectFile,
   createNativeTreeProjectFile,
   parseNativeProjectFile,
   serializeNativeProjectFile,
@@ -9476,6 +9477,60 @@ describe('the project diagram', () => {
     ).toBe(true);
   });
 
+  it('undoes and redoes the diagram from the Diagram, and touches no other history', async () => {
+    await state().createNewCreasePattern();
+    const cpPast = state().oristudioCpHistoryPast;
+    authorTwoSteps();
+    state().setActivePanelId('diagram');
+    expect(state().activeEditingContext).toBe('diagram');
+
+    await state().undo();
+    expect(state().diagram?.steps[1].text).toBe('');
+    await state().redo();
+    expect(state().diagram?.steps[1].text).toBe('Unfold.');
+    expect(state().oristudioCpHistoryPast).toBe(cpPast);
+    expect(oristudioCpMocks.restoreOristudioCpDocumentInPlace).not.toHaveBeenCalled();
+  });
+
+  it('deletes an empty step at once, and asks first for one with content', async () => {
+    const { first } = authorTwoSteps();
+    const empty = state().addDiagramStep()!;
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      await expect(state().confirmDeleteDiagramSteps([empty])).resolves.toBe(true);
+      expect(useCommandDialogStore.getState().dialog).toBeNull();
+
+      const refused = state().confirmDeleteDiagramSteps([first]);
+      const dialog = useCommandDialogStore.getState().dialog;
+      expect(dialog).toMatchObject({ type: 'confirm', title: 'Delete step 1?', tone: 'danger' });
+      resolveCommandDialog(dialog!.id, false);
+      await expect(refused).resolves.toBe(false);
+      expect(state().diagram?.steps).toHaveLength(2);
+
+      const accepted = state().confirmDeleteDiagramSteps([first]);
+      resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, true);
+      await expect(accepted).resolves.toBe(true);
+      expect(state().diagram?.steps).toHaveLength(1);
+    } finally {
+      unregisterDialogHost();
+    }
+  });
+
+  it('does not delete into a diagram that replaced the one the question was about', async () => {
+    const { first } = authorTwoSteps();
+    const unregisterDialogHost = registerCommandDialogHost();
+    try {
+      const pending = state().confirmDeleteDiagramSteps([first]);
+      // A file opened while the question was up: same step ids, new diagram.
+      state().installDiagram({ document: state().diagram!, readOnly: false, raw: {} });
+      resolveCommandDialog(useCommandDialogStore.getState().dialog!.id, true);
+      await expect(pending).resolves.toBe(false);
+      expect(state().diagram?.steps).toHaveLength(2);
+    } finally {
+      unregisterDialogHost();
+    }
+  });
+
   it('makes one sitting at an instruction one undo step, until something else is recorded', () => {
     const { first, second } = authorTwoSteps();
     const past = state().diagramHistory.past.length;
@@ -9550,6 +9605,8 @@ describe('the project diagram', () => {
     ).resolves.toBe(true);
 
     expect(state().diagram).toEqual(saved);
+    // Nothing but a diagram: it opens on the Diagram, not Design's chooser.
+    expect(useLayoutStore.getState().activateWorkspace).toHaveBeenLastCalledWith('diagram');
     expect(state()).toMatchObject({
       workspaceTitle: 'Crane diagram',
       currentFileName: 'crane.osf',
@@ -9635,30 +9692,28 @@ describe('the project diagram', () => {
   });
 
   it('still refuses a project with no design, no crease pattern and no diagram', async () => {
-    const empty = JSON.stringify({
-      format: 'ori-studio-project',
-      schemaVersion: 8,
-      minimumReaderSchemaVersion: 8,
-      createdBy: { app: 'Ori Studio', version: 'test' },
-      modifiedBy: { app: 'Ori Studio', version: 'test' },
-      workspace: {
-        id: 'workspace',
-        title: 'Empty',
-        activeDocumentId: 'crease-pattern',
+    // Written by the real writer, so the refusal is the loader's — not a format
+    // check failing first on a hand-made file.
+    const empty = serializeNativeProjectFile(
+      createNativeProjectFile({
+        workspaceTitle: 'Empty',
+        filename: 'empty.osf',
+        path: null,
         designs: [],
         creasePattern: null,
-        unknownDesigns: [],
         diagram: null,
-        viewState: {},
-      },
-      artifacts: {},
-      extensions: {},
-    });
+        appVersion: 'test',
+      })
+    );
 
     await expect(
       state().openProject(createFileService({ text: empty, name: 'empty.osf', path: null }))
     ).resolves.toBe(false);
     expect(state().status).toBe('error');
+    expect(state().error).toMatchObject({
+      code: 'project_file_damaged',
+      message: expect.stringContaining('neither a design, a crease pattern nor a diagram'),
+    });
   });
 
   // Every entry point that replaces the project, each with a diagram open first.

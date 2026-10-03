@@ -19,6 +19,7 @@ const ALL_CONTEXTS: EditingContext[] = [
   'crease-pattern',
   'simulate',
   'references',
+  'diagram',
 ];
 
 /**
@@ -73,6 +74,12 @@ const LEGACY_BP_HIDDEN = new Set<WorkspaceCapabilityId>([
 
 const LEGACY_SIMULATE_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>(['edit.undo', 'edit.redo']);
 
+const LEGACY_DIAGRAM_VISIBLE_EDIT = new Set<WorkspaceCapabilityId>([
+  'edit.undo',
+  'edit.redo',
+  'edit.delete',
+]);
+
 function legacyMask(
   capabilities: WorkspaceCapabilities,
   context: EditingContext
@@ -99,6 +106,21 @@ function legacyMask(
   // `insert.*` was added to the arm later. It places an image or a text box *on
   // the crease pattern*, so it is authoring like the rest — and being outside
   // the list left the Insert menu standing open over both read-only workspaces.
+  // The Diagram joined with a mask of its own: it authors its own document, so
+  // it keeps undo, redo and Delete, and hides everything that authors a crease
+  // pattern or a tree.
+  if (context === 'diagram') {
+    for (const id of ids) {
+      const foreign =
+        id.startsWith('cp.') ||
+        id.startsWith('optimize.') ||
+        id.startsWith('insert.') ||
+        (id.startsWith('edit.') && !LEGACY_DIAGRAM_VISIBLE_EDIT.has(id));
+      if (foreign) hide(id);
+    }
+    return masked;
+  }
+
   if (context === 'simulate' || context === 'references') {
     for (const id of ids) {
       const isAuthoring =
@@ -149,6 +171,7 @@ function allVisibleCapabilities(): WorkspaceCapabilities {
     hasDeletableDesignSelection: false,
     canSaveDesign: true,
     hasDiagram: false,
+    hasDeletableDiagramSelection: false,
     historyPastCount: 0,
     historyFutureCount: 0,
     clipboard: null,

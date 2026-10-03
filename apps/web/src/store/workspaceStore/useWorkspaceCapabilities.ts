@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { getWorkspaceCapabilities } from '../../lib/workspaceCapabilities';
 import { designKind, designKindForContext } from '../../designKinds';
 import { activeDesignTab } from './designTabs';
-import { cpSolvablePatternCount, historyCountForContext } from './capabilities';
+import {
+  cpSolvablePatternCount,
+  hasDeletableDiagramSelection as selectHasDeletableDiagramSelection,
+  historyCountForContext,
+} from './capabilities';
 import { useWorkspaceStore } from './store';
 
 export function useWorkspaceCapabilities() {
@@ -55,6 +59,11 @@ export function useWorkspaceCapabilities() {
     state.designTabs.some((tab) => (tab.kind ? designKind(tab.kind)?.isSavable(tab) : false) ?? false)
   );
   const hasDiagram = useWorkspaceStore((state) => state.diagram !== null);
+  const hasDeletableDiagramSelection = useWorkspaceStore(selectHasDeletableDiagramSelection);
+  const diagramHistoryPastCount = useWorkspaceStore((state) => state.diagramHistory.past.length);
+  const diagramHistoryFutureCount = useWorkspaceStore(
+    (state) => state.diagramHistory.future.length
+  );
   // Subscribed to the tab itself, which is what carries every design kind's
   // undo stack. An edit replaces the tab object, so this re-renders — the
   // per-kind history subscriptions this replaced were only ever reading the
@@ -65,13 +74,19 @@ export function useWorkspaceCapabilities() {
   const historyPastCount = historyCountForContext(
     activeEditingContext,
     activeDesign,
-    hasEditableCreasePattern ? cpHistoryPastCount : 0,
+    {
+      cp: hasEditableCreasePattern ? cpHistoryPastCount : 0,
+      diagram: diagramHistoryPastCount,
+    },
     'past'
   );
   const historyFutureCount = historyCountForContext(
     activeEditingContext,
     activeDesign,
-    hasEditableCreasePattern ? cpHistoryFutureCount : 0,
+    {
+      cp: hasEditableCreasePattern ? cpHistoryFutureCount : 0,
+      diagram: diagramHistoryFutureCount,
+    },
     'future'
   );
 
@@ -100,6 +115,7 @@ export function useWorkspaceCapabilities() {
           hasDeletableDesignSelection,
           canSaveDesign,
           hasDiagram,
+          hasDeletableDiagramSelection,
           historyPastCount,
           historyFutureCount,
           clipboard,
@@ -129,6 +145,7 @@ export function useWorkspaceCapabilities() {
       hasDeletableDesignSelection,
       canSaveDesign,
       hasDiagram,
+      hasDeletableDiagramSelection,
       historyFutureCount,
       historyPastCount,
       selection,

@@ -109,6 +109,7 @@ const ALL_LAYOUT_SCOPES = [
   'edit',
   'simulate',
   'references',
+  'diagram',
 ];
 
 /**
@@ -216,6 +217,16 @@ const WORKSPACE_SIDE_PANES = {
       placement: { kind: 'beside-primary', trigger: 'slot' },
     },
   ],
+  diagram: [
+    {
+      id: 'diagram-step',
+      component: 'diagram-step',
+      role: 'settings',
+      initialWidth: 280,
+      referencePanelId: 'diagram',
+      placement: { kind: 'beside-primary', trigger: 'slot' },
+    },
+  ],
 } as const satisfies Partial<Record<WorkspaceId, readonly SidePaneDefinition[]>>;
 
 export type SidePaneSpec = (typeof WORKSPACE_SIDE_PANES)[keyof typeof WORKSPACE_SIDE_PANES][number];
@@ -256,6 +267,9 @@ export function drawerTriggerFor(workspace: WorkspaceId): 'lane' | 'slot' {
  * change (`retitleSidePanes`); before that, tab titles were English literals.
  */
 export function sidePaneTitle(spec: SidePaneSpec): string {
+  // The Diagram's panes are named for what each holds, since they sit side by
+  // side as tabs: the selected step, and (from Phase 5) the page setup.
+  if (spec.id === 'diagram-step') return i18n.t('panels:sidePane.step', 'Step');
   switch (spec.role) {
     case 'view':
       return i18n.t('panels:sidePane.view', 'View');
@@ -413,6 +427,9 @@ export function applyDefaultLayout(
     case 'references':
       applyReferencesLayout(api, coarsePointer);
       return;
+    case 'diagram':
+      applyDiagramLayout(api, coarsePointer);
+      return;
   }
 }
 
@@ -474,6 +491,17 @@ function applyReferencesLayout(api: DockviewApi, coarsePointer: boolean): void {
   });
   if (!coarsePointer) for (const spec of sidePanesFor('references')) addSidePane(api, spec);
   references.api.setActive();
+}
+
+/** References' shape: the steps, and the selected step's pane docked beside them. */
+function applyDiagramLayout(api: DockviewApi, coarsePointer: boolean): void {
+  const diagram = addHeaderlessPanel(api, {
+    id: 'diagram',
+    component: 'diagram',
+    title: 'Diagram',
+  });
+  if (!coarsePointer) for (const spec of sidePanesFor('diagram')) addSidePane(api, spec);
+  diagram.api.setActive();
 }
 
 interface LayoutState {

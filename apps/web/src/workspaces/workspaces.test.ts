@@ -6,18 +6,20 @@ import {
 } from './workspaces';
 
 describe('workspace definitions', () => {
-  it('defines the four primary workspaces in rail order', () => {
+  it('defines the five primary workspaces in rail order', () => {
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.id)).toEqual([
       'edit',
       'design',
       'simulate',
       'references',
+      'diagram',
     ]);
     expect(WORKSPACE_DEFINITIONS.map((workspace) => workspace.label)).toEqual([
       'Edit',
       'Design',
       'Simulate',
       'References',
+      'Diagram',
     ]);
   });
 
@@ -31,9 +33,12 @@ describe('workspace definitions', () => {
     expect(workspaceForPanelId('simulator')).toBe('simulate');
     expect(workspaceForPanelId('references')).toBe('references');
     expect(workspaceForPanelId('references-view-controls')).toBe('references');
+    expect(workspaceForPanelId('diagram')).toBe('diagram');
+    expect(workspaceForPanelId('diagram-step')).toBe('diagram');
 
     expect(workspaceForCommandId('view.creasePattern')).toBe('edit');
     expect(workspaceForCommandId('view.simulator')).toBe('simulate');
     expect(workspaceForCommandId('view.references')).toBe('references');
+    expect(workspaceForCommandId('view.diagram')).toBe('diagram');
   });
 });

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createCpSuppressionRegion } from '../../cp-workspace/annotations/suppressionRegion';
-import { cpSolvablePatternCount, historyCountForContext } from './capabilities';
+import {
+  cpSolvablePatternCount,
+  hasDeletableDiagramSelection,
+  historyCountForContext,
+} from './capabilities';
+import { createDiagram, createStep, insertSteps } from '../../diagram/document/diagramDocument';
+import { discardDiagramState } from './diagramState';
 import type { WorkspaceState } from './types';
 import {
   singleBoxPleatDesignTab,
@@ -37,31 +43,35 @@ describe('historyCountForContext', () => {
   }
 
   it('asks the active design kind for its own depth', () => {
-    expect(historyCountForContext('treemaker-tree', tabWith('treemaker', 3, 1), cp, 'past')).toBe(3);
-    expect(historyCountForContext('bp-tree', tabWith('box-pleat', 5, 2), cp, 'past')).toBe(5);
-    expect(historyCountForContext('bp-packing', tabWith('box-pleat', 5, 2), cp, 'future')).toBe(2);
+    expect(historyCountForContext('treemaker-tree', tabWith('treemaker', 3, 1), { cp, diagram: 0 }, 'past')).toBe(3);
+    expect(historyCountForContext('bp-tree', tabWith('box-pleat', 5, 2), { cp, diagram: 0 }, 'past')).toBe(5);
+    expect(historyCountForContext('bp-packing', tabWith('box-pleat', 5, 2), { cp, diagram: 0 }, 'future')).toBe(2);
     // The one the old switch could not answer, which is the whole point.
-    expect(historyCountForContext('explori-tree', tabWith('explori', 7, 0), cp, 'past')).toBe(7);
-    expect(historyCountForContext('explori-results', tabWith('explori', 7, 4), cp, 'future')).toBe(4);
+    expect(historyCountForContext('explori-tree', tabWith('explori', 7, 0), { cp, diagram: 0 }, 'past')).toBe(7);
+    expect(historyCountForContext('explori-results', tabWith('explori', 7, 4), { cp, diagram: 0 }, 'future')).toBe(4);
   });
 
-  it('lets the crease-pattern editor answer for itself', () => {
-    // A workspace rather than a design kind, so it is not in the registry.
-    expect(historyCountForContext('crease-pattern', tabWith('treemaker', 3, 3), cp, 'past')).toBe(cp);
+  it('lets the crease-pattern editor and the Diagram answer for themselves', () => {
+    // Workspaces rather than design kinds, so neither is in the registry.
+    const counts = { cp, diagram: 6 };
+    expect(historyCountForContext('crease-pattern', tabWith('treemaker', 3, 3), counts, 'past')).toBe(cp);
+    expect(historyCountForContext('diagram', tabWith('treemaker', 3, 3), counts, 'past')).toBe(6);
+    // And neither answers for the other.
+    expect(historyCountForContext('crease-pattern', tabWith('treemaker', 3, 3), { cp: 0, diagram: 6 }, 'past')).toBe(0);
   });
 
   it('reports zero for read-only/consumer contexts so undo stays inert', () => {
     // Simulate consumes the folded model and has no history of its own; the NUX
     // chooser predates any editable document.
-    expect(historyCountForContext('simulate', tabWith('treemaker', 3, 3), cp, 'past')).toBe(0);
-    expect(historyCountForContext('design-nux', tabWith('treemaker', 3, 3), cp, 'past')).toBe(0);
+    expect(historyCountForContext('simulate', tabWith('treemaker', 3, 3), { cp, diagram: 0 }, 'past')).toBe(0);
+    expect(historyCountForContext('design-nux', tabWith('treemaker', 3, 3), { cp, diagram: 0 }, 'past')).toBe(0);
   });
 
   it('reports zero when the tab is of a different kind than the context', () => {
     // A transient state on a tab switch: the context still names the outgoing
     // design's pane. Answering with the *incoming* tab's history would enable
     // undo against a stack that is not there.
-    expect(historyCountForContext('bp-tree', tabWith('explori', 9, 9), cp, 'past')).toBe(0);
+    expect(historyCountForContext('bp-tree', tabWith('explori', 9, 9), { cp, diagram: 0 }, 'past')).toBe(0);
   });
 });
 
@@ -103,5 +113,30 @@ describe('cpSolvablePatternCount', () => {
     // is not a pattern. Narrowing by kind first is what keeps it out.
     const image = { kind: 'cpImage', id: 'img', solveInput: { spans: [] } };
     expect(cpSolvablePatternCount(stateWith([image]))).toBe(0);
+  });
+});
+
+describe('hasDeletableDiagramSelection', () => {
+  const step = createStep(() => 'step-1');
+  const diagram = insertSteps(createDiagram(), [step], 0);
+  const state = (patch: Partial<WorkspaceState>) =>
+    ({
+      ...discardDiagramState(),
+      activeEditingContext: 'diagram',
+      diagram,
+      diagramSelectedStepId: step.id,
+      ...patch,
+    }) as WorkspaceState;
+
+  it('holds for a selected step of a diagram this build may change, in the Diagram', () => {
+    expect(hasDeletableDiagramSelection(state({}))).toBe(true);
+  });
+
+  it('does not hold anywhere else, with nothing selected, or on a read-only diagram', () => {
+    expect(hasDeletableDiagramSelection(state({ activeEditingContext: 'crease-pattern' }))).toBe(false);
+    expect(hasDeletableDiagramSelection(state({ diagramSelectedStepId: null }))).toBe(false);
+    expect(hasDeletableDiagramSelection(state({ diagramSelectedStepId: 'gone' }))).toBe(false);
+    expect(hasDeletableDiagramSelection(state({ diagramReadOnly: true }))).toBe(false);
+    expect(hasDeletableDiagramSelection(state({ diagram: null }))).toBe(false);
   });
 });

@@ -27,6 +27,7 @@ function capabilities({
   hasDeletableDesignSelection = false,
   canSaveDesign = activeEditingContext !== 'crease-pattern',
   hasDiagram = false,
+  hasDeletableDiagramSelection = false,
   historyPastCount = 0,
   historyFutureCount = 0,
   clipboard = null,
@@ -54,6 +55,7 @@ function capabilities({
   hasDeletableDesignSelection?: boolean;
   canSaveDesign?: boolean;
   hasDiagram?: boolean;
+  hasDeletableDiagramSelection?: boolean;
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -82,6 +84,7 @@ function capabilities({
     hasDeletableDesignSelection,
     canSaveDesign,
     hasDiagram,
+    hasDeletableDiagramSelection,
     historyPastCount,
     historyFutureCount,
     clipboard,
@@ -188,6 +191,49 @@ describe('workspace capabilities', () => {
     expect(state['file.exportOrh'].enabled).toBe(false);
     expect(state['file.exportSvg'].enabled).toBe(true);
     expect(getNextDocumentAction(state)).toBe(null);
+  });
+
+  it('gives the Diagram its own undo, redo and Delete, and nothing that authors a pattern or tree', () => {
+    const idle = capabilities({ activeEditingContext: 'diagram', canSaveDesign: false });
+    expect(idle['edit.undo']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Undo the last diagram edit',
+    });
+    expect(idle['edit.delete']).toMatchObject({
+      visible: true,
+      enabled: false,
+      reason: 'Select a step first',
+    });
+
+    const live = capabilities({
+      activeEditingContext: 'diagram',
+      canSaveDesign: false,
+      historyPastCount: 2,
+      historyFutureCount: 1,
+      hasDeletableDiagramSelection: true,
+      // Selections elsewhere that Delete must not act on from here.
+      hasEditableCreasePattern: true,
+      oristudioCpSelectedLineCount: 3,
+    });
+    expect(live['edit.undo'].enabled).toBe(true);
+    expect(live['edit.redo']).toMatchObject({ enabled: true, reason: 'Redo the next diagram edit' });
+    expect(live['edit.delete']).toMatchObject({
+      enabled: true,
+      reason: 'Delete the selected step',
+    });
+    for (const id of [
+      'edit.cut',
+      'edit.copy',
+      'edit.paste',
+      'edit.selectAll',
+      'insert.image',
+      'cp.checkCamv',
+      'optimize.scale',
+    ] as const) {
+      expect(live[id].visible, id).toBe(false);
+    }
+    expect(live['view.diagram']).toMatchObject({ visible: true, enabled: true });
   });
 
   it('saves a project that has a diagram from any workspace, whatever else it holds', () => {

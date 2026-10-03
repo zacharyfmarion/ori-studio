@@ -88,6 +88,20 @@ describe('resolveEditingContext', () => {
     ).toBe('references');
   });
 
+  it('maps the diagram and its Step pane, whatever design is active', () => {
+    for (const activePanelId of ['diagram', 'diagram-step']) {
+      expect(resolveEditingContext({ ...base, activePanelId })).toBe('diagram');
+      expect(
+        resolveEditingContext({
+          ...base,
+          activePanelId,
+          designMethod: 'box-pleat',
+          hasBpDocument: true,
+        })
+      ).toBe('diagram');
+    }
+  });
+
   it('resolves TreeMaker side panes to the tree context', () => {
     for (const id of ['inspector', 'diagnostics', 'conditions']) {
       expect(resolveEditingContext({ ...base, activePanelId: id })).toBe('treemaker-tree');

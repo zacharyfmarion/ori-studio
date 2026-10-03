@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DESIGN_PATH,
+  DIAGRAM_PATH,
   EDIT_PATH,
   LEGACY_DESIGN_PATHS,
   REFERENCES_PATH,
@@ -9,6 +10,7 @@ import {
   parseWorkspacePath,
   workspacePath,
 } from './paths';
+import { WORKSPACE_IDS } from '../workspaces/workspaces';
 
 describe('workspacePath', () => {
   it('returns the one design path', () => {
@@ -22,6 +24,7 @@ describe('workspacePath', () => {
     expect(workspacePath('edit')).toBe(EDIT_PATH);
     expect(workspacePath('simulate')).toBe(SIMULATE_PATH);
     expect(workspacePath('references')).toBe(REFERENCES_PATH);
+    expect(workspacePath('diagram')).toBe(DIAGRAM_PATH);
   });
 });
 
@@ -30,6 +33,7 @@ describe('parseWorkspacePath', () => {
     expect(parseWorkspacePath(EDIT_PATH)).toEqual({ workspace: 'edit' });
     expect(parseWorkspacePath(SIMULATE_PATH)).toEqual({ workspace: 'simulate' });
     expect(parseWorkspacePath(REFERENCES_PATH)).toEqual({ workspace: 'references' });
+    expect(parseWorkspacePath(DIAGRAM_PATH)).toEqual({ workspace: 'diagram' });
     expect(parseWorkspacePath(DESIGN_PATH)).toEqual({ workspace: 'design' });
   });
 
@@ -48,7 +52,7 @@ describe('parseWorkspacePath', () => {
   });
 
   it('round-trips with workspacePath', () => {
-    for (const workspace of ['design', 'edit', 'simulate', 'references'] as const) {
+    for (const workspace of WORKSPACE_IDS) {
       expect(parseWorkspacePath(workspacePath(workspace))).toEqual({ workspace });
     }
   });

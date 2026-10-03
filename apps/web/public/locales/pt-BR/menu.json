@@ -126,6 +126,7 @@
   },
   "view": {
     "design": "Design",
+    "diagram": "Diagrama",
     "edit": "Editar",
     "properties": "Propriedades",
     "references": "Referências",

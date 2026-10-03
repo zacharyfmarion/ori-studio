@@ -33,6 +33,7 @@ interface PendingEdit {
  */
 export function TextAreaRow({
   label,
+  labelHidden = false,
   value,
   placeholder,
   disabled = false,
@@ -43,6 +44,11 @@ export function TextAreaRow({
   onCommit,
 }: {
   label: string;
+  /**
+   * Keep the label for assistive technology only, for a field whose section
+   * title already says what it is.
+   */
+  labelHidden?: boolean;
   value: string;
   placeholder?: string;
   disabled?: boolean;
@@ -92,7 +98,7 @@ export function TextAreaRow({
 
   return (
     <div className={styles.row} data-disabled={disabled || undefined} title={title}>
-      <label className={styles.label} htmlFor={fieldId}>
+      <label className={labelHidden ? styles.labelHidden : styles.label} htmlFor={fieldId}>
         {label}
       </label>
       <textarea

@@ -126,6 +126,7 @@
   },
   "view": {
     "design": "Дизайн",
+    "diagram": "Схема",
     "edit": "Правка",
     "properties": "Свойства",
     "references": "Референсы",

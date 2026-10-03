@@ -116,6 +116,13 @@
       "timeoutPartial_other": "超时前它已将 {{count}} 个顶点移动到位，你可以添加该部分结果，而不是原始候选图案。"
     }
   },
+  "diagram": {
+    "deleteStepConfirm": "删除",
+    "deleteStepMessage": "它的图片和说明会一并删除。此操作可以撤销。",
+    "deleteStepsMessage": "这些步骤的图片和说明会一并删除。此操作可以撤销。",
+    "deleteStepsTitle": "删除 {{total}} 个步骤？",
+    "deleteStepTitle": "删除第 {{number}} 步？"
+  },
   "export": {
     "allPatterns": "所有折痕图",
     "appearanceSection": "外观",

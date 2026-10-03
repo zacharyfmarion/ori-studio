@@ -711,6 +711,57 @@
     "optimizingScale": "Otimizando escala",
     "paths": "Caminhos"
   },
+  "diagram": {
+    "actions": {
+      "delete": "Excluir passo",
+      "duplicate": "Duplicar passo",
+      "firstHint": "Já é o primeiro passo",
+      "insertAfter": "Inserir passo depois",
+      "insertBefore": "Inserir passo antes",
+      "lastHint": "Já é o último passo",
+      "lockedHint": "Criado com uma versão mais recente do Ori Studio: pode ser movido ou excluído, mas não copiado",
+      "moveEarlier": "Mover para antes",
+      "moveLater": "Mover para depois",
+      "readOnlyHint": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura"
+    },
+    "card": {
+      "badgeEmpty": "Vazio",
+      "badgeNewer": "Mais recente",
+      "locked": "Criado com uma versão mais recente do Ori Studio",
+      "noInstruction": "Sem instrução",
+      "noPicture": "Ainda sem imagem",
+      "number": "Passo {{number}}"
+    },
+    "empty": {
+      "addStep": "Adicionar passo",
+      "message": "Um diagrama é a sua sequência de dobras, um passo de cada vez. Adicione um passo e depois dê a ele uma imagem e uma instrução.",
+      "title": "Começar um diagrama"
+    },
+    "grid": {
+      "label": "Passos"
+    },
+    "header": {
+      "addStep": "Adicionar passo",
+      "stepCount_one": "{{count}} passo",
+      "stepCount_many": "{{count}} passos",
+      "stepCount_other": "{{count}} passos",
+      "titleLabel": "Título do diagrama",
+      "titlePlaceholder": "Diagrama sem título"
+    },
+    "label": "Diagrama",
+    "readOnlyNotice": "Este diagrama foi criado com uma versão mais recente do Ori Studio, por isso abre aqui somente para leitura. Ao salvar, ele é mantido exatamente como veio.",
+    "stepPane": {
+      "instruction": "Instrução",
+      "instructionLabel": "Instrução",
+      "instructionPlaceholder": "Descreva este passo…",
+      "lockedNotice": "Este passo foi criado com uma versão mais recente do Ori Studio. Aqui você pode movê-lo ou excluí-lo, e ele é salvo exatamente como veio.",
+      "noSelection": "Selecione um passo para editá-lo.",
+      "noSteps": "Adicione um passo para escrever aqui a instrução dele.",
+      "ofTotal": "de {{total}}",
+      "positionLabel": "Posição do passo",
+      "step": "Passo"
+    }
+  },
   "explori": {
     "advancedDatabases": "Escolher tamanhos de topologia",
     "backToResults": "Voltar aos resultados",
@@ -1122,6 +1173,7 @@
   "sidePane": {
     "properties": "Propriedades",
     "settings": "Configurações",
+    "step": "Passo",
     "view": "Exibir"
   },
   "simulator": {

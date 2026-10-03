@@ -126,6 +126,7 @@
   },
   "view": {
     "design": "デザイン",
+    "diagram": "折り図",
     "edit": "編集",
     "properties": "プロパティ",
     "references": "リファレンス",

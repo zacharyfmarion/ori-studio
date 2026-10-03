@@ -116,7 +116,7 @@
     },
     "problem": {
       "axisOffCentre": "L'axe de symétrie doit passer par le centre de la feuille pour que l'optimiseur garde la feuille symétrique.",
-      "notAMirror": "L'association n'est pas un miroir\u00a0: certains rabats ne sont pas associés réciproquement. Chaque rabat doit être associé à exactement un autre rabat, ou à lui-même sur l'axe.",
+      "notAMirror": "L'association n'est pas un miroir : certains rabats ne sont pas associés réciproquement. Chaque rabat doit être associé à exactement un autre rabat, ou à lui-même sur l'axe.",
       "unpaired": "Rien n'est associé à {{names}}. Sélectionnez-le et choisissez Associer au miroir, utilisez Associer tout ce qui est en miroir, dessinez-le avec le dessin en miroir activé, ou déplacez-le sur la ligne du miroir."
     }
   },
@@ -711,6 +711,57 @@
     "optimizingScale": "Optimisation de l'échelle",
     "paths": "Chemins"
   },
+  "diagram": {
+    "actions": {
+      "delete": "Supprimer l’étape",
+      "duplicate": "Dupliquer l’étape",
+      "firstHint": "C’est déjà la première étape",
+      "insertAfter": "Insérer une étape après",
+      "insertBefore": "Insérer une étape avant",
+      "lastHint": "C’est déjà la dernière étape",
+      "lockedHint": "Créée avec une version plus récente d’Ori Studio : elle peut être déplacée ou supprimée, mais pas copiée",
+      "moveEarlier": "Avancer",
+      "moveLater": "Reculer",
+      "readOnlyHint": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule"
+    },
+    "card": {
+      "badgeEmpty": "Vide",
+      "badgeNewer": "Plus récent",
+      "locked": "Créée avec une version plus récente d’Ori Studio",
+      "noInstruction": "Aucune instruction",
+      "noPicture": "Pas encore d’image",
+      "number": "Étape {{number}}"
+    },
+    "empty": {
+      "addStep": "Ajouter une étape",
+      "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction.",
+      "title": "Commencer un diagramme"
+    },
+    "grid": {
+      "label": "Étapes"
+    },
+    "header": {
+      "addStep": "Ajouter une étape",
+      "stepCount_one": "{{count}} étape",
+      "stepCount_many": "{{count}} étapes",
+      "stepCount_other": "{{count}} étapes",
+      "titleLabel": "Titre du diagramme",
+      "titlePlaceholder": "Diagramme sans titre"
+    },
+    "label": "Diagramme",
+    "readOnlyNotice": "Ce diagramme a été créé avec une version plus récente d’Ori Studio : il s’ouvre donc ici en lecture seule. L’enregistrer le conserve exactement tel quel.",
+    "stepPane": {
+      "instruction": "Instruction",
+      "instructionLabel": "Instruction",
+      "instructionPlaceholder": "Décrivez cette étape…",
+      "lockedNotice": "Cette étape a été créée avec une version plus récente d’Ori Studio. Vous pouvez la déplacer ou la supprimer ici, et elle est enregistrée exactement telle quelle.",
+      "noSelection": "Sélectionnez une étape pour la modifier.",
+      "noSteps": "Ajoutez une étape pour écrire ici son instruction.",
+      "ofTotal": "sur {{total}}",
+      "positionLabel": "Position de l’étape",
+      "step": "Étape"
+    }
+  },
   "explori": {
     "advancedDatabases": "Choisir les tailles de topologie",
     "backToResults": "Retour aux résultats",
@@ -949,7 +1000,7 @@
       "refused": "Cette feuille n’a pas pu être planifiée ; les notes sous les cartes expliquent pourquoi.",
       "stopped": "Arrêté ici à votre demande, avec {{made}} plis sur {{total}} faits. Recalculer reprend le plan depuis le début.",
       "stoppedBadge": "Arrêté",
-      "tooManyApproximations": "La planification s’est arrêtée avec {{made}} plis sur {{total}} faits\u00a0: les autres n’ont pas de construction exacte, et les plier par références demanderait plus de plis de référence qu’une séquence ne peut en porter.",
+      "tooManyApproximations": "La planification s’est arrêtée avec {{made}} plis sur {{total}} faits : les autres n’ont pas de construction exacte, et les plier par références demanderait plus de plis de référence qu’une séquence ne peut en porter.",
       "turnOver": "Retournez le papier, de gauche à droite.",
       "turnOverBadge": "Retourner",
       "unsolved": "{{made}} plis sur {{total}} sont faits. Pour les autres, le planificateur n’a trouvé aucune construction ; ils sont listés sous les cartes."
@@ -1083,7 +1134,7 @@
     },
     "sidebar": {
       "none": "ReferenceFinder n’a trouvé aucune construction pour cette cible avec les réglages actuels.",
-      "nonePlanned": "Aucune feuille n’a pu être planifiée\u00a0; les notes sous les cartes expliquent pourquoi."
+      "nonePlanned": "Aucune feuille n’a pu être planifiée ; les notes sous les cartes expliquent pourquoi."
     },
     "step": {
       "axiom1": "Pliez {{x}} en passant par {{p0}} et {{p1}}.",
@@ -1124,6 +1175,7 @@
   "sidePane": {
     "properties": "Propriétés",
     "settings": "Réglages",
+    "step": "Étape",
     "view": "Affichage"
   },
   "simulator": {

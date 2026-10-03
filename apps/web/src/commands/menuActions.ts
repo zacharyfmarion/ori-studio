@@ -87,6 +87,7 @@ export const MENU_ACTION_IDS = [
   'view.simulate',
   'view.simulator',
   'view.references',
+  'view.diagram',
   'view.conditions',
   'view.properties',
   'view.resetLayout',
@@ -210,6 +211,8 @@ export interface WorkspaceCommands {
     payload?: OristudioCpCommandPayload
   ): Promise<boolean>;
   transformOristudioCpSelection(transform: CpSelectionTransform): Promise<boolean>;
+  diagramSelectedStepId: string | null;
+  confirmDeleteDiagramSteps(stepIds: readonly string[]): Promise<boolean>;
 }
 
 function selectedCpDeletePoints(
@@ -355,6 +358,7 @@ const VIEW_PANEL_ACTIONS: Partial<Record<MenuActionId, string>> = {
   'view.simulate': 'simulator',
   'view.simulator': 'simulator',
   'view.references': 'references',
+  'view.diagram': 'diagram',
   'view.conditions': 'conditions',
   'view.properties': 'cp-properties',
 };
@@ -552,6 +556,13 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
         await deps.workspace.pasteClipboard();
         return true;
       case 'edit.delete': {
+        // The Diagram owns Delete whether or not a step is selected: falling
+        // through would delete tree parts or creases that are not on screen.
+        if (deps.workspace.activeEditingContext === 'diagram') {
+          const stepId = deps.workspace.diagramSelectedStepId;
+          if (stepId === null) return false;
+          return deps.workspace.confirmDeleteDiagramSteps([stepId]);
+        }
         // *What* to delete is the design kind's answer, asked once. *How* stays
         // here, because each kind's delete is a different store action — but the
         // predicate that used to gate this by naming kinds is gone, which is

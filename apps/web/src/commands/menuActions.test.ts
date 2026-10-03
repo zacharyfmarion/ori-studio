@@ -101,6 +101,8 @@ function createDeps() {
       requestOristudioCpSurface: vi.fn(),
       executeOristudioCpCommand: vi.fn().mockResolvedValue(true),
       transformOristudioCpSelection: vi.fn().mockResolvedValue(true),
+      diagramSelectedStepId: null as string | null,
+      confirmDeleteDiagramSteps: vi.fn().mockResolvedValue(true),
     },
     layout: {
       activatePanel: vi.fn(),
@@ -489,6 +491,25 @@ describe('menu actions', () => {
     expect(deps.workspace.deleteSelection).not.toHaveBeenCalled();
   });
 
+  it('routes Delete in the Diagram to the selected step, and never to a tree or crease pattern', async () => {
+    const deps = createDeps();
+    deps.workspace.activeEditingContext = 'diagram';
+    // Something deletable elsewhere, which Delete in the Diagram must not touch.
+    deps.workspace.oristudioCpDocument = {} as OristudioCpDocumentState;
+    const handle = createMenuActionHandler(deps);
+
+    deps.workspace.diagramSelectedStepId = 'step-2';
+    await expect(handle('edit.delete')).resolves.toBe(true);
+    expect(deps.workspace.confirmDeleteDiagramSteps).toHaveBeenCalledWith(['step-2']);
+
+    deps.workspace.diagramSelectedStepId = null;
+    await expect(handle('edit.delete')).resolves.toBe(false);
+    expect(deps.workspace.confirmDeleteDiagramSteps).toHaveBeenCalledOnce();
+    expect(deps.workspace.deleteSelection).not.toHaveBeenCalled();
+    expect(deps.workspace.executeOristudioCpCommand).not.toHaveBeenCalled();
+    expect(deps.workspace.deleteOristudioBpTreeNode).not.toHaveBeenCalled();
+  });
+
   it('routes Delete to selected editable CP points', async () => {
     const deps = createDeps();
     deps.workspace.activeEditingContext = 'crease-pattern';
@@ -767,6 +788,7 @@ describe('menu actions', () => {
         hasDeletableDesignSelection: false,
         canSaveDesign: true,
         hasDiagram: false,
+        hasDeletableDiagramSelection: false,
         historyPastCount: 0,
         historyFutureCount: 0,
         clipboard: null,

@@ -16,8 +16,33 @@ export type AnalyticsProperties = Record<string, AnalyticsPropertyValue>;
 // Enum property values
 // ---------------------------------------------------------------------------
 
-/** The four top-level workspaces, plus the share screen. */
-export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'share';
+/**
+ * Where a diagram step's picture came from when it was added (D18 of the
+ * Diagram plan). `empty` is a step added with nothing in it yet.
+ */
+export type DiagramStepAddedSource =
+  | 'empty'
+  | 'crease_pattern'
+  | 'cp_folded'
+  | 'cp_3d'
+  | 'references'
+  | 'svg'
+  | 'raster';
+
+/**
+ * Which control added a diagram step. `grid` is the Diagram workspace's own:
+ * the header's Add step, the empty state, and Insert before / after.
+ */
+export type DiagramStepAddedVia =
+  | 'grid'
+  | 'edit_toolbar'
+  | 'folded_figure'
+  | 'references'
+  | 'drop'
+  | 'batch';
+
+/** The five top-level workspaces, plus the share screen. */
+export type WorkspaceScreen = 'design' | 'edit' | 'simulate' | 'references' | 'diagram' | 'share';
 /**
  * A Design workspace's method, for the events that describe *one* design.
  *
@@ -909,6 +934,11 @@ export const ANALYTICS_EVENTS = {
   creasePatternExported: 'crease pattern exported',
   shareLinkCopied: 'share link copied',
   shareLinkOpened: 'share link opened',
+  /**
+   * A step was added to the diagram. `source` is what its picture came from,
+   * `via` the control that added it: which ways into the Diagram are used.
+   */
+  diagramStepAdded: 'diagram step added',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',

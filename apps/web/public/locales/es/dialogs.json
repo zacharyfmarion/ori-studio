@@ -120,6 +120,13 @@
       "timeoutPartial_other": "Había colocado {{count}} vértices en su sitio antes de agotarse el tiempo, y puedes añadir ese resultado parcial en lugar del candidato sin resolver."
     }
   },
+  "diagram": {
+    "deleteStepConfirm": "Eliminar",
+    "deleteStepMessage": "Su imagen y su instrucción se eliminan con él. Puedes deshacerlo.",
+    "deleteStepsMessage": "Sus imágenes e instrucciones se eliminan con ellos. Puedes deshacerlo.",
+    "deleteStepsTitle": "¿Eliminar {{total}} pasos?",
+    "deleteStepTitle": "¿Eliminar el paso {{number}}?"
+  },
   "export": {
     "allPatterns": "Todos los patrones",
     "appearanceSection": "Apariencia",

@@ -176,6 +176,7 @@ describe('extensibility: a third design kind', () => {
       hasDeletableDesignSelection: false,
       canSaveDesign: true,
       hasDiagram: false,
+      hasDeletableDiagramSelection: false,
       historyPastCount: 0,
       historyFutureCount: 0,
       clipboard: null,
@@ -205,6 +206,7 @@ describe('extensibility: a third design kind', () => {
       hasDeletableDesignSelection: false,
       canSaveDesign: true,
       hasDiagram: false,
+      hasDeletableDiagramSelection: false,
       historyPastCount: 0,
       historyFutureCount: 0,
       clipboard: null,
@@ -297,16 +299,16 @@ describe('extensibility: a third design kind', () => {
     const tab = { ...singleDesignTab('treemaker', 'Stub').designTabs[0] };
 
     it('reports its own undo depth to the context that asks', () => {
-      expect(historyCountForContext(STUB_CONTEXT, tab, 0, 'past', kinds)).toBe(1);
-      expect(historyCountForContext(STUB_CONTEXT, tab, 0, 'future', kinds)).toBe(1);
+      expect(historyCountForContext(STUB_CONTEXT, tab, { cp: 0, diagram: 0 }, 'past', kinds)).toBe(1);
+      expect(historyCountForContext(STUB_CONTEXT, tab, { cp: 0, diagram: 0 }, 'future', kinds)).toBe(1);
     });
 
     it('enables Undo and Redo off that depth', () => {
       const capabilities = getWorkspaceCapabilities({
         ...capabilityInput(),
         activeEditingContext: STUB_CONTEXT,
-        historyPastCount: historyCountForContext(STUB_CONTEXT, tab, 0, 'past', kinds),
-        historyFutureCount: historyCountForContext(STUB_CONTEXT, tab, 0, 'future', kinds),
+        historyPastCount: historyCountForContext(STUB_CONTEXT, tab, { cp: 0, diagram: 0 }, 'past', kinds),
+        historyFutureCount: historyCountForContext(STUB_CONTEXT, tab, { cp: 0, diagram: 0 }, 'future', kinds),
       });
       expect(capabilities['edit.undo'].enabled).toBe(true);
       expect(capabilities['edit.redo'].enabled).toBe(true);

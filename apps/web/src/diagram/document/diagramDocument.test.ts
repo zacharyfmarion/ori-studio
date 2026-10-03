@@ -18,6 +18,7 @@ import {
   setPageSetup,
   setStepBreakBefore,
   setStepText,
+  stepHasContent,
   type DiagramDocument,
   type DiagramIdFactory,
   type DiagramStep,
@@ -191,5 +192,16 @@ describe('page setup', () => {
       columns: 3,
       pageNumbers: { enabled: false, first: 1 },
     });
+  });
+});
+
+describe('stepHasContent', () => {
+  it('is false only for a step with nothing in it', () => {
+    const empty = createStep(() => 'step-1');
+    expect(stepHasContent(empty)).toBe(false);
+    expect(stepHasContent({ ...empty, text: '  \n ' })).toBe(false);
+    expect(stepHasContent({ ...empty, breakBefore: true })).toBe(false);
+    expect(stepHasContent({ ...empty, text: 'Fold' })).toBe(true);
+    expect(stepHasContent({ ...empty, unknown: { id: 'step-1' } })).toBe(true);
   });
 });
