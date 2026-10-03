@@ -3,8 +3,8 @@
  *
  * The title, a hairline, then Steps | Pages straight after it; the verbs'
  * side takes the rest of the row, its verbs at the right end. Each side is as
- * wide as what it holds, so a row too narrow for all three wraps rather than
- * squeezing one: the verbs right-aligned under the title and tabs. On a
+ * wide as what it holds, so a row too narrow for both wraps rather than
+ * squeezing one: the verbs right-aligned under the title and tabs. On a wide
  * desktop the row never wraps, so the frame's one-row height holds.
  */
 .header {
@@ -12,11 +12,26 @@
   column-gap: var(--space-2);
 }
 
-/* The title's side: as wide as the title, and no wider. */
+/*
+ * The title and the tabs: one item, so a row never breaks between them, which
+ * would start the next row with the hairline. A pane too narrow for both
+ * shortens the title, ending it in an ellipsis. Stretched, so the tabs keep
+ * the bar's full height.
+ */
+.lead {
+  display: flex;
+  flex: 0 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  column-gap: var(--space-2);
+}
+
+/* The title's side: as wide as the title, and no wider; narrower when the pane is. */
 .side {
   display: flex;
   flex: 0 1 auto;
   align-items: center;
+  min-width: 0;
 }
 
 /* The verbs' side: the rest of the row. */
@@ -26,28 +41,33 @@
   min-width: max-content;
 }
 
+/*
+ * The title, then the count. A pane too narrow for the title, the count and
+ * the tabs shortens the title first, to an ellipsis, down to a few letters;
+ * only then the count.
+ */
 .title {
+  --title-floor: 5rem;
   flex: 1 1 auto;
+}
+
+.titleSlot {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: var(--title-floor);
 }
 
 .actions {
   flex: 0 0 auto;
 }
 
-/*
- * The tabs, straight after the title, with the hairline between them: one
- * item, so a wrapped row never ends on the hairline. The frame spreads its
- * items with space-between, so on a row the title and tabs share once it
- * wraps, the tabs would go to its far end: the margin takes that room instead.
- * Stretched, so the tabs keep the bar's full height.
- */
+/* The tabs, with the hairline before them: a row never ends on it. */
 .views {
   display: flex;
   flex: 0 0 auto;
   align-self: stretch;
   align-items: stretch;
   gap: var(--space-2);
-  margin-right: auto;
 }
 
 .separator {
@@ -65,6 +85,10 @@
 /* On a phone the two views share a row of their own, under the title and
    before the verbs, in the order they come in the DOM and so in the focus order. */
 @media (max-width: 720px) {
+  .lead {
+    display: contents;
+  }
+
   .views {
     flex: 1 1 100%;
   }
@@ -105,7 +129,10 @@
 
 .count {
   flex: 0 0 auto;
+  max-width: calc(100% - var(--title-floor) - var(--space-1));
+  overflow: hidden;
   color: var(--text-tertiary);
   font-size: 0.72rem;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }

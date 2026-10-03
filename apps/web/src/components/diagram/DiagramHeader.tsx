@@ -70,37 +70,41 @@ export function DiagramHeader({
   const { t } = useTranslation();
   return (
     <div className={`panel-toolbar ${styles.header}`}>
-      <div className={styles.side}>
-        <div className={`panel-toolbar__group ${styles.title}`}>
-          <DiagramTitleField
-            title={title}
-            disabled={readOnly}
-            onRename={onRename}
-          />
-          {stepCount > 0 && (
-            <span className={styles.count}>
-              {t("panels:diagram.header.stepCount", {
-                count: stepCount,
-                defaultValue_one: "1 step",
-                defaultValue_other: "{{count}} steps",
-              })}
-              {" · "}
-              {t("panels:diagram.header.pageCount", {
-                count: pageCount,
-                defaultValue_one: "1 page",
-                defaultValue_other: "{{count}} pages",
-              })}
+      <div className={styles.lead}>
+        <div className={styles.side}>
+          <div className={`panel-toolbar__group ${styles.title}`}>
+            <span className={styles.titleSlot}>
+              <DiagramTitleField
+                title={title}
+                disabled={readOnly}
+                onRename={onRename}
+              />
             </span>
-          )}
+            {stepCount > 0 && (
+              <span className={styles.count}>
+                {t("panels:diagram.header.stepCount", {
+                  count: stepCount,
+                  defaultValue_one: "1 step",
+                  defaultValue_other: "{{count}} steps",
+                })}
+                {" · "}
+                {t("panels:diagram.header.pageCount", {
+                  count: pageCount,
+                  defaultValue_one: "1 page",
+                  defaultValue_other: "{{count}} pages",
+                })}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      <div className={styles.views}>
-        <span className={styles.separator} aria-hidden="true" />
-        <DiagramViewSwitch
-          className={styles.viewSwitch}
-          view={view}
-          onChange={onViewChange}
-        />
+        <div className={styles.views}>
+          <span className={styles.separator} aria-hidden="true" />
+          <DiagramViewSwitch
+            className={styles.viewSwitch}
+            view={view}
+            onChange={onViewChange}
+          />
+        </div>
       </div>
       <div className={styles.side} data-side="end">
         <div className={`panel-toolbar__group ${styles.actions}`}>
