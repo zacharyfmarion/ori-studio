@@ -488,9 +488,9 @@ export function stepAsset(document: DiagramDocument, step: DiagramStep): KnownDi
 /**
  * The document as a file holds it: only the assets something still refers to.
  *
- * The table keeps every asset while the diagram is open — undo needs the one a
- * replaced picture had — and a save leaves the orphans behind. Three things
- * keep an asset: a step's source or picture naming it; its id anywhere in a
+ * The store prunes as every edit lands, since each undo snapshot keeps its own
+ * table, and the writer prunes again for a document from anywhere else (one
+ * read from a hand-edited file). Three things keep an asset: a step's source or picture naming it; its id anywhere in a
  * newer build's step, which this build cannot read but must not break; and
  * being of a kind this build does not know, since only that newer build knows
  * what refers to it. The same document comes back when nothing is dropped.

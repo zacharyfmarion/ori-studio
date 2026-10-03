@@ -107,6 +107,24 @@ describe('addStepPictures', () => {
     expect(analytics.trackDiagramPictureUploaded).toHaveBeenCalledOnce();
   });
 
+  it('lands where the gesture meant, though the selection moves while it reads', async () => {
+    const first = state().addDiagramStep()!;
+    const second = state().addDiagramStep()!;
+    state().selectDiagramStep(first);
+    const slow: PickedFile = {
+      ...svgFile('slow.svg'),
+      read: async () => {
+        // A click on another card while the file is read.
+        state().selectDiagramStep(second);
+        return new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="3" height="3"/>');
+      },
+    };
+    await addStepPictures([slow], { via: 'drop', dependencies: dependencies() });
+    // It filled the step that was selected when it was dropped.
+    expect(stepSides()).toEqual([3, null]);
+    expect(state().diagram?.steps.map((step) => step.id)).toEqual([first, second]);
+  });
+
   it('drops what it read when the project is replaced while it reads', async () => {
     state().addDiagramStep();
     const slow: PickedFile = {

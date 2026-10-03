@@ -1860,12 +1860,16 @@ export interface DiagramSliceActions {
    * rule). One picture onto a selected step with none fills that step;
    * otherwise each becomes a new step after the selected one (or at the end),
    * in order, and the last of them is selected. `loadId` is the diagram the
-   * import began against: pictures that outlive it are dropped. The steps that
-   * got pictures, and whether one was filled; null when nothing was added.
+   * import began against: pictures that outlive it are dropped. `anchorStepId`
+   * is the step the rule reads as "selected" — the selection when the files
+   * were picked or dropped, since an import takes time and the selection may
+   * move meanwhile (null: nothing was selected; absent: the selection now).
+   * The steps that got pictures, and whether one was filled; null when nothing
+   * was added.
    */
   addDiagramPictures: (
     assets: readonly KnownDiagramAsset[],
-    options?: { loadId?: number }
+    options?: { loadId?: number; anchorStepId?: string | null }
   ) => { stepIds: string[]; filled: boolean } | null;
   /** Give a step a picture in place of its own (Replace picture…, a drop on its card). */
   setDiagramStepPicture: (

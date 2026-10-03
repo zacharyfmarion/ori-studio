@@ -251,9 +251,11 @@ const PICTURE_KINDS = new Set(['asset']);
 
 /**
  * One step. A source or picture of a kind this build does not know makes the
- * step a newer build's, carried whole and locked. One of a known kind that
- * does not read — or that names an asset the file does not hold, or one
- * dropped on the way in — is left out, and the step keeps its words.
+ * step a newer build's, carried whole and locked — and so does one of a known
+ * kind that names an asset of a kind this build does not know, which only that
+ * newer build can draw. One of a known kind that does not read — or that names
+ * an asset the file does not hold, or one dropped on the way in — is left out,
+ * and the step keeps its words.
  */
 function readStep(value: unknown, assets: Record<string, DiagramAsset>): DiagramStep | null {
   if (!isRecord(value)) return null;
@@ -270,7 +272,12 @@ function readStep(value: unknown, assets: Record<string, DiagramAsset>): Diagram
     text: typeof value.text === 'string' ? xmlText(value.text) : '',
     breakBefore: value.breakBefore === true,
   };
-  if (isNewerKind(value.source, SOURCE_KINDS) || isNewerKind(value.picture, PICTURE_KINDS)) {
+  if (
+    isNewerKind(value.source, SOURCE_KINDS) ||
+    isNewerKind(value.picture, PICTURE_KINDS) ||
+    namesUnknownAsset(value.source, assets) ||
+    namesUnknownAsset(value.picture, assets)
+  ) {
     return { ...base, unknown: value };
   }
   const source = readSource(value.source, assets);
@@ -279,6 +286,13 @@ function readStep(value: unknown, assets: Record<string, DiagramAsset>): Diagram
   // one, or a picture whose source is gone, are not a picture to show.
   if (source && picture && source.assetId === picture.assetId) return { ...base, source, picture };
   return base;
+}
+
+/** A source or picture naming an asset the table carries but this build cannot read. */
+function namesUnknownAsset(value: unknown, assets: Record<string, DiagramAsset>): boolean {
+  if (!isRecord(value) || typeof value.assetId !== 'string') return false;
+  const asset = Object.hasOwn(assets, value.assetId) ? assets[value.assetId] : undefined;
+  return asset !== undefined && !isKnownAsset(asset);
 }
 
 /** A value with a `kind` this build does not read. */

@@ -35,6 +35,12 @@ export interface StepPictureUploadOptions {
   via: 'pick' | 'drop';
   /** Replace this step's picture with the first file, rather than adding steps. */
   replaceStepId?: string;
+  /**
+   * The step the insertion rule reads as selected: the selection at the
+   * gesture, which the import must not lose to a click made while it reads.
+   * The selection when the call is made, by default.
+   */
+  anchorStepId?: string | null;
   dependencies?: ImportDependencies;
   newId?: DiagramIdFactory;
 }
@@ -67,6 +73,10 @@ export async function addStepPictures(
   const store = useWorkspaceStore.getState;
   if (files.length === 0 || store().diagramReadOnly) return null;
   const loadId = store().diagramLoadId;
+  // Read before anything is awaited: where the user meant, not where the
+  // selection has wandered by the time the files are in.
+  const anchorStepId =
+    options.anchorStepId !== undefined ? options.anchorStepId : store().diagramSelectedStepId;
   const newId = options.newId ?? randomDiagramId;
   const replacing = options.replaceStepId;
   const ordered = replacing === undefined ? naturalFileOrder(files) : files.slice(0, 1);
@@ -99,7 +109,7 @@ export async function addStepPictures(
     if (replacing !== undefined) {
       if (store().setDiagramStepPicture(replacing, assets[0], { loadId })) stepIds = [replacing];
     } else {
-      const added = store().addDiagramPictures(assets, { loadId });
+      const added = store().addDiagramPictures(assets, { loadId, anchorStepId });
       if (added) {
         stepIds = added.stepIds;
         // A picture that filled an empty step added no step.
@@ -121,6 +131,10 @@ export async function pickStepPictures(
   options: Omit<StepPictureUploadOptions, 'via'> = {}
 ): Promise<StepPictureUploadResult | null> {
   const t = i18n.t;
+  const anchorStepId =
+    options.anchorStepId !== undefined
+      ? options.anchorStepId
+      : useWorkspaceStore.getState().diagramSelectedStepId;
   const files = await getFileService().openBinaryFiles({
     title:
       options.replaceStepId === undefined
@@ -131,7 +145,7 @@ export async function pickStepPictures(
     multiple: options.replaceStepId === undefined,
   });
   if (!files) return null;
-  return addStepPictures(files, { ...options, via: 'pick' });
+  return addStepPictures(files, { ...options, anchorStepId, via: 'pick' });
 }
 
 function assetFrom(id: string, result: ImportedPicture & { ok: true }): KnownDiagramAsset {

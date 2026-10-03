@@ -267,6 +267,22 @@ describe('uploaded pictures in the file', () => {
     expect(again.steps.at(-1)).toEqual(written.steps.at(-1));
   });
 
+  it('carries, locked, an upload step whose asset is of a kind it does not know', () => {
+    const { document } = uploadDiagram();
+    const written = throughJson(writeDiagram(document));
+    written.assets['asset-pdf'] = { id: 'asset-pdf', kind: 'pdf', pages: 2 };
+    written.steps[0].source.assetId = 'asset-pdf';
+    written.steps[0].picture.assetId = 'asset-pdf';
+    written.steps[0].picture.key = 'asset:asset-pdf';
+    const read = readDiagram(written)!;
+    expect(read.readOnly).toBe(false);
+    expect(read.document.steps[0].unknown).toEqual(written.steps[0]);
+    // Written back as it came, with the asset it names.
+    const again = throughJson(writeDiagram(read.document));
+    expect(again.steps[0]).toEqual(written.steps[0]);
+    expect(again.assets['asset-pdf']).toEqual(written.assets['asset-pdf']);
+  });
+
   it('reads a picture whose source names another asset, or none, as no picture', () => {
     const { document } = uploadDiagram();
     const written = throughJson(writeDiagram(document));

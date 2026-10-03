@@ -18,6 +18,7 @@ import {
   stepHasContent,
   stepHasPicture,
   stepIndex,
+  withReferencedAssets,
   type DiagramDocument,
 } from '../../../diagram/document/diagramDocument';
 import i18n from '../../../i18n';
@@ -72,10 +73,15 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     if (state.diagramReadOnly) return null;
     const before = state.diagram;
     const base = before ?? createDiagram({ hanStyle: defaultHanStyle(authorLocale()) });
-    const next = edit(base);
+    const edited = edit(base);
     // An edit that changed nothing records nothing — and does not bring a
     // diagram into being just to leave it empty.
-    if (next === base) return null;
+    if (edited === base) return null;
+    // An asset nothing refers to any more goes as the edit lands. Each undo
+    // snapshot keeps its own assets table, so undo still has the picture a
+    // replace took away; and with the current diagram no longer holding it,
+    // the history byte cap (`trimDiagramHistory`) sees what only history keeps.
+    const next = withReferencedAssets(edited);
     if (!extend) openTextSession = null;
     set({
       diagram: next,
@@ -247,10 +253,10 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       return true;
     },
 
-    addDiagramPictures: (assets, { loadId } = {}) => {
+    addDiagramPictures: (assets, { loadId, anchorStepId } = {}) => {
       if (assets.length === 0) return null;
       if (loadId !== undefined && loadId !== get().diagramLoadId) return null;
-      const selected = get().diagramSelectedStepId;
+      const selected = anchorStepId !== undefined ? anchorStepId : get().diagramSelectedStepId;
       const current = get().diagram;
       const target = current && selected !== null ? current.steps[stepIndex(current, selected)] : undefined;
       // One picture onto a selected step that has none fills it (D2).

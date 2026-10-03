@@ -9978,6 +9978,25 @@ describe('the project diagram', () => {
       expect(assetOf(first)).toBe('asset-a');
     });
 
+    it('lets go of a replaced picture once only history holds it, so the byte cap can trim it', () => {
+      const { first } = authorTwoSteps();
+      state().selectDiagramStep(first);
+      const big = (id: string): KnownDiagramAsset => {
+        const src = `data:image/png;base64,${id.padEnd(1024 * 1024, 'A')}`;
+        return { id, kind: 'raster', src, widthPx: 1, heightPx: 1, bytes: src.length };
+      };
+      state().addDiagramPictures([big('asset-0')]);
+      for (let index = 1; index <= 80; index++) state().setDiagramStepPicture(first, big(`asset-${index}`));
+
+      // Only the picture on show is in the diagram.
+      expect(Object.keys(state().diagram!.assets)).toEqual(['asset-80']);
+      // 80 MB of replaced pictures is past the 64 MB cap: the oldest undo steps go.
+      expect(state().diagramHistory.past.length).toBeLessThan(80);
+      // Undo still brings back the one before.
+      state().undoDiagram();
+      expect(stepAsset(state().diagram!, state().diagram!.steps[0])?.id).toBe('asset-79');
+    });
+
     it('keeps what sanitizing changed in an upload for this session only', () => {
       const { first } = authorTwoSteps();
       state().selectDiagramStep(first);

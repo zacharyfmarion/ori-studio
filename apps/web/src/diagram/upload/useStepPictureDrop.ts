@@ -58,7 +58,10 @@ export function useStepPictureDrop(): {
     event.stopPropagation();
     const stepId = cardUnder(event.target)?.dataset.stepId;
     if (stepId) store.selectDiagramStep(stepId);
-    void addStepPictures(files.map(pickedFileFromFile), { via: 'drop' });
+    void addStepPictures(files.map(pickedFileFromFile), {
+      via: 'drop',
+      anchorStepId: stepId ?? store.diagramSelectedStepId,
+    });
   }, []);
 
   return { dropTarget, onDragOver, onDragLeave, onDrop };

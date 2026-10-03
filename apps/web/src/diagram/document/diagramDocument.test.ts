@@ -252,7 +252,7 @@ describe('pictures', () => {
     const second = setStepPicture(first, stepId, svgAsset('b'));
     expect(second.steps[0]).toMatchObject({ text: 'Fold in half.', revision: 2 });
     expect(stepAsset(second, second.steps[0])?.id).toBe('b');
-    // The old asset stays in the table, for undo, until a save leaves it out.
+    // The edit itself keeps the old asset; the store prunes it as the edit lands.
     expect(Object.keys(second.assets)).toEqual(['a', 'b']);
     expect(Object.keys(withReferencedAssets(second).assets)).toEqual(['b']);
   });
