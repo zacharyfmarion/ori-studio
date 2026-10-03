@@ -1,10 +1,14 @@
+import type { CpCaptureRuntime } from '../../diagram/capture/captureFolded';
 import type { CpFoldRuntime } from '../../lib/creaseExportFold';
 import type { OristudioCpFoldedFigureSnapshot } from '../../engine/oristudioCpTypes';
 import {
+  fold3dOristudioCpDocument,
+  fold3dOristudioCpFigureAnother,
   foldOristudioCpDocument,
   foldOristudioCpFigureAnother,
   foldOristudioCpFigureToCase,
   freeOristudioCpFoldedFigure,
+  getOristudioCpFolded3dAuxLines,
   getOristudioCpFoldedFigurePaperScene,
   getOristudioCpFoldedFigureRenderSnapshot,
   setOristudioCpFoldedFigureModel,
@@ -49,5 +53,24 @@ export function createCpFoldRuntime(runId: number): CpFoldRuntime {
       }),
     paperScene: (handle) => getOristudioCpFoldedFigurePaperScene(handle),
     free: (handle) => freeOristudioCpFoldedFigure(handle),
+  };
+}
+
+/**
+ * The calls a Diagram capture makes, bound to its fold run: the flat ones
+ * above and the 3D fold. `auxDocumentHandle` is the document whose aux lines
+ * a 3D figure carries, or null when it has none to carry, which asks nothing.
+ */
+export function createCpCaptureRuntime(
+  runId: number,
+  auxDocumentHandle: number | null
+): CpCaptureRuntime {
+  return {
+    ...createCpFoldRuntime(runId),
+    // Starting face 1, as every capture folds.
+    fold3d: (lineIds, model) => fold3dOristudioCpDocument(lineIds, 1, model, runId),
+    fold3dAnother: (handle) => fold3dOristudioCpFigureAnother(handle, runId),
+    aux3d: async (handle) =>
+      auxDocumentHandle === null ? null : getOristudioCpFolded3dAuxLines(handle, auxDocumentHandle),
   };
 }

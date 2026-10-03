@@ -1870,21 +1870,32 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - `store/workspaceStore/foldRuns.ts` takes the store's `get` and `set`, and the CP slice wraps it. The Diagram's run kinds arrive with 3b.
   - **Correction from the code map:** D5's "Crease pattern" row names `buildCreaseExportArtwork`, which yields SVG fragments, not a `PaperScene`. A crease-pattern step is instead built straight from the kernel's lines into a scene: the segment's paper as one face, and its lines with fold, edge and aux roles. The diagram style's fold pens are the crease-pattern pens.
   - **Correction from the code map:** the session ender's *phases* are `'session'` and `'bracket'`. `'history'` and `'document-replaced'` are the *reasons* a session is ended. The capture session registers as `'session'` and acts on the reason.
-- [ ] **3b.** Capture and status.
+- [x] **3b.** Capture and status.
   - `captureFolded.ts`: crease-pattern, flat and 3D captures through the session runtime, with:
     - the capture model at `rotation 0, scale 1`;
     - `outcome`;
     - `fixed` pictures, sanitized at capture and on load;
     - paper scale;
     - the scene budget and raster fallback.
-  - `useDiagramCaptureSession.ts`:
-    - retain and release;
-    - epoch and engine-lost handling;
-    - `withFoldInFlight` kinds;
-    - the exit table from D4, with Revert and undo during Pose.
   - `linkStatus.ts` with D3's precedence.
   - The step's `revision` check on commit.
   - Test: open a `.cp` file, link a step without editing anything, and it reads `current`.
+  - As built:
+    - **The model and file.** `cp` sources and `scene` / `fixed` pictures, with their validators and round trips. A stored scene is written through the validator (`storedSceneJson`), so a load is byte-stable. The camera validator moved beside the camera, and stored thumbnails got one (`readSheetThumbnail`).
+    - **Choosing creases** (`captureCreases.ts`), shared by capture and status:
+      - a region is found by its rim and made of every line inside it (the selection toolbar's containment);
+      - a figure box re-chooses by overlap, as Edit refolds;
+      - the fingerprint covers the scope's foldable lines in kernel order.
+    - **One scale.** Every capture is at `CAPTURE_PX_PER_UNIT`: Edit's user units per pattern unit at 100%, the space a 3D figure's stored scene is built in. Crease-pattern and flat captures carry it as their paper scale. A 3D capture carries none: its camera has perspective, so it is fitted (D10).
+    - **Crease pattern** (`creasePatternScene.ts`): the scope's paper as one face, lines layered aux, folds, edge. An aux end that meets the edge or a fold retreats under erode; shared ends are joined. A figure box cuts its lines to the box.
+    - **The route follows the creases.** A flat request whose creases now have a partial fold is captured in 3D at Edit's default camera, and the reverse. A solution past the last found keeps the last.
+    - **Stored form** (`storableScene`): nothing hidden, no markup, coordinates to 0.01 px (finer on a sheet under 400 px). Past 2 MB, the store rasterizes at 300 dpi in an 80 mm box, with the bitmap's own paper scale.
+    - **The store** (`diagramCapture.ts`, `captureDiagramStep` / `stopDiagramCapture`):
+      - a fold is a `'diagram-capture'` or `'diagram-refresh'` run, and the card can stop its own (`stopFoldRun`);
+      - the result is dropped when the diagram was replaced, or the step is gone or its `revision` moved. An instruction typed meanwhile does not move it.
+      - A capture that changes nothing records no undo step.
+    - **Moved to 3d:** `useDiagramCaptureSession.ts`, with the Pose it serves.
+    - **For 3c:** Remove picture must be offered for a linked step with no picture yet; today it needs a drawable one.
 - [ ] **3c.** The Picture section and linking.
   - The pattern picker over the kernel-space `SheetGrid`.
   - **Link pattern…** from the empty card and header: pick → capture as a crease pattern, then Pose to fold.
@@ -1892,6 +1903,11 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - Card badges, status chips, progress with Stop.
   - Optionally, **its own series first**: move `sheet-grid` / `sheet-card` into `SheetGrid.module.css` with a `columns` prop. It is a shared block, so the References and Simulate overrides become the prop.
 - [ ] **3d.** Pose for folded steps inside the step detail.
+  - `useDiagramCaptureSession.ts`:
+    - retain and release;
+    - epoch and engine-lost handling;
+    - `withFoldInFlight` kinds;
+    - the exit table from D4, with Revert and undo during Pose.
   - The Crease pattern | Folded form switch (D5).
   - Flat: turn over through `setModel`, rotate, Next solution through `foldAnother`.
   - 3D: `useFolded3dMeshRuntime` + `SimulatorViewport` with presets and the CPU fallback, captured through `folded3dFigureScene` with the diagram style and its `styleKey`.

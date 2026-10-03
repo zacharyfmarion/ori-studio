@@ -31,6 +31,18 @@ export function clampPaperPoint(point: Point): Point {
   };
 }
 
+/**
+ * A turn about the origin by `degrees`, clockwise on a y-down page (the
+ * canvas's, and an SVG's): the identity for a whole number of turns.
+ */
+export function turnClockwise(degrees: number): (point: Point) => Point {
+  if (degrees % 360 === 0) return (point) => point;
+  const radians = (degrees * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return ({ x, y }) => ({ x: x * cos - y * sin, y: x * sin + y * cos });
+}
+
 export function formatNumber(value: number, digits = 3): string {
   return value.toFixed(digits).replace(/\.?0+$/, '');
 }

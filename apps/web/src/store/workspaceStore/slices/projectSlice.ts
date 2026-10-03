@@ -68,7 +68,10 @@ import type { PaperExportStyleChoice } from '../../../lib/paperExportSettings';
 import { paperPresetRows, paperStyleChoiceName } from '../../../lib/paperPresetRows';
 import { useSettingsStore } from '../../settingsStore';
 import { cpCommandByOperation } from '../../../lib/oristudioCpCommands';
-import { foldedFigureModelFromOrieditaMetadata } from '../../../lib/orieditaNativeMetadata';
+import {
+  DEFAULT_FOLDED_MODEL,
+  foldedFigureModelFromOrieditaMetadata,
+} from '../../../lib/orieditaNativeMetadata';
 import type { OristudioCpFoldedFigureModel } from '../../../engine/oristudioCpTypes';
 import {
   buildSegmentSubFold,
@@ -604,7 +607,7 @@ function exportFoldedFigureModel(
 ): OristudioCpFoldedFigureModel {
   const base =
     foldedFigureModelFromOrieditaMetadata(documentState.document.metadata) ??
-    DEFAULT_EXPORT_FOLDED_MODEL;
+    DEFAULT_FOLDED_MODEL;
   return {
     ...base,
     state: settings.side,
@@ -612,21 +615,6 @@ function exportFoldedFigureModel(
     back_color: hexToRgbColor(settings.backColor),
   };
 }
-
-/** Mirrors the Rust `FoldedFigureModel::default()`. */
-const DEFAULT_EXPORT_FOLDED_MODEL: OristudioCpFoldedFigureModel = {
-  front_color: { red: 255, green: 255, blue: 50 },
-  back_color: { red: 233, green: 233, blue: 233 },
-  line_color: { red: 0, green: 0, blue: 0 },
-  scale: 1,
-  rotation: 0,
-  anti_alias: true,
-  display_shadows: false,
-  state: 'Front0',
-  folded_cases: 1,
-  transparent_transparency: 16,
-  transparency_color: false,
-};
 
 function defaultCreaseExportOptions(viewport: OristudioCpViewportOptions): CreaseExportOptions {
   return {

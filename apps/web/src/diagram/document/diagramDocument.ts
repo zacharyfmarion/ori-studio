@@ -485,6 +485,43 @@ export function setStepPicture(
   }));
 }
 
+/** A linked step's picture as a capture made it: its source, and the picture with any bitmap it is kept as. */
+export interface CapturedLink {
+  source: DiagramCpSource;
+  picture: DiagramPicture | null;
+  /** The bitmap a picture too detailed to keep as vector is kept as; `picture` names it. */
+  asset?: KnownDiagramAsset;
+}
+
+/**
+ * Link a step to the pattern, or give a linked step a new capture: its source
+ * and picture become the capture's, and it keeps its instruction and
+ * annotations. A capture that changes nothing — the same source, and a picture
+ * with the same key — is no edit, so a Refresh of a current step records no
+ * undo step.
+ */
+export function setLinkedPicture(
+  document: DiagramDocument,
+  stepId: string,
+  link: CapturedLink
+): DiagramDocument {
+  const index = stepIndex(document, stepId);
+  if (index < 0 || isLockedStep(document.steps[index])) return document;
+  const step = document.steps[index];
+  if (
+    (step.picture?.key ?? null) === (link.picture?.key ?? null) &&
+    JSON.stringify(step.source) === JSON.stringify(link.source)
+  ) {
+    return document;
+  }
+  return updateStep(withAssets(document, link.asset ? [link.asset] : []), stepId, (current) => ({
+    ...current,
+    source: link.source,
+    picture: link.picture,
+    revision: current.revision + 1,
+  }));
+}
+
 /** An upload's pose: how its shared asset is turned and flipped when the step is painted. */
 export interface UploadPose {
   rotationQuarterTurns: QuarterTurns;

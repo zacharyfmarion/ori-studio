@@ -57,6 +57,22 @@ export function aimFoldStopAtOldestPending(runs: FoldRuns): void {
 }
 
 /**
+ * Stop one run, leaving the others going: the Diagram's Stop on a card whose
+ * capture is folding. Marked like a Stop of all of them, and aimed the same
+ * way, so a run still queued behind another is stopped as it starts. False
+ * for a run that is gone or that the transport cannot reach.
+ */
+export function stopFoldRun(store: FoldRunStore, runId: number): boolean {
+  const runs = store.get().oristudioCpFoldRuns;
+  const run = runs[runId];
+  if (!run || !run.cancellable) return false;
+  const marked = { ...runs, [runId]: { ...run, stopping: true } };
+  store.set({ oristudioCpFoldRuns: marked });
+  aimFoldStopAtOldestPending(marked);
+  return true;
+}
+
+/**
  * Record a fold as live for as long as `run` takes, under an id a Stop can
  * name, so the UI can both show progress for a slow one and offer a way out of
  * it. Folding happens in the CP worker, so the main thread stays free to paint

@@ -55,6 +55,11 @@ import type {
 import type { ReadDiagram } from '../../diagram/document/diagramFile';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import type {
+  DiagramCaptureOutcome,
+  DiagramCaptureRequest,
+  DiagramCaptureRun,
+} from './diagramCapture';
+import type {
   OristudioCpCommandPayload,
   OristudioCpCommandPreview,
   OristudioCpCommandResult,
@@ -708,7 +713,10 @@ export type OristudioCpFoldRunKind =
   | 'another-3d'
   | 'to-case'
   | 'refold'
-  | 'refold-3d';
+  | 'refold-3d'
+  // A Diagram step captured in Pose, or linked; and one refreshed.
+  | 'diagram-capture'
+  | 'diagram-refresh';
 
 /** One layer-ordering search the user can point at. */
 export interface OristudioCpFoldRun {
@@ -1816,6 +1824,8 @@ export interface DiagramSliceState {
    * diagram, since only the upload itself knows what it lost.
    */
   diagramPictureNotices: Record<string, readonly SanitizeNotice[]>;
+  /** Captures in flight, by step: what a card shows progress and a Stop for. Not saved. */
+  diagramCaptures: Record<string, DiagramCaptureRun>;
 }
 
 export interface DiagramSliceActions {
@@ -1891,6 +1901,14 @@ export interface DiagramSliceActions {
   /** Turn or flip an upload's picture; refused for a step `poseBlocker` names. */
   setDiagramStepPose: (stepId: string, pose: UploadPose) => boolean;
   setDiagramView: (view: DiagramViewMode) => void;
+  /**
+   * Capture a linked step's picture from the crease pattern as it stands and
+   * commit it as one undo step (`diagramCapture.ts`): Link pattern, Refresh,
+   * and Pose's Done. Resolves what happened, for the caller to say.
+   */
+  captureDiagramStep: (stepId: string, request: DiagramCaptureRequest) => Promise<DiagramCaptureOutcome>;
+  /** Stop a step's capture, if it is folding. */
+  stopDiagramCapture: (stepId: string) => boolean;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
 }

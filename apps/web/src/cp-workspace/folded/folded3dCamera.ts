@@ -121,7 +121,7 @@ export function folded3dCoplanarEpsilon(
  * side-by-side pair — and falls back to the front.
  */
 export function defaultFolded3dCamera(
-  model: OristudioCpFolded3dRenderModel,
+  model: OristudioCpFolded3dRenderModel | undefined,
   side: OristudioCpFoldedFigureState = 'Front0'
 ): FoldedFigureCamera {
   void model;

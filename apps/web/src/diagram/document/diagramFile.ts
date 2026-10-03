@@ -360,6 +360,15 @@ function readSource(value: unknown, assets: Record<string, DiagramAsset>): Diagr
   };
 }
 
+/**
+ * A crease-pattern source as a step stores it: through the file's own reader,
+ * so what a capture writes is field for field what a load reads back — the
+ * same shapes, in the same order. Null for one the reader refuses.
+ */
+export function storedCpSource(source: DiagramCpSource): DiagramCpSource | null {
+  return readCpSource(JSON.parse(JSON.stringify(source)) as Record<string, unknown>);
+}
+
 /** A crease-pattern source, every field checked; null when any does not read. */
 function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const scope = readCpScope(value.scope);
