@@ -20,10 +20,10 @@ export const ICON_CONTROL_SIZE_CLASSES = {
  * padding, and forcing one to 28px tall would make the dense context-panel rows
  * (currently 2px of vertical padding) more than twice their height.
  *
- * Only the sizes in use: `sm` is the dense in-panel row, `md` the standalone
- * popover where a chip is a primary target rather than a detail.
+ * Only the sizes in use: `sm`, the dense in-panel row. The crease-angle popover
+ * had a bigger `md` of its own until it took the tool window's look, whose
+ * fold-angle presets are the same control.
  */
 export const CHIP_SIZE_CLASSES = {
   sm: 'ui-chip--sm',
-  md: 'ui-chip--md',
 } as const;

@@ -348,11 +348,6 @@
   font-size: 0.66rem;
 }
 
-.ui-chip--md {
-  padding: 6px 12px;
-  font-size: 0.78rem;
-}
-
 /*
  * A primary button and its caret sharing one outline. The halves stay separate
  * buttons (see SplitButton), so the seam is made by flattening the edges that

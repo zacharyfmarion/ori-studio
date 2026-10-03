@@ -16,9 +16,8 @@ export interface ChipProps
  * A pill-shaped quick pick: a short value you set in one press.
  *
  * Three groups had a private copy of this — the fold-angle presets, the
- * fold-direction options, and the crease-angle popover — which is what made
- * "make the popover's chips bigger" a question about a component rather than
- * about one rule in a stylesheet.
+ * fold-direction options, and the crease-angle popover — so a chip's look is
+ * one component's, not three rules that agree by accident.
  *
  * # Selection is the caller's word, not a prop
  *

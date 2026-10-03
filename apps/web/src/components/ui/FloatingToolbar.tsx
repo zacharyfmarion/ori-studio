@@ -35,12 +35,6 @@ export interface FloatingToolbarProps {
   wheelTarget?: () => Element | null | undefined;
   ariaLabel?: string;
   className?: string;
-  /**
-   * The toolbar's inset around its controls, in px (see `Toolbar`). 0 for a
-   * popover whose content brings its own padding: the corners then fall back to
-   * the shared radius.
-   */
-  inset?: number;
   children: ReactNode;
 }
 
@@ -70,7 +64,6 @@ export function FloatingToolbar({
   wheelTarget,
   ariaLabel,
   className,
-  inset,
   children,
 }: FloatingToolbarProps) {
   const { setFloating, floating, style, visible } = useAnchoredFloating({
@@ -91,7 +84,6 @@ export function FloatingToolbar({
         ref={setFloating}
         tone="raised"
         wrap="always"
-        inset={inset}
         className={className ? `${styles.placement} ${className}` : styles.placement}
         aria-label={ariaLabel}
         // A floating toolbar over the canvas edits what is selected there, so a
