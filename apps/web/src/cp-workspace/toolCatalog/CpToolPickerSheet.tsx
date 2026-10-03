@@ -31,15 +31,15 @@
  * capability rather than a convenience (see `touchModifiers/shiftLatch`), so it
  * moves into the surface that replaced the rail rather than disappearing with it.
  */
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
 import type { OristudioCpActionDefinition, OristudioCpActionId } from '../../lib/oristudioCpActions';
 import type { OristudioCpLineColor } from '../../engine/oristudioCpTypes';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { cpActionLabel, cpGroupLabel } from '../../i18n/cpVocab';
-import { IconButton } from '../../components/ui/IconButton';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { ToolPickerSheet } from '../../components/ui/tools/ToolPickerSheet';
+import { ToolPickerGroup, ToolPickerList } from '../../components/ui/tools/ToolPickerGroup';
 import { CpShiftLatchToggle } from '../touchModifiers/CpShiftLatchToggle';
 import { CpLineTypeMark } from './CpLineTypeMark';
 import { cpRailGroups } from './cpRailActions';
@@ -47,6 +47,7 @@ import { useCpToolFavorites } from './cpToolFavorites';
 import { CpToolPickerFavorites } from './CpToolPickerFavorites';
 import { CpToolPickerRow } from './CpToolPickerRow';
 import { useCpToolFavoriteToggle } from './useCpToolFavoriteToggle';
+import styles from './CpToolPickerSheet.module.css';
 
 export function CpToolPickerSheet({
   pickerId,
@@ -70,121 +71,74 @@ export function CpToolPickerSheet({
   // being handed them.
   const favorites = useCpToolFavorites();
   const toggleFavorite = useCpToolFavoriteToggle('picker-sheet');
-  const title = t('tools:cpToolPicker.title', 'Tools');
-
-  // Focus the sheet itself, the way the View drawer does and for the same
-  // reason: `aria-modal` hides everything outside this dialog from a screen
-  // reader, so focus left on the trigger behind it sits on a node VoiceOver no
-  // longer sees — nothing is announced and the tool list is reachable only by
-  // exploring the screen. Focusing the container rather than the first row
-  // announces what opened before it starts reading the catalogue.
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    sheetRef.current?.focus();
-  }, []);
 
   return (
-    <div
-      id={pickerId}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className="cp-tool-picker"
-      /*
-        `click`, not `pointerdown` — the same retargeting hazard the View
-        drawer documents. Dismissing on `pointerdown` unmounts the backdrop
-        inside the commit, and the rest of the gesture is delivered to
-        whatever is newly underneath: measured on an iPad, the tap that closed
-        a sheet also changed the active tool on the rail behind it.
-      */
-      onClick={close}
+    <ToolPickerSheet
+      pickerId={pickerId}
+      title={t('tools:cpToolPicker.title', 'Tools')}
+      closeLabel={t('tools:cpToolPicker.close', 'Close tool list')}
+      close={close}
+      modes={<CpShiftLatchToggle />}
     >
-      <div
-        ref={sheetRef}
-        role="document"
-        tabIndex={-1}
-        className="cp-tool-picker__sheet"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="cp-tool-picker__header">
-          <span className="cp-tool-picker__title">{title}</span>
-          <IconButton
-            size="sm"
-            aria-label={t('tools:cpToolPicker.close', 'Close tool list')}
-            onClick={close}
-          >
-            <X size={15} />
-          </IconButton>
-        </header>
-        {/* A mode, not a tool, so it sits above the catalogue and outside it —
-            and unlike a tool it does not close the sheet, because reaching it
-            costs two taps here and toggling it twice should not cost four. */}
-        <div className="cp-tool-picker__modes">
-          <CpShiftLatchToggle />
-        </div>
-        <div className="cp-tool-picker__body">
-          {cpRailGroups().map(({ group, actions }) => (
-            <Fragment key={group.id}>
-              <section className="cp-tool-picker__group">
-                <h3 className="cp-tool-picker__group-title">{cpGroupLabel(t, group)}</h3>
-                {/* The line types are five one-letter choices, so as full rows
-                    they cost a third of the sheet to say what five chips say —
-                    and the segmented control the rail uses is already the
-                    clearer picture of "one control, one answer". Every other
-                    group stays a list: those are tools with names worth reading,
-                    which is what the rows are for. Unlike the rail's, a pick
-                    here closes the sheet. */}
-                {group.id === 'line-type' ? (
-                  <div className="cp-tool-picker__types">
-                    <CpToolPickerLineTypes
-                      label={cpGroupLabel(t, group)}
-                      actions={actions}
-                      activeLineColor={activeLineColor}
-                      onSelect={(action) => {
-                        onSelectAction(action);
-                        close();
-                      }}
-                    />
-                  </div>
-                ) : (
-                <ul className="cp-tool-picker__list">
-                  {actions.map((action) => (
-                    <CpToolPickerRow
-                      key={action.id}
-                      action={action}
-                      isActive={activeActionId === action.id}
-                      glyphOperationId={activeActionId === action.id ? activeOperationId : null}
-                      available={action.uiStatus === 'ready'}
-                      favorited={favorites.isFavorite(action.id)}
-                      onToggleFavorite={() => toggleFavorite(action.id)}
-                      onSelect={() => {
-                        onSelectAction(action);
-                        close();
-                      }}
-                    />
-                  ))}
-                </ul>
-                )}
-              </section>
-              {/* Directly below the crease types, which is the one group that is
-                  not a tool and the thing everything else hangs off. Rendered
-                  inside the same map so the two stay adjacent if the catalogue
-                  ever reorders its groups. */}
-              {group.id === 'line-type' && (
-                <CpToolPickerFavorites
-                  activeActionId={activeActionId}
-                  activeOperationId={activeOperationId}
-                  onSelectAction={(action) => {
+      {cpRailGroups().map(({ group, actions }) => (
+        <Fragment key={group.id}>
+          <ToolPickerGroup title={cpGroupLabel(t, group)}>
+            {/* The line types are five one-letter choices, so as full rows
+                they cost a third of the sheet to say what five chips say —
+                and the segmented control the rail uses is already the
+                clearer picture of "one control, one answer". Every other
+                group stays a list: those are tools with names worth reading,
+                which is what the rows are for. Unlike the rail's, a pick
+                here closes the sheet. */}
+            {group.id === 'line-type' ? (
+              <div className={styles.types} data-line-types="">
+                <CpToolPickerLineTypes
+                  label={cpGroupLabel(t, group)}
+                  actions={actions}
+                  activeLineColor={activeLineColor}
+                  onSelect={(action) => {
                     onSelectAction(action);
                     close();
                   }}
                 />
-              )}
-            </Fragment>
-          ))}
-        </div>
-      </div>
-    </div>
+              </div>
+            ) : (
+              <ToolPickerList>
+                {actions.map((action) => (
+                  <CpToolPickerRow
+                    key={action.id}
+                    action={action}
+                    isActive={activeActionId === action.id}
+                    glyphOperationId={activeActionId === action.id ? activeOperationId : null}
+                    available={action.uiStatus === 'ready'}
+                    favorited={favorites.isFavorite(action.id)}
+                    onToggleFavorite={() => toggleFavorite(action.id)}
+                    onSelect={() => {
+                      onSelectAction(action);
+                      close();
+                    }}
+                  />
+                ))}
+              </ToolPickerList>
+            )}
+          </ToolPickerGroup>
+          {/* Directly below the crease types, which is the one group that is
+              not a tool and the thing everything else hangs off. Rendered
+              inside the same map so the two stay adjacent if the catalogue
+              ever reorders its groups. */}
+          {group.id === 'line-type' && (
+            <CpToolPickerFavorites
+              activeActionId={activeActionId}
+              activeOperationId={activeOperationId}
+              onSelectAction={(action) => {
+                onSelectAction(action);
+                close();
+              }}
+            />
+          )}
+        </Fragment>
+      ))}
+    </ToolPickerSheet>
   );
 }
 

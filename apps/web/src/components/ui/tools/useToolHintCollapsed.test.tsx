@@ -1,19 +1,19 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useCpToolHintCollapsed } from './useCpToolHintCollapsed';
-import { STORAGE_KEYS, storageKey } from '../../lib/storage';
+import { useToolHintCollapsed } from './useToolHintCollapsed';
+import { STORAGE_KEYS, storageKey } from '../../../lib/storage';
 
 const KEY = storageKey(STORAGE_KEYS.cpToolHintCollapsed);
 
-describe('useCpToolHintCollapsed', () => {
+describe('useToolHintCollapsed', () => {
   let host: HTMLElement;
   let root: Root;
   let seen: boolean;
   let set: (collapsed: boolean) => void;
 
   function Probe() {
-    const [collapsed, setCollapsed] = useCpToolHintCollapsed();
+    const [collapsed, setCollapsed] = useToolHintCollapsed(STORAGE_KEYS.cpToolHintCollapsed);
     seen = collapsed;
     set = setCollapsed;
     return null;
@@ -85,5 +85,25 @@ describe('useCpToolHintCollapsed', () => {
       Storage.prototype.getItem = getItem;
       Storage.prototype.setItem = setItem;
     }
+  });
+});
+
+describe('useToolHintCollapsed keys', () => {
+  it('keeps each window its own preference', () => {
+    localStorage.setItem(storageKey('a-window'), 'true');
+    let a = false;
+    let b = true;
+    function Probe() {
+      a = useToolHintCollapsed('a-window')[0];
+      b = useToolHintCollapsed('another-window')[0];
+      return null;
+    }
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(<Probe />));
+    expect(a).toBe(true);
+    expect(b).toBe(false);
+    act(() => root.unmount());
+    localStorage.clear();
   });
 });

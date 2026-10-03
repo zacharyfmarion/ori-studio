@@ -740,7 +740,7 @@ Each step is its own commit; the moves change nothing on screen.
 - [x] **Worker and runtime.** `pickFaces` and `setPinnedFaces` (validation,
       `modelKey`); last-drawn camera; framing anchor; serial queue; re-send after
       load; clear on revision change.
-- [ ] **Prep PR — tool UI kit, nothing on screen changes:**
+- [x] **Prep PR — tool UI kit, nothing on screen changes:**
   - the tool window → `components/ui/tools/`;
   - the phone pill, sheet, row and hook extracted beside it;
   - `cp-tool-picker*` CSS into modules, and the ratchet lowered;

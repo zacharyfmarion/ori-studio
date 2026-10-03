@@ -1,9 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CpToolHintWindow } from './CpToolHintWindow';
-import { CP_TOOL_HINT_OVERHANG, CP_TOOL_HINT_WIDTH } from './toolHintPlacement';
-import { STORAGE_KEYS, storageKey } from '../../lib/storage';
+import { ToolHintWindow } from './ToolHintWindow';
+import { TOOL_HINT_OVERHANG, TOOL_HINT_WIDTH } from './toolHintPlacement';
+import { STORAGE_KEYS, storageKey } from '../../../lib/storage';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,7 +25,7 @@ function viewportElement(right = SEAM, bottom = 700): HTMLElement {
   return el;
 }
 
-describe('CpToolHintWindow', () => {
+describe('ToolHintWindow', () => {
   let host: HTMLElement;
   let root: Root;
   let container: HTMLElement;
@@ -33,9 +33,9 @@ describe('CpToolHintWindow', () => {
   const render = (el: HTMLElement | null = container) =>
     act(() =>
       root.render(
-        <CpToolHintWindow container={el} title="Solve Fold Angles" meta="Instructions" ariaLabel="Tool options">
+        <ToolHintWindow container={el} collapseKey={STORAGE_KEYS.cpToolHintCollapsed} title="Solve Fold Angles" meta="Instructions" ariaLabel="Tool options">
           <p className="probe-body">Pick three creases</p>
-        </CpToolHintWindow>
+        </ToolHintWindow>
       )
     );
 
@@ -69,8 +69,8 @@ describe('CpToolHintWindow', () => {
   it('positions itself overhanging the seam', () => {
     render();
     const win = windowEl();
-    expect(win?.style.left).toBe(`${SEAM - CP_TOOL_HINT_OVERHANG}px`);
-    expect(win?.style.width).toBe(`${CP_TOOL_HINT_WIDTH}px`);
+    expect(win?.style.left).toBe(`${SEAM - TOOL_HINT_OVERHANG}px`);
+    expect(win?.style.width).toBe(`${TOOL_HINT_WIDTH}px`);
   });
 
   it('renders nothing without a viewport to anchor to', () => {
@@ -123,15 +123,16 @@ describe('CpToolHintWindow', () => {
   it('renders a header action beside the header', () => {
     act(() =>
       root.render(
-        <CpToolHintWindow
+        <ToolHintWindow
           container={container}
+          collapseKey={STORAGE_KEYS.cpToolHintCollapsed}
           title="Divide by ratio"
           meta="2 settings"
           ariaLabel="Tool options"
           headerAction={<button className="probe-reset" type="button" />}
         >
           <p />
-        </CpToolHintWindow>
+        </ToolHintWindow>
       )
     );
     const reset = windowEl()?.querySelector('.probe-reset');

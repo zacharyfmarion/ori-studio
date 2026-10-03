@@ -1,0 +1,105 @@
+/* One row of the phone tool sheet (ToolPickerRow.tsx). Touch-only, as the sheet is. */
+@media (pointer: coarse) {
+  /*
+   * The row holds its sibling buttons — Edit's star and the select target. It
+   * used to be one button end to end, and it cannot be again: a control nested
+   * in a button is invalid, and in practice the outer one takes the tap.
+   *
+   * The active treatment lives here rather than on `.item` for the same
+   * restructure: its inset left bar has to draw at the row's edge, not between
+   * the star and the glyph.
+   */
+  .row {
+    display: flex;
+    align-items: center;
+    /* No `touch-action: none` — the sheet scrolls, and a permanently
+       unscrollable band at the top of it would cost more than the drag is
+       worth. `useLongPressReorder` cancels the scroll at arm time instead. */
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  .row[data-active] {
+    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
+    box-shadow: inset 2px 0 0 var(--accent-primary);
+  }
+
+  /* The row is out of the flow of the list under a finger, so it reads as picked
+     up rather than merely highlighted. */
+  .row[data-dragging] {
+    position: relative;
+    z-index: 2;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    box-shadow: var(--shadow-context-menu);
+    transform: scale(1.02);
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex: 1;
+    min-width: 0;
+    min-height: var(--touch-target);
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  .item[aria-disabled='true'] {
+    color: var(--text-tertiary);
+    opacity: 0.55;
+  }
+
+  .icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--text-secondary);
+  }
+
+  .row[data-active] .icon {
+    color: var(--text-primary);
+  }
+
+  .text {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    gap: 1px;
+  }
+
+  .label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  /* The description the tooltip used to be the only home for. Two lines at most:
+     past that the row stops being scannable and the list stops being a list. */
+  .hint {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-size: 0.7rem;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  /* The lift keeps its shadow and its stacking — those say "picked up" without
+     moving anything. Only the scale goes, which is the part that is motion. */
+  .row[data-dragging] {
+    transform: none;
+  }
+}

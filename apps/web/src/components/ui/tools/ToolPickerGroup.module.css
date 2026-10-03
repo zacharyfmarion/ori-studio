@@ -1,0 +1,35 @@
+/* A section of the phone tool sheet (ToolPickerGroup.tsx). Touch-only, as the sheet is. */
+@media (pointer: coarse) {
+  .title {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    font-size: 0.62rem;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Flush with the heading above it, which is the only left edge a section
+     has. It was once indented to the row text past Edit's favorite star, on the
+     idea that it belonged to the list — but the stars are a column inside the
+     rows, not a margin the section is laid out against, so aligning to them just
+     read as a stray indent. */
+  .note {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-2);
+    color: var(--text-tertiary);
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+}

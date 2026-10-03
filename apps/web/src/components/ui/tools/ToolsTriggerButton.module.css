@@ -1,0 +1,24 @@
+/* The phone Tools pill (ToolsTriggerButton.tsx). Touch-only, as the pills are. */
+@media (pointer: coarse) {
+  /*
+   * The active tool's mark, at about the size the View pill draws its icon. A
+   * box of its own because a tool glyph can be several different things — Edit
+   * draws an Oriedita glyph from an icon font, a two-letter line-type label, or
+   * a Lucide icon — and only a fixed box makes them all sit on the same line as
+   * the word beside them.
+   *
+   * The font-size here covers a text glyph. Edit's Oriedita icon font carries
+   * its own, tuned for a 44px rail button, which `CpToolGlyph`'s compact form
+   * re-sets.
+   */
+  .glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1;
+  }
+}

@@ -1,10 +1,10 @@
 /*
- * The tool hint window (CpToolHintWindow.tsx): a floating window over the bottom
- * right of the Edit workspace, overhanging the seam between the crease-pattern
- * viewport and the View pane. The chrome only — the tool's content inside it is
- * CpContextToolPanel's.
+ * The tool hint window (ToolHintWindow.tsx): a floating window over the bottom
+ * right of a workspace's viewport, overhanging the seam between the viewport and
+ * the side pane beside it. The chrome only — the tool's content inside it is the
+ * workspace's.
  *
- * `left`, `bottom` and `width` come from `cpToolHintPlacement` as inline style —
+ * `left`, `bottom` and `width` come from `toolHintPlacement` as inline style —
  * they are a function of a measured rect, so they cannot live here. Everything
  * else does. It is body-portaled, which is what `fixed` needs to mean the
  * browser window rather than the nearest Dockview panel.
