@@ -8,7 +8,8 @@
  *
  * Shared by every reader that persists a picture — the Edit workspace's 3D
  * folded figures and the Diagram workspace's step pictures — so the rules for
- * what a stored picture may contain live in one place.
+ * what a stored picture may contain live in one place. Faces and lines only:
+ * `markup` items are dropped (see {@link readPaperItem}).
  *
  * DOM-free, store-free and pure.
  */
@@ -82,11 +83,12 @@ function readPaperItem(value: unknown): PaperItem | null {
       hidden,
     };
   }
-  if (value.kind === 'markup') {
-    const bounds = readSceneBounds(value.bounds);
-    if (typeof value.svg !== 'string' || !bounds) return null;
-    return { kind: 'markup', svg: value.svg, bounds, hidden: false };
-  }
+  // Markup is never read back. A markup item is a raw SVG string the painter
+  // concatenates into every page and file it composes, so one read from a file
+  // would let a crafted .osf put arbitrary markup — script, handlers, external
+  // links — into everything the app exports. Nothing stores markup legitimately:
+  // only the References renderer emits it, at paint time, from data. Folded,
+  // 3D and simulated scenes carry none, so dropping it loses nothing.
   return null;
 }
 

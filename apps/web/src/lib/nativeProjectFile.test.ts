@@ -665,6 +665,23 @@ describe('native project file', () => {
     expect(entry.scene?.items[1]).not.toHaveProperty('face');
   });
 
+  it('never reads markup back into a stored picture', () => {
+    // The painter writes markup into exports verbatim, so a file must not be able
+    // to supply any. A folded figure's picture never holds markup legitimately.
+    const { serialized } = roundTripCp([folded3dFigure()]);
+    const stored = serialized.workspace.creasePattern.viewState.foldedFigures[0];
+    const kept = stored.scene.items.length;
+    stored.scene.items.push({
+      kind: 'markup',
+      svg: '<script>alert(1)</script>',
+      bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+      hidden: false,
+    });
+    const [entry] = reparse(serialized);
+    expect(entry.scene?.items).toHaveLength(kept);
+    expect(entry.scene?.items.some((item) => item.kind === 'markup')).toBe(false);
+  });
+
   it('reads every line role a scene can carry, a step’s instruction included', () => {
     // A role the reader does not list drops its line as malformed, silently.
     const roles: PaperLineRole[] = [
