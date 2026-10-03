@@ -23,7 +23,13 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { trackPaperExported, trackPaperExportOpened } from '../analytics';
+import {
+  trackPaperExportDismissed,
+  trackPaperExported,
+  trackPaperExportFailed,
+  trackPaperExportOpened,
+  type PaperExportLastSave,
+} from '../analytics';
 import { paperPngSize } from '../lib/paper/paperPng';
 import {
   APPLE_MOBILE_PNG_CANVAS_LIMIT,
@@ -37,6 +43,7 @@ import {
   type PaperExportSettings,
 } from '../lib/paperExportSettings';
 import { paperPresetRows } from '../lib/paperPresetRows';
+import { reportError } from '../monitoring';
 import { isAppleMobilePlatform } from '../platform/runtime';
 import { useSettingsStore } from '../store/settingsStore';
 import type { PaperExportRequest } from '../store/paperExportUiStore';
@@ -130,6 +137,12 @@ export interface PaperExportDialogBinding {
   saveError: string | null;
   canExport: boolean;
   exportNow: () => Promise<void>;
+  /**
+   * Close without writing a file — the dialog's close and its Cancel — counted
+   * with how the last press of Export went. A save that succeeds closes the
+   * dialog itself, so each dialog ends in one or the other.
+   */
+  dismiss: () => void;
 }
 
 /**
@@ -247,6 +260,8 @@ export function usePaperExportDialog(
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // How the last press of Export ended; read only if the reader then closes.
+  const lastSave = useRef<Exclude<PaperExportLastSave, 'stopped'>>('none');
   const canExport =
     status === 'ready' && caughtUp && shown !== null && shown === painted && !pngTooLarge && !saving;
 
@@ -289,7 +304,10 @@ export function usePaperExportDialog(
               signal,
             });
       // A dismissed save dialog: the options are still in front of the reader.
-      if (!name) return;
+      if (!name) {
+        lastSave.current = 'cancelled';
+        return;
+      }
       remember(kind, draft);
       trackPaperExported(
         // The density the file was written at, which a fixed picture sets itself.
@@ -306,6 +324,13 @@ export function usePaperExportDialog(
       toast.success(t('toasts:paperExport.saved', 'Exported {{name}}', { name }));
       close();
     } catch (cause) {
+      lastSave.current = 'failed';
+      const counted = { surface: target.surface, format: draft.format, scope };
+      trackPaperExportFailed(counted);
+      reportError(cause, {
+        surface: 'paper-export',
+        tags: { paper_surface: counted.surface, format: counted.format, scope },
+      });
       setSaveError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setSaving(false);
@@ -334,6 +359,14 @@ export function usePaperExportDialog(
   ]);
 
   const painting = progress !== null && progress.done < progress.total;
+  const dismiss = useCallback(() => {
+    trackPaperExportDismissed({
+      surface: target.surface,
+      scope,
+      lastSave: painting ? 'stopped' : lastSave.current,
+    });
+    close();
+  }, [close, painting, scope, target.surface]);
   return {
     title: all ? pages.title : target.title,
     fixed: fixed !== null,
@@ -362,6 +395,7 @@ export function usePaperExportDialog(
     saveError,
     canExport,
     exportNow,
+    dismiss,
   };
 }
 

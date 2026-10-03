@@ -3,6 +3,7 @@ import type {
   PaperExportBackground,
   PaperExportFormat,
   PaperExportHiddenFaces,
+  PaperExportLastSave,
   PaperExportMarkShown,
   PaperExportResolution,
   PaperExportScope,
@@ -18,6 +19,36 @@ import { track } from './runtime';
  */
 export function trackPaperExportOpened(surface: PaperExportSurface, scope: PaperExportScope): void {
   track(ANALYTICS_EVENTS.paperExportOpened, { surface, scope });
+}
+
+/**
+ * The reader closed the dialog without a file: the funnel's other ending, with
+ * how the last press of Export went, so a change of mind is told apart from
+ * something in the way.
+ */
+export function trackPaperExportDismissed(event: {
+  surface: PaperExportSurface;
+  scope: PaperExportScope;
+  lastSave: PaperExportLastSave;
+}): void {
+  track(ANALYTICS_EVENTS.paperExportDismissed, {
+    surface: event.surface,
+    scope: event.scope,
+    last_save: event.lastSave,
+  });
+}
+
+/** A save from the dialog threw: which surface, file kind and scope — never the message. */
+export function trackPaperExportFailed(event: {
+  surface: PaperExportSurface;
+  format: PaperExportFormat;
+  scope: PaperExportScope;
+}): void {
+  track(ANALYTICS_EVENTS.paperExportFailed, {
+    surface: event.surface,
+    format: event.format,
+    scope: event.scope,
+  });
 }
 
 /** A saved paper export, as the dialog knows it: every field an enum, or a density bucketed into one. */

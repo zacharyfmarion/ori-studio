@@ -19,6 +19,7 @@ import {
   type PostHogClientLike,
 } from './bootstrap';
 import type { AnalyticsErrorDomain, AnalyticsProperties } from './events';
+import { usePaperStyleSuperProperties } from './paperStyleProperties';
 import { clearStableId, getOrCreateStableId } from './stableId';
 
 /** Repeated identical errors within this window collapse to a single event. */
@@ -188,6 +189,8 @@ export function AnalyticsRuntimeProvider({ client, children }: AnalyticsRuntimeP
   useLayoutEffect(() => {
     client?.register(getLocaleProperties(locale, localePreference));
   }, [client, locale, localePreference]);
+
+  usePaperStyleSuperProperties(client);
 
   return <AnalyticsContext.Provider value={api}>{children}</AnalyticsContext.Provider>;
 }

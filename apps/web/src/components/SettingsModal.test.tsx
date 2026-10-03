@@ -266,6 +266,20 @@ describe('SettingsModal', () => {
     expect(rendered.textContent).toContain('Diagram');
   });
 
+  it('counts the section it opens on, then each one picked', () => {
+    // Counted from the dialog, so an open from the toolbar's gear — which never
+    // reaches the `command invoked` chokepoint — is seen like any other.
+    const client = stubPostHogClient();
+    renderModal(undefined, client);
+    act(() => {
+      findExactButton('Paper').click();
+    });
+    const sections = client.capture.mock.calls
+      .filter(([event]) => event === 'settings section viewed')
+      .map(([, properties]) => properties);
+    expect(sections).toEqual([{ section: 'general' }, { section: 'paper' }]);
+  });
+
   it('opens the requested tab and can reset the layout', async () => {
     const resetLayout = vi.fn();
     useLayoutStore.setState({ resetLayout });

@@ -386,12 +386,17 @@ describe('PaperSettings', () => {
     expect(exported()?.paper.front).toBe('#123456');
     expect(display().paper.front).toBe(DEFAULT_PAPER_STYLE.paper.front);
     expect(tracked).toEqual([
-      { event: 'paperStyleChanged', properties: { slot: 'export', field: 'paper.front' } },
+      { event: 'paperExportLinkChanged', properties: { linked: false } },
+      {
+        event: 'paperStyleChanged',
+        properties: { source: 'settings', slot: 'export', field: 'paper.front' },
+      },
     ]);
 
     act(() => findButton('Follow display').click());
     expect(exported()).toBeNull();
     expect(banner().hasAttribute('data-linked')).toBe(true);
+    expect(tracked.at(-1)).toEqual({ event: 'paperExportLinkChanged', properties: { linked: true } });
   });
 
   /** The display slot has no banner at all: it is nobody's copy. */

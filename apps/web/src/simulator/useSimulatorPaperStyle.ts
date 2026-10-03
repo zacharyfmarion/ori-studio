@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import { ANALYTICS_EVENTS, track } from '../analytics';
+import { ANALYTICS_EVENTS, track, type PaperStyleEditSource } from '../analytics';
 import {
   applyCreaseStyle,
   creaseStyleOf,
@@ -84,19 +84,22 @@ function resetRowValue<F extends PaperStyleField>(style: PaperStyle, field: F): 
   }
 }
 
+/** Which of the simulator's surfaces a binding edits from, as `paper style changed` names it. */
+export type SimulatorPaperStyleSource = Exclude<PaperStyleEditSource, 'settings'>;
+
 /**
  * The simulator's rows of the app-wide paper style, bound to the settings
- * store — the Simulate pane's Paper and Creases sections and the inline
- * window's sheet share it, which is the point: one value, two places to reach
- * it, never two values. Preferences, not document edits: nothing here opens a
- * bracket or records undo.
+ * store — the Simulate options pane's Paper and Creases sections and the
+ * Simulate viewport's lighting verb share it, which is the point: one value,
+ * two places to reach it, never two values. Preferences, not document edits:
+ * nothing here opens a bracket or records undo.
  *
  * Each field an edit touches is counted once per adjustment (`paper style
- * changed`), never per pointer move: a continuous control's setter counts the
- * first write of a run and stays quiet until
- * {@link SimulatorPaperStyleBinding.endAdjustment} settles it.
+ * changed`, with the `source` the caller names), never per pointer move: a
+ * continuous control's setter counts the first write of a run and stays quiet
+ * until {@link SimulatorPaperStyleBinding.endAdjustment} settles it.
  */
-export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
+export function useSimulatorPaperStyle(source: SimulatorPaperStyleSource): SimulatorPaperStyleBinding {
   const style = useSettingsStore((state) => state.paperStyle.display);
   const setField = useSettingsStore((state) => state.setPaperStyleField);
   const setFields = useSettingsStore((state) => state.setPaperStyleFields);
@@ -105,7 +108,7 @@ export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
   const adjusting = useRef(new Set<PaperStyleField>());
   return useMemo(() => {
     const changed = (field: PaperStyleField) =>
-      track(ANALYTICS_EVENTS.paperStyleChanged, { slot: 'display', field });
+      track(ANALYTICS_EVENTS.paperStyleChanged, { source, slot: 'display', field });
     const endAdjustment = () => {
       adjusting.current.clear();
     };
@@ -163,5 +166,5 @@ export function useSimulatorPaperStyle(): SimulatorPaperStyleBinding {
         if (fields) setFields('display', fields);
       },
     };
-  }, [style, setField, setFields]);
+  }, [source, style, setField, setFields]);
 }
