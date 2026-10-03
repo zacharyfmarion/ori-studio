@@ -226,7 +226,7 @@ describe('DiagramStepPanel', () => {
           spatial: null,
           onCamera: () => {},
           rotateTo,
-          showAs: async () => {},
+          showAs: async () => true,
           simulate: async () => {},
           wantsRest: () => false,
         });

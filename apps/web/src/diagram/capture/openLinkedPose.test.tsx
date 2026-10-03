@@ -11,7 +11,7 @@ const pose = (): DiagramLinkedPose => ({
   spatial: null,
   onCamera: () => {},
   rotateTo: () => {},
-  showAs: async () => {},
+  showAs: async () => true,
   simulate: async () => {},
   wantsRest: () => false,
 });

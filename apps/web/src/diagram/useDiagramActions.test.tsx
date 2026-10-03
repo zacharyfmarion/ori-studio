@@ -5,8 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as fileServiceModule from '../platform/fileService';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import type { DiagramPoseAction } from './actions/diagramPoseActions';
-import { diagramStepCommand } from './actions/diagramActions';
-import { appendDiagramStep, diagramStepActions, openDiagramStep, useDiagramPoseActions } from './useDiagramActions';
+import { diagramStepChoice, diagramStepCommand, type DiagramStepAction } from './actions/diagramActions';
+import { createDiagram, insertSteps } from './document/diagramDocument';
+import { cpStep } from './document/diagramSteps.fixtures';
+import {
+  appendDiagramStep,
+  diagramStepActions,
+  insertDiagramStepBeside,
+  openDiagramStep,
+  useDiagramPoseActions,
+  useDiagramStepActions,
+} from './useDiagramActions';
 
 /** What the Diagram's bindings report, and when. */
 const analytics = vi.hoisted(() => ({
@@ -19,6 +28,11 @@ const analytics = vi.hoisted(() => ({
 vi.mock('../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../analytics')>()),
   ...analytics,
+}));
+const capture = vi.hoisted(() => ({ showLinkedStepAs: vi.fn(async () => true) }));
+vi.mock('./capture/stepCaptureActions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./capture/stepCaptureActions')>()),
+  ...capture,
 }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -55,6 +69,47 @@ describe('appendDiagramStep', () => {
     expect(state().diagram!.steps.map((step) => step.id)).toEqual([first, second, added]);
     expect(state().diagramSelectedStepId).toBe(added);
     expect(analytics.trackDiagramStepAdded).toHaveBeenCalledExactlyOnceWith('empty', 'grid');
+  });
+});
+
+describe('insertDiagramStepBeside', () => {
+  it('adds an empty step just after or before one, selects it and counts it', () => {
+    const first = state().addDiagramStep()!;
+    const second = state().addDiagramStep()!;
+    vi.clearAllMocks();
+    const between = insertDiagramStepBeside(first, 'after')!;
+    expect(state().diagram!.steps.map((step) => step.id)).toEqual([first, between, second]);
+    expect(state().diagramSelectedStepId).toBe(between);
+    const before = insertDiagramStepBeside(first, 'before')!;
+    expect(state().diagram!.steps.map((step) => step.id)).toEqual([before, first, between, second]);
+    expect(analytics.trackDiagramStepAdded).toHaveBeenCalledTimes(2);
+    expect(analytics.trackDiagramStepAdded).toHaveBeenCalledWith('empty', 'grid');
+  });
+});
+
+describe('Show as, by the surface it is chosen on', () => {
+  it('says the card’s menu for the menu’s verbs and the Step pane for the pane’s', () => {
+    useWorkspaceStore.setState({
+      diagram: insertSteps(createDiagram({ title: 'Ways' }), [cpStep('step-l', { mode: 'crease-pattern', rotationDeg: 0 })], 0),
+    });
+    const choose = (actions: readonly DiagramStepAction[]) =>
+      diagramStepChoice(actions, 'show-as')!.options.find((option) => option.id === 'folded')!.run();
+    choose(diagramStepActions('step-l', t));
+    expect(capture.showLinkedStepAs).toHaveBeenLastCalledWith('step-l', 'folded', 'card');
+
+    const seen: { actions: DiagramStepAction[] } = { actions: [] };
+    function Pane() {
+      const actions = useDiagramStepActions('step-l');
+      seen.actions = actions;
+      return null;
+    }
+    const host = document.body.appendChild(document.createElement('div'));
+    const root = createRoot(host);
+    act(() => root.render(<Pane />));
+    choose(seen.actions);
+    expect(capture.showLinkedStepAs).toHaveBeenLastCalledWith('step-l', 'folded', 'pane');
+    act(() => root.unmount());
+    host.remove();
   });
 });
 

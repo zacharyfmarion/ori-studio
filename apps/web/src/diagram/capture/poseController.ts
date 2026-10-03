@@ -95,7 +95,12 @@ export function linkedFoldKey(stepId: string, source: Pick<DiagramCpSource, 'sco
  * React-free: `useDiagramLinkedPose` makes one per open step and disposes it.
  */
 export interface PoseController {
-  run: (request: LinkedPoseRequest) => Promise<void>;
+  /**
+   * `tracked: false` for a verb counted by its own surface — Show as from the
+   * Step pane or a card, which `diagram step shown as` counts — so it is not
+   * also counted as a pose.
+   */
+  run: (request: LinkedPoseRequest, options?: { tracked?: boolean }) => Promise<void>;
   /** The 3D view moved: capture it once it rests, if it is not where the step already is. */
   orbit: (camera: FoldedFigureCamera, stored: FoldedFigureCamera | null) => void;
   /**
@@ -172,7 +177,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     return { document, segmentation, choice: chooseStepCreases(document, linked.scope, segmentation) };
   };
 
-  const run = async (request: LinkedPoseRequest): Promise<void> => {
+  const run = async (request: LinkedPoseRequest, options?: { tracked?: boolean }): Promise<void> => {
     const outcome = await capturing(async (begun, linked): Promise<DiagramCaptureOutcome> => {
       // Shown another way since the simulator came to rest: an undo, or a verb.
       if (request.verb === 'simulate' && linked.render.mode !== 'simulated') return { status: 'discarded' };
@@ -199,7 +204,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         .getState()
         .commitDiagramCapture(begun, { source, picture: result.picture }, 'Adjust pose');
       if (!committed) return { status: 'discarded' };
-      if (committed.changed) trackDiagramPicturePosed(TRACKED[request.verb], captureKind(result.render));
+      if (committed.changed && options?.tracked !== false) {
+        trackDiagramPicturePosed(TRACKED[request.verb], captureKind(result.render));
+      }
       const key = linkedFoldKey(stepId, source);
       listener.hasNextSolution(result.hasNextSolution ?? null, key);
       if (result.spatial) listener.spatial({ model: result.spatial.fold.render, aux: result.spatial.aux }, key);

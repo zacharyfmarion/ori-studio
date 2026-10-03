@@ -9,7 +9,7 @@ import {
   SHOW_AS_ACTION,
   type DiagramLinkedPoseAction,
 } from '../actions/diagramLinkedPoseActions';
-import type { DiagramShowAs, DiagramStep } from '../document/diagramDocument';
+import { showAsOf, stepIndex, type DiagramShowAs, type DiagramStep } from '../document/diagramDocument';
 import { publishOpenLinkedPose } from './openLinkedPose';
 import {
   createPoseController,
@@ -28,8 +28,12 @@ export interface DiagramLinkedPose {
   onCamera: (camera: FoldedFigureCamera) => void;
   /** Turn a crease pattern or a flat fold to an angle, in degrees clockwise (D5). */
   rotateTo: (degrees: number) => void;
-  /** Show the pattern another way, in the pose that way last had (D19). */
-  showAs: (way: DiagramShowAs) => Promise<void>;
+  /**
+   * Show the pattern another way, in the pose that way last had (D19), for a
+   * surface beside Pose (the Step pane, a card), which counts it itself.
+   * Whether the step now shows it that way.
+   */
+  showAs: (way: DiagramShowAs) => Promise<boolean>;
   /** Pose's simulator came to rest: captured, if it is not the step's picture already (D19). */
   simulate: (rest: SimulatedRest) => Promise<void>;
   /** Whether a rest at this pose would be captured: asked before its scene is drawn. */
@@ -116,10 +120,14 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   );
 
   const showAs = useCallback(
-    async (way: DiagramShowAs) => {
-      if (controller && !readOnly) await controller.run({ verb: SHOW_AS_ACTION[way] });
+    async (way: DiagramShowAs): Promise<boolean> => {
+      if (!controller || readOnly || stepId === null) return false;
+      await controller.run({ verb: SHOW_AS_ACTION[way] }, { tracked: false });
+      const { diagram } = useWorkspaceStore.getState();
+      const now = diagram?.steps[stepIndex(diagram, stepId)];
+      return now?.source?.kind === 'cp' && showAsOf(now.source.render) === way;
     },
-    [controller, readOnly]
+    [controller, readOnly, stepId]
   );
 
   const simulate = useCallback(

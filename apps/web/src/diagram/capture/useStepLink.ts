@@ -62,8 +62,11 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
   );
 
   // The way the picker links in: the step's own, or the session's last, until
-  // the reader picks another — and again from those each time it opens.
+  // the reader picks another — and again from those each time it opens, so a
+  // way picked for one link is forgotten when the picker closes, whatever
+  // closed it (a link, Cancel, another step selected).
   const [chosen, setChosen] = useState<{ stepId: string; way: DiagramShowAs } | null>(null);
+  if (!pickerOpen && chosen !== null) setChosen(null);
   const showAs = chosen && chosen.stepId === stepId && pickerOpen ? chosen.way : pickerShowAs(step);
   const setShowAs = useCallback(
     (way: DiagramShowAs) => {
@@ -82,7 +85,6 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
     [stepId, showAs]
   );
   const cancel = useCallback(() => {
-    setChosen(null);
     useWorkspaceStore.getState().closeDiagramPatternPicker();
   }, []);
 

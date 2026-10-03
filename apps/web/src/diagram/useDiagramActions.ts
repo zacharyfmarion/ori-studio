@@ -143,7 +143,8 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       showAs: showAsOfStep(step),
       poseAgain: needsPose(step),
     },
-    t
+    t,
+    'card'
   );
 }
 
@@ -173,7 +174,9 @@ function pictureKind(diagram: DiagramDocument, step: DiagramStep): DiagramPictur
 function bindStepActions(
   stepId: string,
   gate: DiagramStepActionState,
-  t: TFunction
+  t: TFunction,
+  /** The surface the verbs are offered on: the card's menu, or the Step pane. */
+  via: 'card' | 'pane'
 ): DiagramStepAction[] {
   const store = useWorkspaceStore.getState;
   return buildDiagramStepActions(
@@ -218,7 +221,7 @@ function bindStepActions(
       openInReferences: () => openDiagramStepInReferences(stepId),
       fromReferences: () => askReferencesForStep(stepId),
       showAs: (way) => {
-        void showLinkedStepAs(stepId, way, 'card');
+        void showLinkedStepAs(stepId, way, via);
       },
       duplicateAs: (way) => {
         void duplicateLinkedStepAs(stepId, way);
@@ -304,7 +307,8 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               showAs: showAsOfStep(step),
               poseAgain: step ? needsPose(step) : false,
             },
-            t
+            t,
+            'pane'
           ),
     [
       step,

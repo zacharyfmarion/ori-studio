@@ -26,6 +26,18 @@ function build(state: Partial<DiagramLinkedPoseState>, pose = vi.fn()) {
 const ids = (state: Partial<DiagramLinkedPoseState>) => build(state).map((action) => action.id);
 
 describe('the linked pose verbs', () => {
+  it('does nothing for the way already shown: pressed again, a Simulated step would go back to 0%', () => {
+    const pose = vi.fn();
+    const actions = build(
+      { render: { mode: 'simulated', foldPercent: 40, view: { yaw: 0.8, pitch: -0.9, zoom: 1.4 } } },
+      pose
+    );
+    actions.find((action) => action.id === 'show-simulated')!.run();
+    expect(pose).not.toHaveBeenCalled();
+    actions.find((action) => action.id === 'show-folded')!.run();
+    expect(pose).toHaveBeenCalledWith('show-folded');
+  });
+
   it('offers what each way of showing the pattern can do', () => {
     const modes = ['show-crease-pattern', 'show-folded', 'show-simulated'];
     expect(ids({})).toEqual([...modes, 'rotate-left', 'rotate-right', 'reset']);

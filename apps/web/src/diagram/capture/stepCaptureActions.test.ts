@@ -7,11 +7,20 @@ import { cpStep } from '../document/diagramSteps.fixtures';
 import { insertSteps, createDiagram } from '../document/diagramDocument';
 import { takeCpRegionFocus } from '../../cp-workspace/regions/regionFocusRequest';
 import { useLayoutStore } from '../../store/layoutStore';
-import { linkDiagramStep, openDiagramStepInEdit, refreshDiagramStep } from './stepCaptureActions';
+import {
+  duplicateLinkedStepAs,
+  linkDiagramStep,
+  openDiagramStepInEdit,
+  refreshDiagramStep,
+  showLinkedStepAs,
+} from './stepCaptureActions';
+import { publishOpenLinkedPose } from './openLinkedPose';
+import type { DiagramLinkedPose } from './useDiagramLinkedPose';
 
 const analytics = vi.hoisted(() => ({
   trackDiagramPictureCaptured: vi.fn(),
   trackDiagramSourceOpened: vi.fn(),
+  trackDiagramStepShownAs: vi.fn(),
 }));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
@@ -77,6 +86,20 @@ describe('linkDiagramStep', () => {
     expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'ok', 'relink');
   });
 
+  it('relinks a step folded part way in the simulator at 0%, from the camera it had', async () => {
+    const view = { yaw: 0.4, pitch: -0.7, zoom: 1.6 };
+    useWorkspaceStore.setState({
+      diagram: insertSteps(createDiagram({ title: 'Simulated' }), [cpStep('step-sim', { mode: 'simulated', foldPercent: 40, view })], 0),
+    });
+    const capture = answer({ ...CAPTURED, render: { mode: 'simulated', foldPercent: 0, view } });
+    expect(await linkDiagramStep('step-sim', left!, 'simulated')).toBe(true);
+    expect(capture).toHaveBeenCalledWith(
+      'step-sim',
+      expect.objectContaining({ render: { mode: 'simulated', foldPercent: 0, view }, label: 'Relink pattern' })
+    );
+    expect(toasts.message).not.toHaveBeenCalled();
+  });
+
   it('keeps the picker open, and says why, when the link fails', async () => {
     answer({ status: 'failed', message: 'kernel says no' });
     useWorkspaceStore.setState({ diagramPatternPicker: 'step-empty' });
@@ -84,6 +107,64 @@ describe('linkDiagramStep', () => {
     expect(state().diagramPatternPicker).toBe('step-empty');
     expect(toasts.error).toHaveBeenCalledWith('The picture couldn’t be captured', { description: 'kernel says no' });
     expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('crease_pattern', 'failed', 'link');
+  });
+});
+
+describe('showLinkedStepAs', () => {
+  const openPose = (landed: boolean): DiagramLinkedPose => ({
+    actions: [],
+    spatial: null,
+    onCamera: () => {},
+    rotateTo: () => {},
+    showAs: vi.fn(async () => landed),
+    simulate: async () => {},
+    wantsRest: () => false,
+  });
+
+  it('goes through the open step’s Pose, and counts it only when the step now shows that way', async () => {
+    const refused = openPose(false);
+    publishOpenLinkedPose('step-flat', refused);
+    expect(await showLinkedStepAs('step-flat', 'crease-pattern', 'pane')).toBe(false);
+    expect(refused.showAs).toHaveBeenCalledWith('crease-pattern');
+    expect(analytics.trackDiagramStepShownAs).not.toHaveBeenCalled();
+
+    const shown = openPose(true);
+    publishOpenLinkedPose('step-flat', shown);
+    expect(await showLinkedStepAs('step-flat', 'crease-pattern', 'pane')).toBe(true);
+    expect(analytics.trackDiagramStepShownAs).toHaveBeenCalledExactlyOnceWith('crease_pattern', 'pane');
+    publishOpenLinkedPose(null, null);
+  });
+});
+
+describe('duplicateLinkedStepAs', () => {
+  const ids = () => state().diagram!.steps.map((step) => step.id);
+
+  it('keeps the copy shown the other way, as one undo step, and counts it', async () => {
+    answer({ ...CAPTURED, render: { mode: 'crease-pattern', rotationDeg: 0 } });
+    const past = state().diagramHistory.past.length;
+    const copy = await duplicateLinkedStepAs('step-flat', 'crease-pattern');
+    expect(copy).not.toBeNull();
+    expect(ids()).toEqual(['step-empty', 'step-flat', copy]);
+    expect(state().diagramHistory.past.length).toBe(past + 1);
+    expect(analytics.trackDiagramStepShownAs).toHaveBeenCalledExactlyOnceWith('crease_pattern', 'duplicate');
+  });
+
+  it('takes the copy away again when its picture cannot be shown that way, and counts nothing', async () => {
+    answer({ status: 'unavailable' });
+    const past = state().diagramHistory.past.length;
+    expect(await duplicateLinkedStepAs('step-flat', 'simulated')).toBeNull();
+    expect(ids()).toEqual(['step-empty', 'step-flat']);
+    expect(state().diagramHistory.past.length).toBe(past);
+    expect(toasts.error).toHaveBeenCalled();
+    expect(analytics.trackDiagramStepShownAs).not.toHaveBeenCalled();
+  });
+
+  it('is a plain duplicate shown the same way: nothing captured or counted as a way', async () => {
+    const capture = answer(CAPTURED);
+    const copy = await duplicateLinkedStepAs('step-flat', 'folded');
+    expect(ids()).toEqual(['step-empty', 'step-flat', copy]);
+    expect(capture).not.toHaveBeenCalled();
+    expect(analytics.trackDiagramStepShownAs).not.toHaveBeenCalled();
   });
 });
 

@@ -56,8 +56,8 @@ export function pickerShowAs(step: DiagramStep | null): DiagramShowAs {
 /**
  * Link a step to a pattern — or relink a linked one to another — shown as
  * `way`, and capture its picture (D19): the picker links and chooses the way
- * in one pick. A relink in the way the step is shown keeps its pose. Whether
- * it was linked.
+ * in one pick. A relink in the way the step is shown keeps its pose, except a
+ * Simulated fold %, which starts again at 0%. Whether it was linked.
  */
 export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: DiagramShowAs): Promise<boolean> {
   const store = useWorkspaceStore.getState();
@@ -65,7 +65,11 @@ export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: 
   if (!step) return false;
   const linked = step.source?.kind === 'cp' ? step.source : null;
   const showAs = way ?? (linked ? showAsOf(linked.render) : 'crease-pattern');
-  const render = renderToShowAs(linked ?? { render: { mode: 'crease-pattern', rotationDeg: 0 } }, showAs);
+  const asked = renderToShowAs(linked ?? { render: { mode: 'crease-pattern', rotationDeg: 0 } }, showAs);
+  // A link chooses a region, and a fold % above 0 is only Pose's live solver's
+  // to settle (D19): shown Simulated, it links at 0%, from the camera it had.
+  const render: DiagramCpRender =
+    asked.mode === 'simulated' && asked.foldPercent > 0 ? { ...asked, foldPercent: 0 } : asked;
   const outcome = await store.captureDiagramStep(stepId, {
     scope: { kind: 'segment', region: regionReferenceFor(segment) },
     render,
@@ -99,7 +103,8 @@ export async function showLinkedStepAs(
   if (showAsOf(step.source.render) === way && step.picture !== null) return true;
   const open = openLinkedPoseOf(stepId);
   if (open) {
-    await open.showAs(way);
+    // The open step's controller says why, if it could not; only a way shown is counted.
+    if (!(await open.showAs(way))) return false;
     trackDiagramStepShownAs(trackedShowAs(way), via);
     return true;
   }
@@ -119,7 +124,9 @@ export async function showLinkedStepAs(
 /**
  * A copy of a linked step after it, linked to the same region and shown the
  * other way (D19): the pattern, then what it folds into, in two presses. One
- * undo step: the capture folds into the duplicate's. The copy's id, or null.
+ * undo step: the capture folds into the duplicate's. A capture that does not
+ * land takes the copy with it — a copy shown the old way is not what was
+ * asked for. The copy's id, or null.
  */
 export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs): Promise<string | null> {
   const store = useWorkspaceStore.getState();
@@ -128,17 +135,24 @@ export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs):
   const source = step.source;
   const copyId = store.duplicateDiagramStep(stepId);
   if (copyId === null) return null;
-  trackDiagramStepShownAs(trackedShowAs(way), 'duplicate');
+  // Shown the same way, it is a plain duplicate: no way chosen to count.
   if (showAsOf(source.render) === way) return copyId;
   const render = renderToShowAs(source, way);
+  const duplicated = useWorkspaceStore.getState().diagramHistory.past.at(-1);
   const outcome = await useWorkspaceStore.getState().captureDiagramStep(copyId, {
     scope: source.scope,
     render,
     kind: 'diagram-capture',
     label: 'Duplicate step',
-    joinEntry: useWorkspaceStore.getState().diagramHistory.past.at(-1),
+    joinEntry: duplicated,
   });
   report(outcome, render, 'duplicate_as');
+  if (outcome.status !== 'captured') {
+    const now = useWorkspaceStore.getState();
+    if (duplicated !== undefined && now.diagramHistory.past.at(-1) === duplicated) now.undoDiagram();
+    return null;
+  }
+  trackDiagramStepShownAs(trackedShowAs(way), 'duplicate');
   return copyId;
 }
 

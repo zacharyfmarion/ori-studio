@@ -94,7 +94,9 @@ export function buildDiagramLinkedPoseActions(
       hint: readOnly ?? (options.disabled ? options.hint : waiting ? capturing : undefined),
       ...(options.pressed === undefined ? {} : { pressed: options.pressed }),
       run: () => {
-        if (!waiting) deps.pose(id);
+        // The way already shown is no verb: pressed again it would capture a
+        // Simulated step back at 0%, which only Pose's live solver can hold.
+        if (!waiting && !options.pressed) deps.pose(id);
       },
     };
   };
