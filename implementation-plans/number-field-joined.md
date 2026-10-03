@@ -55,12 +55,21 @@ what you touch"). This is that PR, in two commits.
      pen card all keep it out of one), so the label does not nest.
    - The unit is linked to the input with `aria-describedby`, so a screen
      reader says it after the value.
+   - The frame's border is drawn by `::after`, over the parts, so the field
+     is exactly as tall as they are: 26px, and 44px under a coarse pointer,
+     where theme.css makes every input 44px. A real border would make it 46.
    - The focus ring moves from the input to the frame (`:focus-within`).
-   - A disabled step fades its icon, not the whole button, so the divider
-     stays put.
-   - Under a coarse pointer the buttons stay 44px targets, and the number is
-     one too. The field is then 136px; `.control-row`'s coarse column, which
-     was sized for the old 140px of boxes and gaps, follows it.
+   - A step past a bound fades its icon, not the whole button, so the
+     divider stays put. A disabled field fades whole (0.55, as a switch
+     does), where before only its two buttons did.
+   - Under a coarse pointer the buttons and the number are 44px targets, so
+     the field needs 132px. The pane rows' stepper cell
+     (`.control-row__value--input`) had a fixed 112px and relied on the old
+     boxes overflowing it to the right; the joined frame clips instead, so
+     the cell's width became a floor (edited in place) and it takes the
+     coarse column's 140px. The coarse comments say the new arithmetic.
+   - The pen card's stepper grows to 44px under a coarse pointer. It was
+     28px with its 44px buttons clipped to 28.
    - The bare variant (`steppers={false}`, no unit; only the grid-scale
      formula uses it) stays a plain input in `.control-row__input`.
 
@@ -87,10 +96,13 @@ what you touch"). This is that PR, in two commits.
       its drawer (11 each), the tool card's Size, Settings ▸ Workspace and
       ▸ Paper (7 pen cards, desktop and phone), the export dialog's three
       (desktop and phone), and the phone export again in the light theme
-- [ ] Commit 2: joined frame, dividers, unit inside the field, focus ring on
+- [x] Commit 2: joined frame, dividers, unit inside the field, focus ring on
       the frame, coarse sizing
-- [ ] Commit 2: tests for the unit's place and description, and the label
-      focusing the input
-- [ ] Commit 2: before/after in the browser, both themes, desktop and coarse,
-      every surface above
-- [ ] Lint, typecheck, unit tests; draft PR
+- [x] Commit 2: tests for the unit's place and description, the label holding
+      the unit and not the steps, and the disabled marker
+- [x] Commit 2: before/after in the browser, both themes, desktop and coarse,
+      every surface above (Playwright element shots at 2x), plus the label
+      focusing the input from the unit and the padding, the focus ring, and
+      stepping
+- [x] Lint, typecheck, unit tests (full suite: 8,820 pass; one 3D fold
+      parity test timed out under load and passes alone); draft PR

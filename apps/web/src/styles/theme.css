@@ -4996,20 +4996,22 @@ button.cp-folded-figure-toolbar__notice:hover {
   justify-content: flex-end;
 }
 
-/* One width for every stepper row. A number input's intrinsic width follows its
-   `max` attribute, so Grid size (unbounded) renders far wider than Line width
-   (max 8) and the fields down the pane would not line up. */
+/* One width for every stepper row, so the fields down the pane line up. A
+   floor rather than a width: the field is one frame that clips what it cannot
+   hold, so where it needs more (three 44px targets under a coarse pointer) the
+   cell takes the room its column gives it, instead of the field spilling out
+   over the label. */
 .control-row__value--input {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  width: 112px;
+  min-width: 112px;
 }
 
 /* The stepper keeps its width and the reset trails it, the way a colour
    field's clear does; inside the fixed box the two overlapped. */
 .control-row__value--input.control-row__value--reset {
-  width: calc(112px + 22px);
+  min-width: calc(112px + 22px);
 }
 
 .control-row__value--select {
@@ -6638,12 +6640,12 @@ button.cp-folded-figure-toolbar__notice:hover {
     min-width: var(--touch-target);
   }
 
-  /* Growing the steppers to 44px makes a number field need
-     44 + 4 + 44 + 4 + 44 = 140px, but `.control-row`'s two columns each claim a
-     floor of 80px and the steppers are `flex: 0 0 auto` — so on a narrow panel
-     the field is handed ~112px and the `+` overflows the row and clips against
-     the panel's edge instead of shrinking. Measured on a base iPad in portrait:
-     the increment button was cut in half by the screen edge.
+  /* Growing the steppers to 44px makes a number field need 132px (the −, the
+     number and the +, a 44px target each), but `.control-row`'s two columns
+     each claim a floor of 80px — so on a narrow panel the field was handed
+     ~112px and the `+` clipped against the panel's edge. Measured on a base
+     iPad in portrait: the increment button was cut in half by the screen edge.
+     140px leaves the number room for four digits.
 
      The label is what should give way. It can truncate and still be read; a
      control the finger cannot reach is simply gone. */
@@ -6656,10 +6658,10 @@ button.cp-folded-figure-toolbar__notice:hover {
     text-overflow: ellipsis;
   }
 
-  /* The export dialog's rows, for the same steppers. Two 44px buttons, three
-     4px gaps and the unit take about 120px, and four digits at the input's
-     16px take another 56px with its padding — so about 176px, and 184px leaves
-     the number some room. One width for every row keeps them lined up. */
+  /* The export dialog's rows, for the same steppers. Two 44px buttons take
+     88px, and four digits at the input's 16px with the unit and the padding
+     about 72px — so about 160px, and 184px leaves the number some room. One
+     width for every row keeps them lined up. */
   .export-modal__field-row {
     --export-modal-field-width: 184px;
   }

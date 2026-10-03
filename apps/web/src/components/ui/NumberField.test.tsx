@@ -188,6 +188,15 @@ describe('NumberField', () => {
     expect(input.classList.contains('placed')).toBe(false);
   });
 
+  it('marks a disabled field as one, so it can fade whole', () => {
+    const view = render(<Harness initial={2} disabled />);
+    expect(view.firstElementChild?.hasAttribute('data-disabled')).toBe(true);
+    expect(field(view).input.disabled).toBe(true);
+    // A step at a bound is not the field being disabled.
+    const atBound = render(<Harness initial={1} />);
+    expect(atBound.firstElementChild?.hasAttribute('data-disabled')).toBe(false);
+  });
+
   it('marks its input, so a screen’s own input rules can leave it alone', () => {
     const stepped = render(<Harness initial={2} />);
     expect(field(stepped).input.hasAttribute('data-number-field')).toBe(true);
@@ -198,10 +207,35 @@ describe('NumberField', () => {
     expect(field(view).input.style.getPropertyValue('--min-chars')).toBe('4');
   });
 
-  it('shows a unit between the value and the increase button', () => {
+  it('shows the unit inside the field, after the number', () => {
     const view = render(<Harness initial={90} min={1} max={179} suffix="°" />);
     const { input, up } = field(view);
-    expect(input.nextElementSibling?.textContent).toBe('°');
-    expect(input.nextElementSibling?.nextElementSibling).toBe(up);
+    const unit = input.nextElementSibling;
+    expect(unit?.textContent).toBe('°');
+    expect(unit?.nextElementSibling).toBeNull();
+    // Between the lines, with the number: the increase button follows them both.
+    expect(input.parentElement?.nextElementSibling).toBe(up);
+  });
+
+  it('reads the unit after the value', () => {
+    const view = render(<Harness initial={90} min={1} max={179} suffix="°" />);
+    const { input } = field(view);
+    const describedBy = input.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy ?? '')?.textContent).toBe('°');
+    expect(field(render(<Harness initial={2} />)).input.hasAttribute('aria-describedby')).toBe(
+      false
+    );
+  });
+
+  it('labels the input with the region the unit is in, so a click on the unit lands in it', () => {
+    const view = render(<Harness initial={10} suffix="mm" />);
+    const { input } = field(view);
+    const unit = input.nextElementSibling;
+    expect([...(input.labels ?? [])].some((label) => label.contains(unit))).toBe(true);
+    // The steps stay outside it: a click on one must not also reach the input.
+    for (const button of view.querySelectorAll('button')) {
+      expect(button.closest('label')).toBeNull();
+    }
   });
 });
