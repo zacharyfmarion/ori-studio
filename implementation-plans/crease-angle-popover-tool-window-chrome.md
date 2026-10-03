@@ -73,9 +73,15 @@ body so it stacks above the tool window like every other modal.
 block in place). So does `Toolbar`'s `inset` prop, which existed only so the
 popover could sit its own padded form inside a toolbar pill.
 
-Not in scope: chips have no coarse-pointer size (18px on touch, in Box Select
-as much as here), unlike every other control primitive. That changes Box
-Select's window on touch too, so it is raised in the PR rather than done here.
+**Chips on touch (added after review).** On a phone the field grows to the
+44px touch target and the chips stayed 18px, in Box Select's window as much as
+here. Every other control primitive grows on a coarse pointer; chips now do
+too. That meant moving `ui-chip` out of theme.css, which Settings → Paper
+restyled from a global rule (`.settings-paper__slot-action`), so it is a move
+of a shared block, done in this PR at the user's call: first `Chip.module.css`
+with the override as `size="md"` and no change on screen, then the touch size
+— 44px tall, 14px type, on every chip. The popover's six presets wrap four and
+two at that size, so on touch they lay out three a row instead.
 
 ## Affected Areas
 
@@ -87,7 +93,9 @@ Select's window on touch too, so it is raised in the PR rather than done here.
 - `apps/web/src/components/ui/Chip.tsx`, `controlStyles.ts`, `styles/theme.css`
 - `apps/web/public/locales/*/tools.json` (one new label)
 - `implementation-plans/scoped-css.md` (the popover now wears the tool card's
-  field and chip rows)
+  field row; `ui-chip` moved)
+- `apps/web/src/components/ui/Chip.module.css` (new), `Chip.tsx`,
+  `components/settings/PaperSlotHeader.tsx` and its test
 
 ## Checklist
 
@@ -113,3 +121,8 @@ Select's window on touch too, so it is raised in the PR rather than done here.
 - [x] Browser: desktop in One Dark, Catppuccin Mocha and Atom One Light, phone,
       coarse tablet; before/after images
 - [x] Draft PR (zacharyfmarion/ori-studio#435)
+- [x] `ui-chip` into `Chip.module.css`, Settings → Paper's override as
+      `size="md"`; computed styles of every chip identical at rest, hover,
+      focus and pressed, in both themes and coarse; screenshots identical
+- [x] Chips are 44px touch targets on a coarse pointer; the popover's presets
+      three a row on touch; desktop unchanged (0 diffs, identical pixels)

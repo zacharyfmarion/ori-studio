@@ -177,8 +177,8 @@ Still shared:
   dialogs' own PR.
 - **The CP tool card's content**: `cp-context-panel` groups and fields
   (`CpContextToolPanel` and the controls it renders, and the crease-angle
-  popover, which wears the field row and the chip row so it reads as the
-  fold-angle group it mirrors)
+  popover, which wears the field row so it reads as the fold-angle group it
+  mirrors)
 - **CP workspace**: `cp-panel` (looked up by the tool card and the HUD lane),
   `cp-tool-picker`, `cp-tool-option`, `cp-inline-simulation` and
   `cp-folded-figure-window` (with `canvasWindowPlacement`), `cp-webgl-layer`,

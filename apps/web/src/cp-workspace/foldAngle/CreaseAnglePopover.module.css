@@ -1,7 +1,7 @@
 /*
- * Where the crease angle popover (CreaseAnglePopover.tsx) sits. How it looks is
- * the shared FloatingPanel's, the same as the tool window's, and its body wears
- * the fold-angle group's field row and chip row.
+ * Where the crease angle popover (CreaseAnglePopover.tsx) sits, and how its
+ * presets are laid out. How it looks is the shared FloatingPanel's, the same as
+ * the tool window's, and its field is the fold-angle group's field row.
  */
 
 /* Anchored over the bar's field, at the layer of the other surfaces floating
@@ -14,4 +14,20 @@
    has it, never wider than the backdrop's gutters allow. */
 .centred {
   max-width: 100%;
+}
+
+/* The presets, in the fold-angle group's row: wrapping pills, 4px apart. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* On touch every chip is a full target, and six of them wrap four and two.
+   Three a row is two even rows instead. */
+@media (pointer: coarse) {
+  .chips {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }

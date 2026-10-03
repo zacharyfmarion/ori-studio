@@ -253,7 +253,7 @@ export function CreaseAnglePopover({
             }}
           />
         </label>
-        <div className="cp-context-panel__chips">
+        <div className={styles.chips}>
           {FOLD_ANGLE_PRESETS.map((preset) => (
             <Chip
               key={preset.id}
