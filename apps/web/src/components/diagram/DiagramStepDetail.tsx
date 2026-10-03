@@ -5,13 +5,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
-  FlipHorizontal2,
   ImagePlus,
   Link2,
   Lock,
   PenTool,
   RotateCcw,
   RotateCw,
+  RotateCcwSquare,
   Undo2,
   Upload,
   type LucideIcon,
@@ -52,8 +52,10 @@ import styles from './DiagramStepDetail.module.css';
 const POSE_ICONS: Record<DiagramPoseActionId, LucideIcon> = {
   'rotate-left': RotateCcw,
   'rotate-right': RotateCw,
-  flip: FlipHorizontal2,
-  'turn-over': FlipHorizontal2,
+  // The sheet with a turn arrow Edit's folded figures flip with (`foldedFigureActionIcons`):
+  // turning the paper over is not mirroring its shape.
+  flip: RotateCcwSquare,
+  'turn-over': RotateCcwSquare,
   reset: Undo2,
 };
 

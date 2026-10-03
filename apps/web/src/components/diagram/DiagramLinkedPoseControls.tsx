@@ -4,10 +4,10 @@ import {
   ArrowDownToDot,
   Box,
   Eye,
-  FlipHorizontal2,
   Layers,
   RotateCcw,
   RotateCw,
+  RotateCcwSquare,
   Undo2,
   type LucideIcon,
 } from 'lucide-react';
@@ -25,7 +25,8 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
   'rotate-left': RotateCcw,
   'rotate-right': RotateCw,
-  'turn-over': FlipHorizontal2,
+  // As Edit's folded figures flip (`foldedFigureActionIcons`): the paper turned over, not mirrored.
+  'turn-over': RotateCcwSquare,
   'next-solution': Layers,
   'view-top': ArrowDownToDot,
   'view-front': Eye,
