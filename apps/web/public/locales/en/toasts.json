@@ -21,6 +21,7 @@
     "simulateNoRegion": "Select a closed region to simulate."
   },
   "diagram": {
+    "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
     "uploadFailed_one": "A picture couldn’t be added",
     "uploadFailed_other": "{{count}} pictures couldn’t be added",
     "uploadFailureLine": "{{name}}: {{reason}}",

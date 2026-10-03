@@ -21,6 +21,7 @@
     "simulateNoRegion": "Wähle einen geschlossenen Bereich zum Simulieren aus."
   },
   "diagram": {
+    "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
     "uploadFailed_one": "Ein Bild konnte nicht hinzugefügt werden",
     "uploadFailed_other": "{{count}} Bilder konnten nicht hinzugefügt werden",
     "uploadFailureLine": "{{name}}: {{reason}}",

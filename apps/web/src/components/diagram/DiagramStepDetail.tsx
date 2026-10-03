@@ -59,6 +59,7 @@ export function DiagramStepDetail({
   onBack,
   onStep,
   onUpload,
+  dropping,
   drawerSlot,
 }: {
   step: DiagramStep;
@@ -73,6 +74,8 @@ export function DiagramStepDetail({
   onStep: (direction: -1 | 1) => void;
   /** Pick a picture for this step. Called from the click itself. */
   onUpload: () => void;
+  /** A picture is being dragged over the Diagram. */
+  dropping: boolean;
   /**
    * Where the touch layer seats the Step pane's pill (`viewDrawerSlot`): the
    * detail replaces the header that seats it in the list.
@@ -130,7 +133,11 @@ export function DiagramStepDetail({
           <div className="panel-toolbar__pills" ref={drawerSlot} />
         </div>
       </div>
-      <div className={styles.stage} data-picture={(url !== null && !locked) || undefined}>
+      <div
+        className={styles.stage}
+        data-picture={(url !== null && !locked) || undefined}
+        data-drop-target={dropping || undefined}
+      >
         {locked ? (
           <div className={styles.message}>
             <Lock size={22} aria-hidden="true" />

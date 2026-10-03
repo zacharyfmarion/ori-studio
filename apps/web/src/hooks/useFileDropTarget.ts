@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent as ReactDragEvent } from 'react';
 import {
   describeDragPayload,
   dragCarriesFiles,
@@ -106,6 +106,25 @@ export function useFileDropTarget({ policy, onDropFiles }: UseFileDropTargetOpti
     },
     [claimsDrag]
   );
+
+  // A drop ends the drag wherever it lands, including on a target below this
+  // one that consumes it (the crease-pattern canvas, the Diagram) — this
+  // target's own `drop` never runs then, and with no `dragleave` after a drop
+  // the overlay would stay up. So any drop, seen on the way down, clears it.
+  useEffect(() => {
+    if (!isDragActive) return undefined;
+    const reset = () => {
+      dragDepth.current = 0;
+      describedDrag.current = false;
+      setDragActive(false);
+    };
+    window.addEventListener('drop', reset, true);
+    window.addEventListener('dragend', reset, true);
+    return () => {
+      window.removeEventListener('drop', reset, true);
+      window.removeEventListener('dragend', reset, true);
+    };
+  }, [isDragActive]);
 
   const onDrop = useCallback(
     (event: ReactDragEvent<HTMLElement>) => {

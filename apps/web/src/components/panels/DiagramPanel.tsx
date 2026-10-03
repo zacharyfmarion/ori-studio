@@ -56,7 +56,7 @@ export function DiagramPanel() {
   const rootRef = useRef<HTMLElement | null>(null);
   const menu = useDiagramStepMenu(rootRef);
   const keys = useDiagramShortcuts({ openStepMenu: menu.openStepMenu });
-  const drop = useStepPictureDrop();
+  const { dropTarget, ...dropHandlers } = useStepPictureDrop();
 
   const detailIndex =
     detail !== null && selectedStepId !== null
@@ -70,6 +70,7 @@ export function DiagramPanel() {
         className="panel-shell"
         aria-label={t('panels:diagram.label', 'Diagram')}
         onPointerDownCapture={keys.onPointerDownCapture}
+        {...dropHandlers}
       >
         <DiagramStepDetail
           // A new detail per step: it takes focus as it opens, and keeps none of the last.
@@ -86,6 +87,7 @@ export function DiagramPanel() {
             if (next) selectStep(next.id);
           }}
           onUpload={() => uploadPictureFor(step.id)}
+          dropping={dropTarget !== null}
           drawerSlot={setViewDrawerSlot}
         />
       </section>
@@ -98,6 +100,7 @@ export function DiagramPanel() {
       className="panel-shell"
       aria-label={t('panels:diagram.label', 'Diagram')}
       onPointerDownCapture={keys.onPointerDownCapture}
+      {...dropHandlers}
     >
       <DiagramHeader
         title={title}
@@ -118,17 +121,11 @@ export function DiagramPanel() {
           </Notice>
         </div>
       )}
-      <div
-        className="panel-body"
-        onContextMenu={steps.length > 0 ? menu.onContextMenu : undefined}
-        onDragOver={drop.onDragOver}
-        onDragLeave={drop.onDragLeave}
-        onDrop={drop.onDrop}
-      >
+      <div className="panel-body" onContextMenu={steps.length > 0 ? menu.onContextMenu : undefined}>
         {steps.length === 0 ? (
           <DiagramEmptyState
             readOnly={readOnly}
-            dropTarget={drop.dropTarget !== null}
+            dropTarget={dropTarget !== null}
             onAddStep={addStep}
             onUpload={uploadPictures}
           />
@@ -137,7 +134,7 @@ export function DiagramPanel() {
             steps={steps}
             assets={assets}
             selectedStepId={selectedStepId}
-            dropTarget={drop.dropTarget}
+            dropTarget={dropTarget}
             readOnly={readOnly}
             onSelect={selectStep}
             onOpen={openStep}

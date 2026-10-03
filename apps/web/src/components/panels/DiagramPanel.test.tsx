@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { readDiagram } from '../../diagram/document/diagramFile';
 import { handleShortcutRuntimeKeyDown } from '../../keyboard/shortcutRuntime';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -354,6 +354,61 @@ describe('DiagramPanel', () => {
     it('starts a diagram from pictures dropped on the empty state', async () => {
       drag('drop', host!.querySelector('h2')!, [svgFile('a.svg')]);
       await vi.waitFor(() => expect(state().diagram?.steps).toHaveLength(1));
+    });
+
+    it('keeps a drag that carries a picture among other files from the workspace target', () => {
+      addSteps(1);
+      // Above the React root, as the workspace's target is above the Diagram.
+      const outer: string[] = [];
+      const record = (event: Event) => outer.push(event.type);
+      const types = ['dragenter', 'dragover', 'dragleave', 'drop'];
+      for (const type of types) document.body.addEventListener(type, record);
+      onTestFinished(() => {
+        for (const type of types) document.body.removeEventListener(type, record);
+      });
+      const mixed = [svgFile('a.svg'), new File(['notes'], 'notes.txt', { type: 'text/plain' })];
+      expect(drag('dragover', options()[0], mixed).defaultPrevented).toBe(true);
+      const enter = new Event('dragenter', { bubbles: true, cancelable: true });
+      Object.defineProperty(enter, 'dataTransfer', {
+        value: { types: ['Files'], items: mixed.map((file) => ({ kind: 'file', type: file.type })), files: [] },
+      });
+      act(() => {
+        options()[0].dispatchEvent(enter);
+      });
+      expect(drag('drop', options()[0], mixed).defaultPrevented).toBe(true);
+      // The workspace target never saw any of it.
+      expect(outer).toEqual([]);
+    });
+
+    it('takes a picture dropped on the header', async () => {
+      addSteps(1);
+      drag('drop', titleField(), [svgFile('a.svg')]);
+      await vi.waitFor(() => expect(state().diagram?.steps).toHaveLength(1));
+      await vi.waitFor(() => expect(state().diagram?.steps[0].picture).not.toBeNull());
+    });
+
+    it('fills the open step when a picture is dropped on the step detail', async () => {
+      const [first] = addSteps(2);
+      act(() => {
+        state().openDiagramStep(first);
+      });
+      const detail = host!.querySelector('[role="region"]')!;
+      expect(drag('dragover', detail, [svgFile('a.svg')]).defaultPrevented).toBe(true);
+      drag('drop', detail, [svgFile('a.svg')]);
+      await vi.waitFor(() => expect(state().diagram?.steps[0].picture).not.toBeNull());
+      expect(state().diagram?.steps).toHaveLength(2);
+      await vi.waitFor(() => expect(host!.querySelector('[role="region"] img')).not.toBeNull());
+    });
+
+    it('claims a picture dropped on a read-only diagram, and takes nothing', () => {
+      act(() =>
+        state().installDiagram(
+          readDiagram({ formatVersion: 99, id: 'diagram-x', steps: [{ id: 's1', text: 'Hi' }] })
+        )
+      );
+      const drop = drag('drop', options()[0], [svgFile('a.svg')]);
+      expect(drop.defaultPrevented).toBe(true);
+      expect(state().diagram?.steps[0].picture).toBeNull();
     });
 
     it('leaves a drop with no picture in it to the workspace', () => {

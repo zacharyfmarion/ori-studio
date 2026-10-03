@@ -45,6 +45,12 @@
   background: #ffffff;
 }
 
+/* A picture dragged over the Diagram lands on this step (or after it). */
+.stage[data-drop-target] {
+  outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  outline-offset: -8px;
+}
+
 /* The picture keeps its shape, inset so the toolbar never sits on its foot. */
 .picture {
   box-sizing: border-box;

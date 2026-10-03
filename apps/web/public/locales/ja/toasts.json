@@ -20,6 +20,7 @@
     "simulateNoRegion": "シミュレーションするには閉じた領域を選択してください。"
   },
   "diagram": {
+    "dropReadOnly": "この折り図は新しい Ori Studio で作成されたため読み取り専用で開いています。図を追加することはできません。",
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",
     "uploadFailureLine": "{{name}}：{{reason}}",
     "uploadFailureMore_other": "ほか {{count}} 件",

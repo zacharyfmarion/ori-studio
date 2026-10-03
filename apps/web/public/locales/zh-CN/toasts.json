@@ -20,6 +20,7 @@
     "simulateNoRegion": "请选择一个闭合区域进行模拟。"
   },
   "diagram": {
+    "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",
     "uploadFailed_other": "{{count}} 张图片未能添加",
     "uploadFailureLine": "{{name}}：{{reason}}",
     "uploadFailureMore_other": "另有 {{count}} 张",
