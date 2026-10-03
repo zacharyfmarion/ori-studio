@@ -31,14 +31,6 @@ function kindOf(grapheme: string): ScriptKind {
   return 'common';
 }
 
-/** Whether a text has any character set in a CJK font. */
-export function hasCjk(text: string): boolean {
-  for (const character of text) {
-    if (kindOf(character) === 'cjk') return true;
-  }
-  return false;
-}
-
 /** The CJK font a text's CJK characters are set in. */
 export function textCjkKey(text: string, hanStyle: DiagramHanStyle): CjkFontKey {
   if (KANA.test(text)) return 'jp';

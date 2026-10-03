@@ -770,6 +770,7 @@
       "patternChanged": "Patron modifié",
       "stale": "Pas à jour",
       "stop": "Arrêter",
+      "styleChanged": "Le style a changé",
       "textCut": "Le texte ne tient pas",
       "upload": "Importer…",
       "waitingReferences": "En attente de Références"
@@ -872,11 +873,12 @@
       "caption": "Page {{number}}",
       "controls": "Commandes de la vue des pages",
       "failed": "Les pages n’ont pas pu être mises en page. Vérifiez la connexion et réessayez.",
+      "label": "Étapes sur les pages",
       "loading": "Mise en page des pages…",
       "noPicture": "Pas encore d’image",
-      "pageAlt": "Page {{number}}",
       "pageOf": "Page {{number}} sur {{total}}",
       "step": "Étape {{number}}",
+      "stepCut": "Étape {{number}}, le texte ne tient pas",
       "textCut": "Le texte ne tient pas"
     },
     "picker": {

@@ -182,6 +182,12 @@ export interface DiagramAssetPicture {
    * size is unknown.
    */
   paperScale: number | null;
+  /**
+   * For a capture kept as a bitmap, the drawn style it was drawn in
+   * (`diagramStyleKey`): a bitmap cannot be re-inked, so a change of style
+   * makes it out of date. Absent for an upload.
+   */
+  styleKey?: string;
   key: string;
 }
 
@@ -478,6 +484,8 @@ export function duplicateStep(
     ...original,
     id: newId('step'),
     revision: 0,
+    // A new page belongs to where the original starts one; the copy follows it.
+    breakBefore: false,
     annotations: original.annotations.map((annotation) => {
       const id = newId('annotation');
       // One carried verbatim from a newer build is written back from its raw

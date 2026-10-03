@@ -15,7 +15,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepCard.module.css';
-import { lightingChanged } from '../../diagram/pictures/lighting';
+import { capturedStyleChange } from '../../diagram/pictures/lighting';
 
 /**
  * One step in the Steps grid: its number and kind, its picture, and its
@@ -118,6 +118,7 @@ export const DiagramStepCard = forwardRef<
   const url = useStepPictureUrl(own, step, assets, style);
   const linked = linkedSourceOf(step);
   const sent = linked?.kind === 'references-step';
+  const restyled = capturedStyleChange(step, style);
   const chip = capture
     ? t('panels:diagram.card.capturing', 'Capturing…')
     : waiting
@@ -129,9 +130,11 @@ export const DiagramStepCard = forwardRef<
           : t('panels:diagram.card.stale', 'Out of date')
         : link === 'missing'
           ? t('panels:diagram.card.missing', 'Pattern missing')
-          : lightingChanged(step, style)
+          : restyled === 'light'
             ? t('panels:diagram.card.lightingChanged', 'Lighting changed')
-            : textCut
+            : restyled === 'style'
+              ? t('panels:diagram.card.styleChanged', 'Style changed')
+              : textCut
               ? t('panels:diagram.card.textCut', 'Text doesn’t fit')
               : null;
   // A press must not take focus from the card's keys.

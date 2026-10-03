@@ -49,6 +49,18 @@ describe('wrapGraphemes', () => {
     for (const line of lines) for (const word of line.split(' ')) expect(words.has(word)).toBe(true);
   });
 
+  it('keeps a Korean word whole with the digits and Latin in it', () => {
+    for (const text of ['종이를 45도로 접어 주세요', '먼저 CP를 보고 2번 선을 접으세요']) {
+      const words = new Set(text.split(' '));
+      // From the longest word's width up: narrower, a word must break inside itself.
+      for (let width = 10; width <= 24; width += 1) {
+        for (const line of wrap(text, width).lines) {
+          for (const word of line.split(' ')) expect(words.has(word), `${text} at ${width}: ${line}`).toBe(true);
+        }
+      }
+    }
+  });
+
   it('splits a word wider than the line between graphemes, never inside one', () => {
     const lines = wrap('𠮷𠮷𠮷𠮷𠮷𠮷', 4).lines;
     expect(lines).toEqual(['𠮷𠮷', '𠮷𠮷', '𠮷𠮷']);

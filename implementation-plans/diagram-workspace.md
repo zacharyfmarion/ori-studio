@@ -2126,6 +2126,41 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - **Style change on 51 steps:** no long task in the Pages view, and one of 112 ms in the Steps view.
     - **Lighting changed:** a 3D step of `box_90` showed it after a change of light, and Refresh all relit it and cleared it.
     - 25 of that file's crease-pattern steps read "Out of date". The file was saved before Phase 3's review changed a crease-pattern step's fingerprint to every drawn line, so this is the file's age, not a fault.
+- [x] **Review.** A workflow of four reviewers (layout and state, fonts and files, UI and keyboard, repo rules), each finding put to a skeptic. 20 confirmed and 2 plausible, all fixed; 3 refuted. One of the refuted, an unused second `PT_PER_MM`, was removed anyway.
+  - **Layout.**
+    - The overflow rule shrank the picture by whole lines it counted after clamping at zero, so a slot short of more than one leading kept its text missing: an A4 landscape six-row page printed no instruction at all. The picture now gives up the measured shortfall. In a cell too short for even one line at half the picture, it gives way further for one line.
+    - A long title ran past its tab in white on white. It is now cut with "…" to the page (`TextSetter.line`'s `maxWidthMm`).
+    - Korean broke between Hangul and the digits or Latin of a word ('45도로', 'CP를'). keep-all now breaks Korean only at spaces.
+    - Text is set NFC, so a decomposed accent is the font's own letter.
+  - **Fonts.**
+    - ①, →, ㎝, ○ and ℃ were reported missing: the full CJK file was fetched only for CJK-block characters, and nothing fetched a CJK font for a Latin text.
+      - A face is now loaded for any character Noto Sans lacks.
+      - The full file is fetched only when the manifest's per-script coverage (compact base-36 runs, 65 KB for all four scripts) has a character the common file lacks.
+      - The common charset gained arrows, circled numbers, geometric shapes, stars, letterlike symbols, maths operators and the CJK unit squares.
+    - A full file that failed threw away the common face that had loaded. The common face is now kept, and the face is reported as not whole.
+    - The Latin bundle gained Latin Extended-B, the combining marks, spacing modifiers and Vietnamese (107 KB a face). The arrows it claimed were never in Noto Sans; the CJK common tier now carries them, and the build says which requested characters the source lacks.
+    - NOTICE called the OFL fonts GPL-compatible. It now names them as distributed alongside the program under their own licence.
+  - **Document.**
+    - A duplicate copied its original's page break, which left the original alone on its page. The copy now follows the original on its page.
+    - A capture kept as a bitmap kept no style. It now records `diagramStyleKey`, reads "Style changed" when the style moves under it, and Refresh draws it again.
+  - **Pages view.** It moved to `usePagesView` (camera, composing, selection, pans), and the component only draws.
+    - Enter and the arrows did nothing from a page. The steps are now one listbox (pages as groups) marked as the steps surface, so Enter opens the selected step, the selected one is the tab stop, and focus follows the selection.
+    - The selected step is brought into view when it changes, and when the pages first lay out.
+    - A Space-drag ended in a click that selected the step under it or brought Page forward. A press that ends a pan is now ignored.
+    - Zoom presets and Actual size jumped to the middle of the column. With `fitAnchor: 'fit-rect'` they now keep the middle of the view where it is.
+    - "Page n of m" mixed the printed number with the count. It now gives a position, and the readout is hidden while the pages lay out. A page is named by the number it prints, or by its place when it prints none.
+    - `aria-selected` was on `role="button"`. The cells are now options, so the selection is announced, and a cut instruction is in the option's name.
+  - **Page pane and header.**
+    - The Scale, Style and Han characters explanations were hover-only titles. They are now help marks (`help` through SelectRow and SegmentedRow).
+    - The phone header reordered the tabs with CSS, so the focus order disagreed with what is seen. It no longer reorders: title, tabs, then the verbs.
+  - Browser (Chromium, `artifacts/diagram-phase5/review5.mjs`):
+    - Enter on a pressed step opened it in Pose.
+    - End selected step 50, brought it into view and read "Page 6 of 6".
+    - A Space-drag from a step selected nothing.
+    - 100% stayed on page 6.
+    - ①, →, ㎝, Romanian and Vietnamese were set with nothing missing, and Korean kept '45도로' and 'CP를' whole.
+    - A long A5 title ended in "…" inside its tab.
+    - The phone header's focus order is title, Steps, Pages, then the verbs.
 
 ### Phase 6: export
 

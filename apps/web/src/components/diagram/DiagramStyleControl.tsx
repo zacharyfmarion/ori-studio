@@ -49,7 +49,7 @@ export function DiagramStyleControl({
       value={chosen?.id ?? KEPT}
       options={options}
       disabled={disabled}
-      title={t(
+      help={t(
         'panels:diagram.pagePane.styleHint',
         'Ink and pens change on every step at once. A 3D step takes a new light when it is refreshed.'
       )}

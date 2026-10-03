@@ -23,11 +23,11 @@
   flex: 0 0 auto;
 }
 
-/* On a phone the two views share a row of their own, under the title. */
+/* On a phone the two views share a row of their own, under the title and
+   before the verbs, in the order they come in the DOM and so in the focus order. */
 @media (max-width: 720px) {
   .views {
     flex: 1 1 100%;
-    order: 3;
   }
 }
 

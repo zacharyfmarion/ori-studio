@@ -80,8 +80,8 @@ export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): Fo
     missing,
     paragraph: (text, widthMm, sizeMm, maxLines) =>
       setTextLines(text, widthMm, maxLines, facesFor(text, 400, sizeMm)),
-    line(text, sizeMm, weight): SetLine {
-      const set = setTextLines(text, Number.POSITIVE_INFINITY, 1, facesFor(text, weight, sizeMm));
+    line(text, sizeMm, weight, maxWidthMm = Number.POSITIVE_INFINITY): SetLine {
+      const set = setTextLines(text, maxWidthMm, 1, facesFor(text, weight, sizeMm));
       return set.lines[0] ?? { text: '', widthMm: 0, runs: [], ellipsis: false };
     },
   };

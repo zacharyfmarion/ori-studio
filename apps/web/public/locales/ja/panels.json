@@ -712,6 +712,7 @@
       "patternChanged": "パターン変更あり",
       "stale": "要更新",
       "stop": "停止",
+      "styleChanged": "スタイルが変わりました",
       "textCut": "文章が収まりません",
       "upload": "アップロード…",
       "waitingReferences": "リファレンスを待機中"
@@ -806,11 +807,12 @@
       "caption": "{{number}} ページ",
       "controls": "ページ表示の操作",
       "failed": "ページをレイアウトできませんでした。接続を確認して、もう一度お試しください。",
+      "label": "ページ上のステップ",
       "loading": "ページをレイアウトしています…",
       "noPicture": "まだ図がありません",
-      "pageAlt": "{{number}} ページ",
       "pageOf": "{{number}} / {{total}} ページ",
       "step": "ステップ {{number}}",
+      "stepCut": "ステップ {{number}}、文章が収まりません",
       "textCut": "文章が収まりません"
     },
     "picker": {

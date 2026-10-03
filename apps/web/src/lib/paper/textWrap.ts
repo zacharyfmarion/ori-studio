@@ -97,9 +97,11 @@ export function breakOpportunities(graphemes: readonly string[]): boolean[] {
     else if (after === 'close') can = false;
     else if (before === 'open') can = false;
     else if (before === 'hyphen') can = after === 'letter' || after === 'hangul';
-    else if (before === 'hangul' && after === 'hangul') can = false; // keep-all
+    // keep-all: a Korean word — its digits, Latin and particles with it, as
+    // in '45도로' or 'CP를' — breaks only at a space.
+    else if (before === 'hangul' || after === 'hangul') can = false;
     else if (before === 'ideograph' || after === 'ideograph') can = true;
-    else can = before === 'hangul' || after === 'hangul'; // Hangul beside Latin or digits
+    else can = false; // a word
     allowed[i] = can;
   }
   return allowed;

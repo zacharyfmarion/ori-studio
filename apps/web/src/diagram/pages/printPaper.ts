@@ -9,9 +9,6 @@
  */
 import type { DiagramPageSetup, DiagramPaperSize } from '../document/diagramDocument';
 
-/** Points per millimetre: a page SVG's user units are pt. */
-export const PT_PER_MM = 72 / 25.4;
-
 /** Portrait width and height, in mm. */
 export const PRINT_PAPER_MM: Readonly<Record<DiagramPaperSize, { widthMm: number; heightMm: number }>> = {
   a4: { widthMm: 210, heightMm: 297 },

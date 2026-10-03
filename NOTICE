@@ -11,9 +11,12 @@ ReferenceFinder modifications.
 
 The whole bundles two GPL works — TreeMaker (section 1) and ReferenceFinder
 (section 8) — together with the permissively licensed, GPL-compatible works
-listed between them. Copyright and permission notices are reproduced here to
-satisfy their attribution requirements. Nothing in this file narrows the GPL
-obligations that govern the combined distribution.
+listed between them, except section 6. Section 6 is fonts under the SIL Open
+Font License, distributed alongside the program rather than combined with it
+under the GPL: they keep their own licence, which travels with every copy.
+Copyright and permission notices are reproduced here to satisfy their
+attribution requirements. Nothing in this file narrows the GPL obligations
+that govern the combined distribution.
 
 The last section is different in kind: it records a third-party *service* the
 product calls rather than a work it bundles. It grants nothing and requires

@@ -741,6 +741,7 @@
       "patternChanged": "Muster geändert",
       "stale": "Veraltet",
       "stop": "Stopp",
+      "styleChanged": "Stil geändert",
       "textCut": "Text passt nicht",
       "upload": "Hochladen…",
       "waitingReferences": "Wartet auf Referenzen"
@@ -839,11 +840,12 @@
       "caption": "Seite {{number}}",
       "controls": "Steuerung der Seitenansicht",
       "failed": "Die Seiten konnten nicht gesetzt werden. Prüfe die Verbindung und versuche es erneut.",
+      "label": "Schritte auf den Seiten",
       "loading": "Seiten werden gesetzt…",
       "noPicture": "Noch kein Bild",
-      "pageAlt": "Seite {{number}}",
       "pageOf": "Seite {{number}} von {{total}}",
       "step": "Schritt {{number}}",
+      "stepCut": "Schritt {{number}}, Text passt nicht",
       "textCut": "Text passt nicht"
     },
     "picker": {

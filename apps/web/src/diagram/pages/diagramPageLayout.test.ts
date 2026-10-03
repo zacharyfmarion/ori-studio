@@ -117,6 +117,33 @@ describe('layoutDiagramPages', () => {
     expect(endless.scaleReduced).toBe(true);
   });
 
+  it('gives a short instruction its lines in a cell too small for them, and none it does not need', () => {
+    // A4 landscape, six rows: at the full box the first baseline is below the
+    // slot by more than a leading — the instruction must still be printed.
+    const cell = layout([step(0)], { orientation: 'landscape', rows: 6 }).pages[0]!.cells[0]!;
+    expect(cell.text.lines.map((line) => line.text)).toEqual([SHORT]);
+    expect(cell.textOverflow).toBe(false);
+    // Three to a row, every setup prints a short instruction whole; and no
+    // setup leaves a cell with no text at all, even five to a row.
+    for (const size of ['a4', 'a5', 'b5-jis', 'letter'] as const) {
+      for (const orientation of ['portrait', 'landscape'] as const) {
+        for (const layoutKind of ['grid', 'flow'] as const) {
+          for (const rows of [1, 3, 6]) {
+            const where = `${size} ${orientation} ${layoutKind} ${rows}`;
+            const setup = { size, orientation, layout: layoutKind, rows };
+            for (const placed of layout(steps(6), { ...setup, columns: 3 }).pages.flatMap((page) => page.cells)) {
+              expect(placed.text.lines.map((line) => line.text).join(' '), where).toBe(SHORT);
+              expect(placed.textOverflow, where).toBe(false);
+            }
+            for (const placed of layout(steps(6), { ...setup, columns: 5 }).pages.flatMap((page) => page.cells)) {
+              expect(placed.text.lines.length, where).toBeGreaterThan(0);
+            }
+          }
+        }
+      }
+    }
+  });
+
   it('runs every other row right to left in flow, with a band that leaves the page where the sequence goes on', () => {
     const result = layout(steps(10), { layout: 'flow', columns: 3, rows: 2 });
     const [first] = result.pages;
@@ -134,6 +161,16 @@ describe('layoutDiagramPages', () => {
       [5, 'end'],
     ]);
     expect(layout(steps(1), { pageNumbers: { enabled: false, first: 1 } }).pages[0]!.pageNumberAt).toBeNull();
+  });
+
+  it('cuts a title too long for the page with "…", inside its tab', () => {
+    const long = 'Traditional Crane, folded from one fifteen centimetre square with a colour change on both wings';
+    const result = layout(steps(1), { size: 'a5' }, long);
+    const { tab, line, textAt, rule } = result.title!;
+    expect(line.ellipsis).toBe(true);
+    expect(tab.x + tab.w).toBeLessThanOrEqual(result.paper.widthMm - result.paper.marginMm + 1e-9);
+    expect(textAt.x + line.widthMm).toBeLessThanOrEqual(tab.x + tab.w + 1e-9);
+    expect(rule.x2).toBeGreaterThanOrEqual(rule.x1);
   });
 
   it('sizes the title tab to the title, and has no header without one', () => {

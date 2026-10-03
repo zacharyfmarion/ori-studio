@@ -4,7 +4,7 @@
  * and cut text the same way and differ only in how wide a character is.
  *
  * - The instruction's own line breaks are kept; runs of spaces are one space,
- *   and a blank line is an empty line.
+ *   a blank line is an empty line, and the text is set composed (NFC).
  * - Lines break as `wrapGraphemes` breaks them (kinsoku, Korean keep-all).
  * - A text past `maxLines` keeps that many, the last ending in "…", set in the
  *   font of the character before it when that font has one.
@@ -110,9 +110,13 @@ function appendRun(runs: SetRun[], font: string, text: string, x: number, advanc
   }
 }
 
-/** The text's paragraphs: its own lines, each with runs of white space made one space. */
+/**
+ * The text's paragraphs: its own lines, each with runs of white space made one
+ * space, in composed form (NFC) — a decomposed accent, as pasted from some
+ * sources, is set as the font's own accented letter.
+ */
 function paragraphsOf(text: string): string[] {
-  const trimmed = text.trim();
+  const trimmed = text.normalize('NFC').trim();
   if (trimmed === '') return [];
   return trimmed.split(/\r\n|\r|\n/).map((line) => line.replace(/[ \t\f\v]+/g, ' ').trim());
 }

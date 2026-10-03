@@ -770,6 +770,7 @@
       "patternChanged": "El patrón cambió",
       "stale": "Desactualizado",
       "stop": "Detener",
+      "styleChanged": "Cambió el estilo",
       "textCut": "El texto no cabe",
       "upload": "Subir…",
       "waitingReferences": "Esperando a Referencias"
@@ -872,11 +873,12 @@
       "caption": "Página {{number}}",
       "controls": "Controles de la vista de páginas",
       "failed": "No se pudieron maquetar las páginas. Revisa la conexión e inténtalo de nuevo.",
+      "label": "Pasos en las páginas",
       "loading": "Maquetando las páginas…",
       "noPicture": "Aún sin imagen",
-      "pageAlt": "Página {{number}}",
       "pageOf": "Página {{number}} de {{total}}",
       "step": "Paso {{number}}",
+      "stepCut": "Paso {{number}}, el texto no cabe",
       "textCut": "El texto no cabe"
     },
     "picker": {

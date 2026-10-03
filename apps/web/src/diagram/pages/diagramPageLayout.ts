@@ -9,7 +9,8 @@
  * - the picture box starts below the step number, which the mockup's formula
  *   printed over the picture;
  * - an instruction that needs more lines than its slot takes them from its
- *   picture box, down to half the box, and only then is cut with "…".
+ *   picture box, down to half the box, and only then is cut with "…" — but
+ *   always keeps one line, in a cell too short for even that at half.
  *
  * Under the `paper` scale every picture that knows its paper's size is drawn
  * at one millimetre per document unit for the whole diagram: the largest at
@@ -81,8 +82,8 @@ export interface SetText {
 export interface TextSetter {
   /** `text` broken into lines at most `widthMm` wide, at most `maxLines` of them (the last cut with "…"). */
   paragraph: (text: string, widthMm: number, sizeMm: number, maxLines: number) => SetText;
-  /** One line, unbroken: a title or a number. */
-  line: (text: string, sizeMm: number, weight: 400 | 700) => SetLine;
+  /** One line: a title or a number, cut with "…" at `maxWidthMm` when one is given. */
+  line: (text: string, sizeMm: number, weight: 400 | 700, maxWidthMm?: number) => SetLine;
 }
 
 /** What the layout needs of a step. */
@@ -188,11 +189,14 @@ export function layoutDiagramPages(
     text: SetText;
     overflow: boolean;
   }
-  const slotLines = (cellTop: number, box: number) => {
-    const firstBaseline = cellTop + PICTURE_TOP_MM + box + TEXT_GAP_MM;
-    const bottom = cellTop + cellH * (flow ? 1 - FLOW_STEP : 1) - TEXT_DESCENT_MM;
-    return Math.max(0, Math.floor((bottom - firstBaseline) / STEP_TEXT_LEADING_MM + 1e-9) + 1);
-  };
+  /** How far below the box's top the text's last line may sit, and how many lines fit there. */
+  const slotBottom = (cellTop: number) => cellTop + cellH * (flow ? 1 - FLOW_STEP : 1) - TEXT_DESCENT_MM;
+  const firstBaselineOf = (cellTop: number, box: number) => cellTop + PICTURE_TOP_MM + box + TEXT_GAP_MM;
+  const slotLines = (cellTop: number, box: number) =>
+    Math.max(
+      0,
+      Math.floor((slotBottom(cellTop) - firstBaselineOf(cellTop, box)) / STEP_TEXT_LEADING_MM + 1e-9) + 1
+    );
   const placedPages: Placed[][] = pagesOfSteps.map((entries) =>
     entries.map(({ step, index }, k) => {
       const row = Math.floor(k / setup.columns);
@@ -204,10 +208,19 @@ export function layoutDiagramPages(
       const full = setter.paragraph(step.text, textWidth, STEP_TEXT_SIZE_MM, Number.MAX_SAFE_INTEGER);
       let maxLines = slotLines(y, box);
       if (full.linesNeeded > maxLines) {
-        // Text first: the picture gives up what the text needs, to its floor.
-        const short = (full.linesNeeded - maxLines) * STEP_TEXT_LEADING_MM;
-        box = Math.max(fullBox * PICTURE_FLOOR, box - short);
+        // Text first: the picture gives up the room the text's last line is
+        // short of — measured, not counted in lines, since a slot can be
+        // short of more than it holds — down to its floor.
+        const lastBaseline = firstBaselineOf(y, box) + (full.linesNeeded - 1) * STEP_TEXT_LEADING_MM;
+        box = Math.max(fullBox * PICTURE_FLOOR, box - (lastBaseline - slotBottom(y)));
         maxLines = slotLines(y, box);
+        if (maxLines === 0) {
+          // A cell so short that half a picture leaves no line at all: the
+          // picture gives way further, for one line — a cut instruction says
+          // so; a missing one says nothing.
+          box = Math.max(0, slotBottom(y) - (firstBaselineOf(y, box) - box));
+          maxLines = slotLines(y, box);
+        }
       }
       const text =
         full.linesNeeded <= maxLines ? full : setter.paragraph(step.text, textWidth, STEP_TEXT_SIZE_MM, maxLines);
@@ -271,8 +284,9 @@ export function layoutDiagramPages(
 
   let titleLayout: DiagramPagesLayout['title'] = null;
   if (showTitle) {
-    const line = setter.line(title.trim(), TITLE_SIZE_MM, 700);
-    const tabW = Math.min(W - 2 * m, line.widthMm + 2 * TAB_PADDING_MM);
+    // Cut to the page: the tab never runs past the margin, nor the title past the tab.
+    const line = setter.line(title.trim(), TITLE_SIZE_MM, 700, W - 2 * m - 2 * TAB_PADDING_MM);
+    const tabW = line.widthMm + 2 * TAB_PADDING_MM;
     titleLayout = {
       tab: { x: m, y: m, w: tabW, h: TAB_HEIGHT_MM },
       textAt: { x: m + TAB_PADDING_MM, y: m + TITLE_BASELINE_MM },

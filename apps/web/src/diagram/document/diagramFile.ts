@@ -516,7 +516,8 @@ function readPicture(
     case 'asset': {
       const assetId = value.assetId;
       if (typeof assetId !== 'string' || !hasKnownAsset(assets, assetId)) return null;
-      return { kind: 'asset', assetId, paperScale, key };
+      const styleKey = typeof value.styleKey === 'string' && value.styleKey.length <= 512 ? value.styleKey : null;
+      return { kind: 'asset', assetId, paperScale, ...(styleKey === null ? {} : { styleKey }), key };
     }
     case 'scene': {
       const sceneJson = readSceneJson(value.sceneJson);

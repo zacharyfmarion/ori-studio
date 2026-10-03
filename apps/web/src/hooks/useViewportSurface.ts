@@ -70,7 +70,8 @@ export interface UseViewportSurfaceOptions {
    * Where a fit puts the camera: the world's middle (the default, which the
    * tree and BP panes frame with), or the middle of {@link fitRect} — for a
    * world that is a run of things, of which a fit shows the first, as the
-   * Diagram's pages are.
+   * Diagram's pages are. Such a world also keeps the middle of the view where
+   * it is on a chosen zoom, rather than jumping to the world's middle.
    */
   fitAnchor?: 'world' | 'fit-rect';
   /**
@@ -183,13 +184,31 @@ export function useViewportSurface({
     [frame]
   );
 
-  const setActualSize = useCallback(() => {
-    transformRef.current?.centerView(1, CENTER_ANIMATION_MS);
-  }, []);
+  /**
+   * A chosen zoom. A world framed by its first part keeps the reader where
+   * they are — the point in the middle of the view stays there — where a
+   * world framed whole is centred.
+   */
+  const zoomTo = useCallback(
+    (scale: number) => {
+      const api = transformRef.current;
+      if (!api) return;
+      const viewport = viewportSizeFromElement(containerRef.current);
+      if (fitAnchor === 'world' || !viewport) {
+        api.centerView(scale, CENTER_ANIMATION_MS);
+        return;
+      }
+      const { positionX, positionY, scale: from } = api.instance.transformState;
+      const middleX = (viewport.width / 2 - positionX) / from;
+      const middleY = (viewport.height / 2 - positionY) / from;
+      api.setTransform(viewport.width / 2 - middleX * scale, viewport.height / 2 - middleY * scale, scale, CENTER_ANIMATION_MS);
+    },
+    [fitAnchor]
+  );
 
-  const setZoomLevel = useCallback((scale: number) => {
-    transformRef.current?.centerView(scale, CENTER_ANIMATION_MS);
-  }, []);
+  const setActualSize = useCallback(() => zoomTo(1), [zoomTo]);
+
+  const setZoomLevel = useCallback((scale: number) => zoomTo(scale), [zoomTo]);
 
   const zoomIn = useCallback(() => {
     transformRef.current?.zoomIn(ZOOM_STEP, ZOOM_ANIMATION_MS);

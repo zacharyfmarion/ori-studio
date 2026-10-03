@@ -103,6 +103,12 @@ describe('fontTextSetter', () => {
     }
   });
 
+  it('sets a decomposed accent as the font’s own letter', () => {
+    const set = setter().paragraph('Pliez le cafe\u0301.', 60, 3.2, 1);
+    expect(set.lines[0]!.text).toBe('Pliez le café.');
+    expect(set.lines[0]!.widthMm).toBeCloseTo(widthOf('Pliez le café.', 'latin-400', 3.2), 9);
+  });
+
   it('keeps the instruction’s own line breaks', () => {
     expect(setter().paragraph('Fold.\n\nUnfold.', 60, 3.2, 9).lines.map((line) => line.text)).toEqual([
       'Fold.',

@@ -3622,7 +3622,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -3631,7 +3630,10 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7256,7 +7258,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -7265,7 +7266,10 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -10892,7 +10896,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -10901,7 +10904,10 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -14459,7 +14465,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -14468,7 +14473,10 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18026,7 +18034,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -18035,7 +18042,10 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -21660,7 +21670,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -21669,7 +21678,10 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -25294,7 +25306,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -25303,7 +25314,10 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -28861,7 +28875,6 @@
     "panels:diagram.pages.failed": "a93d60b6b249",
     "panels:diagram.pages.loading": "67871a2ed625",
     "panels:diagram.pages.noPicture": "e83dfa18ddbb",
-    "panels:diagram.pages.pageAlt": "7f48928e1c0f",
     "panels:diagram.pages.pageOf": "21f09fcfd8a0",
     "panels:diagram.pages.step": "74af848b3052",
     "panels:diagram.pages.textCut": "5c6b6b7acbec",
@@ -28870,6 +28883,9 @@
     "panels:diagram.view.pagesHint": "d9b20c737569",
     "panels:diagram.view.steps": "1de3df70ddf4",
     "panels:diagram.view.stepsHint": "d971a9af0081",
-    "panels:sidePane.page": "0a30a815d67d"
+    "panels:sidePane.page": "0a30a815d67d",
+    "panels:diagram.card.styleChanged": "4643ecbd3647",
+    "panels:diagram.pages.label": "48b63bc293da",
+    "panels:diagram.pages.stepCut": "46c6411b6a27"
   }
 }

@@ -462,10 +462,18 @@ describe('linked steps in the file', () => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     const raster = rasterAsset('asset-r', 64, 48);
     written.assets = { 'asset-r': raster };
-    written.steps[0].picture = { kind: 'asset', assetId: 'asset-r', paperScale: 3, key: 'raster-1' };
+    written.steps[0].picture = { kind: 'asset', assetId: 'asset-r', paperScale: 3, styleKey: 'pens-1', key: 'raster-1' };
     written.steps[1].source = null;
     const read = readDiagram(written)!.document;
-    expect(read.steps[0].picture).toEqual({ kind: 'asset', assetId: 'asset-r', paperScale: 3, key: 'raster-1' });
+    // With the style it was drawn in, so a change of style says it is out of date.
+    expect(read.steps[0].picture).toEqual({
+      kind: 'asset',
+      assetId: 'asset-r',
+      paperScale: 3,
+      styleKey: 'pens-1',
+      key: 'raster-1',
+    });
+    expect(throughJson(writeDiagram(read)).steps[0].picture).toEqual(written.steps[0].picture);
     expect(read.assets['asset-r']).toEqual(raster);
     expect(read.steps[1].picture).toBeNull();
   });

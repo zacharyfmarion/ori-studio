@@ -146,6 +146,14 @@ describe('duplicateStep', () => {
     expect(copy.annotations[0].id).not.toBe('a');
   });
 
+  it('keeps a new page with the original: the copy follows it on that page', () => {
+    const { diagram, ids } = diagramWith(2);
+    const breaking = setStepBreakBefore(diagram, 'step-3', true);
+    const { document } = duplicateStep(breaking, 'step-3', ids)!;
+    // step-2, step-3 (starting its page), and its copy after it on that page.
+    expect(document.steps.map((step) => step.breakBefore)).toEqual([false, true, false]);
+  });
+
   it('refuses a missing or locked step', () => {
     const { diagram } = diagramWith(1);
     expect(duplicateStep(diagram, 'missing')).toBeNull();

@@ -770,6 +770,7 @@
       "patternChanged": "Padrão alterado",
       "stale": "Desatualizado",
       "stop": "Parar",
+      "styleChanged": "O estilo mudou",
       "textCut": "O texto não cabe",
       "upload": "Enviar…",
       "waitingReferences": "Aguardando Referências"
@@ -872,11 +873,12 @@
       "caption": "Página {{number}}",
       "controls": "Controles da visualização de páginas",
       "failed": "Não foi possível diagramar as páginas. Verifique a conexão e tente de novo.",
+      "label": "Passos nas páginas",
       "loading": "Diagramando as páginas…",
       "noPicture": "Ainda sem imagem",
-      "pageAlt": "Página {{number}}",
       "pageOf": "Página {{number}} de {{total}}",
       "step": "Passo {{number}}",
+      "stepCut": "Passo {{number}}, o texto não cabe",
       "textCut": "O texto não cabe"
     },
     "picker": {

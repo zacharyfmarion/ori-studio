@@ -19,6 +19,7 @@ export function SegmentedRow({
   options,
   disabled,
   title,
+  help,
   onChange,
   onReset,
 }: {
@@ -27,11 +28,13 @@ export function SegmentedRow({
   options: readonly SegmentedRowOption[];
   disabled?: boolean;
   title?: string;
+  /** What the row means, behind a help mark beside its label: reachable by keyboard and touch, where a title is not. */
+  help?: string;
   onChange: (value: string) => void;
   onReset?: () => void;
 }) {
   return (
-    <FieldRow label={label} kind="segmented" disabled={disabled} title={title} onReset={onReset}>
+    <FieldRow label={label} kind="segmented" disabled={disabled} title={title} help={help} onReset={onReset}>
       <SegmentedControl
         size="sm"
         aria-label={label}

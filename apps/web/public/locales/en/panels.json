@@ -741,6 +741,7 @@
       "patternChanged": "Pattern changed",
       "stale": "Out of date",
       "stop": "Stop",
+      "styleChanged": "Style changed",
       "textCut": "Text doesn’t fit",
       "upload": "Upload…",
       "waitingReferences": "Waiting for References"
@@ -839,11 +840,12 @@
       "caption": "Page {{number}}",
       "controls": "Page view controls",
       "failed": "The pages couldn’t be laid out. Check your connection and try again.",
+      "label": "Steps on the pages",
       "loading": "Laying out the pages…",
       "noPicture": "No picture yet",
-      "pageAlt": "Page {{number}}",
       "pageOf": "Page {{number}} of {{total}}",
       "step": "Step {{number}}",
+      "stepCut": "Step {{number}}, text doesn’t fit",
       "textCut": "Text doesn’t fit"
     },
     "picker": {

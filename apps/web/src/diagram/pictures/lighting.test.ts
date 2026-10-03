@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
+import { createStep, type DiagramStep, type DiagramStyle } from '../document/diagramDocument';
+import { scenePicture } from '../document/diagramSteps.fixtures';
+import { diagramPaperStyle, diagramStyleKey } from './diagramPaperStyle';
+import { capturedStyleChange, lightingChanged } from './lighting';
+
+const DIAGRAM: DiagramStyle = { preset: 'diagram' };
+const style = diagramPaperStyle(DIAGRAM);
+const RELIT: DiagramStyle = { style: { ...style, light: { ...style.light, azimuth: style.light.azimuth + 60 } } };
+const REPENNED: DiagramStyle = { style: { ...style, edges: { ...style.edges, width: style.edges.width * 2 } } };
+
+const step = (picture: DiagramStep['picture']): DiagramStep => ({ ...createStep(() => 'step-1'), picture });
+
+describe('capturedStyleChange', () => {
+  it('says a 3D scene’s light is not the diagram’s', () => {
+    const lit = step({ ...scenePicture(), styleKey: folded3dSceneStyleKey(style) });
+    expect(capturedStyleChange(lit, DIAGRAM)).toBeNull();
+    expect(capturedStyleChange(lit, RELIT)).toBe('light');
+    expect(lightingChanged(lit, RELIT)).toBe(true);
+    // A flat scene keeps no light, and is re-inked whatever the style.
+    expect(capturedStyleChange(step(scenePicture()), RELIT)).toBeNull();
+  });
+
+  it('says a capture kept as a bitmap was drawn in another style, pens and all', () => {
+    const bitmap = step({ kind: 'asset', assetId: 'asset-raster-1', paperScale: 2, styleKey: diagramStyleKey(DIAGRAM), key: 'raster-1' });
+    expect(capturedStyleChange(bitmap, DIAGRAM)).toBeNull();
+    expect(capturedStyleChange(bitmap, REPENNED)).toBe('style');
+    // An upload is drawn as it came, whatever the style.
+    const upload = step({ kind: 'asset', assetId: 'asset-up', paperScale: null, key: 'asset:asset-up' });
+    expect(capturedStyleChange(upload, REPENNED)).toBeNull();
+  });
+});

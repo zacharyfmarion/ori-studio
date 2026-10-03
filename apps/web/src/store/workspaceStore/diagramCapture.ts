@@ -28,7 +28,7 @@ import {
   type DiagramStyle,
   type KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
-import { diagramSurfaceStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { diagramStyleKey, diagramSurfaceStyle } from '../../diagram/pictures/diagramPaperStyle';
 import { digest } from '../../diagram/pictures/pictureKey';
 import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 import { cpAuxLinesKey, NO_AUX_LINES_KEY } from '../../cp-workspace/folded/foldedAuxSource';
@@ -369,7 +369,7 @@ export async function keptPicture(
   const pxPerScenePx = (pagePtPerPx(captured.scene, pagePaper, measure) * CAPTURE_RASTER_DPI) / 72;
   const paperScale = captured.paperScale === null ? null : captured.paperScale * pxPerScenePx;
   return {
-    picture: { kind: 'asset', assetId: id, paperScale, key: `raster-${id}` },
+    picture: { kind: 'asset', assetId: id, paperScale, styleKey: diagramStyleKey(style), key: `raster-${id}` },
     asset: { id, kind: 'raster', src, widthPx: width, heightPx: height, bytes: src.length },
   };
 }

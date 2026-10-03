@@ -17,7 +17,9 @@ describe('readFontMetrics', () => {
       expect(metrics.has(character.codePointAt(0)!)).toBe(true);
       expect(metrics.advance(character.codePointAt(0)!)).toBe(advance);
     }
-    expect([...metrics.codePoints()]).toHaveLength(809);
+    expect([...metrics.codePoints()]).toHaveLength(1465);
+    // Romanian, Vietnamese and a combining accent are in the bundle.
+    for (const character of 'șțơưệ\u0301') expect(metrics.has(character.codePointAt(0)!)).toBe(true);
   });
 
   it('knows what the bundled Latin font lacks', () => {

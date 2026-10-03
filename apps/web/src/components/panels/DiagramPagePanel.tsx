@@ -135,7 +135,7 @@ export function DiagramPagePanel() {
             label={t('panels:diagram.pagePane.scale', 'Scale')}
             value={page.scale}
             disabled={readOnly}
-            title={t(
+            help={t(
               'panels:diagram.pagePane.scaleHint',
               'One scale draws every pattern at the same size per unit of paper, as a book does. Fit draws each as large as its box.'
             )}
@@ -189,7 +189,7 @@ export function DiagramPagePanel() {
           <DiagramStyleControl value={setup.style} disabled={readOnly} onChange={setup.setStyle} />
           <SelectRow
             label={t('panels:diagram.pagePane.hanStyle', 'Han characters')}
-            title={t(
+            help={t(
               'panels:diagram.pagePane.hanStyleHint',
               'How Chinese characters are drawn where a text has no kana or Hangul to say which language it is.'
             )}

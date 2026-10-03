@@ -21,7 +21,9 @@ sha256, then:
   charsets/common.txt plus the script's set, and the `full` file. The common
   file is a strict subset of the full one, so glyphs and advances agree.
 - **Manifest** (--out/manifest.json): every CJK file's family, weight, tier,
-  bytes and sha256, which the app checks each download against.
+  bytes and sha256, which the app checks each download against, and each
+  script's full coverage (compact code-point runs), so the app fetches a full
+  file only for a character it has.
 - **Licences.** Each family's OFL.txt from the same commit, beside its fonts
   (OFL-NotoSans.txt with the Latin bundle; OFL-NotoSansSC.txt and the rest
   with the CJK files): the OFL travels with every copy of the fonts.
@@ -127,6 +129,36 @@ def cut(font, text=None):
     return out.getvalue()
 
 
+def coverage(code_points):
+    """A full file's code points, compact: each run as `gap.length` in base 36, comma-separated.
+
+    `gap` is how far the run starts past the previous one's end (from -1), and
+    `length` how many code points it holds less one. diagramFonts.ts reads it.
+    """
+    runs = []
+    for code_point in sorted(code_points):
+        if runs and runs[-1][1] == code_point - 1:
+            runs[-1][1] = code_point
+        else:
+            runs.append([code_point, code_point])
+    parts = []
+    previous = -1
+    for first, last in runs:
+        parts.append(f'{base36(first - previous - 1)}.{base36(last - first)}')
+        previous = last
+    return ','.join(parts)
+
+
+def base36(number):
+    digits = '0123456789abcdefghijklmnopqrstuvwxyz'
+    text = ''
+    while True:
+        number, digit = divmod(number, 36)
+        text = digits[digit] + text
+        if number == 0:
+            return text
+
+
 def charset(name):
     with open(os.path.join(HERE, 'charsets', name), encoding='utf-8') as source_file:
         return source_file.read().rstrip('\n')
@@ -146,6 +178,9 @@ def main():
 
     latin = charset('latin.txt')
     path = source(args.cache, sources, 'NotoSans')
+    lacking = [c for c in latin if ord(c) not in TTFont(path).getBestCmap()]
+    if lacking:
+        print(f'note: Noto Sans lacks {len(lacking)} of latin.txt\'s characters (U+{ord(lacking[0]):04X}…)', flush=True)
     licence(sources, 'NotoSans', args.latin_out)
     for style in WEIGHTS:
         data = cut(instance(path, 'Noto Sans', style), latin)
@@ -157,6 +192,7 @@ def main():
 
     common = charset('common.txt')
     files = []
+    covers = {}
     for script, set_name in CJK.items():
         family = f'Noto Sans {script}'
         path = source(args.cache, sources, f'NotoSans{script}')
@@ -170,7 +206,8 @@ def main():
                 name = f'NotoSans{script}-{style}.{tier}.ttf'
                 open(os.path.join(args.out, name), 'wb').write(data)
                 font = TTFont(io.BytesIO(data))
-                files.append({
+                cmap = font.getBestCmap()
+                entry = {
                     'file': name,
                     'script': script.lower(),
                     'family': family,
@@ -178,16 +215,26 @@ def main():
                     'tier': tier,
                     'bytes': len(data),
                     'sha256': sha256(data),
-                    'codepoints': len(font.getBestCmap()),
-                })
+                    'codepoints': len(cmap),
+                }
+                if tier == 'full':
+                    # What only the full file has is fetched for; the app asks the
+                    # manifest first, so a character no file has never costs a
+                    # download. Regular and Bold are cut from one font: one entry.
+                    covered = coverage(cmap.keys())
+                    if covers.setdefault(script.lower(), covered) != covered:
+                        sys.exit(f'{name}: its weights cover different characters')
+                files.append(entry)
                 print(name, len(data), flush=True)
     manifest = {
         'version': 1,
         'source': {'repository': sources['repository'], 'commit': sources['commit']},
         'files': files,
+        'coverage': covers,
     }
     with open(os.path.join(args.out, 'manifest.json'), 'w') as out:
-        json.dump(manifest, out, indent=2)
+        # Compact: the full files' ranges are thousands of numbers, read once a session.
+        json.dump(manifest, out, separators=(',', ':'))
         out.write('\n')
 
 

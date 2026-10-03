@@ -7,7 +7,7 @@
  *
  * Pure.
  */
-import { graphemesOf, isCjkGrapheme } from '../../lib/paper/textWrap';
+import { isCjkGrapheme } from '../../lib/paper/textWrap';
 import type { TextSetter } from './diagramPageLayout';
 import { setTextLines, type TextFaces } from './setText';
 
@@ -28,9 +28,8 @@ function facesAt(sizeMm: number): TextFaces {
 
 export const estimateTextSetter: TextSetter = {
   paragraph: (text, widthMm, sizeMm, maxLines) => setTextLines(text, widthMm, maxLines, facesAt(sizeMm)),
-  line(text, sizeMm) {
-    const graphemes = graphemesOf(text);
-    const widthMm = graphemes.reduce((sum, grapheme) => sum + advance(grapheme), 0) * sizeMm;
-    return { text, widthMm, runs: [{ font: ESTIMATE, text, xMm: 0, widthMm }], ellipsis: false };
+  line(text, sizeMm, _weight, maxWidthMm = Number.POSITIVE_INFINITY) {
+    const set = setTextLines(text, maxWidthMm, 1, facesAt(sizeMm));
+    return set.lines[0] ?? { text: '', widthMm: 0, runs: [], ellipsis: false };
   },
 };

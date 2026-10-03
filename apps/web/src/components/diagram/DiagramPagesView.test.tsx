@@ -12,6 +12,7 @@ import { readFontMetrics } from '../../diagram/fonts/fontMetrics';
 import { createFontSubsetter, type FontSubsetter } from '../../diagram/fonts/fontSubset';
 import { preparedPages, type PreparedDiagramPages } from '../../diagram/pages/diagramPages';
 import { TooltipProvider } from '../ui/Tooltip';
+import { focusLeavesEnterToSteps, focusOwnsArrowKeys } from '../../diagram/actions/diagramShortcuts';
 import { DiagramPagesView } from './DiagramPagesView';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -84,23 +85,47 @@ function render(pages: PreparedDiagramPages, handlers: Partial<Record<'onSelect'
   return props;
 }
 
-const cells = () => [...host.querySelectorAll<HTMLElement>('[role="button"][data-step-id]')];
+const cells = () => [...host.querySelectorAll<HTMLElement>('[role="option"][data-step-id]')];
 
 describe('DiagramPagesView', () => {
-  it('shows each page as its composed image, captioned, and says which page is in view', () => {
+  it('shows each page as its composed image, named and captioned, and says which page is in view', () => {
     render(preparedPages(diagram(), FONTS, subsetter));
-    const image = host.querySelector<HTMLImageElement>('img[alt="Page 1"]');
-    expect(image?.src.startsWith('data:image/svg+xml;base64,')).toBe(true);
+    const page = host.querySelector<HTMLElement>('[role="group"][data-page="0"]')!;
+    expect(page.getAttribute('aria-label')).toBe('Page 1');
+    expect(page.querySelector('img')?.src.startsWith('data:image/svg+xml;base64,')).toBe(true);
     expect(host.textContent).toContain('Page 1 of 1');
   });
 
-  it('lays each step’s cell over the page, the selected one marked', () => {
+  it('lays the steps over the page as one listbox, the selected one marked and the tab stop', () => {
     render(preparedPages(diagram(), FONTS, subsetter));
-    expect(cells().map((cell) => [cell.getAttribute('aria-label'), cell.getAttribute('aria-selected')])).toEqual([
-      ['Step 1', 'true'],
-      ['Step 2', 'false'],
-      ['Step 3', 'false'],
+    expect(host.querySelector('[role="listbox"]')?.hasAttribute('data-diagram-steps')).toBe(true);
+    expect(
+      cells().map((cell) => [cell.getAttribute('aria-label'), cell.getAttribute('aria-selected'), cell.tabIndex])
+    ).toEqual([
+      ['Step 1', 'true', 0],
+      ['Step 2', 'false', -1],
+      ['Step 3, text doesn’t fit', 'false', -1],
     ]);
+  });
+
+  it('leaves Enter and the arrows on a focused step to the Diagram’s keys, as a card does', () => {
+    render(preparedPages(diagram(), FONTS, subsetter));
+    const cell = cells()[1]!;
+    expect(focusLeavesEnterToSteps(cell)).toBe(true);
+    expect(focusOwnsArrowKeys(cell)).toBe(false);
+  });
+
+  it('names a page by its place when the pages print no numbers', () => {
+    const document = diagram();
+    const unnumbered = { ...document, page: { ...document.page, pageNumbers: { enabled: false, first: 12 } } };
+    const pages = preparedPages(unnumbered, FONTS, subsetter);
+    render(pages);
+    expect(host.querySelector('[data-page="0"]')?.getAttribute('aria-label')).toBe('Page 1');
+    // And by the number it prints when it prints one.
+    const numbered = preparedPages({ ...unnumbered, page: { ...unnumbered.page, pageNumbers: { enabled: true, first: 12 } } }, FONTS, subsetter);
+    render(numbered);
+    expect(host.querySelector('[data-page="0"]')?.getAttribute('aria-label')).toBe('Page 12');
+    expect(host.textContent).toContain('Page 1 of 1');
   });
 
   it('marks an empty step’s picture box and a cut instruction over the page, never in it', () => {
