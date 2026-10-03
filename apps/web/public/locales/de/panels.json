@@ -791,6 +791,7 @@
       "linkedImage": "Verknüpfte Bilder lassen sich nicht übernehmen: Betten Sie sie in die Datei ein und ersetzen Sie dann das Bild.",
       "linkedUnposed": "Ein Muster, noch nicht erfasst",
       "missing": "Muster fehlt",
+      "noLayerOrder": "Seine Lagen ließen sich nicht ordnen, daher zeigt es das gefaltete Papier durchsichtig.",
       "none": "Noch kein Bild",
       "pattern": "Muster",
       "raster": "Hochgeladenes Bild, {{width}} × {{height}} px",

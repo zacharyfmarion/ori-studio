@@ -821,6 +821,7 @@
       "linkedImage": "Imagens vinculadas não podem ser mantidas: incorpore-as ao arquivo e depois substitua a imagem.",
       "linkedUnposed": "Um padrão, ainda não capturado",
       "missing": "Padrão ausente",
+      "noLayerOrder": "Não foi possível ordenar as camadas, então mostra o papel dobrado em transparência.",
       "none": "Ainda sem imagem",
       "pattern": "Padrão",
       "raster": "Imagem enviada, {{width}} × {{height}} px",

@@ -821,6 +821,7 @@
       "linkedImage": "Les images liées ne peuvent pas être conservées\u00a0: incorporez-les au fichier, puis remplacez l’image.",
       "linkedUnposed": "Un patron, pas encore capturé",
       "missing": "Patron introuvable",
+      "noLayerOrder": "Ses couches n’ont pas pu être ordonnées\u00a0: il montre le papier plié en transparence.",
       "none": "Pas encore d’image",
       "pattern": "Patron",
       "raster": "Image importée, {{width}} × {{height}} px",

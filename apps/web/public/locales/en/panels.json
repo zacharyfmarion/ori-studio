@@ -791,6 +791,7 @@
       "linkedImage": "Linked images can’t be kept: embed them in the file, then replace the picture.",
       "linkedUnposed": "A pattern, not captured yet",
       "missing": "Pattern missing",
+      "noLayerOrder": "Its layers couldn’t be put in order, so it shows the folded paper see-through.",
       "none": "No picture yet",
       "pattern": "Pattern",
       "raster": "Uploaded image, {{width}} × {{height}} px",

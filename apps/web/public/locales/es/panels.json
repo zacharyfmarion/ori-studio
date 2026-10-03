@@ -821,6 +821,7 @@
       "linkedImage": "Las imágenes vinculadas no se pueden conservar: incrústalas en el archivo y luego reemplaza la imagen.",
       "linkedUnposed": "Un patrón, aún sin capturar",
       "missing": "Falta el patrón",
+      "noLayerOrder": "No se pudieron ordenar sus capas, así que muestra el papel plegado en transparencia.",
       "none": "Aún sin imagen",
       "pattern": "Patrón",
       "raster": "Imagen subida, {{width}} × {{height}} px",

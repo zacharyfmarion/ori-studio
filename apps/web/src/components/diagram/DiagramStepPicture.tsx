@@ -86,6 +86,16 @@ export function DiagramStepPicture({
           </span>
         </FieldRow>
       )}
+      {source && step.picture?.kind === 'fixed' && (
+        <div className={styles.notice}>
+          <Notice>
+            {t(
+              'panels:diagram.picture.noLayerOrder',
+              'Its layers couldn’t be put in order, so it shows the folded paper see-through.'
+            )}
+          </Notice>
+        </div>
+      )}
       {capture?.stop && (
         <div className={styles.verbs}>
           <Button size="sm" variant="secondary" onClick={capture.stop}>
