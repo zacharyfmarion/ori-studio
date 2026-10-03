@@ -48,6 +48,7 @@ export function DiagramStepsGrid({
   patternOpen,
   onLink,
   onOpenIn,
+  onGoToEdit,
   onAppend,
 }: {
   steps: readonly DiagramStep[];
@@ -73,6 +74,8 @@ export function DiagramStepsGrid({
   onLink: (stepId: string) => void;
   /** Open a step in Pose or Annotate, from the buttons over its picture. */
   onOpenIn: (stepId: string, mode: 'pose' | 'annotate') => void;
+  /** Go to Edit, from an empty card when no crease pattern is open. */
+  onGoToEdit: () => void;
   /** Add an empty step at the end, from the trailing tile; absent on a diagram that cannot change. */
   onAppend?: () => void;
 }) {
@@ -137,6 +140,7 @@ export function DiagramStepsGrid({
           onFromReferences={links.askReferences}
           onCancelWaiting={links.cancelAwaiting}
           onOpenIn={onOpenIn}
+          onGoToEdit={onGoToEdit}
         />
       ))}
       {onAppend && (

@@ -741,6 +741,7 @@
       "cancelWaiting": "取消",
       "capturing": "正在捕获…",
       "fromReferences": "参考…",
+      "goToEdit": "前往编辑",
       "lightingChanged": "光照已更改",
       "link": "链接…",
       "locked": "由更新版本的 Ori Studio 创建",
@@ -774,6 +775,7 @@
     "empty": {
       "addStep": "添加步骤",
       "fromReferences": "来自参考…",
+      "goToEdit": "前往编辑",
       "link": "链接图样…",
       "message": "图解就是你的折叠顺序，一次一步。添加一个步骤，再为它配上图片和说明——或上传你的图，每张一个步骤。",
       "title": "开始制作图解",

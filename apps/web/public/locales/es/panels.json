@@ -801,6 +801,7 @@
       "cancelWaiting": "Cancelar",
       "capturing": "Capturando…",
       "fromReferences": "Referencias…",
+      "goToEdit": "Ir a Editar",
       "lightingChanged": "Cambió la iluminación",
       "link": "Vincular…",
       "locked": "Creado con una versión más reciente de Ori Studio",
@@ -834,6 +835,7 @@
     "empty": {
       "addStep": "Añadir paso",
       "fromReferences": "Desde Referencias…",
+      "goToEdit": "Ir a Editar",
       "link": "Vincular un patrón…",
       "message": "Un diagrama es tu secuencia de plegado, paso a paso. Añade un paso y luego dale una imagen y una instrucción, o sube tus dibujos, uno por paso.",
       "title": "Empezar un diagrama",

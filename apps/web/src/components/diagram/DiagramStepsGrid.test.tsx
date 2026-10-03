@@ -44,6 +44,7 @@ function render(
     textCut?: ReadonlySet<string>;
     onAppend?: () => void;
     onOpenIn?: (stepId: string, mode: 'pose' | 'annotate') => void;
+    onGoToEdit?: () => void;
   } = {}
 ) {
   if (!host) {
@@ -78,6 +79,7 @@ function render(
         onLink={options.onLink ?? vi.fn()}
         onAppend={options.onAppend}
         onOpenIn={options.onOpenIn ?? vi.fn()}
+        onGoToEdit={options.onGoToEdit ?? vi.fn()}
       />
     )
   );
@@ -140,8 +142,8 @@ describe('DiagramStepsGrid', () => {
     render(null);
     expect(listbox().getAttribute('aria-label')).toBe('Steps');
     expect(options().map((option) => option.textContent)).toEqual([
-      'Step 1EmptyNo picture yetUpload…No instruction',
-      'Step 2EmptyNo picture yetUpload…Fold the corner\nto the centre.',
+      'Step 1EmptyNo picture yetUpload…Go to EditNo instruction',
+      'Step 2EmptyNo picture yetUpload…Go to EditFold the corner\nto the centre.',
       'Step 3NewerMade with a newer Ori StudioNo instruction',
     ]);
   });
@@ -279,14 +281,18 @@ describe('DiagramStepsGrid', () => {
     expect(chips).toEqual(['Lighting changed', 'Text doesn’t fit']);
   });
 
-  it('offers an empty card a pattern to link only with one open', () => {
+  it('offers an empty card a pattern to link only with one open, and Go to Edit without one', () => {
     const onLink = vi.fn();
-    render(null, vi.fn(), { onLink });
-    const linkButton = () =>
-      [...options()[1]!.querySelectorAll('button')].find((button) => button.textContent === 'Link…');
-    expect(linkButton()).toBeUndefined();
-    render(null, vi.fn(), { onLink, patternOpen: true });
-    act(() => linkButton()?.click());
+    const onGoToEdit = vi.fn();
+    render(null, vi.fn(), { onLink, onGoToEdit });
+    const button = (name: string) =>
+      [...options()[1]!.querySelectorAll('button')].find((candidate) => candidate.textContent === name);
+    expect(button('Link…')).toBeUndefined();
+    act(() => button('Go to Edit')?.click());
+    expect(onGoToEdit).toHaveBeenCalledOnce();
+    render(null, vi.fn(), { onLink, onGoToEdit, patternOpen: true });
+    expect(button('Go to Edit')).toBeUndefined();
+    act(() => button('Link…')?.click());
     expect(onLink).toHaveBeenCalledWith('step-b');
   });
 

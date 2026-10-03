@@ -741,6 +741,7 @@
       "cancelWaiting": "취소",
       "capturing": "캡처 중…",
       "fromReferences": "참조…",
+      "goToEdit": "편집으로 이동",
       "lightingChanged": "조명이 바뀌었습니다",
       "link": "연결…",
       "locked": "최신 Ori Studio에서 만듦",
@@ -774,6 +775,7 @@
     "empty": {
       "addStep": "단계 추가",
       "fromReferences": "참조에서…",
+      "goToEdit": "편집으로 이동",
       "link": "패턴 연결…",
       "message": "도해는 접는 순서를 한 단계씩 보여 줍니다. 단계를 추가한 다음 그림과 설명을 넣거나, 직접 그린 그림을 업로드해 한 장씩 단계로 만드세요.",
       "title": "도해 시작하기",

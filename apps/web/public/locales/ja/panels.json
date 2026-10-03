@@ -741,6 +741,7 @@
       "cancelWaiting": "キャンセル",
       "capturing": "キャプチャ中…",
       "fromReferences": "リファレンス…",
+      "goToEdit": "編集へ移動",
       "lightingChanged": "照明が変わりました",
       "link": "リンク…",
       "locked": "新しい Ori Studio で作成",
@@ -774,6 +775,7 @@
     "empty": {
       "addStep": "ステップを追加",
       "fromReferences": "リファレンスから…",
+      "goToEdit": "編集へ移動",
       "link": "パターンをリンク…",
       "message": "折り図は、折る手順を一つずつ示すものです。ステップを追加して図と説明文を付けるか、描いた図をアップロードして一枚ずつステップにしましょう。",
       "title": "折り図を始める",

@@ -53,6 +53,8 @@ const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'double_click');
 const openFromCard = (stepId: string, mode: 'pose' | 'annotate') => void openDiagramStep(stepId, 'card', mode);
+/** With no crease pattern open, the way to one: Edit, to open or draw it (D12). */
+const goToEdit = () => void handleMenuAction('view.edit');
 
 // Straight from the click, so the browser opens its picker (a user gesture).
 const uploadPictures = () => void pickStepPictures();
@@ -168,6 +170,10 @@ export function DiagramPanel() {
             if (next) selectStep(next.id);
           }}
           onUpload={() => uploadPictureFor(step.id)}
+          patternOpen={patternOpen}
+          onLink={() => openDiagramPatternPicker(step.id)}
+          onFromReferences={() => links.askReferences(step.id)}
+          onGoToEdit={goToEdit}
           dropping={dropTarget !== null}
           drawerSlot={setViewDrawerSlot}
         />
@@ -234,6 +240,7 @@ export function DiagramPanel() {
             patternOpen={patternOpen}
             onLink={linkNewStep}
             onFromReferences={stepsFromReferences}
+            onGoToEdit={goToEdit}
           />
         ) : (
           <DiagramStepsGrid
@@ -251,6 +258,7 @@ export function DiagramPanel() {
             patternOpen={patternOpen}
             onLink={openDiagramPatternPicker}
             onOpenIn={openFromCard}
+            onGoToEdit={goToEdit}
             onAppend={readOnly ? undefined : appendStep}
           />
         )}

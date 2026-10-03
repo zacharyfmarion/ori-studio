@@ -87,6 +87,7 @@ function type(input: HTMLInputElement, value: string) {
 describe('DiagramPanel', () => {
   it('opens on an empty state without making a diagram', () => {
     expect(host?.textContent).toContain('Start a diagram');
+    expect(buttonNamed('Go to Edit')).toBeDefined();
     expect(state().diagram).toBeNull();
     expect(state().dirty).toBe(false);
   });
@@ -533,6 +534,9 @@ describe('DiagramPanel', () => {
       });
       expect(host?.textContent).toContain('This step has no picture yet.');
       expect(buttonNamed('Upload Picture…')).toBeDefined();
+      // With no crease pattern open, Go to Edit stands in for Link and References (D12).
+      expect(buttonNamed('Go to Edit')).toBeDefined();
+      expect(buttonNamed('Link Pattern…')).toBeUndefined();
       expect(namedButton('Previous Step')?.disabled).toBe(true);
 
       act(() => namedButton('Next Step')?.click());

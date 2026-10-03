@@ -78,7 +78,6 @@
   display: grid;
   justify-items: center;
   gap: var(--space-2);
-  max-width: 34ch;
   padding: var(--space-5);
   color: var(--text-secondary);
   font-size: 0.8rem;
@@ -86,7 +85,16 @@
 }
 
 .message p {
+  max-width: 34ch;
   margin: 0;
+}
+
+/* The ways to give an empty step a picture, wrapping under the sentence. */
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
 }
 
 /*

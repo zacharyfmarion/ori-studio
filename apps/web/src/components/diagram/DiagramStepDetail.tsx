@@ -4,9 +4,12 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Compass,
   FlipHorizontal2,
   ImagePlus,
+  Link2,
   Lock,
+  PenTool,
   RotateCcw,
   RotateCw,
   Undo2,
@@ -82,6 +85,10 @@ export function DiagramStepDetail({
   onBack,
   onStep,
   onUpload,
+  patternOpen,
+  onLink,
+  onFromReferences,
+  onGoToEdit,
   dropping,
   drawerSlot,
 }: {
@@ -106,6 +113,14 @@ export function DiagramStepDetail({
   onStep: (direction: -1 | 1) => void;
   /** Pick a picture for this step. Called from the click itself. */
   onUpload: () => void;
+  /** A crease pattern is open, to link this step to or plan in References. */
+  patternOpen: boolean;
+  /** Choose this step's pattern: the picker, in the Step pane. */
+  onLink: () => void;
+  /** Ask References for this step's picture. */
+  onFromReferences: () => void;
+  /** Go to Edit, for a pattern to link to when none is open. */
+  onGoToEdit: () => void;
   /** A picture is being dragged over the Diagram. */
   dropping: boolean;
   /**
@@ -273,10 +288,29 @@ export function DiagramStepDetail({
           <div className={styles.message}>
             <ImagePlus size={22} aria-hidden="true" />
             <p>{t('panels:diagram.detail.noPicture', 'This step has no picture yet.')}</p>
-            <Button size="sm" variant="secondary" disabled={readOnly} onClick={onUpload}>
-              <Upload size={14} aria-hidden="true" />
-              {t('panels:diagram.actions.uploadPicture', 'Upload Picture…')}
-            </Button>
+            <div className={styles.sources}>
+              <Button size="sm" variant="secondary" disabled={readOnly} onClick={onUpload}>
+                <Upload size={14} aria-hidden="true" />
+                {t('panels:diagram.actions.uploadPicture', 'Upload Picture…')}
+              </Button>
+              {patternOpen ? (
+                <>
+                  <Button size="sm" variant="secondary" disabled={readOnly} onClick={onLink}>
+                    <Link2 size={14} aria-hidden="true" />
+                    {t('panels:diagram.actions.linkPattern', 'Link Pattern…')}
+                  </Button>
+                  <Button size="sm" variant="secondary" disabled={readOnly} onClick={onFromReferences}>
+                    <Compass size={14} aria-hidden="true" />
+                    {t('panels:diagram.actions.fromReferences', 'From References…')}
+                  </Button>
+                </>
+              ) : (
+                <Button size="sm" variant="ghost" onClick={onGoToEdit}>
+                  <PenTool size={14} aria-hidden="true" />
+                  {t('panels:diagram.empty.goToEdit', 'Go to Edit')}
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </div>

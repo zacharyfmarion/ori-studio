@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useId, useRef, type ForwardedRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Compass, ImagePlus, Link2, Lock, PenLine, Rotate3d, Upload } from 'lucide-react';
+import { Compass, ImagePlus, Link2, Lock, PenLine, PenTool, Rotate3d, Upload } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import {
   isLockedStep,
@@ -79,6 +79,8 @@ export const DiagramStepCard = forwardRef<
     onCancelWaiting: () => void;
     /** Open this step in Pose or Annotate, from the buttons over its picture. */
     onOpenIn: (stepId: string, mode: 'pose' | 'annotate') => void;
+    /** Go to Edit: an empty step's way to a pattern when none is open. */
+    onGoToEdit: () => void;
   }
 >(function DiagramStepCard(
   {
@@ -103,6 +105,7 @@ export const DiagramStepCard = forwardRef<
     onFromReferences,
     onCancelWaiting,
     onOpenIn,
+    onGoToEdit,
   },
   forwarded
 ) {
@@ -217,6 +220,22 @@ export const DiagramStepCard = forwardRef<
                   >
                     <Link2 size={13} aria-hidden="true" />
                     {t('panels:diagram.card.link', 'Link…')}
+                  </Button>
+                )}
+                {!patternOpen && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    onMouseDown={keepFocus}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onGoToEdit();
+                    }}
+                  >
+                    <PenTool size={13} aria-hidden="true" />
+                    {t('panels:diagram.card.goToEdit', 'Go to Edit')}
                   </Button>
                 )}
                 {patternOpen && !waiting && (

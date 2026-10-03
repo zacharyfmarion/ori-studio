@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { BookOpen, Compass, Link2, Plus, Upload } from 'lucide-react';
+import { BookOpen, Compass, Link2, PenTool, Plus, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
 import styles from './DiagramEmptyState.module.css';
 
@@ -8,8 +8,8 @@ import styles from './DiagramEmptyState.module.css';
  * be written before it has a picture, or start from a drawing, so the ways in
  * are to add one or upload pictures — or drop them here — and, with a crease
  * pattern open, to link a step to one of its patterns or send steps from
- * References. The diagram itself comes into being with that first step, never
- * on open.
+ * References; with none open, Go to Edit stands in for those two (D12). The
+ * diagram itself comes into being with that first step, never on open.
  */
 export function DiagramEmptyState({
   readOnly,
@@ -19,6 +19,7 @@ export function DiagramEmptyState({
   patternOpen,
   onLink,
   onFromReferences,
+  onGoToEdit,
 }: {
   readOnly: boolean;
   /** Pictures are being dragged over it. */
@@ -32,6 +33,8 @@ export function DiagramEmptyState({
   onLink: () => void;
   /** Go to References, whose Send to diagram adds the steps. */
   onFromReferences: () => void;
+  /** Go to Edit, to open or draw the crease pattern a step links to. */
+  onGoToEdit: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -65,6 +68,12 @@ export function DiagramEmptyState({
           <Button variant="secondary" disabled={readOnly} onClick={onFromReferences}>
             <Compass size={15} aria-hidden="true" />
             {t('panels:diagram.empty.fromReferences', 'From References…')}
+          </Button>
+        )}
+        {!patternOpen && (
+          <Button variant="ghost" onClick={onGoToEdit}>
+            <PenTool size={15} aria-hidden="true" />
+            {t('panels:diagram.empty.goToEdit', 'Go to Edit')}
           </Button>
         )}
       </div>

@@ -801,6 +801,7 @@
       "cancelWaiting": "Annuler",
       "capturing": "Capture…",
       "fromReferences": "Références…",
+      "goToEdit": "Aller dans Édition",
       "lightingChanged": "L’éclairage a changé",
       "link": "Lier…",
       "locked": "Créée avec une version plus récente d’Ori Studio",
@@ -834,6 +835,7 @@
     "empty": {
       "addStep": "Ajouter une étape",
       "fromReferences": "Depuis Références…",
+      "goToEdit": "Aller dans Édition",
       "link": "Lier un patron…",
       "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction — ou importez vos dessins, une étape chacun.",
       "title": "Commencer un diagramme",

@@ -771,6 +771,7 @@
       "cancelWaiting": "Abbrechen",
       "capturing": "Wird erfasst…",
       "fromReferences": "Referenzen…",
+      "goToEdit": "Zu Bearbeiten wechseln",
       "lightingChanged": "Beleuchtung geändert",
       "link": "Verknüpfen…",
       "locked": "Mit einem neueren Ori Studio erstellt",
@@ -804,6 +805,7 @@
     "empty": {
       "addStep": "Schritt hinzufügen",
       "fromReferences": "Aus Referenzen…",
+      "goToEdit": "Zu Bearbeiten wechseln",
       "link": "Muster verknüpfen…",
       "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung – oder laden Sie Ihre Zeichnungen hoch, je eine pro Schritt.",
       "title": "Ein Diagramm beginnen",
