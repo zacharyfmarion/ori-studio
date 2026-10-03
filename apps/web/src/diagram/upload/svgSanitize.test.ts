@@ -78,6 +78,10 @@ describe('the hostile corpus', () => {
     'h14-use-fanout.svg': /instantiates more than/,
     'h15-use-cycle.svg': /reference cycle/,
     'h19b-html-root.svg': /not an SVG/,
+    'h21-css-fanout.svg': /match too many elements/,
+    'h22-marker-fanout.svg': /marker copies past/,
+    'h23-entity-nonascii.svg': /doctype/,
+    'h24-doctype-in-comment.svg': /doctype/,
   };
 
   it.each(corpus('hostile'))('$file is refused or comes out inert', ({ file, text }) => {
@@ -284,3 +288,95 @@ describe('embedded rasters', () => {
     expect(sanitizeNotices(result.report)).toEqual(['linked-image']);
   });
 });
+
+/**
+ * Work bounded by the file, not by its square. Each of these was quadratic, or
+ * worse, before the Phase 2 review; the bounds are generous (a loaded CI
+ * machine) and still far below what the old code took at these sizes.
+ */
+describe('bounded work', () => {
+  const timed = <T>(run: () => T): { result: T; ms: number } => {
+    const start = performance.now();
+    const result = run();
+    return { result, ms: performance.now() - start };
+  };
+
+  it('refuses a stylesheet whose rules all match every element, quickly', () => {
+    const svg = `<svg xmlns="${SVG_NS}" width="10" height="10"><style>${'*{fill:red}'.repeat(6000)}</style>${'<g/>'.repeat(6000)}</svg>`;
+    const { result, ms } = timed(() => load(svg));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/match too many elements/);
+    expect(ms).toBeLessThan(3000);
+  });
+
+  it('keeps one declaration per property per element, however many rules say it', () => {
+    const svg = `<svg xmlns="${SVG_NS}" width="10" height="10"><style>${'.a{fill:red}'.repeat(500)}.a{fill:blue}</style>${'<rect class="a" width="1" height="1"/>'.repeat(500)}</svg>`;
+    const out = ok(load(svg)).svg;
+    expect(out.match(/fill:/g)).toHaveLength(500);
+    expect(out).not.toContain('red');
+  });
+
+  it('refuses context-paint markers that would copy past the node budget, before copying', () => {
+    const marker = `<marker id="m">${'<path d="M0 0L1 1" style="fill:context-stroke"/>'.repeat(800)}</marker>`;
+    const paths = Array.from({ length: 800 }, (_, i) =>
+      `<path d="M0 0L5 5" style="stroke:#${i.toString(16).padStart(6, '0')};marker-end:url(#m)"/>`
+    ).join('');
+    const { result, ms } = timed(() => load(`<svg xmlns="${SVG_NS}" width="10" height="10"><defs>${marker}</defs>${paths}</svg>`));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/marker copies past/);
+    expect(ms).toBeLessThan(3000);
+  });
+
+  it('strips a flood of unclosed CSS comments in one pass', () => {
+    const svg = `<svg xmlns="${SVG_NS}" width="10" height="10"><style>${'/* '.repeat(160_000)}</style><rect width="5" height="5"/></svg>`;
+    const { result, ms } = timed(() => load(svg));
+    expect(result.ok).toBe(true);
+    expect(ms).toBeLessThan(2000);
+  });
+
+  it('walks a long gradient chain once', () => {
+    const grads = Array.from({ length: 8000 }, (_, i) => `<linearGradient id="g${i}" href="#g${i + 1}"/>`).join('');
+    const svg = `<svg xmlns="${SVG_NS}" width="10" height="10"><defs>${grads}<linearGradient id="g8000"><stop offset="0" stop-color="#f00"/></linearGradient></defs><rect width="5" height="5" fill="url(#g0)"/></svg>`;
+    const { result, ms } = timed(() => load(svg));
+    expect(result.ok).toBe(true);
+    expect(ms).toBeLessThan(3000);
+  });
+
+  it('refuses an oversized internal subset before scanning it', () => {
+    const { result, ms } = timed(() => screenDoctype(`<!DOCTYPE svg [${'<!ENTITY '.repeat(40_000)}]><svg/>`));
+    expect(result).toMatch(/too large/);
+    expect(ms).toBeLessThan(500);
+  });
+});
+
+describe('the DOCTYPE screen, against names and hiding places', () => {
+  it('counts references to an entity of any name', () => {
+    for (const name of ['é', 'a:b', 'aé']) {
+      const text = `<!DOCTYPE svg [<!ENTITY ${name} "${'x'.repeat(1000)}">]><svg>${`&${name};`.repeat(1100)}</svg>`;
+      expect(screenDoctype(text), name).toMatch(/expand too far/);
+    }
+  });
+
+  it('refuses a second DOCTYPE, as one hidden in a comment would be', () => {
+    expect(
+      screenDoctype('<!-- <!DOCTYPE x> --><!DOCTYPE svg [<!ATTLIST svg onload CDATA "x">]><svg/>')
+    ).toMatch(/more than one DOCTYPE/);
+  });
+
+  it('refuses an internal subset with a declaration that never closes', () => {
+    expect(screenDoctype('<!DOCTYPE svg [<!ENTITY a "x" ]><svg/>')).not.toBeNull();
+  });
+});
+
+describe('rasterHeaderSize, against fill bytes', () => {
+  it('skips 0xFF fill bytes before a marker, as decoders do', () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x59, 0xd8, 0x59, 0xd8, 0x03, ...new Array(24).fill(0)]);
+    expect(rasterHeaderSize(bytes, 'image/jpeg')).toEqual({ width: 23000, height: 23000 });
+  });
+
+  it('gives no size when the scan starts before any frame', () => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xda, 0x00, 0x08, ...new Array(24).fill(0)]);
+    expect(rasterHeaderSize(bytes, 'image/jpeg')).toBeNull();
+  });
+});
+

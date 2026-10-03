@@ -38,12 +38,23 @@ const MAX_USE_INSTANCES = 50_000;
 /** Element nesting the copy will follow; deeper is refused rather than overflowing the stack. */
 const MAX_DEPTH = 512;
 /** A raster's header may claim at most this much before it is dropped unread. */
-const MAX_DECLARED_RASTER_SIDE = 16_384;
-const MAX_DECLARED_RASTER_PIXELS = 64_000_000;
+export const MAX_DECLARED_RASTER_SIDE = 16_384;
+export const MAX_DECLARED_RASTER_PIXELS = 64_000_000;
 /** DOCTYPE entities: how many, how long each, and how much they may expand to in all. */
 const MAX_ENTITIES = 64;
 const MAX_ENTITY_VALUE = 1024;
 const MAX_ENTITY_EXPANSION = 1024 * 1024;
+/** The internal subset's size: room for every entity at its longest, and no more. */
+const MAX_INTERNAL_SUBSET = MAX_ENTITIES * (MAX_ENTITY_VALUE + 64);
+/**
+ * Stylesheet selectors, and rule-by-element checks while inlining them. Real
+ * drawings use a few hundred classes, each matching a handful of elements; a
+ * file that asks for more is built to make the copy quadratic.
+ */
+const MAX_STYLE_SELECTORS = 10_000;
+const MAX_STYLE_MATCH_CHECKS = 2_000_000;
+/** Nodes the marker context-paint copies may add, as `<use>` may instantiate. */
+const MAX_BAKED_MARKER_NODES = MAX_USE_INSTANCES;
 
 export type ReportKind = 'visual' | 'security' | 'metadata' | 'info';
 
@@ -526,9 +537,27 @@ function parseSimpleSelector(text: string): SimpleSelector | null {
   };
 }
 
+/**
+ * Remove `/* … *\/` comments in one pass. A lazy regex rescans to the end for
+ * every unclosed `/*`, which a hostile sheet makes quadratic; an unclosed one
+ * here runs to the end, as it does in CSS.
+ */
+function stripCssComments(css: string): string {
+  let out = '';
+  let at = 0;
+  for (;;) {
+    const open = css.indexOf('/*', at);
+    if (open < 0) return out + css.slice(at);
+    out += css.slice(at, open) + ' ';
+    const close = css.indexOf('*/', open + 2);
+    if (close < 0) return out;
+    at = close + 2;
+  }
+}
+
 function parseStylesheet(css: string, report: Report, firstOrder: number): StyleRule[] {
   const rules: StyleRule[] = [];
-  const text = css.replace(/\/\*[\s\S]*?\*\//g, ' ');
+  const text = stripCssComments(css);
   let index = 0;
   let order = firstOrder;
   const skipBlock = (from: number): number => {
@@ -679,7 +708,12 @@ export function rasterHeaderSize(
     let at = 2;
     while (at + 9 < bytes.length) {
       if (bytes[at] !== 0xff) return null;
+      // Fill bytes: any run of 0xFF before a marker's code, which decoders skip.
+      while (at + 1 < bytes.length && bytes[at + 1] === 0xff) at += 1;
+      if (at + 9 >= bytes.length) return null;
       const marker = bytes[at + 1];
+      // Start of scan, or end of image, before any frame: no size to read.
+      if (marker === 0xda || marker === 0xd9) return null;
       if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
         at += 2;
         continue;
@@ -706,6 +740,36 @@ export function rasterHeaderSize(
     }
     return null;
   }
+  if (mime === 'image/gif') {
+    if (bytes.length < 10 || !/^GIF8[79]a$/.test(ascii(0, 6))) return null;
+    return { width: le16(6), height: le16(8) };
+  }
+  if (mime === 'image/bmp') {
+    if (bytes.length < 26 || ascii(0, 2) !== 'BM') return null;
+    const le32 = (at: number) =>
+      (bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | (bytes[at + 3] << 24)) >>> 0;
+    const height = le32(22);
+    // A negative height is a top-down bitmap.
+    return { width: le32(18), height: height > 0x7fffffff ? 0x100000000 - height : height };
+  }
+  return null;
+}
+
+/** The bitmap formats whose size {@link rasterHeaderSize} can read. */
+export type SniffedRasterMime = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' | 'image/bmp';
+
+/**
+ * What a bitmap is, from its first bytes rather than its name or reported
+ * type: the format the header check and the decoder will actually meet.
+ * `null` for anything else.
+ */
+export function sniffRasterMime(bytes: Uint8Array): SniffedRasterMime | null {
+  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.slice(from, to));
+  if (bytes[0] === 0x89 && ascii(1, 4) === 'PNG') return 'image/png';
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+  if (ascii(0, 4) === 'GIF8') return 'image/gif';
+  if (ascii(0, 2) === 'BM') return 'image/bmp';
   return null;
 }
 
@@ -761,6 +825,9 @@ export function screenDoctype(text: string): string | null {
   const start = text.indexOf('<!DOCTYPE');
   const entityCount = (text.match(/<!ENTITY/g) ?? []).length;
   if (start < 0) return entityCount > 0 ? 'ENTITY outside a DOCTYPE' : null;
+  // One DOCTYPE, the real one: a second — or the first hidden in a comment —
+  // would leave the subset the parser applies unscreened.
+  if (text.indexOf('<!DOCTYPE', start + 1) >= 0) return 'more than one DOCTYPE';
   const close = text.indexOf('>', start);
   const open = text.indexOf('[', start);
   let subset = '';
@@ -771,8 +838,10 @@ export function screenDoctype(text: string): string | null {
     subset = text.slice(open + 1, end);
     subsetEnd = end;
   }
-  const declarations = subset.match(/<!ENTITY[\s\S]*?>/g) ?? [];
-  const rest = subset.replace(/<!ENTITY[\s\S]*?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  if (subset.length > MAX_INTERNAL_SUBSET) return 'an internal subset too large to be literal entities';
+  const pieces = splitSubset(subset);
+  if (!pieces) return 'an unterminated declaration in the internal subset';
+  const { declarations, rest } = pieces;
   if (/<!|%/.test(rest)) return 'the internal subset may hold only ENTITY declarations';
   if (entityCount !== declarations.length) return 'ENTITY declarations outside the internal subset';
   if (declarations.length > MAX_ENTITIES) return `more than ${MAX_ENTITIES} entities`;
@@ -788,12 +857,38 @@ export function screenDoctype(text: string): string | null {
   }
   if (lengths.size > 0) {
     let expansion = 0;
-    for (const reference of text.slice(subsetEnd).matchAll(/&([A-Za-z_][\w.-]*);/g)) {
+    // Any name a declaration could have had: counting only ASCII names let
+    // `&é;` or `&a:b;` expand uncounted.
+    for (const reference of text.slice(subsetEnd).matchAll(/&([^\s&;<>]+);/g)) {
       expansion += lengths.get(reference[1]) ?? 0;
       if (expansion > MAX_ENTITY_EXPANSION) return 'entities that expand too far';
     }
   }
   return null;
+}
+
+/**
+ * The internal subset's `<!ENTITY …>` declarations, and what is left once they
+ * and its comments are taken out, in one pass — or null when one of them never
+ * closes. (A lazy regex per kind rescanned to the end for each unclosed one.)
+ */
+function splitSubset(subset: string): { declarations: string[]; rest: string } | null {
+  const declarations: string[] = [];
+  let rest = '';
+  let at = 0;
+  for (;;) {
+    const entity = subset.indexOf('<!ENTITY', at);
+    const comment = subset.indexOf('<!--', at);
+    if (entity < 0 && comment < 0) return { declarations, rest: rest + subset.slice(at) };
+    const isComment = comment >= 0 && (entity < 0 || comment < entity);
+    const begin = isComment ? comment : entity;
+    rest += subset.slice(at, begin);
+    const end = isComment ? subset.indexOf('-->', begin + 4) : subset.indexOf('>', begin);
+    if (end < 0) return null;
+    const after = isComment ? end + 3 : end + 1;
+    if (!isComment) declarations.push(subset.slice(begin, after));
+    at = after;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -859,6 +954,8 @@ function sanitize(text: string, options: SanitizeOptions, report: Report): Sanit
     rules.push(...parseStylesheet(styleElements[index].textContent ?? '', report, rules.length));
     report.add('style-element-inlined', 'info');
   }
+  const selectorCount = rules.reduce((count, rule) => count + rule.selectors.length, 0);
+  if (selectorCount > MAX_STYLE_SELECTORS) return fail(`more than ${MAX_STYLE_SELECTORS} style selectors`);
   // Indexed by each selector's most specific key, so matching is a lookup, not a scan.
   const ruleIndex = new Map<string, { rule: StyleRule; selector: SimpleSelector }[]>();
   for (const rule of rules) {
@@ -875,9 +972,38 @@ function sanitize(text: string, options: SanitizeOptions, report: Report): Sanit
       ruleIndex.set(key, list);
     }
   }
-  /** Rules, then the inline style, then `!important` rules: later wins. */
-  const declarationsFor = (element: Element): Declaration[] => {
-    const matched: { declaration: Declaration; specificity: number; order: number }[] = [];
+  /** A declaration's value made safe, or null — reported once, whatever it styles. */
+  const vetDeclaration = (declaration: Declaration, where: string): CleanValue | null => {
+    if (declaration.property.startsWith('--')) {
+      report.add('declaration-dropped:custom-property', 'info', declaration.property);
+      return null;
+    }
+    if (!PROPERTIES.has(declaration.property)) {
+      const inert = INERT_PROPERTIES.has(declaration.property) || declaration.property.startsWith('-');
+      report.add(`declaration-dropped:${declaration.property}`, inert ? 'info' : 'visual', declaration.value);
+      return null;
+    }
+    return cleanCssValue(declaration.property, declaration.value, report, where);
+  };
+  // A rule's declarations are vetted once, not once for every element they
+  // style: the fan-out of a few thousand rules over a few thousand elements is
+  // what made the copy quadratic.
+  const vettedRuleDeclarations = new Map<Declaration, CleanValue | null>();
+  const vetRuleDeclaration = (declaration: Declaration): CleanValue | null => {
+    if (!vettedRuleDeclarations.has(declaration)) {
+      vettedRuleDeclarations.set(declaration, vetDeclaration(declaration, 'style rule'));
+    }
+    return vettedRuleDeclarations.get(declaration) ?? null;
+  };
+  let matchChecks = 0;
+  /**
+   * One element's declarations, the cascade resolved: rules by specificity and
+   * order, then the inline style, then `!important` rules, and for each
+   * property the last one that is valid wins — so an element yields at most
+   * one declaration per property, however many rules match it.
+   */
+  const declarationsFor = (element: Element, where: string): Map<string, CleanValue> => {
+    const matched: { rule: StyleRule; specificity: number }[] = [];
     if (rules.length > 0) {
       const keys = ['*', `t:${element.localName}`];
       const id = element.getAttribute('id');
@@ -888,23 +1014,39 @@ function sanitize(text: string, options: SanitizeOptions, report: Report): Sanit
       const best = new Map<StyleRule, number>();
       for (const key of keys) {
         for (const { rule, selector } of ruleIndex.get(key) ?? []) {
+          matchChecks += 1;
+          if (matchChecks > MAX_STYLE_MATCH_CHECKS) {
+            throw new Error('styles that match too many elements');
+          }
           if (selectorMatches(selector, element)) {
             best.set(rule, Math.max(best.get(rule) ?? -1, selector.specificity));
           }
         }
       }
-      for (const [rule, specificity] of best) {
-        for (const declaration of rule.declarations) {
-          matched.push({ declaration, specificity, order: rule.order });
-        }
+      for (const [rule, specificity] of best) matched.push({ rule, specificity });
+    }
+    matched.sort((a, b) => a.specificity - b.specificity || a.rule.order - b.rule.order);
+    const winners = new Map<string, CleanValue>();
+    const apply = (property: string, clean: CleanValue | null) => {
+      if (!clean) return;
+      // Re-inserted, so the style lists properties in the cascade's order.
+      winners.delete(property);
+      winners.set(property, clean);
+    };
+    for (const { rule } of matched) {
+      for (const declaration of rule.declarations) {
+        if (!declaration.important) apply(declaration.property, vetRuleDeclaration(declaration));
       }
     }
-    matched.sort((a, b) => a.specificity - b.specificity || a.order - b.order);
-    return [
-      ...matched.filter((m) => !m.declaration.important).map((m) => m.declaration),
-      ...splitDeclarations(element.getAttribute('style') ?? ''),
-      ...matched.filter((m) => m.declaration.important).map((m) => m.declaration),
-    ];
+    for (const declaration of splitDeclarations(element.getAttribute('style') ?? '')) {
+      apply(declaration.property, vetDeclaration(declaration, where));
+    }
+    for (const { rule } of matched) {
+      for (const declaration of rule.declarations) {
+        if (declaration.important) apply(declaration.property, vetRuleDeclaration(declaration));
+      }
+    }
+    return winners;
   };
 
   // 2–4. Copy into a fresh document.
@@ -1014,26 +1156,14 @@ function sanitize(text: string, options: SanitizeOptions, report: Report): Sanit
       const meta = local.startsWith('aria') || local === 'role' || local === 'version' || local.startsWith('data-');
       report.add(`attribute-dropped:${local}`, meta ? 'metadata' : 'info', local);
     }
-    for (const declaration of declarationsFor(sourceElement)) {
-      if (declaration.property.startsWith('--')) {
-        report.add('declaration-dropped:custom-property', 'info', declaration.property);
-        continue;
-      }
-      if (!PROPERTIES.has(declaration.property)) {
-        const inert = INERT_PROPERTIES.has(declaration.property) || declaration.property.startsWith('-');
-        report.add(`declaration-dropped:${declaration.property}`, inert ? 'info' : 'visual', declaration.value);
-        continue;
-      }
-      const clean = cleanCssValue(declaration.property, declaration.value, report, `${name} style`);
-      if (clean) {
-        pendingDeclarations.push({
-          element: outElement,
-          asAttribute: false,
-          property: declaration.property,
-          value: clean.value,
-          references: clean.references,
-        });
-      }
+    for (const [property, clean] of declarationsFor(sourceElement, `${name} style`)) {
+      pendingDeclarations.push({
+        element: outElement,
+        asAttribute: false,
+        property,
+        value: clean.value,
+        references: clean.references,
+      });
     }
   };
 
@@ -1298,15 +1428,20 @@ function checkReferences(
   elementCount: number
 ): string | null {
   const cap = MAX_USE_INSTANCES + elementCount;
-  // Gradient and pattern chains: a cycle there is refused outright.
+  // Gradient and pattern chains: a cycle there is refused outright. Each
+  // element is walked once: a chain that reaches one already proven to end
+  // stops there, so a long chain costs its length, not its length squared.
+  const ends = new Set<Element>();
   for (const element of root.querySelectorAll('linearGradient, radialGradient, pattern, textPath')) {
     const seen = new Set<Element>([element]);
     let next = hrefTarget(element);
     while (next && (next.localName.endsWith('Gradient') || next.localName === 'pattern')) {
+      if (ends.has(next)) break;
       if (seen.has(next)) return `reference cycle at #${next.getAttribute('id') ?? next.localName}`;
       seen.add(next);
       next = hrefTarget(next);
     }
+    for (const walked of seen) ends.add(walked);
   }
   // Instantiated nodes: each element counts itself and its children, and a
   // `use` adds what its target instantiates. Post-order without recursion.
@@ -1426,62 +1561,88 @@ function bakeContextPaint(root: Element, report: Report): void {
     if (id && uses) markers.set(id, marker);
   }
   if (markers.size === 0) return;
-  const copies = new Map<string, string>();
-  let count = 0;
+  // First every use and the copy it needs, so the copies are budgeted before
+  // any is made: a marker of a few hundred nodes in a few hundred colours is a
+  // small file and a huge tree.
+  interface MarkerUse {
+    element: Element;
+    property: string;
+    where: 'style' | 'attribute';
+    markerId: string;
+    stroke: string;
+    fill: string;
+    key: string;
+  }
+  const uses: MarkerUse[] = [];
+  const nodesPerCopy = new Map<string, number>();
   for (const element of Array.from(root.getElementsByTagName('*'))) {
     const style = styleMap(element);
-    let styleChanged = false;
     for (const property of MARKER_PROPERTIES) {
       for (const where of ['style', 'attribute'] as const) {
         const value = where === 'style' ? style.get(property) : element.getAttribute(property);
         const match = value?.match(/^url\(#([^)]+)\)$/);
-        if (!match || !markers.has(match[1])) continue;
+        const marker = match ? markers.get(match[1]) : undefined;
+        if (!match || !marker) continue;
         const stroke = effectiveProperty(element, 'stroke', 'none');
         const fill = effectiveProperty(element, 'fill', 'black');
         const key = `${match[1]}|${stroke}|${fill}`;
-        let copyId = copies.get(key);
-        if (!copyId) {
-          const source = markers.get(match[1]);
-          if (!source) continue;
-          const copy = source.cloneNode(true) as Element;
-          count += 1;
-          copyId = `${match[1]}-k${count}`;
-          copy.setAttribute('id', copyId);
-          for (const node of [copy, ...Array.from(copy.getElementsByTagName('*'))]) {
-            if (node !== copy && node.hasAttribute('id')) {
-              node.setAttribute('id', `${node.getAttribute('id')}-k${count}`);
-            }
-            const nodeStyle = styleMap(node);
-            let changed = false;
-            for (const [name, raw] of nodeStyle) {
-              const baked = raw.replace(/context-stroke/g, stroke).replace(/context-fill/g, fill);
-              if (baked !== raw) {
-                nodeStyle.set(name, baked);
-                changed = true;
-              }
-            }
-            if (changed) setStyle(node, nodeStyle);
-            for (const name of ['fill', 'stroke']) {
-              const raw = node.getAttribute(name);
-              if (raw && CONTEXT_PAINT.test(raw)) {
-                node.setAttribute(name, raw.replace(/context-stroke/g, stroke).replace(/context-fill/g, fill));
-              }
-            }
-          }
-          source.parentNode?.insertBefore(copy, source.nextSibling);
-          copies.set(key, copyId);
-          report.add('marker-context-paint-baked', 'info', key);
-        }
-        if (where === 'style') {
-          style.set(property, `url(#${copyId})`);
-          styleChanged = true;
-        } else {
-          element.setAttribute(property, `url(#${copyId})`);
-        }
+        uses.push({ element, property, where, markerId: match[1], stroke, fill, key });
+        if (!nodesPerCopy.has(key)) nodesPerCopy.set(key, 1 + marker.getElementsByTagName('*').length);
       }
     }
-    if (styleChanged) setStyle(element, style);
   }
+  let bakedNodes = 0;
+  for (const nodes of nodesPerCopy.values()) bakedNodes += nodes;
+  if (bakedNodes > MAX_BAKED_MARKER_NODES) {
+    throw new Error(`marker copies past ${MAX_BAKED_MARKER_NODES} nodes`);
+  }
+
+  const copies = new Map<string, string>();
+  let count = 0;
+  const changedStyles = new Map<Element, Map<string, string>>();
+  for (const use of uses) {
+    let copyId = copies.get(use.key);
+    if (!copyId) {
+      const source = markers.get(use.markerId);
+      if (!source) continue;
+      const copy = source.cloneNode(true) as Element;
+      count += 1;
+      copyId = `${use.markerId}-k${count}`;
+      copy.setAttribute('id', copyId);
+      for (const node of [copy, ...Array.from(copy.getElementsByTagName('*'))]) {
+        if (node !== copy && node.hasAttribute('id')) {
+          node.setAttribute('id', `${node.getAttribute('id')}-k${count}`);
+        }
+        const nodeStyle = styleMap(node);
+        let changed = false;
+        for (const [name, raw] of nodeStyle) {
+          const baked = raw.replace(/context-stroke/g, use.stroke).replace(/context-fill/g, use.fill);
+          if (baked !== raw) {
+            nodeStyle.set(name, baked);
+            changed = true;
+          }
+        }
+        if (changed) setStyle(node, nodeStyle);
+        for (const name of ['fill', 'stroke']) {
+          const raw = node.getAttribute(name);
+          if (raw && CONTEXT_PAINT.test(raw)) {
+            node.setAttribute(name, raw.replace(/context-stroke/g, use.stroke).replace(/context-fill/g, use.fill));
+          }
+        }
+      }
+      source.parentNode?.insertBefore(copy, source.nextSibling);
+      copies.set(use.key, copyId);
+      report.add('marker-context-paint-baked', 'info', use.key);
+    }
+    if (use.where === 'style') {
+      const style = changedStyles.get(use.element) ?? styleMap(use.element);
+      style.set(use.property, `url(#${copyId})`);
+      changedStyles.set(use.element, style);
+    } else {
+      use.element.setAttribute(use.property, `url(#${copyId})`);
+    }
+  }
+  for (const [element, style] of changedStyles) setStyle(element, style);
 }
 
 function escapeRegExp(text: string): string {

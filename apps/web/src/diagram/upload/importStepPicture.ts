@@ -3,12 +3,16 @@ import { isDecodableImageType, isSvgImage } from '../../lib/imageFormats';
 import { decodeSvgText } from '../../lib/svgImage';
 import { FileTooLargeError, type PickedFile } from '../../platform/fileService';
 import {
+  MAX_DECLARED_RASTER_PIXELS,
+  MAX_DECLARED_RASTER_SIDE,
   SVG_READ_MAX_BYTES,
   SVG_STORED_MAX_BYTES,
   browserSanitizeEnv,
   finishRasters,
+  rasterHeaderSize,
   sanitizeNotices,
   sanitizeSvg,
+  sniffRasterMime,
   type PendingRaster,
   type SanitizeEnv,
   type SanitizeNotice,
@@ -149,7 +153,20 @@ export async function importStepPicture(
   try {
     const bytes = await file.read(RASTER_READ_MAX_BYTES);
     fileBytes = bytes.byteLength;
-    const type = file.type || mimeForFormat(format);
+    // What the bytes are, whatever the name says, and how big they claim to be
+    // decoded — checked before anything decodes them: a 64 KB PNG can declare
+    // 23,000 px a side, which is gigabytes of pixels.
+    const type = sniffRasterMime(bytes);
+    if (!type) return fail('unsupported');
+    const size = rasterHeaderSize(bytes, type);
+    if (!size || size.width < 1 || size.height < 1) return fail('unreadable');
+    if (
+      size.width > MAX_DECLARED_RASTER_SIDE ||
+      size.height > MAX_DECLARED_RASTER_SIDE ||
+      size.width * size.height > MAX_DECLARED_RASTER_PIXELS
+    ) {
+      return fail('too_large');
+    }
     // A copy, so the part is backed by a plain ArrayBuffer whatever `read` returned.
     const encoded = await dependencies.encodeRaster(new File([new Uint8Array(bytes)], file.name, { type }));
     // What a load accepts, checked now: a canvas that could not encode hands
@@ -170,19 +187,6 @@ export async function importStepPicture(
 
 /** The form a stored bitmap takes, which the file reader insists on. */
 const STORED_RASTER = /^data:image\/(?:png|jpeg);base64,/;
-
-function mimeForFormat(format: ImportedPictureFormat): string {
-  switch (format) {
-    case 'png':
-      return 'image/png';
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'webp':
-      return 'image/webp';
-    default:
-      return '';
-  }
-}
 
 async function reencodeEmbedded(
   raster: PendingRaster,

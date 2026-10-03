@@ -20,6 +20,32 @@ function file(name: string, text: string, type = ''): PictureFile {
   return { name, type, size: bytes.length, read: async () => bytes };
 }
 
+function bytesFile(name: string, bytes: Uint8Array, type = ''): PictureFile {
+  return { name, type, size: bytes.length, read: async () => bytes };
+}
+
+/** Just enough of each format for its header to be read. */
+function pngBytes(width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(33);
+  bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  new DataView(bytes.buffer).setUint32(16, width);
+  new DataView(bytes.buffer).setUint32(20, height);
+  return bytes;
+}
+
+function jpegBytes(width: number, height: number): Uint8Array {
+  const sof = [0xff, 0xc0, 0x00, 0x11, 0x08, height >> 8, height & 0xff, width >> 8, width & 0xff, 3];
+  return new Uint8Array([0xff, 0xd8, ...sof, ...new Array(16).fill(0)]);
+}
+
+function gifBytes(width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(16);
+  bytes.set([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]);
+  new DataView(bytes.buffer).setUint16(6, width, true);
+  new DataView(bytes.buffer).setUint16(8, height, true);
+  return bytes;
+}
+
 function dependencies(encode?: ImportDependencies['encodeRaster']): ImportDependencies {
   return {
     encodeRaster: encode ?? vi.fn(async () => ({ src: 'data:image/png;base64,AAAA', width: 4, height: 2 })),
@@ -81,7 +107,7 @@ describe('importStepPicture', () => {
 
   it('refuses a bitmap the canvas could not encode, rather than storing what a load would drop', async () => {
     const result = await importStepPicture(
-      file('photo.png', 'not really png', 'image/png'),
+      bytesFile('photo.png', pngBytes(4, 2), 'image/png'),
       'asset-1',
       dependencies(vi.fn(async () => ({ src: 'data:,', width: 0, height: 0 })))
     );
@@ -108,23 +134,39 @@ describe('importStepPicture', () => {
     expect(await importStepPicture(desktop, 'asset-1', dependencies())).toMatchObject({ reason: 'too_large' });
   });
 
-  it('re-encodes a raster, typed from its name when the platform gave no type', async () => {
+  it('re-encodes a raster typed from its bytes, whatever its name or reported type says', async () => {
     const encode = vi.fn(async (input: File) => ({ src: `data:image/jpeg;base64,${input.type}`, width: 2048, height: 1024 }));
-    const result = await importStepPicture(file('photo.jpg', 'xx'), 'asset-1', dependencies(encode));
+    const result = await importStepPicture(bytesFile('photo.jpg', jpegBytes(4000, 2000)), 'asset-1', dependencies(encode));
     expect(encode.mock.calls[0][0].type).toBe('image/jpeg');
     expect(result).toMatchObject({
       ok: true,
       format: 'jpeg',
       content: { kind: 'raster', widthPx: 2048, heightPx: 1024 },
     });
+    // A PNG named .jpg is decoded as the PNG it is, keeping its transparency.
+    await importStepPicture(bytesFile('mislabelled.jpg', pngBytes(8, 8), 'image/jpeg'), 'asset-2', dependencies(encode));
+    expect(encode.mock.calls[1][0].type).toBe('image/png');
+    // A GIF is read too.
+    await importStepPicture(bytesFile('anim.gif', gifBytes(8, 8), 'image/gif'), 'asset-3', dependencies(encode));
+    expect(encode.mock.calls[2][0].type).toBe('image/gif');
   });
 
-  it('says a raster that will not decode is unreadable, and a text file unsupported', async () => {
+  it('refuses a bitmap that declares more pixels than the cap, before decoding it', async () => {
+    const encode = vi.fn();
+    const bomb = await importStepPicture(bytesFile('bomb.png', pngBytes(23_000, 23_000), 'image/png'), 'asset-1', dependencies(encode));
+    expect(bomb).toMatchObject({ ok: false, reason: 'too_large' });
+    expect(encode).not.toHaveBeenCalled();
+  });
+
+  it('says a raster that will not decode is unreadable, and bytes that are no picture unsupported', async () => {
     const failing = dependencies(async () => {
       throw new Error('decode failed');
     });
-    expect(await importStepPicture(file('a.png', 'nope'), 'asset-1', failing)).toMatchObject({
+    expect(await importStepPicture(bytesFile('a.png', pngBytes(4, 4)), 'asset-1', failing)).toMatchObject({
       reason: 'unreadable',
+    });
+    expect(await importStepPicture(file('a.png', 'nope'), 'asset-1', failing)).toMatchObject({
+      reason: 'unsupported',
     });
     expect(await importStepPicture(file('a.txt', 'hi', 'text/plain'), 'asset-1', failing)).toMatchObject({
       reason: 'unsupported',
