@@ -21,8 +21,8 @@ import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 
 
-/** A linked pose verb's icon, wherever it is offered: here and in the Step pane. */
-export const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
+/** A linked pose verb's icon. */
+const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
   'rotate-left': RotateCcw,
   'rotate-right': RotateCw,
   'turn-over': FlipHorizontal2,

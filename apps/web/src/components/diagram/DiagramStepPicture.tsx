@@ -1,9 +1,18 @@
 import { useRef, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { Compass, Download, ImageOff, Link2, PenTool, RefreshCw, Rotate3d, Upload } from 'lucide-react';
 import {
-  diagramStepChoice,
+  Compass,
+  Download,
+  ImageOff,
+  Link2,
+  PenTool,
+  RefreshCw,
+  Rotate3d,
+  Upload,
+  type LucideIcon,
+} from 'lucide-react';
+import {
   diagramStepCommand,
   type DiagramStepAction,
   type DiagramStepActionId,
@@ -20,29 +29,42 @@ import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useReturnFocusOnClose } from '../../hooks/useReturnFocusOnClose';
 import { Button } from '../ui/Button';
 import { FieldRow } from '../ui/fieldRows';
-import { SegmentedControl } from '../ui/SegmentedControl';
+import { ActionList, type ActionListItem } from '../ui/ActionList';
 import { Notice } from '../ui/Notice';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepPicture.module.css';
 
-const VERBS: readonly { id: DiagramStepActionId; icon: typeof Upload; variant: 'secondary' | 'ghost' }[] = [
-  { id: 'adjust-pose', icon: Rotate3d, variant: 'secondary' },
-  { id: 'refresh-picture', icon: RefreshCw, variant: 'secondary' },
-  { id: 'upload-picture', icon: Upload, variant: 'secondary' },
-  { id: 'link-pattern', icon: Link2, variant: 'secondary' },
-  { id: 'from-references', icon: Compass, variant: 'secondary' },
-  { id: 'open-in-edit', icon: PenTool, variant: 'ghost' },
-  { id: 'open-in-references', icon: Compass, variant: 'ghost' },
-  { id: 'export-picture', icon: Download, variant: 'ghost' },
-  { id: 'remove-picture', icon: ImageOff, variant: 'ghost' },
+/** The picture's verbs, by what they are about: its pattern, then the picture itself. */
+const PATTERN_VERBS: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
+  { id: 'adjust-pose', icon: Rotate3d },
+  { id: 'refresh-picture', icon: RefreshCw },
+  { id: 'link-pattern', icon: Link2 },
+  { id: 'from-references', icon: Compass },
+  { id: 'open-in-edit', icon: PenTool },
+  { id: 'open-in-references', icon: Compass },
+];
+const FILE_VERBS: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
+  { id: 'upload-picture', icon: Upload },
+  { id: 'export-picture', icon: Download },
+  { id: 'remove-picture', icon: ImageOff },
+];
+/** An empty step's: the ways to give it a picture. */
+const WAYS_IN: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
+  { id: 'upload-picture', icon: Upload },
+  { id: 'link-pattern', icon: Link2 },
+  { id: 'from-references', icon: Compass },
 ];
 
 /**
  * The Step pane's Picture section: what the picture is — an upload, or a
  * pattern of the crease pattern and how it shows it — how a linked picture
  * stands against its pattern, what sanitizing changed in an upload, and the
- * picture verbs from the step's action catalog. The pattern picker, when the
- * step's pattern is being chosen, sits under them.
+ * picture verbs from the step's action catalog, one to a row: those about its
+ * pattern, then those about the picture itself; an empty step's are only the
+ * ways to give it one. A verb that cannot do anything for this step is left
+ * out rather than shown dead — Refresh while the pattern row says it is up to
+ * date, Adjust Pose in Pose. The pattern picker, when the step's pattern is
+ * being chosen, sits under them.
  */
 export function DiagramStepPicture({
   step,
@@ -77,13 +99,30 @@ export function DiagramStepPicture({
 }) {
   const { t } = useTranslation();
   const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
-  // How a linked pattern is shown (D19), in Pose or not.
-  const showAs = diagramStepChoice(actions, 'show-as');
   // A pick or Cancel closes the picker, or the waiting notice, under the
   // focus: back to the verb that opened it.
   const section = useRef<HTMLDivElement | null>(null);
-  useReturnFocusOnClose(Boolean(picker), section, '[data-verb="link-pattern"]');
-  useReturnFocusOnClose(Boolean(waiting), section, '[data-verb="from-references"]');
+  useReturnFocusOnClose(Boolean(picker), section, '[data-action="link-pattern"]');
+  useReturnFocusOnClose(Boolean(waiting), section, '[data-action="from-references"]');
+  const empty = step.source === null && step.picture === null;
+  const items = (verbs: readonly { id: DiagramStepActionId; icon: LucideIcon }[]): ActionListItem[] =>
+    verbs.flatMap(({ id, icon }) => {
+      const command = diagramStepCommand(actions, id);
+      if (!command) return [];
+      if (id === 'adjust-pose' && detailOpen) return [];
+      if (id === 'refresh-picture' && command.disabled) return [];
+      return [
+        {
+          id,
+          icon,
+          label: command.label,
+          disabled: command.disabled,
+          hint: command.hint,
+          tone: id === 'remove-picture' ? 'danger' : undefined,
+          run: command.run,
+        },
+      ];
+    });
   return (
     <div ref={section} className={styles.picture}>
       <FieldRow label={t('panels:diagram.picture.source', 'Source')} kind="text">
@@ -95,24 +134,6 @@ export function DiagramStepPicture({
             ? describeAsset(asset, t)
             : t('panels:diagram.picture.none', 'No picture yet')}
       </FieldRow>
-      {showAs && (
-        // Its own row under its label: the three ways are too wide to sit
-        // beside it in a pane this narrow, and cut short they say nothing.
-        <div className={styles.showAs} title={showAs.hint}>
-          <span className={styles.showAsLabel} aria-hidden="true">
-            {t('panels:diagram.picture.showAs', 'Show as')}
-          </span>
-          <SegmentedControl
-            size="sm"
-            fill
-            aria-label={t('panels:diagram.picture.showAs', 'Show as')}
-            value={showAs.options.find((option) => option.checked)?.id ?? null}
-            disabled={showAs.disabled}
-            options={showAs.options.map((option) => ({ value: option.id, label: option.label }))}
-            onChange={(way) => showAs.options.find((option) => option.id === way)?.run()}
-          />
-        </div>
-      )}
       {source?.kind === 'cp' && source.render.mode === 'folded-3d' && step.picture !== null && (
         <FieldRow label={t('panels:diagram.picture.view', 'View')} kind="text">
           {t('panels:diagram.pose.cameraReadout', 'Yaw {{yaw}}° · Pitch {{pitch}}°', { ...cameraDegrees(source.render.camera) })}
@@ -172,26 +193,10 @@ export function DiagramStepPicture({
           </Notice>
         </div>
       )}
-      <div className={styles.verbs}>
-        {VERBS.map(({ id, icon: Icon, variant }) => {
-          const command = diagramStepCommand(actions, id);
-          if (!command || (detailOpen && id === 'adjust-pose')) return null;
-          return (
-            <Button
-              key={id}
-              size="sm"
-              variant={variant}
-              disabled={command.disabled}
-              title={command.hint}
-              data-verb={id}
-              onClick={command.run}
-            >
-              <Icon size={14} aria-hidden="true" />
-              {command.label}
-            </Button>
-          );
-        })}
-      </div>
+      <ActionList
+        aria-label={t('panels:diagram.picture.verbs', 'Picture actions')}
+        groups={empty ? [items(WAYS_IN)] : [items(PATTERN_VERBS), items(FILE_VERBS)]}
+      />
       {picker}
     </div>
   );

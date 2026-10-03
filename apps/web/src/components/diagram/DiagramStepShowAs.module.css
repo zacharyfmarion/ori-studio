@@ -1,0 +1,16 @@
+/*
+ * Show as, at the top of the Step pane (DiagramStepShowAs.tsx): the label over
+ * the three ways, the ways filling the row. A row of the pane's own measure
+ * (its padding and rule are the field rows').
+ */
+.showAs {
+  display: grid;
+  gap: 6px;
+  padding: 10px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}

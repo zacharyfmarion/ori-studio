@@ -10,6 +10,7 @@ import { DiagramStepAnnotations } from '../diagram/DiagramStepAnnotations';
 import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
 import { DiagramStepPose } from '../diagram/DiagramStepPose';
+import { DiagramStepShowAs } from '../diagram/DiagramStepShowAs';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -29,7 +30,8 @@ const NO_NOTICES: readonly SanitizeNotice[] = [];
  *
  * A composition site (AGENTS.md › Panel components): the verbs come from the
  * action catalog through `useDiagramStepActions`, and the rows are the shared
- * field rows. In Annotate, Annotate's own section leads (D13): the tool in
+ * field rows. A linked step's Show as leads, the choice everything under it is
+ * about (D19). In Annotate, Annotate's own section leads (D13): the tool in
  * hand, the list, and the selected annotation's controls; elsewhere the
  * Annotations section between the picture and the instruction counts them
  * and leads in.
@@ -50,6 +52,7 @@ export function DiagramStepPanel() {
   const loadId = useWorkspaceStore((state) => state.diagramLoadId);
   const setStepText = useWorkspaceStore((state) => state.setDiagramStepText);
   const moveStep = useWorkspaceStore((state) => state.moveDiagramStep);
+  const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
   const asset = useWorkspaceStore((state) =>
     state.diagram && step ? stepAsset(state.diagram, step) : null
   );
@@ -85,6 +88,10 @@ export function DiagramStepPanel() {
         readOnly={readOnly}
         actions={actions}
         onMoveTo={(position) => moveStep(step.id, position - 1)}
+        onStep={(direction) => {
+          const next = useWorkspaceStore.getState().diagram?.steps[index + direction];
+          if (next) selectStep(next.id);
+        }}
       />
       <div className="panel-body">
         {locked && (
@@ -102,6 +109,7 @@ export function DiagramStepPanel() {
             <DiagramStepAnnotations step={step} />
           </CollapsibleSection>
         )}
+        {!locked && <DiagramStepShowAs actions={actions} />}
         {detailOpen && !annotating && <DiagramStepPose step={step} actions={poseActions} />}
         {!locked && (
           <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>

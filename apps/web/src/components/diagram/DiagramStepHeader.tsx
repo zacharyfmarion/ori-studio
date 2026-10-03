@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ArrowRight, Copy, Trash2, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Trash2, type LucideIcon } from 'lucide-react';
 import {
   diagramStepCommand,
   type DiagramStepAction,
@@ -12,20 +12,22 @@ import { isComposingKey } from '../ui/fieldRows/isComposingKey';
 import styles from './DiagramStepHeader.module.css';
 
 const ICONS: Partial<Record<DiagramStepActionId, LucideIcon>> = {
-  'move-earlier': ArrowLeft,
-  'move-later': ArrowRight,
   duplicate: Copy,
   delete: Trash2,
 };
 
 /** The verbs the Step pane's header shows, in this order; the rest are in the card's menu. */
-const HEADER_VERBS: readonly DiagramStepActionId[] = ['move-earlier', 'move-later', 'duplicate', 'delete'];
+const HEADER_VERBS: readonly DiagramStepActionId[] = ['duplicate', 'delete'];
 
 /**
- * "Step [N] of M" and the step's verbs, at the top of the Step pane.
+ * "Step [N] of M", the way to the step before and after, and the step's
+ * verbs, at the top of the Step pane.
  *
- * N is a field: typing a position moves the step there. It commits on blur or
- * Enter, and Escape (or anything that is not a position) puts the number back.
+ * ‹ and › go to the step before and after, as the detail's own do: beside a
+ * position they read as that, so they are that. Moving the step is N, which
+ * is a field: typing a position moves the step there. It commits on blur or
+ * Enter, and Escape (or anything that is not a position) puts the number
+ * back. Move Earlier and Later are the card's menu's, and Alt+← / →.
  */
 export function DiagramStepHeader({
   number,
@@ -33,6 +35,7 @@ export function DiagramStepHeader({
   readOnly,
   actions,
   onMoveTo,
+  onStep,
 }: {
   /** 1-based. */
   number: number;
@@ -41,6 +44,8 @@ export function DiagramStepHeader({
   actions: readonly DiagramStepAction[];
   /** Move the step to a 1-based position. */
   onMoveTo: (position: number) => void;
+  /** Select the step before (-1) or after (1) this one. */
+  onStep: (direction: -1 | 1) => void;
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(String(number));
@@ -100,6 +105,22 @@ export function DiagramStepHeader({
         <span>{t('panels:diagram.stepPane.ofTotal', 'of {{total}}', { total: count })}</span>
       </div>
       <div className={styles.verbs}>
+        <IconButton
+          size="sm"
+          title={t('panels:diagram.detail.previous', 'Previous Step')}
+          disabled={number <= 1}
+          onClick={() => onStep(-1)}
+        >
+          <ChevronLeft size={15} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          title={t('panels:diagram.detail.next', 'Next Step')}
+          disabled={number >= count}
+          onClick={() => onStep(1)}
+        >
+          <ChevronRight size={15} />
+        </IconButton>
         {HEADER_VERBS.map((id) => {
           const command = diagramStepCommand(actions, id);
           const Icon = ICONS[id];

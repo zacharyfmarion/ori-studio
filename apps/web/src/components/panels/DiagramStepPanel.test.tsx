@@ -104,11 +104,19 @@ describe('DiagramStepPanel', () => {
     expect(position().value).toBe('1');
   });
 
-  it('runs the header verbs, disabling the ones that cannot apply', () => {
+  it('goes to the step before and after, and runs the header verbs', () => {
     const [first, second, third] = threeSteps();
-    expect(button('Move Later')?.disabled).toBe(true);
-    act(() => button('Move Earlier')?.click());
-    expect(ids()).toEqual([first, third, second]);
+    // ‹ and › go to the neighbours, as the detail's do; they move nothing.
+    expect(button('Next Step')?.disabled).toBe(true);
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(second);
+    expect(position().value).toBe('2');
+    act(() => button('Previous Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(first);
+    expect(button('Previous Step')?.disabled).toBe(true);
+    act(() => button('Next Step')?.click());
+    expect(state().diagramSelectedStepId).toBe(second);
+    expect(ids()).toEqual([first, second, third]);
 
     act(() => button('Duplicate Step')?.click());
     expect(ids()).toHaveLength(4);
@@ -116,7 +124,7 @@ describe('DiagramStepPanel', () => {
 
     // An empty step goes without a question.
     act(() => button('Delete Step')?.click());
-    expect(ids()).toEqual([first, third, second]);
+    expect(ids()).toEqual([first, second, third]);
   });
 
   describe('the picture', () => {
@@ -124,21 +132,25 @@ describe('DiagramStepPanel', () => {
     const asset = { id: 'asset-a', kind: 'svg' as const, svg, widthPx: 1105.6, heightPx: 800, bytes: svg.length };
     const textButton = (label: string) =>
       [...(host?.querySelectorAll('button') ?? [])].find((candidate) => candidate.textContent === label);
+    /** The option pressed in a segmented row, by the row's name. */
+    const pressed = (label: string) =>
+      host?.querySelector(`[aria-label="${label}"] button[aria-pressed="true"]`)?.textContent ?? null;
 
-    it('offers a first picture for a step without one, and nothing to export or remove', () => {
+    it('offers only the ways to a first picture for a step without one', () => {
       act(() => {
         state().addDiagramStep();
       });
       expect(host?.textContent).toContain('No picture yet');
-      expect(textButton('Adjust Pose')?.disabled).toBe(true);
       expect(textButton('Upload Picture…')?.disabled).toBe(false);
-      expect(textButton('Export Picture…')?.disabled).toBe(true);
-      expect(textButton('Remove Picture')?.disabled).toBe(true);
+      for (const dead of ['Adjust Pose', 'Export Picture…', 'Remove Picture', 'Refresh Picture']) {
+        expect(textButton(dead)).toBeUndefined();
+      }
     });
 
-    it('shows the pose, and its verbs, only while the step is open in detail', () => {
+    it('shows the pose only while the step is open in detail, and no verbs: they are Pose’s toolbar’s', () => {
+      let stepId = '';
       act(() => {
-        const stepId = state().addDiagramStep()!;
+        stepId = state().addDiagramStep()!;
         state().setDiagramStepPicture(stepId, asset);
         state().setDiagramStepPose(stepId, { rotationQuarterTurns: 1, mirrored: true });
       });
@@ -149,7 +161,10 @@ describe('DiagramStepPanel', () => {
       expect(textButton('Adjust Pose')).toBeUndefined();
       expect(host?.textContent).toContain('90° clockwise');
       expect(host?.textContent).toContain('FlippedYes');
-      act(() => textButton('Reset Pose')?.click());
+      for (const verb of ['Rotate Left', 'Rotate Right', 'Flip', 'Reset Pose']) {
+        expect(textButton(verb)).toBeUndefined();
+      }
+      act(() => state().setDiagramStepPose(stepId, { rotationQuarterTurns: 0, mirrored: false }));
       expect(host?.textContent).toContain('0° clockwise');
       expect(host?.textContent).toContain('FlippedNo');
     });
@@ -180,15 +195,19 @@ describe('DiagramStepPanel', () => {
       expect(host?.textContent).toContain('ViewYaw 45° · Pitch -55°');
     });
 
-    it('poses a step sent from References from the pane: its side, and Turn Over', () => {
+    it('turns a step sent from References over from the pane, by choosing its side', () => {
       act(() => {
         useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
         state().openDiagramStep('step-r');
       });
-      expect(host?.textContent).toContain('SideFrom the front');
-      act(() => textButton('Turn Over')?.click());
+      expect(pressed('Side')).toBe('Front');
+      expect(textButton('Turn Over')).toBeUndefined();
+      act(() => textButton('Back')?.click());
       expect(state().diagram!.steps[0]!.picture).toMatchObject({ kind: 'step-diagram', mirrored: true });
-      expect(host?.textContent).toContain('SideFrom the back');
+      expect(pressed('Side')).toBe('Back');
+      // The side it shows already: nothing to turn.
+      act(() => textButton('Back')?.click());
+      expect(state().diagram!.steps[0]!.picture).toMatchObject({ mirrored: true });
     });
 
     it('poses a linked flat fold from the pane with the open step’s own verbs, and its turn as a field', () => {
@@ -211,10 +230,14 @@ describe('DiagramStepPanel', () => {
           simulate: async () => {},
         });
       });
-      expect(host?.textContent).toContain('SideFrom the back');
+      expect(pressed('Side')).toBe('Back');
       expect(host?.textContent).toContain('Layer order2');
-      act(() => textButton('Turn Over')?.click());
+      act(() => textButton('Front')?.click());
       expect(pose).toHaveBeenCalledWith('turn-over');
+      // Show as leads the pane, above the pose.
+      const showAs = host!.querySelector('[role="group"][aria-label="Show as"]')!;
+      const rotationField = host!.querySelector('input[aria-label="Rotation"]')!;
+      expect(showAs.compareDocumentPosition(rotationField) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
       expect(rotation.value).toBe('30');
       act(() => rotation.focus());

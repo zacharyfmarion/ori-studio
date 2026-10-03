@@ -1,55 +1,35 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { FlipHorizontal2, RotateCcw, RotateCw, Undo2, type LucideIcon } from 'lucide-react';
-import type {
-  DiagramPoseAction,
-  DiagramPoseActionId,
-} from '../../diagram/actions/diagramPoseActions';
+import type { DiagramPoseAction } from '../../diagram/actions/diagramPoseActions';
 import type { DiagramLinkedPoseAction } from '../../diagram/actions/diagramLinkedPoseActions';
 import { useOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import { isLockedStep, type DiagramStep } from '../../diagram/document/diagramDocument';
-import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
-import { Button } from '../ui/Button';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
-import { FieldRow, NumberRow } from '../ui/fieldRows';
-import { LINKED_POSE_ICONS } from './DiagramLinkedPoseControls';
+import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
 import styles from './DiagramStepPose.module.css';
 
-const ICONS: Record<DiagramPoseActionId, LucideIcon> = {
-  'rotate-left': RotateCcw,
-  'rotate-right': RotateCw,
-  flip: FlipHorizontal2,
-  'turn-over': FlipHorizontal2,
-  reset: Undo2,
-};
-
-/** A verb as the section shows it: named, with its icon, waiting for a capture or not. */
-interface PoseVerb {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  disabled: boolean;
-  /** A capture of the step is running: refused, but holding the focus. */
-  waiting?: boolean;
-  hint?: string;
-  run: () => void;
+/** A side to show, and the verb that turns the picture over to the other one. */
+interface SideChoice {
+  side: 'front' | 'back';
+  /** Turn Over: absent where the picture has no other side to show. */
+  turnOver: { disabled: boolean; waiting?: boolean; hint?: string; run: () => void } | undefined;
 }
 
 /**
  * The Step pane's Pose section, while the step is open in Pose (D13): how the
- * step's picture is posed, and the verbs that pose it — the same ones as the
- * detail's toolbar, with their names.
+ * step's picture is posed. The verbs that pose it are the detail's toolbar's;
+ * here are the facts, and the two a field says better than a button:
  *
  * - **An upload:** its turn and whether it is flipped.
- * - **A step sent from References:** which side of the paper it shows.
+ * - **A step sent from References:** which side of the paper it shows, Front
+ *   or Back.
  * - **A linked pattern:** for a crease pattern or a flat fold, its turn as a
- *   field (D5's angle field), a flat fold's side and layer order. How it is
- *   shown is the Picture section's Show as row, in Pose or not (D19). Its verbs are the open step's own pose controller's
+ *   field (D5's angle field); a fold's side, Front or Back; a flat fold's
+ *   layer order. Its verbs are the open step's own pose controller's
  *   (`useOpenLinkedPose`): one capture session per step, whichever surface
- *   the verb is pressed on.
+ *   asks. How it is shown is Show as, at the top of the pane (D19).
  *
- * In a section of its own, or nothing for a step with nothing to pose.
+ * In a section of its own, or nothing for a step with nothing to say here.
  */
 export function DiagramStepPose({
   step,
@@ -60,7 +40,6 @@ export function DiagramStepPose({
   actions: readonly DiagramPoseAction[];
 }) {
   const { t } = useTranslation();
-  const [verbsRef, keepFocus] = useKeepFocusWithin<HTMLDivElement>();
   const linkedPose = useOpenLinkedPose(step.id);
   if (isLockedStep(step)) return null;
   const section = (body: ReactNode) => (
@@ -68,25 +47,21 @@ export function DiagramStepPose({
       <div className={styles.pose}>{body}</div>
     </CollapsibleSection>
   );
-
-  const named = (action: DiagramPoseAction): PoseVerb => ({ ...action, icon: ICONS[action.id] });
-  const verbs = (list: readonly PoseVerb[]) => (
-    <div ref={verbsRef} className={styles.verbs}>
-      {list.map((verb) => (
-        <Button
-          key={verb.id}
-          size="sm"
-          variant="ghost"
-          disabled={verb.disabled}
-          aria-disabled={verb.waiting || undefined}
-          title={verb.hint}
-          onClick={() => keepFocus(verb.run)}
-        >
-          <verb.icon size={14} aria-hidden="true" />
-          {verb.label}
-        </Button>
-      ))}
-    </div>
+  const sideRow = ({ side, turnOver }: SideChoice) => (
+    <SegmentedRow
+      label={t('panels:diagram.pose.side', 'Side')}
+      value={side}
+      options={[
+        { id: 'front', label: t('panels:diagram.pose.front', 'Front') },
+        { id: 'back', label: t('panels:diagram.pose.back', 'Back') },
+      ]}
+      disabled={!turnOver || turnOver.disabled}
+      title={turnOver?.hint}
+      onChange={(next) => {
+        // Waiting for a capture, the choice refuses, as the verb would.
+        if (next !== side && turnOver && !turnOver.waiting) turnOver.run();
+      }}
+    />
   );
 
   const { source } = step;
@@ -101,31 +76,28 @@ export function DiagramStepPose({
         <FieldRow label={t('panels:diagram.pose.flipped', 'Flipped')} kind="text">
           {source.mirrored ? t('panels:diagram.pose.yes', 'Yes') : t('panels:diagram.pose.no', 'No')}
         </FieldRow>
-        {verbs(actions.map(named))}
       </>
     );
   }
 
   if (source?.kind === 'references-step' && step.picture?.kind === 'step-diagram') {
     return section(
-      <>
-        <FieldRow label={t('panels:diagram.pose.side', 'Side')} kind="text">
-          {sideName(step.picture.mirrored ? 'back' : 'front', t)}
-        </FieldRow>
-        {verbs(actions.map(named))}
-      </>
+      sideRow({
+        side: step.picture.mirrored ? 'back' : 'front',
+        turnOver: actions.find((action) => action.id === 'turn-over'),
+      })
     );
   }
 
   if (source?.kind !== 'cp' || !linkedPose) return null;
   const { render } = source;
   const linked = linkedPose.actions;
-  const posing = linked
-    .filter((action) => !action.id.startsWith('show-'))
-    .map((action): PoseVerb => ({ ...action, icon: LINKED_POSE_ICONS[action.id]! }));
   const turn = render.mode === 'crease-pattern' || render.mode === 'folded-flat' ? render.rotationDeg : null;
   const turnHeld = linked.find((action: DiagramLinkedPoseAction) => action.id === 'rotate-left')?.disabled ?? true;
   const waiting = linked.some((action) => action.waiting);
+  const turnOver = linked.find((action) => action.id === 'turn-over');
+  const side = render.mode === 'folded-flat' || render.mode === 'folded-3d' ? render.side : null;
+  if (turn === null && side === null) return null;
   return section(
     <>
       {turn !== null && (
@@ -144,23 +116,12 @@ export function DiagramStepPose({
           onCommit={linkedPose.rotateTo}
         />
       )}
+      {side !== null && sideRow({ side, turnOver })}
       {render.mode === 'folded-flat' && (
-        <>
-          <FieldRow label={t('panels:diagram.pose.side', 'Side')} kind="text">
-            {sideName(render.side, t)}
-          </FieldRow>
-          <FieldRow label={t('panels:diagram.pose.layerOrder', 'Layer order')} kind="text">
-            {render.foldCase}
-          </FieldRow>
-        </>
+        <FieldRow label={t('panels:diagram.pose.layerOrder', 'Layer order')} kind="text">
+          {render.foldCase}
+        </FieldRow>
       )}
-      {verbs(posing)}
     </>
   );
-}
-
-function sideName(side: 'front' | 'back', t: TFunction): string {
-  return side === 'back'
-    ? t('panels:diagram.pose.sideBack', 'From the back')
-    : t('panels:diagram.pose.sideFront', 'From the front');
 }

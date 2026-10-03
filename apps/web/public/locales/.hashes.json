@@ -3763,8 +3763,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -3791,7 +3789,10 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7557,8 +7558,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -7585,7 +7584,10 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11353,8 +11355,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -11381,7 +11381,10 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15076,8 +15079,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -15104,7 +15105,10 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18799,8 +18803,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -18827,7 +18829,10 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22593,8 +22598,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -22621,7 +22624,10 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26387,8 +26393,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -26415,7 +26419,10 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -30110,8 +30117,6 @@
     "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
     "panels:diagram.pose.layerOrder": "101de550cf0d",
     "panels:diagram.pose.side": "630ef00b7c4f",
-    "panels:diagram.pose.sideBack": "00971be43927",
-    "panels:diagram.pose.sideFront": "c9d4b8d82c52",
     "dialogs:diagramExport.formatHelp": "a0efad1fa823",
     "dialogs:diagramExport.numberHelp": "15c2b8f28fbd",
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
@@ -30138,6 +30143,9 @@
     "panels:diagram.pose.simulatedFailed": "4c2728b4210e",
     "panels:diagram.pose.simulatedNeedsGpu": "5fd9d46ad4f1",
     "panels:diagram.pose.simulatedUnavailable": "5d9509f855c6",
-    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9"
+    "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
+    "panels:diagram.picture.verbs": "8ff928bfef3c",
+    "panels:diagram.pose.back": "76900f1bfd16",
+    "panels:diagram.pose.front": "a61759020289"
   }
 }
