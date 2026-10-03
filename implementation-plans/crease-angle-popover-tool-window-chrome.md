@@ -112,4 +112,4 @@ Select's window on touch too, so it is raised in the PR rather than done here.
 - [x] Lint, typecheck, unit tests (8930 passed), i18n check
 - [x] Browser: desktop in One Dark, Catppuccin Mocha and Atom One Light, phone,
       coarse tablet; before/after images
-- [ ] Draft PR
+- [x] Draft PR (zacharyfmarion/ori-studio#435)
