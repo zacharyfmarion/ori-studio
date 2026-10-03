@@ -2106,6 +2106,59 @@ describe('workspace store slices', () => {
   });
 
   /**
+   * Save writes the workspace, not the pane in focus, so a crease-pattern-only
+   * project stays savable after the user leaves Edit. It used to be refused from
+   * References, Simulate and the Design chooser — "Editable crease-pattern kernel
+   * is unavailable" — and came back only on returning to Edit.
+   */
+  it('saves a crease-pattern-only project from every workspace, not just Edit', async () => {
+    resetStores(seedSnapshot());
+    await useWorkspaceStore.getState().loadCreasePatternText(
+      JSON.stringify({
+        file_spec: 1.1,
+        vertices_coords: [
+          [0, 0],
+          [1, 0],
+        ],
+        edges_vertices: [[0, 1]],
+        edges_assignment: ['B'],
+      }),
+      { filename: 'line.fold', path: null }
+    );
+    // Opening a crease pattern lands on Edit, which is why Save worked there.
+    expect(useWorkspaceStore.getState().activeEditingContext).toBe('crease-pattern');
+
+    for (const [workspace, context] of [
+      ['references', 'references'],
+      ['simulate', 'simulate'],
+      ['design', 'design-nux'],
+      ['edit', 'crease-pattern'],
+    ] as const) {
+      useLayoutStore.getState().activateWorkspace(workspace);
+      expect(useWorkspaceStore.getState().activeEditingContext).toBe(context);
+
+      const fileService = createFileService();
+      await expect(useWorkspaceStore.getState().saveProject(fileService), workspace).resolves.toBe(
+        true
+      );
+      await expect(useWorkspaceStore.getState().saveProjectAs(fileService), workspace).resolves.toBe(
+        true
+      );
+      expect(fileService.saveTextFile, workspace).toHaveBeenCalledTimes(2);
+      expect(fileService.saveTextFile, workspace).toHaveBeenLastCalledWith(
+        expect.objectContaining({ title: 'Save Ori Studio Project As', extensions: ['osf'] })
+      );
+      expect(useWorkspaceStore.getState().error, workspace).toBeNull();
+      // The crease pattern is what was written, whichever workspace saved it.
+      const saved = parseNativeProjectFile(
+        (fileService.saveTextFile.mock.lastCall?.[0] as SaveTextFileOptions).contents
+      );
+      expect(saved.workspace.designs, workspace).toEqual([]);
+      expect(saved.workspace.creasePattern, workspace).not.toBeNull();
+    }
+  });
+
+  /**
    * A save through the File System Access API writes the file and shows the user
    * nothing — no dialog on the repeat, no download for the browser to announce.
    * The toast is the only confirmation, so the store has to raise one.
