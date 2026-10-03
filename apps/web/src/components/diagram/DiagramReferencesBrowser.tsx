@@ -47,7 +47,7 @@ export function DiagramReferencesBrowser({
   useEffect(() => {
     root.current?.focus({ preventScroll: true });
   }, []);
-  // The step keys walk the cards while the browser is open, the card they
+  // The step keys walk the cards while they are on screen, the card they
   // land on taking focus (so Enter adds from it); read through a ref, so the
   // registration outlives the renders.
   const latest = useRef(browser);
@@ -58,19 +58,23 @@ export function DiagramReferencesBrowser({
     if (index === null) return;
     root.current?.querySelector<HTMLElement>(`[role="option"][data-card-index="${index}"]`)?.focus();
   };
+  // On a phone, the patterns, then a pattern's cards, a screen each.
+  const phone = useReferencesBrowserPhoneFlow(browser, root);
+  // Not on a phone's list of patterns, where the cards are off screen.
+  const cardsShown = phone.screen !== 'list';
   useEffect(
     () =>
-      registerDiagramBrowserKeys({
-        move: (to) => focusCard(latest.current.move(to)),
-        extend: (to) => focusCard(latest.current.extend(to)),
-        toggle: () => latest.current.toggle(),
-        add: () => latest.current.add(),
-      }),
-    []
+      cardsShown
+        ? registerDiagramBrowserKeys({
+            move: (to) => focusCard(latest.current.move(to)),
+            extend: (to) => focusCard(latest.current.extend(to)),
+            toggle: () => latest.current.toggle(),
+            add: () => latest.current.add(),
+          })
+        : undefined,
+    [cardsShown]
   );
   const title = browserTitle(browser, t);
-  // On a phone, the patterns, then a pattern's cards, a screen each.
-  const phone = useReferencesBrowserPhoneFlow(browser);
   // The patterns down the left, once there are some to list: until then, and
   // in Find, the list's message has the room.
   const railShown =

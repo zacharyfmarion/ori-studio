@@ -61,6 +61,7 @@ function browser(patch: Partial<ReferencesBrowser> = {}, anchor: DiagramPullAnch
     state,
     patterns: { status: 'ready', patterns: [PATTERN!] },
     pattern: PATTERN,
+    patternNamed: false,
     cards: {
       status: 'ready',
       cards: [card(0, 'turn-over'), card(1), card(2)],
@@ -222,18 +223,46 @@ describe('the References browser on a phone', () => {
   const second = { id: 'plan-b', number: 2, component: {}, listing: {} } as unknown as NonNullable<ReferencesBrowser['pattern']>;
   const screen = () => host!.querySelector<HTMLElement>('[role="region"]')!.dataset.screen;
 
+  const patternButton = (name: string) =>
+    [...host!.querySelectorAll<HTMLButtonElement>('nav button')].find((b) => b.textContent?.includes(name))!;
+  const region = () => host!.querySelector<HTMLElement>('[role="region"]');
+
   it('lists the patterns first, then a pattern’s cards with Back to the list', () => {
     layout.phone = true;
     const current = browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } });
     render(current);
     expect(screen()).toBe('list');
     expect(button('Steps')).toBeTruthy();
-    const pattern2 = [...host!.querySelectorAll<HTMLButtonElement>('nav button')].find((b) => b.textContent?.includes('Pattern 2'))!;
-    act(() => pattern2.click());
+    act(() => patternButton('Pattern 2').click());
     expect(current.choosePattern).toHaveBeenCalledWith('plan-b');
     expect(screen()).toBe('detail');
     act(() => button('Patterns')!.click());
     expect(screen()).toBe('list');
+  });
+
+  it('puts focus where a press went: the browser on the cards, the pattern just left on the list', () => {
+    layout.phone = true;
+    const both: ReferencesBrowser['patterns'] = { status: 'ready', patterns: [PATTERN!, second] };
+    render(browser({ patterns: both }));
+    const pressed = patternButton('Pattern 2');
+    pressed.focus();
+    act(() => pressed.click());
+    // The pattern's button is off screen now; the browser has focus, its next Tab ← Patterns.
+    expect(document.activeElement).toBe(region());
+    render(browser({ patterns: both, pattern: second, patternNamed: true }));
+    act(() => button('Patterns')!.click());
+    expect(document.activeElement).toBe(patternButton('Pattern 2'));
+  });
+
+  it('leaves the cards alone on the list, where they are off screen', () => {
+    layout.phone = true;
+    render(browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } }));
+    expect(screen()).toBe('list');
+    expect(keys.current).toBeNull();
+    act(() => patternButton('Pattern 2').click());
+    expect(keys.current).not.toBeNull();
+    act(() => button('Patterns')!.click());
+    expect(keys.current).toBeNull();
   });
 
   it('opens straight on the cards of a single pattern, and in Find', () => {
@@ -242,17 +271,31 @@ describe('the References browser on a phone', () => {
     expect(screen()).toBe('detail');
     expect(button('Patterns')).toBeUndefined();
     expect(button('Steps')).toBeTruthy();
+    // Find shows one answer, whatever References has planned.
+    const find = browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } });
+    find.state.mode = 'find';
+    render(find);
+    expect(screen()).toBe('detail');
+    expect(button('Patterns')).toBeUndefined();
   });
 
-  it('opens Replace on the cards of its own pattern', () => {
+  it('opens Replace on the cards of its own pattern, found by its plan or its sheet', () => {
     layout.phone = true;
+    const replace = { kind: 'replace', stepId: 's' } as const;
+    // Its plan listed, or planned again and found by its sheet: the browser names it either way.
     const current = browser(
-      { patterns: { status: 'ready', patterns: [PATTERN!, second] }, pattern: second },
-      { kind: 'replace', stepId: 's' }
+      { patterns: { status: 'ready', patterns: [PATTERN!, second] }, pattern: second, patternNamed: true },
+      replace
     );
-    current.state.pattern = 'plan-b';
     render(current);
     expect(screen()).toBe('detail');
+    expect(button('Patterns')).toBeTruthy();
+  });
+
+  it('opens Replace on the list when its own pattern is not among them', () => {
+    layout.phone = true;
+    render(browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } }, { kind: 'replace', stepId: 's' }));
+    expect(screen()).toBe('list');
   });
 
   it('shows both side by side on any other layout', () => {

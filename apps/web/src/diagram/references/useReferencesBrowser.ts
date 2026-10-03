@@ -63,6 +63,11 @@ export interface ReferencesBrowser {
   patterns: BrowserPatternsState;
   /** The pattern shown, in Sequence. */
   pattern: BrowserPattern | null;
+  /**
+   * Whether that is the pattern the browser's state names — by its plan, or,
+   * once that plan is gone, by its sheet — rather than the first for want of one.
+   */
+  patternNamed: boolean;
   cards: BrowserCardsState;
   /** The steps already made from the shown pattern's cards: card index to step number. */
   inDiagram: ReadonlyMap<number, number>;
@@ -176,8 +181,8 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document, geometry, analysis, loadSerial, cacheVersion]);
   const listed = patterns.status === 'ready' ? patterns.patterns : [];
-  const pattern =
-    listed.find((candidate) => candidate.id === state.pattern) ?? sheetPattern(listed, state.sheet) ?? listed[0] ?? null;
+  const named = listed.find((candidate) => candidate.id === state.pattern) ?? sheetPattern(listed, state.sheet) ?? null;
+  const pattern = named ?? listed[0] ?? null;
 
   // The shown pattern's plan, unpacked once.
   const [decoded, setDecoded] = useState<{ id: string; plan: ReferencesCachedPlan | null } | null>(null);
@@ -283,6 +288,7 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     state,
     patterns,
     pattern,
+    patternNamed: named !== null,
     cards,
     inDiagram,
     patternUse,
