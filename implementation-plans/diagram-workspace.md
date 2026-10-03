@@ -2426,7 +2426,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - A linked step's verbs are the open step's own pose controller's. `useDiagramLinkedPose` publishes what it returns (`openLinkedPose.ts`) and the pane reads it, so a second surface never opens a second capture session on the step.
     - The field is a `rotate-to` request beside the ±15° verbs (`linkedPose.ts`), counted as `rotate_to`; annotations follow it as they follow any turn the app applies.
     - Browser (`artifacts/diagram-parity/pane-pose.mjs`, crane step 4): 30 typed into Rotation, then Turn Over pressed in the pane; each was one capture and one undo step.
-  - [ ] **The header**: Steps | Pages centred, as in the mockup.
+  - [x] **The header**: Steps | Pages centred, as in the mockup. The title's side and the verbs' side share the row around it (each in a wrapper the header owns, so no module rule ties with the frame's `.panel-toolbar__group`); the verbs' side never goes below its own width, and with less room the row wraps as it did. Browser (`artifacts/diagram-parity/header.mjs`): the switch's middle was the header's at 1440 and 1100 px; at 800 the verbs wrapped under the title.
   - [ ] **Export**: the filename in the footer, the step files' notes, Edit page setup switching to Pages, and the page setup summary line.
   - [ ] **Defects**: the Page pane at its default 280 px width (Portrait and Landscape cut, Margin's + past the edge), and the Pages view's "Text doesn't fit" chip over the instruction.
 
