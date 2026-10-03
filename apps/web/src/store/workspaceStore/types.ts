@@ -67,6 +67,10 @@ import type { OristudioCpLineage } from '../../lib/oristudioCpLineage';
 import type { CanvasAnnotation, AnnotationUpdate } from '../../cp-workspace/annotations/annotation';
 import type { UserCamera } from '../../cp-workspace/renderer/camera';
 import type {
+  ReferencesCardLocator,
+  ReferencesRestore,
+} from '../../cp-workspace/references/referencesReaderState';
+import type {
   AddInlineSimulationResult,
   InlineSimulation,
   InlineSimulationRegion,
@@ -1676,6 +1680,14 @@ export interface ReferencesSliceState {
   referencesRun: ReferencesRun;
   referencesSettings: ReferencesSettings;
   /**
+   * What an open of a saved project restored and the workspace has not placed
+   * yet — the sheet, by its bounds, until the frames analysis can name it; the
+   * open card, by its line, until a plan lands. Kept for the rest of that
+   * document's life (`loadSerial`), so a restored mode is not mistaken for a
+   * new document's. Null for a document opened without References state.
+   */
+  referencesRestore: ReferencesRestore | null;
+  /**
    * Bumped by `cp.analyzeReferences`. A counter rather than a boolean because
    * the panel is not mounted when the menu action runs — switching workspaces
    * rebuilds the dock — so the request has to survive until something can act
@@ -1697,6 +1709,20 @@ export interface ReferencesSliceActions {
    */
   setReferencesSelectedSheet: (component: number | null) => void;
   setReferencesView: (view: Partial<ReferencesView>) => void;
+  /**
+   * The restored sheet has been looked for in the frames analysis: select it,
+   * or, when it is not there any more, leave the selection to the fallback.
+   * Unlike {@link setReferencesSelectedSheet} this resets nothing — the mode,
+   * the toggle and the card waiting for the plan are what was restored with it.
+   */
+  commitReferencesRestoredSheet: (component: number | null) => void;
+  /**
+   * The restored card still waiting for a plan, taken — only by the document
+   * it was restored for (`loadSerial`): null when there is none for it. A card
+   * saved with one file must never place the reader in another's plan, whose
+   * folds can share its line.
+   */
+  takeReferencesRestoredCard: (loadSerial: number) => ReferencesCardLocator | null;
   setReferencesRun: (run: ReferencesRun) => void;
   setReferencesSettings: (settings: Partial<ReferencesSettings>) => void;
   /** Hoist every auxiliary fold to a phase 0 (`references.toggleLandmarksFirst`). */
@@ -1719,10 +1745,12 @@ export interface ReferencesSliceActions {
 }
 
 /**
- * The References workspace's transient state. Never persisted: every field is
- * derived from the crease pattern and recomputed on demand, and a plan saved
- * across reloads would be stale against a document that changed while it was
- * away.
+ * The References workspace's state. The reader's part of it — the settings,
+ * the mode, the sheet, Landmarks first, the open card — is saved with the
+ * crease pattern and restored on open (`referencesReaderState.ts`); the plan
+ * is saved beside it as a cache keyed on everything it depends on
+ * (`referencesPlanCache.ts`), so a plan stale against a changed document is
+ * thrown away rather than shown. The rest is recomputed on demand.
  */
 export type ReferencesSlice = ReferencesSliceState & ReferencesSliceActions;
 

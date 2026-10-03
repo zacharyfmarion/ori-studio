@@ -20,6 +20,12 @@
  * retried without the user asking. Recompute is how they ask, and so is the
  * lead's own button; both go through the same `run` and do not consult this.
  *
+ * A pair already attempted is never *run* again, but it may still be shown:
+ * a plan the cache holds for it (`referencesPlanCache`) — one planned earlier
+ * in the session and since replaced on screen by another sheet's, or one saved
+ * with the file — is put back without planning. That cannot loop: a cached
+ * plan on screen is `planned`, and a sheet with none changes nothing.
+ *
  * Deliberately *not* the Simulate behaviour in one respect: an edit does not
  * re-run. A plan takes seconds and is bounded only by a 30 s budget, so
  * recomputing on every keystroke in the Edit tab would be hostile; the panel
@@ -56,20 +62,31 @@ function autoPlanKey(state: ReferencesAutoPlanState): string | null {
   return `${state.revision}::${state.sheet}`;
 }
 
-export function useReferencesAutoPlan(state: ReferencesAutoPlanState, run: () => void): void {
+export function useReferencesAutoPlan(
+  state: ReferencesAutoPlanState,
+  /** Show the plan: the cached one, or a run. */
+  run: () => void,
+  /** Show the cached plan if there is one; never runs. */
+  showCached: () => void = () => undefined
+): void {
   const attempted = useRef(new Set<string>());
-  // Read through a ref so a new `run` identity each render does not re-fire the
+  // Read through refs so a new identity each render does not re-fire the
   // effect; what decides a run is the key, and only the key.
   const runRef = useRef(run);
+  const showCachedRef = useRef(showCached);
   useEffect(() => {
     runRef.current = run;
+    showCachedRef.current = showCached;
   });
 
   const key = autoPlanKey(state);
   const blocked = state.planned || state.busy || state.targeted || !state.wanted;
   useEffect(() => {
     if (key === null || blocked) return;
-    if (attempted.current.has(key)) return;
+    if (attempted.current.has(key)) {
+      showCachedRef.current();
+      return;
+    }
     attempted.current.add(key);
     runRef.current();
   }, [key, blocked]);

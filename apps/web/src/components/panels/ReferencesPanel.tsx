@@ -82,6 +82,7 @@ import { useReferencesApproximationWarning } from '../../cp-workspace/references
 import { useReferencesAutoPlan } from '../../cp-workspace/references/useReferencesAutoPlan';
 import { useReferencesBreakdown } from '../../cp-workspace/references/useReferencesBreakdown';
 import { useReferencesPhoneFlow } from '../../cp-workspace/references/useReferencesPhoneFlow';
+import { useReferencesRestoredSheet } from '../../cp-workspace/references/useReferencesRestoredSheet';
 import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/references/useReferencesRun';
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
 import type { ReferencesStepsSource } from '../../cp-workspace/references/referencesExportSteps';
@@ -149,7 +150,9 @@ export function ReferencesPanel() {
   // read: the frames analysis is recomputed on every revision, so a stored id
   // can name a component that no longer exists.
   const sheets = useMemo(() => referencesSheets(controller.frames), [controller.frames]);
-  const selectedSheet = resolveSelectedSheet(sheets, storedSheet);
+  // A reopened project's sheet, while it is still being placed, over the store's.
+  const restoredSheet = useReferencesRestoredSheet(controller.frames);
+  const selectedSheet = resolveSelectedSheet(sheets, restoredSheet ?? storedSheet);
   // Against the *resolved* sheet, not the stored one. The store holds null until
   // the first press, so a press on the card the sidebar already draws as
   // selected would otherwise read as a change and wipe the plan and the pick.
@@ -412,7 +415,7 @@ export function ReferencesPanel() {
 
   // The sequence is planned the moment the reader asks for it — on switching
   // to Sequence — and not before; see `useReferencesAutoPlan` for what stops
-  // that becoming a loop.
+  // that becoming a loop. A plan already in the cache is shown instead.
   useReferencesAutoPlan(
     {
       hasDocument: view.hasDocument,
@@ -424,7 +427,8 @@ export function ReferencesPanel() {
       targeted,
       wanted: mode === 'sequence' && !emptySheet,
     },
-    breakdown.run
+    breakdown.open,
+    breakdown.showCached
   );
   const goToEdit = useCallback(() => useLayoutStore.getState().activateWorkspace('edit'), []);
   // The lead's second sentence: to the sequence, which plans on arrival there.
