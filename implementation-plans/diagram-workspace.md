@@ -1860,10 +1860,16 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 
 ### Phase 3: crease-pattern and folded steps from the Edit canvas
 
-- [ ] **3a.** Extractions, each its own series with no behaviour change:
+- [x] **3a.** Extractions, each its own series with no behaviour change:
   - the `creaseExportFold` split (CP export goldens green) plus `cpFoldRuntimeBindings.ts`;
   - `regionReference.ts` with validators (inline-simulation tests green);
   - the shared `withFoldInFlight`.
+  - As built:
+    - `openFold` / `readFoldedPicture`, and `CpFoldRuntime` (adds `setModel` and `foldAnother`); `createCpFoldRuntime(runId)` lives in `cpFoldRuntimeBindings.ts`.
+    - `cp-workspace/regions/regionReference.ts` has `RegionReference`, `regionReferenceFor`, `resolveRegion` and `readRegionReference`. The ring matching and its tests move there with it.
+    - `store/workspaceStore/foldRuns.ts` takes the store's `get` and `set`, and the CP slice wraps it. The Diagram's run kinds arrive with 3b.
+  - **Correction from the code map:** D5's "Crease pattern" row names `buildCreaseExportArtwork`, which yields SVG fragments, not a `PaperScene`. A crease-pattern step is instead built straight from the kernel's lines into a scene: the segment's paper as one face, and its lines with fold, edge and aux roles. The diagram style's fold pens are the crease-pattern pens.
+  - **Correction from the code map:** the session ender's *phases* are `'session'` and `'bracket'`. `'history'` and `'document-replaced'` are the *reasons* a session is ended. The capture session registers as `'session'` and acts on the reason.
 - [ ] **3b.** Capture and status.
   - `captureFolded.ts`: crease-pattern, flat and 3D captures through the session runtime, with:
     - the capture model at `rotation 0, scale 1`;
