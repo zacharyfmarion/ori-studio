@@ -80,7 +80,7 @@ interface ReferencesReaderStateV1 {
 ```ts
 interface ReferencesPlanCacheV1 {
   v: 1;
-  /** One per planned sheet, most recently viewed first, capped at 1 MiB of payload. */
+  /** One per planned sheet, most recently viewed first, capped at 20 MiB of payload. */
   entries: {
     key: ReferencesPlanCacheKey;
     /** The reader's chosen ways, by the plan's own line id. */
@@ -160,7 +160,9 @@ interface ReferencesPlanCacheKey {
 - **Encoded when the plan lands**, off the critical path (fflate is lazy-loaded,
   as `paperExport/zipPages.ts` does); a save awaits anything still encoding.
   Chosen ways live beside the payload, so switching a way never re-encodes.
-- **Capped** at 1 MiB of payload, least recently viewed first out: the first
+- **Capped** at 20 MiB of payload (raised from 1 MiB after measuring: a
+  54-sheet iguana project with all 50 plannable sheets planned holds 2.6 MB
+  of plans, so 1 MiB kept only 32 of them), least recently viewed first out: the first
   entry that does not fit ends the list, so a plan the reader looked at is
   never dropped to keep an older, smaller one. An entry larger than the cap on
   its own is not persisted (the plan still shows; reopening replans it).

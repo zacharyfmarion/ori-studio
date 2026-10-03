@@ -126,11 +126,14 @@ export interface ReferencesPlanCacheV1 {
 }
 
 /**
- * The most payload a file carries: about a megabyte, a few of the largest
- * sheets measured (iguana_24's worst is 199 KB) and every sheet of most
- * documents (all eleven of the crane's are 91 KB).
+ * The most payload a file carries: 20 MiB, so in practice every sheet the
+ * reader planned is kept and none replans on reopen. Measured 2026-10-03: all
+ * 50 planned sheets of a 54-sheet iguana project come to 2.6 MB, and the
+ * largest single plan across 394 cpoogle patterns to about 0.8 MB. The cap is
+ * there for the worst case — a project with very many large sheets planned —
+ * which it still bounds.
  */
-export const REFERENCES_PLAN_CACHE_MAX_CHARS = 1024 * 1024;
+export const REFERENCES_PLAN_CACHE_MAX_CHARS = 20 * 1024 * 1024;
 
 /**
  * How far past its box a crease may reach and still be fingerprinted as the
