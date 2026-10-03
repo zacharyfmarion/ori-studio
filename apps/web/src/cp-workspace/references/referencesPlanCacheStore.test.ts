@@ -14,9 +14,12 @@ import {
   installReferencesPlanCache,
   lookupReferencesPlan,
   referencesPlanCacheForSave,
+  referencesPlanCacheListing,
+  referencesPlanCacheVersion,
   rememberReferencesPlan,
   resetReferencesPlanCacheForTests,
   setReferencesPlanWays,
+  subscribeReferencesPlanCache,
 } from './referencesPlanCacheStore';
 import { precreaseInputFromTransport, type PrecreaseFrame } from './sheetFrames';
 
@@ -204,6 +207,46 @@ describe('the plan cache side table', () => {
     installReferencesPlanCache({ v: 1, entries: [entry(leftKey, 'a')] }, 1);
     forgetReferencesPlan(1, leftKey);
     expect(lookupReferencesPlan(1, leftKey)).toBeNull();
+  });
+});
+
+describe('the listing a reader outside References sees', () => {
+  it('lists every packed plan of the document, without reordering or touching the table', async () => {
+    rememberReferencesPlan(1, leftKey, plan(1));
+    rememberReferencesPlan(1, rightKey, plan(2));
+    // Still packing: not listed yet.
+    expect(referencesPlanCacheListing(1)).toEqual([]);
+    await referencesPlanCacheForSave(1, geometry);
+    expect(referencesPlanCacheListing(1).map((listed) => listed.key)).toEqual([rightKey, leftKey]);
+    lookupReferencesPlan(1, leftKey);
+    // A lookup reorders; the listing reads it as it is now, and changes nothing itself.
+    expect(referencesPlanCacheListing(1).map((listed) => listed.key)).toEqual([leftKey, rightKey]);
+    // Another document finds nothing, and does not start the table afresh.
+    expect(referencesPlanCacheListing(2)).toEqual([]);
+    expect(referencesPlanCacheListing(1)).toHaveLength(2);
+  });
+
+  it('says when the listing can have changed: a plan packed, ways chosen, a plan forgotten, a file opened', async () => {
+    let heard = 0;
+    const stop = subscribeReferencesPlanCache(() => {
+      heard += 1;
+    });
+    const before = referencesPlanCacheVersion();
+    rememberReferencesPlan(1, leftKey, plan());
+    await referencesPlanCacheForSave(1, geometry);
+    expect(heard).toBeGreaterThan(0);
+    const packed = heard;
+    setReferencesPlanWays(1, leftKey, { '7': 'w' });
+    expect(heard).toBe(packed + 1);
+    expect(referencesPlanCacheListing(1)[0]?.ways).toEqual({ '7': 'w' });
+    forgetReferencesPlan(1, leftKey);
+    expect(heard).toBe(packed + 2);
+    installReferencesPlanCache({ v: 1, entries: [entry(rightKey, 'a')] }, 3);
+    expect(heard).toBe(packed + 3);
+    expect(referencesPlanCacheVersion()).not.toBe(before);
+    stop();
+    forgetReferencesPlan(3, rightKey);
+    expect(heard).toBe(packed + 3);
   });
 });
 

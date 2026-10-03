@@ -43,6 +43,7 @@ import {
   planIsForSheet,
   type ReferencesFlatStep,
 } from './referencesBreakdown';
+import { cachedPlanRecord } from './referencesCachedPlanRecord';
 import { decodePlanModel, planModelPoints } from './referencesPlanGeometry';
 import {
   cachedPlanOf,
@@ -853,27 +854,7 @@ export function useReferencesBreakdown(
       ) {
         return true;
       }
-      const component: ReferencesPlanComponent = {
-        component: cached.sheet,
-        result: {
-          ...plan.result,
-          computedAtRevision: cached.revision,
-          component: cached.sheet,
-          info: { ...plan.result.info, component: cached.sheet },
-          sequence: plain.sequence,
-        },
-        frame: cached.frame,
-        plain,
-        hoisted,
-        cacheKey: cached.key,
-      };
-      const record: ReferencesPlanRecord = {
-        revision: cached.revision,
-        components: [component],
-        refused: [],
-        durationMs: plan.durationMs,
-        ...cached.key.settings,
-      };
+      const record = cachedPlanRecord(plan, cached.key, cached.sheet, cached.revision, { plain, hoisted });
       const ways = wayChoicesOfSheet(cached.ways, 0);
       install(record, ways, readable(() => prepareInstall(record, ways, true)));
       return true;

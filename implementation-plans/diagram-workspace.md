@@ -2724,9 +2724,41 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
 
 ### Phase 9: References pulled through a browser (D20)
 
-- [ ] **9a. Prerequisite:** #430 merged into `main` and this branch synced
-  with it; its plan cache's reader exposed as "the plans that match the
-  document now", for the Diagram to list.
+*(Design, 2026-10-03, from a map of the References code after #430 merged:)*
+The card chain References draws its strip with is pure — `planStrip` →
+`planFilmstrip` → `referencesDiagramCard(s)` reads a plan's sequences only —
+and #430's codec decodes a cached plan with no worker. What is missing is a
+way to list the cache (it can only be looked up, and a lookup reorders it),
+a signal when it changes (plans are packed asynchronously), the record a
+cached plan becomes outside the References panel (inline in
+`useReferencesBreakdown`'s `showCached`, through the worker), and a way to
+insert steps at a chosen place without the latch.
+- **Patterns** are References' sheets (`sheetFrames` in the precrease worker,
+  held while the browser is open), numbered as References' rail numbers them
+  ("Pattern N", `referencesSheets` order), each listed when the cache holds
+  this planner's plan for it whose fingerprint matches its creases now. One
+  slot per sheet, whatever its settings; the settings show in the browser
+  ("Planned with …"). A document with overlapping sheets is never cached,
+  so it offers nothing: "Plan more patterns in References" says where to go.
+- **Cards** are built as References builds them, with the sheet's aux lines
+  from the same analysis, under the reader's Landmarks first and the plan's
+  remembered ways; each card's picture is drawn as the step it would become.
+- **A pulled step** is D6's snapshot, with its provenance gaining the plan's
+  cache key id and the card's way signature (read and written by the file).
+- **Where it goes** is the anchor the browser was opened with: after a step,
+  at the end, into an empty step (filled, and the rest after it), or in place
+  of a References step's picture (Replace). One undo step.
+
+- [x] **9a. Prerequisite:** #430 merged into `main` and this branch synced
+  with it (merge 6cc337da7); its plan cache's reader exposed as "the plans
+  that match the document now", for the Diagram to list.
+  - As built: `referencesPlanCacheListing(loadSerial)` lists the packed
+    plans without reordering the table or starting it afresh, with
+    `subscribeReferencesPlanCache` / `referencesPlanCacheVersion` saying when
+    it can have changed. `cachedPlanRecord` + `planVariantInModel`
+    (`referencesCachedPlanRecord.ts`) make a cached plan the record a planned
+    sheet becomes, with no worker; References' restore assembles its record
+    through the same `cachedPlanRecord`.
 - [ ] **9b. The browser.** A third centre mode beside Pose and Annotate: the
   planned patterns' rail, Sequence | Find, the windowed card grid with
   selection and ranges, the footer's verbs, "Plan more patterns in

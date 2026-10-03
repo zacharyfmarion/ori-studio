@@ -46,12 +46,59 @@ interface CacheState {
 
 let state: CacheState = { loadSerial: null, entries: [], pending: new Set() };
 
+/**
+ * Bumped whenever what {@link referencesPlanCacheListing} answers can have
+ * changed — a plan packed, forgotten or given new ways, a file's cache
+ * installed, the table started afresh — for a reader outside the References
+ * panel (the Diagram's References browser) to list it again.
+ */
+let version = 0;
+const listeners = new Set<() => void>();
+
+function changed(): void {
+  version += 1;
+  for (const listener of listeners) listener();
+}
+
+/** Be told when the cache's listing can have changed; returns the way to stop. */
+export function subscribeReferencesPlanCache(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** A number that changes whenever the listing can have: a snapshot for `useSyncExternalStore`. */
+export function referencesPlanCacheVersion(): number {
+  return version;
+}
+
 /** The entries of document `loadSerial`, starting afresh when the table holds another's. */
 function entriesOf(loadSerial: number): CacheEntry[] {
   if (state.loadSerial !== loadSerial) {
     state = { loadSerial, entries: [], pending: new Set() };
+    changed();
   }
   return state.entries;
+}
+
+/** A cached plan as a reader outside References sees it: packed, with the ways chosen in it. */
+export interface ReferencesPlanCacheListing {
+  key: ReferencesPlanCacheKey;
+  /** The way chosen at each step with alternatives, by line id. */
+  ways: Readonly<Record<string, string>>;
+  payload: string;
+}
+
+/**
+ * Every packed plan of document `loadSerial`, read without touching the
+ * table: nothing is reordered, and a call for another document finds nothing
+ * rather than starting the table afresh. Plans of any planner and any
+ * creases — the caller says which it can show.
+ */
+export function referencesPlanCacheListing(loadSerial: number): ReferencesPlanCacheListing[] {
+  if (state.loadSerial !== loadSerial) return [];
+  return state.entries.flatMap((entry) =>
+    entry.payload === null ? [] : [{ key: entry.key, ways: { ...entry.ways }, payload: entry.payload }]
+  );
 }
 
 /** A sheet's slot: one entry per box and frame, whichever planner made it. */
@@ -96,6 +143,7 @@ export function installReferencesPlanCache(
     })),
     pending: new Set(),
   };
+  changed();
 }
 
 /**
@@ -117,7 +165,10 @@ export function rememberReferencesPlan(
   const packing = encodeCachedPlan(plan)
     .then((payload) => {
       entry.payload = payload;
-      if (owner === state) state.entries = capped(state.entries);
+      if (owner === state) {
+        state.entries = capped(state.entries);
+        changed();
+      }
     })
     .catch((error: unknown) => {
       reportError(error, { surface: 'references:plan-cache' });
@@ -168,7 +219,9 @@ export function lookupReferencesPlan(
 export function forgetReferencesPlan(loadSerial: number, key: ReferencesPlanCacheKey): void {
   if (state.loadSerial !== loadSerial) return;
   const at = indexOfSheet(state.entries, key);
-  if (at >= 0) state.entries.splice(at, 1);
+  if (at < 0) return;
+  state.entries.splice(at, 1);
+  changed();
 }
 
 /** The reader chose a way: keep the choices with the plan they name, in that plan's document. */
@@ -180,7 +233,10 @@ export function setReferencesPlanWays(
   if (state.loadSerial !== loadSerial) return;
   const entries = state.entries;
   const entry = entries[indexOfSheet(entries, key)];
-  if (entry && comparePlanCacheKeys(entry.key, key) === 'hit') entry.ways = { ...ways };
+  if (entry && comparePlanCacheKeys(entry.key, key) === 'hit') {
+    entry.ways = { ...ways };
+    changed();
+  }
 }
 
 /**
@@ -228,4 +284,5 @@ function fingerprintAlgorithm(fingerprint: string): string {
 /** For tests: forget everything. */
 export function resetReferencesPlanCacheForTests(): void {
   state = { loadSerial: null, entries: [], pending: new Set() };
+  changed();
 }
