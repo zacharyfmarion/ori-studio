@@ -787,6 +787,7 @@
     },
     "grid": {
       "addStep": "ステップを追加",
+      "insertHere": "ここにステップを追加",
       "label": "ステップ"
     },
     "header": {

@@ -21,6 +21,7 @@ import { useStepPictureDrop } from '../../diagram/upload/useStepPictureDrop';
 import {
   addDiagramStep,
   appendDiagramStep,
+  insertDiagramStepBeside,
   openDiagramStep,
   useAddDiagramStep,
   useDiagramPoseActions,
@@ -62,6 +63,7 @@ const uploadPictureFor = (stepId: string) => void pickStepPictures({ replaceStep
 /** Link pattern… from the header or the empty diagram: a new step, and its pattern picker. */
 const refreshAll = () => void refreshAllDiagramSteps();
 const appendStep = () => void appendDiagramStep();
+const insertAfter = (stepId: string) => void insertDiagramStepBeside(stepId, 'after');
 const linkNewStep = () => {
   const stepId = addDiagramStep();
   if (stepId) openDiagramPatternPicker(stepId);
@@ -260,6 +262,7 @@ export function DiagramPanel() {
             onOpenIn={openFromCard}
             onGoToEdit={goToEdit}
             onAppend={readOnly ? undefined : appendStep}
+            onInsertAfter={readOnly ? undefined : insertAfter}
           />
         )}
       </div>

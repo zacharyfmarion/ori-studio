@@ -3792,7 +3792,8 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7587,7 +7588,8 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11384,7 +11386,8 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15108,7 +15111,8 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18832,7 +18836,8 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22627,7 +22632,8 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26422,7 +26428,8 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -30146,6 +30153,7 @@
     "panels:diagram.pose.viewSimulated": "4ec40e9d6fa9",
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
-    "panels:diagram.pose.front": "a61759020289"
+    "panels:diagram.pose.front": "a61759020289",
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
   }
 }

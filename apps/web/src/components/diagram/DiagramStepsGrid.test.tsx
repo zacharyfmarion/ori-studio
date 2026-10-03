@@ -43,6 +43,7 @@ function render(
     onLink?: (stepId: string) => void;
     textCut?: ReadonlySet<string>;
     onAppend?: () => void;
+    onInsertAfter?: (stepId: string) => void;
     onOpenIn?: (stepId: string, mode: 'pose' | 'annotate') => void;
     onGoToEdit?: () => void;
   } = {}
@@ -78,6 +79,7 @@ function render(
         patternOpen={options.patternOpen ?? false}
         onLink={options.onLink ?? vi.fn()}
         onAppend={options.onAppend}
+        onInsertAfter={options.onInsertAfter}
         onOpenIn={options.onOpenIn ?? vi.fn()}
         onGoToEdit={options.onGoToEdit ?? vi.fn()}
       />
@@ -103,6 +105,29 @@ describe('DiagramStepsGrid', () => {
     expect(onAppend).toHaveBeenCalledOnce();
     // A press on the tile is not a press on empty space.
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('adds a step in the gap between two cards, for a pointer, and none after the last', () => {
+    const onInsertAfter = vi.fn();
+    const onSelect = render('step-a', vi.fn(), { onInsertAfter });
+    const gaps = [...host!.querySelectorAll<HTMLElement>('[data-insert-after]')];
+    // Between a and b, and b and c: the Add step tile is the one after c.
+    expect(gaps.map((gap) => gap.dataset.insertAfter)).toEqual(['step-a', 'step-b']);
+    for (const gap of gaps) {
+      expect(gap.getAttribute('aria-hidden')).toBe('true');
+      expect(gap.tabIndex).toBe(-1);
+      expect(gap.title).toBe('Add a step here');
+    }
+    expect(options()).toHaveLength(steps.length);
+    act(() => gaps[1]!.click());
+    expect(onInsertAfter).toHaveBeenCalledWith('step-b');
+    // A press on a gap is not a press on empty space.
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('offers no gap on a diagram that cannot change', () => {
+    render('step-a');
+    expect(host!.querySelector('[data-insert-after]')).toBeNull();
   });
 
   it('puts Adjust pose and Annotate over a picture, for a pointer, and opens the step in each', () => {

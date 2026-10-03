@@ -787,6 +787,7 @@
     },
     "grid": {
       "addStep": "添加步骤",
+      "insertHere": "在此添加步骤",
       "label": "步骤"
     },
     "header": {

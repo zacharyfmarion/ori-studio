@@ -27,11 +27,13 @@ import styles from './DiagramStepsGrid.module.css';
  * cards, so a press there keeps focus in the grid and the next arrow's
  * selection carries it back onto a card.
  *
- * After the last card, an empty card's outline adds a step at the end. A
- * listbox holds only its options, so the tile is for a pointer alone: hidden
- * from assistive tech and never focused, the header's Add step being the way
- * there from the keyboard. A press on it lands focus on the listbox, so the
- * new step's card takes it.
+ * After the last card, an empty card's outline adds a step at the end, and
+ * the gap after every other card adds one there: on a hover, a line and a
+ * "+" between the two cards. A listbox holds only its options, so both are
+ * for a pointer alone — hidden from assistive tech and never focused, the
+ * header's Add step and the card menu's Insert Before / After being the way
+ * there from the keyboard. A press on either lands focus on the listbox, so
+ * the new step's card takes it.
  */
 export function DiagramStepsGrid({
   steps,
@@ -50,6 +52,7 @@ export function DiagramStepsGrid({
   onOpenIn,
   onGoToEdit,
   onAppend,
+  onInsertAfter,
 }: {
   steps: readonly DiagramStep[];
   assets: Readonly<Record<string, DiagramAsset>>;
@@ -78,6 +81,8 @@ export function DiagramStepsGrid({
   onGoToEdit: () => void;
   /** Add an empty step at the end, from the trailing tile; absent on a diagram that cannot change. */
   onAppend?: () => void;
+  /** Add an empty step after one, from the gap after its card; absent on a diagram that cannot change. */
+  onInsertAfter?: (stepId: string) => void;
 }) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -113,35 +118,50 @@ export function DiagramStepsGrid({
       }}
     >
       {steps.map((step, index) => (
-        <DiagramStepCard
-          key={step.id}
-          ref={(element) => {
-            if (element) cards.current.set(step.id, element);
-            else cards.current.delete(step.id);
-          }}
-          step={step}
-          assets={assets}
-          style={style}
-          number={index + 1}
-          selected={step.id === selectedStepId}
-          tabStop={step.id === tabStop}
-          dropTarget={step.id === dropTarget}
-          readOnly={readOnly}
-          onSelect={onSelect}
-          onOpen={onOpen}
-          onUpload={onUpload}
-          link={links.statuses.get(step.id) ?? null}
-          textCut={textCut.has(step.id)}
-          capture={links.captures[step.id] ?? null}
-          patternOpen={patternOpen}
-          onLink={onLink}
-          onStop={links.stop}
-          waiting={links.awaitingReferences === step.id}
-          onFromReferences={links.askReferences}
-          onCancelWaiting={links.cancelAwaiting}
-          onOpenIn={onOpenIn}
-          onGoToEdit={onGoToEdit}
-        />
+        // A slot, so the gap after the card is placed against it.
+        <div key={step.id} className={styles.slot}>
+          <DiagramStepCard
+            ref={(element) => {
+              if (element) cards.current.set(step.id, element);
+              else cards.current.delete(step.id);
+            }}
+            step={step}
+            assets={assets}
+            style={style}
+            number={index + 1}
+            selected={step.id === selectedStepId}
+            tabStop={step.id === tabStop}
+            dropTarget={step.id === dropTarget}
+            readOnly={readOnly}
+            onSelect={onSelect}
+            onOpen={onOpen}
+            onUpload={onUpload}
+            link={links.statuses.get(step.id) ?? null}
+            textCut={textCut.has(step.id)}
+            capture={links.captures[step.id] ?? null}
+            patternOpen={patternOpen}
+            onLink={onLink}
+            onStop={links.stop}
+            waiting={links.awaitingReferences === step.id}
+            onFromReferences={links.askReferences}
+            onCancelWaiting={links.cancelAwaiting}
+            onOpenIn={onOpenIn}
+            onGoToEdit={onGoToEdit}
+          />
+          {onInsertAfter && index < steps.length - 1 && (
+            <div
+              aria-hidden
+              className={styles.insert}
+              data-insert-after={step.id}
+              title={t('panels:diagram.grid.insertHere', 'Add a step here')}
+              onClick={() => onInsertAfter(step.id)}
+            >
+              <span className={styles.insertButton}>
+                <Plus size={13} aria-hidden />
+              </span>
+            </div>
+          )}
+        </div>
       ))}
       {onAppend && (
         <div aria-hidden className={styles.addTile} data-add-step-tile="" onClick={onAppend}>

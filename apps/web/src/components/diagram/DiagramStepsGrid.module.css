@@ -4,10 +4,13 @@
  * lands on it, which is how it tells "empty space" from "a card".
  */
 .grid {
+  /* The space between cards: where a step can be added between two. */
+  --gap: var(--space-4);
+
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   align-content: start;
-  gap: var(--space-4);
+  gap: var(--gap);
   box-sizing: border-box;
   min-height: 100%;
   padding: var(--space-5);
@@ -41,6 +44,77 @@
   color: var(--text-secondary);
 }
 
+/* A card's cell, which its insert gap is placed against. */
+.slot {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+/*
+ * The gap after a card, and a step added there: the whole gap is the target,
+ * a line and a "+" between the cards showing on a hover. Over the gap only, so
+ * it never covers a card.
+ */
+.insert {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--gap);
+  cursor: pointer;
+}
+
+.insert::before {
+  position: absolute;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  left: 50%;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent-primary);
+  content: '';
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.12s ease;
+}
+
+.insertButton {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.insert:hover::before,
+.insert:hover .insertButton {
+  opacity: 1;
+}
+
+.insert:hover .insertButton {
+  transform: scale(1);
+}
+
+/* With no hover to find it by, the "+" stays in sight, quietly. */
+@media (hover: none) {
+  .insertButton {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+}
+
 /* Pictures dragged over the space between cards go in after the selected step. */
 .grid[data-drop-target] {
   outline: 2px dashed color-mix(in srgb, var(--accent-primary) 60%, transparent);
@@ -50,7 +124,8 @@
 
 @media (max-width: 720px) {
   .grid {
-    gap: var(--space-3);
+    --gap: var(--space-3);
+
     padding: var(--space-3);
   }
 }

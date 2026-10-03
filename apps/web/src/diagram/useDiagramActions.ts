@@ -75,6 +75,17 @@ export function appendDiagramStep(): string | null {
   return stepId;
 }
 
+/**
+ * Add an empty step just before or after one and select it: Insert Before /
+ * After in the card's menu, and the Steps grid's gap between two cards. Null
+ * when the diagram is read-only or the step is gone.
+ */
+export function insertDiagramStepBeside(stepId: string, where: 'before' | 'after'): string | null {
+  const newId = useWorkspaceStore.getState().insertDiagramStep(stepId, where);
+  if (newId) trackDiagramStepAdded('empty', 'grid');
+  return newId;
+}
+
 /** {@link addDiagramStep}, as a stable callback. */
 export function useAddDiagramStep(): () => string | null {
   return useCallback(() => addDiagramStep(), []);
@@ -169,7 +180,7 @@ function bindStepActions(
     {
       t,
       insert: (where) => {
-        if (store().insertDiagramStep(stepId, where)) trackDiagramStepAdded('empty', 'grid');
+        insertDiagramStepBeside(stepId, where);
       },
       duplicate: () => {
         store().duplicateDiagramStep(stepId);

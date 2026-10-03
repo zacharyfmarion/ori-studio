@@ -847,6 +847,7 @@
     },
     "grid": {
       "addStep": "Adicionar passo",
+      "insertHere": "Adicionar um passo aqui",
       "label": "Passos"
     },
     "header": {

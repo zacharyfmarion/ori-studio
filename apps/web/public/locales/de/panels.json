@@ -817,6 +817,7 @@
     },
     "grid": {
       "addStep": "Schritt hinzufügen",
+      "insertHere": "Hier einen Schritt hinzufügen",
       "label": "Schritte"
     },
     "header": {

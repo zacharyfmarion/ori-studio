@@ -787,6 +787,7 @@
     },
     "grid": {
       "addStep": "단계 추가",
+      "insertHere": "여기에 단계 추가",
       "label": "단계"
     },
     "header": {
