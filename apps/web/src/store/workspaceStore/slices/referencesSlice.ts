@@ -42,15 +42,15 @@ function clampCandidateCount(value: number): number {
  * previous document — the pick, its answers, the sheet id, the plan summary —
  * goes, since this document is the one being read now.
  *
- * Nothing at all for a file without one: it opens References as any document
- * always has.
+ * For a file without one, only the end of whatever the previous open
+ * restored: it opens References as any document always has.
  */
 export function restoredReferencesState(
   saved: ReferencesReaderStateV1 | null,
   loadSerial: number,
   settings: ReferencesSettings
 ): Partial<ReferencesSliceState> {
-  if (!saved) return {};
+  if (!saved) return { referencesRestore: null };
   const next = { ...settings, ...saved.settings };
   return {
     referencesSettings: { ...next, candidateCount: clampCandidateCount(next.candidateCount) },
@@ -127,9 +127,9 @@ export const createReferencesSlice: WorkspaceSliceCreator<ReferencesSlice> = (se
     set({ referencesSelectedSheet: component, referencesRestore: { ...restore, sheet: null } });
   },
 
-  takeReferencesRestoredCard: () => {
+  takeReferencesRestoredCard: (loadSerial) => {
     const restore = get().referencesRestore;
-    if (!restore?.card) return null;
+    if (!restore?.card || restore.loadSerial !== loadSerial) return null;
     set({ referencesRestore: { ...restore, card: null } });
     return restore.card;
   },

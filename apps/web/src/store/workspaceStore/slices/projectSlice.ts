@@ -37,6 +37,7 @@ import {
 import { referencesReaderStateFor } from '../../../cp-workspace/references/referencesReaderState';
 import { referencesResultsSnapshot } from '../../../cp-workspace/references/referencesResults';
 import { DEFAULT_REFERENCES_SETTINGS, restoredReferencesState } from './referencesSlice';
+import { reportError } from '../../../monitoring';
 import { ProjectFileFormatError } from '../../../lib/projectFileError';
 import { createBoxPleatDesignState,
   createExploriDesignState, createTreemakerDesignState } from '../designContent';
@@ -1675,6 +1676,38 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     return result;
   };
 
+  /**
+   * The References workspace as the file keeps it: the reader's state and the
+   * plan cache. Neither is ever worth a failed save — it is where the reader
+   * was and what was planned, not the design — so anything that goes wrong
+   * here is reported and the file is written without them.
+   */
+  const referencesForSave = async (documentState: OristudioCpDocumentState) => {
+    try {
+      const side = referencesResultsSnapshot();
+      return {
+        referencesReaderState: referencesReaderStateFor({
+          settings: get().referencesSettings,
+          defaults: DEFAULT_REFERENCES_SETTINGS,
+          view: get().referencesView,
+          selectedSheet: get().referencesSelectedSheet,
+          target: get().referencesTarget,
+          restore: get().referencesRestore,
+          loadSerial: documentState.loadSerial,
+          frames: side.frames,
+          plan: side.plan,
+        }),
+        referencesPlanCache: await referencesPlanCacheForSave(
+          documentState.loadSerial,
+          documentState.geometry
+        ),
+      };
+    } catch (error) {
+      reportError(error, { surface: 'references:save' });
+      return { referencesReaderState: null, referencesPlanCache: null };
+    }
+  };
+
   const currentEditableCreasePatternProjectInput = async (
     filename: string,
     path: string | null
@@ -1709,21 +1742,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
       camera: get().oristudioCpCamera,
       foldedFigures: get().oristudioCpFoldedFigures,
       activeFoldedFigureId: get().oristudioCpActiveFoldedFigureId,
-      referencesReaderState: referencesReaderStateFor({
-        settings: get().referencesSettings,
-        defaults: DEFAULT_REFERENCES_SETTINGS,
-        view: get().referencesView,
-        selectedSheet: get().referencesSelectedSheet,
-        target: get().referencesTarget,
-        restore: get().referencesRestore,
-        loadSerial: documentState.loadSerial,
-        frames: referencesResultsSnapshot().frames,
-        plan: referencesResultsSnapshot().plan,
-      }),
-      referencesPlanCache: await referencesPlanCacheForSave(
-        documentState.loadSerial,
-        documentState.geometry
-      ),
+      ...(await referencesForSave(documentState)),
       lineage: get().oristudioCpLineage ?? importedCpLineage(),
       images: get().oristudioCpAnnotations.filter(isImageAnnotation),
       textAnnotations: get().oristudioCpAnnotations.filter(isTextAnnotation),

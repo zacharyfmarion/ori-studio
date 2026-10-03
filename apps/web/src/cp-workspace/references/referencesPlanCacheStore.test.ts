@@ -18,6 +18,7 @@ import {
   resetReferencesPlanCacheForTests,
   setReferencesPlanWays,
 } from './referencesPlanCacheStore';
+import { precreaseInputFromTransport, type PrecreaseFrame } from './sheetFrames';
 
 function transportOf(segments: readonly number[][]): CpGeometryTransport {
   const segEndpoints = new Float64Array(segments.length * 4);
@@ -31,6 +32,13 @@ function transportOf(segments: readonly number[][]): CpGeometryTransport {
 
 const LEFT = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
 const RIGHT = { minX: 20, minY: 0, maxX: 30, maxY: 10 };
+const frameAt = (x: number): PrecreaseFrame => ({
+  origin: [x, 10],
+  x_axis: [1, 0],
+  y_axis: [0, -1],
+  width: 10,
+  height: 10,
+});
 const SEGMENTS = [
   [20, 0, 30, 0, 0],
   [20, 0, 30, 10, 2],
@@ -38,14 +46,15 @@ const SEGMENTS = [
   [0, 0, 10, 10, 1],
 ];
 const geometry = transportOf(SEGMENTS);
+const input = precreaseInputFromTransport(geometry);
 const SETTINGS = {
   precreaseGrid: true,
   gridWhereNeeded: true,
   allowDanglingFolds: true,
   mergeSymmetricSteps: true,
 };
-const leftKey = referencesPlanCacheKey(geometry, LEFT, SETTINGS);
-const rightKey = referencesPlanCacheKey(geometry, RIGHT, SETTINGS);
+const leftKey = referencesPlanCacheKey(input, { bounds: LEFT, frame: frameAt(0) }, SETTINGS);
+const rightKey = referencesPlanCacheKey(input, { bounds: RIGHT, frame: frameAt(20) }, SETTINGS);
 
 function plan(durationMs = 10): ReferencesCachedPlan {
   return {
@@ -115,11 +124,42 @@ describe('the plan cache side table', () => {
     expect(decoded?.durationMs).toBe(3);
   });
 
-  it('says why an entry is not the plan wanted, and forgets it', () => {
+  // A miss may be another build's plan — the desktop release's, in a file the
+  // web app is reading — and the replan that follows takes the slot anyway.
+  it('says why an entry is not the plan wanted, and leaves it for the build that made it', async () => {
     installReferencesPlanCache({ v: 1, entries: [entry(leftKey, 'a')] }, 1);
-    const wanted = referencesPlanCacheKey(geometry, LEFT, { ...SETTINGS, precreaseGrid: false });
+    const wanted = referencesPlanCacheKey(input, { bounds: LEFT, frame: frameAt(0) }, {
+      ...SETTINGS,
+      precreaseGrid: false,
+    });
     expect(lookupReferencesPlan(1, wanted)).toEqual({ outcome: 'settings_changed' });
-    expect(lookupReferencesPlan(1, leftKey)).toBeNull();
+    expect(lookupReferencesPlan(1, { ...leftKey, planner: 'another build' })).toEqual({
+      outcome: 'planner_changed',
+    });
+    expect(lookupReferencesPlan(1, leftKey)?.outcome).toBe('hit');
+  });
+
+  it('gives a sheet one slot, whichever planner made it', async () => {
+    installReferencesPlanCache({ v: 1, entries: [entry({ ...leftKey, planner: 'another build' }, 'a')] }, 1);
+    rememberReferencesPlan(1, leftKey, plan());
+    const saved = await referencesPlanCacheForSave(1, geometry);
+    expect(saved?.entries.map((saved) => saved.key.planner)).toEqual([leftKey.planner]);
+  });
+
+  // A square and the diamond on its edge midpoints share a box; each keeps
+  // its own plan.
+  it('keeps two sheets with one box apart by their frames', () => {
+    const diamond = referencesPlanCacheKey(
+      input,
+      {
+        bounds: LEFT,
+        frame: { origin: [5, 10], x_axis: [0.6, -0.8], y_axis: [-0.8, -0.6], width: 7, height: 7 },
+      },
+      SETTINGS
+    );
+    installReferencesPlanCache({ v: 1, entries: [entry(leftKey, 'square'), entry(diamond, 'diamond')] }, 1);
+    expect(lookupReferencesPlan(1, diamond)).toMatchObject({ outcome: 'hit', payload: 'diamond' });
+    expect(lookupReferencesPlan(1, leftKey)).toMatchObject({ outcome: 'hit', payload: 'square' });
   });
 
   it('moves a hit to the front, as the most recently viewed', async () => {
@@ -139,6 +179,27 @@ describe('the plan cache side table', () => {
     });
   });
 
+  // Kept in the file for the build that wrote it, which must find its own
+  // fields there: a newer build's key may carry a setting this one lacks.
+  it('writes another build’s entry back with the fields this build does not know', async () => {
+    const theirs = {
+      ...entry({ ...leftKey, planner: 'a newer build' }, 'a'),
+      note: 'kept',
+    } as ReferencesPlanCacheEntryV1;
+    (theirs.key.settings as unknown as Record<string, unknown>).fifthSetting = true;
+    installReferencesPlanCache({ v: 1, entries: [theirs] }, 1);
+    const saved = await referencesPlanCacheForSave(1, geometry);
+    expect(saved?.entries[0]).toMatchObject({ note: 'kept', key: { settings: { fifthSetting: true } } });
+  });
+
+  // A late answer about the last document must not start this one's afresh.
+  it('ignores a forget or a way for another document', async () => {
+    installReferencesPlanCache({ v: 1, entries: [entry(leftKey, 'a')] }, 2);
+    forgetReferencesPlan(1, leftKey);
+    setReferencesPlanWays(1, leftKey, { '1': 'x' });
+    expect(lookupReferencesPlan(2, leftKey)).toEqual({ outcome: 'hit', payload: 'a', ways: {} });
+  });
+
   it('forgets a plan that could not be read', () => {
     installReferencesPlanCache({ v: 1, entries: [entry(leftKey, 'a')] }, 1);
     forgetReferencesPlan(1, leftKey);
@@ -147,33 +208,49 @@ describe('the plan cache side table', () => {
 });
 
 describe('referencesPlanCacheForSave', () => {
-  it('drops what the creases being saved can never match again, and other planners’ plans', async () => {
+  it('drops what the creases being saved can never match again, and keeps other builds’ plans', async () => {
     installReferencesPlanCache(
       {
         v: 1,
-        entries: [entry(leftKey, 'a'), entry(rightKey, 'b'), entry({ ...leftKey, planner: 'old' }, 'c')],
+        entries: [
+          entry(leftKey, 'a'),
+          entry(rightKey, 'b'),
+          entry({ ...leftKey, planner: 'another build', sheet: { ...leftKey.sheet, frame: frameAt(1) } }, 'c'),
+          entry({ ...rightKey, sheet: { ...rightKey.sheet, frame: frameAt(21), fingerprint: 'xx9:0' } }, 'd'),
+        ],
       },
       1
     );
     // The right sheet's diagonal recoloured since its plan was made.
     const edited = transportOf(SEGMENTS.map((segment, index) => (index === 1 ? [20, 0, 30, 10, 1] : segment)));
     const saved = await referencesPlanCacheForSave(1, edited);
-    expect(saved?.entries.map((saved) => saved.payload)).toEqual(['a']);
+    // 'b' is stale; 'c' is another build's plan for unchanged creases; 'd' was
+    // fingerprinted by an algorithm this build does not know, so it is that
+    // build's to judge.
+    expect(saved?.entries.map((saved) => saved.payload)).toEqual(['a', 'c', 'd']);
   });
 
-  it('keeps the most recently viewed plans that fit under the cap', async () => {
+  // The cache is least-recently-viewed: a plan the reader looked at is never
+  // dropped to keep an older one that happens to be smaller.
+  it('keeps the most recently viewed plans that fit under the cap, in order', async () => {
     const half = 'x'.repeat(REFERENCES_PLAN_CACHE_MAX_CHARS / 2 + 1);
     const third = 'y'.repeat(REFERENCES_PLAN_CACHE_MAX_CHARS / 3);
+    const small = 'z';
+    const leftAgain = { ...leftKey, sheet: { ...leftKey.sheet, frame: frameAt(1) } };
     installReferencesPlanCache(
-      { v: 1, entries: [entry(leftKey, half), entry(rightKey, half)] },
+      { v: 1, entries: [entry(leftKey, half), entry(rightKey, half), entry(leftAgain, small)] },
       1
     );
     expect((await referencesPlanCacheForSave(1, geometry))?.entries.map((e) => e.payload)).toEqual([half]);
     installReferencesPlanCache(
-      { v: 1, entries: [entry(leftKey, third), entry(rightKey, third)] },
+      { v: 1, entries: [entry(leftKey, third), entry(rightKey, third), entry(leftAgain, small)] },
       1
     );
-    expect((await referencesPlanCacheForSave(1, geometry))?.entries).toHaveLength(2);
+    expect((await referencesPlanCacheForSave(1, geometry))?.entries).toHaveLength(3);
+    // One too large ever to fit is passed over, not the end of the list.
+    const huge = 'w'.repeat(REFERENCES_PLAN_CACHE_MAX_CHARS + 1);
+    installReferencesPlanCache({ v: 1, entries: [entry(leftKey, huge), entry(rightKey, small)] }, 1);
+    expect((await referencesPlanCacheForSave(1, geometry))?.entries.map((e) => e.payload)).toEqual([small]);
   });
 
   it('writes nothing without creases to check against', async () => {

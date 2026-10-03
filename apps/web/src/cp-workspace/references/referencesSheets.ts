@@ -26,7 +26,7 @@ import {
 } from '../sheets/sheetThumbnail';
 import { creaseRoleAt } from './creaseRole';
 import type { ModelBounds } from './referencesStepGeometry';
-import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
+import type { PrecreaseComponent, PrecreaseFrame, SheetAnalysis } from './sheetFrames';
 
 /** One row of the sheet picker. */
 export interface ReferencesSheet {
@@ -101,18 +101,43 @@ export function sheetBounds(component: PrecreaseComponent): ModelBounds | null {
 }
 
 /**
- * Whether two sheet boxes name the same sheet. Both come from the same
- * analysis of the same creases, so they agree to the last bit unless the
- * sheet moved; the slack only absorbs a JSON round trip of the numbers.
+ * Whether two sheet boxes name the same sheet, to within `relativeSlack` of the
+ * sheet's size.
+ *
+ * The default is for two boxes from the same analysis of the same creases,
+ * which agree to the last bit unless the sheet moved; it only absorbs a JSON
+ * round trip of the numbers. A box read back from a file another build wrote
+ * is matched looser (`locateSheet`), since a change to how the analysis finds
+ * a sheet's corners may move them by its own tolerance.
  */
-export function sameSheetBounds(a: ModelBounds, b: ModelBounds): boolean {
+export function sameSheetBounds(a: ModelBounds, b: ModelBounds, relativeSlack = 1e-9): boolean {
   const scale = Math.max(1, Math.abs(a.maxX - a.minX), Math.abs(a.maxY - a.minY));
-  const slack = scale * 1e-9;
+  const slack = scale * relativeSlack;
   return (
     Math.abs(a.minX - b.minX) <= slack &&
     Math.abs(a.minY - b.minY) <= slack &&
     Math.abs(a.maxX - b.maxX) <= slack &&
     Math.abs(a.maxY - b.maxY) <= slack
+  );
+}
+
+/**
+ * Whether two frames are the same frame: the origin to within a billionth of
+ * the sheet, the axes and the size alike. Two sheets can share a box — a
+ * square and the diamond on its edge midpoints — but never a frame.
+ */
+export function sameSheetFrame(a: PrecreaseFrame, b: PrecreaseFrame): boolean {
+  const scale = Math.max(1, Math.abs(a.width), Math.abs(a.height));
+  const near = (x: number, y: number, unit: number) => Math.abs(x - y) <= unit * 1e-9;
+  return (
+    near(a.origin[0], b.origin[0], scale) &&
+    near(a.origin[1], b.origin[1], scale) &&
+    near(a.x_axis[0], b.x_axis[0], 1) &&
+    near(a.x_axis[1], b.x_axis[1], 1) &&
+    near(a.y_axis[0], b.y_axis[0], 1) &&
+    near(a.y_axis[1], b.y_axis[1], 1) &&
+    near(a.width, b.width, scale) &&
+    near(a.height, b.height, scale)
   );
 }
 

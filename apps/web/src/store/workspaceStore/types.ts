@@ -1716,8 +1716,13 @@ export interface ReferencesSliceActions {
    * the toggle and the card waiting for the plan are what was restored with it.
    */
   commitReferencesRestoredSheet: (component: number | null) => void;
-  /** The restored card still waiting for a plan, taken: null when there is none. */
-  takeReferencesRestoredCard: () => ReferencesCardLocator | null;
+  /**
+   * The restored card still waiting for a plan, taken — only by the document
+   * it was restored for (`loadSerial`): null when there is none for it. A card
+   * saved with one file must never place the reader in another's plan, whose
+   * folds can share its line.
+   */
+  takeReferencesRestoredCard: (loadSerial: number) => ReferencesCardLocator | null;
   setReferencesRun: (run: ReferencesRun) => void;
   setReferencesSettings: (settings: Partial<ReferencesSettings>) => void;
   /** Hoist every auxiliary fold to a phase 0 (`references.toggleLandmarksFirst`). */

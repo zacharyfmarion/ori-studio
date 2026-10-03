@@ -127,6 +127,18 @@ describe('the card locator', () => {
     expect(locateCard(other.variants, other.viewSteps, { index: 0, line })).not.toBe(at);
   });
 
+  // The planner states a line as `n · p = d`; `-n · p = -d` is the same line,
+  // and a replan may state it either way.
+  it('finds a fold whose line is stated the other way round', () => {
+    const fold = strip.viewSteps.findIndex((view) => view.kind === 'fold');
+    const locator = cardLocatorAt(strip.variants, strip.viewSteps, fold)!;
+    const flipped = {
+      index: locator.index,
+      line: { n: [-locator.line!.n[0], -locator.line!.n[1]] as [number, number], d: -locator.line!.d },
+    };
+    expect(locateCard(strip.variants, strip.viewSteps, flipped)).toBe(fold);
+  });
+
   it('falls back to the first card when the fold is not in the plan', () => {
     expect(
       locateCard(strip.variants, strip.viewSteps, { index: 3, line: { n: [0.6, 0.8], d: 0.123 } })
@@ -141,6 +153,33 @@ describe('locateSheet', () => {
   it('finds the sheet by its bounds, whatever its id now', () => {
     expect(locateSheet(FRAMES, { bounds: { minX: 0, minY: 0, maxX: 10, maxY: 10 } })).toBe(2);
     expect(locateSheet(FRAMES, { bounds: { minX: 0, minY: 0, maxX: 11, maxY: 10 } })).toBeNull();
+  });
+
+  // Read back by a build whose analysis finds the corners a hair differently.
+  it('finds it when its corners moved by less than the planner’s snap radius', () => {
+    expect(locateSheet(FRAMES, { bounds: { minX: 0.01, minY: 0, maxX: 10, maxY: 10.005 } })).toBe(2);
+  });
+
+  // A square and the diamond on its edge midpoints share a box.
+  it('tells apart two sheets with one box by the frame it was saved with', () => {
+    const square = { origin: [0, 10] as [number, number], x_axis: [1, 0] as [number, number], y_axis: [0, -1] as [number, number], width: 10, height: 10 };
+    const diamond = { origin: [5, 10] as [number, number], x_axis: [0.6, -0.8] as [number, number], y_axis: [-0.8, -0.6] as [number, number], width: 7, height: 7 };
+    const outline: [number, number][] = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ];
+    const both = {
+      components: [
+        { ...component(1, outline), frame: square },
+        { ...component(5, outline), frame: diamond },
+      ],
+    } as SheetAnalysis;
+    const bounds = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+    expect(locateSheet(both, { bounds, frame: diamond })).toBe(5);
+    expect(locateSheet(both, { bounds, frame: square })).toBe(1);
+    expect(locateSheet(both, { bounds })).toBe(1);
   });
 });
 
@@ -205,6 +244,20 @@ describe('referencesReaderStateFor', () => {
     );
     expect(other?.sheet).toBeNull();
     expect(other?.activeCard).toBeNull();
+  });
+
+  // Saving a project must never fail over where the reader was in References.
+  it('forgets the card, rather than failing the save, for a plan it cannot read', () => {
+    const broken = plannerSequenceFixture();
+    (broken as unknown as Record<string, unknown>).steps = null;
+    const state = referencesReaderStateFor(
+      source({
+        view: { ...VIEW, mode: 'sequence', activeStep: 1 },
+        plan: record(broken),
+      })
+    );
+    expect(state?.mode).toBe('sequence');
+    expect(state?.activeCard).toBeNull();
   });
 
   it('keeps no card while a vertex or crease is picked: the strip is the pick’s', () => {

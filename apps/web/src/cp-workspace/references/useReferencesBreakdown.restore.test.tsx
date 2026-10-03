@@ -15,11 +15,18 @@ import {
 } from './referencesPlanCache';
 import {
   installReferencesPlanCache,
+  lookupReferencesPlan,
   resetReferencesPlanCacheForTests,
 } from './referencesPlanCacheStore';
+import { planFilmstrip } from './referencesFilmstrip';
 import { cardLocatorAt, planStrip } from './referencesReaderState';
 import { clearReferencesResults } from './referencesResults';
-import type { PrecreaseComponent, SheetAnalysis } from './sheetFrames';
+import {
+  precreaseInputFromTransport,
+  type PrecreaseComponent,
+  type PrecreaseFrame,
+  type SheetAnalysis,
+} from './sheetFrames';
 import { useReferencesBreakdown, type ReferencesBreakdownController } from './useReferencesBreakdown';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,15 +41,33 @@ const client = vi.hoisted(() => ({
   }),
   plannerDispose: vi.fn(async () => undefined),
 }));
+// Reference-counted like the real runtime: once the last holder releases it,
+// asking for the client throws.
+const retained = vi.hoisted(() => ({ count: 0 }));
 vi.mock('../../store/workspaceStore/precreaseRuntime', () => ({
-  getPrecreaseClient: () => client,
-  peekPrecreaseClient: () => client,
-  retainPrecreaseClient: () => client,
-  releasePrecreaseClient: () => undefined,
+  getPrecreaseClient: () => {
+    if (retained.count === 0) throw new Error('retain the precrease client before using it');
+    return client;
+  },
+  peekPrecreaseClient: () => (retained.count > 0 ? client : null),
+  retainPrecreaseClient: () => {
+    retained.count += 1;
+    return client;
+  },
+  releasePrecreaseClient: () => {
+    retained.count = Math.max(0, retained.count - 1);
+  },
+  whilePrecreaseClientAlive: <T,>(pending: Promise<T>) => pending,
 }));
 vi.mock('../../store/workspaceStore/referenceFinderRuntime', () => ({
   releaseReferenceFinderClient: () => undefined,
 }));
+// The strip the panel draws on arrival, made to fail on demand: a cached plan
+// that reads but cannot be shown.
+vi.mock('./referencesFilmstrip', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./referencesFilmstrip')>();
+  return { ...actual, planFilmstrip: vi.fn(actual.planFilmstrip) };
+});
 
 const SEGMENTS = [
   [-200, -200, 200, -200, 0],
@@ -61,8 +86,11 @@ const geometry: CpGeometryTransport = (() => {
   return { segEndpoints, segAttr } as CpGeometryTransport;
 })();
 const BOUNDS = { minX: -200, minY: -200, maxX: 200, maxY: 200 };
-const FRAME = { origin: [-200, -200], x_axis: [1, 0], y_axis: [0, 1], width: 400, height: 400 };
+const FRAME: PrecreaseFrame = { origin: [-200, -200], x_axis: [1, 0], y_axis: [0, 1], width: 400, height: 400 };
+const SHEET = { bounds: BOUNDS, frame: FRAME };
+const input = precreaseInputFromTransport(geometry);
 const frames = {
+  warnings: [],
   components: [
     {
       id: 4,
@@ -78,7 +106,7 @@ const frames = {
       border_segment_indices: [0, 1, 2, 3],
     } as unknown as PrecreaseComponent,
   ],
-} as SheetAnalysis;
+} as unknown as SheetAnalysis;
 const SETTINGS = {
   precreaseGrid: true,
   gridWhereNeeded: true,
@@ -126,8 +154,10 @@ let controller: ReferencesBreakdownController | null = null;
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
+let shownFrames: SheetAnalysis = frames;
+
 function Probe() {
-  const value = useReferencesBreakdown(geometry, REVISION, frames, 4);
+  const value = useReferencesBreakdown(geometry, REVISION, shownFrames, 4);
   useEffect(() => {
     controller = value;
   });
@@ -149,6 +179,7 @@ beforeEach(() => {
   clearReferencesResults();
   client.rfToModelMany.mockClear();
   client.plannerCreate.mockClear();
+  shownFrames = frames;
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -163,7 +194,7 @@ afterEach(() => {
 
 describe('opening the sequence on a reopened project', () => {
   it('shows the cached plan without planning, with the reader’s ways and card', async () => {
-    const key = referencesPlanCacheKey(geometry, BOUNDS, SETTINGS);
+    const key = referencesPlanCacheKey(input, SHEET, SETTINGS);
     const line = plannerSequenceFixture().steps[2];
     await cacheWith(key, { [String(line.line_id)]: 'O1:p4,p5:0' });
     const record = { revision: REVISION, components: [], refused: [], durationMs: 0, ...SETTINGS };
@@ -204,11 +235,51 @@ describe('opening the sequence on a reopened project', () => {
   });
 
   it('plans when the cached plan was made under other settings', async () => {
-    await cacheWith(referencesPlanCacheKey(geometry, BOUNDS, { ...SETTINGS, precreaseGrid: false }));
+    await cacheWith(referencesPlanCacheKey(input, SHEET, { ...SETTINGS, precreaseGrid: false }));
     act(() => controller?.open());
     await settle();
     expect(client.plannerCreate).toHaveBeenCalledTimes(1);
     expect(controller?.record).toBeNull();
+  });
+
+  // A plan that unpacks but cannot be drawn — damaged, or a shape this build
+  // does not read — becomes a replan, and is not written back into the file.
+  // Shown, it would have sent the panel to its error boundary on every visit.
+  it('plans, and forgets the cached plan, when it reads but cannot be shown', async () => {
+    const key = referencesPlanCacheKey(input, SHEET, SETTINGS);
+    await cacheWith(key);
+    vi.mocked(planFilmstrip).mockImplementationOnce(() => {
+      throw new Error('unreadable');
+    });
+    act(() => controller?.open());
+    await settle();
+    expect(client.plannerCreate).toHaveBeenCalledTimes(1);
+    expect(controller?.record).toBeNull();
+    expect(lookupReferencesPlan(LOAD, key)).toBeNull();
+  });
+
+  // Leaving the workspace while the plan unpacks is not the plan's fault: it is
+  // kept for the next visit, and nothing is planned for a panel that is gone.
+  it('keeps the cached plan, and plans nothing, when the reader leaves while it unpacks', async () => {
+    const key = referencesPlanCacheKey(input, SHEET, SETTINGS);
+    await cacheWith(key);
+    act(() => controller?.open());
+    act(() => root?.unmount());
+    root = null;
+    await settle();
+    expect(client.plannerCreate).not.toHaveBeenCalled();
+    expect(lookupReferencesPlan(LOAD, key)?.outcome).toBe('hit');
+  });
+
+  // Where sheets overlap, which owns a crease in the overlap follows numbering
+  // outside any one sheet, so no sheet's fingerprint can vouch for its plan.
+  it('never serves a document whose sheets overlap from the cache', async () => {
+    await cacheWith(referencesPlanCacheKey(input, SHEET, SETTINGS));
+    shownFrames = { ...frames, warnings: [{ kind: 'overlapping_sheets', segments: 2 }] };
+    act(() => root?.render(createElement(Probe)));
+    act(() => controller?.open());
+    await settle();
+    expect(client.plannerCreate).toHaveBeenCalledTimes(1);
   });
 
   it('plans when there is nothing cached', async () => {

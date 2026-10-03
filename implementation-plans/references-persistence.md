@@ -91,9 +91,9 @@ interface ReferencesPlanCacheV1 {
 }
 
 interface ReferencesPlanCacheKey {
-  planner: string; // `oristudio-precrease@<version>+wire<N>`
+  planner: string; // `oristudio-precrease@<version>+src.<planner source digest>+wire<N>`
   settings: { precreaseGrid; gridWhereNeeded; allowDanglingFolds; mergeSymmetricSteps };
-  sheet: { bounds: SheetBounds; fingerprint: string };
+  sheet: { bounds: SheetBounds; frame: PrecreaseFrame; fingerprint: string }; // `ps1:<64-bit>`
 }
 ```
 
@@ -103,24 +103,44 @@ interface ReferencesPlanCacheKey {
   the CP-only one and the multi-design one, which today writes
   `artifacts: {}` (so `artifacts.fold` never reaches a bundled file; nothing
   reads it back either, which is out of scope here).
-- **Any key mismatch discards the entry and the sheet replans. Nothing is
-  migrated.** Each kind of change hits a different part of the key: a CP edit
-  or an edit elsewhere that renumbers creases changes the fingerprint, a new
-  build changes `planner`, a settings change re-plans as it does today.
-- **The fingerprint is index-sensitive and needs no analysis.** It hashes,
-  for every segment inside the sheet's bounds (widened slightly), the
-  segment's document index, its endpoints' exact bits and its colour — exactly
-  what `precreaseInputFromTransport` hands the planner. Inside-the-box can
-  only over-include (a neighbour on a shared edge, an unassigned segment), and
-  over-including only discards more often. Not needing the frames analysis is
-  what lets a save drop entries the saved geometry can never match.
-- **`planner`** is the workspace version (the crate's `version.workspace`,
-  which is the app's) plus `REFERENCES_PLAN_WIRE_VERSION`, bumped by hand when
-  the `PrecreaseSequence` shape changes in a way an older cache cannot be read
-  as. Deliberately not the commit: the web deploys on every merge to `main`,
-  and a key that moved with each deploy would replan every reopen — the thing
-  this plan exists to stop. A planner improvement therefore reaches a saved
-  plan at the next release, not the next deploy.
+- **Any key mismatch replans the sheet. Nothing is migrated.** Each kind of
+  change hits a different part of the key: a CP edit, or an edit elsewhere
+  that renumbers creases, changes the fingerprint; different planner code
+  changes `planner`; a settings change re-plans as it does today.
+- **The fingerprint is index-sensitive and needs no analysis.** For every
+  crease of the planner's own input (`precreaseInputFromTransport`, so it
+  covers exactly what the planner is handed — a field added to
+  `PrecreaseInput` does not compile until it is covered) that reaches into
+  the sheet's box padded by 4e-3 of its side — twice the planner's
+  `SNAP_RADIUS`, which is how far past a nearly rectangular border the
+  planner still counts a crease as the sheet's — it takes the crease's
+  document index, endpoints and colour, through the same 64-bit digest the
+  folded-figure fingerprint uses (`lib/keyDigest.ts`). Unlike that one it is
+  not sorted-and-order-free: a plan names creases by document index, so a
+  renumbering must miss. Over-including only ever costs a replan. Not needing
+  the frames analysis is what lets a save drop entries the saved geometry
+  can never match.
+- **The frame is part of the sheet's identity.** A plan's coordinates are
+  mapped through the sheet's frame on restore, and two sheets can share a box
+  (a square and the diamond on its edge midpoints) but never a frame. Slots
+  are box + frame.
+- **A document whose sheets overlap is never cached.** Which sheet owns a
+  crease in the overlap follows the numbering of creases anywhere in the
+  document, so no one sheet's fingerprint can vouch for its plan.
+- **`planner` names the planner by its source.** `vite.config.ts` stamps in a
+  digest of `crates/oristudio-precrease{,-wasm}/src` (path separators and line
+  endings normalised, so a Windows desktop build of a commit agrees with the
+  web build of it). Not the version alone: the web deploys on every merge,
+  the version moves only at release, and planner changes that alter what a
+  plan *means* landed between releases (`f516cd226`, which creases a plan
+  folds; `714f1f5ac`, how a rotated sheet is framed). Not the commit either,
+  which would discard every saved plan on merges that never touched the
+  planner. `REFERENCES_PLAN_WIRE_VERSION` remains only for this cache's own
+  envelope.
+- **Every setting is classified once** (`referencesSettingsFields.ts`, checked
+  against `ReferencesSettings` field for field): a new setting does not
+  compile until it says whether it changes the plan, and from then on it is
+  in the key and in the reader state.
 - **The record's own duration rides along** (`durationMs`), so a restored
   plan reports what its run took, not a number made up on restore.
 - **Trimmed before encoding.** `diagnostics.elapsed_ms` is zeroed (it is the
@@ -132,9 +152,15 @@ interface ReferencesPlanCacheKey {
 - **Encoded when the plan lands**, off the critical path (fflate is lazy-loaded,
   as `paperExport/zipPages.ts` does); a save awaits anything still encoding.
   Chosen ways live beside the payload, so switching a way never re-encodes.
-- **Capped** at 1 MiB of payload: entries are kept most recently viewed first
-  until the next would pass the cap. An entry larger than the cap on its own is
-  not persisted (the plan still shows; reopening replans it).
+- **Capped** at 1 MiB of payload, least recently viewed first out: the first
+  entry that does not fit ends the list, so a plan the reader looked at is
+  never dropped to keep an older, smaller one. An entry larger than the cap on
+  its own is not persisted (the plan still shows; reopening replans it).
+- **Another build's plan is kept.** A miss leaves the entry; a save keeps an
+  entry from another planner while its creases are unchanged (or when its
+  fingerprint is another algorithm's, for that build to judge), so a file
+  passed between the desktop release and the web app keeps each one's plan.
+  This build's replan of the sheet takes the slot.
 - **The key is a small exported value** (`ReferencesPlanCacheKey`,
   `referencesPlanCacheKeyId`) and every planned sheet carries its own
   (`ReferencesPlanComponent.cacheKey`), so the Diagram workspace's
@@ -161,6 +187,25 @@ miss changes nothing.
 The cache lookup is synchronous, so a sheet with nothing cached starts its run
 in the same tick as before; only a hit goes async (unpack, map into model
 space).
+
+### When a format changes
+
+What happens when a file saved by one build is opened by another:
+
+| What changed | What the reader sees |
+| --- | --- |
+| The planner's code (any edit under `crates/oristudio-precrease{,-wasm}/src`) | `planner` differs: the sheet replans. Settings, mode, sheet and card (by its line) come back; chosen ways do not, since they named the old plan's ids. |
+| The cache envelope (`ReferencesCachedPlan`, trimming, key fields) | Bump `REFERENCES_PLAN_WIRE_VERSION`: as above. |
+| A payload damaged, edited, or unreadable despite a matching key | `decodeCachedPlan` checks every step field the panel reads without a fallback, and the restore rehearses the strip and the open card before installing; either failing forgets the entry and replans, and nothing is written back. |
+| A new plan-affecting setting | Does not compile until classified; once it is, old entries lack it and fail validation (replan). |
+| The reader-state record | Additive fields are optional; a `v: 2` must keep reading `v: 1` — it is the user's, never dropped for being old. |
+| The kernel's numbering, colours or endpoints | The fingerprint misses: replan. It cannot falsely match, since it covers the planner's whole input over a padded box. |
+| The frames analysis (corners move within tolerance) | The reader's sheet is still found (box within `SNAP_RADIUS`, frame as tie-break); the cache misses only if the planner changed too, which it then did. |
+| A pre-feature build re-saves the file | Both records are dropped (an older reader never names them); the next open plans as before. Accepted, as `superset-features.md` §2 describes. |
+
+Saving never fails over References: the reader state and the cache are
+computed inside a `try`, and a plan that cannot be read for the card leaves
+the card out.
 
 ### Analytics
 
@@ -210,6 +255,35 @@ entry for the sheet. Whether the cache earns its bytes, and why it misses.
 - [x] Analytics event and docs
 - [x] Lint, typecheck, tests (Node 22, web workspace)
 - [x] Browser: save a planned crane, reopen, same plan without a planner run
+
+## Format-change hardening (2026-10-03)
+
+An audit traced eight format-change scenarios against the first version of
+this cache (one tracer and two refuting verifiers each). What it found, and
+what changed:
+
+- **High:** the key moved only with the release, so a planner change merged
+  between releases (it has happened) was a hit; a stale shape could crash the
+  panel on every visit, and `referencesReaderStateFor` could make every
+  `.osf` save throw. → planner source digest; deep payload check; restore
+  rehearsal; forget on failure; save guarded.
+- **Medium:** the fingerprint's 1e-6 slack missed creases the planner counts
+  as the sheet's (reproduced with the real planner); identical-box sheets
+  shared a slot; overlap ownership; a restored card crossing into another
+  document; new settings compiling outside the key. → 4e-3 pad over the
+  planner's input; frame in the key; overlapping documents uncached;
+  `takeReferencesRestoredCard(loadSerial)`; the settings table.
+- **Low:** LRU order, `±(n, d)` lines, a looser box for the reader's sheet,
+  other builds' entries kept.
+
+- [x] Planner source digest in the key (`vite.config.ts`, `appBuildInfo.ts`)
+- [x] Fingerprint over the planner input, padded, through `keyDigest`
+- [x] Frame in the key; overlapping documents uncached
+- [x] Deep payload validation, checked against real planner output
+- [x] Restore rehearsal, forget on failure, save never throws
+- [x] Restored card bound to its document; settings table
+- [x] Browser: same build hits; another build's plan replans with the
+      reader state; a damaged payload replans and is not written back
 
 ## Verified in the browser (crane.osf, 11 sheets, 2026-10-02)
 

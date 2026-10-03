@@ -18,20 +18,22 @@ import {
   comparePlanCacheKeys,
   encodeCachedPlan,
   REFERENCES_PLAN_CACHE_MAX_CHARS,
-  REFERENCES_PLANNER_BUILD,
+  samePlanSheet,
   sheetFingerprint,
   type ReferencesCachedPlan,
   type ReferencesPlanCacheKey,
   type ReferencesPlanCacheOutcome,
   type ReferencesPlanCacheV1,
 } from './referencesPlanCache';
-import { sameSheetBounds } from './referencesSheets';
+import { precreaseInputFromTransport } from './sheetFrames';
 
 interface CacheEntry {
   key: ReferencesPlanCacheKey;
   ways: Record<string, string>;
   /** Null while the plan is still being packed; see `pending`. */
   payload: string | null;
+  /** Fields of a file's entry this build does not know, written back as read. */
+  rest?: Record<string, unknown>;
 }
 
 interface CacheState {
@@ -52,17 +54,24 @@ function entriesOf(loadSerial: number): CacheEntry[] {
   return state.entries;
 }
 
+/** A sheet's slot: one entry per box and frame, whichever planner made it. */
 function indexOfSheet(entries: readonly CacheEntry[], key: ReferencesPlanCacheKey): number {
-  return entries.findIndex((entry) => sameSheetBounds(entry.key.sheet.bounds, key.sheet.bounds));
+  return entries.findIndex((entry) => samePlanSheet(entry.key.sheet, key.sheet));
 }
 
-/** Most recent first, as many as fit under the cap; an entry still packing costs nothing yet. */
+/**
+ * The most recently viewed entries that fit under the cap together, in order:
+ * the first that does not fit ends the list, so a plan the reader looked at is
+ * never dropped to keep an older one. An entry too large ever to fit is skipped
+ * rather than ending it; one still packing costs nothing yet.
+ */
 function capped(entries: readonly CacheEntry[]): CacheEntry[] {
   const kept: CacheEntry[] = [];
   let total = 0;
   for (const entry of entries) {
     const size = entry.payload?.length ?? 0;
-    if (total + size > REFERENCES_PLAN_CACHE_MAX_CHARS) continue;
+    if (size > REFERENCES_PLAN_CACHE_MAX_CHARS) continue;
+    if (total + size > REFERENCES_PLAN_CACHE_MAX_CHARS) break;
     total += size;
     kept.push(entry);
   }
@@ -79,10 +88,11 @@ export function installReferencesPlanCache(
 ): void {
   state = {
     loadSerial,
-    entries: (cache?.entries ?? []).map((entry) => ({
-      key: entry.key,
-      ways: { ...entry.ways },
-      payload: entry.payload,
+    entries: (cache?.entries ?? []).map(({ key, ways, payload, ...rest }) => ({
+      key,
+      ways: { ...ways },
+      payload,
+      rest,
     })),
     pending: new Set(),
   };
@@ -127,9 +137,12 @@ export type ReferencesPlanCacheLookup =
 
 /**
  * The cached plan for the sheet `key` names, if it is the plan wanted; null
- * when the sheet has no entry, or none packed yet. A sheet whose entry is not
- * the plan wanted loses it — it can never be wanted again, and the replan that
- * follows takes its place — and a hit becomes the most recently viewed.
+ * when the sheet has no entry, or none packed yet. A hit becomes the most
+ * recently viewed.
+ *
+ * A miss leaves the entry where it is. It may be another build's plan — the
+ * desktop release's, say, in a file the web app is reading — which that build
+ * can still show; and the replan that follows a miss takes its slot anyway.
  */
 export function lookupReferencesPlan(
   loadSerial: number,
@@ -141,26 +154,31 @@ export function lookupReferencesPlan(
   const entry = entries[at];
   if (entry.payload === null) return null;
   const outcome = comparePlanCacheKeys(entry.key, key);
-  entries.splice(at, 1);
   if (outcome !== 'hit') return { outcome };
+  entries.splice(at, 1);
   entries.unshift(entry);
   return { outcome, payload: entry.payload, ways: { ...entry.ways } };
 }
 
-/** The sheet's plan could not be read after all: forget it. */
+/**
+ * The sheet's plan could not be read after all: forget it. Only in the
+ * document it came from — a late answer about the last document must not
+ * start this one's table afresh.
+ */
 export function forgetReferencesPlan(loadSerial: number, key: ReferencesPlanCacheKey): void {
-  const entries = entriesOf(loadSerial);
-  const at = indexOfSheet(entries, key);
-  if (at >= 0) entries.splice(at, 1);
+  if (state.loadSerial !== loadSerial) return;
+  const at = indexOfSheet(state.entries, key);
+  if (at >= 0) state.entries.splice(at, 1);
 }
 
-/** The reader chose a way: keep the choices with the plan they name. */
+/** The reader chose a way: keep the choices with the plan they name, in that plan's document. */
 export function setReferencesPlanWays(
   loadSerial: number,
   key: ReferencesPlanCacheKey,
   ways: Record<string, string>
 ): void {
-  const entries = entriesOf(loadSerial);
+  if (state.loadSerial !== loadSerial) return;
+  const entries = state.entries;
   const entry = entries[indexOfSheet(entries, key)];
   if (entry && comparePlanCacheKeys(entry.key, key) === 'hit') entry.ways = { ...ways };
 }
@@ -168,9 +186,13 @@ export function setReferencesPlanWays(
 /**
  * The cache to write with document `loadSerial`'s creases, or null for none.
  *
- * Waits for plans still being packed. Drops what can never be a hit again:
- * an entry from another planner, and one whose sheet's creases, as they are
- * being saved, are not the ones it was planned from. Then the cap.
+ * Waits for plans still being packed. Drops what no build could ever show
+ * again: an entry whose sheet's creases, as they are being saved, are not the
+ * ones it was planned from. Another planner's entry is kept when it passes
+ * that — it is that build's plan, for when the file goes back to it — and one
+ * whose fingerprint this build cannot recompute (another algorithm, by its
+ * prefix) is kept for that build to judge. Then the cap, which sinks whatever
+ * nobody views to the end and off it.
  */
 export async function referencesPlanCacheForSave(
   loadSerial: number,
@@ -182,18 +204,25 @@ export async function referencesPlanCacheForSave(
   const owner = state;
   await Promise.all([...owner.pending]);
   if (state !== owner) return null;
-  const live = owner.entries.filter(
-    (entry) =>
-      entry.payload !== null &&
-      entry.key.planner === REFERENCES_PLANNER_BUILD &&
-      entry.key.sheet.fingerprint === sheetFingerprint(geometry, entry.key.sheet.bounds)
-  );
+  const input = precreaseInputFromTransport(geometry);
+  const live = owner.entries.filter((entry) => {
+    if (entry.payload === null) return false;
+    const fingerprint = sheetFingerprint(input, entry.key.sheet.bounds);
+    const comparable = fingerprintAlgorithm(entry.key.sheet.fingerprint) === fingerprintAlgorithm(fingerprint);
+    return !comparable || entry.key.sheet.fingerprint === fingerprint;
+  });
   const entries = capped(live).map((entry) => ({
+    ...entry.rest,
     key: entry.key,
     ways: { ...entry.ways },
     payload: entry.payload ?? '',
   }));
   return entries.length > 0 ? { v: 1, entries } : null;
+}
+
+/** The algorithm a fingerprint names in its prefix (`keyDigest`). */
+function fingerprintAlgorithm(fingerprint: string): string {
+  return fingerprint.slice(0, fingerprint.indexOf(':') + 1);
 }
 
 /** For tests: forget everything. */

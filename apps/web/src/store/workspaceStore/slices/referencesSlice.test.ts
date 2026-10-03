@@ -17,8 +17,10 @@ beforeEach(() => {
 });
 
 describe('restoredReferencesState', () => {
-  it('leaves everything as it is for a file that says nothing', () => {
-    expect(restoredReferencesState(null, 3, DEFAULT_REFERENCES_SETTINGS)).toEqual({});
+  it('leaves everything as it is for a file that says nothing, but what the last open restored', () => {
+    expect(restoredReferencesState(null, 3, DEFAULT_REFERENCES_SETTINGS)).toEqual({
+      referencesRestore: null,
+    });
   });
 
   it('takes the file’s settings over the session’s, and the rest as it was saved', () => {
@@ -59,10 +61,17 @@ describe('the restore record', () => {
   });
 
   it('hands the card over once', () => {
-    expect(useWorkspaceStore.getState().takeReferencesRestoredCard()).toEqual(SAVED.activeCard);
-    expect(useWorkspaceStore.getState().takeReferencesRestoredCard()).toBeNull();
+    expect(useWorkspaceStore.getState().takeReferencesRestoredCard(3)).toEqual(SAVED.activeCard);
+    expect(useWorkspaceStore.getState().takeReferencesRestoredCard(3)).toBeNull();
     // The record itself stays, so the open is still known to have restored a mode.
     expect(restore()?.loadSerial).toBe(3);
+  });
+
+  // A card saved with one file names a line, and another file's plan can have
+  // a fold on that line: handed over, it would open the other file mid-plan.
+  it('hands the card only to the document it was restored for', () => {
+    expect(useWorkspaceStore.getState().takeReferencesRestoredCard(4)).toBeNull();
+    expect(restore()?.card).toEqual(SAVED.activeCard);
   });
 
   it('ends when the reader picks a sheet themselves', () => {

@@ -1322,7 +1322,17 @@ describe('native project file', () => {
               allowDanglingFolds: false,
               mergeSymmetricSteps: false,
             },
-            sheet: { bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 }, fingerprint: '12:1f' },
+            sheet: {
+              bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 },
+              frame: {
+                origin: [-200, 200] as [number, number],
+                x_axis: [1, 0] as [number, number],
+                y_axis: [0, -1] as [number, number],
+                width: 400,
+                height: 400,
+              },
+              fingerprint: 'ps1:000000000000001f',
+            },
           },
           ways: { '17': 'O2:c0,p4:0' },
           payload: 'H4sIAAAAAAAAA6uuBQBDv6ajAgAAAA==',
@@ -1407,6 +1417,10 @@ describe('native project file', () => {
       raw.workspace.creasePattern.viewState.references.settings.precreaseGrid = 'yes';
       raw.workspace.creasePattern.viewState.references.sheet = { bounds: { minX: 'a' } };
       raw.artifacts.references.value.entries.push({ key: { planner: 3 }, payload: 'x' });
+      // A key without the sheet's frame names no sheet this build can tell apart.
+      const frameless = structuredClone(raw.artifacts.references.value.entries[0]);
+      delete frameless.key.sheet.frame;
+      raw.artifacts.references.value.entries.push(frameless);
       const parsed = reopen(JSON.stringify(raw));
       const references = parsed.workspace.creasePattern?.viewState.references;
       expect(references?.settings).not.toHaveProperty('precreaseGrid');

@@ -71,7 +71,11 @@ const SETTINGS = {
 const CACHE_KEY: ReferencesPlanCacheKey = {
   planner: REFERENCES_PLANNER_BUILD,
   settings: SETTINGS,
-  sheet: { bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 }, fingerprint: '3:abc' },
+  sheet: {
+    bounds: { minX: -200, minY: -200, maxX: 200, maxY: 200 },
+    frame: { origin: [-200, 200], x_axis: [1, 0], y_axis: [0, -1], width: 400, height: 400 },
+    fingerprint: 'ps1:0000000000000abc',
+  },
 };
 const variant = { sequence, model: {} as ReferencesPlanModel };
 const plan: ReferencesPlanRecord = {

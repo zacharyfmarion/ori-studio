@@ -26,14 +26,20 @@ import type { PrecreasePlanLine } from './precreaseSequence';
 import { flatPlanSteps, planIsForSheet } from './referencesBreakdown';
 import type { ReferencesFrames, ReferencesPlanRecord, ReferencesPlanVariant } from './referencesResults';
 import { referencesViewSteps, type ReferencesViewStep } from './referencesSequenceView';
-import { sameSheetBounds, sheetBounds } from './referencesSheets';
+import { REFERENCES_SETTING_KEYS } from './referencesSettingsFields';
+import { sameSheetBounds, sameSheetFrame, sheetBounds } from './referencesSheets';
 import type { ModelBounds } from './referencesStepGeometry';
 import { presentedVariants } from './referencesWays';
-import type { SheetAnalysis } from './sheetFrames';
+import type { PrecreaseFrame, SheetAnalysis } from './sheetFrames';
 
 /** A sheet, by where it is. */
 export interface ReferencesSheetLocator {
   bounds: ModelBounds;
+  /**
+   * How it was framed: what tells apart two sheets with one box (a square and
+   * the diamond on its edge midpoints). Absent when it was not known.
+   */
+  frame?: PrecreaseFrame;
 }
 
 /** A card of the sequence, by the fold it makes. */
@@ -81,23 +87,40 @@ export function revisionIsOfLoad(revision: string, loadSerial: number): boolean 
   return revision.startsWith(`${loadSerial}:`);
 }
 
-/** The sheet of `frames` at `locator`'s bounds, or null when there is none there now. */
+/**
+ * How far a saved sheet's box may have moved and still be that sheet, as a
+ * share of its size: the planner's `SNAP_RADIUS` (2e-3,
+ * `crates/oristudio-precrease/src/tol.rs`). A file is read back by builds whose
+ * analysis may find the corners a little differently; two different sheets'
+ * boxes are never this close unless one lies on the other, and then the frame
+ * decides.
+ */
+const SHEET_LOCATOR_SLACK = 2e-3;
+
+/**
+ * The sheet of `frames` at `locator`'s box, or null when there is none there
+ * now: the one framed as it was when there are two, else the first.
+ */
 export function locateSheet(frames: SheetAnalysis, locator: ReferencesSheetLocator): number | null {
-  const found = frames.components.find((component) => {
+  const near = frames.components.filter((component) => {
     const bounds = sheetBounds(component);
-    return bounds !== null && sameSheetBounds(bounds, locator.bounds);
+    return bounds !== null && sameSheetBounds(bounds, locator.bounds, SHEET_LOCATOR_SLACK);
   });
-  return found?.id ?? null;
+  const framed = locator.frame
+    ? near.find((component) => component.frame && sameSheetFrame(component.frame, locator.frame!))
+    : undefined;
+  return (framed ?? near[0])?.id ?? null;
 }
 
 const LINE_SLACK = 1e-9;
 
+/** The same line, either way round: `n · p = d` and `-n · p = -d` are one line. */
 function sameLine(a: PrecreasePlanLine, b: PrecreasePlanLine): boolean {
-  return (
-    Math.abs(a.n[0] - b.n[0]) <= LINE_SLACK &&
-    Math.abs(a.n[1] - b.n[1]) <= LINE_SLACK &&
-    Math.abs(a.d - b.d) <= LINE_SLACK
-  );
+  const near = (sign: 1 | -1) =>
+    Math.abs(a.n[0] - sign * b.n[0]) <= LINE_SLACK &&
+    Math.abs(a.n[1] - sign * b.n[1]) <= LINE_SLACK &&
+    Math.abs(a.d - sign * b.d) <= LINE_SLACK;
+  return near(1) || near(-1);
 }
 
 /** The lines a card folds: its step's, and its twin's when it has one. */
@@ -180,14 +203,25 @@ export interface ReferencesReaderStateSource {
 }
 
 function sameSettings(a: ReferencesSettings, b: ReferencesSettings): boolean {
-  return (
-    a.candidateCount === b.candidateCount &&
-    a.includeApproximate === b.includeApproximate &&
-    a.precreaseGrid === b.precreaseGrid &&
-    a.gridWhereNeeded === b.gridWhereNeeded &&
-    a.allowDanglingFolds === b.allowDanglingFolds &&
-    a.mergeSymmetricSteps === b.mergeSymmetricSteps
-  );
+  return REFERENCES_SETTING_KEYS.every((key) => a[key] === b[key]);
+}
+
+/**
+ * The open card of `plan`, or null when there is none to name — and null, too,
+ * when the plan cannot be read as this build reads one. Saving a project must
+ * never fail over where the reader was in References; at worst it forgets.
+ */
+function activeCardOf(
+  plan: ReferencesPlanRecord,
+  view: ReferencesView
+): ReferencesCardLocator | null {
+  try {
+    const { variants, viewSteps } = planStrip(plan, view);
+    const index = Math.max(0, Math.min(viewSteps.length - 1, view.activeStep));
+    return cardLocatorAt(variants, viewSteps, index);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -209,7 +243,7 @@ export function referencesReaderStateFor(
       ? source.frames.analysis.components.find((entry) => entry.id === source.selectedSheet)
       : undefined;
     const bounds = component ? sheetBounds(component) : null;
-    sheet = bounds ? { bounds } : null;
+    sheet = bounds ? { bounds, ...(component?.frame ? { frame: component.frame } : {}) } : null;
   }
 
   let activeCard: ReferencesCardLocator | null = restore?.card ?? null;
@@ -222,9 +256,7 @@ export function referencesReaderStateFor(
     revisionIsOfLoad(plan.revision, source.loadSerial) &&
     planIsForSheet(plan, source.selectedSheet)
   ) {
-    const { variants, viewSteps } = planStrip(plan, source.view);
-    const index = Math.max(0, Math.min(viewSteps.length - 1, source.view.activeStep));
-    activeCard = cardLocatorAt(variants, viewSteps, index);
+    activeCard = activeCardOf(plan, source.view);
   }
 
   const state: ReferencesReaderStateV1 = {
