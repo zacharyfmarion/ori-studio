@@ -100,6 +100,7 @@ export function readSceneLineRole(value: unknown): PaperLineRole | null {
     value === 'valley' ||
     value === 'diagram-mountain' ||
     value === 'diagram-valley' ||
+    value === 'diagram-hidden' ||
     value === 'aux'
     ? value
     : null;

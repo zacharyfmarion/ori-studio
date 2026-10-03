@@ -67,11 +67,21 @@ const PRIMITIVE_KINDS: ReadonlySet<string> = new Set<StepDiagramPrimitive['kind'
   'line',
   'arc',
   'fold-arrow',
+  'one-way-arrow',
+  'push-arrow',
+  'rotate',
   'turn-over',
   'region',
   'point',
   'label',
 ]);
+
+/** The values each enumerated field of a primitive takes; another is a newer build's. */
+const PRIMITIVE_ENUMS: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
+  'one-way-arrow': { fold: ['valley', 'mountain'] },
+  rotate: { amount: ['eighth', 'quarter', 'half'], direction: ['cw', 'ccw'] },
+  'turn-over': { axis: ['vertical', 'horizontal'] },
+};
 
 export type StepDiagramModelRead =
   | { status: 'ok'; model: StepDiagramModel }
@@ -94,16 +104,18 @@ export function validateStepDiagramModel(value: unknown): StepDiagramModelRead {
   // where a primitive of a kind this build knows looks wrong to it.
   if (raw.some(isNewerPrimitive)) return { status: 'unknown' };
   const primitives: StepDiagramPrimitive[] = [];
-  const counts = { label: 0, 'fold-arrow': 0, point: 0 };
+  const counts = { label: 0, arrow: 0, point: 0 };
   for (const entry of raw) {
     const primitive = readPrimitive(entry);
     if (!primitive) return MALFORMED;
-    if (primitive.kind in counts) counts[primitive.kind as keyof typeof counts] += 1;
+    if (primitive.kind === 'label' || primitive.kind === 'point') counts[primitive.kind] += 1;
+    // Every arrow and glyph is drawn by its shapes: one cap for them all.
+    else if (ARROW_KINDS.has(primitive.kind)) counts.arrow += 1;
     primitives.push(primitive);
   }
   if (
     counts.label > STEP_DIAGRAM_MAX_LABELS ||
-    counts['fold-arrow'] > STEP_DIAGRAM_MAX_ARROWS ||
+    counts.arrow > STEP_DIAGRAM_MAX_ARROWS ||
     counts.point > STEP_DIAGRAM_MAX_POINTS ||
     counts.label * primitives.length > STEP_DIAGRAM_MAX_LABEL_WORK
   ) {
@@ -120,10 +132,18 @@ export function storedStepDiagramModel(model: StepDiagramModel): StepDiagramMode
 
 const MALFORMED: StepDiagramModelRead = { status: 'malformed' };
 
+const ARROW_KINDS: ReadonlySet<string> = new Set(['fold-arrow', 'one-way-arrow', 'push-arrow', 'rotate']);
+
 /** A primitive whose `kind`, or whose `style` for a kind that has one, this build does not know. */
 function isNewerPrimitive(value: unknown): boolean {
   if (!isRecord(value) || typeof value.kind !== 'string') return false;
   if (!PRIMITIVE_KINDS.has(value.kind)) return true;
+  const enums = PRIMITIVE_ENUMS[value.kind];
+  if (enums) {
+    for (const [field, values] of Object.entries(enums)) {
+      if (typeof value[field] === 'string' && !values.includes(value[field])) return true;
+    }
+  }
   if (typeof value.style !== 'string') return false;
   switch (value.kind) {
     case 'line':
@@ -184,9 +204,28 @@ function readPrimitive(value: unknown): StepDiagramPrimitive | null {
       const out = readArc(value.out);
       return out ? { kind: 'fold-arrow', out } : null;
     }
+    case 'one-way-arrow': {
+      const out = readArc(value.out);
+      const fold = value.fold === 'valley' || value.fold === 'mountain' ? value.fold : null;
+      return out && fold ? { kind: 'one-way-arrow', out, fold } : null;
+    }
+    case 'push-arrow': {
+      const from = readPoint(value.from);
+      const to = readPoint(value.to);
+      return from && to ? { kind: 'push-arrow', from, to } : null;
+    }
+    case 'rotate': {
+      const at = readPoint(value.at);
+      const amount =
+        value.amount === 'eighth' || value.amount === 'quarter' || value.amount === 'half' ? value.amount : null;
+      const direction = value.direction === 'cw' || value.direction === 'ccw' ? value.direction : null;
+      return at && amount && direction ? { kind: 'rotate', at, amount, direction } : null;
+    }
     case 'turn-over': {
       const at = readPoint(value.at);
-      return at ? { kind: 'turn-over', at } : null;
+      if (!at) return null;
+      if (value.axis === undefined) return { kind: 'turn-over', at };
+      return value.axis === 'vertical' || value.axis === 'horizontal' ? { kind: 'turn-over', at, axis: value.axis } : null;
     }
     case 'region': {
       if (!Array.isArray(value.corners) || value.corners.length < 3) return null;

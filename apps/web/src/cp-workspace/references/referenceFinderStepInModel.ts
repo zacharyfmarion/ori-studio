@@ -103,8 +103,18 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
         if (out) primitives.push({ kind: 'fold-arrow', out });
         break;
       }
+      case 'one-way-arrow': {
+        const out = mapArc(primitive.out);
+        if (out) primitives.push({ kind: 'one-way-arrow', out, fold: primitive.fold });
+        break;
+      }
+      case 'push-arrow':
+        primitives.push({ kind: 'push-arrow', from: map(primitive.from), to: map(primitive.to) });
+        break;
       case 'turn-over':
-        primitives.push({ kind: 'turn-over', at: map(primitive.at) });
+      case 'rotate':
+        // Drawn in screen space: only its place moves.
+        primitives.push({ ...primitive, at: map(primitive.at) });
         break;
       case 'region':
         primitives.push({ kind: 'region', corners: primitive.corners.map(map) });

@@ -91,12 +91,40 @@ export type StepDiagramPrimitive =
    */
   | { kind: 'fold-arrow'; out: DiagramArc }
   /**
+   * A fold that is made and kept: the paper goes over along `out` and stays.
+   * The head says which way (Yoshizawa–Randlett): a valley fold's is the
+   * fold-and-unfold arrow's filled head, a mountain fold's one-sided and
+   * hollow. Its size is the drawing's, as the fold arrow's is.
+   */
+  | { kind: 'one-way-arrow'; out: DiagramArc; fold: 'valley' | 'mountain' }
+  /**
+   * Push here — a squash, a sink, a reverse fold's push: a straight hollow
+   * arrow with a cleft tail, from `from` to its tip at `to`. Its width is the
+   * drawing's.
+   */
+  | { kind: 'push-arrow'; from: readonly [number, number]; to: readonly [number, number] }
+  /**
+   * Turn the model round in its plane, centred on `at`: a circle of two
+   * arrows going the way it turns, and how far, as a fraction of a turn. Its
+   * size is the drawing's, and it is drawn in screen space, as the turn-over
+   * glyph is.
+   */
+  | {
+      kind: 'rotate';
+      at: readonly [number, number];
+      amount: 'eighth' | 'quarter' | 'half';
+      direction: 'cw' | 'ccw';
+    }
+  /**
    * The turn-over glyph, centred on `at`.
    *
    * Its size is the drawing's, not the model's — the same reason a fold arrow
-   * carries only its outgoing arc.
+   * carries only its outgoing arc. `axis` is the one the model turns about:
+   * a vertical axis (the default, and every References step's) turns it left
+   * to right and draws the glyph as it is; a horizontal one turns it top to
+   * bottom and draws the glyph a quarter turn round.
    */
-  | { kind: 'turn-over'; at: readonly [number, number] }
+  | { kind: 'turn-over'; at: readonly [number, number]; axis?: 'vertical' | 'horizontal' }
   /**
    * A stretch of the paper a step works in, as a light fill under the lines:
    * the band a grid step's lines are made in, between the bounds the folder

@@ -449,6 +449,16 @@ describe('lines', () => {
     ]);
   });
 
+  it('draws a hidden line in the edge’s pen, dotted', () => {
+    const style: PaperStyle = {
+      ...DEFAULT_PAPER_STYLE,
+      edges: { width: 0.8, color: '#123456', dash: null, cap: 'round' },
+    };
+    expect(lines(paint(sceneOf([line('diagram-hidden', [0, 10], [100, 10])]), style).svg)).toMatchObject([
+      { stroke: '#123456', 'stroke-width': '0.80', 'stroke-dasharray': '0.80 1.60', 'stroke-linecap': 'butt' },
+    ]);
+  });
+
   it('keeps a simulation’s valley in the fold pen while a step’s takes the diagram-crease pen', () => {
     const style: PaperStyle = {
       ...DEFAULT_PAPER_STYLE,

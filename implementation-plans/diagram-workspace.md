@@ -2239,12 +2239,20 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 
 ### Phase 7: annotate
 
-- [ ] **7a.** New shared primitives, as their own series with References goldens:
+- [x] **7a.** New shared primitives, as their own series with References goldens:
   - the one-way valley and mountain arrows;
   - push (straight, hollow, cleft-tailed);
   - rotate (fraction and sense);
   - turn-over with an axis;
   - the `diagram-hidden` line role (package, painter, validator).
+  - **As built.**
+    - `StepDiagramPrimitive` gains `one-way-arrow` (`out`, `fold: valley | mountain`), `push-arrow` (`from`, `to`) and `rotate` (`at`, `amount`, `direction`), and `turn-over` an optional `axis`. Their geometry is in `stepDiagramGeometry.ts` (`oneWayArrow`, `halfArrowheadPath`, `pushArrowOutline`, `rotateGlyph`), their sizes in ink in `diagramInk.ts` (`DIAGRAM_PUSH_INK`, `DIAGRAM_ROTATE_INK`), and `diagramShapes` draws them on screen and in files, through the paper and ground clip pair as the fold arrow is.
+    - A valley's head is the fold arrow's filled head on the shaft's end, which stops at its notch. A mountain's is one barb, outlined, on the outside of the curve, 1.8 times as wide as a filled head's barb: at a filled head's width the outline read as a sliver.
+    - A push arrow is hollow: the paper's face inside, the arrow's pen round it, solid, and it shrinks whole when it is shorter than its head and cleft.
+    - The rotate glyph is two 140° arrows going the way the model turns, clockwise on the page whatever the paper's handedness, with "1/8", "1/4" or "1/2" inside. A horizontal turn-over is the glyph a quarter turn round.
+    - `diagram-hidden` is the edge's pen, dotted (`[1, 2]`, butt): the style has no pen of its own for one. It is in the package's `PaperLineRole`, the painter's roles and `penForRole`, the scene validator, and the folded-figure ink key.
+    - The stored-model reader (`stepDiagramModelFile.ts`) reads the new kinds, counts them under the arrow cap, and reads an enumerated value it does not know (a third axis, a third of a turn) as a newer build's, as it does an unknown style.
+    - Goldens: `referencesExportTarget.test.ts` paints every new glyph front and back through the export dialog's own path (`__fixtures__/referencesGlyphsGolden.json`), checked by eye before it was frozen; the existing goldens are unchanged.
 - [ ] **7b.** The `ui/ToolRail` extraction from `CpToolRail`. Its own series; the Edit rail's computed styles match before and after.
 - [ ] **7c.** The `createGestureBracket` option to ignore CP `'document-replaced'`. Its own commit.
 - [ ] **7d.** Annotate.

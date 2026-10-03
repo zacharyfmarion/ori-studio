@@ -6,6 +6,8 @@ import type {
   SvgPoint,
 } from '../stepDiagramGeometry';
 import {
+  ARROWHEAD_MIN_STROKES,
+  ROTATE_FRACTION,
   TURN_OVER_BOX,
   TURN_OVER_HEAD_PATH,
   TURN_OVER_PATH,
@@ -18,8 +20,13 @@ import {
   foldArrowLanding,
   foldArrowTrim,
   foldReturnOffset,
+  halfArrowheadPath,
   offPaperPathData,
+  oneWayArrow,
   paperRingPoints,
+  polygonPathData,
+  pushArrowOutline,
+  rotateGlyph,
   sheetCorners,
 } from '../stepDiagramGeometry';
 import type {
@@ -30,6 +37,8 @@ import type { DiagramInlineInk, DiagramInlineStroke } from './diagramColors';
 import {
   DIAGRAM_LABEL_INK,
   DIAGRAM_LINE_INK,
+  DIAGRAM_PUSH_INK,
+  DIAGRAM_ROTATE_INK,
   DIAGRAM_SHEET_INK,
   DIAGRAM_TURN_OVER_INK,
   type DiagramPens,
@@ -63,6 +72,11 @@ import {
 
 /** The font a letter is set in when the picture leaves the app: the app's own stack, named. */
 const INLINE_LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
+
+/** The rotate glyph's heads, as a share of a fold arrow's. */
+const ROTATE_HEAD_OF_ARROWHEAD = 0.75;
+/** Where the fraction's baseline sits below the glyph's centre, in ems: a figure's middle on the centre. */
+const ROTATE_FRACTION_BASELINE = 0.36;
 
 /** Four decimals is under a device pixel at any size this is drawn at. */
 const round = (value: number) => Number(value.toFixed(4));
@@ -253,6 +267,9 @@ function outlineHash(paper: readonly SvgPoint[]): string {
 export function canLeavePaper(primitive: StepDiagramPrimitive): boolean {
   switch (primitive.kind) {
     case 'fold-arrow':
+    case 'one-way-arrow':
+    case 'push-arrow':
+    case 'rotate':
     case 'turn-over':
     case 'point':
       return true;
@@ -581,6 +598,114 @@ function diagramPrimitiveShape(
         );
       });
     }
+    case 'one-way-arrow': {
+      // The fold arrow's head and its landing on a mark; no return.
+      const head = arrowheadSize(primitive.out, project);
+      const rim = project.marks.ringRadius * project.ink;
+      const arrow = oneWayArrow(foldArrowLanding(primitive.out, context.marks, rim, project), project, head);
+      const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
+      const centre = project(primitive.out.center);
+      return onAndOffPaper(context, index, (inks) => {
+        const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+          strokeInk(ink.lines.arrow, stroke.strokeOpacity)
+        );
+        return (
+          <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
+            {arrow.shaft && <path d={arcPathData(arrow.shaft, project)} {...stroke} {...arrowInk} />}
+            {primitive.fold === 'valley' ? (
+              <path
+                d={arrowheadPath(arrow.head)}
+                {...inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }))}
+              />
+            ) : (
+              // A mountain fold's head is an outline, in the shaft's pen but solid.
+              <path
+                d={halfArrowheadPath(arrow.head, centre)}
+                {...stroke}
+                strokeDasharray={undefined}
+                strokeLinejoin="miter"
+                {...arrowInk}
+              />
+            )}
+          </g>
+        );
+      });
+    }
+    case 'push-arrow': {
+      const ink = project.ink;
+      const outline = pushArrowOutline(project(primitive.from), project(primitive.to), {
+        head: DIAGRAM_PUSH_INK.head * ink,
+        headHalf: DIAGRAM_PUSH_INK.headHalf * ink,
+        shaftHalf: DIAGRAM_PUSH_INK.shaftHalf * ink,
+        cleft: DIAGRAM_PUSH_INK.cleft * ink,
+      });
+      if (!outline) return null;
+      const d = polygonPathData(outline);
+      const stroke = strokeAttributes('arrow', ink, 1, project.pens);
+      // Hollow: the paper's face inside, so a line under it does not run
+      // through the shape, and the outline in the arrow's pen, solid.
+      return onAndOffPaper(context, index, (inks) => (
+        <g key={index} {...inked(inks, 'step-diagram__arrow', () => ({}))}>
+          <path
+            d={d}
+            stroke="none"
+            {...inked(inks, back ? 'step-diagram__sheet step-diagram__sheet--back' : 'step-diagram__sheet', (sheet) => ({
+              fill: back ? sheet.sheet.back : sheet.sheet.front,
+            }))}
+          />
+          <path
+            d={d}
+            {...stroke}
+            strokeDasharray={undefined}
+            strokeLinejoin="miter"
+            {...inked(inks, 'step-diagram__arc step-diagram__line--arrow', (line) =>
+              strokeInk(line.lines.arrow, stroke.strokeOpacity)
+            )}
+          />
+        </g>
+      ));
+    }
+    case 'rotate': {
+      const centre = project(primitive.at);
+      const radius = DIAGRAM_ROTATE_INK.radius * project.ink;
+      // A fold arrow's head, a little shorter: two of them sit on a small circle.
+      const head = Math.max(
+        ROTATE_HEAD_OF_ARROWHEAD * project.marks.arrowheadLength * project.ink,
+        ARROWHEAD_MIN_STROKES * project.pens.arrow.width * project.ink
+      );
+      const glyph = rotateGlyph(centre, radius, head, primitive.direction);
+      const stroke = strokeAttributes('arrow', project.ink, 1, project.pens);
+      const size = DIAGRAM_ROTATE_INK.fraction * project.ink;
+      return onAndOffPaper(context, index, (inks) => {
+        const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
+          strokeInk(ink.lines.arrow, stroke.strokeOpacity)
+        );
+        const headInk = inked(inks, 'step-diagram__arrowhead', (ink) => ({ fill: ink.arrowhead }));
+        return (
+          <g key={index} {...inked(inks, 'step-diagram__rotate', () => ({}))}>
+            {glyph.strokes.map((d, part) => (
+              <path key={`stroke-${part}`} d={d} {...stroke} strokeDasharray={undefined} {...arrowInk} />
+            ))}
+            {glyph.heads.map((arrowhead, part) => (
+              <path key={`head-${part}`} d={arrowheadPath(arrowhead)} {...headInk} />
+            ))}
+            <text
+              x={round(centre.x)}
+              y={round(centre.y + ROTATE_FRACTION_BASELINE * size)}
+              textAnchor="middle"
+              fontSize={round(size)}
+              {...inked(inks, 'step-diagram__rotate-fraction', (ink) => ({
+                fill: ink.arrowhead,
+                fontFamily: INLINE_LABEL_FONT,
+                fontWeight: 700,
+              }))}
+            >
+              {ROTATE_FRACTION[primitive.amount]}
+            </text>
+          </g>
+        );
+      });
+    }
     case 'region': {
       // Under the lines, over the paper: a fill, no stroke, so the band reads
       // as a stretch of the sheet and not as one more crease.
@@ -608,13 +733,15 @@ function diagramPrimitiveShape(
       const x = at.x - (TURN_OVER_BOX.width / 2) * scale;
       const y = at.y - (TURN_OVER_BOX.height / 2) * scale;
       const stroke = strokeAttributes('arrow', project.ink / scale, 1, project.pens);
+      // A horizontal axis turns the model top to bottom: the glyph a quarter turn round.
+      const turn = primitive.axis === 'horizontal' ? `rotate(90 ${round(at.x)} ${round(at.y)}) ` : '';
       // The clip is outside the glyph's own transform, in the drawing's units
       // like the paper's outline, so the glyph's group sits inside each copy.
       return onAndOffPaper(context, index, (inks) => (
         <g
           key={index}
           {...inked(inks, 'step-diagram__turn-over', () => ({}))}
-          transform={`translate(${round(x)} ${round(y)}) scale(${round(scale)})`}
+          transform={`${turn}translate(${round(x)} ${round(y)}) scale(${round(scale)})`}
         >
           <path
             d={TURN_OVER_PATH}

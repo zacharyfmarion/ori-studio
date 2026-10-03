@@ -86,6 +86,7 @@ const LINE_ROLES = [
   'valley',
   'diagram-mountain',
   'diagram-valley',
+  'diagram-hidden',
   'aux',
 ] as const satisfies readonly PaperLineRole[];
 
@@ -297,6 +298,12 @@ export function paperFaceFill(style: PaperStyle, side: PaperFaceItem['side'], sh
 }
 
 /**
+ * A hidden line's dots, in widths of the edge pen it is drawn in: the style
+ * has no pen of its own for one, and a diagram draws it as its edges, dotted.
+ */
+const HIDDEN_LINE_DASH = [1, 2];
+
+/**
  * The pen a line's role draws with, or null when the style leaves that role
  * out: aux creases are in the scene whenever the mesh carries them, and it is
  * the style that says whether they show. A pattern's mountain and valley take
@@ -315,6 +322,8 @@ export function penForRole(style: PaperStyle, role: PaperLineRole): Pen | null {
       return style.mountainDiagramCreases;
     case 'diagram-valley':
       return style.valleyDiagramCreases;
+    case 'diagram-hidden':
+      return { ...style.edges, dash: HIDDEN_LINE_DASH, cap: 'butt' };
     case 'aux':
       return style.auxCreases.visible ? style.auxCreases.pen : null;
   }

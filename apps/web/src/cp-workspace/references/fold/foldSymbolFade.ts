@@ -38,7 +38,10 @@ export function symbolAnchor(primitive: StepDiagramPrimitive): Point | null {
     case 'arc':
       return point(arcSamplePoints(primitive)[0]);
     case 'fold-arrow':
+    case 'one-way-arrow':
       return point(arcSamplePoints(primitive.out)[0]);
+    case 'push-arrow':
+      return point(primitive.from);
     case 'region': {
       const n = primitive.corners.length;
       if (n === 0) return null;
@@ -51,6 +54,7 @@ export function symbolAnchor(primitive: StepDiagramPrimitive): Point | null {
       return { x: x / n, y: y / n };
     }
     case 'turn-over':
+    case 'rotate':
     case 'point':
     case 'label':
       return point(primitive.at);

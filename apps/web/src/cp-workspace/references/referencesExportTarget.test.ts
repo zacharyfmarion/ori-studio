@@ -14,6 +14,7 @@ import {
 } from '../../paperExport/paperExportSession';
 import { paperExportDraft } from '../../paperExport/usePaperExportDialog';
 import golden from './__fixtures__/referencesStepExportGolden.json';
+import glyphsGolden from './__fixtures__/referencesGlyphsGolden.json';
 import { plannerSequenceWithGridFixture } from './__fixtures__/plannerSequence';
 import {
   canvasDiagramInk,
@@ -97,9 +98,37 @@ function target(capture: StepCapture, diagrams: readonly StepDiagramModel[] = [s
   });
 }
 
+/** Every glyph the Diagram's annotations draw, on a unit sheet with a valley across it. */
+const GLYPHS: StepDiagramModel = {
+  sheet: { width: 1, height: 1 },
+  primitives: [
+    { kind: 'sheet', width: 1, height: 1 },
+    { kind: 'line', from: [0, 0.5], to: [1, 0.5], style: 'valley' },
+    {
+      kind: 'one-way-arrow',
+      out: { center: [0.25, 0.9], radius: 0.3, from: -1.6, to: -0.6, ccw: true },
+      fold: 'valley',
+    },
+    {
+      kind: 'one-way-arrow',
+      out: { center: [0.7, 0.05], radius: 0.3, from: 1.7, to: 0.8, ccw: false },
+      fold: 'mountain',
+    },
+    { kind: 'push-arrow', from: [0.1, 0.15], to: [0.35, 0.3] },
+    { kind: 'rotate', at: [0.8, 0.8], amount: 'quarter', direction: 'cw' },
+    { kind: 'rotate', at: [0.2, 0.8], amount: 'eighth', direction: 'ccw' },
+    { kind: 'turn-over', at: [0.5, 1.05] },
+    { kind: 'turn-over', at: [1.06, 0.5], axis: 'horizontal' },
+  ],
+};
+
 /** The page the dialog saves for these remembered options, exactly as the dialog reaches it. */
-async function dialogPage(capture: StepCapture, remembered: PaperExportSettings) {
-  const exported = target(capture);
+async function dialogPage(
+  capture: StepCapture,
+  remembered: PaperExportSettings,
+  diagrams: readonly StepDiagramModel[] = [stepDiagram()]
+) {
+  const exported = target(capture, diagrams);
   const rows = paperPresetRows([]);
   const draft = paperExportDraft(remembered, { format: null }, rows);
   const style = paperExportStyle(exported, draft.style, rows);
@@ -130,6 +159,18 @@ describe('referencesExportTarget', () => {
       }
     );
     expect(page).toEqual(golden.custom);
+  });
+
+  it('draws the glyphs a Diagram’s annotations use: one-way folds, push, rotate, and a turn-over on either axis', async () => {
+    // Front and back: the arrows' arcs mirror with the paper, the glyphs drawn in page space do not.
+    for (const mirrored of [false, true]) {
+      const page = await dialogPage(
+        { mirrored, lineWidth: 1, showAux: null },
+        { ...DEFAULT_PAPER_EXPORT_SETTINGS, sheet: { mm: 80 } },
+        [GLYPHS]
+      );
+      expect(page).toEqual(mirrored ? glyphsGolden.back : glyphsGolden.front);
+    }
   });
 
   it('builds each page from its own step, and keys it by the page', async () => {

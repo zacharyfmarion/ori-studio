@@ -143,6 +143,21 @@ export const DIAGRAM_FOLD_RETURN_INK = { offset: 10.56, ofChord: 0.26 } as const
 /** The turn-over glyph's width: 42% of the paper's shorter side on a card. */
 export const DIAGRAM_TURN_OVER_INK = 40.32;
 
+/**
+ * A push arrow's hollow shape, in ink: its head's length and half-width, its
+ * shaft's half-width, and how deep its tail is cleft. Wider than a fold
+ * arrow's head, so the outline reads as a shape with an inside rather than a
+ * thick line.
+ */
+export const DIAGRAM_PUSH_INK = { head: 12, headHalf: 7.5, shaftHalf: 3.2, cleft: 4.5 } as const;
+
+/**
+ * The rotate glyph, in ink: its circle's radius, and the size of the fraction
+ * set inside it. The circle is a little larger than a mark's ring is small, so
+ * "1/8" fits inside with room to read.
+ */
+export const DIAGRAM_ROTATE_INK = { radius: 12.5, fraction: 7.2 } as const;
+
 /** The editor's crease width law: a crease is this many CSS px per unit of line width. */
 export const CP_CREASE_WIDTH_FACTOR = 1.5;
 

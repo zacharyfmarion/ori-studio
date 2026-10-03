@@ -38,6 +38,10 @@ import {
   foldArrowLanding,
   foldArrowTrim,
   foldReturnOffset,
+  halfArrowheadPath,
+  oneWayArrow,
+  pushArrowOutline,
+  rotateGlyph,
   offPaperPathData,
   onSheetBoundary,
   paperRingPoints,
@@ -981,5 +985,66 @@ describe('a projector’s marks', () => {
     const screen = createOverlayProjector(view, 1, DIAGRAM_LINE_INK, REFERENCES_VIEW_MARKS);
     expect(arrowheadSize(arc, page)).toBeCloseTo(DIAGRAM_MARKS.arrowheadLength, 9);
     expect(arrowheadSize(arc, screen)).toBeCloseTo(REFERENCES_VIEW_MARKS.arrowheadLength, 9);
+  });
+});
+
+describe('the Diagram’s glyphs', () => {
+  const close = (a: { x: number; y: number }, b: { x: number; y: number }, digits = 6) => {
+    expect(a.x).toBeCloseTo(b.x, digits);
+    expect(a.y).toBeCloseTo(b.y, digits);
+  };
+  const arc = { center: [0.5, 0.2] as const, radius: 0.4, from: 2.2, to: 0.9, ccw: false };
+
+  it('stops a one-way arrow’s stroke at its head’s notch, the tip where the stroke used to end', () => {
+    const head = arrowheadSize(arc, CARD);
+    const { shaft, head: drawn } = oneWayArrow(arc, CARD, head);
+    expect(shaft).not.toBeNull();
+    close(CARD(arcEndPoint(shaft!)), drawn.notch);
+    const tip = CARD(arcEndPoint(arc));
+    // Within a hair of the old end: how far the arc bends from its tangent over the reach, reach² / 2r.
+    const hair = arrowheadReach(head) ** 2 / (2 * arc.radius * CARD.scale);
+    expect(Math.hypot(drawn.tip.x - tip.x, drawn.tip.y - tip.y)).toBeLessThan(1.5 * hair);
+    // Too short for a shaft: the head alone.
+    expect(oneWayArrow({ ...arc, to: 2.19 }, CARD, head).shaft).toBeNull();
+  });
+
+  it('gives a mountain fold’s head one barb, on the outside of the curve, wider than a filled head’s', () => {
+    const { head } = oneWayArrow(arc, CARD, arrowheadSize(arc, CARD));
+    const centre = CARD(arc.center);
+    const path = halfArrowheadPath(head, centre);
+    const [tip, barb, notch] = [...path.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
+    close(tip!, head.tip, 2);
+    close(notch!, head.notch, 2);
+    const away = (p: { x: number; y: number }) => Math.hypot(p.x - centre.x, p.y - centre.y);
+    expect(away(barb!)).toBeGreaterThan(Math.max(...head.barbs.map(away)));
+  });
+
+  it('outlines a push arrow from its cleft tail to its tip, and shrinks it whole when it is short', () => {
+    const size = { head: 12, headHalf: 7.5, shaftHalf: 3.2, cleft: 4.5 };
+    const outline = pushArrowOutline({ x: 0, y: 0 }, { x: 100, y: 0 }, size)!;
+    expect(outline).toHaveLength(8);
+    close(outline[0]!, { x: 100, y: 0 });
+    // The head's barbs, the shaft's sides at the tail, the cleft between them.
+    expect(outline.map((p) => Math.abs(p.y))).toEqual([0, 7.5, 3.2, 3.2, 0, 3.2, 3.2, 7.5]);
+    close(outline[4]!, { x: 4.5, y: 0 });
+    const short = pushArrowOutline({ x: 0, y: 0 }, { x: 10.5, y: 0 }, size)!;
+    expect(Math.max(...short.map((p) => p.y))).toBeCloseTo(7.5 / 2, 6);
+    expect(pushArrowOutline({ x: 1, y: 1 }, { x: 1, y: 1 }, size)).toBeNull();
+  });
+
+  it('draws the rotate glyph as two arrows going the way the model turns', () => {
+    const centre = { x: 50, y: 50 };
+    for (const direction of ['cw', 'ccw'] as const) {
+      const { heads } = rotateGlyph(centre, 12, 6, direction);
+      for (const head of heads) {
+        // Each head points along the circle, the right way round: clockwise on the page is
+        // (radius × direction) pointing into the page with y down.
+        const r = { x: head.notch.x - centre.x, y: head.notch.y - centre.y };
+        const d = { x: head.tip.x - head.notch.x, y: head.tip.y - head.notch.y };
+        const turn = Math.sign(r.x * d.y - r.y * d.x);
+        expect(turn).toBe(direction === 'cw' ? 1 : -1);
+        expect(Math.hypot(r.x, r.y)).toBeCloseTo(12, 6);
+      }
+    }
   });
 });

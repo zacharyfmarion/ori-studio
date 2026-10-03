@@ -20,7 +20,11 @@ const EVERY_KIND: StepDiagramModel = {
     { kind: 'line', from: [0, 0.5], to: [1, 0], style: 'pinch-valley' },
     { kind: 'arc', center: [0.5, 0], radius: 0.25, from: 0, to: Math.PI, ccw: true, style: 'arrow' },
     { kind: 'fold-arrow', out: { center: [0.5, 0.25], radius: 0.4, from: 0.3, to: 1.2, ccw: false } },
+    { kind: 'one-way-arrow', out: { center: [0.5, 0.5], radius: 0.3, from: 0.2, to: 1.1, ccw: true }, fold: 'mountain' },
+    { kind: 'push-arrow', from: [0.1, 0.1], to: [0.3, 0.2] },
+    { kind: 'rotate', at: [0.8, 0.4], amount: 'quarter', direction: 'ccw' },
     { kind: 'turn-over', at: [0.5, 0.25] },
+    { kind: 'turn-over', at: [0.6, 0.25], axis: 'horizontal' },
     { kind: 'region', corners: [[0, 0], [1, 0], [1, 0.25]] },
     { kind: 'point', at: [0, 0.5], style: 'action' },
     { kind: 'label', at: [0, 0.5], text: 'A', style: 'normal' },
@@ -58,7 +62,13 @@ describe('validateStepDiagramModel', () => {
       ...EVERY_KIND,
       primitives: [{ kind: 'hinge' }, { kind: 'line', from: [0, 0], style: 'crease' }],
     };
-    for (const model of [newerKind, newerLine, newerPoint, newerAndBroken]) {
+    // A value of an enumerated field this build does not know is a newer build's too.
+    const newerAxis = { ...EVERY_KIND, primitives: [{ kind: 'turn-over', at: [0, 0], axis: 'diagonal' }] };
+    const newerTurn = {
+      ...EVERY_KIND,
+      primitives: [{ kind: 'rotate', at: [0, 0], amount: 'third', direction: 'cw' }],
+    };
+    for (const model of [newerKind, newerLine, newerPoint, newerAndBroken, newerAxis, newerTurn]) {
       expect(read(model)).toEqual({ status: 'unknown' });
     }
   });

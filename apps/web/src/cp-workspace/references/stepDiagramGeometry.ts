@@ -838,6 +838,149 @@ export function arrowheadPath(head: Arrowhead): string {
   return `M ${pointText(head.tip)} L ${pointText(a)} Q ${pointText(control)} ${pointText(b)} Z`;
 }
 
+/**
+ * A one-way fold arrow as drawn: the stroke, stopped where its head's notch
+ * goes, and the head on that end, so the tip lands where the stroke used to
+ * end — the fold-and-unfold arrow's rule for its return ({@link foldArrowTrim}).
+ * `head` is in the projector's units, as {@link arrowheadSize} gives it. The
+ * shaft is null for an arrow too short to have one: its head alone is drawn.
+ */
+export function oneWayArrow(
+  out: DiagramArc,
+  project: DiagramProjector,
+  head: number
+): { shaft: DiagramArc | null; head: Arrowhead } {
+  const reach = arrowheadReach(head) / project.scale;
+  if (out.radius * arcExtent(out) <= reach) {
+    return { shaft: null, head: arcArrowhead({ ...out, to: out.from }, project, head) };
+  }
+  const shaft = { ...out, to: out.to - alongArc(out, reach) };
+  return { shaft, head: arcArrowhead(shaft, project, head) };
+}
+
+/**
+ * A mountain fold's head: one barb, hollow — the tip, the barb on the outside
+ * of the curve (away from `centre`, the arc's centre in the same space), and
+ * the notch, closed, to be stroked in the arrow's pen. Its edge from the notch
+ * to the tip carries the shaft on to the point. The barb stands out
+ * {@link HALF_ARROWHEAD_SPREAD} times as far as a filled head's does: an
+ * outline with one side is thin, and has to be wide to read as a head.
+ */
+export function halfArrowheadPath(head: Arrowhead, centre: SvgPoint): string {
+  const [a, b] = head.barbs;
+  const away = (p: SvgPoint) => Math.hypot(p.x - centre.x, p.y - centre.y);
+  const outer = away(a) >= away(b) ? a : b;
+  const base = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const barb = {
+    x: base.x + (outer.x - base.x) * HALF_ARROWHEAD_SPREAD,
+    y: base.y + (outer.y - base.y) * HALF_ARROWHEAD_SPREAD,
+  };
+  return `M ${pointText(head.tip)} L ${pointText(barb)} L ${pointText(head.notch)} Z`;
+}
+
+/** How much wider a mountain fold's one barb stands than a filled head's. */
+const HALF_ARROWHEAD_SPREAD = 1.8;
+
+/** A push arrow's shape, in the drawing's units (`DIAGRAM_PUSH_INK` × the ink). */
+export interface PushArrowSize {
+  head: number;
+  headHalf: number;
+  shaftHalf: number;
+  cleft: number;
+}
+
+/**
+ * A push arrow's outline, from its tail to its tip: a straight shaft, a head
+ * wider than it, and a tail cleft in a V — eight corners, in drawing order.
+ * An arrow shorter than its head and cleft is the same shape smaller. Null
+ * when the two ends coincide.
+ */
+export function pushArrowOutline(tail: SvgPoint, tip: SvgPoint, size: PushArrowSize): SvgPoint[] | null {
+  const length = Math.hypot(tip.x - tail.x, tip.y - tail.y);
+  if (length <= 1e-9) return null;
+  const fit = Math.min(1, length / (size.head + 2 * size.cleft));
+  const head = size.head * fit;
+  const headHalf = size.headHalf * fit;
+  const shaftHalf = size.shaftHalf * fit;
+  const cleft = size.cleft * fit;
+  const u = { x: (tip.x - tail.x) / length, y: (tip.y - tail.y) / length };
+  const n = { x: -u.y, y: u.x };
+  const at = (along: number, across: number): SvgPoint => ({
+    x: tail.x + u.x * along + n.x * across,
+    y: tail.y + u.y * along + n.y * across,
+  });
+  const neck = length - head;
+  return [
+    at(length, 0),
+    at(neck, headHalf),
+    at(neck, shaftHalf),
+    at(0, shaftHalf),
+    at(cleft, 0),
+    at(0, -shaftHalf),
+    at(neck, -shaftHalf),
+    at(neck, -headHalf),
+  ];
+}
+
+/** Path data for a closed polygon. */
+export function polygonPathData(points: readonly SvgPoint[]): string {
+  return `M ${points.map(pointText).join(' L ')} Z`;
+}
+
+/**
+ * The rotate glyph about `centre`, `radius` across, in the drawing's units: a
+ * circle drawn as two arrows going the way the model turns, a gap between
+ * them, each with a fold arrow's head `head` long. Clockwise is clockwise on
+ * the page (the drawing's y is down), whatever the paper's own handedness —
+ * it is a symbol for what the folder does, as the turn-over glyph is.
+ */
+export function rotateGlyph(
+  centre: SvgPoint,
+  radius: number,
+  head: number,
+  direction: 'cw' | 'ccw'
+): { strokes: [string, string]; heads: [Arrowhead, Arrowhead] } {
+  const cw = direction === 'cw';
+  const reach = arrowheadReach(head) / Math.max(radius, 1e-9);
+  const at = (angle: number): SvgPoint => ({
+    x: centre.x + radius * Math.cos(angle),
+    y: centre.y + radius * Math.sin(angle),
+  });
+  // Two arcs of 140°, one over the middle and one under, with 40° gaps at the
+  // sides; each runs the way the model turns. Angles grow clockwise on the page.
+  const arcs: [number, number][] = [
+    [ROTATE_ARC_START, ROTATE_ARC_START + ROTATE_ARC_SWEEP],
+    [ROTATE_ARC_START + Math.PI, ROTATE_ARC_START + Math.PI + ROTATE_ARC_SWEEP],
+  ];
+  const parts = arcs.map(([a, b]) => {
+    const [from, to] = cw ? [a, b] : [b, a];
+    const end = cw ? to - reach : to + reach;
+    const notch = at(end);
+    // The direction of travel at the notch: along the tangent, the way the arc runs.
+    const travel = cw
+      ? { x: -Math.sin(end), y: Math.cos(end) }
+      : { x: Math.sin(end), y: -Math.cos(end) };
+    const start = at(from);
+    const stroke = `M ${pointText(start)} A ${fmt(radius)} ${fmt(radius)} 0 0 ${cw ? 1 : 0} ${pointText(notch)}`;
+    return { stroke, head: arrowheadAt(notch, travel, head) };
+  });
+  return {
+    strokes: [parts[0]!.stroke, parts[1]!.stroke],
+    heads: [parts[0]!.head, parts[1]!.head],
+  };
+}
+
+/** Where the rotate glyph's upper arc starts, and how far each arc sweeps (radians, clockwise on the page). */
+const ROTATE_ARC_START = (200 * Math.PI) / 180;
+const ROTATE_ARC_SWEEP = (140 * Math.PI) / 180;
+
+/** The fraction of a turn the rotate glyph names, as it is printed. */
+export const ROTATE_FRACTION: Readonly<Record<'eighth' | 'quarter' | 'half', string>> = {
+  eighth: '1/8',
+  quarter: '1/4',
+  half: '1/2',
+};
+
 /** A cubic Bézier's four control points. */
 type Cubic = readonly [SvgPoint, SvgPoint, SvgPoint, SvgPoint];
 

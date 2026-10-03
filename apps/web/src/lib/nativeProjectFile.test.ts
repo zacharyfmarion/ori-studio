@@ -691,6 +691,7 @@ describe('native project file', () => {
       'valley',
       'diagram-mountain',
       'diagram-valley',
+      'diagram-hidden',
       'aux',
     ];
     const { serialized } = roundTripCp([folded3dFigure()]);
