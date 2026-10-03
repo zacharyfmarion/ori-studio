@@ -11,7 +11,10 @@ import type { CpCaptureRuntime } from '../../diagram/capture/captureFolded';
 import { linkStatus } from '../../diagram/capture/linkStatus';
 import type { DiagramCpScope } from '../../diagram/document/diagramDocument';
 import { useWorkspaceStore } from '../workspaceStore';
-import type { DiagramCaptureRequest } from './diagramCapture';
+import { DEFAULT_DIAGRAM_STYLE, setLinkedPicture, createDiagram, insertSteps } from '../../diagram/document/diagramDocument';
+import { cpStep } from '../../diagram/document/diagramSteps.fixtures';
+import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
+import { keptPicture, type DiagramCaptureRequest } from './diagramCapture';
 
 const bindings = vi.hoisted(() => ({
   runtime: null as CpCaptureRuntime | null,
@@ -30,6 +33,12 @@ const cancellation = vi.hoisted(() => ({ foldCancellationAvailable: vi.fn(() => 
 vi.mock('../../lib/foldCancellation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/foldCancellation')>()),
   ...cancellation,
+}));
+
+// No canvas here: a bitmap of the page is a few fixed bytes.
+vi.mock('../../lib/paper/paperPng', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/paper/paperPng')>()),
+  paperSvgToPng: vi.fn(async () => new Uint8Array([137, 80, 78, 71])),
 }));
 
 const initialState = useWorkspaceStore.getInitialState();
@@ -190,5 +199,36 @@ describe('captureDiagramStep', () => {
     const stepId = state().diagram!.steps[0]!.id;
     useWorkspaceStore.setState({ diagramReadOnly: true });
     expect(await state().captureDiagramStep(stepId, linkRequest)).toEqual({ status: 'read-only' });
+  });
+});
+
+describe('a capture kept as a bitmap', () => {
+  const render = { mode: 'crease-pattern', rotationDeg: 0 } as const;
+  const overBudget = (scene = sheetWithCrease()) => ({ kind: 'over-budget' as const, scene, paperScale: 1.47 });
+
+  // Each capture minted a random id, so the same capture again was a new
+  // picture: another undo step and another multi-megabyte bitmap each time.
+  it('is named by what it draws, so the same capture again changes nothing', async () => {
+    const first = await keptPicture(overBudget(), render, DEFAULT_DIAGRAM_STYLE);
+    const again = await keptPicture(overBudget(), render, DEFAULT_DIAGRAM_STYLE);
+    expect(again.picture).toEqual(first.picture);
+    expect(again.asset?.id).toBe(first.asset?.id);
+    const step = cpStep('step-a', render, first.picture);
+    const source = step.source?.kind === 'cp' ? step.source : null;
+    if (!source) throw new Error('linked');
+    const document = insertSteps(createDiagram({ title: 'Big' }), [step], 0);
+    const withAsset = setLinkedPicture(document, 'step-a', { source, picture: first.picture, asset: first.asset });
+    expect(setLinkedPicture(withAsset, 'step-a', { source, picture: again.picture, asset: again.asset })).toBe(
+      withAsset
+    );
+  });
+
+  it('is another picture when it draws something else', async () => {
+    const first = await keptPicture(overBudget(), render, DEFAULT_DIAGRAM_STYLE);
+    const moved = sheetWithCrease();
+    const crease = moved.items.find((item) => item.kind === 'line');
+    if (crease?.kind === 'line') crease.b = [crease.b[0] + 3, crease.b[1]];
+    const other = await keptPicture(overBudget(moved), render, DEFAULT_DIAGRAM_STYLE);
+    expect(other.picture.key).not.toBe(first.picture.key);
   });
 });

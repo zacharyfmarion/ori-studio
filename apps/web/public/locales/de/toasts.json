@@ -27,6 +27,7 @@
       "missing": "Dieses Muster ist nicht mehr im Faltmuster.",
       "noLayerOrder": "Seine Lagen ließen sich nicht ordnen, daher zeigt der Schritt das gefaltete Papier durchsichtig.",
       "noPattern": "Öffne zuerst ein Faltmuster in Bearbeiten.",
+      "readOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet.",
       "refused": "Dieses Muster lässt sich nicht falten",
       "tooDetailed": "Zu detailliert, um es als Zeichnung zu behalten, daher behält der Schritt es als Bild.",
       "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."

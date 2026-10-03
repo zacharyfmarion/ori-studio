@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import {
   trackDiagramPictureCaptured,
+  trackDiagramSourceOpened,
   type DiagramCaptureKind,
   type DiagramCaptureOutcome as TrackedOutcome,
   type DiagramCaptureVia,
@@ -79,6 +80,7 @@ export function openDiagramStepInEdit(stepId: string): void {
   const { scope } = step.source;
   requestCpRegionFocus(scope.kind === 'segment' ? scope.region.bounds : scope.bounds);
   useLayoutStore.getState().activateWorkspace('edit');
+  trackDiagramSourceOpened('edit');
 }
 
 /** How a captured picture shows its pattern, for analytics. */
@@ -95,12 +97,23 @@ export function captureKind(render: DiagramCpRender): DiagramCaptureKind {
 
 /** Count what a capture came to, and say what the user needs told. */
 function report(outcome: DiagramCaptureOutcome, asked: DiagramCpRender, via: DiagramCaptureVia): void {
-  const tracked = trackedOutcome(outcome);
-  if (tracked) {
-    const render = outcome.status === 'captured' ? outcome.render : asked;
-    trackDiagramPictureCaptured(captureKind(render), tracked, via);
-  }
+  trackCapture(outcome, asked, via);
   sayCaptureOutcome(outcome);
+}
+
+/**
+ * Count what a capture came to, when it folded or drew anything: by how it
+ * shows the pattern (the folder the creases needed, not the one asked for).
+ */
+export function trackCapture(
+  outcome: DiagramCaptureOutcome,
+  asked: DiagramCpRender,
+  via: DiagramCaptureVia
+): void {
+  const tracked = trackedOutcome(outcome);
+  if (!tracked) return;
+  const render = outcome.status === 'captured' ? outcome.render : asked;
+  trackDiagramPictureCaptured(captureKind(render), tracked, via);
 }
 
 /**
@@ -151,11 +164,20 @@ export function sayCaptureOutcome(outcome: DiagramCaptureOutcome): void {
     case 'no-pattern':
       toast.error(t('toasts:diagram.capture.noPattern', 'Open a crease pattern in Edit first.'));
       return;
+    // The Diagram disables its own verbs on a read-only diagram; this is
+    // reached from Edit, where nothing else would say why nothing happened.
+    case 'read-only':
+      toast.error(
+        t(
+          'toasts:diagram.capture.readOnly',
+          'This diagram was made with a newer Ori Studio and opens read-only.'
+        )
+      );
+      return;
     // Nothing to say: the user stopped it, asked twice, or moved on.
     case 'stopped':
     case 'discarded':
     case 'busy':
-    case 'read-only':
       return;
   }
 }

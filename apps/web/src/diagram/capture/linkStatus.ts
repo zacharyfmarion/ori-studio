@@ -3,7 +3,8 @@
  * stored: a diagram whose pattern changed while it was closed must reopen
  * saying so, which a status written at save would hide.
  *
- * - `current`: the creases the scope chooses today are the ones captured.
+ * - `current`: the creases the scope chooses today are the ones captured —
+ *   every line drawn, for a crease pattern; the lines folded, for a fold.
  * - `stale`: they changed; Refresh captures them again.
  * - `missing`: there is nothing to choose — the region is gone, or no
  *   foldable crease overlaps the figure's box; Relink picks another.
@@ -15,19 +16,19 @@
 import type { FoldArtifacts } from '../../engine/types';
 import type { OristudioCpDocumentSnapshot } from '../../engine/oristudioCpTypes';
 import type { DiagramCpScope, DiagramCpSource } from '../document/diagramDocument';
-import { chooseStepCreases, type StepCreaseChoice } from './captureCreases';
+import { chooseStepCreases, creasesFingerprint, type StepCreaseChoice } from './captureCreases';
 
 export type DiagramLinkStatus = 'current' | 'stale' | 'missing' | 'unknown';
 
 export function linkStatus(
-  source: Pick<DiagramCpSource, 'scope' | 'fingerprint'>,
+  source: Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'>,
   document: OristudioCpDocumentSnapshot | null,
   segmentation: FoldArtifacts | null
 ): DiagramLinkStatus {
   if (!document) return 'unknown';
   const choice = cachedChoice(document, source.scope, segmentation);
   if (choice.status !== 'found') return choice.status;
-  return choice.creases.fingerprint === source.fingerprint ? 'current' : 'stale';
+  return creasesFingerprint(choice.creases, source.render) === source.fingerprint ? 'current' : 'stale';
 }
 
 /**

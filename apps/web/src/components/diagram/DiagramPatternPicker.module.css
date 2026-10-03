@@ -37,7 +37,7 @@
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
-.option:hover:not(:disabled) {
+.option:hover:not([aria-disabled='true']) {
   border-color: var(--border-strong, var(--border-subtle));
 }
 
@@ -46,7 +46,8 @@
   outline-offset: 1px;
 }
 
-.option:disabled {
+/* Refusing while a link is captured, but still holding the focus. */
+.option[aria-disabled='true'] {
   cursor: progress;
   opacity: 0.6;
 }

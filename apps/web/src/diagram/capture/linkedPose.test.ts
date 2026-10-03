@@ -7,7 +7,7 @@ import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender } from '../document/diagram
 import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
 import type { CpCaptureRuntime } from './captureFolded';
-import { createCaptureSession, type CaptureSessionDeps } from './captureSession';
+import { CaptureSessionClosedError, createCaptureSession, type CaptureSessionDeps } from './captureSession';
 import { poseLinkedStep, type LinkedPoseRequest } from './linkedPose';
 
 const folded3dStoredScene = vi.hoisted(() => ({ folded3dFigureScene: vi.fn() }));
@@ -180,5 +180,51 @@ describe('posing a 3D fold', () => {
     const runtime = fakeCaptureRuntime({ fold3d: vi.fn(async () => ({ status: 'refused' as const, refusal })) });
     const { session } = sessionWith(runtime);
     expect(await pose(session, THREE_D, { verb: 'view-iso' }, partial())).toEqual({ status: 'refused', refusal });
+  });
+});
+
+describe('a session let go while it folds', () => {
+  // The detail closed while a fold searched: the fold landed into a session
+  // nothing referenced, was retained, and was never freed.
+  it('frees a fold that lands after it was disposed, and says the verb is over', async () => {
+    let land: () => void = () => {};
+    const runtime = fakeCaptureRuntime();
+    const fold = runtime.fold;
+    runtime.fold = vi.fn(async (...args: Parameters<typeof fold>) => {
+      await new Promise<void>((resolve) => (land = resolve));
+      return fold(...args);
+    }) as typeof fold;
+    const { session, held } = sessionWith(runtime);
+    const posing = pose(session, FLAT, { verb: 'turn-over' });
+    await vi.waitFor(() => expect(runtime.fold).toHaveBeenCalled());
+    session.dispose();
+    land();
+    await expect(posing).rejects.toBeInstanceOf(CaptureSessionClosedError);
+    expect(held.get(7)).toBe(0);
+    // And it can fold again.
+    land = () => {};
+    const again = pose(session, FLAT, { verb: 'turn-over' });
+    await vi.waitFor(() => expect(runtime.fold).toHaveBeenCalledTimes(2));
+    land();
+    await again;
+    expect(held.get(7)).toBe(1);
+  });
+
+  it('frees a 3D fold that lands after it was disposed', async () => {
+    let land: () => void = () => {};
+    const runtime = fakeCaptureRuntime({
+      fold3d: vi.fn(async () => {
+        await new Promise<void>((resolve) => (land = resolve));
+        return placed;
+      }),
+    });
+    const { session, held } = sessionWith(runtime);
+    const partial = cpDocument(undefined, (cp, id) => (id === 8 ? { ...cp, fold_magnitude: 90 } : cp));
+    const folding = session.spatial(partial, LEFT_FOLD_LINE_IDS);
+    await vi.waitFor(() => expect(runtime.fold3d).toHaveBeenCalled());
+    session.dispose();
+    land();
+    await expect(folding).rejects.toBeInstanceOf(CaptureSessionClosedError);
+    expect(held.get(placed.handle)).toBe(0);
   });
 });

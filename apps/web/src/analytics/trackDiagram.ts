@@ -13,6 +13,7 @@ import type {
   DiagramPictureKind,
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
+  DiagramSourceWorkspace,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   DiagramStepOpenedVia,
@@ -76,4 +77,9 @@ export function trackDiagramPictureCaptured(
   via: DiagramCaptureVia
 ): void {
   track(ANALYTICS_EVENTS.diagramPictureCaptured, { kind, outcome, via });
+}
+
+/** A step's source opened in its own workspace. */
+export function trackDiagramSourceOpened(workspace: DiagramSourceWorkspace): void {
+  track(ANALYTICS_EVENTS.diagramSourceOpened, { workspace });
 }

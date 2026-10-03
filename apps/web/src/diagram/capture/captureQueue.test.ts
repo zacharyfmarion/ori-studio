@@ -6,7 +6,7 @@ import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { cpDocument, fakeCaptureRuntime, TWO_SQUARES, twoSquaresSegmentation, type FixtureLine } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
-import { refreshAllDiagramSteps } from './captureQueue';
+import { refreshAllDiagramSteps, stopRefreshAll } from './captureQueue';
 
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -25,6 +25,11 @@ vi.mock('../../store/commandDialogStore', async (importOriginal) => ({
 }));
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), message: vi.fn() }));
 vi.mock('sonner', () => ({ toast: toasts }));
+const analytics = vi.hoisted(() => ({ trackDiagramPictureCaptured: vi.fn() }));
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  ...analytics,
+}));
 
 const segmentation = twoSquaresSegmentation();
 const [left, right] = resolveCpSegments(segmentation);
@@ -80,9 +85,41 @@ describe('Refresh all out-of-date steps', () => {
     expect(state().diagramHistory.past.at(-1)?.label).toBe('Refresh out-of-date steps');
     expect(state().diagramRefreshAll).toBeNull();
     expect(toasts.success).toHaveBeenCalledWith('Refreshed 2 steps');
+    // Counted step by step, as a refresh of one step is.
+    expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledTimes(2);
+    expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('crease_pattern', 'ok', 'refresh_all');
     // One undo takes the whole run back.
     state().undoDiagram();
     expect(fingerprints()).toEqual(stale);
+  });
+
+  // Its Stop went through every capture in flight, so a Pose verb or a link
+  // the user started meanwhile was cancelled with it, and said nothing.
+  it('stops only its own capture, and the steps after it', async () => {
+    await link(left);
+    await link(right);
+    useDocument(edited());
+    let finish!: () => void;
+    const capture = vi.fn(
+      () =>
+        new Promise<{ status: 'stopped' }>((resolve) => {
+          finish = () => resolve({ status: 'stopped' });
+        })
+    );
+    const stop = vi.fn();
+    useWorkspaceStore.setState({ captureDiagramStep: capture, stopDiagramCapture: stop });
+    const running = refreshAllDiagramSteps();
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledTimes(1));
+    const [refreshingId] = capture.mock.calls[0] as unknown as [string];
+    // Another step's capture, the user's, is running too.
+    useWorkspaceStore.setState({
+      diagramCaptures: { [refreshingId]: { runId: 1 }, 'step-users': { runId: 2 } },
+    });
+    stopRefreshAll();
+    expect(stop.mock.calls).toEqual([[refreshingId]]);
+    finish();
+    expect(await running).toBe(0);
+    expect(capture).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing when nothing is out of date', async () => {

@@ -69,6 +69,8 @@ export function canAddFigureToDiagram(figure: OristudioCpFoldedFigureEntry): boo
  */
 export async function addFigureToDiagram(figure: OristudioCpFoldedFigureEntry): Promise<string | null> {
   if (!figure.sourceBounds || !figure.sourceFingerprint) return null;
+  // Before any scene is built: a read-only diagram takes nothing.
+  if (store.get().diagramReadOnly) return finish({ status: 'read-only' }, null, 'cp_folded', 'folded_figure');
   const scope: DiagramCpScope = { kind: 'figure-bounds', bounds: figure.sourceBounds };
   const label = 'Add to diagram';
 

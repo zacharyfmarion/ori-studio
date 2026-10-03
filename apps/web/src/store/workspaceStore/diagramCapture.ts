@@ -18,7 +18,6 @@ import { abandonOnEngineLoss } from '../../diagram/capture/engineLoss';
 import {
   DEFAULT_DIAGRAM_STYLE,
   isLockedStep,
-  randomDiagramId,
   setLinkedPicture,
   stepIndex,
   type DiagramCpRender,
@@ -30,6 +29,7 @@ import {
   type KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
 import { diagramSurfaceStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { digest } from '../../diagram/pictures/pictureKey';
 import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 import { cpAuxLinesKey, NO_AUX_LINES_KEY } from '../../cp-workspace/folded/foldedAuxSource';
 import type {
@@ -361,7 +361,9 @@ export async function keptPicture(
   const png = await paperSvgToPng(page, CAPTURE_RASTER_DPI);
   const { width, height } = paperPngSize(page, CAPTURE_RASTER_DPI);
   const src = `data:image/png;base64,${base64(png)}`;
-  const id = randomDiagramId('asset');
+  // Named by what it draws, as a scene picture is by its JSON: the same
+  // capture again is the same picture, and records nothing.
+  const id = `asset-raster-${digest(`${CAPTURE_RASTER_DPI}|${CAPTURE_RASTER_BOX_MM}|${page.svg}`)}`;
   // The bitmap's own px per pattern unit: the scene's, through the page's scale.
   const pxPerScenePx = (pagePtPerPx(captured.scene, pagePaper, measure) * CAPTURE_RASTER_DPI) / 72;
   const paperScale = captured.paperScale === null ? null : captured.paperScale * pxPerScenePx;

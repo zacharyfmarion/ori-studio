@@ -93,7 +93,7 @@ const STROKE_ROLES: ReadonlySet<string> = new Set<SheetStrokeRole>([
 ]);
 
 /** The most strokes a stored thumbnail may hold: a dense box-pleat sheet, with room. */
-const MAX_STORED_STROKES = 20_000;
+export const MAX_STORED_STROKES = 20_000;
 
 /**
  * A thumbnail as a file holds it (a Diagram step keeps the one it was linked

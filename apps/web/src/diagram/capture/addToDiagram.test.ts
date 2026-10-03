@@ -120,6 +120,19 @@ describe('Add to diagram', () => {
     expect(step).toMatchObject({ picture: { kind: 'scene' }, source: { render: { mode: 'folded-flat', side: 'back' } } });
   });
 
+  it('adds nothing to a read-only diagram, builds nothing for it, and says why', async () => {
+    useWorkspaceStore.setState({ diagramReadOnly: true });
+    setFolded3dRenderModel(4, { cell_points: [0, 0, 0, 1, 0, 0, 0, 1, 0] } as never);
+    const live = figure({ snapshot: null, folded3d: {} as never, camera: { yaw: 0, pitch: 0, zoom: 1 } });
+    expect(await addFigureToDiagram(live)).toBeNull();
+    expect(folded3dStoredScene.folded3dFigureScene).not.toHaveBeenCalled();
+    expect(await addPatternToDiagram(left!)).toBeNull();
+    expect(bindings.runtime!.fold).not.toHaveBeenCalled();
+    expect(toasts.error).toHaveBeenCalledTimes(2);
+    expect(toasts.error).toHaveBeenCalledWith(expect.stringContaining('read-only'));
+    expect(steps()).toEqual([]);
+  });
+
   it('adds nothing for a figure with no box to link to', async () => {
     const unlinked = figure({ sourceBounds: null, sourceFingerprint: null });
     expect(canAddFigureToDiagram(unlinked)).toBe(false);

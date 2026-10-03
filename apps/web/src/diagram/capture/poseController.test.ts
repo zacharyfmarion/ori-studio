@@ -10,7 +10,7 @@ import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { cpDocument, fakeCaptureRuntime, twoSquaresSegmentation } from './capture.fixtures';
 import type { CpCaptureRuntime } from './captureFolded';
-import { createPoseController } from './poseController';
+import { createPoseController, linkedFoldKey } from './poseController';
 
 const bindings = vi.hoisted(() => ({ runtime: null as CpCaptureRuntime | null }));
 vi.mock('../../store/workspaceStore/cpFoldRuntimeBindings', async (importOriginal) => ({
@@ -89,6 +89,24 @@ describe('the Pose controller', () => {
     expect(foldedFigureHandleRefCount(7)).toBe(0);
   });
 
+  // A Relink or an undo moves the step to other creases while its detail is
+  // open; what was learnt from the old fold must not be shown for the new one.
+  it('says which creases each fact is of, so a view drops them when the step moves to others', async () => {
+    const stepId = await linkedStep();
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    await controller.run({ verb: 'show-folded' });
+    const source = render(stepId)!;
+    if (source.kind !== 'cp') throw new Error('linked');
+    expect(heard.hasNextSolution).toHaveBeenLastCalledWith(expect.anything(), linkedFoldKey(stepId, source));
+    // Another pattern, or the same one changed, is another key.
+    expect(linkedFoldKey(stepId, { ...source, fingerprint: 'cs1:other' })).not.toBe(linkedFoldKey(stepId, source));
+    expect(linkedFoldKey(stepId, { ...source, scope: { kind: 'figure-bounds', bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 } } })).not.toBe(
+      linkedFoldKey(stepId, source)
+    );
+    controller.dispose();
+  });
+
   it('lets the fold go when the crease pattern is replaced, and folds again next time', async () => {
     const stepId = await linkedStep();
     const controller = createPoseController(stepId, listener());
@@ -126,6 +144,45 @@ describe('the Pose controller', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // Done, or Next step, while a verb folded: the fold landed into a session
+  // nothing referenced and was held for the life of the document.
+  it('stops its own fold when the detail closes, frees what lands, and says nothing', async () => {
+    const stepId = await linkedStep();
+    let land!: () => void;
+    let started!: () => void;
+    const folding = new Promise<void>((resolve) => (started = resolve));
+    const fake = fakeCaptureRuntime();
+    const fold = fake.fold;
+    bindings.runtime = fakeCaptureRuntime({
+      fold: vi.fn(async (...args: Parameters<typeof fold>) => {
+        started();
+        await new Promise<void>((resolve) => (land = resolve));
+        return fold(...args);
+      }) as typeof fold,
+    });
+    const stop = vi.fn(state().stopDiagramCapture);
+    useWorkspaceStore.setState({ stopDiagramCapture: stop });
+    const controller = createPoseController(stepId, listener());
+    const running = controller.run({ verb: 'show-folded' });
+    await folding;
+    controller.dispose();
+    expect(stop).toHaveBeenCalledWith(stepId);
+    land();
+    await running;
+    expect(foldedFigureHandleRefCount(7)).toBe(0);
+    expect(toasts.error).not.toHaveBeenCalled();
+    expect(render(stepId)).toMatchObject({ render: { mode: 'crease-pattern' } });
+    expect(state().diagramCaptures).toEqual({});
+  });
+
+  it('stops no capture it did not start when the detail closes', async () => {
+    const stepId = await linkedStep();
+    const stop = vi.fn();
+    useWorkspaceStore.setState({ stopDiagramCapture: stop });
+    createPoseController(stepId, listener()).dispose();
+    expect(stop).not.toHaveBeenCalled();
   });
 
   it('gives up on a fold the engine was lost under, and says so', async () => {

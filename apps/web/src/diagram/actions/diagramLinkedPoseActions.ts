@@ -29,6 +29,12 @@ export interface DiagramLinkedPoseAction {
   id: DiagramLinkedPoseActionId;
   label: string;
   disabled: boolean;
+  /**
+   * A capture of the step is running: the verb does nothing until it lands,
+   * and says so, but stays focusable — a control disabled under the focus
+   * drops it on the page, and every verb starts a capture.
+   */
+  waiting: boolean;
   hint?: string;
   /** For the two ways to show the pattern: which one is showing. */
   pressed?: boolean;
@@ -53,27 +59,32 @@ export function buildDiagramLinkedPoseActions(
 ): DiagramLinkedPoseAction[] {
   const { t } = deps;
   const { render } = state;
-  const hint = state.readOnly
+  const readOnly = state.readOnly
     ? t(
         'panels:diagram.actions.readOnlyHint',
         'This diagram was made with a newer Ori Studio and opens read-only'
       )
-    : state.busy
-      ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured')
-      : undefined;
-  const blocked = hint !== undefined;
+    : undefined;
+  const waiting = !state.readOnly && state.busy;
+  const capturing = t('panels:diagram.actions.capturingHint', 'Its picture is being captured');
   const action = (
     id: DiagramLinkedPoseActionId,
     label: string,
     options: { disabled?: boolean; hint?: string; pressed?: boolean } = {}
-  ): DiagramLinkedPoseAction => ({
-    id,
-    label,
-    disabled: blocked || (options.disabled ?? false),
-    hint: hint ?? (options.disabled ? options.hint : undefined),
-    ...(options.pressed === undefined ? {} : { pressed: options.pressed }),
-    run: () => deps.pose(id),
-  });
+  ): DiagramLinkedPoseAction => {
+    const disabled = readOnly !== undefined || (options.disabled ?? false);
+    return {
+      id,
+      label,
+      disabled,
+      waiting: waiting && !disabled,
+      hint: readOnly ?? (options.disabled ? options.hint : waiting ? capturing : undefined),
+      ...(options.pressed === undefined ? {} : { pressed: options.pressed }),
+      run: () => {
+        if (!waiting) deps.pose(id);
+      },
+    };
+  };
 
   const folded = render.mode !== 'crease-pattern';
   const modes = [

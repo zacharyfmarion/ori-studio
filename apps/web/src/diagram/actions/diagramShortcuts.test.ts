@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  DIAGRAM_OWN_ARROWS_ATTRIBUTE,
   focusOwnsArrowKeys,
   runDiagramCancel,
   runDiagramShortcut,
@@ -123,6 +124,12 @@ describe('focusOwnsArrowKeys', () => {
     expect(inside('<div role="radiogroup"><button id="x">A</button></div>', '#x')).toBe(true);
     expect(inside('<span role="slider" id="x"></span>', '#x')).toBe(true);
     expect(inside('<div role="toolbar"><span role="slider" id="x"></span></div>', '#x')).toBe(true);
+  });
+
+  it('leaves them to a list of the Diagram’s own that moves with them: the pattern picker', () => {
+    expect(
+      inside(`<div role="listbox" ${DIAGRAM_OWN_ARROWS_ATTRIBUTE}><button role="option" id="x"></button></div>`, '#x')
+    ).toBe(true);
   });
 
   it('takes them from a plain button, in a toolbar or not, a step card, or nothing', () => {

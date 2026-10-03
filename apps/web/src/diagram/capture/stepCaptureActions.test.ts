@@ -5,9 +5,14 @@ import type { DiagramCaptureOutcome } from '../../store/workspaceStore/diagramCa
 import { twoSquaresSegmentation } from './capture.fixtures';
 import { cpStep } from '../document/diagramSteps.fixtures';
 import { insertSteps, createDiagram } from '../document/diagramDocument';
-import { linkDiagramStep, refreshDiagramStep } from './stepCaptureActions';
+import { takeCpRegionFocus } from '../../cp-workspace/regions/regionFocusRequest';
+import { useLayoutStore } from '../../store/layoutStore';
+import { linkDiagramStep, openDiagramStepInEdit, refreshDiagramStep } from './stepCaptureActions';
 
-const analytics = vi.hoisted(() => ({ trackDiagramPictureCaptured: vi.fn() }));
+const analytics = vi.hoisted(() => ({
+  trackDiagramPictureCaptured: vi.fn(),
+  trackDiagramSourceOpened: vi.fn(),
+}));
 vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   ...analytics,
@@ -106,5 +111,26 @@ describe('refreshDiagramStep', () => {
     await refreshDiagramStep('step-flat');
     expect(analytics.trackDiagramPictureCaptured).toHaveBeenCalledWith('flat', 'stopped', 'refresh');
     expect(toasts.error).not.toHaveBeenCalled();
+  });
+});
+
+describe('openDiagramStepInEdit', () => {
+  it('frames the step’s pattern in Edit, and counts the way back', () => {
+    useLayoutStore.setState({ activeWorkspace: 'diagram' });
+    takeCpRegionFocus();
+    openDiagramStepInEdit('step-flat');
+    expect(useLayoutStore.getState().activeWorkspace).toBe('edit');
+    const step = state().diagram!.steps[1]!;
+    expect(takeCpRegionFocus()).toEqual(
+      step.source?.kind === 'cp' && step.source.scope.kind === 'segment' ? step.source.scope.region.bounds : null
+    );
+    expect(analytics.trackDiagramSourceOpened).toHaveBeenCalledWith('edit');
+  });
+
+  it('does nothing for a step with no pattern', () => {
+    useLayoutStore.setState({ activeWorkspace: 'diagram' });
+    openDiagramStepInEdit('step-empty');
+    expect(useLayoutStore.getState().activeWorkspace).toBe('diagram');
+    expect(analytics.trackDiagramSourceOpened).not.toHaveBeenCalled();
   });
 });

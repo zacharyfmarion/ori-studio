@@ -104,6 +104,13 @@ export function runDiagramCancel(
 }
 
 /**
+ * Marks a control of the Diagram's own that moves with the arrow keys and
+ * Home and End: the pattern picker's list. A listbox is not an owner by its
+ * role, because the steps grid is one, and its arrows are the Diagram's.
+ */
+export const DIAGRAM_OWN_ARROWS_ATTRIBUTE = 'data-own-arrows';
+
+/**
  * Controls that use the arrow keys themselves. The Diagram's arrows decline
  * while one of these has focus, so a tab strip, a segmented control or a
  * slider keeps its own navigation. A plain button is not one: its arrows do
@@ -120,6 +127,7 @@ const ARROW_OWNERS = [
   '[role="menubar"]',
   '[role="slider"]',
   '[role="spinbutton"]',
+  `[${DIAGRAM_OWN_ARROWS_ATTRIBUTE}]`,
 ].join(', ');
 
 /** Marks the steps grid, the one surface where Enter means "open the step". */

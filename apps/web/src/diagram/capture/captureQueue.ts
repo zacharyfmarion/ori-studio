@@ -8,12 +8,14 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { stepIndex, type DiagramStep } from '../document/diagramDocument';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
-import { sayCaptureOutcome } from './stepCaptureActions';
+import { sayCaptureOutcome, trackCapture } from './stepCaptureActions';
 
 /** The label Refresh all's one undo entry carries. */
 const REFRESH_ALL_LABEL = 'Refresh out-of-date steps';
 
 let cancelRun: (() => void) | null = null;
+/** The step Refresh all is capturing now: the one capture its Stop is for. */
+let refreshing: string | null = null;
 
 /**
  * Refresh all out-of-date steps (D4): every linked step whose pattern changed,
@@ -72,13 +74,20 @@ export async function refreshAllDiagramSteps(): Promise<number> {
       if (cancelled || store.diagramLoadId !== loadId) break;
       const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
       if (step?.source?.kind !== 'cp') continue;
-      const outcome = await store.captureDiagramStep(stepId, {
-        scope: step.source.scope,
-        render: step.source.render,
-        kind: 'diagram-refresh',
-        label: REFRESH_ALL_LABEL,
-        joinEntry,
-      });
+      const { scope, render } = step.source;
+      refreshing = stepId;
+      const outcome = await store
+        .captureDiagramStep(stepId, {
+          scope,
+          render,
+          kind: 'diagram-refresh',
+          label: REFRESH_ALL_LABEL,
+          joinEntry,
+        })
+        .finally(() => {
+          refreshing = null;
+        });
+      trackCapture(outcome, render, 'refresh_all');
       if (outcome.status === 'captured' && outcome.changed) {
         refreshed += 1;
         joinEntry ??= useWorkspaceStore.getState().diagramHistory.past.at(-1);
@@ -106,11 +115,14 @@ export async function refreshAllDiagramSteps(): Promise<number> {
   return refreshed;
 }
 
-/** Stop Refresh all after the step it is on: that step's fold is stopped as any is. */
+/**
+ * Stop Refresh all: no step after the one it is on, and that step's fold
+ * stopped as any is. A capture the user started meanwhile — a Pose verb, a
+ * link — is theirs, and goes on.
+ */
 export function stopRefreshAll(): void {
   cancelRun?.();
-  const running = useWorkspaceStore.getState().diagramCaptures;
-  for (const stepId of Object.keys(running)) useWorkspaceStore.getState().stopDiagramCapture(stepId);
+  if (refreshing !== null) useWorkspaceStore.getState().stopDiagramCapture(refreshing);
 }
 
 /** The linked steps whose pattern changed, in order. */

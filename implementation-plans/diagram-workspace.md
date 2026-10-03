@@ -1971,6 +1971,25 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - **Stop.** On the iguana's 850-face sheet, the card's Stop and the global Stop (`stopOristudioCpFolds`, what the toast's Cancel calls) each end the fold as stopped, leaving the step as it was. The toast only shows after its delay, which this fold barely outlasts.
     - **Edit untouched.** Its eleven figures are unchanged by Diagram folds, and the diagram's history holds only diagram entries.
     - **50 steps.** Opening the crane with a 50-step diagram (1.5 MB) costs what opening it bare does: long tasks of 128 + 195 ms against 110 + 217 ms, which is the crease pattern loading. Switching to the Diagram costs 145 + 60 ms. Scrolling paints the remaining 34 cards with no long task.
+- [x] **Review.** A workflow of four reviewers (state, file, UI and keyboard, repo rules), each finding put to a skeptic. 15 were confirmed and fixed, each with a test; 1 refuted (a duplicated scene-bounds helper: real, but no defect).
+  - **Pictures and the file.**
+    - The scene reader dropped every line's `joined` flags, so a stored crease pattern's corners and a 3D crease's bends painted with butt-cap gaps. `readPaperScene` now keeps them. This also fixes Edit's stored 3D figures.
+    - A pattern whose scope has more than 20,000 lines could not be linked: its thumbnail was past what the file reads back. The capture now trims it to what the file takes back (dots and repeats first, then the shortest creases, never the edge).
+    - The load-time caps measured the input, not what is kept, so a fixed picture or scene that sanitizing lengthened loaded once and was dropped on the next load.
+    - A capture kept as a bitmap had a random id, so the same capture again was another undo step and another bitmap. It is now named by what it draws.
+    - A crease-pattern step drew its aux lines but fingerprinted only the foldable ones, so moving an aux line left it current. It is now fingerprinted on every line it draws (`creasesFingerprint`); a fold keeps its foldable-only fingerprint.
+  - **Pose.**
+    - A fold that landed after the detail closed was retained and never freed. The session now frees a fold that is no longer wanted (`CaptureSessionClosedError`, silent), and closing the detail stops its own fold.
+    - The live 3D view and "has another layer order" were kept by step only, so after a Relink or undo they described the old creases. They are now keyed by scope and fingerprint (`linkedFoldKey`).
+    - Rolling the 3D view (Shift-drag, the cube's ring) was never captured and snapped back. The roll is now folded into the stored orientation (`withRollAbsorbed`).
+  - **Keyboard and focus.**
+    - Every linked Pose verb disabled itself under the focus for the length of its capture. Verbs now wait (`aria-disabled`) instead.
+    - The picker's arrows, Home and End went to the Diagram's step keys. The picker now owns them (`data-own-arrows`): one tab stop, roving focus.
+    - A pick or Cancel dropped the focus. It now returns to Link Pattern… (`useReturnFocusOnClose`).
+  - **Edit and Refresh all.**
+    - Add to diagram on a read-only diagram did nothing and said nothing. The selection toolbar's button is now disabled with the reason, and the figure verb says why.
+    - Stop refreshing stopped every capture in flight. It now stops only Refresh all's own.
+    - Refresh all's captures went uncounted. They now count `diagram picture captured` with `via: refresh_all`. Open in Edit counts `diagram source opened`.
 
 ### Phase 4: References steps
 

@@ -72,6 +72,7 @@ function readPaperItem(value: unknown): PaperItem | null {
     if (!role || !a || !b) return null;
     const face = finiteNumber(value.face);
     const whole = readSceneLineWhole(value.whole);
+    const joined = readJoinedFlags(value.joined);
     return {
       kind: 'line',
       role,
@@ -79,6 +80,7 @@ function readPaperItem(value: unknown): PaperItem | null {
       b,
       onBoundary: readBoundaryFlags(value.onBoundary),
       ...(whole ? { whole } : {}),
+      ...(joined ? { joined } : {}),
       ...(face === null ? {} : { face }),
       hidden,
     };
@@ -109,6 +111,18 @@ function readSceneLineWhole(value: unknown): PaperLineWhole | null {
   const b = readScenePoint(value.b);
   if (!a || !b) return null;
   return { a, b, onBoundary: readBoundaryFlags(value.onBoundary) };
+}
+
+/**
+ * Which ends join the next line, as the producer said: kept, or a stored
+ * crease pattern's border loses its corners and a 3D crease's chain of pieces
+ * a wedge at every bend. Null — each end takes its pen's cap — when neither
+ * joins, or the pair does not read.
+ */
+function readJoinedFlags(value: unknown): [boolean, boolean] | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const joined: [boolean, boolean] = [value[0] === true, value[1] === true];
+  return joined[0] || joined[1] ? joined : null;
 }
 
 /** A missing or malformed pair reads as "neither end retreats", which is inert. */

@@ -263,7 +263,8 @@
   box-shadow: 0 0 0 2px var(--accent-primary);
 }
 
-.ui-button:disabled {
+/* `aria-disabled`: a button refusing for now while it keeps the focus. */
+.ui-button:disabled, .ui-button[aria-disabled='true'] {
   background: var(--bg-secondary);
   border-color: var(--border-default);
   color: var(--text-muted);

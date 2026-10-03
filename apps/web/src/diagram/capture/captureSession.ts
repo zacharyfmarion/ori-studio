@@ -100,7 +100,10 @@ export interface CaptureSession {
   ) => Promise<SpatialHold | { kind: 'refused'; refusal: OristudioCpFold3dRefusal }>;
   /** The held 3D fold's picture at a camera, in the diagram's light. */
   spatialPicture: (camera: FoldedFigureCamera, style: DiagramStyle) => CapturedPicture;
-  /** Let the held fold go. Idempotent. */
+  /**
+   * Let the held fold go, and any fold still searching: it is freed as it
+   * lands. Idempotent; the session can fold again afterwards.
+   */
   dispose: () => void;
   /** Forget the held fold without freeing it: the engine that held it is gone. */
   forget: () => void;
@@ -108,8 +111,27 @@ export interface CaptureSession {
 
 export type { SpatialHold };
 
+/**
+ * A fold that landed after its session let go, or after a newer fold was
+ * asked for: its handle is freed, not held, and the work that asked for it is
+ * over. Nothing to tell the user — they moved on.
+ */
+export class CaptureSessionClosedError extends Error {
+  constructor() {
+    super('The pose session let go of this fold');
+    this.name = 'CaptureSessionClosedError';
+  }
+}
+
 export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
   let held: FlatHold | SpatialHold | null = null;
+  /**
+   * Bumped by every fold asked for and by every let-go. A fold whose ticket is
+   * not the current one when it lands is no longer wanted: a session disposed
+   * while it searched (the detail closed) must not keep a handle nothing will
+   * ever free.
+   */
+  let generation = 0;
 
   const release = () => {
     if (!held) return;
@@ -131,10 +153,23 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     return deps.epoch();
   };
 
+  /** Hold a fold that just landed, if it is still the one wanted; free it otherwise. */
+  const adopt = (ticket: number, handle: number): number => {
+    const epoch = take(handle);
+    if (ticket === generation) return epoch;
+    deps.release(handle);
+    throw new CaptureSessionClosedError();
+  };
+
+  const letGo = () => {
+    generation += 1;
+    release();
+  };
+
   const flatHold = (): FlatHold => {
-    if (!held || held.kind !== 'flat' || held.epoch !== deps.epoch()) {
-      throw new Error('No flat fold is held');
-    }
+    // Every verb folds before it reads, so nothing held here means it was let go mid-verb.
+    if (!held) throw new CaptureSessionClosedError();
+    if (held.kind !== 'flat' || held.epoch !== deps.epoch()) throw new Error('No flat fold is held');
     return held;
   };
 
@@ -150,6 +185,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       const key: FoldKey = { document, lineIds: lineIds.join(',') };
       if (!live(key) || held?.kind !== 'flat') {
         release();
+        const ticket = ++generation;
         const folded = await deps.search((runtime) =>
           openFold(runtime, [...lineIds], captureModel(document, side))
         );
@@ -157,7 +193,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
           kind: 'flat',
           ...key,
           handle: folded.handle,
-          epoch: take(folded.handle),
+          epoch: adopt(ticket, folded.handle),
           side,
           state: folded,
         };
@@ -199,24 +235,27 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
       const key: FoldKey = { document, lineIds: lineIds.join(',') };
       if (live(key) && held?.kind === 'spatial') return held;
       release();
+      const ticket = ++generation;
       const result = await deps.search((runtime) =>
         runtime.fold3d([...lineIds], captureModel(document, 'front'))
       );
       if (result.status === 'refused') return { kind: 'refused', refusal: result.refusal };
-      const epoch = take(result.handle);
-      held = { kind: 'spatial', ...key, handle: result.handle, epoch, fold: result, aux: null };
-      held.aux = await deps.runtime().aux3d(result.handle);
-      return held;
+      const epoch = adopt(ticket, result.handle);
+      const hold: SpatialHold = { kind: 'spatial', ...key, handle: result.handle, epoch, fold: result, aux: null };
+      held = hold;
+      hold.aux = await deps.runtime().aux3d(result.handle);
+      // Let go while its aux lines were read: the release freed it.
+      if (held !== hold) throw new CaptureSessionClosedError();
+      return hold;
     },
 
     spatialPicture(camera, style) {
-      if (!held || held.kind !== 'spatial' || held.epoch !== deps.epoch()) {
-        throw new Error('No 3D fold is held');
-      }
+      if (!held) throw new CaptureSessionClosedError();
+      if (held.kind !== 'spatial' || held.epoch !== deps.epoch()) throw new Error('No 3D fold is held');
       return capture3dPicture(held.fold, camera, style, held.aux);
     },
 
-    dispose: release,
+    dispose: letGo,
 
     forget() {
       held = null;

@@ -25,8 +25,8 @@ import {
 } from '../../store/workspaceStore/diagramCapture';
 import { stepIndex, type DiagramCpSource } from '../document/diagramDocument';
 import { storedCpSource } from '../document/diagramFile';
-import { chooseStepCreases, type StepCreases } from './captureCreases';
-import { createCaptureSession, type CaptureSession } from './captureSession';
+import { chooseStepCreases, creasesFingerprint, type StepCreases } from './captureCreases';
+import { CaptureSessionClosedError, createCaptureSession, type CaptureSession } from './captureSession';
 import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
 import { poseLinkedStep, type LinkedPoseRequest } from './linkedPose';
@@ -55,12 +55,22 @@ export interface DiagramPoseSpatialView {
   aux: OristudioCpFolded3dAuxLines | null;
 }
 
-/** What a controller tells its view as it learns it. */
+/**
+ * What a controller tells its view as it learns it. Each fact comes with the
+ * {@link linkedFoldKey} of the creases it was learnt from, so a view shows it
+ * only while the step still links to them: a Relink or an undo moves the step
+ * to other creases, and the fold held for the old ones is not theirs.
+ */
 export interface PoseControllerListener {
   /** The live 3D fold, once held; null when let go. */
-  spatial: (view: DiagramPoseSpatialView | null) => void;
+  spatial: (view: DiagramPoseSpatialView | null, key: string | null) => void;
   /** Whether the held flat fold has another layer order; null when unknown. */
-  hasNextSolution: (hasNext: boolean | null) => void;
+  hasNextSolution: (hasNext: boolean | null, key: string) => void;
+}
+
+/** Which creases a step's fold is of: its scope and their fingerprint. */
+export function linkedFoldKey(stepId: string, source: Pick<DiagramCpSource, 'scope' | 'fingerprint'>): string {
+  return JSON.stringify([stepId, source.scope, source.fingerprint]);
 }
 
 /**
@@ -117,6 +127,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     try {
       return await work(begun, linked);
     } catch (error) {
+      // The detail closed, or a newer verb took over, while this folded.
+      if (error instanceof CaptureSessionClosedError) return { status: 'discarded' };
       return captureFailure(error);
     } finally {
       start = null;
@@ -151,8 +163,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         .commitDiagramCapture(begun, { source, picture: result.picture }, 'Adjust pose');
       if (!committed) return { status: 'discarded' };
       if (committed.changed) trackDiagramPicturePosed(TRACKED[request.verb], captureKind(result.render));
-      listener.hasNextSolution(result.hasNextSolution ?? null);
-      if (result.spatial) listener.spatial({ model: result.spatial.fold.render, aux: result.spatial.aux });
+      const key = linkedFoldKey(stepId, source);
+      listener.hasNextSolution(result.hasNextSolution ?? null, key);
+      if (result.spatial) listener.spatial({ model: result.spatial.fold.render, aux: result.spatial.aux }, key);
       return {
         status: 'captured',
         changed: committed.changed,
@@ -190,7 +203,15 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         if (choice.status !== 'found') return null;
         const held = await abandonOnEngineLoss(session.spatial(document, choice.creases.foldLineIds));
         // A refusal leaves the captured picture to look at; a verb will say why.
-        if (held.kind !== 'refused') listener.spatial({ model: held.fold.render, aux: held.aux });
+        if (held.kind !== 'refused') {
+          listener.spatial(
+            { model: held.fold.render, aux: held.aux },
+            linkedFoldKey(stepId, {
+              scope: linked.scope,
+              fingerprint: creasesFingerprint(choice.creases, linked.render),
+            })
+          );
+        }
         return null;
       });
     },
@@ -204,17 +225,19 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       cancelOrbit();
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
       session.dispose();
-      listener.spatial(null);
+      listener.spatial(null, null);
     },
 
     engineLost() {
       cancelOrbit();
       session.forget();
-      listener.spatial(null);
+      listener.spatial(null, null);
     },
 
     dispose() {
       cancelOrbit();
+      // Its own fold, if one is still searching: the detail it was for is gone.
+      if (start) useWorkspaceStore.getState().stopDiagramCapture(stepId);
       session.dispose();
     },
   };
@@ -227,7 +250,7 @@ function currentLinkedSource(stepId: string): DiagramCpSource | null {
   return step && !step.unknown && step.source?.kind === 'cp' ? step.source : null;
 }
 
-/** The step's source after a pose: the same scope, its creases fingerprinted as they were folded, the new render. */
+/** The step's source after a pose: the same scope, its creases fingerprinted as the new render shows them. */
 function linkedSource(
   previous: DiagramCpSource,
   creases: StepCreases,
@@ -238,7 +261,7 @@ function linkedSource(
   const stored = storedCpSource({
     kind: 'cp',
     scope: previous.scope,
-    fingerprint: creases.fingerprint,
+    fingerprint: creasesFingerprint(creases, render),
     thumbnail: creasesThumbnail(document, creases, segmentation),
     render,
   });

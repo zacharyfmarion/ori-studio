@@ -33,15 +33,20 @@ import { resolveCpSegments, type CpSegment } from '../../lib/creasePatternSegmen
 import { segmentContainedLineIds } from '../../lib/creasePatternSelectionSegment';
 import { emptyOristudioCpSelection } from '../../lib/creasePatternViewport';
 import type { Point } from '../../lib/geometry';
-import type { DiagramCpScope } from '../document/diagramDocument';
+import type { DiagramCpRender, DiagramCpScope } from '../document/diagramDocument';
 
 export interface StepCreases {
   /** Every line the scope covers, aux lines included: what a crease-pattern picture draws. */
   scopedLineIds: number[];
   /** The scope's foldable lines, in kernel order: what is folded, and what {@link fingerprint} covers. */
   foldLineIds: number[];
-  /** `foldedSourceFingerprint` over {@link foldLineIds}. */
+  /** `foldedSourceFingerprint` over {@link foldLineIds}: what a folded picture is of. */
   fingerprint: string;
+  /**
+   * `foldedSourceFingerprint` over {@link scopedLineIds}: what a crease-pattern
+   * picture draws, aux lines included, so moving one marks it out of date.
+   */
+  drawnFingerprint: string;
   /**
    * The paper the scope covers, in pattern units: the region's rim, or the
    * figure's box. A crease-pattern picture fills it.
@@ -89,6 +94,7 @@ export function chooseStepCreases(
         scopedLineIds,
         foldLineIds,
         fingerprint: foldedSourceFingerprint(cpLinesByIds(document, foldLineIds)),
+        drawnFingerprint: foldedSourceFingerprint(cpLinesByIds(document, scopedLineIds)),
         paper: segment.boundary,
         clip: null,
         segment,
@@ -98,12 +104,14 @@ export function chooseStepCreases(
   const { bounds } = scope;
   const foldLineIds = kernelLineOrder(reselectFoldableLineIds(document, bounds));
   if (foldLineIds.length === 0) return { status: 'missing' };
+  const scopedLineIds = reselectSourceLineIds(document, bounds);
   return {
     status: 'found',
     creases: {
-      scopedLineIds: reselectSourceLineIds(document, bounds),
+      scopedLineIds,
       foldLineIds,
       fingerprint: foldedSourceFingerprint(cpLinesByIds(document, foldLineIds)),
+      drawnFingerprint: foldedSourceFingerprint(cpLinesByIds(document, scopedLineIds)),
       paper: [
         [
           { x: bounds.minX, y: bounds.minY },
@@ -116,4 +124,13 @@ export function chooseStepCreases(
       segment: null,
     },
   };
+}
+
+/**
+ * The fingerprint a step keeps for its creases, by how it shows them: a
+ * crease pattern is of every line it draws, a fold of the lines it folds —
+ * an aux line changes the one and not the other.
+ */
+export function creasesFingerprint(creases: StepCreases, render: Pick<DiagramCpRender, 'mode'>): string {
+  return render.mode === 'crease-pattern' ? creases.drawnFingerprint : creases.fingerprint;
 }

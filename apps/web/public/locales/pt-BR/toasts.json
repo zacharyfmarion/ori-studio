@@ -28,6 +28,7 @@
       "missing": "Esse padrão não está mais no padrão de vincos.",
       "noLayerOrder": "Não foi possível ordenar as camadas, então o passo mostra o papel dobrado em transparência.",
       "noPattern": "Primeiro abra um padrão de vincos em Editar.",
+      "readOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura.",
       "refused": "Este padrão não dobra",
       "tooDetailed": "Detalhado demais para manter como desenho, então o passo o guarda como imagem.",
       "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes."

@@ -12,6 +12,7 @@ import { useFolded3dMeshRuntime } from '../../cp-workspace/folded/useFolded3dMes
 import type { DiagramPoseSpatialView } from '../../diagram/capture/useDiagramLinkedPose';
 import type { DiagramStyle } from '../../diagram/document/diagramDocument';
 import { diagramPaperStyle } from '../../diagram/pictures/diagramPaperStyle';
+import { withRollAbsorbed } from '../../lib/simulatorOrbit';
 import { DEFAULT_SIMULATOR_SETTINGS } from '../../lib/simulatorSettings';
 import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator/SimulatorViewport';
 import styles from './DiagramPose3dView.module.css';
@@ -74,10 +75,13 @@ export function DiagramPose3dView({
       // The frame is the model's bounding sphere, as in Edit's window and in
       // the captured scene (`folded3dSceneCamera`), so the two agree.
       setCamera({ ...orbit, zoom: orbit.zoom * folded3dFrameFillZoom(width, height) }, width, height);
+      // A step's camera has no roll of its own: a Shift-drag or the cube's
+      // ring is kept in its orientation, so what is captured is what is shown.
+      const kept = withRollAbsorbed(orbit);
       onCamera(
-        orbit.orient
-          ? { yaw: orbit.yaw, pitch: orbit.pitch, zoom: orbit.zoom, orient: orbit.orient }
-          : { yaw: orbit.yaw, pitch: orbit.pitch, zoom: orbit.zoom }
+        kept.orient
+          ? { yaw: kept.yaw, pitch: kept.pitch, zoom: kept.zoom, orient: kept.orient }
+          : { yaw: kept.yaw, pitch: kept.pitch, zoom: kept.zoom }
       );
     },
     [setCamera, onCamera]

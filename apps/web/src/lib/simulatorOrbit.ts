@@ -191,6 +191,26 @@ export function setUprightView(view: SimulatorOrbitView): SimulatorOrbitView {
   };
 }
 
+/**
+ * The same picture with its roll folded into the orientation: yaw, pitch and
+ * zoom kept, roll zero. For a surface that keeps a camera as yaw, pitch, zoom
+ * and an orientation only (a folded figure's `FoldedFigureCamera`), so a roll
+ * the viewport lets the user make is kept rather than dropped.
+ *
+ * Writing `C` for the yaw-and-pitch rotation, the view draws `Roll·C·R`;
+ * `R' = Cᵀ·Roll·C·R` draws `C·R'`, the same rotation. The view itself, when
+ * it has no roll.
+ */
+export function withRollAbsorbed<View extends SimulatorOrbitView>(view: View): View {
+  if (!view.roll) return view;
+  const total = viewRotationFor(view);
+  return {
+    ...view,
+    roll: 0,
+    orient: multiplyMat3(transposeMat3(viewRotation(view.yaw, view.pitch)), total),
+  };
+}
+
 /* --------------------------------------------------------------------------
  * Which way we are looking from
  * ----------------------------------------------------------------------- */

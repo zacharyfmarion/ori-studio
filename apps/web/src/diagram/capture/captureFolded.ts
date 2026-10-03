@@ -52,7 +52,7 @@ import { storedCpSource, storedSceneJson } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import { digest } from '../pictures/pictureKey';
 import { sanitizeSvg, SVG_STORED_MAX_BYTES, type SanitizeEnv } from '../upload/svgSanitize';
-import { chooseStepCreases, type StepCreases } from './captureCreases';
+import { chooseStepCreases, creasesFingerprint, type StepCreases } from './captureCreases';
 import { creasesThumbnail } from './captureThumbnail';
 import { CAPTURE_PX_PER_UNIT, storableScene, turnClockwise } from './captureGeometry';
 import { creasePatternScene } from './creasePatternScene';
@@ -257,7 +257,13 @@ export async function captureStep(
   const { creases } = choice;
   const thumbnail = creasesThumbnail(document, creases, request.segmentation);
   const source = (render: DiagramCpRender): DiagramCpSource => {
-    const stored = storedCpSource({ kind: 'cp', scope, fingerprint: creases.fingerprint, thumbnail, render });
+    const stored = storedCpSource({
+      kind: 'cp',
+      scope,
+      fingerprint: creasesFingerprint(creases, render),
+      thumbnail,
+      render,
+    });
     if (!stored) throw new Error('The capture made a link the file cannot read');
     return stored;
   };

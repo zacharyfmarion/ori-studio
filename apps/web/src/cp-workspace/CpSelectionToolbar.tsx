@@ -94,6 +94,7 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const cpDocument = useWorkspaceStore((s) => s.oristudioCpDocument?.document ?? null);
   const foldOristudioCpDocument = useWorkspaceStore((s) => s.foldOristudioCpDocument);
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
+  const diagramReadOnly = useWorkspaceStore((s) => s.diagramReadOnly);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
   const shareSegment = useWorkspaceStore((s) => s.shareOristudioCpSegment);
   // Web-only, and off in dev unless opted in: a dev build points at the production share
@@ -219,7 +220,16 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
       <IconButton
         size="sm"
         variant="toolbar"
-        title={t('panels:creasePattern.selectionToolbar.addToDiagram', 'Add to diagram')}
+        title={
+          diagramReadOnly
+            ? t(
+                'panels:diagram.actions.readOnlyHint',
+                'This diagram was made with a newer Ori Studio and opens read-only'
+              )
+            : t('panels:creasePattern.selectionToolbar.addToDiagram', 'Add to diagram')
+        }
+        aria-label={t('panels:creasePattern.selectionToolbar.addToDiagram', 'Add to diagram')}
+        disabled={diagramReadOnly}
         onClick={() => runAndDismiss(() => void addPatternToDiagram(match.segment))}
       >
         <BookOpen size={14} />

@@ -11,7 +11,7 @@ import {
   type DiagramIdFactory,
 } from './diagramDocument';
 import { readDiagram, writeDiagram } from './diagramFile';
-import { sanitizeSvg } from '../upload/svgSanitize';
+import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
 import { insertPictureSteps, setStepText as setText, type KnownDiagramAsset } from './diagramDocument';
 import { cpStep, fixedPicture, FIXED_SVG, scenePicture } from './diagramSteps.fixtures';
 import { markup, sceneOf, sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
@@ -375,6 +375,18 @@ describe('linked steps in the file', () => {
     expect(picture.svg).not.toContain('script');
     expect(picture.svg).not.toContain('javascript');
     expect(picture.svg).toContain('<rect');
+  });
+
+  // Prefixing every id lengthens a picture as it is sanitized. One that only
+  // fits before then would load once, be saved longer, and be dropped by the
+  // next load: so the cap is held to what is kept.
+  it('drops a fixed picture that sanitizing makes too long to load again', () => {
+    const rects = Array.from({ length: 100_000 }, (_, index) => `<rect id="r${index}"/>`).join('');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">${rects}</svg>`;
+    expect(svg.length).toBeLessThan(SVG_STORED_MAX_BYTES);
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[3].picture.svg = svg;
+    expect(readDiagram(written)!.document.steps[3].picture).toBeNull();
   });
 
   it.each([

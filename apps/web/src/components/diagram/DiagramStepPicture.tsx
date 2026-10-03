@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Download, ImageOff, Link2, PenTool, RefreshCw, Upload } from 'lucide-react';
@@ -14,6 +14,7 @@ import type {
   KnownDiagramAsset,
 } from '../../diagram/document/diagramDocument';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
+import { useReturnFocusOnClose } from '../../hooks/useReturnFocusOnClose';
 import { Button } from '../ui/Button';
 import { FieldRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
@@ -63,8 +64,11 @@ export function DiagramStepPicture({
 }) {
   const { t } = useTranslation();
   const source = step.source?.kind === 'cp' ? step.source : null;
+  // A pick or Cancel closes the picker under the focus: back to the verb that opened it.
+  const section = useRef<HTMLDivElement | null>(null);
+  useReturnFocusOnClose(Boolean(picker), section, '[data-verb="link-pattern"]');
   return (
-    <div className={styles.picture}>
+    <div ref={section} className={styles.picture}>
       <FieldRow label={t('panels:diagram.picture.source', 'Source')} kind="text">
         {source
           ? describeLinked(source, step.picture !== null, t)
@@ -122,6 +126,7 @@ export function DiagramStepPicture({
               variant={variant}
               disabled={command.disabled}
               title={command.hint}
+              data-verb={id}
               onClick={command.run}
             >
               <Icon size={14} aria-hidden="true" />

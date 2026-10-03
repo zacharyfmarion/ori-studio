@@ -175,6 +175,16 @@ describe('CpSelectionToolbar', () => {
     expect(document.querySelector('button[aria-label="Create shareable link"]')).not.toBeNull();
   });
 
+  it('offers no Add to diagram on a diagram it may not change, and says why', async () => {
+    seedStore([1, 3, 5, 7, 8]);
+    useWorkspaceStore.setState({ diagramReadOnly: true });
+    await act(async () => renderToolbar(root, container));
+    const add = document.querySelector<HTMLButtonElement>('button[aria-label="Add to diagram"]');
+    expect(add?.disabled).toBe(true);
+    expect(add?.closest('[data-disabled]')).not.toBeNull();
+    useWorkspaceStore.setState({ diagramReadOnly: false });
+  });
+
   it('shares the segment the selection resolved to, not the whole document', async () => {
     seedStore([1, 3, 5, 7, 8]);
     const shareSegment = vi.fn(async () => true);

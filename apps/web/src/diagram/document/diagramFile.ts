@@ -469,7 +469,11 @@ function readSceneJson(value: unknown): string | null {
   } catch {
     return null;
   }
-  return storedSceneJson(parsed);
+  // The cap holds for what is kept, too: filling in a field's default can
+  // make the written scene longer than the one read, and a file this build
+  // saved must load in it again.
+  const stored = storedSceneJson(parsed);
+  return stored !== null && stored.length <= SCENE_JSON_MAX_BYTES ? stored : null;
 }
 
 /**
@@ -495,7 +499,9 @@ function readFixedPicture(
   if (typeof value.svg !== 'string' || value.svg.length > SVG_STORED_MAX_BYTES) return null;
   // A key that cannot prefix an id is refused by the sanitizer.
   const result = sanitizeSvg(value.svg, { idPrefix: key, mode: 'load', env });
-  if (!result.ok) return null;
+  // Checked again after sanitizing, as an SVG asset is: prefixing every id
+  // lengthens the markup, and what is saved must load again.
+  if (!result.ok || result.svg.length > SVG_STORED_MAX_BYTES) return null;
   return { kind: 'fixed', svg: result.svg, widthPx: result.widthPx, heightPx: result.heightPx, key };
 }
 

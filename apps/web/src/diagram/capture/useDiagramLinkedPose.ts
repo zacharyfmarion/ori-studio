@@ -9,7 +9,7 @@ import {
   type DiagramLinkedPoseAction,
 } from '../actions/diagramLinkedPoseActions';
 import type { DiagramStep } from '../document/diagramDocument';
-import { createPoseController, type DiagramPoseSpatialView } from './poseController';
+import { createPoseController, linkedFoldKey, type DiagramPoseSpatialView } from './poseController';
 
 export type { DiagramPoseSpatialView };
 
@@ -34,16 +34,19 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   const stepId = source ? step!.id : null;
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const busy = useWorkspaceStore((state) => stepId !== null && Object.hasOwn(state.diagramCaptures, stepId));
-  const [spatial, setSpatial] = useState<{ stepId: string; view: DiagramPoseSpatialView } | null>(null);
-  const [hasNext, setHasNext] = useState<{ stepId: string; value: boolean | null } | null>(null);
+  // Each kept with the creases it was learnt from (`linkedFoldKey`): after a
+  // Relink or an undo the step links to others, and these are not theirs.
+  const [spatial, setSpatial] = useState<{ key: string; view: DiagramPoseSpatialView } | null>(null);
+  const [hasNext, setHasNext] = useState<{ key: string; value: boolean | null } | null>(null);
+  const foldKey = useMemo(() => (source && stepId ? linkedFoldKey(stepId, source) : null), [source, stepId]);
 
   const controller = useMemo(
     () =>
       stepId === null
         ? null
         : createPoseController(stepId, {
-            spatial: (view) => setSpatial(view ? { stepId, view } : null),
-            hasNextSolution: (value) => setHasNext({ stepId, value }),
+            spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
+            hasNextSolution: (value, key) => setHasNext({ key, value }),
           }),
     [stepId]
   );
@@ -64,7 +67,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
 
   // A step shown in 3D: fold it for the live view as its detail opens.
   const showsSpatial = source?.render.mode === 'folded-3d';
-  const view = showsSpatial && spatial?.stepId === stepId ? spatial.view : null;
+  const view = showsSpatial && spatial !== null && spatial.key === foldKey ? spatial.view : null;
   useEffect(() => {
     if (controller && showsSpatial && !view) void controller.prepareSpatial();
   }, [controller, showsSpatial, view]);
@@ -76,7 +79,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   );
 
   const render = source?.render ?? null;
-  const hasNextSolution = hasNext?.stepId === stepId ? hasNext.value : null;
+  const hasNextSolution = hasNext !== null && hasNext.key === foldKey ? hasNext.value : null;
   const actions = useMemo(
     () =>
       render && controller

@@ -34,7 +34,8 @@ const ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
  * A linked step's Pose verbs, for the step detail's toolbar: how the step
  * shows its pattern — Crease pattern or Folded — then what can be done to
  * that. `keep` runs a verb and keeps focus in the toolbar, as the upload's
- * pose buttons do.
+ * pose buttons do; while a capture runs the verbs wait rather than disable,
+ * so the one pressed keeps the focus through it.
  */
 export function DiagramLinkedPoseControls({
   actions,
@@ -56,8 +57,9 @@ export function DiagramLinkedPoseControls({
           value={folded.pressed ? 'folded' : 'crease-pattern'}
           disabled={crease.disabled}
           options={[
-            { value: 'crease-pattern', label: crease.label, title: crease.hint },
-            { value: 'folded', label: folded.label, title: folded.hint },
+            // Waiting, an option refuses but keeps the focus (`aria-disabled`).
+            { value: 'crease-pattern', label: crease.label, title: crease.hint, disabled: crease.waiting },
+            { value: 'folded', label: folded.label, title: folded.hint, disabled: folded.waiting },
           ]}
           onChange={(mode) => keep(mode === 'folded' ? folded.run : crease.run)}
         />
@@ -68,9 +70,11 @@ export function DiagramLinkedPoseControls({
           <IconButton
             key={action.id}
             size="sm"
-            title={action.disabled && action.hint ? action.hint : action.label}
+            title={(action.disabled || action.waiting) && action.hint ? action.hint : action.label}
             aria-label={action.label}
             disabled={action.disabled}
+            // Waiting for a capture: refused, but still holding the focus.
+            aria-disabled={action.waiting || undefined}
             onClick={() => keep(action.run)}
           >
             <Icon size={15} />

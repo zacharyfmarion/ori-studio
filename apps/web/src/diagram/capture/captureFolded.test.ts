@@ -15,6 +15,7 @@ import {
 } from '../document/diagramDocument';
 import { readDiagram, writeDiagram } from '../document/diagramFile';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
+import { paintScene } from '../pictures/paintDiagramStep';
 import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
 import { captureStep, SCENE_BUDGET_BYTES, storeScene, type CaptureStepRequest } from './captureFolded';
 import { CAPTURE_PX_PER_UNIT } from './captureGeometry';
@@ -52,6 +53,19 @@ describe('captureStep, a crease pattern', () => {
     });
     expect(result.source.thumbnail.strokes.length).toBeGreaterThan(0);
     expect(result.captured).toMatchObject({ kind: 'picture', picture: { kind: 'scene', paperScale: CAPTURE_PX_PER_UNIT } });
+  });
+
+  // The stored scene lost every line's `joined` flags on its way through the
+  // file's reader, so the border's corners painted with butt-cap notches.
+  it('paints its stored picture with the joins its lines were captured with', async () => {
+    const result = await captureStep(fakeCaptureRuntime(), request({ mode: 'crease-pattern', rotationDeg: 0 }));
+    if (result.status !== 'captured' || result.captured.kind !== 'picture') throw new Error('captured');
+    const picture = result.captured.picture;
+    if (picture.kind !== 'scene') throw new Error('a scene');
+    expect(picture.sceneJson).toContain('"joined"');
+    const painted = paintScene(picture, 'sheet', DEFAULT_DIAGRAM_STYLE)!;
+    // Round joins at the shared ends, where the diagram's butt-capped pens would notch.
+    expect(painted.svg).toMatch(/stroke-linecap="round"/);
   });
 
   it('says why when there is nothing to capture', async () => {

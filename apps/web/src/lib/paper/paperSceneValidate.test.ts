@@ -37,6 +37,17 @@ describe('readPaperScene', () => {
     expect(readPaperScene(scene([face, line]))).toEqual(scene([face, line]));
   });
 
+  // A stored crease pattern's border corners and a 3D crease's bends are
+  // painted joined only if the flags come back from the file.
+  it('keeps which ends of a line join the next, and nothing else about them', () => {
+    const joined = { ...line, joined: [true, false] };
+    expect(readPaperScene(scene([joined]))?.items).toEqual([joined]);
+    // Neither end joining is the same as no flags at all; a pair that does not read is dropped.
+    expect(readPaperScene(scene([{ ...line, joined: [false, false] }]))?.items).toEqual([line]);
+    expect(readPaperScene(scene([{ ...line, joined: [1, 'yes'] }]))?.items).toEqual([line]);
+    expect(readPaperScene(scene([{ ...line, joined: [true] }]))?.items).toEqual([line]);
+  });
+
   it('drops markup items, whatever they hold', () => {
     const hostile = {
       kind: 'markup',

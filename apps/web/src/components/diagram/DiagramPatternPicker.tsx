@@ -1,4 +1,6 @@
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DIAGRAM_OWN_ARROWS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import type {
   DiagramPatternSheet,
   DiagramPatternSheets,
@@ -14,6 +16,11 @@ import styles from './DiagramPatternPicker.module.css';
  * Several to a row, each a small drawing and its number, as the pattern rails
  * number them; the one the step shows is marked. A press links the step (or
  * relinks it) and the picker closes when the picture is in.
+ *
+ * One tab stop, as a listbox is: the arrows and Home and End move between the
+ * patterns, and the Diagram's own step keys stand down while it has the focus.
+ * While a link is captured the patterns refuse rather than disable, so the
+ * one pressed keeps the focus.
  */
 export function DiagramPatternPicker({
   sheets,
@@ -31,6 +38,22 @@ export function DiagramPatternPicker({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
+  const list = useRef<HTMLDivElement | null>(null);
+  const count = sheets.status === 'ready' ? sheets.sheets.length : 0;
+  const selectedIndex =
+    sheets.status === 'ready' ? sheets.sheets.findIndex((sheet) => sheet.segment.id === selectedId) : -1;
+  // The tab stop: the pattern last moved to, else the one the step shows, else the first.
+  const [moved, setMoved] = useState<number | null>(null);
+  const active = Math.min(moved ?? Math.max(selectedIndex, 0), Math.max(count - 1, 0));
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const next = nextIndex(event.key, active, count);
+    if (next === null) return;
+    event.preventDefault();
+    setMoved(next);
+    list.current?.querySelectorAll<HTMLElement>('[role="option"]')[next]?.focus();
+  };
+
   return (
     <div className={styles.picker}>
       <div className={styles.header}>
@@ -41,10 +64,14 @@ export function DiagramPatternPicker({
       </div>
       {sheets.status === 'ready' && sheets.sheets.length > 0 ? (
         <div
+          ref={list}
           role="listbox"
           aria-label={t('panels:diagram.picker.label', 'Patterns')}
           aria-busy={busy || undefined}
+          aria-orientation="horizontal"
+          {...{ [DIAGRAM_OWN_ARROWS_ATTRIBUTE]: '' }}
           className={styles.grid}
+          onKeyDown={onKeyDown}
         >
           {sheets.sheets.map((sheet, index) => {
             const selected = sheet.segment.id === selectedId;
@@ -59,8 +86,12 @@ export function DiagramPatternPicker({
                 title={name}
                 className={styles.option}
                 data-selected={selected || undefined}
-                disabled={busy}
-                onClick={() => onPick(sheet)}
+                tabIndex={index === active ? 0 : -1}
+                aria-disabled={busy || undefined}
+                onFocus={() => setMoved(index)}
+                onClick={() => {
+                  if (!busy) onPick(sheet);
+                }}
               >
                 <span className={styles.thumb}>
                   {sheet.thumbnail && <DiagramSheetThumbnail thumbnail={sheet.thumbnail} />}
@@ -77,6 +108,25 @@ export function DiagramPatternPicker({
       )}
     </div>
   );
+}
+
+/** Where a key moves the picker's focus, or null for a key it leaves alone. */
+function nextIndex(key: string, from: number, count: number): number | null {
+  if (count === 0) return null;
+  switch (key) {
+    case 'ArrowRight':
+    case 'ArrowDown':
+      return Math.min(from + 1, count - 1);
+    case 'ArrowLeft':
+    case 'ArrowUp':
+      return Math.max(from - 1, 0);
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return null;
+  }
 }
 
 function statusNote(sheets: DiagramPatternSheets, t: (key: string, fallback: string) => string): string {

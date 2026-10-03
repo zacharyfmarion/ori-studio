@@ -102,8 +102,14 @@ export type DiagramCaptureOutcome =
   | 'stopped'
   | 'failed';
 
-/** Which flow captured a picture: linking a step, relinking it, or Refresh. A Pose verb is `diagram picture posed`. */
-export type DiagramCaptureVia = 'link' | 'relink' | 'refresh';
+/**
+ * Which flow captured a picture: linking a step, relinking it, Refresh on one
+ * step, or Refresh all. A Pose verb is `diagram picture posed`.
+ */
+export type DiagramCaptureVia = 'link' | 'relink' | 'refresh' | 'refresh_all';
+
+/** The workspace a diagram step's Open in… went to: its pattern in Edit, or its sheet in References. */
+export type DiagramSourceWorkspace = 'edit' | 'references';
 
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
@@ -1030,6 +1036,8 @@ export const ANALYTICS_EVENTS = {
    * and how often folds fail or are stopped.
    */
   diagramPictureCaptured: 'diagram picture captured',
+  /** A step's Open in Edit or Open in References: whether the way back to a step's source is used. */
+  diagramSourceOpened: 'diagram source opened',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',

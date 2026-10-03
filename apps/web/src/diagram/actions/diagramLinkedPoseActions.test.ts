@@ -52,11 +52,31 @@ describe('the linked pose verbs', () => {
     expect(actions.find((action) => action.id === 'next-solution')?.label).toBe('Next Layer Order (now 3)');
   });
 
-  it('holds every verb while a capture runs, or on a read-only diagram, saying why', () => {
-    for (const action of build({ busy: true })) {
-      expect(action).toMatchObject({ disabled: true, hint: 'Its picture is being captured' });
+  // Disabled under the focus, a verb drops it on the page, and every verb
+  // starts a capture: so a capture holds the verbs without disabling them.
+  it('holds every verb while a capture runs, focusable and saying why, and runs none', () => {
+    const pose = vi.fn();
+    const actions = build({ busy: true, render: { mode: 'crease-pattern', rotationDeg: 30 } }, pose);
+    for (const action of actions) {
+      expect(action).toMatchObject({ disabled: false, waiting: true, hint: 'Its picture is being captured' });
+      action.run();
     }
-    for (const action of build({ readOnly: true })) expect(action.disabled).toBe(true);
+    expect(pose).not.toHaveBeenCalled();
+  });
+
+  it('keeps a verb’s own reason over the capture’s', () => {
+    const reset = build({ busy: true }).find((action) => action.id === 'reset');
+    expect(reset).toMatchObject({ disabled: true, waiting: false, hint: 'Already in its starting pose' });
+  });
+
+  it('disables every verb on a read-only diagram, saying why', () => {
+    for (const action of build({ readOnly: true, busy: true })) {
+      expect(action).toMatchObject({
+        disabled: true,
+        waiting: false,
+        hint: 'This diagram was made with a newer Ori Studio and opens read-only',
+      });
+    }
   });
 
   it('offers another layer order unless the fold is known to have only one', () => {
