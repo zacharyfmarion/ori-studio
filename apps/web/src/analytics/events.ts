@@ -97,7 +97,8 @@ export type DiagramPoseAction =
   | 'view_top'
   | 'view_front'
   | 'view_iso'
-  | 'orbit';
+  | 'orbit'
+  | 'rotate_to';
 
 /**
  * What a step's picture is: an upload, by what it is stored as, or a capture

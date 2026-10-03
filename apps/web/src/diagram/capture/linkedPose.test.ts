@@ -76,6 +76,14 @@ describe('posing a crease pattern', () => {
     expect(runtime.fold).not.toHaveBeenCalled();
   });
 
+  it('turns it to an angle typed in degrees, within one turn', async () => {
+    const { session, runtime } = sessionWith();
+    expect(await pose(session, CP, { verb: 'rotate-to', degrees: 40 })).toMatchObject({ render: { rotationDeg: 40 } });
+    expect(await pose(session, CP, { verb: 'rotate-to', degrees: -90 })).toMatchObject({ render: { rotationDeg: 270 } });
+    expect(await pose(session, CP, { verb: 'rotate-to', degrees: 725 })).toMatchObject({ render: { rotationDeg: 5 } });
+    expect(runtime.fold).not.toHaveBeenCalled();
+  });
+
   it('folds it flat, turned as it was, from the front at the first layer order', async () => {
     const { session, runtime } = sessionWith();
     const result = await pose(session, CP, { verb: 'show-folded' });
@@ -98,6 +106,15 @@ describe('posing a flat fold', () => {
     await pose(session, { ...FLAT, side: 'back' }, { verb: 'rotate-right' }, document);
     expect(runtime.fold).toHaveBeenCalledOnce();
     expect(held.get(7)).toBe(1);
+  });
+
+  it('turns it to an angle on the held fold, keeping its side and layer order', async () => {
+    const { session, runtime } = sessionWith();
+    const document = cpDocument();
+    const turned = await pose(session, { ...FLAT, side: 'back' }, { verb: 'rotate-to', degrees: 100 }, document);
+    expect(turned).toMatchObject({ render: { mode: 'folded-flat', side: 'back', rotationDeg: 100, foldCase: 1 } });
+    await pose(session, { ...FLAT, side: 'back', rotationDeg: 100 }, { verb: 'rotate-to', degrees: 0 }, document);
+    expect(runtime.fold).toHaveBeenCalledOnce();
   });
 
   it('steps to the next layer order on the held fold', async () => {

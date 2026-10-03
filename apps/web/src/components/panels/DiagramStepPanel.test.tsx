@@ -3,7 +3,9 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cpDocument } from '../../diagram/capture/capture.fixtures';
 import { createDiagram } from '../../diagram/document/diagramDocument';
-import { cpStep } from '../../diagram/document/diagramSteps.fixtures';
+import { cpStep, referencesStep } from '../../diagram/document/diagramSteps.fixtures';
+import { buildDiagramLinkedPoseActions } from '../../diagram/actions/diagramLinkedPoseActions';
+import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
@@ -176,6 +178,43 @@ describe('DiagramStepPanel', () => {
         state().selectDiagramStep('step-3d');
       });
       expect(host?.textContent).toContain('ViewYaw 45° · Pitch -55°');
+    });
+
+    it('poses a step sent from References from the pane: its side, and Turn Over', () => {
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [referencesStep('step-r')] } });
+        state().openDiagramStep('step-r');
+      });
+      expect(host?.textContent).toContain('SideFrom the front');
+      act(() => textButton('Turn Over')?.click());
+      expect(state().diagram!.steps[0]!.picture).toMatchObject({ kind: 'step-diagram', mirrored: true });
+      expect(host?.textContent).toContain('SideFrom the back');
+    });
+
+    it('poses a linked flat fold from the pane with the open step’s own verbs, and its turn as a field', () => {
+      const pose = vi.fn();
+      const rotateTo = vi.fn();
+      const render = { mode: 'folded-flat' as const, side: 'back' as const, rotationDeg: 30, foldCase: 2 };
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [cpStep('step-f', render)] } });
+        state().openDiagramStep('step-f');
+        const actions = buildDiagramLinkedPoseActions(
+          { render, readOnly: false, busy: false, hasNextSolution: true },
+          { t: ((_key: string, fallback: string) => fallback) as never, pose }
+        );
+        publishOpenLinkedPose('step-f', { actions, spatial: null, onCamera: () => {}, rotateTo });
+      });
+      expect(host?.textContent).toContain('SideFrom the back');
+      expect(host?.textContent).toContain('Layer order2');
+      act(() => textButton('Turn Over')?.click());
+      expect(pose).toHaveBeenCalledWith('turn-over');
+      const rotation = host!.querySelector<HTMLInputElement>('input[aria-label="Rotation"]')!;
+      expect(rotation.value).toBe('30');
+      act(() => rotation.focus());
+      setField(rotation, '100');
+      act(() => rotation.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+      expect(rotateTo).toHaveBeenCalledWith(100);
+      act(() => publishOpenLinkedPose(null, null));
     });
 
     it('says what the picture is, what sanitizing changed, and removes it', () => {

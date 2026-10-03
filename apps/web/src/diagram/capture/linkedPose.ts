@@ -27,10 +27,14 @@ import {
 } from './captureFolded';
 import type { CaptureSession, SpatialHold } from './captureSession';
 
-/** A verb, or an orbit of the 3D view ending at a camera. */
+/**
+ * A verb, an orbit of the 3D view ending at a camera, or a turn typed in
+ * degrees (D5's angle field) for a crease pattern or a flat fold.
+ */
 export type LinkedPoseRequest =
   | { verb: DiagramLinkedPoseActionId }
-  | { verb: 'orbit'; camera: FoldedFigureCamera };
+  | { verb: 'orbit'; camera: FoldedFigureCamera }
+  | { verb: 'rotate-to'; degrees: number };
 
 export type LinkedPoseResult =
   | {
@@ -120,6 +124,8 @@ export async function poseLinkedStep(
         return creasePattern(turned(render.rotationDeg, -POSE_ROTATION_STEP_DEG));
       case 'rotate-right':
         return creasePattern(turned(render.rotationDeg, POSE_ROTATION_STEP_DEG));
+      case 'rotate-to':
+        return creasePattern(turned(request.verb === 'rotate-to' ? request.degrees : render.rotationDeg, 0));
       case 'reset':
         return creasePattern(0);
       default:
@@ -141,6 +147,8 @@ export async function poseLinkedStep(
         return flat(side, turned(rotationDeg, -POSE_ROTATION_STEP_DEG), foldCase);
       case 'rotate-right':
         return flat(side, turned(rotationDeg, POSE_ROTATION_STEP_DEG), foldCase);
+      case 'rotate-to':
+        return flat(side, turned(request.verb === 'rotate-to' ? request.degrees : rotationDeg, 0), foldCase);
       case 'turn-over':
         return flat(side, rotationDeg, foldCase, 'turn-over');
       case 'next-solution':

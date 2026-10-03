@@ -9,6 +9,7 @@ import {
   type DiagramLinkedPoseAction,
 } from '../actions/diagramLinkedPoseActions';
 import type { DiagramStep } from '../document/diagramDocument';
+import { publishOpenLinkedPose } from './openLinkedPose';
 import { createPoseController, linkedFoldKey, type DiagramPoseSpatialView } from './poseController';
 
 export type { DiagramPoseSpatialView };
@@ -19,6 +20,8 @@ export interface DiagramLinkedPose {
   spatial: DiagramPoseSpatialView | null;
   /** The 3D view moved: captured once it rests. */
   onCamera: (camera: FoldedFigureCamera) => void;
+  /** Turn a crease pattern or a flat fold to an angle, in degrees clockwise (D5). */
+  rotateTo: (degrees: number) => void;
 }
 
 /**
@@ -26,7 +29,9 @@ export interface DiagramLinkedPose {
  * (`poseController.ts`): its verbs, and its live 3D fold. One controller per
  * open step, let go when the step changes or the detail closes; it hears an
  * undo or redo, the crease pattern being replaced and the engine being lost.
- * Null for a step that is not linked.
+ * Null for a step that is not linked. What it returns is also published for
+ * the Step pane (`openLinkedPose.ts`), so the pane's verbs are this
+ * controller's.
  */
 export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPose | null {
   const { t } = useTranslation();
@@ -91,6 +96,19 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     [render, readOnly, busy, hasNextSolution, t, controller]
   );
 
-  if (!source) return null;
-  return { actions, spatial: view, onCamera };
+  const rotateTo = useCallback(
+    (degrees: number) => {
+      if (controller && !busy && !readOnly) void controller.run({ verb: 'rotate-to', degrees });
+    },
+    [controller, busy, readOnly]
+  );
+
+  const pose = useMemo(
+    () => (source ? { actions, spatial: view, onCamera, rotateTo } : null),
+    [source, actions, view, onCamera, rotateTo]
+  );
+  // The Step pane offers these verbs too, through this one controller.
+  useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);
+  useEffect(() => () => publishOpenLinkedPose(null, null), []);
+  return pose;
 }

@@ -3765,7 +3765,11 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7533,7 +7537,11 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11303,7 +11311,11 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15000,7 +15012,11 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18697,7 +18713,11 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22465,7 +22485,11 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26233,7 +26257,11 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -29930,6 +29958,10 @@
     "panels:diagram.empty.goToEdit": "6a218c5f7329",
     "panels:diagram.picture.view": "dcc839a4015c",
     "panels:diagram.pose.cameraReadout": "4f5dbe14bf23",
-    "panels:diagram.pose.orbitHint": "4ff8dd698fd8"
+    "panels:diagram.pose.orbitHint": "4ff8dd698fd8",
+    "panels:diagram.pose.layerOrder": "101de550cf0d",
+    "panels:diagram.pose.side": "630ef00b7c4f",
+    "panels:diagram.pose.sideBack": "00971be43927",
+    "panels:diagram.pose.sideFront": "c9d4b8d82c52"
   }
 }

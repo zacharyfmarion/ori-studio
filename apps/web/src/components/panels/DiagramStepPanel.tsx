@@ -102,11 +102,7 @@ export function DiagramStepPanel() {
             <DiagramStepAnnotations step={step} />
           </CollapsibleSection>
         )}
-        {detailOpen && !annotating && step.source?.kind === 'upload' && (
-          <CollapsibleSection title={t('panels:diagram.stepPane.pose', 'Pose')}>
-            <DiagramStepPose pose={step.source} actions={poseActions} />
-          </CollapsibleSection>
-        )}
+        {detailOpen && !annotating && <DiagramStepPose step={step} actions={poseActions} />}
         {!locked && (
           <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>
             <DiagramStepPicture

@@ -19,7 +19,8 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 
 type ShowMode = 'crease-pattern' | 'folded';
 
-const ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
+/** A linked pose verb's icon, wherever it is offered: here and in the Step pane. */
+export const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
   'rotate-left': RotateCcw,
   'rotate-right': RotateCw,
   'turn-over': FlipHorizontal2,
@@ -47,7 +48,7 @@ export function DiagramLinkedPoseControls({
   const { t } = useTranslation();
   const crease = actions.find((action) => action.id === 'show-crease-pattern');
   const folded = actions.find((action) => action.id === 'show-folded');
-  const verbs = actions.filter((action) => ICONS[action.id]);
+  const verbs = actions.filter((action) => LINKED_POSE_ICONS[action.id]);
   return (
     <>
       {crease && folded && (
@@ -65,7 +66,7 @@ export function DiagramLinkedPoseControls({
         />
       )}
       {verbs.map((action) => {
-        const Icon = ICONS[action.id]!;
+        const Icon = LINKED_POSE_ICONS[action.id]!;
         return (
           <IconButton
             key={action.id}

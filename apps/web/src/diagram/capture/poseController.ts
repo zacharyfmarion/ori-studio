@@ -47,6 +47,7 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   'view-iso': 'view_iso',
   reset: 'reset',
   orbit: 'orbit',
+  'rotate-to': 'rotate_to',
 };
 
 /** The 3D fold the live view draws, held by the session. */
