@@ -1,16 +1,17 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { CHIP_SIZE_CLASSES } from './controlStyles';
+import styles from './Chip.module.css';
 
-const chip = cva('ui-chip', {
-  variants: { size: CHIP_SIZE_CLASSES },
-  // The dense in-panel row, which is where every chip was before this existed.
-  defaultVariants: { size: 'sm' },
-});
-
-export interface ChipProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof chip> {}
+export interface ChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /**
+   * `sm`, the default: the dense row in a panel — the tool window's groups and
+   * the crease-angle popover, which is where every chip was before this
+   * existed.
+   *
+   * `md`: a header row, beside pills of the same height and weight — Settings
+   * → Paper's Update and Revert, next to the pill naming the preset.
+   */
+  size?: 'sm' | 'md';
+}
 
 /**
  * A pill-shaped quick pick: a short value you set in one press.
@@ -28,10 +29,18 @@ export interface ChipProps
  * prop would either force those to say `selected={false}` — which announces a
  * choice that is off, not an action — or quietly diverge from the ARIA the
  * screen reader actually reads. One fact, one place to state it.
+ *
+ * A `className` is for placing the chip; how it looks is a `size`.
  */
 export const Chip = forwardRef<HTMLButtonElement, ChipProps>(
-  ({ size, className, type = 'button', ...props }, ref) => (
-    <button ref={ref} type={type} className={chip({ size, className })} {...props} />
+  ({ size = 'sm', className, type = 'button', ...props }, ref) => (
+    <button
+      ref={ref}
+      type={type}
+      className={className ? `${styles.chip} ${className}` : styles.chip}
+      data-size={size}
+      {...props}
+    />
   )
 );
 

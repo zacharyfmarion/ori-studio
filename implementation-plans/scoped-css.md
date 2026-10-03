@@ -158,6 +158,10 @@ Moved by `implementation-plans/styling-refinements.md`: `viewport-toolbar`
 `cp-context-panel`, `viewport-status-readout`, `bp-name-editor`, `update-card`,
 and the whole of `MenuBar.css`.
 
+Moved by `implementation-plans/crease-angle-popover-tool-window-chrome.md`:
+`ui-chip`, into `Chip.module.css`, with Settings → Paper's
+`settings-paper__slot-action` override as `Chip`'s `size="md"`.
+
 Still shared:
 
 - **Panel frame**: `panel-shell`, `panel-toolbar`, `panel-body`,
@@ -184,7 +188,7 @@ Still shared:
 - **Design scene** (TreeScene, sceneDom, DesignPanel, BpPackingPanel):
   `tree-node`, `tree-edge`, `node-label`, `edge-label`, `symmetry-*`,
   `design-canvas`, `design-panel`, `paper-hit-area`, `paper-shadow`
-- **Primitives**: `ui-button` (Button, IconButton, ErrorFallback), `ui-chip`,
+- **Primitives**: `ui-button` (Button, IconButton, ErrorFallback),
   `ui-control`, `ui-split-button` (the landing's static paint names it)
 - **App.css**: `error-fallback`, `workspace-rail`, `canvas-pill`,
   `file-drop-region` (the landing uses it)
