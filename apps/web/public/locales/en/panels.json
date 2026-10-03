@@ -887,6 +887,7 @@
       "stale": "Out of date: the pattern changed",
       "stop": "Stop",
       "svg": "Uploaded SVG, {{width}} × {{height}} px",
+      "textFont": "Its text is set in the diagram’s font, so it may look a little different.",
       "unknown": "Not checked: the crease pattern isn’t open",
       "unsupported": "Some of its parts aren’t supported and were left out.",
       "waitingReferences": "Waiting for References: the next step sent to the diagram fills this one."

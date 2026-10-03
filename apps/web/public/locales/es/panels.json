@@ -920,6 +920,7 @@
       "stale": "Desactualizado: el patrón cambió",
       "stop": "Detener",
       "svg": "SVG subido, {{width}} × {{height}} px",
+      "textFont": "Su texto se compone con la fuente del diagrama, así que puede verse un poco distinto.",
       "unknown": "Sin comprobar: el patrón de pliegues no está abierto",
       "unsupported": "Algunas de sus partes no son compatibles y se omitieron.",
       "waitingReferences": "Esperando a Referencias: el próximo paso enviado al diagrama ocupará este."

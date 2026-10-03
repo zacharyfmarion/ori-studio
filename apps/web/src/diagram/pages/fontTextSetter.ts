@@ -8,15 +8,17 @@
  *
  * Pure: the fonts are loaded by the caller.
  */
+import { graphemesOf } from '../../lib/paper/textWrap';
 import type { DiagramHanStyle } from '../document/diagramDocument';
 import {
   fontFaceId,
   parseFontFaceId,
+  type DiagramFontFace,
   type DiagramFontKey,
   type DiagramFontWeight,
 } from '../fonts/diagramFontFaces';
 import type { FontMetrics } from '../fonts/fontMetrics';
-import { assignFonts, textCjkKey } from '../fonts/fontScripts';
+import { assignFonts, coverFonts, textCjkKey } from '../fonts/fontScripts';
 import type { SetLine, TextSetter } from './diagramPageLayout';
 import { ELLIPSIS, setTextLines, type TextFaces } from './setText';
 
@@ -30,6 +32,8 @@ export interface FontTextSetter extends TextSetter {
 
 // Joiners and variation selectors: drawn as nothing, so needing no glyph.
 const IGNORABLE = /\p{Default_Ignorable_Code_Point}/u;
+// An upload's line breaks and tabs, which its text draws as spaces or nothing.
+const XML_SPACE = /^[\t\n\r]+$/;
 
 export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): FontTextSetter {
   const missing = new Set<string>();
@@ -83,6 +87,24 @@ export function fontTextSetter(fonts: FontLookup, hanStyle: DiagramHanStyle): Fo
     line(text, sizeMm, weight, maxWidthMm = Number.POSITIVE_INFINITY): SetLine {
       const set = setTextLines(text, maxWidthMm, 1, facesFor(text, weight, sizeMm));
       return set.lines[0] ?? { text: '', widthMm: 0, runs: [], ellipsis: false };
+    },
+    runs(text, { key, weight }) {
+      const graphemes = graphemesOf(text);
+      const coverage = covers(weight);
+      const assigned = coverFonts(
+        graphemes,
+        graphemes.map(() => key),
+        (font, grapheme) => XML_SPACE.test(grapheme) || coverage(font, grapheme)
+      );
+      for (const grapheme of assigned.missing) missing.add(grapheme);
+      const runs: { face: DiagramFontFace; text: string }[] = [];
+      graphemes.forEach((grapheme, index) => {
+        const font = assigned.fonts[index]!;
+        const last = runs[runs.length - 1];
+        if (last?.face.key === font) last.text += grapheme;
+        else runs.push({ face: { key: font, weight }, text: grapheme });
+      });
+      return runs;
     },
   };
 }

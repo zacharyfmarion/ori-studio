@@ -25,6 +25,7 @@
  * Pure.
  */
 import type { DiagramPageSetup } from '../document/diagramDocument';
+import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import { printPaper, type PrintPaper } from './printPaper';
 
 /** The instruction's size and leading, mm. */
@@ -84,6 +85,12 @@ export interface TextSetter {
   paragraph: (text: string, widthMm: number, sizeMm: number, maxLines: number) => SetText;
   /** One line: a title or a number, cut with "…" at `maxWidthMm` when one is given. */
   line: (text: string, sizeMm: number, weight: 400 | 700, maxWidthMm?: number) => SetLine;
+  /**
+   * A run of an upload's text (`uploadText.ts`), set in `face`, in the faces
+   * that set it: its own, or for a character its own lacks, the first font
+   * that has it. Nothing is measured: the upload places its own text.
+   */
+  runs: (text: string, face: DiagramFontFace) => { face: DiagramFontFace; text: string }[];
 }
 
 /** What the layout needs of a step. */

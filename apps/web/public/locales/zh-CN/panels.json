@@ -854,6 +854,7 @@
       "stale": "已过期：图样已更改",
       "stop": "停止",
       "svg": "上传的 SVG，{{width}} × {{height}} px",
+      "textFont": "其中的文字会改用图解的字体排版，看起来可能略有不同。",
       "unknown": "未检查：折痕图未打开",
       "unsupported": "其中部分内容不受支持，已被略去。",
       "waitingReferences": "等待参考：下一个发送到图解的步骤将填入此处。"

@@ -16,6 +16,11 @@
  * in jsdom under vitest and in a real engine.
  */
 
+import { graphemesOf } from '../../lib/paper/textWrap';
+import { DIAGRAM_FONT_FAMILY, type CjkFontKey, type DiagramFontKey } from '../fonts/diagramFontFaces';
+import { scriptFonts, textCjkKey } from '../fonts/fontScripts';
+import { UPLOAD_HAN_KEY, uploadTextFamily } from './uploadText';
+
 export const SVG_NS = 'http://www.w3.org/2000/svg';
 const XLINK_NS = 'http://www.w3.org/1999/xlink';
 const XML_NS = 'http://www.w3.org/XML/1998/namespace';
@@ -1317,6 +1322,9 @@ function sanitize(text: string, options: SanitizeOptions, report: Report): Sanit
   }
   for (const [element, id] of newIds) element.setAttribute('id', id);
 
+  // Text in the diagram's fonts, which are all a page embeds (`uploadText.ts`).
+  elementsOut += setTextFonts(outputRoot, report);
+
   // Inkscape 1.2+ arrowheads paint with `context-stroke`, which WebKit draws missing.
   bakeContextPaint(outputRoot, report);
 
@@ -1517,6 +1525,262 @@ export async function finishRasters(
 }
 
 // ---------------------------------------------------------------------------
+// Text fonts (`uploadText.ts`)
+
+/** Font properties taken off every element: the runs carry the diagram's. The size stays. */
+const FONT_PROPERTIES = [
+  'font',
+  'font-family',
+  'font-weight',
+  'font-style',
+  'font-variant',
+  'font-stretch',
+  'font-size-adjust',
+  'font-kerning',
+  'font-feature-settings',
+  'font-variant-ligatures',
+  'font-variant-caps',
+  'font-variant-numeric',
+  'font-variant-east-asian',
+];
+/** What decides a text's font, in cascade order: the shorthand, then the longhands. */
+const FONT_DECLARATIONS = ['font', 'font-family', 'font-weight', 'font-style', 'font-size'];
+const TEXT_CONTENT = new Set(['text', 'tspan', 'textPath']);
+
+/** The font a text asked for. */
+interface AskedFont {
+  /** Its first family, unquoted and lowercased; '' for none. */
+  family: string;
+  weight: number;
+  italic: boolean;
+}
+
+const NO_FONT: AskedFont = { family: '', weight: 400, italic: false };
+
+/**
+ * Every text in the diagram's fonts: each text node's characters split into
+ * runs by script (`fontScripts.ts`, a text's Han in {@link UPLOAD_HAN_KEY}),
+ * and each run's element given the family and the weight, Regular below 600
+ * and Bold from it, as a browser picks between the two. A text node that is
+ * its element's only child and one run is the run; otherwise each run is a
+ * new `<tspan>`. Spaces between runs are left to the `<text>`, which is set
+ * in Noto Sans when it is not itself a run.
+ *
+ * Idempotent: on its own output every run is already its element's only
+ * child, in the font it asks for. Returns the `<tspan>`s it added.
+ */
+function setTextFonts(root: Element, report: Report): number {
+  const texts = Array.from(root.getElementsByTagNameNS(SVG_NS, 'text'));
+  // A font property on a drawing with no text sets nothing.
+  if (texts.length === 0) return 0;
+  const asked = new Map<Element, AskedFont>();
+  const walk = (element: Element, inherited: AskedFont) => {
+    const font = clearFont(element, inherited);
+    if (TEXT_CONTENT.has(element.localName)) asked.set(element, font);
+    for (const child of Array.from(element.children)) walk(child, font);
+  };
+  walk(root, NO_FONT);
+
+  let added = 0;
+  for (const text of texts) {
+    const nodes = textNodesOf(text);
+    const graphemes = nodes.map((node) => graphemesOf(node.data));
+    const all = graphemes.flat();
+    const keys = scriptFonts(all, textCjkKey(all.join(''), languageKey(text) ?? UPLOAD_HAN_KEY));
+    let at = 0;
+    nodes.forEach((node, index) => {
+      const own = keys.slice(at, at + graphemes[index].length);
+      at += graphemes[index].length;
+      if (/^[ \t\r\n]*$/.test(node.data)) return;
+      const parent = node.parentNode as Element;
+      const font = asked.get(parent) ?? NO_FONT;
+      const runs = runsOf(graphemes[index], own);
+      noteMappedFont(font, runs, report);
+      const weight = font.weight >= 600 ? 700 : 400;
+      if (runs.length === 1 && parent.childNodes.length === 1) {
+        setRunFont(parent, runs[0].key, weight);
+        return;
+      }
+      const document = parent.ownerDocument;
+      for (const run of runs) {
+        const span = document.createElementNS(SVG_NS, 'tspan');
+        setRunFont(span, run.key, weight);
+        span.appendChild(document.createTextNode(run.text));
+        parent.insertBefore(span, node);
+        added += 1;
+      }
+      parent.removeChild(node);
+    });
+    if (!text.hasAttribute('font-family')) {
+      setRunFont(text, 'latin', (asked.get(text) ?? NO_FONT).weight >= 600 ? 700 : 400);
+    }
+  }
+  return added;
+}
+
+/**
+ * The CJK font a text's language asks for, as kana and Hangul do: Japanese or
+ * Korean. Chinese, or no language, leaves its Han to the diagram's style.
+ */
+function languageKey(element: Element): CjkFontKey | null {
+  for (let at: Element | null = element; at; at = at.parentElement) {
+    const language = at.getAttributeNS(XML_NS, 'lang') ?? at.getAttribute('lang');
+    if (language === null) continue;
+    const primary = language.split('-')[0].toLowerCase();
+    return primary === 'ja' ? 'jp' : primary === 'ko' ? 'kr' : null;
+  }
+  return null;
+}
+
+/** The text nodes a `<text>` draws, in order: none inside its `<title>` or `<desc>`. */
+function textNodesOf(text: Element): Text[] {
+  const nodes: Text[] = [];
+  const visit = (element: Element) => {
+    element.childNodes.forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) nodes.push(child as Text);
+      else if (child.nodeType === Node.ELEMENT_NODE && TEXT_CONTENT.has((child as Element).localName)) {
+        visit(child as Element);
+      }
+    });
+  };
+  visit(text);
+  return nodes;
+}
+
+function runsOf(graphemes: readonly string[], keys: readonly DiagramFontKey[]) {
+  const runs: { key: DiagramFontKey; text: string }[] = [];
+  graphemes.forEach((grapheme, index) => {
+    const last = runs[runs.length - 1];
+    if (last && last.key === keys[index]) last.text += grapheme;
+    else runs.push({ key: keys[index], text: grapheme });
+  });
+  return runs;
+}
+
+function setRunFont(element: Element, key: DiagramFontKey, weight: 400 | 700): void {
+  element.setAttribute('font-family', uploadTextFamily(key));
+  element.setAttribute('font-weight', String(weight));
+}
+
+function noteMappedFont(font: AskedFont, runs: readonly { key: DiagramFontKey }[], report: Report): void {
+  for (const run of runs) {
+    if (font.family !== DIAGRAM_FONT_FAMILY[run.key].toLowerCase()) {
+      report.add('font-mapped:family', 'visual', font.family || '(none)');
+    }
+  }
+  if (font.weight !== 400 && font.weight !== 700) report.add('font-mapped:weight', 'visual', String(font.weight));
+  if (font.italic) report.add('font-mapped:italic', 'visual');
+}
+
+/**
+ * The font an element asks for, its own declarations over what it inherits,
+ * and every font property but the size taken off it. A size the `font`
+ * shorthand set is kept as `font-size`.
+ */
+function clearFont(element: Element, inherited: AskedFont): AskedFont {
+  const asks = Array.from(element.attributes).some(
+    ({ name, value }) => name.startsWith('font') || (name === 'style' && value.includes('font'))
+  );
+  if (!asks) return inherited;
+  const declared = new Map<string, { value: string; shorthand: boolean }>();
+  const declare = (property: string, value: string) => {
+    if (property !== 'font') {
+      declared.set(property, { value, shorthand: false });
+      return;
+    }
+    const parts = parseFontShorthand(value);
+    if (parts) for (const [name, part] of Object.entries(parts)) declared.set(name, { value: part, shorthand: true });
+  };
+  // The attributes, then the style, which overrides them.
+  for (const property of FONT_DECLARATIONS) {
+    const value = element.getAttribute(property);
+    if (value !== null) declare(property, value);
+  }
+  const style = styleMap(element);
+  for (const [property, value] of style) if (FONT_DECLARATIONS.includes(property)) declare(property, value);
+
+  let restyled = false;
+  for (const property of FONT_PROPERTIES) {
+    element.removeAttribute(property);
+    if (style.delete(property)) restyled = true;
+  }
+  const size = declared.get('font-size');
+  if (size?.shorthand) {
+    style.delete('font-size');
+    style.set('font-size', size.value);
+    restyled = true;
+  }
+  if (restyled) setStyle(element, style);
+
+  const family = declared.get('font-family')?.value.trim();
+  const weight = declared.get('font-weight')?.value.trim().toLowerCase();
+  const fontStyle = declared.get('font-style')?.value.trim().toLowerCase();
+  return {
+    family: family === undefined || INHERITED.test(family) ? inherited.family : firstFamily(family),
+    weight: weight === undefined ? inherited.weight : weightValue(weight, inherited.weight),
+    italic:
+      fontStyle === undefined || INHERITED.test(fontStyle)
+        ? inherited.italic
+        : fontStyle === 'italic' || fontStyle.startsWith('oblique'),
+  };
+}
+
+const INHERITED = /^(inherit|unset)$/i;
+
+function firstFamily(value: string): string {
+  if (/^initial$/i.test(value)) return '';
+  const first = value.match(/^\s*(?:"([^"]*)"|'([^']*)'|([^,]*))/);
+  return (first?.[1] ?? first?.[2] ?? first?.[3] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/** A `font-weight` as a number, a relative one from the inherited weight (CSS Fonts 4, §2.2). */
+function weightValue(value: string, inherited: number): number {
+  if (value === 'inherit' || value === 'unset') return inherited;
+  if (value === 'normal' || value === 'initial') return 400;
+  if (value === 'bold') return 700;
+  if (value === 'bolder') return inherited < 350 ? 400 : inherited < 550 ? 700 : 900;
+  if (value === 'lighter') return inherited < 100 ? inherited : inherited < 550 ? 100 : inherited < 750 ? 400 : 700;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 1 && number <= 1000 ? number : inherited;
+}
+
+const FONT_SIZE =
+  /^(?:\+?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?(?:px|pt|pc|mm|cm|in|q|em|ex|rem|ch|vw|vh|vmin|vmax|%)|0|xx-small|x-small|small|medium|large|x-large|xx-large|xxx-large|larger|smaller)$/i;
+
+type FontLonghands = Record<'font-style' | 'font-weight' | 'font-size' | 'font-family', string>;
+
+/**
+ * The `font` shorthand as the longhands it sets, the style and weight reset
+ * to `normal` when it leaves them out; null for one that does not read (a
+ * system font, or no size or family).
+ */
+function parseFontShorthand(value: string): FontLonghands | null {
+  const tokens = value.trim().split(/\s+/);
+  let fontStyle = 'normal';
+  let weight = 'normal';
+  for (let index = 0; index < tokens.length; index++) {
+    const [size, lineHeight] = tokens[index].split('/');
+    if (FONT_SIZE.test(size)) {
+      let rest = index + 1;
+      // "12px/1.2", "12px/ 1.2", "12px / 1.2" and "12px /1.2".
+      if (lineHeight === '') rest += 1;
+      else if (lineHeight === undefined && tokens[rest]?.startsWith('/')) rest += tokens[rest] === '/' ? 2 : 1;
+      const family = tokens.slice(rest).join(' ');
+      return family === ''
+        ? null
+        : { 'font-style': fontStyle, 'font-weight': weight, 'font-size': size, 'font-family': family };
+    }
+    const token = tokens[index].toLowerCase();
+    if (token === 'italic' || token === 'oblique') fontStyle = token;
+    else if (token === 'bold' || token === 'bolder' || token === 'lighter' || /^\d+(\.\d+)?$/.test(token)) {
+      weight = token;
+    }
+    // `normal`, `small-caps`, the widths and an oblique's angle set nothing kept here.
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Context paint
 
 function styleMap(element: Element): Map<string, string> {
@@ -1661,7 +1925,7 @@ function decodeUriComponentSafe(text: string): string {
 // What the user is told
 
 /** The changes worth a sentence to the person who uploaded the file. */
-export type SanitizeNotice = 'flowed-text' | 'linked-image' | 'css-dropped' | 'unsupported';
+export type SanitizeNotice = 'flowed-text' | 'linked-image' | 'css-dropped' | 'text-font' | 'unsupported';
 
 /**
  * From the report to the notices an upload shows. Only what changes the look:
@@ -1675,6 +1939,7 @@ export function sanitizeNotices(report: readonly ReportEntry[]): SanitizeNotice[
     else if (entry.code === 'image-dropped:linked' || entry.code === 'image-dropped:embedded-svg') {
       notices.add('linked-image');
     } else if (entry.code.startsWith('css-')) notices.add('css-dropped');
+    else if (entry.code.startsWith('font-mapped:')) notices.add('text-font');
     else notices.add('unsupported');
   }
   return [...notices];

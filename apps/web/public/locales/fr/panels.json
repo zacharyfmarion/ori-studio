@@ -920,6 +920,7 @@
       "stale": "Pas à jour\u00a0: le patron a changé",
       "stop": "Arrêter",
       "svg": "SVG importé, {{width}} × {{height}} px",
+      "textFont": "Son texte est composé dans la police du diagramme ; il peut donc paraître un peu différent.",
       "unknown": "Non vérifié\u00a0: le patron de plis n’est pas ouvert",
       "unsupported": "Certaines de ses parties ne sont pas prises en charge et ont été omises.",
       "waitingReferences": "En attente de Références\u00a0: la prochaine étape envoyée au diagramme remplira celle-ci."

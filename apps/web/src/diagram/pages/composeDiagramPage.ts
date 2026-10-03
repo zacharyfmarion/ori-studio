@@ -19,8 +19,8 @@
  */
 import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import { escapeXml, xmlText } from '../../lib/xmlEscape';
-import type { DiagramAsset, DiagramStep, DiagramStyle } from '../document/diagramDocument';
-import { DIAGRAM_FONT_FAMILY, fontFaceId, parseFontFaceId } from '../fonts/diagramFontFaces';
+import type { DiagramAsset, DiagramHanStyle, DiagramStep, DiagramStyle } from '../document/diagramDocument';
+import { DIAGRAM_FONT_FAMILY, parseFontFaceId } from '../fonts/diagramFontFaces';
 import type { FontUsage } from '../fonts/fontEmbedding';
 import {
   PAGE_NUMBER_SIZE_MM,
@@ -42,9 +42,12 @@ const BAND_INK = '#ecece8';
 const TAB_RADIUS_MM = 1.4;
 const RULE_WIDTH_MM = 0.35;
 
-/** What browsers would otherwise add to text the composer has already set. */
+/**
+ * What browsers would otherwise add to the page's text: to the composer's,
+ * which is set already, and to an upload's, which the PDF sets without it.
+ */
 const SET_TEXT_CSS =
-  '.dt{font-kerning:none;font-variant-ligatures:none;' +
+  'text{font-kerning:none;font-variant-ligatures:none;' +
   'font-feature-settings:"kern" 0,"liga" 0,"clig" 0,"calt" 0;' +
   'text-spacing-trim:space-all;text-autospace:no-autospace}';
 
@@ -54,10 +57,17 @@ export interface ComposeDiagramPageInput {
   steps: ReadonlyMap<string, DiagramStep>;
   assets: Readonly<Record<string, DiagramAsset>>;
   style: DiagramStyle;
-  /** The layout's own setter: numbers are set as the instructions were. */
+  /** The Han style an upload's Han is set in. */
+  hanStyle: DiagramHanStyle;
+  /** The layout's own setter: numbers are set as the instructions were, an upload's text in its fonts. */
   setter: TextSetter;
   /** The page's `@font-face` rules for what it sets; `''` writes none. */
   embedFonts: (usage: FontUsage) => string;
+  /**
+   * Art past the trim on every side, mm, for a print shop's bleed: the page
+   * grows by it, and what reaches the trim — the flow band — runs on into it.
+   */
+  bleedMm?: number;
 }
 
 export interface ComposedPage {
@@ -68,8 +78,9 @@ export interface ComposedPage {
 
 export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage {
   const { layout, page, setter } = input;
-  const widthPt = layout.paper.widthMm * PT_PER_MM;
-  const heightPt = layout.paper.heightMm * PT_PER_MM;
+  const bleedPt = (input.bleedMm ?? 0) * PT_PER_MM;
+  const widthPt = layout.paper.widthMm * PT_PER_MM + 2 * bleedPt;
+  const heightPt = layout.paper.heightMm * PT_PER_MM + 2 * bleedPt;
   const usage = new Map<string, Set<string>>();
   const use = (face: string, text: string) => {
     const characters = usage.get(face) ?? new Set<string>();
@@ -99,10 +110,12 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
   page.cells.forEach((cell, index) => {
     const step = input.steps.get(cell.stepId);
     const parts: string[] = [];
-    const picture = step ? cellPicture(step, input.assets, input.style, cell, `c${index}-`) : null;
+    const picture = step
+      ? cellPicture(step, input.assets, input.style, cell, `c${index}-`, { hanStyle: input.hanStyle, runs: setter.runs })
+      : null;
     if (picture) {
       parts.push(picture.markup);
-      if (picture.text) use(fontFaceId({ key: picture.text.family, weight: picture.text.weight }), picture.text.characters);
+      for (const { face, characters } of picture.text) use(face, characters);
     }
     const number = setter.line(String(cell.number), STEP_NUMBER_SIZE_MM, 700);
     parts.push(textElement([number], cell.numberAt.x, cell.numberAt.y, STEP_NUMBER_SIZE_MM, 0, 700, INK, use));
@@ -138,7 +151,7 @@ export function composeDiagramPage(input: ComposeDiagramPageInput): ComposedPage
   const svg = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<svg xmlns="http://www.w3.org/2000/svg" width="${num(widthPt)}pt" height="${num(heightPt)}pt" ` +
-      `viewBox="0 0 ${num(widthPt)} ${num(heightPt)}">`,
+      `viewBox="${num(-bleedPt)} ${num(-bleedPt)} ${num(widthPt)} ${num(heightPt)}">`,
     `<defs><style>${fonts === '' ? '' : `\n${fonts}\n`}${SET_TEXT_CSS}</style></defs>`,
     ...body,
     '</svg>',
@@ -175,7 +188,7 @@ function textElement(
     }
   });
   return (
-    `<text class="dt" xml:space="preserve" font-size="${pt(sizeMm)}" font-weight="${weight}" fill="${fill}">` +
+    `<text xml:space="preserve" font-size="${pt(sizeMm)}" font-weight="${weight}" fill="${fill}">` +
     `${spans.join('')}</text>`
   );
 }

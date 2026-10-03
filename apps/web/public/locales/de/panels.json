@@ -887,6 +887,7 @@
       "stale": "Veraltet: das Muster hat sich geändert",
       "stop": "Stopp",
       "svg": "Hochgeladenes SVG, {{width}} × {{height}} px",
+      "textFont": "Sein Text wird in der Schrift des Diagramms gesetzt und kann daher etwas anders aussehen.",
       "unknown": "Nicht geprüft: das Faltmuster ist nicht geöffnet",
       "unsupported": "Einige Teile werden nicht unterstützt und wurden weggelassen.",
       "waitingReferences": "Wartet auf Referenzen: Der nächste an das Diagramm gesendete Schritt füllt diesen."

@@ -55,6 +55,15 @@ export function assignFonts(
   cjkKey: CjkFontKey,
   covers: (key: DiagramFontKey, grapheme: string) => boolean
 ): FontAssignment {
+  return coverFonts(graphemes, scriptFonts(graphemes, cjkKey), covers);
+}
+
+/**
+ * Each grapheme's font by its script alone: a CJK character in `cjkKey`, a
+ * Latin, Cyrillic or Greek one in Noto Sans, and anything else in the font of
+ * the run it follows.
+ */
+export function scriptFonts(graphemes: readonly string[], cjkKey: CjkFontKey): DiagramFontKey[] {
   const strong: (DiagramFontKey | null)[] = graphemes.map((grapheme) => {
     const kind = kindOf(grapheme);
     return kind === 'cjk' ? cjkKey : kind === 'latin' ? 'latin' : null;
@@ -67,6 +76,19 @@ export function assignFonts(
     fonts.push(chosen);
     previous = chosen;
   }
+  return fonts;
+}
+
+/**
+ * Each grapheme in the font chosen for it, or, where that font lacks it, the
+ * first other font that has it.
+ */
+export function coverFonts(
+  graphemes: readonly string[],
+  chosen: readonly DiagramFontKey[],
+  covers: (key: DiagramFontKey, grapheme: string) => boolean
+): FontAssignment {
+  const fonts = [...chosen];
   const missing: string[] = [];
   fonts.forEach((font, index) => {
     const grapheme = graphemes[index]!;

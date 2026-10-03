@@ -55,6 +55,8 @@ export interface DiagramFonts {
 export interface DiagramFontText {
   text: string;
   weight: DiagramFontWeight;
+  /** The CJK face it is set in, when it says (an upload's run); otherwise its script's (`textCjkKey`). */
+  cjk?: CjkFontKey;
 }
 
 export class DiagramFontError extends Error {
@@ -101,10 +103,10 @@ export async function loadDiagramFonts(
   const latinAt = (weight: DiagramFontWeight) => latin.find((font) => font.weight === weight)!.metrics;
 
   const needs = new Map<string, { face: DiagramFontFace & { key: CjkFontKey }; codePoints: Set<number> }>();
-  for (const { text, weight } of texts) {
+  for (const { text, weight, cjk } of texts) {
     const lacking = codePointsLacking(text, latinAt(weight));
     if (lacking.length === 0) continue;
-    const face = { key: textCjkKey(text, hanStyle), weight };
+    const face = { key: cjk ?? textCjkKey(text, hanStyle), weight };
     const id = fontFaceId(face);
     const need = needs.get(id) ?? { face, codePoints: new Set<number>() };
     for (const codePoint of lacking) need.codePoints.add(codePoint);

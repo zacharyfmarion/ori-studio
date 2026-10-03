@@ -380,3 +380,72 @@ describe('rasterHeaderSize, against fill bytes', () => {
   });
 });
 
+
+describe('text, set in the diagram’s fonts', () => {
+  const svgOf = (body: string) => `<svg xmlns="${SVG_NS}" viewBox="0 0 100 100">${body}</svg>`;
+  const NOTO = `font-family="'Noto Sans', sans-serif"`;
+  const family = (name: string) => `font-family="'Noto Sans ${name}', sans-serif"`;
+
+  it('sets each script’s run in its font, Regular or Bold, and says it changed the font', () => {
+    const result = ok(
+      load(svgOf(`<text x="1" y="2" font-family="Helvetica" font-weight="600" style="font-style:italic">Fold 折る</text>`))
+    );
+    expect(result.svg).toContain(
+      `<text x="1" y="2" ${NOTO} font-weight="700">` +
+        `<tspan ${NOTO} font-weight="700">Fold </tspan><tspan ${family('JP')} font-weight="700">折る</tspan></text>`
+    );
+    expect(result.report.map((entry) => entry.code)).toEqual(
+      expect.arrayContaining(['font-mapped:family', 'font-mapped:weight', 'font-mapped:italic'])
+    );
+    expect(sanitizeNotices(result.report)).toEqual(['text-font']);
+  });
+
+  it('keeps one run on its own element, its Han standing for the diagram’s style', () => {
+    expect(ok(load(svgOf('<text>折</text>'))).svg).toContain(`<text ${family('SC')} font-weight="400">折</text>`);
+  });
+
+  it('sets Han in Japanese or Korean when the text says that is its language', () => {
+    expect(ok(load(svgOf('<text xml:lang="ja">折</text>'))).svg).toContain(family('JP'));
+    expect(ok(load(svgOf('<g lang="ko-KR"><text>折</text></g>'))).svg).toContain(family('KR'));
+    expect(ok(load(svgOf('<text xml:lang="zh-TW">折</text>'))).svg).toContain(family('SC'));
+  });
+
+  it('gives each run the weight it inherits, and leaves the spaces between them to the text', () => {
+    const svg = ok(
+      load(svgOf('<g font-weight="bold"><text><tspan>A</tspan> <tspan style="font-weight:normal">B</tspan></text></g>'))
+    ).svg;
+    expect(svg).toContain(
+      `<g><text ${NOTO} font-weight="700"><tspan ${NOTO} font-weight="700">A</tspan> ` +
+        `<tspan ${NOTO} font-weight="400">B</tspan></text></g>`
+    );
+  });
+
+  it('reads the font shorthand, keeping its size', () => {
+    const svg = ok(load(svgOf(`<text style="fill:red;font: italic bold 12px/1.5 'Times New Roman', serif">A</text>`))).svg;
+    expect(svg).toContain(`<text style="fill:red;font-size:12px" ${NOTO} font-weight="700">A</text>`);
+  });
+
+  it('says nothing for text already in the diagram’s font', () => {
+    const result = ok(load(svgOf(`<text font-family="Noto Sans" font-weight="bold" font-size="4">Fold</text>`)));
+    expect(sanitizeNotices(result.report)).toEqual([]);
+    expect(result.svg).toContain(`<text font-size="4" ${NOTO} font-weight="700">Fold</text>`);
+  });
+
+  it('leaves the font properties of a drawing with no text alone', () => {
+    expect(ok(load(svgOf('<g font-family="Helvetica"><path d="M0 0H1"/></g>'))).svg).toContain(
+      '<g font-family="Helvetica">'
+    );
+  });
+
+  it('writes the same bytes a second time', () => {
+    const once = ok(
+      load(
+        svgOf(
+          `<g style="font:bold 9px Arial"><text x="1 2 3" y="4">Fold <tspan font-weight="300">折る</tspan>` +
+            `<tspan> </tspan>&amp; 접기</text><text xml:space="preserve">  </text></g>`
+        )
+      )
+    ).svg;
+    expect(ok(load(once)).svg).toBe(once);
+  });
+});

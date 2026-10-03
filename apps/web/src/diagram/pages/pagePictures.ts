@@ -12,7 +12,9 @@
  *   page, so its marks keep their pt size. Anything else is nested as itself.
  *
  * Everything a picture names by id is renamed under the cell's prefix, so two
- * cells drawn from one asset never share an id on a page.
+ * cells drawn from one asset never share an id on a page. An upload's text is
+ * set in the diagram's fonts (`uploadText.ts`), and a picture says what its
+ * text sets in each face, for the page to embed.
  *
  * Pure: no DOM, no store.
  */
@@ -22,6 +24,7 @@ import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { PT_PER_CSS_PX, PT_PER_MM, paperSceneSvgBody } from '../../lib/paper/paperSvg';
 import type {
   DiagramAsset,
+  DiagramHanStyle,
   DiagramScenePicture,
   DiagramStep,
   DiagramStepDiagramPicture,
@@ -30,7 +33,9 @@ import type {
 import { diagramStyleKey, diagramSurfaceStyle } from '../pictures/diagramPaperStyle';
 import { paintSource, poseTransform, stepPictureSource, type StepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramPaintStyle, stepDiagramScene } from '../pictures/paintStepDiagram';
-import type { LayoutCell, LayoutStep } from './diagramPageLayout';
+import { fontFaceId } from '../fonts/diagramFontFaces';
+import { setUploadText } from '../upload/uploadText';
+import type { LayoutCell, LayoutStep, TextSetter } from './diagramPageLayout';
 
 /** The size a References step's picture is measured at for its shape: any size does. */
 const MEASURE_SHEET_MM = 50;
@@ -38,11 +43,17 @@ const MEASURE_SHEET_MM = 50;
 /** The family References' letters name on screen, which a page sets in its own font. */
 const LABEL_FONT = 'Inter, ui-sans-serif, system-ui, sans-serif';
 
-/** A picture drawn into its cell, and the text its marks set (References' letters). */
+/** A picture drawn into its cell, and the text it sets: References' letters, an upload's text. */
 export interface CellPicture {
   markup: string;
-  /** Characters set in the given family and weight inside the picture. */
-  text: { family: 'latin'; weight: 700; characters: string } | null;
+  /** The characters each face sets in the picture, by face id (`latin-700`). */
+  text: { face: string; characters: string }[];
+}
+
+/** How a picture's own text is set: an upload's runs, its Han in the diagram's style. */
+export interface PictureText {
+  hanStyle: DiagramHanStyle;
+  runs: TextSetter['runs'];
 }
 
 const scenes = new WeakMap<DiagramScenePicture, PaperScene | null>();
@@ -141,7 +152,8 @@ export function cellPicture(
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle,
   cell: Pick<LayoutCell, 'pictureMm' | 'mmPerUnit'>,
-  idPrefix: string
+  idPrefix: string,
+  text: PictureText
 ): CellPicture | null {
   const source = stepPictureSource(step, assets);
   if (!source) return null;
@@ -150,7 +162,7 @@ export function cellPicture(
     y: cell.pictureMm.y * PT_PER_MM,
     size: cell.pictureMm.size * PT_PER_MM,
   };
-  const drawn = draw(source, step, style, box, cell.mmPerUnit);
+  const drawn = draw(source, step, style, box, cell.mmPerUnit, text);
   if (!drawn) return null;
   return { markup: prefixIds(drawn.markup, idPrefix), text: drawn.text };
 }
@@ -162,7 +174,8 @@ function draw(
   step: DiagramStep,
   style: DiagramStyle,
   box: Box,
-  mmPerUnit: number | null
+  mmPerUnit: number | null,
+  text: PictureText
 ): CellPicture | null {
   switch (source.kind) {
     case 'scene': {
@@ -172,7 +185,7 @@ function draw(
       const span = longerSide(scene.bounds);
       const ptPerPx =
         mmPerUnit !== null && scale ? (mmPerUnit * PT_PER_MM) / scale : span > 0 ? box.size / span : PT_PER_CSS_PX;
-      return { markup: placedScene(scene, diagramSurfaceStyle(style), box, ptPerPx), text: null };
+      return { markup: placedScene(scene, diagramSurfaceStyle(style), box, ptPerPx), text: [] };
     }
     case 'step-diagram': {
       const units = sentSheetUnits(step);
@@ -189,7 +202,7 @@ function draw(
       const letters = labelsOf(source.picture);
       return {
         markup: markup.replaceAll(`font-family="${LABEL_FONT}"`, `font-family="'Noto Sans', sans-serif"`),
-        text: letters === '' ? null : { family: 'latin', weight: 700, characters: letters },
+        text: letters === '' ? [] : [{ face: fontFaceId({ key: 'latin', weight: 700 }), characters: letters }],
       };
     }
     case 'asset':
@@ -206,12 +219,18 @@ function draw(
       const height = painted.heightPx * ptPerPx;
       const x = box.x + (box.size - width) / 2;
       const y = box.y + (box.size - height) / 2;
+      const usage = new Map<string, string>();
+      const body =
+        source.kind === 'asset'
+          ? setUploadText(withoutDeclaration(painted.svg), text.hanStyle, text.runs, (face, characters) =>
+              usage.set(face, (usage.get(face) ?? '') + characters)
+            )
+          : withoutDeclaration(painted.svg);
       return {
         markup:
           `<svg x="${num(x)}" y="${num(y)}" width="${num(width)}" height="${num(height)}" ` +
-          `viewBox="0 0 ${num(painted.widthPx)} ${num(painted.heightPx)}" overflow="visible">` +
-          `${withoutDeclaration(painted.svg)}</svg>`,
-        text: null,
+          `viewBox="0 0 ${num(painted.widthPx)} ${num(painted.heightPx)}" overflow="visible">${body}</svg>`,
+        text: [...usage].map(([face, characters]) => ({ face, characters })),
       };
     }
   }

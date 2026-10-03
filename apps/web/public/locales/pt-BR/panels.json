@@ -920,6 +920,7 @@
       "stale": "Desatualizado: o padrão mudou",
       "stop": "Parar",
       "svg": "SVG enviado, {{width}} × {{height}} px",
+      "textFont": "O texto dela é composto na fonte do diagrama, então pode parecer um pouco diferente.",
       "unknown": "Não verificado: o padrão de vincos não está aberto",
       "unsupported": "Algumas partes não são suportadas e foram omitidas.",
       "waitingReferences": "Aguardando Referências: o próximo passo enviado ao diagrama preenche este."

@@ -255,6 +255,11 @@ function noticeSentence(notice: SanitizeNotice, t: TFunction): string {
         'panels:diagram.picture.cssDropped',
         'Some of its styling couldn’t be kept, so parts may look different.'
       );
+    case 'text-font':
+      return t(
+        'panels:diagram.picture.textFont',
+        'Its text is set in the diagram’s font, so it may look a little different.'
+      );
     case 'unsupported':
       return t(
         'panels:diagram.picture.unsupported',

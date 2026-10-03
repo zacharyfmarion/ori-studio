@@ -32,4 +32,5 @@ export const estimateTextSetter: TextSetter = {
     const set = setTextLines(text, maxWidthMm, 1, facesAt(sizeMm));
     return set.lines[0] ?? { text: '', widthMm: 0, runs: [], ellipsis: false };
   },
+  runs: (text, face) => [{ face, text }],
 };
