@@ -515,7 +515,6 @@
     "rotateSimulationWindow": "시뮬레이션 창 회전",
     "selectedCount_other": "{{count}}개 선택됨",
     "selectionToolbar": {
-      "addToDiagram": "다이어그램에 추가",
       "export": "내보내기…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -1041,7 +1040,6 @@
     "transversalCrossingLabel": "접힘선이 면을 가로지름"
   },
   "foldedFigureActions": {
-    "addToDiagram": "다이어그램에 추가",
     "anotherSolution": "다른 해",
     "delete": "삭제",
     "duplicate": "복제",

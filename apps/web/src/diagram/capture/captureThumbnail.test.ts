@@ -6,7 +6,8 @@ import {
 } from '../../cp-workspace/sheets/sheetThumbnail';
 import { storedCpSource } from '../document/diagramFile';
 import { cpDocument, type FixtureLine } from './capture.fixtures';
-import { chooseStepCreases } from './captureCreases';
+import type { CpSegment } from '../../lib/creasePatternSegmentation';
+import type { StepCreases } from './captureCreases';
 import { creasesThumbnail, withinStoredBudget } from './captureThumbnail';
 
 const stroke = (x1: number, y1: number, x2: number, y2: number, role: SheetStroke['role'] = 'mountain') => ({
@@ -28,16 +29,35 @@ describe('creasesThumbnail', () => {
       [0, 400, 0, 0, 'Black0'],
     ];
     // 20,100 creases, more than the cap: a grid of short ones and a few long ones.
-    const creases: FixtureLine[] = Array.from({ length: 20_100 }, (_, index) => {
+    const dense: FixtureLine[] = Array.from({ length: 20_100 }, (_, index) => {
       const x = 1 + (index % 140) * 2.8;
       const y = 1 + Math.floor(index / 140) * 2.7;
       return index < 5 ? [0, index * 50 + 10, 400, index * 50 + 10, 'Red1'] : [x, y, x + 1, y + 1, 'Blue2'];
     });
-    const document = cpDocument([...border, ...creases]);
-    const scope = { kind: 'figure-bounds' as const, bounds: { minX: 0, minY: 0, maxX: 400, maxY: 400 } };
-    const choice = chooseStepCreases(document, scope, null);
-    if (choice.status !== 'found') throw new Error('no creases');
-    const thumbnail = creasesThumbnail(document, choice.creases, null);
+    const document = cpDocument([...border, ...dense]);
+    const rim = [
+      [
+        { x: 0, y: 0 },
+        { x: 400, y: 0 },
+        { x: 400, y: 400 },
+        { x: 0, y: 400 },
+      ],
+    ];
+    const scope = {
+      kind: 'segment' as const,
+      region: { boundary: rim, bounds: { minX: 0, minY: 0, maxX: 400, maxY: 400 }, segmentIdHint: 0 },
+    };
+    // Drawn from its lines, as it is while the segmentation is not to hand.
+    const lineIds = document.crease_pattern.line_segments.map((_, index) => index + 1);
+    const creases: StepCreases = {
+      scopedLineIds: lineIds,
+      foldLineIds: lineIds,
+      fingerprint: 'fp',
+      drawnFingerprint: 'fp',
+      paper: rim,
+      segment: { id: 0, boundary: rim } as unknown as CpSegment,
+    };
+    const thumbnail = creasesThumbnail(document, creases, null);
     expect(thumbnail.strokes.length).toBeLessThanOrEqual(MAX_STORED_STROKES);
     expect(readSheetThumbnail(thumbnail)).not.toBeNull();
     // The sheet's edge and the long folds are what it keeps.
@@ -47,7 +67,7 @@ describe('creasesThumbnail', () => {
       storedCpSource({
         kind: 'cp',
         scope,
-        fingerprint: choice.creases.fingerprint,
+        fingerprint: creases.fingerprint,
         thumbnail,
         render: { mode: 'crease-pattern', rotationDeg: 0 },
       })

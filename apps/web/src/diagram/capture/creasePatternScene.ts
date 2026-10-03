@@ -68,9 +68,8 @@ export function creasePatternScene(
   for (const id of creases.scopedLineIds) {
     const line = document.crease_pattern.line_segments[id - 1];
     if (!line) continue;
-    const piece = creases.clip ? clipToBox(line.a, line.b, creases.clip) : ([line.a, line.b] as const);
-    if (!piece || Math.hypot(piece[1].x - piece[0].x, piece[1].y - piece[0].y) <= epsilon) continue;
-    drawn.push({ role: lineRole(line.color), a: piece[0], b: piece[1] });
+    if (Math.hypot(line.b.x - line.a.x, line.b.y - line.a.y) <= epsilon) continue;
+    drawn.push({ role: lineRole(line.color), a: line.a, b: line.b });
   }
   drawn.sort((left, right) => (ROLE_LAYER[left.role] ?? 0) - (ROLE_LAYER[right.role] ?? 0));
 
@@ -125,37 +124,6 @@ function boxOf(points: readonly Point[]): FoldedSourceBounds {
     maxY = Math.max(maxY, y);
   }
   return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-}
-
-/** The part of a segment inside a box (Liang–Barsky), or null when none is. */
-export function clipToBox(a: Point, b: Point, box: FoldedSourceBounds): readonly [Point, Point] | null {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  let from = 0;
-  let to = 1;
-  const edges: [number, number][] = [
-    [-dx, a.x - box.minX],
-    [dx, box.maxX - a.x],
-    [-dy, a.y - box.minY],
-    [dy, box.maxY - a.y],
-  ];
-  for (const [p, q] of edges) {
-    if (p === 0) {
-      if (q < 0) return null;
-      continue;
-    }
-    const r = q / p;
-    if (p < 0) {
-      if (r > to) return null;
-      from = Math.max(from, r);
-    } else {
-      if (r < from) return null;
-      to = Math.min(to, r);
-    }
-  }
-  if (from > to) return null;
-  const at = (t: number): Point => (t === 0 ? a : t === 1 ? b : { x: a.x + dx * t, y: a.y + dy * t });
-  return [at(from), at(to)];
 }
 
 function onRings(rings: readonly Point[][], point: Point, epsilon: number): boolean {

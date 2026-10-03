@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   cpLinesByIds,
   foldedSourceFingerprint,
-  reselectFoldableLineIds,
 } from '../../cp-workspace/folded/foldedFigureStaleness';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
@@ -33,8 +32,7 @@ describe('chooseStepCreases, a region', () => {
       foldedSourceFingerprint(cpLinesByIds(document, LEFT_FOLD_LINE_IDS))
     );
     expect(choice.creases.paper).toEqual(left!.boundary);
-    expect(choice.creases.clip).toBeNull();
-    expect(choice.creases.segment?.id).toBe(left!.id);
+    expect(choice.creases.segment.id).toBe(left!.id);
   });
 
   it('keeps its fingerprint through an edit to the other region, and changes it for its own', () => {
@@ -65,30 +63,6 @@ describe('chooseStepCreases, a region', () => {
       region: { ...regionReferenceFor(left!), segmentIdHint: right!.id },
     };
     const choice = chooseStepCreases(cpDocument(), lying, segmentation);
-    expect(choice.status === 'found' && choice.creases.segment?.id).toBe(left!.id);
-  });
-});
-
-describe('chooseStepCreases, a figure box', () => {
-  const box = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
-
-  it('re-chooses its creases by overlap, as Edit refolds, and cuts what it draws to the box', () => {
-    const document = cpDocument();
-    const choice = chooseStepCreases(document, { kind: 'figure-bounds', bounds: box }, null);
-    expect(choice.status).toBe('found');
-    if (choice.status !== 'found') return;
-    expect(choice.creases.foldLineIds).toEqual(reselectFoldableLineIds(document, box));
-    // Overlap is closed, as upstream's: lines that only touch the box count.
-    expect(choice.creases.foldLineIds).toContain(2);
-    expect(choice.creases.scopedLineIds).toContain(10);
-    expect(choice.creases.clip).toEqual(box);
-    expect(choice.creases.paper[0]).toHaveLength(4);
-  });
-
-  it('is missing when no foldable crease overlaps the box', () => {
-    const away = { minX: 500, minY: 500, maxX: 600, maxY: 600 };
-    expect(chooseStepCreases(cpDocument(), { kind: 'figure-bounds', bounds: away }, null)).toEqual({
-      status: 'missing',
-    });
+    expect(choice.status === 'found' && choice.creases.segment.id).toBe(left!.id);
   });
 });

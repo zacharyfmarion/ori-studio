@@ -596,7 +596,6 @@
     "selectedCount_many": "Выбрано: {{count}}",
     "selectedCount_other": "Выбрано: {{count}}",
     "selectionToolbar": {
-      "addToDiagram": "Добавить в диаграмму",
       "export": "Экспорт…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -1151,7 +1150,6 @@
     "transversalCrossingLabel": "Складка пересекает грань"
   },
   "foldedFigureActions": {
-    "addToDiagram": "Добавить в диаграмму",
     "anotherSolution": "Другое решение",
     "delete": "Удалить",
     "duplicate": "Дублировать",

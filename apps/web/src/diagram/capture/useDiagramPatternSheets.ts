@@ -43,7 +43,7 @@ export function linkedSheet(
   step: DiagramStep,
   sheets: readonly DiagramPatternSheet[]
 ): DiagramPatternSheet | null {
-  if (step.source?.kind !== 'cp' || step.source.scope.kind !== 'segment') return null;
+  if (step.source?.kind !== 'cp') return null;
   const segment = resolveRegion(
     step.source.scope.region,
     sheets.map((sheet) => sheet.segment)

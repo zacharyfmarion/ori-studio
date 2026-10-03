@@ -16,7 +16,6 @@ import {
   type SheetThumbnail,
 } from '../../cp-workspace/sheets/sheetThumbnail';
 import type { StepCreases } from './captureCreases';
-import { clipToBox } from './creasePatternScene';
 
 const EMPTY_THUMBNAIL: SheetThumbnail = { viewBox: '0 0 100 100', strokes: [] };
 
@@ -37,8 +36,8 @@ function strokeRole(color: string): SheetStrokeRole {
 }
 
 /**
- * The scope's thumbnail: a region's, as the Simulate rail draws it; a figure
- * box's from the lines it chose, cut to the box.
+ * The region's thumbnail, as the Simulate rail draws it; drawn from the lines
+ * it chose while the segmentation is not to hand.
  */
 export function creasesThumbnail(
   document: OristudioCpDocumentSnapshot,
@@ -46,17 +45,14 @@ export function creasesThumbnail(
   segmentation: FoldArtifacts | null
 ): SheetThumbnail {
   let thumbnail: SheetThumbnail | null;
-  if (creases.segment && segmentation) {
+  if (segmentation) {
     thumbnail = segmentSheetThumbnail(segmentation.fold, creases.segment);
   } else {
     const strokes: SheetStroke[] = [];
     for (const id of creases.scopedLineIds) {
       const line = document.crease_pattern.line_segments[id - 1];
       if (!line) continue;
-      const piece = creases.clip ? clipToBox(line.a, line.b, creases.clip) : ([line.a, line.b] as const);
-      if (!piece) continue;
-      const [a, b] = piece;
-      strokes.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, role: strokeRole(line.color) });
+      strokes.push({ x1: line.a.x, y1: line.a.y, x2: line.b.x, y2: line.b.y, role: strokeRole(line.color) });
     }
     thumbnail = fitSheetThumbnail(strokes);
   }

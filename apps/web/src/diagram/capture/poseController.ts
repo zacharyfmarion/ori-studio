@@ -139,10 +139,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
   const creasesFor = async (begun: StepCaptureStart, linked: DiagramCpSource) => {
     const document = begun.cp.document;
-    const segmentation =
-      linked.scope.kind === 'segment'
-        ? await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document))
-        : null;
+    const segmentation = await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document));
     return { document, segmentation, choice: chooseStepCreases(document, linked.scope, segmentation) };
   };
 

@@ -6,8 +6,8 @@
  * - `current`: the creases the scope chooses today are the ones captured —
  *   every line drawn, for a crease pattern; the lines folded, for a fold.
  * - `stale`: they changed; Refresh captures them again.
- * - `missing`: there is nothing to choose — the region is gone, or no
- *   foldable crease overlaps the figure's box; Relink picks another.
+ * - `missing`: there is nothing to choose — the region is gone, or has no
+ *   foldable crease; Relink picks another.
  * - `unknown`: there is no pattern to ask (none is open), or a region cannot
  *   be looked for until the segmentation is ready.
  *

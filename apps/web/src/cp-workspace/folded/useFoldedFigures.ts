@@ -74,7 +74,6 @@ import { foldedFigureGesture } from './foldedFigureGesture';
 import { foldedFigureMenuItemsWith } from './foldedFigureMenuItems';
 import { queueFoldedModelWrite } from './foldedModelWriteQueue';
 import { deleteFoldedFigure, setFoldedFigureDisplayStyle } from './foldedFigureVerbs';
-import { addFigureToDiagram } from '../../diagram/capture/addToDiagram';
 import { openFoldedFigureExport } from './openFoldedFigureExport';
 import { useSettingsStore } from '../../store/settingsStore';
 import { effectiveObjectPaperStyle, setFoldedFigureAppearance } from '../paper/objectPaperStyle';
@@ -974,10 +973,6 @@ export function useFoldedFigures({ cpDocument, selectedFoldLineIds }: UseFoldedF
       // about the document, so it is not an undo step.
       exportFigure: (figure) => {
         void openFoldedFigureExport(figure.id, t);
-      },
-      // Not an Edit undo step either: it adds a step to the diagram's own history.
-      addToDiagram: (figure) => {
-        void addFigureToDiagram(figure);
       },
       // What a 3D verdict offers to do about itself. None of the three is an
       // undo step: two only change what is shown, and the third opens a

@@ -6,7 +6,7 @@ import { sceneOf, face, line, SQUARE } from '../../lib/paper/paperScene.fixtures
 import { cpDocument, twoSquaresSegmentation } from './capture.fixtures';
 import { chooseStepCreases, type StepCreases } from './captureCreases';
 import { CAPTURE_PX_PER_UNIT, storableScene } from './captureGeometry';
-import { clipToBox, creasePatternScene } from './creasePatternScene';
+import { creasePatternScene } from './creasePatternScene';
 
 const segmentation = twoSquaresSegmentation();
 const [left, right] = resolveCpSegments(segmentation);
@@ -65,34 +65,6 @@ describe('creasePatternScene', () => {
     // Clockwise on a y-down page: the mountain diagonal, top-left to bottom-right, turns upright.
     const diagonal = lines(turned).find((item) => item.role === 'diagram-mountain')!;
     expect(diagonal.a[0]).toBeCloseTo(diagonal.b[0]);
-  });
-
-  it('cuts a figure box’s lines to the box', () => {
-    const box = { minX: 0, minY: 0, maxX: 100, maxY: 100 };
-    const choice = chooseStepCreases(cpDocument(), { kind: 'figure-bounds', bounds: box }, null);
-    if (choice.status !== 'found') throw new Error('the box should find creases');
-    const scene = creasePatternScene(cpDocument(), choice.creases, 0);
-    const half = (100 * CAPTURE_PX_PER_UNIT) / 2;
-    for (const item of lines(scene)) {
-      for (const [x, y] of [item.a, item.b]) {
-        expect(Math.abs(x)).toBeLessThanOrEqual(half + 1e-9);
-        expect(Math.abs(y)).toBeLessThanOrEqual(half + 1e-9);
-      }
-    }
-  });
-});
-
-describe('clipToBox', () => {
-  const box = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
-  it('keeps a line inside as it is, cuts one that crosses, and drops one outside', () => {
-    const a = { x: 1, y: 1 };
-    const b = { x: 5, y: 5 };
-    expect(clipToBox(a, b, box)).toEqual([a, b]);
-    expect(clipToBox({ x: -10, y: 5 }, { x: 20, y: 5 }, box)).toEqual([
-      { x: 0, y: 5 },
-      { x: 10, y: 5 },
-    ]);
-    expect(clipToBox({ x: 20, y: 20 }, { x: 30, y: 30 }, box)).toBeNull();
   });
 });
 

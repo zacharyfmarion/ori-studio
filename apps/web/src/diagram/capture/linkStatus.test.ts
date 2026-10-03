@@ -9,7 +9,6 @@ import { linkStatus } from './linkStatus';
 const segmentation = twoSquaresSegmentation();
 const [left] = resolveCpSegments(segmentation);
 const regionScope: DiagramCpScope = { kind: 'segment', region: regionReferenceFor(left!) };
-const boxScope: DiagramCpScope = { kind: 'figure-bounds', bounds: { minX: 0, minY: 0, maxX: 100, maxY: 100 } };
 
 const FOLDED: DiagramCpRender = { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 };
 const CREASE_PATTERN: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 0 };
@@ -26,11 +25,8 @@ const edited = () =>
   cpDocument(TWO_SQUARES.map((line, i): FixtureLine => (i === 7 ? [...line.slice(0, 4), 'Blue2'] as FixtureLine : line)));
 
 describe('linkStatus', () => {
-  it.each([
-    ['a region', regionScope],
-    ['a figure box', boxScope],
-  ])('reads %s current against the pattern it was captured from, and stale once its creases change', (_label, scope) => {
-    const source = linked(scope);
+  it('reads a region current against the pattern it was captured from, and stale once its creases change', () => {
+    const source = linked(regionScope);
     expect(linkStatus(source, cpDocument(), segmentation)).toBe('current');
     expect(linkStatus(source, edited(), segmentation)).toBe('stale');
   });
@@ -38,10 +34,8 @@ describe('linkStatus', () => {
   // The aux line in the left square (line 10) is drawn in a crease-pattern
   // picture and folds nothing: moving it changed the picture Refresh would
   // take, while the step read current with Refresh disabled.
-  it.each([
-    ['a region', regionScope],
-    ['a figure box', boxScope],
-  ])('reads %s shown as its crease pattern stale when an aux line it draws moves; a fold of it does not', (_label, scope) => {
+  it('reads a region shown as its crease pattern stale when an aux line it draws moves; a fold of it does not', () => {
+    const scope = regionScope;
     const movedAux = cpDocument(
       TWO_SQUARES.map((line, i): FixtureLine => (i === 9 ? [0, 60, 50, 60, 'Cyan3'] : line))
     );
@@ -54,16 +48,8 @@ describe('linkStatus', () => {
     expect(linkStatus(source, edited(), twoSquaresSegmentation({ wall: false }))).toBe('missing');
   });
 
-  it('reads a box no crease overlaps any more missing', () => {
-    const source = linked(boxScope);
-    const elsewhere = cpDocument(TWO_SQUARES.map(([ax, ay, bx, by, color]): FixtureLine => [ax + 1000, ay, bx + 1000, by, color]));
-    expect(linkStatus(source, elsewhere, segmentation)).toBe('missing');
-  });
-
   it('cannot say with no pattern open, or a region before the segmentation is ready', () => {
     expect(linkStatus(linked(regionScope), null, segmentation)).toBe('unknown');
     expect(linkStatus(linked(regionScope), cpDocument(), null)).toBe('unknown');
-    // A box needs no segmentation.
-    expect(linkStatus(linked(boxScope), cpDocument(), null)).toBe('current');
   });
 });

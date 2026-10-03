@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import {
   Axis3d,
-  BookOpen,
   ChevronFirst,
   ChevronRight,
   Copy,
@@ -62,9 +61,6 @@ export function foldedFigureActionIconNode(
       return <RefreshCw size={size} />;
     case 'export':
       return <FileDown size={size} />;
-    // The Diagram workspace's own glyph, as on the rail.
-    case 'add-to-diagram':
-      return <BookOpen size={size} />;
     case 'duplicate':
       return <Copy size={size} />;
     case 'delete':

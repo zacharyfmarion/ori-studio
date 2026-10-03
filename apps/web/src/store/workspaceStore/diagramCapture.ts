@@ -228,10 +228,7 @@ export async function runDiagramCapture(
   if ('status' in start) return start;
   try {
     const document = start.cp.document;
-    const segmentation =
-      request.scope.kind === 'segment'
-        ? await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document))
-        : null;
+    const segmentation = await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document));
     const capture = (runtime: CpCaptureRuntime) =>
       captureStep(runtime, {
         document,
@@ -266,62 +263,6 @@ export async function runDiagramCapture(
     return captureFailure(error);
   } finally {
     endStepCapture(store, stepId);
-  }
-}
-
-/**
- * Capture a new linked step and add it (Add to diagram from Edit): the
- * capture for a step that does not exist yet, inserted with its picture as one
- * undo step under the insertion rule. A fold is a visible `'diagram-capture'`
- * run, stoppable from the global toast. The outcome, and the new step's id
- * when there is one.
- */
-export async function captureNewLinkedStep(
-  store: DiagramCaptureStore,
-  request: Omit<DiagramCaptureRequest, 'kind'>
-): Promise<{ outcome: DiagramCaptureOutcome; stepId: string | null }> {
-  const state = store.get();
-  if (state.diagramReadOnly) return { outcome: { status: 'read-only' }, stepId: null };
-  const cp = state.oristudioCpDocument;
-  if (!cp) return { outcome: { status: 'no-pattern' }, stepId: null };
-  const loadId = state.diagramLoadId;
-  const style = state.diagram?.style ?? DEFAULT_DIAGRAM_STYLE;
-  const auxHandle = cpAuxLinesKey(cp.geometry) === NO_AUX_LINES_KEY ? null : cp.handle;
-  try {
-    const document = cp.document;
-    const segmentation =
-      request.scope.kind === 'segment'
-        ? await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document))
-        : null;
-    const capture = (runtime: CpCaptureRuntime) =>
-      captureStep(runtime, { document, segmentation, scope: request.scope, render: request.render, style });
-    const result =
-      request.render.mode === 'crease-pattern'
-        ? await capture(createCpCaptureRuntime(FOLD_RUN_NONE, auxHandle))
-        : await abandonOnEngineLoss(
-            withFoldInFlight(store, 'diagram-capture', (runId) =>
-              capture(createCpCaptureRuntime(runId, auxHandle))
-            )
-          );
-    if (result.status !== 'captured') return { outcome: result, stepId: null };
-    const kept = await keptPicture(result.captured, result.source.render, style);
-    const stepId = store.get().addLinkedDiagramStep(
-      { source: result.source, ...kept },
-      { loadId, label: request.label }
-    );
-    if (stepId === null) return { outcome: { status: 'discarded' }, stepId: null };
-    return {
-      outcome: {
-        status: 'captured',
-        changed: true,
-        render: result.source.render,
-        noLayerOrder: result.noLayerOrder,
-        tooDetailed: kept.asset !== undefined,
-      },
-      stepId,
-    };
-  } catch (error) {
-    return { outcome: captureFailure(error), stepId: null };
   }
 }
 

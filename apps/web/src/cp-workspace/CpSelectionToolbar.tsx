@@ -4,7 +4,6 @@ import type { TFunction } from 'i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { MenuContent, MenuItem, MenuItemLabel } from '../components/ui/Menu';
 import {
-  BookOpen,
   Compass,
   FileDown,
   ImageDown,
@@ -19,7 +18,6 @@ import { IconButton } from '../components/ui/IconButton';
 import { MenuIconButton } from '../components/ui/MenuIconButton';
 import { useCanvasObjectAnchor } from './canvasObjects/useCanvasObjectAnchor';
 import { useSimulateSelection } from './inlineSimulation/useSimulateSelection';
-import { addPatternToDiagram } from '../diagram/capture/addToDiagram';
 import { selectionCoversEntireCp, useOpenReferences } from './references/useOpenReferences';
 import type { AnnotationBox } from './annotations/annotationTransform';
 import { useWorkspaceStore } from '../store/workspaceStore/store';
@@ -94,7 +92,6 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
   const cpDocument = useWorkspaceStore((s) => s.oristudioCpDocument?.document ?? null);
   const foldOristudioCpDocument = useWorkspaceStore((s) => s.foldOristudioCpDocument);
   const exportSegment = useWorkspaceStore((s) => s.exportOristudioCpSegment);
-  const diagramReadOnly = useWorkspaceStore((s) => s.diagramReadOnly);
   const simulateSegment = useWorkspaceStore((s) => s.simulateOristudioCpSegment);
   const shareSegment = useWorkspaceStore((s) => s.shareOristudioCpSegment);
   // Web-only, and off in dev unless opted in: a dev build points at the production share
@@ -216,23 +213,6 @@ export function CpSelectionToolbar({ container }: { container: HTMLElement | nul
         onClick={() => runAndDismiss(() => void simulateSegment(segmentId))}
       >
         <Play size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        variant="toolbar"
-        title={
-          diagramReadOnly
-            ? t(
-                'panels:diagram.actions.readOnlyHint',
-                'This diagram was made with a newer Ori Studio and opens read-only'
-              )
-            : t('panels:creasePattern.selectionToolbar.addToDiagram', 'Add to diagram')
-        }
-        aria-label={t('panels:creasePattern.selectionToolbar.addToDiagram', 'Add to diagram')}
-        disabled={diagramReadOnly}
-        onClick={() => runAndDismiss(() => void addPatternToDiagram(match.segment))}
-      >
-        <BookOpen size={14} />
       </IconButton>
       {offerReferences && (
         <IconButton

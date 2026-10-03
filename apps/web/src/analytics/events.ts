@@ -22,9 +22,6 @@ export type AnalyticsProperties = Record<string, AnalyticsPropertyValue>;
  */
 export type DiagramStepAddedSource =
   | 'empty'
-  | 'crease_pattern'
-  | 'cp_folded'
-  | 'cp_3d'
   | 'references'
   | 'svg'
   | 'raster';
@@ -35,8 +32,6 @@ export type DiagramStepAddedSource =
  */
 export type DiagramStepAddedVia =
   | 'grid'
-  | 'edit_toolbar'
-  | 'folded_figure'
   | 'references'
   | 'drop'
   | 'batch';

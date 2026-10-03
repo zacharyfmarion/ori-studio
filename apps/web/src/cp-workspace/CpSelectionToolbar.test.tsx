@@ -165,24 +165,15 @@ describe('CpSelectionToolbar', () => {
     await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
     expect(toolbar).not.toBeNull();
-    // Fold, Export, Save to image, Simulate inline, Simulate, Add to diagram, Create shareable link.
-    expect(toolbar?.querySelectorAll('button').length).toBe(7);
-    expect(document.querySelector('button[aria-label="Add to diagram"]')).not.toBeNull();
+    // Fold, Export, Save to image, Simulate inline, Simulate, Create shareable link. A
+    // diagram step is made in the Diagram (D21), so there is no Add to diagram here.
+    expect(toolbar?.querySelectorAll('button').length).toBe(6);
+    expect(document.querySelector('button[aria-label="Add to diagram"]')).toBeNull();
     expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate inline"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Simulate"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Export…"]')).not.toBeNull();
     expect(document.querySelector('button[aria-label="Create shareable link"]')).not.toBeNull();
-  });
-
-  it('offers no Add to diagram on a diagram it may not change, and says why', async () => {
-    seedStore([1, 3, 5, 7, 8]);
-    useWorkspaceStore.setState({ diagramReadOnly: true });
-    await act(async () => renderToolbar(root, container));
-    const add = document.querySelector<HTMLButtonElement>('button[aria-label="Add to diagram"]');
-    expect(add?.disabled).toBe(true);
-    expect(add?.closest('[data-disabled]')).not.toBeNull();
-    useWorkspaceStore.setState({ diagramReadOnly: false });
   });
 
   it('shares the segment the selection resolved to, not the whole document', async () => {
@@ -212,7 +203,7 @@ describe('CpSelectionToolbar', () => {
     seedStore([1, 3, 5, 7, 8]);
     await act(async () => renderToolbar(root, container));
     const toolbar = document.querySelector('[role="toolbar"]');
-    expect(toolbar?.querySelectorAll('button').length).toBe(6);
+    expect(toolbar?.querySelectorAll('button').length).toBe(5);
     expect(document.querySelector('button[aria-label="Create shareable link"]')).toBeNull();
     expect(document.querySelector('button[aria-label="Fold"]')).not.toBeNull();
   });

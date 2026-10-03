@@ -5,7 +5,6 @@ import {
   duplicateStep,
   editStepAnnotations,
   keepStepAnnotations,
-  insertLinkedStep,
   insertPictureSteps,
   awaitingReferencesStep,
   insertReferencesSteps,
@@ -457,19 +456,6 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       runDiagramCapture({ get, set }, commit, stepId, request),
 
     stopDiagramCapture: (stepId) => stopDiagramCapture({ get, set }, stepId),
-
-    addLinkedDiagramStep: (link, { loadId, label }) => {
-      if (loadId !== get().diagramLoadId) return null;
-      let stepId: string | null = null;
-      const next = commit(label, (document) => {
-        const result = insertLinkedStep(document, link, insertionIndex(document, get().diagramSelectedStepId));
-        stepId = result.stepId;
-        return result.document;
-      });
-      if (!next || stepId === null) return null;
-      set(selection(stepId));
-      return stepId;
-    },
 
     commitDiagramCapture: (start, captured, label) =>
       commitStepCapture({ get, set }, commit, start, captured, label),

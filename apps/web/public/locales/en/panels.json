@@ -542,7 +542,6 @@
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
     "selectionToolbar": {
-      "addToDiagram": "Add to diagram",
       "export": "Export…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -1075,7 +1074,6 @@
     "transversalCrossingLabel": "Crease cuts a face"
   },
   "foldedFigureActions": {
-    "addToDiagram": "Add to Diagram",
     "anotherSolution": "Another solution",
     "delete": "Delete",
     "duplicate": "Duplicate",

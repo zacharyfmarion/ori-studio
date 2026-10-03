@@ -59,10 +59,7 @@ export function useCpSegmentation(wants: boolean): FoldArtifacts | null {
 
 /** Whether any of these steps is linked to a region, and so needs the segmentation. */
 function wantsSegmentation(steps: readonly DiagramStep[]): boolean {
-  return steps.some((step) => {
-    const source = linkedSourceOf(step);
-    return source?.kind === 'references-step' || (source?.kind === 'cp' && source.scope.kind === 'segment');
-  });
+  return steps.some((step) => linkedSourceOf(step) !== null);
 }
 
 /**

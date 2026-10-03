@@ -515,7 +515,6 @@
     "rotateSimulationWindow": "シミュレーションウィンドウを回転",
     "selectedCount_other": "{{count}} 件選択",
     "selectionToolbar": {
-      "addToDiagram": "図に追加",
       "export": "エクスポート…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -1041,7 +1040,6 @@
     "transversalCrossingLabel": "折り線が面を貫通"
   },
   "foldedFigureActions": {
-    "addToDiagram": "図に追加",
     "anotherSolution": "別の解",
     "delete": "削除",
     "duplicate": "複製",

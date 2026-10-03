@@ -27,7 +27,7 @@
  */
 
 import { readFoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
-import { readFoldedSourceBounds, readRegionReference } from '../../cp-workspace/regions/regionReference';
+import { readRegionReference } from '../../cp-workspace/regions/regionReference';
 import { readSheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { isBuiltInPaperPresetId } from '../../lib/paper/paperPresets';
 import { readPaperScene } from '../../lib/paper/paperSceneValidate';
@@ -287,7 +287,7 @@ const SOURCE_KINDS = new Set(['upload', 'cp', 'references-step']);
 /** The picture kinds this build reads. */
 const PICTURE_KINDS = new Set(['asset', 'scene', 'fixed', 'step-diagram']);
 /** Within a crease-pattern source: the scopes and render modes this build reads. */
-const CP_SCOPE_KINDS = new Set(['segment', 'figure-bounds']);
+const CP_SCOPE_KINDS = new Set(['segment']);
 const CP_RENDER_MODES = new Set(['crease-pattern', 'folded-flat', 'folded-3d']);
 
 /** The most a stored scene may be, as JSON: D2's per-step budget, with room. */
@@ -490,10 +490,6 @@ function readCpScope(value: unknown): DiagramCpScope | null {
   if (value.kind === 'segment') {
     const region = readRegionReference(value.region);
     return region ? { kind: 'segment', region } : null;
-  }
-  if (value.kind === 'figure-bounds') {
-    const bounds = readFoldedSourceBounds(value.bounds);
-    return bounds ? { kind: 'figure-bounds', bounds } : null;
   }
   return null;
 }

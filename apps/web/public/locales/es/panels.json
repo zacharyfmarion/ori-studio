@@ -569,7 +569,6 @@
     "selectedCount_many": "{{count}} seleccionados",
     "selectedCount_other": "{{count}} seleccionados",
     "selectionToolbar": {
-      "addToDiagram": "Añadir al diagrama",
       "export": "Exportar…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -1113,7 +1112,6 @@
     "transversalCrossingLabel": "Un pliegue corta una cara"
   },
   "foldedFigureActions": {
-    "addToDiagram": "Añadir al diagrama",
     "anotherSolution": "Otra solución",
     "delete": "Eliminar",
     "duplicate": "Duplicar",

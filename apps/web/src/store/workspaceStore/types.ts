@@ -1984,16 +1984,6 @@ export interface DiagramSliceActions {
   /** Stop a step's capture, if it is folding. */
   stopDiagramCapture: (stepId: string) => boolean;
   /**
-   * Add a step linked to the pattern, with its capture, as one undo step under
-   * the insertion rule (D2): after the selected step, or at the end; it becomes
-   * the selected step. `loadId` is the diagram the capture began against: one
-   * that outlives it is dropped. The new step's id, or null.
-   */
-  addLinkedDiagramStep: (
-    link: { source: DiagramCpSource; picture: DiagramPicture | null; asset?: KnownDiagramAsset },
-    options: { loadId: number; label: string }
-  ) => string | null;
-  /**
    * Commit a picture captured for a step outside `captureDiagramStep` — a
    * Pose verb — as one undo step, under the same guard: dropped (null) when the
    * diagram was replaced, or the step is gone or its source changed, since the

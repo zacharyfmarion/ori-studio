@@ -101,7 +101,8 @@ describe('the Pose controller', () => {
     expect(heard.hasNextSolution).toHaveBeenLastCalledWith(expect.anything(), linkedFoldKey(stepId, source));
     // Another pattern, or the same one changed, is another key.
     expect(linkedFoldKey(stepId, { ...source, fingerprint: 'cs1:other' })).not.toBe(linkedFoldKey(stepId, source));
-    expect(linkedFoldKey(stepId, { ...source, scope: { kind: 'figure-bounds', bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 } } })).not.toBe(
+    const elsewhere = { ...source.scope.region, boundary: [[{ x: 5, y: 5 }, { x: 6, y: 5 }, { x: 6, y: 6 }]] };
+    expect(linkedFoldKey(stepId, { ...source, scope: { kind: 'segment', region: elsewhere } })).not.toBe(
       linkedFoldKey(stepId, source)
     );
     controller.dispose();

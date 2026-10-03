@@ -15,7 +15,6 @@
 
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
-import type { FoldedSourceBounds } from '../../cp-workspace/folded/foldedFigureStaleness';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import type { BuiltInPaperPresetId } from '../../lib/paper/paperPresets';
@@ -86,13 +85,12 @@ export interface DiagramUploadSource {
 }
 
 /**
- * How a crease-pattern step chooses its creases (D3): a region of the pattern,
- * picked in the Diagram and found again by its rim; or the box a folded figure
- * in Edit was folded from, its creases re-chosen by overlap as Edit refolds.
+ * How a crease-pattern step chooses its creases (D3, D21): a whole region of
+ * the pattern, picked in the Diagram and found again by its rim. The `kind`
+ * leaves room for another way in a later file; a scope this build does not
+ * know makes the step one it carries as it came.
  */
-export type DiagramCpScope =
-  | { kind: 'segment'; region: RegionReference }
-  | { kind: 'figure-bounds'; bounds: FoldedSourceBounds };
+export type DiagramCpScope = { kind: 'segment'; region: RegionReference };
 
 /**
  * What a crease-pattern step shows of its creases (D5): the pattern itself, the
@@ -650,24 +648,6 @@ export function setLinkedPicture(
       withAsset.assets
     )
   );
-}
-
-/**
- * A new step linked to the pattern, inserted at `index`: what Add to diagram
- * makes from Edit. Its picture may be null — a figure with no fold to read is
- * added to be posed in the Diagram.
- */
-export function insertLinkedStep(
-  document: DiagramDocument,
-  link: Omit<CapturedLink, 'picture'> & { picture: DiagramPicture | null },
-  index: number,
-  newId: DiagramIdFactory = randomDiagramId
-): { document: DiagramDocument; stepId: string } {
-  const step: DiagramStep = { ...createStep(newId), source: link.source, picture: link.picture };
-  return {
-    document: insertSteps(withAssets(document, link.asset ? [link.asset] : []), [step], index),
-    stepId: step.id,
-  };
 }
 
 /** One References card, as a step is made from it. */

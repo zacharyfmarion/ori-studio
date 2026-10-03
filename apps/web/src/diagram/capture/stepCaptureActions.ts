@@ -69,16 +69,13 @@ export async function refreshDiagramStep(stepId: string): Promise<boolean> {
   return outcome.status === 'captured';
 }
 
-/**
- * Show a linked step's pattern in Edit: the region it is linked to, or the box
- * its figure was folded from, framed on Edit's canvas when it next draws.
- */
+/** Show a linked step's pattern in Edit: the region it is linked to, framed on Edit's canvas when it next draws. */
 export function openDiagramStepInEdit(stepId: string): void {
   const { diagram } = useWorkspaceStore.getState();
   const step = diagram?.steps[stepIndex(diagram, stepId)];
   if (step?.source?.kind !== 'cp') return;
   const { scope } = step.source;
-  requestCpRegionFocus(scope.kind === 'segment' ? scope.region.bounds : scope.bounds);
+  requestCpRegionFocus(scope.region.bounds);
   useLayoutStore.getState().activateWorkspace('edit');
   trackDiagramSourceOpened('edit');
 }

@@ -569,7 +569,6 @@
     "selectedCount_many": "{{count}} sélectionnés",
     "selectedCount_other": "{{count}} sélectionnés",
     "selectionToolbar": {
-      "addToDiagram": "Ajouter au diagramme",
       "export": "Exporter…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -1113,7 +1112,6 @@
     "transversalCrossingLabel": "Un pli traverse une face"
   },
   "foldedFigureActions": {
-    "addToDiagram": "Ajouter au diagramme",
     "anotherSolution": "Autre solution",
     "delete": "Supprimer",
     "duplicate": "Dupliquer",

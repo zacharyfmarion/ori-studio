@@ -25,10 +25,8 @@ describe('linkedSheet', () => {
     expect(linkedSheet(step, sheets)).toBe(right);
   });
 
-  it('finds none for a step whose pattern is gone, or one that is not linked to a region', () => {
+  it('finds none for a step whose pattern is gone', () => {
     // The fixture step's rim is a unit square, which is no region of this pattern.
     expect(linkedSheet(cpStep('step-1'), sheets)).toBeNull();
-    const boxed = { ...cpStep('step-2'), source: { ...cpStep('step-2').source!, scope: { kind: 'figure-bounds' as const, bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 } } } };
-    expect(linkedSheet(boxed, sheets)).toBeNull();
   });
 });

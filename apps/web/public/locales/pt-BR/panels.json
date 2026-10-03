@@ -569,7 +569,6 @@
     "selectedCount_many": "{{count}} selecionados",
     "selectedCount_other": "{{count}} selecionados",
     "selectionToolbar": {
-      "addToDiagram": "Adicionar ao diagrama",
       "export": "Exportar…",
       "exportCp": "CP",
       "exportFold": "FOLD",
@@ -1113,7 +1112,6 @@
     "transversalCrossingLabel": "Um vinco corta uma face"
   },
   "foldedFigureActions": {
-    "addToDiagram": "Adicionar ao diagrama",
     "anotherSolution": "Outra solução",
     "delete": "Excluir",
     "duplicate": "Duplicar",

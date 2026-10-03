@@ -2525,10 +2525,20 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 *(Rewritten 2026-10-03, twice: first around D19, then after Zach's answers —
 Simulated shows 0% at once, and Edit's Add to diagram goes.)*
 
-- [ ] **8a. The Diagram as the one place (D21).** Remove Edit's two Add to
+- [x] **8a. The Diagram as the one place (D21).** Remove Edit's two Add to
   diagram buttons, `addToDiagram.ts`, the figure-box scope and everything that
   reads it; the two analytics vias; their tests; their i18n keys in all eight
   locales.
+  - As built: `DiagramCpScope` is the segment case alone. `StepCreases` loses
+    its `clip` (only a figure box cut lines) and its `segment` is never null;
+    `clipToBox` went with it. Every capture path now always asks for the
+    segmentation. A file with a `figure-bounds` scope reads as a newer build's
+    kind, so its step is carried as it came (`isNewerKind`). `diagram step
+    added` loses the vias `edit_toolbar` and `folded_figure` and the sources
+    `crease_pattern`, `cp_folded` and `cp_3d`, which only Edit's buttons sent.
+    `CpSelectionToolbar.test` asserts the button is gone. Dead with them:
+    `captureNewLinkedStep`, the slice's `addLinkedDiagramStep` and
+    `insertLinkedStep`, which only Add to diagram called.
 - [ ] **8b. Show as, for the two ways that exist.**
   - `remembered` on `DiagramCpSource`: written, read, validated, carried by
     every edit that changes `render`.
