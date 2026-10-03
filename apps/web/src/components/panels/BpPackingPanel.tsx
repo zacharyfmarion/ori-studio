@@ -18,25 +18,15 @@ import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  Blend,
-  Circle,
-  CircleDot,
   FlipHorizontal,
   FlipVertical,
-  Grid2X2,
   Minus,
   Plus,
   RotateCcw,
   RotateCw,
-  Route,
   Ruler,
-  SquareDashed,
-  SquareDashedBottom,
-  Tag,
-  TriangleAlert,
   Link,
   Unlink,
-  Waypoints,
 } from 'lucide-react';
 import type {
   OristudioBpDiagnostic,
@@ -209,19 +199,19 @@ interface BpPackingDragState {
 }
 
 
-const LAYER_OPTIONS: { key: BpPackingViewLayerKey; icon: ReactNode }[] = [
-  { key: 'grid', icon: <Grid2X2 size={13} /> },
-  { key: 'flaps', icon: <CircleDot size={13} /> },
-  { key: 'clearance', icon: <Circle size={13} /> },
-  { key: 'rivers', icon: <Route size={13} /> },
-  { key: 'hinges', icon: <Waypoints size={13} /> },
-  { key: 'ridges', icon: <Waypoints size={13} /> },
-  { key: 'axisParallels', icon: <Waypoints size={13} /> },
-  { key: 'conflicts', icon: <TriangleAlert size={13} /> },
-  { key: 'patternless', icon: <SquareDashedBottom size={13} /> },
-  { key: 'labels', icon: <Tag size={13} /> },
-  { key: 'emptySpace', icon: <Blend size={13} /> },
-  { key: 'outsidePaper', icon: <SquareDashed size={13} /> },
+const LAYER_KEYS: readonly BpPackingViewLayerKey[] = [
+  'grid',
+  'flaps',
+  'clearance',
+  'rivers',
+  'hinges',
+  'ridges',
+  'axisParallels',
+  'conflicts',
+  'patternless',
+  'labels',
+  'emptySpace',
+  'outsidePaper',
 ];
 
 /** Localized BP-packing layer label. Literal `t()` calls keep the keys extractable. */
@@ -541,10 +531,7 @@ function BpPackingViewportToolbar({
       id: 'layers',
       items: viewportLayerItems({
         title: t('panels:bpPacking.layers', 'Layers'),
-        options: LAYER_OPTIONS.map((option) => ({
-          ...option,
-          label: bpPackingLayerLabel(t, option.key),
-        })),
+        options: LAYER_KEYS.map((key) => ({ key, label: bpPackingLayerLabel(t, key) })),
         visible: layers,
         onChange: onLayerChange,
       }),

@@ -8,18 +8,14 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent,
-  type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { TransformComponent, TransformWrapper, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import {
-  Axis3d,
-  Circle,
   CircleDot,
   Plus,
   SlidersHorizontal,
-  Tag,
   Waypoints,
 } from 'lucide-react';
 import {
@@ -96,11 +92,11 @@ import {
 
 const DOT_SIZES: TreeDotSizes = { leafPx: 7, branchPx: 8 };
 
-const LAYER_OPTIONS: { key: DesignViewLayerKey; icon: ReactNode }[] = [
-  { key: 'paths', icon: <Waypoints size={13} /> },
-  { key: 'leafCircles', icon: <Circle size={13} /> },
-  { key: 'labels', icon: <Tag size={13} /> },
-  { key: 'symmetry', icon: <Axis3d size={13} /> },
+const LAYER_KEYS: readonly DesignViewLayerKey[] = [
+  'paths',
+  'leafCircles',
+  'labels',
+  'symmetry',
 ];
 
 /** Localized design-view layer label. Literal `t()` calls keep the keys extractable. */
@@ -392,10 +388,7 @@ function DesignViewportToolbar({
       id: 'layers',
       items: viewportLayerItems({
         title: t('panels:design.layers', 'Layers'),
-        options: LAYER_OPTIONS.map((option) => ({
-          ...option,
-          label: designLayerLabel(t, option.key),
-        })),
+        options: LAYER_KEYS.map((key) => ({ key, label: designLayerLabel(t, key) })),
         visible: layers,
         onChange: onLayerChange,
       }),
