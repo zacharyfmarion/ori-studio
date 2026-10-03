@@ -662,6 +662,7 @@
       "currentHint": "이미 패턴의 현재 모습을 보여 줍니다",
       "delete": "단계 삭제",
       "duplicate": "단계 복제",
+      "duplicateAs": "다른 보기로 복제",
       "exportPicture": "그림 내보내기…",
       "firstHint": "이미 첫 번째 단계입니다",
       "firstPageHint": "첫 단계는 항상 새 페이지에서 시작합니다",
@@ -688,6 +689,7 @@
       "relinkPattern": "패턴 다시 연결…",
       "removePicture": "그림 제거",
       "replacePicture": "그림 바꾸기…",
+      "showAs": "표시 방법",
       "startPage": "여기서 새 페이지 시작",
       "uploadPicture": "그림 업로드…"
     },
@@ -895,6 +897,7 @@
       "sentFind": "참조의 {{number}}단계",
       "sentSequence": "접기 순서의 {{number}}단계",
       "sentStale": "이 단계를 보낸 뒤 패턴이 바뀌었습니다",
+      "showAs": "표시 방법",
       "simplified": "이 그림은 단순화되었습니다.",
       "source": "출처",
       "stale": "오래됨: 패턴이 바뀌었습니다",

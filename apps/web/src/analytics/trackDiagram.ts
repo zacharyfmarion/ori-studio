@@ -21,6 +21,8 @@ import type {
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
   DiagramSourceWorkspace,
+  DiagramShowAsName,
+  DiagramShowAsVia,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   DiagramStepOpenedMode,
@@ -98,6 +100,11 @@ export function trackDiagramPictureCaptured(
   via: DiagramCaptureVia
 ): void {
   track(ANALYTICS_EVENTS.diagramPictureCaptured, { kind, outcome, via });
+}
+
+/** A linked step shown another way (D19), and from where. */
+export function trackDiagramStepShownAs(showAs: DiagramShowAsName, via: DiagramShowAsVia): void {
+  track(ANALYTICS_EVENTS.diagramStepShownAs, { show_as: showAs, via });
 }
 
 /** A step's source opened in its own workspace. */

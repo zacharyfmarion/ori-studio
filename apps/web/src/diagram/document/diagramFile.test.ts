@@ -9,6 +9,7 @@ import {
   setPageSetup,
   setStepText,
   type DiagramIdFactory,
+  type DiagramCpSource,
 } from './diagramDocument';
 import { readDiagram, writeDiagram } from './diagramFile';
 import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
@@ -419,7 +420,14 @@ function linkedDiagram() {
   if (!stored.ok) throw new Error(stored.error);
   const steps = [
     cpStep('step-cp', { mode: 'crease-pattern', rotationDeg: 45 }),
-    cpStep('step-flat', { mode: 'folded-flat', side: 'back', rotationDeg: 90, foldCase: 2 }),
+    {
+      ...cpStep('step-flat', { mode: 'folded-flat', side: 'back', rotationDeg: 90, foldCase: 2 }),
+      // Shown as its crease pattern before, turned: the pose Show as brings back (D19).
+      source: {
+        ...cpStep('step-flat', { mode: 'folded-flat', side: 'back', rotationDeg: 90, foldCase: 2 }).source!,
+        remembered: { 'crease-pattern': { mode: 'crease-pattern' as const, rotationDeg: 30 } },
+      } as DiagramCpSource,
+    },
     cpStep(
       'step-3d',
       { mode: 'folded-3d', camera: { yaw: 0.5, pitch: -0.4, zoom: 1.2 }, side: 'front' },
@@ -443,6 +451,17 @@ describe('linked steps in the file', () => {
     expect(read.readOnly).toBe(false);
     expect(read.document).toEqual(document);
     expect(throughJson(writeDiagram(read.document))).toEqual(throughJson(writeDiagram(document)));
+  });
+
+  it('drops a remembered pose that does not read, or names the way the step is shown now, and keeps the step', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[1].source.remembered = {
+      'crease-pattern': { mode: 'crease-pattern', rotationDeg: 'thirty' },
+      folded: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1 },
+    };
+    const source = readDiagram(written)!.document.steps[1].source as DiagramCpSource;
+    expect(source.render).toMatchObject({ mode: 'folded-flat', foldCase: 2 });
+    expect(source.remembered).toBeUndefined();
   });
 
   it('keeps a stored scene as one string, so the file is not a line per coordinate', () => {

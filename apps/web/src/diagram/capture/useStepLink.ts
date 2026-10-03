@@ -1,8 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { awaitingReferencesStep, type DiagramStep } from '../document/diagramDocument';
+import { awaitingReferencesStep, type DiagramShowAs, type DiagramStep } from '../document/diagramDocument';
 import type { DiagramLinkStatus } from './linkStatus';
-import { linkDiagramStep } from './stepCaptureActions';
+import { linkDiagramStep, pickerShowAs } from './stepCaptureActions';
 import {
   linkedSheet,
   useDiagramPatternSheets,
@@ -24,6 +24,9 @@ export interface DiagramStepLink {
     sheets: DiagramPatternSheets;
     selectedId: number | null;
     busy: boolean;
+    /** How the step will show the pattern it links to (D19). */
+    showAs: DiagramShowAs;
+    setShowAs: (way: DiagramShowAs) => void;
     pick: (sheet: DiagramPatternSheet) => void;
     cancel: () => void;
   } | null;
@@ -58,16 +61,30 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
       stepId !== null && awaitingReferencesStep(state.diagram, state.diagramReferencesTarget)?.id === stepId
   );
 
+  // The way the picker links in: the step's own, or the session's last, until
+  // the reader picks another — and again from those each time it opens.
+  const [chosen, setChosen] = useState<{ stepId: string; way: DiagramShowAs } | null>(null);
+  const showAs = chosen && chosen.stepId === stepId && pickerOpen ? chosen.way : pickerShowAs(step);
+  const setShowAs = useCallback(
+    (way: DiagramShowAs) => {
+      if (stepId !== null) setChosen({ stepId, way });
+    },
+    [stepId]
+  );
+
   const stop = useCallback(() => {
     if (stepId !== null) useWorkspaceStore.getState().stopDiagramCapture(stepId);
   }, [stepId]);
   const pick = useCallback(
     (sheet: DiagramPatternSheet) => {
-      if (stepId !== null) void linkDiagramStep(stepId, sheet.segment);
+      if (stepId !== null) void linkDiagramStep(stepId, sheet.segment, showAs);
     },
-    [stepId]
+    [stepId, showAs]
   );
-  const cancel = useCallback(() => useWorkspaceStore.getState().closeDiagramPatternPicker(), []);
+  const cancel = useCallback(() => {
+    setChosen(null);
+    useWorkspaceStore.getState().closeDiagramPatternPicker();
+  }, []);
 
   const capturing = runId !== undefined;
   const selectedId = useMemo(
@@ -79,7 +96,7 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
     link,
     patternOpen,
     capture: capturing ? { stop: stoppable ? stop : null } : null,
-    picker: pickerOpen ? { sheets, selectedId, busy: capturing, pick, cancel } : null,
+    picker: pickerOpen ? { sheets, selectedId, busy: capturing, showAs, setShowAs, pick, cancel } : null,
     waiting: waiting ? { cancel: cancelWaiting } : null,
   };
 }

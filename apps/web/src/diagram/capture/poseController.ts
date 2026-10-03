@@ -150,7 +150,13 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       const result = await abandonOnEngineLoss(
         poseLinkedStep(
           session,
-          { document, creases: choice.creases, render: linked.render, style: begun.style },
+          {
+            document,
+            creases: choice.creases,
+            render: linked.render,
+            remembered: linked.remembered,
+            style: begun.style,
+          },
           request
         )
       );

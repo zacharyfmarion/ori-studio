@@ -3,7 +3,7 @@ import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { antipodalCamera, DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
-import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender } from '../document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramCpRender, type DiagramCpSource } from '../document/diagramDocument';
 import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
 import type { CpCaptureRuntime } from './captureFolded';
@@ -58,9 +58,14 @@ async function pose(
   session: ReturnType<typeof sessionWith>['session'],
   render: DiagramCpRender,
   request: LinkedPoseRequest,
-  document = cpDocument()
+  document = cpDocument(),
+  remembered?: DiagramCpSource['remembered']
 ) {
-  return poseLinkedStep(session, { document, creases: creasesOf(document), render, style: DEFAULT_DIAGRAM_STYLE }, request);
+  return poseLinkedStep(
+    session,
+    { document, creases: creasesOf(document), render, remembered, style: DEFAULT_DIAGRAM_STYLE },
+    request
+  );
 }
 
 const CP: DiagramCpRender = { mode: 'crease-pattern', rotationDeg: 345 };
@@ -93,6 +98,21 @@ describe('posing a crease pattern', () => {
       hasNextSolution: false,
     });
     expect(vi.mocked(runtime.fold).mock.calls[0]![3]).toEqual(LEFT_FOLD_LINE_IDS);
+  });
+});
+
+describe('showing it another way (D19)', () => {
+  it('folds it in the pose the folded form last had, and shows the pattern turned as it last was', async () => {
+    const { session } = sessionWith();
+    const document = cpDocument();
+    const folded = await pose(session, CP, { verb: 'show-folded' }, document, {
+      folded: { mode: 'folded-flat', side: 'back', rotationDeg: 60, foldCase: 1 },
+    });
+    expect(folded).toMatchObject({ render: { mode: 'folded-flat', side: 'back', rotationDeg: 60, foldCase: 1 } });
+    const pattern = await pose(session, FLAT, { verb: 'show-crease-pattern' }, document, {
+      'crease-pattern': { mode: 'crease-pattern', rotationDeg: 90 },
+    });
+    expect(pattern).toMatchObject({ render: { mode: 'crease-pattern', rotationDeg: 90 } });
   });
 });
 

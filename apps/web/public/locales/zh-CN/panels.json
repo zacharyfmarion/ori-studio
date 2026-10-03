@@ -662,6 +662,7 @@
       "currentHint": "已显示其图样的当前状态",
       "delete": "删除步骤",
       "duplicate": "复制步骤",
+      "duplicateAs": "复制为",
       "exportPicture": "导出图片…",
       "firstHint": "已经是第一步",
       "firstPageHint": "第一步总是新的一页的开始",
@@ -688,6 +689,7 @@
       "relinkPattern": "重新链接图样…",
       "removePicture": "移除图片",
       "replacePicture": "替换图片…",
+      "showAs": "显示为",
       "startPage": "从这里开始新的一页",
       "uploadPicture": "上传图片…"
     },
@@ -895,6 +897,7 @@
       "sentFind": "某个参考的第 {{number}} 步",
       "sentSequence": "折叠顺序的第 {{number}} 步",
       "sentStale": "发送此步骤后图样已更改",
+      "showAs": "显示为",
       "simplified": "此图片已被简化。",
       "source": "来源",
       "stale": "已过期：图样已更改",

@@ -20,6 +20,22 @@ export function diagramStepMenuItems(
       items.push({ kind: 'separator' });
       continue;
     }
+    if (action.kind === 'choice') {
+      // Show as marks the way the step is shown; Duplicate as is a verb per way.
+      items.push({
+        kind: 'submenu',
+        id: action.id,
+        label: action.label,
+        disabled: action.disabled,
+        hint: action.hint,
+        items: action.options.map((option) =>
+          option.checked !== undefined
+            ? { kind: 'radio' as const, id: `${action.id}-${option.id}`, label: option.label, checked: option.checked, onSelect: option.run }
+            : { kind: 'action' as const, id: `${action.id}-${option.id}`, label: option.label, onSelect: option.run }
+        ),
+      });
+      continue;
+    }
     if (action.checked !== undefined) {
       items.push({
         kind: 'checkbox',

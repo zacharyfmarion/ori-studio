@@ -720,6 +720,7 @@
       "currentHint": "Já mostra o padrão como ele está",
       "delete": "Excluir passo",
       "duplicate": "Duplicar passo",
+      "duplicateAs": "Duplicar como",
       "exportPicture": "Exportar imagem…",
       "firstHint": "Já é o primeiro passo",
       "firstPageHint": "O primeiro passo sempre começa uma página",
@@ -746,6 +747,7 @@
       "relinkPattern": "Revincular padrão…",
       "removePicture": "Remover imagem",
       "replacePicture": "Substituir imagem…",
+      "showAs": "Mostrar como",
       "startPage": "Começar uma nova página aqui",
       "uploadPicture": "Enviar imagem…"
     },
@@ -963,6 +965,7 @@
       "sentFind": "Passo {{number}} de uma referência",
       "sentSequence": "Passo {{number}} da sequência de dobras",
       "sentStale": "O padrão mudou desde que este passo foi enviado",
+      "showAs": "Mostrar como",
       "simplified": "Esta imagem foi simplificada.",
       "source": "Origem",
       "stale": "Desatualizado: o padrão mudou",

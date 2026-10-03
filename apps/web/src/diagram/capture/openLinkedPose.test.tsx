@@ -6,7 +6,13 @@ import type { DiagramLinkedPose } from './useDiagramLinkedPose';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const pose = (): DiagramLinkedPose => ({ actions: [], spatial: null, onCamera: () => {}, rotateTo: () => {} });
+const pose = (): DiagramLinkedPose => ({
+  actions: [],
+  spatial: null,
+  onCamera: () => {},
+  rotateTo: () => {},
+  showAs: async () => {},
+});
 
 afterEach(() => publishOpenLinkedPose(null, null));
 

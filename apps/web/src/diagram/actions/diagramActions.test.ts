@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildDiagramStepActions,
+  diagramStepChoice,
   diagramStepCommand,
   type DiagramStepActionDeps,
   type DiagramStepActionState,
@@ -23,6 +24,8 @@ function deps(): DiagramStepActionDeps {
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
     fromReferences: vi.fn(),
+    showAs: vi.fn(),
+    duplicateAs: vi.fn(),
     adjustPose: vi.fn(),
     annotate: vi.fn(),
     exportPicture: vi.fn(),
@@ -47,8 +50,9 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       lightingChanged: false,
       capturing: false,
       patternOpen: true,
+      showAs: null,
       ...state,
-    },
+    } as DiagramStepActionState,
     bound
   );
 }
@@ -175,6 +179,34 @@ describe('the diagram step verbs', () => {
     diagramStepCommand(build({ hasPicture: true, hasSource: true }, bound), 'annotate')?.run();
     expect(bound.annotate).toHaveBeenCalledOnce();
     expect(diagramStepCommand(build({ locked: true, hasPicture: true }), 'annotate')?.disabled).toBe(true);
+  });
+
+  it('offers a linked pattern’s ways as Show As, the current one checked, and Duplicate As beside Duplicate', () => {
+    const bound = deps();
+    const actions = build({ hasSource: true, link: 'current', showAs: 'crease-pattern' }, bound);
+    const showAs = diagramStepChoice(actions, 'show-as')!;
+    expect(showAs.options.map((option) => [option.label, option.checked])).toEqual([
+      ['Crease Pattern', true],
+      ['Folded', false],
+    ]);
+    showAs.options[1]!.run();
+    expect(bound.showAs).toHaveBeenCalledWith('folded');
+    const ids = actions.map((action) => action.id);
+    expect(ids.indexOf('duplicate-as')).toBe(ids.indexOf('duplicate') + 1);
+    diagramStepChoice(actions, 'duplicate-as')!.options[1]!.run();
+    expect(bound.duplicateAs).toHaveBeenCalledWith('folded');
+    // Not for a step that is not linked to the pattern.
+    expect(diagramStepChoice(build({}), 'show-as')).toBeNull();
+  });
+
+  it('holds Show As while there is no pattern to capture from, or its region is gone', () => {
+    expect(diagramStepChoice(build({ link: 'current', showAs: 'folded', patternOpen: false }), 'show-as')).toMatchObject({
+      disabled: true,
+      hint: 'Its crease pattern isn’t open',
+    });
+    expect(diagramStepChoice(build({ link: 'missing', showAs: 'folded' }), 'show-as')?.disabled).toBe(true);
+    expect(diagramStepChoice(build({ link: 'current', showAs: 'folded', capturing: true }), 'show-as')?.disabled).toBe(true);
+    expect(diagramStepChoice(build({ link: 'current', showAs: 'folded', readOnly: true }), 'show-as')?.disabled).toBe(true);
   });
 
   it('poses a step with a picture or a link, and not an empty or a newer build’s one', () => {

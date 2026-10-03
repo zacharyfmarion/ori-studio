@@ -2,9 +2,12 @@ import { toast } from 'sonner';
 import {
   trackDiagramPictureCaptured,
   trackDiagramSourceOpened,
+  trackDiagramStepShownAs,
   type DiagramCaptureKind,
   type DiagramCaptureOutcome as TrackedOutcome,
   type DiagramCaptureVia,
+  type DiagramShowAsName,
+  type DiagramShowAsVia,
 } from '../../analytics';
 import { fold3dRefusalMessage } from '../../cp-workspace/folded/foldedFigureNotice';
 import { requestCpRegionFocus } from '../../cp-workspace/regions/regionFocusRequest';
@@ -14,7 +17,16 @@ import type { CpSegment } from '../../lib/creasePatternSegmentation';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramCaptureOutcome } from '../../store/workspaceStore/diagramCapture';
-import { stepIndex, type DiagramCpRender } from '../document/diagramDocument';
+import {
+  isLockedStep,
+  renderToShowAs,
+  showAsOf,
+  stepIndex,
+  type DiagramCpRender,
+  type DiagramShowAs,
+  type DiagramStep,
+} from '../document/diagramDocument';
+import { openLinkedPoseOf } from './openLinkedPose';
 
 /** The Step pane, where the pattern picker is. */
 const STEP_PANE_ID = 'diagram-step';
@@ -31,16 +43,29 @@ export function openDiagramPatternPicker(stepId: string): void {
 }
 
 /**
- * Link a step to a pattern — or relink a linked one to another — and capture
- * its picture. A new link shows the crease pattern itself, to fold in Pose; a
- * relink keeps how the step shows its pattern. Whether it was linked.
+ * The way the pattern picker last linked a pattern, this session: what it
+ * offers the next new link (D19). A relink offers the way the step is shown.
  */
-export async function linkDiagramStep(stepId: string, segment: CpSegment): Promise<boolean> {
+let lastLinkedAs: DiagramShowAs = 'crease-pattern';
+
+/** What the picker offers a step to be shown as, until the reader picks another way. */
+export function pickerShowAs(step: DiagramStep | null): DiagramShowAs {
+  return step?.source?.kind === 'cp' ? showAsOf(step.source.render) : lastLinkedAs;
+}
+
+/**
+ * Link a step to a pattern — or relink a linked one to another — shown as
+ * `way`, and capture its picture (D19): the picker links and chooses the way
+ * in one pick. A relink in the way the step is shown keeps its pose. Whether
+ * it was linked.
+ */
+export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: DiagramShowAs): Promise<boolean> {
   const store = useWorkspaceStore.getState();
   const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
   if (!step) return false;
   const linked = step.source?.kind === 'cp' ? step.source : null;
-  const render: DiagramCpRender = linked?.render ?? { mode: 'crease-pattern', rotationDeg: 0 };
+  const showAs = way ?? (linked ? showAsOf(linked.render) : 'crease-pattern');
+  const render = renderToShowAs(linked ?? { render: { mode: 'crease-pattern', rotationDeg: 0 } }, showAs);
   const outcome = await store.captureDiagramStep(stepId, {
     scope: { kind: 'segment', region: regionReferenceFor(segment) },
     render,
@@ -49,8 +74,81 @@ export async function linkDiagramStep(stepId: string, segment: CpSegment): Promi
   });
   report(outcome, render, linked ? 'relink' : 'link');
   if (outcome.status !== 'captured') return false;
+  lastLinkedAs = showAs;
+  if (way !== undefined && (!linked || showAsOf(linked.render) !== showAs)) {
+    trackDiagramStepShownAs(trackedShowAs(showAs), 'picker');
+  }
   useWorkspaceStore.getState().closeDiagramPatternPicker();
   return true;
+}
+
+/**
+ * Show a linked step's pattern another way (D19), in the pose that way last
+ * had, as one undo step. While the step is open in Pose, through its pose
+ * controller, which holds the fold; otherwise captured here. Whether the step
+ * now shows it that way.
+ */
+export async function showLinkedStepAs(
+  stepId: string,
+  way: DiagramShowAs,
+  via: Exclude<DiagramShowAsVia, 'duplicate'>
+): Promise<boolean> {
+  const store = useWorkspaceStore.getState();
+  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  if (step?.source?.kind !== 'cp' || isLockedStep(step) || store.diagramReadOnly) return false;
+  if (showAsOf(step.source.render) === way && step.picture !== null) return true;
+  const open = openLinkedPoseOf(stepId);
+  if (open) {
+    await open.showAs(way);
+    trackDiagramStepShownAs(trackedShowAs(way), via);
+    return true;
+  }
+  const render = renderToShowAs(step.source, way);
+  const outcome = await store.captureDiagramStep(stepId, {
+    scope: step.source.scope,
+    render,
+    kind: 'diagram-capture',
+    label: showAsLabel(way),
+  });
+  report(outcome, render, 'show_as');
+  if (outcome.status !== 'captured') return false;
+  trackDiagramStepShownAs(trackedShowAs(way), via);
+  return true;
+}
+
+/**
+ * A copy of a linked step after it, linked to the same region and shown the
+ * other way (D19): the pattern, then what it folds into, in two presses. One
+ * undo step: the capture folds into the duplicate's. The copy's id, or null.
+ */
+export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs): Promise<string | null> {
+  const store = useWorkspaceStore.getState();
+  const step = store.diagram?.steps[stepIndex(store.diagram, stepId)];
+  if (step?.source?.kind !== 'cp' || isLockedStep(step) || store.diagramReadOnly) return null;
+  const source = step.source;
+  const copyId = store.duplicateDiagramStep(stepId);
+  if (copyId === null) return null;
+  trackDiagramStepShownAs(trackedShowAs(way), 'duplicate');
+  if (showAsOf(source.render) === way) return copyId;
+  const render = renderToShowAs(source, way);
+  const outcome = await useWorkspaceStore.getState().captureDiagramStep(copyId, {
+    scope: source.scope,
+    render,
+    kind: 'diagram-capture',
+    label: 'Duplicate step',
+    joinEntry: useWorkspaceStore.getState().diagramHistory.past.at(-1),
+  });
+  report(outcome, render, 'duplicate_as');
+  return copyId;
+}
+
+/** The undo step a Show as makes. */
+function showAsLabel(way: DiagramShowAs): string {
+  return way === 'folded' ? 'Show as Folded' : 'Show as Crease Pattern';
+}
+
+function trackedShowAs(way: DiagramShowAs): DiagramShowAsName {
+  return way === 'folded' ? 'folded' : 'crease_pattern';
 }
 
 /** Capture a linked step's picture again, from its pattern as it is now. Whether it was. */

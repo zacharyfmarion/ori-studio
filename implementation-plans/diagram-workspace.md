@@ -2539,7 +2539,7 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
     `CpSelectionToolbar.test` asserts the button is gone. Dead with them:
     `captureNewLinkedStep`, the slice's `addLinkedDiagramStep` and
     `insertLinkedStep`, which only Add to diagram called.
-- [ ] **8b. Show as, for the two ways that exist.**
+- [x] **8b. Show as, for the two ways that exist.**
   - `remembered` on `DiagramCpSource`: written, read, validated, carried by
     every edit that changes `render`.
   - `showLinkedStepAs(stepId, way, via)` in the capture layer: the remembered
@@ -2552,6 +2552,31 @@ Simulated shows 0% at once, and Edit's Add to diagram goes.)*
     same action.
   - Tests: the remembered pose round-trips and survives a relink; switching
     back restores it; one undo step per switch.
+  - As built:
+    - `DiagramShowAs` and `showAsOf`, `withRememberedPoses` (merged into every
+      capture by `setLinkedPicture`, so no capture path has to carry it) and
+      `renderToShowAs` (the one rule for "the pose to show it as") in
+      `diagramDocument.ts`; the file reads `remembered` entry by entry and drops
+      one that does not read or names the current way.
+    - Pose's own Crease Pattern | Folded verbs read the remembered poses too
+      (`LinkedPoseInput.remembered`), so the toolbar, the Step pane and the
+      card agree. `showLinkedStepAs` goes through the open step's controller
+      (`openLinkedPoseOf`) when Pose is open on it, and captures headless
+      otherwise.
+    - The catalog gains a `choice` kind: Show As (radio items, the way shown
+      checked) and Duplicate As (beside Duplicate) as submenus, and the Step
+      pane's Show as row from the same choice. The Pose section lost its Show
+      switch to the Picture section.
+    - The picker's Show as defaults to the step's way, or for a new link the
+      way the last link used this session.
+    - Duplicate As folds its capture into the duplicate's undo entry
+      (`joinEntry`).
+    - `diagram step shown as` with `{show_as, via: pane|picker|card|duplicate}`;
+      `diagram picture captured` gains vias `show_as` and `duplicate_as`.
+    - Browser (`artifacts/diagram-parity/show-as.mjs`, crane step 3): the row
+      showed it Folded; turned over in Pose, shown as its pattern and back, it
+      came back turned over; Duplicate As › Crease Pattern made step 4 and one
+      undo took it away; a new step linked as Folded straight from the picker.
 - [ ] **8c. Simulated at 0%.** The worker's stateless 0% builder (the export
   body factored into one function with Pose's), `perspective` passed by both;
   Simulated in Show as; the badge and the Step pane's "Fold 0%"; Refresh and

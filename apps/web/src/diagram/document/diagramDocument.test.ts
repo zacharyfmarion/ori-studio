@@ -34,13 +34,17 @@ import {
   insertReferencesSteps,
   setReferencesSide,
   stepDiagramKey,
+  renderToShowAs,
+  setLinkedPicture,
+  showAsOf,
+  withRememberedPoses,
   type SentReferencesStep,
   type DiagramDocument,
   type DiagramIdFactory,
   type DiagramStep,
   type KnownDiagramAsset,
 } from './diagramDocument';
-import { referencesSource, referencesStep, stepDiagramPicture } from './diagramSteps.fixtures';
+import { cpSource, referencesSource, referencesStep, scenePicture, stepDiagramPicture } from './diagramSteps.fixtures';
 
 function sequentialIds(): DiagramIdFactory {
   let next = 0;
@@ -490,5 +494,46 @@ describe('editStepAnnotations', () => {
     );
     expect(full.steps[0]!.annotations).toHaveLength(500);
     expect(editStepAnnotations(full, stepId, (list) => [...list, { ...label, id: 'one-more' }])).toBe(full);
+  });
+});
+
+describe('the ways a linked pattern is shown (D19)', () => {
+  const flat = { mode: 'folded-flat' as const, side: 'back' as const, rotationDeg: 30, foldCase: 2 };
+  const pattern = { mode: 'crease-pattern' as const, rotationDeg: 45 };
+
+  it('remembers the pose a way had when the step is shown another way, and never the way it is shown', () => {
+    const before = cpSource(flat);
+    const after = withRememberedPoses(before, cpSource(pattern));
+    expect(after.render).toEqual(pattern);
+    expect(after.remembered).toEqual({ folded: flat });
+    // Back again: the folded pose is the step's own, and the crease pattern's is remembered.
+    const back = withRememberedPoses(after, cpSource(flat));
+    expect(back.remembered).toEqual({ 'crease-pattern': pattern });
+    // A pose within one way remembers nothing new.
+    expect(withRememberedPoses(cpSource(flat), cpSource({ ...flat, rotationDeg: 60 })).remembered).toBeUndefined();
+    // A first link has nothing to remember.
+    expect(withRememberedPoses(null, cpSource(flat)).remembered).toBeUndefined();
+  });
+
+  it('shows a way in the pose it last had, or turned as the step is from the front', () => {
+    expect(renderToShowAs({ render: flat }, 'folded')).toBe(flat);
+    expect(renderToShowAs({ render: pattern, remembered: { folded: flat } }, 'folded')).toBe(flat);
+    expect(renderToShowAs({ render: pattern }, 'folded')).toEqual({
+      mode: 'folded-flat',
+      side: 'front',
+      rotationDeg: 45,
+      foldCase: 1,
+    });
+    expect(renderToShowAs({ render: flat }, 'crease-pattern')).toEqual({ mode: 'crease-pattern', rotationDeg: 30 });
+    const threeD = { mode: 'folded-3d' as const, camera: { yaw: 1, pitch: 0, zoom: 1 }, side: 'front' as const };
+    expect(renderToShowAs({ render: threeD }, 'crease-pattern')).toEqual({ mode: 'crease-pattern', rotationDeg: 0 });
+    expect(showAsOf(threeD)).toBe('folded');
+  });
+
+  it('keeps what a step remembers through a new capture, and records nothing for one that changes nothing', () => {
+    const document = insertSteps(createDiagram({ newId: () => 'diagram-1' }), [{ ...createStep(() => 'step-1'), source: cpSource(flat), picture: scenePicture('a') }], 0);
+    const shown = setLinkedPicture(document, 'step-1', { source: cpSource(pattern), picture: scenePicture('b') });
+    expect(shown.steps[0]!.source).toMatchObject({ render: pattern, remembered: { folded: flat } });
+    expect(setLinkedPicture(shown, 'step-1', { source: cpSource(pattern), picture: scenePicture('b') })).toBe(shown);
   });
 });

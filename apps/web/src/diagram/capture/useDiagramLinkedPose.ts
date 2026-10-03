@@ -8,7 +8,7 @@ import {
   buildDiagramLinkedPoseActions,
   type DiagramLinkedPoseAction,
 } from '../actions/diagramLinkedPoseActions';
-import type { DiagramStep } from '../document/diagramDocument';
+import type { DiagramShowAs, DiagramStep } from '../document/diagramDocument';
 import { publishOpenLinkedPose } from './openLinkedPose';
 import { createPoseController, linkedFoldKey, type DiagramPoseSpatialView } from './poseController';
 
@@ -22,6 +22,8 @@ export interface DiagramLinkedPose {
   onCamera: (camera: FoldedFigureCamera) => void;
   /** Turn a crease pattern or a flat fold to an angle, in degrees clockwise (D5). */
   rotateTo: (degrees: number) => void;
+  /** Show the pattern another way, in the pose that way last had (D19). */
+  showAs: (way: DiagramShowAs) => Promise<void>;
 }
 
 /**
@@ -103,9 +105,16 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     [controller, busy, readOnly]
   );
 
+  const showAs = useCallback(
+    async (way: DiagramShowAs) => {
+      if (controller && !readOnly) await controller.run({ verb: way === 'folded' ? 'show-folded' : 'show-crease-pattern' });
+    },
+    [controller, readOnly]
+  );
+
   const pose = useMemo(
-    () => (source ? { actions, spatial: view, onCamera, rotateTo } : null),
-    [source, actions, view, onCamera, rotateTo]
+    () => (source ? { actions, spatial: view, onCamera, rotateTo, showAs } : null),
+    [source, actions, view, onCamera, rotateTo, showAs]
   );
   // The Step pane offers these verbs too, through this one controller.
   useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);

@@ -18,6 +18,7 @@ const BASE: DiagramStepActionState = {
   lightingChanged: false,
   capturing: false,
   patternOpen: true,
+  showAs: null,
 };
 
 function actions(state: Partial<DiagramStepActionState> = {}) {
@@ -33,6 +34,8 @@ function actions(state: Partial<DiagramStepActionState> = {}) {
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
     fromReferences: vi.fn(),
+    showAs: vi.fn(),
+    duplicateAs: vi.fn(),
     adjustPose: vi.fn(),
     annotate: vi.fn(),
     exportPicture: vi.fn(),
@@ -63,6 +66,20 @@ describe('the step card menu', () => {
       'separator',
       'delete',
     ]);
+  });
+
+  it('offers a linked pattern’s ways as Show As and Duplicate As submenus, the way it is shown checked', () => {
+    const items = diagramStepMenuItems(actions({ hasSource: true, link: 'current', linkKind: 'cp', showAs: 'folded' }));
+    const showAs = items.find((item) => item.kind === 'submenu' && item.id === 'show-as');
+    expect(showAs).toMatchObject({
+      label: 'Show As',
+      items: [
+        { kind: 'radio', label: 'Crease Pattern', checked: false },
+        { kind: 'radio', label: 'Folded', checked: true },
+      ],
+    });
+    const duplicateAs = items.find((item) => item.kind === 'submenu' && item.id === 'duplicate-as');
+    expect(duplicateAs).toMatchObject({ items: [{ kind: 'action', label: 'Crease Pattern' }, { kind: 'action', label: 'Folded' }] });
   });
 
   it('offers a new page at the step as a check, and not on the first step', () => {

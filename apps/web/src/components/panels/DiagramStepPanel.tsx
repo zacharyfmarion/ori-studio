@@ -121,6 +121,8 @@ export function DiagramStepPanel() {
                     sheets={picker.sheets}
                     selectedId={picker.selectedId}
                     busy={picker.busy}
+                    showAs={picker.showAs}
+                    onShowAs={picker.setShowAs}
                     onPick={picker.pick}
                     onCancel={picker.cancel}
                   />

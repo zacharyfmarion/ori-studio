@@ -27,18 +27,22 @@ import {
 import {
   isLockedStep,
   poseBlocker,
+  showAsOf,
   stepAsset,
   stepHasPicture,
   stepIndex,
   type DiagramDocument,
+  type DiagramShowAs,
   type DiagramStep,
   type UploadPose,
 } from './document/diagramDocument';
 import {
   captureKind,
+  duplicateLinkedStepAs,
   openDiagramPatternPicker,
   openDiagramStepInEdit,
   refreshDiagramStep,
+  showLinkedStepAs,
 } from './capture/stepCaptureActions';
 import { askReferencesForStep, openDiagramStepInReferences } from './capture/referencesStepActions';
 import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
@@ -123,9 +127,15 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       lightingChanged: lightingChanged(step, diagram.style),
       capturing: Object.hasOwn(diagramCaptures, stepId),
       patternOpen: oristudioCpDocument !== null,
+      showAs: showAsOfStep(step),
     },
     t
   );
+}
+
+/** How a step linked to the pattern shows it, for Show as; null for any other step. */
+function showAsOfStep(step: DiagramStep | undefined): DiagramShowAs | null {
+  return step && !isLockedStep(step) && step.source?.kind === 'cp' ? showAsOf(step.source.render) : null;
 }
 
 /** What a step is linked to, for the verbs that follow a link. */
@@ -184,6 +194,12 @@ function bindStepActions(
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),
       fromReferences: () => askReferencesForStep(stepId),
+      showAs: (way) => {
+        void showLinkedStepAs(stepId, way, 'card');
+      },
+      duplicateAs: (way) => {
+        void duplicateLinkedStepAs(stepId, way);
+      },
       adjustPose: () => {
         openDiagramStep(stepId, 'command');
       },
@@ -262,10 +278,12 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
               lightingChanged: relight,
               capturing,
               patternOpen,
+              showAs: showAsOfStep(step),
             },
             t
           ),
     [
+      step,
       stepId,
       index,
       count,

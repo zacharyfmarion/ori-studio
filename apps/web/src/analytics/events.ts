@@ -121,7 +121,17 @@ export type DiagramCaptureOutcome =
  * Which flow captured a picture: linking a step, relinking it, Refresh on one
  * step, or Refresh all. A Pose verb is `diagram picture posed`.
  */
-export type DiagramCaptureVia = 'link' | 'relink' | 'refresh' | 'refresh_all';
+export type DiagramCaptureVia = 'link' | 'relink' | 'refresh' | 'refresh_all' | 'show_as' | 'duplicate_as';
+
+/** A way a linked step shows its pattern (D19), in the event's own spelling. */
+export type DiagramShowAsName = 'crease_pattern' | 'folded';
+
+/**
+ * Where a linked step was shown another way: the Step pane's Show as row, the
+ * pattern picker's, or the card's Show as and Duplicate as menus. Pose's own
+ * switch is counted by `diagram picture posed`.
+ */
+export type DiagramShowAsVia = 'pane' | 'picker' | 'card' | 'duplicate';
 
 /** The workspace a diagram step's Open in… went to: its pattern in Edit, or its sheet in References. */
 export type DiagramSourceWorkspace = 'edit' | 'references';
@@ -1091,6 +1101,7 @@ export const ANALYTICS_EVENTS = {
    * and how often folds fail or are stopped.
    */
   diagramPictureCaptured: 'diagram picture captured',
+  diagramStepShownAs: 'diagram step shown as',
   /** A step's Open in Edit or Open in References: whether the way back to a step's source is used. */
   diagramSourceOpened: 'diagram source opened',
   /** The Diagram switched between its steps and its pages: whether the pages are looked at. */

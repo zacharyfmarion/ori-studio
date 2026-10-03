@@ -50,7 +50,7 @@ function press(key: string) {
 
 describe('DiagramPatternPicker', () => {
   it('is one tab stop that the arrows, Home and End move along, and keeps them from the Diagram', () => {
-    mount(<DiagramPatternPicker sheets={SHEETS} selectedId={1} busy={false} onPick={vi.fn()} onCancel={vi.fn()} />);
+    mount(<DiagramPatternPicker sheets={SHEETS} selectedId={1} busy={false} showAs="crease-pattern" onShowAs={vi.fn()} onPick={vi.fn()} onCancel={vi.fn()} />);
     // The tab stop starts on the pattern the step shows.
     expect(options().map((option) => option.tabIndex)).toEqual([-1, 0, -1, -1]);
     options()[1]!.focus();
@@ -69,9 +69,23 @@ describe('DiagramPatternPicker', () => {
     expect(options().map((option) => option.tabIndex)).toEqual([0, -1, -1, -1]);
   });
 
+  it('says how the step will show the pattern it links, and changes it', () => {
+    const onShowAs = vi.fn();
+    mount(
+      <DiagramPatternPicker sheets={SHEETS} selectedId={null} busy={false} showAs="folded" onShowAs={onShowAs} onPick={vi.fn()} onCancel={vi.fn()} />
+    );
+    const ways = [...host!.querySelectorAll<HTMLElement>('[role="group"][aria-label="Show as"] button')];
+    expect(ways.map((way) => [way.textContent, way.getAttribute('aria-pressed')])).toEqual([
+      ['Crease Pattern', 'false'],
+      ['Folded', 'true'],
+    ]);
+    act(() => ways[0]!.click());
+    expect(onShowAs).toHaveBeenCalledWith('crease-pattern');
+  });
+
   it('refuses a pick while a link is captured, keeping the focus where it is', () => {
     const onPick = vi.fn();
-    mount(<DiagramPatternPicker sheets={SHEETS} selectedId={null} busy onPick={onPick} onCancel={vi.fn()} />);
+    mount(<DiagramPatternPicker sheets={SHEETS} selectedId={null} busy showAs="crease-pattern" onShowAs={vi.fn()} onPick={onPick} onCancel={vi.fn()} />);
     const first = options()[0]!;
     first.focus();
     act(() => first.click());
@@ -103,7 +117,7 @@ describe('the picker in the Picture section', () => {
         waiting={null}
         picker={
           open && (
-            <DiagramPatternPicker sheets={SHEETS} selectedId={null} busy={false} onPick={vi.fn()} onCancel={vi.fn()} />
+            <DiagramPatternPicker sheets={SHEETS} selectedId={null} busy={false} showAs="crease-pattern" onShowAs={vi.fn()} onPick={vi.fn()} onCancel={vi.fn()} />
           )
         }
       />

@@ -48,6 +48,8 @@ export type {
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   DiagramStepOpenedMode,
+  DiagramShowAsName,
+  DiagramShowAsVia,
   ExportFormat,
   FoldabilityCheckSource,
   FoldCycleDirection,
@@ -103,6 +105,7 @@ export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export {
   trackDiagramPictureCaptured,
+  trackDiagramStepShownAs,
   trackDiagramExported,
   trackDiagramPictureExported,
   trackDiagramAnnotationAdded,

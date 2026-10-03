@@ -18,7 +18,7 @@ import {
   POSE_ROTATION_STEP_DEG,
   type DiagramLinkedPoseActionId,
 } from '../actions/diagramLinkedPoseActions';
-import type { DiagramCpRender, DiagramStyle } from '../document/diagramDocument';
+import { renderToShowAs, type DiagramCpRender, type DiagramCpSource, type DiagramStyle } from '../document/diagramDocument';
 import type { StepCreases } from './captureCreases';
 import {
   captureCreasePattern,
@@ -53,6 +53,8 @@ export interface LinkedPoseInput {
   document: OristudioCpDocumentSnapshot;
   creases: StepCreases;
   render: DiagramCpRender;
+  /** The poses the step remembers for its other ways of showing (D19). */
+  remembered?: DiagramCpSource['remembered'];
   style: DiagramStyle;
 }
 
@@ -63,7 +65,7 @@ const VIEW_FRONT: FoldedFigureCamera = { yaw: 0, pitch: -Math.PI / 2, zoom: 1 };
 
 export async function poseLinkedStep(
   session: CaptureSession,
-  { document, creases, render, style }: LinkedPoseInput,
+  { document, creases, render, remembered, style }: LinkedPoseInput,
   request: LinkedPoseRequest
 ): Promise<LinkedPoseResult> {
   const spatialRoute = resolveFoldRoute(document, creases.foldLineIds).kind === 'spatial';
@@ -110,16 +112,31 @@ export async function poseLinkedStep(
   const folded = (rotationDeg: number) =>
     spatialRoute ? spatial(defaultCaptureCamera('front'), 'front') : flat('front', rotationDeg, 1);
 
+  /**
+   * The folded form in the pose it last had (D19), by the route its creases
+   * take now: a remembered 3D view for creases that fold flat now starts flat,
+   * and a remembered flat fold for creases that fold in 3D starts in 3D.
+   */
+  const foldedAsRemembered = (): Promise<LinkedPoseResult> => {
+    const target = renderToShowAs({ render, remembered }, 'folded');
+    if (target.mode === 'folded-flat' && !spatialRoute) {
+      return flat(target.side, target.rotationDeg, target.foldCase);
+    }
+    if (target.mode === 'folded-3d' && spatialRoute) return spatial(target.camera, target.side);
+    return folded(target.mode === 'folded-flat' ? target.rotationDeg : 0);
+  };
+
   const { verb } = request;
   if (verb === 'show-crease-pattern') {
     // Nothing folded to keep: let the kernel have its memory back.
     session.dispose();
-    return creasePattern(render.mode === 'folded-3d' ? 0 : render.rotationDeg);
+    const target = renderToShowAs({ render, remembered }, 'crease-pattern');
+    return creasePattern(target.mode === 'crease-pattern' ? target.rotationDeg : 0);
   }
   if (render.mode === 'crease-pattern') {
     switch (verb) {
       case 'show-folded':
-        return folded(render.rotationDeg);
+        return foldedAsRemembered();
       case 'rotate-left':
         return creasePattern(turned(render.rotationDeg, -POSE_ROTATION_STEP_DEG));
       case 'rotate-right':

@@ -12,7 +12,7 @@ import { isLockedStep, type DiagramStep } from '../../diagram/document/diagramDo
 import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { Button } from '../ui/Button';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
-import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
+import { FieldRow, NumberRow } from '../ui/fieldRows';
 import { LINKED_POSE_ICONS } from './DiagramLinkedPoseControls';
 import styles from './DiagramStepPose.module.css';
 
@@ -43,9 +43,9 @@ interface PoseVerb {
  *
  * - **An upload:** its turn and whether it is flipped.
  * - **A step sent from References:** which side of the paper it shows.
- * - **A linked pattern:** how it shows it, and — for a crease pattern or a
- *   flat fold — its turn as a field (D5's angle field), a flat fold's side and
- *   layer order. Its verbs are the open step's own pose controller's
+ * - **A linked pattern:** for a crease pattern or a flat fold, its turn as a
+ *   field (D5's angle field), a flat fold's side and layer order. How it is
+ *   shown is the Picture section's Show as row, in Pose or not (D19). Its verbs are the open step's own pose controller's
  *   (`useOpenLinkedPose`): one capture session per step, whichever surface
  *   the verb is pressed on.
  *
@@ -120,28 +120,14 @@ export function DiagramStepPose({
   if (source?.kind !== 'cp' || !linkedPose) return null;
   const { render } = source;
   const linked = linkedPose.actions;
-  const find = (id: DiagramLinkedPoseAction['id']) => linked.find((action) => action.id === id);
-  const crease = find('show-crease-pattern');
-  const folded = find('show-folded');
   const posing = linked
     .filter((action) => action.id !== 'show-crease-pattern' && action.id !== 'show-folded')
     .map((action): PoseVerb => ({ ...action, icon: LINKED_POSE_ICONS[action.id]! }));
   const turnable = render.mode !== 'folded-3d';
+  const turnHeld = linked.find((action: DiagramLinkedPoseAction) => action.id === 'rotate-left')?.disabled ?? true;
   const waiting = linked.some((action) => action.waiting);
   return section(
     <>
-      {crease && folded && (
-        <SegmentedRow
-          label={t('panels:diagram.pose.show', 'Show')}
-          value={folded.pressed ? 'folded' : 'crease-pattern'}
-          disabled={crease.disabled || waiting}
-          options={[
-            { id: 'crease-pattern', label: crease.label },
-            { id: 'folded', label: folded.label },
-          ]}
-          onChange={(value) => (value === 'folded' ? folded.run() : crease.run())}
-        />
-      )}
       {turnable && (
         <NumberRow
           // A new field for each turn the step lands on: a draft never outlives it.
@@ -152,7 +138,8 @@ export function DiagramStepPose({
           max={359}
           step={15}
           suffix="°"
-          disabled={crease?.disabled || waiting}
+          // Held as the turn verbs are: on a diagram that cannot change, or while a capture runs.
+          disabled={turnHeld || waiting}
           normalize={(degrees) => ((Math.round(degrees) % 360) + 360) % 360}
           onCommit={linkedPose.rotateTo}
         />

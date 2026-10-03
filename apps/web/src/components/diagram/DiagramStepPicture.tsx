@@ -3,6 +3,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Compass, Download, ImageOff, Link2, PenTool, RefreshCw, Rotate3d, Upload } from 'lucide-react';
 import {
+  diagramStepChoice,
   diagramStepCommand,
   type DiagramStepAction,
   type DiagramStepActionId,
@@ -18,7 +19,7 @@ import { cameraDegrees } from '../../diagram/pictures/cameraDegrees';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useReturnFocusOnClose } from '../../hooks/useReturnFocusOnClose';
 import { Button } from '../ui/Button';
-import { FieldRow } from '../ui/fieldRows';
+import { FieldRow, SegmentedRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepPicture.module.css';
@@ -75,6 +76,8 @@ export function DiagramStepPicture({
 }) {
   const { t } = useTranslation();
   const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
+  // How a linked pattern is shown (D19), in Pose or not.
+  const showAs = diagramStepChoice(actions, 'show-as');
   // A pick or Cancel closes the picker, or the waiting notice, under the
   // focus: back to the verb that opened it.
   const section = useRef<HTMLDivElement | null>(null);
@@ -91,6 +94,16 @@ export function DiagramStepPicture({
             ? describeAsset(asset, t)
             : t('panels:diagram.picture.none', 'No picture yet')}
       </FieldRow>
+      {showAs && (
+        <SegmentedRow
+          label={t('panels:diagram.picture.showAs', 'Show as')}
+          value={showAs.options.find((option) => option.checked)?.id ?? null}
+          disabled={showAs.disabled}
+          title={showAs.hint}
+          options={showAs.options.map((option) => ({ id: option.id, label: option.label }))}
+          onChange={(way) => showAs.options.find((option) => option.id === way)?.run()}
+        />
+      )}
       {source?.kind === 'cp' && source.render.mode === 'folded-3d' && step.picture !== null && (
         <FieldRow label={t('panels:diagram.picture.view', 'View')} kind="text">
           {t('panels:diagram.pose.cameraReadout', 'Yaw {{yaw}}° · Pitch {{pitch}}°', { ...cameraDegrees(source.render.camera) })}

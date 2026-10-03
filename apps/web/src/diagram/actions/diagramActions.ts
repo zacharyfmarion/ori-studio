@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
 import type { DiagramLinkStatus } from '../capture/linkStatus';
+import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../document/diagramDocument';
 
 /**
  * The verbs a diagram step offers, in the order every surface presents them:
@@ -56,7 +57,21 @@ export interface DiagramStepSeparator {
   id: string;
 }
 
-export type DiagramStepAction = DiagramStepCommand | DiagramStepSeparator;
+/**
+ * A verb with a choice of ways (D19): Show as and Duplicate as, one option per
+ * way a linked pattern is shown. A menu draws it as a submenu; the Step pane
+ * draws Show as as a segmented row.
+ */
+export interface DiagramStepChoice {
+  kind: 'choice';
+  id: 'show-as' | 'duplicate-as';
+  label: string;
+  disabled: boolean;
+  hint?: string;
+  options: { id: DiagramShowAs; label: string; checked?: boolean; run: () => void }[];
+}
+
+export type DiagramStepAction = DiagramStepCommand | DiagramStepSeparator | DiagramStepChoice;
 
 /** What the verbs are gated on. */
 export interface DiagramStepActionState {
@@ -91,6 +106,8 @@ export interface DiagramStepActionState {
   capturing: boolean;
   /** A crease pattern is open to link to. */
   patternOpen: boolean;
+  /** How a step linked to the pattern shows it (D19); null for any other step. */
+  showAs: DiagramShowAs | null;
 }
 
 export interface DiagramStepActionDeps {
@@ -112,6 +129,10 @@ export interface DiagramStepActionDeps {
   openInReferences: () => void;
   /** Ask References for this step's picture: its next Send to diagram fills the step. */
   fromReferences: () => void;
+  /** Show a linked step's pattern another way (D19). */
+  showAs: (way: DiagramShowAs) => void;
+  /** A copy of a linked step after it, shown another way (D19). */
+  duplicateAs: (way: DiagramShowAs) => void;
   /** Open the step in Pose (D5). */
   adjustPose: () => void;
   /** Open the step in Annotate (D8). */
@@ -173,6 +194,38 @@ export function buildDiagramStepActions(
     };
   };
 
+  // A way to show the pattern needs a capture: the pattern open, the region there, no capture running.
+  const showBlocked = state.locked || !state.patternOpen || state.capturing || state.link === 'missing';
+  const showHint = state.locked
+    ? lockedEditHint
+    : !state.patternOpen
+      ? t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
+      : state.capturing
+        ? capturingHint
+        : t('panels:diagram.actions.missingHint', 'Its pattern is gone: relink it to another');
+  const choice = (
+    id: DiagramStepChoice['id'],
+    label: string,
+    run: (way: DiagramShowAs) => () => void,
+    current: DiagramShowAs | null
+  ): DiagramStepChoice => {
+    const gated = state.readOnly;
+    const disabled = gated || showBlocked;
+    return {
+      kind: 'choice',
+      id,
+      label,
+      disabled,
+      ...(disabled ? { hint: gated ? readOnlyHint : showHint } : {}),
+      options: DIAGRAM_SHOW_AS.map((way) => ({
+        id: way,
+        label: showAsName(way, t),
+        ...(current === null ? {} : { checked: way === current }),
+        run: run(way),
+      })),
+    };
+  };
+
   return [
     command(
       'insert-before',
@@ -196,6 +249,16 @@ export function buildDiagramStepActions(
         'Made with a newer Ori Studio: it can be moved or deleted, not copied'
       )
     ),
+    ...(state.showAs === null
+      ? []
+      : [
+          choice(
+            'duplicate-as',
+            t('panels:diagram.actions.duplicateAs', 'Duplicate As'),
+            (way) => () => deps.duplicateAs(way),
+            null
+          ),
+        ]),
     { kind: 'separator', id: 'after-add' },
     command(
       'move-earlier',
@@ -296,6 +359,17 @@ export function buildDiagramStepActions(
             t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
           ),
         ]),
+    // How a linked pattern is shown: the Step pane's Show as row, as a submenu here.
+    ...(state.showAs === null
+      ? []
+      : [
+          choice(
+            'show-as',
+            t('panels:diagram.actions.showAs', 'Show As'),
+            (way) => () => deps.showAs(way),
+            state.showAs
+          ),
+        ]),
     // Pose needs something to pose: a picture, or a link whose picture it
     // chooses how to show.
     command(
@@ -366,6 +440,22 @@ function refreshHint(
     case 'stale':
       return undefined;
   }
+}
+
+/** A way of showing a linked pattern, by name, as every surface says it (D19). */
+export function showAsName(way: DiagramShowAs, t: TFunction): string {
+  return way === 'folded'
+    ? t('panels:diagram.pose.showFolded', 'Folded')
+    : t('panels:diagram.pose.showCreasePattern', 'Crease Pattern');
+}
+
+/** The choice with this id, for a surface that places it on its own. */
+export function diagramStepChoice(
+  actions: readonly DiagramStepAction[],
+  id: DiagramStepChoice['id']
+): DiagramStepChoice | null {
+  const action = actions.find((candidate) => candidate.kind === 'choice' && candidate.id === id);
+  return action?.kind === 'choice' ? action : null;
 }
 
 /** The command with this id, for a surface that places verbs one by one. */

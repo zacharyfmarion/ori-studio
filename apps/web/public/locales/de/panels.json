@@ -691,6 +691,7 @@
       "currentHint": "Zeigt sein Muster bereits so, wie es ist",
       "delete": "Schritt löschen",
       "duplicate": "Schritt duplizieren",
+      "duplicateAs": "Duplizieren als",
       "exportPicture": "Bild exportieren…",
       "firstHint": "Bereits der erste Schritt",
       "firstPageHint": "Der erste Schritt beginnt immer eine Seite",
@@ -717,6 +718,7 @@
       "relinkPattern": "Muster neu verknüpfen…",
       "removePicture": "Bild entfernen",
       "replacePicture": "Bild ersetzen…",
+      "showAs": "Anzeigen als",
       "startPage": "Hier eine neue Seite beginnen",
       "uploadPicture": "Bild hochladen…"
     },
@@ -929,6 +931,7 @@
       "sentFind": "Schritt {{number}} einer Referenz",
       "sentSequence": "Schritt {{number}} der Faltfolge",
       "sentStale": "Das Muster hat sich geändert, seit dieser Schritt gesendet wurde",
+      "showAs": "Anzeigen als",
       "simplified": "Dieses Bild wurde vereinfacht.",
       "source": "Quelle",
       "stale": "Veraltet: das Muster hat sich geändert",

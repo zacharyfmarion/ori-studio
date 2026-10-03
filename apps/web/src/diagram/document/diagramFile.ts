@@ -53,7 +53,9 @@ import {
 import {
   DEFAULT_DIAGRAM_STYLE,
   DIAGRAM_FORMAT_VERSION,
+  DIAGRAM_SHOW_AS,
   PAPER_SIZES,
+  showAsOf,
   isKnownAsset,
   normalizePageSetup,
   randomDiagramId,
@@ -74,6 +76,7 @@ import {
   type DiagramHanStyle,
   type DiagramIdFactory,
   type DiagramRasterAsset,
+  type DiagramShowAs,
   type DiagramStep,
   type DiagramStepSource,
   type DiagramStyle,
@@ -421,7 +424,26 @@ function readCpSource(value: Record<string, unknown>): DiagramCpSource | null {
   const fingerprint = value.fingerprint;
   if (!scope || !render || !thumbnail) return null;
   if (typeof fingerprint !== 'string' || fingerprint.length === 0) return null;
-  return { kind: 'cp', scope, fingerprint, thumbnail, render };
+  const remembered = readRememberedPoses(value.remembered, render);
+  return { kind: 'cp', scope, fingerprint, thumbnail, render, ...(remembered ? { remembered } : {}) };
+}
+
+/**
+ * The poses a step remembers for the other ways of showing its pattern (D19):
+ * each one that reads, under the way it shows; an entry that does not read,
+ * or names the way the step is shown now, is dropped rather than the step.
+ */
+function readRememberedPoses(
+  value: unknown,
+  render: DiagramCpRender
+): Partial<Record<DiagramShowAs, DiagramCpRender>> | null {
+  if (!isRecord(value)) return null;
+  const remembered: Partial<Record<DiagramShowAs, DiagramCpRender>> = {};
+  for (const way of DIAGRAM_SHOW_AS) {
+    const pose = readCpRender(value[way]);
+    if (pose && showAsOf(pose) === way && way !== showAsOf(render)) remembered[way] = pose;
+  }
+  return Object.keys(remembered).length > 0 ? remembered : null;
 }
 
 /**

@@ -720,6 +720,7 @@
       "currentHint": "Montre déjà son patron tel qu’il est",
       "delete": "Supprimer l’étape",
       "duplicate": "Dupliquer l’étape",
+      "duplicateAs": "Dupliquer en",
       "exportPicture": "Exporter l’image…",
       "firstHint": "C’est déjà la première étape",
       "firstPageHint": "La première étape commence toujours une page",
@@ -746,6 +747,7 @@
       "relinkPattern": "Relier à un autre patron…",
       "removePicture": "Retirer l’image",
       "replacePicture": "Remplacer l’image…",
+      "showAs": "Afficher en",
       "startPage": "Commencer une nouvelle page ici",
       "uploadPicture": "Importer une image…"
     },
@@ -963,6 +965,7 @@
       "sentFind": "Étape {{number}} d’une référence",
       "sentSequence": "Étape {{number}} de la séquence de pliage",
       "sentStale": "Le patron a changé depuis l’envoi de cette étape",
+      "showAs": "Afficher en",
       "simplified": "Cette image a été simplifiée.",
       "source": "Source",
       "stale": "Pas à jour\u00a0: le patron a changé",

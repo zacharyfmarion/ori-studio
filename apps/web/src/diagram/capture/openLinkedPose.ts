@@ -31,3 +31,8 @@ export function useOpenLinkedPose(stepId: string | null): DiagramLinkedPose | nu
   const current = useSyncExternalStore(subscribe, () => open);
   return current !== null && current.stepId === stepId ? current.pose : null;
 }
+
+/** The linked Pose of `stepId` while it is the step open in detail, for a verb run outside React. */
+export function openLinkedPoseOf(stepId: string): DiagramLinkedPose | null {
+  return open !== null && open.stepId === stepId ? open.pose : null;
+}

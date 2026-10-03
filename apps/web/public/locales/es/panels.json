@@ -720,6 +720,7 @@
       "currentHint": "Ya muestra su patrón tal como está",
       "delete": "Eliminar paso",
       "duplicate": "Duplicar paso",
+      "duplicateAs": "Duplicar como",
       "exportPicture": "Exportar imagen…",
       "firstHint": "Ya es el primer paso",
       "firstPageHint": "El primer paso siempre empieza una página",
@@ -746,6 +747,7 @@
       "relinkPattern": "Volver a vincular patrón…",
       "removePicture": "Quitar imagen",
       "replacePicture": "Reemplazar imagen…",
+      "showAs": "Mostrar como",
       "startPage": "Empezar una página nueva aquí",
       "uploadPicture": "Subir imagen…"
     },
@@ -963,6 +965,7 @@
       "sentFind": "Paso {{number}} de una referencia",
       "sentSequence": "Paso {{number}} de la secuencia de plegado",
       "sentStale": "El patrón cambió desde que se envió este paso",
+      "showAs": "Mostrar como",
       "simplified": "Esta imagen se simplificó.",
       "source": "Origen",
       "stale": "Desactualizado: el patrón cambió",

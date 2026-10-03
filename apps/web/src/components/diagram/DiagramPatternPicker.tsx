@@ -5,7 +5,10 @@ import type {
   DiagramPatternSheet,
   DiagramPatternSheets,
 } from '../../diagram/capture/useDiagramPatternSheets';
+import { showAsName } from '../../diagram/actions/diagramActions';
+import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../../diagram/document/diagramDocument';
 import { Button } from '../ui/Button';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramPatternPicker.module.css';
 
@@ -14,8 +17,9 @@ import styles from './DiagramPatternPicker.module.css';
  * pane's Picture section, while a step's pattern is being chosen.
  *
  * Several to a row, each a small drawing and its number, as the pattern rails
- * number them; the one the step shows is marked. A press links the step (or
- * relinks it) and the picker closes when the picture is in.
+ * number them; the one the step shows is marked. Above them, how the step will
+ * show the pattern (D19): a press links the step (or relinks it) shown that
+ * way, and the picker closes when the picture is in.
  *
  * One tab stop, as a listbox is: the arrows and Home and End move between the
  * patterns, and the Diagram's own step keys stand down while it has the focus.
@@ -26,6 +30,8 @@ export function DiagramPatternPicker({
   sheets,
   selectedId,
   busy,
+  showAs,
+  onShowAs,
   onPick,
   onCancel,
 }: {
@@ -34,6 +40,9 @@ export function DiagramPatternPicker({
   selectedId: number | null;
   /** A capture is running: the patterns wait for it. */
   busy: boolean;
+  /** How the step will show the pattern it links to (D19). */
+  showAs: DiagramShowAs;
+  onShowAs: (way: DiagramShowAs) => void;
   onPick: (sheet: DiagramPatternSheet) => void;
   onCancel: () => void;
 }) {
@@ -61,6 +70,16 @@ export function DiagramPatternPicker({
         <Button size="sm" variant="ghost" onClick={onCancel}>
           {t('panels:diagram.picker.cancel', 'Cancel')}
         </Button>
+      </div>
+      <div className={styles.showAs}>
+        <span className={styles.showAsLabel}>{t('panels:diagram.picture.showAs', 'Show as')}</span>
+        <SegmentedControl<DiagramShowAs>
+          size="sm"
+          aria-label={t('panels:diagram.picture.showAs', 'Show as')}
+          value={showAs}
+          options={DIAGRAM_SHOW_AS.map((way) => ({ value: way, label: showAsName(way, t) }))}
+          onChange={onShowAs}
+        />
       </div>
       {sheets.status === 'ready' && sheets.sheets.length > 0 ? (
         <div

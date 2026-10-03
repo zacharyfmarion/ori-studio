@@ -662,6 +662,7 @@
       "currentHint": "パターンの現在の状態をすでに表示しています",
       "delete": "ステップを削除",
       "duplicate": "ステップを複製",
+      "duplicateAs": "別の表示で複製",
       "exportPicture": "図を書き出し…",
       "firstHint": "すでに最初のステップです",
       "firstPageHint": "最初のステップは常にページの始まりです",
@@ -688,6 +689,7 @@
       "relinkPattern": "パターンをリンクし直す…",
       "removePicture": "図を削除",
       "replacePicture": "図を差し替え…",
+      "showAs": "表示方法",
       "startPage": "ここで新しいページを始める",
       "uploadPicture": "図をアップロード…"
     },
@@ -895,6 +897,7 @@
       "sentFind": "リファレンスのステップ {{number}}",
       "sentSequence": "折り順のステップ {{number}}",
       "sentStale": "このステップを送信した後にパターンが変更されました",
+      "showAs": "表示方法",
       "simplified": "この図は簡略化されました。",
       "source": "ソース",
       "stale": "要更新：パターンが変更されました",

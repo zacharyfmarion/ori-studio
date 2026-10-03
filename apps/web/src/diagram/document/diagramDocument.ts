@@ -107,6 +107,20 @@ export type DiagramCpRender =
     }
   | { mode: 'folded-3d'; camera: FoldedFigureCamera; side: 'front' | 'back' };
 
+/**
+ * A way a linked pattern is shown (D19): its crease pattern, or its folded
+ * form, flat or in 3D as its creases fold.
+ */
+export type DiagramShowAs = 'crease-pattern' | 'folded';
+
+/** The ways, in the order every surface offers them. */
+export const DIAGRAM_SHOW_AS: readonly DiagramShowAs[] = ['crease-pattern', 'folded'];
+
+/** How a render shows its pattern. */
+export function showAsOf(render: DiagramCpRender): DiagramShowAs {
+  return render.mode === 'crease-pattern' ? 'crease-pattern' : 'folded';
+}
+
 /** A step drawn from the open crease pattern, and linked to it (D3). */
 export interface DiagramCpSource {
   kind: 'cp';
@@ -119,6 +133,48 @@ export interface DiagramCpSource {
   /** The pattern as it was linked, for the picker and a step whose pattern is gone. */
   thumbnail: SheetThumbnail;
   render: DiagramCpRender;
+  /**
+   * The pose each other way of showing the pattern last had (D19), so a look
+   * at the crease pattern and back brings the folded side, turn and layer
+   * order back. Never holds the way the step is shown now; absent when empty.
+   */
+  remembered?: Partial<Record<DiagramShowAs, DiagramCpRender>>;
+}
+
+/**
+ * The pose to show a linked pattern in, as `way` (D19): the one it is shown in
+ * now when that is the way, else the one that way last had, else that way's
+ * start — a crease pattern or a flat fold turned as the step is turned now,
+ * from the front at the first layer order. A flat fold asked of creases that
+ * fold in 3D becomes the 3D one where it is captured (`renderForRoute`).
+ */
+export function renderToShowAs(
+  source: Pick<DiagramCpSource, 'render' | 'remembered'>,
+  way: DiagramShowAs
+): DiagramCpRender {
+  const { render } = source;
+  if (showAsOf(render) === way) return render;
+  const kept = source.remembered?.[way];
+  if (kept && showAsOf(kept) === way) return kept;
+  const turn = render.mode === 'folded-3d' ? 0 : render.rotationDeg;
+  return way === 'crease-pattern'
+    ? { mode: 'crease-pattern', rotationDeg: turn }
+    : { mode: 'folded-flat', side: 'front', rotationDeg: turn, foldCase: 1 };
+}
+
+/**
+ * `after`, a new capture's source, keeping what the step's source before it
+ * remembered and, when the way it is shown changes, the pose it had (D19).
+ */
+export function withRememberedPoses(before: DiagramStepSource | null, after: DiagramCpSource): DiagramCpSource {
+  const { remembered: _ignored, ...rest } = after;
+  const kept: Partial<Record<DiagramShowAs, DiagramCpRender>> =
+    before?.kind === 'cp' ? { ...before.remembered } : {};
+  if (before?.kind === 'cp' && showAsOf(before.render) !== showAsOf(after.render)) {
+    kept[showAsOf(before.render)] = before.render;
+  }
+  delete kept[showAsOf(after.render)];
+  return Object.keys(kept).length > 0 ? { ...rest, remembered: kept } : rest;
 }
 
 /** The planner settings a References plan was made with (D6): what made its steps the ones they are. */
@@ -636,7 +692,7 @@ export function setLinkedPicture(
   const step = document.steps[index];
   if (
     (step.picture?.key ?? null) === (link.picture?.key ?? null) &&
-    JSON.stringify(step.source) === JSON.stringify(link.source)
+    JSON.stringify(step.source) === JSON.stringify(withRememberedPoses(step.source, link.source))
   ) {
     return document;
   }
@@ -644,7 +700,12 @@ export function setLinkedPicture(
   return updateStep(withAsset, stepId, (current) =>
     withCarriedAnnotations(
       current,
-      { ...current, source: link.source, picture: link.picture, revision: current.revision + 1 },
+      {
+        ...current,
+        source: withRememberedPoses(current.source, link.source),
+        picture: link.picture,
+        revision: current.revision + 1,
+      },
       withAsset.assets
     )
   );

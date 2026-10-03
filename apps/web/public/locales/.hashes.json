@@ -3523,12 +3523,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -3772,7 +3770,10 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7298,12 +7299,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -7547,7 +7546,10 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11075,12 +11077,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -11324,7 +11324,10 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -14787,12 +14790,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -15028,7 +15029,10 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18491,12 +18495,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -18732,7 +18734,10 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22258,12 +22263,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -22507,7 +22510,10 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26033,12 +26039,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -26282,7 +26286,10 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -29745,12 +29752,10 @@
     "panels:diagram.pose.viewFront": "de0e457e7612",
     "panels:diagram.pose.viewIso": "e4cc0a7f5511",
     "panels:diagram.pose.viewTop": "976c7c1981d9",
-    "panels:creasePattern.selectionToolbar.addToDiagram": "2ed0b9b30b2c",
     "panels:diagram.actions.noPatternOpenHint": "dd099a89ff3f",
     "panels:diagram.actions.openInEdit": "c800cec245d5",
     "panels:diagram.header.refreshAll": "6f730517c76e",
     "panels:diagram.header.stopRefreshing": "5491b0cc117e",
-    "panels:foldedFigureActions.addToDiagram": "0ed5c3f4e1d9",
     "dialogs:diagram.refreshAllConfirm": "0e9161011702",
     "dialogs:diagram.refreshAllMessage": "0d0c91aeac0b",
     "dialogs:diagram.refreshAllTitle": "28650012c5ba",
@@ -29986,6 +29991,9 @@
     "dialogs:diagramExport.pageSetup": "6d3eb40b4647",
     "dialogs:diagramExport.pageSetupSummary": "81037d68c756",
     "dialogs:diagramExport.textHelp": "39e9dd2de333",
-    "panels:diagram.pagePane.marginMm": "abe47dd52eea"
+    "panels:diagram.pagePane.marginMm": "abe47dd52eea",
+    "panels:diagram.actions.duplicateAs": "7cd0f09a5129",
+    "panels:diagram.actions.showAs": "2b1c848ba4dd",
+    "panels:diagram.picture.showAs": "e6565cb811a7"
   }
 }
