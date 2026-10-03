@@ -222,6 +222,7 @@
   "creaseAngle": {
     "close": "Fechar ângulo do vinco",
     "degrees": "Ângulo do vinco em graus",
+    "degreesLabel": "Graus",
     "fieldTitle": "Ângulo de dobra dado aos novos vincos de monte e vale",
     "menuRow": "Ângulo do vinco: {{angle}}",
     "title": "Ângulo do vinco"

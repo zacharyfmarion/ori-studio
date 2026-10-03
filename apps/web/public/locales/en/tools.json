@@ -214,6 +214,7 @@
   "creaseAngle": {
     "close": "Close crease angle",
     "degrees": "Crease angle in degrees",
+    "degreesLabel": "Degrees",
     "fieldTitle": "Fold angle given to new mountain and valley creases",
     "menuRow": "Crease angle: {{angle}}",
     "title": "Crease angle"

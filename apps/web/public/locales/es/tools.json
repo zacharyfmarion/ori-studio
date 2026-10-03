@@ -222,6 +222,7 @@
   "creaseAngle": {
     "close": "Cerrar ángulo de pliegue",
     "degrees": "Ángulo de pliegue en grados",
+    "degreesLabel": "Grados",
     "fieldTitle": "Ángulo de plegado que reciben los nuevos pliegues de monte y valle",
     "menuRow": "Ángulo de pliegue: {{angle}}",
     "title": "Ángulo de pliegue"

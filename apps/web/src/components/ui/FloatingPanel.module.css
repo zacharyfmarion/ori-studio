@@ -133,15 +133,16 @@ button.bar:focus-visible {
   align-content: end;
 }
 
-/* Sized for the bar: 20px sits inside its 30px without growing it, where the
-   smallest `IconButton` is 28px. */
+/* Sized for the bar: its 30px less padding and rule leaves 19px, and anything
+   taller grows the bar past the tool window's. The smallest `IconButton` is
+   28px. */
 .close {
   position: relative;
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  /* Not redundant: the UA's button padding leaves a 20px box too small a
+  width: 18px;
+  height: 18px;
+  /* Not redundant: the UA's button padding leaves an 18px box too small a
      content box to centre the icon in. */
   padding: 0;
   border: 0;
@@ -156,7 +157,7 @@ button.bar:focus-visible {
 .close::after {
   content: '';
   position: absolute;
-  inset: -5px -8px;
+  inset: -6px -8px;
 }
 
 .close:hover {

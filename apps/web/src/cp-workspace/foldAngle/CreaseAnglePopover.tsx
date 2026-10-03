@@ -14,13 +14,21 @@
  * `Enter` to pick, which is the interaction this was asked for and also the one
  * a screen-reader user gets for free.
  *
+ * # It looks like the tool window
+ *
+ * The same `FloatingPanel` the tool window is, holding the same kind of
+ * content: the fold-angle group a selection shows there is these presets and a
+ * Degrees field, and the two have to read as one control applied to two
+ * things. Only the order differs — the field comes first here, because focus
+ * opens in it and Tab walks on to the chips, and what is seen first must be
+ * what is focused first.
+ *
  * # Two frames, one body
  *
  * Anchored to the toolbar field when there is one, and a centred modal when
  * there is not — the phone layout, where the field does not render, and any
- * case where `Shift+A` fires while the bar is collapsed. That split is the same
- * call `FoldedFigureModal` documents: a popover has to have something to point
- * at, and pointing at nothing is worse than not pointing.
+ * case where `Shift+A` fires while the bar is collapsed. A popover has to have
+ * something to point at, and pointing at nothing is worse than not pointing.
  */
 import {
   useCallback,
@@ -28,14 +36,25 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type ReactNode,
+  type KeyboardEvent,
   type RefObject,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react';
+import { FloatingPortal } from '@floating-ui/react';
 import { Chip } from '../../components/ui/Chip';
-import { IconButton } from '../../components/ui/IconButton';
-import { FloatingToolbar, type FloatingAnchorRect } from '../../components/ui/FloatingToolbar';
+import {
+  FloatingPanel,
+  FloatingPanelBody,
+  FloatingPanelClose,
+  FloatingPanelHeader,
+} from '../../components/ui/FloatingPanel';
+import {
+  useAnchoredFloating,
+  type FloatingAnchorRect,
+} from '../../components/ui/useAnchoredFloating';
+import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface';
+import { CP_TOOL_HINT_WIDTH } from '../toolHint/toolHintPlacement';
 import { FOLD_ANGLE_PRESETS } from './foldAngleActions';
 import { formatCreaseAngleValue, parseCreaseAngle } from './activeCreaseAngle';
 import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
@@ -62,15 +81,28 @@ export interface CreaseAnglePopoverProps {
    * frame.
    */
   anchorRef: RefObject<HTMLElement | null>;
-  /** Pane the anchored frame must stay inside. See {@link FloatingToolbar}. */
+  /** Pane the anchored frame must stay inside. See `useAnchoredFloating`. */
   boundaryRef?: RefObject<HTMLElement | null>;
 }
 
-/** What `FloatingToolbar` anchors against: viewport CSS px. */
+/** What the anchored frame hangs off: viewport CSS px. */
 function anchorRectOf(element: HTMLElement): FloatingAnchorRect {
   const rect = element.getBoundingClientRect();
   return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
 }
+
+/**
+ * The tool window's width, which is what holds all six presets on one row
+ * there; the same row here is the same width.
+ */
+const WIDTH_STYLE = { width: CP_TOOL_HINT_WIDTH };
+
+/**
+ * Narrowest a cramped pane may squeeze the anchored frame to before it
+ * overflows the pane instead: the Degrees row's label and a field still usable
+ * beside it.
+ */
+const MIN_WIDTH = 160;
 
 export function CreaseAnglePopover({
   degrees,
@@ -82,7 +114,7 @@ export function CreaseAnglePopover({
   const { t } = useTranslation();
   const title = t('tools:creaseAngle.title', 'Crease angle');
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
   const [draft, setDraft] = useState(() => formatCreaseAngleValue(degrees));
   /**
    * Where to hang, measured. `null` means "not measured yet" and is distinct
@@ -112,6 +144,24 @@ export function CreaseAnglePopover({
     return () => window.removeEventListener('resize', measure);
   }, [anchorRef, boundaryRef]);
 
+  // Called whichever frame renders, as hooks must be; without an anchor it is
+  // simply never visible.
+  const floating = useAnchoredFloating({
+    anchorRect: placement?.rect ?? null,
+    placement: 'top',
+    offset: 8,
+    boundary: placement?.boundary ?? null,
+    minWidth: MIN_WIDTH,
+  });
+  const { setFloating } = floating;
+  const attachAnchored = useCallback(
+    (node: HTMLElement | null) => {
+      panelRef.current = node;
+      setFloating(node);
+    },
+    [setFloating]
+  );
+
   /**
    * Focus the input the moment it exists.
    *
@@ -124,8 +174,9 @@ export function CreaseAnglePopover({
    * left on whatever opened it, and typing went nowhere.
    *
    * A callback ref fires exactly when the node attaches, whichever pass that
-   * turns out to be, so it is also indifferent to the modal path (no portal)
-   * versus the anchored one. Counting passes would have to be right twice.
+   * turns out to be, so it is also indifferent to the modal path (no
+   * `FloatingPortal`) versus the anchored one. Counting passes would have to be
+   * right twice.
    */
   const focusOnAttach = useCallback((node: HTMLInputElement | null) => {
     inputRef.current = node;
@@ -153,7 +204,7 @@ export function CreaseAnglePopover({
   // popovers undismissable on an iPad. Tapping the paper has to put this away.
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
-      if (bodyRef.current?.contains(event.target as Node)) return;
+      if (panelRef.current?.contains(event.target as Node)) return;
       onClose();
     };
     window.addEventListener('pointerdown', onPointerDown, true);
@@ -169,81 +220,86 @@ export function CreaseAnglePopover({
     onClose();
   };
 
-  const body = (
-    <div
-      ref={bodyRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      className={styles.body}
-      onKeyDown={(event) => {
-        // Handled here rather than on `window` because the input inside owns
-        // its own keystrokes: `isShortcutEditingTarget`, the guard the other
-        // dialogs use to leave text fields alone, would swallow exactly the
-        // Escape this popover most needs to honour.
-        if (event.key !== 'Escape') return;
-        event.preventDefault();
-        event.stopPropagation();
-        onClose();
-      }}
-    >
-      <div className={styles.header}>
-        <span>{title}</span>
-        <IconButton
-          size="sm"
-          aria-label={t('tools:creaseAngle.close', 'Close crease angle')}
-          onClick={onClose}
-        >
-          <X size={14} />
-        </IconButton>
-      </div>
-      <input
-        ref={focusOnAttach}
-        type="text"
-        inputMode="decimal"
-        className={styles.input}
-        aria-label={t('tools:creaseAngle.degrees', 'Crease angle in degrees')}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key !== 'Enter') return;
-          event.preventDefault();
-          commitDraft();
-        }}
-      />
-      <div className={styles.chips}>
-        {FOLD_ANGLE_PRESETS.map((preset) => (
-          <Chip
-            key={preset.id}
-            // Bigger than the dense context-panel rows: here a chip is the
-            // primary target rather than a detail beside a field, and it is a
-            // Tab stop the keyboard path is built around.
-            size="md"
-            // `aria-pressed`, so the chip announces whether it is the pen now.
-            // The presets are not a radio group: picking one is an action that
-            // closes this, not a selection that persists in the row.
-            aria-pressed={degrees === preset.degrees}
-            onClick={() => {
-              // Magnitude only. A chip says "this far", never "and the other
-              // way" — flipping mountain to valley on a press labelled `90°`
-              // would be a change nobody asked that chip for. The sign is
-              // typed, deliberately.
-              onChange(preset.degrees, null);
-              onClose();
-            }}
-          >
-            {preset.label}
-          </Chip>
-        ))}
-      </div>
-    </div>
-  );
-
   // One pre-paint pass, before the layout effect above has run.
   if (!placement) return null;
 
+  const content = (
+    <>
+      <FloatingPanelHeader
+        title={title}
+        action={
+          <FloatingPanelClose
+            label={t('tools:creaseAngle.close', 'Close crease angle')}
+            onClick={onClose}
+          />
+        }
+      />
+      <FloatingPanelBody>
+        {/* The fold-angle group's field row (`FoldAngleControl`), so the two
+            read as the same control. */}
+        <label className="cp-context-panel__field">
+          <span>{t('tools:creaseAngle.degreesLabel', 'Degrees')}</span>
+          <input
+            ref={focusOnAttach}
+            type="text"
+            inputMode="decimal"
+            aria-label={t('tools:creaseAngle.degrees', 'Crease angle in degrees')}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              commitDraft();
+            }}
+          />
+        </label>
+        <div className="cp-context-panel__chips">
+          {FOLD_ANGLE_PRESETS.map((preset) => (
+            <Chip
+              key={preset.id}
+              // `aria-pressed`, so the chip announces whether it is the pen now.
+              // The presets are not a radio group: picking one is an action that
+              // closes this, not a selection that persists in the row.
+              aria-pressed={degrees === preset.degrees}
+              onClick={() => {
+                // Magnitude only. A chip says "this far", never "and the other
+                // way" — flipping mountain to valley on a press labelled `90°`
+                // would be a change nobody asked that chip for. The sign is
+                // typed, deliberately.
+                onChange(preset.degrees, null);
+                onClose();
+              }}
+            >
+              {preset.label}
+            </Chip>
+          ))}
+        </div>
+      </FloatingPanelBody>
+    </>
+  );
+
+  const dialogProps = {
+    role: 'dialog',
+    'aria-modal': true,
+    'aria-label': title,
+    // Handled here rather than on `window` because the input inside owns its
+    // own keystrokes: `isShortcutEditingTarget`, the guard the other dialogs use
+    // to leave text fields alone, would swallow exactly the Escape this popover
+    // most needs to honour.
+    onKeyDown: (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    },
+  } as const;
+
   if (!placement.rect) {
-    return (
+    // Portaled like every other modal. Rendered in place it was inside the
+    // crease-pattern viewport's stacking context, so its backdrop sat *under*
+    // the tool window, which is body-portaled: on a phone the window floated
+    // undimmed over the modal, close enough to tap by mistake.
+    return createPortal(
       <div
         role="presentation"
         className="simple-modal"
@@ -255,26 +311,35 @@ export function CreaseAnglePopover({
         */
         onClick={onClose}
       >
-        <div
-          className="simple-modal__document"
+        <FloatingPanel
+          ref={panelRef}
+          {...dialogProps}
+          className={styles.centred}
+          style={WIDTH_STYLE}
           onClick={(event) => event.stopPropagation()}
         >
-          {body}
-        </div>
-      </div>
+          {content}
+        </FloatingPanel>
+      </div>,
+      document.body
     );
   }
 
+  if (!floating.visible) return null;
+
   return (
-    <FloatingToolbar
-      anchorRect={placement.rect}
-      placement="top"
-      boundary={placement.boundary}
-      ariaLabel={title}
-      className={styles.floating}
-      inset={0}
-    >
-      {body as ReactNode}
-    </FloatingToolbar>
+    <FloatingPortal>
+      <FloatingPanel
+        ref={attachAnchored}
+        {...dialogProps}
+        className={styles.anchored}
+        // It edits what new creases on the canvas will be, so a press inside it
+        // must not read as leaving the canvas's selection.
+        {...CANVAS_COMPANION_PROPS}
+        style={{ ...floating.style, ...WIDTH_STYLE }}
+      >
+        {content}
+      </FloatingPanel>
+    </FloatingPortal>
   );
 }
