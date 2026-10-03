@@ -3,7 +3,6 @@ import {
   Fragment,
   useState,
   type HTMLAttributes,
-  type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -541,7 +540,6 @@ export function viewportSymmetryItems({
 
 export interface ViewportLayerOption<Key extends string> {
   key: Key;
-  icon: ReactNode;
   label: string;
 }
 
@@ -580,7 +578,11 @@ export function viewportLayerItems<Key extends string>({
   ];
 }
 
-/** A layer as a toolbar action: a mode, on while the layer shows. */
+/**
+ * A layer as a toolbar action: a mode, on while the layer shows. It has no
+ * icon, because it is only ever a menu row, and a mode's row draws a tick or
+ * nothing.
+ */
 function layerAction<Key extends string>(
   option: ViewportLayerOption<Key>,
   visible: Record<Key, boolean>,
@@ -590,7 +592,7 @@ function layerAction<Key extends string>(
     kind: 'action',
     id: `layer-${option.key}`,
     label: option.label,
-    icon: option.icon,
+    icon: null,
     checked: visible[option.key],
     onSelect: () => onChange(option.key, !visible[option.key]),
   };

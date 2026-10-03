@@ -173,16 +173,83 @@ describe('NumberField', () => {
   });
 
   it('renders a bare input when the caller has no room for steppers', () => {
-    const view = render(<Harness initial={2} steppers={false} />);
+    const view = render(<Harness initial={2} steppers={false} className="placed" />);
+    const { input } = field(view);
     expect(view.querySelectorAll('button')).toHaveLength(0);
-    expect(view.querySelector('.number-field')).toBeNull();
-
-    // The native spinners are still off, which is what the class carries.
-    expect(field(view).input.classList.contains('number-field__input')).toBe(true);
+    // The input is the whole field, so it is what a caller's placement lands on.
+    expect(view.firstElementChild).toBe(input);
+    expect(input.classList.contains('placed')).toBe(true);
   });
 
-  it('shows a unit between the value and the increase button', () => {
+  it('puts a caller’s class on the root, not on the input', () => {
+    const view = render(<Harness initial={2} className="placed" />);
+    const { input } = field(view);
+    expect(view.firstElementChild?.classList.contains('placed')).toBe(true);
+    expect(input.classList.contains('placed')).toBe(false);
+  });
+
+  it('marks a disabled field as one, so it can fade whole', () => {
+    const view = render(<Harness initial={2} disabled />);
+    expect(view.firstElementChild?.hasAttribute('data-disabled')).toBe(true);
+    expect(field(view).input.disabled).toBe(true);
+    // A step at a bound is not the field being disabled.
+    const atBound = render(<Harness initial={1} />);
+    expect(atBound.firstElementChild?.hasAttribute('data-disabled')).toBe(false);
+  });
+
+  it('marks its input, so a screen’s own input rules can leave it alone', () => {
+    const stepped = render(<Harness initial={2} />);
+    expect(field(stepped).input.hasAttribute('data-number-field')).toBe(true);
+  });
+
+  // A number input's own width ignores its value, so a hidden copy of the
+  // draft sizes the number: the field is as wide as what it shows.
+  it('sizes the number to its draft, and to two digits at least', () => {
+    const view = render(<Harness initial={2} min={undefined} max={undefined} normalize={undefined} />);
+    const { input } = field(view);
+    const sizer = () => input.parentElement?.querySelector('[aria-hidden="true"]');
+    expect(sizer()?.textContent).toBe('02');
+
+    type(input, '4096');
+    expect(sizer()?.textContent).toBe('4096');
+  });
+
+  it('makes room for minChars digits when asked', () => {
+    const view = render(<Harness initial={5} minChars={4} />);
+    const sizer = field(view).input.parentElement?.querySelector('[aria-hidden="true"]');
+    expect(sizer?.textContent).toBe('0005');
+  });
+
+  it('shows the unit inside the field, after the number', () => {
     const view = render(<Harness initial={90} min={1} max={179} suffix="°" />);
-    expect(view.querySelector('.number-field__suffix')?.textContent).toBe('°');
+    const { input, up } = field(view);
+    const unit = input.parentElement?.nextElementSibling;
+    expect(unit?.textContent).toBe('°');
+    expect(unit?.nextElementSibling).toBeNull();
+    // Between the lines, with the number: the increase button follows them both.
+    expect(unit?.parentElement?.nextElementSibling).toBe(up);
+  });
+
+  it('reads the unit after the value', () => {
+    const view = render(<Harness initial={90} min={1} max={179} suffix="°" />);
+    const { input } = field(view);
+    const describedBy = input.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy ?? '')?.textContent).toBe('°');
+    expect(field(render(<Harness initial={2} />)).input.hasAttribute('aria-describedby')).toBe(
+      false
+    );
+  });
+
+  it('labels the input with the region the unit is in, so a click on the unit lands in it', () => {
+    const view = render(<Harness initial={10} suffix="mm" />);
+    const { input } = field(view);
+    const unit = input.parentElement?.nextElementSibling ?? null;
+    expect(unit?.textContent).toBe('mm');
+    expect([...(input.labels ?? [])].some((label) => label.contains(unit))).toBe(true);
+    // The steps stay outside it: a click on one must not also reach the input.
+    for (const button of view.querySelectorAll('button')) {
+      expect(button.closest('label')).toBeNull();
+    }
   });
 });

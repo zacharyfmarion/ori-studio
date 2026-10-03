@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Minus, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import styles from './NumberField.module.css';
 
 /**
  * A number input that holds a draft and commits it on blur, flanked by − / +
- * step buttons.
+ * step buttons. The three are one control: a frame with a line between each
+ * button and the number, and the unit, if there is one, inside it after the
+ * number.
  *
  * The draft is what keeps a half-typed number out of the engine: clearing the
  * field to type `16` would otherwise send an empty value and a grid resize per
@@ -17,6 +20,11 @@ import { useTranslation } from 'react-i18next';
  * `steppers={false}` is for callers with no room for two more buttons — the grid
  * scale formula puts three fields and two operators on one line. Those still
  * lose the native spinners, and still commit on Arrow Up/Down.
+ *
+ * Its look is its own (`NumberField.module.css`): a screen that wants it
+ * different asks through a prop, and places it through `className`, which lands
+ * on the root (`docs/styling.md`). The input carries `data-number-field`, so a
+ * screen's own rules for inputs can leave it alone.
  */
 export function NumberField({
   id,
@@ -29,6 +37,8 @@ export function NumberField({
   steppers = true,
   disabled = false,
   normalize,
+  variant,
+  minChars = 2,
   className,
   onCommit,
 }: {
@@ -39,17 +49,31 @@ export function NumberField({
   min?: number;
   max?: number;
   step?: number;
-  /** Unit shown after the number, inside the field group. */
+  /** The unit, read-only inside the field after the number, and read after the value. */
   suffix?: string;
   steppers?: boolean;
   /** For a row whose subject is absent — no selection, nothing folded yet. */
   disabled?: boolean;
   /** Caller's own clamp — applied to typed and stepped values alike. */
   normalize?: (value: number) => number;
+  /**
+   * `card`: Settings ▸ Paper's pen cards, a measurement on a card: on the
+   * settings well, the control scale's 28px, and the number centred in the
+   * mono face.
+   */
+  variant?: 'card';
+  /**
+   * The fewest digits the number makes room for (2). A shorter number sits at
+   * the end of that room, and a longer one widens the field. A caller whose
+   * values run longer passes their length, so the field keeps one width.
+   */
+  minChars?: number;
+  /** Placement only — a width, a margin, a grid cell. Lands on the root. */
   className?: string;
   onCommit: (value: number) => void;
 }) {
   const { t } = useTranslation();
+  const suffixId = useId();
   const [draft, setDraft] = useState(() => formatNumber(value));
 
   useEffect(() => {
@@ -100,7 +124,7 @@ export function NumberField({
   const stepButton = (direction: 1 | -1) => (
     <button
       type="button"
-      className="number-field__step"
+      className={styles.step}
       data-direction={direction === 1 ? 'up' : 'down'}
       // Out of the tab order on purpose: Arrow Up/Down on the field already does
       // this, and an options pane of these rows would otherwise carry two tab
@@ -122,11 +146,19 @@ export function NumberField({
     </button>
   );
 
+  const bare = !steppers && !suffix;
+
   const input = (
     <input
       id={id}
-      className={['control-row__input', 'number-field__input', className].filter(Boolean).join(' ')}
+      className={
+        bare
+          ? ['control-row__input', styles.input, className].filter(Boolean).join(' ')
+          : styles.input
+      }
+      data-number-field=""
       aria-label={label}
+      aria-describedby={suffix ? suffixId : undefined}
       type="number"
       min={min}
       max={max}
@@ -158,13 +190,32 @@ export function NumberField({
     />
   );
 
-  if (!steppers && !suffix) return input;
+  if (bare) return input;
 
   return (
-    <span className="number-field">
+    <span
+      className={[styles.field, className].filter(Boolean).join(' ')}
+      data-variant={variant}
+      data-disabled={disabled || undefined}
+    >
       {steppers && stepButton(-1)}
-      {input}
-      {suffix ? <span className="number-field__suffix">{suffix}</span> : null}
+      {/* A label, so a click on the unit or beside the number lands in the
+          input. No caller puts the field inside a label of its own: a click on
+          a step button would reach the input through it. */}
+      <label className={styles.value}>
+        <span className={styles.number}>
+          {/* Sets the number's width: see `.number` in the module. */}
+          <span className={styles.sizer} aria-hidden="true">
+            {draft.padStart(minChars, '0')}
+          </span>
+          {input}
+        </span>
+        {suffix ? (
+          <span id={suffixId} className={styles.suffix}>
+            {suffix}
+          </span>
+        ) : null}
+      </label>
       {steppers && stepButton(1)}
     </span>
   );

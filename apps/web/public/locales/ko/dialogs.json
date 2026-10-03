@@ -601,6 +601,9 @@
         "deleteNamed": "{{name}} 삭제",
         "download": "프리셋 다운로드",
         "downloadNamed": "프리셋 {{name}} 다운로드",
+        "export": "내보내기…",
+        "exportConfirm": "내보내기",
+        "exportUnsaved": "이 스타일은 프리셋으로 저장되어 있지 않습니다. 파일에 쓸 이름을 입력하세요.",
         "import": "가져오기…",
         "name": "프리셋 이름",
         "save": "저장",
@@ -610,11 +613,11 @@
         "yours": "내가 저장한 항목"
       },
       "slot": {
-        "display": "표시",
+        "display": "표시 스타일",
         "displayHint": "화면의 시뮬레이션, 접힌 도형과 단계.",
-        "export": "내보내기",
+        "export": "내보내기 스타일",
         "exportHint": "앱이 쓰는 모든 SVG와 PNG에 사용됩니다.",
-        "exportLinked": "내보내기 · 연결됨",
+        "exportLinked": "내보내기 스타일 · 연결됨",
         "title": "스타일"
       },
       "stepsHint": "참조 전용",

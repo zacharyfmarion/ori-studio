@@ -601,6 +601,9 @@
         "deleteNamed": "{{name}} を削除",
         "download": "プリセットをダウンロード",
         "downloadNamed": "プリセット {{name}} をダウンロード",
+        "export": "書き出し…",
+        "exportConfirm": "書き出し",
+        "exportUnsaved": "このスタイルはプリセットとして保存されていません。ファイル用の名前を入力してください。",
         "import": "読み込み…",
         "name": "プリセット名",
         "save": "保存",
@@ -610,11 +613,11 @@
         "yours": "自分で保存したもの"
       },
       "slot": {
-        "display": "表示",
+        "display": "表示スタイル",
         "displayHint": "画面上のシミュレーション、折り上がり図、手順。",
-        "export": "書き出し",
+        "export": "書き出しスタイル",
         "exportHint": "アプリが書き出すすべての SVG と PNG で使われます。",
-        "exportLinked": "書き出し · 連動",
+        "exportLinked": "書き出しスタイル · 連動",
         "title": "スタイル"
       },
       "stepsHint": "リファレンスのみ",

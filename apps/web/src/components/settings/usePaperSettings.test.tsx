@@ -115,8 +115,19 @@ describe('usePaperSettings', () => {
     expect(stored().display.paper.front).toBe('#abcdef');
     expect(tracked).toContainEqual({
       event: 'paperStyleChanged',
-      properties: { slot: 'export', field: 'paper.front' },
+      properties: { source: 'settings', slot: 'export', field: 'paper.front' },
     });
+  });
+
+  it('counts detaching the export style and following display again, once per change', () => {
+    act(() => current().setExportFollowsDisplay(false));
+    act(() => current().setExportFollowsDisplay(false));
+    act(() => current().setExportFollowsDisplay(true));
+    expect(tracked).toEqual([
+      { event: 'paperExportLinkChanged', properties: { linked: false } },
+      { event: 'paperExportLinkChanged', properties: { linked: true } },
+    ]);
+    expect(current().exportFollowsDisplay).toBe(true);
   });
 
   it('lists the built-ins first, then the saved presets in order', () => {
@@ -158,6 +169,15 @@ describe('usePaperSettings', () => {
     ]);
     act(() => current().removePreset('Print'));
     expect(stored().presets).toEqual([]);
+  });
+
+  it('counts a save by its slot, never its name, and nothing for a name it refuses', () => {
+    act(() => current().savePreset('   '));
+    expect(stored().presets).toEqual([]);
+    expect(tracked).toEqual([]);
+
+    act(() => current().savePreset('Mine'));
+    expect(tracked).toEqual([{ event: 'paperPresetSaved', properties: { slot: 'display' } }]);
   });
 
   it('counts a continuous adjustment once per field until it is settled', () => {
@@ -227,6 +247,7 @@ describe('usePaperSettings', () => {
     expect(stored().presets.map((preset) => preset.name)).toEqual(['Shared']);
     expect(stored().display.paper).toEqual({ front: '#111111', back: '#222222' });
     expect(tracked).toEqual([
+      { event: 'paperPresetImported', properties: { slot: 'display', succeeded: true } },
       { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'custom' } },
     ]);
     expect(toast.error).not.toHaveBeenCalled();
@@ -362,7 +383,7 @@ describe('usePaperSettings', () => {
     expect(stored().display.erode).toBe(0.02);
   });
 
-  it('says why a file did not import, and changes nothing', async () => {
+  it('says why a file did not import, changes nothing, and counts the parser’s reason', async () => {
     openTextFile.mockResolvedValueOnce({ text: '{not json', name: 'a.json', path: null });
     await act(() => current().importPreset());
     expect(toast.error).toHaveBeenCalledWith('That file is not JSON');
@@ -373,17 +394,27 @@ describe('usePaperSettings', () => {
       'That file is not a paper style: it needs a name and a style'
     );
 
+    // A dismissed picker read nothing, so it counts nothing.
     openTextFile.mockResolvedValueOnce(null);
     await act(() => current().importPreset());
     expect(toast.error).toHaveBeenCalledTimes(2);
     expect(stored().presets).toEqual([]);
-    expect(tracked).toEqual([]);
+    expect(tracked).toEqual([
+      {
+        event: 'paperPresetImported',
+        properties: { slot: 'display', succeeded: false, reason: 'invalid-json' },
+      },
+      {
+        event: 'paperPresetImported',
+        properties: { slot: 'display', succeeded: false, reason: 'not-a-preset' },
+      },
+    ]);
   });
 
-  it('exports a preset as its own file, named after it', async () => {
+  it('exports a preset as its own file, named after it, and counts where from', async () => {
     saveTextFile.mockResolvedValue({ name: 'diagram.json', path: null });
     const row = current().presets.find((preset) => preset.builtIn === 'diagram')!;
-    await act(() => current().exportPreset(row));
+    await act(() => current().exportPreset(row, 'card'));
     expect(saveTextFile).toHaveBeenCalledWith(
       expect.objectContaining({
         suggestedName: 'Diagram.json',
@@ -392,5 +423,64 @@ describe('usePaperSettings', () => {
       })
     );
     expect(toast.success).toHaveBeenCalledWith('Exported diagram.json');
+    expect(tracked).toEqual([
+      {
+        event: 'paperPresetExported',
+        properties: { slot: 'display', source: 'card', preset: 'diagram', unsaved: false },
+      },
+    ]);
+  });
+
+  it('exports the style on show under a name, and saves nothing to the list', async () => {
+    act(() => current().applyPreset(current().presets.find((row) => row.builtIn === 'diagram')!));
+    act(() => current().setField('erode', 0.02));
+    tracked.length = 0;
+    saveTextFile.mockResolvedValue({ name: 'Mine.json', path: null });
+    await act(() => current().exportStyle('  Mine  '));
+    // Named as a save would be, carrying the edits as they stand.
+    expect(saveTextFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suggestedName: 'Mine.json',
+        extensions: ['json'],
+        contents: serializePaperStylePreset({ version: 1, name: 'Mine', style: stored().display }),
+      })
+    );
+    expect(stored().display.erode).toBe(0.02);
+    expect(stored().presets).toEqual([]);
+    // Still the edited Diagram: exporting is not saving.
+    expect(current().appliedPreset?.builtIn).toBe('diagram');
+    expect(current().modified).toBe(true);
+    expect(toast.success).toHaveBeenCalledWith('Exported Mine.json');
+    expect(tracked).toEqual([
+      {
+        event: 'paperPresetExported',
+        properties: { slot: 'display', source: 'button', preset: 'custom', unsaved: true },
+      },
+    ]);
+  });
+
+  it('exports the export slot’s own style from there', async () => {
+    act(() => current().setExportFollowsDisplay(false));
+    act(() => current().setSlot('export'));
+    act(() => current().setField('paper.back', '#010203'));
+    tracked.length = 0;
+    saveTextFile.mockResolvedValue({ name: 'Print.json', path: null });
+    await act(() => current().exportStyle('Print'));
+    const { contents } = saveTextFile.mock.calls[0]![0];
+    expect(JSON.parse(contents).style).toEqual(stored().export);
+    expect(stored().display.paper.back).toBe(DEFAULT_PAPER_STYLE.paper.back);
+    expect(tracked[0]?.properties).toMatchObject({ slot: 'export', source: 'button' });
+  });
+
+  it('writes nothing for a blank name, and counts nothing for a cancelled dialog', async () => {
+    await act(() => current().exportStyle('   '));
+    expect(saveTextFile).not.toHaveBeenCalled();
+
+    saveTextFile.mockResolvedValue(null);
+    await act(() => current().exportStyle('Mine'));
+    await act(() => current().exportPreset(current().presets[0]!, 'button'));
+    expect(saveTextFile).toHaveBeenCalledTimes(2);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(tracked).toEqual([]);
   });
 });

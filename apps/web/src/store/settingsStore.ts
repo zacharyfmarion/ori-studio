@@ -334,9 +334,10 @@ interface SettingsState {
   setExportPaperStyleFollowsDisplay: (follows: boolean) => void;
   /**
    * Save a slot's current style as a named preset, replacing one of the same
-   * name. Display unless told otherwise. A blank name saves nothing.
+   * name. Display unless told otherwise. A blank name saves nothing; the
+   * result says whether anything was saved.
    */
-  savePaperPreset: (name: string, slot?: PaperStyleSlot) => void;
+  savePaperPreset: (name: string, slot?: PaperStyleSlot) => boolean;
   removePaperPreset: (name: string) => void;
   /**
    * Add a preset from a `.json` file's text, replacing one of the same name.
@@ -491,7 +492,7 @@ export const useSettingsStore = create<SettingsState>()(
           name,
           style: slotStyle(current, slot),
         });
-        if (!preset) return;
+        if (!preset) return false;
         // The slot is now showing the preset it was just saved as, and is by
         // construction unmodified against it.
         const next = withAppliedPreset(
@@ -501,6 +502,7 @@ export const useSettingsStore = create<SettingsState>()(
         );
         persistPaperStyle(next);
         set({ paperStyle: next });
+        return true;
       },
       removePaperPreset: (name) => {
         const current = get().paperStyle;

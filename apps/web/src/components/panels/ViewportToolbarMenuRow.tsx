@@ -24,11 +24,6 @@ export function ViewportToolbarMenuRow({
   /** Told before the select runs, so the close that follows keeps its hands off focus. */
   onOpenDialog?: () => void;
 }) {
-  // The leading slot is the action's own icon, swapped for a tick while the mode
-  // is on — the shape `ContextMenu` already uses for a checked item, so a row
-  // here is the same width as a row anywhere else in the app.
-  const leading = <MenuItemIcon>{action.checked ? <Check size={12} /> : action.icon}</MenuItemIcon>;
-
   if (action.checked === undefined) {
     return (
       <MenuItem
@@ -38,7 +33,7 @@ export function ViewportToolbarMenuRow({
           action.onSelect();
         }}
       >
-        {leading}
+        <MenuItemIcon>{action.icon}</MenuItemIcon>
         <MenuItemLabel>{action.label}</MenuItemLabel>
       </MenuItem>
     );
@@ -57,7 +52,9 @@ export function ViewportToolbarMenuRow({
         action.onSelect();
       }}
     >
-      {leading}
+      {/* A tick while on and nothing while off, as `ContextMenu` draws a checked
+          item. The mode's own icon in the off slot read as a mark of its own. */}
+      <MenuItemIcon>{action.checked && <Check size={12} />}</MenuItemIcon>
       <MenuItemLabel>{action.label}</MenuItemLabel>
     </MenuCheckboxItem>
   );

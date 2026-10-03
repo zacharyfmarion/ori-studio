@@ -4,7 +4,7 @@ import {
   registerCpActionShortcutExecutor,
   registerViewportShortcutExecutor,
 } from '../keyboard/shortcutRuntime';
-import type { ShortcutDefaultsSource } from '../keyboard/shortcuts';
+import type { ShortcutDefaultsSource, ShortcutOverrides } from '../keyboard/shortcuts';
 import { handleAppKeyDown, installAppKeyboardListener } from './appKeyboard';
 import { createSampleProject, type Selection } from './sampleProject';
 import { selectEverything } from './selection';
@@ -555,5 +555,91 @@ describe('on a site page', () => {
 
     expect(handleAppKeyDown(event, actions)).toBe(true);
     expect(actions.selectNone).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * A form control keeps the keys it uses, but ⌘S is not one of them. Left
+ * unclaimed, the browser answers it with Save Page As: a "save as a new file"
+ * dialog over the app. Simulate's fold slider is where that was hit, because it
+ * keeps focus after a drag, while Edit, focused on its canvas, saved the file.
+ *
+ * Through the installed listener and a focused element, the way a real keypress
+ * arrives: the earlier checks dispatched on the document and never met a control.
+ */
+describe('in a focused form control', () => {
+  const controls: Array<[string, () => HTMLElement]> = [
+    ['a range slider', () => Object.assign(document.createElement('input'), { type: 'range' })],
+    ['a number field', () => Object.assign(document.createElement('input'), { type: 'number' })],
+    ['a text field', () => document.createElement('input')],
+    ['a textarea', () => document.createElement('textarea')],
+    ['a select', () => document.createElement('select')],
+  ];
+
+  function focusIn(control: HTMLElement, overrides?: ShortcutOverrides) {
+    const actions = {
+      ...createActions(selectEverything(createSampleProject()), { activeEditingContext: 'simulate' }),
+      getShortcutOverrides: () => overrides ?? {},
+    };
+    cleanups.push(installAppKeyboardListener(actions));
+    document.body.append(control);
+    cleanups.push(() => control.remove());
+    control.focus();
+    return actions;
+  }
+
+  function press(control: HTMLElement, init: KeyboardEventInit) {
+    const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+    control.dispatchEvent(event);
+    return event;
+  }
+
+  for (const [name, make] of controls) {
+    it(`saves on ⌘S and saves as on ⌘⇧S from ${name}`, () => {
+      const control = make();
+      const actions = focusIn(control);
+
+      expect(press(control, { key: 's', metaKey: true }).defaultPrevented).toBe(true);
+      expect(press(control, { key: 'S', metaKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+      expect(actions.handleMenuAction.mock.calls).toEqual([['file.save'], ['file.saveAs']]);
+    });
+  }
+
+  it('leaves a text field the keys it types and edits with', () => {
+    const control = document.createElement('input');
+    const actions = focusIn(control);
+
+    for (const init of [
+      { key: 's' },
+      { key: 'Escape' },
+      { key: 'a', metaKey: true },
+      { key: 'c', metaKey: true },
+      { key: 'v', metaKey: true },
+      { key: 'x', metaKey: true },
+      { key: 'z', metaKey: true },
+      { key: 'z', metaKey: true, shiftKey: true },
+    ]) {
+      expect(press(control, init).defaultPrevented, JSON.stringify(init)).toBe(false);
+    }
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
+    expect(actions.selectNone).not.toHaveBeenCalled();
+  });
+
+  it('leaves a slider its arrows', () => {
+    const control = Object.assign(document.createElement('input'), { type: 'range' });
+    const actions = focusIn(control);
+
+    for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) {
+      expect(press(control, { key }).defaultPrevented, key).toBe(false);
+    }
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
+  });
+
+  it('still types a letter that Save was rebound to', () => {
+    const control = document.createElement('input');
+    const actions = focusIn(control, { 'file.save': [{ key: 'q' }] });
+
+    expect(press(control, { key: 'q' }).defaultPrevented).toBe(false);
+    expect(actions.handleMenuAction).not.toHaveBeenCalled();
   });
 });

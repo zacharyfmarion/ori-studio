@@ -346,6 +346,33 @@ describe('workspace capabilities', () => {
     expect(state['cp.organizeCircles'].enabled).toBe(true);
   });
 
+  // A crease-pattern-only workspace — any opened .cp/.ori/.orh/.fold, or an
+  // .osf with no design in it — has nothing for `canSaveDesign` to answer, so
+  // the editable crease pattern is the whole save. Save writes the workspace,
+  // not the pane in focus, so switching to References, Simulate or the Design
+  // chooser must not take it away.
+  it('saves a crease-pattern-only workspace from every workspace', () => {
+    for (const context of ['crease-pattern', 'simulate', 'references', 'design-nux'] as const) {
+      const state = capabilities({
+        activeEditingContext: context,
+        status: 'crease_pattern_ready',
+        hasEditableCreasePattern: true,
+        canSaveDesign: false,
+      });
+
+      expect(state['file.save'], context).toMatchObject({
+        visible: true,
+        enabled: true,
+        reason: 'Save editable crease pattern as an Ori Studio project',
+      });
+      expect(state['file.saveAs'], context).toMatchObject({
+        visible: true,
+        enabled: true,
+        reason: 'Save editable crease pattern as a new Ori Studio project',
+      });
+    }
+  });
+
   it('enables FOLD export for new editable CP documents without an imported source', () => {
     const state = capabilities({
       documentMode: 'crease-pattern',

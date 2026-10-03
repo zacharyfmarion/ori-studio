@@ -138,6 +138,12 @@ export interface ShortcutDefinition {
   defaultChord: KeyChord | null;
   defaultChords: KeyChord[];
   upstreamAction?: string;
+  /**
+   * Whether the chord, held with ⌘/Ctrl, still reaches the app while a form
+   * control has focus. A control keeps the keys it uses; Save is not one of
+   * them, and a browser left to answer ⌘S itself opens Save Page As.
+   */
+  inFormControls?: boolean;
 }
 
 export type ShortcutOverrides = Partial<Record<ShortcutActionId, KeyChord[] | null>>;
@@ -301,14 +307,20 @@ const ORIEDITA_DEFAULTS: Record<string, string> = {
 const MENU_SHORTCUTS: ShortcutDefinition[] = [
   menuShortcut('file.new', 'New', 'File', { primary: true, key: 'n' }, 'newAction'),
   menuShortcut('file.open', 'Open...', 'File', { primary: true, key: 'o' }, 'openAction'),
-  menuShortcut('file.save', 'Save', 'File', { primary: true, key: 's' }, 'saveAction'),
-  menuShortcut(
-    'file.saveAs',
-    'Save As...',
-    'File',
-    { primary: true, shift: true, key: 's' },
-    'saveAsAction'
-  ),
+  {
+    ...menuShortcut('file.save', 'Save', 'File', { primary: true, key: 's' }, 'saveAction'),
+    inFormControls: true,
+  },
+  {
+    ...menuShortcut(
+      'file.saveAs',
+      'Save As...',
+      'File',
+      { primary: true, shift: true, key: 's' },
+      'saveAsAction'
+    ),
+    inFormControls: true,
+  },
   menuShortcut('file.settings', 'Settings', 'File', { primary: true, key: ',' }, 'prefAction'),
   menuShortcut('edit.undo', 'Undo', 'Edit', { primary: true, key: 'z' }, 'undoAction'),
   menuShortcut('edit.redo', 'Redo', 'Edit', { primary: true, shift: true, key: 'z' }, 'redoAction'),

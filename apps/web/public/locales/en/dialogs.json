@@ -614,6 +614,9 @@
         "deleteNamed": "Delete {{name}}",
         "download": "Download preset",
         "downloadNamed": "Download preset {{name}}",
+        "export": "Export…",
+        "exportConfirm": "Export",
+        "exportUnsaved": "This style isn’t saved as a preset. Name it for the file.",
         "import": "Import…",
         "name": "Preset name",
         "save": "Save",
@@ -623,11 +626,11 @@
         "yours": "Saved by you"
       },
       "slot": {
-        "display": "Display",
+        "display": "Display style",
         "displayHint": "Simulations, folded figures and steps, on screen.",
-        "export": "Export",
+        "export": "Export style",
         "exportHint": "Used by every SVG and PNG the app writes.",
-        "exportLinked": "Export · linked",
+        "exportLinked": "Export style · linked",
         "title": "Style"
       },
       "stepsHint": "References only",

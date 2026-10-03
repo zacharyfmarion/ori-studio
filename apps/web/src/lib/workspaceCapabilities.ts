@@ -252,7 +252,9 @@ export function getWorkspaceCapabilities(
   const canExportTreeFold = treeMode && hasCreasePattern && !isBusy;
   const canExportEditableOrImportedFold =
     input.hasEditableCreasePattern || (creasePatternMode && input.hasImportedCreasePattern);
-  const canSaveEditableCreasePattern = creasePatternMode && input.hasEditableCreasePattern;
+  // Not `creasePatternMode`: Save writes the whole workspace whichever pane has
+  // focus (`saveActiveProject`), so leaving Edit must not take it away.
+  const canSaveEditableCreasePattern = input.hasEditableCreasePattern;
   const canSaveProject =
     input.canSaveDesign || canSaveEditableCreasePattern || input.hasDiagram;
   // A box-pleat design saves as a native .osf (bundling its companion CP).

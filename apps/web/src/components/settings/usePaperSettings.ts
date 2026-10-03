@@ -12,14 +12,17 @@ import { toast } from 'sonner';
 import {
   ANALYTICS_EVENTS,
   track,
+  type PaperPresetExportSource,
   type PaperPresetName,
   type PaperPresetUnsavedChoice,
 } from '../../analytics';
 import {
+  normalizePaperStylePreset,
   PAPER_PRESET_FILE_EXTENSION,
   paperPresetKey,
   serializePaperStylePreset,
   type PaperPresetParseFailure,
+  type PaperStylePreset,
 } from '../../lib/paper/paperPresets';
 import type { PaperStyle, PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import {
@@ -92,8 +95,17 @@ export interface PaperSettingsBinding {
    * imported row and what became of it, or null when nothing was imported.
    */
   importPreset: () => Promise<{ row: PaperPresetRow; choice: PaperPresetChoice } | null>;
-  /** Write a preset to a `.json` file. */
-  exportPreset: (row: PaperPresetRow) => Promise<void>;
+  /**
+   * Write a preset to a `.json` file: from its card, or from Export… while the
+   * slot shows it unedited.
+   */
+  exportPreset: (row: PaperPresetRow, source: PaperPresetExportSource) => Promise<void>;
+  /**
+   * Export… for a style no preset holds as it stands — {@link modified} since
+   * its preset was applied, or nobody's: the slot's style is written as a
+   * preset called `name`. The list is left alone; exporting is not saving.
+   */
+  exportStyle: (name: string) => Promise<void>;
   /** A discrete control's write: a number committed, a switch flipped, a cap picked. */
   setField: <F extends PaperStyleField>(field: F, value: PaperStyleValue<F>) => void;
   /**
@@ -192,31 +204,54 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     if (!file) return null;
     const result = importPaperPreset(file.text);
     if (!result.ok) {
+      track(ANALYTICS_EVENTS.paperPresetImported, { slot, succeeded: false, reason: result.reason });
       toast.error(importFailureMessage(t, result.reason));
       return null;
     }
+    track(ANALYTICS_EVENTS.paperPresetImported, { slot, succeeded: true });
     const row: PaperPresetRow = {
       key: paperPresetKey(result.preset),
       preset: result.preset,
       builtIn: null,
     };
     return { row, choice: await choosePreset(row) };
-  }, [choosePreset, fileService, importPaperPreset, t]);
+  }, [choosePreset, fileService, importPaperPreset, slot, t]);
 
-  const exportPreset = useCallback(
-    async (row: PaperPresetRow) => {
+  /** Write a preset file, counted once it is written: a cancelled dialog counts nothing. */
+  const writePresetFile = useCallback(
+    async (
+      preset: PaperStylePreset,
+      counted: { source: PaperPresetExportSource; preset: PaperPresetName; unsaved: boolean }
+    ) => {
       const saved = await (fileService ?? getFileService()).saveTextFile({
         title: t('dialogs:settings.paper.exportTitle', 'Export Paper Style'),
-        contents: serializePaperStylePreset(row.preset),
-        suggestedName: exportFilename(row.preset.name, PAPER_PRESET_FILE_EXTENSION.slice(1)),
+        contents: serializePaperStylePreset(preset),
+        suggestedName: exportFilename(preset.name, PAPER_PRESET_FILE_EXTENSION.slice(1)),
         path: null,
         extensions: [PAPER_PRESET_FILE_EXTENSION.slice(1)],
       });
-      if (saved) {
-        toast.success(t('toasts:paperPreset.exported', 'Exported {{name}}', { name: saved.name }));
-      }
+      if (!saved) return;
+      track(ANALYTICS_EVENTS.paperPresetExported, { slot, ...counted });
+      toast.success(t('toasts:paperPreset.exported', 'Exported {{name}}', { name: saved.name }));
     },
-    [fileService, t]
+    [fileService, slot, t]
+  );
+
+  const exportPreset = useCallback(
+    (row: PaperPresetRow, source: PaperPresetExportSource) =>
+      writePresetFile(row.preset, { source, preset: presetName(row), unsaved: false }),
+    [writePresetFile]
+  );
+
+  const exportStyle = useCallback(
+    async (name: string) => {
+      // Through the normaliser, as a save is, so the file carries the name a
+      // save would have kept.
+      const preset = normalizePaperStylePreset({ version: 1, name, style });
+      if (!preset) return;
+      await writePresetFile(preset, { source: 'button', preset: 'custom', unsaved: true });
+    },
+    [style, writePresetFile]
   );
 
   const revert = useCallback(() => {
@@ -238,7 +273,7 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
 
   return useMemo(() => {
     const changed = (field: PaperStyleField) =>
-      track(ANALYTICS_EVENTS.paperStyleChanged, { slot, field });
+      track(ANALYTICS_EVENTS.paperStyleChanged, { source: 'settings', slot, field });
     const endAdjustment = () => {
       adjusting.current.clear();
     };
@@ -246,7 +281,11 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       slot,
       setSlot,
       exportFollowsDisplay,
-      setExportFollowsDisplay: setExportPaperStyleFollowsDisplay,
+      setExportFollowsDisplay: (follows) => {
+        if (follows === exportFollowsDisplay) return;
+        track(ANALYTICS_EVENTS.paperExportLinkChanged, { linked: follows });
+        setExportPaperStyleFollowsDisplay(follows);
+      },
       style,
       editable,
       presets,
@@ -257,10 +296,13 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       update,
       applyPreset,
       choosePreset,
-      savePreset: (name) => savePaperPreset(name, slot),
+      savePreset: (name) => {
+        if (savePaperPreset(name, slot)) track(ANALYTICS_EVENTS.paperPresetSaved, { slot });
+      },
       removePreset: removePaperPreset,
       importPreset,
       exportPreset,
+      exportStyle,
       setField: (field, value) => {
         endAdjustment();
         changed(field);
@@ -282,6 +324,7 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     editable,
     exportFollowsDisplay,
     exportPreset,
+    exportStyle,
     importPreset,
     modified,
     presets,

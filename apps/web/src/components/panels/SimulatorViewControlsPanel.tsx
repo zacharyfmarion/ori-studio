@@ -15,7 +15,7 @@ import { useSimulationInHand } from '../../simulator/useSimulatorShortcuts';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
-import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
+import { SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 import { ViewControlsAction, ViewControlsActions } from './ViewControlsActions';
 
 /**
@@ -39,7 +39,7 @@ export function SimulatorViewControlsPanel() {
   const ready = useSimulationInHand();
   // How the paper is drawn is the app-wide paper style, not a simulator
   // setting; these rows are its simulator-facing subset.
-  const paper = useSimulatorPaperStyle();
+  const paper = useSimulatorPaperStyle('simulator-view-controls');
   // The page an export is painted onto is the export dialog's alone (X7).
   // Folds drawn as edges take the paper edge's colour, so the per-kind
   // swatches stop doing anything; showing them live would promise an effect
@@ -85,7 +85,7 @@ export function SimulatorViewControlsPanel() {
       </ViewControlsActions>
       <div className="panel-body simulator-view-controls-panel__body">
         <CollapsibleSection title={t('panels:simulatorViewControls.render', 'Render')}>
-          <SelectRow
+          <SegmentedRow
             label={t('panels:simulatorViewControls.style', 'Style')}
             value={settings.renderMode}
             options={[
@@ -94,7 +94,7 @@ export function SimulatorViewControlsPanel() {
             ]}
             onChange={(value) => setSetting('renderMode', value as SimulatorSettings['renderMode'])}
           />
-          <SelectRow
+          <SegmentedRow
             label={t('panels:simulatorViewControls.colorMode', 'Color')}
             value={settings.colorMode}
             options={(['paper', 'strain'] as const).map((mode) => ({

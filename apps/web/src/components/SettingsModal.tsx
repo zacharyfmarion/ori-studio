@@ -27,7 +27,12 @@ import {
   SettingsNestedDialogContext,
   useSettingsNestedDialog,
 } from './settings/settingsNestedDialog';
-import { ANALYTICS_EVENTS, track, useAnalytics } from '../analytics';
+import {
+  ANALYTICS_EVENTS,
+  track,
+  useAnalytics,
+  useSettingsSectionViewedEvent,
+} from '../analytics';
 import { detectSystemLocale, SUPPORTED_LOCALES, SYSTEM_LOCALE } from '../i18n/locales';
 import {
   CP_MAX_SNAP_RADIUS,
@@ -1087,6 +1092,7 @@ function SettingsModalContent({
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [nestedDialogOpen, setNestedDialogOpen] = useState(false);
   const ActiveTab = TAB_COMPONENTS[activeTab];
+  useSettingsSectionViewedEvent(activeTab);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

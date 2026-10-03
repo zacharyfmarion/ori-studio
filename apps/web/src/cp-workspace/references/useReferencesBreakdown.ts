@@ -9,6 +9,7 @@ import {
   peekPrecreaseClient,
   releasePrecreaseClient,
   retainPrecreaseClient,
+  whilePrecreaseClientAlive,
   type PrecreaseClient,
 } from '../../store/workspaceStore/precreaseRuntime';
 import { releaseReferenceFinderClient } from '../../store/workspaceStore/referenceFinderRuntime';
@@ -44,7 +45,22 @@ import {
 } from './referencesBreakdown';
 import { decodePlanModel, planModelPoints } from './referencesPlanGeometry';
 import {
-  planVariant,
+  cachedPlanOf,
+  decodeCachedPlan,
+  referencesPlanCacheKey,
+  samePlanSettings,
+  type ReferencesPlanCacheKey,
+  type ReferencesPlanSettings,
+} from './referencesPlanCache';
+import {
+  forgetReferencesPlan,
+  lookupReferencesPlan,
+  rememberReferencesPlan,
+} from './referencesPlanCacheStore';
+import { planFilmstrip } from './referencesFilmstrip';
+import { planHighlights } from './useReferencesView';
+import { locateCard, planStrip } from './referencesReaderState';
+import {
   referencesResultsSnapshot,
   setReferencesAnalysisRecord,
   setReferencesPlanRecord,
@@ -55,10 +71,13 @@ import {
 } from './referencesResults';
 import { beginReferencesRun, endReferencesRun, referencesRunSnapshot } from './referencesRun';
 import { referencesViewSteps, type ReferencesViewStep } from './referencesSequenceView';
-import { presentedSequence } from './referencesWays';
+import { sheetBounds } from './referencesSheets';
+import { presentedVariants, wayChoicesOfSheet, type ReferencesWayChoices } from './referencesWays';
 import { refusalMessageFor } from './referencesSidebarText';
 import type {
   PrecreaseComponent,
+  PrecreaseFrame,
+  PrecreaseInput,
   PrecreaseRefusalKind,
   PrecreaseRfRect,
   SheetAnalysis,
@@ -115,6 +134,14 @@ export interface ReferencesBreakdownController {
   progress: ReferencesProgress | null;
   /** Compute (or recompute) the breakdown. */
   run: () => void;
+  /**
+   * Show the breakdown: the sheet's cached plan when it is still the plan
+   * wanted (`referencesPlanCache`), a run otherwise. What arriving at the
+   * sequence asks for; Recompute asks for {@link run}.
+   */
+  open: () => void;
+  /** Show the sheet's cached plan if it is the plan wanted; never runs. */
+  showCached: () => void;
   /** Compute (or recompute) the CP-wide analysis. */
   runAnalysis: () => void;
   selectStep: (index: number) => void;
@@ -165,6 +192,69 @@ function plannerClients(rect: PrecreaseRfRect) {
 
 /** `0` is "no ceiling" to both the loop and the crate's `Deadline::after`. */
 const NO_TIME_CEILING_MS = 0;
+
+/** A sheet's cached plan that is the plan wanted, and what it was looked up for. */
+interface CachedSheetPlan {
+  key: ReferencesPlanCacheKey;
+  sheet: number;
+  frame: PrecreaseFrame;
+  payload: string;
+  ways: Record<string, string>;
+  loadSerial: number;
+  revision: string;
+  selectedSheet: number | null;
+}
+
+/**
+ * The plan cache's key for planning `component` of the planner's `input` now;
+ * null for a sheet that is never cached.
+ *
+ * A sheet with no outline or frame has nothing to name it by. And no sheet of
+ * a document whose sheets overlap is cached: which sheet owns a crease in the
+ * overlap follows the numbering of creases anywhere in the document, outside
+ * any one sheet's box, so no fingerprint of a sheet could say its plan still
+ * holds. Such a document plans afresh, as before there was a cache.
+ */
+function cacheKeyFor(
+  input: PrecreaseInput,
+  component: PrecreaseComponent,
+  settings: ReferencesPlanSettings,
+  analysis: SheetAnalysis
+): ReferencesPlanCacheKey | null {
+  if (analysis.warnings.some((warning) => warning.kind === 'overlapping_sheets')) return null;
+  const bounds = sheetBounds(component);
+  if (!bounds || !component.frame) return null;
+  return referencesPlanCacheKey(input, { bounds, frame: component.frame }, settings);
+}
+
+/**
+ * A cached plan read from the cache but could not be shown: the plan's own
+ * fault, as against the worker's or the reader's having left, so it is
+ * forgotten rather than kept for next time.
+ */
+class CachedPlanUnreadable extends Error {
+  constructor(cause: unknown) {
+    super('The cached plan could not be shown', { cause });
+    this.name = 'CachedPlanUnreadable';
+  }
+}
+
+/** `read()`, with whatever it throws marked as the cached plan's fault. */
+function readable<T>(read: () => T): T {
+  try {
+    return read();
+  } catch (error) {
+    throw new CachedPlanUnreadable(error);
+  }
+}
+
+/** What a plan needs before it goes on screen (`prepareInstall`). */
+interface PreparedInstall {
+  summary: ReferencesPlanSummary | null;
+  activeStep: number;
+  /** The view opens on a card a reopened project restored, which is then used up. */
+  restoredCard: boolean;
+}
 
 /**
  * The sheet to plan: the selected one, or the largest plannable one when the
@@ -344,6 +434,8 @@ export function useReferencesBreakdown(
   // `referencesPlan` is one slot for a whole document, cleared on every sheet
   // switch, and nothing here reads it: the record says which sheet has a plan,
   // and the store's copy is the analytics descriptor.
+  const loadSerial = useWorkspaceStore((state) => state.oristudioCpDocument?.loadSerial ?? null);
+  const takeRestoredCard = useWorkspaceStore((state) => state.takeReferencesRestoredCard);
   const analysisSummary = useWorkspaceStore((state) => state.referencesAnalysis);
   const progress = useWorkspaceStore((state) => state.referencesProgress);
   const setReferencesPlan = useWorkspaceStore((state) => state.setReferencesPlan);
@@ -382,23 +474,27 @@ export function useReferencesBreakdown(
   const latest = useRef({
     geometry,
     revision,
+    loadSerial,
     frames,
     selectedSheet,
     precreaseGrid,
     gridWhereNeeded,
     allowDanglingFolds,
     mergeSymmetricSteps,
+    landmarksFirst: viewState.landmarksFirst,
   });
   useEffect(() => {
     latest.current = {
       geometry,
       revision,
+      loadSerial,
       frames,
       selectedSheet,
       precreaseGrid,
       gridWhereNeeded,
       allowDanglingFolds,
       mergeSymmetricSteps,
+      landmarksFirst: viewState.landmarksFirst,
     };
   });
   const abortRef = useRef<AbortController | null>(null);
@@ -407,9 +503,15 @@ export function useReferencesBreakdown(
   // across the two cleanups, and `peek` covers the order in which they run —
   // whichever releases last terminates the worker, and disposing a planner in a
   // worker that is already gone is a no-op, not an error.
+  // Whether the panel is still here to show an answer: a cached plan unpacked
+  // after the reader left the workspace has nowhere to go, and nothing is
+  // wrong with it.
+  const mounted = useRef(false);
   useEffect(() => {
     retainPrecreaseClient();
+    mounted.current = true;
     return () => {
+      mounted.current = false;
       abortRef.current?.abort();
       void peekPrecreaseClient()
         ?.plannerDispose()
@@ -438,13 +540,10 @@ export function useReferencesBreakdown(
        * crease dangle at one end (`allowDanglingFolds`), or not; show
        * mirrored folds as one card (`mergeSymmetricSteps`), or not.
        */
-      grid: {
-        precreaseGrid: boolean;
-        gridWhereNeeded: boolean;
-        allowDanglingFolds: boolean;
-        mergeSymmetricSteps: boolean;
-      },
-      onProgress: (progress: PrecreasePlanProgress) => void
+      grid: ReferencesPlanSettings,
+      onProgress: (progress: PrecreasePlanProgress) => void,
+      /** What the plan will be cached under, taken with the input. */
+      cacheKey: ReferencesPlanCacheKey | null
     ): Promise<
       ReferencesPlanComponent | { refusedKind: PrecreaseRefusalKind | null }
     > => {
@@ -490,9 +589,68 @@ export function useReferencesBreakdown(
         frame,
         plain: await variant(result.sequence),
         hoisted: await variant(await handle.sequence(true)),
+        cacheKey,
       };
     },
     []
+  );
+
+  /**
+   * Everything a plan needs before it goes on screen, worked out first so a
+   * throw leaves nothing half-installed: its summary, and the card the view
+   * opens on — the first, or, the first time a plan lands after a project was
+   * reopened, the card the reader had open, found by its line.
+   *
+   * With `rehearse`, also every reading the panel makes of the plan — the
+   * strip's cards, and each card's picture and fold — for a plan that came out
+   * of a file rather than out of this planner. One this build cannot read throws
+   * here, where the caller replans, rather than in the panel, where it would
+   * send the workspace to its error boundary on every visit.
+   */
+  const prepareInstall = useCallback(
+    (record: ReferencesPlanRecord, ways: ReferencesWayChoices, rehearse: boolean): PreparedInstall => {
+      const loadSerial = latest.current.loadSerial;
+      const restore = useWorkspaceStore.getState().referencesRestore;
+      const card = loadSerial !== null && restore?.loadSerial === loadSerial ? restore.card : null;
+      let activeStep = 0;
+      if (card || rehearse) {
+        const strip = planStrip(record, {
+          landmarksFirst: latest.current.landmarksFirst,
+          planWays: ways,
+        });
+        if (card) activeStep = locateCard(strip.variants, strip.viewSteps, card);
+        if (rehearse) {
+          // Every card, not only the open one: the reader may step to any of
+          // them, and a plan that breaks on the twentieth must be caught here.
+          // About a millisecond for thirty cards.
+          const stopReasons = record.components.map((entry) => entry.result.stopReason);
+          planFilmstrip(t, strip.variants, strip.viewSteps, stopReasons);
+          strip.viewSteps.forEach((_, index) =>
+            planHighlights(strip.variants, strip.viewSteps, index, null, null)
+          );
+        }
+      }
+      return { summary: summaryOf(record), activeStep, restoredCard: card !== null };
+    },
+    [t]
+  );
+
+  /** Put a prepared plan on screen. */
+  const install = useCallback(
+    (
+      record: ReferencesPlanRecord,
+      ways: ReferencesWayChoices,
+      prepared: PreparedInstall
+    ): ReferencesPlanSummary | null => {
+      setReferencesPlanRecord(record);
+      setReferencesPlan(prepared.summary);
+      setReferencesView({ activeStep: prepared.activeStep, activeFinding: null, planWays: ways });
+      setReferencesRun({ status: 'idle' });
+      const loadSerial = latest.current.loadSerial;
+      if (prepared.restoredCard && loadSerial !== null) takeRestoredCard(loadSerial);
+      return prepared.summary;
+    },
+    [setReferencesPlan, setReferencesRun, setReferencesView, takeRestoredCard]
   );
 
   const run = useCallback(() => {
@@ -527,18 +685,23 @@ export function useReferencesBreakdown(
     const input = precreaseInputFromTransport(current.geometry);
     // Taken now, with the rest of `current`, so a toggle mid-run cannot make
     // a plan that is for neither setting.
-    const grid = {
+    const grid: ReferencesPlanSettings = {
       precreaseGrid: current.precreaseGrid,
       gridWhereNeeded: current.gridWhereNeeded,
       allowDanglingFolds: current.allowDanglingFolds,
       mergeSymmetricSteps: current.mergeSymmetricSteps,
     };
+    const frames = current.frames;
+    const loadSerial = current.loadSerial;
 
     void (async () => {
-      const client = getPrecreaseClient();
+      let client: PrecreaseClient | null = null;
       const planned: ReferencesPlanComponent[] = [];
       const refused: ReferencesPlanRecord['refused'] = [];
       try {
+        // Inside the try: a worker that is gone is a run that failed, and it
+        // has to end like one, or the overlay and Stop would wait on it forever.
+        client = getPrecreaseClient();
         // No time ceiling: the run lasts as long as the pattern needs, and the
         // Stop button — the overlay's and the long-run toast's — is the way
         // out. A 30 s ceiling used to end a pattern off its lattice everywhere
@@ -555,7 +718,8 @@ export function useReferencesBreakdown(
             controller.signal,
             NO_TIME_CEILING_MS,
             grid,
-            (progress) => setReferencesProgress(progressOf(progress))
+            (progress) => setReferencesProgress(progressOf(progress)),
+            cacheKeyFor(input, sheet, grid, frames)
           );
           if ('refusedKind' in outcome) refused.push({ component: sheet.id, kind: outcome.refusedKind });
           else planned.push(outcome);
@@ -574,7 +738,7 @@ export function useReferencesBreakdown(
       } finally {
         // The planner is not kept: both presentation orders were read while
         // it held the closure, and nothing asks it anything afterwards.
-        await client.plannerDispose().catch(() => undefined);
+        await client?.plannerDispose().catch(() => undefined);
       }
 
       endReferencesRun(runId);
@@ -590,14 +754,164 @@ export function useReferencesBreakdown(
         allowDanglingFolds: grid.allowDanglingFolds,
         mergeSymmetricSteps: grid.mergeSymmetricSteps,
       };
-      setReferencesPlanRecord(record);
-      const nextSummary = summaryOf(record);
-      setReferencesPlan(nextSummary);
-      setReferencesView({ activeStep: 0, activeFinding: null, planWays: {} });
-      setReferencesRun({ status: 'idle' });
+      let nextSummary: ReferencesPlanSummary | null;
+      try {
+        nextSummary = install(record, {}, prepareInstall(record, {}, false));
+      } catch (error) {
+        reportError(error, { surface: 'references:plan' });
+        setReferencesRun({ status: 'error', message: humanizeError(error, t) });
+        return;
+      }
+      // Kept for the file, and for coming back to this sheet: the plan as it
+      // is now, which a replan may not reproduce.
+      for (const entry of planned) {
+        if (entry.cacheKey && loadSerial !== null) {
+          rememberReferencesPlan(
+            loadSerial,
+            entry.cacheKey,
+            cachedPlanOf(entry.result, entry.hoisted.sequence, record.durationMs)
+          );
+        }
+      }
       trackPlan(record, nextSummary, controller.signal.aborted);
     })();
-  }, [planComponent, setReferencesPlan, setReferencesProgress, setReferencesRun, setReferencesView, t]);
+  }, [install, planComponent, prepareInstall, setReferencesProgress, setReferencesRun, t]);
+
+  /**
+   * The sheet's cached plan, when it is the plan wanted now; null when the
+   * sheet has to be planned. Looked up at once, so a sheet with nothing
+   * cached goes straight to its run.
+   */
+  const cachedPlan = useCallback((): CachedSheetPlan | null => {
+    const current = latest.current;
+    if (!current.geometry || !current.frames || current.loadSerial === null) return null;
+    const sheet = plannableComponents(current.frames, current.selectedSheet)[0];
+    const frame = sheet?.frame;
+    if (!sheet || !frame) return null;
+    const key = cacheKeyFor(
+      precreaseInputFromTransport(current.geometry),
+      sheet,
+      {
+        precreaseGrid: current.precreaseGrid,
+        gridWhereNeeded: current.gridWhereNeeded,
+        allowDanglingFolds: current.allowDanglingFolds,
+        mergeSymmetricSteps: current.mergeSymmetricSteps,
+      },
+      current.frames
+    );
+    if (!key) return null;
+    const found = lookupReferencesPlan(current.loadSerial, key);
+    if (!found) return null;
+    track(ANALYTICS_EVENTS.referencesPlanRestored, { outcome: found.outcome });
+    if (found.outcome !== 'hit') return null;
+    return {
+      key,
+      sheet: sheet.id,
+      frame,
+      payload: found.payload,
+      ways: found.ways,
+      loadSerial: current.loadSerial,
+      revision: current.revision,
+      selectedSheet: current.selectedSheet,
+    };
+  }, []);
+
+  /**
+   * A cached plan, put on screen; false when it cannot be read, and the
+   * sheet has to be planned after all. No planner runs: the plan is unpacked
+   * and its geometry mapped into model space, as a fresh plan's is when it
+   * lands.
+   *
+   * Throws {@link CachedPlanUnreadable} when the plan reads but cannot be
+   * shown (`prepareInstall`) — the callers forget it then — and anything else
+   * the worker throws, which says nothing against the plan.
+   */
+  const showCached = useCallback(
+    async (cached: CachedSheetPlan): Promise<boolean> => {
+      const plan = await decodeCachedPlan(cached.payload);
+      if (!plan) {
+        forgetReferencesPlan(cached.loadSerial, cached.key);
+        return false;
+      }
+      if (!mounted.current) return true;
+      const client = getPrecreaseClient();
+      const variant = async (sequence: PrecreaseSequence): Promise<ReferencesPlanVariant> => {
+        const points = readable(() => planModelPoints(sequence));
+        const mapped = await whilePrecreaseClientAlive(client.rfToModelMany(cached.frame, points));
+        return { sequence, model: readable(() => decodePlanModel(sequence, mapped)) };
+      };
+      const plain = await variant(plan.plain);
+      const hoisted = await variant(plan.hoisted);
+      // Whatever moved while it was unpacked has its own answer coming: a run
+      // the reader started, or the auto-plan for the revision or sheet now up —
+      // or nothing, the reader having left the workspace.
+      if (
+        !mounted.current ||
+        referencesRunSnapshot().running ||
+        latest.current.revision !== cached.revision ||
+        latest.current.selectedSheet !== cached.selectedSheet
+      ) {
+        return true;
+      }
+      const component: ReferencesPlanComponent = {
+        component: cached.sheet,
+        result: {
+          ...plan.result,
+          computedAtRevision: cached.revision,
+          component: cached.sheet,
+          info: { ...plan.result.info, component: cached.sheet },
+          sequence: plain.sequence,
+        },
+        frame: cached.frame,
+        plain,
+        hoisted,
+        cacheKey: cached.key,
+      };
+      const record: ReferencesPlanRecord = {
+        revision: cached.revision,
+        components: [component],
+        refused: [],
+        durationMs: plan.durationMs,
+        ...cached.key.settings,
+      };
+      const ways = wayChoicesOfSheet(cached.ways, 0);
+      install(record, ways, readable(() => prepareInstall(record, ways, true)));
+      return true;
+    },
+    [install, prepareInstall]
+  );
+
+  /**
+   * Show a cached plan; false when it is not shown and the sheet needs a run.
+   * A plan that cannot be shown is a sheet to plan, not a failure — and is
+   * forgotten, so it is not written back into the file. A failure that is not
+   * the plan's (the worker gone, the reader gone) leaves it for next time.
+   */
+  const tryShowCached = useCallback(
+    (cached: CachedSheetPlan): Promise<boolean> =>
+      showCached(cached).catch((error: unknown) => {
+        if (error instanceof CachedPlanUnreadable) forgetReferencesPlan(cached.loadSerial, cached.key);
+        reportError(error, { surface: 'references:plan-restore' });
+        return false;
+      }),
+    [showCached]
+  );
+
+  const open = useCallback(() => {
+    const cached = cachedPlan();
+    if (!cached) {
+      run();
+      return;
+    }
+    void tryShowCached(cached).then((shown) => {
+      if (!shown && mounted.current) run();
+    });
+  }, [cachedPlan, tryShowCached, run]);
+
+  const showCachedOnly = useCallback(() => {
+    const cached = cachedPlan();
+    if (cached) void tryShowCached(cached);
+  }, [cachedPlan, tryShowCached]);
 
   const runAnalysis = useCallback(() => {
     const current = latest.current;
@@ -693,16 +1007,8 @@ export function useReferencesBreakdown(
   // wanted then, and it would reset the target's step when it landed.
   useEffect(() => {
     if (record === null) return;
-    // "Only where needed" says nothing without a grid, so with the grid off
-    // a plan made under either value of it is the plan wanted.
-    if (
-      record.precreaseGrid === precreaseGrid &&
-      (!precreaseGrid || record.gridWhereNeeded === gridWhereNeeded) &&
-      record.allowDanglingFolds === allowDanglingFolds &&
-      record.mergeSymmetricSteps === mergeSymmetricSteps
-    ) {
-      return;
-    }
+    const wanted = { precreaseGrid, gridWhereNeeded, allowDanglingFolds, mergeSymmetricSteps };
+    if (samePlanSettings(record, wanted)) return;
     if (targeted || referencesRunSnapshot().running) return;
     run();
   }, [
@@ -720,12 +1026,7 @@ export function useReferencesBreakdown(
   const landmarksFirst = viewState.landmarksFirst;
   const planWays = viewState.planWays;
   const variants = useMemo<ReferencesPlanVariant[]>(
-    () =>
-      record?.components.map((entry, index) => {
-        const variant = planVariant(entry, landmarksFirst);
-        const sequence = presentedSequence(variant.sequence, index, planWays);
-        return sequence === variant.sequence ? variant : { ...variant, sequence };
-      }) ?? [],
+    () => presentedVariants(record, landmarksFirst, planWays),
     [record, landmarksFirst, planWays]
   );
 
@@ -811,6 +1112,8 @@ export function useReferencesBreakdown(
     running: progress !== null,
     progress,
     run,
+    open,
+    showCached: showCachedOnly,
     runAnalysis,
     selectStep,
     selectFinding,

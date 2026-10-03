@@ -1,4 +1,4 @@
-import { Link, Link2, Tag, Unlink } from 'lucide-react';
+import { Link, Link2, Unlink } from 'lucide-react';
 import {
   ViewportToolbar,
   viewportLayerItems,
@@ -93,7 +93,7 @@ export function TreeEditorToolbar({
       id: 'layers',
       items: viewportLayerItems({
         title: copy.layers,
-        options: [{ key: 'labels' as const, icon: <Tag size={13} />, label: copy.layerLabels }],
+        options: [{ key: 'labels' as const, label: copy.layerLabels }],
         visible: layers,
         onChange: onLayerChange,
       }),

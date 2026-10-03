@@ -10,7 +10,9 @@ import type { ReferencesMode } from './referencesMode';
  * Two rules live here rather than in the panel. **A new document lands in
  * Find**: the mode is where the reader is, and a different pattern is a
  * different place to be, so the load serial (`framingKey`) resets it the way
- * it refits the camera. **Leaving Find clears the pick**: a target belongs to
+ * it refits the camera — unless the document is a saved project that says
+ * where the reader was, in which case the open has already put them there
+ * (`referencesRestore`). **Leaving Find clears the pick**: a target belongs to
  * Find — the sequence has no picked vertex — while the plan belongs to the
  * pattern and survives a switch either way, so coming back to Sequence costs
  * nothing.
@@ -38,14 +40,22 @@ export function useReferencesMode(
 ): ReferencesModeController {
   const mode = useWorkspaceStore((state) => state.referencesView.mode);
   const setReferencesView = useWorkspaceStore((state) => state.setReferencesView);
+  // The open of this very document restored a mode: it is the reader's.
+  const restored = useWorkspaceStore(
+    (state) =>
+      state.referencesRestore !== null &&
+      state.referencesRestore.loadSerial === state.oristudioCpDocument?.loadSerial
+  );
 
   // Through refs, so the effect below keys on the document alone and the
   // callback closes over nothing that changes identity per render.
   const clearRef = useRef(clearPick);
   const hasPickRef = useRef(hasPick);
+  const restoredRef = useRef(restored);
   useEffect(() => {
     clearRef.current = clearPick;
     hasPickRef.current = hasPick;
+    restoredRef.current = restored;
   });
   // The store's mode as it is now, not as of the last render: a sheet switch
   // resets it to Find in the same effect that then asks for another mode.
@@ -58,6 +68,7 @@ export function useReferencesMode(
   useEffect(() => {
     if (seen.current === framingKey) return;
     seen.current = framingKey;
+    if (restoredRef.current) return;
     if (liveMode() !== 'find') setReferencesView({ mode: 'find' });
   }, [framingKey, setReferencesView]);
 

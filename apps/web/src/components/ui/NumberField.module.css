@@ -1,0 +1,229 @@
+/*
+ * A number input with its own − / + buttons (NumberField.tsx), drawn as one
+ * control: a frame holding the −, the number with its unit, and the +, with a
+ * line between each button and the number. The native spinners go: they are a
+ * 4px hit target in a 26px row, and clicking one only moved the field's draft,
+ * so nothing changed until the field lost focus.
+ *
+ * The frame's border is drawn by `::after`, over the parts rather than around
+ * them, so the field is exactly as tall as they are: 26px, or under a coarse
+ * pointer 44px, the touch target theme.css gives every input.
+ *
+ * It is as wide as its number: a short one leaves no room to spare, and a long
+ * one widens it. A caller that wants a fixed width sets one on the root.
+ */
+.field {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: fit-content;
+  height: 26px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+}
+
+.field::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border-default);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* The focus ring is the field's, as the input is only part of it. */
+.field:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.field:focus-within::after {
+  border-color: var(--accent-primary);
+}
+
+/* 26px with the frame's line and its own, so the face between them is a 24px
+   square. */
+.step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* The line between a button and the number, on the side that faces it. */
+.step[data-direction='down'] {
+  border-inline-end: 1px solid var(--border-default);
+}
+
+.step[data-direction='up'] {
+  border-inline-start: 1px solid var(--border-default);
+}
+
+.step:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* A step past a bound: the icon fades rather than the button, whose line is
+   part of the frame. */
+.step:disabled {
+  cursor: default;
+}
+
+.field:not([data-disabled]) > .step:disabled > svg {
+  opacity: 0.35;
+}
+
+/* A field that takes no input fades whole, as a switch does. */
+.field[data-disabled] {
+  opacity: 0.55;
+}
+
+.field[data-disabled] > .value {
+  cursor: default;
+}
+
+/* Inside the button: the frame clips anything drawn outside it. */
+.step:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+/*
+ * The number and its unit, between the lines. A label, so a click on the unit
+ * or beside the number lands in the input. They sit at the end, as a column of
+ * numbers would, with more room before the number than after it: the − line
+ * should not crowd it.
+ */
+.value {
+  --pad-start: 10px;
+  --pad-end: 7px;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 3px;
+  padding-inline: var(--pad-start) var(--pad-end);
+  cursor: text;
+}
+
+/*
+ * As wide as the number. A number input's own width ignores its value (it
+ * follows `max`), so an invisible copy of the draft, padded with zeros to
+ * `minChars` digits, sets the width, and the input lies over it.
+ */
+.number {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+/* The same face as the input, so the copy measures what the input shows. A
+   pixel either side is room for the caret at the end of the number. */
+.sizer {
+  padding: 0 1px;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  visibility: hidden;
+}
+
+/* The bare field (`steppers={false}`, no unit) is this input alone, in the
+   pane rows' `.control-row__input`. */
+.input {
+  appearance: textfield;
+}
+
+.input::-webkit-outer-spin-button,
+.input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* A number shorter than `minChars` sits at the end of its room. */
+.number > .input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.suffix {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  user-select: none;
+}
+
+/*
+ * `variant="card"`, Settings ▸ Paper's pen cards: the width of its column, on
+ * the settings well, the height of the Cap control beside it, and the number
+ * centred in the mono face. Narrow enough for two cards a line, so the number
+ * takes the room the padding would otherwise spend on either side of it.
+ */
+.field[data-variant='card'] {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  background: var(--settings-well);
+}
+
+.field[data-variant='card'] > .value {
+  --pad-start: 2px;
+  --pad-end: 2px;
+  justify-content: center;
+}
+
+/* A width is a measurement, and the digits stay put as it is stepped. */
+.field[data-variant='card'] .sizer,
+.field[data-variant='card'] .input {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.field[data-variant='card'] .input {
+  text-align: center;
+}
+
+/* A finger needs a 44px target: the buttons, and the number too. The parts
+   set the height, so the field grows to hold them. */
+@media (pointer: coarse) {
+  .field,
+  .field[data-variant='card'] {
+    height: auto;
+  }
+
+  .step {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+
+  /* The number's target is the whole space between the lines. */
+  .number {
+    min-width: calc(var(--touch-target) - var(--pad-start) - var(--pad-end));
+  }
+
+  /* theme.css gives every input 16px here, so iOS does not zoom into it; the
+     copy that sizes the number follows. */
+  .sizer,
+  .field[data-variant='card'] .sizer {
+    font-size: 16px;
+  }
+}

@@ -19,6 +19,11 @@ import {
   type PrecreaseWay,
   type PrecreaseWitness,
 } from './precreaseSequence';
+import {
+  planVariant,
+  type ReferencesPlanRecord,
+  type ReferencesPlanVariant,
+} from './referencesResults';
 import { cardTwin } from './referencesSequenceView';
 
 /** The reader's ways: a {@link waySignature} per {@link wayKey}. */
@@ -54,6 +59,33 @@ export function waySignature(witness: PrecreaseWitness): string {
  */
 export function wayKey(component: number, step: PrecreaseStep): string {
   return `${component}:${step.line_id}`;
+}
+
+/**
+ * One sheet's choices, by the plan's own line id: how the plan cache keeps
+ * them, since the cache keeps each sheet's plan apart and does not know where
+ * in a breakdown it will be shown.
+ */
+export function sheetWayChoices(
+  choices: ReferencesWayChoices,
+  component: number
+): Record<string, string> {
+  const prefix = `${component}:`;
+  const sheet: Record<string, string> = {};
+  for (const [key, signature] of Object.entries(choices)) {
+    if (key.startsWith(prefix)) sheet[key.slice(prefix.length)] = signature;
+  }
+  return sheet;
+}
+
+/** {@link sheetWayChoices} back into choices, for the sheet shown at `component`. */
+export function wayChoicesOfSheet(
+  sheet: Readonly<Record<string, string>>,
+  component: number
+): ReferencesWayChoices {
+  return Object.fromEntries(
+    Object.entries(sheet).map(([lineId, signature]) => [`${component}:${lineId}`, signature])
+  );
 }
 
 /** The ways a step offers, the pick first; none for a step with one. */
@@ -142,6 +174,25 @@ export function presentedSequence(
     if (twin !== undefined) index = twin;
   }
   return steps ? { ...sequence, steps } : sequence;
+}
+
+/**
+ * A breakdown as the reader reads it: each sheet in the order the Landmarks
+ * first toggle selects, with the chosen ways swapped in. A sheet left as
+ * planned keeps its variant's identity.
+ */
+export function presentedVariants(
+  record: ReferencesPlanRecord | null,
+  landmarksFirst: boolean,
+  choices: ReferencesWayChoices
+): ReferencesPlanVariant[] {
+  return (
+    record?.components.map((entry, index) => {
+      const variant = planVariant(entry, landmarksFirst);
+      const sequence = presentedSequence(variant.sequence, index, choices);
+      return sequence === variant.sequence ? variant : { ...variant, sequence };
+    }) ?? []
+  );
 }
 
 /**

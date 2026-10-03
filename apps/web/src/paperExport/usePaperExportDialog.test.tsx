@@ -53,6 +53,11 @@ const { toast, service, encodePng, appleMobile } = vi.hoisted(() => ({
   },
 }));
 vi.mock('sonner', () => ({ toast }));
+const { reportError } = vi.hoisted(() => ({ reportError: vi.fn() }));
+vi.mock('../monitoring', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../monitoring')>()),
+  reportError,
+}));
 vi.mock('../platform/fileService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../platform/fileService')>()),
   getFileService: () => service as unknown as FileService,
@@ -258,6 +263,7 @@ beforeEach(() => {
   encodePng.mockClear();
   appleMobile.mockReturnValue(false);
   close.mockClear();
+  reportError.mockClear();
   removeKey(PAPER_EXPORT_KEY);
   useSettingsStore.setState(initialSettings, true);
   // jsdom has no object URLs.
@@ -348,6 +354,8 @@ describe('usePaperExportDialog', () => {
     });
     expect(toast.success).toHaveBeenCalledWith('Exported Crane step 3.svg');
     expect(close).toHaveBeenCalledTimes(1);
+    // A file written is the funnel's one ending; it is never also a dismissal.
+    expect(tracked.some(({ event }) => event === 'paper export dismissed')).toBe(false);
   });
 
   it('never offers Export on a commit whose preview is not the options as they stand', async () => {
@@ -406,6 +414,56 @@ describe('usePaperExportDialog', () => {
     await act(async () => dialog().exportNow());
     expect(dialog().saveError).toBe('disk full');
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('counts a failed save, never its message, and reports the error itself', async () => {
+    const failure = new Error('disk full');
+    service.saveTextFile.mockRejectedValueOnce(failure);
+    const { target } = fakeTarget();
+    const dialog = await open(target);
+    await act(async () => dialog().exportNow());
+    expect(tracked).toContainEqual({
+      event: 'paper export failed',
+      properties: { surface: 'folded-flat', format: 'svg', scope: 'this' },
+    });
+    expect(reportError).toHaveBeenCalledWith(failure, {
+      surface: 'paper-export',
+      tags: { paper_surface: 'folded-flat', format: 'svg', scope: 'this' },
+    });
+  });
+
+  it('counts a close with no export pressed as a dismissal that tried nothing', async () => {
+    const { target } = fakeTarget();
+    const dialog = await open(target);
+    act(() => dialog().dismiss());
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(tracked.filter(({ event }) => event === 'paper export dismissed')).toEqual([
+      {
+        event: 'paper export dismissed',
+        properties: { surface: 'folded-flat', scope: 'this', last_save: 'none' },
+      },
+    ]);
+  });
+
+  it('says how the last save went when the reader then closes: the save dialog dismissed, or failed', async () => {
+    const { target } = fakeTarget();
+    service.saveTextFile.mockResolvedValueOnce(null);
+    let dialog = await open(target);
+    await act(async () => dialog().exportNow());
+    act(() => dialog().dismiss());
+
+    unmount();
+    root = createRoot(container!);
+    service.saveTextFile.mockRejectedValueOnce(new Error('denied'));
+    dialog = await open(target);
+    await act(async () => dialog().exportNow());
+    act(() => dialog().dismiss());
+
+    expect(
+      tracked
+        .filter(({ event }) => event === 'paper export dismissed')
+        .map(({ properties }) => properties?.last_save)
+    ).toEqual(['cancelled', 'failed']);
   });
 
   it('refuses a PNG larger than the browser will draw', async () => {
@@ -954,6 +1012,33 @@ describe('usePaperExportDialog on a target with several pages', () => {
     expect(readString(PAPER_EXPORT_KEY)).toBeNull();
     expect(tracked.some(({ event }) => event === 'paper exported')).toBe(false);
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('counts a close while the pages still paint as a stopped export', async () => {
+    const encode = deferred<Uint8Array>();
+    encodePng.mockReturnValueOnce(encode.promise);
+    const { target } = stepsTarget();
+    const dialog = await open(target, 'png', 'all');
+    let saved: Promise<void> = Promise.resolve();
+    await act(async () => {
+      saved = dialog().exportNow();
+    });
+    // Closable: only writing the file holds the dialog open.
+    expect(dialog().busy).toBe(false);
+    act(() => dialog().dismiss());
+    unmount();
+    await act(async () => {
+      encode.resolve(new Uint8Array([137, 80, 78, 71]));
+      await saved;
+    });
+    // `paper exported` would match too: none was sent.
+    expect(tracked.filter(({ event }) => event.startsWith('paper export'))).toEqual([
+      { event: 'paper export opened', properties: { surface: 'references', scope: 'all' } },
+      {
+        event: 'paper export dismissed',
+        properties: { surface: 'references', scope: 'all', last_save: 'stopped' },
+      },
+    ]);
   });
 
   it('offers no scopes on a target with one page, and exports that page alone when asked for all', async () => {

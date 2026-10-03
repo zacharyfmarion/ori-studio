@@ -19,6 +19,7 @@ import type { DiagramArc } from './stepDiagramGeometry';
 import type { ExtractedSolution } from './referenceFinder/extractor';
 import type { RawSolution, RfPoint } from './referenceFinder/solution';
 import type { PrecreasePlanResult } from './precreasePlan';
+import type { ReferencesPlanCacheKey } from './referencesPlanCache';
 import type { PrecreaseSequence } from './precreaseSequence';
 import type { ReferencesPlanModel } from './referencesPlanGeometry';
 import type { ReferencesAnalysis } from './referencesAnalysis';
@@ -135,6 +136,14 @@ export interface ReferencesPlanComponent {
   frame: PrecreaseFrame;
   plain: ReferencesPlanVariant;
   hoisted: ReferencesPlanVariant;
+  /**
+   * Everything this plan depends on apart from the clock — the planner, the
+   * settings, the sheet's creases (`referencesPlanCache.ts`). What it is kept
+   * under in the plan cache, and what a step taken from it records to say
+   * which plan it came from. Null for a sheet with no outline to name it by,
+   * which is never cached.
+   */
+  cacheKey: ReferencesPlanCacheKey | null;
 }
 
 /** The order to show, given the toggle. */
