@@ -111,6 +111,32 @@ describe('SimulatorViewControlsPanel', () => {
     expect(useWorkspaceStore.getState().simulatorSettings.showFaces).toBe(false);
   });
 
+  // Two choices each, so the options sit in the row rather than behind a menu.
+  it('picks the style and the colour from segmented controls', () => {
+    const rendered = render();
+    const option = (group: string, name: string): HTMLButtonElement => {
+      const found = [
+        ...rendered.querySelectorAll<HTMLButtonElement>(
+          `[role="group"][aria-label="${group}"] button`
+        ),
+      ].find((button) => button.textContent === name);
+      if (!found) throw new Error(`no ${name} option in ${group}`);
+      return found;
+    };
+    expect(rendered.querySelector('button[role="combobox"]')).toBeNull();
+    expect(option('Style', 'Paper').getAttribute('aria-pressed')).toBe('true');
+    expect(option('Color', 'Paper').getAttribute('aria-pressed')).toBe('true');
+
+    act(() => option('Style', 'X-ray').click());
+    act(() => option('Color', 'Strain').click());
+
+    const settings = useWorkspaceStore.getState().simulatorSettings;
+    expect(settings.renderMode).toBe('xray');
+    expect(settings.colorMode).toBe('strain');
+    expect(option('Style', 'X-ray').getAttribute('aria-pressed')).toBe('true');
+    expect(option('Color', 'Strain').getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('offers no hidden-lines toggle', () => {
     // Re-pinned: the row used to disable while crease lines were off. It is
     // gone outright — the GPU renderer never honoured it, so on every WebGL2
@@ -225,7 +251,7 @@ describe('collapsible sections', () => {
       expect(element.querySelectorAll('.control-row')).toHaveLength(0);
     }
     // Render stays open: it is the one people came for. Asserted on the toggle
-    // class rather than aria-expanded, which the Radix selects inside it carry.
+    // class rather than on aria-expanded, which a control inside it may carry.
     expect(
       section(rendered, 'Render').querySelector('.collapsible-section__toggle')
     ).toBeNull();

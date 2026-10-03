@@ -15,7 +15,7 @@ import { useSimulationInHand } from '../../simulator/useSimulatorShortcuts';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { ColorField } from '../ui/ColorField';
-import { SelectRow, SliderRow, ToggleRow } from '../ui/fieldRows';
+import { SegmentedRow, SliderRow, ToggleRow } from '../ui/fieldRows';
 import { ViewControlsAction, ViewControlsActions } from './ViewControlsActions';
 
 /**
@@ -85,7 +85,7 @@ export function SimulatorViewControlsPanel() {
       </ViewControlsActions>
       <div className="panel-body simulator-view-controls-panel__body">
         <CollapsibleSection title={t('panels:simulatorViewControls.render', 'Render')}>
-          <SelectRow
+          <SegmentedRow
             label={t('panels:simulatorViewControls.style', 'Style')}
             value={settings.renderMode}
             options={[
@@ -94,7 +94,7 @@ export function SimulatorViewControlsPanel() {
             ]}
             onChange={(value) => setSetting('renderMode', value as SimulatorSettings['renderMode'])}
           />
-          <SelectRow
+          <SegmentedRow
             label={t('panels:simulatorViewControls.colorMode', 'Color')}
             value={settings.colorMode}
             options={(['paper', 'strain'] as const).map((mode) => ({
