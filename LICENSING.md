@@ -136,6 +136,25 @@ is a developer convenience only: CI sets `REFERENCE_FINDER_FORCE_SOURCE=1` so a
 fetched artifact can never satisfy a shipping build, and every deploy and release
 workflow installs the pinned Emscripten and builds from source.
 
+## Fonts
+
+The Diagram workspace sets text in Noto Sans (Latin, Cyrillic, Greek) and Noto
+Sans SC, TC, JP and KR, under the **SIL Open Font License 1.1**. The OFL allows
+bundling and embedding with any software, GPL included, provided the fonts are
+not sold alone and each copy keeps the licence and copyright notices; a modified
+font may not use a Reserved Font Name ("Source" for the CJK families).
+
+- The bundled Latin files are in `apps/web/src/diagram/fonts/` beside
+  `OFL-NotoSans.txt`. The CJK files are built by
+  `scripts/diagram-fonts/build_fonts.py`, which writes each family's OFL.txt
+  beside them; anything that serves or ships them ships those too.
+- Our files are modified (static instances, subset, features removed) and keep
+  the "Noto Sans …" names, which reserve nothing; none is named "Source".
+- Pages and PDFs the app writes embed subsets of them, which the OFL permits:
+  a document embedding a font is not a redistribution of the font.
+
+`NOTICE` section 6 carries the copyright lines.
+
 ## Which Crates Are Actually GPL
 
 The workspace default in the root `Cargo.toml` is `GPL-2.0-or-later`, and for a
@@ -428,7 +447,7 @@ packages (`@treemaker/*`) are our own and excluded.
 
 | License | Runtime | Dev/build | Notes |
 | --- | ---: | ---: | --- |
-| MIT | 163 | 287 | |
+| MIT | 164 | 287 | Includes `harfbuzzjs`, whose subset wasm cuts the Diagram's fonts. |
 | BSD-3-Clause | 11 | 5 | Runtime count is mostly `protobufjs` sub-packages under `onnxruntime-web`. |
 | Apache-2.0 | 7 | 21 | Compatible because the project is GPL v2 **or later**. |
 | ISC | 3 | 36 | |

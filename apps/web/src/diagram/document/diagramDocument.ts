@@ -176,7 +176,11 @@ export type DiagramStepSource = DiagramUploadSource | DiagramCpSource | DiagramR
 export interface DiagramAssetPicture {
   kind: 'asset';
   assetId: string;
-  /** Millimetres per picture unit, when the picture knows its paper's size; an upload does not. */
+  /**
+   * Picture px per crease-pattern unit, for a capture kept as a bitmap, for
+   * one shared scale across a page (D10); null for an upload, whose paper's
+   * size is unknown.
+   */
   paperScale: number | null;
   key: string;
 }

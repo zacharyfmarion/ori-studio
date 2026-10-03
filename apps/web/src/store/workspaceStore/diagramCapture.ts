@@ -44,6 +44,7 @@ import { createCpCaptureRuntime } from './cpFoldRuntimeBindings';
 import { stopFoldRun, withFoldInFlight } from './foldRuns';
 import { isFoldCancellation, oristudioCpError } from './oristudioCpRuntime';
 import type { WorkspaceState } from './types';
+import { bytesToBase64 } from '../../lib/base64';
 
 export interface DiagramCaptureRequest {
   scope: DiagramCpScope;
@@ -360,7 +361,7 @@ export async function keptPicture(
   const page = paperSceneToSvg(captured.scene, diagramSurfaceStyle(style), pagePaper, measure);
   const png = await paperSvgToPng(page, CAPTURE_RASTER_DPI);
   const { width, height } = paperPngSize(page, CAPTURE_RASTER_DPI);
-  const src = `data:image/png;base64,${base64(png)}`;
+  const src = `data:image/png;base64,${bytesToBase64(png)}`;
   // Named by what it draws, as a scene picture is by its JSON: the same
   // capture again is the same picture, and records nothing.
   const id = `asset-raster-${digest(`${CAPTURE_RASTER_DPI}|${CAPTURE_RASTER_BOX_MM}|${page.svg}`)}`;
@@ -373,10 +374,3 @@ export async function keptPicture(
   };
 }
 
-function base64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let at = 0; at < bytes.length; at += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
-  }
-  return btoa(binary);
-}

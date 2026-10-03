@@ -10,7 +10,7 @@ licensing posture, including the open question about the GPL version of the
 ReferenceFinder modifications.
 
 The whole bundles two GPL works — TreeMaker (section 1) and ReferenceFinder
-(section 6) — together with the permissively licensed, GPL-compatible works
+(section 8) — together with the permissively licensed, GPL-compatible works
 listed between them. Copyright and permission notices are reproduced here to
 satisfy their attribution requirements. Nothing in this file narrows the GPL
 obligations that govern the combined distribution.
@@ -103,7 +103,38 @@ Ported into: packages/origami-simulator (@treemaker/origami-simulator)
   for the full MIT text and the list of upstream source files used.
 
 --------------------------------------------------------------------------------
-6. ReferenceFinder — Robert J. Lang (original); Mu-Tsun Tsai and Omri Shavit
+6. Noto Sans, Noto Sans SC, TC, JP and KR — the Noto Project Authors; Adobe
+--------------------------------------------------------------------------------
+License:  SIL Open Font License, Version 1.1
+Upstream: https://github.com/google/fonts (pinned in
+             scripts/diagram-fonts/sources.json)
+Bundled as: apps/web/src/diagram/fonts/NotoSans-{Regular,Bold}.ttf, and the
+             CJK files scripts/diagram-fonts/build_fonts.py writes, served
+             beside the app; subsets of them are embedded in the diagram pages
+             and PDFs the app writes.
+
+  Static Regular and Bold instances, cut to a character set and with their
+  layout features and hinting removed. They keep the "Noto Sans …" names; the
+  CJK fonts' Reserved Font Name "Source" is not used. Each family's OFL.txt
+  travels with its files (OFL-NotoSans.txt, OFL-NotoSansSC.txt and the rest).
+
+  Copyright 2022 The Noto Project Authors
+  (https://github.com/notofonts/latin-greek-cyrillic)
+  Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name
+  'Source'
+
+--------------------------------------------------------------------------------
+7. HarfBuzz subsetter (harfbuzzjs) — the HarfBuzz and harfbuzzjs authors
+--------------------------------------------------------------------------------
+License:  MIT (harfbuzzjs); HarfBuzz's own "Old MIT" licence
+Upstream: https://github.com/harfbuzz/harfbuzzjs
+Bundled as: harfbuzz-subset.wasm, which cuts each diagram page's fonts
+
+  Copyright (c) 2019-2026 The harfbuzzjs project authors
+  HarfBuzz: Copyright © the HarfBuzz authors, under the licence in its COPYING
+
+--------------------------------------------------------------------------------
+8. ReferenceFinder — Robert J. Lang (original); Mu-Tsun Tsai and Omri Shavit
    (web/Emscripten build and modifications)
 --------------------------------------------------------------------------------
 License:  GNU GPL, version 2. Lang's original distribution grants version 2 or
@@ -130,7 +161,7 @@ Vendored source: third_party/reference-finder (see its LICENSE)
   scripts/reference-finder-emsdk.json.
 
 --------------------------------------------------------------------------------
-7. ExplOri 22.5 — Brandon Wong (theplantpsychologist)
+9. ExplOri 22.5 — Brandon Wong (theplantpsychologist)
 --------------------------------------------------------------------------------
 Service, not a port. Nothing from ExplOri is vendored, ported, or bundled, so
 this section carries no license grant to reproduce — it is here because the

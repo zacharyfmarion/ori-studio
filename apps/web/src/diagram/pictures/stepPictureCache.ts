@@ -6,6 +6,8 @@
  * `data:` URLs, never `blob:` (D7): an `<img>` gives the document an opaque
  * origin, and there is no URL to revoke while something still shows it.
  */
+import { bytesToBase64 } from '../../lib/base64';
+
 export const STEP_PICTURE_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 
 const entries = new Map<string, string>();
@@ -37,13 +39,7 @@ export function cachedPictureUrl(key: string, paint: () => string | null): strin
 
 /** An SVG document as a `data:` URL. Base64, so `#` and `%` in the markup need no care. */
 export function svgDataUrl(svg: string): string {
-  const bytes = new TextEncoder().encode(svg);
-  let binary = '';
-  // In chunks: spreading a 2 MB array into one call overflows the argument limit.
-  for (let at = 0; at < bytes.length; at += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
-  }
-  return `data:image/svg+xml;base64,${btoa(binary)}`;
+  return `data:image/svg+xml;base64,${bytesToBase64(new TextEncoder().encode(svg))}`;
 }
 
 /**

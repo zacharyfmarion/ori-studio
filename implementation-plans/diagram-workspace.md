@@ -2046,11 +2046,41 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
 
 ### Phase 5: pages
 
-- [ ] **5a.** `lib/paper/textWrap.ts` moved, with code-point iteration and CJK breaking. Its own series; CP export goldens green.
-- [ ] **5b.** Pure page modules, with property tests (every step on exactly one cell, no text below its cell) and goldens:
+- [x] **5a.** `lib/paper/textWrap.ts` moved, with code-point iteration and CJK breaking. Its own series; CP export goldens green.
+  - As built: one breaker (`wrapGraphemes`) over graphemes, with the caller's measure; kinsoku, Korean keep-all, a word wider than the line broken between graphemes, and line-clamp truncation. `wrapExportText` delegates to it.
+- [x] **5b.** Pure page modules, with property tests (every step on exactly one cell, no text below its cell) and goldens:
   - `printPaper.ts`, `diagramPageLayout.ts` (including `breakBefore`, scale policy and overflow);
   - `composeDiagramPage.ts` (the empty step, overlay-only guides, the embedded font per Decision 2, unique ids across cells);
   - the bundled font module (`diagramFont.ts`).
+  - As built:
+    - **Fonts.**
+      - `scripts/diagram-fonts/build_fonts.py` builds them from google/fonts at a pinned commit (sha256-checked): static Regular and Bold, with GSUB, GPOS, GDEF and hinting dropped.
+      - Noto Sans is cut to `charsets/latin.txt` and committed (60 KB each, `src/diagram/fonts/`).
+      - SC, TC, JP and KR are built as `common` (0.5–2 MB TTF) and `full` (5–11 MB) files plus `manifest.json`, into the ignored `public/fonts/diagram/`.
+      - Each family's OFL.txt goes beside its files. NOTICE section 6 and LICENSING.md › Fonts record them.
+    - **Measuring.** `fontMetrics.ts` reads advances from `hmtx` and cmap formats 4 and 12; there is no shaping, because there are no features to shape with.
+    - **Loading.** `diagramFonts.ts` loads Noto Sans always. A CJK face loads per text that needs it: the common file, then the full one only for a character the common file lacks. Each download is checked against the manifest's size and sha256. Faces are kept per session, and a failure is retried. A face that cannot be had is reported (`unavailable`).
+    - **Which font.** `fontScripts.ts` picks one font per run, by Script. Kana make a text JP, Hangul KR, and otherwise it takes the Han style. Common characters join the run before them. Fallback goes through the other CJK fonts, then Noto Sans. A character no font has is reported and set in Noto Sans, so a page never names a family it did not embed.
+    - **Setting text.** `setText.ts` is shared by `fontTextSetter.ts` and the layout's `estimateTextSetter.ts`. It keeps the instruction's own line breaks, puts "…" in the font before it, and splits each line into one run per font, with each run's x.
+    - **Pictures.** `pagePictures.ts` gives the layout each picture's extent in pattern units:
+      - a scene's bounds over its paper scale;
+      - a bitmap capture's size over its own paper scale (the field is picture px per unit; its old comment said mm);
+      - a References step's region over its sheet, scaled by how far its marks reach.
+
+      Uploads, fixed pictures and 3D are fitted. It draws each picture into its cell: a scene through `paperSceneSvgBody`, a References step built at its sheet's size on the page with its letters set in Noto Sans, and anything else nested. Every id is renamed under the cell (`prefixIds`, tags only).
+    - **Laying out twice.** `diagramPages.ts` lays out twice when a References step shares the scale: its marks keep their pt size, so how far they reach past the sheet is measured again at the scale the first pass found.
+    - **Composing** (`composeDiagramPage.ts`). The page is drawn in pt:
+      - the band (the mockup's smoothing), the title tab, the cells, and a page number right-aligned by its measured width;
+      - text as one `<tspan>` per run with `xml:space="preserve"`, and CSS turning off kerning, ligatures and CJK auto-spacing;
+      - each face embedded as a data-URI `@font-face`, cut by `harfbuzz-subset.wasm` (`fontSubset.ts`, `fontEmbedding.ts`).
+    - `lib/base64.ts` is the one base64 encoder, replacing two copies.
+  - Browser (Chromium; `artifacts/diagram-phase5/pages.mjs`):
+    - **What was composed.** The crane's sheet-3 sequence (7 steps), with "Crane · 千纸鹤" and instructions in Chinese, Japanese, Korean, Russian and English, composed in about 40 ms (fonts loaded) plus 15 ms to compose.
+    - **Grid.** Every sheet is at one scale, CJK text breaks under kinsoku, and Korean keeps its words whole. The long Russian and English steps' pictures shrank for their text, with no overflow.
+    - **Flow.** Rows run in alternating directions and odd cells step down. The band runs behind the pictures and off the page's edge where the sequence goes on.
+  - Left for Phase 6:
+    - text inside an uploaded SVG still names its own fonts. The PDF needs it mapped to the diagram fonts, with its characters embedded (D7 policy).
+    - the CJK files still have to be published with the web deploy and the desktop bundle (Decision 2: same origin; the desktop installer carries the common tiers).
 - [ ] **5c.** The Pages UI.
   - The Steps | Pages tabs; `DiagramPagesView` with its overlay, captions and zoom.
   - The `diagram-page` side pane, its reveal rules and `DiagramPagePanel`.

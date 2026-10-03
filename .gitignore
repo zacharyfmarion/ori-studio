@@ -8,6 +8,8 @@ node_modules/
 !apps/web/dist/.gitkeep
 coverage/
 apps/web/src/generated/
+# The Diagram's CJK fonts: built by scripts/diagram-fonts/build_fonts.py, never committed.
+apps/web/public/fonts/diagram/
 apps/web/public/models/cp-detector-v2/*
 !apps/web/public/models/cp-detector-v2/.gitkeep
 !apps/web/public/models/cp-detector-v2/README.md
