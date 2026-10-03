@@ -428,7 +428,7 @@
   color: var(--text-inverse);
 }
 
-.ui-button--primary:hover:not(:disabled) {
+.ui-button--primary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
@@ -439,7 +439,7 @@
   color: var(--text-primary);
 }
 
-.ui-button--secondary:hover:not(:disabled) {
+.ui-button--secondary:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--bg-surface);
 }
 
@@ -454,7 +454,7 @@
   color: var(--text-secondary);
 }
 
-.ui-button--ghost:hover:not(:disabled) {
+.ui-button--ghost:hover:not(:disabled, [aria-disabled='true']) {
   background: var(--bg-elevated);
   color: var(--text-primary);
 }

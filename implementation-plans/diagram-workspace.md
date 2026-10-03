@@ -2027,6 +2027,22 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
     - **Staleness.** A step from one sheet: flipping a crease of another sheet left it as it was; flipping one of its own made it "Pattern changed".
     - **Open in References**, with another sheet selected and Find on, landed on the step's sheet in Sequence. **From References…** made the bar read "Send to Diagram Step 2", and the send filled step 2.
     - **Round trip.** A project with seven sent steps saved, reopened and saved again: the diagram byte for byte the same.
+- [x] **Review.** A workflow of four reviewers (state, file, UI and keyboard, repo rules), each finding put to a skeptic. 7 confirmed and 3 plausible, all fixed with a test that fails without the fix; none refuted.
+  - **The waiting latch.** From References… kept waiting after its step got a picture some other way (an upload, a Link…, a drop): the card still said "Waiting for References", References' button still read "Send to Diagram Step N", and the send then added after N. Four places each had their own idea of "waiting". Now there is one predicate (`awaitingReferencesStep`: the step is there, unlocked and has no picture). The send, the card, the Step pane and References' label all use it, and every commit and undo drops a latch it no longer holds.
+  - **Open in References** landed in Find when References had last been left in Sequence on another sheet. Selecting the sheet resets the view to Find, and the mode switch compared against the last render's mode, so it did nothing. It now reads the store's mode as it is. On a phone it opens the sheet's detail, not the list (`flow.showSheet`, which counts no card press).
+  - **A send without the segmentation** (the engine not ready, or restarted) stored the raw outline with no fingerprint, and the step later read "Pattern changed" for good. Such a send is now refused with "The crease pattern isn't ready yet". A step that kept no fingerprint (its sheet matched no region) never says its pattern changed: its status is `unknown`.
+  - **A crafted model** under the 50,000-primitive cap could hang the page that draws it, because placing a label is a pass over every primitive and landing an arrow a pass over every mark. The reader now also caps labels (64), fold arrows (64), points (4,096), and labels × primitives (1,000,000; a dense card's is tens of thousands).
+  - **Send all** had no keyboard path and no touch path. Both sends are on the viewport bar now, so the keyboard reaches them by Tab. On the phone they fold into one `⋯` with Export.
+  - **Focus and styling.**
+    - Cancel in the Step pane's waiting notice dropped the focus. It now returns to From References….
+    - A waiting (`aria-disabled`) button lit up on hover, because the variants' hover rules only excluded `:disabled`. They now exclude both, edited in place.
+    - Refresh's disabled tooltip claimed every linked step was current while References steps said "Pattern changed". It now reads "No linked step is out of date. Steps from References aren't refreshed."
+  - Browser (Chromium):
+    - Send all from the bar: 7 steps.
+    - Open in References from sheet 0 in Sequence landed on sheet 3 in Sequence.
+    - An upload into the waiting step cleared the latch, and References went back to "Send to diagram".
+    - A hovered `aria-disabled` ghost button stays muted.
+    - On the phone, the request opened the sheet's detail, its `⋯` held Export, Send and Send all, and Send all sent 7 steps.
 
 ### Phase 5: pages
 

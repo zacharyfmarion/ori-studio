@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ensureCpSegmentationArtifacts } from '../../cp-workspace/cpSegmentationArtifacts';
 import type { ReferencesDiagramCard } from '../../cp-workspace/references/referencesDiagramCards';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
@@ -122,6 +123,16 @@ describe('Send to diagram', () => {
     expect(source).toMatchObject({ fingerprint: null, region: { segmentIdHint: null } });
     expect(source.thumbnail.strokes).toHaveLength(4);
     expect(linkStatus(source, cpDocument(), segmentation)).toBe('missing');
+    // Nor does it say it changed if a region comes to match it: it kept no creases to compare.
+    const matched = { ...source, region: { ...source.region, boundary: [LEFT_OUTLINE.map(([x, y]) => ({ x, y }))] } };
+    expect(linkStatus(matched, cpDocument(), segmentation)).toBe('unknown');
+  });
+
+  it('sends nothing while the pattern’s regions cannot be worked out, and says to try again', async () => {
+    vi.mocked(ensureCpSegmentationArtifacts).mockResolvedValueOnce(null);
+    expect(await send()).toEqual({ status: 'unknown' });
+    expect(steps()).toEqual([]);
+    expect(toasts.error).toHaveBeenCalledWith('The crease pattern isn’t ready yet. Try again in a moment.');
   });
 
   it('sends the strip as consecutive steps, one undo step, after the selected one', async () => {

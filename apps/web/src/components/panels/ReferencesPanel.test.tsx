@@ -246,6 +246,7 @@ it('keeps the header to the title and floats the view verbs over the canvas', ()
     'Recompute References',
     'Export step…',
     'Send to diagram',
+    'Send all to diagram',
   ]);
 });
 

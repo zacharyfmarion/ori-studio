@@ -1,7 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { stepIndex, type ReferencesPlanSettings } from '../../diagram/document/diagramDocument';
+import {
+  awaitingReferencesStep,
+  stepIndex,
+  type ReferencesPlanSettings,
+} from '../../diagram/document/diagramDocument';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { ReferencesActionState } from './referencesActions';
 import {
@@ -53,9 +57,8 @@ export function useReferencesSendToDiagram(input: ReferencesSendToDiagramInput):
   const { t } = useTranslation();
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const waitingStep = useWorkspaceStore((state) => {
-    const target = state.diagramReferencesTarget;
-    const index = target !== null && state.diagram ? stepIndex(state.diagram, target) : -1;
-    return index >= 0 ? index + 1 : null;
+    const step = awaitingReferencesStep(state.diagram, state.diagramReferencesTarget);
+    return step && state.diagram ? stepIndex(state.diagram, step.id) + 1 : null;
   });
   const { strip, viewSteps, variants, activeStep, mode, frames, sheetId, settings, stale } = input;
   const sheet = useMemo(

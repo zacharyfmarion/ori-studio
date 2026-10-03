@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import type { DiagramStep } from '../document/diagramDocument';
+import { awaitingReferencesStep, type DiagramStep } from '../document/diagramDocument';
 import type { DiagramLinkStatus } from './linkStatus';
 import { askReferencesForStep } from './referencesStepActions';
 import { useDiagramLinkStatuses } from './useLinkStatus';
@@ -41,7 +41,9 @@ export function useDiagramCardLinks(steps: readonly DiagramStep[]): DiagramCardL
   const stop = useCallback((stepId: string) => {
     useWorkspaceStore.getState().stopDiagramCapture(stepId);
   }, []);
-  const awaitingReferences = useWorkspaceStore((state) => state.diagramReferencesTarget);
+  const awaitingReferences = useWorkspaceStore(
+    (state) => awaitingReferencesStep(state.diagram, state.diagramReferencesTarget)?.id ?? null
+  );
   let refreshable = 0;
   for (const step of steps) {
     if (step.source?.kind === 'cp' && statuses.get(step.id) === 'stale') refreshable += 1;

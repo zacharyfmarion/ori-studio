@@ -768,7 +768,7 @@
       "fromReferences": "Aus Referenzen…",
       "linkPattern": "Muster verknüpfen…",
       "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
-      "nothingStale": "Jeder verknüpfte Schritt zeigt sein Muster, wie es ist",
+      "nothingToRefresh": "Kein verknüpfter Schritt ist veraltet. Schritte aus Referenzen werden nicht aktualisiert.",
       "refreshAll": "Veraltete Schritte aktualisieren",
       "stepCount_one": "{{count}} Schritt",
       "stepCount_other": "{{count}} Schritte",

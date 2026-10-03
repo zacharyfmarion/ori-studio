@@ -739,7 +739,7 @@
       "fromReferences": "참조에서…",
       "linkPattern": "패턴 연결…",
       "moreAdd": "단계를 추가하는 다른 방법",
-      "nothingStale": "연결된 모든 단계가 패턴의 현재 모습을 보여 줍니다",
+      "nothingToRefresh": "오래된 연결 단계가 없습니다. 참조에서 보낸 단계는 새로 고쳐지지 않습니다.",
       "refreshAll": "오래된 단계 새로 고침",
       "stepCount_other": "{{count}}단계",
       "stopRefreshing": "새로 고침 중지 ({{done}}/{{total}})",

@@ -162,8 +162,6 @@ export function ReferencesPanel() {
     },
     [selectedSheet, setSelectedSheet]
   );
-  // A diagram step's Open in References: its sheet, in the mode it came from.
-  useReferencesSheetRequest(controller.frames, selectSheet, setMode);
   const component =
     controller.frames?.components.find((entry) => entry.id === selectedSheet) ?? null;
   const sheetIds = useMemo(() => (component ? sheetLineIds(component) : null), [component]);
@@ -204,6 +202,8 @@ export function ReferencesPanel() {
     },
     { selectSheet, selectFinding: breakdown.selectFinding }
   );
+  // A diagram step's Open in References: its sheet, in the mode it came from.
+  useReferencesSheetRequest(controller.frames, flow.showSheet, setMode);
 
   const targetHighlights = useReferencesHighlights(
     view.geometry,

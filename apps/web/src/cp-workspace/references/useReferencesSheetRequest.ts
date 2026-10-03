@@ -21,7 +21,8 @@ import type { ReferencesModeSource } from './useReferencesMode';
  */
 export function useReferencesSheetRequest(
   frames: SheetAnalysis | null,
-  selectSheet: (component: number) => void,
+  /** Make the sheet the workspace's and show it: on a phone, its detail rather than the list. */
+  showSheet: (component: number) => void,
   setMode: (mode: ReferencesMode, source?: ReferencesModeSource) => void
 ): void {
   const { t } = useTranslation();
@@ -35,9 +36,10 @@ export function useReferencesSheetRequest(
       toast.error(t('toasts:references.sheetMissing', 'That sheet isn’t in the crease pattern any more.'));
       return;
     }
-    selectSheet(sheet.id);
+    // A sheet switch puts the workspace back in Find, so the mode comes after it.
+    showSheet(sheet.id);
     setMode(request.mode, 'diagram');
-  }, [pending, frames, selectSheet, setMode, t]);
+  }, [pending, frames, showSheet, setMode, t]);
 }
 
 /** The sheet whose rim is `boundary`, or undefined when none is. */

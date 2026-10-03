@@ -739,7 +739,7 @@
       "fromReferences": "来自参考…",
       "linkPattern": "链接图样…",
       "moreAdd": "更多添加步骤的方式",
-      "nothingStale": "所有链接的步骤都显示其图样的当前状态",
+      "nothingToRefresh": "没有过时的链接步骤。从参考发送的步骤不会刷新。",
       "refreshAll": "刷新已过期的步骤",
       "stepCount_other": "{{count}} 个步骤",
       "stopRefreshing": "停止刷新（{{done}} / {{total}}）",

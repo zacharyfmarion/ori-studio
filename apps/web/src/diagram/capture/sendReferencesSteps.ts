@@ -57,6 +57,12 @@ export type ReferencesSendOutcome =
   | { status: 'read-only' }
   /** A card too large for the file to read back: nothing was sent. */
   | { status: 'too-large' }
+  /**
+   * The pattern's regions could not be worked out (the engine was not ready,
+   * or restarted): nothing was sent, since a step whose sheet was never found
+   * would be stored with no creases to compare and later say it changed.
+   */
+  | { status: 'unknown' }
   /** The diagram was replaced while the sheet was being found. */
   | { status: 'discarded' };
 
@@ -78,6 +84,7 @@ async function sendCards(send: ReferencesSend): Promise<ReferencesSendOutcome> {
   if (!document) return { status: 'no-pattern' };
   const loadId = start.diagramLoadId;
   const segmentation = await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document)).catch(() => null);
+  if (!segmentation) return { status: 'unknown' };
 
   // The sheet, as the Diagram finds regions: by its rim.
   const outline: RegionReference = {
@@ -85,7 +92,7 @@ async function sendCards(send: ReferencesSend): Promise<ReferencesSendOutcome> {
     bounds: boundsOf(send.outline),
     segmentIdHint: null,
   };
-  const segment = segmentation ? resolveRegion(outline, resolveCpSegments(segmentation)) : null;
+  const segment = resolveRegion(outline, resolveCpSegments(segmentation));
   const region = segment ? regionReferenceFor(segment) : outline;
   const choice = segment ? chooseStepCreases(document, { kind: 'segment', region }, segmentation) : null;
   const creases = choice?.status === 'found' ? choice.creases : null;
@@ -159,6 +166,11 @@ function say(outcome: ReferencesSendOutcome, send: ReferencesSend): void {
       return;
     case 'no-pattern':
       toast.error(t('toasts:diagram.capture.noPattern', 'Open a crease pattern in Edit first.'));
+      return;
+    case 'unknown':
+      toast.error(
+        t('toasts:diagram.capture.unknown', 'The crease pattern isn’t ready yet. Try again in a moment.')
+      );
       return;
     case 'too-large':
       toast.error(

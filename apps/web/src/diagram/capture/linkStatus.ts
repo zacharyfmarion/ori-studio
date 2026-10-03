@@ -50,6 +50,9 @@ export function linkStatus(
   if ('kind' in source && source.kind === 'references-step') {
     const choice = cachedChoice(document, sheetScope(source), segmentation);
     if (choice.status !== 'found') return choice.status;
+    // Sent while its sheet matched no region: there were no creases to keep,
+    // so nothing to say it changed from.
+    if (source.fingerprint === null) return 'unknown';
     return choice.creases.drawnFingerprint === source.fingerprint ? 'current' : 'stale';
   }
   const linked = source as Pick<DiagramCpSource, 'scope' | 'fingerprint' | 'render'>;

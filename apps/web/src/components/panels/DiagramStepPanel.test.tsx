@@ -1,6 +1,8 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cpDocument } from '../../diagram/capture/capture.fixtures';
+import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramStepPanel } from './DiagramStepPanel';
@@ -144,6 +146,23 @@ describe('DiagramStepPanel', () => {
       act(() => textButton('Reset Pose')?.click());
       expect(host?.textContent).toContain('0° clockwise');
       expect(host?.textContent).toContain('FlippedNo');
+    });
+
+    it('hands the focus back to From References… when its wait is cancelled', () => {
+      act(() => {
+        // A pattern open, so From References… can take the focus.
+        useWorkspaceStore.setState({
+          oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
+        });
+        const stepId = state().addDiagramStep()!;
+        state().requestDiagramStepFromReferences(stepId);
+      });
+      expect(host?.textContent).toContain('Waiting for References');
+      const cancel = textButton('Cancel')!;
+      cancel.focus();
+      act(() => cancel.click());
+      expect(state().diagramReferencesTarget).toBeNull();
+      expect(document.activeElement).toBe(textButton('From References…'));
     });
 
     it('says what the picture is, what sanitizing changed, and removes it', () => {

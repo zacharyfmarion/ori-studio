@@ -145,7 +145,11 @@ const BAR = [
   'Recompute References',
   'Export step…',
   'Send to diagram',
+  'Send all to diagram',
 ];
+
+/** Out on the phone, into its `⋯`. */
+const OUTPUT = ['Export step…', 'Send to diagram', 'Send all to diagram'];
 
 describe('ReferencesViewportToolbar', () => {
   it('holds the zoom cluster, Fit and Recompute, and nothing to overflow', () => {
@@ -256,15 +260,21 @@ describe('ReferencesViewportToolbar', () => {
 
     render({ stepCount: 3, activeStep: 1 });
 
-    // Send to diagram gives its room to the stepping; the context menu has it.
+    // Export and the two sends give their room to the stepping, behind one `⋯`.
     expect(inlineLabels()).toEqual([
-      ...BAR.filter((label) => label !== 'Send to diagram'),
+      ...BAR.filter((label) => !OUTPUT.includes(label)),
       'Previous Step',
       'Next Step',
+      'More view controls',
     ]);
-    expect(button('More view controls')).toBeFalsy();
     press(button('Next Step'));
     expect(run).toHaveBeenLastCalledWith('references.nextStep');
+    // A touch user's way to the diagram, Send all included.
+    press(button('More view controls'));
+    const rows = [...document.querySelectorAll<HTMLElement>('[role="menu"] [role^="menuitem"]')];
+    expect(rows.map((row) => row.textContent)).toEqual(OUTPUT);
+    press(rows[2]);
+    expect(run).toHaveBeenLastCalledWith('references.sendAllToDiagram');
   });
 
   it('leaves the stepping to the filmstrip everywhere but the phone', () => {

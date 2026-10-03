@@ -768,7 +768,7 @@
       "fromReferences": "From References…",
       "linkPattern": "Link pattern…",
       "moreAdd": "More ways to add steps",
-      "nothingStale": "Every linked step shows its pattern as it is",
+      "nothingToRefresh": "No linked step is out of date. Steps from References aren’t refreshed.",
       "refreshAll": "Refresh out-of-date steps",
       "stepCount_one": "1 step",
       "stepCount_other": "{{count}} steps",

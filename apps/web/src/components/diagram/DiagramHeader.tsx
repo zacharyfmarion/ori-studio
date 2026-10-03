@@ -118,7 +118,10 @@ export function DiagramHeader({
                   disabled: staleCount === 0,
                   title:
                     staleCount === 0
-                      ? t('panels:diagram.header.nothingStale', 'Every linked step shows its pattern as it is')
+                      ? t(
+                          'panels:diagram.header.nothingToRefresh',
+                          'No linked step is out of date. Steps from References aren’t refreshed.'
+                        )
                       : undefined,
                   onSelect: onRefreshAll,
                 },

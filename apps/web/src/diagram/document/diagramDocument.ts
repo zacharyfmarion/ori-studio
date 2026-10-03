@@ -606,6 +606,21 @@ export interface SentReferencesStep {
 }
 
 /**
+ * The step From References… waits to fill, when it still can be filled: it is
+ * there, made by this build, and has no picture or source yet. Null
+ * otherwise — a step that got a picture some other way waits for nothing.
+ * The one rule the card, the Step pane, References' label and the send share.
+ */
+export function awaitingReferencesStep(
+  document: DiagramDocument | null,
+  target: string | null
+): DiagramStep | null {
+  if (!document || target === null) return null;
+  const step = document.steps[stepIndex(document, target)];
+  return step && !isLockedStep(step) && !stepHasPicture(step) ? step : null;
+}
+
+/**
  * Cards from References as steps, at `index`, in order. With `fill`, the
  * first card goes into that step instead — the one From References… was
  * asked from — when it is still there and still empty; its words are kept if
@@ -620,14 +635,14 @@ export function insertReferencesSteps(
   if (sent.length === 0) return { document, stepIds: [] };
   const fillAt = fill === null ? -1 : stepIndex(document, fill);
   const target = fillAt >= 0 ? document.steps[fillAt] : undefined;
-  const fills = target !== undefined && !isLockedStep(target) && !stepHasPicture(target);
+  const fills = awaitingReferencesStep(document, fill) !== null;
   const make = (card: SentReferencesStep): DiagramStep => ({
     ...createStep(newId),
     source: card.source,
     picture: card.picture,
     text: xmlText(card.text),
   });
-  if (!fills) {
+  if (!fills || !target) {
     const steps = sent.map(make);
     return {
       document: insertSteps(document, steps, target !== undefined ? fillAt + 1 : index),

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import type { DiagramStep } from '../document/diagramDocument';
+import { awaitingReferencesStep, type DiagramStep } from '../document/diagramDocument';
 import type { DiagramLinkStatus } from './linkStatus';
 import { linkDiagramStep } from './stepCaptureActions';
 import {
@@ -53,7 +53,10 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
     (state) => stepId !== null && state.diagramPatternPicker === stepId
   );
   const sheets = useDiagramPatternSheets(pickerOpen);
-  const waiting = useWorkspaceStore((state) => stepId !== null && state.diagramReferencesTarget === stepId);
+  const waiting = useWorkspaceStore(
+    (state) =>
+      stepId !== null && awaitingReferencesStep(state.diagram, state.diagramReferencesTarget)?.id === stepId
+  );
 
   const stop = useCallback(() => {
     if (stepId !== null) useWorkspaceStore.getState().stopDiagramCapture(stepId);

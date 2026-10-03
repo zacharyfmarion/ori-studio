@@ -797,7 +797,7 @@
       "fromReferences": "Depuis Références…",
       "linkPattern": "Lier un patron…",
       "moreAdd": "Autres façons d’ajouter des étapes",
-      "nothingStale": "Chaque étape liée montre son patron tel qu’il est",
+      "nothingToRefresh": "Aucune étape liée n’est périmée. Les étapes venues de Références ne sont pas actualisées.",
       "refreshAll": "Actualiser les étapes pas à jour",
       "stepCount_one": "{{count}} étape",
       "stepCount_many": "{{count}} étapes",

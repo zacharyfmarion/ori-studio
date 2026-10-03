@@ -31,6 +31,18 @@ export const STEP_DIAGRAM_MAX_PRIMITIVES = 50_000;
 /** A label is a letter or two (`A`, `B'`); anything longer is not one of ours. */
 export const STEP_DIAGRAM_MAX_LABEL = 64;
 
+/**
+ * What a card marks — a step letters a handful of points and folds once or
+ * twice. Bounded on their own, not only within the total, because drawing them
+ * is not linear: each label is placed against every line, mark and other
+ * label, and each arrow lands against every mark.
+ */
+export const STEP_DIAGRAM_MAX_LABELS = 64;
+export const STEP_DIAGRAM_MAX_ARROWS = 64;
+export const STEP_DIAGRAM_MAX_POINTS = 4096;
+/** Labels × primitives: what placing the labels costs. A dense card's is a few tens of thousands. */
+export const STEP_DIAGRAM_MAX_LABEL_WORK = 1_000_000;
+
 const LINE_STYLES: ReadonlySet<string> = new Set<DiagramLineStyleName>([
   'crease',
   'aux',
@@ -82,10 +94,20 @@ export function validateStepDiagramModel(value: unknown): StepDiagramModelRead {
   // where a primitive of a kind this build knows looks wrong to it.
   if (raw.some(isNewerPrimitive)) return { status: 'unknown' };
   const primitives: StepDiagramPrimitive[] = [];
+  const counts = { label: 0, 'fold-arrow': 0, point: 0 };
   for (const entry of raw) {
     const primitive = readPrimitive(entry);
     if (!primitive) return MALFORMED;
+    if (primitive.kind in counts) counts[primitive.kind as keyof typeof counts] += 1;
     primitives.push(primitive);
+  }
+  if (
+    counts.label > STEP_DIAGRAM_MAX_LABELS ||
+    counts['fold-arrow'] > STEP_DIAGRAM_MAX_ARROWS ||
+    counts.point > STEP_DIAGRAM_MAX_POINTS ||
+    counts.label * primitives.length > STEP_DIAGRAM_MAX_LABEL_WORK
+  ) {
+    return MALFORMED;
   }
   return { status: 'ok', model: { sheet, primitives } };
 }

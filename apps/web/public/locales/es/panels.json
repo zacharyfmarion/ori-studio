@@ -797,7 +797,7 @@
       "fromReferences": "Desde Referencias…",
       "linkPattern": "Vincular patrón…",
       "moreAdd": "Más formas de añadir pasos",
-      "nothingStale": "Todos los pasos vinculados muestran su patrón tal como está",
+      "nothingToRefresh": "Ningún paso vinculado está desactualizado. Los pasos de Referencias no se actualizan.",
       "refreshAll": "Actualizar pasos desactualizados",
       "stepCount_one": "{{count}} paso",
       "stepCount_many": "{{count}} pasos",

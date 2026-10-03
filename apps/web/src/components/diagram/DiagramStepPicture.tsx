@@ -70,9 +70,11 @@ export function DiagramStepPicture({
 }) {
   const { t } = useTranslation();
   const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
-  // A pick or Cancel closes the picker under the focus: back to the verb that opened it.
+  // A pick or Cancel closes the picker, or the waiting notice, under the
+  // focus: back to the verb that opened it.
   const section = useRef<HTMLDivElement | null>(null);
   useReturnFocusOnClose(Boolean(picker), section, '[data-verb="link-pattern"]');
+  useReturnFocusOnClose(Boolean(waiting), section, '[data-verb="from-references"]');
   return (
     <div ref={section} className={styles.picture}>
       <FieldRow label={t('panels:diagram.picture.source', 'Source')} kind="text">

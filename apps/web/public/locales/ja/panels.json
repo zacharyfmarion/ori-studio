@@ -739,7 +739,7 @@
       "fromReferences": "リファレンスから…",
       "linkPattern": "パターンをリンク…",
       "moreAdd": "ステップを追加するその他の方法",
-      "nothingStale": "リンクしたステップはすべて最新のパターンを表示しています",
+      "nothingToRefresh": "古くなったリンク済みステップはありません。リファレンスから送ったステップは更新されません。",
       "refreshAll": "古いステップを更新",
       "stepCount_other": "{{count}} ステップ",
       "stopRefreshing": "更新を停止（{{done}} / {{total}}）",

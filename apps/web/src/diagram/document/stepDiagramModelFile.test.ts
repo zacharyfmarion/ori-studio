@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import { referencesStrip } from './referencesSteps.fixtures';
 import {
+  STEP_DIAGRAM_MAX_ARROWS,
   STEP_DIAGRAM_MAX_LABEL,
+  STEP_DIAGRAM_MAX_LABELS,
+  STEP_DIAGRAM_MAX_POINTS,
   STEP_DIAGRAM_MAX_PRIMITIVES,
   storedStepDiagramModel,
   validateStepDiagramModel,
@@ -88,6 +91,25 @@ describe('validateStepDiagramModel', () => {
       read({ ...EVERY_KIND, primitives: Array.from({ length: STEP_DIAGRAM_MAX_PRIMITIVES + 1 }, () => line) })
         .status
     ).toBe('malformed');
+  });
+
+  // Placing a label costs a pass over every other primitive, and landing an
+  // arrow one over every mark: a crafted card under the total would hang the
+  // page it is drawn on.
+  it('refuses more marks than a card makes, or labels it would take too long to place', () => {
+    const many = (count: number, primitive: unknown) => Array.from({ length: count }, () => primitive);
+    const label = { kind: 'label', at: [0, 0], text: 'A', style: 'normal' };
+    const arrow = EVERY_KIND.primitives[4];
+    const point = { kind: 'point', at: [0, 0], style: 'normal' };
+    const line = { kind: 'line', from: [0, 0], to: [1, 1], style: 'crease' };
+    const withPrimitives = (primitives: unknown[]) => read({ ...EVERY_KIND, primitives }).status;
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_LABELS, label))).toBe('ok');
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_LABELS + 1, label))).toBe('malformed');
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_ARROWS + 1, arrow))).toBe('malformed');
+    expect(withPrimitives(many(STEP_DIAGRAM_MAX_POINTS + 1, point))).toBe('malformed');
+    // Two labels on a dense card is a card; forty on the densest is not.
+    expect(withPrimitives([...many(2, label), ...many(20_000, line)])).toBe('ok');
+    expect(withPrimitives([...many(40, label), ...many(30_000, line)])).toBe('malformed');
   });
 
   it('keeps only the fields it checked, and only characters a page can hold', () => {

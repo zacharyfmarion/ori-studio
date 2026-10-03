@@ -5,6 +5,7 @@ import {
   duplicateStep,
   insertLinkedStep,
   insertPictureSteps,
+  awaitingReferencesStep,
   insertReferencesSteps,
   insertSteps,
   insertionIndex,
@@ -89,6 +90,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     if (!extend) openTextSession = null;
     set({
       diagram: next,
+      ...stillAwaiting(next),
       diagramHistory: extend
         ? state.diagramHistory
         : trimDiagramHistory(
@@ -119,6 +121,16 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     return stepIndex(document, selected) >= 0 ? selected : null;
   };
 
+  /**
+   * From References… waits on a step only while it can be filled: once the
+   * step is gone or has a picture, the wait is over, and a later Remove
+   * picture does not start it again.
+   */
+  const stillAwaiting = (document: DiagramDocument | null) => {
+    const target = get().diagramReferencesTarget;
+    return target !== null && !awaitingReferencesStep(document, target) ? { diagramReferencesTarget: null } : {};
+  };
+
   const travel = (direction: 'undo' | 'redo'): boolean => {
     const state = get();
     if (state.diagramReadOnly) return false;
@@ -134,6 +146,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       diagram: restored,
       diagramHistory: result.history,
       ...selection(reconciledSelection(restored)),
+      ...stillAwaiting(restored),
       dirty: true,
     });
     return true;
@@ -326,8 +339,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     requestDiagramStepFromReferences: (stepId) => {
       const { diagram, diagramReadOnly } = get();
-      const step = diagram?.steps[stepIndex(diagram, stepId)];
-      if (!step || diagramReadOnly || isLockedStep(step)) return false;
+      if (diagramReadOnly || !awaitingReferencesStep(diagram, stepId)) return false;
       set({ ...selection(stepId), diagramReferencesTarget: stepId });
       return true;
     },
