@@ -173,16 +173,35 @@ describe('NumberField', () => {
   });
 
   it('renders a bare input when the caller has no room for steppers', () => {
-    const view = render(<Harness initial={2} steppers={false} />);
+    const view = render(<Harness initial={2} steppers={false} className="placed" />);
+    const { input } = field(view);
     expect(view.querySelectorAll('button')).toHaveLength(0);
-    expect(view.querySelector('.number-field')).toBeNull();
+    // The input is the whole field, so it is what a caller's placement lands on.
+    expect(view.firstElementChild).toBe(input);
+    expect(input.classList.contains('placed')).toBe(true);
+  });
 
-    // The native spinners are still off, which is what the class carries.
-    expect(field(view).input.classList.contains('number-field__input')).toBe(true);
+  it('puts a caller’s class on the root, not on the input', () => {
+    const view = render(<Harness initial={2} className="placed" />);
+    const { input } = field(view);
+    expect(view.firstElementChild?.classList.contains('placed')).toBe(true);
+    expect(input.classList.contains('placed')).toBe(false);
+  });
+
+  it('marks its input, so a screen’s own input rules can leave it alone', () => {
+    const stepped = render(<Harness initial={2} />);
+    expect(field(stepped).input.hasAttribute('data-number-field')).toBe(true);
+  });
+
+  it('gives the input a floor of minChars characters', () => {
+    const view = render(<Harness initial={2} minChars={4} />);
+    expect(field(view).input.style.getPropertyValue('--min-chars')).toBe('4');
   });
 
   it('shows a unit between the value and the increase button', () => {
     const view = render(<Harness initial={90} min={1} max={179} suffix="°" />);
-    expect(view.querySelector('.number-field__suffix')?.textContent).toBe('°');
+    const { input, up } = field(view);
+    expect(input.nextElementSibling?.textContent).toBe('°');
+    expect(input.nextElementSibling?.nextElementSibling).toBe(up);
   });
 });

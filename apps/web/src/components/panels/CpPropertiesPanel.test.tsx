@@ -111,7 +111,7 @@ describe('CpPropertiesPanel', () => {
     expect(text('.property-sheet__title')).toBe('Text');
     // The content's formatting is the editing toolbar's, per selection.
     expect(labels()).toEqual(['Size', 'Opacity']);
-    const step = [...(host?.querySelectorAll<HTMLButtonElement>('.number-field__step') ?? [])].at(-1);
+    const step = [...(host?.querySelectorAll<HTMLButtonElement>('button[data-direction]') ?? [])].at(-1);
     const before = useWorkspaceStore.getState().oristudioCpHistoryPast.length;
     const fontSize = TEXT.fontSize;
     await act(async () => step?.click());

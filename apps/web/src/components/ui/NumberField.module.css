@@ -1,0 +1,121 @@
+/*
+ * A number input with its own − / + buttons (NumberField.tsx). The native
+ * spinners go: they are a 4px hit target in a 26px row, and clicking one only
+ * moved the field's draft, so nothing changed until the field lost focus.
+ *
+ * The input also wears the shared `.control-row__input`, the pane rows' input.
+ * Every rule here that restates one of its properties is two classes or more,
+ * so it outranks that one class whichever stylesheet loads first.
+ */
+.field {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The input's floor: 44px, or `minChars` characters (`--min-chars`, set by
+   the component) and the input's padding and border if that is wider. Written
+   in `ch`, it follows the 16px a touch screen gives the input, where 44px holds
+   only three. */
+.field > .input {
+  min-width: max(44px, calc(var(--min-chars, 0) * 1ch + 16px));
+}
+
+.input {
+  appearance: textfield;
+}
+
+.input::-webkit-outer-spin-button,
+.input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  /* Square on the input's own height, so the three boxes share a top and a
+     bottom edge. */
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.suffix {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+}
+
+/*
+ * `variant="card"`, Settings ▸ Paper's pen cards. The stepper is one field,
+ * not three boxes with gaps between them: the frame and the well move up to
+ * the field, and the −, the number and the + give up their own borders and
+ * grounds inside it. 28px, the height of the Cap control beside it.
+ */
+.field[data-variant='card'] {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--settings-well);
+}
+
+.field[data-variant='card'] > .step {
+  width: 24px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* Narrow enough for two cards a line, so the number takes the room the
+   control-row padding would otherwise spend on either side of it. */
+.field[data-variant='card'] > .input {
+  min-width: 0;
+  height: 100%;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  /* A width is a measurement, and the digits stay put as it is stepped. */
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+/* States come after the card, which they tie with and must win. */
+.step:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.step:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+@media (pointer: coarse) {
+  /* `min-` sizes, so they clamp whatever size a variant set. */
+  .step {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}

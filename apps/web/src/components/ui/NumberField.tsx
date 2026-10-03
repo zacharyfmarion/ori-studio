@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { flushSync } from 'react-dom';
 import { Minus, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import styles from './NumberField.module.css';
 
 /**
  * A number input that holds a draft and commits it on blur, flanked by − / +
@@ -17,6 +18,11 @@ import { useTranslation } from 'react-i18next';
  * `steppers={false}` is for callers with no room for two more buttons — the grid
  * scale formula puts three fields and two operators on one line. Those still
  * lose the native spinners, and still commit on Arrow Up/Down.
+ *
+ * Its look is its own (`NumberField.module.css`): a screen that wants it
+ * different asks through a prop, and places it through `className`, which lands
+ * on the root (`docs/styling.md`). The input carries `data-number-field`, so a
+ * screen's own rules for inputs can leave it alone.
  */
 export function NumberField({
   id,
@@ -29,6 +35,8 @@ export function NumberField({
   steppers = true,
   disabled = false,
   normalize,
+  variant,
+  minChars,
   className,
   onCommit,
 }: {
@@ -46,6 +54,18 @@ export function NumberField({
   disabled?: boolean;
   /** Caller's own clamp — applied to typed and stepped values alike. */
   normalize?: (value: number) => number;
+  /**
+   * `card`: Settings ▸ Paper's pen cards, a measurement on a card: one joined
+   * frame on the settings well, the control scale's 28px, and the number
+   * centred in the mono face.
+   */
+  variant?: 'card';
+  /**
+   * The most characters a value takes, for a field that must never cut one
+   * short: the input's floor holds that many, at whatever size the font is.
+   */
+  minChars?: number;
+  /** Placement only — a width, a margin, a grid cell. Lands on the root. */
   className?: string;
   onCommit: (value: number) => void;
 }) {
@@ -100,7 +120,7 @@ export function NumberField({
   const stepButton = (direction: 1 | -1) => (
     <button
       type="button"
-      className="number-field__step"
+      className={styles.step}
       data-direction={direction === 1 ? 'up' : 'down'}
       // Out of the tab order on purpose: Arrow Up/Down on the field already does
       // this, and an options pane of these rows would otherwise carry two tab
@@ -122,10 +142,14 @@ export function NumberField({
     </button>
   );
 
+  const bare = !steppers && !suffix;
+
   const input = (
     <input
       id={id}
-      className={['control-row__input', 'number-field__input', className].filter(Boolean).join(' ')}
+      className={['control-row__input', styles.input, bare && className].filter(Boolean).join(' ')}
+      data-number-field=""
+      style={minChars === undefined ? undefined : ({ '--min-chars': minChars } as CSSProperties)}
       aria-label={label}
       type="number"
       min={min}
@@ -158,13 +182,16 @@ export function NumberField({
     />
   );
 
-  if (!steppers && !suffix) return input;
+  if (bare) return input;
 
   return (
-    <span className="number-field">
+    <span
+      className={[styles.field, className].filter(Boolean).join(' ')}
+      data-variant={variant}
+    >
       {steppers && stepButton(-1)}
       {input}
-      {suffix ? <span className="number-field__suffix">{suffix}</span> : null}
+      {suffix ? <span className={styles.suffix}>{suffix}</span> : null}
       {steppers && stepButton(1)}
     </span>
   );

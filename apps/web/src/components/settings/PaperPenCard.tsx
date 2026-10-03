@@ -109,6 +109,7 @@ export function PaperPenCard({
       <div className="settings-paper-pen__row">
         <PenField label={t('dialogs:settings.paper.penWidth', 'Width (pt)')}>
           <NumberField
+            variant="card"
             label={t('dialogs:settings.paper.penWidthNamed', '{{pen}} width', { pen: label })}
             value={pen.width}
             min={PEN_WIDTH_RANGE.min}
