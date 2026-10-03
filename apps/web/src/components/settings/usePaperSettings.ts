@@ -204,16 +204,18 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
     if (!file) return null;
     const result = importPaperPreset(file.text);
     if (!result.ok) {
+      track(ANALYTICS_EVENTS.paperPresetImported, { slot, succeeded: false, reason: result.reason });
       toast.error(importFailureMessage(t, result.reason));
       return null;
     }
+    track(ANALYTICS_EVENTS.paperPresetImported, { slot, succeeded: true });
     const row: PaperPresetRow = {
       key: paperPresetKey(result.preset),
       preset: result.preset,
       builtIn: null,
     };
     return { row, choice: await choosePreset(row) };
-  }, [choosePreset, fileService, importPaperPreset, t]);
+  }, [choosePreset, fileService, importPaperPreset, slot, t]);
 
   /** Write a preset file, counted once it is written: a cancelled dialog counts nothing. */
   const writePresetFile = useCallback(
@@ -271,7 +273,7 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
 
   return useMemo(() => {
     const changed = (field: PaperStyleField) =>
-      track(ANALYTICS_EVENTS.paperStyleChanged, { slot, field });
+      track(ANALYTICS_EVENTS.paperStyleChanged, { source: 'settings', slot, field });
     const endAdjustment = () => {
       adjusting.current.clear();
     };
@@ -279,7 +281,11 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       slot,
       setSlot,
       exportFollowsDisplay,
-      setExportFollowsDisplay: setExportPaperStyleFollowsDisplay,
+      setExportFollowsDisplay: (follows) => {
+        if (follows === exportFollowsDisplay) return;
+        track(ANALYTICS_EVENTS.paperExportLinkChanged, { linked: follows });
+        setExportPaperStyleFollowsDisplay(follows);
+      },
       style,
       editable,
       presets,
@@ -290,7 +296,9 @@ export function usePaperSettings({ fileService }: PaperSettingsDeps = {}): Paper
       update,
       applyPreset,
       choosePreset,
-      savePreset: (name) => savePaperPreset(name, slot),
+      savePreset: (name) => {
+        if (savePaperPreset(name, slot)) track(ANALYTICS_EVENTS.paperPresetSaved, { slot });
+      },
       removePreset: removePaperPreset,
       importPreset,
       exportPreset,

@@ -16,6 +16,7 @@ import {
   SIMULATOR_PANE_FIELDS,
   useSimulatorPaperStyle,
   type SimulatorPaperStyleBinding,
+  type SimulatorPaperStyleSource,
 } from './useSimulatorPaperStyle';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -34,8 +35,12 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 const binding: { current: SimulatorPaperStyleBinding | null } = { current: null };
 
-function Probe(): null {
-  const paper = useSimulatorPaperStyle();
+function Probe({
+  source = 'simulator-view-controls',
+}: {
+  source?: SimulatorPaperStyleSource;
+}): null {
+  const paper = useSimulatorPaperStyle(source);
   useEffect(() => {
     binding.current = paper;
   }, [paper]);
@@ -212,7 +217,9 @@ describe('what it counts', () => {
       current().setPaperColor('paper.front', '#222222');
       current().setPaperColor('paper.front', '#333333');
     });
-    expect(events()).toEqual([['paperStyleChanged', { slot: 'display', field: 'paper.front' }]]);
+    expect(events()).toEqual([
+      ['paperStyleChanged', { source: 'simulator-view-controls', slot: 'display', field: 'paper.front' }],
+    ]);
 
     // The picker closing settles the run; the next pick is a new adjustment.
     act(() => current().endAdjustment());
@@ -264,8 +271,18 @@ describe('what it counts', () => {
     tracked.length = 0;
     act(() => current().reset());
     expect(events()).toEqual([
-      ['paperStyleChanged', { slot: 'display', field: 'paper.front' }],
-      ['paperStyleChanged', { slot: 'display', field: 'light' }],
+      ['paperStyleChanged', { source: 'simulator-view-controls', slot: 'display', field: 'paper.front' }],
+      ['paperStyleChanged', { source: 'simulator-view-controls', slot: 'display', field: 'light' }],
+    ]);
+  });
+
+  it('names the surface it was reached from', () => {
+    // The viewport's lighting verb — its key binding and context-menu row —
+    // reaches the same binding as the options pane, and is told apart by this.
+    act(() => root?.render(<Probe source="simulator" />));
+    act(() => current().setLighting(false));
+    expect(events()).toEqual([
+      ['paperStyleChanged', { source: 'simulator', slot: 'display', field: 'light' }],
     ]);
   });
 });

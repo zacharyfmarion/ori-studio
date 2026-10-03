@@ -286,6 +286,39 @@ export type PaperPresetUnsavedChoice = 'save' | 'update' | 'discard' | 'cancel';
 /** Where a preset file was written from: Export… under the list, or a card's own download. */
 export type PaperPresetExportSource = 'button' | 'card';
 
+/**
+ * Where an edit to the app-wide paper style was made: Settings ▸ Paper, the
+ * Simulate options pane (docked, or in the touch View drawer — the name
+ * `view drawer opened` gives it), or the Simulate viewport's own verbs, its
+ * lighting key binding and context-menu row.
+ */
+export type PaperStyleEditSource = 'settings' | 'simulator-view-controls' | 'simulator';
+
+/**
+ * The style a slot runs, for the population rather than for an edit: a
+ * built-in by id, `custom` for a preset the user saved or imported, unedited,
+ * or `unsaved` for a style no saved preset holds — edited since its preset was
+ * applied, or nobody's.
+ */
+export type PaperSlotStyleName = PaperPresetName | 'unsaved';
+
+/** The export slot's style, which reads `linked` while it follows display. */
+export type PaperExportSlotStyleName = PaperSlotStyleName | 'linked';
+
+/**
+ * How the last press of Export ended, for a dialog closed without a file:
+ * never pressed, the save dialog dismissed, the save failed, or the dialog
+ * closed while a ZIP's pages were still painting.
+ */
+export type PaperExportLastSave = 'none' | 'cancelled' | 'failed' | 'stopped';
+
+/**
+ * The sections of the Settings dialog, by the store's ids. Written out here
+ * so the taxonomy stays a leaf with no app imports; a test pins it to
+ * `SettingsTab` both ways.
+ */
+export type SettingsSectionName = 'general' | 'appearance' | 'paper' | 'shortcuts' | 'workspace';
+
 /** The surfaces a document object can pin a paper-style field on. */
 export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
 
@@ -576,6 +609,14 @@ export const ANALYTICS_EVENTS = {
   cpToolUsed: 'cp tool used',
   workspaceViewed: 'workspace viewed',
   /**
+   * A section of the Settings dialog was on show: the one it opened on, then
+   * each one picked. `section` is the section's id. Fired from the dialog, so
+   * every way in counts — the toolbar's gear calls the store directly and never
+   * reaches the `command invoked` chokepoint. Who saw Settings ▸ Paper is the
+   * denominator the paper style's events are read against.
+   */
+  settingsSectionViewed: 'settings section viewed',
+  /**
    * References workspace (`implementation-plans/reference-finder-integration.md`).
    * `reference target picked` is the pick itself — a vertex or a crease in the
    * References view; `reference query completed` is ReferenceFinder's answer
@@ -811,12 +852,13 @@ export const ANALYTICS_EVENTS = {
   foldSolutionCycled: 'fold solution cycled',
   foldedFigureStyled: 'folded figure styled',
   /**
-   * A field of the app-wide paper style was edited — from Settings ▸ Paper, the
-   * Simulate pane's Paper and Creases rows, or a window's sheet. `slot` is
-   * `display` or `export`, `field` the field's path. Once per adjustment: a
-   * colour drag counts when it starts, never per pointer move, and never with
-   * the value. The question is which fields earn their rows and whether the
-   * export slot is ever set apart from display.
+   * A field of the app-wide paper style was edited. `source` is where:
+   * Settings ▸ Paper, the Simulate options pane's Paper and Creases rows, or the
+   * Simulate viewport's lighting verb. `slot` is `display` or `export`, `field`
+   * the field's path. Once per adjustment: a colour drag counts when it starts,
+   * never per pointer move, and never with the value. The question is which
+   * fields earn their rows, from where, and whether the export slot is ever set
+   * apart from display.
    */
   paperStyleChanged: 'paper style changed',
   /**
@@ -852,6 +894,26 @@ export const ANALYTICS_EVENTS = {
    */
   paperPresetExported: 'paper preset exported',
   /**
+   * The slot's style was kept as a preset of the user's own, under a name they
+   * gave — never the name. From Save current as…, or the save the unsaved-
+   * changes prompt leads to. With `paper preset applied { preset: custom }`
+   * it says whether the presets people make get used again.
+   */
+  paperPresetSaved: 'paper preset saved',
+  /**
+   * A preset file was read in Settings ▸ Paper: `succeeded`, or not, with the
+   * parser's own `reason` (`invalid-json` / `not-a-preset`). A dismissed file
+   * picker counts nothing. A read preset is added to the list, and applying it
+   * then counts as `paper preset applied { preset: custom }`.
+   */
+  paperPresetImported: 'paper preset imported',
+  /**
+   * The export slot was detached from the display style (`linked: false`) or
+   * set to follow it again (`linked: true`). Whether anyone wants exports to
+   * look different from the screen at all.
+   */
+  paperExportLinkChanged: 'paper export link changed',
+  /**
    * A document object had a paper-style field pinned, or the pin cleared
    * (`reset: true`), from its Properties sheet or the folded Style menu.
    * `surface` says which kind of object, `field` which row. Per-object pins
@@ -875,6 +937,21 @@ export const ANALYTICS_EVENTS = {
    * context-menu verbs the menu chokepoint does not see.
    */
   paperExportOpened: 'paper export opened',
+  /**
+   * The reader closed the export dialog without writing a file — the funnel's
+   * other ending, so every dialog the reader ends is one `paper exported` or
+   * one of these. `last_save` is how the last press of Export went: `none`,
+   * `cancelled` (the save dialog was dismissed), `failed`, or `stopped` (closed
+   * while a ZIP's pages were still painting). Changed their mind, against
+   * something in the way.
+   */
+  paperExportDismissed: 'paper export dismissed',
+  /**
+   * A save from the export dialog threw. The dialog shows the message and stays
+   * open; this counts it, by `surface`, `format` and `scope`, and the error
+   * itself goes to Sentry. Never the message.
+   */
+  paperExportFailed: 'paper export failed',
   foldedFigureOrbited: 'folded figure orbited',
   foldedFigureZoomed: 'folded figure zoomed',
   // Whether anyone reaches for a model up at all is the question this answers —

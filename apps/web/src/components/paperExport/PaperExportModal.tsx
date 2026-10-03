@@ -54,7 +54,7 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
   return (
     <ExportModalFrame
       title={dialog.title}
-      onClose={close}
+      onClose={dialog.dismiss}
       onSubmit={() => void dialog.exportNow()}
       busy={dialog.busy}
       returnFocus={request.returnFocus}
@@ -96,7 +96,7 @@ function PaperExportDialog({ request }: { request: PaperExportRequest }) {
               })}
             </span>
           )}
-          <Button size="sm" variant="ghost" disabled={dialog.busy} onClick={close}>
+          <Button size="sm" variant="ghost" disabled={dialog.busy} onClick={dialog.dismiss}>
             {t('dialogs:common.cancel', 'Cancel')}
           </Button>
           <Button

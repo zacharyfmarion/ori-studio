@@ -125,7 +125,7 @@ export function SimulatorPanel() {
   const viewSettings = useWorkspaceStore((state) => state.simulatorSettings);
   // How the paper is drawn is the app-wide style, not a simulator setting;
   // the same binding the options pane edits it through.
-  const paper = useSimulatorPaperStyle();
+  const paper = useSimulatorPaperStyle("simulator");
   const paperStyle = paper.style;
   const shortcutOverrides = useShortcutStore((store) => store.overrides);
   const setSimulatorSetting = useWorkspaceStore((state) => state.setSimulatorSetting);

@@ -45,20 +45,25 @@ export type {
   PaperExportBackground,
   PaperExportFormat,
   PaperExportHiddenFaces,
+  PaperExportLastSave,
   PaperExportResolution,
   PaperExportScope,
+  PaperExportSlotStyleName,
   PaperExportStyleName,
   PaperExportSurface,
   PaperOverrideSurface,
   PaperPresetExportSource,
   PaperPresetName,
   PaperPresetUnsavedChoice,
+  PaperSlotStyleName,
+  PaperStyleEditSource,
   PaperStyleFieldName,
   ProjectOpenSource,
   ReferenceExactnessClass,
   ReferenceQueryOutcome,
   ReferenceRefusalReason,
   ReferenceTargetKind,
+  SettingsSectionName,
   UpdateCheckResult,
   UpdateDismissScope,
   UpdateFailureReason,
@@ -86,7 +91,9 @@ export { trackDesignSentToEdit } from './trackSendToEdit';
 export { trackDesktopDownload } from './trackDesktopDownload';
 export { trackCreasePatternExported } from './trackCreasePatternExport';
 export {
+  trackPaperExportDismissed,
   trackPaperExported,
+  trackPaperExportFailed,
   trackPaperExportOpened,
   type PaperExportedEvent,
 } from './trackPaperExport';
@@ -99,6 +106,7 @@ export {
   useLandingViewedEvent,
 } from './useLandingViewedEvent';
 export { useWorkspaceViewedEvent } from './useWorkspaceViewedEvent';
+export { useSettingsSectionViewedEvent } from './useSettingsSectionViewedEvent';
 export {
   useReferencesWaysExploredEvent,
   type ReferencesWaysVisitCard,

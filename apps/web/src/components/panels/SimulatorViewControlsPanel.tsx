@@ -39,7 +39,7 @@ export function SimulatorViewControlsPanel() {
   const ready = useSimulationInHand();
   // How the paper is drawn is the app-wide paper style, not a simulator
   // setting; these rows are its simulator-facing subset.
-  const paper = useSimulatorPaperStyle();
+  const paper = useSimulatorPaperStyle('simulator-view-controls');
   // The page an export is painted onto is the export dialog's alone (X7).
   // Folds drawn as edges take the paper edge's colour, so the per-kind
   // swatches stop doing anything; showing them live would promise an effect

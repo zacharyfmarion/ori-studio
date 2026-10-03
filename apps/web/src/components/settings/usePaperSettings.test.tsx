@@ -114,8 +114,19 @@ describe('usePaperSettings', () => {
     expect(stored().display.paper.front).toBe('#abcdef');
     expect(tracked).toContainEqual({
       event: 'paperStyleChanged',
-      properties: { slot: 'export', field: 'paper.front' },
+      properties: { source: 'settings', slot: 'export', field: 'paper.front' },
     });
+  });
+
+  it('counts detaching the export style and following display again, once per change', () => {
+    act(() => current().setExportFollowsDisplay(false));
+    act(() => current().setExportFollowsDisplay(false));
+    act(() => current().setExportFollowsDisplay(true));
+    expect(tracked).toEqual([
+      { event: 'paperExportLinkChanged', properties: { linked: false } },
+      { event: 'paperExportLinkChanged', properties: { linked: true } },
+    ]);
+    expect(current().exportFollowsDisplay).toBe(true);
   });
 
   it('lists the built-ins first, then the saved presets in order', () => {
@@ -157,6 +168,15 @@ describe('usePaperSettings', () => {
     ]);
     act(() => current().removePreset('Print'));
     expect(stored().presets).toEqual([]);
+  });
+
+  it('counts a save by its slot, never its name, and nothing for a name it refuses', () => {
+    act(() => current().savePreset('   '));
+    expect(stored().presets).toEqual([]);
+    expect(tracked).toEqual([]);
+
+    act(() => current().savePreset('Mine'));
+    expect(tracked).toEqual([{ event: 'paperPresetSaved', properties: { slot: 'display' } }]);
   });
 
   it('counts a continuous adjustment once per field until it is settled', () => {
@@ -226,6 +246,7 @@ describe('usePaperSettings', () => {
     expect(stored().presets.map((preset) => preset.name)).toEqual(['Shared']);
     expect(stored().display.paper).toEqual({ front: '#111111', back: '#222222' });
     expect(tracked).toEqual([
+      { event: 'paperPresetImported', properties: { slot: 'display', succeeded: true } },
       { event: 'paperPresetApplied', properties: { slot: 'display', preset: 'custom' } },
     ]);
     expect(toast.error).not.toHaveBeenCalled();
@@ -361,7 +382,7 @@ describe('usePaperSettings', () => {
     expect(stored().display.erode).toBe(0.02);
   });
 
-  it('says why a file did not import, and changes nothing', async () => {
+  it('says why a file did not import, changes nothing, and counts the parser’s reason', async () => {
     openTextFile.mockResolvedValueOnce({ text: '{not json', name: 'a.json', path: null });
     await act(() => current().importPreset());
     expect(toast.error).toHaveBeenCalledWith('That file is not JSON');
@@ -372,11 +393,21 @@ describe('usePaperSettings', () => {
       'That file is not a paper style: it needs a name and a style'
     );
 
+    // A dismissed picker read nothing, so it counts nothing.
     openTextFile.mockResolvedValueOnce(null);
     await act(() => current().importPreset());
     expect(toast.error).toHaveBeenCalledTimes(2);
     expect(stored().presets).toEqual([]);
-    expect(tracked).toEqual([]);
+    expect(tracked).toEqual([
+      {
+        event: 'paperPresetImported',
+        properties: { slot: 'display', succeeded: false, reason: 'invalid-json' },
+      },
+      {
+        event: 'paperPresetImported',
+        properties: { slot: 'display', succeeded: false, reason: 'not-a-preset' },
+      },
+    ]);
   });
 
   it('exports a preset as its own file, named after it, and counts where from', async () => {
