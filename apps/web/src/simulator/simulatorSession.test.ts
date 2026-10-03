@@ -533,6 +533,22 @@ describe('a Diagram step’s picture (flatScene, sessionScene)', () => {
     session.dispose();
   }, 30_000);
 
+  it('settles the solver first when asked, so a scene taken at once is the fold it was told', async () => {
+    const session = createSimulatorSession();
+    const fold = miura(6, 6);
+    const settled = session.load(fold, {});
+    session.setFoldPercent(60, settled.token);
+    await session.settle(20_000, { token: settled.token });
+    const atRest = session.sessionScene({ ...still, token: settled.token });
+
+    const hurried = session.load(fold, {});
+    session.setFoldPercent(60, hurried.token);
+    // Not a step taken yet: unsettled, it is still the flat sheet.
+    expect(session.sessionScene({ ...still, token: hurried.token })).toEqual(session.flatScene(fold, still));
+    expect(session.sessionScene({ ...still, token: hurried.token, settleSteps: 20_000 })).toEqual(atRest);
+    session.dispose();
+  }, 30_000);
+
   it('is the model where the solver holds it, once folded', async () => {
     const session = createSimulatorSession();
     const fold = miura(6, 6);

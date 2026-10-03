@@ -50,6 +50,7 @@ import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
 import { pickStepPictures } from './upload/addStepPictures';
 import { needsPose } from './capture/linkStatus';
+import { simulatedRestNow } from './capture/openLinkedPose';
 import { lightingChanged } from './pictures/lighting';
 
 /**
@@ -204,9 +205,14 @@ function bindStepActions(
       refreshPicture: () => {
         const current = store().diagram;
         const step = current?.steps[stepIndex(current, stepId)];
-        // Folded part way in the simulator: only Pose captures it again (D19).
-        if (step && needsPose(step)) openDiagramStep(stepId, 'pose_again');
-        else void refreshDiagramStep(stepId);
+        // Folded part way in the simulator: only Pose captures it again (D19) —
+        // a rest now when Pose is open on it, else Pose opened, which rests as
+        // the model comes up.
+        if (step && needsPose(step)) {
+          if (!simulatedRestNow(stepId)) openDiagramStep(stepId, 'pose_again');
+        } else {
+          void refreshDiagramStep(stepId);
+        }
       },
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),

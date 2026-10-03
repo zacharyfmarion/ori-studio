@@ -3793,7 +3793,9 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7589,7 +7591,9 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11387,7 +11391,9 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15112,7 +15118,9 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -18837,7 +18845,9 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22633,7 +22643,9 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26429,7 +26441,9 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -30154,6 +30168,8 @@
     "panels:diagram.picture.verbs": "8ff928bfef3c",
     "panels:diagram.pose.back": "76900f1bfd16",
     "panels:diagram.pose.front": "a61759020289",
-    "panels:diagram.grid.insertHere": "3acb8ddd24c0"
+    "panels:diagram.grid.insertHere": "3acb8ddd24c0",
+    "panels:diagram.pose.simulatedMissing": "76879e6348c5",
+    "panels:diagram.pose.simulatedNoPattern": "8c92b4612727"
   }
 }

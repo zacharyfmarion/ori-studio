@@ -105,6 +105,13 @@ export interface PoseController {
    * shown Simulated: the rest was of a view it has left.
    */
   simulate: (rest: SimulatedRest) => Promise<void>;
+  /**
+   * Whether a rest at this pose would be captured now: the step is shown
+   * Simulated, and the pose is not the picture it has, or that picture is out
+   * of date. Asked before a rest's scene is drawn, so a rest that would be
+   * dropped costs the worker nothing.
+   */
+  wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
   /** Fold a step shown in 3D for its live view. */
   prepareSpatial: () => Promise<void>;
   /** An undo or redo: stop what is still folding for a source the step no longer has. */
@@ -210,6 +217,12 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     if (!repeated) sayCaptureOutcome(outcome);
   };
 
+  const wantsRest = (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>): boolean => {
+    const linked = currentLinkedSource(stepId);
+    if (linked?.render.mode !== 'simulated') return false;
+    return !sameSimulatedPose(linked.render, pose) || needsRecapture(stepId, linked);
+  };
+
   const cancelOrbit = () => {
     if (orbitTimer) clearTimeout(orbitTimer);
     orbitTimer = null;
@@ -227,6 +240,8 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       }, ORBIT_SETTLE_MS);
     },
 
+    wantsRest,
+
     simulate(rest) {
       // One rest at a time, the newest waiting: a rest that came after the
       // one being captured is what the view shows, so it must not be refused
@@ -240,9 +255,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
           while (nextRest) {
             const next = nextRest;
             nextRest = null;
-            const linked = currentLinkedSource(stepId);
-            if (linked?.render.mode !== 'simulated') continue;
-            if (sameSimulatedPose(linked.render, next) && !needsRecapture(stepId, linked)) continue;
+            if (!wantsRest(next)) continue;
             await run({ verb: 'simulate', ...next });
           }
         } finally {
@@ -273,11 +286,14 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     historyMoved() {
       cancelOrbit();
+      // A rest still waiting is of a pose the undo just took back.
+      nextRest = null;
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
     },
 
     documentReplaced() {
       cancelOrbit();
+      nextRest = null;
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
       session.dispose();
       listener.spatial(null, null);
@@ -285,6 +301,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     engineLost() {
       cancelOrbit();
+      nextRest = null;
       session.forget();
       listener.spatial(null, null);
     },

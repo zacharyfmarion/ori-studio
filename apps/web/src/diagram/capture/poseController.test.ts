@@ -1,3 +1,4 @@
+import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
@@ -222,6 +223,41 @@ describe('the Pose controller', () => {
     await last;
     expect(still).toHaveBeenCalledOnce();
     expect(render(stepId)).toMatchObject({ render: { foldPercent: 40 } });
+    controller.dispose();
+  });
+
+  it('drops a rest still waiting when an undo comes, so the undo stands and redo is kept', async () => {
+    const stepId = await linkedStep();
+    const view = { yaw: 0.3, pitch: -0.8, zoom: 1.4 };
+    const simulated = (foldPercent: number) =>
+      useWorkspaceStore.setState({
+        diagram: {
+          ...state().diagram!,
+          steps: state().diagram!.steps.map((step) =>
+            step.id === stepId && step.source?.kind === 'cp'
+              ? { ...step, source: { ...step.source, render: { mode: 'simulated', foldPercent, view } } }
+              : step
+          ),
+        },
+      });
+    simulated(0);
+    const controller = createPoseController(stepId, listener());
+    const still = vi.fn(async () => sheetWithCrease());
+    await controller.simulate({ foldPercent: 40, view, still });
+    expect(render(stepId)).toMatchObject({ render: { foldPercent: 40 } });
+
+    let release = () => {};
+    const slow = vi.fn(() => new Promise<ReturnType<typeof sheetWithCrease>>((resolve) => (release = () => resolve(sheetWithCrease()))));
+    const first = controller.simulate({ foldPercent: 50, view, still: slow });
+    await vi.waitFor(() => expect(slow).toHaveBeenCalled());
+    void controller.simulate({ foldPercent: 70, view, still });
+    // Undo, as Pose's key does it: the sessions hear of it first.
+    controller.historyMoved();
+    act(() => state().undoDiagram());
+    release();
+    await first;
+    expect(render(stepId)).toMatchObject({ render: { foldPercent: 0 } });
+    expect(state().diagramHistory.future.length).toBeGreaterThan(0);
     controller.dispose();
   });
 

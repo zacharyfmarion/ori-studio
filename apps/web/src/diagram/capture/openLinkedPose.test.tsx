@@ -13,6 +13,7 @@ const pose = (): DiagramLinkedPose => ({
   rotateTo: () => {},
   showAs: async () => {},
   simulate: async () => {},
+  wantsRest: () => false,
 });
 
 afterEach(() => publishOpenLinkedPose(null, null));

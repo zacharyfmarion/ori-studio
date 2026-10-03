@@ -277,11 +277,13 @@ export function DiagramStepDetail({
           <DiagramPoseSimulatedView
             // One simulator per step: another step loads its own.
             key={step.id}
+            stepId={step.id}
             scope={linked.scope}
             render={linked.render}
             style={style}
             annotations={ghost}
             onRest={linkedPose.simulate}
+            wantsRest={linkedPose.wantsRest}
             fallback={picture}
             toolbar={poseToolbar}
           />

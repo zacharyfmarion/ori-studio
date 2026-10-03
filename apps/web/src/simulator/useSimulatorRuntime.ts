@@ -23,7 +23,7 @@ import {
 import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
 import type { PaperScene } from '../lib/paper/paperScene';
-import type { SimulatorExportSceneOptions, SimulatorStillSceneOptions } from './simulatorSession';
+import type { SimulatorExportSceneOptions, SimulatorSessionSceneOptions } from './simulatorSession';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -197,7 +197,7 @@ export interface SimulatorRuntime {
    * as `flatScene` gives the same step at 0% with no session. Null when this
    * runtime holds no model.
    */
-  stillScene: (options: SimulatorStillSceneOptions) => Promise<PaperScene | null>;
+  stillScene: (options: Omit<SimulatorSessionSceneOptions, 'token'>) => Promise<PaperScene | null>;
 }
 
 export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): SimulatorRuntime {
@@ -754,7 +754,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     };
   }, []);
 
-  const stillScene = useCallback(async (options: SimulatorStillSceneOptions): Promise<PaperScene | null> => {
+  const stillScene = useCallback(async (options: Omit<SimulatorSessionSceneOptions, 'token'>): Promise<PaperScene | null> => {
     const client = clientRef.current;
     const token = tokenRef.current;
     if (!client || token === undefined) return null;

@@ -348,6 +348,12 @@ export interface SimulatorStillSceneOptions extends SimulatorExportSceneOptions 
 /** A live session's model where it is now (`SimulatorWorkerApi.sessionScene`). */
 export interface SimulatorSessionSceneOptions extends SimulatorStillSceneOptions {
   token: SimulatorSessionToken;
+  /**
+   * Settle the solver first, for up to this many steps: for a caller that
+   * cannot wait for it to come to rest — Pose closing a moment after a move —
+   * so what is drawn is the fold it was told, not one on its way there.
+   */
+  settleSteps?: number;
 }
 
 /**
@@ -1460,6 +1466,7 @@ const api = {
     // the picture `flatScene` gives it.
     let positions = originalPositions;
     if (active.foldPercent !== 0) {
+      if (options.settleSteps) active.clock.runToConvergence(active.backend, options.settleSteps);
       positions = new Float32Array(prepared.vertexCount * 3);
       active.backend.readPositions(positions);
     }

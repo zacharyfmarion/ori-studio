@@ -228,6 +228,7 @@ describe('DiagramStepPanel', () => {
           rotateTo,
           showAs: async () => {},
           simulate: async () => {},
+          wantsRest: () => false,
         });
       });
       expect(pressed('Side')).toBe('Back');

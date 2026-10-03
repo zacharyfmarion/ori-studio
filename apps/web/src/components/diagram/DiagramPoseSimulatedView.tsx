@@ -36,31 +36,36 @@ const ignoreCanvas = () => {};
  * (`useDiagramSimulatedPose`).
  *
  * The transport is handed to `toolbar`, the detail's Pose bar, between its
- * Show switch and its Reset. While the simulator cannot run here — no WebGL2
- * in its worker, a region with no model, a solver that failed — the captured
- * picture (`fallback`) shows with a line saying why, and the bar still shows
- * the step another way.
+ * Show switch and its Reset. While the simulator cannot run here — no pattern
+ * open, the region gone, no WebGL2 in its worker, a region with no model, a
+ * solver that failed — the captured picture (`fallback`) shows with a line
+ * saying why, and the bar still shows the step another way.
  */
 export function DiagramPoseSimulatedView({
+  stepId,
   scope,
   render,
   style,
   annotations,
   onRest,
+  wantsRest,
   fallback,
   toolbar,
 }: {
+  stepId: string;
   scope: DiagramCpScope;
   render: { foldPercent: number; view: DiagramSimulatedView };
   style: DiagramStyle;
   /** The annotations to ghost, when they are in step with the stored picture; null otherwise. */
   annotations: DiagramPoseAnnotations | null;
   onRest: (rest: SimulatedRest) => Promise<void>;
+  /** Whether a rest at a pose would be captured: asked before its scene is drawn. */
+  wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
   fallback: ReactNode;
   toolbar: (transport: ReactNode) => ReactNode;
 }) {
   const { t } = useTranslation();
-  const pose = useDiagramSimulatedPose({ scope, render, onRest });
+  const pose = useDiagramSimulatedPose({ stepId, scope, render, onRest, wantsRest });
   const paperStyle = useMemo(() => diagramPaperStyle(style), [style]);
   // The view opens where the step is; later poses come through `setView`.
   const [opening] = useState(render.view);
@@ -81,6 +86,13 @@ export function DiagramPoseSimulatedView({
         return t(
           'panels:diagram.pose.simulatedNeedsGpu',
           'Folding it here needs WebGL2. Its picture stays as it is.'
+        );
+      case 'no-pattern':
+        return t('panels:diagram.pose.simulatedNoPattern', 'Open its crease pattern in Edit to fold it here.');
+      case 'missing':
+        return t(
+          'panels:diagram.pose.simulatedMissing',
+          'Its pattern isn’t in the crease pattern any more: relink it to fold it here.'
         );
       case 'unavailable':
         return t('panels:diagram.pose.simulatedUnavailable', 'This pattern can’t be simulated.');

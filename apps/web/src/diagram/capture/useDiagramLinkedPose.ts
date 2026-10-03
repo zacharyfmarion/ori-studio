@@ -32,6 +32,8 @@ export interface DiagramLinkedPose {
   showAs: (way: DiagramShowAs) => Promise<void>;
   /** Pose's simulator came to rest: captured, if it is not the step's picture already (D19). */
   simulate: (rest: SimulatedRest) => Promise<void>;
+  /** Whether a rest at this pose would be captured: asked before its scene is drawn. */
+  wantsRest: (pose: Pick<SimulatedRest, 'foldPercent' | 'view'>) => boolean;
 }
 
 /**
@@ -127,9 +129,14 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     [controller, readOnly]
   );
 
+  const wantsRest = useCallback(
+    (rest: Pick<SimulatedRest, 'foldPercent' | 'view'>) => controller !== null && !readOnly && controller.wantsRest(rest),
+    [controller, readOnly]
+  );
+
   const pose = useMemo(
-    () => (source ? { actions, spatial: view, onCamera, rotateTo, showAs, simulate } : null),
-    [source, actions, view, onCamera, rotateTo, showAs, simulate]
+    () => (source ? { actions, spatial: view, onCamera, rotateTo, showAs, simulate, wantsRest } : null),
+    [source, actions, view, onCamera, rotateTo, showAs, simulate, wantsRest]
   );
   // The Step pane offers these verbs too, through this one controller.
   useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);

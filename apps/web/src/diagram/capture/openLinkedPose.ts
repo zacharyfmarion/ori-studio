@@ -36,3 +36,27 @@ export function useOpenLinkedPose(stepId: string | null): DiagramLinkedPose | nu
 export function openLinkedPoseOf(stepId: string): DiagramLinkedPose | null {
   return open !== null && open.stepId === stepId ? open.pose : null;
 }
+
+/**
+ * The live simulator Pose shows for a step shown as Simulated, as far as a
+ * surface beside it needs it: its "rest now", which captures the model where
+ * it is if that is not the step's picture already — Pose Again on a step
+ * already open (D19). Registered by the view while it is up.
+ */
+let restNow: { stepId: string; run: () => void } | null = null;
+
+/** The open simulated view's rest now, until the returned function lets it go. */
+export function registerSimulatedRestNow(stepId: string, run: () => void): () => void {
+  const entry = { stepId, run };
+  restNow = entry;
+  return () => {
+    if (restNow === entry) restNow = null;
+  };
+}
+
+/** Bring `stepId`'s live simulator to a rest now; false when Pose shows no simulator for it. */
+export function simulatedRestNow(stepId: string): boolean {
+  if (restNow === null || restNow.stepId !== stepId) return false;
+  restNow.run();
+  return true;
+}
