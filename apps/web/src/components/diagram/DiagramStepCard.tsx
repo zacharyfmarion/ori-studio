@@ -71,12 +71,8 @@ export const DiagramStepCard = forwardRef<
     /** Choose a pattern for this step. */
     onLink: (stepId: string) => void;
     onStop: (stepId: string) => void;
-    /** References' next Send to diagram fills this step (From References…). */
-    waiting: boolean;
-    /** Ask References for this step's picture. */
+    /** Fill this step from the References browser. */
     onFromReferences: (stepId: string) => void;
-    /** Stop waiting for one. */
-    onCancelWaiting: () => void;
     /** Open this step in Pose or Annotate, from the buttons over its picture. */
     onOpenIn: (stepId: string, mode: 'pose' | 'annotate') => void;
     /** Go to Edit: an empty step's way to a pattern when none is open. */
@@ -101,9 +97,7 @@ export const DiagramStepCard = forwardRef<
     patternOpen,
     onLink,
     onStop,
-    waiting,
     onFromReferences,
-    onCancelWaiting,
     onOpenIn,
     onGoToEdit,
   },
@@ -128,25 +122,23 @@ export const DiagramStepCard = forwardRef<
   const restyled = capturedStyleChange(step, style);
   const chip = capture
     ? t('panels:diagram.card.capturing', 'Capturing…')
-    : waiting
-      ? t('panels:diagram.card.waitingReferences', 'Waiting for References')
-      : link === 'stale'
-        ? // A step sent from References is never refreshed: its sheet changed, that is all.
-          sent
-          ? t('panels:diagram.card.patternChanged', 'Pattern changed')
-          : needsPose(step)
-            ? // Folded part way in the simulator: only Pose captures it again (D19).
-              t('panels:diagram.card.stalePoseAgain', 'Out of date · Pose again')
-            : t('panels:diagram.card.stale', 'Out of date')
-        : link === 'missing'
-          ? t('panels:diagram.card.missing', 'Pattern missing')
-          : restyled === 'light'
-            ? t('panels:diagram.card.lightingChanged', 'Lighting changed')
-            : restyled === 'style'
-              ? t('panels:diagram.card.styleChanged', 'Style changed')
-              : textCut
-              ? t('panels:diagram.card.textCut', 'Text doesn’t fit')
-              : null;
+    : link === 'stale'
+      ? // A step sent from References is never refreshed: its sheet changed, that is all.
+        sent
+        ? t('panels:diagram.card.patternChanged', 'Pattern changed')
+        : needsPose(step)
+          ? // Folded part way in the simulator: only Pose captures it again (D19).
+            t('panels:diagram.card.stalePoseAgain', 'Out of date · Pose again')
+          : t('panels:diagram.card.stale', 'Out of date')
+      : link === 'missing'
+        ? t('panels:diagram.card.missing', 'Pattern missing')
+        : restyled === 'light'
+          ? t('panels:diagram.card.lightingChanged', 'Lighting changed')
+          : restyled === 'style'
+            ? t('panels:diagram.card.styleChanged', 'Style changed')
+            : textCut
+            ? t('panels:diagram.card.textCut', 'Text doesn’t fit')
+            : null;
   // A press must not take focus from the card's keys.
   const keepFocus = (event: { preventDefault: () => void }) => event.preventDefault();
 
@@ -241,7 +233,7 @@ export const DiagramStepCard = forwardRef<
                     {t('panels:diagram.card.goToEdit', 'Go to Edit')}
                   </Button>
                 )}
-                {patternOpen && !waiting && (
+                {patternOpen && (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -300,23 +292,8 @@ export const DiagramStepCard = forwardRef<
           </span>
         )}
         {chip && (
-          <span className={styles.chip} data-tone={capture || waiting ? 'progress' : 'warning'}>
+          <span className={styles.chip} data-tone={capture ? 'progress' : 'warning'}>
             <span id={`${labelId}-chip`}>{chip}</span>
-            {waiting && !capture && (
-              <button
-                type="button"
-                className={styles.stop}
-                tabIndex={-1}
-                aria-hidden="true"
-                onMouseDown={keepFocus}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onCancelWaiting();
-                }}
-              >
-                {t('panels:diagram.card.cancelWaiting', 'Cancel')}
-              </button>
-            )}
             {capture?.stoppable && (
               <button
                 type="button"

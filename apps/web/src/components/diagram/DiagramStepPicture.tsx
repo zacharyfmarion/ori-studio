@@ -8,6 +8,7 @@ import {
   Link2,
   PenTool,
   RefreshCw,
+  Replace,
   Rotate3d,
   Upload,
   type LucideIcon,
@@ -41,6 +42,7 @@ const PATTERN_VERBS: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = 
   { id: 'link-pattern', icon: Link2 },
   { id: 'from-references', icon: Compass },
   { id: 'open-in-edit', icon: PenTool },
+  { id: 'replace-from-references', icon: Replace },
   { id: 'open-in-references', icon: Compass },
 ];
 const FILE_VERBS: readonly { id: DiagramStepActionId; icon: LucideIcon }[] = [
@@ -74,7 +76,6 @@ export function DiagramStepPicture({
   link,
   patternOpen,
   capture,
-  waiting,
   picker,
   detailOpen,
 }: {
@@ -90,8 +91,6 @@ export function DiagramStepPicture({
   patternOpen: boolean;
   /** The step's capture while one runs, and its Stop when the fold can be stopped. */
   capture: { stop: (() => void) | null } | null;
-  /** References' next Send to diagram fills this step (From References…), and the way to stop waiting. */
-  waiting: { cancel: () => void } | null;
   /** The pattern picker, while the step's pattern is being chosen. */
   picker: ReactNode;
   /** The step is open in its detail, where Adjust pose would lead nowhere new. */
@@ -99,11 +98,10 @@ export function DiagramStepPicture({
 }) {
   const { t } = useTranslation();
   const source = step.source?.kind === 'cp' || step.source?.kind === 'references-step' ? step.source : null;
-  // A pick or Cancel closes the picker, or the waiting notice, under the
-  // focus: back to the verb that opened it.
+  // A pick or Cancel closes the picker under the focus: back to the verb
+  // that opened it.
   const section = useRef<HTMLDivElement | null>(null);
   useReturnFocusOnClose(Boolean(picker), section, '[data-action="link-pattern"]');
-  useReturnFocusOnClose(Boolean(waiting), section, '[data-action="from-references"]');
   const empty = step.source === null && step.picture === null;
   const items = (verbs: readonly { id: DiagramStepActionId; icon: LucideIcon }[]): ActionListItem[] =>
     verbs.flatMap(({ id, icon }) => {
@@ -162,19 +160,6 @@ export function DiagramStepPicture({
               'panels:diagram.picture.noLayerOrder',
               'Its layers couldn’t be put in order, so it shows the folded paper see-through.'
             )}
-          </Notice>
-        </div>
-      )}
-      {waiting && (
-        <div className={styles.notice}>
-          <Notice>
-            {t(
-              'panels:diagram.picture.waitingReferences',
-              'Waiting for References: the next step sent to the diagram fills this one.'
-            )}{' '}
-            <Button size="sm" variant="ghost" onClick={waiting.cancel}>
-              {t('panels:diagram.picture.cancelWaiting', 'Cancel')}
-            </Button>
           </Notice>
         </div>
       )}
@@ -246,9 +231,9 @@ function describeSent(
 function sentSentence(link: DiagramLinkStatus, patternOpen: boolean, t: TFunction): string {
   switch (link) {
     case 'current':
-      return t('panels:diagram.picture.sentCurrent', 'Unchanged since this step was sent');
+      return t('panels:diagram.picture.sentCurrent', 'Unchanged since this step was added');
     case 'stale':
-      return t('panels:diagram.picture.sentStale', 'Pattern changed since this step was sent');
+      return t('panels:diagram.picture.sentStale', 'Pattern changed since this step was added');
     case 'missing':
       return t('panels:diagram.picture.missing', 'Pattern missing');
     case 'unknown':

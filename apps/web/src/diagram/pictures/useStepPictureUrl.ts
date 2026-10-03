@@ -35,7 +35,7 @@ export function useStepPictureUrl(
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle
 ): string | null {
-  const seen = useSeen(element);
+  const seen = useNearView(element);
   const source = useMemo(() => stepPictureSource(step, assets), [step, assets]);
   const { annotations } = step;
   return useMemo(
@@ -122,8 +122,12 @@ export function posedAssetUrl(asset: KnownDiagramAsset, pose: PicturePose): stri
   return cachedPictureUrl(key, paint) ?? paint();
 }
 
-/** Whether the element has come near the view; stays true once it has. */
-function useSeen(element: RefObject<Element | null>): boolean {
+/**
+ * Whether the element has come near the view (within the paint-ahead margin
+ * of its scroller); stays true once it has. What a card waits for before it
+ * paints a picture.
+ */
+export function useNearView(element: RefObject<Element | null>): boolean {
   // Without an observer (a test environment) everything counts as seen.
   const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined');
   useEffect(() => {

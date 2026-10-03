@@ -139,14 +139,14 @@ export type DiagramShowAsVia = 'pane' | 'picker' | 'card' | 'duplicate';
 /** The workspace a diagram step's Open in… went to: its pattern in Edit, or its sheet in References. */
 export type DiagramSourceWorkspace = 'edit' | 'references';
 
-/** Which References verb sent cards to the diagram: Send to diagram (`one`) or Send all (`all`). */
-export type ReferencesSentToDiagramVia = 'one' | 'all';
+/** The list the References browser pulled cards from: a planned pattern's sequence, or the Find answer. */
+export type DiagramPulledMode = 'sequence' | 'find';
 
-/** Where sent cards landed: new steps, or the step From References… was waiting to fill. */
-export type ReferencesSentToDiagramInto = 'new_steps' | 'waiting_step';
-
-/** The workspace mode the cards came from. */
-export type ReferencesSentToDiagramMode = 'sequence' | 'find';
+/**
+ * Where the References browser adds cards, fixed as it opens: after a step,
+ * at the end, into an empty step, or in place of a References step's card.
+ */
+export type DiagramPulledInto = 'after' | 'end' | 'fill' | 'replace';
 
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
@@ -1219,12 +1219,17 @@ export const ANALYTICS_EVENTS = {
    */
   diagramExported: 'diagram exported',
   /**
-   * Cards sent from References to the diagram (D6): from the planner's
-   * sequence or a Find answer, one card or the strip, how many, and whether
-   * they filled the step From References… asked from. Whether References is
-   * how diagrams get their precreasing steps. Never a card, a line or a sentence.
+   * The References browser opened in the Diagram (D20), and for where: what
+   * `diagram steps pulled from references` is read against.
    */
-  referencesStepSentToDiagram: 'references step sent to diagram',
+  diagramReferencesBrowserOpened: 'diagram references browser opened',
+  /**
+   * Cards pulled into the diagram from the References browser (D20): from a
+   * planned pattern's sequence or the Find answer, how many, and where they
+   * went. Whether the Diagram is where precreasing steps are chosen, and
+   * whether filling and replacing are found. Never a card, a line or a sentence.
+   */
+  diagramStepsPulledFromReferences: 'diagram steps pulled from references',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',

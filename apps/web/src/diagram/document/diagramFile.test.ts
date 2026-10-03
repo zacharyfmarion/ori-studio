@@ -594,12 +594,13 @@ describe('linked steps in the file', () => {
   });
 });
 
-/** A sequence card, a Find step of the back, and a card no region matched. */
+/** A sequence card, a Find step of the back, a card no region matched, and one pulled with its plan and way. */
 function sentDiagram() {
   const steps = [
     referencesStep('step-seq'),
     referencesStep('step-find', { mode: 'find', settings: null, line: null, card: 1, side: 'back' }),
     referencesStep('step-turn', { card: null, line: null, fingerprint: null }),
+    referencesStep('step-pulled', { plan: '{"planner":"p"}', way: 'O1:c0,c1:0' }),
   ];
   return insertSteps(createDiagram({ title: 'Crane', newId: sequentialIds() }), steps, 0);
 }
@@ -610,6 +611,16 @@ describe('steps sent from References in the file', () => {
     const read = readDiagram(throughJson(writeDiagram(document)))!;
     expect(read.document).toEqual(document);
     expect(JSON.stringify(writeDiagram(read.document))).toBe(JSON.stringify(writeDiagram(document)));
+  });
+
+  it('drops a plan or a way that does not read, and keeps the step and the rest of its source', () => {
+    const written = throughJson(writeDiagram(sentDiagram()));
+    written.steps[3].source.plan = 7;
+    written.steps[3].source.way = '';
+    const step = readDiagram(written)!.document.steps[3];
+    expect(step.source).toMatchObject({ kind: 'references-step', card: 2 });
+    expect(step.source).not.toHaveProperty('plan');
+    expect(step.source).not.toHaveProperty('way');
   });
 
   it('keeps a card drawn with a primitive this build does not draw, locked and verbatim', () => {

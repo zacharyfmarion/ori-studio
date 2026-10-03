@@ -297,8 +297,6 @@
     "recompute": "リファレンスを再計算",
     "resetView": "リファレンスビューをリセット",
     "scopeLabel": "リファレンス",
-    "sendAllToDiagram": "すべて折り図に送る",
-    "sendToDiagram": "折り図に送る",
     "toggleLandmarksFirst": "目印を先に",
     "zoomIn": "リファレンスを拡大",
     "zoomOut": "リファレンスを縮小"

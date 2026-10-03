@@ -504,8 +504,6 @@ describe('PaperExportModal over the References workspace', () => {
     exportAllSteps: vi.fn(),
     exportStepSvg: vi.fn(),
     exportStepPng: vi.fn(),
-    sendToDiagram: vi.fn(),
-    sendAllToDiagram: vi.fn(),
   };
   let teardown: Array<() => void> = [];
 

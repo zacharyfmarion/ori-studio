@@ -23,6 +23,7 @@ function deps(): DiagramStepActionDeps {
     refreshPicture: vi.fn(),
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
+    replaceFromReferences: vi.fn(),
     fromReferences: vi.fn(),
     showAs: vi.fn(),
     duplicateAs: vi.fn(),
@@ -278,8 +279,8 @@ describe('the diagram step verbs', () => {
   });
 
   describe('a step sent from References', () => {
-    const sent = (state: Partial<DiagramStepActionState> = {}) =>
-      build({ link: 'stale', linkKind: 'references', hasPicture: true, hasSource: true, ...state });
+    const sent = (state: Partial<DiagramStepActionState> = {}, bound = deps()) =>
+      build({ link: 'stale', linkKind: 'references', hasPicture: true, hasSource: true, ...state }, bound);
 
     it('is never refreshed and never shown in Edit: it leads back to its sheet', () => {
       const actions = sent();
@@ -293,6 +294,22 @@ describe('the diagram step verbs', () => {
       expect(diagramStepCommand(actions, 'link-pattern')?.label).toBe('Link Pattern…');
     });
 
+    it('replaces its card from the References browser, while the pattern is open and it can change', () => {
+      const bound = deps();
+      const replace = diagramStepCommand(sent({}, bound), 'replace-from-references');
+      expect(replace).toMatchObject({ label: 'Replace from References…', disabled: false });
+      replace?.run();
+      expect(bound.replaceFromReferences).toHaveBeenCalledOnce();
+      expect(diagramStepCommand(sent({ patternOpen: false }), 'replace-from-references')).toMatchObject({
+        disabled: true,
+        hint: 'Its crease pattern isn’t open',
+      });
+      expect(diagramStepCommand(sent({ readOnly: true }), 'replace-from-references')?.disabled).toBe(true);
+      expect(diagramStepCommand(sent({ locked: true }), 'replace-from-references')?.disabled).toBe(true);
+      // Only a References step has a card to replace.
+      expect(diagramStepCommand(build({ link: 'current', linkKind: 'cp', hasSource: true }), 'replace-from-references')).toBeNull();
+    });
+
     it('opens its sheet on a read-only diagram too, while the pattern is open', () => {
       expect(diagramStepCommand(sent({ readOnly: true }), 'open-in-references')?.disabled).toBe(false);
       expect(diagramStepCommand(sent({ patternOpen: false }), 'open-in-references')).toMatchObject({
@@ -302,7 +319,7 @@ describe('the diagram step verbs', () => {
     });
   });
 
-  it('asks References for a picture, while a pattern is open to plan', () => {
+  it('fills an empty step from References, while a pattern is open to plan', () => {
     expect(diagramStepCommand(build({}), 'from-references')).toMatchObject({
       label: 'From References…',
       disabled: false,
@@ -313,7 +330,7 @@ describe('the diagram step verbs', () => {
     });
     expect(diagramStepCommand(build({ locked: true }), 'from-references')?.disabled).toBe(true);
     expect(diagramStepCommand(build({ readOnly: true }), 'from-references')?.disabled).toBe(true);
-    // Only for an empty step: a send to one with a picture adds a step after it.
+    // Only for an empty step: the header's From References… adds after one with a picture.
     expect(diagramStepCommand(build({ hasSource: true, hasPicture: true }), 'from-references')).toBeNull();
   });
 

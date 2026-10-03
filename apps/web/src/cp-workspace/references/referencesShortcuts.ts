@@ -19,8 +19,6 @@ export const REFERENCES_SHORTCUT_IDS: readonly ReferencesShortcutId[] = [
   'references.exportAllSteps',
   'references.exportStepSvg',
   'references.exportStepPng',
-  'references.sendToDiagram',
-  'references.sendAllToDiagram',
 ];
 
 /**
@@ -52,12 +50,6 @@ export interface ReferencesShortcutActions {
   exportAllSteps: () => void;
   exportStepSvg: () => void;
   exportStepPng: () => void;
-  /**
-   * Send the active card to the diagram as a step, or every card of the strip
-   * but the ending (diagram-workspace plan, D6). Unbound by default.
-   */
-  sendToDiagram: () => void;
-  sendAllToDiagram: () => void;
 }
 
 /**
@@ -123,12 +115,6 @@ export function runReferencesShortcut(
       return;
     case 'references.exportStepPng':
       actions.exportStepPng();
-      return;
-    case 'references.sendToDiagram':
-      actions.sendToDiagram();
-      return;
-    case 'references.sendAllToDiagram':
-      actions.sendAllToDiagram();
       return;
   }
 }

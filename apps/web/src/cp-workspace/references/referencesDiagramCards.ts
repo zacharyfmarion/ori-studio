@@ -1,6 +1,6 @@
 /**
  * The step strip's cards as the Diagram takes them (diagram-workspace plan,
- * D6): what Send to diagram and Send all to diagram hand over.
+ * D6): what the Diagram's References browser pulls (D20).
  *
  * Taken from the strip's own rows, never from the export's model-frame
  * diagrams: a row already reflects the reader's chosen ways and twins, and is

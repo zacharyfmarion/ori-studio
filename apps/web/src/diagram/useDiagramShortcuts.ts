@@ -18,6 +18,7 @@ import {
   isAnnotateShortcut,
   runDiagramCancel,
   runDiagramShortcut,
+  type DiagramBrowserKeys,
   type DiagramKeyActions,
   type DiagramKeyState,
 } from './actions/diagramShortcuts';
@@ -29,6 +30,7 @@ function keyState(state: WorkspaceState): DiagramKeyState {
     focusedStepId: focusedStepId(),
     readOnly: state.diagramReadOnly,
     detailOpen: state.diagramDetail !== null,
+    browserOpen: state.diagramReferencesBrowser !== null,
     annotate:
       isDiagramAnnotating(state)
         ? {
@@ -67,6 +69,8 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
       openDiagramStep(stepId, 'keyboard');
     },
     close: state.closeDiagramStep,
+    closeBrowser: state.closeDiagramReferencesBrowser,
+    browser: browserKeys,
     setTool: state.setDiagramAnnotateTool,
     selectAnnotation: state.selectDiagramAnnotation,
     flipArc: () => {
@@ -78,6 +82,17 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
       );
     },
     cancelGesture: () => gestureCancel?.() ?? false,
+  };
+}
+
+/** The References browser's cards, while it has a list on screen. */
+let browserKeys: DiagramBrowserKeys | null = null;
+
+/** Hand the step keys the References browser's cards; returns its release. */
+export function registerDiagramBrowserKeys(keys: DiagramBrowserKeys): () => void {
+  browserKeys = keys;
+  return () => {
+    if (browserKeys === keys) browserKeys = null;
   };
 }
 

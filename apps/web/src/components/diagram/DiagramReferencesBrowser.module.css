@@ -1,0 +1,233 @@
+/*
+ * The References browser (DiagramReferencesBrowser.tsx): a top bar in the
+ * shared toolbar frame; under it the planned patterns down the left and the
+ * shown list's cards beside them; at the foot what is selected and the verb.
+ */
+.browser {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.browser:focus {
+  outline: none;
+}
+
+.bar {
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+}
+
+.title {
+  min-width: 0;
+  padding: 0 var(--space-1);
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.body[data-rail] {
+  grid-template-columns: 188px minmax(0, 1fr);
+}
+
+/* The patterns: one row each, the way to plan more at the end. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: var(--space-2);
+  overflow-y: auto;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.pattern {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pattern:hover {
+  background: var(--bg-tertiary);
+}
+
+.pattern[aria-current='true'] {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.pattern:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.patternThumb {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+}
+
+.patternText {
+  display: grid;
+  min-width: 0;
+}
+
+.patternName,
+.patternNote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patternName {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.patternNote {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.planMore {
+  justify-content: flex-start;
+  margin-top: var(--space-1);
+  white-space: normal;
+  text-align: left;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* What the shown plan was made with, as quiet tags. */
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3) 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.setting {
+  padding: 1px 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.message {
+  display: grid;
+  flex: 1;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.message p {
+  max-width: 40ch;
+  margin: 0;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.count {
+  min-width: 7ch;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.turnOver {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.add {
+  margin-left: auto;
+}
+
+/* A phone: the patterns become a row over the cards. */
+@media (max-width: 720px) {
+  .body[data-rail] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .rail {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .pattern {
+    flex: none;
+    width: 156px;
+  }
+
+  .planMore {
+    flex: none;
+    margin-top: 0;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  }
+}

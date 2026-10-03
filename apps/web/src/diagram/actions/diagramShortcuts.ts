@@ -14,6 +14,12 @@ export interface DiagramKeyState {
   readOnly: boolean;
   /** The step detail is open on the selected step. */
   detailOpen?: boolean;
+  /**
+   * The References browser is open in the centre (D20): the steps are not on
+   * screen, so the arrows and Enter act on its cards instead, and Escape
+   * closes it first.
+   */
+  browserOpen?: boolean;
   /** The detail is in Annotate: its tool, its selected annotation, and whether that is a fold arrow. */
   annotate?: { tool: AnnotateTool; selectedAnnotationId: string | null; selectedIsArrow: boolean } | null;
 }
@@ -26,12 +32,22 @@ export interface DiagramKeyActions {
   open: (stepId: string) => void;
   /** Leave the detail for the list. */
   close: () => void;
+  /** Close the References browser, back to the steps. */
+  closeBrowser?: () => void;
+  /** The References browser's cards, while it is open and has a list on screen. */
+  browser?: DiagramBrowserKeys | null;
   /** Annotate's verbs. */
   setTool?: (tool: AnnotateTool) => void;
   selectAnnotation?: (annotationId: string | null) => void;
   flipArc?: () => void;
   /** Drop the drag the canvas has in hand, if it has one; whether it had. */
   cancelGesture?: () => boolean;
+}
+
+/** What the step keys do in the References browser: walk its cards, and add the selection. */
+export interface DiagramBrowserKeys {
+  move: (to: 'previous' | 'next' | 'first' | 'last') => void;
+  add: () => void;
 }
 
 /**
@@ -54,6 +70,8 @@ export function runDiagramShortcut(
   state: DiagramKeyState,
   actions: DiagramKeyActions
 ): boolean {
+  // The browser shows cards, not steps: a step key would act on one unseen.
+  if (state.browserOpen) return runBrowserShortcut(id, actions.browser ?? null);
   const { stepIds, selectedStepId } = state;
   if (isAnnotateShortcut(id)) return runDiagramAnnotateShortcut(id, state, actions);
   if (stepIds.length === 0) return false;
@@ -89,6 +107,35 @@ export function runDiagramShortcut(
       if (to >= 0 && to <= last) actions.move(stepIds[selected], to);
       return true;
     }
+  }
+}
+
+/**
+ * The step keys in the References browser, as the steps grid has them: the
+ * arrows walk its cards one at a time, selecting each, Home and End go to the
+ * ends, and Enter adds the selection. Moving and annotating steps decline —
+ * there are none on screen — and so does all of it with no list to walk.
+ */
+function runBrowserShortcut(id: DiagramShortcutId, keys: DiagramBrowserKeys | null): boolean {
+  if (!keys) return false;
+  switch (id) {
+    case 'diagram.previousStep':
+      keys.move('previous');
+      return true;
+    case 'diagram.nextStep':
+      keys.move('next');
+      return true;
+    case 'diagram.firstStep':
+      keys.move('first');
+      return true;
+    case 'diagram.lastStep':
+      keys.move('last');
+      return true;
+    case 'diagram.openStep':
+      keys.add();
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -136,14 +183,21 @@ export function runDiagramAnnotateShortcut(
 
 /**
  * Escape in the Diagram: one ladder, each press undoing the innermost thing
- * (D12) — drop the drag in progress, deselect the annotation, put the tool
- * down, leave the step detail, deselect the step — and then it declines, so
- * Escape reaches whatever is beneath.
+ * (D12) — close the References browser, drop the drag in progress, deselect
+ * the annotation, put the tool down, leave the step detail, deselect the
+ * step — and then it declines, so Escape reaches whatever is beneath.
  */
 export function runDiagramCancel(
-  state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen' | 'annotate'>,
-  actions: Pick<DiagramKeyActions, 'select' | 'close' | 'cancelGesture' | 'selectAnnotation' | 'setTool'>
+  state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen' | 'annotate' | 'browserOpen'>,
+  actions: Pick<
+    DiagramKeyActions,
+    'select' | 'close' | 'cancelGesture' | 'selectAnnotation' | 'setTool' | 'closeBrowser'
+  >
 ): boolean {
+  if (state.browserOpen && actions.closeBrowser) {
+    actions.closeBrowser();
+    return true;
+  }
   if (state.annotate) {
     if (actions.cancelGesture?.()) return true;
     if (state.annotate.selectedAnnotationId !== null && actions.selectAnnotation) {
@@ -193,13 +247,16 @@ const ARROW_OWNERS = [
   `[${DIAGRAM_OWN_ARROWS_ATTRIBUTE}]`,
 ].join(', ');
 
-/** Marks the steps grid, the one surface where Enter means "open the step". */
+/**
+ * Marks the steps grid and the References browser's cards: the surfaces where
+ * Enter acts on the selection — opens the step, or adds the cards.
+ */
 export const DIAGRAM_STEPS_ATTRIBUTE = 'data-diagram-steps';
 
 /**
- * Whether Enter at this focus opens the selected step: focus on nothing, on
- * the steps grid, or on one of its cards. Anything else that holds focus — a
- * link, a tab, a button, a dock tab — keeps its own Enter.
+ * Whether Enter at this focus acts on the selection: focus on nothing, on the
+ * steps grid or the browser's cards, or on one of their cards. Anything else
+ * that holds focus — a link, a tab, a button, a dock tab — keeps its own Enter.
  */
 export function focusLeavesEnterToSteps(element: Element | null): boolean {
   if (element === null || element === element.ownerDocument.body) return true;

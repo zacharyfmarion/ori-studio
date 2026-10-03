@@ -22,7 +22,6 @@ function state(overrides: Partial<ReferencesActionState> = {}): ReferencesAction
     canRecompute: true,
     hasView: true,
     hasDiagram: true,
-    diagram: { canSend: true, canSendAll: true, waitingStep: null },
     fold: { available: true, playing: false, folded: false, pleat: false },
     ...overrides,
   };
@@ -48,7 +47,7 @@ describe('buildReferencesActions', () => {
     expect(command(state(), 'next-way').label).toBe('Next Way');
   });
 
-  it('orders the verbs steps, ways, candidates, recompute, the camera, export, then the diagram', () => {
+  it('orders the verbs steps, ways, candidates, recompute, the camera, then export', () => {
     const ids = referencesCommands(buildReferencesActions(state(), { t })).map(
       (action) => action.id
     );
@@ -66,8 +65,6 @@ describe('buildReferencesActions', () => {
       'zoom-out',
       'export-step',
       'export-all-steps',
-      'send-to-diagram',
-      'send-all-to-diagram',
     ]);
   });
 
@@ -93,8 +90,6 @@ describe('buildReferencesActions', () => {
       'references.zoomOut',
       'references.exportStep',
       'references.exportAllSteps',
-      'references.sendToDiagram',
-      'references.sendAllToDiagram',
     ]);
   });
 
@@ -117,34 +112,6 @@ describe('buildReferencesActions', () => {
     const empty = command(state({ stepCount: 0, activeStep: 0 }), 'export-all-steps');
     expect(empty.disabled).toBe(true);
     expect(empty.hint).toBe('Pick a vertex or crease first');
-  });
-
-  describe('sending to the diagram', () => {
-    it('sends the card on show, or the strip, while each can be sent', () => {
-      expect(command(state(), 'send-to-diagram')).toMatchObject({ label: 'Send to diagram', disabled: false });
-      expect(command(state(), 'send-all-to-diagram')).toMatchObject({ label: 'Send all to diagram', disabled: false });
-    });
-
-    it('names the step it will fill when From References… waits for one', () => {
-      const interpolating = ((_key: string, fallback: string, options?: Record<string, unknown>) =>
-        options ? fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(options[name])) : fallback) as unknown as TFunction;
-      const waiting = state({ diagram: { canSend: true, canSendAll: true, waitingStep: 3 } });
-      const send = referencesCommands(buildReferencesActions(waiting, { t: interpolating })).find(
-        (entry) => entry.id === 'send-to-diagram'
-      );
-      expect(send).toMatchObject({ label: 'Send to Diagram Step 3', shortcutId: 'references.sendToDiagram' });
-    });
-
-    it('says why it cannot', () => {
-      const stale = state({
-        diagram: { canSend: false, canSendAll: false, hint: 'Recompute first', waitingStep: null },
-      });
-      expect(command(stale, 'send-to-diagram')).toMatchObject({ disabled: true, hint: 'Recompute first' });
-      expect(command(stale, 'send-all-to-diagram')).toMatchObject({ disabled: true, hint: 'Recompute first' });
-      const nothing = state({ diagram: { canSend: false, canSendAll: false, waitingStep: null }, stepCount: 0 });
-      expect(command(nothing, 'send-to-diagram').hint).toBe('No step is showing');
-      expect(command(nothing, 'send-all-to-diagram').hint).toBe('Pick a vertex or crease first');
-    });
   });
 
   it('separates export from the camera verbs in the menu', () => {

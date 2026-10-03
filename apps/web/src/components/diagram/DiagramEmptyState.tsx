@@ -31,7 +31,7 @@ export function DiagramEmptyState({
   patternOpen: boolean;
   /** Add a step and choose its pattern. */
   onLink: () => void;
-  /** Go to References, whose Send to diagram adds the steps. */
+  /** Open the References browser: its cards become the first steps. */
   onFromReferences: () => void;
   /** Go to Edit, to open or draw the crease pattern a step links to. */
   onGoToEdit: () => void;

@@ -71,14 +71,12 @@ function render(
           stop: vi.fn(),
           refreshable: 0,
           poseAgain: 0,
-          awaitingReferences: null,
-          askReferences: vi.fn(),
-          cancelAwaiting: vi.fn(),
           ...options.links,
         }}
         textCut={options.textCut ?? new Set()}
         patternOpen={options.patternOpen ?? false}
         onLink={options.onLink ?? vi.fn()}
+        onFromReferences={vi.fn()}
         onAppend={options.onAppend}
         onInsertAfter={options.onInsertAfter}
         onOpenIn={options.onOpenIn ?? vi.fn()}

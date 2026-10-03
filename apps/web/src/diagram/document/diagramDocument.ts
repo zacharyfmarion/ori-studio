@@ -245,6 +245,17 @@ export interface DiagramReferencesSource {
   line: { n: [number, number]; d: number } | null;
   /** The side of the paper the card showed: what Reset Pose returns to. */
   side: 'front' | 'back';
+  /**
+   * The plan a card pulled from the References browser came from: its plan
+   * cache key, as one string (`referencesPlanCacheKeyId`). Absent for a
+   * Find answer, and on a step sent before the browser.
+   */
+  plan?: string;
+  /**
+   * The construction the card folds by, when its step offers more than one
+   * way (`waySignature`): which of them the step shows.
+   */
+  way?: string;
 }
 
 /**
@@ -750,62 +761,77 @@ export interface SentReferencesStep {
 }
 
 /**
- * The step From References… waits to fill, when it still can be filled: it is
- * there, made by this build, and has no picture or source yet. Null
- * otherwise — a step that got a picture some other way waits for nothing.
- * The one rule the card, the Step pane, References' label and the send share.
+ * Where the References browser puts the cards it pulls (D20), as it was
+ * opened: after a step, at the end, into an empty step (filled by the first
+ * card, the rest after it), or in place of a References step's picture
+ * (Replace). `sentence` is the card the replaced step was made from, when the
+ * browser found it: the step's instruction is replaced only while it is still
+ * that card's own words.
  */
-export function awaitingReferencesStep(
-  document: DiagramDocument | null,
-  target: string | null
-): DiagramStep | null {
-  if (!document || target === null) return null;
-  const step = document.steps[stepIndex(document, target)];
-  return step && !isLockedStep(step) && !stepHasPicture(step) ? step : null;
-}
+export type DiagramPullAnchor =
+  | { kind: 'after'; stepId: string }
+  | { kind: 'end' }
+  | { kind: 'fill'; stepId: string }
+  | { kind: 'replace'; stepId: string; sentence: string | null };
 
 /**
- * Cards from References as steps, at `index`, in order. With `fill`, the
- * first card goes into that step instead — the one From References… was
- * asked from — when it is still there and still empty; its words are kept if
- * it has any. The steps the cards became, in order.
+ * Cards pulled from References as steps, placed by `anchor`, in order. An
+ * anchor whose step is gone, or can no longer be filled or replaced (it got a
+ * picture, it is a newer build's), places the cards after it, or at the end.
+ * The steps the cards became, in order: a filled or replaced step first.
  */
-export function insertReferencesSteps(
+export function pullReferencesSteps(
   document: DiagramDocument,
   sent: readonly SentReferencesStep[],
-  index: number,
-  { fill = null, newId = randomDiagramId }: { fill?: string | null; newId?: DiagramIdFactory } = {}
+  anchor: DiagramPullAnchor,
+  { newId = randomDiagramId }: { newId?: DiagramIdFactory } = {}
 ): { document: DiagramDocument; stepIds: string[] } {
   if (sent.length === 0) return { document, stepIds: [] };
-  const fillAt = fill === null ? -1 : stepIndex(document, fill);
-  const target = fillAt >= 0 ? document.steps[fillAt] : undefined;
-  const fills = awaitingReferencesStep(document, fill) !== null;
   const make = (card: SentReferencesStep): DiagramStep => ({
     ...createStep(newId),
     source: card.source,
     picture: card.picture,
     text: xmlText(card.text),
   });
-  if (!fills || !target) {
-    const steps = sent.map(make);
-    return {
-      document: insertSteps(document, steps, target !== undefined ? fillAt + 1 : index),
-      stepIds: steps.map((step) => step.id),
-    };
+  const insertAt = (index: number, cards: readonly SentReferencesStep[], into = document) => {
+    const steps = cards.map(make);
+    return { document: insertSteps(into, steps, index), stepIds: steps.map((step) => step.id) };
+  };
+  if (anchor.kind === 'end') return insertAt(document.steps.length, sent);
+  const at = stepIndex(document, anchor.stepId);
+  const target = at >= 0 ? document.steps[at] : undefined;
+  if (!target || anchor.kind === 'after' || !anchorTakesCard(document, anchor)) {
+    return insertAt(target ? at + 1 : document.steps.length, sent);
   }
   const [first, ...rest] = sent;
-  const filled = updateStep(document, target.id, (step) => ({
+  const words = (step: DiagramStep): string => {
+    if (anchor.kind === 'fill') return step.text.trim() === '' ? xmlText(first!.text) : step.text;
+    // Replaced: still the old card's words, they become the new card's; edited, they are the reader's.
+    const ownWords = anchor.sentence !== null && step.text === xmlText(anchor.sentence);
+    return ownWords ? xmlText(first!.text) : step.text;
+  };
+  const taken = updateStep(document, target.id, (step) => ({
     ...step,
     source: first!.source,
     picture: first!.picture,
-    text: step.text.trim() === '' ? xmlText(first!.text) : step.text,
+    text: words(step),
     revision: step.revision + 1,
   }));
-  const steps = rest.map(make);
-  return {
-    document: insertSteps(filled, steps, fillAt + 1),
-    stepIds: [target.id, ...steps.map((step) => step.id)],
-  };
+  const added = insertAt(at + 1, rest, taken);
+  return { document: added.document, stepIds: [target.id, ...added.stepIds] };
+}
+
+/**
+ * Whether the anchor's own step takes the first card: an empty step to fill,
+ * or a References step to replace, while it is still there and still so. A
+ * step that got a picture some other way, or was taken away, takes nothing,
+ * and every card goes after it (or at the end).
+ */
+export function anchorTakesCard(document: DiagramDocument | null, anchor: DiagramPullAnchor): boolean {
+  if (!document || (anchor.kind !== 'fill' && anchor.kind !== 'replace')) return false;
+  const step = document.steps[stepIndex(document, anchor.stepId)];
+  if (!step || isLockedStep(step)) return false;
+  return anchor.kind === 'fill' ? !stepHasPicture(step) : step.source?.kind === 'references-step';
 }
 
 /** A step-diagram picture's key for a side: the model's own key, marked for the back. */

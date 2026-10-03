@@ -87,7 +87,6 @@ import { useReferencesRun, useReferencesRunToast } from '../../cp-workspace/refe
 import { useReferencesShortcuts } from '../../cp-workspace/references/useReferencesShortcuts';
 import type { ReferencesStepsSource } from '../../cp-workspace/references/referencesExportSteps';
 import { useReferencesStepExport } from '../../cp-workspace/references/useReferencesStepExport';
-import { useReferencesSendToDiagram } from '../../cp-workspace/references/useReferencesSendToDiagram';
 import { useReferencesSheetRequest } from '../../cp-workspace/references/useReferencesSheetRequest';
 import { useReferencesTarget } from '../../cp-workspace/references/useReferencesTarget';
 import { useReferencesWays } from '../../cp-workspace/references/useReferencesWays';
@@ -486,28 +485,6 @@ export function ReferencesPanel() {
     source: exportSource,
   });
 
-  // The card on show, or the strip, as diagram steps (diagram-workspace D6).
-  const record = breakdown.record;
-  const diagramSend = useReferencesSendToDiagram({
-    strip: filmstrip,
-    viewSteps: targeted ? [] : viewSteps,
-    variants: targeted ? [] : breakdown.variants,
-    activeStep,
-    mode: targeted ? 'find' : 'sequence',
-    frames: controller.frames,
-    sheetId: targeted ? (controller.target?.component ?? null) : selectedSheet,
-    settings:
-      targeted || !record
-        ? null
-        : {
-            precreaseGrid: record.precreaseGrid,
-            gridWhereNeeded: record.gridWhereNeeded,
-            allowDanglingFolds: record.allowDanglingFolds,
-            mergeSymmetricSteps: record.mergeSymmetricSteps,
-          },
-    stale: targeted && controller.stale,
-  });
-
   /** Recompute re-runs whatever the workspace is showing. */
   const recompute = useCallback(() => {
     if (targeted) {
@@ -538,7 +515,6 @@ export function ReferencesPanel() {
     clearTarget: controller.clear,
     playFold: fold.toggle,
     ...exportVerbs,
-    ...diagramSend.actions,
   };
   useReferencesShortcuts(shortcutActions, view.hasDocument);
   // Read through a ref refreshed after each commit rather than closed over, so
@@ -566,7 +542,6 @@ export function ReferencesPanel() {
       canRecompute,
       hasView: view.geometry !== null,
       hasDiagram: highlights.diagram !== null,
-      diagram: diagramSend.state,
       fold: {
         available: fold.available,
         playing: fold.playing,

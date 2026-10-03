@@ -169,21 +169,17 @@ describe('DiagramStepPanel', () => {
       expect(host?.textContent).toContain('FlippedNo');
     });
 
-    it('hands the focus back to From References… when its wait is cancelled', () => {
+    it('opens the References browser to fill an empty step from From References…', () => {
+      let stepId = '';
       act(() => {
-        // A pattern open, so From References… can take the focus.
+        // A pattern open, so there is something to plan.
         useWorkspaceStore.setState({
           oristudioCpDocument: { handle: 1, document: cpDocument(), geometry: null } as unknown as OristudioCpDocumentState,
         });
-        const stepId = state().addDiagramStep()!;
-        state().requestDiagramStepFromReferences(stepId);
+        stepId = state().addDiagramStep()!;
       });
-      expect(host?.textContent).toContain('Waiting for References');
-      const cancel = textButton('Cancel')!;
-      cancel.focus();
-      act(() => cancel.click());
-      expect(state().diagramReferencesTarget).toBeNull();
-      expect(document.activeElement).toBe(textButton('From References…'));
+      act(() => textButton('From References…')!.click());
+      expect(state().diagramReferencesBrowser?.anchor).toEqual({ kind: 'fill', stepId });
     });
 
     it('says which way a 3D step looks at its model', () => {

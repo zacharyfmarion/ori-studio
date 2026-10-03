@@ -27,6 +27,7 @@ export type DiagramStepActionId =
   | 'refresh-picture'
   | 'open-in-edit'
   | 'open-in-references'
+  | 'replace-from-references'
   | 'adjust-pose'
   | 'annotate'
   | 'export-picture'
@@ -135,8 +136,10 @@ export interface DiagramStepActionDeps {
   openInEdit: () => void;
   /** Show the sheet a References step was sent from, in References. */
   openInReferences: () => void;
-  /** Ask References for this step's picture: its next Send to diagram fills the step. */
+  /** Fill an empty step from the References browser. */
   fromReferences: () => void;
+  /** Replace a References step's card from the References browser, its own card marked. */
+  replaceFromReferences: () => void;
   /** Show a linked step's pattern another way (D19). */
   showAs: (way: DiagramShowAs) => void;
   /** A copy of a linked step after it, shown another way (D19). */
@@ -316,8 +319,8 @@ export function buildDiagramStepActions(
           : capturingHint
     ),
     // An empty step's way to a picture from References: on a step with one,
-    // a send would add a step after it, which the header's From References…
-    // already says.
+    // the cards would go after it, which the header's From References…
+    // already does.
     ...(state.hasSource
       ? []
       : [
@@ -361,6 +364,17 @@ export function buildDiagramStepActions(
     ...(state.linkKind !== 'references'
       ? []
       : [
+          command(
+            'replace-from-references',
+            t('panels:diagram.actions.replaceFromReferences', 'Replace from References…'),
+            deps.replaceFromReferences,
+            state.locked || !state.patternOpen || state.capturing,
+            state.locked
+              ? lockedEditHint
+              : !state.patternOpen
+                ? t('panels:diagram.actions.noPatternOpenHint', 'Its crease pattern isn’t open')
+                : capturingHint
+          ),
           command(
             'open-in-references',
             t('panels:diagram.actions.openInReferences', 'Open in References'),

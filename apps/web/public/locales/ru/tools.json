@@ -321,8 +321,6 @@
     "recompute": "Пересчитать референсы",
     "resetView": "Сбросить вид референсов",
     "scopeLabel": "референсы",
-    "sendAllToDiagram": "Отправить всё в схему",
-    "sendToDiagram": "Отправить в схему",
     "toggleLandmarksFirst": "Сначала ориентиры",
     "zoomIn": "Приблизить референсы",
     "zoomOut": "Отдалить референсы"

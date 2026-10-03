@@ -52,7 +52,7 @@ export function DiagramHeader({
   patternOpen: boolean;
   /** Add a step and choose its pattern. */
   onLink: () => void;
-  /** Go to References, whose Send to diagram adds steps here. */
+  /** Open the References browser, adding after the selected step or at the end. */
   onFromReferences: () => void;
   /** How many linked steps are out of date, and Refresh all would capture again. */
   staleCount: number;

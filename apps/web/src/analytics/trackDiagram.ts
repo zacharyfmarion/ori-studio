@@ -20,6 +20,8 @@ import type {
   DiagramPageSetting,
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
+  DiagramPulledInto,
+  DiagramPulledMode,
   DiagramSourceWorkspace,
   DiagramShowAsName,
   DiagramShowAsVia,
@@ -29,8 +31,6 @@ import type {
   DiagramStepOpenedVia,
   DiagramStyleChoiceName,
   DiagramView,
-  ReferencesSentToDiagramMode,
-  ReferencesSentToDiagramVia,
 } from './events';
 import { track } from './runtime';
 
@@ -112,21 +112,21 @@ export function trackDiagramSourceOpened(workspace: DiagramSourceWorkspace): voi
   track(ANALYTICS_EVENTS.diagramSourceOpened, { workspace });
 }
 
-/**
- * Cards sent from References to the diagram: where from, by which verb, how
- * many (bucketed), and whether the first filled a waiting step.
- */
-export function trackReferencesStepSentToDiagram(
-  mode: ReferencesSentToDiagramMode,
-  via: ReferencesSentToDiagramVia,
-  count: number,
-  filled: boolean
+/** The References browser opened (D20), and where what it adds would go. */
+export function trackDiagramReferencesBrowserOpened(into: DiagramPulledInto): void {
+  track(ANALYTICS_EVENTS.diagramReferencesBrowserOpened, { into });
+}
+
+/** Cards pulled from the References browser into the diagram (D20): from which list, where to, how many (bucketed). */
+export function trackDiagramStepsPulledFromReferences(
+  mode: DiagramPulledMode,
+  into: DiagramPulledInto,
+  count: number
 ): void {
-  track(ANALYTICS_EVENTS.referencesStepSentToDiagram, {
+  track(ANALYTICS_EVENTS.diagramStepsPulledFromReferences, {
     mode,
-    via,
+    into,
     count_bucket: bucketCount(count, COUNT_BUCKETS),
-    into: filled ? 'waiting_step' : 'new_steps',
   });
 }
 

@@ -36,12 +36,11 @@
       "unknown": "El patrón de pliegues aún no está listo. Inténtalo de nuevo en un momento."
     },
     "dropReadOnly": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en solo lectura, así que no se le pueden añadir imágenes.",
-    "openDiagram": "Abrir diagrama",
     "references": {
       "addedSteps": "Añadidos como pasos {{first}}–{{last}}",
-      "filledStep": "Enviado al paso {{number}}",
-      "tooLarge": "Este paso es demasiado detallado para guardarlo en el diagrama.",
-      "unreadable": "No se pudo leer la imagen de este paso, así que no se envió nada."
+      "filledStep": "Paso {{number}} rellenado",
+      "replacedStep": "Tarjeta del paso {{number}} reemplazada",
+      "tooLarge": "Este paso es demasiado detallado para guardarlo en el diagrama."
     },
     "refreshedAll_one": "Se actualizó 1 paso",
     "refreshedAll_many": "Se actualizaron {{count}} pasos",

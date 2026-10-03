@@ -6,8 +6,7 @@ import {
   editStepAnnotations,
   keepStepAnnotations,
   insertPictureSteps,
-  awaitingReferencesStep,
-  insertReferencesSteps,
+  pullReferencesSteps,
   insertSteps,
   insertionIndex,
   isLockedStep,
@@ -114,7 +113,6 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     if (!extend) openSession = null;
     set({
       diagram: next,
-      ...stillAwaiting(next),
       diagramHistory: extend
         ? state.diagramHistory
         : trimDiagramHistory(
@@ -147,16 +145,6 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     return stepIndex(document, selected) >= 0 ? selected : null;
   };
 
-  /**
-   * From References… waits on a step only while it can be filled: once the
-   * step is gone or has a picture, the wait is over, and a later Remove
-   * picture does not start it again.
-   */
-  const stillAwaiting = (document: DiagramDocument | null) => {
-    const target = get().diagramReferencesTarget;
-    return target !== null && !awaitingReferencesStep(document, target) ? { diagramReferencesTarget: null } : {};
-  };
-
   const travel = (direction: 'undo' | 'redo'): boolean => {
     const state = get();
     if (state.diagramReadOnly) return false;
@@ -173,7 +161,6 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       diagram: restored,
       diagramHistory: result.history,
       ...selection(stepId),
-      ...stillAwaiting(restored),
       dirty: true,
     });
     // The selected annotation, while it is still on the selected step.
@@ -397,39 +384,45 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (get().diagramPatternPicker !== null) set({ diagramPatternPicker: null });
     },
 
-    requestDiagramStepFromReferences: (stepId) => {
+    setDiagramReferencesSide: (stepId, mirrored) =>
+      commit('Adjust pose', (document) => setReferencesSide(document, stepId, mirrored)) !== null,
+
+    openDiagramReferencesBrowser: (anchor, options = {}) => {
       const { diagram, diagramReadOnly } = get();
-      if (diagramReadOnly || !awaitingReferencesStep(diagram, stepId)) return false;
-      set({ ...selection(stepId), diagramReferencesTarget: stepId });
+      if (diagramReadOnly) return false;
+      set({
+        // The step it was opened for is the one the Step pane shows meanwhile.
+        ...(anchor.kind !== 'end' && diagram && stepIndex(diagram, anchor.stepId) >= 0 ? selection(anchor.stepId) : {}),
+        diagramReferencesBrowser: { mode: 'sequence', pattern: null, shown: null, ...options, anchor },
+        // The centre shows one thing: the browser, not a step's detail.
+        diagramDetail: null,
+        diagramSelectedAnnotationId: null,
+        diagramPatternPicker: null,
+      });
       return true;
     },
 
-    cancelDiagramReferencesTarget: () => {
-      if (get().diagramReferencesTarget !== null) set({ diagramReferencesTarget: null });
+    setDiagramReferencesBrowser: (patch) => {
+      const open = get().diagramReferencesBrowser;
+      if (open) set({ diagramReferencesBrowser: { ...open, ...patch } });
     },
 
-    addReferencesDiagramSteps: (sent, { loadId, label }) => {
+    closeDiagramReferencesBrowser: () => {
+      if (get().diagramReferencesBrowser !== null) set({ diagramReferencesBrowser: null });
+    },
+
+    pullReferencesDiagramSteps: (sent, anchor, { loadId, label }) => {
       if (loadId !== get().diagramLoadId || sent.length === 0) return null;
-      const fill = get().diagramReferencesTarget;
       let stepIds: string[] = [];
       const next = commit(label, (document) => {
-        const result = insertReferencesSteps(
-          document,
-          sent,
-          insertionIndex(document, get().diagramSelectedStepId),
-          { fill }
-        );
+        const result = pullReferencesSteps(document, sent, anchor);
         stepIds = result.stepIds;
         return result.document;
       });
       if (!next || stepIds.length === 0) return null;
-      // Answered: the next send adds steps again.
-      set({ ...selection(stepIds[stepIds.length - 1]!), diagramReferencesTarget: null });
+      set({ ...selection(stepIds[stepIds.length - 1]!), diagramReferencesBrowser: null });
       return stepIds;
     },
-
-    setDiagramReferencesSide: (stepId, mirrored) =>
-      commit('Adjust pose', (document) => setReferencesSide(document, stepId, mirrored)) !== null,
 
     openDiagramStep: (stepId, mode = 'pose') => {
       const diagram = get().diagram;
@@ -437,7 +430,12 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       // A step opened from the list starts with Select in hand; switching
       // between Pose and Annotate keeps the tool, as walking the steps does.
       const opening = get().diagramDetail === null;
-      set({ ...selection(stepId), diagramDetail: mode, ...(opening ? { diagramAnnotateTool: null } : {}) });
+      set({
+        ...selection(stepId),
+        diagramDetail: mode,
+        diagramReferencesBrowser: null,
+        ...(opening ? { diagramAnnotateTool: null } : {}),
+      });
       return true;
     },
 

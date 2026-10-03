@@ -297,8 +297,6 @@
     "recompute": "重新计算参考",
     "resetView": "重置参考视图",
     "scopeLabel": "参考",
-    "sendAllToDiagram": "全部发送到图解",
-    "sendToDiagram": "发送到图解",
     "toggleLandmarksFirst": "先折标记",
     "zoomIn": "放大参考",
     "zoomOut": "缩小参考"

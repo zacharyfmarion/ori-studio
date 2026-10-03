@@ -2759,25 +2759,64 @@ insert steps at a chosen place without the latch.
     (`referencesCachedPlanRecord.ts`) make a cached plan the record a planned
     sheet becomes, with no worker; References' restore assembles its record
     through the same `cachedPlanRecord`.
-- [ ] **9b. The browser.** A third centre mode beside Pose and Annotate: the
+- [x] **9b. The browser.** A third centre mode beside Pose and Annotate: the
   planned patterns' rail, Sequence | Find, the windowed card grid with
   selection and ranges, the footer's verbs, "Plan more patterns in
   References". The cards come from the existing pure chain
   (`planFilmstrip` → `referencesDiagramCards`); a pulled step is D6's
   snapshot, with #430's cache key and way signature in its provenance.
-- [ ] **9c. The ways in.** Add step ▾ › From References…, the empty card's
+  - As built: `DiagramReferencesBrowser` over `useReferencesBrowser`, whose
+    pure parts are `referencesBrowserPlans.ts` (patterns, cards),
+    `referencesBrowserSelection.ts` (press, range, toggle, the keyboard's
+    walk, what a selection adds, "Shown now") and `referencesPulledSteps.ts`
+    (the pull). The sheet analysis is kept by revision, so reopening is
+    instant; the rail shows only once there are patterns to list. The verb
+    says what it will do ("Fill step 3 and add 2 after it"), and words
+    itself by whether the anchor's step can still take a card
+    (`anchorTakesCard`, the same predicate the document uses). It holds
+    ("Adding…") while a pull finds its sheet, so a second press cannot add
+    twice. The step keys walk the cards (arrows, Home, End) and Enter adds,
+    through the diagram scope's executor (`registerDiagramBrowserKeys`);
+    Escape closes it first.
+- [x] **9c. The ways in.** Add step ▾ › From References…, the empty card's
   References…, the Step pane's From References…, Replace from References… on a
   References step. Insertion, filling an empty step, and one undo step as D2
   has it.
-- [ ] **9d. Push retired.** Send to diagram, Send all to diagram, the waiting
+  - As built: `referencesBrowserActions.ts`. Opening selects the anchor's
+    step, so the Step pane shows the step being filled or replaced. Replace
+    opens on the plan and mode the step came from, its card marked "Shown
+    now"; the step's words follow the new card only while they are still the
+    old card's own.
+- [x] **9d. Push retired.** Send to diagram, Send all to diagram, the waiting
   latch and its card, notice and label; their shortcuts and i18n.
-- [ ] **9e.** Analytics (`references step sent to diagram` becomes `diagram
+  - As built: the References side is back to `main` byte for byte
+    (actions, toolbar, shortcuts, panel, tests); `sendReferencesSteps.ts`,
+    `useReferencesSendToDiagram.ts`, `insertReferencesSteps`,
+    `awaitingReferencesStep` and `diagramReferencesTarget` are gone, their
+    tests ported to `referencesPulledSteps.test.ts` where they still apply.
+- [x] **9e.** Analytics (`references step sent to diagram` becomes `diagram
   steps pulled from references` with `{mode, count_bucket, via}`), i18n,
   `docs/analytics.md`.
-- [ ] **Browser:** plan two crane sheets in References, reload the project,
+  - As built: `diagram steps pulled from references` `{mode, into,
+    count_bucket}` and `diagram references browser opened` `{into}`; the
+    retired event never shipped, so it is simply gone. "Unchanged since this
+    step was sent" reads "…was added".
+- [x] **Browser:** plan two crane sheets in References, reload the project,
   see exactly those two in the browser; pull a range across a turn-over; fill an
   empty step; replace one; a Find answer pulled; a pattern edited in Edit drops
   out of the browser until References plans it again.
+  - Done on `crane.osf` (11 sheets): two planned, saved, the page reloaded and
+    the file reopened — the browser listed exactly Pattern 1 and Pattern 2.
+    Turn over + Cards 1–3 added as steps 1–4 in one undo step; Card 3
+    replaced by Card 4 (opened with Card 3 "Shown now", Cards 1–2 "In
+    diagram"); an empty step 3 filled from Pattern 2's Card 1, turn-over and
+    Card 2 ("Fill step 3 and add 2 after it"); a Find answer's three cards
+    added after step 5; the keyboard walked to Card 6. A crease added inside
+    Pattern 1's sheet dropped it from the rail (Pattern 2 kept its number)
+    and marked its steps "Pattern changed". Found and fixed on the way: the
+    browser crashed opening with nothing being replaced (`shownCardIn`), a
+    card's sentence painted a fourth line under its clamp, and the step being
+    filled was not selected.
 - [ ] **Review**, and its fixes committed.
 
 ### Phase 10: phone, touch and finish

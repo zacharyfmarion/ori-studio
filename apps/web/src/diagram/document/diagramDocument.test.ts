@@ -31,7 +31,7 @@ import {
   poseBlocker,
   rotatePose,
   setUploadPose,
-  insertReferencesSteps,
+  pullReferencesSteps,
   setReferencesSide,
   stepDiagramKey,
   DEFAULT_SIMULATED_VIEW,
@@ -396,52 +396,75 @@ describe('upload pose', () => {
   });
 });
 
-describe('steps sent from References', () => {
+describe('steps pulled from References (D20)', () => {
   const card = (n: number): SentReferencesStep => ({
     source: referencesSource({ card: n }),
     picture: stepDiagramPicture(),
-    text: `Fold ${n}.\u000B`,
+    text: `Fold ${n}.`,
   });
-
+  const ids = (document: DiagramDocument) => document.steps.map((step) => step.id);
   function withSteps(...steps: DiagramStep[]): DiagramDocument {
     return insertSteps(createDiagram({ title: 'T', newId: sequentialIds() }), steps, 0);
   }
 
-  it('adds each card as a step at the index, its sentence as the instruction', () => {
+  it('puts the cards after a step, or at the end, in order', () => {
     const document = withSteps(createStep(() => 'step-a'), createStep(() => 'step-b'));
-    const { document: next, stepIds } = insertReferencesSteps(document, [card(1), card(2)], 1, {
-      newId: sequentialIds(),
-    });
-    expect(next.steps.map((step) => step.id)).toEqual(['step-a', ...stepIds, 'step-b']);
-    expect(next.steps[1]).toMatchObject({ source: { card: 1 }, picture: { kind: 'step-diagram' }, text: 'Fold 1.' });
+    const after = pullReferencesSteps(document, [card(1), card(2)], { kind: 'after', stepId: 'step-a' }, { newId: sequentialIds() });
+    expect(ids(after.document)).toEqual(['step-a', ...after.stepIds, 'step-b']);
+    expect(after.document.steps[1]).toMatchObject({ source: { card: 1 }, text: 'Fold 1.' });
+    const end = pullReferencesSteps(document, [card(1)], { kind: 'end' }, { newId: sequentialIds() });
+    expect(ids(end.document)).toEqual(['step-a', 'step-b', end.stepIds[0]]);
+    // A step gone since: at the end.
+    const gone = pullReferencesSteps(document, [card(1)], { kind: 'after', stepId: 'step-gone' }, { newId: sequentialIds() });
+    expect(ids(gone.document).at(-1)).toBe(gone.stepIds[0]);
   });
 
-  it('fills the step From References… waits for, keeping its words, and puts the rest after it', () => {
-    const waiting = { ...createStep(() => 'step-w'), text: 'My own words.' };
-    const document = withSteps(createStep(() => 'step-a'), waiting, createStep(() => 'step-b'));
-    const { document: next, stepIds } = insertReferencesSteps(document, [card(1), card(2)], 3, {
-      fill: 'step-w',
-      newId: sequentialIds(),
-    });
-    expect(stepIds[0]).toBe('step-w');
-    expect(next.steps.map((step) => step.id)).toEqual(['step-a', 'step-w', stepIds[1], 'step-b']);
-    expect(next.steps[1]).toMatchObject({ source: { card: 1 }, text: 'My own words.', revision: 1 });
-    // An empty instruction takes the sentence.
-    const blank = withSteps(createStep(() => 'step-w'));
-    expect(insertReferencesSteps(blank, [card(3)], 0, { fill: 'step-w' }).document.steps[0]?.text).toBe('Fold 3.');
+  it('fills an empty step with the first card, keeping its words, and puts the rest after it', () => {
+    const empty = { ...createStep(() => 'step-e'), text: 'Mine.' };
+    const document = withSteps(createStep(() => 'step-a'), empty, createStep(() => 'step-b'));
+    const pulled = pullReferencesSteps(document, [card(1), card(2)], { kind: 'fill', stepId: 'step-e' }, { newId: sequentialIds() });
+    expect(pulled.stepIds[0]).toBe('step-e');
+    expect(ids(pulled.document)).toEqual(['step-a', 'step-e', pulled.stepIds[1], 'step-b']);
+    expect(pulled.document.steps[1]).toMatchObject({ source: { card: 1 }, text: 'Mine.', revision: 1 });
+    // An empty instruction takes the card's sentence, as the file keeps text.
+    const blank = withSteps(createStep(() => 'step-e'));
+    const sentence = { ...card(3), text: 'Fold 3.\u000B' };
+    expect(pullReferencesSteps(blank, [sentence], { kind: 'fill', stepId: 'step-e' }).document.steps[0]?.text).toBe('Fold 3.');
+    // One that got a picture since is not filled: the cards go after it.
+    const pictured = withSteps(referencesStep('step-e'));
+    const after = pullReferencesSteps(pictured, [card(1)], { kind: 'fill', stepId: 'step-e' }, { newId: sequentialIds() });
+    expect(ids(after.document)).toEqual(['step-e', after.stepIds[0]]);
   });
 
-  it('never fills a step that has a picture since, or is gone: it adds after it, or at the index', () => {
-    const pictured = referencesStep('step-w');
-    const document = withSteps(createStep(() => 'step-a'), pictured);
-    const { document: next, stepIds } = insertReferencesSteps(document, [card(1)], 0, {
-      fill: 'step-w',
-      newId: sequentialIds(),
-    });
-    expect(next.steps.map((step) => step.id)).toEqual(['step-a', 'step-w', stepIds[0]]);
-    const gone = insertReferencesSteps(document, [card(1)], 0, { fill: 'step-gone', newId: sequentialIds() });
-    expect(gone.document.steps[0]?.id).toBe(gone.stepIds[0]);
+  it('replaces a References step’s card, its words only while they are still the old card’s', () => {
+    const own = { ...referencesStep('step-r'), text: 'Fold the old way.' };
+    const document = withSteps(own, createStep(() => 'step-b'));
+    const replaced = pullReferencesSteps(
+      document,
+      [card(7)],
+      { kind: 'replace', stepId: 'step-r', sentence: 'Fold the old way.' },
+      { newId: sequentialIds() }
+    );
+    expect(replaced.stepIds).toEqual(['step-r']);
+    expect(replaced.document.steps[0]).toMatchObject({ source: { card: 7 }, text: 'Fold 7.' });
+    const edited = pullReferencesSteps(
+      document,
+      [card(7)],
+      { kind: 'replace', stepId: 'step-r', sentence: 'Something else.' },
+      { newId: sequentialIds() }
+    );
+    expect(edited.document.steps[0]).toMatchObject({ source: { card: 7 }, text: 'Fold the old way.' });
+    // Not a References step: nothing replaced, the card goes after it.
+    const plain = withSteps(createStep(() => 'step-p'));
+    const after = pullReferencesSteps(plain, [card(7)], { kind: 'replace', stepId: 'step-p', sentence: null }, { newId: sequentialIds() });
+    expect(ids(after.document)).toEqual(['step-p', after.stepIds[0]]);
   });
+});
+
+describe('a References step’s side', () => {
+  function withSteps(...steps: DiagramStep[]): DiagramDocument {
+    return insertSteps(createDiagram({ title: 'T', newId: sequentialIds() }), steps, 0);
+  }
 
   it('turns a step over, re-keying its picture, and back', () => {
     const document = withSteps(referencesStep('step-r'));

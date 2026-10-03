@@ -36,12 +36,11 @@
       "unknown": "Le patron de plis n’est pas encore prêt. Réessayez dans un instant."
     },
     "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
-    "openDiagram": "Ouvrir le diagramme",
     "references": {
       "addedSteps": "Ajoutées comme étapes {{first}}–{{last}}",
-      "filledStep": "Envoyée à l’étape {{number}}",
-      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme.",
-      "unreadable": "L’image de cette étape n’a pas pu être lue, rien n’a donc été envoyé."
+      "filledStep": "Étape {{number}} remplie",
+      "replacedStep": "Carte de l’étape {{number}} remplacée",
+      "tooLarge": "Cette étape est trop détaillée pour être conservée dans le diagramme."
     },
     "refreshedAll_one": "{{count}} étape actualisée",
     "refreshedAll_many": "{{count}} étapes actualisées",

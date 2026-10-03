@@ -48,6 +48,7 @@ import type { FoldArtifactStatus } from './foldArtifactResource';
 import type { SnapshotHistory } from './snapshotHistory';
 import type {
   DiagramCpSource,
+  DiagramPullAnchor,
   SentReferencesStep,
   DiagramDocument,
   DiagramHanStyle,
@@ -1893,10 +1894,25 @@ export interface DiagramSliceState {
   /** Refresh all out-of-date steps, while it runs: how far it has got. */
   diagramRefreshAll: { total: number; done: number } | null;
   /**
-   * The step From References… was asked from (D6): the next Send to diagram
-   * fills it, if it is still there and empty, rather than adding a step.
+   * The References browser, while it is open in the Diagram's centre (D20):
+   * where what it adds goes, which list it shows, and which pattern.
    */
-  diagramReferencesTarget: string | null;
+  diagramReferencesBrowser: DiagramReferencesBrowserState | null;
+}
+
+/** The References browser's state (D20). Not saved. */
+export interface DiagramReferencesBrowserState {
+  /** Where the cards it adds go: fixed as it opens. */
+  anchor: DiagramPullAnchor;
+  /** The planned patterns' sequences, or the Find answer References has on screen. */
+  mode: 'sequence' | 'find';
+  /** The pattern shown, by its plan's cache key id; null for the first one listed. */
+  pattern: string | null;
+  /**
+   * For Replace: the card the step was made from, marked "Shown now" when it
+   * is found in the pattern's plan.
+   */
+  shown: { plan: string | null; card: number | null; line: { n: [number, number]; d: number } | null } | null;
 }
 
 export interface DiagramSliceActions {
@@ -2027,27 +2043,30 @@ export interface DiagramSliceActions {
    */
   openDiagramPatternPicker: (stepId: string) => boolean;
   closeDiagramPatternPicker: () => void;
-  /**
-   * Ask References for a step's picture (From References…): the next Send to
-   * diagram fills this step. False for a step that is not there or cannot be
-   * changed.
-   */
-  requestDiagramStepFromReferences: (stepId: string) => boolean;
-  /** Stop waiting for a step from References. */
-  cancelDiagramReferencesTarget: () => void;
-  /**
-   * Add cards sent from References as one undo step: into the step From
-   * References… waits for, then after it; or under the insertion rule (D2),
-   * after the selected step or at the end. The last becomes the selected
-   * step. `loadId` is the diagram the send began against: one that outlives
-   * it is dropped. The steps the cards became, or null.
-   */
-  addReferencesDiagramSteps: (
-    sent: readonly SentReferencesStep[],
-    options: { loadId: number; label: string }
-  ) => string[] | null;
   /** Show a References step from the paper's front or back (its Pose: Turn over). */
   setDiagramReferencesSide: (stepId: string, mirrored: boolean) => boolean;
+  /**
+   * Open the References browser in the Diagram's centre (D20), the step's
+   * detail closed. False on a diagram that cannot change.
+   */
+  openDiagramReferencesBrowser: (
+    anchor: DiagramPullAnchor,
+    options?: Partial<Omit<DiagramReferencesBrowserState, 'anchor'>>
+  ) => boolean;
+  /** Change what the open browser shows. */
+  setDiagramReferencesBrowser: (patch: Partial<Omit<DiagramReferencesBrowserState, 'anchor'>>) => void;
+  closeDiagramReferencesBrowser: () => void;
+  /**
+   * Add cards pulled from the References browser as one undo step, placed by
+   * `anchor` (`pullReferencesSteps`), and close the browser, the last of them
+   * selected. `loadId` is the diagram the pull began against: one that
+   * outlives it is dropped. The steps the cards became, or null.
+   */
+  pullReferencesDiagramSteps: (
+    sent: readonly SentReferencesStep[],
+    anchor: DiagramPullAnchor,
+    options: { loadId: number; label: string }
+  ) => string[] | null;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
 }

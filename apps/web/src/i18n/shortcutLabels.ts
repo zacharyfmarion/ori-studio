@@ -89,10 +89,6 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:references.exportStepSvg', 'Export step as SVG…');
     case 'references.exportStepPng':
       return t('tools:references.exportStepPng', 'Export step as PNG…');
-    case 'references.sendToDiagram':
-      return t('tools:references.sendToDiagram', 'Send to diagram');
-    case 'references.sendAllToDiagram':
-      return t('tools:references.sendAllToDiagram', 'Send all to diagram');
     case 'diagram.previousStep':
       return t('tools:diagram.previousStep', 'Previous Step');
     case 'diagram.nextStep':

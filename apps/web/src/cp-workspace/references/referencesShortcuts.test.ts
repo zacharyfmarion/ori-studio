@@ -25,8 +25,6 @@ function mockActions(): ReferencesShortcutActions {
     exportAllSteps: vi.fn(),
     exportStepSvg: vi.fn(),
     exportStepPng: vi.fn(),
-    sendToDiagram: vi.fn(),
-    sendAllToDiagram: vi.fn(),
   };
 }
 
@@ -48,8 +46,6 @@ describe('runReferencesShortcut', () => {
     ['references.exportStep', 'exportStep'],
     ['references.exportStepSvg', 'exportStepSvg'],
     ['references.exportStepPng', 'exportStepPng'],
-    ['references.sendToDiagram', 'sendToDiagram'],
-    ['references.sendAllToDiagram', 'sendAllToDiagram'],
   ] as const)('routes %s to exactly %s', (id, verb) => {
     const actions = mockActions();
     runReferencesShortcut(id, actions);
@@ -68,13 +64,11 @@ describe('runReferencesShortcut', () => {
     expect(new Set(REFERENCES_SHORTCUT_IDS).size).toBe(REFERENCES_SHORTCUT_IDS.length);
   });
 
-  it('ships the export and send verbs unbound: a row and a button, never a key by default', () => {
+  it('ships the export verbs unbound: a row and a button, never a key by default', () => {
     for (const id of [
       'references.exportStep',
       'references.exportStepSvg',
       'references.exportStepPng',
-      'references.sendToDiagram',
-      'references.sendAllToDiagram',
     ] as const) {
       const definition = SHORTCUT_DEFINITIONS.find((d) => d.id === id);
       expect(definition?.defaultChord).toBeNull();

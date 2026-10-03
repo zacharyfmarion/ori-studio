@@ -63,7 +63,7 @@ export function DiagramStepPanel() {
   const detailOpen = useWorkspaceStore((state) => state.diagramDetail !== null);
   const annotating = useWorkspaceStore(isDiagramAnnotating);
   const poseActions = useDiagramPoseActions(detailOpen ? stepId : null);
-  const { link, patternOpen, capture, picker, waiting } = useDiagramStepLink(step);
+  const { link, patternOpen, capture, picker } = useDiagramStepLink(step);
 
   if (!step || index < 0) {
     return (
@@ -121,7 +121,6 @@ export function DiagramStepPanel() {
               link={link}
               patternOpen={patternOpen}
               capture={capture}
-              waiting={waiting}
               detailOpen={detailOpen}
               picker={
                 picker && (

@@ -78,9 +78,7 @@ export type ReferencesShortcutId =
   | 'references.exportStep'
   | 'references.exportAllSteps'
   | 'references.exportStepSvg'
-  | 'references.exportStepPng'
-  | 'references.sendToDiagram'
-  | 'references.sendAllToDiagram';
+  | 'references.exportStepPng';
 export type DiagramShortcutId =
   | 'diagram.previousStep'
   | 'diagram.nextStep'
@@ -496,8 +494,6 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
   referencesShortcut('references.exportStepSvg', 'Export step as SVG…', null),
   referencesShortcut('references.exportStepPng', 'Export step as PNG…', null),
   // Unbound for the same reason: a card sent to the diagram is a menu row.
-  referencesShortcut('references.sendToDiagram', 'Send to diagram', null),
-  referencesShortcut('references.sendAllToDiagram', 'Send all to diagram', null),
 ];
 
 function diagramShortcut(

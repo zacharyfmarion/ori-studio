@@ -106,6 +106,53 @@ describe('the Diagram’s Escape ladder', () => {
     expect(select).toHaveBeenCalledWith(null);
     expect(runDiagramCancel({ selectedStepId: null }, { select, close })).toBe(false);
   });
+
+  it('closes the References browser first, before the step it was opened beside', () => {
+    const select = vi.fn();
+    const close = vi.fn();
+    const closeBrowser = vi.fn();
+    expect(runDiagramCancel({ selectedStepId: 'b', browserOpen: true }, { select, close, closeBrowser })).toBe(true);
+    expect(closeBrowser).toHaveBeenCalledOnce();
+    expect(select).not.toHaveBeenCalled();
+  });
+});
+
+describe('the step keys while the References browser is open', () => {
+  function inBrowser(id: Parameters<typeof runDiagramShortcut>[0], withList = true) {
+    const actions = { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn() };
+    const browser = { move: vi.fn(), add: vi.fn() };
+    const claimed = runDiagramShortcut(
+      id,
+      { stepIds: steps, selectedStepId: 'b', readOnly: false, browserOpen: true },
+      { ...actions, browser: withList ? browser : null }
+    );
+    return { claimed, ...actions, browser };
+  }
+
+  it('walk its cards and add them, acting on no step: the steps are not on screen', () => {
+    const cases = [
+      ['diagram.previousStep', 'previous'],
+      ['diagram.nextStep', 'next'],
+      ['diagram.firstStep', 'first'],
+      ['diagram.lastStep', 'last'],
+    ] as const;
+    for (const [id, to] of cases) {
+      const { claimed, browser, select } = inBrowser(id);
+      expect(claimed).toBe(true);
+      expect(browser.move).toHaveBeenCalledWith(to);
+      expect(select).not.toHaveBeenCalled();
+    }
+    const enter = inBrowser('diagram.openStep');
+    expect(enter.browser.add).toHaveBeenCalledOnce();
+    expect(enter.open).not.toHaveBeenCalled();
+  });
+
+  it('never move a step, and claim nothing with no list on screen', () => {
+    const moved = inBrowser('diagram.moveStepLater');
+    expect(moved.claimed).toBe(false);
+    expect(moved.move).not.toHaveBeenCalled();
+    expect(inBrowser('diagram.nextStep', false).claimed).toBe(false);
+  });
 });
 
 describe('Annotate’s keys', () => {

@@ -34,12 +34,11 @@
       "unknown": "展開図の準備がまだできていません。少し待ってからもう一度お試しください。"
     },
     "dropReadOnly": "この折り図は新しい Ori Studio で作成されたため読み取り専用で開いています。図を追加することはできません。",
-    "openDiagram": "図を開く",
     "references": {
       "addedSteps": "ステップ {{first}}–{{last}} として追加しました",
-      "filledStep": "ステップ {{number}} に送りました",
-      "tooLarge": "このステップは細かすぎて折り図に保持できません。",
-      "unreadable": "このステップの図を読み取れなかったため、何も送られませんでした。"
+      "filledStep": "ステップ {{number}} を埋めました",
+      "replacedStep": "ステップ {{number}} のカードを置き換えました",
+      "tooLarge": "このステップは細かすぎて折り図に保持できません。"
     },
     "refreshedAll_other": "{{count}} 個のステップを更新しました",
     "uploadFailed_other": "{{count}} 枚の図を追加できませんでした",

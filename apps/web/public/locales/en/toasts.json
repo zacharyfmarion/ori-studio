@@ -35,12 +35,11 @@
       "unknown": "The crease pattern isn’t ready yet. Try again in a moment."
     },
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
-    "openDiagram": "Open diagram",
     "references": {
       "addedSteps": "Added as steps {{first}}–{{last}}",
-      "filledStep": "Sent to step {{number}}",
-      "tooLarge": "This step is too detailed to keep in the diagram.",
-      "unreadable": "This step’s picture couldn’t be read, so nothing was sent."
+      "filledStep": "Filled step {{number}}",
+      "replacedStep": "Replaced step {{number}}’s card",
+      "tooLarge": "This step is too detailed to keep in the diagram."
     },
     "refreshedAll_one": "Refreshed 1 step",
     "refreshedAll_other": "Refreshed {{count}} steps",

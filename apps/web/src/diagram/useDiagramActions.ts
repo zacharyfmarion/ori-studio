@@ -44,7 +44,8 @@ import {
   refreshDiagramStep,
   showLinkedStepAs,
 } from './capture/stepCaptureActions';
-import { askReferencesForStep, openDiagramStepInReferences } from './capture/referencesStepActions';
+import { openDiagramStepInReferences } from './capture/referencesStepActions';
+import { fillStepFromReferences, replaceStepFromReferences } from './references/referencesBrowserActions';
 import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
@@ -219,7 +220,8 @@ function bindStepActions(
       },
       openInEdit: () => openDiagramStepInEdit(stepId),
       openInReferences: () => openDiagramStepInReferences(stepId),
-      fromReferences: () => askReferencesForStep(stepId),
+      fromReferences: () => fillStepFromReferences(stepId),
+      replaceFromReferences: () => replaceStepFromReferences(stepId),
       showAs: (way) => {
         void showLinkedStepAs(stepId, way, via);
       },

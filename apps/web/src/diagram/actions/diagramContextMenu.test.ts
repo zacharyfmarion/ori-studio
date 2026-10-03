@@ -34,6 +34,7 @@ function actions(state: Partial<DiagramStepActionState> = {}) {
     refreshPicture: vi.fn(),
     openInEdit: vi.fn(),
     openInReferences: vi.fn(),
+    replaceFromReferences: vi.fn(),
     fromReferences: vi.fn(),
     showAs: vi.fn(),
     duplicateAs: vi.fn(),

@@ -469,6 +469,10 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
   const card = value.card === null ? null : wholeNumber(value.card);
   if (settings === undefined || line === undefined) return null;
   if (value.card !== null && (card === null || card < 1)) return null;
+  // Kept when they read, and dropped alone when they do not: they say which
+  // plan and way, and a step that cannot say is still the step.
+  const plan = typeof value.plan === 'string' && value.plan.length > 0 ? value.plan : undefined;
+  const way = typeof value.way === 'string' && value.way.length > 0 ? value.way : undefined;
   return {
     kind: 'references-step',
     region,
@@ -479,6 +483,8 @@ function readReferencesSource(value: Record<string, unknown>): DiagramReferences
     card,
     line,
     side: value.side,
+    ...(plan !== undefined ? { plan } : {}),
+    ...(way !== undefined ? { way } : {}),
   };
 }
 

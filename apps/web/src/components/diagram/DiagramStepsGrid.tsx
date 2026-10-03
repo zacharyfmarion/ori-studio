@@ -49,6 +49,7 @@ export function DiagramStepsGrid({
   textCut,
   patternOpen,
   onLink,
+  onFromReferences,
   onOpenIn,
   onGoToEdit,
   onAppend,
@@ -75,6 +76,8 @@ export function DiagramStepsGrid({
   patternOpen: boolean;
   /** Choose a pattern for a step, from a click on its card. */
   onLink: (stepId: string) => void;
+  /** Fill an empty step from the References browser, from a click on its card. */
+  onFromReferences: (stepId: string) => void;
   /** Open a step in Pose or Annotate, from the buttons over its picture. */
   onOpenIn: (stepId: string, mode: 'pose' | 'annotate') => void;
   /** Go to Edit, from an empty card when no crease pattern is open. */
@@ -142,9 +145,7 @@ export function DiagramStepsGrid({
             patternOpen={patternOpen}
             onLink={onLink}
             onStop={links.stop}
-            waiting={links.awaitingReferences === step.id}
-            onFromReferences={links.askReferences}
-            onCancelWaiting={links.cancelAwaiting}
+            onFromReferences={onFromReferences}
             onOpenIn={onOpenIn}
             onGoToEdit={onGoToEdit}
           />

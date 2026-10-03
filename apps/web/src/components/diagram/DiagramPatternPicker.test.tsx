@@ -115,7 +115,6 @@ describe('the picker in the Picture section', () => {
         detailOpen={false}
         patternOpen
         capture={null}
-        waiting={null}
         picker={
           open && (
             <DiagramPatternPicker sheets={SHEETS} selectedId={null} busy={false} showAs="crease-pattern" onShowAs={vi.fn()} onPick={vi.fn()} onCancel={vi.fn()} />

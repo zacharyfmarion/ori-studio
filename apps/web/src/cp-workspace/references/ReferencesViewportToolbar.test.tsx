@@ -73,7 +73,6 @@ function commandsFor(overrides: Partial<ReferencesActionState> = {}) {
         canRecompute: true,
         hasView: true,
         hasDiagram: true,
-        diagram: { canSend: true, canSendAll: true, waitingStep: null },
         fold: { available: true, playing: false, folded: false, pleat: false },
         ...overrides,
       },
@@ -144,12 +143,7 @@ const BAR = [
   'Play Fold',
   'Recompute References',
   'Export step…',
-  'Send to diagram',
-  'Send all to diagram',
 ];
-
-/** Out on the phone, into its `⋯`. */
-const OUTPUT = ['Export step…', 'Send to diagram', 'Send all to diagram'];
 
 describe('ReferencesViewportToolbar', () => {
   it('holds the zoom cluster, Fit and Recompute, and nothing to overflow', () => {
@@ -199,15 +193,6 @@ describe('ReferencesViewportToolbar', () => {
     press(button('Export step…'));
 
     expect(run).toHaveBeenLastCalledWith('references.exportStep');
-  });
-
-  it('sends the card on show to the diagram, by registry id, and says why it cannot', () => {
-    render();
-    press(button('Send to diagram'));
-    expect(run).toHaveBeenLastCalledWith('references.sendToDiagram');
-    act(() => root?.unmount());
-    render({ diagram: { canSend: false, canSendAll: false, hint: 'Recompute first', waitingStep: null } });
-    expect(button('Send to diagram')?.disabled).toBe(true);
   });
 
   it('disables Export when nothing is showing', () => {
@@ -260,21 +245,10 @@ describe('ReferencesViewportToolbar', () => {
 
     render({ stepCount: 3, activeStep: 1 });
 
-    // Export and the two sends give their room to the stepping, behind one `⋯`.
-    expect(inlineLabels()).toEqual([
-      ...BAR.filter((label) => !OUTPUT.includes(label)),
-      'Previous Step',
-      'Next Step',
-      'More view controls',
-    ]);
+    expect(inlineLabels()).toEqual([...BAR, 'Previous Step', 'Next Step']);
+    expect(button('More view controls')).toBeFalsy();
     press(button('Next Step'));
     expect(run).toHaveBeenLastCalledWith('references.nextStep');
-    // A touch user's way to the diagram, Send all included.
-    press(button('More view controls'));
-    const rows = [...document.querySelectorAll<HTMLElement>('[role="menu"] [role^="menuitem"]')];
-    expect(rows.map((row) => row.textContent)).toEqual(OUTPUT);
-    press(rows[2]);
-    expect(run).toHaveBeenLastCalledWith('references.sendAllToDiagram');
   });
 
   it('leaves the stepping to the filmstrip everywhere but the phone', () => {

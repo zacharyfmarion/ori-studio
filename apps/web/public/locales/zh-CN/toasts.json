@@ -34,12 +34,11 @@
       "unknown": "折痕图尚未就绪。请稍后再试。"
     },
     "dropReadOnly": "此图解由更新版本的 Ori Studio 创建，以只读方式打开，因此无法向其中添加图片。",
-    "openDiagram": "打开图解",
     "references": {
       "addedSteps": "已添加为第 {{first}}–{{last}} 步",
-      "filledStep": "已发送到第 {{number}} 步",
-      "tooLarge": "此步骤过于复杂，无法保存在图解中。",
-      "unreadable": "无法读取此步骤的图片，因此未发送任何内容。"
+      "filledStep": "已填充第 {{number}} 步",
+      "replacedStep": "已替换第 {{number}} 步的卡片",
+      "tooLarge": "此步骤过于复杂，无法保存在图解中。"
     },
     "refreshedAll_other": "已刷新 {{count}} 个步骤",
     "uploadFailed_other": "{{count}} 张图片未能添加",

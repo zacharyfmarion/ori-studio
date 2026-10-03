@@ -11,6 +11,7 @@ import {
 import { splitIntoPages } from '../../diagram/pages/diagramPageLayout';
 import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
 import { useDiagramPages } from '../../diagram/pages/useDiagramPages';
+import { fillStepFromReferences, openReferencesBrowser } from '../../diagram/references/referencesBrowserActions';
 import { DIAGRAM_PAGE_PANE_ID, revealDiagramPane, useDiagramPaneReveal } from '../../diagram/useDiagramPaneReveal';
 import { refreshAllDiagramSteps, stopRefreshAll } from '../../diagram/capture/captureQueue';
 import { openDiagramPatternPicker } from '../../diagram/capture/stepCaptureActions';
@@ -34,6 +35,7 @@ import type { DiagramViewMode } from '../../store/workspaceStore/types';
 import { DiagramEmptyState } from '../diagram/DiagramEmptyState';
 import { DiagramHeader } from '../diagram/DiagramHeader';
 import { DiagramPagesView } from '../diagram/DiagramPagesView';
+import { DiagramReferencesBrowser } from '../diagram/DiagramReferencesBrowser';
 import { DiagramStepDetail } from '../diagram/DiagramStepDetail';
 import { DiagramStepsGrid } from '../diagram/DiagramStepsGrid';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -69,8 +71,6 @@ const linkNewStep = () => {
   if (stepId) openDiagramPatternPicker(stepId);
 };
 
-/** References, whose Send to diagram adds its cards after the selected step. */
-const stepsFromReferences = () => useWorkspaceStore.getState().openReferencesWorkspace();
 
 const switchView = (view: DiagramViewMode) => {
   const store = useWorkspaceStore.getState();
@@ -108,6 +108,7 @@ export function DiagramPanel() {
   const selectedStepId = useWorkspaceStore((state) => state.diagramSelectedStepId);
   const selectStep = useWorkspaceStore((state) => state.selectDiagramStep);
   const detail = useWorkspaceStore((state) => state.diagramDetail);
+  const referencesBrowser = useWorkspaceStore((state) => state.diagramReferencesBrowser);
   const closeStep = useWorkspaceStore((state) => state.closeDiagramStep);
   const openStepIn = useWorkspaceStore((state) => state.openDiagramStep);
   const annotateTool = useWorkspaceStore((state) => state.diagramAnnotateTool);
@@ -141,6 +142,18 @@ export function DiagramPanel() {
       : -1;
   // Held for as long as the detail is open on a linked step: its fold, between verbs.
   const linkedPose = useDiagramLinkedPose(detailIndex >= 0 ? steps[detailIndex] : null);
+  if (referencesBrowser) {
+    return (
+      <section
+        ref={rootRef}
+        className="panel-shell"
+        aria-label={t('panels:diagram.label', 'Diagram')}
+        onPointerDownCapture={keys.onPointerDownCapture}
+      >
+        <DiagramReferencesBrowser state={referencesBrowser} style={style} drawerSlot={setViewDrawerSlot} />
+      </section>
+    );
+  }
   if (detailIndex >= 0) {
     const step = steps[detailIndex];
     return (
@@ -174,7 +187,7 @@ export function DiagramPanel() {
           onUpload={() => uploadPictureFor(step.id)}
           patternOpen={patternOpen}
           onLink={() => openDiagramPatternPicker(step.id)}
-          onFromReferences={() => links.askReferences(step.id)}
+          onFromReferences={() => fillStepFromReferences(step.id)}
           onGoToEdit={goToEdit}
           dropping={dropTarget !== null}
           drawerSlot={setViewDrawerSlot}
@@ -203,7 +216,7 @@ export function DiagramPanel() {
         onUpload={uploadPictures}
         patternOpen={patternOpen}
         onLink={linkNewStep}
-        onFromReferences={stepsFromReferences}
+        onFromReferences={openReferencesBrowser}
         staleCount={links.refreshable}
         poseAgainCount={links.poseAgain}
         refreshing={refreshing}
@@ -242,7 +255,7 @@ export function DiagramPanel() {
             onUpload={uploadPictures}
             patternOpen={patternOpen}
             onLink={linkNewStep}
-            onFromReferences={stepsFromReferences}
+            onFromReferences={openReferencesBrowser}
             onGoToEdit={goToEdit}
           />
         ) : (
@@ -260,6 +273,7 @@ export function DiagramPanel() {
             textCut={textCut}
             patternOpen={patternOpen}
             onLink={openDiagramPatternPicker}
+            onFromReferences={fillStepFromReferences}
             onOpenIn={openFromCard}
             onGoToEdit={goToEdit}
             onAppend={readOnly ? undefined : appendStep}

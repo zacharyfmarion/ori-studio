@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { awaitingReferencesStep, type DiagramShowAs, type DiagramStep } from '../document/diagramDocument';
+import type { DiagramShowAs, DiagramStep } from '../document/diagramDocument';
 import type { DiagramLinkStatus } from './linkStatus';
 import { linkDiagramStep, pickerShowAs } from './stepCaptureActions';
 import {
@@ -30,14 +30,12 @@ export interface DiagramStepLink {
     pick: (sheet: DiagramPatternSheet) => void;
     cancel: () => void;
   } | null;
-  /** References' next Send to diagram fills this step, with the way to stop waiting. */
-  waiting: { cancel: () => void } | null;
 }
 
 /**
  * A step's link to the crease pattern, bound to the store, for the Step pane's
  * Picture section: how it stands, its capture with a Stop, the pattern picker
- * while its pattern is being chosen, and whether it waits for References.
+ * while its pattern is being chosen.
  */
 export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
   const stepId = step?.id ?? null;
@@ -56,10 +54,6 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
     (state) => stepId !== null && state.diagramPatternPicker === stepId
   );
   const sheets = useDiagramPatternSheets(pickerOpen);
-  const waiting = useWorkspaceStore(
-    (state) =>
-      stepId !== null && awaitingReferencesStep(state.diagram, state.diagramReferencesTarget)?.id === stepId
-  );
 
   // The way the picker links in: the step's own, or the session's last, until
   // the reader picks another — and again from those each time it opens, so a
@@ -99,10 +93,5 @@ export function useDiagramStepLink(step: DiagramStep | null): DiagramStepLink {
     patternOpen,
     capture: capturing ? { stop: stoppable ? stop : null } : null,
     picker: pickerOpen ? { sheets, selectedId, busy: capturing, showAs, setShowAs, pick, cancel } : null,
-    waiting: waiting ? { cancel: cancelWaiting } : null,
   };
-}
-
-function cancelWaiting(): void {
-  useWorkspaceStore.getState().cancelDiagramReferencesTarget();
 }

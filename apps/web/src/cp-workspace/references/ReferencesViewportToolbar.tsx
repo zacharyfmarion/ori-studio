@@ -1,16 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  BookCopy,
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Pause,
-  Play,
-  RefreshCw,
-  Rewind,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Pause, Play, RefreshCw, Rewind } from 'lucide-react';
 import {
   ViewportToolbar,
   type ViewportToolbarGroupSpec,
@@ -58,12 +48,8 @@ export interface ReferencesViewportToolbarProps {
  * a thumb is anyway.
  *
  * Export is one button: it opens the export dialog, where the format is chosen
- * with the page in view. Send to diagram and Send all sit beside it — the card
- * on show, or the whole strip, as diagram steps — so a keyboard reaches them
- * without a pointer's context menu. All three are pinned, for the same reason
- * as Recompute: a `⋯` holding one row is a worse control than the button. On
- * the phone, whose bar ends with the stepping and has room for none of them,
- * the three fold into one `⋯` together: what the page is sent out as.
+ * with the page in view. Pinned, so it never folds into the `⋯` on a narrow
+ * bar — it was a node for that reason when it held a menu of formats.
  *
  * Every press dispatches the verb's registry id through the panel's executor,
  * as the header buttons did before the bar: the chord, the context-menu row
@@ -125,23 +111,6 @@ export function ReferencesViewportToolbar({
   const recomputeChord = shortcutLabelForAction('references.recompute', shortcuts);
   const exportStep = command('export-step');
   const exportChord = exportStep ? shortcutLabelForAction(exportStep.shortcutId, shortcuts) : null;
-  // The two sends, as the bar shows them: the reason one cannot, else its chord.
-  const sendItem = (id: 'send-to-diagram' | 'send-all-to-diagram', icon: ReactNode) => {
-    const entry = command(id);
-    if (!entry) return null;
-    const chord = shortcutLabelForAction(entry.shortcutId, shortcuts);
-    return {
-      kind: 'action' as const,
-      id,
-      label: entry.label,
-      title: entry.disabled && entry.hint ? entry.hint : chord ? `${entry.label} (${chord})` : entry.label,
-      icon,
-      disabled: entry.disabled,
-      pinned: true,
-      onPhone: 'collapse' as const,
-      onSelect: dispatch(id),
-    };
-  };
   const groups: ViewportToolbarGroupSpec[] = [
     ...(play
       ? [
@@ -194,11 +163,8 @@ export function ReferencesViewportToolbar({
                 icon: <Download size={14} />,
                 disabled: exportStep.disabled,
                 pinned: true,
-                onPhone: 'collapse' as const,
                 onSelect: dispatch('export-step'),
               },
-              sendItem('send-to-diagram', <BookOpen size={14} />),
-              sendItem('send-all-to-diagram', <BookCopy size={14} />),
             ],
           },
         ]

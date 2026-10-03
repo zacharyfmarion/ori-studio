@@ -35,12 +35,11 @@
       "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
     },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
-    "openDiagram": "Diagramm öffnen",
     "references": {
       "addedSteps": "Als Schritte {{first}}–{{last}} hinzugefügt",
-      "filledStep": "An Schritt {{number}} gesendet",
-      "tooLarge": "Dieser Schritt ist zu detailliert, um im Diagramm gespeichert zu werden.",
-      "unreadable": "Das Bild dieses Schritts konnte nicht gelesen werden, daher wurde nichts gesendet."
+      "filledStep": "Schritt {{number}} gefüllt",
+      "replacedStep": "Karte von Schritt {{number}} ersetzt",
+      "tooLarge": "Dieser Schritt ist zu detailliert, um im Diagramm gespeichert zu werden."
     },
     "refreshedAll_one": "1 Schritt aktualisiert",
     "refreshedAll_other": "{{count}} Schritte aktualisiert",
