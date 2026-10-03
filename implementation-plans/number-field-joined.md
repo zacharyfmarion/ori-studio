@@ -81,8 +81,10 @@ what you touch"). This is that PR, in two commits.
      digits (default 2), and the input lies over it, absolutely positioned.
      This is exact in any font, and needs no `field-sizing: content`, which
      the WKWebView of older macOS lacks.
-   - A number shorter than `minChars` is centred in its room; with a unit it
-     sits against the unit instead (`data-unit`).
+   - The number sits at the end of its room, right-aligned as it always
+     was, with 10px before it and 7px after it (asked for on the next review:
+     a centred digit felt crowded by the − line). A single digit gets 19px
+     before it.
    - Under a coarse pointer the copy follows theme.css's 16px for inputs,
      and the number's room is still a 44px target.
    - A caller that wants a fixed width sets it on the root. The export
@@ -91,9 +93,13 @@ what you touch"). This is that PR, in two commits.
    - The pane rows' stepper cell and Settings ▸ Workspace's field wrapper had
      fixed widths (112px floor, 132px) for the old three boxes. Both go (in
      place), so the field sits at the end of its row at its own width.
-   - Pane rows: 83px for one or two digits (was 112), 91px for `90 °`, plus
-     7.5px a digit. Phone: 132px for up to three digits, inside the 140px
-     column; a longer number widens it.
+   - Pane rows: 86px for one or two digits (was 112), plus 7.5px a digit.
+     Phone: 132px for up to three digits, inside the 140px column; a longer
+     number widens it.
+   - The square tool card places its Size stepper and anchor picker at the
+     end of their column, where the segmented controls end
+     (`SquareToolOptions.module.css`, through `className` on the field's
+     root).
 
 ## Affected Areas
 
@@ -135,3 +141,6 @@ what you touch"). This is that PR, in two commits.
       phone; real clicks on the unit, the padding and the digits focus the
       input; typing grows the field without scrolling the number; Escape
       reverts; every surface recaptured in both themes
+- [x] Commit 4: the number right-aligned with 10px before it; the square tool
+      card's stepper and anchor picker at the end of their column (measured:
+      both end where the Unit control ends)

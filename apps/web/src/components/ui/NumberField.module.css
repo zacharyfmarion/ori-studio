@@ -97,16 +97,19 @@
 
 /*
  * The number and its unit, between the lines. A label, so a click on the unit
- * or beside the number lands in the input. Where the field is given more room
- * than they need, they sit at its end, as a column of numbers would.
+ * or beside the number lands in the input. They sit at the end, as a column of
+ * numbers would, with more room before the number than after it: the − line
+ * should not crowd it.
  */
 .value {
+  --pad-start: 10px;
+  --pad-end: 7px;
   display: flex;
   flex: 1 1 auto;
   align-items: stretch;
   justify-content: flex-end;
   gap: 3px;
-  padding: 0 7px;
+  padding-inline: var(--pad-start) var(--pad-end);
   cursor: text;
 }
 
@@ -142,8 +145,7 @@
   margin: 0;
 }
 
-/* A number shorter than `minChars` is centred in the room it leaves, or with
-   a unit, set against the unit. */
+/* A number shorter than `minChars` sits at the end of its room. */
 .number > .input {
   position: absolute;
   inset: 0;
@@ -159,10 +161,6 @@
   font: inherit;
   font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.field[data-unit] .number > .input {
   text-align: right;
 }
 
@@ -188,8 +186,9 @@
 }
 
 .field[data-variant='card'] > .value {
+  --pad-start: 2px;
+  --pad-end: 2px;
   justify-content: center;
-  padding: 0 2px;
 }
 
 /* A width is a measurement, and the digits stay put as it is stepped. */
@@ -197,6 +196,10 @@
 .field[data-variant='card'] .input {
   font-family: var(--font-mono);
   font-size: 0.72rem;
+}
+
+.field[data-variant='card'] .input {
+  text-align: center;
 }
 
 /* A finger needs a 44px target: the buttons, and the number too. The parts
@@ -214,7 +217,7 @@
 
   /* The number's target is the whole space between the lines. */
   .number {
-    min-width: calc(var(--touch-target) - 14px);
+    min-width: calc(var(--touch-target) - var(--pad-start) - var(--pad-end));
   }
 
   /* theme.css gives every input 16px here, so iOS does not zoom into it; the

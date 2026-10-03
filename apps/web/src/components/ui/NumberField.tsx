@@ -63,8 +63,8 @@ export function NumberField({
    */
   variant?: 'card';
   /**
-   * The fewest digits the number makes room for (2). A shorter number is
-   * centred in that room, and a longer one widens the field. A caller whose
+   * The fewest digits the number makes room for (2). A shorter number sits at
+   * the end of that room, and a longer one widens the field. A caller whose
    * values run longer passes their length, so the field keeps one width.
    */
   minChars?: number;
@@ -196,7 +196,6 @@ export function NumberField({
     <span
       className={[styles.field, className].filter(Boolean).join(' ')}
       data-variant={variant}
-      data-unit={suffix ? true : undefined}
       data-disabled={disabled || undefined}
     >
       {steppers && stepButton(-1)}

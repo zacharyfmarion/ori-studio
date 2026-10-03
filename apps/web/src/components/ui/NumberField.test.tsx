@@ -228,11 +228,6 @@ describe('NumberField', () => {
     expect(unit?.nextElementSibling).toBeNull();
     // Between the lines, with the number: the increase button follows them both.
     expect(unit?.parentElement?.nextElementSibling).toBe(up);
-    // So the number sits against it rather than centred in its room.
-    expect(view.firstElementChild?.hasAttribute('data-unit')).toBe(true);
-    expect(render(<Harness initial={2} />).firstElementChild?.hasAttribute('data-unit')).toBe(
-      false
-    );
   });
 
   it('reads the unit after the value', () => {
