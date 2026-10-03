@@ -24,13 +24,16 @@ export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
           aria-label={t('dialogs:settings.paper.slot.title', 'Style')}
           value={paper.slot}
           onChange={paper.setSlot}
+          // "Style" in both, so the switch does not read as a second Export
+          // button beside the presets' Export…; and the export dialog's style
+          // picker already calls this slot "Export style".
           options={[
-            { value: 'display', label: t('dialogs:settings.paper.slot.display', 'Display') },
+            { value: 'display', label: t('dialogs:settings.paper.slot.display', 'Display style') },
             {
               value: 'export',
               label: paper.exportFollowsDisplay
-                ? t('dialogs:settings.paper.slot.exportLinked', 'Export · linked')
-                : t('dialogs:settings.paper.slot.export', 'Export'),
+                ? t('dialogs:settings.paper.slot.exportLinked', 'Export style · linked')
+                : t('dialogs:settings.paper.slot.export', 'Export style'),
             },
           ]}
         />

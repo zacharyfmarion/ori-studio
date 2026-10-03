@@ -283,6 +283,9 @@ export type PaperPresetName = 'default' | 'diagram' | 'custom';
 /** What the user did with unsaved edits a preset would have replaced. */
 export type PaperPresetUnsavedChoice = 'save' | 'update' | 'discard' | 'cancel';
 
+/** Where a preset file was written from: Export… under the list, or a card's own download. */
+export type PaperPresetExportSource = 'button' | 'card';
+
 /** The surfaces a document object can pin a paper-style field on. */
 export type PaperOverrideSurface = 'inline-simulation' | 'folded-3d' | 'folded-flat';
 
@@ -838,6 +841,16 @@ export const ANALYTICS_EVENTS = {
    * time.
    */
   paperPresetUpdated: 'paper preset updated',
+  /**
+   * A preset was written to a `.json` file from Settings ▸ Paper. `source` is
+   * `button` for Export… under the list, which writes the style the slot is
+   * showing, or `card` for a card's own download. `preset` is a built-in's id
+   * or `custom` — never the name — and `unsaved` marks an Export… of a style
+   * no saved preset holds, named for the file there. Button against card says
+   * whether the hover-only icon was ever how people found export. The file
+   * service's `file exported` fires for the same save.
+   */
+  paperPresetExported: 'paper preset exported',
   /**
    * A document object had a paper-style field pinned, or the pin cleared
    * (`reset: true`), from its Properties sheet or the folded Style menu.

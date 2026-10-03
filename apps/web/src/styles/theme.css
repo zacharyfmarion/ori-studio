@@ -2208,18 +2208,6 @@
   line-height: 1.45;
 }
 
-/*
- * The presets, four across. Each is a picture of the style over its name, with
- * its own verbs in the corner: a card is what tells two presets apart at a
- * glance, which a list of names cannot.
- */
-.settings-paper-presets {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 0;
-}
-
 .settings-paper-preset {
   position: relative;
   min-width: 0;
@@ -2667,34 +2655,6 @@
   text-align: center;
 }
 
-/* A row of verbs — the preset's Apply / Export / Delete, or the list's Save / Import. */
-.settings-paper-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* The in-place name field: label, input and the two buttons on one line. */
-.settings-paper-name {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.settings-paper-name .control-row__input {
-  flex: 1 1 auto;
-  width: auto;
-}
-
-/* Why the name field opened when a picked preset is waiting on it. */
-.settings-paper-name__why {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-
 .settings-shortcuts {
   gap: var(--space-3);
 }
@@ -2973,11 +2933,6 @@
 
   .settings-shortcuts__row {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* Narrow: two presets across, and the verbs stay put in the smaller card. */
-  .settings-paper-presets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   /* Narrow: one pen card, and one colour card, to a line. */

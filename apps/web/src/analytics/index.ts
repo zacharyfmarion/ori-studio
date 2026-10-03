@@ -50,6 +50,7 @@ export type {
   PaperExportStyleName,
   PaperExportSurface,
   PaperOverrideSurface,
+  PaperPresetExportSource,
   PaperPresetName,
   PaperPresetUnsavedChoice,
   PaperStyleFieldName,
