@@ -253,13 +253,23 @@ The obvious next tool is upstream's vertex drag (`3dUI.js`). It is a `drag-verte
 input mode, a `drag-vertex` intent, and a session capability that fixes one
 node and moves it, all on the same `u_mass` flag this work turns on.
 
-**State.** A `simulatorTools` workspace-store slice holds `activeToolId` and
-`pinsBySource: Record<sourceKey, readonly number[]>`. It lives in the store, not
+**State.** The existing simulator slice (`slices/simulatorSlice.ts`) gains
+`simulatorActiveToolId`, `simulatorPins` and `simulatorToolOptions` — an
+existing slice rather than a new one, per AGENTS.md. It lives in the store, not
 the panel, so a workspace switch keeps both, the way
 `oristudioCpActiveToolId` survives a remount. Pins are memory-only: not in
-`.osf`, not in undo, cleared on reload. Tool options persist through
-`lib/storage.ts` with per-key validation, the `cpToolOptionPersistence.ts`
-pattern. Today that is `{ pinThroughLayers: boolean }`, default `true`.
+`.osf`, not in undo, cleared on reload. They are stored per source for one fold
+revision (`{ revision, bySource }`), so a write against a new revision drops
+the old revision's sets in one step. Tool options persist through
+`lib/storage.ts` with per-key validation (`simulatorToolOptions.ts`). Today
+that is `{ pinThroughLayers: boolean }`, default `true`.
+
+**Model and source are bound together** (found while building). A segment
+switch changes the source key at once and the runtime's model only when the new
+load lands, so the hook pairs each model with the source current when it
+arrived. Without that, the new segment's face ids would be sent to the old
+model for the length of a load. A gesture is bound to the model it was made
+over, and a pick answered after that model was replaced is dropped.
 
 ### Gestures
 
@@ -768,10 +778,10 @@ Each step is its own commit; the moves change nothing on screen.
       window passes Escape through).
 - [x] **Tool core:** types, catalog, actions, `pressRoute` (total over input
       modes), engines, intents, `pinSet`, cursor. All pure; all unit-tested.
-- [ ] **Bindings:** the `simulatorTools` slice and its persisted options;
-      `useSimulatorTools` with its executor and `classifySimulatorCallFailure`.
-      Hook tests use a fake runtime: success, `null`, rejection with rollback,
-      and ordering.
+- [x] **Bindings:** the tool state in the simulator slice and its persisted
+      options; `useSimulatorTools` with its executor and
+      `classifySimulatorCallFailure`. Hook tests use a fake runtime: success,
+      `null`, rejection with rollback, and ordering.
 - [ ] **UI:** stage layout, rail, viewport tool input and marquee, tool window
       content, context-menu row, shortcuts
 - [ ] **Phone:** `SimulatorToolsTrigger` left of the Settings pill, the sheet

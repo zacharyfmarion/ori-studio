@@ -1210,6 +1210,15 @@ export const CP_FAVORITE_COUNT_BUCKETS = [0, 2, 5, 10, 20] as const;
 /** Which surface a favorite was starred or moved from. */
 export type CpFavoriteSurface = 'picker-sheet';
 
+/** Where a simulator tool was picked: Escape is the way back to Orbit. */
+export type SimulatorToolSelectSource = 'rail' | 'picker' | 'shortcut' | 'context-menu' | 'escape';
+
+/** Where the simulator's pins were cleared from. */
+export type SimulatorPinsClearSource = 'tool-window' | 'context-menu' | 'shortcut';
+
+/** Where a simulator tool option was changed. */
+export type SimulatorToolOptionSource = 'tool-window' | 'context-menu' | 'shortcut';
+
 /**
  * Threshold ladder for how many stretches in one packing found no pattern.
  *

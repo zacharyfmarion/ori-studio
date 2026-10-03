@@ -53,7 +53,7 @@ export interface SimulatorShortcutHandlers {
 }
 
 /** Where a verb was asked for, for the analytics of the verbs that report it. */
-export type SimulatorVerbSource = 'shortcut' | 'context_menu';
+export type SimulatorVerbSource = 'shortcut' | 'context-menu';
 
 export interface SimulatorToolShortcutHandlers {
   selectTool: (tool: SimulatorToolId, source: SimulatorVerbSource) => void;

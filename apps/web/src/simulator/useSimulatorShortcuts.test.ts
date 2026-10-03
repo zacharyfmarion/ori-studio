@@ -91,12 +91,12 @@ describe('runSimulatorShortcut', () => {
 
     expect(runSimulatorShortcut('simulator.tool.pin', bound, 5)).toBe(true);
     expect(runSimulatorShortcut('simulator.tool.orbit', bound, 5)).toBe(true);
-    expect(runSimulatorShortcut('simulator.pins.clear', bound, 5, 'context_menu')).toBe(true);
+    expect(runSimulatorShortcut('simulator.pins.clear', bound, 5, 'context-menu')).toBe(true);
     expect(runSimulatorShortcut('simulator.pins.throughLayers', bound, 5)).toBe(true);
 
     expect(tools.selectTool).toHaveBeenNthCalledWith(1, 'pin', 'shortcut');
     expect(tools.selectTool).toHaveBeenNthCalledWith(2, 'orbit', 'shortcut');
-    expect(tools.clearPins).toHaveBeenCalledWith('context_menu');
+    expect(tools.clearPins).toHaveBeenCalledWith('context-menu');
     expect(tools.togglePinThroughLayers).toHaveBeenCalledWith('shortcut');
   });
 

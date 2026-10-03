@@ -55,19 +55,19 @@ describe('the tool catalog', () => {
 describe('simulatorToolButtons', () => {
   it('lists Orbit then Pin, with the active one marked and each selecting itself', () => {
     const bound = verbs();
-    const buttons = simulatorToolButtons(t, view({ activeToolId: 'pin' }), bound);
+    const buttons = simulatorToolButtons(t, view({ activeToolId: 'pin' }), bound, 'rail');
 
     expect(buttons.map((button) => [button.id, button.label, button.active])).toEqual([
       ['orbit', 'Orbit', false],
       ['pin', 'Pin', true],
     ]);
     buttons[0].select();
-    expect(bound.selectTool).toHaveBeenCalledWith('orbit');
+    expect(bound.selectTool).toHaveBeenCalledWith('orbit', 'rail');
   });
 
   it('marks Pin while pins exist and another tool is in hand', () => {
     const badge = (extra: Partial<SimulatorToolsView>) =>
-      simulatorToolButtons(t, view(extra), verbs()).find((button) => button.id === 'pin')?.badge;
+      simulatorToolButtons(t, view(extra), verbs(), 'picker').find((button) => button.id === 'pin')?.badge;
 
     expect(badge({ pinnedCount: 3 })).toBe(true);
     expect(badge({ pinnedCount: 3, activeToolId: 'pin' })).toBe(false);
@@ -93,7 +93,7 @@ describe('simulatorToolWindow', () => {
       pins: { clearLabel: 'Clear pins' },
     });
     window?.pins?.clear();
-    expect(bound.clearPins).toHaveBeenCalledTimes(1);
+    expect(bound.clearPins).toHaveBeenCalledWith('tool-window');
   });
 
   it('keeps a notice on screen under Orbit even once the pins are gone', () => {
@@ -114,7 +114,7 @@ describe('simulatorToolWindow', () => {
       { id: 'pinThroughLayers', label: 'Select through all layers', checked: true },
     ]);
     empty?.toggles[0].set(false);
-    expect(bound.setOption).toHaveBeenCalledWith('pinThroughLayers', false);
+    expect(bound.setOption).toHaveBeenCalledWith('pinThroughLayers', false, 'tool-window');
 
     const one = simulatorToolWindow(t, view({ activeToolId: 'pin', pinnedCount: 1 }), bound, MAC);
     expect(one?.meta).toBe('1 face pinned');

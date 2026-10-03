@@ -1,4 +1,9 @@
 import type { TFunction } from 'i18next';
+import type {
+  SimulatorPinsClearSource,
+  SimulatorToolOptionSource,
+  SimulatorToolSelectSource,
+} from '../../analytics/events';
 import type { SimulatorShortcutId } from '../../keyboard/shortcuts';
 import { SIMULATOR_TOOLS, simulatorTool } from './catalog';
 import type {
@@ -19,11 +24,14 @@ import type {
  * verbs and returns data.
  */
 
-/** The bound calls a surface makes; `useSimulatorTools` supplies them. */
+/**
+ * The bound calls a surface makes; `useSimulatorTools` supplies them. Each says
+ * where it was asked from, which is what its analytics event reports.
+ */
 export interface SimulatorToolVerbs {
-  selectTool: (id: SimulatorToolId) => void;
-  clearPins: () => void;
-  setOption: (id: SimulatorToolOptionId, value: boolean) => void;
+  selectTool: (id: SimulatorToolId, source: SimulatorToolSelectSource) => void;
+  clearPins: (source: SimulatorPinsClearSource) => void;
+  setOption: (id: SimulatorToolOptionId, value: boolean, source: SimulatorToolOptionSource) => void;
 }
 
 /** What the instructions can promise on this device. */
@@ -91,10 +99,12 @@ export function simulatorToolDescription(t: TFunction, id: SimulatorToolId): str
   }
 }
 
+/** The tools as buttons, for the rail or the phone's tool sheet. */
 export function simulatorToolButtons(
   t: TFunction,
   view: SimulatorToolsView,
-  verbs: SimulatorToolVerbs
+  verbs: SimulatorToolVerbs,
+  surface: Extract<SimulatorToolSelectSource, 'rail' | 'picker'>
 ): SimulatorToolButton[] {
   return SIMULATOR_TOOLS.map((tool) => ({
     id: tool.id,
@@ -104,7 +114,7 @@ export function simulatorToolButtons(
     shortcut: tool.shortcut,
     active: view.activeToolId === tool.id,
     badge: tool.id === 'pin' && view.activeToolId !== 'pin' && view.pinnedCount > 0,
-    select: () => verbs.selectTool(tool.id),
+    select: () => verbs.selectTool(tool.id, surface),
   }));
 }
 
@@ -183,12 +193,12 @@ export function simulatorToolWindow(
       id,
       label: optionLabel(t, id),
       checked: view.options[id],
-      set: (value: boolean) => verbs.setOption(id, value),
+      set: (value: boolean) => verbs.setOption(id, value, 'tool-window'),
     })),
     pins: sections.pins
       ? {
           clearLabel: t('panels:simulator.tools.pins.clear', 'Clear pins'),
-          clear: verbs.clearPins,
+          clear: () => verbs.clearPins('tool-window'),
         }
       : null,
     notices: view.notices.map((notice) => noticeText(t, notice)),
