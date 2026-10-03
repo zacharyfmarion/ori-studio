@@ -656,6 +656,8 @@
   "diagram": {
     "actions": {
       "addStep": "단계 추가",
+      "capturingHint": "그림을 캡처하는 중입니다",
+      "currentHint": "이미 패턴의 현재 모습을 보여 줍니다",
       "delete": "단계 삭제",
       "duplicate": "단계 복제",
       "exportPicture": "그림 내보내기…",
@@ -663,12 +665,18 @@
       "insertAfter": "뒤에 단계 삽입",
       "insertBefore": "앞에 단계 삽입",
       "lastHint": "이미 마지막 단계입니다",
+      "linkPattern": "패턴 연결…",
       "lockedEditHint": "최신 Ori Studio에서 만든 단계입니다. 이동하거나 삭제할 수는 있지만 변경할 수는 없습니다",
       "lockedHint": "최신 Ori Studio에서 만든 단계입니다. 이동하거나 삭제할 수는 있지만 복제할 수는 없습니다",
+      "missingHint": "패턴이 사라졌습니다: 다른 패턴에 다시 연결하세요",
       "moveEarlier": "앞으로 이동",
       "moveLater": "뒤로 이동",
+      "noPatternHint": "연결하려면 편집에서 전개도를 여세요",
+      "noPatternRefreshHint": "새로 고치려면 편집에서 해당 전개도를 여세요",
       "noPictureHint": "이 단계에는 아직 그림이 없습니다",
       "readOnlyHint": "이 도해는 최신 Ori Studio에서 만들어져 읽기 전용으로 열립니다",
+      "refreshPicture": "그림 새로 고침",
+      "relinkPattern": "패턴 다시 연결…",
       "removePicture": "그림 제거",
       "replacePicture": "그림 바꾸기…",
       "uploadPicture": "그림 업로드…"
@@ -681,10 +689,16 @@
       "badgeImage": "이미지",
       "badgeNewer": "최신",
       "badgeSvg": "SVG",
+      "capturing": "캡처 중…",
+      "link": "연결…",
       "locked": "최신 Ori Studio에서 만듦",
+      "missing": "패턴 없음",
       "noInstruction": "설명 없음",
       "noPicture": "아직 그림 없음",
+      "notCaptured": "아직 캡처되지 않음",
       "number": "{{number}}단계",
+      "stale": "오래됨",
+      "stop": "중지",
       "upload": "업로드…"
     },
     "detail": {
@@ -699,6 +713,7 @@
     },
     "empty": {
       "addStep": "단계 추가",
+      "link": "패턴 연결…",
       "message": "도해는 접는 순서를 한 단계씩 보여 줍니다. 단계를 추가한 다음 그림과 설명을 넣거나, 직접 그린 그림을 업로드해 한 장씩 단계로 만드세요.",
       "title": "도해 시작하기",
       "upload": "그림 업로드…"
@@ -708,6 +723,7 @@
     },
     "header": {
       "addStep": "단계 추가",
+      "linkPattern": "패턴 연결…",
       "moreAdd": "단계를 추가하는 다른 방법",
       "stepCount_other": "{{count}}단계",
       "titleLabel": "도해 제목",
@@ -715,15 +731,38 @@
       "uploadPictures": "그림 업로드…"
     },
     "label": "도해",
+    "picker": {
+      "cancel": "취소",
+      "failed": "전개도의 패턴을 찾지 못했습니다.",
+      "label": "패턴",
+      "none": "이 전개도에는 아직 연결할 패턴이 없습니다.",
+      "noPattern": "연결하려면 편집에서 전개도를 여세요.",
+      "pattern": "패턴 {{number}}",
+      "pending": "패턴을 찾는 중…",
+      "title": "패턴 선택"
+    },
     "picture": {
+      "capturing": "캡처 중…",
+      "checking": "확인 중…",
       "cssDropped": "일부 스타일을 유지할 수 없어 일부가 다르게 보일 수 있습니다.",
+      "current": "최신",
       "flowedText": "흐름 텍스트는 지원되지 않아 생략되었습니다. 일반 텍스트로 변환한 다음 그림을 바꾸세요.",
+      "linkedCreasePattern": "전개도",
+      "linkedFolded": "접힌 모양",
+      "linkedFolded3d": "접힌 모양, 3D",
+      "linkedFoldedBack": "접힌 모양, 뒷면",
       "linkedImage": "연결된 이미지는 유지할 수 없습니다. 파일에 포함한 다음 그림을 바꾸세요.",
+      "linkedUnposed": "패턴, 아직 캡처되지 않음",
+      "missing": "패턴 없음",
       "none": "아직 그림 없음",
+      "pattern": "패턴",
       "raster": "업로드한 이미지, {{width}} × {{height}} px",
       "simplified": "이 그림은 단순화되었습니다.",
       "source": "출처",
+      "stale": "오래됨: 패턴이 바뀌었습니다",
+      "stop": "중지",
       "svg": "업로드한 SVG, {{width}} × {{height}} px",
+      "unknown": "확인 안 됨: 전개도가 열려 있지 않습니다",
       "unsupported": "일부 요소가 지원되지 않아 생략되었습니다."
     },
     "pose": {

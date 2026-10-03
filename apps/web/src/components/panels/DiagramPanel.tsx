@@ -5,9 +5,12 @@ import {
   type DiagramAsset,
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
+import { openDiagramPatternPicker } from '../../diagram/capture/stepCaptureActions';
+import { useDiagramCardLinks } from '../../diagram/capture/useCardLinks';
 import { pickStepPictures } from '../../diagram/upload/addStepPictures';
 import { useStepPictureDrop } from '../../diagram/upload/useStepPictureDrop';
 import {
+  addDiagramStep,
   openDiagramStep,
   useAddDiagramStep,
   useDiagramPoseActions,
@@ -32,6 +35,11 @@ const openOnDoubleClick = (stepId: string) => void openDiagramStep(stepId, 'doub
 // Straight from the click, so the browser opens its picker (a user gesture).
 const uploadPictures = () => void pickStepPictures();
 const uploadPictureFor = (stepId: string) => void pickStepPictures({ replaceStepId: stepId });
+/** Link pattern… from the header or the empty diagram: a new step, and its pattern picker. */
+const linkNewStep = () => {
+  const stepId = addDiagramStep();
+  if (stepId) openDiagramPatternPicker(stepId);
+};
 
 /**
  * The Diagram workspace: the steps of a folding sequence in order, each a
@@ -67,6 +75,8 @@ export function DiagramPanel() {
   const menu = useDiagramStepMenu(rootRef);
   const keys = useDiagramShortcuts({ openStepMenu: menu.openStepMenu });
   const { dropTarget, ...dropHandlers } = useStepPictureDrop();
+  const links = useDiagramCardLinks(steps);
+  const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
 
   const detailIndex =
     detail !== null && selectedStepId !== null
@@ -120,6 +130,8 @@ export function DiagramPanel() {
         onRename={setTitle}
         onAddStep={addStep}
         onUpload={uploadPictures}
+        patternOpen={patternOpen}
+        onLink={linkNewStep}
         drawerSlot={setViewDrawerSlot}
       />
       {readOnly && (
@@ -139,6 +151,8 @@ export function DiagramPanel() {
             dropTarget={dropTarget !== null}
             onAddStep={addStep}
             onUpload={uploadPictures}
+            patternOpen={patternOpen}
+            onLink={linkNewStep}
           />
         ) : (
           <DiagramStepsGrid
@@ -151,6 +165,9 @@ export function DiagramPanel() {
             onSelect={selectStep}
             onOpen={openOnDoubleClick}
             onUpload={uploadPictureFor}
+            links={links}
+            patternOpen={patternOpen}
+            onLink={openDiagramPatternPicker}
           />
         )}
       </div>

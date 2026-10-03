@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useId, useRef, type ForwardedRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImagePlus, Lock, Upload } from 'lucide-react';
+import { ImagePlus, Link2, Lock, Upload } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import {
   isLockedStep,
@@ -8,10 +8,12 @@ import {
   type DiagramStep,
   type DiagramStyle,
 } from '../../diagram/document/diagramDocument';
+import type { DiagramLinkStatus } from '../../diagram/capture/linkStatus';
 import { stepPictureSource, type StepPictureSource } from '../../diagram/pictures/paintDiagramStep';
 import { useStepPictureUrl } from '../../diagram/pictures/useStepPictureUrl';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramStepCard.module.css';
 
 /**
@@ -24,11 +26,15 @@ import styles from './DiagramStepCard.module.css';
  * focus between cards as the selection moves (a roving tab stop), which is
  * what lets a screen reader follow it.
  *
- * An empty card's Upload… is a pointer's shortcut, hidden from assistive
- * technology and out of the tab order: the same verb is in the card's menu and
- * the Step pane, where a keyboard and a screen reader reach it. The card names
- * itself from its number, kind and instruction, so the shortcut's label is not
- * read as part of it.
+ * An empty card's Upload… and Link…, and a capture's Stop, are a pointer's
+ * shortcuts, hidden from assistive technology and out of the tab order: the
+ * same verbs are in the card's menu and the Step pane, where a keyboard and a
+ * screen reader reach them. The card names itself from its number, kind, how
+ * its link stands and its instruction, so a shortcut's label is not read as
+ * part of it.
+ *
+ * A linked step shows its pattern's thumbnail beside its kind, and says over
+ * its picture when the pattern has changed or gone.
  */
 export const DiagramStepCard = forwardRef<
   HTMLDivElement,
@@ -50,9 +56,35 @@ export const DiagramStepCard = forwardRef<
     onOpen: (stepId: string) => void;
     /** Pick a picture for this step. Called from the click itself. */
     onUpload: (stepId: string) => void;
+    /** How the step's link stands; null for a step that is not linked. */
+    link: DiagramLinkStatus | null;
+    /** The step's capture while one runs, and whether its fold can be stopped. */
+    capture: { stoppable: boolean } | null;
+    /** A crease pattern is open to link an empty step to. */
+    patternOpen: boolean;
+    /** Choose a pattern for this step. */
+    onLink: (stepId: string) => void;
+    onStop: (stepId: string) => void;
   }
 >(function DiagramStepCard(
-  { step, assets, style, number, selected, tabStop, dropTarget, readOnly, onSelect, onOpen, onUpload },
+  {
+    step,
+    assets,
+    style,
+    number,
+    selected,
+    tabStop,
+    dropTarget,
+    readOnly,
+    onSelect,
+    onOpen,
+    onUpload,
+    link,
+    capture,
+    patternOpen,
+    onLink,
+    onStop,
+  },
   forwarded
 ) {
   const { t } = useTranslation();
@@ -69,6 +101,16 @@ export const DiagramStepCard = forwardRef<
   const text = step.text.trim();
   const picture = stepPictureSource(step, assets);
   const url = useStepPictureUrl(own, step, assets, style);
+  const linked = !locked && step.source?.kind === 'cp' ? step.source : null;
+  const chip = capture
+    ? t('panels:diagram.card.capturing', 'Capturing…')
+    : link === 'stale'
+      ? t('panels:diagram.card.stale', 'Out of date')
+      : link === 'missing'
+        ? t('panels:diagram.card.missing', 'Pattern missing')
+        : null;
+  // A press must not take focus from the card's keys.
+  const keepFocus = (event: { preventDefault: () => void }) => event.preventDefault();
 
   return (
     <div
@@ -76,7 +118,7 @@ export const DiagramStepCard = forwardRef<
       role="option"
       aria-selected={selected}
       tabIndex={tabStop ? 0 : -1}
-      aria-labelledby={`${labelId}-number ${labelId}-kind ${labelId}-text`}
+      aria-labelledby={`${labelId}-number ${labelId}-kind${chip ? ` ${labelId}-chip` : ''} ${labelId}-text`}
       className={styles.card}
       data-selected={selected || undefined}
       data-drop-target={dropTarget || undefined}
@@ -88,10 +130,17 @@ export const DiagramStepCard = forwardRef<
         <span id={`${labelId}-number`} className={styles.number}>
           {t('panels:diagram.card.number', 'Step {{number}}', { number })}
         </span>
-        <span id={`${labelId}-kind`}>
-          <Badge tone="neutral">
-            {locked ? t('panels:diagram.card.badgeNewer', 'Newer') : stepKindLabel(step, picture, t)}
-          </Badge>
+        <span className={styles.kind}>
+          {linked && (
+            <span className={styles.pattern}>
+              <DiagramSheetThumbnail thumbnail={linked.thumbnail} />
+            </span>
+          )}
+          <span id={`${labelId}-kind`}>
+            <Badge tone="neutral">
+              {locked ? t('panels:diagram.card.badgeNewer', 'Newer') : stepKindLabel(step, picture, t)}
+            </Badge>
+          </span>
         </span>
       </div>
       <div className={styles.well} data-picture={(picture !== null && !locked) || undefined}>
@@ -102,23 +151,63 @@ export const DiagramStepCard = forwardRef<
           </span>
         ) : picture ? (
           url && <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" />
+        ) : linked ? (
+          <span className={styles.placeholder}>{t('panels:diagram.card.notCaptured', 'Not captured yet')}</span>
         ) : (
           <span className={styles.placeholder}>
             <ImagePlus size={18} aria-hidden="true" />
             {t('panels:diagram.card.noPicture', 'No picture yet')}
             {!readOnly && (
-              <Button
-                size="sm"
-                variant="secondary"
+              <span className={styles.shortcuts}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onMouseDown={keepFocus}
+                  onClick={() => onUpload(step.id)}
+                >
+                  <Upload size={13} aria-hidden="true" />
+                  {t('panels:diagram.card.upload', 'Upload…')}
+                </Button>
+                {patternOpen && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    onMouseDown={keepFocus}
+                    onClick={(event) => {
+                      // The picker selects the step itself.
+                      event.stopPropagation();
+                      onLink(step.id);
+                    }}
+                  >
+                    <Link2 size={13} aria-hidden="true" />
+                    {t('panels:diagram.card.link', 'Link…')}
+                  </Button>
+                )}
+              </span>
+            )}
+          </span>
+        )}
+        {chip && (
+          <span className={styles.chip} data-tone={capture ? 'progress' : 'warning'}>
+            <span id={`${labelId}-chip`}>{chip}</span>
+            {capture?.stoppable && (
+              <button
+                type="button"
+                className={styles.stop}
                 tabIndex={-1}
                 aria-hidden="true"
-                // A press must not take focus from the card's keys.
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => onUpload(step.id)}
+                onMouseDown={keepFocus}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onStop(step.id);
+                }}
               >
-                <Upload size={13} aria-hidden="true" />
-                {t('panels:diagram.card.upload', 'Upload…')}
-              </Button>
+                {t('panels:diagram.card.stop', 'Stop')}
+              </button>
             )}
           </span>
         )}

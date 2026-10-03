@@ -8,6 +8,7 @@ import {
   type DiagramStep,
 } from '../../diagram/document/diagramDocument';
 import { cpStep, fixedPicture } from '../../diagram/document/diagramSteps.fixtures';
+import type { DiagramCardLinks } from '../../diagram/capture/useCardLinks';
 import { DiagramStepsGrid } from './DiagramStepsGrid';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -37,6 +38,9 @@ function render(
     dropTarget?: string | null;
     onOpen?: (stepId: string) => void;
     onUpload?: (stepId: string) => void;
+    links?: Partial<DiagramCardLinks>;
+    patternOpen?: boolean;
+    onLink?: (stepId: string) => void;
   } = {}
 ) {
   if (!host) {
@@ -56,6 +60,9 @@ function render(
         onSelect={onSelect}
         onOpen={options.onOpen ?? vi.fn()}
         onUpload={options.onUpload ?? vi.fn()}
+        links={{ statuses: new Map(), captures: {}, stop: vi.fn(), ...options.links }}
+        patternOpen={options.patternOpen ?? false}
+        onLink={options.onLink ?? vi.fn()}
       />
     )
   );
@@ -157,6 +164,53 @@ describe('DiagramStepsGrid', () => {
     // The two with pictures show them; the one not yet posed has none to show.
     expect(host?.querySelectorAll('img')).toHaveLength(2);
     expect(host?.querySelectorAll('[data-picture]')).toHaveLength(2);
+  });
+
+  it('marks a linked step with its pattern, and says when the pattern changed or went', () => {
+    const stop = vi.fn();
+    render(null, vi.fn(), {
+      steps: [cpStep('step-a'), cpStep('step-b'), cpStep('step-c'), cpStep('step-d')],
+      links: {
+        statuses: new Map([
+          ['step-a', 'current'],
+          ['step-b', 'stale'],
+          ['step-c', 'missing'],
+          ['step-d', 'stale'],
+        ]),
+        captures: { 'step-d': { stoppable: true } },
+        stop,
+      },
+    });
+    const cards = options();
+    // Every linked card shows its pattern in the corner.
+    for (const card of cards) expect(card.querySelector('svg line')).not.toBeNull();
+    const name = (card: HTMLElement) =>
+      card
+        .getAttribute('aria-labelledby')!
+        .split(' ')
+        .map((id) => document.getElementById(id)?.textContent)
+        .join(' ');
+    expect(cards.map(name)).toEqual([
+      'Step 1 Crease pattern No instruction',
+      'Step 2 Crease pattern Out of date No instruction',
+      'Step 3 Crease pattern Pattern missing No instruction',
+      // Capturing says so rather than how it stood.
+      'Step 4 Crease pattern Capturing… No instruction',
+    ]);
+    const stopButton = [...cards[3]!.querySelectorAll('button')].find((button) => button.textContent === 'Stop');
+    act(() => stopButton?.click());
+    expect(stop).toHaveBeenCalledWith('step-d');
+  });
+
+  it('offers an empty card a pattern to link only with one open', () => {
+    const onLink = vi.fn();
+    render(null, vi.fn(), { onLink });
+    const linkButton = () =>
+      [...options()[1]!.querySelectorAll('button')].find((button) => button.textContent === 'Link…');
+    expect(linkButton()).toBeUndefined();
+    render(null, vi.fn(), { onLink, patternOpen: true });
+    act(() => linkButton()?.click());
+    expect(onLink).toHaveBeenCalledWith('step-b');
   });
 
   it('names each card from its number, kind and instruction, not from its pointer shortcut', () => {

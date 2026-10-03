@@ -21,6 +21,15 @@
     "simulateNoRegion": "Wähle einen geschlossenen Bereich zum Simulieren aus."
   },
   "diagram": {
+    "capture": {
+      "failed": "Das Bild konnte nicht erfasst werden",
+      "missing": "Dieses Muster ist nicht mehr im Faltmuster.",
+      "noLayerOrder": "Seine Lagen ließen sich nicht ordnen, daher zeigt der Schritt das gefaltete Papier durchsichtig.",
+      "noPattern": "Öffne zuerst ein Faltmuster in Bearbeiten.",
+      "refused": "Dieses Muster lässt sich nicht falten",
+      "tooDetailed": "Zu detailliert, um es als Zeichnung zu behalten, daher behält der Schritt es als Bild.",
+      "unknown": "Das Faltmuster ist noch nicht bereit. Versuche es gleich noch einmal."
+    },
     "dropReadOnly": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und ist schreibgeschützt geöffnet, daher lassen sich keine Bilder hinzufügen.",
     "uploadFailed_one": "Ein Bild konnte nicht hinzugefügt werden",
     "uploadFailed_other": "{{count}} Bilder konnten nicht hinzugefügt werden",

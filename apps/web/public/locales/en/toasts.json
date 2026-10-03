@@ -21,6 +21,15 @@
     "simulateNoRegion": "Select a closed region to simulate."
   },
   "diagram": {
+    "capture": {
+      "failed": "The picture couldn’t be captured",
+      "missing": "That pattern isn’t in the crease pattern any more.",
+      "noLayerOrder": "Its layers couldn’t be put in order, so the step shows the folded paper see-through.",
+      "noPattern": "Open a crease pattern in Edit first.",
+      "refused": "This pattern doesn’t fold",
+      "tooDetailed": "Too detailed to keep as a drawing, so the step keeps it as an image.",
+      "unknown": "The crease pattern isn’t ready yet. Try again in a moment."
+    },
     "dropReadOnly": "This diagram was made with a newer Ori Studio and opens read-only, so pictures can’t be added to it.",
     "uploadFailed_one": "A picture couldn’t be added",
     "uploadFailed_other": "{{count}} pictures couldn’t be added",

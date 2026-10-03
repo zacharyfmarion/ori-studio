@@ -20,6 +20,8 @@ export function DiagramHeader({
   onRename,
   onAddStep,
   onUpload,
+  patternOpen,
+  onLink,
   drawerSlot,
 }: {
   title: string;
@@ -29,6 +31,10 @@ export function DiagramHeader({
   onAddStep: () => void;
   /** Pick pictures, each a step. Called from the menu row itself. */
   onUpload: () => void;
+  /** A crease pattern is open to link a step to. */
+  patternOpen: boolean;
+  /** Add a step and choose its pattern. */
+  onLink: () => void;
   /** Where the touch layer seats the Step pane's pill (`viewDrawerSlot`). */
   drawerSlot: Ref<HTMLDivElement>;
 }) {
@@ -62,6 +68,15 @@ export function DiagramHeader({
               id: 'upload-pictures',
               label: t('panels:diagram.header.uploadPictures', 'Upload pictures…'),
               onSelect: onUpload,
+            },
+            {
+              id: 'link-pattern',
+              label: t('panels:diagram.header.linkPattern', 'Link pattern…'),
+              disabled: !patternOpen,
+              title: patternOpen
+                ? undefined
+                : t('panels:diagram.actions.noPatternHint', 'Open a crease pattern in Edit to link it'),
+              onSelect: onLink,
             },
           ]}
         />

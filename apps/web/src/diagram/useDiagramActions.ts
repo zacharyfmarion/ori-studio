@@ -7,6 +7,7 @@ import {
   trackDiagramPictureRemoved,
   trackDiagramStepAdded,
   trackDiagramStepOpened,
+  type DiagramPictureKind,
   type DiagramPoseAction as TrackedPoseAction,
   type DiagramStepOpenedVia,
 } from '../analytics';
@@ -25,10 +26,14 @@ import {
   isLockedStep,
   poseBlocker,
   stepAsset,
+  stepHasPicture,
   stepIndex,
+  type DiagramDocument,
   type DiagramStep,
   type UploadPose,
 } from './document/diagramDocument';
+import { captureKind, openDiagramPatternPicker, refreshDiagramStep } from './capture/stepCaptureActions';
+import { linkStatusNow, useDiagramLinkStatuses } from './capture/useLinkStatus';
 import { stepPictureSource } from './pictures/paintDiagramStep';
 import { exportStepPicture } from './pictures/exportStepPicture';
 import { pickStepPictures } from './upload/addStepPictures';
@@ -73,7 +78,7 @@ const TRACKED_POSE_ACTIONS: Record<DiagramPoseActionId, TrackedPoseAction> = {
  * where it is now.
  */
 export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAction[] {
-  const { diagram, diagramReadOnly } = useWorkspaceStore.getState();
+  const { diagram, diagramReadOnly, diagramCaptures, oristudioCpDocument } = useWorkspaceStore.getState();
   const index = diagram ? stepIndex(diagram, stepId) : -1;
   if (!diagram || index < 0) return [];
   const step = diagram.steps[index];
@@ -85,6 +90,10 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
       locked: isLockedStep(step),
       readOnly: diagramReadOnly,
       hasPicture: hasDrawablePicture(step, diagram.assets),
+      hasSource: stepHasPicture(step),
+      link: linkStatusNow(step),
+      capturing: Object.hasOwn(diagramCaptures, stepId),
+      patternOpen: oristudioCpDocument !== null,
     },
     t
   );
@@ -92,6 +101,12 @@ export function diagramStepActions(stepId: string, t: TFunction): DiagramStepAct
 
 function hasDrawablePicture(step: DiagramStep, assets: Parameters<typeof stepPictureSource>[1]): boolean {
   return stepPictureSource(step, assets) !== null;
+}
+
+/** What a step's picture is, for analytics: an upload by its asset, a link by how it shows its pattern. */
+function pictureKind(diagram: DiagramDocument, step: DiagramStep): DiagramPictureKind | null {
+  if (step.source?.kind === 'cp') return captureKind(step.source.render);
+  return stepAsset(diagram, step)?.kind ?? null;
 }
 
 function bindStepActions(
@@ -120,6 +135,10 @@ function bindStepActions(
       uploadPicture: () => {
         void pickStepPictures({ replaceStepId: stepId });
       },
+      linkPattern: () => openDiagramPatternPicker(stepId),
+      refreshPicture: () => {
+        void refreshDiagramStep(stepId);
+      },
       exportPicture: () => {
         const diagram = store().diagram;
         if (!diagram) return;
@@ -130,7 +149,7 @@ function bindStepActions(
       removePicture: () => {
         const diagram = store().diagram;
         const step = diagram?.steps.find((candidate) => candidate.id === stepId);
-        const kind = diagram && step ? stepAsset(diagram, step)?.kind : undefined;
+        const kind = diagram && step ? pictureKind(diagram, step) : null;
         if (store().removeDiagramStepPicture(stepId) && kind) trackDiagramPictureRemoved(kind);
       },
       remove: () => {
@@ -155,19 +174,33 @@ export function useDiagramStepActions(stepId: string | null): DiagramStepAction[
     return step ? isLockedStep(step) : false;
   });
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  const step = useWorkspaceStore((state) => (index >= 0 ? state.diagram?.steps[index] : undefined));
   const hasPicture = useWorkspaceStore((state) => {
-    const step = index >= 0 ? state.diagram?.steps[index] : undefined;
-    return step && state.diagram ? hasDrawablePicture(step, state.diagram.assets) : false;
+    const current = index >= 0 ? state.diagram?.steps[index] : undefined;
+    return current && state.diagram ? hasDrawablePicture(current, state.diagram.assets) : false;
   });
+  const hasSource = step ? stepHasPicture(step) : false;
+  const statuses = useDiagramLinkStatuses(step ? [step] : NO_STEPS);
+  const link = (step && statuses.get(step.id)) ?? null;
+  const capturing = useWorkspaceStore((state) =>
+    stepId === null ? false : Object.hasOwn(state.diagramCaptures, stepId)
+  );
+  const patternOpen = useWorkspaceStore((state) => state.oristudioCpDocument !== null);
 
   return useMemo(
     () =>
       stepId === null || index < 0
         ? []
-        : bindStepActions(stepId, { index, count, locked, readOnly, hasPicture }, t),
-    [stepId, index, count, locked, readOnly, hasPicture, t]
+        : bindStepActions(
+            stepId,
+            { index, count, locked, readOnly, hasPicture, hasSource, link, capturing, patternOpen },
+            t
+          ),
+    [stepId, index, count, locked, readOnly, hasPicture, hasSource, link, capturing, patternOpen, t]
   );
 }
+
+const NO_STEPS: readonly DiagramStep[] = [];
 
 /**
  * The pose verbs for a step's uploaded picture, bound to the store, for the

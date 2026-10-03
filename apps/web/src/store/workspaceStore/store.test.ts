@@ -10068,6 +10068,26 @@ describe('the project diagram', () => {
       expect(state().diagramDetail).toBeNull();
     });
 
+    it('chooses one step’s pattern at a time, and lets the picker go with the step', () => {
+      const { first, second } = authorTwoSteps();
+      useWorkspaceStore.setState({ dirty: false });
+      expect(state().openDiagramPatternPicker('missing')).toBe(false);
+      expect(state().openDiagramPatternPicker(second)).toBe(true);
+      // Choosing selects the step, and is view state: nothing to save.
+      expect(state()).toMatchObject({ diagramSelectedStepId: second, diagramPatternPicker: second, dirty: false });
+      // The picker belongs to its step: selecting it again keeps it, another closes it.
+      state().selectDiagramStep(second);
+      expect(state().diagramPatternPicker).toBe(second);
+      state().selectDiagramStep(first);
+      expect(state().diagramPatternPicker).toBeNull();
+      state().openDiagramPatternPicker(first);
+      state().closeDiagramPatternPicker();
+      expect(state().diagramPatternPicker).toBeNull();
+      // Not for a diagram that cannot change.
+      useWorkspaceStore.setState({ diagramReadOnly: true });
+      expect(state().openDiagramPatternPicker(first)).toBe(false);
+    });
+
     it('poses an upload as one undo step, and refuses a step without one', () => {
       const { first } = authorTwoSteps();
       state().selectDiagramStep(first);

@@ -714,6 +714,8 @@
   "diagram": {
     "actions": {
       "addStep": "Añadir paso",
+      "capturingHint": "Se está capturando su imagen",
+      "currentHint": "Ya muestra su patrón tal como está",
       "delete": "Eliminar paso",
       "duplicate": "Duplicar paso",
       "exportPicture": "Exportar imagen…",
@@ -721,12 +723,18 @@
       "insertAfter": "Insertar paso después",
       "insertBefore": "Insertar paso antes",
       "lastHint": "Ya es el último paso",
+      "linkPattern": "Vincular patrón…",
       "lockedEditHint": "Creado con una versión más reciente de Ori Studio: se puede mover o eliminar, pero no cambiar",
       "lockedHint": "Creado con una versión más reciente de Ori Studio: se puede mover o eliminar, pero no copiar",
+      "missingHint": "Su patrón ya no está: vincúlalo a otro",
       "moveEarlier": "Mover antes",
       "moveLater": "Mover después",
+      "noPatternHint": "Abre un patrón de pliegues en Editar para vincularlo",
+      "noPatternRefreshHint": "Abre su patrón de pliegues en Editar para actualizarlo",
       "noPictureHint": "Este paso aún no tiene imagen",
       "readOnlyHint": "Este diagrama se creó con una versión más reciente de Ori Studio y se abre en modo de solo lectura",
+      "refreshPicture": "Actualizar imagen",
+      "relinkPattern": "Volver a vincular patrón…",
       "removePicture": "Quitar imagen",
       "replacePicture": "Reemplazar imagen…",
       "uploadPicture": "Subir imagen…"
@@ -739,10 +747,16 @@
       "badgeImage": "Imagen",
       "badgeNewer": "Más reciente",
       "badgeSvg": "SVG",
+      "capturing": "Capturando…",
+      "link": "Vincular…",
       "locked": "Creado con una versión más reciente de Ori Studio",
+      "missing": "Falta el patrón",
       "noInstruction": "Sin instrucción",
       "noPicture": "Aún sin imagen",
+      "notCaptured": "Aún sin capturar",
       "number": "Paso {{number}}",
+      "stale": "Desactualizado",
+      "stop": "Detener",
       "upload": "Subir…"
     },
     "detail": {
@@ -757,6 +771,7 @@
     },
     "empty": {
       "addStep": "Añadir paso",
+      "link": "Vincular un patrón…",
       "message": "Un diagrama es tu secuencia de plegado, paso a paso. Añade un paso y luego dale una imagen y una instrucción, o sube tus dibujos, uno por paso.",
       "title": "Empezar un diagrama",
       "upload": "Subir imágenes…"
@@ -766,6 +781,7 @@
     },
     "header": {
       "addStep": "Añadir paso",
+      "linkPattern": "Vincular patrón…",
       "moreAdd": "Más formas de añadir pasos",
       "stepCount_one": "{{count}} paso",
       "stepCount_many": "{{count}} pasos",
@@ -775,15 +791,38 @@
       "uploadPictures": "Subir imágenes…"
     },
     "label": "Diagrama",
+    "picker": {
+      "cancel": "Cancelar",
+      "failed": "No se encontraron los patrones del patrón de pliegues.",
+      "label": "Patrones",
+      "none": "Este patrón de pliegues aún no tiene patrones que vincular.",
+      "noPattern": "Abre un patrón de pliegues en Editar para vincular uno.",
+      "pattern": "Patrón {{number}}",
+      "pending": "Buscando los patrones…",
+      "title": "Elige un patrón"
+    },
     "picture": {
+      "capturing": "Capturando…",
+      "checking": "Comprobando…",
       "cssDropped": "No se pudo conservar parte de su estilo, así que algunas partes pueden verse distintas.",
+      "current": "Actualizado",
       "flowedText": "El texto fluido no es compatible y se omitió: conviértelo en texto normal y luego reemplaza la imagen.",
+      "linkedCreasePattern": "Patrón de pliegues",
+      "linkedFolded": "Plegado",
+      "linkedFolded3d": "Plegado, en 3D",
+      "linkedFoldedBack": "Plegado, desde atrás",
       "linkedImage": "Las imágenes vinculadas no se pueden conservar: incrústalas en el archivo y luego reemplaza la imagen.",
+      "linkedUnposed": "Un patrón, aún sin capturar",
+      "missing": "Falta el patrón",
       "none": "Aún sin imagen",
+      "pattern": "Patrón",
       "raster": "Imagen subida, {{width}} × {{height}} px",
       "simplified": "Esta imagen se simplificó.",
       "source": "Origen",
+      "stale": "Desactualizado: el patrón cambió",
+      "stop": "Detener",
       "svg": "SVG subido, {{width}} × {{height}} px",
+      "unknown": "Sin comprobar: el patrón de pliegues no está abierto",
       "unsupported": "Algunas de sus partes no son compatibles y se omitieron."
     },
     "pose": {

@@ -1,0 +1,27 @@
+/* A pattern drawn small (DiagramSheetThumbnail.tsx). */
+.thumbnail {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Hairlines at any size: the strokes are in the thumbnail's own 100-unit box. */
+.stroke {
+  fill: none;
+  stroke: var(--sheet-thumb-unassigned);
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.stroke[data-role='edge'] {
+  stroke: var(--sheet-thumb-border);
+  stroke-width: 1.6;
+}
+
+.stroke[data-role='mountain'] {
+  stroke: var(--sheet-thumb-mountain);
+}
+
+.stroke[data-role='valley'] {
+  stroke: var(--sheet-thumb-valley);
+}

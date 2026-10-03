@@ -22,6 +22,15 @@
     "simulateNoRegion": "Selecione uma região fechada para simular."
   },
   "diagram": {
+    "capture": {
+      "failed": "Não foi possível capturar a imagem",
+      "missing": "Esse padrão não está mais no padrão de vincos.",
+      "noLayerOrder": "Não foi possível ordenar as camadas, então o passo mostra o papel dobrado em transparência.",
+      "noPattern": "Primeiro abra um padrão de vincos em Editar.",
+      "refused": "Este padrão não dobra",
+      "tooDetailed": "Detalhado demais para manter como desenho, então o passo o guarda como imagem.",
+      "unknown": "O padrão de vincos ainda não está pronto. Tente de novo em instantes."
+    },
     "dropReadOnly": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura, então não é possível adicionar imagens.",
     "uploadFailed_one": "Não foi possível adicionar uma imagem",
     "uploadFailed_many": "Não foi possível adicionar {{count}} imagens",

@@ -685,6 +685,8 @@
   "diagram": {
     "actions": {
       "addStep": "Add Step",
+      "capturingHint": "Its picture is being captured",
+      "currentHint": "Already shows its pattern as it is",
       "delete": "Delete Step",
       "duplicate": "Duplicate Step",
       "exportPicture": "Export Picture…",
@@ -692,12 +694,18 @@
       "insertAfter": "Insert Step After",
       "insertBefore": "Insert Step Before",
       "lastHint": "Already the last step",
+      "linkPattern": "Link Pattern…",
       "lockedEditHint": "Made with a newer Ori Studio: it can be moved or deleted, not changed",
       "lockedHint": "Made with a newer Ori Studio: it can be moved or deleted, not copied",
+      "missingHint": "Its pattern is gone: relink it to another",
       "moveEarlier": "Move Earlier",
       "moveLater": "Move Later",
+      "noPatternHint": "Open a crease pattern in Edit to link it",
+      "noPatternRefreshHint": "Open its crease pattern in Edit to refresh it",
       "noPictureHint": "This step has no picture yet",
       "readOnlyHint": "This diagram was made with a newer Ori Studio and opens read-only",
+      "refreshPicture": "Refresh Picture",
+      "relinkPattern": "Relink Pattern…",
       "removePicture": "Remove Picture",
       "replacePicture": "Replace Picture…",
       "uploadPicture": "Upload Picture…"
@@ -710,10 +718,16 @@
       "badgeImage": "Image",
       "badgeNewer": "Newer",
       "badgeSvg": "SVG",
+      "capturing": "Capturing…",
+      "link": "Link…",
       "locked": "Made with a newer Ori Studio",
+      "missing": "Pattern missing",
       "noInstruction": "No instruction",
       "noPicture": "No picture yet",
+      "notCaptured": "Not captured yet",
       "number": "Step {{number}}",
+      "stale": "Out of date",
+      "stop": "Stop",
       "upload": "Upload…"
     },
     "detail": {
@@ -728,6 +742,7 @@
     },
     "empty": {
       "addStep": "Add step",
+      "link": "Link a pattern…",
       "message": "A diagram is your folding sequence, one step at a time. Add a step, then give it a picture and an instruction — or upload your drawings, one step each.",
       "title": "Start a diagram",
       "upload": "Upload pictures…"
@@ -737,6 +752,7 @@
     },
     "header": {
       "addStep": "Add step",
+      "linkPattern": "Link pattern…",
       "moreAdd": "More ways to add steps",
       "stepCount_one": "1 step",
       "stepCount_other": "{{count}} steps",
@@ -745,15 +761,38 @@
       "uploadPictures": "Upload pictures…"
     },
     "label": "Diagram",
+    "picker": {
+      "cancel": "Cancel",
+      "failed": "The crease pattern’s patterns couldn’t be found.",
+      "label": "Patterns",
+      "none": "This crease pattern has no patterns to link yet.",
+      "noPattern": "Open a crease pattern in Edit to link one.",
+      "pattern": "Pattern {{number}}",
+      "pending": "Finding the patterns…",
+      "title": "Choose a pattern"
+    },
     "picture": {
+      "capturing": "Capturing…",
+      "checking": "Checking…",
       "cssDropped": "Some of its styling couldn’t be kept, so parts may look different.",
+      "current": "Up to date",
       "flowedText": "Flowed text isn’t supported and was left out: convert it to regular text, then replace the picture.",
+      "linkedCreasePattern": "Crease pattern",
+      "linkedFolded": "Folded",
+      "linkedFolded3d": "Folded, in 3D",
+      "linkedFoldedBack": "Folded, from the back",
       "linkedImage": "Linked images can’t be kept: embed them in the file, then replace the picture.",
+      "linkedUnposed": "A pattern, not captured yet",
+      "missing": "Pattern missing",
       "none": "No picture yet",
+      "pattern": "Pattern",
       "raster": "Uploaded image, {{width}} × {{height}} px",
       "simplified": "This picture was simplified.",
       "source": "Source",
+      "stale": "Out of date: the pattern changed",
+      "stop": "Stop",
       "svg": "Uploaded SVG, {{width}} × {{height}} px",
+      "unknown": "Not checked: the crease pattern isn’t open",
       "unsupported": "Some of its parts aren’t supported and were left out."
     },
     "pose": {

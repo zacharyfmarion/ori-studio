@@ -685,6 +685,8 @@
   "diagram": {
     "actions": {
       "addStep": "Schritt hinzufügen",
+      "capturingHint": "Sein Bild wird gerade erfasst",
+      "currentHint": "Zeigt sein Muster bereits so, wie es ist",
       "delete": "Schritt löschen",
       "duplicate": "Schritt duplizieren",
       "exportPicture": "Bild exportieren…",
@@ -692,12 +694,18 @@
       "insertAfter": "Schritt danach einfügen",
       "insertBefore": "Schritt davor einfügen",
       "lastHint": "Bereits der letzte Schritt",
+      "linkPattern": "Muster verknüpfen…",
       "lockedEditHint": "Mit einem neueren Ori Studio erstellt: Er lässt sich verschieben oder löschen, aber nicht ändern",
       "lockedHint": "Mit einem neueren Ori Studio erstellt: Er lässt sich verschieben oder löschen, aber nicht kopieren",
+      "missingHint": "Sein Muster ist weg: verknüpfe es mit einem anderen",
       "moveEarlier": "Nach vorne",
       "moveLater": "Nach hinten",
+      "noPatternHint": "Öffne ein Faltmuster in Bearbeiten, um es zu verknüpfen",
+      "noPatternRefreshHint": "Öffne sein Faltmuster in Bearbeiten, um es zu aktualisieren",
       "noPictureHint": "Dieser Schritt hat noch kein Bild",
       "readOnlyHint": "Dieses Diagramm wurde mit einem neueren Ori Studio erstellt und wird schreibgeschützt geöffnet",
+      "refreshPicture": "Bild aktualisieren",
+      "relinkPattern": "Muster neu verknüpfen…",
       "removePicture": "Bild entfernen",
       "replacePicture": "Bild ersetzen…",
       "uploadPicture": "Bild hochladen…"
@@ -710,10 +718,16 @@
       "badgeImage": "Bild",
       "badgeNewer": "Neuer",
       "badgeSvg": "SVG",
+      "capturing": "Wird erfasst…",
+      "link": "Verknüpfen…",
       "locked": "Mit einem neueren Ori Studio erstellt",
+      "missing": "Muster fehlt",
       "noInstruction": "Keine Anleitung",
       "noPicture": "Noch kein Bild",
+      "notCaptured": "Noch nicht erfasst",
       "number": "Schritt {{number}}",
+      "stale": "Veraltet",
+      "stop": "Stopp",
       "upload": "Hochladen…"
     },
     "detail": {
@@ -728,6 +742,7 @@
     },
     "empty": {
       "addStep": "Schritt hinzufügen",
+      "link": "Muster verknüpfen…",
       "message": "Ein Diagramm ist Ihre Faltfolge, Schritt für Schritt. Fügen Sie einen Schritt hinzu und geben Sie ihm ein Bild und eine Anleitung – oder laden Sie Ihre Zeichnungen hoch, je eine pro Schritt.",
       "title": "Ein Diagramm beginnen",
       "upload": "Bilder hochladen…"
@@ -737,6 +752,7 @@
     },
     "header": {
       "addStep": "Schritt hinzufügen",
+      "linkPattern": "Muster verknüpfen…",
       "moreAdd": "Weitere Möglichkeiten, Schritte hinzuzufügen",
       "stepCount_one": "{{count}} Schritt",
       "stepCount_other": "{{count}} Schritte",
@@ -745,15 +761,38 @@
       "uploadPictures": "Bilder hochladen…"
     },
     "label": "Diagramm",
+    "picker": {
+      "cancel": "Abbrechen",
+      "failed": "Die Muster des Faltmusters wurden nicht gefunden.",
+      "label": "Muster",
+      "none": "Dieses Faltmuster hat noch keine Muster zum Verknüpfen.",
+      "noPattern": "Öffne ein Faltmuster in Bearbeiten, um eins zu verknüpfen.",
+      "pattern": "Muster {{number}}",
+      "pending": "Muster werden gesucht…",
+      "title": "Muster wählen"
+    },
     "picture": {
+      "capturing": "Wird erfasst…",
+      "checking": "Wird geprüft…",
       "cssDropped": "Ein Teil der Gestaltung ließ sich nicht übernehmen, daher können einige Stellen anders aussehen.",
+      "current": "Aktuell",
       "flowedText": "Fließtext wird nicht unterstützt und wurde weggelassen: Wandeln Sie ihn in normalen Text um und ersetzen Sie dann das Bild.",
+      "linkedCreasePattern": "Faltmuster",
+      "linkedFolded": "Gefaltet",
+      "linkedFolded3d": "Gefaltet, in 3D",
+      "linkedFoldedBack": "Gefaltet, von hinten",
       "linkedImage": "Verknüpfte Bilder lassen sich nicht übernehmen: Betten Sie sie in die Datei ein und ersetzen Sie dann das Bild.",
+      "linkedUnposed": "Ein Muster, noch nicht erfasst",
+      "missing": "Muster fehlt",
       "none": "Noch kein Bild",
+      "pattern": "Muster",
       "raster": "Hochgeladenes Bild, {{width}} × {{height}} px",
       "simplified": "Dieses Bild wurde vereinfacht.",
       "source": "Quelle",
+      "stale": "Veraltet: das Muster hat sich geändert",
+      "stop": "Stopp",
       "svg": "Hochgeladenes SVG, {{width}} × {{height}} px",
+      "unknown": "Nicht geprüft: das Faltmuster ist nicht geöffnet",
       "unsupported": "Einige Teile werden nicht unterstützt und wurden weggelassen."
     },
     "pose": {

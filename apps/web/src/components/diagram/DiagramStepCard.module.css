@@ -67,6 +67,7 @@
 
 /* Square, whatever the column width, so a row of cards lines up. */
 .well {
+  position: relative;
   display: grid;
   aspect-ratio: 1;
   place-items: center;
@@ -121,4 +122,70 @@
 .instruction[data-empty] {
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* The ways to give an empty step a picture, side by side. */
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+/* The kind, and a linked step's pattern beside it. */
+.kind {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A linked step's pattern, small: on the canvas's ground, where the theme's crease inks read. */
+.pattern {
+  width: 18px;
+  height: 18px;
+  padding: 1px;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: var(--bg-canvas, #0c0f12);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+/* How the link stands, or that it is being captured, over the picture's top. */
+.chip {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 12px);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+  font-size: 0.66rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip[data-tone='warning'] {
+  color: var(--status-warning);
+}
+
+.chip[data-tone='progress'] {
+  color: var(--text-secondary);
+}
+
+.stop {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.stop:hover {
+  text-decoration: underline;
 }

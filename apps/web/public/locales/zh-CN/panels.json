@@ -656,6 +656,8 @@
   "diagram": {
     "actions": {
       "addStep": "添加步骤",
+      "capturingHint": "正在捕获其图片",
+      "currentHint": "已显示其图样的当前状态",
       "delete": "删除步骤",
       "duplicate": "复制步骤",
       "exportPicture": "导出图片…",
@@ -663,12 +665,18 @@
       "insertAfter": "在后面插入步骤",
       "insertBefore": "在前面插入步骤",
       "lastHint": "已经是最后一步",
+      "linkPattern": "链接图样…",
       "lockedEditHint": "由更新版本的 Ori Studio 创建：可以移动或删除，但不能修改",
       "lockedHint": "由更新版本的 Ori Studio 创建：可以移动或删除，但不能复制",
+      "missingHint": "其图样已不存在：请重新链接到其他图样",
       "moveEarlier": "前移",
       "moveLater": "后移",
+      "noPatternHint": "请先在编辑中打开折痕图再链接",
+      "noPatternRefreshHint": "请先在编辑中打开其折痕图再刷新",
       "noPictureHint": "此步骤还没有图片",
       "readOnlyHint": "此图解由更新版本的 Ori Studio 创建，以只读方式打开",
+      "refreshPicture": "刷新图片",
+      "relinkPattern": "重新链接图样…",
       "removePicture": "移除图片",
       "replacePicture": "替换图片…",
       "uploadPicture": "上传图片…"
@@ -681,10 +689,16 @@
       "badgeImage": "图片",
       "badgeNewer": "较新",
       "badgeSvg": "SVG",
+      "capturing": "正在捕获…",
+      "link": "链接…",
       "locked": "由更新版本的 Ori Studio 创建",
+      "missing": "图样缺失",
       "noInstruction": "无说明",
       "noPicture": "尚无图片",
+      "notCaptured": "尚未捕获",
       "number": "第 {{number}} 步",
+      "stale": "已过期",
+      "stop": "停止",
       "upload": "上传…"
     },
     "detail": {
@@ -699,6 +713,7 @@
     },
     "empty": {
       "addStep": "添加步骤",
+      "link": "链接图样…",
       "message": "图解就是你的折叠顺序，一次一步。添加一个步骤，再为它配上图片和说明——或上传你的图，每张一个步骤。",
       "title": "开始制作图解",
       "upload": "上传图片…"
@@ -708,6 +723,7 @@
     },
     "header": {
       "addStep": "添加步骤",
+      "linkPattern": "链接图样…",
       "moreAdd": "更多添加步骤的方式",
       "stepCount_other": "{{count}} 个步骤",
       "titleLabel": "图解标题",
@@ -715,15 +731,38 @@
       "uploadPictures": "上传图片…"
     },
     "label": "图解",
+    "picker": {
+      "cancel": "取消",
+      "failed": "未能找到折痕图中的图样。",
+      "label": "图样",
+      "none": "此折痕图中还没有可链接的图样。",
+      "noPattern": "请先在编辑中打开折痕图再链接。",
+      "pattern": "图样 {{number}}",
+      "pending": "正在查找图样…",
+      "title": "选择图样"
+    },
     "picture": {
+      "capturing": "正在捕获…",
+      "checking": "正在检查…",
       "cssDropped": "部分样式无法保留，因此某些地方可能看起来不同。",
+      "current": "最新",
       "flowedText": "不支持流动文本，已将其略去：请先转换为普通文本，再替换图片。",
+      "linkedCreasePattern": "折痕图",
+      "linkedFolded": "折叠形态",
+      "linkedFolded3d": "折叠形态（3D）",
+      "linkedFoldedBack": "折叠形态（背面）",
       "linkedImage": "无法保留链接的图像：请将其嵌入文件，再替换图片。",
+      "linkedUnposed": "图样（尚未捕获）",
+      "missing": "图样缺失",
       "none": "尚无图片",
+      "pattern": "图样",
       "raster": "上传的图像，{{width}} × {{height}} px",
       "simplified": "此图片已被简化。",
       "source": "来源",
+      "stale": "已过期：图样已更改",
+      "stop": "停止",
       "svg": "上传的 SVG，{{width}} × {{height}} px",
+      "unknown": "未检查：折痕图未打开",
       "unsupported": "其中部分内容不受支持，已被略去。"
     },
     "pose": {

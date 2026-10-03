@@ -1,17 +1,31 @@
 import type { TFunction } from 'i18next';
 import { describe, expect, it, vi } from 'vitest';
-import { buildDiagramStepActions } from './diagramActions';
+import { buildDiagramStepActions, type DiagramStepActionState } from './diagramActions';
 import { diagramStepMenuItems } from './diagramContextMenu';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 
-function actions(state = { index: 1, count: 3, locked: false, readOnly: false, hasPicture: false }) {
-  return buildDiagramStepActions(state, {
+const BASE: DiagramStepActionState = {
+  index: 1,
+  count: 3,
+  locked: false,
+  readOnly: false,
+  hasPicture: false,
+  hasSource: false,
+  link: null,
+  capturing: false,
+  patternOpen: true,
+};
+
+function actions(state: Partial<DiagramStepActionState> = {}) {
+  return buildDiagramStepActions({ ...BASE, ...state }, {
     t,
     insert: vi.fn(),
     duplicate: vi.fn(),
     move: vi.fn(),
     uploadPicture: vi.fn(),
+    linkPattern: vi.fn(),
+    refreshPicture: vi.fn(),
     exportPicture: vi.fn(),
     removePicture: vi.fn(),
     remove: vi.fn(),
@@ -30,6 +44,7 @@ describe('the step card menu', () => {
       'move-later',
       'separator',
       'upload-picture',
+      'link-pattern',
       'export-picture',
       'remove-picture',
       'separator',
@@ -50,7 +65,7 @@ describe('the step card menu', () => {
 
   it('carries why a row is disabled', () => {
     const items = diagramStepMenuItems(
-      actions({ index: 0, count: 3, locked: false, readOnly: false, hasPicture: false })
+      actions({ index: 0 })
     );
     const earlier = items.find((item) => item.kind === 'action' && item.id === 'move-earlier');
     expect(earlier).toMatchObject({ disabled: true, hint: 'Already the first step' });

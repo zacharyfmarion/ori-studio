@@ -101,10 +101,13 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
    * The selection to set, and the detail with it: a detail is open on the
    * selected step, so nothing selected closes it.
    */
-  const selection = (stepId: string | null) =>
-    stepId === null
-      ? { diagramSelectedStepId: null, diagramDetail: null }
-      : { diagramSelectedStepId: stepId };
+  const selection = (stepId: string | null) => ({
+    diagramSelectedStepId: stepId,
+    // A detail is open on the selected step, and a picker chooses for one:
+    // nothing selected closes the detail, and another step the picker.
+    ...(stepId === null ? { diagramDetail: null } : {}),
+    ...(get().diagramPatternPicker !== stepId ? { diagramPatternPicker: null } : {}),
+  });
 
   /** Keep the selection only while the step it names still exists. */
   const reconciledSelection = (document: DiagramDocument | null): string | null => {
@@ -137,7 +140,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     const step = createStep();
     const next = commit('Add step', (document) => insertSteps(document, [step], index(document)));
     if (!next) return null;
-    set({ diagramSelectedStepId: step.id });
+    set(selection(step.id));
     return step.id;
   };
 
@@ -231,7 +234,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
         return result.document;
       });
       if (!next || copyId === null) return null;
-      set({ diagramSelectedStepId: copyId });
+      set(selection(copyId));
       return copyId;
     },
 
@@ -273,7 +276,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       });
       if (!next) return null;
       // The last of them, so the next add goes on after the batch.
-      set({ diagramSelectedStepId: stepIds[stepIds.length - 1] });
+      set(selection(stepIds[stepIds.length - 1]));
       return { stepIds, filled: false };
     },
 
@@ -306,10 +309,22 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (next !== get().diagramSelectedStepId) set(selection(next));
     },
 
+    openDiagramPatternPicker: (stepId) => {
+      const { diagram, diagramReadOnly } = get();
+      const step = diagram?.steps[stepIndex(diagram, stepId)];
+      if (!step || diagramReadOnly || isLockedStep(step)) return false;
+      set({ ...selection(stepId), diagramPatternPicker: stepId });
+      return true;
+    },
+
+    closeDiagramPatternPicker: () => {
+      if (get().diagramPatternPicker !== null) set({ diagramPatternPicker: null });
+    },
+
     openDiagramStep: (stepId, mode = 'pose') => {
       const diagram = get().diagram;
       if (!diagram || stepIndex(diagram, stepId) < 0) return false;
-      set({ diagramSelectedStepId: stepId, diagramDetail: mode });
+      set({ ...selection(stepId), diagramDetail: mode });
       return true;
     },
 

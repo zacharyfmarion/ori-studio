@@ -714,6 +714,8 @@
   "diagram": {
     "actions": {
       "addStep": "Ajouter une étape",
+      "capturingHint": "Son image est en cours de capture",
+      "currentHint": "Montre déjà son patron tel qu’il est",
       "delete": "Supprimer l’étape",
       "duplicate": "Dupliquer l’étape",
       "exportPicture": "Exporter l’image…",
@@ -721,12 +723,18 @@
       "insertAfter": "Insérer une étape après",
       "insertBefore": "Insérer une étape avant",
       "lastHint": "C’est déjà la dernière étape",
+      "linkPattern": "Lier un patron…",
       "lockedEditHint": "Créée avec une version plus récente d’Ori Studio\u00a0: elle peut être déplacée ou supprimée, mais pas modifiée",
       "lockedHint": "Créée avec une version plus récente d’Ori Studio\u00a0: elle peut être déplacée ou supprimée, mais pas copiée",
+      "missingHint": "Son patron a disparu\u00a0: liez-le à un autre",
       "moveEarlier": "Avancer",
       "moveLater": "Reculer",
+      "noPatternHint": "Ouvrez un patron de plis dans Édition pour le lier",
+      "noPatternRefreshHint": "Ouvrez son patron de plis dans Édition pour l’actualiser",
       "noPictureHint": "Cette étape n’a pas encore d’image",
       "readOnlyHint": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule",
+      "refreshPicture": "Actualiser l’image",
+      "relinkPattern": "Relier à un autre patron…",
       "removePicture": "Retirer l’image",
       "replacePicture": "Remplacer l’image…",
       "uploadPicture": "Importer une image…"
@@ -739,10 +747,16 @@
       "badgeImage": "Image",
       "badgeNewer": "Plus récent",
       "badgeSvg": "SVG",
+      "capturing": "Capture…",
+      "link": "Lier…",
       "locked": "Créée avec une version plus récente d’Ori Studio",
+      "missing": "Patron introuvable",
       "noInstruction": "Aucune instruction",
       "noPicture": "Pas encore d’image",
+      "notCaptured": "Pas encore capturé",
       "number": "Étape {{number}}",
+      "stale": "Pas à jour",
+      "stop": "Arrêter",
       "upload": "Importer…"
     },
     "detail": {
@@ -757,6 +771,7 @@
     },
     "empty": {
       "addStep": "Ajouter une étape",
+      "link": "Lier un patron…",
       "message": "Un diagramme, c’est votre séquence de pliage, une étape à la fois. Ajoutez une étape, puis donnez-lui une image et une instruction — ou importez vos dessins, une étape chacun.",
       "title": "Commencer un diagramme",
       "upload": "Importer des images…"
@@ -766,6 +781,7 @@
     },
     "header": {
       "addStep": "Ajouter une étape",
+      "linkPattern": "Lier un patron…",
       "moreAdd": "Autres façons d’ajouter des étapes",
       "stepCount_one": "{{count}} étape",
       "stepCount_many": "{{count}} étapes",
@@ -775,15 +791,38 @@
       "uploadPictures": "Importer des images…"
     },
     "label": "Diagramme",
+    "picker": {
+      "cancel": "Annuler",
+      "failed": "Les patrons du patron de plis sont introuvables.",
+      "label": "Patrons",
+      "none": "Ce patron de plis n’a pas encore de patron à lier.",
+      "noPattern": "Ouvrez un patron de plis dans Édition pour en lier un.",
+      "pattern": "Patron {{number}}",
+      "pending": "Recherche des patrons…",
+      "title": "Choisissez un patron"
+    },
     "picture": {
+      "capturing": "Capture…",
+      "checking": "Vérification…",
       "cssDropped": "Une partie de son style n’a pas pu être conservée, certains éléments peuvent donc paraître différents.",
+      "current": "À jour",
       "flowedText": "Le texte encadré n’est pas pris en charge et a été omis\u00a0: convertissez-le en texte ordinaire, puis remplacez l’image.",
+      "linkedCreasePattern": "Patron de plis",
+      "linkedFolded": "Plié",
+      "linkedFolded3d": "Plié, en 3D",
+      "linkedFoldedBack": "Plié, vu de dos",
       "linkedImage": "Les images liées ne peuvent pas être conservées\u00a0: incorporez-les au fichier, puis remplacez l’image.",
+      "linkedUnposed": "Un patron, pas encore capturé",
+      "missing": "Patron introuvable",
       "none": "Pas encore d’image",
+      "pattern": "Patron",
       "raster": "Image importée, {{width}} × {{height}} px",
       "simplified": "Cette image a été simplifiée.",
       "source": "Source",
+      "stale": "Pas à jour\u00a0: le patron a changé",
+      "stop": "Arrêter",
       "svg": "SVG importé, {{width}} × {{height}} px",
+      "unknown": "Non vérifié\u00a0: le patron de plis n’est pas ouvert",
       "unsupported": "Certaines de ses parties ne sont pas prises en charge et ont été omises."
     },
     "pose": {

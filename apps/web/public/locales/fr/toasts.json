@@ -22,6 +22,15 @@
     "simulateNoRegion": "Sélectionnez une région fermée à simuler."
   },
   "diagram": {
+    "capture": {
+      "failed": "L’image n’a pas pu être capturée",
+      "missing": "Ce patron ne fait plus partie du patron de plis.",
+      "noLayerOrder": "Ses couches n’ont pas pu être ordonnées\u00a0: l’étape montre le papier plié en transparence.",
+      "noPattern": "Ouvrez d’abord un patron de plis dans Édition.",
+      "refused": "Ce patron ne se plie pas",
+      "tooDetailed": "Trop détaillé pour rester un dessin\u00a0: l’étape le garde comme image.",
+      "unknown": "Le patron de plis n’est pas encore prêt. Réessayez dans un instant."
+    },
     "dropReadOnly": "Ce diagramme a été créé avec une version plus récente d’Ori Studio et s’ouvre en lecture seule\u00a0: on ne peut pas y ajouter d’images.",
     "uploadFailed_one": "Une image n’a pas pu être ajoutée",
     "uploadFailed_many": "{{count}} images n’ont pas pu être ajoutées",

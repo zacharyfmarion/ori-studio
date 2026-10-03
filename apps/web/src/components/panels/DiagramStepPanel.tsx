@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next';
+import { useDiagramStepLink } from '../../diagram/capture/useStepLink';
 import { useDiagramPoseActions, useDiagramStepActions } from '../../diagram/useDiagramActions';
 import { isLockedStep, stepAsset, stepIndex } from '../../diagram/document/diagramDocument';
 import type { SanitizeNotice } from '../../diagram/upload/svgSanitize';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DiagramPatternPicker } from '../diagram/DiagramPatternPicker';
 import { DiagramStepHeader } from '../diagram/DiagramStepHeader';
 import { DiagramStepPicture } from '../diagram/DiagramStepPicture';
 import { DiagramStepPose } from '../diagram/DiagramStepPose';
@@ -54,6 +56,7 @@ export function DiagramStepPanel() {
   const actions = useDiagramStepActions(stepId);
   const detailOpen = useWorkspaceStore((state) => state.diagramDetail !== null);
   const poseActions = useDiagramPoseActions(detailOpen ? stepId : null);
+  const { link, patternOpen, capture, picker } = useDiagramStepLink(step);
 
   if (!step || index < 0) {
     return (
@@ -97,7 +100,26 @@ export function DiagramStepPanel() {
         )}
         {!locked && (
           <CollapsibleSection title={t('panels:diagram.stepPane.picture', 'Picture')}>
-            <DiagramStepPicture asset={asset} notices={notices} actions={actions} />
+            <DiagramStepPicture
+              step={step}
+              asset={asset}
+              notices={notices}
+              actions={actions}
+              link={link}
+              patternOpen={patternOpen}
+              capture={capture}
+              picker={
+                picker && (
+                  <DiagramPatternPicker
+                    sheets={picker.sheets}
+                    selectedId={picker.selectedId}
+                    busy={picker.busy}
+                    onPick={picker.pick}
+                    onCancel={picker.cancel}
+                  />
+                )
+              }
+            />
           </CollapsibleSection>
         )}
         <CollapsibleSection title={t('panels:diagram.stepPane.instruction', 'Instruction')}>

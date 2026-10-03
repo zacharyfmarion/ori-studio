@@ -5,6 +5,9 @@ import {
   bucketCount,
 } from './events';
 import type {
+  DiagramCaptureKind,
+  DiagramCaptureOutcome,
+  DiagramCaptureVia,
   DiagramPictureExportFormat,
   DiagramPictureFormat,
   DiagramPictureKind,
@@ -64,4 +67,13 @@ export function trackDiagramPictureRemoved(kind: DiagramPictureKind): void {
 /** A step's picture exported, by the file's kind: never its name. */
 export function trackDiagramPictureExported(format: DiagramPictureExportFormat): void {
   track(ANALYTICS_EVENTS.diagramPictureExported, { format });
+}
+
+/** A step's picture captured from the crease pattern, and what became of it. */
+export function trackDiagramPictureCaptured(
+  kind: DiagramCaptureKind,
+  outcome: DiagramCaptureOutcome,
+  via: DiagramCaptureVia
+): void {
+  track(ANALYTICS_EVENTS.diagramPictureCaptured, { kind, outcome, via });
 }

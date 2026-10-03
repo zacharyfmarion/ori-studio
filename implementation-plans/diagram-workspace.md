@@ -1895,13 +1895,19 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
       - the result is dropped when the diagram was replaced, or the step is gone or its `revision` moved. An instruction typed meanwhile does not move it.
       - A capture that changes nothing records no undo step.
     - **Moved to 3d:** `useDiagramCaptureSession.ts`, with the Pose it serves.
-    - **For 3c:** Remove picture must be offered for a linked step with no picture yet; today it needs a drawable one.
-- [ ] **3c.** The Picture section and linking.
+- [x] **3c.** The Picture section and linking.
   - The pattern picker over the kernel-space `SheetGrid`.
   - **Link pattern…** from the empty card and header: pick → capture as a crease pattern, then Pose to fold.
   - Refresh, Relink, Remove picture.
   - Card badges, status chips, progress with Stop.
   - Optionally, **its own series first**: move `sheet-grid` / `sheet-card` into `SheetGrid.module.css` with a `columns` prop. It is a shared block, so the References and Simulate overrides become the prop.
+  - As built:
+    - **The picker is the Diagram's own** (`DiagramPatternPicker`, several small sheets to a row), not `SheetGrid`. The rails' one-card-per-row layout does not fit a pane section, and `sheet-grid` / `sheet-card` are a shared block other screens' tests look up by class, so a `columns` prop is a move of its own. The picker and the card draw thumbnails with `DiagramSheetThumbnail` and the shared `--sheet-thumb-*` tokens, as D's card note says.
+    - **The picker is view state** (`diagramPatternPicker`), shown in the Step pane while its step is selected. Selecting another step closes it. **Link pattern…** from the header, the empty state or the empty card adds or selects the step, opens the picker and brings the Step pane forward (`activatePanel`). A pick captures a crease pattern; a relink keeps the step's render.
+    - **The catalog** gains `link-pattern` (Link / Relink) and `refresh-picture` (linked steps only), gated on link status, a capture in flight and whether a pattern is open. Remove picture now takes a link with no picture yet.
+    - **Status** comes from `useDiagramLinkStatuses`, which asks for the segmentation only when a region-linked step needs it. The card shows Out of date or Pattern missing over the picture, Capturing… with Stop while a capture runs, and the pattern's thumbnail beside its kind. The Step pane says how the link stands, and offers Stop.
+    - **Analytics:** `diagram picture captured` (`kind`, `outcome`, `via`: link, relink, refresh), and `diagram picture removed` takes the captured kinds.
+    - Verified in the browser on the crane (link from the empty state, out of date after an edit, Refresh, Relink), in both themes.
 - [ ] **3d.** Pose for folded steps inside the step detail.
   - `useDiagramCaptureSession.ts`:
     - retain and release;
@@ -1921,6 +1927,7 @@ Done 2026-10-02. The results are in "Phase 0 results" below and in
   - The `oristudioCpRegionFocusRequest` for **Open in Edit** (latched, consumed on CP panel mount, framed through `cpCamera()`).
   - **Refresh all** (`captureQueue.ts`).
 - [ ] **3f.** Analytics: `diagram picture captured` and `diagram step added` (`crease_pattern`, `cp_folded`, `cp_3d`).
+  - `diagram picture captured` landed with 3c; Pose (3d) adds `via: pose`, and 3e's Add to diagram adds the step events.
 - [ ] **Browser** (CP wasm rebuilt first):
   - link all eleven crane states;
   - turn over, rotate, Next solution, Revert;

@@ -714,6 +714,8 @@
   "diagram": {
     "actions": {
       "addStep": "Adicionar passo",
+      "capturingHint": "Sua imagem está sendo capturada",
+      "currentHint": "Já mostra o padrão como ele está",
       "delete": "Excluir passo",
       "duplicate": "Duplicar passo",
       "exportPicture": "Exportar imagem…",
@@ -721,12 +723,18 @@
       "insertAfter": "Inserir passo depois",
       "insertBefore": "Inserir passo antes",
       "lastHint": "Já é o último passo",
+      "linkPattern": "Vincular padrão…",
       "lockedEditHint": "Criado com uma versão mais recente do Ori Studio: pode ser movido ou excluído, mas não alterado",
       "lockedHint": "Criado com uma versão mais recente do Ori Studio: pode ser movido ou excluído, mas não copiado",
+      "missingHint": "O padrão não existe mais: vincule-o a outro",
       "moveEarlier": "Mover para antes",
       "moveLater": "Mover para depois",
+      "noPatternHint": "Abra um padrão de vincos em Editar para vinculá-lo",
+      "noPatternRefreshHint": "Abra o padrão de vincos em Editar para atualizá-lo",
       "noPictureHint": "Este passo ainda não tem imagem",
       "readOnlyHint": "Este diagrama foi criado com uma versão mais recente do Ori Studio e abre somente para leitura",
+      "refreshPicture": "Atualizar imagem",
+      "relinkPattern": "Revincular padrão…",
       "removePicture": "Remover imagem",
       "replacePicture": "Substituir imagem…",
       "uploadPicture": "Enviar imagem…"
@@ -739,10 +747,16 @@
       "badgeImage": "Imagem",
       "badgeNewer": "Mais recente",
       "badgeSvg": "SVG",
+      "capturing": "Capturando…",
+      "link": "Vincular…",
       "locked": "Criado com uma versão mais recente do Ori Studio",
+      "missing": "Padrão ausente",
       "noInstruction": "Sem instrução",
       "noPicture": "Ainda sem imagem",
+      "notCaptured": "Ainda não capturado",
       "number": "Passo {{number}}",
+      "stale": "Desatualizado",
+      "stop": "Parar",
       "upload": "Enviar…"
     },
     "detail": {
@@ -757,6 +771,7 @@
     },
     "empty": {
       "addStep": "Adicionar passo",
+      "link": "Vincular um padrão…",
       "message": "Um diagrama é a sua sequência de dobras, um passo de cada vez. Adicione um passo e depois dê a ele uma imagem e uma instrução — ou envie seus desenhos, um por passo.",
       "title": "Começar um diagrama",
       "upload": "Enviar imagens…"
@@ -766,6 +781,7 @@
     },
     "header": {
       "addStep": "Adicionar passo",
+      "linkPattern": "Vincular padrão…",
       "moreAdd": "Mais formas de adicionar passos",
       "stepCount_one": "{{count}} passo",
       "stepCount_many": "{{count}} passos",
@@ -775,15 +791,38 @@
       "uploadPictures": "Enviar imagens…"
     },
     "label": "Diagrama",
+    "picker": {
+      "cancel": "Cancelar",
+      "failed": "Não foi possível encontrar os padrões do padrão de vincos.",
+      "label": "Padrões",
+      "none": "Este padrão de vincos ainda não tem padrões para vincular.",
+      "noPattern": "Abra um padrão de vincos em Editar para vincular um.",
+      "pattern": "Padrão {{number}}",
+      "pending": "Procurando os padrões…",
+      "title": "Escolha um padrão"
+    },
     "picture": {
+      "capturing": "Capturando…",
+      "checking": "Verificando…",
       "cssDropped": "Parte do estilo não pôde ser mantida, então algumas partes podem parecer diferentes.",
+      "current": "Atualizado",
       "flowedText": "Texto fluido não é suportado e foi omitido: converta-o em texto comum e depois substitua a imagem.",
+      "linkedCreasePattern": "Padrão de vincos",
+      "linkedFolded": "Dobrado",
+      "linkedFolded3d": "Dobrado, em 3D",
+      "linkedFoldedBack": "Dobrado, visto de trás",
       "linkedImage": "Imagens vinculadas não podem ser mantidas: incorpore-as ao arquivo e depois substitua a imagem.",
+      "linkedUnposed": "Um padrão, ainda não capturado",
+      "missing": "Padrão ausente",
       "none": "Ainda sem imagem",
+      "pattern": "Padrão",
       "raster": "Imagem enviada, {{width}} × {{height}} px",
       "simplified": "Esta imagem foi simplificada.",
       "source": "Origem",
+      "stale": "Desatualizado: o padrão mudou",
+      "stop": "Parar",
       "svg": "SVG enviado, {{width}} × {{height}} px",
+      "unknown": "Não verificado: o padrão de vincos não está aberto",
       "unsupported": "Algumas partes não são suportadas e foram omitidas."
     },
     "pose": {

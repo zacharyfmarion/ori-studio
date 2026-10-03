@@ -7,6 +7,7 @@ import type {
 } from '../../diagram/document/diagramDocument';
 import { GRID_DROP_TARGET } from '../../diagram/upload/useStepPictureDrop';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
+import type { DiagramCardLinks } from '../../diagram/capture/useCardLinks';
 import { DiagramStepCard } from './DiagramStepCard';
 import styles from './DiagramStepsGrid.module.css';
 
@@ -35,6 +36,9 @@ export function DiagramStepsGrid({
   onSelect,
   onOpen,
   onUpload,
+  links,
+  patternOpen,
+  onLink,
 }: {
   steps: readonly DiagramStep[];
   assets: Readonly<Record<string, DiagramAsset>>;
@@ -49,6 +53,12 @@ export function DiagramStepsGrid({
   onOpen: (stepId: string) => void;
   /** Pick a picture for a step, from a click on its card. */
   onUpload: (stepId: string) => void;
+  /** Each card's link: how it stands, its capture, and a Stop. */
+  links: DiagramCardLinks;
+  /** A crease pattern is open to link an empty step to. */
+  patternOpen: boolean;
+  /** Choose a pattern for a step, from a click on its card. */
+  onLink: (stepId: string) => void;
 }) {
   const { t } = useTranslation();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -101,6 +111,11 @@ export function DiagramStepsGrid({
           onSelect={onSelect}
           onOpen={onOpen}
           onUpload={onUpload}
+          link={links.statuses.get(step.id) ?? null}
+          capture={links.captures[step.id] ?? null}
+          patternOpen={patternOpen}
+          onLink={onLink}
+          onStop={links.stop}
         />
       ))}
     </div>

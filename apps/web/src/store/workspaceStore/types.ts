@@ -1826,6 +1826,11 @@ export interface DiagramSliceState {
   diagramPictureNotices: Record<string, readonly SanitizeNotice[]>;
   /** Captures in flight, by step: what a card shows progress and a Stop for. Not saved. */
   diagramCaptures: Record<string, DiagramCaptureRun>;
+  /**
+   * The step whose pattern is being chosen: the Step pane shows the pattern
+   * picker for it while it is the selected step.
+   */
+  diagramPatternPicker: string | null;
 }
 
 export interface DiagramSliceActions {
@@ -1909,6 +1914,12 @@ export interface DiagramSliceActions {
   captureDiagramStep: (stepId: string, request: DiagramCaptureRequest) => Promise<DiagramCaptureOutcome>;
   /** Stop a step's capture, if it is folding. */
   stopDiagramCapture: (stepId: string) => boolean;
+  /**
+   * Choose a step's pattern: select it and show the pattern picker for it.
+   * False for a step that is not there, or cannot be changed.
+   */
+  openDiagramPatternPicker: (stepId: string) => boolean;
+  closeDiagramPatternPicker: () => void;
   undoDiagram: () => boolean;
   redoDiagram: () => boolean;
 }

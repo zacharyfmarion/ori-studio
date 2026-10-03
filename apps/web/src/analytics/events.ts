@@ -64,8 +64,30 @@ export type DiagramStepOpenedVia = 'keyboard' | 'double_click';
 /** A pose verb on an uploaded picture. */
 export type DiagramPoseAction = 'rotate_left' | 'rotate_right' | 'flip' | 'reset';
 
-/** What an uploaded picture is stored as. */
-export type DiagramPictureKind = 'svg' | 'raster';
+/**
+ * What a step's picture is: an upload, by what it is stored as, or a capture
+ * from the crease pattern, by how it shows it.
+ */
+export type DiagramPictureKind = 'svg' | 'raster' | DiagramCaptureKind;
+
+/** How a captured picture shows its pattern. */
+export type DiagramCaptureKind = 'crease_pattern' | 'flat' | '3d';
+
+/**
+ * What became of a capture: kept (`rasterized` when too detailed to keep as
+ * vector, `no_layer_order` when the fold could not be ordered), or not: the 3D
+ * folder refused the creases, the user stopped it, or it failed.
+ */
+export type DiagramCaptureOutcome =
+  | 'ok'
+  | 'no_layer_order'
+  | 'rasterized'
+  | 'refused'
+  | 'stopped'
+  | 'failed';
+
+/** Which flow captured a picture: linking a step, relinking it, or Refresh. */
+export type DiagramCaptureVia = 'link' | 'relink' | 'refresh';
 
 /** The file Export picture… wrote. */
 export type DiagramPictureExportFormat = 'svg' | 'png' | 'jpeg';
@@ -986,6 +1008,12 @@ export const ANALYTICS_EVENTS = {
    * export, edit and replace round trip D7 is built for.
    */
   diagramPictureExported: 'diagram picture exported',
+  /**
+   * A step's picture captured from the crease pattern (D18): how it shows the
+   * pattern, what became of it, and which flow asked — whether linking is used,
+   * and how often folds fail or are stopped.
+   */
+  diagramPictureCaptured: 'diagram picture captured',
   exploriSearch: 'explori search',
   exploriSearchFailed: 'explori search failed',
   exploriResultOpened: 'explori result opened',

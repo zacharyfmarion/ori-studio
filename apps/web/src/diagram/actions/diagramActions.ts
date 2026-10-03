@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
+import type { DiagramLinkStatus } from '../capture/linkStatus';
 
 /**
  * The verbs a diagram step offers, in the order every surface presents them:
@@ -19,6 +20,8 @@ export type DiagramStepActionId =
   | 'move-earlier'
   | 'move-later'
   | 'upload-picture'
+  | 'link-pattern'
+  | 'refresh-picture'
   | 'export-picture'
   | 'remove-picture'
   | 'delete';
@@ -62,6 +65,14 @@ export interface DiagramStepActionState {
   readOnly: boolean;
   /** The step has a picture this build can draw. */
   hasPicture: boolean;
+  /** The step has a picture or a link to a pattern, which Remove picture takes away. */
+  hasSource: boolean;
+  /** How the step's link to the crease pattern stands; null for a step that is not linked. */
+  link: DiagramLinkStatus | null;
+  /** A capture of this step is running. */
+  capturing: boolean;
+  /** A crease pattern is open to link to. */
+  patternOpen: boolean;
 }
 
 export interface DiagramStepActionDeps {
@@ -71,6 +82,10 @@ export interface DiagramStepActionDeps {
   move: (direction: 'earlier' | 'later') => void;
   /** Pick a file for the step's picture: its first, or in place of the one it has. */
   uploadPicture: () => void;
+  /** Choose the pattern the step shows: the picker, in the Step pane. */
+  linkPattern: () => void;
+  /** Capture a linked step's picture again from its pattern as it is now. */
+  refreshPicture: () => void;
   exportPicture: () => void;
   removePicture: () => void;
   remove: () => void;
@@ -95,6 +110,11 @@ export function buildDiagramStepActions(
     'panels:diagram.actions.readOnlyHint',
     'This diagram was made with a newer Ori Studio and opens read-only'
   );
+  const lockedEditHint = t(
+    'panels:diagram.actions.lockedEditHint',
+    'Made with a newer Ori Studio: it can be moved or deleted, not changed'
+  );
+  const capturingHint = t('panels:diagram.actions.capturingHint', 'Its picture is being captured');
   const command = (
     id: DiagramStepActionId,
     label: string,
@@ -164,9 +184,34 @@ export function buildDiagramStepActions(
         ? t('panels:diagram.actions.replacePicture', 'Replace Picture…')
         : t('panels:diagram.actions.uploadPicture', 'Upload Picture…'),
       deps.uploadPicture,
-      state.locked,
-      t('panels:diagram.actions.lockedEditHint', 'Made with a newer Ori Studio: it can be moved or deleted, not changed')
+      state.locked || state.capturing,
+      state.locked ? lockedEditHint : capturingHint
     ),
+    command(
+      'link-pattern',
+      state.link === null
+        ? t('panels:diagram.actions.linkPattern', 'Link Pattern…')
+        : t('panels:diagram.actions.relinkPattern', 'Relink Pattern…'),
+      deps.linkPattern,
+      state.locked || !state.patternOpen || state.capturing,
+      state.locked
+        ? lockedEditHint
+        : !state.patternOpen
+          ? t('panels:diagram.actions.noPatternHint', 'Open a crease pattern in Edit to link it')
+          : capturingHint
+    ),
+    // Only a linked step can be refreshed: on any other the verb is noise.
+    ...(state.link === null
+      ? []
+      : [
+          command(
+            'refresh-picture',
+            t('panels:diagram.actions.refreshPicture', 'Refresh Picture'),
+            deps.refreshPicture,
+            state.capturing || !refreshable(state.link, state.patternOpen),
+            state.capturing ? capturingHint : refreshHint(state.link, state.patternOpen, t)
+          ),
+        ]),
     command(
       'export-picture',
       t('panels:diagram.actions.exportPicture', 'Export Picture…'),
@@ -178,8 +223,8 @@ export function buildDiagramStepActions(
       'remove-picture',
       t('panels:diagram.actions.removePicture', 'Remove Picture'),
       deps.removePicture,
-      !state.hasPicture,
-      t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
+      !state.hasSource || state.capturing,
+      state.capturing ? capturingHint : t('panels:diagram.actions.noPictureHint', 'This step has no picture yet')
     ),
     { kind: 'separator', id: 'after-picture' },
     command(
@@ -191,6 +236,30 @@ export function buildDiagramStepActions(
       true
     ),
   ];
+}
+
+/**
+ * Whether Refresh can do anything: the pattern changed, or a pattern is open
+ * and the link cannot be checked yet (its segmentation is still coming), where
+ * a capture finds out. Not for a link that is current, or whose pattern is gone.
+ */
+function refreshable(link: DiagramLinkStatus, patternOpen: boolean): boolean {
+  return link === 'stale' || (link === 'unknown' && patternOpen);
+}
+
+function refreshHint(link: DiagramLinkStatus, patternOpen: boolean, t: TFunction): string | undefined {
+  switch (link) {
+    case 'current':
+      return t('panels:diagram.actions.currentHint', 'Already shows its pattern as it is');
+    case 'missing':
+      return t('panels:diagram.actions.missingHint', 'Its pattern is gone: relink it to another');
+    case 'unknown':
+      return patternOpen
+        ? undefined
+        : t('panels:diagram.actions.noPatternRefreshHint', 'Open its crease pattern in Edit to refresh it');
+    case 'stale':
+      return undefined;
+  }
 }
 
 /** The command with this id, for a surface that places verbs one by one. */

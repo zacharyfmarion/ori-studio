@@ -31,6 +31,9 @@ export type {
   DesktopDownloadSurface,
   DiagramPictureExportFormat,
   DiagramPictureFormat,
+  DiagramCaptureKind,
+  DiagramCaptureOutcome,
+  DiagramCaptureVia,
   DiagramPictureKind,
   DiagramPictureUploadOutcome,
   DiagramPoseAction,
@@ -91,6 +94,7 @@ export {
 export { trackCommunityLink } from './trackCommunityLink';
 export { trackDesignSentToEdit } from './trackSendToEdit';
 export {
+  trackDiagramPictureCaptured,
   trackDiagramPictureExported,
   trackDiagramPicturePosed,
   trackDiagramPictureRemoved,

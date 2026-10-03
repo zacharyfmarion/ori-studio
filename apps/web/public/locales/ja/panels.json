@@ -656,6 +656,8 @@
   "diagram": {
     "actions": {
       "addStep": "ステップを追加",
+      "capturingHint": "図をキャプチャ中です",
+      "currentHint": "パターンの現在の状態をすでに表示しています",
       "delete": "ステップを削除",
       "duplicate": "ステップを複製",
       "exportPicture": "図を書き出し…",
@@ -663,12 +665,18 @@
       "insertAfter": "後ろにステップを挿入",
       "insertBefore": "前にステップを挿入",
       "lastHint": "すでに最後のステップです",
+      "linkPattern": "パターンをリンク…",
       "lockedEditHint": "新しい Ori Studio で作成されたステップです。移動と削除はできますが、変更はできません",
       "lockedHint": "新しい Ori Studio で作成されたステップです。移動と削除はできますが、複製はできません",
+      "missingHint": "パターンがなくなりました：別のパターンにリンクし直してください",
       "moveEarlier": "前へ移動",
       "moveLater": "後ろへ移動",
+      "noPatternHint": "リンクするには編集で展開図を開いてください",
+      "noPatternRefreshHint": "更新するには編集でその展開図を開いてください",
       "noPictureHint": "このステップにはまだ図がありません",
       "readOnlyHint": "この折り図は新しい Ori Studio で作成されたため、読み取り専用で開かれています",
+      "refreshPicture": "図を更新",
+      "relinkPattern": "パターンをリンクし直す…",
       "removePicture": "図を削除",
       "replacePicture": "図を差し替え…",
       "uploadPicture": "図をアップロード…"
@@ -681,10 +689,16 @@
       "badgeImage": "画像",
       "badgeNewer": "新しい版",
       "badgeSvg": "SVG",
+      "capturing": "キャプチャ中…",
+      "link": "リンク…",
       "locked": "新しい Ori Studio で作成",
+      "missing": "パターンなし",
       "noInstruction": "説明文なし",
       "noPicture": "図はまだありません",
+      "notCaptured": "まだキャプチャされていません",
       "number": "ステップ {{number}}",
+      "stale": "要更新",
+      "stop": "停止",
       "upload": "アップロード…"
     },
     "detail": {
@@ -699,6 +713,7 @@
     },
     "empty": {
       "addStep": "ステップを追加",
+      "link": "パターンをリンク…",
       "message": "折り図は、折る手順を一つずつ示すものです。ステップを追加して図と説明文を付けるか、描いた図をアップロードして一枚ずつステップにしましょう。",
       "title": "折り図を始める",
       "upload": "図をアップロード…"
@@ -708,6 +723,7 @@
     },
     "header": {
       "addStep": "ステップを追加",
+      "linkPattern": "パターンをリンク…",
       "moreAdd": "ステップを追加するその他の方法",
       "stepCount_other": "{{count}} ステップ",
       "titleLabel": "折り図のタイトル",
@@ -715,15 +731,38 @@
       "uploadPictures": "図をアップロード…"
     },
     "label": "折り図",
+    "picker": {
+      "cancel": "キャンセル",
+      "failed": "展開図のパターンが見つかりませんでした。",
+      "label": "パターン",
+      "none": "この展開図にはまだリンクできるパターンがありません。",
+      "noPattern": "リンクするには編集で展開図を開いてください。",
+      "pattern": "パターン {{number}}",
+      "pending": "パターンを探しています…",
+      "title": "パターンを選択"
+    },
     "picture": {
+      "capturing": "キャプチャ中…",
+      "checking": "確認中…",
       "cssDropped": "一部のスタイルを保持できなかったため、見た目が異なる部分があります。",
+      "current": "最新",
       "flowedText": "フローテキストには対応していないため省かれました。通常のテキストに変換してから、図を差し替えてください。",
+      "linkedCreasePattern": "展開図",
+      "linkedFolded": "折り上がり",
+      "linkedFolded3d": "折り上がり（3D）",
+      "linkedFoldedBack": "折り上がり（裏から）",
       "linkedImage": "リンクされた画像は保持できません。ファイルに埋め込んでから、図を差し替えてください。",
+      "linkedUnposed": "パターン（未キャプチャ）",
+      "missing": "パターンなし",
       "none": "図はまだありません",
+      "pattern": "パターン",
       "raster": "アップロードした画像、{{width}} × {{height}} px",
       "simplified": "この図は簡略化されました。",
       "source": "ソース",
+      "stale": "要更新：パターンが変更されました",
+      "stop": "停止",
       "svg": "アップロードした SVG、{{width}} × {{height}} px",
+      "unknown": "未確認：展開図が開いていません",
       "unsupported": "対応していない部分があったため省かれました。"
     },
     "pose": {
