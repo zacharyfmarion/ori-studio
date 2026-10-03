@@ -254,9 +254,9 @@ describe('the payload', () => {
     expect(await encodeCachedPlan(plan)).toBe(await encodeCachedPlan(plan));
   });
 
-  // The planner's source digest keeps another build's plan out; this is for a
-  // payload damaged on the way, or edited by hand. Each field below is read by
-  // something with no fallback, so a payload without it must not reach a render.
+  // The safety net under the plan version: a shape changed without a bump, or
+  // a payload damaged or edited by hand. Each field below is read by something
+  // with no fallback, so a payload without it must not reach a render.
   it('reads a plan missing a field the panel relies on as no plan', async () => {
     const required: (keyof PrecreaseStep)[] = [
       'id', 'card', 'line_id', 'kind', 'line', 'segment', 'extent', 'witnesses', 'chosen', 'side',

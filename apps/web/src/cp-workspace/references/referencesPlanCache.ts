@@ -374,9 +374,9 @@ function isWitness(value: unknown): boolean {
 /**
  * The fields of a step that something reads with no fallback: where a stale
  * shape would throw while the panel draws, or say the wrong thing about the
- * fold. A `true` from here is not a proof the plan is this build's — the key's
- * planner digest is that — but a damaged or hand-edited payload stops here
- * rather than in a render.
+ * fold. This is the safety net under {@link REFERENCES_PLAN_VERSION}: a plan
+ * whose shape changed without a bump, or one damaged or edited by hand, stops
+ * here rather than in a render, and the sheet is planned again.
  */
 function isStep(value: unknown): boolean {
   if (!isRecord(value)) return false;
