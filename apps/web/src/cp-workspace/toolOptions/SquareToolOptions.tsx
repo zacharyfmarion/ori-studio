@@ -170,6 +170,7 @@ function NumberToolOption({
       <label htmlFor={inputId}>{label}</label>
       <NumberField
         id={inputId}
+        className={styles.control}
         label={label}
         value={value}
         min={min}
@@ -204,7 +205,7 @@ function SquareAnchorPicker({
     <div className="cp-context-panel__field cp-context-panel__field--anchor">
       <span>{t('tools:cpContext.squareAnchor', 'Anchor')}</span>
       <div
-        className={styles.anchor}
+        className={`${styles.control} ${styles.anchor}`}
         role="radiogroup"
         aria-label={t('tools:cpContext.squareAnchorAria', 'Square anchor')}
       >

@@ -37,6 +37,9 @@ const SCREEN_DPI = 96;
 
 const CUSTOM = 'custom';
 
+/** The longest value a Size, Margin or Resolution field takes: 1000 mm, 99.5 mm, 1200 dpi. */
+const FIELD_CHARS = 4;
+
 export function PaperExportOptions({
   draft,
   patch,
@@ -178,6 +181,8 @@ export function PaperExportOptions({
               max={PAPER_SHEET_MM_RANGE.max}
               step={PAPER_SHEET_MM_RANGE.step}
               suffix="mm"
+              minChars={FIELD_CHARS}
+              className="export-modal__number-field"
               onCommit={(mm) => patch({ sheet: { mm } })}
             />
           </div>
@@ -204,6 +209,8 @@ export function PaperExportOptions({
             max={PAPER_PADDING_MM_RANGE.max}
             step={PAPER_PADDING_MM_RANGE.step}
             suffix="mm"
+            minChars={FIELD_CHARS}
+            className="export-modal__number-field"
             onCommit={(paddingMm) => patch({ paddingMm })}
           />
         </div>
@@ -257,6 +264,8 @@ export function PaperExportOptions({
                   max={PAPER_PNG_DPI_RANGE.max}
                   step={PAPER_PNG_DPI_RANGE.step}
                   suffix="dpi"
+                  minChars={FIELD_CHARS}
+                  className="export-modal__number-field"
                   onCommit={(pngDpi) => patch({ pngDpi })}
                 />
               </div>

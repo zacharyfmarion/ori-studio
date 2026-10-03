@@ -655,69 +655,6 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }
 
-/* A number input with its own − / + buttons. The native spinners go: they are a
-   4px hit target in a 26px row, and clicking one only moved the field's draft,
-   so nothing changed until the field lost focus. */
-.number-field {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.number-field > .number-field__input {
-  min-width: 44px;
-}
-
-.number-field__input {
-  appearance: textfield;
-}
-
-.number-field__input::-webkit-outer-spin-button,
-.number-field__input::-webkit-inner-spin-button {
-  appearance: none;
-  margin: 0;
-}
-
-.number-field__step {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  /* Square on the input's own height, so the three boxes share a top and a
-     bottom edge. */
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.number-field__step:hover:not(:disabled) {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.number-field__step:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.number-field__step:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-}
-
-.number-field__suffix {
-  flex: 0 0 auto;
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-}
-
 .status-row {
   display: flex;
   align-items: center;
@@ -1832,20 +1769,12 @@
    Resolution) on the right. `min-content` is the floor should the row's width
    ever be less than a stepper needs: the row then widens out of line rather
    than cutting the number off. */
-.export-modal__field-row > .number-field,
+.export-modal__field-row > .export-modal__number-field,
 .export-modal__field-row > .select-trigger {
   flex: none;
   width: var(--export-modal-field-width);
   min-width: min-content;
   margin-inline-start: auto;
-}
-
-/* Every value these fields take is at most four characters (1000 mm, 99.5 mm,
-   1200 dpi), so the input's floor is four digits plus its padding and border.
-   Written in `ch`, it follows the 16px a touch screen gives the input, where
-   the number field's own 44px floor holds only three. */
-.export-modal__field-row .number-field__input {
-  min-width: calc(4ch + 16px);
 }
 
 .field-row {
@@ -1987,7 +1916,6 @@
 
 .settings-toggle-row__field {
   flex: 0 0 auto;
-  width: 132px;
 }
 
 /*
@@ -2611,48 +2539,6 @@
   line-height: 1.5;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.settings-paper-pen__field .number-field {
-  width: 100%;
-  min-width: 0;
-  height: 28px;
-}
-
-/*
- * The stepper is one field, not three boxes with gaps between them: the frame
- * and the well move up to the `.number-field`, and the − , the number and the
- * + give up their own borders and grounds inside it.
- */
-.settings-paper-pen__field .number-field {
-  gap: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius);
-  background: var(--settings-well);
-}
-
-.settings-paper-pen__field .number-field__step {
-  width: 24px;
-  height: 100%;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-/* Narrow enough for two cards a line, so the number takes the room the
-   control-row padding would otherwise spend on either side of it. */
-.settings-paper-pen__field .number-field__input {
-  min-width: 0;
-  height: 100%;
-  padding: 0 2px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  /* A width is a measurement, and the digits stay put as it is stepped. */
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  text-align: center;
 }
 
 .settings-shortcuts {
@@ -4717,10 +4603,10 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 650;
 }
 
-/* `.number-field__input` is excluded because a `NumberField` arrives fully
-   styled — 26px tall to match its own step buttons — and this rule's 22px would
-   leave the input a different height from the − / + boxes beside it. */
-.cp-context-panel__field input:not(.number-field__input),
+/* A `NumberField`'s input (`data-number-field`) is excluded because it arrives
+   fully styled — 26px tall to match its own step buttons — and this rule's 22px
+   would leave the input a different height from the − / + boxes beside it. */
+.cp-context-panel__field input:not([data-number-field]),
 .cp-context-panel__field select,
 .cp-context-panel__field textarea {
   height: 22px;
@@ -5109,20 +4995,12 @@ button.cp-folded-figure-toolbar__notice:hover {
   justify-content: flex-end;
 }
 
-/* One width for every stepper row. A number input's intrinsic width follows its
-   `max` attribute, so Grid size (unbounded) renders far wider than Line width
-   (max 8) and the fields down the pane would not line up. */
+/* The stepper sits at the end of the row, as wide as its number, and a reset
+   trails it the way a colour field's clear does. */
 .control-row__value--input {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  width: 112px;
-}
-
-/* The stepper keeps its width and the reset trails it, the way a colour
-   field's clear does; inside the fixed box the two overlapped. */
-.control-row__value--input.control-row__value--reset {
-  width: calc(112px + 22px);
 }
 
 .control-row__value--select {
@@ -6738,8 +6616,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   .ui-icon-control--sm,
   .ui-icon-control--md,
   .ui-icon-control--lg,
-  .select-trigger,
-  .number-field__step {
+  .select-trigger {
     min-height: var(--touch-target);
   }
 
@@ -6748,17 +6625,16 @@ button.cp-folded-figure-toolbar__notice:hover {
      `justify-content: center` keeps doing the centring. */
   .ui-icon-control--sm,
   .ui-icon-control--md,
-  .ui-icon-control--lg,
-  .number-field__step {
+  .ui-icon-control--lg {
     min-width: var(--touch-target);
   }
 
-  /* Growing the steppers to 44px makes a number field need
-     44 + 4 + 44 + 4 + 44 = 140px, but `.control-row`'s two columns each claim a
-     floor of 80px and the steppers are `flex: 0 0 auto` — so on a narrow panel
-     the field is handed ~112px and the `+` overflows the row and clips against
-     the panel's edge instead of shrinking. Measured on a base iPad in portrait:
-     the increment button was cut in half by the screen edge.
+  /* Growing the steppers to 44px makes a number field need 132px (the −, the
+     number and the +, a 44px target each), but `.control-row`'s two columns
+     each claim a floor of 80px — so on a narrow panel the field was handed
+     ~112px and the `+` clipped against the panel's edge. Measured on a base
+     iPad in portrait: the increment button was cut in half by the screen edge.
+     140px holds a three-digit number; a longer one widens the column.
 
      The label is what should give way. It can truncate and still be read; a
      control the finger cannot reach is simply gone. */
@@ -6771,10 +6647,10 @@ button.cp-folded-figure-toolbar__notice:hover {
     text-overflow: ellipsis;
   }
 
-  /* The export dialog's rows, for the same steppers. Two 44px buttons, three
-     4px gaps and the unit take about 120px, and four digits at the input's
-     16px take another 56px with its padding — so about 176px, and 184px leaves
-     the number some room. One width for every row keeps them lined up. */
+  /* The export dialog's rows, for the same steppers. Two 44px buttons take
+     88px, and four digits at the input's 16px with the unit and the padding
+     about 75px — so about 163px, and 184px leaves the number some room. One
+     width for every row keeps them lined up. */
   .export-modal__field-row {
     --export-modal-field-width: 184px;
   }
@@ -6840,7 +6716,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   .export-modal__select,
   .field-row input,
   .settings-shortcuts__toolbar input[type='search'],
-  .cp-context-panel__field input:not(.number-field__input),
+  .cp-context-panel__field input:not([data-number-field]),
   .cp-context-panel__field select,
   .cp-context-panel__field textarea,
   .bp-sheet-menu__input,

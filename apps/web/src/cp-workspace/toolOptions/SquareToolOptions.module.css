@@ -2,6 +2,12 @@
  * The square tool's options (SquareToolOptions.tsx): the anchor picker, a 3×3
  * grid of the points a square can grow from.
  */
+
+/* The size stepper and the anchor picker are as wide as they need, and sit at
+   the end of their column, where the segmented controls between them end. */
+.control {
+  justify-self: end;
+}
 /*
  * Square tool anchor picker: a 3x3 transform-origin grid naming where on the
  * square's bounding box the click lands. Sized to read as one small control
