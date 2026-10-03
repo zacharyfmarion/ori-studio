@@ -321,9 +321,12 @@ pattern. Today that is `{ pinThroughLayers: boolean }`, default `true`.
     `useSimulatorRuntime.ts`).
   - An unhealthy Restart rebuilds the fold artifacts. If that bumps the
     revision, the pins go with it, which is right for a session that broke.
-- **Model identity.** Every pin message carries the `modelKey` the face ids
-  were made for. A session whose model differs drops the message as stale, so a
-  segment switch racing a pin edit cannot pin the wrong faces.
+- **Model identity.** A pin request names the model its face ids were read
+  against (`setPinnedFaces(faces, forModel)`). The runtime drops a request for
+  any other model before it reaches the worker, and the worker answers null for
+  a superseded session token, so a segment switch racing a pin edit cannot pin
+  the wrong faces. (Built this way rather than as a `modelKey`: the runtime does
+  not key its loads, and the session token already names the model.)
 
 ### Engine (`packages/origami-simulator`)
 
@@ -734,7 +737,7 @@ Each step is its own commit; the moves change nothing on screen.
       visible rule excludes it, and a click hits the front.
 - [x] **Overlay.** GPU overlay pass and canvas-2D highlights; exports verified
       free of the tint.
-- [ ] **Worker and runtime.** `pickFaces` and `setPinnedFaces` (validation,
+- [x] **Worker and runtime.** `pickFaces` and `setPinnedFaces` (validation,
       `modelKey`); last-drawn camera; framing anchor; serial queue; re-send after
       load; clear on revision change.
 - [ ] **Prep PR — tool UI kit, nothing on screen changes:**

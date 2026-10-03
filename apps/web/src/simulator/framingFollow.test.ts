@@ -112,3 +112,20 @@ describe('framingOf', () => {
     expect(framingOf(new Float32Array([1, 1, 1, 1, 1, 1])).radius).toBeGreaterThan(0);
   });
 });
+
+describe('framingOf with pinned nodes', () => {
+  // Three points along x: the pinned one at the left end.
+  const positions = new Float32Array([0, 0, 0, 4, 0, 0, 8, 0, 0]);
+
+  it('centres on the model when nothing is pinned', () => {
+    expect(framingOf(positions)).toEqual({ center: [4, 0, 0], radius: 4 });
+    expect(framingOf(positions, null)).toEqual({ center: [4, 0, 0], radius: 4 });
+    expect(framingOf(positions, [])).toEqual({ center: [4, 0, 0], radius: 4 });
+  });
+
+  it('centres on the pinned nodes, and reaches the whole model from there', () => {
+    // Centred on the pin, the radius has to span the far end to keep it in frame.
+    expect(framingOf(positions, [0])).toEqual({ center: [0, 0, 0], radius: 8 });
+    expect(framingOf(positions, Uint32Array.from([0, 1]))).toEqual({ center: [2, 0, 0], radius: 6 });
+  });
+});

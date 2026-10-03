@@ -51,11 +51,29 @@ const FRAMING_ARRIVED = 0.002;
  * The shape as it is: its centroid, and its bounding radius about that. The
  * centroid rather than the bounding box's middle, so an asymmetric fold orbits
  * about where it looks centred instead of swinging round an empty point.
+ *
+ * With `anchor` — the pinned nodes — the centre is theirs instead, and only the
+ * radius follows the shape. A pinned region is still in the world, and centring
+ * on the model would slide it across the screen as the rest folded; centring on
+ * it keeps it where it is and only zooms to keep everything in frame.
  */
-export function framingOf(positions: Float32Array): Framing {
-  const center = centroid(positions);
+export function framingOf(positions: Float32Array, anchor?: ArrayLike<number> | null): Framing {
+  const center = anchor && anchor.length > 0 ? centroidOfNodes(positions, anchor) : centroid(positions);
   // A floor, so a degenerate model cannot divide the camera's scale by zero.
   return { center, radius: Math.max(0.001, boundingRadius(positions, center)) };
+}
+
+function centroidOfNodes(positions: Float32Array, nodes: ArrayLike<number>): Vec3 {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!;
+    x += positions[node * 3] ?? 0;
+    y += positions[node * 3 + 1] ?? 0;
+    z += positions[node * 3 + 2] ?? 0;
+  }
+  return [x / nodes.length, y / nodes.length, z / nodes.length];
 }
 
 export function createFramingFollow(): FramingFollow {

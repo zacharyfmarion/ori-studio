@@ -28,6 +28,8 @@ export interface SimulatorRenderModel {
   facesEdges: number[][];
   /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
   sheet: number;
+  /** One per triangle: its crease-pattern face, the id pins and picks use. */
+  faceGroups: Int32Array;
 }
 
 /**
@@ -75,5 +77,6 @@ export function inflateRenderModel(info: SimulatorModelInfo): SimulatorRenderMod
     ),
     facesEdges,
     sheet: info.sheet,
+    faceGroups: new Int32Array(info.faceGroups ?? new ArrayBuffer(0)),
   };
 }

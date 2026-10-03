@@ -4,6 +4,7 @@ import {
   EDGE_BOUNDARY_A,
   EDGE_BOUNDARY_B,
   EDGE_CODE,
+  cameraUniforms,
   creaseFrameScale,
   creaseWidthsPx,
   erodePx,
@@ -13,6 +14,7 @@ import {
   viewRotationFor,
 } from "@treemaker/origami-simulator";
 import type {
+  CameraUniforms,
   CreaseDash,
   FoldDocument as SimulatorFoldDocument,
   Vec3Like,
@@ -25,6 +27,7 @@ import {
   type FramingFollow,
 } from "./framingFollow";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
+import { pickFacesInFrame, type SimulatorPickQuery } from "./pickQuery";
 import type { SimulatorRenderModel } from "./renderModel";
 import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
 import {
@@ -111,6 +114,12 @@ interface SimulatorSurface {
   dpr: number;
   /** The shape as it is, eased — the same follow the GPU path's camera makes. */
   framing: FramingFollow;
+  /**
+   * The last frame drawn: the positions and the camera they were drawn with,
+   * which is everything a pick needs to answer for what is on screen. The
+   * positions are copied because the frame's buffer goes back to the worker.
+   */
+  drawn?: { positions: Float32Array; camera: CameraUniforms };
 }
 
 const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
@@ -181,13 +190,21 @@ export function drawFrame(
   const positions = frame.positions;
   if (!positions) return true;
 
-  // The shape as it is, eased, as the GPU path's camera follows it.
+  // The shape as it is, eased, as the GPU path's camera follows it — about
+  // the pinned faces, when there are any, so they stay put on screen.
+  const anchor = pinnedNodes(model, highlights.pinned);
   const { framing, arrived } = followFraming(
     surface.framing,
     performance.now(),
-    () => framingOf(positions),
+    () => framingOf(positions, anchor),
     frame.converged,
   );
+  surface.drawn = {
+    positions: positions.slice(),
+    // Exactly this frame's projection: orthographic, centred and scaled as
+    // `map` below places it.
+    camera: cameraUniforms(view, framing.center, framing.radius, width, height),
+  };
   const projected = projectPositions(positions, view, framing.center);
   // Shared with the GPU renderer so the two frame a model identically.
   const availableSize = fitExtent(width, height);
@@ -296,6 +313,43 @@ export function drawFrame(
     drawAllEdges(ctx, model, projected, map, dpr, 0.95, palette, highlights);
   }
   return arrived;
+}
+
+/**
+ * The crease-pattern faces under a press or a box, in the frame last drawn on
+ * `canvas` — or null if nothing has been drawn there. The canvas-2D path's
+ * half of a pick; the worker answers for the frames it draws.
+ */
+export function pickDrawnFrame(
+  canvas: HTMLCanvasElement,
+  model: SimulatorRenderModel,
+  query: SimulatorPickQuery,
+): number[] | null {
+  const drawn = surfaceCache.get(canvas)?.drawn;
+  if (!drawn) return null;
+  return pickFacesInFrame(
+    drawn.positions,
+    { indices: model.indices, faceGroups: model.faceGroups },
+    drawn.camera,
+    false,
+    query,
+  );
+}
+
+/** Every node of the pinned triangles, or null when nothing is pinned. */
+function pinnedNodes(
+  model: SimulatorRenderModel,
+  pinned: ReadonlySet<number>,
+): Uint32Array | null {
+  if (pinned.size === 0) return null;
+  const nodes = new Set<number>();
+  for (const triangle of pinned) {
+    for (let corner = 0; corner < 3; corner += 1) {
+      const node = model.indices[triangle * 3 + corner];
+      if (node !== undefined) nodes.add(node);
+    }
+  }
+  return nodes.size > 0 ? Uint32Array.from(nodes) : null;
 }
 
 export function normalizeVector(vector: { x: number; y: number; z: number }): {

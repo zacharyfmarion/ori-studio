@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDGE_BOUNDARY_A, EDGE_CODE, type RenderSettings } from '@treemaker/origami-simulator';
-import { drawFrame, EMPTY_HIGHLIGHTS, invalidateSimulatorSurface } from './canvas2dFrame';
+import { drawFrame, EMPTY_HIGHLIGHTS, invalidateSimulatorSurface, pickDrawnFrame } from './canvas2dFrame';
 import type { SimulatorRenderModel } from './renderModel';
 import type { SimulatorPaint } from './simulatorPalette';
 import type { SimulatorFrameView } from './useSimulatorRuntime';
@@ -77,6 +77,7 @@ const MODEL: SimulatorRenderModel = {
   edgeBoundary: new Uint8Array([0, 0, 0]),
   facesEdges: [[0, 1, 2]],
   sheet: 2,
+  faceGroups: new Int32Array([0]),
 };
 
 /**
@@ -110,6 +111,8 @@ const SPLIT_MODEL: SimulatorRenderModel = {
     [1, 2, 4],
   ],
   sheet: 2,
+  // Split by an aux crease, not a triangulation diagonal: two faces.
+  faceGroups: new Int32Array([0, 1]),
 };
 // The split sheet's positions: vertex 3 at the middle of the base.
 const SPLIT_SHEET = frameOf([-1, 0, -1, 1, 0, -1, -1, 0, 1, 0, 0, -1]);
@@ -441,5 +444,26 @@ describe('drawFrame edges', () => {
     // The aux line is √5 ≈ 2.24 units long and the pull is 1.2, past its
     // midpoint; the four borders never erode.
     expect(strokes()).toHaveLength(4);
+  });
+});
+
+describe('pickDrawnFrame', () => {
+  const at = (x: number, y: number) => ({
+    region: { kind: 'point' as const, x, y },
+    // The surface's 720 px stand-in, one CSS pixel per device pixel.
+    cssWidth: 720,
+    cssHeight: 720,
+    depth: 'all-layers' as const,
+  });
+
+  it('has nothing to answer before a frame is drawn', () => {
+    expect(pickDrawnFrame(canvas, MODEL, at(360, 360))).toBeNull();
+  });
+
+  it('answers for the frame it drew: the face at the centre, nothing in the corner', () => {
+    drawFrame(canvas, MODEL, FACING_SHEET, VIEW, paintWith({}), EMPTY_HIGHLIGHTS);
+    // The framing puts the triangle's centroid at the centre of the frame.
+    expect(pickDrawnFrame(canvas, MODEL, at(360, 360))).toEqual([0]);
+    expect(pickDrawnFrame(canvas, MODEL, at(715, 5))).toEqual([]);
   });
 });
