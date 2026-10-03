@@ -55,3 +55,16 @@
   background: var(--accent-primary);
   color: var(--bg-secondary);
 }
+
+/* A finger needs the room a cursor does not: on a coarse pointer a chip is a
+   full touch target, the height every field and button around it already
+   grows to. The type grows with it, so the label does not sit lost in a big
+   pill. */
+@media (pointer: coarse) {
+  .chip[data-size] {
+    height: auto;
+    min-height: var(--touch-target);
+    padding: 0 14px;
+    font-size: 0.875rem;
+  }
+}
