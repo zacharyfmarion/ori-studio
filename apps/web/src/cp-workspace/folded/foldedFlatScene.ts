@@ -121,7 +121,7 @@ export function foldedFlatPaperScene(
     markHidden: options.markHidden,
     top: topFaces(kernel.subfaces),
     epsilon,
-    at: placement(kernel, order, options, epsilon),
+    ...placement(kernel, order, options, epsilon),
   };
   const position = new Int32Array(kernel.faces.length);
   order.forEach((face, at) => {
@@ -169,20 +169,36 @@ function paintPlan(
 
 /**
  * Where a point a face carries goes in the scene: placed, and stepped by the
- * face's field when the layers are spread.
+ * face's field when the layers are spread. A point partway along a straight
+ * line the face carries goes where the line goes: the field is not linear
+ * inside a face whose corners step unequally, and a piece of the line moved
+ * through it would leave the line drawn whole.
  */
 function placement(
   kernel: OristudioCpFoldedPaperScene,
   order: readonly number[],
   { toScenePx, scale, spread }: FoldedFlatPaperSceneOptions,
   epsilon: number
-): EmitContext['at'] {
-  if (!spread) return (_face, point) => toScenePx(point);
+): Pick<EmitContext, 'at' | 'along'> {
+  if (!spread) {
+    return {
+      at: (_face, point) => toScenePx(point),
+      along: (_face, from, to, t) => toScenePx(lerp(from, to, t)),
+    };
+  }
   const { offset } = layerSpread(kernel, order, spread, { scale, epsilon });
-  return (face, point) => {
+  const at: EmitContext['at'] = (face, point) => {
     const [x, y] = toScenePx(point);
     const [dx, dy] = offset(face, point);
     return [x + dx, y + dy];
+  };
+  return {
+    at,
+    along: (face, from, to, t) => {
+      const [ax, ay] = at(face, from);
+      const [bx, by] = at(face, to);
+      return [ax + (bx - ax) * t, ay + (by - ay) * t];
+    },
   };
 }
 
@@ -722,6 +738,8 @@ interface EmitContext {
   epsilon: number;
   /** A point on a face, in the scene. */
   at: (face: number, point: Point) => ScenePoint;
+  /** The point `t` of the way along a straight line on a face, in the scene: on the line {@link at} places. */
+  along: (face: number, from: Point, to: Point, t: number) => ScenePoint;
 }
 
 /**
@@ -865,8 +883,8 @@ function auxLine(context: EmitContext, { aux, span }: AuxPortion, hidden: boolea
   return {
     kind: 'line',
     role: 'aux',
-    a: place(lerp(aux.from, aux.to, span[0])),
-    b: place(lerp(aux.from, aux.to, span[1])),
+    a: context.along(aux.face, aux.from, aux.to, span[0]),
+    b: context.along(aux.face, aux.from, aux.to, span[1]),
     onBoundary: [atFrom && span[0] === 0, atTo && span[1] === 1],
     ...(whole ? {} : { whole: { a: place(aux.from), b: place(aux.to), onBoundary: [atFrom, atTo] } }),
     face: aux.face,

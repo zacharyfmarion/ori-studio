@@ -1167,6 +1167,32 @@ describe('with a spread', () => {
     }
   });
 
+  it('keeps an aux line straight over the patches of a face whose corners step unequally', () => {
+    const kernel = wovenScene();
+    // G lies beside V2 and shares its corner (3,5): that corner steps by the
+    // mean of V2's level and G's, the others by V2's alone, so the field
+    // inside V2 is not linear.
+    const G = kernel.faces.length;
+    const beside = rectangle(2, 5, 3, 6, 24);
+    beside.points[1] = kernel.faces[V2]!.points[3]!;
+    kernel.faces[G] = beside;
+    kernel.subfaces.push(subface(2, 5, 3, 6, [G]));
+    kernel.aux_lines.push({ from: point(3.1, 0), to: point(3.9, 5), face: V2 });
+    const scene = spreadScene(kernel);
+    const lines = lineItems(scene).filter((line) => line.role === 'aux');
+    const whole = lines.find((line) => line.group === undefined)!;
+    const off = (p: ScenePoint) => {
+      const [a, b] = [whole.a, whole.b];
+      return Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / Math.hypot(b[0] - a[0], b[1] - a[1]);
+    };
+    const stretches = lines.filter((line) => line.group !== undefined);
+    expect(stretches.length).toBe(3);
+    for (const stretch of stretches) {
+      expect(off(stretch.a)).toBeLessThan(1e-12);
+      expect(off(stretch.b)).toBeLessThan(1e-12);
+    }
+  });
+
   it('bounds the stepped picture', () => {
     const { scene: kernel } = real()[0]!;
     const plain = sceneOf(kernel, false);
