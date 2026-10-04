@@ -3204,7 +3204,8 @@ Zach, 2026-10-04: implement the distortion of DEFOX / step-folder
 repository) as a tool inside Pose — "display layers on parts of the design to
 give the folder more information about how they are distributed (otherwise a
 bunch of faces are coplanar)". The UX to be talked through before anything is
-built. Plan: `implementation-plans/diagram-distortion.md` (to come).
+built. Plan: `implementation-plans/diagram-distortion.md`; a playground on real
+folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf.
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way
 
