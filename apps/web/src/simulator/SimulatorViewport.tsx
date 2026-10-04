@@ -11,9 +11,26 @@ import type { RenderSettings } from "@treemaker/origami-simulator";
 import {
   drawFrame,
   invalidateSimulatorSurface,
+  pickDrawnFrame,
   type SimulatorHighlights,
   EMPTY_HIGHLIGHTS,
 } from "./canvas2dFrame";
+import { readHeldModifiers, subscribeHeldModifiers } from "../keyboard/heldModifiers";
+import { createTouchArbiter, type TouchArbiter } from "../lib/gestures/touchArbiter";
+import { isApplePlatform } from "../platform/runtime";
+import type { SimulatorPickQuery } from "./pickQuery";
+import { simulatorCanvasCursor } from "./tools/cursor";
+import { routeSimulatorPress } from "./tools/pressRoute";
+import type {
+  CssRect,
+  CssSize,
+  SimulatorGesture,
+  SimulatorGestureEngine,
+  SimulatorInputMode,
+  SimulatorPointerInput,
+  SimulatorToolCursor,
+} from "./tools/types";
+import styles from "./SimulatorViewport.module.css";
 import {
   resolveSimulatorPaint,
   type SimulatorPaint,
@@ -145,7 +162,46 @@ export interface SimulatorViewportHandle {
   presentBitmap: (bitmap: ImageBitmap) => void;
   /** Swap the topology the CPU path rasterises. */
   setModel: (model: SimulatorRenderModel | null) => void;
+  /**
+   * Abandon a tool gesture in flight — a box half drawn — and say whether there
+   * was one. An orbit is not a tool gesture and is left alone.
+   */
+  cancelToolGesture: () => boolean;
+  /**
+   * The canvas-2D path's half of a pick: the faces under a point or a box in
+   * the frame this surface last drew. Null on the GPU path, whose frames the
+   * worker draws and picks from, and before anything has been drawn.
+   */
+  pickDrawnFaces: (query: SimulatorPickQuery) => number[] | null;
 }
+
+/**
+ * The tool in hand, for a surface that has tools.
+ *
+ * Absent, every press orbits, with any button, exactly as before there were
+ * tools: an inline simulation window and a folded figure have none.
+ */
+export interface SimulatorViewportToolInput {
+  mode: SimulatorInputMode;
+  cursor: SimulatorToolCursor;
+  /** Whether a press may start a tool gesture at all. */
+  enabled: boolean;
+  /** A finished gesture, with the canvas's CSS size it is measured against. */
+  onGesture: (gesture: SimulatorGesture, surface: CssSize) => void;
+}
+
+/** A press the canvas is following, and what it is doing with it. */
+type CanvasDrag =
+  | { kind: "orbit"; pointerId: number }
+  | {
+      kind: "gesture";
+      pointerId: number;
+      engine: SimulatorGestureEngine<unknown>;
+      state: unknown;
+      /** The canvas's box when the press landed; it does not move under a drag. */
+      box: { left: number; top: number; width: number; height: number };
+      touch: boolean;
+    };
 
 export interface SimulatorViewportProps {
   ref?: Ref<SimulatorViewportHandle>;
@@ -247,8 +303,10 @@ export interface SimulatorViewportProps {
    * paper and this component is what knows them.
    */
   renderSettings?: RenderSettings;
-  /** Creases/faces a sequence step is emphasising. CPU path only. */
+  /** Creases/faces a sequence step is emphasising, and the pinned faces. CPU path only. */
   highlights?: SimulatorHighlights;
+  /** The tool in hand; see {@link SimulatorViewportToolInput}. */
+  toolInput?: SimulatorViewportToolInput;
   /**
    * Hand the orbit camera to the runtime, which forwards it to the worker in
    * GPU mode and only remembers it in CPU mode.
@@ -290,6 +348,7 @@ export function SimulatorViewport({
   initialView,
   renderSettings,
   highlights = EMPTY_HIGHLIGHTS,
+  toolInput,
   pushCamera,
   pushRenderSettings,
   className,
@@ -311,9 +370,16 @@ export function SimulatorViewport({
   // The rAF of a canvas-2D redraw while the camera is still arriving, or null.
   // See `drawCurrentFrame`.
   const framingRef = useRef<number | null>(null);
-  // Which pointer the canvas is following. The angles it drags from live on the
-  // gesture below, which the view cube drives too.
-  const dragRef = useRef<{ pointerId: number } | null>(null);
+  // Which pointer the canvas is following, and what for. The angles an orbit
+  // drags from live on the gesture below, which the view cube drives too.
+  const dragRef = useRef<CanvasDrag | null>(null);
+  // Tool input only: who owns the surface when fingers are on it. A surface
+  // without tools keeps the single-pointer handling it always had.
+  const arbiterRef = useRef<TouchArbiter | null>(null);
+  const toolInputRef = useRef(toolInput);
+  // The box being dragged, drawn as a DOM layer because on the GPU path the
+  // canvas is the worker's.
+  const marqueeRef = useRef<HTMLDivElement | null>(null);
   const orbitOriginRef = useRef<SimulatorOrbitDrag | null>(null);
   // Fixed when the drag begins, so letting the modifier go halfway through does
   // not turn a roll into an orbit under the user's hand.
@@ -708,7 +774,17 @@ export function SimulatorViewport({
         invalidateSimulatorSurface(canvasRef.current);
         drawCurrentFrame();
       },
+      cancelToolGesture: () => (dragRef.current?.kind === "gesture" ? abandonDrag() : false),
+      pickDrawnFaces: (query: SimulatorPickQuery) => {
+        const canvas = canvasRef.current;
+        const model = modelRef.current;
+        if (gpuActiveRef.current || !canvas || !model) return null;
+        return pickDrawnFrame(canvas, model, query);
+      },
     }),
+    // `abandonDrag` reads only refs, so it is the same function every render
+    // in all but identity; listing it would rebuild the handle each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [resetView, setUpright, zoomBy, drawCurrentFrame, presentBitmap, applyView]
   );
 
@@ -765,25 +841,211 @@ export function SimulatorViewport({
     [applyView, cancelSnap, perfSurface]
   );
 
+  /**
+   * The canvas's cursor, when it has tools: what a press here would do. Set
+   * inline, as Edit's is, so the global `.simulator-canvas` rule is left alone;
+   * a surface without tools keeps that rule's grab hand.
+   */
+  const updateCursor = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const input = toolInputRef.current;
+    canvas.style.cursor = input
+      ? simulatorCanvasCursor({
+          tool: input.cursor,
+          orbiting: dragRef.current?.kind === "orbit",
+          navigateModifierHeld: readHeldModifiers().meta,
+        })
+      : "";
+  }, []);
+
+  useEffect(() => {
+    toolInputRef.current = toolInput;
+    updateCursor();
+  });
+
+  useEffect(() => subscribeHeldModifiers(updateCursor), [updateCursor]);
+
+  useEffect(
+    () => () => {
+      arbiterRef.current?.reset();
+    },
+    []
+  );
+
+  const showMarquee = (rect: CssRect | null, box?: { left: number; top: number }) => {
+    const marquee = marqueeRef.current;
+    const canvas = canvasRef.current;
+    if (!marquee) return;
+    if (!rect || !canvas || !box) {
+      marquee.hidden = true;
+      return;
+    }
+    // Relative to the canvas, which need not sit at the corner of the box this
+    // layer is positioned in.
+    marquee.hidden = false;
+    marquee.style.left = `${canvas.offsetLeft + rect.left}px`;
+    marquee.style.top = `${canvas.offsetTop + rect.top}px`;
+    marquee.style.width = `${rect.right - rect.left}px`;
+    marquee.style.height = `${rect.bottom - rect.top}px`;
+  };
+
+  /** A pointer sample in canvas CSS pixels, against the box the press measured. */
+  const sampleOf = (
+    kind: SimulatorPointerInput["kind"],
+    event: { clientX: number; clientY: number; shiftKey: boolean },
+    drag: Extract<CanvasDrag, { kind: "gesture" }>
+  ): SimulatorPointerInput => ({
+    kind,
+    point: { x: event.clientX - drag.box.left, y: event.clientY - drag.box.top },
+    shift: event.shiftKey,
+    touch: drag.touch,
+  });
+
+  const releaseCapture = (pointerId: number) => {
+    const canvas = canvasRef.current;
+    if (canvas?.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
+  };
+
+  /** Drop whatever the canvas is following, with nothing to show for it. */
+  function abandonDrag(): boolean {
+    const drag = dragRef.current;
+    if (!drag) return false;
+    dragRef.current = null;
+    releaseCapture(drag.pointerId);
+    if (drag.kind === "orbit") {
+      orbit.end();
+    } else {
+      drag.engine.reduce(drag.state, {
+        kind: "cancel",
+        point: { x: 0, y: 0 },
+        shift: false,
+        touch: drag.touch,
+      });
+      showMarquee(null);
+    }
+    updateCursor();
+    return true;
+  }
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!interactiveRef.current) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId };
-    orbit.begin({ x: event.clientX, y: event.clientY }, event.shiftKey ? 'roll' : 'orbit');
+    const input = toolInputRef.current;
+    if (!input) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = { kind: "orbit", pointerId: event.pointerId };
+      orbit.begin({ x: event.clientX, y: event.clientY }, event.shiftKey ? "roll" : "orbit");
+      return;
+    }
+
+    arbiterRef.current ??= createTouchArbiter();
+    const verdict = arbiterRef.current.down(event.nativeEvent);
+    // A second finger turns the press into a pinch: whatever the first one
+    // started — a box, an orbit — goes, and nothing of it is applied.
+    if (verdict.abort.includes("canvas")) abandonDrag();
+    if (verdict.action !== "forward") {
+      if (verdict.action === "transform") event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
+
+    const route = routeSimulatorPress(
+      {
+        button: event.button,
+        contextClick: event.button === 0 && event.ctrlKey && isApplePlatform(),
+        meta: event.metaKey,
+        shift: event.shiftKey,
+      },
+      input.mode
+    );
+    switch (route.kind) {
+      case "menu":
+      case "ignore":
+        return;
+      case "orbit":
+        // The middle button would otherwise start the browser's autoscroll.
+        if (event.button === 1) event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragRef.current = { kind: "orbit", pointerId: event.pointerId };
+        orbit.begin({ x: event.clientX, y: event.clientY }, route.mode);
+        updateCursor();
+        return;
+      case "gesture": {
+        if (!input.enabled) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const rect = event.currentTarget.getBoundingClientRect();
+        const drag: Extract<CanvasDrag, { kind: "gesture" }> = {
+          kind: "gesture",
+          pointerId: event.pointerId,
+          engine: route.engine,
+          state: route.engine.initialState,
+          box: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+          touch: event.pointerType === "touch",
+        };
+        const out = drag.engine.reduce(drag.state, sampleOf("down", event, drag));
+        drag.state = out.state;
+        dragRef.current = drag;
+        showMarquee(out.preview?.marquee ?? null, drag.box);
+        return;
+      }
+    }
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
-    orbit.move({ x: event.clientX, y: event.clientY });
+    if (toolInputRef.current && arbiterRef.current) {
+      const verdict = arbiterRef.current.move(event.nativeEvent);
+      if (verdict.action === "transform") {
+        // A pinch zooms, as the wheel does. The orbit camera has no pan.
+        applyView({
+          ...viewRef.current,
+          zoom: clampSimulatorZoom(viewRef.current.zoom * verdict.transform.scale),
+        });
+        return;
+      }
+      if (verdict.action === "ignore") return;
+    }
+    const drag = dragRef.current;
+    if (drag?.pointerId !== event.pointerId) return;
+    if (drag.kind === "orbit") {
+      orbit.move({ x: event.clientX, y: event.clientY });
+      return;
+    }
+    const out = drag.engine.reduce(drag.state, sampleOf("move", event, drag));
+    drag.state = out.state;
+    showMarquee(out.preview?.marquee ?? null, drag.box);
   };
 
   const handlePointerEnd = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
+    const input = toolInputRef.current;
+    if (input && arbiterRef.current) {
+      const verdict = arbiterRef.current.up(event.nativeEvent);
+      if (verdict.action === "ignore") {
+        releaseCapture(event.pointerId);
+        return;
+      }
     }
+    const drag = dragRef.current;
+    if (drag?.pointerId !== event.pointerId) return;
+    releaseCapture(event.pointerId);
     dragRef.current = null;
-    orbit.end();
+    if (drag.kind === "orbit") {
+      orbit.end();
+      updateCursor();
+      return;
+    }
+    const kind = event.type === "pointercancel" ? "cancel" : "up";
+    const out = drag.engine.reduce(drag.state, sampleOf(kind, event, drag));
+    showMarquee(null);
+    if (out.gesture && input) {
+      input.onGesture(out.gesture, { width: drag.box.width, height: drag.box.height });
+    }
+  };
+
+  // A double click resets the view under Orbit. Under a tool it is two clicks,
+  // each of which the tool has already answered.
+  const handleDoubleClick = () => {
+    const input = toolInputRef.current;
+    if (input && input.mode !== "orbit") return;
+    resetView();
   };
 
   // Zoom, as a native listener rather than an `onWheel` prop.
@@ -838,8 +1100,9 @@ export function SimulatorViewport({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
-        onDoubleClick={resetView}
+        onDoubleClick={handleDoubleClick}
       />
+      {toolInput && <div ref={marqueeRef} className={styles.marquee} hidden aria-hidden="true" />}
       {viewCube && (
         <SimulatorViewCube
           ref={attachViewCube}

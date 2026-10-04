@@ -1640,7 +1640,9 @@
     "backendGpuTitle": "Resolvendo na GPU (WebGL2)",
     "backToPatterns": "Padrões",
     "canvasAriaLabel": "Simulador de base dobrada de origami. Arraste para girar, role para aproximar, clique duplo para redefinir a visualização.",
+    "canvasAriaLabelPin": "Simulador de base dobrada de origami. Arraste uma caixa ou clique em uma face para fixá-la, role para aproximar.",
     "canvasTitle": "Arraste para girar, role para aproximar, clique duplo para redefinir a visualização",
+    "canvasTitlePin": "Arraste uma caixa ou clique em uma face para fixá-la, role para aproximar",
     "contextMenu": {
       "pause": "Pausar",
       "play": "Reproduzir",
@@ -1662,6 +1664,43 @@
     "stepReadout": "Passo {{n}}",
     "strain": "Tensão {{value}}",
     "title": "Simulador",
+    "tools": {
+      "instructions": "Instruções",
+      "notice": {
+        "recovered": "A simulação ficou instável e recomeçou do papel plano. Agora as fixações seguram a folha plana.",
+        "strained": "As faces fixadas estão puxando umas às outras."
+      },
+      "orbit": {
+        "description": "Arraste para girar o modelo.",
+        "label": "Órbita"
+      },
+      "picker": {
+        "close": "Fechar a lista de ferramentas",
+        "title": "Ferramentas",
+        "trigger": "Ferramentas"
+      },
+      "pin": {
+        "box": "Arraste uma caixa para fixar as faces dentro dela, ou clique em uma face.",
+        "description": "Mantém faces no lugar enquanto o resto do papel dobra.",
+        "label": "Fixar",
+        "orbitApple": "Arrastar com Cmd gira o modelo.",
+        "orbitMiddle": "Arraste com o botão do meio para girar o modelo.",
+        "shift": "Arrastar com Shift adiciona às fixações. Shift+clique fixa ou solta uma face.",
+        "throughLayers": "Selecionar através de todas as camadas",
+        "touchBox": "Arraste uma caixa para fixar as faces dentro dela.",
+        "touchOrbit": "Mude para Órbita para girar o modelo.",
+        "touchTap": "Toque em uma face para fixá-la ou soltá-la."
+      },
+      "pins": {
+        "clear": "Remover fixações",
+        "count_one": "1 face fixada",
+        "count_many": "{{count}} faces fixadas",
+        "count_other": "{{count}} faces fixadas",
+        "title": "Fixações"
+      },
+      "railLabel": "Ferramentas do simulador",
+      "windowLabel": "Opções das ferramentas do simulador"
+    },
     "unavailable": "Simulador indisponível",
     "viewCube": {
       "back": "Trás",

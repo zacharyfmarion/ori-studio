@@ -1,0 +1,112 @@
+/*
+ * The phone tool sheet (ToolPickerSheet.tsx). Touch-only: a fine pointer never
+ * opens it, and every rule here sits under the coarse-pointer query it was
+ * written in, so nothing changes for a mouse.
+ */
+@media (pointer: coarse) {
+  /*
+   * The tool picker: every tool with its name and its description.
+   * `position: fixed`, so like the View drawer it sits outside `.app-layout` for
+   * layout purposes and insets itself past the safe area.
+   */
+  .picker {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    justify-content: flex-start;
+    padding: var(--safe-top) 0 var(--safe-bottom) var(--safe-left);
+    background: var(--overlay-dim);
+    backdrop-filter: blur(4px);
+  }
+
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    /* Wide enough for the longest name: "Concentric from two circles" is 27
+       characters, and truncating it here would defeat the point of the sheet
+       existing. */
+    width: min(380px, 92vw);
+    min-height: 0;
+    border-right: 1px solid var(--border-default);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-context-menu);
+    animation: sheet-in 0.18s ease-out;
+  }
+
+  /* Focused on open so `aria-modal` has somewhere to put a screen reader, which
+     is not a reason to draw a ring around the whole sheet. Same as the View
+     drawer's. */
+  .sheet:focus {
+    outline: none;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-primary);
+  }
+
+  /*
+   * A mode, which on a phone has nowhere else to be — Edit's Shift latch used to
+   * sit in the rail, which is not rendered at that width. Above the list and
+   * separated from it, because picking it does not close the sheet the way
+   * picking a tool does.
+   */
+  .modes {
+    display: grid;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .title {
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 750;
+    letter-spacing: 0;
+  }
+
+  .body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* Reaching the end of the list must not start scrolling the app behind it. */
+    overscroll-behavior: contain;
+    padding-bottom: var(--space-4);
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+  }
+}
+
+/*
+ * With no rail beside it the sheet is the only tool surface, so it takes all the
+ * width it can — but not the last 44px.
+ *
+ * Its 92vw default leaves a 30px strip of backdrop at 375px, and the backdrop is
+ * how the sheet is dismissed by tapping: a phone has no Escape key, so the strip
+ * and the close button are the only two ways out. A dismissal target under the
+ * touch minimum is the defect the phone layout exists to remove, so the strip is
+ * written as exactly one target rather than as a percentage that happens to land
+ * near one.
+ *
+ * The phone query, as `platform/phoneLayoutQuery.ts` states it.
+ */
+@media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
+  .sheet {
+    width: calc(100% - var(--touch-target));
+  }
+}

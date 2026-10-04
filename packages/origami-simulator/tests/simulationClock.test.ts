@@ -29,6 +29,7 @@ function fakeBackend(options: {
     setFoldPercent() {},
     setFoldProfile() {},
     setMaterial() {},
+    setFixedNodes() {},
     reset() {
       step = 0;
       resets += 1;
@@ -203,5 +204,83 @@ describe('SimulationClock runToConvergence', () => {
 
     expect(tick.converged).toBe(false);
     expect(tick.steps).toBeLessThanOrEqual(510);
+  });
+});
+
+describe('SimulationClock stagnation', () => {
+  function runTicks(clock: SimulationClock, backend: SolverBackend, limit: number): number {
+    let ticks = 0;
+    while (!clock.converged && ticks < limit) {
+      clock.runFrame(backend);
+      ticks += 1;
+    }
+    return ticks;
+  }
+
+  it('settles a model whose velocity is stuck above epsilon', () => {
+    // A pinned kabuto plateaus at 1.26e-5: its slowest node's velocity is too
+    // small to change a float32 position, so neither moves again.
+    const { backend, now } = fakeBackend({
+      msPerStep: 0.01,
+      velocity: (step) => (step < 50 ? 1 / (step + 1) : 1.26e-5),
+    });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 10, convergenceEpsilon: 1e-5, convergenceTicks: 3, now });
+    runTicks(clock, backend, 100);
+    expect(clock.converged).toBe(true);
+  });
+
+  it('keeps running while the velocity is still falling, however slowly', () => {
+    const { backend, now } = fakeBackend({
+      msPerStep: 0.01,
+      velocity: (step) => 1e-3 * Math.exp(-step / 1e6),
+    });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 10, convergenceEpsilon: 1e-5, now });
+    runTicks(clock, backend, 50);
+    expect(clock.converged).toBe(false);
+  });
+
+  it('does not mistake a model moving at a steady speed for a stuck one', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => 0.5 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 10, now });
+    runTicks(clock, backend, 50);
+    expect(clock.converged).toBe(false);
+  });
+
+  it('forgets the plateau on invalidate, so a new target is pursued', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => 1.26e-5 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 10, convergenceTicks: 1, now });
+    runTicks(clock, backend, 10);
+    expect(clock.converged).toBe(true);
+
+    clock.invalidate();
+    clock.runFrame(backend);
+    expect(clock.converged).toBe(false);
+  });
+
+  it('can be switched off', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => 1.26e-5 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 10, stagnationCeiling: 0, now });
+    runTicks(clock, backend, 50);
+    expect(clock.converged).toBe(false);
+  });
+});
+
+describe('SimulationClock recovery report', () => {
+  it('says it reset a non-finite model', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, velocity: () => Number.NaN });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, now });
+    expect(clock.runFrame(backend).recovered).toBe('reset');
+  });
+
+  it('says it arrested a runaway strain', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, strain: () => 9, velocity: () => 0.1 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, blowupStrain: 3, now });
+    expect(clock.runFrame(backend).recovered).toBe('arrest');
+  });
+
+  it('says nothing about a healthy tick', () => {
+    const { backend, now } = fakeBackend({ msPerStep: 0.01, strain: () => 0.2, velocity: () => 0.1 });
+    const clock = new SimulationClock({ budgetMs: 1, chunkSteps: 5, now });
+    expect(clock.runFrame(backend).recovered).toBeNull();
   });
 });

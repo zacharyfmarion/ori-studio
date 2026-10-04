@@ -206,6 +206,7 @@
   "creaseAngle": {
     "close": "折り線の角度を閉じる",
     "degrees": "折り線の角度（度）",
+    "degreesLabel": "度",
     "fieldTitle": "新しい山折り・谷折りに与える折り角度",
     "menuRow": "折り線の角度: {{angle}}",
     "title": "折り線の角度"
@@ -313,16 +314,21 @@
     "zoomOut": "リファレンスを縮小"
   },
   "simulator": {
+    "clearPins": "固定をすべて解除",
     "foldBackward": "折りを戻す",
     "foldEnd": "折り上がりへ移動",
     "foldForward": "折りを進める",
     "foldStart": "平らな状態へ移動",
+    "pinThroughLayers": "すべての層を通して固定",
     "playPause": "折りたたみの再生 / 一時停止",
     "replay": "シミュレーションを再スタート",
     "resetView": "シミュレーターの視点をリセット",
     "toggleCreases": "折り線",
     "toggleFaces": "面",
-    "toggleLighting": "ライティング"
+    "toggleLighting": "ライティング",
+    "toolExit": "ツールを終了",
+    "toolOrbit": "オービットツール",
+    "toolPin": "固定ツール"
   },
   "viewport": {
     "contextMenu": "コンテキストメニューを開く",

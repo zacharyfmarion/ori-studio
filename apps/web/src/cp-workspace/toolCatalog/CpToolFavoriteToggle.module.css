@@ -1,0 +1,24 @@
+/* The star beside a tool row (CpToolFavoriteToggle.tsx). Touch-only, as the sheet is. */
+@media (pointer: coarse) {
+  /* Its own touch target, so the row's tap area starts after it and a thumb
+     aiming at the tool cannot land on the star by a few pixels. */
+  .star {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    /* Explicit, because a bespoke icon button inherits the UA's button padding
+       and `justify-content` alone will not centre against it. */
+    padding: 0;
+    width: var(--touch-target);
+    min-width: var(--touch-target);
+    height: var(--touch-target);
+    border: 0;
+    background: transparent;
+    color: var(--text-tertiary);
+  }
+
+  .star[data-favorited] {
+    color: var(--accent-primary);
+  }
+}

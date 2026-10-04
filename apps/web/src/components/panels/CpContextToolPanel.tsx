@@ -49,7 +49,8 @@ import { cpToolUnavailableMessage } from '../../cp-workspace/tools/toolUnavailab
 import { CpContextToolReset } from './CpContextToolReset';
 import { SegmentedToolOption } from '../../cp-workspace/toolOptions/SegmentedToolOption';
 import { SquareToolOptions } from '../../cp-workspace/toolOptions/SquareToolOptions';
-import { CpToolHintWindow } from '../../cp-workspace/toolHint/CpToolHintWindow';
+import { ToolHintWindow } from '../ui/tools/ToolHintWindow';
+import { STORAGE_KEYS } from '../../lib/storage';
 import { isRestingCpTool } from '../../cp-workspace/toolHint/restingTool';
 import { useFoldAngleAvailable } from '../../cp-workspace/foldAngle/useFoldAngleSelection';
 import { copyTextToClipboard } from '../../lib/clipboardText';
@@ -144,7 +145,7 @@ export function contextApplyDisabledForCommand(
 
 /**
  * What the active tool wants you to do, and the settings it acts on — the
- * contents of the tool hint window. {@link CpToolHintWindow} is the window
+ * contents of the tool hint window. {@link ToolHintWindow} is the window
  * itself: where it floats, and whether it is collapsed.
  */
 export function CpContextToolPanel({
@@ -262,8 +263,9 @@ export function CpContextToolPanel({
   if (!hasContent) return null;
 
   return (
-    <CpToolHintWindow
+    <ToolHintWindow
       container={container}
+      collapseKey={STORAGE_KEYS.cpToolHintCollapsed}
       title={title}
       meta={meta}
       ariaLabel={t('tools:cpContext.ariaLabel', 'Crease pattern tool options')}
@@ -339,7 +341,7 @@ export function CpContextToolPanel({
           {t('tools:cpContext.cancelInput', 'Cancel this step')}
         </button>
       )}
-    </CpToolHintWindow>
+    </ToolHintWindow>
   );
 }
 

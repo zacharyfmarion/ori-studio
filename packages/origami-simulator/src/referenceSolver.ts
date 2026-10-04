@@ -6,7 +6,7 @@ import type {
   SimulatorDiagnostics,
   SimulatorOptions,
 } from './types.js';
-import type { SolverBackend } from './solverBackend.js';
+import { copyFixedNodeMask, type SolverBackend } from './solverBackend.js';
 
 // TypeScript CPU port of Amanda Ghassaei's Origami Simulator dynamic solver.
 //
@@ -74,6 +74,8 @@ export class ReferenceSolver implements SolverBackend {
   private readonly nodeFaces: NodeFaceRef[][];
   private readonly nominalAngles: Vec3[];
   private foldProfileRanges = new Map<number, CreaseFoldRange>();
+  /** Nodes held in place (`u_mass.y` upstream); null when nothing is fixed. */
+  private fixed: Uint8Array | null = null;
 
   constructor(model: OrigamiModel, options: SimulatorOptions = {}) {
     this.model = model;
@@ -124,6 +126,10 @@ export class ReferenceSolver implements SolverBackend {
     this.lastVelocity.fill(0);
     this.theta.fill(0);
     this.model.reset();
+  }
+
+  setFixedNodes(mask: Uint8Array | null): void {
+    this.fixed = copyFixedNodeMask(mask, this.model.prepared.vertexCount);
   }
 
   arrestDynamics(): void {
@@ -187,6 +193,8 @@ export class ReferenceSolver implements SolverBackend {
    * as the GPU's velocity-alpha channel.
    */
   private nodalStrain(vertex: number): number {
+    // A fixed node's shader returns before its beam loop, so the GPU reports 0.
+    if (this.fixed?.[vertex]) return 0;
     const beams = this.nodeBeams[vertex] ?? [];
     if (beams.length === 0) return 0;
     const position = this.relativePointAt(vertex);
@@ -343,8 +351,14 @@ export class ReferenceSolver implements SolverBackend {
   ): void {
     this.forces.fill(0);
     for (let vertex = 0; vertex < this.model.prepared.vertexCount; vertex += 1) {
-      const force = this.forceForVertex(vertex, normals, theta, creaseGeometry);
       const offset = vertex * 3;
+      if (this.fixed?.[vertex]) {
+        this.model.velocities[offset] = 0;
+        this.model.velocities[offset + 1] = 0;
+        this.model.velocities[offset + 2] = 0;
+        continue;
+      }
+      const force = this.forceForVertex(vertex, normals, theta, creaseGeometry);
       this.forces.set(force, offset);
       this.model.velocities[offset] = (this.lastVelocity[offset] ?? 0) + force[0] * dt;
       this.model.velocities[offset + 1] = (this.lastVelocity[offset + 1] ?? 0) + force[1] * dt;
@@ -370,8 +384,14 @@ export class ReferenceSolver implements SolverBackend {
   ): void {
     this.forces.fill(0);
     for (let vertex = 0; vertex < this.model.prepared.vertexCount; vertex += 1) {
-      const force = this.forceForVertex(vertex, normals, theta, creaseGeometry);
       const offset = vertex * 3;
+      if (this.fixed?.[vertex]) {
+        this.relativePositions[offset] = this.lastRelativePositions[offset] ?? 0;
+        this.relativePositions[offset + 1] = this.lastRelativePositions[offset + 1] ?? 0;
+        this.relativePositions[offset + 2] = this.lastRelativePositions[offset + 2] ?? 0;
+        continue;
+      }
+      const force = this.forceForVertex(vertex, normals, theta, creaseGeometry);
       this.forces.set(force, offset);
       this.relativePositions[offset] =
         force[0] * dt * dt + 2 * (this.lastRelativePositions[offset] ?? 0) - (this.lastLastRelativePositions[offset] ?? 0);

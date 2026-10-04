@@ -10,6 +10,12 @@ import type {
 import type { Point } from '../../lib/geometry';
 import type { PaperStyleField, PaperStyleValue } from '../../lib/paper/paperStyle';
 import type { CpVertexPin } from '../../cp-workspace/pins/vertexPins';
+import type { PinSet } from '../../simulator/tools/pinSet';
+import type {
+  SimulatorToolId,
+  SimulatorToolOptionId,
+  SimulatorToolOptions,
+} from '../../simulator/tools/types';
 import type { SerializedDockview } from 'dockview';
 import type { DesignTab } from './designTabs';
 import type { EditingContext } from '../../workspaces/editingContext';
@@ -1452,6 +1458,18 @@ export interface OristudioBpSliceActions {
 
 export type OristudioBpSlice = OristudioBpSliceState & OristudioBpSliceActions;
 
+/**
+ * Pinned faces per simulated source, for one fold revision.
+ *
+ * Keyed by the panel's `simulationSourceKey`, so switching segments and back
+ * keeps each segment's pins. Scoped to a revision because a new fold may not
+ * have the same faces: pins written against another revision replace the lot.
+ */
+export interface SimulatorPinsState {
+  revision: number | null;
+  bySource: Readonly<Record<string, PinSet>>;
+}
+
 export interface SimulatorSliceState {
   /**
    * Render, material, and solver settings for the Simulate workspace. Shared
@@ -1459,6 +1477,19 @@ export interface SimulatorSliceState {
    * options pane are sibling panels; persisted so choices survive a reload.
    */
   simulatorSettings: SimulatorSettings;
+  /**
+   * The tool in hand on the Simulate canvas. Here rather than in the panel so a
+   * workspace switch keeps it, as Edit's tool survives one.
+   */
+  simulatorActiveToolId: SimulatorToolId;
+  /**
+   * What the user has pinned. Memory-only: not in the file, not in undo, and
+   * gone on reload. The worker's own copy is what holds the paper; this is the
+   * set the panel keeps it in step with.
+   */
+  simulatorPins: SimulatorPinsState;
+  /** The tools' options, persisted. */
+  simulatorToolOptions: SimulatorToolOptions;
 }
 
 export interface SimulatorSliceActions {
@@ -1466,6 +1497,10 @@ export interface SimulatorSliceActions {
   setSimulatorSetting: <K extends SimulatorSettingKey>(key: K, value: SimulatorSettings[K]) => void;
   /** Restore the paper's material properties (stiffness, damping) to defaults. */
   resetSimulatorMaterial: () => void;
+  setSimulatorActiveTool: (id: SimulatorToolId) => void;
+  /** Replace one source's pins; a different revision drops every other source's. */
+  setSimulatorPins: (revision: number, sourceKey: string, faces: PinSet) => void;
+  setSimulatorToolOption: (id: SimulatorToolOptionId, value: boolean) => void;
 }
 
 export type SimulatorSlice = SimulatorSliceState & SimulatorSliceActions;

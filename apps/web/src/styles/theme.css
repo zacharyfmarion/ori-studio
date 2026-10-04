@@ -306,54 +306,6 @@
   padding: 0;
 }
 
-/* A pill-shaped quick pick; see components/ui/Chip.tsx. Everything but the
-   padding and type scale is shared, which is what the size variants leave
-   alone. */
-.ui-chip {
-  border: 1px solid var(--border-subtle);
-  border-radius: 999px;
-  /* Transparent, which is what these chips have always rendered as: the rule
-     this replaces asked for `--surface-raised`, a token theme.css never defines,
-     so the browser dropped the declaration. Stated rather than inherited by
-     accident. */
-  background: transparent;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.ui-chip:hover {
-  border-color: var(--accent-primary);
-  color: var(--text-primary);
-}
-
-/* Chips are ordinary tab stops — the crease-angle popover is keyboard-first and
-   Tab lands here — so the ring has to be visible. */
-.ui-chip:focus-visible {
-  border-color: var(--accent-primary);
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 1px;
-  color: var(--text-primary);
-}
-
-/* `--bg-secondary`, not the `--surface-base` the old rule named: that token does
-   not exist either, so the pressed chip was drawing grey text on a blue fill. */
-.ui-chip[aria-pressed='true'] {
-  border-color: var(--accent-primary);
-  background: var(--accent-primary);
-  color: var(--bg-secondary);
-}
-
-.ui-chip--sm {
-  padding: 2px 7px;
-  font-size: 0.66rem;
-}
-
-.ui-chip--md {
-  padding: 6px 12px;
-  font-size: 0.78rem;
-}
-
 /*
  * A primary button and its caret sharing one outline. The halves stay separate
  * buttons (see SplitButton), so the seam is made by flattening the edges that
@@ -593,46 +545,6 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-}
-
-.control-row {
-  display: grid;
-  grid-template-columns: minmax(80px, 1fr) minmax(80px, auto);
-  align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.control-row__label {
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-}
-
-/* The info mark after a label whose name cannot carry what the setting does. */
-.control-row__help {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  vertical-align: -2px;
-  cursor: help;
-}
-
-.control-row__help:hover,
-.control-row__help:focus-visible {
-  color: var(--text-primary);
-}
-
-.control-row__value {
-  color: var(--text-primary);
-  font-size: 0.74rem;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
 .control-row__input {
@@ -2100,15 +2012,6 @@
   background: var(--status-warning);
 }
 
-.settings-paper__slot-action {
-  height: 24px;
-  padding: 0 9px;
-  border-color: var(--border-default);
-  font-size: 0.72rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 /* Whether exports are still the display style, and the press that changes it. */
 .settings-paper__banner {
   display: flex;
@@ -2463,8 +2366,8 @@
  * so a two-class selector here is an *earlier* rule at equal specificity and
  * silently loses every property the two share.
  */
-.settings-paper .settings-paper__card--color .control-row__label,
-.settings-paper .settings-paper-pen__head .control-row__label {
+.settings-paper .settings-paper__card--color .color-field__label,
+.settings-paper .settings-paper-pen__head .color-field__label {
   color: var(--text-primary);
   font-size: 0.78rem;
   font-weight: 650;
@@ -4432,21 +4335,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: grab;
 }
 
-.control-row--button {
-  width: 100%;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.control-row--button:hover {
-  background: var(--bg-surface);
-}
-
 .empty-note {
   color: var(--text-tertiary);
   font-size: 12px;
@@ -4604,21 +4492,26 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 650;
 }
 
-/* A `NumberField`'s input (`data-number-field`) is excluded because it arrives
-   fully styled — 26px tall to match its own step buttons — and this rule's 22px
-   would leave the input a different height from the − / + boxes beside it. */
+/* The app's field size: 28px with 0.72rem text, the height of the text fields
+   in Settings and on the viewport bar, and of the chips beside these.
+
+   A `NumberField`'s input (`data-number-field`) is excluded because it arrives
+   fully styled — 26px tall to match its own step buttons — and this rule's
+   height would leave the input a different height from the − / + boxes beside
+   it. */
 .cp-context-panel__field input:not([data-number-field]),
 .cp-context-panel__field select,
 .cp-context-panel__field textarea {
-  height: 22px;
+  height: 28px;
   min-width: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font: inherit;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
-  padding: 2px 5px;
+  padding: 2px 8px;
 }
 
 .cp-context-panel__field textarea {
@@ -4933,7 +4826,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* A property sheet: the selected object's name and context, then its rows in
-   sections — the same `control-row` / `collapsible-section` idiom as the View
+   sections — the same `FieldRow` / `collapsible-section` idiom as the View
    pane, so the two tabs read as one pane. See components/properties. */
 .property-sheet {
   display: flex;
@@ -4989,93 +4882,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .property-sheet__section:last-child {
   border-bottom: 0;
-}
-
-.control-row__value--toggle {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* The stepper sits at the end of the row, as wide as its number, and a reset
-   trails it the way a colour field's clear does. */
-.control-row__value--input {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.control-row__value--select {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* One trigger height for every pane's selects: the default 28px trigger is a
-   toolbar control, and a row of them beside 26px steppers looked ragged in each
-   pane that set this by hand. */
-.control-row__select {
-  width: 100%;
-  min-width: 0;
-  height: 26px;
-}
-
-.control-row__value--text {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* A segmented control hugs its options; stretched to the column it reads as a
-   half-filled progress bar. */
-.control-row__value--segmented {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Slider plus its readout: the number column is fixed so the sliders align. */
-.control-row__value--slider {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.control-row__value--slider .ui-slider {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.control-row__readout {
-  flex: 0 0 auto;
-  min-width: 28px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-/* A toggle's "Overridden", in the place its reset button would have taken: on
-   a second grid line under the label, so the line the switch sits on — and the
-   switch with it — stays exactly where it was. The line is one fixed height,
-   empty or not and never wrapped, so a toggle that can be overridden is one
-   height whichever it is (`FieldRow.overridable`). */
-.control-row--noted {
-  row-gap: 1px;
-}
-
-.control-row__note {
-  grid-column: 1;
-  min-width: 0;
-  height: 1.2em;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.control-row[data-disabled] .control-row__label,
-.control-row[data-disabled] .control-row__note,
-.control-row[data-disabled] .control-row__readout {
-  opacity: 0.5;
 }
 
 /* A titled group of rows, optionally folded behind its title. Shared by every
@@ -5161,12 +4967,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .collapsible-section__action:hover {
   background: var(--surface-hover, rgb(255 255 255 / 8%));
   color: var(--text-primary);
-}
-
-/* An option that qualifies the one above it — "Only where needed" under
-   "Precrease grid" — sits a step in, so the pair reads as one setting. */
-.control-row--nested {
-  padding-left: 24px;
 }
 
 /* Simulate and References options panes, alongside the Edit workspace's view pane. */
@@ -6247,9 +6047,14 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 /* Row: a square swatch on the right, so a colour reads as one control in a
    column of sliders and selects rather than as a full-width band. */
-.color-field--row .color-field__value,
+/* The inline value also wore the pane row's value look (right-aligned, the
+   row's type, tabular digits), and keeps it. */
 .color-field--inline .color-field__value {
   justify-content: flex-end;
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .color-field--row .color-field__input,
@@ -6268,7 +6073,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   gap: var(--space-2);
 }
 
-.color-field--inline .control-row__label {
+.color-field--inline .color-field__label {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--text-secondary);
@@ -6306,37 +6111,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   border: 1px solid var(--border-default);
   border-radius: 50%;
   vertical-align: -1px;
-}
-
-/* The same affordance on any other row: a field's `reset`, trailing the control. */
-.control-row__reset {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 22px;
-  margin-left: 4px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-}
-
-.control-row__reset:hover:not(:disabled) {
-  border-color: var(--border-default);
-  color: var(--text-primary);
-}
-
-.control-row__reset:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.simulator-view-controls-panel__colors > .control-row:last-child {
-  border-bottom: 0;
 }
 
 
@@ -6630,20 +6404,9 @@ button.cp-folded-figure-toolbar__notice:hover {
     min-width: var(--touch-target);
   }
 
-  /* Growing the steppers to 44px makes a number field need 132px (the −, the
-     number and the +, a 44px target each), but `.control-row`'s two columns
-     each claim a floor of 80px — so on a narrow panel the field was handed
-     ~112px and the `+` clipped against the panel's edge. Measured on a base
-     iPad in portrait: the increment button was cut in half by the screen edge.
-     140px holds a three-digit number; a longer one widens the column.
-
-     The label is what should give way. It can truncate and still be read; a
-     control the finger cannot reach is simply gone. */
-  .control-row {
-    grid-template-columns: minmax(0, 1fr) minmax(140px, auto);
-  }
-
-  .control-row__label {
+  /* A colour field's inline label gives way before its swatch, as a pane
+     row's does (FieldRow.module.css). */
+  .color-field--inline .color-field__label {
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -6820,8 +6583,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 
   /* The pill look, shared by everything the lane holds. */
   .canvas-pill,
-  .view-drawer__trigger,
-  .cp-tools-trigger {
+  .view-drawer__trigger {
     gap: var(--space-2);
     border-color: var(--border-default);
     box-shadow: var(--shadow-context-menu);
@@ -6957,29 +6719,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   }
 
   /*
-   * The active tool's mark, at about the size the View pill draws its icon. A
-   * box of its own because `CpToolGlyph` renders three different things — an
-   * Oriedita glyph from an icon font, a two-letter line-type label, or a Lucide
-   * icon — and only a fixed box makes all three sit on the same line as the word
-   * beside them.
-   *
-   * The font-size here covers the text glyph; the Oriedita icon font carries its
-   * own, tuned for a 44px rail button, so it is re-set below. Its baseline nudge
-   * goes with it — a 2px drop inside an 18px box is visible, where inside a rail
-   * button it was the correction that made it invisible.
-   */
-  .cp-tools-trigger__glyph {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    font-size: 0.72rem;
-    font-weight: 750;
-    line-height: 1;
-  }
-
-  /*
    * The sheet. `position: fixed`, so unlike the trigger it is *not* inside
    * `.app-layout` for layout purposes and does not inherit the safe-area padding
    * that element applies once for the whole app — it has to inset itself.
@@ -7091,255 +6830,6 @@ button.cp-folded-figure-toolbar__notice:hover {
     min-height: var(--touch-target);
     padding-inline: var(--space-3);
   }
-
-  /*
-   * The tool picker: every rail tool with its name, its description and its
-   * shortcut. `position: fixed`, so like the View drawer it sits outside
-   * `.app-layout` for layout purposes and insets itself past the safe area.
-   */
-  .cp-tool-picker {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-modal);
-    display: flex;
-    justify-content: flex-start;
-    padding: var(--safe-top) 0 var(--safe-bottom) var(--safe-left);
-    background: var(--overlay-dim);
-    backdrop-filter: blur(4px);
-  }
-
-  .cp-tool-picker__sheet {
-    display: flex;
-    flex-direction: column;
-    /* Wide enough for the longest name plus its shortcut: "Concentric from two
-       circles" is 27 characters, and truncating it here would defeat the point
-       of the sheet existing. */
-    width: min(380px, 92vw);
-    min-height: 0;
-    border-right: 1px solid var(--border-default);
-    background: var(--bg-secondary);
-    box-shadow: var(--shadow-context-menu);
-    animation: cp-tool-picker-in 0.18s ease-out;
-  }
-
-  /* Focused on open so `aria-modal` has somewhere to put a screen reader, which
-     is not a reason to draw a ring around the whole sheet. Same as the View
-     drawer's. */
-  .cp-tool-picker__sheet:focus {
-    outline: none;
-  }
-
-  .cp-tool-picker__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--border-default);
-    background: var(--bg-primary);
-  }
-
-  /*
-   * The Shift latch, which on a phone has nowhere else to be — the rail it used
-   * to sit in is not rendered at that width. Above the catalogue and separated
-   * from it, because it is a mode rather than a tool and picking it does not
-   * close the sheet the way picking a tool does.
-   */
-  .cp-tool-picker__modes {
-    display: grid;
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .cp-tool-picker__title {
-    color: var(--text-primary);
-    font-size: 0.85rem;
-    font-weight: 750;
-    letter-spacing: 0;
-  }
-
-  .cp-tool-picker__body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    /* Reaching the end of the list must not start scrolling the app behind it. */
-    overscroll-behavior: contain;
-    padding-bottom: var(--space-4);
-  }
-
-  .cp-tool-picker__group-title {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    margin: 0;
-    padding: var(--space-2) var(--space-3);
-    background: var(--bg-secondary);
-    color: var(--text-tertiary);
-    font-size: 0.62rem;
-    font-weight: 750;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .cp-tool-picker__list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  /* Flush with the FAVORITES heading above it, which is the only left edge this
-     section has. It was indented to the row text past the star, on the idea that
-     it belonged to the list — but the stars are a column inside the rows, not a
-     margin the section is laid out against, so aligning to them just read as a
-     stray indent. */
-  .cp-tool-picker__note {
-    margin: 0;
-    padding: 0 var(--space-3) var(--space-2);
-    color: var(--text-tertiary);
-    font-size: 0.68rem;
-    line-height: 1.35;
-  }
-
-  /* Places the line types' segmented control under its heading. */
-  .cp-tool-picker__types {
-    margin: 0 var(--space-3) var(--space-2);
-  }
-
-  /*
-   * The row holds two sibling buttons — the star and the select target. It used
-   * to be one button end to end, and it cannot be again: a control nested in a
-   * button is invalid, and in practice the outer one takes the tap, so the star
-   * would select the tool it was meant to star.
-   *
-   * The active treatment lives here rather than on `__item` for the same
-   * restructure: its inset left bar has to draw at the row's edge, not between
-   * the star and the glyph.
-   */
-  .cp-tool-picker__row {
-    display: flex;
-    align-items: center;
-    /* No `touch-action: none` — the sheet scrolls, and a permanently
-       unscrollable band at the top of it would cost more than the drag is
-       worth. `useLongPressReorder` cancels the scroll at arm time instead. */
-    -webkit-touch-callout: none;
-    user-select: none;
-  }
-
-  .cp-tool-picker__row[data-active] {
-    background: color-mix(in srgb, var(--accent-primary) 13%, var(--bg-tertiary));
-    box-shadow: inset 2px 0 0 var(--accent-primary);
-  }
-
-  /* The row is out of the flow of the list under a finger, so it reads as picked
-     up rather than merely highlighted. */
-  .cp-tool-picker__row[data-dragging] {
-    position: relative;
-    z-index: 2;
-    border-radius: var(--radius-sm);
-    background: var(--bg-tertiary);
-    box-shadow: var(--shadow-context-menu);
-    transform: scale(1.02);
-  }
-
-  /* Its own touch target, so the row's tap area starts after it and a thumb
-     aiming at the tool cannot land on the star by a few pixels. */
-  .cp-tool-picker__star {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    /* Explicit, because a bespoke icon button inherits the UA's button padding
-       and `justify-content` alone will not centre against it. */
-    padding: 0;
-    width: var(--touch-target);
-    min-width: var(--touch-target);
-    height: var(--touch-target);
-    border: 0;
-    background: transparent;
-    color: var(--text-tertiary);
-  }
-
-  .cp-tool-picker__star[data-favorited] {
-    color: var(--accent-primary);
-  }
-
-  .cp-tool-picker__item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    flex: 1;
-    min-width: 0;
-    min-height: var(--touch-target);
-    padding: var(--space-2) var(--space-3) var(--space-2) 0;
-    border: 0;
-    background: transparent;
-    color: var(--text-primary);
-    text-align: left;
-    -webkit-touch-callout: none;
-    user-select: none;
-  }
-
-  .cp-tool-picker__item[aria-disabled='true'] {
-    color: var(--text-tertiary);
-    opacity: 0.55;
-  }
-
-  .cp-tool-picker__icon {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    color: var(--text-secondary);
-  }
-
-  .cp-tool-picker__row[data-active] .cp-tool-picker__icon {
-    color: var(--text-primary);
-  }
-
-  .cp-tool-picker__text {
-    display: grid;
-    flex: 1;
-    min-width: 0;
-    gap: 1px;
-  }
-
-  .cp-tool-picker__label {
-    font-size: 0.82rem;
-    font-weight: 600;
-    line-height: 1.25;
-  }
-
-  /* The description the tooltip used to be the only home for. Two lines at most:
-     past that the row stops being scannable and the list stops being a list. */
-  .cp-tool-picker__hint {
-    display: -webkit-box;
-    overflow: hidden;
-    color: var(--text-tertiary);
-    font-size: 0.7rem;
-    line-height: 1.3;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  @keyframes cp-tool-picker-in {
-    from {
-      transform: translateX(-100%);
-    }
-  }
-}
-
-@media (pointer: coarse) and (prefers-reduced-motion: reduce) {
-  .cp-tool-picker__sheet {
-    animation: none;
-  }
-
-  /* The lift keeps its shadow and its stacking — those say "picked up" without
-     moving anything. Only the scale goes, which is the part that is motion. */
-  .cp-tool-picker__row[data-dragging] {
-    transform: none;
-  }
 }
 
 /*
@@ -7441,21 +6931,6 @@ button.cp-folded-figure-toolbar__notice:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
-
-  /*
-   * With no rail beside it the sheet is the only tool surface, so it takes all
-   * the width it can — but not the last 44px.
-   *
-   * Its 92vw default leaves a 30px strip of backdrop at 375px, and the backdrop
-   * is how the sheet is dismissed by tapping: a phone has no Escape key, so the
-   * strip and the close button are the only two ways out. A dismissal target
-   * under the touch minimum is the defect this whole pass exists to remove, so
-   * the strip is written as exactly one target rather than as a percentage that
-   * happens to land near one.
-   */
-  .cp-tool-picker__sheet {
-    width: calc(100% - var(--touch-target));
-  }
 
   /*
    * References and Simulate: one screen at a time. `usePhoneListDetail` mounts

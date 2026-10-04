@@ -105,6 +105,10 @@
   "simulatorExport": {
     "empty": "Diese Simulation hat noch nichts zu exportieren"
   },
+  "simulatorPins": {
+    "pickFailed": "Die Flächen an dieser Stelle konnten nicht ermittelt werden. Bitte erneut versuchen.",
+    "updateFailed": "Diese Flächen konnten nicht fixiert werden. Bitte erneut versuchen."
+  },
   "update": {
     "available": "Version {{version}} ist verfügbar",
     "checkFailed": "Nach Updates konnte nicht gesucht werden",

@@ -9,7 +9,7 @@
  * this file could restate.
  *
  * The viewport is found by class, and the readout inside it by its data
- * attribute, the same way `useCpToolHintAnchor` finds the viewport toolbar. One lookup serves twice: the
+ * attribute, the same way `useToolHintAnchor` finds the viewport toolbar. One lookup serves twice: the
  * viewport is both the box the HUD's `top` resolves against and the scope that
  * keeps the readout query off another surface's status strip.
  */

@@ -68,7 +68,7 @@ function renderSheet(
       </TooltipProvider>
     );
   });
-  const sheet = container.querySelector('.cp-tool-picker');
+  const sheet = container.querySelector('[role="dialog"]');
   if (!(sheet instanceof HTMLElement)) throw new Error('no sheet');
   return sheet;
 }
@@ -83,10 +83,10 @@ describe('CpToolPickerSheet catalogue', () => {
     // is what this test is for, and a chip that dropped its label would be a
     // regression the row query alone could not see.
     const labels = [
-      ...[...sheet.querySelectorAll('.cp-tool-picker__types button')].map((node) =>
+      ...[...sheet.querySelectorAll('[data-line-types] button')].map((node) =>
         node.getAttribute('aria-label')
       ),
-      ...[...sheet.querySelectorAll('.cp-tool-picker__label')].map((node) => node.textContent),
+      ...[...sheet.querySelectorAll('[data-tool-label]')].map((node) => node.textContent),
     ];
     // Favorites sit between the chips and the groups, and a starred tool keeps
     // its row in its own group as well — starring is a shortcut, not a move. So
@@ -110,7 +110,7 @@ describe('CpToolPickerSheet catalogue', () => {
   });
 
   it('carries the full label, not the truncation the rail cannot avoid', () => {
-    const labels = [...renderSheet().querySelectorAll('.cp-tool-picker__label')].map(
+    const labels = [...renderSheet().querySelectorAll('[data-tool-label]')].map(
       (node) => node.textContent
     );
     expect(labels).toContain('Parallel Alternating Lines');
@@ -122,7 +122,7 @@ describe('CpToolPickerSheet catalogue', () => {
     const closed = vi.fn();
     const sheet = renderSheet((action) => selected.push(action.id), closed);
 
-    const rows = [...sheet.querySelectorAll('.cp-tool-picker__item')];
+    const rows = [...sheet.querySelectorAll('[data-tool-item]')];
     const eraser = rows.find((row) => row.textContent?.includes('Eraser'));
     if (!(eraser instanceof HTMLElement)) throw new Error('no Eraser row');
     act(() => {
@@ -139,7 +139,7 @@ describe('CpToolPickerSheet catalogue', () => {
     const sheet = renderSheet((action) => selected.push(action.id), closed);
 
     const valley = sheet.querySelector<HTMLButtonElement>(
-      '.cp-tool-picker__types button[aria-label="Valley"]'
+      '[data-line-types] button[aria-label="Valley"]'
     );
     act(() => {
       valley?.click();
@@ -160,7 +160,7 @@ describe('CpToolPickerSheet catalogue', () => {
     const closed = vi.fn();
     const sheet = renderSheet((action) => selected.push(action.id), closed);
     const valley = sheet.querySelector<HTMLButtonElement>(
-      '.cp-tool-picker__types button[aria-label="Valley"]'
+      '[data-line-types] button[aria-label="Valley"]'
     );
     if (!valley) throw new Error('no Valley chip');
 
@@ -194,7 +194,7 @@ describe('CpToolPickerSheet catalogue', () => {
     );
     if (!notReady) return; // Every rail tool shipped; nothing to assert.
 
-    const rows = [...sheet.querySelectorAll('.cp-tool-picker__item')];
+    const rows = [...sheet.querySelectorAll('[data-tool-item]')];
     const row = rows.find((node) => node.textContent?.includes(notReady.label));
     if (!(row instanceof HTMLElement)) throw new Error(`no row for ${notReady.label}`);
     expect(row.getAttribute('aria-disabled')).toBe('true');
@@ -211,7 +211,7 @@ describe('CpToolPickerSheet catalogue', () => {
   it('takes focus when it opens, so the dialog is what a screen reader is on', () => {
     const sheet = renderSheet();
 
-    const panel = sheet.querySelector('.cp-tool-picker__sheet');
+    const panel = sheet.querySelector('[role="document"]');
     expect(document.activeElement).toBe(panel);
   });
 
@@ -250,15 +250,15 @@ describe('CpToolPickerSheet favorites', () => {
 
   function favoriteLabels(sheet: HTMLElement): (string | null)[] {
     return favoriteRows(sheet).map(
-      (row) => row.querySelector('.cp-tool-picker__label')?.textContent ?? null
+      (row) => row.querySelector('[data-tool-label]')?.textContent ?? null
     );
   }
 
   function starFor(sheet: HTMLElement, label: string): HTMLElement {
-    const row = [...sheet.querySelectorAll<HTMLElement>('.cp-tool-picker__row')].find(
-      (node) => node.querySelector('.cp-tool-picker__label')?.textContent === label
+    const row = [...sheet.querySelectorAll<HTMLElement>('[data-tool-row]')].find(
+      (node) => node.querySelector('[data-tool-label]')?.textContent === label
     );
-    const star = row?.querySelector<HTMLElement>('.cp-tool-picker__star');
+    const star = row?.querySelector<HTMLElement>('[data-favorite-toggle]');
     if (!star) throw new Error(`no star for ${label}`);
     return star;
   }
@@ -275,9 +275,9 @@ describe('CpToolPickerSheet favorites', () => {
   // that is not a tool, and the thing the rest hangs off.
   it('sits directly below the crease types', () => {
     const sheet = renderSheet();
-    const sections = [...sheet.querySelectorAll('.cp-tool-picker__group')];
+    const sections = [...sheet.querySelectorAll('[data-tool-group]')];
     const titles = sections.map((node) =>
-      node.querySelector('.cp-tool-picker__group-title')?.textContent
+      node.querySelector('h3')?.textContent
     );
     expect(titles[0]).toBe('Line type');
     expect(titles[1]).toBe('Favorites');
@@ -288,11 +288,11 @@ describe('CpToolPickerSheet favorites', () => {
 
   it('gives every tool row a star, and the crease-type chips none', () => {
     const sheet = renderSheet();
-    expect(sheet.querySelectorAll('.cp-tool-picker__row').length).toBe(
-      sheet.querySelectorAll('.cp-tool-picker__star').length
+    expect(sheet.querySelectorAll('[data-tool-row]').length).toBe(
+      sheet.querySelectorAll('[data-favorite-toggle]').length
     );
-    for (const chip of sheet.querySelectorAll('.cp-tool-picker__types button')) {
-      expect(chip.querySelector('.cp-tool-picker__star')).toBeNull();
+    for (const chip of sheet.querySelectorAll('[data-line-types] button')) {
+      expect(chip.querySelector('[data-favorite-toggle]')).toBeNull();
     }
   });
 
@@ -321,7 +321,7 @@ describe('CpToolPickerSheet favorites', () => {
 
     act(() => {
       favoriteRows(sheet)[0]
-        .querySelector<HTMLElement>('.cp-tool-picker__star')
+        .querySelector<HTMLElement>('[data-favorite-toggle]')
         ?.click();
     });
 
@@ -333,9 +333,9 @@ describe('CpToolPickerSheet favorites', () => {
   it('keeps both copies of a starred tool in the same state', () => {
     const sheet = renderSheet();
     const label = cpFavoriteToolActions()[0].label;
-    const stars = [...sheet.querySelectorAll<HTMLElement>('.cp-tool-picker__row')]
-      .filter((row) => row.querySelector('.cp-tool-picker__label')?.textContent === label)
-      .map((row) => row.querySelector('.cp-tool-picker__star'));
+    const stars = [...sheet.querySelectorAll<HTMLElement>('[data-tool-row]')]
+      .filter((row) => row.querySelector('[data-tool-label]')?.textContent === label)
+      .map((row) => row.querySelector('[data-favorite-toggle]'));
 
     expect(stars).toHaveLength(2);
     for (const star of stars) expect(star?.getAttribute('aria-pressed')).toBe('true');
@@ -354,7 +354,7 @@ describe('CpToolPickerSheet favorites', () => {
     const sheet = renderSheet((action) => selected.push(action.id), closed);
 
     act(() => {
-      favoriteRows(sheet)[0].querySelector<HTMLElement>('.cp-tool-picker__item')?.click();
+      favoriteRows(sheet)[0].querySelector<HTMLElement>('[data-tool-item]')?.click();
     });
 
     expect(selected).toEqual([cpFavoriteToolActions()[0].id]);
@@ -374,7 +374,7 @@ describe('CpToolPickerSheet favorites', () => {
     expect(cpToolFavoriteIds()).toEqual([]);
     expect(favoriteRows(sheet)).toHaveLength(0);
     expect(
-      [...sheet.querySelectorAll('.cp-tool-picker__group-title')].map((node) => node.textContent)
+      [...sheet.querySelectorAll('h3')].map((node) => node.textContent)
     ).not.toContain('Favorites');
   });
 
@@ -385,9 +385,9 @@ describe('CpToolPickerSheet favorites', () => {
    */
   it('carries neither a shortcut badge nor move buttons', () => {
     const sheet = renderSheet();
-    expect(sheet.querySelector('.cp-tool-picker__shortcut')).toBeNull();
-    expect(sheet.querySelector('.cp-tool-picker__move-button')).toBeNull();
     expect(sheet.querySelector('kbd')).toBeNull();
+    const buttonNames = [...sheet.querySelectorAll('button')].map((node) => node.getAttribute('aria-label') ?? '');
+    expect(buttonNames.filter((name) => /^Move /.test(name))).toEqual([]);
   });
 
   /*
@@ -443,7 +443,7 @@ describe('CpToolPickerSheet favorites', () => {
       // click, letting go selects the tool and closes the sheet mid-reorder.
       act(() => {
         favoriteRows(sheet)[2]
-          .querySelector<HTMLElement>('.cp-tool-picker__item')
+          .querySelector<HTMLElement>('[data-tool-item]')
           ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
       expect(selected).toEqual([]);

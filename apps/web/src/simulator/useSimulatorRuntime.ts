@@ -7,6 +7,7 @@ import type {
   RenderSettings,
   SimulatorDiagnostics,
   SimulatorOptions,
+  SimulationRecovery,
 } from '@treemaker/origami-simulator';
 import {
   releaseSimulatorClient,
@@ -24,6 +25,7 @@ import { useSimulatorPerfLog } from './useSimulatorPerfLog';
 import { simulatorDevicePixelRatio } from './simulatorDevicePixelRatio';
 import type { PaperScene } from '../lib/paper/paperScene';
 import type { SimulatorExportSceneOptions, SimulatorSessionSceneOptions } from './simulatorSession';
+import type { SimulatorPickQuery } from './pickQuery';
 
 // Drives the simulator worker and exposes the latest frame to a renderer.
 //
@@ -71,6 +73,17 @@ export interface SimulatorFrameView {
   converged: boolean;
   foldPercent: number;
   maxStrain: number;
+  /**
+   * What the solver's blow-up guard did on the tick this frame came from, if
+   * anything. Absent on a redraw, which ran no solver step.
+   */
+  recovered?: SimulationRecovery | null;
+}
+
+/** What a pin request did; see `SimulatorPinResult`. */
+export interface SimulatorPinOutcome {
+  applied: number;
+  dropped: number;
 }
 
 /**
@@ -178,6 +191,25 @@ export interface SimulatorRuntime {
   /** Push render settings to the worker (GPU mode); remembered in CPU mode. */
   setRenderSettings: (settings: RenderSettings) => void;
   /**
+   * The crease-pattern faces under a press or a box, from the worker's last
+   * frame. GPU-render mode only — the canvas-2D fallback draws on the main
+   * thread and answers its own picks — and null when there is no such frame,
+   * or the session is gone.
+   */
+  pickFaces: (query: SimulatorPickQuery) => Promise<number[] | null>;
+  /**
+   * Hold exactly these faces in place. `forModel` is the model the ids were
+   * read against: a request for any other is stale and answers null without
+   * reaching the worker, so ids cannot land on the wrong model across a reload
+   * or a segment switch. Requests are sent in order, so the newest set is the
+   * one that stays. Rejects if the worker does; the caller decides what the
+   * user is told.
+   */
+  setPinnedFaces: (
+    faces: readonly number[],
+    forModel: SimulatorModelView
+  ) => Promise<SimulatorPinOutcome | null>;
+  /**
    * Freeze the current view for the export dialog, or null when this runtime
    * holds no model.
    *
@@ -223,6 +255,11 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
   const [reloadNonce, setReloadNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [model, setModel] = useState<SimulatorModelView | null>(null);
+  // The model the worker session holds now, for checking a pin request against
+  // without waiting for a render.
+  const modelRef = useRef<SimulatorModelView | null>(null);
+  // Pin requests, chained so they reach the worker in the order they were made.
+  const pinQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const [playing, setPlaying] = useState(false);
   const [gpuActive, setGpuActive] = useState(false);
   /**
@@ -273,6 +310,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     converged: true,
     foldPercent: 0,
     maxStrain: 0,
+    recovered: null,
   });
   // Kept in a ref so the play loop does not have to tear down and rebuild every
   // time the caller passes a new closure. Assigned in an effect rather than
@@ -335,6 +373,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       converged: payload.converged,
       foldPercent: payload.foldPercent,
       maxStrain: payload.maxStrain,
+      recovered: payload.recovered,
     });
     convergedRef.current = payload.converged;
     framedRef.current = payload.framed;
@@ -346,6 +385,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       converged: payload.converged,
       foldPercent: payload.foldPercent,
       maxStrain: payload.maxStrain,
+      // A redraw reuses these scalars, and must not report a recovery twice.
+      recovered: null,
     };
     // Give the buffer straight back to the worker on the next request so the
     // steady-state CPU loop allocates nothing. (Null in GPU mode.)
@@ -359,6 +400,7 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       // An error belongs to a model, and this one is gone: a rebuild that
       // passes through here must not keep reporting the failure it is fixing.
       setError(null);
+      modelRef.current = null;
       setModel(null);
       // Nothing to show and nothing to render: hand the model back rather than
       // leaving it resident until something else pushes it out.
@@ -466,13 +508,15 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
         const gpu = info.backend === 'webgl2' && wantsGpu;
         gpuActiveRef.current = gpu;
         setGpuActive(gpu);
-        setModel({
+        const loaded: SimulatorModelView = {
           ...inflateRenderModel(info),
           edgeCount: info.edgeCount,
           creaseCount: info.creaseCount,
           diagnostics: info.diagnostics,
           backend: info.backend,
-        });
+        };
+        modelRef.current = loaded;
+        setModel(loaded);
         setStatus('ready');
 
         // Settle the opening state before the first paint so the panel does not
@@ -729,6 +773,32 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
       .catch(() => undefined);
   }, []);
 
+  const pickFaces = useCallback(async (query: SimulatorPickQuery): Promise<number[] | null> => {
+    const client = clientRef.current;
+    if (!client || !gpuActiveRef.current || tokenRef.current === undefined) return null;
+    return client.pickFaces(query, tokenRef.current);
+  }, []);
+
+  const setPinnedFaces = useCallback(
+    (faces: readonly number[], forModel: SimulatorModelView): Promise<SimulatorPinOutcome | null> => {
+      const send = async (): Promise<SimulatorPinOutcome | null> => {
+        const client = clientRef.current;
+        // Checked when the request's turn comes, not when it was made: the
+        // model may have been replaced by a request queued ahead of it.
+        if (!client || modelRef.current !== forModel || tokenRef.current === undefined) return null;
+        const result = await client.setPinnedFaces([...faces], tokenRef.current);
+        if (!result) return null;
+        // Bitmap-present mode: the redraw comes back as a frame.
+        if (result.bitmap) onFrameRef.current?.({ ...lastScalarsRef.current, bitmap: result.bitmap });
+        return { applied: result.applied, dropped: result.dropped };
+      };
+      const sent = pinQueueRef.current.then(send, send);
+      pinQueueRef.current = sent.catch(() => undefined);
+      return sent;
+    },
+    []
+  );
+
   const beginExport = useCallback(async (): Promise<SimulatorExportSnapshot | null> => {
     const client = clientRef.current;
     if (!client || tokenRef.current === undefined) return null;
@@ -782,6 +852,8 @@ export function useSimulatorRuntime(options: UseSimulatorRuntimeOptions): Simula
     canvasGeneration,
     setCamera,
     setRenderSettings,
+    pickFaces,
+    setPinnedFaces,
     beginExport,
     stillScene,
   };

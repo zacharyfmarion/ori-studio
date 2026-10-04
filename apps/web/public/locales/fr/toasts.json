@@ -111,6 +111,10 @@
   "simulatorExport": {
     "empty": "Cette simulation n'a encore rien à exporter"
   },
+  "simulatorPins": {
+    "pickFailed": "Impossible de déterminer quelles faces se trouvent là. Réessayez.",
+    "updateFailed": "Impossible d’épingler ces faces. Réessayez."
+  },
   "update": {
     "available": "La version {{version}} est disponible",
     "checkFailed": "Impossible de rechercher des mises à jour",

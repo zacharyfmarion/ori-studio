@@ -1,10 +1,10 @@
 /**
- * Keeps the tool hint window glued to the crease-pattern viewport's bottom-right
- * corner as the layout moves under it.
+ * Keeps the tool hint window glued to its viewport's bottom-right corner as the
+ * layout moves under it.
  *
  * The window is portaled to `document.body` and positioned `fixed` — it has to
  * be, because it overhangs the seam between two Dockview panels and either
- * neighbour would clip it (`.cp-panel__viewport` is `overflow: hidden`,
+ * neighbour would clip it (Edit's `.cp-panel__viewport` is `overflow: hidden`,
  * `.panel-body` is `overflow: auto`, and Dockview panels trap `fixed`
  * descendants). Being outside the layout, it has to be told where the layout
  * went.
@@ -15,9 +15,9 @@
  * 60x/s during a pan to compute the same numbers.
  */
 import { useLayoutEffect, useState } from 'react';
-import { cpToolHintPlacement, type CpToolHintPlacement } from './toolHintPlacement';
+import { toolHintPlacement, type ToolHintPlacement } from './toolHintPlacement';
 
-function samePlacement(a: CpToolHintPlacement | null, b: CpToolHintPlacement): boolean {
+function samePlacement(a: ToolHintPlacement | null, b: ToolHintPlacement): boolean {
   return a !== null && a.left === b.left && a.bottom === b.bottom && a.width === b.width;
 }
 
@@ -25,8 +25,8 @@ function samePlacement(a: CpToolHintPlacement | null, b: CpToolHintPlacement): b
  * Fixed-position offsets for the window, or null while there is nothing to
  * anchor to — no viewport element, or one that is laid out but not displayed.
  */
-export function useCpToolHintAnchor(container: HTMLElement | null): CpToolHintPlacement | null {
-  const [placement, setPlacement] = useState<CpToolHintPlacement | null>(null);
+export function useToolHintAnchor(container: HTMLElement | null): ToolHintPlacement | null {
+  const [placement, setPlacement] = useState<ToolHintPlacement | null>(null);
 
   useLayoutEffect(() => {
     if (!container) {
@@ -55,7 +55,7 @@ export function useCpToolHintAnchor(container: HTMLElement | null): CpToolHintPl
       // element, so repeating it costs nothing.
       if (toolbar) observer?.observe(toolbar);
 
-      const next = cpToolHintPlacement(
+      const next = toolHintPlacement(
         rect,
         { width: window.innerWidth, height: window.innerHeight },
         toolbar?.getBoundingClientRect() ?? null

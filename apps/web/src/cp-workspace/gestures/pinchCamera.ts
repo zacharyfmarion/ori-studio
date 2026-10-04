@@ -10,7 +10,7 @@
  */
 import { panUserCamera, zoomUserCameraAt, type UserCamera } from '../renderer/camera';
 import type { Viewport } from '../renderer/types';
-import type { GesturePoint, PinchTransform } from './pinchTransform';
+import type { GesturePoint, PinchTransform } from '../../lib/gestures/pinchTransform';
 
 /**
  * Apply one gesture sample to `cam`, in place.

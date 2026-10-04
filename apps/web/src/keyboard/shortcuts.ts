@@ -64,7 +64,12 @@ export type SimulatorShortcutId =
   | 'simulator.toggleCreases'
   | 'simulator.toggleLighting'
   | 'simulator.exportView'
-  | 'simulator.setUpright';
+  | 'simulator.setUpright'
+  | 'simulator.tool.orbit'
+  | 'simulator.tool.pin'
+  | 'simulator.tool.exit'
+  | 'simulator.pins.clear'
+  | 'simulator.pins.throughLayers';
 export type ReferencesShortcutId =
   | 'references.nextStep'
   | 'references.previousStep'
@@ -438,6 +443,19 @@ const SIMULATOR_SHORTCUTS: ShortcutDefinition[] = [
   // a chord the user binds is the same verb as the button.
   simulatorShortcut('simulator.exportView', 'Export view…', null),
   simulatorShortcut('simulator.setUpright', 'Set upright', null),
+  // The tools. Only the Simulate workspace has any, and an inline window on the
+  // Edit canvas declines all five, so O, P and Escape reach the canvas beneath
+  // it as though no simulation were in hand. O and P are free in every scope.
+  simulatorShortcut('simulator.tool.orbit', 'Orbit Tool', { key: 'o' }),
+  simulatorShortcut('simulator.tool.pin', 'Pin Tool', { key: 'p' }),
+  // Cancel a box in flight, else back to Orbit. Declined when there is neither,
+  // so an idle Escape still reaches whatever answered it before there were tools.
+  simulatorShortcut('simulator.tool.exit', 'Exit Tool', { key: 'escape' }),
+  // Unbound: a pin holds the pose it was made in, which Clear throws away, so it
+  // is not one stray key away. The window's button and the context menu are the
+  // routes; a chord is there for anyone who binds one.
+  simulatorShortcut('simulator.pins.clear', 'Clear Pins', null),
+  simulatorShortcut('simulator.pins.throughLayers', 'Pin Through All Layers', null),
 ];
 
 function referencesShortcut(
@@ -624,8 +642,16 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
  *
  * Declared here while the truth lives in `CreasePatternPanel`'s switch, so the
  * two can drift. The set is typed to `ViewportShortcutId`, which stops a
- * non-viewport id being added at all — the dispatcher ignores every other
- * target's return value, so the claim would be a lie anywhere else.
+ * non-viewport id being added at all. Menu and CP-action executors cannot
+ * decline, so the claim would be a lie for them.
+ *
+ * The simulator's executor can decline too (its tool verbs, on a surface with no
+ * tools), and its verbs are still not in here, on purpose. The `simulator` scope
+ * is conditional, which the conflict rules already treat as transparent to every
+ * other scope — so membership would add nothing across scopes. Within its own
+ * scope it would be wrong: a declined chord moves on to the next *scope*, never
+ * to a sibling definition, and the capture check reads membership as licence to
+ * stack a second binding on a chord only the first can ever answer.
  */
 const DECLINING_VIEWPORT_SHORTCUTS: ReadonlySet<ViewportShortcutId> = new Set([
   'viewport.delete',

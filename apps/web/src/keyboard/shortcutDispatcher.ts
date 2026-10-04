@@ -36,9 +36,10 @@ export interface ShortcutExecutors {
    * so Delete died on the BP and design canvases with nothing to show for it.
    * A required boolean makes that a compile error rather than a dead key.
    *
-   * Only viewport executors (and the Diagram's, below) can decline, because only
-   * they are synchronous. A menu action returns a promise, so whether it handled the chord is not known
-   * until well after the keydown has to be preventDefault'd or not.
+   * Only the viewport, simulator and Diagram executors can decline, because
+   * only they are synchronous. A menu action returns a promise, so whether it
+   * handled the chord is not known until well after the keydown has to be
+   * preventDefault'd or not.
    */
   viewport?: (id: ViewportShortcutId) => boolean;
   /**
@@ -46,16 +47,22 @@ export interface ShortcutExecutors {
    * `simulator` scope resolves nothing and the chord falls through to the next
    * scope, which is what keeps F, C, R, L and Space on the CP tools the rest of
    * the time.
+   *
+   * Present, it claims or declines like the viewport's. Declining is for the
+   * tool verbs: only the Simulate workspace has tools, and an inline simulation
+   * window on the Edit canvas registers this executor too — so without a
+   * decline its Escape would swallow `viewport.cancel` whenever the window held
+   * the keyboard, and O and P would go dead beneath it.
    */
-  simulator?: (id: SimulatorShortcutId) => unknown;
+  simulator?: (id: SimulatorShortcutId) => boolean;
   /**
    * Registered only while the References panel is mounted; absent, the
    * `references` scope resolves nothing and the chord falls through.
    */
   references?: (id: ReferencesShortcutId) => unknown;
   /**
-   * Registered only while the Diagram owns the keyboard. The one scope executor
-   * besides a viewport's that may decline — synchronous for the same reason —
+   * Registered only while the Diagram owns the keyboard. It may decline, as
+   * the viewport's and the simulator's may — synchronous for the same reason —
    * so its arrows give way to a focused button or tab strip.
    */
   diagram?: (id: DiagramShortcutId) => boolean;
@@ -174,7 +181,8 @@ export function handleShortcutKeyDown(
     if (!definition) continue;
     // A scope that does not claim the chord must not swallow it: fall through
     // and let a lower scope have it. Two ways that happens -- the scope's
-    // executor is not registered at all, or (viewport only) it ran and declined.
+    // executor is not registered at all, or (viewport and simulator only) it ran
+    // and declined.
     //
     // The first matters most for `simulator`, which shares Space, F, C and R
     // with the crease-pattern tools: a moment where the scope is in the stack
@@ -210,8 +218,8 @@ function executeShortcut(
       return executors.viewport(id as ViewportShortcutId) === true;
     case 'simulator':
       if (!executors.simulator) return false;
-      void executors.simulator(id as SimulatorShortcutId);
-      return true;
+      // An explicit claim only, for the viewport's reason above.
+      return executors.simulator(id as SimulatorShortcutId) === true;
     case 'references':
       if (!executors.references) return false;
       void executors.references(id as ReferencesShortcutId);

@@ -1,0 +1,7 @@
+/* Edit's content in the phone tool sheet (CpToolPickerSheet.tsx). Touch-only, as the sheet is. */
+@media (pointer: coarse) {
+  /* Places the line types' segmented control under its heading. */
+  .types {
+    margin: 0 var(--space-3) var(--space-2);
+  }
+}

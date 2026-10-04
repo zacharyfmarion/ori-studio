@@ -1,4 +1,4 @@
-import { forwardRef, type CSSProperties, type HTMLAttributes } from 'react';
+import { forwardRef, type HTMLAttributes } from 'react';
 import styles from './Toolbar.module.css';
 
 export interface ToolbarProps extends HTMLAttributes<HTMLDivElement> {
@@ -14,13 +14,6 @@ export interface ToolbarProps extends HTMLAttributes<HTMLDivElement> {
   wrap?: 'touch' | 'always';
   /** Sits on top of a frame: the edge it shares with it is square. */
   attach?: 'bottom';
-  /**
-   * The inset around the controls, in px, the same on every side. The corner
-   * radius follows it, concentric with the controls at the bar's ends; 0 makes
-   * the bar a plain panel at the shared radius. Text at an end brings its own
-   * inset, since the bar's is sized for buttons.
-   */
-  inset?: number;
 }
 
 /**
@@ -36,11 +29,9 @@ export interface ToolbarProps extends HTMLAttributes<HTMLDivElement> {
  * `role="toolbar"` by default, so a bar is found and named by its role.
  */
 export const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(function Toolbar(
-  { className, role = 'toolbar', tone = 'overlay', wrap = 'touch', attach, inset, style, ...props },
+  { className, role = 'toolbar', tone = 'overlay', wrap = 'touch', attach, ...props },
   ref
 ) {
-  const insetStyle =
-    inset === undefined ? style : ({ ...style, '--pad': `${inset}px` } as CSSProperties);
   return (
     <div
       ref={ref}
@@ -49,7 +40,6 @@ export const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(function Toolbar
       data-tone={tone}
       data-wrap={wrap}
       data-attach={attach}
-      style={insetStyle}
       {...props}
     />
   );

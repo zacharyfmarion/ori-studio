@@ -2,7 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CollapsibleSection } from '../CollapsibleSection';
-import { NumberRow, SegmentedRow, SelectRow, SliderRow, TextRow, ToggleRow } from './index';
+import { ColorField } from '../ColorField';
+import { FieldRow, NumberRow, SegmentedRow, SelectRow, SliderRow, TextRow, ToggleRow } from './index';
 
 /**
  * The shared field-row kit: the shell every options pane's rows share, and the
@@ -21,6 +22,14 @@ afterEach(() => {
   container?.remove();
   container = null;
 });
+
+/** A row's part, named by its data attribute rather than its module class. */
+function part(element: Element): string {
+  if (element.hasAttribute('data-field-label')) return 'label';
+  if (element.hasAttribute('data-field-note')) return 'note';
+  const kind = element.getAttribute('data-field-value');
+  return kind === null ? element.tagName.toLowerCase() : `value:${kind}`;
+}
 
 function render(ui: React.ReactElement) {
   container = document.createElement('div');
@@ -55,7 +64,7 @@ describe('ToggleRow', () => {
     const view = render(
       <ToggleRow label="Shadows" checked disabled title="Not on a 3D figure" onChange={() => {}} />
     );
-    const row = view.querySelector('.control-row');
+    const row = view.querySelector('[data-field-row]');
     expect(row?.getAttribute('data-disabled')).toBe('true');
     expect(row?.getAttribute('title')).toBe('Not on a 3D figure');
   });
@@ -68,15 +77,15 @@ describe('ToggleRow', () => {
       <ToggleRow label="Lighting" checked inherited={false} onChange={() => {}} />
     );
     const switchOf = () => view.querySelector<HTMLButtonElement>('button[role="switch"]');
-    expect(view.querySelector('.control-row__note')?.textContent).toBe('');
+    expect(view.querySelector('[data-field-note]')?.textContent).toBe('');
     expect(switchOf()?.hasAttribute('aria-describedby')).toBe(false);
 
     rerender(
       <ToggleRow label="Lighting" checked inherited={false} onChange={() => {}} onReset={() => {}} />
     );
-    expect(view.querySelector('.control-row__reset')).toBeNull();
+    expect(view.querySelector('[data-field-reset]')).toBeNull();
     expect(view.querySelector('button[aria-label="Reset Lighting to default"]')).toBeNull();
-    const note = view.querySelector('.control-row__note');
+    const note = view.querySelector('[data-field-note]');
     expect(note?.textContent).toBe('Overridden');
     // Read with the switch, not only seen beside it.
     expect(note?.id).toBeTruthy();
@@ -85,23 +94,19 @@ describe('ToggleRow', () => {
 
   it('keeps the switch where it was: the note takes a line of its own, never the value column', () => {
     const view = render(<ToggleRow label="Lighting" checked onChange={() => {}} />);
-    const row = view.querySelector('.control-row')!;
-    const value = view.querySelector('.control-row__value')!;
-    const before = value.className;
-    expect(row.classList.contains('control-row--noted')).toBe(false);
+    const row = view.querySelector('[data-field-row]')!;
+    const value = view.querySelector('[data-field-value]')!;
+    const before = value.outerHTML.replace(value.innerHTML, '');
+    expect(row.hasAttribute('data-noted')).toBe(false);
 
     rerender(<ToggleRow label="Lighting" checked onChange={() => {}} onReset={() => {}} />);
     // The same value box holding the switch alone, so the column is as wide
     // as it was; the note follows it in the row, which puts it on the grid's
     // second line under the label.
-    expect(value.className).toBe(before);
+    expect(value.outerHTML.replace(value.innerHTML, '')).toBe(before);
     expect([...value.children].map((child) => child.getAttribute('role'))).toEqual(['switch']);
-    expect([...row.children].map((child) => child.className)).toEqual([
-      'control-row__label',
-      before,
-      'control-row__note',
-    ]);
-    expect(row.classList.contains('control-row--noted')).toBe(true);
+    expect([...row.children].map(part)).toEqual(['label', 'value:toggle', 'note']);
+    expect(row.hasAttribute('data-noted')).toBe(true);
   });
 
   // A row that shrank when its override was cleared moved the switch anyway,
@@ -110,36 +115,32 @@ describe('ToggleRow', () => {
   // laid out the same whether it is or not, and only the note's text changes.
   it('lays out an overridable toggle the same with and without its override', () => {
     const layout = (row: Element) => ({
-      row: row.className,
-      children: [...row.children].map((child) => child.className),
-      value: [...row.querySelector('.control-row__value')!.children].map((child) =>
+      noted: row.hasAttribute('data-noted'),
+      children: [...row.children].map(part),
+      value: [...row.querySelector('[data-field-value]')!.children].map((child) =>
         child.getAttribute('role')
       ),
     });
     const view = render(<ToggleRow label="Aux" checked inherited onChange={() => {}} />);
-    const row = view.querySelector('.control-row')!;
+    const row = view.querySelector('[data-field-row]')!;
     const following = layout(row);
-    expect(view.querySelector('.control-row__note')?.textContent).toBe('');
+    expect(view.querySelector('[data-field-note]')?.textContent).toBe('');
 
     rerender(
       <ToggleRow label="Aux" checked={false} inherited onChange={() => {}} onReset={() => {}} />
     );
     expect(layout(row)).toEqual(following);
-    expect(view.querySelector('.control-row__note')?.textContent).toBe('Overridden');
+    expect(view.querySelector('[data-field-note]')?.textContent).toBe('Overridden');
     expect(following).toEqual({
-      row: 'control-row control-row--noted',
-      children: [
-        'control-row__label',
-        'control-row__value control-row__value--toggle',
-        'control-row__note',
-      ],
+      noted: true,
+      children: ['label', 'value:toggle', 'note'],
       value: ['switch'],
     });
 
     // A toggle that inherits nothing has no note to make room for.
     rerender(<ToggleRow label="Aux" checked onChange={() => {}} />);
-    expect(view.querySelector('.control-row__note')).toBeNull();
-    expect(row.classList.contains('control-row--noted')).toBe(false);
+    expect(view.querySelector('[data-field-note]')).toBeNull();
+    expect(row.hasAttribute('data-noted')).toBe(false);
   });
 
   it('resets rather than pins when an override is switched back to the value it inherits', () => {
@@ -174,7 +175,7 @@ describe('NumberRow', () => {
   it('points its label at the input and resyncs the draft when the value changes', () => {
     const onCommit = vi.fn();
     const view = render(<NumberRow label="Line width" value={1} onCommit={onCommit} />);
-    const label = view.querySelector<HTMLLabelElement>('label.control-row__label');
+    const label = view.querySelector<HTMLLabelElement>('label[data-field-label]');
     const input = view.querySelector<HTMLInputElement>('input');
     expect(label?.htmlFor).toBe(input?.id);
     expect(input?.value).toBe('1');
@@ -187,10 +188,10 @@ describe('NumberRow', () => {
     const view = render(
       <NumberRow label="Line width" value={2} onCommit={() => {}} onReset={onReset} />
     );
-    const reset = view.querySelector<HTMLButtonElement>('.control-row__reset');
+    const reset = view.querySelector<HTMLButtonElement>('[data-field-reset]');
     expect(reset?.getAttribute('aria-label')).toBe('Reset Line width to default');
-    expect(reset?.closest('.control-row__value')?.classList).toContain('control-row__value--reset');
-    expect(view.querySelector('.control-row__note')).toBeNull();
+    expect(reset?.closest('[data-field-value]')?.hasAttribute('data-reset')).toBe(true);
+    expect(view.querySelector('[data-field-note]')).toBeNull();
     act(() => reset?.click());
     expect(onReset).toHaveBeenCalledTimes(1);
   });
@@ -292,7 +293,7 @@ describe('SliderRow', () => {
     const view = render(
       <SliderRow label="Weight" min={0} max={2} step={0.1} value={0.7} onChange={() => {}} />
     );
-    expect(view.querySelector('.control-row__readout')?.textContent).toBe('0.7');
+    expect(view.querySelector('[data-field-readout]')?.textContent).toBe('0.7');
   });
 });
 
@@ -349,5 +350,72 @@ describe('CollapsibleSection', () => {
     );
     expect(view.querySelector('.collapsible-section__toggle')).toBeNull();
     expect(view.querySelector('[data-testid="body"]')).not.toBeNull();
+  });
+});
+
+describe('FieldRow', () => {
+  it('rules itself off by default, and goes without where asked', () => {
+    const view = render(<ToggleRow label="Grid" checked={false} onChange={() => {}} />);
+    expect(view.querySelector('[data-field-row]')?.hasAttribute('data-divider')).toBe(false);
+
+    rerender(
+      <FieldRow label="Last" kind="static" divider={false}>
+        Value
+      </FieldRow>
+    );
+    expect(view.querySelector('[data-field-row]')?.getAttribute('data-divider')).toBe('none');
+  });
+
+  it('is a button end to end for an action, holding nothing but text', () => {
+    const onClick = vi.fn();
+    const view = render(
+      <FieldRow label="Action" kind="static" onClick={onClick}>
+        Make Root
+      </FieldRow>
+    );
+    const row = view.querySelector<HTMLButtonElement>('[data-field-row]');
+    expect(row?.tagName).toBe('BUTTON');
+    expect(row?.type).toBe('button');
+    expect(row?.hasAttribute('data-action')).toBe(true);
+    // Phrasing content only, as a button allows.
+    expect([...(row?.children ?? [])].map((child) => child.tagName)).toEqual(['SPAN', 'SPAN']);
+    expect(row?.textContent).toBe('ActionMake Root');
+    act(() => row?.click());
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a fact as plain text in the value column', () => {
+    const view = render(
+      <FieldRow label="Nodes" kind="static">
+        4
+      </FieldRow>
+    );
+    expect(view.querySelector('[data-field-value="static"]')?.textContent).toBe('4');
+  });
+});
+
+describe('ColorField as a row', () => {
+  it('is a FieldRow: its label points at the swatch, and the clear stays its own', () => {
+    const onClear = vi.fn();
+    const view = render(
+      <ColorField label="Front" layout="row" value="#ff0000" divider={false} onChange={() => {}} onClear={onClear} />
+    );
+    const row = view.querySelector('[data-field-row]');
+    const label = view.querySelector<HTMLLabelElement>('label[data-field-label]');
+    const swatch = view.querySelector<HTMLInputElement>('input[type="color"]');
+    expect(row?.getAttribute('data-divider')).toBe('none');
+    expect(label?.textContent).toBe('Front');
+    expect(label?.htmlFor).toBe(swatch?.id);
+    expect(swatch?.closest('[data-field-value]')?.getAttribute('data-field-value')).toBe('color');
+    // Not the row's reset: the field's own clear, as in its other layouts.
+    expect(view.querySelector('[data-field-reset]')).toBeNull();
+    act(() => view.querySelector<HTMLButtonElement>('button[aria-label="Reset Front to default"]')?.click());
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps its other layouts out of the row', () => {
+    const view = render(<ColorField label="Background" layout="inline" value="#ffffff" onChange={() => {}} />);
+    expect(view.querySelector('[data-field-row]')).toBeNull();
+    expect(view.querySelector('label')?.textContent).toBe('Background');
   });
 });

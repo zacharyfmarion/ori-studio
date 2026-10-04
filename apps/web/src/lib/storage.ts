@@ -39,6 +39,9 @@ export const STORAGE_KEYS = {
   cpToolHintCollapsed: 'cp-tool-hint-collapsed',
   bpOptimizer: 'bp-optimizer',
   simulatorSettings: 'simulator-settings',
+  /** The simulator tools' options, such as whether a pin box reaches every layer. */
+  simulatorToolOptions: 'simulator-tool-options',
+  simulatorToolHintCollapsed: 'simulator-tool-hint-collapsed',
   /**
    * The app-wide paper style: display and export slots plus the user's presets.
    * Absent on first read, when it is seeded from `simulatorSettings`, which

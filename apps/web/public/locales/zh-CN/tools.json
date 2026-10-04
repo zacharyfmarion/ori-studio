@@ -206,6 +206,7 @@
   "creaseAngle": {
     "close": "关闭折痕角度",
     "degrees": "折痕角度（度）",
+    "degreesLabel": "度",
     "fieldTitle": "新的山折线和谷折线所采用的折叠角度",
     "menuRow": "折痕角度：{{angle}}",
     "title": "折痕角度"
@@ -313,16 +314,21 @@
     "zoomOut": "缩小参考"
   },
   "simulator": {
+    "clearPins": "清除固定",
     "foldBackward": "向后折叠",
     "foldEnd": "跳到折好",
     "foldForward": "向前折叠",
     "foldStart": "跳到展平",
+    "pinThroughLayers": "穿透所有层固定",
     "playPause": "播放 / 暂停折叠",
     "replay": "重新开始模拟",
     "resetView": "重置模拟器视图",
     "toggleCreases": "折线",
     "toggleFaces": "面",
-    "toggleLighting": "光照"
+    "toggleLighting": "光照",
+    "toolExit": "退出工具",
+    "toolOrbit": "环绕工具",
+    "toolPin": "固定工具"
   },
   "viewport": {
     "contextMenu": "打开上下文菜单",

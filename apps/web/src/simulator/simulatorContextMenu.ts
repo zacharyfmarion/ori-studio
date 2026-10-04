@@ -50,6 +50,11 @@ export interface SimulatorContextMenuDeps {
     showEdges: boolean;
     lighting: boolean;
   } | null;
+  /**
+   * The tools' rows — Clear pins, while there are pins — from the tool action
+   * catalog. Absent for a surface with no tools.
+   */
+  toolVerbs?: readonly SimulatorShortcutId[];
 }
 
 /** One registry entry as a row. */
@@ -107,6 +112,11 @@ export function simulatorMenuItems(deps: SimulatorContextMenuDeps): ContextMenuI
     { kind: 'separator' },
     shortcutItem('simulator.resetView', deps),
   ];
+
+  const toolVerbs = deps.toolVerbs ?? [];
+  if (toolVerbs.length > 0) {
+    items.push({ kind: 'separator' }, ...toolVerbs.map((id) => shortcutItem(id, deps)));
+  }
 
   if (deps.settings) {
     items.push(

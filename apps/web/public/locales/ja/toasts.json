@@ -99,6 +99,10 @@
   "simulatorExport": {
     "empty": "このシミュレーションには書き出せるものがまだありません"
   },
+  "simulatorPins": {
+    "pickFailed": "そこにある面を判別できませんでした。もう一度お試しください。",
+    "updateFailed": "面を固定できませんでした。もう一度お試しください。"
+  },
   "update": {
     "available": "バージョン {{version}} が利用可能です",
     "checkFailed": "アップデートを確認できませんでした",

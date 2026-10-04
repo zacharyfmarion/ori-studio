@@ -99,6 +99,10 @@
   "simulatorExport": {
     "empty": "此模拟暂无可导出的内容"
   },
+  "simulatorPins": {
+    "pickFailed": "无法确定该处有哪些面。请重试。",
+    "updateFailed": "无法固定这些面。请重试。"
+  },
   "update": {
     "available": "版本 {{version}} 可用",
     "checkFailed": "无法检查更新",

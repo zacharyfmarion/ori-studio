@@ -21,7 +21,7 @@ import { cpCanvasCursor } from '../cpCanvasCursor';
 import { cpDpr } from '../cpDpr';
 import { cpSizingScales } from '../cpSizingScales';
 import { applyPinchToCamera } from '../gestures/pinchCamera';
-import { contactCentroid, pinchTransform, type GesturePoint } from '../gestures/pinchTransform';
+import { contactCentroid, pinchTransform, type GesturePoint } from '../../lib/gestures/pinchTransform';
 import { LineHitIndex, type IndexedSegment } from '../picking/lineHitIndex';
 import {
   cameraZoomForPercent,

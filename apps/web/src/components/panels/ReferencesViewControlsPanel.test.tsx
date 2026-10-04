@@ -155,8 +155,8 @@ describe('ReferencesViewControlsPanel', () => {
 
   it('nests "only where needed" under the grid and disables it while the grid is off', () => {
     const rendered = render();
-    const row = toggle(rendered, 'Only where needed').closest('.control-row');
-    expect(row?.classList.contains('control-row--nested')).toBe(true);
+    const row = toggle(rendered, 'Only where needed').closest('[data-field-row]');
+    expect(row?.hasAttribute('data-nested')).toBe(true);
     expect(toggle(rendered, 'Only where needed').disabled).toBe(false);
 
     press(toggle(rendered, 'Precrease grid'));
@@ -168,14 +168,14 @@ describe('ReferencesViewControlsPanel', () => {
 
   it('explains "allow dangling folds" from an info mark beside its label', () => {
     const rendered = render();
-    const help = rendered.querySelector<HTMLButtonElement>('.control-row__help');
+    const help = rendered.querySelector<HTMLButtonElement>('[data-field-help]');
     expect(help).not.toBeNull();
-    expect(help?.closest('.control-row')?.textContent).toContain('Allow dangling folds');
+    expect(help?.closest('[data-field-row]')?.textContent).toContain('Allow dangling folds');
     // The explanation is the mark's accessible name, so it reads without the
     // hover as well.
     expect(help?.getAttribute('aria-label')).toContain('A dangling fold is a crease');
     // Only the rows whose names do not say what they do carry one.
-    expect(rendered.querySelectorAll('.control-row__help')).toHaveLength(4);
+    expect(rendered.querySelectorAll('[data-field-help]')).toHaveLength(4);
 
     expect(settings().allowDanglingFolds).toBe(true);
     press(toggle(rendered, 'Allow dangling folds'));
@@ -186,8 +186,8 @@ describe('ReferencesViewControlsPanel', () => {
   // the setting is on by default and turns that off.
   it('merges symmetric steps by default, and the toggle turns it off', () => {
     const rendered = render();
-    const help = [...rendered.querySelectorAll<HTMLButtonElement>('.control-row__help')].find(
-      (mark) => mark.closest('.control-row')?.textContent?.includes('Merge symmetric steps')
+    const help = [...rendered.querySelectorAll<HTMLButtonElement>('[data-field-help]')].find(
+      (mark) => mark.closest('[data-field-row]')?.textContent?.includes('Merge symmetric steps')
     );
     expect(help?.getAttribute('aria-label')).toContain('mirror each other');
     expect(settings().mergeSymmetricSteps).toBe(true);
@@ -208,7 +208,7 @@ describe('ReferencesViewControlsPanel', () => {
     style(true);
     const rendered = render();
     const aux = () => toggle(rendered, 'Show auxiliary creases');
-    const note = () => aux().closest('.control-row')?.querySelector('.control-row__note');
+    const note = () => aux().closest('[data-field-row]')?.querySelector('[data-field-note]');
     expect(aux().getAttribute('aria-checked')).toBe('true');
     expect(note()?.textContent).toBe('');
 

@@ -49,6 +49,7 @@ function liveFrame(): SimulatorFramePayload | null {
     maxVelocity: 0,
     foldPercent: 0,
     maxStrain: 0,
+    recovered: null,
   };
 }
 
@@ -114,6 +115,17 @@ const client = {
     async (_id: number, _options: SimulatorExportSceneOptions): Promise<PaperScene | null> => null
   ),
   endExportSnapshot: vi.fn(async (_id: number): Promise<void> => undefined),
+  setPinnedFaces: vi.fn(
+    async (
+      faces: number[],
+      _token?: number
+    ): Promise<{ applied: number; dropped: number; bitmap: ImageBitmap | null } | null> => ({
+      applied: faces.length,
+      dropped: 0,
+      bitmap: null,
+    })
+  ),
+  pickFaces: vi.fn(async (): Promise<number[] | null> => [1]),
 };
 
 vi.mock('../store/workspaceStore/simulatorRuntime', () => ({
@@ -887,5 +899,108 @@ describe('beginExport', () => {
     }
     expect(ended).toEqual([EXPORT_SNAPSHOT_ID]);
     expect(unhandled).not.toHaveBeenCalled();
+  });
+});
+
+describe('pins', () => {
+  let live: ReturnType<typeof useSimulatorRuntime> | null = null;
+
+  function CpuProbe({ fold }: { fold: FoldDocument | null }) {
+    const runtime = useSimulatorRuntime({
+      fold,
+      solverOptions: {},
+      triangulate: false,
+      canvas: null,
+      bitmapOutput: null,
+      paused: true,
+    });
+    useEffect(() => {
+      live = runtime;
+    });
+    return null;
+  }
+
+  beforeEach(() => {
+    live = null;
+    client.setPinnedFaces.mockClear();
+    client.pickFaces.mockClear();
+  });
+
+  async function mountLoaded(fold: FoldDocument) {
+    await act(async () => root?.render(<CpuProbe fold={fold} />));
+    await settleLoads();
+  }
+
+  it('sends pins for the model it holds, quoting that model’s session', async () => {
+    await mountLoaded(FOLD);
+    const model = live?.model;
+    expect(model).toBeTruthy();
+
+    let outcome: unknown;
+    await act(async () => {
+      outcome = await live?.setPinnedFaces([3, 4], model!);
+    });
+
+    expect(client.setPinnedFaces).toHaveBeenCalledWith([3, 4], 1);
+    expect(outcome).toEqual({ applied: 2, dropped: 0 });
+  });
+
+  it('drops pins read against a model it no longer holds, asking the worker nothing', async () => {
+    await mountLoaded(FOLD);
+    const stale = live?.model;
+    await mountLoaded({ ...FOLD } as FoldDocument);
+    expect(live?.model).not.toBe(stale);
+
+    let outcome: unknown = 'unset';
+    await act(async () => {
+      outcome = await live?.setPinnedFaces([1], stale!);
+    });
+
+    expect(outcome).toBeNull();
+    expect(client.setPinnedFaces).not.toHaveBeenCalled();
+  });
+
+  it('sends pin sets in the order they were made, so the newest is the one that stays', async () => {
+    await mountLoaded(FOLD);
+    const model = live!.model!;
+    let releaseFirst: () => void = () => undefined;
+    client.setPinnedFaces.mockImplementationOnce(
+      (faces) =>
+        new Promise((resolve) => {
+          releaseFirst = () => resolve({ applied: faces.length, dropped: 0, bitmap: null });
+        })
+    );
+
+    let first: Promise<unknown> | undefined;
+    let second: Promise<unknown> | undefined;
+    await act(async () => {
+      first = live!.setPinnedFaces([1], model);
+      second = live!.setPinnedFaces([1, 2], model);
+      await Promise.resolve();
+    });
+    // The second waits for the first to land.
+    expect(client.setPinnedFaces).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      releaseFirst();
+      await first;
+      await second;
+    });
+    expect(client.setPinnedFaces.mock.calls.map((call) => call[0])).toEqual([[1], [1, 2]]);
+  });
+
+  it('asks the worker for no picks on the canvas-2D path, where the main thread draws', async () => {
+    await mountLoaded(FOLD);
+    let picked: unknown = 'unset';
+    await act(async () => {
+      picked = await live?.pickFaces({
+        region: { kind: 'point', x: 1, y: 1 },
+        cssWidth: 10,
+        cssHeight: 10,
+        depth: 'all-layers',
+      });
+    });
+    expect(picked).toBeNull();
+    expect(client.pickFaces).not.toHaveBeenCalled();
   });
 });

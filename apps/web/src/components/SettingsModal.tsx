@@ -320,7 +320,7 @@ function WorkspaceTab() {
           )}
         </p>
         {/* The modal's own row: copy on the left, control on the right, no box.
-            `.control-row` is the inspector-panel idiom — indented, with a bottom
+            `FieldRow` is the inspector-panel idiom — indented, with a bottom
             divider — and reads as foreign in here. */}
         <div className="settings-toggle-row settings-toggle-row--field">
           <span className="settings-toggle-row__copy">

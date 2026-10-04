@@ -37,6 +37,15 @@ export interface SimulationClockOptions {
   /** Consecutive settled ticks required before reporting convergence. */
   convergenceTicks?: number;
   /**
+   * A max velocity that repeats exactly from one tick to the next, below this
+   * ceiling, also counts as settled. A node whose velocity is too small to
+   * change its float32 position cannot move however long it runs, and reports
+   * the same velocity forever: a pinned kabuto sits at 1.26e-5 against an
+   * epsilon of 1e-5, its position bit-identical for 60k steps. A model that is
+   * still converging reports a different maximum every tick. 0 disables.
+   */
+  stagnationCeiling?: number;
+  /**
    * Edge-strain (stretch ratio) above which the explicit integrator is treated
    * as blown up: the velocities are drained ({@link SolverBackend.arrestDynamics})
    * so the mesh re-settles instead of exploding off-screen. Scale-invariant, so
@@ -57,7 +66,14 @@ export interface SimulationTick {
   converged: boolean;
   /** Max absolute velocity component at the end of the tick. */
   maxVelocity: number;
+  /**
+   * What the blow-up guard did this tick, if anything: `reset` returned a
+   * non-finite model to the flat sheet, `arrest` drained runaway velocity.
+   */
+  recovered: SimulationRecovery | null;
 }
+
+export type SimulationRecovery = 'reset' | 'arrest';
 
 const DEFAULTS = {
   budgetMs: 8,
@@ -65,6 +81,7 @@ const DEFAULTS = {
   maxStepsPerFrame: 4000,
   convergenceEpsilon: 1e-5,
   convergenceTicks: 3,
+  stagnationCeiling: 1e-2,
   blowupStrain: 3,
 };
 
@@ -73,6 +90,8 @@ export class SimulationClock {
   private readonly now: () => number;
   private settledTicks = 0;
   private totalSteps = 0;
+  /** The previous tick's max velocity, for the stagnation rule; null after any change. */
+  private lastMaxVelocity: number | null = null;
 
   constructor(options: SimulationClockOptions = {}) {
     this.options = {
@@ -81,6 +100,7 @@ export class SimulationClock {
       maxStepsPerFrame: options.maxStepsPerFrame ?? DEFAULTS.maxStepsPerFrame,
       convergenceEpsilon: options.convergenceEpsilon ?? DEFAULTS.convergenceEpsilon,
       convergenceTicks: Math.max(1, options.convergenceTicks ?? DEFAULTS.convergenceTicks),
+      stagnationCeiling: options.stagnationCeiling ?? DEFAULTS.stagnationCeiling,
       blowupStrain: options.blowupStrain ?? DEFAULTS.blowupStrain,
     };
     this.now = options.now ?? (() => performance.now());
@@ -102,11 +122,13 @@ export class SimulationClock {
    */
   invalidate(): void {
     this.settledTicks = 0;
+    this.lastMaxVelocity = null;
   }
 
   reset(): void {
     this.settledTicks = 0;
     this.totalSteps = 0;
+    this.lastMaxVelocity = null;
   }
 
   /**
@@ -115,7 +137,7 @@ export class SimulationClock {
    */
   runFrame(backend: SolverBackend): SimulationTick {
     if (this.converged) {
-      return { steps: 0, elapsedMs: 0, converged: true, maxVelocity: backend.maxVelocity() };
+      return { steps: 0, elapsedMs: 0, converged: true, maxVelocity: backend.maxVelocity(), recovered: null };
     }
 
     const started = this.now();
@@ -131,11 +153,23 @@ export class SimulationClock {
     this.totalSteps += steps;
 
     const maxVelocity = backend.maxVelocity();
-    if (maxVelocity < this.options.convergenceEpsilon) this.settledTicks += 1;
-    else this.settledTicks = 0;
-    this.guardBlowup(backend, maxVelocity);
+    this.recordSettling(maxVelocity);
+    const recovered = this.guardBlowup(backend, maxVelocity);
 
-    return { steps, elapsedMs, converged: this.converged, maxVelocity };
+    return { steps, elapsedMs, converged: this.converged, maxVelocity, recovered };
+  }
+
+  /**
+   * Count a tick as settled when the model is still, or when it can no longer
+   * move: the same maximum velocity as last tick, which a model that is still
+   * converging never reports. See {@link SimulationClockOptions.stagnationCeiling}.
+   */
+  private recordSettling(maxVelocity: number): void {
+    const ceiling = this.options.stagnationCeiling;
+    const stagnant = ceiling > 0 && maxVelocity === this.lastMaxVelocity && maxVelocity < ceiling;
+    if (maxVelocity < this.options.convergenceEpsilon || stagnant) this.settledTicks += 1;
+    else this.settledTicks = 0;
+    this.lastMaxVelocity = maxVelocity;
   }
 
   /**
@@ -146,7 +180,7 @@ export class SimulationClock {
    * limit, so this is inert in the common case. NaN/Inf is always arrested even
    * when the strain limit is disabled.
    */
-  private guardBlowup(backend: SolverBackend, maxVelocity: number): void {
+  private guardBlowup(backend: SolverBackend, maxVelocity: number): SimulationRecovery | null {
     const limit = this.options.blowupStrain;
     const diagnostics = backend.readDiagnostics();
     // Nodal strain is the measure both backends report identically; maxEdgeStrain
@@ -163,7 +197,8 @@ export class SimulationClock {
     if (!Number.isFinite(maxVelocity) || !Number.isFinite(strain)) {
       backend.reset();
       this.settledTicks = 0;
-      return;
+      this.lastMaxVelocity = null;
+      return 'reset';
     }
 
     // Still finite but diverging: drain the runaway velocity early, which keeps
@@ -171,7 +206,10 @@ export class SimulationClock {
     if (limit > 0 && Number.isFinite(limit) && strain > limit) {
       backend.arrestDynamics();
       this.settledTicks = 0;
+      this.lastMaxVelocity = null;
+      return 'arrest';
     }
+    return null;
   }
 
   /**
@@ -183,17 +221,17 @@ export class SimulationClock {
     const started = this.now();
     let steps = 0;
     let maxVelocity = backend.maxVelocity();
+    let recovered: SimulationRecovery | null = null;
 
     while (steps < maxSteps && !this.converged) {
       backend.step(this.options.chunkSteps);
       steps += this.options.chunkSteps;
       maxVelocity = backend.maxVelocity();
-      if (maxVelocity < this.options.convergenceEpsilon) this.settledTicks += 1;
-      else this.settledTicks = 0;
-      this.guardBlowup(backend, maxVelocity);
+      this.recordSettling(maxVelocity);
+      recovered = this.guardBlowup(backend, maxVelocity) ?? recovered;
     }
 
     this.totalSteps += steps;
-    return { steps, elapsedMs: this.now() - started, converged: this.converged, maxVelocity };
+    return { steps, elapsedMs: this.now() - started, converged: this.converged, maxVelocity, recovered };
   }
 }

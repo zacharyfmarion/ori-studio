@@ -51,7 +51,7 @@ describe('sample geometry', () => {
 describe('PaperPenCard', () => {
   it('names the pen once, and every control after it', () => {
     const rendered = render(DEFAULT_PAPER_STYLE.edges);
-    expect(rendered.querySelector('.control-row__label')?.textContent).toBe('Edges');
+    expect(rendered.querySelector('label')?.textContent).toBe('Edges');
     expect(
       Array.from(rendered.querySelectorAll('[aria-label]')).map((element) =>
         element.getAttribute('aria-label')

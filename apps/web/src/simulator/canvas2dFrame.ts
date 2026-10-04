@@ -1,7 +1,10 @@
 import {
+  DEFAULT_HIGHLIGHT_COLOR,
+  DEFAULT_HIGHLIGHT_MIX,
   EDGE_BOUNDARY_A,
   EDGE_BOUNDARY_B,
   EDGE_CODE,
+  cameraUniforms,
   creaseFrameScale,
   creaseWidthsPx,
   erodePx,
@@ -11,6 +14,7 @@ import {
   viewRotationFor,
 } from "@treemaker/origami-simulator";
 import type {
+  CameraUniforms,
   CreaseDash,
   FoldDocument as SimulatorFoldDocument,
   Vec3Like,
@@ -18,11 +22,13 @@ import type {
 import { erodeSegment } from "../lib/paper/paperSvg";
 import {
   createFramingFollow,
+  anchorFraming,
   followFraming,
   framingOf,
   type FramingFollow,
 } from "./framingFollow";
 import type { SimulatorFrameView } from "./useSimulatorRuntime";
+import { pickFacesInFrame, type SimulatorPickQuery } from "./pickQuery";
 import type { SimulatorRenderModel } from "./renderModel";
 import type { SimulatorOrbitView as SimulatorView } from "../lib/simulatorOrbit";
 import {
@@ -50,16 +56,40 @@ export { type SimulatorSurfaceOptions };
  * triangle rasterisation.
  */
 
-/** Which creases and faces a sequence step is highlighting, if any. */
+/**
+ * What a frame emphasises: the creases and faces a sequence step is
+ * highlighting, and the pinned faces, by triangle index.
+ */
 export interface SimulatorHighlights {
-  creases: Set<number>;
-  faces: Set<number>;
+  creases: ReadonlySet<number>;
+  faces: ReadonlySet<number>;
+  /** Tinted the way the GPU's highlight pass tints them. */
+  pinned: ReadonlySet<number>;
 }
 
 export const EMPTY_HIGHLIGHTS: SimulatorHighlights = {
   creases: new Set(),
   faces: new Set(),
+  pinned: new Set(),
 };
+
+/**
+ * Highlights that tint the pinned crease-pattern faces: every triangle whose
+ * source face is pinned. The canvas-2D path's half of the pin overlay; the GPU
+ * path's worker tints from its own copy of the set.
+ */
+export function pinnedHighlights(
+  model: SimulatorRenderModel | null,
+  faces: readonly number[],
+): SimulatorHighlights {
+  if (!model || faces.length === 0) return EMPTY_HIGHLIGHTS;
+  const wanted = new Set(faces);
+  const pinned = new Set<number>();
+  for (let triangle = 0; triangle < model.faceGroups.length; triangle += 1) {
+    if (wanted.has(model.faceGroups[triangle] ?? -1)) pinned.add(triangle);
+  }
+  return { ...EMPTY_HIGHLIGHTS, pinned };
+}
 
 interface ProjectedPoint {
   x: number;
@@ -103,6 +133,14 @@ interface SimulatorSurface {
   dpr: number;
   /** The shape as it is, eased — the same follow the GPU path's camera makes. */
   framing: FramingFollow;
+  /**
+   * The last frame drawn: the positions and the camera they were drawn with,
+   * which is everything a pick needs to answer for what is on screen. The
+   * positions are copied because the frame's buffer goes back to the worker.
+   */
+  drawn?: { positions: Float32Array; camera: CameraUniforms };
+  /** The pinned set the framing's anchor was taken for; see `anchorFraming`. */
+  anchorFor?: ReadonlySet<number>;
 }
 
 const surfaceCache = new WeakMap<HTMLCanvasElement, SimulatorSurface>();
@@ -173,13 +211,24 @@ export function drawFrame(
   const positions = frame.positions;
   if (!positions) return true;
 
-  // The shape as it is, eased, as the GPU path's camera follows it.
+  // The shape as it is, eased, as the GPU path's camera follows it — held to
+  // the pinned faces, when there are any, so they stay put on screen.
+  if (surface.anchorFor !== highlights.pinned) {
+    surface.anchorFor = highlights.pinned;
+    anchorFraming(surface.framing, pinnedNodes(model, highlights.pinned), positions);
+  }
   const { framing, arrived } = followFraming(
     surface.framing,
     performance.now(),
-    () => framingOf(positions),
+    () => framingOf(positions, surface.framing.anchor),
     frame.converged,
   );
+  surface.drawn = {
+    positions: positions.slice(),
+    // Exactly this frame's projection: orthographic, centred and scaled as
+    // `map` below places it.
+    camera: cameraUniforms(view, framing.center, framing.radius, width, height),
+  };
   const projected = projectPositions(positions, view, framing.center);
   // Shared with the GPU renderer so the two frame a model identically.
   const availableSize = fitExtent(width, height);
@@ -254,6 +303,11 @@ export function drawFrame(
         render.lighting,
       );
       ctx.fill();
+      if (highlights.pinned.has(triangle.faceIndex)) {
+        const [r, g, b] = palette.pinnedRgb;
+        ctx.fillStyle = `rgb(${r} ${g} ${b} / ${palette.pinnedMix * faceAlpha})`;
+        ctx.fill();
+      }
       if (highlighted) {
         ctx.fillStyle = palette.highlightFace;
         ctx.fill();
@@ -283,6 +337,43 @@ export function drawFrame(
     drawAllEdges(ctx, model, projected, map, dpr, 0.95, palette, highlights);
   }
   return arrived;
+}
+
+/**
+ * The crease-pattern faces under a press or a box, in the frame last drawn on
+ * `canvas` — or null if nothing has been drawn there. The canvas-2D path's
+ * half of a pick; the worker answers for the frames it draws.
+ */
+export function pickDrawnFrame(
+  canvas: HTMLCanvasElement,
+  model: SimulatorRenderModel,
+  query: SimulatorPickQuery,
+): number[] | null {
+  const drawn = surfaceCache.get(canvas)?.drawn;
+  if (!drawn) return null;
+  return pickFacesInFrame(
+    drawn.positions,
+    { indices: model.indices, faceGroups: model.faceGroups },
+    drawn.camera,
+    false,
+    query,
+  );
+}
+
+/** Every node of the pinned triangles, or null when nothing is pinned. */
+function pinnedNodes(
+  model: SimulatorRenderModel,
+  pinned: ReadonlySet<number>,
+): Uint32Array | null {
+  if (pinned.size === 0) return null;
+  const nodes = new Set<number>();
+  for (const triangle of pinned) {
+    for (let corner = 0; corner < 3; corner += 1) {
+      const node = model.indices[triangle * 3 + corner];
+      if (node !== undefined) nodes.add(node);
+    }
+  }
+  return nodes.size > 0 ? Uint32Array.from(nodes) : null;
 }
 
 export function normalizeVector(vector: { x: number; y: number; z: number }): {
@@ -337,6 +428,9 @@ interface SimulatorPalette {
   highlight: string;
   highlightFace: string;
   highlightFaceRgb: Rgb;
+  /** The pinned faces' tint and how far toward it, from the render settings the GPU uses. */
+  pinnedRgb: Rgb;
+  pinnedMix: number;
   /** The two sides of the paper as 0..1 channels, the form the shade band multiplies. */
   paperFront: Vec3Like;
   paperBack: Vec3Like;
@@ -386,6 +480,8 @@ function paletteFrom(
     highlight: chrome.highlight,
     highlightFace: "rgb(240 198 116 / 0.3)",
     highlightFaceRgb: chrome.highlightFaceRgb,
+    pinnedRgb: renderColorToRgb(render.highlightColor ?? DEFAULT_HIGHLIGHT_COLOR),
+    pinnedMix: render.highlightMix ?? DEFAULT_HIGHLIGHT_MIX,
     paperFront: render.frontColor,
     paperBack: render.backColor,
     lightDir: render.lightDir,
@@ -521,6 +617,7 @@ function drawPaperFacesWithDepth(
     const color = triangleRasterColor(
       triangle.vertices,
       highlights.faces.has(triangle.faceIndex),
+      highlights.pinned.has(triangle.faceIndex),
       palette,
       projected,
       lighting,
@@ -642,14 +739,16 @@ function triangleColor(
 function triangleRasterColor(
   triangle: number[],
   highlighted: boolean,
+  pinned: boolean,
   palette: SimulatorPalette,
   projected: ProjectedPoint[],
   lighting: boolean,
 ): [number, number, number, number] {
   const shaded = triangleShadedRgb(triangle, projected, palette, lighting);
+  const tinted = pinned ? blendRgb(shaded, palette.pinnedRgb, palette.pinnedMix) : shaded;
   const rgb = highlighted
-    ? blendRgb(shaded, palette.highlightFaceRgb, 0.3)
-    : shaded;
+    ? blendRgb(tinted, palette.highlightFaceRgb, 0.3)
+    : tinted;
   return [rgb[0], rgb[1], rgb[2], 255];
 }
 

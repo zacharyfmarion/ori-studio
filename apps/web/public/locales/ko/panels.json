@@ -1532,7 +1532,9 @@
     "backendGpuTitle": "GPU에서 계산 중 (WebGL2)",
     "backToPatterns": "패턴",
     "canvasAriaLabel": "종이접기 접힌 베이스 시뮬레이터. 드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화.",
+    "canvasAriaLabelPin": "종이접기 접힌 베이스 시뮬레이터. 상자를 드래그하거나 면을 클릭하여 고정, 스크롤하여 확대/축소.",
     "canvasTitle": "드래그하여 회전, 스크롤하여 확대/축소, 더블 클릭하여 보기 초기화",
+    "canvasTitlePin": "상자를 드래그하거나 면을 클릭하여 고정, 스크롤하여 확대/축소",
     "contextMenu": {
       "pause": "일시정지",
       "play": "재생",
@@ -1554,6 +1556,41 @@
     "stepReadout": "{{n}}단계",
     "strain": "장력 {{value}}",
     "title": "시뮬레이터",
+    "tools": {
+      "instructions": "설명",
+      "notice": {
+        "recovered": "시뮬레이션이 불안정해져 평평한 상태에서 다시 시작했습니다. 이제 고정이 평평한 종이를 붙잡고 있습니다.",
+        "strained": "고정된 면들이 서로 당기고 있습니다."
+      },
+      "orbit": {
+        "description": "드래그하여 모델을 돌립니다.",
+        "label": "궤도"
+      },
+      "picker": {
+        "close": "도구 목록 닫기",
+        "title": "도구",
+        "trigger": "도구"
+      },
+      "pin": {
+        "box": "상자를 드래그하여 그 안의 면을 고정하거나 면 하나를 클릭합니다.",
+        "description": "나머지 종이가 접히는 동안 면을 제자리에 고정합니다.",
+        "label": "고정",
+        "orbitApple": "Cmd를 누른 채 드래그하면 모델이 돌아갑니다.",
+        "orbitMiddle": "가운데 버튼으로 드래그하면 모델이 돌아갑니다.",
+        "shift": "Shift를 누른 채 드래그하면 고정에 추가합니다. Shift를 누른 채 클릭하면 면 하나를 고정하거나 해제합니다.",
+        "throughLayers": "모든 레이어를 관통하여 선택",
+        "touchBox": "상자를 드래그하여 그 안의 면을 고정합니다.",
+        "touchOrbit": "모델을 돌리려면 궤도로 전환하세요.",
+        "touchTap": "면을 탭하여 고정하거나 해제합니다."
+      },
+      "pins": {
+        "clear": "고정 모두 해제",
+        "count_other": "면 {{count}}개 고정됨",
+        "title": "고정"
+      },
+      "railLabel": "시뮬레이터 도구",
+      "windowLabel": "시뮬레이터 도구 옵션"
+    },
     "unavailable": "시뮬레이터 사용 불가",
     "viewCube": {
       "back": "뒤",

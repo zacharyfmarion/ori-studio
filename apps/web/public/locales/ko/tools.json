@@ -206,6 +206,7 @@
   "creaseAngle": {
     "close": "접는 선 각도 닫기",
     "degrees": "접는 선 각도(도)",
+    "degreesLabel": "도",
     "fieldTitle": "새로 그리는 산접기와 골접기에 적용되는 접기 각도",
     "menuRow": "접는 선 각도: {{angle}}",
     "title": "접는 선 각도"
@@ -313,16 +314,21 @@
     "zoomOut": "참조 축소"
   },
   "simulator": {
+    "clearPins": "고정 모두 해제",
     "foldBackward": "접기 뒤로",
     "foldEnd": "접힌 상태로 이동",
     "foldForward": "접기 앞으로",
     "foldStart": "평평한 상태로 이동",
+    "pinThroughLayers": "모든 레이어를 관통하여 고정",
     "playPause": "접기 재생 / 일시정지",
     "replay": "시뮬레이션 다시 시작",
     "resetView": "시뮬레이터 보기 초기화",
     "toggleCreases": "접는 선",
     "toggleFaces": "면",
-    "toggleLighting": "조명"
+    "toggleLighting": "조명",
+    "toolExit": "도구 종료",
+    "toolOrbit": "궤도 도구",
+    "toolPin": "고정 도구"
   },
   "viewport": {
     "contextMenu": "컨텍스트 메뉴 열기",

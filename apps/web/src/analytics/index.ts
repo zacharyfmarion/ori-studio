@@ -11,6 +11,7 @@ export {
   DURATION_MS_BUCKETS,
   FOLD_DURATION_MS_BUCKETS,
   PACKING_CIRCLE_COUNT_BUCKETS,
+  SIMULATOR_PIN_COUNT_BUCKETS,
   UPDATE_PENDING_MS_BUCKETS,
 } from './events';
 export type {
@@ -86,6 +87,9 @@ export type {
   ReferenceRefusalReason,
   ReferenceTargetKind,
   SettingsSectionName,
+  SimulatorPinsClearSource,
+  SimulatorToolOptionSource,
+  SimulatorToolSelectSource,
   UpdateCheckResult,
   UpdateDismissScope,
   UpdateFailureReason,
@@ -139,6 +143,15 @@ export {
   type PaperExportedEvent,
 } from './trackPaperExport';
 export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
+export {
+  trackSimulatorPinnedFoldMoved,
+  trackSimulatorPinsCleared,
+  trackSimulatorPinsEdited,
+  trackSimulatorSolverRecovered,
+  trackSimulatorToolOptionChanged,
+  trackSimulatorToolPickerOpened,
+  trackSimulatorToolSelected,
+} from './trackSimulatorTools';
 
 export { useAppOpenedEvent } from './useAppOpenedEvent';
 export { useBpPatternNotFoundEvent } from './useBpPatternNotFoundEvent';

@@ -1532,7 +1532,9 @@
     "backendGpuTitle": "在 GPU 上求解（WebGL2）",
     "backToPatterns": "折痕图",
     "canvasAriaLabel": "折纸折叠基础模拟器。拖动以旋转，滚动以缩放，双击以重置视图。",
+    "canvasAriaLabelPin": "折纸折叠基础模拟器。拖出方框或点击面以固定，滚动以缩放。",
     "canvasTitle": "拖动以旋转，滚动以缩放，双击以重置视图",
+    "canvasTitlePin": "拖出方框或点击面以固定，滚动以缩放",
     "contextMenu": {
       "pause": "暂停",
       "play": "播放",
@@ -1554,6 +1556,41 @@
     "stepReadout": "第 {{n}} 步",
     "strain": "张力 {{value}}",
     "title": "模拟器",
+    "tools": {
+      "instructions": "说明",
+      "notice": {
+        "recovered": "模拟变得不稳定，已从展平状态重新开始。固定现在保持着展平的纸张。",
+        "strained": "固定的面正在相互拉扯。"
+      },
+      "orbit": {
+        "description": "拖动以转动模型。",
+        "label": "环绕"
+      },
+      "picker": {
+        "close": "关闭工具列表",
+        "title": "工具",
+        "trigger": "工具"
+      },
+      "pin": {
+        "box": "拖出方框以固定其中的面，或点击单个面。",
+        "description": "在纸张其余部分折叠时，将面固定在原位。",
+        "label": "固定",
+        "orbitApple": "按住 Cmd 拖动以转动模型。",
+        "orbitMiddle": "用鼠标中键拖动以转动模型。",
+        "shift": "按住 Shift 拖动可添加固定。按住 Shift 点击可固定或取消固定单个面。",
+        "throughLayers": "穿透所有层选择",
+        "touchBox": "拖出方框以固定其中的面。",
+        "touchOrbit": "切换到环绕以转动模型。",
+        "touchTap": "点按面以固定或取消固定。"
+      },
+      "pins": {
+        "clear": "清除固定",
+        "count_other": "已固定 {{count}} 个面",
+        "title": "固定"
+      },
+      "railLabel": "模拟器工具",
+      "windowLabel": "模拟器工具选项"
+    },
     "unavailable": "模拟器不可用",
     "viewCube": {
       "back": "后",

@@ -1,5 +1,5 @@
 import { selectProject, selectSelection } from '../../store/workspaceStore/designTabs';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Activity, Circle, GitBranch, MousePointer2, Square, Waypoints } from 'lucide-react';
 import { handleMenuAction } from '../../commands/menuActions';
@@ -7,6 +7,8 @@ import { formatNumber } from '../../lib/geometry';
 import { conditionDetail, conditionTitle } from '../../lib/conditionLabels';
 import { selectedNodeIds, selectionSummary } from '../../lib/selection';
 import { useWorkspaceStore } from '../../store/workspaceStore';
+import { FieldRow } from '../ui/fieldRows/FieldRow';
+import { TextRow } from '../ui/fieldRows/TextRow';
 
 export function InspectorPanel() {
   const { t } = useTranslation();
@@ -40,7 +42,7 @@ export function InspectorPanel() {
         {selectedNode && (
           <>
             <div className="inspector-heading"><Circle size={15} /> {t('panels:inspector.node', 'Node {{id}}', { id: selectedNode.id })}</div>
-            <EditableRow
+            <TextRow
               label={t('panels:inspector.label', 'Label')}
               value={selectedNode.label}
               onCommit={(label) => void updateNodeLabel(selectedNode.id, label)}
@@ -71,7 +73,7 @@ export function InspectorPanel() {
         {selectedEdge && (
           <>
             <div className="inspector-heading"><GitBranch size={15} /> {t('panels:inspector.edge', 'Edge {{id}}', { id: selectedEdge.id })}</div>
-            <EditableRow
+            <TextRow
               label={t('panels:inspector.label', 'Label')}
               value={selectedEdge.label}
               onCommit={(label) => void updateEdge(selectedEdge.id, { label })}
@@ -124,14 +126,13 @@ export function InspectorPanel() {
             <div className="inspector-heading"><MousePointer2 size={15} /> {t('panels:inspector.selection', 'Selection')}</div>
             <Row label={t('panels:inspector.parts', 'Parts')} value={selectionSummary(selection)} />
             {selectedNodes.length === 2 && (
-              <button
-                className="control-row control-row--button"
-                type="button"
+              <FieldRow
+                label={t('panels:inspector.pathLabel', 'Path')}
+                kind="static"
                 onClick={selectPathBetweenSelectedNodes}
               >
-                <span className="control-row__label">{t('panels:inspector.pathLabel', 'Path')}</span>
-                <span className="control-row__value">{t('panels:inspector.selectBetweenNodes', 'Select between nodes')}</span>
-              </button>
+                {t('panels:inspector.selectBetweenNodes', 'Select between nodes')}
+              </FieldRow>
             )}
             <ActionRow label={t('panels:inspector.absorbNodes', 'Absorb nodes')} onClick={() => void handleMenuAction('edit.absorbNodes')} />
             <ActionRow label={t('panels:inspector.perturbNodes', 'Perturb nodes')} onClick={() => void handleMenuAction('edit.perturbNodes')} />
@@ -161,60 +162,17 @@ export function InspectorPanel() {
 function ActionRow({ label, onClick }: { label: string; onClick: () => void }) {
   const { t } = useTranslation();
   return (
-    <button className="control-row control-row--button" type="button" onClick={onClick}>
-      <span className="control-row__label">{t('panels:inspector.action', 'Action')}</span>
-      <span className="control-row__value">{label}</span>
-    </button>
+    <FieldRow label={t('panels:inspector.action', 'Action')} kind="static" onClick={onClick}>
+      {label}
+    </FieldRow>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="control-row">
-      <span className="control-row__label">{label}</span>
-      <span className="control-row__value">{value}</span>
-    </div>
-  );
-}
-
-function EditableRow({
-  label,
-  value,
-  onCommit,
-}: {
-  label: string;
-  value: string;
-  onCommit: (value: string) => void;
-}) {
-  const [draft, setDraft] = useState(value);
-
-  useEffect(() => {
-    setDraft(value);
-  }, [value]);
-
-  const commit = () => {
-    const next = draft.trim();
-    if (next && next !== value) onCommit(next);
-    else setDraft(value);
-  };
-
-  return (
-    <label className="control-row">
-      <span className="control-row__label">{label}</span>
-      <input
-        className="control-row__input"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur();
-          if (event.key === 'Escape') {
-            setDraft(value);
-            event.currentTarget.blur();
-          }
-        }}
-      />
-    </label>
+    <FieldRow label={label} kind="static">
+      {value}
+    </FieldRow>
   );
 }
 
@@ -233,6 +191,7 @@ function NumberRow({
   step: number;
   onCommit: (value: number) => void;
 }) {
+  const inputId = useId();
   const [draft, setDraft] = useState(formatNumber(value, 4));
 
   useEffect(() => {
@@ -252,9 +211,9 @@ function NumberRow({
   };
 
   return (
-    <label className="control-row">
-      <span className="control-row__label">{label}</span>
+    <FieldRow label={label} htmlFor={inputId} kind="input">
       <input
+        id={inputId}
         className="control-row__input"
         type="number"
         min={min}
@@ -271,6 +230,6 @@ function NumberRow({
           }
         }}
       />
-    </label>
+    </FieldRow>
   );
 }

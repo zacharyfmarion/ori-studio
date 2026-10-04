@@ -57,6 +57,16 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('panels:simulatorExport.trigger', 'Export view…');
     case 'simulator.setUpright':
       return t('panels:simulator.setUpright', 'Set upright');
+    case 'simulator.tool.orbit':
+      return t('tools:simulator.toolOrbit', 'Orbit Tool');
+    case 'simulator.tool.pin':
+      return t('tools:simulator.toolPin', 'Pin Tool');
+    case 'simulator.tool.exit':
+      return t('tools:simulator.toolExit', 'Exit Tool');
+    case 'simulator.pins.clear':
+      return t('tools:simulator.clearPins', 'Clear Pins');
+    case 'simulator.pins.throughLayers':
+      return t('tools:simulator.pinThroughLayers', 'Pin Through All Layers');
     case 'references.nextStep':
       return t('tools:references.nextStep', 'Next Step');
     case 'references.previousStep':

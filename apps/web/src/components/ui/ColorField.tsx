@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { FieldRow } from './fieldRows/FieldRow';
 
 /**
  * A labelled colour swatch.
@@ -26,6 +27,7 @@ export function ColorField({
   title,
   layout = 'stacked',
   showValue = false,
+  divider = true,
   className,
 }: {
   label: string;
@@ -60,13 +62,15 @@ export function ColorField({
   /**
    * `stacked` puts the label above a full-width swatch, for the narrow grid
    * columns the folded-figure menu and the export dialog lay out. `row` is a
-   * `control-row`: label left, small square swatch right, matching the sliders
+   * `FieldRow`: label left, small square swatch right, matching the sliders
    * and selects it sits between in an options pane. `inline` is the same
    * arrangement without the pane chrome — no padding, no dividing rule — for
    * dialogs, where a boxed column of controls reads as a table when nothing
    * about it is tabular.
    */
   layout?: 'stacked' | 'row' | 'inline';
+  /** For the `row` layout: the rule under it (`FieldRow.divider`). */
+  divider?: boolean;
   /**
    * Show the hex alongside the swatch. Useful where the exact value is part of what is
    * being chosen — a colour that will be published, or one being matched to another —
@@ -109,23 +113,44 @@ export function ColorField({
     />
   );
 
+  const content = (
+    <>
+      {showValue && <span className="color-field__hex">{value}</span>}
+      {swatch}
+      {reset}
+    </>
+  );
+
+  // In an options pane the colour is a row like its neighbours: the row's
+  // label, its value column, its rule. The reset stays the field's own clear
+  // rather than the row's, so it reads the same in every layout.
+  if (layout === 'row') {
+    return (
+      <FieldRow
+        className={classes}
+        label={label}
+        htmlFor={inputId}
+        kind="color"
+        disabled={disabled}
+        title={title}
+        divider={divider}
+      >
+        {content}
+      </FieldRow>
+    );
+  }
+
   // Two elements rather than a wrapping <label>: the reset button has to sit
   // outside it, or clicking reset would also open the colour picker.
-  const rowLike = layout === 'row' || layout === 'inline';
   return (
-    <div
-      className={layout === 'row' ? `control-row ${classes}` : classes}
-      data-disabled={disabled || undefined}
-      title={title}
-    >
-      <label className={rowLike ? 'control-row__label' : 'color-field__name'} htmlFor={inputId}>
+    <div className={classes} data-disabled={disabled || undefined} title={title}>
+      <label
+        className={layout === 'inline' ? 'color-field__label' : 'color-field__name'}
+        htmlFor={inputId}
+      >
         {label}
       </label>
-      <span className={rowLike ? 'control-row__value color-field__value' : 'color-field__value'}>
-        {showValue && <span className="color-field__hex">{value}</span>}
-        {swatch}
-        {reset}
-      </span>
+      <span className="color-field__value">{content}</span>
     </div>
   );
 }

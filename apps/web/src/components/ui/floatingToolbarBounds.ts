@@ -13,7 +13,7 @@
  * rects, so its own `hide()` middleware could not be covered by a unit test at
  * all. Same reasoning as `toolHintPlacement.ts` and `toolOptionPlacement.ts`.
  */
-import type { FloatingAnchorRect } from './FloatingToolbar';
+import type { FloatingAnchorRect } from './useAnchoredFloating';
 
 /** The subset of `DOMRect` this needs, so tests can pass plain objects. */
 export interface BoundaryRect {

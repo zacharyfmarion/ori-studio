@@ -12,6 +12,7 @@ import {
 } from './foldedMeshSource';
 import {
   createFramingFollow,
+  anchorFraming,
   followFraming,
   framingOf,
   type FramingFollow,
@@ -29,6 +30,7 @@ import {
   prepareFoldModel,
   setGlContextAttributeOverrides,
   sheetExtent,
+  sourceFaceGroups,
   type CameraUniforms,
   type GlContextAttributeOverrides,
   type FoldDocument,
@@ -38,8 +40,10 @@ import {
   type RenderSettings,
   type SimulatorDiagnostics,
   type SimulatorOptions,
+  type SimulationRecovery,
   type SolverBackend,
 } from '@treemaker/origami-simulator';
+import { pickFacesInFrame, type SimulatorPickQuery } from './pickQuery';
 
 // The simulator's solver, off the main thread.
 //
@@ -147,6 +151,12 @@ export interface SimulatorModelInfo {
   facesEdges: ArrayBuffer;
   /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
   sheet: number;
+  /**
+   * `Int32`, one per triangle: the crease-pattern face it belongs to
+   * (`sourceFaceGroups`). What a pin names, and what a pick answers in — the
+   * same ids on both sides because only the worker computes them.
+   */
+  faceGroups: ArrayBuffer;
   diagnostics: SimulatorDiagnostics;
   /** Which solver actually got selected, for the UI's backend indicator. */
   backend: SimulatorBackendId;
@@ -192,6 +202,21 @@ export interface SimulatorFramePayload {
    * the readout does not change meaning with the solver.
    */
   maxStrain: number;
+  /**
+   * What the solver's blow-up guard did this tick, if anything — `reset` sent a
+   * non-finite model back to the flat sheet. Said rather than done silently, so
+   * a pinned model jumping to flat can be explained.
+   */
+  recovered: SimulationRecovery | null;
+}
+
+/** What a pin request did: how many faces it pinned, and how many it did not know. */
+export interface SimulatorPinResult {
+  applied: number;
+  /** Face ids this model does not have; a non-zero count is a caller's bug. */
+  dropped: number;
+  /** The redrawn frame, in bitmap-present mode. */
+  bitmap: ImageBitmap | null;
 }
 
 /** Folded geometry snapshot handed to the exporters. */
@@ -222,6 +247,8 @@ interface Session {
    * on the main thread from transferred positions (canvas-2D fallback).
    */
   gpuRender: WebglSolver | null;
+  /** One per triangle: its crease-pattern face. See {@link SimulatorModelInfo.faceGroups}. */
+  faceGroups: Int32Array;
   /**
    * When this session was last spoken to, on a monotonic counter. Eviction picks
    * the least recently *used*, not the oldest loaded — with twenty windows open,
@@ -266,6 +293,11 @@ interface SessionView {
    * claim on the buffer's size.
    */
   lastRenderedAt: number;
+  /**
+   * The camera the last frame was drawn with, in the pixels it was drawn in —
+   * what a pick has to project through to answer for the picture on screen.
+   */
+  drawn?: CameraUniforms;
 }
 
 const DEFAULT_RENDER_SETTINGS: RenderSettings = {
@@ -519,7 +551,8 @@ interface MeshRenderSource {
   render(
     camera: CameraUniforms,
     settings: RenderSettings,
-    target?: WebGLFramebuffer | null
+    target?: WebGLFramebuffer | null,
+    options?: { highlight?: boolean }
   ): void;
 }
 
@@ -1180,11 +1213,15 @@ const api = {
           }
     );
 
+    const topology = meshTopologyFor(prepared);
+    const faceGroups = sourceFaceGroups(topology);
+
     const created: Session = {
       model,
       backend,
       backendId,
       clock,
+      faceGroups,
       positionScratch: new Float32Array(prepared.vertexCount * 3),
       colorScratch: new Float32Array(prepared.vertexCount * 3),
       foldPercent: options.solver?.foldPercent ?? 0,
@@ -1222,7 +1259,6 @@ const api = {
       edgesAssignment[index] = code < 0 ? EDGE_ASSIGNMENT_CODES.indexOf('U') : code;
     });
 
-    const topology = meshTopologyFor(prepared);
     const edgeCodes = topology.edgeAssignments;
     const auxEnds = topology.auxEnds ?? new Uint8Array(edgeCodes.length);
 
@@ -1247,6 +1283,7 @@ const api = {
         auxEnds: auxEnds.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
         sheet: sheetExtent(model.originalPositions),
+        faceGroups: faceGroups.slice().buffer as ArrayBuffer,
         diagnostics: backend.readDiagnostics(),
         backend: backendId,
         token: sessionToken,
@@ -1259,6 +1296,80 @@ const api = {
         auxEnds.buffer as ArrayBuffer,
         facesEdges.buffer as ArrayBuffer,
       ]
+    );
+  },
+
+  /**
+   * Hold the given crease-pattern faces where they are, and nothing else: the
+   * set replaces whatever was pinned. A face is held by fixing every node of
+   * its triangles, so a crease between two pinned faces is frozen too.
+   *
+   * The ids must be this model's. The caller only sends pins for the model it
+   * computed them against, and a token that names a replaced session answers
+   * null, so ids from another model should never arrive; any that do are
+   * dropped and counted rather than misapplied.
+   */
+  async setPinnedFaces(
+    faces: readonly number[],
+    token?: SimulatorSessionToken
+  ): Promise<SimulatorPinResult | null> {
+    const active = sessionFor(token);
+    if (!active) return null;
+    const known = new Set(active.faceGroups);
+    const pinned = new Set(faces.filter((face) => known.has(face)));
+    const { indices, vertexCount } = active.model.prepared;
+    const mask = new Uint8Array(vertexCount);
+    const triangles: number[] = [];
+    for (let triangle = 0; triangle < active.faceGroups.length; triangle += 1) {
+      if (!pinned.has(active.faceGroups[triangle]!)) continue;
+      triangles.push(triangle);
+      for (let corner = 0; corner < 3; corner += 1) mask[indices[triangle * 3 + corner]!] = 1;
+    }
+    const nodes: number[] = [];
+    for (let node = 0; node < vertexCount; node += 1) if (mask[node]) nodes.push(node);
+
+    active.backend.setFixedNodes(nodes.length > 0 ? mask : null);
+    active.gpuRender?.setHighlightTriangles(triangles);
+    // Hold the camera to the pins from where it is framing now, so the pinned
+    // region stays put on screen; see `anchorFraming`.
+    const positions = new Float32Array(vertexCount * 3);
+    active.backend.readPositions(positions);
+    anchorFraming(
+      (active.view.framing ??= createFramingFollow()),
+      nodes.length > 0 ? Uint32Array.from(nodes) : null,
+      positions
+    );
+    // Released faces have somewhere to go, and a settled clock would not let them.
+    active.clock.invalidate();
+
+    const bitmap = active.gpuRender ? await renderGpu(active.gpuRender, active.view) : null;
+    const result: SimulatorPinResult = {
+      applied: pinned.size,
+      dropped: new Set(faces).size - pinned.size,
+      bitmap,
+    };
+    return bitmap ? transfer(result, [bitmap]) : result;
+  },
+
+  /**
+   * The crease-pattern faces under a press or a box, against the frame this
+   * session last drew — the camera it drew with and the positions as they are.
+   *
+   * GPU-render sessions only: the canvas-2D fallback frames and draws on the
+   * main thread, so it answers its own picks there (`pickDrawnFrame`). Null
+   * for a session that has not drawn, or one that has gone.
+   */
+  pickFaces(query: SimulatorPickQuery, token?: SimulatorSessionToken): number[] | null {
+    const active = sessionFor(token);
+    if (!active || !active.gpuRender || !active.view.drawn) return null;
+    const positions = new Float32Array(active.model.prepared.vertexCount * 3);
+    active.backend.readPositions(positions);
+    return pickFacesInFrame(
+      positions,
+      { indices: active.model.prepared.indices, faceGroups: active.faceGroups },
+      active.view.drawn,
+      true,
+      query
     );
   },
 
@@ -1656,7 +1767,13 @@ const api = {
 
 async function readFrame(
   active: Session,
-  tick: { steps: number; elapsedMs: number; converged: boolean; maxVelocity: number },
+  tick: {
+    steps: number;
+    elapsedMs: number;
+    converged: boolean;
+    maxVelocity: number;
+    recovered: SimulationRecovery | null;
+  },
   options: { withColors?: boolean; recycled?: ArrayBuffer }
 ): Promise<SimulatorFramePayload> {
   perf.ticks += 1;
@@ -1672,6 +1789,7 @@ async function readFrame(
     maxVelocity: tick.maxVelocity,
     foldPercent: active.foldPercent,
     maxStrain: active.backend.readDiagnostics().maxNodalStrain ?? 0,
+    recovered: tick.recovered,
   };
 
   // GPU-render mode: the worker draws straight to the transferred canvas. No
@@ -2023,7 +2141,10 @@ async function renderGpu(
   const buffer = source.drawingBufferSize;
   const { width, height } = fitRenderWithin(state, buffer);
   const camera = cameraUniforms(state.view, state.center, state.radius, width, height);
-  source.render(camera, state.settings);
+  // Interactive frames carry the pinned highlight; an export never comes
+  // through here, so it never does.
+  source.render(camera, state.settings, null, { highlight: true });
+  state.drawn = camera;
   const drawn = nowMs();
   // The render fills the viewport at the buffer's bottom-left; a bitmap's origin
   // is top-left, so the crop is measured down from the top of the buffer.
@@ -2071,7 +2192,7 @@ function followFit(solver: WebglSolver, state: SessionView, settled: boolean): b
     () => {
       const positions = new Float32Array(solver.vertexCount * 3);
       solver.readPositions(positions);
-      return framingOf(positions);
+      return framingOf(positions, state.framing?.anchor);
     },
     settled
   );

@@ -1,13 +1,13 @@
 import {
-  createCpTouchArbiter,
-  type CpGestureAction,
-  type CpGestureOrigin,
-  type CpGesturePointer,
-} from './cpTouchArbiter';
-import type { GesturePoint, PinchTransform } from './pinchTransform';
+  createTouchArbiter,
+  type GestureAction,
+  type GestureOrigin,
+  type GesturePointer,
+} from '../../lib/gestures/touchArbiter';
+import type { GesturePoint, PinchTransform } from '../../lib/gestures/pinchTransform';
 
 /**
- * The one live {@link createCpTouchArbiter} for the crease-pattern surface, plus
+ * The one live {@link createTouchArbiter} for the crease-pattern surface, plus
  * the two wires that make a *shared* arbiter usable by layers that cannot see
  * each other's events.
  *
@@ -23,7 +23,7 @@ import type { GesturePoint, PinchTransform } from './pinchTransform';
  * - **Abort fan-out.** `down()` can decide that a layer *other than the caller*
  *   must take back a press. The canvas gets no chance to notice a finger that
  *   landed on the overlay, so the overlay registers what to do and this module
- *   calls it. See {@link CpGestureOrigin}.
+ *   calls it. See {@link GestureOrigin}.
  * - **Transform sink.** Only the canvas owns a camera, but a pinch's
  *   `pointermove`s go to whichever layer captured that finger. A pinch anchored
  *   by a thumb resting on the canvas, with the index finger on a folded figure,
@@ -42,11 +42,11 @@ type AbortHandler = () => void;
 /** Apply a camera sample. Registered by the canvas, which owns the camera. */
 type TransformSink = (transform: PinchTransform, anchor: GesturePoint) => void;
 
-const arbiter = createCpTouchArbiter();
-const abortHandlers = new Map<CpGestureOrigin, Set<AbortHandler>>();
+const arbiter = createTouchArbiter();
+const abortHandlers = new Map<GestureOrigin, Set<AbortHandler>>();
 let transformSink: TransformSink | null = null;
 
-function fireAborts(origins: readonly CpGestureOrigin[]): void {
+function fireAborts(origins: readonly GestureOrigin[]): void {
   for (const origin of origins) {
     const handlers = abortHandlers.get(origin);
     if (!handlers) continue;
@@ -63,7 +63,7 @@ export const cpSurfaceGestures = {
    * Synchronous on purpose: callers act on the verdict in the same handler, and
    * a rollback deferred past that would race the press it is rolling back.
    */
-  down(pointer: CpGesturePointer, origin: CpGestureOrigin): CpGestureAction {
+  down(pointer: GesturePointer, origin: GestureOrigin): GestureAction {
     const verdict = arbiter.down(pointer, origin);
     fireAborts(verdict.abort);
     return verdict.action;
@@ -76,19 +76,19 @@ export const cpSurfaceGestures = {
    * return value, so a layer with no camera can still drive one. Callers only
    * need the action, to decide whether their own gesture may act on this event.
    */
-  move(pointer: CpGesturePointer): CpGestureAction {
+  move(pointer: GesturePointer): GestureAction {
     const verdict = arbiter.move(pointer);
     if (verdict.action === 'transform') transformSink?.(verdict.transform, verdict.anchor);
     return verdict.action;
   },
 
   /** Handles `pointerup` and `pointercancel` alike — both end a contact. */
-  up(pointer: CpGesturePointer): CpGestureAction {
+  up(pointer: GesturePointer): GestureAction {
     return arbiter.up(pointer).action;
   },
 
   /** Register this layer's roll-back. Returns the detach. */
-  onAbort(origin: CpGestureOrigin, handler: AbortHandler): () => void {
+  onAbort(origin: GestureOrigin, handler: AbortHandler): () => void {
     const handlers = abortHandlers.get(origin) ?? new Set<AbortHandler>();
     abortHandlers.set(origin, handlers);
     handlers.add(handler);

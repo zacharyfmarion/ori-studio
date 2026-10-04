@@ -27,7 +27,7 @@ import {
 } from './annotations/annotationTransform';
 import { withShiftLatch } from './touchModifiers/shiftLatch';
 import { cpSurfaceGestures } from './gestures/cpSurfaceGestures';
-import type { CpGesturePointer } from './gestures/cpTouchArbiter';
+import type { GesturePointer } from '../lib/gestures/touchArbiter';
 import type { TransformableCanvasObject } from './canvasObjects/transformableObject';
 import {
   cpSurfacePanPress,
@@ -116,7 +116,7 @@ type Drag =
  * on a polygon, and two fingers can land on this chrome at once (a body and a
  * handle). Either would clear the wrong entry.
  */
-type ContactRef = MutableRefObject<Map<number, CpGesturePointer>>;
+type ContactRef = MutableRefObject<Map<number, GesturePointer>>;
 
 /**
  * The crease pattern, when this press is its business rather than the object's —
@@ -317,7 +317,7 @@ export function CanvasObjectOverlay({
    * outlives the component that caused it, and the one failure here worth the
    * bookkeeping.
    */
-  const contactRef = useRef<Map<number, CpGesturePointer>>(new Map());
+  const contactRef = useRef<Map<number, GesturePointer>>(new Map());
   // State rather than a ref: the wheel listener below has to re-attach when this
   // element arrives, which a ref would not tell anyone about.
   const [overlay, setOverlay] = useState<SVGSVGElement | null>(null);

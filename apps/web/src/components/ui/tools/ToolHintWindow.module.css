@@ -1,0 +1,33 @@
+/*
+ * Where the tool hint window (ToolHintWindow.tsx) sits and how it moves: a
+ * floating window over the bottom right of a workspace's viewport, overhanging
+ * the seam between the viewport and the side pane beside it. How it looks is
+ * the shared FloatingPanel's; the tool's content inside it is the workspace's.
+ *
+ * `left`, `bottom` and `width` come from `toolHintPlacement` as inline style —
+ * they are a function of a measured rect, so they cannot live here. It is
+ * body-portaled, which is what `fixed` needs to mean the browser window rather
+ * than the nearest Dockview panel.
+ */
+.window {
+  position: fixed;
+  z-index: var(--z-canvas-overlay);
+  /* Never taller than the viewport it floats over. The body scrolls; the header
+     stays put, so the tool is always named even mid-scroll. */
+  max-height: min(60vh, 520px);
+  /* The height follows the content (useAnimatedHeight), at the pace of the
+     segmented pill whose choice usually changed it. */
+  transition: height var(--motion-duration) var(--motion-ease);
+}
+
+/* Collapsed the window is only its header, so a max-height meant for the open
+   state would leave it able to grow. */
+.window[data-collapsed] {
+  max-height: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window {
+    transition: none;
+  }
+}

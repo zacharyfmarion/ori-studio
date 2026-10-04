@@ -22,7 +22,8 @@ type CpActionExecutor = (id: OristudioCpActionId) => unknown;
  * Every id must answer one or the other; see `ShortcutExecutors.viewport`.
  */
 type ViewportExecutor = (id: ViewportShortcutId) => boolean;
-type SimulatorExecutor = (id: SimulatorShortcutId) => unknown;
+/** Claims or declines, as the viewport's does; see `ShortcutExecutors.simulator`. */
+type SimulatorExecutor = (id: SimulatorShortcutId) => boolean;
 type ReferencesExecutor = (id: ReferencesShortcutId) => unknown;
 /** May decline, as a viewport executor may; see `ShortcutExecutors.diagram`. */
 type DiagramExecutor = (id: DiagramShortcutId) => boolean;
@@ -140,12 +141,12 @@ export function hasSimulatorExecutor(): boolean {
  * Run a simulator verb from outside the simulation's view — the Simulate
  * workspace's rail is a panel of its own, and the view is what holds the
  * viewport and the renderer a verb acts on. The same arrangement as
- * {@link runReferencesCommand}. False while no simulation is in hand.
+ * {@link runReferencesCommand}. False while no simulation is in hand, or when
+ * the one in hand declines the verb.
  */
 export function runSimulatorCommand(id: SimulatorShortcutId): boolean {
   if (!simulatorExecutor) return false;
-  simulatorExecutor(id);
-  return true;
+  return simulatorExecutor(id);
 }
 
 /**

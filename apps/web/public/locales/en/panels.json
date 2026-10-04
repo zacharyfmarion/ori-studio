@@ -1590,7 +1590,9 @@
     "backendGpuTitle": "Solving on the GPU (WebGL2)",
     "backToPatterns": "Patterns",
     "canvasAriaLabel": "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
+    "canvasAriaLabelPin": "Origami folded-base simulator. Drag a box or click a face to pin it, scroll to zoom.",
     "canvasTitle": "Drag to rotate, scroll to zoom, double-click to reset view",
+    "canvasTitlePin": "Drag a box or click a face to pin it, scroll to zoom",
     "contextMenu": {
       "pause": "Pause",
       "play": "Play",
@@ -1612,6 +1614,42 @@
     "stepReadout": "Step {{n}}",
     "strain": "Strain {{value}}",
     "title": "Simulator",
+    "tools": {
+      "instructions": "Instructions",
+      "notice": {
+        "recovered": "The simulation became unstable and restarted from flat. Pins now hold the flat sheet.",
+        "strained": "Pinned faces are pulling against each other."
+      },
+      "orbit": {
+        "description": "Drag to turn the model.",
+        "label": "Orbit"
+      },
+      "picker": {
+        "close": "Close tool list",
+        "title": "Tools",
+        "trigger": "Tools"
+      },
+      "pin": {
+        "box": "Drag a box to pin the faces inside it, or click one face.",
+        "description": "Hold faces in place while the rest of the paper folds.",
+        "label": "Pin",
+        "orbitApple": "Cmd-drag turns the model.",
+        "orbitMiddle": "Drag with the middle button to turn the model.",
+        "shift": "Shift-drag adds to the pins. Shift-click pins or unpins one face.",
+        "throughLayers": "Select through all layers",
+        "touchBox": "Drag a box to pin the faces inside it.",
+        "touchOrbit": "Switch to Orbit to turn the model.",
+        "touchTap": "Tap a face to pin or unpin it."
+      },
+      "pins": {
+        "clear": "Clear pins",
+        "count_one": "1 face pinned",
+        "count_other": "{{count}} faces pinned",
+        "title": "Pins"
+      },
+      "railLabel": "Simulator tools",
+      "windowLabel": "Simulator tool options"
+    },
     "unavailable": "Simulator unavailable",
     "viewCube": {
       "back": "Back",
