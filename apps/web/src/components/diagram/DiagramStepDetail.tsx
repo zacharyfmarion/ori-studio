@@ -154,9 +154,11 @@ export function DiagramStepDetail({
   const posed = (mode === 'pose' && linkedPose?.preview) || step;
   const source = useMemo(() => stepPictureSource(posed, assets), [posed, assets]);
   const { annotations } = posed;
+  // A preview is drawn for the moment it is shown, not kept among the cards' pictures.
+  const kept = posed === step;
   const url = useMemo(
-    () => (source ? annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY) : null),
-    [source, annotations, style]
+    () => (source ? annotatedStepUrl(source, annotations, style, POSE_ANNOTATION_OPACITY, kept) : null),
+    [source, annotations, style, kept]
   );
   // Annotate needs a picture to draw on.
   const annotating = mode === 'annotate' && source !== null && !locked;
@@ -174,7 +176,12 @@ export function DiagramStepDetail({
   const poseToolbar = (transport: ReactNode) => (
     <Toolbar ref={poseRef} className={styles.pose} aria-label={t('panels:diagram.detail.pose', 'Pose')}>
       {linkedPose ? (
-        <DiagramLinkedPoseControls actions={linkedPose.actions} layerOrder={linkedPose.layerOrder?.label ?? null} keep={keepPoseFocus}>
+        <DiagramLinkedPoseControls
+          // A phone's Step drawer has Spread Layers with its amount; the toolbar would wrap a row for it.
+          actions={phone ? linkedPose.actions.filter((action) => action.id !== 'spread-layers') : linkedPose.actions}
+          layerOrder={linkedPose.layerOrder?.label ?? null}
+          keep={keepPoseFocus}
+        >
           {transport}
         </DiagramLinkedPoseControls>
       ) : (

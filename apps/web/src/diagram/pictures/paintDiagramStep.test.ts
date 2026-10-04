@@ -13,7 +13,7 @@ import {
   sceneMeasure,
   stepPictureSource,
 } from './paintDiagramStep';
-import { stepPictureUrl } from './useStepPictureUrl';
+import { annotatedStepUrl, stepPictureUrl } from './useStepPictureUrl';
 import {
   cachedPictureUrl,
   clearStepPictureCacheForTests,
@@ -210,6 +210,16 @@ describe('stepPictureUrl', () => {
     expect(stepPictureUrl(stepPictureSource({ ...step, text: 'edited' }, {})!, DEFAULT_DIAGRAM_STYLE)).toBe(first);
     expect(stepPictureCacheBytesForTests()).toBe(bytes);
     expect(stepPictureUrl(source, { style: { ...DEFAULT_PAPER_STYLE } })).not.toBe(first);
+  });
+
+  it('paints a picture shown for a moment — a drag’s preview — without keeping it', () => {
+    clearStepPictureCacheForTests();
+    const source = stepPictureSource(cpStep('step-1'), {})!;
+    const url = stepPictureUrl(source, DEFAULT_DIAGRAM_STYLE, false);
+    expect(url).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(stepPictureCacheBytesForTests()).toBe(0);
+    expect(annotatedStepUrl(source, [], DEFAULT_DIAGRAM_STYLE, 1, false)).toBe(url);
+    expect(stepPictureCacheBytesForTests()).toBe(0);
   });
 });
 

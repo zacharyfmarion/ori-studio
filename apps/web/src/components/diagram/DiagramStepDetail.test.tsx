@@ -1,11 +1,14 @@
 import { act, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DiagramLinkedPoseAction } from '../../diagram/actions/diagramLinkedPoseActions';
 import type { DiagramLinkedPose } from '../../diagram/capture/useDiagramLinkedPose';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramStep } from '../../diagram/document/diagramDocument';
 import { storedSceneJson } from '../../diagram/document/diagramFile';
 import { cpStep, scenePicture } from '../../diagram/document/diagramSteps.fixtures';
+import { stepPictureCacheBytesForTests } from '../../diagram/pictures/stepPictureCache';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
+import { PHONE_MEDIA_QUERY } from '../../platform/phoneLayout';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramStepDetail } from './DiagramStepDetail';
 
@@ -15,6 +18,7 @@ let root: Root | null = null;
 let host: HTMLDivElement | null = null;
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   act(() => root?.unmount());
   root = null;
   host?.remove();
@@ -24,9 +28,9 @@ afterEach(() => {
 const FLAT = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
 
 /** A linked step's Pose with nothing to offer but, maybe, a preview. */
-function linkedPose(preview: DiagramStep | null): DiagramLinkedPose {
+function linkedPose(preview: DiagramStep | null, actions: DiagramLinkedPoseAction[] = []): DiagramLinkedPose {
   return {
-    actions: [],
+    actions,
     layerOrder: null,
     spatial: null,
     onCamera: () => {},
@@ -39,7 +43,12 @@ function linkedPose(preview: DiagramStep | null): DiagramLinkedPose {
   };
 }
 
-function show(step: DiagramStep, preview: DiagramStep | null, mode: 'pose' | 'annotate' = 'pose') {
+function show(
+  step: DiagramStep,
+  preview: DiagramStep | null,
+  mode: 'pose' | 'annotate' = 'pose',
+  actions: DiagramLinkedPoseAction[] = []
+) {
   host ??= document.body.appendChild(document.createElement('div'));
   root ??= createRoot(host);
   act(() =>
@@ -57,7 +66,7 @@ function show(step: DiagramStep, preview: DiagramStep | null, mode: 'pose' | 'an
           annotateTool={null}
           onAnnotateTool={() => {}}
           poseActions={[]}
-          linkedPose={linkedPose(preview)}
+          linkedPose={linkedPose(preview, actions)}
           onBack={() => {}}
           onStep={() => {}}
           onUpload={() => {}}
@@ -84,8 +93,40 @@ describe('DiagramStepDetail in Pose', () => {
     };
     const own = show(step, null);
     expect(own).toMatch(/^data:image\/svg\+xml/);
+    // Drawn for the moment it shows, not kept among the cards' pictures.
+    const kept = stepPictureCacheBytesForTests();
     const previewed = show(step, preview);
     expect(previewed).not.toBe(own);
+    expect(stepPictureCacheBytesForTests()).toBe(kept);
     expect(show(step, null)).toBe(own);
+  });
+
+  it('leaves Spread Layers to the Step drawer on a phone, where the toolbar has no room for it', () => {
+    const verb = (id: DiagramLinkedPoseAction['id'], label: string): DiagramLinkedPoseAction => ({
+      id,
+      label,
+      disabled: false,
+      waiting: false,
+      run: () => {},
+    });
+    const actions = [verb('turn-over', 'Turn Over'), verb('spread-layers', 'Spread Layers')];
+    const step = cpStep('step-1', FLAT);
+    const toolbarHas = (name: string) => host!.querySelector(`[aria-label="${name}"]`) !== null;
+    show(step, null, 'pose', actions);
+    expect(toolbarHas('Spread Layers')).toBe(true);
+    act(() => root?.unmount());
+    root = null;
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query === PHONE_MEDIA_QUERY,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+    show(step, null, 'pose', actions);
+    expect(toolbarHas('Turn Over')).toBe(true);
+    expect(toolbarHas('Spread Layers')).toBe(false);
   });
 });

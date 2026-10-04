@@ -48,20 +48,29 @@ export function useStepPictureUrl(
  * A step's picture with its annotations drawn on it (D8), through the cache:
  * the picture's own URL when none draws. `opacity` ghosts them, as Pose
  * shows them. Keyed by the picture as {@link stepPictureUrl} is, and by the
- * annotations' list, which an edit replaces rather than changes.
+ * annotations' list, which an edit replaces rather than changes. A picture
+ * shown for a moment — a drag's preview — is painted and not `kept`: every
+ * frame of a drag is a new picture, and the cache would give up the cards'
+ * for them.
  */
 export function annotatedStepUrl(
   source: StepPictureSource,
   annotations: readonly DiagramAnnotation[],
   style: DiagramStyle,
-  opacity = 1
+  opacity = 1,
+  kept = true
 ): string | null {
-  if (!hasDrawnAnnotations(annotations)) return stepPictureUrl(source, style);
+  if (!hasDrawnAnnotations(annotations)) return stepPictureUrl(source, style, kept);
   const key = `annotated|${sourceKey(source)}|${objectSerial(annotations)}|${diagramStyleKey(style)}|${opacity}`;
-  return cachedPictureUrl(key, () => {
+  return throughCache(key, kept, () => {
     const painted = paintSource(source, style);
     return painted ? svgDataUrl(annotatedPicture(painted, annotations, style, opacity)) : null;
   });
+}
+
+/** `paint`'s URL, through the cache when it is to be `kept`. */
+function throughCache(key: string, kept: boolean, paint: () => string | null): string | null {
+  return kept ? cachedPictureUrl(key, paint) : paint();
 }
 
 /** What a source's picture is, for a key: the object it is drawn from, and how. */
@@ -83,15 +92,16 @@ function sourceKey(source: StepPictureSource): string {
  * the picture object — two opens of one project are two objects, and a file
  * edited between them must not show the first one's picture — and by what
  * else the painting reads: the pose, and for a scene the diagram's pens.
- * `null` only for a scene that does not read.
+ * `null` only for a scene that does not read. A scene not `kept` is painted
+ * and not cached ({@link annotatedStepUrl}).
  */
-export function stepPictureUrl(source: StepPictureSource, style: DiagramStyle): string | null {
+export function stepPictureUrl(source: StepPictureSource, style: DiagramStyle, kept = true): string | null {
   switch (source.kind) {
     case 'asset':
       return posedAssetUrl(source.asset, source.pose);
     case 'scene': {
       const key = `${sourceKey(source)}|${diagramStyleKey(style)}`;
-      return cachedPictureUrl(key, () => {
+      return throughCache(key, kept, () => {
         const painted = paintScene(source, style);
         return painted ? svgDataUrl(painted.svg) : null;
       });
