@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlipVertical2, Trash2 } from 'lucide-react';
+import { FlipVertical2, Trash2, type LucideIcon } from 'lucide-react';
+import type { AnnotationActionId } from '../../diagram/annotate/annotationActions';
 import { annotateToolHelp, annotateToolLabel, annotationKindLabel } from '../../diagram/annotate/annotateTools';
-import { LABEL_MAX_LENGTH, isArrowKind } from '../../diagram/annotate/annotationModel';
+import { LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
 import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
 import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
@@ -13,6 +14,12 @@ import { FieldRow, SegmentedRow, TextAreaRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
 import styles from './DiagramStepAnnotations.module.css';
+
+/** Each of the catalog's verbs' icon (`annotationActions.ts`). */
+const ACTION_ICONS: Readonly<Record<AnnotationActionId, LucideIcon>> = {
+  'flip-arc': FlipVertical2,
+  delete: Trash2,
+};
 
 /**
  * The Step pane's annotations (D13).
@@ -194,28 +201,22 @@ function SelectedAnnotation({
       )}
       <FieldRow label={annotationKindLabel(t, annotation.kind)} kind="text">
         <span className={styles.verbs}>
-          {isArrowKind(annotation.kind) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={!editable}
-              title={keyed(t('tools:diagram.flipArc', 'Flip Arc'), 'diagram.flipArc')}
-              onClick={() => annotations.flip(id)}
-            >
-              <FlipVertical2 size={14} aria-hidden="true" />
-              {t('tools:diagram.flipArc', 'Flip Arc')}
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!editable}
-            title={keyed(t('panels:diagram.annotations.delete', 'Delete'), 'edit.delete')}
-            onClick={() => annotations.remove(id)}
-          >
-            <Trash2 size={14} aria-hidden="true" />
-            {t('panels:diagram.annotations.delete', 'Delete')}
-          </Button>
+          {annotations.actions.map((action) => {
+            const Icon = ACTION_ICONS[action.id];
+            return (
+              <Button
+                key={action.id}
+                size="sm"
+                variant="ghost"
+                disabled={action.disabled}
+                title={keyed(action.label, action.shortcutId)}
+                onClick={action.run}
+              >
+                <Icon size={14} aria-hidden="true" />
+                {action.label}
+              </Button>
+            );
+          })}
         </span>
       </FieldRow>
     </div>

@@ -17,21 +17,28 @@ import {
   pushArrowOutline,
   returnStroke,
 } from '../../cp-workspace/references/stepDiagramGeometry';
-import {
-  ARROW_BEND,
-  LINE_KINDS,
-  arrowApex,
-  isArrowKind,
-  isPointKind,
-  labelHalfWidth,
-  type PicturePoint,
-} from './annotationModel';
+import { LINE_KINDS, arrowApex, arrowBend, isPointKind, labelHalfWidth, type PicturePoint } from './annotationModel';
+import { perAnnotation } from './perAnnotation';
 
-/** What a press took hold of: the annotation, and its body or one end. */
-export interface AnnotationGrip {
-  annotationId: string;
-  part: 'body' | 'from' | 'to';
-}
+/**
+ * Which part of an annotation a press took hold of: its body, or one end —
+ * and, as Edit Path and the right-angle mark come to offer them, a node of an
+ * arrow's path, one of a node's two handles, the segment between two nodes
+ * (and where along it, `t` in [0, 1]), a mark's corner or the direction it
+ * opens in. Nothing offers the last five yet.
+ */
+export type AnnotationGripPart =
+  | { part: 'body' }
+  | { part: 'from' }
+  | { part: 'to' }
+  | { part: 'node'; node: number }
+  | { part: 'handle'; node: number; side: 'in' | 'out' }
+  | { part: 'segment'; segment: number; t: number }
+  | { part: 'corner' }
+  | { part: 'direction' };
+
+/** What a press took hold of: the annotation, and which part of it. */
+export type AnnotationGrip = { annotationId: string } & AnnotationGripPart;
 
 /** How near a press must be, in picture units: the ink's reach and a finger's. */
 export interface HitSizes {
@@ -45,10 +52,19 @@ export interface HitSizes {
   ink: number;
 }
 
-/** The points along an arrow's arc, from its tail to its tip. */
-export function arrowPolyline(annotation: KnownDiagramAnnotation, samples = 24): PicturePoint[] {
+/** How many straight pieces an arrow's arc is measured and washed along. */
+const ARROW_SAMPLES = 24;
+
+/**
+ * The points along an arrow's arc, from its tail to its tip: worked out once
+ * per annotation object, as a drag's every step asks for the one in hand and
+ * a press for them all.
+ */
+export const arrowPolyline = perAnnotation((annotation) => sampleArrow(annotation, ARROW_SAMPLES));
+
+function sampleArrow(annotation: KnownDiagramAnnotation, samples: number): PicturePoint[] {
   const { from, to } = annotation;
-  const apex = arrowApex(from, to, annotation.bend ?? ARROW_BEND);
+  const apex = arrowApex(from, to, arrowBend(annotation));
   // The circle through the three points, swept from `from` through `apex` to `to`.
   const [ax, ay] = from;
   const [bx, by] = apex;
@@ -111,7 +127,7 @@ function arrowDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, 
   let distance = distanceToPolyline(point, outgoing);
   let tip = to;
   if (annotation.kind === 'fold-unfold-arrow') {
-    const out = arcThroughPoints(up(from), up(arrowApex(from, to, annotation.bend ?? ARROW_BEND)), up(to));
+    const out = arcThroughPoints(up(from), up(arrowApex(from, to, arrowBend(annotation))), up(to));
     const offset = Math.min(DIAGRAM_FOLD_RETURN_INK.offset * ink, DIAGRAM_FOLD_RETURN_INK.ofChord * chord);
     const back = out ? returnStroke(out, offset) : null;
     if (back) {
@@ -154,21 +170,34 @@ function insidePolygon([x, y]: PicturePoint, ring: readonly PicturePoint[]): boo
   return inside;
 }
 
-/** How far a press is from an annotation's body, as it is drawn; 0 inside a glyph, a label or a push. */
+/**
+ * How far a press is from an annotation's body, as it is drawn; 0 inside a
+ * glyph, a label or a push. Every kind is measured as it is drawn (a switch,
+ * so a new kind is a compile error here until it is).
+ */
 function bodyDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, sizes: HitSizes): number {
-  if (annotation.kind === 'label') {
-    const halfWidth = labelHalfWidth(annotation.text ?? '');
-    const halfHeight = sizes.label * 0.6;
-    const dx = Math.max(0, Math.abs(point[0] - annotation.from[0]) - halfWidth);
-    const dy = Math.max(0, Math.abs(point[1] - annotation.from[1]) - halfHeight);
-    return Math.hypot(dx, dy);
+  switch (annotation.kind) {
+    case 'label': {
+      const halfWidth = labelHalfWidth(annotation.text ?? '');
+      const halfHeight = sizes.label * 0.6;
+      const dx = Math.max(0, Math.abs(point[0] - annotation.from[0]) - halfWidth);
+      const dy = Math.max(0, Math.abs(point[1] - annotation.from[1]) - halfHeight);
+      return Math.hypot(dx, dy);
+    }
+    case 'turn-over':
+    case 'rotate':
+      return Math.max(0, Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - sizes.glyph);
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+      return arrowDistance(annotation, point, sizes.ink);
+    case 'push-arrow':
+      return pushDistance(annotation, point, sizes.ink);
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+      return distanceToSegment(point, annotation.from, annotation.to);
   }
-  if (isPointKind(annotation.kind)) {
-    return Math.max(0, Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - sizes.glyph);
-  }
-  if (isArrowKind(annotation.kind)) return arrowDistance(annotation, point, sizes.ink);
-  if (annotation.kind === 'push-arrow') return pushDistance(annotation, point, sizes.ink);
-  return distanceToSegment(point, annotation.from, annotation.to);
 }
 
 /**

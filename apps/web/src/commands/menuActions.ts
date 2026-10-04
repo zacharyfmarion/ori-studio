@@ -13,6 +13,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { selectWorkspaceCapabilities } from '../store/workspaceStore/capabilities';
 import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
+import { annotationActionEdit } from '../diagram/annotate/annotationActions';
 import type { WorkspaceCapabilities, WorkspaceCapabilityId } from '../lib/workspaceCapabilities';
 import { requestPositiveNumber, type NumberDialogOptions } from '../store/commandDialogStore';
 import { showActiveWorkspace } from '../routing/workspaceUrlSync';
@@ -581,12 +582,9 @@ export function createMenuActionHandler(deps: MenuActionDependencies) {
           if (isDiagramAnnotating(deps.workspace)) {
             const annotationId = deps.workspace.diagramSelectedAnnotationId;
             if (annotationId === null) return false;
-            return deps.workspace.editDiagramAnnotations(
-              stepId,
-              'Delete annotation',
-              (annotations) => annotations.filter((annotation) => annotation.id !== annotationId),
-              { select: null }
-            );
+            // The Step pane's Delete, by the same edit (`annotationActions.ts`).
+            const { label, edit, select } = annotationActionEdit('delete', annotationId);
+            return deps.workspace.editDiagramAnnotations(stepId, label, edit, { select });
           }
           return deps.workspace.confirmDeleteDiagramSteps([stepId]);
         }

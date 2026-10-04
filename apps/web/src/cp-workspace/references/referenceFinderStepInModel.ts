@@ -125,6 +125,12 @@ export function diagramInModel(model: StepDiagramModel, frame: PrecreaseFrame): 
       case 'label':
         primitives.push({ ...primitive, at: map(primitive.at) });
         break;
+      default: {
+        // Every kind is carried above: a new one is a compile error here
+        // until it is, rather than dropped from the canvas.
+        const _uncarried: never = primitive;
+        break;
+      }
     }
   }
   const longer = Math.max(frame.width, frame.height);

@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
 import type { DiagramAnnotationKind } from '../document/diagramDocument';
-import { isPointKind } from './annotationModel';
+import { ANNOTATION_KINDS, isPointKind } from './annotationModel';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
@@ -20,15 +20,27 @@ export interface AnnotateToolGroup {
   tools: readonly AnnotateTool[];
 }
 
-/** The rail's groups, in order: Select; Arrows; Lines; Text. */
+/** The group each kind's tool is in on the rail: a record, so no kind can be left off it. */
+const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGroupId, 'select'>>> = {
+  'valley-arrow': 'arrows',
+  'mountain-arrow': 'arrows',
+  'fold-unfold-arrow': 'arrows',
+  'push-arrow': 'arrows',
+  'turn-over': 'arrows',
+  rotate: 'arrows',
+  'valley-line': 'lines',
+  'mountain-line': 'lines',
+  'hidden-line': 'lines',
+  label: 'text',
+};
+
+/** The rail's groups, in order: Select; Arrows; Lines; Text — each kind's tool in its group, in kind order. */
 export const ANNOTATE_TOOL_GROUPS: readonly AnnotateToolGroup[] = [
   { id: 'select', tools: [null] },
-  {
-    id: 'arrows',
-    tools: ['valley-arrow', 'mountain-arrow', 'fold-unfold-arrow', 'push-arrow', 'turn-over', 'rotate'],
-  },
-  { id: 'lines', tools: ['valley-line', 'mountain-line', 'hidden-line'] },
-  { id: 'text', tools: ['label'] },
+  ...(['arrows', 'lines', 'text'] as const).map((id) => ({
+    id,
+    tools: ANNOTATION_KINDS.filter((kind) => TOOL_GROUP[kind] === id),
+  })),
 ];
 
 /** Each kind's tool key. */

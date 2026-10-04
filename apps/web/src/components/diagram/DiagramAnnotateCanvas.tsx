@@ -5,7 +5,7 @@ import { arrowPolyline } from '../../diagram/annotate/annotationHit';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
 import { GLYPH_REACH, useAnnotateCanvas, type AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
-import { isArrowKind, isPointKind, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
+import { labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
 import {
   isKnownAnnotation,
   type DiagramAsset,
@@ -22,11 +22,12 @@ import styles from './DiagramAnnotateCanvas.module.css';
 const HANDLE_PX = 5;
 
 /**
- * The Annotate canvas (D8): the step's picture alone, on its paper, with its
- * annotations drawn over it live as they print — under one camera, with room
- * round the picture for an arrow that starts off it. The selected annotation
+ * The Annotate canvas (D8): the step's picture alone, with its annotations
+ * drawn over it live as they print — under one camera, on a stage as white as
+ * the page in every theme, so a mark that reaches past the picture reads as it
+ * will print. A hairline marks the picture's frame. The selected annotation
  * shows where it is and, for a line or an arrow, a dot at each end. The
- * behaviour is `useAnnotateCanvas`'s.
+ * behaviour is `useAnnotateCanvas`'s; its presses are the whole stage's.
  */
 export function DiagramAnnotateCanvas({
   step,
@@ -62,8 +63,10 @@ export function DiagramAnnotateCanvas({
       ref={containerRef}
       className={styles.view}
       data-space-pan={spacePressed || undefined}
+      data-tool={tool ?? 'select'}
       tabIndex={-1}
       onPointerDownCapture={onPointerDownCapture}
+      {...handlers}
     >
       <TransformWrapper
         ref={transformRef}
@@ -86,6 +89,7 @@ export function DiagramAnnotateCanvas({
         onTransformed={onTransformed}
       >
         <TransformComponent
+          wrapperClass={styles.stage}
           wrapperStyle={{ width: '100%', height: '100%' }}
           contentStyle={layout ? { width: layout.world.width, height: layout.world.height } : undefined}
         >
@@ -94,17 +98,17 @@ export function DiagramAnnotateCanvas({
               <div className={styles.paper} style={box(layout.picture)}>
                 {url && <img className={styles.picture} src={url} alt="" draggable={false} />}
               </div>
+              {/* The frame, not the painted box: what the picture's units measure, and what a mark is placed against. */}
+              <div className={styles.frame} style={box(layout.frame)} data-annotate-frame="" />
               <svg
                 ref={overlay}
                 className={styles.overlay}
                 data-annotate-overlay=""
-                data-tool={tool ?? 'select'}
                 width={layout.world.width}
                 height={layout.world.height}
                 viewBox={`0 0 ${layout.world.width} ${layout.world.height}`}
                 role="img"
                 aria-label={t('panels:diagram.annotate.canvasLabel', 'Annotations on the step’s picture')}
-                {...handlers}
               >
                 {drawing && (
                   <g
@@ -127,6 +131,7 @@ export function DiagramAnnotateCanvas({
         fitToView={fitToView}
         setZoomLevel={setZoomLevel}
         groups={[]}
+        tone="raised"
       />
     </div>
   );
@@ -155,12 +160,32 @@ function Selection({
 }) {
   const at = ([u, v]: readonly [number, number]) => [layout.frame.x + u * layout.unit, layout.frame.y + v * layout.unit];
   const handle = HANDLE_PX / zoom;
-  if (isPointKind(annotation.kind)) {
+  const ring = (reach: number) => {
     const [x, y] = at(annotation.from);
-    const reach = (annotation.kind === 'label' ? labelHalfWidth(annotation.text ?? '') + 0.1 * LABEL_SIZE : GLYPH_REACH) * layout.unit;
-    return <circle className={styles.selection} cx={x} cy={y} r={reach} data-selection="" />;
+    return <circle className={styles.selection} cx={x} cy={y} r={reach * layout.unit} data-selection="" />;
+  };
+  // Washed along as it is drawn: a sign or a label round its place, an arrow
+  // along its arc, a push or a line straight. A switch, so a new kind has to say.
+  let path: readonly (readonly [number, number])[];
+  switch (annotation.kind) {
+    case 'label':
+      return ring(labelHalfWidth(annotation.text ?? '') + 0.1 * LABEL_SIZE);
+    case 'turn-over':
+    case 'rotate':
+      return ring(GLYPH_REACH);
+    case 'valley-arrow':
+    case 'mountain-arrow':
+    case 'fold-unfold-arrow':
+      path = arrowPolyline(annotation);
+      break;
+    case 'push-arrow':
+    case 'valley-line':
+    case 'mountain-line':
+    case 'hidden-line':
+      path = [annotation.from, annotation.to];
+      break;
   }
-  const points = (isArrowKind(annotation.kind) ? arrowPolyline(annotation) : [annotation.from, annotation.to]).map(at);
+  const points = path.map(at);
   return (
     <g data-selection="">
       <polyline className={styles.selection} points={points.map((point) => point.join(',')).join(' ')} />

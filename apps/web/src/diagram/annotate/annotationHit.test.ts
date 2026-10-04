@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diagramDocument';
-import { arrowApex } from './annotationModel';
+import { arrowApex, flipAnnotationArc } from './annotationModel';
 import { arrowPolyline, hitAnnotation } from './annotationHit';
 
 /** About the canvas's: an ink is about 0.0066 of the frame. */
@@ -71,11 +71,21 @@ describe('hitAnnotation', () => {
 
 describe('arrowPolyline', () => {
   it('runs from tail to tip through the apex', () => {
-    const points = arrowPolyline(arrow, 8);
+    const points = arrowPolyline(arrow);
+    expect(points).toHaveLength(25);
     expect(points[0]![0]).toBeCloseTo(0.2, 9);
-    expect(points[8]![0]).toBeCloseTo(0.6, 9);
+    expect(points[24]![0]).toBeCloseTo(0.6, 9);
     const apex = arrowApex(arrow.from, arrow.to, arrow.bend!);
-    expect(points[4]![0]).toBeCloseTo(apex[0], 9);
-    expect(points[4]![1]).toBeCloseTo(apex[1], 9);
+    expect(points[12]![0]).toBeCloseTo(apex[0], 9);
+    expect(points[12]![1]).toBeCloseTo(apex[1], 9);
+  });
+
+  it('is worked out once per annotation object, and again for an edited one', () => {
+    const points = arrowPolyline(arrow);
+    expect(arrowPolyline(arrow)).toBe(points);
+    const flipped = flipAnnotationArc(arrow);
+    expect(arrowPolyline(flipped)).not.toBe(points);
+    // The other way round: the apex on the other side of the chord.
+    expect(arrowPolyline(flipped)[12]![1]).toBeCloseTo(arrow.from[1] + (arrow.from[1] - points[12]![1]), 9);
   });
 });

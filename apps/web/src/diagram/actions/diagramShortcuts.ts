@@ -19,8 +19,8 @@ export interface DiagramKeyState {
    * are its own. Escape closes it first.
    */
   browserOpen?: boolean;
-  /** The detail is in Annotate: its tool, its selected annotation, and whether that is a fold arrow. */
-  annotate?: { tool: AnnotateTool; selectedAnnotationId: string | null; selectedIsArrow: boolean } | null;
+  /** The detail is in Annotate: its tool, its selected annotation, and whether that offers Flip arc. */
+  annotate?: { tool: AnnotateTool; selectedAnnotationId: string | null; canFlipArc: boolean } | null;
 }
 
 export interface DiagramKeyActions {
@@ -123,7 +123,8 @@ export function isAnnotateShortcut(id: DiagramShortcutId): id is DiagramAnnotate
 
 /**
  * Annotate's keys: a tool's letter picks it — pressed again, back to Select —
- * and F flips the selected fold arrow. Outside Annotate, and on a diagram
+ * and F flips the selected annotation's arc, when it offers Flip arc
+ * (`annotationActions.ts`). Outside Annotate, and on a diagram
  * that cannot change, they decline: the letters are a crease-pattern tool's
  * too, and nothing here should eat them.
  */
@@ -135,7 +136,7 @@ export function runDiagramAnnotateShortcut(
   const annotate = state.annotate;
   if (!annotate || state.readOnly) return false;
   if (id === 'diagram.flipArc') {
-    if (!annotate.selectedIsArrow || !actions.flipArc) return false;
+    if (!annotate.canFlipArc || !actions.flipArc) return false;
     actions.flipArc();
     return true;
   }

@@ -134,8 +134,8 @@ describe('the step keys while the References browser is open', () => {
 });
 
 describe('Annotate’s keys', () => {
-  const annotate = (tool: string | null = null, selectedIsArrow = false) => ({
-    annotate: { tool: tool as never, selectedAnnotationId: selectedIsArrow ? 'a' : null, selectedIsArrow },
+  const annotate = (tool: string | null = null, canFlipArc = false) => ({
+    annotate: { tool: tool as never, selectedAnnotationId: canFlipArc ? 'a' : null, canFlipArc },
   });
   const press = (id: Parameters<typeof runDiagramShortcut>[0], state: Partial<DiagramKeyState>) => {
     const actions = { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn(), setTool: vi.fn(), flipArc: vi.fn() };
@@ -176,7 +176,7 @@ describe('Annotate’s Escape rungs', () => {
     const state = {
       selectedStepId: 'a',
       detailOpen: true,
-      annotate: { tool: 'label' as const, selectedAnnotationId: 'x', selectedIsArrow: false },
+      annotate: { tool: 'label' as const, selectedAnnotationId: 'x', canFlipArc: false },
     };
     expect(runDiagramCancel(state, actions)).toBe(true);
     expect(actions.cancelGesture).toHaveBeenCalledOnce();
@@ -190,7 +190,7 @@ describe('Annotate’s Escape rungs', () => {
     expect(actions.setTool).toHaveBeenCalledWith(null);
     expect(actions.close).not.toHaveBeenCalled();
 
-    runDiagramCancel({ ...state, annotate: { tool: null, selectedAnnotationId: null, selectedIsArrow: false } }, actions);
+    runDiagramCancel({ ...state, annotate: { tool: null, selectedAnnotationId: null, canFlipArc: false } }, actions);
     expect(actions.close).toHaveBeenCalledOnce();
   });
 });
