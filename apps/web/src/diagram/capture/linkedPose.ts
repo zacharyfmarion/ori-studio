@@ -13,21 +13,24 @@ import {
   antipodalCamera,
   type FoldedFigureCamera,
 } from '../../cp-workspace/folded/folded3dCamera';
-import type { SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { SpreadDirection, SpreadKeep, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import { resolveFoldRoute } from '../../cp-workspace/folded/foldRoute';
 import {
   POSE_ROTATION_STEP_DEG,
   type DiagramLinkedPoseActionId,
 } from '../actions/diagramLinkedPoseActions';
 import {
-  DEFAULT_LAYER_SPREAD,
   DEFAULT_SIMULATED_VIEW,
+  DEFAULT_SPREAD_STARTS,
   clampSpreadAmount,
+  clampSpreadAxis,
+  clampSpreadSkew,
   renderToShowAs,
   type DiagramCpRender,
   type DiagramCpSource,
   type DiagramLayerSpread,
   type DiagramSimulatedView,
+  type DiagramSpreadStarts,
   type DiagramStyle,
 } from '../document/diagramDocument';
 import type { StepCreases } from './captureCreases';
@@ -45,16 +48,59 @@ import type { CaptureSession, SpatialHold } from './captureSession';
 /**
  * A verb, an orbit of the 3D view ending at a camera, a turn typed in degrees
  * (D5's angle field) for a crease pattern or a flat fold, a flat fold's spread
- * set to an amount or a direction (Phase 13), or Pose's simulator come to rest
- * (D19): its model where the solver holds it, at a fold %, from a camera.
+ * set to a kind, an amount or a direction, or an affine one's layer held
+ * still, skew or axis (Phase 13), or Pose's simulator come to rest (D19): its
+ * model where the solver holds it, at a fold %, from a camera.
  */
 export type LinkedPoseRequest =
   | { verb: DiagramLinkedPoseActionId }
   | { verb: 'orbit'; camera: FoldedFigureCamera }
   | { verb: 'rotate-to'; degrees: number }
+  | { verb: 'spread-kind'; kind: SpreadKind }
   | { verb: 'spread-amount'; amount: number }
   | { verb: 'spread-direction'; toward: SpreadDirection }
+  | { verb: 'spread-keep'; keep: SpreadKeep }
+  | { verb: 'spread-skew'; skew: number }
+  | { verb: 'spread-axis'; axisDeg: number }
   | { verb: 'simulate'; foldPercent: number; view: DiagramSimulatedView; still: StillScene };
+
+/** The verbs that set one field of a spread: each a no-op on a fold with none, or of the other kind. */
+type SpreadFieldRequest = Extract<
+  LinkedPoseRequest,
+  { verb: 'spread-amount' | 'spread-direction' | 'spread-keep' | 'spread-skew' | 'spread-axis' }
+>;
+
+const SPREAD_FIELD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
+  'spread-amount',
+  'spread-direction',
+  'spread-keep',
+  'spread-skew',
+  'spread-axis',
+]);
+
+function isSpreadFieldRequest(request: LinkedPoseRequest): request is SpreadFieldRequest {
+  return SPREAD_FIELD_VERBS.has(request.verb);
+}
+
+/**
+ * A spread with one field set as a verb asks, within its range; the spread
+ * itself when the verb is not for its kind — a direction for an affine one,
+ * a skew for one by depth — which a verb undone under a drag can leave.
+ */
+export function withSpreadField(spread: DiagramLayerSpread, request: SpreadFieldRequest): DiagramLayerSpread {
+  switch (request.verb) {
+    case 'spread-amount':
+      return { ...spread, amount: clampSpreadAmount(spread.kind, request.amount) };
+    case 'spread-direction':
+      return spread.kind === 'depth' ? { ...spread, toward: request.toward } : spread;
+    case 'spread-keep':
+      return spread.kind === 'affine' ? { ...spread, keep: request.keep } : spread;
+    case 'spread-skew':
+      return spread.kind === 'affine' ? { ...spread, skew: clampSpreadSkew(request.skew) } : spread;
+    case 'spread-axis':
+      return spread.kind === 'affine' ? { ...spread, axisDeg: clampSpreadAxis(request.axisDeg) } : spread;
+  }
+}
 
 export type LinkedPoseResult =
   | {
@@ -89,11 +135,11 @@ export interface LinkedPoseInput {
   /** The simulator, for showing the pattern Simulated (D19). */
   simulateFlat?: SimulateFlat;
   /**
-   * The spread Spread Layers turns on with: the nearest earlier step's, so a
-   * diagram's steps spread alike (`nearestEarlierSpread`); the default when
-   * absent.
+   * The spreads a flat fold starts with — a new flat pose, Spread Layers
+   * turned on, a kind chosen — the nearest earlier step's, so a diagram's
+   * steps spread alike (`spreadStartsFor`); the defaults when absent.
    */
-  spreadStart?: DiagramLayerSpread;
+  spreadStart?: DiagramSpreadStarts;
 }
 
 /** A flat fold's pose: which side, turned how far, which layer order, its layers spread or not. */
@@ -111,7 +157,7 @@ const VIEW_FRONT: FoldedFigureCamera = { yaw: 0, pitch: -Math.PI / 2, zoom: 1 };
 
 export async function poseLinkedStep(
   session: CaptureSession,
-  { document, creases, render, remembered, style, simulateFlat, spreadStart }: LinkedPoseInput,
+  { document, creases, render, remembered, style, simulateFlat, spreadStart = DEFAULT_SPREAD_STARTS }: LinkedPoseInput,
   request: LinkedPoseRequest
 ): Promise<LinkedPoseResult> {
   const spatialRoute = resolveFoldRoute(document, creases.foldLineIds).kind === 'spatial';
@@ -165,17 +211,23 @@ export async function poseLinkedStep(
     };
   };
 
-  /** The folded form the creases fold into, turned as the crease pattern was. */
+  /**
+   * The folded form the creases fold into, turned as the crease pattern was:
+   * a flat one with its layers spread, as every new flat pose starts (13g).
+   */
   const folded = (rotationDeg: number) =>
-    spatialRoute ? spatial(defaultCaptureCamera('front'), 'front') : flat({ side: 'front', rotationDeg, foldCase: 1 });
+    spatialRoute
+      ? spatial(defaultCaptureCamera('front'), 'front')
+      : flat({ side: 'front', rotationDeg, foldCase: 1, spread: spreadStart.any });
 
   /**
    * The folded form in the pose it last had (D19), by the route its creases
    * take now: a remembered 3D view for creases that fold flat now starts flat,
-   * and a remembered flat fold for creases that fold in 3D starts in 3D.
+   * and a remembered flat fold for creases that fold in 3D starts in 3D. A
+   * flat fold never remembered starts spread; one remembered keeps its own.
    */
   const foldedAsRemembered = (): Promise<LinkedPoseResult> => {
-    const target = renderToShowAs({ render, remembered }, 'folded');
+    const target = renderToShowAs({ render, remembered }, 'folded', spreadStart.any);
     if (target.mode === 'folded-flat' && !spatialRoute) return flat(target);
     if (target.mode === 'folded-3d' && spatialRoute) return spatial(target.camera, target.side);
     return folded(target.mode === 'folded-flat' ? target.rotationDeg : 0);
@@ -248,7 +300,6 @@ export async function poseLinkedStep(
   if (render.mode === 'folded-flat') {
     const { rotationDeg, foldCase, spread } = render;
     const pose: FlatPose = { side: render.side, rotationDeg, foldCase, ...(spread ? { spread } : {}) };
-    const start = spreadStart ?? DEFAULT_LAYER_SPREAD;
     switch (verb) {
       case 'show-folded':
         return flat(pose);
@@ -273,15 +324,20 @@ export async function poseLinkedStep(
         return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread } : {}) });
       case 'spread-layers': {
         const { spread: _was, ...unspread } = pose;
-        return flat(spread ? unspread : { ...unspread, spread: start });
+        return flat(spread ? unspread : { ...unspread, spread: spreadStart.any });
       }
+      case 'spread-kind':
+        // The other kind, from where the steps before left it: each kind keeps its own settings.
+        if (!spread || request.verb !== 'spread-kind' || spread.kind === request.kind) return flat(pose);
+        return flat({ ...pose, spread: spreadStart[request.kind] });
       case 'spread-amount':
-        // Only a spread there is takes an amount: one undone under the drag stays off.
-        if (!spread || request.verb !== 'spread-amount') return flat(pose);
-        return flat({ ...pose, spread: { ...spread, amount: clampSpreadAmount(request.amount) } });
       case 'spread-direction':
-        if (!spread || request.verb !== 'spread-direction') return flat(pose);
-        return flat({ ...pose, spread: { ...spread, toward: request.toward } });
+      case 'spread-keep':
+      case 'spread-skew':
+      case 'spread-axis':
+        // Only a spread there is takes a value: one undone under the drag stays off.
+        if (!spread || !isSpreadFieldRequest(request)) return flat(pose);
+        return flat({ ...pose, spread: withSpreadField(spread, request) });
       default:
         return flat(pose);
     }

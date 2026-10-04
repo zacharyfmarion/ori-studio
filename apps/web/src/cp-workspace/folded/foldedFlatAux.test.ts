@@ -41,6 +41,7 @@ const B = 1;
 function twoFlaps(aux: OristudioCpFoldedPaperScene['aux_lines']): OristudioCpFoldedPaperScene {
   return {
     schema_version: 2,
+    sheet_points: [],
     flipped: false,
     sheet: 100,
     faces: [face(rectangle(0, 0, 60, 40), 0), face(rectangle(40, 0, 100, 40), 4)],

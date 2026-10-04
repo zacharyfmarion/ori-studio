@@ -116,7 +116,8 @@ export type DiagramArrowShapeGesture =
  * (show it as its crease pattern, folded or simulated, turn it over, step to
  * another layer order, look from a named side, orbit the 3D view, bring
  * Pose's simulator to rest at a fold % and camera, or spread a flat fold's
- * layers: on, off, another amount or another direction).
+ * layers: on, off, the other kind, another amount or direction, or an affine
+ * spread's other layer held still, skew or axis).
  */
 export type DiagramPoseAction =
   | 'rotate_left'
@@ -138,8 +139,27 @@ export type DiagramPoseAction =
   | 'simulate'
   | 'spread_on'
   | 'spread_off'
+  | 'spread_kind'
   | 'spread_amount'
-  | 'spread_direction';
+  | 'spread_direction'
+  | 'spread_keep'
+  | 'spread_skew'
+  | 'spread_axis';
+
+/** How a flat fold's layers are spread (13g): stepped by depth, or DEFOX's affine opening. */
+export type DiagramSpreadKind = 'depth' | 'affine';
+
+/** Which layer an affine spread holds still, as the front sees it. */
+export type DiagramSpreadKeep = 'top' | 'bottom';
+
+/**
+ * How a spread verb left a fold's layers, for `diagram picture posed`: its
+ * kind and amount, and a depth spread's direction or an affine one's layer
+ * held still, skew and axis. The numbers are bucketed when sent.
+ */
+export type DiagramSpreadTracking =
+  | { kind: 'depth'; direction: DiagramSpreadDirection; amount: number }
+  | { kind: 'affine'; amount: number; keep: DiagramSpreadKeep; skew: number; axisDeg: number };
 
 /** Where a flat fold's deeper layers step to, on the screen (Phase 13), in the event's own spelling. */
 export type DiagramSpreadDirection =
@@ -153,10 +173,17 @@ export type DiagramSpreadDirection =
   | 'left';
 
 /**
- * How far a spread steps the deepest layer, in percent of the model, bucketed
- * about the default 5%: `<=2.5`, `<=7.5`, `<=12.5`, `>12.5`. Never the value.
+ * How far a spread goes, in percent — of the model for a depth spread, of the
+ * way back to the sheet for an affine one — bucketed: `<=2.5` (the depth
+ * default), `<=7.5` (the affine default, 3%), `<=12.5`, `>12.5`. Never the value.
  */
 export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
+
+/** An affine spread's skew, in percent: none, some, most, all (the default). Never the value. */
+export const DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS = [0, 50, 99] as const;
+
+/** An affine spread's axis, in degrees, by quarter of its half turn (the default 81° is `<=90`). Never the value. */
+export const DIAGRAM_SPREAD_AXIS_DEGREE_BUCKETS = [45, 90, 135] as const;
 
 /**
  * What a step's picture is: an upload, by what it is stored as, or a capture

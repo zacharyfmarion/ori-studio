@@ -98,6 +98,7 @@ function foldedScene(): OristudioCpFoldedPaperScene {
   ];
   return {
     schema_version: 2,
+    sheet_points: [],
     flipped: false,
     sheet: 1,
     faces: [

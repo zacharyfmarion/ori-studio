@@ -15,7 +15,12 @@
  */
 
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
-import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import type {
+  AffineSpreadOptions,
+  DepthSpreadOptions,
+  LayerSpreadOptions,
+  SpreadKind,
+} from '../../cp-workspace/folded/foldedLayerSpread';
 import type { StepDiagramModel } from '../../cp-workspace/references/referenceFinderDiagramToPrimitives';
 import type { RegionReference } from '../../cp-workspace/regions/regionReference';
 import type { SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
@@ -108,8 +113,8 @@ export type DiagramCpRender =
       /** Which layer-ordering solution, 1-based. */
       foldCase: number;
       /**
-       * The layers stepped apart by depth (Phase 13): a choice about the
-       * picture, kept by every other pose verb. Absent is none.
+       * The layers spread apart, by depth or affine (Phase 13): a choice
+       * about the picture, kept by every other pose verb. Absent is none.
        */
       spread?: DiagramLayerSpread;
     }
@@ -123,46 +128,133 @@ export type DiagramCpRender =
     };
 
 /**
- * A flat fold's layers stepped apart (`foldedLayerSpread.ts`): the deepest
- * layer's step as a fraction of the model's size, within
- * {@link SPREAD_AMOUNT_RANGE}, toward one of eight directions on the screen.
+ * A flat fold's layers spread apart (`foldedLayerSpread.ts`), one of two
+ * kinds: by depth — the deepest layer's step as a fraction of the model's
+ * size, toward one of eight directions on the screen — or affine, DEFOX's
+ * opening toward the sheet — τ, the layer held still, the skew and its axis
+ * in the sheet's frame. Each value within its range below.
  */
 export type DiagramLayerSpread = LayerSpreadOptions;
-
-/** How far a spread may step the deepest layer: 0.5% to 20% of the model. */
-export const SPREAD_AMOUNT_RANGE = { min: 0.005, max: 0.2 } as const;
+export type DiagramDepthSpread = DepthSpreadOptions;
+export type DiagramAffineSpread = AffineSpreadOptions;
 
 /**
- * An amount a spread may take: within {@link SPREAD_AMOUNT_RANGE}, to a
- * hundredth of a percent, so a slider's float noise is not written.
+ * How far a spread may go, by kind: a depth spread steps the deepest layer
+ * 0.5% to 20% of the model; an affine one moves a point 0.5% to 25% of the
+ * way back to the sheet.
  */
-export function clampSpreadAmount(amount: number): number {
-  const { min, max } = SPREAD_AMOUNT_RANGE;
-  const within = Number.isFinite(amount) ? Math.min(max, Math.max(min, amount)) : DEFAULT_LAYER_SPREAD.amount;
+export const SPREAD_AMOUNT_RANGE: Readonly<Record<SpreadKind, { readonly min: number; readonly max: number }>> = {
+  depth: { min: 0.005, max: 0.2 },
+  affine: { min: 0.005, max: 0.25 },
+};
+
+/** An affine spread's skew: none (an even lerp toward the sheet) to all (about its axis). */
+export const SPREAD_SKEW_RANGE = { min: 0, max: 1 } as const;
+
+/** An affine spread's axis, in whole degrees: an axis at 180° is the one at 0°. */
+export const SPREAD_AXIS_RANGE = { min: 0, max: 179 } as const;
+
+/**
+ * An amount a spread of `kind` may take: within {@link SPREAD_AMOUNT_RANGE},
+ * to a hundredth of a percent, so a slider's float noise is not written.
+ */
+export function clampSpreadAmount(kind: SpreadKind, amount: number): number {
+  const { min, max } = SPREAD_AMOUNT_RANGE[kind];
+  const fallback = kind === 'depth' ? DEFAULT_LAYER_SPREAD.amount : DEFAULT_AFFINE_SPREAD.amount;
+  const within = Number.isFinite(amount) ? Math.min(max, Math.max(min, amount)) : fallback;
   return Number(within.toFixed(4));
 }
 
-/** The spread a step starts with when no earlier step has one: 5%, deeper layers up and to the left. */
-export const DEFAULT_LAYER_SPREAD: DiagramLayerSpread = { amount: 0.05, toward: 'up-left' };
+/** A skew an affine spread may take: 0 to 1, to a hundredth. */
+export function clampSpreadSkew(skew: number): number {
+  const within = Number.isFinite(skew) ? Math.min(1, Math.max(0, skew)) : DEFAULT_AFFINE_SPREAD.skew;
+  return Number(within.toFixed(2));
+}
+
+/** An axis an affine spread may take: whole degrees, 0 to 179, one half-turn being the same axis. */
+export function clampSpreadAxis(degrees: number): number {
+  if (!Number.isFinite(degrees)) return DEFAULT_AFFINE_SPREAD.axisDeg;
+  return ((Math.round(degrees) % 180) + 180) % 180;
+}
 
 /**
- * The spread of the nearest step before `stepId` whose flat fold has one, for
- * a step turning its spread on: a diagram's steps spread alike without a
- * diagram-wide setting. Null when none before it does.
+ * The spread a folded-flat pose starts with when no earlier step has one —
+ * Zach, 2026-10-04: "depth based ON for folded figures, set to down and 2.5%".
  */
-export function nearestEarlierSpread(document: DiagramDocument, stepId: string): DiagramLayerSpread | null {
+export const DEFAULT_LAYER_SPREAD: DiagramDepthSpread = { kind: 'depth', amount: 0.025, toward: 'down' };
+
+/**
+ * The affine spread Affine starts from when no earlier step has one: the
+ * playground's bird base, DEFOX's angle 0.95 (φ = 162°, so θ = 81°), fully
+ * skewed, 3%. Held still: the top as the front sees it — the playground drew
+ * that fold from the side the kernel calls its back, so its bottom is the
+ * front's top (`implementation-plans/diagram-distortion.md`, 13g).
+ */
+export const DEFAULT_AFFINE_SPREAD: DiagramAffineSpread = {
+  kind: 'affine',
+  amount: 0.03,
+  keep: 'top',
+  skew: 1,
+  axisDeg: 81,
+};
+
+/**
+ * The spread of the nearest step before `stepId` whose flat fold has one —
+ * of `kind`, when one is asked for — for a step starting a spread: a
+ * diagram's steps spread alike without a diagram-wide setting. Null when none
+ * before it does.
+ */
+export function nearestEarlierSpread(
+  document: DiagramDocument,
+  stepId: string,
+  kind?: SpreadKind
+): DiagramLayerSpread | null {
   for (let index = stepIndex(document, stepId) - 1; index >= 0; index -= 1) {
     const entry = document.steps[index]!;
     if (isTurn(entry) || isLockedStep(entry) || entry.source?.kind !== 'cp') continue;
     const { render } = entry.source;
-    if (render.mode === 'folded-flat' && render.spread) return render.spread;
+    if (render.mode === 'folded-flat' && render.spread && (kind === undefined || render.spread.kind === kind)) {
+      return render.spread;
+    }
   }
   return null;
 }
 
+/**
+ * What a step's spread starts from: a new flat pose, or Spread Layers turned
+ * on (`any`), and either kind chosen (`depth`, `affine`) — each the nearest
+ * earlier step's, else its default.
+ */
+export interface DiagramSpreadStarts {
+  any: DiagramLayerSpread;
+  depth: DiagramDepthSpread;
+  affine: DiagramAffineSpread;
+}
+
+/** The starts when there is no diagram to look in: the defaults. */
+export const DEFAULT_SPREAD_STARTS: DiagramSpreadStarts = {
+  any: DEFAULT_LAYER_SPREAD,
+  depth: DEFAULT_LAYER_SPREAD,
+  affine: DEFAULT_AFFINE_SPREAD,
+};
+
+/** {@link DiagramSpreadStarts} for a step of `document`. */
+export function spreadStartsFor(document: DiagramDocument, stepId: string): DiagramSpreadStarts {
+  const depth = nearestEarlierSpread(document, stepId, 'depth');
+  const affine = nearestEarlierSpread(document, stepId, 'affine');
+  return {
+    any: nearestEarlierSpread(document, stepId) ?? DEFAULT_LAYER_SPREAD,
+    depth: depth?.kind === 'depth' ? depth : DEFAULT_LAYER_SPREAD,
+    affine: affine?.kind === 'affine' ? affine : DEFAULT_AFFINE_SPREAD,
+  };
+}
+
 /** Whether two spreads, or their absence, are one. */
 export function sameSpread(a: DiagramLayerSpread | undefined, b: DiagramLayerSpread | undefined): boolean {
-  return a === b || (a !== undefined && b !== undefined && a.amount === b.amount && a.toward === b.toward);
+  if (a === b) return true;
+  if (a === undefined || b === undefined || a.kind !== b.kind || a.amount !== b.amount) return false;
+  if (a.kind === 'depth') return b.kind === 'depth' && a.toward === b.toward;
+  return b.kind === 'affine' && a.keep === b.keep && a.skew === b.skew && a.axisDeg === b.axisDeg;
 }
 
 /**
@@ -224,11 +316,14 @@ export interface DiagramCpSource {
  * front at the first layer order. A flat fold's back at a turn is its front at
  * the opposite turn, mirrored (Turn Over, 12d), so its front's turn is the one
  * carried. A flat fold asked of creases that fold in 3D becomes the 3D one
- * where it is captured (`renderForRoute`).
+ * where it is captured (`renderForRoute`). A flat fold started here, not
+ * remembered, has its layers spread by `spread` (13g: on by default — the
+ * nearest earlier step's, `spreadStartsFor`); one remembered keeps its own.
  */
 export function renderToShowAs(
   source: Pick<DiagramCpSource, 'render' | 'remembered'>,
-  way: DiagramShowAs
+  way: DiagramShowAs,
+  spread?: DiagramLayerSpread
 ): DiagramCpRender {
   const { render } = source;
   if (showAsOf(render) === way) return render;
@@ -249,7 +344,7 @@ export function renderToShowAs(
         : 0;
   return way === 'crease-pattern'
     ? { mode: 'crease-pattern', rotationDeg: turn }
-    : { mode: 'folded-flat', side: 'front', rotationDeg: turn, foldCase: 1 };
+    : { mode: 'folded-flat', side: 'front', rotationDeg: turn, foldCase: 1, ...(spread ? { spread } : {}) };
 }
 
 /**

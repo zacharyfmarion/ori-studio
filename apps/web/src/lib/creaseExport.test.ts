@@ -1153,6 +1153,7 @@ describe('folded figure placement', () => {
       }));
     return {
       schema_version: 2,
+      sheet_points: [],
       flipped: false,
       sheet: 4,
       faces: [

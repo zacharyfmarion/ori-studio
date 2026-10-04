@@ -8,6 +8,7 @@ import {
   type DiagramLinkedPoseState,
   layerOrderLabel,
 } from './diagramLinkedPoseActions';
+import type { DiagramLayerSpread } from '../document/diagramDocument';
 
 const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
   fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as unknown as TFunction;
@@ -162,7 +163,7 @@ describe('the linked pose verbs', () => {
 
 describe('spreading a flat fold’s layers (Phase 13)', () => {
   const FLAT = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
-  const SPREAD = { amount: 0.05, toward: 'up-left' as const };
+  const SPREAD = { kind: 'depth' as const, amount: 0.05, toward: 'up-left' as const };
   const toggle = (state: Partial<DiagramLinkedPoseState>, pose = vi.fn()) =>
     build({ render: FLAT, ...state }, pose).find((action) => action.id === 'spread-layers')!;
 
@@ -190,44 +191,60 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(pose).not.toHaveBeenCalled();
   });
 
-  it('offers its amount and direction only while on, the drag’s spread over the step’s', () => {
-    const direction = vi.fn();
-    const controls = (state: Partial<DiagramLinkedPoseState>, shown: typeof SPREAD | null = null) =>
-      buildDiagramSpreadControls(
-        { render: FLAT, readOnly: false, busy: false, solutions: null, ...state },
-        shown,
-        { t, direction }
-      );
+  const AFFINE = { kind: 'affine' as const, amount: 0.03, keep: 'top' as const, skew: 1, axisDeg: 81 };
+  const verbs = () => ({ kind: vi.fn(), direction: vi.fn(), keep: vi.fn() });
+  const controlsWith = (deps: ReturnType<typeof verbs>) => (state: Partial<DiagramLinkedPoseState>, shown: DiagramLayerSpread | null = null) =>
+    buildDiagramSpreadControls({ render: FLAT, readOnly: false, busy: false, solutions: null, ...state }, shown, { t, ...deps });
+
+  it('offers its kind and a depth spread’s direction only while on, the drag’s spread over the step’s', () => {
+    const deps = verbs();
+    const controls = controlsWith(deps);
     expect(controls({})).toBeNull();
     expect(controls({ render: { mode: 'crease-pattern', rotationDeg: 0 } }, SPREAD)).toBeNull();
     const on = controls({ render: { ...FLAT, spread: SPREAD } })!;
-    expect(on).toMatchObject({ spread: SPREAD, disabled: false });
-    expect(on.directions.map((option) => option.toward)).toEqual([
+    expect(on).toMatchObject({ spread: SPREAD, disabled: false, keeps: [] });
+    expect(on.kinds.map(({ value, label, pressed }) => [value, label, pressed])).toEqual([
+      ['depth', 'Depth', true],
+      ['affine', 'Affine', false],
+    ]);
+    expect(on.directions.map((option) => option.value)).toEqual([
       'up-left', 'up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left',
     ]);
     expect(on.directions.filter((option) => option.pressed).map((option) => option.label)).toEqual([
       'Deeper layers up and left',
     ]);
-    // The way it steps already is no change; another is.
+    // The way it steps already is no change; another is. So for the kind.
     on.directions[0]!.run();
     on.directions[5]!.run();
-    expect(direction.mock.calls).toEqual([['down']]);
-    // A drag's amount shows over the step's while it is previewed.
-    expect(controls({ render: { ...FLAT, spread: SPREAD } }, { amount: 0.12, toward: 'up-left' })!.spread.amount).toBe(0.12);
+    on.kinds[0]!.run();
+    on.kinds[1]!.run();
+    expect(deps.direction.mock.calls).toEqual([['down']]);
+    expect(deps.kind.mock.calls).toEqual([['affine']]);
+    // A drag's spread shows over the step's while it is previewed.
+    expect(controls({ render: { ...FLAT, spread: SPREAD } }, { ...SPREAD, amount: 0.12 })!.spread.amount).toBe(0.12);
   });
 
-  it('takes only the amount from a drag: the direction is the step’s, and a spread turned off has no rows', () => {
-    const controls = (state: Partial<DiagramLinkedPoseState>, shown: typeof SPREAD | null) =>
-      buildDiagramSpreadControls({ render: FLAT, readOnly: false, busy: false, solutions: null, ...state }, shown, {
-        t,
-        direction: vi.fn(),
-      });
-    // A preview begun before a direction landed.
-    const turned = controls({ render: { ...FLAT, spread: { amount: 0.05, toward: 'down' } } }, { amount: 0.12, toward: 'up-left' })!;
-    expect(turned.spread).toEqual({ amount: 0.12, toward: 'down' });
-    expect(turned.directions.find((option) => option.pressed)?.toward).toBe('down');
+  it('offers an affine spread’s layer held still, and no directions', () => {
+    const deps = verbs();
+    const on = controlsWith(deps)({ render: { ...FLAT, spread: AFFINE } })!;
+    expect(on).toMatchObject({ spread: AFFINE, directions: [] });
+    expect(on.kinds.find((kind) => kind.pressed)?.value).toBe('affine');
+    expect(on.keeps.map(({ value, label, pressed }) => [value, label, pressed])).toEqual([
+      ['top', 'Top', true],
+      ['bottom', 'Bottom', false],
+    ]);
+    on.keeps[0]!.run();
+    on.keeps[1]!.run();
+    expect(deps.keep.mock.calls).toEqual([['bottom']]);
+  });
+
+  it('shows a drag’s spread only while it is of the step’s kind, and no rows for a spread turned off', () => {
+    const controls = controlsWith(verbs());
+    // A preview begun before the kind changed under it.
+    const switched = controls({ render: { ...FLAT, spread: AFFINE } }, { ...SPREAD, amount: 0.12 })!;
+    expect(switched.spread).toEqual(AFFINE);
     // A preview left over from a spread since turned off.
-    expect(controls({}, { amount: 0.12, toward: 'up-left' })).toBeNull();
+    expect(controls({}, { ...SPREAD, amount: 0.12 })).toBeNull();
   });
 
   it('turns off on a fold with no layer order, though it cannot turn on there', () => {
@@ -238,18 +255,26 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(pose.mock.calls).toEqual([['spread-layers']]);
   });
 
-  it('holds the direction while a capture runs, on a read-only diagram, and on a picture with no layers', () => {
-    const direction = vi.fn();
-    const render = { ...FLAT, spread: SPREAD };
-    const build = (state: Partial<DiagramLinkedPoseState>) =>
-      buildDiagramSpreadControls({ render, readOnly: false, busy: false, solutions: null, ...state }, null, { t, direction })!;
-    expect(build({ busy: true }).directions[3]).toMatchObject({ waiting: true, disabled: false, hint: 'Its picture is being captured' });
-    expect(build({ readOnly: true })).toMatchObject({
-      disabled: true,
-      hint: 'This diagram was made with a newer Ori Studio and opens read-only',
-    });
-    expect(build({ seeThrough: true }).directions[3]).toMatchObject({ disabled: true, waiting: false });
-    for (const state of [{ busy: true }, { readOnly: true }, { seeThrough: true }]) build(state).directions[3]!.run();
-    expect(direction).not.toHaveBeenCalled();
+  it('holds every choice while a capture runs, on a read-only diagram, and on a picture with no layers', () => {
+    const deps = verbs();
+    const controls = controlsWith(deps);
+    for (const spread of [SPREAD, AFFINE]) {
+      const build = (state: Partial<DiagramLinkedPoseState>) => controls({ render: { ...FLAT, spread }, ...state })!;
+      const choices = (built: ReturnType<typeof build>) => [...built.kinds, ...built.directions, ...built.keeps];
+      for (const choice of choices(build({ busy: true }))) {
+        expect(choice).toMatchObject({ waiting: true, disabled: false, hint: 'Its picture is being captured' });
+      }
+      expect(build({ readOnly: true })).toMatchObject({
+        disabled: true,
+        hint: 'This diagram was made with a newer Ori Studio and opens read-only',
+      });
+      for (const choice of choices(build({ seeThrough: true }))) expect(choice).toMatchObject({ disabled: true, waiting: false });
+      for (const state of [{ busy: true }, { readOnly: true }, { seeThrough: true }]) {
+        for (const choice of choices(build(state))) choice.run();
+      }
+    }
+    expect(deps.kind).not.toHaveBeenCalled();
+    expect(deps.direction).not.toHaveBeenCalled();
+    expect(deps.keep).not.toHaveBeenCalled();
   });
 });

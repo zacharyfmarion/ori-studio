@@ -543,6 +543,14 @@ export interface OristudioCpFoldedPaperScene {
    * the faces.
    */
   aux_lines: OristudioCpFoldedPaperAuxLine[];
+  /**
+   * Where each wireframe point (`OristudioCpFoldedPaperFace.points` names
+   * them) lies on the unfolded sheet, in the crease pattern's own
+   * coordinates, no camera applied (schema 3): a face's map from the sheet to
+   * the scene is fitted from its corners here and its outline. Empty in an
+   * older schema's scene.
+   */
+  sheet_points: Point[];
 }
 
 export interface OristudioCpFoldedPaperFace {

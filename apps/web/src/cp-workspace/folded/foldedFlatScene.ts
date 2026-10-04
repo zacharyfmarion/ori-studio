@@ -58,9 +58,10 @@
  * # Spread
  *
  * With a spread every point a face carries — its outline, its outline's
- * lines, its aux lines, its patches and the lines they carry — steps by that
- * face's field (`foldedLayerSpread.ts`) after it is placed, and the items go
- * out in the same order. Without one, nothing is added to any point.
+ * lines, its aux lines, its patches and the lines they carry — moves by that
+ * face's field (`foldedLayerSpread.ts`): a depth spread's after it is placed,
+ * on the screen; an affine one's before, on the model. The items go out in
+ * the same order. Without one, nothing is added to any point.
  */
 
 import type { PaperScene } from '@treemaker/origami-simulator';
@@ -73,7 +74,7 @@ import type {
   OristudioCpFoldedPaperSubface,
 } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
-import { layerSpread, type LayerSpreadOptions } from './foldedLayerSpread';
+import { affineSpread, layerSpread, type LayerSpreadOptions } from './foldedLayerSpread';
 import type {
   PaperFaceItem,
   PaperItem,
@@ -96,8 +97,9 @@ export interface FoldedFlatPaperSceneOptions {
   /** The linear scale of {@link toScenePx}: scene px per kernel unit. */
   scale: number;
   /**
-   * Step the layers apart by depth. A covered layer may then show an edge, so
-   * a caller that spreads keeps every face: `markHidden: false`.
+   * Spread the layers apart, by depth or affine. A covered layer may then
+   * show an edge, so a caller that spreads keeps every face:
+   * `markHidden: false`.
    */
   spread?: LayerSpreadOptions;
 }
@@ -186,12 +188,23 @@ function placement(
       along: (_face, from, to, t) => toScenePx(lerp(from, to, t)),
     };
   }
-  const { offset } = layerSpread(kernel, order, spread, { scale, epsilon });
-  const at: EmitContext['at'] = (face, point) => {
-    const [x, y] = toScenePx(point);
-    const [dx, dy] = offset(face, point);
-    return [x + dx, y + dy];
-  };
+  let at: EmitContext['at'];
+  if (spread.kind === 'affine') {
+    // On the model, before it is placed: the opening turns and mirrors with it.
+    const { offset } = affineSpread(kernel, spread, { epsilon });
+    at = (face, point) => {
+      const { x, y } = offset(face, point);
+      return toScenePx({ x: point.x + x, y: point.y + y });
+    };
+  } else {
+    // On the screen, after it is placed: deeper layers step the same way however it is turned.
+    const { offset } = layerSpread(kernel, order, spread, { scale, epsilon });
+    at = (face, point) => {
+      const [x, y] = toScenePx(point);
+      const [dx, dy] = offset(face, point);
+      return [x + dx, y + dy];
+    };
+  }
   return {
     at,
     along: (face, from, to, t) => {

@@ -25,6 +25,7 @@ const scene = (): OristudioCpFoldedPaperScene => ({
   faces: [],
   subfaces: [],
   aux_lines: [],
+  sheet_points: [],
 });
 const snapshot = (): OristudioCpFoldedFigureSnapshot =>
   ({ model: {} }) as OristudioCpFoldedFigureSnapshot;

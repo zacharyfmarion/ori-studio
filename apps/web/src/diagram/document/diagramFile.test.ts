@@ -502,8 +502,11 @@ const SPREAD_FLAT = {
   side: 'front' as const,
   rotationDeg: 0,
   foldCase: 1,
-  spread: { amount: 0.075, toward: 'down-right' as const },
+  spread: { kind: 'depth' as const, amount: 0.075, toward: 'down-right' as const },
 };
+
+/** An affine spread (13g), off its defaults in every field. */
+const AFFINE_SPREAD = { kind: 'affine' as const, amount: 0.04, keep: 'bottom' as const, skew: 0.35, axisDeg: 120 };
 
 /** A linked step of each render mode, with each kind of captured picture. */
 function linkedDiagram() {
@@ -548,6 +551,8 @@ function linkedDiagram() {
         remembered: { folded: SPREAD_FLAT },
       } as DiagramCpSource,
     },
+    // Opened as DEFOX opens a fold (13g).
+    cpStep('step-affine', { ...SPREAD_FLAT, spread: AFFINE_SPREAD }),
   ];
   const diagram = createDiagram({ title: 'Crane', newId: ids });
   return insertSteps(diagram, steps, 0);
@@ -667,6 +672,8 @@ describe('linked steps in the file', () => {
     ['no spread', (source: WrittenSource) => delete source.render.spread, null],
     ['a spread at the most it reads', (source: WrittenSource) => (source.render.spread.amount = 0.2), 0.2],
     ['a spread finer than a slider sets', (source: WrittenSource) => (source.render.spread.amount = 0.001), 0.001],
+    // Written on this branch before a spread had a kind: every one was by depth.
+    ['a spread saved before there were two kinds', (source: WrittenSource) => delete source.render.spread.kind, 0.075],
   ])('reads a flat fold with %s', (_label, patch, amount) => {
     const written = throughJson(writeDiagram(linkedDiagram()));
     patch(written.steps[7].source);
@@ -676,21 +683,51 @@ describe('linked steps in the file', () => {
       side: 'front',
       rotationDeg: 15,
       foldCase: 1,
-      ...(amount === null ? {} : { spread: { amount, toward: 'down-right' } }),
+      ...(amount === null ? {} : { spread: { kind: 'depth', amount, toward: 'down-right' } }),
     });
   });
 
-  it.each([
-    ['no step at all', (spread: WrittenSource) => (spread.amount = 0)],
-    ['a step back', (spread: WrittenSource) => (spread.amount = -0.05)],
-    ['an amount that is not a number', (spread: WrittenSource) => (spread.amount = '5%')],
-    ['no direction', (spread: WrittenSource) => delete spread.toward],
-    ['a direction that is not a name', (spread: WrittenSource) => (spread.toward = 315)],
-  ])('drops a link whose spread has %s, and the picture with it; the words stay', (_label, damage) => {
+  it('writes a spread with its kind first, and reads a kindless one back with it', () => {
     const written = throughJson(writeDiagram(linkedDiagram()));
-    written.steps[7].text = 'Fold it.';
-    damage(written.steps[7].source.render.spread);
-    const step = stepsIn(readDiagram(written)!.document)[7];
+    expect(Object.keys(written.steps[7].source.render.spread)).toEqual(['kind', 'amount', 'toward']);
+    expect(Object.keys(written.steps[9].source.render.spread)).toEqual(['kind', 'amount', 'keep', 'skew', 'axisDeg']);
+    delete written.steps[7].source.render.spread.kind;
+    const again = throughJson(writeDiagram(readDiagram(written)!.document));
+    expect(again.steps[7].source.render.spread).toEqual({ kind: 'depth', amount: 0.075, toward: 'down-right' });
+  });
+
+  it.each([
+    ['the most it opens', { amount: 0.25 }],
+    ['no skew', { skew: 0 }],
+    ['all skew', { skew: 1 }],
+    ['an axis along x', { axisDeg: 0 }],
+    ['the last axis before x again', { axisDeg: 179 }],
+    ['the top held still', { keep: 'top' }],
+  ])('reads an affine spread at %s', (_label, patch) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    Object.assign(written.steps[9].source.render.spread, patch);
+    const source = stepsIn(readDiagram(written)!.document)[9].source as DiagramCpSource;
+    expect(source.render).toMatchObject({ spread: { ...AFFINE_SPREAD, ...patch } });
+  });
+
+  it.each([
+    ['no step at all', 7, (spread: WrittenSource) => (spread.amount = 0)],
+    ['a step back', 7, (spread: WrittenSource) => (spread.amount = -0.05)],
+    ['an amount that is not a number', 7, (spread: WrittenSource) => (spread.amount = '5%')],
+    ['no direction', 7, (spread: WrittenSource) => delete spread.toward],
+    ['a direction that is not a name', 7, (spread: WrittenSource) => (spread.toward = 315)],
+    ['a kind that is not a name', 7, (spread: WrittenSource) => (spread.kind = 2)],
+    ['a kind of null', 7, (spread: WrittenSource) => (spread.kind = null)],
+    ['an affine opening of nothing', 9, (spread: WrittenSource) => (spread.amount = 0)],
+    ['no layer held still', 9, (spread: WrittenSource) => delete spread.keep],
+    ['a layer held still that is not a name', 9, (spread: WrittenSource) => (spread.keep = 1)],
+    ['a skew that is not a number', 9, (spread: WrittenSource) => (spread.skew = 'full')],
+    ['no axis', 9, (spread: WrittenSource) => delete spread.axisDeg],
+  ])('drops a link whose spread has %s, and the picture with it; the words stay', (_label, index, damage) => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    written.steps[index].text = 'Fold it.';
+    damage(written.steps[index].source.render.spread);
+    const step = stepsIn(readDiagram(written)!.document)[index];
     expect(step).toMatchObject({ source: null, picture: null, text: 'Fold it.' });
     expect(step.unknown).toBeUndefined();
   });
@@ -720,6 +757,42 @@ describe('linked steps in the file', () => {
     }],
     ['a spread past the amount it reads', (source: WrittenSource) => {
       source.render.spread = { amount: 0.35, toward: 'up' };
+    }],
+    // 13g: a spread is one of two kinds, each with its own fields and ranges.
+    ['a spread of a kind it does not know', (source: WrittenSource) => {
+      source.render.spread = { kind: 'wavy', amount: 0.05 };
+    }],
+    ['a depth spread past the amount it reads, which an affine one could take', (source: WrittenSource) => {
+      source.render.spread = { kind: 'depth', amount: 0.22, toward: 'up' };
+    }],
+    ['a depth spread with an affine field', (source: WrittenSource) => {
+      source.render.spread = { kind: 'depth', amount: 0.05, toward: 'up', keep: 'top' };
+    }],
+    ['an affine spread with a direction', (source: WrittenSource) => {
+      source.render.spread = { ...AFFINE_SPREAD, toward: 'up' };
+    }],
+    ['an affine spread past the amount it reads', (source: WrittenSource) => {
+      source.render.spread = { ...AFFINE_SPREAD, amount: 0.3 };
+    }],
+    ['an affine spread holding a layer it does not know still', (source: WrittenSource) => {
+      source.render.spread = { ...AFFINE_SPREAD, keep: 'middle' };
+    }],
+    ['an affine spread skewed past all the way', (source: WrittenSource) => {
+      source.render.spread = { ...AFFINE_SPREAD, skew: 1.5 };
+    }],
+    ['an affine spread skewed the other way', (source: WrittenSource) => {
+      source.render.spread = { ...AFFINE_SPREAD, skew: -0.1 };
+    }],
+    ['an affine spread about an axis past the half turn', (source: WrittenSource) => {
+      source.render.spread = { ...AFFINE_SPREAD, axisDeg: 180 };
+    }],
+    ['an affine spread about an axis below zero', (source: WrittenSource) => {
+      source.render.spread = { ...AFFINE_SPREAD, axisDeg: -1 };
+    }],
+    ['a remembered affine spread with a field it does not know', (source: WrittenSource) => {
+      source.remembered.folded = { ...source.render, side: 'front', spread: { ...AFFINE_SPREAD, catalyst: [1, 2] } };
+      source.render = { mode: 'crease-pattern', rotationDeg: 0 };
+      delete source.remembered['crease-pattern'];
     }],
     ['a remembered render with a field it does not know', (source: WrittenSource) => {
       source.remembered['crease-pattern'].mirrored = true;

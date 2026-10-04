@@ -2,6 +2,7 @@ import {
   trackDiagramPicturePosed,
   type DiagramPoseAction as TrackedPoseAction,
   type DiagramSpreadDirection,
+  type DiagramSpreadTracking,
 } from '../../analytics';
 import {
   ensureCpSegmentationArtifacts,
@@ -32,7 +33,7 @@ import {
   type StepCaptureStart,
 } from '../../store/workspaceStore/diagramCapture';
 import {
-  nearestEarlierSpread,
+  spreadStartsFor,
   stepById,
   type DiagramCpRender,
   type DiagramCpSource,
@@ -53,7 +54,7 @@ import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
 import { lightingChanged } from '../pictures/lighting';
-import { poseLinkedStep, type FlatSolutions, type LinkedPoseRequest } from './linkedPose';
+import { poseLinkedStep, withSpreadField, type FlatSolutions, type LinkedPoseRequest } from './linkedPose';
 import { captureKind, sayCaptureOutcome } from './stepCaptureActions';
 
 /** How long the 3D view must rest before its camera is captured: one orbit, one undo step. */
@@ -77,43 +78,88 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   simulate: 'simulate',
   // On, or off when the verb left none (`trackPose`).
   'spread-layers': 'spread_on',
+  'spread-kind': 'spread_kind',
   'spread-amount': 'spread_amount',
   'spread-direction': 'spread_direction',
+  'spread-keep': 'spread_keep',
+  'spread-skew': 'spread_skew',
+  'spread-axis': 'spread_axis',
 };
 
 /** The verbs that spread a flat fold's layers: they say how it is spread after them. */
 const SPREAD_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set([
   'spread-layers',
+  'spread-kind',
   'spread-amount',
   'spread-direction',
+  'spread-keep',
+  'spread-skew',
+  'spread-axis',
 ]);
 
 /**
  * A pose that changed the step's picture, counted: by its verb — Spread
  * Layers as on or off by what it left — and for a spread verb that left the
- * layers spread, the direction and the amount bucketed.
+ * layers spread, how: its kind, the amount bucketed, and a depth spread's
+ * direction or an affine one's layer held still, skew and axis (bucketed).
  */
 function trackPose(verb: LinkedPoseRequest['verb'], render: DiagramCpRender): void {
   const spread = render.mode === 'folded-flat' ? render.spread : undefined;
   const action = verb === 'spread-layers' && !spread ? 'spread_off' : TRACKED[verb];
-  const how =
-    SPREAD_VERBS.has(verb) && spread ? { direction: trackedDirection(spread.toward), amount: spread.amount } : undefined;
+  const how = SPREAD_VERBS.has(verb) && spread ? spreadTracking(spread) : undefined;
   trackDiagramPicturePosed(action, captureKind(render), how);
+}
+
+function spreadTracking(spread: LayerSpreadOptions): DiagramSpreadTracking {
+  return spread.kind === 'depth'
+    ? { kind: 'depth', direction: trackedDirection(spread.toward), amount: spread.amount }
+    : { kind: 'affine', amount: spread.amount, keep: spread.keep, skew: spread.skew, axisDeg: spread.axisDeg };
 }
 
 function trackedDirection(toward: SpreadDirection): DiagramSpreadDirection {
   return toward.replace('-', '_') as DiagramSpreadDirection;
 }
 
+/** The sliders a spread is dragged by: its amount, and an affine one's skew and axis. */
+export type SpreadSlider = 'amount' | 'skew' | 'axis';
+
+/** A slider at a value: what a drag shows before it is committed. */
+export interface SpreadSlide {
+  slider: SpreadSlider;
+  value: number;
+}
+
+/** The verb that commits a slide. */
+function slideRequest({ slider, value }: SpreadSlide) {
+  switch (slider) {
+    case 'amount':
+      return { verb: 'spread-amount', amount: value } as const;
+    case 'skew':
+      return { verb: 'spread-skew', skew: value } as const;
+    case 'axis':
+      return { verb: 'spread-axis', axisDeg: value } as const;
+  }
+}
+
+/** A spread with a slide applied, as the picture previews it: one of the other kind is left as it is. */
+export function withSlide(spread: LayerSpreadOptions, slide: SpreadSlide): LayerSpreadOptions {
+  return withSpreadField(spread, slideRequest(slide));
+}
+
+/** The verbs a slide commits as: a preview stays up under them until the newest lands. */
+const SLIDE_VERBS: ReadonlySet<LinkedPoseRequest['verb']> = new Set(['spread-amount', 'spread-skew', 'spread-axis']);
+
 /** Where Pose's simulator came to rest, and the model there. */
 export type SimulatedRest = Omit<Extract<LinkedPoseRequest, { verb: 'simulate' }>, 'verb'>;
 
 /**
- * A spread shown before it is committed — under a drag of its amount — and
- * the step's picture with it, drawn from the fold the session holds; null
- * while no fold is held to draw it from.
+ * A spread shown before it is committed — under a drag of one of its
+ * sliders — and the step's picture with it, drawn from the fold the session
+ * holds; null while no fold is held to draw it from.
  */
 export interface SpreadPreview {
+  /** The slider dragged, and where to. */
+  slide: SpreadSlide;
   spread: LayerSpreadOptions;
   picture: DiagramScenePicture | null;
 }
@@ -178,17 +224,17 @@ export interface PoseController {
   /** Fold a step shown in 3D for its live view. */
   prepareSpatial: () => Promise<void>;
   /**
-   * Show the step's flat fold spread by this amount, in its own direction,
-   * before it is committed — a drag of its amount: drawn from the fold the
-   * session holds, with no call to the kernel, or once one is held (the first
-   * preview folds it).
+   * Show the step's flat fold with one slider of its spread at this value,
+   * the rest its own, before it is committed — a drag: drawn from the fold
+   * the session holds, with no call to the kernel, or once one is held (the
+   * first preview folds it).
    */
-  previewSpread: (amount: number) => void;
+  previewSpread: (slide: SpreadSlide) => void;
   /**
-   * Commit the amount previewed — the end of a drag, or a key — as one undo
-   * step. The newest wins: one waits while another is captured, and a newer
-   * one takes its place. The preview ends once it lands, unless a newer one
-   * was asked for meanwhile.
+   * Commit the slide previewed — the end of a drag, or a key — as one undo
+   * step. The newest of each slider wins: one waits while another is
+   * captured, and a newer one of the same slider takes its place. The
+   * preview ends once it lands, unless a newer one was asked for meanwhile.
    */
   commitSpread: () => Promise<void>;
   /** An undo or redo: stop what is still folding for a source the step no longer has. */
@@ -215,11 +261,11 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
    */
   let heldFor: { key: string; document: OristudioCpDocumentSnapshot } | null = null;
   /**
-   * The newest amount previewed, and how many have been: a commit ends the
-   * preview only if none came after. Only the amount: the direction is the
-   * step's own, whatever a verb made it since the drag began.
+   * The newest slide previewed, and how many have been: a commit ends the
+   * preview only if none came after. Only the slider dragged: the rest of the
+   * spread is the step's own, whatever a verb made it since the drag began.
    */
-  let previewing: number | null = null;
+  let previewing: SpreadSlide | null = null;
   let previews = 0;
   /** Gone with its detail: nothing folds or commits for it again. */
   let disposed = false;
@@ -227,9 +273,9 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   let holding: Promise<unknown> | null = null;
   /** This controller's own capture in flight: a spread commit waits for it rather than being refused as busy. */
   let own: Promise<unknown> | null = null;
-  /** The spread commits: the one being captured, and the newest amount waiting for it. */
+  /** The spread commits: the one being captured, and the newest value of each slider waiting for it. */
   let spreading: Promise<void> | null = null;
-  let nextAmount: number | null = null;
+  const waiting = new Map<SpreadSlider, number>();
   const session: CaptureSession = createCaptureSession({
     search: (work) => {
       if (!start) throw new Error('A pose fold ran outside a capture');
@@ -294,7 +340,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   const run = async (request: LinkedPoseRequest, options?: { tracked?: boolean }): Promise<void> => {
     // Any other verb makes a picture the preview was not drawn over — a drag
     // that ended where it began commits nothing and would leave one up.
-    if (request.verb !== 'spread-amount') endPreview();
+    if (!SLIDE_VERBS.has(request.verb)) endPreview();
     const outcome = await capturing(async (begun, linked): Promise<DiagramCaptureOutcome> => {
       // Shown another way since the simulator came to rest: an undo, or a verb.
       if (request.verb === 'simulate' && linked.render.mode !== 'simulated') return { status: 'discarded' };
@@ -311,7 +357,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
             remembered: linked.remembered,
             style: begun.style,
             simulateFlat: storeSimulateFlat({ get: useWorkspaceStore.getState, set: useWorkspaceStore.setState }),
-            spreadStart: spreadStartOf(stepId),
+            spreadStart: spreadStartsOf(stepId),
           },
           request
         )
@@ -371,9 +417,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   };
 
   /**
-   * Tell the view the newest preview — the amount dragged to, in the step's
-   * own direction — and fold for it, once, when nothing is held to draw it
-   * from. A step whose spread went off meanwhile has nothing to preview.
+   * Tell the view the newest preview — the slider dragged to, the rest of the
+   * step's own spread as it is — and fold for it, once, when nothing is held
+   * to draw it from. A step whose spread went off meanwhile has nothing to
+   * preview.
    */
   const showPreview = (hold: boolean) => {
     const linked = currentLinkedSource(stepId);
@@ -383,9 +430,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       endPreview();
       return;
     }
-    const spread: LayerSpreadOptions = { ...stored, amount: previewing };
+    const slide = previewing;
+    const spread = withSlide(stored, slide);
     const picture = drawPreview(spread);
-    listener.preview({ spread, picture: picture ?? null }, linkedFoldKey(stepId, linked));
+    listener.preview({ slide, spread, picture: picture ?? null }, linkedFoldKey(stepId, linked));
     if (picture === undefined && hold) holdForPreview();
   };
 
@@ -450,16 +498,16 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       return simulating;
     },
 
-    previewSpread(amount) {
+    previewSpread(slide) {
       if (disposed) return;
-      previewing = amount;
+      previewing = slide;
       previews += 1;
       showPreview(true);
     },
 
     commitSpread() {
       if (previewing === null || disposed) return Promise.resolve();
-      nextAmount = previewing;
+      waiting.set(previewing.slider, previewing.value);
       const asked = previews;
       spreading ??= (async () => {
         await null;
@@ -468,11 +516,12 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
             // Its own capture first — a fold a preview asked for, a verb — rather than refused as busy.
             while (own) await own;
             // Read after the wait: an undo, a new document, a lost engine or
-            // the detail closing takes back the amount that was waiting.
-            const amount = nextAmount;
-            if (amount === null || disposed) break;
-            nextAmount = null;
-            await run({ verb: 'spread-amount', amount });
+            // the detail closing takes back the values that were waiting.
+            const next = waiting.entries().next();
+            if (next.done || disposed) break;
+            const [slider, value] = next.value;
+            waiting.delete(slider);
+            await run(slideRequest({ slider, value }));
           }
         } finally {
           spreading = null;
@@ -510,7 +559,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       cancelOrbit();
       // A rest or an amount still waiting is of a pose the undo just took back.
       nextRest = null;
-      nextAmount = null;
+      waiting.clear();
       endPreview();
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
     },
@@ -518,7 +567,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     documentReplaced() {
       cancelOrbit();
       nextRest = null;
-      nextAmount = null;
+      waiting.clear();
       heldFor = null;
       endPreview();
       useWorkspaceStore.getState().stopDiagramCapture(stepId);
@@ -529,7 +578,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     engineLost() {
       cancelOrbit();
       nextRest = null;
-      nextAmount = null;
+      waiting.clear();
       heldFor = null;
       endPreview();
       session.forget();
@@ -539,7 +588,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
     dispose() {
       disposed = true;
       cancelOrbit();
-      nextAmount = null;
+      waiting.clear();
       heldFor = null;
       // Told, not just dropped: the view's preview outlives this controller.
       endPreview();
@@ -550,10 +599,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   };
 }
 
-/** The spread Spread Layers turns on with for this step: the nearest earlier step's, if any. */
-function spreadStartOf(stepId: string) {
+/** The spreads this step's flat fold starts from: the nearest earlier steps', else the defaults (13g). */
+function spreadStartsOf(stepId: string) {
   const { diagram } = useWorkspaceStore.getState();
-  return (diagram && nearestEarlierSpread(diagram, stepId)) ?? undefined;
+  return diagram ? spreadStartsFor(diagram, stepId) : undefined;
 }
 
 /** The step's source, if it is still in the diagram and linked. */

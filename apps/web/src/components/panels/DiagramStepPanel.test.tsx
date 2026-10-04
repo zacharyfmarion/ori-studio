@@ -298,17 +298,16 @@ describe('DiagramStepPanel', () => {
       act(() => publishOpenLinkedPose(null, null));
     });
 
-    it('spreads a flat fold’s layers from the pane: on, how far as a percentage, and which way (Phase 13)', () => {
-      const pose = vi.fn();
-      const direction = vi.fn();
-      const previewAmount = vi.fn();
-      const commitAmount = vi.fn();
-      const t = ((_key: string, fallback: string) => fallback) as never;
+    /** A flat fold's spread published as the open step's controller would, its verbs mocks. */
+    function spreadPane() {
+      const verbs = { pose: vi.fn(), kind: vi.fn(), direction: vi.fn(), keep: vi.fn(), preview: vi.fn(), commit: vi.fn() };
+      const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
+        fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as never;
       const publish = (render: DiagramCpRender) => {
         const poseState = { render, readOnly: false, busy: false, solutions: { discovered: 1, hasNext: false } };
-        const controls = buildDiagramSpreadControls(poseState, null, { t, direction });
+        const controls = buildDiagramSpreadControls(poseState, null, { t, ...verbs });
         publishOpenLinkedPose('step-f', {
-          actions: buildDiagramLinkedPoseActions(poseState, { t, pose }),
+          actions: buildDiagramLinkedPoseActions(poseState, { t, pose: verbs.pose }),
           layerOrder: null,
           spatial: null,
           onCamera: () => {},
@@ -316,7 +315,7 @@ describe('DiagramStepPanel', () => {
           showAs: async () => true,
           simulate: async () => {},
           wantsRest: () => false,
-          spread: controls && { ...controls, previewAmount, commitAmount, startAmount: () => true },
+          spread: controls && { ...controls, preview: verbs.preview, commit: verbs.commit, start: () => true },
           preview: null,
         });
       };
@@ -326,19 +325,30 @@ describe('DiagramStepPanel', () => {
         state().openDiagramStep('step-f');
         publish(flat);
       });
+      const slider = (name: string) => host!.querySelector<HTMLInputElement>(`input[type="range"][aria-label="${name}"]`);
+      const kinds = () => host!.querySelector('[role="group"][aria-label="Spread by"]');
+      return { verbs, publish, flat, slider, kinds };
+    }
+
+    it('spreads a flat fold’s layers from the pane: on, by depth, how far as a percentage, and which way (Phase 13)', () => {
+      const { verbs, publish, flat, slider, kinds } = spreadPane();
       const toggle = () => host!.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Spread layers"]')!;
-      const amount = () => host!.querySelector<HTMLInputElement>('input[type="range"][aria-label="Spread amount"]');
+      const amount = () => slider('Spread amount');
       expect(toggle().getAttribute('aria-checked')).toBe('false');
       // Off: nothing to set.
       expect(amount()).toBeNull();
+      expect(kinds()).toBeNull();
       act(() => toggle().click());
-      expect(pose).toHaveBeenCalledWith('spread-layers');
+      expect(verbs.pose).toHaveBeenCalledWith('spread-layers');
 
-      act(() => publish({ ...flat, spread: { amount: 0.08, toward: 'up-left' } }));
+      act(() => publish({ ...flat, spread: { kind: 'depth' as const, amount: 0.08, toward: 'up-left' } }));
       expect(toggle().getAttribute('aria-checked')).toBe('true');
       expect(amount()!.value).toBe('8');
       expect(amount()!.getAttribute('aria-valuetext')).toBe('8% of the model');
       expect(host!.textContent).toContain('8%');
+      // By depth: no affine rows.
+      expect(slider('Spread skew')).toBeNull();
+      expect(slider('Spread axis')).toBeNull();
       const compass = host!.querySelector('[role="group"][aria-label="Spread direction"]')!;
       const directions = [...compass.querySelectorAll<HTMLButtonElement>('button')];
       expect(directions).toHaveLength(8);
@@ -346,15 +356,51 @@ describe('DiagramStepPanel', () => {
         'Deeper layers up and left',
       ]);
       act(() => directions.find((button) => button.getAttribute('aria-label') === 'Deeper layers down')!.click());
-      expect(direction).toHaveBeenCalledWith('down');
+      expect(verbs.direction).toHaveBeenCalledWith('down');
 
       // A drag previews every move, and commits once, as the native change says it ended.
       setField(amount()!, '10');
       setField(amount()!, '12.5');
-      expect(previewAmount.mock.calls).toEqual([[0.1], [0.125]]);
-      expect(commitAmount).not.toHaveBeenCalled();
+      expect(verbs.preview.mock.calls).toEqual([['amount', 0.1], ['amount', 0.125]]);
+      expect(verbs.commit).not.toHaveBeenCalled();
       act(() => amount()!.dispatchEvent(new Event('change', { bubbles: true })));
-      expect(commitAmount).toHaveBeenCalledOnce();
+      expect(verbs.commit).toHaveBeenCalledOnce();
+
+      // Depth | Affine, under the switch.
+      const segments = [...kinds()!.querySelectorAll<HTMLButtonElement>('button')];
+      expect(segments.map((button) => button.textContent)).toEqual(['Depth', 'Affine']);
+      act(() => segments[1]!.click());
+      expect(verbs.kind).toHaveBeenCalledWith('affine');
+      act(() => publishOpenLinkedPose(null, null));
+    });
+
+    it('spreads a flat fold affine from the pane: the layer held still, the amount, skew and axis (13g)', () => {
+      const { verbs, publish, flat, slider } = spreadPane();
+      act(() => publish({ ...flat, spread: { kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 } }));
+      // Affine: no compass.
+      expect(host!.querySelector('[role="group"][aria-label="Spread direction"]')).toBeNull();
+      expect(pressed('Spread by')).toBe('Affine');
+      expect(pressed('Keep still')).toBe('Top');
+      const amount = slider('Spread amount')!;
+      expect(amount.max).toBe('25');
+      expect(amount.getAttribute('aria-valuetext')).toBe('3% of the way back to the sheet');
+      const skew = slider('Spread skew')!;
+      expect(skew.value).toBe('100');
+      const axis = slider('Spread axis')!;
+      expect([axis.min, axis.max, axis.value]).toEqual(['0', '179', '81']);
+      expect(axis.getAttribute('aria-valuetext')).toBe('Axis at 81° on the sheet');
+      expect(host!.textContent).toContain('81°');
+
+      const keeps = [...host!.querySelector('[role="group"][aria-label="Keep still"]')!.querySelectorAll<HTMLButtonElement>('button')];
+      act(() => keeps.find((button) => button.textContent === 'Bottom')!.click());
+      expect(verbs.keep).toHaveBeenCalledWith('bottom');
+
+      setField(skew, '40');
+      setField(axis, '99');
+      setField(amount, '5');
+      expect(verbs.preview.mock.calls).toEqual([['skew', 0.4], ['axis', 99], ['amount', 0.05]]);
+      act(() => axis.dispatchEvent(new Event('change', { bubbles: true })));
+      expect(verbs.commit).toHaveBeenCalledOnce();
       act(() => publishOpenLinkedPose(null, null));
     });
 
