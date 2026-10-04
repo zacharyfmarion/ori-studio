@@ -1,6 +1,7 @@
 # Diagram Pose: Spread Layers (depth steps)
 
-**Status: decided (2026-10-04), being built.** Phase 13 of
+**Status: depth steps built (13a–13f); depth and affine as two kinds, depth
+on by default, being built (13g).** Phase 13 of
 `implementation-plans/diagram-workspace.md`. Zach tried the options in the
 playground (https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf, private: his
 crane diagram step by step, twelve cpoogle crease patterns folded to their
@@ -281,7 +282,96 @@ defaults he has not seen yet and are cheap to change.
   the nearest layer stood still — marks now move with the face under them
   (mean value coordinates over its outline). Also: Spread Layers left the
   phone's Pose toolbar for the Step drawer (it wrapped a third row).
-- [ ] Merged into the diagram branch; the PR updated.
+- [x] Merged into the diagram branch; the PR updated.
+
+### 13g. Two spreads: depth and affine, depth on by default
+
+Zach, 2026-10-04, after trying DEFOX's skew on the bird base ("generally you
+want to show a gap between two flaps that are not connected… I was able to
+kind of get this to work in defox"): "I want two options, 1 for depth based,
+and one for affine (or whatever defox uses). Default to having depth based ON
+for folded figures, set to down and 2.5% as the amount." The two are
+alternatives — a spread is one kind or the other; the depth-and-open
+combination the playground showed is not built.
+
+**What a step stores.** `spread` becomes a union, `kind` first:
+- `{ kind: 'depth', amount, toward }` — today's, unchanged in meaning;
+- `{ kind: 'affine', amount, keep: 'top' | 'bottom', skew, axisDeg }` —
+  DEFOX's distortion, `VD = (I + A)⁻¹(Vf + A·C)` with `p = τ / (1 − τ)`,
+  `A = p((1 − q)I + q·R(2θ))`, `R(φ) = [[cos φ, sin φ], [sin φ, −cos φ]]`
+  (a reflection about the line at θ): `amount` is τ (0.5%–25%), `skew` q
+  (0–1, to a hundredth), `axisDeg` θ (0–179, whole degrees) in the sheet's
+  frame. At skew 0 every point moves τ of the way back to where it lies on
+  the sheet; at skew 1 points move toward the sheet along the axis and away
+  across it — the gap between unjoined flaps.
+
+A spread with no `kind` reads as depth (files saved on this branch before
+13g); an unknown kind or field, or a value out of range, makes the step a
+newer build's, as today.
+
+**Defaults.** A folded-flat pose made from anything that is not one — a new
+step, Show As Folded from a crease pattern or 3D, a fold reread flat — starts
+with the nearest earlier step's spread, else depth 2.5% down. A flat fold that
+already has a pose keeps it: a file whose step has no spread stays unspread,
+and Spread Layers still turns it off. Turning the affine kind on starts from
+the nearest earlier affine spread, else amount 3%, keep bottom, skew 1, axis
+81° — the playground's bird base (DEFOX's Angle 0.95 is φ = 162°, θ = 81°).
+
+**The kernel (schema 3).** `FoldedPaperScene.sheet_points: Vec<Point>`: where
+each wireframe point (`FoldedPaperFace.points` names them) lies on the
+unfolded sheet — `graph.points`, the crease pattern's own coordinates. Units
+do not matter to the web: each face's map from sheet to scene is fitted from
+its own corners. Test: for every named face, that map is a similarity whose
+scale is the scene's (`model.scale`), mirrored exactly when the face is
+`front_up` differently from the anchor.
+
+**The math, in `foldedLayerSpread.ts`.** `affineSpread(kernel, spread,
+frame)`:
+1. The face kept still. `top`: the face seen on top over the most area (sum
+   of subface polygon areas where it is `faces_top_to_bottom[0]`); `bottom`:
+   the last face of a stack, by area. These are as seen in the front pass; a
+   `flipped` (back) scene swaps them, so the same paper stays still when the
+   model is turned over.
+2. `T_a`: the anchor's sheet → scene map, a least-squares affine over its
+   corners (`sheet_points[points[i]]` → `outline[i]`); `M` its linear part.
+3. In the scene, `A_s = M·A·M⁻¹` (the axis and the skew turn and mirror with
+   the paper, as DEFOX's do in the anchor's frame), and each point's place on
+   the sheet laid under the anchor is `C' = T_a(C)`.
+4. Per wireframe point, `VD = (I + A_s)⁻¹(X + A_s·C')`; the displacement
+   `VD − X` in kernel units. A point inside a face moves by mean value
+   coordinates over its corners' displacements — exact, since the map is
+   affine on each face. A face whose ring is not named does not move.
+5. The picture places `X + d` through `toScenePx`, where depth adds a scene-px
+   step after it: `placement` dispatches on the kind.
+
+The anchor does not move (its `X = C'`), so neither do marks on it; the
+annotation carry already moves a mark with the face under it, either kind.
+
+**Pose UI.** The Step pane's spread rows gain a segmented **Depth | Affine**
+under the switch. Depth: today's amount and eight directions. Affine: the
+amount, **Keep still: Top | Bottom**, **Skew** (0–100%) and **Axis** (0°–179°,
+the readout in degrees), sliders previewing as the amount does. Verbs:
+`spread-kind`, `spread-keep`, `spread-skew`, `spread-axis` beside
+`spread-amount` / `spread-direction`; one undo entry each, a drag one entry.
+Analytics: the existing events gain `spread_kind` (`depth` / `affine`); new
+`spread_kind`, `spread_keep`, `spread_skew`, `spread_axis` actions; skew and
+axis only bucketed. i18n in every locale.
+
+**Checklist.**
+- [ ] Kernel schema 3 `sheet_points`; Rust tests; fmt, clippy; wasm rebuilt;
+  TS types.
+- [ ] `affineSpread` with unit tests: the anchor still; skew 0 is a lerp
+  toward the sheet; skew 1 moves toward along the axis and away across it;
+  a turned-over pass mirrors the front's picture; a rotated pose turns it;
+  top and bottom on a book fold and a letter fold; an unnamed face.
+- [ ] The document union, reader, writer, defaults, `sameSpread`; the
+  no-kind compatibility read.
+- [ ] Defaults on: depth 2.5% down for every new flat pose.
+- [ ] Verbs, controller previews, Step pane, phone drawer, analytics, i18n.
+- [ ] Browser: the bird base (`rabbit-ear/tests/files/cp/bird-base.cp`)
+  affine against the playground's picture; Zach's crane with depth on by
+  default; Turn Over, Rotate, undo, save and reopen, the PDF.
+- [ ] Review.
 
 ## Risks
 
