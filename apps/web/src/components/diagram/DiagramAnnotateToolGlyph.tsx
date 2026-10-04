@@ -29,7 +29,7 @@ function Glyph({ children }: { children: React.ReactNode }) {
 
 /**
  * Each Annotate tool's icon: the mark it draws, small. The fold arrows are
- * the arrows themselves; the lines are their dash; Select, Edit Path, Rotate
+ * the arrows themselves; the lines are their dash; the circle its ring; Select, Edit Path, Rotate
  * and Label are the app's own icons for those verbs. Every tool has one: the return
  * type makes a kind left out a compile error, not a blank button.
  */
@@ -102,5 +102,13 @@ export function DiagramAnnotateToolGlyph({ tool }: { tool: AnnotateTool }): Reac
       );
     case 'label':
       return <Type size={17} aria-hidden="true" />;
+    case 'circle':
+      // The ring, round the point it marks.
+      return (
+        <Glyph>
+          <circle cx={10} cy={10} r={6.5} />
+          <circle cx={10} cy={10} r={1.3} fill="currentColor" stroke="none" />
+        </Glyph>
+      );
   }
 }

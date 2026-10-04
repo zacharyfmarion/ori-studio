@@ -8,6 +8,7 @@ import { cubicPoint } from '../../lib/cubicBezier';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import { TooltipProvider } from '../ui/Tooltip';
+import { CIRCLE_RADIUS } from '../../diagram/annotate/useAnnotateCanvas';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 
@@ -207,6 +208,25 @@ describe('DiagramAnnotateCanvas', () => {
     pointer('pointerup', at(0.5, 0.5));
     expect(annotations().map((annotation) => annotation.kind)).toEqual(['turn-over']);
     expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['turn_over']]);
+  });
+
+  it('puts a circle down with a click, keeps the tool for the next, and washes its ring when selected', () => {
+    mount();
+    tool('circle');
+    pointer('pointerdown', at(0.4, 0.3));
+    pointer('pointerup', at(0.4, 0.3));
+    expect(annotations()).toHaveLength(1);
+    expect(annotations()[0]).toMatchObject({ kind: 'circle' });
+    expect(annotations()[0]!.from[0]).toBeCloseTo(0.4, 3);
+    expect(annotations()[0]!.to).toEqual(annotations()[0]!.from);
+    expect(state().diagramAnnotateTool).toBe('circle');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['circle']]);
+    // Drawn as References' ring, and selected: a wash along the ring, no ends to take hold of.
+    rerender();
+    expect(overlay().querySelector(`[data-annotation-id="${annotations()[0]!.id}"] circle`)).not.toBeNull();
+    const wash = overlay().querySelector('circle[data-selection]');
+    expect(Number(wash?.getAttribute('r'))).toBeCloseTo(CIRCLE_RADIUS * 1000, 6);
+    expect(host.querySelector('[data-handle]')).toBeNull();
   });
 
   it('puts Select back in hand once a label is placed, and keeps a drawing tool after a stroke', () => {

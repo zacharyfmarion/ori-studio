@@ -27,7 +27,14 @@ import { stepPictureUrl } from '../pictures/useStepPictureUrl';
 import { registerDiagramGestureCancel, registerDiagramViewCamera } from '../useDiagramShortcuts';
 import { EDIT_PATH, drawingKind } from './annotateTools';
 import { annotationActionEdit, editAnnotation } from './annotationActions';
-import { hitAnnotation, hitPathGrip, type AnnotationGrip, type HitSizes, type PathGripPart } from './annotationHit';
+import {
+  circleRadius,
+  hitAnnotation,
+  hitPathGrip,
+  type AnnotationGrip,
+  type HitSizes,
+  type PathGripPart,
+} from './annotationHit';
 import { isCornerNode, pathRepresentation, sameRepresentation, splitPathSegment, type PathRepresentation } from './annotationPath';
 import { applyAnnotationEdit } from './applyAnnotationEdit';
 import { dragPath, pathDragEdit, pathGripAnchor, type PathModifiers } from './editPathGesture';
@@ -80,6 +87,9 @@ export const GLYPH_REACH =
 
 /** One ink in picture units, as the canvas draws: what an arrow's head and a push's width are measured in. */
 const INK_UNITS = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH) / CARD_FRAME_PX;
+
+/** A circle's ring, in picture units, as the canvas draws it. */
+export const CIRCLE_RADIUS = circleRadius(INK_UNITS);
 
 /** What every press carries: its pointer, where it began on screen, its slop, the diagram it began on. */
 interface Press {
@@ -631,6 +641,7 @@ const ANNOTATION_TOOL: Readonly<Record<DiagramAnnotationKind, DiagramAnnotationT
   'mountain-line': 'mountain_line',
   'hidden-line': 'hidden_line',
   label: 'label',
+  circle: 'circle',
 };
 
 /**

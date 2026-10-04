@@ -82,7 +82,8 @@ export type DiagramAnnotationTool =
   | 'valley_line'
   | 'mountain_line'
   | 'hidden_line'
-  | 'label';
+  | 'label'
+  | 'circle';
 
 /** A fold arrow, which Edit Path shapes: its kind, in the event's own spelling. */
 export type DiagramShapedArrowKind = 'valley_arrow' | 'mountain_arrow' | 'fold_unfold_arrow';

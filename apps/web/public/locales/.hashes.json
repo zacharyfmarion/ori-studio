@@ -3941,7 +3941,10 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7885,7 +7888,10 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11831,7 +11837,10 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15690,7 +15699,10 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -19549,7 +19561,10 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -23493,7 +23508,10 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -27437,7 +27455,10 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -31296,6 +31317,9 @@
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
     "tools:diagram.toolEditPath": "0cee98fd24cd",
-    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74",
+    "panels:diagram.annotate.circleHelp": "e7b50877bfab",
+    "panels:diagram.annotate.groupMarks": "65479e3e408a",
+    "tools:diagram.toolCircle": "b93d3bcecff5"
   }
 }

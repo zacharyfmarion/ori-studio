@@ -760,6 +760,7 @@
     "annotate": {
       "arrowHelp": "Arraste de onde o papel começa até onde ele chega.",
       "canvasLabel": "Anotações na imagem do passo",
+      "circleHelp": "Clique em um ponto para circulá-lo.",
       "controls": "Controles da visualização Anotar",
       "editPathCannot": "Só é possível dar forma a setas de dobra: de vale, de monte e de dobrar e desdobrar.",
       "editPathHelp": "Arraste os nós de uma seta de dobra, suas alças ou sua curva para dar forma a ela. Clique na curva para adicionar um nó; clique duas vezes em um nó para torná-lo canto ou suave.",
@@ -768,6 +769,7 @@
       "glyphHelp": "Clique onde o sinal deve ficar.",
       "groupArrows": "Setas",
       "groupLines": "Linhas",
+      "groupMarks": "Marcas",
       "groupSelect": "Selecionar",
       "groupText": "Texto",
       "labelHelp": "Clique onde o rótulo deve ficar e digite-o aqui.",

@@ -702,6 +702,7 @@
     "annotate": {
       "arrowHelp": "从纸开始移动的位置拖到它落下的位置。",
       "canvasLabel": "步骤图上的标注",
+      "circleHelp": "单击一个点，用圆圈圈出它。",
       "controls": "标注视图控件",
       "editPathCannot": "只有折叠箭头可以调整形状：谷折、山折和折后展开箭头。",
       "editPathHelp": "拖动折叠箭头的节点、其手柄或曲线来调整形状。单击曲线可添加节点；双击节点可在尖角和平滑之间切换。",
@@ -710,6 +711,7 @@
       "glyphHelp": "在要放置符号的位置单击。",
       "groupArrows": "箭头",
       "groupLines": "线",
+      "groupMarks": "标记",
       "groupSelect": "选择",
       "groupText": "文字",
       "labelHelp": "在要放置标签的位置单击，然后在这里输入。",

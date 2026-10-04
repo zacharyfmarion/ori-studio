@@ -24,7 +24,7 @@ export function drawingKind(tool: AnnotateTool): DiagramAnnotationKind | null {
   return tool === null || tool === EDIT_PATH ? null : tool;
 }
 
-export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'text';
+export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'text';
 
 export interface AnnotateToolGroup {
   id: AnnotateToolGroupId;
@@ -43,12 +43,13 @@ const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGro
   'mountain-line': 'lines',
   'hidden-line': 'lines',
   label: 'text',
+  circle: 'marks',
 };
 
-/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Text — each kind's tool in its group, in kind order. */
+/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each kind's tool in its group, in kind order. */
 export const ANNOTATE_TOOL_GROUPS: readonly AnnotateToolGroup[] = [
   { id: 'select', tools: [null, EDIT_PATH] },
-  ...(['arrows', 'lines', 'text'] as const).map((id) => ({
+  ...(['arrows', 'lines', 'marks', 'text'] as const).map((id) => ({
     id,
     tools: ANNOTATION_KINDS.filter((kind) => TOOL_GROUP[kind] === id),
   })),
@@ -66,6 +67,7 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, Dia
   'mountain-line': 'diagram.toolMountainLine',
   'hidden-line': 'diagram.toolHiddenLine',
   label: 'diagram.toolLabel',
+  circle: 'diagram.toolCircle',
 };
 
 /** Edit Path's key. */
@@ -108,6 +110,8 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
     case 'label':
       return t('tools:diagram.toolLabel', 'Label');
+    case 'circle':
+      return t('tools:diagram.toolCircle', 'Circle');
   }
 }
 
@@ -150,6 +154,8 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t('panels:diagram.annotate.glyphHelp', 'Click where the sign goes.');
     case 'label':
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it here.');
+    case 'circle':
+      return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
   }
 }
 
@@ -161,6 +167,8 @@ export function annotateGroupLabel(t: TFunction, group: AnnotateToolGroupId): st
       return t('panels:diagram.annotate.groupArrows', 'Arrows');
     case 'lines':
       return t('panels:diagram.annotate.groupLines', 'Lines');
+    case 'marks':
+      return t('panels:diagram.annotate.groupMarks', 'Marks');
     case 'text':
       return t('panels:diagram.annotate.groupText', 'Text');
   }

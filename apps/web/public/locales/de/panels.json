@@ -731,6 +731,7 @@
     "annotate": {
       "arrowHelp": "Ziehe von dort, wo das Papier startet, bis dorthin, wo es landet.",
       "canvasLabel": "Annotationen auf dem Bild des Schritts",
+      "circleHelp": "Klicke auf einen Punkt, um ihn einzukreisen.",
       "controls": "Steuerung der Ansicht Annotieren",
       "editPathCannot": "Nur Faltpfeile lassen sich formen: Tal-, Berg- und Falten-und-Öffnen-Pfeile.",
       "editPathHelp": "Ziehe die Knoten eines Faltpfeils, ihre Griffe oder seine Kurve, um ihn zu formen. Klicke auf die Kurve, um einen Knoten hinzuzufügen; doppelklicke auf einen Knoten, um ihn zur Ecke oder glatt zu machen.",
@@ -739,6 +740,7 @@
       "glyphHelp": "Klicke dort, wo das Zeichen hin soll.",
       "groupArrows": "Pfeile",
       "groupLines": "Linien",
+      "groupMarks": "Markierungen",
       "groupSelect": "Auswählen",
       "groupText": "Text",
       "labelHelp": "Klicke dort, wo die Beschriftung hin soll, und tippe sie hier ein.",

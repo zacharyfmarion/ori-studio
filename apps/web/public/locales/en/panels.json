@@ -731,6 +731,7 @@
     "annotate": {
       "arrowHelp": "Drag from where the paper starts to where it lands.",
       "canvasLabel": "Annotations on the step’s picture",
+      "circleHelp": "Click a point to circle it.",
       "controls": "Annotate view controls",
       "editPathCannot": "Only fold arrows can be shaped: valley, mountain, and fold and unfold arrows.",
       "editPathHelp": "Drag a fold arrow’s nodes, their handles or its curve to shape it. Click the curve to add a node; double-click a node to make it a corner or smooth.",
@@ -739,6 +740,7 @@
       "glyphHelp": "Click where the sign goes.",
       "groupArrows": "Arrows",
       "groupLines": "Lines",
+      "groupMarks": "Marks",
       "groupSelect": "Select",
       "groupText": "Text",
       "labelHelp": "Click where the label goes, then type it here.",

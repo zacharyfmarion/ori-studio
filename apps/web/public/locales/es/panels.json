@@ -760,6 +760,7 @@
     "annotate": {
       "arrowHelp": "Arrastra desde donde empieza el papel hasta donde llega.",
       "canvasLabel": "Anotaciones en la imagen del paso",
+      "circleHelp": "Haz clic en un punto para rodearlo con un círculo.",
       "controls": "Controles de la vista Anotar",
       "editPathCannot": "Solo se puede dar forma a las flechas de plegado: de valle, de monte y de doblar y desdoblar.",
       "editPathHelp": "Arrastra los nodos de una flecha de plegado, sus tiradores o su curva para darle forma. Haz clic en la curva para añadir un nodo; haz doble clic en un nodo para hacerlo de esquina o suave.",
@@ -768,6 +769,7 @@
       "glyphHelp": "Haz clic donde va el signo.",
       "groupArrows": "Flechas",
       "groupLines": "Líneas",
+      "groupMarks": "Marcas",
       "groupSelect": "Seleccionar",
       "groupText": "Texto",
       "labelHelp": "Haz clic donde va la etiqueta y escríbela aquí.",

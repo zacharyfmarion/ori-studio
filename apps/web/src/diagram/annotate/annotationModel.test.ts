@@ -285,3 +285,40 @@ describe('a shaped arrow', () => {
     expect(lone.path).toBeUndefined();
   });
 });
+
+describe('a circle', () => {
+  it('is put down at the press, its centre, with nothing more: no letter, no axis', () => {
+    expect(createAnnotation('circle', [0.2, 0.3], [0.9, 0.9], SQUARE, id)).toEqual({
+      id: 'annotation-1',
+      kind: 'circle',
+      from: [0.2, 0.3],
+      to: [0.2, 0.3],
+    });
+  });
+
+  it('moves whole by its body or its one place, and is never a slip', () => {
+    const circle = createAnnotation('circle', [0.2, 0.3], [0.2, 0.3], SQUARE, id);
+    const moved = moveAnnotation(circle, [0.1, 0.1]);
+    expect(moved.from[0]).toBeCloseTo(0.3, 12);
+    expect(moved.to).toEqual(moved.from);
+    expect(moveAnnotationEnd(circle, 'to', [0.5, 0.6])).toMatchObject({ from: [0.5, 0.6], to: [0.5, 0.6] });
+    expect(isDegenerate(circle, 0.5)).toBe(false);
+  });
+
+  it('is carried with its picture: its centre goes where the point does, and nothing turns', () => {
+    const circle = createAnnotation('circle', [0.2, 0.3], [0.2, 0.3], SQUARE, id);
+    expect(carryAnnotation(circle, mirrorMove(SQUARE))).toEqual({ ...circle, from: [0.8, 0.3], to: [0.8, 0.3] });
+    // Not a fold arrow: Flip arc leaves it.
+    expect(flipAnnotationArc(circle)).toBe(circle);
+  });
+
+  it('is written at one point, within reach', () => {
+    const stray: KnownDiagramAnnotation = { id: 'c', kind: 'circle', from: [5, 0.3], to: [0.4, 0.4] };
+    expect(cleanAnnotation(stray)).toEqual({
+      id: 'c',
+      kind: 'circle',
+      from: [ANNOTATION_REACH, 0.3],
+      to: [ANNOTATION_REACH, 0.3],
+    });
+  });
+});

@@ -15,6 +15,7 @@ import {
 import {
   DIAGRAM_ARROWHEAD_INK,
   DIAGRAM_FOLD_RETURN_INK,
+  DIAGRAM_MARK_INK,
   DIAGRAM_PUSH_INK,
 } from '../../cp-workspace/references/diagram/diagramInk';
 import {
@@ -256,8 +257,17 @@ function insidePolygon([x, y]: PicturePoint, ring: readonly PicturePoint[]): boo
 }
 
 /**
+ * A circle's ring in picture units, at the ink a press is measured in: the
+ * radius References rings a point at (`DIAGRAM_MARK_INK`), as it is drawn.
+ */
+export function circleRadius(ink: number): number {
+  return DIAGRAM_MARK_INK.radius * ink;
+}
+
+/**
  * How far a press is from an annotation's body, as it is drawn; 0 inside a
- * glyph, a label or a push. Every kind is measured as it is drawn (a switch,
+ * glyph, a label or a push. A circle is its ring, not its inside: an arrow
+ * that lands on it ends at its centre, and a press there is the arrow's. Every kind is measured as it is drawn (a switch,
  * so a new kind is a compile error here until it is).
  */
 function bodyDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, sizes: HitSizes): number {
@@ -282,6 +292,8 @@ function bodyDistance(annotation: KnownDiagramAnnotation, point: PicturePoint, s
     case 'mountain-line':
     case 'hidden-line':
       return distanceToSegment(point, annotation.from, annotation.to);
+    case 'circle':
+      return Math.abs(Math.hypot(point[0] - annotation.from[0], point[1] - annotation.from[1]) - circleRadius(sizes.ink));
   }
 }
 

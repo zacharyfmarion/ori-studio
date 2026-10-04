@@ -6,7 +6,7 @@ import { arrowPolyline } from '../../diagram/annotate/annotationHit';
 import { pathNodesOf, visiblePathHandles } from '../../diagram/annotate/annotationPath';
 import { annotationDrawing } from '../../diagram/annotate/annotationPrimitives';
 import { CARD_FRAME_PX } from '../../diagram/annotate/paintAnnotations';
-import { GLYPH_REACH, useAnnotateCanvas, type AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
+import { CIRCLE_RADIUS, GLYPH_REACH, useAnnotateCanvas, type AnnotateLayout } from '../../diagram/annotate/useAnnotateCanvas';
 import { canBeShaped, labelHalfWidth, LABEL_SIZE } from '../../diagram/annotate/annotationModel';
 import {
   isKnownAnnotation,
@@ -188,6 +188,9 @@ function Selection({
     case 'turn-over':
     case 'rotate':
       return ring(GLYPH_REACH);
+    case 'circle':
+      // Along its ring: what a press takes hold of.
+      return ring(CIRCLE_RADIUS);
     case 'valley-arrow':
     case 'mountain-arrow':
     case 'fold-unfold-arrow':

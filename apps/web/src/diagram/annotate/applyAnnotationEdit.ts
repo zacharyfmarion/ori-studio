@@ -64,6 +64,7 @@ function shapedKind(kind: DiagramAnnotationKind): DiagramShapedArrowKind | null 
     case 'mountain-line':
     case 'hidden-line':
     case 'label':
+    case 'circle':
       return null;
   }
 }

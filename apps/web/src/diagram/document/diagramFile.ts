@@ -710,6 +710,7 @@ const ANNOTATION_FIELDS: Readonly<Record<DiagramAnnotationKind, ReadonlySet<stri
     'mountain-line': fields(),
     'hidden-line': fields(),
     label: fields('text'),
+    circle: fields(),
   };
 })();
 
@@ -799,6 +800,7 @@ function readAnnotation(
     case 'valley-line':
     case 'mountain-line':
     case 'hidden-line':
+    case 'circle':
       return annotation;
   }
 }

@@ -107,6 +107,7 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolMountainLine'
   | 'diagram.toolHiddenLine'
   | 'diagram.toolLabel'
+  | 'diagram.toolCircle'
   | 'diagram.flipArc';
 
 /** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
@@ -584,6 +585,8 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
   diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
   diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
+  // O for the ring it draws.
+  diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
   // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
   // of their own ahead of `diagram`, whose executor claims them only while

@@ -125,6 +125,8 @@ export function shortcutActionLabel(t: TFunction, definition: ShortcutDefinition
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
     case 'diagram.toolLabel':
       return t('tools:diagram.toolLabel', 'Label');
+    case 'diagram.toolCircle':
+      return t('tools:diagram.toolCircle', 'Circle');
     case 'diagram.flipArc':
       return t('tools:diagram.flipArc', 'Flip Arc');
     case 'diagram.nudgeNodeLeft':

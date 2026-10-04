@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { canvasDiagramInk } from '../../cp-workspace/references/diagram/diagramInk';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
+import { ARROW_BEND } from './annotationModel';
 import { arcToPath } from './annotationPath';
+import { STEP_DIAGRAM_LINE_WIDTH } from '../pictures/paintStepDiagram';
 import { paintAsset } from '../pictures/paintDiagramStep';
 import { annotationDrawing, annotationScene, annotationTextRuns, labelRuns } from './annotationPrimitives';
 import { annotatedPicture, CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
@@ -119,6 +122,60 @@ describe('a shaped arrow', () => {
       path: [{ at: [0.5, 0.5] }, { at: [0.5, 0.5] }],
     });
     expect(annotationDrawing([point], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE).primitives).toEqual([]);
+  });
+});
+
+describe('a circle', () => {
+  const ink = canvasDiagramInk(STEP_DIAGRAM_LINE_WIDTH);
+  const circle = a('c', 'circle', { from: [0.5, 0.5], to: [0.5, 0.5] });
+
+  it('is References’ ring round a point, in the annotation pen and ink, with no letter', () => {
+    const drawing = annotationDrawing([circle], FRAME, CARD_FRAME_PX, DEFAULT_DIAGRAM_STYLE);
+    // y up, as References' unit frame is.
+    expect(drawing.primitives).toEqual([{ kind: 'point', at: [0.5, -0.5], style: 'highlight' }]);
+    expect(drawing.labels).toEqual([]);
+    const arrow = a('v', 'valley-arrow', { from: [0.1, 0.2], to: [0.4, 0.2], bend: ARROW_BEND });
+    const { markup } = paintAnnotations([circle, arrow], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const ring = /<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" stroke-width="([\d.]+)"[^>]*fill="none" stroke="([^"]+)"/.exec(
+      markup
+    );
+    expect(ring).not.toBeNull();
+    const [, cx, cy, r, width, stroke] = ring!;
+    expect([Number(cx), Number(cy)]).toEqual([200, 200]);
+    // 3.07 ink, about a millimetre printed (decision 7).
+    expect(Number(r)).toBeCloseTo(3.07 * ink, 2);
+    // The annotation pen: three quarters of the arrow's stroke, in the arrow's ink.
+    const [, shaft] = /<path d="M [^"]*A [^"]*" stroke-width="([\d.]+)"/.exec(markup)!;
+    const [, head] = /<path d="M [^"]*Z" fill="([^"]+)"/.exec(markup)!;
+    expect(Number(width)).toBeCloseTo(0.75 * Number(shaft), 3);
+    expect(stroke).toBe(head);
+    expect(markup).not.toContain('<text');
+    // In a style whose arrows are not its edges' colour, the arrows' — References rings in the edges'.
+    const red = { style: { ...DEFAULT_PAPER_STYLE, arrows: { ...DEFAULT_PAPER_STYLE.arrows, color: '#cc0000' } } };
+    const coloured = paintAnnotations([circle], { x: 0, y: 0, width: 400, height: 300 }, 400, red)!.markup;
+    expect(coloured).toMatch(/<circle [^>]*stroke="#cc0000"/);
+  });
+
+  it('stops an arrow that lands on its centre at its rim, as References’ rings do', () => {
+    const arrow = a('v', 'valley-arrow', { from: [0.2, 0.5], to: [0.5, 0.5], bend: ARROW_BEND });
+    const tipOf = (annotations: KnownDiagramAnnotation[]) => {
+      const markup = paintAnnotations(annotations, { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!.markup;
+      // The valley's head: a filled triangle from its tip.
+      const [, x, y] = /<path d="M ([-\d.]+) ([-\d.]+) L [^"]*Z" fill=/.exec(markup)!;
+      return [Number(x), Number(y)];
+    };
+    const free = tipOf([arrow]);
+    const landed = tipOf([circle, arrow]);
+    expect(Math.hypot(free[0]! - 200, free[1]! - 200)).toBeLessThan(0.5);
+    // The ring's radius short of the centre: on the ring.
+    expect(Math.hypot(landed[0]! - 200, landed[1]! - 200)).toBeCloseTo(3.07 * ink, 0);
+  });
+
+  it('reaches past the frame as far as its ring', () => {
+    const off = a('c', 'circle', { from: [-0.1, 0.5], to: [-0.1, 0.5] });
+    const painted = paintAnnotations([off], { x: 0, y: 0, width: 400, height: 300 }, 400, DEFAULT_DIAGRAM_STYLE)!;
+    const ringWidth = Number(/<circle [^>]*stroke-width="([\d.]+)"/.exec(painted.markup)![1]);
+    expect(painted.bounds.x).toBeCloseTo(-40 - 3.07 * ink - ringWidth / 2, 3);
   });
 });
 
