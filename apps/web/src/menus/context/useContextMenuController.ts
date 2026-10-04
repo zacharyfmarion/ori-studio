@@ -10,6 +10,7 @@ import {
 import { handleMenuAction, type MenuActionId } from '../../commands/menuActions';
 import type { ContextMenuItem } from '../../components/ui/contextMenuTypes';
 import { useShortcutStore } from '../../store/shortcutStore';
+import { topmostModalDialog } from '../../components/ui/useModalDialog';
 import { focusCommandDialog } from '../../store/commandDialogStore';
 import { selectWorkspaceCapabilities } from '../../store/workspaceStore/capabilities';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -202,6 +203,14 @@ export function useContextMenuController(
     // still up and lost focus to its trap; now the menu has let go, it takes
     // focus, and gives it back where the menu would have put it.
     if (focusCommandDialog(target)) {
+      event.preventDefault();
+      return;
+    }
+    // A row opened a modal dialog of its own (the Diagram's References
+    // browser): it takes focus as the menu lets go (`useModalDialog`), and a
+    // target behind it would put focus outside it.
+    const dialog = topmostModalDialog();
+    if (dialog && !(target && dialog.contains(target))) {
       event.preventDefault();
       return;
     }
