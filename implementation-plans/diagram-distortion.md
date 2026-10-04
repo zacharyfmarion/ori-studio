@@ -1,13 +1,14 @@
 # Diagram Pose: Spread Layers (depth steps)
 
 **Status: depth steps built (13a–13f); depth and affine as two kinds, depth
-on by default, being built (13g).** Phase 13 of
+on by default, built (13g), its review to come.** Phase 13 of
 `implementation-plans/diagram-workspace.md`. Zach tried the options in the
 playground (https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf, private: his
 crane diagram step by step, twelve cpoogle crease patterns folded to their
 bases, simple bases, DEFOX's sample) and chose **Depth steps**: "depth steps
-clearly looks the best. I want to use that to implement this." The affine
-distortion of DEFOX / step-folder is not built; why is kept at the end.
+clearly looks the best. I want to use that to implement this." DEFOX /
+step-folder's affine distortion was set aside then (why is kept at the end),
+and added after as the second kind, for unjoined flaps (13g).
 
 ## Goal
 
@@ -169,6 +170,12 @@ defaults he has not seen yet and are cheap to change.
 6. Reset Pose keeps the spread.
 7. Turning it on copies the nearest earlier step's spread.
 8. Annotations carry with the nearest layer.
+9. Two kinds, depth and affine (DEFOX's), one or the other; depth on by
+   default for every new flat pose, down, 2.5% (Zach, 2026-10-04) — 13g.
+   Decisions 1, 4 and 7 stand for the depth kind; 3's default direction is
+   now down.
+10. Affine starts at 3%, keep top, skew 1, axis 81° — the playground's bird
+   base in the kernel's frame (13g as built) — *for Zach*.
 
 ## Checklist
 
@@ -234,7 +241,7 @@ defaults he has not seen yet and are cheap to change.
   `pictureMove` takes a changed spread at the same side and order as a move
   by the turn alone. Not kept: a flat fold whose creases now fold in 3D (a
   partial fold added) is captured in 3D, which has no spread, and comes back
-  flat without one.
+  flat without one (since 13g: with the spread a new flat pose starts with).
 
 ### 13e. Pose UI
 - [x] Verbs, toolbar, Step pane (amount, direction), phone drawer, undo,
@@ -314,8 +321,10 @@ step, Show As Folded from a crease pattern or 3D, a fold reread flat — starts
 with the nearest earlier step's spread, else depth 2.5% down. A flat fold that
 already has a pose keeps it: a file whose step has no spread stays unspread,
 and Spread Layers still turns it off. Turning the affine kind on starts from
-the nearest earlier affine spread, else amount 3%, keep bottom, skew 1, axis
+the nearest earlier affine spread, else amount 3%, keep **top**, skew 1, axis
 81° — the playground's bird base (DEFOX's Angle 0.95 is φ = 162°, θ = 81°).
+Corrected from "keep bottom" (as built, below): the playground's bottom is
+the kernel's front's top on that fold.
 
 **The kernel (schema 3).** `FoldedPaperScene.sheet_points: Vec<Point>`: where
 each wireframe point (`FoldedPaperFace.points` names them) lies on the
@@ -358,20 +367,113 @@ Analytics: the existing events gain `spread_kind` (`depth` / `affine`); new
 axis only bucketed. i18n in every locale.
 
 **Checklist.**
-- [ ] Kernel schema 3 `sheet_points`; Rust tests; fmt, clippy; wasm rebuilt;
-  TS types.
-- [ ] `affineSpread` with unit tests: the anchor still; skew 0 is a lerp
+- [x] Kernel schema 3 `sheet_points`; Rust tests; fmt, clippy; wasm rebuilt;
+  TS types. As built: `sheet_points` is `graph.points` itself — the fold
+  graph and its wireframe share point indices (`wireframe_from_graph` folds
+  `graph.points` in place) — `#[serde(default)]` for an older scene. The
+  test fits each face's sheet → scene map from its corners on both passes,
+  at scale 1 and 2.5 and rotation 0° and 30°: one affine map through every
+  corner, a similarity at the model's scale, mirrored exactly when its side
+  differs from another face's, and the faces on the sheet tile the paper. TS
+  `sheet_points: Point[]` is required; hand-built scenes in tests carry `[]`.
+- [x] `affineSpread` with unit tests: the anchor still; skew 0 is a lerp
   toward the sheet; skew 1 moves toward along the axis and away across it;
   a turned-over pass mirrors the front's picture; a rotated pose turns it;
-  top and bottom on a book fold and a letter fold; an unnamed face.
-- [ ] The document union, reader, writer, defaults, `sameSpread`; the
-  no-kind compatibility read.
-- [ ] Defaults on: depth 2.5% down for every new flat pose.
-- [ ] Verbs, controller previews, Step pane, phone drawer, analytics, i18n.
-- [ ] Browser: the bird base (`rabbit-ear/tests/files/cp/bird-base.cp`)
+  top and bottom on a book fold and a letter fold; an unnamed face. As
+  built: `affineSpread(kernel, {amount, keep, skew, axisDeg}, {epsilon})`
+  returns `{anchor, offset(face, point)}`, the offset in kernel units added
+  before `toScenePx` (`placement` dispatches: affine on the model, depth on
+  the screen). `T_a` is a least-squares fit over the anchor's corners. The
+  anchor is the named face over the most area on top of (or at the bottom
+  of) the stacks as the front sees them; areas within 1e-9 are a tie, which
+  the lower face index takes (the bird base's two bottom flaps tie). No
+  anchor — no named face, or a scene with no `sheet_points` — moves nothing.
+  Hand-checked: the book fold's free edge 0.2 right at τ 10% from either
+  leaf; at full skew −0.25 across a vertical axis, (−0.025, 0.225) about 45°,
+  and (−0.025, −0.225) held through the folded-over leaf (the axis mirrors
+  with the paper — the test that fails if `A` is not carried by `M`); the
+  rolled letter fold from its bottom panel pokes the tucked panel 0.2 past
+  its fold, from its top one not. On the kernel's real folds (the sample and
+  the kabuto, front and back, glitch): the same items, every crease joined,
+  a face still, the turn applied after, and the back the front's mirror
+  vertex for vertex with the same paper held, either keep.
+- [x] The document union, reader, writer, defaults, `sameSpread`; the
+  no-kind compatibility read. As built: `{kind:'depth', amount, toward}` or
+  `{kind:'affine', amount, keep, skew, axisDeg}`, kind first in the file.
+  Ranges: depth 0.5–20%, affine 0.5–25% (`SPREAD_AMOUNT_RANGE` by kind),
+  skew 0–1 to a hundredth, axis 0–179 whole degrees (`clampSpreadAxis`
+  wraps a half turn). Reader: no `kind` is depth; a kind that is not a
+  string is damage; an unknown kind, a field of the other kind, a keep it
+  does not know, or a value past its range (a depth spread past 20% though
+  an affine one could take it, skew outside 0–1, an axis outside 0–179) is a
+  newer build's step, remembered renders included. `spreadStartsFor(document,
+  stepId)` gives `{any, depth, affine}`: the nearest earlier step's spread
+  of either kind and of each, else each default.
+- [x] Defaults on: depth 2.5% down for every new flat pose. As built:
+  `renderToShowAs` takes the starting spread for a flat fold it makes, not
+  one remembered; Link, Show as, Duplicate as and Pose's Show As Folded
+  pass `spreadStartsFor(…).any`; `captureStep` takes a `spreadStart` for a
+  3D request whose creases fold flat now (`renderForRoute`), and Pose's
+  `folded()` for a 3D pose whose creases fold flat. A flat fold that has a
+  pose keeps it: Zach's crane's step 5 (a crease pattern remembering an
+  unspread fold) comes back unspread. Reset Pose still keeps the spread.
+- [x] Verbs, controller previews, Step pane, phone drawer, analytics, i18n.
+  As built: `spread-kind` (the other kind from `spreadStarts[kind]`; the
+  kind it has, or no spread, changes nothing), `spread-keep`, `spread-skew`,
+  `spread-axis` beside `spread-amount` / `spread-direction`, all through
+  `withSpreadField` (each within its range, only on a spread of its kind).
+  The controller previews a *slide* — `{slider: 'amount'|'skew'|'axis',
+  value}` — drawn from the held fold, and commits the newest of each slider,
+  so a skew committed while an amount's capture runs is not lost to it. The
+  Step pane (`DiagramSpreadRows`, no new CSS): Spread by — Depth | Affine
+  (`SegmentedRow`) under the switch; Depth as before; Affine: the amount
+  ("3% of the way back to the sheet"), Keep still — Top | Bottom (with a help
+  mark), Skew 0–100% and Axis 0–179° sliders. The phone's drawer is the same
+  pane (390 × 844: no horizontal scroll). Analytics: `spread_kind`,
+  `spread_keep`, `spread_skew`, `spread_axis` actions; every spread event
+  carries `spread_kind` and the amount bucket, depth its direction, affine
+  `spread_keep`, `spread_skew_bucket` (`<=0`/`<=50`/`<=99`/`>99` percent) and
+  `spread_axis_bucket` (`<=45`/`<=90`/`<=135`/`>135` degrees). A new flat pose
+  starting spread is not a spread verb and is not counted as one.
+- [x] Browser: the bird base (`rabbit-ear/tests/files/cp/bird-base.cp`)
   affine against the playground's picture; Zach's crane with depth on by
-  default; Turn Over, Rotate, undo, save and reopen, the PDF.
+  default; Turn Over, Rotate, undo, save and reopen, the PDF. As built
+  (`artifacts/diagram-spread-kinds/`: `bird.mjs`, `crane.mjs`, `phone.mjs`,
+  `showas.mjs`, light and dark, 1440 × 900 and 390 × 844). **The axis is
+  81° in our frame too, but the layer held still is the top, not the
+  bottom:** the kernel folds the bird base with a starting face of the other
+  parity from the playground's (RabbitEar's) face 0, so the kernel's front
+  is the playground's view mirrored (a fitted map with determinant < 0,
+  turned 45°), and the playground's bottom layer is the front's top. Both
+  frames take θ from the crease pattern's own +x toward +y (y down), so the
+  axis needs no change. Keep top at 81° reproduces the playground's opening
+  to 0.000% of the sheet at every vertex, front and back; keep bottom is
+  4.4% off, and 99° (keep top) 2.7% off (`birdBase.scratch.test.ts.txt`,
+  `bird-front-compare.png`). In the app: Turn Over and Rotation 225° stand it
+  as the playground drew it (`bird-vs-playground.png`). Zach's crane (saved
+  on this branch before kinds): its spreads read as depth; a new step linked
+  folded after the turn starts depth 2.5% down, one at the end the step
+  before's 3% down; Turn Over, Rotate Right, undo, redo keep it; Affine from
+  the Step pane is one entry, a skew drag previews with no entry and commits
+  as one; save and reopen keep `kind` in the file; the Pages view and the
+  PDF draw it.
 - [ ] Review.
+
+For Zach (13g, cheap to change):
+- **Keep top by default**, so the bird base opens as in the playground (see
+  above). It also means the layer the reader sees most stays put, as the
+  depth spread's nearest layer does. On another model the top/bottom that
+  reads best will vary, and which side the kernel calls the front depends on
+  its starting face.
+- **Turn Over keeps the same paper still** (as the plan says), so the back is
+  the front's mirror. The playground instead kept the layer *seen* on top,
+  which changes the picture when the model is turned over.
+- **A kind switched back starts again** from the nearest earlier step's
+  spread of that kind (or its default), not from what this step had before
+  it switched: a skew set, then Depth, then Affine again, is back to 100%.
+- **The affine opening pokes layers through the folds that wrap them** on
+  real models (the crane's last step shows a back-side sliver at its tail):
+  it is DEFOX's, unchanged, and no poke check is made (decision 5).
 
 ## Risks
 
