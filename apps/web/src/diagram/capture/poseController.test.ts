@@ -490,11 +490,12 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const source = render(stepId)!;
     if (source.kind !== 'cp') throw new Error('linked');
 
-    for (const value of [0.1, 0.12, 0.15]) controller.previewSpread({ slider: 'amount', value });
+    for (const value of [0.1, 0.12, 0.15]) controller.previewSpread({ slider: 'amount', kind: 'depth', value });
     expect(heard.preview).toHaveBeenCalledTimes(3);
     expect(heard.preview).toHaveBeenLastCalledWith(
       {
-        slide: { slider: 'amount', value: 0.15 },
+        slide: { slider: 'amount', kind: 'depth', value: 0.15 },
+        slides: [{ slider: 'amount', kind: 'depth', value: 0.15 }],
         spread: { ...DEPTH, amount: 0.15 },
         picture: expect.objectContaining({ kind: 'scene' }),
       },
@@ -547,11 +548,16 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     flatInTheFile(stepId, { kind: 'depth', amount: 0.05, toward: 'down' });
     const heard = listener();
     const controller = createPoseController(stepId, heard);
-    controller.previewSpread({ slider: 'amount', value: 0.08 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.08 });
     // Nothing held: the spread now, the picture once the fold is.
     expect(heard.preview).toHaveBeenNthCalledWith(
       1,
-      { slide: { slider: 'amount', value: 0.08 }, spread: { kind: 'depth', amount: 0.08, toward: 'down' }, picture: null },
+      {
+        slide: { slider: 'amount', kind: 'depth', value: 0.08 },
+        slides: [{ slider: 'amount', kind: 'depth', value: 0.08 }],
+        spread: { kind: 'depth', amount: 0.08, toward: 'down' },
+        picture: null,
+      },
       expect.any(String)
     );
     const committing = controller.commitSpread();
@@ -575,7 +581,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     await controller.run({ verb: 'show-folded' });
     const past = state().diagramHistory.past.length;
     const commits = [0.1, 0.12, 0.14].map((value) => {
-      controller.previewSpread({ slider: 'amount', value });
+      controller.previewSpread({ slider: 'amount', kind: 'depth', value });
       return controller.commitSpread();
     });
     await Promise.all(commits);
@@ -604,7 +610,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const controller = createPoseController(stepId, listener());
     const open = holdTheFold();
     const past = state().diagramHistory.past.length;
-    controller.previewSpread({ slider: 'amount', value: 0.05 });
+    controller.previewSpread({ slider: 'amount', kind: 'affine', value: 0.05 });
     const amount = controller.commitSpread();
     controller.previewSpread({ slider: 'skew', value: 0.5 });
     const skew = controller.commitSpread();
@@ -615,13 +621,69 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     controller.dispose();
   });
 
+  it.each([
+    ['affine', 'depth', AFFINE, 0.24],
+    ['depth', 'affine', { ...DEPTH, amount: 0.15 }, 0.18],
+  ] as const)(
+    'drops an amount dragged on %s while the step switches to %s, rather than read it as the other kind’s (review)',
+    async (_from, to, spread, dragged) => {
+      const stepId = await linkedStep();
+      flatInTheFile(stepId, spread);
+      const controller = createPoseController(stepId, listener());
+      const open = holdTheFold();
+      const past = state().diagramHistory.past.length;
+      const switched = controller.run({ verb: 'spread-kind', kind: to });
+      // The switch folding, the old kind's slider still under the pointer.
+      await null;
+      expect(spreadOf(stepId)).toEqual(spread);
+      controller.previewSpread({ slider: 'amount', kind: spread.kind, value: dragged });
+      const committed = controller.commitSpread();
+      open();
+      await Promise.all([switched, committed]);
+      expect(spreadOf(stepId)).toEqual(to === 'depth' ? DEPTH : AFFINE);
+      expect(state().diagramHistory.past.length).toBe(past + 1);
+      controller.dispose();
+    }
+  );
+
+  it('keeps a slider let go at its value while another is dragged, and draws again when it lands (review)', async () => {
+    const stepId = await linkedStep();
+    flatInTheFile(stepId, AFFINE);
+    const heard = listener();
+    const controller = createPoseController(stepId, heard);
+    const open = holdTheFold();
+    controller.previewSpread({ slider: 'skew', value: 0.3 });
+    const skew = controller.commitSpread();
+    controller.previewSpread({ slider: 'axis', value: 50 });
+    // The skew waits for the fold, the axis is dragged: both shown.
+    expect(heard.preview).toHaveBeenLastCalledWith(
+      expect.objectContaining({ spread: { ...AFFINE, skew: 0.3, axisDeg: 50 } }),
+      expect.any(String)
+    );
+    open();
+    await skew;
+    expect(spreadOf(stepId)).toEqual({ ...AFFINE, skew: 0.3 });
+    // Landed under the axis still held: drawn again, from the fold now held.
+    expect(heard.preview).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        slides: [{ slider: 'axis', value: 50 }],
+        spread: { ...AFFINE, skew: 0.3, axisDeg: 50 },
+        picture: expect.objectContaining({ kind: 'scene' }),
+      }),
+      expect.any(String)
+    );
+    await controller.commitSpread();
+    expect(spreadOf(stepId)).toEqual({ ...AFFINE, skew: 0.3, axisDeg: 50 });
+    controller.dispose();
+  });
+
   it('ends a preview when an undo comes, and keeps its spread through Reset Pose', async () => {
     const stepId = await linkedStep();
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
     await controller.run({ verb: 'turn-over' });
-    controller.previewSpread({ slider: 'amount', value: 0.1 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.1 });
     controller.historyMoved();
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     await controller.run({ verb: 'reset' });
@@ -635,7 +697,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const controller = createPoseController(stepId, listener());
     const open = holdTheFold();
     const past = state().diagramHistory.past.length;
-    controller.previewSpread({ slider: 'amount', value: 0.15 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.15 });
     const committing = controller.commitSpread();
     // The commit is waiting for the fold the preview asked for.
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -653,7 +715,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const controller = createPoseController(stepId, listener());
     const open = holdTheFold();
     const past = state().diagramHistory.past.length;
-    controller.previewSpread({ slider: 'amount', value: 0.15 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.15 });
     const committing = controller.commitSpread();
     await new Promise((resolve) => setTimeout(resolve, 0));
     controller.dispose();
@@ -672,7 +734,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const open = holdTheFold();
     const turning = controller.run({ verb: 'rotate-right' });
     // Nothing is held, so the preview asks to fold — and is refused: the turn is folding.
-    controller.previewSpread({ slider: 'amount', value: 0.15 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.15 });
     const committing = controller.commitSpread();
     open();
     await Promise.all([turning, committing]);
@@ -688,7 +750,7 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const heard = listener();
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
-    controller.previewSpread({ slider: 'amount', value: 0.1 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.1 });
     expect(heard.preview).toHaveBeenLastCalledWith(
       expect.objectContaining({ spread: { ...DEPTH, amount: 0.1 } }),
       expect.any(String)
@@ -703,17 +765,17 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     const controller = createPoseController(stepId, heard);
     await controller.run({ verb: 'show-folded' });
     // A drag back to where it began commits nothing; the preview stays up.
-    controller.previewSpread({ slider: 'amount', value: 0.025 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.025 });
     await controller.run({ verb: 'spread-direction', toward: 'up-left' });
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
-    controller.previewSpread({ slider: 'amount', value: 0.12 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.12 });
     expect(heard.preview).toHaveBeenLastCalledWith(
       expect.objectContaining({ spread: { ...DEPTH, amount: 0.12, toward: 'up-left' } }),
       expect.any(String)
     );
     // Its spread turned off: nothing left to preview.
     await controller.run({ verb: 'spread-layers' });
-    controller.previewSpread({ slider: 'amount', value: 0.14 });
+    controller.previewSpread({ slider: 'amount', kind: 'depth', value: 0.14 });
     expect(heard.preview).toHaveBeenLastCalledWith(null, null);
     controller.dispose();
   });

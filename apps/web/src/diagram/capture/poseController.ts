@@ -9,7 +9,7 @@ import {
   peekCpSegmentationArtifacts,
 } from '../../cp-workspace/cpSegmentationArtifacts';
 import type { FoldedFigureCamera } from '../../cp-workspace/folded/folded3dCamera';
-import type { LayerSpreadOptions, SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
+import type { LayerSpreadOptions, SpreadDirection, SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   foldedFigureHandleEpoch,
   releaseFoldedFigureHandle,
@@ -123,21 +123,25 @@ function trackedDirection(toward: SpreadDirection): DiagramSpreadDirection {
 /** The sliders a spread is dragged by: its amount, and an affine one's skew and axis. */
 export type SpreadSlider = 'amount' | 'skew' | 'axis';
 
-/** A slider at a value: what a drag shows before it is committed. */
-export interface SpreadSlide {
-  slider: SpreadSlider;
-  value: number;
-}
+/**
+ * A slider at a value: what a drag shows before it is committed. An amount
+ * says which kind of spread it was dragged on — a share of the model by
+ * depth, τ for an affine one — so it is dropped on a spread switched to the
+ * other kind while it waits; a skew and an axis are an affine spread's alone.
+ */
+export type SpreadSlide =
+  | { slider: 'amount'; kind: SpreadKind; value: number }
+  | { slider: 'skew' | 'axis'; value: number };
 
 /** The verb that commits a slide. */
-function slideRequest({ slider, value }: SpreadSlide) {
-  switch (slider) {
+function slideRequest(slide: SpreadSlide) {
+  switch (slide.slider) {
     case 'amount':
-      return { verb: 'spread-amount', amount: value } as const;
+      return { verb: 'spread-amount', amount: slide.value, kind: slide.kind } as const;
     case 'skew':
-      return { verb: 'spread-skew', skew: value } as const;
+      return { verb: 'spread-skew', skew: slide.value } as const;
     case 'axis':
-      return { verb: 'spread-axis', axisDeg: value } as const;
+      return { verb: 'spread-axis', axisDeg: slide.value } as const;
   }
 }
 
@@ -160,6 +164,13 @@ export type SimulatedRest = Omit<Extract<LinkedPoseRequest, { verb: 'simulate' }
 export interface SpreadPreview {
   /** The slider dragged, and where to. */
   slide: SpreadSlide;
+  /**
+   * Every slide the step's spread does not hold yet, oldest first: the one
+   * being committed, those waiting for it, and the newest, `slide`. The
+   * spread shown is the step's own with each applied in turn, so a slider let
+   * go keeps its value while another is dragged.
+   */
+  slides: SpreadSlide[];
   spread: LayerSpreadOptions;
   picture: DiagramScenePicture | null;
 }
@@ -273,9 +284,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
   let holding: Promise<unknown> | null = null;
   /** This controller's own capture in flight: a spread commit waits for it rather than being refused as busy. */
   let own: Promise<unknown> | null = null;
-  /** The spread commits: the one being captured, and the newest value of each slider waiting for it. */
+  /** The spread commits: the one being captured, and the newest of each slider waiting for it. */
   let spreading: Promise<void> | null = null;
-  const waiting = new Map<SpreadSlider, number>();
+  let committing: SpreadSlide | null = null;
+  const waiting = new Map<SpreadSlider, SpreadSlide>();
   const session: CaptureSession = createCaptureSession({
     search: (work) => {
       if (!start) throw new Error('A pose fold ran outside a capture');
@@ -431,9 +443,10 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
       return;
     }
     const slide = previewing;
-    const spread = withSlide(stored, slide);
+    const slides = [...(committing ? [committing] : []), ...waiting.values(), slide];
+    const spread = slides.reduce(withSlide, stored);
     const picture = drawPreview(spread);
-    listener.preview({ slide, spread, picture: picture ?? null }, linkedFoldKey(stepId, linked));
+    listener.preview({ slide, slides, spread, picture: picture ?? null }, linkedFoldKey(stepId, linked));
     if (picture === undefined && hold) holdForPreview();
   };
 
@@ -507,7 +520,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
 
     commitSpread() {
       if (previewing === null || disposed) return Promise.resolve();
-      waiting.set(previewing.slider, previewing.value);
+      waiting.set(previewing.slider, previewing);
       const asked = previews;
       spreading ??= (async () => {
         await null;
@@ -519,9 +532,16 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
             // the detail closing takes back the values that were waiting.
             const next = waiting.entries().next();
             if (next.done || disposed) break;
-            const [slider, value] = next.value;
+            const [slider, slide] = next.value;
             waiting.delete(slider);
-            await run(slideRequest({ slider, value }));
+            committing = slide;
+            try {
+              await run(slideRequest(slide));
+            } finally {
+              committing = null;
+            }
+            // Redrawn on the spread it landed in, under a slider still held.
+            if (previewing !== null) showPreview(false);
           }
         } finally {
           spreading = null;

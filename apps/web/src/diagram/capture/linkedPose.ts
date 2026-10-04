@@ -57,7 +57,16 @@ export type LinkedPoseRequest =
   | { verb: 'orbit'; camera: FoldedFigureCamera }
   | { verb: 'rotate-to'; degrees: number }
   | { verb: 'spread-kind'; kind: SpreadKind }
-  | { verb: 'spread-amount'; amount: number }
+  | {
+      verb: 'spread-amount';
+      amount: number;
+      /**
+       * The kind of spread it was set on, when it was dragged: an amount is a
+       * share of the model by depth and τ for an affine one, so one dragged on
+       * the other kind is no amount of this spread's.
+       */
+      kind?: SpreadKind;
+    }
   | { verb: 'spread-direction'; toward: SpreadDirection }
   | { verb: 'spread-keep'; keep: SpreadKeep }
   | { verb: 'spread-skew'; skew: number }
@@ -90,7 +99,9 @@ function isSpreadFieldRequest(request: LinkedPoseRequest): request is SpreadFiel
 export function withSpreadField(spread: DiagramLayerSpread, request: SpreadFieldRequest): DiagramLayerSpread {
   switch (request.verb) {
     case 'spread-amount':
-      return { ...spread, amount: clampSpreadAmount(spread.kind, request.amount) };
+      return request.kind === undefined || request.kind === spread.kind
+        ? { ...spread, amount: clampSpreadAmount(spread.kind, request.amount) }
+        : spread;
     case 'spread-direction':
       return spread.kind === 'depth' ? { ...spread, toward: request.toward } : spread;
     case 'spread-keep':

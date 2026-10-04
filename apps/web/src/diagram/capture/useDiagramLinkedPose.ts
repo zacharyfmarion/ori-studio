@@ -167,7 +167,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     const stored = poseState.render.mode === 'folded-flat' ? poseState.render.spread : undefined;
     // The step's own spread with the dragged slider moved: a preview never
     // outlives the spread it was drawn for, nor says how the rest of it is set.
-    const shown = stored && shownPreview ? withSlide(stored, shownPreview.slide) : null;
+    const shown = stored && shownPreview ? shownPreview.slides.reduce(withSlide, stored) : null;
     const controls = buildDiagramSpreadControls(poseState, shown, {
       t,
       kind: (kind) => void controller.run({ verb: 'spread-kind', kind }),
@@ -179,15 +179,11 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     return {
       ...controls,
       preview: (slider, value) =>
-        controller.previewSpread({
-          slider,
-          value:
-            slider === 'amount'
-              ? clampSpreadAmount(kind, value)
-              : slider === 'skew'
-                ? clampSpreadSkew(value)
-                : clampSpreadAxis(value),
-        }),
+        controller.previewSpread(
+          slider === 'amount'
+            ? { slider, kind, value: clampSpreadAmount(kind, value) }
+            : { slider, value: slider === 'skew' ? clampSpreadSkew(value) : clampSpreadAxis(value) }
+        ),
       commit: () => void controller.commitSpread(),
       start: () => !controls.disabled,
     };
