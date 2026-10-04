@@ -159,7 +159,11 @@ describe('a linked picture turned about its middle', () => {
     function spreadScene(scene: PaperScene): PaperScene {
       const top = scene.items.find((item) => item.kind === 'face')!;
       if (top.kind !== 'face') throw new Error('a face');
-      const deeper = { ...top, rings: top.rings.map((ring) => ring.map(([x, y]): ScenePoint => [x - 30, y - 30])) };
+      const deeper = {
+        ...top,
+        face: top.face + 1,
+        rings: top.rings.map((ring) => ring.map(([x, y]): ScenePoint => [x - 30, y - 30])),
+      };
       const items = [deeper, ...scene.items];
       const { bounds } = scene;
       return { ...scene, items, bounds: { ...bounds, minX: bounds.minX - 30, minY: bounds.minY - 30 } };
@@ -206,6 +210,33 @@ describe('a linked picture turned about its middle', () => {
         picture: after,
       }).steps[0] as DiagramStep;
       close((moved.annotations[0] as KnownDiagramAnnotation).from, expectedFrom(sceneBefore, storedScene(after)!, [0.1, 0.2], 90));
+    });
+
+    it('moves a mark with the face under it, where the spread stepped that face’s corners unequally', () => {
+      const before = scenePicture();
+      const sceneBefore = storedScene(before)!;
+      // The face's corner at the sheet's far corner meets a deeper layer, and steps half its way.
+      const top = sceneBefore.items.find((item) => item.kind === 'face')!;
+      if (top.kind !== 'face') throw new Error('a face');
+      const ring = top.rings[0]!.map(([x, y], corner): ScenePoint => (corner === 2 ? [x - 20, y - 20] : [x, y]));
+      const sceneAfter: PaperScene = {
+        ...sceneBefore,
+        items: sceneBefore.items.map((item) => (item === top ? { ...top, rings: [ring] } : item)),
+      };
+      const after = { ...before, sceneJson: storedSceneJson(sceneAfter)!, key: 'scene-unequal' };
+      const document = annotated(cpStep('step-1', FLAT), [{ ...ARROW, from: [0.5, 0.5], to: [0.9, 0.5] }]);
+      const moved = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, spread: SPREAD }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      const arrow = moved.annotations[0] as KnownDiagramAnnotation;
+      // The square's middle weighs its four corners alike: a quarter of the corner's step.
+      const span = Math.max(sceneBefore.bounds.maxX - sceneBefore.bounds.minX, sceneBefore.bounds.maxY - sceneBefore.bounds.minY);
+      close(arrow.from, [0.5 - 5 / span, 0.5 - 5 / span]);
+      // Nearer that corner, more of its step; never more than all of it.
+      const shift = 0.9 - arrow.to[0];
+      expect(shift).toBeGreaterThan(5 / span);
+      expect(shift).toBeLessThan(20 / span);
     });
 
     it('leaves them where they were when the spread came with another side or layer order', () => {

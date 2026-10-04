@@ -8,9 +8,10 @@
  *
  * Pure: no DOM, no store.
  */
+import { meanValueWeights } from '../../cp-workspace/folded/foldedLayerSpread';
 import { boundariesMatchMoved, isRelativeFingerprint } from '../../cp-workspace/regions/regionIdentity';
 import { turnClockwise } from '../../lib/geometry';
-import type { SceneBounds } from '../../lib/paper/paperScene';
+import type { PaperFaceItem, PaperScene, SceneBounds, ScenePoint } from '../../lib/paper/paperScene';
 import {
   isKnownAnnotation,
   sameSpread,
@@ -156,10 +157,6 @@ function pictureMove(
     if (was.mode === 'folded-flat' && is.mode === 'folded-flat' && (was.side !== is.side || was.foldCase !== is.foldCase)) {
       return null;
     }
-    // A spread steps every layer but the nearest, which stays where it was in
-    // the scene (`foldedLayerSpread.ts`): a mark on the picture's top surface
-    // moves only by the turn — none when only the spread changed. One on a
-    // deeper layer is off by that layer's step.
     const spread = was.mode === 'folded-flat' && is.mode === 'folded-flat' && !sameSpread(was.spread, is.spread);
     const delta = is.rotationDeg - was.rotationDeg;
     if (delta === 0 && !spread) return null;
@@ -168,9 +165,70 @@ function pictureMove(
     // The axis a turn-over turns about follows the poses' own quarter turns, so
     // six 15° presses and a reset bring it back as they bring the picture back.
     const quarters = Math.round(is.rotationDeg / 90) - Math.round(was.rotationDeg / 90);
-    return sceneTurnMove(sceneBefore.bounds, sceneAfter.bounds, delta, quarters);
+    const turn = sceneTurnMove(sceneBefore.bounds, sceneAfter.bounds, delta, quarters);
+    return turn && spread ? spreadMove(sceneBefore, sceneAfter, turn) : turn;
   }
   return null;
+}
+
+/**
+ * A flat fold's layers spread otherwise, and perhaps turned: a point moves
+ * with the face it was drawn on — the nearest whole face under it — to where
+ * that face went, by mean value coordinates over its outline, which take its
+ * corners exactly where the spread took them and everything between as the
+ * spread's own field does (`foldedLayerSpread.ts`). The nearest layer is not
+ * still where it meets deeper ones at a crease, nor is a deeper layer, so the
+ * turn alone would leave a mark there off its paper. A point on no face, or on
+ * one the other picture does not draw whole (a layer a picture with no spread
+ * leaves out), moves by `turn`.
+ */
+function spreadMove(before: PaperScene, after: PaperScene, turn: PictureMove): PictureMove {
+  const drawn = before.items.filter(isWholeFace).filter((item) => !item.hidden);
+  const target = new Map<number, ScenePoint[]>();
+  for (const item of after.items) {
+    if (isWholeFace(item) && !target.has(item.face)) target.set(item.face, item.rings[0]!);
+  }
+  const [from, to] = [before.bounds, after.bounds];
+  const longerFrom = Math.max(from.maxX - from.minX, from.maxY - from.minY);
+  const longerTo = Math.max(to.maxX - to.minX, to.maxY - to.minY);
+  const epsilon = 1e-9 * longerFrom;
+  return {
+    ...turn,
+    point: ([u, v]) => {
+      const at = { x: from.minX + u * longerFrom, y: from.minY + v * longerFrom };
+      // Back to front, so the last face found is the one the mark sits on.
+      for (let i = drawn.length - 1; i >= 0; i -= 1) {
+        const ring = drawn[i]!.rings[0]!;
+        if (!insideRing(ring, at)) continue;
+        const goal = target.get(drawn[i]!.face);
+        const weights = goal?.length === ring.length ? meanValueWeights(ring.map(([x, y]) => ({ x, y })), at, epsilon) : null;
+        if (!goal || !weights) break;
+        let [x, y] = [0, 0];
+        weights.forEach((weight, corner) => {
+          x += weight * goal[corner]![0];
+          y += weight * goal[corner]![1];
+        });
+        return [(x - to.minX) / longerTo, (y - to.minY) / longerTo];
+      }
+      return turn.point([u, v]);
+    },
+  };
+}
+
+/** A face drawn whole, as one ring — not a woven patch's piece of one. */
+function isWholeFace(item: PaperScene['items'][number]): item is PaperFaceItem {
+  return item.kind === 'face' && item.group === undefined && item.rings.length === 1;
+}
+
+/** Even-odd: whether `point` is inside the closed `ring`. */
+function insideRing(ring: readonly ScenePoint[], point: { x: number; y: number }): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i]!;
+    const [xj, yj] = ring[j]!;
+    if (yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
 /**
