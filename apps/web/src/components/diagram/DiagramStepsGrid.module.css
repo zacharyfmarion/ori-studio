@@ -6,6 +6,11 @@
 .grid {
   /* The space between cards: where a step can be added between two. */
   --gap: var(--space-4);
+  /*
+   * The side room a column-1 card's gap needs, which is the grid's padding: a
+   * turn's 26px chip and its 2px focus ring, centred in the gap before it.
+   */
+  --chip-room: calc(var(--gap) / 2 + 15px);
 
   /* Its width says how many columns there are: one, and the insert gaps go between rows. */
   container: steps / inline-size;
@@ -15,7 +20,7 @@
   gap: var(--gap);
   box-sizing: border-box;
   min-height: 100%;
-  padding: var(--space-5);
+  padding: var(--space-5) max(var(--space-5), var(--chip-room));
 }
 
 .grid:focus {
@@ -239,5 +244,16 @@
 
     /* Room over the first card for the gap before it: its "+" and any turns. */
     padding: var(--space-5) var(--space-3) var(--space-3);
+  }
+}
+
+/*
+ * Wide enough for two columns (a phone on its side): the gap before a column-1
+ * card is beside it again, in the side padding, which makes room for its chip.
+ * One column keeps the narrow sides, its gaps above the cards.
+ */
+@media (min-width: 476px) and (max-width: 720px) {
+  .grid {
+    padding-inline: var(--chip-room);
   }
 }
