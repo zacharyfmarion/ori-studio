@@ -45,12 +45,13 @@ export function SimulatorViewControlsPanel() {
   // swatches stop doing anything; showing them live would promise an effect
   // they no longer have.
   const asEdges = paper.style.foldsAsEdges;
-  const penRow = (pen: SimulatorPenField, label: string, disabled = false) => (
+  const penRow = (pen: SimulatorPenField, label: string, disabled = false, divider = true) => (
     <ColorField
       label={label}
       layout="row"
       value={paper.style[pen].color}
       disabled={disabled}
+      divider={divider}
       onChange={(value) => paper.setPenColor(pen, value)}
       onCommit={paper.endAdjustment}
     />
@@ -156,9 +157,11 @@ export function SimulatorViewControlsPanel() {
               onChange={(value) => paper.setPaperColor('paper.front', value)}
               onCommit={paper.endAdjustment}
             />
+            {/* The last of a group: the section ends it, so no rule of its own. */}
             <ColorField
               label={t('panels:simulatorViewControls.paperBack', 'Back')}
               layout="row"
+              divider={false}
               value={paper.style.paper.back}
               onChange={(value) => paper.setPaperColor('paper.back', value)}
               onCommit={paper.endAdjustment}
@@ -179,7 +182,7 @@ export function SimulatorViewControlsPanel() {
           <div className="simulator-view-controls-panel__colors">
             {penRow('mountainFolds', t('panels:simulatorViewControls.mountain', 'Mountain'), asEdges)}
             {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), asEdges)}
-            {penRow('edges', t('panels:simulatorViewControls.borderEdge', 'Edge'))}
+            {penRow('edges', t('panels:simulatorViewControls.borderEdge', 'Edge'), false, false)}
           </div>
         </CollapsibleSection>
 

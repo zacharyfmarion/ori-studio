@@ -50,7 +50,7 @@ function mount(patch: Partial<ReturnType<typeof useWorkspaceStore.getState>>) {
 
 const text = (selector: string) => host?.querySelector(selector)?.textContent ?? null;
 const labels = () =>
-  [...(host?.querySelectorAll('.control-row__label') ?? [])].map((label) => label.textContent);
+  [...(host?.querySelectorAll('[data-field-label]') ?? [])].map((label) => label.textContent);
 
 function setRange(input: HTMLInputElement, value: string, event: 'input' | 'change') {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
@@ -171,7 +171,7 @@ describe('CpPropertiesPanel', () => {
     ]);
     // Not ready: the appearance is offered, disabled, with the reason; the
     // placement — where it sits — stays editable.
-    expect(host?.querySelector('.control-row')?.getAttribute('title')).toBe(
+    expect(host?.querySelector('[data-field-row]')?.getAttribute('title')).toBe(
       'Refold to change how this figure looks'
     );
     const scale = host?.querySelector<HTMLInputElement>('input[aria-label="Scale"]');

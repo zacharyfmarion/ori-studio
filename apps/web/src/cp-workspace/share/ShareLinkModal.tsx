@@ -446,7 +446,7 @@ export function ShareLinkModal() {
                   />
                 </div>
                 {/* `inline`, not `row`: a dialog is not an options pane, and the ruled,
-                    padded rows a `control-row` draws made three settings look like a table. */}
+                    padded rows a `FieldRow` draws made three settings look like a table. */}
                 <ColorField
                   layout="inline"
                   showValue

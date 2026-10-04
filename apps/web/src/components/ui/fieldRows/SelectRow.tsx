@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../Select';
-import { FieldRow } from './FieldRow';
+import { Select, SelectContent, SelectItem, SelectValue } from '../Select';
+import { FieldRow, FieldRowSelectTrigger } from './FieldRow';
 
 export interface SelectRowOption {
   id: string;
@@ -38,9 +38,9 @@ export function SelectRow({
   return (
     <FieldRow label={label} kind="select" disabled={disabled} title={title} onReset={onReset}>
       <Select value={value ?? ''} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger aria-label={label} className="control-row__select">
+        <FieldRowSelectTrigger aria-label={label}>
           <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
+        </FieldRowSelectTrigger>
         <SelectContent {...contentProps}>
           {options.map((option) => (
             <SelectItem key={option.id} value={option.id}>

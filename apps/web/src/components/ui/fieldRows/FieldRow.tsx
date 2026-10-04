@@ -1,12 +1,15 @@
-import type { ReactNode } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef, type ElementRef, type ReactNode } from 'react';
 import { Info, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { SelectTrigger } from '../Select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../Tooltip';
+import styles from './FieldRow.module.css';
 
 /**
  * The label-left / control-right row every options pane is built from.
  *
- * One shell for the `control-row` idiom, so the panes stop re-declaring it:
+ * One shell for the pane-row idiom (it was the global `control-row`, and its
+ * look is `FieldRow.module.css` now), so the panes stop re-declaring it:
  * `CpViewControlsPanel`, `SimulatorViewControlsPanel` and `InspectorPanel` each
  * carried private `ToggleRow` / `NumberRow` copies that agreed by accident. The
  * row is a `div`, never a `<label>` wrapping its control: a Radix switch inside
@@ -14,7 +17,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../Tooltip';
  * also moves the field's draft. The label element is a `<label htmlFor>` only
  * when the control is a native input that can take it.
  */
-export type FieldRowValueKind = 'toggle' | 'input' | 'select' | 'slider' | 'color' | 'segmented' | 'text';
+export type FieldRowValueKind =
+  | 'toggle'
+  | 'input'
+  | 'select'
+  | 'slider'
+  | 'color'
+  | 'segmented'
+  | 'text'
+  /** Text to read, not a control: the design inspector's facts and its actions' names. */
+  | 'static';
 
 export function FieldRow({
   label,
@@ -27,6 +39,9 @@ export function FieldRow({
   nested = false,
   title,
   className,
+  divider = true,
+  readout,
+  onClick,
   onReset,
   children,
 }: {
@@ -60,7 +75,23 @@ export function FieldRow({
   nested?: boolean;
   /** Why the row is disabled, shown on hover; the row itself carries it, not the control. */
   title?: string;
+  /** For placement, on the row's root; and for a component that is a row, its own root class. */
   className?: string;
+  /**
+   * The rule under the row. A pane's rows rule each other off; a row with
+   * nothing under it that it separates from — the last of a group whose
+   * container ends itself, or one inside a window that divides its own
+   * sections — goes without.
+   */
+  divider?: boolean;
+  /** A number beside the control, as the slider's value is: dimmed with the row. */
+  readout?: ReactNode;
+  /**
+   * The whole row is the control: a button whose label names the action and
+   * whose value says what it does, as the design inspector's actions are. Such
+   * a row takes no `help` and no `onReset`, which would be buttons inside it.
+   */
+  onClick?: () => void;
   /**
    * Put the value back to its default. Rendered as the trailing affordance
    * `ColorField.onClear` has — a reset is a property edit like any other, so
@@ -79,20 +110,43 @@ export function FieldRow({
   const overridden = kind === 'toggle' && onReset !== undefined;
   const noteLine = overridden || (kind === 'toggle' && overridable);
   const resetButton = kind !== 'toggle' && onReset !== undefined;
-  const rowClass = [
-    'control-row',
-    nested && 'control-row--nested',
-    noteLine && 'control-row--noted',
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const rootData = {
+    'data-field-row': '',
+    'data-nested': nested || undefined,
+    'data-noted': noteLine || undefined,
+    'data-disabled': disabled || undefined,
+    'data-divider': divider ? undefined : 'none',
+  };
+  const rootClass = className ? `${styles.row} ${className}` : styles.row;
+
+  if (onClick) {
+    // Phrasing content throughout: a button may hold nothing else.
+    return (
+      <button
+        type="button"
+        className={rootClass}
+        data-action=""
+        {...rootData}
+        title={title}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        <span className={styles.label} data-field-label="">
+          {label}
+        </span>
+        <span className={styles.value} data-field-value={kind}>
+          {children}
+        </span>
+      </button>
+    );
+  }
+
   const helpMark = help && (
     // Prompt, unlike a toolbar's tooltips: nobody sweeps past an info mark by
     // accident, and the provider's 700 ms reads as nothing happening.
     <Tooltip delayDuration={150}>
       <TooltipTrigger asChild>
-        <button type="button" className="control-row__help" aria-label={help}>
+        <button type="button" className={styles.help} data-field-help="" aria-label={help}>
           <Info size={13} aria-hidden="true" />
         </button>
       </TooltipTrigger>
@@ -100,32 +154,34 @@ export function FieldRow({
     </Tooltip>
   );
   return (
-    <div className={rowClass} data-disabled={disabled || undefined} title={title}>
+    <div className={rootClass} {...rootData} title={title}>
       {htmlFor ? (
-        <label className="control-row__label" htmlFor={htmlFor}>
+        <label className={styles.label} data-field-label="" htmlFor={htmlFor}>
           {label}
           {helpMark}
         </label>
       ) : (
-        <span className="control-row__label">
+        <span className={styles.label} data-field-label="">
           {label}
           {helpMark}
         </span>
       )}
       <div
-        className={[
-          'control-row__value',
-          `control-row__value--${kind}`,
-          resetButton && 'control-row__value--reset',
-        ]
-          .filter(Boolean)
-          .join(' ')}
+        className={styles.value}
+        data-field-value={kind}
+        data-reset={resetButton || undefined}
       >
         {children}
+        {readout !== undefined && (
+          <span className={styles.readout} data-field-readout="">
+            {readout}
+          </span>
+        )}
         {resetButton && (
           <button
             type="button"
-            className="control-row__reset"
+            className={styles.reset}
+            data-field-reset=""
             title={t('common:colorField.reset', 'Reset to default')}
             aria-label={t('common:colorField.resetNamed', 'Reset {{label}} to default', { label })}
             disabled={disabled}
@@ -139,10 +195,24 @@ export function FieldRow({
           and the line the switch sits on is the same with or without it. Empty
           rather than absent while nothing is overridden (see `overridable`). */}
       {noteLine && (
-        <span className="control-row__note" id={noteId}>
+        <span className={styles.note} data-field-note="" id={noteId}>
           {overridden && t('common:fieldRow.overridden', 'Overridden')}
         </span>
       )}
     </div>
   );
 }
+
+/**
+ * The trigger a row's select wears: the row's height, the column's width.
+ *
+ * A component rather than a class the select row sets, because the row is what
+ * knows that size — and a module's class can be read only by the file that
+ * imports it.
+ */
+export const FieldRowSelectTrigger = forwardRef<
+  ElementRef<typeof SelectTrigger>,
+  Omit<ComponentPropsWithoutRef<typeof SelectTrigger>, 'className'>
+>(function FieldRowSelectTrigger(props, ref) {
+  return <SelectTrigger ref={ref} className={styles.selectTrigger} {...props} />;
+});

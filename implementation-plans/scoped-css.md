@@ -166,14 +166,23 @@ Moved by `implementation-plans/simulator-tool-rail-and-pins.md`:
 `cp-tool-picker`, into the tool kit's modules (`components/ui/tools/`:
 `ToolPickerSheet`, `ToolPickerGroup`, `ToolPickerRow`, `ToolsTriggerButton`)
 and Edit's adapters (`CpToolPickerSheet`, `CpToolFavoriteToggle`); and
-`cp-tools-trigger`, out of the shared `canvas-pill` selector list.
+`cp-tools-trigger`, out of the shared `canvas-pill` selector list. And
+`control-row`, into `FieldRow.module.css`: the simulator colour groups'
+last-row override is `FieldRow`'s `divider={false}`, `ColorField`'s row layout
+composes `FieldRow`, its inline layout has a label of its own
+(`color-field__label`, which Settings → Paper's override now names), and the
+design inspector's rows are `FieldRow`s and `TextRow`s. `control-row__input`
+stays global; see below.
 
 Still shared:
 
 - **Panel frame**: `panel-shell`, `panel-toolbar`, `panel-body`,
   `panel-title`, `empty-note` (15+ panels) — likely a `Panel` component
-- **Rows and fields**: `control-row` (10 files), `collapsible-section`,
-  `field-row`, `settings-section`, `settings-toggle-row`, `settings-checkbox`
+- **Rows and fields**: `collapsible-section`, `field-row`, `settings-section`,
+  `settings-toggle-row`, `settings-checkbox`; and `control-row__input`, the row
+  input look, which fields that are not rows wear too (`TextRow`, `NumberField`'s
+  bare field, the preset name, the design inspector) and the View pane's scale
+  formula restyles. It moves with an input primitive that has those as props.
 - **Dialogs**: `simple-modal` (9 files), `export-modal` (6),
   `settings-shortcuts`, `settings-paper` (5)
 - **The select trigger**: `select-trigger`. The export dialogs restyle it

@@ -546,46 +546,6 @@
   overflow: auto;
 }
 
-.control-row {
-  display: grid;
-  grid-template-columns: minmax(80px, 1fr) minmax(80px, auto);
-  align-items: center;
-  gap: var(--space-2);
-  padding: 7px var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.control-row__label {
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-}
-
-/* The info mark after a label whose name cannot carry what the setting does. */
-.control-row__help {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 4px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  vertical-align: -2px;
-  cursor: help;
-}
-
-.control-row__help:hover,
-.control-row__help:focus-visible {
-  color: var(--text-primary);
-}
-
-.control-row__value {
-  color: var(--text-primary);
-  font-size: 0.74rem;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
 .control-row__input {
   width: 100%;
   min-width: 72px;
@@ -2405,8 +2365,8 @@
  * so a two-class selector here is an *earlier* rule at equal specificity and
  * silently loses every property the two share.
  */
-.settings-paper .settings-paper__card--color .control-row__label,
-.settings-paper .settings-paper-pen__head .control-row__label {
+.settings-paper .settings-paper__card--color .color-field__label,
+.settings-paper .settings-paper-pen__head .color-field__label {
   color: var(--text-primary);
   font-size: 0.78rem;
   font-weight: 650;
@@ -4374,21 +4334,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   cursor: grab;
 }
 
-.control-row--button {
-  width: 100%;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.control-row--button:hover {
-  background: var(--bg-surface);
-}
-
 .empty-note {
   color: var(--text-tertiary);
   font-size: 12px;
@@ -4880,7 +4825,7 @@ button.cp-folded-figure-toolbar__notice:hover {
 }
 
 /* A property sheet: the selected object's name and context, then its rows in
-   sections — the same `control-row` / `collapsible-section` idiom as the View
+   sections — the same `FieldRow` / `collapsible-section` idiom as the View
    pane, so the two tabs read as one pane. See components/properties. */
 .property-sheet {
   display: flex;
@@ -4936,93 +4881,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 .property-sheet__section:last-child {
   border-bottom: 0;
-}
-
-.control-row__value--toggle {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* The stepper sits at the end of the row, as wide as its number, and a reset
-   trails it the way a colour field's clear does. */
-.control-row__value--input {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.control-row__value--select {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* One trigger height for every pane's selects: the default 28px trigger is a
-   toolbar control, and a row of them beside 26px steppers looked ragged in each
-   pane that set this by hand. */
-.control-row__select {
-  width: 100%;
-  min-width: 0;
-  height: 26px;
-}
-
-.control-row__value--text {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* A segmented control hugs its options; stretched to the column it reads as a
-   half-filled progress bar. */
-.control-row__value--segmented {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Slider plus its readout: the number column is fixed so the sliders align. */
-.control-row__value--slider {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.control-row__value--slider .ui-slider {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.control-row__readout {
-  flex: 0 0 auto;
-  min-width: 28px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-/* A toggle's "Overridden", in the place its reset button would have taken: on
-   a second grid line under the label, so the line the switch sits on — and the
-   switch with it — stays exactly where it was. The line is one fixed height,
-   empty or not and never wrapped, so a toggle that can be overridden is one
-   height whichever it is (`FieldRow.overridable`). */
-.control-row--noted {
-  row-gap: 1px;
-}
-
-.control-row__note {
-  grid-column: 1;
-  min-width: 0;
-  height: 1.2em;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 0.66rem;
-  line-height: 1.2;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.control-row[data-disabled] .control-row__label,
-.control-row[data-disabled] .control-row__note,
-.control-row[data-disabled] .control-row__readout {
-  opacity: 0.5;
 }
 
 /* A titled group of rows, optionally folded behind its title. Shared by every
@@ -5108,12 +4966,6 @@ button.cp-folded-figure-toolbar__notice:hover {
 .collapsible-section__action:hover {
   background: var(--surface-hover, rgb(255 255 255 / 8%));
   color: var(--text-primary);
-}
-
-/* An option that qualifies the one above it — "Only where needed" under
-   "Precrease grid" — sits a step in, so the pair reads as one setting. */
-.control-row--nested {
-  padding-left: 24px;
 }
 
 /* Simulate and References options panes, alongside the Edit workspace's view pane. */
@@ -6194,9 +6046,14 @@ button.cp-folded-figure-toolbar__notice:hover {
 
 /* Row: a square swatch on the right, so a colour reads as one control in a
    column of sliders and selects rather than as a full-width band. */
-.color-field--row .color-field__value,
+/* The inline value also wore the pane row's value look (right-aligned, the
+   row's type, tabular digits), and keeps it. */
 .color-field--inline .color-field__value {
   justify-content: flex-end;
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .color-field--row .color-field__input,
@@ -6215,7 +6072,7 @@ button.cp-folded-figure-toolbar__notice:hover {
   gap: var(--space-2);
 }
 
-.color-field--inline .control-row__label {
+.color-field--inline .color-field__label {
   flex: 1 1 auto;
   min-width: 0;
   color: var(--text-secondary);
@@ -6253,37 +6110,6 @@ button.cp-folded-figure-toolbar__notice:hover {
   border: 1px solid var(--border-default);
   border-radius: 50%;
   vertical-align: -1px;
-}
-
-/* The same affordance on any other row: a field's `reset`, trailing the control. */
-.control-row__reset {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 22px;
-  margin-left: 4px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  background: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-}
-
-.control-row__reset:hover:not(:disabled) {
-  border-color: var(--border-default);
-  color: var(--text-primary);
-}
-
-.control-row__reset:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.simulator-view-controls-panel__colors > .control-row:last-child {
-  border-bottom: 0;
 }
 
 
@@ -6577,20 +6403,9 @@ button.cp-folded-figure-toolbar__notice:hover {
     min-width: var(--touch-target);
   }
 
-  /* Growing the steppers to 44px makes a number field need 132px (the −, the
-     number and the +, a 44px target each), but `.control-row`'s two columns
-     each claim a floor of 80px — so on a narrow panel the field was handed
-     ~112px and the `+` clipped against the panel's edge. Measured on a base
-     iPad in portrait: the increment button was cut in half by the screen edge.
-     140px holds a three-digit number; a longer one widens the column.
-
-     The label is what should give way. It can truncate and still be read; a
-     control the finger cannot reach is simply gone. */
-  .control-row {
-    grid-template-columns: minmax(0, 1fr) minmax(140px, auto);
-  }
-
-  .control-row__label {
+  /* A colour field's inline label gives way before its swatch, as a pane
+     row's does (FieldRow.module.css). */
+  .color-field--inline .color-field__label {
     overflow: hidden;
     text-overflow: ellipsis;
   }

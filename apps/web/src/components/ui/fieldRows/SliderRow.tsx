@@ -1,5 +1,6 @@
 import { GestureSlider } from '../GestureSlider';
 import { FieldRow } from './FieldRow';
+import styles from './SliderRow.module.css';
 
 /**
  * A slider with a readout in a row, recording one undo entry per drag through
@@ -39,8 +40,16 @@ export function SliderRow({
   onReset?: () => void;
 }) {
   return (
-    <FieldRow label={label} kind="slider" disabled={disabled} title={title} onReset={onReset}>
+    <FieldRow
+      label={label}
+      kind="slider"
+      disabled={disabled}
+      title={title}
+      readout={(format ?? defaultFormat(step))(value)}
+      onReset={onReset}
+    >
       <GestureSlider
+        className={styles.slider}
         aria-label={label}
         min={min}
         max={max}
@@ -52,7 +61,6 @@ export function SliderRow({
         onGestureCommit={onGestureCommit ?? noop}
         commitLabel={commitLabel ?? ''}
       />
-      <span className="control-row__readout">{(format ?? defaultFormat(step))(value)}</span>
     </FieldRow>
   );
 }
