@@ -289,16 +289,21 @@
     "zoomOut": "Referenzen verkleinern"
   },
   "simulator": {
+    "clearPins": "Fixierungen aufheben",
     "foldBackward": "Faltung rückwärts",
     "foldEnd": "Zum gefalteten Zustand",
     "foldForward": "Faltung vorwärts",
     "foldStart": "Zum flachen Zustand",
+    "pinThroughLayers": "Durch alle Lagen fixieren",
     "playPause": "Faltung abspielen / pausieren",
     "replay": "Simulation neu starten",
     "resetView": "Simulatoransicht zurücksetzen",
     "toggleCreases": "Falzlinien",
     "toggleFaces": "Flächen",
-    "toggleLighting": "Beleuchtung"
+    "toggleLighting": "Beleuchtung",
+    "toolExit": "Werkzeug beenden",
+    "toolOrbit": "Orbit-Werkzeug",
+    "toolPin": "Fixier-Werkzeug"
   },
   "viewport": {
     "contextMenu": "Kontextmenü öffnen",

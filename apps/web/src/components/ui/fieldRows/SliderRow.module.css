@@ -1,0 +1,7 @@
+/* The slider row (SliderRow.tsx): where its slider sits in the row's value. */
+
+/* It takes the room the readout leaves, and may shrink below its own width. */
+.slider {
+  flex: 1 1 auto;
+  min-width: 0;
+}

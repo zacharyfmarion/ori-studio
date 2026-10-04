@@ -289,16 +289,21 @@
     "zoomOut": "Zoom Out References"
   },
   "simulator": {
+    "clearPins": "Clear Pins",
     "foldBackward": "Fold Backward",
     "foldEnd": "Jump To Folded",
     "foldForward": "Fold Forward",
     "foldStart": "Jump To Flat",
+    "pinThroughLayers": "Pin Through All Layers",
     "playPause": "Play / Pause Fold",
     "replay": "Restart Simulation",
     "resetView": "Reset Simulator View",
     "toggleCreases": "Crease lines",
     "toggleFaces": "Faces",
-    "toggleLighting": "Lighting"
+    "toggleLighting": "Lighting",
+    "toolExit": "Exit Tool",
+    "toolOrbit": "Orbit Tool",
+    "toolPin": "Pin Tool"
   },
   "viewport": {
     "contextMenu": "Open Context Menu",

@@ -1,19 +1,8 @@
 /**
  * One tool in the picker: a star, a glyph, a name and a description.
  *
- * It used to carry the tool's keyboard shortcut too, and no longer does. This
- * sheet is the *phone* tool surface — the layout with no rail — so the chord it
- * was naming is one nothing on that device can press, and a `kbd` badge spent
- * width on the narrowest screen to say something untrue of it.
- *
- * # Two buttons, not one
- *
- * This row was a single `<button>` end to end until the star arrived. A control
- * nested inside a button is invalid HTML and the outer one takes the tap in
- * practice, so the star would have selected the tool it was meant to star. The
- * `<li>` is the flex container now, the star and the select target are siblings
- * in it, and the active treatment moved up to the row — otherwise its left bar
- * would draw between the star and the glyph rather than at the row's edge.
+ * Edit's content over the shared row (`ToolPickerRow`), which carries the
+ * layout and the reasons for it.
  *
  * # Shared by both places a tool appears
  *
@@ -26,16 +15,11 @@ import { useTranslation } from 'react-i18next';
 import type { OristudioCpActionDefinition } from '../../lib/oristudioCpActions';
 import type { OristudioCpOperationId } from '../../lib/oristudioCpCommands';
 import { cpActionLabel, cpActionTooltip } from '../../i18n/cpVocab';
-import type { LongPressReorder } from '../../hooks/useLongPressReorder';
+import { ToolPickerRow, type ToolPickerRowReorder } from '../../components/ui/tools/ToolPickerRow';
 import { CpToolFavoriteToggle } from './CpToolFavoriteToggle';
 import { CpToolGlyph } from './cpToolGlyph';
 
-export interface CpToolPickerRowReorder {
-  handlers: LongPressReorder['handlers'];
-  dragging: boolean;
-  /** True for the click that ends a drag — see {@link LongPressReorder.consumeClick}. */
-  consumeClick: () => boolean;
-}
+export type CpToolPickerRowReorder = ToolPickerRowReorder;
 
 export function CpToolPickerRow({
   action,
@@ -60,44 +44,25 @@ export function CpToolPickerRow({
   const { t } = useTranslation();
   const label = cpActionLabel(t, action);
   return (
-    <li
-      className="cp-tool-picker__row"
-      data-active={isActive || undefined}
-      data-line-color={action.kind === 'line-type' ? action.lineColor : undefined}
-      // How `useLongPressReorder` finds its rows and reads their ids. Absent
-      // outside Favorites, so a drag can never pick up a row from a group.
-      data-cp-favorite={reorder ? action.id : undefined}
-      data-dragging={reorder?.dragging || undefined}
-      {...reorder?.handlers}
-    >
-      <CpToolFavoriteToggle toolLabel={label} favorited={favorited} onToggle={onToggleFavorite} />
-      <button
-        type="button"
-        className="cp-tool-picker__item"
-        aria-disabled={!available}
-        onClick={() => {
-          // A press that became a drag is not also a selection. Without this,
-          // holding a favorite to move it picks that tool and closes the sheet
-          // the moment you let go.
-          if (reorder?.consumeClick()) return;
-          if (!available) return;
-          onSelect();
-        }}
-      >
-        <span className="cp-tool-picker__icon">
-          <CpToolGlyph action={action} glyphOperationId={glyphOperationId} size={18} />
-        </span>
-        <span className="cp-tool-picker__text">
-          <span className="cp-tool-picker__label">{label}</span>
-          {/*
-            The one-line description the tooltip carried, which on a fine pointer
-            was the only place it appeared. There is room for it here, and "what
-            does Parallel Alternating Lines mean" is the question the picker is
-            open to answer.
-          */}
-          <span className="cp-tool-picker__hint">{cpActionTooltip(t, action)}</span>
-        </span>
-      </button>
-    </li>
+    <ToolPickerRow
+      label={label}
+      // The one-line description the tooltip carried, which on a fine pointer
+      // was the only place it appeared. There is room for it here, and "what
+      // does Parallel Alternating Lines mean" is the question the picker is open
+      // to answer.
+      description={cpActionTooltip(t, action)}
+      glyph={<CpToolGlyph action={action} glyphOperationId={glyphOperationId} size={18} />}
+      isActive={isActive}
+      available={available}
+      leading={<CpToolFavoriteToggle toolLabel={label} favorited={favorited} onToggle={onToggleFavorite} />}
+      onSelect={onSelect}
+      reorder={reorder}
+      data={{
+        'data-line-color': action.kind === 'line-type' ? action.lineColor : undefined,
+        // How `useLongPressReorder` finds its rows and reads their ids. Absent
+        // outside Favorites, so a drag can never pick up a row from a group.
+        'data-cp-favorite': reorder ? action.id : undefined,
+      }}
+    />
   );
 }

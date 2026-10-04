@@ -105,19 +105,28 @@ describe('shortcut runtime', () => {
     });
 
     it('runs the registered simulator executor with the id, and says it did', () => {
-      const simulator = vi.fn();
+      const simulator = vi.fn(() => true);
       cleanupWith(registerSimulatorShortcutExecutor(simulator));
 
       expect(runSimulatorCommand('simulator.setUpright')).toBe(true);
       expect(simulator).toHaveBeenCalledWith('simulator.setUpright');
     });
 
+    it('answers false when the simulation in hand declines the verb', () => {
+      // An inline window holds the keyboard and has no tools.
+      const simulator = vi.fn(() => false);
+      cleanupWith(registerSimulatorShortcutExecutor(simulator));
+
+      expect(runSimulatorCommand('simulator.tool.pin')).toBe(false);
+      expect(simulator).toHaveBeenCalledWith('simulator.tool.pin');
+    });
+
     it('tells subscribers when a simulation comes and goes, and not otherwise', () => {
       const listener = vi.fn();
       cleanupWith(subscribeSimulatorExecutor(listener));
 
-      const disposeOlder = registerSimulatorShortcutExecutor(vi.fn());
-      const disposeNewer = registerSimulatorShortcutExecutor(vi.fn());
+      const disposeOlder = registerSimulatorShortcutExecutor(vi.fn(() => true));
+      const disposeNewer = registerSimulatorShortcutExecutor(vi.fn(() => true));
       // Both unregisters are idempotent, so a failed assertion cannot leave
       // an executor behind for the next test.
       cleanupWith(disposeOlder);

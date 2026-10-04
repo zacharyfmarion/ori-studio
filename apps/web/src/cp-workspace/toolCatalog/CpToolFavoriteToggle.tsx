@@ -23,6 +23,7 @@
  */
 import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import styles from './CpToolFavoriteToggle.module.css';
 
 export function CpToolFavoriteToggle({
   /** The tool's already-localized name, for the label this button has no room to show. */
@@ -38,7 +39,8 @@ export function CpToolFavoriteToggle({
   return (
     <button
       type="button"
-      className="cp-tool-picker__star"
+      className={styles.star}
+      data-favorite-toggle=""
       // Interpolated, because icon-only means this label is the only name the
       // button has — and a sheet of 52 rows would otherwise hold 52 buttons all
       // announcing "Add to favorites".

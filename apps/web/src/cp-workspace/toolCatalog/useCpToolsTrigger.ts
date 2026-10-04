@@ -1,24 +1,16 @@
-import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { ANALYTICS_EVENTS, track } from '../../analytics';
-import { isOpenLayerTarget, isShortcutEditingTarget } from '../../keyboard/shortcutDispatcher';
+import { useToolPickerSheet, type ToolPickerSheetState } from '../../components/ui/tools/useToolPickerSheet';
 import { useIsPhoneLayout } from '../../platform/phoneLayout';
 import { useLayoutStore } from '../../store/layoutStore';
 import { useCpToolSurface, type CpToolSurface } from './cpToolSurface';
 
-export interface CpToolsTriggerState {
+export interface CpToolsTriggerState extends ToolPickerSheetState {
   /**
    * The panel's tool state, or `null` where the phone tool button should not
    * exist at all — every workspace but Edit, every layout but the phone one, and
    * any moment with no editable crease pattern mounted.
    */
   surface: CpToolSurface | null;
-  open: boolean;
-  /** DOM id the trigger points `aria-controls` at, and the sheet wears. */
-  pickerId: string;
-  openPicker: () => void;
-  /** Close, and hand focus back to the trigger it was opened from. */
-  close: () => void;
-  triggerRef: RefObject<HTMLButtonElement | null>;
 }
 
 /**
@@ -37,73 +29,20 @@ export interface CpToolsTriggerState {
  * - **A published tool surface.** No editable crease pattern means no tools, and
  *   it is the same condition the rail itself renders under.
  *
- * Modelled on `useWorkspaceViewDrawer`, including the Escape listener and both
- * of its guards: the same problem (a sheet that must close from wherever focus
- * landed inside it) has one answer in this repo, and a second, subtly different
- * one would be worse than either. Nothing in this sheet opens a layer today, so
- * the layer guard is inert here — but it asks about the key's *target*, so a
- * `useTouchLabel` tooltip, which holds no focus, cannot trip it and leave the
- * sheet's one keyboard exit dead.
+ * Opening, closing, focus and Escape are the shared sheet's
+ * (`useToolPickerSheet`); what is Edit's is the gate above and the event.
  */
 export function useCpToolsTrigger(): CpToolsTriggerState {
   const phoneLayout = useIsPhoneLayout();
   const activeWorkspace = useLayoutStore((state) => state.activeWorkspace);
   const published = useCpToolSurface();
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const pickerId = useId();
 
   const surface = phoneLayout && activeWorkspace === 'edit' ? published : null;
-  const available = surface !== null;
+  const sheet = useToolPickerSheet({ available: surface !== null, onOpened: trackPickerOpened });
+  return { surface, ...sheet };
+}
 
-  const close = useCallback(() => {
-    setOpen(false);
-    triggerRef.current?.focus();
-  }, []);
-
-  // Anything that removes the trigger closes the sheet with it: a rotation into
-  // the tablet layout, a workspace switch, a document closing. A sheet outliving
-  // its trigger would be holding focus with nothing to hand it back to, and
-  // `close`'s optional call correctly does nothing once the ref is null.
-  useEffect(() => {
-    if (available) return;
-    setOpen(false);
-  }, [available]);
-
-  // Capture-phase on `window`, like `HelpModal`, `SettingsModal` and the View
-  // drawer — so it fires wherever focus is inside the sheet rather than only on
-  // whatever happens to be focused. `isShortcutEditingTarget` and
-  // `isOpenLayerTarget` are the repo's one answer each to "does this target own
-  // its keystrokes"; there is no copy of them here for the same reason there is
-  // no copy of them there.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (isShortcutEditingTarget(event.target) || isOpenLayerTarget(event.target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [open, close]);
-
-  return {
-    surface,
-    open,
-    pickerId,
-    // Guarded, for the reason the View drawer's is: the backdrop stops a *tap* on
-    // the trigger behind it but not a keyboard activation, so an unguarded
-    // counter would double-count one visit — and this event exists to count the
-    // sessions that went looking for the tools, which is the one thing an
-    // inflated count would stop it answering.
-    openPicker: useCallback(() => {
-      if (open) return;
-      setOpen(true);
-      track(ANALYTICS_EVENTS.cpToolPickerOpened);
-    }, [open]),
-    close,
-    triggerRef,
-  };
+/** Whether people find the Tools pill that replaced the rail at all. */
+function trackPickerOpened(): void {
+  track(ANALYTICS_EVENTS.cpToolPickerOpened);
 }

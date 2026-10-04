@@ -297,16 +297,21 @@
     "zoomOut": "Alejar referencias"
   },
   "simulator": {
+    "clearPins": "Quitar fijaciones",
     "foldBackward": "Retroceder plegado",
     "foldEnd": "Ir a plegado",
     "foldForward": "Avanzar plegado",
     "foldStart": "Ir a plano",
+    "pinThroughLayers": "Fijar a través de todas las capas",
     "playPause": "Reproducir / pausar plegado",
     "replay": "Reiniciar simulación",
     "resetView": "Restablecer vista del simulador",
     "toggleCreases": "Líneas de pliegue",
     "toggleFaces": "Caras",
-    "toggleLighting": "Iluminación"
+    "toggleLighting": "Iluminación",
+    "toolExit": "Salir de la herramienta",
+    "toolOrbit": "Herramienta Órbita",
+    "toolPin": "Herramienta Fijar"
   },
   "viewport": {
     "contextMenu": "Abrir menú contextual",

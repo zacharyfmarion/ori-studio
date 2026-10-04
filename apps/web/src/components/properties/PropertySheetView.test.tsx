@@ -109,7 +109,7 @@ describe('PropertySheetView', () => {
       )
     );
     expect(container?.querySelector('[aria-label="Gone"]')).toBeNull();
-    const row = container?.querySelector('.control-row');
+    const row = container?.querySelector('[data-field-row]');
     expect(row?.getAttribute('data-disabled')).toBe('true');
     expect(row?.getAttribute('title')).toBe('Refold first');
   });
@@ -419,7 +419,7 @@ describe('PropertySheetView', () => {
         commit: vi.fn(),
       })
     );
-    const button = container?.querySelector<HTMLButtonElement>('.control-row__reset');
+    const button = container?.querySelector<HTMLButtonElement>('[data-field-reset]');
     expect(button?.getAttribute('aria-label')).toBe('Reset Yaw to default');
     act(() => button?.click());
     expect(reset).toHaveBeenCalledTimes(1);
@@ -442,7 +442,7 @@ describe('PropertySheetView', () => {
       reset: pinned ? vi.fn() : undefined,
     });
     const switchOf = () => container?.querySelector<HTMLButtonElement>('button[role="switch"]');
-    const note = () => container?.querySelector('.control-row__note');
+    const note = () => container?.querySelector('[data-field-note]');
 
     const following = toggle(true, false);
     let onCommit = render(sheetOf(following));
@@ -453,7 +453,7 @@ describe('PropertySheetView', () => {
 
     const pinned = toggle(false, true);
     onCommit = render(sheetOf(pinned));
-    expect(container?.querySelector('.control-row__reset')).toBeNull();
+    expect(container?.querySelector('[data-field-reset]')).toBeNull();
     expect(container?.querySelector('button[aria-label="Reset Lighting to default"]')).toBeNull();
     expect(note()?.textContent).toBe('Overridden');
     act(() => switchOf()?.click());

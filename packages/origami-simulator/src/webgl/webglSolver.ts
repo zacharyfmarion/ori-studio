@@ -26,7 +26,7 @@ const FORCE_SHADER_SAMPLERS = [
   'u_nominalTriangles',
 ] as const;
 
-import type { SolverBackend } from '../solverBackend.js';
+import { copyFixedNodeMask, type SolverBackend } from '../solverBackend.js';
 import { GlCore } from './glCore.js';
 import {
   NORMAL_CALC,
@@ -40,6 +40,7 @@ import {
 import {
   MeshRenderer,
   meshTopologyFor,
+  type MeshDrawOptions,
   type MeshTopology,
   type RenderSettings,
 } from './meshRenderer.js';
@@ -85,6 +86,8 @@ export class WebglSolver implements SolverBackend {
   private readonly edgeRestLengths: Float32Array;
   private readonly topology: MeshTopology;
   private meshRenderer: MeshRenderer | null = null;
+  /** Held until the renderer exists; see {@link setHighlightTriangles}. */
+  private highlightTriangles: ArrayLike<number> | null = null;
 
   static isSupported(canvas: HTMLCanvasElement | OffscreenCanvas): boolean {
     const probe = GlCore.create(canvas);
@@ -214,6 +217,17 @@ export class WebglSolver implements SolverBackend {
     this.gl.updateTexture('u_lastTheta', this.packed.thetaInit);
   }
 
+  setFixedNodes(mask: Uint8Array | null): void {
+    const fixed = copyFixedNodeMask(mask, this.nodeCount);
+    // Upstream's `updateFixed`: the flag rides in `u_mass.y`, which every
+    // integrating pass already reads. Padding texels are never fixed — no pass
+    // reads them as nodes.
+    for (let i = 0; i < this.nodeCount; i += 1) {
+      this.packed.mass[i * 4 + 1] = fixed?.[i] ? 1 : 0;
+    }
+    this.gl.updateTexture('u_mass', this.packed.mass);
+  }
+
   arrestDynamics(): void {
     // Zero only the velocity textures; positions and crease angles are kept, so
     // the fold state survives -- we are draining kinetic energy, not resetting.
@@ -305,13 +319,35 @@ export class WebglSolver implements SolverBackend {
    * solver's GL context, so it must be called on the same thread the solver
    * runs on.
    */
-  render(camera: CameraUniforms, settings: RenderSettings, target: WebGLFramebuffer | null = null): void {
-    // The sheet's extent is what the style's erode is a fraction of; the
-    // rest positions are the unfolded sheet.
-    this.meshRenderer ??= new MeshRenderer(this.gl, this.topology, {
-      sheet: sheetExtent(this.originalPositions),
-    });
-    this.meshRenderer.render(camera, settings, target);
+  render(
+    camera: CameraUniforms,
+    settings: RenderSettings,
+    target: WebGLFramebuffer | null = null,
+    options: MeshDrawOptions = {}
+  ): void {
+    this.renderer().render(camera, settings, target, options);
+  }
+
+  /**
+   * The triangles a frame drawn with `highlight` tints — the pinned faces. Held
+   * here as well as handed on, because the renderer is only built by the first
+   * frame and the triangles can arrive before it.
+   */
+  setHighlightTriangles(triangles: ArrayLike<number> | null): void {
+    this.highlightTriangles = triangles;
+    this.meshRenderer?.setHighlightTriangles(triangles);
+  }
+
+  private renderer(): MeshRenderer {
+    if (!this.meshRenderer) {
+      // The sheet's extent is what the style's erode is a fraction of; the
+      // rest positions are the unfolded sheet.
+      this.meshRenderer = new MeshRenderer(this.gl, this.topology, {
+        sheet: sheetExtent(this.originalPositions),
+      });
+      this.meshRenderer.setHighlightTriangles(this.highlightTriangles);
+    }
+    return this.meshRenderer;
   }
 
   /**
@@ -320,7 +356,13 @@ export class WebglSolver implements SolverBackend {
    * interactive path renders straight to the canvas via {@link render} with no
    * readback. Returns RGBA rows top-to-bottom.
    */
-  renderToImage(camera: CameraUniforms, settings: RenderSettings, width: number, height: number): Uint8Array {
+  renderToImage(
+    camera: CameraUniforms,
+    settings: RenderSettings,
+    width: number,
+    height: number,
+    options: MeshDrawOptions = {}
+  ): Uint8Array {
     const gl = this.gl.gl;
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -338,7 +380,7 @@ export class WebglSolver implements SolverBackend {
       throw new Error('Offscreen render target is incomplete');
     }
 
-    this.render({ ...camera, width, height }, settings, framebuffer);
+    this.render({ ...camera, width, height }, settings, framebuffer, options);
 
     const pixels = new Uint8Array(width * height * 4);
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);

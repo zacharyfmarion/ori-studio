@@ -514,6 +514,112 @@ describe('SimulatorPanel restart', () => {
   });
 });
 
+describe('SimulatorPanel tools', () => {
+  beforeEach(() => {
+    // jsdom implements no pointer capture.
+    const element = HTMLElement.prototype as unknown as Record<string, unknown>;
+    element.setPointerCapture = () => {};
+    element.releasePointerCapture = () => {};
+    element.hasPointerCapture = () => false;
+  });
+
+  afterEach(() => {
+    const element = HTMLElement.prototype as unknown as Record<string, unknown>;
+    delete element.setPointerCapture;
+    delete element.releasePointerCapture;
+    delete element.hasPointerCapture;
+  });
+
+  function tool(rendered: HTMLElement, name: string) {
+    return rendered.querySelector<HTMLButtonElement>(
+      `[role="toolbar"][aria-label="Simulator tools"] button[aria-label="${name}"]`
+    );
+  }
+
+  function click(target: Element, x: number, y: number) {
+    for (const type of ['pointerdown', 'pointerup']) {
+      act(() => {
+        target.dispatchEvent(
+          new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y, button: 0, bubbles: true })
+        );
+      });
+    }
+  }
+
+  it('takes Pin on its key, pins the face clicked, and goes back to Orbit on Escape', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+    expect(tool(rendered, 'Pin')?.disabled).toBe(false);
+    expect(tool(rendered, 'Orbit')?.getAttribute('aria-pressed')).toBe('true');
+
+    act(() => pressKey('p'));
+    expect(tool(rendered, 'Pin')?.getAttribute('aria-pressed')).toBe('true');
+
+    // The flat sheet fills the middle of the canvas at the opening view.
+    const canvas = rendered.querySelector('canvas.simulator-canvas');
+    if (!canvas) throw new Error('no canvas');
+    click(canvas, 210, 160);
+    await flushSimulator();
+
+    const { simulatorPins } = useWorkspaceStore.getState();
+    const sets = Object.values(simulatorPins.bySource);
+    expect(sets).toHaveLength(1);
+    expect(sets[0]).toHaveLength(1);
+
+    act(() => pressKey('Escape'));
+    expect(tool(rendered, 'Orbit')?.getAttribute('aria-pressed')).toBe('true');
+    // Pins outlive the tool that made them.
+    expect(rendered.querySelector('[data-tool-badge]')).not.toBeNull();
+  });
+
+  function toolsPill(rendered: HTMLElement) {
+    return [...rendered.querySelectorAll<HTMLButtonElement>('.panel-toolbar button')].find(
+      (button) => button.getAttribute('aria-haspopup') === 'dialog' && button.textContent?.includes('Tools')
+    );
+  }
+
+  it('keeps the rail and has no Tools pill off the phone layout', async () => {
+    const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+    await flushSimulator();
+
+    expect(rendered.querySelector('[role="toolbar"][aria-label="Simulator tools"]')).not.toBeNull();
+    expect(toolsPill(rendered)).toBeUndefined();
+  });
+
+  it('on a phone, trades the rail for a Tools pill whose sheet picks a tool and closes', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query === PHONE_MEDIA_QUERY,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }))
+    );
+    try {
+      const rendered = renderPanel({ foldArtifacts: { fold: simpleFold() } });
+      await flushSimulator();
+
+      expect(rendered.querySelector('[role="toolbar"][aria-label="Simulator tools"]')).toBeNull();
+      const pill = toolsPill(rendered);
+      expect(pill).toBeDefined();
+
+      act(() => pill?.click());
+      const sheet = document.querySelector('[role="dialog"][aria-label="Tools"]');
+      expect(sheet).not.toBeNull();
+      const rows = [...(sheet?.querySelectorAll('[data-tool-label]') ?? [])].map((row) => row.textContent);
+      expect(rows).toEqual(['Orbit', 'Pin']);
+
+      act(() =>
+        sheet?.querySelector<HTMLButtonElement>('[data-tool="pin"] [data-tool-item]')?.click()
+      );
+      expect(document.querySelector('[role="dialog"][aria-label="Tools"]')).toBeNull();
+      expect(useWorkspaceStore.getState().simulatorActiveToolId).toBe('pin');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
 /**
  * Drive a chord through the real shortcut dispatcher.
  *

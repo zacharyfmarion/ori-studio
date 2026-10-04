@@ -54,7 +54,7 @@ import {
   type FloatingAnchorRect,
 } from '../../components/ui/useAnchoredFloating';
 import { CANVAS_COMPANION_PROPS } from '../canvasObjects/canvasCompanionSurface';
-import { CP_TOOL_HINT_WIDTH } from '../toolHint/toolHintPlacement';
+import { TOOL_HINT_WIDTH } from '../../components/ui/tools/toolHintPlacement';
 import { FOLD_ANGLE_PRESETS } from './foldAngleActions';
 import { formatCreaseAngleValue, parseCreaseAngle } from './activeCreaseAngle';
 import type { OristudioCpFoldDirectionHint } from '../../engine/oristudioCpTypes';
@@ -95,7 +95,7 @@ function anchorRectOf(element: HTMLElement): FloatingAnchorRect {
  * The tool window's width, which is what holds all six presets on one row
  * there; the same row here is the same width.
  */
-const WIDTH_STYLE = { width: CP_TOOL_HINT_WIDTH };
+const WIDTH_STYLE = { width: TOOL_HINT_WIDTH };
 
 /**
  * Narrowest a cramped pane may squeeze the anchored frame to before it

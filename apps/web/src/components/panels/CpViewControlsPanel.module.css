@@ -1,7 +1,6 @@
 /*
- * Edit's View pane (CpViewControlsPanel.tsx): its rows are the shared
- * `control-row`s; this is the pane's own layout, the grid scale formula and
- * the grid reset.
+ * Edit's View pane (CpViewControlsPanel.tsx): its rows are `FieldRow`s; this
+ * is the pane's own layout, the grid scale formula and the grid reset.
  */
 .empty {
   display: flex;

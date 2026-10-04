@@ -1364,3 +1364,85 @@ describe('the view a new session opens on', () => {
     session.dispose();
   }, 30_000);
 });
+
+describe('pinned faces', () => {
+  /** Every node of the triangles in crease-pattern face `face`. */
+  function nodesOf(info: { faceGroups: ArrayBuffer; indices: ArrayBuffer }, face: number): number[] {
+    const groups = new Int32Array(info.faceGroups);
+    const indices = new Uint32Array(info.indices);
+    const nodes = new Set<number>();
+    groups.forEach((group, triangle) => {
+      if (group !== face) return;
+      for (let corner = 0; corner < 3; corner += 1) nodes.add(indices[triangle * 3 + corner]!);
+    });
+    return [...nodes];
+  }
+
+  it('names the crease-pattern face of every triangle', () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    const groups = new Int32Array(info.faceGroups);
+    // Every parallelogram is one face, triangulated into two.
+    expect(groups).toHaveLength(info.faceCount);
+    expect(info.faceCount).toBe(32);
+    expect(new Set(groups).size).toBe(16);
+    session.dispose();
+  });
+
+  it('holds a pinned face still while the rest folds', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(4, 4), {});
+    const before = new Float32Array(positionsOf(await frame(session.settle(4000, {}))));
+    const face = new Int32Array(info.faceGroups)[0]!;
+
+    expect(await session.setPinnedFaces([face])).toMatchObject({ applied: 1, dropped: 0 });
+    session.setFoldPercent(90);
+    let folded = await frame(session.tick({}));
+    for (let i = 0; i < 40 && !folded.converged; i += 1) folded = await frame(session.tick({}));
+    const after = new Float32Array(positionsOf(folded));
+
+    for (const node of nodesOf(info, face)) {
+      expect(Array.from(after.subarray(node * 3, node * 3 + 3))).toEqual(
+        Array.from(before.subarray(node * 3, node * 3 + 3))
+      );
+    }
+    expect(maxAbsDelta(before, after)).toBeGreaterThan(0.01);
+    session.dispose();
+  });
+
+  it('pins what it knows and counts what it does not', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(2, 2), {});
+    const face = new Int32Array(info.faceGroups)[0]!;
+    expect(await session.setPinnedFaces([face, face, 99_999])).toMatchObject({ applied: 1, dropped: 1 });
+    session.dispose();
+  });
+
+  it('answers null for a session that has gone', async () => {
+    const session = createSimulatorSession();
+    const info = session.load(miura(2, 2), {});
+    session.release(info.token);
+    expect(await session.setPinnedFaces([0], info.token)).toBeNull();
+    session.dispose();
+  });
+
+  it('leaves picks to the main thread on the canvas-2D path', () => {
+    const session = createSimulatorSession();
+    session.load(miura(2, 2), {});
+    const pick = session.pickFaces({
+      region: { kind: 'point', x: 1, y: 1 },
+      cssWidth: 10,
+      cssHeight: 10,
+      depth: 'all-layers',
+    });
+    expect(pick).toBeNull();
+    session.dispose();
+  });
+
+  it('says on every frame whether the solver had to recover', async () => {
+    const session = createSimulatorSession();
+    session.load(miura(2, 2), {});
+    expect((await frame(session.settle(4000, {}))).recovered).toBeNull();
+    session.dispose();
+  });
+});

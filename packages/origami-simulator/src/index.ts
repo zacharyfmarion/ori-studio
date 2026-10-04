@@ -2,8 +2,9 @@ export { prepareFoldModel, EDGES_FACET_KEY } from './prepare.js';
 export { createOrigamiSimulator } from './simulator.js';
 export { ReferenceSolver } from './referenceSolver.js';
 export { SimulationClock } from './simulationClock.js';
-export type { SimulationClockOptions, SimulationTick } from './simulationClock.js';
+export type { SimulationClockOptions, SimulationRecovery, SimulationTick } from './simulationClock.js';
 export type { SolverBackend, SolverBackendInfo } from './solverBackend.js';
+export { InvalidFixedNodeMaskError } from './solverBackend.js';
 export { WebglSolver } from './webgl/webglSolver.js';
 export {
   GlCore,
@@ -17,6 +18,8 @@ export {
   MeshRenderer,
   meshTopologyFor,
   DEFAULT_CREASE_DEPTH_BIAS,
+  DEFAULT_HIGHLIGHT_COLOR,
+  DEFAULT_HIGHLIGHT_MIX,
   DASH_KINDS,
   MAX_DASH_RUNS,
   packCreaseDash,
@@ -112,6 +115,16 @@ export {
 // builds fixtures that must agree with it. Two transcriptions of a sign is one
 // too many.
 export { normalizePoint } from './geometry.js';
+export {
+  facesVisibleIn,
+  facesWithCentreIn,
+  frontmostFaceAt,
+  scaleRect,
+  type PickOptions,
+  type PickTopology,
+  type ScreenPoint,
+  type ScreenRect,
+} from './picking.js';
 export { GpuMath, detectWebGlSupport } from './gpuMath.js';
 export { OrigamiModel } from './model.js';
 export { ORIGAMI_SIMULATOR_UPSTREAM } from './provenance.js';

@@ -25,6 +25,8 @@ const STEP_COUNTS = [1, 10, 100];
 interface GpuParityRow {
   fixture: string;
   integrator: 'euler' | 'verlet';
+  pinned: boolean;
+  heldDrift?: number;
   steps: number;
   vertices: number;
   maxAbs: number;
@@ -40,6 +42,8 @@ interface RenderCheckRow {
   distinctColors: number;
   ok: boolean;
   strainDiffers?: boolean;
+  highlightDiffers?: boolean;
+  highlightAbsentUnasked?: boolean;
   error?: string;
 }
 
@@ -80,11 +84,12 @@ describe('GPU solver parity', () => {
 
       const lines = rows.map(
         (row) =>
-          `${row.fixture.padEnd(14)} ${row.integrator.padEnd(6)} steps=${String(row.steps).padStart(3)} ` +
+          `${row.fixture.padEnd(14)} ${row.integrator.padEnd(6)} ${row.pinned ? 'pinned' : '      '} steps=${String(row.steps).padStart(3)} ` +
           `v=${String(row.vertices).padStart(5)} | ` +
           (row.error
             ? `ERROR: ${row.error}`
-            : `max ${row.maxAbs.toExponential(2)}  mean ${row.meanAbs.toExponential(2)}`)
+            : `max ${row.maxAbs.toExponential(2)}  mean ${row.meanAbs.toExponential(2)}` +
+              (row.pinned ? `  held drift ${(row.heldDrift ?? Number.NaN).toExponential(2)}` : ''))
       );
       process.stdout.write(`\n${lines.join('\n')}\n\n`);
       if (pageErrors.length) process.stdout.write(`page errors:\n${pageErrors.join('\n')}\n\n`);
@@ -96,7 +101,11 @@ describe('GPU solver parity', () => {
       process.stdout.write(`worst GPU-vs-reference divergence: ${worst.toExponential(3)} (Tier C ${TIER_C})\n\n`);
 
       for (const row of supported) {
-        expect(row.maxAbs, `${row.fixture} ${row.integrator} @ ${row.steps} steps diverged`).toBeLessThan(TIER_C);
+        const label = `${row.fixture} ${row.integrator}${row.pinned ? ' pinned' : ''} @ ${row.steps} steps`;
+        expect(row.maxAbs, `${label} diverged`).toBeLessThan(TIER_C);
+        // A fixed node keeps its position bit for bit: the fixed branch writes the
+        // last position back unchanged, on both integrators.
+        if (row.pinned) expect(row.heldDrift, `${label} moved a fixed node`).toBe(0);
       }
 
       // Headless render coverage. Not a visual check -- it only catches shaders
@@ -112,7 +121,9 @@ describe('GPU solver parity', () => {
           (row.error
             ? `ERROR: ${row.error}`
             : `coverage ${(row.coverage * 100).toFixed(1)}%  colors ${row.distinctColors}  ` +
-              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ${row.ok ? 'ok' : 'FAIL'}`)
+              `strain ${row.strainDiffers ? 'differs' : 'SAME'}  ` +
+              `highlight ${row.highlightDiffers ? 'tints' : 'NONE'}/${row.highlightAbsentUnasked ? 'clean' : 'LEAKS'}  ` +
+              `${row.ok ? 'ok' : 'FAIL'}`)
       );
       process.stdout.write(`render check:\n${renderLines.join('\n')}\n\n`);
 
@@ -122,6 +133,8 @@ describe('GPU solver parity', () => {
         expect(row.ok, `${row.fixture} rendered an implausible frame (coverage ${row.coverage}, colors ${row.distinctColors})`).toBe(true);
         // Strain visualization must actually change the image; it used to be a stub.
         expect(row.strainDiffers, `${row.fixture} strain colour mode changed nothing`).toBe(true);
+        expect(row.highlightDiffers, `${row.fixture} highlight pass tinted nothing`).toBe(true);
+        expect(row.highlightAbsentUnasked, `${row.fixture} highlight leaked into an unasked frame`).toBe(true);
       }
     } finally {
       await browser?.close();

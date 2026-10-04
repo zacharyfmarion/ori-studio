@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cpSurfaceGestures } from './cpSurfaceGestures';
-import type { CpGesturePointer } from './cpTouchArbiter';
+import type { GesturePointer } from '../../lib/gestures/touchArbiter';
 
-const finger = (id: number, x: number, y: number): CpGesturePointer => ({
+const finger = (id: number, x: number, y: number): GesturePointer => ({
   pointerId: id,
   pointerType: 'touch',
   clientX: x,
   clientY: y,
 });
 
-const pen = (id: number, x: number, y: number): CpGesturePointer => ({
+const pen = (id: number, x: number, y: number): GesturePointer => ({
   ...finger(id, x, y),
   pointerType: 'pen',
 });

@@ -1,8 +1,8 @@
 /**
  * A titled window floating over a canvas: a frame, a title bar and a body.
  *
- * The crease-pattern tool window (`CpToolHintWindow`) wears it, and so does the
- * crease-angle popover. The chrome is one thing, so a window over the canvas
+ * The tool window (`ToolHintWindow`, Edit's and Simulate's) wears it, and so
+ * does the crease-angle popover. The chrome is one thing, so a window over the canvas
  * looks like the others whatever it holds. It used to be two: the popover was a
  * toolbar pill with a ground and a title of its own, offering the same angle
  * presets the tool window offered beside it in a different look.

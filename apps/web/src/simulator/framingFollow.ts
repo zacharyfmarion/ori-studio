@@ -24,6 +24,20 @@ export interface Framing {
   radius: number;
 }
 
+/**
+ * Nodes the camera keeps still on screen: the pinned ones.
+ *
+ * The centre is their centroid plus `offset`, which is fixed when the anchor is
+ * set ({@link anchorFraming}) so that setting it moves nothing. The pinned
+ * nodes do not move in the world, so the centre does not either, and the
+ * pinned region stays where it was on screen while the rest folds: only the
+ * radius follows the shape.
+ */
+export interface FramingAnchor {
+  nodes: ArrayLike<number>;
+  offset: Vec3;
+}
+
 export interface FramingFollow {
   /** What the camera frames now; null until the first measure. */
   current: Framing | null;
@@ -33,6 +47,8 @@ export interface FramingFollow {
   easedAt: number;
   /** Whether the shape has been measured since it last settled. */
   measuredSettled: boolean;
+  /** What the centre is held to while anything is pinned; null otherwise. */
+  anchor: FramingAnchor | null;
 }
 
 /** How often, at most, a moving shape is measured. */
@@ -51,15 +67,71 @@ const FRAMING_ARRIVED = 0.002;
  * The shape as it is: its centroid, and its bounding radius about that. The
  * centroid rather than the bounding box's middle, so an asymmetric fold orbits
  * about where it looks centred instead of swinging round an empty point.
+ *
+ * With an anchor the centre is held to the pinned nodes instead, and only the
+ * radius follows the shape; see {@link FramingAnchor}.
  */
-export function framingOf(positions: Float32Array): Framing {
-  const center = centroid(positions);
+export function framingOf(positions: Float32Array, anchor?: FramingAnchor | null): Framing {
+  const center =
+    anchor && anchor.nodes.length > 0
+      ? add(centroidOfNodes(positions, anchor.nodes), anchor.offset)
+      : centroid(positions);
   // A floor, so a degenerate model cannot divide the camera's scale by zero.
   return { center, radius: Math.max(0.001, boundingRadius(positions, center)) };
 }
 
+/**
+ * Hold the camera's centre to `nodes` from here on, or let it follow the whole
+ * shape again when there are none.
+ *
+ * The offset is taken from where the camera is framing now, so pinning moves
+ * nothing on screen: the region stays where it was when it was pinned, which is
+ * the whole point. Before the first frame there is no "now", and the shape's
+ * own centre stands in, which is where that frame would have been.
+ */
+export function anchorFraming(
+  follow: FramingFollow,
+  nodes: ArrayLike<number> | null,
+  positions: Float32Array
+): void {
+  if (!nodes || nodes.length === 0) {
+    follow.anchor = null;
+    return;
+  }
+  const pinned = centroidOfNodes(positions, nodes);
+  const center = follow.current?.center ?? centroid(positions);
+  follow.anchor = {
+    nodes,
+    offset: [center[0] - pinned[0], center[1] - pinned[1], center[2] - pinned[2]],
+  };
+}
+
+function add(a: Vec3, b: Vec3): Vec3 {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function centroidOfNodes(positions: Float32Array, nodes: ArrayLike<number>): Vec3 {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (let i = 0; i < nodes.length; i += 1) {
+    const node = nodes[i]!;
+    x += positions[node * 3] ?? 0;
+    y += positions[node * 3 + 1] ?? 0;
+    z += positions[node * 3 + 2] ?? 0;
+  }
+  return [x / nodes.length, y / nodes.length, z / nodes.length];
+}
+
 export function createFramingFollow(): FramingFollow {
-  return { current: null, target: null, measuredAt: 0, easedAt: 0, measuredSettled: false };
+  return {
+    current: null,
+    target: null,
+    measuredAt: 0,
+    easedAt: 0,
+    measuredSettled: false,
+    anchor: null,
+  };
 }
 
 /**

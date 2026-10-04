@@ -1092,7 +1092,9 @@
     "backendGpuTitle": "Berechnung auf der GPU (WebGL2)",
     "backToPatterns": "Muster",
     "canvasAriaLabel": "Origami-Simulator für gefaltete Basen. Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht.",
+    "canvasAriaLabelPin": "Origami-Simulator für gefaltete Basen. Rahmen aufziehen oder eine Fläche anklicken, um sie zu fixieren, Scrollen zum Zoomen.",
     "canvasTitle": "Ziehen zum Drehen, Scrollen zum Zoomen, Doppelklick zum Zurücksetzen der Ansicht",
+    "canvasTitlePin": "Rahmen aufziehen oder eine Fläche anklicken, um sie zu fixieren, Scrollen zum Zoomen",
     "contextMenu": {
       "pause": "Pause",
       "play": "Abspielen",
@@ -1114,6 +1116,42 @@
     "stepReadout": "Schritt {{n}}",
     "strain": "Dehnung {{value}}",
     "title": "Simulator",
+    "tools": {
+      "instructions": "Anweisungen",
+      "notice": {
+        "recovered": "Die Simulation wurde instabil und ist flach neu gestartet. Die Fixierungen halten jetzt das flache Blatt.",
+        "strained": "Fixierte Flächen ziehen gegeneinander."
+      },
+      "orbit": {
+        "description": "Ziehen, um das Modell zu drehen.",
+        "label": "Orbit"
+      },
+      "picker": {
+        "close": "Werkzeugliste schließen",
+        "title": "Werkzeuge",
+        "trigger": "Werkzeuge"
+      },
+      "pin": {
+        "box": "Einen Rahmen aufziehen, um die Flächen darin zu fixieren, oder eine Fläche anklicken.",
+        "description": "Hält Flächen an ihrem Platz, während sich der Rest des Papiers faltet.",
+        "label": "Fixieren",
+        "orbitApple": "Mit Cmd ziehen dreht das Modell.",
+        "orbitMiddle": "Mit der mittleren Maustaste ziehen dreht das Modell.",
+        "shift": "Mit Umschalt ziehen fügt Fixierungen hinzu. Umschalt-Klick fixiert eine Fläche oder löst sie.",
+        "throughLayers": "Durch alle Lagen auswählen",
+        "touchBox": "Einen Rahmen aufziehen, um die Flächen darin zu fixieren.",
+        "touchOrbit": "Zu Orbit wechseln, um das Modell zu drehen.",
+        "touchTap": "Eine Fläche antippen, um sie zu fixieren oder zu lösen."
+      },
+      "pins": {
+        "clear": "Fixierungen aufheben",
+        "count_one": "1 Fläche fixiert",
+        "count_other": "{{count}} Flächen fixiert",
+        "title": "Fixierungen"
+      },
+      "railLabel": "Simulator-Werkzeuge",
+      "windowLabel": "Optionen der Simulator-Werkzeuge"
+    },
     "unavailable": "Simulator nicht verfügbar",
     "viewCube": {
       "back": "Hinten",

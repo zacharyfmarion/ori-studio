@@ -248,7 +248,7 @@ describe('collapsible sections', () => {
     for (const title of ['Paper', 'Creases', 'Material', 'Solver']) {
       const element = section(rendered, title);
       expect(element.hasAttribute('data-open')).toBe(false);
-      expect(element.querySelectorAll('.control-row')).toHaveLength(0);
+      expect(element.querySelectorAll('[data-field-row]')).toHaveLength(0);
     }
     // Render stays open: it is the one people came for. Asserted on the toggle
     // class rather than on aria-expanded, which a control inside it may carry.

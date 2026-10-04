@@ -21,7 +21,7 @@
  */
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '../../components/ui/Button';
+import { ToolsTriggerButton } from '../../components/ui/tools/ToolsTriggerButton';
 import { activeCpToolGlyph } from './activeCpTool';
 import { CpToolGlyph } from './cpToolGlyph';
 import { CpToolPickerSheet } from './CpToolPickerSheet';
@@ -37,28 +37,23 @@ export function CpToolsTrigger() {
 
   return (
     <>
-      <Button
-        ref={triggerRef}
-        size="md"
-        variant="secondary"
-        className="cp-tools-trigger"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls={pickerId}
-        onClick={openPicker}
-      >
-        {active && (
-          <span className="cp-tools-trigger__glyph">
+      <ToolsTriggerButton
+        label={t('tools:cpToolPicker.trigger', 'Tools')}
+        glyph={
+          active && (
             <CpToolGlyph
               action={active.action}
               glyphOperationId={active.glyphOperationId}
               size={16}
               compact
             />
-          </span>
-        )}
-        {t('tools:cpToolPicker.trigger', 'Tools')}
-      </Button>
+          )
+        }
+        open={open}
+        pickerId={pickerId}
+        onOpen={openPicker}
+        triggerRef={triggerRef}
+      />
       {/*
         Portaled, because this component is mounted *inside* the pill lane and
         that lane is `pointer-events: none` so the dock keeps every tap that is

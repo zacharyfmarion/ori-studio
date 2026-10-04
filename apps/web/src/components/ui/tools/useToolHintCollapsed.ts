@@ -17,21 +17,26 @@
  * `readBoolean` gives that for free: anything but a stored `'true'` reads false.
  */
 import { useCallback, useState } from 'react';
-import { STORAGE_KEYS, readBoolean, storageKey, writeBoolean } from '../../lib/storage';
+import { readBoolean, storageKey, writeBoolean } from '../../../lib/storage';
 
-const KEY = storageKey(STORAGE_KEYS.cpToolHintCollapsed);
-
-export function readCpToolHintCollapsed(): boolean {
-  return readBoolean(KEY, false);
+/**
+ * `name` is a `STORAGE_KEYS` entry: one per workspace's window, since each sits
+ * over a different surface and is in the way of different things.
+ */
+export function readToolHintCollapsed(name: string): boolean {
+  return readBoolean(storageKey(name), false);
 }
 
-export function useCpToolHintCollapsed(): [boolean, (collapsed: boolean) => void] {
-  const [collapsed, setCollapsedState] = useState(readCpToolHintCollapsed);
+export function useToolHintCollapsed(name: string): [boolean, (collapsed: boolean) => void] {
+  const [collapsed, setCollapsedState] = useState(() => readToolHintCollapsed(name));
 
-  const setCollapsed = useCallback((next: boolean) => {
-    setCollapsedState(next);
-    writeBoolean(KEY, next);
-  }, []);
+  const setCollapsed = useCallback(
+    (next: boolean) => {
+      setCollapsedState(next);
+      writeBoolean(storageKey(name), next);
+    },
+    [name]
+  );
 
   return [collapsed, setCollapsed];
 }

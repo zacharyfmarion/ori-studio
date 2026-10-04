@@ -345,9 +345,9 @@ describe('buildInlineSimulationProperties', () => {
     const rendered = renderSheet(sheet);
     try {
       const row = (label: string) =>
-        rendered.querySelector(`button[aria-label="${label}"]`)?.closest('.control-row');
+        rendered.querySelector(`button[aria-label="${label}"]`)?.closest('[data-field-row]');
       expect(row('Render all creases as edges')?.textContent).toContain('Overridden');
-      expect(row('Lighting')?.querySelector('.control-row__note')?.textContent).toBe('');
+      expect(row('Lighting')?.querySelector('[data-field-note]')?.textContent).toBe('');
       act(() =>
         rendered
           .querySelector<HTMLButtonElement>('button[aria-label="Render all creases as edges"]')

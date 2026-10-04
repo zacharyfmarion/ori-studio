@@ -1,0 +1,215 @@
+/*
+ * The label-left / control-right row every options pane is built from
+ * (FieldRow.tsx), and the parts its family puts in it. It was the global
+ * `control-row` block; what a screen used to restyle from outside is a prop
+ * now — `divider`, `nested`, the action row — and the row input look
+ * (`control-row__input`) is still a global block of its own, worn by fields
+ * that are not rows.
+ */
+.row {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(80px, auto);
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* No rule under it: the last row of a group that ends itself, or a row in a
+   window that divides its own sections. */
+.row[data-divider='none'] {
+  border-bottom: 0;
+}
+
+/* An option that qualifies the one above it — "Only where needed" under
+   "Precrease grid" — sits a step in, so the pair reads as one setting. */
+.row[data-nested] {
+  padding-left: 24px;
+}
+
+/* The whole row is a button: an inspector action. */
+.row[data-action] {
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.row[data-action]:hover {
+  background: var(--bg-surface);
+}
+
+.label {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+}
+
+/* The info mark after a label whose name cannot carry what the setting does. */
+.help {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  vertical-align: -2px;
+  cursor: help;
+}
+
+.help:hover,
+.help:focus-visible {
+  color: var(--text-primary);
+}
+
+.value {
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.value[data-field-value='toggle'] {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The stepper sits at the end of the row, as wide as its number, and a reset
+   trails it the way a colour field's clear does. */
+.value[data-field-value='input'] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.value[data-field-value='select'] {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.value[data-field-value='text'] {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* A segmented control hugs its options; stretched to the column it reads as a
+   half-filled progress bar. */
+.value[data-field-value='segmented'] {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Slider plus its readout: the number column is fixed so the sliders align. */
+.value[data-field-value='slider'] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* A colour field's square swatch at the end, its hex and clear beside it. */
+.value[data-field-value='color'] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* One trigger height for every pane's selects: the default 28px trigger is a
+   toolbar control, and a row of them beside 26px steppers looked ragged in each
+   pane that set this by hand. Through the value, so it outranks the trigger's
+   own height rather than tying with it: which of two equal rules wins would be
+   load order. */
+.value .selectTrigger {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+}
+
+.readout {
+  flex: 0 0 auto;
+  min-width: 28px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* A toggle's "Overridden", in the place its reset button would have taken: on
+   a second grid line under the label, so the line the switch sits on — and the
+   switch with it — stays exactly where it was. The line is one fixed height,
+   empty or not and never wrapped, so a toggle that can be overridden is one
+   height whichever it is (`FieldRow.overridable`). */
+.row[data-noted] {
+  row-gap: 1px;
+}
+
+.note {
+  grid-column: 1;
+  min-width: 0;
+  height: 1.2em;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row[data-disabled] .label,
+.row[data-disabled] .note,
+.row[data-disabled] .readout {
+  opacity: 0.5;
+}
+
+/* A field's `reset`, trailing the control: a colour field's clear, on any row. */
+.reset {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.reset:hover:not(:disabled) {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.reset:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+@media (pointer: coarse) {
+  /* Growing the steppers to 44px makes a number field need 132px (the −, the
+     number and the +, a 44px target each), but the row's two columns each
+     claim a floor of 80px — so on a narrow panel the field was handed ~112px
+     and the `+` clipped against the panel's edge. Measured on a base iPad in
+     portrait: the increment button was cut in half by the screen edge. 140px
+     holds a three-digit number; a longer one widens the column.
+
+     The label is what should give way. It can truncate and still be read; a
+     control the finger cannot reach is simply gone. */
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, auto);
+  }
+
+  .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

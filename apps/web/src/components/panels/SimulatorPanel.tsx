@@ -53,6 +53,13 @@ import { useWorkspaceStore } from "../../store/workspaceStore";
 import { Button } from "../ui/Button";
 import { IconButton } from "../ui/IconButton";
 import { NextDocumentAction } from "./NextDocumentAction";
+import { useSimulatorTools } from "../../simulator/useSimulatorTools";
+import { useSimulatorToolActions } from "../../simulator/useSimulatorToolActions";
+import { SimulatorToolRail } from "../../simulator/SimulatorToolRail";
+import { SimulatorToolWindow } from "../../simulator/SimulatorToolWindow";
+import { SimulatorToolsTrigger } from "../../simulator/SimulatorToolsTrigger";
+import { useIsPhoneLayout } from "../../platform/phoneLayout";
+import styles from "./SimulatorPanel.module.css";
 // Registers `__simCapabilityProbe()` in dev builds; no-op in production.
 import "../../simulator/capabilityProbe";
 
@@ -79,6 +86,12 @@ export function SimulatorPanel() {
   // The mounted canvas element, as state (not just a ref) so the runtime hook
   // re-runs once it exists and can transfer it to the worker.
   const [canvasEl, setCanvasEl] = useState<HTMLCanvasElement | null>(null);
+  // The viewport's cell, which the tool window anchors to.
+  const [viewportCell, setViewportCell] = useState<HTMLDivElement | null>(null);
+  // Frames reach the tools' notices through this; the tools are bound after
+  // the runtime that delivers the frames.
+  const observeFrameRef = useRef<(frame: SimulatorFrameView) => void>(() => {});
+  const phoneLayout = useIsPhoneLayout();
 
   const creaseCount = useWorkspaceStore(
     (state) => selectProject(state).creases.length,
@@ -172,6 +185,7 @@ export function SimulatorPanel() {
       // Straight to the viewport, not through state: at 60fps a re-render per
       // frame would starve the loop this is reporting on.
       viewportRef.current?.showFrame(frame);
+      observeFrameRef.current(frame);
 
       // Throttle the readout state to ~15Hz. These three setStates re-render the
       // whole panel, and at 60fps that re-render was starving the main-thread rAF
@@ -223,6 +237,24 @@ export function SimulatorPanel() {
   } = runtime;
 
   const exportView = useSimulatorExport(runtime.beginExport, { surface: "simulator" });
+
+  const tools = useSimulatorTools({
+    runtime: {
+      model: runtimeModel,
+      gpuActive,
+      pickFaces: runtime.pickFaces,
+      setPinnedFaces: runtime.setPinnedFaces,
+    },
+    ready: loadState === "ready",
+    revision: foldArtifactRevision,
+    sourceKey: simulationSourceKey,
+    pickDrawn: (query) => viewportRef.current?.pickDrawnFaces(query) ?? null,
+    cancelGesture: () => viewportRef.current?.cancelToolGesture() ?? false,
+  });
+  const toolActions = useSimulatorToolActions(tools);
+  useEffect(() => {
+    observeFrameRef.current = tools.observeFrame;
+  }, [tools.observeFrame]);
 
   // Apply material/stability edits to the live solver. The load effect ignores
   // solverOptions on purpose -- reloading the model would throw away the current
@@ -466,6 +498,7 @@ export function SimulatorPanel() {
       viewportRef.current?.setUpright();
       announceUprightSet(t);
     },
+    tools: tools.shortcuts,
   };
 
   useSimulatorShortcuts({
@@ -488,9 +521,10 @@ export function SimulatorPanel() {
           t,
           shortcuts: shortcutOverrides,
           run: (id) =>
-            runSimulatorShortcut(id, simulatorHandlers, runConfig.foldStepPercent),
+            runSimulatorShortcut(id, simulatorHandlers, runConfig.foldStepPercent, "context-menu"),
           playing,
           settings: { ...viewSettings, lighting: paperStyle.light.enabled },
+          toolVerbs: toolActions.menu,
         }),
     });
   };
@@ -560,37 +594,76 @@ export function SimulatorPanel() {
                 be about, carries no pill (`WorkspaceViewDrawer`). Empty under a
                 fine pointer, where the settings are the docked pane.
               */}
+              {/* The rail's tools on a phone, left of the Settings pill. */}
+              {phoneLayout && (
+                <SimulatorToolsTrigger buttons={toolActions.picker} disabled={!tools.enabled} />
+              )}
               <div className="panel-toolbar__pills" ref={setViewDrawerSlot} />
             </div>
           </div>
-          <div
-            className="panel-body simulator-panel__body"
-            onContextMenu={onViewportContextMenu}
-          >
-            <SimulatorViewport
-              ref={viewportRef}
-              canvasKey={`gl:${runtime.canvasGeneration}`}
-              onCanvasChange={setCanvasEl}
-              interactive={loadState === "ready"}
-              gpuActive={gpuActive}
-              viewSettings={viewSettings}
-              paperStyle={paperStyle}
-              // This is the surface with room for one. `.simulator-panel__body` is
-              // the positioned container it anchors to; see the prop.
-              viewCube={viewSettings.showViewCube}
-              pushCamera={pushCamera}
-              pushRenderSettings={pushRenderSettings}
-              perfSurface="simulate-panel"
-              className="simulator-canvas"
-              ariaLabel={t(
-                "panels:simulator.canvasAriaLabel",
-                "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
+          <div className="panel-body simulator-panel__body">
+            {/* Rail and viewport side by side. On a phone there is no rail: the
+                Tools pill in the toolbar above switches tools instead. */}
+            <div className={styles.stage}>
+              {!phoneLayout && (
+                <SimulatorToolRail buttons={toolActions.rail} disabled={!tools.enabled} />
               )}
-              title={t(
-                "panels:simulator.canvasTitle",
-                "Drag to rotate, scroll to zoom, double-click to reset view",
-              )}
-            />
+              <div
+                ref={setViewportCell}
+                className={styles.viewport}
+                onContextMenu={onViewportContextMenu}
+              >
+                <SimulatorViewport
+                  ref={viewportRef}
+                  canvasKey={`gl:${runtime.canvasGeneration}`}
+                  onCanvasChange={setCanvasEl}
+                  interactive={loadState === "ready"}
+                  gpuActive={gpuActive}
+                  viewSettings={viewSettings}
+                  paperStyle={paperStyle}
+                  // This is the surface with room for one. The viewport cell is
+                  // the positioned container it anchors to; see the prop.
+                  viewCube={viewSettings.showViewCube}
+                  highlights={tools.highlights}
+                  toolInput={tools.toolInput}
+                  pushCamera={pushCamera}
+                  pushRenderSettings={pushRenderSettings}
+                  perfSurface="simulate-panel"
+                  className="simulator-canvas"
+                  ariaLabel={
+                    tools.tool.id === "pin"
+                      ? t(
+                          "panels:simulator.canvasAriaLabelPin",
+                          "Origami folded-base simulator. Drag a box or click a face to pin it, scroll to zoom.",
+                        )
+                      : t(
+                          "panels:simulator.canvasAriaLabel",
+                          "Origami folded-base simulator. Drag to rotate, scroll to zoom, double-click to reset view.",
+                        )
+                  }
+                  title={
+                    tools.tool.id === "pin"
+                      ? t(
+                          "panels:simulator.canvasTitlePin",
+                          "Drag a box or click a face to pin it, scroll to zoom",
+                        )
+                      : t(
+                          "panels:simulator.canvasTitle",
+                          "Drag to rotate, scroll to zoom, double-click to reset view",
+                        )
+                  }
+                />
+                {loadState !== "ready" && (
+                  <div className="simulator-panel__empty">
+                    <span title={loadState === "error" ? errorDetail : undefined}>
+                      {statusLabel}
+                    </span>
+                    {loadState === "error" && <small>{errorDetail}</small>}
+                    {loadState === "empty" && <NextDocumentAction />}
+                  </div>
+                )}
+              </div>
+            </div>
             <ContextMenu
               open={contextMenu.open}
               x={contextMenu.x}
@@ -599,16 +672,10 @@ export function SimulatorPanel() {
               onOpenChange={contextMenu.onOpenChange}
               onCloseAutoFocus={contextMenu.onCloseAutoFocus}
             />
-            {loadState !== "ready" && (
-              <div className="simulator-panel__empty">
-                <span title={loadState === "error" ? errorDetail : undefined}>
-                  {statusLabel}
-                </span>
-                {loadState === "error" && <small>{errorDetail}</small>}
-                {loadState === "empty" && <NextDocumentAction />}
-              </div>
-            )}
           </div>
+          {/* Outside the body, which carries no handler the window should hear;
+              see the component. */}
+          <SimulatorToolWindow container={viewportCell} model={toolActions.window} />
           <div className="simulator-controls">
             <div
               className="simulator-transport"

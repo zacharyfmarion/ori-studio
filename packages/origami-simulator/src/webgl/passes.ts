@@ -220,7 +220,7 @@ const FORCE_SHADER_MAIN = `void main(){
   vec2 scaledFragCoord = fragCoord/u_textureDim;
   vec2 mass = texture2D(u_mass, scaledFragCoord).xy;
   if (mass[1] == 1.0){
-    gl_FragColor = vec4(0.0);
+    gl_FragColor = fixedNodeOutput(scaledFragCoord);
     return;
   }
   vec3 force = texture2D(u_externalForces, scaledFragCoord).xyz;
@@ -367,6 +367,11 @@ const FORCE_SHADER_MAIN = `void main(){
  */
 const VERLET_PRELUDE = `uniform sampler2D u_lastLastPosition;
 
+// A fixed node keeps its position, as upstream's positionCalcVerlet writes it.
+vec4 fixedNodeOutput(vec2 scaledFragCoord){
+  return vec4(texture2D(u_lastPosition, scaledFragCoord).xyz, 0.0);
+}
+
 float sanitize(float x){
   return (x != x || abs(x) > 1e30) ? 0.0 : x;
 }
@@ -377,7 +382,20 @@ vec3 sanitizeVec3(vec3 v){
 
 `;
 
-export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${FORCE_SHADER_MAIN}
+/**
+ * What the shared force main writes for a fixed node: it is an output of the
+ * integrator, not of the force model, because Euler's output is a velocity
+ * (zero) and Verlet's is a position (the last one). Writing Euler's zero from
+ * the shared main used to hand Verlet a zero *displacement*, snapping a fixed
+ * node to its flat rest position every step.
+ */
+const EULER_PRELUDE = `
+vec4 fixedNodeOutput(vec2 scaledFragCoord){
+  return vec4(0.0);
+}
+`;
+
+export const VELOCITY_CALC = `${FORCE_SHADER_HEAD}${EULER_PRELUDE}${FORCE_SHADER_MAIN}
   vec3 velocity = force*u_dt/mass[0] + lastVelocity;
   gl_FragColor = vec4(velocity, nodeError);
 }

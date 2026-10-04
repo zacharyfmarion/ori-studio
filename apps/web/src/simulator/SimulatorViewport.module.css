@@ -1,0 +1,13 @@
+/*
+ * The simulator viewport's own layers (SimulatorViewport.tsx). The canvas and
+ * the view cube still wear their global classes; see the plan's styling note.
+ */
+
+/* A box being dragged by a tool: positioned against the same container as the
+   canvas, and never in the way of the pointer that is drawing it. */
+.marquee {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}

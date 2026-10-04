@@ -1,11 +1,10 @@
 /*
- * Where the tool hint window (CpToolHintWindow.tsx) sits and how it moves: a
- * floating window over the bottom right of the Edit workspace, overhanging the
- * seam between the crease-pattern viewport and the View pane. How it looks is
- * the shared FloatingPanel's; the tool's content inside it is
- * CpContextToolPanel's.
+ * Where the tool hint window (ToolHintWindow.tsx) sits and how it moves: a
+ * floating window over the bottom right of a workspace's viewport, overhanging
+ * the seam between the viewport and the side pane beside it. How it looks is
+ * the shared FloatingPanel's; the tool's content inside it is the workspace's.
  *
- * `left`, `bottom` and `width` come from `cpToolHintPlacement` as inline style —
+ * `left`, `bottom` and `width` come from `toolHintPlacement` as inline style —
  * they are a function of a measured rect, so they cannot live here. It is
  * body-portaled, which is what `fixed` needs to mean the browser window rather
  * than the nearest Dockview panel.

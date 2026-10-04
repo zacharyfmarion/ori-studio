@@ -85,9 +85,9 @@ function render() {
   });
 }
 
-const trigger = () => container?.querySelector<HTMLButtonElement>('.cp-tools-trigger');
+const trigger = () => container?.querySelector<HTMLButtonElement>('button[aria-haspopup="dialog"]');
 /** Portaled to `document.body`, out of the pill lane — see `CpToolsTrigger`. */
-const sheet = () => document.querySelector<HTMLElement>('.cp-tool-picker');
+const sheet = () => document.querySelector<HTMLElement>('[role="dialog"]');
 
 afterEach(() => {
   act(() => {
@@ -169,7 +169,7 @@ describe('CpToolsTrigger active tool', () => {
     // Eraser has no Oriedita glyph, so it falls through to its Lucide icon; the
     // assertion worth making is that *something* tool-specific is drawn beside
     // the word, not which font it came out of.
-    expect(trigger()?.querySelector('.cp-tools-trigger__glyph')).not.toBeNull();
+    expect(trigger()?.querySelector('[data-tool-trigger-glyph]')).not.toBeNull();
   });
 
   it('falls back to the resting tool when nothing is armed', () => {
@@ -178,7 +178,7 @@ describe('CpToolsTrigger active tool', () => {
     publish(null, null);
     render();
 
-    expect(trigger()?.querySelector('.cp-tools-trigger__glyph')).not.toBeNull();
+    expect(trigger()?.querySelector('[data-tool-trigger-glyph]')).not.toBeNull();
   });
 });
 
@@ -208,7 +208,7 @@ describe('CpToolsTrigger sheet', () => {
   it('arms the tool it was asked for and closes', () => {
     open();
 
-    const rows = [...(sheet()?.querySelectorAll('.cp-tool-picker__item') ?? [])];
+    const rows = [...(sheet()?.querySelectorAll('[data-tool-item]') ?? [])];
     const eraser = rows.find((row) => row.textContent?.includes('Eraser'));
     if (!(eraser instanceof HTMLElement)) throw new Error('no Eraser row');
     act(() => {

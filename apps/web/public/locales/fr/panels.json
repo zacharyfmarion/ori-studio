@@ -1133,7 +1133,9 @@
     "backendGpuTitle": "Résolution sur le GPU (WebGL2)",
     "backToPatterns": "Patrons",
     "canvasAriaLabel": "Simulateur de base pliée en origami. Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue.",
+    "canvasAriaLabelPin": "Simulateur de base pliée en origami. Tracez un cadre ou cliquez sur une face pour l’épingler, défilez pour zoomer.",
     "canvasTitle": "Faites glisser pour pivoter, défilez pour zoomer, double-cliquez pour réinitialiser la vue",
+    "canvasTitlePin": "Tracez un cadre ou cliquez sur une face pour l’épingler, défilez pour zoomer",
     "contextMenu": {
       "pause": "Pause",
       "play": "Lecture",
@@ -1155,6 +1157,43 @@
     "stepReadout": "Étape {{n}}",
     "strain": "Tension {{value}}",
     "title": "Simulateur",
+    "tools": {
+      "instructions": "Instructions",
+      "notice": {
+        "recovered": "La simulation est devenue instable et a redémarré à plat. Les épingles maintiennent désormais la feuille à plat.",
+        "strained": "Les faces épinglées tirent les unes sur les autres."
+      },
+      "orbit": {
+        "description": "Faites glisser pour faire tourner le modèle.",
+        "label": "Orbite"
+      },
+      "picker": {
+        "close": "Fermer la liste des outils",
+        "title": "Outils",
+        "trigger": "Outils"
+      },
+      "pin": {
+        "box": "Tracez un cadre pour épingler les faces qu’il contient, ou cliquez sur une face.",
+        "description": "Maintient des faces en place pendant que le reste du papier se plie.",
+        "label": "Épingler",
+        "orbitApple": "Faire glisser avec Cmd fait tourner le modèle.",
+        "orbitMiddle": "Faites glisser avec le bouton du milieu pour faire tourner le modèle.",
+        "shift": "Faire glisser avec Maj ajoute aux épingles. Maj-clic épingle ou désépingle une face.",
+        "throughLayers": "Sélectionner à travers toutes les couches",
+        "touchBox": "Tracez un cadre pour épingler les faces qu’il contient.",
+        "touchOrbit": "Passez à Orbite pour faire tourner le modèle.",
+        "touchTap": "Touchez une face pour l’épingler ou la désépingler."
+      },
+      "pins": {
+        "clear": "Retirer les épingles",
+        "count_one": "1 face épinglée",
+        "count_many": "{{count}} faces épinglées",
+        "count_other": "{{count}} faces épinglées",
+        "title": "Épingles"
+      },
+      "railLabel": "Outils du simulateur",
+      "windowLabel": "Options des outils du simulateur"
+    },
     "unavailable": "Simulateur indisponible",
     "viewCube": {
       "back": "Arrière",
