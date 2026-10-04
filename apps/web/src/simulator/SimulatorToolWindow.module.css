@@ -35,22 +35,6 @@
   padding-left: 2px;
 }
 
-/* An option and its switch, on the window's own left edge. The section above
-   draws the only divider; a row of its own under it would rule off nothing. */
-.option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.optionLabel {
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: 0.74rem;
-}
-
 .clear {
   justify-self: start;
 }

@@ -65,6 +65,12 @@ describe('SimulatorToolWindow', () => {
     ]);
   });
 
+  it('draws no rule under its options: the window divides its own sections', () => {
+    render(model());
+    const row = windowEl()?.querySelector('[role="switch"]')?.closest('[data-field-row]');
+    expect(row?.getAttribute('data-divider')).toBe('none');
+  });
+
   it('switches an option and clears the pins through the model', () => {
     const value = model();
     render(value);

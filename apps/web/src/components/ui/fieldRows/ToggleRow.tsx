@@ -10,6 +10,7 @@ export function ToggleRow({
   disabled,
   nested,
   title,
+  divider,
   onChange,
   onReset,
 }: {
@@ -28,6 +29,8 @@ export function ToggleRow({
   disabled?: boolean;
   nested?: boolean;
   title?: string;
+  /** The rule under the row (`FieldRow.divider`). */
+  divider?: boolean;
   onChange: (checked: boolean) => void;
   /** Passed while the value is overridden; the row says so under its label. */
   onReset?: () => void;
@@ -47,6 +50,7 @@ export function ToggleRow({
       disabled={disabled}
       nested={nested}
       title={title}
+      divider={divider}
       onReset={onReset}
     >
       <Toggle
