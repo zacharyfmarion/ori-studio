@@ -1,0 +1,390 @@
+[
+ {
+  "name": "crane crease pattern",
+  "render": {
+   "mode": "crease-pattern",
+   "rotationDeg": 315
+  },
+  "picture": {
+   "kind": "scene",
+   "sceneJson": "{\"bounds\":{\"minX\":-415.78,\"minY\":-415.78,\"maxX\":415.78,\"maxY\":415.78},\"sheet\":588,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[0,415.78],[207.89,207.89],[415.78,0],[207.89,-207.89],[0,-415.78],[-207.89,-207.89],[-415.78,0],[-207.89,207.89]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"aux\",\"a\":[0,415.78],\"b\":[0,0],\"onBoundary\":[true,true],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"aux\",\"a\":[0,0],\"b\":[0,-415.78],\"onBoundary\":[true,true],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-mountain\",\"a\":[-415.78,0],\"b\":[0,0],\"onBoundary\":[false,false],\"joined\":[false,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-mountain\",\"a\":[0,0],\"b\":[415.78,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[-207.89,-207.89],\"b\":[0,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[0,0],\"b\":[207.89,207.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[-207.89,207.89],\"b\":[0,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[0,0],\"b\":[207.89,-207.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[0,415.78],\"b\":[207.89,207.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[415.78,0],\"b\":[207.89,-207.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[0,-415.78],\"b\":[-207.89,-207.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[-415.78,0],\"b\":[-207.89,207.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[207.89,207.89],\"b\":[415.78,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[-207.89,-207.89],\"b\":[-415.78,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[207.89,-207.89],\"b\":[0,-415.78],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[-207.89,207.89],\"b\":[0,415.78],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false}]}",
+   "paperScale": 1.47,
+   "styleKey": null,
+   "key": "scene-1lh3yyxeuphmw"
+  }
+ },
+ {
+  "name": "crane flat fold",
+  "render": {
+   "mode": "folded-flat",
+   "side": "front",
+   "rotationDeg": 270,
+   "foldCase": 1
+  },
+  "picture": {
+   "kind": "scene",
+   "sceneJson": "{\"bounds\":{\"minX\":1719.9,\"minY\":-1400.68,\"maxX\":2135.68,\"maxY\":-984.9},\"sheet\":588,\"items\":[{\"kind\":\"face\",\"face\":1,\"side\":\"back\",\"rings\":[[[1927.79,-984.9],[1719.9,-1192.79],[1927.79,-1400.68]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":4,\"side\":\"back\",\"rings\":[[[2135.68,-1192.79],[1927.79,-984.9],[1927.79,-1400.68]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":8,\"side\":\"back\",\"rings\":[[[1927.79,-984.9],[1806.01,-1278.9],[1927.79,-1400.68],[2049.57,-1278.9]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"aux\",\"a\":[1927.79,-984.9],\"b\":[1927.79,-1400.68],\"onBoundary\":[true,true],\"face\":8,\"hidden\":false},{\"kind\":\"face\",\"face\":7,\"side\":\"back\",\"rings\":[[[1927.79,-1278.9],[1927.79,-984.9],[1806.01,-1278.9]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":3,\"side\":\"back\",\"rings\":[[[1927.79,-984.9],[1927.79,-1278.9],[2049.57,-1278.9]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false}]}",
+   "paperScale": 1.47,
+   "styleKey": null,
+   "key": "scene-1gtpxdf16130mc"
+  }
+ },
+ {
+  "name": "crane flat fold, back",
+  "render": {
+   "mode": "folded-flat",
+   "side": "back",
+   "rotationDeg": 45,
+   "foldCase": 1
+  },
+  "picture": {
+   "kind": "scene",
+   "sceneJson": "{\"bounds\":{\"minX\":-1278.52,\"minY\":2505.07,\"maxX\":-862.74,\"maxY\":2920.85},\"sheet\":588,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"back\",\"rings\":[[[-1070.63,2920.85],[-1278.52,2712.96],[-1192.41,2626.85],[-1070.63,2505.07],[-948.85,2626.85],[-862.74,2712.96]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"aux\",\"a\":[-1070.63,2920.85],\"b\":[-1070.63,2505.07],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"aux\",\"a\":[-1070.63,2920.85],\"b\":[-1192.41,2626.85],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"aux\",\"a\":[-1070.63,2920.85],\"b\":[-948.85,2626.85],\"onBoundary\":[true,true],\"face\":0,\"hidden\":false}]}",
+   "paperScale": 1.47,
+   "styleKey": null,
+   "key": "scene-48nl561m4rjrl"
+  }
+ },
+ {
+  "name": "crane flat fold, legs",
+  "render": {
+   "mode": "folded-flat",
+   "side": "front",
+   "rotationDeg": 45,
+   "foldCase": 1
+  },
+  "picture": {
+   "kind": "scene",
+   "sceneJson": "{\"bounds\":{\"minX\":-4756.53,\"minY\":4303.31,\"maxX\":-4598.5,\"maxY\":4597.31},\"sheet\":588,\"items\":[{\"kind\":\"face\",\"face\":10,\"side\":\"back\",\"rings\":[[[-4756.53,4494.07],[-4677.51,4303.31],[-4677.51,4597.31],[-4735.99,4597.31]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":5,\"side\":\"back\",\"rings\":[[[-4677.51,4573.09],[-4735.99,4597.31],[-4756.53,4494.07]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":6,\"side\":\"back\",\"rings\":[[[-4746.49,4544.51],[-4677.51,4573.09],[-4677.51,4597.31],[-4735.99,4597.31]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":34,\"side\":\"back\",\"rings\":[[[-4677.51,4303.31],[-4598.5,4494.07],[-4619.03,4597.31],[-4677.51,4597.31]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":28,\"side\":\"back\",\"rings\":[[[-4677.51,4573.09],[-4598.5,4494.07],[-4619.03,4597.31]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":30,\"side\":\"back\",\"rings\":[[[-4608.53,4544.51],[-4619.03,4597.31],[-4677.51,4597.31],[-4677.51,4573.09]]],\"outline\":\"edge\",\"shade\":1,\"hidden\":false}]}",
+   "paperScale": 1.47,
+   "styleKey": null,
+   "key": "scene-nc9zf25d94ul"
+  }
+ },
+ {
+  "name": "crane References step",
+  "side": "front",
+  "picture": {
+   "kind": "step-diagram",
+   "model": {
+    "sheet": {
+     "width": 1,
+     "height": 1,
+     "centre": [
+      0.5,
+      0.5
+     ]
+    },
+    "primitives": [
+     {
+      "kind": "sheet",
+      "width": 1,
+      "height": 1
+     },
+     {
+      "kind": "line",
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       0.5,
+       0.5
+      ],
+      "style": "aux",
+      "dashPhase": 0
+     },
+     {
+      "kind": "line",
+      "from": [
+       0.5,
+       0.5
+      ],
+      "to": [
+       1,
+       1
+      ],
+      "style": "aux",
+      "dashPhase": 0.7071067811865475
+     },
+     {
+      "kind": "point",
+      "at": [
+       0,
+       0
+      ],
+      "style": "highlight"
+     },
+     {
+      "kind": "point",
+      "at": [
+       1,
+       0
+      ],
+      "style": "highlight"
+     },
+     {
+      "kind": "fold-arrow",
+      "out": {
+       "center": [
+        0.4999999999999997,
+        -0.8660254037844386
+       ],
+       "radius": 0.9999999999999998,
+       "from": 2.0943951023931953,
+       "to": 1.0471975511965976,
+       "ccw": false
+      }
+     },
+     {
+      "kind": "point",
+      "at": [
+       0,
+       1
+      ],
+      "style": "highlight"
+     },
+     {
+      "kind": "fold-arrow",
+      "out": {
+       "center": [
+        -0.8660254037844387,
+        0.5
+       ],
+       "radius": 1,
+       "from": -0.5235987755982988,
+       "to": 0.5235987755982988,
+       "ccw": true
+      }
+     },
+     {
+      "kind": "line",
+      "from": [
+       0.4999999999999999,
+       2.465190328815662e-32
+      ],
+      "to": [
+       0.5000000000000001,
+       1.0000000000000004
+      ],
+      "style": "valley",
+      "dashPhase": 0
+     },
+     {
+      "kind": "line",
+      "from": [
+       0,
+       0.5
+      ],
+      "to": [
+       1,
+       0.5
+      ],
+      "style": "valley",
+      "dashPhase": 0
+     },
+     {
+      "kind": "label",
+      "at": [
+       0,
+       0
+      ],
+      "text": "P",
+      "style": "highlight"
+     },
+     {
+      "kind": "label",
+      "at": [
+       1,
+       0
+      ],
+      "text": "Q",
+      "style": "highlight"
+     },
+     {
+      "kind": "label",
+      "at": [
+       0,
+       1
+      ],
+      "text": "R",
+      "style": "highlight"
+     }
+    ]
+   },
+   "mirrored": false,
+   "key": "steps-70q1tx1x73ca"
+  }
+ },
+ {
+  "name": "crane References step, back",
+  "side": "back",
+  "picture": {
+   "kind": "step-diagram",
+   "model": {
+    "sheet": {
+     "width": 1,
+     "height": 1,
+     "centre": [
+      0.5,
+      0.5
+     ]
+    },
+    "primitives": [
+     {
+      "kind": "sheet",
+      "width": 1,
+      "height": 1
+     },
+     {
+      "kind": "line",
+      "from": [
+       0,
+       0
+      ],
+      "to": [
+       0.5,
+       0.5
+      ],
+      "style": "aux",
+      "dashPhase": 0
+     },
+     {
+      "kind": "line",
+      "from": [
+       0.5,
+       0.5
+      ],
+      "to": [
+       1,
+       1
+      ],
+      "style": "aux",
+      "dashPhase": 0.7071067811865475
+     },
+     {
+      "kind": "line",
+      "from": [
+       0.4999999999999999,
+       2.465190328815662e-32
+      ],
+      "to": [
+       0.5000000000000001,
+       1.0000000000000004
+      ],
+      "style": "crease",
+      "dashPhase": 1.110223024625156e-16
+     },
+     {
+      "kind": "line",
+      "from": [
+       0,
+       0.5
+      ],
+      "to": [
+       1,
+       0.5
+      ],
+      "style": "crease",
+      "dashPhase": 0
+     },
+     {
+      "kind": "point",
+      "at": [
+       0,
+       0
+      ],
+      "style": "highlight"
+     },
+     {
+      "kind": "point",
+      "at": [
+       1,
+       1
+      ],
+      "style": "highlight"
+     },
+     {
+      "kind": "fold-arrow",
+      "out": {
+       "center": [
+        1.3660254037844382,
+        -0.36602540378443854
+       ],
+       "radius": 1.4142135623730945,
+       "from": 2.879793265790644,
+       "to": 1.8325957145940461,
+       "ccw": false
+      }
+     },
+     {
+      "kind": "line",
+      "from": [
+       5.551115123125783e-17,
+       0.9999999999999998
+      ],
+      "to": [
+       0.9999999999999998,
+       5.551115123125783e-17
+      ],
+      "style": "mountain",
+      "dashPhase": 0
+     },
+     {
+      "kind": "label",
+      "at": [
+       0,
+       0
+      ],
+      "text": "P",
+      "style": "highlight"
+     },
+     {
+      "kind": "label",
+      "at": [
+       1,
+       1
+      ],
+      "text": "Q",
+      "style": "highlight"
+     }
+    ]
+   },
+   "mirrored": true,
+   "key": "steps-1i95ofo6xuq0v-back"
+  }
+ },
+ {
+  "name": "box_90 crease pattern",
+  "render": {
+   "mode": "crease-pattern",
+   "rotationDeg": 0
+  },
+  "picture": {
+   "kind": "scene",
+   "sceneJson": "{\"bounds\":{\"minX\":-294,\"minY\":-294,\"maxX\":294,\"maxY\":294},\"sheet\":588,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[-294,294],[0,294],[147,294],[294,294],[294,147],[294,0],[294,-294],[0,-294],[-294,-294],[-294,0]]],\"shade\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[0,-294],\"b\":[147,-147],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[-147,147],\"b\":[147,-147],\"onBoundary\":[false,false],\"joined\":[true,false],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[147,-147],\"b\":[294,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-mountain\",\"a\":[147,-147],\"b\":[147,147],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-mountain\",\"a\":[147,147],\"b\":[-147,147],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-mountain\",\"a\":[147,147],\"b\":[294,147],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-mountain\",\"a\":[147,147],\"b\":[147,294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[147,147],\"b\":[294,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[147,147],\"b\":[0,294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[294,-294],\"b\":[147,-147],\"onBoundary\":[false,false],\"joined\":[false,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[-294,0],\"b\":[-147,147],\"onBoundary\":[false,false],\"joined\":[false,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[-147,147],\"b\":[0,294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"diagram-valley\",\"a\":[-294,294],\"b\":[-147,147],\"onBoundary\":[false,false],\"joined\":[false,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[-294,294],\"b\":[0,294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[294,294],\"b\":[294,147],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[294,-294],\"b\":[0,-294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[-294,-294],\"b\":[-294,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[0,294],\"b\":[147,294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[-294,0],\"b\":[-294,294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[294,0],\"b\":[294,-294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[0,-294],\"b\":[-294,-294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[294,147],\"b\":[294,0],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[147,294],\"b\":[294,294],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false}]}",
+   "paperScale": 1.47,
+   "styleKey": null,
+   "key": "scene-1iu8pl46r2gqf"
+  }
+ },
+ {
+  "name": "box_90 3D",
+  "render": {
+   "mode": "folded-3d",
+   "camera": {
+    "yaw": 0.7853981633974483,
+    "pitch": -0.955,
+    "zoom": 1
+   },
+   "side": "front"
+  },
+  "picture": {
+   "kind": "scene",
+   "sceneJson": "{\"bounds\":{\"minX\":154.46,\"minY\":11.71,\"maxX\":393.56,\"maxY\":555.59},\"sheet\":587.9999999999882,\"items\":[{\"kind\":\"face\",\"face\":0,\"side\":\"front\",\"rings\":[[[384.95,409.1],[381.69,300.89],[208.17,300.89]]],\"shade\":1.0228063775969256,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[384.95,409.1],\"b\":[208.17,300.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":0,\"hidden\":false},{\"kind\":\"face\",\"face\":1,\"side\":\"front\",\"rings\":[[[387.92,234.05],[384.41,271.67],[384.95,409.1],[388.62,390.77]]],\"shade\":0.8749123288122842,\"hidden\":false},{\"kind\":\"face\",\"face\":3,\"side\":\"front\",\"rings\":[[[383.9,140.01],[381.69,300.89],[387.92,234.05],[388.62,390.77],[393.56,366.1],[391.69,11.71]]],\"shade\":0.8749123288122842,\"hidden\":false},{\"kind\":\"face\",\"face\":9,\"side\":\"front\",\"rings\":[[[381.69,300.89],[384.95,409.1],[384.41,271.67]]],\"shade\":0.8749123288122842,\"hidden\":false},{\"kind\":\"line\",\"role\":\"valley\",\"a\":[381.69,300.89],\"b\":[384.95,409.1],\"onBoundary\":[false,false],\"joined\":[true,false],\"face\":9,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[393.56,366.1],\"b\":[391.69,11.71],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":3,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[391.69,11.71],\"b\":[383.9,140.01],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":3,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[384.41,271.67],\"b\":[381.69,300.89],\"onBoundary\":[false,false],\"joined\":[false,true],\"face\":9,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[384.41,271.67],\"b\":[384.95,409.1],\"onBoundary\":[false,false],\"joined\":[true,false],\"face\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[387.92,234.05],\"b\":[384.41,271.67],\"onBoundary\":[false,false],\"joined\":[false,true],\"face\":1,\"hidden\":false},{\"kind\":\"line\",\"role\":\"mountain\",\"a\":[388.62,390.77],\"b\":[387.92,234.05],\"onBoundary\":[false,false],\"joined\":[true,false],\"face\":1,\"hidden\":false},{\"kind\":\"face\",\"face\":5,\"side\":\"front\",\"rings\":[[[381.69,300.89],[383.9,140.01],[208.17,300.89]]],\"shade\":0.8386337735278001,\"hidden\":false},{\"kind\":\"line\",\"role\":\"valley\",\"a\":[381.69,300.89],\"b\":[208.17,300.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":5,\"hidden\":false},{\"kind\":\"line\",\"role\":\"valley\",\"a\":[383.9,140.01],\"b\":[381.69,300.89],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":5,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[208.17,300.89],\"b\":[383.9,140.01],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":5,\"hidden\":false},{\"kind\":\"face\",\"face\":2,\"side\":\"back\",\"rings\":[[[393.56,366.1],[389.36,555.59],[154.46,555.59]]],\"shade\":0.8386337823402776,\"hidden\":false},{\"kind\":\"line\",\"role\":\"valley\",\"a\":[154.46,555.59],\"b\":[389.36,555.59],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":2,\"hidden\":false},{\"kind\":\"line\",\"role\":\"valley\",\"a\":[389.36,555.59],\"b\":[393.56,366.1],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":2,\"hidden\":false},{\"kind\":\"line\",\"role\":\"edge\",\"a\":[393.56,366.1],\"b\":[154.46,555.59],\"onBoundary\":[false,false],\"joined\":[true,true],\"face\":2,\"hidden\":false}]}",
+   "paperScale": null,
+   "styleKey": "true|322.19347|42.80915|0.6666666666666666",
+   "key": "scene-1r4tfs01bksvhh"
+  }
+ }
+]

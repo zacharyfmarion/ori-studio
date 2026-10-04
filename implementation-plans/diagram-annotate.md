@@ -487,12 +487,64 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
 - [ ] `pictureSnap.ts` per picture kind; `LineHitIndex` in-reach query; kind
   `circle`; hover and press-time previews; override; Step pane toggle; arrow
   ends snapping (Q9).
+  - Analysis as built (pure; no kind, file or canvas yet):
+    - **Geometry** (`pictureGeometry.ts`), read once per picture object:
+      points (`point` a References mark, `corner` the paper's, `vertex` where
+      lines meet, `end` a line meeting nothing) and whole segments, in picture
+      units, each in a `LineHitIndex`; points within 5e-5 of the frame are one.
+      A crease-pattern capture: line ends and the rim (corners where it turns,
+      vertices along its sides), crossings found near the pointer. A flat
+      fold: every ring's corners, covered ones too, and each line's `whole`
+      ends; no crossings of its own lines (v1 — whole faces cross where one is
+      buried). 3D and simulated: line ends (`whole` where cut), which are the
+      only projected vertices a stored scene keeps — its rings are the
+      painter's cut pieces. References: sheet corners and edges, line ends
+      (not `arrow`), marks and crossings, through `stepDiagramToPicture`, the
+      painter's own map (mirrored on the back). Uploads, fixed: nothing.
+    - **Snap**: `pictureSnapTarget(step, assets, point, radius, {annotations?,
+      ignore?})` → `{at, kind} | null`, the nearest of the nearest picture
+      point, the annotations' arrow and line ends (signs and labels offer
+      none; `ignore` is the one being dragged) and crossings — of the
+      picture's lines, and of annotation lines with anything, on any picture.
+      Two on one point report the picture's own kind. `segmentsNear` returns
+      every segment in reach; crossings pair the 64 nearest, exact for any
+      crossing nearer than the 64th.
+    - **Radius**: Edit's setting × `CP_MODEL_TO_CSS` is CSS px (10 → 14.7,
+      coarse 15 → 22), over screen px per picture unit.
+    - **Proof**: hand fixtures (a square and its diagonals, a T, a pinch, a
+      cut crease, 3D, an upload, References front and back) and real pictures
+      (`__fixtures__/snapPictures.json`: crane-zach's capture, three flat folds
+      and two References steps; box_90's pattern and 3D), scanned on a grid
+      against the picture read the long way. Of 19 mutants across 14d/14e,
+      one survives: crossings at a segment's end, which the tie rule hides.
+    - **Timing** (local, Node 22): the index 8 ms on the Langerak crane's
+      pattern (1933 segments), 10 ms on the arowana's (3624); a query 6–12 µs
+      at a fitted frame's radius, 100–350 µs at a quarter of the frame; flat
+      folds under 15 µs.
 - [ ] Browser: crease-pattern capture, flat fold, References step; a PDF with a
   circle and a landing arrow.
 
 ### 14e. Right-angle marks
 - [ ] Shared primitive and golden; kind; ray-based corner detection; drag
   fallback; Turn 90°.
+  - Analysis as built (`rightAngles.ts`, pure; no kind or canvas yet): rays,
+    not lines — one from a line ending at the vertex, two from one running
+    through it, rays within 0.5° one; a sector between consecutive rays is a
+    right angle at 90° ± 1°, so an eight-way box-pleat vertex has none and a
+    paper corner's reflex side never is one.
+    `rightAngleCorner(step, assets, point, radius, {annotations?, ignore?,
+    deadZone?})` takes the vertex nearest the pointer within the radius
+    (picture points, annotation line ends, crossings) and the sector the
+    pointer is in; null within the dead zone (a quarter of the radius by
+    default). It returns `{at, legs, diagonal}`: the legs' unit directions
+    clockwise on the page, the diagonal between them, along which a mark's
+    `to` goes. `rightAnglesAt(step, assets, at)` lists every one at a point.
+    A 3D or simulated picture's own lines give no rays; annotation lines do
+    on any picture, an upload's included. Tests: a square with a diagonal,
+    a waterbomb vertex split and whole, grid, eight-way and one-diagonal
+    box-pleat vertices, a sector round past +x, ±1°, References mirrored, an
+    upload's drawn lines, 3D; on the real pictures box_90's 16, counted by
+    hand. Timing as 14d.
 - [ ] Browser: a box-pleated capture, a References step, an upload with drawn
   lines, a PDF.
 
