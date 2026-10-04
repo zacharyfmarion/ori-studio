@@ -124,6 +124,30 @@ describe('pictureSnapTarget on annotations', () => {
   });
 });
 
+describe('pictureSnapTarget along a line drawn on a crease', () => {
+  /** A stored scene's coordinate: to 0.01 px, as `storableScene` keeps it. */
+  const stored = (value: number) => Math.round(value * 100) / 100;
+
+  it('finds no crossing where a drawn line runs along a split crease, whatever its angle', () => {
+    for (const degrees of [15, 22.5, 37]) {
+      // From the square's bottom-left corner up across it, split where other creases meet it.
+      const rise = 100 * Math.tan((degrees * Math.PI) / 180);
+      const along = (x: number): ScenePoint => [stored(x), stored(100 - (rise * x) / 100)];
+      const splits = [0, 15.25, 42.5, 75, 100];
+      const pieces = splits.slice(1).map((x, i) => crease(along(splits[i]!), along(x)));
+      const step = sceneStep([face([SQUARE]), ...pieces]);
+      const drawn = annotation({ kind: 'valley-line', from: [0, 1], to: [1, 1 - rise / 100] });
+      for (let x = 0.2; x < 0.95; x += 0.01) {
+        // Clear of every split, a little off the line.
+        if (splits.some((split) => Math.abs(split / 100 - x) < 0.04)) continue;
+        const pointer: [number, number] = [x, 1 - (rise * x) / 100 + 0.003];
+        const target = pictureSnapTarget(step, NO_ASSETS, pointer, 0.02, { annotations: [drawn] });
+        expect(target?.kind, `${degrees}° at ${x.toFixed(2)}`).not.toBe('crossing');
+      }
+    }
+  });
+});
+
 describe('pictureSnapTarget by kind of picture', () => {
   it('reads a flat fold’s rings as vertices, and finds no crossings among its own lines (v1)', () => {
     const flat = sceneStep(CROSSED, FLAT);

@@ -107,6 +107,10 @@ export function allCrossings(segments: readonly Segment[]): PicturePoint[] {
       const sy = d[1] - c[1];
       const denominator = rx * sy - ry * sx;
       if (Math.abs(denominator) < 1e-12) continue;
+      // Along one line, to a stored scene's rounding: no crossing.
+      const offFirst = (p: PicturePoint) => Math.abs((p[0] - a[0]) * ry - (p[1] - a[1]) * rx) / Math.hypot(rx, ry);
+      const offSecond = (p: PicturePoint) => Math.abs((p[0] - c[0]) * sy - (p[1] - c[1]) * sx) / Math.hypot(sx, sy);
+      if ((offFirst(c) <= 5e-5 && offFirst(d) <= 5e-5) || (offSecond(a) <= 5e-5 && offSecond(b) <= 5e-5)) continue;
       const t = ((c[0] - a[0]) * sy - (c[1] - a[1]) * sx) / denominator;
       const u = ((c[0] - a[0]) * ry - (c[1] - a[1]) * rx) / denominator;
       if (t < 0 || t > 1 || u < 0 || u > 1) continue;

@@ -303,8 +303,11 @@ function runsStraight(before: PicturePoint, at: PicturePoint, after: PicturePoin
 
 /**
  * Where two segments cross, away from all four ends — an end on the other
- * segment is already a point of its own — or null where they do not, or run
- * parallel.
+ * segment is already a point of its own — or null where they do not, run
+ * parallel, or run along one line. "Along one line" is a distance, not an
+ * angle: a stored scene keeps its points to 0.01 px, so a line drawn along a
+ * crease split where others meet it lies some 1e-5 off parallel with each
+ * piece, and their crossing would land anywhere along the piece.
  */
 export function segmentCrossing(first: IndexedSegment, second: IndexedSegment): PicturePoint | null {
   const rx = first.b.x - first.a.x;
@@ -313,6 +316,7 @@ export function segmentCrossing(first: IndexedSegment, second: IndexedSegment): 
   const sy = second.b.y - second.a.y;
   const denominator = rx * sy - ry * sx;
   if (Math.abs(denominator) <= 1e-12 * Math.hypot(rx, ry) * Math.hypot(sx, sy)) return null;
+  if (alongLine(first, second) || alongLine(second, first)) return null;
   const qx = second.a.x - first.a.x;
   const qy = second.a.y - first.a.y;
   const t = (qx * sy - qy * sx) / denominator;
@@ -321,6 +325,16 @@ export function segmentCrossing(first: IndexedSegment, second: IndexedSegment): 
   const at: PicturePoint = [first.a.x + t * rx, first.a.y + t * ry];
   if (isEndOf(first, at) || isEndOf(second, at)) return null;
   return at;
+}
+
+/** Whether both of `other`'s ends lie on `line` run on past its ends, within a point's tolerance. */
+function alongLine(line: IndexedSegment, other: IndexedSegment): boolean {
+  const dx = line.b.x - line.a.x;
+  const dy = line.b.y - line.a.y;
+  const length = Math.hypot(dx, dy);
+  if (!(length > 0)) return false;
+  const off = (point: { x: number; y: number }) => Math.abs((point.x - line.a.x) * dy - (point.y - line.a.y) * dx) / length;
+  return off(other.a) <= PICTURE_POINT_EPSILON && off(other.b) <= PICTURE_POINT_EPSILON;
 }
 
 /** Shortest distance from a point to a segment, in picture units. */
