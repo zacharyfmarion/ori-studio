@@ -404,11 +404,84 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       (`artifacts/diagram-annotate/14c/shaped.mjs`): the three beside their
       arcs on the canvas, card and page, light and dark, moved by body and
       end with the mouse, and the page's PDF rasterised.
-- [ ] Edit Path on desktop: tool, gestures, modifiers, node stepper, Delete
+- [x] Edit Path on desktop: tool, gestures, modifiers, node stepper, Delete
   routing, Escape, Step pane verbs, nudging (Q6).
+  - As built (14c-2):
+    - **Tool.** `EDIT_PATH` (`'edit-path'`) is a tool beside Select on the
+      rail (Lucide's spline pointer), key A (`diagram.toolEditPath`), and a
+      double-click on a fold arrow with Select picks it up. `AnnotateTool` is
+      kind | Edit Path | Select, and `drawingKind` is the one place a tool is
+      asked whether it draws. Only `canBeShaped` arrows are shaped: with any
+      other selected the Step pane says so and presses there only select.
+    - **Showing.** `PathSelection` draws a hairline along the curve, every
+      node (smooth a circle, corner a square, the selected one filled) and
+      `visiblePathHandles` — the selected node's two and its neighbours'
+      facing ones, none on their node — in `--annotate-selection`, screen-
+      sized (larger on a coarse pointer). An arc shows `pathNodesOf`'s nodes
+      (now cached per annotation) and stays an arc until an edit.
+    - **Presses** (`useAnnotateCanvas`, `hitPathGrip`, `editPathGesture.ts`).
+      Handles and nodes first, nearest wins and a handle takes a tie, then
+      the curve (`nearestPathPoint`), all within the 8/18 px reach. A node is
+      selected as it is pressed. Drags move the part by the pointer's travel
+      from where it was taken hold of (no jump): a node with its handles
+      (Shift: the nearest of eight directions, by projection), a handle
+      (a smooth node's other turns with it; Alt makes the node a corner first,
+      so the other stays; Shift: 15° about the node), the curve
+      (`bendPathSegment` at the pressed `t`). A click on the curve splits it
+      there and selects the new node. A double-click on a node turns it
+      smooth ↔ corner. The canvas counts presses itself (500 ms, 6 px; 16 on
+      touch): a pointer event's `detail` is not a click count in every
+      browser. The guard: the second press of a double-click on the curve
+      lands on the node its first click added, which it does not turn. Off
+      the arrow's grips a press selects what is there and moves nothing; on
+      empty stage it lets the node go first, then the arrow.
+    - **Store and undo.** `diagramSelectedPathNode` is `{annotationId, node,
+      nodes}`; `selectedDiagramPathNode` reads it as none unless annotating
+      with Edit Path on that arrow with that many nodes, so an undo, Reset or
+      another arrow lets it go and no edit clears it. `editDiagramAnnotations`
+      takes `selectPathNode`. A drag is one undo step (a click-to-add one, a
+      double-click one, a nudge one per key press, repeats included). A drag
+      records the arrow's `pathRepresentation` (arc or path, node count) and is
+      dropped on its next move — and never lands — once the store's arrow is
+      something else (an undo mid-drag). Edits land on the arrow as the store
+      has it.
+    - **Verbs** (`annotationActions.ts`): Previous/Next Node (view state),
+      Smooth, Corner, Add Node (halfway along the segment after the node, or
+      before the tip; selects it), Delete Node (selects the node before, so
+      Delete again goes on along the arrow; a two-node arrow's goes with the
+      arrow), Flip Arc, Reset Shape (`resetPath` with the step's picture
+      frame) and Delete; `deleteKeyEdit` and `nudgePathNodeEdit`. Every
+      surface makes them through `applyAnnotationEdit`. Reset is also offered
+      with Select on an arrow already shaped (deviation: the plan listed it
+      under Edit Path only).
+    - **Keys.** Delete/Backspace go through `edit.delete`, which deletes the
+      node while one is selected and the arrow otherwise; a focused field
+      keeps both (the dispatcher's form-control rule). Escape: drag → node →
+      Edit Path down (Select, the arrow still selected) → the existing
+      ladder. Nudges are eight verbs (`diagram.nudgeNode{Left,…}` and
+      `…Large` on Shift, 0.001 and 0.01 of the frame) in a new conditional
+      scope, `diagram-path`, ahead of `diagram` on the same executor: one
+      scope cannot hold them beside the step keys (the dispatcher takes a
+      scope's first match), and this one claims only with a node selected,
+      declining otherwise so the arrows walk the steps.
+    - **Step pane.** `DiagramPathNodeControls`: "Node 2 of 4" between
+      Previous and Next, Smooth | Corner, Add Node and Delete Node; Edit
+      Path's help says what it shapes, or that nothing else is shaped.
+    - **Analytics.** `diagram arrow shaped` {`kind`, `gesture`}, once when an
+      arc becomes a path, counted in `applyAnnotationEdit`.
+    - **Proof.** Tests for every gesture and verb; fail-before (the touched
+      sources at 5c7628cb2: 49 tests fail and two suites do not load) and
+      fourteen mutants, each failing a test. Browser
+      (`artifacts/diagram-annotate/14c2/editpath.mjs`, light and dark).
 - [ ] Touch and Pencil.
-- [ ] Browser: a 3–4 node arrow shaped with mouse, Alt and Shift; Reset; a PDF
+- [x] Browser: a 3–4 node arrow shaped with mouse, Alt and Shift; Reset; a PDF
   export beside the canvas.
+  - As built: a default valley arrow drawn with V, shaped into a four-node S
+    with the mouse alone (two clicks on the curve, two node drags, an Alt and
+    a Shift handle drag, a Shift node drag, two double-clicks, three nudges),
+    undone back to the arc in twelve presses and redone to the same S, Reset
+    and undone, a node deleted with Backspace, the Escape ladder walked; the
+    page's PDF beside the canvas (`canvas-beside-pdf-light.png`).
 
 ### 14d. Snapping and circles
 - [ ] `pictureSnap.ts` per picture kind; `LineHitIndex` in-reach query; kind
