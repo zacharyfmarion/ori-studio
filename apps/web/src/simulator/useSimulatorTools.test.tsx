@@ -34,8 +34,9 @@ const BOX: SimulatorGesture = {
 const CLICK: SimulatorGesture = { kind: 'click', point: { x: 5, y: 5 }, shift: false, touch: false };
 const SHIFT_CLICK: SimulatorGesture = { ...CLICK, shift: true };
 
+/** A model with ten triangles, each its own crease-pattern face. */
 function model(): SimulatorModelView {
-  return {} as SimulatorModelView;
+  return { faceGroups: Int32Array.from({ length: 10 }, (_, face) => face) } as SimulatorModelView;
 }
 
 /** A promise and the means to settle it, for answers that should arrive late. */
@@ -144,6 +145,8 @@ describe('useSimulatorTools', () => {
     expect(runtime.setPinnedFaces).toHaveBeenLastCalledWith([2, 7], runtime.model);
     expect(tools().pinned).toEqual([2, 7]);
     expect(tools().view.pinnedCount).toBe(2);
+    // The canvas-2D tint: the triangles of the pinned faces.
+    expect([...tools().highlights.pinned]).toEqual([2, 7]);
   });
 
   it('picks from the drawn frame on the canvas-2D path', async () => {

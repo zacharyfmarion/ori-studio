@@ -23,7 +23,9 @@ import type {
   SimulatorToolOptionId,
   SimulatorToolsView,
 } from './tools/types';
+import { pinnedHighlights, type SimulatorHighlights } from './canvas2dFrame';
 import type { SimulatorPickQuery } from './pickQuery';
+import type { SimulatorViewportToolInput } from './SimulatorViewport';
 import type { SimulatorFrameView, SimulatorModelView, SimulatorRuntime } from './useSimulatorRuntime';
 import type { SimulatorToolShortcutHandlers } from './useSimulatorShortcuts';
 
@@ -56,6 +58,10 @@ export interface SimulatorTools {
   pinned: PinSet;
   /** Whether the canvas takes tool input: a model is loaded and ready. */
   enabled: boolean;
+  /** What the viewport needs to run the tool in hand. */
+  toolInput: SimulatorViewportToolInput;
+  /** The pinned faces' tint, for the canvas-2D path; the worker tints its own. */
+  highlights: SimulatorHighlights;
   verbs: SimulatorToolVerbs;
   shortcuts: SimulatorToolShortcutHandlers;
   /** Hand a finished canvas gesture to the tool in hand. */
@@ -362,11 +368,22 @@ export function useSimulatorTools(options: UseSimulatorToolsOptions): SimulatorT
     [activeToolId, pinned.length, toolOptions, notices]
   );
 
+  const tool = simulatorTool(activeToolId);
+  const enabled = ready && bound !== null;
+  const toolInput = useMemo<SimulatorViewportToolInput>(
+    () => ({ mode: tool.input, cursor: tool.cursor, enabled, onGesture: runGesture }),
+    [tool, enabled, runGesture]
+  );
+  const boundModel = bound?.model ?? null;
+  const highlights = useMemo(() => pinnedHighlights(boundModel, pinned), [boundModel, pinned]);
+
   return {
     view,
-    tool: simulatorTool(activeToolId),
+    tool,
     pinned,
-    enabled: ready && bound !== null,
+    enabled,
+    toolInput,
+    highlights,
     verbs,
     shortcuts,
     runGesture,

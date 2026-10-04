@@ -1,0 +1,26 @@
+/*
+ * The Simulate panel's own layout (SimulatorPanel.tsx). Its other classes are
+ * still global; the body it fills (`.simulator-panel__body`) is a shared block
+ * and takes no new rules.
+ */
+
+/* The tool rail and the viewport, side by side, filling the body. On a phone
+   there is no rail and the `auto` column collapses to nothing. */
+.stage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  place-self: stretch;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The viewport cell: the canvas fills it, and the view cube, the marquee and
+   the loading overlay are positioned against it rather than against the body,
+   so none of them sits on the rail. */
+.viewport {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}

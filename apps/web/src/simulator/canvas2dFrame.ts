@@ -73,6 +73,24 @@ export const EMPTY_HIGHLIGHTS: SimulatorHighlights = {
   pinned: new Set(),
 };
 
+/**
+ * Highlights that tint the pinned crease-pattern faces: every triangle whose
+ * source face is pinned. The canvas-2D path's half of the pin overlay; the GPU
+ * path's worker tints from its own copy of the set.
+ */
+export function pinnedHighlights(
+  model: SimulatorRenderModel | null,
+  faces: readonly number[],
+): SimulatorHighlights {
+  if (!model || faces.length === 0) return EMPTY_HIGHLIGHTS;
+  const wanted = new Set(faces);
+  const pinned = new Set<number>();
+  for (let triangle = 0; triangle < model.faceGroups.length; triangle += 1) {
+    if (wanted.has(model.faceGroups[triangle] ?? -1)) pinned.add(triangle);
+  }
+  return { ...EMPTY_HIGHLIGHTS, pinned };
+}
+
 interface ProjectedPoint {
   x: number;
   y: number;

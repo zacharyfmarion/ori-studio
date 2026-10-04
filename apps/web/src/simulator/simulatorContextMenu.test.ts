@@ -91,3 +91,20 @@ describe('simulatorMenuItems', () => {
     ]);
   });
 });
+
+describe('simulatorMenuItems tool rows', () => {
+  it('adds the tools’ rows after the view rows, each running its own verb', () => {
+    const run = vi.fn();
+    const items = simulatorMenuItems(deps({ run, toolVerbs: ['simulator.pins.clear'] }));
+
+    const clear = find(items, 'simulator.pins.clear');
+    expect(clear).toMatchObject({ kind: 'action', label: 'Clear Pins' });
+    if (clear?.kind === 'action') clear.onSelect();
+    expect(run).toHaveBeenCalledWith('simulator.pins.clear');
+  });
+
+  it('has no tool rows on a surface without them', () => {
+    expect(find(simulatorMenuItems(deps()), 'simulator.pins.clear')).toBeUndefined();
+    expect(find(simulatorMenuItems(deps({ toolVerbs: [] })), 'simulator.pins.clear')).toBeUndefined();
+  });
+});

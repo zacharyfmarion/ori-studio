@@ -142,6 +142,12 @@ once per gesture on the GPU path.
    which is fixed in world space, and let only the radius follow. The pinned
    region then never moves across the screen; it only scales as the model's
    extent changes.
+
+   **Corrected while building:** centring *on* the centroid slid the region to
+   the middle of the view at the first measure after pinning (165px on the bird
+   base). The centre is the centroid plus an offset taken when the pins are set
+   (`anchorFraming`), so pinning moves nothing and the region holds its place
+   (under 1px through the same fold, on both renderers).
 3. **Edit's box rule does not survive the third dimension.** On the folded
    kabuto, one box over the top half picks all 18 of 18 faces under "touches the
    box", 7 under "centre inside", 0 under "fully inside" and 3 under "visible
@@ -782,7 +788,7 @@ Each step is its own commit; the moves change nothing on screen.
       options; `useSimulatorTools` with its executor and
       `classifySimulatorCallFailure`. Hook tests use a fake runtime: success,
       `null`, rejection with rollback, and ordering.
-- [ ] **UI:** stage layout, rail, viewport tool input and marquee, tool window
+- [x] **UI:** stage layout, rail, viewport tool input and marquee, tool window
       content, context-menu row, shortcuts
 - [ ] **Phone:** `SimulatorToolsTrigger` left of the Settings pill, the sheet
       listing Orbit and Pin, the rail gone. Test: phone layout renders the pill

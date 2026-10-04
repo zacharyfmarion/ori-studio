@@ -1,0 +1,36 @@
+/*
+ * The Simulate canvas's tool rail (SimulatorToolRail.tsx): one column of icon
+ * buttons against the left edge of the viewport, in the same chrome as Edit's
+ * tool rail beside its canvas.
+ */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  padding: 6px 5px;
+  border-right: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+  overflow-y: auto;
+}
+
+/* Positions the badge against the button without reaching into it. */
+.slot {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Something this tool made is still in effect under another tool: pins, under
+   Orbit. Small and in the accent, so it reads as state rather than alarm. */
+.badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 1.5px var(--bg-primary);
+  pointer-events: none;
+}
