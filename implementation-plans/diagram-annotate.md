@@ -454,6 +454,24 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
 ### 14e. Right-angle marks
 - [ ] Shared primitive and golden; kind; ray-based corner detection; drag
   fallback; Turn 90°.
+  - Analysis as built (`rightAngles.ts`, pure; no kind or canvas yet): rays,
+    not lines — one from a line ending at the vertex, two from one running
+    through it, rays within 0.5° one; a sector between consecutive rays is a
+    right angle at 90° ± 1°, so an eight-way box-pleat vertex has none and a
+    paper corner's reflex side never is one.
+    `rightAngleCorner(step, assets, point, radius, {annotations?, ignore?,
+    deadZone?})` takes the vertex nearest the pointer within the radius
+    (picture points, annotation line ends, crossings) and the sector the
+    pointer is in; null within the dead zone (a quarter of the radius by
+    default). It returns `{at, legs, diagonal}`: the legs' unit directions
+    clockwise on the page, the diagonal between them, along which a mark's
+    `to` goes. `rightAnglesAt(step, assets, at)` lists every one at a point.
+    A 3D or simulated picture's own lines give no rays; annotation lines do
+    on any picture, an upload's included. Tests: a square with a diagonal,
+    a waterbomb vertex split and whole, grid, eight-way and one-diagonal
+    box-pleat vertices, a sector round past +x, ±1°, References mirrored, an
+    upload's drawn lines, 3D; on the real pictures box_90's 16, counted by
+    hand. Timing as 14d.
 - [ ] Browser: a box-pleated capture, a References step, an upload with drawn
   lines, a PDF.
 
