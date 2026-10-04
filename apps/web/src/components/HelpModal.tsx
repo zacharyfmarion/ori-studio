@@ -89,6 +89,8 @@ function ModalShell({
     <div
       role="dialog"
       aria-modal="true"
+      // Owns every key while it is open, as Settings does: nothing behind it acts.
+      data-shortcut-barrier=""
       aria-label={title}
       className="help-modal"
       onMouseDown={closeHelp}
