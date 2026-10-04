@@ -16,13 +16,13 @@ beforeEach(() => {
 });
 
 describe('the References browser', () => {
-  it('opens in the centre in the step’s detail’s place, the step it is for selected, and a step opened closes it', () => {
+  it('opens over the Diagram, the step it is for selected and its detail left open behind it, and a step opened closes it', () => {
     const stepId = state().addDiagramStep()!;
     const other = state().addDiagramStep()!;
     state().openDiagramStep(other);
     expect(state().openDiagramReferencesBrowser({ kind: 'fill', stepId })).toBe(true);
     expect(state()).toMatchObject({
-      diagramDetail: null,
+      diagramDetail: 'pose',
       diagramSelectedStepId: stepId,
       diagramReferencesBrowser: { anchor: { kind: 'fill', stepId }, mode: 'sequence', pattern: null, shown: null },
     });

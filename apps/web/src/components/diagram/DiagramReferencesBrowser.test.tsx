@@ -5,7 +5,6 @@ import { DEFAULT_DIAGRAM_STYLE, type DiagramPullAnchor } from '../../diagram/doc
 import type { BrowserCard } from '../../diagram/references/referencesBrowserPlans';
 import { browserSelection } from '../../diagram/references/referencesBrowserSelection';
 import type { ReferencesBrowser } from '../../diagram/references/useReferencesBrowser';
-import { runDiagramShortcut, type DiagramBrowserKeys } from '../../diagram/actions/diagramShortcuts';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
 import { DiagramReferencesBrowser } from './DiagramReferencesBrowser';
 
@@ -13,17 +12,6 @@ import { DiagramReferencesBrowser } from './DiagramReferencesBrowser';
 
 const hook = vi.hoisted(() => ({ browser: null as unknown as ReferencesBrowser }));
 vi.mock('../../diagram/references/useReferencesBrowser', () => ({ useReferencesBrowser: () => hook.browser }));
-// The step keys reach the browser through the Diagram's registration: run
-// them against it as the shortcut runtime would.
-const keys = vi.hoisted(() => ({ current: null as DiagramBrowserKeys | null }));
-vi.mock('../../diagram/useDiagramShortcuts', () => ({
-  registerDiagramBrowserKeys: (registered: typeof keys.current) => {
-    keys.current = registered;
-    return () => {
-      if (keys.current === registered) keys.current = null;
-    };
-  },
-}));
 
 const layout = vi.hoisted(() => ({ phone: false }));
 vi.mock('../../platform/phoneLayout', async (importOriginal) => ({
@@ -83,12 +71,12 @@ function browser(patch: Partial<ReferencesBrowser> = {}, anchor: DiagramPullAnch
     setMode: vi.fn(),
     press: vi.fn(),
     move: vi.fn(() => 2),
+    focusOn: vi.fn(),
     extend: vi.fn(() => 1),
     toggle: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
     add: vi.fn(),
-    addOne: vi.fn(),
     close: vi.fn(),
     openReferences: vi.fn(),
     ...patch,
@@ -102,9 +90,7 @@ function render(next: ReferencesBrowser) {
     document.body.append(host);
     root = createRoot(host);
   }
-  act(() =>
-    root?.render(<DiagramReferencesBrowser state={next.state} style={DEFAULT_DIAGRAM_STYLE} drawerSlot={() => {}} />)
-  );
+  act(() => root?.render(<DiagramReferencesBrowser state={next.state} style={DEFAULT_DIAGRAM_STYLE} />));
 }
 
 const text = () => host?.textContent ?? '';
@@ -113,8 +99,11 @@ const button = (label: string) =>
 const options = () => [...(host?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];
 const pulled = (count: number) => Array.from({ length: count }, () => ({}) as ReferencesBrowser['pullable'][number]);
 
+const surface = () => host!.querySelector<HTMLElement>('[role="document"]')!;
+const key = (target: Element, init: KeyboardEventInit) =>
+  act(() => void target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })));
+
 beforeEach(() => {
-  keys.current = null;
   layout.phone = false;
 });
 
@@ -152,17 +141,32 @@ describe('the References browser', () => {
     expect(button('Add step after step 2')).toBeTruthy();
   });
 
-  it('selects with a press, adds with a double-click or the footer, and holds while a pull runs', () => {
+  it('chooses with a press, a range with Shift, adds from the footer, and holds while a pull runs', () => {
     const current = browser({ pullable: pulled(1) });
     render(current);
-    act(() => options()[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })));
-    expect(current.press).toHaveBeenCalledWith(1, { range: true, toggle: false });
+    act(() => options()[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(current.press).toHaveBeenLastCalledWith(1, { range: false });
+    act(() => options()[2]!.dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })));
+    expect(current.press).toHaveBeenLastCalledWith(2, { range: true });
+    // Pressed twice to take a card away again: a double-click adds nothing.
     act(() => options()[2]!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
-    expect(current.addOne).toHaveBeenCalledWith(2);
+    expect(current.add).not.toHaveBeenCalled();
     act(() => button('Add step')!.click());
     expect(current.add).toHaveBeenCalledOnce();
     render(browser({ pullable: pulled(1), pulling: true }));
     expect(button('Adding…')?.disabled).toBe(true);
+  });
+
+  it('says why a card cannot be chosen: the ending of a plan that stopped before its end', () => {
+    const stopped = browser();
+    stopped.cards = { status: 'ready', cards: [card(0), card(1, 'done')], finished: false, settings: null };
+    render(stopped);
+    expect(options().map((option) => option.getAttribute('aria-disabled'))).toEqual([null, 'true']);
+    expect(options()[1]!.title).toContain('stopped before its end');
+    const finished = browser();
+    finished.cards = { status: 'ready', cards: [card(0), card(1, 'done')], finished: true, settings: null };
+    render(finished);
+    expect(options()[1]!.getAttribute('aria-disabled')).toBeNull();
   });
 
   it('offers the turn-over before the selection, and can leave it out', () => {
@@ -174,28 +178,71 @@ describe('the References browser', () => {
     expect(current.setWithTurnOver).toHaveBeenCalledWith(false);
   });
 
-  it('walks its cards with the step keys, the card landed on taking focus, and adds with Enter', () => {
+  it('walks its cards with its own keys, the card landed on taking focus; Space chooses, Enter adds', () => {
     const current = browser();
     render(current);
-    const run = (id: Parameters<typeof runDiagramShortcut>[0]) =>
-      runDiagramShortcut(
-        id,
-        { stepIds: [], selectedStepId: null, readOnly: false, browserOpen: true },
-        { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn(), browser: keys.current }
-      );
-    act(() => void run('diagram.nextStep'));
+    // One Tab stop: the first card, with nothing pressed yet; a card that takes focus is where the keyboard is.
+    expect(options().map((option) => option.tabIndex)).toEqual([0, -1, -1]);
+    act(() => options()[0]!.focus());
+    expect(current.focusOn).toHaveBeenLastCalledWith(0);
+    // From the dialog itself, where focus rests before a card has it.
+    key(surface(), { key: 'ArrowRight' });
     expect(current.move).toHaveBeenCalledWith('next');
     expect(document.activeElement).toBe(options()[2]);
-    act(() => void run('diagram.openStep'));
-    expect(current.add).toHaveBeenCalledOnce();
-    // Shift with the walk extends the range, the card it reaches taking focus; Space toggles.
-    act(() => void run('diagram.extendSelectionBack'));
+    // Shift with a move extends to the card it lands on, which takes focus.
+    key(options()[2]!, { key: 'ArrowLeft', shiftKey: true });
     expect(current.extend).toHaveBeenCalledWith('previous');
     expect(document.activeElement).toBe(options()[1]);
-    act(() => void run('diagram.toggleSelection'));
+    key(options()[1]!, { key: 'Home' });
+    expect(current.move).toHaveBeenLastCalledWith('first');
+    key(options()[1]!, { key: ' ' });
     expect(current.toggle).toHaveBeenCalledOnce();
-    // One Tab stop: the first card, with nothing pressed yet.
-    expect(options().map((option) => option.tabIndex)).toEqual([0, -1, -1]);
+    key(options()[1]!, { key: 'a', metaKey: true });
+    expect(current.selectAll).toHaveBeenCalledOnce();
+    key(options()[1]!, { key: 'Enter' });
+    expect(current.add).toHaveBeenCalledOnce();
+    // Enter on a button is the button's.
+    key(button('Select all')!, { key: 'Enter' });
+    expect(current.add).toHaveBeenCalledOnce();
+  });
+
+  it('is a modal that holds the keys, and closes from its button, Cancel, Escape and the backdrop', () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const current = browser();
+    render(current);
+    const dialog = host!.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.hasAttribute('data-shortcut-barrier')).toBe(true);
+    expect(dialog.getAttribute('aria-label')).toBe('Add from References');
+    expect(surface().contains(document.activeElement)).toBe(true);
+    act(() => host!.querySelector<HTMLButtonElement>('button[aria-label="Close Add from References"]')!.click());
+    act(() => button('Cancel')!.click());
+    key(document.body, { key: 'Escape' });
+    act(() => void dialog.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+    expect(current.close).toHaveBeenCalledTimes(4);
+    // A press inside it is not a press on the backdrop.
+    act(() => void surface().dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+    expect(current.close).toHaveBeenCalledTimes(4);
+    // Closed, focus goes back where it was.
+    act(() => root?.unmount());
+    root = null;
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it('gives focus back to the step it was opened for, from a menu with nothing to go back to', () => {
+    const card = document.createElement('div');
+    card.setAttribute('role', 'option');
+    card.dataset.stepId = 'step-7';
+    card.tabIndex = -1;
+    document.body.append(card);
+    render(browser({}, { kind: 'fill', stepId: 'step-7' }));
+    act(() => root?.unmount());
+    root = null;
+    expect(document.activeElement).toBe(card);
+    card.remove();
   });
 
   it('says why there is nothing to pull, and where to go', () => {
@@ -211,28 +258,22 @@ describe('the References browser', () => {
     expect(text()).toContain('Open a crease pattern in Edit');
   });
 
-  it('goes back to the steps', () => {
-    const current = browser();
-    render(current);
-    act(() => button('Steps')!.click());
-    expect(current.close).toHaveBeenCalled();
-  });
 });
 
 describe('the References browser on a phone', () => {
   const second = { id: 'plan-b', number: 2, component: {}, listing: {} } as unknown as NonNullable<ReferencesBrowser['pattern']>;
-  const screen = () => host!.querySelector<HTMLElement>('[role="region"]')!.dataset.screen;
+  const screen = () => surface().dataset.screen;
+  const closeButton = () => host!.querySelector('button[aria-label^="Close"]');
 
   const patternButton = (name: string) =>
     [...host!.querySelectorAll<HTMLButtonElement>('nav button')].find((b) => b.textContent?.includes(name))!;
-  const region = () => host!.querySelector<HTMLElement>('[role="region"]');
 
   it('lists the patterns first, then a pattern’s cards with Back to the list', () => {
     layout.phone = true;
     const current = browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } });
     render(current);
     expect(screen()).toBe('list');
-    expect(button('Steps')).toBeTruthy();
+    expect(closeButton()).toBeTruthy();
     act(() => patternButton('Pattern 2').click());
     expect(current.choosePattern).toHaveBeenCalledWith('plan-b');
     expect(screen()).toBe('detail');
@@ -247,8 +288,8 @@ describe('the References browser on a phone', () => {
     const pressed = patternButton('Pattern 2');
     pressed.focus();
     act(() => pressed.click());
-    // The pattern's button is off screen now; the browser has focus, its next Tab ← Patterns.
-    expect(document.activeElement).toBe(region());
+    // The pattern's button is off screen now; the dialog has focus, its next Tab ← Patterns.
+    expect(document.activeElement).toBe(surface());
     render(browser({ patterns: both, pattern: second, patternNamed: true }));
     act(() => button('Patterns')!.click());
     expect(document.activeElement).toBe(patternButton('Pattern 2'));
@@ -256,13 +297,18 @@ describe('the References browser on a phone', () => {
 
   it('leaves the cards alone on the list, where they are off screen', () => {
     layout.phone = true;
-    render(browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } }));
+    const current = browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } });
+    render(current);
     expect(screen()).toBe('list');
-    expect(keys.current).toBeNull();
+    key(surface(), { key: 'ArrowDown' });
+    key(surface(), { key: ' ' });
+    key(surface(), { key: 'Enter' });
+    expect(current.move).not.toHaveBeenCalled();
+    expect(current.toggle).not.toHaveBeenCalled();
+    expect(current.add).not.toHaveBeenCalled();
     act(() => patternButton('Pattern 2').click());
-    expect(keys.current).not.toBeNull();
-    act(() => button('Patterns')!.click());
-    expect(keys.current).toBeNull();
+    key(surface(), { key: 'ArrowDown' });
+    expect(current.move).toHaveBeenCalledWith('next');
   });
 
   it('opens straight on the cards of a single pattern, and in Find', () => {
@@ -270,7 +316,7 @@ describe('the References browser on a phone', () => {
     render(browser());
     expect(screen()).toBe('detail');
     expect(button('Patterns')).toBeUndefined();
-    expect(button('Steps')).toBeTruthy();
+    expect(closeButton()).toBeTruthy();
     // Find shows one answer, whatever References has planned.
     const find = browser({ patterns: { status: 'ready', patterns: [PATTERN!, second] } });
     find.state.mode = 'find';

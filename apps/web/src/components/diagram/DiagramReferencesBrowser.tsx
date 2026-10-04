@@ -1,79 +1,97 @@
-import { useEffect, useMemo, useRef, type Ref } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ArrowLeft, Compass } from 'lucide-react';
+import { ArrowLeft, Compass, X } from 'lucide-react';
 import { sheetThumbnail } from '../../cp-workspace/references/referencesSheets';
-import type { DiagramStyle, ReferencesPlanSettings } from '../../diagram/document/diagramDocument';
+import { DEFAULT_DIAGRAM_STYLE, type DiagramStyle, type ReferencesPlanSettings } from '../../diagram/document/diagramDocument';
 import type { BrowserPattern } from '../../diagram/references/referencesBrowserPlans';
+import { selectable, type BrowserStep } from '../../diagram/references/referencesBrowserSelection';
 import { useReferencesBrowser, type ReferencesBrowser } from '../../diagram/references/useReferencesBrowser';
 import { useReferencesBrowserPhoneFlow } from '../../diagram/references/useReferencesBrowserPhoneFlow';
-import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
-import { registerDiagramBrowserKeys } from '../../diagram/useDiagramShortcuts';
+import { useLayoutStore } from '../../store/layoutStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { dialogOpener, useModalDialog } from '../ui/useModalDialog';
 import { DiagramReferencesCard } from './DiagramReferencesCard';
 import { DiagramSheetThumbnail } from './DiagramSheetThumbnail';
 import styles from './DiagramReferencesBrowser.module.css';
 
 /**
- * The References browser, in the Diagram's centre (D20): References steps
- * are pulled from here, never pushed from References.
- *
- * Down the left, the patterns with a plan that fits them now, as References
- * numbers them; beside it the shown pattern's cards (or the Find answer
- * References has on screen), each the step it would become; under them what
- * is selected and the one verb, worded by where the browser was opened for —
- * after a step, at the end, into an empty step, or in place of a References
- * step's card. ← Steps and Escape close it.
- *
- * Takes focus as it opens, as the step detail does, so Escape and a screen
- * reader start here.
+ * The References browser (D20): a modal over the Diagram, from which
+ * References steps are pulled — never pushed from References. Mounted at the
+ * App root while the Diagram is the workspace on screen and the store says it
+ * is open; the step detail, if one is open, stays behind it.
  */
-export function DiagramReferencesBrowser({
-  state,
-  style,
-  drawerSlot,
-}: {
-  state: DiagramReferencesBrowserState;
-  style: DiagramStyle;
-  /** Where the touch layer seats the Step pane's pill: this replaces the header that seats it. */
-  drawerSlot: Ref<HTMLDivElement>;
-}) {
+export function DiagramReferencesModal() {
+  const state = useWorkspaceStore((store) => store.diagramReferencesBrowser);
+  const style = useWorkspaceStore((store) => store.diagram?.style ?? DEFAULT_DIAGRAM_STYLE);
+  const shown = useLayoutStore((store) => store.activeWorkspace === 'diagram');
+  if (!state || !shown) return null;
+  return <DiagramReferencesBrowser key={state.opening} state={state} style={style} />;
+}
+
+/** A step's card in the steps grid, for the anchors that name a step. */
+function stepCard(anchor: DiagramReferencesBrowserState['anchor']): HTMLElement | null {
+  if (!('stepId' in anchor)) return null;
+  const cards = document.querySelectorAll<HTMLElement>('[role="option"][data-step-id]');
+  return [...cards].find((card) => card.dataset.stepId === anchor.stepId) ?? null;
+}
+
+/** How the list's own keys move through its cards. */
+const LIST_KEYS: Readonly<Record<string, BrowserStep>> = {
+  ArrowLeft: 'previous',
+  ArrowUp: 'previous',
+  ArrowRight: 'next',
+  ArrowDown: 'next',
+  Home: 'first',
+  End: 'last',
+};
+
+/**
+ * The browser itself. Down the left, the patterns with a plan that fits them
+ * now, as References numbers them; beside it the shown pattern's cards (or
+ * the Find answer References has on screen), each the step it would become;
+ * under them what is selected and the one verb, worded by where the browser
+ * was opened for — after a step, at the end, into an empty step, or in place
+ * of a References step's card.
+ *
+ * A dialog and a shortcut barrier (`useModalDialog`): the keys are its own.
+ * Escape, Cancel, the close button and a press on the backdrop close it; the
+ * list's keys are a multi-select listbox's (`browserSelection`), and Enter
+ * adds. It takes focus as it opens and moves it to the cards once they are
+ * there; closed, focus goes back where it was.
+ */
+export function DiagramReferencesBrowser({ state, style }: { state: DiagramReferencesBrowserState; style: DiagramStyle }) {
   const { t } = useTranslation();
   const browser = useReferencesBrowser(state);
-  const root = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    root.current?.focus({ preventScroll: true });
-  }, []);
-  // The step keys walk the cards while they are on screen, the card they
-  // land on taking focus (so Enter adds from it); read through a ref, so the
-  // registration outlives the renders.
-  const latest = useRef(browser);
-  useEffect(() => {
-    latest.current = browser;
-  });
+  // Back where it was opened from — or, from a menu with nothing to go back
+  // to (a step's context menu), to the card of the step it was opened for.
+  const [returnFocus] = useState(() => dialogOpener() ?? stepCard(state.anchor));
+  const { rootRef, documentRef, keepFocus } = useModalDialog(browser.close, returnFocus);
   const focusCard = (index: number | null) => {
     if (index === null) return;
-    root.current?.querySelector<HTMLElement>(`[role="option"][data-card-index="${index}"]`)?.focus();
+    documentRef.current?.querySelector<HTMLElement>(`[role="option"][data-card-index="${index}"]`)?.focus();
   };
   // On a phone, the patterns, then a pattern's cards, a screen each.
-  const phone = useReferencesBrowserPhoneFlow(browser, root);
-  // Not on a phone's list of patterns, where the cards are off screen.
-  const cardsShown = phone.screen !== 'list';
-  useEffect(
-    () =>
-      cardsShown
-        ? registerDiagramBrowserKeys({
-            move: (to) => focusCard(latest.current.move(to)),
-            extend: (to) => focusCard(latest.current.extend(to)),
-            toggle: () => latest.current.toggle(),
-            add: () => latest.current.add(),
-          })
-        : undefined,
-    [cardsShown]
-  );
+  const phone = useReferencesBrowserPhoneFlow(browser, documentRef);
+  // Onto the cards the first time there are some, unless the reader has
+  // already moved focus off the dialog's own surface: a tick on, once the
+  // dialog has settled its own focus (`useModalDialog`).
+  const ready = browser.cards.status === 'ready';
+  const onCards = useRef(false);
+  useEffect(() => {
+    if (onCards.current || !ready) return undefined;
+    const timer = window.setTimeout(() => {
+      onCards.current = true;
+      if (document.activeElement === documentRef.current) {
+        documentRef.current?.querySelector<HTMLElement>('[role="option"][tabindex="0"]')?.focus({ preventScroll: true });
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [ready, documentRef]);
   const title = browserTitle(browser, t);
   // The patterns down the left, once there are some to list: until then, and
   // in Find, the list's message has the room.
@@ -82,56 +100,91 @@ export function DiagramReferencesBrowser({
 
   return (
     <div
-      ref={root}
-      className={styles.browser}
-      role="region"
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
       aria-label={title}
-      tabIndex={-1}
-      data-screen={phone.screen ?? undefined}
+      data-shortcut-barrier=""
+      className={styles.backdrop}
+      onMouseDown={browser.close}
     >
-      <div className={`panel-toolbar ${styles.bar}`}>
-        <div className="panel-toolbar__group">
-          {phone.back ? (
-            <Button size="sm" variant="ghost" onClick={phone.back}>
-              <ArrowLeft size={14} aria-hidden="true" />
-              {t('panels:diagram.references.patterns', 'Patterns')}
+      <div
+        ref={documentRef}
+        role="document"
+        tabIndex={-1}
+        className={styles.browser}
+        data-screen={phone.screen ?? undefined}
+        onMouseDown={(event) => event.stopPropagation()}
+        onBlur={keepFocus}
+        onKeyDown={(event) => {
+          // The list's keys, from a card or from the dialog itself — where
+          // focus rests until a card has it. Any other control keeps its own,
+          // and on a phone's list of patterns the cards are off screen.
+          if (event.defaultPrevented || phone.screen === 'list') return;
+          const target = event.target as HTMLElement;
+          if (target !== documentRef.current && target.getAttribute('role') !== 'option') return;
+          const plain = !event.altKey && !event.metaKey && !event.ctrlKey;
+          const to = LIST_KEYS[event.key];
+          if (to && plain) {
+            event.preventDefault();
+            focusCard(event.shiftKey ? browser.extend(to) : browser.move(to));
+          } else if (event.key === ' ' && plain) {
+            event.preventDefault();
+            browser.toggle();
+          } else if (event.key === 'Enter') {
+            event.preventDefault();
+            browser.add();
+          } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+            event.preventDefault();
+            browser.selectAll();
+          }
+        }}
+      >
+        <div className={styles.bar}>
+          <div className={styles.lead}>
+            {phone.back && (
+              <Button size="sm" variant="ghost" onClick={phone.back}>
+                <ArrowLeft size={14} aria-hidden="true" />
+                {t('panels:diagram.references.patterns', 'Patterns')}
+              </Button>
+            )}
+            <span className={styles.title}>{title}</span>
+          </div>
+          <div className={styles.tools}>
+            <SegmentedControl<'sequence' | 'find'>
+              size="sm"
+              aria-label={t('panels:diagram.references.list', 'List')}
+              value={state.mode}
+              options={[
+                { value: 'sequence', label: t('panels:diagram.references.sequence', 'Sequence') },
+                { value: 'find', label: t('panels:diagram.references.find', 'Find') },
+              ]}
+              onChange={browser.setMode}
+            />
+            <Button size="sm" variant="ghost" onClick={browser.openReferences}>
+              <Compass size={14} aria-hidden="true" />
+              {t('panels:diagram.references.openReferences', 'Open References')}
             </Button>
-          ) : (
-            <Button size="sm" variant="ghost" onClick={browser.close}>
-              <ArrowLeft size={14} aria-hidden="true" />
-              {t('panels:diagram.detail.back', 'Steps')}
-            </Button>
-          )}
-          <span className={styles.title}>{title}</span>
+          </div>
+          <IconButton
+            size="sm"
+            aria-label={t('dialogs:common.closeNamed', 'Close {{name}}', { name: title })}
+            onClick={browser.close}
+          >
+            <X size={15} />
+          </IconButton>
         </div>
-        <SegmentedControl<'sequence' | 'find'>
-          size="sm"
-          aria-label={t('panels:diagram.references.list', 'List')}
-          value={state.mode}
-          options={[
-            { value: 'sequence', label: t('panels:diagram.references.sequence', 'Sequence') },
-            { value: 'find', label: t('panels:diagram.references.find', 'Find') },
-          ]}
-          onChange={browser.setMode}
-        />
-        <div className="panel-toolbar__group">
-          <Button size="sm" variant="ghost" onClick={browser.openReferences}>
-            <Compass size={14} aria-hidden="true" />
-            {t('panels:diagram.references.openReferences', 'Open References')}
-          </Button>
-          <div className="panel-toolbar__pills" ref={drawerSlot} />
+        <div className={styles.body} data-rail={railShown || undefined}>
+          {railShown && <PatternRail browser={browser} onOpen={phone.openPattern} />}
+          <div className={styles.main}>
+            {state.mode === 'sequence' && browser.cards.status === 'ready' && browser.cards.settings && (
+              <PlannedWith settings={browser.cards.settings} />
+            )}
+            <BrowserCards browser={browser} style={style} />
+          </div>
         </div>
+        <BrowserFooter browser={browser} />
       </div>
-      <div className={styles.body} data-rail={railShown || undefined}>
-        {railShown && <PatternRail browser={browser} onOpen={phone.openPattern} />}
-        <div className={styles.main}>
-          {state.mode === 'sequence' && browser.cards.status === 'ready' && browser.cards.settings && (
-            <PlannedWith settings={browser.cards.settings} />
-          )}
-          <BrowserCards browser={browser} style={style} />
-        </div>
-      </div>
-      <BrowserFooter browser={browser} />
     </div>
   );
 }
@@ -276,7 +329,6 @@ function BrowserCards({ browser, style }: { browser: ReferencesBrowser; style: D
       role="listbox"
       aria-multiselectable="true"
       aria-label={t('panels:diagram.references.cards', 'Cards')}
-      {...{ [DIAGRAM_STEPS_ATTRIBUTE]: '' }}
     >
       {cards.cards.map((card) => (
         <DiagramReferencesCard
@@ -288,8 +340,9 @@ function BrowserCards({ browser, style }: { browser: ReferencesBrowser; style: D
           inDiagram={browser.inDiagram.get(card.index) ?? null}
           shownNow={browser.shownCard === card.index}
           offered={offered === card.index}
+          choosable={selectable(card, cards.finished)}
           onPress={(modifiers) => browser.press(card.index, modifiers)}
-          onAdd={() => browser.addOne(card.index)}
+          onFocus={() => browser.focusOn(card.index)}
         />
       ))}
     </div>
@@ -322,10 +375,12 @@ function BrowserFooter({ browser }: { browser: ReferencesBrowser }) {
           {t('panels:diagram.references.withTurnOver', 'With the turn-over before it')}
         </label>
       )}
+      <Button size="sm" variant="ghost" className={styles.cancel} onClick={browser.close}>
+        {t('dialogs:common.cancel', 'Cancel')}
+      </Button>
       <Button
         size="sm"
         variant="primary"
-        className={styles.add}
         disabled={browser.pullable.length === 0 || browser.pulling}
         onClick={browser.add}
       >

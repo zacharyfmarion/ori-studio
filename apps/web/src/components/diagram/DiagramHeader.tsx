@@ -154,7 +154,8 @@ export function DiagramHeader({
                       "panels:diagram.actions.noPatternReferencesHint",
                       "Open a crease pattern in Edit to plan its folds",
                     ),
-                onSelect: onFromReferences,
+                opensDialog: true,
+              onSelect: onFromReferences,
               },
               refreshing
                 ? {

@@ -15,9 +15,8 @@ export interface DiagramKeyState {
   /** The step detail is open on the selected step. */
   detailOpen?: boolean;
   /**
-   * The References browser is open in the centre (D20): the steps are not on
-   * screen, so the arrows and Enter act on its cards instead, and Escape
-   * closes it first.
+   * The References browser is open (D20): a modal over the steps, whose keys
+   * are its own. Escape closes it first.
    */
   browserOpen?: boolean;
   /** The detail is in Annotate: its tool, its selected annotation, and whether that is a fold arrow. */
@@ -34,24 +33,12 @@ export interface DiagramKeyActions {
   close: () => void;
   /** Close the References browser, back to the steps. */
   closeBrowser?: () => void;
-  /** The References browser's cards, while it is open and has a list on screen. */
-  browser?: DiagramBrowserKeys | null;
   /** Annotate's verbs. */
   setTool?: (tool: AnnotateTool) => void;
   selectAnnotation?: (annotationId: string | null) => void;
   flipArc?: () => void;
   /** Drop the drag the canvas has in hand, if it has one; whether it had. */
   cancelGesture?: () => boolean;
-}
-
-/** What the step keys do in the References browser: walk its cards, select them, and add the selection. */
-export interface DiagramBrowserKeys {
-  move: (to: 'previous' | 'next' | 'first' | 'last') => void;
-  /** Extend the range to the card the walk lands on (Shift with the walk). */
-  extend: (to: 'previous' | 'next' | 'first' | 'last') => void;
-  /** Add or take away the card the keyboard is on (Space). */
-  toggle: () => void;
-  add: () => void;
 }
 
 /**
@@ -74,8 +61,10 @@ export function runDiagramShortcut(
   state: DiagramKeyState,
   actions: DiagramKeyActions
 ): boolean {
-  // The browser shows cards, not steps: a step key would act on one unseen.
-  if (state.browserOpen) return runBrowserShortcut(id, actions.browser ?? null);
+  // The browser is a modal with keys of its own: one that reaches here, with
+  // focus slipped out of it, must not act on a step behind it. Moving a step
+  // is claimed all the same — Alt+← is the browser's Back.
+  if (state.browserOpen) return id === 'diagram.moveStepEarlier' || id === 'diagram.moveStepLater';
   const { stepIds, selectedStepId } = state;
   if (isAnnotateShortcut(id)) return runDiagramAnnotateShortcut(id, state, actions);
   if (stepIds.length === 0) return false;
@@ -111,63 +100,6 @@ export function runDiagramShortcut(
       if (to >= 0 && to <= last) actions.move(stepIds[selected], to);
       return true;
     }
-    // The steps grid selects one step: a range or a toggle is the browser's.
-    case 'diagram.extendSelectionBack':
-    case 'diagram.extendSelectionForward':
-    case 'diagram.extendSelectionToFirst':
-    case 'diagram.extendSelectionToLast':
-    case 'diagram.toggleSelection':
-      return false;
-  }
-}
-
-/**
- * The step keys in the References browser, as the steps grid has them: the
- * arrows walk its cards one at a time, selecting each, Home and End go to the
- * ends, and Enter adds the selection; Shift with any of them extends the
- * range, and Space adds or takes away one card. Moving a step is claimed and
- * does nothing — there are none on screen, and Alt+← must not reach the
- * browser's Back — and annotating declines. All of it declines with no list
- * to walk.
- */
-function runBrowserShortcut(id: DiagramShortcutId, keys: DiagramBrowserKeys | null): boolean {
-  if (!keys) return false;
-  switch (id) {
-    case 'diagram.extendSelectionBack':
-      keys.extend('previous');
-      return true;
-    case 'diagram.extendSelectionForward':
-      keys.extend('next');
-      return true;
-    case 'diagram.extendSelectionToFirst':
-      keys.extend('first');
-      return true;
-    case 'diagram.extendSelectionToLast':
-      keys.extend('last');
-      return true;
-    case 'diagram.toggleSelection':
-      keys.toggle();
-      return true;
-    case 'diagram.moveStepEarlier':
-    case 'diagram.moveStepLater':
-      return true;
-    case 'diagram.previousStep':
-      keys.move('previous');
-      return true;
-    case 'diagram.nextStep':
-      keys.move('next');
-      return true;
-    case 'diagram.firstStep':
-      keys.move('first');
-      return true;
-    case 'diagram.lastStep':
-      keys.move('last');
-      return true;
-    case 'diagram.openStep':
-      keys.add();
-      return true;
-    default:
-      return false;
   }
 }
 
@@ -279,16 +211,13 @@ const ARROW_OWNERS = [
   `[${DIAGRAM_OWN_ARROWS_ATTRIBUTE}]`,
 ].join(', ');
 
-/**
- * Marks the steps grid and the References browser's cards: the surfaces where
- * Enter acts on the selection — opens the step, or adds the cards.
- */
+/** Marks the steps grid: the surface where Enter acts on the selection, opening the step. */
 export const DIAGRAM_STEPS_ATTRIBUTE = 'data-diagram-steps';
 
 /**
  * Whether Enter at this focus acts on the selection: focus on nothing, on the
- * steps grid or the browser's cards, or on one of their cards. Anything else
- * that holds focus — a link, a tab, a button, a dock tab — keeps its own Enter.
+ * steps grid, or on one of its cards. Anything else that holds focus — a
+ * link, a tab, a button, a dock tab — keeps its own Enter.
  */
 export function focusLeavesEnterToSteps(element: Element | null): boolean {
   if (element === null || element === element.ownerDocument.body) return true;

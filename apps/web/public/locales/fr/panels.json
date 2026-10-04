@@ -1083,6 +1083,7 @@
       "titleFill": "Remplir l’étape {{number}}",
       "titleReplace": "Remplacer la carte de l’étape {{number}}",
       "turnOver": "Retourner",
+      "unfinishedCard": "Le plan s’est arrêté avant la fin\u00a0: il n’a pas d’étape finale à ajouter.",
       "unreadable": "Ce plan ne peut pas être lu ici. Planifiez-le de nouveau dans Références.",
       "unreadableCard": "L’image de cette carte est illisible, elle ne peut donc pas être ajoutée.",
       "ways_one": "{{count}} façon",

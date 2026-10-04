@@ -18,7 +18,6 @@ import {
   isAnnotateShortcut,
   runDiagramCancel,
   runDiagramShortcut,
-  type DiagramBrowserKeys,
   type DiagramKeyActions,
   type DiagramKeyState,
 } from './actions/diagramShortcuts';
@@ -70,7 +69,6 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
     },
     close: state.closeDiagramStep,
     closeBrowser: state.closeDiagramReferencesBrowser,
-    browser: browserKeys,
     setTool: state.setDiagramAnnotateTool,
     selectAnnotation: state.selectDiagramAnnotation,
     flipArc: () => {
@@ -82,17 +80,6 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
       );
     },
     cancelGesture: () => gestureCancel?.() ?? false,
-  };
-}
-
-/** The References browser's cards, while it has a list on screen. */
-let browserKeys: DiagramBrowserKeys | null = null;
-
-/** Hand the step keys the References browser's cards; returns its release. */
-export function registerDiagramBrowserKeys(keys: DiagramBrowserKeys): () => void {
-  browserKeys = keys;
-  return () => {
-    if (browserKeys === keys) browserKeys = null;
   };
 }
 
@@ -156,7 +143,7 @@ export function useDiagramShortcuts(handlers: {
       // Annotate's letters belong to no control that is not a field, and the
       // dispatcher stands down for fields before this runs.
       const declines =
-        id === 'diagram.openStep' || id === 'diagram.toggleSelection'
+        id === 'diagram.openStep'
           ? !focusLeavesEnterToSteps(document.activeElement)
           : !isAnnotateShortcut(id) && focusOwnsArrowKeys(document.activeElement);
       if (declines) return false;

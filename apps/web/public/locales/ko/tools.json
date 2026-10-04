@@ -212,10 +212,6 @@
   },
   "diagram": {
     "categoryLabel": "도해",
-    "extendSelectionBack": "선택을 앞으로 확장",
-    "extendSelectionForward": "선택을 뒤로 확장",
-    "extendSelectionToFirst": "선택을 처음까지 확장",
-    "extendSelectionToLast": "선택을 끝까지 확장",
     "firstStep": "첫 단계",
     "flipArc": "호 뒤집기",
     "lastStep": "마지막 단계",
@@ -225,7 +221,6 @@
     "openStep": "단계 열기",
     "previousStep": "이전 단계",
     "scopeLabel": "도해",
-    "toggleSelection": "선택 전환",
     "toolFoldUnfoldArrow": "접었다 펴기 화살표",
     "toolHiddenLine": "숨은선",
     "toolLabel": "레이블",

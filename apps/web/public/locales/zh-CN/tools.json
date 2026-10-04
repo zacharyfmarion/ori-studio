@@ -212,10 +212,6 @@
   },
   "diagram": {
     "categoryLabel": "图解",
-    "extendSelectionBack": "向前扩展选择",
-    "extendSelectionForward": "向后扩展选择",
-    "extendSelectionToFirst": "将选择扩展到第一个",
-    "extendSelectionToLast": "将选择扩展到最后一个",
     "firstStep": "第一步",
     "flipArc": "翻转弧线",
     "lastStep": "最后一步",
@@ -225,7 +221,6 @@
     "openStep": "打开步骤",
     "previousStep": "上一步",
     "scopeLabel": "图解",
-    "toggleSelection": "切换选择",
     "toolFoldUnfoldArrow": "折后展开箭头",
     "toolHiddenLine": "隐藏线",
     "toolLabel": "标签",

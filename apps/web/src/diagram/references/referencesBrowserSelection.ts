@@ -1,35 +1,37 @@
 /**
- * The References browser's selection (D20), and what it adds. Pure.
+ * The References browser's selection (D20, as Phase 11 has it), and what it
+ * adds. Pure.
  *
- * - A press selects one card; Shift extends from the last card pressed alone
- *   to this one; Cmd (Ctrl) adds or takes away one. The keyboard does the
- *   same through `focus`, the card it is on: the step keys move it and
- *   select the card, with Shift they extend the range to it, and Space adds
- *   or takes it away.
- * - A range holds only cards a range can add: never the ending, never a card
- *   whose picture does not read.
- * - What is added is the selection in order. Turn-overs inside a range come
- *   with it; the one just before the first card is offered with it.
- * - The Finished card is added only on its own, and only from a plan that ran
- *   to its end: in a range it says nothing a step should.
- * - A card whose picture does not read is never added.
+ * - A press adds a card, or takes it away: many cards are chosen by pressing
+ *   each. Shift+press does to every card from the last one pressed to this
+ *   one, both included, what that last press did — adds them, or takes them
+ *   away. Cmd (Ctrl) changes nothing: a press already adds one more.
+ * - The keyboard: the arrows, Home and End move where the keyboard is
+ *   (`focus`) without changing what is chosen; Space presses the card there;
+ *   with Shift a move presses it as Shift+press does.
+ * - Only a card that can be added can be chosen: one whose picture reads, and
+ *   the Finished card only from a plan that ran to its end.
+ * - What is added is the selection in order. Turn-overs inside it come with
+ *   it; the one just before its first card is offered with it.
  */
 import type { BrowserCard } from './referencesBrowserPlans';
 import type { PulledCard } from './referencesPulledSteps';
 
 export interface BrowserSelection {
   indices: ReadonlySet<number>;
-  /** The card a range extends from: the last one pressed or toggled on its own. */
+  /** The card a Shift+press reaches from: the last one pressed. */
   pivot: number | null;
-  /** The card last pressed or stepped to: where the keyboard is, and the list's Tab stop. */
+  /** Where the keyboard is: the card last pressed or moved to, and the list's Tab stop. */
   focus: number | null;
 }
 
-/** The ways the step keys move through the cards. */
+/** The ways the keyboard moves through the cards. */
 export type BrowserStep = 'previous' | 'next' | 'first' | 'last';
 
-/** Whether a range takes the card: one that can be added among others. */
-const inRange = (card: BrowserCard | undefined): boolean => card !== undefined && card.step !== null && card.kind !== 'done';
+/** Whether a card can be chosen: its picture reads, and an ending only ends a plan that ran to its end. */
+export function selectable(card: BrowserCard | undefined, finished: boolean): card is BrowserCard {
+  return card !== undefined && card.step !== null && (card.kind !== 'done' || finished);
+}
 
 export const browserSelection = {
   empty(): BrowserSelection {
@@ -41,33 +43,47 @@ export const browserSelection = {
     return shown === null ? browserSelection.empty() : { indices: new Set([shown]), pivot: shown, focus: shown };
   },
 
+  /**
+   * A press on a card: it is added, or taken away when it was chosen. With
+   * `range`, every card from the last one pressed to this one, both included,
+   * is added — or taken away, when the last press took its card away. A card
+   * that cannot be chosen takes the keyboard but changes nothing.
+   */
   press(
     selection: BrowserSelection,
     cards: readonly BrowserCard[],
     index: number,
-    { range, toggle }: { range: boolean; toggle: boolean }
+    { range, finished }: { range: boolean; finished: boolean }
   ): BrowserSelection {
+    if (!selectable(cards[index], finished)) return { ...selection, focus: index };
+    const indices = new Set(selection.indices);
     if (range && selection.pivot !== null) {
+      const adding = selection.indices.has(selection.pivot);
       const from = Math.min(selection.pivot, index);
       const to = Math.max(selection.pivot, index);
-      const indices = new Set<number>();
-      for (let at = from; at <= to; at += 1) if (inRange(cards[at])) indices.add(at);
-      return { indices, pivot: selection.pivot, focus: index };
+      for (let at = from; at <= to; at += 1) {
+        if (!selectable(cards[at], finished)) continue;
+        if (adding) indices.add(at);
+        else indices.delete(at);
+      }
+    } else if (indices.has(index)) {
+      indices.delete(index);
+    } else {
+      indices.add(index);
     }
-    if (toggle) {
-      const indices = new Set(selection.indices);
-      if (indices.has(index)) indices.delete(index);
-      else indices.add(index);
-      return { indices, pivot: index, focus: index };
-    }
-    return { indices: new Set([index]), pivot: index, focus: index };
+    return { indices, pivot: index, focus: index };
+  },
+
+  /** The keyboard moved: it is on `index` now, and nothing chosen changes. */
+  moveTo(selection: BrowserSelection, index: number): BrowserSelection {
+    return { ...selection, focus: index };
   },
 
   /**
-   * The card a keyboard step lands on, from `from` (where the keyboard is):
+   * The card a keyboard move lands on, from `from` (where the keyboard is):
    * the one before or after it, or the first or last — skipping a card that
-   * does not read, which cannot be selected. From nothing, back starts at the
-   * end and forward at the start. Null with no card to land on.
+   * does not read. From nothing, back starts at the end and forward at the
+   * start. Null with no card to land on.
    */
   step(cards: readonly BrowserCard[], from: number | null, to: BrowserStep): number | null {
     const open = cards.filter((card) => card.step).map((card) => card.index);
@@ -86,11 +102,11 @@ export const browserSelection = {
     }
   },
 
-  /** Every card a range can add: all but the ending, and any that does not read. */
-  all(cards: readonly BrowserCard[]): BrowserSelection {
-    const indices = new Set(cards.filter(inRange).map((card) => card.index));
-    const first = cards.find(inRange)?.index ?? null;
-    return { indices, pivot: first, focus: first };
+  /** Every card that can be chosen. */
+  all(cards: readonly BrowserCard[], finished: boolean): BrowserSelection {
+    const chosen = cards.filter((card) => selectable(card, finished)).map((card) => card.index);
+    const first = chosen[0] ?? null;
+    return { indices: new Set(chosen), pivot: first, focus: first };
   },
 };
 
@@ -103,9 +119,10 @@ export function pullableCards(
   indices: ReadonlySet<number>,
   { finished, withTurnOver }: { finished: boolean; withTurnOver: boolean }
 ): { pullable: PulledCard[]; turnOverBefore: number | null } {
-  const chosen = [...indices].sort((a, b) => a - b).flatMap((index) => cards[index] ?? []);
-  const alone = chosen.length === 1;
-  const kept = chosen.filter((card) => card.step && (card.kind !== 'done' || (alone && finished)));
+  const kept = [...indices]
+    .sort((a, b) => a - b)
+    .map((index) => cards[index])
+    .filter((card): card is BrowserCard => selectable(card, finished));
   const first = kept[0];
   const before = first ? cards[first.index - 1] : undefined;
   const turnOverBefore =

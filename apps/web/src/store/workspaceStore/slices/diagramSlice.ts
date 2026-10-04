@@ -404,9 +404,8 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
           anchor,
           opening: (browserOpenings += 1),
         },
-        // The centre shows one thing: the browser, not a step's detail.
-        diagramDetail: null,
-        diagramSelectedAnnotationId: null,
+        // A modal over the Diagram: a step's detail stays open behind it; the
+        // pattern picker, the other way to give a step its picture, closes.
         diagramPatternPicker: null,
       });
       return true;

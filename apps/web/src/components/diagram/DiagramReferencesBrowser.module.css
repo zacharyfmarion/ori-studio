@@ -1,13 +1,35 @@
 /*
- * The References browser (DiagramReferencesBrowser.tsx): a top bar in the
- * shared toolbar frame; under it the planned patterns down the left and the
- * shown list's cards beside them; at the foot what is selected and the verb.
+ * The References browser (DiagramReferencesBrowser.tsx), a modal over the
+ * Diagram: a header; under it the planned patterns down the left and the shown
+ * list's cards beside them; at the foot what is selected and the verb. Its
+ * height is fixed, so the cards scroll inside it rather than the dialog
+ * growing as a plan is read. On a phone it is the whole screen.
  */
+.backdrop {
+  --gutter: var(--space-4);
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: max(var(--gutter), var(--safe-top)) max(var(--gutter), var(--safe-right))
+    max(var(--gutter), var(--safe-bottom)) max(var(--gutter), var(--safe-left));
+  background: var(--overlay-dim);
+  backdrop-filter: blur(4px);
+}
+
 .browser {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  min-height: 0;
+  box-sizing: border-box;
+  width: min(1180px, 100%);
+  height: min(860px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-context-menu);
 }
 
 .browser:focus {
@@ -15,17 +37,37 @@
 }
 
 .bar {
+  display: flex;
   flex-wrap: wrap;
-  column-gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--workspace-header-height);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.lead {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Sequence | Find and Open References: on a phone, a row of their own under the title and the close button. */
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .title {
   min-width: 0;
-  padding: 0 var(--space-1);
   overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 0.76rem;
-  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -217,12 +259,28 @@
   font-size: 0.76rem;
 }
 
-.add {
+.cancel {
   margin-left: auto;
 }
 
-/* A phone: the patterns become a row over the cards. */
+/* A phone: the whole screen, inside its safe area, and the patterns a row over the cards. */
 @media (max-width: 720px) {
+  .backdrop {
+    --gutter: 0px;
+  }
+
+  .browser {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .tools {
+    order: 1;
+    flex-basis: 100%;
+  }
+
   .body[data-rail] {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);

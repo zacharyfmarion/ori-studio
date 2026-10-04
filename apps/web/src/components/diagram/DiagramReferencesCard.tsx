@@ -11,11 +11,12 @@ import styles from './DiagramReferencesCard.module.css';
  * the diagram's pens, its number or what it is, its sentence, and what the
  * reader needs before adding it — that a step already uses it, that it is the
  * card a replaced step shows now, how many ways it can be folded. An option
- * of the browser's list: a press selects it (Shift a range, Cmd one more), a
- * double-click adds it at once; from the keyboard, the Diagram's step keys
- * walk the list (`runDiagramShortcut`).
+ * of the browser's list: a press adds it to what is chosen or takes it away,
+ * with Shift every card from the last one pressed (`browserSelection.press`);
+ * the list's own keys walk it.
  *
- * A card whose picture does not read cannot be added, and says so.
+ * A card that cannot be chosen says why: its picture does not read, or it is
+ * the ending of a plan that stopped before its end.
  */
 export function DiagramReferencesCard({
   card,
@@ -25,8 +26,9 @@ export function DiagramReferencesCard({
   inDiagram,
   shownNow,
   offered,
+  choosable,
   onPress,
-  onAdd,
+  onFocus,
 }: {
   card: BrowserCard;
   style: DiagramStyle;
@@ -39,8 +41,11 @@ export function DiagramReferencesCard({
   shownNow: boolean;
   /** Not selected, but added with the selection: the turn-over just before it. */
   offered: boolean;
-  onPress: (modifiers: { range: boolean; toggle: boolean }) => void;
-  onAdd: () => void;
+  /** It can be chosen (`selectable`). */
+  choosable: boolean;
+  onPress: (modifiers: { range: boolean }) => void;
+  /** It took focus: where the keyboard is now. */
+  onFocus: () => void;
 }) {
   const { t } = useTranslation();
   const own = useRef<HTMLDivElement | null>(null);
@@ -62,7 +67,7 @@ export function DiagramReferencesCard({
       ref={own}
       role="option"
       aria-selected={selected}
-      aria-disabled={unreadable || undefined}
+      aria-disabled={!choosable || undefined}
       tabIndex={tabStop ? 0 : -1}
       className={styles.card}
       data-card-index={card.index}
@@ -72,14 +77,14 @@ export function DiagramReferencesCard({
       title={
         unreadable
           ? t('panels:diagram.references.unreadableCard', 'This card’s picture can’t be read, so it can’t be added.')
-          : undefined
+          : !choosable
+            ? t('panels:diagram.references.unfinishedCard', 'The plan stopped before its end, so it has no finished step to add.')
+            : undefined
       }
+      onFocus={onFocus}
       onClick={(event) => {
         if (unreadable) return;
-        onPress({ range: event.shiftKey, toggle: event.metaKey || event.ctrlKey });
-      }}
-      onDoubleClick={() => {
-        if (!unreadable) onAdd();
+        onPress({ range: event.shiftKey });
       }}
     >
       <div className={styles.header}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BrowserCard } from './referencesBrowserPlans';
-import { browserSelection, pullableCards, shownCardIn } from './referencesBrowserSelection';
+import { browserSelection, pullableCards, shownCardIn, type BrowserSelection } from './referencesBrowserSelection';
 
 /** A strip: folds 1–2, a turn-over, folds 3–4, the ending; card 4's picture does not read. */
 function strip(): BrowserCard[] {
@@ -21,24 +21,49 @@ const indices = (pulled: ReturnType<typeof pullableCards>['pullable']) =>
   pulled.map((step) => (step.card as unknown as { card: number }).card);
 
 describe('the browser’s selection', () => {
-  it('selects one card, extends with Shift from the last pressed, adds or takes away with Cmd', () => {
-    const cards = strip();
-    let selection = browserSelection.press(browserSelection.empty(), cards, 1, { range: false, toggle: false });
-    expect([...selection.indices]).toEqual([1]);
-    selection = browserSelection.press(selection, cards, 3, { range: true, toggle: false });
-    expect([...selection.indices].sort()).toEqual([1, 2, 3]);
-    // The range's anchor stays; the keyboard is on the card pressed.
-    expect(selection).toMatchObject({ pivot: 1, focus: 3 });
-    selection = browserSelection.press(selection, cards, 2, { range: false, toggle: true });
-    expect([...selection.indices].sort()).toEqual([1, 3]);
-    selection = browserSelection.press(selection, cards, 0, { range: false, toggle: false });
-    expect([...selection.indices]).toEqual([0]);
+  const press = (selection: BrowserSelection, index: number, range = false, finished = true) =>
+    browserSelection.press(selection, strip(), index, { range, finished });
+  const chosen = (selection: BrowserSelection) => [...selection.indices].sort((a, b) => a - b);
+
+  it('adds a card with a press and takes it away with another, so many are chosen card by card', () => {
+    let selection = press(browserSelection.empty(), 1);
+    expect(chosen(selection)).toEqual([1]);
+    selection = press(selection, 3);
+    expect(chosen(selection)).toEqual([1, 3]);
+    selection = press(selection, 1);
+    expect(chosen(selection)).toEqual([3]);
+    expect(selection).toMatchObject({ pivot: 1, focus: 1 });
   });
 
-  it('leaves out of a range the cards it cannot add: one that does not read, and the ending', () => {
-    const cards = strip();
-    const from = browserSelection.press(browserSelection.empty(), cards, 3, { range: false, toggle: false });
-    expect([...browserSelection.press(from, cards, 5, { range: true, toggle: false }).indices]).toEqual([3]);
+  it('adds with Shift every card from the last one pressed to this one, both included, either way', () => {
+    const from = press(browserSelection.empty(), 0);
+    expect(chosen(press(from, 3, true))).toEqual([0, 1, 2, 3]);
+    // Backwards, and the earlier choices kept.
+    const later = press(press(browserSelection.empty(), 5), 3);
+    expect(chosen(press(later, 1, true))).toEqual([1, 2, 3, 5]);
+    // The range's end is pressed: the next Shift+press reaches from there.
+    expect(press(from, 3, true)).toMatchObject({ pivot: 3, focus: 3 });
+  });
+
+  it('takes a range away with Shift when the last press took its card away', () => {
+    const all = browserSelection.all(strip(), true);
+    const off = press(all, 1);
+    expect(chosen(press(off, 3, true))).toEqual([0, 5]);
+  });
+
+  it('takes the Finished card into a range that reaches it, only from a plan that ran to its end', () => {
+    const from = press(browserSelection.empty(), 3);
+    // Card 4 does not read: passed over, not chosen.
+    expect(chosen(press(from, 5, true))).toEqual([3, 5]);
+    const stopped = browserSelection.press(from, strip(), 5, { range: true, finished: false });
+    expect(chosen(stopped)).toEqual([3]);
+    // Pressed alone, it takes the keyboard and changes nothing.
+    const alone = browserSelection.press(browserSelection.empty(), strip(), 5, { range: false, finished: false });
+    expect(alone).toMatchObject({ indices: new Set(), focus: 5 });
+  });
+
+  it('starts a Shift+press with nothing pressed yet as a press', () => {
+    expect(chosen(press(browserSelection.empty(), 2, true))).toEqual([2]);
   });
 
   it('opens on the card a replaced step was made from', () => {
@@ -46,8 +71,10 @@ describe('the browser’s selection', () => {
     expect(browserSelection.initial(null).indices.size).toBe(0);
   });
 
-  it('walks from the last card pressed with the keyboard, over a card that does not read', () => {
+  it('moves the keyboard without choosing, over a card that does not read', () => {
     const cards = strip();
+    const selection = press(browserSelection.empty(), 1);
+    expect(browserSelection.moveTo(selection, 3)).toMatchObject({ indices: new Set([1]), pivot: 1, focus: 3 });
     expect(browserSelection.step(cards, 3, 'next')).toBe(5);
     expect(browserSelection.step(cards, 5, 'next')).toBe(5);
     expect(browserSelection.step(cards, 5, 'previous')).toBe(3);
@@ -60,8 +87,9 @@ describe('the browser’s selection', () => {
     expect(browserSelection.step([], null, 'next')).toBeNull();
   });
 
-  it('selects all the cards a range can add: not the ending, not one that does not read', () => {
-    expect([...browserSelection.all(strip()).indices]).toEqual([0, 1, 2, 3]);
+  it('selects all that can be chosen: the Finished card of a finished plan, never one that does not read', () => {
+    expect(chosen(browserSelection.all(strip(), true))).toEqual([0, 1, 2, 3, 5]);
+    expect(chosen(browserSelection.all(strip(), false))).toEqual([0, 1, 2, 3]);
   });
 });
 
@@ -79,10 +107,11 @@ describe('what a selection adds', () => {
     expect(indices(pullableCards(strip(), new Set([3]), { finished: true, withTurnOver: false }).pullable)).toEqual([3]);
   });
 
-  it('adds the Finished card only on its own, and only from a plan that ran to its end', () => {
+  it('adds what is chosen, the Finished card with the rest, only from a plan that ran to its end', () => {
     expect(indices(pullableCards(strip(), new Set([5]), { finished: true, withTurnOver: true }).pullable)).toEqual([5]);
     expect(pullableCards(strip(), new Set([5]), { finished: false, withTurnOver: true }).pullable).toEqual([]);
-    expect(indices(pullableCards(strip(), new Set([3, 5]), { finished: true, withTurnOver: false }).pullable)).toEqual([3]);
+    expect(indices(pullableCards(strip(), new Set([3, 5]), { finished: true, withTurnOver: false }).pullable)).toEqual([3, 5]);
+    expect(indices(pullableCards(strip(), new Set([3, 5]), { finished: false, withTurnOver: false }).pullable)).toEqual([3]);
   });
 });
 

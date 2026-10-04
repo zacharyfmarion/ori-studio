@@ -93,30 +93,30 @@ export interface ReferencesBrowser {
   anchorTakesFirst: boolean;
   choosePattern: (id: string) => void;
   setMode: (mode: 'sequence' | 'find') => void;
-  /** A press on a card: alone, with Shift a range from the last one pressed, with Cmd/Ctrl added or taken away. */
-  press: (index: number, modifiers: { range: boolean; toggle: boolean }) => void;
+  /** A press on a card: it is added or taken away; with Shift, so is every card from the last one pressed (`browserSelection.press`). */
+  press: (index: number, modifiers: { range: boolean }) => void;
   /**
-   * The keyboard's walk: select the card before or after the one the
-   * keyboard is on, or the first or last, skipping any that cannot be added.
-   * The card it lands on, or null with none to land on.
+   * The keyboard's walk: to the card before or after the one the keyboard is
+   * on, or the first or last, skipping any that does not read, choosing
+   * nothing. The card it lands on, or null with none to land on.
    */
   move: (to: BrowserStep) => number | null;
-  /** The walk with Shift: extend the range to the card it lands on, which it returns. */
+  /** A card took focus (Tab, a press, the dialog's own move): the keyboard is on it now. */
+  focusOn: (index: number) => void;
+  /** The walk with Shift: the card it lands on is pressed as Shift+press does. It returns that card. */
   extend: (to: BrowserStep) => number | null;
-  /** Space: add or take away the card the keyboard is on. */
+  /** Space: press the card the keyboard is on. */
   toggle: () => void;
   selectAll: () => void;
   clear: () => void;
   /** Add the selection where the browser was opened for. */
   add: () => void;
-  /** Add one card at once (a double-click). */
-  addOne: (index: number) => void;
   close: () => void;
   openReferences: () => void;
 }
 
 /**
- * The References browser in the Diagram's centre (D20): the patterns with a
+ * The References browser, a modal over the Diagram (D20): the patterns with a
  * plan, their cards, the selection, and the pull, bound to the store.
  *
  * The patterns are References' sheets (`sheetFrames` in the precrease worker,
@@ -303,31 +303,27 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
     anchorTakesFirst,
     choosePattern: (id) => store().setDiagramReferencesBrowser({ pattern: id }),
     setMode: (mode) => store().setDiagramReferencesBrowser({ mode }),
-    press: (index, modifiers) => select(browserSelection.press(selection, shownList, index, modifiers)),
+    press: (index, { range }) => select(browserSelection.press(selection, shownList, index, { range, finished })),
     move: (to) => {
       const next = browserSelection.step(shownList, selection.focus, to);
-      if (next !== null) select(browserSelection.press(selection, shownList, next, { range: false, toggle: false }));
+      if (next !== null) select(browserSelection.moveTo(selection, next));
       return next;
+    },
+    focusOn: (index) => {
+      if (selection.focus !== index) select(browserSelection.moveTo(selection, index));
     },
     extend: (to) => {
       const next = browserSelection.step(shownList, selection.focus, to);
-      if (next === null) return null;
-      // From nothing, a range starts where the keyboard lands.
-      const from = selection.pivot === null ? { ...selection, pivot: next } : selection;
-      select(browserSelection.press(from, shownList, next, { range: true, toggle: false }));
+      if (next !== null) select(browserSelection.press(selection, shownList, next, { range: true, finished }));
       return next;
     },
     toggle: () => {
       const at = selection.focus ?? browserSelection.step(shownList, null, 'next');
-      if (at !== null) select(browserSelection.press(selection, shownList, at, { range: false, toggle: true }));
+      if (at !== null) select(browserSelection.press(selection, shownList, at, { range: false, finished }));
     },
-    selectAll: () => select(browserSelection.all(shownList)),
+    selectAll: () => select(browserSelection.all(shownList, finished)),
     clear: () => select(browserSelection.empty()),
     add: () => pull(pullable),
-    addOne: (index) => {
-      const { pullable: one } = pullableCards(shownList, new Set([index]), { finished, withTurnOver: false });
-      pull(one);
-    },
     close: () => store().closeDiagramReferencesBrowser(),
     openReferences: () => store().openReferencesWorkspace(),
   };

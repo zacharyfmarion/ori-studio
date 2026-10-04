@@ -20,14 +20,6 @@ function run(id: Parameters<typeof runDiagramShortcut>[0], state: Partial<Diagra
 }
 
 describe('the Diagram’s step keys', () => {
-  it('leaves a range and a toggle to the References browser: the grid selects one step', () => {
-    for (const id of ['diagram.extendSelectionForward', 'diagram.toggleSelection'] as const) {
-      const { claimed, select } = run(id, { selectedStepId: 'a' });
-      expect(claimed).toBe(false);
-      expect(select).not.toHaveBeenCalled();
-    }
-  });
-
   it('walks the steps with the arrows, stopping at the ends', () => {
     expect(run('diagram.nextStep', { selectedStepId: 'a' }).select).toHaveBeenCalledWith('b');
     expect(run('diagram.previousStep', { selectedStepId: 'b' }).select).toHaveBeenCalledWith('a');
@@ -126,55 +118,18 @@ describe('the Diagram’s Escape ladder', () => {
 });
 
 describe('the step keys while the References browser is open', () => {
-  function inBrowser(id: Parameters<typeof runDiagramShortcut>[0], withList = true) {
-    const actions = { select: vi.fn(), move: vi.fn(), open: vi.fn(), close: vi.fn() };
-    const browser = { move: vi.fn(), extend: vi.fn(), toggle: vi.fn(), add: vi.fn() };
-    const claimed = runDiagramShortcut(
-      id,
-      { stepIds: steps, selectedStepId: 'b', readOnly: false, browserOpen: true },
-      { ...actions, browser: withList ? browser : null }
-    );
-    return { claimed, ...actions, browser };
-  }
-
-  it('walk its cards and add them, acting on no step: the steps are not on screen', () => {
-    const cases = [
-      ['diagram.previousStep', 'previous'],
-      ['diagram.nextStep', 'next'],
-      ['diagram.firstStep', 'first'],
-      ['diagram.lastStep', 'last'],
-    ] as const;
-    for (const [id, to] of cases) {
-      const { claimed, browser, select } = inBrowser(id);
-      expect(claimed).toBe(true);
-      expect(browser.move).toHaveBeenCalledWith(to);
+  // A modal with keys of its own: a key that reaches the Diagram has slipped
+  // out of it, and acts on no step behind it.
+  it('act on no step, and claim Alt+arrows so the browser’s Back never takes them', () => {
+    for (const id of ['diagram.previousStep', 'diagram.nextStep', 'diagram.firstStep', 'diagram.lastStep', 'diagram.openStep'] as const) {
+      const { claimed, select, open } = run(id, { selectedStepId: 'b', browserOpen: true });
+      expect(claimed).toBe(false);
       expect(select).not.toHaveBeenCalled();
+      expect(open).not.toHaveBeenCalled();
     }
-    const enter = inBrowser('diagram.openStep');
-    expect(enter.browser.add).toHaveBeenCalledOnce();
-    expect(enter.open).not.toHaveBeenCalled();
-  });
-
-  it('extend the range with Shift and toggle a card with Space', () => {
-    const cases = [
-      ['diagram.extendSelectionBack', 'previous'],
-      ['diagram.extendSelectionForward', 'next'],
-      ['diagram.extendSelectionToFirst', 'first'],
-      ['diagram.extendSelectionToLast', 'last'],
-    ] as const;
-    for (const [id, to] of cases) {
-      const { claimed, browser } = inBrowser(id);
-      expect(claimed).toBe(true);
-      expect(browser.extend).toHaveBeenCalledWith(to);
-    }
-    expect(inBrowser('diagram.toggleSelection').browser.toggle).toHaveBeenCalledOnce();
-  });
-
-  it('claim Alt+arrows and move no step, so the browser’s Back never takes them; claim nothing with no list', () => {
-    const moved = inBrowser('diagram.moveStepLater');
+    const moved = run('diagram.moveStepLater', { selectedStepId: 'b', browserOpen: true });
     expect(moved.claimed).toBe(true);
     expect(moved.move).not.toHaveBeenCalled();
-    expect(inBrowser('diagram.nextStep', false).claimed).toBe(false);
   });
 });
 

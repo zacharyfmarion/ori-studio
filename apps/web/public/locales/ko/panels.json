@@ -1001,6 +1001,7 @@
       "titleFill": "{{number}}단계 채우기",
       "titleReplace": "{{number}}단계 카드 바꾸기",
       "turnOver": "뒤집기",
+      "unfinishedCard": "계획이 끝까지 진행되지 않고 멈춰서 추가할 완료 단계가 없습니다.",
       "unreadable": "여기서는 이 계획을 읽을 수 없습니다. 참조에서 다시 계획하세요.",
       "unreadableCard": "이 카드의 그림을 읽을 수 없어 추가할 수 없습니다.",
       "ways_other": "{{count}}가지 방법",

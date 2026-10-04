@@ -220,10 +220,6 @@
   },
   "diagram": {
     "categoryLabel": "Diagramm",
-    "extendSelectionBack": "Auswahl nach vorn erweitern",
-    "extendSelectionForward": "Auswahl nach hinten erweitern",
-    "extendSelectionToFirst": "Auswahl bis zum ersten erweitern",
-    "extendSelectionToLast": "Auswahl bis zum letzten erweitern",
     "firstStep": "Erster Schritt",
     "flipArc": "Bogen umkehren",
     "lastStep": "Letzter Schritt",
@@ -233,7 +229,6 @@
     "openStep": "Schritt öffnen",
     "previousStep": "Vorheriger Schritt",
     "scopeLabel": "Diagramm",
-    "toggleSelection": "Auswahl umschalten",
     "toolFoldUnfoldArrow": "Falten-und-Öffnen-Pfeil",
     "toolHiddenLine": "Verdeckte Linie",
     "toolLabel": "Beschriftung",

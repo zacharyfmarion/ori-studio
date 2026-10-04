@@ -1083,6 +1083,7 @@
       "titleFill": "Preencher o passo {{number}}",
       "titleReplace": "Substituir o cartão do passo {{number}}",
       "turnOver": "Virar",
+      "unfinishedCard": "O plano parou antes do fim, então não há um passo final para adicionar.",
       "unreadable": "Este plano não pode ser lido aqui. Planeje-o de novo em Referências.",
       "unreadableCard": "Não é possível ler a imagem deste cartão, então ele não pode ser adicionado.",
       "ways_one": "{{count}} forma",

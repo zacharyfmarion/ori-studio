@@ -3843,13 +3843,9 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7695,13 +7691,9 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11549,13 +11541,9 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15322,13 +15310,9 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -19095,13 +19079,9 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -22947,13 +22927,9 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -26799,13 +26775,9 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -30572,12 +30544,8 @@
     "panels:diagram.references.withTurnOver": "c6284771ed6c",
     "toasts:diagram.references.replacedStep": "a52ae6c6699d",
     "panels:diagram.references.adding": "c6de6f45c827",
-    "tools:diagram.extendSelectionBack": "e33d39667d98",
-    "tools:diagram.extendSelectionForward": "5f565bf33f8d",
-    "tools:diagram.extendSelectionToFirst": "73d5870e8070",
-    "tools:diagram.extendSelectionToLast": "af3be3f33fc8",
-    "tools:diagram.toggleSelection": "66668bd9b489",
     "panels:diagram.pages.nextPage": "6ead5dfdc11e",
-    "panels:diagram.pages.previousPage": "a163aaa22cf7"
+    "panels:diagram.pages.previousPage": "a163aaa22cf7",
+    "panels:diagram.references.unfinishedCard": "a07a95ee98ef"
   }
 }

@@ -1001,6 +1001,7 @@
       "titleFill": "ステップ {{number}} を埋める",
       "titleReplace": "ステップ {{number}} のカードを置き換え",
       "turnOver": "裏返す",
+      "unfinishedCard": "計画が最後まで終わらずに止まったため、追加できる完成ステップがありません。",
       "unreadable": "この計画はここでは読み込めません。リファレンスでもう一度計画してください。",
       "unreadableCard": "このカードの図を読み込めないため、追加できません。",
       "ways_other": "{{count}} 通り",

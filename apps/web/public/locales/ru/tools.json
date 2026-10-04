@@ -236,10 +236,6 @@
   },
   "diagram": {
     "categoryLabel": "Схема",
-    "extendSelectionBack": "Расширить выделение назад",
-    "extendSelectionForward": "Расширить выделение вперёд",
-    "extendSelectionToFirst": "Расширить выделение до первого",
-    "extendSelectionToLast": "Расширить выделение до последнего",
     "firstStep": "Первый шаг",
     "flipArc": "Перевернуть дугу",
     "lastStep": "Последний шаг",
@@ -249,7 +245,6 @@
     "openStep": "Открыть шаг",
     "previousStep": "Предыдущий шаг",
     "scopeLabel": "схема",
-    "toggleSelection": "Переключить выделение",
     "toolFoldUnfoldArrow": "Стрелка «сложить и разложить»",
     "toolHiddenLine": "Скрытая линия",
     "toolLabel": "Подпись",

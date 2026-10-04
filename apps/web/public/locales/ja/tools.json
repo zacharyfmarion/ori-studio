@@ -212,10 +212,6 @@
   },
   "diagram": {
     "categoryLabel": "折り図",
-    "extendSelectionBack": "選択を前へ広げる",
-    "extendSelectionForward": "選択を後ろへ広げる",
-    "extendSelectionToFirst": "選択を最初まで広げる",
-    "extendSelectionToLast": "選択を最後まで広げる",
     "firstStep": "最初のステップ",
     "flipArc": "弧を反転",
     "lastStep": "最後のステップ",
@@ -225,7 +221,6 @@
     "openStep": "ステップを開く",
     "previousStep": "前のステップ",
     "scopeLabel": "折り図",
-    "toggleSelection": "選択を切り替え",
     "toolFoldUnfoldArrow": "折り筋をつける矢印",
     "toolHiddenLine": "かくれ線",
     "toolLabel": "ラベル",

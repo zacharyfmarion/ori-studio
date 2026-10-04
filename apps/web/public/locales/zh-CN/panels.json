@@ -1001,6 +1001,7 @@
       "titleFill": "填充第 {{number}} 步",
       "titleReplace": "替换第 {{number}} 步的卡片",
       "turnOver": "翻面",
+      "unfinishedCard": "规划在完成前就停止了，因此没有可添加的完成步骤。",
       "unreadable": "此处无法读取该计划。请在参考中重新规划。",
       "unreadableCard": "无法读取此卡片的图，因此无法添加。",
       "ways_other": "{{count}} 种方式",

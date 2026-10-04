@@ -1165,10 +1165,13 @@ with "only show crease patterns that have plans generated".)*
   "N selected", Select all, Clear, and the primary button — "Add step", "Add
   12 steps after step 6", or "Fill step 5 and add 11 after it" when an empty
   step is selected. A double-click adds one card at once. Escape and ← Steps
-  close it.
+  close it. *(Phase 11: a modal over the Diagram instead — see 11a; no
+  double-click.)*
 - **Ranges.** Click, Shift-click and Cmd-click. Turn-overs inside a range come
   with it, and the one just before the first card is offered; the Finished card
   is added only on its own, and only from a finished plan. One undo step.
+  *(Phase 11: a press toggles, Shift+press reaches the last card pressed with
+  both ends included — the Finished card of a finished plan too — see 11a.)*
 - **Sequence and Find.** The browser's Sequence | Find switch: Sequence lists
   the planned patterns' sequences; Find shows the Find answer References has on
   screen, if any, with "Pick a target in References' Find" otherwise. Find
@@ -2969,7 +2972,7 @@ insert steps at a chosen place without the latch.
 
 Four requests after Phase 10, with D22 and D23 above.
 
-- [ ] **11a. The References browser is a modal** (amends D20). A dialog over
+- [x] **11a. The References browser is a modal** (amends D20). A dialog over
   the Diagram rather than its centre, at the App root, a shortcut barrier that
   owns its keys; full screen on a phone, its list and detail inside. The step
   detail stays open behind it.
@@ -2980,6 +2983,28 @@ Four requests after Phase 10, with D22 and D23 above.
     longer adds (it would undo a toggle). Keys, the listbox's own: arrows,
     Home, End move; Space toggles; Shift with a move extends; Cmd/Ctrl+A all;
     Enter adds; Escape closes.
+  - As built: `DiagramReferencesModal` at the App root, shown while the store
+    has the browser open and the Diagram is the workspace on screen (so Open
+    References leaves it waiting behind). The dialog mechanics are one hook,
+    `ui/useModalDialog` — the shortcut barrier's Escape, focus kept off
+    `<body>`, focus given back — which `ExportModalFrame` now uses too, and
+    `dialogOpener()` gives back to the button that opened a menu when a menu's
+    row opened the dialog. Two focus traps found in the browser and fixed: a
+    menu hands focus back to its trigger after the dialog took it, so
+    `SplitButton` rows take `opensDialog` (Add step ▾ › From References…) and
+    the context-menu controller leaves focus to a modal its row opened; and
+    the dialog settles its focus a tick after mounting, once a menu has gone.
+    The list's keys are the dialog's own (listbox, from a card or the dialog
+    itself, never on a phone's list of patterns); the five browser-only
+    shortcut verbs and `registerDiagramBrowserKeys` are gone, and a key that
+    slips out of the dialog acts on no step. The step detail stays open behind
+    it. Browser (`artifacts/diagram-phase11/modal.mjs`, `modal-phone.mjs`,
+    `modal-context-menu.mjs`, light and dark): press 2 and 5 chose both, 5 again
+    took it away; press 27, Shift+press the last card chose 27–30 with Finished;
+    focus on the first card as it opens from the menu and from a step's context
+    menu, → to the next, Escape back to the caret or the step's card; on a phone
+    the list, a pattern's cards with ← Patterns and ✕, and nothing touched by
+    the keys on the list.
 - [ ] **11b. A step can be added before step 1.** Every card owns the gap
   before it (the first card's in the grid's padding), the trailing tile the
   place after the last.

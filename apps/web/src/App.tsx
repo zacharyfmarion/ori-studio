@@ -14,6 +14,7 @@ import { ShareLinkModal } from './cp-workspace/share/ShareLinkModal';
 import { SettingsModal } from './components/SettingsModal';
 import { PaperExportModal } from './components/paperExport/PaperExportModal';
 import { DiagramExportModal } from './components/diagram/DiagramExportModal';
+import { DiagramReferencesModal } from './components/diagram/DiagramReferencesBrowser';
 import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
@@ -186,6 +187,9 @@ export default function App() {
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="diagram-export">
         <DiagramExportModal />
+      </OverlayErrorBoundary>
+      <OverlayErrorBoundary id="diagram-references">
+        <DiagramReferencesModal />
       </OverlayErrorBoundary>
       <OverlayErrorBoundary id="settings">
         <SettingsModal />

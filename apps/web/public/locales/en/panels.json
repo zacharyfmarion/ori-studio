@@ -1042,6 +1042,7 @@
       "titleFill": "Fill step {{number}}",
       "titleReplace": "Replace step {{number}}’s card",
       "turnOver": "Turn over",
+      "unfinishedCard": "The plan stopped before its end, so it has no finished step to add.",
       "unreadable": "This plan can’t be read here. Plan it again in References.",
       "unreadableCard": "This card’s picture can’t be read, so it can’t be added.",
       "ways_one": "{{count}} way",

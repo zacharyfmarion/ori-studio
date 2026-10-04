@@ -1042,6 +1042,7 @@
       "titleFill": "Schritt {{number}} füllen",
       "titleReplace": "Karte von Schritt {{number}} ersetzen",
       "turnOver": "Wenden",
+      "unfinishedCard": "Der Plan wurde vor seinem Ende angehalten, daher gibt es keinen Abschlussschritt zum Hinzufügen.",
       "unreadable": "Dieser Plan kann hier nicht gelesen werden. Plane ihn in Referenzen neu.",
       "unreadableCard": "Das Bild dieser Karte ist nicht lesbar, daher kann sie nicht hinzugefügt werden.",
       "ways_one": "{{count}} Weg",

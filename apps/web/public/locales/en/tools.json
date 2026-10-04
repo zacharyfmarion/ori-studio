@@ -220,10 +220,6 @@
   },
   "diagram": {
     "categoryLabel": "Diagram",
-    "extendSelectionBack": "Extend Selection Back",
-    "extendSelectionForward": "Extend Selection Forward",
-    "extendSelectionToFirst": "Extend Selection to First",
-    "extendSelectionToLast": "Extend Selection to Last",
     "firstStep": "First Step",
     "flipArc": "Flip Arc",
     "lastStep": "Last Step",
@@ -233,7 +229,6 @@
     "openStep": "Open Step",
     "previousStep": "Previous Step",
     "scopeLabel": "diagram",
-    "toggleSelection": "Toggle Selection",
     "toolFoldUnfoldArrow": "Fold and Unfold Arrow",
     "toolHiddenLine": "Hidden Line",
     "toolLabel": "Label",
