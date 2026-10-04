@@ -79,6 +79,7 @@
     "deleteSelectedCpLinesLabel": "選択した CP 線を削除",
     "deleteSelectedCpPoints": "選択した展開図の点を削除",
     "deleteSelectedDiagramAnnotation": "選択した注記を削除",
+    "deleteSelectedDiagramNode": "選択したノードを削除",
     "deleteSelectedDiagramStep": "選択したステップを削除",
     "deleteSelectedLineType": "選択した線種を削除...",
     "deleteSelectedTreeParts": "選択したツリー部分を削除",

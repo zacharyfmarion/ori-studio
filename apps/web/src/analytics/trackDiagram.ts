@@ -9,7 +9,10 @@ import {
   bucketCount,
 } from './events';
 import type {
+  DiagramAnnotationSnap,
   DiagramAnnotationTool,
+  DiagramArrowShapeGesture,
+  DiagramShapedArrowKind,
   DiagramCaptureKind,
   DiagramCaptureOutcome,
   DiagramCaptureVia,
@@ -80,12 +83,22 @@ export function trackDiagramStepOpened(via: DiagramStepOpenedVia, mode: DiagramS
 }
 
 /**
- * An annotation drawn on a step's picture, by its tool. Which marks a diagram
- * is drawn with, and whether Annotate is used at all. Never where it is, nor
- * a label's words.
+ * An annotation drawn on a step's picture, by its tool, and how it was put
+ * down: snapped, freely, or neither. Which marks a diagram is drawn with,
+ * whether Annotate is used at all, and whether snapping helps. Never where
+ * it is, nor a label's words.
  */
-export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool): void {
-  track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool });
+export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool, snap: DiagramAnnotationSnap): void {
+  track(ANALYTICS_EVENTS.diagramAnnotationAdded, { tool, snap });
+}
+
+/**
+ * A fold arrow shaped by hand for the first time — its arc made a path — by
+ * the Edit Path gesture that did it. Once per arrow, not per edit: whether
+ * arrows are shaped at all, and which way in people find. Never where.
+ */
+export function trackDiagramArrowShaped(kind: DiagramShapedArrowKind, gesture: DiagramArrowShapeGesture): void {
+  track(ANALYTICS_EVENTS.diagramArrowShaped, { kind, gesture });
 }
 
 /**

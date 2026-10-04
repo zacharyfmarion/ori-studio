@@ -41,7 +41,8 @@ import {
 import i18n from '../../../i18n';
 import { requestConfirmation } from '../../commandDialogStore';
 import { commitStepCapture, runDiagramCapture, stopDiagramCapture } from '../diagramCapture';
-import { discardDiagramState, trimDiagramHistory } from '../diagramState';
+import { discardDiagramState, selectedDiagramAnnotation, trimDiagramHistory } from '../diagramState';
+import { pathNodesOf } from '../../../diagram/annotate/annotationPath';
 import {
   emptySnapshotHistory,
   recordSnapshot,
@@ -360,7 +361,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       return true;
     },
 
-    editDiagramAnnotations: (stepId, label, edit, { select, session, loadId } = {}) => {
+    editDiagramAnnotations: (stepId, label, edit, { select, selectPathNode, session, loadId } = {}) => {
       if (loadId !== undefined && loadId !== get().diagramLoadId) return false;
       const { extend, remember } = sessionFor(`annotations:${stepId}`, session);
       const next = commit(label, (document) => editStepAnnotations(document, stepId, edit), extend);
@@ -371,6 +372,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
         diagramSelectedAnnotationId:
           selected !== null && hasAnnotation(next, get().diagramSelectedStepId, selected) ? selected : null,
       });
+      if (selectPathNode !== undefined) get().selectDiagramPathNode(selectPathNode);
       return true;
     },
 
@@ -379,6 +381,24 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
 
     setDiagramAnnotateTool: (tool) => {
       if (tool !== get().diagramAnnotateTool) set({ diagramAnnotateTool: tool });
+    },
+
+    selectDiagramPathNode: (node) => {
+      const annotation = node === null ? null : selectedDiagramAnnotation(get());
+      const nodes = annotation ? pathNodesOf(annotation) : null;
+      const next =
+        annotation && nodes && node !== null && node >= 0 && node < nodes.length
+          ? { annotationId: annotation.id, node, nodes: nodes.length }
+          : null;
+      const current = get().diagramSelectedPathNode;
+      const same =
+        current === next ||
+        (current !== null &&
+          next !== null &&
+          current.annotationId === next.annotationId &&
+          current.node === next.node &&
+          current.nodes === next.nodes);
+      if (!same) set({ diagramSelectedPathNode: next });
     },
 
     selectDiagramAnnotation: (annotationId) => {

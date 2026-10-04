@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import type { DiagramAnnotateShortcutId } from '../../keyboard/shortcuts';
-import type { DiagramAnnotationKind } from '../document/diagramDocument';
-import { ANNOTATION_KINDS, isPointKind } from './annotationModel';
+import type { DiagramAnnotationKind, KnownDiagramAnnotation } from '../document/diagramDocument';
+import { ANNOTATION_KINDS, canBeShaped, isPointKind } from './annotationModel';
 
 /**
  * Annotate's tools (D8), for every surface that offers them: the rail beside
@@ -10,10 +10,21 @@ import { ANNOTATION_KINDS, isPointKind } from './annotationModel';
  * draws its own.
  */
 
-/** A kind to draw, or Select. */
-export type AnnotateTool = DiagramAnnotationKind | null;
+/**
+ * Edit Path (decision 3): the tool that shapes the selected fold arrow by its
+ * nodes, handles and curve, as Affinity's Node tool does. It draws nothing.
+ */
+export const EDIT_PATH = 'edit-path';
 
-export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'text';
+/** A kind to draw, Edit Path, or Select. */
+export type AnnotateTool = DiagramAnnotationKind | typeof EDIT_PATH | null;
+
+/** The kind a tool draws; null for Select and Edit Path, which draw nothing. */
+export function drawingKind(tool: AnnotateTool): DiagramAnnotationKind | null {
+  return tool === null || tool === EDIT_PATH ? null : tool;
+}
+
+export type AnnotateToolGroupId = 'select' | 'arrows' | 'lines' | 'marks' | 'text';
 
 export interface AnnotateToolGroup {
   id: AnnotateToolGroupId;
@@ -32,12 +43,13 @@ const TOOL_GROUP: Readonly<Record<DiagramAnnotationKind, Exclude<AnnotateToolGro
   'mountain-line': 'lines',
   'hidden-line': 'lines',
   label: 'text',
+  circle: 'marks',
 };
 
-/** The rail's groups, in order: Select; Arrows; Lines; Text — each kind's tool in its group, in kind order. */
+/** The rail's groups, in order: Select and Edit Path; Arrows; Lines; Marks; Text — each kind's tool in its group, in kind order. */
 export const ANNOTATE_TOOL_GROUPS: readonly AnnotateToolGroup[] = [
-  { id: 'select', tools: [null] },
-  ...(['arrows', 'lines', 'text'] as const).map((id) => ({
+  { id: 'select', tools: [null, EDIT_PATH] },
+  ...(['arrows', 'lines', 'marks', 'text'] as const).map((id) => ({
     id,
     tools: ANNOTATION_KINDS.filter((kind) => TOOL_GROUP[kind] === id),
   })),
@@ -55,10 +67,21 @@ export const ANNOTATE_TOOL_SHORTCUTS: Readonly<Record<DiagramAnnotationKind, Dia
   'mountain-line': 'diagram.toolMountainLine',
   'hidden-line': 'diagram.toolHiddenLine',
   label: 'diagram.toolLabel',
+  circle: 'diagram.toolCircle',
 };
 
-/** The kind a tool key picks; undefined for a key that is not a tool's (Flip arc). */
-export function toolForShortcut(id: DiagramAnnotateShortcutId): DiagramAnnotationKind | undefined {
+/** Edit Path's key. */
+export const EDIT_PATH_SHORTCUT: DiagramAnnotateShortcutId = 'diagram.toolEditPath';
+
+/** The key that picks a tool; Select has none (Escape puts a tool down). */
+export function annotateToolShortcut(tool: AnnotateTool): DiagramAnnotateShortcutId | undefined {
+  if (tool === null) return undefined;
+  return tool === EDIT_PATH ? EDIT_PATH_SHORTCUT : ANNOTATE_TOOL_SHORTCUTS[tool];
+}
+
+/** The tool a tool key picks; undefined for a key that is not a tool's (Flip arc). */
+export function toolForShortcut(id: DiagramAnnotateShortcutId): Exclude<AnnotateTool, null> | undefined {
+  if (id === EDIT_PATH_SHORTCUT) return EDIT_PATH;
   return (Object.keys(ANNOTATE_TOOL_SHORTCUTS) as DiagramAnnotationKind[]).find(
     (kind) => ANNOTATE_TOOL_SHORTCUTS[kind] === id
   );
@@ -87,11 +110,15 @@ export function annotationKindLabel(t: TFunction, kind: DiagramAnnotationKind): 
       return t('tools:diagram.toolHiddenLine', 'Hidden Line');
     case 'label':
       return t('tools:diagram.toolLabel', 'Label');
+    case 'circle':
+      return t('tools:diagram.toolCircle', 'Circle');
   }
 }
 
 export function annotateToolLabel(t: TFunction, tool: AnnotateTool): string {
-  return tool === null ? t('panels:diagram.annotate.select', 'Select') : annotationKindLabel(t, tool);
+  if (tool === null) return t('panels:diagram.annotate.select', 'Select');
+  if (tool === EDIT_PATH) return t('tools:diagram.toolEditPath', 'Edit Path');
+  return annotationKindLabel(t, tool);
 }
 
 /** What the tool in hand does, in a line: the Step pane says it under the tool's name. */
@@ -99,10 +126,15 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
   if (tool === null) {
     return t(
       'panels:diagram.annotate.selectHelp',
-      'Click an annotation to select it. Drag it, or the dot at either end, to move it.'
+      'Click an annotation to select it. Drag it, or the dot at either end, to move it. Double-click a fold arrow to shape it.'
     );
   }
   switch (tool) {
+    case EDIT_PATH:
+      return t(
+        'panels:diagram.annotate.editPathHelp',
+        'Drag a fold arrow’s nodes, their handles or its curve to shape it. Click the curve to add a node; double-click a node to make it a corner or smooth.'
+      );
     case 'valley-arrow':
     case 'mountain-arrow':
       return t('panels:diagram.annotate.arrowHelp', 'Drag from where the paper starts to where it lands.');
@@ -122,6 +154,8 @@ export function annotateToolHelp(t: TFunction, tool: AnnotateTool): string {
       return t('panels:diagram.annotate.glyphHelp', 'Click where the sign goes.');
     case 'label':
       return t('panels:diagram.annotate.labelHelp', 'Click where the label goes, then type it here.');
+    case 'circle':
+      return t('panels:diagram.annotate.circleHelp', 'Click a point to circle it.');
   }
 }
 
@@ -133,12 +167,31 @@ export function annotateGroupLabel(t: TFunction, group: AnnotateToolGroupId): st
       return t('panels:diagram.annotate.groupArrows', 'Arrows');
     case 'lines':
       return t('panels:diagram.annotate.groupLines', 'Lines');
+    case 'marks':
+      return t('panels:diagram.annotate.groupMarks', 'Marks');
     case 'text':
       return t('panels:diagram.annotate.groupText', 'Text');
   }
 }
 
+/**
+ * What Edit Path says in the Step pane about the annotation selected: how to
+ * shape a fold arrow, or that nothing else is shaped (decision 1) — it edits
+ * nothing then.
+ */
+export function editPathHelp(t: TFunction, selected: KnownDiagramAnnotation | null): string {
+  if (selected === null) return t('panels:diagram.annotate.editPathNone', 'Select a fold arrow to shape it.');
+  if (!canBeShaped(selected.kind)) {
+    return t(
+      'panels:diagram.annotate.editPathCannot',
+      'Only fold arrows can be shaped: valley, mountain, and fold and unfold arrows.'
+    );
+  }
+  return annotateToolHelp(t, EDIT_PATH);
+}
+
 /** Whether the tool is placed with a click rather than drawn with a drag. */
 export function isClickTool(tool: AnnotateTool): boolean {
-  return tool !== null && isPointKind(tool);
+  const kind = drawingKind(tool);
+  return kind !== null && isPointKind(kind);
 }

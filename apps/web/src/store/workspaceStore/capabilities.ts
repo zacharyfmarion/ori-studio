@@ -1,4 +1,4 @@
-import { isDiagramAnnotating } from './diagramState';
+import { diagramDeleteTarget, isDiagramAnnotating } from './diagramState';
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import {
   activeDesignTab,
@@ -168,7 +168,7 @@ export function workspaceCapabilityInput(state: WorkspaceState): WorkspaceCapabi
     hasDiagram: state.diagram !== null,
     diagramStepCount: state.diagram?.steps.length ?? 0,
     hasDeletableDiagramSelection: hasDeletableDiagramSelection(state),
-    diagramDeleteTarget: isDiagramAnnotating(state) ? 'annotation' : 'step',
+    diagramDeleteTarget: diagramDeleteTarget(state),
     historyPastCount,
     historyFutureCount,
     clipboard: state.clipboard,

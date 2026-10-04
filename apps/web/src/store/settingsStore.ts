@@ -91,6 +91,7 @@ const PAPER_STYLE_KEY = storageKey(STORAGE_KEYS.paperStyle);
 const PAPER_EXPORT_KEY = storageKey(STORAGE_KEYS.paperExport);
 const CP_FOLDED_FIGURE_KEY = storageKey(STORAGE_KEYS.creasePatternFoldedFigure);
 const DIAGRAM_EXPORT_KEY = storageKey(STORAGE_KEYS.diagramExport);
+const DIAGRAM_ANNOTATE_SNAP_KEY = storageKey(STORAGE_KEYS.diagramAnnotateSnap);
 const SIMULATOR_SETTINGS_KEY = storageKey(STORAGE_KEYS.simulatorSettings);
 
 /**
@@ -300,6 +301,13 @@ interface SettingsState {
   creasePatternFoldedFigureStyle: PaperExportStyleChoice;
   /** What the Diagram's export last wrote, and how; the export dialog is its only editor. */
   diagramExport: DiagramExportSettings;
+  /**
+   * Whether Annotate snaps a circle, and an arrow's or a line's ends, to the
+   * picture's points within Edit's snap radius (decision 9). On by default;
+   * ⌘ (Ctrl) places one freely while it is on, and the Step pane's switch,
+   * for a finger, turns it off.
+   */
+  diagramAnnotateSnap: boolean;
   openSettings: (tab?: SettingsTab) => void;
   closeSettings: () => void;
   setBpTreeLayer: (layer: BpTreeViewLayerKey, visible: boolean) => void;
@@ -311,6 +319,7 @@ interface SettingsState {
   setCpWheelGesture: (value: WheelGesturePreference) => void;
   setCpSnapRadius: (value: number) => void;
   setReferencesAutoPlayFolds: (value: boolean) => void;
+  setDiagramAnnotateSnap: (value: boolean) => void;
   /** `null` hands the choice back to the paper style. */
   setReferencesShowAuxCreases: (value: boolean | null) => void;
   /** Write one field of a slot's style. Editing export while it follows display detaches it. */
@@ -375,6 +384,7 @@ export const useSettingsStore = create<SettingsState>()(
       paperExport: readPaperExportMemory(),
       creasePatternFoldedFigureStyle: readCreasePatternFoldedFigureStyle(),
       diagramExport: normalizeDiagramExportSettings(readJson<unknown>(DIAGRAM_EXPORT_KEY, null)),
+      diagramAnnotateSnap: readBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, true),
       openSettings: (tab) => set({ isSettingsOpen: true, settingsInitialTab: tab ?? null }),
       closeSettings: () => set({ isSettingsOpen: false, settingsInitialTab: null }),
       setBpTreeLayer: (layer, visible) =>
@@ -427,6 +437,14 @@ export const useSettingsStore = create<SettingsState>()(
         // Hand-placed like the two above: no chokepoint sees a preference
         // change, and on/off is the whole question.
         track(ANALYTICS_EVENTS.referencesFoldAutoplayChanged, { enabled: value ? 'on' : 'off' });
+      },
+      setDiagramAnnotateSnap: (value) => {
+        if (get().diagramAnnotateSnap === value) return;
+        writeBoolean(DIAGRAM_ANNOTATE_SNAP_KEY, value);
+        set({ diagramAnnotateSnap: value });
+        // Hand-placed like the ones above: no chokepoint sees a preference
+        // change. Whether anyone turns snapping off, and back.
+        track(ANALYTICS_EVENTS.diagramAnnotateSnapChanged, { enabled: value ? 'on' : 'off' });
       },
       setReferencesShowAuxCreases: (value) => {
         if (get().referencesShowAuxCreases === value) return;

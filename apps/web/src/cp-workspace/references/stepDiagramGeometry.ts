@@ -10,6 +10,8 @@
 
 import {
   chordSide,
+  cubicTangent,
+  flattenCubic,
   flattenPath,
   measurePath,
   pathPointAt,
@@ -675,13 +677,74 @@ export function foldArrowLanding(
   project: DiagramProjector
 ): DiagramArc {
   const end = project(arcEndPoint(out));
-  const lands = marks.some((mark) => Math.hypot(mark.x - end.x, mark.y - end.y) <= rim);
-  if (!lands) return out;
-  const by = rim / project.scale;
+  const mark = nearestWithin(marks, end, rim);
+  if (!mark) return out;
+  const extent = out.radius * arcExtent(out);
+  const at = (back: number): Vec2 => {
+    const { x, y } = project(pointOnArc(out, out.to - alongArc(out, back)));
+    return [x, y];
+  };
+  // An end at the mark — References' own, always — gives up a rim; one
+  // elsewhere in the ring, as far as it takes to stand on it.
+  const by = backToRing(at, [mark.x, mark.y], rim, rim / project.scale, extent);
   // The start gives up a rim too (`foldArrowTrim`); an arc with no room for
   // both would turn inside out rather than shorten.
-  if (out.radius * arcExtent(out) <= 2 * by) return out;
+  if (by === null || extent <= by + rim / project.scale) return out;
   return { ...out, to: out.to - alongArc(out, by) };
+}
+
+/** The mark nearest `at` within `reach` of it, or null. */
+function nearestWithin(marks: readonly SvgPoint[], at: SvgPoint, reach: number): SvgPoint | null {
+  let best: SvgPoint | null = null;
+  let bestDistance = reach;
+  for (const mark of marks) {
+    const d = Math.hypot(mark.x - at.x, mark.y - at.y);
+    if (d <= bestDistance) {
+      best = mark;
+      bestDistance = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * How far back from a stroke's end, along it, it stands on the ring of
+ * radius `rim` round `mark`, the end being inside the ring: where it first
+ * leaves it going back — the near side, for an end past the middle. An end
+ * at the middle gives up `nominal` exactly, as a mark's own arrow always
+ * has. `at(back)` is the point `back` from the end, in the units `mark` and
+ * `rim` are in; `longest` how far back the stroke runs. Null when it never
+ * leaves the ring.
+ */
+export function backToRing(
+  at: (back: number) => Vec2,
+  mark: Vec2,
+  rim: number,
+  nominal: number,
+  longest: number
+): number | null {
+  const off = (back: number) => {
+    const [x, y] = at(back);
+    return Math.hypot(x - mark[0], y - mark[1]);
+  };
+  if (off(0) <= rim * 1e-6) return nominal <= longest ? nominal : null;
+  // Steps short enough that none steps across the ring.
+  const step = nominal / 8;
+  let inside = 0;
+  for (let back = step; back <= longest; back += step) {
+    if (off(back) < rim) {
+      inside = back;
+      continue;
+    }
+    let [lo, hi] = [inside, back];
+    for (let k = 0; k < 40; k += 1) {
+      const middle = (lo + hi) / 2;
+      if (off(middle) >= rim) hi = middle;
+      else lo = middle;
+    }
+    return hi;
+  }
+  return null;
 }
 
 /**
@@ -1094,9 +1157,11 @@ export function pathArrowGeometry(
   if (!(length > 1e-9)) return null;
   const sizes = sizesFor(length);
   const tip = pathPointAt(measure, length);
-  const lands = marks.some((mark) => Math.hypot(mark.x - tip[0], mark.y - tip[1]) <= sizes.rim);
+  const mark = nearestWithin(marks, toSvg(tip), sizes.rim);
+  // Stopped on the ring of a mark it lands in, as an arc arrow is (`foldArrowLanding`).
+  const by = mark ? backToRing((back) => pathPointAt(measure, length - back), [mark.x, mark.y], sizes.rim, sizes.rim, length) : null;
   // A path with no room for a rim at each end would turn inside out rather than shorten.
-  const end = lands && length > 2 * sizes.rim ? length - sizes.rim : length;
+  const end = by !== null && length > by + sizes.rim ? length - by : length;
   const reach = arrowheadReach(sizes.head);
   const headAt = (at: Vec2, direction: Vec2 | null) =>
     arrowheadAt(toSvg(at), toSvg(direction ?? [1, 0]), sizes.head);
@@ -1183,12 +1248,26 @@ export function pathReturn(path: readonly PathCubic[], offset: number, tolerance
 const dist = (a: Vec2, b: Vec2) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 
 /**
+ * How offset runs turn the outside of a sharp bend at a point: round, as a
+ * stroke's round join and as a smooth curve's offset is, or mitred while the
+ * mitre reaches no more than `miterLimit` widths out and cut straight across
+ * (bevelled) past that, as a stroke's mitre join is.
+ */
+type OffsetJoin = 'round' | { miterLimit: number };
+
+/**
  * Runs offset to one side of their direction of travel by `widths`: through
  * a gentle bend along the two runs' mean normal, round the outside of a
- * sharp one in steps, and straight across its inside, where the two offset
- * runs cross and {@link cutLoops} takes the overlap away.
+ * sharp one in steps — or mitred, where `joinAt` says so — and straight
+ * across its inside, where the two offset runs cross and {@link cutLoops}
+ * takes the overlap away.
  */
-function offsetRuns(points: readonly Vec2[], widths: readonly number[], side: number): Vec2[] {
+function offsetRuns(
+  points: readonly Vec2[],
+  widths: readonly number[],
+  side: number,
+  joinAt: (index: number) => OffsetJoin = () => 'round'
+): Vec2[] {
   const out: Vec2[] = [];
   const direction = (a: Vec2, b: Vec2): Vec2 => {
     const d = dist(a, b);
@@ -1208,10 +1287,19 @@ function offsetRuns(points: readonly Vec2[], widths: readonly number[], side: nu
     const turn = Math.atan2(before[0] * after[1] - before[1] * after[0], before[0] * after[0] + before[1] * after[1]);
     const nIn = normal(before);
     const nOut = normal(after);
-    if (Math.abs(turn) < RETURN_JOIN_TURN) {
+    const mitre = () => {
       const mean: Vec2 = [nIn[0] + nOut[0], nIn[1] + nOut[1]];
       const size = Math.hypot(mean[0], mean[1]);
       out.push(at(p, [mean[0] / size, mean[1] / size], w / Math.cos(turn / 2)));
+    };
+    const join = turn * side < 0 ? joinAt(i) : 'round';
+    if (join !== 'round') {
+      // A stroke's mitre: the corner, while it stands no further out than the
+      // limit allows (a mitre's length over the width is 1/cos(turn/2)).
+      if (Math.cos(turn / 2) * join.miterLimit >= 1) mitre();
+      else out.push(at(p, nIn, w), at(p, nOut, w));
+    } else if (Math.abs(turn) < RETURN_JOIN_TURN) {
+      mitre();
     } else if (turn * side < 0) {
       // The outside of the bend: round it, as the stroke's own join is.
       const steps = Math.ceil(Math.abs(turn) / RETURN_JOIN_STEP);
@@ -1232,9 +1320,11 @@ function offsetRuns(points: readonly Vec2[], widths: readonly number[], side: nu
  * Runs with the loops they make where they cross themselves within `span` of
  * travel taken out: the crossing kept, and what went round between dropped.
  * Only near crossings: an arrow drawn over itself on purpose crosses its own
- * offset far along it, and keeps the crossing.
+ * offset far along it, and keeps the crossing. A cut never drops `keep` — the
+ * points from one index to another — so a loop round a short leg cannot be
+ * taken for one round its tail.
  */
-function cutLoops(points: readonly Vec2[], span: number): Vec2[] {
+function cutLoops(points: readonly Vec2[], span: number, keep?: { from: number; to: number }): Vec2[] {
   if (points.length < 4) return [...points];
   const out: Vec2[] = [points[0]!];
   let i = 0;
@@ -1246,6 +1336,8 @@ function cutLoops(points: readonly Vec2[], span: number): Vec2[] {
     for (let j = i + 2; j < points.length - 1; j += 1) {
       travelled += dist(points[j - 1]!, points[j]!);
       if (travelled > span) break;
+      // The cut drops points i + 1 to j.
+      if (keep && i + 1 <= keep.to && j >= keep.from) break;
       const at = crossing(a, b, points[j]!, points[j + 1]!);
       if (at) cut = { j, at };
     }
@@ -1434,6 +1526,306 @@ export function rotateGlyphDrawn(
 /** Path data for a closed polygon. */
 export function polygonPathData(points: readonly SvgPoint[]): string {
   return `M ${points.map(pointText).join(' L ')} Z`;
+}
+
+/**
+ * A white arrow's tail: drawn to a point, as the Origami House template's
+ * tapered white arrows are; cut square across, as its even ones are; or cleft
+ * in a V, as a push arrow's is.
+ */
+export type WhiteArrowTail = 'pointed' | 'square' | 'cleft';
+
+/**
+ * A white arrow's size, in the drawing's units: its shaft's width where it
+ * meets the head (the neck), and its head's length, tip to back, and width,
+ * barb to barb (`DIAGRAM_WHITE_ARROW_INK` × the ink).
+ */
+export interface WhiteArrowSize {
+  neck: number;
+  headLength: number;
+  headWidth: number;
+}
+
+/**
+ * The mitre limit a white arrow's outline is shaped and stroked with: the
+ * template's (`stroke-miterlimit: 1.5` on every white arrow). The outline's
+ * corners are joined to it, and its stroke is to be drawn with it, so the
+ * shape and the pen round each corner alike. A corner sharper than 96° is cut
+ * across: the regular and wide heads' right-angled tips stay sharp, the
+ * narrow head's 64° tip, every barb and a pointed tail are bevelled.
+ */
+export const WHITE_ARROW_MITER_LIMIT = 1.5;
+
+/**
+ * How a pointed tail widens into the neck: a share `u` of the way from the
+ * tail, the shaft is `1 − (1 − u)^1.2` of the neck wide. Measured off the
+ * template's tapered white arrow (`path4649`), which is within 2% of the
+ * neck of this along its whole length: nearly straight sides that meet the
+ * head nearly parallel. Its sibling (`path4653`) runs a little thinner at
+ * the tail (about `u^1.35`); straight sides lie between the two.
+ */
+const WHITE_ARROW_TAPER = 1.2;
+
+/** A cleft tail's depth, as a share of the neck: the push arrow's. */
+const WHITE_ARROW_CLEFT = DIAGRAM_PUSH_INK.cleft / (2 * DIAGRAM_PUSH_INK.shaftHalf);
+
+/**
+ * The shortest shaft a white arrow is drawn with at its size, in necks: a
+ * shorter path draws the same shape smaller, as a short push does. A head
+ * alone would read as a white triangle, not an arrow.
+ */
+const WHITE_ARROW_LEAST_SHAFT = 1.5;
+
+/**
+ * How far round an outline, in necks, an offset's fold is looked for: the
+ * swallowtail round a bend tighter than the shaft is wide, a sharp inner
+ * corner's overlap, a shaft bent across its own head. Eight covers a corner
+ * turned up to about 165°; a loop longer than this is the path's own, drawn
+ * over itself, and is kept.
+ */
+const WHITE_ARROW_FOLD_SPAN = 8;
+
+/** The least turn at a node, in radians, that makes it a corner the outline is mitred round rather than a smooth bend. */
+const WHITE_ARROW_CORNER_TURN = Math.PI / 180;
+
+/**
+ * A white arrow's outline, from its centreline `path` in the drawing's
+ * units: one closed polygon, its corners in order from the tip, or null for
+ * a path of no length or a size of nothing.
+ *
+ * The head is straight-backed, as the template's is: its back stands square
+ * across the path's tangent where the shaft meets it, `headLength` short of
+ * the path's end, and its tip lies `headLength` on along that tangent — the
+ * fold arrows' rule, so the head points the way the shaft runs into it. The
+ * shaft is the path up to there, flattened to `tolerance` and offset to each
+ * side by half its width: the neck's the whole way for a square or cleft
+ * tail, eased from nothing at a pointed tail ({@link WHITE_ARROW_TAPER}).
+ * Round a corner node the outside is mitred to {@link WHITE_ARROW_MITER_LIMIT}
+ * and bevelled past it; round a smooth bend it is round, as the curve's own
+ * offset is. On the inside the two offset runs are cut where they cross, and
+ * so is any fold an offset makes where the path bends tighter than half the
+ * width (a swallowtail) or the shaft bends across its head: the outline does
+ * not cross itself.
+ *
+ * A hook a handle drawn a hair the wrong way makes at a node — behind the
+ * tail, at a corner — is no part of the shaft ({@link withoutHooks}), and no
+ * cut of a fold drops the tail.
+ *
+ * Not supported (v1): a path that crosses itself, or comes back within the
+ * arrow's width (or its head's) of itself. Past {@link WHITE_ARROW_FOLD_SPAN}
+ * necks along, its outline is drawn as offset, overlapping itself, as no
+ * single outline can draw one arrow passing over another; nearer, the loop is
+ * taken for an offset's fold and cut away, leaving a sharp turn. Books draw
+ * such an arrow in two pieces.
+ */
+export function whiteArrowOutline(
+  path: readonly PathCubic[],
+  size: WhiteArrowSize,
+  tail: WhiteArrowTail,
+  tolerance: number
+): Vec2[] | null {
+  const measure = measurePath(path);
+  const { length } = measure;
+  if (!(length > 1e-9) || !Number.isFinite(length)) return null;
+  if (![size.neck, size.headLength, size.headWidth].every((v) => v > 0 && Number.isFinite(v))) return null;
+  const fit = Math.min(1, length / (size.headLength + WHITE_ARROW_LEAST_SHAFT * size.neck));
+  const neck = size.neck * fit;
+  const headLength = size.headLength * fit;
+  const headWidth = size.headWidth * fit;
+  const neckAt = length - headLength;
+
+  const joint = pathPointAt(measure, neckAt);
+  const axis = pathTangentAt(measure, neckAt) ?? [1, 0];
+  const shaft = trimPath(measure, 0, neckAt);
+  // Runs short enough that a taper is drawn as a curve, not a chord: a 24th
+  // of the control polygon, as the fold-and-unfold return's are.
+  const hull = shaft.reduce((sum, [a, b, c, d]) => sum + dist(a, b) + dist(b, c) + dist(c, d), 0);
+  const fine = Math.max(tolerance, length * 1e-6);
+  const runs = runsWithCorners(shaft, fine, Math.max(hull / 24, fine));
+  if (runs.points.length < 2) return null;
+  const { points, corners, hookedStart } = withoutHooks(runs, neck);
+
+  const run = points.reduce((sum, p, index) => (index === 0 ? 0 : sum + dist(points[index - 1]!, p)), 0);
+  let travelled = 0;
+  const halves = points.map((p, index) => {
+    if (index > 0) travelled += dist(points[index - 1]!, p);
+    if (tail !== 'pointed') return neck / 2;
+    const u = Math.min(1, travelled / run);
+    return (neck / 2) * (1 - Math.pow(1 - u, WHITE_ARROW_TAPER));
+  });
+  const joinAt = (index: number) => (corners[index] ? { miterLimit: WHITE_ARROW_MITER_LIMIT } : ('round' as const));
+  const left = offsetRuns(points, halves, 1, joinAt);
+  const right = offsetRuns(points, halves, -1, joinAt);
+
+  // Each side's ends square across the path's own tangents, not its first and
+  // last runs': the tail is cut, and the neck meets the head's back, exactly.
+  const start = points[0]!;
+  const first = dist(start, points[1]!);
+  const run0: Vec2 = [(points[1]![0] - start[0]) / first, (points[1]![1] - start[1]) / first];
+  // The path's own tangent, unless a hook behind the tail turns it: past one
+  // dropped, the way the shaft sets off; against one too small to flatten,
+  // the first run.
+  const tangent = pathTangentAt(measure, 0);
+  const lead = hookedStart ?? (tangent && tangent[0] * run0[0] + tangent[1] * run0[1] > 0 ? tangent : run0);
+  const across = (p: Vec2, t: Vec2, w: number): Vec2 => [p[0] - t[1] * w, p[1] + t[0] * w];
+  left[0] = across(start, lead, halves[0]!);
+  right[0] = across(start, lead, -halves[0]!);
+  left[left.length - 1] = across(joint, axis, neck / 2);
+  right[right.length - 1] = across(joint, axis, -neck / 2);
+
+  const tip: Vec2 = [joint[0] + axis[0] * headLength, joint[1] + axis[1] * headLength];
+  const tailPoints: Vec2[] = tail === 'cleft' ? [pathPointAt(measure, WHITE_ARROW_CLEFT * neck)] : [];
+  const [leftTail, rightTail] = [left[0]!, right[0]!];
+  const ring = [
+    tip,
+    across(joint, axis, headWidth / 2),
+    ...left.reverse(),
+    ...tailPoints,
+    ...right,
+    across(joint, axis, -headWidth / 2),
+    tip,
+  ].filter((p, index, all) => index === 0 || dist(all[index - 1]!, p) > 1e-12);
+  // The tail is the shaft's start, never a fold: no cut drops it.
+  const tailFrom = ring.indexOf(leftTail);
+  const tailTo = ring.indexOf(rightTail);
+  const keep = tailFrom >= 0 && tailTo >= tailFrom ? { from: tailFrom, to: tailTo } : undefined;
+  const cut = cutLoops(ring, WHITE_ARROW_FOLD_SPAN * neck, keep);
+  cut.pop();
+  return withoutStraightCorners(cut);
+}
+
+/** How near its node a hook lies, as a share of the neck: an eighth, a pixel or two at a page's size. */
+const HOOK_REACH = 8;
+/** How far a hook turns, from its first run to the way the path then goes: more than 60°. */
+const HOOK_TURN = Math.cos(Math.PI / 3);
+
+/**
+ * A path's runs without the hooks a handle drawn a hair the wrong way makes
+ * at a node — behind the tail, or across a short leg at a corner: the run
+ * leaving the node (or reaching it) sets off one way and, within an eighth
+ * of a neck, turns more than 60° to go another. Offset, so sharp a turn so
+ * near the node is a hairpin: a cap behind the tail, a fold across the leg.
+ * Inside the path it also kinks at the node, against the run that brought
+ * the path there. The points that near the node on that side are dropped,
+ * and the node meets the shaft straight. A tight bend runs on from the run
+ * before it, and a corner turns at the node itself, between runs that run
+ * straight: both are kept.
+ */
+function withoutHooks(
+  { points, corners, nodes }: { points: Vec2[]; corners: boolean[]; nodes: number[] },
+  neck: number
+): { points: Vec2[]; corners: boolean[]; hookedStart: Vec2 | null } {
+  const reach = neck / HOOK_REACH;
+  const unit = (a: Vec2, b: Vec2): Vec2 | null => {
+    const d = dist(a, b);
+    return d > 0 ? [(b[0] - a[0]) / d, (b[1] - a[1]) / d] : null;
+  };
+  const drop = new Set<number>();
+  /** Where the tail hooks, the way the shaft sets off past the hook. */
+  let hookedStart: Vec2 | null = null;
+  for (const node of nodes) {
+    for (const step of [1, -1] as const) {
+      const at = points[node]!;
+      // The points within reach of the node on this side, an end of the run never among them.
+      const near: number[] = [];
+      let k = node + step;
+      for (; k > 0 && k < points.length - 1 && dist(at, points[k]!) < reach; k += step) near.push(k);
+      if (near.length === 0 || k < 0 || k >= points.length) continue;
+      // The way the path goes once out of reach: from there, a reach on.
+      let far = k;
+      while (far + step >= 0 && far + step < points.length && dist(points[k]!, points[far]!) < reach) far += step;
+      const first = unit(at, points[node + step]!);
+      const way = unit(points[k]!, points[far]!);
+      if (!first || !way || first[0] * way[0] + first[1] * way[1] >= HOOK_TURN) continue;
+      // Inside the path a hook kinks at the node; a tight bend runs on from the run before it.
+      const before = points[node - step];
+      const into = before ? unit(before, at) : null;
+      if (into && into[0] * first[0] + into[1] * first[1] >= HOOK_TURN) continue;
+      if (node === 0 && step === 1) hookedStart = way;
+      for (const index of near) drop.add(index);
+    }
+  }
+  if (drop.size === 0) return { points, corners, hookedStart };
+  const kept = points.map((_, index) => index).filter((index) => !drop.has(index));
+  return { points: kept.map((index) => points[index]!), corners: kept.map((index) => corners[index]!), hookedStart };
+}
+
+/**
+ * A path's runs ({@link flattenCubic}, no longer than `longest`), each point
+ * once, with whether the path turns a corner at it: a node where the way in
+ * and the way out — past any segment of no length, by `pathTangentAt`'s rule
+ * — part by more than a hair.
+ */
+function runsWithCorners(
+  path: readonly PathCubic[],
+  tolerance: number,
+  longest: number
+): { points: Vec2[]; corners: boolean[]; nodes: number[] } {
+  const points: Vec2[] = [];
+  const corners: boolean[] = [];
+  /** Each node's index among the points: where each cubic starts, and the path's end. */
+  const nodes: number[] = [];
+  const add = (p: Vec2, corner: boolean) => {
+    const last = points[points.length - 1];
+    if (last && dist(last, p) <= 1e-12) {
+      corners[corners.length - 1] ||= corner;
+      return;
+    }
+    points.push(p);
+    corners.push(corner);
+  };
+  const turnsAt = (index: number) => {
+    let into: Vec2 | null = null;
+    for (let j = index - 1; j >= 0 && !into; j -= 1) into = cubicTangent(path[j]!, 1);
+    let out: Vec2 | null = null;
+    for (let j = index; j < path.length && !out; j += 1) out = cubicTangent(path[j]!, 0);
+    return !!into && !!out && into[0] * out[0] + into[1] * out[1] < Math.cos(WHITE_ARROW_CORNER_TURN);
+  };
+  path.forEach((cubic, index) => {
+    flattenCubic(cubic, tolerance, longest).forEach((p, k) => {
+      add(p, k === 0 && index > 0 && turnsAt(index));
+      if (k === 0 && nodes[nodes.length - 1] !== points.length - 1) nodes.push(points.length - 1);
+    });
+  });
+  if (points.length > 0 && nodes[nodes.length - 1] !== points.length - 1) nodes.push(points.length - 1);
+  return { points, corners, nodes };
+}
+
+/** A closed polygon without the corners it runs straight through, which a straight shaft's runs leave behind. */
+function withoutStraightCorners(ring: readonly Vec2[]): Vec2[] {
+  const out = ring.filter((p, index) => {
+    const a = ring[(index + ring.length - 1) % ring.length]!;
+    const b = ring[(index + 1) % ring.length]!;
+    const cross = (p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0]);
+    const ahead = (p[0] - a[0]) * (b[0] - p[0]) + (p[1] - a[1]) * (b[1] - p[1]);
+    return !(Math.abs(cross) <= 1e-9 * dist(a, b) ** 2 && ahead > 0);
+  });
+  return out.length >= 3 ? out : [...ring];
+}
+
+/**
+ * How far a point is from a hollow glyph's outline — a closed polygon, its
+ * corners in order — and 0 inside it. Inside is by the even–odd rule, which
+ * answers a concave outline (a curved white arrow's) right; where an outline
+ * overlaps itself, the overlap counts as outside, and a press there measures
+ * to its nearest edge.
+ */
+export function outlineDistance(outline: readonly Vec2[], point: Vec2): number {
+  if (outline.length === 0) return Infinity;
+  const [x, y] = point;
+  let inside = false;
+  let nearest = Infinity;
+  for (let i = 0, j = outline.length - 1; i < outline.length; j = i, i += 1) {
+    const [xi, yi] = outline[i]!;
+    const [xj, yj] = outline[j]!;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    const dx = xi - xj;
+    const dy = yi - yj;
+    const span = dx * dx + dy * dy;
+    const t = span > 0 ? Math.min(1, Math.max(0, ((x - xj) * dx + (y - yj) * dy) / span)) : 0;
+    nearest = Math.min(nearest, Math.hypot(x - (xj + dx * t), y - (yj + dy * t)));
+  }
+  return inside ? 0 : nearest;
 }
 
 /**

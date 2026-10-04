@@ -79,6 +79,7 @@
     "deleteSelectedCpLinesLabel": "Excluir linhas de CP selecionadas",
     "deleteSelectedCpPoints": "Excluir pontos selecionados do padrão de vincos",
     "deleteSelectedDiagramAnnotation": "Excluir a anotação selecionada",
+    "deleteSelectedDiagramNode": "Excluir o nó selecionado",
     "deleteSelectedDiagramStep": "Excluir o passo selecionado",
     "deleteSelectedLineType": "Excluir tipo de linha selecionado...",
     "deleteSelectedTreeParts": "Excluir partes selecionadas da árvore",

@@ -79,6 +79,7 @@
     "deleteSelectedCpLinesLabel": "Delete Selected CP Lines",
     "deleteSelectedCpPoints": "Delete selected crease-pattern points",
     "deleteSelectedDiagramAnnotation": "Delete the selected annotation",
+    "deleteSelectedDiagramNode": "Delete the selected node",
     "deleteSelectedDiagramStep": "Delete the selected step",
     "deleteSelectedLineType": "Delete Selected Line Type...",
     "deleteSelectedTreeParts": "Delete selected tree parts",

@@ -116,6 +116,7 @@ export {
   trackDiagramExported,
   trackDiagramPictureExported,
   trackDiagramAnnotationAdded,
+  trackDiagramArrowShaped,
   trackDiagramPicturePosed,
   trackDiagramPictureRemoved,
   trackDiagramSourceOpened,

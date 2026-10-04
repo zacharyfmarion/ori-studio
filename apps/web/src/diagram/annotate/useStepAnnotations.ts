@@ -1,24 +1,33 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import { isDiagramAnnotating } from '../../store/workspaceStore/diagramState';
+import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import {
   annotationsOutOfStep,
   isKnownAnnotation,
   isLockedStep,
+  type DiagramAsset,
   type DiagramRotation,
   type DiagramStep,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
+import { stepPictureFrame } from '../pictures/pictureFrame';
+import { EDIT_PATH } from './annotateTools';
 import { buildAnnotationActions, type AnnotationEdit } from './annotationActions';
+import { pathNodesOf } from './annotationPath';
+import { applyAnnotationEdit } from './applyAnnotationEdit';
 
 const NO_ANNOTATIONS: readonly KnownDiagramAnnotation[] = [];
+const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
 
 /**
  * The Step pane's annotations (D13): what the selected step carries, which
  * one is selected, the tool in hand, and the verbs on the selected one — its
  * text, its turn, its axis, and the catalog's (`annotationActions.ts`: Flip
- * arc, Delete) — each one undo step through the store.
+ * arc, Reset, Delete, and with Edit Path in hand the node verbs on the node
+ * it has selected) — each one undo step through the store — and the Snap
+ * switch, a preference rather than an edit.
  */
 export function useStepAnnotations(step: DiagramStep | null) {
   const { t } = useTranslation();
@@ -27,6 +36,9 @@ export function useStepAnnotations(step: DiagramStep | null) {
   const selectedId = useWorkspaceStore((state) => state.diagramSelectedAnnotationId);
   const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
   const loadId = useWorkspaceStore((state) => state.diagramLoadId);
+  const node = useWorkspaceStore(selectedDiagramPathNode);
+  const assets = useWorkspaceStore((state) => state.diagram?.assets ?? NO_ASSETS);
+  const snap = useSettingsStore((state) => state.diagramAnnotateSnap);
   const known = useMemo(
     () => (step ? step.annotations.filter(isKnownAnnotation) : NO_ANNOTATIONS),
     [step]
@@ -47,15 +59,19 @@ export function useStepAnnotations(step: DiagramStep | null) {
       );
     };
     /** A verb of the catalog's, made on this step as one undo step. */
-    const apply = ({ label, edit, select }: AnnotationEdit) => {
-      if (stepId !== null) store().editDiagramAnnotations(stepId, label, edit, { select, loadId });
+    const apply = (edit: AnnotationEdit) => {
+      if (stepId !== null) applyAnnotationEdit(store(), stepId, edit, { loadId });
     };
     return {
       apply,
-      /** A row of the list, pressed: its annotation selected, with Select in hand to move it. */
+      selectNode: (next: number | null) => store().selectDiagramPathNode(next),
+      /**
+       * A row of the list, pressed: its annotation selected, with Select in
+       * hand to move it — or Edit Path kept, to shape it.
+       */
       select: (id: string | null) => {
         store().selectDiagramAnnotation(id);
-        if (id !== null) store().setDiagramAnnotateTool(null);
+        if (id !== null && store().diagramAnnotateTool !== EDIT_PATH) store().setDiagramAnnotateTool(null);
       },
       annotate: () => {
         if (stepId !== null) store().openDiagramStep(stepId, 'annotate');
@@ -68,15 +84,21 @@ export function useStepAnnotations(step: DiagramStep | null) {
       setRotation: (id: string, rotate: DiagramRotation) => change(id, 'Change rotation', (annotation) => ({ ...annotation, rotate })),
       setAxis: (id: string, axis: 'vertical' | 'horizontal') =>
         change(id, 'Change turn-over', (annotation) => ({ ...annotation, axis })),
+      setSnap: (value: boolean) => useSettingsStore.getState().setDiagramAnnotateSnap(value),
     };
   }, [stepId, loadId]);
 
   const selected = known.find((annotation) => annotation.id === selectedId) ?? null;
-  const { apply } = verbs;
+  const editingPath = tool === EDIT_PATH;
+  const frame = useMemo(() => (step ? stepPictureFrame(step, assets) : null) ?? undefined, [step, assets]);
+  const { apply, selectNode } = verbs;
   /** The selected annotation's verbs from the catalog, in the pane's order. */
   const actions = useMemo(
-    () => (selected ? buildAnnotationActions(selected, { editable }, { t, apply }) : []),
-    [selected, editable, t, apply]
+    () =>
+      selected
+        ? buildAnnotationActions(selected, { editable, editingPath, node, frame }, { t, apply, selectNode })
+        : [],
+    [selected, editable, editingPath, node, frame, t, apply, selectNode]
   );
 
   return {
@@ -90,6 +112,11 @@ export function useStepAnnotations(step: DiagramStep | null) {
     selected,
     editable,
     actions,
+    /** In Edit Path, the node selected on the selected fold arrow, and how many it shows. */
+    node,
+    nodeCount: selected ? (pathNodesOf(selected)?.length ?? 0) : 0,
+    /** Whether circles, and arrows' and lines' ends, snap to the picture (decision 9): Annotate's switch. */
+    snap,
     ...verbs,
   };
 }

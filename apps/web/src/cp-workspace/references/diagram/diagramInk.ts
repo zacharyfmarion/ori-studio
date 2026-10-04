@@ -151,6 +151,35 @@ export const DIAGRAM_TURN_OVER_INK = 40.32;
  */
 export const DIAGRAM_PUSH_INK = { head: 12, headHalf: 7.5, shaftHalf: 3.2, cleft: 4.5 } as const;
 
+/** A white arrow's widths. */
+export type DiagramWhiteArrowWidth = 'narrow' | 'regular' | 'wide';
+
+/**
+ * A white arrow's three widths, in ink: its shaft's width at the head (the
+ * neck), and its head's length and width. A fixed print size, as every mark's
+ * is; at an annotation's ink (1.25 CSS px, 0.331 mm) they print as:
+ *
+ * - **regular**, the Origami House template's tapered white arrow
+ *   (`path4649`): a 3.58 mm neck, a head 3.95 mm long and 7.94 mm wide.
+ * - **narrow**, the push arrow's shaft and head (2.12 mm; 3.97 × 4.96 mm), so
+ *   the two hollow arrows beside each other are one weight. The template's
+ *   even white arrows are about as wide: 2.0–2.1 mm necks, heads 3.2–3.7 mm
+ *   long and 4.0–5.9 mm wide.
+ * - **wide**, the regular one 1.4 times over (5.0 mm), for a large motion; the
+ *   template has none wider than regular.
+ */
+export const DIAGRAM_WHITE_ARROW_INK: Readonly<
+  Record<DiagramWhiteArrowWidth, { neck: number; headLength: number; headWidth: number }>
+> = {
+  narrow: {
+    neck: 2 * DIAGRAM_PUSH_INK.shaftHalf,
+    headLength: DIAGRAM_PUSH_INK.head,
+    headWidth: 2 * DIAGRAM_PUSH_INK.headHalf,
+  },
+  regular: { neck: 10.8, headLength: 12, headWidth: 24 },
+  wide: { neck: 15.12, headLength: 16.8, headWidth: 33.6 },
+};
+
 /**
  * The rotate glyph, in ink: its circle's radius, and the size of the fraction
  * set inside it. The circle is a little larger than a mark's ring is small, so

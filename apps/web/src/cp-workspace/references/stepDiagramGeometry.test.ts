@@ -593,6 +593,28 @@ describe('foldArrowLanding', () => {
     expect(landed.center).toEqual(out.center);
   });
 
+  // An annotation's end put down off a ring's middle: on the ring, not a rim back from where it was.
+  it('stops an arc that ends elsewhere in a ring on its near side', () => {
+    const p: [number, number] = [0.2, 0.2];
+    const q: [number, number] = [0.8, 0.6];
+    const out = foldArrowArc(p, q, CENTRE);
+    if (!out) throw new Error('no arc');
+    const end = CARD(arcEndPoint(out));
+    // The arc's direction where it ends, on the card.
+    const before = CARD(arcEndPoint({ ...out, to: out.to - (out.ccw ? 1 : -1) * 0.01 }));
+    const length = Math.hypot(end.x - before.x, end.y - before.y);
+    const along = { x: (end.x - before.x) / length, y: (end.y - before.y) / length };
+    // The mark ahead of the end (0.9 and 0.5 of a rim) and behind it, the end past the middle.
+    for (const share of [0.9, 0.5, -0.5]) {
+      const mark = { x: end.x + along.x * share * rim, y: end.y + along.y * share * rim };
+      const landed = foldArrowLanding(out, [mark], rim, CARD);
+      const stop = CARD(arcEndPoint(landed));
+      expect(Math.hypot(stop.x - mark.x, stop.y - mark.y)).toBeCloseTo(rim, 4);
+      // On the near side: the stroke stops before reaching the mark.
+      expect((mark.x - stop.x) * along.x + (mark.y - stop.y) * along.y).toBeGreaterThan(0);
+    }
+  });
+
   // A point folded onto a line lands on nothing marked, and the arc ends where
   // it ends — the two strokes meet on the line.
   it('leaves an arc that lands on a line alone', () => {

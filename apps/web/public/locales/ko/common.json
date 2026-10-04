@@ -79,6 +79,7 @@
     "deleteSelectedCpLinesLabel": "선택한 CP 선 삭제",
     "deleteSelectedCpPoints": "선택한 전개도 점 삭제",
     "deleteSelectedDiagramAnnotation": "선택한 주석 삭제",
+    "deleteSelectedDiagramNode": "선택한 노드 삭제",
     "deleteSelectedDiagramStep": "선택한 단계 삭제",
     "deleteSelectedLineType": "선택한 선 종류 삭제...",
     "deleteSelectedTreeParts": "선택한 트리 부분 삭제",

@@ -188,8 +188,11 @@ export interface WorkspaceCapabilityInput {
    * the selected step ({@link diagramDeleteTarget}).
    */
   hasDeletableDiagramSelection: boolean;
-  /** What Delete removes in the Diagram: the selected annotation while annotating, else the step. */
-  diagramDeleteTarget: 'step' | 'annotation';
+  /**
+   * What Delete removes in the Diagram: Edit Path's selected node, else the
+   * selected annotation while annotating, else the step.
+   */
+  diagramDeleteTarget: 'step' | 'annotation' | 'node';
   historyPastCount: number;
   historyFutureCount: number;
   clipboard: unknown | null;
@@ -514,7 +517,9 @@ export function getWorkspaceCapabilities(
           (hasSelectedCpLines || hasSelectedCpPoints || hasSelectedCpCircles)),
       t('common:capability.deleteSelected', 'Delete Selected'),
       diagramMode
-        ? input.diagramDeleteTarget === 'annotation'
+        ? input.diagramDeleteTarget === 'node'
+          ? t('common:capability.deleteSelectedDiagramNode', 'Delete the selected node')
+          : input.diagramDeleteTarget === 'annotation'
           ? input.hasDeletableDiagramSelection
             ? t('common:capability.deleteSelectedDiagramAnnotation', 'Delete the selected annotation')
             : t('common:capability.selectDiagramAnnotationFirst', 'Select an annotation first')

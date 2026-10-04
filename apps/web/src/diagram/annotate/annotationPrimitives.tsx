@@ -10,6 +10,10 @@
  *   primitives drawn by `diagramShapes`, in the style's arrow ink, with no
  *   paper to clip to: an annotation is the author's own mark, one ink
  *   wherever it lies.
+ * - A circle is References' ring round a point (`point`, highlight), in the
+ *   annotation pen — three quarters of the style's arrow pen, in its ink
+ *   (decision 7) — so an arrow that lands on it stops at its rim, as
+ *   References' do.
  * - A label is a line of text at a fixed share of the frame, its runs in the
  *   diagram's fonts as an upload's text is (`uploadText.ts`), so a page sets
  *   and embeds it the same way.
@@ -32,6 +36,7 @@ import {
   type DiagramRenderContext,
 } from '../../cp-workspace/references/diagram/DiagramPrimitives';
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
+import { markOuterRadius } from '../../cp-workspace/references/diagram/labelLayout';
 import {
   canvasDiagramInk,
   canvasDiagramPens,
@@ -110,7 +115,7 @@ export interface AnnotationLine {
 /** The marks an annotation can be: the References primitives it compiles to. */
 export type AnnotationPrimitive = Extract<
   StepDiagramPrimitive,
-  { kind: 'fold-arrow' | 'one-way-arrow' | 'path-arrow' | 'push-arrow' | 'turn-over' | 'rotate' }
+  { kind: 'fold-arrow' | 'one-way-arrow' | 'path-arrow' | 'push-arrow' | 'turn-over' | 'rotate' | 'point' }
 >;
 
 /**
@@ -147,9 +152,11 @@ const PAGE_GROUND = '#ffffff';
 
 /**
  * The marks' colours as attributes: the style's arrow ink, one ink on and off
- * the paper, so nothing is clipped (`oneInk`). A hollow push is the page's
- * white inside, not the paper's face: there is no paper under an annotation
- * to match, and it may lie on a photo, on either face, or off the picture.
+ * the paper, so nothing is clipped (`oneInk`) — a circle's ring too, which
+ * References draws in the paper's edge ink: here it is the author's mark,
+ * as the arrows are (decision 7). A hollow push is the page's white inside,
+ * not the paper's face: there is no paper under an annotation to match, and
+ * it may lie on a photo, on either face, or off the picture.
  */
 function annotationInk(seen: PaperStyle): DiagramInlineInk {
   const ink = diagramInlineInk({
@@ -159,8 +166,9 @@ function annotationInk(seen: PaperStyle): DiagramInlineInk {
   });
   return {
     ...ink,
+    mark: ink.arrowhead,
     sheet: { ...ink.sheet, front: PAGE_GROUND, back: PAGE_GROUND },
-    ground: { arrow: ink.arrowhead, mark: ink.mark },
+    ground: { arrow: ink.arrowhead, mark: ink.arrowhead },
   };
 }
 
@@ -226,6 +234,9 @@ function compileAnnotation(annotation: KnownDiagramAnnotation): CompiledAnnotati
           direction: annotation.rotate?.direction ?? 'cw',
         },
       };
+    case 'circle':
+      // No letter (decision 8): a label names it, if anything does.
+      return { kind: 'mark', primitive: { kind: 'point', at: up(from), style: 'highlight' } };
   }
 }
 
@@ -410,6 +421,12 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
         const glyph = rotateGlyphDrawn(primitive.at, primitive.direction, project);
         take(glyph.centre.x, glyph.centre.y, glyph.radius + pen / 2);
         for (const head of glyph.heads) for (const { x, y } of [head.tip, head.notch, ...head.barbs]) take(x, y, 0);
+        break;
+      }
+      case 'point': {
+        // The ring's outer edge: its radius and half its stroke.
+        const { x, y } = project(primitive.at);
+        take(x, y, markOuterRadius(project));
         break;
       }
       default: {

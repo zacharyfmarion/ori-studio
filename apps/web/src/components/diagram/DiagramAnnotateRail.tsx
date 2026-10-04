@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import {
   ANNOTATE_TOOL_GROUPS,
-  ANNOTATE_TOOL_SHORTCUTS,
+  annotateToolShortcut,
   annotateGroupLabel,
   annotateToolHelp,
   annotateToolLabel,
@@ -14,8 +14,8 @@ import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
 
 /**
  * Annotate's tools down the left of the canvas (D8): the Edit rail's
- * `ToolRail`, in four groups — Select; Arrows; Lines; Text. Each names its key
- * in its tooltip, resolved against the reader's own layout.
+ * `ToolRail`, in four groups — Select and Edit Path; Arrows; Lines; Text.
+ * Each names its key in its tooltip, resolved against the reader's own layout.
  */
 export function DiagramAnnotateRail({
   tool,
@@ -33,17 +33,18 @@ export function DiagramAnnotateRail({
     label: annotateGroupLabel(t, group.id),
     railLabel: annotateGroupLabel(t, group.id),
     content: {
-      tools: group.tools.map((kind) => {
-        const label = annotateToolLabel(t, kind);
-        const key = kind === null ? undefined : shortcutLabelForAction(ANNOTATE_TOOL_SHORTCUTS[kind], resolution);
+      tools: group.tools.map((each) => {
+        const label = annotateToolLabel(t, each);
+        const shortcut = annotateToolShortcut(each);
+        const key = shortcut === undefined ? undefined : shortcutLabelForAction(shortcut, resolution);
         return {
-          id: kind ?? 'select',
+          id: each ?? 'select',
           label,
-          tooltip: `${key ? `${label} (${key})` : label} - ${annotateToolHelp(t, kind)}`,
-          glyph: <DiagramAnnotateToolGlyph tool={kind} />,
-          active: tool === kind,
+          tooltip: `${key ? `${label} (${key})` : label} - ${annotateToolHelp(t, each)}`,
+          glyph: <DiagramAnnotateToolGlyph tool={each} />,
+          active: tool === each,
           available: !readOnly,
-          onSelect: () => onTool(kind),
+          onSelect: () => onTool(each),
         };
       }),
     },

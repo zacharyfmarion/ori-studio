@@ -1,0 +1,26 @@
+/* Edit Path's node verbs in the Step pane (DiagramPathNodeControls.tsx). */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.position {
+  min-width: 7.5em;
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Add Node and Delete Node: a row of their own across the pane, under the node they act on. */
+.verbs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding: 4px var(--space-3) 7px;
+  border-bottom: 1px solid var(--border-subtle);
+}

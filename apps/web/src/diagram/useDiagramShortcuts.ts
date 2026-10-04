@@ -9,15 +9,14 @@ import type { DiagramShortcutId, ViewportShortcutId } from '../keyboard/shortcut
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
-import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
-import { annotationActionEdit, offersAnnotationAction } from './annotate/annotationActions';
 import {
-  indexForStepNumber,
-  isKnownAnnotation,
-  stepById,
-  stepsOf,
-  type KnownDiagramAnnotation,
-} from './document/diagramDocument';
+  isDiagramAnnotating,
+  selectedDiagramAnnotation,
+  selectedDiagramPathNode,
+} from '../store/workspaceStore/diagramState';
+import { annotationActionEdit, nudgePathNodeEdit, offersAnnotationAction } from './annotate/annotationActions';
+import { applyAnnotationEdit } from './annotate/applyAnnotationEdit';
+import { indexForStepNumber, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
 import {
   focusLeavesEnterToSteps,
   focusOwnsArrowKeys,
@@ -44,7 +43,8 @@ function keyState(state: WorkspaceState): DiagramKeyState {
         ? {
             tool: state.diagramAnnotateTool,
             selectedAnnotationId: state.diagramSelectedAnnotationId,
-            canFlipArc: offersFlipArc(selectedAnnotation(state)),
+            canFlipArc: offersFlipArc(selectedDiagramAnnotation(state)),
+            selectedPathNode: selectedDiagramPathNode(state),
           }
         : null,
   };
@@ -52,14 +52,6 @@ function keyState(state: WorkspaceState): DiagramKeyState {
 
 function offersFlipArc(annotation: KnownDiagramAnnotation | null): boolean {
   return annotation !== null && offersAnnotationAction('flip-arc', annotation);
-}
-
-/** The selected annotation, when it is one this build reads. */
-function selectedAnnotation(state: WorkspaceState): KnownDiagramAnnotation | null {
-  const { diagram, diagramSelectedStepId: stepId, diagramSelectedAnnotationId: id } = state;
-  if (!diagram || stepId === null || id === null) return null;
-  const annotation = stepById(diagram, stepId)?.annotations.find((candidate) => candidate.id === id);
-  return annotation && isKnownAnnotation(annotation) ? annotation : null;
 }
 
 /** The step whose card has focus, if one does. */
@@ -85,13 +77,21 @@ function keyActions(state: WorkspaceState): DiagramKeyActions {
     closeBrowser: state.closeDiagramReferencesBrowser,
     setTool: state.setDiagramAnnotateTool,
     selectAnnotation: state.selectDiagramAnnotation,
+    selectPathNode: state.selectDiagramPathNode,
     flipArc: () => {
       const stepId = state.diagramSelectedStepId;
       const id = state.diagramSelectedAnnotationId;
       if (stepId === null || id === null) return;
       // The Step pane's Flip Arc, by the same edit (`annotationActions.ts`).
-      const { label, edit, select } = annotationActionEdit('flip-arc', id);
-      state.editDiagramAnnotations(stepId, label, edit, { select });
+      applyAnnotationEdit(state, stepId, annotationActionEdit('flip-arc', id));
+    },
+    nudgePathNode: (delta) => {
+      const stepId = state.diagramSelectedStepId;
+      const id = state.diagramSelectedAnnotationId;
+      const node = selectedDiagramPathNode(state);
+      if (stepId === null || id === null || node === null) return;
+      // One undo step a press: a held key's repeats are each one too.
+      applyAnnotationEdit(state, stepId, nudgePathNodeEdit(id, node, delta));
     },
     cancelGesture: () => gestureCancel?.() ?? false,
   };

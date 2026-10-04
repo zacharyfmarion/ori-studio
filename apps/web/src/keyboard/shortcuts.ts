@@ -22,6 +22,9 @@ import { isDesktopRuntime, isWindowsPlatform } from '../platform/runtime';
  * Edit canvas. `diagram` is the same again for the Diagram workspace, with one
  * difference: its executor may decline, as a viewport's does, so its arrows
  * stand down for a focused button or tab strip instead of taking their keys.
+ * `diagram-path` sits just ahead of it, with the same executor: Annotate's Edit
+ * Path claims the arrows there to nudge a selected node (decision 6), and
+ * declines them otherwise, so they fall through to the steps.
  */
 export type ShortcutScope =
   | 'global'
@@ -29,6 +32,7 @@ export type ShortcutScope =
   | 'viewport'
   | 'simulator'
   | 'references'
+  | 'diagram-path'
   | 'diagram';
 export type ViewportShortcutId =
   | 'viewport.zoomIn'
@@ -87,10 +91,12 @@ export type DiagramShortcutId =
   | 'diagram.openStep'
   | 'diagram.moveStepEarlier'
   | 'diagram.moveStepLater'
-  | DiagramAnnotateShortcutId;
+  | DiagramAnnotateShortcutId
+  | DiagramPathShortcutId;
 
 /** Annotate's tools and Flip arc: live only while a step is open in Annotate. */
 export type DiagramAnnotateShortcutId =
+  | 'diagram.toolEditPath'
   | 'diagram.toolValleyArrow'
   | 'diagram.toolMountainArrow'
   | 'diagram.toolFoldUnfoldArrow'
@@ -101,7 +107,19 @@ export type DiagramAnnotateShortcutId =
   | 'diagram.toolMountainLine'
   | 'diagram.toolHiddenLine'
   | 'diagram.toolLabel'
+  | 'diagram.toolCircle'
   | 'diagram.flipArc';
+
+/** Nudging the node Edit Path has selected: live only while it has one (`diagram-path`). */
+export type DiagramPathShortcutId =
+  | 'diagram.nudgeNodeLeft'
+  | 'diagram.nudgeNodeRight'
+  | 'diagram.nudgeNodeUp'
+  | 'diagram.nudgeNodeDown'
+  | 'diagram.nudgeNodeLeftLarge'
+  | 'diagram.nudgeNodeRightLarge'
+  | 'diagram.nudgeNodeUpLarge'
+  | 'diagram.nudgeNodeDownLarge';
 export type ShortcutActionId =
   | MenuActionId
   | OristudioCpActionId
@@ -498,14 +516,15 @@ const REFERENCES_SHORTCUTS: ShortcutDefinition[] = [
 function diagramShortcut(
   id: DiagramShortcutId,
   label: string,
-  defaultChord: KeyChord | KeyChord[] | null
+  defaultChord: KeyChord | KeyChord[] | null,
+  scope: 'diagram' | 'diagram-path' = 'diagram'
 ): ShortcutDefinition {
   const defaultChords = normalizeDefaultChords(defaultChord);
   return {
     id,
     label,
     category: 'Diagram',
-    scope: 'diagram',
+    scope,
     target: 'diagram',
     defaultChord: defaultChords[0] ?? null,
     defaultChords,
@@ -553,7 +572,9 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   ]),
   // Annotate's tools (D8). Letters a crease-pattern tool also has: the
   // diagram scope is pushed only in the Diagram, never with `crease-pattern`,
-  // and its executor declines outside Annotate.
+  // and its executor declines outside Annotate. A for Edit Path, as Affinity's
+  // Node tool and Illustrator's Direct Selection are.
+  diagramShortcut('diagram.toolEditPath', 'Edit Path', { key: 'a' }),
   diagramShortcut('diagram.toolValleyArrow', 'Valley Fold Arrow', { key: 'v' }),
   diagramShortcut('diagram.toolMountainArrow', 'Mountain Fold Arrow', { key: 'm' }),
   diagramShortcut('diagram.toolFoldUnfoldArrow', 'Fold and Unfold Arrow', { key: 'u' }),
@@ -564,7 +585,22 @@ const DIAGRAM_SHORTCUTS: ShortcutDefinition[] = [
   diagramShortcut('diagram.toolMountainLine', 'Mountain Line', { shift: true, key: 'm' }),
   diagramShortcut('diagram.toolHiddenLine', 'Hidden Line', { key: 'h' }),
   diagramShortcut('diagram.toolLabel', 'Label', { key: 'l' }),
+  // O for the ring it draws.
+  diagramShortcut('diagram.toolCircle', 'Circle', { key: 'o' }),
   diagramShortcut('diagram.flipArc', 'Flip Arc', { key: 'f' }),
+  // Edit Path's nudges (decision 6), on the step keys' own arrows: in a scope
+  // of their own ahead of `diagram`, whose executor claims them only while
+  // Edit Path has a node selected. Anywhere else it declines, and the arrows
+  // fall through to the steps — one scope could not hold both, as the
+  // dispatcher takes a scope's first match. Shift for ten times the step.
+  diagramShortcut('diagram.nudgeNodeLeft', 'Nudge Node Left', { key: 'arrowleft' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeRight', 'Nudge Node Right', { key: 'arrowright' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeUp', 'Nudge Node Up', { key: 'arrowup' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeDown', 'Nudge Node Down', { key: 'arrowdown' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeLeftLarge', 'Nudge Node Left (Large)', { shift: true, key: 'arrowleft' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeRightLarge', 'Nudge Node Right (Large)', { shift: true, key: 'arrowright' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeUpLarge', 'Nudge Node Up (Large)', { shift: true, key: 'arrowup' }, 'diagram-path'),
+  diagramShortcut('diagram.nudgeNodeDownLarge', 'Nudge Node Down (Large)', { shift: true, key: 'arrowdown' }, 'diagram-path'),
 ];
 
 /**
@@ -1193,10 +1229,11 @@ export interface ShortcutShadowing {
 const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
   simulator: 0,
   references: 1,
-  diagram: 2,
-  viewport: 3,
-  'crease-pattern': 4,
-  global: 5,
+  'diagram-path': 2,
+  diagram: 3,
+  viewport: 4,
+  'crease-pattern': 5,
+  global: 6,
 };
 
 /**
@@ -1207,6 +1244,7 @@ const SHORTCUT_SCOPE_PRECEDENCE: Record<ShortcutScope, number> = {
 const CONDITIONAL_SCOPES: ReadonlySet<ShortcutScope> = new Set([
   'simulator',
   'references',
+  'diagram-path',
   'diagram',
 ]);
 

@@ -140,13 +140,27 @@ describe('a one-way path arrow', () => {
     }
   });
 
-  it('stops a rim short of a ring it lands on, measured along the path', () => {
+  it('stops on the ring it lands on: a rim short of one at its end, on the near side of one it ends elsewhere in', () => {
     const path = projectPath(S_PATH, PROJECT);
     const tip = path[path.length - 1]![3];
     const free = pathArrowGeometry(path, 'valley', sizesFor, [], TOLERANCE)!;
-    const landed = pathArrowGeometry(path, 'valley', sizesFor, [{ x: tip[0] + 1, y: tip[1] }], TOLERANCE)!;
     const rim = sizesFor(1000).rim;
-    expect(Math.abs(measurePath(free.shaft!).length - measurePath(landed.shaft!).length - rim)).toBeLessThan(0.02);
+    // A ring at its end, as a mark's own arrow lands: a rim along the path.
+    const centred = pathArrowGeometry(path, 'valley', sizesFor, [{ x: tip[0], y: tip[1] }], TOLERANCE)!;
+    expect(Math.abs(measurePath(free.shaft!).length - measurePath(centred.shaft!).length - rim)).toBeLessThan(0.02);
+    // Ending inside a ring off its middle, or past it: the head's tip on the ring, not a rim back.
+    for (const mark of [
+      { x: tip[0] + 1, y: tip[1] },
+      { x: tip[0] - 0.5 * rim, y: tip[1] + 0.3 * rim },
+      { x: tip[0] + 0.9 * rim, y: tip[1] },
+    ]) {
+      const landed = pathArrowGeometry(path, 'valley', sizesFor, [mark], TOLERANCE)!;
+      // Where the stroke now ends: its head's reach past its shaft.
+      const measure = measurePath(path);
+      const end = measurePath(landed.shaft!).length + arrowheadReach(sizesFor(measure.length).head);
+      const [x, y] = pathPointAt(measure, end);
+      expect(Math.hypot(x - mark.x, y - mark.y)).toBeCloseTo(rim, 1);
+    }
     // A ring beyond the rim is not landed on.
     const near = pathArrowGeometry(path, 'valley', sizesFor, [{ x: tip[0] + rim * 1.1, y: tip[1] }], TOLERANCE)!;
     expect(measurePath(near.shaft!).length).toBeCloseTo(measurePath(free.shaft!).length, 9);

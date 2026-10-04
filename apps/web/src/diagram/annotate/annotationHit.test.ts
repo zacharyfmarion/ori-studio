@@ -3,7 +3,7 @@ import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diag
 import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { ARROW_BEND, arrowApex, flipAnnotationArc, pathCubics } from './annotationModel';
-import { arrowPolyline, hitAnnotation } from './annotationHit';
+import { arrowPolyline, circleRadius, hitAnnotation, hitPathGrip } from './annotationHit';
 
 /** About the canvas's: an ink is about 0.0066 of the frame. */
 const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066 };
@@ -47,6 +47,49 @@ describe('hitAnnotation', () => {
     const tight = { ...SIZES, tolerance: 0.005 };
     expect(hitAnnotation([fold], [0.199, 0.432], tight, null)?.annotationId).toBe('fold');
     expect(hitAnnotation([fold], [0.2, 0.36], tight, null)).toBeNull();
+  });
+
+  it('takes a circle by its ring, not its inside, where an arrow that lands on it ends', () => {
+    const circle: KnownDiagramAnnotation = { id: 'circle', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
+    const radius = circleRadius(SIZES.ink);
+    // 3.07 ink: about 0.02 of the frame.
+    expect(radius).toBeCloseTo(3.07 * SIZES.ink, 12);
+    const tight = { ...SIZES, tolerance: 0.004 };
+    expect(hitAnnotation([circle], [0.5 + radius, 0.5], tight, null)).toEqual({ annotationId: 'circle', part: 'body' });
+    expect(hitAnnotation([circle], [0.5, 0.5 - radius - 0.003], tight, null)?.annotationId).toBe('circle');
+    expect(hitAnnotation([circle], [0.5, 0.5], tight, null)).toBeNull();
+    expect(hitAnnotation([circle], [0.5 + radius + 0.006, 0.5], tight, null)).toBeNull();
+    // An arrow landing at its centre is the arrow's there; the ring is the circle's.
+    const landing: KnownDiagramAnnotation = { id: 'landing', kind: 'push-arrow', from: [0.2, 0.5], to: [0.5, 0.5] };
+    expect(hitAnnotation([circle, landing], [0.49, 0.5], tight, null)?.annotationId).toBe('landing');
+    expect(hitAnnotation([landing, circle], [0.5, 0.5 + radius], tight, null)?.annotationId).toBe('circle');
+    // Selected, it offers no ends: it has one place, and is moved whole.
+    expect(hitAnnotation([circle], [0.5 + radius, 0.5], tight, 'circle')).toEqual({ annotationId: 'circle', part: 'body' });
+  });
+
+  it('leaves a circle its ring where a fold arrow drawn after it lands on it, stopped on the ring as drawn', () => {
+    const a: KnownDiagramAnnotation = { id: 'a', kind: 'circle', from: [0.2, 0.5], to: [0.2, 0.5] };
+    const b: KnownDiagramAnnotation = { id: 'b', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
+    const radius = circleRadius(SIZES.ink);
+    for (const arrow of [
+      { id: 'arrow', kind: 'valley-arrow', from: [0.2, 0.5], to: [0.5, 0.5] },
+      { id: 'arrow', kind: 'mountain-arrow', from: [0.2, 0.5], to: [0.5, 0.5] },
+      flipAnnotationArc({ id: 'arrow', kind: 'valley-arrow', from: [0.2, 0.5], to: [0.5, 0.5] }),
+    ] as KnownDiagramAnnotation[]) {
+      for (const tolerance of [0.008, 0.002]) {
+        for (let k = 0; k < 8; k += 1) {
+          const angle = (k * Math.PI) / 4;
+          const press: [number, number] = [0.5 + radius * Math.cos(angle), 0.5 + radius * Math.sin(angle)];
+          for (const selected of [null, 'b']) {
+            const hit = hitAnnotation([a, b, arrow], press, { ...SIZES, tolerance }, selected);
+            expect(hit?.annotationId, `${arrow.kind} ${tolerance} at ${k * 45}° ${selected}`).toBe('b');
+          }
+        }
+      }
+      // The arrow keeps the rest of its length.
+      const line = arrowPolyline(arrow);
+      expect(hitAnnotation([a, b, arrow], line[Math.floor(line.length / 2)]!, SIZES, null)?.annotationId).toBe('arrow');
+    }
   });
 
   it('takes a hollow push anywhere on or in its outline, not only on its spine', () => {
@@ -151,5 +194,57 @@ describe('arrowPolyline', () => {
     expect(arrowPolyline(flipped)).not.toBe(points);
     // The other way round: the apex on the other side of the chord.
     expect(arrowPolyline(flipped)[12]![1]).toBeCloseTo(arrow.from[1] + (arrow.from[1] - points[12]![1]), 9);
+  });
+});
+
+describe('hitPathGrip', () => {
+  const S: KnownDiagramAnnotation = {
+    id: 's',
+    kind: 'mountain-arrow',
+    from: [0.1, 0.5],
+    to: [0.7, 0.5],
+    path: [
+      { at: [0.1, 0.5], out: [0.2, 0.3] },
+      { at: [0.4, 0.5], in: [0.3, 0.6], out: [0.5, 0.4] },
+      { at: [0.7, 0.5], in: [0.6, 0.7] },
+    ],
+  };
+  const REACH = 0.01;
+
+  it('takes a node, then the curve at its segment and t, and nothing off them', () => {
+    expect(hitPathGrip(S, [0.404, 0.503], REACH, null)).toEqual({ part: 'node', node: 1 });
+    const point = cubicPoint(pathCubics(S.path!)[1]!, 0.5);
+    const curve = hitPathGrip(S, [point[0] + 0.002, point[1]], REACH, null);
+    expect(curve).toMatchObject({ part: 'segment', segment: 1 });
+    expect((curve as { t: number }).t).toBeCloseTo(0.5, 1);
+    expect(hitPathGrip(S, [0.4, 0.8], REACH, null)).toBeNull();
+  });
+
+  it('takes the handles the selected node shows, and no others', () => {
+    // Node 1's out handle, hidden while no node is selected: the press finds the empty paper there.
+    expect(hitPathGrip(S, [0.5, 0.4], REACH, null)).toBeNull();
+    expect(hitPathGrip(S, [0.5, 0.4], REACH, 1)).toEqual({ part: 'handle', node: 1, side: 'out' });
+    // With the tail selected, its own handle and node 1's facing one; node 1's far one stays hidden.
+    expect(hitPathGrip(S, [0.2, 0.3], REACH, 0)).toEqual({ part: 'handle', node: 0, side: 'out' });
+    expect(hitPathGrip(S, [0.3, 0.6], REACH, 0)).toEqual({ part: 'handle', node: 1, side: 'in' });
+    expect(hitPathGrip(S, [0.5, 0.4], REACH, 0)).toBeNull();
+  });
+
+  it('gives a handle drawn over its node the tie, so it can be pulled out', () => {
+    // A handle a 1024th from its node, and a press exactly halfway: the same distance from both.
+    const over: KnownDiagramAnnotation = {
+      ...S,
+      path: [S.path![0]!, { at: [0.5, 0.5], in: [0.3, 0.6], out: [0.5, 0.5 + 2 ** -10] }, S.path![2]!],
+    };
+    expect(hitPathGrip(over, [0.5, 0.5 + 2 ** -11], REACH, 1)).toEqual({ part: 'handle', node: 1, side: 'out' });
+    expect(hitPathGrip(over, [0.5, 0.5 + 2 ** -10], REACH, 1)).toEqual({ part: 'handle', node: 1, side: 'out' });
+    expect(hitPathGrip(over, [0.5, 0.5 - 2 ** -11], REACH, 1)).toEqual({ part: 'node', node: 1 });
+  });
+
+  it('holds an arc by the nodes its first edit would give it, and a kind that is not shaped by none', () => {
+    expect(hitPathGrip(arrow, arrow.to, REACH, null)).toEqual({ part: 'node', node: 1 });
+    const apex = arrowApex(arrow.from, arrow.to, arrow.bend!);
+    expect(hitPathGrip(arrow, apex, REACH, null)).toMatchObject({ part: 'segment', segment: 0 });
+    expect(hitPathGrip(line, line.from, REACH, null)).toBeNull();
   });
 });

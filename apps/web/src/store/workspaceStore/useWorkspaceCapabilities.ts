@@ -1,4 +1,4 @@
-import { isDiagramAnnotating } from './diagramState';
+import { diagramDeleteTarget as diagramDeleteTargetOf } from './diagramState';
 import { bpSheetCanSubdivide, bpSheetCanUnsubdivide } from './bpSheetCapabilities';
 import { selectOristudioBpDocument, selectProject, selectSelection } from './designTabs';
 import { useMemo } from 'react';
@@ -62,9 +62,7 @@ export function useWorkspaceCapabilities() {
   const hasDiagram = useWorkspaceStore((state) => state.diagram !== null);
   const diagramStepCount = useWorkspaceStore((state) => state.diagram?.steps.length ?? 0);
   const hasDeletableDiagramSelection = useWorkspaceStore(selectHasDeletableDiagramSelection);
-  const diagramDeleteTarget = useWorkspaceStore((state) =>
-    isDiagramAnnotating(state) ? ('annotation' as const) : ('step' as const)
-  );
+  const diagramDeleteTarget = useWorkspaceStore(diagramDeleteTargetOf);
   const diagramHistoryPastCount = useWorkspaceStore((state) => state.diagramHistory.past.length);
   const diagramHistoryFutureCount = useWorkspaceStore(
     (state) => state.diagramHistory.future.length

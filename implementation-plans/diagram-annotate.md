@@ -171,6 +171,28 @@ previews out of the drawn state.
   white arrow: neck ~3.6 mm, head ~7.9 × 4.0 mm.
 - Edit Path shapes it as in 1; Flip needs a predicate beyond `isArrowKind`.
 
+### 6. Repeat behind (Zach, 2026-10-04)
+
+A callout, as diagrams mark "repeat behind" or "repeat on the other flap":
+a line from a point on the picture to a box with words in it. Kind
+`callout`: `from` the point the line touches (it snaps, as 14d's ends do),
+`to` where the box sits; `text`, edited as a label's is, "Repeat behind" when
+placed. The line is the annotation pen's, thin and plain, stopping at the
+box's edge; the box a rectangle hugging its text (a pad round it), filled
+page white and outlined in the arrow pen, so it reads over the picture. One
+undo step per gesture; the box and the point each drag on their own, the
+body (the line) moves both. A shared primitive with a golden, as every mark
+(D8). Text in the diagram's fonts, Han in its style, as labels are.
+
+### 7. The tool hint window (Zach, 2026-10-04)
+
+Every Annotate tool says what it does in the shared tool hint window main
+gained (`components/ui/tools/ToolHintWindow`, the bottom-left window Edit and
+the Simulator use) rather than in the Step pane: its name, a line on how to
+use it, and its modifiers (Shift, Alt, ⌘ to place freely). The Step pane
+keeps the selected annotation's verbs. On a phone the window gives way as it
+does in Edit.
+
 ## Affected Areas
 
 `diagram/annotate/*`; `diagram/document/diagramDocument.ts`, `diagramFile.ts`;
@@ -404,30 +426,304 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       (`artifacts/diagram-annotate/14c/shaped.mjs`): the three beside their
       arcs on the canvas, card and page, light and dark, moved by body and
       end with the mouse, and the page's PDF rasterised.
-- [ ] Edit Path on desktop: tool, gestures, modifiers, node stepper, Delete
+- [x] Edit Path on desktop: tool, gestures, modifiers, node stepper, Delete
   routing, Escape, Step pane verbs, nudging (Q6).
+  - As built (14c-2):
+    - **Tool.** `EDIT_PATH` (`'edit-path'`) is a tool beside Select on the
+      rail (Lucide's spline pointer), key A (`diagram.toolEditPath`), and a
+      double-click on a fold arrow with Select picks it up. `AnnotateTool` is
+      kind | Edit Path | Select, and `drawingKind` is the one place a tool is
+      asked whether it draws. Only `canBeShaped` arrows are shaped: with any
+      other selected the Step pane says so and presses there only select.
+    - **Showing.** `PathSelection` draws a hairline along the curve, every
+      node (smooth a circle, corner a square, the selected one filled) and
+      `visiblePathHandles` — the selected node's two and its neighbours'
+      facing ones, none on their node — in `--annotate-selection`, screen-
+      sized (larger on a coarse pointer). An arc shows `pathNodesOf`'s nodes
+      (now cached per annotation) and stays an arc until an edit.
+    - **Presses** (`useAnnotateCanvas`, `hitPathGrip`, `editPathGesture.ts`).
+      Handles and nodes first, nearest wins and a handle takes a tie, then
+      the curve (`nearestPathPoint`), all within the 8/18 px reach. A node is
+      selected as it is pressed. Drags move the part by the pointer's travel
+      from where it was taken hold of (no jump): a node with its handles
+      (Shift: the nearest of eight directions, by projection), a handle
+      (a smooth node's other turns with it; Alt makes the node a corner first,
+      so the other stays; Shift: 15° about the node), the curve
+      (`bendPathSegment` at the pressed `t`). A click on the curve splits it
+      there and selects the new node. A double-click on a node turns it
+      smooth ↔ corner. The canvas counts presses itself (500 ms, 6 px; 16 on
+      touch): a pointer event's `detail` is not a click count in every
+      browser. The guard: the second press of a double-click on the curve
+      lands on the node its first click added, which it does not turn. Off
+      the arrow's grips a press selects what is there and moves nothing; on
+      empty stage it lets the node go first, then the arrow.
+    - **Store and undo.** `diagramSelectedPathNode` is `{annotationId, node,
+      nodes}`; `selectedDiagramPathNode` reads it as none unless annotating
+      with Edit Path on that arrow with that many nodes, so an undo, Reset or
+      another arrow lets it go and no edit clears it. `editDiagramAnnotations`
+      takes `selectPathNode`. A drag is one undo step (a click-to-add one, a
+      double-click one, a nudge one per key press, repeats included). A drag
+      records the arrow's `pathRepresentation` (arc or path, node count) and is
+      dropped on its next move — and never lands — once the store's arrow is
+      something else (an undo mid-drag). Edits land on the arrow as the store
+      has it.
+    - **Verbs** (`annotationActions.ts`): Previous/Next Node (view state),
+      Smooth, Corner, Add Node (halfway along the segment after the node, or
+      before the tip; selects it), Delete Node (selects the node before, so
+      Delete again goes on along the arrow; a two-node arrow's goes with the
+      arrow), Flip Arc, Reset Shape (`resetPath` with the step's picture
+      frame) and Delete; `deleteKeyEdit` and `nudgePathNodeEdit`. Every
+      surface makes them through `applyAnnotationEdit`. Reset is also offered
+      with Select on an arrow already shaped (deviation: the plan listed it
+      under Edit Path only).
+    - **Keys.** Delete/Backspace go through `edit.delete`, which deletes the
+      node while one is selected and the arrow otherwise; a focused field
+      keeps both (the dispatcher's form-control rule). Escape: drag → node →
+      Edit Path down (Select, the arrow still selected) → the existing
+      ladder. Nudges are eight verbs (`diagram.nudgeNode{Left,…}` and
+      `…Large` on Shift, 0.001 and 0.01 of the frame) in a new conditional
+      scope, `diagram-path`, ahead of `diagram` on the same executor: one
+      scope cannot hold them beside the step keys (the dispatcher takes a
+      scope's first match), and this one claims only with a node selected,
+      declining otherwise so the arrows walk the steps.
+    - **Step pane.** `DiagramPathNodeControls`: "Node 2 of 4" between
+      Previous and Next, Smooth | Corner, Add Node and Delete Node; Edit
+      Path's help says what it shapes, or that nothing else is shaped.
+    - **Analytics.** `diagram arrow shaped` {`kind`, `gesture`}, once when an
+      arc becomes a path, counted in `applyAnnotationEdit`.
+    - **Proof.** Tests for every gesture and verb; fail-before (the touched
+      sources at 5c7628cb2: 49 tests fail and two suites do not load) and
+      fourteen mutants, each failing a test. Browser
+      (`artifacts/diagram-annotate/14c2/editpath.mjs`, light and dark).
 - [ ] Touch and Pencil.
-- [ ] Browser: a 3–4 node arrow shaped with mouse, Alt and Shift; Reset; a PDF
+- [x] Browser: a 3–4 node arrow shaped with mouse, Alt and Shift; Reset; a PDF
   export beside the canvas.
+  - As built: a default valley arrow drawn with V, shaped into a four-node S
+    with the mouse alone (two clicks on the curve, two node drags, an Alt and
+    a Shift handle drag, a Shift node drag, two double-clicks, three nudges),
+    undone back to the arc in twelve presses and redone to the same S, Reset
+    and undone, a node deleted with Backspace, the Escape ladder walked; the
+    page's PDF beside the canvas (`canvas-beside-pdf-light.png`).
 
 ### 14d. Snapping and circles
-- [ ] `pictureSnap.ts` per picture kind; `LineHitIndex` in-reach query; kind
+- [x] `pictureSnap.ts` per picture kind; `LineHitIndex` in-reach query; kind
   `circle`; hover and press-time previews; override; Step pane toggle; arrow
   ends snapping (Q9).
-- [ ] Browser: crease-pattern capture, flat fold, References step; a PDF with a
+  - Kind as built:
+    - **Model.** `circle` is a point kind (`from` its centre, `to` the same),
+      created with nothing more (no letter, decision 8; no axis), moved,
+      carried and cleaned as the other point kinds are. Not shaped, not
+      flipped.
+    - **Drawing.** Compiled to References' own `point` primitive in its
+      highlight style — no new glyph geometry: the ring, its 3.07-ink radius
+      and its 0.75 × arrow-pen stroke already exist. The annotation drawing's
+      mark ink is now its arrow ink, so the ring is the annotation pen in
+      width and colour (decision 7; References rings in the edge ink, which
+      only differs from the arrows' in a coloured style). `annotationReach`
+      takes its outer edge. Arrows land on it by the existing rule: a
+      one-way arrow's tip stops a rim short (`foldArrowLanding`); its tail
+      is not trimmed, as References' never is (a fold-and-unfold arrow's
+      always is). The glyph golden gains one ring, front and back, and
+      nothing else in it moves.
+    - **File.** Read and written with the base fields; a field (a letter),
+      or a point past reach, is a newer build's. 18eee51a0's reader keeps a
+      circle verbatim and writes it back unchanged (checked by running that
+      reader).
+    - **Hit.** By its ring, not its inside (`circleRadius(ink)`): an arrow
+      that lands on it ends at its centre, and a press there is the
+      arrow's. Selected, it washes its ring and offers no ends.
+    - **Tool.** Its own rail group, Marks; key O (`diagram.toolCircle`,
+      free in every scope the Diagram pushes); "Click a point to circle it."
+      Annotate's key set is a record now, so a tool key cannot be left out.
+  - Snapping as built:
+    - **What.** `annotateSnap.ts` (pure): `snapsWhenPlaced` (a switch) — the
+      circle and every arrow and line kind; `placePoint` over
+      `pictureSnapTarget`; `snapOutcome` for the event. In the canvas
+      (`placeInHand`): a drawing's start on the press, its end on each move
+      and on release; an arrow's or a line's end dragged with Select, never
+      onto itself (`ignore`); a circle moved whole, its centre, the press
+      keeping its offset, landing on the target exactly. Edit Path never
+      snaps (decision 9), its end nodes included.
+    - **Radius.** `useAnnotateSnap`: `cpSnapRadius` × `CP_MODEL_TO_CSS`
+      CSS px over (overlay CTM `a` × `layout.unit`) screen px per picture
+      unit — the same on screen at any zoom, as the hit reach is. Edit's
+      coarse-pointer default (15 → 22 px) comes with the setting.
+    - **Override and switch.** ⌘ (Ctrl elsewhere: `isPrimaryModifier`)
+      places freely, read from each pointer event; a key pressed or let go
+      with the pointer still re-runs the last move through
+      `subscribeHeldModifiers`. The Snap switch is a persisted preference
+      (`settingsStore.diagramAnnotateSnap`, key `diagram-annotate-snap`, on
+      by default), not per session: the store already keeps such switches
+      (References' auto-play) and it is not a property of a diagram. The
+      Step pane shows it as "Snap to Picture" while annotating.
+    - **Previews.** Hover with a tool that snaps (not Select, not Edit Path,
+      not a finger, not with a button down or Space held) shows the target a
+      press would land on; a press shows its start's at once (a finger's
+      before its slop); a drag shows each end's. Drawn over the marks in the
+      fixed selection colour on a white halo, by kind (`SnapTargets`). The
+      targets are canvas state, changed only when what is shown changes; the
+      marks are never drawn again for them (counted in a test).
+    - **Keys.** A modifier alone makes no chord (`keyChordFromKeyboardEvent`),
+      so ⌘ held mid-drag runs nothing; a dispatcher test pins it.
+    - **Analytics.** `diagram annotation added` gains `snap` (`snapped` /
+      `free` / `off` / `nothing_near` / `none`); `diagram annotate snap
+      changed` {`enabled`} for the switch.
+    - **Proof.** Fail-before: the kind's sources at 18eee51a0, 15 tests fail
+      in 8 files; the snapping's at the kind's commit, 12 fail in 2 files.
+      Mutants (no `ignore`, a radius not scaled by zoom) each fail a test.
+  - Analysis as built (pure; no kind, file or canvas yet):
+    - **Geometry** (`pictureGeometry.ts`), read once per picture object:
+      points (`point` a References mark, `corner` the paper's, `vertex` where
+      lines meet, `end` a line meeting nothing) and whole segments, in picture
+      units, each in a `LineHitIndex`; points within 5e-5 of the frame are one.
+      A crease-pattern capture: line ends and the rim (corners where it turns,
+      vertices along its sides), crossings found near the pointer. A flat
+      fold: every ring's corners, covered ones too, and each line's `whole`
+      ends; no crossings of its own lines (v1 — whole faces cross where one is
+      buried). 3D and simulated: line ends (`whole` where cut), which are the
+      only projected vertices a stored scene keeps — its rings are the
+      painter's cut pieces. References: sheet corners and edges, line ends
+      (not `arrow`), marks and crossings, through `stepDiagramToPicture`, the
+      painter's own map (mirrored on the back). Uploads, fixed: nothing.
+    - **Snap**: `pictureSnapTarget(step, assets, point, radius, {annotations?,
+      ignore?})` → `{at, kind} | null`, the nearest of the nearest picture
+      point, the annotations' arrow and line ends (signs and labels offer
+      none; `ignore` is the one being dragged) and crossings — of the
+      picture's lines, and of annotation lines with anything, on any picture.
+      Two on one point report the picture's own kind. `segmentsNear` returns
+      every segment in reach; crossings pair the 64 nearest, exact for any
+      crossing nearer than the 64th.
+    - **Radius**: Edit's setting × `CP_MODEL_TO_CSS` is CSS px (10 → 14.7,
+      coarse 15 → 22), over screen px per picture unit.
+    - **Proof**: hand fixtures (a square and its diagonals, a T, a pinch, a
+      cut crease, 3D, an upload, References front and back) and real pictures
+      (`__fixtures__/snapPictures.json`: crane-zach's capture, three flat folds
+      and two References steps; box_90's pattern and 3D), scanned on a grid
+      against the picture read the long way. Of 19 mutants across 14d/14e,
+      one survives: crossings at a segment's end, which the tie rule hides.
+    - **Timing** (local, Node 22): the index 8 ms on the Langerak crane's
+      pattern (1933 segments), 10 ms on the arowana's (3624); a query 6–12 µs
+      at a fitted frame's radius, 100–350 µs at a quarter of the frame; flat
+      folds under 15 µs.
+- [x] Browser: crease-pattern capture, flat fold, References step; a PDF with a
   circle and a landing arrow.
+  - As built (`artifacts/diagram-annotate/14d/snap.mjs`, desktop 1440×900,
+    light and dark, crane-zach.osf's steps 3, 7 and 2): hover 7.8 px off a
+    vertex, a References mark or a fold's corner shows it; circles clicked
+    5–8 px off land on the point exactly; an arrow dragged from near one to
+    near the other lands on both centres, its tip drawn a rim short (14.7
+    px against a 14.5 px ring); ⌘ held hides the target and places at the
+    pointer, and the target comes back when ⌘ is let go; the switch off
+    shows nothing and places at the pointer. The page's PDF, rasterised,
+    shows the circles and the landing arrows beside the canvas
+    (`canvas-beside-pdf-light.png`). iPad WebKit and a real finger are not
+    done here (14d's touch path is the press-time preview, tested in jsdom).
+
+- [x] Review (14d and the 14d/14e/14f geometry), every finding put to a
+  skeptic, fixed by hand with a test that fails before:
+  - **Geometry (7):** a line drawn along a split crease found phantom
+    crossings in its middle (stored scenes round to 0.01 px; collinear is
+    now a distance, not an angle); a crease cut in pieces was indexed once
+    per piece (its free end a vertex); aux lines the style hides gave snap
+    targets and rays (`pictureGeometry` takes the style, as the painters
+    decide); a 3D picture's own lines crossing drawn ones hid a drawn right
+    angle; a flat fold's buried edges split visible right angles and lent
+    legs to invented ones (the paint order is kept: a ray a later face
+    covers is no way out); a white arrow's tail handle a hair backwards
+    drew a cap and a wedge, and a hook at a short leg's corner dropped the
+    leg (`withoutHooks`; no loop cut drops the tail) —
+    `review-fixes/white-arrow-hooks.png`.
+  - **14d (5):** an arrow landing on a circle took every press on its ring
+    (its head is pressed where it is drawn; a circle is taken before other
+    marks); an arrow ending in a ring off its middle stopped a full rim back
+    (`backToRing`: on the ring, the near side; at the middle a rim, as
+    References' — `review-fixes/landing-annotate.png`); a clicked or tapped
+    circle was snapped again from where the pointer lifted (it lands where
+    the press showed); the hover target went stale under a camera move.
 
 ### 14e. Right-angle marks
 - [ ] Shared primitive and golden; kind; ray-based corner detection; drag
   fallback; Turn 90°.
+  - Analysis as built (`rightAngles.ts`, pure; no kind or canvas yet): rays,
+    not lines — one from a line ending at the vertex, two from one running
+    through it, rays within 0.5° one; a sector between consecutive rays is a
+    right angle at 90° ± 1°, so an eight-way box-pleat vertex has none and a
+    paper corner's reflex side never is one.
+    `rightAngleCorner(step, assets, point, radius, {annotations?, ignore?,
+    deadZone?})` takes the vertex nearest the pointer within the radius
+    (picture points, annotation line ends, crossings) and the sector the
+    pointer is in; null within the dead zone (a quarter of the radius by
+    default). It returns `{at, legs, diagonal}`: the legs' unit directions
+    clockwise on the page, the diagonal between them, along which a mark's
+    `to` goes. `rightAnglesAt(step, assets, at)` lists every one at a point.
+    A 3D or simulated picture's own lines give no rays; annotation lines do
+    on any picture, an upload's included. Tests: a square with a diagonal,
+    a waterbomb vertex split and whole, grid, eight-way and one-diagonal
+    box-pleat vertices, a sector round past +x, ±1°, References mirrored, an
+    upload's drawn lines, 3D; on the real pictures box_90's 16, counted by
+    hand. Timing as 14d.
 - [ ] Browser: a box-pleated capture, a References step, an upload with drawn
   lines, a PDF.
 
 ### 14f. White arrows
 - [ ] Flatten-and-offset geometry, joins, loop removal, head, tails, mitre
   limit; shared primitive and golden; kind and presets; Edit Path reuse.
+  - 14f geometry (as built; no kind, primitive, file or canvas yet):
+    - **Outline.** `whiteArrowOutline(path, {neck, headLength, headWidth},
+      'pointed' | 'square' | 'cleft', tolerance)` in `stepDiagramGeometry.ts`
+      (D8's home for glyph geometry, beside `pushArrowOutline` and
+      `pathReturn`, whose offsetter it shares): one closed polygon from the
+      tip, or null for no length or no size. The head is straight-backed
+      across the path's tangent `headLength` short of its end, the tip that far
+      on along it (the fold arrows' rule). The shaft is flattened and offset by
+      `offsetRuns`, which now takes a join rule: round outside a smooth bend
+      (the curve's own offset, and still the return's), mitred to
+      `WHITE_ARROW_MITER_LIMIT` (1.5, the template's) outside a corner node and
+      bevelled past it. The whole ring then goes through `cutLoops` (eight
+      necks of travel), which takes out a tight bend's swallowtail, a sharp
+      inner corner's overlap and a shaft bent across its own head. A path
+      shorter than its head and 1.5 necks draws the same shape smaller, as a
+      short push does. `outlineDistance` is the press test: even–odd inside,
+      else the distance to the nearest edge.
+    - **Taper.** The template's pointed arrows taper the whole shaft; its even
+      ones do not. A pointed tail is `1 − (1 − u)^1.2` of the neck at a share
+      `u` of the way (`path4649` fits within 2%); square and cleft are the neck
+      the whole way; a cleft is the push's depth for its width.
+    - **Widths** (`DIAGRAM_WHITE_ARROW_INK`, ink at 0.331 mm): regular is
+      `path4649` (neck 3.58 mm, head 3.95 × 7.94 mm), narrow is the push
+      arrow's shaft and head (2.12 mm; the template's even arrows are 2.0–2.1),
+      wide is regular × 1.4 (5.0 mm, a choice: the template has nothing wider).
+    - **Not supported (v1).** A path that crosses itself, or legs nearer than
+      the arrow's width (including its head): drawn as offset, overlapping; a
+      loop under eight necks of travel is cut instead. The template's
+      over-and-around arrow (`path4657`) twists its band; an offset cannot.
+    - **Proof.** `whiteArrowGeometry.test.ts` (19): exact straight outlines
+      for each tail, the head at the neck's tangent, sides half a neck off a
+      gentle arc and an S with the area of the band, a hairpin bent at a fifth
+      of the neck with no point nearer the centreline than half the neck and
+      its inner corner where the legs' offsets meet, mitre/bevel either side of
+      the limit, a smooth bend rounded, shrink, stacked nodes and handles on
+      nodes, 150 random paths with no non-finite point, and the press test.
+      Eight mutants each fail a test. Pictures in
+      `artifacts/diagram-annotate/14f/` (`sheet-cases`, `sheet-stress`,
+      `sheet-template`): `path4649` and ours coincide when laid over each
+      other.
 - [ ] Browser: the template's white arrow beside ours at the same printed
   size; deep zoom; iPad; a PDF.
+
+### 14g. Repeat behind
+- [ ] Kind `callout`: model, file and round trips, hit test (line, box, text),
+  the shared primitive and golden, text editing as a label's, snapping of its
+  point; a rail tool and its key; i18n; analytics through the
+  annotation-added event.
+- [ ] Browser: placed on a crane step, its text edited, dragged by box and by
+  point, on a page and in a PDF.
+
+### 14h. The tool hint window
+- [ ] Main merged in; every Annotate tool's hint in `ToolHintWindow` (Select,
+  Edit Path, each drawing tool, circles, right angles, white arrows,
+  callouts), the Step pane's help line retired; phone behaviour as Edit's.
+- [ ] Browser: each tool's window, light and dark, desktop and phone.
 
 ## Risks
 

@@ -1,5 +1,6 @@
-import type { DiagramAnnotateShortcutId, DiagramShortcutId } from '../../keyboard/shortcuts';
-import { toolForShortcut, type AnnotateTool } from '../annotate/annotateTools';
+import type { DiagramAnnotateShortcutId, DiagramPathShortcutId, DiagramShortcutId } from '../../keyboard/shortcuts';
+import { EDIT_PATH, toolForShortcut, type AnnotateTool } from '../annotate/annotateTools';
+import { NUDGE_STEP } from '../annotate/annotationActions';
 
 /** What the Diagram's keys act on: the steps in order, and which is selected. */
 export interface DiagramKeyState {
@@ -19,8 +20,16 @@ export interface DiagramKeyState {
    * are its own. Escape closes it first.
    */
   browserOpen?: boolean;
-  /** The detail is in Annotate: its tool, its selected annotation, and whether that offers Flip arc. */
-  annotate?: { tool: AnnotateTool; selectedAnnotationId: string | null; canFlipArc: boolean } | null;
+  /**
+   * The detail is in Annotate: its tool, its selected annotation, whether
+   * that offers Flip arc, and the node Edit Path has selected on it.
+   */
+  annotate?: {
+    tool: AnnotateTool;
+    selectedAnnotationId: string | null;
+    canFlipArc: boolean;
+    selectedPathNode?: number | null;
+  } | null;
 }
 
 export interface DiagramKeyActions {
@@ -36,6 +45,10 @@ export interface DiagramKeyActions {
   /** Annotate's verbs. */
   setTool?: (tool: AnnotateTool) => void;
   selectAnnotation?: (annotationId: string | null) => void;
+  /** Select a node of the selected arrow in Edit Path, or none. */
+  selectPathNode?: (node: number | null) => void;
+  /** Move Edit Path's selected node by `delta`, in picture units. */
+  nudgePathNode?: (delta: [number, number]) => void;
   flipArc?: () => void;
   /** Drop the drag the canvas has in hand, if it has one; whether it had. */
   cancelGesture?: () => boolean;
@@ -67,6 +80,7 @@ export function runDiagramShortcut(
   if (state.browserOpen) return id === 'diagram.moveStepEarlier' || id === 'diagram.moveStepLater';
   const { stepIds, selectedStepId } = state;
   if (isAnnotateShortcut(id)) return runDiagramAnnotateShortcut(id, state, actions);
+  if (isPathShortcut(id)) return runDiagramPathShortcut(id, state, actions);
   if (stepIds.length === 0) return false;
   const anchor = selectedStepId ?? state.focusedStepId ?? null;
   const index = anchor === null ? -1 : stepIds.indexOf(anchor);
@@ -103,26 +117,66 @@ export function runDiagramShortcut(
   }
 }
 
-const ANNOTATE_SHORTCUTS: ReadonlySet<string> = new Set<DiagramAnnotateShortcutId>([
-  'diagram.toolValleyArrow',
-  'diagram.toolMountainArrow',
-  'diagram.toolFoldUnfoldArrow',
-  'diagram.toolPushArrow',
-  'diagram.toolTurnOver',
-  'diagram.toolRotate',
-  'diagram.toolValleyLine',
-  'diagram.toolMountainLine',
-  'diagram.toolHiddenLine',
-  'diagram.toolLabel',
-  'diagram.flipArc',
-]);
+/** Annotate's keys: a record, so a new one is a compile error here until it is listed. */
+const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> = {
+  'diagram.toolEditPath': true,
+  'diagram.toolValleyArrow': true,
+  'diagram.toolMountainArrow': true,
+  'diagram.toolFoldUnfoldArrow': true,
+  'diagram.toolPushArrow': true,
+  'diagram.toolTurnOver': true,
+  'diagram.toolRotate': true,
+  'diagram.toolValleyLine': true,
+  'diagram.toolMountainLine': true,
+  'diagram.toolHiddenLine': true,
+  'diagram.toolLabel': true,
+  'diagram.toolCircle': true,
+  'diagram.flipArc': true,
+};
+
+const ANNOTATE_SHORTCUTS: ReadonlySet<string> = new Set(Object.keys(ANNOTATE_SHORTCUT_IDS));
 
 export function isAnnotateShortcut(id: DiagramShortcutId): id is DiagramAnnotateShortcutId {
   return ANNOTATE_SHORTCUTS.has(id);
 }
 
+/** Each nudge key's move, in picture units, y down. */
+const NUDGES: Readonly<Record<DiagramPathShortcutId, [number, number]>> = {
+  'diagram.nudgeNodeLeft': [-NUDGE_STEP.small, 0],
+  'diagram.nudgeNodeRight': [NUDGE_STEP.small, 0],
+  'diagram.nudgeNodeUp': [0, -NUDGE_STEP.small],
+  'diagram.nudgeNodeDown': [0, NUDGE_STEP.small],
+  'diagram.nudgeNodeLeftLarge': [-NUDGE_STEP.large, 0],
+  'diagram.nudgeNodeRightLarge': [NUDGE_STEP.large, 0],
+  'diagram.nudgeNodeUpLarge': [0, -NUDGE_STEP.large],
+  'diagram.nudgeNodeDownLarge': [0, NUDGE_STEP.large],
+};
+
+export function isPathShortcut(id: DiagramShortcutId): id is DiagramPathShortcutId {
+  return Object.prototype.hasOwnProperty.call(NUDGES, id);
+}
+
 /**
- * Annotate's keys: a tool's letter picks it — pressed again, back to Select —
+ * Edit Path's arrow keys (decision 6): with a node selected they nudge it —
+ * Shift ten times as far — and otherwise decline, so the same arrows walk
+ * the steps (`diagram-path` sits ahead of `diagram` for exactly this). On a
+ * diagram that cannot change they decline too: there is nothing to nudge.
+ */
+export function runDiagramPathShortcut(
+  id: DiagramPathShortcutId,
+  state: Pick<DiagramKeyState, 'annotate' | 'readOnly'>,
+  actions: Pick<DiagramKeyActions, 'nudgePathNode'>
+): boolean {
+  const annotate = state.annotate;
+  if (!annotate || state.readOnly || annotate.tool !== EDIT_PATH) return false;
+  if ((annotate.selectedPathNode ?? null) === null || !actions.nudgePathNode) return false;
+  actions.nudgePathNode(NUDGES[id]);
+  return true;
+}
+
+/**
+ * Annotate's keys: a tool's letter picks it — pressed again, back to Select;
+ * A is Edit Path's —
  * and F flips the selected annotation's arc, when it offers Flip arc
  * (`annotationActions.ts`). Outside Annotate, and on a diagram
  * that cannot change, they decline: the letters are a crease-pattern tool's
@@ -148,15 +202,17 @@ export function runDiagramAnnotateShortcut(
 
 /**
  * Escape in the Diagram: one ladder, each press undoing the innermost thing
- * (D12) — close the References browser, drop the drag in progress, deselect
- * the annotation, put the tool down, leave the step detail, deselect the
- * step — and then it declines, so Escape reaches whatever is beneath.
+ * (D12) — close the References browser, drop the drag in progress; in Edit
+ * Path deselect the node, then put Edit Path down, back to Select with the
+ * arrow still selected; deselect the annotation, put the tool down, leave the
+ * step detail, deselect the step — and then it declines, so Escape reaches
+ * whatever is beneath.
  */
 export function runDiagramCancel(
   state: Pick<DiagramKeyState, 'selectedStepId' | 'detailOpen' | 'annotate' | 'browserOpen'>,
   actions: Pick<
     DiagramKeyActions,
-    'select' | 'close' | 'cancelGesture' | 'selectAnnotation' | 'setTool' | 'closeBrowser'
+    'select' | 'close' | 'cancelGesture' | 'selectAnnotation' | 'selectPathNode' | 'setTool' | 'closeBrowser'
   >
 ): boolean {
   if (state.browserOpen && actions.closeBrowser) {
@@ -165,6 +221,16 @@ export function runDiagramCancel(
   }
   if (state.annotate) {
     if (actions.cancelGesture?.()) return true;
+    if (state.annotate.tool === EDIT_PATH) {
+      if ((state.annotate.selectedPathNode ?? null) !== null && actions.selectPathNode) {
+        actions.selectPathNode(null);
+        return true;
+      }
+      if (actions.setTool) {
+        actions.setTool(null);
+        return true;
+      }
+    }
     if (state.annotate.selectedAnnotationId !== null && actions.selectAnnotation) {
       actions.selectAnnotation(null);
       return true;

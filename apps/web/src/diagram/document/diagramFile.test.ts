@@ -230,6 +230,7 @@ describe('annotations in the file', () => {
     { id: 'a-8', kind: 'mountain-line', from: [0, 0], to: [1, 1] },
     { id: 'a-9', kind: 'hidden-line', from: [0, 1], to: [1, 0] },
     { id: 'a-10', kind: 'label', from: [0.3, 0.3], to: [0.3, 0.3], text: 'A 谷折り' },
+    { id: 'a-11', kind: 'circle', from: [0.25, 0.75], to: [0.25, 0.75] },
   ];
 
   function withAnnotations(annotations: unknown[]) {
@@ -255,6 +256,9 @@ describe('annotations in the file', () => {
       { id: 'n-5', kind: 'valley-arrow', from: [0, 0], to: [1, 1], bend: 0.9 },
       { id: 'n-6', kind: 'push-arrow', from: [0, 0], to: [9, 1] },
       { id: 'n-7', kind: 'label', from: [0, 0], to: [0, 0], text: 'x'.repeat(200) },
+      // A circle with a letter, or out past reach: a later build's (decision 8 leaves the letter out).
+      { id: 'n-8', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A' },
+      { id: 'n-9', kind: 'circle', from: [5, 0.5], to: [5, 0.5] },
     ];
     expect(withAnnotations(newer)).toEqual(newer.map((entry) => ({ id: entry.id, unknown: entry })));
   });
@@ -268,6 +272,7 @@ describe('annotations in the file', () => {
       { id: 'd-5', kind: 'hidden-line', from: [0, 0], to: [1, Number.NaN] },
       { id: 'd-6', kind: 'hidden-line', from: [0, 0], to: [1, 1] },
       { id: 'd-6', kind: 'valley-line', from: [0, 0], to: [1, 1] },
+      { id: 'd-7', kind: 'circle', to: [0.5, 0.5] },
     ]);
     expect(read).toEqual([{ id: 'd-6', kind: 'hidden-line', from: [0, 0], to: [1, 1] }]);
   });
@@ -278,12 +283,14 @@ describe('annotations in the file', () => {
       { id: 'f-2', kind: 'turn-over', from: [0.5, 0.5], to: [0.9, 0.9] },
       { id: 'f-3', kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5] },
       { id: 'f-4', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'A\u0000B' },
+      { id: 'f-5', kind: 'circle', from: [0.4, 0.6], to: [0.9, 0.9] },
     ]);
     expect(read).toEqual([
       { id: 'f-1', kind: 'valley-arrow', from: [0, 0], to: [1, 0], bend: 1 - Math.cos(Math.PI / 6) },
       { id: 'f-2', kind: 'turn-over', from: [0.5, 0.5], to: [0.5, 0.5], axis: 'vertical' },
       { id: 'f-3', kind: 'rotate', from: [0.5, 0.5], to: [0.5, 0.5], rotate: { amount: 'quarter', direction: 'cw' } },
       { id: 'f-4', kind: 'label', from: [0.5, 0.5], to: [0.5, 0.5], text: 'AB' },
+      { id: 'f-5', kind: 'circle', from: [0.4, 0.6], to: [0.4, 0.6] },
     ]);
   });
 
