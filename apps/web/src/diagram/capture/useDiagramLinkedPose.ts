@@ -16,6 +16,8 @@ import {
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
 import {
   clampSpreadAmount,
+  clampSpreadAxis,
+  clampSpreadSkew,
   showAsOf,
   stepById,
   type DiagramShowAs,
@@ -25,21 +27,27 @@ import { publishOpenLinkedPose } from './openLinkedPose';
 import {
   createPoseController,
   linkedFoldKey,
+  withSlide,
   type DiagramPoseSpatialView,
   type SimulatedRest,
   type SpreadPreview,
+  type SpreadSlider,
 } from './poseController';
 
 export type { DiagramPoseSpatialView };
 
-/** A flat fold's spread while it is on (Phase 13): what the Step pane shows of it, and its amount's drag. */
+/** A flat fold's spread while it is on (Phase 13): what the Step pane shows of it, and its sliders' drags. */
 export interface DiagramLinkedSpread extends DiagramSpreadControls {
-  /** Show the picture at this amount before it is committed: each move of a drag, or a key. */
-  previewAmount: (amount: number) => void;
-  /** Commit the amount previewed, as one undo step: the end of a drag, or a key. */
-  commitAmount: () => void;
+  /**
+   * Show the picture with a slider at this value — an amount as a fraction,
+   * a skew from 0 to 1, an axis in degrees — before it is committed: each
+   * move of a drag, or a key.
+   */
+  preview: (slider: SpreadSlider, value: number) => void;
+  /** Commit the slide previewed, as one undo step: the end of a drag, or a key. */
+  commit: () => void;
   /** Whether a drag may start: not on a diagram that cannot change, nor a picture with no layers. */
-  startAmount: () => boolean;
+  start: () => boolean;
 }
 
 export interface DiagramLinkedPose {
@@ -75,7 +83,7 @@ export interface DiagramLinkedPose {
 /**
  * Pose for a step linked to the crease pattern, while its detail is open
  * (`poseController.ts`): its verbs, its live 3D fold, and a flat fold's spread
- * with the preview a drag of its amount shows (Phase 13). One controller per
+ * with the preview a drag of one of its sliders shows (Phase 13). One controller per
  * open step, let go when the step changes or the detail closes; it hears an
  * undo or redo, the crease pattern being replaced and the engine being lost.
  * Null for a step that is not linked. What it returns is also published for
@@ -152,20 +160,36 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
     [poseState, t, controller]
   );
 
-  // A drag of the spread's amount, previewed: shown only while the step links to the creases it was drawn from.
+  // A drag of a spread's slider, previewed: shown only while the step links to the creases it was drawn from.
   const shownPreview = previewed !== null && previewed.key === foldKey ? previewed.value : null;
   const spread = useMemo((): DiagramLinkedSpread | null => {
     if (!poseState || !controller) return null;
-    const controls = buildDiagramSpreadControls(poseState, shownPreview?.spread ?? null, {
+    const stored = poseState.render.mode === 'folded-flat' ? poseState.render.spread : undefined;
+    // The step's own spread with the dragged slider moved: a preview never
+    // outlives the spread it was drawn for, nor says how the rest of it is set.
+    const shown = stored && shownPreview ? withSlide(stored, shownPreview.slide) : null;
+    const controls = buildDiagramSpreadControls(poseState, shown, {
       t,
+      kind: (kind) => void controller.run({ verb: 'spread-kind', kind }),
       direction: (toward) => void controller.run({ verb: 'spread-direction', toward }),
+      keep: (keep) => void controller.run({ verb: 'spread-keep', keep }),
     });
     if (!controls) return null;
+    const kind = controls.spread.kind;
     return {
       ...controls,
-      previewAmount: (amount) => controller.previewSpread(clampSpreadAmount(amount)),
-      commitAmount: () => void controller.commitSpread(),
-      startAmount: () => !controls.disabled,
+      preview: (slider, value) =>
+        controller.previewSpread({
+          slider,
+          value:
+            slider === 'amount'
+              ? clampSpreadAmount(kind, value)
+              : slider === 'skew'
+                ? clampSpreadSkew(value)
+                : clampSpreadAxis(value),
+        }),
+      commit: () => void controller.commitSpread(),
+      start: () => !controls.disabled,
     };
   }, [poseState, shownPreview, t, controller]);
   const assets = useWorkspaceStore((state) => state.diagram?.assets);

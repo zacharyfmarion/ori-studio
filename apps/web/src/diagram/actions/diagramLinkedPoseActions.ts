@@ -1,5 +1,12 @@
 import type { TFunction } from 'i18next';
-import { SPREAD_DIRECTIONS, type SpreadDirection } from '../../cp-workspace/folded/foldedLayerSpread';
+import {
+  SPREAD_DIRECTIONS,
+  SPREAD_KEEPS,
+  SPREAD_KINDS,
+  type SpreadDirection,
+  type SpreadKeep,
+  type SpreadKind,
+} from '../../cp-workspace/folded/foldedLayerSpread';
 import { defaultCaptureCamera } from '../capture/captureFolded';
 import {
   DEFAULT_SIMULATED_VIEW,
@@ -17,8 +24,9 @@ import {
  *
  * - **Crease pattern:** turn it.
  * - **Folded, flat:** turn it over, turn it, step to another layer order,
- *   and spread its layers apart by depth (Phase 13) — on or off here; its
- *   amount and direction are the Step pane's ({@link buildDiagramSpreadControls}).
+ *   and spread its layers apart (Phase 13) — on or off here; its kind (by
+ *   depth or affine) and settings are the Step pane's
+ *   ({@link buildDiagramSpreadControls}).
  * - **Folded, in 3D:** look from the other side, or from straight above, the
  *   front or the corner; the view itself is dragged in the picture. Spread
  *   Layers is there too, held, saying it needs a flat fold.
@@ -239,11 +247,14 @@ export function buildDiagramLinkedPoseActions(
   }
 }
 
-/** One of the eight ways a spread's deeper layers can step, as the Step pane offers it. */
-export interface DiagramSpreadDirectionAction {
-  toward: SpreadDirection;
+/**
+ * One of a spread's choices, as the Step pane offers it: a kind, a direction
+ * a depth spread's deeper layers step, or the layer an affine one holds still.
+ */
+export interface DiagramSpreadChoice<T extends string> {
+  value: T;
   label: string;
-  /** The direction the layers step now. */
+  /** The one chosen now. */
   pressed: boolean;
   /** Held as the other verbs are: a read-only diagram, a picture with no layers, a capture running. */
   disabled: boolean;
@@ -252,56 +263,90 @@ export interface DiagramSpreadDirectionAction {
   run: () => void;
 }
 
+/** One of the eight ways a depth spread's deeper layers can step. */
+export type DiagramSpreadDirectionAction = DiagramSpreadChoice<SpreadDirection>;
+
 /** A flat fold's spread, for the Step pane while it is on (Phase 13). */
 export interface DiagramSpreadControls {
   /** The spread the picture shows — a drag's, while it is previewed. */
   spread: DiagramLayerSpread;
-  /** Whether the amount and the direction can be changed, and if not, why. */
+  /** Whether the spread can be changed, and if not, why. */
   disabled: boolean;
   hint?: string;
+  /** Depth or affine (13g). */
+  kinds: DiagramSpreadChoice<SpreadKind>[];
+  /** A depth spread's eight directions; none for an affine one. */
   directions: DiagramSpreadDirectionAction[];
+  /** The layer an affine spread holds still, top or bottom; none for a depth one. */
+  keeps: DiagramSpreadChoice<SpreadKeep>[];
 }
 
 /**
- * The spread's amount and direction (Phase 13), while a flat fold's layers
- * are spread; null otherwise. Spread Layers itself is one of the pose verbs.
- * `shown` is the spread the picture shows now: a drag's, while it previews.
+ * The spread's kind and settings (Phase 13), while a flat fold's layers are
+ * spread; null otherwise. Spread Layers itself is one of the pose verbs.
+ * `shown` is the spread the picture shows now: a drag's, while it previews —
+ * the step's own spread with the dragged slider moved, never another kind.
  */
 export function buildDiagramSpreadControls(
   state: DiagramLinkedPoseState,
   shown: DiagramLayerSpread | null,
-  deps: { t: TFunction; direction: (toward: SpreadDirection) => void }
+  deps: {
+    t: TFunction;
+    kind: (kind: SpreadKind) => void;
+    direction: (toward: SpreadDirection) => void;
+    keep: (keep: SpreadKeep) => void;
+  }
 ): DiagramSpreadControls | null {
   const { t } = deps;
-  // The step's own spread, at the amount a drag shows: a preview never
-  // outlives the spread it was drawn for, nor says which way it steps.
   const stored = state.render.mode === 'folded-flat' ? state.render.spread : undefined;
   if (!stored) return null;
-  const spread = shown ? { ...stored, amount: shown.amount } : stored;
+  const spread = shown?.kind === stored.kind ? shown : stored;
   const hint = state.readOnly
     ? t('panels:diagram.actions.readOnlyHint', 'This diagram was made with a newer Ori Studio and opens read-only')
     : spreadBlocker(state, t);
   const disabled = hint !== undefined;
   const waiting = !disabled && state.busy;
+  const choice = <T extends string>(value: T, label: string, pressed: boolean, choose: (value: T) => void) => ({
+    value,
+    label,
+    pressed,
+    disabled,
+    waiting,
+    hint: hint ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
+    run: () => {
+      if (!disabled && !waiting && !pressed) choose(value);
+    },
+  });
   return {
     spread,
     disabled,
     hint,
-    directions: SPREAD_DIRECTIONS.map((toward) => {
-      const pressed = toward === spread.toward;
-      return {
-        toward,
-        label: spreadDirectionLabel(toward, t),
-        pressed,
-        disabled,
-        waiting,
-        hint: hint ?? (waiting ? t('panels:diagram.actions.capturingHint', 'Its picture is being captured') : undefined),
-        run: () => {
-          if (!disabled && !waiting && !pressed) deps.direction(toward);
-        },
-      };
-    }),
+    kinds: SPREAD_KINDS.map((kind) => choice(kind, spreadKindLabel(kind, t), kind === spread.kind, deps.kind)),
+    directions:
+      spread.kind === 'depth'
+        ? SPREAD_DIRECTIONS.map((toward) =>
+            choice(toward, spreadDirectionLabel(toward, t), toward === spread.toward, deps.direction)
+          )
+        : [],
+    keeps:
+      spread.kind === 'affine'
+        ? SPREAD_KEEPS.map((keep) => choice(keep, spreadKeepLabel(keep, t), keep === spread.keep, deps.keep))
+        : [],
   };
+}
+
+/** A kind's name, as its segment says it. */
+export function spreadKindLabel(kind: SpreadKind, t: TFunction): string {
+  return kind === 'depth'
+    ? t('panels:diagram.pose.spreadKindDepth', 'Depth')
+    : t('panels:diagram.pose.spreadKindAffine', 'Affine');
+}
+
+/** A layer held still, as its segment says it. */
+export function spreadKeepLabel(keep: SpreadKeep, t: TFunction): string {
+  return keep === 'top'
+    ? t('panels:diagram.pose.spreadKeepTop', 'Top')
+    : t('panels:diagram.pose.spreadKeepBottom', 'Bottom');
 }
 
 /** A direction's name, as its button says it. */

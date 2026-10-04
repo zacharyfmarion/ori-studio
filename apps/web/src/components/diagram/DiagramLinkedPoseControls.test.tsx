@@ -132,7 +132,7 @@ describe('DiagramLinkedPoseControls', () => {
         side: 'front',
         rotationDeg: 0,
         foldCase: 1,
-        ...(spread ? { spread: { amount: 0.05, toward: 'up-left' as const } } : {}),
+        ...(spread ? { spread: { kind: 'depth' as const, amount: 0.05, toward: 'up-left' as const } } : {}),
       };
       const actions = buildDiagramLinkedPoseActions({ render, readOnly: false, busy: false, solutions: null }, { t, pose });
       root!.render(

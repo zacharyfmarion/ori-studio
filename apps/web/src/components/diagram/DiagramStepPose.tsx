@@ -32,7 +32,7 @@ interface SideChoice {
  * - **A linked pattern:** for a crease pattern or a flat fold, its turn as a
  *   field (D5's angle field); a fold's side, Front or Back; a flat fold's
  *   layer order and its spread layers (Phase 13): on or off, and while on,
- *   how far and which way. Its verbs are the open step's own pose controller's
+ *   by depth or affine and how. Its verbs are the open step's own pose controller's
  *   (`useOpenLinkedPose`): one capture session per step, whichever surface
  *   asks. How it is shown is Show as, at the top of the pane (D19).
  *
@@ -141,7 +141,7 @@ export function DiagramStepPose({
         </FieldRow>
       )}
       {render.mode === 'folded-flat' && (
-        // Its layers stepped apart by depth (Phase 13): on or off, how far and which way.
+        // Its layers spread apart (Phase 13): on or off, by depth or affine (13g), and how.
         <DiagramSpreadRows toggle={linked.find((action) => action.id === 'spread-layers')} spread={linkedPose.spread} />
       )}
     </>

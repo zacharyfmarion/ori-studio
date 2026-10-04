@@ -88,7 +88,7 @@ describe('DiagramStepDetail in Pose', () => {
     const step = cpStep('step-1', FLAT);
     const spread = { ...sheetWithCrease(), items: [...sheetWithCrease().items].reverse() };
     const preview: DiagramStep = {
-      ...cpStep('step-1', { ...FLAT, spread: { amount: 0.1, toward: 'up-left' } }),
+      ...cpStep('step-1', { ...FLAT, spread: { kind: 'depth' as const, amount: 0.1, toward: 'up-left' } }),
       picture: { ...scenePicture('scene-preview'), sceneJson: storedSceneJson(spread)! },
     };
     const own = show(step, null);
