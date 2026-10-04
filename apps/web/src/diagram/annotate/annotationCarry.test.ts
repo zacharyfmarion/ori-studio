@@ -153,7 +153,7 @@ describe('a linked picture turned about its middle', () => {
 
   describe('its layers spread (Phase 13)', () => {
     const FLAT = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
-    const SPREAD = { amount: 0.05, toward: 'up-left' as const };
+    const SPREAD = { kind: 'depth' as const, amount: 0.05, toward: 'up-left' as const };
 
     /** The scene with a deeper layer stepped up and to the left: the nearest layer stays where it is. */
     function spreadScene(scene: PaperScene): PaperScene {
@@ -237,6 +237,39 @@ describe('a linked picture turned about its middle', () => {
       const shift = 0.9 - arrow.to[0];
       expect(shift).toBeGreaterThan(5 / span);
       expect(shift).toBeLessThan(20 / span);
+    });
+
+    it('moves a mark with the face under it when an affine spread changes, which moves a face by an affine map (13g)', () => {
+      const before = scenePicture();
+      const sceneBefore = storedScene(before)!;
+      const top = sceneBefore.items.find((item) => item.kind === 'face')!;
+      if (top.kind !== 'face') throw new Error('a face');
+      const [, y0] = top.rings[0]![0]!;
+      // An affine opening takes each face by an affine map of its own: here a shear along x.
+      const shear = ([x, y]: ScenePoint): ScenePoint => [x + 0.2 * (y - y0), y];
+      const sceneAfter: PaperScene = {
+        ...sceneBefore,
+        items: sceneBefore.items.map((item) => (item === top ? { ...top, rings: [top.rings[0]!.map(shear)] } : item)),
+      };
+      const after = { ...before, sceneJson: storedSceneJson(sceneAfter)!, key: 'scene-affine' };
+      const AFFINE = { kind: 'affine' as const, amount: 0.03, keep: 'top' as const, skew: 1, axisDeg: 81 };
+      // Only its skew changed: the same amount, the same kind.
+      const document = annotated(cpStep('step-1', { ...FLAT, spread: { ...AFFINE, skew: 0.5 } }), [{ ...ARROW, from: [0.5, 0.5], to: [0.6, 0.4] }]);
+      const moved = setLinkedPicture(document, 'step-1', {
+        source: cpSource({ ...FLAT, spread: AFFINE }),
+        picture: after,
+      }).steps[0] as DiagramStep;
+      const { bounds } = sceneBefore;
+      const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      const carried = (u: number, v: number) => {
+        const [x, y] = shear([bounds.minX + u * span, bounds.minY + v * span]);
+        return [(x - bounds.minX) / span, (y - bounds.minY) / span];
+      };
+      const arrow = moved.annotations[0] as KnownDiagramAnnotation;
+      close(arrow.from, carried(0.5, 0.5));
+      close(arrow.to, carried(0.6, 0.4));
+      expect(arrow.from[0]).not.toBeCloseTo(0.5, 3);
+      expect(moved.annotatedPictureKey).toBe('scene-affine');
     });
 
     it('leaves them where they were when the spread came with another side or layer order', () => {

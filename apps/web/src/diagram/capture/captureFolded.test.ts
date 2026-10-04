@@ -3,6 +3,7 @@ import type { OristudioCpFold3dFoldResult } from '../../engine/oristudioCpTypes'
 import { regionReferenceFor } from '../../cp-workspace/regions/regionReference';
 import { DEFAULT_FOLDED_3D_CAMERA, antipodalCamera } from '../../cp-workspace/folded/folded3dCamera';
 import { folded3dSceneStyleKey } from '../../cp-workspace/folded/folded3dScene';
+import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { line, sceneOf, sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import {
@@ -208,7 +209,7 @@ describe('captureStep, flat', () => {
   });
 
   it('keeps a render’s spread through a Refresh, and draws every face spread (Phase 13)', async () => {
-    const render: DiagramCpRender = { ...FLAT, rotationDeg: 90, spread: { amount: 0.05, toward: 'up-left' } };
+    const render: DiagramCpRender = { ...FLAT, rotationDeg: 90, spread: { kind: 'depth' as const, amount: 0.05, toward: 'up-left' } };
     const result = await captureStep(fakeCaptureRuntime(), request(render));
     if (result.status !== 'captured' || result.captured.kind !== 'picture') throw new Error('expected a picture');
     expect(result.source.render).toEqual(render);
@@ -230,11 +231,29 @@ describe('captureStep, flat', () => {
       foldCase: 1,
     });
   });
+
+  it('starts that flat fold with the spread it is handed, as every new flat pose starts (13g)', async () => {
+    const spreadStart = { kind: 'affine' as const, amount: 0.04, keep: 'top' as const, skew: 1, axisDeg: 81 };
+    const result = await captureStep(
+      fakeCaptureRuntime(),
+      request({ mode: 'folded-3d', side: 'front', camera: DEFAULT_FOLDED_3D_CAMERA }, { spreadStart })
+    );
+    expect(result.status === 'captured' && result.source.render).toEqual({
+      mode: 'folded-flat',
+      side: 'front',
+      rotationDeg: 0,
+      foldCase: 1,
+      spread: spreadStart,
+    });
+    // A flat fold asked for keeps its own pose, spread or not.
+    const flat = await captureStep(fakeCaptureRuntime(), request(FLAT, { spreadStart }));
+    expect(flat.status === 'captured' && flat.source.render).toEqual(FLAT);
+  });
 });
 
 describe('readFlatPicture with a spread', () => {
   /** The stored scene's faces, by kernel face. */
-  async function facesOf(rotationDeg: number, spread?: { amount: number; toward: 'up-left' | 'down' }) {
+  async function facesOf(rotationDeg: number, spread?: LayerSpreadOptions) {
     const captured = await readFlatPicture(fakeCaptureRuntime(), 7, { displayStyle: 'Paper5' }, rotationDeg, undefined, spread);
     if (captured.kind !== 'picture' || captured.picture.kind !== 'scene') throw new Error('expected a scene');
     const scene = JSON.parse(captured.picture.sceneJson) as { items: Array<{ kind: string; face: number; rings: number[][][] }> };
@@ -256,7 +275,7 @@ describe('readFlatPicture with a spread', () => {
     for (const rotationDeg of [0, 90]) {
       const plain = (await facesOf(rotationDeg)).get(0)!;
       for (const toward of ['up-left', 'down'] as const) {
-        const spread = await facesOf(rotationDeg, { amount: 0.05, toward });
+        const spread = await facesOf(rotationDeg, { kind: 'depth', amount: 0.05, toward });
         expect([...spread.keys()].sort()).toEqual([0, 1]);
         for (const [face, fractions] of depth) {
           fractions.forEach((fraction, corner) => {
@@ -327,7 +346,7 @@ describe('a capture in the file', () => {
   it.each([
     ['a crease pattern', { mode: 'crease-pattern', rotationDeg: 15 } as DiagramCpRender, cpDocument()],
     ['a flat fold', FLAT, cpDocument()],
-    ['a flat fold with its layers spread', { ...FLAT, spread: { amount: 0.075, toward: 'down' } } as DiagramCpRender, cpDocument()],
+    ['a flat fold with its layers spread', { ...FLAT, spread: { kind: 'depth' as const, amount: 0.075, toward: 'down' } } as DiagramCpRender, cpDocument()],
     // Asked for flat from the back: routed to 3D, its render built by the capture.
     ['a 3D fold', { ...FLAT, side: 'back' } as DiagramCpRender, partial()],
   ])('writes %s exactly as a load reads it back', async (_label, render, document) => {
@@ -381,6 +400,7 @@ describe('storeScene', () => {
       paperScene: vi.fn(async () => ({ schema_version: 2, flipped: false, sheet: side, faces, subfaces: [], aux_lines: [], sheet_points: [] })),
     });
     const spread = await readFlatPicture(runtime, 7, { displayStyle: 'Paper5' }, 0, undefined, {
+      kind: 'depth',
       amount: 0.05,
       toward: 'up-left',
     });

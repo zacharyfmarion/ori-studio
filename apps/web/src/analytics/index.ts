@@ -50,6 +50,7 @@ export type {
   DiagramStepOpenedMode,
   DiagramShowAsName,
   DiagramSpreadDirection,
+  DiagramSpreadTracking,
   DiagramShowAsVia,
   ExportFormat,
   FoldabilityCheckSource,

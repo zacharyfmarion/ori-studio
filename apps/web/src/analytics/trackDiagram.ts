@@ -5,7 +5,9 @@ import {
   DIAGRAM_PAGE_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_COUNT_BUCKETS,
   DIAGRAM_UPLOAD_KB_BUCKETS,
+  DIAGRAM_SPREAD_AXIS_DEGREE_BUCKETS,
   DIAGRAM_SPREAD_PERCENT_BUCKETS,
+  DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS,
   bucketCount,
 } from './events';
 import type {
@@ -26,7 +28,7 @@ import type {
   DiagramSourceWorkspace,
   DiagramShowAsName,
   DiagramShowAsVia,
-  DiagramSpreadDirection,
+  DiagramSpreadTracking,
   DiagramStepAddedSource,
   DiagramStepAddedVia,
   DiagramTurnAddedKind,
@@ -90,24 +92,37 @@ export function trackDiagramAnnotationAdded(tool: DiagramAnnotationTool): void {
 
 /**
  * A pose verb on a step's picture, and what the picture is. A spread verb
- * that leaves the layers spread also says how (Phase 13): the direction, and
- * the amount bucketed — never the amount itself.
+ * that leaves the layers spread also says how (Phase 13): its kind and the
+ * amount bucketed, and a depth spread's direction or an affine one's layer
+ * held still, with its skew and axis bucketed — never a value itself.
  */
 export function trackDiagramPicturePosed(
   action: DiagramPoseAction,
   kind: DiagramPictureKind,
-  spread?: { direction: DiagramSpreadDirection; amount: number }
+  spread?: DiagramSpreadTracking
 ): void {
   track(ANALYTICS_EVENTS.diagramPicturePosed, {
     action,
     kind,
-    ...(spread
-      ? {
-          spread_direction: spread.direction,
-          spread_amount_bucket: bucketCount(Math.round(spread.amount * 10_000) / 100, DIAGRAM_SPREAD_PERCENT_BUCKETS),
-        }
-      : {}),
+    ...(spread ? spreadProperties(spread) : {}),
   });
+}
+
+/** A spread's enum and bucketed properties. */
+function spreadProperties(spread: DiagramSpreadTracking): Record<string, string> {
+  const percent = (fraction: number) => Math.round(fraction * 10_000) / 100;
+  const common = {
+    spread_kind: spread.kind,
+    spread_amount_bucket: bucketCount(percent(spread.amount), DIAGRAM_SPREAD_PERCENT_BUCKETS),
+  };
+  return spread.kind === 'depth'
+    ? { ...common, spread_direction: spread.direction }
+    : {
+        ...common,
+        spread_keep: spread.keep,
+        spread_skew_bucket: bucketCount(percent(spread.skew), DIAGRAM_SPREAD_SKEW_PERCENT_BUCKETS),
+        spread_axis_bucket: bucketCount(spread.axisDeg, DIAGRAM_SPREAD_AXIS_DEGREE_BUCKETS),
+      };
 }
 
 /** A step's picture removed, and what it was. */

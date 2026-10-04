@@ -4,12 +4,16 @@ import { antipodalCamera, DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/fo
 import { resolveCpSegments } from '../../lib/creasePatternSegmentation';
 import { sheetWithCrease } from '../../lib/paper/paperScene.fixtures';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
+import type { SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
+  DEFAULT_AFFINE_SPREAD,
   DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_LAYER_SPREAD,
   DEFAULT_SIMULATED_VIEW,
   type DiagramCpRender,
   type DiagramCpSource,
   type DiagramSimulatedView,
+  type DiagramSpreadStarts,
 } from '../document/diagramDocument';
 import { cpDocument, fakeCaptureRuntime, LEFT_FOLD_LINE_IDS, twoSquaresSegmentation } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
@@ -361,8 +365,10 @@ describe('posing a flat fold', () => {
 });
 
 describe('a flat fold’s spread (Phase 13)', () => {
-  const SPREAD = { amount: 0.08, toward: 'down-right' as const };
+  const SPREAD = { kind: 'depth' as const, amount: 0.08, toward: 'down-right' as const };
   const SPREAD_FLAT: DiagramCpRender = { ...FLAT, spread: SPREAD };
+  const AFFINE = { kind: 'affine' as const, amount: 0.06, keep: 'bottom' as const, skew: 0.7, axisDeg: 120 };
+  const AFFINE_FLAT: DiagramCpRender = { ...FLAT, spread: AFFINE };
 
   /** The faces a posed picture draws. */
   function facesOf(result: Awaited<ReturnType<typeof pose>>): number[] {
@@ -390,46 +396,117 @@ describe('a flat fold’s spread (Phase 13)', () => {
       // The spread has its own off switch.
       [{ ...SPREAD_FLAT, side: 'back' }, { verb: 'reset' }, { side: 'front', rotationDeg: 0, foldCase: 1 }],
     ];
-    for (const [render, request, expected] of requests) {
-      const result = await pose(session, render, request, document);
-      expect(result, request.verb).toMatchObject({ render: { mode: 'folded-flat', ...expected, spread: SPREAD } });
-      // Every face kept: a layer the drawer covered may show an edge now.
-      expect(facesOf(result).sort(), request.verb).toEqual([0, 1]);
+    for (const spread of [SPREAD, AFFINE]) {
+      for (const [render, request, expected] of requests) {
+        const result = await pose(session, render.mode === 'folded-flat' ? { ...render, spread } : render, request, document);
+        expect(result, `${spread.kind} ${request.verb}`).toMatchObject({ render: { mode: 'folded-flat', ...expected, spread } });
+        // Every face kept: a layer the drawer covered may show an edge now.
+        expect(facesOf(result).sort(), `${spread.kind} ${request.verb}`).toEqual([0, 1]);
+      }
     }
   });
+
+  /** Spread starts as `spreadStartsFor` gives them, each unlike its default. */
+  const STARTS: DiagramSpreadStarts = {
+    any: { kind: 'depth', amount: 0.12, toward: 'up' },
+    depth: { kind: 'depth', amount: 0.12, toward: 'up' },
+    affine: { kind: 'affine', amount: 0.05, keep: 'bottom', skew: 0.2, axisDeg: 10 },
+  };
+
+  function poseWith(
+    session: ReturnType<typeof sessionWith>['session'],
+    render: DiagramCpRender,
+    request: LinkedPoseRequest,
+    spreadStart?: DiagramSpreadStarts,
+    remembered?: DiagramCpSource['remembered']
+  ) {
+    const document = cpDocument();
+    return poseLinkedStep(
+      session,
+      { document, creases: creasesOf(document), render, remembered, style: DEFAULT_DIAGRAM_STYLE, spreadStart },
+      request
+    );
+  }
+
+  const spreadOf = (result: Awaited<ReturnType<typeof pose>>) =>
+    result.status === 'posed' && result.render.mode === 'folded-flat' ? result.render.spread : null;
 
   it('turns it on from the step before, or the default, and off again, drawing the buried face only while on', async () => {
     const { session } = sessionWith();
     const document = cpDocument();
-    const on = (spreadStart?: { amount: number; toward: 'up' }) =>
-      poseLinkedStep(
-        session,
-        { document, creases: creasesOf(document), render: FLAT, style: DEFAULT_DIAGRAM_STYLE, spreadStart },
-        { verb: 'spread-layers' }
-      );
-    expect(await on()).toMatchObject({ render: { spread: { amount: 0.05, toward: 'up-left' } } });
-    expect(await on({ amount: 0.12, toward: 'up' })).toMatchObject({ render: { spread: { amount: 0.12, toward: 'up' } } });
+    expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }))).toEqual(DEFAULT_LAYER_SPREAD);
+    expect(DEFAULT_LAYER_SPREAD).toEqual({ kind: 'depth', amount: 0.025, toward: 'down' });
+    expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }, STARTS))).toEqual(STARTS.any);
     const off = await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
     expect(off.status === 'posed' && off.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });
     expect(facesOf(off)).toEqual([0]);
   });
 
-  it('sets the amount within its range and the direction, and neither turns on a spread that is off', async () => {
+  it('starts every new flat pose spread: a pattern folded for the first time, a 3D fold whose creases fold flat now (13g)', async () => {
+    const { session } = sessionWith();
+    const first = await poseWith(session, CP, { verb: 'show-folded' });
+    expect(first).toMatchObject({ render: { mode: 'folded-flat', rotationDeg: 345, spread: DEFAULT_LAYER_SPREAD } });
+    expect(facesOf(first).sort()).toEqual([0, 1]);
+    expect(spreadOf(await poseWith(session, CP, { verb: 'show-folded' }, STARTS))).toEqual(STARTS.any);
+    const threeD: DiagramCpRender = { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' };
+    const flatAgain = await poseWith(session, threeD, { verb: 'view-top' }, STARTS);
+    expect(flatAgain).toMatchObject({ render: { mode: 'folded-flat', spread: STARTS.any } });
+    // Remembered 3D, its creases folding flat now: a new flat pose too.
+    const remembered = await poseWith(session, CP, { verb: 'show-folded' }, STARTS, { folded: threeD });
+    expect(remembered).toMatchObject({ render: { mode: 'folded-flat', spread: STARTS.any } });
+  });
+
+  it('keeps a flat fold that already has a pose as it was: one remembered with no spread comes back with none', async () => {
+    const { session } = sessionWith();
+    const back = await poseWith(session, CP, { verb: 'show-folded' }, STARTS, { folded: FLAT });
+    expect(back).toMatchObject({ render: { mode: 'folded-flat', rotationDeg: 30 } });
+    expect(spreadOf(back)).toBeUndefined();
+    expect(spreadOf(await poseWith(session, FLAT, { verb: 'rotate-right' }, STARTS))).toBeUndefined();
+  });
+
+  it('switches the kind to the step before’s of that kind, or its default, and never turns one on', async () => {
+    const { session } = sessionWith();
+    const cases: Array<[DiagramCpRender, SpreadKind, DiagramSpreadStarts | undefined, unknown]> = [
+      [SPREAD_FLAT, 'affine', undefined, DEFAULT_AFFINE_SPREAD],
+      [SPREAD_FLAT, 'affine', STARTS, STARTS.affine],
+      [AFFINE_FLAT, 'depth', undefined, DEFAULT_LAYER_SPREAD],
+      [AFFINE_FLAT, 'depth', STARTS, STARTS.depth],
+      // The kind it has: nothing changes.
+      [AFFINE_FLAT, 'affine', STARTS, AFFINE],
+      [FLAT, 'affine', STARTS, undefined],
+    ];
+    for (const [render, kind, starts, spread] of cases) {
+      expect(spreadOf(await poseWith(session, render, { verb: 'spread-kind', kind }, starts)), `${kind}`).toEqual(spread);
+    }
+    expect(DEFAULT_AFFINE_SPREAD).toEqual({ kind: 'affine', amount: 0.03, keep: 'top', skew: 1, axisDeg: 81 });
+  });
+
+  it('sets each value within its range, only on a spread of its kind, and never turns one on', async () => {
     const { session } = sessionWith();
     const document = cpDocument();
     const cases: Array<[LinkedPoseRequest, DiagramCpRender, unknown]> = [
-      [{ verb: 'spread-amount', amount: 0.123456 }, SPREAD_FLAT, { amount: 0.1235, toward: 'down-right' }],
-      [{ verb: 'spread-amount', amount: 0.9 }, SPREAD_FLAT, { amount: 0.2, toward: 'down-right' }],
-      [{ verb: 'spread-amount', amount: 0 }, SPREAD_FLAT, { amount: 0.005, toward: 'down-right' }],
-      [{ verb: 'spread-direction', toward: 'left' }, SPREAD_FLAT, { amount: 0.08, toward: 'left' }],
+      [{ verb: 'spread-amount', amount: 0.123456 }, SPREAD_FLAT, { ...SPREAD, amount: 0.1235 }],
+      [{ verb: 'spread-amount', amount: 0.9 }, SPREAD_FLAT, { ...SPREAD, amount: 0.2 }],
+      [{ verb: 'spread-amount', amount: 0 }, SPREAD_FLAT, { ...SPREAD, amount: 0.005 }],
+      [{ verb: 'spread-direction', toward: 'left' }, SPREAD_FLAT, { ...SPREAD, toward: 'left' }],
+      [{ verb: 'spread-amount', amount: 0.9 }, AFFINE_FLAT, { ...AFFINE, amount: 0.25 }],
+      [{ verb: 'spread-keep', keep: 'top' }, AFFINE_FLAT, { ...AFFINE, keep: 'top' }],
+      [{ verb: 'spread-skew', skew: 0.333 }, AFFINE_FLAT, { ...AFFINE, skew: 0.33 }],
+      [{ verb: 'spread-skew', skew: 2 }, AFFINE_FLAT, { ...AFFINE, skew: 1 }],
+      [{ verb: 'spread-axis', axisDeg: 181.2 }, AFFINE_FLAT, { ...AFFINE, axisDeg: 1 }],
+      // A value for the other kind leaves it as it is.
+      [{ verb: 'spread-direction', toward: 'left' }, AFFINE_FLAT, AFFINE],
+      [{ verb: 'spread-skew', skew: 0.5 }, SPREAD_FLAT, SPREAD],
+      [{ verb: 'spread-axis', axisDeg: 45 }, SPREAD_FLAT, SPREAD],
+      [{ verb: 'spread-keep', keep: 'top' }, SPREAD_FLAT, SPREAD],
+      // None turns a spread on.
       [{ verb: 'spread-amount', amount: 0.1 }, FLAT, undefined],
       [{ verb: 'spread-direction', toward: 'left' }, FLAT, undefined],
+      [{ verb: 'spread-skew', skew: 0.5 }, FLAT, undefined],
     ];
     for (const [request, render, spread] of cases) {
       const result = await pose(session, render, request, document);
-      expect(result.status === 'posed' && result.render.mode === 'folded-flat' && result.render.spread).toEqual(
-        spread ?? undefined
-      );
+      expect(spreadOf(result), JSON.stringify(request)).toEqual(spread ?? undefined);
     }
   });
 

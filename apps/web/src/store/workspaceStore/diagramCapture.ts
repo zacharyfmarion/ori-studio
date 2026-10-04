@@ -19,8 +19,10 @@ import type { KnownCreases } from '../../diagram/capture/captureCreases';
 import { abandonOnEngineLoss } from '../../diagram/capture/engineLoss';
 import {
   DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_LAYER_SPREAD,
   isLockedStep,
   setLinkedPicture,
+  spreadStartsFor,
   type DiagramCpRender,
   type DiagramCpScope,
   type DiagramCpSource,
@@ -243,6 +245,7 @@ export async function runDiagramCapture(
   try {
     const document = start.cp.document;
     const segmentation = await abandonOnEngineLoss(ensureCpSegmentationArtifacts(document));
+    const { diagram } = store.get();
     const capture = (runtime: CpCaptureRuntime) =>
       captureStep(runtime, {
         document,
@@ -252,6 +255,7 @@ export async function runDiagramCapture(
         render: request.render,
         style: start.style,
         simulateFlat: storeSimulateFlat(store),
+        spreadStart: diagram ? spreadStartsFor(diagram, stepId).any : DEFAULT_LAYER_SPREAD,
       });
     const result =
       request.render.mode === 'crease-pattern' || request.render.mode === 'simulated'

@@ -21,6 +21,9 @@ import {
   isLockedStep,
   renderToShowAs,
   showAsOf,
+  DEFAULT_LAYER_SPREAD,
+  spreadStartsFor,
+  type DiagramLayerSpread,
   type DiagramCpRender,
   type DiagramShowAs,
   type DiagramStep,
@@ -67,7 +70,11 @@ export async function linkDiagramStep(stepId: string, segment: CpSegment, way?: 
   if (!step) return false;
   const linked = step.source?.kind === 'cp' ? step.source : null;
   const showAs = way ?? (linked ? showAsOf(linked.render) : 'crease-pattern');
-  const asked = renderToShowAs(linked ?? { render: { mode: 'crease-pattern', rotationDeg: 0 } }, showAs);
+  const asked = renderToShowAs(
+    linked ?? { render: { mode: 'crease-pattern', rotationDeg: 0 } },
+    showAs,
+    startingSpread(stepId)
+  );
   // A link chooses a region, and a fold % above 0 is only Pose's live solver's
   // to settle (D19): shown Simulated, it links at 0%, from the camera it had.
   const render: DiagramCpRender =
@@ -110,7 +117,7 @@ export async function showLinkedStepAs(
     trackDiagramStepShownAs(trackedShowAs(way), via);
     return true;
   }
-  const render = renderToShowAs(step.source, way);
+  const render = renderToShowAs(step.source, way, startingSpread(stepId));
   const outcome = await store.captureDiagramStep(stepId, {
     scope: step.source.scope,
     known: knownCreasesOf(step.source),
@@ -140,7 +147,7 @@ export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs):
   if (copyId === null) return null;
   // Shown the same way, it is a plain duplicate: no way chosen to count.
   if (showAsOf(source.render) === way) return copyId;
-  const render = renderToShowAs(source, way);
+  const render = renderToShowAs(source, way, startingSpread(copyId));
   const duplicated = useWorkspaceStore.getState().diagramHistory.past.at(-1);
   const outcome = await useWorkspaceStore.getState().captureDiagramStep(copyId, {
     scope: source.scope,
@@ -158,6 +165,16 @@ export async function duplicateLinkedStepAs(stepId: string, way: DiagramShowAs):
   }
   trackDiagramStepShownAs(trackedShowAs(way), 'duplicate');
   return copyId;
+}
+
+/**
+ * The spread a flat fold this step starts takes (13g: on by default): the
+ * nearest earlier step's, else depth 2.5% down. A fold the step remembers
+ * keeps its own (`renderToShowAs`).
+ */
+function startingSpread(stepId: string): DiagramLayerSpread {
+  const { diagram } = useWorkspaceStore.getState();
+  return diagram ? spreadStartsFor(diagram, stepId).any : DEFAULT_LAYER_SPREAD;
 }
 
 /** The undo step a Show as makes. */

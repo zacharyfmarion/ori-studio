@@ -47,6 +47,7 @@ import type {
   DiagramCpScope,
   DiagramCpSource,
   DiagramFixedPicture,
+  DiagramLayerSpread,
   DiagramScenePicture,
   DiagramSimulatedView,
   DiagramStyle,
@@ -259,13 +260,20 @@ export function capture3dPicture(
   return storeScene(scene, null, folded3dSceneStyleKey(drawn));
 }
 
-/** The 3D render a flat request turns into when its creases fold in 3D, and back. */
-function renderForRoute(render: DiagramCpRender, route: 'flat' | 'spatial'): DiagramCpRender {
+/**
+ * The 3D render a flat request turns into when its creases fold in 3D, and
+ * back: a flat fold started so has its layers spread by `spread` (13g).
+ */
+function renderForRoute(
+  render: DiagramCpRender,
+  route: 'flat' | 'spatial',
+  spread: DiagramLayerSpread | undefined
+): DiagramCpRender {
   if (render.mode === 'crease-pattern' || render.mode === 'simulated') return render;
   if (route === 'flat') {
     return render.mode === 'folded-flat'
       ? render
-      : { mode: 'folded-flat', side: render.side, rotationDeg: 0, foldCase: 1 };
+      : { mode: 'folded-flat', side: render.side, rotationDeg: 0, foldCase: 1, ...(spread ? { spread } : {}) };
   }
   if (render.mode === 'folded-3d') return render;
   return { mode: 'folded-3d', side: render.side, camera: defaultCaptureCamera(render.side) };
@@ -302,6 +310,11 @@ export interface CaptureStepRequest {
   style: DiagramStyle;
   /** The simulator, for a step shown as Simulated; absent, it cannot be captured. */
   simulateFlat?: SimulateFlat;
+  /**
+   * The spread a flat fold started here takes — one asked as 3D whose creases
+   * now fold flat (13g: on by default, `spreadStartsFor`); absent, none.
+   */
+  spreadStart?: DiagramLayerSpread;
   env?: SanitizeEnv;
 }
 
@@ -373,7 +386,7 @@ export async function captureStep(
 
   const route = resolveFoldRoute(document, creases.foldLineIds);
   if (route.kind === 'none') return { status: 'missing' };
-  const render = renderForRoute(request.render, route.kind);
+  const render = renderForRoute(request.render, route.kind, request.spreadStart);
 
   if (render.mode === 'folded-3d') {
     // Folded front up: a 3D figure's side is where the camera stands, and the
