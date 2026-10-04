@@ -99,7 +99,11 @@ function target(capture: StepCapture, diagrams: readonly StepDiagramModel[] = [s
   });
 }
 
-/** Every glyph the Diagram's annotations draw, on a unit sheet with a valley across it. */
+/**
+ * Every glyph the Diagram's annotations draw, on a unit sheet with a valley
+ * across it: the one-way folds, a push, the rotate and turn-over signs, and
+ * the ring a circle is (Phase 14d), in the highlight style.
+ */
 const GLYPHS: StepDiagramModel = {
   sheet: { width: 1, height: 1 },
   primitives: [
@@ -120,6 +124,7 @@ const GLYPHS: StepDiagramModel = {
     { kind: 'rotate', at: [0.2, 0.8], amount: 'eighth', direction: 'ccw' },
     { kind: 'turn-over', at: [0.5, 1.05] },
     { kind: 'turn-over', at: [1.06, 0.5], axis: 'horizontal' },
+    { kind: 'point', at: [0.62, 0.62], style: 'highlight' },
   ],
 };
 
@@ -255,7 +260,7 @@ describe('referencesExportTarget', () => {
     expect(page).toEqual(golden.custom);
   });
 
-  it('draws the glyphs a Diagram’s annotations use: one-way folds, push, rotate, and a turn-over on either axis', async () => {
+  it('draws the glyphs a Diagram’s annotations use: one-way folds, push, rotate, a turn-over on either axis, and a ring', async () => {
     // Front and back: the arrows' arcs mirror with the paper, the glyphs drawn in page space do not.
     for (const mirrored of [false, true]) {
       const page = await dialogPage(

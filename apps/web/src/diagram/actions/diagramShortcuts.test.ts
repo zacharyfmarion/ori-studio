@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { SHORTCUT_DEFINITIONS } from '../../keyboard/shortcuts';
 import { NUDGE_STEP } from '../annotate/annotationActions';
 import {
   DIAGRAM_OWN_ARROWS_ATTRIBUTE,
@@ -148,6 +149,20 @@ describe('Annotate’s keys', () => {
     expect(press('diagram.toolValleyArrow', annotate()).setTool).toHaveBeenCalledWith('valley-arrow');
     expect(press('diagram.toolValleyLine', annotate()).setTool).toHaveBeenCalledWith('valley-line');
     expect(press('diagram.toolValleyArrow', annotate('valley-arrow')).setTool).toHaveBeenCalledWith(null);
+    expect(press('diagram.toolCircle', annotate())).toMatchObject({ claimed: true });
+    expect(press('diagram.toolCircle', annotate()).setTool).toHaveBeenCalledWith('circle');
+  });
+
+  it('binds the circle to O, a letter no other Diagram key or the view’s has', () => {
+    const circle = SHORTCUT_DEFINITIONS.find((shortcut) => shortcut.id === 'diagram.toolCircle');
+    expect(circle).toMatchObject({ scope: 'diagram', defaultChord: { key: 'o' } });
+    const others = SHORTCUT_DEFINITIONS.filter(
+      (shortcut) =>
+        shortcut.id !== 'diagram.toolCircle' &&
+        ['diagram', 'diagram-path', 'viewport', 'global'].includes(shortcut.scope) &&
+        shortcut.defaultChords.some((chord) => chord.key === 'o' && !chord.primary && !chord.shift && !chord.alt)
+    );
+    expect(others).toEqual([]);
   });
 
   it('flips only a selected fold arrow', () => {

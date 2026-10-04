@@ -12,11 +12,12 @@ import {
 import { LABEL_MAX_LENGTH } from '../../diagram/annotate/annotationModel';
 import { onLabelFocusRequest, takeLabelFocus } from '../../diagram/annotate/labelFocus';
 import { useStepAnnotations } from '../../diagram/annotate/useStepAnnotations';
+import { primaryModifierLabel } from '../../lib/platform';
 import type { DiagramStep, KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
 import { shortcutLabelForAction } from '../../keyboard/shortcuts';
 import { useShortcutResolution } from '../../store/shortcutStore';
 import { Button } from '../ui/Button';
-import { FieldRow, SegmentedRow, TextAreaRow } from '../ui/fieldRows';
+import { FieldRow, SegmentedRow, TextAreaRow, ToggleRow } from '../ui/fieldRows';
 import { Notice } from '../ui/Notice';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
 import { DiagramPathNodeControls } from './DiagramPathNodeControls';
@@ -33,8 +34,9 @@ const ACTION_ICONS: Readonly<Partial<Record<AnnotationActionId, LucideIcon>>> = 
  * The Step pane's annotations (D13).
  *
  * Out of Annotate, how many the step has and the way in. In Annotate, the
- * tool in hand and what it does — for Edit Path, what it can shape — a
- * notice when they were drawn on another picture, the list — a press selects
+ * tool in hand and what it does — for Edit Path, what it can shape — the
+ * Snap switch (for a finger, which has no ⌘ to hold), a notice when they
+ * were drawn on another picture, the list — a press selects
  * one, as a press on the canvas does — and the selected one's own controls:
  * a label's text, an arrow's Flip arc and Reset, a rotation's turn, a
  * turn-over's axis, Delete, and in Edit Path a fold arrow's node verbs.
@@ -71,6 +73,16 @@ export function DiagramStepAnnotations({ step }: { step: DiagramStep }) {
           {annotations.tool === EDIT_PATH ? editPathHelp(t, selected) : annotateToolHelp(t, annotations.tool)}
         </p>
       </div>
+      <ToggleRow
+        label={t('panels:diagram.annotations.snap', 'Snap to Picture')}
+        help={t(
+          'panels:diagram.annotations.snapHelp',
+          'Circles, and the ends of arrows and lines, snap to the picture’s points and to other annotations nearby. Hold {{modifier}} to put one down anywhere.',
+          { modifier: primaryModifierLabel() }
+        )}
+        checked={annotations.snap}
+        onChange={annotations.setSnap}
+      />
       {annotations.outOfStep && (
         <div className={styles.notice}>
           <Notice tone="warning">

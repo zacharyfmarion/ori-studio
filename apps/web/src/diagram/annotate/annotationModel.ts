@@ -35,8 +35,8 @@ export interface PictureFrame {
  * - `arc`: a fold arrow, dragged from tail to tip, bulging on an arc;
  * - `straight`: a push, dragged, straight from `from` to `to`;
  * - `line`: a crease line, dragged, drawn in the diagram's pens;
- * - `point`: a sign or a label, put down with a click at one point (`to` is
- *   `from`).
+ * - `point`: a sign, a label or a circle, put down with a click at one point
+ *   (`to` is `from`).
  */
 type AnnotationShape = 'arc' | 'straight' | 'line' | 'point';
 
@@ -51,6 +51,7 @@ const ANNOTATION_SHAPES: Readonly<Record<DiagramAnnotationKind, AnnotationShape>
   'mountain-line': 'line',
   'hidden-line': 'line',
   label: 'point',
+  circle: 'point',
 };
 
 /** Every kind, in the order the rail offers them. */
@@ -62,7 +63,7 @@ const kindsShaped = (shape: AnnotationShape): ReadonlySet<DiagramAnnotationKind>
 /** The fold arrows, which bulge on an arc. */
 export const ARROW_KINDS = kindsShaped('arc');
 
-/** The kinds placed with a click, at one point: `to` is `from`. */
+/** The kinds placed with a click, at one point: `to` is `from`. A circle is one: its centre. */
 export const POINT_KINDS = kindsShaped('point');
 
 /** The crease lines, drawn in the diagram's pens. */
@@ -238,6 +239,7 @@ export function canBeShaped(kind: DiagramAnnotationKind): boolean {
     case 'mountain-line':
     case 'hidden-line':
     case 'label':
+    case 'circle':
       return false;
   }
 }
@@ -311,7 +313,9 @@ export function createAnnotation(
     const base: KnownDiagramAnnotation = { id, kind, from: at, to: [at[0], at[1]] };
     if (kind === 'label') return { ...base, text: NEW_LABEL_TEXT };
     if (kind === 'rotate') return { ...base, rotate: DEFAULT_ROTATION };
-    return { ...base, axis: 'vertical' };
+    if (kind === 'turn-over') return { ...base, axis: 'vertical' };
+    // A circle is its centre and nothing more: no letter (decision 8).
+    return base;
   }
   const annotation: KnownDiagramAnnotation = { id, kind, from: [from[0], from[1]], to: [to[0], to[1]] };
   return isArrowKind(kind) ? { ...annotation, bend: defaultBend(from, to, frame) } : annotation;
@@ -451,6 +455,7 @@ export function flipsArc(kind: DiagramAnnotationKind): boolean {
     case 'mountain-line':
     case 'hidden-line':
     case 'label':
+    case 'circle':
       return false;
   }
 }

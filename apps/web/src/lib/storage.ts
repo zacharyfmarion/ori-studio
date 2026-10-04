@@ -63,6 +63,12 @@ export const STORAGE_KEYS = {
    * files, and how; see `diagram/export/diagramExportSettings.ts`.
    */
   diagramExport: 'diagram-export',
+  /**
+   * Whether Annotate snaps a circle, and an arrow's or a line's ends, to the
+   * picture's points: the Step pane's switch, for a finger, which has no ⌘ to
+   * hold. Absent means on.
+   */
+  diagramAnnotateSnap: 'diagram-annotate-snap',
   /** Play a step's fold on arriving at its card in the References workspace. */
   referencesAutoPlayFolds: 'references-auto-play-folds',
   /**

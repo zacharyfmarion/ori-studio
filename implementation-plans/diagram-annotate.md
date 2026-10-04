@@ -506,9 +506,71 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
     page's PDF beside the canvas (`canvas-beside-pdf-light.png`).
 
 ### 14d. Snapping and circles
-- [ ] `pictureSnap.ts` per picture kind; `LineHitIndex` in-reach query; kind
+- [x] `pictureSnap.ts` per picture kind; `LineHitIndex` in-reach query; kind
   `circle`; hover and press-time previews; override; Step pane toggle; arrow
   ends snapping (Q9).
+  - Kind as built:
+    - **Model.** `circle` is a point kind (`from` its centre, `to` the same),
+      created with nothing more (no letter, decision 8; no axis), moved,
+      carried and cleaned as the other point kinds are. Not shaped, not
+      flipped.
+    - **Drawing.** Compiled to References' own `point` primitive in its
+      highlight style — no new glyph geometry: the ring, its 3.07-ink radius
+      and its 0.75 × arrow-pen stroke already exist. The annotation drawing's
+      mark ink is now its arrow ink, so the ring is the annotation pen in
+      width and colour (decision 7; References rings in the edge ink, which
+      only differs from the arrows' in a coloured style). `annotationReach`
+      takes its outer edge. Arrows land on it by the existing rule: a
+      one-way arrow's tip stops a rim short (`foldArrowLanding`); its tail
+      is not trimmed, as References' never is (a fold-and-unfold arrow's
+      always is). The glyph golden gains one ring, front and back, and
+      nothing else in it moves.
+    - **File.** Read and written with the base fields; a field (a letter),
+      or a point past reach, is a newer build's. 18eee51a0's reader keeps a
+      circle verbatim and writes it back unchanged (checked by running that
+      reader).
+    - **Hit.** By its ring, not its inside (`circleRadius(ink)`): an arrow
+      that lands on it ends at its centre, and a press there is the
+      arrow's. Selected, it washes its ring and offers no ends.
+    - **Tool.** Its own rail group, Marks; key O (`diagram.toolCircle`,
+      free in every scope the Diagram pushes); "Click a point to circle it."
+      Annotate's key set is a record now, so a tool key cannot be left out.
+  - Snapping as built:
+    - **What.** `annotateSnap.ts` (pure): `snapsWhenPlaced` (a switch) — the
+      circle and every arrow and line kind; `placePoint` over
+      `pictureSnapTarget`; `snapOutcome` for the event. In the canvas
+      (`placeInHand`): a drawing's start on the press, its end on each move
+      and on release; an arrow's or a line's end dragged with Select, never
+      onto itself (`ignore`); a circle moved whole, its centre, the press
+      keeping its offset, landing on the target exactly. Edit Path never
+      snaps (decision 9), its end nodes included.
+    - **Radius.** `useAnnotateSnap`: `cpSnapRadius` × `CP_MODEL_TO_CSS`
+      CSS px over (overlay CTM `a` × `layout.unit`) screen px per picture
+      unit — the same on screen at any zoom, as the hit reach is. Edit's
+      coarse-pointer default (15 → 22 px) comes with the setting.
+    - **Override and switch.** ⌘ (Ctrl elsewhere: `isPrimaryModifier`)
+      places freely, read from each pointer event; a key pressed or let go
+      with the pointer still re-runs the last move through
+      `subscribeHeldModifiers`. The Snap switch is a persisted preference
+      (`settingsStore.diagramAnnotateSnap`, key `diagram-annotate-snap`, on
+      by default), not per session: the store already keeps such switches
+      (References' auto-play) and it is not a property of a diagram. The
+      Step pane shows it as "Snap to Picture" while annotating.
+    - **Previews.** Hover with a tool that snaps (not Select, not Edit Path,
+      not a finger, not with a button down or Space held) shows the target a
+      press would land on; a press shows its start's at once (a finger's
+      before its slop); a drag shows each end's. Drawn over the marks in the
+      fixed selection colour on a white halo, by kind (`SnapTargets`). The
+      targets are canvas state, changed only when what is shown changes; the
+      marks are never drawn again for them (counted in a test).
+    - **Keys.** A modifier alone makes no chord (`keyChordFromKeyboardEvent`),
+      so ⌘ held mid-drag runs nothing; a dispatcher test pins it.
+    - **Analytics.** `diagram annotation added` gains `snap` (`snapped` /
+      `free` / `off` / `nothing_near` / `none`); `diagram annotate snap
+      changed` {`enabled`} for the switch.
+    - **Proof.** Fail-before: the kind's sources at 18eee51a0, 15 tests fail
+      in 8 files; the snapping's at the kind's commit, 12 fail in 2 files.
+      Mutants (no `ignore`, a radius not scaled by zoom) each fail a test.
   - Analysis as built (pure; no kind, file or canvas yet):
     - **Geometry** (`pictureGeometry.ts`), read once per picture object:
       points (`point` a References mark, `corner` the paper's, `vertex` where
@@ -543,8 +605,19 @@ screenshots (light and dark, desktop and iPad WebKit), and a review.
       pattern (1933 segments), 10 ms on the arowana's (3624); a query 6–12 µs
       at a fitted frame's radius, 100–350 µs at a quarter of the frame; flat
       folds under 15 µs.
-- [ ] Browser: crease-pattern capture, flat fold, References step; a PDF with a
+- [x] Browser: crease-pattern capture, flat fold, References step; a PDF with a
   circle and a landing arrow.
+  - As built (`artifacts/diagram-annotate/14d/snap.mjs`, desktop 1440×900,
+    light and dark, crane-zach.osf's steps 3, 7 and 2): hover 7.8 px off a
+    vertex, a References mark or a fold's corner shows it; circles clicked
+    5–8 px off land on the point exactly; an arrow dragged from near one to
+    near the other lands on both centres, its tip drawn a rim short (14.7
+    px against a 14.5 px ring); ⌘ held hides the target and places at the
+    pointer, and the target comes back when ⌘ is let go; the switch off
+    shows nothing and places at the pointer. The page's PDF, rasterised,
+    shows the circles and the landing arrows beside the canvas
+    (`canvas-beside-pdf-light.png`). iPad WebKit and a real finger are not
+    done here (14d's touch path is the press-time preview, tested in jsdom).
 
 ### 14e. Right-angle marks
 - [ ] Shared primitive and golden; kind; ray-based corner detection; drag

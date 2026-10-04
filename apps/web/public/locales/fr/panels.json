@@ -760,6 +760,7 @@
     "annotate": {
       "arrowHelp": "Faites glisser depuis l’endroit où part le papier jusqu’à celui où il arrive.",
       "canvasLabel": "Annotations sur l’image de l’étape",
+      "circleHelp": "Cliquez sur un point pour l’entourer.",
       "controls": "Commandes de la vue Annoter",
       "editPathCannot": "Seules les flèches de pli peuvent être façonnées\u00a0: vallée, montagne et plier-déplier.",
       "editPathHelp": "Faites glisser les nœuds d’une flèche de pli, leurs poignées ou sa courbe pour la façonner. Cliquez sur la courbe pour ajouter un nœud\u00a0; double-cliquez sur un nœud pour le rendre anguleux ou lisse.",
@@ -768,6 +769,7 @@
       "glyphHelp": "Cliquez là où va le signe.",
       "groupArrows": "Flèches",
       "groupLines": "Lignes",
+      "groupMarks": "Repères",
       "groupSelect": "Sélection",
       "groupText": "Texte",
       "labelHelp": "Cliquez là où va l’étiquette, puis saisissez-la ici.",
@@ -808,6 +810,8 @@
       "resetShape": "Réinitialiser la forme",
       "sideToSide": "De gauche à droite",
       "smooth": "Lisse",
+      "snap": "Aimanter à l’image",
+      "snapHelp": "Les cercles et les extrémités des flèches et des lignes s’aimantent aux points proches de l’image et aux autres annotations. Maintenez {{modifier}} pour les placer n’importe où.",
       "text": "Texte",
       "topToBottom": "De haut en bas",
       "turn": "Rotation"

@@ -4,10 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pathCubics } from '../../diagram/annotate/annotationModel';
 import { nearestPathPoint, pathNodesOf } from '../../diagram/annotate/annotationPath';
 import type { KnownDiagramAnnotation } from '../../diagram/document/diagramDocument';
+import { CP_MODEL_TO_CSS } from '../../cp-workspace/snapRadius';
+import { syncHeldModifiersFromEvent } from '../../keyboard/heldModifiers';
 import { cubicPoint } from '../../lib/cubicBezier';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import { TooltipProvider } from '../ui/Tooltip';
+import { CIRCLE_RADIUS } from '../../diagram/annotate/useAnnotateCanvas';
 import { DiagramAnnotateCanvas } from './DiagramAnnotateCanvas';
 import { stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 
@@ -16,6 +20,19 @@ vi.mock('../../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../analytics')>()),
   ...tracked,
 }));
+
+/** How many times the marks were drawn: `DiagramAnnotationLayer` draws them with `annotationMarks`. */
+const marksDrawn = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../../diagram/annotate/annotationPrimitives', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../diagram/annotate/annotationPrimitives')>();
+  return {
+    ...actual,
+    annotationMarks: (...args: Parameters<typeof actual.annotationMarks>) => {
+      marksDrawn.count += 1;
+      return actual.annotationMarks(...args);
+    },
+  };
+});
 
 /**
  * The Annotate canvas's presses, through the store: what a drag, a click, a
@@ -116,10 +133,16 @@ function at(u: number, v: number): [number, number] {
   return [x! + u * 1000, y! + v * 1000];
 }
 
-/** Modifier keys held, and how long after the last press this one comes (a second apart unless said). */
+/**
+ * Modifier keys held — `free` is ⌘ or Ctrl, whichever the platform's accel
+ * is — the buttons down, and how long after the last press this one comes (a
+ * second apart unless said).
+ */
 interface PressInit {
   shiftKey?: boolean;
   altKey?: boolean;
+  free?: boolean;
+  buttons?: number;
   gapMs?: number;
 }
 
@@ -132,10 +155,21 @@ function pointer(
   pointerId = 1,
   pointerType = 'mouse',
   target: Element = overlay(),
-  { shiftKey = false, altKey = false, gapMs = 1000 }: PressInit = {}
+  { shiftKey = false, altKey = false, free = false, buttons = 0, gapMs = 1000 }: PressInit = {}
 ) {
   if (type === 'pointerdown') clock += gapMs;
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0, shiftKey, altKey });
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX,
+    clientY,
+    button: 0,
+    buttons,
+    shiftKey,
+    altKey,
+    metaKey: free,
+    ctrlKey: free,
+  });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
   Object.defineProperty(event, 'pointerType', { value: pointerType });
   Object.defineProperty(event, 'timeStamp', { value: clock });
@@ -193,7 +227,7 @@ describe('DiagramAnnotateCanvas', () => {
     expect(annotations()[0]).toMatchObject({ kind: 'valley-arrow' });
     expect(annotations()[0]!.from[0]).toBeCloseTo(0.2, 3);
     expect(state().diagramHistory.past).toHaveLength(past + 1);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_arrow']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_arrow', 'nothing_near']]);
   });
 
   it('puts a sign down with a click, and draws nothing for a click with a line tool', () => {
@@ -206,7 +240,26 @@ describe('DiagramAnnotateCanvas', () => {
     pointer('pointerdown', at(0.5, 0.5));
     pointer('pointerup', at(0.5, 0.5));
     expect(annotations().map((annotation) => annotation.kind)).toEqual(['turn-over']);
-    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['turn_over']]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['turn_over', 'none']]);
+  });
+
+  it('puts a circle down with a click, keeps the tool for the next, and washes its ring when selected', () => {
+    mount();
+    tool('circle');
+    pointer('pointerdown', at(0.4, 0.3));
+    pointer('pointerup', at(0.4, 0.3));
+    expect(annotations()).toHaveLength(1);
+    expect(annotations()[0]).toMatchObject({ kind: 'circle' });
+    expect(annotations()[0]!.from[0]).toBeCloseTo(0.4, 3);
+    expect(annotations()[0]!.to).toEqual(annotations()[0]!.from);
+    expect(state().diagramAnnotateTool).toBe('circle');
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['circle', 'nothing_near']]);
+    // Drawn as References' ring, and selected: a wash along the ring, no ends to take hold of.
+    rerender();
+    expect(overlay().querySelector(`[data-annotation-id="${annotations()[0]!.id}"] circle`)).not.toBeNull();
+    const wash = overlay().querySelector('circle[data-selection]');
+    expect(Number(wash?.getAttribute('r'))).toBeCloseTo(CIRCLE_RADIUS * 1000, 6);
+    expect(host.querySelector('[data-handle]')).toBeNull();
   });
 
   it('puts Select back in hand once a label is placed, and keeps a drawing tool after a stroke', () => {
@@ -770,5 +823,183 @@ describe('DiagramAnnotateCanvas in Edit Path', () => {
     expect(annotations()[0]).toEqual(HALF);
     expect(past()).toBe(before);
     expect(selectedNode()).toBe(1);
+  });
+
+  it('never snaps a node, an end included, onto a point (decision 9)', () => {
+    const stepId = shaping();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', (list) => [
+        ...list,
+        { id: 'c', kind: 'circle', from: [0.65, 0.5], to: [0.65, 0.5] },
+      ]);
+      state().selectDiagramAnnotation('v');
+    });
+    rerender();
+    // The tip, dragged to 0.006 from the circle's centre: well within the snap radius.
+    then(() => drag(nodeAt(2), at(0.644, 0.504)));
+    expect(annotations()[0]!.to[0]).toBeCloseTo(0.644, 4);
+    expect(annotations()[0]!.to[1]).toBeCloseTo(0.504, 4);
+  });
+});
+
+describe('DiagramAnnotateCanvas snapping (decision 9)', () => {
+  /** Edit's default radius (10 model units) at 100%: 14.7 CSS px, a thousandth of a frame per px here. */
+  const RADIUS = (10 * CP_MODEL_TO_CSS) / 1000;
+  const line: KnownDiagramAnnotation = { id: 'line', kind: 'valley-line', from: [0.2, 0.5], to: [0.6, 0.5] };
+
+  beforeEach(() => {
+    useSettingsStore.setState({ diagramAnnotateSnap: true, cpSnapRadius: 10 });
+    marksDrawn.count = 0;
+  });
+
+  /** The step with these annotations, and a tool in hand. */
+  function drawn(list: KnownDiagramAnnotation[], toolInHand: Parameters<typeof tool>[0] = null) {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => list);
+      state().selectDiagramAnnotation(null);
+      state().setDiagramAnnotateTool(toolInHand);
+    });
+    rerender();
+    return stepId;
+  }
+  const click = (point: [number, number], init: PressInit = {}, pointerType = 'mouse') => {
+    pointer('pointerdown', point, 1, pointerType, overlay(), init);
+    pointer('pointerup', point, 1, pointerType, overlay(), init);
+    rerender();
+  };
+  const last = () => annotations()[annotations().length - 1]!;
+  const targets = () => [...overlay().querySelectorAll('[data-snap-target]')].map((each) => each.getAttribute('data-snap-target'));
+
+  it('puts a circle on a point within Edit’s snap radius, and where it was put past it', () => {
+    expect(RADIUS).toBeCloseTo(0.0147, 4);
+    drawn([line], 'circle');
+    click(at(0.61, 0.505));
+    expect(last()).toMatchObject({ kind: 'circle', from: [0.6, 0.5], to: [0.6, 0.5] });
+    // 0.017 from the line's other end: past the radius.
+    click(at(0.212, 0.512));
+    expect(last().from[0]).toBeCloseTo(0.212, 6);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
+      ['circle', 'snapped'],
+      ['circle', 'nothing_near'],
+    ]);
+  });
+
+  it('lands an arrow on two circles: its tail as it is pressed, its tip as it moves and where it is let go', () => {
+    drawn(
+      [
+        { id: 'a', kind: 'circle', from: [0.3, 0.4], to: [0.3, 0.4] },
+        { id: 'b', kind: 'circle', from: [0.6, 0.4], to: [0.6, 0.4] },
+      ],
+      'valley-arrow'
+    );
+    pointer('pointerdown', at(0.308, 0.394));
+    // Shown at the press, before any move.
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointermove', at(0.45, 0.42));
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointermove', at(0.593, 0.405));
+    // Both ends, each on its circle.
+    expect(targets()).toEqual(['annotation', 'annotation']);
+    const draft = overlay().querySelectorAll('[data-annotation-id="annotation-draft"]');
+    expect(draft).toHaveLength(1);
+    pointer('pointerup', at(0.594, 0.406));
+    rerender();
+    expect(last()).toMatchObject({ kind: 'valley-arrow', from: [0.3, 0.4], to: [0.6, 0.4] });
+    expect(targets()).toEqual([]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([['valley_arrow', 'snapped']]);
+  });
+
+  it('puts a mark down where the pointer is with ⌘ (Ctrl) held, and anywhere with the switch off', () => {
+    drawn([line], 'valley-line');
+    drag(at(0.605, 0.505), at(0.3, 0.7), 1, 'mouse', overlay(), { free: true });
+    rerender();
+    expect(last().from).toEqual([expect.closeTo(0.605, 6), expect.closeTo(0.505, 6)]);
+    act(() => useSettingsStore.getState().setDiagramAnnotateSnap(false));
+    rerender();
+    tool('circle');
+    click(at(0.605, 0.505));
+    expect(last().from).toEqual([expect.closeTo(0.605, 6), expect.closeTo(0.505, 6)]);
+    expect(tracked.trackDiagramAnnotationAdded.mock.calls).toEqual([
+      ['valley_line', 'free'],
+      ['circle', 'off'],
+    ]);
+  });
+
+  it('drags a line’s end onto a point with Select, never onto the line itself', () => {
+    drawn([line, { id: 'c', kind: 'circle', from: [0.7, 0.56], to: [0.7, 0.56] }]);
+    act(() => state().selectDiagramAnnotation('line'));
+    rerender();
+    drag(at(0.6, 0.5), at(0.706, 0.553));
+    rerender();
+    expect(annotations()[0]!.to).toEqual([0.7, 0.56]);
+    // A short drag from where the end is: its own old place is not a target.
+    act(() => state().selectDiagramAnnotation('line'));
+    rerender();
+    drag(at(0.2, 0.5), at(0.208, 0.5));
+    rerender();
+    expect(annotations()[0]!.from[0]).toBeCloseTo(0.208, 6);
+  });
+
+  it('moves a circle whole onto a point: its centre snaps, wherever on its ring it was taken', () => {
+    drawn([line, { id: 'c', kind: 'circle', from: [0.3, 0.3], to: [0.3, 0.3] }]);
+    drag(at(0.3 + CIRCLE_RADIUS, 0.3), at(0.595 + CIRCLE_RADIUS, 0.494));
+    rerender();
+    expect(annotations()[1]!.from).toEqual([0.6, 0.5]);
+  });
+
+  it('reaches as far on screen at any zoom: fewer picture units zoomed in, more for a wider setting', () => {
+    drawn([line], 'circle');
+    // Zoomed in twice over: 0.012 from the end is 24 screen px, past 14.7.
+    (SVGElement.prototype as unknown as { getScreenCTM: () => typeof identity }).getScreenCTM = () => ({ ...identity, a: 2, d: 2 });
+    click(at(0.612, 0.5));
+    expect(last().from[0]).toBeCloseTo(0.612, 6);
+    // 0.0058 from the end: 11.7 screen px.
+    click(at(0.605, 0.497));
+    expect(last().from).toEqual([0.6, 0.5]);
+    // Edit's setting doubled reaches as far again: 0.012 is within its 29.4 px.
+    act(() => useSettingsStore.setState({ cpSnapRadius: 20 }));
+    rerender();
+    click(at(0.6, 0.512));
+    expect(last().from).toEqual([0.6, 0.5]);
+    expect(annotations()).toHaveLength(4);
+  });
+
+  it('shows where a press would land as the pointer hovers, and never draws the marks again for it', () => {
+    drawn([line], 'circle');
+    const drawnBefore = marksDrawn.count;
+    pointer('pointermove', at(0.61, 0.505));
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointermove', at(0.4, 0.3));
+    expect(targets()).toEqual([]);
+    pointer('pointermove', at(0.61, 0.505));
+    expect(targets()).toEqual(['annotation']);
+    // ⌘ pressed with the pointer still: nothing to land on; let go, there it is again.
+    act(() => syncHeldModifiersFromEvent({ ctrlKey: true, metaKey: true, shiftKey: false, altKey: false }));
+    expect(targets()).toEqual([]);
+    act(() => syncHeldModifiersFromEvent({ ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }));
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointermove', at(0.611, 0.505), 1, 'mouse', overlay(), { free: true });
+    expect(targets()).toEqual([]);
+    expect(marksDrawn.count).toBe(drawnBefore);
+    // With Select in hand a press lands nowhere: nothing shows.
+    tool(null);
+    pointer('pointermove', at(0.61, 0.505));
+    expect(targets()).toEqual([]);
+    expect(marksDrawn.count).toBe(drawnBefore);
+    // A drag does draw them again, each move: what the count above would have seen.
+    tool('valley-line');
+    drag(at(0.3, 0.3), at(0.5, 0.3));
+    expect(marksDrawn.count).toBeGreaterThan(drawnBefore);
+  });
+
+  it('shows a finger where its press landed before it moves, and puts the circle there', () => {
+    drawn([line], 'circle');
+    pointer('pointerdown', at(0.61, 0.505), 1, 'touch');
+    expect(targets()).toEqual(['annotation']);
+    pointer('pointerup', at(0.612, 0.505), 1, 'touch');
+    rerender();
+    expect(last()).toMatchObject({ kind: 'circle', from: [0.6, 0.5] });
+    expect(targets()).toEqual([]);
   });
 });

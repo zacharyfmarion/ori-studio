@@ -3,7 +3,7 @@ import type { DiagramAnnotation, KnownDiagramAnnotation } from '../document/diag
 import { pathArrowGeometry } from '../../cp-workspace/references/stepDiagramGeometry';
 import { cubicPoint } from '../../lib/cubicBezier';
 import { ARROW_BEND, arrowApex, flipAnnotationArc, pathCubics } from './annotationModel';
-import { arrowPolyline, hitAnnotation, hitPathGrip } from './annotationHit';
+import { arrowPolyline, circleRadius, hitAnnotation, hitPathGrip } from './annotationHit';
 
 /** About the canvas's: an ink is about 0.0066 of the frame. */
 const SIZES = { tolerance: 0.02, glyph: 0.05, label: 0.05, ink: 0.0066 };
@@ -47,6 +47,24 @@ describe('hitAnnotation', () => {
     const tight = { ...SIZES, tolerance: 0.005 };
     expect(hitAnnotation([fold], [0.199, 0.432], tight, null)?.annotationId).toBe('fold');
     expect(hitAnnotation([fold], [0.2, 0.36], tight, null)).toBeNull();
+  });
+
+  it('takes a circle by its ring, not its inside, where an arrow that lands on it ends', () => {
+    const circle: KnownDiagramAnnotation = { id: 'circle', kind: 'circle', from: [0.5, 0.5], to: [0.5, 0.5] };
+    const radius = circleRadius(SIZES.ink);
+    // 3.07 ink: about 0.02 of the frame.
+    expect(radius).toBeCloseTo(3.07 * SIZES.ink, 12);
+    const tight = { ...SIZES, tolerance: 0.004 };
+    expect(hitAnnotation([circle], [0.5 + radius, 0.5], tight, null)).toEqual({ annotationId: 'circle', part: 'body' });
+    expect(hitAnnotation([circle], [0.5, 0.5 - radius - 0.003], tight, null)?.annotationId).toBe('circle');
+    expect(hitAnnotation([circle], [0.5, 0.5], tight, null)).toBeNull();
+    expect(hitAnnotation([circle], [0.5 + radius + 0.006, 0.5], tight, null)).toBeNull();
+    // An arrow landing at its centre is the arrow's there; the ring is the circle's.
+    const landing: KnownDiagramAnnotation = { id: 'landing', kind: 'push-arrow', from: [0.2, 0.5], to: [0.5, 0.5] };
+    expect(hitAnnotation([circle, landing], [0.49, 0.5], tight, null)?.annotationId).toBe('landing');
+    expect(hitAnnotation([landing, circle], [0.5, 0.5 + radius], tight, null)?.annotationId).toBe('circle');
+    // Selected, it offers no ends: it has one place, and is moved whole.
+    expect(hitAnnotation([circle], [0.5 + radius, 0.5], tight, 'circle')).toEqual({ annotationId: 'circle', part: 'body' });
   });
 
   it('takes a hollow push anywhere on or in its outline, not only on its spine', () => {

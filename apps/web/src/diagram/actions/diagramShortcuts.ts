@@ -117,20 +117,24 @@ export function runDiagramShortcut(
   }
 }
 
-const ANNOTATE_SHORTCUTS: ReadonlySet<string> = new Set<DiagramAnnotateShortcutId>([
-  'diagram.toolEditPath',
-  'diagram.toolValleyArrow',
-  'diagram.toolMountainArrow',
-  'diagram.toolFoldUnfoldArrow',
-  'diagram.toolPushArrow',
-  'diagram.toolTurnOver',
-  'diagram.toolRotate',
-  'diagram.toolValleyLine',
-  'diagram.toolMountainLine',
-  'diagram.toolHiddenLine',
-  'diagram.toolLabel',
-  'diagram.flipArc',
-]);
+/** Annotate's keys: a record, so a new one is a compile error here until it is listed. */
+const ANNOTATE_SHORTCUT_IDS: Readonly<Record<DiagramAnnotateShortcutId, true>> = {
+  'diagram.toolEditPath': true,
+  'diagram.toolValleyArrow': true,
+  'diagram.toolMountainArrow': true,
+  'diagram.toolFoldUnfoldArrow': true,
+  'diagram.toolPushArrow': true,
+  'diagram.toolTurnOver': true,
+  'diagram.toolRotate': true,
+  'diagram.toolValleyLine': true,
+  'diagram.toolMountainLine': true,
+  'diagram.toolHiddenLine': true,
+  'diagram.toolLabel': true,
+  'diagram.toolCircle': true,
+  'diagram.flipArc': true,
+};
+
+const ANNOTATE_SHORTCUTS: ReadonlySet<string> = new Set(Object.keys(ANNOTATE_SHORTCUT_IDS));
 
 export function isAnnotateShortcut(id: DiagramShortcutId): id is DiagramAnnotateShortcutId {
   return ANNOTATE_SHORTCUTS.has(id);

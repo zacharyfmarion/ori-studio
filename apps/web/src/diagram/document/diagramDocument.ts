@@ -355,7 +355,8 @@ export type DiagramPicture =
 /**
  * What an annotation draws (D8): a fold arrow — kept (valley, mountain) or
  * made and unfolded — a push, the turn-over and rotate glyphs, a crease line
- * in the diagram's pens, and a label.
+ * in the diagram's pens, a label, and a circle round a point, as References
+ * rings one.
  */
 export type DiagramAnnotationKind =
   | 'valley-arrow'
@@ -367,7 +368,8 @@ export type DiagramAnnotationKind =
   | 'valley-line'
   | 'mountain-line'
   | 'hidden-line'
-  | 'label';
+  | 'label'
+  | 'circle';
 
 /** How far, and which way, a rotate glyph turns the model. */
 export interface DiagramRotation {
