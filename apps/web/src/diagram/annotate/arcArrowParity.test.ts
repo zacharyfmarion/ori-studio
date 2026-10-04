@@ -13,6 +13,8 @@ import { CARD_FRAME_PX, paintAnnotations } from './paintAnnotations';
  * selection follow were recorded before arrows could be shaped (at
  * 565360b45), for every arrow kind at every bend and length that draws
  * differently, beside every other kind; they must not move by a byte.
+ * Only the box each is cropped to has moved since: an arc arrow is now
+ * measured where it is drawn rather than padded a head's length all round.
  */
 describe('an arrow never shaped', () => {
   it.each(ARC_ARROW_CASES.map((annotation) => [annotation.id, annotation] as const))(

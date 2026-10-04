@@ -34,7 +34,6 @@ import {
 import { diagramInlineInk, type DiagramInlineInk } from '../../cp-workspace/references/diagram/diagramColors';
 import {
   DIAGRAM_ARROWHEAD_INK,
-  DIAGRAM_FOLD_RETURN_INK,
   DIAGRAM_PUSH_INK,
   DIAGRAM_ROTATE_INK,
   DIAGRAM_TURN_OVER_INK,
@@ -48,9 +47,11 @@ import {
   arcThroughPoints,
   arrowheadExtent,
   createOverlayProjector,
-  foldReturnOffset,
+  foldArrowDrawn,
+  oneWayArrowDrawn,
   pathArrowDrawn,
-  returnStroke,
+  type Arrowhead,
+  type DiagramArc,
   type PathArrowFold,
 } from '../../cp-workspace/references/stepDiagramGeometry';
 import { flattenPath } from '../../lib/cubicBezier';
@@ -342,34 +343,44 @@ export function annotationReach(drawing: AnnotationDrawing): { x: number; y: num
     take(line.a[0], line.a[1], 2 * ink);
     take(line.b[0], line.b[1], 2 * ink);
   }
-  const arrowPad = (DIAGRAM_ARROWHEAD_INK.length + DIAGRAM_FOLD_RETURN_INK.offset) * ink;
+  // An arrow, exactly where it is drawn: its strokes, and its head as drawn
+  // — a mountain's barb included, which a heavier pen makes bigger — with
+  // room for the pen's width and the mitre at a sharp corner.
+  const pen = project.pens.arrow.width * ink;
+  const arrowStrokes = (points: Iterable<readonly [number, number]>) => {
+    for (const [x, y] of points) take(x, y, pen);
+  };
+  const arcStroke = (arc: DiagramArc | null) => {
+    if (!arc) return;
+    for (const point of arcPolyline(arc)) {
+      const { x, y } = project(point);
+      take(x, y, pen);
+    }
+  };
+  const arrowhead = (head: Arrowhead) => {
+    for (const { x, y } of arrowheadExtent(head)) take(x, y, Math.max(2 * ink, 1.5 * pen));
+  };
   for (const primitive of drawing.primitives) {
     switch (primitive.kind) {
-      case 'fold-arrow':
+      case 'fold-arrow': {
+        const arrow = foldArrowDrawn(primitive.out, project, drawing.context.marks);
+        if (!arrow) break;
+        arcStroke(arrow.out);
+        arcStroke(arrow.back);
+        arrowhead(arrow.head);
+        break;
+      }
       case 'one-way-arrow': {
-        // A fold-and-unfold arrow's return bulges further out than its outgoing arc.
-        const back =
-          primitive.kind === 'fold-arrow'
-            ? returnStroke(primitive.out, foldReturnOffset(primitive.out, project) / project.scale)
-            : null;
-        for (const arc of back ? [primitive.out, back] : [primitive.out]) {
-          for (const point of arcPolyline(arc)) {
-            const { x, y } = project(point);
-            take(x, y, arrowPad);
-          }
-        }
+        const arrow = oneWayArrowDrawn(primitive.out, project, drawing.context.marks);
+        arcStroke(arrow.shaft);
+        arrowhead(arrow.head);
         break;
       }
       case 'path-arrow': {
-        // Exactly where it is drawn: its strokes, and its head as drawn — a
-        // mountain's barb included, which a heavier pen makes bigger — with
-        // room for the pen's width and the mitre at a sharp corner.
         const arrow = pathArrowDrawn(primitive.path, primitive.fold, project, drawing.context.marks);
         if (!arrow) break;
-        const pen = project.pens.arrow.width * ink;
-        const strokes = [...(arrow.shaft ? flattenPath(arrow.shaft, ink) : []), ...(arrow.back ?? [])];
-        for (const [x, y] of strokes) take(x, y, Math.max(DIAGRAM_ARROWHEAD_INK.length * ink, pen));
-        for (const { x, y } of arrowheadExtent(arrow.head)) take(x, y, Math.max(2 * ink, 1.5 * pen));
+        arrowStrokes([...(arrow.shaft ? flattenPath(arrow.shaft, ink) : []), ...(arrow.back ?? [])]);
+        arrowhead(arrow.head);
         break;
       }
       case 'push-arrow':

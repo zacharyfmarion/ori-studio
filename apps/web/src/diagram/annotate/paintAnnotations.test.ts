@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAPER_STYLE, PT_TO_CSS_PX } from '../../lib/paper/paperStyle';
 import { DEFAULT_DIAGRAM_STYLE, type DiagramAnnotation, type KnownDiagramAnnotation } from '../document/diagramDocument';
+import {
+  arcPolyline,
+  arrowheadExtent,
+  foldArrowDrawn,
+  oneWayArrowDrawn,
+} from '../../cp-workspace/references/stepDiagramGeometry';
 import { arcToPath } from './annotationPath';
 import { paintAsset } from '../pictures/paintDiagramStep';
 import { annotationDrawing, annotationScene, annotationTextRuns, labelRuns } from './annotationPrimitives';
@@ -230,6 +236,31 @@ describe('paintAnnotations', () => {
     const painted = paintAnnotations([fold], { x: 0, y: 0, width: 453, height: 340 }, 453, DEFAULT_DIAGRAM_STYLE)!;
     // The return's sagitta: well above the top edge, where the outgoing arc barely leaves it.
     expect(painted.bounds.y).toBeLessThan(-0.15 * 0.8 * 453);
+  });
+
+  it('reaches an arc arrow where it is drawn, a pen round it, not a head’s length round every point', () => {
+    // At the top edge, so what each reaches past the frame is how far it is measured.
+    for (const kind of ['fold-unfold-arrow', 'valley-arrow', 'mountain-arrow'] as const) {
+      const arrow = a('f', kind, { from: [0.2, 0.004], to: [0.8, 0.004], bend: 0.05 });
+      const drawing = annotationDrawing([arrow], { width: 1, height: 1 }, 453, DEFAULT_DIAGRAM_STYLE);
+      const { project, marks } = drawing.context;
+      const primitive = drawing.primitives.find((each) => each.kind === 'fold-arrow' || each.kind === 'one-way-arrow');
+      if (primitive?.kind !== 'fold-arrow' && primitive?.kind !== 'one-way-arrow') throw new Error('an arc arrow');
+      const drawn =
+        primitive.kind === 'fold-arrow'
+          ? foldArrowDrawn(primitive.out, project, marks)!
+          : { ...oneWayArrowDrawn(primitive.out, project, marks), out: null };
+      const strokes = [drawn.out, 'back' in drawn ? drawn.back : drawn.shaft].flatMap((arc) =>
+        arc ? arcPolyline(arc).map((point) => project(point)) : []
+      );
+      const top = Math.min(...[...strokes, ...arrowheadExtent(drawn.head)].map(({ y }) => y));
+      const painted = paintAnnotations([arrow], { x: 0, y: 0, width: 453, height: 453 }, 453, DEFAULT_DIAGRAM_STYLE)!;
+      const pen = project.pens.arrow.width * project.ink;
+      expect(top).toBeLessThan(0);
+      // Its strokes' half width kept, and no more than a mitre's room round its head.
+      expect(painted.bounds.y).toBeLessThanOrEqual(top - pen / 2);
+      expect(painted.bounds.y).toBeGreaterThanOrEqual(top - Math.max(2 * project.ink, 1.5 * pen) - 1e-6);
+    }
   });
 
   it('sets the rotate glyph’s fraction in the diagram’s font, as a run a page counts', () => {

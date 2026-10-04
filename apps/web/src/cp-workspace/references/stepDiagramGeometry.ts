@@ -870,6 +870,58 @@ export function oneWayArrow(
 }
 
 /**
+ * A fold-and-unfold arrow as a picture draws it: landing on the picture's
+ * rings, its return beside the mark it left, both strokes trimmed — the
+ * outgoing one for the ring, the return for its head — and the head on the
+ * return's end. The one place its drawn shape is decided, so its drawing and
+ * the room a page leaves it agree. The strokes are in the arc's own units,
+ * the head in the projector's; `marks` are the picture's ring centres, in
+ * the projector's units. Null when nothing moves.
+ */
+export function foldArrowDrawn(
+  arc: DiagramArc,
+  project: DiagramProjector,
+  marks: readonly SvgPoint[]
+): { out: DiagramArc; back: DiagramArc; head: Arrowhead } | null {
+  // Sized by the pen, not by the paper — see `arrowheadSize`. The trim is
+  // done on radii in the same projected units, and the angles it returns
+  // then apply to the sheet-unit arcs unchanged.
+  const head = arrowheadSize(arc, project);
+  const rim = project.marks.ringRadius * project.ink;
+  // Stopped at the far mark's rim, if it lands on one, before the return
+  // is derived — the return starts where the outgoing stroke stops.
+  const out = foldArrowLanding(arc, marks, rim, project);
+  // The return, derived here rather than carried: how far to the side it
+  // ends is the drawing's business — see the primitive's own note.
+  const arrow = foldAndUnfoldFromArc(out, foldReturnOffset(arc, project) / project.scale);
+  if (!arrow) return null;
+  const trimmed = foldArrowTrim(
+    {
+      out: { ...arrow.out, radius: arrow.out.radius * project.scale },
+      back: { ...arrow.back, radius: arrow.back.radius * project.scale },
+    },
+    head,
+    rim
+  );
+  const back = { ...arrow.back, to: trimmed.back.to };
+  return { out: { ...arrow.out, from: trimmed.out.from }, back, head: arcArrowhead(back, project, head) };
+}
+
+/**
+ * A one-way fold arrow as a picture draws it: landing on the picture's rings,
+ * its head sized by the pen ({@link oneWayArrow}). The one place its drawn
+ * shape is decided, as {@link foldArrowDrawn} is a fold-and-unfold arrow's.
+ */
+export function oneWayArrowDrawn(
+  arc: DiagramArc,
+  project: DiagramProjector,
+  marks: readonly SvgPoint[]
+): { shaft: DiagramArc | null; head: Arrowhead } {
+  const rim = project.marks.ringRadius * project.ink;
+  return oneWayArrow(foldArrowLanding(arc, marks, rim, project), project, arrowheadSize(arc, project));
+}
+
+/**
  * A mountain fold's head: one barb, hollow — the tip, the barb on the outside
  * of the curve (away from `centre`, the arc's centre in the same space), and
  * the notch, closed, to be stroked in the arrow's pen. Its edge from the notch

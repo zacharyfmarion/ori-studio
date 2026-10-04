@@ -11,19 +11,14 @@ import {
   TURN_OVER_BOX,
   TURN_OVER_HEAD_PATH,
   TURN_OVER_PATH,
-  arcArrowhead,
   arcPathData,
   arrowheadPath,
-  arrowheadSize,
   cubicPathData,
   erodeCreaseOnSheet,
-  foldAndUnfoldFromArc,
-  foldArrowLanding,
-  foldArrowTrim,
-  foldReturnOffset,
+  foldArrowDrawn,
   halfArrowheadPath,
   offPaperPathData,
-  oneWayArrow,
+  oneWayArrowDrawn,
   paperRingPoints,
   pathArrowDrawn,
   polygonPathData,
@@ -561,31 +556,14 @@ function diagramPrimitiveShape(
       return canLeavePaper(primitive) ? onAndOffPaper(context, index, draw) : draw(context);
     }
     case 'fold-arrow': {
-      // Sized by the pen, not by the paper — see `arrowheadSize`. The trim is
-      // done on radii in the same projected units, and the angles it returns
-      // then apply to the sheet-unit arcs unchanged.
-      const head = arrowheadSize(primitive.out, project);
-      const rim = project.marks.ringRadius * project.ink;
-      // Stopped at the far mark's rim, if it lands on one, before the return
-      // is derived — the return starts where the outgoing stroke stops.
-      const out = foldArrowLanding(primitive.out, context.marks, rim, project);
-      // The return, derived here rather than carried: how far to the side it
-      // ends is the drawing's business — see the primitive's own note.
-      const offset = foldReturnOffset(primitive.out, project);
-      const arrow = foldAndUnfoldFromArc(out, offset / project.scale);
+      const arrow = foldArrowDrawn(primitive.out, project, context.marks);
       if (!arrow) return null;
-      const scaled = {
-        out: { ...arrow.out, radius: arrow.out.radius * project.scale },
-        back: { ...arrow.back, radius: arrow.back.radius * project.scale },
-      };
-      const trimmed = foldArrowTrim(scaled, head, rim);
-      const shaft = { ...arrow.back, to: trimmed.back.to };
       const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
-      const outPath = arcPathData({ ...arrow.out, from: trimmed.out.from }, project);
-      const backPath = arcPathData(shaft, project);
+      const outPath = arcPathData(arrow.out, project);
+      const backPath = arcPathData(arrow.back, project);
       // On the return's end and along it, so the stroke runs into the notch
       // and its cap is buried in the head.
-      const headPath = arrowheadPath(arcArrowhead(shaft, project, head));
+      const headPath = arrowheadPath(arrow.head);
       return onAndOffPaper(context, index, (inks) => {
         const arrowInk = inked(inks, 'step-diagram__arc step-diagram__line--arrow', (ink) =>
           strokeInk(ink.lines.arrow, stroke.strokeOpacity)
@@ -604,9 +582,7 @@ function diagramPrimitiveShape(
     }
     case 'one-way-arrow': {
       // The fold arrow's head and its landing on a mark; no return.
-      const head = arrowheadSize(primitive.out, project);
-      const rim = project.marks.ringRadius * project.ink;
-      const arrow = oneWayArrow(foldArrowLanding(primitive.out, context.marks, rim, project), project, head);
+      const arrow = oneWayArrowDrawn(primitive.out, project, context.marks);
       const stroke = strokeAttributes('arrow', project.ink, project.dashScale, project.pens);
       const centre = project(primitive.out.center);
       return onAndOffPaper(context, index, (inks) => {
