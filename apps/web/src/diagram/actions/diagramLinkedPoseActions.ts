@@ -186,11 +186,14 @@ export function buildDiagramLinkedPoseActions(
     disabled: isDefaultRender(render),
     hint: t('panels:diagram.pose.resetHint', 'Already in its starting pose'),
   });
-  const spreadHeld = spreadBlocker(state, t);
+  // Held from turning on, never from turning off: a fold that lost its layer
+  // order keeps a spread it cannot show, and taking it off changes nothing seen.
+  const spreadOn = render.mode === 'folded-flat' && render.spread !== undefined;
+  const spreadHeld = spreadOn ? undefined : spreadBlocker(state, t);
   const spreadLayers = action('spread-layers', t('panels:diagram.pose.spreadLayers', 'Spread Layers'), {
     disabled: spreadHeld !== undefined,
     hint: spreadHeld,
-    pressed: render.mode === 'folded-flat' && render.spread !== undefined,
+    pressed: spreadOn,
     toggle: true,
   });
 
@@ -270,8 +273,11 @@ export function buildDiagramSpreadControls(
   deps: { t: TFunction; direction: (toward: SpreadDirection) => void }
 ): DiagramSpreadControls | null {
   const { t } = deps;
-  const spread = state.render.mode === 'folded-flat' ? (shown ?? state.render.spread ?? null) : null;
-  if (!spread) return null;
+  // The step's own spread, at the amount a drag shows: a preview never
+  // outlives the spread it was drawn for, nor says which way it steps.
+  const stored = state.render.mode === 'folded-flat' ? state.render.spread : undefined;
+  if (!stored) return null;
+  const spread = shown ? { ...stored, amount: shown.amount } : stored;
   const hint = state.readOnly
     ? t('panels:diagram.actions.readOnlyHint', 'This diagram was made with a newer Ori Studio and opens read-only')
     : spreadBlocker(state, t);

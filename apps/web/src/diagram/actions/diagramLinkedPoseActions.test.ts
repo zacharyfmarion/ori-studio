@@ -216,6 +216,28 @@ describe('spreading a flat fold’s layers (Phase 13)', () => {
     expect(controls({ render: { ...FLAT, spread: SPREAD } }, { amount: 0.12, toward: 'up-left' })!.spread.amount).toBe(0.12);
   });
 
+  it('takes only the amount from a drag: the direction is the step’s, and a spread turned off has no rows', () => {
+    const controls = (state: Partial<DiagramLinkedPoseState>, shown: typeof SPREAD | null) =>
+      buildDiagramSpreadControls({ render: FLAT, readOnly: false, busy: false, solutions: null, ...state }, shown, {
+        t,
+        direction: vi.fn(),
+      });
+    // A preview begun before a direction landed.
+    const turned = controls({ render: { ...FLAT, spread: { amount: 0.05, toward: 'down' } } }, { amount: 0.12, toward: 'up-left' })!;
+    expect(turned.spread).toEqual({ amount: 0.12, toward: 'down' });
+    expect(turned.directions.find((option) => option.pressed)?.toward).toBe('down');
+    // A preview left over from a spread since turned off.
+    expect(controls({}, { amount: 0.12, toward: 'up-left' })).toBeNull();
+  });
+
+  it('turns off on a fold with no layer order, though it cannot turn on there', () => {
+    const pose = vi.fn();
+    const on = toggle({ seeThrough: true, render: { ...FLAT, spread: SPREAD } }, pose);
+    expect(on).toMatchObject({ pressed: true, disabled: false });
+    on.run();
+    expect(pose.mock.calls).toEqual([['spread-layers']]);
+  });
+
   it('holds the direction while a capture runs, on a read-only diagram, and on a picture with no layers', () => {
     const direction = vi.fn();
     const render = { ...FLAT, spread: SPREAD };
