@@ -38,6 +38,7 @@ import type { DiagramViewMode } from '../../store/workspaceStore/types';
 import { DiagramEmptyState } from '../diagram/DiagramEmptyState';
 import { DiagramHeader } from '../diagram/DiagramHeader';
 import { DiagramPagesView } from '../diagram/DiagramPagesView';
+import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
 import { DiagramStepDetail } from '../diagram/DiagramStepDetail';
 import { DiagramStepsGrid } from '../diagram/DiagramStepsGrid';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -148,6 +149,8 @@ export function DiagramPanel() {
       : -1;
   // Held for as long as the detail is open on a linked step: its fold, between verbs.
   const linkedPose = useDiagramLinkedPose(detailIndex >= 0 ? steps[detailIndex] : null);
+  // A References step's other ways to fold its card, while its detail is open (D23).
+  const ways = useReferencesStepWays(detailIndex >= 0 ? steps[detailIndex]! : null);
   if (detailIndex >= 0) {
     const step = steps[detailIndex];
     return (
@@ -173,6 +176,7 @@ export function DiagramPanel() {
           onAnnotateTool={setAnnotateTool}
           poseActions={poseActions}
           linkedPose={linkedPose}
+          ways={ways}
           onBack={closeStep}
           onStep={(direction) => {
             const next = steps[detailIndex + direction];

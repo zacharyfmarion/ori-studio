@@ -25,6 +25,7 @@ export type DiagramLinkedPoseActionId =
   | 'rotate-left'
   | 'rotate-right'
   | 'turn-over'
+  | 'previous-solution'
   | 'next-solution'
   | 'view-top'
   | 'view-front'
@@ -52,8 +53,32 @@ export interface DiagramLinkedPoseState {
   readOnly: boolean;
   /** A capture of the step is running: every verb waits for it. */
   busy: boolean;
-  /** Another layer order can be searched for (a held flat fold says so); null when not known yet. */
-  hasNextSolution: boolean | null;
+  /** The held flat fold's layer orders: how many found, and whether there may be more; null when not known yet. */
+  solutions: { discovered: number; hasNext: boolean } | null;
+}
+
+/**
+ * Where a flat fold stands among its layer orders, for the pager between ‹
+ * and ›: "2 of 5" when the search has found them all, "2 of 5+" while it may
+ * find more, the number alone before it has looked — as `count`, under a
+ * row's own "Layer order", and as `label`, standing alone in a toolbar. Null
+ * for any other render.
+ */
+export function layerOrderLabel(
+  render: DiagramCpRender,
+  solutions: DiagramLinkedPoseState['solutions'],
+  t: TFunction
+): { count: string; label: string } | null {
+  if (render.mode !== 'folded-flat') return null;
+  const number = render.foldCase;
+  const total = solutions ? Math.max(solutions.discovered, number) : null;
+  const count =
+    total === null
+      ? String(number)
+      : solutions!.hasNext
+        ? t('panels:diagram.pose.layerOrderOfMore', '{{number}} of {{total}}+', { number, total })
+        : t('panels:diagram.pose.layerOrderOf', '{{number}} of {{total}}', { number, total });
+  return { count, label: t('panels:diagram.pose.layerOrderLabel', 'Layer order {{place}}', { place: count }) };
 }
 
 /** The verb that shows a linked step each way (D19): the one map every surface reads. */
@@ -130,16 +155,21 @@ export function buildDiagramLinkedPoseActions(
         ...modes,
         action('turn-over', t('panels:diagram.pose.turnOver', 'Turn Over')),
         ...turn,
-        action(
-          'next-solution',
-          t('panels:diagram.pose.nextSolution', 'Next Layer Order (now {{number}})', {
-            number: render.foldCase,
-          }),
-          {
-            disabled: state.hasNextSolution === false && render.foldCase === 1,
-            hint: t('panels:diagram.pose.onlySolution', 'This fold has one layer order'),
-          }
-        ),
+        // Any layer order found, in either direction (D23): back to the one
+        // before, on to the next — the search's next when none is found past
+        // this one — the last wrapping round to the first, as Edit's does.
+        action('previous-solution', t('panels:diagram.pose.previousSolution', 'Previous Layer Order'), {
+          disabled: render.foldCase <= 1,
+          hint: t('panels:diagram.pose.firstSolution', 'This is its first layer order'),
+        }),
+        action('next-solution', t('panels:diagram.pose.nextLayerOrder', 'Next Layer Order'), {
+          disabled:
+            state.solutions !== null &&
+            !state.solutions.hasNext &&
+            state.solutions.discovered <= 1 &&
+            render.foldCase === 1,
+          hint: t('panels:diagram.pose.onlySolution', 'This fold has one layer order'),
+        }),
         reset,
       ];
     case 'folded-3d':

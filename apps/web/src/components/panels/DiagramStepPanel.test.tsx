@@ -253,11 +253,12 @@ describe('DiagramStepPanel', () => {
         useWorkspaceStore.setState({ diagram: { ...createDiagram({ newId: () => 'diagram-1' }), steps: [cpStep('step-f', render)] } });
         state().openDiagramStep('step-f');
         const actions = buildDiagramLinkedPoseActions(
-          { render, readOnly: false, busy: false, hasNextSolution: true },
+          { render, readOnly: false, busy: false, solutions: { discovered: 1, hasNext: true } },
           { t: ((_key: string, fallback: string) => fallback) as never, pose }
         );
         publishOpenLinkedPose('step-f', {
           actions,
+          layerOrder: { count: '2 of 2+', label: 'Layer order 2 of 2+' },
           spatial: null,
           onCamera: () => {},
           rotateTo,
@@ -267,7 +268,7 @@ describe('DiagramStepPanel', () => {
         });
       });
       expect(pressed('Side')).toBe('Back');
-      expect(host?.textContent).toContain('Layer order2');
+      expect(host?.textContent).toContain('Layer order2 of 2+');
       act(() => textButton('Front')?.click());
       expect(pose).toHaveBeenCalledWith('turn-over');
       // Show as leads the pane, above the pose.

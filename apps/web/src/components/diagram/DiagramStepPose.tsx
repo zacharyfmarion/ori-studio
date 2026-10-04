@@ -4,7 +4,12 @@ import type { DiagramPoseAction } from '../../diagram/actions/diagramPoseActions
 import type { DiagramLinkedPoseAction } from '../../diagram/actions/diagramLinkedPoseActions';
 import { useOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import { isLockedStep, type DiagramStep } from '../../diagram/document/diagramDocument';
+import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react';
 import { CollapsibleSection } from '../ui/CollapsibleSection';
+import { useReferencesStepWays } from '../../diagram/references/useReferencesStepWays';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import { DiagramWayRow } from './DiagramWayChooser';
+import { IconButton } from '../ui/IconButton';
 import { FieldRow, NumberRow, SegmentedRow } from '../ui/fieldRows';
 import styles from './DiagramStepPose.module.css';
 
@@ -41,6 +46,9 @@ export function DiagramStepPose({
 }) {
   const { t } = useTranslation();
   const linkedPose = useOpenLinkedPose(step.id);
+  const readOnly = useWorkspaceStore((state) => state.diagramReadOnly);
+  // A References step's ways to fold its card (D23).
+  const ways = useReferencesStepWays(step);
   if (isLockedStep(step)) return null;
   const section = (body: ReactNode) => (
     <CollapsibleSection title={t('panels:diagram.stepPane.pose', 'Pose')}>
@@ -82,10 +90,13 @@ export function DiagramStepPose({
 
   if (source?.kind === 'references-step' && step.picture?.kind === 'step-diagram') {
     return section(
-      sideRow({
-        side: step.picture.mirrored ? 'back' : 'front',
-        turnOver: actions.find((action) => action.id === 'turn-over'),
-      })
+      <>
+        <DiagramWayRow choice={ways} readOnly={readOnly} />
+        {sideRow({
+          side: step.picture.mirrored ? 'back' : 'front',
+          turnOver: actions.find((action) => action.id === 'turn-over'),
+        })}
+      </>
     );
   }
 
@@ -118,10 +129,32 @@ export function DiagramStepPose({
       )}
       {side !== null && sideRow({ side, turnOver })}
       {render.mode === 'folded-flat' && (
+        // Any layer order found, back or on (D23), as Pose's own pager has them.
         <FieldRow label={t('panels:diagram.pose.layerOrder', 'Layer order')} kind="text">
-          {render.foldCase}
+          <span className={styles.pager}>
+            {layerVerb(linked.find((action) => action.id === 'previous-solution'), ChevronLeft)}
+            <span className={styles.pagerLabel}>{linkedPose.layerOrder?.count ?? render.foldCase}</span>
+            {layerVerb(linked.find((action) => action.id === 'next-solution'), ChevronRight)}
+          </span>
         </FieldRow>
       )}
     </>
+  );
+}
+
+/** One of a flat fold's layer order verbs, as a small button: it waits, rather than disables, while a capture runs. */
+function layerVerb(action: DiagramLinkedPoseAction | undefined, Icon: LucideIcon): ReactNode {
+  if (!action) return null;
+  return (
+    <IconButton
+      size="sm"
+      aria-label={action.label}
+      title={(action.disabled || action.waiting) && action.hint ? action.hint : action.label}
+      disabled={action.disabled}
+      aria-disabled={action.waiting || undefined}
+      onClick={action.run}
+    >
+      <Icon size={14} />
+    </IconButton>
   );
 }

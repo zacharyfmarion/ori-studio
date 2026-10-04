@@ -34,6 +34,7 @@ import {
   stepNumber,
   turnById,
   type DiagramEntry,
+  setReferencesWay,
 } from '../../../diagram/document/diagramDocument';
 import i18n from '../../../i18n';
 import { requestConfirmation } from '../../commandDialogStore';
@@ -412,6 +413,9 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
     closeDiagramPatternPicker: () => {
       if (get().diagramPatternPicker !== null) set({ diagramPatternPicker: null });
     },
+
+    setDiagramReferencesWay: (stepId, way) =>
+      commit('Choose way', (document) => setReferencesWay(document, stepId, way)) !== null,
 
     setDiagramReferencesSide: (stepId, mirrored) =>
       commit('Adjust pose', (document) => setReferencesSide(document, stepId, mirrored)) !== null,

@@ -102,7 +102,7 @@ describe('posing a crease pattern', () => {
     expect(result).toMatchObject({
       status: 'posed',
       render: { mode: 'folded-flat', side: 'front', rotationDeg: 345, foldCase: 1 },
-      hasNextSolution: false,
+      solutions: { hasNext: false },
     });
     expect(vi.mocked(runtime.fold).mock.calls[0]![3]).toEqual(LEFT_FOLD_LINE_IDS);
   });
@@ -219,9 +219,36 @@ describe('posing a flat fold', () => {
     const document = cpDocument();
     expect(await pose(session, FLAT, { verb: 'next-solution' }, document)).toMatchObject({
       render: { foldCase: 2 },
-      hasNextSolution: false,
+      solutions: { discovered: 2, hasNext: false },
     });
     expect(runtime.foldAnother).toHaveBeenCalledWith(7);
+  });
+
+  it('goes back to the layer order before by a jump to it, still counting those found past it (D23)', async () => {
+    // As the kernel does it: a jump back restarts the search and replays it
+    // forward to the case asked for, which forgets every one found past it.
+    let found = 1;
+    const runtime = fakeCaptureRuntime({
+      foldAnother: vi.fn(async () => {
+        found += 1;
+        return { discoveredCases: found, displayStyle: 'Paper5' as const, currentCase: found, hasNext: found < 3 };
+      }),
+      foldToCase: vi.fn(async (_handle: number, objective: number) => ({
+        discoveredCases: objective,
+        displayStyle: 'Paper5' as const,
+        currentCase: objective,
+        hasNext: true,
+      })),
+    });
+    const { session } = sessionWith(runtime);
+    const document = cpDocument();
+    await pose(session, FLAT, { verb: 'next-solution' }, document);
+    const last = await pose(session, { ...FLAT, foldCase: 2 }, { verb: 'next-solution' }, document);
+    expect(last).toMatchObject({ render: { foldCase: 3 }, solutions: { discovered: 3, hasNext: false } });
+    const back = await pose(session, { ...FLAT, foldCase: 3 }, { verb: 'previous-solution' }, document);
+    expect(back).toMatchObject({ render: { foldCase: 2 }, solutions: { discovered: 3, hasNext: false } });
+    expect(runtime.foldToCase).toHaveBeenLastCalledWith(7, 2);
+    expect(runtime.foldAnother).toHaveBeenCalledTimes(2);
   });
 
   it('shows the crease pattern again, letting the fold go', async () => {

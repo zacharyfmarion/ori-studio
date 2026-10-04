@@ -6,8 +6,10 @@ import { onEngineLost } from '../../engines/engineHost';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import {
   buildDiagramLinkedPoseActions,
+  layerOrderLabel,
   SHOW_AS_ACTION,
   type DiagramLinkedPoseAction,
+  type DiagramLinkedPoseState,
 } from '../actions/diagramLinkedPoseActions';
 import { showAsOf, type DiagramShowAs, type DiagramStep, stepById } from '../document/diagramDocument';
 import { publishOpenLinkedPose } from './openLinkedPose';
@@ -22,6 +24,8 @@ export type { DiagramPoseSpatialView };
 
 export interface DiagramLinkedPose {
   actions: DiagramLinkedPoseAction[];
+  /** A flat fold's place among its layer orders ("2 of 5+"), for the pager between its verbs; null otherwise. */
+  layerOrder: { count: string; label: string } | null;
   /** The live 3D fold, for a step shown in 3D once it is folded; null otherwise. */
   spatial: DiagramPoseSpatialView | null;
   /** The 3D view moved: captured once it rests. */
@@ -58,7 +62,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   // Each kept with the creases it was learnt from (`linkedFoldKey`): after a
   // Relink or an undo the step links to others, and these are not theirs.
   const [spatial, setSpatial] = useState<{ key: string; view: DiagramPoseSpatialView } | null>(null);
-  const [hasNext, setHasNext] = useState<{ key: string; value: boolean | null } | null>(null);
+  const [found, setFound] = useState<{ key: string; value: DiagramLinkedPoseState['solutions'] } | null>(null);
   const foldKey = useMemo(() => (source && stepId ? linkedFoldKey(stepId, source) : null), [source, stepId]);
 
   const controller = useMemo(
@@ -67,7 +71,7 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
         ? null
         : createPoseController(stepId, {
             spatial: (view, key) => setSpatial(view && key ? { key, view } : null),
-            hasNextSolution: (value, key) => setHasNext({ key, value }),
+            solutions: (value, key) => setFound({ key, value }),
           }),
     [stepId]
   );
@@ -100,17 +104,18 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   );
 
   const render = source?.render ?? null;
-  const hasNextSolution = hasNext !== null && hasNext.key === foldKey ? hasNext.value : null;
+  const solutions = found !== null && found.key === foldKey ? found.value : null;
   const actions = useMemo(
     () =>
       render && controller
         ? buildDiagramLinkedPoseActions(
-            { render, readOnly, busy, hasNextSolution },
+            { render, readOnly, busy, solutions },
             { t, pose: (verb) => void controller.run({ verb }) }
           )
         : [],
-    [render, readOnly, busy, hasNextSolution, t, controller]
+    [render, readOnly, busy, solutions, t, controller]
   );
+  const layerOrder = render ? layerOrderLabel(render, solutions, t) : null;
 
   const rotateTo = useCallback(
     (degrees: number) => {
@@ -143,8 +148,8 @@ export function useDiagramLinkedPose(step: DiagramStep | null): DiagramLinkedPos
   );
 
   const pose = useMemo(
-    () => (source ? { actions, spatial: view, onCamera, rotateTo, showAs, simulate, wantsRest } : null),
-    [source, actions, view, onCamera, rotateTo, showAs, simulate, wantsRest]
+    () => (source ? { actions, layerOrder, spatial: view, onCamera, rotateTo, showAs, simulate, wantsRest } : null),
+    [source, actions, layerOrder, view, onCamera, rotateTo, showAs, simulate, wantsRest]
   );
   // The Step pane offers these verbs too, through this one controller.
   useEffect(() => publishOpenLinkedPose(stepId, pose), [stepId, pose]);

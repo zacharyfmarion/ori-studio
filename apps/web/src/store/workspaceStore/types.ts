@@ -50,6 +50,7 @@ import type {
   DiagramCpSource,
   DiagramPullAnchor,
   DiagramTurnKind,
+  DiagramStepDiagramPicture,
   SentReferencesEntry,
   DiagramDocument,
   DiagramHanStyle,
@@ -2084,6 +2085,11 @@ export interface DiagramSliceActions {
    * that browser's: once it has closed the pull adds nothing. The steps the
    * cards became, or null.
    */
+  /** Fold a References step's card another way (D23): one undo step. Whether it changed. */
+  setDiagramReferencesWay: (
+    stepId: string,
+    way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string }
+  ) => boolean;
   pullReferencesDiagramSteps: (
     sent: readonly SentReferencesEntry[],
     anchor: DiagramPullAnchor,

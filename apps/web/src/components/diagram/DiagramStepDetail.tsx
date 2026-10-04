@@ -42,6 +42,8 @@ import { Toolbar } from '../ui/Toolbar';
 import { useKeepFocusWithin } from '../../hooks/useKeepFocusWithin';
 import { DiagramHistoryButtons } from './DiagramHistoryButtons';
 import { DiagramLinkedPoseControls } from './DiagramLinkedPoseControls';
+import { DiagramWayChooser } from './DiagramWayChooser';
+import type { ReferencesStepWayChoice } from '../../diagram/references/useReferencesStepWays';
 import { DiagramPose3dView } from './DiagramPose3dView';
 import { DiagramPoseSimulatedView } from './DiagramPoseSimulatedView';
 import type { DiagramPoseAnnotations } from './DiagramPoseStage';
@@ -89,6 +91,7 @@ export function DiagramStepDetail({
   onAnnotateTool,
   poseActions,
   linkedPose,
+  ways = null,
   onBack,
   onStep,
   onUpload,
@@ -115,6 +118,8 @@ export function DiagramStepDetail({
   poseActions: readonly DiagramPoseAction[];
   /** A linked step's Pose: its verbs, and its live 3D view once folded. Null for any other step. */
   linkedPose: DiagramLinkedPose | null;
+  /** A References step's ways to fold its card (D23), chosen in Pose's toolbar; null for none. */
+  ways?: ReferencesStepWayChoice | null;
   onBack: () => void;
   /** Open the step before (-1) or after (1) this one. */
   onStep: (direction: -1 | 1) => void;
@@ -167,25 +172,28 @@ export function DiagramStepDetail({
   const poseToolbar = (transport: ReactNode) => (
     <Toolbar ref={poseRef} className={styles.pose} aria-label={t('panels:diagram.detail.pose', 'Pose')}>
       {linkedPose ? (
-        <DiagramLinkedPoseControls actions={linkedPose.actions} keep={keepPoseFocus}>
+        <DiagramLinkedPoseControls actions={linkedPose.actions} layerOrder={linkedPose.layerOrder?.label ?? null} keep={keepPoseFocus}>
           {transport}
         </DiagramLinkedPoseControls>
       ) : (
-        poseActions.map((action) => {
-          const Icon = POSE_ICONS[action.id];
-          return (
-            <IconButton
-              key={action.id}
-              size="sm"
-              title={action.disabled && action.hint ? action.hint : action.label}
-              aria-label={action.label}
-              disabled={action.disabled}
-              onClick={() => keepPoseFocus(action.run)}
-            >
-              <Icon size={15} />
-            </IconButton>
-          );
-        })
+        <>
+          <DiagramWayChooser choice={ways} readOnly={readOnly} />
+          {poseActions.map((action) => {
+            const Icon = POSE_ICONS[action.id];
+            return (
+              <IconButton
+                key={action.id}
+                size="sm"
+                title={action.disabled && action.hint ? action.hint : action.label}
+                aria-label={action.label}
+                disabled={action.disabled}
+                onClick={() => keepPoseFocus(action.run)}
+              >
+                <Icon size={15} />
+              </IconButton>
+            );
+          })}
+        </>
       )}
     </Toolbar>
   );

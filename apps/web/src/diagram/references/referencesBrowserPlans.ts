@@ -27,9 +27,14 @@ import type { ReferencesPlanCacheListing } from '../../cp-workspace/references/r
 import { planStrip } from '../../cp-workspace/references/referencesReaderState';
 import type { ReferencesCandidateResult, ReferencesResults } from '../../cp-workspace/references/referencesResults';
 import { referencesSheets, sheetBounds } from '../../cp-workspace/references/referencesSheets';
-import { chosenWitness } from '../../cp-workspace/references/precreaseSequence';
+import { chosenWitness, type PrecreaseStep } from '../../cp-workspace/references/precreaseSequence';
 import { rfSheetOfFrame } from '../../cp-workspace/references/referenceFinderStepInModel';
-import { stepWays, waySignature, wayChoicesOfSheet } from '../../cp-workspace/references/referencesWays';
+import {
+  stepWays,
+  waySignature,
+  wayChoicesOfSheet,
+  type ReferencesWayChoices,
+} from '../../cp-workspace/references/referencesWays';
 import type { PrecreaseComponent, PrecreaseInput, SheetAnalysis } from '../../cp-workspace/references/sheetFrames';
 import { boundariesMatch } from '../../cp-workspace/regions/regionReference';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
@@ -110,26 +115,52 @@ export function browserPlanCards(
   landmarksFirst: boolean,
   revision: string
 ): BrowserPlan {
+  const { cards } = planCards(t, plan, pattern, geometry, revision, {
+    landmarksFirst,
+    planWays: wayChoicesOfSheet(pattern.listing.ways, 0),
+  });
+  return { cards, finished: plan.result.stopReason === 'complete', settings: { ...pattern.listing.key.settings } };
+}
+
+/** The plan's one sheet, as each card's view step names it. */
+export const PLAN_SHEET = 0;
+
+/**
+ * A pattern's cached plan as cards under a view — Landmarks first or not, a
+ * choice of ways — with the strip they were drawn from: the browser's cards,
+ * and a References step's other ways (`referencesStepWays.ts`).
+ */
+export function planCards(
+  t: TFunction,
+  plan: ReferencesCachedPlan,
+  pattern: BrowserPattern,
+  geometry: CpGeometryTransport,
+  revision: string,
+  view: { landmarksFirst: boolean; planWays: ReferencesWayChoices }
+): { cards: BrowserCard[]; strip: ReturnType<typeof planStrip> } {
   const { key } = pattern.listing;
   const frame = key.sheet.frame;
   const record = cachedPlanRecord(plan, key, pattern.component.id, revision, {
     plain: planVariantInModel(plan.plain, frame),
     hoisted: planVariantInModel(plan.hoisted, frame),
   });
-  // The plan's one sheet is variant 0 — what each card's view step names.
-  const strip = planStrip(record, { landmarksFirst, planWays: wayChoicesOfSheet(pattern.listing.ways, 0) });
+  const strip = planStrip(record, view);
   const aux = referencesSheetAux(pattern.component, geometry);
-  const sheetAux: ReferencesSheetAux | null = aux ? { ...aux, component: 0 } : null;
+  const sheetAux: ReferencesSheetAux | null = aux ? { ...aux, component: PLAN_SHEET } : null;
   const filmstrip = planFilmstrip(t, strip.variants, strip.viewSteps, [plan.result.stopReason], sheetAux);
   const context: ReferencesStripContext = { strip: filmstrip, viewSteps: strip.viewSteps, variants: strip.variants };
   const cards = filmstrip.map((row, index): BrowserCard => {
-    const view = strip.viewSteps[index];
-    const step =
-      view?.kind === 'fold' ? strip.variants[view.component]?.sequence.steps[view.step] : undefined;
+    const step = foldStepOf(strip, index);
     const witness = step && stepWays(step).length > 0 ? chosenWitness(step) : null;
     return cardOf(context, index, witness ? waySignature(witness) : null);
   });
-  return { cards, finished: plan.result.stopReason === 'complete', settings: { ...key.settings } };
+  return { cards, strip };
+}
+
+/** The planned step a strip's row folds, as presented; undefined for a turn-over or the ending. */
+export function foldStepOf(strip: ReturnType<typeof planStrip>, index: number): PrecreaseStep | undefined {
+  const view = strip.viewSteps[index];
+  return view?.kind === 'fold' ? strip.variants[view.component]?.sequence.steps[view.step] : undefined;
 }
 
 /** The Find answer References has on screen, as cards: the candidate it shows. */

@@ -5,6 +5,7 @@ import {
   buildDiagramLinkedPoseActions,
   isDefaultRender,
   type DiagramLinkedPoseState,
+  layerOrderLabel,
 } from './diagramLinkedPoseActions';
 
 const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
@@ -16,7 +17,7 @@ function build(state: Partial<DiagramLinkedPoseState>, pose = vi.fn()) {
       render: { mode: 'crease-pattern', rotationDeg: 0 },
       readOnly: false,
       busy: false,
-      hasNextSolution: null,
+      solutions: null,
       ...state,
     },
     { t, pose }
@@ -46,6 +47,7 @@ describe('the linked pose verbs', () => {
       'turn-over',
       'rotate-left',
       'rotate-right',
+      'previous-solution',
       'next-solution',
       'reset',
     ]);
@@ -66,7 +68,7 @@ describe('the linked pose verbs', () => {
     expect(actions.find((action) => action.id === 'show-crease-pattern')?.pressed).toBe(false);
     actions.find((action) => action.id === 'turn-over')?.run();
     expect(pose).toHaveBeenCalledWith('turn-over');
-    expect(actions.find((action) => action.id === 'next-solution')?.label).toBe('Next Layer Order (now 3)');
+    expect(actions.find((action) => action.id === 'next-solution')?.label).toBe('Next Layer Order');
   });
 
   // Disabled under the focus, a verb drops it on the page, and every verb
@@ -101,10 +103,34 @@ describe('the linked pose verbs', () => {
       build({ render: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase }, ...state }).find(
         (action) => action.id === 'next-solution'
       );
-    expect(next({ hasNextSolution: null })?.disabled).toBe(false);
-    expect(next({ hasNextSolution: false })).toMatchObject({ disabled: true, hint: 'This fold has one layer order' });
+    expect(next({ solutions: null })?.disabled).toBe(false);
+    expect(next({ solutions: { discovered: 1, hasNext: false } })).toMatchObject({ disabled: true, hint: 'This fold has one layer order' });
     // Past the first, the next wraps back round.
-    expect(next({ hasNextSolution: false }, 2)?.disabled).toBe(false);
+    expect(next({ solutions: { discovered: 1, hasNext: false } }, 2)?.disabled).toBe(false);
+  });
+
+  it('goes back to the layer order before, but not from the first (D23)', () => {
+    const previous = (foldCase: number) =>
+      build({ render: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase } }).find(
+        (action) => action.id === 'previous-solution'
+      );
+    expect(previous(1)).toMatchObject({ disabled: true, hint: 'This is its first layer order' });
+    expect(previous(3)?.disabled).toBe(false);
+    // In order: back, on.
+    const ids = build({ render: { mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 2 } }).map((action) => action.id);
+    expect(ids.indexOf('previous-solution') + 1).toBe(ids.indexOf('next-solution'));
+  });
+
+  it('says where a flat fold stands among the layer orders found', () => {
+    const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
+      fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name] ?? ''))) as never;
+    const flat = (foldCase: number) => ({ mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase }) as const;
+    expect(layerOrderLabel(flat(2), null, t)).toEqual({ count: '2', label: 'Layer order 2' });
+    expect(layerOrderLabel(flat(2), { discovered: 5, hasNext: false }, t)).toEqual({ count: '2 of 5', label: 'Layer order 2 of 5' });
+    expect(layerOrderLabel(flat(2), { discovered: 3, hasNext: true }, t)?.count).toBe('2 of 3+');
+    // Never fewer found than the one shown.
+    expect(layerOrderLabel(flat(4), { discovered: 3, hasNext: true }, t)?.count).toBe('4 of 4+');
+    expect(layerOrderLabel({ mode: 'crease-pattern', rotationDeg: 0 }, null, t)).toBeNull();
   });
 
   it('resets only a pose that has moved', () => {

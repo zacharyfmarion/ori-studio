@@ -1,0 +1,8 @@
+/* What the linked Pose controls (DiagramLinkedPoseControls.tsx) draw of their own: the layer order pager's readout. */
+.layerOrder {
+  padding: 0 var(--space-1);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

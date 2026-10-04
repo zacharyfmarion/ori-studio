@@ -56,7 +56,7 @@ async function linkedStep(): Promise<string> {
   return stepId;
 }
 
-const listener = () => ({ spatial: vi.fn(), hasNextSolution: vi.fn() });
+const listener = () => ({ spatial: vi.fn(), solutions: vi.fn() });
 const render = (stepId: string) => stepsIn(state().diagram!).find((step) => step.id === stepId)!.source;
 
 beforeEach(async () => {
@@ -131,7 +131,7 @@ describe('the Pose controller', () => {
     await controller.run({ verb: 'show-folded' });
     const source = render(stepId)!;
     if (source.kind !== 'cp') throw new Error('linked');
-    expect(heard.hasNextSolution).toHaveBeenLastCalledWith(expect.anything(), linkedFoldKey(stepId, source));
+    expect(heard.solutions).toHaveBeenLastCalledWith(expect.anything(), linkedFoldKey(stepId, source));
     // Another pattern, or the same one changed, is another key.
     expect(linkedFoldKey(stepId, { ...source, fingerprint: 'cs1:other' })).not.toBe(linkedFoldKey(stepId, source));
     const elsewhere = { ...source.scope.region, boundary: [[{ x: 5, y: 5 }, { x: 6, y: 5 }, { x: 6, y: 6 }]] };

@@ -3042,9 +3042,39 @@ Four requests after Phase 10, with D22 and D23 above.
     Between steps 3 and 4"; on page 1 the glyph before step 1 and the one
     between 3 and 4 sit at the leading edge of their pictures, the one between
     7 and 8 midway, with its "1/4"; nothing scrolls sideways on a phone.
-- [ ] **11d. Pose options (D23).** Ways for a References step (the pull records
-  the order its picture was drawn in); ‹ Layer order n of m › for a linked
-  folded step.
+- [x] **11d. Pose options (D23).** Ways for a References step; ‹ Layer order
+  n of m › for a linked folded step.
+  - As built, ways: `referencesStepWays` redraws the step's card under each of
+    its ways from the plan it came from (`source.plan`, which the browser
+    lists only while it is cached and still fits its sheet), through the
+    browser's own `planCards` with `withWayChoice` — the same drawing
+    References makes. The step does not record whether its plan was read
+    Landmarks first, so both readings are drawn and the one in which some way
+    draws the step's own picture wins; no new field in the file. A choice
+    (`setReferencesWay`, one undo step "Choose way") records the way and its
+    card's sentence, keeps the side, takes the sentence only while the
+    instruction is still the old card's, and carries annotations as a turn
+    over does. `useReferencesSheets` and `useDecodedPlan` (shared with the
+    browser, each keeping its last answer) find the plan; a step that
+    recorded no way asks the worker for nothing. Pose's toolbar has a
+    segment a way; the Step pane a Way row with help. With the plan gone, the
+    toolbar keeps a refused "Way" whose tooltip says why and points to
+    Replace from References… (in the Step pane), and the row reads
+    Unavailable. `diagram picture posed` gains `choose_way`.
+  - As built, layer orders: Previous jumps to the case before (`foldToCase`;
+    the kernel replays its search forward, which forgets the ones past it, so
+    the capture session keeps the most it has reached and whether the search
+    ran out there); Next searches on, wrapping at the end as Edit's does. The
+    readout is "n of m+" while more may exist, "n of m" once the search ran
+    out, n alone before the first search answers; Step pane's Layer order row
+    is the same pager. `previous_solution` joins the posed verbs.
+  - Browser (`artifacts/diagram-phase11/ways.mjs`, `ways-references.mjs`,
+    `layer-orders.mjs`): crane-planned card 1 offers 4 ways; Way 2 redraws it
+    "Fold through P and Q", on the back as before, its sentence followed — and
+    References' own Way 2 of 4 for that card is the same picture and words.
+    The iguana's whole sheet folded flat pages 1 of 1+ → 2 of 2+ → 3 of 3+ and
+    back to 2 of 3+ (it read 2 of 2+ before the session kept its reach; a
+    test fails without it), desktop and phone.
 - [x] **11e. Flip's glyph** is Edit's folded-figure Flip (`RotateCcwSquare`)
   in Pose and the linked-step controls.
 - [ ] **Review**, and its fixes committed; the PR updated.

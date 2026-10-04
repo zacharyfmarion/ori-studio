@@ -99,6 +99,8 @@ export type DiagramPoseAction =
   | 'show_folded'
   | 'turn_over'
   | 'next_solution'
+  | 'previous_solution'
+  | 'choose_way'
   | 'view_top'
   | 'view_front'
   | 'view_iso'

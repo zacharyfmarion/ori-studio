@@ -56,14 +56,20 @@ export type LinkedPoseResult =
       render: DiagramCpRender;
       picture: CapturedPicture;
       noLayerOrder: boolean;
-      /** For a flat fold: whether another layer order can be searched for. */
-      hasNextSolution?: boolean;
+      /** For a flat fold: how many layer orders are found, and whether another can be searched for. */
+      solutions?: FlatSolutions;
       /** For a 3D fold: what the live view draws. */
       spatial?: SpatialHold;
     }
   | { status: 'refused'; refusal: OristudioCpFold3dRefusal }
   /** Shown as Simulated, and the region has no model the simulator can fold. */
   | { status: 'unavailable' };
+
+/** A flat fold's layer orders as the search knows them: how many found, and whether there may be more. */
+export interface FlatSolutions {
+  discovered: number;
+  hasNext: boolean;
+}
 
 export interface LinkedPoseInput {
   document: OristudioCpDocumentSnapshot;
@@ -101,6 +107,7 @@ export async function poseLinkedStep(
     foldCase: number,
     move?: 'turn-over' | 'next-solution'
   ): Promise<LinkedPoseResult> => {
+    // Another layer order is a search of the held fold; one already found, a jump to it.
     let state = await session.flat(document, creases.foldLineIds, side, foldCase);
     if (move === 'turn-over') state = await session.turnOver();
     if (move === 'next-solution') state = await session.nextSolution();
@@ -110,7 +117,7 @@ export async function poseLinkedStep(
       render: { mode: 'folded-flat', side: state.side, rotationDeg, foldCase: state.foldCase },
       picture,
       noLayerOrder: state.noLayerOrder,
-      hasNextSolution: state.hasNext,
+      solutions: { discovered: state.discovered, hasNext: state.hasNext },
     };
   };
 
@@ -223,6 +230,8 @@ export async function poseLinkedStep(
         return flat(side, rotationDeg, foldCase, 'turn-over');
       case 'next-solution':
         return flat(side, rotationDeg, foldCase, 'next-solution');
+      case 'previous-solution':
+        return flat(side, rotationDeg, Math.max(1, foldCase - 1));
       case 'reset':
         return flat('front', 0, 1);
       default:

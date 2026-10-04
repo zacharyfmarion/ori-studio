@@ -4,7 +4,8 @@ import {
   ArrowDownToDot,
   Box,
   Eye,
-  Layers,
+  ChevronLeft,
+  ChevronRight,
   RotateCcw,
   RotateCw,
   RotateCcwSquare,
@@ -19,6 +20,7 @@ import {
 import { DIAGRAM_SHOW_AS, type DiagramShowAs } from '../../diagram/document/diagramDocument';
 import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import styles from './DiagramLinkedPoseControls.module.css';
 
 
 /** A linked pose verb's icon. */
@@ -27,7 +29,8 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
   'rotate-right': RotateCw,
   // As Edit's folded figures flip (`foldedFigureActionIcons`): the paper turned over, not mirrored.
   'turn-over': RotateCcwSquare,
-  'next-solution': Layers,
+  'previous-solution': ChevronLeft,
+  'next-solution': ChevronRight,
   'view-top': ArrowDownToDot,
   'view-front': Eye,
   'view-iso': Box,
@@ -44,10 +47,13 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
  */
 export function DiagramLinkedPoseControls({
   actions,
+  layerOrder = null,
   keep,
   children,
 }: {
   actions: readonly DiagramLinkedPoseAction[];
+  /** A flat fold's place among its layer orders, shown between ‹ and › (`layerOrderLabel`). */
+  layerOrder?: string | null;
   keep: (run: () => void) => void;
   children?: ReactNode;
 }) {
@@ -83,7 +89,7 @@ export function DiagramLinkedPoseControls({
       {children}
       {verbs.map((action) => {
         const Icon = LINKED_POSE_ICONS[action.id]!;
-        return (
+        const button = (
           <IconButton
             key={action.id}
             size="sm"
@@ -97,6 +103,14 @@ export function DiagramLinkedPoseControls({
             <Icon size={15} />
           </IconButton>
         );
+        // The layer order pager: ‹ where it stands ›.
+        if (action.id !== 'previous-solution' || !layerOrder) return button;
+        return [
+          button,
+          <span key="layer-order" className={styles.layerOrder} aria-live="polite">
+            {layerOrder}
+          </span>,
+        ];
       })}
     </>
   );

@@ -55,6 +55,12 @@ interface FlatHold extends FoldKey {
   epoch: number;
   side: 'front' | 'back';
   state: Omit<FoldedFigureState, 'handle'>;
+  /**
+   * The most layer orders this fold's search has reached, and whether it ran
+   * out there. A jump back to an earlier one restarts the search (the kernel
+   * replays it forward), which forgets every one past it: these do not.
+   */
+  reached: { cases: number; complete: boolean };
 }
 
 interface SpatialHold extends FoldKey {
@@ -69,6 +75,9 @@ interface SpatialHold extends FoldKey {
 export interface FlatFoldState {
   side: 'front' | 'back';
   foldCase: number;
+  /** How many layer orders the search has found so far, this one or later. */
+  discovered: number;
+  /** Whether the search may find more than `discovered`. */
   hasNext: boolean;
   noLayerOrder: boolean;
 }
@@ -173,10 +182,18 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     return held;
   };
 
+  /** The fold's new state, and how far its search has reached: only the frontier says whether it ran out. */
+  const settle = (hold: FlatHold, state: Omit<FoldedFigureState, 'handle'>) => {
+    hold.state = state;
+    const cases = state.discoveredCases;
+    if (cases >= hold.reached.cases) hold.reached = { cases, complete: !(state.hasNext ?? false) };
+  };
+
   const flatState = (hold: FlatHold): FlatFoldState => ({
     side: hold.side,
     foldCase: Math.max(1, hold.state.currentCase ?? hold.state.discoveredCases),
-    hasNext: hold.state.hasNext ?? false,
+    discovered: Math.max(1, hold.reached.cases),
+    hasNext: !hold.reached.complete,
     noLayerOrder: hold.state.outcome === 'NoSolutions' || hold.state.outcome === 'Contradiction',
   });
 
@@ -196,15 +213,17 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
           epoch: adopt(ticket, folded.handle),
           side,
           state: folded,
+          reached: { cases: 0, complete: false },
         };
+        settle(held, folded);
       }
       const hold = flatHold();
       if (hold.side !== side) {
-        hold.state = { ...hold.state, ...(await deps.runtime().setModel(hold.handle, captureModel(document, side))) };
+        settle(hold, { ...hold.state, ...(await deps.runtime().setModel(hold.handle, captureModel(document, side))) });
         hold.side = side;
       }
       if (flatState(hold).foldCase !== foldCase && foldCase >= 1) {
-        hold.state = await deps.search((runtime) => runtime.foldToCase(hold.handle, foldCase));
+        settle(hold, await deps.search((runtime) => runtime.foldToCase(hold.handle, foldCase)));
       }
       return flatState(hold);
     },
@@ -212,17 +231,14 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     async turnOver() {
       const hold = flatHold();
       const side = hold.side === 'back' ? 'front' : 'back';
-      hold.state = {
-        ...hold.state,
-        ...(await deps.runtime().setModel(hold.handle, captureModel(hold.document, side))),
-      };
+      settle(hold, { ...hold.state, ...(await deps.runtime().setModel(hold.handle, captureModel(hold.document, side))) });
       hold.side = side;
       return flatState(hold);
     },
 
     async nextSolution() {
       const hold = flatHold();
-      hold.state = await deps.search((runtime) => runtime.foldAnother(hold.handle));
+      settle(hold, await deps.search((runtime) => runtime.foldAnother(hold.handle)));
       return flatState(hold);
     },
 

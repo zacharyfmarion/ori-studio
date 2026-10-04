@@ -33,6 +33,7 @@ import {
   setUploadPose,
   pullReferencesSteps,
   setReferencesSide,
+  setReferencesWay,
   stepDiagramKey,
   DEFAULT_SIMULATED_VIEW,
   renderToShowAs,
@@ -496,6 +497,33 @@ describe('a References step’s side', () => {
     expect(stepDiagramKey('steps-x', true)).toBe('steps-x-back');
     expect(stepDiagramKey('steps-x-back', true)).toBe('steps-x-back');
     expect(stepDiagramKey('steps-x-back', false)).toBe('steps-x');
+  });
+});
+
+describe('a References step’s way to fold (D23)', () => {
+  function withSteps(...steps: DiagramStep[]): DiagramDocument {
+    return insertSteps(createDiagram({ title: 'T', newId: sequentialIds() }), steps, 0);
+  }
+  const other = { signature: 'O2:cp|0', picture: { ...stepDiagramPicture(), key: 'steps-2' }, sentence: 'Fold the corner to the point.' };
+
+  it('shows the way chosen, recording it, and its sentence while the words are still the card’s', () => {
+    const own = { ...referencesStep('step-r', { way: 'O3:el|0', sentence: 'Fold the edge to the line.' }), text: 'Fold the edge to the line.' };
+    const chosen = stepsIn(setReferencesWay(withSteps(own), 'step-r', other))[0]!;
+    expect(chosen.source).toMatchObject({ way: other.signature, sentence: other.sentence, card: 2 });
+    expect(chosen.picture).toEqual(other.picture);
+    expect(chosen.text).toBe(other.sentence);
+    expect(chosen.revision).toBe(own.revision + 1);
+    // The reader's own words stay, though the card's sentence is the new way's.
+    const edited = stepsIn(setReferencesWay(withSteps({ ...own, text: 'Mine.' }), 'step-r', other))[0]!;
+    expect(edited.text).toBe('Mine.');
+    expect(edited.source).toMatchObject({ sentence: other.sentence });
+  });
+
+  it('records nothing for the way it shows, and touches no other kind of step', () => {
+    const document = withSteps(referencesStep('step-r', { way: other.signature }), createStep(() => 'step-e'));
+    const same = setReferencesWay(document, 'step-r', { ...other, picture: stepDiagramPicture() });
+    expect(same).toBe(document);
+    expect(setReferencesWay(document, 'step-e', other)).toBe(document);
   });
 });
 

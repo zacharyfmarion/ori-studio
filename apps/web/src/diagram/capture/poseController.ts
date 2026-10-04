@@ -44,7 +44,7 @@ import { creasesThumbnail } from './captureThumbnail';
 import { abandonOnEngineLoss } from './engineLoss';
 import { linkStatus } from './linkStatus';
 import { lightingChanged } from '../pictures/lighting';
-import { poseLinkedStep, type LinkedPoseRequest } from './linkedPose';
+import { poseLinkedStep, type FlatSolutions, type LinkedPoseRequest } from './linkedPose';
 import { captureKind, sayCaptureOutcome } from './stepCaptureActions';
 
 /** How long the 3D view must rest before its camera is captured: one orbit, one undo step. */
@@ -58,6 +58,7 @@ const TRACKED: Record<LinkedPoseRequest['verb'], TrackedPoseAction> = {
   'rotate-right': 'rotate_right',
   'turn-over': 'turn_over',
   'next-solution': 'next_solution',
+  'previous-solution': 'previous_solution',
   'view-top': 'view_top',
   'view-front': 'view_front',
   'view-iso': 'view_iso',
@@ -85,8 +86,8 @@ export interface DiagramPoseSpatialView {
 export interface PoseControllerListener {
   /** The live 3D fold, once held; null when let go. */
   spatial: (view: DiagramPoseSpatialView | null, key: string | null) => void;
-  /** Whether the held flat fold has another layer order; null when unknown. */
-  hasNextSolution: (hasNext: boolean | null, key: string) => void;
+  /** The held flat fold's layer orders as the search knows them; null when unknown. */
+  solutions: (solutions: FlatSolutions | null, key: string) => void;
 }
 
 /** Which creases a step's fold is of: its scope and their fingerprint. */
@@ -220,7 +221,7 @@ export function createPoseController(stepId: string, listener: PoseControllerLis
         trackDiagramPicturePosed(TRACKED[request.verb], captureKind(result.render));
       }
       const key = linkedFoldKey(stepId, source);
-      listener.hasNextSolution(result.hasNextSolution ?? null, key);
+      listener.solutions(result.solutions ?? null, key);
       if (result.spatial) listener.spatial({ model: result.spatial.fold.render, aux: result.spatial.aux }, key);
       return {
         status: 'captured',

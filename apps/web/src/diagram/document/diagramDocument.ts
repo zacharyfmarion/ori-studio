@@ -993,6 +993,34 @@ export function setReferencesSide(document: DiagramDocument, stepId: string, mir
   });
 }
 
+/**
+ * Fold a References step's card another way (D23): its picture becomes the
+ * card drawn under that way — on the side the step shows — and the step
+ * records the way and the card's sentence under it. Its instruction follows
+ * only while it is still the old card's own words, as Replace's does. The
+ * annotations stay where they were on a picture that changed (D8).
+ */
+export function setReferencesWay(
+  document: DiagramDocument,
+  stepId: string,
+  way: { signature: string; picture: DiagramStepDiagramPicture; sentence: string }
+): DiagramDocument {
+  return updateStep(document, stepId, (step) => {
+    if (step.source?.kind !== 'references-step' || step.picture?.kind !== 'step-diagram') return step;
+    if (step.source.way === way.signature && step.picture.key === way.picture.key) return step;
+    const sentence = xmlText(way.sentence);
+    const own = step.source.sentence;
+    const chosen: DiagramStep = {
+      ...step,
+      source: { ...step.source, way: way.signature, sentence },
+      picture: way.picture,
+      text: own !== undefined && step.text === own ? sentence : step.text,
+      revision: step.revision + 1,
+    };
+    return withCarriedAnnotations(step, chosen, document.assets);
+  });
+}
+
 /** An upload's pose: how its shared asset is turned and flipped when the step is painted. */
 export interface UploadPose {
   rotationQuarterTurns: QuarterTurns;

@@ -113,6 +113,7 @@ describe('linkDiagramStep', () => {
 describe('showLinkedStepAs', () => {
   const openPose = (landed: boolean): DiagramLinkedPose => ({
     actions: [],
+    layerOrder: null,
     spatial: null,
     onCamera: () => {},
     rotateTo: () => {},

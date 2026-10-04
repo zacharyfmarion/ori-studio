@@ -16,6 +16,8 @@ import {
 } from '../../cp-workspace/references/sheetFrames';
 import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
 import { browserPlanCards, plannedPatterns, sheetPattern, type BrowserPattern } from './referencesBrowserPlans';
+import { referencesStepWays } from './referencesStepWays';
+import type { PrecreaseWay, PrecreaseWitness } from '../../cp-workspace/references/precreaseSequence';
 
 const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
   fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as unknown as TFunction;
@@ -126,6 +128,69 @@ describe('browserPlanCards', () => {
     const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
     const stopped = { ...plan, result: { ...plan.result, stopReason: 'budget' } } as ReferencesCachedPlan;
     expect(browserPlanCards(t, stopped, pattern!, geometry, false, 'rev-1').finished).toBe(false);
+  });
+});
+
+describe('a References step’s ways to fold (D23)', () => {
+  const witness = (axiom: number, inputs: PrecreaseWitness['inputs'], ease = 0): PrecreaseWitness => ({
+    axiom,
+    inputs,
+    root: 0,
+    who_moves: [0],
+    hard: false,
+    visible: true,
+    skinny: false,
+    ease,
+    err: 0,
+  });
+  /** The fixture with three ways at step 5, as `referencesWays.test.ts` has it. */
+  function planWithWays(): ReferencesCachedPlan {
+    const sequence = plannerSequenceFixture();
+    const ways: PrecreaseWay[] = [
+      { witness: witness(3, [{ kind: 'edge', id: 2, side: 'bottom' }, { kind: 'line', id: 4 }]), kind: 'O3:el' },
+      { witness: witness(2, [{ kind: 'corner', id: 0, corner: 'sw' }, { kind: 'point', id: 4 }]), kind: 'O2:cp', decided_by: 'local' },
+      { witness: witness(1, [{ kind: 'point', id: 4 }, { kind: 'point', id: 5 }], 7), kind: 'O1:pp', decided_by: 'one_motion' },
+    ];
+    sequence.steps[4] = { ...sequence.steps[4]!, ways };
+    return { result: { info: { component: 0 }, stopReason: 'complete' }, plain: sequence, hoisted: sequence, durationMs: 5 } as unknown as ReferencesCachedPlan;
+  }
+
+  it('draws the card under each of its ways, marking the one the step shows', () => {
+    const plan = planWithWays();
+    const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
+    const { cards } = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1');
+    const card = cards.find((candidate) => candidate.ways === 3)!;
+    expect(card.step?.way).toEqual(expect.any(String));
+    const result = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: card.step!.way! }, card.step!.picture);
+    if (result.status !== 'ready') throw new Error('ways');
+    expect(result.ways).toHaveLength(3);
+    expect(result.current).toBe(0);
+    expect(result.ways[0]!.picture.key).toBe(card.step!.picture.key);
+    // Each way its own drawing and its own words.
+    expect(new Set(result.ways.map((way) => way.signature)).size).toBe(3);
+    expect(new Set(result.ways.map((way) => way.picture.key)).size).toBe(3);
+  });
+
+  it('keeps the side the step shows, and finds the way it shows by its signature', () => {
+    const plan = planWithWays();
+    const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
+    const card = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1').cards.find((candidate) => candidate.ways === 3)!;
+    const first = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: card.step!.way! }, card.step!.picture);
+    if (first.status !== 'ready') throw new Error('ways');
+    const third = first.ways[2]!;
+    const turned = { ...third.picture, mirrored: !third.picture.mirrored };
+    const again = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: third.signature }, turned);
+    if (again.status !== 'ready') throw new Error('ways');
+    expect(again.current).toBe(2);
+    expect(again.ways.every((way) => way.picture.mirrored === turned.mirrored)).toBe(true);
+  });
+
+  it('offers none for a card with one way, or one the plan does not have', () => {
+    const plan = planWithWays();
+    const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
+    const one = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1').cards.find((candidate) => candidate.kind === 'fold' && candidate.ways === null)!;
+    expect(referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: one.step!.card.line }, one.step!.picture).status).toBe('none');
+    expect(referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: { n: [0.6, 0.8], d: 99 } }, one.step!.picture).status).toBe('none');
   });
 });
 

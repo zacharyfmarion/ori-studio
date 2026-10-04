@@ -28,7 +28,7 @@ function Toolbar({ busy, rotationDeg, onPose }: { busy: boolean; rotationDeg: nu
   const [ref, keep] = useKeepFocusWithin<HTMLDivElement>();
   const render: DiagramCpRender = { mode: 'crease-pattern', rotationDeg };
   const actions = buildDiagramLinkedPoseActions(
-    { render, readOnly: false, busy, hasNextSolution: null },
+    { render, readOnly: false, busy, solutions: null },
     { t, pose: onPose }
   );
   return (

@@ -1,26 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { reportError } from '../../monitoring';
-import { decodeCachedPlan, type ReferencesCachedPlan } from '../../cp-workspace/references/referencesPlanCache';
-import {
-  referencesPlanCacheListing,
-  referencesPlanCacheVersion,
-  subscribeReferencesPlanCache,
-} from '../../cp-workspace/references/referencesPlanCacheStore';
 import { referencesResultsSnapshot, subscribeReferencesResults } from '../../cp-workspace/references/referencesResults';
-import { referencesRevisionKey } from '../../cp-workspace/references/useReferencesView';
-import {
-  paperFallbackRect,
-  precreaseInputFromTransport,
-  type PrecreaseComponent,
-  type SheetAnalysis,
-} from '../../cp-workspace/references/sheetFrames';
+import type { PrecreaseComponent, SheetAnalysis } from '../../cp-workspace/references/sheetFrames';
 import { useWorkspaceStore } from '../../store/workspaceStore';
-import {
-  getPrecreaseClient,
-  releasePrecreaseClient,
-  retainPrecreaseClient,
-} from '../../store/workspaceStore/precreaseRuntime';
 import type { DiagramReferencesBrowserState } from '../../store/workspaceStore/types';
 import {
   anchorTakesCard,
@@ -33,13 +16,13 @@ import {
 import {
   browserFindCards,
   browserPlanCards,
-  plannedPatterns,
   sheetPattern,
   type BrowserCard,
   type BrowserPattern,
   type BrowserPlan,
 } from './referencesBrowserPlans';
 import { pullFromReferences, type PulledCard } from './referencesPulledSteps';
+import { useDecodedPlan, useReferencesSheets, type BrowserPatternsState } from './useReferencesSheets';
 import {
   browserSelection,
   pullableCards,
@@ -49,12 +32,7 @@ import {
   type BrowserStep,
 } from './referencesBrowserSelection';
 
-/** Where the browser's patterns stand. */
-export type BrowserPatternsState =
-  | { status: 'no-pattern' }
-  | { status: 'finding' }
-  | { status: 'failed' }
-  | { status: 'ready'; patterns: BrowserPattern[] };
+export type { BrowserPatternsState } from './useReferencesSheets';
 
 /** Where the cards of the list shown stand. */
 export type BrowserCardsState =
@@ -135,81 +113,22 @@ export interface ReferencesBrowser {
  */
 export function useReferencesBrowser(state: DiagramReferencesBrowserState): ReferencesBrowser {
   const { t } = useTranslation();
-  const document = useWorkspaceStore((store) => store.oristudioCpDocument);
   const diagram = useWorkspaceStore((store) => store.diagram);
   const landmarksFirst = useWorkspaceStore((store) => store.referencesView.landmarksFirst);
   const activeCandidate = useWorkspaceStore((store) => store.referencesView.activeCandidate);
-  const geometry = document?.geometry ?? null;
-  const revision = referencesRevisionKey(document);
-
-  // References' sheets, from the precrease worker, held while the browser is open.
-  useEffect(() => {
-    retainPrecreaseClient();
-    return releasePrecreaseClient;
-  }, []);
-  const [frames, setFrames] = useState<{ revision: string; analysis: SheetAnalysis | null } | null>(null);
-  useEffect(() => {
-    if (!geometry || lastFrames?.revision === revision) return undefined;
-    let live = true;
-    const input = precreaseInputFromTransport(geometry);
-    getPrecreaseClient()
-      .sheetFrames(input.segments, input.colors, paperFallbackRect())
-      .then((analysis) => {
-        lastFrames = { revision, analysis };
-        if (live) setFrames({ revision, analysis });
-      })
-      .catch((error: unknown) => {
-        reportError(error, { surface: 'diagram:references-browser' });
-        if (live) setFrames({ revision, analysis: null });
-      });
-    return () => {
-      live = false;
-    };
-    // The analysis is of the creases, which the revision names: a new transport
-    // for a selection-only change asks nothing again.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision]);
-  const analysis =
-    frames?.revision === revision
-      ? frames.analysis
-      : lastFrames?.revision === revision
-        ? lastFrames.analysis
-        : undefined;
-
-  const cacheVersion = useSyncExternalStore(subscribeReferencesPlanCache, referencesPlanCacheVersion);
-  const loadSerial = document?.loadSerial ?? null;
-  const patterns = useMemo((): BrowserPatternsState => {
-    if (!document || !geometry) return { status: 'no-pattern' };
-    if (analysis === undefined) return { status: 'finding' };
-    if (analysis === null) return { status: 'failed' };
-    const listing = loadSerial === null ? [] : referencesPlanCacheListing(loadSerial);
-    return { status: 'ready', patterns: plannedPatterns(analysis, listing, precreaseInputFromTransport(geometry)) };
-    // `cacheVersion` is when the listing can have changed: read again then.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [document, geometry, analysis, loadSerial, cacheVersion]);
+  // References' sheets and the planned patterns, held while the browser is open.
+  const { geometry, revision, analysis, patterns } = useReferencesSheets();
   const listed = patterns.status === 'ready' ? patterns.patterns : [];
   const named = listed.find((candidate) => candidate.id === state.pattern) ?? sheetPattern(listed, state.sheet) ?? null;
   const pattern = named ?? listed[0] ?? null;
 
   // The shown pattern's plan, unpacked once.
-  const [decoded, setDecoded] = useState<{ id: string; plan: ReferencesCachedPlan | null } | null>(null);
-  const payload = pattern?.listing.payload ?? null;
-  const patternId = pattern?.id ?? null;
-  useEffect(() => {
-    if (state.mode !== 'sequence' || patternId === null || payload === null) return undefined;
-    let live = true;
-    void decodeCachedPlan(payload).then((plan) => {
-      if (live) setDecoded({ id: patternId, plan });
-    });
-    return () => {
-      live = false;
-    };
-  }, [state.mode, patternId, payload]);
+  const decoded = useDecodedPlan(state.mode === 'sequence' ? pattern : null);
 
   const findResults = useSyncExternalStore(subscribeReferencesResults, () => referencesResultsSnapshot().results);
   const sequenceCards = useMemo((): BrowserCardsState => {
     if (!pattern || !geometry) return { status: 'none' };
-    if (decoded?.id !== pattern.id) return { status: 'loading' };
+    if (!decoded) return { status: 'loading' };
     if (!decoded.plan) return { status: 'unreadable' };
     try {
       const plan = browserPlanCards(t, decoded.plan, pattern, geometry, landmarksFirst, revision);
@@ -343,12 +262,7 @@ export function useReferencesBrowser(state: DiagramReferencesBrowserState): Refe
 const NO_CARDS: readonly BrowserCard[] = [];
 
 
-/**
- * The last analysis of the creases, by their revision: the browser opened
- * again on the same pattern lists its patterns at once rather than asking the
- * worker again.
- */
-let lastFrames: { revision: string; analysis: SheetAnalysis | null } | null = null;
+
 
 /**
  * The steps made from the shown pattern's plan (its cache key, recorded as a
