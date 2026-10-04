@@ -3077,7 +3077,47 @@ Four requests after Phase 10, with D22 and D23 above.
     test fails without it), desktop and phone.
 - [x] **11e. Flip's glyph** is Edit's folded-figure Flip (`RotateCcwSquare`)
   in Pose and the linked-step controls.
-- [ ] **Review**, and its fixes committed; the PR updated.
+- [x] **Review**, and its fixes committed; the PR updated.
+  - Six reviewers (turn model, pages, grid and UI, the modal and its
+    selection, ways, layer orders), every finding put to a skeptic: 24
+    confirmed, 22 distinct, none refuted. Fixed by hand, each with a test that
+    fails without it, in six commits:
+    - Turns: Alt+arrows in Pose move a step by its number past a turn; setting
+      a turn to what it is records nothing (the no-op test compared JSON key
+      order); a delete from Pose lands on a step, not a turn; a newer build's
+      turn is a locked *turn* — unnumbered, unprinted — not a locked step; the
+      turn's menu rows are radio rows, and `ContextMenu`'s radio rows are
+      `menuitemradio` with `aria-checked` everywhere; the turn pane's controls
+      have names of their own.
+    - Pages: the outer pictures give up what a margin under 7 mm cannot give
+      the half gutter (at 0 a glyph printed over the picture); stacked turns
+      space by their glyphs' printed boxes (`turnGlyphMm`), 1.5 mm clear —
+      their ink collided at a fixed 8 mm — and the Pages view's targets are
+      those boxes; the Pages view lists each turn where it reads, named with
+      its place (`turnLabel`, shared with the chip).
+    - Grid: the side padding makes room for a column-1 card's chip and "+"
+      wherever two columns can occur (cut by 7 px at 640 px).
+    - The browser: selection updates are functional (Shift+arrows never
+      extended: the landed card's onFocus overwrote the range); a modal keeps
+      focus (Tab wraps, focus that lands behind is taken back) and the app's
+      keys stand down while a barrier modal is open (Delete had removed the
+      step being filled); Escape closes it from a checkbox; Alt+arrows go
+      nowhere; a range onto an unfinished plan's Finished card takes the cards
+      before it; arrows from an unreadable card go to its neighbour; the
+      browser mounts first so a native-menu dialog stacks over it.
+    - Ways: the card is the one on the step's line whose way draws the step's
+      own picture — a press shares its fold's line and ways, and was offered
+      the fold's drawings; "Shown now" prefers the step's card number on its
+      line.
+    - Layer orders: the verbs refuse rather than disable (focus fell to
+      `<body>` when Previous reached the first); the session's frontier only
+      grows or closes (a replay reopened "3 of 3" to "3 of 3+"); a cold
+      Previous counts the order it leaves; a fold with no layer order says so.
+  - Browser (`artifacts/diagram-phase11/`): `pages-turns-review.mjs` (before
+    and after at margin 0), `grid-clip.mjs` (640, 1440, 390),
+    `modal-review.mjs` (before: Shift+→ chose 1, Shift+Tab reached "Link
+    Pattern…", Export sat under the browser; after: 1–3, inside, on top),
+    `ways.mjs`, `layer-orders.mjs` (focus on ‹ at the first).
 
 ### Later (written up, not built)
 
