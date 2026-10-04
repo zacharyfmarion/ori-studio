@@ -76,8 +76,23 @@ const PICTURE_SIDE_ROOM_MM = 6;
  * side of it.
  */
 export const TURN_GUTTER_MM = 14;
-/** Several turns in one gutter stand one above another, this far apart. */
-const TURN_STACK_MM = 8;
+/**
+ * A turn's glyph as it prints (`composeDiagramPage`, at the pictures' line
+ * width), its ink measured with room for the stroke: the turn-over's long and
+ * short sides — lying on its side when it turns top to bottom — and the
+ * rotation's circle with its heads.
+ */
+const TURN_OVER_GLYPH_MM = { long: 11.6, short: 5.6 } as const;
+const ROTATE_GLYPH_MM = 8.8;
+/** The clear space between two turns standing in one gutter, one above another. */
+export const TURN_STACK_CLEAR_MM = 1.5;
+
+/** The box a turn's glyph prints in, in mm, centred on its place. */
+export function turnGlyphMm(turn: DiagramTurnKind): { w: number; h: number } {
+  if (turn.kind === 'rotate') return { w: ROTATE_GLYPH_MM, h: ROTATE_GLYPH_MM };
+  const { long, short } = TURN_OVER_GLYPH_MM;
+  return turn.axis === 'horizontal' ? { w: short, h: long } : { w: long, h: short };
+}
 
 /** One run of a set line: a font and its text, placed from the line's start. */
 export interface SetRun {
@@ -161,8 +176,12 @@ export interface LayoutPage {
   cells: LayoutCell[];
   /** The flow band's points, in order, or null. */
   band: { x: number; y: number }[] | null;
-  /** The turns on the page: each glyph's centre (D22). */
-  turns: (LayoutTurn & { at: { x: number; y: number } })[];
+  /**
+   * The turns on the page (D22), in the document's order: each glyph's centre
+   * and printed box, and the step it comes before — null for those after the
+   * last step.
+   */
+  turns: (LayoutTurn & { at: { x: number; y: number }; box: { w: number; h: number }; beforeStepId: string | null })[];
   pageNumberAt: { x: number; y: number; anchor: 'start' | 'end' } | null;
 }
 
@@ -213,7 +232,13 @@ export function layoutDiagramPages(
   const cellW = (W - 2 * m) / setup.columns;
   const cellH = (H - 2 * m - headH - footH) / setup.rows;
   const turning = steps.some((step) => step.turnsBefore.length > 0 || step.turnsAfter.length > 0);
-  const fullBox = Math.max(12, Math.min(cellW - (turning ? TURN_GUTTER_MM : PICTURE_SIDE_ROOM_MM), cellH * 0.64));
+  // A turn at a row's end prints in the half gutter outside the outer picture,
+  // which a narrow margin cannot give: the boxes give up what it lacks.
+  const outerShortfall = turning ? Math.max(0, TURN_GUTTER_MM / 2 - m) : 0;
+  const fullBox = Math.max(
+    12,
+    Math.min(cellW - (turning ? TURN_GUTTER_MM : PICTURE_SIDE_ROOM_MM) - 2 * outerShortfall, cellH * 0.64)
+  );
   const textWidth = cellW * 0.8;
   const perPage = setup.columns * setup.rows;
 
@@ -356,7 +381,8 @@ export function layoutDiagramPages(
  * midway between them at their centres' height; before a picture that starts
  * a row or the page, at its leading edge — the right one on a flow row that
  * runs right to left; after the last picture, at its trailing edge. Several
- * in one place stand one above another. Kept on the paper.
+ * in one place stand one above another, each glyph clear of the next, the
+ * stack centred on the place. Kept on the paper.
  */
 function placeTurns(
   steps: readonly LayoutStep[],
@@ -380,10 +406,15 @@ function placeTurns(
     const x = left ? cell.pictureMm.x - gutter / 2 : cell.pictureMm.x + cell.pictureMm.size + gutter / 2;
     return { x, y: centre(cell).y };
   };
-  const stack = (turns: readonly LayoutTurn[], at: { x: number; y: number }) => {
+  const stack = (turns: readonly LayoutTurn[], at: { x: number; y: number }, beforeStepId: string | null) => {
     const x = Math.min(pageWidth - TURN_GUTTER_MM / 2, Math.max(TURN_GUTTER_MM / 2, at.x));
+    const boxes = turns.map((turn) => turnGlyphMm(turn.turn));
+    const height = boxes.reduce((sum, box) => sum + box.h, 0) + (turns.length - 1) * TURN_STACK_CLEAR_MM;
+    let top = at.y - height / 2;
     turns.forEach((turn, n) => {
-      placed.push({ ...turn, at: { x, y: at.y + (n - (turns.length - 1) / 2) * TURN_STACK_MM } });
+      const box = boxes[n]!;
+      placed.push({ ...turn, at: { x, y: top + box.h / 2 }, box, beforeStepId });
+      top += box.h + TURN_STACK_CLEAR_MM;
     });
   };
   steps.forEach((step, k) => {
@@ -392,12 +423,12 @@ function placeTurns(
         const a = centre(cells[k - 1]!);
         const b = centre(cells[k]!);
         const facing = (edge(k - 1, false).x + edge(k, true).x) / 2;
-        stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 });
+        stack(step.turnsBefore, { x: facing, y: (a.y + b.y) / 2 }, step.id);
       } else {
-        stack(step.turnsBefore, edge(k, true));
+        stack(step.turnsBefore, edge(k, true), step.id);
       }
     }
-    if (step.turnsAfter.length > 0) stack(step.turnsAfter, edge(k, false));
+    if (step.turnsAfter.length > 0) stack(step.turnsAfter, edge(k, false), null);
   });
   return placed;
 }

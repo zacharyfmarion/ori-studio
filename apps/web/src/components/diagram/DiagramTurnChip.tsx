@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock } from 'lucide-react';
-import { turnName } from '../../diagram/actions/diagramTurnActions';
+import { turnLabel, type TurnBetween } from '../../diagram/actions/diagramTurnActions';
 import { isLockedTurn, type DiagramTurn } from '../../diagram/document/diagramDocument';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
 import styles from './DiagramTurnChip.module.css';
@@ -22,23 +22,14 @@ export const DiagramTurnChip = forwardRef<
   {
     turn: DiagramTurn;
     /** The numbers of the steps either side; null at an end. */
-    between: { before: number | null; after: number | null };
+    between: TurnBetween;
     selected: boolean;
     tabStop: boolean;
     onSelect: (id: string) => void;
   }
 >(function DiagramTurnChip({ turn, between, selected, tabStop, onSelect }, ref) {
   const { t } = useTranslation();
-  const name = turnName(turn, t);
-  const where =
-    between.before !== null && between.after !== null
-      ? t('panels:diagram.turns.between', 'between steps {{before}} and {{after}}', between)
-      : between.after !== null
-        ? t('panels:diagram.turns.beforeFirst', 'before step {{after}}', between)
-        : between.before !== null
-          ? t('panels:diagram.turns.afterLast', 'after step {{before}}', between)
-          : '';
-  const label = where ? t('panels:diagram.turns.chipLabel', '{{name}}, {{where}}', { name, where }) : name;
+  const label = turnLabel(turn, between, t);
   const locked = isLockedTurn(turn);
   const turned = locked
     ? undefined

@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDiagram, createStep, insertSteps, type DiagramDocument } from '../../diagram/document/diagramDocument';
+import { createDiagram, createStep, createTurn, insertSteps, type DiagramDocument } from '../../diagram/document/diagramDocument';
 import { cpStep, stepsIn } from '../../diagram/document/diagramSteps.fixtures';
 import { DIAGRAM_FONT_FAMILY, type DiagramFontKey, type DiagramFontWeight } from '../../diagram/fonts/diagramFontFaces';
 import type { DiagramFonts } from '../../diagram/fonts/diagramFonts';
@@ -110,6 +110,25 @@ describe('DiagramPagesView', () => {
       ['Step 2', 'false', -1],
       ['Step 3, text doesn’t fit', 'false', -1],
     ]);
+  });
+
+  it('lists a turn where it reads, named by what it is and where, its target the glyph’s own box (D22)', () => {
+    const turned = insertSteps(
+      insertSteps(diagram(), [createTurn({ kind: 'turn-over', axis: 'vertical' }, () => 'turn-a')], 1),
+      [createTurn({ kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } }, () => 'turn-z')],
+      4
+    );
+    render(preparedPages(turned, FONTS, subsetter));
+    expect(cells().map((cell) => cell.getAttribute('aria-label'))).toEqual([
+      'Step 1',
+      'Turn over, side to side, between steps 1 and 2',
+      'Step 2',
+      'Step 3, text doesn’t fit',
+      'Rotate 1/4 turn clockwise, after step 3',
+    ]);
+    const target = host.querySelector<HTMLElement>('[data-step-id="turn-a"]')!;
+    // Wider than tall, as the side-to-side turn-over prints.
+    expect(parseFloat(target.style.width)).toBeGreaterThan(parseFloat(target.style.height));
   });
 
   it('leaves Enter and the arrows on a focused step to the Diagram’s keys, as a card does', () => {

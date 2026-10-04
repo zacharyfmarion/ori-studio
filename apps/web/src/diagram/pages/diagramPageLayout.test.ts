@@ -2,7 +2,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
-import { layoutDiagramPages, STEP_TEXT_LEADING_MM, TURN_GUTTER_MM, type LayoutStep, type LayoutTurn } from './diagramPageLayout';
+import {
+  layoutDiagramPages,
+  STEP_TEXT_LEADING_MM,
+  TURN_GUTTER_MM,
+  TURN_STACK_CLEAR_MM,
+  turnGlyphMm,
+  type LayoutStep,
+  type LayoutTurn,
+} from './diagramPageLayout';
 import { readFontMetrics, type FontMetrics } from '../fonts/fontMetrics';
 import { estimateTextSetter } from './estimateTextSetter';
 import { fontTextSetter } from './fontTextSetter';
@@ -266,13 +274,68 @@ describe('turns between steps on the page (D22)', () => {
     expect(turn!.at.x).toBeCloseTo((fourth!.pictureMm.x + fourth!.pictureMm.size + third!.pictureMm.x) / 2, 6);
   });
 
-  it('stands several turns in one place one above another, and keeps them on the paper', () => {
-    const list = steps(1, () => ({ turnsBefore: [over('turn-a'), over('turn-b')] }));
+  it('stands several turns in one place one above another, each clear of the next, and keeps them on the paper', () => {
+    const upright: LayoutTurn = { id: 'turn-b', turn: { kind: 'turn-over', axis: 'horizontal' } };
+    const rotate: LayoutTurn = { id: 'turn-c', turn: { kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } } };
+    const list = steps(2, (index) => (index === 1 ? { turnsBefore: [over('turn-a'), upright, rotate] } : {}));
     const result = layout(list, { marginMm: 0 });
-    const [a, b] = result.pages[0]!.turns;
-    expect(a!.at.x).toBe(b!.at.x);
-    expect(b!.at.y - a!.at.y).toBeCloseTo(8, 6);
-    expect(a!.at.x).toBeGreaterThanOrEqual(TURN_GUTTER_MM / 2);
+    const turns = result.pages[0]!.turns;
+    expect(turns.map((turn) => turn.id)).toEqual(['turn-a', 'turn-b', 'turn-c']);
+    expect(new Set(turns.map((turn) => turn.at.x)).size).toBe(1);
+    // Each glyph's box, by how it stands: the top-to-bottom turn-over upright.
+    expect(turns.map((turn) => turn.box)).toEqual(turns.map((turn) => turnGlyphMm(turn.turn)));
+    expect(turns[1]!.box.h).toBeGreaterThan(turns[1]!.box.w);
+    for (let n = 1; n < turns.length; n += 1) {
+      const above = turns[n - 1]!;
+      const below = turns[n]!;
+      expect(below.at.y - below.box.h / 2 - (above.at.y + above.box.h / 2)).toBeCloseTo(TURN_STACK_CLEAR_MM, 6);
+    }
+    // The stack is centred where one would be.
+    const [a, b] = result.pages[0]!.cells;
+    const top = turns[0]!.at.y - turns[0]!.box.h / 2;
+    const bottom = turns[2]!.at.y + turns[2]!.box.h / 2;
+    expect((top + bottom) / 2).toBeCloseTo((centreOf(a!).y + centreOf(b!).y) / 2, 6);
+  });
+
+  it('keeps every glyph off the pictures and on the paper, whatever the margin, grid or flow', () => {
+    const rotate: LayoutTurn = { id: 'turn-r', turn: { kind: 'rotate', rotate: { amount: 'half', direction: 'ccw' } } };
+    const list = steps(9, (index) =>
+      index === 0
+        ? { turnsBefore: [over('turn-first')] }
+        : index === 3
+          ? { turnsBefore: [over('turn-row'), rotate] }
+          : index === 8
+            ? { turnsAfter: [over('turn-end')] }
+            : {}
+    );
+    const clash = (box: { x: number; y: number; w: number; h: number }, picture: { x: number; y: number; size: number }) =>
+      box.x < picture.x + picture.size && picture.x < box.x + box.w && box.y < picture.y + picture.size && picture.y < box.y + box.h;
+    for (const pageLayout of ['grid', 'flow'] as const) {
+      for (const marginMm of [0, 3, 5, 8, 12, 20, 30]) {
+        const result = layout(list, { layout: pageLayout, marginMm });
+        const { widthMm } = result.paper;
+        for (const turn of result.pages[0]!.turns) {
+          const box = { x: turn.at.x - turn.box.w / 2, y: turn.at.y - turn.box.h / 2, w: turn.box.w, h: turn.box.h };
+          expect(box.x, `${pageLayout} ${marginMm} ${turn.id}`).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.w, `${pageLayout} ${marginMm} ${turn.id}`).toBeLessThanOrEqual(widthMm);
+          for (const cell of result.pages[0]!.cells) {
+            expect(clash(box, cell.pictureMm), `${pageLayout} ${marginMm} ${turn.id} over step ${cell.number}`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('says which step each turn comes before, none for those after the last', () => {
+    const list = steps(4, (index) =>
+      index === 0 ? { turnsBefore: [over('turn-a')] } : index === 3 ? { turnsBefore: [over('turn-b')], turnsAfter: [over('turn-c')] } : {}
+    );
+    const turns = layout(list).pages[0]!.turns;
+    expect(turns.map((turn) => [turn.id, turn.beforeStepId])).toEqual([
+      ['turn-a', 'step-0'],
+      ['turn-b', 'step-3'],
+      ['turn-c', null],
+    ]);
   });
 
   it('prints none on a diagram without turns, and keeps its pictures their size', () => {

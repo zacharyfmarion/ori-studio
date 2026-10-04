@@ -76,6 +76,30 @@ export function turnName(turn: DiagramTurnKind & { unknown?: unknown }, t: TFunc
     : t('panels:diagram.turns.rotateCounterclockwise', 'Rotate {{fraction}} turn counterclockwise', { fraction });
 }
 
+/** The numbers of the steps either side of a turn; null at an end. */
+export interface TurnBetween {
+  before: number | null;
+  after: number | null;
+}
+
+/**
+ * A turn's name for assistive tech, which says where it is as well as what it
+ * is: "Turn over, side to side, between steps 3 and 4". The grid's chip and
+ * the Pages view's glyph both read it.
+ */
+export function turnLabel(turn: DiagramTurnKind & { unknown?: unknown }, between: TurnBetween, t: TFunction): string {
+  const name = turnName(turn, t);
+  const where =
+    between.before !== null && between.after !== null
+      ? t('panels:diagram.turns.between', 'between steps {{before}} and {{after}}', { ...between })
+      : between.after !== null
+        ? t('panels:diagram.turns.beforeFirst', 'before step {{after}}', { ...between })
+        : between.before !== null
+          ? t('panels:diagram.turns.afterLast', 'after step {{before}}', { ...between })
+          : '';
+  return where ? t('panels:diagram.turns.chipLabel', '{{name}}, {{where}}', { name, where }) : name;
+}
+
 export function buildDiagramTurnActions(
   state: DiagramTurnActionState,
   deps: DiagramTurnActionDeps

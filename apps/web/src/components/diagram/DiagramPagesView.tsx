@@ -7,16 +7,27 @@ import { VIEWPORT_PINCH_ZOOM, VIEWPORT_WHEEL_ZOOM } from '../../hooks/useViewpor
 import { useIsCoarsePointerSurface } from '../../platform/pointerSurface';
 import { DIAGRAM_STEPS_ATTRIBUTE } from '../../diagram/actions/diagramShortcuts';
 import { stepHasPicture, type DiagramStep } from '../../diagram/document/diagramDocument';
-import { STEP_TEXT_LEADING_MM, STEP_TEXT_SIZE_MM } from '../../diagram/pages/diagramPageLayout';
+import {
+  STEP_TEXT_LEADING_MM,
+  STEP_TEXT_SIZE_MM,
+  TURN_STACK_CLEAR_MM,
+  type LayoutPage,
+} from '../../diagram/pages/diagramPageLayout';
 import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
 import { composedPageUrl } from '../../diagram/pages/useDiagramPages';
 import { PAGES_PAD, PAGES_PX_PER_MM, usePagesView } from '../../diagram/pages/usePagesView';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
 import styles from './DiagramPagesView.module.css';
-import { turnName } from '../../diagram/actions/diagramTurnActions';
+import { turnLabel, type TurnBetween } from '../../diagram/actions/diagramTurnActions';
 
 /** How far a cut instruction's outline stands off its text, in mm. */
 const CUT_OUTLINE_MM = 1;
+
+/**
+ * The target over a turn's glyph on a page reaches this far past the glyph, mm:
+ * half the clear space between two stacked turns, so neighbours never overlap.
+ */
+const TURN_TARGET_PAD_MM = TURN_STACK_CLEAR_MM / 2;
 
 /**
  * The Pages view (D10): each page as it will print, composed into an SVG and
@@ -31,9 +42,6 @@ const CUT_OUTLINE_MM = 1;
  * press that ends a pan is none of these. The camera and the rest of the
  * behaviour are `usePagesView`'s.
  */
-/** The target over a turn's glyph on a page, mm: about the glyph's size. */
-const TURN_TARGET_MM = 12;
-
 export function DiagramPagesView({
   pages,
   failed,
@@ -89,6 +97,28 @@ export function DiagramPagesView({
     event.stopPropagation();
     if (!pressWasPan()) onSelect(stepId);
   };
+
+  // A turn between steps (D22): its glyph's box, selected as a cell is; it opens nothing.
+  const turnTarget = (turn: LayoutPage['turns'][number], between: TurnBetween) => (
+    <div
+      key={turn.id}
+      ref={cellRef(turn.id)}
+      role="option"
+      tabIndex={turn.id === tabStop ? 0 : -1}
+      aria-label={turnLabel(turn.turn, between, t)}
+      aria-selected={turn.id === selectedStepId}
+      data-step-id={turn.id}
+      className={styles.turn}
+      style={{
+        left: mm(turn.at.x - turn.box.w / 2 - TURN_TARGET_PAD_MM),
+        top: mm(turn.at.y - turn.box.h / 2 - TURN_TARGET_PAD_MM),
+        width: mm(turn.box.w + 2 * TURN_TARGET_PAD_MM),
+        height: mm(turn.box.h + 2 * TURN_TARGET_PAD_MM),
+      }}
+      onClick={(event) => onCellClick(event, turn.id)}
+      onDoubleClick={(event) => event.stopPropagation()}
+    />
+  );
 
   return (
     <div ref={containerRef} className={styles.view} data-space-pan={spacePressed || undefined} tabIndex={-1}>
@@ -158,6 +188,12 @@ export function DiagramPagesView({
                       const empty = step ? !stepHasPicture(step) : false;
                       return (
                         <div key={cell.stepId}>
+                          {/* The turns before this step (D22), before it in reading order as on the page. */}
+                          {page.turns
+                            .filter((turn) => turn.beforeStepId === cell.stepId)
+                            .map((turn) =>
+                              turnTarget(turn, { before: cell.number > 1 ? cell.number - 1 : null, after: cell.number })
+                            )}
                           {empty && (
                             <div
                               className={styles.placeholder}
@@ -223,27 +259,9 @@ export function DiagramPagesView({
                         </div>
                       );
                     })}
-                    {page.turns.map((turn) => (
-                      // A turn between steps (D22): its glyph's place, selected as a cell is; it opens nothing.
-                      <div
-                        key={turn.id}
-                        ref={cellRef(turn.id)}
-                        role="option"
-                        tabIndex={turn.id === tabStop ? 0 : -1}
-                        aria-label={turnName(turn.turn, t)}
-                        aria-selected={turn.id === selectedStepId}
-                        data-step-id={turn.id}
-                        className={styles.turn}
-                        style={{
-                          left: mm(turn.at.x - TURN_TARGET_MM / 2),
-                          top: mm(turn.at.y - TURN_TARGET_MM / 2),
-                          width: mm(TURN_TARGET_MM),
-                          height: mm(TURN_TARGET_MM),
-                        }}
-                        onClick={(event) => onCellClick(event, turn.id)}
-                        onDoubleClick={(event) => event.stopPropagation()}
-                      />
-                    ))}
+                    {page.turns
+                      .filter((turn) => turn.beforeStepId === null)
+                      .map((turn) => turnTarget(turn, { before: page.cells.at(-1)?.number ?? null, after: null }))}
                   </div>
                   <div
                     className={styles.caption}

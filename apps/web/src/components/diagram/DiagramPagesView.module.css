@@ -77,7 +77,7 @@
 .turn {
   position: absolute;
   box-sizing: border-box;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
