@@ -79,6 +79,7 @@
     "deleteSelectedCpLinesLabel": "Ausgewählte CP-Linien löschen",
     "deleteSelectedCpPoints": "Ausgewählte Faltmuster-Punkte löschen",
     "deleteSelectedDiagramAnnotation": "Ausgewählte Annotation löschen",
+    "deleteSelectedDiagramNode": "Ausgewählten Knoten löschen",
     "deleteSelectedDiagramStep": "Ausgewählten Schritt löschen",
     "deleteSelectedLineType": "Ausgewählten Linientyp löschen...",
     "deleteSelectedTreeParts": "Ausgewählte Baumteile löschen",

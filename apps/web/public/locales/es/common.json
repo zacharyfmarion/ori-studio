@@ -79,6 +79,7 @@
     "deleteSelectedCpLinesLabel": "Eliminar líneas CP seleccionadas",
     "deleteSelectedCpPoints": "Eliminar los puntos del patrón de pliegues seleccionados",
     "deleteSelectedDiagramAnnotation": "Eliminar la anotación seleccionada",
+    "deleteSelectedDiagramNode": "Eliminar el nodo seleccionado",
     "deleteSelectedDiagramStep": "Eliminar el paso seleccionado",
     "deleteSelectedLineType": "Eliminar tipo de línea seleccionado...",
     "deleteSelectedTreeParts": "Eliminar las partes del árbol seleccionadas",

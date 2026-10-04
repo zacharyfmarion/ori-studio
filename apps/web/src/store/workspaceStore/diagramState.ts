@@ -67,6 +67,18 @@ export function isDiagramAnnotating(
   return step !== null && stepCanBeAnnotated(step, diagram.assets);
 }
 
+/**
+ * What Delete removes in the Diagram: the node Edit Path has selected, else
+ * the selected annotation while annotating, else the selected step — the one
+ * answer the menu's reason and every surface that names the key read.
+ */
+export function diagramDeleteTarget(
+  state: Parameters<typeof selectedDiagramPathNode>[0]
+): 'step' | 'annotation' | 'node' {
+  if (!isDiagramAnnotating(state)) return 'step';
+  return selectedDiagramPathNode(state) !== null ? 'node' : 'annotation';
+}
+
 /** The selected annotation, when it is one this build reads, on the selected step. */
 export function selectedDiagramAnnotation(
   state: Pick<WorkspaceState, 'diagram' | 'diagramSelectedStepId' | 'diagramSelectedAnnotationId'>

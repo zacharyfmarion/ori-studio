@@ -11,7 +11,7 @@ import {
   steppedNode,
   type AnnotationEdit,
 } from './annotationActions';
-import { ANNOTATION_KINDS, ARROW_BEND } from './annotationModel';
+import { ANNOTATION_KINDS, ARROW_BEND, MAX_PATH_NODES } from './annotationModel';
 
 const t = ((_key: string, fallback: string) => fallback) as unknown as TFunction;
 
@@ -199,6 +199,41 @@ describe('Edit Path’s node verbs', () => {
   it('give Delete the node while one is selected, and the annotation otherwise', () => {
     expect(deleteKeyEdit('s', 1)).toMatchObject({ label: 'Delete node', selectPathNode: 0 });
     expect(deleteKeyEdit('s', null)).toMatchObject({ label: 'Delete annotation', select: null });
+  });
+
+  it('name the Delete key on the verb it runs: the node’s while one is selected, else the annotation’s', () => {
+    const onNode = build(S, { node: 1 });
+    expect([onNode.verb('delete-node').shortcutId, onNode.verb('delete').shortcutId]).toEqual(['edit.delete', undefined]);
+    const noNode = build(S, { node: null });
+    expect([noNode.verb('delete-node').shortcutId, noNode.verb('delete').shortcutId]).toEqual([undefined, 'edit.delete']);
+  });
+
+  it('select the node Add Node adds, the tip selected too, and offer it no further than the most nodes', () => {
+    // From the tip the node lands before it, where the tip was: that one is selected, not the tip.
+    const { verb, apply } = build(S, { node: 3 });
+    verb('add-node').run();
+    const edit = apply.mock.calls[0]![0];
+    expect(edit.selectPathNode).toBe(3);
+    expect(edit.edit([S])[0]!.path![4]!.at).toEqual(S.to);
+    // At the most nodes an arrow holds, Add Node is off.
+    const full: KnownDiagramAnnotation = {
+      ...S,
+      path: Array.from({ length: MAX_PATH_NODES }, (_, index) => ({ at: [0.1 + index * 0.02, 0.5] as [number, number] })),
+      to: [0.1 + (MAX_PATH_NODES - 1) * 0.02, 0.5],
+    };
+    expect(build(full, { node: 3 }).verb('add-node').disabled).toBe(true);
+  });
+
+  it('offer no Reset on a loop whose ends meet, which has no arc to go back to', () => {
+    const loop: KnownDiagramAnnotation = {
+      ...S,
+      to: [0.105, 0.5],
+      path: [
+        { at: [0.1, 0.5], out: [0.5, 0.1] },
+        { at: [0.105, 0.5], in: [0.5, 0.9] },
+      ],
+    };
+    expect(build(loop, { node: 0 }).verb('reset-path').disabled).toBe(true);
   });
 
   it('reset a shaped arrow to its arc, the node selection let go', () => {

@@ -3940,7 +3940,8 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7883,7 +7884,8 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11828,7 +11830,8 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15686,7 +15689,8 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -19544,7 +19548,8 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -23487,7 +23492,8 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -27430,7 +27436,8 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -31288,6 +31295,7 @@
     "tools:diagram.nudgeNodeUp": "cab2ce959483",
     "tools:diagram.nudgeNodeUpLarge": "905d813cd704",
     "tools:diagram.pathScopeLabel": "8b29b5ce3c2d",
-    "tools:diagram.toolEditPath": "0cee98fd24cd"
+    "tools:diagram.toolEditPath": "0cee98fd24cd",
+    "common:capability.deleteSelectedDiagramNode": "efc3fe4cdd74"
   }
 }

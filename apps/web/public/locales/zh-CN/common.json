@@ -79,6 +79,7 @@
     "deleteSelectedCpLinesLabel": "删除所选 CP 线",
     "deleteSelectedCpPoints": "删除所选折痕图点",
     "deleteSelectedDiagramAnnotation": "删除所选标注",
+    "deleteSelectedDiagramNode": "删除所选节点",
     "deleteSelectedDiagramStep": "删除所选步骤",
     "deleteSelectedLineType": "删除所选线型...",
     "deleteSelectedTreeParts": "删除所选树部件",

@@ -59,7 +59,7 @@ function capabilities({
   hasDiagram?: boolean;
   diagramStepCount?: number;
   hasDeletableDiagramSelection?: boolean;
-  diagramDeleteTarget?: 'step' | 'annotation';
+  diagramDeleteTarget?: 'step' | 'annotation' | 'node';
   historyPastCount?: number;
   historyFutureCount?: number;
   clipboard?: unknown | null;
@@ -248,6 +248,12 @@ describe('workspace capabilities', () => {
       ];
     expect(annotating(true)).toMatchObject({ enabled: true, reason: 'Delete the selected annotation' });
     expect(annotating(false)).toMatchObject({ enabled: false, reason: 'Select an annotation first' });
+    // With Edit Path's node selected, Delete takes the node out, and says so.
+    expect(
+      capabilities({ activeEditingContext: 'diagram', diagramDeleteTarget: 'node', hasDeletableDiagramSelection: true })[
+        'edit.delete'
+      ]
+    ).toMatchObject({ enabled: true, reason: 'Delete the selected node' });
   });
 
   it("keeps the Diagram's own edits while TreeMaker is busy, and saving held until it is done", () => {

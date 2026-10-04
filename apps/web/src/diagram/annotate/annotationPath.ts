@@ -182,14 +182,19 @@ function arcNodes(from: PicturePoint, to: PicturePoint, bend: number): DiagramPa
  */
 export function resetPath(annotation: KnownDiagramAnnotation, frame: PictureFrame): KnownDiagramAnnotation {
   const { path, ...arc } = annotation;
-  if (!path) return annotation;
+  if (!path || !canResetPath(annotation)) return annotation;
   const { from, to } = annotation;
   const chord = Math.hypot(to[0] - from[0], to[1] - from[1]);
-  if (!(chord >= MIN_ANNOTATION_LENGTH)) return annotation;
   const area = pathChordArea(flattenPath(pathCubics(path), chord * 1e-4));
   // A path on the left of its travel as the page shows it bulges as a positive bend does (`arrowApex`).
   const bend = Math.abs(area) > 1e-6 * chord * chord ? Math.sign(area) * ARROW_BEND : defaultBend(from, to, frame);
   return { ...arc, bend };
+}
+
+/** Whether {@link resetPath} has an arc to go back to: a shaped arrow whose ends lie apart. */
+export function canResetPath(annotation: KnownDiagramAnnotation): boolean {
+  const { from, to } = annotation;
+  return annotation.path !== undefined && Math.hypot(to[0] - from[0], to[1] - from[1]) >= MIN_ANNOTATION_LENGTH;
 }
 
 /** The arrow shaped, its nodes edited by `edit`; the arrow as it was when `edit` gives null. */

@@ -2,8 +2,9 @@ import type { TFunction } from 'i18next';
 import type { DiagramArrowShapeGesture } from '../../analytics/events';
 import type { ShortcutActionId } from '../../keyboard/shortcuts';
 import type { KnownDiagramAnnotation } from '../document/diagramDocument';
-import { canBeShaped, flipAnnotationArc, flipsArc, type PictureFrame, type PicturePoint } from './annotationModel';
+import { MAX_PATH_NODES, canBeShaped, flipAnnotationArc, flipsArc, type PictureFrame, type PicturePoint } from './annotationModel';
 import {
+  canResetPath,
   deletePathNode,
   movePathNode,
   pathNodesOf,
@@ -63,12 +64,23 @@ const NODE_ACTIONS: ReadonlySet<AnnotationActionId> = new Set([
   'delete-node',
 ]);
 
-/** The key that runs a verb, where one does: Delete takes a node out while one is selected. */
-const ANNOTATION_ACTION_SHORTCUTS: Partial<Record<AnnotationActionId, ShortcutActionId>> = {
-  'delete-node': 'edit.delete',
-  'flip-arc': 'diagram.flipArc',
-  delete: 'edit.delete',
-};
+/**
+ * The key that runs a verb, where one does. Delete is one key for two verbs:
+ * the selected node's while there is one, else the annotation's — named on
+ * whichever it would run, as `deleteKeyEdit` decides.
+ */
+function annotationActionShortcut(id: AnnotationActionId, node: number | null): ShortcutActionId | undefined {
+  switch (id) {
+    case 'flip-arc':
+      return 'diagram.flipArc';
+    case 'delete-node':
+      return node !== null ? 'edit.delete' : undefined;
+    case 'delete':
+      return node === null ? 'edit.delete' : undefined;
+    default:
+      return undefined;
+  }
+}
 
 /** A change to a step's readable annotations, made as one undo step called `label`. */
 export interface AnnotationEdit {
@@ -124,6 +136,8 @@ export interface AnnotationActionDeps {
 /** What an edit that names a node or a picture needs to know. */
 export interface AnnotationEditContext {
   node?: number | null;
+  /** How many nodes the arrow has: where Add Node's new node lands when the tip is selected. */
+  nodes?: number;
   frame?: PictureFrame;
 }
 
@@ -203,7 +217,10 @@ export function annotationActionEdit(
           const count = pathNodesOf(annotation)?.length ?? 0;
           return splitPathSegment(annotation, Math.min(at, count - 2), 0.5);
         }),
-        ...(node !== null ? { selectPathNode: node + 1 } : {}),
+        // The node it adds: after the selected one, or before the tip — which then moves on one.
+        ...(node !== null
+          ? { selectPathNode: (context.nodes !== undefined ? Math.min(node, context.nodes - 2) : node) + 1 }
+          : {}),
         ...shapes('add_node'),
       };
     }
@@ -307,9 +324,9 @@ export function buildAnnotationActions(
   const count = nodes?.length ?? 0;
   const node = state.node ?? null;
   const interior = node !== null && node > 0 && node < count - 1;
-  const context: AnnotationEditContext = { node, frame: state.frame };
+  const context: AnnotationEditContext = { node, nodes: count, frame: state.frame };
   return ANNOTATION_ACTION_ORDER.filter((id) => offersAnnotationAction(id, annotation, state)).map((id) => {
-    const shortcutId = ANNOTATION_ACTION_SHORTCUTS[id];
+    const shortcutId = annotationActionShortcut(id, node);
     const base = {
       id,
       group: NODE_ACTIONS.has(id) ? ('node' as const) : ('annotation' as const),
@@ -341,13 +358,15 @@ export function buildAnnotationActions(
       case 'delete-node':
         return {
           ...base,
-          disabled: !state.editable || node === null,
+          // An arrow holds no more than its most nodes: Add Node would add nothing there.
+          disabled: !state.editable || node === null || (id === 'add-node' && count >= MAX_PATH_NODES),
           run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
         };
       case 'reset-path':
         return {
           ...base,
-          disabled: !state.editable || annotation.path === undefined,
+          // A loop whose ends meet has no arc to go back to.
+          disabled: !state.editable || !canResetPath(annotation),
           run: () => deps.apply(annotationActionEdit(id, annotation.id, context)),
         };
       case 'flip-arc':
