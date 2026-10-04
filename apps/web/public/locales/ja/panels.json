@@ -748,6 +748,8 @@
       "resetShape": "形をリセット",
       "sideToSide": "左右",
       "smooth": "スムーズ",
+      "snap": "図にスナップ",
+      "snapHelp": "円と、矢印や線の端は、近くにある図の点やほかの注記にスナップします。{{modifier}} を押したままにすると、どこにでも置けます。",
       "text": "文字",
       "topToBottom": "上下",
       "turn": "回転量"

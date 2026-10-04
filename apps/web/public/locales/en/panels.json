@@ -779,6 +779,8 @@
       "resetShape": "Reset Shape",
       "sideToSide": "Side to Side",
       "smooth": "Smooth",
+      "snap": "Snap to Picture",
+      "snapHelp": "Circles, and the ends of arrows and lines, snap to the picture’s points and to other annotations nearby. Hold {{modifier}} to put one down anywhere.",
       "text": "Text",
       "topToBottom": "Top to Bottom",
       "turn": "Turn"

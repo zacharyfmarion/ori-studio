@@ -748,6 +748,8 @@
       "resetShape": "重置形状",
       "sideToSide": "左右",
       "smooth": "平滑",
+      "snap": "吸附到图",
+      "snapHelp": "圆圈以及箭头和线的端点会吸附到附近的图上的点和其他标注。按住 {{modifier}} 可放在任意位置。",
       "text": "文字",
       "topToBottom": "上下",
       "turn": "旋转量"

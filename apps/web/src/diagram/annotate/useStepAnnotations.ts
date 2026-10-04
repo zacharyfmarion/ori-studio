@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isDiagramAnnotating, selectedDiagramPathNode } from '../../store/workspaceStore/diagramState';
 import {
@@ -25,7 +26,8 @@ const NO_ASSETS: Readonly<Record<string, DiagramAsset>> = {};
  * one is selected, the tool in hand, and the verbs on the selected one — its
  * text, its turn, its axis, and the catalog's (`annotationActions.ts`: Flip
  * arc, Reset, Delete, and with Edit Path in hand the node verbs on the node
- * it has selected) — each one undo step through the store.
+ * it has selected) — each one undo step through the store — and the Snap
+ * switch, a preference rather than an edit.
  */
 export function useStepAnnotations(step: DiagramStep | null) {
   const { t } = useTranslation();
@@ -36,6 +38,7 @@ export function useStepAnnotations(step: DiagramStep | null) {
   const loadId = useWorkspaceStore((state) => state.diagramLoadId);
   const node = useWorkspaceStore(selectedDiagramPathNode);
   const assets = useWorkspaceStore((state) => state.diagram?.assets ?? NO_ASSETS);
+  const snap = useSettingsStore((state) => state.diagramAnnotateSnap);
   const known = useMemo(
     () => (step ? step.annotations.filter(isKnownAnnotation) : NO_ANNOTATIONS),
     [step]
@@ -81,6 +84,7 @@ export function useStepAnnotations(step: DiagramStep | null) {
       setRotation: (id: string, rotate: DiagramRotation) => change(id, 'Change rotation', (annotation) => ({ ...annotation, rotate })),
       setAxis: (id: string, axis: 'vertical' | 'horizontal') =>
         change(id, 'Change turn-over', (annotation) => ({ ...annotation, axis })),
+      setSnap: (value: boolean) => useSettingsStore.getState().setDiagramAnnotateSnap(value),
     };
   }, [stepId, loadId]);
 
@@ -111,6 +115,8 @@ export function useStepAnnotations(step: DiagramStep | null) {
     /** In Edit Path, the node selected on the selected fold arrow, and how many it shows. */
     node,
     nodeCount: selected ? (pathNodesOf(selected)?.length ?? 0) : 0,
+    /** Whether circles, and arrows' and lines' ends, snap to the picture (decision 9): Annotate's switch. */
+    snap,
     ...verbs,
   };
 }

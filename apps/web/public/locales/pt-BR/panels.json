@@ -810,6 +810,8 @@
       "resetShape": "Redefinir forma",
       "sideToSide": "De lado a lado",
       "smooth": "Suave",
+      "snap": "Ajustar à imagem",
+      "snapHelp": "Círculos e as pontas de setas e linhas se ajustam aos pontos próximos da imagem e a outras anotações. Segure {{modifier}} para colocá-los em qualquer lugar.",
       "text": "Texto",
       "topToBottom": "De cima para baixo",
       "turn": "Giro"

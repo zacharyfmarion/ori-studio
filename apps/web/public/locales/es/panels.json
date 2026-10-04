@@ -810,6 +810,8 @@
       "resetShape": "Restablecer forma",
       "sideToSide": "De lado a lado",
       "smooth": "Suave",
+      "snap": "Ajustar a la imagen",
+      "snapHelp": "Los círculos y los extremos de flechas y líneas se ajustan a los puntos cercanos de la imagen y a otras anotaciones. Mantén pulsado {{modifier}} para colocarlos en cualquier lugar.",
       "text": "Texto",
       "topToBottom": "De arriba abajo",
       "turn": "Giro"

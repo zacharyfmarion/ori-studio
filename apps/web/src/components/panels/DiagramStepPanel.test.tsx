@@ -7,6 +7,8 @@ import { cpStep, referencesStep, stepsIn } from '../../diagram/document/diagramS
 import { buildDiagramLinkedPoseActions } from '../../diagram/actions/diagramLinkedPoseActions';
 import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
+import { STORAGE_KEYS, storageKey } from '../../lib/storage';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { DiagramStepPanel } from './DiagramStepPanel';
@@ -374,6 +376,24 @@ describe('DiagramStepPanel in Annotate', () => {
     setField(field, 'C\nD');
     act(() => field.blur());
     expect(annotations()[1]!.text).toBe('C D');
+  });
+
+  it('offers the Snap switch in Annotate, for a finger, and remembers it as a preference', () => {
+    const stepId = annotatedStep();
+    const snapSwitch = () => host?.querySelector<HTMLButtonElement>('button[role="switch"][aria-label="Snap to Picture"]') ?? null;
+    expect(snapSwitch()).toBeNull();
+    act(() => state().openDiagramStep(stepId, 'annotate'));
+    useSettingsStore.setState({ diagramAnnotateSnap: true });
+    expect(snapSwitch()?.getAttribute('aria-checked')).toBe('true');
+    const past = state().diagramHistory.past.length;
+    act(() => snapSwitch()!.click());
+    expect(useSettingsStore.getState().diagramAnnotateSnap).toBe(false);
+    expect(snapSwitch()?.getAttribute('aria-checked')).toBe('false');
+    expect(localStorage.getItem(storageKey(STORAGE_KEYS.diagramAnnotateSnap))).toBe('false');
+    // A preference, not an edit: nothing to undo.
+    expect(state().diagramHistory.past).toHaveLength(past);
+    act(() => snapSwitch()!.click());
+    expect(useSettingsStore.getState().diagramAnnotateSnap).toBe(true);
   });
 
   it('says when the picture changed under them, and keeps them on a press', () => {
