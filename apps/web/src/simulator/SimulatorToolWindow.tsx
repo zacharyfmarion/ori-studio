@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
-import { ToggleRow } from '../components/ui/fieldRows/ToggleRow';
+import { Toggle } from '../components/ui/Toggle';
 import { ToolHintWindow } from '../components/ui/tools/ToolHintWindow';
 import { STORAGE_KEYS } from '../lib/storage';
 import type { SimulatorToolWindowModel } from './tools/actions';
@@ -48,15 +48,16 @@ export function SimulatorToolWindow({
           </ul>
         </div>
       )}
+      {/* The window's own rows rather than `ToggleRow`, whose pane look — a
+          divider under every row, and an inset of its own — reads as stray
+          lines inside a window that already separates its sections. */}
       {model.toggles.length > 0 && (
         <div className={styles.section}>
           {model.toggles.map((toggle) => (
-            <ToggleRow
-              key={toggle.id}
-              label={toggle.label}
-              checked={toggle.checked}
-              onChange={toggle.set}
-            />
+            <div key={toggle.id} className={styles.option}>
+              <span className={styles.optionLabel}>{toggle.label}</span>
+              <Toggle aria-label={toggle.label} checked={toggle.checked} onChange={toggle.set} />
+            </div>
           ))}
         </div>
       )}
