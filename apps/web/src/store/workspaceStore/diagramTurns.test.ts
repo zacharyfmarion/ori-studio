@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { isTurn, stepsOf } from '../../diagram/document/diagramDocument';
+import { createDiagram, isTurn, stepsOf } from '../../diagram/document/diagramDocument';
+import { readDiagram, writeDiagram } from '../../diagram/document/diagramFile';
 import { useWorkspaceStore } from '../workspaceStore';
 import { hasDeletableDiagramSelection } from './capabilities';
 
@@ -71,6 +72,45 @@ describe('turns between steps in the store', () => {
     expect(order().indexOf(added!.stepIds[0]!)).toBe(order().indexOf(turn) + 1);
     expect(isTurn(state().diagram!.steps[1]!)).toBe(true);
     expect(stepsOf(state().diagram!)).toHaveLength(2);
+  });
+
+  it('records nothing for a turn set to what it is, though it came from a file (D22)', () => {
+    const turns = [
+      { id: 'turn-1', kind: 'turn-over', axis: 'vertical' },
+      { id: 'turn-2', kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } },
+    ];
+    const written = JSON.parse(JSON.stringify(writeDiagram(createDiagram({ title: 'T' }))));
+    written.steps = [{ id: 'step-1', revision: 0, source: null, picture: null, annotations: [], annotatedPictureKey: null, text: '', breakBefore: false }, ...turns];
+    state().installDiagram(readDiagram(written));
+    const past = state().diagramHistory.past.length;
+    expect(state().setDiagramTurn('turn-1', { kind: 'turn-over', axis: 'vertical' })).toBe(false);
+    expect(state().setDiagramTurn('turn-2', { kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } })).toBe(false);
+    expect(state().diagramHistory.past.length).toBe(past);
+    expect(state().setDiagramTurn('turn-2', { kind: 'rotate', rotate: { amount: 'half', direction: 'cw' } })).toBe(true);
+  });
+
+  it('keeps the detail open on a delete, on the nearest step rather than a turn', () => {
+    const first = state().addDiagramStep()!;
+    const second = state().addDiagramStep()!;
+    state().insertDiagramTurn(OVER);
+    const third = state().addDiagramStep()!;
+    state().openDiagramStep(second, 'pose');
+    expect(state().deleteDiagramSteps([second])).toBe(true);
+    expect(state().diagramSelectedStepId).toBe(third);
+    expect(state().diagramDetail).toBe('pose');
+    state().openDiagramStep(third, 'pose');
+    expect(state().deleteDiagramSteps([third])).toBe(true);
+    expect(state().diagramSelectedStepId).toBe(first);
+    expect(state().diagramDetail).toBe('pose');
+  });
+
+  it('leaves a newer build’s turn as it came: nothing sets it', () => {
+    const written = JSON.parse(JSON.stringify(writeDiagram(createDiagram({ title: 'T' }))));
+    const newer = { id: 'turn-9', kind: 'spin', speed: 2 };
+    written.steps = [newer];
+    state().installDiagram(readDiagram(written));
+    expect(state().setDiagramTurn('turn-9', { kind: 'turn-over', axis: 'horizontal' })).toBe(false);
+    expect(state().diagram!.steps[0]).toMatchObject({ id: 'turn-9', unknown: newer });
   });
 
   it('lets Delete take a selected turn', () => {

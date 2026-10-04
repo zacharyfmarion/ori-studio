@@ -11,7 +11,13 @@ import { openDiagramStep } from './useDiagramActions';
 import type { WorkspaceState } from '../store/workspaceStore/types';
 import { isDiagramAnnotating } from '../store/workspaceStore/diagramState';
 import { flipAnnotationArc, isArrowKind } from './annotate/annotationModel';
-import { isKnownAnnotation, stepById, stepsOf, type KnownDiagramAnnotation } from './document/diagramDocument';
+import {
+  indexForStepNumber,
+  isKnownAnnotation,
+  stepById,
+  stepsOf,
+  type KnownDiagramAnnotation,
+} from './document/diagramDocument';
 import {
   focusLeavesEnterToSteps,
   focusOwnsArrowKeys,
@@ -66,7 +72,12 @@ function focusedStepId(): string | null {
 function keyActions(state: WorkspaceState): DiagramKeyActions {
   return {
     select: state.selectDiagramStep,
-    move: state.moveDiagramStep,
+    // The detail walks steps only, so its moves name a step's place among the
+    // steps; the document places it among the turns as the number field does.
+    move: (stepId, toIndex) =>
+      state.diagramDetail !== null && state.diagram
+        ? state.moveDiagramStep(stepId, indexForStepNumber(state.diagram, stepId, toIndex + 1))
+        : state.moveDiagramStep(stepId, toIndex),
     open: (stepId) => {
       openDiagramStep(stepId, 'keyboard');
     },

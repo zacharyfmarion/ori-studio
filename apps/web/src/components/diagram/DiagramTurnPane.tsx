@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Trash2, type LucideIcon } from 'lucide-react';
 import { turnLabels, turnName } from '../../diagram/actions/diagramTurnActions';
 import type { DiagramStepAction } from '../../diagram/actions/diagramActions';
 import { DEFAULT_ROTATION } from '../../diagram/annotate/annotationModel';
-import type { DiagramTurn, DiagramTurnKind } from '../../diagram/document/diagramDocument';
+import { isLockedTurn, type DiagramTurn, type DiagramTurnKind } from '../../diagram/document/diagramDocument';
 import { ActionList, type ActionListItem } from '../ui/ActionList';
 import { SegmentedRow } from '../ui/fieldRows';
 import styles from './DiagramTurnPane.module.css';
@@ -18,7 +18,8 @@ const VERB_ICONS: Readonly<Record<string, LucideIcon>> = {
  * The Step pane for a turn between steps (D22): what it is and between which
  * steps, the controls that change how it turns — a turn-over's axis, a
  * rotation's amount and direction, or the one for the other — and its verbs.
- * The words are its menu's (`diagramTurnActions.ts`).
+ * The words are its menu's (`diagramTurnActions.ts`). A newer build's turn
+ * says so, and offers only its moves and Delete.
  */
 export function DiagramTurnPane({
   turn,
@@ -35,7 +36,6 @@ export function DiagramTurnPane({
   onSet: (kind: DiagramTurnKind) => void;
 }) {
   const { t } = useTranslation();
-  const labels = turnLabels(t);
   const where =
     between.before !== null && between.after !== null
       ? t('panels:diagram.turns.betweenSteps', 'Between steps {{before}} and {{after}}', between)
@@ -44,8 +44,6 @@ export function DiagramTurnPane({
         : between.before !== null
           ? t('panels:diagram.turns.afterStep', 'After step {{before}}', between)
           : null;
-  const rotation = turn.kind === 'rotate' ? turn.rotate : DEFAULT_ROTATION;
-  const axis = turn.kind === 'turn-over' ? turn.axis : 'vertical';
   const verbs: ActionListItem[] = actions.flatMap((action) =>
     action.kind === 'command' && VERB_ICONS[action.id]
       ? [
@@ -67,9 +65,36 @@ export function DiagramTurnPane({
         <h3 className={styles.title}>{turnName(turn, t)}</h3>
         {where && <p className={styles.where}>{where}</p>}
         <p className={styles.note}>
-          {t('panels:diagram.turns.note', 'Printed between the steps, with no number of its own.')}
+          {isLockedTurn(turn)
+            ? t(
+                'panels:diagram.turns.lockedNote',
+                'Made with a newer Ori Studio: it can be moved or deleted here, is saved exactly as it came, and isn’t printed.'
+              )
+            : t('panels:diagram.turns.note', 'Printed between the steps, with no number of its own.')}
         </p>
       </div>
+      {!isLockedTurn(turn) && <TurnControls turn={turn} readOnly={readOnly} onSet={onSet} />}
+      <ActionList groups={[verbs]} aria-label={t('panels:diagram.turns.actions', 'Turn actions')} />
+    </div>
+  );
+}
+
+/** What a turn is and how it turns, as controls: a turn-over's axis, a rotation's amount and direction. */
+function TurnControls({
+  turn,
+  readOnly,
+  onSet,
+}: {
+  turn: DiagramTurn;
+  readOnly: boolean;
+  onSet: (kind: DiagramTurnKind) => void;
+}) {
+  const { t } = useTranslation();
+  const labels = turnLabels(t);
+  const rotation = turn.kind === 'rotate' ? turn.rotate : DEFAULT_ROTATION;
+  const axis = turn.kind === 'turn-over' ? turn.axis : 'vertical';
+  return (
+    <>
       <SegmentedRow
         label={t('panels:diagram.turns.kind', 'Turn')}
         value={turn.kind}
@@ -96,7 +121,7 @@ export function DiagramTurnPane({
       ) : (
         <>
           <SegmentedRow
-            label={t('panels:diagram.annotations.turn', 'Turn')}
+            label={t('panels:diagram.turns.amount', 'Amount')}
             value={turn.rotate.amount}
             disabled={readOnly}
             options={[
@@ -122,7 +147,6 @@ export function DiagramTurnPane({
           />
         </>
       )}
-      <ActionList groups={[verbs]} aria-label={t('panels:diagram.turns.verbs', 'Turn')} />
-    </div>
+    </>
   );
 }

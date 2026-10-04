@@ -36,6 +36,18 @@ export function diagramStepMenuItems(
       });
       continue;
     }
+    if (action.checked !== undefined && action.radio) {
+      items.push({
+        kind: 'radio',
+        id: action.id,
+        label: action.label,
+        checked: action.checked,
+        disabled: action.disabled,
+        hint: action.hint,
+        onSelect: action.run,
+      });
+      continue;
+    }
     if (action.checked !== undefined) {
       items.push({
         kind: 'checkbox',

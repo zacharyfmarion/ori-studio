@@ -1085,8 +1085,10 @@
       "step": "Schritt"
     },
     "turns": {
+      "actions": "Aktionen der Wendung",
       "afterLast": "nach Schritt {{before}}",
       "afterStep": "Nach Schritt {{before}}",
+      "amount": "Drehung",
       "beforeFirst": "vor Schritt {{after}}",
       "beforeStep": "Vor Schritt {{after}}",
       "between": "zwischen Schritt {{before}} und {{after}}",
@@ -1098,6 +1100,8 @@
       "half": "1/2 Drehung",
       "kind": "Bewegung",
       "lastHint": "Bereits zuletzt",
+      "lockedNote": "Mit einem neueren Ori Studio erstellt: Hier lässt sie sich verschieben oder löschen, wird unverändert gespeichert und nicht gedruckt.",
+      "newer": "Wendung aus einem neueren Ori Studio",
       "note": "Wird zwischen den Schritten gedruckt, ohne eigene Nummer.",
       "quarter": "1/4 Drehung",
       "rotate": "Drehen",
@@ -1105,8 +1109,7 @@
       "rotateCounterclockwise": "{{fraction}} Drehung gegen den Uhrzeigersinn",
       "turnOver": "Umdrehen",
       "turnOverSideToSide": "Seitlich umdrehen",
-      "turnOverTopToBottom": "Von oben nach unten umdrehen",
-      "verbs": "Wendung"
+      "turnOverTopToBottom": "Von oben nach unten umdrehen"
     },
     "view": {
       "label": "Ansicht",

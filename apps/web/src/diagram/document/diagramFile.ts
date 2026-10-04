@@ -55,7 +55,6 @@ import {
   DIAGRAM_FORMAT_VERSION,
   DIAGRAM_SHOW_AS,
   PAPER_SIZES,
-  createStep,
   isTurn,
   showAsOf,
   isKnownAsset,
@@ -241,6 +240,7 @@ export function writeDiagram(
 
 function writeStep(step: DiagramEntry): Record<string, unknown> {
   if (isTurn(step)) {
+    if (step.unknown) return step.unknown;
     return step.kind === 'rotate'
       ? { id: step.id, kind: step.kind, rotate: step.rotate }
       : { id: step.id, kind: step.kind, axis: step.axis };
@@ -307,9 +307,9 @@ const SCENE_JSON_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
  * One entry in the order: a turn when it says what kind (D22) — a step never
- * does — and a step otherwise. A turn of a kind, or with a field, this build
- * does not know is a newer build's entry, carried whole as a locked step: it
- * can be moved or deleted, never edited.
+ * does — and a step otherwise. A turn of a kind, or with a field or value,
+ * this build does not know is a newer build's, carried whole as a locked turn:
+ * it can be moved or deleted, never changed, and takes no number.
  */
 function readEntry(
   value: unknown,
@@ -320,7 +320,8 @@ function readEntry(
   const id = value.id;
   if (typeof id !== 'string' || id.length === 0) return null;
   const turn = readTurn(id, value);
-  return turn === NEWER ? { ...createStep(() => id), unknown: value } : turn;
+  // The kind is a stand-in: a locked turn is never drawn or changed.
+  return turn === NEWER ? { id, kind: 'turn-over', axis: 'vertical', unknown: value } : turn;
 }
 
 /**

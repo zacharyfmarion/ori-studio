@@ -1130,8 +1130,10 @@
       "step": "Étape"
     },
     "turns": {
+      "actions": "Actions du mouvement",
       "afterLast": "après l’étape {{before}}",
       "afterStep": "Après l’étape {{before}}",
+      "amount": "Quantité",
       "beforeFirst": "avant l’étape {{after}}",
       "beforeStep": "Avant l’étape {{after}}",
       "between": "entre les étapes {{before}} et {{after}}",
@@ -1143,6 +1145,8 @@
       "half": "1/2 tour",
       "kind": "Mouvement",
       "lastHint": "Déjà en dernier",
+      "lockedNote": "Créé avec une version plus récente d’Ori Studio\u00a0: on peut le déplacer ou le supprimer ici, il est enregistré tel quel et n’est pas imprimé.",
+      "newer": "Mouvement d’une version plus récente d’Ori Studio",
       "note": "Imprimé entre les étapes, sans numéro propre.",
       "quarter": "1/4 de tour",
       "rotate": "Tourner",
@@ -1150,8 +1154,7 @@
       "rotateCounterclockwise": "Tourner de {{fraction}} de tour dans le sens antihoraire",
       "turnOver": "Retourner",
       "turnOverSideToSide": "Retourner de gauche à droite",
-      "turnOverTopToBottom": "Retourner de haut en bas",
-      "verbs": "Mouvement"
+      "turnOverTopToBottom": "Retourner de haut en bas"
     },
     "view": {
       "label": "Vue",

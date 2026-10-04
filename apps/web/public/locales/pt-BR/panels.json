@@ -1130,8 +1130,10 @@
       "step": "Passo"
     },
     "turns": {
+      "actions": "Ações da virada",
       "afterLast": "depois do passo {{before}}",
       "afterStep": "Depois do passo {{before}}",
+      "amount": "Quantidade",
       "beforeFirst": "antes do passo {{after}}",
       "beforeStep": "Antes do passo {{after}}",
       "between": "entre os passos {{before}} e {{after}}",
@@ -1143,6 +1145,8 @@
       "half": "1/2 volta",
       "kind": "Movimento",
       "lastHint": "Já é o último",
+      "lockedNote": "Feita com um Ori Studio mais recente: aqui pode ser movida ou excluída, é salva exatamente como veio e não é impressa.",
+      "newer": "Virada de um Ori Studio mais recente",
       "note": "Impresso entre os passos, sem número próprio.",
       "quarter": "1/4 de volta",
       "rotate": "Girar",
@@ -1150,8 +1154,7 @@
       "rotateCounterclockwise": "Girar {{fraction}} de volta no sentido anti-horário",
       "turnOver": "Virar",
       "turnOverSideToSide": "Virar de lado a lado",
-      "turnOverTopToBottom": "Virar de cima para baixo",
-      "verbs": "Virada"
+      "turnOverTopToBottom": "Virar de cima para baixo"
     },
     "view": {
       "label": "Visualização",

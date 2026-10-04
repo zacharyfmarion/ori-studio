@@ -22,7 +22,8 @@ export type DiagramTurnActionId =
   | 'rotate-ccw';
 
 export interface DiagramTurnActionState {
-  turn: DiagramTurnKind;
+  /** The turn; a newer build's (`unknown`) offers only its moves and Delete. */
+  turn: DiagramTurnKind & { unknown?: unknown };
   /** Its 0-based place among the steps and turns, and how many there are. */
   index: number;
   count: number;
@@ -61,7 +62,8 @@ export function turnLabels(t: TFunction) {
 }
 
 /** What a turn says it is, in a few words: "Turn over", or "Rotate 1/4 turn clockwise". */
-export function turnName(turn: DiagramTurnKind, t: TFunction): string {
+export function turnName(turn: DiagramTurnKind & { unknown?: unknown }, t: TFunction): string {
+  if (turn.unknown !== undefined) return t('panels:diagram.turns.newer', 'Turn from a newer Ori Studio');
   if (turn.kind === 'turn-over') {
     return turn.axis === 'horizontal'
       ? t('panels:diagram.turns.turnOverTopToBottom', 'Turn over, top to bottom')
@@ -90,6 +92,7 @@ export function buildDiagramTurnActions(
     id,
     label,
     checked,
+    radio: true,
     disabled: state.readOnly,
     ...(state.readOnly ? { hint: readOnlyHint } : {}),
     run: () => deps.set(next),
@@ -133,12 +136,19 @@ export function buildDiagramTurnActions(
     ...(id === 'move-later' ? { shortcutId: 'diagram.moveStepLater' as const } : {}),
     run,
   });
+  // A newer build's turn is not this build's to change: what it is is a stand-in.
+  const what: DiagramStepAction[] =
+    turn.unknown !== undefined
+      ? []
+      : [
+          choose('turn-over', labels.kind['turn-over'], turn.kind === 'turn-over', { kind: 'turn-over', axis }),
+          choose('rotate', labels.kind.rotate, turn.kind === 'rotate', { kind: 'rotate', rotate: rotation }),
+          { kind: 'separator', id: 'after-kind' },
+          ...how,
+          { kind: 'separator', id: 'after-how' },
+        ];
   return [
-    choose('turn-over', labels.kind['turn-over'], turn.kind === 'turn-over', { kind: 'turn-over', axis }),
-    choose('rotate', labels.kind.rotate, turn.kind === 'rotate', { kind: 'rotate', rotate: rotation }),
-    { kind: 'separator', id: 'after-kind' },
-    ...how,
-    { kind: 'separator', id: 'after-how' },
+    ...what,
     command(
       'move-earlier',
       t('panels:diagram.actions.moveEarlier', 'Move Earlier'),

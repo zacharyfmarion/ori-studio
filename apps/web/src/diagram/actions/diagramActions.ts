@@ -48,6 +48,8 @@ export interface DiagramStepCommand {
   danger?: boolean;
   /** An on/off verb's state, for a surface that shows it as a check. */
   checked?: boolean;
+  /** `checked` marks one of a set rather than an on/off verb: a menu draws a radio row. */
+  radio?: true;
   /**
    * The key that runs the same verb, for a surface that shows chords (a menu
    * row). Its own path: the key goes through the shortcut runtime, the row

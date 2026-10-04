@@ -7,7 +7,7 @@
  * the subsetter are kept by their modules, so a new call costs the layout and
  * the pages it composes, not a download.
  */
-import { isTurn, stepAsset, stepsOf, type DiagramDocument } from '../document/diagramDocument';
+import { isLockedTurn, isTurn, stepAsset, stepsOf, type DiagramDocument } from '../document/diagramDocument';
 import type { DiagramFontFace } from '../fonts/diagramFontFaces';
 import { loadDiagramFonts, type DiagramFontSource, type DiagramFontText, type DiagramFonts } from '../fonts/diagramFonts';
 import { embeddedFontFaces } from '../fonts/fontEmbedding';
@@ -53,7 +53,9 @@ export function diagramLayoutSteps(document: DiagramDocument, mmPerUnit: number 
   let turns: LayoutTurn[] = [];
   for (const entry of document.steps) {
     if (isTurn(entry)) {
-      const { id, ...turn } = entry;
+      // A newer build's turn is this build's to carry, not to draw.
+      if (isLockedTurn(entry)) continue;
+      const { id, unknown: _unknown, ...turn } = entry;
       turns.push({ id, turn });
       continue;
     }

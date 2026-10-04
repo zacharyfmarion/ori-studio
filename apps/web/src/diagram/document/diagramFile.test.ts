@@ -9,11 +9,11 @@ import {
   setPageSetup,
   setStepText,
   createTurn,
-  isLockedStep,
+  isLockedTurn,
   isTurn,
+  stepNumber,
   type DiagramIdFactory,
   type DiagramCpSource,
-  type DiagramStep,
 } from './diagramDocument';
 import { readDiagram, writeDiagram } from './diagramFile';
 import { SVG_STORED_MAX_BYTES, sanitizeSvg } from '../upload/svgSanitize';
@@ -723,9 +723,10 @@ describe('turns between steps (D22)', () => {
       written.steps[1] = newer;
       const read = readDiagram(written)!.document;
       const carried = read.steps[1]!;
-      expect(isTurn(carried)).toBe(false);
+      // Still a turn: it takes no number, and the step after it is step 2.
+      expect(isTurn(carried) && isLockedTurn(carried)).toBe(true);
       expect(carried).toMatchObject({ id: 'turn-3', unknown: newer });
-      expect(isLockedStep(carried as DiagramStep)).toBe(true);
+      expect(stepNumber(read, read.steps[2]!.id)).toBe(2);
       // Written back exactly as it came.
       expect(throughJson(writeDiagram(read)).steps[1]).toEqual(newer);
     }

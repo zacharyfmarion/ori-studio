@@ -62,6 +62,33 @@ describe('a turn’s verbs (D22)', () => {
     expect(readOnly.every((action) => action.kind === 'command' && action.disabled)).toBe(true);
   });
 
+  it('draws what it is and how it turns as one of a set, in its menu', () => {
+    const items = diagramStepMenuItems(build({ turn: { kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } } }).actions);
+    const rows = items.flatMap((item) => (item.kind === 'separator' || item.kind === 'submenu' ? [] : [`${item.kind} ${item.id}`]));
+    expect(rows).toEqual([
+      'radio turn-over',
+      'radio rotate',
+      'radio rotate-eighth',
+      'radio rotate-quarter',
+      'radio rotate-half',
+      'radio rotate-cw',
+      'radio rotate-ccw',
+      'action move-earlier',
+      'action move-later',
+      'action delete',
+    ]);
+  });
+
+  it('offers only its moves and Delete when a newer build made it', () => {
+    const { actions } = build({ turn: { kind: 'turn-over', axis: 'vertical', unknown: { id: 'turn-9', kind: 'spin' } } });
+    expect(diagramStepMenuItems(actions).flatMap((item) => (item.kind === 'separator' ? [] : [item.kind === 'submenu' ? item.id : item.id]))).toEqual([
+      'move-earlier',
+      'move-later',
+      'delete',
+    ]);
+    expect(turnName({ kind: 'turn-over', axis: 'vertical', unknown: {} }, t)).toBe('Turn from a newer Ori Studio');
+  });
+
   it('names itself by how it turns', () => {
     expect(turnName({ kind: 'turn-over', axis: 'horizontal' }, t)).toBe('Turn over, top to bottom');
     expect(turnName({ kind: 'rotate', rotate: { amount: 'half', direction: 'cw' } }, t)).toBe('Rotate 1/2 turn clockwise');

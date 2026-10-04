@@ -1040,8 +1040,10 @@
       "step": "단계"
     },
     "turns": {
+      "actions": "뒤집기·회전 작업",
       "afterLast": "{{before}}단계 뒤",
       "afterStep": "{{before}}단계 뒤",
+      "amount": "회전량",
       "beforeFirst": "{{after}}단계 앞",
       "beforeStep": "{{after}}단계 앞",
       "between": "{{before}}단계와 {{after}}단계 사이",
@@ -1053,6 +1055,8 @@
       "half": "1/2 회전",
       "kind": "동작",
       "lastHint": "이미 맨 뒤입니다",
+      "lockedNote": "최신 Ori Studio에서 만들었습니다. 여기서는 옮기거나 삭제할 수 있고, 받은 그대로 저장되며, 인쇄되지 않습니다.",
+      "newer": "최신 Ori Studio에서 만든 뒤집기·회전",
       "note": "단계 사이에 인쇄되며 번호가 붙지 않습니다.",
       "quarter": "1/4 회전",
       "rotate": "회전",
@@ -1060,8 +1064,7 @@
       "rotateCounterclockwise": "시계 반대 방향으로 {{fraction}} 회전",
       "turnOver": "뒤집기",
       "turnOverSideToSide": "좌우로 뒤집기",
-      "turnOverTopToBottom": "위아래로 뒤집기",
-      "verbs": "뒤집기·회전"
+      "turnOverTopToBottom": "위아래로 뒤집기"
     },
     "view": {
       "label": "보기",

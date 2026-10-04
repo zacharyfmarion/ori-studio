@@ -3873,7 +3873,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_one": "144687353ac4",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_one": "286a65010a83",
@@ -3891,7 +3890,11 @@
     "panels:diagram.pose.wayPick_one": "98ed65c4d699",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7767,7 +7770,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_one": "144687353ac4",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_one": "286a65010a83",
@@ -7785,7 +7787,11 @@
     "panels:diagram.pose.wayPick_one": "98ed65c4d699",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11663,7 +11669,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_one": "144687353ac4",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_one": "286a65010a83",
@@ -11681,7 +11686,11 @@
     "panels:diagram.pose.wayPick_one": "98ed65c4d699",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15477,7 +15486,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_other": "5516c7eb96bf",
     "panels:diagram.pose.firstSolution": "0bebd938d2f3",
@@ -15491,7 +15499,11 @@
     "panels:diagram.pose.wayOf_other": "6d4f8fe7856c",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -19287,7 +19299,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_other": "5516c7eb96bf",
     "panels:diagram.pose.firstSolution": "0bebd938d2f3",
@@ -19301,7 +19312,11 @@
     "panels:diagram.pose.wayOf_other": "6d4f8fe7856c",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -23177,7 +23192,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_one": "144687353ac4",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_one": "286a65010a83",
@@ -23195,7 +23209,11 @@
     "panels:diagram.pose.wayPick_one": "98ed65c4d699",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -27071,7 +27089,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_one": "144687353ac4",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_one": "286a65010a83",
@@ -27089,7 +27106,11 @@
     "panels:diagram.pose.wayPick_one": "98ed65c4d699",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -30885,7 +30906,6 @@
     "panels:diagram.turns.turnOver": "d88e02c80be6",
     "panels:diagram.turns.turnOverSideToSide": "09be598ac4ec",
     "panels:diagram.turns.turnOverTopToBottom": "388b6e2e3b95",
-    "panels:diagram.turns.verbs": "b823d5f9d1ce",
     "dialogs:diagramExport.turnsLeftOut_other": "fb1a01bd3e57",
     "toasts:diagram.references.addedTurnOvers_other": "5516c7eb96bf",
     "panels:diagram.pose.firstSolution": "0bebd938d2f3",
@@ -30899,6 +30919,10 @@
     "panels:diagram.pose.wayOf_other": "6d4f8fe7856c",
     "panels:diagram.pose.wayPick_other": "98ed65c4d699",
     "panels:diagram.pose.waysNotHere": "ca1844969742",
-    "panels:diagram.pose.waysUnavailable": "f6421479b102"
+    "panels:diagram.pose.waysUnavailable": "f6421479b102",
+    "panels:diagram.turns.actions": "7235343bbdc7",
+    "panels:diagram.turns.amount": "49e96d7cdf58",
+    "panels:diagram.turns.lockedNote": "15ae5b93f127",
+    "panels:diagram.turns.newer": "50a7a9c59f27"
   }
 }

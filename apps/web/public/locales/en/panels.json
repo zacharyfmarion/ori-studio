@@ -1085,8 +1085,10 @@
       "step": "Step"
     },
     "turns": {
+      "actions": "Turn actions",
       "afterLast": "after step {{before}}",
       "afterStep": "After step {{before}}",
+      "amount": "Amount",
       "beforeFirst": "before step {{after}}",
       "beforeStep": "Before step {{after}}",
       "between": "between steps {{before}} and {{after}}",
@@ -1098,6 +1100,8 @@
       "half": "1/2 Turn",
       "kind": "Turn",
       "lastHint": "Already last",
+      "lockedNote": "Made with a newer Ori Studio: it can be moved or deleted here, is saved exactly as it came, and isn’t printed.",
+      "newer": "Turn from a newer Ori Studio",
       "note": "Printed between the steps, with no number of its own.",
       "quarter": "1/4 Turn",
       "rotate": "Rotate",
@@ -1105,8 +1109,7 @@
       "rotateCounterclockwise": "Rotate {{fraction}} turn counterclockwise",
       "turnOver": "Turn Over",
       "turnOverSideToSide": "Turn over, side to side",
-      "turnOverTopToBottom": "Turn over, top to bottom",
-      "verbs": "Turn"
+      "turnOverTopToBottom": "Turn over, top to bottom"
     },
     "view": {
       "label": "View",

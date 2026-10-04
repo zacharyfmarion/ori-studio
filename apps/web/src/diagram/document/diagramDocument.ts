@@ -490,6 +490,12 @@ export type DiagramTurnKind =
 export type DiagramTurn = DiagramTurnKind & {
   /** `turn-<uuid>`. */
   id: string;
+  /**
+   * A newer build's turn, carried whole: its raw form, written back as it came.
+   * Its kind is then a stand-in, never drawn or changed; it is moved or
+   * deleted, and it takes no number, as any turn.
+   */
+  unknown?: Record<string, unknown>;
 };
 
 /** One entry in a diagram's order: a step, or a turn between steps. */
@@ -498,6 +504,11 @@ export type DiagramEntry = DiagramStep | DiagramTurn;
 /** Whether an entry is a turn rather than a step. */
 export function isTurn(entry: DiagramEntry): entry is DiagramTurn {
   return 'kind' in entry;
+}
+
+/** A turn written by a newer build: it can be moved or deleted, never changed or drawn. */
+export function isLockedTurn(turn: DiagramTurn): boolean {
+  return turn.unknown !== undefined;
 }
 
 /** Whether an entry is a step rather than a turn. */
@@ -1245,19 +1256,23 @@ export function setPageSetup(
 }
 
 /**
- * Edit one step. A locked step is never handed to `edit`: a newer build's step
- * is only ever carried, so the raw form written back is exactly the one read.
+ * Set what a turn is (D22): which axis it turns over, or how far and which way
+ * it rotates. What it is already is no change; a newer build's turn is never
+ * changed.
  */
-/** Set what a turn is (D22): which axis it turns over, or how far and which way it rotates. */
 export function setTurn(document: DiagramDocument, turnId: string, kind: DiagramTurnKind): DiagramDocument {
   const index = stepIndex(document, turnId);
   const turn = document.steps[index];
-  if (!turn || !isTurn(turn)) return document;
-  const next = createTurn(kind, () => turn.id);
-  if (JSON.stringify(next) === JSON.stringify(turn)) return document;
+  if (!turn || !isTurn(turn) || isLockedTurn(turn) || sameTurn(turn, kind)) return document;
   const steps = document.steps.slice();
-  steps[index] = next;
+  steps[index] = createTurn(kind, () => turn.id);
   return { ...document, steps };
+}
+
+/** Whether two turns turn the model the same way, field by field. */
+function sameTurn(a: DiagramTurnKind, b: DiagramTurnKind): boolean {
+  if (a.kind === 'turn-over') return b.kind === 'turn-over' && a.axis === b.axis;
+  return b.kind === 'rotate' && a.rotate.amount === b.rotate.amount && a.rotate.direction === b.rotate.direction;
 }
 
 /** Edit one step; a turn, an unknown id or a newer build's step is left as it is. */

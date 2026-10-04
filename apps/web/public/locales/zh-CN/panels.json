@@ -1040,8 +1040,10 @@
       "step": "步骤"
     },
     "turns": {
+      "actions": "翻转操作",
       "afterLast": "第 {{before}} 步之后",
       "afterStep": "第 {{before}} 步之后",
+      "amount": "旋转量",
       "beforeFirst": "第 {{after}} 步之前",
       "beforeStep": "第 {{after}} 步之前",
       "between": "第 {{before}} 步与第 {{after}} 步之间",
@@ -1053,6 +1055,8 @@
       "half": "1/2 圈",
       "kind": "动作",
       "lastHint": "已在最后",
+      "lockedNote": "由较新版本的 Ori Studio 创建：此处可以移动或删除，会原样保存，但不会打印。",
+      "newer": "由较新版本 Ori Studio 创建的翻转",
       "note": "印在步骤之间，没有自己的编号。",
       "quarter": "1/4 圈",
       "rotate": "旋转",
@@ -1060,8 +1064,7 @@
       "rotateCounterclockwise": "逆时针旋转 {{fraction}} 圈",
       "turnOver": "翻面",
       "turnOverSideToSide": "左右翻面",
-      "turnOverTopToBottom": "上下翻面",
-      "verbs": "翻转"
+      "turnOverTopToBottom": "上下翻面"
     },
     "view": {
       "label": "视图",

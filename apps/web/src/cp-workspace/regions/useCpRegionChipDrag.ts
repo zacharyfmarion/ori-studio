@@ -51,7 +51,7 @@ const DRAG_THRESHOLD_PX = 2;
  * above it for this to match by accident.
  */
 const CONTROL_SELECTOR =
-  'button, a, input, select, textarea, [role="menuitem"], [role="menuitemcheckbox"], [contenteditable="true"]';
+  'button, a, input, select, textarea, [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [contenteditable="true"]';
 
 function isChipControl(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest(CONTROL_SELECTOR) !== null;

@@ -58,6 +58,16 @@ function authorLocale(): string | null {
   return typeof document === 'undefined' ? null : document.documentElement.lang || null;
 }
 
+/**
+ * What is selected after a delete: the entry that took the first deleted one's
+ * place, or the one before it at the end. With the detail open, which shows
+ * steps only (D22), the nearest step: one that took the place, else one before.
+ */
+function deletedNeighbour(entries: readonly DiagramEntry[], firstIndex: number, detailOpen: boolean): DiagramEntry | undefined {
+  if (!detailOpen) return entries[Math.min(firstIndex, entries.length - 1)];
+  return entries.slice(firstIndex).find(isStep) ?? entries.slice(0, firstIndex).filter(isStep).at(-1);
+}
+
 /** Whether the step has the annotation. */
 function hasAnnotation(document: DiagramDocument | null, stepId: string | null, annotationId: string): boolean {
   if (!document || stepId === null) return false;
@@ -243,8 +253,7 @@ export const createDiagramSlice: WorkspaceSliceCreator<DiagramSlice> = (set, get
       if (!next) return false;
       const selected = get().diagramSelectedStepId;
       if (selected === null || removing.has(selected)) {
-        const neighbour = next.steps[Math.min(firstIndex, next.steps.length - 1)];
-        set(selection(neighbour?.id ?? null));
+        set(selection(deletedNeighbour(next.steps, firstIndex, get().diagramDetail !== null)?.id ?? null));
       }
       return true;
     },

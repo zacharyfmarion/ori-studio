@@ -103,6 +103,13 @@ describe('DiagramStepPanel', () => {
     act(() => option('Rotate').click());
     expect(state().diagram!.steps[1]).toEqual({ id: turn, kind: 'rotate', rotate: { amount: 'quarter', direction: 'cw' } });
     expect(host!.textContent).toContain('Rotate 1/4 turn clockwise');
+    // Each control its own name.
+    expect([...host!.querySelectorAll('[role="group"]')].map((group) => group.getAttribute('aria-label'))).toEqual([
+      'Turn',
+      'Amount',
+      'Direction',
+      'Turn actions',
+    ]);
     const remove = [...host!.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'Delete Turn')!;
     act(() => remove.click());
     expect(state().diagram!.steps.some((entry) => entry.id === turn)).toBe(false);

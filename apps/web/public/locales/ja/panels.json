@@ -1040,8 +1040,10 @@
       "step": "ステップ"
     },
     "turns": {
+      "actions": "回し方の操作",
       "afterLast": "ステップ{{before}}の後",
       "afterStep": "ステップ{{before}}の後",
+      "amount": "回転量",
       "beforeFirst": "ステップ{{after}}の前",
       "beforeStep": "ステップ{{after}}の前",
       "between": "ステップ{{before}}と{{after}}の間",
@@ -1053,6 +1055,8 @@
       "half": "1/2回転",
       "kind": "動き",
       "lastHint": "すでに末尾です",
+      "lockedNote": "新しい Ori Studio で作られました。ここでは移動と削除ができ、そのまま保存されますが、印刷はされません。",
+      "newer": "新しい Ori Studio で作られた回し方",
       "note": "ステップの間に印刷され、番号は付きません。",
       "quarter": "1/4回転",
       "rotate": "回転",
@@ -1060,8 +1064,7 @@
       "rotateCounterclockwise": "反時計回りに{{fraction}}回転",
       "turnOver": "裏返す",
       "turnOverSideToSide": "左右に裏返す",
-      "turnOverTopToBottom": "上下に裏返す",
-      "verbs": "回し方"
+      "turnOverTopToBottom": "上下に裏返す"
     },
     "view": {
       "label": "表示",

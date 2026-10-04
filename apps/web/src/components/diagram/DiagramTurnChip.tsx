@@ -1,7 +1,8 @@
 import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Lock } from 'lucide-react';
 import { turnName } from '../../diagram/actions/diagramTurnActions';
-import type { DiagramTurn } from '../../diagram/document/diagramDocument';
+import { isLockedTurn, type DiagramTurn } from '../../diagram/document/diagramDocument';
 import { DiagramAnnotateToolGlyph } from './DiagramAnnotateToolGlyph';
 import styles from './DiagramTurnChip.module.css';
 
@@ -13,7 +14,8 @@ import styles from './DiagramTurnChip.module.css';
  * what it is and where ("Turn over, side to side, between steps 3 and 4").
  *
  * The glyph shows how it turns: a turn-over about the horizontal axis lies on
- * its side, and an anticlockwise rotation is the clockwise one mirrored.
+ * its side, and an anticlockwise rotation is the clockwise one mirrored. A
+ * newer build's turn, which this build cannot draw, shows a lock.
  */
 export const DiagramTurnChip = forwardRef<
   HTMLDivElement,
@@ -37,8 +39,16 @@ export const DiagramTurnChip = forwardRef<
           ? t('panels:diagram.turns.afterLast', 'after step {{before}}', between)
           : '';
   const label = where ? t('panels:diagram.turns.chipLabel', '{{name}}, {{where}}', { name, where }) : name;
-  const turned =
-    turn.kind === 'turn-over' ? (turn.axis === 'horizontal' ? 'quarter' : undefined) : turn.rotate.direction === 'ccw' ? 'mirror' : undefined;
+  const locked = isLockedTurn(turn);
+  const turned = locked
+    ? undefined
+    : turn.kind === 'turn-over'
+      ? turn.axis === 'horizontal'
+        ? 'quarter'
+        : undefined
+      : turn.rotate.direction === 'ccw'
+        ? 'mirror'
+        : undefined;
   return (
     <div
       ref={ref}
@@ -49,12 +59,12 @@ export const DiagramTurnChip = forwardRef<
       tabIndex={tabStop ? 0 : -1}
       className={styles.chip}
       data-step-id={turn.id}
-      data-turn-kind={turn.kind}
+      data-turn-kind={locked ? 'locked' : turn.kind}
       data-selected={selected || undefined}
       onClick={() => onSelect(turn.id)}
     >
       <span className={styles.glyph} data-turned={turned}>
-        <DiagramAnnotateToolGlyph tool={turn.kind} />
+        {locked ? <Lock size={14} aria-hidden /> : <DiagramAnnotateToolGlyph tool={turn.kind} />}
       </span>
     </div>
   );
