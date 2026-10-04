@@ -190,11 +190,23 @@ describe('posing a flat fold', () => {
     const { session, runtime, held } = sessionWith();
     const document = cpDocument();
     const over = await pose(session, FLAT, { verb: 'turn-over' }, document);
-    expect(over).toMatchObject({ render: { side: 'back', rotationDeg: 30 } });
+    // Turned over where it lies: the mirror of what showed, so its turn runs the other way.
+    expect(over).toMatchObject({ render: { side: 'back', rotationDeg: 330 } });
     expect(vi.mocked(runtime.setModel).mock.calls.at(-1)![1]).toMatchObject({ state: 'Back1', rotation: 0, scale: 1 });
     await pose(session, { ...FLAT, side: 'back' }, { verb: 'rotate-right' }, document);
     expect(runtime.fold).toHaveBeenCalledOnce();
     expect(held.get(7)).toBe(1);
+  });
+
+  it('keeps how it lies when it turns over and back: the turn runs the other way while it shows its back', async () => {
+    const { session } = sessionWith();
+    const document = cpDocument();
+    const over = await pose(session, { ...FLAT, rotationDeg: 75 }, { verb: 'turn-over' }, document);
+    expect(over).toMatchObject({ render: { side: 'back', rotationDeg: 285 } });
+    const back = await pose(session, { ...FLAT, side: 'back', rotationDeg: 285 }, { verb: 'turn-over' }, document);
+    expect(back).toMatchObject({ render: { side: 'front', rotationDeg: 75 } });
+    const upright = await pose(session, { ...FLAT, rotationDeg: 0 }, { verb: 'turn-over' }, document);
+    expect(upright).toMatchObject({ render: { rotationDeg: 0 } });
   });
 
   it('turns it to an angle on the held fold, keeping its side and layer order', async () => {

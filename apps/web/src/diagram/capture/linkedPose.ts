@@ -230,7 +230,9 @@ export async function poseLinkedStep(
       case 'rotate-to':
         return flat(side, turned(request.verb === 'rotate-to' ? request.degrees : rotationDeg, 0), foldCase);
       case 'turn-over':
-        return flat(side, rotationDeg, foldCase, 'turn-over');
+        // Turned over where it lies, as paper is: what shows now is the
+        // mirror of what showed, so its turn runs the other way.
+        return flat(side, turned(-rotationDeg, 0), foldCase, 'turn-over');
       case 'next-solution':
         return flat(side, rotationDeg, foldCase, 'next-solution');
       case 'previous-solution':
