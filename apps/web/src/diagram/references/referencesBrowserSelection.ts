@@ -154,8 +154,10 @@ export interface ShownCard {
 /**
  * Where the card a replaced step shows is in the list on screen ("Shown
  * now"): only in the plan it came from, found by its line — which stays put
- * while Landmarks first renumbers the cards — or, for a card that folds no
- * line, by its number. Null for none, or when nothing is being replaced.
+ * while Landmarks first renumbers the cards — and of the cards on its line (a
+ * press shares its fold's), the one with its number when there is one; or,
+ * for a card that folds no line, by its number. Null for none, or when
+ * nothing is being replaced.
  */
 export function shownCardIn(
   cards: readonly BrowserCard[],
@@ -164,7 +166,10 @@ export function shownCardIn(
 ): number | null {
   if (!shown || plan === null || shown.plan !== plan) return null;
   const { line, card } = shown;
-  if (line) return cards.find((candidate) => sameLine(candidate.step?.card.line ?? null, line))?.index ?? null;
+  if (line) {
+    const onLine = cards.filter((candidate) => sameLine(candidate.step?.card.line ?? null, line));
+    return (onLine.find((candidate) => candidate.number === card) ?? onLine[0])?.index ?? null;
+  }
   if (card !== null) return cards.find((candidate) => candidate.number === card)?.index ?? null;
   return null;
 }

@@ -20,7 +20,7 @@ import {
   type DiagramReferencesSource,
   type DiagramStepDiagramPicture,
 } from '../document/diagramDocument';
-import { foldStepOf, planCards, PLAN_SHEET, type BrowserCard, type BrowserPattern } from './referencesBrowserPlans';
+import { foldStepOf, planCards, PLAN_SHEET, type BrowserPattern } from './referencesBrowserPlans';
 import { sameLine } from './referencesBrowserSelection';
 
 /** One way the step's card can be folded, drawn. */
@@ -42,6 +42,12 @@ export type ReferencesStepWays =
  * The ways a References step's card can be folded, from its plan: each
  * drawn, the one it shows marked. None for a card that folds no line, a card
  * the plan does not have, or one with a single way.
+ *
+ * The card is the one on the step's line whose drawing under one of its ways
+ * is the step's own picture: a press shares its fold's line, and its ways, so
+ * the line alone can name the fold instead. The card the step recorded is
+ * tried first. With no card and reading that draws the step's picture, there
+ * is nothing to offer: another card's drawings are not the step's ways.
  */
 export function referencesStepWays(
   t: TFunction,
@@ -49,44 +55,50 @@ export function referencesStepWays(
   pattern: BrowserPattern,
   geometry: CpGeometryTransport,
   revision: string,
-  source: Pick<DiagramReferencesSource, 'line' | 'way'>,
+  source: Pick<DiagramReferencesSource, 'line' | 'way' | 'card'>,
   shown: Pick<DiagramStepDiagramPicture, 'key' | 'mirrored'>
 ): ReferencesStepWays {
   const { line } = source;
   if (!line) return { status: 'none' };
   const base = wayChoicesOfSheet(pattern.listing.ways, PLAN_SHEET);
-  const cardOn = (cards: readonly BrowserCard[]) =>
-    cards.findIndex((card) => card.kind === 'fold' && sameLine(card.step?.card.line ?? null, line));
   const keyOf = (picture: Pick<DiagramStepDiagramPicture, 'key'>) => stepDiagramKey(picture.key, false);
 
-  const readings = [false, true].flatMap((landmarksFirst) => {
+  for (const landmarksFirst of [false, true]) {
     const { cards, strip } = planCards(t, plan, pattern, geometry, revision, { landmarksFirst, planWays: base });
-    const index = cardOn(cards);
-    const step = index >= 0 ? foldStepOf(strip, index) : undefined;
-    const ways = step ? stepWays(step) : [];
-    if (!step || ways.length === 0) return [];
-    const drawn = ways.flatMap((way, wayIndex): ReferencesStepWay[] => {
-      const choices = withWayChoice(base, componentOf(strip, index), step, wayIndex);
-      const { cards: under } = planCards(t, plan, pattern, geometry, revision, { landmarksFirst, planWays: choices });
-      const card = under[cardOn(under)];
-      if (!card?.step) return [];
-      const { picture } = card.step;
-      return [
-        {
-          signature: waySignature(way.witness),
-          picture: { ...picture, mirrored: shown.mirrored, key: stepDiagramKey(picture.key, shown.mirrored) },
-          sentence: card.sentence,
-        },
-      ];
-    });
-    return drawn.length === ways.length ? [{ landmarksFirst, ways: drawn }] : [];
-  });
-  if (readings.length === 0) return { status: 'none' };
-  // The reading in which some way draws the step's own picture: the order it was pulled in.
-  const own = readings.find((reading) => reading.ways.some((way) => keyOf(way.picture) === keyOf(shown))) ?? readings[0]!;
-  const bySignature = own.ways.findIndex((way) => way.signature === source.way);
-  const byPicture = own.ways.findIndex((way) => keyOf(way.picture) === keyOf(shown));
-  return { status: 'ready', ways: own.ways, current: bySignature >= 0 ? bySignature : Math.max(0, byPicture) };
+    const onLine = cards
+      .filter((card) => card.kind === 'fold' && sameLine(card.step?.card.line ?? null, line))
+      .sort((a, b) => Number(b.number === source.card) - Number(a.number === source.card));
+    for (const card of onLine) {
+      const ways = drawWays(card.index);
+      if (ways && ways.some((way) => keyOf(way.picture) === keyOf(shown))) {
+        const bySignature = ways.findIndex((way) => way.signature === source.way);
+        const byPicture = ways.findIndex((way) => keyOf(way.picture) === keyOf(shown));
+        return { status: 'ready', ways, current: bySignature >= 0 ? bySignature : byPicture };
+      }
+    }
+
+    /** The card at `index` drawn under each of its ways, on the side the step shows; null when it has one. */
+    function drawWays(index: number): ReferencesStepWay[] | null {
+      const step = foldStepOf(strip, index);
+      const ways = step ? stepWays(step) : [];
+      if (!step || ways.length === 0) return null;
+      const drawn = ways.flatMap((way, wayIndex): ReferencesStepWay[] => {
+        const choices = withWayChoice(base, componentOf(strip, index), step, wayIndex);
+        const under = planCards(t, plan, pattern, geometry, revision, { landmarksFirst, planWays: choices }).cards[index];
+        if (!under?.step || !sameLine(under.step.card.line, line)) return [];
+        const { picture } = under.step;
+        return [
+          {
+            signature: waySignature(way.witness),
+            picture: { ...picture, mirrored: shown.mirrored, key: stepDiagramKey(picture.key, shown.mirrored) },
+            sentence: under.sentence,
+          },
+        ];
+      });
+      return drawn.length === ways.length ? drawn : null;
+    }
+  }
+  return { status: 'none' };
 }
 
 /** The plan sheet a fold row's step is on. */

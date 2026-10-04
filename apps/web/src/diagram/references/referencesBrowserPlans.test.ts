@@ -15,7 +15,7 @@ import {
   type SheetAnalysis,
 } from '../../cp-workspace/references/sheetFrames';
 import { SEG_ATTR_STRIDE, type CpGeometryTransport } from '../../engine/oristudioCpGeometry';
-import { browserPlanCards, plannedPatterns, sheetPattern, type BrowserPattern } from './referencesBrowserPlans';
+import { browserPlanCards, plannedPatterns, sheetPattern, type BrowserCard, type BrowserPattern } from './referencesBrowserPlans';
 import { referencesStepWays } from './referencesStepWays';
 import type { PrecreaseWay, PrecreaseWitness } from '../../cp-workspace/references/precreaseSequence';
 
@@ -154,6 +154,22 @@ describe('a References step’s ways to fold (D23)', () => {
     sequence.steps[4] = { ...sequence.steps[4]!, ways };
     return { result: { info: { component: 0 }, stopReason: 'complete' }, plain: sequence, hoisted: sequence, durationMs: 5 } as unknown as ReferencesCachedPlan;
   }
+  /** The same, and a press on step 5's line after it, carrying its ways, as the planner gives a press. */
+  function planWithPress(): ReferencesCachedPlan {
+    const plan = planWithWays();
+    const sequence = plan.plain;
+    const fold = sequence.steps[4]!;
+    const press = {
+      ...fold,
+      id: 6,
+      card: 6,
+      kind: 'press' as const,
+      extent: { kind: 'pinches' as const, spans: [[[0, 0.25], [0.08, 0.25]] as [[number, number], [number, number]]] },
+      cp_line_ids: [],
+    };
+    sequence.steps.push(press);
+    return plan;
+  }
 
   it('draws the card under each of its ways, marking the one the step shows', () => {
     const plan = planWithWays();
@@ -161,7 +177,7 @@ describe('a References step’s ways to fold (D23)', () => {
     const { cards } = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1');
     const card = cards.find((candidate) => candidate.ways === 3)!;
     expect(card.step?.way).toEqual(expect.any(String));
-    const result = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: card.step!.way! }, card.step!.picture);
+    const result = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: card.step!.way!, card: card.step!.card.card }, card.step!.picture);
     if (result.status !== 'ready') throw new Error('ways');
     expect(result.ways).toHaveLength(3);
     expect(result.current).toBe(0);
@@ -175,22 +191,45 @@ describe('a References step’s ways to fold (D23)', () => {
     const plan = planWithWays();
     const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
     const card = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1').cards.find((candidate) => candidate.ways === 3)!;
-    const first = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: card.step!.way! }, card.step!.picture);
+    const first = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: card.step!.way!, card: card.step!.card.card }, card.step!.picture);
     if (first.status !== 'ready') throw new Error('ways');
     const third = first.ways[2]!;
     const turned = { ...third.picture, mirrored: !third.picture.mirrored };
-    const again = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: third.signature }, turned);
+    const again = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: card.step!.card.line, way: third.signature, card: card.step!.card.card }, turned);
     if (again.status !== 'ready') throw new Error('ways');
     expect(again.current).toBe(2);
     expect(again.ways.every((way) => way.picture.mirrored === turned.mirrored)).toBe(true);
+  });
+
+  it('draws a press’s own ways, not those of the fold before it on its line', () => {
+    const plan = planWithPress();
+    const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
+    const onLine = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1').cards.filter((candidate) => candidate.ways === 3);
+    expect(onLine).toHaveLength(2);
+    const [fold, press] = onLine as [BrowserCard, BrowserCard];
+    expect(press.step!.picture.key).not.toBe(fold.step!.picture.key);
+    const source = { line: press.step!.card.line, way: press.step!.way!, card: press.step!.card.card };
+    const result = referencesStepWays(t, plan, pattern!, geometry, 'rev-1', source, press.step!.picture);
+    if (result.status !== 'ready') throw new Error('ways');
+    expect(result.ways[result.current]!.picture.key).toBe(press.step!.picture.key);
+    expect(result.ways[result.current]!.sentence).toBe(press.sentence);
+    expect(result.ways.some((way) => way.picture.key === fold.step!.picture.key)).toBe(false);
+  });
+
+  it('offers none when no reading draws the step’s own picture', () => {
+    const plan = planWithWays();
+    const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
+    const card = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1').cards.find((candidate) => candidate.ways === 3)!;
+    const source = { line: card.step!.card.line, way: card.step!.way!, card: card.step!.card.card };
+    expect(referencesStepWays(t, plan, pattern!, geometry, 'rev-1', source, { key: 'steps-elsewhere', mirrored: false }).status).toBe('none');
   });
 
   it('offers none for a card with one way, or one the plan does not have', () => {
     const plan = planWithWays();
     const [pattern] = plannedPatterns(analysis, [listed(keyOf(20))], input);
     const one = browserPlanCards(t, plan, pattern!, geometry, false, 'rev-1').cards.find((candidate) => candidate.kind === 'fold' && candidate.ways === null)!;
-    expect(referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: one.step!.card.line }, one.step!.picture).status).toBe('none');
-    expect(referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: { n: [0.6, 0.8], d: 99 } }, one.step!.picture).status).toBe('none');
+    expect(referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: one.step!.card.line, card: one.step!.card.card }, one.step!.picture).status).toBe('none');
+    expect(referencesStepWays(t, plan, pattern!, geometry, 'rev-1', { line: { n: [0.6, 0.8], d: 99 }, card: 1 }, one.step!.picture).status).toBe('none');
   });
 });
 

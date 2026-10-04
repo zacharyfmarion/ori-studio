@@ -133,6 +133,18 @@ describe('the card a replaced step shows', () => {
     expect(shownCardIn(lined(), 'plan-b', shown)).toBeNull();
   });
 
+  it('is the card of its number among those on its line: a press shares its fold’s', () => {
+    // Cards 1 and 3 on one line: the fold, and a press after it.
+    const shared = lined().map((card) =>
+      card.index === 1 && card.step ? { ...card, step: { ...card.step, card: { ...card.step.card, line: { n: [0, 1], d: 0.3 } } } } : card
+    ) as BrowserCard[];
+    const line = { n: [0, 1] as const, d: 0.3 };
+    expect(shownCardIn(shared, 'plan-a', { plan: 'plan-a', card: 3, line })).toBe(3);
+    expect(shownCardIn(shared, 'plan-a', { plan: 'plan-a', card: 1, line })).toBe(1);
+    // Renumbered (Landmarks first): the first on its line.
+    expect(shownCardIn(shared, 'plan-a', { plan: 'plan-a', card: 9, line })).toBe(1);
+  });
+
   it('is found by its number when it folds no line', () => {
     expect(shownCardIn(lined(), 'plan-a', { plan: 'plan-a', card: 1, line: null })).toBe(1);
   });
