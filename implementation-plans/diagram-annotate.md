@@ -1,10 +1,11 @@
 # Diagram Annotate: shaped arrows, a white stage, circles, right angles, white arrows
 
-**Status: for discussion with Zach (2026-10-04). Nothing is built.** Phase 14
-of `implementation-plans/diagram-workspace.md`, after Phase 13 (distortion) is
-planned and under way. The research behind it (four readers, a synthesis and a
-critic) is not in the repo; what matters is here. Paths are under
-`apps/web/src/` unless they say otherwise.
+**Status: decided (2026-10-04) — Zach accepted every recommendation below;
+being built on `claude/diagram-annotate`, merged phase by phase into the
+diagram branch.** Phase 14 of `implementation-plans/diagram-workspace.md`.
+The research behind it (four readers, a synthesis and a critic) is not in the
+repo; what matters is here. Paths are under `apps/web/src/` unless they say
+otherwise.
 
 ## Goal
 
@@ -183,7 +184,16 @@ previews out of the drawn state.
 `diagram/useDiagramShortcuts.ts`, `keyboard/shortcuts.ts`,
 `i18n/shortcutLabels.ts`; `analytics/events.ts`, `docs/analytics.md`; i18n.
 
-## Decisions for Zach
+## Decisions
+
+All fourteen settled on the recommendation (Zach, 2026-10-04: "I feel good
+about the annotation plan"): shaped fold arrows and white arrows only; arcs
+stay arcs until reshaped; an Edit Path tool; the return derived from the path;
+Affinity's node delete; arrow keys nudge a selected node; circles in the
+annotation pen, no letter; circles, right-angle corners and arrow and line ends
+snap; Edit's snap setting; an open-square right angle, hover-and-click else
+drag; the white arrow a new kind with width presets in ink.
+
 
 1. **Which marks can be shaped?** The three fold arrows and the white arrow;
    push arrows and lines stay straight. *Recommended.* (Or lines and pushes
