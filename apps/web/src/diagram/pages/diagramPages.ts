@@ -22,7 +22,7 @@ import {
 } from './diagramPageLayout';
 import { fontTextSetter } from './fontTextSetter';
 import { uploadTextRuns, type UploadTextRun } from '../upload/uploadText';
-import { layoutPicture } from './pagePictures';
+import { layoutPicture, type PictureMeasure } from './pagePictures';
 import { annotationTextRuns } from '../annotate/annotationPrimitives';
 import { hasDrawnAnnotations } from '../annotate/paintAnnotations';
 
@@ -44,11 +44,11 @@ export interface PreparedDiagramPages {
 }
 
 /**
- * What the layout needs of each step, its References steps measured at
- * `mmPerUnit` when known; each with the turns between it and the step before
- * (D22), the last with any after it.
+ * What the layout needs of each step, its marks measured at the size a first
+ * layout found when known; each with the turns between it and the step
+ * before (D22), the last with any after it.
  */
-export function diagramLayoutSteps(document: DiagramDocument, mmPerUnit: number | null = null): LayoutStep[] {
+export function diagramLayoutSteps(document: DiagramDocument, measure: PictureMeasure = null): LayoutStep[] {
   const steps: LayoutStep[] = [];
   let turns: LayoutTurn[] = [];
   for (const entry of document.steps) {
@@ -63,7 +63,7 @@ export function diagramLayoutSteps(document: DiagramDocument, mmPerUnit: number 
       id: entry.id,
       text: entry.text,
       breakBefore: entry.breakBefore,
-      picture: layoutPicture(entry, document.assets, document.style, mmPerUnit),
+      picture: layoutPicture(entry, document.assets, document.style, measure),
       turnsBefore: turns,
       turnsAfter: [],
     });
@@ -75,18 +75,24 @@ export function diagramLayoutSteps(document: DiagramDocument, mmPerUnit: number 
 }
 
 /**
- * The pages, laid out twice when a References step or an annotated one shares
- * the paper scale: its letters, arrowheads and marks keep their pt size, so
- * how far they reach past its picture is only known at the scale the first
- * layout finds.
+ * The pages, laid out twice when a References step or an annotated one is
+ * drawn at a shared size — the paper scale, or under `fit` the one frame: its
+ * letters, arrowheads and marks keep their pt size, so how far they reach
+ * past its picture is only known at the size the first layout finds.
  */
 export function layoutDiagram(document: DiagramDocument, setter: TextSetter): DiagramPagesLayout {
   const first = layoutDiagramPages(diagramLayoutSteps(document), document.page, document.title, setter);
   const reaching = stepsOf(document).some(
     (step) => step.picture?.kind === 'step-diagram' || hasDrawnAnnotations(step.annotations)
   );
-  if (first.mmPerUnit === null || !reaching) return first;
-  return layoutDiagramPages(diagramLayoutSteps(document, first.mmPerUnit), document.page, document.title, setter);
+  const measure: PictureMeasure =
+    first.mmPerUnit !== null
+      ? { mmPerUnit: first.mmPerUnit }
+      : first.frameMm !== null
+        ? { frameMm: first.frameMm }
+        : null;
+  if (measure === null || !reaching) return first;
+  return layoutDiagramPages(diagramLayoutSteps(document, measure), document.page, document.title, setter);
 }
 
 /**

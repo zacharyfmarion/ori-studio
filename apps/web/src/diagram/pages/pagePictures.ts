@@ -7,6 +7,8 @@
  *   whose size in pattern units is where it came from.
  * - An upload, a fold kept as a fixed picture and a 3D capture have no paper
  *   scale: they are fitted to their box.
+ * - Under `fit` every picture's frame is drawn at one size, the layout's: two
+ *   steps of one shape draw alike, whatever their marks reach.
  * - A scene is drawn by the painter's body at the cell's projection, its pens
  *   at their pt widths. A References step is built at its sheet's size on the
  *   page, so its marks keep their pt size. Anything else is nested as itself.
@@ -53,11 +55,22 @@ export interface CellPicture {
   text: { face: string; characters: string }[];
 }
 
-/** A picture drawn, where its frame (D8) landed, in pt, and whether it was fitted to its box rather than scaled. */
+/**
+ * A picture drawn, where its frame (D8) landed, in pt, and whether its size
+ * follows its box — fitted to it, or its frame a share of it — rather than
+ * the page's shared paper scale.
+ */
 interface DrawnPicture extends CellPicture {
   framePt: { x: number; y: number; width: number; height: number };
   fitted: boolean;
 }
+
+/**
+ * The size a layout draws pictures at, which their marks' reach depends on:
+ * the shared mm per pattern unit (`paper`), or the longer side every frame is
+ * drawn at (`fit`). Null before a layout has found one.
+ */
+export type PictureMeasure = { mmPerUnit: number } | { frameMm: number } | null;
 
 /** How a picture's own text is set: an upload's runs, its Han in the diagram's style. */
 export interface PictureText {
@@ -130,68 +143,78 @@ function stepDiagramBoxes(picture: DiagramStepDiagramPicture, style: DiagramStyl
 
 /**
  * What the layout needs of a step's picture: its size in pattern units, or
- * only a fit, room left for what its annotations reach past it. `mmPerUnit`
- * is the scale a first layout found, for marks whose reach depends on it — a
- * References step's letters, any step's annotations; without one they are
- * measured at a card's size.
+ * only a fit, and how far its marks — a References step's letters, any
+ * step's annotations — reach past its frame. Their marks keep their pt size,
+ * so the reach depends on the size the frame prints at: `measure` is the one
+ * a first layout found; without one they are measured at a card's size.
  */
 export function layoutPicture(
   step: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle,
-  mmPerUnit: number | null = null
+  measure: PictureMeasure = null
 ): LayoutStep['picture'] {
   const source = stepPictureSource(step, assets);
   if (!source) return null;
-  const paper = (units: number | null): LayoutStep['picture'] =>
-    units !== null && units > 0 && Number.isFinite(units) ? { kind: 'paper', extentUnits: units } : { kind: 'fit' };
+  /** The frame's longer side in mm, `units` pattern units across when it knows its paper. */
+  const frameMm = (units: number | null): number =>
+    measure && 'frameMm' in measure
+      ? measure.frameMm
+      : measure && units !== null && units > 0
+        ? units * measure.mmPerUnit
+        : MEASURE_SHEET_MM;
+  /** Known paper `units` across, or only a fit; reaching `reach` past its frame either way. */
+  const sized = (units: number | null, reach: number): LayoutStep['picture'] =>
+    units !== null && units > 0 && Number.isFinite(units)
+      ? { kind: 'paper', extentUnits: units * reach, reach }
+      : { kind: 'fit', reach };
   const annotated = hasDrawnAnnotations(step.annotations);
-  /** A frame `width` × `height`, its longer side `units` pattern units: grown by what its annotations reach. */
-  const withReach = (units: number, width: number, height: number): number => {
-    if (!annotated || !(units > 0)) return units;
-    const framePx = mmToCssPx(mmPerUnit !== null ? units * mmPerUnit : MEASURE_SHEET_MM);
+  /** A frame `width` × `height`, `units` pattern units across when known: what its annotations reach past it. */
+  const reachOf = (units: number | null, width: number, height: number): number => {
     const longer = Math.max(width, height);
+    if (!annotated || !(longer > 0)) return 1;
+    const framePx = mmToCssPx(frameMm(units));
     const frame = { x: 0, y: 0, width: (width / longer) * framePx, height: (height / longer) * framePx };
-    return units * annotationReachRatio(step, frame, frame, style);
+    return annotationReachRatio(step, frame, frame, style);
   };
   switch (source.kind) {
     case 'scene': {
       const scene = storedScene(source.picture);
+      if (!scene) return { kind: 'fit', reach: 1 };
       const scale = source.picture.paperScale;
-      if (!scene || !scale) return { kind: 'fit' };
+      const units = scale ? longerSide(scene.bounds) / scale : null;
       const { minX, minY, maxX, maxY } = scene.bounds;
-      return paper(withReach(longerSide(scene.bounds) / scale, maxX - minX, maxY - minY));
+      return sized(units, reachOf(units, maxX - minX, maxY - minY));
     }
     case 'asset': {
       const scale = step.picture?.kind === 'asset' ? step.picture.paperScale : null;
       const posed = poseTransform(source.asset.widthPx, source.asset.heightPx, source.pose);
-      if (!scale) return { kind: 'fit' };
-      return paper(withReach(Math.max(posed.widthPx, posed.heightPx) / scale, posed.widthPx, posed.heightPx));
+      const units = scale ? Math.max(posed.widthPx, posed.heightPx) / scale : null;
+      return sized(units, reachOf(units, posed.widthPx, posed.heightPx));
     }
     case 'step-diagram': {
       const units = sentSheetUnits(step);
-      if (units === null) return { kind: 'fit' };
-      const sheetMm = mmPerUnit !== null ? units * mmPerUnit : MEASURE_SHEET_MM;
-      if (!annotated) return paper(units * drawingRatio(source.picture, style, sheetMm));
+      const sheetMm = frameMm(units);
+      if (!annotated) return sized(units, drawingRatio(source.picture, style, sheetMm));
       // Its letters and its annotations together, measured against its sheet.
       const { drawing, sheet } = stepDiagramBoxes(source.picture, style, sheetMm);
-      return paper(units * Math.max(annotationReachRatio(step, sheet, drawing, style), 1));
+      return sized(units, Math.max(annotationReachRatio(step, sheet, drawing, style), 1));
     }
     case 'fixed':
-      return { kind: 'fit' };
+      return sized(null, reachOf(null, source.picture.widthPx, source.picture.heightPx));
   }
 }
 
 /**
  * A step's picture drawn into its cell's box: at the cell's mm per pattern
- * unit when it has one, else fitted; centred either way. Null for a step with
- * nothing to draw.
+ * unit when it has one, its frame at the cell's size under `fit`, else
+ * fitted; centred either way. Null for a step with nothing to draw.
  */
 export function cellPicture(
   step: DiagramStep,
   assets: Readonly<Record<string, DiagramAsset>>,
   style: DiagramStyle,
-  cell: Pick<LayoutCell, 'pictureMm' | 'mmPerUnit'>,
+  cell: Pick<LayoutCell, 'pictureMm' | 'mmPerUnit' | 'frameMm'>,
   idPrefix: string,
   text: PictureText
 ): CellPicture | null {
@@ -204,7 +227,9 @@ export function cellPicture(
   };
   /** The picture drawn into `inner`, and its annotations on its frame. */
   const place = (inner: Box) => {
-    const drawn = draw(source, step, style, inner, cell.mmPerUnit, text);
+    // A frame of the layout's size shrinks with the box it is drawn into.
+    const frame = cell.frameMm === null ? null : (cell.frameMm * PT_PER_MM * inner.size) / box.size;
+    const drawn = draw(source, step, style, inner, cell.mmPerUnit, frame, text);
     if (!drawn) return null;
     const marks = paintAnnotations(step.annotations, drawn.framePt, longerOf(drawn.framePt) / PT_PER_CSS_PX, style);
     return { drawn, marks, reached: marks ? union(drawn.boundsPt, marks.bounds) : drawn.boundsPt };
@@ -216,12 +241,17 @@ export function cellPicture(
   // Annotations that reach past the picture get room in the box: a fitted
   // picture shrinks so the two together fit, and the two together are
   // centred. A picture at the page's shared scale keeps it: the layout left
-  // it room. Their reach grows with the picture's box at nearly a fixed rate
-  // — their marks keep their pt size, an arrowhead short of its chord — so a
-  // secant on the picture's size settles in a step or two.
+  // it room. So was one at the layout's frame, but measured at the size the
+  // layout found first, a hair larger — and their reach grows as the
+  // picture shrinks, their marks keeping their pt size — so it keeps the
+  // frame through a hair's overrun ({@link FRAME_OVERRUN}): every step of
+  // one shape draws alike. It shrinks where its box was cut down for its
+  // text, which takes more. The reach grows at nearly a fixed rate — an
+  // arrowhead short of its chord — so a secant on the size settles in a
+  // step or two.
   const inner = (size: number): Box => ({ x: box.x + (box.size - size) / 2, y: box.y + (box.size - size) / 2, size });
-  const over = (reached: Rect) => longerOf(reached) > box.size * (1 + 1e-4);
-  if (placed.drawn.fitted && over(placed.reached)) {
+  const over = (reached: Rect, overrun = 1e-4) => longerOf(reached) > box.size * (1 + overrun);
+  if (placed.drawn.fitted && over(placed.reached, cell.frameMm === null ? undefined : FRAME_OVERRUN)) {
     let previous = { size: box.size, reach: longerOf(placed.reached) };
     let size = box.size * (box.size / previous.reach);
     for (let pass = 0; pass < 6; pass += 1) {
@@ -259,6 +289,9 @@ export function cellPicture(
 
 type Rect = { x: number; y: number; width: number; height: number };
 
+/** How far past its box, per its size, a picture at the layout's frame may reach and keep the frame. */
+const FRAME_OVERRUN = 0.01;
+
 function union(a: Rect, b: Rect): Rect {
   const x = Math.min(a.x, b.x);
   const y = Math.min(a.y, b.y);
@@ -272,12 +305,18 @@ function union(a: Rect, b: Rect): Rect {
 
 type Box = { x: number; y: number; size: number };
 
+/**
+ * A picture drawn into `box`: at `mmPerUnit` when it knows its paper and the
+ * page shares one, else its frame's longer side `framePt` across when given
+ * (`fit`), else fitted to the box.
+ */
 function draw(
   source: StepPictureSource,
   step: DiagramStep,
   style: DiagramStyle,
   box: Box,
   mmPerUnit: number | null,
+  framePt: number | null,
   text: PictureText
 ): DrawnPicture | null {
   switch (source.kind) {
@@ -287,7 +326,11 @@ function draw(
       const scale = source.picture.paperScale;
       const span = longerSide(scene.bounds);
       const ptPerPx =
-        mmPerUnit !== null && scale ? (mmPerUnit * PT_PER_MM) / scale : span > 0 ? box.size / span : PT_PER_CSS_PX;
+        mmPerUnit !== null && scale
+          ? (mmPerUnit * PT_PER_MM) / scale
+          : span > 0
+            ? (framePt ?? box.size) / span
+            : PT_PER_CSS_PX;
       const placed = placedScene(scene, diagramScenePaintStyle(style, source.pattern), box, ptPerPx);
       // A scene's frame is its bounds.
       return { ...placed, framePt: placed.boundsPt, text: [], fitted: !(mmPerUnit !== null && scale) };
@@ -300,7 +343,8 @@ function draw(
         const first = boxMm / drawingRatio(source.picture, style, MEASURE_SHEET_MM);
         return boxMm / drawingRatio(source.picture, style, first);
       };
-      const sheetMm = mmPerUnit !== null && units !== null ? units * mmPerUnit : fitted();
+      const sheetMm =
+        mmPerUnit !== null && units !== null ? units * mmPerUnit : framePt !== null ? framePt / PT_PER_MM : fitted();
       const { model, mirrored } = source.picture;
       const scene = stepDiagramScene(model, mirrored, style, sheetMm);
       // Built at its size on the page: one scene px is one CSS px of it.
@@ -330,7 +374,7 @@ function draw(
       const ptPerPx =
         mmPerUnit !== null && scale
           ? (mmPerUnit * PT_PER_MM) / scale
-          : box.size / Math.max(painted.widthPx, painted.heightPx);
+          : (framePt ?? box.size) / Math.max(painted.widthPx, painted.heightPx);
       const width = painted.widthPx * ptPerPx;
       const height = painted.heightPx * ptPerPx;
       const x = box.x + (box.size - width) / 2;

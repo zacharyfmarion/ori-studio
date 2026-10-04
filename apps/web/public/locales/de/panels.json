@@ -886,7 +886,7 @@
       "rows": "Reihen",
       "scale": "Maßstab",
       "scaleFit": "Jeden einpassen",
-      "scaleHint": "Ein Maßstab zeichnet jedes Muster in derselben Größe je Papiereinheit, wie in einem Buch. Einpassen zeichnet jedes so groß wie sein Feld.",
+      "scaleHint": "Einpassen zeichnet jedes Modell in derselben Größe, so groß, wie die Felder es erlauben. Ein Maßstab zeichnet jedes Muster in derselben Größe je Papiereinheit, sodass das Modell beim Falten kleiner wird.",
       "scalePaper": "Ein Maßstab",
       "showPath": "Pfad zeigen",
       "size": "Größe",

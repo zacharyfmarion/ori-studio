@@ -71,6 +71,14 @@ const FLOW_STEP = 0.06;
 /** The room beside a picture box in its cell, together: the gutter between two pictures. */
 const PICTURE_SIDE_ROOM_MM = 6;
 /**
+ * Under `fit`, how far past its picture a step's marks may reach — per the
+ * picture's longer side — and still be given room by every step: an arrow
+ * bulging over an edge. A step that reaches further, a References step's
+ * letters or a flap's outline where it will go, draws its picture smaller on
+ * its own instead, and has no say in the others' size.
+ */
+export const FIT_SHARED_REACH = 1.1;
+/**
  * The gutter a diagram with turns keeps between its pictures (D22): the
  * turn-over glyph, the wider of the two at its printed size, and room either
  * side of it.
@@ -138,9 +146,11 @@ export interface LayoutStep {
   /**
    * The picture's size for the scale policy: its longer side in document
    * units when it knows its paper (`paper`), or only fitted (`fit`); null
-   * for a step with no picture.
+   * for a step with no picture. `reach` is how far it reaches with its marks
+   * — annotations, a References step's letters — per its frame's longer
+   * side: 1 when they keep to it. A `paper` extent already counts it.
    */
-  picture: { kind: 'paper'; extentUnits: number } | { kind: 'fit' } | null;
+  picture: { kind: 'paper'; extentUnits: number; reach: number } | { kind: 'fit'; reach: number } | null;
   /** The turns between the step before and this one (D22), in order. */
   turnsBefore: readonly LayoutTurn[];
   /** The turns after the last step; empty on every other. */
@@ -162,6 +172,13 @@ export interface LayoutCell {
   pictureMm: { x: number; y: number; size: number };
   /** Millimetres per document unit for a paper picture; null when it is fitted (or there is none). */
   mmPerUnit: number | null;
+  /**
+   * Under `fit`, the longer side the picture's frame is drawn at, in mm: one
+   * size for every step (the layout's {@link DiagramPagesLayout.frameMm}),
+   * smaller only where the box gave room to text or the marks reach too far.
+   * Null under `paper`, and for a step with no picture.
+   */
+  frameMm: number | null;
   /** The picture drawn smaller than the shared scale: its box gave room to text. */
   scaleReduced: boolean;
   numberAt: { x: number; y: number };
@@ -191,6 +208,13 @@ export interface DiagramPagesLayout {
   cellMm: { w: number; h: number };
   /** The shared mm per document unit under `paper`; null under `fit` or with no paper picture. */
   mmPerUnit: number | null;
+  /**
+   * Under `fit`, the one size every picture's frame is drawn at, in mm —
+   * so that two steps of one shape draw alike, as a diagram's do — with room
+   * in every box for the furthest marks reach, of those within
+   * {@link FIT_SHARED_REACH}. Null under `paper`, or with no picture.
+   */
+  frameMm: number | null;
   /** The title tab, when shown. */
   title: {
     tab: { x: number; y: number; w: number; h: number };
@@ -200,6 +224,11 @@ export interface DiagramPagesLayout {
   } | null;
   /** The band's width, for the flow layout's path. */
   bandWidthMm: number;
+}
+
+/** How far a picture reaches with its marks, per its frame: never under 1, nor anything but a number. */
+function reachOf(picture: NonNullable<LayoutStep['picture']>): number {
+  return Number.isFinite(picture.reach) && picture.reach > 1 ? picture.reach : 1;
 }
 
 /**
@@ -306,6 +335,23 @@ export function layoutDiagramPages(
       }
     }
   }
+  // Under `fit`, one size for every picture's frame: the largest at which
+  // each, with its marks, fits its full box, of those whose marks reach only
+  // a little past it; one that reaches further is drawn smaller alone.
+  let frameMm: number | null = null;
+  if (setup.scale === 'fit') {
+    let shared = 1;
+    let pictured = false;
+    for (const page of placedPages) {
+      for (const { step } of page) {
+        if (!step.picture) continue;
+        pictured = true;
+        const reach = reachOf(step.picture);
+        if (reach <= FIT_SHARED_REACH) shared = Math.max(shared, reach);
+      }
+    }
+    if (pictured) frameMm = fullBox / shared;
+  }
 
   const pages: LayoutPage[] = placedPages.map((placed, pageIndex) => {
     const number = setup.pageNumbers.first + pageIndex;
@@ -313,11 +359,17 @@ export function layoutDiagramPages(
       const pictureX = x + (cellW - box) / 2;
       const pictureY = y + PICTURE_TOP_MM;
       let cellScale: number | null = null;
+      let cellFrame: number | null = null;
       let scaleReduced = false;
       if (mmPerUnit !== null && step.picture?.kind === 'paper' && step.picture.extentUnits > 0) {
         const fits = box / step.picture.extentUnits;
         cellScale = Math.min(mmPerUnit, fits);
         scaleReduced = fits < mmPerUnit - 1e-12;
+      }
+      if (frameMm !== null && step.picture) {
+        const fits = box / reachOf(step.picture);
+        cellFrame = Math.min(frameMm, fits);
+        scaleReduced = fits < frameMm - 1e-12;
       }
       return {
         stepId: step.id,
@@ -325,6 +377,7 @@ export function layoutDiagramPages(
         cellMm: { x, y, w: cellW, h: cellH },
         pictureMm: { x: pictureX, y: pictureY, size: box },
         mmPerUnit: cellScale,
+        frameMm: cellFrame,
         scaleReduced,
         numberAt: { x: x + STEP_NUMBER_INSET_MM, y: y + STEP_NUMBER_BASELINE_MM },
         text: {
@@ -371,6 +424,7 @@ export function layoutDiagramPages(
     pages,
     cellMm: { w: cellW, h: cellH },
     mmPerUnit,
+    frameMm,
     title: titleLayout,
     bandWidthMm: Math.min(cellW, cellH) * 0.42,
   };

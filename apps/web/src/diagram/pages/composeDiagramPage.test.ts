@@ -6,6 +6,7 @@ import { PT_PER_MM } from '../../lib/paper/paperSvg';
 import {
   createDiagram,
   createStep,
+  DEFAULT_PAGE_SETUP,
   insertSteps,
   createTurn,
   stepsOf,
@@ -149,15 +150,47 @@ describe('composeDiagramPage', () => {
   });
 
   it('draws the linked pattern and the sent step at one scale: one pattern unit, one size', () => {
-    const document = diagram();
+    const document: DiagramDocument = { ...diagram(), page: { ...DEFAULT_PAGE_SETUP, scale: 'paper' } };
     for (const step of stepsIn(document).slice(0, 2)) {
       expect(layoutPicture(step, document.assets, document.style)).toMatchObject({ kind: 'paper' });
     }
-    expect(layoutPicture(stepsIn(document)[2]!, document.assets, document.style)).toEqual({ kind: 'fit' });
+    expect(layoutPicture(stepsIn(document)[2]!, document.assets, document.style)).toMatchObject({ kind: 'fit' });
     const pages = preparedPages(document, FONTS, subsetter);
     const [cp, sent] = pages.layout.pages[0]!.cells;
+    expect(pages.layout.mmPerUnit).not.toBeNull();
     expect(cp!.mmPerUnit).toBe(pages.layout.mmPerUnit);
     expect(sent!.mmPerUnit).toBe(pages.layout.mmPerUnit);
+  });
+
+  it('fits each step by default, two of one shape drawn at one size whatever their marks reach a little past', () => {
+    // An arrow bulging over the top edge, and a push from well off the picture.
+    const over: DiagramStep = {
+      ...cpStep('step-2'),
+      annotations: [{ id: 'a', kind: 'valley-arrow', from: [0.2, 0.004], to: [0.8, 0.004], bend: 0.05 }],
+    };
+    const far: DiagramStep = {
+      ...cpStep('step-4'),
+      annotations: [{ id: 'b', kind: 'push-arrow', from: [-0.5, 0.5], to: [0.2, 0.5] }],
+    };
+    const steps = [cpStep('step-1'), over, cpStep('step-3'), far];
+    const document = insertSteps(createDiagram({ title: 'Crane', hanStyle: 'sc' }), steps, 0);
+    expect(document.page.scale).toBe('fit');
+    const pages = preparedPages(document, FONTS, subsetter);
+    const svg = pages.compose(0).svg;
+    // Each scene's paper, the first face its painter draws.
+    const widths = [...svg.matchAll(/<g stroke-linejoin="round">\s*<path d="([^"]*)"/g)].map((match) => {
+      const xs = [...match[1]!.matchAll(/[ML](-?[\d.]+),/g)].map((each) => Number(each[1]));
+      return Math.max(...xs) - Math.min(...xs);
+    });
+    expect(widths).toHaveLength(4);
+    expect(widths[1]).toBeCloseTo(widths[0]!, 1);
+    expect(widths[2]).toBeCloseTo(widths[0]!, 1);
+    // The shared size left the arrow over the edge its room: the plain ones are not their box's full width.
+    const box = pages.layout.pages[0]!.cells[0]!.pictureMm.size * PT_PER_MM;
+    expect(widths[0]!).toBeLessThan(box * 0.99);
+    // The far push is drawn smaller on its own, and has no say in the rest.
+    expect(widths[3]!).toBeLessThan(widths[0]! * 0.8);
+    expect(pages.layout.pages[0]!.cells[3]!.scaleReduced).toBe(true);
   });
 
   it('draws a turn between two steps in the gutter, centred on its place, and numbers the steps on (D22)', () => {

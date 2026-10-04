@@ -40,8 +40,9 @@ export type DiagramPageOrientation = 'portrait' | 'landscape';
 export type DiagramPageLayout = 'grid' | 'flow';
 /**
  * `paper`: every picture that knows its paper's size is drawn at one shared
- * scale, so the model visibly shrinks as it is folded. `fit`: every picture is
- * fitted to its own box.
+ * scale, so the model visibly shrinks as it is folded. `fit` (the default):
+ * every picture's frame is drawn at one size, as large as the boxes allow, so
+ * the model fills each cell alike as it is folded.
  */
 export type DiagramPictureScale = 'paper' | 'fit';
 
@@ -632,7 +633,7 @@ export const DEFAULT_PAGE_SETUP: DiagramPageSetup = {
   columns: 3,
   rows: 3,
   showPath: true,
-  scale: 'paper',
+  scale: 'fit',
   showTitle: true,
   pageNumbers: { enabled: true, first: 1 },
 };

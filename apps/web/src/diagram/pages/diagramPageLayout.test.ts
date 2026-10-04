@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PAGE_SETUP, type DiagramPageSetup } from '../document/diagramDocument';
 import {
+  FIT_SHARED_REACH,
   layoutDiagramPages,
   STEP_TEXT_LEADING_MM,
   TURN_GUTTER_MM,
@@ -25,7 +26,7 @@ function step(index: number, patch: Partial<LayoutStep> = {}): LayoutStep {
     id: `step-${index}`,
     text: SHORT,
     breakBefore: false,
-    picture: { kind: 'paper', extentUnits: 400 },
+    picture: { kind: 'paper', extentUnits: 400, reach: 1 },
     turnsBefore: [],
     turnsAfter: [],
     ...patch,
@@ -108,15 +109,61 @@ describe('layoutDiagramPages', () => {
   });
 
   it('draws every paper picture at one scale: the largest at which the biggest fits', () => {
-    const list = [step(0, { picture: { kind: 'paper', extentUnits: 400 } }), step(1, { picture: { kind: 'paper', extentUnits: 200 } })];
-    const result = layout(list);
+    const list = [
+      step(0, { picture: { kind: 'paper', extentUnits: 400, reach: 1 } }),
+      step(1, { picture: { kind: 'paper', extentUnits: 200, reach: 1 } }),
+    ];
+    const result = layout(list, { scale: 'paper' });
     const [first, second] = result.pages[0]!.cells;
     expect(result.mmPerUnit).toBeCloseTo(first!.pictureMm.size / 400, 9);
     // The smaller model is drawn smaller: one scale, not two fits.
     expect(second!.mmPerUnit).toBe(result.mmPerUnit);
+    expect(result.frameMm).toBeNull();
+    expect(second!.frameMm).toBeNull();
     expect(layout(list, { scale: 'fit' }).mmPerUnit).toBeNull();
     // Uploads are fitted whatever the scale.
-    expect(layout([step(0, { picture: { kind: 'fit' } })]).pages[0]!.cells[0]!.mmPerUnit).toBeNull();
+    const upload = layout([step(0, { picture: { kind: 'fit', reach: 1 } })], { scale: 'paper' }).pages[0]!.cells[0]!;
+    expect(upload.mmPerUnit).toBeNull();
+    expect(upload.frameMm).toBeNull();
+  });
+
+  it('fits each picture by default, and draws every one’s frame at one size, room left for the furthest marks', () => {
+    const fit = (reach: number, kind: 'paper' | 'fit' = 'paper'): LayoutStep['picture'] =>
+      kind === 'paper' ? { kind, extentUnits: 400 * reach, reach } : { kind, reach };
+    const list = [step(0, { picture: fit(1) }), step(1, { picture: fit(1.08) }), step(2, { picture: fit(1, 'fit') })];
+    const result = layout(list);
+    expect(DEFAULT_PAGE_SETUP.scale).toBe('fit');
+    const cells = result.pages[0]!.cells;
+    const box = cells[0]!.pictureMm.size;
+    // One size for all three — an upload's too — the largest that leaves the reaching one room.
+    expect(result.frameMm).toBeCloseTo(box / 1.08, 9);
+    for (const cell of cells) {
+      expect(cell.frameMm).toBe(result.frameMm);
+      expect(cell.mmPerUnit).toBeNull();
+      expect(cell.scaleReduced).toBe(false);
+    }
+    // Without the reaching step, each fills its box.
+    expect(layout([list[0]!, list[2]!]).frameMm).toBeCloseTo(box, 9);
+  });
+
+  it('draws a picture whose marks reach too far, or whose box gave room to text, smaller alone', () => {
+    const list = [
+      step(0, { picture: { kind: 'fit', reach: 1.05 } }),
+      step(1, { picture: { kind: 'fit', reach: 2 } }),
+      step(2, { picture: { kind: 'fit', reach: 1 }, text: `${LONG} ${LONG} ${LONG} ${LONG}` }),
+    ];
+    const result = layout(list);
+    const [first, far, long] = result.pages[0]!.cells;
+    // The far one has no say in the others' size: only a reach within the share is given room by all.
+    expect(2).toBeGreaterThan(FIT_SHARED_REACH);
+    expect(result.frameMm).toBeCloseTo(first!.pictureMm.size / 1.05, 9);
+    expect(first!.frameMm).toBe(result.frameMm);
+    expect(first!.scaleReduced).toBe(false);
+    expect(far!.frameMm).toBeCloseTo(far!.pictureMm.size / 2, 9);
+    expect(far!.scaleReduced).toBe(true);
+    expect(long!.frameMm).toBeCloseTo(long!.pictureMm.size, 9);
+    expect(long!.frameMm!).toBeLessThan(result.frameMm!);
+    expect(long!.scaleReduced).toBe(true);
   });
 
   it('gives a long instruction room from its picture, to half of it, then cuts it with "…"', () => {

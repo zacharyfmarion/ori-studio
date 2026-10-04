@@ -886,7 +886,7 @@
       "rows": "Rows",
       "scale": "Scale",
       "scaleFit": "Fit each",
-      "scaleHint": "One scale draws every pattern at the same size per unit of paper, as a book does. Fit draws each as large as its box.",
+      "scaleHint": "Fit each draws every model at one size, as large as the boxes allow. One scale draws every pattern at the same size per unit of paper, so the model shrinks as it is folded.",
       "scalePaper": "One scale",
       "showPath": "Show path",
       "size": "Size",

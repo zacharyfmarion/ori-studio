@@ -130,11 +130,11 @@ export function DiagramPagePanel() {
             disabled={readOnly}
             help={t(
               'panels:diagram.pagePane.scaleHint',
-              'One scale draws every pattern at the same size per unit of paper, as a book does. Fit draws each as large as its box.'
+              'Fit each draws every model at one size, as large as the boxes allow. One scale draws every pattern at the same size per unit of paper, so the model shrinks as it is folded.'
             )}
             options={[
-              { id: 'paper', label: t('panels:diagram.pagePane.scalePaper', 'One scale') },
               { id: 'fit', label: t('panels:diagram.pagePane.scaleFit', 'Fit each') },
+              { id: 'paper', label: t('panels:diagram.pagePane.scalePaper', 'One scale') },
             ]}
             onChange={(scale) => setPage({ scale: scale as DiagramPictureScale }, 'scale')}
           />

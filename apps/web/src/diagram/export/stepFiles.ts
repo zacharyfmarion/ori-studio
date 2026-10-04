@@ -102,7 +102,7 @@ export function prepareStepFiles(
   let layoutSteps = diagramLayoutSteps(document);
   let scale = sharedScale(layoutSteps, box.size);
   if (scale !== null && steps.some((step) => step.picture?.kind === 'step-diagram')) {
-    layoutSteps = diagramLayoutSteps(document, scale);
+    layoutSteps = diagramLayoutSteps(document, { mmPerUnit: scale });
     scale = sharedScale(layoutSteps, box.size);
   }
 
@@ -161,7 +161,7 @@ export function prepareStepFiles(
         step,
         document.assets,
         document.style,
-        { pictureMm: box, mmPerUnit: paper ? scale : null },
+        { pictureMm: box, mmPerUnit: paper ? scale : null, frameMm: null },
         's-',
         { hanStyle: document.hanStyle, runs: setter.runs }
       );

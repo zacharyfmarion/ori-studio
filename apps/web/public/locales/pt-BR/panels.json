@@ -921,7 +921,7 @@
       "rows": "Linhas",
       "scale": "Escala",
       "scaleFit": "Ajustar cada um",
-      "scaleHint": "Uma escala desenha cada padrão no mesmo tamanho por unidade de papel, como um livro. Ajustar desenha cada um tão grande quanto seu quadro.",
+      "scaleHint": "Ajustar desenha cada modelo no mesmo tamanho, tão grande quanto os quadros permitem. Uma escala desenha cada padrão no mesmo tamanho por unidade de papel, então o modelo encolhe à medida que é dobrado.",
       "scalePaper": "Uma escala",
       "showPath": "Mostrar trajeto",
       "size": "Tamanho",

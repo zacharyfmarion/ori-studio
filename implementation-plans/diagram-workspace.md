@@ -116,7 +116,7 @@ At the end of this plan a user can:
 | "Simulated 40%" chosen in the inspector | A simulation can be captured only from a live, mounted session | Crease pattern \| Folded form \| Simulated is a choice **inside Pose**. The inspector's Render rows are read-only. |
 | CP picker "from the Edit workspace" | Patterns are regions of the one Edit document | The picker lists the Edit document's patterns, segmented in kernel space (D3) |
 | Click a card's picture to open Pose | Touch and keyboard need click to select | Click selects; double-click or Enter opens Pose |
-| Picture fitted to each cell | Real diagrams keep one paper scale | One shared paper scale by default (D10), with "Fit each step" as an option |
+| Picture fitted to each cell | Real diagrams keep one paper scale | "Fit each" by default since 2026-10-04 (Zach): every model at one size, as large as the boxes allow; one shared paper scale (D10) as the option |
 | PDF export | No PDF writer anywhere | Phase 0 spike, then D11 |
 | Text in pages and PDF | No text font is bundled; SVG-as-`<img>` cannot load web fonts | One bundled TTF, embedded in every page and in the PDF (Decision 2) |
 | Rail: Design / Crease Pattern / Simulator / Diagram | The real order is Edit, Design, Simulate, References | Diagram is the **fifth** entry, after References |
@@ -745,14 +745,25 @@ shows the composed page.**
   - text 3.2 mm at 4.1 mm leading;
   - odd page numbers on the right;
   - a step's `breakBefore` starts a new page.
-- **Scale policy.** `page.scale` is `'paper'` (default) or `'fit'`.
+- **Scale policy.** `page.scale` is `'fit'` (default since 2026-10-04) or `'paper'`.
   - Under `'paper'`, every picture with a paper scale is drawn at one shared mm
     per document unit: the largest at which the biggest such picture fits its
     cell. Pictures with a paper scale are crease-pattern, folded and References
     steps (a References sheet's size comes from its provenance region).
     Uploads, and simulations whose camera has no orthographic scale, are fitted
     to their box.
-  - Under `'fit'`, every picture is fitted, as in the mockup.
+  - Under `'fit'`, every picture's frame (D8) is drawn at one size,
+    `frameMm`: the largest at which each fits its full box with what its marks
+    reach past it, counting only marks that reach a little
+    (`FIT_SHARED_REACH`, 10%) — an arrow over an edge. A step reaching further
+    (a References step's letters, a flap's outline where it goes) is drawn
+    smaller on its own (`scaleReduced`) and has no say in the rest. So two
+    steps of one shape draw alike, as a diagram's do (Zach, 2026-10-04: steps
+    4 and 5 of the crane were smaller than 6). Before, each picture was fitted
+    with its marks alone, and an arc arrow's reach padded every point of it by
+    a head and a return's offset, so an arrow inside the picture still shrank
+    it by a fifth. An arc arrow is now measured where it is drawn
+    (`foldArrowDrawn`, `oneWayArrowDrawn`), as a shaped one already was.
 
   Phase 3 confirms which captures keep paper units.
 - **Text.**
@@ -3206,6 +3217,20 @@ give the folder more information about how they are distributed (otherwise a
 bunch of faces are coplanar)". The UX to be talked through before anything is
 built. Plan: `implementation-plans/diagram-distortion.md`; a playground on real
 folds: https://claude.ai/artifact/NrqrBDkkmEVMbNjJSbVezf.
+
+### Fit each, by default (Zach, 2026-10-04)
+
+- [x] Root cause: an annotated step's picture was fitted with its marks, and an
+  arc arrow's reach was padded a head's length and a return's offset round
+  every point — steps 4 and 5 of the crane measured 1.25 and 1.2 of their
+  frame with their arrows inside it.
+- [x] Arc arrows measured as drawn; their drawing unchanged to the byte (the
+  arc-arrow golden's markup), only its crop.
+- [x] One frame size for every picture under `fit`; far reaches drawn smaller
+  alone; the layout's second pass under `fit` too.
+- [x] `fit` the default; Fit each first in the Scale control, its hint
+  reworded in nine languages.
+- [x] Before/after on the crane: `artifacts/diagram-fit-each/`.
 
 ### Phase 14: Annotate, after Phase 13 is planned and under way
 
