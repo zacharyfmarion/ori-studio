@@ -3894,7 +3894,10 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -7791,7 +7794,10 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -11690,7 +11696,10 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -15503,7 +15512,10 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -19316,7 +19328,10 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -23213,7 +23228,10 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -27110,7 +27128,10 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -30923,6 +30944,9 @@
     "panels:diagram.turns.actions": "7235343bbdc7",
     "panels:diagram.turns.amount": "49e96d7cdf58",
     "panels:diagram.turns.lockedNote": "15ae5b93f127",
-    "panels:diagram.turns.newer": "50a7a9c59f27"
+    "panels:diagram.turns.newer": "50a7a9c59f27",
+    "panels:diagram.pose.layerOrderNone": "dc937b598926",
+    "panels:diagram.pose.noLayerOrder": "f6e3d686eb1d",
+    "panels:diagram.pose.noSolution": "905c93635981"
   }
 }

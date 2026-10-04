@@ -142,7 +142,11 @@ export function DiagramStepPose({
   );
 }
 
-/** One of a flat fold's layer order verbs, as a small button: it waits, rather than disables, while a capture runs. */
+/**
+ * One of a flat fold's layer order verbs, as a small button: refused rather
+ * than disabled, while a capture runs or at either end, so it keeps the focus
+ * a press gave it.
+ */
 function layerVerb(action: DiagramLinkedPoseAction | undefined, Icon: LucideIcon): ReactNode {
   if (!action) return null;
   return (
@@ -150,8 +154,7 @@ function layerVerb(action: DiagramLinkedPoseAction | undefined, Icon: LucideIcon
       size="sm"
       aria-label={action.label}
       title={(action.disabled || action.waiting) && action.hint ? action.hint : action.label}
-      disabled={action.disabled}
-      aria-disabled={action.waiting || undefined}
+      aria-disabled={action.disabled || action.waiting || undefined}
       onClick={action.run}
     >
       <Icon size={14} />

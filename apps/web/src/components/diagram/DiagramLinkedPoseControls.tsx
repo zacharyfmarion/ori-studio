@@ -22,7 +22,6 @@ import { IconButton } from '../ui/IconButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import styles from './DiagramLinkedPoseControls.module.css';
 
-
 /** A linked pose verb's icon. */
 const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> = {
   'rotate-left': RotateCcw,
@@ -42,8 +41,9 @@ const LINKED_POSE_ICONS: Partial<Record<DiagramLinkedPoseActionId, LucideIcon>> 
  * shows its pattern — Crease pattern, Folded or Simulated — then what can be
  * done to that, with `children` (the simulator's transport) between the two.
  * `keep` runs a verb and keeps focus in the toolbar, as the upload's pose
- * buttons do; while a capture runs the verbs wait rather than disable, so the
- * one pressed keeps the focus through it.
+ * buttons do. A verb that cannot act — waiting for a capture, or at the end of
+ * the layer orders — refuses rather than disables, so the one pressed keeps
+ * the focus through the capture it started and whatever it leaves.
  */
 export function DiagramLinkedPoseControls({
   actions,
@@ -95,9 +95,8 @@ export function DiagramLinkedPoseControls({
             size="sm"
             title={(action.disabled || action.waiting) && action.hint ? action.hint : action.label}
             aria-label={action.label}
-            disabled={action.disabled}
-            // Waiting for a capture: refused, but still holding the focus.
-            aria-disabled={action.waiting || undefined}
+            // Refused, but still holding the focus: its run does nothing now.
+            aria-disabled={action.disabled || action.waiting || undefined}
             onClick={() => keep(action.run)}
           >
             <Icon size={15} />

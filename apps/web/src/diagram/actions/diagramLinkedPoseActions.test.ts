@@ -107,6 +107,11 @@ describe('the linked pose verbs', () => {
     expect(next({ solutions: { discovered: 1, hasNext: false } })).toMatchObject({ disabled: true, hint: 'This fold has one layer order' });
     // Past the first, the next wraps back round.
     expect(next({ solutions: { discovered: 1, hasNext: false } }, 2)?.disabled).toBe(false);
+    // None at all: nothing to go on to, and it says so.
+    expect(next({ solutions: { discovered: 1, hasNext: false, none: true } })).toMatchObject({
+      disabled: true,
+      hint: 'This fold has no layer order',
+    });
   });
 
   it('goes back to the layer order before, but not from the first (D23)', () => {
@@ -131,6 +136,11 @@ describe('the linked pose verbs', () => {
     // Never fewer found than the one shown.
     expect(layerOrderLabel(flat(4), { discovered: 3, hasNext: true }, t)?.count).toBe('4 of 4+');
     expect(layerOrderLabel({ mode: 'crease-pattern', rotationDeg: 0 }, null, t)).toBeNull();
+    // A fold whose layers could not be ordered has none, not one.
+    expect(layerOrderLabel(flat(1), { discovered: 1, hasNext: false, none: true }, t)).toEqual({
+      count: 'None',
+      label: 'No layer order',
+    });
   });
 
   it('resets only a pose that has moved', () => {

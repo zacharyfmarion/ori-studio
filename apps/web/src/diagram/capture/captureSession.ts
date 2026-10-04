@@ -85,13 +85,16 @@ export interface FlatFoldState {
 export interface CaptureSession {
   /**
    * The flat fold of these lines from this document, on `side` at `foldCase`,
-   * folding it only when the session holds none of it.
+   * folding it only when the session holds none of it. `knownCases` is how
+   * many layer orders are known to exist already — the one a step leaves —
+   * which a fold opened fresh cannot know.
    */
   flat: (
     document: OristudioCpDocumentSnapshot,
     lineIds: readonly number[],
     side: 'front' | 'back',
-    foldCase: number
+    foldCase: number,
+    knownCases?: number
   ) => Promise<FlatFoldState>;
   /** Turn the held flat fold over: a model change, no fold. */
   turnOver: () => Promise<FlatFoldState>;
@@ -182,11 +185,17 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
     return held;
   };
 
-  /** The fold's new state, and how far its search has reached: only the frontier says whether it ran out. */
+  /**
+   * The fold's new state, and how far its search has reached. The frontier
+   * only grows, or closes: the kernel learns it ran out only from a search
+   * that failed, and a replay to the last order says "maybe more" again.
+   */
   const settle = (hold: FlatHold, state: Omit<FoldedFigureState, 'handle'>) => {
     hold.state = state;
     const cases = state.discoveredCases;
-    if (cases >= hold.reached.cases) hold.reached = { cases, complete: !(state.hasNext ?? false) };
+    const more = state.hasNext ?? false;
+    if (cases > hold.reached.cases) hold.reached = { cases, complete: !more };
+    else if (cases === hold.reached.cases && !more) hold.reached = { cases, complete: true };
   };
 
   const flatState = (hold: FlatHold): FlatFoldState => ({
@@ -198,7 +207,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
   });
 
   return {
-    async flat(document, lineIds, side, foldCase) {
+    async flat(document, lineIds, side, foldCase, knownCases = 0) {
       const key: FoldKey = { document, lineIds: lineIds.join(',') };
       if (!live(key) || held?.kind !== 'flat') {
         release();
@@ -218,6 +227,7 @@ export function createCaptureSession(deps: CaptureSessionDeps): CaptureSession {
         settle(held, folded);
       }
       const hold = flatHold();
+      if (knownCases > hold.reached.cases) hold.reached = { cases: knownCases, complete: false };
       if (hold.side !== side) {
         settle(hold, { ...hold.state, ...(await deps.runtime().setModel(hold.handle, captureModel(document, side))) });
         hold.side = side;

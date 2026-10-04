@@ -251,6 +251,68 @@ describe('posing a flat fold', () => {
     expect(runtime.foldAnother).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps a search that ran out closed, though the kernel says "maybe more" again at the last order (D23)', async () => {
+    // As the kernel does it: the last order says "maybe more" until a search
+    // past it fails; the wrap and every replay to it say so again.
+    const N = 3;
+    let at = 1;
+    let failed = false;
+    const state = (current: number, hasNext: boolean) => ({ discoveredCases: current, displayStyle: 'Paper5' as const, currentCase: current, hasNext });
+    const runtime = fakeCaptureRuntime({
+      foldAnother: vi.fn(async () => {
+        if (at < N) return state(++at, true);
+        if (!failed) {
+          failed = true;
+          return state(at, false);
+        }
+        at = 1;
+        failed = false;
+        return state(1, true);
+      }),
+      foldToCase: vi.fn(async (_handle: number, objective: number) => {
+        at = objective;
+        failed = false;
+        return state(objective, true);
+      }),
+    });
+    const { session } = sessionWith(runtime);
+    const document = cpDocument();
+    let render = FLAT;
+    const step = async (verb: 'next-solution' | 'previous-solution') => {
+      const result = await pose(session, render, { verb }, document);
+      if (result.status !== 'posed') throw new Error('posed');
+      render = result.render as typeof FLAT;
+      return `${result.render.mode === 'folded-flat' ? result.render.foldCase : '?'}/${result.solutions!.discovered}${result.solutions!.hasNext ? '+' : ''}`;
+    };
+    const readouts = [];
+    for (let n = 0; n < 6; n += 1) readouts.push(await step('next-solution'));
+    readouts.push(await step('previous-solution'), await step('next-solution'));
+    expect(readouts).toEqual(['2/2+', '3/3+', '3/3', '1/3', '2/3', '3/3', '2/3', '3/3']);
+  });
+
+  it('counts the order it leaves when a fold opened fresh goes back from it (D23)', async () => {
+    const runtime = fakeCaptureRuntime({
+      foldToCase: vi.fn(async (_handle: number, objective: number) => ({
+        discoveredCases: objective,
+        displayStyle: 'Paper5' as const,
+        currentCase: objective,
+        hasNext: true,
+      })),
+    });
+    const { session } = sessionWith(runtime);
+    // A step saved at its fifth layer order, and no fold held yet.
+    const back = await pose(session, { ...FLAT, foldCase: 5 }, { verb: 'previous-solution' }, cpDocument());
+    expect(back).toMatchObject({ render: { foldCase: 4 }, solutions: { discovered: 5, hasNext: true } });
+  });
+
+  it('says a fold has no layer order when its layers cannot be ordered', async () => {
+    const none = { discoveredCases: 0, currentCase: 0, hasNext: false, displayStyle: 'Transparent3' as const, outcome: 'NoSolutions' as const };
+    const runtime = fakeCaptureRuntime({ fold: vi.fn(async () => ({ handle: 7, ...none })) });
+    const { session } = sessionWith(runtime);
+    const shown = await pose(session, { mode: 'crease-pattern', rotationDeg: 0 }, { verb: 'show-folded' }, cpDocument());
+    expect(shown).toMatchObject({ noLayerOrder: true, solutions: { none: true } });
+  });
+
   it('shows the crease pattern again, letting the fold go', async () => {
     const { session, held } = sessionWith();
     await pose(session, FLAT, { verb: 'turn-over' });

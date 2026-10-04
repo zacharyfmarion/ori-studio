@@ -53,16 +53,19 @@ export interface DiagramLinkedPoseState {
   readOnly: boolean;
   /** A capture of the step is running: every verb waits for it. */
   busy: boolean;
-  /** The held flat fold's layer orders: how many found, and whether there may be more; null when not known yet. */
-  solutions: { discovered: number; hasNext: boolean } | null;
+  /**
+   * The held flat fold's layer orders: how many found, whether there may be
+   * more, and whether it has none at all; null when not known yet.
+   */
+  solutions: { discovered: number; hasNext: boolean; none?: boolean } | null;
 }
 
 /**
  * Where a flat fold stands among its layer orders, for the pager between ‹
  * and ›: "2 of 5" when the search has found them all, "2 of 5+" while it may
- * find more, the number alone before it has looked — as `count`, under a
- * row's own "Layer order", and as `label`, standing alone in a toolbar. Null
- * for any other render.
+ * find more, the number alone before it has looked, "None" for a fold whose
+ * layers could not be ordered — as `count`, under a row's own "Layer order",
+ * and as `label`, standing alone in a toolbar. Null for any other render.
  */
 export function layerOrderLabel(
   render: DiagramCpRender,
@@ -70,6 +73,12 @@ export function layerOrderLabel(
   t: TFunction
 ): { count: string; label: string } | null {
   if (render.mode !== 'folded-flat') return null;
+  if (solutions?.none) {
+    return {
+      count: t('panels:diagram.pose.layerOrderNone', 'None'),
+      label: t('panels:diagram.pose.noLayerOrder', 'No layer order'),
+    };
+  }
   const number = render.foldCase;
   const total = solutions ? Math.max(solutions.discovered, number) : null;
   const count =
@@ -121,7 +130,9 @@ export function buildDiagramLinkedPoseActions(
       run: () => {
         // The way already shown is no verb: pressed again it would capture a
         // Simulated step back at 0%, which only Pose's live solver can hold.
-        if (!waiting && !options.pressed) deps.pose(id);
+        // A verb that cannot act refuses here too: a surface may keep it
+        // focusable rather than disable it.
+        if (!waiting && !options.pressed && !disabled) deps.pose(id);
       },
     };
   };
@@ -165,10 +176,11 @@ export function buildDiagramLinkedPoseActions(
         action('next-solution', t('panels:diagram.pose.nextLayerOrder', 'Next Layer Order'), {
           disabled:
             state.solutions !== null &&
-            !state.solutions.hasNext &&
-            state.solutions.discovered <= 1 &&
-            render.foldCase === 1,
-          hint: t('panels:diagram.pose.onlySolution', 'This fold has one layer order'),
+            (state.solutions.none === true ||
+              (!state.solutions.hasNext && state.solutions.discovered <= 1 && render.foldCase === 1)),
+          hint: state.solutions?.none
+            ? t('panels:diagram.pose.noSolution', 'This fold has no layer order')
+            : t('panels:diagram.pose.onlySolution', 'This fold has one layer order'),
         }),
         reset,
       ];

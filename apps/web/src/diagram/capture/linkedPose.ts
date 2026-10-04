@@ -69,6 +69,8 @@ export type LinkedPoseResult =
 export interface FlatSolutions {
   discovered: number;
   hasNext: boolean;
+  /** It has none: its layers could not be put in order, and it shows see-through. */
+  none: boolean;
 }
 
 export interface LinkedPoseInput {
@@ -105,10 +107,11 @@ export async function poseLinkedStep(
     side: 'front' | 'back',
     rotationDeg: number,
     foldCase: number,
-    move?: 'turn-over' | 'next-solution'
+    move?: 'turn-over' | 'next-solution',
+    knownCases?: number
   ): Promise<LinkedPoseResult> => {
     // Another layer order is a search of the held fold; one already found, a jump to it.
-    let state = await session.flat(document, creases.foldLineIds, side, foldCase);
+    let state = await session.flat(document, creases.foldLineIds, side, foldCase, knownCases);
     if (move === 'turn-over') state = await session.turnOver();
     if (move === 'next-solution') state = await session.nextSolution();
     const picture = await session.flatPicture(rotationDeg);
@@ -117,7 +120,7 @@ export async function poseLinkedStep(
       render: { mode: 'folded-flat', side: state.side, rotationDeg, foldCase: state.foldCase },
       picture,
       noLayerOrder: state.noLayerOrder,
-      solutions: { discovered: state.discovered, hasNext: state.hasNext },
+      solutions: { discovered: state.discovered, hasNext: state.hasNext, none: state.noLayerOrder },
     };
   };
 
@@ -231,7 +234,8 @@ export async function poseLinkedStep(
       case 'next-solution':
         return flat(side, rotationDeg, foldCase, 'next-solution');
       case 'previous-solution':
-        return flat(side, rotationDeg, Math.max(1, foldCase - 1));
+        // The order it leaves exists, though a fold opened fresh to go back has not found it.
+        return flat(side, rotationDeg, Math.max(1, foldCase - 1), undefined, foldCase);
       case 'reset':
         return flat('front', 0, 1);
       default:

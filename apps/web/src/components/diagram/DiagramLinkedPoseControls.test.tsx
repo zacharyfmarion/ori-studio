@@ -24,9 +24,23 @@ afterEach(() => {
 });
 
 /** The toolbar as the step detail mounts it. */
-function Toolbar({ busy, rotationDeg, onPose }: { busy: boolean; rotationDeg: number; onPose: () => void }) {
+function Toolbar({
+  busy,
+  rotationDeg,
+  onPose,
+  foldCase,
+}: {
+  busy: boolean;
+  rotationDeg: number;
+  onPose: () => void;
+  /** Folded flat at this layer order, rather than shown as its crease pattern. */
+  foldCase?: number;
+}) {
   const [ref, keep] = useKeepFocusWithin<HTMLDivElement>();
-  const render: DiagramCpRender = { mode: 'crease-pattern', rotationDeg };
+  const render: DiagramCpRender =
+    foldCase === undefined
+      ? { mode: 'crease-pattern', rotationDeg }
+      : { mode: 'folded-flat', side: 'front', rotationDeg, foldCase };
   const actions = buildDiagramLinkedPoseActions(
     { render, readOnly: false, busy, solutions: null },
     { t, pose: onPose }
@@ -74,5 +88,36 @@ describe('DiagramLinkedPoseControls', () => {
     act(() => show(false, 15));
     expect(document.activeElement).toBe(rotate());
     expect(rotate().hasAttribute('aria-disabled')).toBe(false);
+  });
+
+  it('keeps the focus on Previous Layer Order when it lands on the first, where it can go no further', () => {
+    host = document.createElement('div');
+    document.body.append(host);
+    root = createRoot(host);
+    const poses = vi.fn();
+    const show = (busy: boolean, foldCase: number) =>
+      root!.render(
+        <TooltipProvider>
+          <Toolbar
+            busy={busy}
+            rotationDeg={0}
+            foldCase={foldCase}
+            onPose={() => {
+              poses();
+              show(true, foldCase);
+            }}
+          />
+        </TooltipProvider>
+      );
+    act(() => show(false, 2));
+    const previous = () => host!.querySelector<HTMLButtonElement>('button[aria-label="Previous Layer Order"]')!;
+    previous().focus();
+    act(() => previous().click());
+    act(() => show(false, 1));
+    expect(document.activeElement).toBe(previous());
+    // Refused at the first: a press does nothing.
+    expect(previous().getAttribute('aria-disabled')).toBe('true');
+    act(() => previous().click());
+    expect(poses).toHaveBeenCalledTimes(1);
   });
 });
