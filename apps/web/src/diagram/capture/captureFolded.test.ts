@@ -378,7 +378,7 @@ describe('storeScene', () => {
       return { outline, points: [0, 1, 2, 3].map((corner) => index * 4 + corner), front_up: true, edges };
     });
     const runtime = fakeCaptureRuntime({
-      paperScene: vi.fn(async () => ({ schema_version: 2, flipped: false, sheet: side, faces, subfaces: [], aux_lines: [] })),
+      paperScene: vi.fn(async () => ({ schema_version: 2, flipped: false, sheet: side, faces, subfaces: [], aux_lines: [], sheet_points: [] })),
     });
     const spread = await readFlatPicture(runtime, 7, { displayStyle: 'Paper5' }, 0, undefined, {
       amount: 0.05,

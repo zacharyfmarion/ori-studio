@@ -175,6 +175,7 @@ function kernelScene(): OristudioCpFoldedPaperScene {
     square.map((from, index) => ({ from, to: square[(index + 1) % 4]!, kind: kinds[index]! }));
   return {
     schema_version: 2,
+    sheet_points: [],
     flipped: false,
     sheet: 400,
     faces: [

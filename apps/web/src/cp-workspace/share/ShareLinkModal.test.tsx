@@ -69,6 +69,7 @@ function foldResult(): CreaseExportFoldResult {
     snapshot: { schema_version: 1, fixture: null, pass: null, primitives: [] },
     scene: {
       schema_version: 2,
+      sheet_points: [],
       flipped: false,
       sheet: 1,
       faces: [

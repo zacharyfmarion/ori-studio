@@ -133,6 +133,7 @@ export function halfFoldKernelScene(): OristudioCpFoldedPaperScene {
   }));
   return {
     schema_version: 2,
+    sheet_points: [],
     flipped: false,
     sheet: 100,
     // The fold's ends are one pair of sheet vertices; the free corners are not.

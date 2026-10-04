@@ -50,7 +50,7 @@ function square(stack: number[]): OristudioCpFoldedPaperSubface {
 }
 
 function scene(faces: OristudioCpFoldedPaperFace[], subfaces: OristudioCpFoldedPaperSubface[]): OristudioCpFoldedPaperScene {
-  return { schema_version: 2, flipped: false, sheet: 3, faces, subfaces, aux_lines: [] };
+  return { schema_version: 2, flipped: false, sheet: 3, faces, subfaces, aux_lines: [], sheet_points: [] };
 }
 
 /**

@@ -205,7 +205,7 @@ function wovenScene(): OristudioCpFoldedPaperScene {
     subface(6, 0, 7, 1, [F, E]),
     subface(6, 1, 7, 2, [F]),
   ];
-  return { schema_version: 2, flipped: false, sheet: 7, faces, subfaces, aux_lines: [] };
+  return { schema_version: 2, flipped: false, sheet: 7, faces, subfaces, aux_lines: [], sheet_points: [] };
 }
 
 /* --------------------------------------------------------------------------
@@ -711,7 +711,7 @@ describe('an acyclic stacking', () => {
   });
 
   it('draws nothing for a kernel scene with no faces', () => {
-    const scene = sceneOf({ schema_version: 2, flipped: false, sheet: 0, faces: [], subfaces: [], aux_lines: [] });
+    const scene = sceneOf({ schema_version: 2, flipped: false, sheet: 0, faces: [], subfaces: [], aux_lines: [], sheet_points: [] });
     expect(scene.items).toEqual([]);
     expect(scene.bounds).toEqual({ minX: 0, minY: 0, maxX: 0, maxY: 0 });
     expect(scene.sheet).toBe(0);
