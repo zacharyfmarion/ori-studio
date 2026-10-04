@@ -15,21 +15,24 @@
   cursor: pointer;
 }
 
-/* The dense row in a panel: the tool window's groups, the crease-angle popover. */
-.chip[data-size='sm'] {
-  padding: 2px 7px;
-  font-size: 0.66rem;
-}
-
 /* A header row, beside pills of its own height and weight: Settings → Paper's
    Update and Revert, beside the preset pill naming the style. */
-.chip[data-size='md'] {
+.chip[data-size='sm'] {
   height: 24px;
   padding: 0 9px;
   border-color: var(--border-default);
   font-size: 0.72rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* A row of quick picks in a panel — the tool window's groups, the crease-angle
+   popover — at the app's field size, so a chip is as tall as the field it sits
+   beside. */
+.chip[data-size='md'] {
+  height: 28px;
+  padding: 0 7px;
+  font-size: 0.72rem;
 }
 
 /* The states come after the sizes and tie with them on specificity, so a

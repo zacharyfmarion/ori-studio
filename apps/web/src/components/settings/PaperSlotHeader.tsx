@@ -46,12 +46,12 @@ export function PaperSlotHeader({ paper }: { paper: PaperSettingsBinding }) {
           )}
         </span>
         {paper.update && (
-          <Chip size="md" onClick={paper.update}>
+          <Chip size="sm" onClick={paper.update}>
             {t('dialogs:settings.paper.presetChip.update', 'Update')}
           </Chip>
         )}
         {paper.modified && paper.editable && (
-          <Chip size="md" onClick={paper.revert}>
+          <Chip size="sm" onClick={paper.revert}>
             {t('dialogs:settings.paper.presetChip.revert', 'Revert')}
           </Chip>
         )}

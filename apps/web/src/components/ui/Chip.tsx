@@ -3,11 +3,10 @@ import styles from './Chip.module.css';
 
 export interface ChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /**
-   * `sm`, the default: the dense row in a panel — the tool window's groups and
-   * the crease-angle popover, which is where every chip was before this
-   * existed.
+   * `md`, the default: a row of quick picks in a panel — the tool window's
+   * groups and the crease-angle popover — as tall as the app's fields.
    *
-   * `md`: a header row, beside pills of the same height and weight — Settings
+   * `sm`: a header row, beside pills of the same height and weight — Settings
    * → Paper's Update and Revert, next to the pill naming the preset.
    */
   size?: 'sm' | 'md';
@@ -33,7 +32,7 @@ export interface ChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * A `className` is for placing the chip; how it looks is a `size`.
  */
 export const Chip = forwardRef<HTMLButtonElement, ChipProps>(
-  ({ size = 'sm', className, type = 'button', ...props }, ref) => (
+  ({ size = 'md', className, type = 'button', ...props }, ref) => (
     <button
       ref={ref}
       type={type}

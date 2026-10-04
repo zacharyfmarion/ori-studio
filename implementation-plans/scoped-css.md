@@ -160,7 +160,7 @@ and the whole of `MenuBar.css`.
 
 Moved by `implementation-plans/crease-angle-popover-tool-window-chrome.md`:
 `ui-chip`, into `Chip.module.css`, with Settings → Paper's
-`settings-paper__slot-action` override as `Chip`'s `size="md"`.
+`settings-paper__slot-action` override as `Chip`'s `size="sm"`.
 
 Still shared:
 

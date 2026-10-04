@@ -4546,21 +4546,26 @@ button.cp-folded-figure-toolbar__notice:hover {
   font-weight: 650;
 }
 
-/* A `NumberField`'s input (`data-number-field`) is excluded because it arrives
-   fully styled — 26px tall to match its own step buttons — and this rule's 22px
-   would leave the input a different height from the − / + boxes beside it. */
+/* The app's field size: 28px with 0.72rem text, the height of the text fields
+   in Settings and on the viewport bar, and of the chips beside these.
+
+   A `NumberField`'s input (`data-number-field`) is excluded because it arrives
+   fully styled — 26px tall to match its own step buttons — and this rule's
+   height would leave the input a different height from the − / + boxes beside
+   it. */
 .cp-context-panel__field input:not([data-number-field]),
 .cp-context-panel__field select,
 .cp-context-panel__field textarea {
-  height: 22px;
+  height: 28px;
   min-width: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font: inherit;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
-  padding: 2px 5px;
+  padding: 2px 8px;
 }
 
 .cp-context-panel__field textarea {

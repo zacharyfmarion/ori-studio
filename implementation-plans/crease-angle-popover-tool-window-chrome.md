@@ -79,9 +79,19 @@ here. Every other control primitive grows on a coarse pointer; chips now do
 too. That meant moving `ui-chip` out of theme.css, which Settings → Paper
 restyled from a global rule (`.settings-paper__slot-action`), so it is a move
 of a shared block, done in this PR at the user's call: first `Chip.module.css`
-with the override as `size="md"` and no change on screen, then the touch size
+with the override as a size and no change on screen, then the touch size
 — 44px tall, 14px type, on every chip. The popover's six presets wrap four and
 two at that size, so on touch they lay out three a row instead.
+
+**Fields and chips at the app's field size (added after review).** On a
+desktop the tool window's text fields were 22px with 10.9px text, and its chips
+18px — every other text field in the app (Settings, the viewport bar) is 28px
+with 11.5px text. The tool window's fields (`cp-context-panel__field`, edited in
+place) and its chips now take that size, so the popover's and Box Select's
+presets are as tall as the field beside them, as they are on touch. Chip's
+default size is that 28px row (`md`); Settings → Paper's 24px header chips are
+`sm`. Divided Line's ratio presets keep their 24px: at the larger type their
+labels would truncate further.
 
 ## Affected Areas
 
@@ -126,3 +136,6 @@ two at that size, so on touch they lay out three a row instead.
       focus and pressed, in both themes and coarse; screenshots identical
 - [x] Chips are 44px touch targets on a coarse pointer; the popover's presets
       three a row on touch; desktop unchanged (0 diffs, identical pixels)
+- [x] Desktop fields 22px → 28px and chips 18px → 28px in the tool window and
+      the popover; Settings → Paper unchanged; tool windows compared before
+      and after
