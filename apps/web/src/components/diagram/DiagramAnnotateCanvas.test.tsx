@@ -379,4 +379,43 @@ describe('DiagramAnnotateCanvas', () => {
     drag(at(-0.8, 0.5), at(0.3, 0.5), 1, 'mouse', stage());
     expect(annotations()).toHaveLength(1);
   });
+
+  it('hits nothing with a press past reach, beside a mark left on the edge of reach', () => {
+    const stepId = mount();
+    act(() => {
+      state().editDiagramAnnotations(stepId, 'Add annotation', () => [
+        { id: 'edge', kind: 'valley-arrow', from: [-4, 0.2], to: [0.3, 0.2], bend: 0.2 },
+      ]);
+    });
+    rerender();
+    // Two frames past the arrow's tail, on its row: empty stage.
+    pointer('pointerdown', at(-6, 0.2), 1, 'mouse', stage());
+    pointer('pointerup', at(-6, 0.2), 1, 'mouse', stage());
+    expect(state().diagramSelectedAnnotationId).toBeNull();
+    // Selected, its tail is not taken from there either.
+    act(() => state().selectDiagramAnnotation('edge'));
+    drag(at(-6, 0.2), at(-6, 0.6), 1, 'mouse', stage());
+    expect(annotations()[0]!.from).toEqual([-4, 0.2]);
+    // Its tail, pressed where it is, still is.
+    act(() => state().selectDiagramAnnotation('edge'));
+    drag(at(-4, 0.2), at(-4, 0.6), 1, 'mouse', stage());
+    expect(annotations()[0]!.from[1]).toBeCloseTo(0.6, 3);
+  });
+
+  it('holds a stroke’s pointer on the stage, whose cursor is the tool’s', () => {
+    mount();
+    tool('valley-line');
+    const holders: Element[] = [];
+    Element.prototype.setPointerCapture = function capture(this: Element) {
+      holders.push(this);
+    };
+    drag(at(0.2, 0.5), at(0.6, 0.5), 1, 'mouse', stage());
+    expect(annotations()).toHaveLength(1);
+    expect(holders).toEqual([stage()]);
+  });
+
+  it('sets its zoom pill on a solid ground, the stage being white in every theme', () => {
+    mount();
+    expect(host.querySelector('[data-viewport-toolbar]')?.getAttribute('data-tone')).toBe('raised');
+  });
 });

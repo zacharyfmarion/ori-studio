@@ -243,6 +243,13 @@ interface ViewportToolbarProps {
    * moving the view. Fit, one tap away in the menu, is the recovery.
    */
   phoneViewControls?: 'inline' | 'collapsed';
+  /**
+   * The bar's ground. `'overlay'`, the default, is see-through over the
+   * theme's own canvas; a surface that is white in every theme (Annotate's
+   * stage) takes `'raised'`, solid, since a dark theme's see-through ground
+   * turns mid-grey on white and its readout falls below contrast.
+   */
+  tone?: 'overlay' | 'raised';
 }
 
 /**
@@ -277,6 +284,7 @@ export function ViewportToolbar({
   rotateCwShortcutLabel,
   groups = [],
   phoneViewControls = 'inline',
+  tone = 'overlay',
 }: ViewportToolbarProps) {
   const { t } = useTranslation();
   const coarse = useIsCoarsePointerSurface();
@@ -434,7 +442,7 @@ export function ViewportToolbar({
       : plan.inline;
 
   return (
-    <Toolbar aria-label={ariaLabel} className={styles.placement} data-viewport-toolbar="">
+    <Toolbar aria-label={ariaLabel} className={styles.placement} tone={tone} data-viewport-toolbar="">
       {viewportToolbarSlots(inlineGroups).map((slot) =>
         slot.kind === 'separator' ? (
           <ToolbarSeparator key={slot.id} />

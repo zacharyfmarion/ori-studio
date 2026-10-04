@@ -32,7 +32,6 @@ import {
   isPointKind,
   moveAnnotation,
   moveAnnotationEnd,
-  withinReach,
   type PictureFrame,
   type PicturePoint,
 } from './annotationModel';
@@ -235,7 +234,10 @@ export function useAnnotateCanvas({
 
   /**
    * A client point in picture units, through the overlay's matrix wherever on
-   * the stage it is, and no further out than an annotation may reach.
+   * the stage it is. Not clamped to reach: the model keeps what a press makes
+   * or moves within it (`createAnnotation`, `moveAnnotationEnd`,
+   * `moveAnnotation`), and a press past the edge must not hit the mark at the
+   * edge as if it were on it.
    */
   const toPicture = useCallback(
     (clientX: number, clientY: number): PicturePoint | null => {
@@ -243,7 +245,7 @@ export function useAnnotateCanvas({
       const matrix = svg?.getScreenCTM();
       if (!svg || !matrix || !layout) return null;
       const point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
-      return withinReach([(point.x - layout.frame.x) / layout.unit, (point.y - layout.frame.y) / layout.unit]);
+      return [(point.x - layout.frame.x) / layout.unit, (point.y - layout.frame.y) / layout.unit];
     },
     [layout]
   );
@@ -304,10 +306,13 @@ export function useAnnotateCanvas({
         if (readOnly || !grip || !original) return;
         gesture.current = { mode: 'move', grip, original, start: at, ...press };
       }
-      event.currentTarget.setPointerCapture(event.pointerId);
+      // Held by the stage, not the view: a browser shows the cursor of the
+      // element holding a pointer, and the tool's crosshair is the stage's.
+      // Its events still bubble to these handlers on the view.
+      (transformRef.current?.instance.wrapperComponent ?? event.currentTarget).setPointerCapture(event.pointerId);
       event.preventDefault();
     },
-    [onStage, cancel, spacePressed, readOnly, layout, toPicture, tool, step.annotations, hitSizes, selectedId, known]
+    [onStage, cancel, spacePressed, readOnly, layout, toPicture, tool, step.annotations, hitSizes, selectedId, known, transformRef]
   );
 
   /** The annotation a move makes of `annotation`, the press at `at`. */

@@ -131,6 +131,7 @@ export function DiagramAnnotateCanvas({
         fitToView={fitToView}
         setZoomLevel={setZoomLevel}
         groups={[]}
+        tone="raised"
       />
     </div>
   );
