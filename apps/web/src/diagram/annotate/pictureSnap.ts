@@ -17,6 +17,7 @@ import {
   type DiagramAnnotation,
   type DiagramAsset,
   type DiagramStep,
+  type DiagramStyle,
   type KnownDiagramAnnotation,
 } from '../document/diagramDocument';
 import type { PicturePoint } from './annotationModel';
@@ -40,6 +41,8 @@ export interface SnapOptions {
   annotations?: readonly DiagramAnnotation[];
   /** An annotation never snapped to: the one being drawn or dragged, which would find itself. */
   ignore?: string;
+  /** The diagram's style, which says whether the picture's aux lines are drawn; all are read without one. */
+  style?: DiagramStyle;
 }
 
 /**
@@ -68,7 +71,7 @@ export function pictureSnapTarget(
   options: SnapOptions = {}
 ): SnapTarget | null {
   if (!(radius > 0)) return null;
-  const geometry = pictureGeometry(step, assets);
+  const geometry = pictureGeometry(step, assets, options.style);
   const annotations = annotationsOf(step, options);
   const candidates: SnapTarget[] = [];
   const vertex = geometry.points[geometry.pointIndex.query(point[0], point[1], radius)];

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CP_MODEL_TO_CSS } from '../../cp-workspace/snapRadius';
 import { CP_COARSE_POINTER_SNAP_RADIUS, CP_DEFAULT_SNAP_RADIUS } from '../../lib/cpSnapRadiusSetting';
 import { placePoint, snapOutcome, snapRadiusCss, snapRadiusUnits, snapsWhenPlaced, type SnapContext } from './annotateSnap';
+import { DEFAULT_DIAGRAM_STYLE } from '../document/diagramDocument';
 import { ANNOTATION_KINDS } from './annotationModel';
 import { annotation, uploadStep } from './pictureSnap.fixtures';
 
@@ -49,6 +50,7 @@ describe('placePoint', () => {
     annotations: [line],
     enabled: true,
     radius: 0.02,
+    style: DEFAULT_DIAGRAM_STYLE,
     ...overrides,
   });
 

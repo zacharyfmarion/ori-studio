@@ -6,6 +6,9 @@ import { referencesStep, stepDiagramPicture } from '../document/diagramSteps.fix
 import type { PicturePoint } from './annotationModel';
 import { annotation, FLAT, IN_3D, NO_ASSETS, sceneStep, uploadStep } from './pictureSnap.fixtures';
 import { rightAngleCorner, rightAnglesAt, type RightAngleCorner } from './rightAngles';
+import { pictureSnapTarget } from './pictureSnap';
+import { DEFAULT_PAPER_STYLE } from '../../lib/paper/paperStyle';
+import type { DiagramStyle } from '../document/diagramDocument';
 
 const crease = (a: ScenePoint, b: ScenePoint) => line('diagram-valley', a, b);
 
@@ -256,5 +259,41 @@ describe('rightAngleCorner by kind of picture', () => {
       expect(rightAnglesAt(back, NO_ASSETS, [0, 0])).toHaveLength(1);
       expect(rightAnglesAt(back, NO_ASSETS, [0.8, 1])).toHaveLength(2);
     });
+  });
+});
+
+describe('right angles and snapping with the aux lines the style leaves out', () => {
+  const auxPen = { width: 0.25, color: '#00ff00' as const, dash: null, cap: 'butt' as const };
+  const HIDDEN: DiagramStyle = { style: { ...DEFAULT_PAPER_STYLE, auxCreases: { visible: false, pen: auxPen } } };
+  const SHOWN: DiagramStyle = { style: { ...DEFAULT_PAPER_STYLE, auxCreases: { visible: true, pen: auxPen } } };
+
+  it('reads a References step’s aux lines only where the style draws them', () => {
+    const model: StepDiagramModel = {
+      sheet: { width: 1, height: 1 },
+      primitives: [
+        { kind: 'sheet', width: 1, height: 1 },
+        { kind: 'line', from: [0, 0], to: [1, 1], style: 'aux' },
+        { kind: 'line', from: [0.5, 0], to: [0.5, 0.3], style: 'aux' },
+      ],
+    };
+    const step = { ...referencesStep('step-aux'), picture: stepDiagramPicture(false, model) };
+    // Hidden: the bare corner is square, and a plain edge has no corner on it.
+    expect(rightAnglesAt(step, NO_ASSETS, [0, 1], { style: HIDDEN })).toHaveLength(1);
+    expect(rightAnglesAt(step, NO_ASSETS, [0.5, 1], { style: HIDDEN })).toEqual([]);
+    expect(rightAngleCorner(step, NO_ASSETS, [0.53, 0.97], 0.1, { style: HIDDEN })).toBeNull();
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.51, 0.69], 0.03, { style: HIDDEN })).toBeNull();
+    // Shown: the diagonal halves the corner, and the short line meets the edge square.
+    expect(rightAnglesAt(step, NO_ASSETS, [0, 1], { style: SHOWN })).toEqual([]);
+    expect(rightAnglesAt(step, NO_ASSETS, [0.5, 1], { style: SHOWN })).toHaveLength(2);
+    expect(pictureSnapTarget(step, NO_ASSETS, [0.51, 0.69], 0.03, { style: SHOWN })?.kind).toBe('end');
+  });
+
+  it('reads a fold’s aux lines as the style says, and a crease pattern’s always', () => {
+    const items = [face([SQUARE], { outline: 'edge' }), line('aux', [0, 0], [100, 100])];
+    const flat = sceneStep(items, FLAT);
+    expect(rightAnglesAt(flat, NO_ASSETS, [0, 0], { style: HIDDEN })).toHaveLength(1);
+    expect(rightAnglesAt(flat, NO_ASSETS, [0, 0], { style: SHOWN })).toEqual([]);
+    const pattern = sceneStep(items);
+    expect(rightAnglesAt(pattern, NO_ASSETS, [0, 0], { style: HIDDEN })).toEqual([]);
   });
 });

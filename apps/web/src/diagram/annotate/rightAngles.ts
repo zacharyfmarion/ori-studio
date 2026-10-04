@@ -77,7 +77,7 @@ export function rightAngleCorner(
   options: SnapOptions & { deadZone?: number } = {}
 ): RightAngleCorner | null {
   if (!(radius > 0)) return null;
-  const geometry = pictureGeometry(step, assets);
+  const geometry = pictureGeometry(step, assets, options.style);
   const drawn = drawnLines(annotationsOf(step, options));
   const vertex = nearestVertex(geometry, drawn, point, radius);
   if (!vertex) return null;
@@ -100,7 +100,7 @@ export function rightAnglesAt(
   at: PicturePoint,
   options: SnapOptions = {}
 ): RightAngleCorner[] {
-  const geometry = pictureGeometry(step, assets);
+  const geometry = pictureGeometry(step, assets, options.style);
   const rays = raysAt(geometry, drawnLines(annotationsOf(step, options)), at);
   if (rays.length < 2) return [];
   const corners: RightAngleCorner[] = [];

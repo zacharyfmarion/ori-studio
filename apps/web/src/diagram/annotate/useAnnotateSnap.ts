@@ -1,6 +1,6 @@
 import { useCallback, useState, type RefObject } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
-import type { DiagramAsset, DiagramStep } from '../document/diagramDocument';
+import type { DiagramAsset, DiagramStep, DiagramStyle } from '../document/diagramDocument';
 import { snapRadiusUnits, type SnapContext } from './annotateSnap';
 import type { SnapTarget } from './pictureSnap';
 
@@ -29,11 +29,13 @@ function sameTargets(a: readonly SnapTarget[], b: readonly SnapTarget[]): boolea
 export function useAnnotateSnap({
   step,
   assets,
+  style,
   overlay,
   unit,
 }: {
   step: DiagramStep;
   assets: Readonly<Record<string, DiagramAsset>>;
+  style: DiagramStyle;
   overlay: RefObject<SVGSVGElement | null>;
   /** World px per picture unit; null before the picture is laid out. */
   unit: number | null;
@@ -51,8 +53,9 @@ export function useAnnotateSnap({
       annotations: step.annotations,
       enabled,
       radius: unit === null ? 0 : snapRadiusUnits(setting, screenPerWorld * unit),
+      style,
     };
-  }, [step, assets, enabled, setting, overlay, unit]);
+  }, [step, assets, style, enabled, setting, overlay, unit]);
 
   /** Show these targets — none to clear them — re-rendering only for a change. */
   const show = useCallback((next: readonly (SnapTarget | null)[]) => {

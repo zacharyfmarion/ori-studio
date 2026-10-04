@@ -24,12 +24,15 @@
 import type { PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { distanceToSegment, LineHitIndex, type IndexedSegment } from '../../cp-workspace/picking/lineHitIndex';
 import { sheetCorners } from '../../cp-workspace/references/stepDiagramGeometry';
+import { referencesShowsAux } from '../../cp-workspace/references/referencesAuxCreases';
 import type {
   DiagramAsset,
   DiagramScenePicture,
   DiagramStep,
   DiagramStepDiagramPicture,
+  DiagramStyle,
 } from '../document/diagramDocument';
+import { diagramPaperStyle, diagramScenePaintStyle } from '../pictures/diagramPaperStyle';
 import { stepPictureSource } from '../pictures/paintDiagramStep';
 import { stepDiagramToPicture } from '../pictures/paintStepDiagram';
 import { storedScene } from '../pictures/pictureFrame';
@@ -92,35 +95,42 @@ const NO_GEOMETRY: PictureGeometry = {
   segmentIndex: new LineHitIndex([]),
 };
 
-const scenes = new WeakMap<DiagramScenePicture, PictureGeometry>();
-const stepDiagrams = new WeakMap<DiagramStepDiagramPicture, PictureGeometry>();
+const scenes = new WeakMap<DiagramScenePicture, { geometry: PictureGeometry; aux: boolean }>();
+const stepDiagrams = new WeakMap<DiagramStepDiagramPicture, { geometry: PictureGeometry; aux: boolean }>();
 
 /**
  * A step's picture's geometry, worked out once per picture object — a
  * picture is never changed in place, so one worked out is right for as long
- * as anything holds it. Empty for a step with nothing to read.
+ * as anything holds it. Empty for a step with nothing to read. Its aux lines
+ * count only where the diagram's `style` draws them, as its painters decide
+ * (every one when no style is given).
  */
 export function pictureGeometry(
   step: DiagramStep,
-  assets: Readonly<Record<string, DiagramAsset>>
+  assets: Readonly<Record<string, DiagramAsset>>,
+  style?: DiagramStyle
 ): PictureGeometry {
   const source = stepPictureSource(step, assets);
   switch (source?.kind) {
     case 'scene': {
       const kind = sceneKind(step, source.picture);
+      // A crease pattern always shows its aux lines; a fold, as the style says (`paintScene`).
+      const aux = !style || diagramScenePaintStyle(style, source.pattern).auxCreases.visible;
       const cached = scenes.get(source.picture);
       // One picture is shown one way; asked another, it is read again rather than misread.
-      if (cached?.kind === kind) return cached;
+      if (cached?.geometry.kind === kind && cached.aux === aux) return cached.geometry;
       const scene = storedScene(source.picture);
-      const geometry = scene ? sceneGeometry(scene, kind) : { ...NO_GEOMETRY, kind };
-      scenes.set(source.picture, geometry);
+      const geometry = scene ? sceneGeometry(scene, kind, aux) : { ...NO_GEOMETRY, kind };
+      scenes.set(source.picture, { geometry, aux });
       return geometry;
     }
     case 'step-diagram': {
+      // As `stepDiagramScene` draws it.
+      const aux = !style || referencesShowsAux(diagramPaperStyle(style), null);
       const cached = stepDiagrams.get(source.picture);
-      if (cached) return cached;
-      const geometry = stepDiagramGeometry(source.picture);
-      stepDiagrams.set(source.picture, geometry);
+      if (cached?.aux === aux) return cached.geometry;
+      const geometry = stepDiagramGeometry(source.picture, aux);
+      stepDiagrams.set(source.picture, { geometry, aux });
       return geometry;
     }
     case 'asset':
@@ -152,7 +162,7 @@ function sceneKind(step: DiagramStep, picture: DiagramScenePicture): 'crease-pat
   return picture.paperScale === null ? 'projected' : 'crease-pattern';
 }
 
-function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' | 'projected'): PictureGeometry {
+function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' | 'projected', aux: boolean): PictureGeometry {
   const { minX, minY, maxX, maxY } = scene.bounds;
   const longer = Math.max(maxX - minX, maxY - minY);
   if (!(longer > 0)) return { ...NO_GEOMETRY, kind };
@@ -167,6 +177,8 @@ function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' |
       if (kind === 'projected') continue;
       for (const ring of item.rings) builder.ring(ring.map(toPicture), kind === 'crease-pattern');
     } else if (item.kind === 'line') {
+      // An aux line the style leaves out is no line of the picture.
+      if (item.role === 'aux' && !aux) continue;
       // A piece cut where another layer covers it ends at the cut; its crease
       // ends at its vertices, and is one line however many pieces carry it.
       const { a, b } = item.whole ?? item;
@@ -185,7 +197,7 @@ function sceneGeometry(scene: PaperScene, kind: 'crease-pattern' | 'flat-fold' |
   });
 }
 
-function stepDiagramGeometry({ model, mirrored }: DiagramStepDiagramPicture): PictureGeometry {
+function stepDiagramGeometry({ model, mirrored }: DiagramStepDiagramPicture, aux: boolean): PictureGeometry {
   const toPicture = stepDiagramToPicture(model, mirrored);
   const builder = new GeometryBuilder();
   builder.ring(sheetCorners(model.sheet).map(toPicture), true);
@@ -193,7 +205,9 @@ function stepDiagramGeometry({ model, mirrored }: DiagramStepDiagramPicture): Pi
     switch (primitive.kind) {
       case 'line':
         // An arrow's shaft is a mark, not a line of the paper.
-        if (primitive.style !== 'arrow') builder.line(toPicture(primitive.from), toPicture(primitive.to));
+        // An aux line the style leaves out is no line of the paper either.
+        if (primitive.style === 'arrow' || (primitive.style === 'aux' && !aux)) break;
+        builder.line(toPicture(primitive.from), toPicture(primitive.to));
         break;
       case 'point':
         builder.point(toPicture(primitive.at), 'point');

@@ -259,7 +259,7 @@ export function useAnnotateCanvas({
   /** The last pointer over the stage, for a key that changes what it would snap to without a move. */
   const lastPointer = useRef<PointerInput | null>(null);
   const [draft, setDraft] = useState<KnownDiagramAnnotation | null>(null);
-  const snap = useAnnotateSnap({ step, assets, overlay, unit: layout?.unit ?? null });
+  const snap = useAnnotateSnap({ step, assets, style, overlay, unit: layout?.unit ?? null });
   const { context: snapContext, show: showSnap } = snap;
 
   const cancel = useCallback(() => {

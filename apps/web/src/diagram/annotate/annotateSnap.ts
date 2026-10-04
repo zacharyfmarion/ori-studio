@@ -8,7 +8,13 @@
  */
 import type { DiagramAnnotationSnap } from '../../analytics/events';
 import { CP_MODEL_TO_CSS } from '../../cp-workspace/snapRadius';
-import type { DiagramAnnotation, DiagramAnnotationKind, DiagramAsset, DiagramStep } from '../document/diagramDocument';
+import type {
+  DiagramAnnotation,
+  DiagramAnnotationKind,
+  DiagramAsset,
+  DiagramStep,
+  DiagramStyle,
+} from '../document/diagramDocument';
 import type { PicturePoint } from './annotationModel';
 import { pictureSnapTarget, type SnapTarget } from './pictureSnap';
 
@@ -64,6 +70,8 @@ export interface SnapContext {
   enabled: boolean;
   /** In picture units, at the zoom the press is made at. */
   radius: number;
+  /** The diagram's style: an aux line it leaves out of the picture is no target. */
+  style: DiagramStyle;
 }
 
 /** Where a point lands, and what it snapped to, if anything. */
@@ -87,6 +95,7 @@ export function placePoint(
   const target = pictureSnapTarget(context.step, context.assets, point, context.radius, {
     annotations: context.annotations,
     ignore,
+    style: context.style,
   });
   return target ? { at: target.at, target } : { at: point, target: null };
 }
