@@ -1204,6 +1204,48 @@ workspace.")*
   step's picture are separate things. Open in Edit still frames a step's
   region.
 
+**D22. Turning the model over or round is not a step.**
+*(Zach, 2026-10-03: "Turn over and rotate steps should be separate concepts
+that take up a step but are rendered in between steps, not as their own steps
+and don't count towards the numbers"; on pages, "in the gutter".)*
+
+- **What a turn is.** An entry in the diagram's one ordered list, beside the
+  steps — a turn-over (`axis`: side to side, or top to bottom) or a rotation
+  (an eighth, a quarter or a half, either way) — with no picture, no
+  instruction and no number. Being an entry, it is selected, moved, deleted
+  and undone as a step is; being unnumbered, the steps either side of it read
+  3 and 4. Numbers are still never stored: a step's number counts the steps
+  before it, turns left out, as References numbers its folds
+  (`foldCardNumbers`).
+- **Where it shows.** In the steps grid, a round chip with the turn's glyph in
+  the gap between the two cards it sits between. In the detail, ‹ › and the
+  arrows walk the steps only. In the Step pane, a turn shows what it is, where
+  it is ("Between steps 4 and 5") and its own controls.
+- **On a page** (Zach: "in the gutter"): the glyph prints between the two
+  pictures. A diagram with any turn reserves a gutter between all its pictures,
+  so one paper scale stays one scale; across a row or page break the glyph sits
+  at the leading edge of the next step's picture. A step file has no turn: the
+  ZIP's notice says so.
+- **Made from** Add step ▾ › Turn Over / Rotate, the card menu's Insert Turn
+  Over / Rotate After, and References: a References turn-over card is pulled
+  as a turn-over, never as a numbered step, and never fills or replaces one.
+  On-picture turn-over and rotate symbols (Annotate) are unchanged.
+
+**D23. Pose chooses among a step's ways to fold.**
+*(Zach, 2026-10-03: "In the pose view for a linked step, you should be able to
+choose any of the options for that step if there are multiple options for how
+to fold it" — both readings.)*
+
+- **A References step** whose card offered other ways (#430's ways, up to four)
+  gets a Way chooser in Pose and the Step pane: Way 1 is the planner's pick.
+  Choosing redraws the picture from the cached plan, keeps the step's side,
+  and takes the card's sentence only while the instruction is still the old
+  card's own. One undo step. With the plan gone (re-planned, edited, another
+  file) the chooser says why and offers Replace from References….
+- **A linked step shown Folded** (flat) gets ‹ Layer order n of m › — Previous
+  as well as Next, m counting what has been found so far ("5+" while more may
+  exist) — rather than Next alone.
+
 ### Contracts
 
 A React-free leaf module, `apps/web/src/diagram/document/diagramDocument.ts`,
@@ -2922,6 +2964,34 @@ insert steps at a chosen place without the latch.
     (54/54) and `check:desktop` all pass. The CHANGELOG section is written by
     `scripts/release.sh prepare --notes` at release, so the entry is drafted
     in the PR body; the README has a paragraph on the Diagram.
+
+### Phase 11: Zach's first pass (2026-10-03)
+
+Four requests after Phase 10, with D22 and D23 above.
+
+- [ ] **11a. The References browser is a modal** (amends D20). A dialog over
+  the Diagram rather than its centre, at the App root, a shortcut barrier that
+  owns its keys; full screen on a phone, its list and detail inside. The step
+  detail stays open behind it.
+  - Selection: a press **toggles** a card; Shift+press adds the range from the
+    last card pressed to this one, **both ends included** — the Finished card
+    of a finished plan too (it was left out of ranges, which is why a range to
+    the last card missed it); Cmd/Ctrl+press is a press. A double-click no
+    longer adds (it would undo a toggle). Keys, the listbox's own: arrows,
+    Home, End move; Space toggles; Shift with a move extends; Cmd/Ctrl+A all;
+    Enter adds; Escape closes.
+- [ ] **11b. A step can be added before step 1.** Every card owns the gap
+  before it (the first card's in the grid's padding), the trailing tile the
+  place after the last.
+- [ ] **11c. Turns (D22).** The model and file, the number helper and its
+  consumers, the grid's chips and the Step pane, the verbs, References' pull,
+  the pages' gutter and glyph, step files, analytics, i18n.
+- [ ] **11d. Pose options (D23).** Ways for a References step (the pull records
+  the order its picture was drawn in); ‹ Layer order n of m › for a linked
+  folded step.
+- [x] **11e. Flip's glyph** is Edit's folded-figure Flip (`RotateCcwSquare`)
+  in Pose and the linked-step controls.
+- [ ] **Review**, and its fixes committed; the PR updated.
 
 ### Later (written up, not built)
 
